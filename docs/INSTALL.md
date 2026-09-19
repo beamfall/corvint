@@ -190,6 +190,31 @@ Open its loopback address, default `http://127.0.0.1:7777`, in your browser. Sto
 It installs no background service. Consult the bundle manifest and exact release evidence before
 relying on a browser/platform tuple.
 
+### Work queue adoption
+
+`corvint work observe` needs a committed queue policy, worklist, and adapter. Create them once per
+repository, with `corvint` installed in `/opt/homebrew/bin` or `/usr/local/bin`:
+
+```sh
+corvint work init --repository NAME
+git add .corvint && git commit -m "Adopt the Corvint work queue"
+corvint work observe
+corvint work propose-wave --envelope capacity.json --limit 4
+```
+
+`init` refuses if any of the three files already exists. Add tickets to `.corvint/worklist.json`
+(`{"profile":"corvint-worklist/0","tickets":[{"id":…,"title":…,"body":…,"touchPaths":[…]}]}`)
+and commit before observing. The capacity envelope names `capacity:NAME:worklist:agent`, the
+capability `capability:NAME:worklist:agent`, and `repo:NAME`. Neither command dispatches, leases,
+merges, or runs anything.
+
+| What you see | Cause |
+|---|---|
+| `ERROR` / `SOURCE_UNQUALIFIED` | no committed adoption, or uncommitted changes in the worktree |
+| `ERROR` / `ADAPTER_FAILED` | `corvint` is not in `/opt/homebrew/bin` or `/usr/local/bin` |
+| observation `STALE`, empty proposal | the worklist or commit changed while observing |
+| `VALIDATED_AT` with `CONTAINMENT_UNQUALIFIED`, `EXECUTABLE_IDENTITY_UNQUALIFIED`, `MUTATION_ENFORCEMENT_UNQUALIFIED`, `NETWORK_UNOBSERVED` | expected: these stay unknown on a local install |
+
 ## Upgrade, retry and remove
 
 Install a new version into a new directory. Stop active console/provider processes and let the MCP

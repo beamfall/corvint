@@ -86,7 +86,7 @@ The proposed delivery sequence and acceptance criteria are in
 
 - `PUB-V0-011`: `cmd/corvint-companion-release` (package `internal/companionrelease`) MUST implement
   the `PUB-V0-002..004` companion bundle as one command taking two explicit clean checkout roots
-  (Corvint and corvint-taskman) and a single target. It MUST refuse any target other than
+  (Corvint and Corvint Tasks, source module `github.com/Beamfall/corvint-tasks`) and a single target. It MUST refuse any target other than
   `darwin/arm64` and MUST report `darwin/amd64`, `linux/amd64`, `linux/arm64` and `windows/amd64`
   as `NOT_RUN` in every emitted report. It MUST refuse to start unless both checkout roots pass a
   `git status --porcelain` clean-tree check, and MUST refuse an output location nested inside
@@ -475,9 +475,9 @@ native Go artifact; no ticket-store format or persisted-state migration is intro
 (opt-in `make companion-release-gate`, deliberately not a `go-archive-gate`/`gate` prerequisite:
 it rebuilds four binaries twice each and is far too slow for the gate). The script is a thin
 wrapper, matching `script/go-archive-gate`'s own convention: it sets up an isolated environment,
-takes a fresh local clone of the caller's `corvint-taskman` checkout (so an in-progress, uncommitted
+takes a fresh local clone of the caller's `corvint-tasks` checkout (so an in-progress, uncommitted
 working tree there never blocks or is mutated by the bundle build) as the pinned clean
-`corvint-taskman` root, and invokes `cmd/corvint-companion-release` once for `darwin/arm64` — the
+`corvint-tasks` root, and invokes `cmd/corvint-companion-release` once for `darwin/arm64` — the
 double-build/double-archive-assembly-must-agree requirement is enforced inside that command
 itself (`internal/companionrelease`, `buildComponentTwice` and `buildTarGzTwice`), per
 `PUB-V0-011..015`. A refused or failed run retains no output and prints no `qualified` claim

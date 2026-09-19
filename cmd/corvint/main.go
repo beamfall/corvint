@@ -812,6 +812,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			if workErr != nil {
 				return emitWorkError(stdout, "MALFORMED_INPUT")
 			}
+			if exit, adopted := runWorkAdoption(ctx, root, rest, stdout, stderr); adopted {
+				return exit
+			}
 			return runWork(ctx, root, rest, stdout, stderr)
 		}
 		if root, rest, isLocalCompletion, localCompletionErr := parseLocalCompletionInvocation(arguments); isLocalCompletion {

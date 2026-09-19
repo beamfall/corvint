@@ -242,6 +242,8 @@ Usage:
   corvint [--root PATH] batch < REQUEST
   corvint [--root PATH] work observe
   corvint [--root PATH] work propose-wave --envelope PATH --limit N
+  corvint [--root PATH] work init --repository NAME
+  corvint [--root PATH] work adapter snapshot|details|verify
   corvint [--root PATH] prove --task TEXT [--limit N] [--budget-bytes N]
   corvint [--root PATH] prove [--limit N] [--mutate] PATH...
   corvint [--root PATH] prove --base FULL_COMMIT_ID [--limit N] [--mutate]
@@ -405,10 +407,17 @@ const workHelp = `Validate a repository queue observation or compile a non-opera
 Usage:
   corvint [--root PATH] work observe
   corvint [--root PATH] work propose-wave --envelope PATH --limit N
+  corvint [--root PATH] work init --repository NAME
+  corvint [--root PATH] work adapter snapshot|details|verify
 
-Prints one work-command-result/0 document on stdout. Neither operation claims,
-leases, dispatches, edits, or closes work; a proposal authorizes nothing.
-Malformed command input yields state ERROR with MALFORMED_INPUT.
+observe and propose-wave print one work-command-result/0 document on stdout.
+Neither claims, leases, dispatches, edits, or closes work; a proposal authorizes
+nothing. Malformed command input yields state ERROR with MALFORMED_INPUT.
+
+init writes .corvint/work-queue-policy.json, .corvint/worklist.json and the
+executable .corvint/work-queue-adapter for the operator to review and commit; it
+refuses when any of them exists. adapter is what that committed script runs: it
+prints one adapter document for the worklist in the qualified committed source.
 `
 
 const proveObserveHelp = `Record one prove document's verdict counts in the local self-observation ledger.

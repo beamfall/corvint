@@ -7,9 +7,20 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-19 NTP-V0 integration with repository work-queue adoption
+
+The owner authorized merging the verified fixture extension. Current main `d9144000` also
+implements WQO repository adoption; the combined command keeps native fixture dispatch separate
+from adoption and shadow observation. Both build-log entries are preserved. The fixture decision
+is renumbered from 0321 to 0322 because the adoption decision already owns 0321 on main; accepted
+requirements and the original prerequisite approval are unchanged. Historical review receipts keep
+their original identifiers. The completed `1f639857` gate and `66c33c02` seal remain prior evidence;
+integration requires a new current-main CEM/OCM binding and checks on the combined clean target.
+GP, live reservations, CONFIG_PIN, admission and production promotion remain held.
+
 ## 2026-09-19 NTP-V0 native taskman fixture planning
 
-Decision 0321 records the owner's accepted prerequisite amendment and pre-edit baseline freeze.
+Decision 0322 records the owner's accepted prerequisite amendment and pre-edit baseline freeze.
 The opt-in `work plan-fixture` reads a native fixture journal through fixed audit/status/export
 commands, then emits a source-bound priority-first plan. WQO shadow selection is unchanged.
 A built task-store fixture selected P0 touching A+B over the larger P1(A)/P2(B) wave; two complete
@@ -39,6 +50,72 @@ only, complete workloads/allocation/I/O/environment witnesses and real runtime c
 No executor admission, CONFIG_PIN, production completion, real-queue cutover or performance promotion
 is claimed. The explicit executor dependency handoff remains open.
 
+## 2026-09-19 WQO-V0-046..048 repository work-queue adoption (decision 0321, Beamfall/corvint#20)
+
+Before this change, `corvint work observe` could never return `VALIDATED_AT`. `workManifest.complete`
+was never set, so WQO-V0-017 always added `SOURCE_UNQUALIFIED` and `propose-wave` always abstained.
+`corvint work init` and `corvint work adapter` now give any repository a committed policy,
+worklist, and adapter. The observer qualifies store scope only when it reproduces the
+`repository-worklist-v0` documents byte for byte.
+
+A first cut qualified both closed mappings. It turned Corvint's own `decision-0046-v0` observations
+`VALIDATED_AT` and broke the WQO-V0-021/025/032 final-check witnesses in `cmd/corvint`, which rely
+on an incomplete initial capture ("initial capture did not retain incomplete scope"; three
+`WQO-V0-032` codes became `MALFORMED_INPUT`). Restricting qualification to the adoption mapping kept
+those witnesses and the self-dogfood contract unchanged.
+
+Pre-landing review reproduced a symlink escape and an interrupted-write residue in `work init`.
+The repair roots every write with `os.Root`, rejects a symlinked `.corvint`, delays success output,
+and rolls back files created by a failed or racing initialization.
+
+A second independent review found that init still accepted a plain directory or repository
+subdirectory, a partial committed adoption without the worklist surfaced `ADAPTER_FAILED` instead
+of `SOURCE_UNQUALIFIED`, and the generated adapter unnecessarily required Bash. The repair refuses
+non-root targets before writing, preflights the committed adoption worklist with the other source
+inputs, and emits the POSIX-only adapter with `/bin/sh`.
+
+The first canonical-gate attempt after that repair intentionally did not qualify: the release
+artifact conformance test refused the staged repair as a dirty worktree. The repair was committed
+unchanged before rerunning the gate from clean, frozen source.
+
+After the final evidence seal, current `main` advanced with the accepted corvid artwork. Merging it
+correctly invalidated the pinned README workflow citation because the themed logo moved that span by
+one line. The canonical gate refused the stale pin; the repair relocates it to
+`README.md:188-198@3297e31e` without changing the cited workflow.
+
+`TestWorkAdoptedRepositoryWorklist` starts from a clean fixture and runs init, a refused second
+init, commit, observe, and propose-wave over four verification tickets. One is a suite batch, one a
+failure-classification repair, one a test-validity receipt, and one a cleanup/retry that shares
+`internal/parser`. The result is `VALIDATED_AT/UNCHANGED_OBSERVED`, `ELIGIBLE_AT` with three
+tickets selected, the cleanup/retry ticket `EXCLUDED` with its collision group, and a byte-identical
+repository manifest. A scratch-repository probe of the built binary recorded the unknowns:
+`ERROR/SOURCE_UNQUALIFIED` with no policy, with an uncommitted adoption, and with a tracked
+modification, and `ERROR/ADAPTER_FAILED` when `corvint` is absent from the fixed `PATH`.
+
+## 2026-09-19 CRB-V0-014: owner-selected corvid artwork
+
+The owner selected the first, corvid direction from three generated concepts and then approved
+adoption ("look good. use it"). The chosen silhouette
+was redrawn as editable SVG with a custom lowercase wordmark; the light, dark and universal mark
+and lockup variants share geometry. The README selects a theme-appropriate lockup; the 24 px editor
+icon inherits its host color. `assets/brand/README.md` records usage, raster dimensions and rollback.
+
+Manual asset checks passed: SVG parsing, accessible titles/descriptions, no font or external-image
+dependencies, PNG dimensions/alpha, shared variant geometry and README references. Independent
+Codex review passed with no material findings, including comparison to the selected concept,
+24 px legibility and exact SVG-to-PNG rendering parity. Requirement-index regeneration and focused
+spec-requirement, requirement-definition and decision-number checks passed using an isolated index
+containing the updated spec; `git diff --check` passed. Go/runtime code is unchanged; the full Go
+and release gates were not run for this manual artwork slice, and installed editor qualification
+remains unclaimed.
+
+Pre-change Corvint query ran against `6a423ac091d848b8ac5b49e8002c61c252993ac3`, with three ranked
+results omitted and two test-path candidates withheld. Dirty-Go advice, mutation and retrieval
+evaluations are not applicable. The initial `make dogfood-change` returned `not-complete`
+(`cem-prepare: git-diff-failed`, missing intent scope and outcome input); it is not passing evidence.
+Post-commit CEM/OCM qualification is NOT_PRODUCED for this manual asset slice; native
+CEM's PNG binary-patch limitation remains explicit. Original query, generation prompts and manual
+asset hashes are retained in `/tmp/corvint-logo-20260919/` for this task.
 ## 2026-09-18 EEP-V0 provider-to-impact workflow: synthetic fixture evaluation, and unsupported cases
 
 `TestImpactProviderEvaluation` (`internal/extevidence/extevidence_test.go`) runs the

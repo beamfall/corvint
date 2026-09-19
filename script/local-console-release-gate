@@ -47,7 +47,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$taskman_root" ]; then
-  echo "local-console-release-gate: set CORVINT_COMPANION_TASKMAN_ROOT to a clean corvint-taskman checkout" >&2
+  echo "local-console-release-gate: set CORVINT_COMPANION_TASKMAN_ROOT to a clean corvint-tasks checkout" >&2
   exit 2
 fi
 

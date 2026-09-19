@@ -1869,7 +1869,7 @@
     "title": "Work Queue Observation V0",
     "reqPrefix": "WQO-V0",
     "intent": "accepted (decision 0046, 2026-09-04)",
-    "delivery": "experimental (core library, `corvint work observe` and `propose-wave`, the Corvint self-dogfood adapter, and `conformance/work-queue-v0` landed 2026-09-04; Beamfall adapter, independent recorder, and the 500 shadow cycles NOT_RUN)",
+    "delivery": "experimental (core library, `corvint work observe` and `propose-wave`, the Corvint self-dogfood adapter, and `conformance/work-queue-v0` landed 2026-09-04; repository adoption through `corvint work init` and `corvint work adapter` landed 2026-09-19 under decision 0321; Beamfall adapter, independent recorder, and the 500 shadow cycles NOT_RUN)",
     "claim": "Read-only queue snapshots produce deterministic shadow proposals, derived path clashes, and the largest collision-free wave, authorizing nothing.",
     "dependsOn": [],
     "supersededBy": null,
@@ -1878,6 +1878,7 @@
       "internal/workqueue",
       "cmd/corvint",
       "cmd/corvint-work-queue",
+      "internal/worklistadapter",
       "script/corvint-work-queue",
       "conformance/work-queue-v0"
     ]
@@ -2046,7 +2047,7 @@
     "path": "docs/specs/native-taskman-planning-v0.md",
     "title": "Native taskman fixture planning V0",
     "reqPrefix": "NTP-V0",
-    "intent": "accepted fixture scope (decision 0321)",
+    "intent": "accepted fixture scope (decision 0322)",
     "delivery": "experimental",
     "claim": "Read-only native fixture priority-first planning with explicit incomplete coverage.",
     "dependsOn": [

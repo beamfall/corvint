@@ -989,6 +989,13 @@ func TestBundleReportsNameNotRunTargetsAndBrowserScope(t *testing.T) {
 			t.Fatalf("MANIFEST.json does not carry the four NOT_RUN targets:\n%s", manifestJSON)
 		}
 	})
+	t.Run("WQO-V0-047 adoption-record", func(t *testing.T) {
+		for _, want := range []string{"corvint-tasks --version", "github.com/Beamfall/corvint-tasks", "corvint work init --repository NAME", ".corvint/work-queue-policy.json", "adapter\nreceipt", "ERROR/SOURCE_UNQUALIFIED", "ERROR/ADAPTER_FAILED", "STALE"} {
+			if !strings.Contains(readme, want) {
+				t.Fatalf("README does not record %q:\n%s", want, readme)
+			}
+		}
+	})
 	t.Run("PUB-V0-015 browser-scope-record", func(t *testing.T) {
 		if !strings.Contains(readme, "Browser/UI qualification is a separate, explicitly out-of-scope step") {
 			t.Fatalf("README does not name browser/UI qualification as out of scope:\n%s", readme)

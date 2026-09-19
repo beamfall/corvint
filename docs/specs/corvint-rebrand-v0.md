@@ -63,12 +63,14 @@ The user needs the unreleased product to acquire one coherent public identity be
   presentation. It MUST preserve frozen `corvint.*` MCP tool/profile bytes and the VSC-V0
   configuration trust, pinning, and native-argv behavior. Publisher
   ownership and installed-host qualification remain unverified.
-- `CRB-V0-014`: The existing brand asset family MUST use a continuous open-route C mark and custom
-  CORVINT vector wordmark in its monochrome light, dark, and white-with-black-keyline forms. The VS
-  Code activity icon MUST remain readable at 24 px. SVG is the source and PNGs are rendered outputs.
-  The full asset family is integrated through a separate manual asset slice whose exact SVG and PNG
-  bytes match the independently reviewed artwork. Native CEM does not support the PNG binary patch;
-  manual byte, format, dimension, and retained visual-review evidence remains explicit.
+- `CRB-V0-014`: The brand asset family MUST use the corvid silhouette selected by the owner on
+  2026-09-19 ("I like the first one") and a custom lowercase `corvint` vector wordmark. Transparent
+  dark-ink/light-background and white-ink/dark-background variants MUST share the same geometry;
+  universal variants MUST use white artwork on a dark rounded tile. The README MUST select the
+  matching light/dark lockup, and the VS Code activity icon MUST remain readable at 24 px and inherit
+  the host color. SVG is the source; PNGs are rendered outputs. The artwork is manually qualified
+  by SVG parsing, reference checks, PNG format/dimensions, and independent visual review. Native CEM
+  does not support the PNG binary patch; this limitation MUST remain explicit.
 - `CRB-V0-015`: The standalone Console MUST present as `Corvint Console`, build from retained source
   package `cmd/corvint-console` to `corvint-console`, and default to adjacent `corvint-tasks` and
   `corvint-dashboard-snapshot` before `PATH` names.
@@ -175,7 +177,7 @@ compatibility identities.
 | CRB-V0-010, CRB-V0-011 | `integrations/opencode/{package.json,src/index.js,src/runtime.js}` | single-name and empty-selector refusal fixture cases |
 | CRB-V0-012 | host manifests, compatibility metadata, unchanged legacy protocol fields | package-version gate, residue review, unchanged FALLBACK/NOT_RUN assertions |
 | CRB-V0-013 | `extensions/vscode`, `conformance/vscode-extension-v0` | native executable/MCP/config fixtures, extension check, package listing, conformance runner; installed host remains `NOT_RUN` |
-| CRB-V0-014 | `assets/brand/corvint-{lockup-universal,mark-dark,mark-light,mark-universal}.{svg,png}` and `extensions/vscode/media/corvint.svg` | exact historical blob/SHA-256 equality, SVG parse and internal-reference inspection, PNG format/dimensions, and retained independent visual review; PNG binary-patch refusal remains unsupported by native CEM |
+| CRB-V0-014 | `assets/brand/corvint-{lockup,mark}-{light,dark,universal}.{svg,png}`, root `README.md`, and `extensions/vscode/media/corvint.svg` | SVG parse and reference checks, matching geometry across variants, PNG format/dimensions, README theme selection, and independent visual review; PNG binary patches remain unsupported by native CEM |
 | CRB-V0-015 | `cmd/corvint-console`, `cmd/corvint-dashboard-snapshot`, `internal/console` | focused compatibility/default tests and the isolated standalone console proof |
 | CRB-V0-018 | `internal/runtimeenv`, `cmd/corvint`, `internal/contextindex`, `internal/localcompletion`, dogfood helpers and CEM example | `TestResolveNamespace`, `TestRuntimeEnvironmentCurrentSnapshotSettings`, `TestRuntimeEnvironmentStripsExecutableOverrides`, and `script/runtime-environment_test.sh` |
 | CRB-V0-016 | three retained MCP command packages, two retained live-provider command packages, and `extensions/vscode/src/mcp.ts` | isolated five-binary handshake proof, MCP conformance, provider regressions, and current/unknown/drift client fixtures |

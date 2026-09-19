@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-09-19
-Intent status: accepted fixture scope (decision 0321)
+Intent status: accepted fixture scope (decision 0322)
 Delivery status: experimental
-Authoritative inputs: decision 0321, `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
+Authoritative inputs: decision 0322, `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/work-queue-observation-v0.md`, and the source-bound sibling task-store SPEC.
 
 ## Agent digest
 - Claim: Read-only native fixture priority-first planning with explicit incomplete coverage.
-- Status: accepted fixture scope (decision 0321)/experimental; GP and production promotion held.
+- Status: accepted fixture scope (decision 0322)/experimental; GP and production promotion held.
 - Exists: native read adapter, pure planner and focused fixture/refusal tests; frozen pre-edit preregistration.
 - Blocked on: live reservations, admission, CONFIG_PIN and GP remain executor/promotion dependencies.
 - Read next: Requirements; Fixture input and receipt; Acceptance and rollback.
@@ -25,7 +25,7 @@ This slice is an explicit trusted-local fixture experiment. It launches only a c
 executor with fixed read commands, never executes ticket prose, and grants no admission authority.
 No daemon, network dependency, queue writer, live runtime, production reservation oracle or default
 startup work is added. Missing original ATCP documents remain unrecovered; exact ATCP conformance is
-not asserted. Current source identities, not substitutes for those originals, are retained in decision 0321.
+not asserted. Current source identities, not substitutes for those originals, are retained in decision 0322.
 
 ## Requirements
 

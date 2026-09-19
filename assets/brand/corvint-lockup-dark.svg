@@ -1,7 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 200" role="img" aria-labelledby="title desc">
   <title id="title">Corvint</title>
   <desc id="desc">A corvid silhouette formed by a watchful head and a sweeping wing, beside the lowercase corvint wordmark.</desc>
-  <rect width="820" height="200" rx="24" fill="#111216"/>
   <g fill="#ffffff">
     <g transform="translate(20 14) scale(.45)">
     <g transform="translate(38 35)" fill-rule="evenodd">

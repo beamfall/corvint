@@ -13,7 +13,7 @@
 # prerequisite (PUB-V0-002 requires the native gate to remain independent).
 #
 # Usage: script/corvint-companion-release-gate [taskman-repo]
-#   taskman-repo defaults to $CORVINT_TASKMAN_REPO or ~/projects/corvint-taskman.
+#   taskman-repo defaults to $CORVINT_TASKMAN_REPO or ~/projects/corvint-tasks.
 #   It is only ever read from (git clone); it is never modified.
 set -euo pipefail
 # Explicit settings must not be empty; the check fails before any effect.
@@ -30,7 +30,7 @@ resolve_release_setting CORVINT_COMPANION_OUTPUT
 resolve_release_setting CORVINT_NPM_CACHE
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
-taskman_src=${1:-${CORVINT_TASKMAN_REPO:-$HOME/projects/corvint-taskman}}
+taskman_src=${1:-${CORVINT_TASKMAN_REPO:-$HOME/projects/corvint-tasks}}
 output_parent=${CORVINT_COMPANION_OUTPUT:-/tmp/corvint-companion-release}
 npm_cache=${CORVINT_NPM_CACHE:-}
 
@@ -43,7 +43,7 @@ esac
 
 if [ "$(git -C "$taskman_src" rev-parse --is-inside-work-tree 2>/dev/null || :)" != true ] ||
    ! git -C "$taskman_src" rev-parse --verify 'HEAD^{commit}' >/dev/null 2>&1; then
-  echo "corvint-companion-release-gate: $taskman_src is not a git checkout (pass the corvint-taskman repo path as \$1 or CORVINT_TASKMAN_REPO)" >&2
+  echo "corvint-companion-release-gate: $taskman_src is not a git checkout (pass the corvint-tasks repo path as \$1 or CORVINT_TASKMAN_REPO)" >&2
   exit 2
 fi
 

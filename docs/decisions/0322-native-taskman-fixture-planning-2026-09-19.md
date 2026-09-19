@@ -1,4 +1,4 @@
-# Decision 0321 — native taskman fixture planning and pre-edit preregistration
+# Decision 0322 — native taskman fixture planning and pre-edit preregistration
 
 Date: 2026-09-19. Status: accepted fixture scope. Authority: the owner supplied the implementation
 handoff, then replied exactly "approved" to the reviewed prerequisite amendment A–E retained in

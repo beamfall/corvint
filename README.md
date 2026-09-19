@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="assets/brand/corvint-lockup-universal.svg" width="520" alt="Corvint">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/corvint-lockup-dark.svg">
+    <img src="assets/brand/corvint-lockup-light.svg" width="520" alt="Corvint">
+  </picture>
 </p>
 
 <p align="center"><strong>Context your agents can cite. Changes your reviewers can check.</strong></p>
@@ -278,6 +281,14 @@ queue snapshot and return deterministic shadow proposals: derived path clashes b
 and the largest collision-free wave that could run together. The proposals authorize nothing and
 carry their inputs' digests, so a second run over the same snapshot reproduces them byte for byte
 ([Work Queue Observation V0](docs/specs/work-queue-observation-v0.md)).
+
+To adopt the work queue in a repository, run `corvint work init --repository NAME`, review and
+commit the three files it writes under `.corvint/`, and list tickets in `.corvint/worklist.json`
+with the paths each one changes. Verification work such as a suite batch, a failure repair, a
+test-validity receipt, or a cleanup and retry is an ordinary ticket. Tickets that share a path are
+never proposed together; the proposal names the excluded ticket and why. `corvint` must be installed
+in `/opt/homebrew/bin` or `/usr/local/bin`, because the adapter runs under a fixed `PATH`. See
+[INSTALL](docs/INSTALL.md#work-queue-adoption) for the states you get when a step is missing.
 
 ### Dashboard and console
 
