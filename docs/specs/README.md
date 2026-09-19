@@ -6,7 +6,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 
 | Scope | Contract | Intent | Delivery | Binding evidence or next gate |
 |---|---|---:|---:|---|
-| Native taskman fixture planning V0 | [`native-taskman-planning-v0.md`](native-taskman-planning-v0.md) | accepted fixture scope (0321) | experimental | Read-only native fixture priority-first plans; GP and real admission held. |
+| Native taskman fixture planning V0 | [`native-taskman-planning-v0.md`](native-taskman-planning-v0.md) | accepted fixture scope (decision 0321) | experimental | Read-only native fixture priority-first planning with explicit incomplete coverage. GP and real admission held. |
 | Public Release V0 | [`public-release-v0.md`](public-release-v0.md) | accepted owner scope; implementation details proposed | not qualified | A public alpha ships the Go CLI, MCP docs, agent/editor unit and E2E test tracking, and an optional dashboard and task manager with a roadmap. Exact artifacts and installed-path qualification pending. |
 | Repository guidance V0 | [`repository-guidance-v0.md`](repository-guidance-v0.md) | accepted (owner first-release instruction, 2026-09-13) | experimental | Three distinct advisory commands discover inferred features, compose a repository overview, and review an immutable range with local branch overlap hints. |
 | Go-only cutover V0 | [`go-only-cutover-v0.md`](go-only-cutover-v0.md) | accepted | experimental | The legacy Python engine, live oracle and wheel are retired; native Go carries the product and conformance checks. Independent Go validation and final artifact gates pending. |

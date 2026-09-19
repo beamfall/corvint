@@ -2,16 +2,16 @@
 
 Owner: Russell Lewis
 Date: 2026-09-19
-Intent status: accepted fixture scope (decision 0321); schema details are implementation interpretation
-Delivery status: experimental fixture implementation (promotion held)
+Intent status: accepted fixture scope (decision 0321)
+Delivery status: experimental
 Authoritative inputs: decision 0321, `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/work-queue-observation-v0.md`, and the source-bound sibling task-store SPEC.
 
 ## Agent digest
-- Claim: A read-only native fixture adapter produces priority-first plans with explicit observation and coverage limits.
-- Status: accepted fixture scope/experimental; GP and production promotion held.
+- Claim: Read-only native fixture priority-first planning with explicit incomplete coverage.
+- Status: accepted fixture scope (decision 0321)/experimental; GP and production promotion held.
 - Exists: native read adapter, pure planner and focused fixture/refusal tests; frozen pre-edit preregistration.
-- Promotion held: live reservations, admission, CONFIG_PIN and GP remain executor/promotion dependencies.
+- Blocked on: live reservations, admission, CONFIG_PIN and GP remain executor/promotion dependencies.
 - Read next: Requirements; Fixture input and receipt; Acceptance and rollback.
 
 ## User and boundary

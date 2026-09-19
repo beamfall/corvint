@@ -24,6 +24,10 @@ and reject contradictory identity/revision/resource/history input without releas
 `internal/taskman/review_test.go` retains the failure regressions; focused planner, adapter, WQO
 boundary and cancellation tests passed. The exact committed native gate and CEM/OCM/local completion
 reports are post-commit evidence; these focused results alone do not close that gate.
+The first full gate at `865e554b4e5a601282423dbdbbf6264dfdda1b6e` failed only
+`internal/specindex`: header/digest/README wording did not exactly match the registry. The
+metadata was aligned and the focused registry check rerun before rebinding; the failed gate is
+retained in the enrolled check history, never represented as a passing full gate.
 
 Self-development routes used: original prechange query (including omissions), native fixture
 planning, `affected` (two Go units advised; full gate mandatory), tracked-path `prove` (97 omissions),
