@@ -2,6 +2,16 @@
   "baseRevision": "d9144000c73037db52f43007070ec380188869fa",
   "evidence": [
     {
+      "blobOid": "94dede6cba3adf0098c454a9cbc3be2ec15ec199",
+      "id": "evidence:sha256:a595ec427f184f250314695c50650fcc1b537a559e74bf573c927c02454c9c30",
+      "path": "docs/specs/mcp-server-2026-07-28-v0.md",
+      "span": {
+        "end": 19980,
+        "start": 18539
+      },
+      "spanSha256": "f2e4e2f44f11cfef5cac06cfed7ec090b87c49d135832d13e8eff6b94a534e63"
+    },
+    {
       "blobOid": "22ea15c8ba9b6bf0ec5d6c741b2e6e091c452d5c",
       "id": "evidence:sha256:718aaf64e1ae00fb5f6b18c24cae810c2125361331026814bc22fff2a1cf9784",
       "path": "docs/decisions/0131-gate-affected-static-read-attribution-2026-09-12.md",
@@ -14,6 +24,26 @@
   ],
   "excludedPath": ".corvint/change.cem.json",
   "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a595ec427f184f250314695c50650fcc1b537a559e74bf573c927c02454c9c30",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ed5bbc478b7f6f51e625c0fd70df118fcf566c3541132155ac48ba85173f69df",
+      "newRange": {
+        "count": 7,
+        "start": 176
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 176
+      },
+      "path": "conformance/mcp-2026-07-28/lifecycle_unix_test.go",
+      "reason": "evidence-backed"
+    },
     {
       "basis": [
         {
@@ -275,6 +305,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "05034470f614c414809f406b81901d60317b143932d56b3d0bc5c14582a72778",
+  "patchSha256": "5b69db5175461b779f8e1fb3f1692257a39276995c7362bd5f43d7cf0faa6f91",
   "spec": "cem/0.2"
 }
