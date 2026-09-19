@@ -49,6 +49,15 @@ Independent delta review identified three new native option values that the corp
 leave untouched; an option-isolation regression covers that compatibility boundary. The merged
 source requires fresh canonical verification and newly bound evidence against current main.
 
+The integration gate exposed an existing Go provider admission hang: a missing capability descriptor
+could be reused as a runtime pipe, and the byte-bounded read waited indefinitely before cancellation
+was installed. The failed gate was stopped and its owned processes were confirmed gone. Under
+GLTP-V0-026/028/040, admission now requires exactly 32 preloaded bytes plus EOF from a pipe and uses
+raw nonblocking reads. Deterministic empty/open and complete/open pipe cases failed before repair;
+closed short/complete/oversized cases preserve refusal and valid capability behavior. This restores
+the existing bounded-refusal contract without changing authority or qualification claims. Fresh
+evidence and full verification are required after this repair.
+
 ## 2026-09-19 NTP-V0 integration with repository work-queue adoption
 
 The owner authorized merging the verified fixture extension. Current main `d9144000` also
