@@ -31,6 +31,12 @@ that source identity alone was insufficient; unknown served builds now remain un
 iterations were repaired before final verification. Frozen synthetic labels report precision, recall,
 abstention, false relationships, latency and bytes, without a savings or universal-quality claim.
 
+The first full gate found help usage lines being interpreted as executable draft examples, an
+unupdated analyzer-input fingerprint, and a README claim that differed from the spec digest. Usage
+now includes the optional root prefix, the analyzer schema advances to 69 for the added immutable
+reader inputs, and the README repeats the contract claim. These native gate failures are retained;
+the source must be rebound and the full gate rerun before local completion.
+
 Self-development routes used: actual pre-change query/context, dirty affected advice (UNKNOWN with
 explicit frontiers), and the committed self-corpus fixture. Draft maintenance was exercised by the
 new corpus path; existing draft host adoption and external provider/host interoperability remain

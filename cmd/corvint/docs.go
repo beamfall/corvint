@@ -159,11 +159,11 @@ Example from a Corvint checkout with committed sources:
 Contract and remaining bounds: docs/specs/source-documentation-draft-v0.md
 
 Separate experimental corpus profile:
-  corvint docs corpus manifest --revision FULL_COMMIT --scope PATH --timestamp RFC3339
-  corvint docs corpus build --manifest INPUT.json
-  corvint docs corpus search --artifact CORPUS.json --query TEXT
-  corvint docs corpus render --artifact CORPUS.json
-  corvint docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply]
+  corvint [--root PATH] docs corpus manifest --revision FULL_COMMIT --scope PATH --timestamp RFC3339
+  corvint [--root PATH] docs corpus build --manifest INPUT.json
+  corvint [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT
+  corvint [--root PATH] docs corpus render --artifact CORPUS.json
+  corvint [--root PATH] docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply]
 Read operations: info, validate, get/trace/related/journey --id ID, locate --path PATH,
 coverage, gaps [--id ID]. Optional --limit 1..256. All require --artifact.
 Native query/context/impact/affected/test-validity/work observe/propose-wave and CEM
