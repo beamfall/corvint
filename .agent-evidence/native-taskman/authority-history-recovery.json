@@ -1,0 +1,57 @@
+{
+  "scope": "all reachable Git refs, six exact named source paths; no full filesystem repeat",
+  "repository": "/private/tmp/corvint-taskman-native-planning-20260919",
+  "historicalBasePresent": false,
+  "blobsChecked": 8,
+  "matches": [],
+  "objects": [
+    {
+      "path": "AGENTS.md",
+      "blob": "55c273c2be1a07f7abf27aba541c4d7e8657142c",
+      "sha256": "95df45cea50cfdb8e76c3e1f0ab047b9774900acbee743ab73b50f66d20f5d89",
+      "matches": false
+    },
+    {
+      "path": "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+      "blob": "8607266d968f2e81348541543c4abb91117260d3",
+      "sha256": "c0911b690b5f48abc1d55eb0722c19b26d8d0d15e94f801b3796ba513b5d9b0a",
+      "matches": false
+    },
+    {
+      "path": "docs/plans/AGENT-TASK-MANAGER-2026-09-04.md",
+      "blob": "3bdc8291b78a33005c78bbd684156430ae36c0b6",
+      "sha256": "216f28a067e52580a89c99a200c06bcac650980c8e0dc2c112cc7653f320842d",
+      "matches": false
+    },
+    {
+      "path": "docs/specs/work-queue-observation-v0.md",
+      "blob": "32f7fd89221fecbe9cc4d62d85cd5b92bca0c056",
+      "sha256": "77be99b210c401bd315c79b992959a71a36001b258c44d75819104b7fd8f5a60",
+      "matches": false
+    },
+    {
+      "path": "docs/specs/work-queue-observation-v0.md",
+      "blob": "4c0cffc0eea33bf9f2f85bcc41bb3156b82e4049",
+      "sha256": "18c1b707a8c2df6c12390d1549bf3fb49e10d04fd19a27ef2db3a0efa083c393",
+      "matches": false
+    },
+    {
+      "path": "docs/specs/work-queue-observation-v0.md",
+      "blob": "e9a2c4b056fa5eab77731291dd3e42369aa5ec2b",
+      "sha256": "2cc6e35d5305be552055b5efeb61389774b577ded18239e936f4404518e1162b",
+      "matches": false
+    },
+    {
+      "path": "docs/specs/work-queue-observation-v0.md",
+      "blob": "f955ff8577489f5d0c3a54a2b813432941ae021e",
+      "sha256": "a8274376ffee6f737ff55200db452b12b45e15a9c98b3b67afe7978ecf7b902b",
+      "matches": false
+    },
+    {
+      "path": "AGENTS.md",
+      "blob": "55565955d912737d89517692f6fe6283b81c91f3",
+      "sha256": "c1799627a9e263caa37378edfdd76c7bc3af65fd8081dd2d1a43a6ef8b93b130",
+      "matches": false
+    }
+  ]
+}
