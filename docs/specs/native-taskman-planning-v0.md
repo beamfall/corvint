@@ -3,15 +3,15 @@
 Owner: Russell Lewis
 Date: 2026-09-19
 Intent status: accepted fixture scope (decision 0321); schema details are implementation interpretation
-Delivery status: not-started
+Delivery status: experimental fixture implementation (promotion held)
 Authoritative inputs: decision 0321, `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/work-queue-observation-v0.md`, and the source-bound sibling task-store SPEC.
 
 ## Agent digest
 - Claim: A read-only native fixture adapter produces priority-first plans with explicit observation and coverage limits.
-- Status: accepted fixture scope/not-started; GP and production promotion held.
-- Exists: accepted pre-edit baseline exception and frozen native preregistration.
-- Blocked on: fixture implementation and native evidence gates; live reservations, admission, CONFIG_PIN and GP remain executor/promotion dependencies.
+- Status: accepted fixture scope/experimental; GP and production promotion held.
+- Exists: native read adapter, pure planner and focused fixture/refusal tests; frozen pre-edit preregistration.
+- Promotion held: live reservations, admission, CONFIG_PIN and GP remain executor/promotion dependencies.
 - Read next: Requirements; Fixture input and receipt; Acceptance and rollback.
 
 ## User and boundary
@@ -84,6 +84,9 @@ reservationsComplete, attemptsComplete, historyComplete, reservationSet, history
 `reservationSetSha256`. It is test-owned observed input, not a claim that the live executor produced
 these reservations. Each reservation retains native generation, acceptance revision, resources,
 workers, ACTIVE/QUIESCING/BLOCKED_RECOVERY state and coverage; none is released by age.
+Unknown tickets and any reservation acceptance-revision mismatch refuse the complete observation;
+older resources are never silently released. Reservation resources must cover current declared
+effects. Generation is a validated positive fixture value, not an authenticated live generation.
 `history` contains ordered `taskman-plan/0` records from fixture-pinned observations. It is not the
 currently unimplemented native CONFIG_PIN reader. Every history record must match queue/policy and
 have a strictly increasing headSeq no greater than the captured head. History source authority stays
@@ -94,6 +97,15 @@ The inner `taskman-plan/0` is the sibling SPEC 4.3 record without new fields:
 reservationSetSha256, capacity:{maxActiveAttempts,availableWorkers}, entries:[{ticketId,
 ticketRevision,resources,closureComplete,state,reason,deferredSinceSeq,blockers}], mutationAuthority:false`.
 The capacity field preserves the policy maximum and observed available workers at capture.
+Reason and blocker codes retain the sibling SPEC section 11 closed enum. SELECTED fixture entries
+use DEVELOPMENT_MODE (state is the selection discriminator); collisions use RESOURCE_COLLISION,
+capacity exhaustion LIMIT_EXCEEDED, absent reservations MISSING_EVIDENCE, unsupported capacity
+classes UNSUPPORTED, unavailable gates GATE_UNKNOWN and unavailable capabilities CAPABILITY_UNAVAILABLE.
+History rejects invalid native IDs, unknown codes, zero/future ticket revisions and deferral
+sequences beyond their plan head. Native Identifier and Path bounds remain 128 and 512 bytes. Resource keys use the bound
+sibling Resource decoder's Identifier (128), including its extra Path check for PATH; a longer
+touch path whose closure cannot fit that record refuses the preview. Whole-repository fallback
+uses the fixed key `repository`; collision semantics depend on its class, not that key.
 
 The outer `corvint-taskman-fixture-plan/0` receipt binds `source`, `executorSha256`, `snapshot`,
 `observationsSha256`, canonical `ticketDigests`, `plan`, and explicit `unknowns`. Its provenance is
@@ -120,13 +132,13 @@ real-queue cutover remain in the executor handoff. No automatic task execution i
 
 ## Traceability
 
-| Requirement | Planned implementation | Planned evidence |
+| Requirement | Implementation | Evidence |
 |---|---|---|
-| NTP-V0-001 | internal/taskman fixture adapter | PLANNED native fixture and refusal tests |
-| NTP-V0-002 | internal/taskman capture | PLANNED digest/source drift tests |
-| NTP-V0-003 | internal/taskman planner | PLANNED priority-first counterexample |
-| NTP-V0-004 | internal/taskman eligibility | PLANNED eligibility table |
-| NTP-V0-005 | internal/taskman closure | PLANNED incomplete coverage and collision tests |
-| NTP-V0-006 | internal/taskman planner | PLANNED capacity/binding tests |
-| NTP-V0-007 | internal/taskman history | PLANNED history/reset tests |
-| NTP-V0-008 | cmd/corvint work fixture entry | PLANNED unchanged-state and native gates |
+| NTP-V0-001 | internal/taskman capture and process boundary | TestNTPV0001AdapterRefusals, TestNTPV0001InterruptionRetiresDescendant, TestNTPV0001NativeJSON |
+| NTP-V0-002 | internal/taskman capture/observations | TestNTPV0002AdapterFinalDrift, TestNTPV0002ObservationRefusals |
+| NTP-V0-003 | internal/taskman priority-first planner | TestNTPV0003PriorityFirst; real native fixture priority counterexample |
+| NTP-V0-004 | internal/taskman eligibility | TestNTPV0004Eligibility |
+| NTP-V0-005 | internal/taskman direct closure/collisions | TestNTPV0005CoverageAndCollisions |
+| NTP-V0-006 | internal/taskman capacity/bindings | TestNTPV0006CapacityAndBindings |
+| NTP-V0-007 | internal/taskman fixture history | TestNTPV0007DeferralHistory |
+| NTP-V0-008 | cmd/corvint opt-in dispatch | TestNTPV0008CommandBoundary, TestNTPV0001AdapterCanonicalReadOnly; native fixture unchanged-state comparison |

@@ -144,6 +144,9 @@ var workHangBound = 10 * time.Minute
 var errWorkHang = errors.New("corvint work hang detector expired")
 
 func runWork(ctx context.Context, root string, arguments []string, stdout, stderr io.Writer) (exit int) {
+	if len(arguments) > 0 && arguments[0] == "plan-fixture" {
+		return runTaskmanFixture(ctx, root, arguments[1:], stdout, stderr)
+	}
 	ctx, cancel := context.WithTimeoutCause(ctx, workHangBound, errWorkHang)
 	defer func() {
 		// The stdout code stays the closed INPUT_LIMIT (WQO-V0-015); stderr names the

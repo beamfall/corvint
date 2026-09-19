@@ -7,6 +7,34 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-19 NTP-V0 native taskman fixture planning
+
+Decision 0321 records the owner's accepted prerequisite amendment and pre-edit baseline freeze.
+The opt-in `work plan-fixture` reads a native fixture journal through fixed audit/status/export
+commands, then emits a source-bound priority-first plan. WQO shadow selection is unchanged.
+A built task-store fixture selected P0 touching A+B over the larger P1(A)/P2(B) wave; two complete
+reads were byte-identical and all 57 source/store files stayed unchanged. Exact binary, snapshot,
+source hashes and output are in `.agent-evidence/native-taskman/fixture-smoke-final.json` and its
+adjacent receipt/source manifest. Fixture reservations/history remain caller-owned observations.
+
+Independent review reproduced whole-repository exclusion escaping empty resource sets, native
+Code enum drift and malformed observation/history acceptance. The repairs check whole scope before
+pairwise resources, preserve the closed native Code enum (DEVELOPMENT_MODE for fixture SELECTED),
+and reject contradictory identity/revision/resource/history input without releasing reservations.
+`internal/taskman/review_test.go` retains the failure regressions; focused planner, adapter, WQO
+boundary and cancellation tests passed. The exact committed native gate and CEM/OCM/local completion
+reports are post-commit evidence; these focused results alone do not close that gate.
+
+Self-development routes used: original prechange query (including omissions), native fixture
+planning, `affected` (two Go units advised; full gate mandatory), tracked-path `prove` (97 omissions),
+and the enrolled keyed dogfood workflow. New untracked-path `prove` refused; no substitute success
+is claimed for it. Snapshot indexing was used by fixture planning. Batch/mutation/learning/service,
+foreign adapters and live-provider qualification were not applicable to this bounded fixture slice.
+Exact ATCP history remains unrecovered. GP is NOT_RUN: retired harness replacement is diagnostic
+only, complete workloads/allocation/I/O/environment witnesses and real runtime conditions are absent.
+No executor admission, CONFIG_PIN, production completion, real-queue cutover or performance promotion
+is claimed. The explicit executor dependency handoff remains open.
+
 ## 2026-09-18 EEP-V0 provider-to-impact workflow: synthetic fixture evaluation, and unsupported cases
 
 `TestImpactProviderEvaluation` (`internal/extevidence/extevidence_test.go`) runs the

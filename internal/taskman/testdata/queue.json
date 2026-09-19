@@ -1,0 +1,1 @@
+{"canonicalWriter":"NATIVE","executionCutover":null,"fixture":true,"foreignAdapterId":null,"importMapSha256":null,"intentBranch":"main","nextSerial":"4","prefix":"AT","profile":"taskman-queue/0","queueId":"queue:acme:main","repositoryAuthorityId":"repo:acme","schemaVersion":"0","writeBarrier":{"reason":"NONE","since":null}}

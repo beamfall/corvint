@@ -1,6 +1,6 @@
 # TCP-03 executor dependency handoff
 
-Status: planning handoff only; native planning remains NOT_STARTED pending the prerequisite owner decision. Corvint base 6a423ac091d848b8ac5b49e8002c61c252993ac3. Task-store HEAD 5117b9238f9ccc7caf01bc9a5e0ab1877ba76208 plus the 130 uncommitted source files verified against barrier-source-manifest.json (no mismatches). Existing passed task-store gates are retained, not rerun.
+Status: approved fixture implementation; final completion requires the exact native gate and evidence reports. Native fixture planning is implemented and the first real task-store replay passed determinism and unchanged-state checks. GP remains NOT_RUN and production delivery remains held. Corvint base 6a423ac091d848b8ac5b49e8002c61c252993ac3. Task-store HEAD 5117b9238f9ccc7caf01bc9a5e0ab1877ba76208 plus the 130 uncommitted source files verified against barrier-source-manifest.json (no mismatches). Existing passed task-store gates are retained, not rerun.
 
 ## Required executor work
 
@@ -16,8 +16,8 @@ Status: planning handoff only; native planning remains NOT_STARTED pending the p
 
 The current code/documentation uses cem/0.2 and ocm/0.1-experimental; docs/DOGFOOD.md requires committed sidecar binding, clean-target checks and independent verifier agreement. OCM links prove structural traceability only. Current CEM status reports ready-for-ci (internal/cem/workflow/read.go:74) and OCM reports ready-for-review (cmd/corvint/ocm.go:141). The task-store SPEC 7.3 row 10 phrase cem-status:ready is not an adequate executable status mapping. Before implementing it, pin precise wire/report schemas and status vocabulary, including local policy report-set review, outcome recording and satisfied lifecycle; do not substitute a single linked or ready-for-review label for completion. Local Corvint satisfaction does not itself qualify the task executor.
 
-## Smallest fixture proof once prerequisites clear
+## Implemented fixture boundary
 
-Read the existing settled native fixture store plus explicitly labelled fixture reservation observations; emit deterministic selected/deferred/blocked entries with immutable source and queue identities. The highest-priority runnable ticket must win even when two lower-priority tickets form a larger wave. Test held/dependency-blocked tickets, live collisions, capacity exhaustion, prefix resources, incomplete coverage with and without serial fallback, absent reservations, source drift and deterministic replay. Retain WQO conformance unchanged. No production admission or reservation capability is inferred from these tests.
+The opt-in `work plan-fixture` reads the settled native fixture store plus explicitly labelled fixture reservation observations; emit deterministic selected/deferred/blocked entries with immutable source and queue identities. The highest-priority runnable ticket must win even when two lower-priority tickets form a larger wave. Test held/dependency-blocked tickets, live collisions, capacity exhaustion, prefix resources, incomplete coverage with and without serial fallback, absent reservations, source drift and deterministic replay. Retain WQO conformance unchanged. No production admission or reservation capability is inferred from these tests.
 
-No source edits, admissions, real task execution, publication or qualification were performed by this handoff.
+This task implements only Corvint fixture planning. No admissions, real task execution, publication or production qualification were performed. The executor work above remains open.
