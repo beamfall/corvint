@@ -81,6 +81,55 @@ exact command execution, config interpretation, cancellation, and full-CI recall
 - `TJAA-V0-009`: Discovery and canonical graph bytes MUST be deterministic for fixed repository
   authority, and every discovered eligible test MUST participate in selection or exclusion under
   `LPCV-V0-013`, `LPCV-V0-014`, `LPCV-V0-016`, and `LPCV-V0-019`.
+- `TJAA-V0-010`: The opt-in `playwright-affected/0` profile MUST bind the config path and SHA-256,
+  every statically declared project name, project `grep`/`grepInvert`, `testDir`, `testMatch`,
+  `testIgnore`, dependency and teardown edges, browser/device identity, and the exact project argv.
+  The existing `affected-plan/0` bytes and one-path/one-unit ownership rule MUST remain unchanged.
+- `TJAA-V0-011`: One selected Playwright unit MUST identify one physical test file under one
+  project. A physical file may therefore produce several profile units without becoming several
+  owners in the shared V0 graph. Unit IDs and all arrays MUST be sorted and deterministic.
+- `TJAA-V0-012`: Static config support is deliberately closed. Project arrays and membership fields
+  MUST be literals; `testMatch`/`testIgnore` MAY be literal strings or regular expressions; device
+  spreads MAY name a literal `devices[...]` descriptor. Imported/computed projects, generated test
+  lists, functions, environment branches, feature flags, unknown device descriptors, unresolved
+  browser identity, malformed regular expressions, and dependency cycles MUST widen to
+  `FULL_RELEVANT_SUITE` with a typed selection unknown.
+- `TJAA-V0-013`: A changed source, page object, fixture, scenario builder, or helper MUST select the
+  reverse-import closure's Playwright tests under every statically applicable project. A changed
+  config selects the full relevant suite. Selecting a setup project MUST also select every unit in
+  its transitive dependent projects; a selected dependent project MUST select its dependency units
+  and teardown unit. No unknown may remove a unit.
+- `TJAA-V0-014`: Project grep/tag and metadata inputs are identity, not file-exclusion authority.
+  This static profile MUST NOT exclude a file merely because its cases cannot be proven to match a
+  project grep. Runtime feature flags and externally managed application state are execution-axis
+  unknowns; they remain visible but do not by themselves claim the selection axis is incomplete.
+- `TJAA-V0-015`: When a selection-axis unknown exists, `scope` MUST be `UNKNOWN`, fallback MUST be
+  `FULL_RELEVANT_SUITE`, and every statically discovered Playwright test/project pair MUST be
+  selected. If the project set itself is unknown, the profile MUST emit no runnable unit and state
+  that the caller must run the complete Playwright configuration.
+- `TJAA-V0-016`: The profile MUST be read-only and bounded by the shared source-walk and source-read
+  limits. It MUST bind and revalidate a digest of every source input the TypeScript observer may
+  consume. For fixed repository bytes, config path, HEAD, and dirty set, canonical output MUST be
+  byte-identical. Invalid paths, unreadable config, source drift, or Git drift fail closed without a
+  partial receipt.
+- `TJAA-V0-017`: Qualification requires a fixture with Chromium plus Angular/React project variants,
+  setup dependencies, grep/metadata identity, and shared page-object/fixture/scenario edges. It MUST
+  prove config and setup widening, dynamic-import/config widening, repeated-byte identity, and zero
+  unsafe narrowing before the profile can be promoted from experimental.
+
+## Opt-in Playwright project profile
+
+`corvint affected --playwright-config PATH` emits `playwright-affected/0`; it does not alter the
+closed `affected-plan/0` receipt. The profile reuses the shared TypeScript import graph only for
+physical path ownership and reachability, then expands reached Playwright files into project units.
+This keeps project multiplicity out of the language-agnostic graph while still binding each runnable
+unit to its config and project inputs.
+
+The supported static subset follows Playwright's project contract: dependencies run setup projects
+first, teardown projects run after their setup/dependent cohort, project grep is retained as runtime
+case filtering, and project `testMatch`/`testIgnore` controls file membership. A form outside the
+closed subset is not approximated. It widens the selection or, when projects cannot be identified,
+abstains from runnable units.
 
 ## Detection and runner addressing
 
@@ -170,5 +219,6 @@ experimental spec. No persisted format, CLI registry, or existing receipt is cha
 | `TJAA-V0-001..004`, `TJAA-V0-006..008` | `internal/liveverify/affected/typescript/` focused tests | experimental |
 | `TJAA-V0-005` | `TestTemplateSubstitutionRequireBuildsDependencyEdge`, `TestMultilineJSXQuoteAmbiguityRaisesFrontier`, `TestSameLineJSXApostropheAmbiguityRaisesFrontier`, `TestStandaloneJSXApostrophesRaiseFrontier`, `TestJSXTextCannotImitateALiteralOpeningContext`, `TestKeywordEndingJSXTextCannotHideRequireWithoutBraces`, `TestJSXAttributeAndExpressionStringsRemainParsed`, `TestOrdinaryTSXStringsAndJSXExpressionLiteralsRemainParsed`, and import-resolution focused tests in `internal/liveverify/affected/typescript/` | experimental |
 | `TJAA-V0-009` | `internal/liveverify/affected/conformance_test.go` TypeScript seam case | experimental |
+| `TJAA-V0-010..017` | `internal/liveverify/affected/typescript/playwright.go`, `playwright_test.go`, and `cmd/corvint/affected_playwright_test.go` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

@@ -300,6 +300,14 @@ and container qualification; full fallback remains available.
   driver. Concurrent rows on separate runners satisfy AFP-V0-014's campaign only because every
   row identity must equal the frozen identity. It MUST NOT commit, pin, or publish anything
   but workflow artifacts.
+- **AFP-V0-018:** (proposed) `corvint affected --playwright-config PATH` MUST emit the separate
+  `playwright-affected/0` profile defined by `TJAA-V0-010..017`. It MUST accept `--base` with the
+  same range semantics as `affected-plan/0`, MUST NOT be combined with external `--provider`, and
+  MUST preserve the same bounded Git/status/HEAD drift checks and revalidate the bounded source-content
+  digest immediately before emission. The receipt has exactly `mutates`,
+  `ok`, `plan`, `profile`, `range`, `revision`, and `tool`; unsupported config/source observation
+  fails with `unsupported-playwright-affected` and no partial receipt. The default invocation and
+  its closed `affected-plan/0` bytes remain unchanged.
 
 ## Non-goals and authority
 
@@ -316,6 +324,9 @@ Git unavailable or the worktree status exceeds its bound: fail closed with
 `unsupported-affected-status`. No commits: `unsupported-affected-revision`. Source walk exceeds
 `affected.MaxWalkEntries`, a plugin returns a non-canonical unit, or the walk accepts a source file
 whose path no unit can name: `unsupported-affected-graph`.
+An unreadable or invalid `--playwright-config`, or a Playwright graph that cannot be built:
+`unsupported-playwright-affected`; dynamic but readable project/config semantics remain a typed
+`UNKNOWN` plan with `FULL_RELEVANT_SUITE`, not a command failure.
 Exhausting an admitted-directory sub-bound instead skips only that subtree and reports
 `go:included-directory-walk-bounded` at `UNKNOWN` scope; it is not a graph refusal.
 A dirty path owned by no plugin: the plan widens to `UNKNOWN` scope rather than narrowing. A
@@ -350,6 +361,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
 | AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active; `failure` path NOT_RUN on a real PR |
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |
+| AFP-V0-018 | `playwrightAffectedReceipt`, `compilePlaywrightAffected`, and `typescript.SelectPlaywright` | `TestAffectedPlaywrightProfileEmitsProjectDistinctUnits`, `TestAffectedPlaywrightArgumentsFailClosed`, and `internal/liveverify/affected/typescript/playwright_test.go` |
 | AFP-V0-009 | `affectedAdvice`, `compileAffectedAdvice`, `mandatoryAffectedChecks`, `advisoryAffectedChecks`, `shellQuoteJoin` in `cmd/corvint/affected.go` | `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`, `TestAffectedAdviceReportsNoDeclaredGate`, `TestAffectedAdviceKeepsMandatoryGateAndNeverAdvisesExclusions`, `TestAffectedReceiptMembersAreClosedAndByteStable` (tightened to assert `advice`'s raw JSON key order), `TestAffectedAdviceBoundsTheDeclarationRead`, `TestShellQuoteJoinEscapesMetacharacters`, `TestAffectedAdviceTruncatedMandatoryDeclarationSuppressesNoGate`, `TestAffectedAdviceCapsMandatoryChecksAtSixteen`, `TestAffectedAdviceSkipsCommentsInVerifyFence` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
