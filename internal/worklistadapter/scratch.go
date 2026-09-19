@@ -1,4 +1,4 @@
-package main
+package worklistadapter
 
 import (
 	"context"
@@ -12,13 +12,14 @@ import (
 	"unicode/utf8"
 )
 
-type producerScratch struct{ parent, root, commit string }
+// Scratch is the observer-owned tuple a producer may nest its source acquisition in.
+type Scratch struct{ Parent, Root, Commit string }
 
 // The script/observer owns this tuple outside the target. Recognition permits
 // cleanup-safe nesting only; source qualification still checks root and commit.
 // Direct binary calls with no marker retain ordinary fixed-/tmp acquisition.
-func producerOwnedScratch() (producerScratch, error) {
-	var result producerScratch
+func OwnedScratch() (Scratch, error) {
+	var result Scratch
 	temporary := os.Getenv("TMPDIR")
 	if temporary == "" {
 		return result, nil
@@ -92,5 +93,5 @@ func producerOwnedScratch() (producerScratch, error) {
 	if err != nil || (len(oid) != 20 && len(oid) != 32) || strings.ToLower(fields[1]) != fields[1] {
 		return result, errors.New("invalid source scratch commit")
 	}
-	return producerScratch{temporary, canonical, fields[1]}, nil
+	return Scratch{temporary, canonical, fields[1]}, nil
 }
