@@ -91,8 +91,8 @@ func TestSelectPackagesNarrowsChangeEvidenceReaders(t *testing.T) {
 		"split/split.go":          "package split\n\nfunc Sidecar(root string) string { return root + \"/.cor\" + \"vint/change.cem.json\" }\n",
 	})
 	cases := []struct{ name, dirty, verdict string }{
-		{"AFP-V0-012 sidecar selects only resolving readers", ".corvint/change.cem.json", "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact example.com/fixture/partial example.com/fixture/split"},
-		{"AFP-V0-012 other hidden path keeps component-run readers", ".corvint/other.json", "run example.com/fixture/deep/dir example.com/fixture/fixture"},
+		{name: "AFP-V0-012 sidecar selects only resolving readers", dirty: ".corvint/change.cem.json", verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact example.com/fixture/partial example.com/fixture/split"},
+		{name: "AFP-V0-012 other hidden path keeps component-run readers", dirty: ".corvint/other.json", verdict: "run example.com/fixture/deep/dir example.com/fixture/fixture"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
