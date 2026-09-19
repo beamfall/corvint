@@ -2041,5 +2041,26 @@
       "internal/genesis/guidance.go",
       "cmd/corvint/repository_guidance.go"
     ]
+  },
+  {
+    "path": "docs/specs/documentation-corpus-v1.md",
+    "title": "Revision-pinned documentation corpus V1",
+    "reqPrefix": "DCP-V1",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.",
+    "dependsOn": [
+      "docs/specs/deployment-neutral-index-platform-v0.md",
+      "docs/specs/source-documentation-draft-v0.md",
+      "docs/specs/external-evidence-provider-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/doccorpus",
+      "cmd/corvint",
+      "internal/mcp/corpusbridge",
+      "cmd/corvint-corpus-mcp"
+    ]
   }
 ]
