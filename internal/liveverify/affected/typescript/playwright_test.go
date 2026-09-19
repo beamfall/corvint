@@ -262,6 +262,81 @@ func TestPlaywrightSelectionBytesAreDeterministic(t *testing.T) {
 	}
 }
 
+func TestPlaywrightRequirementClaims(t *testing.T) {
+	root := playwrightFixture(t)
+	plan, err := SelectPlaywright(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Run("TJAA-V0-010 binds configuration and project identity", func(t *testing.T) {
+		angular := playwrightProject(plan, "angular")
+		chromium := playwrightProject(plan, "chromium")
+		if plan.Config.SHA256 == "" || angular.Grep != "/@angular/" || angular.Metadata == "" || chromium.Device != "Desktop Chrome" {
+			t.Fatalf("config=%+v angular=%+v chromium=%+v", plan.Config, angular, chromium)
+		}
+	})
+	t.Run("TJAA-V0-011 emits project-distinct physical units", func(t *testing.T) {
+		want := []string{
+			"typescript:playwright:angular:tests/login.spec.ts",
+			"typescript:playwright:chromium:tests/login.spec.ts",
+			"typescript:playwright:react:tests/login.spec.ts",
+		}
+		for _, id := range want {
+			if !slices.Contains(playwrightSelectionIDs(plan), id) {
+				t.Fatalf("project unit %s missing from %v", id, playwrightSelectionIDs(plan))
+			}
+		}
+	})
+	t.Run("TJAA-V0-012 dynamic identity widens selection", func(t *testing.T) {
+		projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", `export default { projects: [{ name: "p", use: { browserName: chosenBrowser } }] }`)
+		if len(projects) != 1 || !hasPlaywrightUnknown(PlaywrightPlan{Unknown: unknown}, PlaywrightAxisSelection, PlaywrightUnknownBrowserIdentity) {
+			t.Fatalf("projects=%+v unknown=%+v", projects, unknown)
+		}
+	})
+	t.Run("TJAA-V0-013 source closure expands setup relations", func(t *testing.T) {
+		for _, test := range []string{"tests/login.spec.ts", "tests/global.setup.ts", "tests/global.teardown.ts"} {
+			if !containsPlaywrightTest(plan, test) {
+				t.Fatalf("related test %s missing from %v", test, playwrightSelectionIDs(plan))
+			}
+		}
+	})
+	t.Run("TJAA-V0-014 grep and metadata are identity not exclusions", func(t *testing.T) {
+		angular := playwrightProject(plan, "angular")
+		if angular.Grep != "/@angular/" || angular.Metadata == "" || !slices.Contains(playwrightSelectionIDs(plan), "typescript:playwright:angular:tests/login.spec.ts") {
+			t.Fatalf("angular=%+v selected=%v", angular, playwrightSelectionIDs(plan))
+		}
+	})
+	t.Run("TJAA-V0-015 selection unknown retains the full relevant suite", func(t *testing.T) {
+		unknownRoot := playwrightFixture(t)
+		write(t, unknownRoot, "tests/login.spec.ts", `import { test } from "@playwright/test"; const p = "./pages/login"; test("x", async () => import(p))`)
+		unknownPlan, selectErr := SelectPlaywright(unknownRoot, "playwright.config.ts", []string{"tests/pages/login.ts"})
+		if selectErr != nil {
+			t.Fatal(selectErr)
+		}
+		if unknownPlan.Scope != affected.ScopeUnknown || unknownPlan.Fallback != PlaywrightFallbackFullSuite || len(unknownPlan.Excluded) != 0 {
+			t.Fatalf("scope=%s fallback=%s excluded=%v", unknownPlan.Scope, unknownPlan.Fallback, unknownPlan.Excluded)
+		}
+	})
+	t.Run("TJAA-V0-016 fixed inputs produce identical bounded bytes", func(t *testing.T) {
+		second, selectErr := SelectPlaywright(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
+		if selectErr != nil {
+			t.Fatal(selectErr)
+		}
+		firstBytes, firstErr := plan.Canonical()
+		secondBytes, secondErr := second.Canonical()
+		if firstErr != nil || secondErr != nil || !bytes.Equal(firstBytes, secondBytes) || plan.SourceDigest == "" {
+			t.Fatalf("firstErr=%v secondErr=%v sourceDigest=%q", firstErr, secondErr, plan.SourceDigest)
+		}
+	})
+	t.Run("TJAA-V0-017 mixed qualification fixture covers required variants", func(t *testing.T) {
+		for _, project := range []string{"angular", "chromium", "react", "setup", "cleanup"} {
+			if playwrightProject(plan, project).Name == "" {
+				t.Fatalf("project %s missing from %+v", project, plan.Projects)
+			}
+		}
+	})
+}
+
 func playwrightFixture(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
