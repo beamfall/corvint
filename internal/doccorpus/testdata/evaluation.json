@@ -1,0 +1,10 @@
+{
+  "schema": "corvint-corpus-labelled-fixture/1",
+  "kind": "synthetic-development",
+  "cases": [
+    {"query":"Count","subjects":["native:file:src/readme.md","native:file:src/report.py","native:file:src/view.ts","native:symbol:src/report.py:1:report_count","native:symbol:src/value.go:4:Count","native:symbol:src/value_test.go:3:TestCount","native:symbol:src/view.ts:1:showCount"],"abstain":false},
+    {"query":"nonexistentquokka","subjects":[],"abstain":true},
+    {"query":"inventedpaymentgateway","subjects":[],"abstain":true}
+  ],
+  "relationships": ["native:imports:src/value_test.go:testing"]
+}
