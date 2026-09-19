@@ -784,6 +784,9 @@ func run(arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if exit, handled := runCorpusIntegration(ctx, arguments, stdin, stdout, stderr); handled {
+		return exit
+	}
 	if len(arguments) > 0 && arguments[0] == "native-hook" {
 		return runNativeHook(ctx, arguments[1:], stdin, stdout, stderr)
 	}
@@ -793,6 +796,13 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 	if _, requested, _ := parseHelpInvocation(arguments); !requested {
 		if len(arguments) >= 2 && arguments[0] == "adapter" {
 			return runHostAdapter(ctx, arguments[1:], stdin, stdout)
+		}
+		if options, isCorpus, corpusErr := parseCorpusInvocation(arguments); isCorpus {
+			if corpusErr != nil {
+				emitError(stderr, corpusErr)
+				return 2
+			}
+			return runCorpus(ctx, options, stdout, stderr)
 		}
 		if options, isDocsMaintain, maintainErr := parseDocsMaintainInvocation(arguments); isDocsMaintain {
 			if maintainErr != nil {

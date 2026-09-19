@@ -11,8 +11,8 @@ Authoritative inputs: owner request [issue 31](https://github.com/beamfall/corvi
 ## Agent digest
 - Claim: A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.
 - Status: proposed/experimental; this contract does not accept generated intent or qualify HDC.
-- Exists: implementation is under construction; passing evidence and limits must be recorded before claiming completion.
-- Blocked on: the implementation, evaluation and independent review named below; owner acceptance remains separate.
+- Exists: native compiler/reader, explicit integrations, separate MCP, renderer, independent adapter and labelled evaluation.
+- Blocked on: owner acceptance and independent external utility qualification; local completion requires the gates below.
 - Read next: Requirements; Input and authority boundary; Acceptance and rollback.
 
 ## User job and verified current state
@@ -31,10 +31,12 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   schemas. Unknown members, duplicate members/IDs, trailing documents and noncanonical artifact
   bytes refuse. Compilation is deterministic for identical declared inputs, native builder and
   supplied timestamp; canonical ordering is by stable IDs, never filesystem traversal or wall time.
-- `DCP-V1-002`: Provenance carries builder identity/revision, native engine identity, profile identity,
+- `DCP-V1-002`: Provenance carries builder identity/revision, shared native compiler/schema/toolchain identity, profile identity,
   revision and digest, repository identity and source commit/tree, supplied build timestamp, every
   provider implementation version and artifact revision, input manifest/digest and artifact digest.
   Source revision, provider-artifact revision and provider implementation version are distinct.
+  Entry-point executable hashes do not identify the shared compiler. Dirty/unrecorded build revisions
+  remain explicit limitations and provide no immutable build attestation.
 - `DCP-V1-003`: Each literal source/provider scope has a complete immutable Git inventory checked
   before analyzer admission. Missing, undeclared, multiply claimed inputs without an explicit merge
   rule, unknown providers, mismatched revision/blob/digest and generated outputs used as source refuse.
@@ -57,11 +59,16 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   no relation; declarations create no test observation or journey.
 - `DCP-V1-007`: Native providers reuse indexed source/symbol/document evidence and explicitly distinguish
   test declarations from native retained observations. Observation inputs pass `testvaliditydoc.Decode`
-  and `Project`; carried projections are ignored. Preserve exact receipt digest, test package/name,
-  run/source identity, omissions, all five axes and preview/non-promotable limits. Exact identities,
+  and `ProjectPinned`; carried projections are ignored. Preserve exact receipt digest, test package/name,
+  run/source identity, omissions, native execution/association/hygiene/adequacy axes and preview limits.
+  Freshness separately rebinds original source digests; opaque Go identity and E2E app-build identity
+  stay unknown, and explicit source/build staleness stays stale. Exact identities,
   never test-name similarity, join observations to tests, subjects and journey steps.
 - `DCP-V1-008`: Journeys contain independently supplied ordered evidence, preconditions, action types,
-  expected observations, run/test identities, cleanup and limitations. States distinguish `verified`,
+  expected observations, run/test identities, cleanup and limitations. A separate pinned
+  `corvint-corpus-journey-observations/1` artifact must contain the entire ordered step list, exact
+  native receipt digest/source/test identity and successful cleanup. Every step joins the same run;
+  incomplete runs and unknown/stale freshness cannot qualify. States distinguish `verified`,
   `generated_not_verified`, `missing_journey`, `non_ui`, `blocked`. Only exact matching retained run
   and step witnesses qualify recorded verification; passing a run never proves step assertion,
   adequacy or completeness. No route/navigation/declaration invents steps.
@@ -102,9 +109,13 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   and remains generated. Preview is read-only; apply is an explicit operation. Maintenance freshly
   rederives output and verifies the page digest, preserves all human bytes/permissions, and refuses
   malformed/duplicate markers, tampered blocks, accepted intent, symlinks and concurrent replacement.
+  Apply pins the parent descriptor, captures the original inode, and publishes without clobbering a
+  competing destination. It retains the captured inode at a reported recovery path even on success,
+  preserving late writes from an editor holding it open. Explicit later operator cleanup may remove
+  recovery files. Publication has a brief absent-path window and is not a crash-atomic transaction.
   Existing draft/consume/maintain contracts are unchanged.
-- `DCP-V1-018`: All input/output and record/revision/traversal bounds are enforced before allocation or
-  expansion. Paths are local, symlink-safe and network-free. No provider or test execution, daemon,
+- `DCP-V1-018`: Input byte bounds apply before decode; record/revision/traversal bounds apply before
+  expansion, and bounded in-memory output is checked before publication. Paths are local, symlink-safe and network-free. No provider or test execution, daemon,
   second database, embedding engine, implicit source repair, commit, PR, merge or publication occurs.
   Hostile imported text is data, not instructions. Resource/cancellation failures remain explicit.
 - `DCP-V1-019`: Generic fixtures cover Go, JavaScript/TypeScript, Python or Ruby, unsupported analyzers,
@@ -131,6 +142,15 @@ per collection, 128 journeys with 128 steps each, 64 KiB per evidence excerpt, 1
 256 results, 8 revisions and 16 providers. Whole-build output overflow refuses instead of truncating.
 Query limits disclose withheld rows. Unsupported analyzer input may be inventoried with an explicit
 gap; explicitly requesting an unavailable provider implementation fails the build.
+
+## Failure modes
+
+`corpus-refused` covers malformed/canonical/digest/closure/authority/span/bound failures.
+`corpus-input-unavailable` covers missing, unsafe or oversized local inputs.
+`corpus-provider-unavailable` covers undeclared or unsupported provider implementations.
+`corpus-invalid-revision` covers an unsupported immutable source revision.
+The separate MCP startup uses `corpus-unavailable` when its configured corpus cannot be opened;
+call failures retain the specific native error and never return successful empty evidence.
 
 ## Non-goals and simpler baseline
 

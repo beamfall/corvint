@@ -7,6 +7,37 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-19 DCP-V1: experimental revision-pinned documentation corpus
+
+Issue 31 was explicitly scoped to all six phases. The change supplies a native immutable corpus,
+separately attributed native read integrations and CEM citation sidecar, capability-gated stdio MCP,
+Markdown/JSON rendering and explicit block maintenance, and an independent flow adapter outside Core.
+Gate A required real native receipt decoding rather than trusting normalized verification labels,
+separate source/provider commits, complete inventory before analyzer admission, and same-call
+maintenance rederivation. Those boundaries govern the implementation. Generated intent remains
+proposed; opaque Go run identity, E2E served-build identity, assertion adequacy and external utility
+remain unknown. Passing synthetic journey fixtures do not claim real browser execution.
+
+Independent review found cross-binary engine identity, scope additions, native range impact,
+excluded-source handling, maintenance publication races and a CEM base-mode gap. The consolidated
+repair uses shared compiler identity, native admission/receipt metadata and descriptor-confined
+no-clobber publication with retained recovery inodes. Actual two-binary and concurrency regressions
+cover the previously hidden boundaries.
+
+Focused corpus, provider, maintenance, adapter, native/CEM and transport tests passed during development.
+A new receipt-join regression exposed the host's `/var` versus `/private/var` root alias; reads now use
+the caller's lexical receipt root and the same confined file reader. An E2E freshness review exposed
+that source identity alone was insufficient; unknown served builds now remain unknown. These failed
+iterations were repaired before final verification. Frozen synthetic labels report precision, recall,
+abstention, false relationships, latency and bytes, without a savings or universal-quality claim.
+
+Self-development routes used: actual pre-change query/context, dirty affected advice (UNKNOWN with
+explicit frontiers), and the committed self-corpus fixture. Draft maintenance was exercised by the
+new corpus path; existing draft host adoption and external provider/host interoperability remain
+NOT_OBSERVED. CEM/OCM and clean selected-check receipts are retained by the enrolled local completion
+session. Independent review and final gate results must be inspected before completion; the build
+log records the contract, not an assertion that a pending gate already passed.
+
 ## 2026-09-19 CRB-V0-014: owner-selected corvid artwork
 
 The owner selected the first, corvid direction from three generated concepts and then approved

@@ -254,7 +254,7 @@ carries an outcome (`internal/gokernel/harness.go:398-401`). Every receipt binds
 
 1. **Read a committed CEM/OCM pair from a declared repository path.** The convention exists
    (`.corvint/change.cem.json`, `.corvint/change.ocm.json` — `cmd/corvint/ocm.go:247`,
-   `cmd/corvint/help.go:545`, workflow at `README.md:187-197@dba210c7`). Cost: this supplies two of four inputs.
+   `cmd/corvint/help.go:545`, workflow at `README.md:190-200@dba210c7`). Cost: this supplies two of four inputs.
    Taking base and target *from the artifact* is what `CF-V0-001` calls inferred revision authority and
    fails `unsupported-frontier-context` (`change-frontier-v0.md:82-87`), so this option is incomplete
    on its own and must be paired with option 2 for the revisions.
