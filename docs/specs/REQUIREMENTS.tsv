@@ -1220,6 +1220,14 @@ NPO-V0-006	docs/specs/native-observer-prearm-v0.md	60	Optional comparison gold M
 NPO-V0-007	docs/specs/native-observer-prearm-v0.md	68	Comparison mode MUST require every expected completed summary in order and refus
 NPO-V0-008	docs/specs/native-observer-prearm-v0.md	80	Optional native continuation evidence MUST use only typed turn/started,
 NPO-V0-009	docs/specs/native-observer-prearm-v0.md	91	The `observe` mode's input read MUST be bounded by its stated lifetime on every
+NTP-V0-001	docs/specs/native-taskman-planning-v0.md	32	The opt-in `corvint work plan-fixture --executor ABSOLUTE_FILE --observations FI
+NTP-V0-002	docs/specs/native-taskman-planning-v0.md	38	The receipt MUST bind the immutable source commit/tree, executor digest, native
+NTP-V0-003	docs/specs/native-taskman-planning-v0.md	42	Eligible tickets MUST be processed by priority P0..P3, numeric order, then ticke
+NTP-V0-004	docs/specs/native-taskman-planning-v0.md	46	Eligibility MUST preserve ticket state/holds, current RUN approval, source/write
+NTP-V0-005	docs/specs/native-taskman-planning-v0.md	51	Collision sets MUST include declared resources/touch paths plus the existing
+NTP-V0-006	docs/specs/native-taskman-planning-v0.md	57	The plan MUST bind queueId, policySha256, headSeq, intentTreeSha256,
+NTP-V0-007	docs/specs/native-taskman-planning-v0.md	63	Deferral history MUST be explicitly observed, including a complete empty history
+NTP-V0-008	docs/specs/native-taskman-planning-v0.md	67	Existing command/WQO behavior MUST remain intact. The new command MUST mutate no
 OACS-V0-001	docs/specs/optional-artifact-check-scripts-v0.md	47	The offline-build entrypoint MUST require a nonempty first argument naming a
 OACS-V0-002	docs/specs/optional-artifact-check-scripts-v0.md	53	The offline-build entrypoint MUST refuse an exact dependency-list line equal to
 OACS-V0-003	docs/specs/optional-artifact-check-scripts-v0.md	59	After all three temporary allocations succeed, the offline-build entrypoint
