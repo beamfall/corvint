@@ -181,8 +181,11 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   component matches only a whole path component. For the CEM sidecar `.corvint/change.cem.json`
   (decision 0322), derived evidence every dogfooded change commits, such a package is selected
   only when that token, resolved against the package's directory (a root-anchored token against the
-  root), is the sidecar or one of its ancestor directories; a `.corvint` or `change.cem.json`
-  token joined to a fixture root selects nothing, and rules (a), (b), and (d) are unchanged;
+  root), can form the sidecar or one of its ancestor directories while preserving the outer
+  partial-component matches above. A root-climbing or compatible root-anchored token in the same
+  package MAY establish the root for a separate naming fragment because the literal-only index
+  cannot prove whether the expressions compose; a `.corvint` or `change.cem.json` token joined only
+  to a fixture root selects nothing, and rules (a), (b), and (d) are unchanged;
   (d) whenever `plan.dirty` is non-empty (`unresolved`), every package whose reads no literal bounds.
   Such a package calls `runtime.Caller` or `os.Getwd` or carries the literal `--show-toplevel` in any
   file, or has a file that does not lex. A call counts under whatever local name the file's own

@@ -11,8 +11,11 @@ of the diff and self-excluded from the CEM patch (`internal/frontier.ExcludedPat
 
 The call: for that one path, a rule (c) reader is kept only when its token, joined to the holder's
 directory (a token starting with `/`, which includes a root module import path and a literal
-concatenated after a root variable, is taken from the root), is the sidecar or an ancestor
-directory of it. A test that opens the repository's own sidecar must reach the root by a literal
+concatenated after a root variable, is taken from the root), can form the sidecar or an ancestor
+directory of it while preserving rule (c)'s outer partial-component matches. When concatenation
+splits a root-climbing or compatible root-anchored token from a naming fragment, their common
+package is conservatively kept because the literal-only index cannot prove the expressions do not
+compose. A test that opens the repository's own sidecar must reach the root by a literal
 that climbs (`../../.corvint/change.cem.json`, kept), by `..` components alone, `runtime.Caller`,
 `os.Getwd`, or `git rev-parse --show-toplevel` (`unresolved`, selected on every dirty path under
 rule (d)), or through a dependency that does so (`unresolved` by dependency). What remains undetected
@@ -32,7 +35,8 @@ selection falls from 112 to 104, of which 103 are the rule (d) `unresolved` floo
 `feat/build-number` against `05e17d0` the selection falls from 150 to 148.
 
 Consequence: no wire, receipt, or requirement-ID change. `TestSelectPackagesNarrowsChangeEvidenceReaders`
-pins the constant to `frontier.ExcludedPath` and replays fixture, climbing, root-anchored, and
-ancestor-directory tokens, plus a sibling `.corvint` path that keeps the component-run rule.
+pins the constant to `frontier.ExcludedPath` and replays fixture, climbing, root-anchored,
+partial-concatenation, and ancestor-directory tokens, plus a sibling `.corvint` path that keeps the
+component-run rule.
 
 Rollback: revert the commit; the sidecar then selects every component-run reader again.

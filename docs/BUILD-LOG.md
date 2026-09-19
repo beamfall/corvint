@@ -77,7 +77,11 @@ asset hashes are retained in `/tmp/corvint-logo-20260919/` for this task.
 ## 2026-09-19 AFP-V0-012 fast tier: the CEM sidecar's readers, the cutover-test frontier, and the unresolved floor
 
 Decision 0322 narrows rule (c) for `.corvint/change.cem.json` to readers whose literal resolves
-to it. These are selector-only package counts, with no tests run, on `Russells-Mac-Studio.local`,
+to it or can form it under rule (c)'s outer partial-component semantics. The independent review
+found that exact resolved-string comparison omitted a package constructing the path as
+`filepath.Join("..", ".corvint/change.cem") + ".json"`; the repaired selector conservatively pairs
+a naming fragment with a root-climbing or compatible root-anchored token in the same package.
+These are selector-only package counts, with no tests run, on `Russells-Mac-Studio.local`,
 `go1.27.1`. Selection counts come from `tools/gate-affected-select` over one `corvint affected`
 receipt. The script end to end with `GO_TEST_COMMAND=:` agrees. A branch from `3f30a02` changing
 `internal/touchsurprise/compute.go` plus the sidecar: 121 → 116 packages, where 116 is the count

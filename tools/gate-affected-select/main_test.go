@@ -76,6 +76,7 @@ func TestSelectPackagesAttributesEveryDirtyPath(t *testing.T) {
 // TestSelectPackagesNarrowsChangeEvidenceReaders covers AFP-V0-012 (c) for the
 // CEM sidecar: a fixture-root token does not select its holder, a literal that
 // resolves to the sidecar or its directory from the holder's directory does,
+// partial literals composed with a root-climbing literal remain conservative,
 // and any other path keeps the component-run rule.
 func TestSelectPackagesNarrowsChangeEvidenceReaders(t *testing.T) {
 	if changeEvidence != frontier.ExcludedPath {
@@ -86,9 +87,11 @@ func TestSelectPackagesNarrowsChangeEvidenceReaders(t *testing.T) {
 		"exact/exact_test.go":     "package exact\n\nvar sidecar = \"../.corvint/change.cem.json\"\n",
 		"anchored/anchored.go":    "package anchored\n\nfunc Sidecar(root string) string { return root + \"/.corvint/change.cem.json\" }\n",
 		"deep/dir/dir_test.go":    "package dir\n\nvar evidence = \"../../.corvint\"\n",
+		"partial/partial.go":      "package partial\n\nimport \"path/filepath\"\n\nvar evidence = filepath.Join(\"..\", \".corvint/change.cem\") + \".json\"\n",
+		"split/split.go":          "package split\n\nfunc Sidecar(root string) string { return root + \"/.cor\" + \"vint/change.cem.json\" }\n",
 	})
 	cases := []struct{ name, dirty, verdict string }{
-		{"AFP-V0-012 sidecar selects only resolving readers", ".corvint/change.cem.json", "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact"},
+		{"AFP-V0-012 sidecar selects only resolving readers", ".corvint/change.cem.json", "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact example.com/fixture/partial example.com/fixture/split"},
 		{"AFP-V0-012 other hidden path keeps component-run readers", ".corvint/other.json", "run example.com/fixture/deep/dir example.com/fixture/fixture"},
 	}
 	for _, tc := range cases {
