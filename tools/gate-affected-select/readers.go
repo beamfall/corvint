@@ -416,6 +416,33 @@ func (index *repositoryIndex) readers(dirtyPath string) []string {
 	return sortedKeys(readers)
 }
 
+// resolvingReaders are the readers of dirtyPath whose token, resolved against
+// the holder's own directory (a root-anchored token against the root), is
+// dirtyPath or one of its ancestor directories: the literal a package's test
+// opens in the repository under test rather than in a fixture root it builds.
+func (index *repositoryIndex) resolvingReaders(dirtyPath string) []string {
+	readers := map[string]bool{}
+	for value, directories := range index.holders {
+		if !namesPath(value, dirtyPath) {
+			continue
+		}
+		for _, directory := range directories {
+			if resolvesWithin(directory, value, dirtyPath) {
+				readers[directory] = true
+			}
+		}
+	}
+	return sortedKeys(readers)
+}
+
+func resolvesWithin(directory, value, dirtyPath string) bool {
+	resolved := path.Join(directory, value)
+	if rest, ok := strings.CutPrefix(value, "/"); ok {
+		resolved = path.Clean(rest)
+	}
+	return resolved == dirtyPath || strings.HasPrefix(dirtyPath, resolved+"/")
+}
+
 // nestedModule reports whether dirtyPath lies under a nested go.mod, outside
 // the root module that `go test ./...` covers.
 func (index *repositoryIndex) nestedModule(dirtyPath string) bool {
