@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -19,7 +20,7 @@ func TestPUBV0025VersionedInstallCoexistsAndNeverReplaces(t *testing.T) {
 	candidate := t.TempDir()
 	archivePath := "core/corvint_" + runtime.GOOS + "_" + runtime.GOARCH + ".tar.gz"
 	previous := verifyForInstall
-	verifyForInstall = func(string) (*VerifiedCandidate, error) {
+	verifyForInstall = func(context.Context, string) (*VerifiedCandidate, error) {
 		return &VerifiedCandidate{Manifest: Manifest{Version: "0.4.0a4", CorvintVersion: "Corvint 0.4.0a4 (build 9)"}, files: map[string][]byte{archivePath: coreArchiveFixture(t, runtime.GOOS+"_"+runtime.GOARCH)}}, nil
 	}
 	t.Cleanup(func() { verifyForInstall = previous })

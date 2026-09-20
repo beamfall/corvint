@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/companionrelease"
 )
@@ -24,11 +25,52 @@ type VerifiedCandidate struct {
 	files         map[string][]byte
 }
 
-var verifyForInstall = Verify
+var verifyForInstall = VerifyContext
+
+type candidateCompanionEvidence struct {
+	manifest                   companionrelease.BundleManifest
+	corvintCommit, corvintTree string
+	corvintSourcePath          string
+	tasks                      SourceIdentity
+	tasksSourcePath            string
+	entries                    map[string][]byte
+}
+
+var loadCompanionEvidence = func(directory string) (*candidateCompanionEvidence, error) {
+	bundle, err := companionrelease.VerifyRetainedBundle(directory)
+	if err != nil {
+		return nil, err
+	}
+	commit, tree, corvintSourcePath, err := bundle.CorvintSourceIdentity()
+	if err != nil {
+		return nil, err
+	}
+	tasks, tasksSourcePath, err := companionTasksIdentity(bundle)
+	if err != nil {
+		return nil, err
+	}
+	entries := map[string][]byte{}
+	for _, member := range []string{corvintSourcePath, tasksSourcePath} {
+		entry, present := bundle.Entry(member)
+		if !present {
+			return nil, fmt.Errorf("verified companion lacks %s", member)
+		}
+		entries[member] = entry
+	}
+	return &candidateCompanionEvidence{manifest: bundle.Manifest, corvintCommit: commit, corvintTree: tree, corvintSourcePath: corvintSourcePath, tasks: tasks, tasksSourcePath: tasksSourcePath, entries: entries}, nil
+}
 
 // Verify admits a closed candidate only when its checksum, manifest asset
 // inventory, and qualification rows agree with every retained regular file.
 func Verify(directory string) (*VerifiedCandidate, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return VerifyContext(ctx, directory)
+}
+
+// VerifyContext is Verify with caller cancellation propagated to the only
+// executed child: the exact host core version probe.
+func VerifyContext(ctx context.Context, directory string) (*VerifiedCandidate, error) {
 	resolved, err := filepath.EvalSymlinks(directory)
 	if err != nil {
 		return nil, err
@@ -115,7 +157,7 @@ func Verify(directory string) (*VerifiedCandidate, error) {
 	if err := validateQualification(qualification); err != nil {
 		return nil, err
 	}
-	if err := validateCandidateEvidence(files, manifest, assets, qualification); err != nil {
+	if err := validateCandidateEvidence(ctx, files, manifest, assets, qualification); err != nil {
 		return nil, err
 	}
 	return &VerifiedCandidate{Directory: resolved, Manifest: manifest, Qualification: qualification, files: files}, nil
@@ -140,7 +182,7 @@ func validateCandidateChecksums(files map[string][]byte) error {
 	return nil
 }
 
-func validateCandidateEvidence(files map[string][]byte, manifest Manifest, assets map[string]Asset, qualification Qualification) error {
+func validateCandidateEvidence(ctx context.Context, files map[string][]byte, manifest Manifest, assets map[string]Asset, qualification Qualification) error {
 	var report coreReport
 	if err := decodeClosed(files["evidence/core-verification-report.json"], &report); err != nil {
 		return fmt.Errorf("candidate core report: %w", err)
@@ -210,35 +252,43 @@ func validateCandidateEvidence(files map[string][]byte, manifest Manifest, asset
 	if len(hostBinary) == 0 {
 		return fmt.Errorf("candidate lacks a host core binary for exact version verification")
 	}
-	hostPath := filepath.Join(temporary, "corvint")
+	probeDirectory := filepath.Join(temporary, "probe")
+	companionDirectory := filepath.Join(temporary, "companion")
+	if err := os.Mkdir(probeDirectory, 0o700); err != nil {
+		return err
+	}
+	if err := os.Mkdir(companionDirectory, 0o700); err != nil {
+		return err
+	}
+	hostPath := filepath.Join(probeDirectory, "corvint")
 	if err := os.WriteFile(hostPath, hostBinary, 0o700); err != nil {
 		return err
 	}
-	versionCommand := exec.Command(hostPath, "--version")
-	versionCommand.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + temporary, "LANG=C", "LC_ALL=C"}
+	probeContext, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	versionCommand := exec.CommandContext(probeContext, hostPath, "--version")
+	versionCommand.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + probeDirectory, "LANG=C", "LC_ALL=C"}
 	versionOutput, err := versionCommand.Output()
 	if err != nil || strings.TrimSpace(string(versionOutput)) != manifest.CorvintVersion {
 		return fmt.Errorf("candidate host core version identity disagrees")
 	}
 	for _, candidatePath := range []string{archivePath, checksumPath, smokePath} {
-		if err := os.WriteFile(filepath.Join(temporary, filepath.Base(candidatePath)), files[candidatePath], 0o600); err != nil {
+		if err := os.WriteFile(filepath.Join(companionDirectory, filepath.Base(candidatePath)), files[candidatePath], 0o600); err != nil {
 			return err
 		}
 	}
-	bundle, err := companionrelease.VerifyRetainedBundle(temporary)
+	bundle, err := loadCompanionEvidence(companionDirectory)
 	if err != nil {
 		return fmt.Errorf("candidate companion evidence: %w", err)
 	}
-	commit, tree, corvintSourcePath, err := bundle.CorvintSourceIdentity()
-	if err != nil || commit != manifest.Sources[0].Commit || tree != manifest.Sources[0].Tree || bundle.Manifest.GoVersion != manifest.GoVersion || bundle.Manifest.GitVersion != manifest.GitVersion {
+	if bundle.corvintCommit != manifest.Sources[0].Commit || bundle.corvintTree != manifest.Sources[0].Tree || bundle.manifest.GoVersion != manifest.GoVersion || bundle.manifest.GitVersion != manifest.GitVersion {
 		return fmt.Errorf("candidate companion Corvint identity disagrees")
 	}
-	tasks, tasksSourcePath, err := companionTasksIdentity(bundle)
-	if err != nil || tasks != manifest.Sources[1] {
+	if bundle.tasks != manifest.Sources[1] {
 		return fmt.Errorf("candidate companion Tasks identity disagrees")
 	}
-	for candidatePath, bundlePath := range map[string]string{"source/corvint-src.tar.gz": corvintSourcePath, "source/corvint-tasks-src.tar.gz": tasksSourcePath} {
-		entry, present := bundle.Entry(bundlePath)
+	for candidatePath, bundlePath := range map[string]string{"source/corvint-src.tar.gz": bundle.corvintSourcePath, "source/corvint-tasks-src.tar.gz": bundle.tasksSourcePath} {
+		entry, present := bundle.entries[bundlePath]
 		if !present || !bytes.Equal(entry, files[candidatePath]) {
 			return fmt.Errorf("candidate source archive %s disagrees", candidatePath)
 		}
@@ -334,7 +384,7 @@ func InstallCore(ctx context.Context, candidateDirectory, store string) (string,
 	if !filepath.IsAbs(candidateDirectory) || !filepath.IsAbs(store) {
 		return "", fmt.Errorf("candidate and store paths must be absolute")
 	}
-	verified, err := verifyForInstall(candidateDirectory)
+	verified, err := verifyForInstall(ctx, candidateDirectory)
 	if err != nil {
 		return "", err
 	}

@@ -121,7 +121,7 @@ func Assemble(ctx context.Context, options Options) (_ *Result, err error) {
 	if err := writeCandidate(staging, files); err != nil {
 		return nil, err
 	}
-	if _, err := Verify(staging); err != nil {
+	if _, err := VerifyContext(ctx, staging); err != nil {
 		return nil, fmt.Errorf("verify completed release candidate: %w", err)
 	}
 	if err := promoteNoReplace(options.OutputParent, filepath.Base(staging), name); err != nil {

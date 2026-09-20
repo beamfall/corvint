@@ -26,7 +26,11 @@ staging tree, used a fixed removable version-probe path, and omitted three relea
 The repair decodes the exact six-member core archives, binds binary/checksum/build identities and
 executes the host core version, verifies completed staging before no-replace promotion, uses only a
 unique owned probe, refuses scratch/output overlap, and names local-Git trust, unmeasured performance
-and unavailable hosted CI. The pre-change core archive gate passed. The pre-change
+and unavailable hosted CI. Re-review then found that the host probe polluted the exact three-file
+companion verification directory and lacked caller cancellation. The final repair isolates both
+directories, propagates caller cancellation with a bounded probe, and adds a closed-candidate
+regression that executes the host identity check and proves the companion verifier receives exactly
+three files. The pre-change core archive gate passed. The pre-change
 companion gate reached the separately owned Corvint Tasks checkout and failed before retention at
 `corvint-tasks init`; therefore no combined candidate was produced and Linux installed workflows
 remain `NOT_RUN`. Publication, tagging, pushing, signing, upload and promotion were not attempted.
