@@ -92,9 +92,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:3cfa03edcdd52932f25dfe81ade1e98b86bd9086ea2c405716bc8b3c2757d841",
+      "id": "hunk:sha256:c9afa7daa58fba9213e82763d434dd6959899efa704d99886b9ac3866cfc588a",
       "newRange": {
-        "count": 33,
+        "count": 35,
         "start": 7
       },
       "oldRange": {
@@ -132,7 +132,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:a39f8005244046c2598686105027ae7519264380cb0b6f9b9e040e72c4a97b95",
+      "id": "hunk:sha256:c5c3e2c552149f1a2424ee5ecceceedbf639339670bd3b9988c020f76dbe8b7a",
       "newRange": {
         "count": 11,
         "start": 1696
@@ -152,9 +152,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:59126bc14440510911fc09397b237e4f5351232322feb2f64f8188328ce657d3",
+      "id": "hunk:sha256:c8deca10b8b611be217ab210fe159586c63c421acd4940105d2db7b7a5512655",
       "newRange": {
-        "count": 18,
+        "count": 19,
         "start": 90
       },
       "oldRange": {
@@ -172,10 +172,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:5c7645a718f02edbb396673ba5bdea371548a296d85c1bc5ed46b0094c52c233",
+      "id": "hunk:sha256:49afe8780863c647627999f6610e8e9d9ed252cfddd1b9d09b10e47116a886ca",
       "newRange": {
         "count": 9,
-        "start": 109
+        "start": 110
       },
       "oldRange": {
         "count": 7,
@@ -192,10 +192,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:a6bbd8cd61b7d816bf2c6f7ef0ec492a9319ff5bb58d6556234595d4d5b4fe66",
+      "id": "hunk:sha256:61a36c2bcc880ac40612554fbfa209c1f9aee4c46d566f963082c34b8f0f7b2c",
       "newRange": {
         "count": 16,
-        "start": 160
+        "start": 161
       },
       "oldRange": {
         "count": 6,
@@ -212,10 +212,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:0e43285a6c68041d26b74d9ee2dff5ee238519052cf9422d172536c0a1f55c0c",
+      "id": "hunk:sha256:a0a1fc500a45e5ccbc9619b9932be1a4f292a0a427a8e27b16bf6149435dbb7f",
       "newRange": {
         "count": 8,
-        "start": 256
+        "start": 257
       },
       "oldRange": {
         "count": 6,
@@ -232,10 +232,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:b0d07152ba0466cae98a911a577d53d7265ad82e46d34dfd89ffc5acbd402a23",
+      "id": "hunk:sha256:cc3b80d01a328f589cefb3de7869c73f3b4a9caca6fb46b4b2679841b9a08d03",
       "newRange": {
         "count": 6,
-        "start": 268
+        "start": 269
       },
       "oldRange": {
         "count": 5,
@@ -432,14 +432,14 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:320aff6b2d05044ec1fc17950ae5d744bacbf6832e3298d3b6bcd34e906b980c",
+      "id": "hunk:sha256:870736a005f5cafe3da09d2ad49d08108d7fa0ffa981a777a61f396f638cec42",
       "newRange": {
-        "count": 9,
-        "start": 705
+        "count": 13,
+        "start": 704
       },
       "oldRange": {
-        "count": 6,
-        "start": 681
+        "count": 7,
+        "start": 680
       },
       "path": "internal/liveverify/affected/typescript/playwright.go",
       "reason": "evidence-backed"
@@ -452,10 +452,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:97648ee846cc229a3522b97bb6dd2d1cf821b813b8819c473c50dab045f7b559",
+      "id": "hunk:sha256:6ae3442d3762631b03fd2f2cae2b440d865c6db0fce89e3e6f4e1b0a69ee97dc",
       "newRange": {
         "count": 6,
-        "start": 716
+        "start": 719
       },
       "oldRange": {
         "count": 9,
@@ -492,9 +492,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:9a8ec649731fb8e7f4f1cabfbcb6cc2bd57b90978b1415765c48a91912383b93",
+      "id": "hunk:sha256:2c3e36404969008889328816fac29075c96430de5461566033174251de065e4a",
       "newRange": {
-        "count": 151,
+        "count": 153,
         "start": 1
       },
       "oldRange": {
@@ -605,6 +605,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "3f178c330136a43d237e2a4bb7a5c416326b700c11957e3784c1d60289c318d8",
+  "patchSha256": "e51ac872f73bcbc2472ad3a1ce4d9732d06d4b640169cac90e1f48f8001659bb",
   "spec": "cem/0.2"
 }
