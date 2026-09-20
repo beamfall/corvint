@@ -141,7 +141,7 @@ func selectPlaywrightStatic(root, configPath string, dirty []string) (Playwright
 	configUnknown = append(configUnknown, bindPlaywrightGlobalHooks(configPath, string(configBytes), &result)...)
 	tests := playwrightSourcePaths(result)
 	units := playwrightUnits(root, configPath, projects, globalTestDir, tests)
-	bindPlaywrightTestMembership(&result, units)
+	bindPlaywrightTestMembership(&result, units, configPath)
 	selectionUnknown, executionUnknown := classifyPlaywrightFrontier(result.Frontier)
 	selectionUnknown = append(selectionUnknown, configUnknown...)
 	filtered := result
@@ -265,10 +265,16 @@ func playwrightSourcePaths(result affected.Result) []string {
 	return sortedKeys(set)
 }
 
-func bindPlaywrightTestMembership(result *affected.Result, units []PlaywrightSelection) {
+func bindPlaywrightTestMembership(result *affected.Result, units []PlaywrightSelection, configPath string) {
 	tests := map[string]bool{}
 	for _, unit := range units {
 		tests[unit.Test] = true
+	}
+	configID := ""
+	for _, unit := range result.Units {
+		if containsString(unit.Sources, configPath) || containsString(unit.Tests, configPath) {
+			configID = unit.ID
+		}
 	}
 	for index := range result.Units {
 		unit := &result.Units[index]
@@ -280,6 +286,11 @@ func bindPlaywrightTestMembership(result *affected.Result, units []PlaywrightSel
 			} else {
 				unit.Sources = append(unit.Sources, name)
 			}
+		}
+		// The explicit config may have an unconventional name that nearestConfigs
+		// cannot discover. Its hooks govern every admitted physical test.
+		if len(unit.Tests) != 0 && configID != "" && unit.ID != configID {
+			unit.Imports = sortedUnique(append(unit.Imports, configID))
 		}
 	}
 }

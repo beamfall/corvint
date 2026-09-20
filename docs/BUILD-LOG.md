@@ -36,6 +36,11 @@ Corvint pre-change context and required dogfood preparation were used. Initial p
 missing citation/scope/outcome reasons; final reports and the parent-owned serialized gate remain
 required. Optional mutation/provider execution and runtime promotion are outside this static slice.
 
+Independent review found custom config names lacked test-to-config edges, allowing a transitive
+global-setup helper change to select nothing despite matched discovery. Repair explicitly binds
+every admitted physical test to the selected config; a custom `e2e.config.ts` regression requires
+the entire matched suite for its setup-helper change without making helpers executable units.
+
 ## 2026-09-20 TJAA-V0-012..017: golf-shaped Playwright selection (issue 41)
 
 The owner-requested follow-up to issue 18 adds static global-use inheritance, nearest-tsconfig

@@ -16,17 +16,21 @@ const discoveryFixtureRevision = "1111111111111111111111111111111111111111"
 
 // Input membership is provided by an independent fixture oracle, never selector output.
 func discoveryFixtureBytes(t *testing.T, root string, units []PlaywrightDiscoveryUnit) []byte {
+	return discoveryFixtureBytesForConfig(t, root, "playwright.config.ts", units)
+}
+
+func discoveryFixtureBytesForConfig(t *testing.T, root, configPath string, units []PlaywrightDiscoveryUnit) []byte {
 	t.Helper()
-	body, err := os.ReadFile(filepath.Join(root, "playwright.config.ts"))
+	body, err := os.ReadFile(filepath.Join(root, configPath))
 	if err != nil {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(body)
-	digest, err := ObservePlaywrightSources(root, "playwright.config.ts")
+	digest, err := ObservePlaywrightSources(root, configPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw, err := json.Marshal(PlaywrightDiscovery{Profile: "playwright-discovery/0", Revision: discoveryFixtureRevision, Config: PlaywrightConfigIdentity{Path: "playwright.config.ts", SHA256: hex.EncodeToString(sum[:])}, SourceDigest: digest, Units: units}, json.Deterministic(true))
+	raw, err := json.Marshal(PlaywrightDiscovery{Profile: "playwright-discovery/0", Revision: discoveryFixtureRevision, Config: PlaywrightConfigIdentity{Path: configPath, SHA256: hex.EncodeToString(sum[:])}, SourceDigest: digest, Units: units}, json.Deterministic(true))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,6 +48,29 @@ func smallDiscoveryUnits() []PlaywrightDiscoveryUnit {
 }
 
 func TestPlaywrightDiscoveryReconciliation(t *testing.T) {
+	t.Run("TJAA-V0-013 custom config global setup helper reaches complete matched suite", func(t *testing.T) {
+		root := t.TempDir()
+		write(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.63.0"}}`)
+		write(t, root, "e2e.config.ts", `export default {globalSetup:"./support/setup.ts",projects:[{name:"chromium",testDir:"tests"}]}`)
+		write(t, root, "support/setup.ts", `import { setup } from "./helper"; export default setup`)
+		write(t, root, "support/helper.ts", `export const setup = () => {}`)
+		write(t, root, "tests/a.spec.ts", `import {test} from "@playwright/test";test("a",()=>{})`)
+		write(t, root, "tests/b.spec.ts", `import {test} from "@playwright/test";test("b",()=>{})`)
+		units := []PlaywrightDiscoveryUnit{{Project: "chromium", Test: "tests/a.spec.ts"}, {Project: "chromium", Test: "tests/b.spec.ts"}}
+		raw := discoveryFixtureBytesForConfig(t, root, "e2e.config.ts", units)
+		plan, err := SelectPlaywright(root, "e2e.config.ts", discoveryFixtureRevision, []string{"support/helper.ts"}, raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if plan.Scope != "BOUNDED" || plan.Discovery.State != "MATCHED" || len(plan.Selected) != 2 || len(plan.Excluded) != 0 {
+			t.Fatal(plan)
+		}
+		for _, unit := range plan.Selected {
+			if !strings.HasSuffix(unit.Test, ".spec.ts") {
+				t.Fatal("helper argv", unit)
+			}
+		}
+	})
 	t.Run("TJAA-V0-012 discovered membership excludes helper argv", func(t *testing.T) {
 		root := playwrightFixture(t)
 		write(t, root, "tests/api.ts", `export const api = 1`)
