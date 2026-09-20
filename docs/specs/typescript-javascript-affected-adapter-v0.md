@@ -90,7 +90,16 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   owners in the shared V0 graph. Unit IDs and all arrays MUST be sorted and deterministic.
 - `TJAA-V0-012`: Static config support is deliberately closed. Project arrays and membership fields
   MUST be literals; `testMatch`/`testIgnore` MAY be literal strings or regular expressions; device
-  spreads MAY name a literal `devices[...]` descriptor. Imported/computed projects, generated test
+  spreads MAY name a literal `devices[...]` descriptor. The opt-in profile MUST apply literal
+  global `use` defaults before project `use` overrides, preserve browser/device identity, and bind
+  the inherited input in the project fragment identity. Other `use` values MUST be static literals.
+  It MAY resolve nearest-ancestor `tsconfig.json` JSON/JSONC `baseUrl` and `paths` declarations:
+  exact keys precede wildcard keys, longest wildcard prefixes precede shorter prefixes, and target
+  lists retain declaration order. Resolution MUST stay inside the observed repository, and MUST
+  widen on missing declared targets, ambiguous source candidates, config inheritance, unsupported
+  root-directory/module-suffix resolution, or explicit Playwright `tsconfig` overrides. The general
+  `affected-plan/0` adapter MUST retain its existing unresolved-alias frontier.
+  Imported/computed projects, generated test
   lists, functions, environment branches, feature flags, unknown device descriptors, unresolved
   browser identity, malformed regular expressions, and dependency cycles MUST widen to
   `FULL_RELEVANT_SUITE` with a typed selection unknown.
@@ -98,7 +107,9 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   reverse-import closure's Playwright tests under every statically applicable project. A changed
   config selects the full relevant suite. Selecting a setup project MUST also select every unit in
   its transitive dependent projects; a selected dependent project MUST select its dependency units
-  and teardown unit. No unknown may remove a unit.
+  and teardown unit. Literal `globalSetup`/`globalTeardown` paths MUST attach their transitive source
+  dependencies to the config so hook/helper changes select every configured test. Missing or computed
+  hook paths MUST widen. No unknown may remove a unit.
 - `TJAA-V0-014`: Project grep/tag and metadata inputs are identity, not file-exclusion authority.
   This static profile MUST NOT exclude a file merely because its cases cannot be proven to match a
   project grep. Runtime feature flags and externally managed application state are execution-axis
@@ -146,6 +157,16 @@ cases require 1,187 units in total and reject both missing and extra units. Dyna
 unknown-membership cases require the full independently enumerated 353-unit baseline as a subset;
 additional conservative units remain permitted. Unknown project sets require full-config fallback
 with zero runnable approximations. Every case repeats canonical serialization for identical inputs.
+
+`TestPlaywrightGolfQualification` extends that synthetic repository shape with global `use`, a
+global-setup helper, and alias imports through specs, fixtures, page objects, workflows and scenario
+builders. A cohort helper change selects exactly 41 of 353 units (13 files across three projects plus
+setup/cleanup); a global-setup helper or config change selects all 353. Computed imports, undeclared
+or missing aliases, unsupported config inheritance, ambiguous module candidates and dynamic config
+inputs require full fallback without exclusions. Identical inputs reproduce canonical receipt bytes.
+The exact golf-e2e checkout/config was unavailable (`NOT_OBSERVED`); this is not consumer recall or
+execution qualification. JSONC comments/trailing commas are supported; package-directory resolution,
+custom loaders and `extends` remain conservative frontiers. Source digests include tsconfig inputs.
 
 Retained-provider composition uses the existing JavaScript reporter parser and `ProjectPinned`:
 matching source/config bindings still leave E2E freshness unknown, mismatches and stale app builds
@@ -233,6 +254,8 @@ and does not widen the interface or choose a language precedence.
 
 Rollback removes `internal/liveverify/affected/typescript`, its conformance fixture/case, and this
 experimental spec. No persisted format, CLI registry, or existing receipt is changed.
+The issue 41 extension can instead be reverted independently: restore the opt-in profile's global
+`use`/alias frontiers and remove global-hook edge binding and its qualification cases.
 
 ## Traceability
 
@@ -243,5 +266,6 @@ experimental spec. No persisted format, CLI registry, or existing receipt is cha
 | `TJAA-V0-009` | `internal/liveverify/affected/conformance_test.go` TypeScript seam case | experimental |
 | `TJAA-V0-010..017` | `internal/liveverify/affected/typescript/playwright.go`, `playwright_test.go`, and `cmd/corvint/affected_playwright_test.go` | experimental |
 | `TJAA-V0-014..017` fixture qualification | `internal/liveverify/affected/typescript/playwright_qualification_test.go`, `testdata/playwright-qualification.tsv` | synthetic fixture evidence; runtime promotion excluded |
+| `TJAA-V0-012..017` golf shape | `TestPlaywrightGolfQualification`, `TestPlaywrightGlobalUseInheritance`, `TestPlaywrightAliasResolutionBoundaries` in `internal/liveverify/affected/typescript/playwright_golf_test.go` | synthetic global-use, alias and hook closure; exact consumer `NOT_OBSERVED` |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

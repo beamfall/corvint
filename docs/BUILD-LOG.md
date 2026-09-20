@@ -7,6 +7,28 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 TJAA-V0-012..017: golf-shaped Playwright selection (issue 41)
+
+The owner-requested follow-up to issue 18 adds static global-use inheritance, nearest-tsconfig
+baseUrl/paths resolution and global setup/teardown dependency edges to the opt-in profile. The
+shared default adapter retains its previous alias frontier. Unsupported inheritance, loader-shaped
+resolution, ambiguous or missing targets, computed imports and config still widen; application state
+remains an execution unknown. No JavaScript/config is executed.
+
+The synthetic golf-shaped qualification proves 41 selected units out of 353 for one changed cohort,
+all 353 for global-setup helpers/config, distinct Chromium/Angular/React units, setup/cleanup closure,
+and identical canonical bytes for identical inputs. The actual golf-e2e checkout was unavailable:
+consumer configuration and consumer recall remain `NOT_OBSERVED`, with no runtime promotion claim.
+The original qualification fixture and all shared TypeScript tests remain required gate inputs.
+
+Corvint query and initial dogfood-change were used at base
+`536e560e1fa35573e49df644dde4257a8bb7e050`; the query retained four omitted results and the initial
+empty-change coordinator retained `NOT_PRODUCED` CEM/OCM/outcome reasons. A pre-first-query measurement
+receipt was `NOT_OBSERVED`; no token/cost savings are claimed. The enrolled gate and final CEM/OCM
+reports remain the authoritative completion evidence. Mutation, external providers and runtime
+qualification are not applicable to this bounded static observer change. Independent review is owned
+by the parent task, with no nested delegation.
+
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
 Owner approval accepts decisions 0324/0325: bounded local MCP stdio and a separately built opt-in

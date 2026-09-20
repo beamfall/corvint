@@ -133,10 +133,11 @@ func SelectPlaywright(root, configPath string, dirty []string) (PlaywrightPlan, 
 	}
 	configSum := sha256.Sum256(configBytes)
 	projects, globalTestDir, configUnknown := parsePlaywrightConfig(configPath, string(configBytes))
-	result, err := New().Units(root)
+	result, err := New().units(root, true)
 	if err != nil {
 		return PlaywrightPlan{}, err
 	}
+	configUnknown = append(configUnknown, bindPlaywrightGlobalHooks(configPath, string(configBytes), &result)...)
 	selectionUnknown, executionUnknown := classifyPlaywrightFrontier(result.Frontier)
 	selectionUnknown = append(selectionUnknown, configUnknown...)
 	filtered := result
@@ -491,7 +492,7 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 			globalTestDir = path.Clean(path.Join(path.Dir(configPath), value))
 		}
 	}
-	for _, member := range []string{"grep", "grepInvert", "metadata", "testIgnore", "testMatch", "use"} {
+	for _, member := range []string{"grep", "grepInvert", "metadata", "testIgnore", "testMatch", "tsconfig"} {
 		if _, exists := properties[member]; exists {
 			unknown = append(unknown, selectionUnknown(PlaywrightUnknownConfigSyntax, "global "+member+" is outside the static project subset"))
 		}
@@ -510,7 +511,7 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 		if strings.TrimSpace(item) == "" {
 			continue
 		}
-		project, itemUnknown := parsePlaywrightProject(configPath, globalTestDir, item)
+		project, itemUnknown := parsePlaywrightProject(configPath, globalTestDir, item, properties["use"])
 		unknown = append(unknown, itemUnknown...)
 		if project.Name == "" {
 			continue
@@ -539,7 +540,7 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 	return projects, globalTestDir, canonicalPlaywrightUnknowns(unknown)
 }
 
-func parsePlaywrightProject(configPath, globalTestDir, raw string) (PlaywrightProject, []PlaywrightUnknown) {
+func parsePlaywrightProject(configPath, globalTestDir, raw, globalUse string) (PlaywrightProject, []PlaywrightUnknown) {
 	properties, ok := playwrightObjectProperties(raw)
 	if !ok {
 		return PlaywrightProject{}, []PlaywrightUnknown{selectionUnknown(PlaywrightUnknownProjectSet, "project entry is not a static object")}
@@ -551,6 +552,9 @@ func parsePlaywrightProject(configPath, globalTestDir, raw string) (PlaywrightPr
 	project := PlaywrightProject{Name: name, TestDir: globalTestDir, TestIgnore: []string{}, TestMatch: []string{}, Dependencies: []string{}}
 	project.Argv = []string{"npx", "playwright", "test", "--config=" + configPath, "--project=" + name}
 	fragmentSum := sha256.Sum256([]byte(strings.TrimSpace(raw)))
+	if globalUse != "" {
+		fragmentSum = sha256.Sum256([]byte(strings.TrimSpace(globalUse) + "\n" + strings.TrimSpace(raw)))
+	}
 	project.ConfigFragment = hex.EncodeToString(fragmentSum[:])
 	unknown := []PlaywrightUnknown{}
 	if value, exists := properties["testDir"]; exists {
@@ -589,7 +593,7 @@ func parsePlaywrightProject(configPath, globalTestDir, raw string) (PlaywrightPr
 			project.Metadata = hex.EncodeToString(sum[:])
 		}
 	}
-	project.Browser, project.Device, ok = playwrightUseIdentity(properties["use"])
+	project.Browser, project.Device, ok = playwrightInheritedUseIdentity(globalUse, properties["use"])
 	if !ok {
 		unknown = append(unknown, selectionUnknown(PlaywrightUnknownBrowserIdentity, name+" use.browserName/device is dynamic or unsupported"))
 	}
@@ -633,9 +637,21 @@ func playwrightStaticIdentity(project, member string, properties map[string]stri
 }
 
 func playwrightUseIdentity(raw string) (browser, device string, ok bool) {
+	return playwrightInheritedUseIdentity("", raw)
+}
+
+func playwrightInheritedUseIdentity(global, raw string) (browser, device string, ok bool) {
+	browser, device, ok = playwrightUseLayer(global, "chromium", "")
+	if !ok {
+		return "", "", false
+	}
+	return playwrightUseLayer(raw, browser, device)
+}
+
+func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return "chromium", "", true
+		return browser, device, true
 	}
 	object, exact := playwrightObject(raw)
 	if !exact {
@@ -646,6 +662,7 @@ func playwrightUseIdentity(raw string) (browser, device string, ok bool) {
 		return "", "", false
 	}
 	seenBrowser := false
+	seenDevice := false
 	for _, item := range items {
 		item = strings.TrimSpace(item)
 		if item == "" {
@@ -653,10 +670,11 @@ func playwrightUseIdentity(raw string) (browser, device string, ok bool) {
 		}
 		if strings.HasPrefix(item, "...") {
 			name, literal := playwrightDeviceSpread(strings.TrimSpace(strings.TrimPrefix(item, "...")))
-			if !literal || device != "" {
+			if !literal || seenDevice {
 				return "", "", false
 			}
 			device = name
+			seenDevice = true
 			browser = playwrightDeviceBrowser(device)
 			if browser == "" {
 				return "", device, false
@@ -681,6 +699,9 @@ func playwrightUseIdentity(raw string) (browser, device string, ok bool) {
 			}
 		}
 		if key != "browserName" {
+			if !playwrightStaticValue(strings.TrimSpace(item[colon+1:])) {
+				return "", device, false
+			}
 			continue
 		}
 		value, literal := playwrightString(strings.TrimSpace(item[colon+1:]))
