@@ -5,7 +5,7 @@ Date: 2026-09-12
 Requirement prefix: `PUB-V0`  
 Intent status: accepted owner scope; implementation details proposed  
 Delivery status: not qualified  
-Amendments: decision 0167 (build from the staged export; retained bundle archive) amends `PUB-V0-013..015`; decision 0314 adds `PUB-V0-021` (build number)
+Amendments: decision 0167 (build from the staged export; retained bundle archive) amends `PUB-V0-013..015`; decision 0314 adds `PUB-V0-021` (build number); issue 44 adds `PUB-V0-022..026` (closed qualified release candidate)
 
 ## Agent digest
 - Claim: A public alpha ships the Go CLI, MCP docs, agent/editor unit and E2E test tracking, and an optional dashboard and task manager with a roadmap.
@@ -248,6 +248,33 @@ The result binds the archive SHA-256 and frozen Corvint commit/tree. Existing ou
   `corvint --version` prints `Corvint <VERSION> (build N)`; an unstamped `go build` reports build
   `0`. The release smoke MUST require the exact stamped number, and the VS Code version probe and
   the dogfood coordinators MUST require the `(build N)` suffix while keeping `VERSION` as the pin.
+- `PUB-V0-022`: A versioned release candidate MUST be assembled only from the closed seven-file
+  core archive-gate output and the closed three-file companion retained output. Its verifier MUST
+  require PASS core reproducibility evidence, exact archive checksums, a passing companion retained
+  verifier, one matching Corvint commit/tree/toolchain across both inputs, and the exact Corvint and
+  Corvint Tasks source archives. Windows MUST remain outside the candidate. A mismatch MUST retain
+  no candidate.
+- `PUB-V0-023`: The candidate MUST carry a closed machine-readable manifest with the exact version,
+  build number, installed `corvint --version` output, Go/Git identities, Corvint and Corvint Tasks
+  commits/trees, and every non-manifest asset's path, role, size and SHA-256. A top-level
+  `SHA256SUMS` MUST cover every retained file except itself, including the manifest, qualification
+  receipt, core and companion receipts, source archives and release notes.
+- `PUB-V0-024`: The retained qualification receipt MUST use only `PASS`, `FAIL` and `NOT_RUN`, with
+  an explicit row for core archive, companion bundle, exact version identity, affected selection,
+  external Playwright receipt discovery, documentation-corpus discovery and work-queue observation
+  on macOS amd64/arm64 and Linux amd64/arm64. macOS arm64 MUST PASS every row before assembly.
+  Linux amd64 companion and installed workflows MUST remain `NOT_RUN` until executed on Linux;
+  cross-build success MUST NOT become installed-platform qualification.
+- `PUB-V0-025`: The candidate installer MUST reverify the closed candidate, select only the exact
+  host core archive and run its installed `--version` before atomically retaining it under the
+  unique `<store>/corvint/<version>/<goos>-<goarch>` path. It MUST refuse an existing path and MUST
+  NOT create or change a `current` or `latest` selector. Upgrade, coexistence and rollback are
+  explicit selection of immutable version/platform paths, never silent replacement.
+- `PUB-V0-026`: Candidate assembly or installation MUST fail without retained output when any core
+  or companion gate, checksum, source identity/archive, installed workflow, version identity,
+  manifest inventory, qualification row, or no-replace promotion check required by
+  `PUB-V0-022..025` fails. Local assembly and installation MUST NOT claim or perform tagging,
+  pushing, signing, uploading, publication or promotion.
 
 ### PUB-V0-020 foreground JS acceptance design
 
@@ -511,6 +538,11 @@ with named versions stays a separate, not-yet-exercised step that this command d
 | PUB-V0-015 | `internal/companionrelease/smoke.go`, `internal/companionrelease/workflow_smoke.go`, `internal/companionrelease/retain.go`, `internal/companionrelease/companionrelease.go`, `internal/companionrelease/proc.go` | Existing installed smoke/process tests plus `TestMCPDiscoveryRequiresExactProtocolAndIdentity` and `TestRetainedSmokeReportBindsArchiveOutsideArchive`; the retained exact-binary run remains the final companion gate. |
 | PUB-V0-016 | `extensions/vscode/test/installed`, `conformance/interactive-alpha`, `internal/companionrelease/installed.go`, `cmd/corvint-public-release-check`, `script/public-release-check` | retained verifier, no-overwrite and wrapper refusal tests; the final exact retained installed run remains required. |
 | PUB-V0-021 | `cmd/corvint/main.go` (`build`), `Makefile` (`build`), `conformance/release-artifact-v0/build.go` (`buildNumber`, `buildArguments`), `conformance/release-artifact-v0/archive_run.go`, `extensions/vscode/src/executable.ts`, `script/dogfood-change.sh`, `script/dogfood-check.sh`, `script/dogfood-bind-range.sh` | `TestSmokeTestExecutesRealSubprocessAndDetectsFailures` (missing and wrong build numbers fail), `TestGoOnlySourceAndVersion` (unstamped build 0), `TestCorvintHostArchivePartialProof` (extracted archive smoke requires the exact first-parent count), `version probe requires the build number (VSC-V0-007 PUB-V0-021)` |
+| PUB-V0-022 | `internal/releasecandidate` (`verifyCore`, `Assemble`), `internal/companionrelease/retained.go` | `TestPUBV0022VerifyCoreRequiresClosedReproducibleChecksummedSet`; the real dry run consumes both retained gates at exact commits |
+| PUB-V0-023 | `internal/releasecandidate` (`Manifest`, `assetsFor`, `renderChecksums`, `Verify`) | `TestPUBV0026CandidateVerifierRejectsChecksumDrift`; real candidate verification closes the manifest/checksum inventory |
+| PUB-V0-024 | `internal/companionrelease/core_smoke.go`, `internal/releasecandidate` (`buildQualification`, `validateQualification`) | `TestPUBV0024InstalledCoreDiscoveryWorkflows`; retained-bundle tests require the five new `/2` steps while preserving legacy profiles |
+| PUB-V0-025 | `internal/releasecandidate/install.go`, `cmd/corvint-release-install` | `TestPUBV0025VersionedInstallCoexistsAndNeverReplaces`, `TestPUBV0025PromotionNeverReplacesExistingCandidate` |
+| PUB-V0-026 | `cmd/corvint-release-candidate`, `cmd/corvint-release-install`, `internal/releasecandidate` | `TestPUBV0026FailedInputRetainsNoCandidate`, `TestPUBV0026CandidateVerifierRejectsChecksumDrift`; command errors precede retention and neither command has a publication operation |
 
 ## Core release scope amendment (2026-09-16)
 

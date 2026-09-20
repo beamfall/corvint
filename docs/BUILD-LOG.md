@@ -7,6 +7,24 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 PUB-V0-022..026: closed qualified release candidate (issue 44, Corvint half)
+
+The Corvint release path now closes the existing seven-file core archive-gate output and the
+three-file companion retained output into one versioned candidate. The candidate verifier binds
+the exact Corvint commit/tree/toolchain across both inputs, retains both source archives and gate
+receipts, requires the installed `Corvint <version> (build N)` identity, and records explicit
+platform/workflow `PASS` or `NOT_RUN` rows. The companion `/2` installed smoke now exercises
+affected selection, external Playwright receipt discovery, documentation-corpus discovery and
+repository work-queue observation through the extracted `corvint` binary. Legacy companion
+profiles keep their historical smoke inventory.
+
+The versioned installer reverifies the closed candidate, retains the host core archive at a unique
+version/platform path, refuses replacement and never writes a current/latest selector. Focused
+native and Linux cross-build checks pass. The pre-change core archive gate passed. The pre-change
+companion gate reached the separately owned Corvint Tasks checkout and failed before retention at
+`corvint-tasks init`; therefore no combined candidate was produced and Linux installed workflows
+remain `NOT_RUN`. Publication, tagging, pushing, signing, upload and promotion were not attempted.
+
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
 Owner approval accepts decisions 0324/0325: bounded local MCP stdio and a separately built opt-in

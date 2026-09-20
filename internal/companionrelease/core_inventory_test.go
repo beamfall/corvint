@@ -74,6 +74,17 @@ func versionedRetainedFixture(t *testing.T, core bool, mutate func(map[string]js
 		t.Fatal(err)
 	}
 	digest := sha256Hex(archive)
+	if core {
+		var corvint ComponentManifest
+		for _, component := range m.Components {
+			if component.Name == "corvint" {
+				corvint = component
+			}
+		}
+		for _, name := range []string{"corvint-version-identity", "corvint-affected-selection", "corvint-playwright-external-discovery", "corvint-documentation-corpus-discovery", "corvint-work-queue-observation"} {
+			old.SmokeSteps = append(old.SmokeSteps, SmokeStep{Name: name, OK: true, ComponentSHA256: corvint.BinarySHA256, SourceCommit: corvint.Commit, SourceTree: corvint.Tree, InvokedPath: "/private/removed/" + corvint.BinaryPath})
+		}
+	}
 	for j := range old.SmokeSteps {
 		old.SmokeSteps[j].BundleSHA256 = digest
 	}

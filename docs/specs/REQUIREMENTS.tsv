@@ -1391,6 +1391,11 @@ PUB-V0-018	docs/specs/public-release-v0.md	208	PR test selection MUST execute on
 PUB-V0-019	docs/specs/public-release-v0.md	214	The shipped witness CLI and release-publication receipt reader MUST ignore Git g
 PUB-V0-020	docs/specs/public-release-v0.md	219	Core installed qualification for companion profile `/2` MUST freeze fixture
 PUB-V0-021	docs/specs/public-release-v0.md	244	Every new Corvint version created on main MUST carry a new build number (owner
+PUB-V0-022	docs/specs/public-release-v0.md	251	A versioned release candidate MUST be assembled only from the closed seven-file
+PUB-V0-023	docs/specs/public-release-v0.md	257	The candidate MUST carry a closed machine-readable manifest with the exact versi
+PUB-V0-024	docs/specs/public-release-v0.md	262	The retained qualification receipt MUST use only `PASS`, `FAIL` and `NOT_RUN`, w
+PUB-V0-025	docs/specs/public-release-v0.md	268	The candidate installer MUST reverify the closed candidate, select only the exac
+PUB-V0-026	docs/specs/public-release-v0.md	273	Candidate assembly or installation MUST fail without retained output when any co
 PWP-V0-001	docs/specs/playwright-external-provider-v0.md	21	External mode requires readiness URL and declared app identity, rejects server c
 PWP-V0-002	docs/specs/playwright-external-provider-v0.md	22	A controlled config imports the original, disables webServer and selects the pro
 PWP-V0-003	docs/specs/playwright-external-provider-v0.md	23	Each outcome identifies source location, full title, project name, resolved brow

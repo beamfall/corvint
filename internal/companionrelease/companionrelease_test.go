@@ -1148,7 +1148,7 @@ func TestBuildUsesStagedExportNotCheckout(t *testing.T) {
 			}
 		}
 		ctx := context.Background()
-		if err := runGoBuild(ctx, goPath, root, "./cmd/x", filepath.Join(scratch, "checkout-x"), closedGoEnv(filepath.Join(scratch, "home-checkout"), supportedTarget)); err == nil {
+		if err := runGoBuild(ctx, goPath, root, "./cmd/x", filepath.Join(scratch, "checkout-x"), closedGoEnv(filepath.Join(scratch, "home-checkout"), supportedTarget), nil); err == nil {
 			t.Fatal("fixture invalid: the gitignored file did not break a checkout-rooted build")
 		}
 

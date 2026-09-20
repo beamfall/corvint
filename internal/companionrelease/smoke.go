@@ -83,6 +83,11 @@ func runSmoke(ctx context.Context, extractedDir, scratch string, queuePolicy que
 	if err != nil {
 		return steps, err
 	}
+	coreSteps, err := checkCoreDiscoveryWorkflows(ctx, filepath.Join(extractedDir, "bin", inventory.name("corvint")), scratch)
+	steps = append(steps, coreSteps...)
+	if err != nil {
+		return steps, err
+	}
 
 	initStep, _, err := runAtmJSON(ctx, atmBin, smokeRepo, "atm-init", "init")
 	steps = append(steps, initStep)
