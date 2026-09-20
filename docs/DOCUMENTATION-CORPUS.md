@@ -81,8 +81,10 @@ Playwright evidence without changing behavior-contract coverage. `stability --id
 selected one-spec, feature-batch or suite policy identity, separate raw outcome/cleanup/retry counts,
 and every immutable contributing receipt and attempt. Planned repetitions, retries and manual reruns
 remain distinct. Missing, duplicate, stale, cross-revision or contradictory contributors refuse;
-failed cleanup or any threshold miss yields `not-stable`. A stability report is repeated-run evidence,
-not test adequacy, behavior parity or selection authority.
+failed cleanup or any threshold miss yields `not-stable`. The repository policy and each observed run
+also bind exact CI node/shard, Playwright worker, database mode, project-set, split-version and resource
+topology; any declared-versus-observed mismatch refuses qualification before counting. A stability
+report is repeated-run evidence, not test adequacy, behavior parity or selection authority.
 
 ## Rendering and maintenance
 

@@ -153,6 +153,13 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   and return all contributing receipt identities. Stability remains a separate artifact and coverage
   axis from issue-40 behavior-contract joins; neither axis claims test adequacy, behavior parity,
   current served content, narrowing authority or promotion authority.
+- `DCP-V1-026`: The repository policy and every observed run bind separate full-artifact topology
+  evidence. Their closed identity includes CI nodes, total shards, Playwright workers per node,
+  database sharing/isolation mode, sorted project set, split algorithm/version and resource class.
+  Each observation binds its exact receipt digest and policy ID. Declared and observed topology must
+  match exactly before threshold evaluation, and the receipt's verified executed project must belong
+  to that project set. A fully passing four-node run cannot qualify a six-node policy, and malformed,
+  unbound or mismatched topology refuses the aggregate.
 
 ## Input and authority boundary
 
@@ -232,6 +239,14 @@ to the exact behavior-test anchor. Policy-owned worker/retry/environment-class/f
 remain attributed declarations bound by the policy and receipt digests, not independent runtime
 discovery.
 
+The policy's declared execution topology and every contribution's observed topology are separate
+canonical, full-file anchored inputs. Topology covers CI nodes/shards, Playwright workers per node,
+database mode, project set, split algorithm/version and resource class; observations additionally
+bind the exact receipt digest. All fields must match the repository policy before outcome counting.
+The issue comment reports a consumer policy of six isolated CircleCI nodes and an active job with
+`parallelism: 4`, but the exact consumer files and run artifacts were not supplied, so that concrete
+contradiction remains `NOT_OBSERVED` here rather than being imported as evidence.
+
 Counts intentionally overlap where facts overlap: a flaky repetition with a failed or timed-out first
 attempt retains that earlier category, is also `flaky`, and consumes a retry. This prevents a later pass
 from erasing its earlier failure. Failed or unknown planned/manual repetition or attempt cleanup prevents `clean`; malformed, omitted, duplicate,
@@ -244,7 +259,9 @@ Acceptance: `TestPlaywrightStabilityAggregateEndToEnd`,
 `TestPlaywrightStabilityPreservesEarlierFailureAndPolicyScopes` and
 `TestPlaywrightStabilityCountsEarlierTimeoutWithoutErasingRecovery`,
 `TestPlaywrightStabilityCountsEarlierInfrastructureWithoutErasingRecovery` and
-`TestStabilityToolIsCapabilityGated` exercise DCP-V1-021..025. Fixtures are synthetic; live repeated
+`TestPlaywrightStabilityRejectsDeclaredObservedTopologyMismatch`,
+`TestPlaywrightStabilityTopologyIdentity`, `TestPlaywrightStabilityTopologyBindings` and
+`TestStabilityToolIsCapabilityGated` exercise DCP-V1-021..026. Fixtures are synthetic; live repeated
 browser execution, consumer policy qualification, behavior parity and owner acceptance remain open.
 
 One local Git repository may supply up to eight explicit immutable revisions. A provider can be
@@ -300,7 +317,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-016 | `internal/mcp/corpusbridge`, `cmd/corvint-corpus-mcp` | Capability gating, transport parity and hostile text |
 | DCP-V1-017 | Corpus render and maintenance API | Human byte/permission preservation, malformed/stale/tampered refusal |
 | DCP-V1-019..020 | Conformance fixtures and independent example adapter | Labelled evaluation and actual self-corpus receipt |
-| DCP-V1-021..025 | `internal/doccorpus/stability.go`, corpus reader and MCP bridge | End-to-end aggregate, policy scopes, prior-attempt retention, source rebinding, cleanup and adversarial controls |
+| DCP-V1-021..026 | `internal/doccorpus/stability.go`, corpus reader and MCP bridge | End-to-end aggregate, policy scopes, prior-attempt retention, source rebinding, exact declared/observed topology, cleanup and adversarial controls |
 
 ## Open decisions
 

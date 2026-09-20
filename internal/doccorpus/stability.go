@@ -12,6 +12,7 @@ import (
 const (
 	StabilitySchema                 = "corvint-playwright-stability/1"
 	BehaviorStabilityProviderSchema = "corvint-corpus-behavior-stability-provider/1"
+	StabilityTopologySchema         = "corvint-playwright-stability-topology/1"
 )
 
 type StabilityRegistry struct {
@@ -21,10 +22,35 @@ type StabilityRegistry struct {
 }
 
 type StabilityPolicy struct {
-	ID               string               `json:"id"`
-	SHA256           string               `json:"sha256"`
-	MatrixDimensions []string             `json:"matrix_dimensions"`
-	Thresholds       []StabilityThreshold `json:"thresholds"`
+	ID               string                   `json:"id"`
+	SHA256           string                   `json:"sha256"`
+	Topology         StabilityTopologyBinding `json:"topology"`
+	MatrixDimensions []string                 `json:"matrix_dimensions"`
+	Thresholds       []StabilityThreshold     `json:"thresholds"`
+}
+
+type StabilityTopology struct {
+	CINodes                  int      `json:"ci_nodes"`
+	CIShards                 int      `json:"ci_shards"`
+	PlaywrightWorkersPerNode int      `json:"playwright_workers_per_node"`
+	DatabaseMode             string   `json:"database_mode"`
+	Projects                 []string `json:"projects"`
+	SplitAlgorithm           string   `json:"split_algorithm"`
+	SplitVersion             string   `json:"split_version"`
+	ResourceClass            string   `json:"resource_class"`
+}
+
+type StabilityTopologyBinding struct {
+	Evidence Anchor            `json:"evidence"`
+	Value    StabilityTopology `json:"value"`
+}
+
+type StabilityTopologyDocument struct {
+	Schema        string            `json:"schema"`
+	Kind          string            `json:"kind"`
+	PolicyID      string            `json:"policy_id"`
+	ReceiptSHA256 string            `json:"receipt_sha256,omitempty"`
+	Topology      StabilityTopology `json:"topology"`
 }
 
 type StabilityThreshold struct {
@@ -76,14 +102,15 @@ type StabilityIdentity struct {
 }
 
 type StabilityContribution struct {
-	RunKind     string                `json:"run_kind"`
-	Repetition  int                   `json:"repetition"`
-	ManualRunID string                `json:"manual_run_id,omitempty"`
-	Receipt     StabilityReceiptInput `json:"receipt"`
-	SourcePaths map[string]string     `json:"source_paths"`
-	Identity    StabilityIdentity     `json:"identity"`
-	Cleanup     string                `json:"cleanup"`
-	Attempts    []StabilityAttempt    `json:"attempts"`
+	RunKind     string                   `json:"run_kind"`
+	Repetition  int                      `json:"repetition"`
+	ManualRunID string                   `json:"manual_run_id,omitempty"`
+	Receipt     StabilityReceiptInput    `json:"receipt"`
+	SourcePaths map[string]string        `json:"source_paths"`
+	Identity    StabilityIdentity        `json:"identity"`
+	Topology    StabilityTopologyBinding `json:"topology"`
+	Cleanup     string                   `json:"cleanup"`
+	Attempts    []StabilityAttempt       `json:"attempts"`
 }
 
 type StabilityAttempt struct {
@@ -111,20 +138,21 @@ type StabilityCounts struct {
 }
 
 type StabilityReport struct {
-	ID                   string                  `json:"id"`
-	Provider             string                  `json:"provider"`
-	Scope                string                  `json:"scope"`
-	PolicyID             string                  `json:"policy_id"`
-	PolicySHA256         string                  `json:"policy_sha256"`
-	MatrixDimensions     []string                `json:"matrix_dimensions"`
-	TestID               string                  `json:"test_id"`
-	Project              string                  `json:"project"`
-	ContractID           string                  `json:"contract_id"`
-	ContractSHA256       string                  `json:"contract_sha256"`
-	Counts               StabilityCounts         `json:"counts"`
-	Verdict              string                  `json:"verdict"`
-	ContributingReceipts []StabilityContribution `json:"contributing_receipts"`
-	Limitations          []string                `json:"limitations"`
+	ID                   string                   `json:"id"`
+	Provider             string                   `json:"provider"`
+	Scope                string                   `json:"scope"`
+	PolicyID             string                   `json:"policy_id"`
+	PolicySHA256         string                   `json:"policy_sha256"`
+	Topology             StabilityTopologyBinding `json:"topology"`
+	MatrixDimensions     []string                 `json:"matrix_dimensions"`
+	TestID               string                   `json:"test_id"`
+	Project              string                   `json:"project"`
+	ContractID           string                   `json:"contract_id"`
+	ContractSHA256       string                   `json:"contract_sha256"`
+	Counts               StabilityCounts          `json:"counts"`
+	Verdict              string                   `json:"verdict"`
+	ContributingReceipts []StabilityContribution  `json:"contributing_receipts"`
+	Limitations          []string                 `json:"limitations"`
 }
 
 func (c *compiler) compileStability(provider string, behavior BehaviorRegistry, registry StabilityRegistry) error {
@@ -135,6 +163,13 @@ func (c *compiler) compileStability(provider string, behavior BehaviorRegistry, 
 	policy.SHA256 = ""
 	if !wireDigest(registry.Policy.SHA256) || hashValue(policy) != registry.Policy.SHA256 {
 		return fail("stability policy digest mismatch")
+	}
+	declaredTopology, err := c.stabilityTopology(provider, registry.Policy.ID, registry.Policy.Topology, "declared-policy", "evidence", "")
+	if err != nil {
+		return err
+	}
+	if !stabilityTopologyEqual(declaredTopology, registry.Policy.Topology.Value) {
+		return fail("stability topology policy binding mismatch")
 	}
 	allowedDimensions := words("application_revision test_revision config contract runner runner_version browser project worker_policy retry_policy environment_class environment fixture_schema fixture")
 	if !uniqueIdentities(registry.Policy.MatrixDimensions) {
@@ -170,7 +205,7 @@ func (c *compiler) compileStability(provider string, behavior BehaviorRegistry, 
 		if !exists || aggregate.Planned != threshold.RequiredRepetitions || aggregate.Planned > MaxRecords || len(aggregate.Contributions) > MaxRecords {
 			return fail("stability aggregate policy mismatch")
 		}
-		report, err := c.aggregateStability(provider, behavior, registry.Policy, threshold, aggregate)
+		report, err := c.aggregateStability(provider, behavior, registry.Policy, declaredTopology, threshold, aggregate)
 		if err != nil {
 			return err
 		}
@@ -187,7 +222,7 @@ func negativeThreshold(t StabilityThreshold) bool {
 	return t.MaximumFailed < 0 || t.MaximumTimedOut < 0 || t.MaximumInterrupted < 0 || t.MaximumInfrastructureFailed < 0 || t.MaximumSkipped < 0 || t.MaximumFlaky < 0 || t.MaximumRetryConsumed < 0
 }
 
-func (c *compiler) aggregateStability(provider string, behavior BehaviorRegistry, policy StabilityPolicy, threshold StabilityThreshold, aggregate StabilityAggregate) (StabilityReport, error) {
+func (c *compiler) aggregateStability(provider string, behavior BehaviorRegistry, policy StabilityPolicy, declaredTopology StabilityTopology, threshold StabilityThreshold, aggregate StabilityAggregate) (StabilityReport, error) {
 	counts := StabilityCounts{Planned: aggregate.Planned}
 	planned := map[int]bool{}
 	manual := map[string]bool{}
@@ -233,6 +268,19 @@ func (c *compiler) aggregateStability(provider string, behavior BehaviorRegistry
 		if err != nil {
 			return StabilityReport{}, err
 		}
+		observedTopology, err := c.stabilityTopology(provider, policy.ID, contribution.Topology, "observed-run", "observation", contribution.Receipt.SHA256)
+		if err != nil {
+			return StabilityReport{}, err
+		}
+		if !stabilityTopologyEqual(observedTopology, contribution.Topology.Value) {
+			return StabilityReport{}, fail("stability topology observation binding mismatch")
+		}
+		if !stabilityTopologyEqual(declaredTopology, observedTopology) {
+			return StabilityReport{}, fail("stability topology mismatch")
+		}
+		if !slices.Contains(observedTopology.Projects, outcome.Project.Name) {
+			return StabilityReport{}, fail("stability topology project mismatch")
+		}
 		if !stabilityIdentityMatches(*baseline, contribution.Identity, policy.MatrixDimensions) {
 			return StabilityReport{}, fail("cross-identity stability receipt")
 		}
@@ -249,7 +297,52 @@ func (c *compiler) aggregateStability(provider string, behavior BehaviorRegistry
 	if stabilityThresholdPassed(counts, threshold) {
 		verdict = "clean"
 	}
-	return StabilityReport{ID: aggregate.ID, Provider: provider, Scope: aggregate.Scope, PolicyID: policy.ID, PolicySHA256: policy.SHA256, MatrixDimensions: slices.Clone(policy.MatrixDimensions), TestID: aggregate.TestID, Project: aggregate.Project, ContractID: aggregate.ContractID, ContractSHA256: aggregate.ContractSHA256, Counts: counts, Verdict: verdict, ContributingReceipts: aggregate.Contributions, Limitations: []string{"stability is repeated-run evidence, not test adequacy or behavior parity", "worker, retry, environment-class and fixture-schema labels are repository-owned declarations bound by the policy and receipt digest", "manual reruns are retained but never satisfy planned repetition thresholds"}}, nil
+	return StabilityReport{ID: aggregate.ID, Provider: provider, Scope: aggregate.Scope, PolicyID: policy.ID, PolicySHA256: policy.SHA256, Topology: policy.Topology, MatrixDimensions: slices.Clone(policy.MatrixDimensions), TestID: aggregate.TestID, Project: aggregate.Project, ContractID: aggregate.ContractID, ContractSHA256: aggregate.ContractSHA256, Counts: counts, Verdict: verdict, ContributingReceipts: aggregate.Contributions, Limitations: []string{"stability is repeated-run evidence, not test adequacy or behavior parity", "declared and observed execution topology is source-bound and must match exactly", "worker, retry, environment-class and fixture-schema labels are repository-owned declarations bound by the policy and receipt digest", "manual reruns are retained but never satisfy planned repetition thresholds"}}, nil
+}
+
+func (c *compiler) stabilityTopology(provider, policyID string, binding StabilityTopologyBinding, documentKind, purpose, receiptSHA256 string) (StabilityTopology, error) {
+	expectedAnchorKind := ""
+	switch documentKind {
+	case "declared-policy":
+		expectedAnchorKind = "declared"
+	case "observed-run":
+		expectedAnchorKind = "observed"
+	default:
+		return StabilityTopology{}, fail("invalid stability topology evidence")
+	}
+	if err := c.checkAnchor(binding.Evidence, true); err != nil {
+		return StabilityTopology{}, err
+	}
+	declaredInput := false
+	for _, input := range c.manifest.Inputs {
+		if input.Provider == provider && input.Purpose == purpose && input.Path == binding.Evidence.Path && input.Revision == binding.Evidence.Revision {
+			declaredInput = true
+			break
+		}
+	}
+	source, exists := c.sources[inputKey(binding.Evidence.Revision, binding.Evidence.Path)]
+	if !declaredInput || !exists || binding.Evidence.Start != 1 || binding.Evidence.SpanSHA256 != Digest(source.Data) || binding.Evidence.Kind != expectedAnchorKind {
+		return StabilityTopology{}, fail("invalid stability topology evidence")
+	}
+	var document StabilityTopologyDocument
+	if decode(source.Data, &document) != nil || document.Schema != StabilityTopologySchema || document.Kind != documentKind || document.PolicyID != policyID || document.ReceiptSHA256 != receiptSHA256 || !validStabilityTopology(document.Topology) {
+		return StabilityTopology{}, fail("invalid bound stability topology")
+	}
+	return document.Topology, nil
+}
+
+func validStabilityTopology(topology StabilityTopology) bool {
+	if topology.CINodes < 1 || topology.CINodes > MaxRecords || topology.CIShards < 1 || topology.CIShards > MaxRecords || topology.PlaywrightWorkersPerNode < 1 || topology.PlaywrightWorkersPerNode > MaxRecords {
+		return false
+	}
+	if !words("shared isolated-per-node isolated-per-shard isolated-per-worker")[topology.DatabaseMode] || !uniqueIdentities(topology.Projects) || len(topology.Projects) == 0 || !slices.IsSorted(topology.Projects) {
+		return false
+	}
+	return textOK(topology.SplitAlgorithm) && textOK(topology.SplitVersion) && textOK(topology.ResourceClass)
+}
+
+func stabilityTopologyEqual(left, right StabilityTopology) bool {
+	return left.CINodes == right.CINodes && left.CIShards == right.CIShards && left.PlaywrightWorkersPerNode == right.PlaywrightWorkersPerNode && left.DatabaseMode == right.DatabaseMode && slices.Equal(left.Projects, right.Projects) && left.SplitAlgorithm == right.SplitAlgorithm && left.SplitVersion == right.SplitVersion && left.ResourceClass == right.ResourceClass
 }
 
 func (c *compiler) stabilityOutcome(behavior BehaviorRegistry, aggregate StabilityAggregate, contribution StabilityContribution) (testvaliditydoc.Test, *jstestprovider.Receipt, error) {

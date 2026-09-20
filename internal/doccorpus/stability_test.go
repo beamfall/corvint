@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
@@ -12,6 +13,10 @@ import (
 )
 
 func stabilityFixture(t *testing.T, editReceipt func(int, *jstestprovider.Receipt), editRegistry func(*StabilityRegistry)) (string, Manifest) {
+	return stabilityFixtureWithTopology(t, editReceipt, editRegistry, nil)
+}
+
+func stabilityFixtureWithTopology(t *testing.T, editReceipt func(int, *jstestprovider.Receipt), editRegistry func(*StabilityRegistry), editTopology func(*StabilityTopology, []StabilityTopology)) (string, Manifest) {
 	t.Helper()
 	root, manifest := behaviorFixtureWithRun(t, nil, true)
 	providerPath := manifest.Providers[len(manifest.Providers)-1].Record
@@ -35,8 +40,34 @@ func stabilityFixture(t *testing.T, editReceipt func(int, *jstestprovider.Receip
 		t.Fatalf("decode native receipt: %v", err)
 	}
 
+	policyID := "repository:playwright-stability"
+	declaredTopology := StabilityTopology{CINodes: 6, CIShards: 6, PlaywrightWorkersPerNode: 2, DatabaseMode: "isolated-per-node", Projects: []string{"chromium"}, SplitAlgorithm: "circleci-timings", SplitVersion: "1", ResourceClass: "large"}
+	observedTopologies := make([]StabilityTopology, 4)
+	for i := range observedTopologies {
+		observedTopologies[i] = declaredTopology
+		observedTopologies[i].Projects = append([]string{}, declaredTopology.Projects...)
+	}
+	if editTopology != nil {
+		editTopology(&declaredTopology, observedTopologies)
+	}
+	policyDocument := StabilityTopologyDocument{Schema: StabilityTopologySchema, Kind: "declared-policy", PolicyID: policyID, Topology: declaredTopology}
+	policyBytes, err := Encode(policyDocument)
+	if err != nil {
+		t.Fatal(err)
+	}
+	policyPath := "evidence/stability/topology-policy.json"
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(root, policyPath)), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, policyPath), policyBytes, 0600); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", policyPath)
+
 	inputs := []StabilityReceiptInput{}
 	receipts := []*jstestprovider.Receipt{}
+	topologyPaths := []string{}
+	topologyBytes := [][]byte{}
 	for repetition := 1; repetition <= 4; repetition++ {
 		copy := *nativeDocument.Receipt
 		external := *nativeDocument.Receipt.External
@@ -61,8 +92,20 @@ func stabilityFixture(t *testing.T, editReceipt func(int, *jstestprovider.Receip
 			t.Fatal(err)
 		}
 		git(t, root, "add", path)
+		topologyDocument := StabilityTopologyDocument{Schema: StabilityTopologySchema, Kind: "observed-run", PolicyID: policyID, ReceiptSHA256: Digest(data), Topology: observedTopologies[repetition-1]}
+		observedBytes, err := Encode(topologyDocument)
+		if err != nil {
+			t.Fatal(err)
+		}
+		topologyPath := "evidence/stability/topology-run-" + string(rune('0'+repetition)) + ".json"
+		if err := os.WriteFile(filepath.Join(root, topologyPath), observedBytes, 0600); err != nil {
+			t.Fatal(err)
+		}
+		git(t, root, "add", topologyPath)
 		inputs = append(inputs, StabilityReceiptInput{Path: path, SHA256: Digest(data)})
 		receipts = append(receipts, &copy)
+		topologyPaths = append(topologyPaths, topologyPath)
+		topologyBytes = append(topologyBytes, observedBytes)
 	}
 	git(t, root, "commit", "-qm", "synthetic stability receipts")
 	receiptRevision := git(t, root, "rev-parse", "HEAD")
@@ -70,9 +113,14 @@ func stabilityFixture(t *testing.T, editReceipt func(int, *jstestprovider.Receip
 	for i := range inputs {
 		inputs[i].Revision = receiptRevision
 		manifest.Inputs = append(manifest.Inputs, Input{Path: inputs[i].Path, Revision: receiptRevision, Blob: git(t, root, "rev-parse", receiptRevision+":"+inputs[i].Path), SHA256: inputs[i].SHA256, Provider: "behavior", Purpose: "observation"})
+		manifest.Inputs = append(manifest.Inputs, Input{Path: topologyPaths[i], Revision: receiptRevision, Blob: git(t, root, "rev-parse", receiptRevision+":"+topologyPaths[i]), SHA256: Digest(topologyBytes[i]), Provider: "behavior", Purpose: "observation"})
+	}
+	manifest.Inputs = append(manifest.Inputs, Input{Path: policyPath, Revision: receiptRevision, Blob: git(t, root, "rev-parse", receiptRevision+":"+policyPath), SHA256: Digest(policyBytes), Provider: "behavior", Purpose: "evidence"})
+	anchor := func(path string, data []byte, kind, reason string) Anchor {
+		return Anchor{Repository: manifest.Repository.ID, Revision: receiptRevision, Path: path, Blob: git(t, root, "rev-parse", receiptRevision+":"+path), SHA256: Digest(data), Start: 1, End: 1, SpanSHA256: Digest(data), Authority: "external-provider", Kind: kind, Reason: reason}
 	}
 
-	policy := StabilityPolicy{ID: "repository:playwright-stability", MatrixDimensions: []string{}, Thresholds: []StabilityThreshold{
+	policy := StabilityPolicy{ID: policyID, Topology: StabilityTopologyBinding{Evidence: anchor(policyPath, policyBytes, "declared", "repository-declared stability execution topology"), Value: declaredTopology}, MatrixDimensions: []string{}, Thresholds: []StabilityThreshold{
 		{Scope: "one-spec", RequiredRepetitions: 3, MinimumPassed: 3},
 		{Scope: "feature-batch", RequiredRepetitions: 3, MinimumPassed: 3},
 		{Scope: "suite", RequiredRepetitions: 3, MinimumPassed: 3},
@@ -82,7 +130,7 @@ func stabilityFixture(t *testing.T, editReceipt func(int, *jstestprovider.Receip
 	for i, receipt := range receipts {
 		outcome := receipt.Tests[0]
 		identity := StabilityIdentity{ApplicationRevision: receipt.External.DeclaredAppIdentity, TestRevision: provider.BehaviorContracts.SourceRevision, ConfigSHA256: receipt.Identity.ConfigDigest, ContractSHA256: provider.BehaviorContracts.ContractSHA256, Runner: receipt.Identity.RunnerName, RunnerVersion: receipt.Identity.RunnerVersion, Browser: outcome.Project.Browser, Project: outcome.Project.Name, WorkerPolicy: "workers:1", RetryPolicy: "retries:0", EnvironmentClass: "local", EnvironmentSHA256: hashValue(receipt.Identity.Environment), FixtureSchema: "playwright-use", FixtureSHA256: Digest(outcome.Project.Use)}
-		contribution := StabilityContribution{RunKind: "planned-repetition", Repetition: i + 1, Receipt: inputs[i], SourcePaths: map[string]string{"/repo/config.cjs": "src/value.go", "/repo/test.ts": "src/view.ts"}, Identity: identity, Cleanup: "passed", Attempts: []StabilityAttempt{}}
+		contribution := StabilityContribution{RunKind: "planned-repetition", Repetition: i + 1, Receipt: inputs[i], SourcePaths: map[string]string{"/repo/config.cjs": "src/value.go", "/repo/test.ts": "src/view.ts"}, Identity: identity, Topology: StabilityTopologyBinding{Evidence: anchor(topologyPaths[i], topologyBytes[i], "observed", "observed CI and Playwright run topology"), Value: observedTopologies[i]}, Cleanup: "passed", Attempts: []StabilityAttempt{}}
 		if i == 3 {
 			contribution.RunKind = "manual-rerun"
 			contribution.Repetition = 0
@@ -162,12 +210,120 @@ func TestPlaywrightStabilityAggregateEndToEnd(t *testing.T) {
 			t.Fatalf("stability/behavior axes collapsed: %+v %+v", artifact.StabilityEvidence, artifact.BehaviorContracts)
 		}
 		report := artifact.StabilityEvidence[0]
-		if report.Verdict != "clean" || report.Counts.Planned != 3 || report.Counts.Started != 3 || report.Counts.Completed != 3 || report.Counts.Passed != 3 || report.Counts.ManualReruns != 1 || len(report.ContributingReceipts) != 4 {
+		if report.Verdict != "clean" || report.Counts.Planned != 3 || report.Counts.Started != 3 || report.Counts.Completed != 3 || report.Counts.Passed != 3 || report.Counts.ManualReruns != 1 || len(report.ContributingReceipts) != 4 || report.Topology.Value.CINodes != 6 || report.ContributingReceipts[0].Topology.Value.CINodes != 6 {
 			t.Fatalf("aggregate counts: %+v", report)
 		}
 		receipt, err := Query(artifact, Request{Operation: "stability", ID: report.ID}, "fresh", nil)
 		if err != nil || len(receipt.Results) != 1 {
 			t.Fatalf("corpus join: %+v %v", receipt, err)
+		}
+	})
+}
+
+func TestPlaywrightStabilityRejectsDeclaredObservedTopologyMismatch(t *testing.T) {
+	t.Run("DCP-V1-026 six declared nodes reject four observed nodes", func(t *testing.T) {
+		root, manifest := stabilityFixtureWithTopology(t, nil, nil, func(_ *StabilityTopology, observed []StabilityTopology) {
+			for i := range observed {
+				observed[i].CINodes = 4
+				observed[i].CIShards = 4
+			}
+		})
+		if _, err := Build(context.Background(), root, manifest); err == nil || !strings.Contains(err.Error(), "stability topology mismatch") {
+			t.Fatal("four-node observed topology satisfied six-node repository policy")
+		}
+	})
+}
+
+func TestPlaywrightStabilityTopologyIdentity(t *testing.T) {
+	t.Run("DCP-V1-026 every topology dimension is exact", func(t *testing.T) {
+		mutations := map[string]func(*StabilityTopology){
+			"ci nodes":                    func(v *StabilityTopology) { v.CINodes++ },
+			"ci shards":                   func(v *StabilityTopology) { v.CIShards++ },
+			"playwright workers per node": func(v *StabilityTopology) { v.PlaywrightWorkersPerNode++ },
+			"database mode":               func(v *StabilityTopology) { v.DatabaseMode = "shared" },
+			"project set":                 func(v *StabilityTopology) { v.Projects = []string{"chromium", "webkit"} },
+			"split algorithm":             func(v *StabilityTopology) { v.SplitAlgorithm = "lexical" },
+			"split version":               func(v *StabilityTopology) { v.SplitVersion = "2" },
+			"resource class":              func(v *StabilityTopology) { v.ResourceClass = "xlarge" },
+		}
+		for name, mutate := range mutations {
+			t.Run(name, func(t *testing.T) {
+				root, manifest := stabilityFixtureWithTopology(t, nil, nil, func(_ *StabilityTopology, observed []StabilityTopology) {
+					mutate(&observed[0])
+				})
+				if _, err := Build(context.Background(), root, manifest); err == nil || !strings.Contains(err.Error(), "stability topology mismatch") {
+					t.Fatalf("topology mismatch was not rejected: %v", err)
+				}
+			})
+		}
+	})
+
+	t.Run("DCP-V1-026 topology includes the executed project", func(t *testing.T) {
+		root, manifest := stabilityFixtureWithTopology(t, nil, nil, func(declared *StabilityTopology, observed []StabilityTopology) {
+			declared.Projects = []string{"webkit"}
+			for i := range observed {
+				observed[i].Projects = []string{"webkit"}
+			}
+		})
+		if _, err := Build(context.Background(), root, manifest); err == nil || !strings.Contains(err.Error(), "stability topology project mismatch") {
+			t.Fatalf("topology excluding the receipt project was accepted: %v", err)
+		}
+	})
+
+	t.Run("DCP-V1-026 topology identity bytes are deterministic", func(t *testing.T) {
+		topology := StabilityTopology{CINodes: 6, CIShards: 6, PlaywrightWorkersPerNode: 2, DatabaseMode: "isolated-per-node", Projects: []string{"chromium", "webkit"}, SplitAlgorithm: "circleci-timings", SplitVersion: "1", ResourceClass: "large"}
+		document := StabilityTopologyDocument{Schema: StabilityTopologySchema, Kind: "declared-policy", PolicyID: "policy", Topology: topology}
+		first, err := Encode(document)
+		if err != nil {
+			t.Fatal(err)
+		}
+		second, err := Encode(document)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(first) != string(second) || !validStabilityTopology(topology) || !stabilityTopologyEqual(topology, topology) {
+			t.Fatal("topology identity is not deterministic")
+		}
+	})
+}
+
+func TestPlaywrightStabilityRejectsMalformedTopologyIdentity(t *testing.T) {
+	tests := map[string]func(*StabilityTopology){
+		"zero nodes":        func(v *StabilityTopology) { v.CINodes = 0 },
+		"unknown database":  func(v *StabilityTopology) { v.DatabaseMode = "sometimes-shared" },
+		"duplicate project": func(v *StabilityTopology) { v.Projects = []string{"chromium", "chromium"} },
+		"unsorted projects": func(v *StabilityTopology) { v.Projects = []string{"webkit", "chromium"} },
+	}
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			root, manifest := stabilityFixtureWithTopology(t, nil, nil, func(_ *StabilityTopology, observed []StabilityTopology) {
+				mutate(&observed[0])
+			})
+			if _, err := Build(context.Background(), root, manifest); err == nil || !strings.Contains(err.Error(), "invalid bound stability topology") {
+				t.Fatalf("malformed topology was not rejected: %v", err)
+			}
+		})
+	}
+}
+
+func TestPlaywrightStabilityTopologyBindings(t *testing.T) {
+	t.Run("DCP-V1-026 repository policy binding", func(t *testing.T) {
+		root, manifest := stabilityFixture(t, nil, func(registry *StabilityRegistry) {
+			registry.Policy.Topology.Value.CINodes++
+			registry.Policy.SHA256 = ""
+			registry.Policy.SHA256 = hashValue(registry.Policy)
+		})
+		if _, err := Build(context.Background(), root, manifest); err == nil || !strings.Contains(err.Error(), "stability topology policy binding mismatch") {
+			t.Fatalf("unbound repository topology policy accepted: %v", err)
+		}
+	})
+
+	t.Run("DCP-V1-026 observed run binding", func(t *testing.T) {
+		root, manifest := stabilityFixture(t, nil, func(registry *StabilityRegistry) {
+			registry.Aggregates[0].Contributions[0].Topology.Value.CINodes++
+		})
+		if _, err := Build(context.Background(), root, manifest); err == nil || !strings.Contains(err.Error(), "stability topology observation binding mismatch") {
+			t.Fatalf("unbound observed topology accepted: %v", err)
 		}
 	})
 }

@@ -64,7 +64,8 @@ The experimental behavior-provider profile additionally retains exact flow/test/
 ordered runtime witnesses; missing consumer fixtures or runtime evidence preserve gaps and full-suite
 fallback. See the behavior-contract section of `docs/specs/documentation-corpus-v1.md`.
 The separate stability profile retains independent repetitions, nested Playwright retries and manual
-reruns with raw denominators and cleanup. It never upgrades behavior coverage, adequacy or parity.
+reruns with raw denominators, cleanup and exact declared-versus-observed execution topology. It never
+upgrades behavior coverage, adequacy or parity.
 
 For the optional documentation route, retain producer output and feed those exact bytes to the
 consumer; its [source contract](specs/source-documentation-draft-v0.md) gives the admitted example.

@@ -7,7 +7,7 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
-## 2026-09-20 DCP-V1-021..025: revision-bound Playwright stability evidence (issue 42)
+## 2026-09-20 DCP-V1-021..026: revision-bound Playwright stability evidence (issue 42)
 
 The experimental behavior-stability provider keeps issue-40 behavior coverage and repeated-run
 stability as separate artifact axes. A repository-owned digest-bound policy selects one-spec,
@@ -51,6 +51,17 @@ Integration review found that receipt identity qualification did not derive the 
 from the ordered attempts. The stability consumer now applies the reporter's exact terminal-state
 rule, including requiring a prior non-passing attempt before `flaky`; contradictory terminal states
 refuse before policy counting.
+The later owner acceptance comment makes declared-versus-observed execution topology first-class.
+The source, focused-check and review evidence at `6098291` remains retained but is superseded for
+completion by this amendment. Repository policy and each observed run now bind separate canonical
+full-file topology inputs covering CI nodes/shards, Playwright workers per node, database mode,
+sorted project set, split algorithm/version and resource class; each observation also binds its
+receipt digest. Exact mismatch refuses before counting, with an explicit six-declared/four-observed
+negative witness plus deterministic per-dimension and source-binding controls. The comment reports
+that contradiction in the consuming repository, but no exact policy, CircleCI or run artifacts were
+provided, so the consumer-specific 6-vs-4 result remains `NOT_OBSERVED`. The amendment-start Corvint
+query selected an unrelated public-release spec and omitted four ranked results; repository-owned
+spec routing supplied the owning DCP contract instead.
 
 ## 2026-09-20 DCP-V1-004/007..013/019: experimental behavior contract ingestion (issue 40)
 
