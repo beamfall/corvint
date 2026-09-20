@@ -92,9 +92,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:2914c494c3da3867cab80a96849b6861d01b94e96b228b1ca1b44d4cbf14e189",
+      "id": "hunk:sha256:3cfa03edcdd52932f25dfe81ade1e98b86bd9086ea2c405716bc8b3c2757d841",
       "newRange": {
-        "count": 28,
+        "count": 33,
         "start": 7
       },
       "oldRange": {
@@ -132,7 +132,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:9d84d9e32f8fe2dce65e666a97b202b5587d2c0cb2d85691bd05b6fd333bf6e9",
+      "id": "hunk:sha256:a39f8005244046c2598686105027ae7519264380cb0b6f9b9e040e72c4a97b95",
       "newRange": {
         "count": 11,
         "start": 1696
@@ -152,9 +152,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:690889a5ed3ab276768ece7abec4aa46a6a47d3e00dfb55c59badc54f164b81f",
+      "id": "hunk:sha256:59126bc14440510911fc09397b237e4f5351232322feb2f64f8188328ce657d3",
       "newRange": {
-        "count": 16,
+        "count": 18,
         "start": 90
       },
       "oldRange": {
@@ -172,10 +172,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:4d08e078b5a72e2cdde9d834941ecfeeb8d767a012924d744d756d367b0e8a0e",
+      "id": "hunk:sha256:5c7645a718f02edbb396673ba5bdea371548a296d85c1bc5ed46b0094c52c233",
       "newRange": {
         "count": 9,
-        "start": 107
+        "start": 109
       },
       "oldRange": {
         "count": 7,
@@ -192,10 +192,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:d0511a5b89cba5bdfb49cb6226e91c7734e2037dbf4a2aaa0f0a5c7b16aea57d",
+      "id": "hunk:sha256:a6bbd8cd61b7d816bf2c6f7ef0ec492a9319ff5bb58d6556234595d4d5b4fe66",
       "newRange": {
         "count": 16,
-        "start": 158
+        "start": 160
       },
       "oldRange": {
         "count": 6,
@@ -212,10 +212,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:310bd7025c9b9e7124da3be777e2696995678d31f705524c06a3e95df16d2fd7",
+      "id": "hunk:sha256:0e43285a6c68041d26b74d9ee2dff5ee238519052cf9422d172536c0a1f55c0c",
       "newRange": {
         "count": 8,
-        "start": 254
+        "start": 256
       },
       "oldRange": {
         "count": 6,
@@ -232,10 +232,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:8e70e91cc2ba8f4758c7335c4ce4b1137931e68589d92f5117f76ee79daa0757",
+      "id": "hunk:sha256:b0d07152ba0466cae98a911a577d53d7265ad82e46d34dfd89ffc5acbd402a23",
       "newRange": {
         "count": 6,
-        "start": 266
+        "start": 268
       },
       "oldRange": {
         "count": 5,
@@ -372,9 +372,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:949e1a477bb66a26cc0bb36fb4c5ba255021e71ebaf6f870e0d579e3d783f1e0",
+      "id": "hunk:sha256:14a5b36cf9e703b91ab038f9e8951e4ce0accf719179fd22d326477889b07cba",
       "newRange": {
-        "count": 21,
+        "count": 28,
         "start": 637
       },
       "oldRange": {
@@ -392,10 +392,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:fee78b39e802f7cf8d4b2b1e5c8be156f4f777de06039a48cafba3eb48c1652c",
+      "id": "hunk:sha256:a3e9f48d1dfced8c1d99bdbd1b3447228592c61f2596f5bbfbd523b1f1de4203",
       "newRange": {
         "count": 7,
-        "start": 662
+        "start": 669
       },
       "oldRange": {
         "count": 6,
@@ -412,13 +412,13 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:d7da48db924fea7d57932dc2c9dcfbdf6b881e74ef0bcac2053920dc2174e619",
+      "id": "hunk:sha256:d3174ce3e2fd20856ccf1d270e0e6dc7d38a1773710568653f426bc81594dc5e",
       "newRange": {
-        "count": 11,
-        "start": 670
+        "count": 12,
+        "start": 677
       },
       "oldRange": {
-        "count": 10,
+        "count": 12,
         "start": 653
       },
       "path": "internal/liveverify/affected/typescript/playwright.go",
@@ -432,14 +432,34 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:f18effd0fd5ba23d890bf594207ba573a84a92d305a968d646b895e0e08595a4",
+      "id": "hunk:sha256:320aff6b2d05044ec1fc17950ae5d744bacbf6832e3298d3b6bcd34e906b980c",
       "newRange": {
         "count": 9,
-        "start": 699
+        "start": 705
       },
       "oldRange": {
         "count": 6,
         "start": 681
+      },
+      "path": "internal/liveverify/affected/typescript/playwright.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:efb636850c00de0e1c6481cd525b54d1429bedb60f63399690b6bb481d011d61",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:97648ee846cc229a3522b97bb6dd2d1cf821b813b8819c473c50dab045f7b559",
+      "newRange": {
+        "count": 6,
+        "start": 716
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 689
       },
       "path": "internal/liveverify/affected/typescript/playwright.go",
       "reason": "evidence-backed"
@@ -452,9 +472,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:085db9d523d35957e70047a50fbb80fde53efa1ef13681123602dd39ec906ede",
+      "id": "hunk:sha256:fe08b9368b235d5210426e285a8d6b5aed733a5d1d2494a768d48443c85fadb2",
       "newRange": {
-        "count": 203,
+        "count": 217,
         "start": 1
       },
       "oldRange": {
@@ -472,9 +492,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:3f041cd30641d6070f635dab85f58ae218459c135b95804d8b6504cbf3221e60",
+      "id": "hunk:sha256:9a8ec649731fb8e7f4f1cabfbcb6cc2bd57b90978b1415765c48a91912383b93",
       "newRange": {
-        "count": 137,
+        "count": 151,
         "start": 1
       },
       "oldRange": {
@@ -585,6 +605,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "c1f302737471ad2cb0d6387e1f5e372eb5477471df8327fad97f6b87b20fe931",
+  "patchSha256": "3f178c330136a43d237e2a4bb7a5c416326b700c11957e3784c1d60289c318d8",
   "spec": "cem/0.2"
 }
