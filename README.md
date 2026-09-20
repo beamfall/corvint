@@ -282,12 +282,16 @@ and the largest collision-free wave that could run together. The proposals autho
 carry their inputs' digests, so a second run over the same snapshot reproduces them byte for byte
 ([Work Queue Observation V0](docs/specs/work-queue-observation-v0.md)).
 
-To adopt the work queue in a repository, run `corvint work init --repository NAME`, review and
+To adopt the work queue in a repository, run
+`corvint work init --repository NAME --corvint-executable "$(command -v corvint)"`, review and
 commit the three files it writes under `.corvint/`, and list tickets in `.corvint/worklist.json`
 with the paths each one changes. Verification work such as a suite batch, a failure repair, a
 test-validity receipt, or a cleanup and retry is an ordinary ticket. Tickets that share a path are
-never proposed together; the proposal names the excluded ticket and why. `corvint` must be installed
-in `/opt/homebrew/bin` or `/usr/local/bin`, because the adapter runs under a fixed `PATH`. See
+never proposed together; the proposal names the excluded ticket and why. The executable may be in
+`~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`, or another safe absolute location: init binds
+its path, bytes, version/build and source identity instead of searching ambient `PATH`. After an
+upgrade, run `corvint work rebind --corvint-executable "$(command -v corvint)"`, review and commit
+the adapter change. See
 [INSTALL](docs/INSTALL.md#work-queue-adoption) for the states you get when a step is missing.
 
 ### Dashboard and console

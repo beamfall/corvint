@@ -245,7 +245,8 @@ Usage:
   corvint [--root PATH] batch < REQUEST
   corvint [--root PATH] work observe
   corvint [--root PATH] work propose-wave --envelope PATH --limit N
-  corvint [--root PATH] work init --repository NAME
+  corvint [--root PATH] work init --repository NAME --corvint-executable ABSOLUTE_FILE
+  corvint [--root PATH] work rebind --corvint-executable ABSOLUTE_FILE
   corvint [--root PATH] work adapter snapshot|details|verify
   corvint [--root PATH] prove --task TEXT [--limit N] [--budget-bytes N]
   corvint [--root PATH] prove [--limit N] [--mutate] PATH...
@@ -411,7 +412,8 @@ const workHelp = `Validate a repository queue observation or compile a non-opera
 Usage:
   corvint [--root PATH] work observe
   corvint [--root PATH] work propose-wave --envelope PATH --limit N
-  corvint [--root PATH] work init --repository NAME
+  corvint [--root PATH] work init --repository NAME --corvint-executable ABSOLUTE_FILE
+  corvint [--root PATH] work rebind --corvint-executable ABSOLUTE_FILE
   corvint [--root PATH] work adapter snapshot|details|verify
 
 observe and propose-wave print one work-command-result/0 document on stdout.
@@ -420,8 +422,11 @@ nothing. Malformed command input yields state ERROR with MALFORMED_INPUT.
 
 init writes .corvint/work-queue-policy.json, .corvint/worklist.json and the
 executable .corvint/work-queue-adapter for the operator to review and commit; it
-refuses when any of them exists. adapter is what that committed script runs: it
-prints one adapter document for the worklist in the qualified committed source.
+refuses when any exists or the explicit Corvint executable is not a safe canonical
+external file. rebind updates only that adapter after path, SHA-256, version/build
+and source identity change; review and commit it. Observation verifies the binding
+and uses no ambient PATH search. adapter prints one document for the qualified
+committed worklist.
 `
 
 const proveObserveHelp = `Record one prove document's verdict counts in the local self-observation ledger.

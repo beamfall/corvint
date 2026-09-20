@@ -193,10 +193,11 @@ relying on a browser/platform tuple.
 ### Work queue adoption
 
 `corvint work observe` needs a committed queue policy, worklist, and adapter. Create them once per
-repository, with `corvint` installed in `/opt/homebrew/bin` or `/usr/local/bin`:
+repository and explicitly bind the installed executable. `~/.local/bin`, `/opt/homebrew/bin`, and
+`/usr/local/bin` are supported when the selected path is canonical and safe:
 
 ```sh
-corvint work init --repository NAME
+corvint work init --repository NAME --corvint-executable "$(command -v corvint)"
 git add .corvint && git commit -m "Adopt the Corvint work queue"
 corvint work observe
 corvint work propose-wave --envelope capacity.json --limit 4
@@ -206,14 +207,24 @@ corvint work propose-wave --envelope capacity.json --limit 4
 (`{"profile":"corvint-worklist/0","tickets":[{"id":…,"title":…,"body":…,"touchPaths":[…]}]}`)
 and commit before observing. The capacity envelope names `capacity:NAME:worklist:agent`, the
 capability `capability:NAME:worklist:agent`, and `repo:NAME`. Neither command dispatches, leases,
-merges, or runs anything.
+merges, or runs anything. Init rejects relative paths, symlinks, unsafe or writable parent
+components, repository-local executables, missing files, and non-Corvint builds. It records the
+executable path, SHA-256, version/build, and source identity in the adapter; observation executes only
+the verified private exact-byte materialization under a closed environment, never ambient `PATH`.
+
+After replacing or moving Corvint, explicitly regenerate that reviewed binding and commit it:
+
+```sh
+corvint work rebind --corvint-executable "$(command -v corvint)"
+git add .corvint/work-queue-adapter && git commit -m "Rebind Corvint work-queue executable"
+```
 
 | What you see | Cause |
 |---|---|
-| `ERROR` / `SOURCE_UNQUALIFIED` | no committed adoption, or uncommitted changes in the worktree |
-| `ERROR` / `ADAPTER_FAILED` | `corvint` is not in `/opt/homebrew/bin` or `/usr/local/bin` |
+| `ERROR` / `SOURCE_UNQUALIFIED` | no committed adoption, uncommitted worktree changes, or the bound executable path/bytes/version/build/source identity changed; review and commit an explicit `work rebind` |
+| `ERROR` / `ADAPTER_FAILED` | the canonical bound adapter exited, timed out, or exceeded an output bound |
 | observation `STALE`, empty proposal | the worklist or commit changed while observing |
-| `VALIDATED_AT` with `CONTAINMENT_UNQUALIFIED`, `EXECUTABLE_IDENTITY_UNQUALIFIED`, `MUTATION_ENFORCEMENT_UNQUALIFIED`, `NETWORK_UNOBSERVED` | expected: these stay unknown on a local install |
+| `VALIDATED_AT` with `CONTAINMENT_UNQUALIFIED`, `EXECUTABLE_IDENTITY_UNQUALIFIED`, `MUTATION_ENFORCEMENT_UNQUALIFIED`, `NETWORK_UNOBSERVED` | expected: the reviewed binding detects drift, while Darwin cannot claim VPO-V0-024 exact-object execution and the other local axes stay unknown |
 
 ## Upgrade, retry and remove
 

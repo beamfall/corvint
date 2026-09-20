@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0326-work-queue-executable-binding-2026-09-20.md`](0326-work-queue-executable-binding-2026-09-20.md) | accepted, delegated call | Work-queue adoption binds one canonical external Corvint path plus SHA-256, version/build and source identity; the observer executes a private exact-byte materialization without ambient `PATH`, and changes require reviewed `work rebind`. |
 | [`0325-external-evidence-remote-profile.md`](0325-external-evidence-remote-profile.md) | accepted, owner call | Separately built HTTPS evidence adapter with explicit network consent, normal TLS plus SPKI pin, private credentials and closed bounded output; Core remains offline. |
 | [`0324-external-evidence-mcp-profile.md`](0324-external-evidence-mcp-profile.md) | accepted, owner call | Bounded local MCP stdio evidence profile, fixed tool and text envelope, process-group containment and the unchanged provider decoder; supersedes 0317's deferral. |
 
