@@ -105,13 +105,8 @@
       "reason": "evidence-backed"
     },
     {
-      "basis": [
-        {
-          "evidenceId": "evidence:sha256:ad5108e1c2d1d8f98f969c8899cc37892394a9a5d4d3be609d331907d316a469",
-          "relation": "specification"
-        }
-      ],
-      "disposition": "supported",
+      "basis": [],
+      "disposition": "unknown",
       "id": "hunk:sha256:da3dcde1d68afb5d85467e69d99e309ad922c6fe3b9b05e1017392a71fa326a3",
       "newRange": {
         "count": 122,
@@ -122,7 +117,7 @@
         "start": 0
       },
       "path": "docs/specs/playwright-suite-interaction-minimizer-v0.md",
-      "reason": "evidence-backed"
+      "reason": "no-evidence"
     },
     {
       "basis": [
