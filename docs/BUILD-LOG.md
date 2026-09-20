@@ -14,9 +14,10 @@ enumeration still stopped at WQO-V0-048 after WQO-V0-049..050 were added, and th
 minimizer claim exceeded the 160-character index limit while its README and generated index had
 diverged. Those conformance records now agree. Two context-index tests also exposed a repeatable
 macOS cleanup race: Apple Git auto-maintenance could recreate `.git/objects/info/packs` while Go
-removed the temporary repository. The shared eval fixture disables automatic GC and maintenance;
-twenty repeated reproductions and the three-package regression pass. The failed full-gate receipt
-is retained and invalidated; a new commit-bound canonical gate is required.
+removed a temporary repository. A second full-gate run exposed the same race in a different query
+fixture, proving the first fixture-local repair too narrow. The shared context-index Git fixture
+launchers now disable automatic GC and maintenance for every mutating test command. The failed
+full-gate receipts remain retained and invalidated; a new commit-bound canonical gate is required.
 
 ## 2026-09-20 PSM-V0-004/008/009: original failure identity repair
 

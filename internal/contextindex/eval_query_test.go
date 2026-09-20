@@ -13,8 +13,6 @@ func evalQueryRepository(t *testing.T) string {
 	testGit(t, root, "init", "-q")
 	testGit(t, root, "config", "user.email", "corvint@example.test")
 	testGit(t, root, "config", "user.name", "Corvint Test")
-	testGit(t, root, "config", "gc.auto", "0")
-	testGit(t, root, "config", "maintenance.auto", "false")
 	files := map[string]string{
 		".gitignore": ".context-corvint/\n",
 		"go.mod":     "module example.test/eval\n\ngo 1.27.0\n",
