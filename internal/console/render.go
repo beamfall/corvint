@@ -45,6 +45,7 @@ var page = template.Must(template.New("page").Funcs(template.FuncMap{
 }).Parse(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+{{if .RefreshSeconds}}<meta http-equiv="refresh" content="{{.RefreshSeconds}}">{{end}}
 <title>{{.Title}} · Corvint Console</title>
 <style>
 :root{color-scheme:dark;--bg:#101820;--fg:#e6edf5;--dim:#a7b2bf;--faint:#7f8b99;

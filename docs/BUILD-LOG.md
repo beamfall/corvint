@@ -7,6 +7,15 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 LAC-V0-032: safe roadmap auto-recheck
+
+The roadmap repeats its existing read-only request every 30 seconds. Eligibility remains derived by
+Corvint Tasks: no mutation, approval, external/manual completion, unknown-evidence waiver,
+admission, release candidacy, attestation, or promotion is added. Pages containing mutation forms
+do not refresh automatically. A page-preserving pause/resume link prevents timed reloads from
+interrupting deliberate inspection. `TestRoadmapSafeAutoRecheck` binds the refresh and hard-stop
+notice on successful and refused reads and checks that paused roadmaps and the board remain stable.
+
 ## 2026-09-19 CRB-V0-014: owner-selected corvid artwork
 
 The owner selected the first, corvid direction from three generated concepts and then approved

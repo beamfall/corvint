@@ -68,6 +68,12 @@ var roadmapView = mustView(`{{define "body"}}
   {{template "refusal" refusalOfEnvelope "The ticket store refused this read" .Roadmap.Source .Roadmap.Envelope}}
 {{end}}
 
+<div class="note"><b>Safe auto-recheck {{if .RefreshSeconds}}is active{{else}}is paused{{end}}.</b><span>
+{{if .RefreshSeconds}}This page repeats its read-only check every 30 seconds. <a href="/roadmap?page={{.Roadmap.Page}}&amp;refresh=off">Pause auto-recheck</a>.
+{{else}}This page is not refreshing automatically. <a href="/roadmap?page={{.Roadmap.Page}}">Resume auto-recheck</a>.{{end}}
+A blocker clears only when <code>corvint-tasks</code> reports it cleared. Manual and external work,
+approval-required decisions, unknown evidence, admission, release candidacy, attestation, and promotion remain hard stops.</span></div>
+
 {{if and (not .Roadmap.Err) (not (and .Roadmap.Envelope .Roadmap.Envelope.Refused))}}
 <section class="page-intro">
   <div><p class="eyebrow">Release plan</p><h2>Roadmap by milestone</h2>

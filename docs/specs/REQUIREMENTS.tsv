@@ -1034,6 +1034,7 @@ LAC-V0-028	docs/specs/local-admin-console-v0.md	194	Ticket detail MUST offer edi
 LAC-V0-029	docs/specs/local-admin-console-v0.md	204	The roadmap list MUST paginate when more than 50 tickets are reported, honoring
 LAC-V0-030	docs/specs/local-admin-console-v0.md	210	A requirement page MUST link each path cited in the Implementation column of
 LAC-V0-031	docs/specs/local-admin-console-v0.md	220	Before binding, the console MUST refuse to start unless `--repo`, and `--specs`
+LAC-V0-032	docs/specs/local-admin-console-v0.md	224	The roadmap page MUST repeat its same read-only request every 30 seconds so deri
 LCP-V0-001	docs/specs/local-completion-policy-v0.md	40	The local policy MUST remain caller-owned and non-authoritative. Its positive st
 LCP-V0-002	docs/specs/local-completion-policy-v0.md	44	Enrollment MUST be explicit through `corvint dogfood begin`. One bounded plan pi
 LCP-V0-003	docs/specs/local-completion-policy-v0.md	80	`status` and automatic event evaluation MUST be read-only. They derive unmet

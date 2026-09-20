@@ -79,6 +79,7 @@ type view struct {
 	Specs          []SpecEntry
 	SpecErr        string
 	Result         *MutationResult
+	RefreshSeconds int
 
 	// S3 panes: the Corvint evidence snapshot, the dogfood loop's own report,
 	// and one committed directory (the benchmark results, the agent-memory
@@ -261,6 +262,9 @@ func (s *Server) handleRoadmap(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	tool := s.taskman(ctx)
 	data := s.newView(ctx, "Roadmap")
+	if r.URL.Query().Get("refresh") != "off" {
+		data.RefreshSeconds = roadmapRefreshSeconds
+	}
 	page := 1
 	if raw := r.URL.Query().Get("page"); raw != "" {
 		if parsed, err := strconv.Atoi(raw); err == nil && parsed > 0 {
