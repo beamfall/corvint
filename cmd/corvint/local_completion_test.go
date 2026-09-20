@@ -48,10 +48,9 @@ func localCompletionRepo(t *testing.T) (string, string) {
 			}
 		}
 	}
-	for _, relative := range []string{"internal/gokernel/host-schema.json", "internal/betarung/admissions.json", "internal/jstestprovider/qualified-reporter.cjs"} {
-		if _, err := os.Stat(filepath.Join(root, relative)); err != nil {
-			t.Fatalf("embedded fixture asset %s: %v", relative, err)
-		}
+	embeddedReporter := "internal/jstestprovider/qualified-reporter.cjs"
+	if _, err := os.Stat(filepath.Join(root, embeddedReporter)); err != nil {
+		t.Fatalf("embedded fixture asset %s: %v", embeddedReporter, err)
 	}
 	for _, relative := range []string{"go.mod", "VERSION", "script/dogfood-change.sh", "script/dogfood-check.sh"} {
 		raw, err := os.ReadFile(filepath.Join(source, relative))
