@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-20
 Intent status: accepted
-Delivery status: validated (local Playwright 1.60.0 and 1.63.0 matrices)
+Delivery status: validated (local Playwright 1.60.0 matrix; Playwright 1.63.0 macOS arm64 system-Chrome path)
 Profile: `corvint-playwright-external/0`
 Inputs: GitHub issue #19; AGENTS.md invariants 1–8; decision 0179.
 Owner acceptance: in the 2026-09-20 issue-resolution task, the owner explicitly approved accepting
@@ -11,7 +11,7 @@ and shipping this PWP-V0 profile while retaining the default offline boundary an
 
 ## Agent digest
 - Claim: Explicit external-server Playwright runs retain attributable project outcomes without application-server ownership.
-- Status: accepted; validated (local Playwright 1.60.0 and 1.63.0 matrices).
+- Status: accepted; validated (local Playwright 1.60.0 matrix; Playwright 1.63.0 macOS arm64 system-Chrome path).
 - Exists: `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
 - Blocked on: no implementation gap; owner-selected changed-feature checks and separate live witnesses govern final completion. Other Playwright versions, Vitest and LPCV authority remain unqualified.
@@ -25,6 +25,7 @@ and shipping this PWP-V0 profile while retaining the default offline boundary an
 - `PWP-V0-005`: Emit and retain the canonical closed profile. MCP discovery recomputes projections and preserves identities, retries, infrastructure, readiness, external cleanup responsibility and unknown freshness. Carried projections confer no authority.
 - `PWP-V0-006`: Cancellation joins only owned Playwright descendants and observes external server survival. Unknown runner cleanup or lifecycle/project identity prevents passing projections.
 - `PWP-V0-007`: Qualification runs a checked-in real Playwright browser fixture covering pass, assertion failure, timeout, browser infrastructure, two projects, cancellation, server survival, inherited webServer suppression and retained MCP discovery. A skipped live fixture is never qualification success.
+- `PWP-V0-008`: Playwright 1.63 qualification is consuming-path specific. A passing projection requires a separately qualified Node, operating-system/architecture and effective browser path tuple; another browser path remains diagnostic-only. Qualification records the exact browser version, channel/executable path and headless-shell availability. Consumer checkout and CI observations remain `NOT_OBSERVED` or `NOT_RUN` when unavailable.
 
 ## Wire and trust boundary
 
@@ -56,8 +57,12 @@ overrides; the provider resolves those with project options and preserves the ef
 viewport and device settings. Missing metadata, executable option fixtures or custom browser/context/
 page fixtures produce unknown identity and never passing execution. A device label remains `unknown`
 unless declared in project metadata; effective device parameters are retained independently.
-The added qualified tuple is `@playwright/test@1.63.0` / Chromium 153.0.8010.12
-(`chromium-1243`, macOS arm64).
+The added qualified tuple is macOS arm64 / Node v22.23.2 / `@playwright/test@1.63.0` /
+system Google Chrome 153.0.8010.48 at
+`/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`, with no channel override and the
+Playwright `chromium_headless_shell-1243` executable absent. The Linux amd64 installed/bundled
+browser path is `NOT_RUN` and remains diagnostic-only. No local `golf-e2e` checkout exists, so its
+consumer fixture and CI observation are `NOT_OBSERVED`; neither absence is qualification evidence.
 
 Relative global setup/teardown modules resolve from the original config directory. Imported CommonJS
 source inputs are hashed at collection and compared again before publication. Configuration loaded
@@ -68,16 +73,18 @@ without the exact profile discriminator is refused by the legacy reader.
 Run the explicit fixture with `CORVINT_PLAYWRIGHT_MODULES` naming an already-installed `node_modules`
 directory and `go test -count=1 -timeout 5m ./internal/jstestprovider -run TestQualifiedPlaywrightLive -v`.
 No browser or npm package is downloaded by the provider or ordinary Go gate. The live matrix includes
-real pass/assertion/timeout/browser-infrastructure cases, retry/flaky state, inherited webServer
+real pass/assertion/timeout/browser-infrastructure cases, setup dependency hashing, global use,
+project inheritance, retry/flaky state, repeat-each identity, two workers, inherited webServer
 suppression, relative hooks, two projects, literal, executable and custom-fixture overrides,
-cancellation, and retained MCP discovery.
+cancellation, and retained MCP discovery. A Playwright 1.63 receipt without the qualified Node and
+system-Chrome path tuple abstains rather than projecting green.
 
 For an externally managed application already listening at `http://127.0.0.1:3002`, run this exact
 provider command from the application root after replacing the bound config and test paths with the
 application's checked-in paths:
 
-`corvint-js-test-provider e2e --dir . --config playwright.config.ts --package-json package.json --lockfile package-lock.json --runner-version 1.63.0 --external-server --app-identity app-at-3002 --server-ready-url http://127.0.0.1:3002 --test-file tests/e2e/example.spec.ts --test-arg tests/e2e/example.spec.ts --retain`
+`CORVINT_PLAYWRIGHT_BROWSER_PATH=/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome corvint-js-test-provider e2e --dir . --config playwright.config.ts --package-json package.json --lockfile package-lock.json --runner-version 1.63.0 --env-key CORVINT_PLAYWRIGHT_BROWSER_PATH --external-server --app-identity app-at-3002 --server-ready-url http://127.0.0.1:3002 --test-file tests/e2e/example.spec.ts --test-arg tests/e2e/example.spec.ts --retain`
 
 | Requirements | Implementation | Evidence |
 |---|---|---|
-| PWP-V0-001..007 | `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestQualifiedPlaywrightLive`, `TestExternalReadiness`, `TestQualifiedReceiptProjection` |
+| PWP-V0-001..008 | `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestQualifiedPlaywrightLive`, `TestExternalReadiness`, `TestQualifiedReceiptProjection`, `TestPlaywright163UnqualifiedBrowserTupleAbstains` |

@@ -31,7 +31,7 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"playwright.config.cjs", "external.spec.cjs", "override.spec.cjs", "dynamic.spec.cjs", "custom.spec.cjs", "retry.spec.cjs", "interruption.spec.cjs", "setup.cjs", "teardown.cjs"} {
+	for _, name := range []string{"playwright.config.cjs", "external.spec.cjs", "override.spec.cjs", "dynamic.spec.cjs", "custom.spec.cjs", "retry.spec.cjs", "interruption.spec.cjs", "setup.cjs", "setup-dependency.cjs", "teardown.cjs"} {
 		data, err := os.ReadFile(filepath.Join("testdata", "external", name))
 		if err != nil {
 			t.Fatal(err)
@@ -105,7 +105,8 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	})
 	t.Setenv("CORVINT_FIXTURE_URL", server.URL)
 	t.Setenv("CORVINT_FIXTURE_MARKER", filepath.Join(root, "lifecycle"))
-	cfg := jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), TestFiles: []string{filepath.Join(root, "external.spec.cjs"), filepath.Join(root, "override.spec.cjs")}, RunnerName: "playwright", RunnerVersion: pkg.Version, DeclaredEnvKeys: []string{"CORVINT_FIXTURE_URL", "CORVINT_FIXTURE_MARKER"}, Timeout: 45 * time.Second}, ExternalServer: true, AppIdentity: "fixture-v1", ServerReadyURL: server.URL, TestArgv: []string{"external.spec.cjs", "--project=chromium", "--project=react", "--grep-invert=cancellation"}}
+	t.Setenv("CORVINT_FIXTURE_BROWSER_PATH", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+	cfg := jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), TestFiles: []string{filepath.Join(root, "external.spec.cjs"), filepath.Join(root, "override.spec.cjs")}, RunnerName: "playwright", RunnerVersion: pkg.Version, DeclaredEnvKeys: []string{"CORVINT_FIXTURE_URL", "CORVINT_FIXTURE_MARKER", "CORVINT_FIXTURE_BROWSER_PATH"}, Timeout: 45 * time.Second}, ExternalServer: true, AppIdentity: "fixture-v1", ServerReadyURL: server.URL, TestArgv: []string{"external.spec.cjs", "--project=chromium", "--project=react", "--grep-invert=cancellation"}}
 	r, err := jstestprovider.RunE2E(context.Background(), cfg)
 	if err != nil || r.Infrastructure != nil {
 		t.Fatalf("run error %v; infrastructure %+v", err, r.Infrastructure)
@@ -121,6 +122,15 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 			if test.ID == "" || ids[test.ID] || test.Project == nil || test.Project.ConfigDigest == "" {
 				t.Fatalf("unattributable test %+v", test)
 			}
+			var use struct {
+				Locale        string `json:"locale"`
+				LaunchOptions struct {
+					ExecutablePath string `json:"executablePath"`
+				} `json:"launchOptions"`
+			}
+			if json.Unmarshal(test.Project.Use, &use) != nil || use.Locale != "en-CA" || use.LaunchOptions.ExecutablePath != "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" {
+				t.Fatalf("global use/project inheritance lost %+v", test.Project)
+			}
 			ids[test.ID] = true
 		}
 	})
@@ -133,12 +143,12 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	})
 	t.Run("PWP-V0-001 external-server-survives", func(t *testing.T) { assertExternalSurvived(t, r, server.URL) })
 	t.Run("PWP-V0-002 original-config-inputs-and-hooks", func(t *testing.T) {
-		for _, suffix := range []string{".setup", ".teardown"} {
+		for _, suffix := range []string{".setup", ".setup-dependency", ".teardown"} {
 			if _, err := os.Stat(filepath.Join(root, "lifecycle") + suffix); err != nil {
 				t.Fatal(err)
 			}
 		}
-		if r.Identity.ConfigInputDigests[cfg.ConfigFile] != r.Identity.ConfigDigest || r.External.ConfigOverride == "" {
+		if r.Identity.ConfigInputDigests[cfg.ConfigFile] != r.Identity.ConfigDigest || r.Identity.ConfigInputDigests[filepath.Join(root, "setup-dependency.cjs")] == "" || r.External.ConfigOverride == "" {
 			t.Fatal("configuration inputs missing")
 		}
 	})
@@ -221,10 +231,18 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 		t.Fatalf("custom fixture metadata became green: %v %+v", err, custom.Infrastructure)
 	}
 	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "retry.spec.cjs"))
-	cfg.TestArgv = []string{"retry.spec.cjs", "--project=chromium", "--retries=1"}
+	cfg.TestArgv = []string{"retry.spec.cjs", "--project=chromium", "--retries=1", "--repeat-each=2", "--workers=2"}
 	retried, err := jstestprovider.RunE2E(context.Background(), cfg)
-	if err != nil || retried.Infrastructure != nil || len(retried.Tests) != 1 || retried.Tests[0].State != jstestprovider.StateFlaky || retried.Tests[0].Retries != 1 || len(retried.Tests[0].Attempts) != 2 || retried.Tests[0].Attempts[0].State != jstestprovider.StateFailed || retried.Tests[0].Attempts[1].State != jstestprovider.StatePassed {
+	if err != nil || retried.Infrastructure != nil || len(retried.Tests) != 2 {
 		t.Fatalf("retry state lost: %v %+v", err, retried)
+	}
+	if retried.Tests[0].ID == retried.Tests[1].ID {
+		t.Fatal("repeat-each identities collided")
+	}
+	for _, outcome := range retried.Tests {
+		if outcome.State != jstestprovider.StateFlaky || outcome.Retries != 1 || len(outcome.Attempts) != 2 || outcome.Attempts[0].State != jstestprovider.StateFailed || outcome.Attempts[1].State != jstestprovider.StatePassed {
+			t.Fatalf("repeat/retry state lost: %+v", outcome)
+		}
 	}
 	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "interruption.spec.cjs"))
 	cfg.TestArgv = []string{"interruption.spec.cjs", "--project=chromium", "--workers=2", "--max-failures=1"}

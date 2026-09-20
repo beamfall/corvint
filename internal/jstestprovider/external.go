@@ -373,7 +373,7 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 	if !filepath.IsAbs(r.Identity.ConfigFile) || len(r.Identity.Argv) == 0 || r.Identity.RunnerName != "playwright" {
 		return true
 	}
-	if !qualifiedPlaywrightVersion(r.Identity.RunnerVersion) {
+	if !qualifiedPlaywrightTuple(r, t) {
 		return true
 	}
 	for _, attempt := range t.Attempts {
@@ -401,4 +401,19 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 		}
 	}
 	return t.ID != qualifiedTestID(r.Identity, t)
+}
+
+func qualifiedPlaywrightTuple(r Receipt, t TestOutcome) bool {
+	if r.Identity.RunnerVersion == "1.60.0" {
+		return true
+	}
+	if r.Identity.RunnerVersion != "1.63.0" || r.Identity.NodeVersion != "v22.23.2" {
+		return false
+	}
+	var use struct {
+		LaunchOptions struct {
+			ExecutablePath string `json:"executablePath"`
+		} `json:"launchOptions"`
+	}
+	return json.Unmarshal(t.Project.Use, &use) == nil && use.LaunchOptions.ExecutablePath == "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 }

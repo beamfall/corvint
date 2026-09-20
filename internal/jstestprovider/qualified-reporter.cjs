@@ -38,6 +38,7 @@ function effectiveUse(test, project, version) {
   const resolved = {viewport: {width:1280,height:720}, isMobile:false, hasTouch:false, locale:'en-US', colorScheme:'light', ...context, ...use};
   resolved.browserName = use.browserName || use.defaultBrowserType || 'chromium';
   if (resolved.channel === undefined && use.launchOptions?.channel !== undefined) resolved.channel = use.launchOptions.channel;
+  if (version === '1.63.0' && !(process.platform === 'darwin' && process.arch === 'arm64' && resolved.launchOptions?.executablePath === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')) return null;
   return resolved;
 }
 
@@ -71,8 +72,9 @@ class Reporter {
     const previous = this.tests.get(test.id);
     const attempts = previous ? previous.attempts : [];
     attempts.push({state, retry: result.retry, failureKind: infrastructure ? 'browser-or-fixture' : state === 'failed' ? 'assertion-or-test' : state === 'timedOut' ? 'test-timeout' : 'none'});
+    const repeat = test.repeatEachIndex > 0 ? ` > repeat ${test.repeatEachIndex}` : '';
     this.tests.set(test.id, {
-      name: test.title, fullName: test.titlePath().join(' > '), state,
+      name: test.title, fullName: test.titlePath().join(' > ') + repeat, state,
       project: {name: project ? project.name : '', browser: use ? use.browserName : '', device: project && typeof project.metadata?.device === 'string' ? project.metadata.device : 'unknown', use},
       retries: result.retry, durationMs: result.duration,
       anchor: {file: test.location.file, line: test.location.line},

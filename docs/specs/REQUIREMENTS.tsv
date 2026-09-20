@@ -1398,6 +1398,7 @@ PWP-V0-004	docs/specs/playwright-external-provider-v0.md	24	Preserve attempt sta
 PWP-V0-005	docs/specs/playwright-external-provider-v0.md	25	Emit and retain the canonical closed profile. MCP discovery recomputes projectio
 PWP-V0-006	docs/specs/playwright-external-provider-v0.md	26	Cancellation joins only owned Playwright descendants and observes external serve
 PWP-V0-007	docs/specs/playwright-external-provider-v0.md	27	Qualification runs a checked-in real Playwright browser fixture covering pass, a
+PWP-V0-008	docs/specs/playwright-external-provider-v0.md	28	Playwright 1.63 qualification is consuming-path specific. A passing projection r
 QLF-V0-001	docs/specs/qualified-lifecycle-v0.md	32	The additive `corvint-qualified-lifecycle/0` request MUST be a closed object con
 QLF-V0-002	docs/specs/qualified-lifecycle-v0.md	33	Completed qualified non-Stop events MUST derive repository scope exclusively fro
 QLF-V0-003	docs/specs/qualified-lifecycle-v0.md	34	Qualified Stop MUST derive the active handle inside the same protected scope, co

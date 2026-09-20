@@ -11,12 +11,18 @@ working records and are referenced from decisions and specifications as historic
 
 Issue 39 extends the accepted external-server profile's exact runner allowlist from Playwright
 1.60.0 to 1.60.0 and 1.63.0. The checked-in real-browser matrix passed locally on Darwin with
-`@playwright/test@1.63.0` with Chromium 153.0.8010.12 (`chromium-1243`, macOS arm64). It preserved pass, assertion failure,
+macOS arm64, Node v22.23.2 and `@playwright/test@1.63.0` with system Google Chrome
+153.0.8010.48 at `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`; no channel override
+was used and the Playwright `chromium_headless_shell-1243` executable was absent. It preserved pass, assertion failure,
 test timeout, interruption, browser infrastructure failure, retry/attempt state, two-project
 identity, inherited `webServer` suppression, external-server survival, cancellation cleanup, and
-retained MCP discovery. Executable option metadata and a custom `page` fixture both produced
+retained MCP discovery, setup dependencies, global use, project inheritance, two-worker execution
+and repeat-each identities. Executable option metadata and a custom `page` fixture both produced
 unknown identity/infrastructure and never a passing projection. Other Playwright versions remain
-unqualified. The externally managed application command for `http://127.0.0.1:3002` is recorded in
+unqualified; Playwright 1.63 on another Node/platform/browser path also remains diagnostic-only.
+The Linux amd64 installed/bundled-browser arm is `NOT_RUN`. A local `golf-e2e` checkout does not
+exist, so its deterministic consumer fixture and CI observation are `NOT_OBSERVED`. The externally
+managed application command for `http://127.0.0.1:3002` is recorded in
 the accepted profile; the provider neither starts nor stops that application.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles

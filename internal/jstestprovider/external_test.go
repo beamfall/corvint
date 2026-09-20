@@ -72,6 +72,16 @@ func TestQualifiedReceiptProjection(t *testing.T) {
 	}
 }
 
+func TestPlaywright163UnqualifiedBrowserTupleAbstains(t *testing.T) {
+	r := qualifiedFixture(t)
+	r.Identity.RunnerVersion = "1.63.0"
+	r.Identity.NodeVersion = "v22.23.2"
+	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	if ReceiptTestProjection(r, r.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+		t.Fatal("unqualified Playwright 1.63 browser tuple projected green")
+	}
+}
+
 func TestQualifiedIdentityStableAcrossScratchAndDistinctAcrossProjects(t *testing.T) {
 	r := qualifiedFixture(t)
 	original := r.Tests[0].ID
