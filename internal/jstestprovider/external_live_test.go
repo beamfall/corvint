@@ -31,7 +31,7 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"playwright.config.cjs", "external.spec.cjs", "override.spec.cjs", "dynamic.spec.cjs", "custom.spec.cjs", "retry.spec.cjs", "setup.cjs", "teardown.cjs"} {
+	for _, name := range []string{"playwright.config.cjs", "external.spec.cjs", "override.spec.cjs", "dynamic.spec.cjs", "custom.spec.cjs", "retry.spec.cjs", "interruption.spec.cjs", "setup.cjs", "teardown.cjs"} {
 		data, err := os.ReadFile(filepath.Join("testdata", "external", name))
 		if err != nil {
 			t.Fatal(err)
@@ -55,9 +55,17 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	}
 	ready := make(chan struct{})
 	var once sync.Once
+	interruptReady := make(chan struct{})
+	var interruptOnce sync.Once
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/cancel-ready" {
 			once.Do(func() { close(ready) })
+		}
+		if r.URL.Path == "/interrupt-ready" {
+			interruptOnce.Do(func() { close(interruptReady) })
+		}
+		if r.URL.Path == "/interrupt-wait" {
+			<-interruptReady
 		}
 		_, _ = w.Write([]byte("external fixture"))
 	}))
@@ -185,6 +193,23 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	if err != nil || retried.Infrastructure != nil || len(retried.Tests) != 1 || retried.Tests[0].State != jstestprovider.StateFlaky || retried.Tests[0].Retries != 1 || len(retried.Tests[0].Attempts) != 2 || retried.Tests[0].Attempts[0].State != jstestprovider.StateFailed || retried.Tests[0].Attempts[1].State != jstestprovider.StatePassed {
 		t.Fatalf("retry state lost: %v %+v", err, retried)
 	}
+	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "interruption.spec.cjs"))
+	cfg.TestArgv = []string{"interruption.spec.cjs", "--project=chromium", "--workers=2", "--max-failures=1"}
+	interrupted, err := jstestprovider.RunE2E(context.Background(), cfg)
+	if err != nil || interrupted.Infrastructure == nil || interrupted.Infrastructure.Reason != "reporter-global-error" || len(interrupted.Tests) != 2 {
+		t.Fatalf("interruption run: %v %+v", err, interrupted)
+	}
+	interruptionStates := map[jstestprovider.ExecutionState]int{}
+	for _, outcome := range interrupted.Tests {
+		interruptionStates[outcome.State]++
+		if len(outcome.Attempts) != 1 || outcome.Attempts[0].State != outcome.State || jstestprovider.ReceiptTestProjection(interrupted, outcome).Execution.State == testvalidity.ExecutionPassed {
+			t.Fatalf("interruption attempt projected green %+v", outcome)
+		}
+	}
+	if interruptionStates[jstestprovider.StateFailed] != 1 || interruptionStates[jstestprovider.StateInterrupted] != 1 {
+		t.Fatalf("interruption states lost %+v", interruptionStates)
+	}
+	assertExternalSurvived(t, interrupted, server.URL)
 	t.Run("PWP-V0-006 cancellation-preserves-external-server", func(t *testing.T) {
 		cfg.TestArgv = []string{"external.spec.cjs", "--project=chromium", "--grep=cancellation"}
 		ctx, cancel := context.WithCancel(context.Background())
