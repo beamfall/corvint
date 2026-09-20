@@ -7,6 +7,33 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 WQO-V0-049..050: explicit work-queue executable binding (issue 45)
+
+Decision 0326 binds repository adoption to one operator-selected canonical external Corvint file.
+The reviewed adapter records its absolute path, SHA-256, version/build output and Go module/VCS
+source identity. The observer rejects relative, missing, linked, unsafe-parent, writable,
+repository-controlled or drifted bindings before adapter execution. It privately materializes only
+the already-opened verified bytes and passes that path as trusted adapter argv, preserving the fixed
+VPO environment and avoiding ambient `PATH`. Darwin cannot make the VPO-V0-024 exact-object claim,
+so the receipt remains honestly `UNQUALIFIED`; the binding is drift protection, not attestation.
+`work rebind` changes only the generated adapter for explicit review and commit.
+
+The smallest `~/.local/bin` init/observe/propose path passed before the wider matrix. Focused
+`TestWork*` passed, including `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`, changed binary,
+reviewed rebind, symlink swap, repository-local, unsafe-parent, relative and missing executable
+fixtures. The focused help/parser checks and `internal/companionrelease` package passed; its first
+sandboxed run could not bind an `httptest` listener and the authorized unsandboxed rerun passed.
+The canonical gate is deliberately enrolled but NOT_RUN pending the parent queue's explicit slot
+release; these focused results do not substitute for it.
+
+Actual self-development routes: original query selected the accepted WQO spec with four ranked
+results and test-symbol candidates omitted; the clean pre-change impact was OUT_OF_SCOPE with zero
+changed paths; start-time dogfood-change retained empty-range CEM/missing-scope outcomes as
+NOT_PRODUCED; immutable local completion enrollment froze the WQO intent and focused/spec/full-gate
+checks; dirty `affected` selected four Go packages while retaining unowned documentation paths and
+language-frontier unknowns. Mutation, corpus, external-provider, service and learning routes are not
+applicable. No paired baseline exists and no savings claim is made.
+
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
 Owner approval accepts decisions 0324/0325: bounded local MCP stdio and a separately built opt-in

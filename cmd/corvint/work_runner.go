@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"hash"
 	"io"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/worklistadapter"
 	"github.com/Beamfall/corvint/internal/workqueue"
 )
 
@@ -65,6 +67,8 @@ type workAdapterRunner struct {
 	identity      []workqueue.ExecutableIdentity
 	qualification string
 	executables   []*workExecutable
+	bound         *workExecutable
+	binding       workCorvintExecutableBinding
 	verifyTarget  func(context.Context) error
 }
 
@@ -73,12 +77,47 @@ func newWorkAdapterRunner(ctx context.Context, root, path string, source workSou
 	if err != nil {
 		return nil, err
 	}
-	return &workAdapterRunner{ctx: ctx, root: root, path: path, source: source, policy: policy, identity: identity, qualification: "UNQUALIFIED", executables: objects}, nil
+	runner := &workAdapterRunner{ctx: ctx, root: root, path: path, source: source, policy: policy, identity: identity, qualification: "UNQUALIFIED", executables: objects}
+	if policy.MappingVersion != worklistadapter.RepositoryMapping {
+		return runner, nil
+	}
+	fail := func(err error) (*workAdapterRunner, error) {
+		runner.Close()
+		return nil, err
+	}
+	binding, err := workParseBoundAdapter(source.adapterRaw)
+	if err != nil {
+		return fail(err)
+	}
+	if source.qualified == nil {
+		return fail(errors.New("missing qualified repository source"))
+	}
+	bound, _, err := workOpenBoundExecutable(binding.Path, []string{source.qualified.Root, source.qualified.GitDir, source.qualified.CommonDir})
+	if err != nil {
+		return fail(err)
+	}
+	runner.bound, runner.binding = bound, binding
+	runner.executables = append(runner.executables, bound)
+	runner.identity = append(runner.identity, workqueue.ExecutableIdentity{FileSHA256: bound.digest, Mode: fmt.Sprintf("%04o", bound.info.Mode().Perm()), PathSHA256: workqueue.SHA256Hex([]byte(binding.Path))})
+	return runner, nil
+}
+
+func (runner *workAdapterRunner) qualifyBoundExecutable() error {
+	if runner.bound == nil {
+		return nil
+	}
+	if len(runner.env) == 0 {
+		return errors.New("missing private adapter environment")
+	}
+	if err := workVerifyBoundExecutable(runner.ctx, runner.binding, runner.bound, runner.env, runner.root); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (runner *workAdapterRunner) Close() {
 	for _, object := range runner.executables {
-		_ = object.file.Close()
+		object.close()
 	}
 }
 
@@ -123,7 +162,11 @@ func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimi
 	if len(runner.env) == 0 {
 		return finish(errors.New("missing private adapter environment"))
 	}
-	command := exec.Command(runner.path, argv...)
+	commandArgv := append([]string(nil), argv...)
+	if runner.bound != nil {
+		commandArgv = append([]string{runner.bound.executionPath}, commandArgv...)
+	}
+	command := exec.Command(runner.path, commandArgv...)
 	command.Dir, command.Env = runner.root, append([]string(nil), runner.env...)
 	// A nil stdin is /dev/null. Explicit pipes keep Cmd.Wait independent of drains.
 	outRead, outWrite, err := os.Pipe()

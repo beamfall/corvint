@@ -257,6 +257,9 @@ func observeWork(parent context.Context, root string) (*workCapture, string) {
 	runner.env = append([]string(nil), materialization.environment...)
 	runner.verifyTarget = materialization.Verify
 	capture.runner = runner
+	if err := runner.qualifyBoundExecutable(); err != nil {
+		return nil, "SOURCE_UNQUALIFIED"
+	}
 	capture.monitoredRoots = []string{opening.qualified.Root, opening.qualified.GitDir, opening.qualified.CommonDir, materialization.target}
 	opening.manifest = workMutationManifest(ctx, capture.monitoredRoots)
 	capture.opening = opening

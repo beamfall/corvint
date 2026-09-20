@@ -990,7 +990,7 @@ func TestBundleReportsNameNotRunTargetsAndBrowserScope(t *testing.T) {
 		}
 	})
 	t.Run("WQO-V0-047 adoption-record", func(t *testing.T) {
-		for _, want := range []string{"corvint-tasks --version", "github.com/Beamfall/corvint-tasks", "corvint work init --repository NAME", ".corvint/work-queue-policy.json", "adapter\nreceipt", "ERROR/SOURCE_UNQUALIFIED", "ERROR/ADAPTER_FAILED", "STALE"} {
+		for _, want := range []string{"corvint-tasks --version", "github.com/Beamfall/corvint-tasks", "corvint work init --repository NAME --corvint-executable /absolute/path/to/corvint", "work rebind", ".corvint/work-queue-policy.json", "adapter\nreceipt", "ERROR/SOURCE_UNQUALIFIED", "ERROR/ADAPTER_FAILED", "STALE"} {
 			if !strings.Contains(readme, want) {
 				t.Fatalf("README does not record %q:\n%s", want, readme)
 			}

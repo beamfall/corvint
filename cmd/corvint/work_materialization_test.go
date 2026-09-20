@@ -179,7 +179,7 @@ func workCaptureSlot(t *testing.T) {
 
 func TestMain(m *testing.M) {
 	code := m.Run()
-	for name, root := range map[string]string{"work production seed": workProductionSeed.root, "work compiler cache": workCompilerCache.root} {
+	for name, root := range map[string]string{"work production seed": workProductionSeed.root, "work compiler cache": workCompilerCache.root, "work bound build": workBoundBuild.root} {
 		if root == "" {
 			continue
 		}

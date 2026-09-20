@@ -7,15 +7,70 @@ import (
 	"errors"
 	"flag"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/worklistadapter"
 	"github.com/Beamfall/corvint/internal/workqueue"
 	"github.com/Beamfall/corvint/internal/worksource"
 )
+
+var workBoundBuild struct {
+	once sync.Once
+	root string
+	path string
+	err  error
+}
+
+func workBoundCorvint(t *testing.T) string {
+	t.Helper()
+	workBoundBuild.once.Do(func() {
+		workBoundBuild.root, workBoundBuild.err = os.MkdirTemp("", "corvint-work-bound-")
+		if workBoundBuild.err != nil {
+			return
+		}
+		workBoundBuild.root, workBoundBuild.err = filepath.EvalSymlinks(workBoundBuild.root)
+		if workBoundBuild.err != nil {
+			return
+		}
+		workBoundBuild.path = filepath.Join(workBoundBuild.root, "home", ".local", "bin", "corvint")
+		workBoundBuild.err = workBuildCorvint(workBoundBuild.path, "fixture-1")
+	})
+	if workBoundBuild.err != nil {
+		t.Fatal(workBoundBuild.err)
+	}
+	return workBoundBuild.path
+}
+
+func workBuildCorvint(path, build string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	command := exec.Command("go", "build", "-trimpath", "-ldflags", "-X main.build="+build, "-o", path, ".")
+	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOCACHE="+filepath.Join(os.TempDir(), "corvint-go-build-cache"))
+	if output, err := command.CombinedOutput(); err != nil {
+		return errors.New(err.Error() + ": " + string(output))
+	}
+	return nil
+}
+
+func workCopyExecutable(t *testing.T, source, destination string) {
+	t.Helper()
+	raw, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(destination, raw, 0755); err != nil {
+		t.Fatal(err)
+	}
+}
 
 // TestWorkAdapterProcess is the adapter child the adoption fixture's committed
 // script re-executes; the sanitized observer environment carries only argv.
@@ -37,32 +92,28 @@ func TestWorkAdoptedRepositoryWorklist(t *testing.T) {
 	t.Parallel()
 	workCaptureSlot(t)
 	root := materializationFixture(t)
+	binary := workBoundCorvint(t)
 	var stdout, stderr bytes.Buffer
-	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture"}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", binary}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
 		t.Fatalf("init exit=%d stderr=%s", exit, &stderr)
 	}
 	if got := stdout.String(); got != ".corvint/work-queue-policy.json\n.corvint/worklist.json\n.corvint/work-queue-adapter\n" {
 		t.Fatalf("init output: %q", got)
 	}
 	before := materializationManifest(t, root)
-	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture"}, strings.NewReader(""), &stdout, &stderr); exit != 2 {
+	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", binary}, strings.NewReader(""), &stdout, &stderr); exit != 2 {
 		t.Fatalf("second init exit=%d", exit)
 	}
 	if !reflect.DeepEqual(before, materializationManifest(t, root)) {
 		t.Fatal("refused init changed files")
 	}
-	binary, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	shim := "#!/bin/bash\nexec '" + binary + "' -test.run='^TestWorkAdapterProcess$' work adapter \"$@\"\n"
 	worklist := `{"profile":"corvint-worklist/0","tickets":[
 {"body":"Run the parser suite batch.","id":"suite-parser","title":"Suite batch: parser","touchPaths":["internal/parser"]},
 {"body":"Classify and repair the flaky index failure.","id":"repair-index","title":"Failure-classification repair: index","touchPaths":["internal/index"]},
 {"body":"Retain the test-validity receipt for the CLI suite.","id":"receipt-cli","title":"Test-validity receipt: cli","touchPaths":["cmd/cli"]},
 {"body":"Clean up and retry the parser fixtures.","id":"retry-parser","title":"Cleanup and retry: parser fixtures","touchPaths":["internal/parser"]}]}
 `
-	writeFixtureFiles(t, root, map[string]string{".corvint/work-queue-adapter": shim, ".corvint/worklist.json": worklist})
+	writeFixtureFiles(t, root, map[string]string{".corvint/worklist.json": worklist})
 	materializationGit(t, root, "add", ".")
 	materializationGit(t, root, "commit", "-qm", "adopt work queue")
 	committed := materializationManifest(t, root)
@@ -115,7 +166,7 @@ func TestWorkInitRejectsSymlinkedDirectory(t *testing.T) {
 		t.Skipf("symlink unavailable: %v", err)
 	}
 	var stdout, stderr bytes.Buffer
-	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture"}, strings.NewReader(""), &stdout, &stderr); exit != 2 {
+	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", workBoundCorvint(t)}, strings.NewReader(""), &stdout, &stderr); exit != 2 {
 		t.Fatalf("init exit=%d stdout=%s stderr=%s", exit, &stdout, &stderr)
 	}
 	entries, err := os.ReadDir(external)
@@ -136,7 +187,7 @@ func TestWorkInitRequiresRepositoryRoot(t *testing.T) {
 	}
 	for _, root := range []string{t.TempDir(), subdirectory} {
 		var stdout, stderr bytes.Buffer
-		if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture"}, strings.NewReader(""), &stdout, &stderr); exit != 2 {
+		if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", workBoundCorvint(t)}, strings.NewReader(""), &stdout, &stderr); exit != 2 {
 			t.Fatalf("root %s: init exit=%d stdout=%s stderr=%s", root, exit, &stdout, &stderr)
 		}
 		if _, err := os.Lstat(filepath.Join(root, ".corvint")); !errors.Is(err, os.ErrNotExist) {
@@ -147,16 +198,209 @@ func TestWorkInitRequiresRepositoryRoot(t *testing.T) {
 
 func TestWorkInitUsesPortableAdapterShell(t *testing.T) {
 	t.Parallel()
-	if !strings.HasPrefix(workAdapterScript, "#!/bin/sh\n") {
-		t.Fatalf("generated adapter has non-portable shebang: %q", strings.SplitN(workAdapterScript, "\n", 2)[0])
+	script := string(workBoundAdapterScript(workCorvintExecutableBinding{}))
+	if !strings.HasPrefix(script, "#!/bin/sh\n") {
+		t.Fatalf("generated adapter has non-portable shebang: %q", strings.SplitN(script, "\n", 2)[0])
 	}
+}
+
+// WQO-V0-049: every documented install location produces one reviewed,
+// descriptor-executed binding with no ambient PATH lookup.
+func TestWorkInitBindsExplicitExecutableWQOV0049(t *testing.T) {
+	t.Run("WQO-V0-049 explicit executable binding", testWorkInitBindsExplicitExecutable)
+}
+
+func testWorkInitBindsExplicitExecutable(t *testing.T) {
+	binary := workBoundCorvint(t)
+	fixtureRoot, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name string
+		path string
+	}{
+		{"home-local-bin", filepath.Join(fixtureRoot, "home", ".local", "bin", "corvint")},
+		{"opt-homebrew-bin", filepath.Join(fixtureRoot, "opt", "homebrew", "bin", "corvint")},
+		{"usr-local-bin", filepath.Join(fixtureRoot, "usr", "local", "bin", "corvint")},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			workCopyExecutable(t, binary, test.path)
+			root := materializationFixture(t)
+			var stdout, stderr bytes.Buffer
+			exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", test.path}, strings.NewReader(""), &stdout, &stderr)
+			if exit != 0 {
+				t.Fatalf("init exit=%d stderr=%s", exit, &stderr)
+			}
+			raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(workAdapterPath)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			binding, err := workParseBoundAdapter(raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if binding.Path != test.path || binding.SHA256 == "" || binding.Version == "" || binding.Source.Package != workCorvintPackage {
+				t.Fatalf("binding: %+v", binding)
+			}
+			if bytes.Contains(raw, []byte("exec corvint")) || !bytes.Contains(raw, []byte("exec \"$corvint_executable\" work adapter")) {
+				t.Fatalf("adapter searches PATH or omits descriptor execution: %s", raw)
+			}
+		})
+	}
+}
+
+// WQO-V0-049: relative, missing, linked, unsafe-parent and repository-owned
+// executables are refused before initialization writes anything.
+func TestWorkInitRejectsUnqualifiedExecutableWQOV0049(t *testing.T) {
+	binary := workBoundCorvint(t)
+	fixtureRoot, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	linked := filepath.Join(fixtureRoot, "linked-corvint")
+	if err := os.Symlink(binary, linked); err != nil {
+		t.Fatal(err)
+	}
+	unsafe := filepath.Join(fixtureRoot, "unsafe", "corvint")
+	workCopyExecutable(t, binary, unsafe)
+	if err := os.Chmod(filepath.Dir(unsafe), 0777); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name string
+		path func(string) string
+	}{
+		{"relative", func(string) string { return "corvint" }},
+		{"missing", func(string) string { return filepath.Join(fixtureRoot, "missing") }},
+		{"symlink", func(string) string { return linked }},
+		{"unsafe-parent", func(string) string { return unsafe }},
+		{"repository-local", func(root string) string {
+			path := filepath.Join(root, "bin", "corvint")
+			workCopyExecutable(t, binary, path)
+			return path
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root := materializationFixture(t)
+			var stdout, stderr bytes.Buffer
+			exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", test.path(root)}, strings.NewReader(""), &stdout, &stderr)
+			if exit != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "executable is unqualified") {
+				t.Fatalf("exit=%d stdout=%q stderr=%q", exit, &stdout, &stderr)
+			}
+			if _, err := os.Lstat(filepath.Join(root, ".corvint")); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("refused init wrote .corvint: %v", err)
+			}
+		})
+	}
+}
+
+// WQO-V0-049/050: byte replacement is stale/unqualified until the operator
+// explicitly regenerates the reviewed adapter binding.
+func TestWorkExecutableChangeRequiresReviewedRebindWQOV0050(t *testing.T) {
+	t.Run("WQO-V0-050 reviewed executable rebind", testWorkExecutableChangeRequiresReviewedRebind)
+}
+
+func testWorkExecutableChangeRequiresReviewedRebind(t *testing.T) {
+	fixtureRoot, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound := filepath.Join(fixtureRoot, "home", ".local", "bin", "corvint")
+	workCopyExecutable(t, workBoundCorvint(t), bound)
+	root := workInitializedRepository(t, bound)
+	replacement := filepath.Join(fixtureRoot, "replacement")
+	if err := workBuildCorvint(replacement, "fixture-2"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(replacement, bound); err != nil {
+		t.Fatal(err)
+	}
+	workAssertFinalError(t, workCommandBytes(t, root, "work", "observe"), 2, "SOURCE_UNQUALIFIED")
+	var stdout, stderr bytes.Buffer
+	if exit := run([]string{"--root", root, "work", "rebind", "--corvint-executable", bound}, strings.NewReader(""), &stdout, &stderr); exit != 0 || stdout.String() != workAdapterPath+"\n" {
+		t.Fatalf("rebind exit=%d stdout=%q stderr=%q", exit, &stdout, &stderr)
+	}
+	materializationGit(t, root, "add", workAdapterPath)
+	materializationGit(t, root, "commit", "-qm", "review executable rebind")
+	result := workAdoptedRun(t, root, "work", "observe")
+	if result.Observation == nil || result.Observation.State != workqueue.StateValidated {
+		t.Fatalf("rebound observation: %+v", result.Observation)
+	}
+	for _, receipt := range result.Observation.AdapterReceipts {
+		if receipt.ExecutableQualification != "UNQUALIFIED" {
+			t.Fatalf("unexpected executable qualification: %+v", receipt)
+		}
+	}
+}
+
+// WQO-V0-049: path removal and symlink replacement both fail before adapter
+// execution, while the retained descriptor prevents byte substitution races.
+func TestWorkExecutableMissingAndSymlinkSwapWQOV0049(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		swap func(*testing.T, string)
+	}{
+		{"missing", func(t *testing.T, path string) {
+			t.Helper()
+			if err := os.Remove(path); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"symlink-swap", func(t *testing.T, path string) {
+			t.Helper()
+			backup := path + ".replacement"
+			workCopyExecutable(t, workBoundCorvint(t), backup)
+			if err := os.Remove(path); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(backup, path); err != nil {
+				t.Fatal(err)
+			}
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			fixtureRoot, err := filepath.EvalSymlinks(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			bound := filepath.Join(fixtureRoot, "usr", "local", "bin", "corvint")
+			workCopyExecutable(t, workBoundCorvint(t), bound)
+			root := workInitializedRepository(t, bound)
+			test.swap(t, bound)
+			workAssertFinalError(t, workCommandBytes(t, root, "work", "observe"), 2, "SOURCE_UNQUALIFIED")
+		})
+	}
+}
+
+func workInitializedRepository(t *testing.T, executable string) string {
+	t.Helper()
+	root := materializationFixture(t)
+	var stdout, stderr bytes.Buffer
+	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", executable}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+		t.Fatalf("init exit=%d stderr=%s", exit, &stderr)
+	}
+	materializationGit(t, root, "add", ".")
+	materializationGit(t, root, "commit", "-qm", "adopt work queue")
+	return root
+}
+
+func workCommandBytes(t *testing.T, root string, arguments ...string) []byte {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	exit := run(append([]string{"--root", root}, arguments...), strings.NewReader(""), &stdout, &stderr)
+	if exit != 2 {
+		t.Fatalf("%v exit=%d stdout=%s stderr=%s", arguments, exit, &stdout, &stderr)
+	}
+	return stdout.Bytes()
 }
 
 func TestWorkMissingAdoptionWorklistIsSourceUnqualified(t *testing.T) {
 	t.Parallel()
 	root := materializationFixture(t)
 	var stdout, stderr bytes.Buffer
-	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture"}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", workBoundCorvint(t)}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
 		t.Fatalf("init exit=%d stderr=%s", exit, &stderr)
 	}
 	worklistPath, _ := worklistadapter.WorklistPath(worklistadapter.RepositoryMapping)
@@ -230,7 +474,7 @@ func TestWorkMappingReproduced(t *testing.T) {
 	t.Parallel()
 	root := materializationFixture(t)
 	var stdout, stderr bytes.Buffer
-	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture"}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", workBoundCorvint(t)}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
 		t.Fatalf("init: %s", &stderr)
 	}
 	materializationGit(t, root, "add", ".")
@@ -260,7 +504,7 @@ func TestWorkMappingReproduced(t *testing.T) {
 	if workMappingReproduced(source, &unmapped, snapshot.Canonical(), details.Canonical(), checkpoint.Canonical()) {
 		t.Fatal("unknown mapping qualified store scope")
 	}
-	if exit := run([]string{"--root", t.TempDir(), "work", "init", "--repository", "bad name"}, strings.NewReader(""), &stdout, &stderr); exit != 2 {
+	if exit := run([]string{"--root", t.TempDir(), "work", "init", "--repository", "bad name", "--corvint-executable", workBoundCorvint(t)}, strings.NewReader(""), &stdout, &stderr); exit != 2 {
 		t.Fatal("invalid repository token accepted")
 	}
 }
