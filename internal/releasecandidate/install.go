@@ -170,6 +170,7 @@ func validateCandidateEvidence(files map[string][]byte, manifest Manifest, asset
 			return fmt.Errorf("candidate asset role %s count is %d, expected %d", role, roleCounts[role], count)
 		}
 	}
+	var hostBinary []byte
 	for _, archive := range shippedCoreArchives {
 		path := "core/" + archive
 		raw, present := files[path]
@@ -185,6 +186,17 @@ func validateCandidateEvidence(files map[string][]byte, manifest Manifest, asset
 		if !matched {
 			return fmt.Errorf("candidate core report does not bind %s", archive)
 		}
+		for _, target := range report.Targets {
+			if target.ArchiveName == archive {
+				binary, err := verifyCoreBinary(raw, target)
+				if err != nil {
+					return err
+				}
+				if target.GOOS == runtime.GOOS && target.GOARCH == runtime.GOARCH {
+					hostBinary = binary
+				}
+			}
+		}
 	}
 	archivePath, checksumPath, smokePath, err := candidateCompanionPaths(assets)
 	if err != nil {
@@ -195,6 +207,19 @@ func validateCandidateEvidence(files map[string][]byte, manifest Manifest, asset
 		return err
 	}
 	defer os.RemoveAll(temporary)
+	if len(hostBinary) == 0 {
+		return fmt.Errorf("candidate lacks a host core binary for exact version verification")
+	}
+	hostPath := filepath.Join(temporary, "corvint")
+	if err := os.WriteFile(hostPath, hostBinary, 0o700); err != nil {
+		return err
+	}
+	versionCommand := exec.Command(hostPath, "--version")
+	versionCommand.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + temporary, "LANG=C", "LC_ALL=C"}
+	versionOutput, err := versionCommand.Output()
+	if err != nil || strings.TrimSpace(string(versionOutput)) != manifest.CorvintVersion {
+		return fmt.Errorf("candidate host core version identity disagrees")
+	}
 	for _, candidatePath := range []string{archivePath, checksumPath, smokePath} {
 		if err := os.WriteFile(filepath.Join(temporary, filepath.Base(candidatePath)), files[candidatePath], 0o600); err != nil {
 			return err

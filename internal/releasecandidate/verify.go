@@ -97,6 +97,9 @@ func validateCoreReport(report coreReport, files map[string][]byte) error {
 		if target.RetainedArchive.SHA256 != digest(files[target.ArchiveName]) || target.RetainedArchive.Bytes != int64(len(files[target.ArchiveName])) {
 			return fmt.Errorf("core target %s retained archive disagrees", target.ArchiveName)
 		}
+		if _, err := verifyCoreBinary(files[target.ArchiveName], target); err != nil {
+			return err
+		}
 	}
 	return nil
 }

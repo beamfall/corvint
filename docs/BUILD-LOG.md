@@ -20,7 +20,13 @@ profiles keep their historical smoke inventory.
 
 The versioned installer reverifies the closed candidate, retains the host core archive at a unique
 version/platform path, refuses replacement and never writes a current/latest selector. Focused
-native and Linux cross-build checks pass. The pre-change core archive gate passed. The pre-change
+native and Linux cross-build checks pass. Independent review found that the first implementation
+bound only compressed core archive bytes, reread companion inputs without verifying the completed
+staging tree, used a fixed removable version-probe path, and omitted three release-note disclosures.
+The repair decodes the exact six-member core archives, binds binary/checksum/build identities and
+executes the host core version, verifies completed staging before no-replace promotion, uses only a
+unique owned probe, refuses scratch/output overlap, and names local-Git trust, unmeasured performance
+and unavailable hosted CI. The pre-change core archive gate passed. The pre-change
 companion gate reached the separately owned Corvint Tasks checkout and failed before retention at
 `corvint-tasks init`; therefore no combined candidate was produced and Linux installed workflows
 remain `NOT_RUN`. Publication, tagging, pushing, signing, upload and promotion were not attempted.

@@ -9,6 +9,11 @@ import (
 )
 
 func TestPUBV0022VerifyCoreRequiresClosedReproducibleChecksummedSet(t *testing.T) {
+	previous := verifyCoreBinary
+	verifyCoreBinary = func(_ []byte, target coreTarget) ([]byte, error) {
+		return []byte("binary-" + target.BinaryName), nil
+	}
+	t.Cleanup(func() { verifyCoreBinary = previous })
 	directory := validCoreFixture(t)
 	report, files, err := verifyCore(directory)
 	if err != nil {
@@ -24,6 +29,12 @@ func TestPUBV0022VerifyCoreRequiresClosedReproducibleChecksummedSet(t *testing.T
 	}
 	if _, _, err := verifyCore(directory); err == nil || !strings.Contains(err.Error(), "checksum mismatch") {
 		t.Fatalf("changed core archive accepted: %v", err)
+	}
+}
+
+func TestPUBV0022CoreArchiveVerifierRejectsNonArchiveBytes(t *testing.T) {
+	if _, err := verifyCoreArchiveBinary([]byte("not an archive"), coreTarget{GOOS: "darwin", GOARCH: "arm64", BinaryName: "corvint", ArchiveName: "corvint_darwin_arm64.tar.gz"}); err == nil {
+		t.Fatal("non-archive bytes accepted as a qualified core archive")
 	}
 }
 
@@ -56,6 +67,34 @@ func TestPUBV0025PromotionNeverReplacesExistingCandidate(t *testing.T) {
 	}
 	if err := promoteNoReplace(parent, "stage", "candidate"); err == nil {
 		t.Fatal("existing candidate was replaced")
+	}
+}
+
+func TestPUBV0026ScratchAndOutputCannotOverlapInputs(t *testing.T) {
+	root := t.TempDir()
+	for name, options := range map[string]Options{
+		"scratch in source": {SourceRoot: root, CoreDirectory: filepath.Join(root, "core"), CompanionDirectory: filepath.Join(root, "companion"), Scratch: filepath.Join(root, "scratch"), OutputParent: filepath.Join(t.TempDir(), "out")},
+		"output in source":  {SourceRoot: root, CoreDirectory: filepath.Join(root, "core"), CompanionDirectory: filepath.Join(root, "companion"), Scratch: t.TempDir(), OutputParent: filepath.Join(root, "out")},
+	} {
+		t.Run(name, func(t *testing.T) {
+			for _, directory := range []string{options.CoreDirectory, options.CompanionDirectory, options.Scratch} {
+				if err := os.MkdirAll(directory, 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := validateScratchSeparation(options); err == nil {
+				t.Fatal("overlapping release path accepted")
+			}
+		})
+	}
+}
+
+func TestPUBV0007CandidateNotesPreserveRequiredDisclosures(t *testing.T) {
+	notes := candidateReadme("0.4.0a4")
+	for _, disclosure := range []string{"Experimental", "local Git executable and object database", "Performance is unmeasured", "hosted CI is unavailable/NOT_RUN"} {
+		if !strings.Contains(notes, disclosure) {
+			t.Fatalf("candidate notes omit %q", disclosure)
+		}
 	}
 }
 

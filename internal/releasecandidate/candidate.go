@@ -31,6 +31,9 @@ func Assemble(ctx context.Context, options Options) (_ *Result, err error) {
 			return nil, fmt.Errorf("%s must be absolute", name)
 		}
 	}
+	if err := validateScratchSeparation(options); err != nil {
+		return nil, err
+	}
 	name := "corvint-v" + options.Version + "-qualified"
 	target := filepath.Join(options.OutputParent, name)
 	if _, statErr := os.Lstat(target); statErr == nil {
@@ -118,6 +121,9 @@ func Assemble(ctx context.Context, options Options) (_ *Result, err error) {
 	if err := writeCandidate(staging, files); err != nil {
 		return nil, err
 	}
+	if _, err := Verify(staging); err != nil {
+		return nil, fmt.Errorf("verify completed release candidate: %w", err)
+	}
 	if err := promoteNoReplace(options.OutputParent, filepath.Base(staging), name); err != nil {
 		return nil, fmt.Errorf("retain release candidate: %w", err)
 	}
@@ -164,12 +170,15 @@ func verifyVersionIdentity(ctx context.Context, options Options, bundle *compani
 	if err != nil || build == "" {
 		return "", "", fmt.Errorf("derive Corvint build number")
 	}
-	extracted := filepath.Join(options.Scratch, "release-version-probe")
-	_ = os.RemoveAll(extracted)
+	probe, err := os.MkdirTemp(options.Scratch, ".release-version-probe-")
+	if err != nil {
+		return "", "", err
+	}
+	defer os.RemoveAll(probe)
+	extracted := filepath.Join(probe, "bundle")
 	if err := bundle.Extract(extracted); err != nil {
 		return "", "", err
 	}
-	defer os.RemoveAll(extracted)
 	command := exec.CommandContext(ctx, filepath.Join(extracted, "bin", "corvint"), "--version")
 	command.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + options.Scratch, "LANG=C", "LC_ALL=C"}
 	out, err := command.Output()
@@ -248,7 +257,77 @@ func canonicalJSON(value any) ([]byte, error) {
 }
 
 func candidateReadme(version string) string {
-	return "# Corvint " + version + " qualified local candidate\n\nExperimental prerelease candidate. `QUALIFICATION.json` is authoritative: NOT_RUN is not PASS. This directory was assembled locally and is not a publication, tag, signature, upload, promotion, or installed-path replacement. Windows is excluded. Verify every retained file with `shasum -a 256 -c SHA256SUMS`.\n"
+	return "# Corvint " + version + " qualified local candidate\n\nExperimental prerelease candidate. `QUALIFICATION.json` is authoritative: NOT_RUN is not PASS. This directory was assembled locally and is not a publication, tag, signature, upload, promotion, or installed-path replacement. Windows is excluded. Verify every retained file with `shasum -a 256 -c SHA256SUMS`.\n\nEvidence authority defaults to the local Git executable and object database described by the CEM trust contract. Performance is unmeasured, and hosted CI is unavailable/NOT_RUN. Optional workflow and host features remain experimental unless their exact row is PASS.\n"
+}
+
+func validateScratchSeparation(options Options) error {
+	scratch, err := resolveProspective(options.Scratch)
+	if err != nil {
+		return fmt.Errorf("resolve scratch: %w", err)
+	}
+	info, err := os.Lstat(options.Scratch)
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("scratch must be an existing real directory")
+	}
+	inputs := map[string]string{"source root": options.SourceRoot, "core directory": options.CoreDirectory, "companion directory": options.CompanionDirectory}
+	resolvedInputs := map[string]string{}
+	for name, candidate := range inputs {
+		resolved, resolveErr := resolveProspective(candidate)
+		if resolveErr != nil {
+			return fmt.Errorf("resolve %s: %w", name, resolveErr)
+		}
+		resolvedInputs[name] = resolved
+		if pathOverlap(scratch, resolved) {
+			return fmt.Errorf("scratch overlaps %s", name)
+		}
+	}
+	output, err := resolveProspective(options.OutputParent)
+	if err != nil {
+		return fmt.Errorf("resolve output parent: %w", err)
+	}
+	if pathOverlap(scratch, output) {
+		return fmt.Errorf("scratch overlaps output parent")
+	}
+	for name, resolved := range resolvedInputs {
+		if pathOverlap(output, resolved) {
+			return fmt.Errorf("output parent overlaps %s", name)
+		}
+	}
+	return nil
+}
+
+func resolveProspective(candidate string) (string, error) {
+	candidate = filepath.Clean(candidate)
+	current := candidate
+	var suffix []string
+	for {
+		if _, err := os.Lstat(current); err == nil {
+			resolved, err := filepath.EvalSymlinks(current)
+			if err != nil {
+				return "", err
+			}
+			for index := len(suffix) - 1; index >= 0; index-- {
+				resolved = filepath.Join(resolved, suffix[index])
+			}
+			return resolved, nil
+		} else if !os.IsNotExist(err) {
+			return "", err
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", fmt.Errorf("no existing path ancestor")
+		}
+		suffix = append(suffix, filepath.Base(current))
+		current = parent
+	}
+}
+
+func pathOverlap(left, right string) bool {
+	within := func(parent, child string) bool {
+		relative, err := filepath.Rel(parent, child)
+		return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
+	}
+	return within(left, right) || within(right, left)
 }
 
 func joinCleanup(primary, cleanup error) error {
