@@ -41,8 +41,13 @@ an empty stderr stream. The repaired companion gate passed at Corvint `68c9bbc` 
 Corvint Tasks commit `f6ec200337160545b5e120a7242a8e862ecbcff0` and tree
 `7573360392d58000f30dc0f82e6716cba09d81d1`; its retained archive SHA-256 is
 `9dac067f16da86b8dc8bcb97414c96472d2fe613947d8acdca95cfb2024ad2cd`. All native installed
-smoke rows passed and the four non-native targets remain explicitly `NOT_RUN`. Publication,
-tagging, pushing, signing, upload and promotion were not attempted.
+smoke rows passed and the four non-native targets remain explicitly `NOT_RUN`. The canonical full
+suite was run twice on the unchanged repair commit; both runs passed the changed companion and
+release-candidate packages but `internal/liveverify/session` exceeded its fixed 20-second event
+wait under full-suite load. The same package passed immediately in isolation (35.8 seconds total),
+as did the initially load-affected `internal/procgroup`; full vet and the CEM interop test/vet gate
+passed. No unrelated timing-test source was changed. Publication, tagging, pushing, signing, upload
+and promotion were not attempted.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
