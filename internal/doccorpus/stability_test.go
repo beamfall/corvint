@@ -82,7 +82,7 @@ func stabilityFixture(t *testing.T, editReceipt func(int, *jstestprovider.Receip
 	for i, receipt := range receipts {
 		outcome := receipt.Tests[0]
 		identity := StabilityIdentity{ApplicationRevision: receipt.External.DeclaredAppIdentity, TestRevision: provider.BehaviorContracts.SourceRevision, ConfigSHA256: receipt.Identity.ConfigDigest, ContractSHA256: provider.BehaviorContracts.ContractSHA256, Runner: receipt.Identity.RunnerName, RunnerVersion: receipt.Identity.RunnerVersion, Browser: outcome.Project.Browser, Project: outcome.Project.Name, WorkerPolicy: "workers:1", RetryPolicy: "retries:0", EnvironmentClass: "local", EnvironmentSHA256: hashValue(receipt.Identity.Environment), FixtureSchema: "playwright-use", FixtureSHA256: Digest(outcome.Project.Use)}
-		contribution := StabilityContribution{RunKind: "planned-repetition", Repetition: i + 1, Receipt: inputs[i], Identity: identity, Cleanup: "passed", Attempts: []StabilityAttempt{}}
+		contribution := StabilityContribution{RunKind: "planned-repetition", Repetition: i + 1, Receipt: inputs[i], SourcePaths: map[string]string{"/repo/config.cjs": "src/value.go", "/repo/test.ts": "src/view.ts"}, Identity: identity, Cleanup: "passed", Attempts: []StabilityAttempt{}}
 		if i == 3 {
 			contribution.RunKind = "manual-rerun"
 			contribution.Repetition = 0
@@ -95,6 +95,15 @@ func stabilityFixture(t *testing.T, editReceipt func(int, *jstestprovider.Receip
 			}
 			if attempt.FailureKind == "browser-or-fixture" {
 				class = "fixture"
+			}
+			if attempt.FailureKind == "test-timeout" || attempt.State == jstestprovider.StateTimedOut {
+				class = "timeout"
+			}
+			if attempt.State == jstestprovider.StateInterrupted {
+				class = "interruption"
+			}
+			if attempt.State == jstestprovider.StateInfrastructure {
+				class = "infrastructure"
 			}
 			artifacts := []jstestprovider.FailureArtifact{}
 			if class != "none" {
@@ -196,6 +205,49 @@ func TestPlaywrightStabilityNegativeControls(t *testing.T) {
 					}
 				},
 			},
+			"failed runner cleanup": {
+				editReceipt: func(i int, receipt *jstestprovider.Receipt) {
+					if i == 2 {
+						receipt.External.RunnerDescendantsGone = false
+					}
+				},
+				wantError: true,
+			},
+			"stale mapped test source": {
+				editRegistry: func(r *StabilityRegistry) {
+					r.Aggregates[0].Contributions[1].SourcePaths["/repo/test.ts"] = "src/value.go"
+				},
+				wantError: true,
+			},
+			"manual first cross identity": {
+				editRegistry: func(r *StabilityRegistry) {
+					a := &r.Aggregates[0]
+					a.Contributions[3].Identity.WorkerPolicy = "workers:2"
+					a.Contributions = append([]StabilityContribution{a.Contributions[3]}, a.Contributions[:3]...)
+				},
+				wantError: true,
+			},
+			"noncontiguous retry ordinal": {
+				editReceipt: func(i int, receipt *jstestprovider.Receipt) {
+					if i != 2 {
+						return
+					}
+					receipt.Tests[0].State = jstestprovider.StateFlaky
+					receipt.Tests[0].Retries = 2
+					receipt.Tests[0].Attempts = []jstestprovider.Attempt{{State: jstestprovider.StateFailed, Retry: 0, FailureKind: "assertion-or-test"}, {State: jstestprovider.StatePassed, Retry: 2, FailureKind: "none"}}
+					receipt.Tests[0].Artifacts = []jstestprovider.FailureArtifact{{Name: "trace", Path: "trace.zip"}}
+				},
+				wantError: true,
+			},
+			"manual cleanup failed": {
+				editRegistry: func(r *StabilityRegistry) { r.Aggregates[0].Contributions[3].Cleanup = "failed" },
+				check: func(t *testing.T, a *Artifact) {
+					report := a.StabilityEvidence[0]
+					if report.Verdict != "not-stable" || report.Counts.CleanupFailed != 1 {
+						t.Fatalf("manual cleanup failure hidden: %+v", report)
+					}
+				},
+			},
 			"application revision change": {editRegistry: func(r *StabilityRegistry) {
 				r.Aggregates[0].Contributions[1].Identity.ApplicationRevision = "different"
 			}, wantError: true},
@@ -273,6 +325,28 @@ func TestPlaywrightStabilityCountsRetriesWithoutErasingFailure(t *testing.T) {
 	})
 }
 
+func TestPlaywrightStabilityCountsEarlierTimeoutWithoutErasingRecovery(t *testing.T) {
+	t.Run("DCP-V1-023 timeout retry evidence", func(t *testing.T) {
+		root, manifest := stabilityFixture(t, func(i int, receipt *jstestprovider.Receipt) {
+			if i != 2 {
+				return
+			}
+			receipt.Tests[0].State = jstestprovider.StateFlaky
+			receipt.Tests[0].Retries = 1
+			receipt.Tests[0].Attempts = []jstestprovider.Attempt{{State: jstestprovider.StateTimedOut, Retry: 0, FailureKind: "test-timeout"}, {State: jstestprovider.StatePassed, Retry: 1, FailureKind: "none"}}
+			receipt.Tests[0].Artifacts = []jstestprovider.FailureArtifact{{Name: "trace", Path: "timeout-trace.zip"}}
+		}, nil)
+		artifact, err := Build(context.Background(), root, manifest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		report := artifact.StabilityEvidence[0]
+		if report.Verdict != "not-stable" || report.Counts.TimedOut != 1 || report.Counts.Flaky != 1 || report.Counts.RetryConsumed != 1 || report.Counts.Passed != 2 || report.ContributingReceipts[1].Attempts[0].FailureClass != "timeout" || len(report.ContributingReceipts[1].Attempts[0].Artifacts) != 1 {
+			t.Fatalf("retry erased prior timeout: %+v", report)
+		}
+	})
+}
+
 func TestStabilityCountsEveryOutcomeDenominator(t *testing.T) {
 	t.Run("DCP-V1-023 outcome denominators", func(t *testing.T) {
 		tests := []struct {
@@ -307,4 +381,26 @@ func TestStabilityCountsEveryOutcomeDenominator(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestStabilityCountsEarlierIncompleteAttemptCategories(t *testing.T) {
+	tests := []struct {
+		state jstestprovider.ExecutionState
+		check func(StabilityCounts) bool
+	}{
+		{jstestprovider.StateTimedOut, func(c StabilityCounts) bool { return c.TimedOut == 1 }},
+		{jstestprovider.StateInterrupted, func(c StabilityCounts) bool { return c.Interrupted == 1 }},
+		{jstestprovider.StateInfrastructure, func(c StabilityCounts) bool { return c.InfrastructureFailed == 1 }},
+	}
+	for _, test := range tests {
+		t.Run(string(test.state), func(t *testing.T) {
+			counts := StabilityCounts{}
+			outcome := testvaliditydoc.Test{State: string(jstestprovider.StateFlaky), Attempts: []jstestprovider.Attempt{{State: test.state, Retry: 0}, {State: jstestprovider.StatePassed, Retry: 1}}}
+			contribution := StabilityContribution{Cleanup: "passed", Attempts: []StabilityAttempt{{State: string(test.state), Retry: 0, Cleanup: "passed"}, {State: string(jstestprovider.StatePassed), Retry: 1, Cleanup: "passed"}}}
+			countStabilityOutcome(&counts, outcome, &jstestprovider.Receipt{}, contribution)
+			if !test.check(counts) || counts.Flaky != 1 || counts.RetryConsumed != 1 {
+				t.Fatalf("earlier %s attempt erased: %+v", test.state, counts)
+			}
+		})
+	}
 }

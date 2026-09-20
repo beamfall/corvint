@@ -28,6 +28,14 @@ The focused `cmd/corvint` regression exposed that its minimal local-completion r
 sources but omitted the qualified Playwright reporter embedded by the now-reachable provider import.
 The fixture now carries that production embed; the product binary and provider profile are unchanged.
 
+Independent review found that the first aggregate accepted carried identities without rebinding
+test/config bytes, could hide failed native runner cleanup behind a carried pass, established its
+identity baseline after an earlier manual run, ignored manual cleanup, and counted only final timeout,
+interruption and infrastructure states. The repair requires explicit source mappings and the exact
+behavior-test anchor, recomputes and verifies native projections, fixes the baseline to planned
+repetition one, applies cleanup to every contributor, and retains each earlier attempt category.
+Adversarial regressions cover each finding plus noncontiguous retry ordinals.
+
 ## 2026-09-20 DCP-V1-004/007..013/019: experimental behavior contract ingestion (issue 40)
 
 The optional behavior-provider profile joins bidirectional flow/criterion/test/project identities

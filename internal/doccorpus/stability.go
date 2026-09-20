@@ -5,6 +5,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/testvalidity"
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
@@ -79,6 +80,7 @@ type StabilityContribution struct {
 	Repetition  int                   `json:"repetition"`
 	ManualRunID string                `json:"manual_run_id,omitempty"`
 	Receipt     StabilityReceiptInput `json:"receipt"`
+	SourcePaths map[string]string     `json:"source_paths"`
 	Identity    StabilityIdentity     `json:"identity"`
 	Cleanup     string                `json:"cleanup"`
 	Attempts    []StabilityAttempt    `json:"attempts"`
@@ -193,6 +195,17 @@ func (c *compiler) aggregateStability(provider string, behavior BehaviorRegistry
 	var baseline *StabilityIdentity
 	for i := range aggregate.Contributions {
 		contribution := &aggregate.Contributions[i]
+		if contribution.RunKind == "planned-repetition" && contribution.Repetition == 1 {
+			copy := contribution.Identity
+			baseline = &copy
+			break
+		}
+	}
+	if baseline == nil {
+		return StabilityReport{}, fail("stability planned repetition set incomplete")
+	}
+	for i := range aggregate.Contributions {
+		contribution := &aggregate.Contributions[i]
 		if receipts[contribution.Receipt.SHA256] {
 			return StabilityReport{}, fail("duplicate stability receipt")
 		}
@@ -220,15 +233,13 @@ func (c *compiler) aggregateStability(provider string, behavior BehaviorRegistry
 		if err != nil {
 			return StabilityReport{}, err
 		}
-		if baseline == nil && plannedRun {
-			copy := contribution.Identity
-			baseline = &copy
-		}
-		if baseline != nil && !stabilityIdentityMatches(*baseline, contribution.Identity, policy.MatrixDimensions) {
+		if !stabilityIdentityMatches(*baseline, contribution.Identity, policy.MatrixDimensions) {
 			return StabilityReport{}, fail("cross-identity stability receipt")
 		}
 		if plannedRun {
 			countStabilityOutcome(&counts, outcome, receipt, *contribution)
+		} else if stabilityCleanupFailed(*contribution) {
+			counts.CleanupFailed++
 		}
 	}
 	if len(planned) != aggregate.Planned {
@@ -255,7 +266,7 @@ func (c *compiler) stabilityOutcome(behavior BehaviorRegistry, aggregate Stabili
 		return testvaliditydoc.Test{}, nil, fail("invalid stability receipt")
 	}
 	document := testvaliditydoc.Project(decoded)
-	if document.Playwright == nil || document.TestsOmitted != 0 || document.Playwright.Cancelled || document.Playwright.StaleAppBuild || document.Playwright.External == nil || !document.Playwright.External.InputsUnchanged {
+	if document.Playwright == nil || document.TestsOmitted != 0 || document.Run.Execution.State == testvalidity.ExecutionInfrastructure || document.Run.Execution.State == testvalidity.ExecutionCancelled || document.Run.Freshness.State == testvalidity.FreshnessStale || document.Playwright.Cancelled || document.Playwright.StaleAppBuild || document.Playwright.External == nil || !document.Playwright.External.InputsUnchanged {
 		return testvaliditydoc.Test{}, nil, fail("partial or stale stability receipt")
 	}
 	matches := []testvaliditydoc.Test{}
@@ -269,6 +280,9 @@ func (c *compiler) stabilityOutcome(behavior BehaviorRegistry, aggregate Stabili
 	}
 	test := matches[0]
 	receipt := document.Playwright
+	if !stabilityProjectionMatches(test) {
+		return testvaliditydoc.Test{}, nil, fail("unqualified stability test outcome")
+	}
 	identity := contribution.Identity
 	_, applicationRevisionDeclared := c.indexes[identity.ApplicationRevision]
 	if !applicationRevisionDeclared || !wire.IsGitOid(identity.TestRevision) || !wire.IsSha256(identity.ConfigSHA256) || !wire.IsSha256(identity.ContractSHA256) || identity.ApplicationRevision != receipt.External.DeclaredAppIdentity || identity.TestRevision != behavior.SourceRevision || identity.ConfigSHA256 != receipt.Identity.ConfigDigest || identity.ContractSHA256 != behavior.ContractSHA256 || identity.Runner != receipt.Identity.RunnerName || identity.RunnerVersion != receipt.Identity.RunnerVersion || identity.Browser != test.Project.Browser || identity.Project != test.Project.Name || identity.EnvironmentSHA256 != hashValue(receipt.Identity.Environment) || identity.FixtureSHA256 != Digest(test.Project.Use) {
@@ -279,10 +293,16 @@ func (c *compiler) stabilityOutcome(behavior BehaviorRegistry, aggregate Stabili
 			return testvaliditydoc.Test{}, nil, fail("incomplete stability receipt identity")
 		}
 	}
+	if !c.stabilityInputsBound(identity.TestRevision, contribution.SourcePaths, receipt.Identity) || !stabilityBehaviorTestBound(behavior, aggregate, contribution, test, *receipt) {
+		return testvaliditydoc.Test{}, nil, fail("stability test/config source binding mismatch")
+	}
 	if !words("passed failed unknown")[contribution.Cleanup] || len(contribution.Attempts) != len(test.Attempts) || len(contribution.Attempts) == 0 {
 		return testvaliditydoc.Test{}, nil, fail("stability cleanup or attempt evidence incomplete")
 	}
 	for i, attempt := range test.Attempts {
+		if attempt.Retry != i {
+			return testvaliditydoc.Test{}, nil, fail("noncontiguous stability retry ordinal")
+		}
 		if err := validateStabilityAttempt(contribution.Attempts[i], attempt, receipt.Tests, aggregate.TestID); err != nil {
 			return testvaliditydoc.Test{}, nil, err
 		}
@@ -290,11 +310,94 @@ func (c *compiler) stabilityOutcome(behavior BehaviorRegistry, aggregate Stabili
 	return test, receipt, nil
 }
 
+func stabilityProjectionMatches(test testvaliditydoc.Test) bool {
+	wantState, wantReason := "", ""
+	switch jstestprovider.ExecutionState(test.State) {
+	case jstestprovider.StatePassed, jstestprovider.StateFlaky:
+		wantState = testvalidity.ExecutionPassed
+	case jstestprovider.StateFailed:
+		wantState = testvalidity.ExecutionFailed
+	case jstestprovider.StateSkipped:
+		wantState = testvalidity.ExecutionSkipped
+	case jstestprovider.StateTimedOut:
+		wantState, wantReason = testvalidity.ExecutionInfrastructure, "TIMEOUT"
+	case jstestprovider.StateInterrupted:
+		wantState, wantReason = testvalidity.ExecutionCancelled, "CANCELLATION"
+	case jstestprovider.StateInfrastructure:
+		wantState, wantReason = testvalidity.ExecutionInfrastructure, "INFRASTRUCTURE"
+	default:
+		return false
+	}
+	return test.Projection.Execution.State == wantState && (wantReason == "" || test.Projection.Execution.Reason == wantReason)
+}
+
+func (c *compiler) stabilityInputsBound(revision string, sourcePaths map[string]string, identity jstestprovider.Identity) bool {
+	if len(sourcePaths) == 0 || len(sourcePaths) > MaxRecords {
+		return false
+	}
+	for original, mapped := range sourcePaths {
+		if !textOK(original) || !validPath(mapped) {
+			return false
+		}
+	}
+	inputs := map[string]string{}
+	for path, digest := range identity.TestFileDigests {
+		inputs[path] = digest
+	}
+	for path, digest := range identity.ConfigInputDigests {
+		inputs[path] = digest
+	}
+	inputs[identity.ConfigFile] = identity.ConfigDigest
+	if len(inputs) == 0 {
+		return false
+	}
+	for original, digest := range inputs {
+		mapped, ok := sourcePaths[original]
+		if !ok {
+			return false
+		}
+		source, ok := c.sources[inputKey(revision, mapped)]
+		if !ok || Digest(source.Data) != digest {
+			return false
+		}
+	}
+	return true
+}
+
+func stabilityBehaviorTestBound(behavior BehaviorRegistry, aggregate StabilityAggregate, contribution StabilityContribution, observed testvaliditydoc.Test, receipt jstestprovider.Receipt) bool {
+	var declared *BehaviorTest
+	for i := range behavior.Tests {
+		if behavior.Tests[i].ID == aggregate.TestID {
+			if declared != nil {
+				return false
+			}
+			declared = &behavior.Tests[i]
+		}
+	}
+	if declared == nil || observed.Project == nil || declared.Project != observed.Project.Name || declared.Title != observed.Name || declared.Evidence.Revision != contribution.Identity.TestRevision {
+		return false
+	}
+	var native *jstestprovider.TestOutcome
+	for i := range receipt.Tests {
+		if receipt.Tests[i].ID == aggregate.TestID && receipt.Tests[i].Project != nil && receipt.Tests[i].Project.Name == contribution.Identity.Project {
+			if native != nil {
+				return false
+			}
+			native = &receipt.Tests[i]
+		}
+	}
+	if native == nil || native.Anchor == nil {
+		return false
+	}
+	mapped, ok := contribution.SourcePaths[native.Anchor.File]
+	return ok && mapped == declared.Evidence.Path && receipt.Identity.TestFileDigests[native.Anchor.File] == declared.Evidence.SHA256 && native.Anchor.Line >= declared.Evidence.Start && native.Anchor.Line <= declared.Evidence.End
+}
+
 func validateStabilityAttempt(evidence StabilityAttempt, native jstestprovider.Attempt, outcomes []jstestprovider.TestOutcome, testID string) error {
 	if evidence.Retry != native.Retry || evidence.State != string(native.State) || !words("passed failed unknown")[evidence.Cleanup] {
 		return fail("contradictory stability attempt evidence")
 	}
-	classes := map[string]bool{"none": native.FailureKind == "" || native.FailureKind == "none", "assertion": native.FailureKind == "assertion-or-test", "synchronization": native.FailureKind == "assertion-or-test", "product": native.FailureKind == "assertion-or-test", "fixture": native.FailureKind == "browser-or-fixture", "infrastructure": native.FailureKind == "browser-or-fixture", "timeout": native.FailureKind == "test-timeout", "interruption": native.State == jstestprovider.StateInterrupted}
+	classes := map[string]bool{"none": native.FailureKind == "" || native.FailureKind == "none", "assertion": native.FailureKind == "assertion-or-test", "synchronization": native.FailureKind == "assertion-or-test", "product": native.FailureKind == "assertion-or-test", "fixture": native.FailureKind == "browser-or-fixture", "infrastructure": native.FailureKind == "browser-or-fixture" || native.State == jstestprovider.StateInfrastructure, "timeout": native.FailureKind == "test-timeout" || native.State == jstestprovider.StateTimedOut, "interruption": native.State == jstestprovider.StateInterrupted}
 	if !classes[evidence.FailureClass] {
 		return fail("contradictory stability failure classification")
 	}
@@ -355,17 +458,31 @@ func stabilityIdentityMatches(left, right StabilityIdentity, matrix []string) bo
 
 func countStabilityOutcome(counts *StabilityCounts, outcome testvaliditydoc.Test, receipt *jstestprovider.Receipt, contribution StabilityContribution) {
 	failed := outcome.State == string(jstestprovider.StateFailed)
-	cleanupFailed := contribution.Cleanup != "passed"
+	timedOut := outcome.State == string(jstestprovider.StateTimedOut)
+	interrupted := outcome.State == string(jstestprovider.StateInterrupted)
+	skipped := outcome.State == string(jstestprovider.StateSkipped)
 	infrastructureFailed := outcome.State == string(jstestprovider.StateInfrastructure) || receipt.Infrastructure != nil
 	for _, attempt := range contribution.Attempts {
 		failed = failed || attempt.State == string(jstestprovider.StateFailed)
-		cleanupFailed = cleanupFailed || attempt.Cleanup != "passed"
+		timedOut = timedOut || attempt.State == string(jstestprovider.StateTimedOut)
+		interrupted = interrupted || attempt.State == string(jstestprovider.StateInterrupted)
+		infrastructureFailed = infrastructureFailed || attempt.State == string(jstestprovider.StateInfrastructure) || attempt.FailureClass == "infrastructure"
+		skipped = skipped || attempt.State == string(jstestprovider.StateSkipped)
 	}
 	if failed {
 		counts.Failed++
 	}
-	if cleanupFailed {
+	if stabilityCleanupFailed(contribution) {
 		counts.CleanupFailed++
+	}
+	if timedOut {
+		counts.TimedOut++
+	}
+	if interrupted {
+		counts.Interrupted++
+	}
+	if skipped {
+		counts.Skipped++
 	}
 	if len(outcome.Attempts) > 1 {
 		counts.RetryConsumed += len(outcome.Attempts) - 1
@@ -377,14 +494,11 @@ func countStabilityOutcome(counts *StabilityCounts, outcome testvaliditydoc.Test
 	case jstestprovider.StateFailed:
 		counts.Completed++
 	case jstestprovider.StateTimedOut:
-		counts.TimedOut++
 	case jstestprovider.StateInterrupted:
-		counts.Interrupted++
 	case jstestprovider.StateInfrastructure:
 		counts.Completed++
 	case jstestprovider.StateSkipped:
 		counts.Completed++
-		counts.Skipped++
 	case jstestprovider.StateFlaky:
 		counts.Completed++
 		counts.Flaky++
@@ -392,6 +506,18 @@ func countStabilityOutcome(counts *StabilityCounts, outcome testvaliditydoc.Test
 	if infrastructureFailed {
 		counts.InfrastructureFailed++
 	}
+}
+
+func stabilityCleanupFailed(contribution StabilityContribution) bool {
+	if contribution.Cleanup != "passed" {
+		return true
+	}
+	for _, attempt := range contribution.Attempts {
+		if attempt.Cleanup != "passed" {
+			return true
+		}
+	}
+	return false
 }
 
 func stabilityThresholdPassed(counts StabilityCounts, threshold StabilityThreshold) bool {

@@ -133,7 +133,9 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   application and test Git revisions, configuration and behavior-contract digests, runner/version,
   browser/project, worker/retry policy, environment class/digest and fixture schema/digest. All
   identities are identical within an aggregate unless the repository-owned policy explicitly names
-  that exact matrix dimension; carried or inferred identity is never substituted.
+  that exact matrix dimension. Receipt test/config inputs are rebound through explicit source-path
+  mappings to their Git bytes and the behavior test's exact path, digest and line anchor; carried or
+  inferred identity is never substituted.
 - `DCP-V1-022`: Planned repetitions use a complete unique ordinal set. Playwright retries remain
   ordered attempts inside one repetition, while manual reruns use separately identified contributors
   and never fill a planned ordinal or threshold. Missing iterations, duplicate receipt digests,
@@ -207,12 +209,15 @@ Each aggregate selects one of the repository policy's `one-spec`, `feature-batch
 thresholds. Planned repetitions must be exactly present once; retries stay nested attempt evidence;
 manual reruns carry distinct IDs and do not affect planned counts. Exact immutable receipt decoding
 revalidates the test/project, runner, config, app/test revisions, environment and effective fixture
-identity. Policy-owned worker/retry/environment-class/fixture-schema labels remain attributed
-declarations bound by the policy and receipt digests, not independent runtime discovery.
+identity. Native run/test projections are recomputed, retry ordinals must be contiguous, and receipt
+test/config digests must resolve through explicit source-path mappings at the declared test revision
+to the exact behavior-test anchor. Policy-owned worker/retry/environment-class/fixture-schema labels
+remain attributed declarations bound by the policy and receipt digests, not independent runtime
+discovery.
 
-Counts intentionally overlap where facts overlap: a flaky repetition with a failed first attempt is
-both `failed` and `flaky`, and consumes a retry. This prevents a later pass from erasing its earlier
-failure. Failed or unknown repetition/attempt cleanup prevents `clean`; malformed, omitted, duplicate,
+Counts intentionally overlap where facts overlap: a flaky repetition with a failed or timed-out first
+attempt retains that earlier category, is also `flaky`, and consumes a retry. This prevents a later pass
+from erasing its earlier failure. Failed or unknown planned/manual repetition or attempt cleanup prevents `clean`; malformed, omitted, duplicate,
 stale, cross-revision and contradictory inputs refuse compilation. The aggregate retains receipt
 paths/revisions/digests, every attempt classification and supporting receipt artifact. The dedicated
 corpus/MCP join rederives those bytes and carries explicit no-adequacy/no-parity limitations.
@@ -220,6 +225,7 @@ corpus/MCP join rederives those bytes and carries explicit no-adequacy/no-parity
 Acceptance: `TestPlaywrightStabilityAggregateEndToEnd`,
 `TestPlaywrightStabilityNegativeControls`,
 `TestPlaywrightStabilityPreservesEarlierFailureAndPolicyScopes` and
+`TestPlaywrightStabilityCountsEarlierTimeoutWithoutErasingRecovery`,
 `TestStabilityToolIsCapabilityGated` exercise DCP-V1-021..025. Fixtures are synthetic; live repeated
 browser execution, consumer policy qualification, behavior parity and owner acceptance remain open.
 
@@ -276,7 +282,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-016 | `internal/mcp/corpusbridge`, `cmd/corvint-corpus-mcp` | Capability gating, transport parity and hostile text |
 | DCP-V1-017 | Corpus render and maintenance API | Human byte/permission preservation, malformed/stale/tampered refusal |
 | DCP-V1-019..020 | Conformance fixtures and independent example adapter | Labelled evaluation and actual self-corpus receipt |
-| DCP-V1-021..025 | `internal/doccorpus/stability.go`, corpus reader and MCP bridge | End-to-end aggregate, policy scopes, failure retention, cleanup and five adversarial controls |
+| DCP-V1-021..025 | `internal/doccorpus/stability.go`, corpus reader and MCP bridge | End-to-end aggregate, policy scopes, prior-attempt retention, source rebinding, cleanup and adversarial controls |
 
 ## Open decisions
 
