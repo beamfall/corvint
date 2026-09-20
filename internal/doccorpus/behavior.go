@@ -11,31 +11,52 @@ import (
 const BehaviorProviderSchema = "corvint-corpus-behavior-provider/1"
 
 type BehaviorRegistry struct {
-	Schema                int              `json:"schema"`
-	ContractID            string           `json:"contract_id"`
-	ContractSHA256        string           `json:"contract_sha256"`
-	SourceRevision        string           `json:"source_revision"`
-	DocumentationRevision string           `json:"documentation_revision"`
-	Manifest              Anchor           `json:"migration_manifest"`
-	Flows                 []BehaviorFlow   `json:"flows"`
-	Behaviors             []BehaviorSource `json:"source_behaviors"`
-	Tests                 []BehaviorTest   `json:"tests"`
+	Revisions             BehaviorRevisions `json:"revisions"`
+	Discovery             Anchor            `json:"discovery"`
+	Schema                int               `json:"schema"`
+	ContractID            string            `json:"contract_id"`
+	ContractSHA256        string            `json:"contract_sha256"`
+	SourceRevision        string            `json:"source_revision"`
+	DocumentationRevision string            `json:"documentation_revision"`
+	Manifest              Anchor            `json:"migration_manifest"`
+	Flows                 []BehaviorFlow    `json:"flows"`
+	Behaviors             []BehaviorSource  `json:"source_behaviors"`
+	Tests                 []BehaviorTest    `json:"tests"`
 }
 type BehaviorMigration struct {
-	Schema                int    `json:"schema"`
-	ContractID            string `json:"contract_id"`
-	SourceRevision        string `json:"source_revision"`
-	DocumentationRevision string `json:"documentation_revision"`
+	Revisions             BehaviorRevisions `json:"revisions"`
+	Schema                int               `json:"schema"`
+	ContractID            string            `json:"contract_id"`
+	SourceRevision        string            `json:"source_revision"`
+	DocumentationRevision string            `json:"documentation_revision"`
+}
+type BehaviorRevisions struct {
+	App  Repository `json:"app"`
+	E2E  Repository `json:"golf_e2e"`
+	Docs Repository `json:"docs_corpus"`
+}
+type BehaviorDiscovery struct {
+	Schema     string              `json:"schema"`
+	Mode       string              `json:"mode"`
+	Revisions  BehaviorRevisions   `json:"revisions"`
+	Config     Anchor              `json:"config"`
+	Executions []BehaviorExecution `json:"executions"`
+}
+type BehaviorExecution struct {
+	ID       string `json:"id"`
+	Project  string `json:"project"`
+	Evidence Anchor `json:"evidence"`
 }
 type BehaviorFlow struct {
-	ID               string   `json:"id"`
-	Evidence         Anchor   `json:"evidence"`
-	Criteria         []string `json:"criteria"`
-	Tests            []string `json:"tests"`
-	RequiredPages    []string `json:"required_pages"`
-	NegativeControls []string `json:"negative_controls"`
-	OrderedEvents    []string `json:"ordered_events"`
-	MissingReview    *Anchor  `json:"missing_e2e_review,omitempty"`
+	Derivation       string          `json:"derivation"`
+	ID               string          `json:"id"`
+	Evidence         Anchor          `json:"evidence"`
+	Criteria         []string        `json:"criteria"`
+	Tests            []string        `json:"tests"`
+	RequiredPages    []string        `json:"required_pages"`
+	NegativeControls []string        `json:"negative_controls"`
+	OrderedEvents    []BehaviorEvent `json:"ordered_events"`
+	MissingReview    *Anchor         `json:"missing_e2e_review,omitempty"`
 }
 type BehaviorSource struct {
 	ID       string   `json:"id"`
@@ -43,14 +64,23 @@ type BehaviorSource struct {
 	Flows    []string `json:"flows"`
 }
 type BehaviorTest struct {
-	ID         string           `json:"id"`
-	Project    string           `json:"project"`
-	Title      string           `json:"title"`
-	Evidence   Anchor           `json:"evidence"`
-	Flows      []string         `json:"flows"`
-	Criteria   []string         `json:"criteria"`
-	Assertions []string         `json:"assertions"`
-	Runtime    *BehaviorRuntime `json:"runtime,omitempty"`
+	ID         string              `json:"id"`
+	Project    string              `json:"project"`
+	Title      string              `json:"title"`
+	Evidence   Anchor              `json:"evidence"`
+	Flows      []string            `json:"flows"`
+	Criteria   []string            `json:"criteria"`
+	Assertions []BehaviorAssertion `json:"assertions"`
+	Runtime    *BehaviorRuntime    `json:"runtime,omitempty"`
+}
+type BehaviorAssertion struct {
+	ID         string `json:"id"`
+	Behavior   string `json:"behavior"`
+	Criterion  string `json:"criterion"`
+	Annotation Anchor `json:"reviewed_annotation"`
+	Matcher    string `json:"matcher"`
+	Locator    string `json:"locator"`
+	Value      string `json:"value"`
 }
 type BehaviorRuntime struct {
 	Evidence    Anchor `json:"evidence"`
@@ -59,33 +89,45 @@ type BehaviorRuntime struct {
 
 // BehaviorRun is a separate, digest-pinned ordered witness, not a passing-test claim.
 type BehaviorRun struct {
-	Schema                string          `json:"schema"`
-	ContractID            string          `json:"contract_id"`
-	ContractSHA256        string          `json:"contract_sha256"`
-	SourceRevision        string          `json:"source_revision"`
-	DocumentationRevision string          `json:"documentation_revision"`
-	RunSHA256             string          `json:"run_sha256"`
-	TestID                string          `json:"test_id"`
-	Project               string          `json:"project"`
-	Retry                 int             `json:"retry"`
-	Cleanup               string          `json:"cleanup"`
-	Events                []BehaviorEvent `json:"events"`
+	Revisions             BehaviorRevisions `json:"revisions"`
+	Schema                string            `json:"schema"`
+	ContractID            string            `json:"contract_id"`
+	ContractSHA256        string            `json:"contract_sha256"`
+	SourceRevision        string            `json:"source_revision"`
+	DocumentationRevision string            `json:"documentation_revision"`
+	RunSHA256             string            `json:"run_sha256"`
+	TestID                string            `json:"test_id"`
+	Project               string            `json:"project"`
+	Retry                 int               `json:"retry"`
+	Cleanup               string            `json:"cleanup"`
+	Events                []BehaviorEvent   `json:"events"`
 }
 type BehaviorEvent struct {
-	Sequence int    `json:"sequence"`
-	Kind     string `json:"kind"`
-	ID       string `json:"id"`
-	Passed   bool   `json:"passed"`
+	Context    string `json:"browser_context"`
+	Page       string `json:"page"`
+	Frame      string `json:"frame"`
+	Navigation string `json:"navigation"`
+	ParentPage string `json:"parent_page"`
+	Behavior   string `json:"behavior"`
+	Criterion  string `json:"criterion"`
+	Matcher    string `json:"matcher"`
+	Locator    string `json:"locator"`
+	Value      string `json:"value"`
+	Sequence   int    `json:"sequence"`
+	Kind       string `json:"kind"`
+	ID         string `json:"id"`
+	Passed     bool   `json:"passed"`
 }
 type BehaviorReport struct {
-	Provider        string           `json:"provider"`
-	Registry        BehaviorRegistry `json:"registry"`
-	VerifiedTests   []string         `json:"verified_tests"`
-	LinkedFlows     []string         `json:"linked_flows"`
-	LinkedBehaviors []string         `json:"linked_behaviors"`
-	VerifiedFlows   []string         `json:"verified_flows"`
-	Fallback        string           `json:"fallback"`
-	Limitations     []string         `json:"limitations"`
+	Discovery       BehaviorDiscovery `json:"discovery"`
+	Provider        string            `json:"provider"`
+	Registry        BehaviorRegistry  `json:"registry"`
+	VerifiedTests   []string          `json:"verified_tests"`
+	LinkedFlows     []string          `json:"linked_flows"`
+	LinkedBehaviors []string          `json:"linked_behaviors"`
+	VerifiedFlows   []string          `json:"verified_flows"`
+	Fallback        string            `json:"fallback"`
+	Limitations     []string          `json:"limitations"`
 }
 
 func uniqueIdentities(values []string) bool {
@@ -106,12 +148,19 @@ func (c *compiler) importBehavior(p Provider, r *BehaviorRegistry) error {
 	if len(r.Flows) > MaxRecords || len(r.Tests) > MaxRecords || len(r.Behaviors) > MaxRecords {
 		return fail("behavior registry bound exceeded")
 	}
+	if c.manifest.BehaviorRevisions == nil || !validBehaviorRevisions(r.Revisions) || !validBehaviorRevisions(*c.manifest.BehaviorRevisions) {
+		return fail("behavior revision set missing or invalid")
+	}
+	discovery, err := c.behaviorDiscovery(r)
+	if err != nil {
+		return err
+	}
 	if err := c.checkAnchor(r.Manifest, true); err != nil {
 		return err
 	}
 	manifestSource := c.sources[inputKey(r.Manifest.Revision, r.Manifest.Path)]
 	var migration BehaviorMigration
-	if r.Manifest.Start != 1 || r.Manifest.SpanSHA256 != Digest(manifestSource.Data) || decode(manifestSource.Data, &migration) != nil || migration.Schema != 2 || migration.ContractID != r.ContractID || migration.SourceRevision != r.SourceRevision || migration.DocumentationRevision != r.DocumentationRevision {
+	if r.Manifest.Start != 1 || r.Manifest.SpanSHA256 != Digest(manifestSource.Data) || decode(manifestSource.Data, &migration) != nil || migration.Schema != 2 || migration.ContractID != r.ContractID || migration.SourceRevision != r.SourceRevision || migration.DocumentationRevision != r.DocumentationRevision || migration.Revisions != r.Revisions {
 		return fail("behavior migration schema-2 identity mismatch")
 	}
 	// The registry digest covers its contract declarations, excluding itself and runtime.
@@ -127,7 +176,10 @@ func (c *compiler) importBehavior(p Provider, r *BehaviorRegistry) error {
 	ids := []string{}
 	for _, f := range r.Flows {
 		ids = append(ids, f.ID)
-		if !uniqueIdentities(f.Criteria) || !uniqueIdentities(f.Tests) || !uniqueIdentities(f.RequiredPages) || !uniqueIdentities(f.NegativeControls) || !uniqueIdentities(f.OrderedEvents) {
+		if !words("generated source-derived declared imported")[f.Derivation] {
+			return fail("invalid flow derivation")
+		}
+		if !uniqueIdentities(f.Criteria) || !uniqueIdentities(f.Tests) || !uniqueIdentities(f.RequiredPages) || !uniqueIdentities(f.NegativeControls) || len(f.OrderedEvents) > MaxRecords {
 			return fail("invalid behavior flow identities")
 		}
 		if err := c.checkAnchor(f.Evidence, true); err != nil {
@@ -150,11 +202,24 @@ func (c *compiler) importBehavior(p Provider, r *BehaviorRegistry) error {
 	}
 	for _, test := range r.Tests {
 		ids = append(ids, test.ID)
-		if !textOK(test.Project) || !textOK(test.Title) || !uniqueIdentities(test.Flows) || !uniqueIdentities(test.Criteria) || !uniqueIdentities(test.Assertions) {
+		if !textOK(test.Project) || !textOK(test.Title) || !uniqueIdentities(test.Flows) || !uniqueIdentities(test.Criteria) || len(test.Assertions) > MaxRecords {
 			return fail("invalid behavior test identity")
 		}
 		if err := c.checkAnchor(test.Evidence, true); err != nil {
 			return err
+		}
+		assertionIDs := []string{}
+		for _, assertion := range test.Assertions {
+			assertionIDs = append(assertionIDs, assertion.ID)
+			if !textOK(assertion.Behavior) || !textOK(assertion.Criterion) || !textOK(assertion.Matcher) || !textOK(assertion.Locator) || !textOK(assertion.Value) {
+				return fail("incomplete assertion identity")
+			}
+			if err := c.checkAnchor(assertion.Annotation, true); err != nil {
+				return err
+			}
+		}
+		if !uniqueIdentities(assertionIDs) {
+			return fail("duplicate assertion identity")
 		}
 		if test.Runtime != nil {
 			if err := c.checkAnchor(test.Runtime.Evidence, true); err != nil {
@@ -165,12 +230,48 @@ func (c *compiler) importBehavior(p Provider, r *BehaviorRegistry) error {
 	if !uniqueIdentities(ids) {
 		return fail("duplicate behavior identity")
 	}
-	c.artifact.BehaviorContracts = append(c.artifact.BehaviorContracts, BehaviorReport{Provider: p.ID, Registry: *r, VerifiedTests: []string{}, LinkedFlows: []string{}, LinkedBehaviors: []string{}, VerifiedFlows: []string{}, Fallback: "full-relevant-suite", Limitations: []string{"experimental provider declarations; exact consumer fixtures not qualified", "recorded verification is not semantic adequacy or authenticated runtime provenance", "retained application freshness remains unknown; recorded verification never asserts current served content", "no narrowing authority"}})
+	c.artifact.BehaviorContracts = append(c.artifact.BehaviorContracts, BehaviorReport{Discovery: discovery, Provider: p.ID, Registry: *r, VerifiedTests: []string{}, LinkedFlows: []string{}, LinkedBehaviors: []string{}, VerifiedFlows: []string{}, Fallback: "full-relevant-suite", Limitations: []string{"experimental provider declarations; exact consumer fixtures not qualified", "recorded verification is not semantic adequacy or authenticated runtime provenance", "retained application freshness remains unknown; recorded verification never asserts current served content", "external repository expectations and generated prose carry no Core authority", "no narrowing authority"}})
 	return nil
 }
 
 func (c *compiler) behaviorGap(subject, kind, reason string) {
 	c.artifact.Gaps = append(c.artifact.Gaps, Gap{subject, kind, reason})
+}
+
+func validBehaviorRevisions(r BehaviorRevisions) bool {
+	for _, repo := range []Repository{r.App, r.E2E, r.Docs} {
+		if !wire.IsGitOid(repo.ID) || !wire.IsGitOid(repo.Revision) {
+			return false
+		}
+	}
+	return true
+}
+func (c *compiler) behaviorDiscovery(r *BehaviorRegistry) (BehaviorDiscovery, error) {
+	var d BehaviorDiscovery
+	if err := c.checkAnchor(r.Discovery, true); err != nil {
+		return d, err
+	}
+	source := c.sources[inputKey(r.Discovery.Revision, r.Discovery.Path)]
+	if r.Discovery.Kind != "observed" || r.Discovery.Start != 1 || r.Discovery.SpanSHA256 != Digest(source.Data) || decode(source.Data, &d) != nil || d.Schema != "corvint-playwright-discovery/1" || d.Mode != "live-playwright-list" || len(d.Executions) > MaxRecords {
+		return d, fail("invalid bound live discovery")
+	}
+	if err := c.checkAnchor(d.Config, true); err != nil {
+		return d, err
+	}
+	ids := []string{}
+	for _, execution := range d.Executions {
+		ids = append(ids, execution.ID)
+		if !textOK(execution.Project) {
+			return d, fail("discovery project missing")
+		}
+		if err := c.checkAnchor(execution.Evidence, true); err != nil {
+			return d, err
+		}
+	}
+	if !uniqueIdentities(ids) {
+		return d, fail("duplicate discovery execution identity")
+	}
+	return d, nil
 }
 
 func (c *compiler) compileBehaviors() {
@@ -188,7 +289,7 @@ func (c *compiler) compileBehavior(report *BehaviorReport) {
 	for _, t := range r.Tests {
 		tests[t.ID] = t
 	}
-	fresh := r.SourceRevision == c.manifest.Repository.Revision
+	fresh := r.SourceRevision == c.manifest.Repository.Revision && c.manifest.BehaviorRevisions != nil && r.Revisions == *c.manifest.BehaviorRevisions && r.Revisions.E2E == c.manifest.Repository && report.Discovery.Revisions == r.Revisions && report.Discovery.Config.Revision == r.SourceRevision
 	if !fresh {
 		c.behaviorGap(report.Provider, "stale-revision", "behavior source revision differs from corpus")
 	}
@@ -210,11 +311,21 @@ func (c *compiler) compileBehavior(report *BehaviorReport) {
 	}
 	for _, t := range r.Tests {
 		valid := fresh && len(t.Flows) > 0 && t.Evidence.Revision == r.SourceRevision
+		discovered := false
+		for _, execution := range report.Discovery.Executions {
+			if execution.ID == t.ID && execution.Project == t.Project && execution.Evidence.Revision == t.Evidence.Revision && execution.Evidence.Path == t.Evidence.Path && execution.Evidence.SHA256 == t.Evidence.SHA256 && execution.Evidence.Start == t.Evidence.Start {
+				discovered = true
+			}
+		}
+		if !discovered {
+			valid = false
+			c.behaviorGap(t.ID, "unreviewed-join", "test/project/source missing from bound live discovery")
+		}
 		if t.Evidence.Revision != r.SourceRevision {
 			c.behaviorGap(t.ID, "stale-revision", "test anchor differs from contract source revision")
 		}
 		for _, criterion := range t.Criteria {
-			if !slices.Contains(t.Assertions, criterion) {
+			if !behaviorAssertionDeclared(r, t, criterion) {
 				valid = false
 				c.behaviorGap(t.ID, "contradiction", "criterion lacks its exact runtime assertion identity")
 			}
@@ -276,7 +387,7 @@ func (c *compiler) compileBehavior(report *BehaviorReport) {
 		if len(f.Tests) == 0 {
 			kind := "unreviewed-join"
 			// An explicit retained human review is a reported finding, not closed-world proof.
-			if fresh && len(r.Tests) > 0 && f.MissingReview != nil && f.MissingReview.Kind == "review" && f.MissingReview.Revision == r.DocumentationRevision {
+			if fresh && len(report.Discovery.Executions) > 0 && f.MissingReview != nil && f.MissingReview.Kind == "review" && f.MissingReview.Revision == r.DocumentationRevision {
 				kind = "confirmed-missing_e2e"
 			}
 			c.behaviorGap(f.ID, kind, "no joined tests; confirmation, if present, is provider-reported review only")
@@ -288,6 +399,32 @@ func (c *compiler) compileBehavior(report *BehaviorReport) {
 			report.VerifiedFlows = append(report.VerifiedFlows, f.ID)
 		}
 	}
+	for _, execution := range report.Discovery.Executions {
+		if _, ok := tests[execution.ID]; !ok {
+			c.behaviorGap(execution.ID, "unreviewed-join", "live-discovered execution has no behavior contract")
+		}
+	}
+}
+
+func behaviorAssertionDeclared(r BehaviorRegistry, t BehaviorTest, criterion string) bool {
+	for _, assertion := range t.Assertions {
+		if assertion.Criterion != criterion {
+			continue
+		}
+		if assertion.Annotation.Kind != "review" || assertion.Annotation.Revision != r.SourceRevision || assertion.Annotation.Path != t.Evidence.Path || assertion.Annotation.SHA256 != t.Evidence.SHA256 {
+			continue
+		}
+		for _, behavior := range r.Behaviors {
+			if behavior.ID == assertion.Behavior {
+				for _, flow := range t.Flows {
+					if slices.Contains(behavior.Flows, flow) {
+						return true
+					}
+				}
+			}
+		}
+	}
+	return false
 }
 
 func (c *compiler) behaviorRunVerified(r BehaviorRegistry, test BehaviorTest) bool {
@@ -314,12 +451,26 @@ func (c *compiler) behaviorRunVerified(r BehaviorRegistry, test BehaviorTest) bo
 	if decode(source.Data, &run) != nil {
 		return false
 	}
-	if run.Schema != "corvint-behavior-run/1" || run.ContractID != r.ContractID || run.ContractSHA256 != r.ContractSHA256 || run.SourceRevision != r.SourceRevision || run.DocumentationRevision != r.DocumentationRevision || run.TestID != test.ID || run.Project != test.Project || run.Retry < 0 || run.Cleanup != "passed" || len(run.Events) == 0 || len(run.Events) > MaxRecords {
+	if run.Schema != "corvint-behavior-run/1" || run.ContractID != r.ContractID || run.ContractSHA256 != r.ContractSHA256 || run.SourceRevision != r.SourceRevision || run.DocumentationRevision != r.DocumentationRevision || run.Revisions != r.Revisions || run.TestID != test.ID || run.Project != test.Project || run.Retry < 0 || run.Cleanup != "passed" || len(run.Events) == 0 || len(run.Events) > MaxRecords {
 		return false
 	}
 	matched := false
+	var discovery BehaviorDiscovery
+	if decode(c.sources[inputKey(r.Discovery.Revision, r.Discovery.Path)].Data, &discovery) != nil {
+		return false
+	}
 	for _, o := range c.artifact.Observations {
 		if o.Link.ID != test.Runtime.Observation || o.Link.TestID != test.ID || o.Link.Project != test.Project || o.InputSHA256 != run.RunSHA256 || o.Link.SourceRevision != r.SourceRevision || !c.behaviorNativeReady(o) {
+			continue
+		}
+		if o.Document.Playwright.Identity.ConfigDigest != discovery.Config.SHA256 {
+			continue
+		}
+		configPath := o.Document.Playwright.Identity.ConfigFile
+		if mapped, ok := o.Link.SourcePaths[configPath]; ok {
+			configPath = mapped
+		}
+		if configPath != discovery.Config.Path {
 			continue
 		}
 		bound := false
@@ -353,17 +504,27 @@ func (c *compiler) behaviorRunVerified(r BehaviorRegistry, test BehaviorTest) bo
 		return false
 	}
 	seen := map[string]bool{}
-	ordered := []string{}
 	for i, event := range run.Events {
-		if event.Sequence != i+1 || !event.Passed || !textOK(event.ID) || !words("page assertion negative-control")[event.Kind] || seen[event.Kind+":"+event.ID] {
+		if event.Sequence != i+1 || !event.Passed || !textOK(event.ID) || !textOK(event.Context) || !textOK(event.Page) || !textOK(event.Frame) || !words("page assertion negative-control")[event.Kind] || seen[event.Kind+":"+event.ID] {
+			return false
+		}
+		if event.Kind == "page" && !words("main-frame frame redirect popup setup")[event.Navigation] {
+			return false
+		}
+		if event.Navigation == "popup" && !textOK(event.ParentPage) {
 			return false
 		}
 		seen[event.Kind+":"+event.ID] = true
-		ordered = append(ordered, event.Kind+":"+event.ID)
 	}
 	valid := true
-	for _, id := range test.Assertions {
-		if !seen["assertion:"+id] {
+	for _, assertion := range test.Assertions {
+		matchedAssertion := false
+		for _, event := range run.Events {
+			if event.Kind == "assertion" && event.ID == assertion.ID && event.Behavior == assertion.Behavior && event.Criterion == assertion.Criterion && event.Matcher == assertion.Matcher && event.Locator == assertion.Locator && event.Value == assertion.Value {
+				matchedAssertion = true
+			}
+		}
+		if !matchedAssertion {
 			valid = false
 		}
 	}
@@ -371,7 +532,7 @@ func (c *compiler) behaviorRunVerified(r BehaviorRegistry, test BehaviorTest) bo
 		if !slices.Contains(test.Flows, f.ID) {
 			continue
 		}
-		if len(f.OrderedEvents) == 0 || !slices.Equal(f.OrderedEvents, ordered) {
+		if len(f.OrderedEvents) == 0 || !slices.Equal(f.OrderedEvents, run.Events) {
 			valid = false
 			c.behaviorGap(test.ID, "contradiction", "runtime order differs from declared contract")
 		}
@@ -430,7 +591,7 @@ func behaviorCoverage(a *Artifact) []any {
 		for _, metric := range []struct {
 			name         string
 			count, total int
-		}{{"documented_flows", len(report.LinkedFlows), len(r.Flows)}, {"source_discovered_behaviors", len(report.LinkedBehaviors), len(r.Behaviors)}, {"discovered_playwright_project_executions", len(report.VerifiedTests), len(r.Tests)}, {"verified_contracts", len(report.VerifiedFlows), len(r.Flows)}} {
+		}{{"documented_flows", len(report.LinkedFlows), len(r.Flows)}, {"source_discovered_behaviors", len(report.LinkedBehaviors), len(r.Behaviors)}, {"discovered_playwright_project_executions", len(report.VerifiedTests), len(report.Discovery.Executions)}, {"verified_contracts", len(report.VerifiedFlows), len(r.Flows)}} {
 			rows = append(rows, map[string]any{"metric": metric.name, "provider": report.Provider, "value": metric.count, "denominator": metric.total, "defined": metric.total > 0, "revision": r.SourceRevision, "definition": fmt.Sprintf("scoped %s inventory; separate denominator", metric.name), "limitations": report.Limitations})
 		}
 	}

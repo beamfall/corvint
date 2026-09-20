@@ -26,6 +26,11 @@ recorded verification unreachable for native Playwright receipts. The repair use
 execution projection, rebinds test/configuration inputs, and preserves the exact unknown app-freshness
 axis. A full Build/Open regression imports a synthetic qualified receipt through native decoding and
 projection; no manually assigned CURRENT projection is used by that end-to-end test.
+The owner's subsequent issue-40 acceptance amendment strengthens assertion target/value identity,
+ordered browser-context/page/frame navigation, live discovery denominator reconciliation and the
+app/e2e/docs revision set. Synthetic negatives cover same matcher/wrong element or value, same route
+without assertion, wrong project, reordered/scoped visits and stale revision members. The consumer's
+463/117 inventory and local consumer fixtures remain NOT_OBSERVED; generated prose retains its label.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
