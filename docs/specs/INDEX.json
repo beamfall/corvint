@@ -478,6 +478,23 @@
     ]
   },
   {
+    "path": "docs/specs/migration-evidence-ratchet-v0.md",
+    "title": "Migration Evidence Ratchet V0",
+    "reqPrefix": "MER-V0",
+    "intent": "accepted (GitHub issue #46)",
+    "delivery": "experimental",
+    "claim": "A revision-bound baseline/candidate receipt prevents migration evidence debt from growing without claiming adequacy or completeness.",
+    "dependsOn": [
+      "docs/specs/documentation-corpus-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/migrationratchet",
+      "cmd/corvint/migration_ratchet.go"
+    ]
+  },
+  {
     "path": "docs/specs/spec-requirement-index-generator-v0.md",
     "title": "Spec requirement index generator V0",
     "reqPrefix": "SRG-V0",
