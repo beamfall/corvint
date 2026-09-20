@@ -10,16 +10,22 @@ var boardView = mustView(`{{define "body"}}
 {{end}}
 
 {{if and .Board.Envelope .Board.Envelope.Refused}}<div class="note">If this repository has no ticket store, initialize a repository already configured for Corvint Tasks explicitly from its directory with <code>corvint-tasks init</code>. Reload this page afterward. Reading this page never initializes a store.</div>{{end}}
-<div class="panel"><h2><a href="/roadmap">Roadmap</a></h2>
-<div style="font-size:12px;color:#5b6470">Every ticket <code>corvint-tasks roadmap</code> reports, grouped by milestone.</div>
-</div>
-<div class="panel"><h2>New ticket</h2>
+<section class="page-intro">
+  <div><p class="eyebrow">Work queue</p><h2>Plan and track delivery</h2>
+  <p>A Jira-style view of every ticket the owning tool reports. Status, eligibility, and blockers remain tool-owned observations.</p></div>
+  <a class="button-link" href="/roadmap">View roadmap</a>
+</section>
+<details class="panel">
+<summary><span>New ticket</span><span class="summary-hint">Capture work without leaving the board</span></summary>
+<div class="details-body">
 {{if .CreateEnabled}}{{template "ticket-form" .}}{{else}}<p>Ticket creation is unavailable until the store can be read and <code>corvint-tasks help</code> offers <code>ticket create</code>.</p>{{end}}
-<p>Autonomous execution is unavailable in this console.</p></div>
+<p class="panel-subtitle">New tickets are manual features with priority P2. Creating one does not authorize autonomous execution.</p>
+</div></details>
 {{if .Caps.Err}}<div class="note"><b>Board columns are unavailable.</b> {{.Caps.Err}}
 The console does not carry its own column list, so no board is drawn rather than one invented here.</div>{{end}}
 
 {{if and (not .Board.Err) (not .Caps.Err) (not (and .Board.Envelope .Board.Envelope.Refused))}}
+<div class="board-summary"><b>{{.Board.Total}} tickets</b><span>across {{len .Board.Columns}} tool-reported statuses</span></div>
 <div class="board">
 {{range .Board.Columns}}
   <div class="col{{if .Unmapped}} unmapped{{end}}">
@@ -29,7 +35,7 @@ The console does not carry its own column list, so no board is drawn rather than
       <a href="/ticket?id={{.TicketID}}">{{.Title}}</a>
       <div class="meta">
         <span class="pill">{{.TicketID}}</span>
-        <span class="pill">{{.Priority}}</span>
+        <span class="pill priority">{{.Priority}}</span>
         <span class="pill">{{.Kind}}</span>
         <span class="pill">rev {{.Revision}}</span>
         {{if .Owner}}<span class="pill">{{.Owner}}</span>{{end}}
@@ -42,13 +48,13 @@ The console does not carry its own column list, so no board is drawn rather than
   </div>
 {{end}}
 </div>
-<div class="panel"><h2>How this board was read</h2>
+<details class="panel"><summary><span>How this board was read</span><span class="summary-hint">Source, authority, and uncertainty</span></summary><div class="details-body">
 <div>{{.Board.Total}} tickets in {{len .Board.Columns}} columns.
 Columns are the statuses <code>corvint-tasks help</code> enumerated at request time.</div>
 {{if .Board.Untrusted}}<div style="margin-top:6px;font-size:12px">The tool marked these fields
 untrusted; they are rendered as inert text: {{range .Board.Untrusted}}<code>{{.}}</code> {{end}}</div>{{end}}
 {{template "source" .Board.Source}}
-</div>
+</div></details>
 {{end}}
 {{end}}`)
 
@@ -63,24 +69,22 @@ var roadmapView = mustView(`{{define "body"}}
 {{end}}
 
 {{if and (not .Roadmap.Err) (not (and .Roadmap.Envelope .Roadmap.Envelope.Refused))}}
+<section class="page-intro">
+  <div><p class="eyebrow">Release plan</p><h2>Roadmap by milestone</h2>
+  <p>Sequence, gates, and blocker closure from <code>corvint-tasks roadmap</code>, without inferred progress.</p></div>
+  <a class="button-link" href="/">Back to board</a>
+</section>
 {{range .Roadmap.Groups}}
-<div class="panel">
-<h2>{{.Milestone}}{{if .Unmapped}} · not assigned by any ticket{{end}} ({{len .Rows}})</h2>
-<table>
-<tr><th>ticket</th><th>order</th><th>owner</th><th>priority</th><th>status</th><th>eligibility</th>
-<th>next action</th><th>required gates</th><th>gate results</th><th>blockers</th></tr>
+<section class="roadmap-group">
+<header class="milestone-heading"><h2>{{.Milestone}}{{if .Unmapped}} · not assigned{{end}}</h2><span>{{len .Rows}} tickets</span></header>
+<div class="roadmap-list">
 {{range .Rows}}
-<tr class="metric">
-<th style="width:auto"><a href="/ticket?id={{.TicketID}}">{{.Title}}</a><br><code>{{.TicketID}}</code></th>
-<td>{{or_dash .Order}}</td>
-<td>{{or_dash .Owner}}</td>
-<td>{{.Priority}}</td>
-<td>{{.Status}}</td>
-<td>{{.Eligibility}}</td>
-<td>{{or_dash .NextAction}}</td>
-<td>{{range .RequiredGates}}<code>{{.}}</code> {{else}}<span>none</span>{{end}}</td>
-<td>{{if eq .GateResults "NOT_OBSERVED"}}not observed{{else}}{{or_dash .GateResults}}{{end}}</td>
-<td>
+<article class="roadmap-row">
+<div class="roadmap-ticket"><a href="/ticket?id={{.TicketID}}">{{.Title}}</a><code>{{.TicketID}}</code>
+<div class="roadmap-tags"><span class="tag">#{{or_dash .Order}}</span><span class="tag">{{.Priority}}</span><span class="tag open">{{.Status}}</span><span class="tag{{if eq .Eligibility "BLOCKED"}} blocked{{end}}">{{.Eligibility}}</span></div></div>
+<dl class="roadmap-fact"><dt>Owner</dt><dd>{{or_dash .Owner}}</dd><dt>Next action</dt><dd>{{or_dash .NextAction}}</dd></dl>
+<dl class="roadmap-fact"><dt>Required gates</dt><dd>{{range .RequiredGates}}<code>{{.}}</code> {{else}}none{{end}}</dd><dt>Gate results</dt><dd>{{if eq .GateResults "NOT_OBSERVED"}}not observed{{else}}{{or_dash .GateResults}}{{end}}</dd></dl>
+<dl class="roadmap-fact"><dt>Blockers</dt><dd>
 {{if .Blockers}}
   {{if .Blockers.Refused}}<span class="unknown">blocker read refused</span>
   {{else if .Blockers.Items}}{{range .Blockers.Items}}<code>{{index . "ticketId"}}</code> {{end}}
@@ -88,26 +92,27 @@ var roadmapView = mustView(`{{define "body"}}
 {{else if .BlockerSource.Err}}<span class="unknown">blocker read failed: {{.BlockerSource.Err}}</span>
 {{else if eq .Eligibility "BLOCKED"}}<span class="unknown">blocker read not attempted</span>
 {{else}}<span>not blocked</span>{{end}}
-</td>
-</tr>
+</dd></dl>
+</article>
 {{end}}
-</table>
 </div>
+</section>
 {{else}}<div class="panel"><div>The tool reported no ticket on this page.</div></div>
 {{end}}
 
-<div class="panel">
-<h2>Page {{.Roadmap.Page}}</h2>
-<div>{{.Roadmap.Total}} tickets on this page{{if .Roadmap.TotalKnown}} of {{.Roadmap.TotalCount}} total{{end}}.</div>
-<nav style="margin-top:8px">
+<div class="panel pagination">
+<div><b>Page {{.Roadmap.Page}}</b><div class="panel-subtitle">{{.Roadmap.Total}} tickets here{{if .Roadmap.TotalKnown}} of {{.Roadmap.TotalCount}} total{{end}}.</div></div>
+<nav aria-label="Roadmap pages">
 {{if .Roadmap.HasPrev}}<a href="/roadmap?page={{.Roadmap.PrevPage}}">Previous page</a>{{else}}<span>Previous page</span>{{end}}
- ·
+<span aria-hidden="true">·</span>
 {{if .Roadmap.HasNext}}<a href="/roadmap?page={{.Roadmap.NextPage}}">Next page</a>{{else}}<span>Next page</span>{{end}}
 </nav>
+</div>
+<details class="panel"><summary><span>How this roadmap was read</span><span class="summary-hint">Source, authority, and uncertainty</span></summary><div class="details-body">
 {{if .Roadmap.Untrusted}}<div style="margin-top:6px;font-size:12px">The tool marked these fields
 untrusted; they are rendered as inert text: {{range .Roadmap.Untrusted}}<code>{{.}}</code> {{end}}</div>{{end}}
 {{template "source" .Roadmap.Source}}
-</div>
+</div></details>
 {{end}}
 {{end}}`)
 
@@ -120,22 +125,24 @@ var ticketView = mustView(`{{define "body"}}
 {{end}}
 
 {{if .Detail.Card.TicketID}}
-<div class="panel">
-<h2>Ticket</h2>
-<table>
-<tr><th>id</th><td><code>{{.Detail.Card.TicketID}}</code></td></tr>
-<tr><th>title</th><td>{{.Detail.Card.Title}}</td></tr>
-<tr><th>status</th><td>{{.Detail.Card.Status}} · eligibility {{.Detail.Card.Eligibility}}</td></tr>
-<tr><th>revision</th><td>{{.Detail.Card.Revision}}</td></tr>
-<tr><th>kind</th><td>{{.Detail.Card.Kind}} · {{.Detail.Card.Priority}}</td></tr>
-<tr><th>owner</th><td>{{or_dash .Detail.Card.Owner}}</td></tr>
-<tr><th>milestone</th><td>{{or_dash .Detail.Card.Milestone}}</td></tr>
-<tr><th>next action</th><td>{{or_dash .Detail.Card.NextAction}}</td></tr>
-</table>
+<div class="panel ticket-hero">
+<div class="eyebrow">Ticket</div>
+<h2>{{.Detail.Card.Title}}</h2>
+<div class="ticket-identity"><code>{{.Detail.Card.TicketID}}</code> · revision {{.Detail.Card.Revision}}</div>
+<div class="ticket-badges"><span class="tag open">{{.Detail.Card.Status}}</span><span class="tag{{if eq .Detail.Card.Eligibility "BLOCKED"}} blocked{{end}}">{{.Detail.Card.Eligibility}}</span><span class="tag">{{.Detail.Card.Kind}}</span><span class="tag">{{.Detail.Card.Priority}}</span></div>
+<dl class="ticket-summary">
+<div><dt>Owner</dt><dd>{{or_dash .Detail.Card.Owner}}</dd></div>
+<div><dt>Milestone</dt><dd>{{or_dash .Detail.Card.Milestone}}</dd></div>
+<div><dt>Next action</dt><dd>{{or_dash .Detail.Card.NextAction}}</dd></div>
+<div><dt>Status</dt><dd>{{.Detail.Card.Status}}</dd></div>
+<div><dt>Eligibility</dt><dd>{{.Detail.Card.Eligibility}}</dd></div>
+</dl>
 {{range .Detail.Card.Unknowns}}<div class="unknown">{{.Code}}: {{.Detail}}</div>{{end}}
 {{template "source" .Detail.Show}}
 </div>
 
+<div class="ticket-layout">
+<div class="ticket-content">
 <div class="panel">
 <h2>Where it comes from</h2>
 {{if .Detail.Record}}
@@ -183,9 +190,12 @@ var ticketView = mustView(`{{define "body"}}
 reachable from it. That is an absent link, not a passing one.</div>{{end}}
 </div>
 
+</div>
+<aside class="ticket-actions" aria-label="Ticket actions">
+
 <div class="panel">
 <h2>Priority and order</h2>
-<div style="font-size:12px;color:#5b6470;margin-bottom:8px">
+<div class="panel-subtitle">
 Saving replaces the shown order and priority. The console writes nothing itself and sends the
 revision shown above.
 </div>
@@ -195,7 +205,7 @@ revision shown above.
 
 <div class="panel">
 <h2>Dependencies</h2>
-<div style="font-size:12px;color:#5b6470;margin-bottom:8px">
+<div class="panel-subtitle">
 Saving replaces the whole dependency list with the entries below; it does not add to what the tool
 already has. The console writes nothing itself and sends the revision shown above.
 </div>
@@ -205,7 +215,7 @@ already has. The console writes nothing itself and sends the revision shown abov
 
 <div class="panel">
 <h2>Change this ticket</h2>
-<div style="font-size:12px;color:#5b6470;margin-bottom:8px">
+<div class="panel-subtitle">
 Every control below runs the owning tool's own verb. The console writes nothing itself, sends the
 revision shown above, and does not retry on your behalf: a conflict comes back for you to re-read.
 </div>
@@ -223,6 +233,8 @@ revision shown above, and does not retry on your behalf: a conflict comes back f
   {{if not .Enabled}}<div class="disabled-reason">disabled: {{.Reason}}</div>{{end}}
 </form>
 {{end}}{{end}}
+</div>
+</aside>
 </div>
 
 <div class="panel">
@@ -259,7 +271,7 @@ var specView = mustView(`{{define "body"}}
 <td>{{or_dash .ReqPrefix}}</td><td>{{.Intent}}</td><td>{{.Delivery}}</td></tr>
 {{end}}
 </table>
-<div style="margin-top:10px;font-size:12px;color:#5b6470">
+<div style="margin-top:10px;font-size:12px;color:var(--dim)">
 Intent and delivery are each spec's own declaration, rendered as declared. The console does not
 judge them and cannot advance one.</div>
 {{end}}
@@ -323,7 +335,7 @@ var codeView = mustView(`{{define "body"}}
 {{if .Backlinks}}
 <div class="panel">
 <h2>Requirements citing this path</h2>
-<div style="font-size:12px;color:#5b6470;margin-bottom:8px">
+<div style="font-size:12px;color:var(--dim);margin-bottom:8px">
 A requirement is listed when a Traceability table's Implementation cell at commit
 <code>{{.Backlinks.Commit}}</code> cites exactly this path. Each link is pinned to that commit.</div>
 {{if .Backlinks.Gap}}<div class="unknown">gap: {{.Backlinks.Gap}}</div>{{end}}
@@ -362,7 +374,7 @@ var requirementView = mustView(`{{define "body"}}
 </div>
 <div class="panel">
 <h2>Cited code</h2>
-{{if .Links.Spec}}{{if not .Links.Spec.Err}}<div style="font-size:12px;color:#5b6470;margin-bottom:8px">
+{{if .Links.Spec}}{{if not .Links.Spec.Err}}<div style="font-size:12px;color:var(--dim);margin-bottom:8px">
 Read from the Traceability table of <code>{{.Links.Spec.Path}}</code> at object
 <code>{{.Links.Spec.ObjectID}}</code>, commit <code>{{.Links.Commit}}</code>. Each link is pinned to that commit.</div>{{end}}{{end}}
 {{if .Links.Gap}}<div class="unknown">gap: {{.Links.Gap}}</div>{{end}}
@@ -420,18 +432,18 @@ var evidenceView = mustView(`{{define "body"}}
 <table>
 {{range .Metrics}}
 <tr class="metric"><th style="width:auto">{{.Name}}
-{{if .Dimensions}}<div style="font-size:11px;color:#5b6470;font-weight:400">{{.Dimensions}}</div>{{end}}</th>
+{{if .Dimensions}}<div style="font-size:11px;color:var(--dim);font-weight:400">{{.Dimensions}}</div>{{end}}</th>
 <td>{{if .Unmeasured}}<span class="unmeasured">no value measured</span>
-{{else}}<span class="num">{{.Value}}</span> <span style="font-size:11px;color:#5b6470">{{.Unit}}</span>{{end}}
-<div style="font-size:11px;color:#5b6470">scope {{.Scope}}{{if .SourceIDs}} · from {{len .SourceIDs}} sources{{end}}
+{{else}}<span class="num">{{.Value}}</span> <span style="font-size:11px;color:var(--dim)">{{.Unit}}</span>{{end}}
+<div style="font-size:11px;color:var(--dim)">scope {{.Scope}}{{if .SourceIDs}} · from {{len .SourceIDs}} sources{{end}}
 {{if .Exclusions}} · {{len .Exclusions}} exclusions{{end}}</div>
 {{template "axes" .Axes}}
-{{range .SourceIDs}}<div style="font-size:11px;color:#5b6470"><code>{{.}}</code></div>{{end}}
+{{range .SourceIDs}}<div style="font-size:11px;color:var(--dim)"><code>{{.}}</code></div>{{end}}
 </td></tr>
 {{end}}
 </table>
 {{end}}
-<div style="margin-top:12px;font-size:12px;color:#5b6470">
+<div style="margin-top:12px;font-size:12px;color:var(--dim)">
 A metric with no measured value is marked as such and is not printed as a zero. Every axis above is
 the snapshot's own statement about that value; the console states none of its own.</div>
 {{else}}
@@ -503,7 +515,7 @@ supplying one. It is the loop's own account of itself, not independent evidence.
 <td>{{or_dash .Reason}}</td></tr>
 {{end}}
 </table>
-<div style="margin-top:10px;font-size:12px;color:#5b6470">
+<div style="margin-top:10px;font-size:12px;color:var(--dim)">
 Every NOT_PRODUCED reason is shown as the loop wrote it. A step that did not produce is not a step
 that passed, and the console does not aggregate these into a verdict: it is never a gate.</div>
 {{else}}<div>The report lists no step, which is the report's content and not a completed loop.</div>{{end}}
@@ -518,7 +530,7 @@ that passed, and the console does not aggregate these into a verdict: it is neve
 var listingView = mustView(`{{define "body"}}
 <div class="panel">
 <h2>{{.ListingTitle}}</h2>
-<div style="font-size:12px;color:#5b6470;margin-bottom:10px">{{.ListingNote}}</div>
+<div style="font-size:12px;color:var(--dim);margin-bottom:10px">{{.ListingNote}}</div>
 {{if .Listing.Err}}{{template "refusal" refusalOf "This directory could not be listed" .Listing.Source .Listing.Err}}
 {{else}}
 {{if .Listing.Entries}}
