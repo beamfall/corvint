@@ -21,6 +21,11 @@ Pre-change query succeeded with three omitted results. Measurement before that f
 NOT_PRODUCED; the required coordinator retained its own receipts and reported no-change CEM/OCM
 and outcome NOT_PRODUCED. The local completion plan is enrolled against the immutable issue base.
 No browser, server or provider process was launched; live qualification is not claimed.
+Independent review found that demanding a passed run projection and current E2E freshness made
+recorded verification unreachable for native Playwright receipts. The repair uses the native per-test
+execution projection, rebinds test/configuration inputs, and preserves the exact unknown app-freshness
+axis. A full Build/Open regression imports a synthetic qualified receipt through native decoding and
+projection; no manually assigned CURRENT projection is used by that end-to-end test.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 

@@ -165,7 +165,7 @@ func (c *compiler) importBehavior(p Provider, r *BehaviorRegistry) error {
 	if !uniqueIdentities(ids) {
 		return fail("duplicate behavior identity")
 	}
-	c.artifact.BehaviorContracts = append(c.artifact.BehaviorContracts, BehaviorReport{Provider: p.ID, Registry: *r, VerifiedTests: []string{}, LinkedFlows: []string{}, LinkedBehaviors: []string{}, VerifiedFlows: []string{}, Fallback: "full-relevant-suite", Limitations: []string{"experimental provider declarations; exact consumer fixtures not qualified", "recorded verification is not semantic adequacy or authenticated runtime provenance", "no narrowing authority"}})
+	c.artifact.BehaviorContracts = append(c.artifact.BehaviorContracts, BehaviorReport{Provider: p.ID, Registry: *r, VerifiedTests: []string{}, LinkedFlows: []string{}, LinkedBehaviors: []string{}, VerifiedFlows: []string{}, Fallback: "full-relevant-suite", Limitations: []string{"experimental provider declarations; exact consumer fixtures not qualified", "recorded verification is not semantic adequacy or authenticated runtime provenance", "retained application freshness remains unknown; recorded verification never asserts current served content", "no narrowing authority"}})
 	return nil
 }
 
@@ -319,7 +319,7 @@ func (c *compiler) behaviorRunVerified(r BehaviorRegistry, test BehaviorTest) bo
 	}
 	matched := false
 	for _, o := range c.artifact.Observations {
-		if o.Link.ID != test.Runtime.Observation || o.Link.TestID != test.ID || o.Link.Project != test.Project || o.InputSHA256 != run.RunSHA256 || o.Link.SourceRevision != r.SourceRevision || o.Document.Playwright == nil || o.Document.Run.Freshness.State != "CURRENT" || o.Document.Run.Execution.State != "PASSED" || o.Document.TestsOmitted != 0 {
+		if o.Link.ID != test.Runtime.Observation || o.Link.TestID != test.ID || o.Link.Project != test.Project || o.InputSHA256 != run.RunSHA256 || o.Link.SourceRevision != r.SourceRevision || !c.behaviorNativeReady(o) {
 			continue
 		}
 		bound := false
@@ -339,7 +339,7 @@ func (c *compiler) behaviorRunVerified(r BehaviorRegistry, test BehaviorTest) bo
 			continue
 		}
 		for _, observed := range o.Document.Tests {
-			if observed.ID != test.ID || observed.Project == nil || observed.Project.Name != test.Project || observed.Name != test.Title || observed.State != "passed" {
+			if observed.ID != test.ID || observed.Project == nil || observed.Project.Name != test.Project || observed.Name != test.Title || observed.State != "passed" || observed.Projection.Execution.State != "PASSED" {
 				continue
 			}
 			for _, attempt := range observed.Attempts {
@@ -389,6 +389,38 @@ func (c *compiler) behaviorRunVerified(r BehaviorRegistry, test BehaviorTest) bo
 		}
 	}
 	return valid
+}
+
+func (c *compiler) behaviorNativeReady(o Observation) bool {
+	d := o.Document
+	if d.Playwright == nil || d.TestsOmitted != 0 || d.Run.Execution.State == "INCOMPLETE" || d.Run.Freshness.State == "STALE" {
+		return false
+	}
+	// ProjectPinned leaves E2E app identity unknown even when all source bytes
+	// match. Preserve that axis; this profile verifies only the retained run.
+	if d.Run.Freshness.State != "CURRENT" && d.Run.Freshness.Reason != "retained-app-build-identity-unverifiable" {
+		return false
+	}
+	identity := d.Playwright.Identity
+	inputs := map[string]string{}
+	for path, digest := range identity.TestFileDigests {
+		inputs[path] = digest
+	}
+	for path, digest := range identity.ConfigInputDigests {
+		inputs[path] = digest
+	}
+	inputs[identity.ConfigFile] = identity.ConfigDigest
+	for original, digest := range inputs {
+		path := original
+		if mapped, ok := o.Link.SourcePaths[original]; ok {
+			path = mapped
+		}
+		source, ok := c.sources[inputKey(o.Link.SourceRevision, path)]
+		if !ok || Digest(source.Data) != digest {
+			return false
+		}
+	}
+	return len(inputs) > 0
 }
 
 func behaviorCoverage(a *Artifact) []any {

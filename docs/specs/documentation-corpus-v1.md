@@ -148,10 +148,15 @@ omitted. Runtime and provider artifacts are committed separately, avoiding self-
 An optional runtime anchor names a full `corvint-behavior-run/1` artifact containing matching
 contract/revisions, native receipt digest, test/project, retry, cleanup and ordered events. Its
 observation joins a retained qualified Playwright receipt by exact `test_id` and `project` as well
-as title. Verification requires passing/current native execution, pinned test bytes/source location,
-the same successful retry, passed cleanup, and the complete declared event order including page,
+as title. Recorded verification requires a passing native test projection, no run-level interruption,
+pinned test/configuration bytes and source location, the same successful retry, passed cleanup, and
+the complete declared event order including page,
 assertion and negative-control observations. Synthetic fixtures test the join; they are not live
 browser evidence. Provider honesty, assertion adequacy and runtime authenticity remain unknown.
+Native run execution is not a passed-suite summary. Retained E2E app freshness remains explicitly
+unknown even after source rebinding; only its exact `retained-app-build-identity-unverifiable` reason
+is admissible for recorded verification. Stale bytes and all other unresolved freshness reasons
+refuse. This status never asserts current served content or promotes the native freshness axis.
 
 Contradictions, missing reverse links, stale source revisions, assertion-free tests, missing pages
 and missing negative controls stay gaps. An empty inventory yields `unreviewed-join`; only a
@@ -162,7 +167,8 @@ execution and verified-contract denominators; zero remains undefined. All outcom
 relevant-suite fallback. Rollback removes this opt-in profile without changing legacy inputs.
 
 Acceptance: `TestBehaviorContractCorpusRoundTrip`, `TestBehaviorContractGaps`,
-`TestBehaviorOrderedRuntime` and `TestBehaviorExactProjectObservation` exercise DCP-V1-004,
+`TestBehaviorOrderedRuntime`, `TestBehaviorQualifiedReceiptEndToEnd` and
+`TestBehaviorExactProjectObservation` exercise DCP-V1-004,
 DCP-V1-007..013 and DCP-V1-019. Owner acceptance and real consumer fixtures remain promotion gates.
 
 One local Git repository may supply up to eight explicit immutable revisions. A provider can be
