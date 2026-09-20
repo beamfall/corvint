@@ -90,36 +90,62 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   owners in the shared V0 graph. Unit IDs and all arrays MUST be sorted and deterministic.
 - `TJAA-V0-012`: Static config support is deliberately closed. Project arrays and membership fields
   MUST be literals; `testMatch`/`testIgnore` MAY be literal strings or regular expressions; device
-  spreads MAY name a literal `devices[...]` descriptor. Imported/computed projects, generated test
+  spreads MAY name a literal `devices[...]` descriptor. The opt-in profile MUST apply literal
+  global `use` defaults before project `use` overrides, preserve browser/device identity, and bind
+  the inherited input in the project fragment identity. Other `use` values MUST be static literals.
+  It MAY resolve nearest-ancestor `tsconfig.json` JSON/JSONC `baseUrl` and `paths` declarations:
+  exact keys precede wildcard keys and longest wildcard prefixes precede shorter prefixes. Overlapping
+  equal-prefix patterns or target lists with multiple existing candidates MUST widen rather than
+  approximate runtime precedence. Device defaults MUST NOT override an explicit inherited browser.
+  Explicit `use.defaultBrowserType` MUST widen; only recognized device descriptors supply defaults.
+  Resolution MUST stay inside the observed repository, and MUST
+  widen on missing declared targets, ambiguous source candidates, config inheritance, unsupported
+  root-directory/module-suffix resolution, or explicit Playwright `tsconfig` overrides. The general
+  `affected-plan/0` adapter MUST retain its existing unresolved-alias frontier.
+  Imported/computed projects, generated test
   lists, functions, environment branches, feature flags, unknown device descriptors, unresolved
   browser identity, malformed regular expressions, and dependency cycles MUST widen to
   `FULL_RELEVANT_SUITE` with a typed selection unknown.
+  Candidate project/file pairs MUST come only from project `testDir`, `testMatch`, and `testIgnore`
+  over observed owned sources. Other files, including fixtures importing Playwright, remain dependency
+  graph sources; they MUST NOT become commands merely because they occur under a test directory.
 - `TJAA-V0-013`: A changed source, page object, fixture, scenario builder, or helper MUST select the
   reverse-import closure's Playwright tests under every statically applicable project. A changed
   config selects the full relevant suite. Selecting a setup project MUST also select every unit in
   its transitive dependent projects; a selected dependent project MUST select its dependency units
-  and teardown unit. No unknown may remove a unit.
+  and teardown unit. Literal `globalSetup`/`globalTeardown` paths MUST attach their transitive source
+  dependencies to the config so hook/helper changes select every configured test. Missing or computed
+  hook paths MUST widen. No unknown may remove a unit.
 - `TJAA-V0-014`: Project grep/tag and metadata inputs are identity, not file-exclusion authority.
   This static profile MUST NOT exclude a file merely because its cases cannot be proven to match a
   project grep. Runtime feature flags and externally managed application state are execution-axis
   unknowns; they remain visible but do not by themselves claim the selection axis is incomplete.
-- `TJAA-V0-015`: When a selection-axis unknown exists, `scope` MUST be `UNKNOWN`, fallback MUST be
-  `FULL_RELEVANT_SUITE`, and every statically discovered Playwright test/project pair MUST be
-  selected. If the project set itself is unknown, the profile MUST emit no runnable unit and state
-  that the caller must run the complete Playwright configuration.
+- `TJAA-V0-015`: Per-file commands require a matching complete caller-owned discovery receipt.
+  Missing, malformed, stale, mismatched, or statically unresolved discovery MUST produce `UNKNOWN`,
+  `FULL_RELEVANT_SUITE`, empty selected/excluded file rows, and exactly one `fallbackArgv`:
+  `npx playwright test --config=PATH`. With a matched universe, unresolved source reachability MUST
+  select exactly the complete discovered universe, preserving setup/teardown closure and all
+  uncertainty; it MUST NOT multiply helpers by projects. `discovery` MUST report its state,
+  input SHA-256, and sorted `onlyInStatic`/`onlyInReceipt` differences when bindings match.
 - `TJAA-V0-016`: The profile MUST be read-only and bounded by the shared source-walk and source-read
   limits. It MUST bind and revalidate a digest of every source input the TypeScript observer may
   consume. For fixed repository bytes, config path, HEAD, and dirty set, canonical output MUST be
   byte-identical. Invalid paths, unreadable config, source drift, or Git drift fail closed without a
-  partial receipt.
+  partial receipt. Discovery input MUST be at most 4 MiB, canonical JSON (optionally one trailing LF),
+  rejecting duplicate/unknown/missing members, noncanonical paths, unsupported profile, and unsorted
+  or duplicate project/file pairs. Bindings MUST include immutable HEAD, config path/SHA-256 and
+  current source digest. The CLI MUST re-read discovery bytes before emission and refuse drift.
 - `TJAA-V0-017`: Qualification requires a fixture with Chromium plus Angular/React project variants,
   setup dependencies, grep/metadata identity, and shared page-object/fixture/scenario edges. It MUST
   prove config and setup widening, dynamic-import/config widening, repeated-byte identity, and zero
-  unsafe narrowing before the profile can be promoted from experimental.
+  unsafe narrowing before the profile can be promoted from experimental. Qualification MUST use
+  independently enumerated discovery inputs, prove helper-only exclusions and exact universe
+  reconciliation, and exercise absent/stale/malformed/missing/extra receipt pairs and one-command
+  fallback. Real `--list` evidence and synthetic membership oracles MUST keep their distinct labels.
 
 ## Opt-in Playwright project profile
 
-`corvint affected --playwright-config PATH` emits `playwright-affected/0`; it does not alter the
+`corvint affected --playwright-config PATH --playwright-discovery FILE` emits `playwright-affected/0`; it does not alter the
 closed `affected-plan/0` receipt. The profile reuses the shared TypeScript import graph only for
 physical path ownership and reachability, then expands reached Playwright files into project units.
 This keeps project multiplicity out of the language-agnostic graph while still binding each runnable
@@ -130,6 +156,16 @@ first, teardown projects run after their setup/dependent cohort, project grep is
 case filtering, and project `testMatch`/`testIgnore` controls file membership. A form outside the
 closed subset is not approximated. It widens the selection or, when projects cannot be identified,
 abstains from runnable units.
+
+The canonical `playwright-discovery/0` object has exactly `config` (`path`, `sha256`), `profile`,
+`revision` (full lower-case Git object ID), `sourceDigest`, and `units` (objects with `project` and
+`test`, sorted by project then path). It describes the complete unfiltered configured listing,
+including dependencies and teardowns, not case execution counts. It is caller-declared discovery,
+not authenticated execution attestation. Corvint never executes Playwright or config to produce it.
+`sourceDigest` uses the public observer's `playwright-sources:sha256:` identity for current source
+bytes. A receipt generated before dirty source changes is stale. Omitting the optional input safely
+produces the complete-config fallback; default `affected-plan/0` compatibility remains unchanged.
+Rollback removes the opt-in profile changes; no persistent source or external state is written.
 
 ## Detection and runner addressing
 
@@ -146,6 +182,16 @@ cases require 1,187 units in total and reject both missing and extra units. Dyna
 unknown-membership cases require the full independently enumerated 353-unit baseline as a subset;
 additional conservative units remain permitted. Unknown project sets require full-config fallback
 with zero runnable approximations. Every case repeats canonical serialization for identical inputs.
+
+`TestPlaywrightGolfQualification` extends that synthetic repository shape with global `use`, a
+global-setup helper, and alias imports through specs, fixtures, page objects, workflows and scenario
+builders. A cohort helper change selects exactly 41 of 353 units (13 files across three projects plus
+setup/cleanup); a global-setup helper or config change selects all 353. Computed imports, undeclared
+or missing aliases, unsupported config inheritance, ambiguous module candidates and dynamic config
+inputs require full fallback without exclusions. Identical inputs reproduce canonical receipt bytes.
+The exact golf-e2e checkout/config was unavailable (`NOT_OBSERVED`); this is not consumer recall or
+execution qualification. JSONC comments/trailing commas are supported; package-directory resolution,
+custom loaders and `extends` remain conservative frontiers. Source digests include tsconfig inputs.
 
 Retained-provider composition uses the existing JavaScript reporter parser and `ProjectPinned`:
 matching source/config bindings still leave E2E freshness unknown, mismatches and stale app builds
@@ -233,6 +279,8 @@ and does not widen the interface or choose a language precedence.
 
 Rollback removes `internal/liveverify/affected/typescript`, its conformance fixture/case, and this
 experimental spec. No persisted format, CLI registry, or existing receipt is changed.
+The issue 41 extension can instead be reverted independently: restore the opt-in profile's global
+`use`/alias frontiers and remove global-hook edge binding and its qualification cases.
 
 ## Traceability
 
@@ -243,5 +291,6 @@ experimental spec. No persisted format, CLI registry, or existing receipt is cha
 | `TJAA-V0-009` | `internal/liveverify/affected/conformance_test.go` TypeScript seam case | experimental |
 | `TJAA-V0-010..017` | `internal/liveverify/affected/typescript/playwright.go`, `playwright_test.go`, and `cmd/corvint/affected_playwright_test.go` | experimental |
 | `TJAA-V0-014..017` fixture qualification | `internal/liveverify/affected/typescript/playwright_qualification_test.go`, `testdata/playwright-qualification.tsv` | synthetic fixture evidence; runtime promotion excluded |
+| `TJAA-V0-012..017` golf shape | `TestPlaywrightGolfQualification`, `TestPlaywrightGlobalUseInheritance`, `TestPlaywrightAliasResolutionBoundaries` in `internal/liveverify/affected/typescript/playwright_golf_test.go` | synthetic global-use, alias and hook closure; exact consumer `NOT_OBSERVED` |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

@@ -300,7 +300,7 @@ and container qualification; full fallback remains available.
   driver. Concurrent rows on separate runners satisfy AFP-V0-014's campaign only because every
   row identity must equal the frozen identity. It MUST NOT commit, pin, or publish anything
   but workflow artifacts.
-- **AFP-V0-018:** (proposed) `corvint affected --playwright-config PATH` MUST emit the separate
+- `AFP-V0-018`: (proposed) `corvint affected --playwright-config PATH` MUST emit the separate
   `playwright-affected/0` profile defined by `TJAA-V0-010..017`. It MUST accept `--base` with the
   same range semantics as `affected-plan/0`, MUST NOT be combined with external `--provider`, and
   MUST preserve the same bounded Git/status/HEAD drift checks and revalidate the bounded source-content
@@ -308,6 +308,12 @@ and container qualification; full fallback remains available.
   `ok`, `plan`, `profile`, `range`, `revision`, and `tool`; unsupported config/source observation
   fails with `unsupported-playwright-affected` and no partial receipt. The default invocation and
   its closed `affected-plan/0` bytes remain unchanged.
+  Optional `--playwright-discovery FILE` requires `--playwright-config` and reads only a bounded
+  caller-owned `playwright-discovery/0` receipt. The plan MUST reconcile exact project/file pairs
+  against immutable HEAD, config and current source bytes before emitting file argv; unproven
+  discovery MUST emit empty selected/excluded rows and one complete-config `fallbackArgv` as
+  specified by TJAA-V0-015. The input MUST be re-read before emission; drift fails with
+  `unsupported-affected-drift`. Corvint MUST NOT execute discovery or config.
 
 ## Non-goals and authority
 

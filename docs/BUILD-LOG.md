@@ -65,6 +65,68 @@ exist, so its deterministic consumer fixture and CI observation are `NOT_OBSERVE
 managed application command for `http://127.0.0.1:3002` is recorded in
 the accepted profile; its config owns the bound system-Chrome executable path, and the provider
 neither starts nor stops that application.
+## 2026-09-20 AFP-V0-018 / TJAA-V0-012..017: issue 41 discovery amendment
+
+The owner authorized cancellation of the superseded TJAA-only enrollment and re-enrollment from
+the same original base `536e560e1fa35573e49df644dde4257a8bb7e050` with AFP and TJAA. Original
+enrollment, source commits and failed gate evidence remain archived; that gate failed in
+`TestLocalCompletionRealEvidenceWorkflow/LCP-V0-007_completion` with
+`dogfood-change REFUSE current-tree-corvint-build-failed` and is not passing evidence for this scope.
+
+The amended profile gates all file argv on canonical caller-owned discovery reconciliation and
+uses a single complete-config command when discovery is unproven. Project membership alone defines
+candidate tests; helpers remain dependency sources. A matched universe with unknown reachability
+widens to exactly its file/project pairs, eliminating the former helper-by-project Cartesian fallback.
+The input binds revision, config and current source bytes; missing evidence remains explicit.
+
+The assumed existing Playwright installation was unavailable. A temporary installation from the
+repository's pinned interactive-alpha lockfile supplied Playwright 1.63.0 without browsers.
+Its real unfiltered `--list --reporter=json` yielded exactly eight pairs: two spec files under
+Chromium/Angular/React plus setup and cleanup. Reconciliation matched all eight; a page-object edit
+selected five pairs and excluded the three unrelated spec variants, with no helper argv. Raw listing,
+input receipt and CLI outputs are retained under `/private/tmp/issue-41-list*` and
+`/private/tmp/issue-41-real-discovery.json`; no consumer-checkout or runtime-execution claim follows.
+Frozen synthetic 117-file qualification also requires an independent 353-pair receipt. Canonical
+repeatability, mismatch differences, stale bindings, malformed inputs, strict bounds and fallback
+regressions pass focused checks. The exact golf-e2e checkout remains `NOT_OBSERVED`.
+
+Corvint pre-change context and required dogfood preparation were used. Initial preparation retained
+missing citation/scope/outcome reasons; final reports and the parent-owned serialized gate remain
+required. Optional mutation/provider execution and runtime promotion are outside this static slice.
+
+Independent review found custom config names lacked test-to-config edges, allowing a transitive
+global-setup helper change to select nothing despite matched discovery. Repair explicitly binds
+every admitted physical test to the selected config; a custom `e2e.config.ts` regression requires
+the entire matched suite for its setup-helper change without making helpers executable units.
+
+## 2026-09-20 TJAA-V0-012..017: golf-shaped Playwright selection (issue 41)
+
+The owner-requested follow-up to issue 18 adds static global-use inheritance, nearest-tsconfig
+baseUrl/paths resolution and global setup/teardown dependency edges to the opt-in profile. The
+shared default adapter retains its previous alias frontier. Unsupported inheritance, loader-shaped
+resolution, ambiguous or missing targets, computed imports and config still widen; application state
+remains an execution unknown. No JavaScript/config is executed.
+
+The synthetic golf-shaped qualification proves 41 selected units out of 353 for one changed cohort,
+all 353 for global-setup helpers/config, distinct Chromium/Angular/React units, setup/cleanup closure,
+and identical canonical bytes for identical inputs. The actual golf-e2e checkout was unavailable:
+consumer configuration and consumer recall remain `NOT_OBSERVED`, with no runtime promotion claim.
+The original qualification fixture and all shared TypeScript tests remain required gate inputs.
+
+Corvint query and initial dogfood-change were used at base
+`536e560e1fa35573e49df644dde4257a8bb7e050`; the query retained four omitted results and the initial
+empty-change coordinator retained `NOT_PRODUCED` CEM/OCM/outcome reasons. A pre-first-query measurement
+receipt was `NOT_OBSERVED`; no token/cost savings are claimed. The enrolled gate and final CEM/OCM
+reports remain the authoritative completion evidence. Mutation, external providers and runtime
+qualification are not applicable to this bounded static observer change. Independent review is owned
+by the parent task, with no nested delegation.
+
+Independent review found equal-prefix alias ordering, multiple existing alias targets, and explicit
+browser inheritance across device spreads could differ from Playwright 1.63. Repair widens both
+alias ambiguities and preserves explicit browserName over a device defaultBrowserType. Conflict
+regressions cover both pattern orders, competing targets and inherited/same-layer browser defaults.
+Final review also confirmed explicit `use.defaultBrowserType` cannot be ignored: the closed subset
+now rejects that key with browser-identity uncertainty, covered at both global and project scope.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 

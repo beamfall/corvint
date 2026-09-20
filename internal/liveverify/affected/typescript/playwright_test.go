@@ -11,7 +11,7 @@ import (
 
 func TestPlaywrightProjectSelectionBindsVariantsAndSetupRelations(t *testing.T) {
 	root := playwrightFixture(t)
-	plan, err := SelectPlaywright(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
+	plan, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,14 +46,14 @@ func TestPlaywrightProjectSelectionBindsVariantsAndSetupRelations(t *testing.T) 
 
 func TestPlaywrightSetupAndConfigChangesWidenThroughDeclaredRelations(t *testing.T) {
 	root := playwrightFixture(t)
-	setup, err := SelectPlaywright(root, "playwright.config.ts", []string{"tests/global.setup.ts"})
+	setup, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/global.setup.ts"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if setup.Scope != affected.ScopeBounded || !containsPlaywrightTest(setup, "tests/other.spec.ts") {
 		t.Fatalf("setup change did not select dependent project suites: scope=%s selected=%v", setup.Scope, playwrightSelectionIDs(setup))
 	}
-	config, err := SelectPlaywright(root, "playwright.config.ts", []string{"playwright.config.ts"})
+	config, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"playwright.config.ts"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,11 +69,11 @@ import { test } from "@playwright/test"
 const moduleName = "./pages/login"
 test("@angular @react login", async () => { await import(moduleName) })
 `)
-	plan, err := SelectPlaywright(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
+	plan, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if plan.Scope != affected.ScopeUnknown || plan.Fallback != PlaywrightFallbackFullSuite || len(plan.Excluded) != 0 || len(plan.Selected) < 20 {
+	if plan.Scope != affected.ScopeUnknown || plan.Fallback != PlaywrightFallbackFullSuite || len(plan.Excluded) != 0 || len(plan.Selected) != 8 {
 		t.Fatalf("scope=%s fallback=%s selected=%d excluded=%d unknown=%v", plan.Scope, plan.Fallback, len(plan.Selected), len(plan.Excluded), plan.Unknown)
 	}
 	if !hasPlaywrightUnknown(plan, PlaywrightAxisSelection, FrontierDynamicImport) {
@@ -87,7 +87,7 @@ func TestPlaywrightDynamicProjectSetAbstainsFromRunnableUnits(t *testing.T) {
 import { defineConfig } from "@playwright/test"
 export default defineConfig({ projects: makeProjects(process.env.TARGET) })
 `)
-	plan, err := SelectPlaywright(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
+	plan, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestPlaywrightPartialProjectSetAbstainsFromRunnableUnits(t *testing.T) {
 	write(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.61.0"}}`)
 	write(t, root, "playwright.config.ts", `export default { projects: [{ name: "known" }, ...otherProjects] }`)
 	write(t, root, "tests/example.spec.ts", `import { test } from "@playwright/test"; test("x", () => {})`)
-	plan, err := SelectPlaywright(root, "playwright.config.ts", []string{"tests/example.spec.ts"})
+	plan, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/example.spec.ts"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestPlaywrightMatchersUseAbsolutePathsAndZeroSegmentGlobstar(t *testing.T) 
   ],
 }`)
 	write(t, root, "tests/example.spec.ts", `import { test } from "@playwright/test"; test("x", () => {})`)
-	plan, err := SelectPlaywright(root, "playwright.config.ts", []string{"tests/example.spec.ts"})
+	plan, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/example.spec.ts"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func TestPlaywrightStaticMatcherAdmitsCustomFixtureTest(t *testing.T) {
 	write(t, root, "playwright.config.ts", `export default { projects: [{ name: "custom", testMatch: /custom\.ts$/ }] }`)
 	write(t, root, "tests/fixtures.ts", `export { test } from "@playwright/test"`)
 	write(t, root, "tests/custom.ts", `import { test } from "./fixtures"; test("x", () => {})`)
-	plan, err := SelectPlaywright(root, "playwright.config.ts", []string{"tests/custom.ts"})
+	plan, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/custom.ts"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,27 +178,27 @@ func TestPlaywrightComputedStringsAndUnsupportedGlobsWiden(t *testing.T) {
 		write(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.61.0"}}`)
 		write(t, root, "playwright.config.ts", `export default { projects: [{ name: "p", testMatch: `+matcher+` }] }`)
 		write(t, root, "tests/a.spec.ts", `import { test } from "@playwright/test"; test("x", () => {})`)
-		plan, err := SelectPlaywright(root, "playwright.config.ts", []string{"tests/a.spec.ts"})
+		plan, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/a.spec.ts"})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if plan.Scope != affected.ScopeUnknown || !containsPlaywrightTest(plan, "tests/a.spec.ts") || !hasPlaywrightUnknown(plan, PlaywrightAxisSelection, PlaywrightUnknownProjectMembership) {
+		if plan.Scope != affected.ScopeUnknown || len(plan.Selected) != 0 || !hasPlaywrightUnknown(plan, PlaywrightAxisSelection, PlaywrightUnknownProjectMembership) {
 			t.Fatalf("matcher %s narrowed unsafely: %+v", matcher, plan)
 		}
 	}
 }
 
-func TestPlaywrightUnknownMembershipRetainsCustomFixtureTest(t *testing.T) {
+func TestPlaywrightUnknownMembershipAbstainsFromFileUnits(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "package.json", `{"devDependencies":{"@playwright/test":"1.61.0"}}`)
 	write(t, root, "playwright.config.ts", `export default { projects: [{ name: "p", testMatch: [/other\.ts/, computedMatcher] }] }`)
 	write(t, root, "tests/fixtures.ts", `export { test } from "@playwright/test"`)
 	write(t, root, "tests/custom.ts", `import { test } from "./fixtures"; test("x", () => {})`)
-	plan, err := SelectPlaywright(root, "playwright.config.ts", []string{"tests/custom.ts"})
+	plan, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/custom.ts"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if plan.Scope != affected.ScopeUnknown || !containsPlaywrightTest(plan, "tests/custom.ts") {
+	if plan.Scope != affected.ScopeUnknown || len(plan.Selected) != 0 {
 		t.Fatalf("unknown membership discarded custom fixture test: %+v", plan)
 	}
 }
@@ -214,7 +214,7 @@ func TestPlaywrightSetupDependentsExpandTransitively(t *testing.T) {
 	for _, relative := range []string{"tests/setup.ts", "tests/middle.ts", "tests/app.ts"} {
 		write(t, root, relative, `import { test } from "@playwright/test"; test("x", () => {})`)
 	}
-	plan, err := SelectPlaywright(root, "playwright.config.ts", []string{"tests/setup.ts"})
+	plan, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/setup.ts"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,11 +241,11 @@ func TestPlaywrightSourceDigestTracksSamePathContentChanges(t *testing.T) {
 
 func TestPlaywrightSelectionBytesAreDeterministic(t *testing.T) {
 	root := playwrightFixture(t)
-	first, err := SelectPlaywright(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
+	first, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := SelectPlaywright(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
+	second, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +264,7 @@ func TestPlaywrightSelectionBytesAreDeterministic(t *testing.T) {
 
 func TestPlaywrightRequirementClaims(t *testing.T) {
 	root := playwrightFixture(t)
-	plan, err := SelectPlaywright(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
+	plan, err := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +309,7 @@ func TestPlaywrightRequirementClaims(t *testing.T) {
 	t.Run("TJAA-V0-015 selection unknown retains the full relevant suite", func(t *testing.T) {
 		unknownRoot := playwrightFixture(t)
 		write(t, unknownRoot, "tests/login.spec.ts", `import { test } from "@playwright/test"; const p = "./pages/login"; test("x", async () => import(p))`)
-		unknownPlan, selectErr := SelectPlaywright(unknownRoot, "playwright.config.ts", []string{"tests/pages/login.ts"})
+		unknownPlan, selectErr := selectPlaywrightStatic(unknownRoot, "playwright.config.ts", []string{"tests/pages/login.ts"})
 		if selectErr != nil {
 			t.Fatal(selectErr)
 		}
@@ -318,7 +318,7 @@ func TestPlaywrightRequirementClaims(t *testing.T) {
 		}
 	})
 	t.Run("TJAA-V0-016 fixed inputs produce identical bounded bytes", func(t *testing.T) {
-		second, selectErr := SelectPlaywright(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
+		second, selectErr := selectPlaywrightStatic(root, "playwright.config.ts", []string{"tests/pages/login.ts"})
 		if selectErr != nil {
 			t.Fatal(selectErr)
 		}

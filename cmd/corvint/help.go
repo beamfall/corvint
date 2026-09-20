@@ -540,7 +540,7 @@ Usage:
   corvint [--root PATH] affected
   corvint [--root PATH] affected --base FULL_COMMIT_ID
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
-          --playwright-config PATH
+          --playwright-config PATH [--playwright-discovery FILE]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
           [--provider RECORD ...] [--repository ID=DIR ...]
           [--selection-profile strict|coverage]
@@ -580,8 +580,11 @@ repository id to a local checkout, as for impact.
 --playwright-config selects the separate playwright-affected/0 profile. It
 statically expands reached Playwright test files into project-distinct units,
 binds project/config/browser/device inputs, and widens to the full relevant
-suite on unsupported dynamic config or source reachability. It executes no
-config or test and cannot be combined with --provider.
+suite on unsupported dynamic config or source reachability. --playwright-discovery
+reads a bounded canonical playwright-discovery/0 receipt binding HEAD, config and
+source bytes to the complete unfiltered project/file listing. Missing or mismatched
+discovery emits no file commands and one complete-config fallbackArgv. It executes
+no config or test and cannot be combined with --provider.
 `
 
 const proveHelp = `Compile the falsifiable context packet for a task, a change, or a CEM map.
