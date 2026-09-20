@@ -8,6 +8,10 @@ import (
 )
 
 func TestPUBV0024InstalledCoreDiscoveryWorkflows(t *testing.T) {
+	t.Run("PUB-V0-024 installed core discovery workflows", testPUBV0024InstalledCoreDiscoveryWorkflows)
+}
+
+func testPUBV0024InstalledCoreDiscoveryWorkflows(t *testing.T) {
 	repository, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatal(err)

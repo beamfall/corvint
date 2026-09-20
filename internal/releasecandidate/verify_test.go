@@ -13,6 +13,10 @@ import (
 )
 
 func TestPUBV0023ClosedManifestRunsIsolatedHostProbe(t *testing.T) {
+	t.Run("PUB-V0-023 closed manifest and source inventory", testPUBV0023ClosedManifestRunsIsolatedHostProbe)
+}
+
+func testPUBV0023ClosedManifestRunsIsolatedHostProbe(t *testing.T) {
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("host probe fixture requires a POSIX shell")
 	}
@@ -68,6 +72,10 @@ func TestPUBV0023ClosedManifestRunsIsolatedHostProbe(t *testing.T) {
 }
 
 func TestPUBV0022VerifyCoreRequiresClosedReproducibleChecksummedSet(t *testing.T) {
+	t.Run("PUB-V0-022 closed reproducible core set", testPUBV0022VerifyCoreRequiresClosedReproducibleChecksummedSet)
+}
+
+func testPUBV0022VerifyCoreRequiresClosedReproducibleChecksummedSet(t *testing.T) {
 	previous := verifyCoreBinary
 	verifyCoreBinary = func(_ []byte, target coreTarget) ([]byte, error) {
 		return []byte("binary-" + target.BinaryName), nil
@@ -98,6 +106,10 @@ func TestPUBV0022CoreArchiveVerifierRejectsNonArchiveBytes(t *testing.T) {
 }
 
 func TestPUBV0026FailedInputRetainsNoCandidate(t *testing.T) {
+	t.Run("PUB-V0-026 failed input retains no candidate", testPUBV0026FailedInputRetainsNoCandidate)
+}
+
+func testPUBV0026FailedInputRetainsNoCandidate(t *testing.T) {
 	root := t.TempDir()
 	output := filepath.Join(root, "output")
 	if err := os.Mkdir(output, 0o700); err != nil {

@@ -14,6 +14,10 @@ import (
 )
 
 func TestPUBV0025VersionedInstallCoexistsAndNeverReplaces(t *testing.T) {
+	t.Run("PUB-V0-025 versioned install coexists and never replaces", testPUBV0025VersionedInstallCoexistsAndNeverReplaces)
+}
+
+func testPUBV0025VersionedInstallCoexistsAndNeverReplaces(t *testing.T) {
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("qualified installer supports darwin and linux")
 	}
