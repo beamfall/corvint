@@ -7,6 +7,20 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 Issues 39–47: consolidated integration
+
+The completed issue branches are merged in dependency order: 39, 43, 41, 42 (including 40),
+46, 47, 45 and 44. The integration preserves each branch history and sealed CEM; inherited shared
+CEMs are removed so the coordinator can bind one combined change. Conflicts retain both independent
+build-log entries and provider tests, the newest stability requirements, and both Playwright
+consuming-path qualification and application-attestation contracts. The generated requirement index
+is rebuilt from the merged specifications. Compilation caught two synthetic receipt fixtures that
+still referenced the removed single-version constant; both explicitly retain their original 1.60.0
+version. Spec-index validation caught a README claim-prefix mismatch, repaired without dropping the
+issue-41 discovery status. The installed release smoke also supplies issue-45's explicit executable
+binding when initializing its work queue. Focused conflict checks and compilation precede the coordinator-owned
+combined review, frozen gate and separate release qualification; those remain required.
+
 ## 2026-09-20 PWP-V1: externally managed application attestation
 
 Issue 43 adds `corvint-playwright-external/1` without changing `/0`. A generic bounded command

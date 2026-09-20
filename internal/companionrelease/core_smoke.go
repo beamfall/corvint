@@ -115,7 +115,7 @@ func smokeExternalPlaywrightDiscovery(ctx context.Context, binary, root string) 
 			ConfigDigest:       configDigest,
 			NodeVersion:        "not-executed",
 			RunnerName:         "playwright",
-			RunnerVersion:      jstestprovider.QualifiedPlaywrightVersion,
+			RunnerVersion:      "1.60.0",
 			Environment:        map[string]string{},
 			Argv:               []string{"npx", "playwright", "test", "--config=" + config},
 		},
@@ -205,14 +205,14 @@ func smokeDocumentationCorpus(ctx context.Context, binary, root string) error {
 }
 
 func smokeWorkQueueObservation(ctx context.Context, binary, root string) error {
+	boundBinary, err := filepath.EvalSymlinks(binary)
+	if err != nil {
+		return err
+	}
 	if _, err := initCommittedFixture(ctx, root, map[string]string{"README.md": "# queue fixture\n"}); err != nil {
 		return err
 	}
-	if _, _, err := runCaptured(ctx, root, minimalRunEnv(root), subprocessTimeout, binary, "--root", root, "work", "init", "--repository", "release-smoke"); err != nil {
-		return err
-	}
-	adapter := "#!/bin/sh\nexec '" + strings.ReplaceAll(binary, "'", "'\\''") + "' work adapter \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(root, ".corvint", "work-queue-adapter"), []byte(adapter), 0o755); err != nil {
+	if _, _, err := runCaptured(ctx, root, minimalRunEnv(root), subprocessTimeout, binary, "--root", root, "work", "init", "--repository", "release-smoke", "--corvint-executable", boundBinary); err != nil {
 		return err
 	}
 	gitPath, err := lookGit()
@@ -223,10 +223,6 @@ func smokeWorkQueueObservation(ctx context.Context, binary, root string) error {
 		if _, _, err := runCaptured(ctx, root, closedGitEnv(root), subprocessTimeout, append([]string{gitPath}, args...)...); err != nil {
 			return err
 		}
-	}
-	adapterPath := filepath.Join(root, ".corvint", "work-queue-adapter")
-	if stdout, _, err := runCaptured(ctx, root, minimalRunEnv(root), subprocessTimeout, adapterPath, "snapshot"); err != nil {
-		return fmt.Errorf("installed adapter preflight: %w (stdout=%s)", err, trimForError(stdout))
 	}
 	stdout, _, err := runCaptured(ctx, root, minimalRunEnv(root), subprocessTimeout, binary, "--root", root, "work", "observe")
 	if err != nil {
