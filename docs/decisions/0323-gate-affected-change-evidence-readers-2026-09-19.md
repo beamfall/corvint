@@ -1,4 +1,4 @@
-# Decision 0322 — The CEM sidecar selects only readers whose literal resolves to it
+# Decision 0323 — The CEM sidecar selects only readers whose literal resolves to it
 
 Date: 2026-09-19. Status: accepted. Authority: repository owner delegation to make owner calls and
 record them (owner instruction, 2026-09-19).

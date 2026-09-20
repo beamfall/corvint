@@ -1,0 +1,229 @@
+// Native GP diagnostic runner. Unknown witnesses never qualify a candidate.
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"math"
+	"math/rand/v2"
+	"os"
+	"os/exec"
+	"os/signal"
+	"sort"
+	"syscall"
+	"time"
+)
+
+type Row struct {
+	Name         string   `json:"name"`
+	Argv         []string `json:"argv"`
+	Corpus       string   `json:"corpus"`
+	CacheState   string   `json:"cacheState"`
+	ExpectedExit int      `json:"expectedExit,string"`
+}
+type Manifest struct {
+	Profile  string `json:"profile"`
+	Samples  int    `json:"samplesPerRow,string"`
+	Warmups  int    `json:"warmupsPerRow,string"`
+	Order    string `json:"order"`
+	Commands []Row  `json:"commands"`
+}
+type Sample struct {
+	WallNS  int64  `json:"wallNs"`
+	UserNS  int64  `json:"userNs"`
+	SysNS   int64  `json:"sysNs"`
+	RSS     int64  `json:"rssNativeUnits"`
+	Exit    int    `json:"exit"`
+	Stdout  string `json:"stdoutSha256"`
+	Stderr  string `json:"stderrSha256"`
+	Failure string `json:"failure,omitempty"`
+}
+type Pair struct {
+	Baseline  Sample `json:"baseline"`
+	Candidate Sample `json:"candidate"`
+}
+type Result struct {
+	Row            Row      `json:"row"`
+	Pairs          []Pair   `json:"pairs"`
+	Status         string   `json:"status"`
+	Missing        []string `json:"missing"`
+	WallP95UpperNS float64  `json:"wallP95UpperNs"`
+}
+type Report struct {
+	Profile   string   `json:"profile"`
+	Manifest  string   `json:"manifestSha256"`
+	Baseline  string   `json:"baselineSha256"`
+	Candidate string   `json:"candidateSha256"`
+	Results   []Result `json:"results"`
+	Status    string   `json:"status"`
+}
+
+type bounded struct {
+	bytes.Buffer
+	max      int
+	overflow bool
+}
+
+func (b *bounded) Write(p []byte) (int, error) {
+	n := len(p)
+	if n > b.max-b.Len() {
+		b.overflow = true
+		p = p[:b.max-b.Len()]
+	}
+	_, _ = b.Buffer.Write(p)
+	return n, nil
+}
+func digest(b []byte) string              { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
+func fileDigest(p string) (string, error) { b, e := os.ReadFile(p); return digest(b), e }
+
+func sample(ctx context.Context, binary, root string, argv []string, timeout time.Duration) Sample {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, binary, argv...)
+	cmd.Dir = root
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
+			return os.ErrProcessDone
+		}
+		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
+	cmd.WaitDelay = time.Second
+	out, errout := &bounded{max: 16 << 20}, &bounded{max: 1 << 20}
+	cmd.Stdout = out
+	cmd.Stderr = errout
+	started := time.Now()
+	err := cmd.Run()
+	s := Sample{WallNS: time.Since(started).Nanoseconds(), Exit: -1, Stdout: digest(out.Bytes()), Stderr: digest(errout.Bytes())}
+	if cmd.Process != nil {
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
+	if cmd.ProcessState != nil {
+		s.Exit = cmd.ProcessState.ExitCode()
+		s.UserNS = cmd.ProcessState.UserTime().Nanoseconds()
+		s.SysNS = cmd.ProcessState.SystemTime().Nanoseconds()
+		s.RSS = cmd.ProcessState.SysUsage().(*syscall.Rusage).Maxrss
+	}
+	var ee *exec.ExitError
+	if err != nil && !errors.As(err, &ee) {
+		s.Failure = err.Error()
+	}
+	if ctx.Err() != nil {
+		s.Failure = ctx.Err().Error()
+	}
+	if out.overflow || errout.overflow {
+		s.Failure = "output-limit"
+	}
+	return s
+}
+func percentile(v []float64, q float64) float64 {
+	c := append([]float64{}, v...)
+	sort.Float64s(c)
+	return c[int(math.Ceil(float64(len(c))*q))-1]
+}
+func upper(pairs []Pair) float64 {
+	if len(pairs) == 0 {
+		return 0
+	}
+	rng := rand.New(rand.NewPCG(20260919, 3))
+	diffs := make([]float64, 10000)
+	for j := range diffs {
+		b, c := make([]float64, len(pairs)), make([]float64, len(pairs))
+		for i := range b {
+			p := pairs[rng.IntN(len(pairs))]
+			b[i] = float64(p.Baseline.WallNS)
+			c[i] = float64(p.Candidate.WallNS)
+		}
+		diffs[j] = percentile(c, .95) - percentile(b, .95)
+	}
+	return percentile(diffs, .95)
+}
+func measure(ctx context.Context, m Manifest, row Row, base, candidate, root string, n int) Result {
+	r := Result{Row: row, Status: "NOT_RUN", Missing: []string{"ALLOC_BYTES", "IO_READ_BYTES", "IO_WRITE_BYTES", "CORPUS_AND_CACHE_CONTROL_QUALIFICATION", "CPU_RSS_BOOTSTRAP_DECISION", "ATM_CONDITIONS", "HOST_LOAD_QUALIFICATION", "ABSOLUTE_BUDGET_DECISION"}}
+	for i := -m.Warmups; i < n; i++ {
+		if ctx.Err() != nil {
+			r.Missing = append(r.Missing, "INTERRUPTED")
+			break
+		}
+		var p Pair
+		if (i+m.Warmups)%2 == 0 {
+			p.Baseline = sample(ctx, base, root, row.Argv, 30*time.Second)
+			p.Candidate = sample(ctx, candidate, root, row.Argv, 30*time.Second)
+		} else {
+			p.Candidate = sample(ctx, candidate, root, row.Argv, 30*time.Second)
+			p.Baseline = sample(ctx, base, root, row.Argv, 30*time.Second)
+		}
+		if p.Baseline.Failure != "" || p.Candidate.Failure != "" || p.Baseline.Exit != row.ExpectedExit || p.Candidate.Exit != row.ExpectedExit || p.Baseline.Stdout != p.Candidate.Stdout || p.Baseline.Stderr != p.Candidate.Stderr {
+			r.Status = "FAIL"
+		}
+		if i >= 0 {
+			r.Pairs = append(r.Pairs, p)
+		}
+	}
+	r.WallP95UpperNS = upper(r.Pairs)
+	return r
+}
+func run(ctx context.Context) error {
+	manifest := flag.String("manifest", "", "frozen preregistration")
+	base := flag.String("baseline", "", "baseline native binary")
+	candidate := flag.String("candidate", "", "candidate native binary")
+	root := flag.String("root", "", "isolated corpus")
+	rowName := flag.String("row", "", "one exact row (diagnostic only)")
+	out := flag.String("out", "", "new report file")
+	n := flag.Int("diagnostic-samples", 0, "diagnostic sample override; never GP qualification")
+	flag.Parse()
+	raw, e := os.ReadFile(*manifest)
+	if e != nil {
+		return e
+	}
+	var m Manifest
+	if e = json.Unmarshal(raw, &m); e != nil {
+		return e
+	}
+	if m.Profile != "taskman-perf-baseline/0" || m.Samples < 100 || m.Warmups < 5 || m.Order != "ALTERNATING" {
+		return errors.New("invalid preregistration")
+	}
+	if *n == 0 {
+		*n = m.Samples
+	}
+	if *n < 1 {
+		return errors.New("invalid samples")
+	}
+	b, e := fileDigest(*base)
+	if e != nil {
+		return e
+	}
+	c, e := fileDigest(*candidate)
+	if e != nil {
+		return e
+	}
+	report := Report{Profile: "taskman-native-gp-diagnostic/0", Manifest: digest(raw), Baseline: b, Candidate: c, Status: "NOT_RUN"}
+	for _, r := range m.Commands {
+		if r.Name == *rowName {
+			report.Results = append(report.Results, measure(ctx, m, r, *base, *candidate, *root, *n))
+		}
+	}
+	if len(report.Results) != 1 {
+		return errors.New("one registered diagnostic row required; full GP qualification unavailable")
+	}
+	f, e := os.OpenFile(*out, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if e != nil {
+		return e
+	}
+	defer f.Close()
+	return json.NewEncoder(f).Encode(report)
+}
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if e := run(ctx); e != nil {
+		fmt.Fprintln(os.Stderr, e)
+		os.Exit(2)
+	}
+}

@@ -2042,5 +2042,19 @@
       "internal/genesis/guidance.go",
       "cmd/corvint/repository_guidance.go"
     ]
+  },
+  {
+    "path": "docs/specs/native-taskman-planning-v0.md",
+    "title": "Native taskman fixture planning V0",
+    "reqPrefix": "NTP-V0",
+    "intent": "accepted fixture scope (decision 0322)",
+    "delivery": "experimental",
+    "claim": "Read-only native fixture priority-first planning with explicit incomplete coverage.",
+    "dependsOn": [
+      "docs/specs/work-queue-observation-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": ["internal/taskman", "cmd/corvint/taskman_fixture.go"]
   }
 ]

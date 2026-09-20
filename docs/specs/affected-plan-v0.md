@@ -179,7 +179,7 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   naming it. A run of two or more components matches consecutive path components, its first by
   suffix unless the token starts there and its last by prefix unless the token ends there; a single
   component matches only a whole path component. For the CEM sidecar `.corvint/change.cem.json`
-  (decision 0322), derived evidence every dogfooded change commits, such a package is selected
+  (decision 0323), derived evidence every dogfooded change commits, such a package is selected
   only when that token, resolved against the package's directory (a root-anchored token against the
   root), can form the sidecar or one of its ancestor directories while preserving the outer
   partial-component matches above. A root-climbing or compatible root-anchored token in the same

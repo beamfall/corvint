@@ -7,6 +7,49 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-19 NTP-V0 integration with repository work-queue adoption
+
+The owner authorized merging the verified fixture extension. Current main `d9144000` also
+implements WQO repository adoption; the combined command keeps native fixture dispatch separate
+from adoption and shadow observation. Both build-log entries are preserved. The fixture decision
+is renumbered from 0321 to 0322 because the adoption decision already owns 0321 on main; accepted
+requirements and the original prerequisite approval are unchanged. Historical review receipts keep
+their original identifiers. The completed `1f639857` gate and `66c33c02` seal remain prior evidence;
+integration requires a new current-main CEM/OCM binding and checks on the combined clean target.
+GP, live reservations, CONFIG_PIN, admission and production promotion remain held.
+
+## 2026-09-19 NTP-V0 native taskman fixture planning
+
+Decision 0322 records the owner's accepted prerequisite amendment and pre-edit baseline freeze.
+The opt-in `work plan-fixture` reads a native fixture journal through fixed audit/status/export
+commands, then emits a source-bound priority-first plan. WQO shadow selection is unchanged.
+A built task-store fixture selected P0 touching A+B over the larger P1(A)/P2(B) wave; two complete
+reads were byte-identical and all 57 source/store files stayed unchanged. Exact binary, snapshot,
+source hashes and output are in `.agent-evidence/native-taskman/fixture-smoke-final.json` and its
+adjacent receipt/source manifest. Fixture reservations/history remain caller-owned observations.
+
+Independent review reproduced whole-repository exclusion escaping empty resource sets, native
+Code enum drift and malformed observation/history acceptance. The repairs check whole scope before
+pairwise resources, preserve the closed native Code enum (DEVELOPMENT_MODE for fixture SELECTED),
+and reject contradictory identity/revision/resource/history input without releasing reservations.
+`internal/taskman/review_test.go` retains the failure regressions; focused planner, adapter, WQO
+boundary and cancellation tests passed. The exact committed native gate and CEM/OCM/local completion
+reports are post-commit evidence; these focused results alone do not close that gate.
+The first full gate at `865e554b4e5a601282423dbdbbf6264dfdda1b6e` failed only
+`internal/specindex`: header/digest/README wording did not exactly match the registry. The
+metadata was aligned and the focused registry check rerun before rebinding; the failed gate is
+retained in the enrolled check history, never represented as a passing full gate.
+
+Self-development routes used: original prechange query (including omissions), native fixture
+planning, `affected` (two Go units advised; full gate mandatory), tracked-path `prove` (97 omissions),
+and the enrolled keyed dogfood workflow. New untracked-path `prove` refused; no substitute success
+is claimed for it. Snapshot indexing was used by fixture planning. Batch/mutation/learning/service,
+foreign adapters and live-provider qualification were not applicable to this bounded fixture slice.
+Exact ATCP history remains unrecovered. GP is NOT_RUN: retired harness replacement is diagnostic
+only, complete workloads/allocation/I/O/environment witnesses and real runtime conditions are absent.
+No executor admission, CONFIG_PIN, production completion, real-queue cutover or performance promotion
+is claimed. The explicit executor dependency handoff remains open.
+
 ## 2026-09-19 WQO-V0-046..048 repository work-queue adoption (decision 0321, Beamfall/corvint#20)
 
 Before this change, `corvint work observe` could never return `VALIDATED_AT`. `workManifest.complete`
@@ -76,7 +119,7 @@ asset hashes are retained in `/tmp/corvint-logo-20260919/` for this task.
 
 ## 2026-09-19 AFP-V0-012 fast tier: the CEM sidecar's readers, the cutover-test frontier, and the unresolved floor
 
-Decision 0322 narrows rule (c) for `.corvint/change.cem.json` to readers whose literal resolves
+Decision 0323 narrows rule (c) for `.corvint/change.cem.json` to readers whose literal resolves
 to it or can form it under rule (c)'s outer partial-component semantics. The independent review
 found that exact resolved-string comparison omitted a package constructing the path as
 `filepath.Join("..", ".corvint/change.cem") + ".json"`; the repaired selector conservatively pairs
