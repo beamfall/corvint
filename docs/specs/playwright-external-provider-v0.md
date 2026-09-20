@@ -83,7 +83,13 @@ For an externally managed application already listening at `http://127.0.0.1:300
 provider command from the application root after replacing the bound config and test paths with the
 application's checked-in paths:
 
-`CORVINT_PLAYWRIGHT_BROWSER_PATH=/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome corvint-js-test-provider e2e --dir . --config playwright.config.ts --package-json package.json --lockfile package-lock.json --runner-version 1.63.0 --env-key CORVINT_PLAYWRIGHT_BROWSER_PATH --external-server --app-identity app-at-3002 --server-ready-url http://127.0.0.1:3002 --test-file tests/e2e/example.spec.ts --test-arg tests/e2e/example.spec.ts --retain`
+The checked-in application config must set
+`use.launchOptions.executablePath` to
+`/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`; the provider binds that effective
+value and the observed tuple. It does not implement a browser-path override. With that config, the
+exact command is:
+
+`corvint-js-test-provider e2e --dir . --config playwright.config.ts --package-json package.json --lockfile package-lock.json --runner-version 1.63.0 --external-server --app-identity app-at-3002 --server-ready-url http://127.0.0.1:3002 --test-file tests/e2e/example.spec.ts --test-arg tests/e2e/example.spec.ts --retain`
 
 | Requirements | Implementation | Evidence |
 |---|---|---|

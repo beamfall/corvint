@@ -76,9 +76,29 @@ func TestPlaywright163UnqualifiedBrowserTupleAbstains(t *testing.T) {
 	r := qualifiedFixture(t)
 	r.Identity.RunnerVersion = "1.63.0"
 	r.Identity.NodeVersion = "v22.23.2"
+	r.Tests[0].Project.Use = json.RawMessage(`{"launchOptions":{"executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"v22.23.2","browserType":"chromium","browserVersion":"Google Chrome 153.0.8010.48","channel":"","executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome","headlessShellAvailable":false}}`)
 	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
-	if ReceiptTestProjection(r, r.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
-		t.Fatal("unqualified Playwright 1.63 browser tuple projected green")
+	if ReceiptTestProjection(r, r.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
+		t.Fatal("qualified Playwright 1.63 browser tuple abstained")
+	}
+	for name, replacement := range map[string][2]string{
+		"browser-version": {"Google Chrome 153.0.8010.48", "Google Chrome 153.0.8010.47"},
+		"browser-type":    {`"browserType":"chromium"`, `"browserType":"firefox"`},
+		"channel":         {`"channel":""`, `"channel":"chrome"`},
+		"executable-path": {"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/tmp/chrome"},
+		"node-version":    {"v22.23.2", "v22.23.1"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			mutated := r
+			mutated.Tests = append([]TestOutcome(nil), r.Tests...)
+			mutated.Tests[0].Project = &ProjectIdentity{}
+			*mutated.Tests[0].Project = *r.Tests[0].Project
+			mutated.Tests[0].Project.Use = json.RawMessage(strings.Replace(string(r.Tests[0].Project.Use), replacement[0], replacement[1], 1))
+			mutated.Tests[0].ID = qualifiedTestID(mutated.Identity, mutated.Tests[0])
+			if ReceiptTestProjection(mutated, mutated.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+				t.Fatal("mismatched Playwright 1.63 tuple projected green")
+			}
+		})
 	}
 }
 

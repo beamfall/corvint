@@ -59,6 +59,8 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	var interruptOnce sync.Once
 	interruptWaiting := make(chan struct{})
 	var interruptWaitingOnce sync.Once
+	interruptHandlerDone := make(chan struct{})
+	var interruptHandlerDoneOnce sync.Once
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/cancel-ready" {
 			once.Do(func() { close(ready) })
@@ -67,6 +69,7 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 			interruptOnce.Do(func() { close(interruptReady) })
 		}
 		if r.URL.Path == "/interrupt-wait" {
+			defer interruptHandlerDoneOnce.Do(func() { close(interruptHandlerDone) })
 			interruptWaitingOnce.Do(func() { close(interruptWaiting) })
 			select {
 			case <-interruptReady:
@@ -79,6 +82,7 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	defer server.Close()
 	t.Run("interruption-wait-releases-on-request-cancel", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/interrupt-wait", nil)
 		if err != nil {
 			t.Fatal(err)
@@ -101,6 +105,11 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 		case <-done:
 		case <-time.After(time.Second):
 			t.Fatal("cancelled interruption wait did not release")
+		}
+		select {
+		case <-interruptHandlerDone:
+		case <-time.After(time.Second):
+			t.Fatal("cancelled interruption handler did not complete")
 		}
 	})
 	t.Setenv("CORVINT_FIXTURE_URL", server.URL)
@@ -192,31 +201,22 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	})
 	cfg.TestArgv = []string{"external.spec.cjs", "--project=broken-browser", "--grep=passing page"}
 	infra, err := jstestprovider.RunE2E(context.Background(), cfg)
-	if err != nil || len(infra.Tests) != 1 || infra.Tests[0].State != jstestprovider.StateInfrastructure {
+	if err != nil || infra.Infrastructure == nil {
 		t.Fatalf("browser infrastructure: %v %+v", err, infra)
 	}
 	assertExternalSurvived(t, infra, server.URL)
 	t.Run("PWP-V0-007 live-browser-matrix", func(t *testing.T) {
-		if len(r.Tests) != 6 || len(infra.Tests) != 1 || infra.Tests[0].State != jstestprovider.StateInfrastructure {
+		if len(r.Tests) != 6 || infra.Infrastructure == nil {
 			t.Fatal("live matrix incomplete")
 		}
 	})
 	cfg.TestArgv = []string{"override.spec.cjs", "--project=chromium"}
 	override, err := jstestprovider.RunE2E(context.Background(), cfg)
-	if err != nil || override.Infrastructure != nil || len(override.Tests) != 1 {
+	if err != nil || len(override.Tests) != 1 {
 		t.Fatalf("override run: %v %+v", err, override.Infrastructure)
 	}
-	var effective struct {
-		Viewport struct {
-			Width  int `json:"width"`
-			Height int `json:"height"`
-		} `json:"viewport"`
-	}
-	if err = json.Unmarshal(override.Tests[0].Project.Use, &effective); err != nil {
-		t.Fatal(err)
-	}
-	if override.Tests[0].Project.Browser != "firefox" || effective.Viewport.Width != 321 || effective.Viewport.Height != 456 || jstestprovider.ReceiptTestProjection(override, override.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
-		t.Fatalf("wrong effective per-test use %+v", override.Tests[0])
+	if override.Infrastructure == nil || len(override.Tests) != 1 || jstestprovider.ReceiptTestProjection(override, override.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+		t.Fatalf("unqualified Firefox override projected green: %v %+v", err, override)
 	}
 	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "dynamic.spec.cjs"))
 	cfg.TestArgv = []string{"dynamic.spec.cjs", "--project=chromium"}

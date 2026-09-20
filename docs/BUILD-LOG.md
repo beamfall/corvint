@@ -23,7 +23,8 @@ unqualified; Playwright 1.63 on another Node/platform/browser path also remains 
 The Linux amd64 installed/bundled-browser arm is `NOT_RUN`. A local `golf-e2e` checkout does not
 exist, so its deterministic consumer fixture and CI observation are `NOT_OBSERVED`. The externally
 managed application command for `http://127.0.0.1:3002` is recorded in
-the accepted profile; the provider neither starts nor stops that application.
+the accepted profile; its config owns the bound system-Chrome executable path, and the provider
+neither starts nor stops that application.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
