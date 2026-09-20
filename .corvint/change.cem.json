@@ -2,6 +2,16 @@
   "baseRevision": "536e560e1fa35573e49df644dde4257a8bb7e050",
   "evidence": [
     {
+      "blobOid": "a834cfa31ff1a58086659e1ae6913c99eb30a2df",
+      "id": "evidence:sha256:f3aab6b90e4511285d375af4a8835440a713f57a3f5acea31beaa0c57d2335f5",
+      "path": "docs/specs/local-completion-policy-v0.md",
+      "span": {
+        "end": 11864,
+        "start": 11276
+      },
+      "spanSha256": "8eba1c0be58f340bf54ac117261b841df325a029b7abe0067b3f58372de570a3"
+    },
+    {
       "blobOid": "08385929123f7e4a6a2b114cbc64a35068b33810",
       "id": "evidence:sha256:84186d161e1d7d52797807e3a07840c20c4d17bd3b6b5c435273c2636d3b3a8b",
       "path": "docs/specs/playwright-external-provider-v0.md",
@@ -14,6 +24,46 @@
   ],
   "excludedPath": ".corvint/change.cem.json",
   "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:f3aab6b90e4511285d375af4a8835440a713f57a3f5acea31beaa0c57d2335f5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6766906c9642f6055178b49930319dc696ff35d5bdf354a1fa74c7da3cbd448e",
+      "newRange": {
+        "count": 7,
+        "start": 31
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 31
+      },
+      "path": "cmd/corvint/local_completion_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:f3aab6b90e4511285d375af4a8835440a713f57a3f5acea31beaa0c57d2335f5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2be9ad635e80abc79d15fcbb306f957211c0d31e9419a1da33a1d7e4b17e6f50",
+      "newRange": {
+        "count": 10,
+        "start": 48
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 48
+      },
+      "path": "cmd/corvint/local_completion_test.go",
+      "reason": "evidence-backed"
+    },
     {
       "basis": [
         {
@@ -615,6 +665,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "0f3b5d8ac2a29744dd169886f0639a37a04dbfea0f1ba53cf46d048e3265fce0",
+  "patchSha256": "3a66c29e9032072a3346747402b073465cb91d4da36f074694cb4359dab8a54d",
   "spec": "cem/0.2"
 }
