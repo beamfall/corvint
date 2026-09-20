@@ -37,8 +37,12 @@ remain `NOT_RUN`. A retained-scratch reproduction identified the refusal as
 `INTENT_BRANCH_MISMATCH`: the closed Git environment initialized the smoke repository on `master`
 while the companion-owned intent fixture requires `main`. The repair pins the fixture branch and
 retains structured command stdout in failed smoke evidence so a typed refusal cannot be hidden by
-an empty stderr stream. Publication, tagging, pushing, signing, upload and promotion were not
-attempted.
+an empty stderr stream. The repaired companion gate passed at Corvint `68c9bbc` against exact
+Corvint Tasks commit `f6ec200337160545b5e120a7242a8e862ecbcff0` and tree
+`7573360392d58000f30dc0f82e6716cba09d81d1`; its retained archive SHA-256 is
+`9dac067f16da86b8dc8bcb97414c96472d2fe613947d8acdca95cfb2024ad2cd`. All native installed
+smoke rows passed and the four non-native targets remain explicitly `NOT_RUN`. Publication,
+tagging, pushing, signing, upload and promotion were not attempted.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
