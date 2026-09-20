@@ -1,5 +1,5 @@
 {
-  "baseRevision": "833bbd3278dc485696d5b639bf4488f5a0cfe5bc",
+  "baseRevision": "bf2685dd631c19df3cc88dddbc962175a73e5de7",
   "evidence": [
     {
       "blobOid": "a00143014a1e8662a4eed44cfd0198087df1ffc9",
@@ -212,9 +212,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:a19ac2dbf5563282fd634ce25663cecd671c14c680f104cf12c65f782a4de695",
+      "id": "hunk:sha256:5f499cda8f9de0ddd53f7a6b077dea42616dd9082b4770230b2974c9d4ac668b",
       "newRange": {
-        "count": 33,
+        "count": 35,
         "start": 7
       },
       "oldRange": {
@@ -1395,6 +1395,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "559dee90f862bfccf1d9023b10ebda0ae5de62d0273c5d43b0050e19f4451ef4",
+  "patchSha256": "3f9b767428bde7a5bd9d682c72d923b267f87a3742b7a87eb0cd12009912a389",
   "spec": "cem/0.2"
 }
