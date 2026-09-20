@@ -15,6 +15,11 @@ admission, release candidacy, attestation, or promotion is added. Pages containi
 do not refresh automatically. A page-preserving pause/resume link prevents timed reloads from
 interrupting deliberate inspection. `TestRoadmapSafeAutoRecheck` binds the refresh and hard-stop
 notice on successful and refused reads and checks that paused roadmaps and the board remain stable.
+The first full gate reached every package but failed three `internal/contextindex` tests during
+`t.TempDir` cleanup: detached Git maintenance recreated `.git/objects/info/packs` and
+`.git/info/refs` after removal began. The shared fixture Git helper now disables auto-gc and keeps
+any maintenance synchronous; the exact combined reproducer and the full gate must pass after this
+repair before the console change is qualified.
 
 ## 2026-09-19 CRB-V0-014: owner-selected corvid artwork
 
