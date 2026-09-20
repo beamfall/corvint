@@ -73,6 +73,12 @@ func TestQualifiedReceiptProjection(t *testing.T) {
 }
 
 func TestQualifiedReceiptBindingSeparatesInfrastructureOutcomeFromInvalidLifecycle(t *testing.T) {
+	contradictory := qualifiedFixture(t)
+	contradictory.Tests[0].Attempts[0].FailureKind = "assertion-or-test"
+	if QualifiedReceiptBindingReady(contradictory, contradictory.Tests[0]) {
+		t.Fatal("passed attempt retained assertion failure metadata")
+	}
+
 	r := qualifiedFixture(t)
 	r.Tests[0].State = StateInfrastructure
 	r.Tests[0].Attempts[0].State = StateInfrastructure

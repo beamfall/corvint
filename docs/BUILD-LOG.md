@@ -39,6 +39,9 @@ Re-review found that an invalid receipt and a genuine infrastructure outcome sha
 projection. The final repair verifies qualified lifecycle/identity binding independently of outcome
 classification; paired regressions accept a bound infrastructure outcome and refuse the same outcome
 when runner cleanup failed.
+The authorized final repair rejects state/failure-kind contradictions at both the qualified receipt
+binding and stability classification boundaries; a passed attempt carrying assertion-failure
+metadata and an artifact now refuses instead of contributing to a clean verdict.
 
 ## 2026-09-20 DCP-V1-004/007..013/019: experimental behavior contract ingestion (issue 40)
 

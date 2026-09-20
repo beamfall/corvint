@@ -404,7 +404,22 @@ func validateStabilityAttempt(evidence StabilityAttempt, native jstestprovider.A
 	if evidence.Retry != native.Retry || evidence.State != string(native.State) || !words("passed failed unknown")[evidence.Cleanup] {
 		return fail("contradictory stability attempt evidence")
 	}
-	classes := map[string]bool{"none": native.FailureKind == "" || native.FailureKind == "none", "assertion": native.FailureKind == "assertion-or-test", "synchronization": native.FailureKind == "assertion-or-test", "product": native.FailureKind == "assertion-or-test", "fixture": native.FailureKind == "browser-or-fixture", "infrastructure": native.FailureKind == "browser-or-fixture" || native.State == jstestprovider.StateInfrastructure, "timeout": native.FailureKind == "test-timeout" || native.State == jstestprovider.StateTimedOut, "interruption": native.State == jstestprovider.StateInterrupted}
+	classes := map[string]bool{}
+	switch native.State {
+	case jstestprovider.StatePassed, jstestprovider.StateSkipped:
+		classes["none"] = native.FailureKind == "" || native.FailureKind == "none"
+	case jstestprovider.StateFailed:
+		for _, class := range []string{"assertion", "synchronization", "product"} {
+			classes[class] = native.FailureKind == "assertion-or-test"
+		}
+	case jstestprovider.StateTimedOut:
+		classes["timeout"] = native.FailureKind == "test-timeout"
+	case jstestprovider.StateInterrupted:
+		classes["interruption"] = native.FailureKind == "" || native.FailureKind == "none"
+	case jstestprovider.StateInfrastructure:
+		classes["fixture"] = native.FailureKind == "browser-or-fixture"
+		classes["infrastructure"] = native.FailureKind == "browser-or-fixture"
+	}
 	if !classes[evidence.FailureClass] {
 		return fail("contradictory stability failure classification")
 	}

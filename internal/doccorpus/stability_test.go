@@ -213,6 +213,16 @@ func TestPlaywrightStabilityNegativeControls(t *testing.T) {
 				},
 				wantError: true,
 			},
+			"passed attempt with assertion failure": {
+				editReceipt: func(i int, receipt *jstestprovider.Receipt) {
+					if i != 2 {
+						return
+					}
+					receipt.Tests[0].Attempts[0].FailureKind = "assertion-or-test"
+					receipt.Tests[0].Artifacts = []jstestprovider.FailureArtifact{{Name: "trace", Path: "contradictory-trace.zip"}}
+				},
+				wantError: true,
+			},
 			"qualified infrastructure counted": {
 				editReceipt: func(i int, receipt *jstestprovider.Receipt) {
 					if i != 2 {

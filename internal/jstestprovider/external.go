@@ -393,7 +393,7 @@ func qualifiedBindingUnknown(r Receipt, t TestOutcome) bool {
 		return true
 	}
 	for _, attempt := range t.Attempts {
-		if !knownState(attempt.State) || attempt.Retry < 0 {
+		if !knownState(attempt.State) || attempt.Retry < 0 || !qualifiedAttemptFailureKind(attempt) {
 			return true
 		}
 	}
@@ -414,4 +414,19 @@ func qualifiedBindingUnknown(r Receipt, t TestOutcome) bool {
 		}
 	}
 	return t.ID != qualifiedTestID(r.Identity, t)
+}
+
+func qualifiedAttemptFailureKind(attempt Attempt) bool {
+	switch attempt.State {
+	case StatePassed, StateSkipped, StateInterrupted:
+		return attempt.FailureKind == "" || attempt.FailureKind == "none"
+	case StateFailed:
+		return attempt.FailureKind == "assertion-or-test"
+	case StateTimedOut:
+		return attempt.FailureKind == "test-timeout"
+	case StateInfrastructure:
+		return attempt.FailureKind == "browser-or-fixture"
+	default:
+		return false
+	}
 }
