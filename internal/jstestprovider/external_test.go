@@ -72,6 +72,50 @@ func TestQualifiedReceiptProjection(t *testing.T) {
 	}
 }
 
+func TestPlaywright163UnqualifiedBrowserTupleAbstains(t *testing.T) {
+	r := qualifiedFixture(t)
+	r.Identity.RunnerVersion = "1.63.0"
+	r.Identity.NodeVersion = "v22.23.2"
+	r.Tests[0].Project.Use = json.RawMessage(`{"browserName":"chromium","channel":"","launchOptions":{"executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"v22.23.2","browserType":"chromium","browserVersion":"Google Chrome 153.0.8010.48","channel":"","executablePath":"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome","headlessShellAvailable":true}}`)
+	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	if ReceiptTestProjection(r, r.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
+		t.Fatal("qualified Playwright 1.63 browser tuple abstained")
+	}
+	for name, replacement := range map[string][2]string{
+		"browser-version":   {"Google Chrome 153.0.8010.48", "Google Chrome 153.0.8010.47"},
+		"browser-type":      {`"browserType":"chromium"`, `"browserType":"firefox"`},
+		"channel":           {`"channel":""`, `"channel":"chrome"`},
+		"channel-missing":   {`"channel":"",`, ``},
+		"channel-null":      {`"channel":""`, `"channel":null`},
+		"executable-path":   {"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/tmp/chrome"},
+		"headless-missing":  {`,"headlessShellAvailable":true`, ``},
+		"headless-null":     {`"headlessShellAvailable":true`, `"headlessShellAvailable":null`},
+		"headless-mismatch": {`"headlessShellAvailable":true`, `"headlessShellAvailable":false`},
+		"node-version":      {"v22.23.2", "v22.23.1"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			mutated := r
+			mutated.Tests = append([]TestOutcome(nil), r.Tests...)
+			mutated.Tests[0].Project = &ProjectIdentity{}
+			*mutated.Tests[0].Project = *r.Tests[0].Project
+			mutated.Tests[0].Project.Use = json.RawMessage(strings.Replace(string(r.Tests[0].Project.Use), replacement[0], replacement[1], 1))
+			mutated.Tests[0].ID = qualifiedTestID(mutated.Identity, mutated.Tests[0])
+			if ReceiptTestProjection(mutated, mutated.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+				t.Fatal("mismatched Playwright 1.63 tuple projected green")
+			}
+		})
+	}
+	contradictory := r
+	contradictory.Tests = append([]TestOutcome(nil), r.Tests...)
+	contradictory.Tests[0].Project = &ProjectIdentity{}
+	*contradictory.Tests[0].Project = *r.Tests[0].Project
+	contradictory.Tests[0].Project.Browser = "firefox"
+	contradictory.Tests[0].ID = qualifiedTestID(contradictory.Identity, contradictory.Tests[0])
+	if ReceiptTestProjection(contradictory, contradictory.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+		t.Fatal("contradictory retained browser identity projected green")
+	}
+}
+
 func TestQualifiedIdentityStableAcrossScratchAndDistinctAcrossProjects(t *testing.T) {
 	r := qualifiedFixture(t)
 	original := r.Tests[0].ID
@@ -90,6 +134,15 @@ func TestExternalAdmission(t *testing.T) {
 	if err := admitExternal(base); err != nil {
 		t.Fatal(err)
 	}
+	base.RunnerVersion = "1.63.0"
+	if err := admitExternal(base); err != nil {
+		t.Fatal(err)
+	}
+	base.RunnerVersion = "1.62.0"
+	if admitExternal(base) == nil {
+		t.Fatal("unqualified Playwright version admitted")
+	}
+	base.RunnerVersion = "1.60.0"
 	for _, arg := range []string{"--config=evil", "--reporter=json", "--global-setup=evil", "--ui", "--debug"} {
 		c := base
 		c.TestArgv = []string{arg}

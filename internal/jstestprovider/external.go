@@ -23,8 +23,11 @@ import (
 )
 
 const ExternalProfile = "corvint-playwright-external/0"
-const QualifiedPlaywrightVersion = "1.60.0"
 const externalOutputLimit = 4 << 20
+
+func qualifiedPlaywrightVersion(version string) bool {
+	return version == "1.60.0" || version == "1.63.0"
+}
 
 //go:embed qualified-reporter.cjs
 var qualifiedReporter []byte
@@ -153,7 +156,7 @@ func explainedPlaywrightFailure(tests []TestOutcome) bool {
 }
 
 func admitExternal(c E2EConfig) error {
-	if c.RunnerVersion != QualifiedPlaywrightVersion {
+	if !qualifiedPlaywrightVersion(c.RunnerVersion) {
 		return errors.New("external-playwright-version-unqualified")
 	}
 	bound, _ := json.Marshal(struct {
@@ -370,7 +373,7 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 	if !filepath.IsAbs(r.Identity.ConfigFile) || len(r.Identity.Argv) == 0 || r.Identity.RunnerName != "playwright" {
 		return true
 	}
-	if r.Identity.RunnerVersion != QualifiedPlaywrightVersion {
+	if !qualifiedPlaywrightTuple(r, t) {
 		return true
 	}
 	for _, attempt := range t.Attempts {
@@ -398,4 +401,38 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 		}
 	}
 	return t.ID != qualifiedTestID(r.Identity, t)
+}
+
+func qualifiedPlaywrightTuple(r Receipt, t TestOutcome) bool {
+	if r.Identity.RunnerVersion == "1.60.0" {
+		return true
+	}
+	if r.Identity.RunnerVersion != "1.63.0" || r.Identity.NodeVersion != "v22.23.2" {
+		return false
+	}
+	var use struct {
+		CorvintBrowser struct {
+			Platform               *string `json:"platform"`
+			Arch                   *string `json:"arch"`
+			NodeVersion            *string `json:"nodeVersion"`
+			BrowserType            *string `json:"browserType"`
+			BrowserVersion         *string `json:"browserVersion"`
+			Channel                *string `json:"channel"`
+			ExecutablePath         *string `json:"executablePath"`
+			HeadlessShellAvailable *bool   `json:"headlessShellAvailable"`
+		} `json:"corvintBrowser"`
+		BrowserName   *string `json:"browserName"`
+		Channel       *string `json:"channel"`
+		LaunchOptions struct {
+			ExecutablePath *string `json:"executablePath"`
+		} `json:"launchOptions"`
+	}
+	if json.Unmarshal(t.Project.Use, &use) != nil {
+		return false
+	}
+	browser := use.CorvintBrowser
+	if use.BrowserName == nil || use.Channel == nil || use.LaunchOptions.ExecutablePath == nil || browser.Platform == nil || browser.Arch == nil || browser.NodeVersion == nil || browser.BrowserType == nil || browser.BrowserVersion == nil || browser.Channel == nil || browser.ExecutablePath == nil || browser.HeadlessShellAvailable == nil {
+		return false
+	}
+	return *use.BrowserName == t.Project.Browser && *use.BrowserName == *browser.BrowserType && *use.Channel == *browser.Channel && *use.LaunchOptions.ExecutablePath == *browser.ExecutablePath && *browser.Platform == "darwin" && *browser.Arch == "arm64" && *browser.NodeVersion == "v22.23.2" && *browser.BrowserType == "chromium" && *browser.BrowserVersion == "Google Chrome 153.0.8010.48" && *browser.Channel == "" && *browser.ExecutablePath == "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" && *browser.HeadlessShellAvailable
 }

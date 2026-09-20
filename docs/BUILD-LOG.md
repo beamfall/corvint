@@ -7,6 +7,26 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 PWP-V0: Playwright 1.63.0 external-server qualification
+
+Issue 39 extends the accepted external-server profile's exact runner allowlist from Playwright
+1.60.0 to 1.60.0 and 1.63.0. The checked-in real-browser matrix passed locally on Darwin with
+macOS arm64, Node v22.23.2 and `@playwright/test@1.63.0` with system Google Chrome
+153.0.8010.48 at `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`; no channel override
+was used and the Playwright `chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell`
+executable was present. It preserved pass, assertion failure,
+test timeout, interruption, browser infrastructure failure, retry/attempt state, two-project
+identity, inherited `webServer` suppression, external-server survival, cancellation cleanup, and
+retained MCP discovery, setup dependencies, global use, project inheritance, two-worker execution
+and repeat-each identities. Executable option metadata and a custom `page` fixture both produced
+unknown identity/infrastructure and never a passing projection. Other Playwright versions remain
+unqualified; Playwright 1.63 on another Node/platform/browser path also remains diagnostic-only.
+The Linux amd64 installed/bundled-browser arm is `NOT_RUN`. A local `golf-e2e` checkout does not
+exist, so its deterministic consumer fixture and CI observation are `NOT_OBSERVED`. The externally
+managed application command for `http://127.0.0.1:3002` is recorded in
+the accepted profile; its config owns the bound system-Chrome executable path, and the provider
+neither starts nor stops that application.
+
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
 Owner approval accepts decisions 0324/0325: bounded local MCP stdio and a separately built opt-in
