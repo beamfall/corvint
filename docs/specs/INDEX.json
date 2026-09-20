@@ -1,7 +1,7 @@
 [
   {
     "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
-    "title": "Frontier decision brief — 2026-08-29",
+    "title": "Frontier decision brief \u2014 2026-08-29",
     "reqPrefix": "",
     "intent": "not-applicable (reading aid; decides nothing)",
     "delivery": "not-applicable",
@@ -457,6 +457,27 @@
     ]
   },
   {
+    "path": "docs/specs/documentation-corpus-v1.md",
+    "title": "Revision-pinned documentation corpus V1",
+    "reqPrefix": "DCP-V1",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A native compiler builds revision-pinned documentation corpora for bounded CLI, evidence, rendering and capability-gated MCP queries.",
+    "dependsOn": [
+      "docs/specs/deployment-neutral-index-platform-v0.md",
+      "docs/specs/source-documentation-draft-v0.md",
+      "docs/specs/external-evidence-provider-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/doccorpus",
+      "cmd/corvint",
+      "internal/mcp/corpusbridge",
+      "cmd/corvint-corpus-mcp"
+    ]
+  },
+  {
     "path": "docs/specs/spec-requirement-index-generator-v0.md",
     "title": "Spec requirement index generator V0",
     "reqPrefix": "SRG-V0",
@@ -640,7 +661,7 @@
   },
   {
     "path": "docs/specs/external-evidence-provider-v1.md",
-    "title": "External Evidence Provider V1 — repository identity",
+    "title": "External Evidence Provider V1 \u2014 repository identity",
     "reqPrefix": "EEP-V1",
     "intent": "accepted (decision 0310)",
     "delivery": "experimental (file transport only)",
@@ -657,7 +678,7 @@
   },
   {
     "path": "docs/specs/external-evidence-provider-v2.md",
-    "title": "External Evidence Provider V2 — opt-in path-to-path relations",
+    "title": "External Evidence Provider V2 \u2014 opt-in path-to-path relations",
     "reqPrefix": "EEP-V2",
     "intent": "accepted (decision 0312)",
     "delivery": "experimental (file transport only)",
@@ -675,7 +696,7 @@
   },
   {
     "path": "docs/specs/external-frontier-obligations-v0.md",
-    "title": "External Frontier Obligations V0 — a reference-only Change Frontier sidecar",
+    "title": "External Frontier Obligations V0 \u2014 a reference-only Change Frontier sidecar",
     "reqPrefix": "EFO-V0",
     "intent": "accepted (decision 0313)",
     "delivery": "experimental (file transport only)",
@@ -693,7 +714,7 @@
   },
   {
     "path": "docs/specs/external-test-selection-v0.md",
-    "title": "External Test Selection V0 — fail-closed advice from verification relations",
+    "title": "External Test Selection V0 \u2014 fail-closed advice from verification relations",
     "reqPrefix": "ETS-V0",
     "intent": "accepted (decision 0311)",
     "delivery": "experimental (file transport only)",
@@ -711,7 +732,7 @@
   },
   {
     "path": "docs/specs/external-test-selection-v1.md",
-    "title": "External Test Selection V1 — transitive obligations and checkout worktree reads",
+    "title": "External Test Selection V1 \u2014 transitive obligations and checkout worktree reads",
     "reqPrefix": "ETS-V1",
     "intent": "accepted (decision 0315)",
     "delivery": "experimental (file transport only)",
@@ -2055,6 +2076,9 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": ["internal/taskman", "cmd/corvint/taskman_fixture.go"]
+    "implementation": [
+      "internal/taskman",
+      "cmd/corvint/taskman_fixture.go"
+    ]
   }
 ]

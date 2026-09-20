@@ -55,6 +55,11 @@ a command actually ran for this task at the identified root/revision; an example
 gate does not establish host adoption. This is caller assessment, not a new ledger, universal
 planner, strict LCP field, authenticated record or feature-use percentage.
 
+For the optional [documentation corpus route](DOCUMENTATION-CORPUS.md), inventory a committed
+slice, build a corpus and retain an actual search/trace receipt. Use explicit corpus evidence on native
+reads only where applicable; unsupported providers and absent journeys remain visible. The separate
+MCP server and generated-block writes require their own explicit invocation.
+
 For the optional documentation route, retain producer output and feed those exact bytes to the
 consumer; its [source contract](specs/source-documentation-draft-v0.md) gives the admitted example.
 For mutation, evaluation, migration, signing, provider and service routes, obey the existing scope,
