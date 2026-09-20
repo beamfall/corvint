@@ -11,7 +11,7 @@ set -eu
 # from a static index of the repository for every dirty path: a Go source's package and its
 # reverse importers (so a deleted file still reaches them); every package enclosing any other
 # path; every package whose string literals name the path (internal/specindex names
-# docs/specs); and, whenever any path is dirty, every package whose reads no literal bounds
+# docs/specs; the CEM sidecar only by a literal that resolves to it); and, whenever any path is dirty, every package whose reads no literal bounds
 # (its tests locate the root with `..`, runtime.Caller, os.Getwd or git, or it depends on
 # non-test code that does). Fallback, in order of detection: the plan cannot be produced;
 # provider.go.state is not RUNNABLE; the Go frontier is unknown at module level (module path

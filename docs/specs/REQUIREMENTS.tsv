@@ -46,11 +46,11 @@ AFP-V0-009	docs/specs/affected-plan-v0.md	89	(accepted 2026-09-04 by decision 00
 AFP-V0-010	docs/specs/affected-plan-v0.md	114	`corvint affected --base FULL_COMMIT_ID` (or `--base=`) MUST join the committed
 AFP-V0-011	docs/specs/affected-plan-v0.md	127	`make gate-affected` (`script/gate-affected.sh [BASE]`; the Makefile's `BASE`
 AFP-V0-012	docs/specs/affected-plan-v0.md	160	(decision 0131) The fast tier's selector MUST attribute every dirty path from a
-AFP-V0-013	docs/specs/affected-plan-v0.md	212	(accepted by decision 0289) `tools/corvint-pr-tests` MUST execute only
-AFP-V0-014	docs/specs/affected-plan-v0.md	225	(accepted by decision 0289) PR narrowing MUST require a separately trusted,
-AFP-V0-015	docs/specs/affected-plan-v0.md	242	(accepted by decision 0289) The trusted PR driver SHALL support one 1-based inde
-AFP-V0-016	docs/specs/affected-plan-v0.md	280	(accepted by decision 0320) `.github/workflows/ci-control-plane.yml` SHALL run
-AFP-V0-017	docs/specs/affected-plan-v0.md	288	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
+AFP-V0-013	docs/specs/affected-plan-v0.md	219	(accepted by decision 0289) `tools/corvint-pr-tests` MUST execute only
+AFP-V0-014	docs/specs/affected-plan-v0.md	232	(accepted by decision 0289) PR narrowing MUST require a separately trusted,
+AFP-V0-015	docs/specs/affected-plan-v0.md	249	(accepted by decision 0289) The trusted PR driver SHALL support one 1-based inde
+AFP-V0-016	docs/specs/affected-plan-v0.md	287	(accepted by decision 0320) `.github/workflows/ci-control-plane.yml` SHALL run
+AFP-V0-017	docs/specs/affected-plan-v0.md	295	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
 AHI-001	docs/specs/agent-harness-integration-v0.md	76	Every adapter MUST consume and produce the transport-neutral Corvint request, re

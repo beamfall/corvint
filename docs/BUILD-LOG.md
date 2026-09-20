@@ -167,6 +167,41 @@ evaluations are not applicable. The initial `make dogfood-change` returned `not-
 Post-commit CEM/OCM qualification is NOT_PRODUCED for this manual asset slice; native
 CEM's PNG binary-patch limitation remains explicit. Original query, generation prompts and manual
 asset hashes are retained in `/tmp/corvint-logo-20260919/` for this task.
+
+## 2026-09-19 AFP-V0-012 fast tier: the CEM sidecar's readers, the cutover-test frontier, and the unresolved floor
+
+Decision 0323 narrows rule (c) for `.corvint/change.cem.json` to readers whose literal resolves
+to it or can form it under rule (c)'s outer partial-component semantics. The independent review
+found that exact resolved-string comparison omitted a package constructing the path as
+`filepath.Join("..", ".corvint/change.cem") + ".json"`; the repaired selector conservatively pairs
+a naming fragment with a root-climbing or compatible root-anchored token in the same package.
+These are selector-only package counts, with no tests run, on `Russells-Mac-Studio.local`,
+`go1.27.1`. Selection counts come from `tools/gate-affected-select` over one `corvint affected`
+receipt. The script end to end with `GO_TEST_COMMAND=:` agrees. A branch from `3f30a02` changing
+`internal/touchsurprise/compute.go` plus the sidecar: 121 → 116 packages, where 116 is the count
+for the Go change alone. With only the sidecar dirty: 112 → 104. `feat/build-number` against
+`05e17d0` (29 changed paths): 150 → 148.
+
+The report that "the sidecar selects nearly every package" overstates its share. The audit prints
+only the first cause per package, so 105 `reader` lines do not mean 105 packages added by
+literals. Of the 30 packages that named the sidecar by fixture tokens, most were also reached by
+another rule. The dominant width is rule (d): 103 packages are `unresolved` at `3f30a02` and are
+selected whenever any path is dirty. 37 call `runtime.Caller` or `os.Getwd` themselves. The rest
+carry a root-reaching literal or depend on a package whose non-test code locates the root, 10 of
+them through `cmd/corvint`. With 2 or 3 packages from the plan, any change therefore selects at
+least about 105 packages.
+
+`cmd/corvint/go_only_cutover_test.go` puts 32 packages on the frontier: `cmd/corvint` and 31
+dependents. `cmd/corvint` is `package main` and has no importers. Every dependent comes from a
+token edge, a literal naming `cmd/corvint` such as `go build ./cmd/corvint`, or from importers of
+those packages. This is justified under the current rules. `go build` skips `_test.go`, but
+`go test` and `go vet` of that package compile it, and the index cannot tell which command a
+literal feeds. Those direct namers are also rule (c) readers of every path under `cmd/corvint`. A
+throwaway variant stopped propagation through tokens that occur only in `_test.go` files, since
+test files are never imported. It moved the single-path selection from 119 to 114. The 5 packages
+it drops are `cmd/corvint-analyzer-python`, `cmd/corvint-docs-mcp`, `conformance/frontier-v0`,
+`internal/dogfoodocm`, and `internal/frontiernextrepo`. It is not adopted here.
+
 ## 2026-09-18 EEP-V0 provider-to-impact workflow: synthetic fixture evaluation, and unsupported cases
 
 `TestImpactProviderEvaluation` (`internal/extevidence/extevidence_test.go`) runs the
