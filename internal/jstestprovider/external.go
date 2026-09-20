@@ -412,22 +412,27 @@ func qualifiedPlaywrightTuple(r Receipt, t TestOutcome) bool {
 	}
 	var use struct {
 		CorvintBrowser struct {
-			Platform               string `json:"platform"`
-			Arch                   string `json:"arch"`
-			NodeVersion            string `json:"nodeVersion"`
-			BrowserType            string `json:"browserType"`
-			BrowserVersion         string `json:"browserVersion"`
-			Channel                string `json:"channel"`
-			ExecutablePath         string `json:"executablePath"`
-			HeadlessShellAvailable bool   `json:"headlessShellAvailable"`
+			Platform               *string `json:"platform"`
+			Arch                   *string `json:"arch"`
+			NodeVersion            *string `json:"nodeVersion"`
+			BrowserType            *string `json:"browserType"`
+			BrowserVersion         *string `json:"browserVersion"`
+			Channel                *string `json:"channel"`
+			ExecutablePath         *string `json:"executablePath"`
+			HeadlessShellAvailable *bool   `json:"headlessShellAvailable"`
 		} `json:"corvintBrowser"`
+		BrowserName   *string `json:"browserName"`
+		Channel       *string `json:"channel"`
 		LaunchOptions struct {
-			ExecutablePath string `json:"executablePath"`
+			ExecutablePath *string `json:"executablePath"`
 		} `json:"launchOptions"`
 	}
 	if json.Unmarshal(t.Project.Use, &use) != nil {
 		return false
 	}
 	browser := use.CorvintBrowser
-	return use.LaunchOptions.ExecutablePath == browser.ExecutablePath && browser.Platform == "darwin" && browser.Arch == "arm64" && browser.NodeVersion == "v22.23.2" && browser.BrowserType == "chromium" && browser.BrowserVersion == "Google Chrome 153.0.8010.48" && browser.Channel == "" && browser.ExecutablePath == "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" && !browser.HeadlessShellAvailable
+	if use.BrowserName == nil || use.Channel == nil || use.LaunchOptions.ExecutablePath == nil || browser.Platform == nil || browser.Arch == nil || browser.NodeVersion == nil || browser.BrowserType == nil || browser.BrowserVersion == nil || browser.Channel == nil || browser.ExecutablePath == nil || browser.HeadlessShellAvailable == nil {
+		return false
+	}
+	return *use.BrowserName == t.Project.Browser && *use.BrowserName == *browser.BrowserType && *use.Channel == *browser.Channel && *use.LaunchOptions.ExecutablePath == *browser.ExecutablePath && *browser.Platform == "darwin" && *browser.Arch == "arm64" && *browser.NodeVersion == "v22.23.2" && *browser.BrowserType == "chromium" && *browser.BrowserVersion == "Google Chrome 153.0.8010.48" && *browser.Channel == "" && *browser.ExecutablePath == "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" && *browser.HeadlessShellAvailable
 }

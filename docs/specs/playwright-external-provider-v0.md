@@ -60,7 +60,8 @@ unless declared in project metadata; effective device parameters are retained in
 The added qualified tuple is macOS arm64 / Node v22.23.2 / `@playwright/test@1.63.0` /
 system Google Chrome 153.0.8010.48 at
 `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`, with no channel override and the
-Playwright `chromium_headless_shell-1243` executable absent. The Linux amd64 installed/bundled
+Playwright `chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell`
+executable present. The Linux amd64 installed/bundled
 browser path is `NOT_RUN` and remains diagnostic-only. No local `golf-e2e` checkout exists, so its
 consumer fixture and CI observation are `NOT_OBSERVED`; neither absence is qualification evidence.
 

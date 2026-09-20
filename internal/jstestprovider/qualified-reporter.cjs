@@ -1,8 +1,8 @@
 const fs = require('node:fs');
 const crypto = require('node:crypto');
 const childProcess = require('node:child_process');
-const os = require('node:os');
 const path = require('node:path');
+const playwright = require(require.resolve('playwright', {paths: [process.cwd()]}));
 
 const identityKeys = ['browserName', 'defaultBrowserType', 'channel', 'viewport', 'screen', 'userAgent', 'isMobile', 'hasTouch', 'deviceScaleFactor', 'locale', 'timezoneId', 'colorScheme', 'permissions', 'contextOptions', 'launchOptions'];
 
@@ -44,9 +44,12 @@ function effectiveUse(test, project, version) {
   if (version === '1.63.0') {
     const executablePath = resolved.launchOptions?.executablePath || '';
     const observedVersion = executablePath ? childProcess.spawnSync(executablePath, ['--version'], {encoding: 'utf8'}).stdout.trim() : '';
-    const headlessShell = path.join(os.homedir(), 'Library/Caches/ms-playwright/chromium_headless_shell-1243/chrome-mac-arm64/headless_shell');
-    resolved.corvintBrowser = {platform: process.platform, arch: process.arch, nodeVersion: process.version, browserType: resolved.browserName, browserVersion: observedVersion, channel: resolved.channel || '', executablePath, headlessShellAvailable: fs.existsSync(headlessShell)};
-    if (!(resolved.corvintBrowser.platform === 'darwin' && resolved.corvintBrowser.arch === 'arm64' && resolved.corvintBrowser.nodeVersion === 'v22.23.2' && resolved.corvintBrowser.browserType === 'chromium' && resolved.corvintBrowser.browserVersion === 'Google Chrome 153.0.8010.48' && resolved.corvintBrowser.channel === '' && resolved.corvintBrowser.executablePath === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' && resolved.corvintBrowser.headlessShellAvailable === false)) return null;
+    const bundledChromium = playwright.chromium.executablePath();
+    const bundledMatch = bundledChromium.match(/^(.*)\/chromium-(\d+)\//);
+    const headlessShell = bundledMatch ? path.join(bundledMatch[1], `chromium_headless_shell-${bundledMatch[2]}`, 'chrome-headless-shell-mac-arm64', 'chrome-headless-shell') : '';
+    resolved.channel = resolved.channel || '';
+    resolved.corvintBrowser = {platform: process.platform, arch: process.arch, nodeVersion: process.version, browserType: resolved.browserName, browserVersion: observedVersion, channel: resolved.channel, executablePath, headlessShellAvailable: headlessShell !== '' && fs.existsSync(headlessShell)};
+    if (!(resolved.corvintBrowser.platform === 'darwin' && resolved.corvintBrowser.arch === 'arm64' && resolved.corvintBrowser.nodeVersion === 'v22.23.2' && resolved.corvintBrowser.browserType === 'chromium' && resolved.corvintBrowser.browserVersion === 'Google Chrome 153.0.8010.48' && resolved.corvintBrowser.channel === '' && resolved.corvintBrowser.executablePath === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' && resolved.corvintBrowser.headlessShellAvailable === true)) return null;
   }
   return resolved;
 }
