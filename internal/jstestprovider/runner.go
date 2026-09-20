@@ -2,6 +2,7 @@ package jstestprovider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -200,13 +201,14 @@ func errString(err error) string {
 // acceptance line requiring proven descendant cleanup.
 type E2EConfig struct {
 	Config
-	ExternalServer   bool
-	AppIdentity      string
-	ServerArgv       []string
-	ServerReadyURL   string
-	ServerReadyLimit time.Duration
-	AppBuildDir      string // "" => unknown app build identity.
-	TestArgv         []string
+	ExternalServer         bool
+	AppIdentity            string
+	ServerArgv             []string
+	ServerReadyURL         string
+	ServerReadyLimit       time.Duration
+	AppBuildDir            string // "" => unknown app build identity.
+	TestArgv               []string
+	ApplicationAttestation *ApplicationAttestationProvider
 }
 
 // RunE2E starts the app server, waits for it to answer ServerReadyURL, runs
@@ -216,6 +218,9 @@ type E2EConfig struct {
 // and again after the test command completes; a mismatch is reported as
 // StaleAppBuild rather than silently trusted.
 func RunE2E(ctx context.Context, cfg E2EConfig) (Receipt, error) {
+	if cfg.ApplicationAttestation != nil && !cfg.ExternalServer {
+		return Receipt{}, errors.New("application-attestation-requires-external-server")
+	}
 	if cfg.ExternalServer {
 		return runExternal(ctx, cfg)
 	}
