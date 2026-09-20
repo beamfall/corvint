@@ -365,13 +365,8 @@
       "reason": "evidence-backed"
     },
     {
-      "basis": [
-        {
-          "evidenceId": "evidence:sha256:5646c4c30d3a4af8d4750dd9ad92585ab24b26f4583b9b2f13dad3bd893fc265",
-          "relation": "specification"
-        }
-      ],
-      "disposition": "supported",
+      "basis": [],
+      "disposition": "unknown",
       "id": "hunk:sha256:717a15713e9050477ab582e72eef1b13c52f74bd3056d66ce6d312c6e01f14b0",
       "newRange": {
         "count": 135,
@@ -382,7 +377,7 @@
         "start": 0
       },
       "path": "docs/specs/migration-evidence-ratchet-v0.md",
-      "reason": "evidence-backed"
+      "reason": "no-evidence"
     },
     {
       "basis": [
