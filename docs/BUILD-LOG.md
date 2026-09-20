@@ -38,6 +38,16 @@ stale, unreviewed or undeclared joins.
 Final amendment review also required the reverse runtime-assertion check: a runtime event and
 matching expected order cannot invent an assertion absent from the validated test declaration.
 The retained-run regression covers that previously one-way join explicitly.
+The later legacy acceptance amendment adds an independently digested suite/file/case inventory,
+executable/disabled state, extracted observable criteria and fixture/role preconditions. Exact
+reviewed target-to-legacy relations and complete reverse criterion coverage distinguish target
+journey verification from retained legacy runtime parity. Same/stronger preserve the original
+observable tuple; new/obsolete/blocked remain non-parity. Synthetic Build/Open fixtures cover a
+consolidated test dropping one legacy branch and a same-named target changing success criteria.
+Unavailable or disabled legacy runtime remains unknown even with source/docs/product review.
+The supported runtime qualifier reuses retained native Playwright receipts, not a fabricated
+legacy runner adapter. Exact consumer legacy inputs and actual live legacy execution remain
+NOT_OBSERVED; unsupported legacy runners cannot establish runtime parity.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
