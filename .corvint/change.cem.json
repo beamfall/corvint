@@ -90,10 +90,40 @@
         "start": 14015
       },
       "spanSha256": "27c54737296a639287c856b191a402b735640fff5da6086730b4f1ff340f08cb"
+    },
+    {
+      "blobOid": "2166dbd99515f7691c3197fa129ae099b9eeb421",
+      "id": "evidence:sha256:cd009ab4017d1f4709874af4e052a0477bb806403b77b2ce622d265d8468eea0",
+      "path": "docs/specs/affected-plan-v0.md",
+      "span": {
+        "end": 12454,
+        "start": 7714
+      },
+      "spanSha256": "ab37530ba6e39f2e52a9b720ab02ae583826f7f7e47f16fbd591688a69a19b42"
     }
   ],
   "excludedPath": ".corvint/change.cem.json",
   "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:cd009ab4017d1f4709874af4e052a0477bb806403b77b2ce622d265d8468eea0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cdfd48f9495b6b92442aa4f81b13457761149589109ac6293d9ffd1a07fe00e5",
+      "newRange": {
+        "count": 12,
+        "start": 65
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 65
+      },
+      "path": "AGENTS.md",
+      "reason": "evidence-backed"
+    },
     {
       "basis": [
         {
@@ -2555,6 +2585,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "2d761ab6e346108330bc5d72f58447b3833f4eaaccc56def40119effd91fab3e",
+  "patchSha256": "ecd1d4efd54ce956b70dbe78a993391e603b68b500712f39685ea277ed43c113",
   "spec": "cem/0.2"
 }
