@@ -334,10 +334,29 @@ func qualifiedTestID(identity Identity, t TestOutcome) string {
 // QualifiedTestProjection checks receipt-wide prerequisites before projecting a
 // passed test. Consumers must not trust a carried projection or an isolated row.
 func qualifiedUnknown(r Receipt, t TestOutcome) bool {
-	x := r.External
 	if r.Profile != ExternalProfile {
 		return false
 	}
+	if qualifiedBindingUnknown(r, t) {
+		return true
+	}
+	for _, attempt := range t.Attempts {
+		if attempt.State == StateInfrastructure {
+			return true
+		}
+	}
+	return false
+}
+
+// QualifiedReceiptBindingReady verifies the qualified external lifecycle,
+// identity and attempt structure without treating an observed infrastructure
+// outcome itself as an identity failure.
+func QualifiedReceiptBindingReady(r Receipt, t TestOutcome) bool {
+	return r.Profile == ExternalProfile && !r.Cancelled && r.Infrastructure == nil && !r.StaleAppBuild && !qualifiedBindingUnknown(r, t)
+}
+
+func qualifiedBindingUnknown(r Receipt, t TestOutcome) bool {
+	x := r.External
 	if x == nil || x.Ownership != "external" || x.CleanupResponsibility != "external" || !x.ReadyAtStart || !x.ReadyAtPublish || !x.RunnerDescendantsGone || !x.InputsUnchanged {
 		return true
 	}
@@ -375,9 +394,6 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 	}
 	for _, attempt := range t.Attempts {
 		if !knownState(attempt.State) || attempt.Retry < 0 {
-			return true
-		}
-		if attempt.State == StateInfrastructure {
 			return true
 		}
 	}

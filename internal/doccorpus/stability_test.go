@@ -213,6 +213,34 @@ func TestPlaywrightStabilityNegativeControls(t *testing.T) {
 				},
 				wantError: true,
 			},
+			"qualified infrastructure counted": {
+				editReceipt: func(i int, receipt *jstestprovider.Receipt) {
+					if i != 2 {
+						return
+					}
+					receipt.Tests[0].State = jstestprovider.StateInfrastructure
+					receipt.Tests[0].Attempts = []jstestprovider.Attempt{{State: jstestprovider.StateInfrastructure, Retry: 0, FailureKind: "browser-or-fixture"}}
+					receipt.Tests[0].Artifacts = []jstestprovider.FailureArtifact{{Name: "trace", Path: "infrastructure-trace.zip"}}
+				},
+				check: func(t *testing.T, a *Artifact) {
+					report := a.StabilityEvidence[0]
+					if report.Verdict != "not-stable" || report.Counts.InfrastructureFailed != 1 {
+						t.Fatalf("qualified infrastructure outcome hidden: %+v", report)
+					}
+				},
+			},
+			"infrastructure with failed runner cleanup": {
+				editReceipt: func(i int, receipt *jstestprovider.Receipt) {
+					if i != 2 {
+						return
+					}
+					receipt.Tests[0].State = jstestprovider.StateInfrastructure
+					receipt.Tests[0].Attempts = []jstestprovider.Attempt{{State: jstestprovider.StateInfrastructure, Retry: 0, FailureKind: "browser-or-fixture"}}
+					receipt.Tests[0].Artifacts = []jstestprovider.FailureArtifact{{Name: "trace", Path: "infrastructure-trace.zip"}}
+					receipt.External.RunnerDescendantsGone = false
+				},
+				wantError: true,
+			},
 			"stale mapped test source": {
 				editRegistry: func(r *StabilityRegistry) {
 					r.Aggregates[0].Contributions[1].SourcePaths["/repo/test.ts"] = "src/value.go"
@@ -345,6 +373,26 @@ func TestPlaywrightStabilityCountsEarlierTimeoutWithoutErasingRecovery(t *testin
 			t.Fatalf("retry erased prior timeout: %+v", report)
 		}
 	})
+}
+
+func TestPlaywrightStabilityCountsEarlierInfrastructureWithoutErasingRecovery(t *testing.T) {
+	root, manifest := stabilityFixture(t, func(i int, receipt *jstestprovider.Receipt) {
+		if i != 2 {
+			return
+		}
+		receipt.Tests[0].State = jstestprovider.StateFlaky
+		receipt.Tests[0].Retries = 1
+		receipt.Tests[0].Attempts = []jstestprovider.Attempt{{State: jstestprovider.StateInfrastructure, Retry: 0, FailureKind: "browser-or-fixture"}, {State: jstestprovider.StatePassed, Retry: 1, FailureKind: "none"}}
+		receipt.Tests[0].Artifacts = []jstestprovider.FailureArtifact{{Name: "trace", Path: "infrastructure-trace.zip"}}
+	}, nil)
+	artifact, err := Build(context.Background(), root, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := artifact.StabilityEvidence[0]
+	if report.Verdict != "not-stable" || report.Counts.InfrastructureFailed != 1 || report.Counts.Flaky != 1 || report.Counts.RetryConsumed != 1 || report.ContributingReceipts[1].Attempts[0].FailureClass != "infrastructure" {
+		t.Fatalf("retry erased prior infrastructure failure: %+v", report)
+	}
 }
 
 func TestStabilityCountsEveryOutcomeDenominator(t *testing.T) {

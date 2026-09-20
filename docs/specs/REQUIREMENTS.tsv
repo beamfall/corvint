@@ -464,10 +464,10 @@ DCP-V1-018	docs/specs/documentation-corpus-v1.md	119	Input byte bounds apply bef
 DCP-V1-019	docs/specs/documentation-corpus-v1.md	123	Generic fixtures cover Go, JavaScript/TypeScript, Python or Ruby, unsupported an
 DCP-V1-020	docs/specs/documentation-corpus-v1.md	127	A frozen labelled evaluation records per-case truth/denominators, search precisi
 DCP-V1-021	docs/specs/documentation-corpus-v1.md	131	The opt-in `corvint-corpus-behavior-stability-provider/1` profile aggregates onl
-DCP-V1-022	docs/specs/documentation-corpus-v1.md	137	Planned repetitions use a complete unique ordinal set. Playwright retries remain
-DCP-V1-023	docs/specs/documentation-corpus-v1.md	142	Aggregates separately expose planned, started, completed, passed, failed, timed-
-DCP-V1-024	docs/specs/documentation-corpus-v1.md	147	One repository-owned digest-bound policy defines independent one-spec, feature-b
-DCP-V1-025	docs/specs/documentation-corpus-v1.md	150	Corpus `stability` and capability-gated MCP `docs_get_stability` rederive the ag
+DCP-V1-022	docs/specs/documentation-corpus-v1.md	139	Planned repetitions use a complete unique ordinal set. Playwright retries remain
+DCP-V1-023	docs/specs/documentation-corpus-v1.md	144	Aggregates separately expose planned, started, completed, passed, failed, timed-
+DCP-V1-024	docs/specs/documentation-corpus-v1.md	149	One repository-owned digest-bound policy defines independent one-spec, feature-b
+DCP-V1-025	docs/specs/documentation-corpus-v1.md	152	Corpus `stability` and capability-gated MCP `docs_get_stability` rederive the ag
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map

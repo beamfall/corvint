@@ -35,6 +35,10 @@ interruption and infrastructure states. The repair requires explicit source mapp
 behavior-test anchor, recomputes and verifies native projections, fixes the baseline to planned
 repetition one, applies cleanup to every contributor, and retains each earlier attempt category.
 Adversarial regressions cover each finding plus noncontiguous retry ordinals.
+Re-review found that an invalid receipt and a genuine infrastructure outcome shared the same native
+projection. The final repair verifies qualified lifecycle/identity binding independently of outcome
+classification; paired regressions accept a bound infrastructure outcome and refuse the same outcome
+when runner cleanup failed.
 
 ## 2026-09-20 DCP-V1-004/007..013/019: experimental behavior contract ingestion (issue 40)
 

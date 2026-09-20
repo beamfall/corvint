@@ -72,6 +72,21 @@ func TestQualifiedReceiptProjection(t *testing.T) {
 	}
 }
 
+func TestQualifiedReceiptBindingSeparatesInfrastructureOutcomeFromInvalidLifecycle(t *testing.T) {
+	r := qualifiedFixture(t)
+	r.Tests[0].State = StateInfrastructure
+	r.Tests[0].Attempts[0].State = StateInfrastructure
+	r.Tests[0].Attempts[0].FailureKind = "browser-or-fixture"
+	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	if !QualifiedReceiptBindingReady(r, r.Tests[0]) {
+		t.Fatal("qualified infrastructure outcome lost its valid binding")
+	}
+	r.External.RunnerDescendantsGone = false
+	if QualifiedReceiptBindingReady(r, r.Tests[0]) {
+		t.Fatal("failed runner cleanup retained a valid binding")
+	}
+}
+
 func TestQualifiedIdentityStableAcrossScratchAndDistinctAcrossProjects(t *testing.T) {
 	r := qualifiedFixture(t)
 	original := r.Tests[0].ID

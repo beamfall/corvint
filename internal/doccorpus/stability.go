@@ -280,7 +280,8 @@ func (c *compiler) stabilityOutcome(behavior BehaviorRegistry, aggregate Stabili
 	}
 	test := matches[0]
 	receipt := document.Playwright
-	if !stabilityProjectionMatches(test) {
+	native, exact := stabilityNativeOutcome(*receipt, aggregate.TestID, contribution.Identity.Project)
+	if !exact || !jstestprovider.QualifiedReceiptBindingReady(*receipt, *native) || !stabilityProjectionMatches(*native) {
 		return testvaliditydoc.Test{}, nil, fail("unqualified stability test outcome")
 	}
 	identity := contribution.Identity
@@ -293,7 +294,7 @@ func (c *compiler) stabilityOutcome(behavior BehaviorRegistry, aggregate Stabili
 			return testvaliditydoc.Test{}, nil, fail("incomplete stability receipt identity")
 		}
 	}
-	if !c.stabilityInputsBound(identity.TestRevision, contribution.SourcePaths, receipt.Identity) || !stabilityBehaviorTestBound(behavior, aggregate, contribution, test, *receipt) {
+	if !c.stabilityInputsBound(identity.TestRevision, contribution.SourcePaths, receipt.Identity) || !stabilityBehaviorTestBound(behavior, contribution, test, *receipt, *native) {
 		return testvaliditydoc.Test{}, nil, fail("stability test/config source binding mismatch")
 	}
 	if !words("passed failed unknown")[contribution.Cleanup] || len(contribution.Attempts) != len(test.Attempts) || len(contribution.Attempts) == 0 {
@@ -310,9 +311,23 @@ func (c *compiler) stabilityOutcome(behavior BehaviorRegistry, aggregate Stabili
 	return test, receipt, nil
 }
 
-func stabilityProjectionMatches(test testvaliditydoc.Test) bool {
+func stabilityNativeOutcome(receipt jstestprovider.Receipt, testID, project string) (*jstestprovider.TestOutcome, bool) {
+	var matched *jstestprovider.TestOutcome
+	for i := range receipt.Tests {
+		candidate := &receipt.Tests[i]
+		if candidate.ID == testID && candidate.Project != nil && candidate.Project.Name == project {
+			if matched != nil {
+				return nil, false
+			}
+			matched = candidate
+		}
+	}
+	return matched, matched != nil
+}
+
+func stabilityProjectionMatches(outcome jstestprovider.TestOutcome) bool {
 	wantState, wantReason := "", ""
-	switch jstestprovider.ExecutionState(test.State) {
+	switch outcome.State {
 	case jstestprovider.StatePassed, jstestprovider.StateFlaky:
 		wantState = testvalidity.ExecutionPassed
 	case jstestprovider.StateFailed:
@@ -328,7 +343,8 @@ func stabilityProjectionMatches(test testvaliditydoc.Test) bool {
 	default:
 		return false
 	}
-	return test.Projection.Execution.State == wantState && (wantReason == "" || test.Projection.Execution.Reason == wantReason)
+	projection := jstestprovider.ToTestProjection(outcome)
+	return projection.Execution.State == wantState && (wantReason == "" || projection.Execution.Reason == wantReason)
 }
 
 func (c *compiler) stabilityInputsBound(revision string, sourcePaths map[string]string, identity jstestprovider.Identity) bool {
@@ -364,10 +380,10 @@ func (c *compiler) stabilityInputsBound(revision string, sourcePaths map[string]
 	return true
 }
 
-func stabilityBehaviorTestBound(behavior BehaviorRegistry, aggregate StabilityAggregate, contribution StabilityContribution, observed testvaliditydoc.Test, receipt jstestprovider.Receipt) bool {
+func stabilityBehaviorTestBound(behavior BehaviorRegistry, contribution StabilityContribution, observed testvaliditydoc.Test, receipt jstestprovider.Receipt, native jstestprovider.TestOutcome) bool {
 	var declared *BehaviorTest
 	for i := range behavior.Tests {
-		if behavior.Tests[i].ID == aggregate.TestID {
+		if behavior.Tests[i].ID == native.ID {
 			if declared != nil {
 				return false
 			}
@@ -377,16 +393,7 @@ func stabilityBehaviorTestBound(behavior BehaviorRegistry, aggregate StabilityAg
 	if declared == nil || observed.Project == nil || declared.Project != observed.Project.Name || declared.Title != observed.Name || declared.Evidence.Revision != contribution.Identity.TestRevision {
 		return false
 	}
-	var native *jstestprovider.TestOutcome
-	for i := range receipt.Tests {
-		if receipt.Tests[i].ID == aggregate.TestID && receipt.Tests[i].Project != nil && receipt.Tests[i].Project.Name == contribution.Identity.Project {
-			if native != nil {
-				return false
-			}
-			native = &receipt.Tests[i]
-		}
-	}
-	if native == nil || native.Anchor == nil {
+	if native.Anchor == nil {
 		return false
 	}
 	mapped, ok := contribution.SourcePaths[native.Anchor.File]

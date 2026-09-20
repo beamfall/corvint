@@ -226,6 +226,7 @@ Acceptance: `TestPlaywrightStabilityAggregateEndToEnd`,
 `TestPlaywrightStabilityNegativeControls`,
 `TestPlaywrightStabilityPreservesEarlierFailureAndPolicyScopes` and
 `TestPlaywrightStabilityCountsEarlierTimeoutWithoutErasingRecovery`,
+`TestPlaywrightStabilityCountsEarlierInfrastructureWithoutErasingRecovery` and
 `TestStabilityToolIsCapabilityGated` exercise DCP-V1-021..025. Fixtures are synthetic; live repeated
 browser execution, consumer policy qualification, behavior parity and owner acceptance remain open.
 
