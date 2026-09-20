@@ -33,6 +33,56 @@
     },
     {
       "blobOid": "bbbcf7eac44db1ac637f1c48f2ab34c513952511",
+      "id": "evidence:sha256:bf912fec9a77d68b1a43b3719dbc07f2d75aeab6955a866bb43db7f8f56a7b4f",
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "span": {
+        "end": 3692,
+        "start": 3212
+      },
+      "spanSha256": "7ce7c7c66c92090b489100b107920d12d610a295e0716abdcc2a74fdb3e641f2"
+    },
+    {
+      "blobOid": "bbbcf7eac44db1ac637f1c48f2ab34c513952511",
+      "id": "evidence:sha256:a9eba1f85c44e5e0b035b80dd26744e4a0c435d18380348f225bf138141da94f",
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "span": {
+        "end": 5374,
+        "start": 4682
+      },
+      "spanSha256": "6e4316bcf701b76915542a7d0e7a93f918325f2c510ec75f74793dc7c27d6acc"
+    },
+    {
+      "blobOid": "bbbcf7eac44db1ac637f1c48f2ab34c513952511",
+      "id": "evidence:sha256:18451d2c969f3bf98ddbac99743c2eaf19edeaeb90e6994c5f76fd5815a90186",
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "span": {
+        "end": 6130,
+        "start": 5374
+      },
+      "spanSha256": "1f85193b61e5d53ea680edcb155c45d4b97e13c0c5df25d2936c99591995b118"
+    },
+    {
+      "blobOid": "bbbcf7eac44db1ac637f1c48f2ab34c513952511",
+      "id": "evidence:sha256:59dd4d0c29e2ff083461bcdc9ebf09f2842adfda83d4f3a8a5e0c9f4f2cb1ae8",
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "span": {
+        "end": 6838,
+        "start": 6535
+      },
+      "spanSha256": "6ce461fb73c65bfad1ffe101bf09ddf229eda7164d622516cbb270292bc55385"
+    },
+    {
+      "blobOid": "bbbcf7eac44db1ac637f1c48f2ab34c513952511",
+      "id": "evidence:sha256:b144326188c1a643f8c4289635646d51eb6994cc560134ba4dd2aeeb864625d1",
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "span": {
+        "end": 11071,
+        "start": 10578
+      },
+      "spanSha256": "03754d1cee30c404af5dbfea27956ccc4de31315ec80acac5008abe2876e76de"
+    },
+    {
+      "blobOid": "bbbcf7eac44db1ac637f1c48f2ab34c513952511",
       "id": "evidence:sha256:e2bf475c5f405a8b16372d5e87a19f243c85df50d59918f37ad03263e96efa1a",
       "path": "docs/specs/documentation-corpus-v1.md",
       "span": {
@@ -53,16 +103,6 @@
     },
     {
       "blobOid": "bbbcf7eac44db1ac637f1c48f2ab34c513952511",
-      "id": "evidence:sha256:a9eba1f85c44e5e0b035b80dd26744e4a0c435d18380348f225bf138141da94f",
-      "path": "docs/specs/documentation-corpus-v1.md",
-      "span": {
-        "end": 5374,
-        "start": 4682
-      },
-      "spanSha256": "6e4316bcf701b76915542a7d0e7a93f918325f2c510ec75f74793dc7c27d6acc"
-    },
-    {
-      "blobOid": "bbbcf7eac44db1ac637f1c48f2ab34c513952511",
       "id": "evidence:sha256:90bbd22cf56fd6a2b939b3f20e87969f4c96d54431f6960e8867ab2477fd3ab6",
       "path": "docs/specs/documentation-corpus-v1.md",
       "span": {
@@ -70,16 +110,6 @@
         "start": 4682
       },
       "spanSha256": "1fdf492732ef10684fd21817f68d64a2a31b7f9c81e21254cf3603bc8ed1184e"
-    },
-    {
-      "blobOid": "bbbcf7eac44db1ac637f1c48f2ab34c513952511",
-      "id": "evidence:sha256:59dd4d0c29e2ff083461bcdc9ebf09f2842adfda83d4f3a8a5e0c9f4f2cb1ae8",
-      "path": "docs/specs/documentation-corpus-v1.md",
-      "span": {
-        "end": 6838,
-        "start": 6535
-      },
-      "spanSha256": "6ce461fb73c65bfad1ffe101bf09ddf229eda7164d622516cbb270292bc55385"
     },
     {
       "blobOid": "bbbcf7eac44db1ac637f1c48f2ab34c513952511",
@@ -102,9 +132,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:74067eb8cd21a65ce3305fc4b172f6e9531b1bd5875ffc887fb70e915a04dfc9",
+      "id": "hunk:sha256:00d98a9240c61f26029a19f789471cc11829b18479b3c4967c24ed0ce907c2f0",
       "newRange": {
-        "count": 26,
+        "count": 38,
         "start": 7
       },
       "oldRange": {
@@ -142,9 +172,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:8897d77c8bf5feb9c12b4ce63a73c47e4c265b5af26696aeafa4c3c69b80b920",
+      "id": "hunk:sha256:4541eba2eaa9e2b0f35e3052c5c3cfbe1492b1051fe2e99cbe618a595db3e78b",
       "newRange": {
-        "count": 48,
+        "count": 65,
         "start": 129
       },
       "oldRange": {
@@ -157,14 +187,30 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:2bda72a2a9a3aeaa3ad631b5cf5261e6f579e33cc895e111a84eedb9d6c2bdb6",
+          "evidenceId": "evidence:sha256:bf912fec9a77d68b1a43b3719dbc07f2d75aeab6955a866bb43db7f8f56a7b4f",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:a9eba1f85c44e5e0b035b80dd26744e4a0c435d18380348f225bf138141da94f",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:18451d2c969f3bf98ddbac99743c2eaf19edeaeb90e6994c5f76fd5815a90186",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:59dd4d0c29e2ff083461bcdc9ebf09f2842adfda83d4f3a8a5e0c9f4f2cb1ae8",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:e7d25131da6b9e89e20b2e941d67a20be93bfbf119429a876445a27244b3d9f3",
           "relation": "specification"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:0e2ec76c28aa4e5e9a6f1b816235e32213b6254f67db119c87c97b50bf7661ab",
+      "id": "hunk:sha256:a775217ef81a12c3f5083ed4a7e1dcddbf2224ed2d564042dfc5650247568a0d",
       "newRange": {
-        "count": 438,
+        "count": 629,
         "start": 1
       },
       "oldRange": {
@@ -177,14 +223,14 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:cc33299cee0e139560e57bf067589d463fd5e9bfd86fdb39f774aa93eca0c0d5",
+          "evidenceId": "evidence:sha256:b144326188c1a643f8c4289635646d51eb6994cc560134ba4dd2aeeb864625d1",
           "relation": "specification"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:3613ad8b66f75022551efa135cb0d2a1adf3df142e89b587101661dd188d181a",
+      "id": "hunk:sha256:debcbf04ca7fbe87dcae041b610084b4e12971e0058913ab1594a3ca402b991d",
       "newRange": {
-        "count": 269,
+        "count": 460,
         "start": 1
       },
       "oldRange": {
@@ -377,15 +423,35 @@
     {
       "basis": [
         {
+          "evidenceId": "evidence:sha256:57da26a80e602db7ae6b915e7320d71dcc6a2536959d90e7cfae2559422ba403",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:24b10da2c7471d775b1326899d062cba34a281b7f4c12b977d03b6fe076c9467",
+      "newRange": {
+        "count": 15,
+        "start": 45
+      },
+      "oldRange": {
+        "count": 14,
+        "start": 45
+      },
+      "path": "internal/doccorpus/types.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
           "evidenceId": "evidence:sha256:a9eba1f85c44e5e0b035b80dd26744e4a0c435d18380348f225bf138141da94f",
           "relation": "specification"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:2d134f47b52ae5dcff66a10974c90aa9662089712587244486274091779a0310",
+      "id": "hunk:sha256:02ca705211de38a1e8d71c743feb1e3ef577cc547612c06ada626f6242500423",
       "newRange": {
         "count": 8,
-        "start": 129
+        "start": 130
       },
       "oldRange": {
         "count": 6,
@@ -402,10 +468,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:2180dcfd4969e78fac7e195d533c308282a1da17753cd58590c982babeb2077b",
+      "id": "hunk:sha256:fc1f6373c74d34d135bd462bf7c488ee1fd754e3237cb9d00726a2fd00ae6809",
       "newRange": {
         "count": 17,
-        "start": 157
+        "start": 158
       },
       "oldRange": {
         "count": 16,
@@ -422,10 +488,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:7992550915d87f42680a42fa173d4e8eadc95300fdfe0ebfeda64e900929fc43",
+      "id": "hunk:sha256:c4d978a01ba0c7a1e20a23d8c2d0e254cf19e3b5500436c6c2226d72fa9d0262",
       "newRange": {
         "count": 21,
-        "start": 186
+        "start": 187
       },
       "oldRange": {
         "count": 20,
@@ -435,6 +501,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "af26b3d00498a10905f0d8a9bfa1678864eb69af05704e969fb6edec29416482",
+  "patchSha256": "e00781f92ae2261acb19f77887638cb6689f5150682aa8139292f61864f30d78",
   "spec": "cem/0.2"
 }
