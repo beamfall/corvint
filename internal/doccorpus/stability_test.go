@@ -17,8 +17,12 @@ func stabilityFixture(t *testing.T, editReceipt func(int, *jstestprovider.Receip
 }
 
 func stabilityFixtureWithTopology(t *testing.T, editReceipt func(int, *jstestprovider.Receipt), editRegistry func(*StabilityRegistry), editTopology func(*StabilityTopology, []StabilityTopology)) (string, Manifest) {
+	return stabilityFixtureWithBehavior(t, nil, editReceipt, editRegistry, editTopology)
+}
+
+func stabilityFixtureWithBehavior(t *testing.T, editBehavior func(*BehaviorRegistry), editReceipt func(int, *jstestprovider.Receipt), editRegistry func(*StabilityRegistry), editTopology func(*StabilityTopology, []StabilityTopology)) (string, Manifest) {
 	t.Helper()
-	root, manifest := behaviorFixtureWithRun(t, nil, true)
+	root, manifest := behaviorFixtureWithRun(t, editBehavior, true)
 	providerPath := manifest.Providers[len(manifest.Providers)-1].Record
 	providerBytes, err := os.ReadFile(filepath.Join(root, providerPath))
 	if err != nil {
@@ -197,6 +201,20 @@ func stabilityFixtureWithTopology(t *testing.T, editReceipt func(int, *jstestpro
 		}
 	}
 	return root, manifest
+}
+
+func TestBehaviorLegacyAndStabilityIntegration(t *testing.T) {
+	root, manifest := stabilityFixtureWithBehavior(t, legacyFixture, nil, nil, nil)
+	artifact, err := Build(context.Background(), root, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(artifact.BehaviorContracts) != 1 || len(artifact.BehaviorContracts[0].LegacyRuntimeParity) != 1 || artifact.BehaviorContracts[0].Registry.Stability != nil {
+		t.Fatalf("legacy behavior axis was not preserved independently: %+v", artifact.BehaviorContracts)
+	}
+	if len(artifact.StabilityEvidence) != 1 || artifact.StabilityEvidence[0].Verdict != "clean" {
+		t.Fatalf("stability axis was not preserved independently: %+v", artifact.StabilityEvidence)
+	}
 }
 
 func TestPlaywrightStabilityAggregateEndToEnd(t *testing.T) {

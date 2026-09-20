@@ -11,18 +11,19 @@ import (
 const BehaviorProviderSchema = "corvint-corpus-behavior-provider/1"
 
 type BehaviorRegistry struct {
-	Revisions             BehaviorRevisions  `json:"revisions"`
-	Discovery             Anchor             `json:"discovery"`
-	Schema                int                `json:"schema"`
-	ContractID            string             `json:"contract_id"`
-	ContractSHA256        string             `json:"contract_sha256"`
-	SourceRevision        string             `json:"source_revision"`
-	DocumentationRevision string             `json:"documentation_revision"`
-	Manifest              Anchor             `json:"migration_manifest"`
-	Flows                 []BehaviorFlow     `json:"flows"`
-	Behaviors             []BehaviorSource   `json:"source_behaviors"`
-	Tests                 []BehaviorTest     `json:"tests"`
-	Stability             *StabilityRegistry `json:"stability,omitempty"`
+	Revisions             BehaviorRevisions    `json:"revisions"`
+	Discovery             Anchor               `json:"discovery"`
+	Schema                int                  `json:"schema"`
+	ContractID            string               `json:"contract_id"`
+	ContractSHA256        string               `json:"contract_sha256"`
+	SourceRevision        string               `json:"source_revision"`
+	DocumentationRevision string               `json:"documentation_revision"`
+	Manifest              Anchor               `json:"migration_manifest"`
+	Flows                 []BehaviorFlow       `json:"flows"`
+	Behaviors             []BehaviorSource     `json:"source_behaviors"`
+	Tests                 []BehaviorTest       `json:"tests"`
+	Legacy                []BehaviorLegacyCase `json:"legacy,omitempty"`
+	Stability             *StabilityRegistry   `json:"stability,omitempty"`
 }
 type BehaviorMigration struct {
 	Revisions             BehaviorRevisions `json:"revisions"`
@@ -65,14 +66,17 @@ type BehaviorSource struct {
 	Flows    []string `json:"flows"`
 }
 type BehaviorTest struct {
-	ID         string              `json:"id"`
-	Project    string              `json:"project"`
-	Title      string              `json:"title"`
-	Evidence   Anchor              `json:"evidence"`
-	Flows      []string            `json:"flows"`
-	Criteria   []string            `json:"criteria"`
-	Assertions []BehaviorAssertion `json:"assertions"`
-	Runtime    *BehaviorRuntime    `json:"runtime,omitempty"`
+	ID         string                  `json:"id"`
+	Project    string                  `json:"project"`
+	Title      string                  `json:"title"`
+	Evidence   Anchor                  `json:"evidence"`
+	Flows      []string                `json:"flows"`
+	Criteria   []string                `json:"criteria"`
+	Assertions []BehaviorAssertion     `json:"assertions"`
+	Runtime    *BehaviorRuntime        `json:"runtime,omitempty"`
+	Legacy     []BehaviorLegacyMapping `json:"legacy_criteria,omitempty"`
+	Fixtures   []string                `json:"fixtures,omitempty"`
+	Roles      []string                `json:"roles,omitempty"`
 }
 type BehaviorAssertion struct {
 	ID         string `json:"id"`
@@ -90,6 +94,8 @@ type BehaviorRuntime struct {
 
 // BehaviorRun is a separate, digest-pinned ordered witness, not a passing-test claim.
 type BehaviorRun struct {
+	Fixtures              []string          `json:"fixtures,omitempty"`
+	Roles                 []string          `json:"roles,omitempty"`
 	Revisions             BehaviorRevisions `json:"revisions"`
 	Schema                string            `json:"schema"`
 	ContractID            string            `json:"contract_id"`
@@ -120,15 +126,16 @@ type BehaviorEvent struct {
 	Passed     bool   `json:"passed"`
 }
 type BehaviorReport struct {
-	Discovery       BehaviorDiscovery `json:"discovery"`
-	Provider        string            `json:"provider"`
-	Registry        BehaviorRegistry  `json:"registry"`
-	VerifiedTests   []string          `json:"verified_tests"`
-	LinkedFlows     []string          `json:"linked_flows"`
-	LinkedBehaviors []string          `json:"linked_behaviors"`
-	VerifiedFlows   []string          `json:"verified_flows"`
-	Fallback        string            `json:"fallback"`
-	Limitations     []string          `json:"limitations"`
+	Discovery           BehaviorDiscovery `json:"discovery"`
+	Provider            string            `json:"provider"`
+	Registry            BehaviorRegistry  `json:"registry"`
+	VerifiedTests       []string          `json:"verified_tests"`
+	LinkedFlows         []string          `json:"linked_flows"`
+	LinkedBehaviors     []string          `json:"linked_behaviors"`
+	VerifiedFlows       []string          `json:"verified_flows"`
+	Fallback            string            `json:"fallback"`
+	Limitations         []string          `json:"limitations"`
+	LegacyRuntimeParity []string          `json:"legacy_runtime_parity"`
 }
 
 func uniqueIdentities(values []string) bool {
@@ -169,6 +176,10 @@ func (c *compiler) importBehavior(p Provider, r *BehaviorRegistry) error {
 	declarations.ContractSHA256 = ""
 	declarations.Stability = nil
 	declarations.Tests = slices.Clone(r.Tests)
+	declarations.Legacy = slices.Clone(r.Legacy)
+	for i := range declarations.Legacy {
+		declarations.Legacy[i].Runtime = nil
+	}
 	for i := range declarations.Tests {
 		declarations.Tests[i].Runtime = nil
 	}
@@ -231,6 +242,9 @@ func (c *compiler) importBehavior(p Provider, r *BehaviorRegistry) error {
 	}
 	if !uniqueIdentities(ids) {
 		return fail("duplicate behavior identity")
+	}
+	if err := c.importBehaviorLegacy(r); err != nil {
+		return err
 	}
 	published := *r
 	published.Stability = nil
@@ -417,6 +431,7 @@ func (c *compiler) compileBehavior(report *BehaviorReport) {
 			c.behaviorGap(execution.ID, "unreviewed-join", "live-discovered execution has no behavior contract")
 		}
 	}
+	c.compileBehaviorLegacy(report)
 }
 
 func behaviorAssertionDeclared(r BehaviorRegistry, t BehaviorTest, criterion string) bool {
@@ -470,6 +485,9 @@ func (c *compiler) behaviorRunVerified(r BehaviorRegistry, test BehaviorTest) bo
 	}
 	var run BehaviorRun
 	if decode(source.Data, &run) != nil {
+		return false
+	}
+	if !slices.Equal(run.Fixtures, test.Fixtures) || !slices.Equal(run.Roles, test.Roles) {
 		return false
 	}
 	if run.Schema != "corvint-behavior-run/1" || run.ContractID != r.ContractID || run.ContractSHA256 != r.ContractSHA256 || run.SourceRevision != r.SourceRevision || run.DocumentationRevision != r.DocumentationRevision || run.Revisions != r.Revisions || run.TestID != test.ID || run.Project != test.Project || run.Retry < 0 || run.Cleanup != "passed" || len(run.Events) == 0 || len(run.Events) > MaxRecords {

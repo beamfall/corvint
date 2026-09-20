@@ -19,6 +19,9 @@ func behaviorFixture(t *testing.T, edit func(*BehaviorRegistry)) (string, Manife
 	return behaviorFixtureWithRun(t, edit, false)
 }
 func behaviorFixtureWithRun(t *testing.T, edit func(*BehaviorRegistry), runtime bool, runtimeEdits ...func(*BehaviorRun)) (string, Manifest) {
+	return behaviorFixtureWithAllRuns(t, edit, runtime, nil, runtimeEdits...)
+}
+func behaviorFixtureWithAllRuns(t *testing.T, edit func(*BehaviorRegistry), runtime bool, legacyEdit func(*BehaviorLegacyRun), runtimeEdits ...func(*BehaviorRun)) (string, Manifest) {
 	t.Helper()
 	root, m := fixture(t)
 	retain := func(path string, value any, purpose string) Anchor {
@@ -77,6 +80,9 @@ func behaviorFixtureWithRun(t *testing.T, edit func(*BehaviorRegistry), runtime 
 		native.Tests = []jstestprovider.TestOutcome{outcome}
 		r.Tests[0].ID = outcome.ID
 		r.Flows[0].Tests = []string{outcome.ID}
+		for i := range r.Legacy {
+			r.Legacy[i].RuntimeTestID, r.Legacy[i].RuntimeProject = outcome.ID, outcome.Project.Name
+		}
 	}
 	discovery := BehaviorDiscovery{Schema: "corvint-playwright-discovery/1", Mode: "live-playwright-list", Revisions: r.Revisions, Config: declaredEvidence(t, root, m, "src/value.go", 1).Anchors[0]}
 	for _, test := range r.Tests {
@@ -87,7 +93,12 @@ func behaviorFixtureWithRun(t *testing.T, edit func(*BehaviorRegistry), runtime 
 	}
 	r.Discovery = retain("evidence/discovery.json", discovery, "evidence")
 	r.Discovery.Kind = "observed"
-	r.ContractSHA256 = hashValue(r)
+	declarations := r
+	declarations.Legacy = slices.Clone(r.Legacy)
+	for i := range declarations.Legacy {
+		declarations.Legacy[i].Runtime = nil
+	}
+	r.ContractSHA256 = hashValue(declarations)
 	p := ProviderRecord{Schema: BehaviorProviderSchema, ID: "behavior", Version: "1", Source: m.Repository, BehaviorContracts: &r}
 	if runtime {
 		nativeBytes, err := jstestprovider.EncodeQualified(native)
@@ -99,6 +110,7 @@ func behaviorFixtureWithRun(t *testing.T, edit func(*BehaviorRegistry), runtime 
 		}
 		nativeAnchor := retain("evidence/native.json", nativeBytes, "observation")
 		witness := BehaviorRun{Revisions: r.Revisions, Schema: "corvint-behavior-run/1", ContractID: r.ContractID, ContractSHA256: r.ContractSHA256, SourceRevision: r.SourceRevision, DocumentationRevision: r.DocumentationRevision, RunSHA256: nativeAnchor.SHA256, TestID: r.Tests[0].ID, Project: r.Tests[0].Project, Cleanup: "passed", Events: behaviorEvents("count-visible")}
+		witness.Fixtures, witness.Roles = r.Tests[0].Fixtures, r.Tests[0].Roles
 		for _, edit := range runtimeEdits {
 			edit(&witness)
 		}
@@ -109,6 +121,20 @@ func behaviorFixtureWithRun(t *testing.T, edit func(*BehaviorRegistry), runtime 
 		p.Subjects = []Subject{{ID: "behavior:test", Kind: "test", Name: r.Tests[0].Title, Provider: "behavior", Evidence: evidence}}
 		p.Capabilities = []CapabilityDeclaration{{"subjects", "present", "synthetic test"}, {"observations", "present", "synthetic qualified retained receipt"}}
 		p.Observations = []ObservationLink{{ID: "behavior:run", Subject: "behavior:test", Input: nativeAnchor.Path, InputRevision: nativeAnchor.Revision, SourceRevision: r.SourceRevision, RunID: nativeAnchor.SHA256, Test: r.Tests[0].Title, TestID: r.Tests[0].ID, Project: r.Tests[0].Project, SourcePaths: map[string]string{"/repo/config.cjs": "src/value.go", "/repo/test.ts": "src/view.ts"}}}
+		for i := range r.Legacy {
+			legacy := &r.Legacy[i]
+			if legacy.Runtime == nil {
+				continue
+			}
+			legacyRun := BehaviorLegacyRun{Schema: "corvint-legacy-behavior-run/1", ContractSHA256: r.ContractSHA256, Revisions: r.Revisions, CaseID: legacy.ID, SourceSHA256: legacy.Evidence.SHA256, RunSHA256: nativeAnchor.SHA256, TestID: r.Tests[0].ID, Project: r.Tests[0].Project, Cleanup: "passed", Fixtures: legacy.Fixtures, Roles: legacy.Roles, Criteria: legacy.Criteria}
+			legacyRun.Criteria = slices.Clone(legacy.Criteria)
+			if legacyEdit != nil {
+				legacyEdit(&legacyRun)
+			}
+			anchor := retain("evidence/legacy-"+legacy.ID+".json", legacyRun, "evidence")
+			anchor.Kind = "observed"
+			legacy.Runtime = &BehaviorRuntime{Evidence: anchor, Observation: "behavior:run"}
+		}
 	}
 	a := retain("docs/migrations/test-behavior-contracts.json", p, "provider")
 	m.Providers = append(m.Providers, Provider{"behavior", "records", "1", a.Revision, a.Path})

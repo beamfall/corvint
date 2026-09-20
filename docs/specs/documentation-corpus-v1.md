@@ -193,7 +193,7 @@ IDs/projects/source anchors. The retained native run must use that configuration
 inventory supplies the project-execution denominator, including executions with no contract, which
 remain unreviewed gaps. The issue comment's 463 executions in 117 files is a consumer observation,
 not reproduced locally; synthetic tests assert their own bound denominator instead.
-The contract SHA-256 uses canonical registry bytes with an empty digest and all test runtime fields
+The contract SHA-256 uses canonical registry bytes with an empty digest and all target/legacy runtime fields
 omitted. Runtime and provider artifacts are committed separately, avoiding self-referential hashes.
 
 An optional runtime anchor names a full `corvint-behavior-run/1` artifact containing matching
@@ -217,9 +217,31 @@ Coverage exposes independent documented-flow, source-discovered-behavior, discov
 execution and verified-contract denominators; zero remains undefined. All outcomes preserve full
 relevant-suite fallback. Rollback removes this opt-in profile without changing legacy inputs.
 
+The optional `legacy` inventory pins each suite/case ID and exact source file/revision/digest/span,
+`executable` or `disabled` state, fixture/role preconditions, and extracted criterion IDs with
+anchored matcher/locator/expected-value tuples. Every target criterion needs a reviewed
+`legacy_criteria` relation to a specific case/criterion: `same`, `stronger`, `new`, `obsolete` or
+`blocked`. Both same and stronger must retain the original observable tuple; stronger may add
+assertions, never replace that result. Every legacy criterion needs a reverse mapping from a fully
+eligible parity target (observable, runtime and preconditions all qualify), including
+branches consolidated into one target test. Missing inventory/mappings stay unreviewed, never parity.
+
+`legacy_runtime_parity` is separate from target `verified_tests`/journey verification. Only an
+executable baseline with a pinned observed `corvint-legacy-behavior-run/1` witness can qualify: exact
+contract/revision set, case/source digest, fixture/role preconditions, all extracted criteria,
+native receipt/test/project/retry identity and passed cleanup. The supported qualifier is the
+existing retained native Playwright receipt boundary, including source/configuration rebinding and
+unknown served-app freshness; unsupported legacy runners retain unknown runtime baseline. Target
+run preconditions must also match, and mappings must retain identical baseline preconditions.
+New/obsolete/blocked classifications never count as runtime parity. Source extraction, generated
+prose or product review cannot substitute for legacy execution; disabled/unavailable baselines emit
+`legacy-runtime-unknown`. Exact consumer legacy input and live legacy execution are NOT_OBSERVED.
+These remain external provider declarations, not semantic equivalence or authenticated execution.
+
 Acceptance: `TestBehaviorContractCorpusRoundTrip`, `TestBehaviorContractGaps`,
 `TestBehaviorOrderedRuntime`, `TestBehaviorQualifiedReceiptEndToEnd`, `TestBehaviorAcceptanceAmendment` and
-`TestBehaviorExactProjectObservation` exercise `DCP-V1-004`,
+`TestBehaviorExactProjectObservation`, `TestBehaviorLegacyParity` and
+`TestBehaviorLegacyAndStabilityIntegration` exercise `DCP-V1-004`,
 `DCP-V1-007..013` and `DCP-V1-019`. Owner acceptance and real consumer fixtures remain promotion gates.
 
 ### Experimental repeated Playwright stability evidence (issue 42)
