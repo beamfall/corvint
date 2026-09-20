@@ -31,7 +31,7 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"playwright.config.cjs", "external.spec.cjs", "override.spec.cjs", "dynamic.spec.cjs", "setup.cjs", "teardown.cjs"} {
+	for _, name := range []string{"playwright.config.cjs", "external.spec.cjs", "override.spec.cjs", "dynamic.spec.cjs", "custom.spec.cjs", "retry.spec.cjs", "setup.cjs", "teardown.cjs"} {
 		data, err := os.ReadFile(filepath.Join("testdata", "external", name))
 		if err != nil {
 			t.Fatal(err)
@@ -172,6 +172,18 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	dynamic, err := jstestprovider.RunE2E(context.Background(), cfg)
 	if err != nil || dynamic.Infrastructure == nil || len(dynamic.Tests) != 1 || jstestprovider.ReceiptTestProjection(dynamic, dynamic.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
 		t.Fatalf("executable override became green: %v %+v", err, dynamic.Infrastructure)
+	}
+	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "custom.spec.cjs"))
+	cfg.TestArgv = []string{"custom.spec.cjs", "--project=chromium"}
+	custom, err := jstestprovider.RunE2E(context.Background(), cfg)
+	if err != nil || custom.Infrastructure == nil || len(custom.Tests) != 1 || jstestprovider.ReceiptTestProjection(custom, custom.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+		t.Fatalf("custom fixture metadata became green: %v %+v", err, custom.Infrastructure)
+	}
+	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "retry.spec.cjs"))
+	cfg.TestArgv = []string{"retry.spec.cjs", "--project=chromium", "--retries=1"}
+	retried, err := jstestprovider.RunE2E(context.Background(), cfg)
+	if err != nil || retried.Infrastructure != nil || len(retried.Tests) != 1 || retried.Tests[0].State != jstestprovider.StateFlaky || retried.Tests[0].Retries != 1 || len(retried.Tests[0].Attempts) != 2 || retried.Tests[0].Attempts[0].State != jstestprovider.StateFailed || retried.Tests[0].Attempts[1].State != jstestprovider.StatePassed {
+		t.Fatalf("retry state lost: %v %+v", err, retried)
 	}
 	t.Run("PWP-V0-006 cancellation-preserves-external-server", func(t *testing.T) {
 		cfg.TestArgv = []string{"external.spec.cjs", "--project=chromium", "--grep=cancellation"}

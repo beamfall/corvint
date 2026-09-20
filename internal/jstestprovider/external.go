@@ -23,8 +23,11 @@ import (
 )
 
 const ExternalProfile = "corvint-playwright-external/0"
-const QualifiedPlaywrightVersion = "1.60.0"
 const externalOutputLimit = 4 << 20
+
+func qualifiedPlaywrightVersion(version string) bool {
+	return version == "1.60.0" || version == "1.63.0"
+}
 
 //go:embed qualified-reporter.cjs
 var qualifiedReporter []byte
@@ -153,7 +156,7 @@ func explainedPlaywrightFailure(tests []TestOutcome) bool {
 }
 
 func admitExternal(c E2EConfig) error {
-	if c.RunnerVersion != QualifiedPlaywrightVersion {
+	if !qualifiedPlaywrightVersion(c.RunnerVersion) {
 		return errors.New("external-playwright-version-unqualified")
 	}
 	bound, _ := json.Marshal(struct {
@@ -370,7 +373,7 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 	if !filepath.IsAbs(r.Identity.ConfigFile) || len(r.Identity.Argv) == 0 || r.Identity.RunnerName != "playwright" {
 		return true
 	}
-	if r.Identity.RunnerVersion != QualifiedPlaywrightVersion {
+	if !qualifiedPlaywrightVersion(r.Identity.RunnerVersion) {
 		return true
 	}
 	for _, attempt := range t.Attempts {

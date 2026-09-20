@@ -90,6 +90,15 @@ func TestExternalAdmission(t *testing.T) {
 	if err := admitExternal(base); err != nil {
 		t.Fatal(err)
 	}
+	base.RunnerVersion = "1.63.0"
+	if err := admitExternal(base); err != nil {
+		t.Fatal(err)
+	}
+	base.RunnerVersion = "1.62.0"
+	if admitExternal(base) == nil {
+		t.Fatal("unqualified Playwright version admitted")
+	}
+	base.RunnerVersion = "1.60.0"
 	for _, arg := range []string{"--config=evil", "--reporter=json", "--global-setup=evil", "--ui", "--debug"} {
 		c := base
 		c.TestArgv = []string{arg}

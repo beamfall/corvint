@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-20
 Intent status: accepted
-Delivery status: validated (local Playwright 1.60.0 matrix)
+Delivery status: validated (local Playwright 1.60.0 and 1.63.0 matrices)
 Profile: `corvint-playwright-external/0`
 Inputs: GitHub issue #19; AGENTS.md invariants 1–8; decision 0179.
 Owner acceptance: in the 2026-09-20 issue-resolution task, the owner explicitly approved accepting
@@ -11,7 +11,7 @@ and shipping this PWP-V0 profile while retaining the default offline boundary an
 
 ## Agent digest
 - Claim: Explicit external-server Playwright runs retain attributable project outcomes without application-server ownership.
-- Status: accepted; validated (local Playwright 1.60.0 matrix).
+- Status: accepted; validated (local Playwright 1.60.0 and 1.63.0 matrices).
 - Exists: `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
 - Blocked on: no implementation gap; owner-selected changed-feature checks and separate live witnesses govern final completion. Other Playwright versions, Vitest and LPCV authority remain unqualified.
@@ -49,13 +49,15 @@ changes rerun live qualification. Acceptance and passing qualification are both 
 
 ## Traceability
 
-Qualification runtime: Playwright **1.60.0** and its installed Chromium browser, tested locally on
-Darwin. External mode refuses other runner versions until their effective-fixture metadata is
-qualified. The 1.60.0 in-process reporter exposes literal fixture defaults and nested `test.use`
+Qualification runtimes: Playwright **1.60.0** and **1.63.0**, each with its installed Chromium
+browser, tested locally on Darwin. External mode refuses other runner versions until their
+effective-fixture metadata is qualified. Both in-process reporter ABIs expose literal fixture defaults and nested `test.use`
 overrides; the provider resolves those with project options and preserves the effective browser,
 viewport and device settings. Missing metadata, executable option fixtures or custom browser/context/
 page fixtures produce unknown identity and never passing execution. A device label remains `unknown`
 unless declared in project metadata; effective device parameters are retained independently.
+The added qualified tuple is `@playwright/test@1.63.0` / Chromium 153.0.8010.12
+(`chromium-1243`, macOS arm64).
 
 Relative global setup/teardown modules resolve from the original config directory. Imported CommonJS
 source inputs are hashed at collection and compared again before publication. Configuration loaded
@@ -66,8 +68,15 @@ without the exact profile discriminator is refused by the legacy reader.
 Run the explicit fixture with `CORVINT_PLAYWRIGHT_MODULES` naming an already-installed `node_modules`
 directory and `go test -count=1 -timeout 5m ./internal/jstestprovider -run TestQualifiedPlaywrightLive -v`.
 No browser or npm package is downloaded by the provider or ordinary Go gate. The live matrix includes
-real pass/assertion/timeout/browser-infrastructure cases, inherited webServer suppression, relative
-hooks, two projects, literal and executable overrides, cancellation, and retained MCP discovery.
+real pass/assertion/timeout/browser-infrastructure cases, retry/flaky state, inherited webServer
+suppression, relative hooks, two projects, literal, executable and custom-fixture overrides,
+cancellation, and retained MCP discovery.
+
+For an externally managed application already listening at `http://127.0.0.1:3002`, run this exact
+provider command from the application root after replacing the bound config and test paths with the
+application's checked-in paths:
+
+`corvint-js-test-provider e2e --dir . --config playwright.config.ts --package-json package.json --lockfile package-lock.json --runner-version 1.63.0 --external-server --app-identity app-at-3002 --server-ready-url http://127.0.0.1:3002 --test-file tests/e2e/example.spec.ts --test-arg tests/e2e/example.spec.ts --retain`
 
 | Requirements | Implementation | Evidence |
 |---|---|---|

@@ -3,10 +3,10 @@ const crypto = require('node:crypto');
 
 const identityKeys = ['browserName', 'defaultBrowserType', 'channel', 'viewport', 'screen', 'userAgent', 'isMobile', 'hasTouch', 'deviceScaleFactor', 'locale', 'timezoneId', 'colorScheme', 'permissions', 'contextOptions', 'launchOptions'];
 
-// Qualified against 1.60.0's in-process reporter objects. Serialization or a
+// Qualified against 1.60.0 and 1.63.0 in-process reporter objects. Serialization or a
 // custom executable fixture can erase effective options; that is unknown.
 function effectiveUse(test, project, version) {
-  if (version !== '1.60.0' || !Array.isArray(test._testType?.fixtures)) return null;
+  if (!['1.60.0', '1.63.0'].includes(version) || !Array.isArray(test._testType?.fixtures)) return null;
   const use = {};
   const assign = (fixtures, builtin) => {
     if (!builtin && ['browser', 'context', 'page', 'playwright', '_combinedContextOptions'].some(k => Object.hasOwn(fixtures, k))) return false;
