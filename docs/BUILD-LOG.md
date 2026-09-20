@@ -33,7 +33,12 @@ regression that executes the host identity check and proves the companion verifi
 three files. The pre-change core archive gate passed. The pre-change
 companion gate reached the separately owned Corvint Tasks checkout and failed before retention at
 `corvint-tasks init`; therefore no combined candidate was produced and Linux installed workflows
-remain `NOT_RUN`. Publication, tagging, pushing, signing, upload and promotion were not attempted.
+remain `NOT_RUN`. A retained-scratch reproduction identified the refusal as
+`INTENT_BRANCH_MISMATCH`: the closed Git environment initialized the smoke repository on `master`
+while the companion-owned intent fixture requires `main`. The repair pins the fixture branch and
+retains structured command stdout in failed smoke evidence so a typed refusal cannot be hidden by
+an empty stderr stream. Publication, tagging, pushing, signing, upload and promotion were not
+attempted.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
