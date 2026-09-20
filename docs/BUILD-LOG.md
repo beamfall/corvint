@@ -55,10 +55,12 @@ rejects downgrade and incomplete or contradictory evidence, resolves original-co
 modules, and adds adversarial and live regressions. The same reviewer reran those overlays and the
 expanded real browser matrix and returned PASS. Playwright versions other than 1.60.0 remain
 unqualified; declared application identity is not proof of served content, Vitest and LPCV authority
-are unchanged. The owner subsequently selected the existing affected-package fast tier instead of
-the full native gate. Its preflight must select explicit packages without FALLBACK on merged base
-`4c5f0fa4dc1a24698062287d0ffa2e7f4129a639`; separate focused and real-browser checks remain required.
-The earlier-base enrollment is preserved as canceled non-success. Final selected-check and CEM/OCM
+are unchanged. The owner subsequently selected changed-feature-only verification instead of the
+full native gate. On merged base `4c5f0fa4dc1a24698062287d0ffa2e7f4129a639`, the affected preflight
+selected 148 packages without FALLBACK; its conservative reader closure was retained as overbroad,
+not executed. The owner explicitly replaced it with tests and vet for the five provider/MCP/spec
+packages, six formatting/spec/traceability checks, and the separate real Playwright 1.60.0 matrix.
+Both superseded enrollments are preserved as canceled non-success. Final selected-check and CEM/OCM
 observations are retained by the replacement enrolled workflow rather than claimed passed here.
 
 ## 2026-09-19 DCP-V1: experimental revision-pinned documentation corpus

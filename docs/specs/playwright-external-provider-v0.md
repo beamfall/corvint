@@ -14,8 +14,7 @@ and shipping this PWP-V0 profile while retaining the default offline boundary an
 - Status: accepted; validated (local Playwright 1.60.0 matrix).
 - Exists: `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
-- Blocked on: the owner-selected affected-package gate and separate focused/live witnesses; other Playwright versions, Vitest and LPCV authority remain unqualified.
-
+- Blocked on: no implementation gap; owner-selected changed-feature checks and separate live witnesses govern final completion. Other Playwright versions, Vitest and LPCV authority remain unqualified.
 
 ## Requirements
 
