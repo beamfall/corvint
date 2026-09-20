@@ -57,6 +57,8 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	var once sync.Once
 	interruptReady := make(chan struct{})
 	var interruptOnce sync.Once
+	interruptWaiting := make(chan struct{})
+	var interruptWaitingOnce sync.Once
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/cancel-ready" {
 			once.Do(func() { close(ready) })
@@ -65,11 +67,42 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 			interruptOnce.Do(func() { close(interruptReady) })
 		}
 		if r.URL.Path == "/interrupt-wait" {
-			<-interruptReady
+			interruptWaitingOnce.Do(func() { close(interruptWaiting) })
+			select {
+			case <-interruptReady:
+			case <-r.Context().Done():
+				return
+			}
 		}
 		_, _ = w.Write([]byte("external fixture"))
 	}))
 	defer server.Close()
+	t.Run("interruption-wait-releases-on-request-cancel", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/interrupt-wait", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		done := make(chan struct{})
+		go func() {
+			resp, _ := http.DefaultClient.Do(req)
+			if resp != nil {
+				resp.Body.Close()
+			}
+			close(done)
+		}()
+		select {
+		case <-interruptWaiting:
+		case <-time.After(time.Second):
+			t.Fatal("interruption wait handler did not start")
+		}
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("cancelled interruption wait did not release")
+		}
+	})
 	t.Setenv("CORVINT_FIXTURE_URL", server.URL)
 	t.Setenv("CORVINT_FIXTURE_MARKER", filepath.Join(root, "lifecycle"))
 	cfg := jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), TestFiles: []string{filepath.Join(root, "external.spec.cjs"), filepath.Join(root, "override.spec.cjs")}, RunnerName: "playwright", RunnerVersion: pkg.Version, DeclaredEnvKeys: []string{"CORVINT_FIXTURE_URL", "CORVINT_FIXTURE_MARKER"}, Timeout: 45 * time.Second}, ExternalServer: true, AppIdentity: "fixture-v1", ServerReadyURL: server.URL, TestArgv: []string{"external.spec.cjs", "--project=chromium", "--project=react", "--grep-invert=cancellation"}}
