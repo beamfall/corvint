@@ -102,6 +102,36 @@ No executor admission, CONFIG_PIN, production completion, real-queue cutover or 
 is claimed. The explicit executor dependency handoff remains open.
 ## 2026-09-19 TJAA-V0-010..017 / AFP-V0-018 Playwright project-aware affected selection (Beamfall/corvint#18)
 
+Follow-up qualification (2026-09-20): the repository-owned manifest
+`internal/liveverify/affected/typescript/testdata/playwright-qualification.tsv` independently fixes
+117 file identities, nine feature cohorts and 468 cases. `TestPlaywrightQualification` checks the
+generated inventory before selecting, then compares seven change scenarios against cohort-based
+expected project/file sets. Page object, scenario builder and helper changes each select 41 units;
+one spec selects five; shared fixture, setup and config each select all 353. The 1,187 required-unit
+observations have zero misses and zero extra units (file-unit recall and precision both 100% on this
+synthetic corpus). Untouched cohorts are negative controls. Four tag categories per file exercise
+shared, Angular, React and Chromium case identity without inferring file exclusions from grep.
+Dynamic imports and unknown membership must include every one of the 353 baseline units with no
+exclusions; unknown projects emit no runnable approximation and require full-config fallback.
+Every scenario repeats identical canonical bytes.
+
+The existing reporter parser and pinned test-validity projector compose retained source/config
+digests with a green report: matching E2E inputs remain freshness UNKNOWN, source mismatch and stale
+build remain STALE, absent input remains UNKNOWN, ambiguous envelopes are refused, and strength
+remains NOT_MEASURED. This is synthetic retained-evidence composition, not a provider run or an
+authenticated cross-project join. The latter depends on #19. Actual consumer-repository recall,
+runtime/framework/OS qualification and full-CI execution remain NOT_RUN; this work supplies the
+issue's stated fixture acceptance only and does not relabel the general adapter as promoted.
+
+Self-development routes: pre-change `query` and `make dogfood-change` were used against
+833bbd3278dc485696d5b639bf4488f5a0cfe5bc. The initial empty change correctly left CEM preparation,
+intent scope and outcome incomplete; the original evidence is retained in the worktree Git evidence
+directory. Provider execution is unavailable for this source-only corpus; mutation, documentation
+drafting, learning changes, console and service routes are not applicable. No savings claim is made.
+The first canonical gate passed the qualification tests but failed `TestIndexCoversSpecsAndHeaders`:
+the README summary must preserve the exact Agent digest claim as its prefix. The follow-up restores
+that prefix; the failed gate remains retained and cannot qualify the corrected revision.
+
 The existing TypeScript adapter assigns one physical path to one generic graph unit and deliberately
 keeps executable Playwright config unresolved. Issue #18 requires the same file to remain attributable
 under several projects, so changing `affected-plan/0` would either violate unique path ownership or
