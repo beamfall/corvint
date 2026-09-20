@@ -12,8 +12,8 @@ The owner subsequently requested issue #43's typed application-attestation revis
 external-ownership boundary.
 
 ## Agent digest
-- Claim: Explicit external-server Playwright runs retain attributable project outcomes without application-server ownership; `/1` additionally binds a typed, pre/post application attestation.
-- Status: accepted; validated (`/0` local Playwright 1.60.0/1.63.0 and `/1` Docker-backed Playwright 1.63.0).
+- Claim: External-server Playwright receipts bind attributable outcomes without owning the app; `/1` adds typed pre/post app and clean test-repository identity.
+- Status: accepted; validated (`/0` Playwright 1.60.0/1.63.0; `/1` Docker-backed Playwright 1.63.0).
 - Exists: `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
 - Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.

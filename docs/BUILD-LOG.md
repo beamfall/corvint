@@ -36,6 +36,13 @@ non-passing and the latter leaves no container or image. Provider/config hash sy
 configuration binding, profile shapes, external-only admission, post-run repository identity, and a
 Git environment without `GIT_*` redirects have focused regressions.
 
+The first frozen canonical gate exposed two fixture/metadata failures: the spec index repeated a
+longer, non-identical digest, and the real local-completion fixture omitted the existing
+`qualified-reporter.cjs` embed required by the issue-39 baseline. The digest is now one exact
+sub-160-character value across the spec, index and README; the import-closure fixture copies that
+embedded asset. Focused `internal/specindex` and real-evidence local-completion regressions cover
+both repairs before the gate is rerun on the replacement frozen commit.
+
 ## 2026-09-20 PWP-V0: Playwright 1.63.0 external-server qualification
 
 Issue 39 extends the accepted external-server profile's exact runner allowlist from Playwright
