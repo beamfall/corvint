@@ -48,6 +48,10 @@ Unavailable or disabled legacy runtime remains unknown even with source/docs/pro
 The supported runtime qualifier reuses retained native Playwright receipts, not a fabricated
 legacy runner adapter. Exact consumer legacy inputs and actual live legacy execution remain
 NOT_OBSERVED; unsupported legacy runners cannot establish runtime parity.
+Legacy amendment review found that a classified but ineligible mapping could hide a dropped branch
+from another target's parity result. Reverse parity coverage now counts only fully eligible targets;
+a multi-target regression preserves the first target's journey while rejecting migration parity
+when another target drops the original observable.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 

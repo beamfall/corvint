@@ -188,7 +188,8 @@ The optional `legacy` inventory pins each suite/case ID and exact source file/re
 anchored matcher/locator/expected-value tuples. Every target criterion needs a reviewed
 `legacy_criteria` relation to a specific case/criterion: `same`, `stronger`, `new`, `obsolete` or
 `blocked`. Both same and stronger must retain the original observable tuple; stronger may add
-assertions, never replace that result. Every legacy criterion needs a reverse mapping, including
+assertions, never replace that result. Every legacy criterion needs a reverse mapping from a fully
+eligible parity target (observable, runtime and preconditions all qualify), including
 branches consolidated into one target test. Missing inventory/mappings stay unreviewed, never parity.
 
 `legacy_runtime_parity` is separate from target `verified_tests`/journey verification. Only an

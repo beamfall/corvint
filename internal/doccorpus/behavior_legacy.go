@@ -124,6 +124,7 @@ func (c *compiler) compileBehaviorLegacy(report *BehaviorReport) {
 	for _, test := range r.Tests {
 		valid := len(test.Criteria) > 0 && len(r.Legacy) > 0 && slices.Contains(report.VerifiedTests, test.ID)
 		mapped := map[string]bool{}
+		parityKeys := []string{}
 		for _, mapping := range test.Legacy {
 			legacy, exists := legacyCases[mapping.LegacyCase]
 			var criterion *BehaviorLegacyCriterion
@@ -142,7 +143,7 @@ func (c *compiler) compileBehaviorLegacy(report *BehaviorReport) {
 				continue
 			}
 			mapped[mapping.Criterion] = true
-			covered[hashValue([]string{legacy.ID, criterion.ID})] = true
+			parityKeys = append(parityKeys, hashValue([]string{legacy.ID, criterion.ID}))
 			retained := false
 			for _, assertion := range test.Assertions {
 				if assertion.Criterion == mapping.Criterion && assertion.Matcher == criterion.Matcher && assertion.Locator == criterion.Locator && assertion.Value == criterion.Value && behaviorAssertionValid(r, test, assertion) {
@@ -171,6 +172,11 @@ func (c *compiler) compileBehaviorLegacy(report *BehaviorReport) {
 			}
 		}
 		eligible[test.ID] = valid
+		if valid {
+			for _, key := range parityKeys {
+				covered[key] = true
+			}
+		}
 	}
 	complete := len(r.Legacy) > 0
 	for _, legacy := range r.Legacy {
@@ -181,7 +187,7 @@ func (c *compiler) compileBehaviorLegacy(report *BehaviorReport) {
 		for _, criterion := range legacy.Criteria {
 			if !covered[hashValue([]string{legacy.ID, criterion.ID})] {
 				complete = false
-				c.behaviorGap(legacy.ID, "missing-legacy-criterion", "legacy branch lacks a target mapping: "+criterion.ID)
+				c.behaviorGap(legacy.ID, "missing-legacy-criterion", "legacy branch lacks a fully eligible parity target: "+criterion.ID)
 			}
 		}
 	}

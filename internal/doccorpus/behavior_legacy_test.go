@@ -108,3 +108,46 @@ func TestBehaviorLegacyRuntimeIdentity(t *testing.T) {
 		})
 	}
 }
+
+func TestBehaviorLegacyReverseParityCoverage(t *testing.T) {
+	root, m := behaviorFixtureWithRun(t, func(r *BehaviorRegistry) {
+		legacyFixture(r)
+		criterion := r.Legacy[0].Criteria[0]
+		criterion.ID, criterion.Value = "old-error", "error"
+		r.Legacy[0].Criteria = append(r.Legacy[0].Criteria, criterion)
+		other := r.Tests[0]
+		other.ID, other.Title = "other-target", "error branch"
+		other.Criteria = []string{"error-visible"}
+		assertion := other.Assertions[0]
+		assertion.ID, assertion.Criterion, assertion.Value = "error-visible", "error-visible", "wrong-success"
+		other.Assertions = []BehaviorAssertion{assertion}
+		mapping := other.Legacy[0]
+		mapping.Criterion, mapping.LegacyCriterion = "error-visible", "old-error"
+		other.Legacy = []BehaviorLegacyMapping{mapping}
+		r.Tests = append(r.Tests, other)
+		r.Flows[0].Criteria = append(r.Flows[0].Criteria, "error-visible")
+		r.Flows[0].Tests = append(r.Flows[0].Tests, other.ID)
+	}, true)
+	a, err := Build(context.Background(), root, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(a.BehaviorContracts[0].VerifiedTests) != 1 {
+		t.Fatal("first target must retain its verified journey")
+	}
+	if len(a.BehaviorContracts[0].LegacyRuntimeParity) != 0 {
+		t.Fatal("invalid second mapping hid dropped legacy branch and promoted first target parity")
+	}
+	contradiction, missing := false, false
+	for _, gap := range a.Gaps {
+		if gap.Subject == "other-target" && gap.Kind == "legacy-criterion-contradiction" {
+			contradiction = true
+		}
+		if gap.Subject == "old-count" && gap.Kind == "missing-legacy-criterion" {
+			missing = true
+		}
+	}
+	if !contradiction || !missing {
+		t.Fatalf("missing explicit parity gaps: %+v", a.Gaps)
+	}
+}
