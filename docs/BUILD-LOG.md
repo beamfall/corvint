@@ -42,6 +42,9 @@ longer, non-identical digest, and the real local-completion fixture omitted the 
 sub-160-character value across the spec, index and README; the import-closure fixture copies that
 embedded asset. Focused `internal/specindex` and real-evidence local-completion regressions cover
 both repairs before the gate is rerun on the replacement frozen commit.
+That replacement gate passed the full test suite, native/cross vet, archive and interop, then caught
+the stale generated `REQUIREMENTS.tsv` summaries for the revised PWP-V1-001 and PWP-V1-006 clauses;
+the registry was regenerated before the final frozen gate.
 
 ## 2026-09-20 PWP-V0: Playwright 1.63.0 external-server qualification
 

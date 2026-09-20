@@ -1398,12 +1398,12 @@ PWP-V0-004	docs/specs/playwright-external-provider-v0.md	26	Preserve attempt sta
 PWP-V0-005	docs/specs/playwright-external-provider-v0.md	27	Emit and retain the canonical closed profile. MCP discovery recomputes projectio
 PWP-V0-006	docs/specs/playwright-external-provider-v0.md	28	Cancellation joins only owned Playwright descendants and observes external serve
 PWP-V0-007	docs/specs/playwright-external-provider-v0.md	29	Qualification runs a checked-in real Playwright browser fixture covering pass, a
-PWP-V1-001	docs/specs/playwright-external-provider-v0.md	33	`/1` requires a typed `corvint-application-attestation-command/0` provider and c
+PWP-V1-001	docs/specs/playwright-external-provider-v0.md	33	`/1` is available only in external-server mode and requires a typed `corvint-app
 PWP-V1-002	docs/specs/playwright-external-provider-v0.md	34	The closed provider configuration binds the expected application root commit, re
 PWP-V1-003	docs/specs/playwright-external-provider-v0.md	35	Each closed canonical `corvint-application-attestation/0` observation binds the
 PWP-V1-004	docs/specs/playwright-external-provider-v0.md	36	The receipt binds the provider profile, normalized argv, original executable pat
 PWP-V1-005	docs/specs/playwright-external-provider-v0.md	37	The provider runs before and after Playwright. Unavailable or malformed identity
-PWP-V1-006	docs/specs/playwright-external-provider-v0.md	38	`/1` binds one clean test repository by root commit, revision and tree before an
+PWP-V1-006	docs/specs/playwright-external-provider-v0.md	38	`/1` binds one clean test repository by root commit, revision and tree before Pl
 PWP-V1-007	docs/specs/playwright-external-provider-v0.md	39	Corvint supplies only canonical configuration bytes on provider stdin and owns o
 PWP-V1-008	docs/specs/playwright-external-provider-v0.md	40	Qualification includes a deterministic, locally owned Docker Compose fixture and
 QLF-V0-001	docs/specs/qualified-lifecycle-v0.md	32	The additive `corvint-qualified-lifecycle/0` request MUST be a closed object con
