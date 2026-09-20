@@ -206,7 +206,7 @@ func bindFreshness(worktree *os.Root, root string, input Input) testvalidity.Axi
 	if unknown == "" && input.js.AppBuildAtPublish.Digest != "" {
 		unknown = "retained-app-build-identity-unverifiable"
 	}
-	if unknown == "" && input.js.Profile == jstestprovider.ExternalProfile {
+	if unknown == "" && (input.js.Profile == jstestprovider.ExternalProfile || input.js.Profile == jstestprovider.AttestedExternalProfile) {
 		unknown = "retained-external-app-lifecycle-unverifiable"
 	}
 	if unknown != "" {

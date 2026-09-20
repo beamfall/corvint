@@ -44,6 +44,21 @@ func TestEmitQualifiedRetainsCanonicalUnknowns(t *testing.T) {
 	}
 }
 
+func TestE2ERequiresCompleteTypedApplicationAttestationFlags(t *testing.T) {
+	for _, args := range [][]string{
+		{"--app-attestation-command", `["/bin/echo"]`},
+		{"--app-attestation-config", "attestation.json"},
+		{"--app-attestation-command", `{}`, "--app-attestation-config", "attestation.json"},
+	} {
+		if err := runE2E(args); err == nil || !strings.Contains(err.Error(), "app-attestation-command and app-attestation-config") {
+			t.Fatalf("args=%v err=%v", args, err)
+		}
+	}
+	if err := runE2E([]string{"--app-attestation-command", `["/bin/false"]`, "--app-attestation-config", "/missing"}); err == nil || !strings.Contains(err.Error(), "application-attestation-requires-external-server") {
+		t.Fatalf("attestation without external mode err=%v", err)
+	}
+}
+
 // TestParseUnitConfig_RelativeDirResolvedAbsolute confirms the unit
 // subcommand's default --dir "." (and any other relative --dir) is resolved
 // to an absolute clean path before it reaches procgroup, which rejects a

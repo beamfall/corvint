@@ -1391,13 +1391,21 @@ PUB-V0-018	docs/specs/public-release-v0.md	208	PR test selection MUST execute on
 PUB-V0-019	docs/specs/public-release-v0.md	214	The shipped witness CLI and release-publication receipt reader MUST ignore Git g
 PUB-V0-020	docs/specs/public-release-v0.md	219	Core installed qualification for companion profile `/2` MUST freeze fixture
 PUB-V0-021	docs/specs/public-release-v0.md	244	Every new Corvint version created on main MUST carry a new build number (owner
-PWP-V0-001	docs/specs/playwright-external-provider-v0.md	21	External mode requires readiness URL and declared app identity, rejects server c
-PWP-V0-002	docs/specs/playwright-external-provider-v0.md	22	A controlled config imports the original, disables webServer and selects the pro
-PWP-V0-003	docs/specs/playwright-external-provider-v0.md	23	Each outcome identifies source location, full title, project name, resolved brow
-PWP-V0-004	docs/specs/playwright-external-provider-v0.md	24	Preserve attempt status/retry, flaky, assertion failure, test timeout and interr
-PWP-V0-005	docs/specs/playwright-external-provider-v0.md	25	Emit and retain the canonical closed profile. MCP discovery recomputes projectio
-PWP-V0-006	docs/specs/playwright-external-provider-v0.md	26	Cancellation joins only owned Playwright descendants and observes external serve
-PWP-V0-007	docs/specs/playwright-external-provider-v0.md	27	Qualification runs a checked-in real Playwright browser fixture covering pass, a
+PWP-V0-001	docs/specs/playwright-external-provider-v0.md	23	External mode requires readiness URL and declared app identity, rejects server c
+PWP-V0-002	docs/specs/playwright-external-provider-v0.md	24	A controlled config imports the original, disables webServer and selects the pro
+PWP-V0-003	docs/specs/playwright-external-provider-v0.md	25	Each outcome identifies source location, full title, project name, resolved brow
+PWP-V0-004	docs/specs/playwright-external-provider-v0.md	26	Preserve attempt status/retry, flaky, assertion failure, test timeout and interr
+PWP-V0-005	docs/specs/playwright-external-provider-v0.md	27	Emit and retain the canonical closed profile. MCP discovery recomputes projectio
+PWP-V0-006	docs/specs/playwright-external-provider-v0.md	28	Cancellation joins only owned Playwright descendants and observes external serve
+PWP-V0-007	docs/specs/playwright-external-provider-v0.md	29	Qualification runs a checked-in real Playwright browser fixture covering pass, a
+PWP-V1-001	docs/specs/playwright-external-provider-v0.md	33	`/1` requires a typed `corvint-application-attestation-command/0` provider and c
+PWP-V1-002	docs/specs/playwright-external-provider-v0.md	34	The closed provider configuration binds the expected application root commit, re
+PWP-V1-003	docs/specs/playwright-external-provider-v0.md	35	Each closed canonical `corvint-application-attestation/0` observation binds the
+PWP-V1-004	docs/specs/playwright-external-provider-v0.md	36	The receipt binds the provider profile, normalized argv, original executable pat
+PWP-V1-005	docs/specs/playwright-external-provider-v0.md	37	The provider runs before and after Playwright. Unavailable or malformed identity
+PWP-V1-006	docs/specs/playwright-external-provider-v0.md	38	`/1` binds one clean test repository by root commit, revision and tree before an
+PWP-V1-007	docs/specs/playwright-external-provider-v0.md	39	Corvint supplies only canonical configuration bytes on provider stdin and owns o
+PWP-V1-008	docs/specs/playwright-external-provider-v0.md	40	Qualification includes a deterministic, locally owned Docker Compose fixture and
 QLF-V0-001	docs/specs/qualified-lifecycle-v0.md	32	The additive `corvint-qualified-lifecycle/0` request MUST be a closed object con
 QLF-V0-002	docs/specs/qualified-lifecycle-v0.md	33	Completed qualified non-Stop events MUST derive repository scope exclusively fro
 QLF-V0-003	docs/specs/qualified-lifecycle-v0.md	34	Qualified Stop MUST derive the active handle inside the same protected scope, co

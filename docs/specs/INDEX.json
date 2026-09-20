@@ -1000,11 +1000,11 @@
   },
   {
     "path": "docs/specs/playwright-external-provider-v0.md",
-    "title": "Playwright External Provider V0",
+    "title": "Playwright External Provider V0/V1",
     "reqPrefix": "PWP-V0",
     "intent": "accepted",
-    "delivery": "validated (local Playwright 1.60.0 and 1.63.0 matrices)",
-    "claim": "Explicit external-server Playwright runs retain attributable project outcomes without application-server ownership.",
+    "delivery": "validated (/0 Playwright 1.60.0/1.63.0; /1 Docker-backed Playwright 1.63.0)",
+    "claim": "Explicit external-server Playwright runs retain attributable project outcomes without application-server ownership; /1 binds typed pre/post application and clean test-repository identity.",
     "dependsOn": [
       "docs/specs/live-proof-carrying-verification-v0.md"
     ],

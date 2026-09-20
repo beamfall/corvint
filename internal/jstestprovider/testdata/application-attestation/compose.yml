@@ -1,0 +1,1 @@
+{"services":{"app":{"build":{"context":"."},"healthcheck":{"test":["CMD","/fixture-server","healthcheck"],"interval":"250ms","timeout":"1s","retries":20},"ports":["127.0.0.1::8080"]}}}

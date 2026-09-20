@@ -125,7 +125,7 @@ func Decode(data []byte) (Input, error) {
 			return Input{}, errors.New("kind is neither unit nor e2e")
 		}
 		if document.Receipt.Profile != "" {
-			if document.Receipt.Profile != jstestprovider.ExternalProfile {
+			if document.Receipt.Profile != jstestprovider.ExternalProfile && document.Receipt.Profile != jstestprovider.AttestedExternalProfile {
 				return Input{}, errors.New("unknown JavaScript receipt profile")
 			}
 			canonical, err := jstestprovider.EncodeQualified(*document.Receipt)
@@ -158,7 +158,7 @@ func Decode(data []byte) (Input, error) {
 }
 
 func hasQualifiedMetadata(r jstestprovider.Receipt) bool {
-	if r.External != nil || len(r.Identity.ConfigInputDigests) != 0 {
+	if r.External != nil || r.ApplicationAttestation != nil || len(r.Identity.ConfigInputDigests) != 0 {
 		return true
 	}
 	for _, test := range r.Tests {
@@ -187,7 +187,7 @@ func projectJavaScript(receipt jstestprovider.Receipt) Document {
 		tests = append(tests, Test{ID: outcome.ID, Project: outcome.Project, Attempts: outcome.Attempts, Name: outcome.Name, State: string(outcome.State), Projection: jstestprovider.ReceiptTestProjection(receipt, outcome)})
 	}
 	var playwright *jstestprovider.Receipt
-	if receipt.Profile == jstestprovider.ExternalProfile {
+	if receipt.Profile == jstestprovider.ExternalProfile || receipt.Profile == jstestprovider.AttestedExternalProfile {
 		playwright = &receipt
 	}
 	return Document{

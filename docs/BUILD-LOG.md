@@ -7,6 +7,35 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 PWP-V1: externally managed application attestation
+
+Issue 43 adds `corvint-playwright-external/1` without changing `/0`. A generic bounded command
+provider receives one canonical expectation document on stdin and emits the same closed canonical
+application-attestation shape before and after Playwright. The receipt binds clean test-repository
+root/revision/tree; application root/revision/tree and dirty policy; image, Compose configuration,
+container/start generation and health; provider executable/config/output digests; runner, browser,
+argv and declared environment. The provider executable runs from a private content copy. Corvint
+owns only provider and Playwright process groups and has no application lifecycle verb.
+
+The local qualification used `@playwright/test@1.63.0`, its installed Chromium, and a disposable
+scratch-image Docker server built from the checked-in closed Compose JSON manifest. A healthy bound
+run projected passed; healthy wrong-revision and wrong-image inputs stopped before Playwright, and a
+fixture-harness restart changed container start generation and forced infrastructure. Generic command
+tests also cover unavailable, unhealthy, missing and contradictory attestations. Docker 29.5.2 was
+available; no Compose frontend was installed, so the qualification harness executed the manifest's
+closed build/run/health/port subset through project-scoped Docker commands and retained the exact
+manifest digest. Signal-aware cleanup removed the fixture container and image; no external app was
+started, stopped or changed.
+
+Independent review found that the first implementation sampled the test repository before the test,
+accepted attestation on the managed-server path, inherited ambient Git repository redirects, allowed
+mixed `/0` and `/1` fields, under-validated retained provider identities, and could consume Docker
+cleanup before provisioning completed. The repaired qualification changes an otherwise unbound
+tracked test-repository file during Playwright and cancels cleanup before provisioning; both remain
+non-passing and the latter leaves no container or image. Provider/config hash syntax and canonical
+configuration binding, profile shapes, external-only admission, post-run repository identity, and a
+Git environment without `GIT_*` redirects have focused regressions.
+
 ## 2026-09-20 PWP-V0: Playwright 1.63.0 external-server qualification
 
 Issue 39 extends the accepted external-server profile's exact runner allowlist from Playwright
