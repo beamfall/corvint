@@ -22,8 +22,10 @@ normal and interrupted descendant cleanup, credential permissions, TLS and HTTP 
 Independent security review found JSON-escaped credential reflection and case-insensitive MCP
 field coercion. Repairs screen decoded credential strings and require exact MCP key spelling and
 boolean values; the regression places `isError:true` before `IsError:false` to exercise the bypass.
-Full gate and final CEM/OCM outcomes are retained in the enrolled private check observations; the
-focused results do not substitute for those final results.
+The owner explicitly selected the existing affected-package fast tier instead of the full gate.
+Its non-executing preflight selected packages without FALLBACK on merged base `bf2685dd`;
+the canceled earlier-base enrollment remains non-success. The selected gate and final CEM/OCM
+outcomes are retained in enrolled private observations; focused results do not substitute for them.
 
 Actual self-development routes: original query (three omitted results retained), start-time
 dogfood-change (empty-range CEM and missing scope/outcome NOT_PRODUCED), immutable profile enrollment,
