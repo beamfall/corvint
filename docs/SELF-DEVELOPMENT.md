@@ -60,6 +60,9 @@ For the optional [documentation corpus route](DOCUMENTATION-CORPUS.md), inventor
 slice, build a corpus and retain an actual search/trace receipt. Use explicit corpus evidence on native
 reads only where applicable; unsupported providers and absent journeys remain visible. The separate
 MCP server and generated-block writes require their own explicit invocation.
+The experimental behavior-provider profile additionally retains exact flow/test/project joins and
+ordered runtime witnesses; missing consumer fixtures or runtime evidence preserve gaps and full-suite
+fallback. See the behavior-contract section of `docs/specs/documentation-corpus-v1.md`.
 
 For the optional documentation route, retain producer output and feed those exact bytes to the
 consumer; its [source contract](specs/source-documentation-draft-v0.md) gives the admitted example.

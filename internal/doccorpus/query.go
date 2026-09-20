@@ -319,5 +319,5 @@ func coverageMetrics(a *Artifact) []any {
 	} {
 		rows = append(rows, map[string]any{"metric": metric.name, "value": metric.value, "denominator": metric.denominator, "defined": metric.denominator > 0, "definition": metric.definition, "revision": a.Manifest.Repository.Revision, "limitations": []string{"scoped declaration coverage only; provider honesty, semantic truth and adequacy unknown"}})
 	}
-	return rows
+	return append(rows, behaviorCoverage(a)...)
 }

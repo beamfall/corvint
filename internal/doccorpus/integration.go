@@ -66,5 +66,8 @@ func Impact(a *Artifact, paths []string, freshness string) map[string]any {
 	// No accepted closed-world source-to-test adequacy contract exists. Even a
 	// complete inventory cannot justify skipping the repository's required gate.
 	unknowns = append(unknowns, "source-to-test and journey adequacy is open; run mandatory repository checks")
+	if len(a.BehaviorContracts) > 0 {
+		unknowns = append(unknowns, "behavior contract joins retain full-relevant-suite fallback; inspect corpus gaps")
+	}
 	return map[string]any{"schema": "corvint-corpus-impact/1", "artifact_sha256": a.SHA256, "repository": a.Manifest.Repository, "freshness": freshness, "subjects": subjects, "relations": relations, "journeys": journeys, "observations": observations, "unknowns": unknowns, "selection": map[string]any{"narrowing_allowed": false, "fallback": "full-repository-checks", "reason": "documentation evidence does not establish exhaustive test or journey coverage"}}
 }

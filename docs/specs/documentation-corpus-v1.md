@@ -129,6 +129,42 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
 
 ## Input and authority boundary
 
+### Experimental behavior contracts (issue 40)
+
+The opt-in `corvint-corpus-behavior-provider/1` record retains the normal provider fields and adds
+`behavior_contracts`, a closed schema-2 registry. This is a synthetic interoperability candidate;
+the consuming repository's actual `docs/migrations/test-behavior-contracts.json` and migration
+manifest have not been supplied or qualified. No exact compatibility claim is made.
+
+The registry pins contract ID/digest, source and documentation revisions, a full-file migration
+manifest anchor, flows, source-discovered behaviors and exact Playwright test/project executions.
+The schema-2 migration manifest contains `schema`, `contract_id`, `source_revision` and
+`documentation_revision`. Each flow pins a documentation anchor, criterion IDs, exact test IDs,
+required page IDs, negative-control IDs and ordered `kind:id` event identities. Tests retain source
+anchors, exact runtime test IDs/project names/titles, reverse flow/criterion IDs and assertion IDs.
+The contract SHA-256 uses canonical registry bytes with an empty digest and all test runtime fields
+omitted. Runtime and provider artifacts are committed separately, avoiding self-referential hashes.
+
+An optional runtime anchor names a full `corvint-behavior-run/1` artifact containing matching
+contract/revisions, native receipt digest, test/project, retry, cleanup and ordered events. Its
+observation joins a retained qualified Playwright receipt by exact `test_id` and `project` as well
+as title. Verification requires passing/current native execution, pinned test bytes/source location,
+the same successful retry, passed cleanup, and the complete declared event order including page,
+assertion and negative-control observations. Synthetic fixtures test the join; they are not live
+browser evidence. Provider honesty, assertion adequacy and runtime authenticity remain unknown.
+
+Contradictions, missing reverse links, stale source revisions, assertion-free tests, missing pages
+and missing negative controls stay gaps. An empty inventory yields `unreviewed-join`; only a
+current explicit review anchor with a nonempty discovered test inventory may emit the distinct
+provider-reported `confirmed-missing_e2e` finding. Neither is proof of exhaustive absence.
+Coverage exposes independent documented-flow, source-discovered-behavior, discovered-project-
+execution and verified-contract denominators; zero remains undefined. All outcomes preserve full
+relevant-suite fallback. Rollback removes this opt-in profile without changing legacy inputs.
+
+Acceptance: `TestBehaviorContractCorpusRoundTrip`, `TestBehaviorContractGaps`,
+`TestBehaviorOrderedRuntime` and `TestBehaviorExactProjectObservation` exercise DCP-V1-004,
+DCP-V1-007..013 and DCP-V1-019. Owner acceptance and real consumer fixtures remain promotion gates.
+
 One local Git repository may supply up to eight explicit immutable revisions. A provider can be
 committed after the source it describes; its record anchors still name the earlier source revision.
 An input scope is a literal directory or exact file, with a complete declared inventory at its own

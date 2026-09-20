@@ -7,6 +7,21 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 DCP-V1-004/007..013/019: experimental behavior contract ingestion (issue 40)
+
+The optional behavior-provider profile joins bidirectional flow/criterion/test/project identities
+and a separate ordered runtime witness to pinned native Playwright observations. It preserves
+provider-reported review versus unreviewed joins, scoped denominators and full-suite fallback.
+Existing title-only joins were insufficient for identical titles in different projects; optional
+exact test/project selectors preserve the legacy profile while admitting an unambiguous join.
+
+Synthetic fixture paths model the proposed registry and schema-2 migration manifest. The consumer's
+actual fixture bytes were not supplied: compatibility and live runtime utility are NOT_OBSERVED.
+Pre-change query succeeded with three omitted results. Measurement before that first call was
+NOT_PRODUCED; the required coordinator retained its own receipts and reported no-change CEM/OCM
+and outcome NOT_PRODUCED. The local completion plan is enrolled against the immutable issue base.
+No browser, server or provider process was launched; live qualification is not claimed.
+
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
 Owner approval accepts decisions 0324/0325: bounded local MCP stdio and a separately built opt-in

@@ -40,7 +40,8 @@ func (c *compiler) importRecords(p Provider) error {
 	if err := decode(source.Data, &record); err != nil {
 		return err
 	}
-	if record.Schema != ProviderSchema || record.ID != p.ID || record.Version != p.Version || record.Source != c.manifest.Repository {
+	validSchema := record.Schema == ProviderSchema && record.BehaviorContracts == nil || record.Schema == BehaviorProviderSchema && record.BehaviorContracts != nil
+	if !validSchema || record.ID != p.ID || record.Version != p.Version || record.Source != c.manifest.Repository {
 		return fail("provider revision, version or repository mismatch")
 	}
 	if len(record.Subjects) > MaxRecords || len(record.Claims) > MaxRecords || len(record.Relations) > MaxRecords || len(record.Observations) > MaxRecords || len(record.Journeys) > 128 {
@@ -114,6 +115,9 @@ func (c *compiler) importRecords(p Provider) error {
 			return err
 		}
 		c.artifact.Observations = append(c.artifact.Observations, observation)
+	}
+	if record.BehaviorContracts != nil {
+		return c.importBehavior(p, record.BehaviorContracts)
 	}
 	return nil
 }
@@ -241,7 +245,7 @@ func (c *compiler) observation(link ObservationLink) (Observation, error) {
 	})
 	matches := 0
 	for _, test := range document.Tests {
-		if test.Name == link.Test && test.Package == link.Package {
+		if observationMatches(test, link) {
 			matches++
 		}
 	}
@@ -258,7 +262,7 @@ func (c *compiler) observation(link ObservationLink) (Observation, error) {
 	}
 	trust := "generated"
 	for _, test := range document.Tests {
-		if test.Name == link.Test && test.Package == link.Package && test.Projection.Execution.State == "PASSED" && test.Projection.Freshness.State == "CURRENT" {
+		if observationMatches(test, link) && test.Projection.Execution.State == "PASSED" && test.Projection.Freshness.State == "CURRENT" {
 			trust = "verified"
 		}
 	}
@@ -390,6 +394,16 @@ func (c *compiler) validateRecords() error {
 	}
 	return nil
 }
+func observationMatches(test testvaliditydoc.Test, link ObservationLink) bool {
+	if test.Name != link.Test || test.Package != link.Package {
+		return false
+	}
+	if link.TestID == "" && link.Project == "" {
+		return true
+	}
+	return link.TestID != "" && link.Project != "" && test.ID == link.TestID && test.Project != nil && test.Project.Name == link.Project
+}
+
 func (c *compiler) stepVerified(step Step, o Observation, cleanup string, position, count int) bool {
 	if o.Document.Run.Execution.State == "INCOMPLETE" || o.Document.TestsOmitted > 0 || o.Document.Run.Freshness.State != "CURRENT" {
 		return false
@@ -399,7 +413,7 @@ func (c *compiler) stepVerified(step Step, o Observation, cleanup string, positi
 	}
 	passed := false
 	for _, test := range o.Document.Tests {
-		if test.Name == o.Link.Test && test.Package == o.Link.Package && test.State == "passed" {
+		if observationMatches(test, o.Link) && test.State == "passed" {
 			passed = true
 		}
 	}

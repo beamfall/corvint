@@ -109,6 +109,7 @@ func Build(ctx context.Context, root string, m Manifest) (*Artifact, error) {
 	if err := c.validateRecords(); err != nil {
 		return nil, err
 	}
+	c.compileBehaviors()
 	c.capabilities()
 	a := c.artifact
 	sort.Slice(a.Subjects, func(i, j int) bool { return a.Subjects[i].ID < a.Subjects[j].ID })
