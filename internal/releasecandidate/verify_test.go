@@ -12,7 +12,7 @@ import (
 	"github.com/Beamfall/corvint/internal/companionrelease"
 )
 
-func TestPUBV0026VerifyClosedCandidateRunsIsolatedHostProbe(t *testing.T) {
+func TestPUBV0023ClosedManifestRunsIsolatedHostProbe(t *testing.T) {
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("host probe fixture requires a POSIX shell")
 	}
