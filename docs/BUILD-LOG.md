@@ -335,6 +335,47 @@ Independent security review found and the first repair cycle closed three issues
 `-buildvcs=false` binaries now retain an explicit no-VCS module/toolchain identity; rebind pins and
 rechecks the opened `.corvint` directory plus exact adapter bytes before replacement; and bound
 executable drift during an operation now maps to `SOURCE_UNQUALIFIED` rather than `ADAPTER_FAILED`.
+## 2026-09-20 PUB-V0-022..026: closed qualified release candidate (issue 44, Corvint half)
+
+The Corvint release path now closes the existing seven-file core archive-gate output and the
+three-file companion retained output into one versioned candidate. The candidate verifier binds
+the exact Corvint commit/tree/toolchain across both inputs, retains both source archives and gate
+receipts, requires the installed `Corvint <version> (build N)` identity, and records explicit
+platform/workflow `PASS` or `NOT_RUN` rows. The companion `/2` installed smoke now exercises
+affected selection, external Playwright receipt discovery, documentation-corpus discovery and
+repository work-queue observation through the extracted `corvint` binary. Legacy companion
+profiles keep their historical smoke inventory.
+
+The versioned installer reverifies the closed candidate, retains the host core archive at a unique
+version/platform path, refuses replacement and never writes a current/latest selector. Focused
+native and Linux cross-build checks pass. Independent review found that the first implementation
+bound only compressed core archive bytes, reread companion inputs without verifying the completed
+staging tree, used a fixed removable version-probe path, and omitted three release-note disclosures.
+The repair decodes the exact six-member core archives, binds binary/checksum/build identities and
+executes the host core version, verifies completed staging before no-replace promotion, uses only a
+unique owned probe, refuses scratch/output overlap, and names local-Git trust, unmeasured performance
+and unavailable hosted CI. Re-review then found that the host probe polluted the exact three-file
+companion verification directory and lacked caller cancellation. The final repair isolates both
+directories, propagates caller cancellation with a bounded probe, and adds a closed-candidate
+regression that executes the host identity check and proves the companion verifier receives exactly
+three files. The pre-change core archive gate passed. The pre-change
+companion gate reached the separately owned Corvint Tasks checkout and failed before retention at
+`corvint-tasks init`; therefore no combined candidate was produced and Linux installed workflows
+remain `NOT_RUN`. A retained-scratch reproduction identified the refusal as
+`INTENT_BRANCH_MISMATCH`: the closed Git environment initialized the smoke repository on `master`
+while the companion-owned intent fixture requires `main`. The repair pins the fixture branch and
+retains structured command stdout in failed smoke evidence so a typed refusal cannot be hidden by
+an empty stderr stream. The repaired companion gate passed at Corvint `68c9bbc` against exact
+Corvint Tasks commit `f6ec200337160545b5e120a7242a8e862ecbcff0` and tree
+`7573360392d58000f30dc0f82e6716cba09d81d1`; its retained archive SHA-256 is
+`9dac067f16da86b8dc8bcb97414c96472d2fe613947d8acdca95cfb2024ad2cd`. All native installed
+smoke rows passed and the four non-native targets remain explicitly `NOT_RUN`. The canonical full
+suite was run twice on the unchanged repair commit; both runs passed the changed companion and
+release-candidate packages but `internal/liveverify/session` exceeded its fixed 20-second event
+wait under full-suite load. The same package passed immediately in isolation (35.8 seconds total),
+as did the initially load-affected `internal/procgroup`; full vet and the CEM interop test/vet gate
+passed. No unrelated timing-test source was changed. Publication, tagging, pushing, signing, upload
+and promotion were not attempted.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 

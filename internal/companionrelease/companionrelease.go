@@ -111,6 +111,10 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 	if err != nil {
 		return nil, fmt.Errorf("stage taskman build source: %w", err)
 	}
+	corvintBuildNumber, err := sourceBuildNumber(ctx, toolchain.GitPath, opts.CorvintRoot, opts.Scratch)
+	if err != nil {
+		return nil, err
+	}
 
 	type componentSpec struct {
 		name       string
@@ -118,9 +122,10 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 		pkgPath    string
 		module     string
 		export     Export
+		buildFlags []string
 	}
 	specs := []componentSpec{
-		{name: "corvint", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint", module: "corvint", export: corvintExport},
+		{name: "corvint", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint", module: "corvint", export: corvintExport, buildFlags: []string{"-ldflags=-X main.build=" + corvintBuildNumber}},
 		{name: "corvint-console", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-console", module: "corvint", export: corvintExport},
 		{name: "corvint-dashboard-snapshot", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-dashboard-snapshot", module: "corvint", export: corvintExport},
 		{name: "corvint-mcp", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-mcp", module: "corvint", export: corvintExport},
@@ -142,7 +147,7 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 	componentFiles := append(corvintSourceFiles, taskmanSourceFiles...)
 	var components []ComponentManifest
 	for _, spec := range specs {
-		built, err := buildComponentTwice(ctx, spec.moduleRoot, spec.pkgPath, spec.name, opts.Target, opts.Scratch)
+		built, err := buildComponentTwiceWithFlags(ctx, spec.moduleRoot, spec.pkgPath, spec.name, opts.Target, opts.Scratch, spec.buildFlags)
 		if err != nil {
 			return nil, fmt.Errorf("build %s: %w", spec.name, err)
 		}

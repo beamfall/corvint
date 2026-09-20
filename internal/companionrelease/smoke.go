@@ -83,6 +83,11 @@ func runSmoke(ctx context.Context, extractedDir, scratch string, queuePolicy que
 	if err != nil {
 		return steps, err
 	}
+	coreSteps, err := checkCoreDiscoveryWorkflows(ctx, filepath.Join(extractedDir, "bin", inventory.name("corvint")), scratch)
+	steps = append(steps, coreSteps...)
+	if err != nil {
+		return steps, err
+	}
 
 	initStep, _, err := runAtmJSON(ctx, atmBin, smokeRepo, "atm-init", "init")
 	steps = append(steps, initStep)
@@ -157,7 +162,7 @@ func initSmokeRepo(ctx context.Context, root string, qp queuePolicyFiles) (strin
 	if err != nil {
 		return "", err
 	}
-	if _, _, err := runCaptured(ctx, root, closedGitEnv(root), subprocessTimeout, gitPath, "init", "-q"); err != nil {
+	if _, _, err := runCaptured(ctx, root, closedGitEnv(root), subprocessTimeout, gitPath, "init", "-q", "-b", "main"); err != nil {
 		return "", fmt.Errorf("git init smoke repo: %w", err)
 	}
 	if err := writeFiles(root, smokeLinkFixture, 0o600); err != nil {
@@ -213,8 +218,10 @@ func checkAtmHelp(ctx context.Context, atmBin, scratch string) SmokeStep {
 func runAtmJSON(ctx context.Context, atmBin, dir, name string, args ...string) (SmokeStep, map[string]any, error) {
 	stdout, stderr, err := runCaptured(ctx, dir, minimalRunEnv(dir), subprocessTimeout, append([]string{atmBin}, args...)...)
 	if err != nil {
-		s := step(name, err, trimForError(stderr))
-		return s, nil, fmt.Errorf("%s: %w", name, err)
+		diagnostic := "stdout=" + trimForError(stdout) + " stderr=" + trimForError(stderr)
+		runErr := fmt.Errorf("%w (%s)", err, diagnostic)
+		s := step(name, runErr, "")
+		return s, nil, fmt.Errorf("%s: %w", name, runErr)
 	}
 	var decoded map[string]any
 	if jsonErr := json.Unmarshal(stdout, &decoded); jsonErr != nil {
