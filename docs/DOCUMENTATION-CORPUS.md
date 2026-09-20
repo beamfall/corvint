@@ -26,7 +26,8 @@ symbols/test declarations, literal Markdown paragraphs and anchored Go imports; 
 runtime call graphs, API behavior or UI journeys. A declaration is never a test execution result.
 
 Read operations share one rederiving reader: `info`, `validate`, `search --query TEXT`, `get`, `trace`,
-`related`, `journey` (each with `--id ID`), `locate --path PATH`, `coverage`, `gaps [--id ID]`.
+`related`, `journey`, `stability` (each with `--id ID`), `locate --path PATH`, `coverage`,
+`gaps [--id ID]`.
 All take `--artifact FILE` and optional `--limit 1..256`. Queries report omissions, absence, valid
 no-match, not-found and stale evidence separately. Coverage names its scope/denominator and never
 claims universal behavioral coverage. Every read rechecks original immutable inputs; live source
@@ -75,6 +76,14 @@ non-UI evidence; no real browser verification is claimed. See the independent
 [flow adapter](../examples/documentation-corpus/README.md) for importing declared product flows
 without adding application vocabulary to Core.
 
+The optional `corvint-corpus-behavior-stability-provider/1` profile adds digest-bound repeated
+Playwright evidence without changing behavior-contract coverage. `stability --id ID` returns the
+selected one-spec, feature-batch or suite policy identity, separate raw outcome/cleanup/retry counts,
+and every immutable contributing receipt and attempt. Planned repetitions, retries and manual reruns
+remain distinct. Missing, duplicate, stale, cross-revision or contradictory contributors refuse;
+failed cleanup or any threshold miss yields `not-stable`. A stability report is repeated-run evidence,
+not test adequacy, behavior parity or selection authority.
+
 ## Rendering and maintenance
 
 Set manifest `profile.format` to `markdown` or `json`, and optional `profile.groups` to generic subject
@@ -94,9 +103,9 @@ new page. There is a brief absent-path window; this is not a crash-atomic filesy
 ## Separate MCP profile
 
 Build `./cmd/corvint-corpus-mcp` explicitly and start it with `--root /absolute/repository --artifact
-corpus.json`. It serves stdio only. Validated capabilities gate nine possible read tools: `docs_info`,
+corpus.json`. It serves stdio only. Validated capabilities gate ten possible read tools: `docs_info`,
 `docs_search`, `docs_get`, `docs_locate`, `docs_find_related`, `docs_coverage`, `docs_gaps`,
-`docs_get_journey`, `docs_trace`, each prefixed `corvint.`. Present-zero capabilities are callable;
+`docs_get_journey`, `docs_get_stability`, `docs_trace`, each prefixed `corvint.`. Present-zero capabilities are callable;
 absent capabilities are not advertised. Calls revalidate source/artifact identity. Changing the
 configured artifact requires restarting the server. Model-facing text uses the repository-data
 envelope; terminator collisions refuse. Structured receipts match the CLI reader.

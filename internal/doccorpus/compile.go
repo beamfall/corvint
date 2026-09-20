@@ -117,6 +117,7 @@ func Build(ctx context.Context, root string, m Manifest) (*Artifact, error) {
 	sort.Slice(a.Relations, func(i, j int) bool { return a.Relations[i].ID < a.Relations[j].ID })
 	sort.Slice(a.Journeys, func(i, j int) bool { return a.Journeys[i].ID < a.Journeys[j].ID })
 	sort.Slice(a.Observations, func(i, j int) bool { return a.Observations[i].Link.ID < a.Observations[j].Link.ID })
+	sort.Slice(a.StabilityEvidence, func(i, j int) bool { return a.StabilityEvidence[i].ID < a.StabilityEvidence[j].ID })
 	sort.Slice(a.Gaps, func(i, j int) bool {
 		return a.Gaps[i].Subject+"\x00"+a.Gaps[i].Kind+"\x00"+a.Gaps[i].Reason < a.Gaps[j].Subject+"\x00"+a.Gaps[j].Kind+"\x00"+a.Gaps[j].Reason
 	})

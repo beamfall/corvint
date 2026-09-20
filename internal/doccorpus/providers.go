@@ -12,7 +12,7 @@ var subjectKinds = words("repository package module symbol endpoint ui_surface c
 var relationKinds = words("implements calls imports documents tested_by journey_for depends_on affects related_to conflicts_with supersedes")
 var derivations = words("generated source-derived observed declared imported")
 var claimStates = words("supported conflicted unknown")
-var capabilityNames = []string{"info", "subjects", "claims", "relations", "coverage", "gaps", "journeys", "observations"}
+var capabilityNames = []string{"info", "subjects", "claims", "relations", "coverage", "gaps", "journeys", "observations", "stability"}
 
 func words(s string) map[string]bool {
 	m := map[string]bool{}
@@ -40,7 +40,7 @@ func (c *compiler) importRecords(p Provider) error {
 	if err := decode(source.Data, &record); err != nil {
 		return err
 	}
-	validSchema := record.Schema == ProviderSchema && record.BehaviorContracts == nil || record.Schema == BehaviorProviderSchema && record.BehaviorContracts != nil
+	validSchema := record.Schema == ProviderSchema && record.BehaviorContracts == nil || record.Schema == BehaviorProviderSchema && record.BehaviorContracts != nil && record.BehaviorContracts.Stability == nil || record.Schema == BehaviorStabilityProviderSchema && record.BehaviorContracts != nil && record.BehaviorContracts.Stability != nil
 	if !validSchema || record.ID != p.ID || record.Version != p.Version || record.Source != c.manifest.Repository {
 		return fail("provider revision, version or repository mismatch")
 	}
@@ -463,7 +463,7 @@ func (c *compiler) capabilities() {
 	sort.Strings(providers)
 	for _, name := range capabilityNames {
 		cap := Capability{Name: name, State: "absent", Reason: "not collected by any declared provider", Records: []string{}, Providers: providers, Tools: capabilityTools(name), Denominator: len(c.manifest.Inputs), Rule: "count records explicitly emitted by the declared providers"}
-		if name == "info" || name == "coverage" || name == "gaps" || (native && (name == "subjects" || name == "claims" || name == "relations")) {
+		if name == "info" || name == "coverage" || name == "gaps" || name == "stability" && len(a.StabilityEvidence) > 0 || (native && (name == "subjects" || name == "claims" || name == "relations")) {
 			cap.State = "present"
 			cap.Reason = "explicit native compiler capability"
 		}
@@ -500,6 +500,10 @@ func (c *compiler) capabilities() {
 			for _, r := range a.Observations {
 				cap.Records = append(cap.Records, r.Link.ID)
 			}
+		case "stability":
+			for _, r := range a.StabilityEvidence {
+				cap.Records = append(cap.Records, r.ID)
+			}
 		case "gaps":
 			for i := range a.Gaps {
 				cap.Records = append(cap.Records, fmt.Sprint(i))
@@ -524,6 +528,8 @@ func capabilityTools(name string) []string {
 		return []string{"coverage"}
 	case "gaps":
 		return []string{"gaps"}
+	case "stability":
+		return []string{"stability"}
 	}
 	return []string{}
 }

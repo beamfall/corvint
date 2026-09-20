@@ -60,7 +60,7 @@ func TestCorpusCLIBuildQueryAndMCPParity(t *testing.T) {
 			t.Fatalf("CLI/MCP receipt bytes differ: %v %v\n%s\n%s", failure, protocol, out, text)
 		}
 		for _, tool := range registry.Tools() {
-			if tool.Name == "corvint.docs_get_journey" {
+			if tool.Name == "corvint.docs_get_journey" || tool.Name == "corvint.docs_get_stability" {
 				t.Fatal("absent capability advertised")
 			}
 		}

@@ -11,15 +11,16 @@ import (
 const BehaviorProviderSchema = "corvint-corpus-behavior-provider/1"
 
 type BehaviorRegistry struct {
-	Schema                int              `json:"schema"`
-	ContractID            string           `json:"contract_id"`
-	ContractSHA256        string           `json:"contract_sha256"`
-	SourceRevision        string           `json:"source_revision"`
-	DocumentationRevision string           `json:"documentation_revision"`
-	Manifest              Anchor           `json:"migration_manifest"`
-	Flows                 []BehaviorFlow   `json:"flows"`
-	Behaviors             []BehaviorSource `json:"source_behaviors"`
-	Tests                 []BehaviorTest   `json:"tests"`
+	Schema                int                `json:"schema"`
+	ContractID            string             `json:"contract_id"`
+	ContractSHA256        string             `json:"contract_sha256"`
+	SourceRevision        string             `json:"source_revision"`
+	DocumentationRevision string             `json:"documentation_revision"`
+	Manifest              Anchor             `json:"migration_manifest"`
+	Flows                 []BehaviorFlow     `json:"flows"`
+	Behaviors             []BehaviorSource   `json:"source_behaviors"`
+	Tests                 []BehaviorTest     `json:"tests"`
+	Stability             *StabilityRegistry `json:"stability,omitempty"`
 }
 type BehaviorMigration struct {
 	Schema                int    `json:"schema"`
@@ -117,6 +118,7 @@ func (c *compiler) importBehavior(p Provider, r *BehaviorRegistry) error {
 	// The registry digest covers its contract declarations, excluding itself and runtime.
 	declarations := *r
 	declarations.ContractSHA256 = ""
+	declarations.Stability = nil
 	declarations.Tests = slices.Clone(r.Tests)
 	for i := range declarations.Tests {
 		declarations.Tests[i].Runtime = nil
@@ -165,7 +167,12 @@ func (c *compiler) importBehavior(p Provider, r *BehaviorRegistry) error {
 	if !uniqueIdentities(ids) {
 		return fail("duplicate behavior identity")
 	}
-	c.artifact.BehaviorContracts = append(c.artifact.BehaviorContracts, BehaviorReport{Provider: p.ID, Registry: *r, VerifiedTests: []string{}, LinkedFlows: []string{}, LinkedBehaviors: []string{}, VerifiedFlows: []string{}, Fallback: "full-relevant-suite", Limitations: []string{"experimental provider declarations; exact consumer fixtures not qualified", "recorded verification is not semantic adequacy or authenticated runtime provenance", "retained application freshness remains unknown; recorded verification never asserts current served content", "no narrowing authority"}})
+	published := *r
+	published.Stability = nil
+	c.artifact.BehaviorContracts = append(c.artifact.BehaviorContracts, BehaviorReport{Provider: p.ID, Registry: published, VerifiedTests: []string{}, LinkedFlows: []string{}, LinkedBehaviors: []string{}, VerifiedFlows: []string{}, Fallback: "full-relevant-suite", Limitations: []string{"experimental provider declarations; exact consumer fixtures not qualified", "recorded verification is not semantic adequacy or authenticated runtime provenance", "retained application freshness remains unknown; recorded verification never asserts current served content", "no narrowing authority"}})
+	if r.Stability != nil {
+		return c.compileStability(p.ID, *r, *r.Stability)
+	}
 	return nil
 }
 

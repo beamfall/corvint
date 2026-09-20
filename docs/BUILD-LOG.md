@@ -7,6 +7,27 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 DCP-V1-021..025: revision-bound Playwright stability evidence (issue 42)
+
+The experimental behavior-stability provider keeps issue-40 behavior coverage and repeated-run
+stability as separate artifact axes. A repository-owned digest-bound policy selects one-spec,
+feature-batch or suite thresholds; reports preserve planned/started/completed and every outcome,
+retry, cleanup and manual-rerun count plus all contributing receipt/attempt evidence. A failed first
+attempt remains both failed and flaky after a later pass. Missing iterations, duplicate receipts,
+silently consumed retries, cross-application revisions and contradictory identities refuse; failed
+cleanup is retained as a non-clean verdict. Corpus and MCP expose the exact aggregate without an
+adequacy, parity, freshness or narrowing claim.
+
+The earliest end-to-end aggregate and five requested negative controls pass on synthetic qualified
+receipts. The original task query preceded private measurement and remains `NOT_PRODUCED`; the later
+required DOGFOOD enrollment pins base `06eb443565979b313ecb63f7316f06677a908f65` and the owning
+documentation-corpus spec. Live repeated browser execution and consumer policy qualification are
+NOT_RUN, so the feature remains proposed/experimental.
+
+The focused `cmd/corvint` regression exposed that its minimal local-completion repository copied Go
+sources but omitted the qualified Playwright reporter embedded by the now-reachable provider import.
+The fixture now carries that production embed; the product binary and provider profile are unchanged.
+
 ## 2026-09-20 DCP-V1-004/007..013/019: experimental behavior contract ingestion (issue 40)
 
 The optional behavior-provider profile joins bidirectional flow/criterion/test/project identities

@@ -186,21 +186,22 @@ type Gap struct {
 	Reason  string `json:"reason"`
 }
 type Artifact struct {
-	BehaviorContracts []BehaviorReport `json:"behavior_contracts,omitempty"`
-	Schema            string           `json:"schema"`
-	Builder           Builder          `json:"builder"`
-	Manifest          Manifest         `json:"manifest"`
-	ManifestSHA256    string           `json:"manifest_sha256"`
-	ProfileSHA256     string           `json:"profile_sha256"`
-	Tree              string           `json:"tree"`
-	Subjects          []Subject        `json:"subjects"`
-	Claims            []Claim          `json:"claims"`
-	Relations         []Relation       `json:"relations"`
-	Journeys          []Journey        `json:"journeys"`
-	Observations      []Observation    `json:"observations"`
-	Capabilities      []Capability     `json:"capabilities"`
-	Gaps              []Gap            `json:"gaps"`
-	SHA256            string           `json:"sha256"`
+	BehaviorContracts []BehaviorReport  `json:"behavior_contracts,omitempty"`
+	StabilityEvidence []StabilityReport `json:"stability_evidence,omitempty"`
+	Schema            string            `json:"schema"`
+	Builder           Builder           `json:"builder"`
+	Manifest          Manifest          `json:"manifest"`
+	ManifestSHA256    string            `json:"manifest_sha256"`
+	ProfileSHA256     string            `json:"profile_sha256"`
+	Tree              string            `json:"tree"`
+	Subjects          []Subject         `json:"subjects"`
+	Claims            []Claim           `json:"claims"`
+	Relations         []Relation        `json:"relations"`
+	Journeys          []Journey         `json:"journeys"`
+	Observations      []Observation     `json:"observations"`
+	Capabilities      []Capability      `json:"capabilities"`
+	Gaps              []Gap             `json:"gaps"`
+	SHA256            string            `json:"sha256"`
 }
 type Request struct {
 	Operation string `json:"operation"`

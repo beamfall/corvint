@@ -31,7 +31,7 @@ func localCompletionRepo(t *testing.T) (string, string) {
 		}
 		for _, entry := range entries {
 			relative := filepath.Join(directory, entry.Name())
-			selected := strings.HasSuffix(relative, ".go") && !strings.HasSuffix(relative, "_test.go") || relative == "internal/gokernel/host-schema.json" || relative == "internal/betarung/admissions.json"
+			selected := strings.HasSuffix(relative, ".go") && !strings.HasSuffix(relative, "_test.go") || relative == "internal/gokernel/host-schema.json" || relative == "internal/betarung/admissions.json" || relative == "internal/jstestprovider/qualified-reporter.cjs"
 			if entry.IsDir() || !selected {
 				continue
 			}

@@ -5,6 +5,8 @@ Date: 2026-09-19
 Intent status: proposed
 Delivery status: experimental
 Authoritative inputs: owner request [issue 31](https://github.com/beamfall/corvint/issues/31),
+owner requests [issue 40](https://github.com/beamfall/corvint/issues/40) and
+[issue 42](https://github.com/beamfall/corvint/issues/42),
 `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/deployment-neutral-index-platform-v0.md`,
 `docs/specs/source-documentation-draft-v0.md`, `docs/specs/external-evidence-provider-v0.md`.
 
@@ -83,7 +85,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   original pinned inputs before answering. Missing/tampered provider artifacts, moved spans, source
   drift, changed builder/profile and mutable checkout differences refuse or appear in a separate
   freshness overlay. A later provider commit alone does not stale unchanged source bytes.
-- `DCP-V1-012`: `docs corpus` exposes manifest/build/info/search/get/locate/related/coverage/gaps/journey/
+- `DCP-V1-012`: `docs corpus` exposes manifest/build/info/search/get/locate/related/coverage/gaps/journey/stability/
   trace/validate through a shared bounded native reader. Search reuses native lexical tokenization;
   results sort deterministically and retain omissions. Every response carries contract/artifact/source
   revisions, trust, freshness, citations, limitations and typed misses. Reads never write repository,
@@ -100,7 +102,7 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
 - `DCP-V1-015`: Task/work consumers may attach read-only corpus evidence without changing accepted
   task intent, claims, dispatch, scheduling or authorization. Corpus evidence never owns task state.
 - `DCP-V1-016`: A separate stdio documentation-corpus MCP server directly calls the native reader;
-  tools equivalent to docs_info/search/get/locate/find_related/coverage/gaps/get_journey/trace are
+  tools equivalent to docs_info/search/get/locate/find_related/coverage/gaps/get_journey/get_stability/trace are
   advertised only when their backing capability is present (including present-zero). Revalidate on
   calls, preserve typed failures, frame model-facing text using `repoenvelope`, refuse terminator
   collisions and match CLI structured receipt bytes. Existing core and draft MCP surfaces stay frozen.
@@ -126,6 +128,29 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   recall, abstention accuracy, false-positive relationships, latency and receipt bytes, with corpus,
   source, profile and builder identities. Synthetic evidence remains labelled; no unmeasured savings,
   universal relevance, independent real-world utility or HDC qualification is claimed.
+- `DCP-V1-021`: The opt-in `corvint-corpus-behavior-stability-provider/1` profile aggregates only
+  immutable qualified Playwright receipt inputs. Each contribution binds its receipt digest plus
+  application and test Git revisions, configuration and behavior-contract digests, runner/version,
+  browser/project, worker/retry policy, environment class/digest and fixture schema/digest. All
+  identities are identical within an aggregate unless the repository-owned policy explicitly names
+  that exact matrix dimension; carried or inferred identity is never substituted.
+- `DCP-V1-022`: Planned repetitions use a complete unique ordinal set. Playwright retries remain
+  ordered attempts inside one repetition, while manual reruns use separately identified contributors
+  and never fill a planned ordinal or threshold. Missing iterations, duplicate receipt digests,
+  stale/changed inputs, cross-revision identities, inexact test/project joins and contradictory
+  receipt/attempt evidence refuse the aggregate instead of reducing its denominator.
+- `DCP-V1-023`: Aggregates separately expose planned, started, completed, passed, failed, timed-out,
+  interrupted, infrastructure-failed, skipped, flaky, retry-consumed, cleanup-failed and manual-rerun
+  raw counts. Every repetition and attempt has cleanup status. Any failed/unknown cleanup prevents a
+  clean verdict. Earlier assertion, synchronization, product, fixture or infrastructure failures and
+  their receipt-bound artifacts remain in contributing attempts even when a retry or manual rerun passes.
+- `DCP-V1-024`: One repository-owned digest-bound policy defines independent one-spec, feature-batch
+  and suite thresholds. The selected scope, policy ID/digest, raw counts and threshold result remain
+  visible. No policy may turn a partial or contradictory aggregate into a verdict.
+- `DCP-V1-025`: Corpus `stability` and capability-gated MCP `docs_get_stability` rederive the aggregate
+  and return all contributing receipt identities. Stability remains a separate artifact and coverage
+  axis from issue-40 behavior-contract joins; neither axis claims test adequacy, behavior parity,
+  current served content, narrowing authority or promotion authority.
 
 ## Input and authority boundary
 
@@ -168,8 +193,35 @@ relevant-suite fallback. Rollback removes this opt-in profile without changing l
 
 Acceptance: `TestBehaviorContractCorpusRoundTrip`, `TestBehaviorContractGaps`,
 `TestBehaviorOrderedRuntime`, `TestBehaviorQualifiedReceiptEndToEnd` and
-`TestBehaviorExactProjectObservation` exercise DCP-V1-004,
-DCP-V1-007..013 and DCP-V1-019. Owner acceptance and real consumer fixtures remain promotion gates.
+`TestBehaviorExactProjectObservation` exercise `DCP-V1-004`,
+`DCP-V1-007..013` and `DCP-V1-019`. Owner acceptance and real consumer fixtures remain promotion gates.
+
+### Experimental repeated Playwright stability evidence (issue 42)
+
+The opt-in `corvint-corpus-behavior-stability-provider/1` record retains the issue-40 behavior
+registry but adds a separate `corvint-playwright-stability/1` registry. Stability bytes are excluded
+from the behavior-contract digest, and compiled stability reports are stored outside
+`behavior_contracts`, so behavior coverage and repeated-run stability remain separately reviewable.
+
+Each aggregate selects one of the repository policy's `one-spec`, `feature-batch` or `suite`
+thresholds. Planned repetitions must be exactly present once; retries stay nested attempt evidence;
+manual reruns carry distinct IDs and do not affect planned counts. Exact immutable receipt decoding
+revalidates the test/project, runner, config, app/test revisions, environment and effective fixture
+identity. Policy-owned worker/retry/environment-class/fixture-schema labels remain attributed
+declarations bound by the policy and receipt digests, not independent runtime discovery.
+
+Counts intentionally overlap where facts overlap: a flaky repetition with a failed first attempt is
+both `failed` and `flaky`, and consumes a retry. This prevents a later pass from erasing its earlier
+failure. Failed or unknown repetition/attempt cleanup prevents `clean`; malformed, omitted, duplicate,
+stale, cross-revision and contradictory inputs refuse compilation. The aggregate retains receipt
+paths/revisions/digests, every attempt classification and supporting receipt artifact. The dedicated
+corpus/MCP join rederives those bytes and carries explicit no-adequacy/no-parity limitations.
+
+Acceptance: `TestPlaywrightStabilityAggregateEndToEnd`,
+`TestPlaywrightStabilityNegativeControls`,
+`TestPlaywrightStabilityPreservesEarlierFailureAndPolicyScopes` and
+`TestStabilityToolIsCapabilityGated` exercise DCP-V1-021..025. Fixtures are synthetic; live repeated
+browser execution, consumer policy qualification, behavior parity and owner acceptance remain open.
 
 One local Git repository may supply up to eight explicit immutable revisions. A provider can be
 committed after the source it describes; its record anchors still name the earlier source revision.
@@ -224,6 +276,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-016 | `internal/mcp/corpusbridge`, `cmd/corvint-corpus-mcp` | Capability gating, transport parity and hostile text |
 | DCP-V1-017 | Corpus render and maintenance API | Human byte/permission preservation, malformed/stale/tampered refusal |
 | DCP-V1-019..020 | Conformance fixtures and independent example adapter | Labelled evaluation and actual self-corpus receipt |
+| DCP-V1-021..025 | `internal/doccorpus/stability.go`, corpus reader and MCP bridge | End-to-end aggregate, policy scopes, failure retention, cleanup and five adversarial controls |
 
 ## Open decisions
 

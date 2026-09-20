@@ -164,7 +164,7 @@ Separate experimental corpus profile:
   corvint [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT
   corvint [--root PATH] docs corpus render --artifact CORPUS.json
   corvint [--root PATH] docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply]
-Read operations: info, validate, get/trace/related/journey --id ID, locate --path PATH,
+Read operations: info, validate, get/trace/related/journey/stability --id ID, locate --path PATH,
 coverage, gaps [--id ID]. Optional --limit 1..256. All require --artifact.
 Native query/context/impact/affected/test-validity/work observe/propose-wave and CEM
 status/verify/report accept --corpus=CORPUS.json. Generated evidence grants no task

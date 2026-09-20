@@ -25,7 +25,7 @@ type Registry struct {
 	artifact           *doccorpus.Artifact
 }
 
-var tools = map[string]string{"corvint.docs_info": "info", "corvint.docs_search": "search", "corvint.docs_get": "get", "corvint.docs_locate": "locate", "corvint.docs_find_related": "related", "corvint.docs_coverage": "coverage", "corvint.docs_gaps": "gaps", "corvint.docs_get_journey": "journey", "corvint.docs_trace": "trace"}
+var tools = map[string]string{"corvint.docs_info": "info", "corvint.docs_search": "search", "corvint.docs_get": "get", "corvint.docs_locate": "locate", "corvint.docs_find_related": "related", "corvint.docs_coverage": "coverage", "corvint.docs_gaps": "gaps", "corvint.docs_get_journey": "journey", "corvint.docs_get_stability": "stability", "corvint.docs_trace": "trace"}
 
 func New(root, path string) (*Registry, *Error) {
 	absolute, err := filepath.Abs(root)
@@ -58,7 +58,7 @@ func (r *Registry) Tools() []bridge.ToolDescriptor {
 			properties["query"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
 			required = append(required, "query")
 		}
-		if op == "get" || op == "related" || op == "journey" || op == "trace" {
+		if op == "get" || op == "related" || op == "journey" || op == "stability" || op == "trace" {
 			properties["id"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1024}
 			required = append(required, "id")
 		}
@@ -96,7 +96,7 @@ func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map
 		return nil, "", nil, &Error{"invalid-arguments"}
 	}
 	for key, value := range members {
-		allowed := key == "limit" || key == "query" && op == "search" || key == "path" && op == "locate" || key == "id" && (op == "get" || op == "trace" || op == "related" || op == "journey" || op == "gaps")
+		allowed := key == "limit" || key == "query" && op == "search" || key == "path" && op == "locate" || key == "id" && (op == "get" || op == "trace" || op == "related" || op == "journey" || op == "stability" || op == "gaps")
 		if !allowed || value == nil {
 			return nil, "", nil, &Error{"invalid-arguments"}
 		}
@@ -108,10 +108,10 @@ func (r *Registry) Call(ctx context.Context, name string, arguments []byte) (map
 			return nil, "", nil, &Error{"invalid-arguments"}
 		}
 	}
-	if op != "get" && op != "related" && op != "journey" && op != "trace" && op != "gaps" && input.ID != "" {
+	if op != "get" && op != "related" && op != "journey" && op != "stability" && op != "trace" && op != "gaps" && input.ID != "" {
 		return nil, "", nil, &Error{"invalid-arguments"}
 	}
-	if op == "search" && input.Query == "" || op == "locate" && input.Path == "" || (op == "get" || op == "related" || op == "journey" || op == "trace") && input.ID == "" {
+	if op == "search" && input.Query == "" || op == "locate" && input.Path == "" || (op == "get" || op == "related" || op == "journey" || op == "stability" || op == "trace") && input.ID == "" {
 		return nil, "", nil, &Error{"invalid-arguments"}
 	}
 	if op != "search" && input.Query != "" || op != "locate" && input.Path != "" {
