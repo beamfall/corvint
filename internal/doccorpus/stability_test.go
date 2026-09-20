@@ -223,6 +223,22 @@ func TestPlaywrightStabilityNegativeControls(t *testing.T) {
 				},
 				wantError: true,
 			},
+			"failed outcome with passing attempt": {
+				editReceipt: func(i int, receipt *jstestprovider.Receipt) {
+					if i == 2 {
+						receipt.Tests[0].State = jstestprovider.StateFailed
+					}
+				},
+				wantError: true,
+			},
+			"flaky outcome without failed attempt": {
+				editReceipt: func(i int, receipt *jstestprovider.Receipt) {
+					if i == 2 {
+						receipt.Tests[0].State = jstestprovider.StateFlaky
+					}
+				},
+				wantError: true,
+			},
 			"qualified infrastructure counted": {
 				editReceipt: func(i int, receipt *jstestprovider.Receipt) {
 					if i != 2 {
@@ -460,5 +476,35 @@ func TestStabilityCountsEarlierIncompleteAttemptCategories(t *testing.T) {
 				t.Fatalf("earlier %s attempt erased: %+v", test.state, counts)
 			}
 		})
+	}
+}
+
+func TestStabilityOutcomeMatchesOrderedAttempts(t *testing.T) {
+	valid := []jstestprovider.TestOutcome{
+		{State: jstestprovider.StatePassed, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StatePassed}}},
+		{State: jstestprovider.StateFlaky, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StateFailed}, {State: jstestprovider.StatePassed}}},
+		{State: jstestprovider.StateFailed, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StateFailed}}},
+		{State: jstestprovider.StateTimedOut, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StateTimedOut}}},
+		{State: jstestprovider.StateInterrupted, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StateInterrupted}}},
+		{State: jstestprovider.StateInfrastructure, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StateInfrastructure}}},
+		{State: jstestprovider.StateSkipped, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StateSkipped}}},
+	}
+	for _, outcome := range valid {
+		if !stabilityOutcomeMatchesAttempts(outcome) {
+			t.Fatalf("valid %s outcome rejected: %+v", outcome.State, outcome)
+		}
+	}
+	invalid := []jstestprovider.TestOutcome{
+		{State: jstestprovider.StateFlaky, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StatePassed}}},
+		{State: jstestprovider.StateFailed, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StatePassed}}},
+		{State: jstestprovider.StateTimedOut, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StatePassed}}},
+		{State: jstestprovider.StateInterrupted, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StatePassed}}},
+		{State: jstestprovider.StateInfrastructure, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StatePassed}}},
+		{State: jstestprovider.StateSkipped, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StatePassed}}},
+	}
+	for _, outcome := range invalid {
+		if stabilityOutcomeMatchesAttempts(outcome) {
+			t.Fatalf("contradictory %s outcome accepted: %+v", outcome.State, outcome)
+		}
 	}
 }

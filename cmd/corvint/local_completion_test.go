@@ -48,6 +48,10 @@ func localCompletionRepo(t *testing.T) (string, string) {
 			}
 		}
 	}
+	embeddedReporter := "internal/jstestprovider/qualified-reporter.cjs"
+	if _, err := os.Stat(filepath.Join(root, embeddedReporter)); err != nil {
+		t.Fatalf("embedded fixture asset %s: %v", embeddedReporter, err)
+	}
 	for _, relative := range []string{"go.mod", "VERSION", "script/dogfood-change.sh", "script/dogfood-check.sh"} {
 		raw, err := os.ReadFile(filepath.Join(source, relative))
 		if err != nil {

@@ -165,10 +165,27 @@ manifest have not been supplied or qualified. No exact compatibility claim is ma
 
 The registry pins contract ID/digest, source and documentation revisions, a full-file migration
 manifest anchor, flows, source-discovered behaviors and exact Playwright test/project executions.
-The schema-2 migration manifest contains `schema`, `contract_id`, `source_revision` and
-`documentation_revision`. Each flow pins a documentation anchor, criterion IDs, exact test IDs,
-required page IDs, negative-control IDs and ordered `kind:id` event identities. Tests retain source
-anchors, exact runtime test IDs/project names/titles, reverse flow/criterion IDs and assertion IDs.
+The schema-2 migration manifest contains `schema`, `contract_id`, `source_revision`,
+`documentation_revision` and `revisions`. The latter pins repository IDs and commits for `app`,
+`golf_e2e` and `docs_corpus`; the registry, migration manifest, live discovery and runtime must agree
+with the corpus manifest's caller-supplied `behavior_revisions`. Any changed member blocks recorded
+verification. External repository expectations remain caller-declared; local anchors still rebind
+through immutable Git. Each flow retains its derivation, documentation anchor, criterion IDs, exact
+test IDs, required page IDs, negative-control IDs and ordered complete event identities. Generated
+prose remains generated even when its separately recorded runtime witness verifies.
+
+Assertions bind stable behavior/criterion IDs to an exact reviewed annotation span/digest in the test
+source and exact matcher, locator and expected value. Runtime assertion events must match every one
+of those identities, not merely the matcher, route or test title. Every event names browser context,
+page and frame; page events additionally distinguish main-frame, frame, redirect, popup (with parent
+page) and setup navigation. Comparison preserves complete sequence and scope without flattening.
+
+The registry's discovery anchor names a full `corvint-playwright-discovery/1` artifact with mode
+`live-playwright-list`, the revision set, exact configuration anchor and discovered execution
+IDs/projects/source anchors. The retained native run must use that configuration. The discovery
+inventory supplies the project-execution denominator, including executions with no contract, which
+remain unreviewed gaps. The issue comment's 463 executions in 117 files is a consumer observation,
+not reproduced locally; synthetic tests assert their own bound denominator instead.
 The contract SHA-256 uses canonical registry bytes with an empty digest and all test runtime fields
 omitted. Runtime and provider artifacts are committed separately, avoiding self-referential hashes.
 
@@ -194,7 +211,7 @@ execution and verified-contract denominators; zero remains undefined. All outcom
 relevant-suite fallback. Rollback removes this opt-in profile without changing legacy inputs.
 
 Acceptance: `TestBehaviorContractCorpusRoundTrip`, `TestBehaviorContractGaps`,
-`TestBehaviorOrderedRuntime`, `TestBehaviorQualifiedReceiptEndToEnd` and
+`TestBehaviorOrderedRuntime`, `TestBehaviorQualifiedReceiptEndToEnd`, `TestBehaviorAcceptanceAmendment` and
 `TestBehaviorExactProjectObservation` exercise `DCP-V1-004`,
 `DCP-V1-007..013` and `DCP-V1-019`. Owner acceptance and real consumer fixtures remain promotion gates.
 

@@ -42,6 +42,15 @@ when runner cleanup failed.
 The authorized final repair rejects state/failure-kind contradictions at both the qualified receipt
 binding and stability classification boundaries; a passed attempt carrying assertion-failure
 metadata and an artifact now refuses instead of contributing to a clean verdict.
+Late coordination integrated the amended, evidence-bound issue-40 contract at `e54ffcb`, including
+patch-equivalent copies of both shared local-completion fixture repairs. The earlier gate on `4a60483`
+is superseded and failed at the error-code ownership ratchet because the accepted Playwright provider
+had never enumerated its existing refusal vocabulary. The owning PWP-V0 spec now records those codes;
+no error behavior or wire value changed.
+Integration review found that receipt identity qualification did not derive the aggregate outcome
+from the ordered attempts. The stability consumer now applies the reporter's exact terminal-state
+rule, including requiring a prior non-passing attempt before `flaky`; contradictory terminal states
+refuse before policy counting.
 
 ## 2026-09-20 DCP-V1-004/007..013/019: experimental behavior contract ingestion (issue 40)
 
@@ -62,6 +71,18 @@ recorded verification unreachable for native Playwright receipts. The repair use
 execution projection, rebinds test/configuration inputs, and preserves the exact unknown app-freshness
 axis. A full Build/Open regression imports a synthetic qualified receipt through native decoding and
 projection; no manually assigned CURRENT projection is used by that end-to-end test.
+The owner's subsequent issue-40 acceptance amendment strengthens assertion target/value identity,
+ordered browser-context/page/frame navigation, live discovery denominator reconciliation and the
+app/e2e/docs revision set. Synthetic negatives cover same matcher/wrong element or value, same route
+without assertion, wrong project, reordered/scoped visits and stale revision members. The consumer's
+463/117 inventory and local consumer fixtures remain NOT_OBSERVED; generated prose retains its label.
+Amendment review required rejecting digest-valid but noncurrent behavior anchors and checking every
+assertion, not only finding one qualifying assertion per criterion. End-to-end regressions retain
+validly pinned alternate-revision source and matching extra runtime events while rejecting their
+stale, unreviewed or undeclared joins.
+Final amendment review also required the reverse runtime-assertion check: a runtime event and
+matching expected order cannot invent an assertion absent from the validated test declaration.
+The retained-run regression covers that previously one-way join explicitly.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 

@@ -281,7 +281,7 @@ func (c *compiler) stabilityOutcome(behavior BehaviorRegistry, aggregate Stabili
 	test := matches[0]
 	receipt := document.Playwright
 	native, exact := stabilityNativeOutcome(*receipt, aggregate.TestID, contribution.Identity.Project)
-	if !exact || !jstestprovider.QualifiedReceiptBindingReady(*receipt, *native) || !stabilityProjectionMatches(*native) {
+	if !exact || !jstestprovider.QualifiedReceiptBindingReady(*receipt, *native) || !stabilityOutcomeMatchesAttempts(*native) || !stabilityProjectionMatches(*native) {
 		return testvaliditydoc.Test{}, nil, fail("unqualified stability test outcome")
 	}
 	identity := contribution.Identity
@@ -323,6 +323,23 @@ func stabilityNativeOutcome(receipt jstestprovider.Receipt, testID, project stri
 		}
 	}
 	return matched, matched != nil
+}
+
+func stabilityOutcomeMatchesAttempts(outcome jstestprovider.TestOutcome) bool {
+	if len(outcome.Attempts) == 0 {
+		return false
+	}
+	last := outcome.Attempts[len(outcome.Attempts)-1].State
+	expected := last
+	if last == jstestprovider.StatePassed {
+		for _, attempt := range outcome.Attempts[:len(outcome.Attempts)-1] {
+			if attempt.State != jstestprovider.StatePassed {
+				expected = jstestprovider.StateFlaky
+				break
+			}
+		}
+	}
+	return outcome.State == expected
 }
 
 func stabilityProjectionMatches(outcome jstestprovider.TestOutcome) bool {
