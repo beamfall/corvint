@@ -133,6 +133,28 @@ abstains from runnable units.
 
 ## Detection and runner addressing
 
+### Playwright fixture qualification boundary
+
+`TestPlaywrightQualification` in
+`internal/liveverify/affected/typescript/playwright_qualification_test.go` checks the repository-owned
+`testdata/playwright-qualification.tsv` inventory: 117 test files, four cases per file, nine feature
+cohorts, and Chromium/Angular/React file variants plus setup/cleanup. This is synthetic source-graph
+qualification under `TJAA-V0-017`, not execution of Playwright or recall measured in a consumer repo.
+The manifest is checked against generated source independently of the selector; expected selections
+are enumerated from cohort ranges, never from its graph or exclusions. The seven static change
+cases require 1,187 units in total and reject both missing and extra units. Dynamic-source and
+unknown-membership cases require the full independently enumerated 353-unit baseline as a subset;
+additional conservative units remain permitted. Unknown project sets require full-config fallback
+with zero runnable approximations. Every case repeats canonical serialization for identical inputs.
+
+Retained-provider composition uses the existing JavaScript reporter parser and `ProjectPinned`:
+matching source/config bindings still leave E2E freshness unknown, mismatches and stale app builds
+are stale, missing source stays unknown, and ambiguous envelopes are refused. Passed execution never
+supplies mutation strength or closes the selection receipt's external-application frontier. The
+current provider has no project-aware result join; issue #19 owns that dependency. This fixture
+qualification does not promote the runtime provider, qualify full-CI recall, or assert case-level
+recall from file-level selection. The general adapter remains proposed/experimental.
+
 The command column is the runner's exact file or story-set form once the named placeholders have
 been resolved from provider configuration. V0's `affected.Language` result has no structured argv,
 working-directory, runner, config, project, tag, loader, browser, permission, or device field, so
@@ -220,5 +242,6 @@ experimental spec. No persisted format, CLI registry, or existing receipt is cha
 | `TJAA-V0-005` | `TestTemplateSubstitutionRequireBuildsDependencyEdge`, `TestMultilineJSXQuoteAmbiguityRaisesFrontier`, `TestSameLineJSXApostropheAmbiguityRaisesFrontier`, `TestStandaloneJSXApostrophesRaiseFrontier`, `TestJSXTextCannotImitateALiteralOpeningContext`, `TestKeywordEndingJSXTextCannotHideRequireWithoutBraces`, `TestJSXAttributeAndExpressionStringsRemainParsed`, `TestOrdinaryTSXStringsAndJSXExpressionLiteralsRemainParsed`, and import-resolution focused tests in `internal/liveverify/affected/typescript/` | experimental |
 | `TJAA-V0-009` | `internal/liveverify/affected/conformance_test.go` TypeScript seam case | experimental |
 | `TJAA-V0-010..017` | `internal/liveverify/affected/typescript/playwright.go`, `playwright_test.go`, and `cmd/corvint/affected_playwright_test.go` | experimental |
+| `TJAA-V0-014..017` fixture qualification | `internal/liveverify/affected/typescript/playwright_qualification_test.go`, `testdata/playwright-qualification.tsv` | synthetic fixture evidence; runtime promotion excluded |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |
