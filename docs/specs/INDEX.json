@@ -1039,7 +1039,7 @@
     "reqPrefix": "PSM-V0",
     "intent": "proposed",
     "delivery": "experimental (closed operator executor; bounded observed-descendant cleanup)",
-    "claim": "A no-mutation planner and separately authorized experimental executor retain bounded Playwright trials with qualified runner, stability and application evidence.",
+    "claim": "A no-mutation planner and approved experimental executor retain bounded Playwright trials with qualified runner, stability, and application evidence.",
     "dependsOn": [
       "docs/specs/playwright-external-provider-v0.md",
       "docs/specs/documentation-corpus-v1.md"

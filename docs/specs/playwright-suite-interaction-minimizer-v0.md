@@ -8,7 +8,7 @@ Authoritative inputs: GitHub issue #47; AGENTS.md invariants 1-4 and 8; Playwrig
 Provider V0; Documentation Corpus V1 stability identity.
 
 ## Agent digest
-- Claim: A no-mutation planner and separately authorized experimental executor retain bounded Playwright trials with qualified runner, stability and application evidence.
+- Claim: A no-mutation planner and approved experimental executor retain bounded Playwright trials with qualified runner, stability, and application evidence.
 - Status: proposed; experimental (closed operator executor; bounded observed-descendant cleanup).
 - Exists: `internal/playwrightminimize`, `cmd/corvint-playwright-minimize`, integrated evidence validation and synthetic/live qualification fixtures.
 - Blocked on: broader runtime qualification and production promotion; the admitted live tuple remains the exact system-Chrome profile.

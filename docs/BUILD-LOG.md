@@ -7,6 +7,17 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 Integrated canonical-gate repair
+
+The first combined `make gate` rejected the candidate before publication. The work-queue OCM
+enumeration still stopped at WQO-V0-048 after WQO-V0-049..050 were added, and the Playwright
+minimizer claim exceeded the 160-character index limit while its README and generated index had
+diverged. Those conformance records now agree. Two context-index tests also exposed a repeatable
+macOS cleanup race: Apple Git auto-maintenance could recreate `.git/objects/info/packs` while Go
+removed the temporary repository. The shared eval fixture disables automatic GC and maintenance;
+twenty repeated reproductions and the three-package regression pass. The failed full-gate receipt
+is retained and invalidated; a new commit-bound canonical gate is required.
+
 ## 2026-09-20 PSM-V0-004/008/009: original failure identity repair
 
 Independent final review found that consistent failures of a different class could be called
