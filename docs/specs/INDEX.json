@@ -1017,6 +1017,23 @@
     ]
   },
   {
+    "path": "docs/specs/playwright-suite-interaction-minimizer-v0.md",
+    "title": "Playwright Suite-Interaction Minimizer V0",
+    "reqPrefix": "PSM-V0",
+    "intent": "proposed",
+    "delivery": "experimental (planner and synthetic qualification only)",
+    "claim": "A pure bounded planner retains exact proposed Playwright suite-interaction trials and synthetic outcomes without launching Playwright or an application.",
+    "dependsOn": [
+      "docs/specs/playwright-external-provider-v0.md",
+      "docs/specs/documentation-corpus-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/playwrightminimize"
+    ]
+  },
+  {
     "path": "docs/specs/kotlin-android-candidate-v0.md",
     "title": "Kotlin/Android Native Candidate V0",
     "reqPrefix": "KA-V0",

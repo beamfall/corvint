@@ -7,6 +7,46 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 PSM-V0-001..013: bounded Playwright suite-interaction planning (issue 47)
+
+The experimental `internal/playwrightminimize` package emits a deterministic digest-bound schedule
+that reproduces the original suite failure and rechecks isolation before separately enumerating
+ordered predecessor sequences and unordered load sets. Trial count, repetition and wall-clock limits
+stay explicit; partial searches cannot claim complete minimality. Execution exists only as an
+abstract synthetic qualification seam and refuses without separate operator approval bound to the
+exact plan. No Playwright, browser, server or application process ran for this slice.
+
+Every synthetic trial binds revision/config/runner/browser/project/order/topology/fixture/seed and
+application-instance identity, declares its reset policy, and carries setup, assertion, retry,
+cleanup, server-health, resource and failure evidence. Failed reset/cleanup, attestation change,
+identity drift, malformed/duplicate receipts, and missing evidence invalidate without erasing the
+observation. Reports retain all seven failure classes, separate ordered and load findings, label
+members necessary only in the observed universe, and never claim global minimality.
+
+Six synthetic qualifications cover a predecessor leak, load-only resource failure, restart,
+cleanup failure, nondeterminism and isolated product regression; controls cover authorization,
+`not_reproduced`, exact planning and bounded incompleteness. #39 runner qualification and #43
+application attestation are divergent development refs rather than integrated frozen dependencies at
+base `6098291`; missing #39/#42/#43 receipts therefore remain distinct confidence blockers. Live
+integration and the shared full gate are `NOT_RUN` pending their owning coordination.
+
+Independent review reproduced seven boundary defects: a late or partial reproduction could become
+conclusive; runners lacked the remaining wall-clock deadline; errored runners dropped returned
+receipts; singleton necessity crossed worker topologies; isolation infrastructure failures were
+called product regressions; opposite baselines could share one digest; and findings omitted passing
+receipts that supported minimality. The repair deadline-bounds and post-validates every call,
+requires complete repetition groups, preserves invalid errored receipts, gates necessity on exact
+topology, derives only an explicitly product-only isolation label, rejects duplicate baselines, and
+retains all comparison receipts. Focused regressions `TestPSMV0012` through `TestPSMV0016` cover the
+review cases; re-review is recorded separately by the task coordinator. Corvint `affected` selected
+only the new Go package while preserving the mandatory repository gate and documentation unknowns;
+the pre-commit `prove` expansion returned `unsupported-impact-path-suffix` because the new package
+was absent from its pinned repository revision, so no proof-of-impact claim is made.
+Re-review then found that cancellation during the final runner call could publish confidence and that
+mixed classifications returned before inspecting a later invalid repetition. The final repair reads
+the trial context before releasing its deadline, invalidates cancelled results, and validates every
+repetition before comparing classifications. `TestPSMV0017` and `TestPSMV0018` retain both cases.
+
 ## 2026-09-20 DCP-V1-021..025: revision-bound Playwright stability evidence (issue 42)
 
 The experimental behavior-stability provider keeps issue-40 behavior coverage and repeated-run
