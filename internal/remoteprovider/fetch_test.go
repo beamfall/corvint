@@ -32,107 +32,109 @@ func testConfig(t *testing.T, handler http.HandlerFunc) Config {
 }
 
 func TestRemoteFailures(t *testing.T) {
-	for _, mode := range []string{"oversize", "status", "redirect", "encoding", "truncated", "unavailable", "pin", "trust", "scheme", "userinfo", "query", "fragment", "credential-reflection", "credential-escaped", "credential-mode", "credential-symlink", "credential-whitespace", "timeout"} {
-		t.Run("EEP-REMOTE-002 "+mode, func(t *testing.T) {
-			credential := "provider-secret-DO-NOT-LEAK"
-			config := testConfig(t, func(w http.ResponseWriter, r *http.Request) {
+	t.Run("EEP-REMOTE-002 bounded TLS and HTTP", func(t *testing.T) {
+		for _, mode := range []string{"oversize", "status", "redirect", "encoding", "truncated", "unavailable", "pin", "trust", "scheme", "userinfo", "query", "fragment", "credential-reflection", "credential-escaped", "credential-mode", "credential-symlink", "credential-whitespace", "timeout"} {
+			t.Run("EEP-REMOTE-002 "+mode, func(t *testing.T) {
+				credential := "provider-secret-DO-NOT-LEAK"
+				config := testConfig(t, func(w http.ResponseWriter, r *http.Request) {
+					switch mode {
+					case "oversize":
+						_, _ = w.Write(bytes.Repeat([]byte("x"), MaxRecordBytes+1))
+					case "status":
+						w.WriteHeader(503)
+					case "redirect":
+						http.Redirect(w, r, "https://must-not-be-contacted.invalid", 302)
+					case "encoding":
+						w.Header().Set("Content-Encoding", "gzip")
+						io.WriteString(w, "body")
+					case "truncated":
+						w.Header().Set("Content-Length", "100")
+						io.WriteString(w, "short")
+					case "credential-reflection":
+						io.WriteString(w, credential)
+					case "credential-escaped":
+						io.WriteString(w, `{"summary":"\u0070rovider-secret-DO-NOT-LEAK"}`)
+					case "timeout":
+						<-r.Context().Done()
+					default:
+						io.WriteString(w, `{"record":"ok"}`)
+					}
+				})
 				switch mode {
-				case "oversize":
-					_, _ = w.Write(bytes.Repeat([]byte("x"), MaxRecordBytes+1))
-				case "status":
-					w.WriteHeader(503)
-				case "redirect":
-					http.Redirect(w, r, "https://must-not-be-contacted.invalid", 302)
-				case "encoding":
-					w.Header().Set("Content-Encoding", "gzip")
-					io.WriteString(w, "body")
-				case "truncated":
-					w.Header().Set("Content-Length", "100")
-					io.WriteString(w, "short")
-				case "credential-reflection":
-					io.WriteString(w, credential)
-				case "credential-escaped":
-					io.WriteString(w, `{"summary":"\u0070rovider-secret-DO-NOT-LEAK"}`)
-				case "timeout":
-					<-r.Context().Done()
-				default:
-					io.WriteString(w, `{"record":"ok"}`)
+				case "unavailable":
+					config.URL = "https://127.0.0.1:1"
+				case "pin":
+					config.SPKISHA256 = strings.Repeat("0", 64)
+				case "trust":
+					config.CAFile = ""
+				case "scheme":
+					config.URL = "http://127.0.0.1:1"
+				case "userinfo":
+					config.URL = strings.Replace(config.URL, "https://", "https://secret@", 1)
+				case "query":
+					config.URL += "?token=secret"
+				case "fragment":
+					config.URL += "#secret"
+				}
+				if strings.HasPrefix(mode, "credential-") {
+					config.CredentialFile = filepath.Join(t.TempDir(), "credential")
+					value := credential
+					if mode == "credential-whitespace" {
+						value += "\n"
+					}
+					if err := os.WriteFile(config.CredentialFile, []byte(value), 0600); err != nil {
+						t.Fatal(err)
+					}
+					if mode == "credential-mode" {
+						if err := os.Chmod(config.CredentialFile, 0644); err != nil {
+							t.Fatal(err)
+						}
+					}
+					if mode == "credential-symlink" {
+						original := config.CredentialFile
+						config.CredentialFile += ".link"
+						if err := os.Symlink(original, config.CredentialFile); err != nil {
+							t.Fatal(err)
+						}
+					}
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				if mode == "timeout" {
+					cancel()
+					ctx, cancel = context.WithTimeout(context.Background(), 100*time.Millisecond)
+				}
+				defer cancel()
+				data, err := Fetch(ctx, config)
+				if err != ErrRefused || len(data) != 0 {
+					t.Fatalf("failure published data: bytes=%d err=%v", len(data), err)
+				}
+				if strings.Contains(err.Error(), credential) {
+					t.Fatal("credential in error")
 				}
 			})
-			switch mode {
-			case "unavailable":
-				config.URL = "https://127.0.0.1:1"
-			case "pin":
-				config.SPKISHA256 = strings.Repeat("0", 64)
-			case "trust":
-				config.CAFile = ""
-			case "scheme":
-				config.URL = "http://127.0.0.1:1"
-			case "userinfo":
-				config.URL = strings.Replace(config.URL, "https://", "https://secret@", 1)
-			case "query":
-				config.URL += "?token=secret"
-			case "fragment":
-				config.URL += "#secret"
-			}
-			if strings.HasPrefix(mode, "credential-") {
-				config.CredentialFile = filepath.Join(t.TempDir(), "credential")
-				value := credential
-				if mode == "credential-whitespace" {
-					value += "\n"
+		}
+		t.Run("EEP-REMOTE-003 private bearer and exact bytes", func(t *testing.T) {
+			body := []byte(" {\n\"record\":\"bytes\"}\n")
+			config := testConfig(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.Header.Get("Authorization") != "Bearer token" {
+					w.WriteHeader(401)
+					return
 				}
-				if err := os.WriteFile(config.CredentialFile, []byte(value), 0600); err != nil {
-					t.Fatal(err)
+				if r.Header.Get("Accept-Encoding") != "" {
+					w.WriteHeader(400)
+					return
 				}
-				if mode == "credential-mode" {
-					if err := os.Chmod(config.CredentialFile, 0644); err != nil {
-						t.Fatal(err)
-					}
-				}
-				if mode == "credential-symlink" {
-					original := config.CredentialFile
-					config.CredentialFile += ".link"
-					if err := os.Symlink(original, config.CredentialFile); err != nil {
-						t.Fatal(err)
-					}
-				}
+				_, _ = w.Write(body)
+			})
+			config.CredentialFile = filepath.Join(t.TempDir(), "credential")
+			if err := os.WriteFile(config.CredentialFile, []byte("token"), 0600); err != nil {
+				t.Fatal(err)
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			if mode == "timeout" {
-				cancel()
-				ctx, cancel = context.WithTimeout(context.Background(), 100*time.Millisecond)
-			}
-			defer cancel()
-			data, err := Fetch(ctx, config)
-			if err != ErrRefused || len(data) != 0 {
-				t.Fatalf("failure published data: bytes=%d err=%v", len(data), err)
-			}
-			if strings.Contains(err.Error(), credential) {
-				t.Fatal("credential in error")
+			data, err := Fetch(context.Background(), config)
+			if err != nil || !bytes.Equal(body, data) {
+				t.Fatalf("bytes changed: %q %v", data, err)
 			}
 		})
-	}
-	t.Run("EEP-REMOTE-003 private bearer and exact bytes", func(t *testing.T) {
-		body := []byte(" {\n\"record\":\"bytes\"}\n")
-		config := testConfig(t, func(w http.ResponseWriter, r *http.Request) {
-			if r.Header.Get("Authorization") != "Bearer token" {
-				w.WriteHeader(401)
-				return
-			}
-			if r.Header.Get("Accept-Encoding") != "" {
-				w.WriteHeader(400)
-				return
-			}
-			_, _ = w.Write(body)
-		})
-		config.CredentialFile = filepath.Join(t.TempDir(), "credential")
-		if err := os.WriteFile(config.CredentialFile, []byte("token"), 0600); err != nil {
-			t.Fatal(err)
-		}
-		data, err := Fetch(context.Background(), config)
-		if err != nil || !bytes.Equal(body, data) {
-			t.Fatalf("bytes changed: %q %v", data, err)
-		}
 	})
 }
 

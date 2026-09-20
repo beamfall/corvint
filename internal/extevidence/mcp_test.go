@@ -116,68 +116,74 @@ func serveMCPHelper(args []string) int {
 
 func TestMCPTransportConformance(t *testing.T) {
 	t.Parallel()
-	t.Run("EEP-MCP-003 unchanged records", func(t *testing.T) {
-		transportConformance(t, func(file string) string { return mcpSource(t, "serve", file) })
+	t.Run("EEP-TR-009 accepted MCP profile", func(t *testing.T) {
+		t.Run("EEP-MCP-003 unchanged records", func(t *testing.T) {
+			transportConformance(t, func(file string) string { return mcpSource(t, "serve", file) })
+		})
 	})
 }
 
 func TestMCPTransportFailures(t *testing.T) {
-	repo := newRepository(t)
-	file := writeRecord(t, t.TempDir(), "record.json", fixture(t, repo.head))
-	for _, mode := range []string{"request", "overflow", "stderr", "version", "structured", "error", "case-error", "null-error", "duplicate", "extra", "exit"} {
-		t.Run("EEP-MCP-002 "+mode, func(t *testing.T) {
-			assertMCPClosed(t, Section(context.Background(), repo.index(), []string{mcpSource(t, mode, file)}, nil, nil, 10))
+	t.Run("EEP-MCP-002 bounded protocol failures", func(t *testing.T) {
+		repo := newRepository(t)
+		file := writeRecord(t, t.TempDir(), "record.json", fixture(t, repo.head))
+		for _, mode := range []string{"request", "overflow", "stderr", "version", "structured", "error", "case-error", "null-error", "duplicate", "extra", "exit"} {
+			t.Run("EEP-MCP-002 "+mode, func(t *testing.T) {
+				assertMCPClosed(t, Section(context.Background(), repo.index(), []string{mcpSource(t, mode, file)}, nil, nil, 10))
+			})
+		}
+		t.Run("EEP-MCP-004 timeout", func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+			assertMCPClosed(t, Section(ctx, repo.index(), []string{mcpSource(t, "timeout", file)}, nil, nil, 10))
 		})
-	}
-	t.Run("EEP-MCP-004 timeout", func(t *testing.T) {
-		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		defer cancel()
-		assertMCPClosed(t, Section(ctx, repo.index(), []string{mcpSource(t, "timeout", file)}, nil, nil, 10))
-	})
-	t.Run("EEP-MCP-004 unavailable", func(t *testing.T) {
-		source, _ := ParseMCP(`["/corvint-does-not-exist"]`)
-		assertMCPClosed(t, Section(context.Background(), repo.index(), []string{source}, nil, nil, 10))
+		t.Run("EEP-MCP-004 unavailable", func(t *testing.T) {
+			source, _ := ParseMCP(`["/corvint-does-not-exist"]`)
+			assertMCPClosed(t, Section(context.Background(), repo.index(), []string{source}, nil, nil, 10))
+		})
 	})
 }
 
 func TestMCPDescendantCleanup(t *testing.T) {
-	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
-		t.Skip("process groups require POSIX")
-	}
-	repo := newRepository(t)
-	for _, mode := range []string{"descendant", "descendant-stdin", "descendant-output"} {
-		t.Run("EEP-MCP-004 "+mode, func(t *testing.T) {
-			file := writeRecord(t, t.TempDir(), "record.json", fixture(t, repo.head))
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer cancel()
-			section := Section(ctx, repo.index(), []string{mcpSource(t, mode, file)}, nil, nil, 10)
-			raw, err := os.ReadFile(file + ".pid")
-			if err != nil {
-				t.Fatalf("descendant did not start: %v", err)
-			}
-			pid, err := strconv.Atoi(string(raw))
-			if err != nil {
-				t.Fatal(err)
-			}
-			process, _ := os.FindProcess(pid)
-			defer process.Release()
-			probeCtx, probeCancel := context.WithTimeout(context.Background(), time.Second)
-			defer probeCancel()
-			state, _ := exec.CommandContext(probeCtx, "/bin/ps", "-p", strconv.Itoa(pid), "-o", "stat=").Output()
-			if process.Signal(syscall.Signal(0)) == nil && !strings.HasPrefix(strings.TrimSpace(string(state)), "Z") {
-				_ = process.Kill()
-				t.Fatalf("descendant %d survived: %s", pid, state)
-			}
-			if mode == "descendant" {
-				row := section["providers"].([]any)[0].(map[string]any)
-				if row["state"] != StateLoaded {
-					t.Fatalf("normal session not loaded: %v", row)
+	t.Run("EEP-MCP-004 interactive descendants", func(t *testing.T) {
+		if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+			t.Skip("process groups require POSIX")
+		}
+		repo := newRepository(t)
+		for _, mode := range []string{"descendant", "descendant-stdin", "descendant-output"} {
+			t.Run("EEP-MCP-004 "+mode, func(t *testing.T) {
+				file := writeRecord(t, t.TempDir(), "record.json", fixture(t, repo.head))
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer cancel()
+				section := Section(ctx, repo.index(), []string{mcpSource(t, mode, file)}, nil, nil, 10)
+				raw, err := os.ReadFile(file + ".pid")
+				if err != nil {
+					t.Fatalf("descendant did not start: %v", err)
 				}
-			} else {
-				assertMCPClosed(t, section)
-			}
-		})
-	}
+				pid, err := strconv.Atoi(string(raw))
+				if err != nil {
+					t.Fatal(err)
+				}
+				process, _ := os.FindProcess(pid)
+				defer process.Release()
+				probeCtx, probeCancel := context.WithTimeout(context.Background(), time.Second)
+				defer probeCancel()
+				state, _ := exec.CommandContext(probeCtx, "/bin/ps", "-p", strconv.Itoa(pid), "-o", "stat=").Output()
+				if process.Signal(syscall.Signal(0)) == nil && !strings.HasPrefix(strings.TrimSpace(string(state)), "Z") {
+					_ = process.Kill()
+					t.Fatalf("descendant %d survived: %s", pid, state)
+				}
+				if mode == "descendant" {
+					row := section["providers"].([]any)[0].(map[string]any)
+					if row["state"] != StateLoaded {
+						t.Fatalf("normal session not loaded: %v", row)
+					}
+				} else {
+					assertMCPClosed(t, section)
+				}
+			})
+		}
+	})
 }
 
 func assertMCPClosed(t *testing.T, section map[string]any) {
