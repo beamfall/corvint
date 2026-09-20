@@ -44,7 +44,7 @@ func TestPSMV0002ExecutionRequiresSeparateAuthorization(t *testing.T) {
 }
 
 func TestPSMV0003TruePredecessorLeakQualification(t *testing.T) {
-	plan := mustPlan(t, qualifiedRequest())
+	plan := mustPlan(t, requestWithClasses(FailureFixture))
 	report := runSynthetic(t, plan, func(trial Trial) TrialReceipt {
 		failed := trial.Kind == TrialReproduction || (trial.Kind == TrialOrdered && slices.Equal(trial.Context, []string{"leak"}))
 		if failed {
@@ -61,7 +61,7 @@ func TestPSMV0003TruePredecessorLeakQualification(t *testing.T) {
 }
 
 func TestPSMV0004LoadOnlyQualification(t *testing.T) {
-	plan := mustPlan(t, qualifiedRequest())
+	plan := mustPlan(t, requestWithClasses(FailureResourceExhaustion, FailureInfrastructure))
 	report := runSynthetic(t, plan, func(trial Trial) TrialReceipt {
 		failed := trial.Kind == TrialReproduction || (trial.Kind == TrialLoad && len(trial.Context) == 2)
 		if failed {
@@ -118,7 +118,7 @@ func TestPSMV0006CleanupFailureInvalidatesTrial(t *testing.T) {
 }
 
 func TestPSMV0007NondeterministicReproductionStopsMinimization(t *testing.T) {
-	plan := mustPlan(t, qualifiedRequest())
+	plan := mustPlan(t, requestWithClasses(FailureSynchronization))
 	calls := 0
 	report := runSynthetic(t, plan, func(trial Trial) TrialReceipt {
 		calls++
@@ -161,7 +161,7 @@ func TestPSMV0009NotReproducedHasNoMinimizationOrClassification(t *testing.T) {
 }
 
 func TestPSMV0010MissingComposedQualificationsBlocksConfidence(t *testing.T) {
-	request := qualifiedRequest()
+	request := requestWithClasses(FailureFixture)
 	request.Qualification.RunnerQualified = false
 	request.Qualification.RunnerReceiptDigest = ""
 	request.Qualification.StabilityQualified = false
@@ -236,7 +236,7 @@ func TestPSMV0013RunnerGetsDeadlineAndErrorReceiptIsRetained(t *testing.T) {
 }
 
 func TestPSMV0014NecessityRequiresMatchingTopologyAndSupportingReceipts(t *testing.T) {
-	request := qualifiedRequest()
+	request := requestWithClasses(FailureFixture)
 	request.IsolatedPass.Identity.WorkerTopology = WorkerTopology{Workers: 2, Policy: "different-isolation"}
 	plan := mustPlan(t, request)
 	report := runSynthetic(t, plan, func(trial Trial) TrialReceipt {
@@ -283,7 +283,7 @@ func TestPSMV0016InfrastructureIsolationIsNotProductAttribution(t *testing.T) {
 }
 
 func TestPSMV0017CancellationDuringFinalTrialCannotPublishConfidence(t *testing.T) {
-	plan := mustPlan(t, qualifiedRequest())
+	plan := mustPlan(t, requestWithClasses(FailureFixture))
 	ctx, cancel := context.WithCancel(context.Background())
 	report, err := Execute(ctx, plan, Authorization{OperatorApproved: true, PlanDigest: plan.Digest}, RunnerFunc(func(_ context.Context, trial Trial) (TrialReceipt, error) {
 		if trial.Ordinal == len(plan.Trials) {
@@ -322,6 +322,57 @@ func TestPSMV0018InvalidRepetitionOutranksMixedClasses(t *testing.T) {
 	if report.Status != "incomplete" || report.Diagnosis != "none" || !hasReason(report.Trials, "cleanup-failed") || !slices.Contains(report.Blockers, "reproduction-invalid") {
 		t.Fatalf("mixed classes masked invalid repetition: %#v", report)
 	}
+}
+
+func TestPSMV0019FailureSignatureMismatchCannotMinimize(t *testing.T) {
+	for _, kind := range []TrialKind{TrialReproduction, TrialOrdered, TrialLoad} {
+		for _, class := range []FailureClass{FailureFixture, FailureSynchronization} {
+			t.Run(string(kind)+"/"+string(class), func(t *testing.T) {
+				plan := mustPlan(t, qualifiedRequest())
+				report := runSynthetic(t, plan, func(trial Trial) TrialReceipt {
+					if trial.Kind == kind {
+						return receiptFor(trial, OutcomeFailed, FailureObservation{Class: class, EvidenceDigest: digest("new-run"), Summary: "different failure"})
+					}
+					if trial.Kind == TrialReproduction {
+						return receiptFor(trial, OutcomeFailed, FailureObservation{Class: FailureAssertion, EvidenceDigest: digest("fresh-assertion"), Summary: "fresh observation"})
+					}
+					return receiptFor(trial, OutcomePassed)
+				})
+				if report.Confident || report.Status != "incomplete" || report.Ordered != nil || report.Load != nil || !slices.Contains(report.Blockers, "original-failure-signature-mismatch") || countClass(report.ObservedFailures, class) == 0 {
+					t.Fatalf("changed failure was minimized or erased: %#v", report)
+				}
+			})
+		}
+	}
+}
+
+func TestPSMV0020FailureSignatureUsesExactClassSetNotEvidenceDigest(t *testing.T) {
+	for _, classes := range [][]FailureClass{{FailureAssertion}, {FailureAssertion, FailureFixture}, {FailureFixture, FailureAssertion, FailureFixture}, {FailureAssertion, FailureFixture, FailureSynchronization}} {
+		request := requestWithClasses(FailureAssertion, FailureFixture)
+		plan := mustPlan(t, request)
+		report := runSynthetic(t, plan, func(trial Trial) TrialReceipt {
+			if trial.Kind != TrialReproduction && !(trial.Kind == TrialOrdered && slices.Equal(trial.Context, []string{"leak"})) {
+				return receiptFor(trial, OutcomePassed)
+			}
+			var failures []FailureObservation
+			for _, class := range classes {
+				failures = append(failures, FailureObservation{Class: class, EvidenceDigest: digest("new-" + string(class)), Summary: "new evidence"})
+			}
+			return receiptFor(trial, OutcomeFailed, failures...)
+		})
+		if report.Confident != (len(classes) > 1 && !slices.Contains(classes, FailureSynchronization)) {
+			t.Fatalf("class-set comparison incorrect: classes=%v report=%#v", classes, report)
+		}
+	}
+}
+
+func requestWithClasses(classes ...FailureClass) Request {
+	request := qualifiedRequest()
+	request.OriginalFailure.Failures = nil
+	for _, class := range classes {
+		request.OriginalFailure.Failures = append(request.OriginalFailure.Failures, FailureObservation{Class: class, EvidenceDigest: digest("original-" + string(class)), Summary: "original retained observation"})
+	}
+	return request
 }
 
 func qualifiedRequest() Request {

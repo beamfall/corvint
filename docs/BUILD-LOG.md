@@ -7,6 +7,20 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 PSM-V0-004/008/009: original failure identity repair
+
+Independent final review found that consistent failures of a different class could be called
+reproductions of the original failure. Reproduction and candidate trials now require exact sorted
+distinct failure-class sets; missing or additional classes retain observations but invalidate the
+trial with `original-failure-signature-mismatch` and prevent confidence/minimality claims. Native
+planning rejects caller classes inconsistent with the qualified original target and binds rederived
+observations into the plan. The original receipt bytes/digest remain immutable; new-run evidence
+digests and summaries are retained, not compared for impossible byte equality. Class-set equality
+does not prove identical root cause. Isolation failures still stop minimization independently.
+Synthetic assertion-to-fixture/synchronization controls cover reproduction and both candidate
+kinds; multi-class controls cover missing/additional classes, ordering, duplicates and fresh evidence.
+Focused minimizer and companion tests pass; no additional live-world claim or release promotion.
+
 ## 2026-09-20 Issues 42, 43, 47 and PUB-V0: integrated review repair
 
 Stability accepts fully qualified `/1` application attestations, including a distinct application

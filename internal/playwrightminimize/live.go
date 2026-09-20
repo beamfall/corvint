@@ -110,6 +110,10 @@ func LivePlanRequest(ctx context.Context, input LiveRequest) (LivePlan, error) {
 	if err := validateLiveBaseline(original, input.Request.OriginalFailure, input.Request.Target, nil); err != nil {
 		return LivePlan{}, err
 	}
+	derived, err := bindNativeFailures(original, input.Request.Target, input.Request.OriginalFailure.Failures)
+	if err != nil {
+		return LivePlan{}, err
+	}
 	if err := validateLiveBaseline(isolated, input.Request.IsolatedPass, input.Request.Target, original); err != nil {
 		return LivePlan{}, err
 	}
@@ -121,7 +125,9 @@ func LivePlanRequest(ctx context.Context, input LiveRequest) (LivePlan, error) {
 		return LivePlan{}, errors.New("stability aggregate does not bind the original and isolated receipts and identities")
 	}
 	input.Request.Qualification = Qualification{RunnerQualified: true, RunnerReceiptDigest: digestBytes(input.Original), StabilityQualified: true, StabilityReceiptDigest: digestBytes(input.Corpus), ApplicationAttested: true, ApplicationReceiptDigest: digestJSON(original.ApplicationAttestation)}
-	plan, err := BuildPlan(input.Request)
+	request := input.Request
+	request.OriginalFailure.Failures = derived
+	plan, err := BuildPlan(request)
 	if err != nil {
 		return LivePlan{}, err
 	}
@@ -210,19 +216,7 @@ func (r *liveRunner) Run(ctx context.Context, trial Trial) (result TrialReceipt,
 	target := correspondingNative(&native, findNative(r.original, r.input.Request.Target))
 	if target != nil {
 		result.Outcome = nativeOutcome(*target)
-		for _, attempt := range target.Attempts {
-			if attempt.State == jstestprovider.StatePassed {
-				continue
-			}
-			class := FailureAssertion
-			if attempt.FailureKind == "browser-or-fixture" {
-				class = FailureFixture
-			}
-			if attempt.State == jstestprovider.StateTimedOut {
-				class = FailureSynchronization
-			}
-			result.Failures = append(result.Failures, FailureObservation{Class: class, EvidenceDigest: digestJSON(attempt), Summary: string(attempt.State) + ": " + attempt.FailureKind})
-		}
+		result.Failures = append(result.Failures, nativeFailures(target)...)
 	}
 	if runErr != nil {
 		return result, runErr
@@ -253,6 +247,36 @@ func (r *liveRunner) Run(ctx context.Context, trial Trial) (result TrialReceipt,
 		return result, err
 	}
 	return result, nil
+}
+
+func nativeFailures(target *jstestprovider.TestOutcome) []FailureObservation {
+	var failures []FailureObservation
+	for _, attempt := range target.Attempts {
+		if attempt.State == jstestprovider.StatePassed {
+			continue
+		}
+		class := FailureAssertion
+		if attempt.FailureKind == "browser-or-fixture" {
+			class = FailureFixture
+		}
+		if attempt.State == jstestprovider.StateTimedOut {
+			class = FailureSynchronization
+		}
+		failures = append(failures, FailureObservation{Class: class, EvidenceDigest: digestJSON(attempt), Summary: string(attempt.State) + ": " + attempt.FailureKind})
+	}
+	return failures
+}
+
+func bindNativeFailures(r *jstestprovider.Receipt, targetID string, declared []FailureObservation) ([]FailureObservation, error) {
+	target := findNative(r, targetID)
+	if target == nil {
+		return nil, errors.New("original target missing")
+	}
+	derived := nativeFailures(target)
+	if len(derived) == 0 || !slices.Equal(receiptFailureClasses(TrialReceipt{Failures: declared}), receiptFailureClasses(TrialReceipt{Failures: derived})) {
+		return nil, errors.New("original native failure signature mismatch")
+	}
+	return derived, nil
 }
 
 func validateLiveBaseline(r *jstestprovider.Receipt, baseline Baseline, targetID string, reference *jstestprovider.Receipt) error {

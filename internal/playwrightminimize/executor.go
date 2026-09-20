@@ -109,6 +109,11 @@ func runKind(ctx context.Context, report *Report, plan Plan, kind TrialKind, run
 		trialContextErr := trialCtx.Err()
 		cancel()
 		result := validateReceipt(trial, receipt, err)
+		if receipt.Outcome == OutcomeFailed && trial.Kind != TrialIsolation && !slices.Equal(receiptFailureClasses(receipt), receiptFailureClasses(TrialReceipt{Failures: plan.Request.OriginalFailure.Failures})) {
+			result.Valid = false
+			result.InvalidReasons = append(result.InvalidReasons, "original-failure-signature-mismatch")
+			report.Blockers = appendUnique(report.Blockers, "original-failure-signature-mismatch")
+		}
 		contextReason := ""
 		if trialContextErr != nil {
 			contextReason = "execution-context-cancelled"

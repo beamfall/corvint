@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
@@ -44,6 +45,29 @@ func TestPSMLiveQualifiedEvidenceAndNegativeControls(t *testing.T) {
 				t.Fatalf("mode %s: %v", mode, err)
 			}
 		})
+	}
+}
+
+func TestPSMLiveOriginalFailureSignatureIsRederived(t *testing.T) {
+	for _, class := range []FailureClass{FailureAssertion, FailureFixture, FailureSynchronization} {
+		r, _ := liveBaselineFixture()
+		before, _ := json.Marshal(r)
+		declared := []FailureObservation{{Class: class, EvidenceDigest: digest("caller-evidence"), Summary: "caller-supplied summary"}}
+		got, err := bindNativeFailures(&r, r.Tests[0].ID, declared)
+		if class != FailureAssertion {
+			if err == nil {
+				t.Fatalf("caller-controlled %s replaced native assertion", class)
+			}
+			continue
+		}
+		want := nativeFailures(&r.Tests[0])
+		if err != nil || !reflect.DeepEqual(got, want) || got[0].EvidenceDigest == declared[0].EvidenceDigest || got[0].Summary == declared[0].Summary {
+			t.Fatalf("native failure not rederived: got=%+v err=%v", got, err)
+		}
+		after, _ := json.Marshal(r)
+		if string(before) != string(after) {
+			t.Fatal("immutable original receipt changed")
+		}
 	}
 }
 

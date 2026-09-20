@@ -41,6 +41,8 @@ work was initially on separate development refs. The integrated repair now decod
 - `PSM-V0-004`: The planned original schedule MUST run first. A valid current pass produces
   `not_reproduced`, executes no isolation or minimization trial, and publishes no current failure
   classification. An invalid or mixed reproduction remains incomplete or nondeterministic.
+  A failed reproduction MUST match the original target's exact failure-class set; otherwise it
+  MUST remain incomplete with `original-failure-signature-mismatch`, not count as reproduction.
 - `PSM-V0-005`: Ordered predecessor sequences and unordered load sets MUST have separate candidate
   universes, trials, completeness flags, and findings. An isolated pass plus the original failure
   MUST NOT by itself establish order dependence.
@@ -52,10 +54,19 @@ work was initially on separate development refs. The integrated repair now decod
 - `PSM-V0-008`: Assertion, synchronization, fixture, product, infrastructure, restart, and
   resource-exhaustion observations MUST remain separate and all observed values MUST be retained.
   Multiple or conflicting observations MUST NOT be automatically adjudicated into one cause.
+  The live boundary MUST rederive the original target observations from the qualified immutable
+  native receipt, reject a caller-declared class set that differs, and bind the rederived
+  observations into the plan. Semantic comparison uses sorted distinct classes, not per-run
+  evidence digests, summaries, or multiplicity: those observations remain retained, but attempt
+  timing and evidence hashes naturally vary between runs. Original receipt bytes and their exact
+  digest remain immutable. Class equality is not a claim of identical underlying root cause.
 - `PSM-V0-009`: A finding MUST report the smallest observed reproducing sequence or set, all
   contributing receipt digests, and each member as necessary in the observed universe or unproven.
   It MAY report proof within the fully executed bounded universe; it MUST never call that globally
   minimal.
+  A failed candidate MUST match that same original class set before contributing to a finding or
+  minimality proof. Mismatches invalidate the candidate, retain every observed failure, and block
+  confidence. Isolation failures remain separately classified and stop minimization.
 - `PSM-V0-010`: Every trial MUST retain start and publish application attestations. A changed
   application instance is a retained restart observation and invalidates that trial for comparison.
 - `PSM-V0-011`: Missing or invalid runner qualification (#39), stability identity (#42), or
@@ -133,6 +144,7 @@ request continues to refuse before launch under CRR-V0-003(c).
 | PSM-V0-001/002/005/006 | `internal/playwrightminimize/planner.go`, `types.go` | `TestPSMV0001PlanIsExactBoundedAndReadOnly`, `TestPSMV0011WallClockAndTrialBoundsStayVisible`, `TestPSMV0012IncompleteReproductionCannotBecomeNotReproduced`, `TestPSMV0015DuplicateBaselineDigestRefuses` |
 | PSM-V0-003 | `internal/playwrightminimize/executor.go` | `TestPSMV0002ExecutionRequiresSeparateAuthorization` |
 | PSM-V0-004 | `internal/playwrightminimize/executor.go` | `TestPSMV0007NondeterministicReproductionStopsMinimization`, `TestPSMV0009NotReproducedHasNoMinimizationOrClassification`, `TestPSMV0018InvalidRepetitionOutranksMixedClasses` |
+| PSM-V0-004/008/009 | `internal/playwrightminimize/executor.go`, `internal/playwrightminimize/live.go` | `TestPSMV0019FailureSignatureMismatchCannotMinimize`, `TestPSMV0020FailureSignatureUsesExactClassSetNotEvidenceDigest`, `TestPSMLiveOriginalFailureSignatureIsRederived` |
 | PSM-V0-007/008/010 | `internal/playwrightminimize/executor.go` | `TestPSMV0005ApplicationRestartInvalidatesTrial`, `TestPSMV0006CleanupFailureInvalidatesTrial`, `TestPSMV0013RunnerGetsDeadlineAndErrorReceiptIsRetained`, `TestPSMV0016InfrastructureIsolationIsNotProductAttribution`, `TestPSMV0017CancellationDuringFinalTrialCannotPublishConfidence` |
 | PSM-V0-009/012 | `internal/playwrightminimize/executor.go` | `TestPSMV0003TruePredecessorLeakQualification`, `TestPSMV0004LoadOnlyQualification`, `TestPSMV0008IsolatedProductRegressionStopsMinimization`, `TestPSMV0014NecessityRequiresMatchingTopologyAndSupportingReceipts` |
 | PSM-V0-011 | `internal/playwrightminimize/planner.go`, `executor.go` | `TestPSMV0010MissingComposedQualificationsBlocksConfidence` |
