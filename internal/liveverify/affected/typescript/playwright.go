@@ -641,11 +641,18 @@ func playwrightUseIdentity(raw string) (browser, device string, ok bool) {
 }
 
 func playwrightInheritedUseIdentity(global, raw string) (browser, device string, ok bool) {
-	browser, device, ok = playwrightUseLayer(global, "chromium", "")
+	browser, device, ok = playwrightUseLayer(global, "", "")
 	if !ok {
 		return "", "", false
 	}
-	return playwrightUseLayer(raw, browser, device)
+	browser, device, ok = playwrightUseLayer(raw, browser, device)
+	if browser == "" && device != "" {
+		browser = playwrightDeviceBrowser(device)
+	}
+	if browser == "" {
+		browser = "chromium"
+	}
+	return browser, device, ok
 }
 
 func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
@@ -675,8 +682,7 @@ func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
 			}
 			device = name
 			seenDevice = true
-			browser = playwrightDeviceBrowser(device)
-			if browser == "" {
+			if playwrightDeviceBrowser(device) == "" {
 				return "", device, false
 			}
 			continue
@@ -709,9 +715,6 @@ func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
 			return "", device, false
 		}
 		browser, seenBrowser = value, true
-	}
-	if browser == "" {
-		browser = "chromium"
 	}
 	return browser, device, true
 }

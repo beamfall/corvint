@@ -62,6 +62,8 @@ func TestPlaywrightGolfQualification(t *testing.T) {
 			{"missing alias", "support/page0.ts", `export { value } from "@missing/page"`, FrontierPathAlias},
 			{"missing target", "support/page0.ts", `export { value } from "@pages/missing"`, FrontierPathAlias},
 			{"inherited tsconfig", "tsconfig.json", `{"extends":"./base.json","compilerOptions":{"baseUrl":"."}}`, FrontierPathAlias},
+			{"equal prefix alias overlap", "tsconfig.json", `{"compilerOptions":{"baseUrl":".","paths":{"@pages/*":["support/page*"],"@pages/*0":["support/helper0"]}}}`, FrontierPathAlias},
+			{"multiple existing targets", "tsconfig.json", `{"compilerOptions":{"baseUrl":".","paths":{"@pages/*":["support/page*","support/helper*"]}}}`, FrontierPathAlias},
 			{"ambiguous target", "support/helper0.js", `export const value = 1`, FrontierPathAlias},
 			{"dynamic global use", "playwright.config.ts", `export default { use: inheritedUse, projects: [{name:"chromium"},{name:"angular"},{name:"react"},{name:"setup"},{name:"cleanup"}] }`, PlaywrightUnknownBrowserIdentity},
 			{"dynamic setup", "playwright.config.ts", `export default { globalSetup: setupPath, projects: [{name:"chromium"},{name:"angular"},{name:"react"},{name:"setup"},{name:"cleanup"}] }`, PlaywrightUnknownConfigSyntax},
@@ -87,6 +89,8 @@ func TestPlaywrightGlobalUseInheritance(t *testing.T) {
 	for _, row := range []struct{ global, local, browser, device string }{
 		{`{ browserName: "firefox", trace: "on" }`, `{ locale: "en-US" }`, "firefox", ""},
 		{`{ browserName: "firefox" }`, `{ browserName: "webkit" }`, "webkit", ""},
+		{`{ browserName: "firefox" }`, `{ ...devices["Desktop Chrome"] }`, "firefox", "Desktop Chrome"},
+		{`{}`, `{ browserName: "firefox", ...devices["Desktop Chrome"] }`, "firefox", "Desktop Chrome"},
 		{`{ ...devices["Desktop Firefox"] }`, `{ ...devices["Desktop Chrome"] }`, "chromium", "Desktop Chrome"},
 		{`{ ...devices["Desktop Firefox"] }`, `{ browserName: "webkit" }`, "webkit", "Desktop Firefox"},
 	} {
@@ -108,6 +112,16 @@ func TestPlaywrightAliasResolutionBoundaries(t *testing.T) {
 }`)
 		if !config.valid {
 			t.Fatal("JSONC rejected")
+		}
+		for _, raw := range []string{
+			`{"compilerOptions":{"paths":{"@*t":["src/exact.ts"],"@*act":["src/fallback.ts"]}}}`,
+			`{"compilerOptions":{"paths":{"@*act":["src/fallback.ts"],"@*t":["src/exact.ts"]}}}`,
+			`{"compilerOptions":{"paths":{"@exact":["src/exact.ts","src/fallback.ts"]}}}`,
+		} {
+			ambiguous := parseTypeScriptAliases("tsconfig.json", raw)
+			if got, unknown := ambiguous.resolve("@exact", bodies); got != "" || !unknown {
+				t.Fatalf("ambiguous alias narrowed: %s -> %s, unknown=%v", raw, got, unknown)
+			}
 		}
 		for _, row := range []struct{ ref, want string }{{"@x", "src/exact.ts"}, {"@x/x", ""}, {"fallback", "src/fallback.ts"}, {"src/exact", "src/exact.ts"}} {
 			got, _ := config.resolve(row.ref, bodies)

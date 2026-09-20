@@ -94,8 +94,10 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   global `use` defaults before project `use` overrides, preserve browser/device identity, and bind
   the inherited input in the project fragment identity. Other `use` values MUST be static literals.
   It MAY resolve nearest-ancestor `tsconfig.json` JSON/JSONC `baseUrl` and `paths` declarations:
-  exact keys precede wildcard keys, longest wildcard prefixes precede shorter prefixes, and target
-  lists retain declaration order. Resolution MUST stay inside the observed repository, and MUST
+  exact keys precede wildcard keys and longest wildcard prefixes precede shorter prefixes. Overlapping
+  equal-prefix patterns or target lists with multiple existing candidates MUST widen rather than
+  approximate runtime precedence. Device defaults MUST NOT override an explicit inherited browser.
+  Resolution MUST stay inside the observed repository, and MUST
   widen on missing declared targets, ambiguous source candidates, config inheritance, unsupported
   root-directory/module-suffix resolution, or explicit Playwright `tsconfig` overrides. The general
   `affected-plan/0` adapter MUST retain its existing unresolved-alias frontier.

@@ -130,6 +130,17 @@ func (config typeScriptAliases) resolve(ref string, bodies map[string]string) (s
 		if !matches {
 			continue
 		}
+		if prefix := strings.IndexByte(pattern, '*'); prefix >= 0 {
+			for _, other := range patterns {
+				if other == pattern || strings.IndexByte(other, '*') != prefix {
+					continue
+				}
+				if _, matches := typeScriptAliasMatch(other, ref); matches {
+					return "", true
+				}
+			}
+		}
+		chosen := ""
 		for _, target := range config.paths[pattern] {
 			base := path.Clean(path.Join(config.base, strings.ReplaceAll(target, "*", capture)))
 			resolved, ambiguous := typeScriptAliasTarget(base, bodies)
@@ -137,10 +148,13 @@ func (config typeScriptAliases) resolve(ref string, bodies map[string]string) (s
 				return "", true
 			}
 			if resolved != "" {
-				return resolved, true
+				if chosen != "" {
+					return "", true
+				}
+				chosen = resolved
 			}
 		}
-		return "", true
+		return chosen, true
 	}
 	if config.baseURL {
 		return typeScriptAliasTarget(path.Clean(path.Join(config.base, ref)), bodies)

@@ -29,6 +29,11 @@ reports remain the authoritative completion evidence. Mutation, external provide
 qualification are not applicable to this bounded static observer change. Independent review is owned
 by the parent task, with no nested delegation.
 
+Independent review found equal-prefix alias ordering, multiple existing alias targets, and explicit
+browser inheritance across device spreads could differ from Playwright 1.63. Repair widens both
+alias ambiguities and preserves explicit browserName over a device defaultBrowserType. Conflict
+regressions cover both pattern orders, competing targets and inherited/same-layer browser defaults.
+
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
 Owner approval accepts decisions 0324/0325: bounded local MCP stdio and a separately built opt-in
