@@ -200,6 +200,8 @@ func errString(err error) string {
 // acceptance line requiring proven descendant cleanup.
 type E2EConfig struct {
 	Config
+	ExternalServer   bool
+	AppIdentity      string
 	ServerArgv       []string
 	ServerReadyURL   string
 	ServerReadyLimit time.Duration
@@ -214,6 +216,9 @@ type E2EConfig struct {
 // and again after the test command completes; a mismatch is reported as
 // StaleAppBuild rather than silently trusted.
 func RunE2E(ctx context.Context, cfg E2EConfig) (Receipt, error) {
+	if cfg.ExternalServer {
+		return runExternal(ctx, cfg)
+	}
 	argv := append(append([]string{}, cfg.ServerArgv...), cfg.TestArgv...)
 	identity, err := cfg.identity(argv)
 	if err != nil {

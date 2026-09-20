@@ -36,6 +36,31 @@ only after enrollment. No savings claim. Live remote Internet services, external
 mutation campaigns, documentation corpus and learning qualification are not applicable to this
 transport-conformance change; frozen existing provider fixtures remain the behavioral witnesses.
 
+## 2026-09-20 PWP-V0: external-server Playwright receipt qualification
+
+The owner accepted the bounded `corvint-playwright-external/0` profile for issue 19. A local Darwin
+qualification ran the checked-in fixture with Playwright 1.60.0 and its installed Chromium browser.
+The matrix observed passing, assertion-failing, timed-out and browser-infrastructure outcomes across
+distinct Chromium and React project identities; inherited `webServer` was suppressed, relative
+global hooks executed, cancellation left the externally managed server alive, and retained evidence
+was rediscovered through the actual test-validity MCP registry with lifecycle and freshness unknowns
+preserved. Literal `test.use` overrides were attributed to their effective browser and viewport;
+executable or unsupported overrides abstained. Focused provider, projection, CLI and MCP tests passed.
+
+Independent review reproduced four defects before promotion: project defaults could misattribute an
+effective `test.use` override, removing the profile discriminator bypassed lifecycle validation,
+malformed qualified identity/attempt evidence could still project passing, and a temporary config
+wrapper broke relative global setup resolution. The repair binds the qualified 1.60.0 reporter ABI,
+rejects downgrade and incomplete or contradictory evidence, resolves original-config-relative
+modules, and adds adversarial and live regressions. The same reviewer reran those overlays and the
+expanded real browser matrix and returned PASS. Playwright versions other than 1.60.0 remain
+unqualified; declared application identity is not proof of served content, Vitest and LPCV authority
+are unchanged. The owner subsequently selected the existing affected-package fast tier instead of
+the full native gate. Its preflight must select explicit packages without FALLBACK on merged base
+`4c5f0fa4dc1a24698062287d0ffa2e7f4129a639`; separate focused and real-browser checks remain required.
+The earlier-base enrollment is preserved as canceled non-success. Final selected-check and CEM/OCM
+observations are retained by the replacement enrolled workflow rather than claimed passed here.
+
 ## 2026-09-19 DCP-V1: experimental revision-pinned documentation corpus
 
 Issue 31 was explicitly scoped to all six phases. The change supplies a native immutable corpus,

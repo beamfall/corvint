@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
 
@@ -172,6 +173,9 @@ func bindFreshness(worktree *os.Root, root string, input Input) testvalidity.Axi
 	}
 	identity := input.js.Identity
 	bound := map[string]string{}
+	for path, digest := range identity.ConfigInputDigests {
+		bound[path] = digest
+	}
 	for path, digest := range identity.TestFileDigests {
 		bound[path] = digest
 	}
@@ -201,6 +205,9 @@ func bindFreshness(worktree *os.Root, root string, input Input) testvalidity.Axi
 	}
 	if unknown == "" && input.js.AppBuildAtPublish.Digest != "" {
 		unknown = "retained-app-build-identity-unverifiable"
+	}
+	if unknown == "" && input.js.Profile == jstestprovider.ExternalProfile {
+		unknown = "retained-external-app-lifecycle-unverifiable"
 	}
 	if unknown != "" {
 		return testvalidity.Axis{State: testvalidity.FreshnessUnknown, Reason: unknown}

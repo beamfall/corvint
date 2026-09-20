@@ -2,18 +2,20 @@
 
 Owner: Russell Lewis
 Date: 2026-09-20
-Intent status: proposed (acceptance pending explicit owner confirmation)
-Delivery status: experimental
+Intent status: accepted
+Delivery status: validated (local Playwright 1.60.0 matrix)
 Profile: `corvint-playwright-external/0`
 Inputs: GitHub issue #19; AGENTS.md invariants 1–8; decision 0179.
+Owner acceptance: in the 2026-09-20 issue-resolution task, the owner explicitly approved accepting
+and shipping this PWP-V0 profile while retaining the default offline boundary and rollback gates.
 
 ## Agent digest
-
 - Claim: Explicit external-server Playwright runs retain attributable project outcomes without application-server ownership.
-- Status: proposed; experimental pending acceptance and live qualification.
+- Status: accepted; validated (local Playwright 1.60.0 matrix).
 - Exists: `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
-- Does not promote the prose-only JS/TS experiment, Vitest, LPCV authority or omitted-test coverage.
+- Blocked on: the owner-selected affected-package gate and separate focused/live witnesses; other Playwright versions, Vitest and LPCV authority remain unqualified.
+
 
 ## Requirements
 
@@ -47,6 +49,26 @@ and retained evidence is not deleted. New wire fields require a profile revision
 changes rerun live qualification. Acceptance and passing qualification are both promotion conditions.
 
 ## Traceability
+
+Qualification runtime: Playwright **1.60.0** and its installed Chromium browser, tested locally on
+Darwin. External mode refuses other runner versions until their effective-fixture metadata is
+qualified. The 1.60.0 in-process reporter exposes literal fixture defaults and nested `test.use`
+overrides; the provider resolves those with project options and preserves the effective browser,
+viewport and device settings. Missing metadata, executable option fixtures or custom browser/context/
+page fixtures produce unknown identity and never passing execution. A device label remains `unknown`
+unless declared in project metadata; effective device parameters are retained independently.
+
+Relative global setup/teardown modules resolve from the original config directory. Imported CommonJS
+source inputs are hashed at collection and compared again before publication. Configuration loaded
+outside that observable module cache is unsupported rather than assumed bound. Secret-shaped and
+oversized documents are refused before stdout/retention. A receipt carrying qualified-only metadata
+without the exact profile discriminator is refused by the legacy reader.
+
+Run the explicit fixture with `CORVINT_PLAYWRIGHT_MODULES` naming an already-installed `node_modules`
+directory and `go test -count=1 -timeout 5m ./internal/jstestprovider -run TestQualifiedPlaywrightLive -v`.
+No browser or npm package is downloaded by the provider or ordinary Go gate. The live matrix includes
+real pass/assertion/timeout/browser-infrastructure cases, inherited webServer suppression, relative
+hooks, two projects, literal and executable overrides, cancellation, and retained MCP discovery.
 
 | Requirements | Implementation | Evidence |
 |---|---|---|
