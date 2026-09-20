@@ -99,7 +99,7 @@ func TestCorpusMCPTransport(t *testing.T) {
 		for _, raw := range result["tools"].([]any) {
 			names[raw.(map[string]any)["name"].(string)] = true
 		}
-		if names["corvint.docs_get_journey"] || !names["corvint.docs_find_related"] {
+		if names["corvint.docs_get_journey"] || names["corvint.docs_get_stability"] || !names["corvint.docs_find_related"] {
 			t.Fatalf("capability gating: %#v", names)
 		}
 		called := send(2, "tools/call", map[string]any{"name": "corvint.docs_search", "arguments": map[string]any{"query": "Original"}})

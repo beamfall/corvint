@@ -45,14 +45,15 @@ type Provider struct {
 	Record   string `json:"record"`
 }
 type Manifest struct {
-	Schema     string     `json:"schema"`
-	Repository Repository `json:"repository"`
-	BuiltAt    string     `json:"built_at"`
-	Profile    Profile    `json:"profile"`
-	Scopes     []Scope    `json:"scopes"`
-	Inputs     []Input    `json:"inputs"`
-	Providers  []Provider `json:"providers"`
-	MergeRule  string     `json:"merge_rule"`
+	BehaviorRevisions *BehaviorRevisions `json:"behavior_revisions,omitempty"`
+	Schema            string             `json:"schema"`
+	Repository        Repository         `json:"repository"`
+	BuiltAt           string             `json:"built_at"`
+	Profile           Profile            `json:"profile"`
+	Scopes            []Scope            `json:"scopes"`
+	Inputs            []Input            `json:"inputs"`
+	Providers         []Provider         `json:"providers"`
+	MergeRule         string             `json:"merge_rule"`
 }
 type Builder struct {
 	Version  string `json:"version"`
@@ -129,6 +130,8 @@ type Journey struct {
 // Its package/name join is exact, and StepEvidence proves only the provider's
 // recorded expected observation, not an independently assessed assertion.
 type ObservationLink struct {
+	TestID         string            `json:"test_id,omitempty"`
+	Project        string            `json:"project,omitempty"`
 	StepInput      string            `json:"step_input"`
 	StepRevision   string            `json:"step_revision"`
 	SourcePaths    map[string]string `json:"source_paths"`
@@ -155,16 +158,17 @@ type CapabilityDeclaration struct {
 	Reason string `json:"reason"`
 }
 type ProviderRecord struct {
-	Schema       string                  `json:"schema"`
-	ID           string                  `json:"id"`
-	Version      string                  `json:"version"`
-	Source       Repository              `json:"source"`
-	Subjects     []Subject               `json:"subjects"`
-	Claims       []Claim                 `json:"claims"`
-	Relations    []Relation              `json:"relations"`
-	Journeys     []Journey               `json:"journeys"`
-	Observations []ObservationLink       `json:"observations"`
-	Capabilities []CapabilityDeclaration `json:"capabilities"`
+	BehaviorContracts *BehaviorRegistry       `json:"behavior_contracts,omitempty"`
+	Schema            string                  `json:"schema"`
+	ID                string                  `json:"id"`
+	Version           string                  `json:"version"`
+	Source            Repository              `json:"source"`
+	Subjects          []Subject               `json:"subjects"`
+	Claims            []Claim                 `json:"claims"`
+	Relations         []Relation              `json:"relations"`
+	Journeys          []Journey               `json:"journeys"`
+	Observations      []ObservationLink       `json:"observations"`
+	Capabilities      []CapabilityDeclaration `json:"capabilities"`
 }
 type Capability struct {
 	Name        string   `json:"name"`
@@ -183,20 +187,22 @@ type Gap struct {
 	Reason  string `json:"reason"`
 }
 type Artifact struct {
-	Schema         string        `json:"schema"`
-	Builder        Builder       `json:"builder"`
-	Manifest       Manifest      `json:"manifest"`
-	ManifestSHA256 string        `json:"manifest_sha256"`
-	ProfileSHA256  string        `json:"profile_sha256"`
-	Tree           string        `json:"tree"`
-	Subjects       []Subject     `json:"subjects"`
-	Claims         []Claim       `json:"claims"`
-	Relations      []Relation    `json:"relations"`
-	Journeys       []Journey     `json:"journeys"`
-	Observations   []Observation `json:"observations"`
-	Capabilities   []Capability  `json:"capabilities"`
-	Gaps           []Gap         `json:"gaps"`
-	SHA256         string        `json:"sha256"`
+	BehaviorContracts []BehaviorReport  `json:"behavior_contracts,omitempty"`
+	StabilityEvidence []StabilityReport `json:"stability_evidence,omitempty"`
+	Schema            string            `json:"schema"`
+	Builder           Builder           `json:"builder"`
+	Manifest          Manifest          `json:"manifest"`
+	ManifestSHA256    string            `json:"manifest_sha256"`
+	ProfileSHA256     string            `json:"profile_sha256"`
+	Tree              string            `json:"tree"`
+	Subjects          []Subject         `json:"subjects"`
+	Claims            []Claim           `json:"claims"`
+	Relations         []Relation        `json:"relations"`
+	Journeys          []Journey         `json:"journeys"`
+	Observations      []Observation     `json:"observations"`
+	Capabilities      []Capability      `json:"capabilities"`
+	Gaps              []Gap             `json:"gaps"`
+	SHA256            string            `json:"sha256"`
 }
 type Request struct {
 	Operation string `json:"operation"`

@@ -127,6 +127,107 @@ alias ambiguities and preserves explicit browserName over a device defaultBrowse
 regressions cover both pattern orders, competing targets and inherited/same-layer browser defaults.
 Final review also confirmed explicit `use.defaultBrowserType` cannot be ignored: the closed subset
 now rejects that key with browser-identity uncertainty, covered at both global and project scope.
+## 2026-09-20 DCP-V1-021..026: revision-bound Playwright stability evidence (issue 42)
+
+The experimental behavior-stability provider keeps issue-40 behavior coverage and repeated-run
+stability as separate artifact axes. A repository-owned digest-bound policy selects one-spec,
+feature-batch or suite thresholds; reports preserve planned/started/completed and every outcome,
+retry, cleanup and manual-rerun count plus all contributing receipt/attempt evidence. A failed first
+attempt remains both failed and flaky after a later pass. Missing iterations, duplicate receipts,
+silently consumed retries, cross-application revisions and contradictory identities refuse; failed
+cleanup is retained as a non-clean verdict. Corpus and MCP expose the exact aggregate without an
+adequacy, parity, freshness or narrowing claim.
+
+The earliest end-to-end aggregate and five requested negative controls pass on synthetic qualified
+receipts. The original task query preceded private measurement and remains `NOT_PRODUCED`; the later
+required DOGFOOD enrollment pins base `06eb443565979b313ecb63f7316f06677a908f65` and the owning
+documentation-corpus spec. Live repeated browser execution and consumer policy qualification are
+NOT_RUN, so the feature remains proposed/experimental.
+
+The focused `cmd/corvint` regression exposed that its minimal local-completion repository copied Go
+sources but omitted the qualified Playwright reporter embedded by the now-reachable provider import.
+The fixture now carries that production embed; the product binary and provider profile are unchanged.
+
+Independent review found that the first aggregate accepted carried identities without rebinding
+test/config bytes, could hide failed native runner cleanup behind a carried pass, established its
+identity baseline after an earlier manual run, ignored manual cleanup, and counted only final timeout,
+interruption and infrastructure states. The repair requires explicit source mappings and the exact
+behavior-test anchor, recomputes and verifies native projections, fixes the baseline to planned
+repetition one, applies cleanup to every contributor, and retains each earlier attempt category.
+Adversarial regressions cover each finding plus noncontiguous retry ordinals.
+Re-review found that an invalid receipt and a genuine infrastructure outcome shared the same native
+projection. The final repair verifies qualified lifecycle/identity binding independently of outcome
+classification; paired regressions accept a bound infrastructure outcome and refuse the same outcome
+when runner cleanup failed.
+The authorized final repair rejects state/failure-kind contradictions at both the qualified receipt
+binding and stability classification boundaries; a passed attempt carrying assertion-failure
+metadata and an artifact now refuses instead of contributing to a clean verdict.
+Late coordination integrated the amended, evidence-bound issue-40 contract at `e54ffcb`, including
+patch-equivalent copies of both shared local-completion fixture repairs. The earlier gate on `4a60483`
+is superseded and failed at the error-code ownership ratchet because the accepted Playwright provider
+had never enumerated its existing refusal vocabulary. The owning PWP-V0 spec now records those codes;
+no error behavior or wire value changed.
+Integration review found that receipt identity qualification did not derive the aggregate outcome
+from the ordered attempts. The stability consumer now applies the reporter's exact terminal-state
+rule, including requiring a prior non-passing attempt before `flaky`; contradictory terminal states
+refuse before policy counting.
+The later owner acceptance comment makes declared-versus-observed execution topology first-class.
+The source, focused-check and review evidence at `6098291` remains retained but is superseded for
+completion by this amendment. Repository policy and each observed run now bind separate canonical
+full-file topology inputs covering CI nodes/shards, Playwright workers per node, database mode,
+sorted project set, split algorithm/version and resource class; each observation also binds its
+receipt digest. Exact mismatch refuses before counting, with an explicit six-declared/four-observed
+negative witness plus deterministic per-dimension and source-binding controls. The comment reports
+that contradiction in the consuming repository, but no exact policy, CircleCI or run artifacts were
+provided, so the consumer-specific 6-vs-4 result remains `NOT_OBSERVED`. The amendment-start Corvint
+query selected an unrelated public-release spec and omitted four ranked results; repository-owned
+spec routing supplied the owning DCP contract instead.
+
+## 2026-09-20 DCP-V1-004/007..013/019: experimental behavior contract ingestion (issue 40)
+
+The optional behavior-provider profile joins bidirectional flow/criterion/test/project identities
+and a separate ordered runtime witness to pinned native Playwright observations. It preserves
+provider-reported review versus unreviewed joins, scoped denominators and full-suite fallback.
+Existing title-only joins were insufficient for identical titles in different projects; optional
+exact test/project selectors preserve the legacy profile while admitting an unambiguous join.
+
+Synthetic fixture paths model the proposed registry and schema-2 migration manifest. The consumer's
+actual fixture bytes were not supplied: compatibility and live runtime utility are NOT_OBSERVED.
+Pre-change query succeeded with three omitted results. Measurement before that first call was
+NOT_PRODUCED; the required coordinator retained its own receipts and reported no-change CEM/OCM
+and outcome NOT_PRODUCED. The local completion plan is enrolled against the immutable issue base.
+No browser, server or provider process was launched; live qualification is not claimed.
+Independent review found that demanding a passed run projection and current E2E freshness made
+recorded verification unreachable for native Playwright receipts. The repair uses the native per-test
+execution projection, rebinds test/configuration inputs, and preserves the exact unknown app-freshness
+axis. A full Build/Open regression imports a synthetic qualified receipt through native decoding and
+projection; no manually assigned CURRENT projection is used by that end-to-end test.
+The owner's subsequent issue-40 acceptance amendment strengthens assertion target/value identity,
+ordered browser-context/page/frame navigation, live discovery denominator reconciliation and the
+app/e2e/docs revision set. Synthetic negatives cover same matcher/wrong element or value, same route
+without assertion, wrong project, reordered/scoped visits and stale revision members. The consumer's
+463/117 inventory and local consumer fixtures remain NOT_OBSERVED; generated prose retains its label.
+Amendment review required rejecting digest-valid but noncurrent behavior anchors and checking every
+assertion, not only finding one qualifying assertion per criterion. End-to-end regressions retain
+validly pinned alternate-revision source and matching extra runtime events while rejecting their
+stale, unreviewed or undeclared joins.
+Final amendment review also required the reverse runtime-assertion check: a runtime event and
+matching expected order cannot invent an assertion absent from the validated test declaration.
+The retained-run regression covers that previously one-way join explicitly.
+The later legacy acceptance amendment adds an independently digested suite/file/case inventory,
+executable/disabled state, extracted observable criteria and fixture/role preconditions. Exact
+reviewed target-to-legacy relations and complete reverse criterion coverage distinguish target
+journey verification from retained legacy runtime parity. Same/stronger preserve the original
+observable tuple; new/obsolete/blocked remain non-parity. Synthetic Build/Open fixtures cover a
+consolidated test dropping one legacy branch and a same-named target changing success criteria.
+Unavailable or disabled legacy runtime remains unknown even with source/docs/product review.
+The supported runtime qualifier reuses retained native Playwright receipts, not a fabricated
+legacy runner adapter. Exact consumer legacy inputs and actual live legacy execution remain
+NOT_OBSERVED; unsupported legacy runners cannot establish runtime parity.
+Legacy amendment review found that a classified but ineligible mapping could hide a dropped branch
+from another target's parity result. Reverse parity coverage now counts only fully eligible targets;
+a multi-target regression preserves the first target's journey while rejecting migration parity
+when another target drops the original observable.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 

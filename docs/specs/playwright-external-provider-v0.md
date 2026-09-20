@@ -56,6 +56,38 @@ bound 4 MiB, readiness fifteen seconds. Application provider configuration/outpu
 document and each observation defaults to five seconds. No selector, coverage or repository-pass
 claim is added.
 
+## Refusal vocabulary
+
+The provider's closed refusal codes are:
+
+- `config-input-drift`
+- `config-inputs-unobserved`
+- `external-app-identity-required`
+- `external-config-version-test-files-required`
+- `external-input-bound-or-secret`
+- `external-playwright-version-unqualified`
+- `external-readiness-url-required`
+- `external-server-command-forbidden`
+- `input-identity-changed`
+- `no-tests-observed`
+- `project-location-unknown`
+- `qualified-document-output-overflow`
+- `qualified-document-secret-shaped`
+- `report-identity-unknown`
+- `report-output-overflow`
+- `reporter-global-error`
+- `run-status-unknown`
+- `runner-cleanup-unknown`
+- `runner-version-mismatch`
+- `server-unavailable-at-publish`
+- `test-attempt-identity-unknown`
+- `test-attempt-state-unknown`
+- `test-file-unbound`
+- `test-identity-ambiguous`
+- `test-state-unknown`
+
+Each code is a typed refusal or incomplete-evidence reason; none is a passing verdict.
+
 ## Acceptance and rollback
 
 Baseline: ordinary Playwright plus its JSON report. Go regressions cover malformed/unknown paths;
