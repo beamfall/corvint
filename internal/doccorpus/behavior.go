@@ -330,6 +330,12 @@ func (c *compiler) compileBehavior(report *BehaviorReport) {
 				c.behaviorGap(t.ID, "contradiction", "criterion lacks its exact runtime assertion identity")
 			}
 		}
+		for _, assertion := range t.Assertions {
+			if !behaviorAssertionValid(r, t, assertion) {
+				valid = false
+				c.behaviorGap(t.ID, "contradiction", "assertion has undeclared, unreviewed or stale behavior/criterion/annotation identity")
+			}
+		}
 		if len(t.Assertions) == 0 {
 			valid = false
 			c.behaviorGap(t.ID, "assertion-free-ui-test", "no runtime assertion identities declared")
@@ -408,19 +414,27 @@ func (c *compiler) compileBehavior(report *BehaviorReport) {
 
 func behaviorAssertionDeclared(r BehaviorRegistry, t BehaviorTest, criterion string) bool {
 	for _, assertion := range t.Assertions {
-		if assertion.Criterion != criterion {
+		if assertion.Criterion == criterion && behaviorAssertionValid(r, t, assertion) {
+			return true
+		}
+	}
+	return false
+}
+
+func behaviorAssertionValid(r BehaviorRegistry, t BehaviorTest, assertion BehaviorAssertion) bool {
+	if !slices.Contains(t.Criteria, assertion.Criterion) {
+		return false
+	}
+	if assertion.Annotation.Kind != "review" || assertion.Annotation.Revision != r.SourceRevision || assertion.Annotation.Path != t.Evidence.Path || assertion.Annotation.SHA256 != t.Evidence.SHA256 {
+		return false
+	}
+	for _, behavior := range r.Behaviors {
+		if behavior.ID != assertion.Behavior || behavior.Evidence.Revision != r.SourceRevision {
 			continue
 		}
-		if assertion.Annotation.Kind != "review" || assertion.Annotation.Revision != r.SourceRevision || assertion.Annotation.Path != t.Evidence.Path || assertion.Annotation.SHA256 != t.Evidence.SHA256 {
-			continue
-		}
-		for _, behavior := range r.Behaviors {
-			if behavior.ID == assertion.Behavior {
-				for _, flow := range t.Flows {
-					if slices.Contains(behavior.Flows, flow) {
-						return true
-					}
-				}
+		for _, flow := range r.Flows {
+			if slices.Contains(t.Flows, flow.ID) && slices.Contains(behavior.Flows, flow.ID) && slices.Contains(flow.Criteria, assertion.Criterion) {
+				return true
 			}
 		}
 	}

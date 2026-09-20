@@ -31,6 +31,10 @@ ordered browser-context/page/frame navigation, live discovery denominator reconc
 app/e2e/docs revision set. Synthetic negatives cover same matcher/wrong element or value, same route
 without assertion, wrong project, reordered/scoped visits and stale revision members. The consumer's
 463/117 inventory and local consumer fixtures remain NOT_OBSERVED; generated prose retains its label.
+Amendment review required rejecting digest-valid but noncurrent behavior anchors and checking every
+assertion, not only finding one qualifying assertion per criterion. End-to-end regressions retain
+validly pinned alternate-revision source and matching extra runtime events while rejecting their
+stale, unreviewed or undeclared joins.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 

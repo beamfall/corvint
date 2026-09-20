@@ -54,11 +54,11 @@ func behaviorFixtureWithRun(t *testing.T, edit func(*BehaviorRegistry), runtime 
 	annotation.Kind = "review"
 	r.Tests = []BehaviorTest{{ID: "project:count", Project: "chromium", Title: "count", Evidence: declaredEvidence(t, root, m, "src/view.ts", 1).Anchors[0], Flows: []string{"summary"}, Criteria: []string{"count-visible"}, Assertions: []BehaviorAssertion{{ID: "count-visible", Behavior: "show-count", Criterion: "count-visible", Annotation: annotation, Matcher: "toHaveText", Locator: "#count", Value: "1"}}}}
 	r.Behaviors = []BehaviorSource{{ID: "show-count", Evidence: declaredEvidence(t, root, m, "src/view.ts", 1).Anchors[0], Flows: []string{"summary"}}}
+	r.Flows[0].OrderedEvents = behaviorEvents("count-visible")
+	r.Flows[0].Derivation = "generated"
 	if edit != nil {
 		edit(&r)
 	}
-	r.Flows[0].OrderedEvents = behaviorEvents("count-visible")
-	r.Flows[0].Derivation = "generated"
 	var native jstestprovider.Receipt
 	if runtime {
 		config := declaredEvidence(t, root, m, "src/value.go", 1).Anchors[0]
@@ -299,6 +299,63 @@ func TestBehaviorExactProjectObservation(t *testing.T) {
 }
 
 func TestBehaviorAcceptanceAmendment(t *testing.T) {
+	t.Run("DCP-V1-004 noncurrent behavior anchor", func(t *testing.T) {
+		root, m := behaviorFixtureWithRun(t, func(r *BehaviorRegistry) { r.Behaviors[0].Evidence.Revision = r.Manifest.Revision }, true)
+		var source Input
+		var otherRevision string
+		for _, input := range m.Inputs {
+			if input.Path == "src/view.ts" {
+				source = input
+			}
+			if input.Path == "docs/migrations/manifest.json" {
+				otherRevision = input.Revision
+			}
+		}
+		source.Revision = otherRevision
+		source.Provider = "behavior"
+		source.Purpose = "evidence"
+		m.Inputs = append(m.Inputs, source)
+		m.Scopes = append(m.Scopes, Scope{source.Path, otherRevision})
+		a, err := Build(context.Background(), root, m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(a.BehaviorContracts[0].VerifiedTests) > 0 {
+			t.Fatal("digest-valid noncurrent behavior anchor verified")
+		}
+	})
+	t.Run("DCP-V1-004 every assertion is reviewed and declared", func(t *testing.T) {
+		for _, kind := range []string{"unreviewed", "unknown-behavior", "undeclared-criterion"} {
+			t.Run(kind, func(t *testing.T) {
+				extraEvent := behaviorEvents("count-visible")[1]
+				extraEvent.ID = "extra"
+				extraEvent.Sequence = 5
+				root, m := behaviorFixtureWithRun(t, func(r *BehaviorRegistry) {
+					a := r.Tests[0].Assertions[0]
+					a.ID = "extra"
+					switch kind {
+					case "unreviewed":
+						a.Annotation.Kind = "declared"
+					case "unknown-behavior":
+						a.Behavior = "unknown"
+						extraEvent.Behavior = "unknown"
+					case "undeclared-criterion":
+						a.Criterion = "unknown"
+						extraEvent.Criterion = "unknown"
+					}
+					r.Tests[0].Assertions = append(r.Tests[0].Assertions, a)
+					r.Flows[0].OrderedEvents = append(r.Flows[0].OrderedEvents, extraEvent)
+				}, true, func(r *BehaviorRun) { r.Events = append(r.Events, extraEvent) })
+				a, err := Build(context.Background(), root, m)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(a.BehaviorContracts[0].VerifiedTests) > 0 {
+					t.Fatal("extra invalid assertion verified despite one good assertion")
+				}
+			})
+		}
+	})
 	t.Run("DCP-V1-008 exact assertion and page identities", func(t *testing.T) {
 		for _, tc := range []struct {
 			name string
