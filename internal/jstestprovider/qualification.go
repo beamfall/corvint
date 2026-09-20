@@ -4,7 +4,7 @@ package jstestprovider
 // identity and attempt structure independently of an observed infrastructure
 // outcome. Classification remains the consumer's separate responsibility.
 func QualifiedReceiptBindingReady(r Receipt, t TestOutcome) bool {
-	if r.Profile != ExternalProfile || r.Cancelled || r.Infrastructure != nil || r.StaleAppBuild {
+	if !isExternalProfile(r.Profile) || r.Cancelled || r.Infrastructure != nil || r.StaleAppBuild {
 		return false
 	}
 	normalized := t
@@ -15,4 +15,16 @@ func QualifiedReceiptBindingReady(r Receipt, t TestOutcome) bool {
 		}
 	}
 	return !qualifiedUnknown(r, normalized)
+}
+
+// QualifiedApplicationRevision returns the application identity only after the
+// complete external receipt and the selected outcome have been qualified.
+func QualifiedApplicationRevision(r Receipt, t TestOutcome) (string, bool) {
+	if !QualifiedReceiptBindingReady(r, t) {
+		return "", false
+	}
+	if r.Profile == AttestedExternalProfile {
+		return r.ApplicationAttestation.Before.Attestation.Repository.Revision, true
+	}
+	return r.External.DeclaredAppIdentity, true
 }

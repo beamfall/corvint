@@ -201,6 +201,7 @@ func errString(err error) string {
 // acceptance line requiring proven descendant cleanup.
 type E2EConfig struct {
 	Config
+	ObserveDescendants     bool
 	ExternalServer         bool
 	AppIdentity            string
 	ServerArgv             []string

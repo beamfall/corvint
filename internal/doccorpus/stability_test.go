@@ -135,6 +135,9 @@ func stabilityFixtureWithBehavior(t *testing.T, editBehavior func(*BehaviorRegis
 		outcome := receipt.Tests[0]
 		identity := StabilityIdentity{ApplicationRevision: receipt.External.DeclaredAppIdentity, TestRevision: provider.BehaviorContracts.SourceRevision, ConfigSHA256: receipt.Identity.ConfigDigest, ContractSHA256: provider.BehaviorContracts.ContractSHA256, Runner: receipt.Identity.RunnerName, RunnerVersion: receipt.Identity.RunnerVersion, Browser: outcome.Project.Browser, Project: outcome.Project.Name, WorkerPolicy: "workers:1", RetryPolicy: "retries:0", EnvironmentClass: "local", EnvironmentSHA256: hashValue(receipt.Identity.Environment), FixtureSchema: "playwright-use", FixtureSHA256: Digest(outcome.Project.Use)}
 		contribution := StabilityContribution{RunKind: "planned-repetition", Repetition: i + 1, Receipt: inputs[i], SourcePaths: map[string]string{"/repo/config.cjs": "src/value.go", "/repo/test.ts": "src/view.ts"}, Identity: identity, Topology: StabilityTopologyBinding{Evidence: anchor(topologyPaths[i], topologyBytes[i], "observed", "observed CI and Playwright run topology"), Value: observedTopologies[i]}, Cleanup: "passed", Attempts: []StabilityAttempt{}}
+		if receipt.Profile == jstestprovider.AttestedExternalProfile {
+			contribution.Identity.ApplicationRevision = provider.BehaviorContracts.SourceRevision
+		}
 		if i == 3 {
 			contribution.RunKind = "manual-rerun"
 			contribution.Repetition = 0

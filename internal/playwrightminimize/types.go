@@ -1,5 +1,5 @@
-// Package playwrightminimize plans and evaluates bounded synthetic Playwright
-// suite-interaction trials. It does not launch Playwright or an application.
+// Package playwrightminimize plans bounded Playwright suite-interaction trials.
+// The separate live profile requires explicit digest-bound execution approval.
 package playwrightminimize
 
 import (
@@ -149,6 +149,7 @@ type TrialEvidence struct {
 }
 
 type TrialReceipt struct {
+	Live                          *LiveTrialEvidence   `json:"live,omitempty"`
 	Digest                        string               `json:"digest"`
 	TrialID                       string               `json:"trial_id"`
 	Identity                      RunIdentity          `json:"identity"`

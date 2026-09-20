@@ -58,6 +58,7 @@ function effectiveUse(test, project, version) {
 class Reporter {
   constructor(options) { this.path = options.output; this.tests = new Map(); this.errors = []; }
   onBegin(config, suite) {
+	this.schedule = {workers: config.workers, starts: []};
     this.version = config.version;
     this.files = {};
     this.configFiles = {};
@@ -71,6 +72,11 @@ class Reporter {
     }
   }
   onError(error) { this.errors.push(error.message || String(error)); }
+  onTestBegin(test, result) {
+    const project = test.parent.project();
+    const repeat = test.repeatEachIndex > 0 ? ` > repeat ${test.repeatEachIndex}` : '';
+    this.schedule.starts.push({fullName: test.titlePath().join(' > ') + repeat, file: test.location.file, line: test.location.line, project: project?.name || '', retry: result.retry, retries: test.retries, worker: result.workerIndex, fullyParallel: project?.fullyParallel === true});
+  }
   onTestEnd(test, result) {
     const project = test.parent.project();
     const use = project ? effectiveUse(test, project, this.version) : null;
@@ -99,7 +105,7 @@ class Reporter {
     for (const test of tests) {
       if (test.state === 'passed' && test.attempts.some(a => a.state !== 'passed')) test.state = 'flaky';
     }
-    fs.writeFileSync(this.path, JSON.stringify({version: this.version, files: this.files, configFiles: this.configFiles, status: result.status, tests, errors: this.errors}));
+    fs.writeFileSync(this.path, JSON.stringify({version: this.version, files: this.files, configFiles: this.configFiles, status: result.status, tests, errors: this.errors, schedule: this.schedule}));
   }
 }
 module.exports = Reporter;

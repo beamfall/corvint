@@ -1038,8 +1038,8 @@
     "title": "Playwright Suite-Interaction Minimizer V0",
     "reqPrefix": "PSM-V0",
     "intent": "proposed",
-    "delivery": "experimental (planner and synthetic qualification only)",
-    "claim": "A pure bounded planner retains exact proposed Playwright suite-interaction trials and synthetic outcomes without launching Playwright or an application.",
+    "delivery": "experimental (closed operator executor; bounded observed-descendant cleanup)",
+    "claim": "A no-mutation planner and separately authorized experimental executor retain bounded Playwright trials with qualified runner, stability and application evidence.",
     "dependsOn": [
       "docs/specs/playwright-external-provider-v0.md",
       "docs/specs/documentation-corpus-v1.md"
@@ -1047,7 +1047,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/playwrightminimize"
+      "internal/playwrightminimize",
+      "cmd/corvint-playwright-minimize"
     ]
   },
   {

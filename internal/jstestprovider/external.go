@@ -33,12 +33,13 @@ func qualifiedPlaywrightVersion(version string) bool {
 var qualifiedReporter []byte
 
 type qualifiedReport struct {
-	ConfigFiles map[string]string `json:"configFiles"`
-	Version     string            `json:"version"`
-	Files       map[string]string `json:"files"`
-	Status      string            `json:"status"`
-	Tests       []TestOutcome     `json:"tests"`
-	Errors      []string          `json:"errors"`
+	Schedule    *ExecutionSchedule `json:"schedule,omitempty"`
+	ConfigFiles map[string]string  `json:"configFiles"`
+	Version     string             `json:"version"`
+	Files       map[string]string  `json:"files"`
+	Status      string             `json:"status"`
+	Tests       []TestOutcome      `json:"tests"`
+	Errors      []string           `json:"errors"`
 }
 
 func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
@@ -107,7 +108,9 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if timeout <= 0 {
 		timeout = defaultTimeout
 	}
-	obs := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: cfg.Dir, Env: os.Environ(), Timeout: timeout, OutputLimit: externalOutputLimit})
+	obs := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: cfg.Dir, Env: os.Environ(), Timeout: timeout, OutputLimit: externalOutputLimit, ObserveDescendants: cfg.ObserveDescendants})
+	r.DescendantObservation = obs.DescendantObservation
+	r.RunnerResources = obs.Usage
 	lifecycle.RunnerDescendantsGone = obs.OwnedProcessGroupCleanup
 	// The caller may already be cancelled. A separate bounded observation checks
 	// survival without extending ownership to the external service.
@@ -338,6 +341,7 @@ func readBoundedReport(path string) ([]byte, error) {
 }
 
 func bindQualifiedReport(r *Receipt, report qualifiedReport) error {
+	r.Schedule = report.Schedule
 	if report.ConfigFiles[r.Identity.ConfigFile] != r.Identity.ConfigDigest {
 		return errors.New("config-inputs-unobserved")
 	}

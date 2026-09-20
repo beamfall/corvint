@@ -7,6 +7,31 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 Issues 42, 43, 47 and PUB-V0: integrated review repair
+
+Stability accepts fully qualified `/1` application attestations, including a distinct application
+repository, while preserving `/0` declaration semantics. Invalid attestation and contradictory
+application revision refuse. The Docker fixture now selects the accepted explicit system-Chrome
+tuple for Playwright 1.63. Its explicit qualification passed (23.829s) with installed modules at
+`/private/tmp/corvint-pw163.589jVO/node_modules`; no runtime package was downloaded.
+
+The separately built experimental minimizer now offers read-only planning and digest-approved
+execution, rederives actual corpus stability evidence, qualifies actual `/1` receipts, constructs
+provider selectors, compares observed schedule/topology, and retains complete native trial evidence.
+Reset/cleanup run pinned operator commands with bounded output and cancellation cleanup. A separate
+20ms PID/start observer terminates and verifies absence of observed escaped descendants; failures
+invalidate the trial. It explicitly does not prove universal containment or unobserved fast-detach
+absence. CRR-V0-003(c) and `RequireDescendantCleanup` continue to refuse before launch unchanged.
+Detached-child, PID-reuse, authorization, evidence-tampering, reset-failure and cancellation controls
+cover the new boundary. Real Docker/Playwright predecessor-failure then isolated-pass qualification
+passed (11.807s). The other classification fixtures remain synthetic, not six claimed live worlds.
+
+The owner selected `v0.5.0a1` for publication. Decision 0327 supersedes the pending version target
+without rewriting historical decisions or measurement evidence; active release tuple, notes,
+installation, editor admission and publication fixtures move together. Unsigned prerelease,
+publisher `NOT_VERIFIED`, four non-Windows core archives, separately qualified optional companion,
+and no-promotion semantics remain. Full integrated gate and publication remain coordinator-owned.
+
 ## 2026-09-20 Issues 39–47: consolidated integration
 
 The completed issue branches are merged in dependency order: 39, 43, 41, 42 (including 40),

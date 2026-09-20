@@ -55,6 +55,10 @@ type Spec struct {
 	StderrLimit              int // Zero inherits the normalized OutputLimit.
 	OverflowPolicy           OverflowPolicy
 	RequireDescendantCleanup bool
+	// ObserveDescendants additionally tracks observed PID/start identities,
+	// including children that leave the owned group. This is bounded observation,
+	// not full containment: a fast detach between samples can remain unobserved.
+	ObserveDescendants bool
 	// JoinAncestorProcessGroup makes this leader join the process group of
 	// whichever process starts it, instead of creating a new one. Set this
 	// only when the caller is itself a leader running inside an ancestor's
@@ -81,9 +85,10 @@ type Spec struct {
 }
 
 type Observation struct {
-	Stdout []byte
-	Stderr []byte
-	Usage  *ResourceUsage
+	DescendantObservation *DescendantObservation
+	Stdout                []byte
+	Stderr                []byte
+	Usage                 *ResourceUsage
 
 	ExitStatus                     int
 	ExitObserved                   bool
@@ -280,9 +285,13 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 		observation.DescendantCleanupQualification = processVerdictPartial
 	}
 	var afterStartErr error
+	var descendants *descendantObserver
+	if spec.ObserveDescendants {
+		descendants, afterStartErr = startDescendantObserver(command.Process.Pid)
+	}
 	if spec.AfterStart != nil {
 		hookContext, cancelHook := context.WithTimeout(context.Background(), min(time.Second, spec.ShutdownTimeout/2))
-		afterStartErr = callBeforeStop(hookContext, command.Process.Pid, spec.AfterStart)
+		afterStartErr = errors.Join(afterStartErr, callBeforeStop(hookContext, command.Process.Pid, spec.AfterStart))
 		cancelHook()
 	}
 
@@ -359,6 +368,10 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 		quiescenceErr = fmt.Errorf("prove owned process group quiescence: %w", quiescenceErr)
 	}
 	observation.OwnedProcessGroupCleanup = !spec.JoinAncestorProcessGroup && terminationErr == nil && cleanupErr == nil && quiescenceErr == nil && observation.WaitCompleted
+	var descendantErr error
+	if descendants != nil {
+		observation.DescendantObservation, descendantErr = descendants.finish()
+	}
 
 	pipeErr, pipesDrained := waitForProcessDrains(stdoutReader, stderrReader, drains, shutdownDeadline)
 	observation.PipesDrained = pipesDrained
@@ -379,6 +392,7 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	}
 
 	observation.Err = processRunError(observation, spec.OverflowPolicy, waitErr, exitObservationErr, terminationErr, cleanupErr, quiescenceErr, pipeErr)
+	observation.Err = errors.Join(observation.Err, descendantErr)
 	if beforeStopErr != nil {
 		observation.Err = errors.Join(observation.Err, &processError{Code: "process-before-stop-failed", Cause: beforeStopErr})
 	}

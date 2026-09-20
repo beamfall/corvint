@@ -1,6 +1,11 @@
 # Release notes
 
-## 0.4.0a4 experimental alpha
+## 0.5.0a1 experimental alpha
+
+The owner selected `v0.5.0a1` for the integrated candidate (decision 0327), superseding the
+unperformed `v0.4.0a4` publication target. It remains an unsigned prerelease with publisher identity
+`NOT_VERIFIED`, four non-Windows CLI archives and only a separately qualified optional companion.
+Historical entries below retain their original versions; no feature or retrieval promotion follows.
 
 This public prerelease candidate uses the native Go engine. The Python engine, live oracle and
 wheel are retired under decision 0088. The owner cancelled the paired Python performance retry;

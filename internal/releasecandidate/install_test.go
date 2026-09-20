@@ -25,7 +25,7 @@ func testPUBV0025VersionedInstallCoexistsAndNeverReplaces(t *testing.T) {
 	archivePath := "core/corvint_" + runtime.GOOS + "_" + runtime.GOARCH + ".tar.gz"
 	previous := verifyForInstall
 	verifyForInstall = func(context.Context, string) (*VerifiedCandidate, error) {
-		return &VerifiedCandidate{Manifest: Manifest{Version: "0.4.0a4", CorvintVersion: "Corvint 0.4.0a4 (build 9)"}, files: map[string][]byte{archivePath: coreArchiveFixture(t, runtime.GOOS+"_"+runtime.GOARCH)}}, nil
+		return &VerifiedCandidate{Manifest: Manifest{Version: "0.5.0a1", CorvintVersion: "Corvint 0.5.0a1 (build 9)"}, files: map[string][]byte{archivePath: coreArchiveFixture(t, runtime.GOOS+"_"+runtime.GOARCH)}}, nil
 	}
 	t.Cleanup(func() { verifyForInstall = previous })
 	store := filepath.Join(t.TempDir(), "store")
@@ -33,7 +33,7 @@ func testPUBV0025VersionedInstallCoexistsAndNeverReplaces(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasSuffix(installed, filepath.Join("0.4.0a4", runtime.GOOS+"-"+runtime.GOARCH)) {
+	if !strings.HasSuffix(installed, filepath.Join("0.5.0a1", runtime.GOOS+"-"+runtime.GOARCH)) {
 		t.Fatalf("unexpected installed path %s", installed)
 	}
 	if _, err := InstallCore(t.Context(), candidate, store); err == nil {
@@ -65,7 +65,7 @@ func coreArchiveFixture(t *testing.T, platform string) []byte {
 	}
 	gzipWriter.Header.ModTime = time.Unix(0, 0)
 	tarWriter := tar.NewWriter(gzipWriter)
-	script := []byte("#!/bin/sh\nprintf '%s\\n' 'Corvint 0.4.0a4 (build 9)'\n")
+	script := []byte("#!/bin/sh\nprintf '%s\\n' 'Corvint 0.5.0a1 (build 9)'\n")
 	name := "corvint_" + platform + "/corvint"
 	if err := tarWriter.WriteHeader(&tar.Header{Name: name, Mode: 0o755, Size: int64(len(script)), ModTime: time.Unix(0, 0), Typeflag: tar.TypeReg}); err != nil {
 		t.Fatal(err)

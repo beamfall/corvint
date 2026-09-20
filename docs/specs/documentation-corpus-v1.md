@@ -261,6 +261,13 @@ to the exact behavior-test anchor. Policy-owned worker/retry/environment-class/f
 remain attributed declarations bound by the policy and receipt digests, not independent runtime
 discovery.
 
+Qualified `corvint-playwright-external/1` contributions bind the application revision through the
+fully validated before/after application attestation, including a distinct application repository.
+The `/0` profile retains its declared application identity and corpus-revision admission. Invalid
+attestation or a contribution/attestation revision mismatch refuses aggregation; `/1` never falls
+back to the empty legacy declared-identity field. `TestPlaywrightStabilityAttestedProfile` covers
+same-repository and cross-repository positives and mismatched/invalid attestation controls.
+
 The policy's declared execution topology and every contribution's observed topology are separate
 canonical, full-file anchored inputs. Topology covers CI nodes/shards, Playwright workers per node,
 database mode, project set, split algorithm/version and resource class; observations additionally

@@ -1390,7 +1390,7 @@ PSL-V0-026	docs/specs/pulse-snapshot-lease-v0.md	293	Rollback is process termina
 PSL-V0-027	docs/specs/pulse-snapshot-lease-v0.md	296	Delivery and performance claims are stage-specific. P0-A cannot inherit P0-B/P0-
 PSM-V0-001	docs/specs/playwright-suite-interaction-minimizer-v0.md	32	A request MUST bind immutable original-failure and isolated-pass receipts plus e
 PSM-V0-002	docs/specs/playwright-suite-interaction-minimizer-v0.md	36	Planning MUST be no-mutation and deterministic, and MUST emit the exact ordered
-PSM-V0-003	docs/specs/playwright-suite-interaction-minimizer-v0.md	39	Trial execution through the abstract boundary MUST require a separate explicit
+PSM-V0-003	docs/specs/playwright-suite-interaction-minimizer-v0.md	39	Trial execution through the operator-facing boundary MUST require a separate exp
 PSM-V0-004	docs/specs/playwright-suite-interaction-minimizer-v0.md	41	The planned original schedule MUST run first. A valid current pass produces
 PSM-V0-005	docs/specs/playwright-suite-interaction-minimizer-v0.md	44	Ordered predecessor sequences and unordered load sets MUST have separate candida
 PSM-V0-006	docs/specs/playwright-suite-interaction-minimizer-v0.md	47	The plan MUST enforce explicit maximum-trial, repetition, and wall-clock bounds.
@@ -1400,8 +1400,8 @@ PSM-V0-009	docs/specs/playwright-suite-interaction-minimizer-v0.md	55	A finding 
 PSM-V0-010	docs/specs/playwright-suite-interaction-minimizer-v0.md	59	Every trial MUST retain start and publish application attestations. A changed
 PSM-V0-011	docs/specs/playwright-suite-interaction-minimizer-v0.md	61	Missing or invalid runner qualification (#39), stability identity (#42), or
 PSM-V0-012	docs/specs/playwright-suite-interaction-minimizer-v0.md	64	Synthetic qualification MUST cover a true predecessor leak, a load-only failure,
-PSM-V0-013	docs/specs/playwright-suite-interaction-minimizer-v0.md	67	This slice MUST NOT launch Playwright, start or mutate an application, expose a
-PUB-V0-001	docs/specs/public-release-v0.md	34	The current version tuple MUST move together to `0.4.0a4`, including native
+PSM-V0-013	docs/specs/playwright-suite-interaction-minimizer-v0.md	67	The closed `corvint-playwright-suite-interaction-live/0` CLI MUST require
+PUB-V0-001	docs/specs/public-release-v0.md	34	The current version tuple MUST move together to `0.5.0a1`, including native
 PUB-V0-002	docs/specs/public-release-v0.md	37	The existing native CLI archive gate MUST remain independent. An optional
 PUB-V0-003	docs/specs/public-release-v0.md	44	Companion build output MUST be outside the source checkouts, include exact
 PUB-V0-004	docs/specs/public-release-v0.md	59	The first companion target is macOS arm64. Qualification MUST exercise the

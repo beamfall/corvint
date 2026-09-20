@@ -3,15 +3,15 @@
 Owner: Russell Lewis
 Date: 2026-09-20
 Intent status: proposed
-Delivery status: experimental (planner and synthetic qualification only)
+Delivery status: experimental (closed operator executor; bounded observed-descendant cleanup)
 Authoritative inputs: GitHub issue #47; AGENTS.md invariants 1-4 and 8; Playwright External
 Provider V0; Documentation Corpus V1 stability identity.
 
 ## Agent digest
-- Claim: A pure bounded planner retains exact proposed Playwright suite-interaction trials and synthetic outcomes without launching Playwright or an application.
-- Status: proposed; experimental (planner and synthetic qualification only).
-- Exists: `internal/playwrightminimize` and its synthetic qualification tests.
-- Blocked on: accepted owner intent, exact integrated #39/#42/#43 contracts, an operator-facing contained executor, and live Playwright/application qualification.
+- Claim: A no-mutation planner and separately authorized experimental executor retain bounded Playwright trials with qualified runner, stability and application evidence.
+- Status: proposed; experimental (closed operator executor; bounded observed-descendant cleanup).
+- Exists: `internal/playwrightminimize`, `cmd/corvint-playwright-minimize`, integrated evidence validation and synthetic/live qualification fixtures.
+- Blocked on: broader runtime qualification and production promotion; the admitted live tuple remains the exact system-Chrome profile.
 - Read next: Requirements; Trust, limits, and failure modes; Acceptance and traceability.
 
 ## User and current state
@@ -23,9 +23,9 @@ turning an isolated pass into a causal claim.
 
 At base `6098291c9ed84c0de5c1a76afa3599d6a6faa352`, `internal/doccorpus/stability.go` retains exact
 repeated-run identity and outcomes but does not plan suite-context minimization. The #39 and #43
-work exists only on separate development refs in this checkout and is not an integrated frozen
-contract here. This slice therefore accepts explicit dependency receipts and reports their absence;
-it does not copy or claim final integration with those branches.
+work was initially on separate development refs. The integrated repair now decodes actual qualified
+`corvint-playwright-external/1` receipt bytes and rederives the documentation corpus through
+`doccorpus.Open`; caller booleans or digest-shaped strings do not qualify the operator-facing profile.
 
 ## Requirements
 
@@ -36,7 +36,7 @@ it does not copy or claim final integration with those branches.
 - `PSM-V0-002`: Planning MUST be no-mutation and deterministic, and MUST emit the exact ordered list
   of proposed trials, their reset policy, topology, identity, repetition, and a digest of the plan
   before any runner can be called.
-- `PSM-V0-003`: Trial execution through the abstract boundary MUST require a separate explicit
+- `PSM-V0-003`: Trial execution through the operator-facing boundary MUST require a separate explicit
   operator approval bound to the exact plan digest. Planning alone MUST grant no execution authority.
 - `PSM-V0-004`: The planned original schedule MUST run first. A valid current pass produces
   `not_reproduced`, executes no isolation or minimization trial, and publishes no current failure
@@ -64,17 +64,21 @@ it does not copy or claim final integration with those branches.
 - `PSM-V0-012`: Synthetic qualification MUST cover a true predecessor leak, a load-only failure,
   application restart, cleanup failure, nondeterminism, and isolated product regression, plus
   authorization, `not_reproduced`, and incomplete-bound controls.
-- `PSM-V0-013`: This slice MUST NOT launch Playwright, start or mutate an application, expose a CLI
-  execution verb, or claim final #39/#43 integration. A later executable slice requires the exact
-  frozen dependency contracts, its own operator-facing authorization, containment, and live gate.
+- `PSM-V0-013`: The closed `corvint-playwright-suite-interaction-live/0` CLI MUST require
+  `--experimental`; `plan` MUST be read-only and `execute --approve-plan DIGEST` MUST rederive the
+  exact plan, command identities and composed evidence before mutation. The executor MUST construct
+  Playwright selectors itself, validate reporter-observed test starts and resolved topology, run
+  pinned operator reset/cleanup commands, retain process observations and invalidate every observed
+  survivor or observer failure. Bounded observed-descendant cleanup MUST NOT claim full OS
+  containment, and `RequireDescendantCleanup`'s existing full-containment refusal MUST remain intact.
 
 ## Non-goals and simpler baseline
 
 The simpler baseline is manual isolation and prefix reruns, retained as the fallback. V0 does not
-identify the true root cause, repair a test, mutate fixtures, choose a reset policy, manage servers,
-schedule distributed workers, or promote a stability result. It has no network, browser, filesystem,
-or process implementation. A caller-supplied `Runner` in tests is a synthetic qualification seam,
-not a production executor.
+identify the true root cause, repair a test, choose a reset policy, manage application servers,
+schedule distributed workers, or promote a stability result. Operator-owned reset and cleanup code
+may mutate only its explicitly authorized environment. The pure `Runner` remains a synthetic seam;
+the separate live profile calls the qualified provider itself rather than trusting returned booleans.
 
 ## Trust, limits, and failure modes
 
@@ -89,6 +93,39 @@ or changed application attestation. The invalid receipt and its failure observat
 report. A valid pass/fail mixture for one candidate is nondeterminism, not evidence for whichever
 result is more convenient. When both ordered and load witnesses exist the diagnosis stays ambiguous.
 
+## Closed operator profile
+
+Build `./cmd/corvint-playwright-minimize` separately. Feed a `LiveRequest` on stdin to
+`plan --experimental`; feed its exact `LivePlan` output to
+`execute --experimental --approve-plan sha256:...`. Planning never launches the reset, cleanup,
+provider or browser. `original`, `isolated` and `corpus` are base64-encoded exact bytes, so round-trip
+JSON encoding cannot change their hashes. The corpus's selected `stability_ids` must bind both
+baseline receipt hashes and their exact target test identities. A failed baseline does not need a
+clean stability verdict; it needs valid, rederived identity and retained denominators.
+
+The admitted runtime is Playwright 1.63.0's qualified Darwin/arm64 system-Chrome tuple. Trials use
+unsharded project-default parallelism, zero retries and repeat-each 1. Ordered trials compare actual
+reporter `onTestBegin` order to the requested source/full-name/project identities; a schedule that
+Playwright does not realize remains invalid/incomplete. Load trials compare exact membership and
+topology without requiring start order. No private scheduler mutation or global minimality claim is
+made. The fully qualified receipt, every attempt and both application attestations are retained in
+each trial; source locators join baseline identities to trial-specific IDs that also bind argv.
+
+The operator declares `playwright-use`, a fresh browser/process reset without application restart,
+and `CORVINT_MINIMIZER_SEED` in the bound environment. Reset/cleanup each name one absolute,
+digest-pinned executable; exact trial/seed/reset-generation data is supplied on stdin. Exit zero
+with verified cleanup proves the command ran, not independently that arbitrary application state
+was restored. The operator-owned reset policy remains the authority for those semantics.
+
+Reset/cleanup commands have 5-second bounds and 64 KiB output caps. Cleanup runs on a fresh bounded
+context even after reset failure or cancellation. The runner retains operating-system accounting
+when available. The opt-in observer samples PID/parent/start identity every 20 ms, retains the scope
+and interval, kills observed escaped descendants, then verifies absence. Observer errors and
+observed survivors invalidate the trial. Fast detach/reparent between snapshots can remain
+unobserved; start identity resolution is platform-dependent. This is not adversarial OS containment
+or authority over the externally owned application server. The stronger `RequireDescendantCleanup`
+request continues to refuse before launch under CRR-V0-003(c).
+
 ## Acceptance and traceability
 
 | Requirement | Implementation | Evidence |
@@ -99,20 +136,23 @@ result is more convenient. When both ordered and load witnesses exist the diagno
 | PSM-V0-007/008/010 | `internal/playwrightminimize/executor.go` | `TestPSMV0005ApplicationRestartInvalidatesTrial`, `TestPSMV0006CleanupFailureInvalidatesTrial`, `TestPSMV0013RunnerGetsDeadlineAndErrorReceiptIsRetained`, `TestPSMV0016InfrastructureIsolationIsNotProductAttribution`, `TestPSMV0017CancellationDuringFinalTrialCannotPublishConfidence` |
 | PSM-V0-009/012 | `internal/playwrightminimize/executor.go` | `TestPSMV0003TruePredecessorLeakQualification`, `TestPSMV0004LoadOnlyQualification`, `TestPSMV0008IsolatedProductRegressionStopsMinimization`, `TestPSMV0014NecessityRequiresMatchingTopologyAndSupportingReceipts` |
 | PSM-V0-011 | `internal/playwrightminimize/planner.go`, `executor.go` | `TestPSMV0010MissingComposedQualificationsBlocksConfidence` |
-| PSM-V0-013 | package import/process boundary | `go list -deps ./internal/playwrightminimize` inspection; live Playwright/application execution `NOT_RUN` by design |
+| PSM-V0-013 | `internal/playwrightminimize/live.go`, `cmd/corvint-playwright-minimize`, `internal/procgroup/descendants.go` | `TestPSMLiveAuthorizationPrecedesAllMutation`, `TestMinimizerCLIRefusesImplicitExecution`, `TestPSMLiveQualifiedEvidenceAndNegativeControls`, `TestPSMLiveResetFailureStillCleansUp`, `TestPSMLiveCancellationReapsDescendants`, `TestObservedDescendantCancellationReapsEscapedChild`, `TestObservedDescendantIdentityReuseDoesNotExpandOwnership`, `TestPSMLiveDockerPredecessorQualification` |
 
 Focused acceptance is `GOTOOLCHAIN=local go test -count=1 ./internal/playwrightminimize` plus the
-repository requirement, definition, and traceability checks. Live runner/browser/application trials,
-the full canonical gate, and #39/#43 integration are `NOT_RUN` in this slice.
+repository requirement, definition, and traceability checks. The opt-in real predecessor/isolated
+qualification requires `CORVINT_MINIMIZER_LIVE_QUALIFICATION=1` and `CORVINT_PLAYWRIGHT_MODULES`.
+The six diagnostic classifications remain separately identified synthetic fixtures; one live
+predecessor test is not proof of all six live environments or production qualification. The full
+canonical gate belongs to the frozen integrated candidate.
 
 ## Rollout, rollback, compatibility, and promotion
 
-The package is internal and has no caller, CLI, wire, or persisted-state compatibility promise.
-Rollback removes the package, this spec/index row, and build-log entry. Promotion requires accepted
-intent, exact integrated #39/#42/#43 profiles, a separately authorized contained executor, frozen
-real Playwright fixtures, and a live gate demonstrating the six cases without weakening invalidation.
-Any overclaim of causality, any execution without digest-bound approval, or any accepted invalid
-reset/cleanup kills the executable direction and retains planning-only status.
+The package and separately built CLI remain experimental with no persisted-state compatibility
+promise. They are not added to the default core binary or implicitly to the qualified companion
+bundle. Rollback removes the opt-in surface and observed-descendant mode without altering the
+default procgroup contract. Promotion requires broader frozen live qualification without weakening
+invalidation. Any causal overclaim, execution without digest-bound approval, or accepted invalid
+reset/cleanup kills promotion and retains experimental status.
 
 ## Unresolved decisions
 

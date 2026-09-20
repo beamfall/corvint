@@ -273,7 +273,11 @@ func preparePlaywrightRepository(t *testing.T, git, modules, repository, outputD
 	if err := os.MkdirAll(repository, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	config := "module.exports = {testDir: '.', outputDir: " + jsonString(outputDir) + ", projects: [{name: 'chromium', use: {browserName: 'chromium'}}]};\n"
+	use := "{browserName: 'chromium'}"
+	if playwrightVersion(t, modules) == "1.63.0" {
+		use = "{browserName: 'chromium', channel: '', launchOptions: {executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'}}"
+	}
+	config := "module.exports = {testDir: '.', outputDir: " + jsonString(outputDir) + ", projects: [{name: 'chromium', use: " + use + "}]};\n"
 	test := "const fs = require('fs');\nconst { test, expect } = require('@playwright/test');\ntest('attested application', async ({page}) => { fs.writeFileSync(process.env.CORVINT_RUN_STARTED, 'started\\n'); await page.waitForTimeout(2000); await page.goto(process.env.CORVINT_FIXTURE_URL); await expect(page.locator('body')).toContainText('attested fixture'); });\n"
 	if err := os.WriteFile(filepath.Join(repository, "playwright.config.cjs"), []byte(config), 0o600); err != nil {
 		t.Fatal(err)

@@ -29,7 +29,7 @@ func testPUBV0023ClosedManifestRunsIsolatedHostProbe(t *testing.T) {
 		t.Skip("host target is outside the qualified core set")
 	}
 
-	versionOutput := "Corvint 0.4.0a4 (build 9)"
+	versionOutput := "Corvint 0.5.0a1 (build 9)"
 	hostBinary := []byte("#!/bin/sh\nprintf '%s\\n' '" + versionOutput + "'\n")
 	coreBinary := func(target coreTarget) []byte {
 		if target.GOOS == runtime.GOOS && target.GOARCH == runtime.GOARCH {
@@ -117,7 +117,7 @@ func testPUBV0026FailedInputRetainsNoCandidate(t *testing.T) {
 	}
 	_, err := Assemble(t.Context(), Options{
 		CoreDirectory: validCoreFixture(t), CompanionDirectory: filepath.Join(root, "missing"),
-		SourceRoot: root, Scratch: root, OutputParent: output, Version: "0.4.0a4",
+		SourceRoot: root, Scratch: root, OutputParent: output, Version: "0.5.0a1",
 	})
 	if err == nil {
 		t.Fatal("missing companion accepted")
@@ -161,7 +161,7 @@ func TestPUBV0026ScratchAndOutputCannotOverlapInputs(t *testing.T) {
 }
 
 func TestPUBV0007CandidateNotesPreserveRequiredDisclosures(t *testing.T) {
-	notes := candidateReadme("0.4.0a4")
+	notes := candidateReadme("0.5.0a1")
 	for _, disclosure := range []string{"Experimental", "local Git executable and object database", "Performance is unmeasured", "hosted CI is unavailable/NOT_RUN"} {
 		if !strings.Contains(notes, disclosure) {
 			t.Fatalf("candidate notes omit %q", disclosure)
@@ -274,9 +274,9 @@ func closedCandidateFixture(t *testing.T, versionOutput, corvintCommit, corvintT
 		t.Fatal(err)
 	}
 	add("QUALIFICATION.json", "qualification-receipt", qualificationRaw)
-	add("README.md", "release-notes", []byte(candidateReadme("0.4.0a4")))
+	add("README.md", "release-notes", []byte(candidateReadme("0.5.0a1")))
 	manifest := Manifest{
-		Profile: manifestProfile, Version: "0.4.0a4", BuildNumber: "9", CorvintVersion: versionOutput, GoVersion: "go1.27.1", GitVersion: "git version fixture",
+		Profile: manifestProfile, Version: "0.5.0a1", BuildNumber: "9", CorvintVersion: versionOutput, GoVersion: "go1.27.1", GitVersion: "git version fixture",
 		Sources: []SourceIdentity{{Name: "corvint", Commit: corvintCommit, Tree: corvintTree}, tasks}, Assets: assetsFor(files, roles),
 	}
 	manifestRaw, err := canonicalJSON(manifest)
