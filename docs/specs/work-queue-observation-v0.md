@@ -592,7 +592,10 @@ without a new policy vocabulary, store root, or adapter protocol. They change no
   symlink component; non-sticky group/world-writable parents, group/world-writable executable bytes,
   missing paths, relative paths and repository-controlled paths fail before init writes. Init records
   the exact path, SHA-256, `Corvint VERSION (build BUILD)` output and Go module/VCS source identity in
-  the generated reviewed adapter. Observation accepts only the canonical generated adapter, reopens
+  the generated reviewed adapter. A reproducible `-buildvcs=false` release records its explicit
+  absence of VCS settings while retaining package, module/version and Go toolchain identity; it is
+  not rejected for omitting metadata that the release build intentionally excludes. Observation
+  accepts only the canonical generated adapter, reopens
   the exact path without following links, rederives all identities, and fails
   `ERROR/SOURCE_UNQUALIFIED` before adapter execution on any mismatch. To close the pathname-to-exec
   race on Darwin and Linux without ambient lookup, Corvint copies only the already-opened and hashed

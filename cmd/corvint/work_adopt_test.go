@@ -58,6 +58,18 @@ func workBuildCorvint(path, build string) error {
 	return nil
 }
 
+func workBuildCorvintWithoutVCS(path string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	command := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", path, ".")
+	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOCACHE="+filepath.Join(os.TempDir(), "corvint-go-build-cache"))
+	if output, err := command.CombinedOutput(); err != nil {
+		return errors.New(err.Error() + ": " + string(output))
+	}
+	return nil
+}
+
 func workCopyExecutable(t *testing.T, source, destination string) {
 	t.Helper()
 	raw, err := os.ReadFile(source)
@@ -249,6 +261,28 @@ func testWorkInitBindsExplicitExecutable(t *testing.T) {
 			}
 		})
 	}
+	t.Run("companion-buildvcs-false", func(t *testing.T) {
+		path := filepath.Join(fixtureRoot, "bundle", "bin", "corvint")
+		if err := workBuildCorvintWithoutVCS(path); err != nil {
+			t.Fatal(err)
+		}
+		root := materializationFixture(t)
+		var stdout, stderr bytes.Buffer
+		if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", path}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+			t.Fatalf("init exit=%d stderr=%s", exit, &stderr)
+		}
+		raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(workAdapterPath)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		binding, err := workParseBoundAdapter(raw)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if binding.Source.ModuleVersion != "(devel)" || binding.Source.VCS != "" || binding.Source.Revision != "" || binding.Source.Modified {
+			t.Fatalf("buildvcs=false source identity: %+v", binding.Source)
+		}
+	})
 }
 
 // WQO-V0-049: relative, missing, linked, unsafe-parent and repository-owned

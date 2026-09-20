@@ -270,6 +270,10 @@ func replaceWorkExecutableBinding(root string, binding workCorvintExecutableBind
 		return err
 	}
 	defer directory.Close()
+	openedDirectory, err := directory.Stat(".")
+	if err != nil || !os.SameFile(directoryInfo, openedDirectory) || directoryInfo.Mode() != openedDirectory.Mode() {
+		return errors.New(".corvint changed while opening")
+	}
 	policyRaw, _, err := readWorkAdoptionFile(directory, strings.TrimPrefix(worklistadapter.PolicyPath, ".corvint/"), 64<<10)
 	if err != nil {
 		return err
@@ -300,9 +304,13 @@ func replaceWorkExecutableBinding(root string, binding workCorvintExecutableBind
 		return err
 	}
 	defer directory.Remove(temporary)
-	latest, err := directory.Lstat(adapterName)
-	if err != nil || !os.SameFile(after, latest) || after.Mode() != latest.Mode() || after.Size() != latest.Size() {
+	latestRaw, latest, err := readWorkAdoptionFile(directory, adapterName, 64<<10)
+	if err != nil || !bytes.Equal(current, latestRaw) || !os.SameFile(after, latest) || after.Mode() != latest.Mode() || after.Size() != latest.Size() {
 		return errors.New("work-queue adapter changed during rebind")
+	}
+	currentDirectory, err := repository.Lstat(".corvint")
+	if err != nil || !os.SameFile(directoryInfo, currentDirectory) || directoryInfo.Mode() != currentDirectory.Mode() {
+		return errors.New(".corvint changed during rebind")
 	}
 	return directory.Rename(temporary, adapterName)
 }

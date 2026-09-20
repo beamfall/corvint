@@ -34,6 +34,11 @@ checks; dirty `affected` selected four Go packages while retaining unowned docum
 language-frontier unknowns. Mutation, corpus, external-provider, service and learning routes are not
 applicable. No paired baseline exists and no savings claim is made.
 
+Independent security review found and the first repair cycle closed three issues: companion
+`-buildvcs=false` binaries now retain an explicit no-VCS module/toolchain identity; rebind pins and
+rechecks the opened `.corvint` directory plus exact adapter bytes before replacement; and bound
+executable drift during an operation now maps to `SOURCE_UNQUALIFIED` rather than `ADAPTER_FAILED`.
+
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
 Owner approval accepts decisions 0324/0325: bounded local MCP stdio and a separately built opt-in

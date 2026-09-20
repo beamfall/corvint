@@ -242,8 +242,11 @@ func workCorvintSource(file *os.File) (workCorvintSourceIdentity, error) {
 	if result.Module != "github.com/Beamfall/corvint" {
 		return workCorvintSourceIdentity{}, errors.New("unexpected Corvint module identity")
 	}
-	if result.Revision == "" && (result.ModuleVersion == "" || result.ModuleVersion == "(devel)") {
-		return workCorvintSourceIdentity{}, errors.New("Corvint source identity is incomplete")
+	if result.ModuleVersion == "" {
+		return workCorvintSourceIdentity{}, errors.New("Corvint module source identity is incomplete")
+	}
+	if result.Revision == "" && (result.VCS != "" || result.Time != "" || result.Modified) {
+		return workCorvintSourceIdentity{}, errors.New("Corvint source identity is inconsistent")
 	}
 	if result.Revision != "" && result.VCS != "git" {
 		return workCorvintSourceIdentity{}, errors.New("unsupported Corvint source identity")

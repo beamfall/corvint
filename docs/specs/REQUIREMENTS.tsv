@@ -1905,18 +1905,18 @@ WQO-V0-025	docs/specs/work-queue-observation-v0.md	469	Immediately before return
 WQO-V0-026	docs/specs/work-queue-observation-v0.md	475	Queue IDs, titles, bodies, criteria, comments, route labels, holder names, reaso
 WQO-V0-027	docs/specs/work-queue-observation-v0.md	479	Corvint never executes, interpolates, templates, evaluates, or shells queue data
 WQO-V0-028	docs/specs/work-queue-observation-v0.md	485	Presentation may say only `VALIDATED_AT(checkpoint)`,
-WQO-V0-029	docs/specs/work-queue-observation-v0.md	636	Beamfall MUST add one supported atomic read-only adapter surface equivalent to
-WQO-V0-030	docs/specs/work-queue-observation-v0.md	644	Corvint MUST NOT call Beamfall mutation verbs or `fanout-plan --claim`. Adapter
-WQO-V0-031	docs/specs/work-queue-observation-v0.md	649	`PARTIAL`, `CONFLICTED`, `STALE`, or `UNKNOWN` always produces an empty proposal
-WQO-V0-032	docs/specs/work-queue-observation-v0.md	653	Timeout, cancellation, non-zero exit, malformed bytes, digest mismatch, overflow
-WQO-V0-033	docs/specs/work-queue-observation-v0.md	668	Corvint core makes no network request, model call, database, daemon, embedding,
-WQO-V0-034	docs/specs/work-queue-observation-v0.md	675	Independent Go conformance validates every schema, identity, decision row, bound
-WQO-V0-035	docs/specs/work-queue-observation-v0.md	695	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec
-WQO-V0-036	docs/specs/work-queue-observation-v0.md	698	Before counting, freeze an independent recorder profile/version, repository-orac
-WQO-V0-037	docs/specs/work-queue-observation-v0.md	704	Of 500 consecutive cycles, at least 100 contain active leases, 100 at least two
-WQO-V0-038	docs/specs/work-queue-observation-v0.md	710	Passing permits only owner-reviewed assisted read-only display. Where the frozen
-WQO-V0-039	docs/specs/work-queue-observation-v0.md	718	Rollback disables commands and deletes disposable state without canonical repair
-WQO-V0-040	docs/specs/work-queue-observation-v0.md	721	Any policy, adapter/profile, mapping, schema, lifecycle, route/capacity/collisio
+WQO-V0-029	docs/specs/work-queue-observation-v0.md	639	Beamfall MUST add one supported atomic read-only adapter surface equivalent to
+WQO-V0-030	docs/specs/work-queue-observation-v0.md	647	Corvint MUST NOT call Beamfall mutation verbs or `fanout-plan --claim`. Adapter
+WQO-V0-031	docs/specs/work-queue-observation-v0.md	652	`PARTIAL`, `CONFLICTED`, `STALE`, or `UNKNOWN` always produces an empty proposal
+WQO-V0-032	docs/specs/work-queue-observation-v0.md	656	Timeout, cancellation, non-zero exit, malformed bytes, digest mismatch, overflow
+WQO-V0-033	docs/specs/work-queue-observation-v0.md	671	Corvint core makes no network request, model call, database, daemon, embedding,
+WQO-V0-034	docs/specs/work-queue-observation-v0.md	678	Independent Go conformance validates every schema, identity, decision row, bound
+WQO-V0-035	docs/specs/work-queue-observation-v0.md	698	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec
+WQO-V0-036	docs/specs/work-queue-observation-v0.md	701	Before counting, freeze an independent recorder profile/version, repository-orac
+WQO-V0-037	docs/specs/work-queue-observation-v0.md	707	Of 500 consecutive cycles, at least 100 contain active leases, 100 at least two
+WQO-V0-038	docs/specs/work-queue-observation-v0.md	713	Passing permits only owner-reviewed assisted read-only display. Where the frozen
+WQO-V0-039	docs/specs/work-queue-observation-v0.md	721	Rollback disables commands and deletes disposable state without canonical repair
+WQO-V0-040	docs/specs/work-queue-observation-v0.md	724	Any policy, adapter/profile, mapping, schema, lifecycle, route/capacity/collisio
 WQO-V0-041	docs/specs/work-queue-observation-v0.md	495	Each ticket's `touchPaths` declares the repository paths its work intends to cha
 WQO-V0-042	docs/specs/work-queue-observation-v0.md	501	Corvint expands each ticket's declared paths at `repositorySource.commit` into a
 WQO-V0-043	docs/specs/work-queue-observation-v0.md	516	Two READY tickets clash when their closures share one path. For every path share
@@ -1926,4 +1926,4 @@ WQO-V0-046	docs/specs/work-queue-observation-v0.md	552	The store scope is comple
 WQO-V0-047	docs/specs/work-queue-observation-v0.md	564	`corvint work init --repository NAME --corvint-executable ABSOLUTE_FILE`
 WQO-V0-048	docs/specs/work-queue-observation-v0.md	578	`corvint work adapter snapshot|details|verify` is the
 WQO-V0-049	docs/specs/work-queue-observation-v0.md	590	The initialization executable is one canonical absolute executable regular file
-WQO-V0-050	docs/specs/work-queue-observation-v0.md	607	`corvint work rebind --corvint-executable ABSOLUTE_FILE` is the only supported
+WQO-V0-050	docs/specs/work-queue-observation-v0.md	610	`corvint work rebind --corvint-executable ABSOLUTE_FILE` is the only supported

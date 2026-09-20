@@ -124,6 +124,9 @@ func (runner *workAdapterRunner) Close() {
 func (runner *workAdapterRunner) checkExecutables() error {
 	for _, object := range runner.executables {
 		if err := object.check(); err != nil {
+			if object == runner.bound {
+				return fmt.Errorf("%w: %v", errWorkBoundExecutableUnqualified, err)
+			}
 			return err
 		}
 	}
@@ -133,6 +136,8 @@ func (runner *workAdapterRunner) checkExecutables() error {
 const workDrainTimeout = 250 * time.Millisecond
 
 const workReapTimeout = time.Second
+
+var errWorkBoundExecutableUnqualified = errors.New("bound Corvint executable is unqualified")
 
 func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimit int) ([]byte, workqueue.AdapterReceipt, error) {
 	stdout := &workLimitedBuffer{limit: min(stdoutLimit, int(max(0, int64(workAggregateLimit)-runner.total)))}
@@ -273,6 +278,9 @@ func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimi
 }
 
 func (runner *workAdapterRunner) commandError(err error) string {
+	if errors.Is(err, errWorkBoundExecutableUnqualified) {
+		return "SOURCE_UNQUALIFIED"
+	}
 	if err.Error() == "limit" || errors.Is(err, context.DeadlineExceeded) {
 		return "INPUT_LIMIT"
 	}

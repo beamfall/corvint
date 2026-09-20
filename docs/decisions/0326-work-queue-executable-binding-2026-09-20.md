@@ -11,6 +11,11 @@ Relative, missing, linked, unsafe-parent, writable, or repository-controlled exe
 before any adoption file is written. `work rebind` is the only supported identity update and changes
 only the adapter for review and commit.
 
+Companion bundles intentionally use `-buildvcs=false`. Their binding records package,
+module/version and Go toolchain identity plus the explicit absence of VCS settings; the exact SHA-256
+and version/build remain mandatory. Corvint rejects inconsistent partial VCS settings rather than
+rejecting the release profile for omitting metadata by design.
+
 The observer never searches ambient `PATH`. It opens the bound path without following links, verifies
 all recorded identities, and materializes only those opened bytes as a private `0500` executable under
 a private `0700` directory. The canonical adapter receives that absolute private path as trusted argv
