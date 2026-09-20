@@ -299,6 +299,20 @@ func TestBehaviorExactProjectObservation(t *testing.T) {
 }
 
 func TestBehaviorAcceptanceAmendment(t *testing.T) {
+	t.Run("DCP-V1-008 runtime assertion requires reverse declaration", func(t *testing.T) {
+		extra := behaviorEvents("unknown-criterion")[1]
+		extra.ID = "undeclared-assertion"
+		extra.Behavior = "unknown-behavior"
+		extra.Sequence = 5
+		root, m := behaviorFixtureWithRun(t, func(r *BehaviorRegistry) { r.Flows[0].OrderedEvents = append(r.Flows[0].OrderedEvents, extra) }, true, func(r *BehaviorRun) { r.Events = append(r.Events, extra) })
+		a, err := Build(context.Background(), root, m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(a.BehaviorContracts[0].VerifiedTests) > 0 {
+			t.Fatal("ordered runtime assertion without declared behavior/criterion verified")
+		}
+	})
 	t.Run("DCP-V1-004 noncurrent behavior anchor", func(t *testing.T) {
 		root, m := behaviorFixtureWithRun(t, func(r *BehaviorRegistry) { r.Behaviors[0].Evidence.Revision = r.Manifest.Revision }, true)
 		var source Input

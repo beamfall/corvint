@@ -528,13 +528,25 @@ func (c *compiler) behaviorRunVerified(r BehaviorRegistry, test BehaviorTest) bo
 		if event.Navigation == "popup" && !textOK(event.ParentPage) {
 			return false
 		}
+		if event.Kind == "assertion" {
+			declared := false
+			for _, assertion := range test.Assertions {
+				if behaviorAssertionEventMatches(event, assertion) {
+					declared = true
+				}
+			}
+			if !declared {
+				c.behaviorGap(test.ID, "contradiction", "runtime assertion has no validated declaration")
+				return false
+			}
+		}
 		seen[event.Kind+":"+event.ID] = true
 	}
 	valid := true
 	for _, assertion := range test.Assertions {
 		matchedAssertion := false
 		for _, event := range run.Events {
-			if event.Kind == "assertion" && event.ID == assertion.ID && event.Behavior == assertion.Behavior && event.Criterion == assertion.Criterion && event.Matcher == assertion.Matcher && event.Locator == assertion.Locator && event.Value == assertion.Value {
+			if behaviorAssertionEventMatches(event, assertion) {
 				matchedAssertion = true
 			}
 		}
@@ -564,6 +576,10 @@ func (c *compiler) behaviorRunVerified(r BehaviorRegistry, test BehaviorTest) bo
 		}
 	}
 	return valid
+}
+
+func behaviorAssertionEventMatches(event BehaviorEvent, assertion BehaviorAssertion) bool {
+	return event.Kind == "assertion" && event.ID == assertion.ID && event.Behavior == assertion.Behavior && event.Criterion == assertion.Criterion && event.Matcher == assertion.Matcher && event.Locator == assertion.Locator && event.Value == assertion.Value
 }
 
 func (c *compiler) behaviorNativeReady(o Observation) bool {

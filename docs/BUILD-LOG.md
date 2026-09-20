@@ -35,6 +35,9 @@ Amendment review required rejecting digest-valid but noncurrent behavior anchors
 assertion, not only finding one qualifying assertion per criterion. End-to-end regressions retain
 validly pinned alternate-revision source and matching extra runtime events while rejecting their
 stale, unreviewed or undeclared joins.
+Final amendment review also required the reverse runtime-assertion check: a runtime event and
+matching expected order cannot invent an assertion absent from the validated test declaration.
+The retained-run regression covers that previously one-way join explicitly.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
