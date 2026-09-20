@@ -3,16 +3,16 @@
 Owner: Russell Lewis
 Date: 2026-09-19
 Intent status: accepted (decisions 0316, 0317, 0318)
-Delivery status: experimental (command transport only)
+Delivery status: implemented
 Authoritative inputs: `AGENTS.md` invariant 7, `docs/specs/external-evidence-provider-v0.md`,
 `docs/specs/external-evidence-provider-v1.md`, `docs/specs/external-evidence-provider-v2.md`,
 `internal/procgroup`, and the feature request Beamfall/corvint#11.
 
 ## Agent digest
 - Claim: `corvint impact --provider-command ARGV_JSON` runs one contained local provider command and decodes its stdout exactly as a record file.
-- Status: accepted (decisions 0316, 0317, 0318)/experimental (command transport only); checked by `TestCommandTransportConformance`.
-- Exists: `internal/extevidence/transport.go` and the `--provider-command` option; MCP is a proposed profile, not shipped; remote is NO-GO on the default path.
-- Blocked on: an accepted remote profile outside the default local path (decision 0318); `corvint affected` does not take `--provider-command` yet.
+- Status: accepted (decisions 0316, 0317, 0318)/implemented; checked by `TestCommandTransportConformance`.
+- Exists: `internal/extevidence/transport.go` and the `--provider-command` option; MCP and optional HTTPS are governed by decisions 0324 and 0325.
+- Blocked on: no in-scope delivery prerequisite; `corvint affected` does not take `--provider-command` yet.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Traceability.
 
 ## User and measurable job
@@ -80,9 +80,9 @@ way the command can fail is one closed provider row with no partial record.
 - `EEP-TR-008`: stderr MUST be bounded and discarded: it never appears in the receipt, a reason, or
   Corvint's own stderr. Every provider-row reason for a transport failure is Core-authored text;
   record text reaches the receipt only through the untrusted text fields EEP-V0 already lists.
-- `EEP-TR-009`: The MCP transport is a proposed profile and MUST NOT be shipped by this slice
-  (decision 0317). An MCP server can be reached today only through a command-transport adapter that
-  the operator supplies and that prints one record.
+- `EEP-TR-009`: MCP MUST be selected only through the accepted bounded stdio profile in
+  `external-evidence-provider-mcp-v0.md` (decision 0324, superseding 0317). Its extracted record
+  bytes retain the strict decode and authority separation of the command/file transports.
 - `EEP-TR-010`: A remote (network) transport is NO-GO on the default local path (decision 0318).
   No option, environment variable, or record member may cause Corvint to open a network
   connection to fetch a provider record.
@@ -97,28 +97,21 @@ way the command can fail is one closed provider row with no partial record.
   but does not claim to confine what an operator-chosen executable does.
 - `corvint affected --provider-command` is not in this slice; the affected verb's option parsing is
   owned by the ETS-V0 lane.
-- No MCP client and no network client.
+- No general-purpose MCP client and no network client in Core.
 
-## MCP profile (proposed, not shipped)
+## MCP profile (accepted bounded stdio)
 
-Decision 0317 records why MCP does not fit this slice cleanly. An MCP stdio session requires an
-`initialize` request, its response, and an `initialized` notification before a `tools/call`, so
-stdin must stay open for an interactive exchange rather than closed; the server may send its own
-requests and notifications that a client must answer or ignore; and the record would arrive inside
-a `content` or `structuredContent` envelope that needs a second decoder ahead of the strict one. An
-accepted MCP profile would need: a fixed tool name and argument shape; a message-count and per-
-message byte bound on both directions; a refusal of every server-initiated request; a single
-envelope rule that yields the record bytes unchanged; and the full `EEP-TR-003` to `EEP-TR-008`
-containment and decode, proven by the same differential conformance run.
+Decision 0324 supersedes decision 0317 for `external-evidence-provider-mcp-v0.md`. A fixed tool,
+bounded interactive exchange and single text block reuse the process-group cleanup and strict
+record decoder. Every server-initiated message is refused. The existing record conformance cases
+run unchanged through this transport.
 
 ## Remote profile (NO-GO on the default path)
 
-Decision 0318 records the NO-GO. Invariant 7 keeps the default local product free of network
-dependency. An accepted remote profile would need, in its own spec and decision: a separately
-built or separately enabled path that the default binary cannot reach; TLS with a pinned server
-identity; a credential policy that never places a secret in argv, a receipt, or a record; an
-explicit per-invocation opt-in; the same byte, time, and record bounds; the same transport-neutral
-decode as `EEP-TR-005`; and closed failure as `EEP-TR-006`. Beamfall/corvint#11 stays open for it.
+Decision 0318's default-path NO-GO remains binding. Decision 0325 accepts the separately built
+`corvint-remote-provider` under `external-evidence-provider-remote-v0.md`: explicit per-invocation
+consent, normal TLS plus SPKI pinning, private-file credentials, bounded complete bytes and closed
+failure. The adapter is an operator-selected command and is never imported or installed by Core.
 
 ## Trust boundary, limits, and failure modes
 
@@ -171,7 +164,7 @@ rows. The `decodeRecord` extraction in `section.go` is behaviour-preserving and 
 | `EEP-TR-006` | `internal/extevidence/transport.go` | `TestCommandTransportFailuresAreClosed` |
 | `EEP-TR-007` | `cmd/corvint/main.go` | `TestImpactProviderCommandEndToEnd` |
 | `EEP-TR-008` | `internal/extevidence/transport.go` | `TestCommandTransportFailuresAreClosed` |
-| `EEP-TR-009` | this document; decision 0317 | review: no MCP client in `internal/extevidence` |
+| `EEP-TR-009` | `internal/extevidence/mcp.go`; decision 0324 | `TestMCPTransportConformance` |
 | `EEP-TR-010` | this document; decision 0318 | review: no network client in `internal/extevidence` |
 
 ## Unresolved decisions and promotion or kill criteria

@@ -7,6 +7,33 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
+
+Owner approval accepts decisions 0324/0325: bounded local MCP stdio and a separately built opt-in
+HTTPS adapter. MCP needs interactive stdin; extending the existing process-group lifecycle avoids
+a nested detached adapter group that Core could fail to kill. The protocol pins 2025-11-25, one
+tool and one text envelope. HTTPS has normal TLS plus SPKI validation, explicit optional CA roots,
+private bearer files and no redirects/proxies/retries. Core never imports the HTTPS package.
+
+The original EEP-V0/V1/V2 and ETS conformance fixture matrices passed unchanged through both
+transports, including strict decode, stale references, learned exclusions and authority separation.
+Focused hostile checks cover bounds, timeouts, unavailable transports, MCP requests/extra frames,
+normal and interrupted descendant cleanup, credential permissions, TLS and HTTP failures.
+Independent security review found JSON-escaped credential reflection and case-insensitive MCP
+field coercion. Repairs screen decoded credential strings and require exact MCP key spelling and
+boolean values; the regression places `isError:true` before `IsError:false` to exercise the bypass.
+Full gate and final CEM/OCM outcomes are retained in the enrolled private check observations; the
+focused results do not substitute for those final results.
+
+Actual self-development routes: original query (three omitted results retained), start-time
+dogfood-change (empty-range CEM and missing scope/outcome NOT_PRODUCED), immutable profile enrollment,
+dirty affected advice, and final CEM/OCM reports. Original query preceded the measurement scratch
+receipt; its latency, billed tokens and complete source-open counts are NOT_OBSERVED. New profile
+intents needed a planning-only commit before enrollment could resolve them; implementation began
+only after enrollment. No savings claim. Live remote Internet services, external MCP server adoption,
+mutation campaigns, documentation corpus and learning qualification are not applicable to this
+transport-conformance change; frozen existing provider fixtures remain the behavioral witnesses.
+
 ## 2026-09-19 DCP-V1: experimental revision-pinned documentation corpus
 
 Issue 31 was explicitly scoped to all six phases. The change supplies a native immutable corpus,

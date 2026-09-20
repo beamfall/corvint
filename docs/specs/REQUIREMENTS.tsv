@@ -606,6 +606,14 @@ ECO-V0-004	docs/specs/error-code-ownership-gate-v0.md	61	Sources, specs, and the
 ECO-V0-005	docs/specs/error-code-ownership-gate-v0.md	63	A `git grep` exit status other than 0 or 1 MUST fail the gate naming `git grep`,
 ECO-V0-006	docs/specs/error-code-ownership-gate-v0.md	65	A spec row that owns a code MUST describe only what the emitting code path check
 ECO-V0-007	docs/specs/error-code-ownership-gate-v0.md	67	A passing run MUST print nothing and exit zero; the gate MUST be read-only and a
+EEP-MCP-001	docs/specs/external-evidence-provider-mcp-v0.md	27	`impact --provider-mcp ARGV_JSON` MUST be the sole selector; argv validation,
+EEP-MCP-002	docs/specs/external-evidence-provider-mcp-v0.md	30	The profile MUST pin MCP `2025-11-25`, send initialize with empty client
+EEP-MCP-003	docs/specs/external-evidence-provider-mcp-v0.md	36	The tools/call result MUST contain exactly one text block and no structuredConte
+EEP-MCP-004	docs/specs/external-evidence-provider-mcp-v0.md	40	The session MUST share the command's environment and working-directory policy,
+EEP-REMOTE-001	docs/specs/external-evidence-provider-remote-v0.md	26	The separately built command MUST require `--allow-network --config FILE` on
+EEP-REMOTE-002	docs/specs/external-evidence-provider-remote-v0.md	30	Fetch MUST be a single GET, with normal certificate/hostname validation and
+EEP-REMOTE-003	docs/specs/external-evidence-provider-remote-v0.md	36	Optional bearer credentials MUST be read only from a regular, non-symlink,
+EEP-REMOTE-004	docs/specs/external-evidence-provider-remote-v0.md	42	Complete successful body bytes MUST be written unchanged and decoded only
 EEP-TR-001	docs/specs/external-evidence-provider-transports-v0.md	49	The command transport MUST be selected only by `corvint impact --provider-comman
 EEP-TR-002	docs/specs/external-evidence-provider-transports-v0.md	54	`ARGV_JSON` MUST be one JSON array of 1 to 32 strings, at most 4096 bytes, valid
 EEP-TR-003	docs/specs/external-evidence-provider-transports-v0.md	58	The command MUST run with only `PATH` and `TMPDIR` (when set) plus `LANG=C` and
@@ -614,7 +622,7 @@ EEP-TR-005	docs/specs/external-evidence-provider-transports-v0.md	66	A command t
 EEP-TR-006	docs/specs/external-evidence-provider-transports-v0.md	71	Every transport failure MUST yield one provider row in a closed state with an em
 EEP-TR-007	docs/specs/external-evidence-provider-transports-v0.md	77	`impact` with a provider command MUST remain a read command: the receipt reports
 EEP-TR-008	docs/specs/external-evidence-provider-transports-v0.md	80	stderr MUST be bounded and discarded: it never appears in the receipt, a reason,
-EEP-TR-009	docs/specs/external-evidence-provider-transports-v0.md	83	The MCP transport is a proposed profile and MUST NOT be shipped by this slice
+EEP-TR-009	docs/specs/external-evidence-provider-transports-v0.md	83	MCP MUST be selected only through the accepted bounded stdio profile in
 EEP-TR-010	docs/specs/external-evidence-provider-transports-v0.md	86	A remote (network) transport is NO-GO on the default local path (decision 0318).
 EEP-V0-001	docs/specs/external-evidence-provider-v0.md	61	A provider record MUST be one JSON document whose top-level members are exactly
 EEP-V0-002	docs/specs/external-evidence-provider-v0.md	66	`corvint impact --provider FILE PATH...` selects a provider record; the option M

@@ -861,7 +861,7 @@ const impactHelp = `Compile experimental impact evidence for index-admitted path
 
 Usage:
   corvint [--root PATH] impact [--limit N] [--provider FILE]...
-    [--provider-command ARGV_JSON]... [--repository ID=DIR]... PATH...
+    [--provider-command ARGV_JSON]... [--provider-mcp ARGV_JSON]... [--repository ID=DIR]... PATH...
   corvint [--root PATH] impact --working-tree-untracked [--limit N] PATH...
   corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N]
     [--range-profile expanded-256]
@@ -909,6 +909,12 @@ Options:
                              --root. Bounds: 10s wall time (process group killed),
                              1 MiB stdout, 64 KiB stderr (never echoed), one record.
                              Counts toward the 4-provider limit.
+  --provider-mcp ARGV_JSON   Bounded local MCP 2025-11-25 stdio provider (EEP-MCP).
+                             Calls corvint_evidence with empty arguments once;
+                             exactly one text content block supplies record bytes.
+                             Same argv, environment, 10s and process-group policy
+                             as --provider-command; no server requests/notifications.
+                             Counts toward the shared 4-provider limit.
   --repository ID=DIR        Experimental (EEP-V1): bind the record repository ID to
                              the local Git checkout at DIR (its top level). Binding
                              holds only when the declared origin is a root commit of

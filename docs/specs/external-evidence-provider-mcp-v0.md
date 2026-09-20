@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-09-20
-Intent status: accepted (decision 0320)
-Delivery status: not-started
+Intent status: accepted (decision 0324)
+Delivery status: implemented
 Authoritative inputs: issue 11 and the owner's direction to resolve it; decision 0317;
 `docs/specs/external-evidence-provider-transports-v0.md`.
 
 ## Agent digest
 - Claim: `impact --provider-mcp ARGV_JSON` invokes one bounded local MCP tool and preserves the provider record bytes.
-- Status: accepted (decision 0320)/not-started; acceptance requires `TestMCPTransportConformance`.
+- Status: accepted (decision 0324)/implemented; checked by `TestMCPTransportConformance`.
 - Exists: `internal/extevidence/mcp.go`, contained interactive subprocess support in `internal/procgroup`.
 - Blocked on: no delivery prerequisite; external server interoperability beyond this bounded profile is not claimed.
 - Read next: Requirements; Acceptance; Rollback.
@@ -64,4 +64,4 @@ general-purpose MCP client is supplied. Unsupported servers fail closed rather t
 ## Rollback
 
 Remove the MCP flag and session implementation; existing file/command records and wire formats stay
-compatible. Revert decision 0320's MCP supersession. No data migration or persistent service exists.
+compatible. Revert decision 0324's MCP supersession. No data migration or persistent service exists.

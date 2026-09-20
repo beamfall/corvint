@@ -40,10 +40,14 @@ const (
 )
 
 type Spec struct {
-	Argv                     []string
-	Dir                      string
-	Env                      []string
-	Stdin                    []byte
+	Argv  []string
+	Dir   string
+	Env   []string
+	Stdin []byte
+	// Dialogue is an internal bounded stdio protocol. It must stop when its
+	// streams close, never spawn unjoined work, and enforce its input bound.
+	// The process lifecycle closes both streams on every stop and joins it.
+	Dialogue                 func(io.Reader, io.WriteCloser) error
 	Timeout                  time.Duration
 	ShutdownTimeout          time.Duration
 	InputLimit               int
@@ -221,6 +225,15 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	command.Dir = spec.Dir
 	command.Env = append(make([]string, 0, len(spec.Env)), spec.Env...)
 	command.Stdin = bytes.NewReader(spec.Stdin)
+	dialogue, err := newProcessDialogue(spec.Dialogue)
+	if err != nil {
+		observation.Err = err
+		return observation
+	}
+	defer dialogue.close()
+	if dialogue != nil {
+		command.Stdin = dialogue.inputReader
+	}
 	command.WaitDelay = spec.ShutdownTimeout
 	configureProcessCommand(command, spec.JoinAncestorProcessGroup)
 
@@ -245,6 +258,7 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 		return observation
 	}
 	observation.Started = true
+	dialogue.start(spec.Dialogue)
 	_ = stdoutWriter.Close()
 	_ = stderrWriter.Close()
 
@@ -252,7 +266,7 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	stdout := newProcessCapture(spec.OutputLimit, overflow, spec.OverflowPolicy)
 	stderr := newProcessCapture(spec.StderrLimit, overflow, spec.OverflowPolicy)
 	drains := make(chan error, 2)
-	go drainProcessPipe(stdoutReader, stdout, drains)
+	go drainProcessPipe(stdoutReader, dialogue.destination(stdout), drains)
 	go drainProcessPipe(stderrReader, stderr, drains)
 
 	identityReader := waitChannels.identity
@@ -307,13 +321,15 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 		case <-overflow:
 			observation.OutputOverflow = true
 			stopProcessTimer(runTimer)
+		case <-dialogue.failed():
+			stopProcessTimer(runTimer)
 		}
 	}
 
 	var beforeStopErr error
 	if spec.BeforeStop != nil {
 		hookContext, cancelHook := context.WithTimeout(context.Background(), min(time.Second, spec.ShutdownTimeout/2))
-		beforeStopErr = callBeforeStop(hookContext, command.Process.Pid, spec.BeforeStop)
+		beforeStopErr = errors.Join(beforeStopErr, callBeforeStop(hookContext, command.Process.Pid, spec.BeforeStop))
 		cancelHook()
 	}
 	shutdownDeadline := time.Now().Add(spec.ShutdownTimeout)
@@ -325,6 +341,9 @@ func run(ctx context.Context, spec Spec, waitChannels processWaitChannels) Obser
 	cleanupErr := cleanupProcessGroupBeforeReap(command.Process.Pid, groupPresent, leaderExited, spec.JoinAncestorProcessGroup, shutdownDeadline)
 	if cleanupErr != nil {
 		cleanupErr = fmt.Errorf("force owned process group before reap: %w", cleanupErr)
+	}
+	if dialogue != nil {
+		beforeStopErr = errors.Join(beforeStopErr, dialogue.finish(leaderExited, time.Until(shutdownDeadline)))
 	}
 	if !exitObservationCompleted {
 		exitObservationErr, _ = waitForProcessEvent(selectedExitObserved, shutdownDeadline)
@@ -421,6 +440,9 @@ func normalizeProcessSpec(spec Spec) (Spec, error) {
 	if len(spec.Stdin) > spec.InputLimit {
 		return spec, errors.New("stdin exceeds its byte limit")
 	}
+	if spec.Dialogue != nil && len(spec.Stdin) != 0 {
+		return spec, errors.New("dialogue and fixed stdin are mutually exclusive")
+	}
 	if err := validateProcessEnvironment(spec.Env); err != nil {
 		return spec, err
 	}
@@ -445,6 +467,9 @@ func validateProcessEnvironment(environment []string) error {
 
 func drainProcessPipe(reader *os.File, destination io.Writer, result chan<- error) {
 	_, err := io.Copy(destination, reader)
+	if closer, ok := destination.(io.Closer); ok {
+		_ = closer.Close()
+	}
 	_ = reader.Close()
 	result <- err
 }

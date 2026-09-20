@@ -3,6 +3,9 @@
 Date: 2026-09-19. Status: accepted (owner call on Beamfall/corvint#11: ship MCP only if it fits
 cleanly as stdio JSON-RPC over the same contained subprocess; it does not).
 
+Superseded for the bounded local profile by decision 0324 and owner approval on 2026-09-20.
+The history below explains why the initial closed-stdin command slice did not deliver MCP.
+
 ## Decision
 
 `EEP-TR-009` records the MCP transport as proposed and not shipped. An MCP stdio session is not a

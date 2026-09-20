@@ -24,6 +24,3 @@ Owner accepted the recommendation: `make gate-affected` (local) and `tools/corvi
 
 ### 2026-09-18 extevidence: test selection beyond one hop and into checkout worktrees (ETS-V0 follow-up)
 `docs/specs/external-test-selection-v0.md` stops obligations one relation hop downstream of a changed entity, and never reads a bound checkout's worktree (rows say `checkout-worktree-not-inspected`). Both keep the selection fail-closed only as far as the record is complete. Done means a bounded transitive obligation walk and a per-checkout dirty read, each with conformance cases proving they only ever widen.
-
-### 2026-09-18 extevidence: command, MCP, and remote provider transports (EEP slice 2)
-Decision 0309 ships only the file transport for `docs/specs/external-evidence-provider-v0.md`. A provider that is a local command, an MCP tool, or a remote service reaches outside the local boundary (AGENTS.md invariant 7), so each transport needs its own accepted profile under the analyzer capability contract before `--provider` accepts anything but a file path. Done means an accepted profile plus the same strict record decode, freshness, and separation tests running over the new transport.
