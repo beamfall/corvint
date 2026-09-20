@@ -106,6 +106,9 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   lists, functions, environment branches, feature flags, unknown device descriptors, unresolved
   browser identity, malformed regular expressions, and dependency cycles MUST widen to
   `FULL_RELEVANT_SUITE` with a typed selection unknown.
+  Candidate project/file pairs MUST come only from project `testDir`, `testMatch`, and `testIgnore`
+  over observed owned sources. Other files, including fixtures importing Playwright, remain dependency
+  graph sources; they MUST NOT become commands merely because they occur under a test directory.
 - `TJAA-V0-013`: A changed source, page object, fixture, scenario builder, or helper MUST select the
   reverse-import closure's Playwright tests under every statically applicable project. A changed
   config selects the full relevant suite. Selecting a setup project MUST also select every unit in
@@ -117,23 +120,32 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   This static profile MUST NOT exclude a file merely because its cases cannot be proven to match a
   project grep. Runtime feature flags and externally managed application state are execution-axis
   unknowns; they remain visible but do not by themselves claim the selection axis is incomplete.
-- `TJAA-V0-015`: When a selection-axis unknown exists, `scope` MUST be `UNKNOWN`, fallback MUST be
-  `FULL_RELEVANT_SUITE`, and every statically discovered Playwright test/project pair MUST be
-  selected. If the project set itself is unknown, the profile MUST emit no runnable unit and state
-  that the caller must run the complete Playwright configuration.
+- `TJAA-V0-015`: Per-file commands require a matching complete caller-owned discovery receipt.
+  Missing, malformed, stale, mismatched, or statically unresolved discovery MUST produce `UNKNOWN`,
+  `FULL_RELEVANT_SUITE`, empty selected/excluded file rows, and exactly one `fallbackArgv`:
+  `npx playwright test --config=PATH`. With a matched universe, unresolved source reachability MUST
+  select exactly the complete discovered universe, preserving setup/teardown closure and all
+  uncertainty; it MUST NOT multiply helpers by projects. `discovery` MUST report its state,
+  input SHA-256, and sorted `onlyInStatic`/`onlyInReceipt` differences when bindings match.
 - `TJAA-V0-016`: The profile MUST be read-only and bounded by the shared source-walk and source-read
   limits. It MUST bind and revalidate a digest of every source input the TypeScript observer may
   consume. For fixed repository bytes, config path, HEAD, and dirty set, canonical output MUST be
   byte-identical. Invalid paths, unreadable config, source drift, or Git drift fail closed without a
-  partial receipt.
+  partial receipt. Discovery input MUST be at most 4 MiB, canonical JSON (optionally one trailing LF),
+  rejecting duplicate/unknown/missing members, noncanonical paths, unsupported profile, and unsorted
+  or duplicate project/file pairs. Bindings MUST include immutable HEAD, config path/SHA-256 and
+  current source digest. The CLI MUST re-read discovery bytes before emission and refuse drift.
 - `TJAA-V0-017`: Qualification requires a fixture with Chromium plus Angular/React project variants,
   setup dependencies, grep/metadata identity, and shared page-object/fixture/scenario edges. It MUST
   prove config and setup widening, dynamic-import/config widening, repeated-byte identity, and zero
-  unsafe narrowing before the profile can be promoted from experimental.
+  unsafe narrowing before the profile can be promoted from experimental. Qualification MUST use
+  independently enumerated discovery inputs, prove helper-only exclusions and exact universe
+  reconciliation, and exercise absent/stale/malformed/missing/extra receipt pairs and one-command
+  fallback. Real `--list` evidence and synthetic membership oracles MUST keep their distinct labels.
 
 ## Opt-in Playwright project profile
 
-`corvint affected --playwright-config PATH` emits `playwright-affected/0`; it does not alter the
+`corvint affected --playwright-config PATH --playwright-discovery FILE` emits `playwright-affected/0`; it does not alter the
 closed `affected-plan/0` receipt. The profile reuses the shared TypeScript import graph only for
 physical path ownership and reachability, then expands reached Playwright files into project units.
 This keeps project multiplicity out of the language-agnostic graph while still binding each runnable
@@ -144,6 +156,16 @@ first, teardown projects run after their setup/dependent cohort, project grep is
 case filtering, and project `testMatch`/`testIgnore` controls file membership. A form outside the
 closed subset is not approximated. It widens the selection or, when projects cannot be identified,
 abstains from runnable units.
+
+The canonical `playwright-discovery/0` object has exactly `config` (`path`, `sha256`), `profile`,
+`revision` (full lower-case Git object ID), `sourceDigest`, and `units` (objects with `project` and
+`test`, sorted by project then path). It describes the complete unfiltered configured listing,
+including dependencies and teardowns, not case execution counts. It is caller-declared discovery,
+not authenticated execution attestation. Corvint never executes Playwright or config to produce it.
+`sourceDigest` uses the public observer's `playwright-sources:sha256:` identity for current source
+bytes. A receipt generated before dirty source changes is stale. Omitting the optional input safely
+produces the complete-config fallback; default `affected-plan/0` compatibility remains unchanged.
+Rollback removes the opt-in profile changes; no persistent source or external state is written.
 
 ## Detection and runner addressing
 

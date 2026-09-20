@@ -89,16 +89,18 @@ type PlaywrightUnknown struct {
 }
 
 type PlaywrightPlan struct {
-	Config       PlaywrightConfigIdentity `json:"config"`
-	Dirty        []string                 `json:"dirty"`
-	Excluded     []PlaywrightExclusion    `json:"excluded"`
-	Fallback     string                   `json:"fallback"`
-	GraphDigest  string                   `json:"graphDigest"`
-	Projects     []PlaywrightProject      `json:"projects"`
-	Scope        string                   `json:"scope"`
-	Selected     []PlaywrightSelection    `json:"selected"`
-	SourceDigest string                   `json:"sourceDigest"`
-	Unknown      []PlaywrightUnknown      `json:"unknown"`
+	Discovery    PlaywrightDiscoverySummary `json:"discovery"`
+	FallbackArgv []string                   `json:"fallbackArgv"`
+	Config       PlaywrightConfigIdentity   `json:"config"`
+	Dirty        []string                   `json:"dirty"`
+	Excluded     []PlaywrightExclusion      `json:"excluded"`
+	Fallback     string                     `json:"fallback"`
+	GraphDigest  string                     `json:"graphDigest"`
+	Projects     []PlaywrightProject        `json:"projects"`
+	Scope        string                     `json:"scope"`
+	Selected     []PlaywrightSelection      `json:"selected"`
+	SourceDigest string                     `json:"sourceDigest"`
+	Unknown      []PlaywrightUnknown        `json:"unknown"`
 }
 
 type playwrightMatcher struct {
@@ -116,10 +118,9 @@ func (language observedTypeScript) Units(string) (affected.Result, error) {
 	return language.result, nil
 }
 
-// SelectPlaywright expands the shared TypeScript path graph into one runnable
-// unit per physical Playwright test and statically applicable project. It never
-// executes JavaScript or the Playwright package.
-func SelectPlaywright(root, configPath string, dirty []string) (PlaywrightPlan, error) {
+// selectPlaywrightStatic computes candidates; only receipt reconciliation may
+// expose these candidates through the public selection API.
+func selectPlaywrightStatic(root, configPath string, dirty []string) (PlaywrightPlan, error) {
 	if !affected.ValidRelativePath(configPath) || !hasSourceExtension(configPath) {
 		return PlaywrightPlan{}, errors.New("playwright config path is not canonical TypeScript/JavaScript source")
 	}
@@ -138,6 +139,9 @@ func SelectPlaywright(root, configPath string, dirty []string) (PlaywrightPlan, 
 		return PlaywrightPlan{}, err
 	}
 	configUnknown = append(configUnknown, bindPlaywrightGlobalHooks(configPath, string(configBytes), &result)...)
+	tests := playwrightSourcePaths(result)
+	units := playwrightUnits(root, configPath, projects, globalTestDir, tests)
+	bindPlaywrightTestMembership(&result, units)
 	selectionUnknown, executionUnknown := classifyPlaywrightFrontier(result.Frontier)
 	selectionUnknown = append(selectionUnknown, configUnknown...)
 	filtered := result
@@ -156,16 +160,12 @@ func SelectPlaywright(root, configPath string, dirty []string) (PlaywrightPlan, 
 	if base.Scope == affected.ScopeUnknown {
 		selectionUnknown = append(selectionUnknown, PlaywrightUnknown{Axis: PlaywrightAxisSelection, Reason: PlaywrightUnknownDynamicSource, Detail: "the shared TypeScript graph has an unresolved selection frontier"})
 	}
-	discoveredTests := playwrightDiscoveredTests(result)
-	tests := playwrightTests(root, discoveredTests, projects, globalTestDir)
-	units := playwrightUnits(root, configPath, projects, globalTestDir, tests)
 	selected := selectPlaywrightUnits(configPath, base, projects, units, normalizedDirty)
 	selectionUnknown = canonicalPlaywrightUnknowns(selectionUnknown)
-	if hasPlaywrightUnknownReason(selectionUnknown, PlaywrightUnknownProjectSet) {
+	if len(configUnknown) != 0 {
 		units = []PlaywrightSelection{}
 		selected = []PlaywrightSelection{}
 	} else if len(selectionUnknown) != 0 {
-		units = allPlaywrightProjectUnits(configPath, projects, discoveredTests)
 		selected = allPlaywrightUnits(units)
 	}
 	selected = expandPlaywrightProjectEdges(selected, projects, units)
@@ -177,6 +177,7 @@ func SelectPlaywright(root, configPath string, dirty []string) (PlaywrightPlan, 
 		Dirty:  normalizedDirty, Excluded: []PlaywrightExclusion{}, Fallback: PlaywrightFallbackNone,
 		Projects: publicPlaywrightProjects(projects), Scope: affected.ScopeBounded,
 		Selected: selected, SourceDigest: sourceDigest, Unknown: unknown,
+		FallbackArgv: []string{},
 	}
 	if len(selectionUnknown) != 0 {
 		plan.Scope = affected.ScopeUnknown
@@ -254,45 +255,33 @@ func classifyPlaywrightFrontier(frontier []string) (selection, execution []Playw
 	return selection, execution
 }
 
-func playwrightDiscoveredTests(result affected.Result) []string {
+func playwrightSourcePaths(result affected.Result) []string {
 	set := map[string]bool{}
 	for _, unit := range result.Units {
-		if !strings.HasPrefix(unit.ID, "typescript:"+runnerPlaywright+":") {
-			continue
-		}
-		for _, test := range unit.Tests {
+		for _, test := range append(append([]string{}, unit.Tests...), unit.Sources...) {
 			set[test] = true
 		}
 	}
 	return sortedKeys(set)
 }
 
-func playwrightTests(root string, discovered []string, projects []PlaywrightProject, globalTestDir string) []string {
-	tests := make([]string, 0, len(discovered))
-	for _, test := range discovered {
-		if playwrightDefaultTest(test) || explicitPlaywrightTest(root, test) || playwrightAnyProjectOwns(root, projects, globalTestDir, test) {
-			tests = append(tests, test)
+func bindPlaywrightTestMembership(result *affected.Result, units []PlaywrightSelection) {
+	tests := map[string]bool{}
+	for _, unit := range units {
+		tests[unit.Test] = true
+	}
+	for index := range result.Units {
+		unit := &result.Units[index]
+		paths := append(append([]string{}, unit.Sources...), unit.Tests...)
+		unit.Sources, unit.Tests = nil, nil
+		for _, name := range paths {
+			if tests[name] {
+				unit.Tests = append(unit.Tests, name)
+			} else {
+				unit.Sources = append(unit.Sources, name)
+			}
 		}
 	}
-	return tests
-}
-
-func playwrightAnyProjectOwns(root string, projects []PlaywrightProject, globalTestDir, test string) bool {
-	for _, project := range projects {
-		if playwrightProjectOwns(root, project, globalTestDir, test) {
-			return true
-		}
-	}
-	return false
-}
-
-func explicitPlaywrightTest(root, relative string) bool {
-	body, err := affected.ReadSource(root, relative)
-	if err != nil || !utf8.Valid(body) {
-		return false
-	}
-	refs, _, parseErr := scanImports(relative, string(body))
-	return parseErr == nil && explicitRunners(string(body), refs)[runnerPlaywright]
 }
 
 func playwrightUnits(root, configPath string, projects []PlaywrightProject, globalTestDir string, tests []string) []PlaywrightSelection {
@@ -302,17 +291,6 @@ func playwrightUnits(root, configPath string, projects []PlaywrightProject, glob
 			if !playwrightProjectOwns(root, project, globalTestDir, test) {
 				continue
 			}
-			units = append(units, newPlaywrightSelection(configPath, project, test, PlaywrightWitness{}))
-		}
-	}
-	sort.Slice(units, func(i, j int) bool { return units[i].ID < units[j].ID })
-	return units
-}
-
-func allPlaywrightProjectUnits(configPath string, projects []PlaywrightProject, tests []string) []PlaywrightSelection {
-	units := make([]PlaywrightSelection, 0, len(projects)*len(tests))
-	for _, project := range projects {
-		for _, test := range tests {
 			units = append(units, newPlaywrightSelection(configPath, project, test, PlaywrightWitness{}))
 		}
 	}

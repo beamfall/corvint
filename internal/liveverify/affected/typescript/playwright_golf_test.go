@@ -77,6 +77,12 @@ func TestPlaywrightGolfQualification(t *testing.T) {
 				if plan.Scope != affected.ScopeUnknown || plan.Fallback != PlaywrightFallbackFullSuite || len(plan.Excluded) != 0 || !hasPlaywrightUnknown(plan, PlaywrightAxisSelection, row.reason) {
 					t.Fatalf("frontier did not widen: %+v", plan.Unknown)
 				}
+				if row.file == "playwright.config.ts" {
+					if len(plan.Selected) != 0 || len(plan.FallbackArgv) != 4 {
+						t.Fatal("unresolved configuration emitted file units")
+					}
+					return
+				}
 				for _, required := range qualificationOracle(0, 117) {
 					if !slices.Contains(playwrightSelectionIDs(plan), required) {
 						t.Fatalf("unsafe exclusion %s", required)

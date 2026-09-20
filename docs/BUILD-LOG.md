@@ -7,6 +7,35 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 AFP-V0-018 / TJAA-V0-012..017: issue 41 discovery amendment
+
+The owner authorized cancellation of the superseded TJAA-only enrollment and re-enrollment from
+the same original base `536e560e1fa35573e49df644dde4257a8bb7e050` with AFP and TJAA. Original
+enrollment, source commits and failed gate evidence remain archived; that gate failed in
+`TestLocalCompletionRealEvidenceWorkflow/LCP-V0-007_completion` with
+`dogfood-change REFUSE current-tree-corvint-build-failed` and is not passing evidence for this scope.
+
+The amended profile gates all file argv on canonical caller-owned discovery reconciliation and
+uses a single complete-config command when discovery is unproven. Project membership alone defines
+candidate tests; helpers remain dependency sources. A matched universe with unknown reachability
+widens to exactly its file/project pairs, eliminating the former helper-by-project Cartesian fallback.
+The input binds revision, config and current source bytes; missing evidence remains explicit.
+
+The assumed existing Playwright installation was unavailable. A temporary installation from the
+repository's pinned interactive-alpha lockfile supplied Playwright 1.63.0 without browsers.
+Its real unfiltered `--list --reporter=json` yielded exactly eight pairs: two spec files under
+Chromium/Angular/React plus setup and cleanup. Reconciliation matched all eight; a page-object edit
+selected five pairs and excluded the three unrelated spec variants, with no helper argv. Raw listing,
+input receipt and CLI outputs are retained under `/private/tmp/issue-41-list*` and
+`/private/tmp/issue-41-real-discovery.json`; no consumer-checkout or runtime-execution claim follows.
+Frozen synthetic 117-file qualification also requires an independent 353-pair receipt. Canonical
+repeatability, mismatch differences, stale bindings, malformed inputs, strict bounds and fallback
+regressions pass focused checks. The exact golf-e2e checkout remains `NOT_OBSERVED`.
+
+Corvint pre-change context and required dogfood preparation were used. Initial preparation retained
+missing citation/scope/outcome reasons; final reports and the parent-owned serialized gate remain
+required. Optional mutation/provider execution and runtime promotion are outside this static slice.
+
 ## 2026-09-20 TJAA-V0-012..017: golf-shaped Playwright selection (issue 41)
 
 The owner-requested follow-up to issue 18 adds static global-use inheritance, nearest-tsconfig
