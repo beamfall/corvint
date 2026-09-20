@@ -753,7 +753,7 @@
     "title": "External Evidence Provider Transports V0",
     "reqPrefix": "EEP-TR",
     "intent": "accepted (decisions 0316, 0317, 0318)",
-    "delivery": "experimental (command transport only)",
+    "delivery": "implemented",
     "claim": "`corvint impact --provider-command ARGV_JSON` runs one contained local provider command and decodes its stdout exactly as a record file.",
     "dependsOn": [
       "docs/specs/external-evidence-provider-v0.md",
@@ -766,6 +766,30 @@
       "cmd/corvint",
       "internal/extevidence"
     ]
+  },
+  {
+    "path": "docs/specs/external-evidence-provider-mcp-v0.md",
+    "title": "External Evidence Provider MCP V0",
+    "reqPrefix": "EEP-MCP",
+    "intent": "accepted (decision 0324)",
+    "delivery": "implemented",
+    "claim": "`impact --provider-mcp ARGV_JSON` invokes one bounded local MCP tool and preserves the provider record bytes.",
+    "dependsOn": ["docs/specs/external-evidence-provider-transports-v0.md"],
+    "supersededBy": null,
+    "closableToday": true,
+    "implementation": ["internal/extevidence/mcp.go", "internal/procgroup"]
+  },
+  {
+    "path": "docs/specs/external-evidence-provider-remote-v0.md",
+    "title": "External Evidence Provider Remote V0",
+    "reqPrefix": "EEP-REMOTE",
+    "intent": "accepted (decision 0325)",
+    "delivery": "implemented",
+    "claim": "A separately built `corvint-remote-provider` fetches one TLS-pinned HTTPS record only with explicit network consent.",
+    "dependsOn": ["docs/specs/external-evidence-provider-transports-v0.md"],
+    "supersededBy": null,
+    "closableToday": true,
+    "implementation": ["cmd/corvint-remote-provider", "internal/remoteprovider"]
   },
   {
     "path": "docs/specs/experimental-source-views-v0.md",

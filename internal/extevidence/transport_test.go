@@ -40,6 +40,8 @@ func serveHelper(args []string) int {
 		return 0
 	}
 	switch args[0] {
+	case "mcp":
+		return serveMCPHelper(args[1:])
 	case "serve":
 		return serve(args[1])
 	case "raw":
@@ -118,6 +120,9 @@ func providerCommand(t *testing.T, mode string, args ...string) string {
 // neutralSource replaces a provider's source text so a file and a command
 // carrying identical bytes can be compared.
 func neutralSource(out []byte, source string) []byte {
+	if encoded, ok := strings.CutPrefix(source, mcpSourcePrefix); ok {
+		source = "mcp:" + encoded
+	}
 	if argv, isCommand := commandArgv(source); isCommand {
 		encoded, _ := json.Marshal(argv)
 		source = "command:" + string(encoded)
@@ -141,6 +146,11 @@ func canonicalSection(t *testing.T, value map[string]any, source string) []byte 
 // the provider's source text (EEP-TR-005).
 func TestCommandTransportConformance(t *testing.T) {
 	t.Parallel()
+	transportConformance(t, func(file string) string { return providerCommand(t, "serve", file) })
+}
+
+func transportConformance(t *testing.T, source func(string) string) {
+	t.Helper()
 	p := newPair(t)
 	type input struct {
 		name      string
@@ -163,7 +173,7 @@ func TestCommandTransportConformance(t *testing.T) {
 	}
 	for _, input := range inputs {
 		file := writeRecord(t, t.TempDir(), "provider.json", input.data)
-		command := providerCommand(t, "serve", file)
+		command := source(file)
 		fromFile := canonicalSection(t, Section(context.Background(), p.app.index(), []string{file}, input.checkouts, input.changed, 20), file)
 		fromCommand := canonicalSection(t, Section(context.Background(), p.app.index(), []string{command}, input.checkouts, input.changed, 20), command)
 		if !bytes.Equal(fromFile, fromCommand) {
@@ -173,7 +183,7 @@ func TestCommandTransportConformance(t *testing.T) {
 	cases, dirs := allCases(t)
 	for i, c := range cases {
 		file := fixtureRecord(t, p, dirs[i], c)
-		command := providerCommand(t, "serve", file)
+		command := source(file)
 		checkouts := bindCase(p, c)
 		fileSelection, fileOut := runSelection(t, p, file, checkouts, selectionInput(c))
 		commandSelection, commandOut := runSelection(t, p, command, checkouts, selectionInput(c))
@@ -193,7 +203,7 @@ func TestCommandTransportConformance(t *testing.T) {
 		}
 	}
 	// The same section bytes twice over the command transport (EEP-V0-004).
-	command := providerCommand(t, "serve", writeRecord(t, t.TempDir(), "provider.json", fixture(t, p.app.head)))
+	command := source(writeRecord(t, t.TempDir(), "provider.json", fixture(t, p.app.head)))
 	first := canonicalSection(t, Section(context.Background(), p.app.index(), []string{command}, nil, []string{"pkg/main.go"}, 20), command)
 	second := canonicalSection(t, Section(context.Background(), p.app.index(), []string{command}, nil, []string{"pkg/main.go"}, 20), command)
 	if !bytes.Equal(first, second) {

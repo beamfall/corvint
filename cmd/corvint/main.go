@@ -368,7 +368,7 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 			result.impactLimit = limit
 			continue
 		}
-		if !positionalOnly && (name == "--provider" || name == "--provider-command") {
+		if !positionalOnly && (name == "--provider" || name == "--provider-command" || name == "--provider-mcp") {
 			if !inline {
 				if index+1 >= len(arguments) || argparseOptionLike(arguments[index+1]) {
 					return result, argumentError("argument " + name + ": expected one argument")
@@ -1471,12 +1471,15 @@ func providerSource(name, value string, selected int) (string, error) {
 	if selected == extevidence.MaxProviders {
 		return "", argumentError(fmt.Sprintf("argument %s: at most %d providers", name, extevidence.MaxProviders))
 	}
-	if name != "--provider-command" {
+	if name == "--provider" {
 		return value, nil
 	}
 	source, err := extevidence.ParseCommand(value)
+	if name == "--provider-mcp" {
+		source, err = extevidence.ParseMCP(value)
+	}
 	if err != nil {
-		return "", argumentError("argument --provider-command: " + err.Error())
+		return "", argumentError("argument " + name + ": " + err.Error())
 	}
 	return source, nil
 }

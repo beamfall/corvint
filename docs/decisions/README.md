@@ -1,5 +1,8 @@
 # Decision records index
 
+| [`0325-external-evidence-remote-profile.md`](0325-external-evidence-remote-profile.md) | accepted, owner call | Separately built HTTPS evidence adapter with explicit network consent, normal TLS plus SPKI pin, private credentials and closed bounded output; Core remains offline. |
+| [`0324-external-evidence-mcp-profile.md`](0324-external-evidence-mcp-profile.md) | accepted, owner call | Bounded local MCP stdio evidence profile, fixed tool and text envelope, process-group containment and the unchanged provider decoder; supersedes 0317's deferral. |
+
 | [`0323-gate-affected-change-evidence-readers-2026-09-19.md`](0323-gate-affected-change-evidence-readers-2026-09-19.md) | accepted, delegated call | Amends `AFP-V0-012` (c): the CEM sidecar selects only readers whose literal resolves to it or its directory; fixture-root tokens select nothing. |
 | [`0322-native-taskman-fixture-planning-2026-09-19.md`](0322-native-taskman-fixture-planning-2026-09-19.md) | accepted fixture scope, owner call | Native fixture planning follows priority-first selection under the approved pre-edit baseline exception; WQO shadow semantics remain unchanged and production promotion stays held. |
 | [`0321-work-queue-repository-adoption-2026-09-19.md`](0321-work-queue-repository-adoption-2026-09-19.md) | accepted, delegated call | A repository adopts the work queue through `corvint work init` and `corvint work adapter` (WQO-V0-046..048); store scope is complete only when Corvint reproduces the `repository-worklist-v0` mapping byte for byte, the self-dogfood mapping is unchanged, and the Tasks companion is renamed `corvint-tasks`. |
