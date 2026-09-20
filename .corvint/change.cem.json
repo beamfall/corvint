@@ -1,0 +1,140 @@
+{
+  "baseRevision": "74f4998cf4c4f2d508cb28b095f5cb5e0ad56d2a",
+  "evidence": [
+    {
+      "blobOid": "08f404f1037935db3518a847addd02acf2bc214e",
+      "id": "evidence:sha256:53ea11564b5c7128e7234517cb2899fa7402e28fb53e5427d62807a4e693b08f",
+      "path": "docs/specs/public-release-v0.md",
+      "span": {
+        "end": 24545,
+        "start": 22114
+      },
+      "spanSha256": "07c7a2b2c88da9b1e83dff22468621161b59492468629471d561fa3197160ce4"
+    },
+    {
+      "blobOid": "08f404f1037935db3518a847addd02acf2bc214e",
+      "id": "evidence:sha256:fc7743540ab91605ed834a105aa2f5a571e08cc64d4ff077fde5e3fc3fd1eac0",
+      "path": "docs/specs/public-release-v0.md",
+      "span": {
+        "end": 23646,
+        "start": 23087
+      },
+      "spanSha256": "99a3ceffc1bb10f5840825509f5ebac3c77f346c1901d77b1af5b468b36f27c1"
+    },
+    {
+      "blobOid": "08f404f1037935db3518a847addd02acf2bc214e",
+      "id": "evidence:sha256:a69bda1d7996364388b69f7748b1f8ef7e4fafd23f6d142f886184fb282274a8",
+      "path": "docs/specs/public-release-v0.md",
+      "span": {
+        "end": 24545,
+        "start": 24118
+      },
+      "spanSha256": "ffc7e5dd1a5c43d634db4b6512f31be75b0c1494fb22eedccf302e42f8b66154"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:53ea11564b5c7128e7234517cb2899fa7402e28fb53e5427d62807a4e693b08f",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:26fccb2ab201f43effbc0013f2921a4a7462234c4dc3a52f6d9999738379c892",
+      "newRange": {
+        "count": 21,
+        "start": 33
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 33
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fc7743540ab91605ed834a105aa2f5a571e08cc64d4ff077fde5e3fc3fd1eac0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cc5ca106792c3dbb46f9f7150505a041b760979ddba312d53d5676d416d0efaf",
+      "newRange": {
+        "count": 7,
+        "start": 540
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 540
+      },
+      "path": "docs/specs/public-release-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fc7743540ab91605ed834a105aa2f5a571e08cc64d4ff077fde5e3fc3fd1eac0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fd73fc96ffaef5b53a26367ead8534c831953be5d103cfe9bb4b6cef779f097e",
+      "newRange": {
+        "count": 7,
+        "start": 162
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 162
+      },
+      "path": "internal/companionrelease/smoke.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a69bda1d7996364388b69f7748b1f8ef7e4fafd23f6d142f886184fb282274a8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3e076e5670f8444d1df738832fa47ac16116e49c3f5f17eea236738af9bb57b2",
+      "newRange": {
+        "count": 10,
+        "start": 218
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 218
+      },
+      "path": "internal/companionrelease/smoke.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:fc7743540ab91605ed834a105aa2f5a571e08cc64d4ff077fde5e3fc3fd1eac0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:04e5ac14d1a4a63511a23ac69dcfb8a9f1e4f50a8d560174ba6ed3603bd714b6",
+      "newRange": {
+        "count": 54,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/companionrelease/smoke_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "182dd39ef9702f2ea9205d2f96451de14bf0ceb561b0b38b786d7135e46a6be1",
+  "spec": "cem/0.2"
+}
