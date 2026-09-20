@@ -704,6 +704,9 @@ func playwrightUseLayer(raw, browser, device string) (string, string, bool) {
 				return "", device, false
 			}
 		}
+		if key == "defaultBrowserType" {
+			return "", device, false
+		}
 		if key != "browserName" {
 			if !playwrightStaticValue(strings.TrimSpace(item[colon+1:])) {
 				return "", device, false

@@ -66,6 +66,8 @@ func TestPlaywrightGolfQualification(t *testing.T) {
 			{"multiple existing targets", "tsconfig.json", `{"compilerOptions":{"baseUrl":".","paths":{"@pages/*":["support/page*","support/helper*"]}}}`, FrontierPathAlias},
 			{"ambiguous target", "support/helper0.js", `export const value = 1`, FrontierPathAlias},
 			{"dynamic global use", "playwright.config.ts", `export default { use: inheritedUse, projects: [{name:"chromium"},{name:"angular"},{name:"react"},{name:"setup"},{name:"cleanup"}] }`, PlaywrightUnknownBrowserIdentity},
+			{"explicit global browser default", "playwright.config.ts", `export default { use: {defaultBrowserType:"firefox"}, projects: [{name:"chromium"},{name:"angular"},{name:"react"},{name:"setup"},{name:"cleanup"}] }`, PlaywrightUnknownBrowserIdentity},
+			{"explicit project browser default", "playwright.config.ts", `export default { projects: [{name:"chromium",use:{defaultBrowserType:"firefox"}},{name:"angular"},{name:"react"},{name:"setup"},{name:"cleanup"}] }`, PlaywrightUnknownBrowserIdentity},
 			{"dynamic setup", "playwright.config.ts", `export default { globalSetup: setupPath, projects: [{name:"chromium"},{name:"angular"},{name:"react"},{name:"setup"},{name:"cleanup"}] }`, PlaywrightUnknownConfigSyntax},
 		} {
 			t.Run(row.name, func(t *testing.T) {

@@ -1696,11 +1696,11 @@ TJAA-V0-009	docs/specs/typescript-javascript-affected-adapter-v0.md	81	Discovery
 TJAA-V0-010	docs/specs/typescript-javascript-affected-adapter-v0.md	84	The opt-in `playwright-affected/0` profile MUST bind the config path and SHA-256
 TJAA-V0-011	docs/specs/typescript-javascript-affected-adapter-v0.md	88	One selected Playwright unit MUST identify one physical test file under one
 TJAA-V0-012	docs/specs/typescript-javascript-affected-adapter-v0.md	91	Static config support is deliberately closed. Project arrays and membership fiel
-TJAA-V0-013	docs/specs/typescript-javascript-affected-adapter-v0.md	108	A changed source, page object, fixture, scenario builder, or helper MUST select
-TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	115	Project grep/tag and metadata inputs are identity, not file-exclusion authority.
-TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	119	When a selection-axis unknown exists, `scope` MUST be `UNKNOWN`, fallback MUST b
-TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	123	The profile MUST be read-only and bounded by the shared source-walk and source-r
-TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	128	Qualification requires a fixture with Chromium plus Angular/React project varian
+TJAA-V0-013	docs/specs/typescript-javascript-affected-adapter-v0.md	109	A changed source, page object, fixture, scenario builder, or helper MUST select
+TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	116	Project grep/tag and metadata inputs are identity, not file-exclusion authority.
+TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	120	When a selection-axis unknown exists, `scope` MUST be `UNKNOWN`, fallback MUST b
+TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	124	The profile MUST be read-only and bounded by the shared source-walk and source-r
+TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	129	Qualification requires a fixture with Chromium plus Angular/React project varian
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as

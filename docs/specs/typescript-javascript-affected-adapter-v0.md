@@ -97,6 +97,7 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   exact keys precede wildcard keys and longest wildcard prefixes precede shorter prefixes. Overlapping
   equal-prefix patterns or target lists with multiple existing candidates MUST widen rather than
   approximate runtime precedence. Device defaults MUST NOT override an explicit inherited browser.
+  Explicit `use.defaultBrowserType` MUST widen; only recognized device descriptors supply defaults.
   Resolution MUST stay inside the observed repository, and MUST
   widen on missing declared targets, ambiguous source candidates, config inheritance, unsupported
   root-directory/module-suffix resolution, or explicit Playwright `tsconfig` overrides. The general

@@ -33,6 +33,8 @@ Independent review found equal-prefix alias ordering, multiple existing alias ta
 browser inheritance across device spreads could differ from Playwright 1.63. Repair widens both
 alias ambiguities and preserves explicit browserName over a device defaultBrowserType. Conflict
 regressions cover both pattern orders, competing targets and inherited/same-layer browser defaults.
+Final review also confirmed explicit `use.defaultBrowserType` cannot be ignored: the closed subset
+now rejects that key with browser-identity uncertainty, covered at both global and project scope.
 
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
