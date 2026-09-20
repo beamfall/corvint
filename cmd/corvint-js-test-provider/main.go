@@ -188,6 +188,8 @@ func runE2E(args []string) error {
 	lockfile := fs.String("lockfile", "", "lockfile path")
 	runnerVersion := fs.String("runner-version", "", "pinned @playwright/test version")
 	appBuildDir := fs.String("app-build-dir", "", "served app build directory; omit for an explicit unknown app-build identity")
+	externalServer := fs.Bool("external-server", false, "observe an externally managed server; never start or stop it; test-arg supplies only Playwright selectors/options")
+	appIdentity := fs.String("app-identity", "", "declared external application identity (not proof of served content)")
 	serverReadyURL := fs.String("server-ready-url", "", "URL polled until it answers with status < 500")
 	serverReadyTimeout := fs.Duration("server-ready-timeout", 15*time.Second, "bound on waiting for server readiness")
 	timeout := fs.Duration("timeout", 5*time.Minute, "bound on the playwright test command")
@@ -235,6 +237,8 @@ func runE2E(args []string) error {
 			Timeout:         *timeout,
 		},
 		ServerArgv:       serverArgv,
+		ExternalServer:   *externalServer,
+		AppIdentity:      *appIdentity,
 		ServerReadyURL:   *serverReadyURL,
 		ServerReadyLimit: *serverReadyTimeout,
 		AppBuildDir:      *appBuildDir,
@@ -262,6 +266,20 @@ func retainFrom(retain bool, dir string) string {
 // emit writes the document to stdout and, when retainFrom is not empty,
 // retains the same bytes (LPCV-V0-055).
 func emit(stdout, stderr io.Writer, receipt jstestprovider.Receipt, retainFrom string) error {
+	if receipt.Profile == jstestprovider.ExternalProfile {
+		data, err := jstestprovider.EncodeQualified(receipt)
+		if err != nil {
+			return err
+		}
+		if _, err = stdout.Write(data); err != nil {
+			return err
+		}
+		retained := retainDocument(stderr, retainFrom, data)
+		if receipt.Infrastructure != nil {
+			return fmt.Errorf("%s: %s", receipt.Infrastructure.Reason, receipt.Infrastructure.Detail)
+		}
+		return retained
+	}
 	out := output{Receipt: receipt, RunProjection: jstestprovider.ReceiptRunProjection(receipt)}
 	for _, test := range receipt.Tests {
 		out.TestProjections = append(out.TestProjections, testProjection{

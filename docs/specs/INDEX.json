@@ -999,6 +999,24 @@
     ]
   },
   {
+    "path": "docs/specs/playwright-external-provider-v0.md",
+    "title": "Playwright External Provider V0",
+    "reqPrefix": "PWP-V0",
+    "intent": "accepted",
+    "delivery": "validated (local Playwright 1.60.0 matrix)",
+    "claim": "Explicit external-server Playwright runs retain attributable project outcomes without application-server ownership.",
+    "dependsOn": [
+      "docs/specs/live-proof-carrying-verification-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": true,
+    "implementation": [
+      "internal/jstestprovider",
+      "cmd/corvint-js-test-provider",
+      "internal/testvaliditydoc"
+    ]
+  },
+  {
     "path": "docs/specs/kotlin-android-candidate-v0.md",
     "title": "Kotlin/Android Native Candidate V0",
     "reqPrefix": "KA-V0",

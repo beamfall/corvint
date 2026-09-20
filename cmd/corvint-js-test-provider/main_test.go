@@ -11,7 +11,38 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
+
+func TestEmitQualifiedRetainsCanonicalUnknowns(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	r := jstestprovider.Receipt{Profile: jstestprovider.ExternalProfile, Kind: "e2e", External: &jstestprovider.ExternalLifecycle{Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown"}, Infrastructure: &jstestprovider.InfrastructureFailure{Reason: "server-not-ready", Detail: "fixture"}}
+	var stdout, stderr bytes.Buffer
+	if err := emit(&stdout, &stderr, r, root); err == nil {
+		t.Fatal("infrastructure exit became success")
+	}
+	want, err := jstestprovider.EncodeQualified(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(stdout.Bytes(), want) {
+		t.Fatal("stdout is not canonical")
+	}
+	files, err := filepath.Glob(filepath.Join(root, ".corvint", "test-evidence", "*.json"))
+	if err != nil || len(files) != 1 {
+		t.Fatalf("retained %v %v", files, err)
+	}
+	data, err := os.ReadFile(files[0])
+	if err != nil || !bytes.Equal(data, want) {
+		t.Fatal("retained bytes differ")
+	}
+	if _, err = testvaliditydoc.Decode(data); err != nil {
+		t.Fatal(err)
+	}
+}
 
 // TestParseUnitConfig_RelativeDirResolvedAbsolute confirms the unit
 // subcommand's default --dir "." (and any other relative --dir) is resolved
