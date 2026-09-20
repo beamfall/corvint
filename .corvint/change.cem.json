@@ -1,5 +1,5 @@
 {
-  "baseRevision": "d9144000c73037db52f43007070ec380188869fa",
+  "baseRevision": "efb88fbac103b7d0d88323d06d0789ff60d054a4",
   "evidence": [
     {
       "blobOid": "94dede6cba3adf0098c454a9cbc3be2ec15ec199",
@@ -52,14 +52,14 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:ff4fbe12b3d21bb818b50fe313837556f44c615132e037fef2d939077cefd2e6",
+      "id": "hunk:sha256:1e08ad436ac638ac6851582ef493b4cb522b5ba5047c318f31d6adb266cd0250",
       "newRange": {
         "count": 41,
-        "start": 73
+        "start": 116
       },
       "oldRange": {
         "count": 6,
-        "start": 73
+        "start": 116
       },
       "path": "docs/BUILD-LOG.md",
       "reason": "evidence-backed"
@@ -112,7 +112,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:75a6187e5fc480a1688f36bbef471b72bf62a09bcc474f054049da7958a98209",
+      "id": "hunk:sha256:ae860b690e68f9ee3121b445b3458b83fc154b8b5f0f9e108036df19cbb0641c",
       "newRange": {
         "count": 42,
         "start": 1
@@ -121,7 +121,7 @@
         "count": 0,
         "start": 0
       },
-      "path": "docs/decisions/0322-gate-affected-change-evidence-readers-2026-09-19.md",
+      "path": "docs/decisions/0323-gate-affected-change-evidence-readers-2026-09-19.md",
       "reason": "evidence-backed"
     },
     {
@@ -132,7 +132,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:a72d6cfc44cc27229ba4ce5efd4e0eedbbf790f6ae030cef029a90322fb0bb8b",
+      "id": "hunk:sha256:817d89e0ce31b7d0786684d4611f234b41a6c1d6f44cc8fe4fce87f366851a38",
       "newRange": {
         "count": 6,
         "start": 1
@@ -172,7 +172,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:a3e340dd343e7c2070741f176ee8933f96f79523cef593f457f3cb6d850a2849",
+      "id": "hunk:sha256:be0b63b36bca5c0b4aa8efdddf2b3be6a1d495a30caa74e7b8bb9c36a9f1bdbc",
       "newRange": {
         "count": 14,
         "start": 178
@@ -305,6 +305,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "98ca822fe69fdc377020ce2f201336dcb7965eda7d927b8a089785937ad6148d",
+  "patchSha256": "1bc37621e25851f00ad7eab978ff92f8b99e9216bab448527f39b354a8e95fe7",
   "spec": "cem/0.2"
 }
