@@ -100,7 +100,25 @@ Exact ATCP history remains unrecovered. GP is NOT_RUN: retired harness replaceme
 only, complete workloads/allocation/I/O/environment witnesses and real runtime conditions are absent.
 No executor admission, CONFIG_PIN, production completion, real-queue cutover or performance promotion
 is claimed. The explicit executor dependency handoff remains open.
+## 2026-09-19 TJAA-V0-010..017 / AFP-V0-018 Playwright project-aware affected selection (Beamfall/corvint#18)
 
+The existing TypeScript adapter assigns one physical path to one generic graph unit and deliberately
+keeps executable Playwright config unresolved. Issue #18 requires the same file to remain attributable
+under several projects, so changing `affected-plan/0` would either violate unique path ownership or
+silently change its closed bytes. The experimental `playwright-affected/0` profile instead reuses the
+generic graph for physical reachability, then expands reached tests into project-distinct units.
+
+The static config subset binds the config digest, project fragment, grep, metadata, file membership,
+dependency/teardown edges, browser/device, exact project argv, and a revalidated digest of every
+source input observed by the TypeScript adapter. Unsupported dynamic config or
+source reachability selects every statically known test/project pair and reports
+`FULL_RELEVANT_SUITE`; an unknown project set emits no runnable approximation. Runtime feature flags
+and external application state stay visible on the execution axis. The mixed Chromium/Angular/React
+fixture covers page-object reachability, setup/dependent/teardown expansion, config widening,
+dynamic-import widening, absolute-path matchers, globstar zero-directory matching, partial project
+abstention, custom fixture-based test discovery, unsupported-glob widening, transitive setup expansion,
+and repeat-byte identity. Real-repository recall and provider composition
+remain `NOT_RUN`, so the profile is experimental and issue #18 is not yet promotion-complete.
 ## 2026-09-19 WQO-V0-046..048 repository work-queue adoption (decision 0321, Beamfall/corvint#20)
 
 Before this change, `corvint work observe` could never return `VALIDATED_AT`. `workManifest.complete`

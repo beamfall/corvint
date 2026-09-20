@@ -51,6 +51,7 @@ AFP-V0-014	docs/specs/affected-plan-v0.md	232	(accepted by decision 0289) PR nar
 AFP-V0-015	docs/specs/affected-plan-v0.md	249	(accepted by decision 0289) The trusted PR driver SHALL support one 1-based inde
 AFP-V0-016	docs/specs/affected-plan-v0.md	287	(accepted by decision 0320) `.github/workflows/ci-control-plane.yml` SHALL run
 AFP-V0-017	docs/specs/affected-plan-v0.md	295	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
+AFP-V0-018	docs/specs/affected-plan-v0.md	303	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
 AHI-001	docs/specs/agent-harness-integration-v0.md	76	Every adapter MUST consume and produce the transport-neutral Corvint request, re
@@ -1677,6 +1678,14 @@ TJAA-V0-006	docs/specs/typescript-javascript-affected-adapter-v0.md	71	Owned fra
 TJAA-V0-007	docs/specs/typescript-javascript-affected-adapter-v0.md	74	Multiple runners/configs that can own one physical test path MUST produce one
 TJAA-V0-008	docs/specs/typescript-javascript-affected-adapter-v0.md	77	Playwright/Cypress/WebdriverIO/TestCafe/Nightwatch/Detox/Puppeteer tests without
 TJAA-V0-009	docs/specs/typescript-javascript-affected-adapter-v0.md	81	Discovery and canonical graph bytes MUST be deterministic for fixed repository
+TJAA-V0-010	docs/specs/typescript-javascript-affected-adapter-v0.md	84	The opt-in `playwright-affected/0` profile MUST bind the config path and SHA-256
+TJAA-V0-011	docs/specs/typescript-javascript-affected-adapter-v0.md	88	One selected Playwright unit MUST identify one physical test file under one
+TJAA-V0-012	docs/specs/typescript-javascript-affected-adapter-v0.md	91	Static config support is deliberately closed. Project arrays and membership fiel
+TJAA-V0-013	docs/specs/typescript-javascript-affected-adapter-v0.md	97	A changed source, page object, fixture, scenario builder, or helper MUST select
+TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	102	Project grep/tag and metadata inputs are identity, not file-exclusion authority.
+TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	106	When a selection-axis unknown exists, `scope` MUST be `UNKNOWN`, fallback MUST b
+TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	110	The profile MUST be read-only and bounded by the shared source-walk and source-r
+TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	115	Qualification requires a fixture with Chromium plus Angular/React project varian
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as

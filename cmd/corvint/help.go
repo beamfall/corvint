@@ -539,6 +539,8 @@ const affectedHelp = `Compile the affected-test selection plan for the dirty wor
 Usage:
   corvint [--root PATH] affected
   corvint [--root PATH] affected --base FULL_COMMIT_ID
+  corvint [--root PATH] affected [--base FULL_COMMIT_ID]
+          --playwright-config PATH
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
           [--provider RECORD ...] [--repository ID=DIR ...]
           [--selection-profile strict|coverage]
@@ -574,6 +576,12 @@ also relate a test path directly to a changed path (EEP-V2); both sides must
 then be bound, fresh, and verified. The member never removes a check, never runs a
 test, and is absent when no --provider is given. --repository binds a declared
 repository id to a local checkout, as for impact.
+
+--playwright-config selects the separate playwright-affected/0 profile. It
+statically expands reached Playwright test files into project-distinct units,
+binds project/config/browser/device inputs, and widens to the full relevant
+suite on unsupported dynamic config or source reachability. It executes no
+config or test and cannot be combined with --provider.
 `
 
 const proveHelp = `Compile the falsifiable context packet for a task, a change, or a CEM map.
