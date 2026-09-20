@@ -128,6 +128,9 @@ Self-development routes: pre-change `query` and `make dogfood-change` were used 
 intent scope and outcome incomplete; the original evidence is retained in the worktree Git evidence
 directory. Provider execution is unavailable for this source-only corpus; mutation, documentation
 drafting, learning changes, console and service routes are not applicable. No savings claim is made.
+The first canonical gate passed the qualification tests but failed `TestIndexCoversSpecsAndHeaders`:
+the README summary must preserve the exact Agent digest claim as its prefix. The follow-up restores
+that prefix; the failed gate remains retained and cannot qualify the corrected revision.
 
 The existing TypeScript adapter assigns one physical path to one generic graph unit and deliberately
 keeps executable Playwright config unresolved. Issue #18 requires the same file to remain attributable
