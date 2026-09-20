@@ -153,6 +153,8 @@ func helpText(topic string) string {
 		return recordHelp
 	case "migrate-traces":
 		return migrateTracesHelp
+	case "migration-ratchet":
+		return migrationRatchetHelp
 	case "observations":
 		return observationsHelp
 	case "features", "overview", "review":
@@ -232,6 +234,7 @@ Usage:
   corvint [--root PATH] record --task TASK [--opened PATH] --changed PATH
     --verify COMMAND --outcome (passed | failed | blocked)
   corvint [--root PATH] migrate-traces (--dry-run | --apply) [--plan-digest SHA256]
+  corvint migration-ratchet --profile FILE
   corvint [--root PATH] observations [--limit N]
   corvint [--root PATH] index [--if-stale]
   corvint [--root PATH] features | overview
@@ -256,7 +259,7 @@ Usage:
   corvint [--root PATH] witness --base REV [--head REV] [--cem MAP] [--json]
   corvint test-validity [--receipt FILE]
   corvint [--root PATH] COMMAND --help
-  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity]
+  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|migration-ratchet|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity]
   corvint help harness [event]
   corvint --version
 
@@ -280,6 +283,7 @@ Commands:
   frontier       Compile the deterministic Change Frontier V0 review queue.
   record         Record one explicit local task outcome.
   migrate-traces Plan or apply legacy tree-trace migration.
+  migration-ratchet Compare immutable migration-evidence snapshots.
   observations   Read the local self-observation digest; never writes.
   features       Discover experimental inferred feature candidates.
   overview       Compose experimental immutable repository guidance.
@@ -496,6 +500,15 @@ Exactly one of --dry-run and --apply is required. Dry-run validates the complete
 bounded trace store and writes nothing. Apply requires the exact unchanged
 dry-run digest, publishes canonical commit traces and byte-preserved quarantine
 copies, then removes verified legacy candidates. The command is local-only.
+`
+
+const migrationRatchetHelp = `Compare two immutable migration-evidence snapshots.
+
+Usage:
+  corvint migration-ratchet --profile FILE
+
+The command writes a deterministic corvint-migration-evidence-ratchet-receipt/1 JSON receipt.
+Exit 0 is pass, exit 1 is fail or unknown, and exit 2 is refused input.
 `
 
 const observationsHelp = `Read the bounded local self-observation digest.

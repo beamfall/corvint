@@ -7,6 +7,41 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 MER-V0-001..012: revision-bound migration evidence ratchet (issue 46)
+
+The experimental `migration-ratchet` profile compares digest-verified baseline and candidate
+snapshots across stable migration identities and emits raw denominators plus separate addition,
+removal, content, state, stale-evidence, reverse-link and unknown deltas. Repository policy prevents
+new legacy debt, uncontracted test additions or changes, terminal regression, stale review/runtime
+reuse and unresolved-denominator growth. Exact reviewed rules are required for otherwise
+incomparable domains; exact owner-reviewed expiring exceptions never erase their underlying deltas.
+
+The earliest synthetic baseline-to-candidate receipt advances one grandfathered unresolved identity
+without growing its denominator and is byte-identical across repeated compilation. Six issue-46
+negative controls and whole-input refusal controls pass in the focused package tests. The command
+exit contract passes its focused CLI tests. These synthetic fixtures do not establish provider
+honesty, contract adequacy, migration completeness or real consumer compatibility. The full shared
+gate is intentionally NOT_RUN pending coordinator release.
+
+The task-start query retained four omitted results and six withheld test-path candidates. The first
+pre-change coordinator attempt at base `6098291c9ed84c0de5c1a76afa3599d6a6faa352` correctly remained
+`not-complete` before any change existed. Dirty-diff `affected` selected only `cmd/corvint` and
+`internal/migrationratchet`, while retaining its language-frontier and unowned-document unknowns.
+The documentation-corpus, stability, mutation, provider and service execution routes were not
+applicable: this profile compares caller-supplied immutable artifacts and executes none of them.
+
+Independent review found five fail-closed defects in the first implementation: trailing scalar or
+malformed JSON was not required to reach EOF; an explicit identity mapping could reuse an implicitly
+paired candidate and omit another; one exception could waive every defect of the same class on an
+identity; contradictory selections were order-dependent; and record order/duplicate links were not
+canonical. The repair requires exact EOF, globally one-to-one candidate pairing, one canonical delta
+digest per exception, unique validated selections, sorted records and unique sorted links. Focused
+regressions exercise every repair. Re-review found two remaining holes: mapped evidence identities
+could skip renewal comparison, and stale/reverse-link delta fingerprints omitted the exact content
+bindings that distinguish two defects. The final repair derives baseline records through the
+one-to-one pair set and retains expected/actual content plus relation and reverse-relation bindings;
+focused regressions cover both findings.
+
 ## 2026-09-20 DCP-V1-021..025: revision-bound Playwright stability evidence (issue 42)
 
 The experimental behavior-stability provider keeps issue-40 behavior coverage and repeated-run
