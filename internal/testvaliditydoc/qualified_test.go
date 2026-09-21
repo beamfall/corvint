@@ -31,6 +31,7 @@ func TestSensitiveRetainedPolicyAndUnsupportedActionRejection(t *testing.T) {
 }
 
 func TestSensitiveRetainedDecodeNeverEchoesUnknownProperties(t *testing.T) {
+	// PWP-V2-005 binds value-free rejection at retained-document ingestion.
 	for _, data := range []string{
 		`{"receipt":{"profile":"corvint-playwright-external/2","kind":"e2e","hunter2":true}}`,
 		`{"hunter2":true,"receipt":{"profile":"corvint-playwright-external/2","kind":"e2e"}}`,
@@ -50,6 +51,7 @@ func TestSensitiveRetainedDecodeNeverEchoesUnknownProperties(t *testing.T) {
 }
 
 func TestSensitiveInputConformanceFixtureRejectsLeakAndAcceptsRedaction(t *testing.T) {
+	// PWP-V2-006 binds the leaking/rejected and redacted/accepted fixtures.
 	r := jstestprovider.Receipt{
 		Profile:              jstestprovider.SensitiveExternalProfile,
 		Kind:                 "e2e",

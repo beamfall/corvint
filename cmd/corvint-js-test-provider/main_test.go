@@ -60,6 +60,7 @@ func TestE2ERequiresCompleteTypedApplicationAttestationFlags(t *testing.T) {
 }
 
 func TestSensitiveInputPolicyRequiresExplicitProfileSelection(t *testing.T) {
+	// PWP-V2-001 binds the explicit profile-selection boundary.
 	if err := runE2E([]string{"--sensitive-action-pattern", "set secret"}); err == nil || !strings.Contains(err.Error(), "require --sensitive-input-redaction") {
 		t.Fatalf("implicit sensitive-input profile selection err=%v", err)
 	}

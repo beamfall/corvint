@@ -8,6 +8,7 @@ import (
 )
 
 func TestSensitiveInputPolicyGrammarAgreement(t *testing.T) {
+	// PWP-V2-004 binds additive policy admission to the matching grammar.
 	for _, pattern := range []string{"custom+entry", "custom💠entry", "custom\u200bentry", "custom\u00a0entry"} {
 		r := Receipt{Profile: SensitiveExternalProfile, SensitiveInputPolicy: &SensitiveInputPolicy{AdditionalActionPatterns: []string{pattern}}, Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{{Title: pattern + " unquoted-secret"}}}}}}}
 		if len(ValidateSensitiveInputEvidence(r)) == 0 {

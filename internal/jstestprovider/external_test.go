@@ -24,6 +24,7 @@ func TestQualifiedReporterSensitiveRedaction(t *testing.T) {
 }
 
 func TestSensitiveInputEvidenceRedactionAndValidation(t *testing.T) {
+	// PWP-V2-002 binds canonical action-title redaction and traceability.
 	policy := SensitiveInputPolicy{
 		AdditionalActionPatterns:  []string{"set secret"},
 		AdditionalSensitiveFields: []string{"credential"},
@@ -280,6 +281,7 @@ func TestSensitiveInputUnicodeGrammarAndReportScope(t *testing.T) {
 }
 
 func TestSensitiveInputAlreadyRedactedCrossTestRiskRejected(t *testing.T) {
+	// PWP-V2-003 binds report-wide risk-field handling across tests.
 	for _, field := range []string{"failure", "artifact", "step-error", "step-attachment"} {
 		t.Run(field, func(t *testing.T) {
 			r := Receipt{Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{{Title: `Fill "[REDACTED]"`, Redacted: true}}}}}, {Attempts: []Attempt{{Steps: []BrowserStep{{Title: "Expect visible"}}}}}}}
