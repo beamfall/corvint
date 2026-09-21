@@ -181,3 +181,21 @@ func TestGoTestFallsBackToOneUncachedRun(t *testing.T) {
 		t.Fatalf("identical rerun: %q", out)
 	}
 }
+
+// TestRunStepRecordsFromLinkedWorktree replays GL-V0-001's cross-worktree
+// promise: a pass recorded in a `git worktree add` checkout, whose index lives
+// under the main repository's `.git/worktrees/`, is hit from the main worktree.
+func TestRunStepRecordsFromLinkedWorktree(t *testing.T) {
+	root := fixtureRepository(t)
+	linked := filepath.Join(t.TempDir(), "linked")
+	git(t, root, "worktree", "add", "-q", "--detach", linked, "HEAD")
+	t.Chdir(linked)
+	step := append([]string{"run", "decision-numbers-check"}, counting...)
+	if code, out := ledgerRun(t, step...); code != 0 || !strings.Contains(out, "RECORD decision-numbers-check") {
+		t.Fatalf("linked worktree: code %d, %q", code, out)
+	}
+	t.Chdir(root)
+	if _, out := ledgerRun(t, step...); !strings.Contains(out, "HIT decision-numbers-check") {
+		t.Fatalf("main worktree after a linked record: %q", out)
+	}
+}

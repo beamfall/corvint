@@ -378,7 +378,11 @@ func worktreeDigest(root string) (string, []treeEntry, string) {
 		return "", nil, "private index: " + err.Error()
 	}
 	defer os.Remove(private.Name())
-	if err := copyIndex(filepath.Join(root, strings.TrimSpace(indexPath)), private); err != nil {
+	indexPath = strings.TrimSpace(indexPath)
+	if !filepath.IsAbs(indexPath) {
+		indexPath = filepath.Join(root, indexPath)
+	}
+	if err := copyIndex(indexPath, private); err != nil {
 		return "", nil, "private index: " + err.Error()
 	}
 	env := "GIT_INDEX_FILE=" + private.Name()
@@ -442,11 +446,15 @@ func compiledIgnored(listing string) string {
 	return ""
 }
 
+// copyIndex copies the repository index into the private one. A linked
+// worktree's index lives under the main repository's `.git/worktrees/`, which
+// `--git-path` reports absolute. A repository with no index yet gets none, so
+// git creates the private index itself rather than reading an empty file.
 func copyIndex(from string, to *os.File) error {
 	defer to.Close()
 	source, err := os.Open(from)
 	if errors.Is(err, os.ErrNotExist) {
-		return nil
+		return os.Remove(to.Name())
 	}
 	if err != nil {
 		return err

@@ -140,7 +140,7 @@ directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` li
 
 | Requirement | Evidence |
 |---|---|
-| GL-V0-001 | `TestRunStepSkipsOnlyRecordedIdenticalInputs`: a rerun on identical content hits, a change outside the scope still hits, a change inside the scope runs |
+| GL-V0-001 | `TestRunStepSkipsOnlyRecordedIdenticalInputs`: a rerun on identical content hits, a change outside the scope still hits, a change inside the scope runs; `TestRunStepRecordsFromLinkedWorktree`: a pass recorded in a `git worktree add` checkout hits from the main worktree |
 | GL-V0-002 | the same test: a step exiting 3 returns 3 and records nothing |
 | GL-V0-003 | the same test: an undeclared step runs and records nothing; `plan` reports `go-archive-gate: always runs` |
 | GL-V0-004 | `TestGoTestFallsBackToOneUncachedRun`: the fallback passes `-count=1 ./...` and hits on an identical tree; `TestUnresolvedPackagesListsRootLocators`: the partition's input; measured partition on this repository in `../BUILD-LOG.md` |
@@ -153,7 +153,7 @@ directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` li
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| GL-V0-001 | `key`, `inputs`, `worktreeDigest`, `tooling`, `scopes` in `tools/gate-ledger/main.go` | `TestRunStepSkipsOnlyRecordedIdenticalInputs` |
+| GL-V0-001 | `key`, `inputs`, `worktreeDigest`, `copyIndex`, `tooling`, `scopes` in `tools/gate-ledger/main.go` | `TestRunStepSkipsOnlyRecordedIdenticalInputs`; `TestRunStepRecordsFromLinkedWorktree` |
 | GL-V0-002 | `runStep`, `execute` | `TestRunStepSkipsOnlyRecordedIdenticalInputs` |
 | GL-V0-003 | `scopes`, `key` | `TestRunStepSkipsOnlyRecordedIdenticalInputs` |
 | GL-V0-004 | `goTest`, `partition`; `unresolvedPackages` in `tools/gate-affected-select/main.go`; `GO_TEST_FLAGS` and `ledger/go-test` in `Makefile` | `TestGoTestFallsBackToOneUncachedRun`; `TestUnresolvedPackagesListsRootLocators` |
