@@ -688,10 +688,11 @@ func QuerySnapshotAuthority(index *Index, text string) (map[string]any, error) {
 		return nil, err
 	}
 	results := []map[string]any{candidates[0].result}
-	packet, err := receipt(index, "query", map[string]any{"text": trimmed, "limit": 1}, results, 1, "", "history and local traces are outside the immutable planning snapshot")
+	const disclosure = "history and local traces are outside the immutable planning snapshot"
+	packet, err := receipt(index, "query", map[string]any{"text": trimmed, "limit": 1}, results, 1, "", disclosure)
 	if err != nil {
 		return nil, err
 	}
 	packet["abstention"] = map[string]any{"active": false, "reason": "none"}
-	return compileReceipt(packet, nil, index)
+	return compileReceipt(packet, nil, index, disclosure)
 }

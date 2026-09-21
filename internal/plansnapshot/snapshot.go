@@ -107,28 +107,33 @@ func (r *reader) run(ctx context.Context, input []byte, limit int, args ...strin
 }
 
 func (receipt Receipt) Validate(ctx context.Context, root string) error {
+	_, _, err := receipt.validatedTree(ctx, root)
+	return err
+}
+
+func (receipt Receipt) validatedTree(ctx context.Context, root string) ([]string, []string, error) {
 	if !receipt.Valid() {
-		return ErrInvalid
+		return nil, nil, ErrInvalid
 	}
 	r, err := newReader(root)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	for _, pair := range [][2]string{{"HEAD^{commit}", receipt.Commit}, {receipt.Commit + "^{tree}", receipt.Tree}, {receipt.Base + "^{commit}", receipt.Base}} {
 		body, err := r.run(ctx, nil, 1024, "rev-parse", "--verify", pair[0])
 		if err != nil || string(body) != pair[1]+"\n" {
-			return ErrInvalid
+			return nil, nil, ErrInvalid
 		}
 	}
 	body, err := r.run(ctx, nil, 8<<20, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--no-textconv", receipt.Base, receipt.Commit, "--")
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	paths, err := affected.DecodeNameList(body)
 	if err != nil || PathDigest(paths) != receipt.Digest {
-		return ErrInvalid
+		return nil, nil, ErrInvalid
 	}
-	return nil
+	return r.treeEntries(ctx, receipt.Tree)
 }
 
 // Scope distinguishes authoritative immutable inputs from advisory selection.
@@ -139,37 +144,13 @@ func (receipt Receipt) Scope() map[string]any {
 // Materialize copies exact blobs to private scratch; no checkout, filters,
 // archive attributes, live files, symlinks or submodules can change the inputs.
 func (receipt Receipt) Materialize(ctx context.Context, root string) (string, func(), error) {
-	if err := receipt.Validate(ctx, root); err != nil {
+	paths, ids, err := receipt.validatedTree(ctx, root)
+	if err != nil {
 		return "", nil, err
 	}
 	r, err := newReader(root)
 	if err != nil {
 		return "", nil, err
-	}
-	body, err := r.run(ctx, nil, 8<<20, "ls-tree", "-r", "-z", "--full-tree", receipt.Tree)
-	if err != nil {
-		return "", nil, err
-	}
-	entries := bytes.Split(bytes.TrimSuffix(body, []byte{0}), []byte{0})
-	var paths, ids []string
-	for _, entry := range entries {
-		if len(entry) == 0 {
-			continue
-		}
-		header, path, ok := strings.Cut(string(entry), "\t")
-		fields := strings.Fields(header)
-		if !ok || len(fields) != 3 || (fields[0] != "100644" && fields[0] != "100755") || fields[1] != "blob" || !objectID(fields[2]) || !affected.ValidRelativePath(path) {
-			return "", nil, ErrInvalid
-		}
-		for _, part := range strings.Split(path, "/") {
-			if strings.EqualFold(part, ".git") {
-				return "", nil, ErrInvalid
-			}
-		}
-		paths, ids = append(paths, path), append(ids, fields[2])
-	}
-	if len(paths) > 20000 {
-		return "", nil, ErrInvalid
 	}
 	input := []byte(strings.Join(ids, "\n"))
 	if len(ids) > 0 {
@@ -277,4 +258,33 @@ func ReadFile(name string) (Receipt, error) {
 		return Receipt{}, ErrInvalid
 	}
 	return Decode(body)
+}
+
+func (r *reader) treeEntries(ctx context.Context, tree string) ([]string, []string, error) {
+	body, err := r.run(ctx, nil, 8<<20, "ls-tree", "-r", "-z", "--full-tree", tree)
+	if err != nil {
+		return nil, nil, err
+	}
+	entries := bytes.Split(bytes.TrimSuffix(body, []byte{0}), []byte{0})
+	var paths, ids []string
+	for _, entry := range entries {
+		if len(entry) == 0 {
+			continue
+		}
+		header, path, ok := strings.Cut(string(entry), "\t")
+		fields := strings.Fields(header)
+		if !ok || len(fields) != 3 || (fields[0] != "100644" && fields[0] != "100755") || fields[1] != "blob" || !objectID(fields[2]) || !affected.ValidRelativePath(path) {
+			return nil, nil, ErrInvalid
+		}
+		for _, part := range strings.Split(path, "/") {
+			if strings.EqualFold(part, ".git") {
+				return nil, nil, ErrInvalid
+			}
+		}
+		paths, ids = append(paths, path), append(ids, fields[2])
+	}
+	if len(paths) > 20000 {
+		return nil, nil, ErrInvalid
+	}
+	return paths, ids, nil
 }

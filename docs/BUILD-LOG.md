@@ -30,6 +30,12 @@ Focused snapshot regressions exposed query history's live-state binding; the rep
 binding for legacy queries and explicitly omits history in the immutable profile. Focused receipt,
 CLI and MCP regressions passed. Final canonical checks and independent review are recorded by
 keyed dogfood observations and the coordinating task, not inferred from these fixture results.
+Independent review cycle 1 reproduced an MCP admission gap: symlink/gitlink rejection had
+only guarded CLI materialization. Shared bounded tree validation now guards both routes, with
+MCP query/impact regressions for both shapes. The same review found final coverage compilation
+dropped the history/trace exclusion disclosure; the compiler now receives that disclosure and
+the MCP wire test asserts it alongside authoritative evidence. The in-flight canonical root suite was cancelled
+before repair (`verification-cancelled`), never counted as passing evidence.
 The builder did not delegate under the sole-builder instruction; independent review belongs to
 the coordinator. Gate-plan/gate-intent scripts are Beamfall workflow tooling, absent here; the
 practical plan review and requirement-linked tests provide local review inputs, not an independent

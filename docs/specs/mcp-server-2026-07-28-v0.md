@@ -362,7 +362,8 @@ not truncated JSON.
   host acceptance. The existing frame, argument and read-only bounds remain.
   Rollback removes optional snapshot admission without weakening legacy refusals.
   Evidence: `TestMCPExplicitSnapshotRetainsImmutableEvidenceInMixedWorktree` and
-  AFP-V0-019's receipt rejection tests. External host qualification is NOT_RUN.
+  `TestMCPSnapshotRejectsSymlinkAndGitlinkTrees` and AFP-V0-019's receipt rejection
+  tests. External host qualification is NOT_RUN.
 
 ### Bridge failure codes
 
