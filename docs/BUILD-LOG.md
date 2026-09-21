@@ -25,6 +25,12 @@ Independent review identified shared-state races, mutable evidence aliases, and 
 of transmitted handles. The repaired gate serializes run reservations and ledger reuse, snapshots
 selected evidence, and screens every transmitted caller-authored string; focused race tests cover
 concurrent budget/cache behavior and mutation during provider latency.
+The canonical gate then exposed one malformed wrapped Agent-digest bullet, which was repaired and
+independently re-reviewed. Two subsequent exact-target gate runs failed only because the large
+`contextindex` fixture used the benchmark Git helper, allowing detached auto-maintenance to recreate
+`.git/info` during `t.TempDir` cleanup. A 20-run loop reproduced 16 failures; applying the existing
+`testGit` synchronous-maintenance policy to benchmark fixtures made all 20 pass without changing
+runtime behavior.
 The frozen calibration, held-out replay, kill-gate, and first accepted extractor profile remain open;
 this deterministic slice is not evidence that any model's probabilities are calibrated.
 
