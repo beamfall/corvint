@@ -127,6 +127,19 @@ index entry; stored receipts remain labelled experimental evidence and grant no 
 | MER-V0-001..010 | `internal/migrationratchet` | `TestRevisionBoundReceiptEndToEnd`, `TestMigrationEvidenceNegativeControls`, `TestIncomparableInputsRefuseWithoutReviewedRule`, `TestReviewedRulesAndScopedException`, `TestCanonicalRecordClosure`, `TestMappedEvidenceIdentityStillRequiresRenewal`, `TestExceptionBindsOneConcreteDelta`, `TestDecodeRejectsEveryTrailingValue` |
 | MER-V0-011..012 | `cmd/corvint/migration_ratchet.go` | `TestMigrationRatchetCLIExitAndDeterministicReceipt`, `TestMigrationRatchetCLIRefusesMutableOrMalformedBinding`, `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` |
 
+### Owned emitted error codes
+
+| Code | Emitted condition | Site |
+|---|---|---|
+| `broken-reverse-link` | A valid forward evidence link lacks its required reverse link. | `internal/migrationratchet/compare.go:504@7ea1221e` |
+| `content-changed` | A paired record's content digest changes. | `internal/migrationratchet/compare.go:441@e09e30cf` |
+| `evidence-not-renewed` | Evidence remains byte-identical after its linked target changes. | `internal/migrationratchet/compare.go:512@18d18ed9` |
+| `profile-unavailable` | The bounded migration profile cannot be read. | `cmd/corvint/migration_ratchet.go:27@85139ca6` |
+| `receipt-write-failed` | The encoded comparison receipt cannot be written to stdout. | `cmd/corvint/migration_ratchet.go:46@3f9aa3f3` |
+| `rename-masquerade` | A removal and addition of one kind retain the same content digest under different identities. | `internal/migrationratchet/compare.go:484@cfba470a` |
+| `stale-link` | A link target is missing or its content digest no longer matches. | `internal/migrationratchet/compare.go:500@6bdd70f8` |
+| `state-uncomparable` | A state transition names a state absent from the reviewed order. | `internal/migrationratchet/compare.go:458@42731da5` |
+
 ## Unresolved decisions and promotion criteria
 
 Promotion requires a real repository baseline/candidate pair, repository-owner review of its policy,

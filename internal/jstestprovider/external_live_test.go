@@ -345,6 +345,95 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	t.Logf("qualified real Playwright %s bundled headless-shell: pass/assertion/timeout/retry/browser infra, two projects, retained discovery, cancellation/server survival; system-browser smoke preserved", pkg.Version)
 }
 
+func TestQualifiedPlaywrightLiveDevicesSpread(t *testing.T) {
+	modules := os.Getenv("CORVINT_PLAYWRIGHT_MODULES")
+	if modules == "" {
+		t.Skip("NOT_RUN: set CORVINT_PLAYWRIGHT_MODULES to installed node_modules for live qualification")
+	}
+	pkgData, err := os.ReadFile(filepath.Join(modules, "@playwright/test/package.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pkg struct {
+		Version string `json:"version"`
+	}
+	if err = json.Unmarshal(pkgData, &pkg); err != nil {
+		t.Fatal(err)
+	}
+	if pkg.Version != "1.63.0" {
+		t.Skipf("NOT_RUN: devices spread qualification requires Playwright 1.63.0, got %s", pkg.Version)
+	}
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"devices.config.cjs", "devices.spec.cjs"} {
+		data, readErr := os.ReadFile(filepath.Join("testdata", "external", name))
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if writeErr := os.WriteFile(filepath.Join(root, name), data, 0600); writeErr != nil {
+			t.Fatal(writeErr)
+		}
+	}
+	if err = os.Symlink(modules, filepath.Join(root, "node_modules")); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("devices fixture"))
+	}))
+	defer server.Close()
+	t.Setenv("CORVINT_FIXTURE_URL", server.URL)
+	configFile := filepath.Join(root, "devices.config.cjs")
+	testFile := filepath.Join(root, "devices.spec.cjs")
+	cfg := jstestprovider.E2EConfig{
+		Config: jstestprovider.Config{
+			Dir: root, ConfigFile: configFile, TestFiles: []string{testFile},
+			RunnerName: "playwright", RunnerVersion: pkg.Version,
+			DeclaredEnvKeys: []string{"CORVINT_FIXTURE_URL"}, Timeout: 45 * time.Second,
+		},
+		ExternalServer: true, AppIdentity: "devices-spread-v1", ServerReadyURL: server.URL,
+		TestArgv: []string{"devices.spec.cjs", "--project=chromium", "--no-deps"},
+	}
+	receipt, err := jstestprovider.RunE2E(context.Background(), cfg)
+	if err != nil || receipt.Infrastructure != nil {
+		t.Fatalf("standard devices spread did not qualify: %v %+v", err, receipt.Infrastructure)
+	}
+	if len(receipt.Tests) != 1 || receipt.Tests[0].Project == nil {
+		t.Fatalf("devices spread identity missing: %+v", receipt.Tests)
+	}
+	outcome := receipt.Tests[0]
+	t.Run("PWP-V0-003 standard-devices-spread-identity", func(t *testing.T) {
+		if outcome.Project.Name != "chromium" || outcome.Project.Browser != "chromium" || outcome.Project.Device != "unknown" || outcome.Project.ConfigDigest != receipt.Identity.ConfigDigest || outcome.ID == "" {
+			t.Fatalf("devices spread identity incomplete: %+v", outcome.Project)
+		}
+		var use struct {
+			DefaultBrowserType string `json:"defaultBrowserType"`
+			Headless           bool   `json:"headless"`
+			UserAgent          string `json:"userAgent"`
+			Viewport           struct {
+				Width  int `json:"width"`
+				Height int `json:"height"`
+			} `json:"viewport"`
+			CorvintBrowser struct {
+				BrowserVersion string `json:"browserVersion"`
+				ExecutablePath string `json:"executablePath"`
+			} `json:"corvintBrowser"`
+		}
+		if err = json.Unmarshal(outcome.Project.Use, &use); err != nil {
+			t.Fatal(err)
+		}
+		if use.DefaultBrowserType != "chromium" || !use.Headless || use.UserAgent == "" || use.Viewport.Width != 1280 || use.Viewport.Height != 720 || use.CorvintBrowser.BrowserVersion != "Google Chrome for Testing 153.0.8010.12" || !strings.HasSuffix(use.CorvintBrowser.ExecutablePath, "/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell") {
+			t.Fatalf("devices spread effective use incomplete: %s", outcome.Project.Use)
+		}
+	})
+	t.Run("PWP-V0-008 bundled-headless-qualified-tuple", func(t *testing.T) {
+		if projection := jstestprovider.ReceiptTestProjection(receipt, outcome); projection.Execution.State != testvalidity.ExecutionPassed {
+			t.Fatalf("devices spread projection did not pass: %+v", projection)
+		}
+	})
+}
+
 func assertExternalSurvived(t *testing.T, r jstestprovider.Receipt, address string) {
 	t.Helper()
 	if r.External == nil || !r.External.ReadyAtStart || !r.External.ReadyAtPublish || !r.External.RunnerDescendantsGone || r.ServerDescendantsGone != nil {

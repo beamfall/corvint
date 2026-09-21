@@ -1,5 +1,7 @@
 # Decision records index
 
+| [`0328-publish-v050a2-issue49-2026-09-20.md`](0328-publish-v050a2-issue49-2026-09-20.md) | accepted, owner call | Publish the issue #49 device-spread fix as `v0.5.0a2`; retain unsigned prerelease, four non-Windows core archives, the same-commit macOS arm64 companion and no-promotion boundaries. |
+
 | [`0327-publish-v050a1-alpha-2026-09-20.md`](0327-publish-v050a1-alpha-2026-09-20.md) | accepted, owner call | Publish the integrated candidate as `v0.5.0a1`; retain unsigned prerelease, four non-Windows core archives, separately qualified optional companion and no-promotion boundaries; preserve historical version evidence. |
 
 | [`0326-work-queue-executable-binding-2026-09-20.md`](0326-work-queue-executable-binding-2026-09-20.md) | accepted, delegated call | Work-queue adoption binds one canonical external Corvint path plus SHA-256, version/build and source identity; the observer executes a private exact-byte materialization without ambient `PATH`, and changes require reviewed `work rebind`. |

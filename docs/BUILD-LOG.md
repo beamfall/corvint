@@ -7,6 +7,21 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 PWP-V0-003/007/008: standard Playwright device-spread regression
+
+GitHub issue #49 reported that the ordinary Playwright project form
+`use: {...devices['Desktop Chrome']}` produced `report-identity-unknown`. An isolated issue branch
+reproduced that exact failure before resolving Playwright's default bundled headless executable; the
+same implementation area was then superseded on `main` by issue #50's stricter registry revision,
+manifest version, executable suffix and SHA-256 qualification. The final integration retains that
+stricter implementation and adds a separate real-browser regression for the original device spread.
+
+The retained fixture requires project/browser identity, config digest, stable test ID, nonempty user
+agent, 1280×720 viewport, bundled browser version/path and a passing projection in one receipt. It
+passed with the pinned Playwright 1.63.0 modules and browser. The exact Golf checkout and hosted CI
+remain `NOT_OBSERVED`; the minimal checked-in fixture proves the reported configuration shape, not
+the unavailable consumer repository.
+
 ## 2026-09-20 PWP-V0-008: Playwright 1.63 bundled headless-shell qualification
 
 GitHub issue #50 exposed that the only qualified Darwin arm64 / Node v22.23.2 Playwright 1.63 path

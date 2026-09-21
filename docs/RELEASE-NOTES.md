@@ -1,5 +1,18 @@
 # Release notes
 
+## 0.5.0a2 experimental alpha
+
+The owner selected `v0.5.0a2` for the issue #49 release (decision 0328). It retains `v0.5.0a1`'s
+unsigned prerelease, four non-Windows CLI archives, separately qualified macOS arm64 companion and
+no-promotion boundaries. The companion carries the `corvint-js-test-provider` fix and regression for
+ordinary Playwright `devices['Desktop Chrome']` project spreads while preserving issue #50's stricter
+bundled-browser revision, manifest, path and executable-digest qualification.
+
+No retrieval, host, editor or command is promoted by this version change. Native performance remains
+unmeasured, publisher identity remains `NOT_VERIFIED`, and local qualification does not substitute
+for hosted CI. Exact availability and platform claims come only from this version's attached assets
+and qualification evidence; the detailed active scope is in `docs/RELEASE-NOTES-alpha.md`.
+
 ## 0.5.0a1 experimental alpha
 
 The owner selected `v0.5.0a1` for the integrated candidate (decision 0327), superseding the

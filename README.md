@@ -23,7 +23,7 @@
 </p>
 
 **One native Go binary.** No account, hosted service, database, embeddings, or permanent daemon.
-`go.mod` declares no module requirements. Read commands change nothing. Version `0.5.0a1` is an
+`go.mod` declares no module requirements. Read commands change nothing. Version `0.5.0a2` is an
 experimental alpha; [what works today and what is still an open gate](#status-stated-plainly).
 
 ## Why Corvint
@@ -360,7 +360,7 @@ profile and is admitted to the product only through its own accepted profile ([c
 ## Status, stated plainly
 
 > [!IMPORTANT]
-> Corvint is an extraction alpha (`Corvint 0.5.0a1`). Availability and tested platform status come
+> Corvint is an extraction alpha (`Corvint 0.5.0a2`). Availability and tested platform status come
 > from the exact versioned release assets and their attached qualification evidence.
 
 | Surface | Current state |

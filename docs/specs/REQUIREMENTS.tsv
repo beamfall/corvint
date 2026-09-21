@@ -1401,7 +1401,7 @@ PSM-V0-010	docs/specs/playwright-suite-interaction-minimizer-v0.md	70	Every tria
 PSM-V0-011	docs/specs/playwright-suite-interaction-minimizer-v0.md	72	Missing or invalid runner qualification (#39), stability identity (#42), or
 PSM-V0-012	docs/specs/playwright-suite-interaction-minimizer-v0.md	75	Synthetic qualification MUST cover a true predecessor leak, a load-only failure,
 PSM-V0-013	docs/specs/playwright-suite-interaction-minimizer-v0.md	78	The closed `corvint-playwright-suite-interaction-live/0` CLI MUST require
-PUB-V0-001	docs/specs/public-release-v0.md	34	The current version tuple MUST move together to `0.5.0a1`, including native
+PUB-V0-001	docs/specs/public-release-v0.md	34	The current version tuple MUST move together to `0.5.0a2`, including native
 PUB-V0-002	docs/specs/public-release-v0.md	37	The existing native CLI archive gate MUST remain independent. An optional
 PUB-V0-003	docs/specs/public-release-v0.md	44	Companion build output MUST be outside the source checkouts, include exact
 PUB-V0-004	docs/specs/public-release-v0.md	59	The first companion target is macOS arm64. Qualification MUST exercise the
@@ -1433,7 +1433,7 @@ PWP-V0-003	docs/specs/playwright-external-provider-v0.md	25	Each outcome identif
 PWP-V0-004	docs/specs/playwright-external-provider-v0.md	26	Preserve attempt status/retry, flaky, assertion failure, test timeout and interr
 PWP-V0-005	docs/specs/playwright-external-provider-v0.md	27	Emit and retain the canonical closed profile. MCP discovery recomputes projectio
 PWP-V0-006	docs/specs/playwright-external-provider-v0.md	28	Cancellation joins only owned Playwright descendants and observes external serve
-PWP-V0-007	docs/specs/playwright-external-provider-v0.md	29	Qualification runs a checked-in real Playwright browser fixture covering pass, a
+PWP-V0-007	docs/specs/playwright-external-provider-v0.md	29	Qualification runs checked-in real Playwright browser fixtures covering pass, as
 PWP-V0-008	docs/specs/playwright-external-provider-v0.md	30	Playwright 1.63 qualification is consuming-path specific. A passing projection r
 PWP-V1-001	docs/specs/playwright-external-provider-v0.md	34	`/1` is available only in external-server mode and requires a typed `corvint-app
 PWP-V1-002	docs/specs/playwright-external-provider-v0.md	35	The closed provider configuration binds the expected application root commit, re
