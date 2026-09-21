@@ -60,13 +60,14 @@ func TestE2ERequiresCompleteTypedApplicationAttestationFlags(t *testing.T) {
 }
 
 func TestSensitiveInputPolicyRequiresExplicitProfileSelection(t *testing.T) {
-	// PWP-V2-001 binds the explicit profile-selection boundary.
-	if err := runE2E([]string{"--sensitive-action-pattern", "set secret"}); err == nil || !strings.Contains(err.Error(), "require --sensitive-input-redaction") {
-		t.Fatalf("implicit sensitive-input profile selection err=%v", err)
-	}
-	if err := runE2E([]string{"--sensitive-input-redaction"}); err == nil || !strings.Contains(err.Error(), "sensitive-input-redaction-requires-external-server") {
-		t.Fatalf("non-external sensitive-input selection err=%v", err)
-	}
+	t.Run("PWP-V2-001 explicit profile selection", func(t *testing.T) {
+		if err := runE2E([]string{"--sensitive-action-pattern", "set secret"}); err == nil || !strings.Contains(err.Error(), "require --sensitive-input-redaction") {
+			t.Fatalf("implicit sensitive-input profile selection err=%v", err)
+		}
+		if err := runE2E([]string{"--sensitive-input-redaction"}); err == nil || !strings.Contains(err.Error(), "sensitive-input-redaction-requires-external-server") {
+			t.Fatalf("non-external sensitive-input selection err=%v", err)
+		}
+	})
 }
 
 // TestParseUnitConfig_RelativeDirResolvedAbsolute confirms the unit

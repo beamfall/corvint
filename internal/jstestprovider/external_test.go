@@ -24,7 +24,17 @@ func TestQualifiedReporterSensitiveRedaction(t *testing.T) {
 }
 
 func TestSensitiveInputEvidenceRedactionAndValidation(t *testing.T) {
-	// PWP-V2-002 binds canonical action-title redaction and traceability.
+	t.Run("PWP-V2-002 canonical action redaction", func(t *testing.T) {
+		r := Receipt{Profile: SensitiveExternalProfile, SensitiveInputPolicy: &SensitiveInputPolicy{}, Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{{Title: `Fill "hunter2"`}}}}}}}
+		safe, err := RedactSensitiveInputEvidence(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := safe.Tests[0].Attempts[0].Steps[0].Title; got != `Fill "[REDACTED]"` {
+			t.Fatalf("canonical title = %q", got)
+		}
+	})
+
 	policy := SensitiveInputPolicy{
 		AdditionalActionPatterns:  []string{"set secret"},
 		AdditionalSensitiveFields: []string{"credential"},
@@ -281,30 +291,31 @@ func TestSensitiveInputUnicodeGrammarAndReportScope(t *testing.T) {
 }
 
 func TestSensitiveInputAlreadyRedactedCrossTestRiskRejected(t *testing.T) {
-	// PWP-V2-003 binds report-wide risk-field handling across tests.
-	for _, field := range []string{"failure", "artifact", "step-error", "step-attachment"} {
-		t.Run(field, func(t *testing.T) {
-			r := Receipt{Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{{Title: `Fill "[REDACTED]"`, Redacted: true}}}}}, {Attempts: []Attempt{{Steps: []BrowserStep{{Title: "Expect visible"}}}}}}}
-			switch field {
-			case "failure":
-				r.Tests[1].FailureMessage = "hunter2"
-			case "artifact":
-				r.Tests[1].Artifacts = []FailureArtifact{{Path: "hunter2"}}
-			case "step-error":
-				r.Tests[1].Attempts[0].Steps[0].Error = "hunter2"
-			case "step-attachment":
-				r.Tests[1].Attempts[0].Steps[0].Attachments = []FailureArtifact{{Name: "hunter2"}}
-			}
-			findings := ValidateSensitiveInputEvidence(r)
-			if len(findings) == 0 || findings[0].Code != SensitiveInputUnredacted {
-				t.Fatal("cross-test risk admitted")
-			}
-			data, _ := json.Marshal(findings)
-			if strings.Contains(string(data), "hunter2") {
-				t.Fatal("finding echoed original")
-			}
-		})
-	}
+	t.Run("PWP-V2-003 report-wide cross-test risk", func(t *testing.T) {
+		for _, field := range []string{"failure", "artifact", "step-error", "step-attachment"} {
+			t.Run(field, func(t *testing.T) {
+				r := Receipt{Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{{Title: `Fill "[REDACTED]"`, Redacted: true}}}}}, {Attempts: []Attempt{{Steps: []BrowserStep{{Title: "Expect visible"}}}}}}}
+				switch field {
+				case "failure":
+					r.Tests[1].FailureMessage = "hunter2"
+				case "artifact":
+					r.Tests[1].Artifacts = []FailureArtifact{{Path: "hunter2"}}
+				case "step-error":
+					r.Tests[1].Attempts[0].Steps[0].Error = "hunter2"
+				case "step-attachment":
+					r.Tests[1].Attempts[0].Steps[0].Attachments = []FailureArtifact{{Name: "hunter2"}}
+				}
+				findings := ValidateSensitiveInputEvidence(r)
+				if len(findings) == 0 || findings[0].Code != SensitiveInputUnredacted {
+					t.Fatal("cross-test risk admitted")
+				}
+				data, _ := json.Marshal(findings)
+				if strings.Contains(string(data), "hunter2") {
+					t.Fatal("finding echoed original")
+				}
+			})
+		}
+	})
 }
 
 func TestExternalReadiness(t *testing.T) {

@@ -8,34 +8,35 @@ import (
 )
 
 func TestSensitiveInputPolicyGrammarAgreement(t *testing.T) {
-	// PWP-V2-004 binds additive policy admission to the matching grammar.
-	for _, pattern := range []string{"custom+entry", "custom💠entry", "custom\u200bentry", "custom\u00a0entry"} {
-		r := Receipt{Profile: SensitiveExternalProfile, SensitiveInputPolicy: &SensitiveInputPolicy{AdditionalActionPatterns: []string{pattern}}, Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{{Title: pattern + " unquoted-secret"}}}}}}}
-		if len(ValidateSensitiveInputEvidence(r)) == 0 {
-			t.Errorf("admitted action is not recognized: %q", pattern)
+	t.Run("PWP-V2-004 policy grammar agreement", func(t *testing.T) {
+		for _, pattern := range []string{"custom+entry", "custom💠entry", "custom\u200bentry", "custom\u00a0entry"} {
+			r := Receipt{Profile: SensitiveExternalProfile, SensitiveInputPolicy: &SensitiveInputPolicy{AdditionalActionPatterns: []string{pattern}}, Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{{Title: pattern + " unquoted-secret"}}}}}}}
+			if len(ValidateSensitiveInputEvidence(r)) == 0 {
+				t.Errorf("admitted action is not recognized: %q", pattern)
+			}
+			safe, err := RedactSensitiveInputEvidence(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, err := EncodeQualified(safe)
+			if err != nil || strings.Contains(string(data), "unquoted-secret") || safe.Tests[0].Attempts[0].Steps[0].Title != `custom entry "[REDACTED]"` {
+				t.Errorf("pattern mismatch %q: %v %s", pattern, err, data)
+			}
 		}
-		safe, err := RedactSensitiveInputEvidence(r)
-		if err != nil {
-			t.Fatal(err)
+		for _, pattern := range []string{"***", "+💠\u200b", "", strings.Repeat("x", 129)} {
+			r := Receipt{Profile: SensitiveExternalProfile, SensitiveInputPolicy: &SensitiveInputPolicy{AdditionalActionPatterns: []string{pattern}}}
+			findings := ValidateSensitiveInputEvidence(r)
+			if len(findings) != 1 || findings[0].Code != "sensitive-input-policy-invalid" {
+				t.Errorf("invalid policy admitted: %+v", findings)
+			}
+			if _, err := EncodeQualified(r); err == nil {
+				t.Error("invalid policy encoded")
+			}
+			if _, err := RedactSensitiveInputEvidence(r); err == nil || err.Error() != "sensitive-input-policy-invalid" {
+				t.Errorf("invalid policy error: %v", err)
+			}
 		}
-		data, err := EncodeQualified(safe)
-		if err != nil || strings.Contains(string(data), "unquoted-secret") || safe.Tests[0].Attempts[0].Steps[0].Title != `custom entry "[REDACTED]"` {
-			t.Errorf("pattern mismatch %q: %v %s", pattern, err, data)
-		}
-	}
-	for _, pattern := range []string{"***", "+💠\u200b", "", strings.Repeat("x", 129)} {
-		r := Receipt{Profile: SensitiveExternalProfile, SensitiveInputPolicy: &SensitiveInputPolicy{AdditionalActionPatterns: []string{pattern}}}
-		findings := ValidateSensitiveInputEvidence(r)
-		if len(findings) != 1 || findings[0].Code != "sensitive-input-policy-invalid" {
-			t.Errorf("invalid policy admitted: %+v", findings)
-		}
-		if _, err := EncodeQualified(r); err == nil {
-			t.Error("invalid policy encoded")
-		}
-		if _, err := RedactSensitiveInputEvidence(r); err == nil || err.Error() != "sensitive-input-policy-invalid" {
-			t.Errorf("invalid policy error: %v", err)
-		}
-	}
+	})
 }
 
 func TestSensitiveInputUnsupportedReceiverSyntaxRejected(t *testing.T) {

@@ -31,52 +31,54 @@ func TestSensitiveRetainedPolicyAndUnsupportedActionRejection(t *testing.T) {
 }
 
 func TestSensitiveRetainedDecodeNeverEchoesUnknownProperties(t *testing.T) {
-	// PWP-V2-005 binds value-free rejection at retained-document ingestion.
-	for _, data := range []string{
-		`{"receipt":{"profile":"corvint-playwright-external/2","kind":"e2e","hunter2":true}}`,
-		`{"hunter2":true,"receipt":{"profile":"corvint-playwright-external/2","kind":"e2e"}}`,
-		`{"receipt":{"profile":"corvint-playwright-external/2","kind":"e2e","tests":[{"attempts":[{"steps":[{"hunter2":true}]}]}]}}`,
-		`{"receipt":{"profile":"corvint-playwright-external/2","kind":"e2e","hunter2":`,
-		`{"receipt":{"profile":"corvint-playwright-external/2","kind":"e2e"}} hunter2`,
-	} {
-		_, err := Decode([]byte(data))
-		if err == nil || strings.Contains(err.Error(), "hunter2") {
-			t.Fatalf("retained decoder echoed property: %v", err)
+	t.Run("PWP-V2-005 value-free retained rejection", func(t *testing.T) {
+		for _, data := range []string{
+			`{"receipt":{"profile":"corvint-playwright-external/2","kind":"e2e","hunter2":true}}`,
+			`{"hunter2":true,"receipt":{"profile":"corvint-playwright-external/2","kind":"e2e"}}`,
+			`{"receipt":{"profile":"corvint-playwright-external/2","kind":"e2e","tests":[{"attempts":[{"steps":[{"hunter2":true}]}]}]}}`,
+			`{"receipt":{"profile":"corvint-playwright-external/2","kind":"e2e","hunter2":`,
+			`{"receipt":{"profile":"corvint-playwright-external/2","kind":"e2e"}} hunter2`,
+		} {
+			_, err := Decode([]byte(data))
+			if err == nil || strings.Contains(err.Error(), "hunter2") {
+				t.Fatalf("retained decoder echoed property: %v", err)
+			}
+			var rejection *jstestprovider.SensitiveInputValidationError
+			if !errors.As(err, &rejection) || rejection.Findings[0].Code != jstestprovider.SensitiveInputDocumentInvalid {
+				t.Fatalf("not typed: %T %v", err, err)
+			}
 		}
-		var rejection *jstestprovider.SensitiveInputValidationError
-		if !errors.As(err, &rejection) || rejection.Findings[0].Code != jstestprovider.SensitiveInputDocumentInvalid {
-			t.Fatalf("not typed: %T %v", err, err)
-		}
-	}
+	})
 }
 
 func TestSensitiveInputConformanceFixtureRejectsLeakAndAcceptsRedaction(t *testing.T) {
-	// PWP-V2-006 binds the leaking/rejected and redacted/accepted fixtures.
-	r := jstestprovider.Receipt{
-		Profile:              jstestprovider.SensitiveExternalProfile,
-		Kind:                 "e2e",
-		SensitiveInputPolicy: &jstestprovider.SensitiveInputPolicy{},
-		External:             &jstestprovider.ExternalLifecycle{Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown"},
-		Tests:                []jstestprovider.TestOutcome{{Name: "login", State: jstestprovider.StateFailed, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StateFailed, Retry: 0, FailureKind: "assertion-or-test", Steps: []jstestprovider.BrowserStep{{Title: `Fill "[REDACTED]"`, Category: "pw:api", Redacted: true}, {Title: "Expect dashboard visible", Category: "expect"}}}}}},
-	}
-	redacted, err := jstestprovider.EncodeQualified(r)
-	if err != nil {
-		t.Fatal(err)
-	}
-	input, err := Decode(redacted)
-	if err != nil {
-		t.Fatalf("redacted conformance payload rejected: %v", err)
-	}
-	projected := Project(input)
-	if got := projected.Tests[0].Attempts[0].Steps[0].Title; got != `Fill "[REDACTED]"` {
-		t.Fatalf("action traceability lost: %q", got)
-	}
-	leaking := bytes.Replace(redacted, []byte(`[REDACTED]`), []byte(`deliberately-leaked-value`), 1)
-	_, err = Decode(leaking)
-	var validationErr *jstestprovider.SensitiveInputValidationError
-	if !errors.As(err, &validationErr) || len(validationErr.Findings) != 1 || validationErr.Findings[0].Code != jstestprovider.SensitiveInputUnredacted {
-		t.Fatalf("leaking conformance payload error = %T %v", err, err)
-	}
+	t.Run("PWP-V2-006 conformance leak and redaction", func(t *testing.T) {
+		r := jstestprovider.Receipt{
+			Profile:              jstestprovider.SensitiveExternalProfile,
+			Kind:                 "e2e",
+			SensitiveInputPolicy: &jstestprovider.SensitiveInputPolicy{},
+			External:             &jstestprovider.ExternalLifecycle{Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown"},
+			Tests:                []jstestprovider.TestOutcome{{Name: "login", State: jstestprovider.StateFailed, Attempts: []jstestprovider.Attempt{{State: jstestprovider.StateFailed, Retry: 0, FailureKind: "assertion-or-test", Steps: []jstestprovider.BrowserStep{{Title: `Fill "[REDACTED]"`, Category: "pw:api", Redacted: true}, {Title: "Expect dashboard visible", Category: "expect"}}}}}},
+		}
+		redacted, err := jstestprovider.EncodeQualified(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		input, err := Decode(redacted)
+		if err != nil {
+			t.Fatalf("redacted conformance payload rejected: %v", err)
+		}
+		projected := Project(input)
+		if got := projected.Tests[0].Attempts[0].Steps[0].Title; got != `Fill "[REDACTED]"` {
+			t.Fatalf("action traceability lost: %q", got)
+		}
+		leaking := bytes.Replace(redacted, []byte(`[REDACTED]`), []byte(`deliberately-leaked-value`), 1)
+		_, err = Decode(leaking)
+		var validationErr *jstestprovider.SensitiveInputValidationError
+		if !errors.As(err, &validationErr) || len(validationErr.Findings) != 1 || validationErr.Findings[0].Code != jstestprovider.SensitiveInputUnredacted {
+			t.Fatalf("leaking conformance payload error = %T %v", err, err)
+		}
+	})
 }
 
 func TestQualifiedDecodeRejectsNoncanonicalAndPreservesUnknowns(t *testing.T) {
