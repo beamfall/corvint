@@ -7,6 +7,43 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-21 BBF-V0-001..012: criterion-level browser behavior falsification (issue 54)
+
+The experimental `corvint-behavior-falsify` companion separates deterministic planning from exact
+digest approval, stages caller-owned argument-free hooks, and runs them under bounded process-group
+containment in a caller-marked disposable workspace. It records contract/criterion/assertion,
+application/test/documentation revision, runner/browser/config/environment, perturbation,
+attempt/retry, cleanup and artifact identities. Only the expected assertion failure with unrelated
+criteria and setup still passing can classify `killed`; selector errors, unrelated failures, retry
+masking, stale bindings and cleanup drift are invalid, while process/timeout loss remains
+`infrastructure_failed`. The report retains all six raw statuses and always preserves
+`full-relevant-suite` fallback.
+
+Focused `go test -count=1 ./internal/behaviorfalsify ./cmd/corvint-behavior-falsify` and matching
+`go vet` passed; the same packages also pass `go test -race`. The synthetic matrix covers the expected kill, tautology, hidden duplicate,
+wrong-value survival, wrong assertion, unrelated failure, selector error, timeout, cleanup failure,
+retry masking and stale revision/perturbation/artifact identities. A staged live test helper produced
+and then cleaned a retained artifact with equal pre/post workspace digests; a separate one-second
+timeout proved owned cleanup and descendant absence. These are authored synthetic fixtures, not a
+real adopter or browser run. Hook semantics and absence of persistent external effects remain
+caller-owned and unauthenticated; live utility is `NOT_OBSERVED`.
+
+Independent review found cancellation could schedule untouched cleanup hooks, wall-clock accounting
+did not reserve both process shutdown windows, process stdin retained a lower hidden default, plan
+controls were duplicated, report/receipt output was not aggregate-bounded, infrastructure receipts
+accepted contradictory caller strings, and the initial acceptance matrix was incomplete. Repairs
+stop after the interrupted attempt, count only started controls, reserve hook/cleanup shutdown and
+execution time, isolate and bound Git reads, divide the report budget across approved attempts, use
+one non-HTML-escaping deterministic JSON encoding, close infrastructure reason/shape validation and
+add live crash, overflow, cancellation, slow-termination, cleanup, stale-artifact and JSON-expansion
+regressions. The final independent re-review returned `PASS`.
+
+Dogfood orientation exposed two limitations retained for review: the initial limit-one query ranked
+the Go-kernel migration spec rather than the behavior-contract seam, and the later focused context
+packet reported captured index revision `70ffae556ba8cecc499501a492b9051485310759` rather than the
+worktree HEAD. Exact repository inspection found `documentation-corpus-v1.md` and
+`internal/doccorpus/behavior.go`; no completeness claim is made for the stale context packet.
+
 ## 2026-09-20 PWP-V0-003/007/008: standard Playwright device-spread regression
 
 GitHub issue #49 reported that the ordinary Playwright project form

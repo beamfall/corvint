@@ -176,6 +176,24 @@
     "implementation": []
   },
   {
+    "path": "docs/specs/browser-behavior-falsification-v0.md",
+    "title": "Browser behavior falsification V0",
+    "reqPrefix": "BBF-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An opt-in companion runs digest-approved caller hooks against a marked disposable workspace and emits fail-closed criterion-level falsification receipts.",
+    "dependsOn": [
+      "docs/specs/documentation-corpus-v1.md",
+      "docs/specs/js-live-test-provider-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/behaviorfalsify",
+      "cmd/corvint-behavior-falsify"
+    ]
+  },
+  {
     "path": "docs/specs/cem-0.2-canonical-binding.md",
     "title": "CEM 0.2 canonical patch binding",
     "reqPrefix": "CEM-CB",
