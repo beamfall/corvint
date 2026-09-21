@@ -16,16 +16,19 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
 const (
-	RouteSchema    = "corvint-semantic-route/0"
-	CallSchema     = "corvint-semantic-call/0"
-	RequestSchema  = "corvint-semantic-request/0"
-	ProposalSchema = "corvint-semantic-proposals/0"
+	RouteSchema          = "corvint-semantic-route/0"
+	CallSchema           = "corvint-semantic-call/0"
+	RequestSchema        = "corvint-semantic-request/0"
+	ProposalSchema       = "corvint-semantic-proposals/0"
+	ChoiceRequestSchema  = "corvint-semantic-choice-request/0"
+	ChoiceResponseSchema = "corvint-semantic-choice/0"
 
 	Call   = "CALL"
 	NoCall = "NO_CALL"
@@ -205,6 +208,8 @@ type CallReceipt struct {
 	RequestDigest       string
 	ResponseDigest      string
 	ParsedDigest        string
+	QuestionDigest      string                 `json:",omitempty"`
+	Decision            *ChoiceDecisionReceipt `json:",omitempty"`
 	ObservedInputBytes  int
 	ObservedOutputBytes int
 	ObservedCalls       int
@@ -227,8 +232,10 @@ type usage struct {
 	costMicros                     int64
 }
 
-// Gate holds registered verifiers, run usage, and the in-memory derivation ledger.
+// Gate holds registered verifiers, run usage, and the in-memory derivation ledger. Calls are
+// serialized so budget reservation and derivation reuse remain atomic for one run.
 type Gate struct {
+	mu        sync.Mutex
 	cfg       Config
 	verifiers map[string]Verifier
 	used      usage
@@ -255,6 +262,9 @@ func GapID(g Gap) string {
 
 // Escalate routes one gap. Every path returns a route receipt; only a CALL carries a call receipt.
 func (g *Gate) Escalate(gap Gap, spans []Span) Outcome {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	route := RouteReceipt{
 		Schema: RouteSchema, GapID: GapID(gap), TaskProfile: gap.TaskProfile, AccessContext: gap.AccessContext,
 		PolicyDigest: gap.PolicyDigest, VerifierProfile: gap.VerifierProfile, VerifierPower: AdmissionPower,
@@ -275,7 +285,7 @@ func (g *Gate) Escalate(gap Gap, spans []Span) Outcome {
 	if reason != "" {
 		return refuse(route, reason, FrontierUnknown)
 	}
-	caps, reason := g.eligible()
+	caps, reason := g.eligible(ProposalSchema)
 	if reason != "" {
 		return refuse(route, reason, FrontierUnknown)
 	}
@@ -327,6 +337,9 @@ func selectInputs(gap Gap, spans []Span) ([]Span, Reason) {
 			continue
 		}
 		selected[handle] = true
+		if secretscreen.MatchString(handle) {
+			return nil, SecretRisk
+		}
 		span, ok := byHandle[handle]
 		if !ok {
 			return nil, IncompleteScope
@@ -340,17 +353,18 @@ func selectInputs(gap Gap, spans []Span) ([]Span, Reason) {
 		if secretscreen.MatchString(string(span.Body)) {
 			return nil, SecretRisk
 		}
+		span.Body = bytes.Clone(span.Body)
 		inputs = append(inputs, span)
 	}
 	return inputs, ""
 }
 
-func (g *Gate) eligible() (Capabilities, Reason) {
+func (g *Gate) eligible(responseSchema string) (Capabilities, Reason) {
 	if g.cfg.Provider == nil {
 		return Capabilities{}, NoCalibratedModel
 	}
 	caps := g.cfg.Provider.Describe()
-	if caps.ModelRevision == "" || caps.CalibrationDigest == "" || caps.ResponseSchema != ProposalSchema {
+	if caps.ModelRevision == "" || caps.CalibrationDigest == "" || caps.ResponseSchema != responseSchema {
 		return Capabilities{}, NoCalibratedModel
 	}
 	if caps.Remote && !g.cfg.AllowRemote {
@@ -520,6 +534,10 @@ func admit(body []byte, inputs []Span, verifier Verifier, call *CallReceipt) []C
 // unique and spelled exactly as the proposal schema names it. encoding/json alone
 // matches keys case-insensitively and lets a later duplicate overwrite an earlier one.
 func exactKeys(body []byte) bool {
+	return exactObjectKeys(body, allowedKey)
+}
+
+func exactObjectKeys(body []byte, allowed func(depth int, key string) bool) bool {
 	decoder := json.NewDecoder(bytes.NewReader(body))
 	var seen []map[string]bool
 	expectKey := false
@@ -540,7 +558,7 @@ func exactKeys(body []byte) bool {
 			continue
 		}
 		key, _ := token.(string)
-		if !allowedKey(len(seen), key) || seen[len(seen)-1][key] {
+		if !allowed(len(seen), key) || seen[len(seen)-1][key] {
 			return false
 		}
 		seen[len(seen)-1][key] = true

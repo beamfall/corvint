@@ -7,6 +7,27 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-21 SEG-018..SEG-021: typed semantic choice decisions
+
+The owner directed Corvint to adopt the useful typed-decision ideas from TypeSafe AI's System One
+model announcement without adding Jev or another hosted dependency. The unwired
+`internal/semescalate` experiment now has a separate provider-neutral choice path over mechanically
+supplied anchored options. Providers return only an option ID and exact integer probability mass;
+Core derives an explicitly uncalibrated winner margin, supports a reserved abstain option, rebuilds
+the immutable proposal, and still requires the registered verifier before emitting an `INFERRED`
+candidate. The legacy proposal request and schema are unchanged. No provider, network path, serving
+integration, calibration corpus, authority, or product claim is added.
+
+Focused provider-spy tests cover the successful end-to-end path, pre-call question refusal,
+case-folded/duplicate/missing/fabricated distributions, non-unique maxima, low-confidence and
+explicit abstention, schema separation, complete cache identity, and the unchanged authority ceiling.
+Independent review identified shared-state races, mutable evidence aliases, and incomplete screening
+of transmitted handles. The repaired gate serializes run reservations and ledger reuse, snapshots
+selected evidence, and screens every transmitted caller-authored string; focused race tests cover
+concurrent budget/cache behavior and mutation during provider latency.
+The frozen calibration, held-out replay, kill-gate, and first accepted extractor profile remain open;
+this deterministic slice is not evidence that any model's probabilities are calibrated.
+
 ## 2026-09-20 LAC-V0-032: safe roadmap auto-recheck
 
 The roadmap repeats its existing read-only request every 30 seconds. Eligibility remains derived by
