@@ -193,6 +193,7 @@ func runE2E(args []string) error {
 	appAttestationCommand := fs.String("app-attestation-command", "", "JSON argv for the typed application-attestation provider; canonical config is supplied on stdin")
 	appAttestationConfig := fs.String("app-attestation-config", "", "canonical application-attestation expectation config")
 	appAttestationTimeout := fs.Duration("app-attestation-timeout", 5*time.Second, "bound on each application-attestation provider observation")
+	sensitiveInputRedaction := fs.Bool("sensitive-input-redaction", false, "select the /2 profile and retain only redacted browser input-action steps")
 	serverReadyURL := fs.String("server-ready-url", "", "URL polled until it answers with status < 500")
 	serverReadyTimeout := fs.Duration("server-ready-timeout", 15*time.Second, "bound on waiting for server readiness")
 	timeout := fs.Duration("timeout", 5*time.Minute, "bound on the playwright test command")
@@ -201,10 +202,14 @@ func runE2E(args []string) error {
 	var envKeys stringList
 	var serverArgv stringList
 	var testArgv stringList
+	var sensitiveActionPatterns stringList
+	var sensitiveFields stringList
 	fs.Var(&testFiles, "test-file", "a test file to bind identity to (repeatable)")
 	fs.Var(&envKeys, "env-key", "a declared environment variable name to observe (repeatable)")
 	fs.Var(&serverArgv, "server-arg", "one token of the app server command, in order (repeatable)")
 	fs.Var(&testArgv, "test-arg", "one token of the playwright test command, in order (repeatable)")
+	fs.Var(&sensitiveActionPatterns, "sensitive-action-pattern", "additional case-insensitive input-action title pattern (repeatable; additive to defaults)")
+	fs.Var(&sensitiveFields, "sensitive-field", "additional step metadata field to redact (repeatable; additive to defaults)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -235,6 +240,13 @@ func runE2E(args []string) error {
 		}
 		attestationProvider = &jstestprovider.ApplicationAttestationProvider{Argv: command, ConfigFile: resolvedAttestationConfig, Timeout: *appAttestationTimeout}
 	}
+	var sensitivePolicy *jstestprovider.SensitiveInputPolicy
+	if *sensitiveInputRedaction || len(sensitiveActionPatterns) != 0 || len(sensitiveFields) != 0 {
+		if !*sensitiveInputRedaction {
+			return errors.New("sensitive policy additions require --sensitive-input-redaction")
+		}
+		sensitivePolicy = &jstestprovider.SensitiveInputPolicy{AdditionalActionPatterns: sensitiveActionPatterns, AdditionalSensitiveFields: sensitiveFields}
+	}
 
 	ctx, cancel := interruptContext()
 	defer cancel()
@@ -259,6 +271,7 @@ func runE2E(args []string) error {
 		AppBuildDir:            *appBuildDir,
 		TestArgv:               testArgv,
 		ApplicationAttestation: attestationProvider,
+		SensitiveInputPolicy:   sensitivePolicy,
 	}
 	if watch != nil {
 		if attestationProvider != nil {
@@ -285,7 +298,7 @@ func retainFrom(retain bool, dir string) string {
 // emit writes the document to stdout and, when retainFrom is not empty,
 // retains the same bytes (LPCV-V0-055).
 func emit(stdout, stderr io.Writer, receipt jstestprovider.Receipt, retainFrom string) error {
-	if receipt.Profile == jstestprovider.ExternalProfile || receipt.Profile == jstestprovider.AttestedExternalProfile {
+	if receipt.Profile == jstestprovider.ExternalProfile || receipt.Profile == jstestprovider.AttestedExternalProfile || receipt.Profile == jstestprovider.SensitiveExternalProfile {
 		data, err := jstestprovider.EncodeQualified(receipt)
 		if err != nil {
 			return err

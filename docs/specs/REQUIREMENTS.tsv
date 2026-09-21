@@ -1470,6 +1470,12 @@ PWP-V1-005	docs/specs/playwright-external-provider-v0.md	38	The provider runs be
 PWP-V1-006	docs/specs/playwright-external-provider-v0.md	39	`/1` binds one clean test repository by root commit, revision and tree before Pl
 PWP-V1-007	docs/specs/playwright-external-provider-v0.md	40	Corvint supplies only canonical configuration bytes on provider stdin and owns o
 PWP-V1-008	docs/specs/playwright-external-provider-v0.md	41	Qualification includes a deterministic, locally owned Docker Compose fixture and
+PWP-V2-001	docs/specs/playwright-external-provider-v0.md	45	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
+PWP-V2-002	docs/specs/playwright-external-provider-v0.md	46	Before reporter serialization, input actions matching the fixed defaults `fill`,
+PWP-V2-003	docs/specs/playwright-external-provider-v0.md	47	Redaction recurses through nested steps and retry attempts. Any sensitive action
+PWP-V2-004	docs/specs/playwright-external-provider-v0.md	48	Provider-declared additional case-insensitive action-title patterns and metadata
+PWP-V2-005	docs/specs/playwright-external-provider-v0.md	49	Reporter output and retained documents are untrusted. Ingestion rejects an unred
+PWP-V2-006	docs/specs/playwright-external-provider-v0.md	50	The conformance fixture contains a deliberately leaking payload that is rejected
 QLF-V0-001	docs/specs/qualified-lifecycle-v0.md	32	The additive `corvint-qualified-lifecycle/0` request MUST be a closed object con
 QLF-V0-002	docs/specs/qualified-lifecycle-v0.md	33	Completed qualified non-Stop events MUST derive repository scope exclusively fro
 QLF-V0-003	docs/specs/qualified-lifecycle-v0.md	34	Qualified Stop MUST derive the active handle inside the same protected scope, co

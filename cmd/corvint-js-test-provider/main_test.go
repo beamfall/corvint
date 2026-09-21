@@ -59,6 +59,17 @@ func TestE2ERequiresCompleteTypedApplicationAttestationFlags(t *testing.T) {
 	}
 }
 
+func TestSensitiveInputPolicyRequiresExplicitProfileSelection(t *testing.T) {
+	t.Run("PWP-V2-001 explicit profile selection", func(t *testing.T) {
+		if err := runE2E([]string{"--sensitive-action-pattern", "set secret"}); err == nil || !strings.Contains(err.Error(), "require --sensitive-input-redaction") {
+			t.Fatalf("implicit sensitive-input profile selection err=%v", err)
+		}
+		if err := runE2E([]string{"--sensitive-input-redaction"}); err == nil || !strings.Contains(err.Error(), "sensitive-input-redaction-requires-external-server") {
+			t.Fatalf("non-external sensitive-input selection err=%v", err)
+		}
+	})
+}
+
 // TestParseUnitConfig_RelativeDirResolvedAbsolute confirms the unit
 // subcommand's default --dir "." (and any other relative --dir) is resolved
 // to an absolute clean path before it reaches procgroup, which rejects a

@@ -168,6 +168,59 @@ The first full gate reached every package but failed three `internal/contextinde
 any maintenance synchronous; the exact combined reproducer and the full gate must pass after this
 repair before the console change is qualified.
 
+## 2026-09-21 PWP-V2: sensitive browser-input evidence boundary
+
+GitHub issue #56 adds explicit `corvint-playwright-external/2` selection. The reporter redacts
+default and bounded provider-added input actions before its private JSON write; the Go boundary
+validates the untrusted report and retained canonical document again. Findings retain only a typed
+code and structural path. `/0` and `/1` reject the new fields and keep their prior behavior.
+
+Focused `internal/jstestprovider`, `internal/testvaliditydoc`, and
+`cmd/corvint-js-test-provider` tests passed, including a deliberately leaking conformance payload
+and an accepted redacted payload. The checked-in Node regression executes the actual reporter over
+nested, retried, escaped, metadata-declared and deliberately leaking actions; its output retains no
+fixture values. Go regressions cover whole-receipt validation, normalization, Unicode case-folding,
+the depth, total-step, string and finding bounds, sibling risk fields, short-value structural
+noninterference, and fixed value-free decoder failures. Raw-step bounds run before fixture recursion;
+scrubbing is restricted to action titles, declared sensitive metadata, and error/attachment/failure
+detail fields so status, identity and criterion text remain unchanged. `node --check` and
+`node --test` passed. The live Playwright reporter matrix is `NOT_RUN`, so `/2` is explicitly non-promotable and
+cannot project passing execution; existing `/0` and `/1` qualifications are unchanged.
+
+The fresh repair reproduced three independent-review P1s before changing code: an already-redacted
+action admitted arbitrary raw risk fields; receiver-prefixed unquoted values escaped sibling errors;
+and retained-document unknown-property diagnostics echoed attacker text. Sensitive tests now require
+canonical redaction of every nonempty diagnostic/attachment field across all retries, including when
+no original value exists. Raw-title matching and extraction share one receiver-aware matcher without
+case-transformed offsets. Malformed `/2` retained documents and inputs whose kind cannot be decoded
+return a fixed typed `sensitive-input-document-invalid` finding. Successfully probed legacy `/0` and
+`/1` closed-decode diagnostics retain their prior behavior. All three focused Go packages, six actual
+Node reporter regressions, reporter syntax checking and focused vet passed after this repair; the
+coordinator owns independent review, the frozen full gate and final dogfood binding.
+
+The fresh task's next independent review reproduced punctuation/Unicode leading-action gaps and
+missing custom/final-argument extraction, including cross-test echoes. Repair cycle 1 replaced
+substring/ASCII-regexp classification with shared Go/JavaScript Unicode token semantics at a bounded
+leading action or receiver position. The original rune sequence supplies the parsed tail; quoted
+commas, escapes and nested parentheses cannot split an argument. Any sensitive action now protects
+every risk field report-wide, including already-redacted manifests with no original candidate.
+Regression controls preserve assertion/navigation prose containing embedded action names. All nine
+actual Node reporter tests, the three focused Go packages and focused vet passed; the independent
+overlay replay reported `leak=false` and successful sanitized document decoding for every reviewed
+title. No live reporter qualification or promotion is inferred from these bounded tests.
+
+Repair cycle 2 reproduced an admitted `custom+entry` pattern that the matcher ignored and a
+zero-word `***` declaration that silently disabled its own detection. Normalization and matching
+now share exactly the non-Unicode-letter/number/mark separator class, and both implementations
+reject zero-word or oversized declarations before accepting evidence. A bounded lexical refusal
+also closes call-bearing receiver expressions containing sensitive action tokens or quoted property
+names. These expressions remain unsupported; rejection is typed and value-free and prevents the
+reporter from writing a partial report after earlier tests. All eleven actual Node reporter tests,
+the three focused Go packages, focused vet, and the independent boundary-check overlay passed.
+The reviewer's unchanged latest replay now stops at `sensitive-input-policy-invalid` because it
+adds `***` to every policy while still expecting successful serialization; the checked-in regression
+asserts that required rejection explicitly. The live `/2` qualification hold remains in force.
+
 ## 2026-09-20 PWP-V0-003/007/008: standard Playwright device-spread regression
 
 GitHub issue #49 reported that the ordinary Playwright project form
