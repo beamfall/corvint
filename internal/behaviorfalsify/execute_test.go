@@ -192,18 +192,18 @@ func TestBBFV0011SyntheticConformance(t *testing.T) {
 		mutate func(*AttemptResult)
 		want   Status
 	}{
-		{"BBF-V0-005 expected criterion kill", func(*AttemptResult) {}, StatusKilled},
-		{"BBF-V0-006 unrelated failure is invalid", func(result *AttemptResult) { result.Receipt.Unrelated[0].State = "failed" }, StatusInvalidControl},
-		{"wrong assertion", func(result *AttemptResult) { result.Receipt.TargetObservation.AssertionID = "assertion:other" }, StatusInvalidControl},
-		{"selector error", func(result *AttemptResult) { result.Receipt.TargetObservation.FailureKind = "selector" }, StatusInvalidControl},
-		{"timeout", func(result *AttemptResult) { result.HookProcess.TimedOut = true }, StatusInfrastructureFailed},
-		{"output overflow", func(result *AttemptResult) { result.HookProcess.Overflow = true }, StatusInfrastructureFailed},
-		{"descendant cleanup unavailable", func(result *AttemptResult) { result.HookProcess.DescendantsGone = false }, StatusInfrastructureFailed},
-		{"cleanup failure", func(result *AttemptResult) { result.CleanupProcess.Exit = 1 }, StatusInvalidControl},
-		{"retry hides first outcome", func(result *AttemptResult) { result.Receipt.Retry = 1 }, StatusInvalidControl},
-		{"BBF-V0-011 stale revision is invalid", func(result *AttemptResult) { result.Receipt.Target.TestRevision = strings.Repeat("d", 40) }, StatusInvalidControl},
-		{"stale perturbation digest", func(result *AttemptResult) { result.Receipt.PerturbationSHA256 = digestN("stale") }, StatusInvalidControl},
-		{"stale artifact digest", func(result *AttemptResult) { result.Reasons = []string{"artifact-digest-mismatch"} }, StatusInvalidControl},
+		{name: "BBF-V0-005 expected criterion kill", mutate: func(*AttemptResult) {}, want: StatusKilled},
+		{name: "BBF-V0-006 unrelated failure is invalid", mutate: func(result *AttemptResult) { result.Receipt.Unrelated[0].State = "failed" }, want: StatusInvalidControl},
+		{name: "wrong assertion", mutate: func(result *AttemptResult) { result.Receipt.TargetObservation.AssertionID = "assertion:other" }, want: StatusInvalidControl},
+		{name: "selector error", mutate: func(result *AttemptResult) { result.Receipt.TargetObservation.FailureKind = "selector" }, want: StatusInvalidControl},
+		{name: "timeout", mutate: func(result *AttemptResult) { result.HookProcess.TimedOut = true }, want: StatusInfrastructureFailed},
+		{name: "output overflow", mutate: func(result *AttemptResult) { result.HookProcess.Overflow = true }, want: StatusInfrastructureFailed},
+		{name: "descendant cleanup unavailable", mutate: func(result *AttemptResult) { result.HookProcess.DescendantsGone = false }, want: StatusInfrastructureFailed},
+		{name: "cleanup failure", mutate: func(result *AttemptResult) { result.CleanupProcess.Exit = 1 }, want: StatusInvalidControl},
+		{name: "retry hides first outcome", mutate: func(result *AttemptResult) { result.Receipt.Retry = 1 }, want: StatusInvalidControl},
+		{name: "BBF-V0-011 stale revision is invalid", mutate: func(result *AttemptResult) { result.Receipt.Target.TestRevision = strings.Repeat("d", 40) }, want: StatusInvalidControl},
+		{name: "stale perturbation digest", mutate: func(result *AttemptResult) { result.Receipt.PerturbationSHA256 = digestN("stale") }, want: StatusInvalidControl},
+		{name: "stale artifact digest", mutate: func(result *AttemptResult) { result.Reasons = []string{"artifact-digest-mismatch"} }, want: StatusInvalidControl},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -223,9 +223,9 @@ func TestBBFV0011DistinctSurvivorFixtures(t *testing.T) {
 		kind       ControlKind
 		definition map[string]string
 	}{
-		{"BBF-V0-011 tautological assertion", OmittedAssertion, map[string]string{"assertion": "always-true"}},
-		{"hidden duplicate element", WrongLocator, map[string]string{"locator": "duplicate-hidden"}},
-		{"wrong value", WrongExpectedValue, map[string]string{"expected": "fixture-wrong"}},
+		{name: "BBF-V0-011 tautological assertion", kind: OmittedAssertion, definition: map[string]string{"assertion": "always-true"}},
+		{name: "hidden duplicate element", kind: WrongLocator, definition: map[string]string{"locator": "duplicate-hidden"}},
+		{name: "wrong value", kind: WrongExpectedValue, definition: map[string]string{"expected": "fixture-wrong"}},
 	} {
 		t.Run(fixture.name, func(t *testing.T) {
 			plan := classificationPlan()
@@ -551,9 +551,9 @@ func TestBBFV0002PlanRejectsStaleRepositoryBindings(t *testing.T) {
 		name   string
 		mutate func(*Request)
 	}{
-		{"BBF-V0-002 stale revision binding", func(request *Request) { request.Target.TestRevision = strings.Repeat("d", 40) }},
-		{"contract digest", func(request *Request) { request.Target.ContractSHA256 = digestN("stale-contract") }},
-		{"config digest", func(request *Request) { request.Runner.ConfigSHA256 = digestN("stale-config") }},
+		{name: "BBF-V0-002 stale revision binding", mutate: func(request *Request) { request.Target.TestRevision = strings.Repeat("d", 40) }},
+		{name: "contract digest", mutate: func(request *Request) { request.Target.ContractSHA256 = digestN("stale-contract") }},
+		{name: "config digest", mutate: func(request *Request) { request.Runner.ConfigSHA256 = digestN("stale-config") }},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
