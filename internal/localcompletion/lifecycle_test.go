@@ -349,6 +349,30 @@ func TestActualVerificationAndSecretRefusal(t *testing.T) {
 			return walkErr
 		})
 	})
+	t.Run("go-verbose-pass-log", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"sh", "-c", "printf '%b%b' '--- PA' 'SS: TestExample (0.00s)\\n'"})
+		repo := beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || hasUnmet(result, "selected-check-unverified") {
+			t.Fatalf("verbose Go pass output did not qualify: %#v %v", result, err)
+		}
+		saved, _ := repo.load()
+		if saved.Observations[0].SecretScreened {
+			t.Fatal("verbose Go pass marker was secret-screened")
+		}
+	})
+	t.Run("go-verbose-pass-log-with-secret", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"sh", "-c", "printf '%b%b%b%b' '--- PA' 'SS: TestExample (0.00s)\\n' 'pa' 'ss: synthetic123\\n'"})
+		repo := beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || !hasUnmet(result, "selected-check-unverified") {
+			t.Fatalf("real secret after verbose Go pass output qualified: %#v %v", result, err)
+		}
+		saved, _ := repo.load()
+		if !saved.Observations[0].SecretScreened {
+			t.Fatal("real secret after verbose Go pass marker was not screened")
+		}
+	})
 }
 
 func TestExplicitSidecarReuseRequiresCanonicalMap(t *testing.T) {

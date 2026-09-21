@@ -65,7 +65,8 @@ screens shared the assignment-pattern vocabulary, which did not include `credent
   above: a bare assignment of the credential vocabulary whose value is single- or double-quoted,
   consuming the complete lexical string under the same whole-value and unterminated-through-EOF
   rules as the quoted JSON property; the bare `pass` vocabulary stem only when followed by an
-  assignment operator; `whsec_`, `hf_`, `dop_v1_` and `xapp-` tokens at or above their length
+  assignment operator, except on a complete Go verbose-test marker line shaped as
+  `[whitespace]--- PASS: TestName (seconds)`; `whsec_`, `hf_`, `dop_v1_` and `xapp-` tokens at or above their length
   floors, and Slack incoming-webhook URLs; an AWS access-key ID immediately followed by its
   40-character secret, redacted together; and an `authorization` assignment whose value is an HTTP
   scheme word (`basic`, `bearer`, `digest`, `negotiate`, `ntlm`, `token`) followed by a
@@ -191,7 +192,7 @@ repaired by silently changing the oracle after evaluation.
 | `LTA-V0-001` | `internal/evalrepo`, `cmd/corvint`, `benchmarks/run.py` | focused eval repository, CLI, and benchmark-runner tests |
 | `LTA-V0-002` | `internal/evalrepo`, frozen trace fixture registration | focused task-contamination, outcome-commit-contamination, and digest-drift tests |
 | `LTA-V0-003` | `internal/trace`, `internal/tracerecordrepo` | focused cap-order, whole-file, append-target, and bounded-ancestry tests |
-| `LTA-V0-004` | `internal/secretscreen.Pattern`, consumed by `internal/trace` record admission and `internal/contextindex` `containsSecret` | `TestSecretPatternParityCorpus` (writer-only rows, stored-v1 non-match, and length-floor, bare-`pass` and hyphenated-host curl non-matches), `TestScreenConsumesWholeQuotedAssignmentValue`, `TestScreenRedactsAWSSecretAdjacentToItsKeyID`, `TestScreenRedactsCredentialAfterAuthorizationScheme`, `TestScreenRedactsWholePasswordContainingAtSign`, `TestCredentialedURLPasswordStopsAtQueryFragmentOrQuote`, `TestLTAV0004RecordRefusesWriterOnlySecretShapes`, `TestSecretPatternMatchesHistorySecretShapes` |
+| `LTA-V0-004` | `internal/secretscreen.Pattern`, consumed by `internal/trace` record admission and `internal/contextindex` `containsSecret` | `TestSecretPatternParityCorpus` (writer-only rows, stored-v1 non-match, and length-floor, bare-`pass` and hyphenated-host curl non-matches), `TestGoVerbosePassMarkerBoundary`, `TestScreenConsumesWholeQuotedAssignmentValue`, `TestScreenRedactsAWSSecretAdjacentToItsKeyID`, `TestScreenRedactsCredentialAfterAuthorizationScheme`, `TestScreenRedactsWholePasswordContainingAtSign`, `TestCredentialedURLPasswordStopsAtQueryFragmentOrQuote`, `TestLTAV0004RecordRefusesWriterOnlySecretShapes`, `TestSecretPatternMatchesHistorySecretShapes` |
 | `LTA-V0-005` | `internal/tracerecordrepo` | `TestReadBoundsTraceReplayWithoutRefusingLargeRepositories` (subtest `candidate outside bounded replay`) |
 | writer/stored-reader screen compatibility | `internal/secretscreen`, `internal/trace`, `src/context_corvint_trace.py`, `internal/dashboard/adapters/trace.go`, `conformance/dashboard-snapshot-v0/trace_corpus.go` | `TestSecretPatternParityCorpus`, `TestQuotedCredentialsRejectNewRecordsButRetainStoredV1`, `TestSecretPatternMatchesHistorySecretShapes`, `TestAppendRedactsQuotedCredentialPath`, `TestScreenConsumesWholeQuotedAssignmentValue`, `TestScreenRedactsAWSSecretAdjacentToItsKeyID`, Python `SecretPatternParityTest` and `CorvintLearningTest.test_trace_inputs_fail_closed`; stored-v1 compatibility and intentional-asymmetry tests |
 

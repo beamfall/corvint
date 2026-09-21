@@ -7,6 +7,15 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-21 LTA-V0-004: verbose Go PASS marker exception
+
+The pre-change Corvint query selected an unrelated decision and omitted the governing writer-screen
+intent. Direct inspection found that the generic bare-`pass` assignment branch classified exact Go
+verbose-test marker lines as secrets. The writer screen now exempts only complete
+`[whitespace]--- PASS: TestName (seconds)` lines while still detecting a real `pass: value` elsewhere
+in the same output; `StoredV1Pattern` is unchanged. `TestGoVerbosePassMarkerBoundary` and the
+local-completion `go-verbose-pass-log` regressions cover detector and executed-check behavior.
+
 ## 2026-09-20 PWP-V0-003/007/008: standard Playwright device-spread regression
 
 GitHub issue #49 reported that the ordinary Playwright project form
