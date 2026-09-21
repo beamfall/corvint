@@ -158,9 +158,9 @@ directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` li
 | GL-V0-003 | `scopes`, `key` | `TestRunStepSkipsOnlyRecordedIdenticalInputs` |
 | GL-V0-004 | `goTest`, `partition`; `unresolvedPackages` in `tools/gate-affected-select/main.go`; `GO_TEST_FLAGS` and `ledger/go-test` in `Makefile` | `TestGoTestFallsBackToOneUncachedRun`; `TestUnresolvedPackagesListsRootLocators` |
 | GL-V0-005 | `worktreeDigest`, `hasFlaggedEntry`, `compiledIgnored` | `TestRunStepRefusesWhatItCannotDigest` |
-| GL-V0-006 | `ledgerDirectory`, `lookup`, `record`, `prune` | `TestRunStepRefusesWhatItCannotDigest` |
+| GL-V0-006 | `ledgerDirectory`, `lookup`, `record`, `prune`; `ownedByInvokingUser` in `tools/gate-ledger/platform_unix.go` (`platform_other.go` refuses the directory on non-Unix hosts) | `TestRunStepRefusesWhatItCannotDigest` |
 | GL-V0-007 | `open`, `plan`; the `ledger/%` targets and their `off` branch in `Makefile` | `TestRunStepRefusesWhatItCannotDigest`; `script/gate-receipt_test.sh` |
-| GL-V0-008 | `lock` | inspection |
+| GL-V0-008 | `lock`; `lockExclusive` in `tools/gate-ledger/platform_unix.go` (`platform_other.go` fails the lock on non-Unix hosts) | inspection |
 
 ## Rollout, rollback, and drift
 

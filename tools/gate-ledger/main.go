@@ -31,7 +31,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -492,8 +491,8 @@ func ledgerDirectory() (string, string) {
 	if info.Mode().Perm()&0o077 != 0 {
 		return "", "ledger directory is group- or world-accessible"
 	}
-	if stat, ok := info.Sys().(*syscall.Stat_t); ok && int(stat.Uid) != os.Getuid() {
-		return "", "ledger directory is owned by another user"
+	if !ownedByInvokingUser(info) {
+		return "", "ledger directory is not owned by this user"
 	}
 	return dir, ""
 }
@@ -567,14 +566,14 @@ func (l *ledger) lock(key, step string) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if err := lockExclusive(f, true); err != nil {
 		fmt.Fprintf(l.stdout, "%sWAIT %s: another run holds %s\n", prefixOut, step, short(key))
-		if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		if err := lockExclusive(f, false); err != nil {
 			f.Close()
 			return nil, err
 		}
 	}
-	return func() { syscall.Flock(int(f.Fd()), syscall.LOCK_UN); f.Close() }, nil
+	return func() { unlock(f); f.Close() }, nil
 }
 
 // execute runs command with inherited stdio and returns its exit status; a
@@ -589,8 +588,8 @@ func execute(command []string) int {
 	}
 	var exit *exec.ExitError
 	if errors.As(err, &exit) {
-		if status, ok := exit.Sys().(syscall.WaitStatus); ok && status.Signaled() {
-			return 128 + int(status.Signal())
+		if code, ok := signalExit(exit); ok {
+			return code
 		}
 		return exit.ExitCode()
 	}
