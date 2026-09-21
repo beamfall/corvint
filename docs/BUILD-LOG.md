@@ -7,6 +7,42 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-21 GL-V0-001..GL-V0-008: gate ledger, one pass per distinct content
+
+The owner asked that Corvint manage its own gate so parallel agents stop each running a full
+`make gate` on content another worktree already proved. `docs/specs/gate-ledger-v0.md` is accepted
+and implemented: `tools/gate-ledger` keys every step on a digest of its declared inputs over the
+exact worktree (tracked and untracked, ignored excluded, written through a private Git index) plus
+the gate's tooling, records only passes in a per-user `0700` directory, and skips a step only on
+key equality. `go-archive-gate` always runs because GOC-V0-010 binds its witness to HEAD, and every
+doubt (undeclared step, skip-worktree or assume-unchanged entry, ignored compiled `.go`, git
+failure, shared ledger directory) runs the step and records nothing.
+
+Independent finding that changed the design: Go's test cache never hits across worktrees, even
+with `-trimpath`, because its test log hashes the absolute paths of files a test opens under the
+module root (measured on this host with a second `git worktree` at the same commit). The proposal
+had assumed the cache would deduplicate resolved packages across worktrees; it deduplicates only
+same-worktree reruns. So `ledger/go-test` (GL-V0-004) runs the 93 packages the affected-plan index
+resolves without `-count=1`, under Go's cache, and the 104 unresolved packages (`cmd/corvint`
+among them, for one `os.Getwd`) with `-count=1` under one record keyed on the whole tree. A tree
+change therefore still reruns the unresolved set; narrowing it is the affected tier's job
+(`affected-plan-v0.md`), and a per-package cross-worktree key is recorded as a follow-up in
+`agent-memory/ideas.md`. `make go-test`, `make gate-affected` and CI keep `-count=1` unchanged.
+
+Measured on this host (Mac Studio, `-p 1`), from the baseline `go test -json ./...` at the base
+commit: 197 packages, 2,167s of package time, of which the 104 unresolved packages take 1,634s and
+the 93 resolved ones 533s; `cmd/corvint` alone is 174s. The partition on this tree lists 93
+resolved and 105 unresolved packages (the module root counts once more than the baseline's
+package list). Three cheap steps run through `ledger/` twice: the first pass ran and recorded all
+three in 3.7s, the second hit all three in 2.0s, so the per-step ledger cost (worktree digest plus
+`go run` start-up) is about 0.65s. `plan` prints `go-archive-gate: always runs` and `RUN` with
+`no declared input scope` for an unknown step. A `go-test` run whose unresolved set failed (the
+host-adapter test reading a pre-existing dirty `plugin.json`) recorded nothing, as GL-V0-002
+requires. Not measured: the hit time of a full `ledger/go-test` rerun on an identical tree, because
+the recording run in a clean scratch worktree was stopped before it finished; the expected figure
+is the resolved set under Go's cache plus one digest, and it should be taken on a quiet host after
+the first green `make gate`.
+
 ## 2026-09-21 SEG-018..SEG-021: typed semantic choice decisions
 
 The owner directed Corvint to adopt the useful typed-decision ideas from TypeSafe AI's System One

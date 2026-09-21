@@ -1,7 +1,7 @@
 ---
 name: ideas
 description: Broader future work, features, and unscheduled directions
-updated: 2026-09-19
+updated: 2026-09-21
 ---
 
 # Ideas
@@ -12,6 +12,12 @@ Future features and larger directions. Promote to `docs/specs/` when an idea mat
 ### YYYY-MM-DD <area>: <one-line title>
 One paragraph: what, where (file:line), why it matters, and what done looks like.
 -->
+
+### 2026-09-21 gate: per-package cross-worktree key for resolved packages (GL-V0 follow-up)
+`docs/specs/gate-ledger-v0.md` keys the 104 unresolved packages on the whole tree and leaves the resolved ones to Go's test cache, which never hits across worktrees because its test log hashes absolute paths. A per-package content key (transitive source plus the literal-bounded files the affected-plan index already knows) would let a resolved package hit from any worktree. Done means a proven-complete bound per package and a hit measured from a second worktree.
+
+### 2026-09-21 cmd/corvint: bound the one `os.Getwd` so the largest package leaves the unresolved set
+`gate-affected-select -unresolved` lists `cmd/corvint` for `os.Getwd` in `dogfood_record.go`, so every tree change reruns it (most of the suite's wall time) under the GL-V0-004 tree key. Bounding that read moves it under Go's cache for same-worktree reruns. Done means the package absent from `-unresolved` and its tests still passing.
 
 ### 2026-09-19 ci: run the AFP-V0-017 qualification once `main` has 201 first-parent commits
 `pr-tests-qualification.yml` (decision 0320) cannot freeze a corpus until `git rev-list --first-parent --count origin/main` reaches 201; it was 15 on 2026-09-19, at about 12 merges a day. Then dispatch `rows=1` to measure one row, then `rows=all` (about 200 × 35–45 min of runner time), review `qualification.json`, and only then set `CORVINT_PR_TOOL_SOURCE`, `CORVINT_PR_QUALIFICATION_SOURCE` and `CORVINT_PR_QUALIFICATION_SHA256` in `ci.yml`. Done means narrowed PR runs admitted by a PASS qualification.

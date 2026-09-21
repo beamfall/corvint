@@ -13,6 +13,11 @@
 //
 // Usage: gate-affected-select PLAN MODULE ROOT, where ROOT is the repository
 // under test that dirty paths are resolved against.
+//
+// Usage: gate-affected-select -unresolved MODULE ROOT prints only the
+// `unresolved <pkg>: <reason>` lines for ROOT, one per package, with no verdict.
+// tools/gate-ledger (GL-V0-004) reads it to decide which packages `go test` may
+// answer from its cache and which the ledger keys on the whole tree.
 package main
 
 import (
@@ -58,8 +63,17 @@ const maxPlanBytes = 8 << 20
 
 func main() {
 	if len(os.Args) != 4 {
-		fmt.Fprintln(os.Stderr, "usage: gate-affected-select PLAN MODULE ROOT")
+		fmt.Fprintln(os.Stderr, "usage: gate-affected-select PLAN MODULE ROOT | -unresolved MODULE ROOT")
 		os.Exit(2)
+	}
+	if os.Args[1] == "-unresolved" {
+		lines, err := unresolvedPackages(os.Args[2], os.Args[3])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		fmt.Print(strings.Join(lines, ""))
+		return
 	}
 	data, err := readPlan(os.Args[1])
 	if err != nil {
@@ -181,6 +195,22 @@ func selectPackages(plan receipt, module, root string) []string {
 
 // packageSource reports whether dirtyPath is a `.go` file outside testdata, `.`,
 // and `_` directories, the only path a frontier may attribute to one package.
+// unresolvedPackages indexes ROOT and returns one `unresolved <pkg>: "<reason>"`
+// line per package whose reads no literal bounds, in import-path order, in the
+// same shape selectPackages prints them.
+func unresolvedPackages(module, root string) ([]string, error) {
+	index, err := indexRepository(root, module)
+	if err != nil {
+		return nil, fmt.Errorf("the repository could not be indexed: %w", err)
+	}
+	reasons := index.unresolved()
+	var lines []string
+	for _, directory := range sortedKeys(reasons) {
+		lines = append(lines, fmt.Sprintf("unresolved %s: %q\n", importPath(module, directory), reasons[directory]))
+	}
+	return lines, nil
+}
+
 func packageSource(dirtyPath string) bool {
 	return strings.HasSuffix(dirtyPath, ".go") && !hiddenDirectory(parentDirectory(dirtyPath))
 }
