@@ -10,9 +10,10 @@ working records and are referenced from decisions and specifications as historic
 ## 2026-09-21 GLTP-V0-048/049: lifecycle test deadline and joined shutdown
 
 `TestRunningFailedPassed` used the production-like fresh `GOCACHE` with both its runner and outer
-terminal-event waits fixed at 20 seconds. Under full-suite contention, cold compilation exhausted
-that budget; a fatal wait also cancelled the session without joining `Run`, allowing temporary-file
-cleanup to race the runner. The test harness now sets the specified `GOENV=off`, uses a five-minute
+terminal-event waits fixed at 20 seconds. The observed full-suite timeout is consistent with cold
+compilation exhausting that budget. A fatal wait also cancelled the session without joining `Run`,
+allowing temporary-file cleanup to race the runner. The test harness now sets the specified
+`GOENV=off`, uses a five-minute
 per-run hang-detector budget, fails immediately with the complete event sequence on an unexpected
 terminal state, and unconditionally cancels and joins `Run` before `TempDir` cleanup. Production
 defaults and session behavior are unchanged. The complete session package passed in 35.808 seconds,
