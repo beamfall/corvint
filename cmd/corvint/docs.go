@@ -161,6 +161,7 @@ Contract and remaining bounds: docs/specs/source-documentation-draft-v0.md
 Separate experimental corpus profile:
   corvint [--root PATH] docs corpus manifest --revision FULL_COMMIT --scope PATH --timestamp RFC3339
   corvint [--root PATH] docs corpus build --manifest INPUT.json
+  corvint [--root PATH] docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json]
   corvint [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT
   corvint [--root PATH] docs corpus render --artifact CORPUS.json
   corvint [--root PATH] docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply]

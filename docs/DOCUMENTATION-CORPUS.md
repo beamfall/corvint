@@ -76,6 +76,32 @@ non-UI evidence; no real browser verification is claimed. See the independent
 [flow adapter](../examples/documentation-corpus/README.md) for importing declared product flows
 without adding application vocabulary to Core.
 
+### Behavior-provider production and reconciliation
+
+`corvint docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json]` maps
+caller-owned reviewed flow/variation, source-candidate and test inventories into the experimental
+`corvint-corpus-behavior-provider/1` profile. The request uses
+`corvint-behavior-adapter-request/1`: each mapping names an input ID, an RFC-6901 record-list pointer
+and relative field pointers. Each globally stable variation ID carries explicit preconditions,
+ordered actions, observable facts, expected outcomes, allowed projects and exact tests. Every test
+names the same variation in a closed semantic claim. Outer scalar and list names are configurable;
+anchors, assertions, ordered events, behavior runs and observation links retain their closed issue-40
+shapes. Each input carries its exact JSON text as a string plus a full-file Git anchor whose SHA-256
+matches those bytes.
+
+The `corvint-behavior-adapter-result/1` response contains the provider, its normalized normative
+variation projection, canonical test semantic claims, retained migration, discovery, runtime and
+qualified-receipt inputs, separate coverage rows, a reconciliation frontier and an optional
+prior-result delta. Prior results from earlier revisions of the same repository identities are accepted
+only after stable lineage, self-consistent historical revisions, artifact and contract digests,
+uniqueness and semantic-link validation. Publish the referenced
+sidecars before the provider and declare all of them in the corpus manifest. The adapter compares
+semantic claims, assertions, pages/events/controls, projects and structurally qualified witnesses in
+both directions; the normal corpus build remains responsible for Git rebinding and final receipt
+qualification. Source/test proposals never enter or rewrite the documented denominator. Empty,
+unreviewed, stale, contradictory or partially witnessed input remains unknown or unreviewed, and
+every result retains `full-relevant-suite` fallback with no narrowing authority.
+
 The optional `corvint-corpus-behavior-stability-provider/1` profile adds digest-bound repeated
 Playwright evidence without changing behavior-contract coverage. `stability --id ID` returns the
 selected one-spec, feature-batch or suite policy identity, separate raw outcome/cleanup/retry counts,

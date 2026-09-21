@@ -73,6 +73,49 @@ func TestCorpusCLIBuildQueryAndMCPParity(t *testing.T) {
 		}
 	})
 }
+
+func TestBehaviorAdapterCLI(t *testing.T) {
+	root := taskContextRepository(t)
+	revision := strings.Repeat("1", 40)
+	source := doccorpus.Repository{ID: strings.Repeat("2", 40), Revision: revision}
+	revisions := doccorpus.BehaviorRevisions{App: doccorpus.Repository{ID: strings.Repeat("3", 40), Revision: revision}, E2E: source, Docs: doccorpus.Repository{ID: strings.Repeat("4", 40), Revision: revision}}
+	migrationRaw, _ := doccorpus.Encode(doccorpus.BehaviorMigration{Schema: 2, ContractID: "contract", SourceRevision: revision, DocumentationRevision: revision, Revisions: revisions})
+	discoveryRaw, _ := doccorpus.Encode(doccorpus.BehaviorDiscovery{Schema: "corvint-playwright-discovery/1", Mode: "live-playwright-list", Revisions: revisions, Executions: []doccorpus.BehaviorExecution{}})
+	empty := []byte("{\"items\":[]}\n")
+	input := func(id string, raw []byte, kind string) doccorpus.BehaviorAdapterInput {
+		digest := doccorpus.Digest(raw)
+		return doccorpus.BehaviorAdapterInput{ID: id, Anchor: doccorpus.Anchor{Repository: source.ID, Revision: revision, Path: "evidence/" + id + ".json", Blob: strings.Repeat("5", 40), SHA256: digest, Start: 1, End: 1, SpanSHA256: digest, Authority: "external-provider", Kind: kind, Reason: "synthetic CLI fixture"}, Document: string(raw)}
+	}
+	request := doccorpus.BehaviorAdapterRequest{
+		Schema: doccorpus.BehaviorAdapterRequestSchema, ProviderID: "behavior", ProviderVersion: "1", ContractID: "contract",
+		Source: source, Revisions: revisions, SourceRevision: revision, DocumentationRevision: revision,
+		MigrationInput: "migration", DiscoveryInput: "discovery",
+		Inputs: []doccorpus.BehaviorAdapterInput{input("migration", migrationRaw, "declared"), input("discovery", discoveryRaw, "observed"), input("flows", empty, "review"), input("variations", empty, "review"), input("candidates", empty, "declared"), input("tests", empty, "declared")},
+		Mappings: []doccorpus.BehaviorAdapterMapping{
+			{Kind: "flows", Input: "flows", Records: "/items", Fields: map[string]string{"id": "/id", "derivation": "/derivation", "evidence": "/evidence", "required_pages": "/required_pages", "negative_controls": "/negative_controls", "ordered_events": "/ordered_events"}},
+			{Kind: "variations", Input: "variations", Records: "/items", Fields: map[string]string{"id": "/id", "flow": "/flow", "preconditions": "/preconditions", "actions": "/actions", "observable_facts": "/observable_facts", "expected_outcomes": "/expected_outcomes", "projects": "/projects", "tests": "/tests"}},
+			{Kind: "candidates", Input: "candidates", Records: "/items", Fields: map[string]string{"id": "/id", "evidence": "/evidence", "flows": "/flows"}},
+			{Kind: "tests", Input: "tests", Records: "/items", Fields: map[string]string{"id": "/id", "project": "/project", "title": "/title", "evidence": "/evidence", "flows": "/flows", "criteria": "/criteria", "assertions": "/assertions", "variation_claims": "/variation_claims"}},
+		},
+		Observations: []doccorpus.ObservationLink{},
+	}
+	raw, err := doccorpus.Encode(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, "request.json", string(raw))
+	code, out, stderr := corpusCLI(t, root, "docs", "corpus", "behavior-adapter", "--input", "request.json")
+	if code != 0 {
+		t.Fatal(stderr)
+	}
+	var result doccorpus.BehaviorAdapterResult
+	if err := json.Unmarshal([]byte(out), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Schema != doccorpus.BehaviorAdapterResultSchema || result.Fallback != "full-relevant-suite" || len(result.Coverage) != 5 || result.Coverage[0].Defined {
+		t.Fatalf("invalid CLI result: %+v", result)
+	}
+}
 func TestCorpusNativeReadIntegrationParity(t *testing.T) {
 	t.Run("DCP-V1-013 native", func(t *testing.T) {
 		root := taskContextRepository(t)

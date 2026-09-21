@@ -599,6 +599,43 @@ closed short/complete/oversized cases preserve refusal and valid capability beha
 the existing bounded-refusal contract without changing authority or qualification claims. Fresh
 evidence and full verification are required after this repair.
 
+Issue 53 adds only an opt-in native producer/reconciler for the existing issue-40 profile. Gate A
+rejected a conditional fallback, a CLI-only proof that stopped before the compiler, and silent
+genericization of the legacy `golf_e2e` wire member. The accepted shape therefore retains
+unconditional full-suite fallback and that compatibility field, and proves mapped input through
+separately retained migration/discovery/runtime artifacts into the existing Build/Open boundary.
+Nested evidence objects stay closed; only outer record and scalar/list field names are mapped.
+
+The owner clarification added while implementation was in progress makes the caller-reviewed
+documentation inventory normative. Gate A was rerun before continuing. The revised result therefore
+retains a normalized projection keyed by globally unique variation IDs with explicit preconditions,
+actions, observable facts, expected outcomes and allowed projects. Tests carry closed semantic claims;
+reconciliation compares those claims, assertions, pages/events/controls, project executions and
+runtime witnesses in both directions. Source/test proposals cannot mutate that projection. Semantic
+mismatch, undocumented tested behavior, documented untested behavior and missing/extra project
+witnesses remain explicit fail-closed frontier rows.
+
+Pre-change `query` selected unrelated genesis evidence and retained four omissions; tracked-path
+impact selected the corpus implementation/tests with 119 omissions. Dirty `affected` selected the
+corpus and CLI packages, kept language/frontier unknowns, and independently required `make gate`.
+The enrolled local completion session freezes the documentation-corpus spec plus focused, full Go,
+vet, interop and requirement-definition checks. Exact consumer data and live browser execution remain
+NOT_OBSERVED. Independent Sol/high review found incomplete lost-link deltas, observation-subject
+repair, permissive previous-result validation and incomplete orphan/runtime diagnostics. Two bounded
+repair passes closed those findings, including independently testable variation-to-flow,
+variation-to-test and test-to-variation losses; focused adapter and CLI tests passed after repair.
+Gate B then exposed that same-revision lineage rejected ordinary historical comparison and that some
+mapped-input errors named only a logical field rather than its exact JSON pointer. The owner selected
+the backward-compatible interpretation of the vocabulary criterion: `golf_e2e` remains attributed
+legacy caller input, while all new mapping/result/diagnostic vocabulary stays domain-neutral. The
+repair admits only self-consistent earlier revisions of the same repository identities, validates
+retained artifact digests, and reports exact mapped record pointers. The second Gate B pass found
+three remaining diagnostic defects: compound validation could name the wrong field, trailing empty
+RFC-6901 tokens were collapsed, and map iteration made multi-field refusals nondeterministic. Ordered
+field decoding, field-specific validation and literal pointer composition close those cases with
+regressions. Final gate and CEM/OCM reports remain pending; no acceptance, runtime authenticity,
+utility, narrowing or promotion claim is recorded here.
+
 ## 2026-09-19 NTP-V0 integration with repository work-queue adoption
 
 The owner authorized merging the verified fixture extension. Current main `d9144000` also

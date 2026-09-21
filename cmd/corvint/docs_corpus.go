@@ -12,9 +12,9 @@ import (
 )
 
 type corpusOptions struct {
-	root, op, manifest, artifact, revision, scope, timestamp, query, id, path, page, cem string
-	apply                                                                                bool
-	limit                                                                                int
+	root, op, manifest, artifact, input, previous, revision, scope, timestamp, query, id, path, page, cem string
+	apply                                                                                                 bool
+	limit                                                                                                 int
 }
 
 func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
@@ -35,7 +35,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		return o, true, argumentError("docs corpus requires an operation")
 	}
 	o.op = args[pos+2]
-	flags := map[string]*string{"--manifest": &o.manifest, "--artifact": &o.artifact, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem}
+	flags := map[string]*string{"--manifest": &o.manifest, "--artifact": &o.artifact, "--input": &o.input, "--previous": &o.previous, "--revision": &o.revision, "--scope": &o.scope, "--timestamp": &o.timestamp, "--query": &o.query, "--id": &o.id, "--path": &o.path, "--page": &o.page, "--cem": &o.cem}
 	seen := map[string]bool{}
 	for i := pos + 3; i < len(args); i++ {
 		flag, value, inline := strings.Cut(args[i], "=")
@@ -80,7 +80,8 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	}
 	allowed := map[string]string{
 		"manifest": "--revision --scope --timestamp", "build": "--manifest", "render": "--artifact",
-		"maintain": "--artifact --page --apply", "cem": "--artifact --cem --id",
+		"behavior-adapter": "--input --previous",
+		"maintain":         "--artifact --page --apply", "cem": "--artifact --cem --id",
 		"info": "--artifact --limit", "validate": "--artifact --limit", "search": "--artifact --query --limit",
 		"get": "--artifact --id --limit", "trace": "--artifact --id --limit", "related": "--artifact --id --limit",
 		"journey": "--artifact --id --limit", "stability": "--artifact --id --limit", "locate": "--artifact --path --limit", "coverage": "--artifact --limit", "gaps": "--artifact --id --limit",
@@ -96,7 +97,8 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	}
 	required := map[string][]string{
 		"manifest": {o.revision, o.scope, o.timestamp}, "build": {o.manifest}, "maintain": {o.artifact, o.page}, "cem": {o.artifact, o.cem},
-		"search": {o.artifact, o.query}, "locate": {o.artifact, o.path}, "get": {o.artifact, o.id}, "trace": {o.artifact, o.id}, "related": {o.artifact, o.id}, "journey": {o.artifact, o.id}, "stability": {o.artifact, o.id},
+		"behavior-adapter": {o.input},
+		"search":           {o.artifact, o.query}, "locate": {o.artifact, o.path}, "get": {o.artifact, o.id}, "trace": {o.artifact, o.id}, "related": {o.artifact, o.id}, "journey": {o.artifact, o.id}, "stability": {o.artifact, o.id},
 	}
 	values, ok := required[o.op]
 	if !ok {
@@ -153,6 +155,24 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 			return nil, err
 		}
 		return doccorpus.Encode(a)
+	}
+	if o.op == "behavior-adapter" {
+		request, err := doccorpus.ReadFile(o.root, o.input)
+		if err != nil {
+			return nil, err
+		}
+		var previous []byte
+		if o.previous != "" {
+			previous, err = doccorpus.ReadFile(o.root, o.previous)
+			if err != nil {
+				return nil, err
+			}
+		}
+		result, err := doccorpus.BuildBehaviorAdapter(request, previous)
+		if err != nil {
+			return nil, err
+		}
+		return doccorpus.Encode(result)
 	}
 	raw, err := doccorpus.ReadFile(o.root, o.artifact)
 	if err != nil {

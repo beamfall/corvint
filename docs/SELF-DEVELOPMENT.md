@@ -62,8 +62,12 @@ slice, build a corpus and retain an actual search/trace receipt. Use explicit co
 reads only where applicable; unsupported providers and absent journeys remain visible. The separate
 MCP server and generated-block writes require their own explicit invocation.
 The experimental behavior-provider profile additionally retains exact flow/test/project joins and
-ordered runtime witnesses; missing consumer fixtures or runtime evidence preserve gaps and full-suite
-fallback. See the behavior-contract section of `docs/specs/documentation-corpus-v1.md`.
+ordered runtime witnesses; `docs corpus behavior-adapter` can produce and reconcile that profile
+from caller-mapped inventories without changing its legacy wire member or authority. Its reviewed
+documentation projection is normative: source/test proposals cannot rewrite stable variation IDs or
+their preconditions, actions, facts and outcomes. Missing consumer fixtures, semantic joins or runtime
+evidence preserve gaps and unconditional full-suite fallback. See the
+behavior-contract and behavior-provider adapter sections of `docs/specs/documentation-corpus-v1.md`.
 The separate stability profile retains independent repetitions, nested Playwright retries and manual
 reruns with raw denominators, cleanup and exact declared-versus-observed execution topology. It never
 upgrades behavior coverage, adequacy or parity.
