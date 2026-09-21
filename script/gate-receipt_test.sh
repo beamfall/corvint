@@ -181,7 +181,8 @@ awk '
 ' "$source_root/Makefile" || fail "Makefile gate does not clear first and record last"
 
 # GOC-V0-010 ordering: under `make -j` no gate step starts before the clear finished, and a step run
-# on its own does not clear. The real Makefile's graph runs with every recipe replaced by a logger.
+# on its own does not clear. The real Makefile's graph runs with every recipe replaced by a logger;
+# the ledger is off so its wrappers run the logger recipes and record nothing.
 order_log="$test_root/order.log"
 cat > "$test_root/order.mk" <<'MK'
 gate-receipt-clear:
@@ -191,7 +192,7 @@ $(GATE_STEPS):
 gate:
 	@echo record >> "$(ORDER_LOG)"
 MK
-make -s -C "$source_root" -f "$source_root/Makefile" -f "$test_root/order.mk" -j8 gate ORDER_LOG="$order_log" 2>/dev/null ||
+CORVINT_GATE_LEDGER=off make -s -C "$source_root" -f "$source_root/Makefile" -f "$test_root/order.mk" -j8 gate ORDER_LOG="$order_log" 2>/dev/null ||
     fail "ordering probe make failed"
 [ "$(sed -n 1p "$order_log")" = clear ] || fail "a gate step started before gate-receipt-clear finished"
 [ "$(sed -n '$p' "$order_log")" = record ] || fail "gate recorded before its last step"

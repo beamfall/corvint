@@ -813,6 +813,14 @@ GFG-V0-004	docs/specs/go-format-gate-v0.md	56	A file fails when its bytes differ
 GFG-V0-005	docs/specs/go-format-gate-v0.md	58	The failure MUST name each file on its own line and MUST print the exact command
 GFG-V0-006	docs/specs/go-format-gate-v0.md	60	The gate MUST be read-only. It MUST NOT rewrite, stage, or otherwise modify any
 GFG-V0-007	docs/specs/go-format-gate-v0.md	62	A run with nothing to report MUST print nothing and exit zero, and any failure M
+GL-V0-001	docs/specs/gate-ledger-v0.md	51	A step MUST be skipped only when the ledger holds a pass whose key equals the ke
+GL-V0-002	docs/specs/gate-ledger-v0.md	60	Only a step that exits zero MUST be recorded, after it exits. The ledger MUST pa
+GL-V0-003	docs/specs/gate-ledger-v0.md	63	A step without a declared input scope MUST run and MUST NOT be recorded. A step
+GL-V0-004	docs/specs/gate-ledger-v0.md	67	`ledger/go-test` MUST run every package `go test ./...` would run. Packages the
+GL-V0-005	docs/specs/gate-ledger-v0.md	74	The ledger MUST refuse to digest, and therefore run without recording, any
+GL-V0-006	docs/specs/gate-ledger-v0.md	79	Records MUST live in a per-user directory (`CORVINT_GATE_LEDGER_DIR`, else
+GL-V0-007	docs/specs/gate-ledger-v0.md	86	`CORVINT_GATE_LEDGER=off` MUST make every `ledger/STEP` target exactly `make
+GL-V0-008	docs/specs/gate-ledger-v0.md	91	Two runs of one key at once MUST execute the step once: the second MUST wait on
 GLTP-V0-001	docs/specs/go-live-test-provider-v0.md	71	Each V0 document is one UTF-8 canonical JSON object followed by exactly one LF.
 GLTP-V0-002	docs/specs/go-live-test-provider-v0.md	89	Raw `go test -json` is runner input, not canonical Corvint JSON. Its decoder acc
 GLTP-V0-003	docs/specs/go-live-test-provider-v0.md	95	`H(kind, profile, body)` is lowercase SHA-256 of
@@ -1087,6 +1095,7 @@ LAC-V0-028	docs/specs/local-admin-console-v0.md	194	Ticket detail MUST offer edi
 LAC-V0-029	docs/specs/local-admin-console-v0.md	204	The roadmap list MUST paginate when more than 50 tickets are reported, honoring
 LAC-V0-030	docs/specs/local-admin-console-v0.md	210	A requirement page MUST link each path cited in the Implementation column of
 LAC-V0-031	docs/specs/local-admin-console-v0.md	220	Before binding, the console MUST refuse to start unless `--repo`, and `--specs`
+LAC-V0-032	docs/specs/local-admin-console-v0.md	224	The roadmap page MUST repeat its same read-only request every 30 seconds so deri
 LCP-V0-001	docs/specs/local-completion-policy-v0.md	40	The local policy MUST remain caller-owned and non-authoritative. Its positive st
 LCP-V0-002	docs/specs/local-completion-policy-v0.md	44	Enrollment MUST be explicit through `corvint dogfood begin`. One bounded plan pi
 LCP-V0-003	docs/specs/local-completion-policy-v0.md	80	`status` and automatic event evaluation MUST be read-only. They derive unmet
@@ -1607,23 +1616,27 @@ SEA-V0-005	docs/specs/source-evidence-axes-v0.md	177	Source refusal, unsupported
 SEA-V0-006	docs/specs/source-evidence-axes-v0.md	179	The default command path MUST preserve its canonical wire, parity oracle,
 SEA-V0-007	docs/specs/source-evidence-axes-v0.md	181	Qualification MUST freeze deterministic source/consumer fixtures, legacy byte
 SEA-V0-008	docs/specs/source-evidence-axes-v0.md	183	Rollout and rollback MUST retain existing receipts and failed evidence; publicat
-SEG-001	docs/specs/semantic-escalation-gate-v0.md	50	Corvint MUST complete deterministic inventory, syntax extraction, exact joins,
-SEG-002	docs/specs/semantic-escalation-gate-v0.md	53	Every residual semantic gap MUST have a deterministic identity over repository
-SEG-003	docs/specs/semantic-escalation-gate-v0.md	56	Corvint MUST emit a route result for every eligible gap, including `NO_CALL`. St
-SEG-004	docs/specs/semantic-escalation-gate-v0.md	60	No registered deterministic admission verifier means no model call and an explic
-SEG-005	docs/specs/semantic-escalation-gate-v0.md	62	A call is permitted only for a named unresolved gap where a model can propose in
-SEG-006	docs/specs/semantic-escalation-gate-v0.md	65	Core MUST use a provider-neutral adapter boundary equivalent to
-SEG-007	docs/specs/semantic-escalation-gate-v0.md	70	An eligible model MUST support the exact response schema, input bound, task/lang
-SEG-008	docs/specs/semantic-escalation-gate-v0.md	74	Normal-profile adequacy requires independently labelled accepted-candidate preci
-SEG-009	docs/specs/semantic-escalation-gate-v0.md	78	Escalation MUST stop after two total model calls per gap. A second, stronger eli
-SEG-010	docs/specs/semantic-escalation-gate-v0.md	83	Policy, authorization, secret, missing-input, unsupported-verifier, incomplete-s
-SEG-011	docs/specs/semantic-escalation-gate-v0.md	86	Model output authority is always `MODEL_PROPOSED`. Schema and admission checks m
-SEG-012	docs/specs/semantic-escalation-gate-v0.md	91	Admission and closure are independent. An admitted candidate may be useful while
-SEG-013	docs/specs/semantic-escalation-gate-v0.md	94	Model input MUST be the minimum authorized immutable spans required for the gap.
-SEG-014	docs/specs/semantic-escalation-gate-v0.md	100	Default policy is no egress. Remote execution requires explicit repository polic
-SEG-015	docs/specs/semantic-escalation-gate-v0.md	103	Hard per-gap and per-run limits MUST cover calls, input bytes, output bytes, wal
-SEG-016	docs/specs/semantic-escalation-gate-v0.md	116	Query serving MUST NOT invoke a model. Semantic inference occurs only during exp
-SEG-017	docs/specs/semantic-escalation-gate-v0.md	119	Identical gap inputs, call trigger, prompt/schema, verifier, exact model revisio
+SEG-001	docs/specs/semantic-escalation-gate-v0.md	53	Corvint MUST complete deterministic inventory, syntax extraction, exact joins,
+SEG-002	docs/specs/semantic-escalation-gate-v0.md	56	Every residual semantic gap MUST have a deterministic identity over repository
+SEG-003	docs/specs/semantic-escalation-gate-v0.md	59	Corvint MUST emit a route result for every eligible gap, including `NO_CALL`. St
+SEG-004	docs/specs/semantic-escalation-gate-v0.md	63	No registered deterministic admission verifier means no model call and an explic
+SEG-005	docs/specs/semantic-escalation-gate-v0.md	65	A call is permitted only for a named unresolved gap where a model can propose in
+SEG-006	docs/specs/semantic-escalation-gate-v0.md	68	Core MUST use a provider-neutral adapter boundary equivalent to
+SEG-007	docs/specs/semantic-escalation-gate-v0.md	73	An eligible model MUST support the exact response schema, input bound, task/lang
+SEG-008	docs/specs/semantic-escalation-gate-v0.md	77	Normal-profile adequacy requires independently labelled accepted-candidate preci
+SEG-009	docs/specs/semantic-escalation-gate-v0.md	81	Escalation MUST stop after two total model calls per gap. A second, stronger eli
+SEG-010	docs/specs/semantic-escalation-gate-v0.md	86	Policy, authorization, secret, missing-input, unsupported-verifier, incomplete-s
+SEG-011	docs/specs/semantic-escalation-gate-v0.md	89	Model output authority is always `MODEL_PROPOSED`. Schema and admission checks m
+SEG-012	docs/specs/semantic-escalation-gate-v0.md	94	Admission and closure are independent. An admitted candidate may be useful while
+SEG-013	docs/specs/semantic-escalation-gate-v0.md	97	Model input MUST be the minimum authorized immutable spans required for the gap.
+SEG-014	docs/specs/semantic-escalation-gate-v0.md	103	Default policy is no egress. Remote execution requires explicit repository polic
+SEG-015	docs/specs/semantic-escalation-gate-v0.md	106	Hard per-gap and per-run limits MUST cover calls, input bytes, output bytes, wal
+SEG-016	docs/specs/semantic-escalation-gate-v0.md	121	Query serving MUST NOT invoke a model. Semantic inference occurs only during exp
+SEG-017	docs/specs/semantic-escalation-gate-v0.md	124	Identical gap inputs, call trigger, prompt/schema, verifier, exact model revisio
+SEG-018	docs/specs/semantic-escalation-gate-v0.md	128	The experimental gate MAY offer a typed-choice profile only over `2..254` ordere
+SEG-019	docs/specs/semantic-escalation-gate-v0.md	137	A typed-choice response MUST contain exactly one complete object with exact-case
+SEG-020	docs/specs/semantic-escalation-gate-v0.md	143	A typed-choice provider MUST NOT author an evidence handle, excerpt, authority,
+SEG-021	docs/specs/semantic-escalation-gate-v0.md	147	Typed-choice eligibility MUST require its exact response schema and MUST NOT cha
 SESSION-V0-001	docs/specs/session-context-dividend-v0.md	64	`session begin` MUST pin the full `HEAD` commit and tree, task-key, SHA-256 and
 SESSION-V0-002	docs/specs/session-context-dividend-v0.md	71	V0 MUST store receipts and deltas only beneath the actual `.git/corvint/sessions
 SESSION-V0-003	docs/specs/session-context-dividend-v0.md	76	a receipt MUST be canonical UTF-8 JSON Lines with one terminal LF per event.

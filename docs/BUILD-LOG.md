@@ -87,6 +87,87 @@ failed in unrelated process/timing tests under concurrent repository-wide runs; 
 retry passed. Both observations remain in the private completion evidence rather than being
 reclassified as product behavior.
 
+## 2026-09-21 GL-V0-001..GL-V0-008: gate ledger, one pass per distinct content
+
+The owner asked that Corvint manage its own gate so parallel agents stop each running a full
+`make gate` on content another worktree already proved. `docs/specs/gate-ledger-v0.md` is accepted
+and implemented: `tools/gate-ledger` keys every step on a digest of its declared inputs over the
+exact worktree (tracked and untracked, ignored excluded, written through a private Git index) plus
+the gate's tooling, records only passes in a per-user `0700` directory, and skips a step only on
+key equality. `go-archive-gate` always runs because GOC-V0-010 binds its witness to HEAD, and every
+doubt (undeclared step, skip-worktree or assume-unchanged entry, ignored compiled `.go`, git
+failure, shared ledger directory) runs the step and records nothing.
+
+Independent finding that changed the design: Go's test cache never hits across worktrees, even
+with `-trimpath`, because its test log hashes the absolute paths of files a test opens under the
+module root (measured on this host with a second `git worktree` at the same commit). The proposal
+had assumed the cache would deduplicate resolved packages across worktrees; it deduplicates only
+same-worktree reruns. So `ledger/go-test` (GL-V0-004) runs the 93 packages the affected-plan index
+resolves without `-count=1`, under Go's cache, and the 104 unresolved packages (`cmd/corvint`
+among them, for one `os.Getwd`) with `-count=1` under one record keyed on the whole tree. A tree
+change therefore still reruns the unresolved set; narrowing it is the affected tier's job
+(`affected-plan-v0.md`), and a per-package cross-worktree key is recorded as a follow-up in
+`agent-memory/ideas.md`. `make go-test`, `make gate-affected` and CI keep `-count=1` unchanged.
+
+Measured on this host (Mac Studio, `-p 1`), from the baseline `go test -json ./...` at the base
+commit: 197 packages, 2,167s of package time, of which the 104 unresolved packages take 1,634s and
+the 93 resolved ones 533s; `cmd/corvint` alone is 174s. The partition on this tree lists 93
+resolved and 105 unresolved packages (the module root counts once more than the baseline's
+package list). Three cheap steps run through `ledger/` twice: the first pass ran and recorded all
+three in 3.7s, the second hit all three in 2.0s, so the per-step ledger cost (worktree digest plus
+`go run` start-up) is about 0.65s. `plan` prints `go-archive-gate: always runs` and `RUN` with
+`no declared input scope` for an unknown step. A `go-test` run whose unresolved set failed (the
+host-adapter test reading a pre-existing dirty `plugin.json`) recorded nothing, as GL-V0-002
+requires. Full gate, measured twice in a clean `git worktree` at `d6626ae` with an empty ledger
+directory: the first `make gate` ran and recorded all 28 keyed steps in 1492s and recorded the
+receipt; the second hit all 28 (the full `ledger/go-test` among them), ran only `go-archive-gate`,
+and recorded the receipt in 173s. The first attempt at `22208f6` found two defects the unit tests
+had not: a linked worktree's index path is absolute, so the private-index copy was empty and no
+step recorded (fixed, `TestRunStepRecordsFromLinkedWorktree`), and the Windows cross-vet rejected
+`syscall.Stat_t` and `syscall.Flock` (fixed by build-tagged `platform_unix.go`/`platform_other.go`;
+a non-Unix host refuses the ledger directory and records nothing).
+
+## 2026-09-21 SEG-018..SEG-021: typed semantic choice decisions
+
+The owner directed Corvint to adopt the useful typed-decision ideas from TypeSafe AI's System One
+model announcement without adding Jev or another hosted dependency. The unwired
+`internal/semescalate` experiment now has a separate provider-neutral choice path over mechanically
+supplied anchored options. Providers return only an option ID and exact integer probability mass;
+Core derives an explicitly uncalibrated winner margin, supports a reserved abstain option, rebuilds
+the immutable proposal, and still requires the registered verifier before emitting an `INFERRED`
+candidate. The legacy proposal request and schema are unchanged. No provider, network path, serving
+integration, calibration corpus, authority, or product claim is added.
+
+Focused provider-spy tests cover the successful end-to-end path, pre-call question refusal,
+case-folded/duplicate/missing/fabricated distributions, non-unique maxima, low-confidence and
+explicit abstention, schema separation, complete cache identity, and the unchanged authority ceiling.
+Independent review identified shared-state races, mutable evidence aliases, and incomplete screening
+of transmitted handles. The repaired gate serializes run reservations and ledger reuse, snapshots
+selected evidence, and screens every transmitted caller-authored string; focused race tests cover
+concurrent budget/cache behavior and mutation during provider latency.
+The canonical gate then exposed one malformed wrapped Agent-digest bullet, which was repaired and
+independently re-reviewed. Two subsequent exact-target gate runs failed only because the large
+`contextindex` fixture used the benchmark Git helper, allowing detached auto-maintenance to recreate
+`.git/info` during `t.TempDir` cleanup. A 20-run loop reproduced 16 failures; applying the existing
+`testGit` synchronous-maintenance policy to benchmark fixtures made all 20 pass without changing
+runtime behavior.
+The frozen calibration, held-out replay, kill-gate, and first accepted extractor profile remain open;
+this deterministic slice is not evidence that any model's probabilities are calibrated.
+
+## 2026-09-20 LAC-V0-032: safe roadmap auto-recheck
+
+The roadmap repeats its existing read-only request every 30 seconds. Eligibility remains derived by
+Corvint Tasks: no mutation, approval, external/manual completion, unknown-evidence waiver,
+admission, release candidacy, attestation, or promotion is added. Pages containing mutation forms
+do not refresh automatically. A page-preserving pause/resume link prevents timed reloads from
+interrupting deliberate inspection. `TestRoadmapSafeAutoRecheck` binds the refresh and hard-stop
+notice on successful and refused reads and checks that paused roadmaps and the board remain stable.
+The first full gate reached every package but failed three `internal/contextindex` tests during
+`t.TempDir` cleanup: detached Git maintenance recreated `.git/objects/info/packs` and
+`.git/info/refs` after removal began. The shared fixture Git helper now disables auto-gc and keeps
+any maintenance synchronous; the exact combined reproducer and the full gate must pass after this
+repair before the console change is qualified.
+
 ## 2026-09-20 PWP-V0-003/007/008: standard Playwright device-spread regression
 
 GitHub issue #49 reported that the ordinary Playwright project form

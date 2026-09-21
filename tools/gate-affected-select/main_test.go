@@ -258,3 +258,36 @@ func TestReadBoundedRefusesSymlinkSwap(t *testing.T) {
 		t.Fatal("readBounded followed a swapped symlink")
 	}
 }
+
+// TestUnresolvedPackagesListsRootLocators pins the `-unresolved` listing GL-V0-004
+// reads: a root-locating package and its dependents are listed with their reasons,
+// a package whose reads its literals bound is not (solo names ../core/core.go, a
+// path attribution can see), and an unindexable repository is an error, not an
+// empty list.
+func TestUnresolvedPackagesListsRootLocators(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"core/core.go":      "package core\n",
+		"walker/walker.go":  "package walker\n\nimport \"runtime\"\n\nvar _, file, _, _ = runtime.Caller(0)\n",
+		"leaf/leaf.go":      "package leaf\n\nimport _ \"example.com/fixture/walker\"\n",
+		"solo/solo_test.go": "package solo\n\nvar source = \"../core/core.go\"\n",
+	})
+	lines, err := unresolvedPackages(fixtureModule, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(lines, "")
+	for _, want := range []string{"unresolved example.com/fixture/walker: \"", "unresolved example.com/fixture/leaf: \"depends on example.com/fixture/walker"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+	for _, bounded := range []string{"fixture/core", "fixture/solo"} {
+		if strings.Contains(got, bounded) {
+			t.Errorf("bounded package %s listed:\n%s", bounded, got)
+		}
+	}
+	broken := writeFixture(t, map[string]string{"bad/bad.go": "package bad\n\nimport (\n"})
+	if _, err := unresolvedPackages(fixtureModule, broken); err == nil {
+		t.Error("an unindexable repository returned a list")
+	}
+}
