@@ -15,6 +15,8 @@ verbose-test marker lines as secrets. The writer screen now exempts only complet
 `[whitespace]--- PASS: TestName (seconds)` lines while still detecting a real `pass: value` elsewhere
 in the same output; `StoredV1Pattern` is unchanged. `TestGoVerbosePassMarkerBoundary` and the
 local-completion `go-verbose-pass-log` regressions cover detector and executed-check behavior.
+Because the writer-screen source is an analyzer input, the reviewed change advances
+`analyzerSchemaID` from `corvint-analyzer/69` to `corvint-analyzer/70` and refreshes its audit pin.
 
 ## 2026-09-20 PWP-V0-003/007/008: standard Playwright device-spread regression
 
