@@ -45,6 +45,8 @@ timeout regression obtained owned process-group cleanup and restored the workspa
 turning observer availability into a test prerequisite. The new specification also used a prose
 `Boundary` digest bullet instead of the required `Exists` and `Blocked on` fields, and its README
 clause differed from the indexed claim. The digest and README now share the exact indexed claim.
+The replacement gate passed the full suite, vet/cross-vet, archive and interop before detecting the
+resulting stale requirement line numbers; `REQUIREMENTS.tsv` was regenerated from the repaired spec.
 
 Dogfood orientation exposed two limitations retained for review: the initial limit-one query ranked
 the Go-kernel migration spec rather than the behavior-contract seam, and the later focused context
