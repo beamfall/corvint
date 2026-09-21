@@ -7,6 +7,29 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-21 GLTP-V0-048/049: lifecycle test deadline and joined shutdown
+
+`TestRunningFailedPassed` used the production-like fresh `GOCACHE` with both its runner and outer
+terminal-event waits fixed at 20 seconds. The observed full-suite timeout is consistent with cold
+compilation exhausting that budget. A fatal wait also cancelled the session without joining `Run`,
+allowing temporary-file cleanup to race the runner. The test harness now sets the specified
+`GOENV=off`, uses a five-minute
+per-run hang-detector budget, fails immediately with the complete event sequence on an unexpected
+terminal state, and unconditionally cancels and joins `Run` before `TempDir` cleanup. Production
+defaults and session behavior are unchanged. The complete session package passed in 35.808 seconds,
+and ten serial repetitions of the exact lifecycle test passed in 39.069 seconds.
+
+## 2026-09-21 LTA-V0-004: verbose Go PASS marker exception
+
+The pre-change Corvint query selected an unrelated decision and omitted the governing writer-screen
+intent. Direct inspection found that the generic bare-`pass` assignment branch classified exact Go
+verbose-test marker lines as secrets. The writer screen now masks only the structural `PASS:` prefix on complete
+`[whitespace]--- PASS: TestName (seconds)` lines while still detecting a real `pass: value`, token, or other secret
+inside the test name or elsewhere in the same output; `StoredV1Pattern` is unchanged. `TestGoVerbosePassMarkerBoundary` and the
+local-completion `go-verbose-pass-log` regressions cover detector and executed-check behavior.
+Because the writer-screen source is an analyzer input, the reviewed change advances
+`analyzerSchemaID` from `corvint-analyzer/69` to `corvint-analyzer/71` and refreshes its audit pin.
+
 ## 2026-09-20 PWP-V0-003/007/008: standard Playwright device-spread regression
 
 GitHub issue #49 reported that the ordinary Playwright project form
