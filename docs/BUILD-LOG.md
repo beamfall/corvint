@@ -47,6 +47,9 @@ turning observer availability into a test prerequisite. The new specification al
 clause differed from the indexed claim. The digest and README now share the exact indexed claim.
 The replacement gate passed the full suite, vet/cross-vet, archive and interop before detecting the
 resulting stale requirement line numbers; `REQUIREMENTS.tsv` was regenerated from the repaired spec.
+The next frozen gate passed those checks plus spec, traceability, EOL, CI, release and receipt policy
+before the error-code ownership tail found the new `approved-plan-drift` code unnamed; the owning
+spec now records that code and the shared authorization code explicitly.
 
 Dogfood orientation exposed two limitations retained for review: the initial limit-one query ranked
 the Go-kernel migration spec rather than the behavior-contract seam, and the later focused context

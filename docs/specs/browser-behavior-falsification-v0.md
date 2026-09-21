@@ -101,6 +101,13 @@ Malformed identities, stale bytes, unknown statuses, missing expected observatio
 violations fail closed. Infrastructure failures remain distinct from failed assertions. Cleanup is
 always attempted with its own bounded context even after execution failure or cancellation.
 
+### Owned emitted error codes
+
+| Code | Meaning |
+| --- | --- |
+| `operator-authorization-required` | Execution lacks approval of the exact plan digest. |
+| `approved-plan-drift` | Rebuilding current immutable inputs does not reproduce the approved plan. |
+
 ## Acceptance matrix
 
 | Behavior | Required evidence |
