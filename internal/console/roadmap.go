@@ -10,6 +10,11 @@ import (
 // rather than growing one page without limit.
 const roadmapPageSize = 50
 
+// roadmapRefreshSeconds periodically repeats the same read-only roadmap
+// request. Eligibility is derived by Corvint Tasks, so a blocker disappears
+// only after the owning tool stops reporting it.
+const roadmapRefreshSeconds = 30
+
 // RoadmapRow is one ticket as the roadmap shows it: the fields `atm roadmap`
 // reports, plus the blocker closure for a ticket the tool reports BLOCKED.
 // Gate evidence (RequiredGates, GateResults) is rendered as the tool stated

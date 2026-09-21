@@ -6,11 +6,14 @@ Intent status: accepted (decision 0047, 2026-09-04)
 Delivery status: experimental (deterministic gate slice; no provider, calibration, or kill gate)
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/ARCHITECTURE.md`, `docs/specs/genesis-backfill.md`
+Owner amendment anchor: direct 2026-09-21 instruction to adopt the useful typed-decision,
+probability-distribution, and explicit-abstention ideas without adding Jev or another hosted
+dependency to Corvint Core.
 
 ## Agent digest
 - Claim: Models may propose evidence for named semantic gaps only through bounded calls and independent registered verifiers.
 - Status: accepted (decision 0047, 2026-09-04)/experimental (deterministic gate slice; no provider, calibration, or kill gate)
-- Exists: the contract plus an unwired in-process gate (`internal/semescalate`) tested only against a provider spy.
+- Exists: the contract plus an unwired in-process gate (`internal/semescalate`) tested only against provider spies, including a typed-choice path over mechanically supplied anchored options.
 - Blocked on: a registered extractor profile, frozen calibration, held-out replay, and kill-gate evidence.
 - Read next: User and measurable job; Deterministic acceptance and adversarial matrix; Traceability.
 
@@ -113,12 +116,39 @@ claim.
   done with `DeadlineExceeded`) and the provider's error wraps `context.DeadlineExceeded` or
   `context.Canceled`, or no result body was observed, the receipt MUST classify `TIMEOUT` rather than
   `PROVIDER_ERROR`; `ProviderReturned` still reports what was actually observed.
+  Concurrent requests against one gate MUST reserve from the shared run budget atomically and MUST
+  NOT exceed any configured limit.
 - `SEG-016`: Query serving MUST NOT invoke a model. Semantic inference occurs only during explicit
   backfill, sync, or user-requested enrichment; serving consumes compiled artifacts and returns a
   gap if the required derivation is absent.
 - `SEG-017`: Identical gap inputs, call trigger, prompt/schema, verifier, exact model revision, access context, and
   policy MUST reuse the recorded derivation with zero repeat calls. Any changed component
   invalidates that derivation identity. Returned candidate slices MUST NOT alias the recorded derivation: caller edits to either a fresh result or a cache hit cannot change later replayed candidates or their authority.
+  Concurrent requests for an identical derivation MUST still make at most one provider call.
+- `SEG-018`: The experimental gate MAY offer a typed-choice profile only over `2..254` ordered,
+  mechanically supplied options plus one reserved abstain option. Every option MUST carry a unique
+  bounded lowercase ID and one unique `(handle, excerpt)` anchor already present in the authorized
+  selected spans. The question ID, instructions, ordered option IDs, handles, excerpts, probability
+  scale, and caller-owned confidence threshold MUST be canonical and content-addressed. Invalid,
+  secret-shaped, unanchored, duplicated, or oversized question input MUST refuse before invocation.
+  Every caller-authored string transmitted to the provider MUST be secret-screened, and selected
+  evidence bytes MUST be snapshotted before request construction so later caller mutation cannot
+  change either the request or verification input.
+- `SEG-019`: A typed-choice response MUST contain exactly one complete object with exact-case,
+  non-duplicate `questionId`, `choice`, and `probabilities` keys. `probabilities` MUST contain exactly
+  one non-null integer mass in `[0, 1_000_000]` for every supplied option plus abstain, with an
+  overflow-safe total of exactly `1_000_000`. The selected choice MUST be the unique maximum. Core
+  computes the uncalibrated confidence margin as winner minus runner-up; a tie, explicit abstain, or
+  margin below the canonical threshold admits no candidate and leaves the frontier `UNKNOWN`.
+- `SEG-020`: A typed-choice provider MUST NOT author an evidence handle, excerpt, authority, verdict,
+  threshold, or confidence value. Core reconstructs the selected proposal from the canonical option
+  and submits it to the same registered independent verifier. Only verifier admission may emit an
+  `INFERRED` candidate, and admission still cannot close the originating obligation.
+- `SEG-021`: Typed-choice eligibility MUST require its exact response schema and MUST NOT change or
+  accept the legacy proposal schema. The derivation identity MUST bind the choice prompt, response
+  schema, complete canonical question digest, verifier, exact model revision/calibration, and input
+  span digests. Any question mutation invalidates reuse; an unchanged complete identity makes zero
+  repeat calls.
 
 ## Canonical receipt requirements
 
@@ -134,6 +164,8 @@ Every attempted invocation emits a `corvint-semantic-call/0` receipt containing:
 - prompt-template, response-schema, adapter, route-policy, and calibration digests;
 - exact model reference/revision, trigger, attempt number, and limits;
 - canonical request-byte, raw response-byte, and parsed-output digests;
+- for a typed decision, the canonical question digest, ordered integer distribution, selected option,
+  caller threshold, explicit abstention state, and gate-derived uncalibrated confidence basis;
 - locally observed input/output bytes, call count, wall time, termination state, and whether the
   provider's return was observed;
 - separately labelled provider-reported token, cost, and model observations; and
@@ -204,6 +236,11 @@ a later task profile, not an implicit expansion of this contract.
 | Unchanged complete identity | Zero calls and byte-identical compilation with the same derivation ledger |
 | Missing derivation ledger | No silent serving/rebuild call; exact `UNKNOWN(MISSING_DERIVATION)` |
 | High-access derivation under a low-access caller | Invalidate without exposing restricted selectors, paths, hashes, counts, or claims |
+| Choice option names an unprovided handle, fabricated excerpt, duplicate anchor, or reserved ID | Refuse before invocation with no partial candidate |
+| Choice response omits/adds/duplicates a label, uses non-integer or out-of-range mass, sums incorrectly, or has no unique maximum | `SCHEMA_INVALID`; no candidate |
+| Choice response selects abstain or falls below the caller-owned confidence margin | No candidate; explicit decision rejection; frontier remains `UNKNOWN` |
+| Choice response selects a valid high-margin option | Reconstruct the immutable proposal, run the registered verifier, and cap any admitted result at `INFERRED` |
+| Choice-capable provider enters the proposal path, or the reverse | `NO_CALIBRATED_MODEL`; zero calls |
 
 Every test fixture set includes genuine-pass, fabricated-fail, and no-input cases. Provider spies
 must independently count invocations so a self-reported zero cannot pass.
@@ -274,7 +311,11 @@ None blocks mechanical Genesis work. They block model runner/provider integratio
 | `SEG-012` | admission half only: admitted candidates leave the frontier `UNKNOWN` | `TestAdmittedProposalsCapAtInferredAndLeaveObligationUnknown` |
 | `SEG-013` | named spans only; unauthorized, missing, secret-shaped, or ambiguously duplicated spans refuse; a handle named twice is sent once | `TestSecretAndOutOfScopeContentNeverReachProvider`, `TestAdmittedProposalsCapAtInferredAndLeaveObligationUnknown`, `TestGapNamingOneHandleTwiceSendsTheSpanOnce` |
 | `SEG-014` | default no egress: a remote-capable provider is `POLICY_DENIED` without explicit allow | `TestRemoteProviderIsDeniedByDefault` |
-| `SEG-015` | per-run calls, input/output bytes, configured cost, and one run wall-time deadline; unobserved provider return disclosed; provider usage labelled; deadline-race classification is deterministic | `TestBudgetsRefuseBeforeInvocation`, `TestOutputAndWallTimeLimitsAdmitNoCandidateAndNeverRetry`, `TestCostBudgetCannotOverflowOrCreditNegativeCosts`, `TestRunWallTimeIsOneDeadlineChargedAcrossGaps`, `TestTimedOutProviderIgnoringCancellationIsDisclosedAndCannotLeak`, `TestCooperativeDeadlineErrorIsAlwaysClassifiedTimeout` |
-| `SEG-017` | in-memory derivation ledger keyed on the call trigger as well as the gap, prompt, verifier, model, and span digests | `TestUnchangedIdentityReusesDerivationAndChangedComponentInvalidates`, `TestReturnedCandidatesCannotRewriteCachedDerivation` |
+| `SEG-015` | per-run calls, input/output bytes, configured cost, and one run wall-time deadline; atomic concurrent reservation; unobserved provider return disclosed; provider usage labelled; deadline-race classification is deterministic | `TestBudgetsRefuseBeforeInvocation`, `TestOutputAndWallTimeLimitsAdmitNoCandidateAndNeverRetry`, `TestCostBudgetCannotOverflowOrCreditNegativeCosts`, `TestRunWallTimeIsOneDeadlineChargedAcrossGaps`, `TestTimedOutProviderIgnoringCancellationIsDisclosedAndCannotLeak`, `TestCooperativeDeadlineErrorIsAlwaysClassifiedTimeout`, `TestConcurrentChoiceCallsPreserveBudgetAndCacheInvariants` |
+| `SEG-017` | in-memory derivation ledger keyed on the call trigger as well as the gap, prompt, verifier, model, and span digests; atomic concurrent reuse | `TestUnchangedIdentityReusesDerivationAndChangedComponentInvalidates`, `TestReturnedCandidatesCannotRewriteCachedDerivation`, `TestConcurrentChoiceCallsPreserveBudgetAndCacheInvariants` |
+| `SEG-018` | canonical bounded `ChoiceQuestion` over mechanically anchored, snapshotted, secret-screened options | `TestChoiceQuestionRefusesUnanchoredOrUnboundedInputsBeforeCall`, `TestChoiceRefusesSecretHandleBeforeCall`, `TestChoiceSnapshotsEvidenceBeforeProviderLatency`, `TestTypedChoiceAdmitsOnlyMechanicallySuppliedOption` |
+| `SEG-019` | exact integer distribution validation, unique maximum, derived margin, and explicit abstention | `TestChoiceResponseRequiresExactCompleteDistribution`, `TestChoiceConfidenceAndExplicitAbstentionAdmitNothing` |
+| `SEG-020` | gate reconstruction of the selected option followed by the registered verifier and `INFERRED` ceiling | `TestTypedChoiceAdmitsOnlyMechanicallySuppliedOption` |
+| `SEG-021` | schema-aware eligibility and complete question-bound derivation identity | `TestChoiceAndProposalSchemasCannotCross`, `TestChoiceQuestionIdentityInvalidatesCachedDerivation` |
 | `SEG-001`, `SEG-007`, `SEG-008`, `SEG-009`, `SEG-016` | not delivered | mechanical-pipeline integration, least-cost model selection, calibration thresholds, second-tier escalation, and serving integration are absent; the slice consumes the caller's mechanical result, refuses a provider without an exact revision and calibration digest (`TestUncalibratedOrMissingProviderIsNotCalled`), caps each gap at one call, and `TestNoProductionPackageImportsTheGate` keeps it off every serving path |
 | Whole profile | not delivered | real provider adapters, persisted derivation ledger, restricted-classification egress policy, closure verifiers, frozen calibration corpus, held-out backfill replay, ACL invalidation, and kill-gate evidence pending |

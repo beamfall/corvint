@@ -1,0 +1,702 @@
+{
+  "baseRevision": "11277a7f262e531708a4c9bd80d0368b1933e9c1",
+  "evidence": [
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:0239e19a0ba48071ebcba1ed600ca52893e5d6a5015adf583e2bda2abec390df",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 1596,
+        "start": 938
+      },
+      "spanSha256": "e9854ff50ecbbe8c10963943b949851b38c31576321bb75f5c37a7a53871cf7d"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:ee25e76b608fe823cf46cd69954fbce448fe8cf9f2b72dc133dc6ab74f2b69ee",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 1596,
+        "start": 966
+      },
+      "spanSha256": "381642bf5ce3308495abbce6687c83c8f92ce3487984aadf41a47b9e111defaa"
+    },
+    {
+      "blobOid": "14f86cbead79bc1537b9e9d581900f353f2c30a1",
+      "id": "evidence:sha256:3b6a2b833b05e7a4efee4bdbf49437bc948b1a8b7a34d6359f54e42faa50c660",
+      "path": "internal/contextindex/index_test.go",
+      "span": {
+        "end": 782,
+        "start": 149
+      },
+      "spanSha256": "8a5d80c690f98e5a5d1d9e12cf6e26cd400e8a62b7fc4ac58d8dea595882ef9d"
+    },
+    {
+      "blobOid": "3fc9bf17e28eebf7b2ca1b523668d0fd24dd02e3",
+      "id": "evidence:sha256:64bd9974af1763fc89c719b13931dffb7566e2e01256bec4f5be469a8d0813c2",
+      "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
+      "span": {
+        "end": 17604,
+        "start": 17423
+      },
+      "spanSha256": "5d6aa07096001f5083593a8735c9ec3769d9cef9f9c67a725717b8086520b35d"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:954e0c8eb3536c89f10e54d67ba140ded6c38f4076dfa91b12605f7d8feaf973",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 3501,
+        "start": 3015
+      },
+      "spanSha256": "58b2514f9cac086244c02b7ada291fdce92de15b672afb6391228ed029cc6b6b"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:90b1ee87c305b518d3e39768d68ce757d21bdad2c73ad99cd91ce2f219bfbc62",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 343,
+        "start": 31
+      },
+      "spanSha256": "2718074f795b0469069f67f0385100e74f7274930d878a5ca98e1896cabef7f0"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:e627caf4c85547b3868b8613e197f76f9b41bb71c5c4800866086e8625bc3a63",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 6490,
+        "start": 4032
+      },
+      "spanSha256": "953bab9a23d9e7c8ce0f6c03858edec982385ca84f6e03360f4c7fb449c5869c"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:c97c8787cc4e8758319f0fc776642918602bc65bb2482a39f2ba889ee01f7de7",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 7684,
+        "start": 6879
+      },
+      "spanSha256": "21ab91f65fce8d8f5c5650e30d03629710e11ecd0ae91194fa1890ca75887fb3"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:34effe4077e450ec701314985f109f371c27c3dc851a7d235122e46ddc4c575e",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 9106,
+        "start": 7684
+      },
+      "spanSha256": "cc80f9f2bfcee582808f35004ff057a62fb9db9f6b9b3f16c63ca12c0f3eb8d9"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:e9822705989c4e0646239466f628a1a10c5d2ef01d64e972877592eba4c0ee45",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 9772,
+        "start": 9347
+      },
+      "spanSha256": "f60e2ea5027afb887246d8a138fbc9aa6c3026754791a71932e4d279bdb9ed84"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:8ac8806eb98de13c283d9b172a91b2b57bfef0325797726ed0fb6d4cd41811c5",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 10652,
+        "start": 10285
+      },
+      "spanSha256": "c4e65e5f1e3e77528824c32c6ac1025a311b0c6c4b70efe56374462a7f7d6d01"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:38c2f0c6fde55698e765bbda89f86b12d8cda2f3a9806cc0abbc6f061790d687",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 7684,
+        "start": 5818
+      },
+      "spanSha256": "d4163857eafead285f3f1a5cea7a417491e674c4a229416010ac464d76b4a49a"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:710d3a8535428aa2d531431aef295ade84ec018680cfb20c05727ec9a521ddb9",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 6651,
+        "start": 4032
+      },
+      "spanSha256": "0273dda5f32b8426c65aa5f0968b4b6a13a61758343e1b5a9a3c41486f4e5065"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:a7a796164fe74579773771ca34725d674768af4e39f0fb6570eac2d39ca4a29f",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 7684,
+        "start": 4032
+      },
+      "spanSha256": "87553d36d757f924eb38f689c08d515099b7fd7de9546a8c6bf13e9a3cf22c5a"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:95b5da34e3937db2cff548d99461eb620f8544df0275505d22a4cab6fa89c270",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 11213,
+        "start": 10652
+      },
+      "spanSha256": "3af44a04170e5101b3e0306c2a8750a5f427d41dbd21c6589199a1f28ec70fdb"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:b0e323f423c1a94146da3d8da36148b4d743eb558dea6ac5407b5a3b43207616",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 4984,
+        "start": 4281
+      },
+      "spanSha256": "39a6861241d2c7aef1b89bc7663ad61096e54785fbec097a19f36e070d74e5ad"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:0f2a3aeb6cb493338ebf6d284efc3a16cc480be96f87a9b31c3d5d48d9125c8e",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 4984,
+        "start": 4593
+      },
+      "spanSha256": "8eb3ad1c1e18863493637cbf6ea1b092a129d909899ecf67ba04a37f5f23660a"
+    },
+    {
+      "blobOid": "0b9c6a58cd642b4ec12df0adbb37daa630ba710d",
+      "id": "evidence:sha256:6a17189fdcb3d8c222426c944e903ed76e04cab61a276fe2b76b2af641f07fba",
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "span": {
+        "end": 6651,
+        "start": 6075
+      },
+      "spanSha256": "d9ba13740090c187e156e4a2466381d1aa67d0c82ecf472f92f721cd08e794ca"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0239e19a0ba48071ebcba1ed600ca52893e5d6a5015adf583e2bda2abec390df",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:ee25e76b608fe823cf46cd69954fbce448fe8cf9f2b72dc133dc6ab74f2b69ee",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:3b6a2b833b05e7a4efee4bdbf49437bc948b1a8b7a34d6359f54e42faa50c660",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:556612a3a97d7ebb03e34c0c8c90d3c93d7ac22b019972f3e0308b6c491da486",
+      "newRange": {
+        "count": 33,
+        "start": 7
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 7
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:64bd9974af1763fc89c719b13931dffb7566e2e01256bec4f5be469a8d0813c2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c436bc78e1f91334b3fc1f6e2ddbe6b9248f439d2816b8fe06418a6d2143ad2a",
+      "newRange": {
+        "count": 7,
+        "start": 254
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 254
+      },
+      "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:954e0c8eb3536c89f10e54d67ba140ded6c38f4076dfa91b12605f7d8feaf973",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f997a4026033a9e2395eadeff1cd771235a86c95e4dbc1d2cc216cef92240511",
+      "newRange": {
+        "count": 27,
+        "start": 1501
+      },
+      "oldRange": {
+        "count": 23,
+        "start": 1501
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:90b1ee87c305b518d3e39768d68ce757d21bdad2c73ad99cd91ce2f219bfbc62",
+          "relation": "decision"
+        },
+        {
+          "evidenceId": "evidence:sha256:0239e19a0ba48071ebcba1ed600ca52893e5d6a5015adf583e2bda2abec390df",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:187c09281383297ab7766b52a5e8aa0106612afd00ac7b24e1c32e7d0d6eba64",
+      "newRange": {
+        "count": 14,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 6
+      },
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ee25e76b608fe823cf46cd69954fbce448fe8cf9f2b72dc133dc6ab74f2b69ee",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:e627caf4c85547b3868b8613e197f76f9b41bb71c5c4800866086e8625bc3a63",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:c97c8787cc4e8758319f0fc776642918602bc65bb2482a39f2ba889ee01f7de7",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:34effe4077e450ec701314985f109f371c27c3dc851a7d235122e46ddc4c575e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:e9822705989c4e0646239466f628a1a10c5d2ef01d64e972877592eba4c0ee45",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f5206417962c08f8d338e506af15d65694e925882e56270a4c3a7d0573029f3b",
+      "newRange": {
+        "count": 39,
+        "start": 116
+      },
+      "oldRange": {
+        "count": 12,
+        "start": 113
+      },
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8ac8806eb98de13c283d9b172a91b2b57bfef0325797726ed0fb6d4cd41811c5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:00453d4a0e72c4daaf4a14051ee11f1a43495729b2f19cf0141ac1ed5eb31566",
+      "newRange": {
+        "count": 8,
+        "start": 164
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 134
+      },
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:38c2f0c6fde55698e765bbda89f86b12d8cda2f3a9806cc0abbc6f061790d687",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:34effe4077e450ec701314985f109f371c27c3dc851a7d235122e46ddc4c575e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:e9822705989c4e0646239466f628a1a10c5d2ef01d64e972877592eba4c0ee45",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:14121ac282ffec7f50d266ac24de05be2e33a16766e1978272a26e4d87596d06",
+      "newRange": {
+        "count": 11,
+        "start": 236
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 204
+      },
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:710d3a8535428aa2d531431aef295ade84ec018680cfb20c05727ec9a521ddb9",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:c97c8787cc4e8758319f0fc776642918602bc65bb2482a39f2ba889ee01f7de7",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:34effe4077e450ec701314985f109f371c27c3dc851a7d235122e46ddc4c575e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:e9822705989c4e0646239466f628a1a10c5d2ef01d64e972877592eba4c0ee45",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a4472168fe877f8be18d3532ef9ccd77898ed7ce8c459efcb9c1787ae11280b6",
+      "newRange": {
+        "count": 11,
+        "start": 311
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 274
+      },
+      "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3b6a2b833b05e7a4efee4bdbf49437bc948b1a8b7a34d6359f54e42faa50c660",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:479b7f6dab61666ad73989f7733e1359c817985d2e82107a2933a88c25fca70d",
+      "newRange": {
+        "count": 6,
+        "start": 4
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 4
+      },
+      "path": "internal/contextindex/query_bench_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3b6a2b833b05e7a4efee4bdbf49437bc948b1a8b7a34d6359f54e42faa50c660",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0e2841d44977962feae637eead7e26cd193c29e853d0e74e7379b96975ad2768",
+      "newRange": {
+        "count": 7,
+        "start": 76
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 77
+      },
+      "path": "internal/contextindex/query_bench_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ee25e76b608fe823cf46cd69954fbce448fe8cf9f2b72dc133dc6ab74f2b69ee",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:a7a796164fe74579773771ca34725d674768af4e39f0fb6570eac2d39ca4a29f",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:34effe4077e450ec701314985f109f371c27c3dc851a7d235122e46ddc4c575e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:e9822705989c4e0646239466f628a1a10c5d2ef01d64e972877592eba4c0ee45",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:8ac8806eb98de13c283d9b172a91b2b57bfef0325797726ed0fb6d4cd41811c5",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:95b5da34e3937db2cff548d99461eb620f8544df0275505d22a4cab6fa89c270",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:05f5a8e5b38966d5126849fbf95e3aa40736d9ff07aa86db280f252438031325",
+      "newRange": {
+        "count": 329,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/semescalate/choice.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a7a796164fe74579773771ca34725d674768af4e39f0fb6570eac2d39ca4a29f",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:34effe4077e450ec701314985f109f371c27c3dc851a7d235122e46ddc4c575e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:e9822705989c4e0646239466f628a1a10c5d2ef01d64e972877592eba4c0ee45",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ab90f5feb8bc52916416195667a18080e109d2819a6b120bfdfb0b1f14d7275f",
+      "newRange": {
+        "count": 309,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/semescalate/choice_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b0e323f423c1a94146da3d8da36148b4d743eb558dea6ac5407b5a3b43207616",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:34effe4077e450ec701314985f109f371c27c3dc851a7d235122e46ddc4c575e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:e9822705989c4e0646239466f628a1a10c5d2ef01d64e972877592eba4c0ee45",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:18a256000239aea420ff6a19e1f8fa381bb67210c413271f1d909a48ac6a3811",
+      "newRange": {
+        "count": 19,
+        "start": 16
+      },
+      "oldRange": {
+        "count": 16,
+        "start": 16
+      },
+      "path": "internal/semescalate/gate.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:8ac8806eb98de13c283d9b172a91b2b57bfef0325797726ed0fb6d4cd41811c5",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:df055866fb322e9554d5a53722a5e079402c1491691010d446ef64c926e05ab0",
+      "newRange": {
+        "count": 8,
+        "start": 208
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 205
+      },
+      "path": "internal/semescalate/gate.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:34effe4077e450ec701314985f109f371c27c3dc851a7d235122e46ddc4c575e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:e9822705989c4e0646239466f628a1a10c5d2ef01d64e972877592eba4c0ee45",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9fd7796a53e687c903b5017695f2ca0af5921ffa70d32e8343f1329e97f868ce",
+      "newRange": {
+        "count": 10,
+        "start": 232
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 227
+      },
+      "path": "internal/semescalate/gate.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:34effe4077e450ec701314985f109f371c27c3dc851a7d235122e46ddc4c575e",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:e9822705989c4e0646239466f628a1a10c5d2ef01d64e972877592eba4c0ee45",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9c0bb279fdd635a2c16d249b632eadc170343a82ade332f0b624ccaceddc6230",
+      "newRange": {
+        "count": 9,
+        "start": 262
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 255
+      },
+      "path": "internal/semescalate/gate.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0f2a3aeb6cb493338ebf6d284efc3a16cc480be96f87a9b31c3d5d48d9125c8e",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2fb588f1e03079dd9ad10422c15c8ce3ce74df8867b73cbc9960d2579f3f9067",
+      "newRange": {
+        "count": 7,
+        "start": 285
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 275
+      },
+      "path": "internal/semescalate/gate.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c97c8787cc4e8758319f0fc776642918602bc65bb2482a39f2ba889ee01f7de7",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2e2fd094da680ef2be540aa0cb6b048d298688a23afce5ffda1173176c0c8cf7",
+      "newRange": {
+        "count": 9,
+        "start": 337
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 327
+      },
+      "path": "internal/semescalate/gate.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0f2a3aeb6cb493338ebf6d284efc3a16cc480be96f87a9b31c3d5d48d9125c8e",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c8785dba40388c84a3e988440d5c343fe39014848f96db580699dce01cce7541",
+      "newRange": {
+        "count": 18,
+        "start": 353
+      },
+      "oldRange": {
+        "count": 17,
+        "start": 340
+      },
+      "path": "internal/semescalate/gate.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:6a17189fdcb3d8c222426c944e903ed76e04cab61a276fe2b76b2af641f07fba",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:92aecde98ec9c58f51b0248c87a0f47674e002c3011308fabcc1aaaf872d39e7",
+      "newRange": {
+        "count": 10,
+        "start": 534
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 520
+      },
+      "path": "internal/semescalate/gate.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:6a17189fdcb3d8c222426c944e903ed76e04cab61a276fe2b76b2af641f07fba",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:dc1f5b4191269b7f1ae39f06ec4e12b37cdb024a51cba94047ccf99d5e6cdce6",
+      "newRange": {
+        "count": 7,
+        "start": 558
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 540
+      },
+      "path": "internal/semescalate/gate.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "46955126159b8dafe83250690467145c20eb3eb5014e5c83c78a19b826ec3247",
+  "spec": "cem/0.2"
+}

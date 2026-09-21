@@ -16,7 +16,11 @@ import (
 
 func testGit(t testing.TB, root string, arguments ...string) string {
 	t.Helper()
-	command := exec.Command("git", append([]string{"-c", "gc.auto=0", "-c", "maintenance.auto=false", "-C", root}, arguments...)...)
+	// Fixture repositories can cross Git's auto-maintenance thresholds when a
+	// package runs many tests. Keep any maintenance synchronous and disable
+	// auto-gc so no detached writer outlives t.TempDir cleanup.
+	prefix := []string{"-c", "maintenance.autoDetach=false", "-c", "gc.autoDetach=false", "-c", "gc.auto=0", "-c", "maintenance.auto=false", "-C", root}
+	command := exec.Command("git", append(prefix, arguments...)...)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v\n%s", arguments, err, output)

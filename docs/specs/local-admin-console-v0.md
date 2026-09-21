@@ -221,6 +221,14 @@ the Agent digest states the current experimental S1/S2/S3 scope.
   given, each resolves (symlinks followed) to the Git toplevel reported by `rev-parse
   --show-toplevel`. A directory inside a repository, or one inside no repository, MUST be refused
   rather than read as the enclosing repository (decision 0255).
+- `LAC-V0-032`: The roadmap page MUST repeat its same read-only request every 30 seconds so derived
+  blockers are re-evaluated against current `corvint-tasks` output. The console MUST NOT convert
+  this refresh into a mutation, approval, external/manual completion, unknown-evidence waiver,
+  admission, release candidacy, attestation, or promotion. The page MUST state those hard stops;
+  a blocker clears only when the owning tool no longer reports it. Pages containing mutation forms
+  MUST NOT refresh automatically. The roadmap MUST offer a keyboard-accessible pause/resume link
+  that preserves the current page, and the hard-stop notice MUST remain present on refused or failed
+  reads.
 
 ## Non-goals and simpler baseline
 
@@ -286,6 +294,7 @@ measurement outside this package, and the operator-time comparison of U4, which 
 | LAC-V0-029 | the roadmap page-fallback arithmetic, an overflowing page number, and a full page rendering pagination controls as plain links and buttons |
 | LAC-V0-030 | a committed fixture whose cited file links to its code page and back at the commit, whose uncited requirement and absent path each render a gap with no link, whose code link pinned to another commit renders no content, and whose over-bound Traceability expansion renders a gap with no link on both pages |
 | LAC-V0-031 | a repository toplevel accepted, and a subdirectory of it and a directory inside no repository each refused |
+| LAC-V0-032 | the roadmap carries a 30-second refresh, a page-preserving pause/resume link and the hard-stop notice on successful and refused reads, while the board carrying mutation forms has no automatic refresh |
 
 ## Traceability
 
@@ -311,6 +320,7 @@ measurement outside this package, and the operator-time comparison of U4, which 
 | LAC-V0-029 | `internal/console/roadmap.go`, `internal/console/views.go` | `TestRoadmapPageFallback`, `TestRoadmapPageOffsetCannotOverflow` |
 | LAC-V0-030 | `internal/console/links.go`, `internal/console/server.go`, `internal/console/views.go` | `TestConsoleRequirementCodeLinks` |
 | LAC-V0-031 | `cmd/corvint-console/main.go`, `internal/console/code.go` (`RequireToplevel`) | `TestConsoleRootMustBeGitToplevel` |
+| LAC-V0-032 | `internal/console/server.go`, `internal/console/render.go`, `internal/console/views.go` | `TestRoadmapSafeAutoRecheck` |
 
 Current executable compatibility is owned by CRB-V0-015. The console accepts explicit `--tasks`
 and the legacy `--atm` fallback with equality/conflict/empty handling before any child starts. Its

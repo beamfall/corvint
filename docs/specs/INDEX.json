@@ -874,6 +874,25 @@
     ]
   },
   {
+    "path": "docs/specs/gate-ledger-v0.md",
+    "title": "Gate ledger V0",
+    "reqPrefix": "GL-V0",
+    "intent": "accepted (owner instruction 2026-09-21)",
+    "delivery": "implemented",
+    "claim": "`make gate` skips a step only when this user recorded a pass for byte-identical inputs of that step, from any worktree, and never narrows what a step tests.",
+    "dependsOn": [
+      "docs/specs/go-only-cutover-v0.md",
+      "docs/specs/affected-plan-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": true,
+    "implementation": [
+      "tools/gate-ledger/main.go",
+      "tools/gate-ledger/main_test.go",
+      "tools/gate-affected-select/main.go"
+    ]
+  },
+  {
     "path": "docs/specs/go-format-gate-v0.md",
     "title": "Go format gate V0",
     "reqPrefix": "GFG-V0",

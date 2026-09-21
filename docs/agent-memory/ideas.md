@@ -1,7 +1,7 @@
 ---
 name: ideas
 description: Broader future work, features, and unscheduled directions
-updated: 2026-09-19
+updated: 2026-09-21
 ---
 
 # Ideas
@@ -13,6 +13,11 @@ Future features and larger directions. Promote to `docs/specs/` when an idea mat
 One paragraph: what, where (file:line), why it matters, and what done looks like.
 -->
 
+### 2026-09-21 gate: per-package cross-worktree key for resolved packages (GL-V0 follow-up)
+`docs/specs/gate-ledger-v0.md` keys the 104 unresolved packages on the whole tree and leaves the resolved ones to Go's test cache, which never hits across worktrees because its test log hashes absolute paths. A per-package content key (transitive source plus the literal-bounded files the affected-plan index already knows) would let a resolved package hit from any worktree. Done means a proven-complete bound per package and a hit measured from a second worktree.
+
+### 2026-09-21 cmd/corvint: bound the one `os.Getwd` so the largest package leaves the unresolved set
+`gate-affected-select -unresolved` lists `cmd/corvint` for `os.Getwd` in `dogfood_record.go`, so every tree change reruns it (most of the suite's wall time) under the GL-V0-004 tree key. Bounding that read moves it under Go's cache for same-worktree reruns. Done means the package absent from `-unresolved` and its tests still passing.
 ### 2026-09-19 work-queue: let Corvint's own `decision-0046-v0` mapping qualify store scope
 Decision 0321 limits WQO-V0-046 to `repository-worklist-v0`, so Corvint's self-dogfood observation stays `UNKNOWN/SOURCE_UNQUALIFIED` and `propose-wave` still abstains on this repository. The same byte-reproduction argument holds for `docs/worklist.json`. Done means the check in `workMappingReproduced` (`cmd/corvint/work.go`) accepts both mappings, the WQO-V0-021/025/032 final-check fixtures in `cmd/corvint/work_final_check_test.go` get their incomplete initial capture another way, and the WQO-V0-017 paragraph is amended.
 

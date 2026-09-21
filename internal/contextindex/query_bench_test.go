@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -77,10 +76,7 @@ func benchmarkQueryRepository(b testing.TB) string {
 
 func benchmarkGit(b testing.TB, root string, arguments ...string) {
 	b.Helper()
-	command := exec.Command("git", append([]string{"-c", "gc.auto=0", "-c", "maintenance.auto=false", "-C", root}, arguments...)...)
-	if output, err := command.CombinedOutput(); err != nil {
-		b.Fatalf("git %v: %v\n%s", arguments, err, output)
-	}
+	testGit(b, root, arguments...)
 }
 
 func benchmarkWriteFile(b testing.TB, root, relative, content string) {

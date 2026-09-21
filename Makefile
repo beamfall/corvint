@@ -12,10 +12,13 @@ CORVINT_BIN ?= corvint
 GO_TEST_TIMEOUT ?= 30m
 
 # GO_TEST_COMMAND is the one go test invocation both tiers run; go-test appends `./...` and
-# gate-affected appends the selected packages, so the flags cannot drift apart.
-GO_TEST_COMMAND = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -p 1 -count=1 -timeout $(GO_TEST_TIMEOUT)
+# gate-affected appends the selected packages, so the flags cannot drift apart. GO_TEST_FLAGS is
+# the same invocation without -count=1: the gate's ledger tier (GL-V0-004) adds -count=1 itself
+# for the packages whose reads no literal bounds and lets Go's test cache answer the rest.
+GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
+GO_TEST_COMMAND = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build gate gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check decision-numbers-check eol-policy-check eol-policy-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check dogfood-change dogfood-check dogfood-seal dogfood-bind-range dogfood-bind-range-test error-code-ownership-check error-code-ownership-test cem-verify-pr-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test
+.PHONY: build gate ledger/go-test gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check decision-numbers-check eol-policy-check eol-policy-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check dogfood-change dogfood-check dogfood-seal dogfood-bind-range dogfood-bind-range-test error-code-ownership-check error-code-ownership-test cem-verify-pr-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test
 
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
@@ -27,14 +30,33 @@ build: go-version
 # untracked, gitignored .corvint/ artifacts that a clean checkout never has.
 # GATE_STEPS are the gate prerequisites after gate-receipt-clear.
 GATE_STEPS = host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check decision-numbers-check eol-policy-check eol-policy-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test release-checklist-test gate-receipt-test error-code-ownership-check error-code-ownership-test cem-verify-pr-test host-package-versions-check host-package-versions-test diagnostic-coverage-check
-gate: gate-receipt-clear $(GATE_STEPS)
+gate: gate-receipt-clear $(addprefix ledger/,$(GATE_STEPS))
 	@script/gate-receipt record
 
 # GOC-V0-010: when gate is a goal, every step waits for the clear to finish, so under `make -j`
 # the receipt is removed and the start stamped before any step starts. A step run on its own
 # does not clear the receipt.
 ifneq ($(filter gate,$(or $(MAKECMDGOALS),gate)),)
-$(GATE_STEPS): | gate-receipt-clear
+$(GATE_STEPS) $(addprefix ledger/,$(GATE_STEPS)): | gate-receipt-clear
+endif
+
+# ledger/STEP runs STEP through tools/gate-ledger (docs/specs/gate-ledger-v0.md): the step is
+# skipped only when a pass is recorded for byte-identical inputs, from any worktree of this
+# user, and it records only after STEP exits zero. ledger/go-test splits `./...` into the
+# packages Go's own test cache may answer and the unresolved packages, which run with -count=1
+# under a whole-tree key. Every step still runs unchanged on its own target, and
+# CORVINT_GATE_LEDGER=off makes ledger/STEP exactly `make STEP`. The sub-make receives the same
+# makefiles as this one so an overriding makefile (script/gate-receipt_test.sh) reaches it.
+GATE_LEDGER = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/gate-ledger
+SUB_MAKE = $(MAKE) $(addprefix -f ,$(MAKEFILE_LIST))
+ifeq ($(CORVINT_GATE_LEDGER),off)
+ledger/%:
+	@$(SUB_MAKE) $*
+else
+ledger/go-test:
+	@$(GATE_LEDGER) go-test -- go test $(GO_TEST_FLAGS)
+ledger/%:
+	@$(GATE_LEDGER) run $* -- $(SUB_MAKE) $*
 endif
 
 # Native adapter and opt-in handoff regressions are owned by the reproducible source gate.

@@ -62,6 +62,40 @@ func TestRoadmapGateResultsNotObserved(t *testing.T) {
 	}
 }
 
+// TestRoadmapSafeAutoRecheck covers LAC-V0-032: only the roadmap periodically
+// repeats its existing read-only request, and the page states the authority
+// decisions that remain hard stops.
+func TestRoadmapSafeAutoRecheck(t *testing.T) {
+	t.Run("LAC-V0-032 safe auto-recheck", func(t *testing.T) {
+		binary := stubTaskman(t, map[string]string{"roadmap": roadmapEnvelope, "ticket blockers": roadmapBlockersEnvelope, "help ": helpEnvelope, "ticket list": listEnvelope})
+		server := newTestServer(t, binary)
+		roadmap := get(t, server, "/roadmap?page=2")
+		for _, want := range []string{
+			`<meta http-equiv="refresh" content="30">`,
+			"Safe auto-recheck is active.",
+			`href="/roadmap?page=2&amp;refresh=off"`,
+			"unknown evidence, admission, release candidacy, attestation, and promotion remain hard stops",
+		} {
+			if !strings.Contains(roadmap, want) {
+				t.Fatalf("roadmap auto-recheck contract missing %q:\n%s", want, roadmap)
+			}
+		}
+		board := get(t, server, "/")
+		if strings.Contains(board, `http-equiv="refresh"`) {
+			t.Fatal("a page with mutation forms must not refresh automatically")
+		}
+		paused := get(t, server, "/roadmap?page=2&refresh=off")
+		if strings.Contains(paused, `http-equiv="refresh"`) || !strings.Contains(paused, "Safe auto-recheck is paused.") || !strings.Contains(paused, `href="/roadmap?page=2"`) {
+			t.Fatalf("paused roadmap must remain stable and offer resume:\n%s", paused)
+		}
+		refused := stubTaskman(t, map[string]string{"roadmap": refusalEnvelope})
+		refusalPage := get(t, newTestServer(t, refused), "/roadmap")
+		if !strings.Contains(refusalPage, "Safe auto-recheck is active.") || !strings.Contains(refusalPage, "admission, release candidacy, attestation, and promotion remain hard stops") {
+			t.Fatalf("refusal page omitted auto-recheck authority boundary:\n%s", refusalPage)
+		}
+	})
+}
+
 // TestRoadmapPageFallback covers the pagination arithmetic in isolation: a
 // full page with no stated total still offers "next" (there may be more), a
 // short page without a stated total does not, and a stated total governs
