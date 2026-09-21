@@ -24,7 +24,8 @@ Focused `go test -count=1 ./internal/behaviorfalsify ./cmd/corvint-behavior-fals
 wrong-value survival, wrong assertion, unrelated failure, selector error, timeout, cleanup failure,
 retry masking and stale revision/perturbation/artifact identities. A staged live test helper produced
 and then cleaned a retained artifact with equal pre/post workspace digests; a separate one-second
-timeout proved owned cleanup and descendant absence. These are authored synthetic fixtures, not a
+timeout proved owned process-group cleanup and workspace restoration; missing descendant-observer
+evidence remains infrastructure rather than success. These are authored synthetic fixtures, not a
 real adopter or browser run. Hook semantics and absence of persistent external effects remain
 caller-owned and unauthenticated; live utility is `NOT_OBSERVED`.
 
@@ -37,6 +38,13 @@ execution time, isolate and bound Git reads, divide the report budget across app
 one non-HTML-escaping deterministic JSON encoding, close infrastructure reason/shape validation and
 add live crash, overflow, cancellation, slow-termination, cleanup, stale-artifact and JSON-expansion
 regressions. The final independent re-review returned `PASS`.
+
+The first frozen canonical gate exposed two local evidence defects. Under concurrent host load the
+timeout regression obtained owned process-group cleanup and restored the workspace but a transient
+`ps` snapshot was unavailable; the already-fail-closed infrastructure result is now asserted without
+turning observer availability into a test prerequisite. The new specification also used a prose
+`Boundary` digest bullet instead of the required `Exists` and `Blocked on` fields, and its README
+clause differed from the indexed claim. The digest and README now share the exact indexed claim.
 
 Dogfood orientation exposed two limitations retained for review: the initial limit-one query ranked
 the Go-kernel migration spec rather than the behavior-contract seam, and the later focused context

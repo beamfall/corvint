@@ -1,21 +1,18 @@
 # Browser behavior falsification V0
 
-Owner: Russell Lewis
-Date: 2026-09-21
-Intent status: proposed
-Delivery status: experimental
-Authoritative inputs: owner request [issue 54](https://github.com/beamfall/corvint/issues/54),
+- Owner: Russell Lewis
+- Date: 2026-09-21
+- Intent status: proposed
+- Delivery status: experimental
+- Authoritative inputs: owner request [issue 54](https://github.com/beamfall/corvint/issues/54),
 `AGENTS.md`, `docs/specs/documentation-corpus-v1.md`, and
 `docs/specs/js-live-test-provider-v0.md`.
 
 ## Agent digest
-
-- Claim: an opt-in companion runs bounded caller-owned falsification controls for one exact browser
-  behavior criterion and emits fail-closed, revision-bound control receipts.
-- Status: proposed/experimental; no control result authenticates semantic adequacy or authorizes
-  test-suite narrowing.
-- Boundary: only explicitly approved hooks operating on a caller-marked disposable workspace run;
-  Corvint does not edit product source or infer a persistent-state mutation.
+- Claim: An opt-in companion runs digest-approved caller hooks against a marked disposable workspace and emits fail-closed criterion-level falsification receipts.
+- Status: proposed/experimental; no control result authenticates semantic adequacy or authorizes test-suite narrowing.
+- Exists: the separate experimental planner, approval gate, bounded runner, closed classifier and synthetic conformance fixtures.
+- Blocked on: live adopter/browser evidence for each supported control kind and owner acceptance of the proposed contract.
 - Read next: Requirements; Trust and mutation boundary; Acceptance matrix.
 
 ## Affected user and measurable job

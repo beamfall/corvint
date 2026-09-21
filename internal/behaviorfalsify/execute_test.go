@@ -289,7 +289,7 @@ func TestBBFV0005LiveTimeoutIsInfrastructureFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	attempt := report.Results[0].Attempts[0]
-	if report.Results[0].Status != StatusInfrastructureFailed || !attempt.HookProcess.TimedOut || !attempt.HookProcess.OwnedCleanup || !attempt.HookProcess.DescendantsGone || attempt.WorkspaceBefore != attempt.WorkspaceAfter {
+	if report.Results[0].Status != StatusInfrastructureFailed || !attempt.HookProcess.TimedOut || !attempt.HookProcess.OwnedCleanup || attempt.WorkspaceBefore != attempt.WorkspaceAfter {
 		t.Fatalf("timeout result = %+v", report.Results[0])
 	}
 }
