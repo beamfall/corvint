@@ -7,6 +7,17 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-21 GLTP-V0-048/049: lifecycle test deadline and joined shutdown
+
+`TestRunningFailedPassed` used the production-like fresh `GOCACHE` with both its runner and outer
+terminal-event waits fixed at 20 seconds. Under full-suite contention, cold compilation exhausted
+that budget; a fatal wait also cancelled the session without joining `Run`, allowing temporary-file
+cleanup to race the runner. The test harness now sets the specified `GOENV=off`, uses a five-minute
+per-run hang-detector budget, fails immediately with the complete event sequence on an unexpected
+terminal state, and unconditionally cancels and joins `Run` before `TempDir` cleanup. Production
+defaults and session behavior are unchanged. The complete session package passed in 35.808 seconds,
+and ten serial repetitions of the exact lifecycle test passed in 39.069 seconds.
+
 ## 2026-09-21 LTA-V0-004: verbose Go PASS marker exception
 
 The pre-change Corvint query selected an unrelated decision and omitted the governing writer-screen
