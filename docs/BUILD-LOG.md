@@ -57,6 +57,14 @@ packet reported captured index revision `70ffae556ba8cecc499501a492b905148531075
 worktree HEAD. Exact repository inspection found `documentation-corpus-v1.md` and
 `internal/doccorpus/behavior.go`; no completeness claim is made for the stale context packet.
 
+The first committed CEM and full gate passed, but enrolled `finish` exposed a distinct
+traceability miss: Go test function names normalized the requirement numbers and yielded no exact
+`BBF-V0-###` OCM claim anchors. Requirement-labelled test cases now bind the existing behavior
+assertions, with added closed-vocabulary and report-limitation checks. The first enrolled full test
+failed in unrelated process/timing tests under concurrent repository-wide runs; a clean serialized
+retry passed. Both observations remain in the private completion evidence rather than being
+reclassified as product behavior.
+
 ## 2026-09-20 PWP-V0-003/007/008: standard Playwright device-spread regression
 
 GitHub issue #49 reported that the ordinary Playwright project form

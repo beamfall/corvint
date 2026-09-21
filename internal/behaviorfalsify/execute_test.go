@@ -111,9 +111,11 @@ func TestBBFV0001PlanIsCanonicalAndRequiresApproval(t *testing.T) {
 		t.Fatal(err)
 	}
 	second, err := BuildPlan(request)
-	if err != nil || first.Digest != second.Digest || first.Controls[0].ID != "a" || first.Controls[1].ID != "z" {
-		t.Fatalf("canonical plan mismatch: err=%v first=%+v second=%+v", err, first, second)
-	}
+	t.Run("BBF-V0-001 canonical plan requires exact approval", func(t *testing.T) {
+		if err != nil || first.Digest != second.Digest || first.Controls[0].ID != "a" || first.Controls[1].ID != "z" {
+			t.Fatalf("canonical plan mismatch: err=%v first=%+v second=%+v", err, first, second)
+		}
+	})
 	if _, err := Execute(context.Background(), first, ""); err == nil || err.Error() != "operator-authorization-required" {
 		t.Fatalf("missing approval error = %v", err)
 	}
@@ -129,6 +131,36 @@ func TestBBFV0001PlanIsCanonicalAndRequiresApproval(t *testing.T) {
 	if err != nil || report.Counts[StatusNotRun] != 1 || report.Counts[StatusNotSupported] != 1 || report.Fallback != "full-relevant-suite" || report.MutationScore.Defined {
 		t.Fatalf("report = %+v, err=%v", report, err)
 	}
+}
+
+func TestBBFV0003ClosedControlVocabulary(t *testing.T) {
+	t.Run("BBF-V0-003 closed controls never convert unsupported work to kills", func(t *testing.T) {
+		kinds := []ControlKind{
+			WrongLocator, WrongExpectedValue, OmittedAssertion, OmittedEvent,
+			ReorderedEvent, WrongProject, SuppressedPersistence, OppositeBranch,
+			ChangedFixtureValue,
+		}
+		controls := make([]ControlSpec, 0, len(kinds))
+		for _, kind := range kinds {
+			controls = append(controls, ControlSpec{
+				ID: string(kind), Kind: kind, Disposition: "not_supported",
+				Definition: map[string]string{"reason": "no caller hook"},
+			})
+		}
+		request := testRequest(t, controls)
+		plan, err := BuildPlan(request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		report, err := Execute(context.Background(), plan, plan.Digest)
+		if err != nil || report.Counts[StatusNotSupported] != len(kinds) || report.Counts[StatusKilled] != 0 || report.Fallback != "full-relevant-suite" {
+			t.Fatalf("unsupported controls report = %+v, err=%v", report, err)
+		}
+		request.Controls[0].Kind = "outside-closed-vocabulary"
+		if _, err := BuildPlan(request); err == nil {
+			t.Fatal("unknown control kind unexpectedly accepted")
+		}
+	})
 }
 
 func TestBBFV0001PlanDriftRefused(t *testing.T) {
@@ -160,8 +192,8 @@ func TestBBFV0011SyntheticConformance(t *testing.T) {
 		mutate func(*AttemptResult)
 		want   Status
 	}{
-		{"expected kill", func(*AttemptResult) {}, StatusKilled},
-		{"unrelated failure", func(result *AttemptResult) { result.Receipt.Unrelated[0].State = "failed" }, StatusInvalidControl},
+		{"BBF-V0-005 expected criterion kill", func(*AttemptResult) {}, StatusKilled},
+		{"BBF-V0-006 unrelated failure is invalid", func(result *AttemptResult) { result.Receipt.Unrelated[0].State = "failed" }, StatusInvalidControl},
 		{"wrong assertion", func(result *AttemptResult) { result.Receipt.TargetObservation.AssertionID = "assertion:other" }, StatusInvalidControl},
 		{"selector error", func(result *AttemptResult) { result.Receipt.TargetObservation.FailureKind = "selector" }, StatusInvalidControl},
 		{"timeout", func(result *AttemptResult) { result.HookProcess.TimedOut = true }, StatusInfrastructureFailed},
@@ -169,7 +201,7 @@ func TestBBFV0011SyntheticConformance(t *testing.T) {
 		{"descendant cleanup unavailable", func(result *AttemptResult) { result.HookProcess.DescendantsGone = false }, StatusInfrastructureFailed},
 		{"cleanup failure", func(result *AttemptResult) { result.CleanupProcess.Exit = 1 }, StatusInvalidControl},
 		{"retry hides first outcome", func(result *AttemptResult) { result.Receipt.Retry = 1 }, StatusInvalidControl},
-		{"stale revision", func(result *AttemptResult) { result.Receipt.Target.TestRevision = strings.Repeat("d", 40) }, StatusInvalidControl},
+		{"BBF-V0-011 stale revision is invalid", func(result *AttemptResult) { result.Receipt.Target.TestRevision = strings.Repeat("d", 40) }, StatusInvalidControl},
 		{"stale perturbation digest", func(result *AttemptResult) { result.Receipt.PerturbationSHA256 = digestN("stale") }, StatusInvalidControl},
 		{"stale artifact digest", func(result *AttemptResult) { result.Reasons = []string{"artifact-digest-mismatch"} }, StatusInvalidControl},
 	}
@@ -191,7 +223,7 @@ func TestBBFV0011DistinctSurvivorFixtures(t *testing.T) {
 		kind       ControlKind
 		definition map[string]string
 	}{
-		{"tautological assertion", OmittedAssertion, map[string]string{"assertion": "always-true"}},
+		{"BBF-V0-011 tautological assertion", OmittedAssertion, map[string]string{"assertion": "always-true"}},
 		{"hidden duplicate element", WrongLocator, map[string]string{"locator": "duplicate-hidden"}},
 		{"wrong value", WrongExpectedValue, map[string]string{"expected": "fixture-wrong"}},
 	} {
@@ -261,9 +293,11 @@ func TestBBFV0004LiveHookRestoresDisposableWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 	result := report.Results[0]
-	if result.Status != StatusKilled || len(result.Attempts) != 1 || result.Attempts[0].WorkspaceBefore != result.Attempts[0].WorkspaceAfter || !processSucceeded(result.Attempts[0].HookProcess) || !processSucceeded(result.Attempts[0].CleanupProcess) {
-		t.Fatalf("live result = %+v", result)
-	}
+	t.Run("BBF-V0-004 approved hook restores disposable workspace", func(t *testing.T) {
+		if result.Status != StatusKilled || len(result.Attempts) != 1 || result.Attempts[0].WorkspaceBefore != result.Attempts[0].WorkspaceAfter || !processSucceeded(result.Attempts[0].HookProcess) || !processSucceeded(result.Attempts[0].CleanupProcess) {
+			t.Fatalf("live result = %+v", result)
+		}
+	})
 	if _, err := os.Stat(filepath.Join(request.DisposableRoot, "artifact.json")); !os.IsNotExist(err) {
 		t.Fatalf("artifact survived cleanup: %v", err)
 	}
@@ -380,9 +414,11 @@ func TestBBFV0007CancellationStopsFurtherExecution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.Executed != 1 || report.Results[0].Status != StatusInfrastructureFailed || len(report.Results[0].Attempts) != 1 || !report.Results[0].Attempts[0].CleanupProcess.Started || report.Results[1].Status != StatusNotRun || len(report.Results[1].Attempts) != 0 {
-		t.Fatalf("cancellation report = %+v", report)
-	}
+	t.Run("BBF-V0-007 cancellation preserves first attempt and later ordinal", func(t *testing.T) {
+		if report.Executed != 1 || report.Results[0].Status != StatusInfrastructureFailed || len(report.Results[0].Attempts) != 1 || !report.Results[0].Attempts[0].CleanupProcess.Started || report.Results[1].Status != StatusNotRun || len(report.Results[1].Attempts) != 0 {
+			t.Fatalf("cancellation report = %+v", report)
+		}
+	})
 }
 
 func TestBBFV0009AggregateCountsAndFallback(t *testing.T) {
@@ -400,15 +436,29 @@ func TestBBFV0009AggregateCountsAndFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.Requested != 3 || report.Supported != 1 || report.Executed != 1 || report.Counts[StatusKilled] != 1 || report.Counts[StatusNotSupported] != 1 || report.Counts[StatusNotRun] != 1 || !report.MutationScore.Defined || report.MutationScore.Killed != 1 || report.MutationScore.Denominator != 1 || report.CompleteVocabulary || report.Fallback != "full-relevant-suite" || len(report.CoverageGaps) != 2 {
-		t.Fatalf("aggregate report = %+v", report)
-	}
+	t.Run("BBF-V0-008 partial controls retain gaps and suite fallback", func(t *testing.T) {
+		if report.CompleteVocabulary || report.Fallback != "full-relevant-suite" || len(report.CoverageGaps) != 2 {
+			t.Fatalf("coverage report = %+v", report)
+		}
+	})
+	t.Run("BBF-V0-009 raw status counts and mutation denominator", func(t *testing.T) {
+		if report.Requested != 3 || report.Supported != 1 || report.Executed != 1 || report.Counts[StatusKilled] != 1 || report.Counts[StatusNotSupported] != 1 || report.Counts[StatusNotRun] != 1 || !report.MutationScore.Defined || report.MutationScore.Killed != 1 || report.MutationScore.Denominator != 1 || len(report.Counts) != 6 {
+			t.Fatalf("aggregate report = %+v", report)
+		}
+	})
+	t.Run("BBF-V0-012 observations never authorize suite narrowing", func(t *testing.T) {
+		if report.Fallback != "full-relevant-suite" || len(report.Limitations) != 3 || report.Limitations[0] != "caller-owned hook semantics are not authenticated" || report.Limitations[1] != "results cover only the exact approved controls and never authorize suite narrowing" {
+			t.Fatalf("limitations report = %+v", report)
+		}
+	})
 }
 
 func TestBBFV0010EncodingIsBounded(t *testing.T) {
-	if _, err := Encode(Report{Limitations: []string{strings.Repeat("x", maxDocumentBytes)}}); err == nil {
-		t.Fatal("oversized report unexpectedly encoded")
-	}
+	t.Run("BBF-V0-010 bounded report rejects oversized output", func(t *testing.T) {
+		if _, err := Encode(Report{Limitations: []string{strings.Repeat("x", maxDocumentBytes)}}); err == nil {
+			t.Fatal("oversized report unexpectedly encoded")
+		}
+	})
 	data, err := Encode(Report{Limitations: []string{strings.Repeat("<", 6<<20)}})
 	if err != nil || len(data) >= maxDocumentBytes {
 		t.Fatalf("HTML-safe content expanded beyond wire bound: bytes=%d err=%v", len(data), err)
@@ -501,7 +551,7 @@ func TestBBFV0002PlanRejectsStaleRepositoryBindings(t *testing.T) {
 		name   string
 		mutate func(*Request)
 	}{
-		{"revision", func(request *Request) { request.Target.TestRevision = strings.Repeat("d", 40) }},
+		{"BBF-V0-002 stale revision binding", func(request *Request) { request.Target.TestRevision = strings.Repeat("d", 40) }},
 		{"contract digest", func(request *Request) { request.Target.ContractSHA256 = digestN("stale-contract") }},
 		{"config digest", func(request *Request) { request.Runner.ConfigSHA256 = digestN("stale-config") }},
 	}
