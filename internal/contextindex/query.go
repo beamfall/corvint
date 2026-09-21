@@ -675,3 +675,23 @@ func keepTerm(result, keep map[string]struct{}, value []byte) {
 	}
 	result[string(value)] = struct{}{}
 }
+
+// QuerySnapshotAuthority selects immutable project authority only. Mutable
+// traces and checkout-bracketed history are outside the explicit snapshot.
+func QuerySnapshotAuthority(index *Index, text string) (map[string]any, error) {
+	if err := ValidateQueryAuthorityStart(text, 1); err != nil {
+		return nil, err
+	}
+	trimmed := TrimPythonSpace(text)
+	candidates, err := selectQueryAuthority(index, pythonLower(trimmed), terms(pythonLower(trimmed)))
+	if err != nil {
+		return nil, err
+	}
+	results := []map[string]any{candidates[0].result}
+	packet, err := receipt(index, "query", map[string]any{"text": trimmed, "limit": 1}, results, 1, "", "history and local traces are outside the immutable planning snapshot")
+	if err != nil {
+		return nil, err
+	}
+	packet["abstention"] = map[string]any{"active": false, "reason": "none"}
+	return compileReceipt(packet, nil, index)
+}

@@ -20,6 +20,7 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/plansnapshot"
 	"github.com/Beamfall/corvint/internal/projectprofile"
 )
 
@@ -183,6 +184,7 @@ func (registry *Registry) Tools() []ToolDescriptor {
 			Description: "Compile revision-bound impact evidence for tracked Go files without returning source bodies.",
 			Annotations: readAnnotations(),
 			InputSchema: objectSchema(map[string]any{
+				"snapshot": snapshotSchema(),
 				"paths": map[string]any{
 					"type": "array", "minItems": 1, "maxItems": maxImpactPaths, "uniqueItems": true,
 					"items": map[string]any{
@@ -198,7 +200,8 @@ func (registry *Registry) Tools() []ToolDescriptor {
 			Description: "Compile the narrow project-operations authority-start receipt (limit is fixed at one).",
 			Annotations: readAnnotations(),
 			InputSchema: objectSchema(map[string]any{
-				"task": map[string]any{"type": "string", "minLength": 1, "maxLength": maxQueryRunes, "pattern": `^[ -~]*[!-~][ -~]*$`},
+				"snapshot": snapshotSchema(),
+				"task":     map[string]any{"type": "string", "minLength": 1, "maxLength": maxQueryRunes, "pattern": `^[ -~]*[!-~][ -~]*$`},
 			}, []any{"task"}),
 		},
 		{
@@ -253,7 +256,8 @@ func (registry *Registry) sameRoot() bool {
 }
 
 type queryInput struct {
-	Task string `json:"task"`
+	Snapshot jsonv1.RawMessage `json:"snapshot"`
+	Task     string            `json:"task"`
 }
 
 func (registry *Registry) callQuery(ctx context.Context, arguments []byte) (Result, *Error) {
@@ -270,14 +274,20 @@ func (registry *Registry) callQuery(ctx context.Context, arguments []byte) (Resu
 		}
 		return Result{}, normalizeFailure(ctx, err)
 	}
-	snapshot, bridgeErr := registry.querySnapshot(ctx, input.Task)
+	snapshot, scope, bridgeErr := registry.planningSnapshot(ctx, input.Snapshot, input.Task)
 	if bridgeErr != nil {
 		if repositoryDrift(bridgeErr) {
 			return abstained(ToolQuery, "REPOSITORY_STATE_UNSTABLE", nil), nil
 		}
 		return Result{}, bridgeErr
 	}
-	receipt, err := contextindex.QueryAuthorityStart(ctx, snapshot.index, input.Task, 1)
+	var receipt map[string]any
+	var err error
+	if scope != nil {
+		receipt, err = contextindex.QuerySnapshotAuthority(snapshot.index, input.Task)
+	} else {
+		receipt, err = contextindex.QueryAuthorityStart(ctx, snapshot.index, input.Task, 1)
+	}
 	if err != nil {
 		if isUnsupported(err, "unsupported-query-") {
 			return abstained(ToolQuery, abstentionReason(err), &snapshot.binding), nil
@@ -287,12 +297,13 @@ func (registry *Registry) callQuery(ctx context.Context, arguments []byte) (Resu
 		}
 		return Result{}, normalizeFailure(ctx, err)
 	}
-	return boundedObserved(ToolQuery, snapshot.binding, receipt)
+	return registry.boundedPlanning(ctx, ToolQuery, snapshot, scope, receipt)
 }
 
 type impactInput struct {
-	Paths []string `json:"paths"`
-	Limit int      `json:"limit"`
+	Snapshot jsonv1.RawMessage `json:"snapshot"`
+	Paths    []string          `json:"paths"`
+	Limit    int               `json:"limit"`
 }
 
 func (registry *Registry) callImpact(ctx context.Context, arguments []byte) (Result, *Error) {
@@ -305,7 +316,7 @@ func (registry *Registry) callImpact(ctx context.Context, arguments []byte) (Res
 	if !nativePlatformQualified(registry.operations.platform) {
 		return abstained(ToolImpact, "UNSUPPORTED_PLATFORM", nil), nil
 	}
-	snapshot, bridgeErr := registry.snapshot(ctx)
+	snapshot, scope, bridgeErr := registry.planningSnapshot(ctx, input.Snapshot, "")
 	if bridgeErr != nil {
 		if repositoryDrift(bridgeErr) {
 			return abstained(ToolImpact, "REPOSITORY_STATE_UNSTABLE", nil), nil
@@ -322,7 +333,7 @@ func (registry *Registry) callImpact(ctx context.Context, arguments []byte) (Res
 		}
 		return Result{}, normalizeFailure(ctx, err)
 	}
-	return boundedObserved(ToolImpact, snapshot.binding, receipt)
+	return registry.boundedPlanning(ctx, ToolImpact, snapshot, scope, receipt)
 }
 
 func nativePlatformQualified(platform string) bool {
@@ -623,3 +634,60 @@ func normalizeFailure(ctx context.Context, err error) *Error {
 }
 
 func failure(code string) *Error { return &Error{Code: code} }
+
+func snapshotSchema() map[string]any {
+	oid := map[string]any{"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"}
+	return objectSchema(map[string]any{
+		"schema":         map[string]any{"const": plansnapshot.Schema},
+		"commitRevision": oid, "treeRevision": oid, "baseRevision": oid,
+		"changedPaths":       map[string]any{"type": "array", "maxItems": 4096, "uniqueItems": true, "items": map[string]any{"type": "string", "minLength": 1}},
+		"changedPathsSha256": map[string]any{"type": "string", "pattern": "^[0-9a-f]{64}$"},
+	}, []any{"schema", "commitRevision", "treeRevision", "baseRevision", "changedPaths", "changedPathsSha256"})
+}
+
+func (registry *Registry) planningSnapshot(ctx context.Context, raw []byte, task string) (repositorySnapshot, *plansnapshot.Receipt, *Error) {
+	if len(raw) == 0 {
+		if task != "" {
+			snapshot, err := registry.querySnapshot(ctx, task)
+			return snapshot, nil, err
+		}
+		snapshot, err := registry.snapshot(ctx)
+		return snapshot, nil, err
+	}
+	receipt, err := plansnapshot.Decode(raw)
+	if err != nil {
+		return repositorySnapshot{}, nil, failure("invalid-arguments")
+	}
+	if err = receipt.Validate(ctx, registry.root); err != nil {
+		return repositorySnapshot{}, nil, failure("repository-unavailable")
+	}
+	index, err := contextindex.BuildRevisionContext(ctx, registry.root, receipt.Commit)
+	snapshot, bridgeErr := registry.snapshotIndex(ctx, index, err)
+	if bridgeErr != nil {
+		return repositorySnapshot{}, nil, bridgeErr
+	}
+	if index.Revision != receipt.Tree || index.CommitRevision != receipt.Commit {
+		return repositorySnapshot{}, nil, failure("repository-unavailable")
+	}
+	// The binding describes the observed checkout; only the nested receipt uses
+	// immutable snapshot freshness. Never relabel a dirty checkout as clean.
+	observed, err := registry.operations.probe(ctx, registry.root)
+	if err != nil {
+		return repositorySnapshot{}, nil, normalizeFailure(ctx, err)
+	}
+	snapshot.binding = bindingFromRepository(observed)
+	if snapshot.binding.CommitRevision != receipt.Commit || snapshot.binding.TreeRevision != receipt.Tree {
+		return repositorySnapshot{}, nil, failure("repository-unavailable")
+	}
+	return snapshot, &receipt, nil
+}
+
+func (registry *Registry) boundedPlanning(ctx context.Context, tool string, snapshot repositorySnapshot, scope *plansnapshot.Receipt, receipt map[string]any) (Result, *Error) {
+	if scope != nil {
+		if err := scope.Validate(ctx, registry.root); err != nil {
+			return Result{}, failure("repository-unavailable")
+		}
+		receipt["snapshot"] = scope.Scope()
+	}
+	return boundedObserved(tool, snapshot.binding, receipt)
+}

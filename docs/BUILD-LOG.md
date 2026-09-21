@@ -7,6 +7,34 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-21 AFP-V0-019 / MCPV0-020: explicit immutable planning snapshot (issue #57)
+
+The owner requested authoritative evidence for an explicit immutable snapshot while unrelated
+checkout paths remain dirty. The experimental route binds current commit, complete tree, base,
+exact changed paths and canonical path digest. It does not authenticate caller intent or accept
+runtime coverage. CLI selectors consume bounded committed blobs in disposable private scratch;
+MCP uses the existing immutable revision reader and preserves the outer mixed-worktree binding.
+Query snapshot authority excludes mutable traces/history rather than weakening their drift gate.
+Missing/stale/mismatched receipts fail closed; unsupported overlays and provider/discovery
+composition remain explicit exclusions. Existing live-worktree routes are unchanged.
+
+Pre-change native query succeeded at base `3191c0b95fb154a94f1e758d935b72fe237dfd65`;
+raw evidence, usage baseline and keyed local-completion plan are in `/tmp/corvint-issue57` and the
+worktree-private Git evidence directory. Initial dogfood retained `NOT_PRODUCED` reasons
+`git-diff-failed` (empty range), `missing-intent-scope`, `cem-map-not-produced`, and
+`outcome-input-not-provided`; these are not passing verification. `affected --base` was used
+before tests. Query, affected, CEM/OCM and MCP are applicable routes; learning, providers, mutation,
+console and external host qualification are not part of this source-selection change.
+
+Focused snapshot regressions exposed query history's live-state binding; the repair retains that
+binding for legacy queries and explicitly omits history in the immutable profile. Focused receipt,
+CLI and MCP regressions passed. Final canonical checks and independent review are recorded by
+keyed dogfood observations and the coordinating task, not inferred from these fixture results.
+The builder did not delegate under the sole-builder instruction; independent review belongs to
+the coordinator. Gate-plan/gate-intent scripts are Beamfall workflow tooling, absent here; the
+practical plan review and requirement-linked tests provide local review inputs, not an independent
+gate claim. Rollback removes only explicit snapshot admission and its optional scope fields.
+
 ## 2026-09-20 PWP-V0-003/007/008: standard Playwright device-spread regression
 
 GitHub issue #49 reported that the ordinary Playwright project form

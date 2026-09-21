@@ -23,6 +23,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/rust"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/swift"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
+	"github.com/Beamfall/corvint/internal/plansnapshot"
 )
 
 // affectedProfile names the wire this command emits (AFP-V0-003).
@@ -32,6 +33,7 @@ const affectedProfile = "affected-plan/0"
 // canonical plan; provider is the derived, non-authoritative input an operator
 // may copy into a Go live-test provider bundle (AFP-V0-004).
 type affectedReceipt struct {
+	Snapshot map[string]any   `json:"snapshot,omitempty"`
 	Advice   affectedAdvice   `json:"advice"`
 	Mutates  bool             `json:"mutates"`
 	OK       bool             `json:"ok"`
@@ -55,6 +57,7 @@ type affectedRange struct {
 // affectedInvocation is one parsed `affected` command line. Providers,
 // Checkouts, and SelectionProfile are set only by the ETS-V0 flags.
 type affectedInvocation struct {
+	Snapshot            string
 	Root                string
 	Base                string
 	Providers           []string
@@ -65,6 +68,7 @@ type affectedInvocation struct {
 }
 
 type playwrightAffectedReceipt struct {
+	Snapshot map[string]any            `json:"snapshot,omitempty"`
 	Mutates  bool                      `json:"mutates"`
 	OK       bool                      `json:"ok"`
 	Plan     typescript.PlaywrightPlan `json:"plan"`
@@ -170,7 +174,7 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 
 // affectedOptionNames are the flags `affected` accepts, each taking one value
 // as `--flag VALUE` or `--flag=VALUE`.
-var affectedOptionNames = map[string]bool{"--base": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--repository": true, "--selection-profile": true}
+var affectedOptionNames = map[string]bool{"--snapshot": true, "--base": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--repository": true, "--selection-profile": true}
 
 // parseAffectedOptions reads the flags after `affected`. `--base` must
 // already be a full object id: a ref name is resolved by the caller, never
@@ -195,6 +199,12 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 		index++
 		var err error
 		switch name {
+		case "--snapshot":
+			if invocation.Snapshot != "" || value == "" {
+				err = argumentError("--snapshot requires exactly one nonempty value")
+			} else {
+				invocation.Snapshot = value
+			}
 		case "--base":
 			err = setAffectedBase(&invocation, &baseSet, value)
 		case "--provider":
@@ -215,6 +225,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 		if err != nil {
 			return affectedInvocation{}, err
 		}
+	}
+	if invocation.Snapshot != "" && (invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightDiscovery != "") {
+		return affectedInvocation{}, argumentError("--snapshot cannot be combined with --base, --provider or --playwright-discovery")
 	}
 	if len(invocation.Providers) == 0 && (len(invocation.Checkouts) != 0 || invocation.SelectionProfile != "") {
 		return affectedInvocation{}, argumentError("--repository and --selection-profile require --provider")
@@ -299,7 +312,9 @@ func setAffectedSelectionProfile(invocation *affectedInvocation, value string) e
 func runAffected(ctx context.Context, invocation affectedInvocation, stdout, stderr io.Writer) int {
 	var receipt any
 	var err error
-	if invocation.PlaywrightConfig != "" {
+	if invocation.Snapshot != "" {
+		receipt, err = compileSnapshotAffected(ctx, invocation)
+	} else if invocation.PlaywrightConfig != "" {
 		receipt, err = compilePlaywrightAffected(ctx, invocation)
 	} else {
 		receipt, err = compileAffected(ctx, invocation)
@@ -741,4 +756,44 @@ func validGitObjectID(value string) bool {
 		}
 	}
 	return true
+}
+
+func compileSnapshotAffected(ctx context.Context, invocation affectedInvocation) (any, error) {
+	name := invocation.Snapshot
+	if !filepath.IsAbs(name) {
+		name = filepath.Join(invocation.Root, name)
+	}
+	snapshot, err := plansnapshot.ReadFile(name)
+	if err != nil {
+		return nil, snapshotAffectedError()
+	}
+	root, cleanup, err := snapshot.Materialize(ctx, invocation.Root)
+	if err != nil {
+		return nil, snapshotAffectedError()
+	}
+	defer cleanup()
+	var receipt any
+	if invocation.PlaywrightConfig != "" {
+		plan, err := typescript.SelectPlaywright(root, invocation.PlaywrightConfig, snapshot.Commit, snapshot.Paths, nil)
+		if err != nil {
+			return nil, snapshotAffectedError()
+		}
+		receipt = playwrightAffectedReceipt{Snapshot: snapshot.Scope(), OK: true, Plan: plan, Profile: typescript.PlaywrightProfile, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}
+	} else {
+		graph, err := affected.Build(root, affectedLanguages()...)
+		if err != nil {
+			return nil, snapshotAffectedError()
+		}
+		plan := affected.Select(graph, snapshot.Paths)
+		provider := providerGoProjection(graph, plan)
+		receipt = affectedReceipt{Snapshot: snapshot.Scope(), Advice: compileAffectedAdvice(root, plan, provider), OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}
+	}
+	if err := snapshot.Validate(ctx, invocation.Root); err != nil {
+		return nil, snapshotAffectedError()
+	}
+	return receipt, nil
+}
+
+func snapshotAffectedError() error {
+	return &gokernel.Error{Code: "unsupported-planning-snapshot", Message: "immutable planning snapshot is missing, mismatched, incomplete or unsupported"}
 }

@@ -347,6 +347,23 @@ cannot make stdout writes grow without bound.
 An output that would exceed 1,048,576 bytes is replaced by one bounded explicit over-budget result,
 not truncated JSON.
 
+- `MCPV0-020`: `corvint.query` and `corvint.impact` MAY accept an explicit
+  `snapshot` object following AFP-V0-019's closed receipt and immutable bindings.
+  Missing snapshot preserves the existing live profile; explicit null or malformed
+  wire MUST fail with `invalid-arguments`, and stale/mismatched/incomplete bindings
+  MUST fail with sanitized `repository-unavailable`, never retry without snapshot.
+  Evidence MUST come from the exact committed tree and carry AFP-V0-019's diagnostic
+  `snapshot` scope. The outer repository binding MUST still disclose observed dirty
+  state; immutable receipt freshness MUST NOT claim that checkout bytes are clean.
+  Query authority retains its existing task/limit admission and ranking, but omits
+  mutable traces and history with explicit uncertainty. Impact keeps existing
+  path/profile limits and exclusions. HEAD/tree MUST match again before publishing.
+  No snapshot can certify tests, runtime behavior, current uncommitted source or
+  host acceptance. The existing frame, argument and read-only bounds remain.
+  Rollback removes optional snapshot admission without weakening legacy refusals.
+  Evidence: `TestMCPExplicitSnapshotRetainsImmutableEvidenceInMixedWorktree` and
+  AFP-V0-019's receipt rejection tests. External host qualification is NOT_RUN.
+
 ### Bridge failure codes
 
 The in-process bridge (`internal/mcp/bridge`) emits the kebab-case codes below (decision 0100).
