@@ -13,8 +13,7 @@ dependency to Corvint Core.
 ## Agent digest
 - Claim: Models may propose evidence for named semantic gaps only through bounded calls and independent registered verifiers.
 - Status: accepted (decision 0047, 2026-09-04)/experimental (deterministic gate slice; no provider, calibration, or kill gate)
-- Exists: the contract plus an unwired in-process gate (`internal/semescalate`) tested only against
-  provider spies, including a typed-choice path over mechanically supplied anchored options.
+- Exists: the contract plus an unwired in-process gate (`internal/semescalate`) tested only against provider spies, including a typed-choice path over mechanically supplied anchored options.
 - Blocked on: a registered extractor profile, frozen calibration, held-out replay, and kill-gate evidence.
 - Read next: User and measurable job; Deterministic acceptance and adversarial matrix; Traceability.
 
