@@ -70,6 +70,9 @@ repair, run the selected units plus any checks needed to resolve retained unknow
 exhaustive gate after each repair. Run the exhaustive commands below only once at the terminal
 boundary when repository or release policy requires them. If the owner explicitly waives that gate,
 retain it as `NOT_RUN` with the affected-plan unknowns instead of implying equivalent coverage.
+For scoped issue work, the owner's standing preference is focused tests, the capability-specific live
+qualification when applicable, and independent review. Do not start `make gate` unless the owner asks
+for it or a governing release policy explicitly requires repository-wide validation.
 
 ```sh
 test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.1"

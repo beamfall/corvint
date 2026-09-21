@@ -7,6 +7,41 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 PWP-V0-008: Playwright 1.63 bundled headless-shell qualification
+
+GitHub issue #50 exposed that the only qualified Darwin arm64 / Node v22.23.2 Playwright 1.63 path
+used auto-updating system Chrome. The reporter now distinguishes configured and Playwright-registry
+executables. Its bundled path binds registry name `chromium-headless-shell`, revision `1243`, manifest
+and observed browser version `153.0.8010.12`, a cache-root-independent executable suffix, and exact
+SHA-256 `a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282`. Projection rejects any
+changed Node version, revision, manifest/browser version, executable kind/path/digest, headed mode or
+explicit override. Remote-browser connections also abstain because the local executable identity does
+not describe the connected browser. The previous system-Chrome tuple remains a separate exact branch.
+
+The real external-server matrix now runs against the bundled headless shell and retains pass,
+assertion failure, timeout, retry, cancellation, browser infrastructure, two-project identity,
+external-server survival and MCP discovery controls, then smoke-tests the previous system path.
+Behavior and stability corpus fixtures consume the bundled tuple through the ordinary retained-
+receipt qualification path. Additional Node/browser tuples require a spec amendment, exact lock and
+registry identities, the complete live matrix and negative drift controls; no semver widening is
+accepted. The live matrix passed in 25.91s with headed and remote-connection negative controls using
+the preinstalled locked 1.63.0 modules and browser;
+no package or browser download ran. The pre-change Corvint query selected an unrelated documentation
+compiler and omitted four ranked results; targeted path impact identified the PWP spec, reporter,
+tests and consumers instead.
+
+Independent review found that `launchOptions.headless=false` and explicit or environment-selected
+remote browser connections could initially retain the local bundled identity. The reporter now
+matches Playwright's headless precedence and abstains for remote connections and custom launch
+fixtures; retained projection rejects serialized connection options. The added live negatives pass,
+and the repair re-review found no remaining actionable issue.
+
+The first scoped local-completion plan could not retain the successful verbose live check because the
+writer secret screen classified Go's `--- PASS: TestQualifiedPlaywrightLive` marker as a credential
+assignment. That plan was cancelled without satisfaction, the confirmed false positive was added to
+`docs/agent-memory/bugs.md`, and the same frozen live test was selected without `-v` for retained
+evidence; this changes log verbosity, not execution or assertions.
+
 ## 2026-09-20 Integrated canonical-gate repair
 
 The first combined `make gate` rejected the candidate before publication. The work-queue OCM

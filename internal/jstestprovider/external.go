@@ -25,6 +25,17 @@ import (
 const ExternalProfile = "corvint-playwright-external/0"
 const externalOutputLimit = 4 << 20
 
+const (
+	qualifiedBundledBrowserName      = "chromium-headless-shell"
+	qualifiedBundledBrowserRevision  = "1243"
+	qualifiedBundledBrowserVersion   = "Google Chrome for Testing 153.0.8010.12"
+	qualifiedBundledManifestVersion  = "153.0.8010.12"
+	qualifiedBundledExecutableSHA256 = "a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282"
+	qualifiedBundledExecutableSuffix = "/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell"
+	qualifiedSystemBrowserVersion    = "Google Chrome 153.0.8010.48"
+	qualifiedSystemBrowserExecutable = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+)
+
 func qualifiedPlaywrightVersion(version string) bool {
 	return version == "1.60.0" || version == "1.63.0"
 }
@@ -40,6 +51,33 @@ type qualifiedReport struct {
 	Status      string             `json:"status"`
 	Tests       []TestOutcome      `json:"tests"`
 	Errors      []string           `json:"errors"`
+}
+
+type playwrightBrowserIdentity struct {
+	Platform               *string `json:"platform"`
+	Arch                   *string `json:"arch"`
+	NodeVersion            *string `json:"nodeVersion"`
+	BrowserType            *string `json:"browserType"`
+	BrowserVersion         *string `json:"browserVersion"`
+	Channel                *string `json:"channel"`
+	ExecutableSource       *string `json:"executableSource"`
+	ExecutableName         *string `json:"executableName"`
+	ExecutablePath         *string `json:"executablePath"`
+	ExecutableSHA256       *string `json:"executableSha256"`
+	BrowserRevision        *string `json:"browserRevision"`
+	ManifestBrowserVersion *string `json:"manifestBrowserVersion"`
+	HeadlessShellAvailable *bool   `json:"headlessShellAvailable"`
+}
+
+type playwrightUseIdentity struct {
+	CorvintBrowser playwrightBrowserIdentity `json:"corvintBrowser"`
+	BrowserName    *string                   `json:"browserName"`
+	Channel        *string                   `json:"channel"`
+	ConnectOptions json.RawMessage           `json:"connectOptions"`
+	Headless       *bool                     `json:"headless"`
+	LaunchOptions  struct {
+		ExecutablePath *string `json:"executablePath"`
+	} `json:"launchOptions"`
 }
 
 func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
@@ -507,29 +545,48 @@ func qualifiedPlaywrightTuple(r Receipt, t TestOutcome) bool {
 	if r.Identity.RunnerVersion != "1.63.0" || r.Identity.NodeVersion != "v22.23.2" {
 		return false
 	}
-	var use struct {
-		CorvintBrowser struct {
-			Platform               *string `json:"platform"`
-			Arch                   *string `json:"arch"`
-			NodeVersion            *string `json:"nodeVersion"`
-			BrowserType            *string `json:"browserType"`
-			BrowserVersion         *string `json:"browserVersion"`
-			Channel                *string `json:"channel"`
-			ExecutablePath         *string `json:"executablePath"`
-			HeadlessShellAvailable *bool   `json:"headlessShellAvailable"`
-		} `json:"corvintBrowser"`
-		BrowserName   *string `json:"browserName"`
-		Channel       *string `json:"channel"`
-		LaunchOptions struct {
-			ExecutablePath *string `json:"executablePath"`
-		} `json:"launchOptions"`
-	}
+	var use playwrightUseIdentity
 	if json.Unmarshal(t.Project.Use, &use) != nil {
 		return false
 	}
-	browser := use.CorvintBrowser
-	if use.BrowserName == nil || use.Channel == nil || use.LaunchOptions.ExecutablePath == nil || browser.Platform == nil || browser.Arch == nil || browser.NodeVersion == nil || browser.BrowserType == nil || browser.BrowserVersion == nil || browser.Channel == nil || browser.ExecutablePath == nil || browser.HeadlessShellAvailable == nil {
+	if len(use.ConnectOptions) != 0 {
 		return false
 	}
-	return *use.BrowserName == t.Project.Browser && *use.BrowserName == *browser.BrowserType && *use.Channel == *browser.Channel && *use.LaunchOptions.ExecutablePath == *browser.ExecutablePath && *browser.Platform == "darwin" && *browser.Arch == "arm64" && *browser.NodeVersion == "v22.23.2" && *browser.BrowserType == "chromium" && *browser.BrowserVersion == "Google Chrome 153.0.8010.48" && *browser.Channel == "" && *browser.ExecutablePath == "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" && *browser.HeadlessShellAvailable
+	browser := use.CorvintBrowser
+	if use.BrowserName == nil || use.Channel == nil || browser.Platform == nil || browser.Arch == nil || browser.NodeVersion == nil || browser.BrowserType == nil || browser.BrowserVersion == nil || browser.Channel == nil || browser.ExecutablePath == nil || browser.HeadlessShellAvailable == nil {
+		return false
+	}
+	if *use.BrowserName != t.Project.Browser || *use.BrowserName != *browser.BrowserType || *use.Channel != *browser.Channel || *browser.Platform != "darwin" || *browser.Arch != "arm64" || *browser.NodeVersion != r.Identity.NodeVersion || *browser.BrowserType != "chromium" || *browser.Channel != "" || !*browser.HeadlessShellAvailable {
+		return false
+	}
+	if browser.ExecutableSource == nil {
+		return qualifiedSystemPlaywrightBrowser(use.LaunchOptions.ExecutablePath, browser.BrowserVersion, browser.ExecutablePath)
+	}
+	return qualifiedBundledPlaywrightBrowser(use.Headless, use.LaunchOptions.ExecutablePath, browser)
+}
+
+func qualifiedSystemPlaywrightBrowser(configured, version, observed *string) bool {
+	return configured != nil && *configured == *observed && *version == qualifiedSystemBrowserVersion && *observed == qualifiedSystemBrowserExecutable
+}
+
+func qualifiedBundledPlaywrightBrowser(headless *bool, configured *string, browser playwrightBrowserIdentity) bool {
+	if headless == nil || !*headless {
+		return false
+	}
+	if configured != nil && *configured != "" {
+		return false
+	}
+	if browser.ExecutableName == nil || browser.ExecutableSHA256 == nil || browser.BrowserRevision == nil || browser.ManifestBrowserVersion == nil {
+		return false
+	}
+	if *browser.ExecutableSource != "playwright-bundled" || *browser.ExecutableName != qualifiedBundledBrowserName {
+		return false
+	}
+	if *browser.BrowserVersion != qualifiedBundledBrowserVersion || *browser.ManifestBrowserVersion != qualifiedBundledManifestVersion {
+		return false
+	}
+	if *browser.BrowserRevision != qualifiedBundledBrowserRevision || *browser.ExecutableSHA256 != qualifiedBundledExecutableSHA256 {
+		return false
+	}
+	return filepath.IsAbs(*browser.ExecutablePath) && strings.HasSuffix(*browser.ExecutablePath, qualifiedBundledExecutableSuffix)
 }

@@ -4,7 +4,62 @@ const childProcess = require('node:child_process');
 const path = require('node:path');
 const playwright = require(require.resolve('playwright', {paths: [process.cwd()]}));
 
-const identityKeys = ['browserName', 'defaultBrowserType', 'channel', 'viewport', 'screen', 'userAgent', 'isMobile', 'hasTouch', 'deviceScaleFactor', 'locale', 'timezoneId', 'colorScheme', 'permissions', 'contextOptions', 'launchOptions'];
+const identityKeys = ['browserName', 'defaultBrowserType', 'channel', 'headless', 'connectOptions', 'viewport', 'screen', 'userAgent', 'isMobile', 'hasTouch', 'deviceScaleFactor', 'locale', 'timezoneId', 'colorScheme', 'permissions', 'contextOptions', 'launchOptions'];
+const qualifiedBundledBrowser = {
+  executableName: 'chromium-headless-shell', revision: '1243', manifestVersion: '153.0.8010.12',
+  observedVersion: 'Google Chrome for Testing 153.0.8010.12',
+  executableSha256: 'a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282',
+  pathSuffix: '/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell'
+};
+const bundledBrowsers = new Map();
+
+function fileSha256(file) {
+  const hash = crypto.createHash('sha256');
+  const descriptor = fs.openSync(file, 'r');
+  const buffer = Buffer.allocUnsafe(1024 * 1024);
+  try {
+    for (let bytes = fs.readSync(descriptor, buffer); bytes > 0; bytes = fs.readSync(descriptor, buffer)) hash.update(buffer.subarray(0, bytes));
+  } finally {
+    fs.closeSync(descriptor);
+  }
+  return hash.digest('hex');
+}
+
+function observedVersion(executablePath) {
+  const stdout = childProcess.spawnSync(executablePath, ['--version'], {encoding: 'utf8'}).stdout;
+  return typeof stdout === 'string' ? stdout.trim() : '';
+}
+
+function bundledBrowserIdentity(headless) {
+  const name = headless ? 'chromium-headless-shell' : 'chromium';
+  if (bundledBrowsers.has(name)) return bundledBrowsers.get(name);
+  const registry = require(require.resolve('playwright-core/lib/coreBundle', {paths: [process.cwd()]})).registry?.registry;
+  const entry = registry?.findExecutable(name);
+  const executablePath = entry?.executablePath();
+  if (!entry || !executablePath || !fs.existsSync(executablePath)) {
+    bundledBrowsers.set(name, null);
+    return null;
+  }
+  const browser = {
+    platform: process.platform, arch: process.arch, nodeVersion: process.version,
+    browserType: entry.browserName, browserVersion: observedVersion(executablePath), channel: '',
+    executableSource: 'playwright-bundled', executableName: entry.name,
+    executablePath, executableSha256: fileSha256(executablePath), browserRevision: String(entry.revision),
+    manifestBrowserVersion: entry.browserVersion, headlessShellAvailable: entry.name === 'chromium-headless-shell'
+  };
+  bundledBrowsers.set(name, browser);
+  return browser;
+}
+
+function qualifiedBundledIdentity(browser) {
+  const qualified = qualifiedBundledBrowser;
+  return browser && browser.platform === 'darwin' && browser.arch === 'arm64' && browser.nodeVersion === 'v22.23.2' &&
+    browser.browserType === 'chromium' && browser.browserVersion === qualified.observedVersion && browser.channel === '' &&
+    browser.executableSource === 'playwright-bundled' && browser.executableName === qualified.executableName &&
+    browser.executablePath.endsWith(qualified.pathSuffix) && browser.executableSha256 === qualified.executableSha256 &&
+    browser.browserRevision === qualified.revision && browser.manifestBrowserVersion === qualified.manifestVersion &&
+    browser.headlessShellAvailable === true;
+}
 
 // Qualified against 1.60.0 and 1.63.0 in-process reporter objects. Serialization or a
 // custom executable fixture can erase effective options; that is unknown.
@@ -12,7 +67,7 @@ function effectiveUse(test, project, version) {
   if (!['1.60.0', '1.63.0'].includes(version) || !Array.isArray(test._testType?.fixtures)) return null;
   const use = {};
   const assign = (fixtures, builtin) => {
-    if (!builtin && ['browser', 'context', 'page', 'playwright', '_combinedContextOptions'].some(k => Object.hasOwn(fixtures, k))) return false;
+    if (!builtin && ['browser', 'context', 'page', 'playwright', '_browserOptions', '_combinedContextOptions', '_optionConnectOptions'].some(k => Object.hasOwn(fixtures, k))) return false;
     for (const key of identityKeys) {
       if (!Object.hasOwn(fixtures, key)) continue;
       let value = fixtures[key];
@@ -42,14 +97,20 @@ function effectiveUse(test, project, version) {
   resolved.browserName = use.browserName || use.defaultBrowserType || 'chromium';
   if (resolved.channel === undefined && use.launchOptions?.channel !== undefined) resolved.channel = use.launchOptions.channel;
   if (version === '1.63.0') {
+    resolved.headless = Object.hasOwn(resolved, 'headless') ? resolved.headless : resolved.launchOptions?.headless ?? true;
+    if (Object.hasOwn(resolved, 'connectOptions') || process.env.PW_TEST_CONNECT_WS_ENDPOINT) return null;
     const executablePath = resolved.launchOptions?.executablePath || '';
-    const observedVersion = executablePath ? childProcess.spawnSync(executablePath, ['--version'], {encoding: 'utf8'}).stdout.trim() : '';
+    const executableVersion = executablePath ? observedVersion(executablePath) : '';
     const bundledChromium = playwright.chromium.executablePath();
     const bundledMatch = bundledChromium.match(/^(.*)\/chromium-(\d+)\//);
     const headlessShell = bundledMatch ? path.join(bundledMatch[1], `chromium_headless_shell-${bundledMatch[2]}`, 'chrome-headless-shell-mac-arm64', 'chrome-headless-shell') : '';
     resolved.channel = resolved.channel || '';
-    resolved.corvintBrowser = {platform: process.platform, arch: process.arch, nodeVersion: process.version, browserType: resolved.browserName, browserVersion: observedVersion, channel: resolved.channel, executablePath, headlessShellAvailable: headlessShell !== '' && fs.existsSync(headlessShell)};
-    if (!(resolved.corvintBrowser.platform === 'darwin' && resolved.corvintBrowser.arch === 'arm64' && resolved.corvintBrowser.nodeVersion === 'v22.23.2' && resolved.corvintBrowser.browserType === 'chromium' && resolved.corvintBrowser.browserVersion === 'Google Chrome 153.0.8010.48' && resolved.corvintBrowser.channel === '' && resolved.corvintBrowser.executablePath === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' && resolved.corvintBrowser.headlessShellAvailable === true)) return null;
+    resolved.corvintBrowser = executablePath ? {platform: process.platform, arch: process.arch, nodeVersion: process.version, browserType: resolved.browserName, browserVersion: executableVersion, channel: resolved.channel, executablePath, headlessShellAvailable: headlessShell !== '' && fs.existsSync(headlessShell)} : bundledBrowserIdentity(resolved.headless);
+    const systemQualified = resolved.corvintBrowser?.platform === 'darwin' && resolved.corvintBrowser?.arch === 'arm64' && resolved.corvintBrowser?.nodeVersion === 'v22.23.2' && resolved.corvintBrowser?.browserType === 'chromium' && resolved.corvintBrowser?.browserVersion === 'Google Chrome 153.0.8010.48' && resolved.corvintBrowser?.channel === '' && resolved.corvintBrowser?.executablePath === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' && resolved.corvintBrowser?.headlessShellAvailable === true;
+    if (resolved.corvintBrowser?.browserType !== resolved.browserName || (!systemQualified && !qualifiedBundledIdentity(resolved.corvintBrowser))) return null;
+  } else {
+    delete resolved.headless;
+    delete resolved.connectOptions;
   }
   return resolved;
 }
