@@ -27,6 +27,7 @@ const (
 // Document is the corvint-test-validity/0 document. Tier and Promotable are
 // present only for preview inputs, keeping JavaScript output byte-identical.
 type Document struct {
+	Playwright   *jstestprovider.Receipt `json:"playwright,omitempty"`
 	Schema       string                  `json:"schema"`
 	Source       string                  `json:"source"`
 	Kind         string                  `json:"kind"`
@@ -41,10 +42,13 @@ type Document struct {
 // Test is one test-level observation and its recomputed projection. Package is
 // emitted only for Go, whose test identity is the (package, name) pair.
 type Test struct {
-	Name       string                  `json:"name"`
-	Package    string                  `json:"package,omitempty"`
-	State      string                  `json:"state"`
-	Projection testvalidity.Projection `json:"projection"`
+	ID         string                          `json:"id,omitempty"`
+	Project    *jstestprovider.ProjectIdentity `json:"project,omitempty"`
+	Attempts   []jstestprovider.Attempt        `json:"attempts,omitempty"`
+	Name       string                          `json:"name"`
+	Package    string                          `json:"package,omitempty"`
+	State      string                          `json:"state"`
+	Projection testvalidity.Projection         `json:"projection"`
 }
 
 var jsKinds = map[string]bool{"unit": true, "e2e": true}
@@ -120,6 +124,17 @@ func Decode(data []byte) (Input, error) {
 		if !jsKinds[document.Receipt.Kind] {
 			return Input{}, errors.New("kind is neither unit nor e2e")
 		}
+		if document.Receipt.Profile != "" {
+			if document.Receipt.Profile != jstestprovider.ExternalProfile && document.Receipt.Profile != jstestprovider.AttestedExternalProfile {
+				return Input{}, errors.New("unknown JavaScript receipt profile")
+			}
+			canonical, err := jstestprovider.EncodeQualified(*document.Receipt)
+			if err != nil || !bytes.Equal(data, canonical) {
+				return Input{}, errors.New("noncanonical qualified Playwright document")
+			}
+		} else if hasQualifiedMetadata(*document.Receipt) {
+			return Input{}, errors.New("qualified Playwright metadata requires its exact profile")
+		}
 		return Input{js: document.Receipt}, nil
 	}
 	if probe.Profile != nil {
@@ -142,6 +157,18 @@ func Decode(data []byte) (Input, error) {
 	return Input{}, errors.New("provider document kind is unrecognized")
 }
 
+func hasQualifiedMetadata(r jstestprovider.Receipt) bool {
+	if r.External != nil || r.ApplicationAttestation != nil || len(r.Identity.ConfigInputDigests) != 0 {
+		return true
+	}
+	for _, test := range r.Tests {
+		if test.ID != "" || test.Project != nil || len(test.Attempts) != 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // Project recomputes every per-test and run projection from the decoded
 // observations. No carried projection is consulted.
 func Project(input Input) Document {
@@ -157,14 +184,19 @@ func Project(input Input) Document {
 func projectJavaScript(receipt jstestprovider.Receipt) Document {
 	tests := make([]Test, 0, len(receipt.Tests))
 	for _, outcome := range receipt.Tests {
-		tests = append(tests, Test{Name: outcome.Name, State: string(outcome.State), Projection: jstestprovider.ToTestProjection(outcome)})
+		tests = append(tests, Test{ID: outcome.ID, Project: outcome.Project, Attempts: outcome.Attempts, Name: outcome.Name, State: string(outcome.State), Projection: jstestprovider.ReceiptTestProjection(receipt, outcome)})
+	}
+	var playwright *jstestprovider.Receipt
+	if receipt.Profile == jstestprovider.ExternalProfile || receipt.Profile == jstestprovider.AttestedExternalProfile {
+		playwright = &receipt
 	}
 	return Document{
-		Schema: Schema,
-		Source: "corvint-js-test-provider",
-		Kind:   receipt.Kind,
-		Tests:  tests,
-		Run:    jstestprovider.ReceiptRunProjection(receipt),
+		Playwright: playwright,
+		Schema:     Schema,
+		Source:     "corvint-js-test-provider",
+		Kind:       receipt.Kind,
+		Tests:      tests,
+		Run:        jstestprovider.ReceiptRunProjection(receipt),
 	}
 }
 

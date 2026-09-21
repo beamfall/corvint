@@ -13,8 +13,8 @@ test("pin executes the real path but revalidates the configured symlink identity
   const second = path.join(directory, "build-two");
   const candidate = path.join(directory, "corvint");
   try {
-    await executable(first, "#!/bin/sh\nprintf 'Corvint 0.4.0a4 (build 12)\\n'\n");
-    await executable(second, "#!/bin/sh\nprintf 'Corvint 0.4.0a4 (build 12)\\n'\n# replacement\n");
+    await executable(first, "#!/bin/sh\nprintf 'Corvint 0.5.0a2 (build 12)\\n'\n");
+    await executable(second, "#!/bin/sh\nprintf 'Corvint 0.5.0a2 (build 12)\\n'\n# replacement\n");
     await symlink(first, candidate);
     const pin = await pinExecutable(candidate, "corvint", directory, "test", "configuration");
     assert.equal(pin.candidatePath, candidate);
@@ -32,7 +32,7 @@ test("version probe requires the build number (VSC-V0-007 PUB-V0-021)", async ()
   const directory = await mkdtemp(path.join(tmpdir(), "corvint-vscode-build-"));
   const candidate = path.join(directory, "corvint");
   try {
-    await executable(candidate, "#!/bin/sh\nprintf 'Corvint 0.4.0a4\\n'\n");
+    await executable(candidate, "#!/bin/sh\nprintf 'Corvint 0.5.0a2\\n'\n");
     await assert.rejects(pinExecutable(candidate, "corvint", directory, "test", "configuration"), /CLI_INCOMPATIBLE/);
   } finally {
     await rm(directory, { recursive: true, force: true });
@@ -46,7 +46,7 @@ test("Corvint native argv and receipt (CRB-V0-013 VSC-V0-006 VSC-V0-007)", async
   const receipt = JSON.stringify(nativeReceipt(task));
   try {
     await executable(candidate, `#!/bin/sh
-if [ "$1" = "--version" ]; then printf 'Corvint 0.4.0a4 (build 12)\\n'; exit 0; fi
+if [ "$1" = "--version" ]; then printf 'Corvint 0.5.0a2 (build 12)\\n'; exit 0; fi
 [ "$1" = "--root" ] && [ "$2" = "${directory}" ] && [ "$3" = "query" ] && [ "$4" = "--task" ] && [ "$5" = "${task}" ] && [ "$6" = "--limit" ] && [ "$7" = "1" ] && [ "$#" = "7" ] || exit 19
 printf '%s\\n' '${receipt}'
 `);

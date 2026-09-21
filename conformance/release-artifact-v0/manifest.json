@@ -35,7 +35,7 @@
   ],
   "smoke": {
     "versionArgument": "--version",
-    "expectedVersion": "Corvint 0.4.0a4",
+    "expectedVersion": "Corvint 0.5.0a2",
     "queryTask": "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket",
     "queryLimit": "1",
     "expectedIntent": "project-operations",

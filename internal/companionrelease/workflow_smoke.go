@@ -289,6 +289,12 @@ func bindSmokeEvidence(steps []SmokeStep, bundleDigest string, components []Comp
 			name = "corvint-go-test-provider"
 		case strings.HasPrefix(steps[i].Name, "corvint-mcp"):
 			name = "corvint-mcp"
+		case strings.HasPrefix(steps[i].Name, "corvint-version"),
+			strings.HasPrefix(steps[i].Name, "corvint-affected-selection"),
+			strings.HasPrefix(steps[i].Name, "corvint-playwright-external-discovery"),
+			strings.HasPrefix(steps[i].Name, "corvint-documentation-corpus-discovery"),
+			strings.HasPrefix(steps[i].Name, "corvint-work-queue-observation"):
+			name = "corvint"
 		}
 		component, ok := byName[inventory.name(name)]
 		steps[i].BundleSHA256 = bundleDigest

@@ -1,11 +1,72 @@
 package jstestprovider
 
 import (
+	"encoding/json"
+	"errors"
 	"strconv"
+	"strings"
 
+	"github.com/Beamfall/corvint/internal/secretscreen"
 	"github.com/Beamfall/corvint/internal/tcq"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
+
+// ReceiptTestProjection carries lifecycle and identity uncertainty into every
+// qualified row, including retained/MCP readers that recompute projections.
+func ReceiptTestProjection(r Receipt, t TestOutcome) testvalidity.Projection {
+	if isExternalProfile(r.Profile) {
+		if r.Cancelled {
+			t.State = StateInterrupted
+		} else if r.Infrastructure != nil || qualifiedUnknown(r, t) {
+			t.State = StateInfrastructure
+		}
+	}
+	return ToTestProjection(t)
+}
+
+// EncodeQualified emits the frozen canonical envelope used by retention and
+// the strict consumer. The projections are derived, never caller-supplied.
+func EncodeQualified(r Receipt) ([]byte, error) {
+	if err := qualifiedProfileShapeError(r); err != nil {
+		return nil, err
+	}
+	type row struct {
+		Name       string                  `json:"name"`
+		State      ExecutionState          `json:"state"`
+		Projection testvalidity.Projection `json:"projection"`
+	}
+	tests := make([]row, 0, len(r.Tests))
+	for _, t := range r.Tests {
+		tests = append(tests, row{t.Name, t.State, ReceiptTestProjection(r, t)})
+	}
+	document := struct {
+		Receipt Receipt                 `json:"receipt"`
+		Tests   []row                   `json:"testProjections"`
+		Run     testvalidity.Projection `json:"runProjection"`
+	}{r, tests, ReceiptRunProjection(r)}
+	data, err := json.Marshal(document)
+	if len(data) >= externalOutputLimit {
+		return nil, errors.New("qualified-document-output-overflow")
+	}
+	if secretscreen.MatchString(string(data)) {
+		return nil, errors.New("qualified-document-secret-shaped")
+	}
+	return append(data, '\n'), err
+}
+
+func qualifiedProfileShapeError(r Receipt) error {
+	switch r.Profile {
+	case ExternalProfile:
+		if r.ApplicationAttestation != nil || r.TestRepositoryAtStart != nil || r.TestRepositoryAtPublish != nil {
+			return errors.New("legacy-external-profile-has-attested-fields")
+		}
+	case AttestedExternalProfile:
+		if r.External != nil && strings.TrimSpace(r.External.DeclaredAppIdentity) != "" {
+			return errors.New("attested-external-profile-has-declared-identity")
+		}
+	}
+	return nil
+}
 
 // ToTestProjection projects one TestOutcome through the shared
 // testvalidity.Project (internal/testvalidity/projection.go). Ordinary
@@ -91,10 +152,10 @@ func anchorString(a Anchor) string {
 func ReceiptRunProjection(r Receipt) testvalidity.Projection {
 	var execution *testvalidity.ExecutionFacts
 	switch {
-	case r.Infrastructure != nil:
-		execution = &testvalidity.ExecutionFacts{Outcome: "INCOMPLETE", Cause: "INFRASTRUCTURE"}
 	case r.Cancelled:
 		execution = &testvalidity.ExecutionFacts{Outcome: "INCOMPLETE", Cause: "CANCELLATION"}
+	case r.Infrastructure != nil:
+		execution = &testvalidity.ExecutionFacts{Outcome: "INCOMPLETE", Cause: "INFRASTRUCTURE"}
 	}
 	if execution == nil && !r.StaleAppBuild {
 		return testvalidity.Project(testvalidity.Input{})
@@ -104,7 +165,7 @@ func ReceiptRunProjection(r Receipt) testvalidity.Projection {
 	}
 	if r.StaleAppBuild {
 		execution.Currency = "STALE"
-	} else if execution.Outcome != "" {
+	} else if execution.Outcome != "" && !isExternalProfile(r.Profile) {
 		execution.Currency = "CURRENT"
 	}
 	return testvalidity.Project(testvalidity.Input{Execution: execution})

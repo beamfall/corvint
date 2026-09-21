@@ -111,6 +111,10 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 	if err != nil {
 		return nil, fmt.Errorf("stage taskman build source: %w", err)
 	}
+	corvintBuildNumber, err := sourceBuildNumber(ctx, toolchain.GitPath, opts.CorvintRoot, opts.Scratch)
+	if err != nil {
+		return nil, err
+	}
 
 	type componentSpec struct {
 		name       string
@@ -118,9 +122,10 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 		pkgPath    string
 		module     string
 		export     Export
+		buildFlags []string
 	}
 	specs := []componentSpec{
-		{name: "corvint", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint", module: "corvint", export: corvintExport},
+		{name: "corvint", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint", module: "corvint", export: corvintExport, buildFlags: []string{"-ldflags=-X main.build=" + corvintBuildNumber}},
 		{name: "corvint-console", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-console", module: "corvint", export: corvintExport},
 		{name: "corvint-dashboard-snapshot", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-dashboard-snapshot", module: "corvint", export: corvintExport},
 		{name: "corvint-mcp", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-mcp", module: "corvint", export: corvintExport},
@@ -142,7 +147,7 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 	componentFiles := append(corvintSourceFiles, taskmanSourceFiles...)
 	var components []ComponentManifest
 	for _, spec := range specs {
-		built, err := buildComponentTwice(ctx, spec.moduleRoot, spec.pkgPath, spec.name, opts.Target, opts.Scratch)
+		built, err := buildComponentTwiceWithFlags(ctx, spec.moduleRoot, spec.pkgPath, spec.name, opts.Target, opts.Scratch, spec.buildFlags)
 		if err != nil {
 			return nil, fmt.Errorf("build %s: %w", spec.name, err)
 		}
@@ -520,6 +525,19 @@ func renderBundleReadme(m BundleManifest) []byte {
 	fmt.Fprintf(&b, "  GOFLAGS= GOPROXY=off GOSUMDB=off GOWORK=off CGO_ENABLED=0 \\\n")
 	fmt.Fprintf(&b, "  GOTOOLCHAIN=local go build -trimpath -buildvcs=false -o <name> <pkg>\n\n")
 	fmt.Fprintf(&b, "Verify checksums with: shasum -a 256 -c SHA256SUMS\n\n")
+	fmt.Fprintf(&b, "Install: copy bin/corvint and bin/corvint-tasks to ~/.local/bin, /opt/homebrew/bin, /usr/local/bin, or another reviewed absolute directory.\n")
+	fmt.Fprintf(&b, "`corvint-tasks --version` and `corvint --version` name the installed build; the commit\n")
+	fmt.Fprintf(&b, "above and MANIFEST.json bind it to source module github.com/Beamfall/corvint-tasks and\n")
+	fmt.Fprintf(&b, "github.com/Beamfall/corvint respectively.\n\n")
+	fmt.Fprintf(&b, "Work queue adoption (WQO-V0-046..050): in a repository, run\n")
+	fmt.Fprintf(&b, "  corvint work init --repository NAME --corvint-executable /absolute/path/to/corvint\n")
+	fmt.Fprintf(&b, "which writes the queue policy .corvint/work-queue-policy.json, the worklist\n")
+	fmt.Fprintf(&b, ".corvint/worklist.json and the adapter .corvint/work-queue-adapter; commit them, then run\n")
+	fmt.Fprintf(&b, "`corvint work observe` and `corvint work propose-wave`. Each observation carries one adapter\n")
+	fmt.Fprintf(&b, "receipt per snapshot/details/verify run. Neither command dispatches, leases, merges or executes.\n")
+	fmt.Fprintf(&b, "Missing capability states: no committed adoption, or a dirty worktree -> ERROR/SOURCE_UNQUALIFIED;\n")
+	fmt.Fprintf(&b, "missing or changed executable binding -> ERROR/SOURCE_UNQUALIFIED and requires reviewed work rebind;\n")
+	fmt.Fprintf(&b, "adapter failure -> ERROR/ADAPTER_FAILED; queue-source drift -> STALE; executable identity, containment, mutation enforcement and network stay reported unknowns.\n\n")
 	fmt.Fprintf(&b, "This bundle qualifies only: %s\n", m.Target)
 	fmt.Fprintf(&b, "Not run (no attempt made) for this bundle: %s\n", strings.Join(m.NotRun, ", "))
 	fmt.Fprintf(&b, "Host plugins are exact source packages at FALLBACK support; no host or dependency is bundled.\n")

@@ -416,6 +416,100 @@ func (index *repositoryIndex) readers(dirtyPath string) []string {
 	return sortedKeys(readers)
 }
 
+// resolvingReaders are the readers of dirtyPath whose token, resolved against
+// the holder's own directory (a root-anchored token against the root), can
+// form dirtyPath or one of its ancestor directories. A separate root anchor
+// in the same package may compose with a partial naming token; the package is
+// the narrowest relation the literal-only index can prove.
+func (index *repositoryIndex) resolvingReaders(dirtyPath string) []string {
+	readers := map[string]bool{}
+	anchors := index.rootAnchors(dirtyPath)
+	for value, directories := range index.holders {
+		if !namesPath(value, dirtyPath) {
+			continue
+		}
+		for _, directory := range directories {
+			if resolvesWithin(directory, value, dirtyPath) ||
+				(anchors[directory] && resolvesWithin("", value, dirtyPath)) {
+				readers[directory] = true
+			}
+		}
+	}
+	return sortedKeys(readers)
+}
+
+func resolvesWithin(directory, value, dirtyPath string) bool {
+	resolved := path.Join(directory, value)
+	if rest, ok := strings.CutPrefix(value, "/"); ok {
+		resolved = path.Clean(rest)
+	}
+	if resolved == "." {
+		resolved = ""
+	}
+	if resolved == "" || resolved == dirtyPath || strings.HasPrefix(dirtyPath, resolved+"/") {
+		return true
+	}
+
+	// componentRuns permits the outer components of a multi-component token
+	// to be fragments because an adjacent expression may complete them. Keep
+	// that contract after resolution while requiring every component position
+	// to line up from the repository root.
+	resolvedParts := strings.Split(resolved, "/")
+	dirtyParts := strings.Split(dirtyPath, "/")
+	if len(resolvedParts) < 2 || len(resolvedParts) != len(dirtyParts) {
+		return false
+	}
+	for position, component := range resolvedParts {
+		switch {
+		case position == 0:
+			if !strings.HasSuffix(dirtyParts[position], component) {
+				return false
+			}
+		case position == len(resolvedParts)-1:
+			if !strings.HasPrefix(dirtyParts[position], component) {
+				return false
+			}
+		case dirtyParts[position] != component:
+			return false
+		}
+	}
+	return true
+}
+
+// rootAnchors reports packages where a token could put an adjacent path
+// fragment at the repository root. Parent-only tokens are kept conservative
+// because the scanner intentionally does not reconstruct the expression that
+// may repeat or combine them.
+func (index *repositoryIndex) rootAnchors(dirtyPath string) map[string]bool {
+	anchors := map[string]bool{}
+	for value, directories := range index.holders {
+		rooted := parentOnly(value)
+		if rest, ok := strings.CutPrefix(value, "/"); ok {
+			rooted = rest == "" || strings.HasPrefix(dirtyPath, path.Clean(rest))
+		}
+		if rooted {
+			for _, directory := range directories {
+				anchors[directory] = true
+			}
+		}
+	}
+	return anchors
+}
+
+func parentOnly(value string) bool {
+	parent := false
+	for _, component := range strings.Split(value, "/") {
+		switch component {
+		case "", ".":
+		case "..":
+			parent = true
+		default:
+			return false
+		}
+	}
+	return parent
+}
+
 // nestedModule reports whether dirtyPath lies under a nested go.mod, outside
 // the root module that `go test ./...` covers.
 func (index *repositoryIndex) nestedModule(dirtyPath string) bool {

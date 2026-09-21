@@ -31,7 +31,7 @@ func localCompletionRepo(t *testing.T) (string, string) {
 		}
 		for _, entry := range entries {
 			relative := filepath.Join(directory, entry.Name())
-			selected := strings.HasSuffix(relative, ".go") && !strings.HasSuffix(relative, "_test.go") || relative == "internal/gokernel/host-schema.json" || relative == "internal/betarung/admissions.json"
+			selected := strings.HasSuffix(relative, ".go") && !strings.HasSuffix(relative, "_test.go") || relative == "internal/gokernel/host-schema.json" || relative == "internal/betarung/admissions.json" || relative == "internal/jstestprovider/qualified-reporter.cjs"
 			if entry.IsDir() || !selected {
 				continue
 			}
@@ -47,6 +47,10 @@ func localCompletionRepo(t *testing.T) (string, string) {
 				t.Fatal(err)
 			}
 		}
+	}
+	embeddedReporter := "internal/jstestprovider/qualified-reporter.cjs"
+	if _, err := os.Stat(filepath.Join(root, embeddedReporter)); err != nil {
+		t.Fatalf("embedded fixture asset %s: %v", embeddedReporter, err)
 	}
 	for _, relative := range []string{"go.mod", "VERSION", "script/dogfood-change.sh", "script/dogfood-check.sh"} {
 		raw, err := os.ReadFile(filepath.Join(source, relative))

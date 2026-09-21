@@ -176,7 +176,7 @@ func waitForRecordedPIDs(t *testing.T, pidFile string, timeout time.Duration) []
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		raw, err := os.ReadFile(pidFile)
-		if err == nil {
+		if err == nil && len(raw) > 0 {
 			fields := strings.Fields(string(raw))
 			if len(fields) != 2 {
 				t.Fatalf("invalid fake Git pid file %q", raw)

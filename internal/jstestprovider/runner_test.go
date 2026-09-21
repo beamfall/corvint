@@ -59,6 +59,21 @@ func TestRunE2E_CancellationSetsInfrastructure(t *testing.T) {
 	}
 }
 
+func TestRunE2E_AttestationRequiresExternalServerBeforeExecution(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "started")
+	receipt, err := RunE2E(context.Background(), E2EConfig{
+		Config:                 Config{Dir: t.TempDir(), RunnerName: "playwright"},
+		ServerArgv:             []string{"/usr/bin/touch", marker},
+		ApplicationAttestation: &ApplicationAttestationProvider{Argv: []string{"/bin/false"}, ConfigFile: "/missing"},
+	})
+	if err == nil || err.Error() != "application-attestation-requires-external-server" || receipt.Kind != "" {
+		t.Fatalf("receipt=%+v err=%v", receipt, err)
+	}
+	if _, statErr := os.Stat(marker); !os.IsNotExist(statErr) {
+		t.Fatalf("managed server was started: %v", statErr)
+	}
+}
+
 // TestRunUnit_StaleCallerOutputFileIsNotReadBack runs a stand-in npx that
 // exits 0 without writing a report into a caller-supplied OutputFile that
 // already holds an earlier run's report. The earlier report must not be

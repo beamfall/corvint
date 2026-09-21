@@ -27,7 +27,7 @@ import (
 	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
-const version = "0.4.0a4"
+const version = "0.5.0a2"
 const maximumImpactLimit = 50
 const defaultHarnessBudgetBytes = 8_000
 
@@ -368,7 +368,7 @@ func parseImpactArgumentsForPlatform(result options, arguments []string, platfor
 			result.impactLimit = limit
 			continue
 		}
-		if !positionalOnly && (name == "--provider" || name == "--provider-command") {
+		if !positionalOnly && (name == "--provider" || name == "--provider-command" || name == "--provider-mcp") {
 			if !inline {
 				if index+1 >= len(arguments) || argparseOptionLike(arguments[index+1]) {
 					return result, argumentError("argument " + name + ": expected one argument")
@@ -724,7 +724,7 @@ var (
 		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
 		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
 		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review"}
+		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet"}
 )
 
 func knownHost(value string) bool {
@@ -784,6 +784,9 @@ func run(arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if exit, handled := runCorpusIntegration(ctx, arguments, stdin, stdout, stderr); handled {
+		return exit
+	}
 	if len(arguments) > 0 && arguments[0] == "native-hook" {
 		return runNativeHook(ctx, arguments[1:], stdin, stdout, stderr)
 	}
@@ -791,8 +794,22 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		return runProtectedEvent(ctx, arguments, stdin, stdout, stderr)
 	}
 	if _, requested, _ := parseHelpInvocation(arguments); !requested {
+		if profile, isRatchet, ratchetErr := parseMigrationRatchetInvocation(arguments); isRatchet {
+			if ratchetErr != nil {
+				emitError(stderr, ratchetErr)
+				return 2
+			}
+			return runMigrationRatchet(ctx, profile, stdout, stderr)
+		}
 		if len(arguments) >= 2 && arguments[0] == "adapter" {
 			return runHostAdapter(ctx, arguments[1:], stdin, stdout)
+		}
+		if options, isCorpus, corpusErr := parseCorpusInvocation(arguments); isCorpus {
+			if corpusErr != nil {
+				emitError(stderr, corpusErr)
+				return 2
+			}
+			return runCorpus(ctx, options, stdout, stderr)
 		}
 		if options, isDocsMaintain, maintainErr := parseDocsMaintainInvocation(arguments); isDocsMaintain {
 			if maintainErr != nil {
@@ -811,6 +828,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		if root, rest, isWork, workErr := parseWorkInvocation(arguments); isWork {
 			if workErr != nil {
 				return emitWorkError(stdout, "MALFORMED_INPUT")
+			}
+			if exit, adopted := runWorkAdoption(ctx, root, rest, stdout, stderr); adopted {
+				return exit
 			}
 			return runWork(ctx, root, rest, stdout, stderr)
 		}
@@ -1458,12 +1478,15 @@ func providerSource(name, value string, selected int) (string, error) {
 	if selected == extevidence.MaxProviders {
 		return "", argumentError(fmt.Sprintf("argument %s: at most %d providers", name, extevidence.MaxProviders))
 	}
-	if name != "--provider-command" {
+	if name == "--provider" {
 		return value, nil
 	}
 	source, err := extevidence.ParseCommand(value)
+	if name == "--provider-mcp" {
+		source, err = extevidence.ParseMCP(value)
+	}
 	if err != nil {
-		return "", argumentError("argument --provider-command: " + err.Error())
+		return "", argumentError("argument " + name + ": " + err.Error())
 	}
 	return source, nil
 }

@@ -188,6 +188,11 @@ func runE2E(args []string) error {
 	lockfile := fs.String("lockfile", "", "lockfile path")
 	runnerVersion := fs.String("runner-version", "", "pinned @playwright/test version")
 	appBuildDir := fs.String("app-build-dir", "", "served app build directory; omit for an explicit unknown app-build identity")
+	externalServer := fs.Bool("external-server", false, "observe an externally managed server; never start or stop it; test-arg supplies only Playwright selectors/options")
+	appIdentity := fs.String("app-identity", "", "declared external application identity (not proof of served content)")
+	appAttestationCommand := fs.String("app-attestation-command", "", "JSON argv for the typed application-attestation provider; canonical config is supplied on stdin")
+	appAttestationConfig := fs.String("app-attestation-config", "", "canonical application-attestation expectation config")
+	appAttestationTimeout := fs.Duration("app-attestation-timeout", 5*time.Second, "bound on each application-attestation provider observation")
 	serverReadyURL := fs.String("server-ready-url", "", "URL polled until it answers with status < 500")
 	serverReadyTimeout := fs.Duration("server-ready-timeout", 15*time.Second, "bound on waiting for server readiness")
 	timeout := fs.Duration("timeout", 5*time.Minute, "bound on the playwright test command")
@@ -218,6 +223,18 @@ func runE2E(args []string) error {
 			return err
 		}
 	}
+	resolvedAttestationConfig, err := resolvePath(*appAttestationConfig)
+	if err != nil {
+		return err
+	}
+	var attestationProvider *jstestprovider.ApplicationAttestationProvider
+	if *appAttestationCommand != "" || resolvedAttestationConfig != "" {
+		var command []string
+		if *appAttestationCommand == "" || resolvedAttestationConfig == "" || json.Unmarshal([]byte(*appAttestationCommand), &command) != nil || len(command) == 0 {
+			return errors.New("app-attestation-command and app-attestation-config must name a nonempty JSON argv and config")
+		}
+		attestationProvider = &jstestprovider.ApplicationAttestationProvider{Argv: command, ConfigFile: resolvedAttestationConfig, Timeout: *appAttestationTimeout}
+	}
 
 	ctx, cancel := interruptContext()
 	defer cancel()
@@ -234,13 +251,19 @@ func runE2E(args []string) error {
 			DeclaredEnvKeys: envKeys,
 			Timeout:         *timeout,
 		},
-		ServerArgv:       serverArgv,
-		ServerReadyURL:   *serverReadyURL,
-		ServerReadyLimit: *serverReadyTimeout,
-		AppBuildDir:      *appBuildDir,
-		TestArgv:         testArgv,
+		ServerArgv:             serverArgv,
+		ExternalServer:         *externalServer,
+		AppIdentity:            *appIdentity,
+		ServerReadyURL:         *serverReadyURL,
+		ServerReadyLimit:       *serverReadyTimeout,
+		AppBuildDir:            *appBuildDir,
+		TestArgv:               testArgv,
+		ApplicationAttestation: attestationProvider,
 	}
 	if watch != nil {
+		if attestationProvider != nil {
+			return errors.New("application attestation is one-shot only")
+		}
 		return runE2EWatch(ctx, cfg, *retain, watch, os.Stdout, os.Stderr)
 	}
 	receipt, err := jstestprovider.RunE2E(ctx, cfg)
@@ -262,6 +285,20 @@ func retainFrom(retain bool, dir string) string {
 // emit writes the document to stdout and, when retainFrom is not empty,
 // retains the same bytes (LPCV-V0-055).
 func emit(stdout, stderr io.Writer, receipt jstestprovider.Receipt, retainFrom string) error {
+	if receipt.Profile == jstestprovider.ExternalProfile || receipt.Profile == jstestprovider.AttestedExternalProfile {
+		data, err := jstestprovider.EncodeQualified(receipt)
+		if err != nil {
+			return err
+		}
+		if _, err = stdout.Write(data); err != nil {
+			return err
+		}
+		retained := retainDocument(stderr, retainFrom, data)
+		if receipt.Infrastructure != nil {
+			return fmt.Errorf("%s: %s", receipt.Infrastructure.Reason, receipt.Infrastructure.Detail)
+		}
+		return retained
+	}
 	out := output{Receipt: receipt, RunProjection: jstestprovider.ReceiptRunProjection(receipt)}
 	for _, test := range receipt.Tests {
 		out.TestProjections = append(out.TestProjections, testProjection{

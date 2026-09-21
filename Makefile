@@ -249,7 +249,7 @@ sql-native-ratchets-test:
 # all nine bundled binaries twice, including the MCP servers and test providers,
 # and independently assembles and verifies the archives (PUB-V0-013/014).
 # The native CLI archive gate remains independent (PUB-V0-002). Pass
-# the corvint-taskman checkout path as CORVINT_TASKMAN_REPO if it is not at ~/projects/corvint-taskman.
+# the corvint-tasks checkout path as CORVINT_TASKMAN_REPO if it is not at ~/projects/corvint-tasks.
 companion-release-gate:
 	@script/corvint-companion-release-gate
 

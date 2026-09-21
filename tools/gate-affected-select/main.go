@@ -57,6 +57,13 @@ var moduleLevelFrontiers = map[string]bool{
 
 var rootModuleDefinitions = map[string]bool{"go.mod": true, "go.sum": true, "go.work": true, "go.work.sum": true}
 
+// changeEvidence is the CEM sidecar (internal/frontier.ExcludedPath) that every
+// dogfooded change commits. It is derived from the rest of the diff, so a
+// package's tests read it only through a literal that resolves to it from the
+// package's directory; a `.corvint` or `change.cem.json` token joined to a
+// fixture root does not select its holder (AFP-V0-012 (c)).
+const changeEvidence = ".corvint/change.cem.json"
+
 var plainImportPath = regexp.MustCompile(`^[A-Za-z0-9._~/-]+$`)
 
 const maxPlanBytes = 8 << 20
@@ -170,7 +177,11 @@ func selectPackages(plan receipt, module, root string) []string {
 				}
 			}
 		}
-		add(index.readers(dirty), "reader", " <- "+dirty)
+		readers := index.readers
+		if dirty == changeEvidence {
+			readers = index.resolvingReaders
+		}
+		add(readers(dirty), "reader", " <- "+dirty)
 	}
 	unresolved := index.unresolved()
 	for _, directory := range sortedKeys(unresolved) {

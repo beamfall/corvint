@@ -55,11 +55,23 @@ type affectedRange struct {
 // affectedInvocation is one parsed `affected` command line. Providers,
 // Checkouts, and SelectionProfile are set only by the ETS-V0 flags.
 type affectedInvocation struct {
-	Root             string
-	Base             string
-	Providers        []string
-	Checkouts        []extevidence.Checkout
-	SelectionProfile string
+	Root                string
+	Base                string
+	Providers           []string
+	Checkouts           []extevidence.Checkout
+	SelectionProfile    string
+	PlaywrightConfig    string
+	PlaywrightDiscovery string
+}
+
+type playwrightAffectedReceipt struct {
+	Mutates  bool                      `json:"mutates"`
+	OK       bool                      `json:"ok"`
+	Plan     typescript.PlaywrightPlan `json:"plan"`
+	Profile  string                    `json:"profile"`
+	Range    affectedRange             `json:"range"`
+	Revision string                    `json:"revision"`
+	Tool     string                    `json:"tool"`
 }
 
 type affectedProvider struct {
@@ -158,7 +170,7 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 
 // affectedOptionNames are the flags `affected` accepts, each taking one value
 // as `--flag VALUE` or `--flag=VALUE`.
-var affectedOptionNames = map[string]bool{"--base": true, "--provider": true, "--repository": true, "--selection-profile": true}
+var affectedOptionNames = map[string]bool{"--base": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--repository": true, "--selection-profile": true}
 
 // parseAffectedOptions reads the flags after `affected`. `--base` must
 // already be a full object id: a ref name is resolved by the caller, never
@@ -189,6 +201,14 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			err = addAffectedProvider(&invocation, value)
 		case "--repository":
 			err = addAffectedCheckout(&invocation, value)
+		case "--playwright-config":
+			err = setAffectedPlaywrightConfig(&invocation, value)
+		case "--playwright-discovery":
+			if invocation.PlaywrightDiscovery != "" || value == "" {
+				err = argumentError("--playwright-discovery requires exactly one nonempty value")
+			} else {
+				invocation.PlaywrightDiscovery = value
+			}
 		default:
 			err = setAffectedSelectionProfile(&invocation, value)
 		}
@@ -199,10 +219,31 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	if len(invocation.Providers) == 0 && (len(invocation.Checkouts) != 0 || invocation.SelectionProfile != "") {
 		return affectedInvocation{}, argumentError("--repository and --selection-profile require --provider")
 	}
+	if invocation.PlaywrightConfig != "" && len(invocation.Providers) != 0 {
+		return affectedInvocation{}, argumentError("--playwright-config cannot be combined with --provider")
+	}
+	if invocation.PlaywrightDiscovery != "" && invocation.PlaywrightConfig == "" {
+		return affectedInvocation{}, argumentError("--playwright-discovery requires --playwright-config")
+	}
 	if len(invocation.Providers) != 0 && invocation.SelectionProfile == "" {
 		invocation.SelectionProfile = extevidence.ProfileStrict
 	}
 	return invocation, nil
+}
+
+func setAffectedPlaywrightConfig(invocation *affectedInvocation, value string) error {
+	if invocation.PlaywrightConfig != "" {
+		return argumentError("--playwright-config requires exactly one value")
+	}
+	if !affected.ValidRelativePath(value) {
+		return argumentError("--playwright-config must be a repository-relative canonical path")
+	}
+	extension := strings.ToLower(filepath.Ext(value))
+	if extension != ".js" && extension != ".jsx" && extension != ".mjs" && extension != ".cjs" && extension != ".ts" && extension != ".tsx" {
+		return argumentError("--playwright-config must name JavaScript or TypeScript source")
+	}
+	invocation.PlaywrightConfig = value
+	return nil
 }
 
 func setAffectedBase(invocation *affectedInvocation, baseSet *bool, value string) error {
@@ -256,7 +297,13 @@ func setAffectedSelectionProfile(invocation *affectedInvocation, value string) e
 }
 
 func runAffected(ctx context.Context, invocation affectedInvocation, stdout, stderr io.Writer) int {
-	receipt, err := compileAffected(ctx, invocation)
+	var receipt any
+	var err error
+	if invocation.PlaywrightConfig != "" {
+		receipt, err = compilePlaywrightAffected(ctx, invocation)
+	} else {
+		receipt, err = compileAffected(ctx, invocation)
+	}
 	if err != nil {
 		emitError(stderr, err)
 		return 2
@@ -271,6 +318,76 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 		return 2
 	}
 	return 0
+}
+
+func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocation) (playwrightAffectedReceipt, error) {
+	root := invocation.Root
+	gitExecutable, err := exec.LookPath("git")
+	if err != nil {
+		return playwrightAffectedReceipt{}, affectedGitExecutableRefusal()
+	}
+	revision, err := affectedHeadRevision(ctx, gitExecutable, root)
+	if err != nil {
+		return playwrightAffectedReceipt{}, err
+	}
+	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
+	if err != nil {
+		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+	}
+	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
+	if err != nil {
+		return playwrightAffectedReceipt{}, err
+	}
+	allDirty := affected.NormalizePaths(append(append([]string{}, dirty...), committed...))
+	discovery := readPlaywrightDiscovery(root, invocation.PlaywrightDiscovery)
+	plan, err := typescript.SelectPlaywright(root, invocation.PlaywrightConfig, revision, allDirty, discovery)
+	if err != nil {
+		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-playwright-affected", Message: err.Error()}
+	}
+	recheck, err := affected.DirtyPaths(ctx, gitExecutable, root)
+	if err != nil {
+		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+	}
+	if !equalStringSlices(dirty, recheck) {
+		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-drift", Message: "worktree changed while the plan was compiled"}
+	}
+	if revisionAfter, err := affectedHeadRevision(ctx, gitExecutable, root); err != nil || revisionAfter != revision {
+		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-drift", Message: "HEAD changed while the plan was compiled"}
+	}
+	sourceDigest, err := typescript.ObservePlaywrightSources(root, invocation.PlaywrightConfig)
+	if err != nil || sourceDigest != plan.SourceDigest {
+		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-drift", Message: "source changed while the plan was compiled"}
+	}
+	if !bytes.Equal(discovery, readPlaywrightDiscovery(root, invocation.PlaywrightDiscovery)) {
+		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-drift", Message: "discovery receipt changed while the plan was compiled"}
+	}
+	return playwrightAffectedReceipt{
+		Mutates: false, OK: true, Plan: plan, Profile: typescript.PlaywrightProfile,
+		Range: affectedRange{Base: invocation.Base, Paths: committed}, Revision: revision, Tool: "affected",
+	}, nil
+}
+
+func readPlaywrightDiscovery(root, name string) []byte {
+	if name == "" {
+		return nil
+	}
+	if !filepath.IsAbs(name) {
+		name = filepath.Join(root, name)
+	}
+	info, err := os.Lstat(name)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > typescript.PlaywrightDiscoveryMaxBytes {
+		return nil
+	}
+	file, err := os.Open(name)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+	body, err := io.ReadAll(io.LimitReader(file, typescript.PlaywrightDiscoveryMaxBytes+1))
+	if err != nil {
+		return nil
+	}
+	return body
 }
 
 // compileAffected is read-only: one bounded git status, one HEAD identity

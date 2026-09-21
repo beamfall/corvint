@@ -23,7 +23,7 @@
 </p>
 
 **One native Go binary.** No account, hosted service, database, embeddings, or permanent daemon.
-`go.mod` declares no module requirements. Read commands change nothing. Version `0.4.0a4` is an
+`go.mod` declares no module requirements. Read commands change nothing. Version `0.5.0a2` is an
 experimental alpha; [what works today and what is still an open gate](#status-stated-plainly).
 
 ## Why Corvint
@@ -282,6 +282,18 @@ and the largest collision-free wave that could run together. The proposals autho
 carry their inputs' digests, so a second run over the same snapshot reproduces them byte for byte
 ([Work Queue Observation V0](docs/specs/work-queue-observation-v0.md)).
 
+To adopt the work queue in a repository, run
+`corvint work init --repository NAME --corvint-executable "$(command -v corvint)"`, review and
+commit the three files it writes under `.corvint/`, and list tickets in `.corvint/worklist.json`
+with the paths each one changes. Verification work such as a suite batch, a failure repair, a
+test-validity receipt, or a cleanup and retry is an ordinary ticket. Tickets that share a path are
+never proposed together; the proposal names the excluded ticket and why. The executable may be in
+`~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`, or another safe absolute location: init binds
+its path, bytes, version/build and source identity instead of searching ambient `PATH`. After an
+upgrade, run `corvint work rebind --corvint-executable "$(command -v corvint)"`, review and commit
+the adapter change. See
+[INSTALL](docs/INSTALL.md#work-queue-adoption) for the states you get when a step is missing.
+
 ### Dashboard and console
 
 `corvint-dashboard-snapshot` compiles one read-only snapshot of what Corvint data exists for a
@@ -310,6 +322,7 @@ Three stdio MCP servers, each bound to one repository root, each read-only:
 |---|---|
 | `corvint-mcp` | `corvint.query`, `corvint.impact` and `corvint.status`: the same bounded context, Go impact and repository-status receipts as the CLI |
 | `corvint-docs-mcp` | `corvint.docs_draft` writes source-pinned documentation from owner prose and indexed Go declarations; `corvint.docs_consume` rechecks a draft's exact bytes against source |
+| `corvint-corpus-mcp` | Experimental [revision-pinned documentation corpus](docs/DOCUMENTATION-CORPUS.md); capability-gated read tools over one explicitly supplied local artifact |
 | `corvint-test-validity-mcp` | Discovery and projection of retained test evidence in one five-axis shape |
 
 `corvint docs maintain --watch` is the foreground companion to the docs server: it refreshes a
@@ -347,7 +360,7 @@ profile and is admitted to the product only through its own accepted profile ([c
 ## Status, stated plainly
 
 > [!IMPORTANT]
-> Corvint is an extraction alpha (`Corvint 0.4.0a4`). Availability and tested platform status come
+> Corvint is an extraction alpha (`Corvint 0.5.0a2`). Availability and tested platform status come
 > from the exact versioned release assets and their attached qualification evidence.
 
 | Surface | Current state |

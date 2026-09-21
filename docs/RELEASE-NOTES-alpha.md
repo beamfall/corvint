@@ -1,4 +1,4 @@
-# Corvint 0.4.0a4 — public alpha release notes
+# Corvint 0.5.0a2 — public alpha release notes
 
 These enduring notes describe the experimental alpha scope required by
 `docs/specs/public-release-v0.md` PUB-V0-007. Availability, artifact identity and tested platform
@@ -7,13 +7,18 @@ notes do not claim that publication occurred, authenticate the publisher or prom
 
 ## Scope
 
-Version `0.4.0a4` (`VERSION`). This is the owner-accepted public-alpha scope from
+Version `0.5.0a2` (`VERSION`). This is the owner-accepted public-alpha scope from
 `docs/specs/public-release-v0.md`: the native Go CLI, automatic docs via MCP, automatic unit/E2E
 test tracking for agent and VS Code, an optional local dashboard, and a task manager with a
 roadmap. The release scope is accepted and its implementation details remain proposed. Individual
 source implementations and focused checks do not qualify an assembled artifact or installed
 workflow; use the exact release's attached evidence for those claims. See [installation and first
 use](INSTALL.md) for the core archive path, optional tools, prerequisites, recovery and removal.
+
+This alpha adds the Playwright 1.63 standard-device-spread regression from GitHub issue #49. A
+project using `use: {...devices['Desktop Chrome']}` now retains its effective browser, viewport,
+user agent, config digest and stable test identity while the separately qualified bundled-browser
+tuple remains fail-closed on revision, manifest, path and executable digest drift.
 
 ## Experimental features
 
@@ -110,7 +115,7 @@ slices. Release qualification does not change those intent, delivery or promotio
 
 ## Signing and publisher identity
 
-The `0.4.0a4` archives are **not signed** (decision 0108). Each archive's `SHA256SUMS` and the
+The `0.5.0a2` archives are **not signed** (decision 0328, retaining decision 0108's policy). Each archive's `SHA256SUMS` and the
 byte-identical double build prove integrity and reproducibility only (`ARTIFACT-GO-V0-008`).
 Publisher identity is `NOT_VERIFIED`: nothing in this release authenticates who built or published
 an archive, and a `PASS` from `archive-verifier` asserts bytes only.

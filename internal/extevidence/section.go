@@ -146,6 +146,9 @@ func checkoutUse(providers []provider) map[string]int {
 }
 
 func load(ctx context.Context, root rootRepository, source string) provider {
+	if encoded, ok := strings.CutPrefix(source, mcpSourcePrefix); ok {
+		return loadMCP(ctx, root, encoded)
+	}
 	if argv, isCommand := commandArgv(source); isCommand {
 		return loadCommand(ctx, root, argv)
 	}

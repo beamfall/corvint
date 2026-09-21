@@ -1,6 +1,6 @@
 # Install and try Corvint
 
-Corvint `0.4.0a4` is an experimental alpha. The instructions below apply only when the corresponding
+Corvint `0.5.0a2` is an experimental alpha. The instructions below apply only when the corresponding
 versioned release assets are available. Use the exact release's attached artifact and installed
 qualification evidence to determine which platforms and optional workflows were tested; absence
 of that evidence is not qualification. To try the source directly, use the
@@ -35,14 +35,14 @@ Continue only if the command succeeds and reports `OK`. Extract into a new direc
 the binary against the checksum inside the archive:
 
 ```sh
-mkdir corvint-0.4.0a4
-tar -xzf corvint_darwin_arm64.tar.gz -C corvint-0.4.0a4
-cd corvint-0.4.0a4/corvint_darwin_arm64
+mkdir corvint-0.5.0a2
+tar -xzf corvint_darwin_arm64.tar.gz -C corvint-0.5.0a2
+cd corvint-0.5.0a2/corvint_darwin_arm64
 shasum -a 256 -c SHA256SUMS
 ./corvint --version
 ```
 
-Expect `Corvint 0.4.0a4`. Keep this directory and add its absolute path to `PATH`, or copy the
+Expect `Corvint 0.5.0a2 (build N)`, where `N` is the release manifest's exact build number. Keep this directory and add its absolute path to `PATH`, or copy the
 verified executable to a directory you already use for local tools. Use `command -v corvint`
 and `corvint --version` to check which binary runs. No account, service installation, database,
 model download or default network connection is required.
@@ -51,6 +51,30 @@ Corvint uses `corvint-*` wire/profile identities, `corvint.*` MCP tools, and can
 `.corvint` and `.context-corvint` repository paths. Release archives, package coordinates, and optional
 workflow bundles remain unpublished unless an exact release and its attached qualification evidence
 say otherwise.
+
+### Qualified local candidate and versioned install
+
+`corvint-release-candidate` closes the verified core and companion outputs into
+`corvint-v<version>-qualified`. Verify its top-level `SHA256SUMS`, then read `MANIFEST.json` and
+`QUALIFICATION.json`; `NOT_RUN` is never a platform pass. The candidate is local evidence, not a
+tag, signature, upload, publication or promotion.
+
+```sh
+go run ./cmd/corvint-release-candidate \
+  -core-dir /absolute/core-gate-output \
+  -companion-dir /absolute/companion-retained-output \
+  -source-root /absolute/corvint-checkout \
+  -scratch /absolute/private-scratch \
+  -output-parent /absolute/candidates \
+  -version 0.5.0a2
+```
+
+`corvint-release-install -candidate /absolute/candidate -store /absolute/store` reverifies that
+closed set and installs only the matching host core archive at
+`<store>/corvint/<version>/<goos>-<goarch>`. It refuses an existing destination and never creates
+or changes `current` or `latest`. Keep old version directories for coexistence and rollback; switch
+the explicit absolute path used by your shell or host configuration only after checking
+`corvint --version`. Removing an old path is a separate operator action.
 
 ## First useful result
 
@@ -189,6 +213,42 @@ absolute paths to the extracted companions:
 Open its loopback address, default `http://127.0.0.1:7777`, in your browser. Stop it with Ctrl-C.
 It installs no background service. Consult the bundle manifest and exact release evidence before
 relying on a browser/platform tuple.
+
+### Work queue adoption
+
+`corvint work observe` needs a committed queue policy, worklist, and adapter. Create them once per
+repository and explicitly bind the installed executable. `~/.local/bin`, `/opt/homebrew/bin`, and
+`/usr/local/bin` are supported when the selected path is canonical and safe:
+
+```sh
+corvint work init --repository NAME --corvint-executable "$(command -v corvint)"
+git add .corvint && git commit -m "Adopt the Corvint work queue"
+corvint work observe
+corvint work propose-wave --envelope capacity.json --limit 4
+```
+
+`init` refuses if any of the three files already exists. Add tickets to `.corvint/worklist.json`
+(`{"profile":"corvint-worklist/0","tickets":[{"id":…,"title":…,"body":…,"touchPaths":[…]}]}`)
+and commit before observing. The capacity envelope names `capacity:NAME:worklist:agent`, the
+capability `capability:NAME:worklist:agent`, and `repo:NAME`. Neither command dispatches, leases,
+merges, or runs anything. Init rejects relative paths, symlinks, unsafe or writable parent
+components, repository-local executables, missing files, and non-Corvint builds. It records the
+executable path, SHA-256, version/build, and source identity in the adapter; observation executes only
+the verified private exact-byte materialization under a closed environment, never ambient `PATH`.
+
+After replacing or moving Corvint, explicitly regenerate that reviewed binding and commit it:
+
+```sh
+corvint work rebind --corvint-executable "$(command -v corvint)"
+git add .corvint/work-queue-adapter && git commit -m "Rebind Corvint work-queue executable"
+```
+
+| What you see | Cause |
+|---|---|
+| `ERROR` / `SOURCE_UNQUALIFIED` | no committed adoption, uncommitted worktree changes, or the bound executable path/bytes/version/build/source identity changed; review and commit an explicit `work rebind` |
+| `ERROR` / `ADAPTER_FAILED` | the canonical bound adapter exited, timed out, or exceeded an output bound |
+| observation `STALE`, empty proposal | the worklist or commit changed while observing |
+| `VALIDATED_AT` with `CONTAINMENT_UNQUALIFIED`, `EXECUTABLE_IDENTITY_UNQUALIFIED`, `MUTATION_ENFORCEMENT_UNQUALIFIED`, `NETWORK_UNOBSERVED` | expected: the reviewed binding detects drift, while Darwin cannot claim VPO-V0-024 exact-object execution and the other local axes stay unknown |
 
 ## Upgrade, retry and remove
 

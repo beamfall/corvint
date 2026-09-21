@@ -18,6 +18,8 @@ One paragraph: what, where (file:line), why it matters, and what done looks like
 
 ### 2026-09-21 cmd/corvint: bound the one `os.Getwd` so the largest package leaves the unresolved set
 `gate-affected-select -unresolved` lists `cmd/corvint` for `os.Getwd` in `dogfood_record.go`, so every tree change reruns it (most of the suite's wall time) under the GL-V0-004 tree key. Bounding that read moves it under Go's cache for same-worktree reruns. Done means the package absent from `-unresolved` and its tests still passing.
+### 2026-09-19 work-queue: let Corvint's own `decision-0046-v0` mapping qualify store scope
+Decision 0321 limits WQO-V0-046 to `repository-worklist-v0`, so Corvint's self-dogfood observation stays `UNKNOWN/SOURCE_UNQUALIFIED` and `propose-wave` still abstains on this repository. The same byte-reproduction argument holds for `docs/worklist.json`. Done means the check in `workMappingReproduced` (`cmd/corvint/work.go`) accepts both mappings, the WQO-V0-021/025/032 final-check fixtures in `cmd/corvint/work_final_check_test.go` get their incomplete initial capture another way, and the WQO-V0-017 paragraph is amended.
 
 ### 2026-09-19 ci: run the AFP-V0-017 qualification once `main` has 201 first-parent commits
 `pr-tests-qualification.yml` (decision 0320) cannot freeze a corpus until `git rev-list --first-parent --count origin/main` reaches 201; it was 15 on 2026-09-19, at about 12 merges a day. Then dispatch `rows=1` to measure one row, then `rows=all` (about 200 × 35–45 min of runner time), review `qualification.json`, and only then set `CORVINT_PR_TOOL_SOURCE`, `CORVINT_PR_QUALIFICATION_SOURCE` and `CORVINT_PR_QUALIFICATION_SHA256` in `ci.yml`. Done means narrowed PR runs admitted by a PASS qualification.
@@ -27,6 +29,3 @@ Owner accepted the recommendation: `make gate-affected` (local) and `tools/corvi
 
 ### 2026-09-18 extevidence: test selection beyond one hop and into checkout worktrees (ETS-V0 follow-up)
 `docs/specs/external-test-selection-v0.md` stops obligations one relation hop downstream of a changed entity, and never reads a bound checkout's worktree (rows say `checkout-worktree-not-inspected`). Both keep the selection fail-closed only as far as the record is complete. Done means a bounded transitive obligation walk and a per-checkout dirty read, each with conformance cases proving they only ever widen.
-
-### 2026-09-18 extevidence: command, MCP, and remote provider transports (EEP slice 2)
-Decision 0309 ships only the file transport for `docs/specs/external-evidence-provider-v0.md`. A provider that is a local command, an MCP tool, or a remote service reaches outside the local boundary (AGENTS.md invariant 7), so each transport needs its own accepted profile under the analyzer capability contract before `--provider` accepts anything but a file path. Done means an accepted profile plus the same strict record decode, freshness, and separation tests running over the new transport.

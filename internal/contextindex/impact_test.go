@@ -61,7 +61,7 @@ func impactRepository(t *testing.T, objectFormat string) string {
 
 func testGitOptional(t *testing.T, root string, arguments ...string) string {
 	t.Helper()
-	command := execCommand("git", append([]string{"-C", root}, arguments...)...)
+	command := execCommand("git", append([]string{"-c", "gc.auto=0", "-c", "maintenance.auto=false", "-C", root}, arguments...)...)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		return string(output)

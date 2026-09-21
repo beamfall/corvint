@@ -26,7 +26,7 @@ const validManifest = `{
     {"path": "LICENSE-APACHE-2.0", "sha256": "cdb7dd035e8a8536a2b5c90ba6fb7a6270a1b989f7b52f3f87c4877e2fa6c893"},
     {"path": "LICENSING.md", "sha256": "cdb7dd035e8a8536a2b5c90ba6fb7a6270a1b989f7b52f3f87c4877e2fa6c893"},
     {"path": "PROVENANCE.md", "sha256": "cdb7dd035e8a8536a2b5c90ba6fb7a6270a1b989f7b52f3f87c4877e2fa6c893"}],
-  "smoke": {"versionArgument": "--version", "expectedVersion": "Corvint 0.4.0a4", "queryTask": "orient",
+  "smoke": {"versionArgument": "--version", "expectedVersion": "Corvint 0.5.0a2", "queryTask": "orient",
     "queryLimit": "1", "expectedIntent": "project-operations", "fixtureInstructions": "# Agents\n",
     "crossCompileNotRunReason": "cross-compilation is not execution evidence"},
   "pendingEvidence": ["W10-performance-GPK-V0-016-017"]

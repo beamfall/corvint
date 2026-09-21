@@ -1,0 +1,205 @@
+{
+  "baseRevision": "6098291c9ed84c0de5c1a76afa3599d6a6faa352",
+  "evidence": [
+    {
+      "blobOid": "e88ec156c1b910728ba01bfca941574a74657461",
+      "id": "evidence:sha256:b8659e2557e982ed0175ec50978bfe1cc1aad925d2257cd623b3b30985c73f54",
+      "path": "docs/specs/documentation-corpus-v1.md",
+      "span": {
+        "end": 13999,
+        "start": 11624
+      },
+      "spanSha256": "0f789ccd8f04f2eb4ccff341e5d39e76755a9a0c0f6a769fcf65b7d06be2d04c"
+    },
+    {
+      "blobOid": "50715ee79216ab4c6d28451e86278752410f2ef4",
+      "id": "evidence:sha256:ad5108e1c2d1d8f98f969c8899cc37892394a9a5d4d3be609d331907d316a469",
+      "path": "docs/specs/playwright-external-provider-v0.md",
+      "span": {
+        "end": 2843,
+        "start": 1063
+      },
+      "spanSha256": "e860c740dfb6fab2e23faa809abaa53342372b26bfe37482ce679ec0f92a46a5"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8659e2557e982ed0175ec50978bfe1cc1aad925d2257cd623b3b30985c73f54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:43b887e7b5f1b221de3c151b30a7729489ee1e10e3b7705218532245298f60cc",
+      "newRange": {
+        "count": 46,
+        "start": 7
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 7
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8659e2557e982ed0175ec50978bfe1cc1aad925d2257cd623b3b30985c73f54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1fb74d56dcd56b9c92e5ecdc301f8af7a3bf8057e15179c48f1d0d178ee1790d",
+      "newRange": {
+        "count": 23,
+        "start": 1017
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1017
+      },
+      "path": "docs/specs/INDEX.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8659e2557e982ed0175ec50978bfe1cc1aad925d2257cd623b3b30985c73f54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5e5e8596a07e2109bf847f29fb27e61020d45fccfbde9a18b0e11b21befffe1b",
+      "newRange": {
+        "count": 7,
+        "start": 115
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 115
+      },
+      "path": "docs/specs/README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8659e2557e982ed0175ec50978bfe1cc1aad925d2257cd623b3b30985c73f54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:86866a7c1431c3ae4617cc9bd2e15e3e2895a43fd6f5d02fb4405be4552efc51",
+      "newRange": {
+        "count": 19,
+        "start": 1375
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1375
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:da3dcde1d68afb5d85467e69d99e309ad922c6fe3b9b05e1017392a71fa326a3",
+      "newRange": {
+        "count": 122,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/specs/playwright-suite-interaction-minimizer-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad5108e1c2d1d8f98f969c8899cc37892394a9a5d4d3be609d331907d316a469",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1c8560c08702552a1959d225b43bee51f37a23afa9ca192b109b5179a92c13c1",
+      "newRange": {
+        "count": 463,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/playwrightminimize/executor.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8659e2557e982ed0175ec50978bfe1cc1aad925d2257cd623b3b30985c73f54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7aa501fa3a0f00b9ce0885715ef29f5330ccdb04b1745400cc6288225f05da42",
+      "newRange": {
+        "count": 278,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/playwrightminimize/planner.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:ad5108e1c2d1d8f98f969c8899cc37892394a9a5d4d3be609d331907d316a469",
+          "relation": "test-claim"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6abb08c18a1b28c2dd90493489560ae06d6099519dfe3842de8fd95bdcb68440",
+      "newRange": {
+        "count": 408,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/playwrightminimize/planner_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8659e2557e982ed0175ec50978bfe1cc1aad925d2257cd623b3b30985c73f54",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d79a7579be5eefd83b2b4f79c6dcd2ced2a6ca67237cf70ac33d4c0f5cdadd62",
+      "newRange": {
+        "count": 220,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/playwrightminimize/types.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "b6bcfe6b57fd6ca7068510877f8598355f29557a4bc9afa9176a5b30dc531939",
+  "spec": "cem/0.2"
+}

@@ -3,6 +3,9 @@
 Date: 2026-09-19. Status: accepted (owner call on Beamfall/corvint#11); the issue stays open for a
 remote profile.
 
+Decision 0325 accepts the separately built opt-in HTTPS profile on 2026-09-20. The separate-profile
+gap is resolved; this decision's default-binary network prohibition remains binding.
+
 ## Decision
 
 `EEP-TR-010`: no option, environment variable, or record member may cause the default Corvint

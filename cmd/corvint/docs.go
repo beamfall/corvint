@@ -157,4 +157,17 @@ Example from a Corvint checkout with committed sources:
   corvint docs consume --source docs/specs/source-documentation-draft-v0.md --package internal/doccompiler --task Plan < /tmp/corvint-source-draft.md
 
 Contract and remaining bounds: docs/specs/source-documentation-draft-v0.md
+
+Separate experimental corpus profile:
+  corvint [--root PATH] docs corpus manifest --revision FULL_COMMIT --scope PATH --timestamp RFC3339
+  corvint [--root PATH] docs corpus build --manifest INPUT.json
+  corvint [--root PATH] docs corpus search --artifact CORPUS.json --query TEXT
+  corvint [--root PATH] docs corpus render --artifact CORPUS.json
+  corvint [--root PATH] docs corpus maintain --artifact CORPUS.json --page PAGE.md [--apply]
+Read operations: info, validate, get/trace/related/journey/stability --id ID, locate --path PATH,
+coverage, gaps [--id ID]. Optional --limit 1..256. All require --artifact.
+Native query/context/impact/affected/test-validity/work observe/propose-wave and CEM
+status/verify/report accept --corpus=CORPUS.json. Generated evidence grants no task
+or test-selection authority. Read commands print bounded JSON and never collect tests.
+Guide: docs/DOCUMENTATION-CORPUS.md; contract: docs/specs/documentation-corpus-v1.md
 `

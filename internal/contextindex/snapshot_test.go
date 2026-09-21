@@ -226,7 +226,7 @@ func TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree(t *testing.T) {
 		t.Fatalf("dirty compact load: hit=%v err=%v paths=%v sources=%d", hit, err, compactDirty.DirtyPaths, len(compactDirty.Sources))
 	}
 	for _, arguments := range [][]string{{"add", "-A"}, {"-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "next"}} {
-		command := exec.Command("git", arguments...)
+		command := exec.Command("git", append([]string{"-c", "gc.auto=0", "-c", "maintenance.auto=false"}, arguments...)...)
 		command.Dir = root
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)

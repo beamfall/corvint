@@ -5,7 +5,6 @@ package main
 import (
 	"context"
 	"errors"
-	"io"
 	"os"
 	"os/signal"
 	"runtime"
@@ -29,13 +28,28 @@ func providerContext() (context.Context, context.CancelFunc) {
 }
 
 func readParentCapability() ([]byte, bool) {
-	file := os.NewFile(3, "corvint-parent-capability")
-	if file == nil {
+	var stat syscall.Stat_t
+	if syscall.Fstat(3, &stat) != nil || stat.Mode&syscall.S_IFMT != syscall.S_IFIFO {
 		return nil, false
 	}
-	defer file.Close()
-	value, err := io.ReadAll(io.LimitReader(file, 33))
-	return value, err == nil && len(value) == 32
+	defer syscall.Close(3)
+	// The parent preloads and closes the pipe before exec; any wait is invalid.
+	// Raw nonblocking reads also refuse a runtime pipe that reused an absent fd 3.
+	if syscall.SetNonblock(3, true) != nil {
+		return nil, false
+	}
+	var value [33]byte
+	for size := 0; size < len(value); {
+		count, err := syscall.Read(3, value[size:])
+		if err != nil {
+			return nil, false
+		}
+		if count == 0 {
+			return value[:size], size == 32
+		}
+		size += count
+	}
+	return nil, false
 }
 
 func runAuthorityCommand(ctx context.Context, executable string, argv, environment []string, cwd string, timeout time.Duration, capability []byte) (directCommandResult, error) {

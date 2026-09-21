@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/frontier"
 )
 
 const fixtureModule = "example.com/fixture"
@@ -63,6 +65,39 @@ func TestSelectPackagesAttributesEveryDirtyPath(t *testing.T) {
 			var plan receipt
 			plan.Provider.Go.State = "RUNNABLE"
 			plan.Provider.Go.Packages = tc.packages
+			plan.Plan.Dirty = []string{tc.dirty}
+			if got := verdict(plan, root); got != tc.verdict {
+				t.Fatalf("verdict = %q, want %q", got, tc.verdict)
+			}
+		})
+	}
+}
+
+// TestSelectPackagesNarrowsChangeEvidenceReaders covers AFP-V0-012 (c) for the
+// CEM sidecar: a fixture-root token does not select its holder, a literal that
+// resolves to the sidecar or its directory from the holder's directory does,
+// partial literals composed with a root-climbing literal remain conservative,
+// and any other path keeps the component-run rule.
+func TestSelectPackagesNarrowsChangeEvidenceReaders(t *testing.T) {
+	if changeEvidence != frontier.ExcludedPath {
+		t.Fatalf("changeEvidence = %q, want the CEM excluded path %q", changeEvidence, frontier.ExcludedPath)
+	}
+	root := writeFixture(t, map[string]string{
+		"fixture/fixture_test.go": "package fixture\n\nvar a, b, c = \".corvint\", \"change.cem.json\", \".corvint/change.cem.json\"\n",
+		"exact/exact_test.go":     "package exact\n\nvar sidecar = \"../.corvint/change.cem.json\"\n",
+		"anchored/anchored.go":    "package anchored\n\nfunc Sidecar(root string) string { return root + \"/.corvint/change.cem.json\" }\n",
+		"deep/dir/dir_test.go":    "package dir\n\nvar evidence = \"../../.corvint\"\n",
+		"partial/partial.go":      "package partial\n\nimport \"path/filepath\"\n\nvar evidence = filepath.Join(\"..\", \".corvint/change.cem\") + \".json\"\n",
+		"split/split.go":          "package split\n\nfunc Sidecar(root string) string { return root + \"/.cor\" + \"vint/change.cem.json\" }\n",
+	})
+	cases := []struct{ name, dirty, verdict string }{
+		{name: "AFP-V0-012 sidecar selects only resolving readers", dirty: ".corvint/change.cem.json", verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact example.com/fixture/partial example.com/fixture/split"},
+		{name: "AFP-V0-012 other hidden path keeps component-run readers", dirty: ".corvint/other.json", verdict: "run example.com/fixture/deep/dir example.com/fixture/fixture"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var plan receipt
+			plan.Provider.Go.State = "RUNNABLE"
 			plan.Plan.Dirty = []string{tc.dirty}
 			if got := verdict(plan, root); got != tc.verdict {
 				t.Fatalf("verdict = %q, want %q", got, tc.verdict)

@@ -30,14 +30,17 @@ remain `NOT_OBSERVED`; recorded bytes are not billed tokens or proof of savings.
 | Draft/consume source documentation | `docs draft`; `docs consume` using actual emitted stdin bytes | Producer `corvint-source-documentation-draft/0`, consumer `corvint-documentation-consumption/0`. Require admitted committed owner Agent digest and exported Go package declarations. Source rederivation does not accept generated intent or deliver HDC. |
 | Expand source-view experiment evidence | opt-in `adapter source-view` / `adapter claude-source-handoff` | Only tasks owning the experiment use its exact packet/digest/selectors. Normal work reads original cited immutable source. No default host wrapper or usefulness claim. |
 | Select backlog work or propose a wave | `script/corvint-work-queue`; `work observe` / `work propose-wave` | Validate current queue evidence, then inspect shadow proposals and conflicts. Existing coordinator owns claims and dispatch; observation authorizes neither. |
+| Inspect native fixture planning | `work plan-fixture --executor ABSOLUTE_FILE --observations FILE` | Explicit native fixture only; fixed read commands and immutable source/snapshot bindings. Trusted-local reservation/history observations; no admission or production qualification. See [NTP](specs/native-taskman-planning-v0.md). |
 | Bind and review a change | keyed `dogfood` workflow plus `cem` / every scoped `ocm` | Reuse the existing frozen plan, selected-check observations and exact report-set acknowledgment. Inspect citation meaning, unknowns and check adequacy. |
 | Inspect unresolved review obligations | `frontier --cem MAP --ocm MAP --expected-base BASE --target TARGET --json`; `lrf` where relevant | Before acknowledgment inspect each relevant bound scope. Valid exit 1 means an open advisory queue; distinguish it from invalid input. `frontier/0` cannot close authority or make local policy satisfied. |
 | Use a live Go provider | separate `corvint-go-test-provider --experimental --trusted-local --authority-bundle FILE` | Only an actual admitted parent-verifier attachment qualifies the route. Missing attachment is unavailable; ordinary selected tests still run. Protected runner/LPCV qualification is separate. |
 | Record outcome or inspect learning | existing `dogfood finish`; supported trace-aware query; explicit `migrate-traces` | Do not duplicate finish's outcome. Migration apply requires explicit scope. Preserve trace refusal/learned-path counts; a mechanism or scoring change needs the registered two-arm LTA gate, not every record row. |
 | Investigate repeated friction | `observations`; explicitly scoped `prove-observe` | Bounded private counts never rank evidence or confer authority. No transcript scan, invented usage or background monitor. |
 | Change retrieval, learning or a profile | owning frozen `eval --goldens FILE` / registered benchmark engine arms | Pin engine, corpus, fixture and output identities; retain losing arms. No blind-v4 access or broad campaign for a prose-only change. Current eval supports an explicit trace-fixture arm, not unrestricted persisted trace replay. |
+| Compare migration evidence | `migration-ratchet --profile FILE` | Bind exact baseline/candidate artifacts and preserve every delta, denominator, exception and comparability rule. Pass is incremental no-regression only; it proves neither adequacy nor completeness. |
 | Inspect a console or release readiness | standalone `corvint-dashboard-snapshot`; explicit bounded `corvint-console`; `script/release-checklist` | Build standalone companions from their retained `cmd/corvint-*` source packages until the closed bundle migration lands. Start an optional loopback server only for useful requested inspection with cleanup. Checklist/archive gates do not sign, tag, publish or promote; keep U4, packet-5 and DR holds. |
-| Change an optional analyzer/integration | owning public route and targeted tests from [spec index](specs/INDEX.json) | Distinguish delivered internals, optional artifacts and unbuilt parent contracts. Do not separately launch every analyzer, MCP, Pulse or service; state the exact unavailable/inapplicable boundary. |
+| Change an optional analyzer/integration | owning public route and targeted tests from [spec index](specs/INDEX.json), including [Playwright External Provider V0](specs/playwright-external-provider-v0.md) for externally managed Playwright servers | Distinguish delivered internals, optional artifacts and unbuilt parent contracts. Do not separately launch every analyzer, MCP, Pulse or service; state the exact unavailable/inapplicable boundary. |
+| Consume external evidence | `impact --provider FILE`, `--provider-command ARGV_JSON`, or `--provider-mcp ARGV_JSON` | The accepted bounded MCP profile calls one local tool. Remote HTTPS requires the separately built `corvint-remote-provider --allow-network --config FILE` command; Core never fetches network evidence. All routes retain the same strict EEP decode, reference checks and separated authority. |
 
 ## Read, implement, challenge
 
@@ -53,6 +56,17 @@ Keep route dispositions in the existing task evidence/BUILD-LOG prose: **used**,
 a command actually ran for this task at the identified root/revision; an example, unit test or green
 gate does not establish host adoption. This is caller assessment, not a new ledger, universal
 planner, strict LCP field, authenticated record or feature-use percentage.
+
+For the optional [documentation corpus route](DOCUMENTATION-CORPUS.md), inventory a committed
+slice, build a corpus and retain an actual search/trace receipt. Use explicit corpus evidence on native
+reads only where applicable; unsupported providers and absent journeys remain visible. The separate
+MCP server and generated-block writes require their own explicit invocation.
+The experimental behavior-provider profile additionally retains exact flow/test/project joins and
+ordered runtime witnesses; missing consumer fixtures or runtime evidence preserve gaps and full-suite
+fallback. See the behavior-contract section of `docs/specs/documentation-corpus-v1.md`.
+The separate stability profile retains independent repetitions, nested Playwright retries and manual
+reruns with raw denominators, cleanup and exact declared-versus-observed execution topology. It never
+upgrades behavior coverage, adequacy or parity.
 
 For the optional documentation route, retain producer output and feed those exact bytes to the
 consumer; its [source contract](specs/source-documentation-draft-v0.md) gives the admitted example.

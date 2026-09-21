@@ -178,7 +178,14 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   (c) for every path (`reader`), each package whose own files carry a token with a component run
   naming it. A run of two or more components matches consecutive path components, its first by
   suffix unless the token starts there and its last by prefix unless the token ends there; a single
-  component matches only a whole path component;
+  component matches only a whole path component. For the CEM sidecar `.corvint/change.cem.json`
+  (decision 0323), derived evidence every dogfooded change commits, such a package is selected
+  only when that token, resolved against the package's directory (a root-anchored token against the
+  root), can form the sidecar or one of its ancestor directories while preserving the outer
+  partial-component matches above. A root-climbing or compatible root-anchored token in the same
+  package MAY establish the root for a separate naming fragment because the literal-only index
+  cannot prove whether the expressions compose; a `.corvint` or `change.cem.json` token joined only
+  to a fixture root selects nothing, and rules (a), (b), and (d) are unchanged;
   (d) whenever `plan.dirty` is non-empty (`unresolved`), every package whose reads no literal bounds.
   Such a package calls `runtime.Caller` or `os.Getwd` or carries the literal `--show-toplevel` in any
   file, or has a file that does not lex. A call counts under whatever local name the file's own
@@ -293,6 +300,20 @@ and container qualification; full fallback remains available.
   driver. Concurrent rows on separate runners satisfy AFP-V0-014's campaign only because every
   row identity must equal the frozen identity. It MUST NOT commit, pin, or publish anything
   but workflow artifacts.
+- `AFP-V0-018`: (proposed) `corvint affected --playwright-config PATH` MUST emit the separate
+  `playwright-affected/0` profile defined by `TJAA-V0-010..017`. It MUST accept `--base` with the
+  same range semantics as `affected-plan/0`, MUST NOT be combined with external `--provider`, and
+  MUST preserve the same bounded Git/status/HEAD drift checks and revalidate the bounded source-content
+  digest immediately before emission. The receipt has exactly `mutates`,
+  `ok`, `plan`, `profile`, `range`, `revision`, and `tool`; unsupported config/source observation
+  fails with `unsupported-playwright-affected` and no partial receipt. The default invocation and
+  its closed `affected-plan/0` bytes remain unchanged.
+  Optional `--playwright-discovery FILE` requires `--playwright-config` and reads only a bounded
+  caller-owned `playwright-discovery/0` receipt. The plan MUST reconcile exact project/file pairs
+  against immutable HEAD, config and current source bytes before emitting file argv; unproven
+  discovery MUST emit empty selected/excluded rows and one complete-config `fallbackArgv` as
+  specified by TJAA-V0-015. The input MUST be re-read before emission; drift fails with
+  `unsupported-affected-drift`. Corvint MUST NOT execute discovery or config.
 
 ## Non-goals and authority
 
@@ -309,6 +330,9 @@ Git unavailable or the worktree status exceeds its bound: fail closed with
 `unsupported-affected-status`. No commits: `unsupported-affected-revision`. Source walk exceeds
 `affected.MaxWalkEntries`, a plugin returns a non-canonical unit, or the walk accepts a source file
 whose path no unit can name: `unsupported-affected-graph`.
+An unreadable or invalid `--playwright-config`, or a Playwright graph that cannot be built:
+`unsupported-playwright-affected`; dynamic but readable project/config semantics remain a typed
+`UNKNOWN` plan with `FULL_RELEVANT_SUITE`, not a command failure.
 Exhausting an admitted-directory sub-bound instead skips only that subtree and reports
 `go:included-directory-walk-bounded` at `UNKNOWN` scope; it is not a graph refusal.
 A dirty path owned by no plugin: the plan widens to `UNKNOWN` scope rather than narrowing. A
@@ -343,6 +367,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
 | AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active; `failure` path NOT_RUN on a real PR |
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |
+| AFP-V0-018 | `playwrightAffectedReceipt`, `compilePlaywrightAffected`, and `typescript.SelectPlaywright` | `TestAffectedPlaywrightProfileEmitsProjectDistinctUnits`, `TestAffectedPlaywrightArgumentsFailClosed`, and `internal/liveverify/affected/typescript/playwright_test.go` |
 | AFP-V0-009 | `affectedAdvice`, `compileAffectedAdvice`, `mandatoryAffectedChecks`, `advisoryAffectedChecks`, `shellQuoteJoin` in `cmd/corvint/affected.go` | `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`, `TestAffectedAdviceReportsNoDeclaredGate`, `TestAffectedAdviceKeepsMandatoryGateAndNeverAdvisesExclusions`, `TestAffectedReceiptMembersAreClosedAndByteStable` (tightened to assert `advice`'s raw JSON key order), `TestAffectedAdviceBoundsTheDeclarationRead`, `TestShellQuoteJoinEscapesMetacharacters`, `TestAffectedAdviceTruncatedMandatoryDeclarationSuppressesNoGate`, `TestAffectedAdviceCapsMandatoryChecksAtSixteen`, `TestAffectedAdviceSkipsCommentsInVerifyFence` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if

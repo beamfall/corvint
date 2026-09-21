@@ -441,8 +441,9 @@ and the checklist's publication block to the prior unconditional `NOT_RUN`. Rest
 
 ## Signing options — alpha selection
 
-Decision 0108 selects **No signing** for the `0.4.0a4` alpha prerelease only. Any later prerelease or
-stable release needs a new selection. No agent may generate, import, store, rotate, request, or use
+Decision 0108 selected **No signing** for the historical `0.4.0a4` candidate. Decision 0328 expressly
+selects **No signing** for the current `0.5.0a2` alpha prerelease. Any later prerelease or stable
+release needs a new selection. No agent may generate, import, store, rotate, request, or use
 a signing key or identity, and no signature is a publication or promotion authorization.
 
 | Option | Identity source and tool | Verifier checks | Trade-off |

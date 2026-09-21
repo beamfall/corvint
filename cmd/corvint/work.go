@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/worklistadapter"
 	"github.com/Beamfall/corvint/internal/workqueue"
 	"github.com/Beamfall/corvint/internal/worksource"
 )
@@ -49,6 +51,7 @@ type workCapture struct {
 	opening         workSource
 	monitoredRoots  []string
 	closingError    error
+	storeScope      bool
 }
 
 func parseWorkInvocation(arguments []string) (string, []string, bool, error) {
@@ -144,6 +147,9 @@ var workHangBound = 10 * time.Minute
 var errWorkHang = errors.New("corvint work hang detector expired")
 
 func runWork(ctx context.Context, root string, arguments []string, stdout, stderr io.Writer) (exit int) {
+	if len(arguments) > 0 && arguments[0] == "plan-fixture" {
+		return runTaskmanFixture(ctx, root, arguments[1:], stdout, stderr)
+	}
 	ctx, cancel := context.WithTimeoutCause(ctx, workHangBound, errWorkHang)
 	defer func() {
 		// The stdout code stays the closed INPUT_LIMIT (WQO-V0-015); stderr names the
@@ -251,6 +257,9 @@ func observeWork(parent context.Context, root string) (*workCapture, string) {
 	runner.env = append([]string(nil), materialization.environment...)
 	runner.verifyTarget = materialization.Verify
 	capture.runner = runner
+	if err := runner.qualifyBoundExecutable(); err != nil {
+		return nil, "SOURCE_UNQUALIFIED"
+	}
 	capture.monitoredRoots = []string{opening.qualified.Root, opening.qualified.GitDir, opening.qualified.CommonDir, materialization.target}
 	opening.manifest = workMutationManifest(ctx, capture.monitoredRoots)
 	capture.opening = opening
@@ -284,6 +293,9 @@ func observeWork(parent context.Context, root string) (*workCapture, string) {
 	if code := workClosingCommandError(closing); code != "" {
 		return nil, code
 	}
+	capture.storeScope = workMappingReproduced(opening.qualified, policy, snapshot.Canonical(), details.Canonical(), checkpoint.Canonical())
+	opening.manifest.complete = capture.storeScope && opening.manifest.monitoredComplete
+	closing.manifest.complete = capture.storeScope && closing.manifest.monitoredComplete
 	observation := validateWorkCapture(policy, opening, closing, snapshot, details, checkpoint, []workqueue.AdapterReceipt{snapshotReceipt, detailsReceipt, verifyReceipt}, closure)
 	capture.snapshot, capture.details, capture.checkpoint = snapshot, details, checkpoint
 	capture.observation, capture.closure = observation, closure
@@ -359,12 +371,38 @@ func workFreshAtReturn(parent context.Context, root string, capture *workCapture
 	}
 	receipts := append([]workqueue.AdapterReceipt(nil), capture.observation.AdapterReceipts...)
 	receipts[len(receipts)-1] = receipt
+	storeScope := capture.storeScope && workMappingReproduced(source.qualified, policy, nil, nil, document.Canonical())
+	opening.manifest.complete = storeScope && opening.manifest.monitoredComplete
+	closing.manifest.complete = storeScope && closing.manifest.monitoredComplete
 	observation := validateWorkCapture(policy, opening, closing, capture.snapshot, capture.details, document, receipts, capture.closure)
 	capture.observation = observation
 	checkpointDrift := document.PolicyID == policy.ID && document.SnapshotID == capture.snapshot.ID &&
 		document.RepositorySource == opening.source && document.Checkpoint != capture.checkpoint.Checkpoint
 	sourceDrift := !closing.manifest.qualificationFailed && closing.source != opening.source
 	return checkpointDrift || sourceDrift, ""
+}
+
+// workMappingReproduced reports whether the adapter documents are exactly the
+// adoptable repository worklist mapping of the qualified committed tree
+// (WQO-V0-046). Only then is that tree the queue's whole store, so complete
+// monitored manifests are complete store scope. Corvint's own decision-0046-v0
+// self-dogfood mapping stays store-unqualified (WQO-V0-017). A nil document is
+// not compared.
+func workMappingReproduced(source *worksource.Source, policy *workqueue.Policy, snapshot, details, checkpoint []byte) bool {
+	if policy.MappingVersion != worklistadapter.RepositoryMapping {
+		return false
+	}
+	expectedSnapshot, expectedDetails, expectedCheckpoint, err := worklistadapter.DocumentsFromSource(source, policy)
+	if err != nil {
+		return false
+	}
+	pairs := [][2][]byte{{snapshot, expectedSnapshot.Canonical()}, {details, expectedDetails.Canonical()}, {checkpoint, expectedCheckpoint.Canonical()}}
+	for _, pair := range pairs {
+		if pair[0] != nil && !bytes.Equal(pair[0], pair[1]) {
+			return false
+		}
+	}
+	return true
 }
 
 func workSourceCommandError(ctx context.Context, err error) string {
@@ -542,6 +580,19 @@ func acquireWorkSource(ctx context.Context, root string) (workSource, error) {
 	policy, err := workqueue.ParsePolicy(policyEntry.Raw)
 	if err != nil {
 		return result, err
+	}
+	if policy.MappingVersion == worklistadapter.RepositoryMapping {
+		worklistPath, _ := worklistadapter.WorklistPath(policy.MappingVersion)
+		worklistFound := false
+		for i := range source.Entries {
+			if source.Entries[i].Path == worklistPath && source.Entries[i].Mode == "100644" {
+				worklistFound = true
+				break
+			}
+		}
+		if !worklistFound {
+			return result, errors.New("invalid worklist source")
+		}
 	}
 	for i := range source.Entries {
 		if source.Entries[i].Path == policy.AdapterPath {

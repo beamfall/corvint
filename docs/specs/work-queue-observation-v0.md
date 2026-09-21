@@ -3,7 +3,7 @@
 **Owner:** Russell Lewis  
 **Date:** 2026-08-23  
 **Intent status:** accepted (decision 0046, 2026-09-04)  
-**Delivery status:** experimental (core library, `corvint work observe` and `propose-wave`, the Corvint self-dogfood adapter, and `conformance/work-queue-v0` landed 2026-09-04; Beamfall adapter, independent recorder, and the 500 shadow cycles NOT_RUN)  
+**Delivery status:** experimental (core library, `corvint work observe` and `propose-wave`, the Corvint self-dogfood adapter, and `conformance/work-queue-v0` landed 2026-09-04; repository adoption through `corvint work init` and `corvint work adapter` landed 2026-09-19 under decision 0321; Beamfall adapter, independent recorder, and the 500 shadow cycles NOT_RUN)  
 **Rollout class:** shadow-only  
 **Wire profiles:** `work-queue-policy/0`, `work-queue-snapshot/0`,
 `work-queue-detail/0`, `work-queue-checkpoint/0`, `work-queue-observation/0`,
@@ -11,10 +11,10 @@
 
 ## Agent digest
 - Claim: Read-only queue snapshots produce deterministic shadow proposals, derived path clashes, and the largest collision-free wave, authorizing nothing.
-- Status: accepted (decision 0046, 2026-09-04)/experimental (core library, `corvint work observe` and `propose-wave`, the Corvint self-dogfood adapter, and `conformance/work-queue-v0` landed 2026-09-04; Beamfall adapter, independent recorder, and the 500 shadow cycles NOT_RUN)
+- Status: accepted (decision 0046, 2026-09-04)/experimental (core library, `corvint work observe` and `propose-wave`, the Corvint self-dogfood adapter, and `conformance/work-queue-v0` landed 2026-09-04; repository adoption through `corvint work init` and `corvint work adapter` landed 2026-09-19 under decision 0321; Beamfall adapter, independent recorder, and the 500 shadow cycles NOT_RUN)
 - Exists: a closed read-only observation and deterministic non-operative wave-proposal contract.
 - Blocked on: the Beamfall adapter and the independent recorder; the Corvint-side algorithm, its conformance, and the Corvint self-dogfood adapter are unblocked.
-- Read next: Decision; Authority and trust boundary; §5.6 Corvint-derived collision closure and maximal wave; Traceability and owner inputs.
+- Read next: Decision; Authority and trust boundary; §5.6 Corvint-derived collision closure and maximal wave; §5.7 Repository adoption; Traceability and owner inputs.
 
 ## 1. Decision
 
@@ -275,7 +275,9 @@ deadline still wins.
   closed stdin, cwd at an isolated target materialization, and VPO-V0-022's sanitized
   `verification-env/posix-local/0`. Adapter and script interpreter chains are qualified as in
   VPO-V0-024; unqualified chains add `EXECUTABLE_IDENTITY_UNQUALIFIED` and cannot support an exact-
-  executed-bytes claim.
+  executed-bytes claim. WQO-V0-049's canonical adoption adapter receives one Corvint-owned private
+  executable path before the fixed policy argv; that path is not policy, queue data, caller input or
+  an environment override, and the receipt still records only the fixed policy operation argv.
 
 - `WQO-V0-005`: Repository source qualification follows VPO-V0-007..010: HEAD equals target commit,
   tree and index equal target tree, complete porcelain-v2 status including untracked paths is empty,
@@ -398,6 +400,11 @@ Cross-field validation is exact:
   source-qualification failure cannot erase an already observed change. Equal pre/post
   bytes do not detect transient or restored writes. This clarification adds no store-root
   configuration, OS enforcement, or stronger containment qualification.
+
+  WQO-V0-046 is the one exception, and it adds no store root either: when the
+  queue's store is provably the qualified committed tree itself, complete monitored
+  manifests are complete store scope. Corvint's own `decision-0046-v0` self-dogfood
+  mapping is not that exception and keeps the paragraph above.
 
 ### 5.4 Deterministic shadow proposal
 
@@ -537,6 +544,88 @@ work likely to clash on this repository, and what is the most work that can star
   no stdin read; root help and the public command inventory MUST omit it. It is not an alias
   for a WQO command.
 
+### 5.7 Repository adoption (decision 0321)
+
+These requirements let a repository other than Corvint reach a `VALIDATED_AT` observation
+without a new policy vocabulary, store root, or adapter protocol. They change no wire profile.
+
+- `WQO-V0-046`: The store scope is complete exactly when the policy `mappingVersion` is
+  `repository-worklist-v0` and Corvint, independently of the adapter, recomputes that closed
+  mapping from the qualified committed tree and obtains byte-identical canonical snapshot,
+  details, and checkpoint documents. The committed worklist is then the queue's whole store, so
+  complete monitored pre/post manifests of WQO-V0-017 are complete store scope and equal
+  manifests report `UNCHANGED_OBSERVED`. The final check repeats the comparison for the second
+  checkpoint against the closing source. Any other mapping version, an unreadable or invalid
+  worklist, or any differing byte leaves the store unqualified: `mutationState:UNKNOWN`,
+  `SOURCE_UNQUALIFIED`, empty proposal. `CONTAINMENT_UNQUALIFIED`,
+  `EXECUTABLE_IDENTITY_UNQUALIFIED`, `MUTATION_ENFORCEMENT_UNQUALIFIED`, and
+  `NETWORK_UNOBSERVED` stay present; this requirement qualifies store scope only.
+
+- `WQO-V0-047`: `corvint work init --repository NAME --corvint-executable ABSOLUTE_FILE`
+  writes exactly three files for the
+  operator to review and commit: `.corvint/work-queue-policy.json` (a `work-queue-policy/0`
+  with `access:NAME:local`, `repo:NAME`, `queue:NAME:worklist`, `scope:NAME:worklist`,
+  adapter profile `repository-work-queue-adapter/0`, mapping `repository-worklist-v0`, detail
+  limit 512), `.corvint/worklist.json` (an empty `corvint-worklist/0`), and the executable
+  `.corvint/work-queue-adapter`, which carries the WQO-V0-049 binding and runs
+  `corvint work adapter`. NAME must yield a policy
+  the WQO-V0-001 parser accepts. If any of the three paths exists, init writes nothing and
+  exits 2. Initialization is rooted in the repository, rejects a symlinked `.corvint`, and
+  rolls back files it created if any later write fails. Init accepts only the repository root (not
+  a plain directory or repository subdirectory), and the generated adapter uses `/bin/sh`. Init neither stages nor commits;
+  until the three files are committed, observe returns `ERROR/SOURCE_UNQUALIFIED`.
+
+- `WQO-V0-048`: `corvint work adapter snapshot|details|verify` is the
+  `repository-work-queue-adapter/0` producer shared with the self-dogfood adapter. It reads only
+  the qualified committed policy and worklist and writes one canonical document. Every
+  `corvint-worklist/0` item becomes a READY ticket `ticket:NAME:worklist:ID`, ranked in file
+  order, with one `capacity:NAME:worklist:agent` unit, route `route:NAME:worklist:agent`
+  requiring `capability:NAME:worklist:agent`, and the item's `touchPaths`. Bounded verification
+  work (a suite batch, a failure-classification repair, a test-validity receipt, a cleanup and
+  retry) is an ordinary item whose `touchPaths` name what it changes; two items that share a
+  path clash under WQO-V0-043 and the proposal exposes the excluded one. The adapter holds no
+  dispatch, lease, merge, or execution authority, and neither do `observe` or `propose-wave`
+  (WQO-V0-045).
+
+- `WQO-V0-049`: The initialization executable is one canonical absolute executable regular file
+  outside the adopting repository/worktree. The path, every parent and the file itself MUST have no
+  symlink component; non-sticky group/world-writable parents, group/world-writable executable bytes,
+  missing paths, relative paths and repository-controlled paths fail before init writes. Init records
+  the exact path, SHA-256, `Corvint VERSION (build BUILD)` output and Go module/VCS source identity in
+  the generated reviewed adapter. A reproducible `-buildvcs=false` release records its explicit
+  absence of VCS settings while retaining package, module/version and Go toolchain identity; it is
+  not rejected for omitting metadata that the release build intentionally excludes. Observation
+  accepts only the canonical generated adapter, reopens
+  the exact path without following links, rederives all identities, and fails
+  `ERROR/SOURCE_UNQUALIFIED` before adapter execution on any mismatch. To close the pathname-to-exec
+  race on Darwin and Linux without ambient lookup, Corvint copies only the already-opened and hashed
+  descriptor bytes into one private `0700` directory as a `0500` file, rechecks both the original
+  pathname identity and private bytes before and after every operation, and supplies that absolute
+  private path as the canonical adapter's first trusted argv value before the fixed policy operation.
+  The adapter invokes only that value; it never searches `PATH` or expands the environment. Darwin
+  lacks VPO-V0-024 exact-object exec, so the receipt truthfully retains
+  `executableQualification:UNQUALIFIED`; WQO-V0-049 is a reviewed binding and drift refusal, not a
+  stronger general executable-attestation claim.
+
+- `WQO-V0-050`: `corvint work rebind --corvint-executable ABSOLUTE_FILE` is the only supported
+  executable update. It applies WQO-V0-049, accepts only an existing repository-adoption policy and
+  canonical generated adapter (including the pre-binding WQO-V0-047 adapter), and atomically replaces
+  only `.corvint/work-queue-adapter`. The operator MUST review and commit that changed adapter before
+  observation can succeed. Rebind does not stage, commit, rewrite policy/worklist, or accept the old
+  identity after executable bytes, version/build, source identity or path identity changes.
+
+Explicit unknowns for an adopted repository:
+
+| Condition | Result |
+|---|---|
+| no committed policy, adapter, or worklist | `ERROR/SOURCE_UNQUALIFIED`; no observation |
+| dirty, mixed, or partially committed worktree | `ERROR/SOURCE_UNQUALIFIED`; no observation |
+| unknown mapping version, or adapter bytes that differ from the recomputed mapping | `UNKNOWN`, `SOURCE_UNQUALIFIED`; empty proposal |
+| bound executable missing, changed, symlinked, unsafe, repository-controlled, or identity-mismatched | `ERROR/SOURCE_UNQUALIFIED`; explicit reviewed `work rebind` required |
+| canonical adapter crash, timeout, or oversized output | `ERROR/ADAPTER_FAILED`, `INPUT_LIMIT`, or the WQO-V0-032 code |
+| worklist or source changes between the two checkpoints (queue-source drift) | `STALE`; empty proposal |
+| executable identity, containment, OS mutation enforcement, network | always-present unknowns; never qualified by adoption |
+
 ### 6. Beamfall ownership mapping
 
 | Concern | Beamfall authority | Corvint V0 authority |
@@ -648,6 +737,9 @@ parse private state, if unsafe selection or forbidden operation occurs, or value
 - model ranking, route downgrade, or self-selection; and
 - daemon, hosted control plane, telemetry, UI, database, embeddings, or network fetch.
 
+`corvint-worklist/0` (WQO-V0-048) is Corvint's own committed worklist format, not a parser for a
+repository's existing roadmap files; a repository with another queue writes its own adapter.
+
 ## 12. Traceability and owner inputs
 
 | Contract area | Requirements | Evidence |
@@ -663,6 +755,9 @@ parse private state, if unsafe selection or forbidden operation occurs, or value
 | Derived collisions/wave | WQO-V0-041..045 | closure goldens, optimality fixtures, clash report |
 | Direct closure boundary | WQO-V0-042 | `internal/workqueue/collision.go`, `TestIndexCollisionSourceDirectNeighboursOnly`, `TestIndexCollisionSourceResolvesGoModuleImports`, `TestDeriveWorkCollisionsResolvesGoModuleImports` |
 | Retired competing command | WQO-V0-045 | `cmd/corvint/main.go`, `cmd/corvint/help.go`, `TestLanePlanRetired` |
+| Store scope by mapping reproduction | WQO-V0-046 | `cmd/corvint/work.go` `workMappingReproduced`, `TestWorkMappingReproduced`, `TestWorkAdoptedRepositoryWorklist` |
+| Repository adoption | WQO-V0-047..048 | `cmd/corvint/work_adopt.go`, `internal/worklistadapter`, `TestWorkAdoptedRepositoryWorklist`, `TestWorkMappingReproduced` |
+| Bound adoption executable | WQO-V0-049..050 | `cmd/corvint/work_executable_binding.go`, `TestWorkInitBindsExplicitExecutableWQOV0049`, `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`, `TestWorkExecutableMissingAndSymlinkSwapWQOV0049`, `TestWorkExecutableChangeRequiresReviewedRebindWQOV0050` |
 
 Decision 0046 accepted this contract and assigned the Corvint self-dogfood authority IDs
 (`repo:corvint`, `queue:corvint:worklist`, `scope:corvint:worklist`, `access:corvint:local`); the core
@@ -809,8 +904,9 @@ The final bounded local evidence follow-up adds these independently reviewed wit
 
 These focused Go tests and all five new native claim extraction/re-extraction checks passed on
 exact retained source. The independent pure fixtures use hypothetical complete mutation evidence
-for their synthetic validated state; the actual default observer remains `UNKNOWN` with incomplete
-mutation scope. No synthetic state or structural link is promoted into production eligibility.
+for their synthetic validated state; the actual default observer over the `decision-0046-v0`
+self-dogfood mapping remains `UNKNOWN` with incomplete mutation scope (the WQO-V0-046 adoption path
+is witnessed separately by `TestWorkAdoptedRepositoryWorklist`). No synthetic state or structural link is promoted into production eligibility.
 
 The native paired-prose CLI harness in `conformance/work-queue-v0/cmd/cli-prose` separately checks
 the frozen identity registry and reconstructs capture inputs through the Go fixture producer. The
