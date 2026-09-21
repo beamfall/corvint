@@ -36,6 +36,12 @@ matches Playwright's headless precedence and abstains for remote connections and
 fixtures; retained projection rejects serialized connection options. The added live negatives pass,
 and the repair re-review found no remaining actionable issue.
 
+The first scoped local-completion plan could not retain the successful verbose live check because the
+writer secret screen classified Go's `--- PASS: TestQualifiedPlaywrightLive` marker as a credential
+assignment. That plan was cancelled without satisfaction, the confirmed false positive was added to
+`docs/agent-memory/bugs.md`, and the same frozen live test was selected without `-v` for retained
+evidence; this changes log verbosity, not execution or assertions.
+
 ## 2026-09-20 Integrated canonical-gate repair
 
 The first combined `make gate` rejected the candidate before publication. The work-queue OCM
