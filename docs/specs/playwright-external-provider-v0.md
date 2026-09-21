@@ -3,9 +3,9 @@
 Owner: Russell Lewis
 Date: 2026-09-20
 Intent status: accepted
-Delivery status: validated (`/0` Playwright 1.60.0 matrix and 1.63.0 macOS arm64 system-Chrome and bundled-headless-shell paths; `/1` Docker-backed Playwright 1.63.0)
+Delivery status: validated (`/0` Playwright 1.60.0 matrix and 1.63.0 macOS arm64 system-Chrome, bundled-headless-shell and standard device-spread paths; `/1` Docker-backed Playwright 1.63.0)
 Profiles: `corvint-playwright-external/0`, `corvint-playwright-external/1`.
-Inputs: GitHub issues #19, #39, #43, #50; AGENTS.md invariants 1–8; decision 0179.
+Inputs: GitHub issues #19, #39, #43, #49, #50; AGENTS.md invariants 1–8; decision 0179.
 Owner acceptance: in the 2026-09-20 issue-resolution task, the owner explicitly approved accepting
 and shipping this PWP-V0 profile while retaining the default offline boundary and rollback gates.
 The owner subsequently requested issue #43's typed application-attestation revision with the same
@@ -13,7 +13,7 @@ external-ownership boundary.
 
 ## Agent digest
 - Claim: External-server Playwright receipts bind attributable outcomes without owning the app; `/1` adds typed pre/post app and clean test-repository identity.
-- Status: accepted; validated (`/0` Playwright 1.60.0 matrix and 1.63.0 macOS arm64 system-Chrome and bundled-headless-shell paths; `/1` Docker-backed Playwright 1.63.0).
+- Status: accepted; validated (`/0` Playwright 1.60.0 matrix and 1.63.0 macOS arm64 system-Chrome, bundled-headless-shell and standard device-spread paths; `/1` Docker-backed Playwright 1.63.0).
 - Exists: `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
 - Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
@@ -26,7 +26,7 @@ external-ownership boundary.
 - `PWP-V0-004`: Preserve attempt status/retry, flaky, assertion failure, test timeout and interruption. Browser/fixture, server, reporter, global and boundary failures remain infrastructure. Empty/malformed reports and unexplained nonzero exits cannot be green.
 - `PWP-V0-005`: Emit and retain the canonical closed profile. MCP discovery recomputes projections and preserves identities, retries, infrastructure, readiness, external cleanup responsibility and unknown freshness. Carried projections confer no authority.
 - `PWP-V0-006`: Cancellation joins only owned Playwright descendants and observes external server survival. Unknown runner cleanup or lifecycle/project identity prevents passing projections.
-- `PWP-V0-007`: Qualification runs a checked-in real Playwright browser fixture covering pass, assertion failure, timeout, browser infrastructure, two projects, cancellation, server survival, inherited webServer suppression and retained MCP discovery. A skipped live fixture is never qualification success.
+- `PWP-V0-007`: Qualification runs checked-in real Playwright browser fixtures covering pass, assertion failure, timeout, browser infrastructure, two projects, a standard `devices['Desktop Chrome']` spread, cancellation, server survival, inherited webServer suppression and retained MCP discovery. A skipped live fixture is never qualification success.
 - `PWP-V0-008`: Playwright 1.63 qualification is consuming-path specific. A passing projection requires a separately qualified Node, operating-system/architecture and effective browser tuple; another tuple remains diagnostic-only. A configured executable binds its exact version, channel/path and headless-shell availability. A Playwright-bundled executable additionally binds the registry executable name, package-pinned browser revision and manifest version, absolute executable path and executable SHA-256. Any missing or changed field abstains. Additional Node or browser tuples require an explicit qualification record and the complete live matrix below; matching only the package version never admits them. Consumer checkout and CI observations remain `NOT_OBSERVED` or `NOT_RUN` when unavailable.
 
 ### Application-attested revision
@@ -106,6 +106,11 @@ overrides; the provider resolves those with project options and preserves the ef
 viewport and device settings. Missing metadata, executable option fixtures or custom browser/context/
 page fixtures produce unknown identity and never passing execution. A device label remains `unknown`
 unless declared in project metadata; effective device parameters are retained independently.
+A separate live regression reproduces the consumer's standard
+`projects: [{name: 'chromium', use: {...devices['Desktop Chrome']}}]` configuration and requires the
+resolved browser, nonempty user agent, 1280×720 viewport, config digest, stable test ID and qualified
+bundled executable tuple to survive together. The exact Golf checkout and its hosted CI remain
+`NOT_OBSERVED`; the checked-in minimal fixture proves the reported configuration shape locally.
 The qualified configured tuple is macOS arm64 / Node v22.23.2 / `@playwright/test@1.63.0` /
 system Google Chrome 153.0.8010.48 at
 `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`, with no channel override and the
@@ -161,5 +166,25 @@ browser-path override. With the bundled path, the exact command is:
 
 | Requirements | Implementation | Evidence |
 |---|---|---|
-| PWP-V0-001..008 | `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestQualifiedPlaywrightLive`, `TestExternalReadiness`, `TestQualifiedReceiptProjection`, `TestPlaywright163UnqualifiedBrowserTupleAbstains` |
+| PWP-V0-001..008 | `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestQualifiedPlaywrightLive`, `TestQualifiedPlaywrightLiveDevicesSpread`, `TestExternalReadiness`, `TestQualifiedReceiptProjection`, `TestPlaywright163UnqualifiedBrowserTupleAbstains`, `TestPlaywright163BundledBrowserTupleAbstainsOnDrift` |
 | PWP-V1-001..008 | `internal/jstestprovider/application_attestation.go`, `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestApplicationAttestationCommandProvider`, `TestApplicationAttestationNegativeControls`, `TestAttestedReceiptNeverPassesWrongOrRestartedApplication`, `TestApplicationAttestationDockerComposeQualification` |
+
+### Owned emitted error codes
+
+| Code | Emitted condition | Site |
+|---|---|---|
+| `application-attestation-config-invalid` | The provider config is noncanonical, has the wrong profile, or carries an invalid expectation. | `internal/jstestprovider/application_attestation.go:84@12af3b3a` |
+| `application-attestation-config-unavailable` | The bounded provider config file cannot be read. | `internal/jstestprovider/application_attestation.go:80@b18eb77f` |
+| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:165@db0a61bf` |
+| `application-attestation-provider-required` | The attested profile lacks an absolute config path or provider argv. | `internal/jstestprovider/application_attestation.go:68@2bc06a44` |
+| `application-attestation-provider-unavailable` | The provider executable is unresolved, unreadable, unstaged, or fails bounded execution. | `internal/jstestprovider/application_attestation.go:72@94973cec` |
+| `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:223@ae7d4bc6` |
+| `attested-external-profile-has-declared-identity` | An attested receipt also carries the legacy caller-declared application identity. | `internal/jstestprovider/projection.go:65@d5db6c8b` |
+| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:300@2fb84e28` |
+| `file-bound-exceeded` | A bounded attestation input cannot be read within its byte ceiling. | `internal/jstestprovider/application_attestation.go:164@5714ccbf` |
+| `file-replaced` | The opened attestation input is not the file that was inspected before opening. | `internal/jstestprovider/application_attestation.go:160@1bec3465` |
+| `invalid-canonical-input` | Canonical input is empty, oversized, or secret-shaped. | `internal/jstestprovider/application_attestation.go:171@12f8b66b` |
+| `legacy-external-profile-has-attested-fields` | A legacy `/0` receipt carries `/1` attestation fields. | `internal/jstestprovider/projection.go:61@751bcb11` |
+| `noncanonical-input` | Parsed input bytes differ from the canonical JSON encoding. | `internal/jstestprovider/application_attestation.go:187@0bb50e72` |
+| `not-regular` | An attestation input path does not resolve to a regular file. | `internal/jstestprovider/application_attestation.go:151@9133b825` |
+| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:184@0fe9d240` |
