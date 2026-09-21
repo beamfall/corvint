@@ -1020,7 +1020,7 @@
     "title": "Playwright External Provider V0/V1",
     "reqPrefix": "PWP-V0",
     "intent": "accepted",
-    "delivery": "validated (`/0` Playwright 1.60.0 matrix and 1.63.0 macOS arm64 system-Chrome path; `/1` Docker-backed Playwright 1.63.0)",
+    "delivery": "validated (`/0` Playwright 1.60.0 matrix and 1.63.0 macOS arm64 system-Chrome and bundled-headless-shell paths; `/1` Docker-backed Playwright 1.63.0)",
     "claim": "External-server Playwright receipts bind attributable outcomes without owning the app; `/1` adds typed pre/post app and clean test-repository identity.",
     "dependsOn": [
       "docs/specs/live-proof-carrying-verification-v0.md"

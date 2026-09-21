@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -31,7 +32,7 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"playwright.config.cjs", "external.spec.cjs", "override.spec.cjs", "dynamic.spec.cjs", "custom.spec.cjs", "retry.spec.cjs", "interruption.spec.cjs", "setup.cjs", "setup-dependency.cjs", "teardown.cjs"} {
+	for _, name := range []string{"playwright.config.cjs", "external.spec.cjs", "override.spec.cjs", "headed.spec.cjs", "connect.spec.cjs", "identity.spec.cjs", "dynamic.spec.cjs", "custom.spec.cjs", "retry.spec.cjs", "interruption.spec.cjs", "setup.cjs", "setup-dependency.cjs", "teardown.cjs"} {
 		data, err := os.ReadFile(filepath.Join("testdata", "external", name))
 		if err != nil {
 			t.Fatal(err)
@@ -51,6 +52,14 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 		Version string `json:"version"`
 	}
 	if err = json.Unmarshal(data, &pkg); err != nil {
+		t.Fatal(err)
+	}
+	packageJSON, err := filepath.Abs(filepath.Join("..", "..", "conformance", "interactive-alpha", "fixture", "package.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lockfile, err := filepath.Abs(filepath.Join("..", "..", "conformance", "interactive-alpha", "fixture", "package-lock.json"))
+	if err != nil {
 		t.Fatal(err)
 	}
 	ready := make(chan struct{})
@@ -114,8 +123,8 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	})
 	t.Setenv("CORVINT_FIXTURE_URL", server.URL)
 	t.Setenv("CORVINT_FIXTURE_MARKER", filepath.Join(root, "lifecycle"))
-	t.Setenv("CORVINT_FIXTURE_BROWSER_PATH", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
-	cfg := jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), TestFiles: []string{filepath.Join(root, "external.spec.cjs"), filepath.Join(root, "override.spec.cjs")}, RunnerName: "playwright", RunnerVersion: pkg.Version, DeclaredEnvKeys: []string{"CORVINT_FIXTURE_URL", "CORVINT_FIXTURE_MARKER", "CORVINT_FIXTURE_BROWSER_PATH"}, Timeout: 45 * time.Second}, ExternalServer: true, AppIdentity: "fixture-v1", ServerReadyURL: server.URL, TestArgv: []string{"external.spec.cjs", "--project=chromium", "--project=react", "--grep-invert=cancellation"}}
+	t.Setenv("CORVINT_FIXTURE_BROWSER_PATH", "")
+	cfg := jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), TestFiles: []string{filepath.Join(root, "external.spec.cjs"), filepath.Join(root, "override.spec.cjs")}, PackageJSON: packageJSON, Lockfile: lockfile, RunnerName: "playwright", RunnerVersion: pkg.Version, DeclaredEnvKeys: []string{"CORVINT_FIXTURE_URL", "CORVINT_FIXTURE_MARKER", "CORVINT_FIXTURE_BROWSER_PATH"}, Timeout: 45 * time.Second}, ExternalServer: true, AppIdentity: "fixture-v1", ServerReadyURL: server.URL, TestArgv: []string{"external.spec.cjs", "--project=chromium", "--project=react", "--grep-invert=cancellation"}}
 	r, err := jstestprovider.RunE2E(context.Background(), cfg)
 	if err != nil || r.Infrastructure != nil {
 		t.Fatalf("run error %v; infrastructure %+v", err, r.Infrastructure)
@@ -133,11 +142,21 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 			}
 			var use struct {
 				Locale        string `json:"locale"`
+				Headless      bool   `json:"headless"`
 				LaunchOptions struct {
 					ExecutablePath string `json:"executablePath"`
 				} `json:"launchOptions"`
+				CorvintBrowser struct {
+					ExecutableSource       string `json:"executableSource"`
+					ExecutableName         string `json:"executableName"`
+					ExecutablePath         string `json:"executablePath"`
+					ExecutableSHA256       string `json:"executableSha256"`
+					BrowserRevision        string `json:"browserRevision"`
+					ManifestBrowserVersion string `json:"manifestBrowserVersion"`
+					BrowserVersion         string `json:"browserVersion"`
+				} `json:"corvintBrowser"`
 			}
-			if json.Unmarshal(test.Project.Use, &use) != nil || use.Locale != "en-CA" || use.LaunchOptions.ExecutablePath != "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" {
+			if json.Unmarshal(test.Project.Use, &use) != nil || use.Locale != "en-CA" || !use.Headless || use.LaunchOptions.ExecutablePath != "" || use.CorvintBrowser.ExecutableSource != "playwright-bundled" || use.CorvintBrowser.ExecutableName != "chromium-headless-shell" || use.CorvintBrowser.ExecutableSHA256 != "a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282" || use.CorvintBrowser.BrowserRevision != "1243" || use.CorvintBrowser.ManifestBrowserVersion != "153.0.8010.12" || use.CorvintBrowser.BrowserVersion != "Google Chrome for Testing 153.0.8010.12" || !strings.HasSuffix(use.CorvintBrowser.ExecutablePath, "/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell") {
 				t.Fatalf("global use/project inheritance lost %+v", test.Project)
 			}
 			ids[test.ID] = true
@@ -216,7 +235,27 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 		t.Fatalf("override run: %v %+v", err, override.Infrastructure)
 	}
 	if override.Infrastructure == nil || len(override.Tests) != 1 || jstestprovider.ReceiptTestProjection(override, override.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
-		t.Fatalf("unqualified Firefox override projected green: %v %+v", err, override)
+		t.Fatalf("unqualified Firefox override projected green: %v infrastructure=%+v project=%+v use=%s", err, override.Infrastructure, override.Tests[0].Project, override.Tests[0].Project.Use)
+	}
+	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "headed.spec.cjs"))
+	cfg.TestArgv = []string{"headed.spec.cjs", "--project=chromium"}
+	headed, err := jstestprovider.RunE2E(context.Background(), cfg)
+	if err != nil || headed.Infrastructure == nil || len(headed.Tests) != 1 || jstestprovider.ReceiptTestProjection(headed, headed.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+		t.Fatalf("headed bundled-browser override projected green: %v %+v", err, headed)
+	}
+	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "connect.spec.cjs"))
+	cfg.TestArgv = []string{"connect.spec.cjs", "--project=chromium"}
+	connected, err := jstestprovider.RunE2E(context.Background(), cfg)
+	if err != nil || connected.Infrastructure == nil || len(connected.Tests) != 1 || jstestprovider.ReceiptTestProjection(connected, connected.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+		t.Fatalf("remote-browser connection projected green: %v %+v", err, connected)
+	}
+	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "identity.spec.cjs"))
+	cfg.TestArgv = []string{"identity.spec.cjs", "--project=chromium"}
+	t.Setenv("PW_TEST_CONNECT_WS_ENDPOINT", "ws://127.0.0.1:1")
+	environmentConnected, err := jstestprovider.RunE2E(context.Background(), cfg)
+	t.Setenv("PW_TEST_CONNECT_WS_ENDPOINT", "")
+	if err != nil || environmentConnected.Infrastructure == nil || len(environmentConnected.Tests) != 1 || jstestprovider.ReceiptTestProjection(environmentConnected, environmentConnected.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+		t.Fatalf("environment remote-browser connection projected green: %v %+v", err, environmentConnected)
 	}
 	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "dynamic.spec.cjs"))
 	cfg.TestArgv = []string{"dynamic.spec.cjs", "--project=chromium"}
@@ -296,7 +335,14 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 			t.Fatal("owned runner did not join after cancellation")
 		}
 	})
-	t.Logf("qualified real Playwright %s: pass/assertion/timeout/browser infra, two projects, retained discovery, cancellation/server survival", pkg.Version)
+	t.Setenv("CORVINT_FIXTURE_BROWSER_PATH", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+	cfg.TestFiles = []string{filepath.Join(root, "external.spec.cjs")}
+	cfg.TestArgv = []string{"external.spec.cjs", "--project=chromium", "--grep=passing page"}
+	system, err := jstestprovider.RunE2E(context.Background(), cfg)
+	if err != nil || system.Infrastructure != nil || len(system.Tests) != 1 || jstestprovider.ReceiptTestProjection(system, system.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
+		t.Fatalf("previously qualified system-browser tuple regressed: %v %+v", err, system)
+	}
+	t.Logf("qualified real Playwright %s bundled headless-shell: pass/assertion/timeout/retry/browser infra, two projects, retained discovery, cancellation/server survival; system-browser smoke preserved", pkg.Version)
 }
 
 func assertExternalSurvived(t *testing.T, r jstestprovider.Receipt, address string) {

@@ -3,9 +3,9 @@
 Owner: Russell Lewis
 Date: 2026-09-20
 Intent status: accepted
-Delivery status: validated (`/0` Playwright 1.60.0 matrix and 1.63.0 macOS arm64 system-Chrome path; `/1` Docker-backed Playwright 1.63.0)
+Delivery status: validated (`/0` Playwright 1.60.0 matrix and 1.63.0 macOS arm64 system-Chrome and bundled-headless-shell paths; `/1` Docker-backed Playwright 1.63.0)
 Profiles: `corvint-playwright-external/0`, `corvint-playwright-external/1`.
-Inputs: GitHub issues #19, #39, #43; AGENTS.md invariants 1–8; decision 0179.
+Inputs: GitHub issues #19, #39, #43, #50; AGENTS.md invariants 1–8; decision 0179.
 Owner acceptance: in the 2026-09-20 issue-resolution task, the owner explicitly approved accepting
 and shipping this PWP-V0 profile while retaining the default offline boundary and rollback gates.
 The owner subsequently requested issue #43's typed application-attestation revision with the same
@@ -13,7 +13,7 @@ external-ownership boundary.
 
 ## Agent digest
 - Claim: External-server Playwright receipts bind attributable outcomes without owning the app; `/1` adds typed pre/post app and clean test-repository identity.
-- Status: accepted; validated (`/0` Playwright 1.60.0 matrix and 1.63.0 macOS arm64 system-Chrome path; `/1` Docker-backed Playwright 1.63.0).
+- Status: accepted; validated (`/0` Playwright 1.60.0 matrix and 1.63.0 macOS arm64 system-Chrome and bundled-headless-shell paths; `/1` Docker-backed Playwright 1.63.0).
 - Exists: `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
 - Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
@@ -27,7 +27,7 @@ external-ownership boundary.
 - `PWP-V0-005`: Emit and retain the canonical closed profile. MCP discovery recomputes projections and preserves identities, retries, infrastructure, readiness, external cleanup responsibility and unknown freshness. Carried projections confer no authority.
 - `PWP-V0-006`: Cancellation joins only owned Playwright descendants and observes external server survival. Unknown runner cleanup or lifecycle/project identity prevents passing projections.
 - `PWP-V0-007`: Qualification runs a checked-in real Playwright browser fixture covering pass, assertion failure, timeout, browser infrastructure, two projects, cancellation, server survival, inherited webServer suppression and retained MCP discovery. A skipped live fixture is never qualification success.
-- `PWP-V0-008`: Playwright 1.63 qualification is consuming-path specific. A passing projection requires a separately qualified Node, operating-system/architecture and effective browser path tuple; another browser path remains diagnostic-only. Qualification records the exact browser version, channel/executable path and headless-shell availability. Consumer checkout and CI observations remain `NOT_OBSERVED` or `NOT_RUN` when unavailable.
+- `PWP-V0-008`: Playwright 1.63 qualification is consuming-path specific. A passing projection requires a separately qualified Node, operating-system/architecture and effective browser tuple; another tuple remains diagnostic-only. A configured executable binds its exact version, channel/path and headless-shell availability. A Playwright-bundled executable additionally binds the registry executable name, package-pinned browser revision and manifest version, absolute executable path and executable SHA-256. Any missing or changed field abstains. Additional Node or browser tuples require an explicit qualification record and the complete live matrix below; matching only the package version never admits them. Consumer checkout and CI observations remain `NOT_OBSERVED` or `NOT_RUN` when unavailable.
 
 ### Application-attested revision
 
@@ -106,13 +106,29 @@ overrides; the provider resolves those with project options and preserves the ef
 viewport and device settings. Missing metadata, executable option fixtures or custom browser/context/
 page fixtures produce unknown identity and never passing execution. A device label remains `unknown`
 unless declared in project metadata; effective device parameters are retained independently.
-The added qualified tuple is macOS arm64 / Node v22.23.2 / `@playwright/test@1.63.0` /
+The qualified configured tuple is macOS arm64 / Node v22.23.2 / `@playwright/test@1.63.0` /
 system Google Chrome 153.0.8010.48 at
 `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`, with no channel override and the
-Playwright `chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell`
-executable present. The Linux amd64 installed/bundled
-browser path is `NOT_RUN` and remains diagnostic-only. No local `golf-e2e` checkout exists, so its
+Playwright headless shell present. The qualified reproducible tuple uses the same OS, architecture,
+Node and Playwright package with its default headless executable: registry name
+`chromium-headless-shell`, revision `1243`, manifest version `153.0.8010.12`, observed version
+`Google Chrome for Testing 153.0.8010.12`, path suffix
+`chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell`, and executable
+SHA-256 `a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282`. The cache root may move;
+the registry identity, suffix and digest may not. Bundled headed Chromium, Linux amd64 and every
+other Node tuple are `NOT_RUN` and remain diagnostic-only. No local `golf-e2e` checkout exists, so its
 consumer fixture and CI observation are `NOT_OBSERVED`; neither absence is qualification evidence.
+
+To qualify another Node or bundled-browser tuple, pin `@playwright/test` and `playwright-core` in the
+consumer lockfile, install the package-selected browsers without a system executable override, and
+record the exact OS/architecture, Node version, registry name/revision/manifest version, observed
+browser version, executable suffix and SHA-256. Add those exact values to the closed tuple predicate,
+then run `TestQualifiedPlaywrightLive` with pass, assertion failure, timeout, retry, cancellation,
+browser-infrastructure, two-project identity, external-server survival, retained discovery, behavior
+and stability consumption, plus negative controls that change the Node version, revision, digest,
+headed mode, configured executable and local-versus-remote browser source.
+Only a reviewed spec amendment and a passing retained run admit the tuple; environment similarity,
+semver compatibility or a successful ad hoc run does not.
 
 Relative global setup/teardown modules resolve from the original config directory. Imported CommonJS
 source inputs are hashed at collection and compared again before publication. Configuration loaded
@@ -126,18 +142,20 @@ No browser or npm package is downloaded by the provider or ordinary Go gate. The
 real pass/assertion/timeout/browser-infrastructure cases, setup dependency hashing, global use,
 project inheritance, retry/flaky state, repeat-each identity, two workers, inherited webServer
 suppression, relative hooks, two projects, literal, executable and custom-fixture overrides,
-cancellation, and retained MCP discovery. A Playwright 1.63 receipt without the qualified Node and
-system-Chrome path tuple abstains rather than projecting green.
+cancellation, retained MCP discovery and a smoke run of the prior system-browser tuple. The primary
+matrix launches the Playwright registry's bundled headless shell. A Playwright 1.63 receipt without
+one exact qualified Node/browser tuple abstains rather than projecting green. The behavior and
+stability corpus fixtures ingest the bundled tuple through the same `QualifiedReceiptBindingReady`
+path used for retained receipts; they contain no system-browser exception.
 
 For an externally managed application already listening at `http://127.0.0.1:3002`, run this exact
 provider command from the application root after replacing the bound config and test paths with the
 application's checked-in paths:
 
-The checked-in application config must set
-`use.launchOptions.executablePath` to
-`/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`; the provider binds that effective
-value and the observed tuple. It does not implement a browser-path override. With that config, the
-exact command is:
+For the bundled qualified path, omit `use.launchOptions.executablePath`; Playwright 1.63 selects its
+pinned headless shell and the provider binds its registry revision and executable digest. A configured
+path instead selects the separately qualified system-Chrome tuple. The provider does not implement a
+browser-path override. With the bundled path, the exact command is:
 
 `corvint-js-test-provider e2e --dir . --config playwright.config.ts --package-json package.json --lockfile package-lock.json --runner-version 1.63.0 --external-server --app-identity app-at-3002 --server-ready-url http://127.0.0.1:3002 --test-file tests/e2e/example.spec.ts --test-arg tests/e2e/example.spec.ts --retain`
 

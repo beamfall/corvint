@@ -116,6 +116,42 @@ func TestPlaywright163UnqualifiedBrowserTupleAbstains(t *testing.T) {
 	}
 }
 
+func TestPlaywright163BundledBrowserTupleAbstainsOnDrift(t *testing.T) {
+	r := qualifiedFixture(t)
+	r.Identity.RunnerVersion = "1.63.0"
+	r.Identity.NodeVersion = "v22.23.2"
+	r.Tests[0].Project.Use = json.RawMessage(`{"browserName":"chromium","channel":"","headless":true,"launchOptions":{},"corvintBrowser":{"platform":"darwin","arch":"arm64","nodeVersion":"v22.23.2","browserType":"chromium","browserVersion":"Google Chrome for Testing 153.0.8010.12","channel":"","executableSource":"playwright-bundled","executableName":"chromium-headless-shell","executablePath":"/portable/cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell","executableSha256":"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282","browserRevision":"1243","manifestBrowserVersion":"153.0.8010.12","headlessShellAvailable":true}}`)
+	r.Tests[0].ID = qualifiedTestID(r.Identity, r.Tests[0])
+	if ReceiptTestProjection(r, r.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
+		t.Fatal("qualified bundled Playwright 1.63 browser tuple abstained")
+	}
+	for name, replacement := range map[string][2]string{
+		"browser-version":   {"Google Chrome for Testing 153.0.8010.12", "Google Chrome for Testing 153.0.8010.11"},
+		"browser-revision":  {`"browserRevision":"1243"`, `"browserRevision":"1242"`},
+		"manifest-version":  {`"manifestBrowserVersion":"153.0.8010.12"`, `"manifestBrowserVersion":"153.0.8010.11"`},
+		"executable-digest": {"a0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282", "b0bfe7b4da4787b66058477d696cd1d09065d25f06a548947722b9af77ee8282"},
+		"executable-name":   {`"executableName":"chromium-headless-shell"`, `"executableName":"chromium"`},
+		"executable-source": {`"executableSource":"playwright-bundled"`, `"executableSource":"configured"`},
+		"executable-path":   {"chromium_headless_shell-1243", "chromium_headless_shell-1242"},
+		"node-version":      {"v22.23.2", "v22.23.1"},
+		"headed":            {`"headless":true`, `"headless":false`},
+		"explicit-path":     {`"launchOptions":{}`, `"launchOptions":{"executablePath":"/tmp/browser"}`},
+		"remote-connection": {`"launchOptions":{}`, `"connectOptions":{"wsEndpoint":"ws://127.0.0.1:1"},"launchOptions":{}`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			mutated := r
+			mutated.Tests = append([]TestOutcome(nil), r.Tests...)
+			mutated.Tests[0].Project = &ProjectIdentity{}
+			*mutated.Tests[0].Project = *r.Tests[0].Project
+			mutated.Tests[0].Project.Use = json.RawMessage(strings.Replace(string(r.Tests[0].Project.Use), replacement[0], replacement[1], 1))
+			mutated.Tests[0].ID = qualifiedTestID(mutated.Identity, mutated.Tests[0])
+			if ReceiptTestProjection(mutated, mutated.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+				t.Fatal("mismatched bundled Playwright 1.63 tuple projected green")
+			}
+		})
+	}
+}
+
 func TestQualifiedReceiptBindingSeparatesInfrastructureOutcomeFromInvalidLifecycle(t *testing.T) {
 	r := qualifiedFixture(t)
 	r.Tests[0].State = StateInfrastructure
