@@ -443,32 +443,38 @@ DCLI-V0-004	docs/specs/direct-native-cli-authority-v0.md	34	**Provenance/trust.*
 DCLI-V0-005	docs/specs/direct-native-cli-authority-v0.md	36	**Common computation/currentness.** Preserve fixed protected paths, release/adap
 DCLI-V0-006	docs/specs/direct-native-cli-authority-v0.md	38	**Negative acceptance.** Closed decoder rejects old/new mixed fields, unknown ho
 DCLI-V0-007	docs/specs/direct-native-cli-authority-v0.md	40	**Rollback.** Revoke/raise protected generation floor, withdraw the direct quali
-DCP-V1-001	docs/specs/documentation-corpus-v1.md	32	The explicit manifest, normalized provider and artifact use closed versioned JSO
-DCP-V1-002	docs/specs/documentation-corpus-v1.md	36	Provenance carries builder identity/revision, shared native compiler/schema/tool
-DCP-V1-003	docs/specs/documentation-corpus-v1.md	42	Each literal source/provider scope has a complete immutable Git inventory checke
-DCP-V1-004	docs/specs/documentation-corpus-v1.md	47	Every claim, relationship and journey step carries revalidatable evidence or an
-DCP-V1-005	docs/specs/documentation-corpus-v1.md	52	Derivation (`generated`, `source-derived`, `observed`, `declared`, `imported`),
-DCP-V1-006	docs/specs/documentation-corpus-v1.md	56	Subjects use generic types: repository, package, module, symbol, endpoint, UI su
-DCP-V1-007	docs/specs/documentation-corpus-v1.md	62	Native providers reuse indexed source/symbol/document evidence and explicitly di
-DCP-V1-008	docs/specs/documentation-corpus-v1.md	69	Journeys contain independently supplied ordered evidence, preconditions, action
-DCP-V1-009	docs/specs/documentation-corpus-v1.md	77	Every capability is explicitly declared with backing records, native tools/provi
-DCP-V1-010	docs/specs/documentation-corpus-v1.md	81	Coverage always names value, denominator, definition/rule, revision and limitati
-DCP-V1-011	docs/specs/documentation-corpus-v1.md	84	Readers verify canonical artifact/digest and rederive all compiler-owned records
-DCP-V1-012	docs/specs/documentation-corpus-v1.md	88	`docs corpus` exposes manifest/build/info/search/get/locate/related/coverage/gap
-DCP-V1-013	docs/specs/documentation-corpus-v1.md	93	Explicit native corpus integration supplies first-class separately attributed
-DCP-V1-014	docs/specs/documentation-corpus-v1.md	98	CEM integration projects original Git documentation spans at the CEM base throug
-DCP-V1-015	docs/specs/documentation-corpus-v1.md	102	Task/work consumers may attach read-only corpus evidence without changing accept
-DCP-V1-016	docs/specs/documentation-corpus-v1.md	104	A separate stdio documentation-corpus MCP server directly calls the native reade
-DCP-V1-017	docs/specs/documentation-corpus-v1.md	109	Declared profiles render Markdown or JSON, optionally grouped as a directory pla
-DCP-V1-018	docs/specs/documentation-corpus-v1.md	119	Input byte bounds apply before decode; record/revision/traversal bounds apply be
-DCP-V1-019	docs/specs/documentation-corpus-v1.md	123	Generic fixtures cover Go, JavaScript/TypeScript, Python or Ruby, unsupported an
-DCP-V1-020	docs/specs/documentation-corpus-v1.md	127	A frozen labelled evaluation records per-case truth/denominators, search precisi
-DCP-V1-021	docs/specs/documentation-corpus-v1.md	131	The opt-in `corvint-corpus-behavior-stability-provider/1` profile aggregates onl
-DCP-V1-022	docs/specs/documentation-corpus-v1.md	139	Planned repetitions use a complete unique ordinal set. Playwright retries remain
-DCP-V1-023	docs/specs/documentation-corpus-v1.md	144	Aggregates separately expose planned, started, completed, passed, failed, timed-
-DCP-V1-024	docs/specs/documentation-corpus-v1.md	149	One repository-owned digest-bound policy defines independent one-spec, feature-b
-DCP-V1-025	docs/specs/documentation-corpus-v1.md	152	Corpus `stability` and capability-gated MCP `docs_get_stability` rederive the ag
-DCP-V1-026	docs/specs/documentation-corpus-v1.md	156	The repository policy and every observed run bind separate full-artifact topolog
+DCP-V1-001	docs/specs/documentation-corpus-v1.md	33	The explicit manifest, normalized provider and artifact use closed versioned JSO
+DCP-V1-002	docs/specs/documentation-corpus-v1.md	37	Provenance carries builder identity/revision, shared native compiler/schema/tool
+DCP-V1-003	docs/specs/documentation-corpus-v1.md	43	Each literal source/provider scope has a complete immutable Git inventory checke
+DCP-V1-004	docs/specs/documentation-corpus-v1.md	48	Every claim, relationship and journey step carries revalidatable evidence or an
+DCP-V1-005	docs/specs/documentation-corpus-v1.md	53	Derivation (`generated`, `source-derived`, `observed`, `declared`, `imported`),
+DCP-V1-006	docs/specs/documentation-corpus-v1.md	57	Subjects use generic types: repository, package, module, symbol, endpoint, UI su
+DCP-V1-007	docs/specs/documentation-corpus-v1.md	63	Native providers reuse indexed source/symbol/document evidence and explicitly di
+DCP-V1-008	docs/specs/documentation-corpus-v1.md	70	Journeys contain independently supplied ordered evidence, preconditions, action
+DCP-V1-009	docs/specs/documentation-corpus-v1.md	78	Every capability is explicitly declared with backing records, native tools/provi
+DCP-V1-010	docs/specs/documentation-corpus-v1.md	82	Coverage always names value, denominator, definition/rule, revision and limitati
+DCP-V1-011	docs/specs/documentation-corpus-v1.md	85	Readers verify canonical artifact/digest and rederive all compiler-owned records
+DCP-V1-012	docs/specs/documentation-corpus-v1.md	89	`docs corpus` exposes manifest/build/info/search/get/locate/related/coverage/gap
+DCP-V1-013	docs/specs/documentation-corpus-v1.md	94	Explicit native corpus integration supplies first-class separately attributed
+DCP-V1-014	docs/specs/documentation-corpus-v1.md	99	CEM integration projects original Git documentation spans at the CEM base throug
+DCP-V1-015	docs/specs/documentation-corpus-v1.md	103	Task/work consumers may attach read-only corpus evidence without changing accept
+DCP-V1-016	docs/specs/documentation-corpus-v1.md	105	A separate stdio documentation-corpus MCP server directly calls the native reade
+DCP-V1-017	docs/specs/documentation-corpus-v1.md	110	Declared profiles render Markdown or JSON, optionally grouped as a directory pla
+DCP-V1-018	docs/specs/documentation-corpus-v1.md	120	Input byte bounds apply before decode; record/revision/traversal bounds apply be
+DCP-V1-019	docs/specs/documentation-corpus-v1.md	124	Generic fixtures cover Go, JavaScript/TypeScript, Python or Ruby, unsupported an
+DCP-V1-020	docs/specs/documentation-corpus-v1.md	128	A frozen labelled evaluation records per-case truth/denominators, search precisi
+DCP-V1-021	docs/specs/documentation-corpus-v1.md	132	The opt-in `corvint-corpus-behavior-stability-provider/1` profile aggregates onl
+DCP-V1-022	docs/specs/documentation-corpus-v1.md	140	Planned repetitions use a complete unique ordinal set. Playwright retries remain
+DCP-V1-023	docs/specs/documentation-corpus-v1.md	145	Aggregates separately expose planned, started, completed, passed, failed, timed-
+DCP-V1-024	docs/specs/documentation-corpus-v1.md	150	One repository-owned digest-bound policy defines independent one-spec, feature-b
+DCP-V1-025	docs/specs/documentation-corpus-v1.md	153	Corpus `stability` and capability-gated MCP `docs_get_stability` rederive the ag
+DCP-V1-026	docs/specs/documentation-corpus-v1.md	157	The repository policy and every observed run bind separate full-artifact topolog
+DCP-V1-027	docs/specs/documentation-corpus-v1.md	164	The opt-in native behavior adapter accepts one closed, bounded
+DCP-V1-028	docs/specs/documentation-corpus-v1.md	172	One deterministic `corvint-behavior-adapter-result/1` bundle contains an exact
+DCP-V1-029	docs/specs/documentation-corpus-v1.md	177	The adapter preserves the same canonical variation set in both directions across
+DCP-V1-030	docs/specs/documentation-corpus-v1.md	184	The result separately reports documented criteria, source-discovered candidates,
+DCP-V1-031	docs/specs/documentation-corpus-v1.md	188	Reconciliation reports every documented or discovered orphan, criterion/test/flo
+DCP-V1-032	docs/specs/documentation-corpus-v1.md	194	An optional prior result yields exact added, removed and content-changed canonic
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
