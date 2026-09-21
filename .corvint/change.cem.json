@@ -22,6 +22,16 @@
       "spanSha256": "381642bf5ce3308495abbce6687c83c8f92ce3487984aadf41a47b9e111defaa"
     },
     {
+      "blobOid": "14f86cbead79bc1537b9e9d581900f353f2c30a1",
+      "id": "evidence:sha256:3b6a2b833b05e7a4efee4bdbf49437bc948b1a8b7a34d6359f54e42faa50c660",
+      "path": "internal/contextindex/index_test.go",
+      "span": {
+        "end": 782,
+        "start": 149
+      },
+      "spanSha256": "8a5d80c690f98e5a5d1d9e12cf6e26cd400e8a62b7fc4ac58d8dea595882ef9d"
+    },
+    {
       "blobOid": "3fc9bf17e28eebf7b2ca1b523668d0fd24dd02e3",
       "id": "evidence:sha256:64bd9974af1763fc89c719b13931dffb7566e2e01256bec4f5be469a8d0813c2",
       "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
@@ -183,12 +193,16 @@
         {
           "evidenceId": "evidence:sha256:ee25e76b608fe823cf46cd69954fbce448fe8cf9f2b72dc133dc6ab74f2b69ee",
           "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:3b6a2b833b05e7a4efee4bdbf49437bc948b1a8b7a34d6359f54e42faa50c660",
+          "relation": "implementation"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:a8d6fcacede1691ac463a84977a9ece83d93020b34826e7ab0882289a2ceedeb",
+      "id": "hunk:sha256:556612a3a97d7ebb03e34c0c8c90d3c93d7ac22b019972f3e0308b6c491da486",
       "newRange": {
-        "count": 27,
+        "count": 33,
         "start": 7
       },
       "oldRange": {
@@ -376,6 +390,46 @@
         "start": 274
       },
       "path": "docs/specs/semantic-escalation-gate-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3b6a2b833b05e7a4efee4bdbf49437bc948b1a8b7a34d6359f54e42faa50c660",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:479b7f6dab61666ad73989f7733e1359c817985d2e82107a2933a88c25fca70d",
+      "newRange": {
+        "count": 6,
+        "start": 4
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 4
+      },
+      "path": "internal/contextindex/query_bench_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:3b6a2b833b05e7a4efee4bdbf49437bc948b1a8b7a34d6359f54e42faa50c660",
+          "relation": "implementation"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0e2841d44977962feae637eead7e26cd193c29e853d0e74e7379b96975ad2768",
+      "newRange": {
+        "count": 7,
+        "start": 76
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 77
+      },
+      "path": "internal/contextindex/query_bench_test.go",
       "reason": "evidence-backed"
     },
     {
@@ -643,6 +697,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "c4349584280db57e32f5cd264e1170c756f4e5df13410f00fbda9438eb95e980",
+  "patchSha256": "46955126159b8dafe83250690467145c20eb3eb5014e5c83c78a19b826ec3247",
   "spec": "cem/0.2"
 }
