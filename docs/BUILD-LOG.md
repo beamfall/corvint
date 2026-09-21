@@ -38,10 +38,14 @@ three in 3.7s, the second hit all three in 2.0s, so the per-step ledger cost (wo
 `go run` start-up) is about 0.65s. `plan` prints `go-archive-gate: always runs` and `RUN` with
 `no declared input scope` for an unknown step. A `go-test` run whose unresolved set failed (the
 host-adapter test reading a pre-existing dirty `plugin.json`) recorded nothing, as GL-V0-002
-requires. Not measured: the hit time of a full `ledger/go-test` rerun on an identical tree, because
-the recording run in a clean scratch worktree was stopped before it finished; the expected figure
-is the resolved set under Go's cache plus one digest, and it should be taken on a quiet host after
-the first green `make gate`.
+requires. Full gate, measured twice in a clean `git worktree` at `d6626ae` with an empty ledger
+directory: the first `make gate` ran and recorded all 28 keyed steps in 1492s and recorded the
+receipt; the second hit all 28 (the full `ledger/go-test` among them), ran only `go-archive-gate`,
+and recorded the receipt in 173s. The first attempt at `22208f6` found two defects the unit tests
+had not: a linked worktree's index path is absolute, so the private-index copy was empty and no
+step recorded (fixed, `TestRunStepRecordsFromLinkedWorktree`), and the Windows cross-vet rejected
+`syscall.Stat_t` and `syscall.Flock` (fixed by build-tagged `platform_unix.go`/`platform_other.go`;
+a non-Unix host refuses the ledger directory and records nothing).
 
 ## 2026-09-21 SEG-018..SEG-021: typed semantic choice decisions
 
