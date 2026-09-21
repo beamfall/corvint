@@ -7,6 +7,16 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-21 AHI-022: OpenCode file-change burst fallback
+
+Issue #55 reproduced two adapter-local failures: concurrent `file.edited` callbacks overlapped
+Corvint subprocesses, and the structured `unsupported-impact-path-suffix` refusal reached the
+terminal as a fault. The OpenCode adapter now shares one bounded file-change drain, coalesces
+duplicate per-session paths, and records that expected refusal through `client.app.log` while
+leaving the Core non-zero refusal unchanged. The adapter fixture asserts both no overlap across a
+twenty-event burst and preservation of the structured refusal code. Node 16 was outside the
+package's declared `>=20` runtime; supported-runtime verification used Node 22.23.2.
+
 ## 2026-09-20 LAC-V0-032: safe roadmap auto-recheck
 
 The roadmap repeats its existing read-only request every 30 seconds. Eligibility remains derived by

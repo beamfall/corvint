@@ -75,8 +75,8 @@ AHI-019	docs/specs/agent-harness-integration-v0.md	209	A Claude Code `post-tool`
 AHI-020	docs/specs/agent-harness-integration-v0.md	226	Each host package's own manifest version (`integrations/claude-code/plugins/corv
 AHI-021	docs/specs/agent-harness-integration-v0.md	237	The Claude Code adapter MUST NOT emit a user-visible `systemMessage` for a routi
 AHI-022	docs/specs/agent-harness-integration-v0.md	269	The Gemini CLI and OpenCode adapters MUST apply the `AHI-021` split. A routine
-AHI-023	docs/specs/agent-harness-integration-v0.md	293	An adapter MUST report the host version its host actually provides, and MUST NOT
-AHI-024	docs/specs/agent-harness-integration-v0.md	310	The experimental Pi extension MUST use runtime-provided version `0.85.1`, adapte
+AHI-023	docs/specs/agent-harness-integration-v0.md	299	An adapter MUST report the host version its host actually provides, and MUST NOT
+AHI-024	docs/specs/agent-harness-integration-v0.md	316	The experimental Pi extension MUST use runtime-provided version `0.85.1`, adapte
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
