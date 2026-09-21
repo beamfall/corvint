@@ -65,8 +65,8 @@ screens shared the assignment-pattern vocabulary, which did not include `credent
   above: a bare assignment of the credential vocabulary whose value is single- or double-quoted,
   consuming the complete lexical string under the same whole-value and unterminated-through-EOF
   rules as the quoted JSON property; the bare `pass` vocabulary stem only when followed by an
-  assignment operator, except on a complete Go verbose-test marker line shaped as
-  `[whitespace]--- PASS: TestName (seconds)`; `whsec_`, `hf_`, `dop_v1_` and `xapp-` tokens at or above their length
+  assignment operator, except for the structural bare `PASS:` prefix on a complete Go verbose-test marker line shaped as
+  `[whitespace]--- PASS: TestName (seconds)`; all other text on that line, including the test name, remains screened. `whsec_`, `hf_`, `dop_v1_` and `xapp-` tokens at or above their length
   floors, and Slack incoming-webhook URLs; an AWS access-key ID immediately followed by its
   40-character secret, redacted together; and an `authorization` assignment whose value is an HTTP
   scheme word (`basic`, `bearer`, `digest`, `negotiate`, `ntlm`, `token`) followed by a

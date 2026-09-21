@@ -168,22 +168,18 @@ var StoredV1Pattern = regexp.MustCompile(secretPattern(`[a-z0-9_.-]*(?:`+storedV
 var goVerbosePassMarker = regexp.MustCompile(`(?m)^[ \t]*--- PASS: [^\r\n ]+ \([0-9]+(?:\.[0-9]+)?s\)\r?$`)
 
 func writerMatches(text string) [][]int {
-	protected := goVerbosePassMarker.FindAllStringIndex(text, -1)
-	matches := Pattern.FindAllStringIndex(text, -1)
-	kept := matches[:0]
-	for _, match := range matches {
-		insideMarker := false
-		for _, marker := range protected {
-			if match[0] >= marker[0] && match[1] <= marker[1] {
-				insideMarker = true
-				break
-			}
-		}
-		if !insideMarker {
-			kept = append(kept, match)
+	// A complete Go verbose marker is the one safe place where the bare
+	// assignment grammar sees `PASS:` as a credential field. Mask only that
+	// structural prefix, keeping byte positions unchanged so Pattern's matches
+	// still address text and secrets inside the test name remain screenable.
+	masked := []byte(text)
+	for _, marker := range goVerbosePassMarker.FindAllStringIndex(text, -1) {
+		pass := strings.Index(text[marker[0]:marker[1]], "PASS:")
+		if pass >= 0 {
+			copy(masked[marker[0]+pass:], "GOOK ")
 		}
 	}
-	return kept
+	return Pattern.FindAllStringIndex(string(masked), -1)
 }
 
 func secretPattern(assignmentFields, credentialedURLAlt string) string {

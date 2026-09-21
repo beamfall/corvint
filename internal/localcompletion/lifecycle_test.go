@@ -360,6 +360,10 @@ func TestActualVerificationAndSecretRefusal(t *testing.T) {
 		if saved.Observations[0].SecretScreened {
 			t.Fatal("verbose Go pass marker was secret-screened")
 		}
+		output, err := os.ReadFile(saved.Observations[0].Stdout.Path)
+		if err != nil || string(output) != "--- PASS: TestExample (0.00s)\n" {
+			t.Fatalf("verbose Go pass output = %q, %v", output, err)
+		}
 	})
 	t.Run("go-verbose-pass-log-with-secret", func(t *testing.T) {
 		root, key, plan := fixture(t, []string{"sh", "-c", "printf '%b%b%b%b' '--- PA' 'SS: TestExample (0.00s)\\n' 'pa' 'ss: synthetic123\\n'"})
@@ -371,6 +375,18 @@ func TestActualVerificationAndSecretRefusal(t *testing.T) {
 		saved, _ := repo.load()
 		if !saved.Observations[0].SecretScreened {
 			t.Fatal("real secret after verbose Go pass marker was not screened")
+		}
+	})
+	t.Run("go-verbose-pass-log-with-embedded-secret", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"sh", "-c", "printf '\\055\\055\\055\\040\\120\\101\\123\\123\\072\\040\\124\\145\\163\\164\\105\\170\\141\\155\\160\\154\\145\\057\\160\\141\\163\\163\\075\\163\\171\\156\\164\\150\\145\\164\\151\\143\\061\\062\\063\\040\\050\\060\\056\\060\\060\\163\\051'"})
+		repo := beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || !hasUnmet(result, "selected-check-unverified") {
+			t.Fatalf("secret in verbose Go pass test name qualified: %#v %v", result, err)
+		}
+		saved, _ := repo.load()
+		if !saved.Observations[0].SecretScreened {
+			t.Fatal("secret in verbose Go pass test name was not screened")
 		}
 	})
 }

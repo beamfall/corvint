@@ -11,12 +11,12 @@ working records and are referenced from decisions and specifications as historic
 
 The pre-change Corvint query selected an unrelated decision and omitted the governing writer-screen
 intent. Direct inspection found that the generic bare-`pass` assignment branch classified exact Go
-verbose-test marker lines as secrets. The writer screen now exempts only complete
-`[whitespace]--- PASS: TestName (seconds)` lines while still detecting a real `pass: value` elsewhere
-in the same output; `StoredV1Pattern` is unchanged. `TestGoVerbosePassMarkerBoundary` and the
+verbose-test marker lines as secrets. The writer screen now masks only the structural `PASS:` prefix on complete
+`[whitespace]--- PASS: TestName (seconds)` lines while still detecting a real `pass: value`, token, or other secret
+inside the test name or elsewhere in the same output; `StoredV1Pattern` is unchanged. `TestGoVerbosePassMarkerBoundary` and the
 local-completion `go-verbose-pass-log` regressions cover detector and executed-check behavior.
 Because the writer-screen source is an analyzer input, the reviewed change advances
-`analyzerSchemaID` from `corvint-analyzer/69` to `corvint-analyzer/70` and refreshes its audit pin.
+`analyzerSchemaID` from `corvint-analyzer/69` to `corvint-analyzer/71` and refreshes its audit pin.
 
 ## 2026-09-20 PWP-V0-003/007/008: standard Playwright device-spread regression
 
