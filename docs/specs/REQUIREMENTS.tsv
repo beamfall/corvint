@@ -130,6 +130,18 @@ ATI-V0-009	docs/specs/authority-trigger-index-v0.md	92	The table MUST be bounded
 ATI-V0-010	docs/specs/authority-trigger-index-v0.md	94	The result MUST separately name its two blind spots: every requested path the in
 ATI-V0-011	docs/specs/authority-trigger-index-v0.md	97	The command MUST be read-only over repository and trace state, MUST refuse a pat
 ATI-V0-012	docs/specs/authority-trigger-index-v0.md	100	The index MUST NOT be emitted through `harness event`. `GPK-V0-002` pins that
+BBF-V0-001	docs/specs/browser-behavior-falsification-v0.md	34	Planning and execution are separate opt-in operations. A plan is deterministic,
+BBF-V0-002	docs/specs/browser-behavior-falsification-v0.md	37	Every plan and result binds the exact contract ID/digest, criterion and assertio
+BBF-V0-003	docs/specs/browser-behavior-falsification-v0.md	41	The closed control vocabulary is `wrong-locator`, `wrong-expected-value`,
+BBF-V0-004	docs/specs/browser-behavior-falsification-v0.md	46	A control hook is caller-owned, content-digest pinned, argument-free and run onl
+BBF-V0-005	docs/specs/browser-behavior-falsification-v0.md	52	`killed` requires the target criterion to fail on its expected assertion identit
+BBF-V0-006	docs/specs/browser-behavior-falsification-v0.md	57	Each control result is exactly one of `killed`, `survived`, `not_supported`,
+BBF-V0-007	docs/specs/browser-behavior-falsification-v0.md	61	Results preserve every requested ordinal and actual attempt without replacement.
+BBF-V0-008	docs/specs/browser-behavior-falsification-v0.md	64	Every surviving or invalid control is an explicit criterion-level coverage gap.
+BBF-V0-009	docs/specs/browser-behavior-falsification-v0.md	67	The aggregate reports raw counts for all six statuses and mutation score as
+BBF-V0-010	docs/specs/browser-behavior-falsification-v0.md	70	Plans are bounded by at most 64 controls, 16 attempts per control, a 24-hour tot
+BBF-V0-011	docs/specs/browser-behavior-falsification-v0.md	73	Synthetic conformance covers a tautological assertion, hidden duplicate element,
+BBF-V0-012	docs/specs/browser-behavior-falsification-v0.md	76	Receipts are observations, not authenticated caller honesty, browser-behavior
 BRAIN-DOG-001	docs/specs/technical-brain-dogfood.md	27	butterfly-effect MUST return exact direct static references/dependencies,
 BRAIN-DOG-002	docs/specs/technical-brain-dogfood.md	30	E2E discovery MUST map requirements and journeys to exact scenario/test witnesse
 BRAIN-DOG-003	docs/specs/technical-brain-dogfood.md	32	selective-test guidance MUST name mandatory repository gates first and a smaller

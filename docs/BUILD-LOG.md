@@ -29,6 +29,63 @@ inside the test name or elsewhere in the same output; `StoredV1Pattern` is uncha
 local-completion `go-verbose-pass-log` regressions cover detector and executed-check behavior.
 Because the writer-screen source is an analyzer input, the reviewed change advances
 `analyzerSchemaID` from `corvint-analyzer/69` to `corvint-analyzer/71` and refreshes its audit pin.
+## 2026-09-21 BBF-V0-001..012: criterion-level browser behavior falsification (issue 54)
+
+The experimental `corvint-behavior-falsify` companion separates deterministic planning from exact
+digest approval, stages caller-owned argument-free hooks, and runs them under bounded process-group
+containment in a caller-marked disposable workspace. It records contract/criterion/assertion,
+application/test/documentation revision, runner/browser/config/environment, perturbation,
+attempt/retry, cleanup and artifact identities. Only the expected assertion failure with unrelated
+criteria and setup still passing can classify `killed`; selector errors, unrelated failures, retry
+masking, stale bindings and cleanup drift are invalid, while process/timeout loss remains
+`infrastructure_failed`. The report retains all six raw statuses and always preserves
+`full-relevant-suite` fallback.
+
+Focused `go test -count=1 ./internal/behaviorfalsify ./cmd/corvint-behavior-falsify` and matching
+`go vet` passed; the same packages also pass `go test -race`. The synthetic matrix covers the expected kill, tautology, hidden duplicate,
+wrong-value survival, wrong assertion, unrelated failure, selector error, timeout, cleanup failure,
+retry masking and stale revision/perturbation/artifact identities. A staged live test helper produced
+and then cleaned a retained artifact with equal pre/post workspace digests; a separate one-second
+timeout proved owned process-group cleanup and workspace restoration; missing descendant-observer
+evidence remains infrastructure rather than success. These are authored synthetic fixtures, not a
+real adopter or browser run. Hook semantics and absence of persistent external effects remain
+caller-owned and unauthenticated; live utility is `NOT_OBSERVED`.
+
+Independent review found cancellation could schedule untouched cleanup hooks, wall-clock accounting
+did not reserve both process shutdown windows, process stdin retained a lower hidden default, plan
+controls were duplicated, report/receipt output was not aggregate-bounded, infrastructure receipts
+accepted contradictory caller strings, and the initial acceptance matrix was incomplete. Repairs
+stop after the interrupted attempt, count only started controls, reserve hook/cleanup shutdown and
+execution time, isolate and bound Git reads, divide the report budget across approved attempts, use
+one non-HTML-escaping deterministic JSON encoding, close infrastructure reason/shape validation and
+add live crash, overflow, cancellation, slow-termination, cleanup, stale-artifact and JSON-expansion
+regressions. The final independent re-review returned `PASS`.
+
+The first frozen canonical gate exposed two local evidence defects. Under concurrent host load the
+timeout regression obtained owned process-group cleanup and restored the workspace but a transient
+`ps` snapshot was unavailable; the already-fail-closed infrastructure result is now asserted without
+turning observer availability into a test prerequisite. The new specification also used a prose
+`Boundary` digest bullet instead of the required `Exists` and `Blocked on` fields, and its README
+clause differed from the indexed claim. The digest and README now share the exact indexed claim.
+The replacement gate passed the full suite, vet/cross-vet, archive and interop before detecting the
+resulting stale requirement line numbers; `REQUIREMENTS.tsv` was regenerated from the repaired spec.
+The next frozen gate passed those checks plus spec, traceability, EOL, CI, release and receipt policy
+before the error-code ownership tail found the new `approved-plan-drift` code unnamed; the owning
+spec now records that code and the shared authorization code explicitly.
+
+Dogfood orientation exposed two limitations retained for review: the initial limit-one query ranked
+the Go-kernel migration spec rather than the behavior-contract seam, and the later focused context
+packet reported captured index revision `70ffae556ba8cecc499501a492b9051485310759` rather than the
+worktree HEAD. Exact repository inspection found `documentation-corpus-v1.md` and
+`internal/doccorpus/behavior.go`; no completeness claim is made for the stale context packet.
+
+The first committed CEM and full gate passed, but enrolled `finish` exposed a distinct
+traceability miss: Go test function names normalized the requirement numbers and yielded no exact
+`BBF-V0-###` OCM claim anchors. Requirement-labelled test cases now bind the existing behavior
+assertions, with added closed-vocabulary and report-limitation checks. The first enrolled full test
+failed in unrelated process/timing tests under concurrent repository-wide runs; a clean serialized
+retry passed. Both observations remain in the private completion evidence rather than being
+reclassified as product behavior.
 
 ## 2026-09-20 PWP-V0-003/007/008: standard Playwright device-spread regression
 
