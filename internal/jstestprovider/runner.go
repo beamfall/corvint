@@ -210,6 +210,7 @@ type E2EConfig struct {
 	AppBuildDir            string // "" => unknown app build identity.
 	TestArgv               []string
 	ApplicationAttestation *ApplicationAttestationProvider
+	SensitiveInputPolicy   *SensitiveInputPolicy
 }
 
 // RunE2E starts the app server, waits for it to answer ServerReadyURL, runs
@@ -221,6 +222,9 @@ type E2EConfig struct {
 func RunE2E(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if cfg.ApplicationAttestation != nil && !cfg.ExternalServer {
 		return Receipt{}, errors.New("application-attestation-requires-external-server")
+	}
+	if cfg.SensitiveInputPolicy != nil && !cfg.ExternalServer {
+		return Receipt{}, errors.New("sensitive-input-redaction-requires-external-server")
 	}
 	if cfg.ExternalServer {
 		return runExternal(ctx, cfg)

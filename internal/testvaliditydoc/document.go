@@ -108,14 +108,21 @@ func Unsupported() Document {
 func Decode(data []byte) (Input, error) {
 	var probe kindProbe
 	if err := decode(data, &probe); err != nil {
-		return Input{}, errors.New("provider document kind cannot be decoded: " + err.Error())
+		return Input{}, invalidSensitiveDocument()
 	}
 	if probe.Receipt != nil && probe.Profile != nil {
 		return Input{}, errors.New("provider document kind is ambiguous")
 	}
 	if probe.Receipt != nil {
+		var profile struct {
+			Profile string `json:"profile"`
+		}
+		profileErr := json.Unmarshal(probe.Receipt, &profile)
 		var document jsProviderDocument
 		if err := decodeClosed(data, &document); err != nil {
+			if profileErr != nil || (profile.Profile != "" && profile.Profile != jstestprovider.ExternalProfile && profile.Profile != jstestprovider.AttestedExternalProfile) {
+				return Input{}, invalidSensitiveDocument()
+			}
 			return Input{}, errors.New("is not a corvint-js-test-provider document: " + err.Error())
 		}
 		if document.Receipt == nil {
@@ -125,8 +132,13 @@ func Decode(data []byte) (Input, error) {
 			return Input{}, errors.New("kind is neither unit nor e2e")
 		}
 		if document.Receipt.Profile != "" {
-			if document.Receipt.Profile != jstestprovider.ExternalProfile && document.Receipt.Profile != jstestprovider.AttestedExternalProfile {
+			if document.Receipt.Profile != jstestprovider.ExternalProfile && document.Receipt.Profile != jstestprovider.AttestedExternalProfile && document.Receipt.Profile != jstestprovider.SensitiveExternalProfile {
 				return Input{}, errors.New("unknown JavaScript receipt profile")
+			}
+			if document.Receipt.Profile == jstestprovider.SensitiveExternalProfile {
+				if findings := jstestprovider.ValidateSensitiveInputEvidence(*document.Receipt); len(findings) != 0 {
+					return Input{}, &jstestprovider.SensitiveInputValidationError{Findings: findings}
+				}
 			}
 			canonical, err := jstestprovider.EncodeQualified(*document.Receipt)
 			if err != nil || !bytes.Equal(data, canonical) {
@@ -157,8 +169,12 @@ func Decode(data []byte) (Input, error) {
 	return Input{}, errors.New("provider document kind is unrecognized")
 }
 
+func invalidSensitiveDocument() error {
+	return &jstestprovider.SensitiveInputValidationError{Findings: []jstestprovider.SensitiveInputFinding{{Code: jstestprovider.SensitiveInputDocumentInvalid, Path: "receipt"}}}
+}
+
 func hasQualifiedMetadata(r jstestprovider.Receipt) bool {
-	if r.External != nil || r.ApplicationAttestation != nil || len(r.Identity.ConfigInputDigests) != 0 {
+	if r.External != nil || r.ApplicationAttestation != nil || r.SensitiveInputPolicy != nil || len(r.Identity.ConfigInputDigests) != 0 {
 		return true
 	}
 	for _, test := range r.Tests {
@@ -187,7 +203,7 @@ func projectJavaScript(receipt jstestprovider.Receipt) Document {
 		tests = append(tests, Test{ID: outcome.ID, Project: outcome.Project, Attempts: outcome.Attempts, Name: outcome.Name, State: string(outcome.State), Projection: jstestprovider.ReceiptTestProjection(receipt, outcome)})
 	}
 	var playwright *jstestprovider.Receipt
-	if receipt.Profile == jstestprovider.ExternalProfile || receipt.Profile == jstestprovider.AttestedExternalProfile {
+	if receipt.Profile == jstestprovider.ExternalProfile || receipt.Profile == jstestprovider.AttestedExternalProfile || receipt.Profile == jstestprovider.SensitiveExternalProfile {
 		playwright = &receipt
 	}
 	return Document{

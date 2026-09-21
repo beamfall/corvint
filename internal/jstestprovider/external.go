@@ -44,13 +44,14 @@ func qualifiedPlaywrightVersion(version string) bool {
 var qualifiedReporter []byte
 
 type qualifiedReport struct {
-	Schedule    *ExecutionSchedule `json:"schedule,omitempty"`
-	ConfigFiles map[string]string  `json:"configFiles"`
-	Version     string             `json:"version"`
-	Files       map[string]string  `json:"files"`
-	Status      string             `json:"status"`
-	Tests       []TestOutcome      `json:"tests"`
-	Errors      []string           `json:"errors"`
+	Schedule             *ExecutionSchedule    `json:"schedule,omitempty"`
+	ConfigFiles          map[string]string     `json:"configFiles"`
+	Version              string                `json:"version"`
+	Files                map[string]string     `json:"files"`
+	Status               string                `json:"status"`
+	Tests                []TestOutcome         `json:"tests"`
+	Errors               []string              `json:"errors"`
+	SensitiveInputPolicy *SensitiveInputPolicy `json:"sensitiveInputPolicy,omitempty"`
 }
 
 type playwrightBrowserIdentity struct {
@@ -101,8 +102,11 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if cfg.ApplicationAttestation != nil {
 		profile = AttestedExternalProfile
 	}
+	if cfg.SensitiveInputPolicy != nil {
+		profile = SensitiveExternalProfile
+	}
 	lifecycle := &ExternalLifecycle{ReadyURL: cfg.ServerReadyURL, DeclaredAppIdentity: cfg.AppIdentity, Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown", ConfigOverride: config}
-	r := Receipt{Profile: profile, Kind: "e2e", Identity: identity, External: lifecycle, Tests: []TestOutcome{}}
+	r := Receipt{Profile: profile, Kind: "e2e", Identity: identity, External: lifecycle, SensitiveInputPolicy: cfg.SensitiveInputPolicy, Tests: []TestOutcome{}}
 	var provider *preparedApplicationAttestationProvider
 	if cfg.ApplicationAttestation != nil {
 		provider, err = prepareApplicationAttestationProvider(*cfg.ApplicationAttestation, cfg.Dir, scratch, identity.Environment)
@@ -207,22 +211,29 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 		return r, nil
 	}
 	var report qualifiedReport
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&report); err != nil {
-		r.Infrastructure = &InfrastructureFailure{Reason: "report-unparseable", Detail: err.Error()}
+	report, decodeFailure := decodeQualifiedReport(data, profile)
+	if decodeFailure != nil {
+		r.Infrastructure = decodeFailure
 		return r, nil
 	}
-	if _, err := decoder.Token(); err != io.EOF {
-		r.Infrastructure = &InfrastructureFailure{Reason: "report-unparseable", Detail: "trailing report data"}
-		return r, nil
+	if profile == SensitiveExternalProfile {
+		if !reflect.DeepEqual(report.SensitiveInputPolicy, cfg.SensitiveInputPolicy) {
+			r.Infrastructure = &InfrastructureFailure{Reason: "sensitive-input-policy-drift", Detail: "reporter policy differs from the caller-bound additive policy"}
+			return r, nil
+		}
+		r.Tests = report.Tests
+		if findings := ValidateSensitiveInputEvidence(r); len(findings) != 0 {
+			r.Infrastructure = &InfrastructureFailure{Reason: SensitiveInputUnredacted, Detail: findings[0].Path}
+			return r, nil
+		}
+	} else {
+		r.Tests = report.Tests
 	}
-	r.Tests = report.Tests
 	if err := bindQualifiedReport(&r, report); err != nil {
-		r.Infrastructure = &InfrastructureFailure{Reason: "report-identity-unknown", Detail: err.Error()}
+		r.Infrastructure = externalReportFailure(profile, "report-identity-unknown", err.Error())
 	}
 	if len(report.Errors) > 0 {
-		r.Infrastructure = &InfrastructureFailure{Reason: "reporter-global-error", Detail: strings.Join(report.Errors, "\n")}
+		r.Infrastructure = externalReportFailure(profile, "reporter-global-error", strings.Join(report.Errors, "\n"))
 	}
 	if obs.ExitStatus != 0 && report.Status == "passed" {
 		r.Infrastructure = &InfrastructureFailure{Reason: "exit-status-unexplained", Detail: "runner exited nonzero with a passed report"}
@@ -236,7 +247,34 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if obs.ExitStatus != 0 && !explainedPlaywrightFailure(r.Tests) {
 		r.Infrastructure = &InfrastructureFailure{Reason: "exit-status-unexplained", Detail: "runner exited nonzero without a failing test observation"}
 	}
+	if profile == SensitiveExternalProfile {
+		redacted, err := RedactSensitiveInputEvidence(r)
+		if err != nil {
+			return Receipt{}, err
+		}
+		r = redacted
+	}
 	return r, nil
+}
+
+func externalReportFailure(profile, reason, detail string) *InfrastructureFailure {
+	if profile == SensitiveExternalProfile {
+		return &InfrastructureFailure{Reason: reason, Detail: "untrusted reporter output rejected"}
+	}
+	return &InfrastructureFailure{Reason: reason, Detail: detail}
+}
+
+func decodeQualifiedReport(data []byte, profile string) (qualifiedReport, *InfrastructureFailure) {
+	var report qualifiedReport
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&report); err != nil {
+		return qualifiedReport{}, externalReportFailure(profile, "report-unparseable", err.Error())
+	}
+	if _, err := decoder.Token(); err != io.EOF {
+		return qualifiedReport{}, externalReportFailure(profile, "report-unparseable", "trailing report data")
+	}
+	return report, nil
 }
 
 func setApplicationAttestationFailure(receipt *Receipt, reason string) {
@@ -266,6 +304,9 @@ func explainedPlaywrightFailure(tests []TestOutcome) bool {
 func admitExternal(c E2EConfig) error {
 	if !qualifiedPlaywrightVersion(c.RunnerVersion) {
 		return errors.New("external-playwright-version-unqualified")
+	}
+	if _, err := sensitivePolicy(c.SensitiveInputPolicy); err != nil {
+		return err
 	}
 	var providerArgs []string
 	var providerConfig string
@@ -330,7 +371,8 @@ func externalCommand(c E2EConfig, scratch string) (string, []string, string, err
 	reporterPath := filepath.Join(scratch, "reporter.cjs")
 	reportPath := filepath.Join(scratch, "report.json")
 	quoted := func(s string) string { b, _ := json.Marshal(s); return string(b) }
-	config := "const imported = require(" + quoted(c.ConfigFile) + ");\nconst original = imported.default || imported;\nconst base = " + quoted(filepath.Dir(c.ConfigFile)) + ";\nconst resolve = value => require('node:path').resolve(base, value);\nconst modulePath = value => Array.isArray(value) ? value.map(modulePath) : typeof value === 'string' ? require.resolve(value, {paths:[base]}) : value;\nconst paths = object => { const result = {...object}; for (const key of ['testDir', 'outputDir', 'snapshotDir', 'tsconfig']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\nmodule.exports = {...paths(original), testDir: original.testDir ? resolve(original.testDir) : base, globalSetup: modulePath(original.globalSetup), globalTeardown: modulePath(original.globalTeardown), projects: original.projects?.map(paths), webServer: undefined, reporter: [[" + quoted(reporterPath) + ", {output:" + quoted(reportPath) + "}]]};\n"
+	policy, _ := json.Marshal(c.SensitiveInputPolicy)
+	config := "const imported = require(" + quoted(c.ConfigFile) + ");\nconst original = imported.default || imported;\nconst base = " + quoted(filepath.Dir(c.ConfigFile)) + ";\nconst resolve = value => require('node:path').resolve(base, value);\nconst modulePath = value => Array.isArray(value) ? value.map(modulePath) : typeof value === 'string' ? require.resolve(value, {paths:[base]}) : value;\nconst paths = object => { const result = {...object}; for (const key of ['testDir', 'outputDir', 'snapshotDir', 'tsconfig']) if (typeof result[key] === 'string') result[key] = resolve(result[key]); return result; };\nmodule.exports = {...paths(original), testDir: original.testDir ? resolve(original.testDir) : base, globalSetup: modulePath(original.globalSetup), globalTeardown: modulePath(original.globalTeardown), projects: original.projects?.map(paths), webServer: undefined, reporter: [[" + quoted(reporterPath) + ", {output:" + quoted(reportPath) + ", sensitiveInputPolicy:" + string(policy) + "}]]};\n"
 	if err := os.WriteFile(reporterPath, qualifiedReporter, 0600); err != nil {
 		return "", nil, "", err
 	}
@@ -476,10 +518,15 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 	if qualifiedProfileShapeError(r) != nil {
 		return true
 	}
-	if r.Profile == ExternalProfile && strings.TrimSpace(x.DeclaredAppIdentity) == "" {
+	// /2 changes the reporter and must complete its own live matrix before it
+	// can project passing execution. Its redacted trace remains readable.
+	if r.Profile == SensitiveExternalProfile {
 		return true
 	}
-	if r.Profile == AttestedExternalProfile && (x.DeclaredAppIdentity != "" || applicationAttestationUnknown(r.ApplicationAttestation) || testRepositoryUnknown(r.TestRepositoryAtStart, r.TestRepositoryAtPublish)) {
+	if (r.Profile == ExternalProfile || (r.Profile == SensitiveExternalProfile && r.ApplicationAttestation == nil)) && strings.TrimSpace(x.DeclaredAppIdentity) == "" {
+		return true
+	}
+	if (r.Profile == AttestedExternalProfile || (r.Profile == SensitiveExternalProfile && r.ApplicationAttestation != nil)) && (x.DeclaredAppIdentity != "" || applicationAttestationUnknown(r.ApplicationAttestation) || testRepositoryUnknown(r.TestRepositoryAtStart, r.TestRepositoryAtPublish)) {
 		return true
 	}
 	u, err := url.Parse(x.ReadyURL)

@@ -3,14 +3,307 @@ package jstestprovider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os/exec"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
+
+func TestQualifiedReporterSensitiveRedaction(t *testing.T) {
+	command := exec.Command("node", "--test", "qualified-reporter_test.cjs")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("reporter regression: %v\n%s", err, output)
+	}
+}
+
+func TestSensitiveInputEvidenceRedactionAndValidation(t *testing.T) {
+	policy := SensitiveInputPolicy{
+		AdditionalActionPatterns:  []string{"set secret"},
+		AdditionalSensitiveFields: []string{"credential"},
+	}
+	leaking := Receipt{
+		Profile:              SensitiveExternalProfile,
+		Kind:                 "e2e",
+		SensitiveInputPolicy: &policy,
+		Infrastructure:       &InfrastructureFailure{Reason: "fixture", Detail: "infrastructure hunter2"},
+		Tests: []TestOutcome{{
+			Name: "keeps assertion title", State: StateFailed,
+			FailureMessage: "assertion hunter2",
+			Artifacts:      []FailureArtifact{{Name: "hunter2 artifact", Path: "/tmp/hunter2"}},
+			Attempts: []Attempt{{State: StateFailed, Retry: 0, FailureKind: "assertion-or-test", Steps: []BrowserStep{
+				{Title: `Navigate to /login`, Category: "pw:api"},
+				{Title: `Fill "hunter2"`, Category: "pw:api", Error: `Fill "hunter2" failed`, Attachments: []FailureArtifact{{Name: "hunter2 screenshot", Path: "/tmp/hunter2.png"}}, Steps: []BrowserStep{{Title: `Type "nested secret"`, Category: "pw:api"}}},
+				{Title: `keyboard.insertText "inserted secret"`, Category: "pw:api"},
+				{Title: `Type unquoted-secret`, Category: "pw:api"},
+				{Title: `Set secret "provider value"`, Category: "provider", Metadata: map[string]string{"credential": "provider value", "selector": "#token"}},
+				{Title: `Expect input type to be text`, Category: "expect"},
+			}}},
+		}},
+	}
+
+	findings := ValidateSensitiveInputEvidence(leaking)
+	if len(findings) == 0 || findings[0].Code != SensitiveInputUnredacted {
+		t.Fatalf("leaking provider payload was not rejected with typed finding: %+v", findings)
+	}
+	var validationErr *SensitiveInputValidationError
+	if _, err := EncodeQualified(leaking); !errors.As(err, &validationErr) || len(validationErr.Findings) == 0 {
+		t.Fatalf("leaking /2 receipt error = %T %v", err, err)
+	}
+
+	redacted, err := RedactSensitiveInputEvidence(leaking)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if findings := ValidateSensitiveInputEvidence(redacted); len(findings) != 0 {
+		t.Fatalf("redacted receipt rejected: %+v", findings)
+	}
+	steps := redacted.Tests[0].Attempts[0].Steps
+	for _, leaked := range []string{"hunter2", "nested secret", "inserted secret", "provider value"} {
+		encoded, _ := json.Marshal(redacted)
+		if strings.Contains(string(encoded), leaked) {
+			t.Fatalf("redacted receipt retained %q: %s", leaked, encoded)
+		}
+	}
+	if steps[0].Title != `Navigate to /login` || steps[5].Title != `Expect input type to be text` || steps[4].Metadata["selector"] != "#token" {
+		t.Fatalf("non-sensitive traceability changed: %+v", steps)
+	}
+	if steps[1].Title != `Fill "[REDACTED]"` || !steps[1].Redacted || steps[1].Steps[0].Title != `Type "[REDACTED]"` || steps[2].Title != `InsertText "[REDACTED]"` {
+		t.Fatalf("default actions were not redacted: %+v", steps)
+	}
+	if steps[3].Title != `Type "[REDACTED]"` || steps[1].Error != SensitiveInputRedactionMarker || steps[1].Attachments[0].Name != SensitiveInputRedactionMarker || steps[1].Attachments[0].Path != SensitiveInputRedactionMarker || steps[4].Metadata["credential"] != SensitiveInputRedactionMarker {
+		t.Fatalf("nested sensitive fields were not redacted: %+v", steps)
+	}
+	if redacted.Tests[0].FailureMessage != SensitiveInputRedactionMarker || redacted.Tests[0].Artifacts[0].Name != SensitiveInputRedactionMarker || redacted.Infrastructure.Detail != SensitiveInputRedactionMarker {
+		t.Fatalf("receipt-level sensitive strings were not redacted: %+v", redacted)
+	}
+}
+
+func TestSensitiveInputProfileIsAdditiveAndNonPromotable(t *testing.T) {
+	legacy := qualifiedFixture(t)
+	legacy.Tests[0].Attempts[0].Steps = []BrowserStep{{Title: `Fill "[REDACTED]"`, Redacted: true}}
+	if _, err := EncodeQualified(legacy); err == nil || err.Error() != "legacy-external-profile-has-sensitive-input-fields" {
+		t.Fatalf("legacy profile admitted /2 fields: %v", err)
+	}
+
+	sensitive := qualifiedFixture(t)
+	sensitive.Profile = SensitiveExternalProfile
+	sensitive.SensitiveInputPolicy = &SensitiveInputPolicy{}
+	sensitive.Tests[0].Attempts[0].Steps = []BrowserStep{{Title: `Fill "[REDACTED]"`, Redacted: true}}
+	if _, err := EncodeQualified(sensitive); err != nil {
+		t.Fatalf("redacted /2 receipt rejected: %v", err)
+	}
+	if ReceiptTestProjection(sensitive, sensitive.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+		t.Fatal("unqualified /2 reporter projected passing execution")
+	}
+
+	invalid := SensitiveInputPolicy{AdditionalActionPatterns: []string{""}}
+	sensitive.SensitiveInputPolicy = &invalid
+	if _, err := RedactSensitiveInputEvidence(sensitive); err == nil || err.Error() != "sensitive-input-policy-invalid" {
+		t.Fatalf("invalid additive policy admitted: %v", err)
+	}
+}
+
+func TestSensitiveInputNormalizationBoundsAndNoPanic(t *testing.T) {
+	for _, title := range []string{` Fill "hunter2"`, `FILL: hunter2`, `Ⱥ.Fill "hunter2"`, `provider/custom-entry(metadata-secret)`} {
+		r := Receipt{Profile: SensitiveExternalProfile, SensitiveInputPolicy: &SensitiveInputPolicy{AdditionalActionPatterns: []string{"custom entry"}}, Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{{Title: title}}}}}}}
+		redacted, err := RedactSensitiveInputEvidence(r)
+		if err != nil {
+			t.Fatalf("title %q: %v", title, err)
+		}
+		encoded, _ := json.Marshal(redacted)
+		if strings.Contains(string(encoded), "hunter2") || strings.Contains(string(encoded), "metadata-secret") {
+			t.Fatalf("title %q leaked: %s", title, encoded)
+		}
+	}
+
+	deep := BrowserStep{Title: "parent"}
+	for range sensitiveInputMaxDepth + 1 {
+		deep = BrowserStep{Title: "parent", Steps: []BrowserStep{deep}}
+	}
+	over := Receipt{Profile: SensitiveExternalProfile, SensitiveInputPolicy: &SensitiveInputPolicy{}, Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{deep}}}}}}
+	if findings := ValidateSensitiveInputEvidence(over); len(findings) != 1 || findings[0].Code != SensitiveInputDepthExceeded {
+		t.Fatalf("depth findings=%+v", findings)
+	}
+	over.Tests[0].Attempts = []Attempt{{Steps: make([]BrowserStep, 3000)}, {Steps: make([]BrowserStep, 3000)}}
+	if findings := ValidateSensitiveInputEvidence(over); len(findings) == 0 || findings[0].Code != SensitiveInputStepBoundExceeded || len(findings) > sensitiveInputMaxFindings {
+		t.Fatalf("step findings=%+v", findings)
+	}
+	over.Tests[0].Attempts = []Attempt{{Steps: []BrowserStep{{Title: strings.Repeat("x", sensitiveInputMaxStringBytes+1)}}}}
+	if findings := ValidateSensitiveInputEvidence(over); len(findings) != 1 || findings[0].Code != SensitiveInputStringBoundExceeded {
+		t.Fatalf("string findings=%+v", findings)
+	}
+	leaks := make([]BrowserStep, sensitiveInputMaxFindings+10)
+	for i := range leaks {
+		leaks[i] = BrowserStep{Title: `Fill "leak"`}
+	}
+	over.Tests[0].Attempts = []Attempt{{Steps: leaks}}
+	findings := ValidateSensitiveInputEvidence(over)
+	if len(findings) != sensitiveInputMaxFindings || findings[len(findings)-1].Code != SensitiveInputFindingBoundExceeded {
+		t.Fatalf("finding bound=%+v", findings)
+	}
+}
+
+func TestSensitiveInputScrubsSiblingRiskFieldsWithoutChangingStructure(t *testing.T) {
+	r := Receipt{Profile: SensitiveExternalProfile, SensitiveInputPolicy: &SensitiveInputPolicy{}, Identity: Identity{RunnerName: "playwright", RunnerVersion: "passed-a"}, Tests: []TestOutcome{{
+		Name: "assertion title", FullName: "suite > assertion title", State: StatePassed, FailureMessage: "actual unquoted-secret",
+		Attempts: []Attempt{{State: StatePassed, Steps: []BrowserStep{{Title: "Type unquoted-secret"}, {Title: "Expect visible", Error: "actual unquoted-secret", Attachments: []FailureArtifact{{Name: "unquoted-secret screenshot", Path: "/tmp/unquoted-secret.png"}}}}}, {State: StatePassed, Retry: 1, Steps: []BrowserStep{{Title: "Navigate /account"}}}},
+	}}}
+	redacted, err := RedactSensitiveInputEvidence(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, _ := json.Marshal(redacted)
+	if strings.Contains(string(encoded), "unquoted-secret") {
+		t.Fatalf("sibling leak: %s", encoded)
+	}
+	if redacted.Tests[0].Name != r.Tests[0].Name || redacted.Tests[0].State != r.Tests[0].State || !reflect.DeepEqual(redacted.Identity, r.Identity) || redacted.Tests[0].Attempts[0].Steps[1].Title != "Expect visible" {
+		t.Fatalf("structural fields changed: %+v", redacted)
+	}
+	if findings := ValidateSensitiveInputEvidence(r); len(findings) == 0 || findings[0].Code != SensitiveInputUnredacted {
+		t.Fatalf("raw sibling leak admitted: %+v", findings)
+	}
+}
+
+func TestSensitiveProfileReportFailuresNeverEchoDecoderText(t *testing.T) {
+	leaked := "attacker-property-hunter2"
+	_, failure := decodeQualifiedReport([]byte(`{"`+leaked+`":true}`), SensitiveExternalProfile)
+	if strings.Contains(failure.Detail, leaked) || failure.Detail != "untrusted reporter output rejected" {
+		t.Fatalf("sensitive decoder detail echoed input: %+v", failure)
+	}
+	_, legacy := decodeQualifiedReport([]byte(`{"`+leaked+`":true}`), ExternalProfile)
+	if !strings.Contains(legacy.Detail, leaked) {
+		t.Fatalf("legacy detail changed: %+v", legacy)
+	}
+}
+
+func TestSensitiveInputAlreadyRedactedRiskFieldsFailClosed(t *testing.T) {
+	for _, field := range []string{"step-error", "step-attachment", "sibling-error", "retry-error", "failure", "artifact", "infrastructure"} {
+		t.Run(field, func(t *testing.T) {
+			r := Receipt{Profile: SensitiveExternalProfile, SensitiveInputPolicy: &SensitiveInputPolicy{}, Tests: []TestOutcome{{Name: "assertion hunter2", State: StateFailed, Attempts: []Attempt{{Steps: []BrowserStep{{Title: `Fill "[REDACTED]"`, Redacted: true}, {Title: "Expect navigation"}}}, {Retry: 1, Steps: []BrowserStep{{Title: "Navigate /account"}}}}}}}
+			switch field {
+			case "step-error":
+				r.Tests[0].Attempts[0].Steps[0].Error = "hunter2"
+			case "step-attachment":
+				r.Tests[0].Attempts[0].Steps[0].Attachments = []FailureArtifact{{Name: "hunter2", Path: "[REDACTED]"}}
+			case "sibling-error":
+				r.Tests[0].Attempts[0].Steps[1].Error = "actual hunter2"
+			case "retry-error":
+				r.Tests[0].Attempts[1].Steps[0].Error = "actual hunter2"
+			case "failure":
+				r.Tests[0].FailureMessage = "hunter2"
+			case "artifact":
+				r.Tests[0].Artifacts = []FailureArtifact{{Name: "[REDACTED]", Path: "hunter2"}}
+			case "infrastructure":
+				r.Infrastructure = &InfrastructureFailure{Detail: "hunter2"}
+			}
+			findings := ValidateSensitiveInputEvidence(r)
+			if len(findings) == 0 || findings[0].Code != SensitiveInputUnredacted {
+				t.Fatalf("already-redacted bypass: %+v", findings)
+			}
+			encoded, _ := json.Marshal(findings)
+			if strings.Contains(string(encoded), "hunter2") {
+				t.Fatal("finding echoes value")
+			}
+			safe, err := RedactSensitiveInputEvidence(r)
+			if err != nil || len(ValidateSensitiveInputEvidence(safe)) != 0 {
+				t.Fatalf("canonical repair rejected: %v %+v", err, safe)
+			}
+			if safe.Tests[0].Name != r.Tests[0].Name || safe.Tests[0].Attempts[0].Steps[1].Title != "Expect navigation" || safe.Tests[0].Attempts[1].Steps[0].Title != "Navigate /account" {
+				t.Fatal("structural fields changed")
+			}
+		})
+	}
+}
+
+func TestSensitiveInputReceiverPrefixExtraction(t *testing.T) {
+	for _, title := range []string{"keyboard.insertText unquoted-secret", "Ⱥ. InSeRtText: unquoted-secret", "keyboard/insert \t text unquoted-secret", "locator. press   sequentially(unquoted-secret)"} {
+		t.Run(title, func(t *testing.T) {
+			r := Receipt{Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{{Title: title}, {Title: "Expect visible", Error: "actual unquoted-secret"}}}}}, {FailureMessage: "actual unquoted-secret"}}}
+			safe, err := RedactSensitiveInputEvidence(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, _ := json.Marshal(safe)
+			if strings.Contains(string(data), "unquoted-secret") {
+				t.Fatalf("receiver-prefix leak: %s", data)
+			}
+		})
+	}
+}
+
+func TestSensitiveInputUnicodeGrammarAndReportScope(t *testing.T) {
+	for _, title := range []string{"(Fill) unquoted-secret", "\u00a0Fill unquoted-secret", "custom entry unquoted-secret", "Fill(#password, unquoted-secret)", "\u0085(Ⱥ.\u2003InSeRt\u00a0TeXt)(unquoted-secret)", "provider/custom-entry(unquoted-secret)", "“Fill” unquoted-secret", "FİLL unquoted-secret"} {
+		t.Run(title, func(t *testing.T) {
+			r := Receipt{Kind: "e2e", Profile: SensitiveExternalProfile, SensitiveInputPolicy: &SensitiveInputPolicy{AdditionalActionPatterns: []string{"custom entry"}}, Tests: []TestOutcome{
+				{Name: "input", State: StateFailed, Attempts: []Attempt{{State: StateFailed, Steps: []BrowserStep{{Title: title}}}}},
+				{Name: "other", State: StateFailed, FailureMessage: "actual unquoted-secret", Artifacts: []FailureArtifact{{Name: "unquoted-secret", Path: "/tmp/unquoted-secret"}}, Attempts: []Attempt{{Steps: []BrowserStep{{Title: "Expect visible", Error: "actual unquoted-secret"}}}}},
+			}}
+			if len(ValidateSensitiveInputEvidence(r)) == 0 {
+				t.Fatal("raw action admitted")
+			}
+			policy, _ := sensitivePolicy(r.SensitiveInputPolicy)
+			candidates := boundaryCollectSensitiveValues(r, policy)
+			found := false
+			for _, candidate := range candidates {
+				found = found || candidate == "unquoted-secret"
+			}
+			if !found {
+				t.Fatal("input value not extracted")
+			}
+			safe, err := RedactSensitiveInputEvidence(r)
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, err := EncodeQualified(safe)
+			if err != nil || strings.Contains(string(data), "unquoted-secret") {
+				t.Fatalf("report-wide leak: %v %s", err, data)
+			}
+			if safe.Tests[1].Attempts[0].Steps[0].Title != "Expect visible" || safe.Tests[1].Name != "other" || safe.Tests[1].State != StateFailed {
+				t.Fatal("structural fields changed")
+			}
+		})
+	}
+	for _, title := range []string{"Expect input type to be text", "Expect locator.fill to pass", "Navigate /fill", "Navigate https://example.test/type", "Refill account", "Fillable field", "Expect custom entry to succeed"} {
+		r := Receipt{SensitiveInputPolicy: &SensitiveInputPolicy{AdditionalActionPatterns: []string{"custom entry"}}, Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{{Title: title, Error: "ordinary assertion"}}}}}}}
+		safe, err := RedactSensitiveInputEvidence(r)
+		if err != nil || !reflect.DeepEqual(safe.Tests, r.Tests) {
+			t.Fatalf("non-action changed: %q %v", title, err)
+		}
+	}
+}
+
+func TestSensitiveInputAlreadyRedactedCrossTestRiskRejected(t *testing.T) {
+	for _, field := range []string{"failure", "artifact", "step-error", "step-attachment"} {
+		t.Run(field, func(t *testing.T) {
+			r := Receipt{Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{{Title: `Fill "[REDACTED]"`, Redacted: true}}}}}, {Attempts: []Attempt{{Steps: []BrowserStep{{Title: "Expect visible"}}}}}}}
+			switch field {
+			case "failure":
+				r.Tests[1].FailureMessage = "hunter2"
+			case "artifact":
+				r.Tests[1].Artifacts = []FailureArtifact{{Path: "hunter2"}}
+			case "step-error":
+				r.Tests[1].Attempts[0].Steps[0].Error = "hunter2"
+			case "step-attachment":
+				r.Tests[1].Attempts[0].Steps[0].Attachments = []FailureArtifact{{Name: "hunter2"}}
+			}
+			findings := ValidateSensitiveInputEvidence(r)
+			if len(findings) == 0 || findings[0].Code != SensitiveInputUnredacted {
+				t.Fatal("cross-test risk admitted")
+			}
+			data, _ := json.Marshal(findings)
+			if strings.Contains(string(data), "hunter2") {
+				t.Fatal("finding echoed original")
+			}
+		})
+	}
+}
 
 func TestExternalReadiness(t *testing.T) {
 	for _, status := range []int{200, 302, 401, 404, 500} {

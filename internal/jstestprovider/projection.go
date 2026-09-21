@@ -30,6 +30,11 @@ func EncodeQualified(r Receipt) ([]byte, error) {
 	if err := qualifiedProfileShapeError(r); err != nil {
 		return nil, err
 	}
+	if r.Profile == SensitiveExternalProfile {
+		if findings := ValidateSensitiveInputEvidence(r); len(findings) != 0 {
+			return nil, &SensitiveInputValidationError{Findings: findings}
+		}
+	}
 	type row struct {
 		Name       string                  `json:"name"`
 		State      ExecutionState          `json:"state"`
@@ -60,12 +65,47 @@ func qualifiedProfileShapeError(r Receipt) error {
 		if r.ApplicationAttestation != nil || r.TestRepositoryAtStart != nil || r.TestRepositoryAtPublish != nil {
 			return errors.New("legacy-external-profile-has-attested-fields")
 		}
+		if hasSensitiveInputEvidence(r) {
+			return errors.New("legacy-external-profile-has-sensitive-input-fields")
+		}
 	case AttestedExternalProfile:
 		if r.External != nil && strings.TrimSpace(r.External.DeclaredAppIdentity) != "" {
 			return errors.New("attested-external-profile-has-declared-identity")
 		}
+		if hasSensitiveInputEvidence(r) {
+			return errors.New("attested-external-profile-has-sensitive-input-fields")
+		}
+	case SensitiveExternalProfile:
+		if r.SensitiveInputPolicy == nil {
+			return errors.New("sensitive-input-policy-required")
+		}
+		if r.ApplicationAttestation == nil {
+			if r.TestRepositoryAtStart != nil || r.TestRepositoryAtPublish != nil {
+				return errors.New("sensitive-external-profile-has-partial-attested-fields")
+			}
+		} else if r.External != nil && strings.TrimSpace(r.External.DeclaredAppIdentity) != "" {
+			return errors.New("sensitive-attested-profile-has-declared-identity")
+		}
+	default:
+		if r.SensitiveInputPolicy != nil {
+			return errors.New("sensitive-input-policy-requires-profile-2")
+		}
 	}
 	return nil
+}
+
+func hasSensitiveInputEvidence(r Receipt) bool {
+	if r.SensitiveInputPolicy != nil {
+		return true
+	}
+	for _, test := range r.Tests {
+		for _, attempt := range test.Attempts {
+			if len(attempt.Steps) != 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // ToTestProjection projects one TestOutcome through the shared

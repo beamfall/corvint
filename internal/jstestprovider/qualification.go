@@ -23,7 +23,7 @@ func QualifiedApplicationRevision(r Receipt, t TestOutcome) (string, bool) {
 	if !QualifiedReceiptBindingReady(r, t) {
 		return "", false
 	}
-	if r.Profile == AttestedExternalProfile {
+	if r.Profile == AttestedExternalProfile || (r.Profile == SensitiveExternalProfile && r.ApplicationAttestation != nil) {
 		return r.ApplicationAttestation.Before.Attestation.Repository.Revision, true
 	}
 	return r.External.DeclaredAppIdentity, true
