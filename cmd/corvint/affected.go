@@ -55,12 +55,13 @@ type affectedRange struct {
 // affectedInvocation is one parsed `affected` command line. Providers,
 // Checkouts, and SelectionProfile are set only by the ETS-V0 flags.
 type affectedInvocation struct {
-	Root             string
-	Base             string
-	Providers        []string
-	Checkouts        []extevidence.Checkout
-	SelectionProfile string
-	PlaywrightConfig string
+	Root                string
+	Base                string
+	Providers           []string
+	Checkouts           []extevidence.Checkout
+	SelectionProfile    string
+	PlaywrightConfig    string
+	PlaywrightDiscovery string
 }
 
 type playwrightAffectedReceipt struct {
@@ -169,7 +170,7 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 
 // affectedOptionNames are the flags `affected` accepts, each taking one value
 // as `--flag VALUE` or `--flag=VALUE`.
-var affectedOptionNames = map[string]bool{"--base": true, "--playwright-config": true, "--provider": true, "--repository": true, "--selection-profile": true}
+var affectedOptionNames = map[string]bool{"--base": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--repository": true, "--selection-profile": true}
 
 // parseAffectedOptions reads the flags after `affected`. `--base` must
 // already be a full object id: a ref name is resolved by the caller, never
@@ -202,6 +203,12 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			err = addAffectedCheckout(&invocation, value)
 		case "--playwright-config":
 			err = setAffectedPlaywrightConfig(&invocation, value)
+		case "--playwright-discovery":
+			if invocation.PlaywrightDiscovery != "" || value == "" {
+				err = argumentError("--playwright-discovery requires exactly one nonempty value")
+			} else {
+				invocation.PlaywrightDiscovery = value
+			}
 		default:
 			err = setAffectedSelectionProfile(&invocation, value)
 		}
@@ -214,6 +221,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if invocation.PlaywrightConfig != "" && len(invocation.Providers) != 0 {
 		return affectedInvocation{}, argumentError("--playwright-config cannot be combined with --provider")
+	}
+	if invocation.PlaywrightDiscovery != "" && invocation.PlaywrightConfig == "" {
+		return affectedInvocation{}, argumentError("--playwright-discovery requires --playwright-config")
 	}
 	if len(invocation.Providers) != 0 && invocation.SelectionProfile == "" {
 		invocation.SelectionProfile = extevidence.ProfileStrict
@@ -329,7 +339,8 @@ func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocatio
 		return playwrightAffectedReceipt{}, err
 	}
 	allDirty := affected.NormalizePaths(append(append([]string{}, dirty...), committed...))
-	plan, err := typescript.SelectPlaywright(root, invocation.PlaywrightConfig, allDirty)
+	discovery := readPlaywrightDiscovery(root, invocation.PlaywrightDiscovery)
+	plan, err := typescript.SelectPlaywright(root, invocation.PlaywrightConfig, revision, allDirty, discovery)
 	if err != nil {
 		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-playwright-affected", Message: err.Error()}
 	}
@@ -347,10 +358,36 @@ func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocatio
 	if err != nil || sourceDigest != plan.SourceDigest {
 		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-drift", Message: "source changed while the plan was compiled"}
 	}
+	if !bytes.Equal(discovery, readPlaywrightDiscovery(root, invocation.PlaywrightDiscovery)) {
+		return playwrightAffectedReceipt{}, &gokernel.Error{Code: "unsupported-affected-drift", Message: "discovery receipt changed while the plan was compiled"}
+	}
 	return playwrightAffectedReceipt{
 		Mutates: false, OK: true, Plan: plan, Profile: typescript.PlaywrightProfile,
 		Range: affectedRange{Base: invocation.Base, Paths: committed}, Revision: revision, Tool: "affected",
 	}, nil
+}
+
+func readPlaywrightDiscovery(root, name string) []byte {
+	if name == "" {
+		return nil
+	}
+	if !filepath.IsAbs(name) {
+		name = filepath.Join(root, name)
+	}
+	info, err := os.Lstat(name)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > typescript.PlaywrightDiscoveryMaxBytes {
+		return nil
+	}
+	file, err := os.Open(name)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+	body, err := io.ReadAll(io.LimitReader(file, typescript.PlaywrightDiscoveryMaxBytes+1))
+	if err != nil {
+		return nil
+	}
+	return body
 }
 
 // compileAffected is read-only: one bounded git status, one HEAD identity

@@ -65,6 +65,12 @@ the checked CEM out of the shared tracked path. Keep every `NOT_PRODUCED` reason
 
 ## Verify
 
+Use `corvint affected --base FULL_SHA` before running tests for a change. During implementation and
+repair, run the selected units plus any checks needed to resolve retained unknowns; do not rerun the
+exhaustive gate after each repair. Run the exhaustive commands below only once at the terminal
+boundary when repository or release policy requires them. If the owner explicitly waives that gate,
+retain it as `NOT_RUN` with the affected-plan unknowns instead of implying equivalent coverage.
+
 ```sh
 test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.1"
 GOTOOLCHAIN=local go test -count=1 -timeout 30m ./...

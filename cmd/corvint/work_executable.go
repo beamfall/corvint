@@ -21,11 +21,26 @@ type workPathBinding struct {
 }
 
 type workExecutable struct {
-	path     string
-	file     *os.File
-	info     os.FileInfo
-	digest   string
-	bindings []workPathBinding
+	path                 string
+	file                 *os.File
+	info                 os.FileInfo
+	digest               string
+	bindings             []workPathBinding
+	executionPath        string
+	executionDirectory   string
+	executionFile        *os.File
+	executionInfo        os.FileInfo
+	executionDirectoryID os.FileInfo
+}
+
+func (object *workExecutable) close() {
+	if object.executionFile != nil {
+		_ = object.executionFile.Close()
+	}
+	_ = object.file.Close()
+	if object.executionDirectory != "" {
+		_ = os.RemoveAll(object.executionDirectory)
+	}
 }
 
 // Resolve system interpreter symlinks explicitly and retain every component's
@@ -122,6 +137,31 @@ func (object *workExecutable) check() error {
 	after, err := object.file.Stat()
 	if err != nil || !os.SameFile(before, after) || before.Size() != after.Size() || before.Mode() != after.Mode() || !before.ModTime().Equal(after.ModTime()) {
 		return errors.New("executable changed during read")
+	}
+	if object.executionFile != nil {
+		if err := object.checkExecutionMaterialization(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (object *workExecutable) checkExecutionMaterialization() error {
+	directory, err := os.Lstat(object.executionDirectory)
+	if err != nil || !directory.IsDir() || directory.Mode().Perm() != 0700 || !os.SameFile(directory, object.executionDirectoryID) {
+		return errors.New("private executable materialization changed")
+	}
+	pathInfo, err := os.Lstat(object.executionPath)
+	if err != nil || !pathInfo.Mode().IsRegular() || pathInfo.Mode().Perm() != 0500 || !os.SameFile(pathInfo, object.executionInfo) {
+		return errors.New("private executable materialization changed")
+	}
+	fileInfo, err := object.executionFile.Stat()
+	if err != nil || !os.SameFile(fileInfo, object.executionInfo) || fileInfo.Mode() != object.executionInfo.Mode() || fileInfo.Size() != object.executionInfo.Size() {
+		return errors.New("private executable descriptor changed")
+	}
+	raw, err := io.ReadAll(io.NewSectionReader(object.executionFile, 0, workExecutableLimit+1))
+	if err != nil || workqueue.SHA256Hex(raw) != object.digest {
+		return errors.New("private executable bytes changed")
 	}
 	return nil
 }

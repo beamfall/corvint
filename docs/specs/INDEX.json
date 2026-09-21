@@ -478,6 +478,23 @@
     ]
   },
   {
+    "path": "docs/specs/migration-evidence-ratchet-v0.md",
+    "title": "Migration Evidence Ratchet V0",
+    "reqPrefix": "MER-V0",
+    "intent": "accepted (GitHub issue #46)",
+    "delivery": "experimental",
+    "claim": "A revision-bound baseline/candidate receipt prevents migration evidence debt from growing without claiming adequacy or completeness.",
+    "dependsOn": [
+      "docs/specs/documentation-corpus-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/migrationratchet",
+      "cmd/corvint/migration_ratchet.go"
+    ]
+  },
+  {
     "path": "docs/specs/spec-requirement-index-generator-v0.md",
     "title": "Spec requirement index generator V0",
     "reqPrefix": "SRG-V0",
@@ -1000,11 +1017,11 @@
   },
   {
     "path": "docs/specs/playwright-external-provider-v0.md",
-    "title": "Playwright External Provider V0",
+    "title": "Playwright External Provider V0/V1",
     "reqPrefix": "PWP-V0",
     "intent": "accepted",
-    "delivery": "validated (local Playwright 1.60.0 matrix)",
-    "claim": "Explicit external-server Playwright runs retain attributable project outcomes without application-server ownership.",
+    "delivery": "validated (`/0` Playwright 1.60.0 matrix and 1.63.0 macOS arm64 system-Chrome path; `/1` Docker-backed Playwright 1.63.0)",
+    "claim": "External-server Playwright receipts bind attributable outcomes without owning the app; `/1` adds typed pre/post app and clean test-repository identity.",
     "dependsOn": [
       "docs/specs/live-proof-carrying-verification-v0.md"
     ],
@@ -1014,6 +1031,24 @@
       "internal/jstestprovider",
       "cmd/corvint-js-test-provider",
       "internal/testvaliditydoc"
+    ]
+  },
+  {
+    "path": "docs/specs/playwright-suite-interaction-minimizer-v0.md",
+    "title": "Playwright Suite-Interaction Minimizer V0",
+    "reqPrefix": "PSM-V0",
+    "intent": "proposed",
+    "delivery": "experimental (closed operator executor; bounded observed-descendant cleanup)",
+    "claim": "A no-mutation planner and approved experimental executor retain bounded Playwright trials with qualified runner, stability, and application evidence.",
+    "dependsOn": [
+      "docs/specs/playwright-external-provider-v0.md",
+      "docs/specs/documentation-corpus-v1.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/playwrightminimize",
+      "cmd/corvint-playwright-minimize"
     ]
   },
   {

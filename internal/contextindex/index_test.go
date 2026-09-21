@@ -16,7 +16,7 @@ import (
 
 func testGit(t testing.TB, root string, arguments ...string) string {
 	t.Helper()
-	command := exec.Command("git", append([]string{"-C", root}, arguments...)...)
+	command := exec.Command("git", append([]string{"-c", "gc.auto=0", "-c", "maintenance.auto=false", "-C", root}, arguments...)...)
 	output, err := command.CombinedOutput()
 	if err != nil {
 		t.Fatalf("git %v: %v\n%s", arguments, err, output)

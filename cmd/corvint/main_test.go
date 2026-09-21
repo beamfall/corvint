@@ -25,6 +25,8 @@ func cliRepository(t *testing.T) string {
 		{"init", "-q"},
 		{"config", "user.email", "corvint@example.test"},
 		{"config", "user.name", "Corvint Test"},
+		{"config", "maintenance.auto", "false"},
+		{"config", "gc.auto", "0"},
 	}
 	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# test\n"), 0o644); err != nil {
 		t.Fatal(err)

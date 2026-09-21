@@ -83,7 +83,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 		"maintain": "--artifact --page --apply", "cem": "--artifact --cem --id",
 		"info": "--artifact --limit", "validate": "--artifact --limit", "search": "--artifact --query --limit",
 		"get": "--artifact --id --limit", "trace": "--artifact --id --limit", "related": "--artifact --id --limit",
-		"journey": "--artifact --id --limit", "locate": "--artifact --path --limit", "coverage": "--artifact --limit", "gaps": "--artifact --id --limit",
+		"journey": "--artifact --id --limit", "stability": "--artifact --id --limit", "locate": "--artifact --path --limit", "coverage": "--artifact --limit", "gaps": "--artifact --id --limit",
 	}
 	valid, ok := allowed[o.op]
 	if !ok {
@@ -96,7 +96,7 @@ func parseCorpusInvocation(args []string) (corpusOptions, bool, error) {
 	}
 	required := map[string][]string{
 		"manifest": {o.revision, o.scope, o.timestamp}, "build": {o.manifest}, "maintain": {o.artifact, o.page}, "cem": {o.artifact, o.cem},
-		"search": {o.artifact, o.query}, "locate": {o.artifact, o.path}, "get": {o.artifact, o.id}, "trace": {o.artifact, o.id}, "related": {o.artifact, o.id}, "journey": {o.artifact, o.id},
+		"search": {o.artifact, o.query}, "locate": {o.artifact, o.path}, "get": {o.artifact, o.id}, "trace": {o.artifact, o.id}, "related": {o.artifact, o.id}, "journey": {o.artifact, o.id}, "stability": {o.artifact, o.id},
 	}
 	values, ok := required[o.op]
 	if !ok {

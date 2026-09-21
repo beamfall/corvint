@@ -112,9 +112,12 @@ func TestPlaywrightQualification(t *testing.T) {
 				if plan.Scope != affected.ScopeUnknown || plan.Fallback != PlaywrightFallbackFullSuite || len(plan.Excluded) != 0 || !hasPlaywrightUnknown(plan, PlaywrightAxisSelection, row.reason) {
 					t.Fatalf("unknown frontier lost: %+v", plan)
 				}
-				if row.projectsUnknown {
+				if row.projectsUnknown || row.reason == PlaywrightUnknownProjectMembership {
 					if len(plan.Selected) != 0 {
 						t.Fatal("unknown project set emitted runnable approximation")
+					}
+					if len(plan.FallbackArgv) != 4 {
+						t.Fatal("complete configuration fallback missing")
 					}
 					return
 				}
@@ -249,11 +252,17 @@ func qualifyRetainedProvider(t *testing.T, root string, plan PlaywrightPlan, out
 
 func qualifySelection(t *testing.T, root, dirty string) PlaywrightPlan {
 	t.Helper()
-	first, err := SelectPlaywright(root, "playwright.config.ts", []string{dirty})
+	units := []PlaywrightDiscoveryUnit{}
+	for _, id := range qualificationOracle(0, 117) {
+		parts := strings.SplitN(strings.TrimPrefix(id, "typescript:playwright:"), ":", 2)
+		units = append(units, PlaywrightDiscoveryUnit{Project: parts[0], Test: parts[1]})
+	}
+	receipt := discoveryFixtureBytes(t, root, units)
+	first, err := SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, []string{dirty}, receipt)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := SelectPlaywright(root, "playwright.config.ts", []string{dirty})
+	second, err := SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, []string{dirty}, receipt)
 	if err != nil {
 		t.Fatal(err)
 	}

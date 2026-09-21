@@ -11,6 +11,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -35,6 +37,10 @@ type BuiltBinary struct {
 // It then verifies the retained binary's embedded buildinfo against the
 // pinned Go version and requested target.
 func buildComponentTwice(ctx context.Context, moduleRoot, pkgPath, name, target, scratch string) (BuiltBinary, error) {
+	return buildComponentTwiceWithFlags(ctx, moduleRoot, pkgPath, name, target, scratch, nil)
+}
+
+func buildComponentTwiceWithFlags(ctx context.Context, moduleRoot, pkgPath, name, target, scratch string, flags []string) (BuiltBinary, error) {
 	goos, arch, err := splitTarget(target)
 	if err != nil {
 		return BuiltBinary{}, err
@@ -55,10 +61,10 @@ func buildComponentTwice(ctx context.Context, moduleRoot, pkgPath, name, target,
 	if err != nil {
 		return BuiltBinary{}, err
 	}
-	if err := runGoBuild(ctx, goPath, moduleRoot, pkgPath, binA, closedGoEnv(homeA, target)); err != nil {
+	if err := runGoBuild(ctx, goPath, moduleRoot, pkgPath, binA, closedGoEnv(homeA, target), flags); err != nil {
 		return BuiltBinary{}, fmt.Errorf("%s: primary build: %w", name, err)
 	}
-	if err := runGoBuild(ctx, goPath, moduleRoot, pkgPath, binB, closedGoEnv(homeB, target)); err != nil {
+	if err := runGoBuild(ctx, goPath, moduleRoot, pkgPath, binB, closedGoEnv(homeB, target), flags); err != nil {
 		return BuiltBinary{}, fmt.Errorf("%s: independent build: %w", name, err)
 	}
 
@@ -151,9 +157,12 @@ func verifyStagedTree(export Export, dir string) error {
 	return nil
 }
 
-func runGoBuild(ctx context.Context, goPath, moduleRoot, pkgPath, out string, env []string) error {
+func runGoBuild(ctx context.Context, goPath, moduleRoot, pkgPath, out string, env, flags []string) error {
+	arguments := []string{"build", "-trimpath", "-buildvcs=false"}
+	arguments = append(arguments, flags...)
+	arguments = append(arguments, "-o", out, pkgPath)
 	_, stderr, err := runCaptured(ctx, moduleRoot, env, buildTimeout,
-		goPath, "build", "-trimpath", "-buildvcs=false", "-o", out, pkgPath)
+		append([]string{goPath}, arguments...)...)
 	if err != nil {
 		return fmt.Errorf("%w (stderr=%s)", err, trimForError(stderr))
 	}
@@ -161,6 +170,20 @@ func runGoBuild(ctx context.Context, goPath, moduleRoot, pkgPath, out string, en
 		return fmt.Errorf("go build produced no output at %s", out)
 	}
 	return nil
+}
+
+func sourceBuildNumber(ctx context.Context, gitPath, root, scratch string) (string, error) {
+	stdout, _, err := runCaptured(ctx, root, closedGitEnv(scratch), subprocessTimeout,
+		gitPath, "rev-list", "--first-parent", "--count", "HEAD")
+	if err != nil {
+		return "", fmt.Errorf("resolve first-parent build number: %w", err)
+	}
+	build := strings.TrimSpace(string(stdout))
+	n, err := strconv.ParseUint(build, 10, 64)
+	if err != nil || n == 0 || strconv.FormatUint(n, 10) != build {
+		return "", fmt.Errorf("invalid first-parent build number %q", build)
+	}
+	return build, nil
 }
 
 // verifyBuildInfo requires the exact pinned Go version, target, and the

@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-const publicationTestTag = "v0.4.0a4"
+const publicationTestTag = "v0.5.0a1"
 
 type publicationFixture struct {
 	root    string

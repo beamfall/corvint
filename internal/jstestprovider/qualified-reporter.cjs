@@ -1,12 +1,15 @@
 const fs = require('node:fs');
 const crypto = require('node:crypto');
+const childProcess = require('node:child_process');
+const path = require('node:path');
+const playwright = require(require.resolve('playwright', {paths: [process.cwd()]}));
 
 const identityKeys = ['browserName', 'defaultBrowserType', 'channel', 'viewport', 'screen', 'userAgent', 'isMobile', 'hasTouch', 'deviceScaleFactor', 'locale', 'timezoneId', 'colorScheme', 'permissions', 'contextOptions', 'launchOptions'];
 
-// Qualified against 1.60.0's in-process reporter objects. Serialization or a
+// Qualified against 1.60.0 and 1.63.0 in-process reporter objects. Serialization or a
 // custom executable fixture can erase effective options; that is unknown.
 function effectiveUse(test, project, version) {
-  if (version !== '1.60.0' || !Array.isArray(test._testType?.fixtures)) return null;
+  if (!['1.60.0', '1.63.0'].includes(version) || !Array.isArray(test._testType?.fixtures)) return null;
   const use = {};
   const assign = (fixtures, builtin) => {
     if (!builtin && ['browser', 'context', 'page', 'playwright', '_combinedContextOptions'].some(k => Object.hasOwn(fixtures, k))) return false;
@@ -38,6 +41,16 @@ function effectiveUse(test, project, version) {
   const resolved = {viewport: {width:1280,height:720}, isMobile:false, hasTouch:false, locale:'en-US', colorScheme:'light', ...context, ...use};
   resolved.browserName = use.browserName || use.defaultBrowserType || 'chromium';
   if (resolved.channel === undefined && use.launchOptions?.channel !== undefined) resolved.channel = use.launchOptions.channel;
+  if (version === '1.63.0') {
+    const executablePath = resolved.launchOptions?.executablePath || '';
+    const observedVersion = executablePath ? childProcess.spawnSync(executablePath, ['--version'], {encoding: 'utf8'}).stdout.trim() : '';
+    const bundledChromium = playwright.chromium.executablePath();
+    const bundledMatch = bundledChromium.match(/^(.*)\/chromium-(\d+)\//);
+    const headlessShell = bundledMatch ? path.join(bundledMatch[1], `chromium_headless_shell-${bundledMatch[2]}`, 'chrome-headless-shell-mac-arm64', 'chrome-headless-shell') : '';
+    resolved.channel = resolved.channel || '';
+    resolved.corvintBrowser = {platform: process.platform, arch: process.arch, nodeVersion: process.version, browserType: resolved.browserName, browserVersion: observedVersion, channel: resolved.channel, executablePath, headlessShellAvailable: headlessShell !== '' && fs.existsSync(headlessShell)};
+    if (!(resolved.corvintBrowser.platform === 'darwin' && resolved.corvintBrowser.arch === 'arm64' && resolved.corvintBrowser.nodeVersion === 'v22.23.2' && resolved.corvintBrowser.browserType === 'chromium' && resolved.corvintBrowser.browserVersion === 'Google Chrome 153.0.8010.48' && resolved.corvintBrowser.channel === '' && resolved.corvintBrowser.executablePath === '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' && resolved.corvintBrowser.headlessShellAvailable === true)) return null;
+  }
   return resolved;
 }
 
@@ -45,6 +58,7 @@ function effectiveUse(test, project, version) {
 class Reporter {
   constructor(options) { this.path = options.output; this.tests = new Map(); this.errors = []; }
   onBegin(config, suite) {
+	this.schedule = {workers: config.workers, starts: []};
     this.version = config.version;
     this.files = {};
     this.configFiles = {};
@@ -58,6 +72,11 @@ class Reporter {
     }
   }
   onError(error) { this.errors.push(error.message || String(error)); }
+  onTestBegin(test, result) {
+    const project = test.parent.project();
+    const repeat = test.repeatEachIndex > 0 ? ` > repeat ${test.repeatEachIndex}` : '';
+    this.schedule.starts.push({fullName: test.titlePath().join(' > ') + repeat, file: test.location.file, line: test.location.line, project: project?.name || '', retry: result.retry, retries: test.retries, worker: result.workerIndex, fullyParallel: project?.fullyParallel === true});
+  }
   onTestEnd(test, result) {
     const project = test.parent.project();
     const use = project ? effectiveUse(test, project, this.version) : null;
@@ -71,8 +90,9 @@ class Reporter {
     const previous = this.tests.get(test.id);
     const attempts = previous ? previous.attempts : [];
     attempts.push({state, retry: result.retry, failureKind: infrastructure ? 'browser-or-fixture' : state === 'failed' ? 'assertion-or-test' : state === 'timedOut' ? 'test-timeout' : 'none'});
+    const repeat = test.repeatEachIndex > 0 ? ` > repeat ${test.repeatEachIndex}` : '';
     this.tests.set(test.id, {
-      name: test.title, fullName: test.titlePath().join(' > '), state,
+      name: test.title, fullName: test.titlePath().join(' > ') + repeat, state,
       project: {name: project ? project.name : '', browser: use ? use.browserName : '', device: project && typeof project.metadata?.device === 'string' ? project.metadata.device : 'unknown', use},
       retries: result.retry, durationMs: result.duration,
       anchor: {file: test.location.file, line: test.location.line},
@@ -85,7 +105,7 @@ class Reporter {
     for (const test of tests) {
       if (test.state === 'passed' && test.attempts.some(a => a.state !== 'passed')) test.state = 'flaky';
     }
-    fs.writeFileSync(this.path, JSON.stringify({version: this.version, files: this.files, configFiles: this.configFiles, status: result.status, tests, errors: this.errors}));
+    fs.writeFileSync(this.path, JSON.stringify({version: this.version, files: this.files, configFiles: this.configFiles, status: result.status, tests, errors: this.errors, schedule: this.schedule}));
   }
 }
 module.exports = Reporter;

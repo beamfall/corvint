@@ -103,6 +103,18 @@ func TestCLIReadVerbsLeaveTheRepositoryByteIdentical(t *testing.T) {
 			wantExit: 0,
 		},
 		{
+			name: "migration-ratchet compares an external immutable profile",
+			setup: func(t *testing.T) (string, func() int) {
+				root := cliRepository(t)
+				profile := writeMigrationRatchetProfile(t, migrationRatchetProfile())
+				return root, func() int {
+					code, _, _ := runCLI(t, "--root", root, "migration-ratchet", "--profile", profile)
+					return code
+				}
+			},
+			wantExit: 0,
+		},
+		{
 			name: "depsource refuses a missing module argument",
 			setup: func(t *testing.T) (string, func() int) {
 				root := depsourceRoot(t)

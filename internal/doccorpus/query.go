@@ -148,6 +148,12 @@ func Query(a *Artifact, request Request, freshness string, limitations []string)
 				r.Citations = append(r.Citations, j.Evidence.Anchors...)
 			}
 		}
+	case "stability":
+		for _, stability := range a.StabilityEvidence {
+			if stability.ID == request.ID || stability.TestID == request.ID || stability.ContractID == request.ID {
+				r.Results = append(r.Results, stability)
+			}
+		}
 	case "gaps":
 		for _, g := range a.Gaps {
 			if request.ID == "" || g.Subject == request.ID {
@@ -163,7 +169,7 @@ func Query(a *Artifact, request Request, freshness string, limitations []string)
 	if len(r.Results) == 0 {
 		r.State = "empty"
 		r.Miss = "no-match"
-		if request.Operation == "get" || request.Operation == "journey" || request.Operation == "trace" {
+		if request.Operation == "get" || request.Operation == "journey" || request.Operation == "stability" || request.Operation == "trace" {
 			r.Miss = "evidence-not-found"
 		}
 	}
@@ -203,6 +209,11 @@ func subjectPath(s Subject, p string) bool {
 	return false
 }
 func get(a *Artifact, id string, r *Receipt) {
+	for _, stability := range a.StabilityEvidence {
+		if stability.ID == id || stability.TestID == id || stability.ContractID == id {
+			r.Results = append(r.Results, stability)
+		}
+	}
 	for _, s := range a.Subjects {
 		if s.ID == id {
 			r.Results = append(r.Results, s)
@@ -319,5 +330,5 @@ func coverageMetrics(a *Artifact) []any {
 	} {
 		rows = append(rows, map[string]any{"metric": metric.name, "value": metric.value, "denominator": metric.denominator, "defined": metric.denominator > 0, "definition": metric.definition, "revision": a.Manifest.Repository.Revision, "limitations": []string{"scoped declaration coverage only; provider honesty, semantic truth and adequacy unknown"}})
 	}
-	return rows
+	return append(rows, behaviorCoverage(a)...)
 }

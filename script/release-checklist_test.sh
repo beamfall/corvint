@@ -11,7 +11,7 @@ trap 'exit 143' TERM
 repository="$test_root/repo"
 mkdir -p "$repository/script"
 cp "$source_root/script/release-checklist" "$repository/script/"
-printf '0.4.0a4\n' > "$repository/VERSION"
+printf '0.5.0a1\n' > "$repository/VERSION"
 git -C "$repository" init -q -b main
 git -C "$repository" -c user.name=test -c user.email=test@example.invalid add .
 git -C "$repository" -c user.name=test -c user.email=test@example.invalid commit -qm fixture
@@ -173,17 +173,17 @@ status=$?
 set -e
 test "$status" -eq 2
 case $failure in
-  *"release-checklist: git rev-parse failed for refs/tags/v0.4.0a4"*) ;;
+  *"release-checklist: git rev-parse failed for refs/tags/v0.5.0a1"*) ;;
   *) printf 'missing tag-resolution failure diagnostic: %s\n' "$failure" >&2; exit 1 ;;
 esac
 
 # ARTIFACT-RDY-V0-003: only a tag counts; a branch spelled like the expected tag is not one.
-git -C "$repository" branch v0.4.0a4
+git -C "$repository" branch v0.5.0a1
 checklist
 test "$(row tag)" = NOT_RUN
-git -C "$repository" branch -q -D v0.4.0a4
+git -C "$repository" branch -q -D v0.5.0a1
 
-git -C "$repository" tag v0.4.0a4
+git -C "$repository" tag v0.5.0a1
 checklist
 test "$(row tag)" = PASS
 printf 'next\n' > "$repository/change"
@@ -193,8 +193,8 @@ checklist
 test "$(row tag)" = FAIL
 # ARTIFACT-RDY-V0-009: a committed receipt the reader cannot evaluate (this fixture has no Go module)
 # is FAIL, never PASS; an uncommitted receipt is not read at all.
-mkdir -p "$repository/docs/releases/v0.4.0a4"
-printf '{}\n' > "$repository/docs/releases/v0.4.0a4/publication-receipt.json"
+mkdir -p "$repository/docs/releases/v0.5.0a1"
+printf '{}\n' > "$repository/docs/releases/v0.5.0a1/publication-receipt.json"
 checklist
 test "$(row publication)" = NOT_RUN
 git -C "$repository" add docs

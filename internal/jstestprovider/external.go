@@ -23,19 +23,23 @@ import (
 )
 
 const ExternalProfile = "corvint-playwright-external/0"
-const QualifiedPlaywrightVersion = "1.60.0"
 const externalOutputLimit = 4 << 20
+
+func qualifiedPlaywrightVersion(version string) bool {
+	return version == "1.60.0" || version == "1.63.0"
+}
 
 //go:embed qualified-reporter.cjs
 var qualifiedReporter []byte
 
 type qualifiedReport struct {
-	ConfigFiles map[string]string `json:"configFiles"`
-	Version     string            `json:"version"`
-	Files       map[string]string `json:"files"`
-	Status      string            `json:"status"`
-	Tests       []TestOutcome     `json:"tests"`
-	Errors      []string          `json:"errors"`
+	Schedule    *ExecutionSchedule `json:"schedule,omitempty"`
+	ConfigFiles map[string]string  `json:"configFiles"`
+	Version     string             `json:"version"`
+	Files       map[string]string  `json:"files"`
+	Status      string             `json:"status"`
+	Tests       []TestOutcome      `json:"tests"`
+	Errors      []string           `json:"errors"`
 }
 
 func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
@@ -55,8 +59,28 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if err != nil {
 		return Receipt{}, err
 	}
+	profile := ExternalProfile
+	if cfg.ApplicationAttestation != nil {
+		profile = AttestedExternalProfile
+	}
 	lifecycle := &ExternalLifecycle{ReadyURL: cfg.ServerReadyURL, DeclaredAppIdentity: cfg.AppIdentity, Ownership: "external", CleanupResponsibility: "external", ServerDescendants: "unknown", ConfigOverride: config}
-	r := Receipt{Profile: ExternalProfile, Kind: "e2e", Identity: identity, External: lifecycle, Tests: []TestOutcome{}}
+	r := Receipt{Profile: profile, Kind: "e2e", Identity: identity, External: lifecycle, Tests: []TestOutcome{}}
+	var provider *preparedApplicationAttestationProvider
+	if cfg.ApplicationAttestation != nil {
+		provider, err = prepareApplicationAttestationProvider(*cfg.ApplicationAttestation, cfg.Dir, scratch, identity.Environment)
+		if err != nil {
+			r.ApplicationAttestation = &ApplicationAttestationReceipt{Failures: []string{err.Error()}}
+			r.Infrastructure = &InfrastructureFailure{Reason: err.Error(), Detail: "application attestation provider could not be prepared"}
+			return r, nil
+		}
+		r.ApplicationAttestation = &provider.receipt
+		var repositoryFailure string
+		r.TestRepositoryAtStart, repositoryFailure = observeTestRepository(ctx, cfg.Dir)
+		if repositoryFailure != "" {
+			setApplicationAttestationFailure(&r, repositoryFailure)
+			return r, nil
+		}
+	}
 	r.AppBuildAtStart, err = DigestAppBuildDir(cfg.AppBuildDir)
 	if err != nil {
 		return r, err
@@ -72,11 +96,21 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 		return r, nil
 	}
 	lifecycle.ReadyAtStart = true
+	if provider != nil {
+		before, failure := provider.observe(ctx)
+		r.ApplicationAttestation.Before = before
+		if failure != "" {
+			setApplicationAttestationFailure(&r, failure)
+			return r, nil
+		}
+	}
 	timeout := cfg.Timeout
 	if timeout <= 0 {
 		timeout = defaultTimeout
 	}
-	obs := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: cfg.Dir, Env: os.Environ(), Timeout: timeout, OutputLimit: externalOutputLimit})
+	obs := procgroup.Run(ctx, procgroup.Spec{Argv: resolveArgv(argv), Dir: cfg.Dir, Env: os.Environ(), Timeout: timeout, OutputLimit: externalOutputLimit, ObserveDescendants: cfg.ObserveDescendants})
+	r.DescendantObservation = obs.DescendantObservation
+	r.RunnerResources = obs.Usage
 	lifecycle.RunnerDescendantsGone = obs.OwnedProcessGroupCleanup
 	// The caller may already be cancelled. A separate bounded observation checks
 	// survival without extending ownership to the external service.
@@ -88,6 +122,30 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 		r.AppBuildAtPublish = AppBuildIdentity{Unknown: true, Reason: err.Error()}
 	}
 	r.StaleAppBuild = isStaleAppBuild(r.AppBuildAtStart, r.AppBuildAtPublish)
+	if provider != nil {
+		if !provider.unchanged() {
+			setApplicationAttestationFailure(&r, "application-attestation-provider-drift")
+		}
+		postCtx, postCancel := context.WithTimeout(context.Background(), provider.timeout)
+		after, failure := provider.observe(postCtx)
+		postCancel()
+		r.ApplicationAttestation.After = after
+		if failure != "" {
+			setApplicationAttestationFailure(&r, failure)
+		} else if r.ApplicationAttestation.Before != nil {
+			for _, drift := range compareApplicationAttestations(r.ApplicationAttestation.Before.Attestation, after.Attestation) {
+				setApplicationAttestationFailure(&r, drift)
+			}
+		}
+		repositoryCtx, repositoryCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		r.TestRepositoryAtPublish, failure = observeTestRepository(repositoryCtx, cfg.Dir)
+		repositoryCancel()
+		if failure != "" {
+			setApplicationAttestationFailure(&r, failure)
+		} else if r.TestRepositoryAtStart == nil || *r.TestRepositoryAtStart != *r.TestRepositoryAtPublish {
+			setApplicationAttestationFailure(&r, "test-repository-drift")
+		}
+	}
 	after, identityErr := cfg.identity(argv)
 	lifecycle.InputsUnchanged = identityErr == nil && reflect.DeepEqual(identity, after)
 	r.Cancelled = obs.Cancelled || ctx.Err() != nil
@@ -143,6 +201,21 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	return r, nil
 }
 
+func setApplicationAttestationFailure(receipt *Receipt, reason string) {
+	if receipt.ApplicationAttestation == nil {
+		receipt.ApplicationAttestation = &ApplicationAttestationReceipt{Failures: []string{}}
+	}
+	for _, existing := range receipt.ApplicationAttestation.Failures {
+		if existing == reason {
+			return
+		}
+	}
+	receipt.ApplicationAttestation.Failures = append(receipt.ApplicationAttestation.Failures, reason)
+	if receipt.Infrastructure == nil {
+		receipt.Infrastructure = &InfrastructureFailure{Reason: reason, Detail: "external application attestation did not qualify"}
+	}
+}
+
 func explainedPlaywrightFailure(tests []TestOutcome) bool {
 	for _, t := range tests {
 		if t.State == StateFailed || t.State == StateTimedOut || t.State == StateInterrupted || t.State == StateInfrastructure {
@@ -153,15 +226,23 @@ func explainedPlaywrightFailure(tests []TestOutcome) bool {
 }
 
 func admitExternal(c E2EConfig) error {
-	if c.RunnerVersion != QualifiedPlaywrightVersion {
+	if !qualifiedPlaywrightVersion(c.RunnerVersion) {
 		return errors.New("external-playwright-version-unqualified")
 	}
+	var providerArgs []string
+	var providerConfig string
+	if c.ApplicationAttestation != nil {
+		providerArgs = c.ApplicationAttestation.Argv
+		providerConfig = c.ApplicationAttestation.ConfigFile
+	}
 	bound, _ := json.Marshal(struct {
-		App  string
-		URL  string
-		Args []string
-		Env  map[string]string
-	}{c.AppIdentity, c.ServerReadyURL, c.TestArgv, declaredEnv(c.DeclaredEnvKeys)})
+		App            string
+		URL            string
+		Args           []string
+		Env            map[string]string
+		ProviderArgs   []string
+		ProviderConfig string
+	}{c.AppIdentity, c.ServerReadyURL, c.TestArgv, declaredEnv(c.DeclaredEnvKeys), providerArgs, providerConfig})
 	if len(bound) > 64<<10 || secretscreen.MatchString(string(bound)) {
 		return errors.New("external-input-bound-or-secret")
 	}
@@ -172,8 +253,17 @@ func admitExternal(c E2EConfig) error {
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil {
 		return errors.New("external-readiness-url-required")
 	}
-	if strings.TrimSpace(c.AppIdentity) == "" {
-		return errors.New("external-app-identity-required")
+	if c.ApplicationAttestation == nil {
+		if strings.TrimSpace(c.AppIdentity) == "" {
+			return errors.New("external-app-identity-required")
+		}
+	} else {
+		if strings.TrimSpace(c.AppIdentity) != "" || c.AppBuildDir != "" {
+			return errors.New("external-attestation-conflicts-with-caller-identity")
+		}
+		if len(c.ApplicationAttestation.Argv) == 0 || c.ApplicationAttestation.ConfigFile == "" {
+			return errors.New("application-attestation-provider-required")
+		}
 	}
 	if c.ConfigFile == "" || c.RunnerVersion == "" || len(c.TestFiles) == 0 {
 		return errors.New("external-config-version-test-files-required")
@@ -251,6 +341,7 @@ func readBoundedReport(path string) ([]byte, error) {
 }
 
 func bindQualifiedReport(r *Receipt, report qualifiedReport) error {
+	r.Schedule = report.Schedule
 	if report.ConfigFiles[r.Identity.ConfigFile] != r.Identity.ConfigDigest {
 		return errors.New("config-inputs-unobserved")
 	}
@@ -335,13 +426,22 @@ func qualifiedTestID(identity Identity, t TestOutcome) string {
 // passed test. Consumers must not trust a carried projection or an isolated row.
 func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 	x := r.External
-	if r.Profile != ExternalProfile {
+	if !isExternalProfile(r.Profile) {
 		return false
 	}
 	if x == nil || x.Ownership != "external" || x.CleanupResponsibility != "external" || !x.ReadyAtStart || !x.ReadyAtPublish || !x.RunnerDescendantsGone || !x.InputsUnchanged {
 		return true
 	}
-	if strings.TrimSpace(x.DeclaredAppIdentity) == "" || x.ConfigOverride == "" || x.ServerDescendants != "unknown" || r.ServerDescendantsGone != nil {
+	if x.ConfigOverride == "" || x.ServerDescendants != "unknown" || r.ServerDescendantsGone != nil {
+		return true
+	}
+	if qualifiedProfileShapeError(r) != nil {
+		return true
+	}
+	if r.Profile == ExternalProfile && strings.TrimSpace(x.DeclaredAppIdentity) == "" {
+		return true
+	}
+	if r.Profile == AttestedExternalProfile && (x.DeclaredAppIdentity != "" || applicationAttestationUnknown(r.ApplicationAttestation) || testRepositoryUnknown(r.TestRepositoryAtStart, r.TestRepositoryAtPublish)) {
 		return true
 	}
 	u, err := url.Parse(x.ReadyURL)
@@ -370,7 +470,7 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 	if !filepath.IsAbs(r.Identity.ConfigFile) || len(r.Identity.Argv) == 0 || r.Identity.RunnerName != "playwright" {
 		return true
 	}
-	if r.Identity.RunnerVersion != QualifiedPlaywrightVersion {
+	if !qualifiedPlaywrightTuple(r, t) {
 		return true
 	}
 	for _, attempt := range t.Attempts {
@@ -398,4 +498,38 @@ func qualifiedUnknown(r Receipt, t TestOutcome) bool {
 		}
 	}
 	return t.ID != qualifiedTestID(r.Identity, t)
+}
+
+func qualifiedPlaywrightTuple(r Receipt, t TestOutcome) bool {
+	if r.Identity.RunnerVersion == "1.60.0" {
+		return true
+	}
+	if r.Identity.RunnerVersion != "1.63.0" || r.Identity.NodeVersion != "v22.23.2" {
+		return false
+	}
+	var use struct {
+		CorvintBrowser struct {
+			Platform               *string `json:"platform"`
+			Arch                   *string `json:"arch"`
+			NodeVersion            *string `json:"nodeVersion"`
+			BrowserType            *string `json:"browserType"`
+			BrowserVersion         *string `json:"browserVersion"`
+			Channel                *string `json:"channel"`
+			ExecutablePath         *string `json:"executablePath"`
+			HeadlessShellAvailable *bool   `json:"headlessShellAvailable"`
+		} `json:"corvintBrowser"`
+		BrowserName   *string `json:"browserName"`
+		Channel       *string `json:"channel"`
+		LaunchOptions struct {
+			ExecutablePath *string `json:"executablePath"`
+		} `json:"launchOptions"`
+	}
+	if json.Unmarshal(t.Project.Use, &use) != nil {
+		return false
+	}
+	browser := use.CorvintBrowser
+	if use.BrowserName == nil || use.Channel == nil || use.LaunchOptions.ExecutablePath == nil || browser.Platform == nil || browser.Arch == nil || browser.NodeVersion == nil || browser.BrowserType == nil || browser.BrowserVersion == nil || browser.Channel == nil || browser.ExecutablePath == nil || browser.HeadlessShellAvailable == nil {
+		return false
+	}
+	return *use.BrowserName == t.Project.Browser && *use.BrowserName == *browser.BrowserType && *use.Channel == *browser.Channel && *use.LaunchOptions.ExecutablePath == *browser.ExecutablePath && *browser.Platform == "darwin" && *browser.Arch == "arm64" && *browser.NodeVersion == "v22.23.2" && *browser.BrowserType == "chromium" && *browser.BrowserVersion == "Google Chrome 153.0.8010.48" && *browser.Channel == "" && *browser.ExecutablePath == "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" && *browser.HeadlessShellAvailable
 }

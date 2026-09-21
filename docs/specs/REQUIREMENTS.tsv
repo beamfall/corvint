@@ -443,26 +443,32 @@ DCLI-V0-004	docs/specs/direct-native-cli-authority-v0.md	34	**Provenance/trust.*
 DCLI-V0-005	docs/specs/direct-native-cli-authority-v0.md	36	**Common computation/currentness.** Preserve fixed protected paths, release/adap
 DCLI-V0-006	docs/specs/direct-native-cli-authority-v0.md	38	**Negative acceptance.** Closed decoder rejects old/new mixed fields, unknown ho
 DCLI-V0-007	docs/specs/direct-native-cli-authority-v0.md	40	**Rollback.** Revoke/raise protected generation floor, withdraw the direct quali
-DCP-V1-001	docs/specs/documentation-corpus-v1.md	30	The explicit manifest, normalized provider and artifact use closed versioned JSO
-DCP-V1-002	docs/specs/documentation-corpus-v1.md	34	Provenance carries builder identity/revision, shared native compiler/schema/tool
-DCP-V1-003	docs/specs/documentation-corpus-v1.md	40	Each literal source/provider scope has a complete immutable Git inventory checke
-DCP-V1-004	docs/specs/documentation-corpus-v1.md	45	Every claim, relationship and journey step carries revalidatable evidence or an
-DCP-V1-005	docs/specs/documentation-corpus-v1.md	50	Derivation (`generated`, `source-derived`, `observed`, `declared`, `imported`),
-DCP-V1-006	docs/specs/documentation-corpus-v1.md	54	Subjects use generic types: repository, package, module, symbol, endpoint, UI su
-DCP-V1-007	docs/specs/documentation-corpus-v1.md	60	Native providers reuse indexed source/symbol/document evidence and explicitly di
-DCP-V1-008	docs/specs/documentation-corpus-v1.md	67	Journeys contain independently supplied ordered evidence, preconditions, action
-DCP-V1-009	docs/specs/documentation-corpus-v1.md	75	Every capability is explicitly declared with backing records, native tools/provi
-DCP-V1-010	docs/specs/documentation-corpus-v1.md	79	Coverage always names value, denominator, definition/rule, revision and limitati
-DCP-V1-011	docs/specs/documentation-corpus-v1.md	82	Readers verify canonical artifact/digest and rederive all compiler-owned records
-DCP-V1-012	docs/specs/documentation-corpus-v1.md	86	`docs corpus` exposes manifest/build/info/search/get/locate/related/coverage/gap
-DCP-V1-013	docs/specs/documentation-corpus-v1.md	91	Explicit native corpus integration supplies first-class separately attributed
-DCP-V1-014	docs/specs/documentation-corpus-v1.md	96	CEM integration projects original Git documentation spans at the CEM base throug
-DCP-V1-015	docs/specs/documentation-corpus-v1.md	100	Task/work consumers may attach read-only corpus evidence without changing accept
-DCP-V1-016	docs/specs/documentation-corpus-v1.md	102	A separate stdio documentation-corpus MCP server directly calls the native reade
-DCP-V1-017	docs/specs/documentation-corpus-v1.md	107	Declared profiles render Markdown or JSON, optionally grouped as a directory pla
-DCP-V1-018	docs/specs/documentation-corpus-v1.md	117	Input byte bounds apply before decode; record/revision/traversal bounds apply be
-DCP-V1-019	docs/specs/documentation-corpus-v1.md	121	Generic fixtures cover Go, JavaScript/TypeScript, Python or Ruby, unsupported an
-DCP-V1-020	docs/specs/documentation-corpus-v1.md	125	A frozen labelled evaluation records per-case truth/denominators, search precisi
+DCP-V1-001	docs/specs/documentation-corpus-v1.md	32	The explicit manifest, normalized provider and artifact use closed versioned JSO
+DCP-V1-002	docs/specs/documentation-corpus-v1.md	36	Provenance carries builder identity/revision, shared native compiler/schema/tool
+DCP-V1-003	docs/specs/documentation-corpus-v1.md	42	Each literal source/provider scope has a complete immutable Git inventory checke
+DCP-V1-004	docs/specs/documentation-corpus-v1.md	47	Every claim, relationship and journey step carries revalidatable evidence or an
+DCP-V1-005	docs/specs/documentation-corpus-v1.md	52	Derivation (`generated`, `source-derived`, `observed`, `declared`, `imported`),
+DCP-V1-006	docs/specs/documentation-corpus-v1.md	56	Subjects use generic types: repository, package, module, symbol, endpoint, UI su
+DCP-V1-007	docs/specs/documentation-corpus-v1.md	62	Native providers reuse indexed source/symbol/document evidence and explicitly di
+DCP-V1-008	docs/specs/documentation-corpus-v1.md	69	Journeys contain independently supplied ordered evidence, preconditions, action
+DCP-V1-009	docs/specs/documentation-corpus-v1.md	77	Every capability is explicitly declared with backing records, native tools/provi
+DCP-V1-010	docs/specs/documentation-corpus-v1.md	81	Coverage always names value, denominator, definition/rule, revision and limitati
+DCP-V1-011	docs/specs/documentation-corpus-v1.md	84	Readers verify canonical artifact/digest and rederive all compiler-owned records
+DCP-V1-012	docs/specs/documentation-corpus-v1.md	88	`docs corpus` exposes manifest/build/info/search/get/locate/related/coverage/gap
+DCP-V1-013	docs/specs/documentation-corpus-v1.md	93	Explicit native corpus integration supplies first-class separately attributed
+DCP-V1-014	docs/specs/documentation-corpus-v1.md	98	CEM integration projects original Git documentation spans at the CEM base throug
+DCP-V1-015	docs/specs/documentation-corpus-v1.md	102	Task/work consumers may attach read-only corpus evidence without changing accept
+DCP-V1-016	docs/specs/documentation-corpus-v1.md	104	A separate stdio documentation-corpus MCP server directly calls the native reade
+DCP-V1-017	docs/specs/documentation-corpus-v1.md	109	Declared profiles render Markdown or JSON, optionally grouped as a directory pla
+DCP-V1-018	docs/specs/documentation-corpus-v1.md	119	Input byte bounds apply before decode; record/revision/traversal bounds apply be
+DCP-V1-019	docs/specs/documentation-corpus-v1.md	123	Generic fixtures cover Go, JavaScript/TypeScript, Python or Ruby, unsupported an
+DCP-V1-020	docs/specs/documentation-corpus-v1.md	127	A frozen labelled evaluation records per-case truth/denominators, search precisi
+DCP-V1-021	docs/specs/documentation-corpus-v1.md	131	The opt-in `corvint-corpus-behavior-stability-provider/1` profile aggregates onl
+DCP-V1-022	docs/specs/documentation-corpus-v1.md	139	Planned repetitions use a complete unique ordinal set. Playwright retries remain
+DCP-V1-023	docs/specs/documentation-corpus-v1.md	144	Aggregates separately expose planned, started, completed, passed, failed, timed-
+DCP-V1-024	docs/specs/documentation-corpus-v1.md	149	One repository-owned digest-bound policy defines independent one-spec, feature-b
+DCP-V1-025	docs/specs/documentation-corpus-v1.md	152	Corpus `stability` and capability-gated MCP `docs_get_stability` rederive the ag
+DCP-V1-026	docs/specs/documentation-corpus-v1.md	156	The repository policy and every observed run bind separate full-artifact topolog
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
@@ -1215,6 +1221,18 @@ MCPV0-016	docs/specs/mcp-server-2026-07-28-v0.md	325	Repository files, Git outpu
 MCPV0-017	docs/specs/mcp-server-2026-07-28-v0.md	331	All calls are read-only. The server MUST NOT write the repository, Git index, Co
 MCPV0-018	docs/specs/mcp-server-2026-07-28-v0.md	337	Per-call repository and revision identity is acquired once and bound to the Corv
 MCPV0-019	docs/specs/mcp-server-2026-07-28-v0.md	343	Frame allocation, tool arguments, Corvint output, stderr, concurrent requests, p
+MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an
+MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered
+MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the
+MER-V0-004	docs/specs/migration-evidence-ratchet-v0.md	44	Repository policy MUST be content-bound and support forbidding new legacy cases,
+MER-V0-005	docs/specs/migration-evidence-ratchet-v0.md	48	A grandfathered unresolved identity MAY remain. The candidate unresolved denomin
+MER-V0-006	docs/specs/migration-evidence-ratchet-v0.md	51	Every link MUST bind the target kind, identity and content digest plus its requi
+MER-V0-007	docs/specs/migration-evidence-ratchet-v0.md	56	An exception MUST be an immutable digest-verified record with one exact delta,
+MER-V0-008	docs/specs/migration-evidence-ratchet-v0.md	61	Cross-schema, cross-repository, cross-policy, cross-provider, stale, partial,
+MER-V0-009	docs/specs/migration-evidence-ratchet-v0.md	65	A reviewed migration rule MAY map one exact baseline identity to one exact candi
+MER-V0-010	docs/specs/migration-evidence-ratchet-v0.md	68	The profile decoder MUST reject unknown fields, trailing JSON and inputs over 4
+MER-V0-011	docs/specs/migration-evidence-ratchet-v0.md	71	`corvint migration-ratchet --profile FILE` MUST write exactly one canonical JSON
+MER-V0-012	docs/specs/migration-evidence-ratchet-v0.md	75	Executable negatives MUST cover a renamed test masquerading as delete/add, a wea
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	38	The profile MUST be served by the separate executable `corvint-test-validity-mcp
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	45	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two
 MTV-V0-003	docs/specs/mcp-test-validity-profile-v0.md	52	Receipt location contract. The only receipt source MUST be the caller's `receipt
@@ -1370,7 +1388,20 @@ PSL-V0-024	docs/specs/pulse-snapshot-lease-v0.md	287	Corvint dogfood runs first 
 PSL-V0-025	docs/specs/pulse-snapshot-lease-v0.md	290	Beamfall dogfood runs second during an actual roadmap-authorized task. Pulse MUS
 PSL-V0-026	docs/specs/pulse-snapshot-lease-v0.md	293	Rollback is process termination and selection of existing one-shot Corvint comma
 PSL-V0-027	docs/specs/pulse-snapshot-lease-v0.md	296	Delivery and performance claims are stage-specific. P0-A cannot inherit P0-B/P0-
-PUB-V0-001	docs/specs/public-release-v0.md	34	The current version tuple MUST move together to `0.4.0a4`, including native
+PSM-V0-001	docs/specs/playwright-suite-interaction-minimizer-v0.md	32	A request MUST bind immutable original-failure and isolated-pass receipts plus e
+PSM-V0-002	docs/specs/playwright-suite-interaction-minimizer-v0.md	36	Planning MUST be no-mutation and deterministic, and MUST emit the exact ordered
+PSM-V0-003	docs/specs/playwright-suite-interaction-minimizer-v0.md	39	Trial execution through the operator-facing boundary MUST require a separate exp
+PSM-V0-004	docs/specs/playwright-suite-interaction-minimizer-v0.md	41	The planned original schedule MUST run first. A valid current pass produces
+PSM-V0-005	docs/specs/playwright-suite-interaction-minimizer-v0.md	46	Ordered predecessor sequences and unordered load sets MUST have separate candida
+PSM-V0-006	docs/specs/playwright-suite-interaction-minimizer-v0.md	49	The plan MUST enforce explicit maximum-trial, repetition, and wall-clock bounds.
+PSM-V0-007	docs/specs/playwright-suite-interaction-minimizer-v0.md	51	Every trial MUST declare one exact reset policy and retain digest-bound setup,
+PSM-V0-008	docs/specs/playwright-suite-interaction-minimizer-v0.md	54	Assertion, synchronization, fixture, product, infrastructure, restart, and
+PSM-V0-009	docs/specs/playwright-suite-interaction-minimizer-v0.md	63	A finding MUST report the smallest observed reproducing sequence or set, all
+PSM-V0-010	docs/specs/playwright-suite-interaction-minimizer-v0.md	70	Every trial MUST retain start and publish application attestations. A changed
+PSM-V0-011	docs/specs/playwright-suite-interaction-minimizer-v0.md	72	Missing or invalid runner qualification (#39), stability identity (#42), or
+PSM-V0-012	docs/specs/playwright-suite-interaction-minimizer-v0.md	75	Synthetic qualification MUST cover a true predecessor leak, a load-only failure,
+PSM-V0-013	docs/specs/playwright-suite-interaction-minimizer-v0.md	78	The closed `corvint-playwright-suite-interaction-live/0` CLI MUST require
+PUB-V0-001	docs/specs/public-release-v0.md	34	The current version tuple MUST move together to `0.5.0a1`, including native
 PUB-V0-002	docs/specs/public-release-v0.md	37	The existing native CLI archive gate MUST remain independent. An optional
 PUB-V0-003	docs/specs/public-release-v0.md	44	Companion build output MUST be outside the source checkouts, include exact
 PUB-V0-004	docs/specs/public-release-v0.md	59	The first companion target is macOS arm64. Qualification MUST exercise the
@@ -1391,13 +1422,27 @@ PUB-V0-018	docs/specs/public-release-v0.md	208	PR test selection MUST execute on
 PUB-V0-019	docs/specs/public-release-v0.md	214	The shipped witness CLI and release-publication receipt reader MUST ignore Git g
 PUB-V0-020	docs/specs/public-release-v0.md	219	Core installed qualification for companion profile `/2` MUST freeze fixture
 PUB-V0-021	docs/specs/public-release-v0.md	244	Every new Corvint version created on main MUST carry a new build number (owner
-PWP-V0-001	docs/specs/playwright-external-provider-v0.md	21	External mode requires readiness URL and declared app identity, rejects server c
-PWP-V0-002	docs/specs/playwright-external-provider-v0.md	22	A controlled config imports the original, disables webServer and selects the pro
-PWP-V0-003	docs/specs/playwright-external-provider-v0.md	23	Each outcome identifies source location, full title, project name, resolved brow
-PWP-V0-004	docs/specs/playwright-external-provider-v0.md	24	Preserve attempt status/retry, flaky, assertion failure, test timeout and interr
-PWP-V0-005	docs/specs/playwright-external-provider-v0.md	25	Emit and retain the canonical closed profile. MCP discovery recomputes projectio
-PWP-V0-006	docs/specs/playwright-external-provider-v0.md	26	Cancellation joins only owned Playwright descendants and observes external serve
-PWP-V0-007	docs/specs/playwright-external-provider-v0.md	27	Qualification runs a checked-in real Playwright browser fixture covering pass, a
+PUB-V0-022	docs/specs/public-release-v0.md	251	A versioned release candidate MUST be assembled only from the closed seven-file
+PUB-V0-023	docs/specs/public-release-v0.md	257	The candidate MUST carry a closed machine-readable manifest with the exact versi
+PUB-V0-024	docs/specs/public-release-v0.md	262	The retained qualification receipt MUST use only `PASS`, `FAIL` and `NOT_RUN`, w
+PUB-V0-025	docs/specs/public-release-v0.md	268	The candidate installer MUST reverify the closed candidate, select only the exac
+PUB-V0-026	docs/specs/public-release-v0.md	273	Candidate assembly or installation MUST fail without retained output when any co
+PWP-V0-001	docs/specs/playwright-external-provider-v0.md	23	External mode requires readiness URL and declared app identity, rejects server c
+PWP-V0-002	docs/specs/playwright-external-provider-v0.md	24	A controlled config imports the original, disables webServer and selects the pro
+PWP-V0-003	docs/specs/playwright-external-provider-v0.md	25	Each outcome identifies source location, full title, project name, resolved brow
+PWP-V0-004	docs/specs/playwright-external-provider-v0.md	26	Preserve attempt status/retry, flaky, assertion failure, test timeout and interr
+PWP-V0-005	docs/specs/playwright-external-provider-v0.md	27	Emit and retain the canonical closed profile. MCP discovery recomputes projectio
+PWP-V0-006	docs/specs/playwright-external-provider-v0.md	28	Cancellation joins only owned Playwright descendants and observes external serve
+PWP-V0-007	docs/specs/playwright-external-provider-v0.md	29	Qualification runs a checked-in real Playwright browser fixture covering pass, a
+PWP-V0-008	docs/specs/playwright-external-provider-v0.md	30	Playwright 1.63 qualification is consuming-path specific. A passing projection r
+PWP-V1-001	docs/specs/playwright-external-provider-v0.md	34	`/1` is available only in external-server mode and requires a typed `corvint-app
+PWP-V1-002	docs/specs/playwright-external-provider-v0.md	35	The closed provider configuration binds the expected application root commit, re
+PWP-V1-003	docs/specs/playwright-external-provider-v0.md	36	Each closed canonical `corvint-application-attestation/0` observation binds the
+PWP-V1-004	docs/specs/playwright-external-provider-v0.md	37	The receipt binds the provider profile, normalized argv, original executable pat
+PWP-V1-005	docs/specs/playwright-external-provider-v0.md	38	The provider runs before and after Playwright. Unavailable or malformed identity
+PWP-V1-006	docs/specs/playwright-external-provider-v0.md	39	`/1` binds one clean test repository by root commit, revision and tree before Pl
+PWP-V1-007	docs/specs/playwright-external-provider-v0.md	40	Corvint supplies only canonical configuration bytes on provider stdin and owns o
+PWP-V1-008	docs/specs/playwright-external-provider-v0.md	41	Qualification includes a deterministic, locally owned Docker Compose fixture and
 QLF-V0-001	docs/specs/qualified-lifecycle-v0.md	32	The additive `corvint-qualified-lifecycle/0` request MUST be a closed object con
 QLF-V0-002	docs/specs/qualified-lifecycle-v0.md	33	Completed qualified non-Stop events MUST derive repository scope exclusively fro
 QLF-V0-003	docs/specs/qualified-lifecycle-v0.md	34	Qualified Stop MUST derive the active handle inside the same protected scope, co
@@ -1696,11 +1741,11 @@ TJAA-V0-009	docs/specs/typescript-javascript-affected-adapter-v0.md	81	Discovery
 TJAA-V0-010	docs/specs/typescript-javascript-affected-adapter-v0.md	84	The opt-in `playwright-affected/0` profile MUST bind the config path and SHA-256
 TJAA-V0-011	docs/specs/typescript-javascript-affected-adapter-v0.md	88	One selected Playwright unit MUST identify one physical test file under one
 TJAA-V0-012	docs/specs/typescript-javascript-affected-adapter-v0.md	91	Static config support is deliberately closed. Project arrays and membership fiel
-TJAA-V0-013	docs/specs/typescript-javascript-affected-adapter-v0.md	97	A changed source, page object, fixture, scenario builder, or helper MUST select
-TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	102	Project grep/tag and metadata inputs are identity, not file-exclusion authority.
-TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	106	When a selection-axis unknown exists, `scope` MUST be `UNKNOWN`, fallback MUST b
-TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	110	The profile MUST be read-only and bounded by the shared source-walk and source-r
-TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	115	Qualification requires a fixture with Chromium plus Angular/React project varian
+TJAA-V0-013	docs/specs/typescript-javascript-affected-adapter-v0.md	112	A changed source, page object, fixture, scenario builder, or helper MUST select
+TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	119	Project grep/tag and metadata inputs are identity, not file-exclusion authority.
+TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	123	Per-file commands require a matching complete caller-owned discovery receipt.
+TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	130	The profile MUST be read-only and bounded by the shared source-walk and source-r
+TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	138	Qualification requires a fixture with Chromium plus Angular/React project varian
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as
@@ -1881,47 +1926,49 @@ WQO-V0-001	docs/specs/work-queue-observation-v0.md	258	Every V0 document and nes
 WQO-V0-002	docs/specs/work-queue-observation-v0.md	264	Every identity MUST use §4.3 exactly. Implementations MUST independently rederiv
 WQO-V0-003	docs/specs/work-queue-observation-v0.md	268	The only authority root is target-tree regular `100644` blob
 WQO-V0-004	docs/specs/work-queue-observation-v0.md	273	The adapter path MUST be a normalized repository-relative regular `100755` targe
-WQO-V0-005	docs/specs/work-queue-observation-v0.md	280	Repository source qualification follows VPO-V0-007..010: HEAD equals target comm
-WQO-V0-006	docs/specs/work-queue-observation-v0.md	307	Adapter receipts bind policy, adapter blob/mode, interpreter qualification,
-WQO-V0-007	docs/specs/work-queue-observation-v0.md	313	Adapter contract exposes only `snapshot`, `details`, and `verify`. It MUST NOT e
-WQO-V0-008	docs/specs/work-queue-observation-v0.md	319	A snapshot binds exactly one policy, repository authority, queue authority,
-WQO-V0-009	docs/specs/work-queue-observation-v0.md	324	Queue source identity uses §4.3. Policy, adapter profile/mapping, access context
-WQO-V0-010	docs/specs/work-queue-observation-v0.md	328	Stable ticket identity is authority-qualified `ticket:*`; mutable content uses
-WQO-V0-011	docs/specs/work-queue-observation-v0.md	331	Stable lease identity is `lease:*`; version ID binds the complete summary.
-WQO-V0-012	docs/specs/work-queue-observation-v0.md	335	Every dependency outcome, hold, approval, lease absence, route, capacity use, an
-WQO-V0-013	docs/specs/work-queue-observation-v0.md	356	`work observe` executes `snapshot`, `details`, then `verify`; validates every wi
-WQO-V0-014	docs/specs/work-queue-observation-v0.md	364	State precedence is exact: identity contradiction is `CONFLICTED`; else detected
-WQO-V0-015	docs/specs/work-queue-observation-v0.md	371	Unknown codes are exactly `ACCESS_INCOMPLETE`, `ADAPTER_INVALID`,
-WQO-V0-016	docs/specs/work-queue-observation-v0.md	381	Derived state is disposable. Cache keys bind policy, source, scope, and access
-WQO-V0-017	docs/specs/work-queue-observation-v0.md	386	Corvint MUST NOT write repository, index, worktree, queue, checkpoint, lease/coo
-WQO-V0-018	docs/specs/work-queue-observation-v0.md	409	`work propose-wave` consumes one `VALIDATED_AT` observation, exact snapshot, val
-WQO-V0-019	docs/specs/work-queue-observation-v0.md	415	A ticket is eligible only when lifecycle is `READY`, authority `COMPLETE`, selec
-WQO-V0-020	docs/specs/work-queue-observation-v0.md	425	Corvint walks the WQO-V0-044 selection order once. For each selected ticket it c
-WQO-V0-021	docs/specs/work-queue-observation-v0.md	432	Every `READY` ticket appears exactly once using the first applicable row and exa
-WQO-V0-022	docs/specs/work-queue-observation-v0.md	454	Capabilities are opaque repository-defined exact facts. Runtime, model, reasonin
-WQO-V0-023	docs/specs/work-queue-observation-v0.md	459	Non-READY lifecycle classes are never entries or selections. Continuation/adopti
-WQO-V0-024	docs/specs/work-queue-observation-v0.md	463	V0 supports exactly one repository authority. Every typed fact uses it. Any fore
-WQO-V0-025	docs/specs/work-queue-observation-v0.md	467	Immediately before return, Corvint reruns fixed `verify` and repository acquisit
-WQO-V0-026	docs/specs/work-queue-observation-v0.md	473	Queue IDs, titles, bodies, criteria, comments, route labels, holder names, reaso
-WQO-V0-027	docs/specs/work-queue-observation-v0.md	477	Corvint never executes, interpolates, templates, evaluates, or shells queue data
-WQO-V0-028	docs/specs/work-queue-observation-v0.md	483	Presentation may say only `VALIDATED_AT(checkpoint)`,
-WQO-V0-029	docs/specs/work-queue-observation-v0.md	610	Beamfall MUST add one supported atomic read-only adapter surface equivalent to
-WQO-V0-030	docs/specs/work-queue-observation-v0.md	618	Corvint MUST NOT call Beamfall mutation verbs or `fanout-plan --claim`. Adapter
-WQO-V0-031	docs/specs/work-queue-observation-v0.md	623	`PARTIAL`, `CONFLICTED`, `STALE`, or `UNKNOWN` always produces an empty proposal
-WQO-V0-032	docs/specs/work-queue-observation-v0.md	627	Timeout, cancellation, non-zero exit, malformed bytes, digest mismatch, overflow
-WQO-V0-033	docs/specs/work-queue-observation-v0.md	642	Corvint core makes no network request, model call, database, daemon, embedding,
-WQO-V0-034	docs/specs/work-queue-observation-v0.md	649	Independent Go conformance validates every schema, identity, decision row, bound
-WQO-V0-035	docs/specs/work-queue-observation-v0.md	669	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec
-WQO-V0-036	docs/specs/work-queue-observation-v0.md	672	Before counting, freeze an independent recorder profile/version, repository-orac
-WQO-V0-037	docs/specs/work-queue-observation-v0.md	678	Of 500 consecutive cycles, at least 100 contain active leases, 100 at least two
-WQO-V0-038	docs/specs/work-queue-observation-v0.md	684	Passing permits only owner-reviewed assisted read-only display. Where the frozen
-WQO-V0-039	docs/specs/work-queue-observation-v0.md	692	Rollback disables commands and deletes disposable state without canonical repair
-WQO-V0-040	docs/specs/work-queue-observation-v0.md	695	Any policy, adapter/profile, mapping, schema, lifecycle, route/capacity/collisio
-WQO-V0-041	docs/specs/work-queue-observation-v0.md	493	Each ticket's `touchPaths` declares the repository paths its work intends to cha
-WQO-V0-042	docs/specs/work-queue-observation-v0.md	499	Corvint expands each ticket's declared paths at `repositorySource.commit` into a
-WQO-V0-043	docs/specs/work-queue-observation-v0.md	514	Two READY tickets clash when their closures share one path. For every path share
-WQO-V0-044	docs/specs/work-queue-observation-v0.md	524	Selection maximizes the number of selected tickets. Let C be the READY tickets t
-WQO-V0-045	docs/specs/work-queue-observation-v0.md	536	The wave is analysis, never dispatch. Corvint reports which tickets can start to
-WQO-V0-046	docs/specs/work-queue-observation-v0.md	550	The store scope is complete exactly when the policy `mappingVersion` is
-WQO-V0-047	docs/specs/work-queue-observation-v0.md	562	`corvint work init --repository NAME` writes exactly three files for the
-WQO-V0-048	docs/specs/work-queue-observation-v0.md	577	`corvint work adapter snapshot|details|verify` is the
+WQO-V0-005	docs/specs/work-queue-observation-v0.md	282	Repository source qualification follows VPO-V0-007..010: HEAD equals target comm
+WQO-V0-006	docs/specs/work-queue-observation-v0.md	309	Adapter receipts bind policy, adapter blob/mode, interpreter qualification,
+WQO-V0-007	docs/specs/work-queue-observation-v0.md	315	Adapter contract exposes only `snapshot`, `details`, and `verify`. It MUST NOT e
+WQO-V0-008	docs/specs/work-queue-observation-v0.md	321	A snapshot binds exactly one policy, repository authority, queue authority,
+WQO-V0-009	docs/specs/work-queue-observation-v0.md	326	Queue source identity uses §4.3. Policy, adapter profile/mapping, access context
+WQO-V0-010	docs/specs/work-queue-observation-v0.md	330	Stable ticket identity is authority-qualified `ticket:*`; mutable content uses
+WQO-V0-011	docs/specs/work-queue-observation-v0.md	333	Stable lease identity is `lease:*`; version ID binds the complete summary.
+WQO-V0-012	docs/specs/work-queue-observation-v0.md	337	Every dependency outcome, hold, approval, lease absence, route, capacity use, an
+WQO-V0-013	docs/specs/work-queue-observation-v0.md	358	`work observe` executes `snapshot`, `details`, then `verify`; validates every wi
+WQO-V0-014	docs/specs/work-queue-observation-v0.md	366	State precedence is exact: identity contradiction is `CONFLICTED`; else detected
+WQO-V0-015	docs/specs/work-queue-observation-v0.md	373	Unknown codes are exactly `ACCESS_INCOMPLETE`, `ADAPTER_INVALID`,
+WQO-V0-016	docs/specs/work-queue-observation-v0.md	383	Derived state is disposable. Cache keys bind policy, source, scope, and access
+WQO-V0-017	docs/specs/work-queue-observation-v0.md	388	Corvint MUST NOT write repository, index, worktree, queue, checkpoint, lease/coo
+WQO-V0-018	docs/specs/work-queue-observation-v0.md	411	`work propose-wave` consumes one `VALIDATED_AT` observation, exact snapshot, val
+WQO-V0-019	docs/specs/work-queue-observation-v0.md	417	A ticket is eligible only when lifecycle is `READY`, authority `COMPLETE`, selec
+WQO-V0-020	docs/specs/work-queue-observation-v0.md	427	Corvint walks the WQO-V0-044 selection order once. For each selected ticket it c
+WQO-V0-021	docs/specs/work-queue-observation-v0.md	434	Every `READY` ticket appears exactly once using the first applicable row and exa
+WQO-V0-022	docs/specs/work-queue-observation-v0.md	456	Capabilities are opaque repository-defined exact facts. Runtime, model, reasonin
+WQO-V0-023	docs/specs/work-queue-observation-v0.md	461	Non-READY lifecycle classes are never entries or selections. Continuation/adopti
+WQO-V0-024	docs/specs/work-queue-observation-v0.md	465	V0 supports exactly one repository authority. Every typed fact uses it. Any fore
+WQO-V0-025	docs/specs/work-queue-observation-v0.md	469	Immediately before return, Corvint reruns fixed `verify` and repository acquisit
+WQO-V0-026	docs/specs/work-queue-observation-v0.md	475	Queue IDs, titles, bodies, criteria, comments, route labels, holder names, reaso
+WQO-V0-027	docs/specs/work-queue-observation-v0.md	479	Corvint never executes, interpolates, templates, evaluates, or shells queue data
+WQO-V0-028	docs/specs/work-queue-observation-v0.md	485	Presentation may say only `VALIDATED_AT(checkpoint)`,
+WQO-V0-029	docs/specs/work-queue-observation-v0.md	639	Beamfall MUST add one supported atomic read-only adapter surface equivalent to
+WQO-V0-030	docs/specs/work-queue-observation-v0.md	647	Corvint MUST NOT call Beamfall mutation verbs or `fanout-plan --claim`. Adapter
+WQO-V0-031	docs/specs/work-queue-observation-v0.md	652	`PARTIAL`, `CONFLICTED`, `STALE`, or `UNKNOWN` always produces an empty proposal
+WQO-V0-032	docs/specs/work-queue-observation-v0.md	656	Timeout, cancellation, non-zero exit, malformed bytes, digest mismatch, overflow
+WQO-V0-033	docs/specs/work-queue-observation-v0.md	671	Corvint core makes no network request, model call, database, daemon, embedding,
+WQO-V0-034	docs/specs/work-queue-observation-v0.md	678	Independent Go conformance validates every schema, identity, decision row, bound
+WQO-V0-035	docs/specs/work-queue-observation-v0.md	698	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec
+WQO-V0-036	docs/specs/work-queue-observation-v0.md	701	Before counting, freeze an independent recorder profile/version, repository-orac
+WQO-V0-037	docs/specs/work-queue-observation-v0.md	707	Of 500 consecutive cycles, at least 100 contain active leases, 100 at least two
+WQO-V0-038	docs/specs/work-queue-observation-v0.md	713	Passing permits only owner-reviewed assisted read-only display. Where the frozen
+WQO-V0-039	docs/specs/work-queue-observation-v0.md	721	Rollback disables commands and deletes disposable state without canonical repair
+WQO-V0-040	docs/specs/work-queue-observation-v0.md	724	Any policy, adapter/profile, mapping, schema, lifecycle, route/capacity/collisio
+WQO-V0-041	docs/specs/work-queue-observation-v0.md	495	Each ticket's `touchPaths` declares the repository paths its work intends to cha
+WQO-V0-042	docs/specs/work-queue-observation-v0.md	501	Corvint expands each ticket's declared paths at `repositorySource.commit` into a
+WQO-V0-043	docs/specs/work-queue-observation-v0.md	516	Two READY tickets clash when their closures share one path. For every path share
+WQO-V0-044	docs/specs/work-queue-observation-v0.md	526	Selection maximizes the number of selected tickets. Let C be the READY tickets t
+WQO-V0-045	docs/specs/work-queue-observation-v0.md	538	The wave is analysis, never dispatch. Corvint reports which tickets can start to
+WQO-V0-046	docs/specs/work-queue-observation-v0.md	552	The store scope is complete exactly when the policy `mappingVersion` is
+WQO-V0-047	docs/specs/work-queue-observation-v0.md	564	`corvint work init --repository NAME --corvint-executable ABSOLUTE_FILE`
+WQO-V0-048	docs/specs/work-queue-observation-v0.md	578	`corvint work adapter snapshot|details|verify` is the
+WQO-V0-049	docs/specs/work-queue-observation-v0.md	590	The initialization executable is one canonical absolute executable regular file
+WQO-V0-050	docs/specs/work-queue-observation-v0.md	610	`corvint work rebind --corvint-executable ABSOLUTE_FILE` is the only supported

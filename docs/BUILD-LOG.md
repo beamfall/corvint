@@ -7,6 +7,441 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-20 Integrated canonical-gate repair
+
+The first combined `make gate` rejected the candidate before publication. The work-queue OCM
+enumeration still stopped at WQO-V0-048 after WQO-V0-049..050 were added, and the Playwright
+minimizer claim exceeded the 160-character index limit while its README and generated index had
+diverged. Those conformance records now agree. Two context-index tests also exposed a repeatable
+macOS cleanup race: Apple Git auto-maintenance could recreate `.git/objects/info/packs` while Go
+removed a temporary repository. A second full-gate run exposed the same race in a different query
+fixture, proving the first fixture-local repair too narrow. The shared context-index Git fixture
+launchers now disable automatic GC and maintenance for every mutating test command. The failed
+full-gate receipts remain retained and invalidated; a new commit-bound canonical gate is required.
+
+## 2026-09-20 PSM-V0-004/008/009: original failure identity repair
+
+Independent final review found that consistent failures of a different class could be called
+reproductions of the original failure. Reproduction and candidate trials now require exact sorted
+distinct failure-class sets; missing or additional classes retain observations but invalidate the
+trial with `original-failure-signature-mismatch` and prevent confidence/minimality claims. Native
+planning rejects caller classes inconsistent with the qualified original target and binds rederived
+observations into the plan. The original receipt bytes/digest remain immutable; new-run evidence
+digests and summaries are retained, not compared for impossible byte equality. Class-set equality
+does not prove identical root cause. Isolation failures still stop minimization independently.
+Synthetic assertion-to-fixture/synchronization controls cover reproduction and both candidate
+kinds; multi-class controls cover missing/additional classes, ordering, duplicates and fresh evidence.
+Focused minimizer and companion tests pass; no additional live-world claim or release promotion.
+
+## 2026-09-20 Issues 42, 43, 47 and PUB-V0: integrated review repair
+
+Stability accepts fully qualified `/1` application attestations, including a distinct application
+repository, while preserving `/0` declaration semantics. Invalid attestation and contradictory
+application revision refuse. The Docker fixture now selects the accepted explicit system-Chrome
+tuple for Playwright 1.63. Its explicit qualification passed (23.829s) with installed modules at
+`/private/tmp/corvint-pw163.589jVO/node_modules`; no runtime package was downloaded.
+
+The separately built experimental minimizer now offers read-only planning and digest-approved
+execution, rederives actual corpus stability evidence, qualifies actual `/1` receipts, constructs
+provider selectors, compares observed schedule/topology, and retains complete native trial evidence.
+Reset/cleanup run pinned operator commands with bounded output and cancellation cleanup. A separate
+20ms PID/start observer terminates and verifies absence of observed escaped descendants; failures
+invalidate the trial. It explicitly does not prove universal containment or unobserved fast-detach
+absence. CRR-V0-003(c) and `RequireDescendantCleanup` continue to refuse before launch unchanged.
+Detached-child, PID-reuse, authorization, evidence-tampering, reset-failure and cancellation controls
+cover the new boundary. Real Docker/Playwright predecessor-failure then isolated-pass qualification
+passed (11.807s). The other classification fixtures remain synthetic, not six claimed live worlds.
+
+The owner selected `v0.5.0a1` for publication. Decision 0327 supersedes the pending version target
+without rewriting historical decisions or measurement evidence; active release tuple, notes,
+installation, editor admission and publication fixtures move together. Unsigned prerelease,
+publisher `NOT_VERIFIED`, four non-Windows core archives, separately qualified optional companion,
+and no-promotion semantics remain. Full integrated gate and publication remain coordinator-owned.
+
+## 2026-09-20 Issues 39–47: consolidated integration
+
+The completed issue branches are merged in dependency order: 39, 43, 41, 42 (including 40),
+46, 47, 45 and 44. The integration preserves each branch history and sealed CEM; inherited shared
+CEMs are removed so the coordinator can bind one combined change. Conflicts retain both independent
+build-log entries and provider tests, the newest stability requirements, and both Playwright
+consuming-path qualification and application-attestation contracts. The generated requirement index
+is rebuilt from the merged specifications. Compilation caught two synthetic receipt fixtures that
+still referenced the removed single-version constant; both explicitly retain their original 1.60.0
+version. Spec-index validation caught a README claim-prefix mismatch, repaired without dropping the
+issue-41 discovery status. The installed release smoke also supplies issue-45's explicit executable
+binding when initializing its work queue. Focused conflict checks and compilation precede the coordinator-owned
+combined review, frozen gate and separate release qualification; those remain required.
+
+## 2026-09-20 PWP-V1: externally managed application attestation
+
+Issue 43 adds `corvint-playwright-external/1` without changing `/0`. A generic bounded command
+provider receives one canonical expectation document on stdin and emits the same closed canonical
+application-attestation shape before and after Playwright. The receipt binds clean test-repository
+root/revision/tree; application root/revision/tree and dirty policy; image, Compose configuration,
+container/start generation and health; provider executable/config/output digests; runner, browser,
+argv and declared environment. The provider executable runs from a private content copy. Corvint
+owns only provider and Playwright process groups and has no application lifecycle verb.
+
+The local qualification used `@playwright/test@1.63.0`, its installed Chromium, and a disposable
+scratch-image Docker server built from the checked-in closed Compose JSON manifest. A healthy bound
+run projected passed; healthy wrong-revision and wrong-image inputs stopped before Playwright, and a
+fixture-harness restart changed container start generation and forced infrastructure. Generic command
+tests also cover unavailable, unhealthy, missing and contradictory attestations. Docker 29.5.2 was
+available; no Compose frontend was installed, so the qualification harness executed the manifest's
+closed build/run/health/port subset through project-scoped Docker commands and retained the exact
+manifest digest. Signal-aware cleanup removed the fixture container and image; no external app was
+started, stopped or changed.
+
+Independent review found that the first implementation sampled the test repository before the test,
+accepted attestation on the managed-server path, inherited ambient Git repository redirects, allowed
+mixed `/0` and `/1` fields, under-validated retained provider identities, and could consume Docker
+cleanup before provisioning completed. The repaired qualification changes an otherwise unbound
+tracked test-repository file during Playwright and cancels cleanup before provisioning; both remain
+non-passing and the latter leaves no container or image. Provider/config hash syntax and canonical
+configuration binding, profile shapes, external-only admission, post-run repository identity, and a
+Git environment without `GIT_*` redirects have focused regressions.
+
+The first frozen canonical gate exposed two fixture/metadata failures: the spec index repeated a
+longer, non-identical digest, and the real local-completion fixture omitted the existing
+`qualified-reporter.cjs` embed required by the issue-39 baseline. The digest is now one exact
+sub-160-character value across the spec, index and README; the import-closure fixture copies that
+embedded asset. Focused `internal/specindex` and real-evidence local-completion regressions cover
+both repairs before the gate is rerun on the replacement frozen commit.
+That replacement gate passed the full test suite, native/cross vet, archive and interop, then caught
+the stale generated `REQUIREMENTS.tsv` summaries for the revised PWP-V1-001 and PWP-V1-006 clauses;
+the registry was regenerated before the final frozen gate.
+
+## 2026-09-20 PWP-V0: Playwright 1.63.0 external-server qualification
+
+Issue 39 extends the accepted external-server profile's exact runner allowlist from Playwright
+1.60.0 to 1.60.0 and 1.63.0. The checked-in real-browser matrix passed locally on Darwin with
+macOS arm64, Node v22.23.2 and `@playwright/test@1.63.0` with system Google Chrome
+153.0.8010.48 at `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`; no channel override
+was used and the Playwright `chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell`
+executable was present. It preserved pass, assertion failure,
+test timeout, interruption, browser infrastructure failure, retry/attempt state, two-project
+identity, inherited `webServer` suppression, external-server survival, cancellation cleanup, and
+retained MCP discovery, setup dependencies, global use, project inheritance, two-worker execution
+and repeat-each identities. Executable option metadata and a custom `page` fixture both produced
+unknown identity/infrastructure and never a passing projection. Other Playwright versions remain
+unqualified; Playwright 1.63 on another Node/platform/browser path also remains diagnostic-only.
+The Linux amd64 installed/bundled-browser arm is `NOT_RUN`. A local `golf-e2e` checkout does not
+exist, so its deterministic consumer fixture and CI observation are `NOT_OBSERVED`. The externally
+managed application command for `http://127.0.0.1:3002` is recorded in
+the accepted profile; its config owns the bound system-Chrome executable path, and the provider
+neither starts nor stops that application.
+## 2026-09-20 AFP-V0-018 / TJAA-V0-012..017: issue 41 discovery amendment
+
+The owner authorized cancellation of the superseded TJAA-only enrollment and re-enrollment from
+the same original base `536e560e1fa35573e49df644dde4257a8bb7e050` with AFP and TJAA. Original
+enrollment, source commits and failed gate evidence remain archived; that gate failed in
+`TestLocalCompletionRealEvidenceWorkflow/LCP-V0-007_completion` with
+`dogfood-change REFUSE current-tree-corvint-build-failed` and is not passing evidence for this scope.
+
+The amended profile gates all file argv on canonical caller-owned discovery reconciliation and
+uses a single complete-config command when discovery is unproven. Project membership alone defines
+candidate tests; helpers remain dependency sources. A matched universe with unknown reachability
+widens to exactly its file/project pairs, eliminating the former helper-by-project Cartesian fallback.
+The input binds revision, config and current source bytes; missing evidence remains explicit.
+
+The assumed existing Playwright installation was unavailable. A temporary installation from the
+repository's pinned interactive-alpha lockfile supplied Playwright 1.63.0 without browsers.
+Its real unfiltered `--list --reporter=json` yielded exactly eight pairs: two spec files under
+Chromium/Angular/React plus setup and cleanup. Reconciliation matched all eight; a page-object edit
+selected five pairs and excluded the three unrelated spec variants, with no helper argv. Raw listing,
+input receipt and CLI outputs are retained under `/private/tmp/issue-41-list*` and
+`/private/tmp/issue-41-real-discovery.json`; no consumer-checkout or runtime-execution claim follows.
+Frozen synthetic 117-file qualification also requires an independent 353-pair receipt. Canonical
+repeatability, mismatch differences, stale bindings, malformed inputs, strict bounds and fallback
+regressions pass focused checks. The exact golf-e2e checkout remains `NOT_OBSERVED`.
+
+Corvint pre-change context and required dogfood preparation were used. Initial preparation retained
+missing citation/scope/outcome reasons; final reports and the parent-owned serialized gate remain
+required. Optional mutation/provider execution and runtime promotion are outside this static slice.
+
+Independent review found custom config names lacked test-to-config edges, allowing a transitive
+global-setup helper change to select nothing despite matched discovery. Repair explicitly binds
+every admitted physical test to the selected config; a custom `e2e.config.ts` regression requires
+the entire matched suite for its setup-helper change without making helpers executable units.
+
+## 2026-09-20 TJAA-V0-012..017: golf-shaped Playwright selection (issue 41)
+
+The owner-requested follow-up to issue 18 adds static global-use inheritance, nearest-tsconfig
+baseUrl/paths resolution and global setup/teardown dependency edges to the opt-in profile. The
+shared default adapter retains its previous alias frontier. Unsupported inheritance, loader-shaped
+resolution, ambiguous or missing targets, computed imports and config still widen; application state
+remains an execution unknown. No JavaScript/config is executed.
+
+The synthetic golf-shaped qualification proves 41 selected units out of 353 for one changed cohort,
+all 353 for global-setup helpers/config, distinct Chromium/Angular/React units, setup/cleanup closure,
+and identical canonical bytes for identical inputs. The actual golf-e2e checkout was unavailable:
+consumer configuration and consumer recall remain `NOT_OBSERVED`, with no runtime promotion claim.
+The original qualification fixture and all shared TypeScript tests remain required gate inputs.
+
+Corvint query and initial dogfood-change were used at base
+`536e560e1fa35573e49df644dde4257a8bb7e050`; the query retained four omitted results and the initial
+empty-change coordinator retained `NOT_PRODUCED` CEM/OCM/outcome reasons. A pre-first-query measurement
+receipt was `NOT_OBSERVED`; no token/cost savings are claimed. The enrolled gate and final CEM/OCM
+reports remain the authoritative completion evidence. Mutation, external providers and runtime
+qualification are not applicable to this bounded static observer change. Independent review is owned
+by the parent task, with no nested delegation.
+
+Independent review found equal-prefix alias ordering, multiple existing alias targets, and explicit
+browser inheritance across device spreads could differ from Playwright 1.63. Repair widens both
+alias ambiguities and preserves explicit browserName over a device defaultBrowserType. Conflict
+regressions cover both pattern orders, competing targets and inherited/same-layer browser defaults.
+Final review also confirmed explicit `use.defaultBrowserType` cannot be ignored: the closed subset
+now rejects that key with browser-identity uncertainty, covered at both global and project scope.
+
+## 2026-09-20 MER-V0-001..012: revision-bound migration evidence ratchet (issue 46)
+
+The experimental `migration-ratchet` profile compares digest-verified baseline and candidate
+snapshots across stable migration identities and emits raw denominators plus separate addition,
+removal, content, state, stale-evidence, reverse-link and unknown deltas. Repository policy prevents
+new legacy debt, uncontracted test additions or changes, terminal regression, stale review/runtime
+reuse and unresolved-denominator growth. Exact reviewed rules are required for otherwise
+incomparable domains; exact owner-reviewed expiring exceptions never erase their underlying deltas.
+
+The earliest synthetic baseline-to-candidate receipt advances one grandfathered unresolved identity
+without growing its denominator and is byte-identical across repeated compilation. Six issue-46
+negative controls and whole-input refusal controls pass in the focused package tests. The command
+exit contract passes its focused CLI tests. These synthetic fixtures do not establish provider
+honesty, contract adequacy, migration completeness or real consumer compatibility. The full shared
+gate is intentionally NOT_RUN pending coordinator release.
+
+The task-start query retained four omitted results and six withheld test-path candidates. The first
+pre-change coordinator attempt at base `6098291c9ed84c0de5c1a76afa3599d6a6faa352` correctly remained
+`not-complete` before any change existed. Dirty-diff `affected` selected only `cmd/corvint` and
+`internal/migrationratchet`, while retaining its language-frontier and unowned-document unknowns.
+The documentation-corpus, stability, mutation, provider and service execution routes were not
+applicable: this profile compares caller-supplied immutable artifacts and executes none of them.
+
+Independent review found five fail-closed defects in the first implementation: trailing scalar or
+malformed JSON was not required to reach EOF; an explicit identity mapping could reuse an implicitly
+paired candidate and omit another; one exception could waive every defect of the same class on an
+identity; contradictory selections were order-dependent; and record order/duplicate links were not
+canonical. The repair requires exact EOF, globally one-to-one candidate pairing, one canonical delta
+digest per exception, unique validated selections, sorted records and unique sorted links. Focused
+regressions exercise every repair. Re-review found two remaining holes: mapped evidence identities
+could skip renewal comparison, and stale/reverse-link delta fingerprints omitted the exact content
+bindings that distinguish two defects. The final repair derives baseline records through the
+one-to-one pair set and retains expected/actual content plus relation and reverse-relation bindings;
+focused regressions cover both findings.
+
+## 2026-09-20 PSM-V0-001..013: bounded Playwright suite-interaction planning (issue 47)
+
+The experimental `internal/playwrightminimize` package emits a deterministic digest-bound schedule
+that reproduces the original suite failure and rechecks isolation before separately enumerating
+ordered predecessor sequences and unordered load sets. Trial count, repetition and wall-clock limits
+stay explicit; partial searches cannot claim complete minimality. Execution exists only as an
+abstract synthetic qualification seam and refuses without separate operator approval bound to the
+exact plan. No Playwright, browser, server or application process ran for this slice.
+
+Every synthetic trial binds revision/config/runner/browser/project/order/topology/fixture/seed and
+application-instance identity, declares its reset policy, and carries setup, assertion, retry,
+cleanup, server-health, resource and failure evidence. Failed reset/cleanup, attestation change,
+identity drift, malformed/duplicate receipts, and missing evidence invalidate without erasing the
+observation. Reports retain all seven failure classes, separate ordered and load findings, label
+members necessary only in the observed universe, and never claim global minimality.
+
+Six synthetic qualifications cover a predecessor leak, load-only resource failure, restart,
+cleanup failure, nondeterminism and isolated product regression; controls cover authorization,
+`not_reproduced`, exact planning and bounded incompleteness. #39 runner qualification and #43
+application attestation are divergent development refs rather than integrated frozen dependencies at
+base `6098291`; missing #39/#42/#43 receipts therefore remain distinct confidence blockers. Live
+integration and the shared full gate are `NOT_RUN` pending their owning coordination.
+
+Independent review reproduced seven boundary defects: a late or partial reproduction could become
+conclusive; runners lacked the remaining wall-clock deadline; errored runners dropped returned
+receipts; singleton necessity crossed worker topologies; isolation infrastructure failures were
+called product regressions; opposite baselines could share one digest; and findings omitted passing
+receipts that supported minimality. The repair deadline-bounds and post-validates every call,
+requires complete repetition groups, preserves invalid errored receipts, gates necessity on exact
+topology, derives only an explicitly product-only isolation label, rejects duplicate baselines, and
+retains all comparison receipts. Focused regressions `TestPSMV0012` through `TestPSMV0016` cover the
+review cases; re-review is recorded separately by the task coordinator. Corvint `affected` selected
+only the new Go package while preserving the mandatory repository gate and documentation unknowns;
+the pre-commit `prove` expansion returned `unsupported-impact-path-suffix` because the new package
+was absent from its pinned repository revision, so no proof-of-impact claim is made.
+Re-review then found that cancellation during the final runner call could publish confidence and that
+mixed classifications returned before inspecting a later invalid repetition. The final repair reads
+the trial context before releasing its deadline, invalidates cancelled results, and validates every
+repetition before comparing classifications. `TestPSMV0017` and `TestPSMV0018` retain both cases.
+
+## 2026-09-20 DCP-V1-021..026: revision-bound Playwright stability evidence (issue 42)
+
+The experimental behavior-stability provider keeps issue-40 behavior coverage and repeated-run
+stability as separate artifact axes. A repository-owned digest-bound policy selects one-spec,
+feature-batch or suite thresholds; reports preserve planned/started/completed and every outcome,
+retry, cleanup and manual-rerun count plus all contributing receipt/attempt evidence. A failed first
+attempt remains both failed and flaky after a later pass. Missing iterations, duplicate receipts,
+silently consumed retries, cross-application revisions and contradictory identities refuse; failed
+cleanup is retained as a non-clean verdict. Corpus and MCP expose the exact aggregate without an
+adequacy, parity, freshness or narrowing claim.
+
+The earliest end-to-end aggregate and five requested negative controls pass on synthetic qualified
+receipts. The original task query preceded private measurement and remains `NOT_PRODUCED`; the later
+required DOGFOOD enrollment pins base `06eb443565979b313ecb63f7316f06677a908f65` and the owning
+documentation-corpus spec. Live repeated browser execution and consumer policy qualification are
+NOT_RUN, so the feature remains proposed/experimental.
+
+The focused `cmd/corvint` regression exposed that its minimal local-completion repository copied Go
+sources but omitted the qualified Playwright reporter embedded by the now-reachable provider import.
+The fixture now carries that production embed; the product binary and provider profile are unchanged.
+
+Independent review found that the first aggregate accepted carried identities without rebinding
+test/config bytes, could hide failed native runner cleanup behind a carried pass, established its
+identity baseline after an earlier manual run, ignored manual cleanup, and counted only final timeout,
+interruption and infrastructure states. The repair requires explicit source mappings and the exact
+behavior-test anchor, recomputes and verifies native projections, fixes the baseline to planned
+repetition one, applies cleanup to every contributor, and retains each earlier attempt category.
+Adversarial regressions cover each finding plus noncontiguous retry ordinals.
+Re-review found that an invalid receipt and a genuine infrastructure outcome shared the same native
+projection. The final repair verifies qualified lifecycle/identity binding independently of outcome
+classification; paired regressions accept a bound infrastructure outcome and refuse the same outcome
+when runner cleanup failed.
+The authorized final repair rejects state/failure-kind contradictions at both the qualified receipt
+binding and stability classification boundaries; a passed attempt carrying assertion-failure
+metadata and an artifact now refuses instead of contributing to a clean verdict.
+Late coordination integrated the amended, evidence-bound issue-40 contract at `e54ffcb`, including
+patch-equivalent copies of both shared local-completion fixture repairs. The earlier gate on `4a60483`
+is superseded and failed at the error-code ownership ratchet because the accepted Playwright provider
+had never enumerated its existing refusal vocabulary. The owning PWP-V0 spec now records those codes;
+no error behavior or wire value changed.
+Integration review found that receipt identity qualification did not derive the aggregate outcome
+from the ordered attempts. The stability consumer now applies the reporter's exact terminal-state
+rule, including requiring a prior non-passing attempt before `flaky`; contradictory terminal states
+refuse before policy counting.
+The later owner acceptance comment makes declared-versus-observed execution topology first-class.
+The source, focused-check and review evidence at `6098291` remains retained but is superseded for
+completion by this amendment. Repository policy and each observed run now bind separate canonical
+full-file topology inputs covering CI nodes/shards, Playwright workers per node, database mode,
+sorted project set, split algorithm/version and resource class; each observation also binds its
+receipt digest. Exact mismatch refuses before counting, with an explicit six-declared/four-observed
+negative witness plus deterministic per-dimension and source-binding controls. The comment reports
+that contradiction in the consuming repository, but no exact policy, CircleCI or run artifacts were
+provided, so the consumer-specific 6-vs-4 result remains `NOT_OBSERVED`. The amendment-start Corvint
+query selected an unrelated public-release spec and omitted four ranked results; repository-owned
+spec routing supplied the owning DCP contract instead.
+
+## 2026-09-20 DCP-V1-004/007..013/019: experimental behavior contract ingestion (issue 40)
+
+The optional behavior-provider profile joins bidirectional flow/criterion/test/project identities
+and a separate ordered runtime witness to pinned native Playwright observations. It preserves
+provider-reported review versus unreviewed joins, scoped denominators and full-suite fallback.
+Existing title-only joins were insufficient for identical titles in different projects; optional
+exact test/project selectors preserve the legacy profile while admitting an unambiguous join.
+
+Synthetic fixture paths model the proposed registry and schema-2 migration manifest. The consumer's
+actual fixture bytes were not supplied: compatibility and live runtime utility are NOT_OBSERVED.
+Pre-change query succeeded with three omitted results. Measurement before that first call was
+NOT_PRODUCED; the required coordinator retained its own receipts and reported no-change CEM/OCM
+and outcome NOT_PRODUCED. The local completion plan is enrolled against the immutable issue base.
+No browser, server or provider process was launched; live qualification is not claimed.
+Independent review found that demanding a passed run projection and current E2E freshness made
+recorded verification unreachable for native Playwright receipts. The repair uses the native per-test
+execution projection, rebinds test/configuration inputs, and preserves the exact unknown app-freshness
+axis. A full Build/Open regression imports a synthetic qualified receipt through native decoding and
+projection; no manually assigned CURRENT projection is used by that end-to-end test.
+The owner's subsequent issue-40 acceptance amendment strengthens assertion target/value identity,
+ordered browser-context/page/frame navigation, live discovery denominator reconciliation and the
+app/e2e/docs revision set. Synthetic negatives cover same matcher/wrong element or value, same route
+without assertion, wrong project, reordered/scoped visits and stale revision members. The consumer's
+463/117 inventory and local consumer fixtures remain NOT_OBSERVED; generated prose retains its label.
+Amendment review required rejecting digest-valid but noncurrent behavior anchors and checking every
+assertion, not only finding one qualifying assertion per criterion. End-to-end regressions retain
+validly pinned alternate-revision source and matching extra runtime events while rejecting their
+stale, unreviewed or undeclared joins.
+Final amendment review also required the reverse runtime-assertion check: a runtime event and
+matching expected order cannot invent an assertion absent from the validated test declaration.
+The retained-run regression covers that previously one-way join explicitly.
+The later legacy acceptance amendment adds an independently digested suite/file/case inventory,
+executable/disabled state, extracted observable criteria and fixture/role preconditions. Exact
+reviewed target-to-legacy relations and complete reverse criterion coverage distinguish target
+journey verification from retained legacy runtime parity. Same/stronger preserve the original
+observable tuple; new/obsolete/blocked remain non-parity. Synthetic Build/Open fixtures cover a
+consolidated test dropping one legacy branch and a same-named target changing success criteria.
+Unavailable or disabled legacy runtime remains unknown even with source/docs/product review.
+The supported runtime qualifier reuses retained native Playwright receipts, not a fabricated
+legacy runner adapter. Exact consumer legacy inputs and actual live legacy execution remain
+NOT_OBSERVED; unsupported legacy runners cannot establish runtime parity.
+Legacy amendment review found that a classified but ineligible mapping could hide a dropped branch
+from another target's parity result. Reverse parity coverage now counts only fully eligible targets;
+a multi-target regression preserves the first target's journey while rejecting migration parity
+when another target drops the original observable.
+## 2026-09-20 WQO-V0-049..050: explicit work-queue executable binding (issue 45)
+
+Decision 0326 binds repository adoption to one operator-selected canonical external Corvint file.
+The reviewed adapter records its absolute path, SHA-256, version/build output and Go module/VCS
+source identity. The observer rejects relative, missing, linked, unsafe-parent, writable,
+repository-controlled or drifted bindings before adapter execution. It privately materializes only
+the already-opened verified bytes and passes that path as trusted adapter argv, preserving the fixed
+VPO environment and avoiding ambient `PATH`. Darwin cannot make the VPO-V0-024 exact-object claim,
+so the receipt remains honestly `UNQUALIFIED`; the binding is drift protection, not attestation.
+`work rebind` changes only the generated adapter for explicit review and commit.
+
+The smallest `~/.local/bin` init/observe/propose path passed before the wider matrix. Focused
+`TestWork*` passed, including `~/.local/bin`, `/opt/homebrew/bin`, `/usr/local/bin`, changed binary,
+reviewed rebind, symlink swap, repository-local, unsafe-parent, relative and missing executable
+fixtures. The focused help/parser checks and `internal/companionrelease` package passed; its first
+sandboxed run could not bind an `httptest` listener and the authorized unsandboxed rerun passed.
+The canonical gate is deliberately enrolled but NOT_RUN pending the parent queue's explicit slot
+release; these focused results do not substitute for it.
+
+Actual self-development routes: original query selected the accepted WQO spec with four ranked
+results and test-symbol candidates omitted; the clean pre-change impact was OUT_OF_SCOPE with zero
+changed paths; start-time dogfood-change retained empty-range CEM/missing-scope outcomes as
+NOT_PRODUCED; immutable local completion enrollment froze the WQO intent and focused/spec/full-gate
+checks; dirty `affected` selected four Go packages while retaining unowned documentation paths and
+language-frontier unknowns. Mutation, corpus, external-provider, service and learning routes are not
+applicable. No paired baseline exists and no savings claim is made.
+
+Independent security review found and the first repair cycle closed three issues: companion
+`-buildvcs=false` binaries now retain an explicit no-VCS module/toolchain identity; rebind pins and
+rechecks the opened `.corvint` directory plus exact adapter bytes before replacement; and bound
+executable drift during an operation now maps to `SOURCE_UNQUALIFIED` rather than `ADAPTER_FAILED`.
+## 2026-09-20 PUB-V0-022..026: closed qualified release candidate (issue 44, Corvint half)
+
+The Corvint release path now closes the existing seven-file core archive-gate output and the
+three-file companion retained output into one versioned candidate. The candidate verifier binds
+the exact Corvint commit/tree/toolchain across both inputs, retains both source archives and gate
+receipts, requires the installed `Corvint <version> (build N)` identity, and records explicit
+platform/workflow `PASS` or `NOT_RUN` rows. The companion `/2` installed smoke now exercises
+affected selection, external Playwright receipt discovery, documentation-corpus discovery and
+repository work-queue observation through the extracted `corvint` binary. Legacy companion
+profiles keep their historical smoke inventory.
+
+The versioned installer reverifies the closed candidate, retains the host core archive at a unique
+version/platform path, refuses replacement and never writes a current/latest selector. Focused
+native and Linux cross-build checks pass. Independent review found that the first implementation
+bound only compressed core archive bytes, reread companion inputs without verifying the completed
+staging tree, used a fixed removable version-probe path, and omitted three release-note disclosures.
+The repair decodes the exact six-member core archives, binds binary/checksum/build identities and
+executes the host core version, verifies completed staging before no-replace promotion, uses only a
+unique owned probe, refuses scratch/output overlap, and names local-Git trust, unmeasured performance
+and unavailable hosted CI. Re-review then found that the host probe polluted the exact three-file
+companion verification directory and lacked caller cancellation. The final repair isolates both
+directories, propagates caller cancellation with a bounded probe, and adds a closed-candidate
+regression that executes the host identity check and proves the companion verifier receives exactly
+three files. The pre-change core archive gate passed. The pre-change
+companion gate reached the separately owned Corvint Tasks checkout and failed before retention at
+`corvint-tasks init`; therefore no combined candidate was produced and Linux installed workflows
+remain `NOT_RUN`. A retained-scratch reproduction identified the refusal as
+`INTENT_BRANCH_MISMATCH`: the closed Git environment initialized the smoke repository on `master`
+while the companion-owned intent fixture requires `main`. The repair pins the fixture branch and
+retains structured command stdout in failed smoke evidence so a typed refusal cannot be hidden by
+an empty stderr stream. The repaired companion gate passed at Corvint `68c9bbc` against exact
+Corvint Tasks commit `f6ec200337160545b5e120a7242a8e862ecbcff0` and tree
+`7573360392d58000f30dc0f82e6716cba09d81d1`; its retained archive SHA-256 is
+`9dac067f16da86b8dc8bcb97414c96472d2fe613947d8acdca95cfb2024ad2cd`. All native installed
+smoke rows passed and the four non-native targets remain explicitly `NOT_RUN`. The canonical full
+suite was run twice on the unchanged repair commit; both runs passed the changed companion and
+release-candidate packages but `internal/liveverify/session` exceeded its fixed 20-second event
+wait under full-suite load. The same package passed immediately in isolation (35.8 seconds total),
+as did the initially load-affected `internal/procgroup`; full vet and the CEM interop test/vet gate
+passed. No unrelated timing-test source was changed. Publication, tagging, pushing, signing, upload
+and promotion were not attempted.
+
 ## 2026-09-20 EEP-MCP / EEP-REMOTE: complete issue 11 transport profiles
 
 Owner approval accepts decisions 0324/0325: bounded local MCP stdio and a separately built opt-in

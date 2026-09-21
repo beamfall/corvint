@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -302,6 +303,9 @@ func TestWorkRunnerTerminalCommandMapping(t *testing.T) {
 		}
 		if runner.commandError(context.Canceled) != "CANCELLED" {
 			t.Fatal("caller cancellation mapping")
+		}
+		if runner.commandError(fmt.Errorf("%w: changed", errWorkBoundExecutableUnqualified)) != "SOURCE_UNQUALIFIED" {
+			t.Fatal("bound executable drift mapping")
 		}
 	})
 }

@@ -101,6 +101,10 @@ type packageScope struct {
 // Units observes every owned module and every supported test runner that can
 // be identified without executing repository code.
 func (language Language) Units(root string) (affected.Result, error) {
+	return language.units(root, false)
+}
+
+func (language Language) units(root string, resolveAliases bool) (affected.Result, error) {
 	files, err := affected.SourceFiles(root, observedName)
 	if err != nil {
 		return affected.Result{}, err
@@ -146,7 +150,7 @@ func (language Language) Units(root string) (affected.Result, error) {
 		if manifestRunner := runtimeManifestRunner(relative); manifestRunner != "" {
 			scopes = append(scopes, packageScope{directory: path.Dir(relative), runners: map[string]bool{manifestRunner: true}, configured: map[string]bool{manifestRunner: true}})
 		}
-		if hasPathAliases(relative, text) {
+		if hasPathAliases(relative, text) && !resolveAliases {
 			frontier[FrontierPathAlias] = true
 		}
 		if language.Owns(relative) {
@@ -155,6 +159,10 @@ func (language Language) Units(root string) (affected.Result, error) {
 	}
 	sort.Slice(configs, func(left, right int) bool { return configs[left].path < configs[right].path })
 	sort.Slice(scopes, func(left, right int) bool { return scopes[left].directory < scopes[right].directory })
+	var aliases []typeScriptAliases
+	if resolveAliases {
+		aliases = readTypeScriptAliases(bodies, frontier)
+	}
 
 	observations := make([]observation, 0, len(owned))
 	for _, relative := range owned {
@@ -169,11 +177,15 @@ func (language Language) Units(root string) (affected.Result, error) {
 		if dynamic {
 			frontier[FrontierDynamicImport] = true
 		}
-		if hasUnresolvedBareImport(relative, refs, scopes) {
+		resolved := refs
+		if resolveAliases {
+			resolved = resolveTypeScriptAliases(relative, refs, aliases, bodies, frontier)
+		}
+		if hasUnresolvedBareImport(relative, resolved, scopes) {
 			frontier[FrontierPathAlias] = true
 		}
 		observation := classify(relative, body, refs, configs, scopes, frontier)
-		observation.refs = refs
+		observation.refs = resolved
 		observations = append(observations, observation)
 	}
 	return buildResult(observations, configs, frontier), nil

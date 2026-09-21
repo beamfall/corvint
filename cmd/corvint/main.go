@@ -27,7 +27,7 @@ import (
 	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
-const version = "0.4.0a4"
+const version = "0.5.0a1"
 const maximumImpactLimit = 50
 const defaultHarnessBudgetBytes = 8_000
 
@@ -724,7 +724,7 @@ var (
 		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
 		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
 		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review"}
+		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet"}
 )
 
 func knownHost(value string) bool {
@@ -794,6 +794,13 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		return runProtectedEvent(ctx, arguments, stdin, stdout, stderr)
 	}
 	if _, requested, _ := parseHelpInvocation(arguments); !requested {
+		if profile, isRatchet, ratchetErr := parseMigrationRatchetInvocation(arguments); isRatchet {
+			if ratchetErr != nil {
+				emitError(stderr, ratchetErr)
+				return 2
+			}
+			return runMigrationRatchet(ctx, profile, stdout, stderr)
+		}
 		if len(arguments) >= 2 && arguments[0] == "adapter" {
 			return runHostAdapter(ctx, arguments[1:], stdin, stdout)
 		}

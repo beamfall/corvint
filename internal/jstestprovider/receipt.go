@@ -7,7 +7,10 @@
 // observed, never a "valid" verdict.
 package jstestprovider
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/Beamfall/corvint/internal/procgroup"
+)
 
 // ExecutionState is the per-test outcome vocabulary this provider maps every
 // reporter's own status field onto. It intentionally does not reuse
@@ -106,17 +109,40 @@ type AppBuildIdentity struct {
 // failure. It carries no boolean "valid" summary; ToInput below projects it
 // through the shared testvalidity axes instead.
 type Receipt struct {
-	Profile               string                 `json:"profile,omitempty"`
-	External              *ExternalLifecycle     `json:"external,omitempty"`
-	Kind                  string                 `json:"kind"` // "unit" | "e2e"
-	Identity              Identity               `json:"identity"`
-	AppBuildAtStart       AppBuildIdentity       `json:"appBuildAtStart"`
-	AppBuildAtPublish     AppBuildIdentity       `json:"appBuildAtPublish"`
-	StaleAppBuild         bool                   `json:"staleAppBuild"`
-	Tests                 []TestOutcome          `json:"tests"`
-	Infrastructure        *InfrastructureFailure `json:"infrastructure,omitempty"`
-	Cancelled             bool                   `json:"cancelled"`
-	ServerDescendantsGone *bool                  `json:"serverDescendantsGone,omitempty"`
+	DescendantObservation   *procgroup.DescendantObservation `json:"descendantObservation,omitempty"`
+	RunnerResources         *procgroup.ResourceUsage         `json:"runnerResources,omitempty"`
+	Schedule                *ExecutionSchedule               `json:"schedule,omitempty"`
+	Profile                 string                           `json:"profile,omitempty"`
+	External                *ExternalLifecycle               `json:"external,omitempty"`
+	ApplicationAttestation  *ApplicationAttestationReceipt   `json:"applicationAttestation,omitempty"`
+	TestRepositoryAtStart   *ApplicationRepositoryIdentity   `json:"testRepositoryAtStart,omitempty"`
+	TestRepositoryAtPublish *ApplicationRepositoryIdentity   `json:"testRepositoryAtPublish,omitempty"`
+	Kind                    string                           `json:"kind"` // "unit" | "e2e"
+	Identity                Identity                         `json:"identity"`
+	AppBuildAtStart         AppBuildIdentity                 `json:"appBuildAtStart"`
+	AppBuildAtPublish       AppBuildIdentity                 `json:"appBuildAtPublish"`
+	StaleAppBuild           bool                             `json:"staleAppBuild"`
+	Tests                   []TestOutcome                    `json:"tests"`
+	Infrastructure          *InfrastructureFailure           `json:"infrastructure,omitempty"`
+	Cancelled               bool                             `json:"cancelled"`
+	ServerDescendantsGone   *bool                            `json:"serverDescendantsGone,omitempty"`
+}
+
+// ExecutionSchedule records reporter-observed starts, not the requested order.
+type ExecutionSchedule struct {
+	Workers int              `json:"workers"`
+	Starts  []ExecutionStart `json:"starts"`
+}
+
+type ExecutionStart struct {
+	FullName      string `json:"fullName"`
+	File          string `json:"file"`
+	Line          int    `json:"line"`
+	Project       string `json:"project"`
+	Retry         int    `json:"retry"`
+	Retries       int    `json:"retries"`
+	Worker        int    `json:"worker"`
+	FullyParallel bool   `json:"fullyParallel"`
 }
 
 // ProjectIdentity binds the resolved runtime configuration, not a device label
@@ -146,4 +172,75 @@ type ExternalLifecycle struct {
 	RunnerDescendantsGone bool   `json:"runnerDescendantsGone"`
 	InputsUnchanged       bool   `json:"inputsUnchanged"`
 	ConfigOverride        string `json:"configOverride"`
+}
+
+type ApplicationAttestationReceipt struct {
+	Provider    ApplicationAttestationProviderIdentity `json:"provider"`
+	Expectation ApplicationAttestationExpectation      `json:"expectation"`
+	Before      *ApplicationAttestationObservation     `json:"before,omitempty"`
+	After       *ApplicationAttestationObservation     `json:"after,omitempty"`
+	Failures    []string                               `json:"failures"`
+}
+
+type ApplicationAttestationProviderIdentity struct {
+	Profile          string            `json:"profile"`
+	Argv             []string          `json:"argv"`
+	ExecutablePath   string            `json:"executablePath"`
+	ExecutableDigest string            `json:"executableDigest"`
+	ConfigPath       string            `json:"configPath"`
+	ConfigDigest     string            `json:"configDigest"`
+	Environment      map[string]string `json:"environment"`
+}
+
+type ApplicationAttestationExpectation struct {
+	Repository    ApplicationRepositoryExpectation `json:"repository"`
+	Build         ApplicationArtifactIdentity      `json:"build"`
+	Configuration ApplicationArtifactIdentity      `json:"configuration"`
+	InstanceKind  string                           `json:"instanceKind"`
+}
+
+type ApplicationRepositoryExpectation struct {
+	RootCommit  string `json:"rootCommit"`
+	Revision    string `json:"revision"`
+	Tree        string `json:"tree"`
+	DirtyPolicy string `json:"dirtyPolicy"`
+	DirtyDigest string `json:"dirtyDigest,omitempty"`
+}
+
+type ApplicationAttestationObservation struct {
+	OutputDigest string                 `json:"outputDigest"`
+	Attestation  ApplicationAttestation `json:"attestation"`
+}
+
+type ApplicationAttestation struct {
+	Profile       string                        `json:"profile"`
+	Repository    ApplicationRepositoryIdentity `json:"repository"`
+	Build         ApplicationArtifactIdentity   `json:"build"`
+	Configuration ApplicationArtifactIdentity   `json:"configuration"`
+	Instance      ApplicationInstanceIdentity   `json:"instance"`
+	Health        ApplicationHealth             `json:"health"`
+}
+
+type ApplicationRepositoryIdentity struct {
+	RootCommit  string `json:"rootCommit"`
+	Revision    string `json:"revision"`
+	Tree        string `json:"tree"`
+	DirtyState  string `json:"dirtyState"`
+	DirtyDigest string `json:"dirtyDigest,omitempty"`
+}
+
+type ApplicationArtifactIdentity struct {
+	Kind   string `json:"kind"`
+	Digest string `json:"digest"`
+}
+
+type ApplicationInstanceIdentity struct {
+	Kind            string `json:"kind"`
+	ID              string `json:"id"`
+	StartGeneration string `json:"startGeneration"`
+}
+
+type ApplicationHealth struct {
+	State  string `json:"state"`
+	Detail string `json:"detail,omitempty"`
 }

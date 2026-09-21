@@ -153,6 +153,8 @@ func helpText(topic string) string {
 		return recordHelp
 	case "migrate-traces":
 		return migrateTracesHelp
+	case "migration-ratchet":
+		return migrationRatchetHelp
 	case "observations":
 		return observationsHelp
 	case "features", "overview", "review":
@@ -232,6 +234,7 @@ Usage:
   corvint [--root PATH] record --task TASK [--opened PATH] --changed PATH
     --verify COMMAND --outcome (passed | failed | blocked)
   corvint [--root PATH] migrate-traces (--dry-run | --apply) [--plan-digest SHA256]
+  corvint migration-ratchet --profile FILE
   corvint [--root PATH] observations [--limit N]
   corvint [--root PATH] index [--if-stale]
   corvint [--root PATH] features | overview
@@ -242,7 +245,8 @@ Usage:
   corvint [--root PATH] batch < REQUEST
   corvint [--root PATH] work observe
   corvint [--root PATH] work propose-wave --envelope PATH --limit N
-  corvint [--root PATH] work init --repository NAME
+  corvint [--root PATH] work init --repository NAME --corvint-executable ABSOLUTE_FILE
+  corvint [--root PATH] work rebind --corvint-executable ABSOLUTE_FILE
   corvint [--root PATH] work adapter snapshot|details|verify
   corvint [--root PATH] prove --task TEXT [--limit N] [--budget-bytes N]
   corvint [--root PATH] prove [--limit N] [--mutate] PATH...
@@ -256,7 +260,7 @@ Usage:
   corvint [--root PATH] witness --base REV [--head REV] [--cem MAP] [--json]
   corvint test-validity [--receipt FILE]
   corvint [--root PATH] COMMAND --help
-  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity]
+  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|migration-ratchet|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity]
   corvint help harness [event]
   corvint --version
 
@@ -280,6 +284,7 @@ Commands:
   frontier       Compile the deterministic Change Frontier V0 review queue.
   record         Record one explicit local task outcome.
   migrate-traces Plan or apply legacy tree-trace migration.
+  migration-ratchet Compare immutable migration-evidence snapshots.
   observations   Read the local self-observation digest; never writes.
   features       Discover experimental inferred feature candidates.
   overview       Compose experimental immutable repository guidance.
@@ -407,7 +412,8 @@ const workHelp = `Validate a repository queue observation or compile a non-opera
 Usage:
   corvint [--root PATH] work observe
   corvint [--root PATH] work propose-wave --envelope PATH --limit N
-  corvint [--root PATH] work init --repository NAME
+  corvint [--root PATH] work init --repository NAME --corvint-executable ABSOLUTE_FILE
+  corvint [--root PATH] work rebind --corvint-executable ABSOLUTE_FILE
   corvint [--root PATH] work adapter snapshot|details|verify
 
 observe and propose-wave print one work-command-result/0 document on stdout.
@@ -416,8 +422,11 @@ nothing. Malformed command input yields state ERROR with MALFORMED_INPUT.
 
 init writes .corvint/work-queue-policy.json, .corvint/worklist.json and the
 executable .corvint/work-queue-adapter for the operator to review and commit; it
-refuses when any of them exists. adapter is what that committed script runs: it
-prints one adapter document for the worklist in the qualified committed source.
+refuses when any exists or the explicit Corvint executable is not a safe canonical
+external file. rebind updates only that adapter after path, SHA-256, version/build
+and source identity change; review and commit it. Observation verifies the binding
+and uses no ambient PATH search. adapter prints one document for the qualified
+committed worklist.
 `
 
 const proveObserveHelp = `Record one prove document's verdict counts in the local self-observation ledger.
@@ -498,6 +507,15 @@ dry-run digest, publishes canonical commit traces and byte-preserved quarantine
 copies, then removes verified legacy candidates. The command is local-only.
 `
 
+const migrationRatchetHelp = `Compare two immutable migration-evidence snapshots.
+
+Usage:
+  corvint migration-ratchet --profile FILE
+
+The command writes a deterministic corvint-migration-evidence-ratchet-receipt/1 JSON receipt.
+Exit 0 is pass, exit 1 is fail or unknown, and exit 2 is refused input.
+`
+
 const observationsHelp = `Read the bounded local self-observation digest.
 
 Usage:
@@ -540,7 +558,7 @@ Usage:
   corvint [--root PATH] affected
   corvint [--root PATH] affected --base FULL_COMMIT_ID
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
-          --playwright-config PATH
+          --playwright-config PATH [--playwright-discovery FILE]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
           [--provider RECORD ...] [--repository ID=DIR ...]
           [--selection-profile strict|coverage]
@@ -580,8 +598,11 @@ repository id to a local checkout, as for impact.
 --playwright-config selects the separate playwright-affected/0 profile. It
 statically expands reached Playwright test files into project-distinct units,
 binds project/config/browser/device inputs, and widens to the full relevant
-suite on unsupported dynamic config or source reachability. It executes no
-config or test and cannot be combined with --provider.
+suite on unsupported dynamic config or source reachability. --playwright-discovery
+reads a bounded canonical playwright-discovery/0 receipt binding HEAD, config and
+source bytes to the complete unfiltered project/file listing. Missing or mismatched
+discovery emits no file commands and one complete-config fallbackArgv. It executes
+no config or test and cannot be combined with --provider.
 `
 
 const proveHelp = `Compile the falsifiable context packet for a task, a change, or a CEM map.

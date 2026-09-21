@@ -31,7 +31,7 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"playwright.config.cjs", "external.spec.cjs", "override.spec.cjs", "dynamic.spec.cjs", "setup.cjs", "teardown.cjs"} {
+	for _, name := range []string{"playwright.config.cjs", "external.spec.cjs", "override.spec.cjs", "dynamic.spec.cjs", "custom.spec.cjs", "retry.spec.cjs", "interruption.spec.cjs", "setup.cjs", "setup-dependency.cjs", "teardown.cjs"} {
 		data, err := os.ReadFile(filepath.Join("testdata", "external", name))
 		if err != nil {
 			t.Fatal(err)
@@ -55,16 +55,67 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	}
 	ready := make(chan struct{})
 	var once sync.Once
+	interruptReady := make(chan struct{})
+	var interruptOnce sync.Once
+	interruptWaiting := make(chan struct{})
+	var interruptWaitingOnce sync.Once
+	interruptHandlerDone := make(chan struct{})
+	var interruptHandlerDoneOnce sync.Once
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/cancel-ready" {
 			once.Do(func() { close(ready) })
 		}
+		if r.URL.Path == "/interrupt-ready" {
+			interruptOnce.Do(func() { close(interruptReady) })
+		}
+		if r.URL.Path == "/interrupt-wait" {
+			defer interruptHandlerDoneOnce.Do(func() { close(interruptHandlerDone) })
+			interruptWaitingOnce.Do(func() { close(interruptWaiting) })
+			select {
+			case <-interruptReady:
+			case <-r.Context().Done():
+				return
+			}
+		}
 		_, _ = w.Write([]byte("external fixture"))
 	}))
 	defer server.Close()
+	t.Run("interruption-wait-releases-on-request-cancel", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/interrupt-wait", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		done := make(chan struct{})
+		go func() {
+			resp, _ := http.DefaultClient.Do(req)
+			if resp != nil {
+				resp.Body.Close()
+			}
+			close(done)
+		}()
+		select {
+		case <-interruptWaiting:
+		case <-time.After(time.Second):
+			t.Fatal("interruption wait handler did not start")
+		}
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("cancelled interruption wait did not release")
+		}
+		select {
+		case <-interruptHandlerDone:
+		case <-time.After(time.Second):
+			t.Fatal("cancelled interruption handler did not complete")
+		}
+	})
 	t.Setenv("CORVINT_FIXTURE_URL", server.URL)
 	t.Setenv("CORVINT_FIXTURE_MARKER", filepath.Join(root, "lifecycle"))
-	cfg := jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), TestFiles: []string{filepath.Join(root, "external.spec.cjs"), filepath.Join(root, "override.spec.cjs")}, RunnerName: "playwright", RunnerVersion: pkg.Version, DeclaredEnvKeys: []string{"CORVINT_FIXTURE_URL", "CORVINT_FIXTURE_MARKER"}, Timeout: 45 * time.Second}, ExternalServer: true, AppIdentity: "fixture-v1", ServerReadyURL: server.URL, TestArgv: []string{"external.spec.cjs", "--project=chromium", "--project=react", "--grep-invert=cancellation"}}
+	t.Setenv("CORVINT_FIXTURE_BROWSER_PATH", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+	cfg := jstestprovider.E2EConfig{Config: jstestprovider.Config{Dir: root, ConfigFile: filepath.Join(root, "playwright.config.cjs"), TestFiles: []string{filepath.Join(root, "external.spec.cjs"), filepath.Join(root, "override.spec.cjs")}, RunnerName: "playwright", RunnerVersion: pkg.Version, DeclaredEnvKeys: []string{"CORVINT_FIXTURE_URL", "CORVINT_FIXTURE_MARKER", "CORVINT_FIXTURE_BROWSER_PATH"}, Timeout: 45 * time.Second}, ExternalServer: true, AppIdentity: "fixture-v1", ServerReadyURL: server.URL, TestArgv: []string{"external.spec.cjs", "--project=chromium", "--project=react", "--grep-invert=cancellation"}}
 	r, err := jstestprovider.RunE2E(context.Background(), cfg)
 	if err != nil || r.Infrastructure != nil {
 		t.Fatalf("run error %v; infrastructure %+v", err, r.Infrastructure)
@@ -80,6 +131,15 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 			if test.ID == "" || ids[test.ID] || test.Project == nil || test.Project.ConfigDigest == "" {
 				t.Fatalf("unattributable test %+v", test)
 			}
+			var use struct {
+				Locale        string `json:"locale"`
+				LaunchOptions struct {
+					ExecutablePath string `json:"executablePath"`
+				} `json:"launchOptions"`
+			}
+			if json.Unmarshal(test.Project.Use, &use) != nil || use.Locale != "en-CA" || use.LaunchOptions.ExecutablePath != "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" {
+				t.Fatalf("global use/project inheritance lost %+v", test.Project)
+			}
 			ids[test.ID] = true
 		}
 	})
@@ -92,12 +152,12 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	})
 	t.Run("PWP-V0-001 external-server-survives", func(t *testing.T) { assertExternalSurvived(t, r, server.URL) })
 	t.Run("PWP-V0-002 original-config-inputs-and-hooks", func(t *testing.T) {
-		for _, suffix := range []string{".setup", ".teardown"} {
+		for _, suffix := range []string{".setup", ".setup-dependency", ".teardown"} {
 			if _, err := os.Stat(filepath.Join(root, "lifecycle") + suffix); err != nil {
 				t.Fatal(err)
 			}
 		}
-		if r.Identity.ConfigInputDigests[cfg.ConfigFile] != r.Identity.ConfigDigest || r.External.ConfigOverride == "" {
+		if r.Identity.ConfigInputDigests[cfg.ConfigFile] != r.Identity.ConfigDigest || r.Identity.ConfigInputDigests[filepath.Join(root, "setup-dependency.cjs")] == "" || r.External.ConfigOverride == "" {
 			t.Fatal("configuration inputs missing")
 		}
 	})
@@ -141,31 +201,22 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	})
 	cfg.TestArgv = []string{"external.spec.cjs", "--project=broken-browser", "--grep=passing page"}
 	infra, err := jstestprovider.RunE2E(context.Background(), cfg)
-	if err != nil || len(infra.Tests) != 1 || infra.Tests[0].State != jstestprovider.StateInfrastructure {
+	if err != nil || infra.Infrastructure == nil {
 		t.Fatalf("browser infrastructure: %v %+v", err, infra)
 	}
 	assertExternalSurvived(t, infra, server.URL)
 	t.Run("PWP-V0-007 live-browser-matrix", func(t *testing.T) {
-		if len(r.Tests) != 6 || len(infra.Tests) != 1 || infra.Tests[0].State != jstestprovider.StateInfrastructure {
+		if len(r.Tests) != 6 || infra.Infrastructure == nil {
 			t.Fatal("live matrix incomplete")
 		}
 	})
 	cfg.TestArgv = []string{"override.spec.cjs", "--project=chromium"}
 	override, err := jstestprovider.RunE2E(context.Background(), cfg)
-	if err != nil || override.Infrastructure != nil || len(override.Tests) != 1 {
+	if err != nil || len(override.Tests) != 1 {
 		t.Fatalf("override run: %v %+v", err, override.Infrastructure)
 	}
-	var effective struct {
-		Viewport struct {
-			Width  int `json:"width"`
-			Height int `json:"height"`
-		} `json:"viewport"`
-	}
-	if err = json.Unmarshal(override.Tests[0].Project.Use, &effective); err != nil {
-		t.Fatal(err)
-	}
-	if override.Tests[0].Project.Browser != "firefox" || effective.Viewport.Width != 321 || effective.Viewport.Height != 456 || jstestprovider.ReceiptTestProjection(override, override.Tests[0]).Execution.State != testvalidity.ExecutionPassed {
-		t.Fatalf("wrong effective per-test use %+v", override.Tests[0])
+	if override.Infrastructure == nil || len(override.Tests) != 1 || jstestprovider.ReceiptTestProjection(override, override.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+		t.Fatalf("unqualified Firefox override projected green: %v %+v", err, override)
 	}
 	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "dynamic.spec.cjs"))
 	cfg.TestArgv = []string{"dynamic.spec.cjs", "--project=chromium"}
@@ -173,6 +224,43 @@ func TestQualifiedPlaywrightLive(t *testing.T) {
 	if err != nil || dynamic.Infrastructure == nil || len(dynamic.Tests) != 1 || jstestprovider.ReceiptTestProjection(dynamic, dynamic.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
 		t.Fatalf("executable override became green: %v %+v", err, dynamic.Infrastructure)
 	}
+	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "custom.spec.cjs"))
+	cfg.TestArgv = []string{"custom.spec.cjs", "--project=chromium"}
+	custom, err := jstestprovider.RunE2E(context.Background(), cfg)
+	if err != nil || custom.Infrastructure == nil || len(custom.Tests) != 1 || jstestprovider.ReceiptTestProjection(custom, custom.Tests[0]).Execution.State == testvalidity.ExecutionPassed {
+		t.Fatalf("custom fixture metadata became green: %v %+v", err, custom.Infrastructure)
+	}
+	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "retry.spec.cjs"))
+	cfg.TestArgv = []string{"retry.spec.cjs", "--project=chromium", "--retries=1", "--repeat-each=2", "--workers=2"}
+	retried, err := jstestprovider.RunE2E(context.Background(), cfg)
+	if err != nil || retried.Infrastructure != nil || len(retried.Tests) != 2 {
+		t.Fatalf("retry state lost: %v %+v", err, retried)
+	}
+	if retried.Tests[0].ID == retried.Tests[1].ID {
+		t.Fatal("repeat-each identities collided")
+	}
+	for _, outcome := range retried.Tests {
+		if outcome.State != jstestprovider.StateFlaky || outcome.Retries != 1 || len(outcome.Attempts) != 2 || outcome.Attempts[0].State != jstestprovider.StateFailed || outcome.Attempts[1].State != jstestprovider.StatePassed {
+			t.Fatalf("repeat/retry state lost: %+v", outcome)
+		}
+	}
+	cfg.TestFiles = append(cfg.TestFiles, filepath.Join(root, "interruption.spec.cjs"))
+	cfg.TestArgv = []string{"interruption.spec.cjs", "--project=chromium", "--workers=2", "--max-failures=1"}
+	interrupted, err := jstestprovider.RunE2E(context.Background(), cfg)
+	if err != nil || interrupted.Infrastructure == nil || interrupted.Infrastructure.Reason != "reporter-global-error" || len(interrupted.Tests) != 2 {
+		t.Fatalf("interruption run: %v %+v", err, interrupted)
+	}
+	interruptionStates := map[jstestprovider.ExecutionState]int{}
+	for _, outcome := range interrupted.Tests {
+		interruptionStates[outcome.State]++
+		if len(outcome.Attempts) != 1 || outcome.Attempts[0].State != outcome.State || jstestprovider.ReceiptTestProjection(interrupted, outcome).Execution.State == testvalidity.ExecutionPassed {
+			t.Fatalf("interruption attempt projected green %+v", outcome)
+		}
+	}
+	if interruptionStates[jstestprovider.StateFailed] != 1 || interruptionStates[jstestprovider.StateInterrupted] != 1 {
+		t.Fatalf("interruption states lost %+v", interruptionStates)
+	}
+	assertExternalSurvived(t, interrupted, server.URL)
 	t.Run("PWP-V0-006 cancellation-preserves-external-server", func(t *testing.T) {
 		cfg.TestArgv = []string{"external.spec.cjs", "--project=chromium", "--grep=cancellation"}
 		ctx, cancel := context.WithCancel(context.Background())
