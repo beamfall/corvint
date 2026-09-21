@@ -77,7 +77,8 @@ func benchmarkQueryRepository(b testing.TB) string {
 
 func benchmarkGit(b testing.TB, root string, arguments ...string) {
 	b.Helper()
-	command := exec.Command("git", append([]string{"-C", root}, arguments...)...)
+	prefix := []string{"-c", "maintenance.autoDetach=false", "-c", "gc.autoDetach=false", "-c", "gc.auto=0", "-C", root}
+	command := exec.Command("git", append(prefix, arguments...)...)
 	if output, err := command.CombinedOutput(); err != nil {
 		b.Fatalf("git %v: %v\n%s", arguments, err, output)
 	}
