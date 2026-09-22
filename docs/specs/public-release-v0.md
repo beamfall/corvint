@@ -5,7 +5,7 @@ Date: 2026-09-12
 Requirement prefix: `PUB-V0`  
 Intent status: accepted owner scope; implementation details proposed  
 Delivery status: not qualified  
-Amendments: decision 0167 (build from the staged export; retained bundle archive) amends `PUB-V0-013..015`; decision 0314 adds `PUB-V0-021` (build number); issue 44 adds `PUB-V0-022..026` (closed qualified release candidate); decision 0327 selected `v0.5.0a1`; decision 0328 selects `v0.5.0a2` with the existing unsigned prerelease/no-promotion boundaries and the issue #49 Playwright regression.
+Amendments: decision 0167 (build from the staged export; retained bundle archive) amends `PUB-V0-013..015`; decision 0314 adds `PUB-V0-021` (build number); issue 44 adds `PUB-V0-022..026` (closed qualified release candidate); decision 0327 selected `v0.5.0a1`; decision 0328 selected `v0.5.0a2` with the existing unsigned prerelease/no-promotion boundaries and the issue #49 Playwright regression; decision 0329 selects `v0.5.0a3` for the integrated issue #53–#57 rerelease with the same boundaries.
 
 ## Agent digest
 - Claim: A public alpha ships the Go CLI, MCP docs, agent/editor unit and E2E test tracking, and an optional dashboard and task manager with a roadmap.
@@ -31,7 +31,7 @@ The proposed delivery sequence and acceptance criteria are in
 
 ## Requirements
 
-- `PUB-V0-001`: The current version tuple MUST move together to `0.5.0a2`, including native
+- `PUB-V0-001`: The current version tuple MUST move together to `0.5.0a3`, including native
   version output, archive smoke expectations, VS Code exact admission and live fixtures.
   Historical benchmark and release evidence MUST retain its original version identities.
 - `PUB-V0-002`: The existing native CLI archive gate MUST remain independent. An optional

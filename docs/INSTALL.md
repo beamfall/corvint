@@ -1,6 +1,6 @@
 # Install and try Corvint
 
-Corvint `0.5.0a2` is an experimental alpha. The instructions below apply only when the corresponding
+Corvint `0.5.0a3` is an experimental alpha. The instructions below apply only when the corresponding
 versioned release assets are available. Use the exact release's attached artifact and installed
 qualification evidence to determine which platforms and optional workflows were tested; absence
 of that evidence is not qualification. To try the source directly, use the
@@ -35,14 +35,14 @@ Continue only if the command succeeds and reports `OK`. Extract into a new direc
 the binary against the checksum inside the archive:
 
 ```sh
-mkdir corvint-0.5.0a2
-tar -xzf corvint_darwin_arm64.tar.gz -C corvint-0.5.0a2
-cd corvint-0.5.0a2/corvint_darwin_arm64
+mkdir corvint-0.5.0a3
+tar -xzf corvint_darwin_arm64.tar.gz -C corvint-0.5.0a3
+cd corvint-0.5.0a3/corvint_darwin_arm64
 shasum -a 256 -c SHA256SUMS
 ./corvint --version
 ```
 
-Expect `Corvint 0.5.0a2 (build N)`, where `N` is the release manifest's exact build number. Keep this directory and add its absolute path to `PATH`, or copy the
+Expect `Corvint 0.5.0a3 (build N)`, where `N` is the release manifest's exact build number. Keep this directory and add its absolute path to `PATH`, or copy the
 verified executable to a directory you already use for local tools. Use `command -v corvint`
 and `corvint --version` to check which binary runs. No account, service installation, database,
 model download or default network connection is required.
@@ -66,7 +66,7 @@ go run ./cmd/corvint-release-candidate \
   -source-root /absolute/corvint-checkout \
   -scratch /absolute/private-scratch \
   -output-parent /absolute/candidates \
-  -version 0.5.0a2
+  -version 0.5.0a3
 ```
 
 `corvint-release-install -candidate /absolute/candidate -store /absolute/store` reverifies that

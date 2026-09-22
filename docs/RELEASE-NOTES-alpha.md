@@ -1,4 +1,4 @@
-# Corvint 0.5.0a2 — public alpha release notes
+# Corvint 0.5.0a3 — public alpha release notes
 
 These enduring notes describe the experimental alpha scope required by
 `docs/specs/public-release-v0.md` PUB-V0-007. Availability, artifact identity and tested platform
@@ -7,7 +7,7 @@ notes do not claim that publication occurred, authenticate the publisher or prom
 
 ## Scope
 
-Version `0.5.0a2` (`VERSION`). This is the owner-accepted public-alpha scope from
+Version `0.5.0a3` (`VERSION`). This is the owner-accepted public-alpha scope from
 `docs/specs/public-release-v0.md`: the native Go CLI, automatic docs via MCP, automatic unit/E2E
 test tracking for agent and VS Code, an optional local dashboard, and a task manager with a
 roadmap. The release scope is accepted and its implementation details remain proposed. Individual
@@ -115,7 +115,7 @@ slices. Release qualification does not change those intent, delivery or promotio
 
 ## Signing and publisher identity
 
-The `0.5.0a2` archives are **not signed** (decision 0328, retaining decision 0108's policy). Each archive's `SHA256SUMS` and the
+The `0.5.0a3` archives are **not signed** (decision 0329, retaining decision 0108's policy). Each archive's `SHA256SUMS` and the
 byte-identical double build prove integrity and reproducibility only (`ARTIFACT-GO-V0-008`).
 Publisher identity is `NOT_VERIFIED`: nothing in this release authenticates who built or published
 an archive, and a `PASS` from `archive-verifier` asserts bytes only.

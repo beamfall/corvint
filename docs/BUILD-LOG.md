@@ -7,6 +7,17 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-21 PUB-V0-001: v0.5.0a3 candidate integrates issues #53–#57
+
+Decision 0329 moves the version tuple to `0.5.0a3` for the rerelease that integrates the sealed
+issue branches #53, #54, #55, #56 and #57 plus `main`'s gate ledger. The token is the next alpha
+increment; it awaits the owner's confirmation before any tag is pushed. Each issue branch carries
+its own enrolled local-completion or recorded gate evidence and a sealed CEM under
+`.corvint/changes/`; the integrated candidate must additionally pass the full repository gate on
+its exact clean commit before publication. Unsigned prerelease, `NOT_VERIFIED` publisher identity,
+four non-Windows archives plus gate-produced `SHA256SUMS`, no companion, and `NOT_RUN` live
+Playwright `/2` and external MCP host qualification are retained unchanged.
+
 ## 2026-09-21 GLTP-V0-048/049: lifecycle test deadline and joined shutdown
 
 `TestRunningFailedPassed` used the production-like fresh `GOCACHE` with both its runner and outer

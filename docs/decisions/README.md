@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0329-publish-v050a3-issues53-57-2026-09-21.md`](0329-publish-v050a3-issues53-57-2026-09-21.md) | accepted for candidate preparation, owner call on the token | Publish the integrated issue #53–#57 candidate as `v0.5.0a3`; retain unsigned prerelease, four non-Windows core archives, no companion and no-promotion boundaries; the full gate must pass on the exact candidate. |
 | [`0328-publish-v050a2-issue49-2026-09-20.md`](0328-publish-v050a2-issue49-2026-09-20.md) | accepted, owner call | Publish the issue #49 device-spread fix as `v0.5.0a2`; retain unsigned prerelease, four non-Windows core archives, the same-commit macOS arm64 companion and no-promotion boundaries. |
 
 | [`0327-publish-v050a1-alpha-2026-09-20.md`](0327-publish-v050a1-alpha-2026-09-20.md) | accepted, owner call | Publish the integrated candidate as `v0.5.0a1`; retain unsigned prerelease, four non-Windows core archives, separately qualified optional companion and no-promotion boundaries; preserve historical version evidence. |

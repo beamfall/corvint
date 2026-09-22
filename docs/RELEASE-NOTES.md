@@ -1,5 +1,22 @@
 # Release notes
 
+## 0.5.0a3 experimental alpha
+
+`v0.5.0a3` integrates every GitHub issue open after `v0.5.0a2` (decision 0329): #53 behavior-contract
+provider records and variation reconciliation frontiers, #54 criterion-level falsification controls
+for browser behavior contracts, #55 OpenCode file-change events under bursts and unadmitted
+suffixes, #56 redaction and rejection of sensitive input values in browser runtime evidence, and
+#57 authoritative affected-test planning from explicit dirty-worktree snapshots. It also carries
+`main`'s gate ledger, which records one full-gate pass per distinct content. It retains `v0.5.0a2`'s
+unsigned prerelease, four non-Windows CLI archives and no-promotion boundaries; no companion is
+attached because no exact-candidate companion qualification was run.
+
+No retrieval, host, editor or command is promoted by this version change. Native performance remains
+unmeasured, publisher identity remains `NOT_VERIFIED`, live Playwright `/2` and external MCP host
+qualification remain `NOT_RUN`, and local qualification does not substitute for hosted CI. Exact
+availability and platform claims come only from this version's attached assets and qualification
+evidence; the detailed active scope is in `docs/RELEASE-NOTES-alpha.md`.
+
 ## 0.5.0a2 experimental alpha
 
 The owner selected `v0.5.0a2` for the issue #49 release (decision 0328). It retains `v0.5.0a1`'s

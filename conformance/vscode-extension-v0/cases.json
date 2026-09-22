@@ -18,9 +18,9 @@
       "id": "VSC-CONF-DISCOVERY-001",
       "requirements": ["VSC-V0-006", "VSC-V0-007", "VSC-V0-008", "VSC-V0-010"],
       "title": "configured executable resolves to one canonical local file",
-      "setup": {"trusted": true, "configuredExecutable": "${fixture}/bin/corvint", "version": "0.5.0a2"},
+      "setup": {"trusted": true, "configuredExecutable": "${fixture}/bin/corvint", "version": "0.5.0a3"},
       "action": {"kind": "discover"},
-      "expect": {"result": "ready", "executionCount": 1, "exactArgv": ["--version"], "pinned": true, "versionExact": "0.5.0a2", "effectsEmpty": true}
+      "expect": {"result": "ready", "executionCount": 1, "exactArgv": ["--version"], "pinned": true, "versionExact": "0.5.0a3", "effectsEmpty": true}
     },
     {
       "id": "VSC-CONF-ACTIVATION-001",
