@@ -809,15 +809,10 @@
     "intent": "accepted (decision 0324)",
     "delivery": "implemented",
     "claim": "`impact --provider-mcp ARGV_JSON` invokes one bounded local MCP tool and preserves the provider record bytes.",
-    "dependsOn": [
-      "docs/specs/external-evidence-provider-transports-v0.md"
-    ],
+    "dependsOn": ["docs/specs/external-evidence-provider-transports-v0.md"],
     "supersededBy": null,
     "closableToday": true,
-    "implementation": [
-      "internal/extevidence/mcp.go",
-      "internal/procgroup"
-    ]
+    "implementation": ["internal/extevidence/mcp.go", "internal/procgroup"]
   },
   {
     "path": "docs/specs/external-evidence-provider-remote-v0.md",
@@ -826,15 +821,10 @@
     "intent": "accepted (decision 0325)",
     "delivery": "implemented",
     "claim": "A separately built `corvint-remote-provider` fetches one TLS-pinned HTTPS record only with explicit network consent.",
-    "dependsOn": [
-      "docs/specs/external-evidence-provider-transports-v0.md"
-    ],
+    "dependsOn": ["docs/specs/external-evidence-provider-transports-v0.md"],
     "supersededBy": null,
     "closableToday": true,
-    "implementation": [
-      "cmd/corvint-remote-provider",
-      "internal/remoteprovider"
-    ]
+    "implementation": ["cmd/corvint-remote-provider", "internal/remoteprovider"]
   },
   {
     "path": "docs/specs/experimental-source-views-v0.md",

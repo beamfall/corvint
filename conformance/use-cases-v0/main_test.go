@@ -222,6 +222,10 @@ func TestUCV0HostileEvidence(t *testing.T) {
 
 // UCV0-013: a new closed job set cannot silently redefine historical /0 admission.
 func TestUCV0ProfileMigration(t *testing.T) {
+	t.Run("UCV0-013 profile migration", testUCV0ProfileMigration)
+}
+
+func testUCV0ProfileMigration(t *testing.T) {
 	legacy := newFixture(t)
 	legacy.check()
 	raw, err := os.ReadFile("ledger.json")
