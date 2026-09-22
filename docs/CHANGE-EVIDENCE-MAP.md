@@ -167,6 +167,12 @@ The verifier proves the selected transformation directly from removed and added 
 output, lockfile updates, file moves, and formatter claims are intentionally excluded from 0.1
 because their correctness needs external commands or repository-specific policy.
 
+The experimental `cem/0.3` profile ([`specs/cem-0.3-structural-mechanical.md`](specs/cem-0.3-structural-mechanical.md))
+adds four Go-only structural reasons, `rename`, `move`, `import-reorder`, and `formatter-only`,
+that the verifier recomputes from the base blob and the patch with the Go standard library. A
+0.1 or 0.2 map carrying one of them is invalid, and a claim the verifier cannot reproduce fails
+`unproven-mechanical`.
+
 ## Verification and drift
 
 A repository-conformant verifier MUST:
@@ -238,6 +244,8 @@ Fresh `corvint cem prepare` runs emit the separate experimental `cem/0.2` profil
 [`cem-0.2.schema.json`](cem-0.2.schema.json). It adds only the fixed
 `"excludedPath":".corvint/change.cem.json"` field. `status`, `verify`, and `report` require an
 independent expected base and target, derive the WP1-pinned patch themselves, and reject `--patch`.
+`cem/0.3` keeps that shape and only widens the mechanical reason vocabulary; every canonical rule
+in this section applies to both profiles.
 If the sidecar exists in the target tree, its mode must be `100644` and its raw blob bytes must equal
 the verified input. `prepare` is the preceding candidate phase: it ignores inherited target-side
 sidecar bytes, because committing the generated map creates the final revision. Its returned
@@ -290,8 +298,9 @@ linked worktree whose `.git` is a gitfile; no hardcoded worktree path is require
 Strict `status` is the local completion check, `report` is the optional human view, and standalone
 `verify` is the equivalent machine/CI surface; running all three locally is unnecessary.
 The lower-level `begin` command accepts exact patch bytes supplied out of band. Use `mark` when a
-hunk must remain explicitly unknown or when the producer requests one of the two byte-verifiable
-mechanical classifications:
+hunk must remain explicitly unknown or when the producer requests one of the byte-verifiable
+or, for Go files, structurally verifiable mechanical classifications (a structural reason
+upgrades the map to `cem/0.3`):
 
 ```console
 corvint cem mark --map .corvint/change.cem.json --hunk 1 \

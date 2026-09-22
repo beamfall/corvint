@@ -210,7 +210,7 @@ func (s *Session) Prepare(ctx context.Context, options PrepareOptions) (map[stri
 // (CEM-CB-016, decision 0122): frozen cli-parity-v0 stdout pins it.
 func nextAction(document *wire.Map, base, cacheSelection string) []any {
 	action := []any{"corvint", "cem", "status", "--map", wire.ExcludedCEMPath}
-	if document.Spec == wire.Spec02 {
+	if wire.Canonical(document.Spec) {
 		return append(action, "--expected-base", base, "--target", "HEAD",
 			"--max-unknown", "0", "--max-mechanical", "0")
 	}
@@ -510,7 +510,9 @@ type MarkOptions struct {
 }
 
 // Mark records an explicit unknown or mechanical disposition and prunes
-// evidence left uncited, preserving the input profile.
+// evidence left uncited, preserving the input profile. The one profile change
+// is additive (CEM-SM-006): a structural reason on a canonical map declares
+// cem/0.3, the vocabulary the map now uses; a cem/0.1 map cannot carry one.
 func (s *Session) Mark(ctx context.Context, options MarkOptions) (map[string]any, error) {
 	document, unlock, err := s.lockedMapInput(options.MapPath, options.Output)
 	if err != nil {
@@ -523,10 +525,15 @@ func (s *Session) Mark(ctx context.Context, options MarkOptions) (map[string]any
 	}
 	valid := (options.Disposition == "unknown" &&
 		(options.Reason == "no-evidence" || options.Reason == "insufficient-evidence" || options.Reason == "conflicting-evidence")) ||
-		(options.Disposition == "mechanical" &&
-			(options.Reason == "whitespace-only" || options.Reason == "line-ending-only"))
+		(options.Disposition == "mechanical" && wire.MechanicalReason(wire.Spec03, options.Reason))
 	if !valid {
 		return nil, invalidArguments("mark accepts unknown or mechanical dispositions with their registered reasons")
+	}
+	if wire.StructuralReasons[options.Reason] {
+		if !wire.Canonical(document.Spec) {
+			return nil, invalidArguments("structural mechanical reasons require a canonical (cem/0.2 or cem/0.3) map")
+		}
+		document.Spec = wire.Spec03
 	}
 	hunk := &document.Hunks[index]
 	hunk.Disposition, hunk.Reason, hunk.Basis = options.Disposition, options.Reason, nil

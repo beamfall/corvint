@@ -290,6 +290,16 @@ CEM-PILOT-016	docs/specs/cem-pilot-kit.md	132	Corvint repository changes MUST us
 CEM-PILOT-017	docs/specs/cem-pilot-kit.md	135	every Git subprocess MUST ignore ambient repository/config redirection. Patch
 CEM-PILOT-018	docs/specs/cem-pilot-kit.md	138	when prepare refuses an existing map under `CEM-PILOT-002`, the untyped
 CEM-PILOT-019	docs/specs/cem-pilot-kit.md	145	`cem verify` same-path drift MUST use only the five frozen statuses. A target en
+CEM-SM-001	docs/specs/cem-0.3-structural-mechanical.md	41	`cem/0.3` MUST be the `cem/0.2` wire shape plus the four structural reasons.
+CEM-SM-002	docs/specs/cem-0.3-structural-mechanical.md	44	The verifier MUST prove a structural reason from the base blob at `baseRevision`
+CEM-SM-003	docs/specs/cem-0.3-structural-mechanical.md	48	For `rename`, `import-reorder`, and `formatter-only` the image MUST be the hunk
+CEM-SM-004	docs/specs/cem-0.3-structural-mechanical.md	50	For `move` the image MUST be the whole group applied, because a move is a paired
+CEM-SM-005	docs/specs/cem-0.3-structural-mechanical.md	52	Any parse, scan, or format failure on the base or the image MUST refuse the
+CEM-SM-006	docs/specs/cem-0.3-structural-mechanical.md	54	`mark --disposition mechanical` with a structural reason MUST upgrade a `cem/0.2
+CEM-SM-007	docs/specs/cem-0.3-structural-mechanical.md	57	`rename` MUST hold only when the token streams differ by one identifier pair
+CEM-SM-008	docs/specs/cem-0.3-structural-mechanical.md	62	`move` MUST hold only when tokens outside top-level declarations are unchanged,
+CEM-SM-009	docs/specs/cem-0.3-structural-mechanical.md	65	`import-reorder` MUST hold only when the ordered import specs differ, their
+CEM-SM-010	docs/specs/cem-0.3-structural-mechanical.md	68	`formatter-only` MUST hold only when `go/format` renders the base and the image
 CF-V0-001	docs/specs/change-frontier-v0.md	84	one invocation MUST accept exactly one verified `cem/0.2` artifact under its can
 CF-V0-002	docs/specs/change-frontier-v0.md	89	the implementation MUST pass the same bounded immutable CEM and OCM byte copies
 CF-V0-003	docs/specs/change-frontier-v0.md	93	optional dynamic test input is exactly the all-or-none tuple `(canonical command

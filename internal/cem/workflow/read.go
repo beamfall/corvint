@@ -34,16 +34,16 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 		return nil, err
 	}
 	// Stage 3: profile-forbidden arguments.
-	if document.Spec == wire.Spec02 && options.PatchGiven {
-		return nil, invalidArguments("cem/0.2 %s does not accept --patch", action)
+	if wire.Canonical(document.Spec) && options.PatchGiven {
+		return nil, invalidArguments("%s %s does not accept --patch", document.Spec, action)
 	}
 	// Stage 4: profile-required independent inputs.
-	if document.Spec == wire.Spec02 {
+	if wire.Canonical(document.Spec) {
 		if options.ExpectedBase == "" {
-			return nil, cemcode.New(cemcode.ExpectedBaseRequired, "cem/0.2 %s requires --expected-base", action)
+			return nil, cemcode.New(cemcode.ExpectedBaseRequired, "%s %s requires --expected-base", document.Spec, action)
 		}
 		if options.Target == "" {
-			return nil, cemcode.New(cemcode.TargetRequired, "cem/0.2 %s requires --target", action)
+			return nil, cemcode.New(cemcode.TargetRequired, "%s %s requires --target", document.Spec, action)
 		}
 	}
 	// Stages 5–6: repository validation, after every stage-2/3/4 judgment.
@@ -112,7 +112,7 @@ func (e patchEnvelope) apply(result map[string]any, isStatus bool) {
 }
 
 func (s *Session) runVerification(ctx context.Context, document *wire.Map, raw []byte, options ReadOptions) (map[string]any, map[string]any, []any, patchEnvelope, error) {
-	if document.Spec == wire.Spec02 {
+	if wire.Canonical(document.Spec) {
 		envelope := patchEnvelope{
 			legacyPatch: nil, patchSource: "canonical-derived",
 			excluded: wire.ExcludedCEMPath, warnings: []any{},

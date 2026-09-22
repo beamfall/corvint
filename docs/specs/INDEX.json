@@ -234,6 +234,22 @@
     ]
   },
   {
+    "path": "docs/specs/cem-0.3-structural-mechanical.md",
+    "title": "CEM 0.3 structural mechanical reasons",
+    "reqPrefix": "CEM-SM",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "CEM 0.3 adds Go rename, move, import-reorder and formatter-only mechanical reasons that the verifier re-proves from the base blob and patch alone.",
+    "dependsOn": [
+      "docs/specs/cem-0.2-canonical-binding.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/cem"
+    ]
+  },
+  {
     "path": "docs/specs/cem-external-interop-v0.md",
     "title": "CEM external consumer interoperability V0",
     "reqPrefix": "CEM-EXT",

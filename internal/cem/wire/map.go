@@ -10,6 +10,7 @@ import (
 const (
 	Spec01          = "cem/0.1"
 	Spec02          = "cem/0.2"
+	Spec03          = "cem/0.3"
 	ExcludedCEMPath = ".corvint/change.cem.json"
 
 	MaxMapBytes    = 4 << 20
@@ -33,6 +34,21 @@ var unknownReasons = map[string]bool{
 
 var mechanicalReasons = map[string]bool{
 	"whitespace-only": true, "line-ending-only": true,
+}
+
+// StructuralReasons enumerates the cem/0.3 mechanical reasons proved by
+// Go structural comparison (CEM-SM-001); 0.1 and 0.2 documents reject them.
+var StructuralReasons = map[string]bool{
+	"rename": true, "move": true, "import-reorder": true, "formatter-only": true,
+}
+
+// Canonical reports whether spec is a canonical committed-change profile:
+// cem/0.2, or cem/0.3 which adds only the structural reason vocabulary.
+func Canonical(spec string) bool { return spec == Spec02 || spec == Spec03 }
+
+// MechanicalReason reports whether reason is registered for spec.
+func MechanicalReason(spec, reason string) bool {
+	return mechanicalReasons[reason] || (spec == Spec03 && StructuralReasons[reason])
 }
 
 // Span is a zero-based half-open raw-byte range.
@@ -67,12 +83,12 @@ type Hunk struct {
 	Basis       []Basis
 }
 
-// Map is a validated CEM 0.1 or 0.2 document.
+// Map is a validated CEM 0.1, 0.2, or 0.3 document.
 type Map struct {
 	Spec         string
 	BaseRevision string
 	PatchSha256  string
-	ExcludedPath string // empty for 0.1; the frozen literal for 0.2
+	ExcludedPath string // empty for 0.1; the frozen literal for 0.2 and 0.3
 	Evidence     []Evidence
 	Hunks        []Hunk
 }
@@ -99,11 +115,11 @@ func ParseMap(data []byte) (*Map, error) {
 	if !present {
 		return nil, cemcode.New(cemcode.MissingField, "spec is required")
 	}
-	if spec.Kind != KindString || (spec.Str != Spec01 && spec.Str != Spec02) {
-		return nil, cemcode.New(cemcode.UnsupportedSpec, "spec must be %q or %q", Spec01, Spec02)
+	if spec.Kind != KindString || (spec.Str != Spec01 && !Canonical(spec.Str)) {
+		return nil, cemcode.New(cemcode.UnsupportedSpec, "spec must be %q, %q, or %q", Spec01, Spec02, Spec03)
 	}
 	required := []string{"spec", "baseRevision", "patchSha256", "evidence", "hunks"}
-	if spec.Str == Spec02 {
+	if Canonical(spec.Str) {
 		required = []string{"spec", "baseRevision", "patchSha256", "excludedPath", "evidence", "hunks"}
 	}
 	if err := requireClosedKeys(root.Obj, required); err != nil {
@@ -146,7 +162,7 @@ func validateFields(object *Object, result *Map) error {
 		return fieldError("patchSha256 must be 64 lowercase hex bytes")
 	}
 	result.PatchSha256 = digest.Str
-	if result.Spec == Spec02 {
+	if Canonical(result.Spec) {
 		excluded, _ := object.Get("excludedPath")
 		if excluded.Kind != KindString || excluded.Str != ExcludedCEMPath {
 			return cemcode.New(cemcode.InvalidExcludedPath, "excludedPath must be the exact string %q", ExcludedCEMPath)
@@ -175,7 +191,7 @@ func validateFields(object *Object, result *Map) error {
 		return fieldError("hunks must be an array of at most %d items", MaxHunks)
 	}
 	for _, item := range hunks.Arr {
-		record, err := validateHunk(item)
+		record, err := validateHunk(item, result.Spec)
 		if err != nil {
 			return err
 		}
@@ -248,7 +264,7 @@ func validateRange(value Value, name string) (Range, error) {
 	return Range{Start: start.Int, Count: count.Int}, nil
 }
 
-func validateHunk(item Value) (Hunk, error) {
+func validateHunk(item Value, spec string) (Hunk, error) {
 	if item.Kind != KindObject {
 		return Hunk{}, fieldError("hunks items must be objects")
 	}
@@ -301,7 +317,7 @@ func validateHunk(item Value) (Hunk, error) {
 	}
 	hunk := Hunk{ID: id.Str, Path: path.Str, OldRange: oldRange, NewRange: newRange,
 		Disposition: disposition.Str, Reason: reason.Str, Basis: bases}
-	if err := validateDisposition(hunk); err != nil {
+	if err := validateDisposition(hunk, spec); err != nil {
 		return Hunk{}, err
 	}
 	return hunk, nil
@@ -325,7 +341,7 @@ func validateBasis(entry Value) (Basis, error) {
 	return Basis{EvidenceID: id.Str, Relation: relation.Str}, nil
 }
 
-func validateDisposition(hunk Hunk) error {
+func validateDisposition(hunk Hunk, spec string) error {
 	switch hunk.Disposition {
 	case "supported":
 		if len(hunk.Basis) == 0 {
@@ -339,7 +355,7 @@ func validateDisposition(hunk Hunk) error {
 			return fieldError("unknown hunks require an empty basis and an unknown reason")
 		}
 	case "mechanical":
-		if len(hunk.Basis) != 0 || !mechanicalReasons[hunk.Reason] {
+		if len(hunk.Basis) != 0 || !MechanicalReason(spec, hunk.Reason) {
 			return fieldError("mechanical hunks require an empty basis and a mechanical reason")
 		}
 	default:

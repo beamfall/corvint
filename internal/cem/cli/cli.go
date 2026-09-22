@@ -86,8 +86,8 @@ var cemActions = map[string]cemAction{
 		choices: map[string][]string{
 			"--disposition": {"unknown", "mechanical"},
 			"--reason": {
-				"conflicting-evidence", "insufficient-evidence", "line-ending-only",
-				"no-evidence", "whitespace-only",
+				"conflicting-evidence", "formatter-only", "import-reorder", "insufficient-evidence",
+				"line-ending-only", "move", "no-evidence", "rename", "whitespace-only",
 			},
 		},
 	},

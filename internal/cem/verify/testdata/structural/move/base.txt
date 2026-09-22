@@ -1,0 +1,7 @@
+package fixture
+
+// helper doubles n.
+func helper(n int) int { return n * 2 }
+
+// entry runs helper.
+func entry() int { return helper(21) }

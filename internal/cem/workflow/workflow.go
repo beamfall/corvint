@@ -85,7 +85,7 @@ func invalidArguments(format string, args ...any) *cemcode.Error {
 func buildCandidate(spec, base string, patchBytes []byte, parsed *patch.Patch) *wire.Map {
 	digest := sha256.Sum256(patchBytes)
 	document := &wire.Map{Spec: spec, BaseRevision: base, PatchSha256: hex.EncodeToString(digest[:])}
-	if spec == wire.Spec02 {
+	if wire.Canonical(spec) {
 		document.ExcludedPath = wire.ExcludedCEMPath
 	}
 	for _, hunk := range parsed.Hunks {
@@ -117,7 +117,7 @@ func encodeMap(document *wire.Map) []byte {
 		"patchSha256":  document.PatchSha256,
 		"spec":         document.Spec,
 	}
-	if document.Spec == wire.Spec02 {
+	if wire.Canonical(document.Spec) {
 		value["excludedPath"] = document.ExcludedPath
 	}
 	return indentedCanonicalJSON(value)
@@ -294,7 +294,7 @@ func successVerification(document *wire.Map, outcome *verify.Outcome, driftRejec
 	if driftRejected {
 		result["issues"] = []any{map[string]any{"code": cemcode.EvidenceDrift, "message": "CEM evidence changed at target"}}
 	}
-	if document.Spec == wire.Spec02 {
+	if wire.Canonical(document.Spec) {
 		result["assurance"] = "canonical"
 	}
 	return result
@@ -318,7 +318,7 @@ func failureVerification(spec string, err error, canonicallyBound bool) map[stri
 		"patchSha256": "", "hunksTotal": 0, "evidenceTotal": 0,
 		"issues": []any{map[string]any{"code": code, "message": message}}, "drift": []any{},
 	}
-	if spec == wire.Spec02 {
+	if wire.Canonical(spec) {
 		result["assurance"] = "structural-only"
 		if canonicallyBound {
 			result["assurance"] = "canonical"

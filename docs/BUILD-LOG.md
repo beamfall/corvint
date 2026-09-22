@@ -1915,3 +1915,18 @@ frozen evaluation applies to this operations slice. Proposed `make` targets
 `install-lifecycle-test`, `hostile-regressions-check`, `hostile-regressions-test` are not added
 here. `docs/SECURITY.md` still says the support window is a draft owner decision and is stale
 against `SECURITY.md`.
+## 2026-09-22 cem-0-3-structural-mechanical: Go structural mechanical reasons the verifier re-proves
+
+Ticket V1-0087, decision 0338, spec `docs/specs/cem-0.3-structural-mechanical.md` (`CEM-SM-001..010`).
+`cem/0.3` is `cem/0.2` plus `rename`, `move`, `import-reorder`, and `formatter-only`; 0.1 and 0.2
+maps still reject that vocabulary, `prepare` still emits 0.2, and `mark` upgrades only when a
+structural reason is used. Each reason is recomputed from the base blob and the patch with the Go
+standard library and refused as `unproven-mechanical` on any parse or format failure. Fixture
+pairs cover a true positive and a near-miss per class (a hidden `"hello"`/`"hi"` edit, a
+`ToUpper`/`ToLower` swap, a shadowing rename, a `helper(21)`/`helper(22)` edit), plus selector,
+exported, directive, `var`-order and `init`-order refusals. One admitted overlap: gofmt sorts
+imports, so an import reorder is also formatter-only. No frozen evaluation exists for mechanical
+classification precision; the reviewer-audit kill gate in `docs/CHANGE-EVIDENCE-MAP.md` (20%
+false classification) is the only measured bar and was not exercised here. Not shipped: a
+`cem-0.3.schema.json` and `protocol/cem-0.3` vectors (Apache-2.0 boundary), frontier and dashboard
+profile acceptance, exported or type-aware renames, non-Go languages.
