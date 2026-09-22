@@ -1410,6 +1410,15 @@ PPA-V0-012	docs/specs/proof-preserving-abstraction-v0.md	170	The package MUST re
 PPA-V0-013	docs/specs/proof-preserving-abstraction-v0.md	172	P0 MUST remain library-only and experimental. No runtime, CLI, query, compaction
 PPA-V0-014	docs/specs/proof-preserving-abstraction-v0.md	174	Source qualification is an adapter responsibility. A CEM relation, documentation
 PPA-V0-015	docs/specs/proof-preserving-abstraction-v0.md	176	Promotion requires 100% rejection of at least 10,000 hostile strengthening mutan
+PPI-V0-001	docs/specs/protected-pi-runtime-v0.md	37	Build an optional native macOS arm64 executable containing exact Pi 0.85.1 SDK c
+PPI-V0-002	docs/specs/protected-pi-runtime-v0.md	38	Executable loading MUST remain closed under all admitted arguments and environme
+PPI-V0-003	docs/specs/protected-pi-runtime-v0.md	39	Mutable session, credential, model and settings data MUST remain distinct from e
+PPI-V0-004	docs/specs/protected-pi-runtime-v0.md	40	Native TUI/RPC MUST preserve context, exact expansion, explicit observations/out
+PPI-V0-005	docs/specs/protected-pi-runtime-v0.md	41	Introduce a distinct closed Pi root/campaign/qualification/lifecycle profile. Ex
+PPI-V0-006	docs/specs/protected-pi-runtime-v0.md	42	Reuse protected computation and before/after guards. Non-Stop reads no protected
+PPI-V0-007	docs/specs/protected-pi-runtime-v0.md	43	Independent runtime admission MUST bind full image SHA256, live mapped CDHash, C
+PPI-V0-008	docs/specs/protected-pi-runtime-v0.md	44	FULL requires independently completed exact-image TUI and RPC qualification: all
+PPI-V0-009	docs/specs/protected-pi-runtime-v0.md	45	Rollback removes/revokes only the optional Pi campaign/admission/runtime and res
 PSL-V0-001	docs/specs/pulse-snapshot-lease-v0.md	199	The coordinator MUST be one client-owned local Go process over stdio, one serial
 PSL-V0-002	docs/specs/pulse-snapshot-lease-v0.md	202	Requests and responses MUST use `corvint-pulse-snapshot/0`, strict bounded canon
 PSL-V0-003	docs/specs/pulse-snapshot-lease-v0.md	204	Initialization MUST create a fresh unpredictable session ID. Restart, disconnect

@@ -2214,5 +2214,21 @@
       "internal/taskman",
       "cmd/corvint/taskman_fixture.go"
     ]
+  },
+  {
+    "path": "docs/specs/protected-pi-runtime-v0.md",
+    "title": "Protected Pi Runtime V0",
+    "reqPrefix": "PPI-V0",
+    "intent": "accepted direction (owner approval, 2026-09-22); technical details experimental",
+    "delivery": "experimental; no protected installation or native qualification",
+    "claim": "Optional fixed Pi SDK executable with independently qualified protected lifecycle; ordinary extensible Pi remains separate.",
+    "dependsOn": [
+      "docs/specs/agent-harness-integration-v0.md",
+      "docs/specs/protected-local-execution-v0.md",
+      "docs/specs/qualified-lifecycle-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
