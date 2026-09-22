@@ -1,5 +1,18 @@
 # Release notes
 
+## 0.5.0a4 experimental alpha
+
+This patch repairs OpenCode initialization and tool calls for the core and test-validity MCP
+servers through an explicit `--protocol-version 2025-11-25` profile. MCP `2026-07-28` remains
+the default. The local plugin setup, two-server configuration and native on-demand skill expose
+context, impact, repository identity and retained test evidence without treating missing receipts
+as successful tests. Shared docs and experimental corpus transports retain their existing scope.
+
+Decision 0331 selects an unsigned patch candidate based on the public `v0.5.0a3` tag, before
+separate 0.6 work. No command, retrieval, host or editor is promoted; publisher identity remains
+`NOT_VERIFIED`. Published availability and platform qualification come only from the exact
+release assets and attached evidence.
+
 ## 0.5.0a3 experimental alpha
 
 `v0.5.0a3` integrates every GitHub issue open after `v0.5.0a2` (decision 0329): #53 behavior-contract

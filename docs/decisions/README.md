@@ -1,5 +1,7 @@
 # Decision records index
 
+| [`0331-publish-v050a4-opencode-2026-09-22.md`](0331-publish-v050a4-opencode-2026-09-22.md) | accepted for candidate preparation | Patch the current alpha for OpenCode MCP compatibility and useful native tooling; preserve latest default protocol and exact-candidate gates; publication awaits packet approval. |
+
 | [`0329-publish-v050a3-issues53-57-2026-09-21.md`](0329-publish-v050a3-issues53-57-2026-09-21.md) | accepted for candidate preparation, owner call on the token | Publish the integrated issue #53–#57 candidate as `v0.5.0a3`; retain unsigned prerelease, four non-Windows core archives, no companion and no-promotion boundaries; the full gate must pass on the exact candidate. |
 | [`0328-publish-v050a2-issue49-2026-09-20.md`](0328-publish-v050a2-issue49-2026-09-20.md) | accepted, owner call | Publish the issue #49 device-spread fix as `v0.5.0a2`; retain unsigned prerelease, four non-Windows core archives, the same-commit macOS arm64 companion and no-promotion boundaries. |
 

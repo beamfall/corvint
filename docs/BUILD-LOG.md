@@ -1234,3 +1234,15 @@ suite requires its Go-owned native fixture; the canonical host-adapter target re
 The documentation check exposed an unquoted requirement range parsed as a duplicate definition;
 quoting that prose range preserves its meaning and the executable requirements. The original
 failed checks remain in the private follow-up evidence.
+
+
+## 2026-09-22 — OpenCode alpha patch candidate (decision 0331)
+
+The owner selected a patch of the current public 0.5 release before 0.6.0. Fresh remote release/tag
+inspection found 0.5.0a3 current and 0.5.0a4 unused. The candidate starts from public commit
+822888afb435647d14d630c654764dbfa7c003e8 and cherry-picks only the independent compatibility
+repair and setup/skill changes. Its generated requirement locator conflict was regenerated from
+its own staged specs. The release tuple moves together; historical versions remain unchanged.
+The full gate will run on the final bound clean candidate, rather than treating development probes
+or the repair branch's scoped checks as release qualification. Companion installation, native
+OpenCode artifact checks and exact-packet publication approval remain explicit separate gates.
