@@ -7,6 +7,14 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 IPR-03: seed data re-pins the reconciled roadmap digest
+
+The exact-target seed-fixture check refused because 9148240 edited the roadmap header, outcome and
+historical-next-action lines without refining `script/seed-planning-store-data.json`. The old pin
+is the digest of 9148240^, and all eleven IPR-01..IPR-11 sections the ticket bodies copy are
+byte-identical at the new digest, so only `expectedDigestSha256` changes; no ticket text moves.
+The failed seed-fixture receipt at a9854aa is retained.
+
 ## 2026-09-22 PPI-V0 / decision 0330: protected Pi source joins the 0.6 candidate
 
 The owner directly approved one replacement of the integration enrollment to include the reviewed
