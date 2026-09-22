@@ -56,54 +56,56 @@ func legacyExchange(t *testing.T, instance *Server, frames ...string) map[float6
 }
 
 func TestMCPV0022LegacyAdmissionAndReceipt(t *testing.T) {
-	receipt := map[string]any{"resultType": "application", "ttlMs": 17, "cacheScope": "receipt", "state": "UNKNOWN"}
-	instance := legacyServer(t, HandlerFunc(func(_ context.Context, request protocol.Request, _ Notifier) (map[string]any, *protocol.RPCError) {
-		if request.Meta.ProtocolVersion != protocol.LegacyVersion || request.Meta.ClientInfo["name"] != "opencode" || request.Params == nil {
-			t.Errorf("request=%#v", request)
+	t.Run("MCPV0-022 ordered initialization and receipt", func(t *testing.T) {
+		receipt := map[string]any{"resultType": "application", "ttlMs": 17, "cacheScope": "receipt", "state": "UNKNOWN"}
+		instance := legacyServer(t, HandlerFunc(func(_ context.Context, request protocol.Request, _ Notifier) (map[string]any, *protocol.RPCError) {
+			if request.Meta.ProtocolVersion != protocol.LegacyVersion || request.Meta.ClientInfo["name"] != "opencode" || request.Params == nil {
+				t.Errorf("request=%#v", request)
+			}
+			return map[string]any{"structuredContent": receipt, "content": []any{}, "cacheScope": "private", "ttlMs": 0, "resultType": "complete"}, nil
+		}))
+		results := legacyExchange(t, instance,
+			legacyInitializedNotification,
+			`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`,
+			`{"jsonrpc":"2.0","id":2,"method":"ping"}`,
+			legacyInitialize,
+			`{"jsonrpc":"2.0","id":3,"method":"tools/list"}`,
+			`{"jsonrpc":"2.0","method":"notifications/initialized","params":{"bad":true}}`,
+			`{"jsonrpc":"2.0","id":4,"method":"tools/list"}`,
+			legacyInitializedNotification, legacyInitializedNotification,
+			`{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"receipt","arguments":{}}}`,
+			strings.Replace(legacyInitialize, `"id":0`, `"id":6`, 1),
+			`{"jsonrpc":"2.0","id":7,"method":"tools/list"}`,
+			`{"jsonrpc":"2.0","id":8,"method":"server/discover"}`,
+			`{"jsonrpc":"2.0","id":9,"method":"tools/list","params":{`+requestMeta+`}}`,
+			`{"jsonrpc":"2.0","id":10,"method":"ping","params":{}}`,
+		)
+		if len(results) != 11 {
+			t.Fatalf("responses=%#v", results)
 		}
-		return map[string]any{"structuredContent": receipt, "content": []any{}, "cacheScope": "private", "ttlMs": 0, "resultType": "complete"}, nil
-	}))
-	results := legacyExchange(t, instance,
-		legacyInitializedNotification,
-		`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`,
-		`{"jsonrpc":"2.0","id":2,"method":"ping"}`,
-		legacyInitialize,
-		`{"jsonrpc":"2.0","id":3,"method":"tools/list"}`,
-		`{"jsonrpc":"2.0","method":"notifications/initialized","params":{"bad":true}}`,
-		`{"jsonrpc":"2.0","id":4,"method":"tools/list"}`,
-		legacyInitializedNotification, legacyInitializedNotification,
-		`{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"receipt","arguments":{}}}`,
-		strings.Replace(legacyInitialize, `"id":0`, `"id":6`, 1),
-		`{"jsonrpc":"2.0","id":7,"method":"tools/list"}`,
-		`{"jsonrpc":"2.0","id":8,"method":"server/discover"}`,
-		`{"jsonrpc":"2.0","id":9,"method":"tools/list","params":{`+requestMeta+`}}`,
-		`{"jsonrpc":"2.0","id":10,"method":"ping","params":{}}`,
-	)
-	if len(results) != 11 {
-		t.Fatalf("responses=%#v", results)
-	}
-	for _, id := range []float64{1, 3, 4, 6} {
-		assertErrorCode(t, results[id], protocol.CodeInvalidRequest)
-	}
-	assertErrorCode(t, results[8], protocol.CodeMethodNotFound)
-	assertErrorCode(t, results[9], protocol.CodeInvalidParams)
-	init := results[0]["result"].(map[string]any)
-	if len(init) != 3 || init["protocolVersion"] != protocol.LegacyVersion || len(init["capabilities"].(map[string]any)) != 1 {
-		t.Fatalf("initialize=%#v", init)
-	}
-	for _, id := range []float64{2, 10} {
-		if !reflect.DeepEqual(results[id]["result"], map[string]any{}) {
-			t.Fatalf("ping=%#v", results[id])
+		for _, id := range []float64{1, 3, 4, 6} {
+			assertErrorCode(t, results[id], protocol.CodeInvalidRequest)
 		}
-	}
-	for _, id := range []float64{5, 7} {
-		result := results[id]["result"].(map[string]any)
-		if len(result) != 2 || result["structuredContent"].(map[string]any)["resultType"] != "application" || result["structuredContent"].(map[string]any)["state"] != "UNKNOWN" {
-			t.Fatalf("receipt=%#v", result)
+		assertErrorCode(t, results[8], protocol.CodeMethodNotFound)
+		assertErrorCode(t, results[9], protocol.CodeInvalidParams)
+		init := results[0]["result"].(map[string]any)
+		if len(init) != 3 || init["protocolVersion"] != protocol.LegacyVersion || len(init["capabilities"].(map[string]any)) != 1 {
+			t.Fatalf("initialize=%#v", init)
 		}
-	}
-	// Reusing a Server never reuses a connection's initialization authority.
-	assertErrorCode(t, legacyExchange(t, instance, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)[1], protocol.CodeInvalidRequest)
+		for _, id := range []float64{2, 10} {
+			if !reflect.DeepEqual(results[id]["result"], map[string]any{}) {
+				t.Fatalf("ping=%#v", results[id])
+			}
+		}
+		for _, id := range []float64{5, 7} {
+			result := results[id]["result"].(map[string]any)
+			if len(result) != 2 || result["structuredContent"].(map[string]any)["resultType"] != "application" || result["structuredContent"].(map[string]any)["state"] != "UNKNOWN" {
+				t.Fatalf("receipt=%#v", result)
+			}
+		}
+		// Reusing a Server never reuses a connection's initialization authority.
+		assertErrorCode(t, legacyExchange(t, instance, `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)[1], protocol.CodeInvalidRequest)
+	})
 }
 
 func TestMCPV0022LegacyFailedInitializeCannotAdmitTools(t *testing.T) {

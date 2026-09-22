@@ -6,21 +6,23 @@ import (
 )
 
 func TestMCPV0021ProtocolSelector(t *testing.T) {
-	for _, args := range [][]string{
-		{"--protocol-version"}, {"--protocol-version", "unknown"},
-		{"--protocol-version", LegacyVersion, "--protocol-version", LegacyVersion},
-		{"--version", "--protocol-version", LegacyVersion},
-	} {
-		if _, _, ok := ExtractVersionArgument(args); ok {
-			t.Fatalf("accepted %v", args)
+	t.Run("MCPV0-021 closed protocol selector", func(t *testing.T) {
+		for _, args := range [][]string{
+			{"--protocol-version"}, {"--protocol-version", "unknown"},
+			{"--protocol-version", LegacyVersion, "--protocol-version", LegacyVersion},
+			{"--version", "--protocol-version", LegacyVersion},
+		} {
+			if _, _, ok := ExtractVersionArgument(args); ok {
+				t.Fatalf("accepted %v", args)
+			}
 		}
-	}
-	for _, version := range []string{Version, LegacyVersion} {
-		rest, got, ok := ExtractVersionArgument([]string{"--root", "/repo", "--protocol-version", version})
-		if !ok || got != version || strings.Join(rest, " ") != "--root /repo" {
-			t.Fatalf("selector=%v,%s,%v", rest, got, ok)
+		for _, version := range []string{Version, LegacyVersion} {
+			rest, got, ok := ExtractVersionArgument([]string{"--root", "/repo", "--protocol-version", version})
+			if !ok || got != version || strings.Join(rest, " ") != "--root /repo" {
+				t.Fatalf("selector=%v,%s,%v", rest, got, ok)
+			}
 		}
-	}
+	})
 }
 
 func TestMCPV0022LegacyMetadata(t *testing.T) {

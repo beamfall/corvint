@@ -8,7 +8,9 @@
   "files": [
     "src",
     "README.md",
-    "opencode.example.json"
+    "opencode.example.json",
+    "mcp.example.json",
+    "skills"
   ],
   "dependencies": {
     "@opencode-ai/plugin": "1.18.21"
