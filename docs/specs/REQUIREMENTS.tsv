@@ -1825,7 +1825,7 @@ UCV0-009	docs/specs/use-case-conformance-v0.md	83	The runner MUST NOT execute re
 UCV0-010	docs/specs/use-case-conformance-v0.md	86	Promotion requires both Corvint self-dogfood and Beamfall dogfood. Evidence from
 UCV0-011	docs/specs/use-case-conformance-v0.md	89	Live Proof-Carrying Verification is a separately governed product job: on each e
 UCV0-012	docs/specs/use-case-conformance-v0.md	93	No row may be advertised as supported or delivered from this ledger unless its c
-UCV0-013	docs/specs/use-case-conformance-v0.md	109	The canonical ledger profile MUST be `corvint-use-case-conformance/1`, containin
+UCV0-013	docs/specs/use-case-conformance-v0.md	97	The canonical ledger profile MUST be `corvint-use-case-conformance/1`, containin
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	31	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	46	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	65	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker

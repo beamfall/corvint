@@ -94,6 +94,15 @@ cannot be interpreted as success.
   is `VERIFIED`. Consumers MUST display the literal claim rather than infer support from status,
   receipt count, implementation presence, or neighboring rows.
 
+- `UCV0-013`: The canonical ledger profile MUST be `corvint-use-case-conformance/1`, containing
+  the historical nineteen IDs plus exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`, and
+  `UC-EVIDENCE-CARRYING-COMPLETION`. The reader MUST retain the historical closed nineteen-ID
+  `corvint-use-case-conformance/0` profile. New IDs in `/0`, missing IDs in `/1`, and unknown
+  profiles MUST fail visibly. Migration preserves every historical row and its evidence bytes;
+  it adds the new rows as `specified`/`UNPROVEN` with no evidence. Historical readers reject `/1`;
+  archives retain `/0` bytes instead of pretending forward compatibility. Evidence `/0` and
+  result `/0` schemas, the six evidence classes, and promotion requirements remain unchanged.
+
 ## Trust boundary and failure behavior
 
 The ledger and receipt envelopes are caller-controlled local bytes. The runner treats all paths and
@@ -105,15 +114,6 @@ input emits no partial promotion result and exits non-zero. A valid ledger with 
 The runner proves only that the declared promotion packets are complete, internally bound, and
 content-addressed. Human acceptance, product value, benchmark independence, and external-market
 truth remain outside this mechanical boundary.
-
-- `UCV0-013`: The canonical ledger profile MUST be `corvint-use-case-conformance/1`, containing
-  the historical nineteen IDs plus exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`, and
-  `UC-EVIDENCE-CARRYING-COMPLETION`. The reader MUST retain the historical closed nineteen-ID
-  `corvint-use-case-conformance/0` profile. New IDs in `/0`, missing IDs in `/1`, and unknown
-  profiles MUST fail visibly. Migration preserves every historical row and its evidence bytes;
-  it adds the new rows as `specified`/`UNPROVEN` with no evidence. Historical readers reject `/1`;
-  archives retain `/0` bytes instead of pretending forward compatibility. Evidence `/0` and
-  result `/0` schemas, the six evidence classes, and promotion requirements remain unchanged.
 
 ## Non-goals and baseline
 
