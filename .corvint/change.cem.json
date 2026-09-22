@@ -450,6 +450,16 @@
         "start": 1366
       },
       "spanSha256": "8d212bf07827559f41b8aa63d1e70c5bbed62c694c7f7260151121500b44668a"
+    },
+    {
+      "blobOid": "9b2f2770bea6062ceab8f539ead3b5caca74245c",
+      "id": "evidence:sha256:8be2336351c48217fe67672230ee88f0f5c124fef46526e4973103984ef95d9e",
+      "path": "docs/plans/integrated-product-roadmap-2026-09-12.md",
+      "span": {
+        "end": 8265,
+        "start": 7990
+      },
+      "spanSha256": "038b312fa708a5bc4c59eb31293dde7f1ff0774afd349123c081a22aef8ea3f3"
     }
   ],
   "excludedPath": ".corvint/change.cem.json",
@@ -1478,9 +1488,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:ecd8742225f7e3f761f7d561a95da0adadbe158df704155cef9c657acffe7f97",
+      "id": "hunk:sha256:57adcd353ed4f17dbf18da8e56a33becc6ba3ec6c59c578397ffdeb3ed0f3aaf",
       "newRange": {
-        "count": 271,
+        "count": 279,
         "start": 7
       },
       "oldRange": {
@@ -1498,10 +1508,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:8f7ef982a047d5c40c891d0c059ac592261145d9ded94f692c5b33f132e26878",
+      "id": "hunk:sha256:fb0407c07909cc1e5552027a6f8c6897597081eb95ceaba8635d71d9f7bb3f7d",
       "newRange": {
         "count": 20,
-        "start": 345
+        "start": 353
       },
       "oldRange": {
         "count": 6,
@@ -1518,10 +1528,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:c408a784eb1aa8fc21933a200f5f4a251bbc3b9d32e00c3d411aa218f193d390",
+      "id": "hunk:sha256:0e90324967156a73e10d87a049c6d8451ad7ea416eb7573b6f0e88b325305c8e",
       "newRange": {
         "count": 153,
-        "start": 1537
+        "start": 1545
       },
       "oldRange": {
         "count": 3,
@@ -5620,6 +5630,26 @@
     {
       "basis": [
         {
+          "evidenceId": "evidence:sha256:8be2336351c48217fe67672230ee88f0f5c124fef46526e4973103984ef95d9e",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:02c1a0d6f19a0a85e98a8460cf7aec878b6372fa31b46f389ee93c1cf08844a4",
+      "newRange": {
+        "count": 6,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 1
+      },
+      "path": "script/seed-planning-store-data.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
           "evidenceId": "evidence:sha256:ab2cad375818327b114a0f8ae9fa730c7ca2f774ff8ee5433efb51d448dc638b",
           "relation": "specification"
         }
@@ -6178,6 +6208,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "5177c666fc4df504b1e8c444e5b8ad6260b6dc93e2fc48a36f5f601e1c9de140",
+  "patchSha256": "474b0e71e2ea2bf7031c9e9c59ee3836465e407a4e4769a0db943571d468bd36",
   "spec": "cem/0.2"
 }
