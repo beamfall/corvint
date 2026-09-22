@@ -1,12 +1,14 @@
 ---
 name: fixes
 description: Non-defect fixes: tech debt, code quality, misleading text
-updated: 2026-09-17
+updated: 2026-09-22
 ---
 
 # Fixes
 
 Non-defect fixes: tech-debt patches, code-quality adjustments, misleading comments or text. Remove the entry when done. Entries are dated, newest first, and kept to one short paragraph. The public tree starts this backlog empty.
+
+This backlog now lives in the Corvint task store (`.taskman/`, read and written with `corvint-tasks`; see `AGENTS.md` §Agent routing). Do not add entries here: file a ticket with `corvint-tasks ticket create` and label it `agent-memory`.
 
 <!--
 ### YYYY-MM-DD <area>: <one-line title>

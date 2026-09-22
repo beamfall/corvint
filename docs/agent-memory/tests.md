@@ -1,20 +1,16 @@
 ---
 name: tests
 description: Test coverage gaps and flaky tests to stabilise
-updated: 2026-09-18
+updated: 2026-09-22
 ---
 
 # Tests
 
 Missing, weak, or flaky tests, named by file and behaviour. Remove the entry when the test exists and passes. Entries are dated, newest first, and kept to one short paragraph. The public tree starts this backlog empty.
 
+This backlog now lives in the Corvint task store (`.taskman/`, read and written with `corvint-tasks`; see `AGENTS.md` §Agent routing). Do not add entries here: file a ticket with `corvint-tasks ticket create` and label it `agent-memory`.
+
 <!--
 ### YYYY-MM-DD <area>: <one-line title>
 One paragraph: what, where (file:line), why it matters, and what done looks like.
 -->
-
-### 2026-09-18 cmd/corvint: `TestWorkScriptRejectsCallerScratch/ambient-target` saw its fixture change once on CI
-On main run 35407266937 (`f870f41`, attempt 1) `work_materialization_test.go:603` reported a caller/common manifest change 80ms into the subtest; the sibling kinds passed. It did not reproduce in 100 Linux repetitions, git 2.55 leaves a fresh fixture's `.git` unchanged, and the script has no write path into the caller in ambient mode. The assertion now prints both manifests. Done means the next failure's diff names the writer and it is fixed, or the test stays green long enough to close this out.
-
-### 2026-09-18 liveverify/session: `TestRunningFailedPassed` misses its event wait under full-suite load
-In a full `go test ./...` run, `session_test.go:132` timed out waiting for the next event after `running` (20.49s) and the package took 125s. It passed 2/2 alone (7.7s). This failure was also seen in the #8 run. Done means the wait is keyed on the run's own completion rather than elapsed time, or the budget is sized as a hang detector (decision 0082).
