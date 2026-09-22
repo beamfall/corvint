@@ -10,8 +10,8 @@ Authoritative inputs: `agent-harness-integration-v0.md`, `protected-local-execut
 ## Agent digest
 - Claim: An optional fixed Pi SDK executable can participate in independently qualified protected lifecycle computation without admitting ordinary mutable Pi extensions.
 - Status: accepted direction; experimental; no execution root, completed qualification or FULL claim.
-- Exists: pinned Pi 0.85.1 Node SEA feasibility with native TUI/RPC, startup injection negatives and positive controls; functional Pi adapter 0.2.0 remains separate.
-- Blocked on: reproducible immutable runtime closure, new closed Pi authority profile, adversarial/native qualification, independent admission and explicit operator activation.
+- Exists: experimental repository Node SEA build with embedded Pi 0.85.1 code/assets, native TUI/RPC/reload/session replacement/image tools, startup injection controls and interruption cleanup; functional Pi adapter 0.2.0 remains separate.
+- Blocked on: final immutable release review, new closed Pi authority profile, adversarial/native qualification, independent admission and explicit operator activation.
 - Read next: Requirements; Runtime boundary; Acceptance and rollout.
 
 ## Human intent and verified starting point
@@ -53,10 +53,22 @@ file. Hardened runtime retains library validation and permits only the JIT entit
 V8. Positive canaries must prove the tested preload paths actually execute against the control.
 No debugger, DYLD or OpenSSL environment path may supply code to the admitted host.
 
-The complete fixed asset set must be independently staged under protected ancestry and bound to
-the executable's build. Mutable global npm/Bun installs, cwd settings, caches and environment paths
+The complete fixed asset set is embedded in the signed executable; no sidecar executable resource
+is loaded. The consumer and host image must be independently staged under protected ancestry.
+Mutable global npm/Bun installs, cwd settings, caches and environment paths
 cannot supply fallback code. An ad-hoc signature is a local image identity, not publisher trust or
 operator admission. Child tools and repository content never become admitted host code.
+
+The experimental build is `integrations/pi-protected/build.mjs`. Its pinned local dependency tree
+is bundled into a Node SEA image with a fixed asset reader, builtin-only `createRequire`, refused
+native addons and jiti, and an embedded image-worker string/WASM. OAuth and Bedrock use fixed
+statically bundled modules. Startup loads the seven built-in OAuth modules without performing login
+or network requests; missing provider code refuses before accepting prompts. `PI_OFFLINE` is fixed
+before SDK initialization to suppress model/package update traffic. Explicit provider traffic remains
+available. Credentials use the SDK's locked file backend through a data-only CredentialStore;
+asynchronous writes are validated after their updater completes and before persistence. Literal API
+keys are never interpolated, command keys and credential environment overrides refuse. Native OAuth
+data remains supported. Source fixtures prove these restrictions, not protected admission.
 
 The versioned wire definition is implemented and reviewed with the authority slice; this document
 accepts no reinterpretation of existing schemas. Normal Pi remains the simpler default. Linux,
@@ -75,8 +87,8 @@ service, and event-origin attestation are outside this bounded profile.
 
 | Requirement | Implementation/evidence | Current gap |
 |---|---|---|
-| PPI-V0-001..003 | Scratch pinned Node SEA, native Pi SDK and startup canaries | reproducible repository implementation and immutable assets NOT_PRODUCED |
-| PPI-V0-004 | Ordinary adapter `integrations/pi/host.test.mjs`; separate SDK TUI/RPC feasibility | protected lifecycle and recursion NOT_PRODUCED |
+| PPI-V0-001..003 | `integrations/pi-protected/build.mjs`, `runtime.ts`, `settings.mjs`; `runtime.test.mjs`, `startup.test.mjs` | final protected image/consumer freeze, input/license audit and independently admitted closure NOT_PRODUCED |
+| PPI-V0-004 | Ordinary adapter `integrations/pi/host.test.mjs`; protected SDK TUI/RPC/reload/replacement/image and interruption fixtures | protected lifecycle and recursion NOT_PRODUCED |
 | PPI-V0-005..007 | Existing authoritystore/QLF are reference mechanisms only | new Pi profile and runtime admission NOT_PRODUCED |
 | PPI-V0-008..009 | AHI conformance and this accepted scope | qualification, operator installation and rollback evidence NOT_RUN |
 

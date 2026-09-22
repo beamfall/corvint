@@ -2229,6 +2229,10 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [
+      "integrations/pi-protected/runtime.ts",
+      "integrations/pi-protected/build.mjs",
+      "integrations/pi-protected/settings.mjs"
+    ]
   }
 ]

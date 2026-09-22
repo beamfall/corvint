@@ -37,6 +37,35 @@ behavior remain unchanged. The regression joins or stops its delayed writer duri
 The failed full-gate receipt is retained; focused lifecycle validation and a fresh exact-candidate
 full gate are required, with no scope or enrollment replacement and no relabeling of old evidence.
 
+## 2026-09-22 PPI-V0-001..004: closed Pi SDK runtime proof
+
+The owner accepted the reviewed optional protected Pi direction, separately from privileged
+installation or completed qualification. Bun standalone executables still accepted executable
+`BUN_OPTIONS`/`BUN_BE_BUN` injection despite configuration-autoload switches. The implemented
+alternative uses official Node22.23.2 SEA, fixed exec arguments, hardened runtime with only JIT
+permission, exact Pi0.85.1 dependencies and embedded assets/worker/WASM. Ordinary Pi remains separate.
+
+Native RPC and TUI prompts, reload, session replacement and a real image read/resize pass while
+macOS denies reads of both global and build-time SDK modules. Hostile project/global extension
+files remain unexecuted. NODE_OPTIONS, forged argv0, CLI eval/preload, DYLD and OpenSSL injection
+negatives pass; executable Node/DYLD/OpenSSL controls prove the canaries work. SIGUSR1 does not
+activate the inspector. Harness interruption reaps a TERM-ignoring descendant. These are local
+source/runtime checks, not an admitted campaign or completed native qualification.
+
+Independent review identified unresolved lazy OAuth/Bedrock imports and inherited argv keys;
+static provider bundling and own-key argument parsing repair both. The repair review found no
+additional issue in that boundary. A subsequent async credential-write audit found validation ran
+before a Promise resolved. The guarded backend now validates after awaiting, rejects command keys
+and credential environment overrides before storage, and preserves literal keys without SDK
+interpolation. Explicit nonpersistence and literal-dollar regressions cover the repair.
+
+Failed test attempts remain evidence: the TUI driver initially submitted reload before completion;
+the image fixture initially exceeded the harness output cap and incorrectly selected repeated
+tool calls. Corrected fixtures wait for visible readiness/bounded completion and use a tiny image
+that still requires resizing. No production output limit was weakened. The full gate remains
+coordinator-held. Pi authority profiles, independent admission, latency/recall, actual protected
+OPEN/EMPTY/recursive behavior, installation and revocation remain NOT_PRODUCED/NOT_RUN.
+
 ## 2026-09-22 AHI-025: explicit Pi operations and full-support direction
 
 The owner explicitly requested complete Pi support, including protected authority and formal FULL.

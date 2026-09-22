@@ -23,6 +23,14 @@ GO_TEST_COMMAND = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
 
+# Optional protected Pi distribution; dependency installation/download is explicit.
+.PHONY: pi-protected-build pi-protected-test
+pi-protected-build:
+	bun integrations/pi-protected/build.mjs
+
+pi-protected-test: pi-protected-build
+	node --test integrations/pi-protected/*.test.mjs
+
 # gate is the reproducible verification gate: it must pass from a fresh clone with no private
 # .corvint/ state. dogfood-check is a separate authoring-time discipline step (AGENTS.md), run
 # explicitly with BASE=<sha> after committing the change and its CEM (docs/DOGFOOD.md); it is
