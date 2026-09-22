@@ -7,6 +7,24 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 EEP-V0-016/017/018: frozen kit gate failed, no retry
+
+The one enrolled full gate on `b835a7464836ee8d25ea828de0f2921ad672a254` failed with exit 2
+(no timeout or cancellation). `internal/specindex` rejected the kit's overlong INDEX claim and
+nonidentical INDEX/digest/README metadata. The repair restores the original bounded claim and
+synchronizes the delivery/status copies; requirement semantics and executable source are unchanged.
+The existing `TestIndexCoversSpecsAndHeaders` is the focused regression for that repair.
+
+The same run separately failed the existing Core
+`TestRepositoryQueryTraceStateFailuresAreTypedAndNonmutating/oversized` at the pre-query
+`repositoryBytesDigest`: a temporary Git pack index disappeared during `lstat`, followed by a
+TempDir `.git` directory-not-empty cleanup error. Cause remains UNKNOWN; no isolated retries or
+Core repair were performed in this kit slice. Full `internal/extevidence` and `tools/gate-ledger`
+packages passed in this run, which is distinct from the portable-proof gate-ledger failure.
+The frozen logs and leftover fixture are retained in the private task checkpoint. Recorded gate
+process handles exited. No further full gate is authorized; final completion and seal remain
+blocked. A metadata repair does not turn the failed frozen gate into PASS.
+
 ## 2026-09-22 EEP-V0-016/017/018, EEP-TR-011: experimental local provider authoring kit
 
 V1-0027 adds kit 0.1.0: a single-file standard-library Go provider and a separately built checker

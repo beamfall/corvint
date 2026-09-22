@@ -681,7 +681,7 @@
     "reqPrefix": "EEP-V0",
     "intent": "accepted (decision 0309)",
     "delivery": "experimental (file records and local authoring kit; kit promotion blocked on V1-0013)",
-    "claim": "`corvint impact --provider FILE` attaches separated external evidence; the experimental local authoring kit checks exact provider/profile pins without changing Core.",
+    "claim": "`corvint impact --provider FILE` attaches provider records in a separated `context.external` section and changes nothing in the core receipt.",
     "dependsOn": [
       "docs/specs/analyzer-capability-contract-v0.md",
       "docs/specs/affected-plan-v0.md",
