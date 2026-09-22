@@ -12,14 +12,14 @@
       "spanSha256": "dc13a3a0314368f0a38bcaa96f42dbf8c47f0bab0edc2298b00e30ddffa8f1e5"
     },
     {
-      "blobOid": "dd2bfdaa306c5a7eb40afd05e8759262e0aa085c",
-      "id": "evidence:sha256:d00e2c02059c193a6f31f8c5e0ed684ae35403ac33cafd4bbf6cf2ca998783b8",
-      "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+      "blobOid": "640395a2ad52cf84916661b04b33b557f0143714",
+      "id": "evidence:sha256:f057a534a9505f2f5e342b76f6b2f593cf438bd8f3d958c1c8e5fd1d5f564179",
+      "path": "docs/specs/public-release-v0.md",
       "span": {
-        "end": 5248,
-        "start": 4923
+        "end": 3327,
+        "start": 2967
       },
-      "spanSha256": "49a3493ee8f404c21d003f09181d1bc63fc3e7873bdc1025d25f198e94d33e58"
+      "spanSha256": "63b59d3ff047a563ea43c96e98a9788c23ed0d3dd18fa96bc54acff18ca4eab4"
     },
     {
       "blobOid": "dd2bfdaa306c5a7eb40afd05e8759262e0aa085c",
@@ -67,7 +67,27 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:d00e2c02059c193a6f31f8c5e0ed684ae35403ac33cafd4bbf6cf2ca998783b8",
+          "evidenceId": "evidence:sha256:f057a534a9505f2f5e342b76f6b2f593cf438bd8f3d958c1c8e5fd1d5f564179",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9d6695045f0758e103b9cdb4ac273c7371562102e4294ece8a8d9168c6ff0969",
+      "newRange": {
+        "count": 32,
+        "start": 1442
+      },
+      "oldRange": {
+        "count": 32,
+        "start": 1442
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:6ca47a4d00808a0719c4e74f8603756e70e80e0c10f765ec64626a7121257830",
           "relation": "specification"
         }
       ],
@@ -125,6 +145,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "36e25641b809931829cf389c68d03c27c29e0baf18c727988b1cc6849fabf793",
+  "patchSha256": "00e0d986cd3b81700e1a148a5c9109c40c81bcb128be200181cecb5619733e42",
   "spec": "cem/0.2"
 }
