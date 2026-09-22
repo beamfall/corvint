@@ -16,6 +16,8 @@ The product and executable are Corvint. The `corvint-*` wire/profile identities,
 tools, and canonical `.corvint` and `.context-corvint` paths are protocol and repository-state
 contracts. `cmd/corvint-*` paths are source package names.
 
+The accepted [0.6 verified local-workflow scope](decisions/0330-verified-local-workflow-scope-2026-09-22.md) and [portfolio reading map](PORTFOLIO-0.6.md) define the current Core qualification target. Its status is **NOT_QUALIFIED**; installed Codex/Claude use, six evidence classes, and candidate-bound gates remain open.
+
 ## Product loop
 
 ```text

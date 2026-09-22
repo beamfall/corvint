@@ -7,6 +7,27 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 decision 0330: 0.6 portfolio and native status reconciliation
+
+The 127-entry index and installed 0.5.0a3 build 45 command help were inventoried into
+[the 0.6 portfolio](PORTFOLIO-0.6.md); the private coverage comparison retains both inventories.
+Core is a restricted qualification target, not delivered intent or promotion. An initialized native
+`.taskman` store supplies current execution status in the workspace where it exists; this checkout
+has none, so the historical AT/E/U roadmap cannot serve as a live queue. The original directory's
+fixture queue is `queue:corvint:main`; no V1 ticket completion is inferred. The broad integrated
+outcome remains historical owner intent outside the accepted 0.6 Core prerequisite set.
+
+Prechange query and full-base range impact returned receipts. Keyed enrollment returned
+`operation-in-progress` while keyed status was inactive; initial `make dogfood-change` could not
+write the linked Git directory under the sandbox. The development worker continued after that refusal, so its full workflow trial is incomplete.
+The coordinator preserved the exact patch and restored its owned files before retrying enrollment.
+The sealed prior worktree then correctly refused stale prior completion; a fresh isolated leaf was
+enrolled from the sealed base before replaying the patch. No lifecycle record was removed or relabelled.
+Command-owner mappings and supporting-gate classifications were corrected before review.
+The worker's five focused documentation checks passed. Fresh Astra/medium review found no HIGH/MED
+findings after the repair; final binding and enrolled checks follow. Raw worker/reviewer usage and
+all refusals remain private development evidence, not sealed cost or savings evidence.
+
 ## 2026-09-22 DCW-V0 / UCV0-013: owner-selected 0.6 local-workflow scope
 
 Decision 0330 records explicit owner acceptance of three narrowly scoped daily-workflow jobs,

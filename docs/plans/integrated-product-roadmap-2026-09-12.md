@@ -5,13 +5,13 @@ Updated: 2026-09-12
 Status: owner-requested outcomes; proposed implementation sequence; not release-qualified
 
 Build order, checkpoints and the remaining autonomous-runtime sequence are in the
-[execution plan](integrated-product-execution-2026-09-12.md).
+[historical execution discussion below](#milestones-and-dependency-order).
 
 ## Outcome
 
 Deliver a working Corvint with automatic documentation through MCP, automatic test tracking
 for agents and VS Code including E2E, a local dashboard, and task management with a roadmap.
-All five are required before the requested public release. The first useful demonstration is
+All five remain the broader owner-requested integrated outcome. [Decision 0330](../decisions/0330-verified-local-workflow-scope-2026-09-22.md) narrows the current 0.6 Core qualification target; this broader sequence does not add 0.6 prerequisites. The first useful demonstration is
 one real change flowing through context, a roadmap ticket, test feedback, updated documentation,
 and the dashboard. Building isolated mock screens does not satisfy that outcome.
 
@@ -239,7 +239,7 @@ serial-runtime gates and owner cutover are complete. TCP-07/08 then govern paral
 and automatic expert/reviewer routing. That work remains on the roadmap beyond the first
 integrated local release; no current ticket-board behavior is advertised as autonomous execution.
 
-## Current next action
+## Historical next action at drafting
 
 Bootstrap the isolated planning tickets with IPR-03, then finish IPR-01's two concrete review
 repairs and real installed demonstration, then IPR-02.
