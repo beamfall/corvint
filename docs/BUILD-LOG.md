@@ -1284,3 +1284,20 @@ Origin/Host/session refusal, state-preservation and cleanup assertions. A diagno
 Tasks store correctly refused relocation and was discarded as qualification evidence. Browser
 diagnostic attempts were interrupted and remain failed; HTTP inspection establishes this selector
 defect but does not replace the required complete installed browser qualification.
+
+## 2026-09-22 GL-V0-001/005: exact bytes without cached index stats
+
+A deterministic fixture reproduced a false ledger HIT and stale `one\n` blob after a same-size
+`two\n` edit with restored mtime under coarse Git stat settings. The newer-index variant also
+failed, so preserving only the copied index timestamp is insufficient. The original full-gate
+failure's exact timing/configuration remains unknown; its failed source/enrollment is preserved.
+Independent plan review selected a fresh private index imported from Git's NUL-delimited
+mode/object/stage/path entries, retaining tracked membership while discarding cached stat data.
+Private commands disable fsmonitor and ignorestat; the original index bytes and mtime stay intact.
+Tests cover restored timestamps, ignored tracked and intent-to-add content, staged changes,
+deletions, unusual paths, executable/symlink modes, unborn and linked worktrees, refusals and
+failed-import cleanup. An initial cleanup assertion included Apple's unrelated `xcrun_db` cache;
+it was corrected to assert only the ledger-owned private index/lock names. Corvint pre-change
+query/impact, dirty affected/path impact and enrolled CEM/OCM are the applicable self-use routes;
+learning/evaluation/provider routes are not applicable. Focused checks qualify this repair only;
+the mandatory full gate remains pending on the coordinator's frozen integrated Core target.
