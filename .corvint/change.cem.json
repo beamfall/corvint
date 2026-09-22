@@ -1,0 +1,130 @@
+{
+  "baseRevision": "dac29206862695094385a20cc79ebcbdce389d91",
+  "evidence": [
+    {
+      "blobOid": "2508a06da9776437ae59ca69d6263862827fc136",
+      "id": "evidence:sha256:538eb494d5a7fd28f7a32b23d120fd165ddad265bf33adef98aaea7c71fecfb6",
+      "path": "docs/decisions/0330-verified-local-workflow-scope-2026-09-22.md",
+      "span": {
+        "end": 1993,
+        "start": 543
+      },
+      "spanSha256": "dc13a3a0314368f0a38bcaa96f42dbf8c47f0bab0edc2298b00e30ddffa8f1e5"
+    },
+    {
+      "blobOid": "dd2bfdaa306c5a7eb40afd05e8759262e0aa085c",
+      "id": "evidence:sha256:d00e2c02059c193a6f31f8c5e0ed684ae35403ac33cafd4bbf6cf2ca998783b8",
+      "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+      "span": {
+        "end": 5248,
+        "start": 4923
+      },
+      "spanSha256": "49a3493ee8f404c21d003f09181d1bc63fc3e7873bdc1025d25f198e94d33e58"
+    },
+    {
+      "blobOid": "dd2bfdaa306c5a7eb40afd05e8759262e0aa085c",
+      "id": "evidence:sha256:6ca47a4d00808a0719c4e74f8603756e70e80e0c10f765ec64626a7121257830",
+      "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+      "span": {
+        "end": 5248,
+        "start": 4439
+      },
+      "spanSha256": "0e10af576ae4fab02ae9e9e47a796367913161ca6fb5269034b3733d55e0a6b2"
+    },
+    {
+      "blobOid": "2508a06da9776437ae59ca69d6263862827fc136",
+      "id": "evidence:sha256:1175f7a8b27c4a8a3e542bca4c56fb9257096070647d81bac05301bfa08f8e0d",
+      "path": "docs/decisions/0330-verified-local-workflow-scope-2026-09-22.md",
+      "span": {
+        "end": 2825,
+        "start": 1189
+      },
+      "spanSha256": "9684bf6cf9d0e4b7722cef03e95b9cc23af4f5ee8eb0455c1c5d4310829ccfec"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:538eb494d5a7fd28f7a32b23d120fd165ddad265bf33adef98aaea7c71fecfb6",
+          "relation": "decision"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2c039e381649fb8bcc7e74adaa9ee5252002ac3380228af7e1c9ed3a433cf1dc",
+      "newRange": {
+        "count": 16,
+        "start": 7
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 7
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d00e2c02059c193a6f31f8c5e0ed684ae35403ac33cafd4bbf6cf2ca998783b8",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9be62915a95259c1f8910757d828c3870c3be881f18be6b90c5a7841c4e741dd",
+      "newRange": {
+        "count": 15,
+        "start": 80
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 80
+      },
+      "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:6ca47a4d00808a0719c4e74f8603756e70e80e0c10f765ec64626a7121257830",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2edade3d2d74655c69d62f33e9a81421380056e70990d450c2357c068ef40948",
+      "newRange": {
+        "count": 10,
+        "start": 105
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 96
+      },
+      "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1175f7a8b27c4a8a3e542bca4c56fb9257096070647d81bac05301bfa08f8e0d",
+          "relation": "decision"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3b54424361f96f3c80c4f934d3de20c13d9a3bd75f49c87c588a70f397140be2",
+      "newRange": {
+        "count": 36,
+        "start": 23
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 23
+      },
+      "path": "docs/specs/public-release-v0.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "36e25641b809931829cf389c68d03c27c29e0baf18c727988b1cc6849fabf793",
+  "spec": "cem/0.2"
+}
