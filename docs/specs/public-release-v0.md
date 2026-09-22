@@ -20,8 +20,7 @@ Decision 0330 accepts `daily-change-evidence-workflow-v0.md` for the 0.6 verifie
 milestone. For that milestone only, it supersedes conflicting prerequisites that require optional
 companions or formal FULL host authority before Core qualification. Local Codex and Claude use
 is qualified separately on exact versions. This does not promote any host, waive evidence gates,
-or alter historical alpha artifacts. `PUB-V0-001` remains the current published version until an
-explicit candidate change; 0.6 readiness has not been established.
+or alter historical alpha artifacts. `PUB-V0-001` selects the current candidate version; 0.6 readiness has not been established.
 
 For this Core-only scope, `PUB-V0-022..026` retain their applicable safeguards without
 making the optional combined alpha bundle a prerequisite. The existing native archive-gate
@@ -70,7 +69,7 @@ The proposed delivery sequence and acceptance criteria are in
 
 ## Requirements
 
-- `PUB-V0-001`: The current version tuple MUST move together to `0.5.0a3`, including native
+- `PUB-V0-001`: The current version tuple MUST move together to `0.6.0`, including native
   version output, archive smoke expectations, VS Code exact admission and live fixtures.
   Historical benchmark and release evidence MUST retain its original version identities.
 - `PUB-V0-002`: The existing native CLI archive gate MUST remain independent. An optional

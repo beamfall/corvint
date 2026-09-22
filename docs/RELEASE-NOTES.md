@@ -1,5 +1,18 @@
 # Release notes
 
+## 0.6.0 candidate — unqualified
+
+The current version tuple selects `0.6.0` for decision 0330’s one-binary local workflow:
+task orientation, change consequence and evidence-carrying completion. The nineteen historical
+use cases retain their original claims; the three new jobs remain `UNPROVEN`. Optional companions
+and formal FULL host authority remain separately qualified.
+
+This is source preparation, not readiness or publication evidence. Exact-candidate native
+Darwin/Linux, full-gate, archive, Codex/Claude installed-host, genuine Corvint/Beamfall workflow
+and sealed correctness/cost qualification remain pending. The immutable candidate and its later
+evidence packet require owner acceptance before promotion or publication. Build numbers remain
+derived from first-parent Git history; historical artifacts keep their original identities.
+
 ## 0.5.0a3 experimental alpha
 
 `v0.5.0a3` integrates every GitHub issue open after `v0.5.0a2` (decision 0329): #53 behavior-contract

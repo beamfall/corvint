@@ -7,6 +7,19 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 PUB-V0-001: prepare the 0.6.0 candidate version tuple
+
+The owner-selected candidate moves the native version, archive smoke, VS Code exact admission
+and live fixture together. Existing tuple and historical-identity tests carry explicit PUB-V0-001
+claim anchors for OCM review. The draft notes retain UNPROVEN jobs and pending candidate gates;
+no historical evidence, first-parent build calculation or optional alpha parser changes.
+
+The retained prechange query located accepted decision 0072, with four ranked results omitted
+and test symbols withheld; original sources and accepted decision 0330 supplied scope. The initial
+empty-diff coordinator refused CEM preparation, as expected. This slice uses query, affected,
+CEM/OCM/frontier and keyed completion; native/archive/host and sealed measurement are deferred
+until the integrated candidate freezes. No paired savings or milestone qualification is claimed.
+
 ## 2026-09-22 decision 0330: Core candidate and evidence packet clarification
 
 The accepted Core-only 0.6 scope now distinguishes immutable tested candidate `T` from
