@@ -31,7 +31,9 @@ the already accepted separate MCP profile. Full/interop gate and CEM/OCM complet
 produced after the source freeze; this entry does not claim those pending gates passed. Pre-change
 dogfood at the empty base-to-HEAD range retained `cem-prepare git-diff-failed`, missing CEM/citations,
 missing intent scope and missing outcome inputs. No billed-token or before-first-query measurement
-was available; no efficiency or promotion claim follows.
+was available; no efficiency or promotion claim follows. OCM correctly rejected hyphen-adjacent
+requirement IDs in the new test labels as non-exact anchors; labels now use whitespace delimiters.
+The source target was refrozen before any full gate.
 
 ## 2026-09-22 V1-0013 / CEM-CB-003: candidate portable packet finds cross-hunk interop defect
 

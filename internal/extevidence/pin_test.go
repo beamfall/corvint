@@ -29,7 +29,7 @@ func executableDigest(t *testing.T, path string) string {
 // The only provider input to the offline build is an authored copy of main.go:
 // no Corvint internals, installed binary, generated source, or dependency cache.
 func TestProviderKitAuthoredProvider(t *testing.T) {
-	t.Run("EEP-V0-016-copyable-provider", func(t *testing.T) {
+	t.Run("EEP-V0-016 copyable provider", func(t *testing.T) {
 		source, err := os.ReadFile(filepath.Join("..", "..", "examples", "evidence-provider", "v0", "main.go"))
 		if err != nil {
 			t.Fatal(err)
@@ -90,7 +90,7 @@ func TestProviderKitAuthoredProvider(t *testing.T) {
 }
 
 func TestProviderKitExactPins(t *testing.T) {
-	t.Run("EEP-V0-017-exact-compatibility-window", func(t *testing.T) {
+	t.Run("EEP-V0-017 exact compatibility window", func(t *testing.T) {
 		repo := newRepository(t)
 		data := fixture(t, repo.head)
 		record, err := Decode(data)
@@ -149,7 +149,7 @@ func TestProviderKitExactPins(t *testing.T) {
 }
 
 func TestProviderKitCommandPins(t *testing.T) {
-	t.Run("EEP-TR-011-pinned-contained-command", func(t *testing.T) {
+	t.Run("EEP-TR-011 pinned contained command", func(t *testing.T) {
 		repo := newRepository(t)
 		data := fixture(t, repo.head)
 		record, _ := Decode(data)
@@ -178,7 +178,7 @@ func TestProviderKitCommandPins(t *testing.T) {
 }
 
 func TestProviderKitFixtureConformance(t *testing.T) {
-	t.Run("EEP-V0-018-reuse-conformance", func(t *testing.T) {
+	t.Run("EEP-V0-018 reuse conformance", func(t *testing.T) {
 		transportConformance(t, func(file string) string { return providerCommand(t, "serve", file) })
 	})
 }
