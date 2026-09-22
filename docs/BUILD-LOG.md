@@ -7,6 +7,18 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 MCPV0-011: lifecycle fixture waits for PID publication
+
+The c0f1eee full gate failed `TestClosedStdoutCancelsInFlightDescendantGroup` with `<nil>` at its
+PID-file wait, before the stdout-close and descendant-cleanup assertions. The fixture's shell can
+create its PID file before writing the bytes; the reader treated an existing empty file's nil
+error as a fatal error. A focused empty-file-to-complete-publication regression reproduced that
+failure immediately. Only non-nil unexpected read errors now fail the wait; empty or absent files
+keep the existing bounded retry. Malformed PID data, deadlines, process cleanup and MCP runtime
+behavior remain unchanged. The regression joins or stops its delayed writer during cleanup.
+The failed full-gate receipt is retained; focused lifecycle validation and a fresh exact-candidate
+full gate are required, with no scope or enrollment replacement and no relabeling of old evidence.
+
 ## 2026-09-22 AHI-025: explicit Pi operations and full-support direction
 
 The owner explicitly requested complete Pi support, including protected authority and formal FULL.
