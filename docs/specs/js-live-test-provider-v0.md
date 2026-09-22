@@ -139,14 +139,14 @@ states only the condition checked there.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `exit-status-unexplained` | `internal/jstestprovider/runner.go:149` | the Vitest process exited nonzero but none of its parsed outcomes are `failed` or `infrastructure` (e.g. an error thrown outside any test's own run) |
+| `exit-status-unexplained` | `internal/jstestprovider/runner.go:154` | the Vitest process exited nonzero but none of its parsed outcomes are `failed` or `infrastructure` (e.g. an error thrown outside any test's own run) |
 | `no-suites-collected` | `internal/jstestprovider/vitest.go:82` | the Vitest report produced no test outcome; the Playwright report path emits the same code at `internal/jstestprovider/playwright.go:91` when the report has no suites |
-| `output-overflow` | `internal/jstestprovider/runner.go:178` | the Vitest process observation reports combined, stdout, or stderr output overflow (checked after timeout) |
+| `output-overflow` | `internal/jstestprovider/runner.go:183` | the Vitest process observation reports combined, stdout, or stderr output overflow (checked after timeout) |
 | `report-not-written` | `internal/jstestprovider/runner.go:141` | after a Vitest run with no boundary failure, reading the JSON output file failed or it exceeded the unit path's own `unitReportOutputLimit`, 16 MiB (`internal/jstestprovider/runner.go`, at least the 16 MiB `defaultOutputLimit` process bound, not the external provider's 4 MiB `externalOutputLimit`); the detail is the read error or `report-output-overflow` |
 | `report-unparseable` | `internal/jstestprovider/runner.go:142` | `ParseVitestJSON` refused the output file; the detail is the parse error |
-| `server-not-ready` | `internal/jstestprovider/runner.go:264` | the E2E server did not become ready at the configured URL within the ready limit (15 s when unset); the server is cancelled and its cleanup recorded in `serverDescendantsGone` first, `appBuildAtPublish` is explicit unknown, and a run whose context was cancelled during the wait reports `cancelled` instead |
-| `start-failed` | `internal/jstestprovider/runner.go:182` | the Vitest process observation reports it never started (checked after timeout, output overflow, and cancellation); the detail is the observation error; the Playwright test process emits the same code at `internal/jstestprovider/runner.go:328`, checked after timeout and output overflow |
-| `wait-not-completed` | `internal/jstestprovider/runner.go:184` | the Vitest process started, did not time out, overflow, or get cancelled, and its wait did not complete; the Playwright test process emits the same code at `internal/jstestprovider/runner.go:330` under the same condition, so its output is never parsed |
+| `server-not-ready` | `internal/jstestprovider/runner.go:269` | the E2E server did not become ready at the configured URL within the ready limit (15 s when unset); the server is cancelled and its cleanup recorded in `serverDescendantsGone` first, `appBuildAtPublish` is explicit unknown, and a run whose context was cancelled during the wait reports `cancelled` instead |
+| `start-failed` | `internal/jstestprovider/runner.go:187` | the Vitest process observation reports it never started (checked after timeout, output overflow, and cancellation); the detail is the observation error; the Playwright test process emits the same code at `internal/jstestprovider/runner.go:333`, checked after timeout and output overflow |
+| `wait-not-completed` | `internal/jstestprovider/runner.go:189` | the Vitest process started, did not time out, overflow, or get cancelled, and its wait did not complete; the Playwright test process emits the same code at `internal/jstestprovider/runner.go:335` under the same condition, so its output is never parsed |
 
 The per-test projection also sets one claim reason, outside `infrastructure.reason`:
 
