@@ -55,6 +55,11 @@ func corpusServerFixture(t *testing.T, text string) (string, *doccorpus.Artifact
 }
 
 func TestCorpusMCPTransport(t *testing.T) {
+	for _, version := range []string{"2026-07-28", "2025-11-25"} {
+		t.Run(version, func(t *testing.T) { corpusMCPTransport(t, version) })
+	}
+}
+func corpusMCPTransport(t *testing.T, version string) {
 	t.Run("DCP-V1-016 transport", func(t *testing.T) {
 		root, a := corpusServerFixture(t, "# Evidence\n\nOriginal source.\n")
 		serverInput, clientInput := io.Pipe()
@@ -63,7 +68,7 @@ func TestCorpusMCPTransport(t *testing.T) {
 		done := make(chan int, 1)
 		var stderr bytes.Buffer
 		go func() {
-			done <- run(ctx, []string{"--root", root, "--artifact", "corpus.json"}, serverInput, serverOutput, &stderr)
+			done <- run(ctx, []string{"--root", root, "--artifact", "corpus.json", "--protocol-version", version}, serverInput, serverOutput, &stderr)
 		}()
 		t.Cleanup(func() {
 			cancel()
@@ -79,7 +84,9 @@ func TestCorpusMCPTransport(t *testing.T) {
 		})
 		send := func(id int, method string, params map[string]any) map[string]any {
 			t.Helper()
-			params["_meta"] = map[string]any{"io.modelcontextprotocol/protocolVersion": "2026-07-28", "io.modelcontextprotocol/clientCapabilities": map[string]any{}}
+			if version == "2026-07-28" {
+				params["_meta"] = map[string]any{"io.modelcontextprotocol/protocolVersion": version, "io.modelcontextprotocol/clientCapabilities": map[string]any{}}
+			}
 			data, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": id, "method": method, "params": params})
 			if _, e := clientInput.Write(append(data, '\n')); e != nil {
 				t.Fatal(e)
@@ -89,6 +96,15 @@ func TestCorpusMCPTransport(t *testing.T) {
 				t.Fatal(e)
 			}
 			return response
+		}
+		if version == "2025-11-25" {
+			initialized := send(0, "initialize", map[string]any{"protocolVersion": version, "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "conformance", "version": "test"}})
+			if initialized["error"] != nil {
+				t.Fatal(initialized)
+			}
+			if _, err := io.WriteString(clientInput, `{"jsonrpc":"2.0","method":"notifications/initialized"}`+"\n"); err != nil {
+				t.Fatal(err)
+			}
 		}
 		listed := send(1, "tools/list", map[string]any{})
 		result, ok := listed["result"].(map[string]any)

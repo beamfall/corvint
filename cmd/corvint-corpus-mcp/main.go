@@ -28,8 +28,9 @@ func main() {
 }
 
 func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	arguments, protocolVersion, protocolOK := protocol.ExtractVersionArgument(arguments)
 	root, artifact, versionOnly, ok := parseArguments(arguments)
-	if !ok {
+	if !ok || !protocolOK {
 		_, _ = fmt.Fprintln(stderr, "corvint-corpus-mcp: invalid arguments")
 		return 2
 	}
@@ -44,7 +45,8 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	}
 	handler := &toolHandler{registry: registry}
 	instance, err := server.New(server.Config{
-		Name: serverName, Version: serverVersion,
+		ProtocolVersion: protocolVersion,
+		Name:            serverName, Version: serverVersion,
 		Description:  "Local read-only Corvint experimental documentation corpus server.",
 		Capabilities: map[string]any{"tools": map[string]any{"listChanged": false}},
 		Handler:      handler,

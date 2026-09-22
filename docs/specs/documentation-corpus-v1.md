@@ -107,6 +107,9 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   advertised only when their backing capability is present (including present-zero). Revalidate on
   calls, preserve typed failures, frame model-facing text using `repoenvelope`, refuse terminator
   collisions and match CLI structured receipt bytes. Existing core and draft MCP surfaces stay frozen.
+  The separately owner-approved MCPV0-021..023 shared compatibility amendment permits explicit
+  `--protocol-version 2025-11-25`; the required `--root` and `--artifact` arguments, capability
+  gating, evidence bounds and experimental/non-shipped status remain unchanged.
 - `DCP-V1-017`: Declared profiles render Markdown or JSON, optionally grouped as a directory plan,
   with explicit generated markers, evidence citations, states and limitations. Output is deterministic
   and remains generated. Preview is read-only; apply is an explicit operation. Maintenance freshly

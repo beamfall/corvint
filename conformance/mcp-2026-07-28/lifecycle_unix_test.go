@@ -16,11 +16,17 @@ import (
 )
 
 func TestTerminationSignalsCancelInFlightDescendantGroup(t *testing.T) {
+	for _, version := range []string{protocolVersion, "2025-11-25"} {
+		t.Run(version, func(t *testing.T) { terminationSignalsCancelInFlightDescendantGroup(t, version) })
+	}
+}
+
+func terminationSignalsCancelInFlightDescendantGroup(t *testing.T, version string) {
 	for _, signal := range []os.Signal{os.Interrupt, syscall.SIGTERM} {
 		t.Run(signal.String(), func(t *testing.T) {
 			root := fixtureRepository(t)
 			fakeDirectory, pidFile := installBlockingFakeGit(t)
-			client := startServerWithEnv(t, root,
+			client := startServerWithArguments(t, root, []string{"--protocol-version", version},
 				"PATH="+fakeDirectory+string(os.PathListSeparator)+os.Getenv("PATH"),
 			)
 			t.Cleanup(func() {
@@ -29,8 +35,17 @@ func TestTerminationSignalsCancelInFlightDescendantGroup(t *testing.T) {
 					_ = client.command.Process.Kill()
 				}
 			})
+			meta := requestMeta()
+			if version == "2025-11-25" {
+				initialized := client.call(t, 0, "initialize", map[string]any{"protocolVersion": version, "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "conformance", "version": "test"}})
+				if initialized["error"] != nil {
+					t.Fatal(initialized)
+				}
+				client.sendJSON(t, map[string]any{"jsonrpc": "2.0", "method": "notifications/initialized"})
+				meta = map[string]any{}
+			}
 			client.sendJSON(t, request(90, "tools/call", map[string]any{
-				"_meta": requestMeta(), "name": "corvint.status", "arguments": map[string]any{},
+				"_meta": meta, "name": "corvint.status", "arguments": map[string]any{},
 			}))
 			pids := waitForRecordedPIDs(t, pidFile, 3*time.Second)
 			t.Cleanup(func() {

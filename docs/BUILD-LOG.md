@@ -1272,3 +1272,27 @@ latency p50 about 35 ms and max about 125 ms per case on one development host, a
 `test_selection` member of 4470 bytes. The corpus is synthetic and authored with the feature, so
 these numbers show the fail-closed rules hold. They are not an adopter outcome, and promotion needs
 a corpus drawn from a real change history.
+
+
+## 2026-09-22 — OpenCode explicit MCP compatibility (V1-0022)
+
+The installed OpenCode client sent the legacy initialize handshake and received method-not-found
+from the modern-only server. A positive modern discover replay on the same binary/root isolated
+protocol admission as the defect. The owner approved correcting the frozen check plan before
+implementation; independent plan review resolved ordered initialization and legacy response framing.
+
+The opt-in 2025-11-25 profile reuses the bounded shared stdio transport and all four existing native
+tool registries. The first real client probe then exposed omitted tools/list params; normalizing
+those at the legacy boundary produced successful real OpenCode discovery. Both failed exchanges
+and the successful probe are retained in the local release evidence packet. ClientInfo versions
+1.17.18 and 1.18.31 were observed separately with CLI 1.18.31. Discovery alone does not prove actual
+host tool execution, sealed workflow usefulness, official conformance or formal FULL authority.
+Existing docs/corpus workflows, test-validity vectors and INT/TERM descendant checks now exercise
+both profiles. The original modern contract, companion distribution set and release gates remain.
+
+The subsequent real OpenCode run executed `corvint.status` and received the READY read-only
+repository receipt. The provider was an explicit deterministic localhost fixture with native
+outbound-network restriction, not an inference or cost benchmark. The independent implementation
+review found one completion-evidence defect: the new clauses initially followed a level-two
+heading, outside OCM's Requirements parser. Moving that heading to level three preserves actual
+clause enumeration; final OCM linkage and frozen checks remain required before local completion.

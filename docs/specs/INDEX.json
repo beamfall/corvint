@@ -1264,7 +1264,7 @@
     "reqPrefix": "MCPV0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "A local stdio MCP 2026-07-28 server exposes bounded read-only Corvint receipts without repository mutation.",
+    "claim": "A local stdio MCP server exposes bounded read-only Corvint receipts, with 2026-07-28 default and explicit 2025-11-25 compatibility.",
     "dependsOn": [
       "docs/specs/agent-harness-integration-v0.md"
     ],
