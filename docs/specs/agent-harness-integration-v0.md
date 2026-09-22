@@ -129,7 +129,7 @@ do not reinterpret this Frontier result.
   may be labelled full support. The `host-adapter` translator reports an unrecognised hook event as
   the degraded reason `unsupported-hook-event`, and oversized or malformed hook input as
   `hook-input-too-large` or `malformed-hook-json`, each in a `systemMessage` that says coding
-  continues (`cmd/corvint/host_adapter.go:39,121,125@b3341e84`). These are faults under `AHI-021`.
+  continues (`cmd/corvint/host_adapter.go:39,124,128@b3341e84`). These are faults under `AHI-021`.
 - `AHI-010`: Each release MUST publish tested host-version ranges, adapter and protocol versions,
   unavailable capabilities, known degradations, and the last conformance result. The adapter version
   in a published matrix row and in its shipped declaration identifies the host package the record
@@ -152,6 +152,9 @@ do not reinterpret this Frontier result.
   Corvint operation. Missed deadlines degrade visibly rather than blocking the host indefinitely; an
   `corvint-invocation-timeout` line MUST name the deadline it exceeded and state that the deadline is a
   bound, not a diagnosed fault.
+  OpenCode automatic events default to the existing 2,000 ms ceiling; valid explicit overrides
+  remain 25–2,000 ms. Its `timeout` notice MUST carry `deadlineMs` and the same bound-versus-fault
+  distinction. A completed `FALLBACK` receipt MUST retain its actual degradation codes.
 - `AHI-013`: Default injected context MUST be smaller than the manual-search baseline at equal
   critical-evidence recall. Corvint MUST publish bytes and, where the host exposes them, measured input
   tokens; serialized bytes alone are not a token-savings claim.
@@ -314,7 +317,7 @@ do not reinterpret this Frontier result.
   accepts, which `AHI-022` routes off the terminal for the two JavaScript hosts.
 
 - `AHI-024`: The experimental Pi extension MUST use runtime-provided version `0.85.1`, adapter
-  `0.1.0`, host `pi`, and surface `extension`; other versions MUST refuse visibly. The native
+  `0.2.0`, host `pi`, and surface `extension`; other versions MUST refuse visibly. The native
   translator argv is exactly `adapter pi EVENT`, where EVENT is one of `session-start`,
   `user-prompt`, `file-change`, `post-tool`, `stop`, or `session-end`. Its UTF-8 stdin is bounded
   to 131072 bytes and contains exactly `hostVersion` and event-normalized `input`. Unknown,
@@ -326,9 +329,12 @@ do not reinterpret this Frontier result.
   `corvint-pi-adapter/0` profile described below. Fallback MUST always report continuation false.
 
   Session start/reload/new/resume/fork map to startup/resume/clear/resume/resume respectively;
-  successful compaction maps to compact recovery. Before-agent-start forwards only bounded
+  successful compaction maps to compact recovery. Session-tree navigation resets transient state
+  and requests resume context. Startup/compaction context is supplied once through the ephemeral
+  context hook on the next model request (including same-turn compaction retries), never persisted
+  in Pi session history. Pending recovery is discarded on session/root changes or prompt failure. Before-agent-start forwards only bounded
   prompt text and appends native framed data ephemerally to that turn's system prompt. Tool
-  observations MUST never forward messages, raw tool content or details, or infer verification
+  observations MUST never forward messages, raw tool content or unselected details, or infer verification
   from a tool name. Explicit typed path observations remain subject to core containment.
   Agent-end may inspect only explicit terminal stopReason to distinguish stop/error/aborted;
   no message text is forwarded or persisted. Settlement, process exit zero and streamed text
@@ -342,15 +348,20 @@ do not reinterpret this Frontier result.
   and refuses an empty value before spawning.
 
   `/corvint-context` maps text to user-prompt input.task. `/corvint-outcome` accepts only an
-  explicit session-end outcome JSON under the existing kernel schema. Expansion remains the
+  explicit session-end outcome JSON under the existing kernel schema. The shim rejects non-object,
+  duplicate-key, oversized and caller-identity input before merging the host identity; the native
+  kernel retains deeper validation and invalid input returns `invalid-input`. Persistence
+  degradation is shown to the user, never reported as recorded success. Faults use UI notices
+  or stderr in non-UI modes, without adding automatic messages to model history. Expansion remains the
   documented existing `adapter source-view` route with native selector validation. No automatic
-  task/outcome or new source-selector parser is permitted. Package/version declarations and
+  task/outcome or new source-selector parser is permitted. AHI-025 adds explicit in-memory
+  source expansion and durable recording through existing core validators. Package/version declarations and
   compatibility evidence MUST agree. This functional extension is FALLBACK until its exact
   tuple completes the separate protected authority and full host qualification requirements.
 
   The output has exactly `profile`, `event`, `host`, `surface`, `hostVersion`, `adapterVersion`,
   `support`, `receiptId`, `context`, `degradations`, `fault`, and `shouldContinue`. Constants are
-  `corvint-pi-adapter/0`, `pi`, `extension`, `0.1.0`, `FALLBACK`, and false respectively.
+  `corvint-pi-adapter/0`, `pi`, `extension`, `0.2.0`, `FALLBACK`, and false respectively.
   Event is the admitted selector, or null only for an unsupported-event fault. Success has
   hostVersion `0.85.1`, an existing `harness-receipt:sha256:` request identity with 64 lowercase
   hexadecimal digits, string context (empty or native framed data), recognized degradation
@@ -371,6 +382,44 @@ do not reinterpret this Frontier result.
   `corvint adapter source-view --root ROOT --packet PATH --packet-sha256 SHA --result N`, with
   optional `--evidence N`, `--commit SHA`, `--lines RANGE`, `--requirement ID`, `--max-bytes N`;
   that separate route retains its existing framed profile and native validation.
+
+- `AHI-025`: The owner-requested complete Pi integration MUST expose native model-callable
+  `corvint_context`, `corvint_expand`, and explicit `corvint_record_outcome` tools. The additive
+  `adapter pi-tool context|expand|record` interface MUST preserve AHI-024 lifecycle semantics.
+  Its closed bounded stdin has only `hostVersion` and `input`; root comes from actual cwd.
+  Context calls the existing native context compiler and returns its original bounded packet,
+  SHA-256 and current commit. At most four packet handles remain in extension memory, bound to
+  session and cwd and cleared on transitions/shutdown. Expansion MUST use the existing native
+  source-view selector validation over those exact packet bytes, digest and commit, without
+  writing packet files or independently interpreting evidence in JavaScript. An expired handle,
+  malformed selector, stale commit/tree/blob or forged digest MUST refuse.
+
+  Tool results are explicit Pi conversation content; automatic lifecycle context remains
+  ephemeral. Only `details.corvint`'s typed `observedEvidenceHandles`, `changedPaths` and
+  `verification` are eligible for post-tool observations. Other details and raw bodies MUST
+  never be forwarded, and malformed supplied observations MUST refuse visibly. Tool-specific
+  cancellation MUST reach the same owned process-group runner as lifecycle cancellation.
+
+  Durable recording MUST occur only through an explicit tool or `/corvint-record JSON`, using
+  the existing `record` producer, clean-revision admission, path containment, secret screening,
+  bounded store and caller-reported provenance. It accepts task, optional openedPaths, nonempty
+  changedPaths and verification command strings, and outcome passed/failed/blocked. It MUST
+  NOT infer verification success, perform automatic recording, or reinterpret the nonpersistent
+  `/corvint-outcome` receipt. The result MUST NOT echo task or verification text. A timeout or
+  core write failure cannot establish an unchanged store and MUST disclose uncertain mutation.
+
+  The explicit tool output cap is 65536 UTF-8 bytes; lifecycle stays at 8000. Both retain the
+  2000ms transport bound. Closed `corvint-pi-tool/0` output members are profile, operation,
+  hostVersion, adapterVersion, support, ok, mutation, context, packet and fault. Support is
+  FALLBACK; mutation is not-attempted, recorded or unknown. Success has the exact admitted
+  version, fault null and native framed context; only context has a packet object containing
+  exactly json, sha256, commit and evidenceHandle. The native-produced evidenceHandle is
+  `context-packet:sha256:` followed by the packet digest, supplied in tool content and forwarded
+  unchanged as an observed evidence handle. Fault has ok false, empty context and packet null; its fixed
+  code is unsupported-operation, invalid-input, unsupported-host-version, core-unavailable,
+  context-unavailable, stale-context, source-unavailable, record-unavailable,
+  invalid-core-response or output-too-large. Host version is null only before validation.
+  Runtime-local AHI-024 faults retain their meaning. No tool can request authority or FULL.
 
 ## Native platform profiles
 
@@ -448,15 +497,15 @@ there, which is the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:847@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
+| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:850@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
 | `harness-input-too-large` | `internal/gokernel/harness.go:361` | "harness input exceeds its byte limit" |
 | `harness-output-too-large` | `internal/gokernel/harness.go:466` | "harness response exceeds its byte budget" |
 | `invalid-harness-adapter` | `internal/gokernel/harness.go:70` | "invalid <label>" |
 | `invalid-harness-budget` | `internal/gokernel/harness.go:340` | "harness budget must be at least <value> bytes" |
 | `invalid-repository-root` | `internal/gokernel/harness.go:376` | "cannot resolve repository root" |
-| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:605@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
-| `project-root-unavailable` | `cmd/corvint/host_adapter.go:302@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
+| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:608@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
+| `project-root-unavailable` | `cmd/corvint/host_adapter.go:305@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
 | `repository-identity-malformed` | `internal/gokernel/repository.go:172` | "Git object identity is malformed" |
 | `repository-probe-cancelled` | `internal/gokernel/repository.go:161` | "Git repository probe was cancelled" |
 | `repository-probe-timeout` | `internal/gokernel/repository.go:159` | "Git repository probe exceeded its 10-second deadline" |
@@ -555,6 +604,7 @@ not-a-repository rule rolls back as that decision's Rollback section describes.
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
 | `AHI-001`, `003`, `005`, `014` | shared `corvint harness event` core and `internal/projectpath` | canonical receipt, bounds, privacy, revision, and event fixtures; `TestHostAdapterAbsentPathContainment` and `TestRelativeAliasesAndUncertainty` cover `AHI-014` path containment, and the `integrations/host-adapters.test.mjs` test `AHI-014 Gemini classifies changed paths on resolved symlinks like internal/projectpath` under `TestHostAdapterJavaScriptHosts` covers the Gemini hook's symlink resolution; `TestClaudeAdapterForkSessionStartIsResume` covers the Claude `fork` start source; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` drives the Claude `SessionStart(source=compact)` hook entrypoint over a mixed dirty worktree and requires the tracked impact, the untracked count and `compaction-untracked-paths-not-rehydratable` from the receipt's own snapshot; `TestQualifiedLifecycleCompactSessionStartRehydratesDirtyPaths` requires the same for the qualified profile under FULL and FALLBACK and refuses a reordered, extra or dropped code; `TestAHI014EventExpectationsAreHostConsistent` (`conformance/harness-event-v0/host_schema_test.go`) pins each `common-logical-interaction.json` event's closed host set and requires every present host's golden `expected` object to be byte-identical, so a per-host field or host-membership mutation of that fixture fails here |
+| `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |
 | `AHI-011`, `015` | embedded `internal/gokernel/host-schema.json` admission table and shared lifecycle command | schema/admission tests plus one host-keyed golden fixture per admitted host |
 | `AHI-002`, `006..010` | four native packages and release matrix | install/uninstall, lifecycle, degradation, and version fixtures; for `AHI-010`, the `integrations/host-adapters.test.mjs` test under `TestHostAdapterJavaScriptHosts` binding each `integrations/compatibility.json` row to its shipped declaration and its row's adapter version to the package manifest version, and asserting `globalDegradations` disjoint from `receiptDegradationPolicy.recognised` |
@@ -669,3 +719,24 @@ checks closed output, explicit-option precedence and a TERM-ignoring grandchild 
 Pi0.85.1 local-provider fixtures verify two-turn ephemeral native context and distinguish startup
 SIGINT cancellation from successful completion. These are functional FALLBACK witnesses only;
 protected authority, permissions, all native surfaces and latency/recall qualification remain open.
+
+
+### Pi functional repair evidence (2026-09-22)
+
+`TestPiInvalidOutcomeInput` and the Pi JavaScript runtime/extension regressions are part of the
+canonical host-adapter gate. `integrations/pi/host.test.mjs` separately exercises actual Pi 0.85.1
+on macOS arm64 with an in-process offline provider: native local-package install, disable, update,
+re-enable and remove; two-turn context delivery without session persistence; explicit outcome
+refusal/degradation; startup SIGINT/SIGTERM cleanup and descendant cancellation. Handler tests
+cover startup/reload/new/resume/fork/tree, same-turn compact recovery, root/session drift, trust,
+private tool/message content and shutdown cleanup. These tests add functional evidence only;
+interactive TUI/RPC, Linux/Windows, latency/recall and protected FULL qualification are not established.
+Rollback reverts this repair and its package/native adapter version together; the prior known
+recovery and outcome defects return. No outcome writer or authority claim is introduced.
+
+AHI-025 functional witnesses (2026-09-22): the actual Pi 0.85.1 offline fixture calls native
+context, exact expansion, performs an edit and explicit verification observation, and durably
+records the explicit caller-reported outcome at a clean revision. Native RPC new-session recovery
+and interactive TUI prompt/shutdown are exercised separately. The PTY harness has a regression
+for interrupted cleanup of a TERM-ignoring descendant. These functional witnesses do not establish
+protected FULL, arbitrary extension qualification, latency or equal-critical-recall promotion.

@@ -19,14 +19,15 @@ import (
 const defaultMaxConcurrent = 64
 
 type Config struct {
-	Name          string
-	Version       string
-	Description   string
-	Instructions  string
-	Capabilities  map[string]any
-	DiscoveryTTL  time.Duration
-	MaxConcurrent int
-	Handler       Handler
+	ProtocolVersion string
+	Name            string
+	Version         string
+	Description     string
+	Instructions    string
+	Capabilities    map[string]any
+	DiscoveryTTL    time.Duration
+	MaxConcurrent   int
+	Handler         Handler
 }
 
 type Handler interface {
@@ -49,6 +50,12 @@ type Server struct {
 }
 
 func New(config Config) (*Server, error) {
+	if config.ProtocolVersion == "" {
+		config.ProtocolVersion = protocol.Version
+	}
+	if config.ProtocolVersion != protocol.Version && config.ProtocolVersion != protocol.LegacyVersion {
+		return nil, fmt.Errorf("mcp protocol version is unsupported")
+	}
 	if config.Name == "" || config.Version == "" || config.Handler == nil {
 		return nil, fmt.Errorf("mcp server requires identity and handler")
 	}
@@ -74,6 +81,9 @@ type connection struct {
 	limit  chan struct{}
 	wait   sync.WaitGroup
 	cancel context.CancelFunc
+
+	legacyState legacyState
+	legacyMeta  protocol.RequestMeta
 
 	errorMu sync.Mutex
 	first   error
@@ -195,7 +205,14 @@ func (server *Server) Serve(ctx context.Context, input io.Reader, output io.Writ
 				continue
 			}
 			connection.wait.Add(1)
-			go connection.handleRequest(requestCtx, requestCancel, active, message)
+			// Initialization commits at input admission, after its response is
+			// written. Later notifications cannot race ahead of that write.
+			ready := connection.legacyState == legacyReady
+			if connection.config.ProtocolVersion == protocol.LegacyVersion && message.Method == "initialize" {
+				connection.handleRequest(requestCtx, requestCancel, active, message, ready)
+				continue
+			}
+			go connection.handleRequest(requestCtx, requestCancel, active, message, ready)
 		default:
 			if err := connection.writeRPCError(message.ID, &protocol.RPCError{Code: protocol.CodeInternalError, Message: "Internal error"}); err != nil {
 				return err
@@ -302,7 +319,7 @@ var legacyMethods = map[string]bool{
 	"resources/subscribe": true, "resources/unsubscribe": true,
 }
 
-func (connection *connection) handleRequest(requestCtx context.Context, cancel context.CancelFunc, active *activeRequest, inbound protocol.Inbound) {
+func (connection *connection) handleRequest(requestCtx context.Context, cancel context.CancelFunc, active *activeRequest, inbound protocol.Inbound, legacyReady bool) {
 	defer connection.wait.Done()
 	defer func() { <-connection.limit }()
 	defer func() {
@@ -310,6 +327,10 @@ func (connection *connection) handleRequest(requestCtx context.Context, cancel c
 		cancel()
 	}()
 
+	if connection.config.ProtocolVersion == protocol.LegacyVersion {
+		connection.handleLegacyRequest(requestCtx, active, inbound, legacyReady)
+		return
+	}
 	if legacyMethods[inbound.Method] {
 		connection.respond(active, func() error {
 			return connection.writeRPCErrorContext(requestCtx, inbound.ID, protocol.MethodNotFound())
@@ -383,6 +404,12 @@ func onlyParams(params map[string]any, fields ...string) bool {
 }
 
 func (connection *connection) handleNotification(inbound protocol.Inbound) {
+	if connection.config.ProtocolVersion == protocol.LegacyVersion && inbound.Method == "notifications/initialized" {
+		if len(inbound.Params) == 0 && connection.legacyState == legacyInitialized {
+			connection.legacyState = legacyReady
+		}
+		return
+	}
 	if inbound.Method != "notifications/cancelled" || inbound.Params == nil {
 		return
 	}

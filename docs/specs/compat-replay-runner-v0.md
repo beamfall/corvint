@@ -6,7 +6,7 @@ Requirement prefix: `CRR-V0`
 Intent status: accepted (decision 0052)
 Delivery status: experimental
 Revision: 15 (2026-09-12), full manifest replay citation repinned to its test declaration
-Authoritative inputs: `ROADMAP.md:342-347` (AT-10), `docs/specs/compat-trial-v0.md`
+Authoritative inputs: `ROADMAP.md:343-348` (AT-10), `docs/specs/compat-trial-v0.md`
 (`CTR-V0-001..010` accepted by decision 0052; `CTR-V0-011/012` retain proposed status),
 `internal/procgroup/process_posix.go` and `process_test.go`,
 `conformance/perf-v0/process.go`, `process_posix.go` and `process_test.go`, `AGENTS.md` invariants 2 and 4.
@@ -29,7 +29,7 @@ wire contract. The full manifest replay is likewise unrelated to these literals 
 
 ## Intent and scope
 
-`ROADMAP.md:342-347` (AT-10) owns the "proposed `tools/compat-trial` descriptor, runner and host
+`ROADMAP.md:343-348` (AT-10) owns the "proposed `tools/compat-trial` descriptor, runner and host
 envelope" (`:343`), verified by "contamination and changed-executable cases; interruption leaves
 no descendants, including process-group/session escape" (`:346-347`).
 `docs/specs/compat-trial-v0.md:187` states AT-10's runner "MUST implement CTR-V0-001 through
@@ -782,7 +782,7 @@ those two packages, this file, and its `docs/specs/README.md` and `docs/specs/IN
 then regenerating the requirement index
 with `script/gen-spec-requirements.sh > docs/specs/REQUIREMENTS.tsv`. That regeneration is a
 mandatory part of *every* edit to this file, not of rollback alone, because each clause's line
-number is recorded there and `Makefile:75`'s `spec-requirements-check` compares it byte for byte.
+number is recorded there and `Makefile:130`'s `spec-requirements-check` compares it byte for byte.
 It implements the AT-10 slice of `docs/specs/compat-trial-v0.md` (`CTR-V0-001`-`003`,
 `CTR-V0-010`, "as written") without adjudicating a label or naming the baseline; promote to
 `implemented` only once `tools/compat-trial` exists and every row above passes `make gate`.

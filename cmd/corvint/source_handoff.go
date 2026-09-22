@@ -288,6 +288,17 @@ func executeSourceView(ctx context.Context, o sourceViewOptions, result map[stri
 	if len(raw) > sourcePacketLimit {
 		return result, sourceRefusal("packet-budget")
 	}
+	return executeSourceViewBytes(ctx, o, result, raw)
+}
+
+// The Pi tool keeps the original packet in memory; file and memory routes use
+// exactly the same immutable selector validation.
+func executeSourceViewBytes(ctx context.Context, o sourceViewOptions, result map[string]any, raw []byte) (map[string]any, error) {
+	result["selection"] = map[string]any{"result": o.result, "evidence": o.evidence, "lines": nullableSourceString(o.lines), "requirement": nullableSourceString(o.requirement)}
+	result["fallback"] = map[string]any{"argv": nil, "reason": "no-safe-immutable-handle"}
+	if o.result < 0 || o.evidence < 0 || o.maxBytes < 1 || o.maxBytes > sourceViewLimit || len(raw) > sourcePacketLimit {
+		return result, sourceRefusal("malformed-input")
+	}
 	packet, err := decodeAdapterJSON(raw)
 	if err != nil {
 		return result, sourceRefusal("packet-shape")

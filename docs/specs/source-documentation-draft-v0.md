@@ -74,7 +74,10 @@ alphanumeric term overlap, then entry ID. No matches yields NO_CANDIDATES with e
 provenance and refusal codes as `corvint docs draft`/`docs consume`, calling the same
 native `contextindex.BuildContext`/`doccompiler.DraftSources`/`doccompiler.ConsumeDraft`
 functions directly rather than shelling out to the CLI binary. This is a separate,
-additive server from `cmd/corvint-mcp`: that server's exact three-tool surface is frozen by
+additive server from `cmd/corvint-mcp`. The separately owner-approved shared MCPV0-021..023
+compatibility amendment permits `--protocol-version 2025-11-25` on this existing command;
+modern stdio remains the default and draft/consume receipts and authority are unchanged.
+For tool scope, that server's exact three-tool surface is frozen by
 `docs/specs/mcp-server-2026-07-28-v0.md` requirement `MCPV0-008` ("V0 advertises exactly
 these tools") and enforced by the closed `conformance/mcp-2026-07-28` suite, and this
 docs-tool slice remains proposed/experimental, not delivered V0; it must not extend or

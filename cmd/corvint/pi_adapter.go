@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"regexp"
@@ -13,13 +14,14 @@ import (
 )
 
 const piHostVersion = "0.85.1"
+const piAdapterVersion = "0.2.0"
 const piInputLimit = 131072
 
 var piReceipt = regexp.MustCompile(`^harness-receipt:sha256:[0-9a-f]{64}$`)
 var piDegradations = map[string]bool{"compaction-critical-evidence-overflow": true, "compaction-dirty-set-over-budget": true, "compaction-untracked-paths-not-rehydratable": true, "frontier-authority-unavailable": true, "outcome-persistence-unavailable": true}
 
 func piEnvelope(event, version any, fault any) map[string]any {
-	return map[string]any{"profile": "corvint-pi-adapter/0", "event": event, "host": "pi", "surface": "extension", "hostVersion": version, "adapterVersion": "0.1.0", "support": "FALLBACK", "receiptId": nil, "context": "", "degradations": []string{}, "fault": fault, "shouldContinue": false}
+	return map[string]any{"profile": "corvint-pi-adapter/0", "event": event, "host": "pi", "surface": "extension", "hostVersion": version, "adapterVersion": piAdapterVersion, "support": "FALLBACK", "receiptId": nil, "context": "", "degradations": []string{}, "fault": fault, "shouldContinue": false}
 }
 func piNoNull(value any) bool {
 	if value == nil {
@@ -91,16 +93,20 @@ func piAdapterResult(ctx context.Context, event string, stdin io.Reader) map[str
 	if err != nil {
 		return fault(version, "core-unavailable")
 	}
-	result, err := gokernel.HandleEventContext(ctx, gokernel.EventRequest{Root: root, Host: "pi", HostVersion: version, Surface: "extension", AdapterVersion: "0.1.0", Event: event, Input: data, BudgetBytes: gokernel.MinOutputBytes, IndexedContext: harnessIndexedContext, SharedIndexedContext: sharedIndexedContextFromEnvironment()})
+	result, err := gokernel.HandleEventContext(ctx, gokernel.EventRequest{Root: root, Host: "pi", HostVersion: version, Surface: "extension", AdapterVersion: piAdapterVersion, Event: event, Input: data, BudgetBytes: gokernel.MinOutputBytes, IndexedContext: harnessIndexedContext, SharedIndexedContext: sharedIndexedContextFromEnvironment()})
 	if err != nil {
 		if ctx.Err() != nil {
 			return fault(version, "deadline")
+		}
+		var inputError *gokernel.Error
+		if errors.As(err, &inputError) && inputError.Code == "invalid-harness-input" {
+			return fault(version, "invalid-input")
 		}
 		return fault(version, "core-unavailable")
 	}
 	adapter, _ := result["adapter"].(map[string]any)
 	receipt, _ := result["receiptId"].(string)
-	if result["profile"] != gokernel.Profile || result["ok"] != true || result["support"] != "FALLBACK" || result["event"] != event || adapter["host"] != "pi" || adapter["surface"] != "extension" || adapter["hostVersion"] != version || adapter["adapterVersion"] != "0.1.0" || !piReceipt.MatchString(receipt) {
+	if result["profile"] != gokernel.Profile || result["ok"] != true || result["support"] != "FALLBACK" || result["event"] != event || adapter["host"] != "pi" || adapter["surface"] != "extension" || adapter["hostVersion"] != version || adapter["adapterVersion"] != piAdapterVersion || !piReceipt.MatchString(receipt) {
 		return fault(version, "invalid-core-response")
 	}
 	codes, ok := result["degradations"].([]any)

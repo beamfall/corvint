@@ -122,6 +122,10 @@ func loadManifest(t *testing.T) manifest {
 // MTV-V0-001/MTV-V0-002/MTV-V0-009: the profile advertises exactly one read-only,
 // closed-world tool with a closed input schema.
 func TestToolCatalogueIsExactlyOneReadOnlyTool(t *testing.T) {
+	t.Run("MTV-V0-001 exactly one read-only tool", toolCatalogueIsExactlyOneReadOnlyTool)
+}
+
+func toolCatalogueIsExactlyOneReadOnlyTool(t *testing.T) {
 	cases := loadManifest(t)
 	client := startServer(t, fixtureRepository(t))
 	defer client.close(t)
@@ -145,6 +149,11 @@ func TestToolCatalogueIsExactlyOneReadOnlyTool(t *testing.T) {
 // tool error, or projection, and the whole run leaves the repository
 // byte-identical.
 func TestVectorsAndReadOnly(t *testing.T) {
+	for _, version := range []string{protocolVersion, "2025-11-25"} {
+		t.Run("MCPV0-023 representative tool calls "+version, func(t *testing.T) { vectorsAndReadOnly(t, version) })
+	}
+}
+func vectorsAndReadOnly(t *testing.T, version string) {
 	cases := loadManifest(t)
 	root := fixtureRepository(t)
 	outside := filepath.Join(t.TempDir(), "outside.json")
@@ -153,12 +162,23 @@ func TestVectorsAndReadOnly(t *testing.T) {
 		prepare(t, root, outside, item)
 	}
 	before := treeDigest(t, root)
-	client := startServer(t, root)
+	client := startServer(t, root, "--protocol-version", version)
 	defer client.close(t)
+	meta := requestMeta()
+	if version == "2025-11-25" {
+		initialized := client.call(t, 0, "initialize", map[string]any{"protocolVersion": version, "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "conformance", "version": "test"}})
+		if initialized["error"] != nil {
+			t.Fatal(initialized)
+		}
+		if _, err := io.WriteString(client.stdin, `{"jsonrpc":"2.0","method":"notifications/initialized"}`+"\n"); err != nil {
+			t.Fatal(err)
+		}
+		meta = map[string]any{}
+	}
 	for index, item := range cases.Vectors {
 		t.Run(item.ID, func(t *testing.T) {
 			response := client.call(t, 100+index, "tools/call", map[string]any{
-				"_meta": requestMeta(), "name": cases.Tools[0], "arguments": item.Arguments,
+				"_meta": meta, "name": cases.Tools[0], "arguments": item.Arguments,
 			})
 			checkVector(t, item, response)
 		})
@@ -286,9 +306,9 @@ type stdioClient struct {
 	stderr  bytes.Buffer
 }
 
-func startServer(t *testing.T, root string) *stdioClient {
+func startServer(t *testing.T, root string, arguments ...string) *stdioClient {
 	t.Helper()
-	command := exec.Command(serverBinary, "--root", root)
+	command := exec.Command(serverBinary, append([]string{"--root", root}, arguments...)...)
 	stdin, err := command.StdinPipe()
 	if err != nil {
 		t.Fatal(err)

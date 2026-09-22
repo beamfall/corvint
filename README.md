@@ -23,8 +23,8 @@
 </p>
 
 **One native Go binary.** No account, hosted service, database, embeddings, or permanent daemon.
-`go.mod` declares no module requirements. Read commands change nothing. This branch is `0.5.0a3`
-source; the latest release is [`0.6.0`](https://github.com/beamfall/corvint/releases/tag/v0.6.0). [What works and what is open](#status-stated-plainly).
+`go.mod` declares no module requirements. Read commands change nothing. Version `0.6.0` is an
+experimental prerelease; [what works today and what is still an open gate](#status-stated-plainly).
 
 ## Why Corvint
 
@@ -360,8 +360,8 @@ profile and is admitted to the product only through its own accepted profile ([c
 ## Status, stated plainly
 
 > [!IMPORTANT]
-> Corvint is an extraction alpha. This branch is `Corvint 0.5.0a3` source; the latest release is the
-> `Corvint 0.6.0` prerelease. Platform status comes from each release's exact assets and qualification evidence.
+> Corvint is an extraction alpha (`Corvint 0.6.0` prerelease); its three daily-workflow jobs are still
+> `UNPROVEN`. Platform status comes from each release's exact assets and qualification evidence.
 
 | Surface | Current state |
 |---|---|

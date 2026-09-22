@@ -680,7 +680,7 @@
     "title": "External Evidence Provider V0",
     "reqPrefix": "EEP-V0",
     "intent": "accepted (decision 0309)",
-    "delivery": "experimental (file transport only)",
+    "delivery": "experimental (file records and local authoring kit; kit promotion blocked on V1-0013)",
     "claim": "`corvint impact --provider FILE` attaches provider records in a separated `context.external` section and changes nothing in the core receipt.",
     "dependsOn": [
       "docs/specs/analyzer-capability-contract-v0.md",
@@ -1264,7 +1264,7 @@
     "reqPrefix": "MCPV0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "A local stdio MCP 2026-07-28 server exposes bounded read-only Corvint receipts without repository mutation.",
+    "claim": "A local stdio MCP server exposes bounded read-only Corvint receipts, with 2026-07-28 default and explicit 2025-11-25 compatibility.",
     "dependsOn": [
       "docs/specs/agent-harness-integration-v0.md"
     ],
@@ -1457,6 +1457,26 @@
       "internal/localauthority",
       "internal/authoritystore",
       "internal/authorityevent"
+    ]
+  },
+  {
+    "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+    "title": "Daily Change-Evidence Workflow V0",
+    "reqPrefix": "DCW-V0",
+    "intent": "accepted scope (decision 0332); evaluation protocol awaits separate freeze",
+    "delivery": "experimental; milestone NOT_QUALIFIED",
+    "claim": "0.6 requires verified task orientation, change consequence and evidence-carrying local completion.",
+    "dependsOn": [
+      "docs/specs/public-release-v0.md",
+      "docs/specs/use-case-conformance-v0.md",
+      "docs/specs/local-completion-policy-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "conformance/use-cases-v0",
+      "cmd/corvint",
+      "internal/localcompletion"
     ]
   },
   {
@@ -1938,7 +1958,7 @@
     "path": "docs/specs/use-case-conformance-v0.md",
     "title": "Main Use-Case Conformance V0",
     "reqPrefix": "UCV0",
-    "intent": "proposed",
+    "intent": "proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332)",
     "delivery": "experimental",
     "claim": "Headline Corvint jobs remain UNPROVEN until each has complete content-addressed promotion evidence.",
     "dependsOn": [
@@ -2193,6 +2213,30 @@
     "implementation": [
       "internal/taskman",
       "cmd/corvint/taskman_fixture.go"
+    ]
+  },
+  {
+    "path": "docs/specs/protected-pi-runtime-v0.md",
+    "title": "Protected Pi Runtime V0",
+    "reqPrefix": "PPI-V0",
+    "intent": "accepted direction (owner approval, 2026-09-22); technical details experimental",
+    "delivery": "experimental; no protected installation or native qualification",
+    "claim": "Optional fixed Pi SDK executable with independently qualified protected lifecycle; ordinary extensible Pi remains separate.",
+    "dependsOn": [
+      "docs/specs/agent-harness-integration-v0.md",
+      "docs/specs/protected-local-execution-v0.md",
+      "docs/specs/qualified-lifecycle-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "integrations/pi-protected/runtime.ts",
+      "integrations/pi-protected/build.mjs",
+      "integrations/pi-protected/settings.mjs",
+      "integrations/pi-protected/qualified-runner.mjs",
+      "internal/authoritystore/pi.go",
+      "cmd/corvint/qualified_lifecycle.go",
+      "tools/local-authority/pi_release.go"
     ]
   }
 ]

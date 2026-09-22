@@ -31,8 +31,9 @@ try {
   const page = await browser.newPage();
   const response = await page.goto(`http://${address}/roadmap`, { waitUntil: "networkidle", timeout: 30_000 });
   if (!response?.ok()) throw new Error(`roadmap HTTP ${response?.status()}`);
+  await page.locator("summary").filter({ hasText: "How this roadmap was read" }).click();
   const body = await page.locator("body").innerText();
-  const links = await page.locator('table a[href^="/ticket?id="]').count();
+  const links = await page.locator('.roadmap-ticket a[href^="/ticket?id="]').count();
   if (links !== 11) throw new Error(`roadmap rendered ${links} planning tickets, expected 11: ${body.slice(0, 2000)}`);
   for (const text of ["Finish the smallest installed core / ticket / console path", "Qualify and prepare the public release", "M0", "M4", "read by", "ticket:corvint:planning:IPR-10"]) {
     if (!body.includes(text)) throw new Error(`roadmap lacks ${JSON.stringify(text)}`);
@@ -40,6 +41,9 @@ try {
   const forms = await page.locator("form").count();
   if (forms !== 0) throw new Error(`roadmap exposed ${forms} mutation forms`);
   result = {profile:"corvint-installed-roadmap-proof/0",status:"PASS",tickets:links,forms,bodySha256:createHash("sha256").update(body).digest("hex"),sourceDigest:createHash("sha256").update(await readFile(join(specs,"script/seed-planning-store-data.json"))).digest("hex")};
+} catch (error) {
+  console.error("roadmap proof failed:", error);
+  throw error;
 } finally {
   await cleanup();
 }
@@ -99,10 +103,11 @@ async function coreProof() {
     const version = coreBrowser.version(); const executableSHA = await fileSHA(executable);
     const page = await coreBrowser.newPage();
     const response = await page.goto(`http://${address}/roadmap`, { waitUntil: 'networkidle', timeout: 30000 }); assert(response?.ok(), 'real browser roadmap failed');
-    const body = await page.locator('body').innerText(); const tickets = await page.locator('table a[href^="/ticket?id="]').count(); const forms = await page.locator('form').count();
-    assert(tickets === 11 && forms === 0, 'roadmap inventory/forms differ');
-    for (const text of ['Finish the smallest installed core / ticket / console path', 'Qualify and prepare the public release', 'M0', 'M4', 'read by', 'ticket:corvint:planning:IPR-10']) assert(body.includes(text), 'roadmap missing expected planning evidence');
-    await page.locator('table a[href^="/ticket?id="]').first().click(); assert((await page.locator('body').innerText()).includes('IPR-'), 'real ticket detail missing');
+    await page.locator('summary').filter({ hasText: 'How this roadmap was read' }).click();
+    const body = await page.locator('body').innerText(); const tickets = await page.locator('.roadmap-ticket a[href^="/ticket?id="]').count(); const forms = await page.locator('form').count();
+    assert(tickets === 11 && forms === 0, `roadmap inventory/forms differ: tickets=${tickets}, forms=${forms}`);
+    for (const text of ['Finish the smallest installed core / ticket / console path', 'Qualify and prepare the public release', 'M0', 'M4', 'read by', 'ticket:corvint:planning:IPR-10']) assert(body.includes(text), 'roadmap missing expected planning evidence: ' + text);
+    await page.locator('.roadmap-ticket a[href^="/ticket?id="]').first().click(); assert((await page.locator('body').innerText()).includes('IPR-'), 'real ticket detail missing');
     const evidenceResponse = await page.goto(`http://${address}/evidence`); assert(evidenceResponse?.ok(), 'real evidence page unavailable');
     async function refusal(headers, token) {
       const payload = new URLSearchParams({ verb: 'ticket-set-title', ...(token === undefined ? {} : { token }) }).toString();
@@ -122,6 +127,9 @@ async function coreProof() {
     result = { profile: 'corvint-core-console-proof/0', status: 'PASS', browserName: 'Chromium', browserVersion: version, browserExecutableSha256: executableSHA, tickets, forms, bodySha256: sha(body), sourceDigest: await fileSHA(join(specs, 'script/seed-planning-store-data.json')), originRefusal: true, hostRefusal: true, sessionRefusal: true, storeBeforeSha256: before, storeAfterSha256: await treeSHA(store), observedIdentities: [...seen.values()].map(({ pid, startTime, observation }) => ({ pid, startTime, observation })), remainingIdentities: [] };
     assert(result.storeAfterSha256 === before, 'console requests changed planning state');
     await consoleChild.stop('SIGINT');
+  } catch (error) {
+    console.error("roadmap proof failed:", error);
+    throw error;
   } finally {
     clearInterval(timer); try { await closeOwned(); } finally { unregister(); }
     const deadline = Date.now() + 5000;

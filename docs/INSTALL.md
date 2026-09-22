@@ -72,7 +72,10 @@ go run ./cmd/corvint-release-candidate \
 `corvint-release-install -candidate /absolute/candidate -store /absolute/store` reverifies that
 closed set and installs only the matching host core archive at
 `<store>/corvint/<version>/<goos>-<goarch>`. It refuses an existing destination and never creates
-or changes `current` or `latest`. Keep old version directories for coexistence and rollback; switch
+or changes `current` or `latest`. Use a canonical absolute store path (resolve system aliases such
+as `/var` to `/private/var` on macOS), owned exclusively by you during installation. Symlink
+components, case-fold aliases in managed components, non-directory parents, candidate/store overlap
+and managed parents with more than 4,096 entries are refused. Keep old version directories for coexistence and rollback; switch
 the explicit absolute path used by your shell or host configuration only after checking
 `corvint --version`. Removing an old path is a separate operator action.
 
@@ -273,3 +276,34 @@ For support, retain the version, OS/CPU, failing command and exact error, receip
 identities, and a minimal reproducer. Include missing prerequisites and unknown qualification
 axes. Share this through the repository's issue tracker when available or with the maintainer;
 review receipts and logs for private repository paths or content before sharing.
+
+## Backup and corrupted-state recovery
+
+Keep the complete verified candidate, including sources, licenses, manifests, checksums and
+qualification evidence, on a separate backup medium. Checksums detect corruption, not authenticity;
+retain the independently obtained expected digest and provenance. Verify the copied candidate
+before executing its installer. Back up repositories (including Git metadata and uncommitted work),
+`.taskman`, `.context-corvint`, and `.corvint` separately while their writers are stopped. They carry
+intent, tickets, learning or retained evidence that an executable archive cannot restore.
+
+For a corrupted executable, stop its users and select the retained previous version by absolute
+path. Do not overwrite the damaged version: preserve it for diagnosis and install the verified
+candidate into a fresh canonical store. The installer deliberately refuses even a corrupt existing
+destination. Restoring a candidate backup uses that same installation path and verification; there
+is no alternate restore archive format or automatic downgrade migration.
+
+For a damaged derived index, retain the failing receipt and a backup of `.corvint/index`, then run
+`corvint index --if-stale` explicitly. A symlinked index path is refused: review it before any manual
+quarantine. Do not delete all of `.corvint` to rebuild an index. Corrupt ticket/trace/evidence state
+requires restoring a consistent backup with matching tools; index rebuilding cannot repair it.
+Preserve refusals and ask for diagnosis if the backup's compatibility is unknown.
+
+A normally failed or cancelled candidate install removes its own `.install-*` staging directory
+and leaves existing versions intact. After a crash or force kill, first establish that no installer
+is active; inspect and quarantine only the abandoned staging directory you own. Automatic scavenging,
+concurrent-writer safety and power-loss durability are not provided. Never remove the retained
+candidate or another version as part of staging cleanup.
+
+The fixture lifecycle regressions exercise these mechanisms in temporary directories. They do not
+qualify a future release, every supported platform, or restoration of arbitrary ticket-store data.
+See the [release runbook](RELEASE-RUNBOOK.md) and [security/support boundaries](SECURITY.md).

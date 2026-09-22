@@ -88,13 +88,19 @@ func docsFixtureRoot(t *testing.T) string {
 // tools/list and two tools/call requests, checking the delivered surface is
 // closed to exactly the two docs tools and that draft/consume agree on bytes.
 func TestServeToolsListAndCallRoundTripsDocsDraftAndConsume(t *testing.T) {
+	for _, version := range []string{protocol.Version, protocol.LegacyVersion} {
+		t.Run("SDD-V0-006 docs draft and consume round trip "+version, func(t *testing.T) { roundTripDocs(t, version) })
+	}
+}
+
+func roundTripDocs(t *testing.T, version string) {
 	root := docsFixtureRoot(t)
 	serverInput, clientInput := io.Pipe()
 	clientOutput, serverOutput := io.Pipe()
 	var stderr bytes.Buffer
 	done := make(chan int, 1)
 	go func() {
-		done <- run(context.Background(), []string{"--root", root}, serverInput, serverOutput, &stderr)
+		done <- run(context.Background(), []string{"--root", root, "--protocol-version", version}, serverInput, serverOutput, &stderr)
 	}()
 	decoder := json.NewDecoder(clientOutput)
 
@@ -121,6 +127,16 @@ func TestServeToolsListAndCallRoundTripsDocsDraftAndConsume(t *testing.T) {
 		"io.modelcontextprotocol/clientCapabilities": map[string]any{},
 	}}
 
+	if version == protocol.LegacyVersion {
+		initialized := send(0, "initialize", map[string]any{"protocolVersion": version, "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "conformance", "version": "test"}})
+		if initialized["error"] != nil {
+			t.Fatal(initialized)
+		}
+		if _, err := io.WriteString(clientInput, `{"jsonrpc":"2.0","method":"notifications/initialized"}`+"\n"); err != nil {
+			t.Fatal(err)
+		}
+		meta["_meta"] = map[string]any{}
+	}
 	listResponse := send(1, "tools/list", meta)
 	listResult, ok := listResponse["result"].(map[string]any)
 	if !ok {

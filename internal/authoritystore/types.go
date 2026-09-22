@@ -54,6 +54,7 @@ type HostQualification struct {
 // installer/signer cannot create an OPERATOR_ACCEPTED document for themselves.
 // authorityUID names the dedicated noninteractive publication owner.
 type RootDocument struct {
+	PiQualification     *PiQualification       `json:"-"`
 	DirectQualification *DirectQualification   `json:"-"`
 	Profile             string                 `json:"profile"`
 	Admission           string                 `json:"admission"`

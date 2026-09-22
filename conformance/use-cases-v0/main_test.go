@@ -17,7 +17,7 @@ type fixture struct {
 
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
-	raw, err := os.ReadFile("ledger.json")
+	raw, err := os.ReadFile("testdata/ledger-v0.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,4 +218,52 @@ func TestUCV0HostileEvidence(t *testing.T) {
 			t.Fatal(string(raw))
 		}
 	})
+}
+
+// UCV0-013: a new closed job set cannot silently redefine historical /0 admission.
+func TestUCV0ProfileMigration(t *testing.T) {
+	t.Run("UCV0-013 profile migration", testUCV0ProfileMigration)
+}
+
+func testUCV0ProfileMigration(t *testing.T) {
+	legacy := newFixture(t)
+	legacy.check()
+	raw, err := os.ReadFile("ledger.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	current := newFixture(t)
+	if err := json.Unmarshal(raw, &current.ledger); err != nil {
+		t.Fatal(err)
+	}
+	result := current.check()
+	if result["useCaseCount"] != 22 || result["claimCounts"].(map[string]any)["UNPROVEN"] != 22 || result["evidenceCount"] != 0 {
+		t.Fatal(result)
+	}
+	rows := current.ledger["useCases"].([]any)
+	oldRows := legacy.ledger["useCases"].([]any)
+	for i, old := range oldRows {
+		a, _ := json.Marshal(old)
+		b, _ := json.Marshal(rows[i])
+		if string(a) != string(b) {
+			t.Fatalf("historical row %d changed", i)
+		}
+	}
+	current.ledger["spec"] = legacyProfile
+	current.check("unknown-id", "unexpected-use-case-count")
+	legacy.ledger["spec"] = profile
+	legacy.check("missing-use-case:UC-TASK-ORIENTATION", "missing-use-case:UC-CHANGE-CONSEQUENCE", "missing-use-case:UC-EVIDENCE-CARRYING-COMPLETION")
+	legacy.ledger["spec"] = "corvint-use-case-conformance/2"
+	legacy.check("wrong-spec")
+	current.ledger["spec"] = profile
+	for i := len(useCaseIDs); i < len(rows); i++ {
+		row := current.row(i)
+		row["status"], row["claim"] = "verified", "VERIFIED"
+		missing := []string{}
+		for _, class := range evidenceClasses {
+			missing = append(missing, "use-case:"+str(row["id"])+":verified-missing-evidence:"+class)
+		}
+		current.check(missing...)
+		row["status"], row["claim"] = "specified", "UNPROVEN"
+	}
 }

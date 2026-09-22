@@ -14,7 +14,8 @@ if [ -e "$root" ]; then
   echo "atm-fixture-store: $root already exists; refusing to reinitialize" >&2
   exit 2
 fi
-mkdir -p "$root/.git" "$root/.taskman"
+mkdir -p "$root/.taskman"
+git -C "$root" init -q -b main
 jq -S -c -n --arg q "$queue_id" --arg p "$prefix" '{
   profile:"taskman-queue/0", queueId:$q, repositoryAuthorityId:("repo:" + ($q|split(":")[1])), prefix:$p,
   nextSerial:"1", schemaVersion:"0", canonicalWriter:"NATIVE", foreignAdapterId:null,

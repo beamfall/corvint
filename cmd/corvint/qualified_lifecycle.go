@@ -18,6 +18,12 @@ import (
 
 const qualifiedLifecycleProfile = "corvint-qualified-lifecycle/0"
 const directQualifiedLifecycleProfile = "corvint-qualified-lifecycle/1"
+const piQualifiedLifecycleProfile = "corvint-qualified-lifecycle/2"
+
+func supportedQualifiedProfile(profile string) bool {
+	return profile == qualifiedLifecycleProfile || profile == directQualifiedLifecycleProfile || profile == piQualifiedLifecycleProfile
+}
+
 const qualifiedLifecycleDigest = "qualified-lifecycle:sha256:"
 
 var errQualifiedLifecycle = errors.New("qualified-lifecycle-unavailable")
@@ -60,7 +66,7 @@ func parseQualifiedRequest(raw []byte) (qualifiedRequest, error) {
 		return request, errQualifiedLifecycle
 	}
 	var profile string
-	if json.Unmarshal(fields["profile"], &profile) != nil || (profile != qualifiedLifecycleProfile && profile != directQualifiedLifecycleProfile) || json.Unmarshal(fields["event"], &request.event) != nil {
+	if json.Unmarshal(fields["profile"], &profile) != nil || !supportedQualifiedProfile(profile) || json.Unmarshal(fields["event"], &request.event) != nil {
 		return request, errQualifiedLifecycle
 	}
 	request.profile = profile
@@ -110,6 +116,8 @@ func runQualifiedLifecycle(parent context.Context, args []string, stdin io.Reade
 	resolver := authoritystore.ResolveLifecycle
 	if request.profile == directQualifiedLifecycleProfile {
 		resolver = authoritystore.ResolveDirectLifecycle
+	} else if request.profile == piQualifiedLifecycleProfile {
+		resolver = authoritystore.ResolvePiLifecycle
 	}
 	result, err := qualifiedLifecycle(ctx, request, resolver)
 	if err != nil {
@@ -138,7 +146,7 @@ func qualifiedLifecycle(ctx context.Context, request qualifiedRequest, resolve q
 	var result map[string]any
 	observed := false
 	resolution, err := resolve(ctx, request.event == "stop", func(ctx context.Context, scope authoritystore.LifecycleScope) error {
-		if observed || scope.RepositoryRoot == "" || scope.Direct != (request.profile == directQualifiedLifecycleProfile) {
+		if observed || scope.RepositoryRoot == "" || scope.Direct != (request.profile == directQualifiedLifecycleProfile) || scope.Pi != (request.profile == piQualifiedLifecycleProfile) {
 			return errQualifiedLifecycle
 		}
 		observed = true
@@ -165,6 +173,8 @@ func qualifiedEnvelope(options options, input map[string]any, repo gokernel.Repo
 	profile := qualifiedLifecycleProfile
 	if scope.Direct {
 		profile = directQualifiedLifecycleProfile
+	} else if scope.Pi {
+		profile = piQualifiedLifecycleProfile
 	}
 	requestBytes, _ := gokernel.CanonicalJSON(map[string]any{"profile": profile, "event": options.event, "input": input})
 	surfaces := make([]map[string]any, 0, len(scope.QualifiedSurfaces))
@@ -187,10 +197,13 @@ func qualifiedEnvelope(options options, input map[string]any, repo gokernel.Repo
 		"decision":  legacy["completion"],
 		"authority": "NONE", "frontier": map[string]any{"state": "NOT_EVALUATED", "universeSHA256": "", "decision": "release", "reason": "not-stop-event"},
 	}
-	if scope.Direct {
+	if scope.Direct || scope.Pi {
 		host := result["qualifiedHost"].(map[string]any)
 		delete(host, "appSHA256")
 		delete(host, "engineSHA256")
+		if scope.Pi {
+			host["host"] = "pi"
+		}
 		host["hostSHA256"] = scope.HostSHA256
 		host["runtimeAdmissionEvidenceSHA256"] = scope.RuntimeAdmissionEvidenceSHA256
 	}
@@ -254,7 +267,7 @@ func qualifiedLifecycleBytes(result map[string]any, budget int) ([]byte, error) 
 		return nil, errQualifiedLifecycle
 	}
 	profile, ok := copy["profile"].(string)
-	if !ok || (profile != qualifiedLifecycleProfile && profile != directQualifiedLifecycleProfile) {
+	if !ok || !supportedQualifiedProfile(profile) {
 		return nil, errQualifiedLifecycle
 	}
 	copy["resultDigest"] = qualifiedLifecycleDigest + dogfoodSHA(append([]byte(profile+"\x00"), basis...))
@@ -344,17 +357,28 @@ func validateQualifiedResult(encoded []byte) (qualifiedResult, error) {
 	}
 	canonical, err := gokernel.CanonicalJSON(fields)
 	if err != nil || !bytes.Equal(raw, canonical) ||
-		(result.Profile != qualifiedLifecycleProfile && result.Profile != directQualifiedLifecycleProfile) || !result.OK || result.Mutates || result.RequestProvenance != "caller-asserted" ||
+		!supportedQualifiedProfile(result.Profile) || !result.OK || result.Mutates || result.RequestProvenance != "caller-asserted" ||
 		!dogfoodSessionPattern.MatchString(result.RequestSHA256) {
 		return result, errQualifiedLifecycle
 	}
 	host := result.QualifiedHost
-	if host.Host != "codex" || host.EventSurface != "unattributed" || host.QualifiedSurfaces == nil || result.Degradations == nil {
+	expectedHost := "codex"
+	if result.Profile == piQualifiedLifecycleProfile {
+		expectedHost = "pi"
+	}
+	if host.Host != expectedHost || host.EventSurface != "unattributed" || host.QualifiedSurfaces == nil || result.Degradations == nil {
 		return result, errQualifiedLifecycle
 	}
 	// The support code leads; only the compact start's own compaction-* codes follow it (decision 0241).
 	supportCodes := 0
-	if result.Profile == directQualifiedLifecycleProfile {
+	if result.Profile == piQualifiedLifecycleProfile {
+		if !validPiQualifiedHost(result) {
+			return result, errQualifiedLifecycle
+		}
+		if result.Support == "FALLBACK" {
+			supportCodes = 1
+		}
+	} else if result.Profile == directQualifiedLifecycleProfile {
 		if !validDirectQualifiedHost(result) {
 			return result, errQualifiedLifecycle
 		}
@@ -460,7 +484,7 @@ func qualifiedCompactionCodes(result qualifiedResult, codes []string) bool {
 
 func qualifiedNativeBytes(encoded []byte) ([]byte, error) {
 	var result map[string]any
-	if json.Unmarshal(encoded, &result) != nil || (result["profile"] != qualifiedLifecycleProfile && result["profile"] != directQualifiedLifecycleProfile) || result["requestProvenance"] != "caller-asserted" || result["ok"] != true || result["mutates"] != false {
+	if json.Unmarshal(encoded, &result) != nil || (result["profile"] != qualifiedLifecycleProfile && result["profile"] != directQualifiedLifecycleProfile && result["profile"] != piQualifiedLifecycleProfile) || result["requestProvenance"] != "caller-asserted" || result["ok"] != true || result["mutates"] != false {
 		return nil, errQualifiedLifecycle
 	}
 	again, err := qualifiedLifecycleBytes(result, dogfoodEventMaxBytes)
@@ -538,6 +562,28 @@ func validDirectQualifiedHost(r qualifiedResult) bool {
 		return r.Qualification == "QUALIFIED" && dogfoodSessionPattern.MatchString(h.Digest) && dogfoodSessionPattern.MatchString(h.EvidenceSHA256) && h.SupportScope == "qualified-direct-native-runtime" && len(h.QualifiedSurfaces) == 1 && h.QualifiedSurfaces[0].Surface == "codex-cli" && h.QualifiedSurfaces[0].EvidenceSHA256 == h.EvidenceSHA256
 	case "FALLBACK":
 		return r.Qualification == "UNQUALIFIED" && h.Digest == "" && h.EvidenceSHA256 == "" && h.SupportScope == "candidate-direct-native-runtime" && len(h.QualifiedSurfaces) == 0 && len(r.Degradations) > 0 && r.Degradations[0] == "native-tuple-unqualified"
+	}
+	return false
+}
+
+func validPiQualifiedHost(r qualifiedResult) bool {
+	h := r.QualifiedHost
+	if h.AppSHA256 != "" || h.EngineSHA256 != "" || h.Architecture != "arm64" || h.OSBuild == "" {
+		return false
+	}
+	for _, d := range []string{h.HostSHA256, h.RuntimeAdmissionEvidenceSHA256, h.AdapterSHA256} {
+		if !dogfoodSessionPattern.MatchString(d) {
+			return false
+		}
+	}
+	switch r.Support {
+	case "FULL":
+		if r.Qualification != "QUALIFIED" || !dogfoodSessionPattern.MatchString(h.Digest) || !dogfoodSessionPattern.MatchString(h.EvidenceSHA256) || h.SupportScope != "qualified-protected-pi-runtime" || len(h.QualifiedSurfaces) != 2 {
+			return false
+		}
+		return h.QualifiedSurfaces[0].Surface == "pi-tui" && h.QualifiedSurfaces[1].Surface == "pi-rpc" && dogfoodSessionPattern.MatchString(h.QualifiedSurfaces[0].EvidenceSHA256) && dogfoodSessionPattern.MatchString(h.QualifiedSurfaces[1].EvidenceSHA256)
+	case "FALLBACK":
+		return r.Qualification == "UNQUALIFIED" && h.Digest == "" && h.EvidenceSHA256 == "" && h.SupportScope == "candidate-protected-pi-runtime" && len(h.QualifiedSurfaces) == 0 && len(r.Degradations) > 0 && r.Degradations[0] == "native-tuple-unqualified"
 	}
 	return false
 }

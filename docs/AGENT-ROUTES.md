@@ -14,7 +14,7 @@ Read the matching row, then expand only the relevant original sources.
 | Does implementation meet intent? | Spec requirement → implementation/evidence table → exact definition and test named there. Use [REQUIREMENTS.tsv](specs/REQUIREMENTS.tsv) for the clause location. | Follow acceptance provenance to the owner decision when status conflicts. Code/tests cannot accept intent; a test mention is not a passing run. |
 | Why did a command fail? | Preserve the exact error/receipt; search its code with `rg -n -F 'ERROR_CODE' internal cmd`, then read the matching implementation, tests and owning requirement. | Check profile, revision and worktree preconditions before changing code. Unsupported-by-design is a boundary; never discard local work to satisfy a read command. |
 | Review a change | [CEM non-claims](CHANGE-EVIDENCE-MAP.md#positioning-and-non-claims), [OCM digest](specs/ocm-v0-dogfood.md#agent-digest), then [reviewer reports](DOGFOOD.md#6-review-what-another-reviewer-sees). | Inspect mapped hunks, every scoped requirement, unknowns and test witnesses. Structural closure does not establish semantic support, test adequacy or a passing gate. |
-| Resume or select work | [ROADMAP current build queue](../ROADMAP.md#current-build-queue-indispensable-context-and-cumulative-development-savings); `rg -n '^### ' docs/agent-memory/*.md`, then matching entries and the ticket's owning spec. | AT tickets own execution status; E/U plans and BUILD-LOG are context/history. Search `docs/BUILD-LOG.md` and `docs/build-log/` by heading or ID, then read only matching entries. Re-pin live state and coordinate existing owners before acting; preserve pending gates and owner-goal gaps. |
+| Resume or select work | If this checkout has an initialized `.taskman` store, read its native queue and current receipt first; otherwise route to a workspace with that store. Use [ROADMAP history](../ROADMAP.md#current-build-queue-indispensable-context-and-cumulative-development-savings), [0.6 portfolio](PORTFOLIO-0.6.md), `rg -n '^### ' docs/agent-memory/*.md`, and the owning spec for intent. | Native store presence makes it operative for execution status; never initialize a replacement or treat AT/E/U Markdown as live state. Search `docs/BUILD-LOG.md` and `docs/build-log/` by heading or ID, then read matching entries. Re-pin status and coordinate owners; preserve pending gates and owner-goal gaps. |
 | Verify documentation | [Focused checks](#focused-documentation-checks), then the owning spec's test/measurement matrix. | Focused checks do not replace `make gate`, frozen evaluations, independent review or dogfood. Coordinate full gates with an existing runner. |
 
 ## A task names a requirement
@@ -57,7 +57,7 @@ the selected profile. See [decision 0011](decisions/0011-standalone-query-trace-
 
 For workflow/queue questions, open [AGENTS.md](../AGENTS.md), the
 [dogfood loop](DOGFOOD.md#required-loop-for-substantive-changes), and the
-[current queue](../ROADMAP.md#current-build-queue-indispensable-context-and-cumulative-development-savings).
+[historical queue](../ROADMAP.md#current-build-queue-indispensable-context-and-cumulative-development-savings); use an initialized native `.taskman` store for current execution status.
 Those original sources establish the workflow; the failed query stays failed. When file discovery
 is also useful, the separate experimental command can use the same task unchanged:
 

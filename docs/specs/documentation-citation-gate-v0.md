@@ -61,8 +61,8 @@ form a closed legacy allowlist. A scanned document absent from that index-read l
 of its citations require anchors.
 
 On 2026-09-13, decision 0176 widened DCG-V0-001 to scan `docs/decisions/*.md`. A historically-framed
-citation (decision 0105's `Makefile:129-136`, reviewed once against a named commit) converted to the
-prose form `Makefile@<hash>` rather than being repinned. 40 other stale citations across 16 other
+citation from decision 0105, reviewed once against a named commit, converted to the
+prose form `Makefile@3c41cad3` rather than being repinned. 40 other stale citations across 16 other
 decisions were repinned or relocated-and-repinned against their current lines. Decision 0158 is
 off-limits to that change and carries 30 unpinned citations, 3 of them landing on a since-shifted
 blank or bracket-only line; it was admitted to the DCG-V0-018 legacy allowlist as the one-time
@@ -78,7 +78,7 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   `docs/DOGFOOD.md`, `docs/AGENT-ROUTES.md`, `docs/SELF-DEVELOPMENT.md`, and `conformance/*/README.md` (one directory
   below `conformance/`, so a dated results README beneath it is not scanned), covering the forms `dir/file.ext:N`, `dir/file.ext:N-M`,
   `dir/file.ext:N,M`, a basename
-  the Git index tracks at the repository root such as `ROADMAP.md:342`, and a bare `:N` or `:N-M`
+  the Git index tracks at the repository root such as `ROADMAP.md:343`, and a bare `:N` or `:N-M`
   continuation. A root basename names exactly one path, so it MUST be checked as that full path and
   MUST anchor its paragraph as a full-path citation does, including where `docs/specs` holds a file
   of the same name (`README.md`). Any other bare basename, such as `prove.go:767`, MUST NOT be

@@ -15,6 +15,7 @@ import (
 // Candidate ExpectedTarget is an internal guard: the trusted observer must compare
 // both common repository snapshots before context and before returning.
 type LifecycleScope struct {
+	Pi                             bool
 	Direct                         bool
 	HostSHA256                     string
 	RuntimeAdmissionEvidenceSHA256 string
@@ -161,6 +162,15 @@ func (admission runtimeAdmission) lifecycleScope(root RootDocument) (LifecycleSc
 	if root.hasQualification() || admission.scope != lifecycleCampaignScope {
 		return LifecycleScope{}, errUnavailable
 	}
+	if root.Profile == PiRootProfile {
+		if admission.campaign.Profile != piCampaignProfile || admission.campaign.PiRuntime == nil || !admission.campaign.PiRuntime.valid() || admission.campaign.DirectRuntime != nil {
+			return LifecycleScope{}, errUnavailable
+		}
+		scope := piLifecycleScope(root, *admission.campaign.PiRuntime)
+		scope.ExpectedTarget = admission.campaign.Target
+		scope.SupportScope = "candidate-protected-pi-runtime"
+		return scope, nil
+	}
 	if root.Profile == DirectRootProfile {
 		if admission.campaign.Profile != directCampaignProfile || admission.campaign.DirectRuntime == nil || !admission.campaign.DirectRuntime.valid() {
 			return LifecycleScope{}, errUnavailable
@@ -189,6 +199,12 @@ func readActiveEnrollment(files protectedFiles, owner uint32) ([]byte, string, e
 }
 
 func lifecycleScope(root RootDocument) (LifecycleScope, error) {
+	if root.Profile == PiRootProfile {
+		return qualifiedPiScope(root)
+	}
+	if root.PiQualification != nil {
+		return LifecycleScope{}, errUnavailable
+	}
 	scope := LifecycleScope{RepositoryRoot: root.RepositoryRoot}
 	if root.Profile == DirectRootProfile {
 		if !root.DirectQualification.valid() || root.HostQualification != nil {

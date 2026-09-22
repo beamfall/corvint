@@ -368,23 +368,28 @@ func worktreeDigest(root string) (string, []treeEntry, string) {
 	if name := compiledIgnored(ignored); name != "" {
 		return "", nil, "an ignored Go file is inside the build: " + name
 	}
-	indexPath, err := gitOutput(root, "rev-parse", "--git-path", "index")
+	entriesInput, err := gitOutput(root, "ls-files", "--stage", "-z")
 	if err != nil {
-		return "", nil, "git rev-parse --git-path index failed: " + err.Error()
+		return "", nil, "git ls-files --stage failed: " + err.Error()
 	}
 	private, err := os.CreateTemp("", "corvint-gate-ledger-index.")
 	if err != nil {
 		return "", nil, "private index: " + err.Error()
 	}
 	defer os.Remove(private.Name())
-	indexPath = strings.TrimSpace(indexPath)
-	if !filepath.IsAbs(indexPath) {
-		indexPath = filepath.Join(root, indexPath)
-	}
-	if err := copyIndex(indexPath, private); err != nil {
+	defer os.Remove(private.Name() + ".lock")
+	if err := private.Close(); err != nil {
 		return "", nil, "private index: " + err.Error()
 	}
 	env := "GIT_INDEX_FILE=" + private.Name()
+	if _, err := gitOutputEnv(root, env, "read-tree", "--empty"); err != nil {
+		return "", nil, "private index initialization failed: " + err.Error()
+	}
+	// Retain tracked membership (including ignored and intent-to-add paths),
+	// but discard cached stats so restored timestamps cannot conceal changed bytes.
+	if _, err := gitOutputEnvInput(root, env, strings.NewReader(entriesInput), "update-index", "-z", "--index-info"); err != nil {
+		return "", nil, "private index import failed: " + err.Error()
+	}
 	if _, err := gitOutputEnv(root, env, "add", "-A", "--", "."); err != nil {
 		return "", nil, "git add -A into the private index failed: " + err.Error()
 	}
@@ -443,24 +448,6 @@ func compiledIgnored(listing string) string {
 		}
 	}
 	return ""
-}
-
-// copyIndex copies the repository index into the private one. A linked
-// worktree's index lives under the main repository's `.git/worktrees/`, which
-// `--git-path` reports absolute. A repository with no index yet gets none, so
-// git creates the private index itself rather than reading an empty file.
-func copyIndex(from string, to *os.File) error {
-	defer to.Close()
-	source, err := os.Open(from)
-	if errors.Is(err, os.ErrNotExist) {
-		return os.Remove(to.Name())
-	}
-	if err != nil {
-		return err
-	}
-	defer source.Close()
-	_, err = io.Copy(to, source)
-	return err
 }
 
 // ledgerDirectory returns the per-user record directory once it is a private,
@@ -641,7 +628,16 @@ func gitOutput(dir string, args ...string) (string, error) {
 }
 
 func gitOutputEnv(dir, env string, args ...string) (string, error) {
+	return gitOutputEnvInput(dir, env, nil, args...)
+}
+
+func gitOutputEnvInput(dir, env string, input io.Reader, args ...string) (string, error) {
+	operation := args[0]
+	if env != "" {
+		args = append([]string{"-c", "core.fsmonitor=false", "-c", "core.ignorestat=false"}, args...)
+	}
 	cmd := exec.Command("git", args...)
+	cmd.Stdin = input
 	cmd.Dir = dir
 	if env != "" {
 		cmd.Env = append(os.Environ(), env)
@@ -650,7 +646,7 @@ func gitOutputEnv(dir, env string, args ...string) (string, error) {
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("git %s: %s", args[0], strings.TrimSpace(stderr.String()))
+		return "", fmt.Errorf("git %s: %s", operation, strings.TrimSpace(stderr.String()))
 	}
 	return string(out), nil
 }
