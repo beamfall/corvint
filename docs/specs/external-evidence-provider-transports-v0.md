@@ -87,6 +87,14 @@ way the command can fail is one closed provider row with no partial record.
   No option, environment variable, or record member may cause Corvint to open a network
   connection to fetch a provider record.
 
+- `EEP-TR-011`: The optional authoring-kit checker MUST require and verify an exact lowercase
+  executable SHA-256 before one command launch, reuse `ParseCommand` and the contained runner,
+  and reject transport or record pin failures with no output bytes. It MUST cancel on SIGINT or
+  SIGTERM and preserve existing timeout, stdout/stderr, environment and descendant cleanup bounds.
+  The trusted local executable and parent paths MUST stay immutable between hashing and launch;
+  concurrent hostile substitution is outside this local operator trust contract. Executable hashing
+  precedes the runner timeout. A saved invocation's expected pins MUST NOT update automatically.
+
 ## Non-goals and simpler baseline
 
 - The baseline remains running the provider by hand into a file and passing `--provider FILE`; the
@@ -166,6 +174,12 @@ rows. The `decodeRecord` extraction in `section.go` is behaviour-preserving and 
 | `EEP-TR-008` | `internal/extevidence/transport.go` | `TestCommandTransportFailuresAreClosed` |
 | `EEP-TR-009` | `internal/extevidence/mcp.go`; decision 0324 | `TestMCPTransportConformance` |
 | `EEP-TR-010` | this document; decision 0318 | review: no network client in `internal/extevidence` |
+
+| `EEP-TR-011` | `internal/extevidence/pin.go`, `examples/evidence-provider/v0/check/main.go` | `TestProviderKitCommandPins`, `TestCommandTransportContainment`, `TestCommandTransportFailuresAreClosed`, `TestRunProcessInterruptionLeavesNoDescendant`, `TestSupervisorSignalReapsNestedOwnedGroup` |
+
+The kit checker is additive and experimental (V1-0027); its `/0`, `/1`, `/2` compatibility window
+and promotion hold are owned by `EEP-V0-016` through `EEP-V0-018`. Rollback removes only the kit
+checker/pin helper and its requirements; no existing command transport changes are necessary.
 
 ## Unresolved decisions and promotion or kill criteria
 

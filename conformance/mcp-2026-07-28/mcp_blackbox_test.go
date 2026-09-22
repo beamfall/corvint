@@ -701,7 +701,12 @@ func startServer(t *testing.T, root string) *stdioClient {
 
 func startServerWithEnv(t *testing.T, root string, extraEnv ...string) *stdioClient {
 	t.Helper()
-	command := exec.Command(serverBinary, "--root", root)
+	return startServerWithArguments(t, root, nil, extraEnv...)
+}
+
+func startServerWithArguments(t *testing.T, root string, arguments []string, extraEnv ...string) *stdioClient {
+	t.Helper()
+	command := exec.Command(serverBinary, append([]string{"--root", root}, arguments...)...)
 	command.Env = replaceEnvironment(os.Environ(), extraEnv...)
 	stdin, err := command.StdinPipe()
 	if err != nil {

@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // fixtureRepository is one committed git worktree the test runs inside, with a
@@ -132,6 +134,11 @@ func TestRunStepRefusesWhatItCannotDigest(t *testing.T) {
 		t.Fatalf("skip-worktree: %q", out)
 	}
 	git(t, root, "update-index", "--no-skip-worktree", "main.go")
+	git(t, root, "update-index", "--assume-unchanged", "main.go")
+	if _, out := ledgerRun(t, step...); !strings.Contains(out, "RUN decision-numbers-check: a tracked file is skip-worktree or assume-unchanged") {
+		t.Fatalf("assume-unchanged: %q", out)
+	}
+	git(t, root, "update-index", "--no-assume-unchanged", "main.go")
 	if err := os.MkdirAll(filepath.Join(root, "build"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -156,8 +163,8 @@ func TestRunStepRefusesWhatItCannotDigest(t *testing.T) {
 	if code, out := ledgerRun(t, step...); code != 0 || out != "" {
 		t.Fatalf("off: code %d, %q", code, out)
 	}
-	if got := runs(t, root); got != 4 {
-		t.Fatalf("the step ran %d times, want 4", got)
+	if got := runs(t, root); got != 5 {
+		t.Fatalf("the step ran %d times, want 5", got)
 	}
 }
 
@@ -198,4 +205,185 @@ func TestRunStepRecordsFromLinkedWorktree(t *testing.T) {
 	if _, out := ledgerRun(t, step...); !strings.Contains(out, "HIT decision-numbers-check") {
 		t.Fatalf("main worktree after a linked record: %q", out)
 	}
+}
+
+func TestWorktreeDigestIgnoresCachedStat(t *testing.T) {
+	t.Run("GL-V0-001 exact content", func(t *testing.T) {
+		for _, newerIndex := range []bool{false, true} {
+			t.Run(fmt.Sprintf("newer-index-%t", newerIndex), func(t *testing.T) {
+				root := fixtureRepository(t)
+				git(t, root, "config", "core.checkStat", "minimal")
+				git(t, root, "config", "core.trustctime", "false")
+				fixed := time.Unix(1700000000, 0)
+				path := filepath.Join(root, "docs/decisions/0001.md")
+				setMtime(t, path, fixed)
+				git(t, root, "add", "-A")
+				index := filepath.Join(root, ".git/index")
+				indexTime := fixed
+				if newerIndex {
+					indexTime = fixed.Add(time.Hour)
+				}
+				setMtime(t, index, indexTime)
+				assertIndexUnchanged(t, index)
+				step := append([]string{"run", "decision-numbers-check"}, counting...)
+				if code, out := ledgerRun(t, step...); code != 0 || !strings.Contains(out, "RECORD decision-numbers-check") {
+					t.Fatalf("initial record: %d %s", code, out)
+				}
+				write(t, root, "docs/decisions/0001.md", "two\n")
+				setMtime(t, path, fixed)
+				if code, out := ledgerRun(t, step...); code != 0 || !strings.Contains(out, "RUN decision-numbers-check: no recorded pass") {
+					t.Fatalf("same-size restored-time edit: %d %s", code, out)
+				}
+				tree, _, reason := worktreeDigest(root)
+				if reason != "" {
+					t.Fatal(reason)
+				}
+				assertTreeBody(t, root, tree, "docs/decisions/0001.md", "two\n")
+				if code, out := ledgerRun(t, step...); code != 0 || !strings.Contains(out, "HIT decision-numbers-check") {
+					t.Fatalf("unchanged content: %d %s", code, out)
+				}
+			})
+		}
+	})
+}
+
+func setMtime(t *testing.T, path string, stamp time.Time) {
+	t.Helper()
+	if err := os.Chtimes(path, stamp, stamp); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func assertIndexUnchanged(t *testing.T, path string) {
+	t.Helper()
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stat, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		after, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		afterStat, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(before, after) || !stat.ModTime().Equal(afterStat.ModTime()) {
+			t.Error("repository index bytes or mtime changed")
+		}
+	})
+}
+
+func assertTreeBody(t *testing.T, root, tree, path, want string) {
+	t.Helper()
+	got, err := gitOutput(root, "show", tree+":"+path)
+	if err != nil || got != want {
+		t.Fatalf("tree %s path %q: got %q, want %q, error %v", tree, path, got, want, err)
+	}
+}
+
+func TestWorktreeDigestPreservesMembershipAndPaths(t *testing.T) {
+	root := fixtureRepository(t)
+	for _, path := range []string{"ignored.txt", "staged.txt", "gone.txt", "recreated-ignored.txt", "recreated.txt", "executable", "line\nbreak\t.txt"} {
+		write(t, root, path, "old\n")
+	}
+	if err := os.Chmod(filepath.Join(root, "executable"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("ignored.txt", filepath.Join(root, "link")); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", "-A")
+	for _, path := range []string{"intent.txt", "intent-ignored.txt"} {
+		write(t, root, path, "intent\n")
+		git(t, root, "add", "-N", "--", path)
+	}
+	git(t, root, "rm", "--cached", "recreated.txt", "recreated-ignored.txt")
+	write(t, root, ".gitignore", "ignored.txt\nintent-ignored.txt\nrecreated-ignored.txt\nexcluded.txt\n")
+	write(t, root, "excluded.txt", "excluded\n")
+	want := map[string]string{"ignored.txt": "new\n", "staged.txt": "new\n", "intent.txt": "new intent\n", "intent-ignored.txt": "new ignored intent\n", "recreated.txt": "recreated\n", "untracked.txt": "untracked\n", "line\nbreak\t.txt": "path bytes\n"}
+	for path, body := range want {
+		write(t, root, path, body)
+	}
+	if err := os.Remove(filepath.Join(root, "gone.txt")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(root, "link")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("staged.txt", filepath.Join(root, "link")); err != nil {
+		t.Fatal(err)
+	}
+	// These optimizations must not reintroduce valid cached stats in the private index.
+	git(t, root, "config", "core.ignorestat", "true")
+	git(t, root, "config", "core.fsmonitor", "true")
+	assertIndexUnchanged(t, filepath.Join(root, ".git/index"))
+	tree, entries, reason := worktreeDigest(root)
+	if reason != "" {
+		t.Fatal(reason)
+	}
+	for path, body := range want {
+		assertTreeBody(t, root, tree, path, body)
+	}
+	assertTreeBody(t, root, tree, "link", "staged.txt")
+	for _, path := range []string{"gone.txt", "excluded.txt", "recreated-ignored.txt"} {
+		if _, err := gitOutput(root, "cat-file", "-e", tree+":"+path); err == nil {
+			t.Errorf("unexpected tree member %q", path)
+		}
+	}
+	modes := map[string]string{}
+	for _, entry := range entries {
+		modes[entry.path] = strings.Fields(entry.line)[0]
+	}
+	if modes["executable"] != "100755" || modes["link"] != "120000" {
+		t.Fatalf("lost modes: %#v", modes)
+	}
+}
+
+func TestWorktreeDigestWithoutIndex(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "-q", "-b", "main")
+	write(t, root, "new.txt", "new\n")
+	tree, _, reason := worktreeDigest(root)
+	if reason != "" {
+		t.Fatal(reason)
+	}
+	assertTreeBody(t, root, tree, "new.txt", "new\n")
+	if _, err := os.Stat(filepath.Join(root, ".git/index")); !os.IsNotExist(err) {
+		t.Fatalf("original unborn index created: %v", err)
+	}
+}
+
+func TestWorktreeDigestImportFailureRunsWithoutRecord(t *testing.T) {
+	t.Run("GL-V0-005 import failure", func(t *testing.T) {
+		root := fixtureRepository(t)
+		actualGit, err := exec.LookPath("git")
+		if err != nil {
+			t.Fatal(err)
+		}
+		bin := t.TempDir()
+		wrapper := "#!/bin/sh\nfor arg do\n if [ \"$arg\" = update-index ]; then exit 47; fi\ndone\nexec \"$ACTUAL_TEST_GIT\" \"$@\"\n"
+		if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("ACTUAL_TEST_GIT", actualGit)
+		t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+		private := t.TempDir()
+		t.Setenv("TMPDIR", private)
+		assertIndexUnchanged(t, filepath.Join(root, ".git/index"))
+		step := append([]string{"run", "decision-numbers-check"}, counting...)
+		code, out := ledgerRun(t, step...)
+		if code != 0 || !strings.Contains(out, "RUN decision-numbers-check: private index import failed") || strings.Contains(out, "RECORD") || records(t) != 0 || runs(t, root) != 1 {
+			t.Fatalf("import failure did not fail closed: %d %s", code, out)
+		}
+		left, err := filepath.Glob(filepath.Join(private, "corvint-gate-ledger-index.*"))
+		if err != nil || len(left) != 0 {
+			t.Fatalf("private index/lock residue: %v %v", left, err)
+		}
+	})
 }

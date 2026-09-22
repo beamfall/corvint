@@ -53,7 +53,9 @@ therefore come from something keyed on content, not from Go's cache.
   own identity (its Go source digest and the pinned toolchain version), `GO_TEST_TIMEOUT`, and a
   digest of the step's declared inputs taken from the exact worktree content: tracked and untracked
   files with ignored files excluded, written as a Git tree through a private index so the
-  repository index is never touched. The key MUST NOT include the worktree path, branch, commit,
+  repository index is never touched. Cached stat data or timestamps MUST NOT authorize content reuse.
+  Tracked files remain included when ignored; ignored untracked files remain excluded.
+  The key MUST NOT include the worktree path, branch, commit,
   host, user, or time, so that one recorded pass serves every worktree of this user. Every step's
   scope MUST include the gate's own tooling (`Makefile`, `go.mod`, `go.sum`, `script/`, `tools/`),
   so a change to how a step runs is a change to its inputs.
@@ -140,11 +142,11 @@ directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` li
 
 | Requirement | Evidence |
 |---|---|
-| GL-V0-001 | `TestRunStepSkipsOnlyRecordedIdenticalInputs`: a rerun on identical content hits, a change outside the scope still hits, a change inside the scope runs; `TestRunStepRecordsFromLinkedWorktree`: a pass recorded in a `git worktree add` checkout hits from the main worktree |
+| GL-V0-001 | `TestRunStepSkipsOnlyRecordedIdenticalInputs`: a rerun on identical content hits, a change outside the scope still hits, a change inside the scope runs; `TestRunStepRecordsFromLinkedWorktree`: a pass recorded in a `git worktree add` checkout hits from the main worktree; `TestWorktreeDigestIgnoresCachedStat`: same-size restored-time edits miss even with a newer index; `TestWorktreeDigestPreservesMembershipAndPaths`: tracked/ignored/staged/intent-to-add membership, executable/symlink modes and NUL-safe paths; `TestWorktreeDigestWithoutIndex`: unborn worktree |
 | GL-V0-002 | the same test: a step exiting 3 returns 3 and records nothing |
 | GL-V0-003 | the same test: an undeclared step runs and records nothing; `plan` reports `go-archive-gate: always runs` |
 | GL-V0-004 | `TestGoTestFallsBackToOneUncachedRun`: the fallback passes `-count=1 ./...` and hits on an identical tree; `TestUnresolvedPackagesListsRootLocators`: the partition's input; measured partition on this repository in `../BUILD-LOG.md` |
-| GL-V0-005 | `TestRunStepRefusesWhatItCannotDigest`: skip-worktree and an ignored `build/build.go` both run and record nothing |
+| GL-V0-005 | `TestRunStepRefusesWhatItCannotDigest`: skip-worktree, assume-unchanged and an ignored `build/build.go` run and record nothing; `TestWorktreeDigestImportFailureRunsWithoutRecord`: private import failure runs without recording and removes the private index/lock |
 | GL-V0-006 | the same test: a `0755` ledger directory runs and records nothing |
 | GL-V0-007 | the same test: `CORVINT_GATE_LEDGER=off` runs silently; `TestRunStepSkipsOnlyRecordedIdenticalInputs`: `plan` leaves the run count unchanged; `script/gate-receipt_test.sh` ordering probe through the `ledger/` targets |
 | GL-V0-008 | `lock` in `tools/gate-ledger/main.go`, flock per key with a second lookup after acquisition; inspection |
@@ -153,7 +155,7 @@ directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` li
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| GL-V0-001 | `key`, `inputs`, `worktreeDigest`, `copyIndex`, `tooling`, `scopes` in `tools/gate-ledger/main.go` | `TestRunStepSkipsOnlyRecordedIdenticalInputs`; `TestRunStepRecordsFromLinkedWorktree` |
+| GL-V0-001 | `key`, `inputs`, `worktreeDigest`, `tooling`, `scopes` in `tools/gate-ledger/main.go` | `TestRunStepSkipsOnlyRecordedIdenticalInputs`; `TestRunStepRecordsFromLinkedWorktree` |
 | GL-V0-002 | `runStep`, `execute` | `TestRunStepSkipsOnlyRecordedIdenticalInputs` |
 | GL-V0-003 | `scopes`, `key` | `TestRunStepSkipsOnlyRecordedIdenticalInputs` |
 | GL-V0-004 | `goTest`, `partition`; `unresolvedPackages` in `tools/gate-affected-select/main.go`; `GO_TEST_FLAGS` and `ledger/go-test` in `Makefile` | `TestGoTestFallsBackToOneUncachedRun`; `TestUnresolvedPackagesListsRootLocators` |

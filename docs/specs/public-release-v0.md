@@ -14,6 +14,45 @@ Amendments: decision 0167 (build from the staged export; retained bundle archive
 - Blocked on: integrated roadmap delivery, optional bundle, automatic docs and test qualification, installed-path checks and publication approval.
 - Read next: Human intent; Requirements; Acceptance and rollback.
 
+## 0.6 local-workflow scope
+
+Decision 0332 accepts `daily-change-evidence-workflow-v0.md` for the 0.6 verified-workflow
+milestone. For that milestone only, it supersedes conflicting prerequisites that require optional
+companions or formal FULL host authority before Core qualification. Local Codex and Claude use
+is qualified separately on exact versions. This does not promote any host, waive evidence gates,
+or alter historical alpha artifacts. `PUB-V0-001` selects the current candidate version;
+0.6 readiness has not been established.
+
+For this Core-only scope, `PUB-V0-022..026` retain their applicable safeguards without
+making the optional combined alpha bundle a prerequisite. The existing native archive-gate
+archive, reproducibility report and `SHA256SUMS` are the Core artifact inputs; the
+candidate packet must retain a closed inventory, source archive and applicable legal
+provenance, exact version/build/commit/tree/Go toolchain/target identity, independently
+verified reproducibility and checksums, and installed `corvint --version` evidence.
+`PUB-V0-022`'s companion input and `PUB-V0-023..024`'s companion identities and rows
+apply only to the separate combined alpha profile. Core still requires its own native
+Darwin/Linux, full, artifact, installed-host and sealed workflow gates, including all
+six evidence classes. `PUB-V0-025..026` retain immutable version/platform candidate
+storage, refusal to replace an existing path, and fail-closed verification. Operator-
+approved local PATH activation is a separate selection of an installed binary; it
+does not replace or mutate retained candidate artifacts. The existing combined alpha
+manifest reader and installer are unchanged and do not admit a Core-only packet.
+
+Freeze product candidate `T` before judged runs: its version/build, commit/tree,
+binary, source archive and proof maps identify the exact tested product. Later
+evidence-only publication snapshot `E` contains actual reports, receipts and ledger
+changes bound to `T`; it does not rebuild or redefine `T`. Give `E` its own scoped
+CEM/OCM, integrity and documentation checks, and independent semantic review. Those
+checks establish `E`'s publication integrity, not that an `E`-built binary passed
+`T`'s exact-target gates. A change to runtime behavior, tests or selected checks,
+fixtures, an owning normative requirement, or `T`'s proof maps requires a new candidate
+and invalidates affected evidence. A Beamfall receipt keeps the actual Beamfall
+`repositoryRevision` and separately binds the evaluated Corvint `T` artifact hashes;
+review verifies that join. `T`'s archived `UNPROVEN` ledger claims remain literal.
+Only an owner-accepted `E` packet may qualify explicitly named `T`; it cannot silently
+rewrite `T`'s archived claims. Exact-packet owner approval remains required before
+promotion or publication. This scope remains `NOT_QUALIFIED`.
+
 ## Human intent
 
 On 2026-09-11 the owner requested work until Corvint is ready for a public GitHub release, then
@@ -31,7 +70,7 @@ The proposed delivery sequence and acceptance criteria are in
 
 ## Requirements
 
-- `PUB-V0-001`: The current version tuple MUST move together to `0.5.0a3`, including native
+- `PUB-V0-001`: The current version tuple MUST move together to `0.6.0`, including native
   version output, archive smoke expectations, VS Code exact admission and live fixtures.
   Historical benchmark and release evidence MUST retain its original version identities.
 - `PUB-V0-002`: The existing native CLI archive gate MUST remain independent. An optional
@@ -258,7 +297,11 @@ The result binds the archive SHA-256 and frozen Corvint commit/tree. Existing ou
   build number, installed `corvint --version` output, Go/Git identities, Corvint and Corvint Tasks
   commits/trees, and every non-manifest asset's path, role, size and SHA-256. A top-level
   `SHA256SUMS` MUST cover every retained file except itself, including the manifest, qualification
-  receipt, core and companion receipts, source archives and release notes.
+  receipt, core and companion receipts, source archives and release notes. Candidate verification
+  MUST bound directory enumeration before materialization: at most 15 regular files, five real
+  directories including the root, no directories below those root children, 512 MiB per file and
+  1 GiB aggregate retained input. Reads MUST check cancellation and the remaining byte allowance.
+  These are input admission bounds, not a process RSS guarantee.
 - `PUB-V0-024`: The retained qualification receipt MUST use only `PASS`, `FAIL` and `NOT_RUN`, with
   an explicit row for core archive, companion bundle, exact version identity, affected selection,
   external Playwright receipt discovery, documentation-corpus discovery and work-queue observation
@@ -269,7 +312,16 @@ The result binds the archive SHA-256 and frozen Corvint commit/tree. Existing ou
   host core archive and run its installed `--version` before atomically retaining it under the
   unique `<store>/corvint/<version>/<goos>-<goarch>` path. It MUST refuse an existing path and MUST
   NOT create or change a `current` or `latest` selector. Upgrade, coexistence and rollback are
-  explicit selection of immutable version/platform paths, never silent replacement.
+  explicit selection of immutable version/platform paths, never silent replacement. The store MUST
+  be an absolute canonical path with no symlink components, disjoint from the retained candidate
+  in either direction. Its existing components MUST be directories. The store name and managed
+  child components MUST reject case-fold aliases and parents exceeding 4,096 entries. Candidate
+  and installed version probes MUST use an owned process group, private working directory/HOME,
+  closed environment, 30-second deadline, one-second shutdown allowance and 4 KiB per output
+  stream. Success requires the exact version, observed zero exit and completed group cleanup;
+  cancellation before publication MUST retain no installation. Probe output MUST NOT be echoed
+  in diagnostics. Store ownership is exclusive and trusted-local: concurrent adversarial renames,
+  detached/escaped descendants and power-loss durability are not qualified by these checks.
 - `PUB-V0-026`: Candidate assembly or installation MUST fail without retained output when any core
   or companion gate, checksum, source identity/archive, installed workflow, version identity,
   manifest inventory, qualification row, or no-replace promotion check required by
@@ -539,10 +591,10 @@ with named versions stays a separate, not-yet-exercised step that this command d
 | PUB-V0-016 | `extensions/vscode/test/installed`, `conformance/interactive-alpha`, `internal/companionrelease/installed.go`, `cmd/corvint-public-release-check`, `script/public-release-check` | retained verifier, no-overwrite and wrapper refusal tests; the final exact retained installed run remains required. |
 | PUB-V0-021 | `cmd/corvint/main.go` (`build`), `Makefile` (`build`), `conformance/release-artifact-v0/build.go` (`buildNumber`, `buildArguments`), `conformance/release-artifact-v0/archive_run.go`, `extensions/vscode/src/executable.ts`, `script/dogfood-change.sh`, `script/dogfood-check.sh`, `script/dogfood-bind-range.sh` | `TestSmokeTestExecutesRealSubprocessAndDetectsFailures` (missing and wrong build numbers fail), `TestGoOnlySourceAndVersion` (unstamped build 0), `TestCorvintHostArchivePartialProof` (extracted archive smoke requires the exact first-parent count), `version probe requires the build number (VSC-V0-007 PUB-V0-021)` |
 | PUB-V0-022 | `internal/releasecandidate` (`verifyCore`, `verifyCoreArchiveBinary`, `Assemble`), `internal/companionrelease/retained.go` | `TestPUBV0022VerifyCoreRequiresClosedReproducibleChecksummedSet`, `TestPUBV0022CoreArchiveVerifierRejectsNonArchiveBytes`; the real dry run consumes both retained gates at exact commits |
-| PUB-V0-023 | `internal/releasecandidate` (`Manifest`, `assetsFor`, `renderChecksums`, `Verify`) | `TestPUBV0023ClosedManifestRunsIsolatedHostProbe`; real candidate verification closes the manifest/checksum inventory |
+| PUB-V0-023 | `internal/releasecandidate` (`Manifest`, `assetsFor`, `renderChecksums`, `Verify`) | `TestPUBV0023ClosedManifestRunsIsolatedHostProbe`, `TestPUBV0026CandidateInventoryBounds`; real candidate verification closes the manifest/checksum inventory |
 | PUB-V0-024 | `internal/companionrelease/core_smoke.go`, `internal/companionrelease/smoke.go`, `internal/releasecandidate` (`buildQualification`, `validateQualification`) | `TestPUBV0024InstalledCoreDiscoveryWorkflows`, `TestInitSmokeRepoPinsIntentBranch`; retained-bundle tests require the five new `/2` steps while preserving legacy profiles |
-| PUB-V0-025 | `internal/releasecandidate/install.go`, `cmd/corvint-release-install` | `TestPUBV0025VersionedInstallCoexistsAndNeverReplaces`, `TestPUBV0025PromotionNeverReplacesExistingCandidate` |
-| PUB-V0-026 | `cmd/corvint-release-candidate`, `cmd/corvint-release-install`, `internal/releasecandidate` | `TestPUBV0026FailedInputRetainsNoCandidate`, `TestPUBV0026CandidateVerifierRejectsChecksumDrift`, `TestPUBV0026ScratchAndOutputCannotOverlapInputs`; completed staging is reverified before promotion, command errors precede retention and neither command has a publication operation |
+| PUB-V0-025 | `internal/releasecandidate/install.go`, `cmd/corvint-release-install` | `TestPUBV0025VersionedInstallCoexistsAndNeverReplaces`, `TestPUBV0025PromotionNeverReplacesExistingCandidate`, `TestPUBV0025RecoveryLifecycle`, `TestPUBV0025HostileStore` |
+| PUB-V0-026 | `cmd/corvint-release-candidate`, `cmd/corvint-release-install`, `internal/releasecandidate` | `TestPUBV0026FailedInputRetainsNoCandidate`, `TestPUBV0026CandidateVerifierRejectsChecksumDrift`, `TestPUBV0026ScratchAndOutputCannotOverlapInputs`, `TestPUBV0026ProbeFailureCleansInstall`, `TestPUBV0026InterruptedInstallReapsDescendant`, `TestPUBV0026CancelledInstallRetainsNothing`; completed staging is reverified before promotion, command errors precede retention and neither command has a publication operation |
 
 ## Core release scope amendment (2026-09-16)
 

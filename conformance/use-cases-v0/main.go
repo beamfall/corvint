@@ -19,7 +19,8 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
-const profile = "corvint-use-case-conformance/0"
+const profile = "corvint-use-case-conformance/1"
+const legacyProfile = "corvint-use-case-conformance/0"
 const evidenceProfile = "corvint-use-case-evidence/0"
 const resultProfile = "corvint-use-case-conformance-result/0"
 const maxFileBytes = 1048576
@@ -28,6 +29,8 @@ var statuses = []string{"specified", "experimental", "verified"}
 var claims = []string{"UNPROVEN", "VERIFIED"}
 var evidenceClasses = []string{"contract", "implementation", "hostile-tests", "corvint-dogfood", "beamfall-dogfood", "sealed-benchmark"}
 var useCaseIDs = []string{"UC-AI-CODING", "UC-AI-DEBUGGING", "UC-ENGINEERING-RESEARCH", "UC-PI-LIFECYCLE", "UC-DEEPSEEK-HARNESS-LIFECYCLE", "UC-HUMAN-DOCUMENTATION", "UC-AUTOMATIC-E2E", "UC-PR-MAINTENANCE-MERGE", "UC-CHANGE-BREAKAGE", "UC-MISSING-TESTS", "UC-MINIMUM-TESTS", "UC-ONBOARDING", "UC-TICKET-ROUTING", "UC-CODE-REVIEW", "UC-CODE-TO-SPEC", "UC-REMOVAL-MIGRATION", "UC-EXPLAIN-SHIPPED", "UC-INCIDENT-ORIENTATION", "UC-LIVE-PROOF-VERIFICATION"}
+var workflowUseCaseIDs = append(append([]string{}, useCaseIDs...), "UC-TASK-ORIENTATION", "UC-CHANGE-CONSEQUENCE", "UC-EVIDENCE-CARRYING-COMPLETION")
+var useCaseProfiles = map[string][]string{legacyProfile: useCaseIDs, profile: workflowUseCaseIDs}
 var hexDigest = regexp.MustCompile(`^[0-9a-f]{64}$`)
 var revisionPattern = regexp.MustCompile(`^([0-9a-f]{40}|[0-9a-f]{64})$`)
 var requirementPattern = regexp.MustCompile(`^[A-Z][A-Z0-9-]{2,63}$`)
@@ -385,8 +388,10 @@ func validate(root, ledgerPath string) map[string]any {
 	if !ok {
 		return v.failure()
 	}
-	if ledger["spec"] != profile {
+	ids, knownProfile := useCaseProfiles[str(ledger["spec"])]
+	if !knownProfile {
 		v.fail("ledger", "wrong-spec")
+		return v.failure()
 	}
 	if ledger["claimDefault"] != "UNPROVEN" {
 		v.fail("ledger", "wrong-claim-default")
@@ -418,7 +423,7 @@ func validate(root, ledgerPath string) map[string]any {
 			continue
 		}
 		id := str(m["id"])
-		if !contains(useCaseIDs, id) {
+		if !contains(ids, id) {
 			v.fail(label, "unknown-id")
 			continue
 		}
@@ -472,12 +477,12 @@ func validate(root, ledgerPath string) map[string]any {
 			}
 		}
 	}
-	for _, id := range useCaseIDs {
+	for _, id := range ids {
 		if !seen[id] {
 			v.fail("ledger", "missing-use-case:"+id)
 		}
 	}
-	if len(rows) > len(useCaseIDs) {
+	if len(rows) > len(ids) {
 		v.fail("ledger", "unexpected-use-case-count")
 	}
 	if len(v.errors) > 0 {

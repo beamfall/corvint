@@ -18,7 +18,7 @@ Authoritative inputs: `ROADMAP.md` (AT-09, AT-10), `docs/plans/EXCEPTIONAL-CORVI
 
 ## Intent and scope
 
-`ROADMAP.md:334-337` (AT-09) requires freezing "comparison semantics, resource profile, independent
+`ROADMAP.md:335-338` (AT-09) requires freezing "comparison semantics, resource profile, independent
 labels, 20 development cases and strong differential baseline" and preregistering "the 40-case
 screen and full-cost/undefined-ratio rules from the program," before AT-10 builds any runner. This
 document freezes the policy and ten eligible pilot labels; the complete 20-case development corpus,

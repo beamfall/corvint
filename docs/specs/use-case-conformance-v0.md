@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: proposed
+Intent status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
@@ -10,7 +10,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 
 ## Agent digest
 - Claim: Headline Corvint jobs remain UNPROVEN until each has complete content-addressed promotion evidence.
-- Status: proposed/experimental
+- Status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332); experimental
 - Exists: `conformance/use-cases-v0/ledger.json` and deterministic validator with every job `UNPROVEN`.
 - Blocked on: complete promotion receipts, Corvint and Beamfall dogfood, and sealed outcome benchmarks.
 - Read next: Verified current state; Status and claim model; Acceptance matrix.
@@ -27,7 +27,9 @@ Harness discovery/update lifecycles; MkDocs and other human documentation; autom
 PR maintenance and policy-safe merge; change breakage; missing-test discovery and generation;
 minimum-test execution; onboarding; ticket/team routing; code review; code-to-spec extraction;
 removal and migration planning; shipped-change narration; incident orientation; and Live
-Proof-Carrying Verification.
+Proof-Carrying Verification. Decision 0332 adds the narrower daily-workflow jobs
+`UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`, and `UC-EVIDENCE-CARRYING-COMPLETION` under
+`daily-change-evidence-workflow-v0.md`; it does not narrow or promote any existing job.
 
 ## Verified current state
 
@@ -92,6 +94,15 @@ cannot be interpreted as success.
   is `VERIFIED`. Consumers MUST display the literal claim rather than infer support from status,
   receipt count, implementation presence, or neighboring rows.
 
+- `UCV0-013`: The canonical ledger profile MUST be `corvint-use-case-conformance/1`, containing
+  the historical nineteen IDs plus exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`, and
+  `UC-EVIDENCE-CARRYING-COMPLETION`. The reader MUST retain the historical closed nineteen-ID
+  `corvint-use-case-conformance/0` profile. New IDs in `/0`, missing IDs in `/1`, and unknown
+  profiles MUST fail visibly. Migration preserves every historical row and its evidence bytes;
+  it adds the new rows as `specified`/`UNPROVEN` with no evidence. Historical readers reject `/1`;
+  archives retain `/0` bytes instead of pretending forward compatibility. Evidence `/0` and
+  result `/0` schemas, the six evidence classes, and promotion requirements remain unchanged.
+
 ## Trust boundary and failure behavior
 
 The ledger and receipt envelopes are caller-controlled local bytes. The runner treats all paths and
@@ -132,6 +143,7 @@ evidence; never rewrite a failed receipt.
 |---|---|---|
 | `UCV0-001..003`, `UCV0-012` | `conformance/use-cases-v0/ledger.json`, `main.go` | `conformance/use-cases-v0/main_test.go` |
 | `UCV0-004..010` | `conformance/use-cases-v0/main.go` | hostile and complete-packet tests |
+| `UCV0-013` | `conformance/use-cases-v0/main.go`, `ledger.json` | `TestUCV0ProfileMigration`; historical reader refusal |
 | `UCV0-011` | governed ledger row only | `UNPROVEN`; implementation and outcome evidence absent |
 
 ## Unresolved decisions and kill criteria

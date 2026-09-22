@@ -474,6 +474,30 @@ case.
 
 ## Delivery dependencies and gate
 
+### Candidate portable daily-loop boundary (V1-0013)
+
+The native roadmap authorizes preparation before predecessor V1-0010 closes, not formal wire
+freeze or promotion. The candidate minimum is the existing `cem/0.2` canonical map with its
+`cem/0.1` reader retained, one `ocm/0.1-experimental` map for each owning intent, and the existing
+`frontier/0` advisory report over that bound scope. OCM linkage does not prove passing checks;
+frontier output does not confer closure authority. This inventory adds no fields, profile versions,
+optional evidence families or accepted requirements. The daily workflow must establish its actual
+minimum before any of these experimental profiles is frozen for 1.0.
+
+`protocol/cem-0.2/manifest.json` supplies candidate raw canonical vectors for stable, relocated,
+stale, ambiguous, deleted and unknown evidence, with two-record drift ordering and exact committed
+sidecars. `TestPortableCanonicalVectors` consumes the packet through the native status workflow;
+`TestPortableProfileCompatibility` consumes its separately pinned 0.1 maps through the existing
+independent parser and requires the historical reader to reject 0.2. Both pin the same raw manifest
+but share no parser or reconstruction helper. The frozen 0.1 matrix is unchanged. Historical
+exact-patch compatibility is not a downgrade/migration of canonical assurance.
+
+Remaining promotion evidence is explicit: verified daily-loop minimum, independently authored
+0.2 consumer and producer interoperability, OCM/frontier portability and compatibility qualification,
+the ticket's full and interop gates, and owner acceptance. Existing OCM/frontier conformance is
+retained; this packet neither duplicates it nor treats a Corvint implementation seam as an
+independent consumer. See `protocol/cem-0.2/README.md` for packet reconstruction and non-claims.
+
 ```text
 WP1 CEM proof-hole repairs
   -> WP2 canonical patch binding and recorded exclusion
@@ -528,6 +552,7 @@ non-authoritative and slated for separate removal.
 | `CEM-CB-001..005` | `internal/cem/{wire,workflow,verify}`, versioned schemas and conformance; historical Python producer | core, dual-schema and dual-conformance tests; `TestCiteAcceptsRelocatedEvidenceSpan`, `TestCiteRefusesStaleEvidenceSpan`, `TestCiteRefusesAmbiguousEvidenceSpan`, `TestCiteRefusesDeletedEvidenceSpanWithVerifierClassification`, `TestCiteRefusesRenamedSourceEvidenceWithVerifierClassification`, `TestCiteRemovedIntentRefusalNamesBasePin`; independent interop remains external | `PASS`; external interop `NOT_RUN` |
 | `CEM-CB-006..009` | `src/context_corvint_cem.py`, `src/context_corvint_cem_workflow.py` | fixed exclusion, base/target mode, raw-byte, path-denial tests | `PASS` |
 | `CEM-CB-010..016` | CEM core/workflow and `src/corvint_cli.py` CEM commands | independent authority, structural/canonical assurance, canonical/explicit/default, resume, exact-envelope tests | `PASS` |
+| `CEM-CB-001..004`, `CEM-CB-009..012` | `protocol/cem-0.2` candidate packet; native workflow and separate historical reader | `TestPortableCanonicalVectors`, `TestPortableProfileCompatibility`: raw committed sidecars, mixed ordered drift, explicit unknown policy and N-1 refusal | candidate reference evidence; formal freeze and independent 0.2 qualification pending |
 | `CEM-CB-017..020` | shared CEM/OCM repository-boundary validation | primary/linked equivalence, bounded oversized/growth/symlink/FIFO metadata, alternate precedence, locally complete promisor tests, `TestResolveIgnoresRepositoryGrafts`, `TestRevisionOperandsAreNeverOptions`, `TestTimeoutReapIsBoundedWhenEscapedDescendantHoldsPipes`, `TestSessionStopIsBoundedWhenEscapedDescendantHoldsPipes` | `PASS` |
 | `CEM-CB-023..024` | `internal/cem/gitauth/{object,diff}.go` per-read tree and blob identity plus changed-path coverage | `TestAccuracyWholeTreePublicReadersAgree`, `TestGitIntegrityCommitAndTreeLinks` nested-tree case, `TestCanonicalDiffRejectsMislabeledBlobInputs`, `TestCanonicalDiffRefusesBlobFreeOmission`, `TestRequestMemoPrimitiveParityAndCopies` child counts | `PASS` |
 | `CEM-CB-021..022` | CEM verifier, workflow, and CLI envelopes | stable error and fresh-process deterministic JSON tests | `PASS` |

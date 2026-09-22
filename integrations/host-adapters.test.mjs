@@ -144,20 +144,24 @@ test('AHI-022 Gemini fault keeps notice',async t=>{
  const f=fixture(t,'stderr-fail'),fault=(await f.gemini('after-tool',geminiWrite(f.root))).output
  assert.match(fault.systemMessage,/repository-unreadable/);assert.equal(fault.hookSpecificOutput,undefined)
 })
+test('AHI-012 OpenCode default file-change deadline admits a healthy slow receipt',async t=>{
+ const f=fixture(t,'slow-valid')
+ const run=createCorvintRunner({corvintBinary:f.binary,environment:{PATH:process.env.PATH},hostVersion:'unknown'})
+ const result=await run({...request(f.root,'file-change'),input:{paths:['main.go']},signal:shutdown.signal})
+ assert.equal(result.ok,true,JSON.stringify(result))
+ assert.equal(result.support,'FALLBACK')
+ assert.deepEqual(result.degradations,['frontier-authority-unavailable'])
+})
 test('OpenCode automatic and query timeouts stay above their AHI-012 targets',()=>{
  const source=readFileSync(join(here,'opencode/src/runtime.js'),'utf8')
  const constant=name=>Number(source.match(new RegExp(`const ${name} = ([\\d_]+)`))[1].replaceAll('_',''))
  const automaticMs=constant('AUTOMATIC_TIMEOUT_MS'),queryMs=constant('QUERY_TIMEOUT_MS')
  const pkg=JSON.parse(readFileSync(join(here,'opencode/package.json'),'utf8'))
  assert.equal(pkg.corvintIntegration.timeoutsMs.automaticEvent,automaticMs);assert.equal(pkg.corvintIntegration.timeoutsMs.queryEvent,queryMs)
- // AHI-012 sets a 250 ms p95 target for what the adapter adds to a non-query lifecycle
- // event and a 500 ms cold-query p95 target. A kill timer equal to its own target kills
- // roughly 5% of healthy runs at the tail (the AUTOMATIC_TIMEOUT_MS conflation fixed
- // 2026-09-12). This adapter runs in-process in the OpenCode host, with no per-event
- // Node startup cost and no declared host-imposed kill ceiling (unlike the Gemini hook),
- // so the only requirement here is a real margin above the target, not a specific number.
+ // AHI-012 latency targets do not extend the two-second automatic-event ceiling.
  const NONQUERY_P95_TARGET_MS=250,QUERY_P95_TARGET_MS=500
  assert.ok(automaticMs>NONQUERY_P95_TARGET_MS,`automatic timeout ${automaticMs} must exceed the AHI-012 ${NONQUERY_P95_TARGET_MS}ms non-query p95 target`)
+ assert.ok(automaticMs<=2000)
  assert.ok(queryMs>QUERY_P95_TARGET_MS,`query timeout ${queryMs} must exceed the AHI-012 ${QUERY_P95_TARGET_MS}ms cold-query p95 target`)
 })
 function allTimeoutsMs(hooksJsonPath) {
@@ -224,7 +228,11 @@ for(const host of ['opencode','gemini']) {
  })
  test(`${host} timeout leaves no descendant`,async t=>{
   const f=fixture(t,'hang')
-  if(host==='opencode')assert.equal((await f.runOpen(request(f.root))).ok,false)
+  if(host==='opencode'){
+   const run=createCorvintRunner({corvintBinary:f.binary,environment:{PATH:process.env.PATH},hostVersion:'unknown'})
+   const result=await run({...request(f.root),signal:shutdown.signal})
+   assert.equal(result.ok,false);assert.equal(result.code,'timeout');assert.equal(result.deadlineMs,2000)
+  }
   else assert.match((await f.gemini('user-prompt')).output.systemMessage,/timeout/)
   assert.ok(existsSync(f.childPID),'child start witness');const pid=Number(readFileSync(f.childPID,'utf8'));let alive=true
   for(let i=0;i<50;i++){try{process.kill(pid,0)}catch{alive=false;break};await new Promise(r=>setTimeout(r,10))}
@@ -321,6 +329,12 @@ test('AHI-022 OpenCode routine receipt goes to the host log and a fault keeps it
  await settle()
  assert.equal(warnings.length,warningCount);assert.equal(logged.length,logCount+1)
  assert.match(logged.at(-1).body.message,/unsupported-impact-path-suffix/)
+
+ const timeout=await CorvintPlugin({directory:f.root,worktree:f.root,client},{corvintBinary:fixture(t,'slow-valid').binary,hostVersion:'unknown',automaticTimeoutMs:100})
+ await timeout.event({event:{type:'file.edited',properties:{file:join(f.root,'main.go')}}})
+ const notice=JSON.parse(warnings.at(-1).slice('[corvint/opencode] '.length))
+ assert.equal(notice.code,'timeout');assert.equal(notice.event,'file-change');assert.equal(notice.deadlineMs,100)
+ assert.match(notice.detail,/bound, not a diagnosed fault/)
 })
 
 test('AHI-022 OpenCode serializes a burst of file-change subprocesses',async t=>{
@@ -442,9 +456,10 @@ test('CRB-V0-009 CRB-V0-012 AHI-010 published matrix rows bind renamed shipped d
   'gemini-cli':d=>({host:'gemini-cli',surface:d.surface,adapterVersion:d.adapterVersion,status:d.support}),
   opencode:d=>({host:d.corvintIntegration.host,surface:d.corvintIntegration.surface,adapterVersion:d.corvintIntegration.adapterVersion,status:d.corvintIntegration.support}),
  }
- const sources={'claude-code':'claude-code/plugins/corvint/compatibility.json',codex:'codex/plugins/corvint/compatibility.json','gemini-cli':'gemini-cli/compatibility.json',opencode:'opencode/package.json'}
+ shipped.pi=shipped.opencode
+ const sources={'claude-code':'claude-code/plugins/corvint/compatibility.json',codex:'codex/plugins/corvint/compatibility.json','gemini-cli':'gemini-cli/compatibility.json',opencode:'opencode/package.json',pi:'pi/package.json'}
  // AHI-010 (decision 0244): the adapter version is the package's AHI-020 manifest version, compared as an exact string.
- const manifests={'claude-code':'claude-code/plugins/corvint/.claude-plugin/plugin.json',codex:'codex/plugins/corvint/.codex-plugin/plugin.json','gemini-cli':'gemini-cli/gemini-extension.json',opencode:'opencode/package.json'}
+ const manifests={'claude-code':'claude-code/plugins/corvint/.claude-plugin/plugin.json',codex:'codex/plugins/corvint/.codex-plugin/plugin.json','gemini-cli':'gemini-cli/gemini-extension.json',opencode:'opencode/package.json',pi:'pi/package.json'}
  assert.deepEqual(matrix.entries.map(e=>e.host).sort(),Object.keys(sources).sort())
  for(const entry of matrix.entries) {
   const declared=shipped[entry.host](read(sources[entry.host]))

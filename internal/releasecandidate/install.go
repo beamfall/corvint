@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -75,38 +74,7 @@ func VerifyContext(ctx context.Context, directory string) (*VerifiedCandidate, e
 	if err != nil {
 		return nil, err
 	}
-	files := map[string][]byte{}
-	directories := map[string]bool{".": true}
-	err = filepath.WalkDir(resolved, func(full string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if full == resolved {
-			return nil
-		}
-		relative, relErr := filepath.Rel(resolved, full)
-		if relErr != nil {
-			return relErr
-		}
-		relative = filepath.ToSlash(relative)
-		info, infoErr := entry.Info()
-		if infoErr != nil || info.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("candidate entry %s is not a real file or directory", relative)
-		}
-		if entry.IsDir() {
-			directories[relative] = true
-			return nil
-		}
-		if !info.Mode().IsRegular() {
-			return fmt.Errorf("candidate entry %s is not regular", relative)
-		}
-		raw, readErr := readRegular(full, maxInputBytes)
-		if readErr != nil {
-			return readErr
-		}
-		files[relative] = raw
-		return nil
-	})
+	files, directories, err := readCandidateFiles(ctx, resolved)
 	if err != nil {
 		return nil, err
 	}
@@ -264,13 +232,8 @@ func validateCandidateEvidence(ctx context.Context, files map[string][]byte, man
 	if err := os.WriteFile(hostPath, hostBinary, 0o700); err != nil {
 		return err
 	}
-	probeContext, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	versionCommand := exec.CommandContext(probeContext, hostPath, "--version")
-	versionCommand.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + probeDirectory, "LANG=C", "LC_ALL=C"}
-	versionOutput, err := versionCommand.Output()
-	if err != nil || strings.TrimSpace(string(versionOutput)) != manifest.CorvintVersion {
-		return fmt.Errorf("candidate host core version identity disagrees")
+	if err := probeCoreVersion(ctx, hostPath, probeDirectory, manifest.CorvintVersion); err != nil {
+		return fmt.Errorf("candidate host core version: %w", err)
 	}
 	for _, candidatePath := range []string{archivePath, checksumPath, smokePath} {
 		if err := os.WriteFile(filepath.Join(companionDirectory, filepath.Base(candidatePath)), files[candidatePath], 0o600); err != nil {
@@ -384,6 +347,9 @@ func InstallCore(ctx context.Context, candidateDirectory, store string) (string,
 	if !filepath.IsAbs(candidateDirectory) || !filepath.IsAbs(store) {
 		return "", fmt.Errorf("candidate and store paths must be absolute")
 	}
+	if err := validateInstallStore(ctx, candidateDirectory, store, store); err != nil {
+		return "", err
+	}
 	verified, err := verifyForInstall(ctx, candidateDirectory)
 	if err != nil {
 		return "", err
@@ -399,6 +365,18 @@ func InstallCore(ctx context.Context, candidateDirectory, store string) (string,
 	}
 	parent := filepath.Join(store, "corvint", verified.Manifest.Version)
 	target := filepath.Join(parent, platform)
+	if err := validateInstallStore(ctx, candidateDirectory, store, parent); err != nil {
+		return "", err
+	}
+	if err := refuseInstallAlias(parent, platform); err != nil {
+		return "", err
+	}
+	if _, err := os.Lstat(target); !os.IsNotExist(err) {
+		return "", fmt.Errorf("install destination already exists or is inaccessible")
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	if err := os.MkdirAll(parent, 0o755); err != nil {
 		return "", err
 	}
@@ -416,11 +394,11 @@ func InstallCore(ctx context.Context, candidateDirectory, store string) (string,
 		return "", err
 	}
 	binary := filepath.Join(stage, "corvint")
-	command := exec.CommandContext(ctx, binary, "--version")
-	command.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + stage, "LANG=C", "LC_ALL=C"}
-	out, err := command.Output()
-	if err != nil || strings.TrimSpace(string(out)) != verified.Manifest.CorvintVersion {
-		return "", fmt.Errorf("installed core version identity mismatch")
+	if err := probeCoreVersion(ctx, binary, stage, verified.Manifest.CorvintVersion); err != nil {
+		return "", fmt.Errorf("installed core version: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
 	}
 	if err := promoteNoReplace(parent, filepath.Base(stage), platform); err != nil {
 		return "", fmt.Errorf("install without replacement: %w", err)

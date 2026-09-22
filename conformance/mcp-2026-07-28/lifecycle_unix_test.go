@@ -16,11 +16,17 @@ import (
 )
 
 func TestTerminationSignalsCancelInFlightDescendantGroup(t *testing.T) {
+	for _, version := range []string{protocolVersion, "2025-11-25"} {
+		t.Run(version, func(t *testing.T) { terminationSignalsCancelInFlightDescendantGroup(t, version) })
+	}
+}
+
+func terminationSignalsCancelInFlightDescendantGroup(t *testing.T, version string) {
 	for _, signal := range []os.Signal{os.Interrupt, syscall.SIGTERM} {
 		t.Run(signal.String(), func(t *testing.T) {
 			root := fixtureRepository(t)
 			fakeDirectory, pidFile := installBlockingFakeGit(t)
-			client := startServerWithEnv(t, root,
+			client := startServerWithArguments(t, root, []string{"--protocol-version", version},
 				"PATH="+fakeDirectory+string(os.PathListSeparator)+os.Getenv("PATH"),
 			)
 			t.Cleanup(func() {
@@ -29,8 +35,17 @@ func TestTerminationSignalsCancelInFlightDescendantGroup(t *testing.T) {
 					_ = client.command.Process.Kill()
 				}
 			})
+			meta := requestMeta()
+			if version == "2025-11-25" {
+				initialized := client.call(t, 0, "initialize", map[string]any{"protocolVersion": version, "capabilities": map[string]any{}, "clientInfo": map[string]any{"name": "conformance", "version": "test"}})
+				if initialized["error"] != nil {
+					t.Fatal(initialized)
+				}
+				client.sendJSON(t, map[string]any{"jsonrpc": "2.0", "method": "notifications/initialized"})
+				meta = map[string]any{}
+			}
 			client.sendJSON(t, request(90, "tools/call", map[string]any{
-				"_meta": requestMeta(), "name": "corvint.status", "arguments": map[string]any{},
+				"_meta": meta, "name": "corvint.status", "arguments": map[string]any{},
 			}))
 			pids := waitForRecordedPIDs(t, pidFile, 3*time.Second)
 			t.Cleanup(func() {
@@ -59,6 +74,10 @@ func TestTerminationSignalsCancelInFlightDescendantGroup(t *testing.T) {
 // must fail rather than kill the process by SIGPIPE, cancel the in-flight call,
 // reap its descendant group, and exit with the transport-failure status.
 func TestClosedStdoutCancelsInFlightDescendantGroup(t *testing.T) {
+	t.Run("MCPV0-011 closed stdout cancels descendants", closedStdoutCancelsInFlightDescendantGroup)
+}
+
+func closedStdoutCancelsInFlightDescendantGroup(t *testing.T) {
 	root := fixtureRepository(t)
 	fakeDirectory, pidFile := installBlockingFakeGit(t)
 	command := exec.Command(serverBinary, "--root", root)
@@ -171,6 +190,28 @@ func shellQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
+func TestRecordedPIDsWaitsForEmptyFilePublication(t *testing.T) {
+	pidFile := filepath.Join(t.TempDir(), "pids")
+	if err := os.WriteFile(pidFile, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	written := make(chan error, 1)
+	timer := time.AfterFunc(30*time.Millisecond, func() {
+		written <- os.WriteFile(pidFile, []byte("123 456\n"), 0o600)
+	})
+	t.Cleanup(func() {
+		if !timer.Stop() {
+			if err := <-written; err != nil {
+				t.Error(err)
+			}
+		}
+	})
+	pids := waitForRecordedPIDs(t, pidFile, time.Second)
+	if len(pids) != 2 || pids[0] != 123 || pids[1] != 456 {
+		t.Fatalf("published pids = %v", pids)
+	}
+}
+
 func waitForRecordedPIDs(t *testing.T, pidFile string, timeout time.Duration) []int {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
@@ -191,7 +232,7 @@ func waitForRecordedPIDs(t *testing.T, pidFile string, timeout time.Duration) []
 			}
 			return pids
 		}
-		if !os.IsNotExist(err) {
+		if err != nil && !os.IsNotExist(err) {
 			t.Fatal(err)
 		}
 		time.Sleep(10 * time.Millisecond)

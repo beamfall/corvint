@@ -1,0 +1,53 @@
+{
+  "spec": "cem/0.1",
+  "baseRevision": "2fe3f277a5f73e3b407b0f542674bce217640141",
+  "patchSha256": "d05ddf46e8bb0e27ee08c77f894961e12334a0be32563d77b155f808d703c399",
+  "evidence": [
+    {
+      "id": "evidence:sha256:824c77e2e4e000a90992e6690cbca44a23c6f74f87a0a14768da70b49c4ca2e5",
+      "blobOid": "65b2df87f7df3aeedef04be96703e55ac19c2cfb",
+      "path": "b.txt",
+      "span": {
+        "start": 0,
+        "end": 5
+      },
+      "spanSha256": "f2c82decdd7181cf98945929a62598db7e6b477e11f6e0eb0ae97020eff151ad"
+    },
+    {
+      "id": "evidence:sha256:21288997a8eda13c29a8daef92da00e949947f4f79c17f7855ecadbc40e8114c",
+      "blobOid": "4a58007052a65fbc2fc3f910f2855f45a4058e74",
+      "path": "a.txt",
+      "span": {
+        "start": 0,
+        "end": 6
+      },
+      "spanSha256": "b6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060"
+    }
+  ],
+  "hunks": [
+    {
+      "id": "hunk:sha256:a98a33995b18206629f40346bdc9e4a85d608b5d722d4e7503229484e2fedfe6",
+      "path": "app.txt",
+      "oldRange": {
+        "start": 1,
+        "count": 1
+      },
+      "newRange": {
+        "start": 1,
+        "count": 1
+      },
+      "disposition": "supported",
+      "reason": "evidence-backed",
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:824c77e2e4e000a90992e6690cbca44a23c6f74f87a0a14768da70b49c4ca2e5",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:21288997a8eda13c29a8daef92da00e949947f4f79c17f7855ecadbc40e8114c",
+          "relation": "specification"
+        }
+      ]
+    }
+  ]
+}

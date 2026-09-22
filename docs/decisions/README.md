@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0332-verified-local-workflow-scope-2026-09-22.md`](0332-verified-local-workflow-scope-2026-09-22.md) | accepted scope; delivery unqualified | Qualify the one-binary local change-evidence workflow for 0.6: task orientation, change consequence and evidence-carrying completion; renumbered from 0330 |
 | [`0331-clean-public-history-2026-09-22.md`](0331-clean-public-history-2026-09-22.md) | accepted publication direction | Preserve a verified private archive and publish a guarded parentless snapshot from current public main plus the reviewed licensing policy; retain historical-evidence limits. |
 | [`0330-preserve-commercial-licensing-2026-09-22.md`](0330-preserve-commercial-licensing-2026-09-22.md) | accepted preservation and acceptance policy | Preserve the AGPL/Apache boundary and future commercial licensing rights; require explicit scoped grants for outside product contributions. |
 | [`0329-publish-v050a3-issues53-57-2026-09-21.md`](0329-publish-v050a3-issues53-57-2026-09-21.md) | accepted for candidate preparation, owner call on the token | Publish the integrated issue #53–#57 candidate as `v0.5.0a3`; retain unsigned prerelease, four non-Windows core archives, no companion and no-promotion boundaries; the full gate must pass on the exact candidate. |

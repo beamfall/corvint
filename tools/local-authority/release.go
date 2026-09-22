@@ -35,7 +35,8 @@ func releasePath(path string) bool {
 	return filepath.Clean(path) == path && !filepath.IsAbs(path) && !strings.Contains(path, "\\") && (path == "local-authority" || path == "corvint" || path == "authority-hook.json" || path == "bin/git" || strings.HasPrefix(path, "go/")) && !strings.HasPrefix(path, "../")
 }
 func validateRelease(m releaseManifest) error {
-	if m.Profile != "corvint-authority-release/1" || len(m.Files) == 0 || len(m.Files) > 100000 {
+	pi := m.Profile == piReleaseProfile
+	if (m.Profile != "corvint-authority-release/1" && !pi) || len(m.Files) == 0 || len(m.Files) > 100000 {
 		return errors.New("release profile/bound")
 	}
 	if _, e := decodeHex(m.SourceRevision, 20); e != nil {
@@ -49,8 +50,11 @@ func validateRelease(m releaseManifest) error {
 	}
 	previous := ""
 	required := map[string]bool{"local-authority": false, "corvint": false, "go/bin/go": false, "bin/git": false, "authority-hook.json": false}
+	if pi {
+		required["pi-protected"], required["pi-build.json"] = false, false
+	}
 	for _, f := range m.Files {
-		if !releasePath(f.Path) || f.Path <= previous {
+		if !(releasePath(f.Path) || pi && (f.Path == "pi-protected" || f.Path == "pi-build.json")) || f.Path <= previous {
 			return errors.New("release path/order")
 		}
 		previous = f.Path
@@ -61,7 +65,8 @@ func validateRelease(m releaseManifest) error {
 			return errors.New("release mode")
 		}
 		if _, ok := required[f.Path]; ok {
-			if (f.Path == "authority-hook.json" && f.Mode != "0444") || (f.Path != "authority-hook.json" && f.Mode != "0555") {
+			data := f.Path == "authority-hook.json" || f.Path == "pi-build.json"
+			if (data && f.Mode != "0444") || (!data && f.Mode != "0555") {
 				return errors.New("nonexecutable tool")
 			}
 			required[f.Path] = true
@@ -75,6 +80,9 @@ func validateRelease(m releaseManifest) error {
 	return nil
 }
 func prepareRelease(output, consumer, goRoot, gitBinary, revision, adapterTemplate string) error {
+	return prepareReleaseProfile(output, consumer, goRoot, gitBinary, revision, adapterTemplate, "")
+}
+func prepareReleaseProfile(output, consumer, goRoot, gitBinary, revision, adapterTemplate, piBuild string) error {
 	if os.Geteuid() == 0 {
 		return errors.New("prepare release as unprivileged builder")
 	}
@@ -102,6 +110,11 @@ func prepareRelease(output, consumer, goRoot, gitBinary, revision, adapterTempla
 	if _, e = renderAdapter(template, "/preflight/corvint", strings.Repeat("0", 64)); e != nil {
 		return e
 	}
+	if piBuild != "" {
+		if e = validatePiBuild(piBuild, consumer); e != nil {
+			return e
+		}
+	}
 	if e = os.Mkdir(output, 0700); e != nil {
 		return e
 	}
@@ -111,6 +124,11 @@ func prepareRelease(output, consumer, goRoot, gitBinary, revision, adapterTempla
 	}
 	manifest := releaseManifest{Profile: "corvint-authority-release/1", SourceRevision: revision, Files: []releaseFile{}}
 	sources := map[string]string{"local-authority": exe, "corvint": consumer, "bin/git": gitBinary}
+	if piBuild != "" {
+		manifest.Profile = piReleaseProfile
+		sources["pi-protected"] = filepath.Join(piBuild, "pi-protected")
+		sources["pi-build.json"] = filepath.Join(piBuild, "manifest.json")
+	}
 	goRoot, e = filepath.EvalSymlinks(goRoot)
 	if e != nil {
 		return e
@@ -141,7 +159,7 @@ func prepareRelease(output, consumer, goRoot, gitBinary, revision, adapterTempla
 	}
 	sort.Strings(paths)
 	for _, p := range paths {
-		b, e := readRegular(sources[p], 64<<20)
+		b, e := readRegular(sources[p], releaseFileLimit(p))
 		if e != nil {
 			return e
 		}
@@ -163,6 +181,11 @@ func prepareRelease(output, consumer, goRoot, gitBinary, revision, adapterTempla
 			return e
 		}
 		manifest.Files = append(manifest.Files, releaseFile{p, digest(b), mode})
+	}
+	if piBuild != "" {
+		if e = validatePiBuildFiles(output, filepath.Join(output, "corvint"), "pi-build.json"); e != nil {
+			return e
+		}
 	}
 	manifest.AdapterTemplateSHA256 = digest(template)
 	manifest.ReleaseID = sourceReleaseID(manifest)
@@ -243,6 +266,9 @@ func readRegular(path string, limit int) ([]byte, error) {
 	return readBound(f, limit)
 }
 func installRelease(source, expected string) error {
+	return installReleaseProfile(source, expected, false)
+}
+func installReleaseProfile(source, expected string, pi bool) error {
 	if os.Geteuid() != 0 {
 		return errors.New("operator root required")
 	}
@@ -266,6 +292,9 @@ func installRelease(source, expected string) error {
 	if e = validateRelease(manifest); e != nil {
 		return e
 	}
+	if pi != (manifest.Profile == piReleaseProfile) {
+		return errors.New("release installer profile mismatch")
+	}
 	if e = ensureRootDirectory(authoritystore.RootPath); e != nil {
 		return e
 	}
@@ -274,6 +303,11 @@ func installRelease(source, expected string) error {
 		return lockErr
 	}
 	defer unlock()
+	if pi {
+		if e = requirePiStore(); e != nil {
+			return e
+		}
+	}
 	versions := filepath.Join(authoritystore.RootPath, "versions")
 	if e = ensureRootDirectory(versions); e != nil {
 		return e
@@ -288,7 +322,7 @@ func installRelease(source, expected string) error {
 	}
 	defer os.RemoveAll(stage)
 	for _, f := range manifest.Files {
-		b, e := readRegular(filepath.Join(source, f.Path), 64<<20)
+		b, e := readRegular(filepath.Join(source, f.Path), releaseFileLimit(f.Path))
 		if e != nil {
 			return e
 		}
@@ -366,7 +400,7 @@ func removeRelease(releaseID string) error {
 	// bytes remain visible for operator inspection; no recursive wildcard removal.
 	expected := map[string]bool{"manifest.json": true}
 	for _, f := range manifest.Files {
-		b, e := readRootFile(filepath.Join(dir, f.Path), 64<<20)
+		b, e := readRootFile(filepath.Join(dir, f.Path), releaseFileLimit(f.Path))
 		if e != nil || digest(b) != f.SHA256 {
 			return errors.New("installed file drift")
 		}
@@ -411,12 +445,16 @@ func sourceReleaseID(m releaseManifest) string {
 			files = append(files, f)
 		}
 	}
+	profile := "corvint-authority-source-release/1"
+	if m.Profile == piReleaseProfile {
+		profile = "corvint-pi-authority-source-release/0"
+	}
 	original := struct {
 		Profile               string        `json:"profile"`
 		SourceRevision        string        `json:"sourceRevision"`
 		AdapterTemplateSHA256 string        `json:"adapterTemplateSHA256"`
 		Files                 []releaseFile `json:"files"`
-	}{"corvint-authority-source-release/1", m.SourceRevision, m.AdapterTemplateSHA256, files}
+	}{profile, m.SourceRevision, m.AdapterTemplateSHA256, files}
 	return digest(mustJSONLine(original))
 }
 

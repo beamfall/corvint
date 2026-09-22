@@ -1,5 +1,25 @@
 # Release notes
 
+## 0.6.0 prerelease
+
+`v0.6.0` selects decision 0332’s one-binary local workflow: task orientation, change consequence
+and evidence-carrying completion. The nineteen historical use cases retain their original claims;
+the three new jobs remain `UNPROVEN`. Optional companions and formal FULL host authority remain
+separately qualified.
+
+The published prerelease is `Corvint 0.6.0 (build 90)`, commit
+`a03321028e0254bb8d554a2ca1b70e4349568e5e`, on the history that predates decision 0331. The full
+gate passed at that commit, the archives were built twice byte-identically, and the four
+Darwin/Linux archives are published with `SHA256SUMS` and `verification-report.json`. Installed-host
+lifecycles ran on Codex 0.153.2 and Claude Code 2.1.267 against loopback model fixtures only.
+Genuine Beamfall workflow evidence, sealed correctness/cost benchmarks and the CEM binding for the
+build-90 fix were not produced, so DCW-V0-006 is unqualified; native Linux/arm64 still reports
+environment-dependent test failures. It is unsigned, with publisher identity `NOT_VERIFIED`.
+
+This source was reapplied onto the decision 0331 public history, where the Git-derived build count
+restarted at 1. A binary built from `main` therefore reports a different build number and is not
+the qualified build-90 artifact.
+
 ## 0.5.0a3 experimental alpha
 
 `v0.5.0a3` integrates every GitHub issue open after `v0.5.0a2` (decision 0329): #53 behavior-contract

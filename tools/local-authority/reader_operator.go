@@ -36,7 +36,7 @@ func readerPolicyInactive() error {
 		return e
 	}
 	var root authoritystore.RootDocument
-	if localauthority.Decode(raw, &root) != nil || root.Profile != authoritystore.RootProfile || !root.Revoked {
+	if localauthority.Decode(raw, &root) != nil || (root.Profile != authoritystore.RootProfile && root.Profile != authoritystore.PiRootProfile) || !root.Revoked {
 		return errors.New("independently revoke accepted root before reader mutation")
 	}
 	return nil

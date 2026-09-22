@@ -13,11 +13,11 @@ official JSON Schema pinned at commit
 `officialSchema.observedSha256` already recorded in `conformance/mcp-2026-07-28/cases.json`)
 
 ## Agent digest
-- Claim: A local stdio MCP 2026-07-28 server exposes bounded read-only Corvint receipts without repository mutation.
+- Claim: A local stdio MCP server exposes bounded read-only Corvint receipts, with 2026-07-28 default and explicit 2025-11-25 compatibility.
 - Status: proposed/experimental
 - Exists: `cmd/corvint-mcp`, `internal/mcp`, and independent compiled-process conformance vectors.
 - Blocked on: official-schema execution, official MCP conformance, and promotion evidence remain `NOT_RUN`.
-- Read next: User and measurable job; Verified current state and decision; Traceability.
+- Read next: User and measurable job; Explicit 2025-11-25 compatibility; Traceability.
 
 ## User and measurable job
 
@@ -365,6 +365,74 @@ not truncated JSON.
   `TestMCPSnapshotRejectsSymlinkAndGitlinkTrees` and AFP-V0-019's receipt rejection
   tests. External host qualification is NOT_RUN.
 
+### Explicit 2025-11-25 compatibility
+
+The owner-approved OpenCode repair adds a closed, opt-in transport profile. Requirements
+`MCPV0-001..020` continue to govern the default modern profile; this section overrides only the
+legacy selection, lifecycle and transport metadata described below. Shared bounds, read-only
+receipts, cancellation, process cleanup, and all remaining promotion gates apply to both profiles.
+The [official 2025-11-25 lifecycle](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle)
+is the negotiation reference; the additional closed admission rules below are local profile bounds.
+
+- `MCPV0-021`: All four existing MCP commands MUST accept at most one
+  `--protocol-version VERSION` selector, where VERSION is exactly `2026-07-28` or `2025-11-25`.
+  Omission selects the unchanged modern profile. Missing, duplicate, unknown selectors and a
+  selector combined with `--version` MUST fail before repository startup. Existing required root
+  admission remains; `corvint-corpus-mcp` still requires `--artifact` and remains experimental and
+  outside the shipped companion set. Selection is explicit, never inferred from incoming frames.
+- `MCPV0-022`: A legacy connection MUST initialize independently for each Serve invocation. It
+  accepts one bounded `initialize` request with a nonempty protocolVersion of at most 64 UTF-8
+  bytes, object capabilities and clientInfo with string name/version. Optional implementation
+  metadata is data only; roots declarations cannot select roots or authorize callbacks. A valid
+  different version offer receives the sole supported legacy version `2025-11-25`; this does not
+  implement that offered version. Success returns only protocolVersion, tools capabilities,
+  serverInfo and optional instructions. Admission MUST be ordered with input: initialization
+  becomes visible only after its bounded success response is fully written, then an absent/empty
+  params `notifications/initialized` advances to ready. Early, repeated and malformed initialized
+  notifications are ignored without response. Duplicate initialization returns `-32600` without
+  resetting the connection. Tools before ready return `-32600`; failed, cancelled or unencodable
+  initialization never admits tools. Ping accepts absent/empty params before and after readiness.
+  Legacy requests accept absent params and optional `_meta.progressToken`; malformed metadata and
+  modern `io.modelcontextprotocol/` transport keys return `-32602`. `server/discover` and all other
+  unimplemented methods return `-32601`. Existing strict JSON, duplicate-key, depth, frame, output,
+  concurrency, ID reuse, progress, cancellation, EOF and termination bounds remain unchanged.
+- `MCPV0-023`: Legacy calls MUST reuse each existing command's closed tool registry and native
+  handlers. Only top-level modern resultType/cacheScope/ttlMs transport fields are removed; modern
+  server-info decoration is skipped. Structured application receipts and enveloped text retain
+  their evidence, authority, freshness, refusal and uncertainty semantics. Each handler receives
+  independent copies of session declarations. Tests MUST exercise representative tool calls in
+  every selected command, lifecycle refusal, cancellation and real descendant cleanup. A real
+  OpenCode connection/list is discovery evidence only; actual host tools/call evidence is recorded
+  separately and MUST NOT be inferred from direct protocol tests or promoted into formal FULL
+  host authority. Official conformance and release gates remain independent.
+
+An isolated OpenCode `mcp list` probe reproduced `initialize` method-not-found on the original
+binary, then connected and discovered tools with the explicit profile. CLI version was 1.18.31;
+initial captured clientInfo reported 1.17.18, while the later successful client reported 1.18.31.
+These are separate observations, not normalized identities. This local synthetic transport fixture
+is not a sealed workflow benchmark. A subsequent real OpenCode run executed `corvint.status` and returned the unchanged READY,
+read-only repository receipt through the host tool lifecycle. Its provider was a deterministic
+local fixture, with native network policy limiting outbound access to localhost; it does not
+qualify model reasoning, complete cost, or the daily workflow. Persistent host configuration and
+exact release-artifact qualification remain separate from these development probes.
+
+Example local OpenCode server entry (absolute paths supplied by the operator):
+
+```json
+{
+  "mcp": {
+    "corvint": {
+      "type": "local",
+      "command": ["/absolute/path/corvint-mcp", "--root", "/absolute/repository", "--protocol-version", "2025-11-25"],
+      "enabled": true
+    }
+  }
+}
+```
+
+Rollback removes the selector to restore modern default behavior, or disables the server. No
+listener, SDK dependency, proxy, daemon, new tool, repository mutation or authority is introduced.
+
 ### Bridge failure codes
 
 The in-process bridge (`internal/mcp/bridge`) emits the kebab-case codes below (decision 0100).
@@ -427,6 +495,7 @@ migrate. Protocol and conformance paths retain their applicable plain Apache-2.0
 | `MCPV0-007..010` | `internal/mcp/bridge` | tool registry, closed-schema, receipt, budget, and abstention tests |
 | `MCPV0-011..015` | `internal/mcp/server` | cancellation race and post-cancel health observed; `TestCancelledProgressNeverTearsFrame`, `TestUnterminatedEOFFlushesAdmittedResponse`, and Unix `TestServeRestoresInheritedDescriptorBlockingMode` observed; Unix-gated compiled-process INT/TERM fake-Git parent-and-child cleanup passed locally; Unix `TestClosedStdoutCancelsInFlightDescendantGroup` (closed stdout mid-call exits 2 and reaps the fake-Git group) observed; truthful emitted progress and non-Unix signal cleanup `NOT_OBSERVED`; pagination/logging/roots negative tests |
 | `MCPV0-016..019` | all MCP implementation paths | local secret/mutation and Unix descendant-cleanup checks observed; fuzz, complete race, non-Unix cleanup, and cross-build evidence remain separate gates |
+| `MCPV0-021..023` | all four MCP commands; `internal/mcp/protocol/legacy.go`; `internal/mcp/server/legacy.go` | `TestMCPV0021LegacyFlagAcceptsCapturedInitialize`, `TestMCPV0021ProtocolSelector`, `TestMCPV0022LegacyAdmissionAndReceipt`, `TestMCPV0022LegacyFailedInitializeCannotAdmitTools`, `TestMCPV0022LegacyMetadata`, `TestMCPV0022LegacyCancellationAndProgress`, `TestMCPV0022LegacyBlockedInitializeCancels`, both profiles of `TestServeToolsListAndCallRoundTripsDocsDraftAndConsume`, `TestCorpusMCPTransport`, `TestVectorsAndReadOnly` and `TestTerminationSignalsCancelInFlightDescendantGroup`; actual OpenCode discovery and status-call development probes; exact release-artifact qualification separate |
 | all | `conformance/mcp-2026-07-28` | independent compiled-process vectors and retained `NOT_RUN` external result |
 
 Current evidence: local Go 1.27.0 unit and compiled-process black-box suites `PASS` on 2026-08-23;

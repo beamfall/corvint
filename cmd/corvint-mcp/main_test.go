@@ -222,3 +222,42 @@ func TestToolCallDefaultsMissingArgumentsToObject(t *testing.T) {
 		t.Fatalf("explicit null arguments result=%#v failure=%#v", result, failure)
 	}
 }
+
+func TestMCPV0021LegacyFlagAcceptsCapturedInitialize(t *testing.T) {
+	root := filepath.Clean(t.TempDir())
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	request := `{"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{"roots":{}},"clientInfo":{"name":"opencode","version":"1.17.18"}},"jsonrpc":"2.0","id":0}`
+	var stdout, stderr bytes.Buffer
+	exit := run(context.Background(), []string{"--root", root, "--protocol-version", "2025-11-25"}, strings.NewReader(request+"\n"+`{"method":"notifications/initialized","jsonrpc":"2.0"}`+"\n"+`{"method":"tools/list","jsonrpc":"2.0","id":1}`+"\n"), &stdout, &stderr)
+	if exit != 0 {
+		t.Fatalf("exit=%d stderr=%q", exit, stderr.String())
+	}
+	var response struct {
+		Result struct {
+			ProtocolVersion string `json:"protocolVersion"`
+		} `json:"result"`
+	}
+	lines := bytes.Split(bytes.TrimSpace(stdout.Bytes()), []byte("\n"))
+	if len(lines) != 2 {
+		t.Fatalf("responses=%s", stdout.Bytes())
+	}
+	if err := json.Unmarshal(lines[0], &response); err != nil {
+		t.Fatal(err)
+	}
+	var listed struct {
+		Result struct {
+			Tools []any `json:"tools"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(lines[1], &listed); err != nil {
+		t.Fatal(err)
+	}
+	if len(listed.Result.Tools) == 0 {
+		t.Fatalf("tools/list=%s", lines[1])
+	}
+	if response.Result.ProtocolVersion != "2025-11-25" {
+		t.Fatalf("initialize response=%s", stdout.Bytes())
+	}
+}

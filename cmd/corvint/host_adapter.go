@@ -38,6 +38,9 @@ func runHostAdapter(ctx context.Context, arguments []string, stdin io.Reader, st
 	if len(arguments) == 0 {
 		return emitAdapterOutput(stdout, degradedAdapterOutput("unsupported-hook-event"))
 	}
+	if arguments[0] == "pi-tool" {
+		return runPiTool(ctx, arguments[1:], stdin, stdout)
+	}
 	if arguments[0] == "pi" {
 		return runPiAdapter(ctx, arguments[1:], stdin, stdout)
 	}

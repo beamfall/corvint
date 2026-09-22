@@ -51,3 +51,12 @@ func TestPiNativeStopReceipt(t *testing.T) {
 		}
 	})
 }
+
+func TestPiInvalidOutcomeInput(t *testing.T) {
+	for _, input := range []string{`{"outcome":"passed"}`, `{"unknown":true}`, `{"verification":[{"commandSha256":"bad","status":"passed"}]}`} {
+		v := piAdapterResult(context.Background(), "session-end", strings.NewReader(`{"hostVersion":"0.85.1","input":`+input+`}`))
+		if v["fault"] != "invalid-input" || v["receiptId"] != nil {
+			t.Fatalf("AHI-024 invalid outcome: %v", v)
+		}
+	}
+}

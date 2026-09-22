@@ -6,6 +6,8 @@ working Corvint, automatic docs through MCP, agent/VS Code automatic test tracki
 the local dashboard, and task manager with a roadmap. Its delivery slices reference the owning
 `AT-` and `TCP-` work below; they do not replace those contracts or declare them complete.
 
+The accepted [0.6 local-workflow scope](docs/decisions/0332-verified-local-workflow-scope-2026-09-22.md) and [0.6 portfolio reading map](docs/PORTFOLIO-0.6.md) govern the current qualification target. It remains **NOT_QUALIFIED**. The broader integrated outcome and AT/E/U selections below remain historical intent, not a live execution queue. When an initialized `.taskman` store is present, its native queue and receipt own current execution status; otherwise work in a workspace that has the store. Do not initialize a replacement or infer status from this Markdown.
+
 Dates are targets; evidence gates, not dates, promote a version. Every version must deliver one
 useful standalone workflow before the next begins. An experiment that misses its kill criterion is
 removed or returned to an adapter; it does not become permanent architecture.
@@ -13,13 +15,12 @@ removed or returned to an adapter; it does not become permanent architecture.
 ## Current build queue: indispensable context and cumulative development savings
 
 Selected 2026-09-04 at `01aa66ad071756f7308bb04b0ec379b051a231e3` in response to the owner's
-request for a carefully selected roadmap and extensive Astra/Corvint self-use. All tickets below
-are open. Roadmap selection authorizes planning; it does not accept new wire semantics, promote
+request for a carefully selected roadmap and extensive Astra/Corvint self-use. Tickets below were open at selection; consult the native store for current status when initialized. Roadmap selection authorizes planning; it does not accept new wire semantics, promote
 experimental capabilities, or change existing release gates. Re-pin before implementation.
 
-This is the actionable queue for the exceptional-Corvint program
+This was the selected queue for the exceptional-Corvint program
 and efficiency proposals.
-`AT-*` tickets own execution status; `E*` and `U*` identify design material, not separate queues.
+`AT-*` tickets preserve selection history; `E*` and `U*` identify design material, not separate queues.
 This selection replaces their earlier proposed scheduling, particularly U02's early priority and
 the coupling of checkpoint recovery to compatibility reduction. V4/V5/V6 obligations below remain
 active; the 64-spec map preserves the wider portfolio.

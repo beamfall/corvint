@@ -24,6 +24,15 @@ type processIdentity struct {
 }
 
 func verifyRuntime(ctx context.Context, root RootDocument) error {
+	if root.Profile == PiRootProfile {
+		if root.HostQualification != nil || root.DirectQualification != nil || !root.PiQualification.valid() {
+			return errUnavailable
+		}
+		return verifyPiRuntime(ctx, root, root.PiQualification.Runtime)
+	}
+	if root.PiQualification != nil {
+		return errUnavailable
+	}
 	if root.Profile == DirectRootProfile {
 		if root.HostQualification != nil || !root.DirectQualification.valid() {
 			return errUnavailable

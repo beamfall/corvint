@@ -49,6 +49,19 @@ intent and partial requirement coverage retain their actual CEM/OCM dispositions
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 decisions 0331 / 0332: 0.6.0 source reapplied onto the public history
+
+The published `v0.6.0` prerelease (build 90, `a03321028e0254bb8d554a2ca1b70e4349568e5e`) was cut
+on the history that predates decision 0331. Following that decision, its changes were reapplied,
+not merged: the `v0.5.0a3`..`a033210` diff was applied three-way onto public main as one ordinary
+commit, so no pre-snapshot commit enters main's ancestry. Four files conflicted only because both
+lines added entries at the same place (this log, two agent-memory files, the spec index table);
+each was resolved as a union. The contributor agreement, contribution, licensing and provenance
+documents and decisions 0330/0331 keep the public bytes exactly. The 0.6 local-workflow decision is
+renumbered 0330 → 0332 with every reference; the `v0.6.0` tag and release body still cite it as
+0330. Sealed CEM records from the earlier history keep their original commit identities as
+historical context. The build count on this history differs from the published build 90, so a
+binary built from this commit is not the qualified artifact and requalifies nothing.
 
 ## 2026-09-22 decision 0331: clean public history with private provenance
 
@@ -110,6 +123,362 @@ reviewed file bytes; public LICENSE texts and archive membership did not change.
 bound to the eventual clean commit. Professional legal approval and contributor acceptances are
 NOT_PRODUCED; professional approval is not a required gate.
 
+## 2026-09-22 MTV-V0-001 / SDD-V0-006: literal test anchors for the 0.6 completion
+
+Native finish at 9e57c41 refused with `ocm-bindings-required` after all eight plan checks passed:
+MTV-V0-001, SDD-V0-006, PUB-V0-010 and PUB-V0-020 carried explicit `no-test-claim` marks, which
+local completion treats as an assessed gap. The owner selected anchoring: the unchanged
+`TestToolCatalogueIsExactlyOneReadOnlyTool` body now runs as case `MTV-V0-001 exactly one
+read-only tool`, and the existing docs round-trip profiles are named `SDD-V0-006 docs draft and
+consume round trip <version>`, following the MCPV0-011 precedent (8d8eed2). No assertion changes.
+PUB-V0-010 and PUB-V0-020 have no extractable test and stay unassessed; their no-test-claim
+assessment remains in the review record and release packet. The refused finish receipt is retained.
+
+## 2026-09-22 IPR-03: seed data re-pins the reconciled roadmap digest
+
+The exact-target seed-fixture check refused because 9148240 edited the roadmap header, outcome and
+historical-next-action lines without refining `script/seed-planning-store-data.json`. The old pin
+is the digest of 9148240^, and all eleven IPR-01..IPR-11 sections the ticket bodies copy are
+byte-identical at the new digest, so only `expectedDigestSha256` changes; no ticket text moves.
+The failed seed-fixture receipt at a9854aa is retained.
+
+## 2026-09-22 PPI-V0 / decision 0332: protected Pi source joins the 0.6 candidate
+
+The owner directly approved one replacement of the integration enrollment to include the reviewed
+protected Pi source as optional experimental FALLBACK. The 19fb7ea generation, its maps and reports
+are preserved; it was cancelled once as NON-SUCCESS. The contract commit landed first because Begin
+pins every intent at HEAD, then one Begin under the same key adopted the independently reviewed
+thirteen-scope, eight-check plan. The runtime and lifecycle commits and the MCPV0-011 literal anchor
+follow as source only; every runtime blob matches its reviewed commit, and only build-log, spec
+index and citation metadata differ. The added Makefile target shifted three citations, which now
+point at the same cited content; the unanchored compat-replay citation had already named the wrong
+line and now names `spec-requirements-check`. This authorizes no protected installation, principal
+admission, activation, FULL claim or compiled runtime distribution, whose notices remain incomplete.
+The earlier entry that excludes the protected runtime records the previous generation's scope.
+
+## 2026-09-22: selected completed source enters the 0.6 candidate
+
+The owner selected the completed installation/recovery, candidate portable-proof, experimental
+provider-kit and native Pi tool slices for 0.6, retaining their original qualification limits.
+Their source commits, the exact-content gate repair, browser disclosure proof repair and MCP
+empty-PID-file fixture repair are integrated without importing another task's CEM or local outcome.
+Protected Pi runtime and formal FULL authority remain excluded. The previous integration enrollment
+is retained as cancelled non-success; its single replacement keeps the existing base/checks and
+adds the four owning scopes plus gate-ledger and releasecandidate race coverage.
+
+Independent combined-source review found no blockers. The early metadata preflight found citation
+line drift from the additive host/Makefile changes and an unanchored failure-backlog citation;
+relocations preserve the exact cited content and historical references retain their named commit.
+Corvint query, path impact and affected planning supplied change context; the unavailable first
+impact path remains a retained refusal. Learning and provider ingestion are excluded from this
+integration evidence. Final source/CEM binding, exact-target checks, artifacts, native/installed
+hosts and the separately governed workflow campaign remain required; no slice result promotes 0.6.
+
+## 2026-09-22 MCPV0-011: lifecycle fixture waits for PID publication
+
+The c0f1eee full gate failed `TestClosedStdoutCancelsInFlightDescendantGroup` with `<nil>` at its
+PID-file wait, before the stdout-close and descendant-cleanup assertions. The fixture's shell can
+create its PID file before writing the bytes; the reader treated an existing empty file's nil
+error as a fatal error. A focused empty-file-to-complete-publication regression reproduced that
+failure immediately. Only non-nil unexpected read errors now fail the wait; empty or absent files
+keep the existing bounded retry. Malformed PID data, deadlines, process cleanup and MCP runtime
+behavior remain unchanged. The regression joins or stops its delayed writer during cleanup.
+The failed full-gate receipt is retained; focused lifecycle validation and a fresh exact-candidate
+full gate are required, with no scope or enrollment replacement and no relabeling of old evidence.
+
+## 2026-09-22 PPI-V0-005..009: isolated Pi authority source and packaging
+
+The experimental Pi lane adds closed root/3, campaign/2, qualified-pi-host/0 and QLF/2
+without changing earlier profile meanings. Both native surfaces require separate evidence
+bindings to one admitted image. Runtime checks bind protected full-image bytes, live hardened
+code flags/CDHash, immediate parent and process birth, boot, OS/architecture and actual cwd.
+Non-Stop reads retain their protected-publication privacy boundary. Candidate campaigns remain
+900-second FALLBACK/UNQUALIFIED exercises; they cannot supply completed qualification.
+
+The fixed SDK embeds its consumer hash, checks protected ancestry before spawning, verifies
+closed receipts and waits for native idle completion before one permitted follow-up. Independent
+review found stale Stop reuse after trust withdrawal, lost ordinary context on missing admission,
+and silent recursive unresolved state. Fresh epoch-bound receipts/current trust, separate FALLBACK
+requests with explicit degradation, and visible bounded unresolved status repair those findings.
+Repair review found no additional issue; cancellation regression confirms no surviving descendant.
+Focused Pi/Direct/Qualified Go tests and the rebuilt native TUI/RPC/reload/replacement/image/startup
+suite pass. The final handler repair's rebuilt native run is still required at source freeze.
+
+Optional Pi release preparation binds the host, consumer and build manifest in a distinct immutable
+release profile. The installer refuses another host's admission; exact-file removal and revoked
+reader withdrawal remain explicit. Focused packaging and the optional authority module's ordinary
+suite pass; independent packaging review found no actionable issue. No protected state was changed.
+Full gate, license/input closure audit, privileged installation, real protected OPEN/EMPTY/recursive
+campaign, latency/recall and independent FULL admission remain NOT_PRODUCED/NOT_RUN.
+
+## 2026-09-22 PPI-V0-001..004: closed Pi SDK runtime proof
+
+The owner accepted the reviewed optional protected Pi direction, separately from privileged
+installation or completed qualification. Bun standalone executables still accepted executable
+`BUN_OPTIONS`/`BUN_BE_BUN` injection despite configuration-autoload switches. The implemented
+alternative uses official Node22.23.2 SEA, fixed exec arguments, hardened runtime with only JIT
+permission, exact Pi0.85.1 dependencies and embedded assets/worker/WASM. Ordinary Pi remains separate.
+
+Native RPC and TUI prompts, reload, session replacement and a real image read/resize pass while
+macOS denies reads of both global and build-time SDK modules. Hostile project/global extension
+files remain unexecuted. NODE_OPTIONS, forged argv0, CLI eval/preload, DYLD and OpenSSL injection
+negatives pass; executable Node/DYLD/OpenSSL controls prove the canaries work. SIGUSR1 does not
+activate the inspector. Harness interruption reaps a TERM-ignoring descendant. These are local
+source/runtime checks, not an admitted campaign or completed native qualification.
+
+Independent review identified unresolved lazy OAuth/Bedrock imports and inherited argv keys;
+static provider bundling and own-key argument parsing repair both. The repair review found no
+additional issue in that boundary. A subsequent async credential-write audit found validation ran
+before a Promise resolved. The guarded backend now validates after awaiting, rejects command keys
+and credential environment overrides before storage, and preserves literal keys without SDK
+interpolation. Explicit nonpersistence and literal-dollar regressions cover the repair.
+
+Failed test attempts remain evidence: the TUI driver initially submitted reload before completion;
+the image fixture initially exceeded the harness output cap and incorrectly selected repeated
+tool calls. Corrected fixtures wait for visible readiness/bounded completion and use a tiny image
+that still requires resizing. No production output limit was weakened. The full gate remains
+coordinator-held. Pi authority profiles, independent admission, latency/recall, actual protected
+OPEN/EMPTY/recursive behavior, installation and revocation remain NOT_PRODUCED/NOT_RUN.
+
+## 2026-09-22 AHI-025: explicit Pi operations and full-support direction
+
+The owner explicitly requested complete Pi support, including protected authority and formal FULL.
+The additive functional slice reuses native context, immutable source-view validation and the
+explicit trace writer. It adds bounded in-memory packet handles and typed supplied observations,
+without changing legacy lifecycle authority or making automatic outcome writes. Existing enrollment
+and its failed canonical query-fixture restoration check remain visible; the next source invalidates
+prior checks. The functional slice is independently reviewable and remains separate from release
+0.6 integration until selected. Native and focused regression results are retained in the Pi task
+checkpoint; unrun qualification stays unclaimed.
+
+Independent review found two functional defects: the explicit slash command discarded uncertain-
+write guidance, and the context tool failed to forward its supplied evidence handle. Both are
+repaired and the repair-only review found no remaining required issue. Focused native Pi/source
+checks, 21 JavaScript regressions, and four actual Pi host/cleanup checks pass. Actual host evidence
+includes print-mode query/expansion/edit/verification/explicit recording, RPC new-session recovery,
+and native TUI prompt/shutdown. Canonical verification is queued against the frozen next target;
+these focused results are not a full gate or protected qualification.
+
+The protected-runtime feasibility review found the installed Node/JavaScript Pi cannot inherit the
+Codex-only direct admission. The official Pi 0.85.1 standalone darwin-arm64 archive is a concrete
+candidate, but immutable mapped code, external extension/resource closure and actual native launch
+must be proved before a Pi-specific technical profile or execution-root admission is accepted.
+
+## 2026-09-22 EEP-V0-016/017/018: frozen kit gate failed, no retry
+
+The one enrolled full gate on `b835a7464836ee8d25ea828de0f2921ad672a254` failed with exit 2
+(no timeout or cancellation). `internal/specindex` rejected the kit's overlong INDEX claim and
+nonidentical INDEX/digest/README metadata. The repair restores the original bounded claim and
+synchronizes the delivery/status copies; requirement semantics and executable source are unchanged.
+The existing `TestIndexCoversSpecsAndHeaders` is the focused regression for that repair.
+
+The same run separately failed the existing Core
+`TestRepositoryQueryTraceStateFailuresAreTypedAndNonmutating/oversized` at the pre-query
+`repositoryBytesDigest`: a temporary Git pack index disappeared during `lstat`, followed by a
+TempDir `.git` directory-not-empty cleanup error. Cause remains UNKNOWN; no isolated retries or
+Core repair were performed in this kit slice. Full `internal/extevidence` and `tools/gate-ledger`
+packages passed in this run, which is distinct from the portable-proof gate-ledger failure.
+The frozen logs and leftover fixture are retained in the private task checkpoint. Recorded gate
+process handles exited. No further full gate is authorized; final completion and seal remain
+blocked. A metadata repair does not turn the failed frozen gate into PASS.
+
+## 2026-09-22 EEP-V0-016/017/018, EEP-TR-011: experimental local provider authoring kit
+
+V1-0027 adds kit 0.1.0: a single-file standard-library Go provider and a separately built checker
+that reuses existing strict record decoders and contained command execution. Consumer pins bind
+exact schema, provider identity, repository revision/root and command executable SHA-256. No Core
+flag/wire/version, authority, installation or transport promotion changes. The experimental record
+window is exactly `/0`, `/1`, `/2` with today's consumer, not historical engine compatibility.
+Provider/consumer examples and implementation remain AGPL; no Apache boundary expansion.
+
+The smallest complete proof copied and authored the provider in scratch, built it offline with
+local Go 1.27.1, and compared its `/0`, `/1`, `/2` file and command composition. The documented
+focused command passed across kit, extevidence, procgroup and Core packages, including the existing
+valid/stale/malformed/ambiguous/repository-mismatch/unsupported cases, exact-pin refusals, Core
+separation, timeout/output/environment bounds and descendant interruption cleanup. An initial
+fixture expectation used `app` where the retained fixture declares `application`; correcting the
+test restored agreement. Independent Sol/low review found no HIGH/MED; stale digest wording was
+corrected. The inherited test fixtures remain synthetic, not external validation.
+
+V1-0013's portable proof freeze (itself awaiting V1-0010), incomplete native ticket coverage and
+owner acceptance remain open. Kit MCP integration stays proposed/out of scope without downgrading
+the already accepted separate MCP profile. Full/interop gate and CEM/OCM completion evidence are
+produced after the source freeze; this entry does not claim those pending gates passed. Pre-change
+dogfood at the empty base-to-HEAD range retained `cem-prepare git-diff-failed`, missing CEM/citations,
+missing intent scope and missing outcome inputs. No billed-token or before-first-query measurement
+was available; no efficiency or promotion claim follows. OCM correctly rejected hyphen-adjacent
+requirement IDs in the new test labels as non-exact anchors; labels now use whitespace delimiters.
+The source target was refrozen before any full gate.
+
+## 2026-09-22 V1-0013 / CEM-CB-003: candidate portable packet finds cross-hunk interop defect
+
+The candidate `protocol/cem-0.2` packet pins a synthetic SHA-1 base, six exact target commits
+including their raw CEM sidecars, and 21 artifacts. Formula-derived expectations cover every drift
+state, ordered mixed evidence and explicit unknowns. Native status verifies canonical authority and
+sidecar bytes and refuses zero-unknown completion for the unknown case. The separate historical
+reader rejects 0.2 and consumes independently decoded, pinned 0.1 exact-patch equivalents; the
+original frozen 32-case matrix and wire profiles are unchanged.
+
+The first historical-reader run rejected legal evidence/relation reuse across different hunks as
+`duplicate-basis`. Its pair set lived outside the hunk loop. Independent contract review confirmed
+that supported-hunk uniqueness is local to the hunk; moving the set preserves same-hunk rejection.
+The supplemental process-boundary regression exercises both cases. This is reference portability
+evidence, not independently authored 0.2 interoperability or a semantic-support claim.
+
+Pre-change enrollment uses base `ab5310cb4f00d15c33fe112c0e0335fe28f9db20`. The original Corvint
+query returned an unrelated accepted-spec lead and explicit omissions; scoped original contracts
+supplied context. Initial `dogfood-change` retained `git-diff-failed` because base and target were
+identical before implementation, missing intent-file input and absent outcome input; the corrected
+enrollment retains the actual CEM intent. Measurement-before-first-query and billed task costs are
+NOT_OBSERVED. `affected` retains nested-module, unowned-vector and language-frontier unknowns.
+Applicable routes are query, affected, CEM/OCM, frontier and enrolled completion. Provider, mutation,
+learning/retrieval evaluations and service routes are not applicable to this packet/reader repair.
+
+Focused native and independent-reader vectors passed after the repair; the integrated independent
+diff review found no blockers. Full/interop gates and
+final CEM/OCM/report review are required on the final committed target; retain their exact receipts
+in the task's private evidence rather than treating these focused passes as those gates. The native
+store remains fixture-only with V1-0010 open and coverage incomplete. Formal minimum-wire freeze,
+independently authored 0.2 consumer/producer, OCM/frontier portability qualification and owner
+acceptance remain blockers. No version, release candidate, publication or runtime authority changes.
+
+## 2026-09-22 PUB-V0-023/025/026: V1-0017 operational prerequisites
+
+The owner's parallel V1-0017 instruction authorizes a prerequisite slice, not ticket completion or
+future-release qualification. Native ticket audit retained V1-0008/V1-0015 OPEN, coverage INCOMPLETE,
+and actor authentication, historical acceptance, runtime qualification, liveness and publication
+NOT_OBSERVED. The initial native query abstained below its relevance floor; targeted Go impact and
+original installer/spec sources supplied context. No current release candidate or user installation
+was modified.
+
+Audit found that candidate and installed version probes used unbounded `exec.Output` without owned
+descendant cleanup, and installation followed static symlinked store components. Existing procgroup
+supervision now bounds both probes and suppresses child output in errors; store admission refuses
+symlink components, aliases, overlap and invalid existing paths before effects. Candidate input
+materialization is bounded to its existing closed set. Independent plan review rejected WalkDir's
+unbounded pre-callback enumeration; bounded ReadDir fixes that before implementation. Initial focused
+fixtures caught sibling checks extending into a large unrelated temporary ancestor; checks now cover
+the store name and managed descendants. No new release format, service or persisted-state migration
+was introduced. Removing this change restores the preceding installer; retained candidates and
+older installs need no migration.
+
+Temporary shell/archive fixtures exercise coexistence, explicit rollback, corrupt-destination
+refusal, backup reinstall, scoped removal, hostile paths, bounded probes and joined interruption.
+These are mechanism evidence, not genuine future release artifact/native-platform qualification.
+Focused package tests passed (2.015s), race tests passed (3.543s), and focused vet plus specification
+checks passed. Independent final review found one test-only PID-reuse cleanup hazard and one
+missing exact-version/nonzero-exit fixture. Identity-bound cleanup after cancel/join and the new
+fixture passed targeted race tests (3.414s); the same reviewer accepted the repair with no remaining
+findings. The release orchestrator explicitly holds the terminal full gate behind current release
+qualification. It remains NOT_RUN here; native finish/seal and exact future-artifact qualification
+remain pending. Exact source/CEM/OCM handles are retained privately for continuation. See
+[the runbook](RELEASE-RUNBOOK.md) for remaining artifact/platform, support policy and predecessor
+requirements. Existing alpha security policy is preserved; stable promises remain drafts. Store
+ownership is exclusive; concurrent hostile renames, escaped groups and power-loss durability are
+explicitly unqualified.
+
+## 2026-09-22 PUB-V0-020 / GL-V0-001: approved patch qualification repairs
+
+The owner approved the combined repair packet and exact replacement enrollment, retaining the
+original enrollment as cancelled NON-SUCCESS and preserving all failed receipts. The patch adopts
+only the reviewed statless-index source and requirement-anchor delimiters. Candidate c85881a's
+installed browser proof omitted opening the existing roadmap disclosure before checking its text;
+the corrected proof clicks that disclosure, retains all six assertions and reports missing text.
+Primary failures are logged before unchanged cleanup. The temporary corrected browser proof passed
+but does not qualify the original candidate. The prior installed attempt with a mode-0644 local
+authority attachment was also retained as a failed runner setup; its corrected attachment is 0600.
+A combined-source review, fresh immutable CEM, all selected checks and new source-bound installed
+and OpenCode qualification remain required before exact-packet publication approval.
+
+## 2026-09-22 GL-V0-001/005: exact bytes without cached index stats
+
+A deterministic fixture reproduced a false ledger HIT and stale `one\n` blob after a same-size
+`two\n` edit with restored mtime under coarse Git stat settings. The newer-index variant also
+failed, so preserving only the copied index timestamp is insufficient. The original full-gate
+failure's exact timing/configuration remains unknown; its failed source/enrollment is preserved.
+Independent plan review selected a fresh private index imported from Git's NUL-delimited
+mode/object/stage/path entries, retaining tracked membership while discarding cached stat data.
+Private commands disable fsmonitor and ignorestat; the original index bytes and mtime stay intact.
+Tests cover restored timestamps, ignored tracked and intent-to-add content, staged changes,
+deletions, unusual paths, executable/symlink modes, unborn and linked worktrees, refusals and
+failed-import cleanup. An initial cleanup assertion included Apple's unrelated `xcrun_db` cache;
+it was corrected to assert only the ledger-owned private index/lock names. Corvint pre-change
+query/impact, dirty affected/path impact and enrolled CEM/OCM are the applicable self-use routes;
+learning/evaluation/provider routes are not applicable. Focused checks qualify this repair only;
+the mandatory full gate remains pending on the coordinator's frozen integrated Core target.
+
+## 2026-09-22 PUB-V0-001: prepare the 0.6.0 candidate version tuple
+
+The owner-selected candidate moves the native version, archive smoke, VS Code exact admission
+and live fixture together. Existing tuple and historical-identity tests carry explicit PUB-V0-001
+claim anchors for OCM review. The draft notes retain UNPROVEN jobs and pending candidate gates;
+no historical evidence, first-parent build calculation or optional alpha parser changes.
+Independent review caught stale executable-test fixtures and the VSC-V0-007 admission clause;
+the repair updates both, the extension README and the selected editor checks.
+
+The retained prechange query located accepted decision 0072, with four ranked results omitted
+and test symbols withheld; original sources and accepted decision 0332 supplied scope. The initial
+empty-diff coordinator refused CEM preparation, as expected. This slice uses query, affected,
+CEM/OCM/frontier and keyed completion; native/archive/host and sealed measurement are deferred
+until the integrated candidate freezes. No paired savings or milestone qualification is claimed.
+
+## 2026-09-22 decision 0332: Core candidate and evidence packet clarification
+
+The accepted Core-only 0.6 scope now distinguishes immutable tested candidate `T` from
+later evidence-only publication snapshot `E`. The public-release contract maps the
+retained `PUB-V0-022..026` Core safeguards to existing native archive/report/checksum
+inputs and keeps optional combined alpha machinery separate. The daily-workflow
+acceptance and rollback clauses retain all six evidence classes, exact candidate
+invalidation and literal archived `UNPROVEN` claims. This is a development contract
+clarification, not candidate qualification, ledger promotion or publication.
+
+## 2026-09-22 decision 0332: 0.6 portfolio and native status reconciliation
+
+The 127-entry index and installed 0.5.0a3 build 45 command help were inventoried into
+[the 0.6 portfolio](PORTFOLIO-0.6.md); the private coverage comparison retains both inventories.
+Core is a restricted qualification target, not delivered intent or promotion. An initialized native
+`.taskman` store supplies current execution status in the workspace where it exists; this checkout
+has none, so the historical AT/E/U roadmap cannot serve as a live queue. The original directory's
+fixture queue is `queue:corvint:main`; no V1 ticket completion is inferred. The broad integrated
+outcome remains historical owner intent outside the accepted 0.6 Core prerequisite set.
+
+Prechange query and full-base range impact returned receipts. Keyed enrollment returned
+`operation-in-progress` while keyed status was inactive; initial `make dogfood-change` could not
+write the linked Git directory under the sandbox. The development worker continued after that refusal, so its full workflow trial is incomplete.
+The coordinator preserved the exact patch and restored its owned files before retrying enrollment.
+The sealed prior worktree then correctly refused stale prior completion; a fresh isolated leaf was
+enrolled from the sealed base before replaying the patch. No lifecycle record was removed or relabelled.
+Command-owner mappings and supporting-gate classifications were corrected before review.
+The worker's five focused documentation checks passed. Fresh Astra/medium review found no HIGH/MED
+findings after the repair; final binding and enrolled checks follow. Raw worker/reviewer usage and
+all refusals remain private development evidence, not sealed cost or savings evidence. The final
+enrolled check exposed four shifted roadmap line citations; each was moved one line after an exact
+old/new passage comparison, preserving the original AT-09/10 meaning and the failed check.
+
+## 2026-09-22 DCW-V0 / UCV0-013: owner-selected 0.6 local-workflow scope
+
+Decision 0332 records explicit owner acceptance of three narrowly scoped daily-workflow jobs,
+retaining six evidence classes and separating installed Codex/Claude use from formal FULL authority.
+The canonical ledger moves to `/1`; exact historical `/0` admission and bytes remain supported.
+All twenty-two rows remain specified/UNPROVEN. No milestone, host or platform is promoted.
+
+Independent Gate A review found the closed-ID compatibility risk, alpha-only companion-required
+candidate admission, and freeze/enrollment sequencing constraints. The first slice resolves the
+ledger contract and enrolls existing intent before editing; later candidate and evaluation work
+remains required. Original query on the dirty primary abstained with unindexed-worktree-changes.
+Initial no-diff dogfood preparation reported git-diff-failed/missing-intent-scope; enrollment then
+exposed the required lexical intent order and succeeded after canonical ordering. These failed
+attempts are retained in the private task evidence, not reclassified as successes.
+
+Corvint feature routes used: query/index, tracked-Go path impact for the validator/tests, dirty-change
+affected advice and keyed dogfood. The affected advice retains the terminal repository gate and
+unknown scope; it does not replace that gate. No ranking change, sealed corpus access, mutation
+trial or optional service is needed for this slice. Final CEM/OCM/frontier inspection remains required.
+Focused conformance tests and the spec/requirement/traceability/decision/citation checks passed.
+The actual historical/current reader matrix accepts historical `/0` in both readers, accepts `/1`
+only in the new reader, and observes explicit `wrong-spec` from the old reader. Independent
+implementation review found no blocker; its documentation corrections are included. No full gate,
+workflow qualification or savings claim is reported.
 
 ## 2026-09-22 PUB-V0-001: v0.5.0a3 published
 
@@ -1303,3 +1672,153 @@ latency p50 about 35 ms and max about 125 ms per case on one development host, a
 `test_selection` member of 4470 bytes. The corpus is synthetic and authored with the feature, so
 these numbers show the fail-closed rules hold. They are not an adopter outcome, and promotion needs
 a corpus drawn from a real change history.
+
+
+## 2026-09-22 — OpenCode explicit MCP compatibility (V1-0022)
+
+The installed OpenCode client sent the legacy initialize handshake and received method-not-found
+from the modern-only server. A positive modern discover replay on the same binary/root isolated
+protocol admission as the defect. The owner approved correcting the frozen check plan before
+implementation; independent plan review resolved ordered initialization and legacy response framing.
+
+The opt-in 2025-11-25 profile reuses the bounded shared stdio transport and all four existing native
+tool registries. The first real client probe then exposed omitted tools/list params; normalizing
+those at the legacy boundary produced successful real OpenCode discovery. Both failed exchanges
+and the successful probe are retained in the local release evidence packet. ClientInfo versions
+1.17.18 and 1.18.31 were observed separately with CLI 1.18.31. Discovery alone does not prove actual
+host tool execution, sealed workflow usefulness, official conformance or formal FULL authority.
+Existing docs/corpus workflows, test-validity vectors and INT/TERM descendant checks now exercise
+both profiles. The original modern contract, companion distribution set and release gates remain.
+
+The subsequent real OpenCode run executed `corvint.status` and received the READY read-only
+repository receipt. The provider was an explicit deterministic localhost fixture with native
+outbound-network restriction, not an inference or cost benchmark. The independent implementation
+review found one completion-evidence defect: the new clauses initially followed a level-two
+heading, outside OCM's Requirements parser. Moving that heading to level three preserves actual
+clause enumeration; final OCM linkage and frozen checks remain required before local completion.
+
+
+The dedicated OpenCode task retained that source and enrollment, then corrected the developer
+preview installation: the example now uses an available local file URL instead of an unpublished
+npm name. A separate native configuration enables core and test-validity MCP servers with the
+explicit legacy selector. The packaged OpenCode skill routes existing tools on demand without
+expanding the closed MCP registries. Independent review found no remaining protocol defect and
+no blocking setup or skill issue; its forward cases preserved Unicode, non-Go and missing-test
+boundaries. Executable requirement anchors now make MCPV0-021..023 directly linkable by OCM.
+
+The 1.18.31 native probe loaded the plugin and skill and executed status, query, tracked-Go impact,
+test-validity discovery, native context and caller-reported blocked-outcome tools. All repository
+receipts matched the temporary fixture commit; absent retained tests stayed UNSUPPORTED. A first
+probe inherited the parent PWD and therefore selected the wrong project despite subprocess cwd;
+that failed fixture was retained and corrected by binding the child PWD to its actual directory.
+The loopback-only deterministic provider supplies transport evidence, not model-quality evidence.
+The expanded probe's INT/TERM cleanup is checked separately. Original and expanded probe receipts
+remain under the private `corvint-v060-evidence/opencode-compat` and `corvint-opencode-evidence`
+temporary directories. Full gates and exact final CEM/OCM closure remain separate observations.
+
+Focused protocol/server regressions passed. Direct JavaScript invocation was refused because the
+suite requires its Go-owned native fixture; the canonical host-adapter target remains the runner.
+The documentation check exposed an unquoted requirement range parsed as a duplicate definition;
+quoting that prose range preserves its meaning and the executable requirements. The original
+failed checks remain in the private follow-up evidence.
+
+
+### 2026-09-22 — patch companion qualification found an uninitialized planning branch
+
+The exact `0.5.0a4` candidate `04e9d473` passed reproducible companion assembly and native
+OpenCode's seven tool routes. Installed core qualification passed provider transitions and docs/MCP
+stages, then failed planning seed with `INTENT_BRANCH_MISMATCH` against the unchanged Tasks
+`e6b9d766` dependency. The planning helper created an empty `.git` directory while declaring
+`intentBranch: main`; Tasks initialization correctly refused it. The same helper is present at the
+public `v0.5.0a3` tag, whose published assets contain no companion/Tasks dependency. Initialize the
+fixture's real Git repository on `main` before Tasks initialization, and exercise the seed with a
+different caller default branch. Preserve the failed candidate and scratch as failure evidence;
+rebuild and qualify the corrected exact candidate before publication. No MCP or Tasks authority
+contract is weakened, and no partial installed-stage success is an overall qualification.
+
+## 2026-09-22 AHI-002, AHI-003, AHI-010, AHI-024: Pi lifecycle and outcome repair
+
+The owner requested a complete Pi integration audit. Independent review reproduced discarded
+startup/compaction packets, hidden outcome-persistence degradation, malformed outcome JSON
+silently normalized to empty input, and conflicting package/native adapter identities. Four
+handler regressions failed against the original logic before repair. The extension now supplies
+bounded startup/compaction recovery once through Pi's ephemeral context hook, including retries
+without a new agent-start event, clears stale session/root state, rejects duplicate and mixed
+identity command input, and exposes fallback persistence limits without storing automatic faults
+in model history. Native invalid outcome input is distinguished from core unavailability. Package,
+native translator, shim and compatibility metadata agree on 0.1.2; the host pin remains 0.85.1.
+
+Actual Pi 0.85.1 on macOS arm64 passed an offline local-provider fixture for package install,
+disable/update/re-enable/remove, two-turn ephemeral context and session non-persistence, explicit
+outcome errors and startup SIGINT/SIGTERM descendant cleanup. The canonical host-adapter target now
+runs the Pi JavaScript regressions. Full gate and immutable CEM/OCM completion evidence are retained
+in the task's private dogfood reports, not inferred from these focused passes. No protected FULL,
+interactive TUI/RPC, Linux/Windows, latency/recall or outcome-persistence claim is added.
+
+Self-development routes used: initial query, pre-change dogfood coordination, dirty-diff affected
+advice and native adapter/host tests; final CEM/OCM/frontier/finish use the enrolled plan. The first
+query's measurement was not started in advance (NOT_OBSERVED); no savings claim is made. The
+initial same-base coordination reported cem-prepare git-diff-failed, missing intent scope and
+outcome input, retained under /tmp/corvint-pi-audit/start-dogfood.log. Non-Go path impact, provider
+qualification, trace migration and mutation testing are inapplicable to this adapter repair.
+
+### 2026-09-22 — OpenCode automatic file-change deadline
+
+The user reported file-change `corvint-command-failed`/`timeout` on an unavailable work repository.
+Against the exact `1ed0e673` binary, this repository reproduced a 500 ms default timeout while
+the existing 2,000 ms override completed a receipt in 1,077 ms. These are correctness observations
+under concurrent gates, not p95 results or a diagnosis of the remote repository. OpenCode now uses
+the existing automatic ceiling by default and reports the actual deadline as a bound rather than
+a diagnosed fault. A 750 ms valid-receipt regression fails under the old default; default hang,
+explicit override, descendant cleanup, and successful FALLBACK preservation remain covered.
+Independent review found no blocker. A subsequent dirty-worktree invocation still exceeded the
+ceiling, so this repair makes no universal latency or absence-of-timeout claim. Query deadlines,
+fault visibility and legitimate evidence degradations are unchanged.
+
+### 2026-09-22 — installed roadmap proof followed obsolete table markup
+
+Installed candidate `1ed0e673` passed the corrected planning seed, then failed its roadmap browser
+inventory assertion. The retained console at the original fixture location renders eleven unique
+ticket links and no forms, inside roadmap cards; the proof still searched for table links. Update
+only the three selectors to the existing roadmap-ticket container, preserving count, detail,
+Origin/Host/session refusal, state-preservation and cleanup assertions. A diagnostic copy of the
+Tasks store correctly refused relocation and was discarded as qualification evidence. Browser
+diagnostic attempts were interrupted and remain failed; HTTP inspection establishes this selector
+defect but does not replace the required complete installed browser qualification.
+
+## 2026-09-22 decision 0332: integrate reviewed source for the 0.6 candidate
+
+The version slice passed its tuple, historical-identity, documentation and editor checks, then
+strict completion at `055257f` and seal `7230485`. Its later sealed head is not relabelled as the
+completion target. New enrollment there refused `worktree-prior-completion-stale`; a fresh isolated
+checkout of the same sealed base was enrolled before source edits, preserving both generations.
+
+The integration retains main's publication-record content (`63635b4`), reviewed MCP/OpenCode
+source (`5f5b754`, `dbdda0d`), the declared-branch fixture repair (`39b61a0`), Pi fallback repair
+(`b8b2ffc`), OpenCode automatic-event deadline/diagnostics (`4d1b9b7`) and the reviewed roadmap
+selectors (`98d74ea`). Source-only commits preserve original references and receipts; importing
+sealed sidecars would violate the new slice's CEM boundary. Build-log conflicts retain each added
+record without copying unrelated alpha version changes. The requirement locator is regenerated
+from the integrated specs. Later Pi protected/FULL work remains a separate lane.
+
+The Pi input's full gate failed a query fixture restoration assertion; its focused repetitions do
+not establish a fix or gate pass. The pending test backlog retains that failure and unknown cause.
+Prechange query and tracked-Go impact were captured at the actual isolated root; query omissions
+and the initial empty-diff coordinator failure remain in private evidence. Independent plan review
+accepted the source/check scope and exact-target sequence. No new runtime behavior was designed
+in this integration. Its CEM/OCMs, final gate and independent source review must bind the integrated
+target; earlier input checks cannot qualify it. Optional browser/host evidence remains separately
+qualified, and sealed correctness/cost and genuine dual-repository workflow evidence remain
+required before owner acceptance of the exact 0.6 packet.
+
+## 2026-09-22 MCPV0-011: literal lifecycle claim anchor
+
+Candidate 794f93d passed the full gate, focused checks, four-archive qualification and direct
+OpenCode tool/edit proofs. Native completion correctly refused an explicitly assessed MCPV0-011
+claim gap: the existing stdout-close test names the requirement only in an excluded comment.
+A literal named subtest now wraps the unchanged stdout-close lifecycle assertions. The wrapper
+preserves all behavior, deadlines and cleanup; extraction and completion policy are unchanged.
+The known gap is not relabeled unassessed. The new source invalidates target-bound qualification;
+prior passes remain historical and mandatory checks must bind the replacement candidate. The
+optional companion is omitted under decision 0331 because its separate installed browser stage
+reached its three-minute timeout; that failure's root cause remains UNKNOWN.

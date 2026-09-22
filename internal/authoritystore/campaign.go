@@ -21,6 +21,7 @@ const maxCampaign = 32 << 10
 // A campaign is independently admitted, bounded native exercise permission. It
 // is never a HostQualification and cannot be supplied by the event or CLI.
 type qualificationCampaign struct {
+	PiRuntime               *PiRuntime       `json:"-"`
 	DirectRuntime           *DirectRuntime   `json:"-"`
 	Profile                 string           `json:"profile"`
 	Status                  string           `json:"status"`
@@ -93,7 +94,8 @@ func (c qualificationCampaign) valid(root RootDocument, floorBytes []byte, handl
 }
 
 func (c qualificationCampaign) validScope(root RootDocument, floorBytes []byte, handle string, now time.Time, expectedScope string) bool {
-	if (expectedScope != stopCampaignScope && expectedScope != lifecycleCampaignScope) || !((root.Profile == RootProfile && c.Profile == campaignProfile && c.DirectRuntime == nil) || (root.Profile == DirectRootProfile && c.Profile == directCampaignProfile && c.DirectRuntime != nil && expectedScope == lifecycleCampaignScope)) || c.Status != "NATIVE_QUALIFICATION_ONLY" || c.Scope != expectedScope || !hexDigest(c.CampaignID) {
+	matched := (root.Profile == RootProfile && c.Profile == campaignProfile && c.DirectRuntime == nil && c.PiRuntime == nil) || (root.Profile == DirectRootProfile && c.Profile == directCampaignProfile && c.DirectRuntime != nil && c.PiRuntime == nil && expectedScope == lifecycleCampaignScope) || (root.Profile == PiRootProfile && c.Profile == piCampaignProfile && c.PiRuntime != nil && c.DirectRuntime == nil && expectedScope == lifecycleCampaignScope)
+	if (expectedScope != stopCampaignScope && expectedScope != lifecycleCampaignScope) || !matched || c.Status != "NATIVE_QUALIFICATION_ONLY" || c.Scope != expectedScope || !hexDigest(c.CampaignID) {
 		return false
 	}
 	issued, err := campaignTime(c.IssuedAt)
@@ -112,6 +114,9 @@ func (c qualificationCampaign) validScope(root RootDocument, floorBytes []byte, 
 	}
 	if c.Profile == directCampaignProfile {
 		return c.DirectRuntime.valid()
+	}
+	if c.Profile == piCampaignProfile {
+		return c.PiRuntime.valid()
 	}
 	r := c.Runtime
 	if !processPin(r.AppInstance) || !processPin(r.EngineInstance) || r.AppInstance.PID == r.EngineInstance.PID || r.BootSessionUUID == "" || r.OSBuild == "" || (r.Architecture != "arm64" && r.Architecture != "amd64") || !hexDigest(r.App.SHA256) || !hexDigest(r.Engine.SHA256) || len(r.AppCDHash) != 40 || !objectID(r.AppCDHash) || len(r.EngineCDHash) != 40 || !objectID(r.EngineCDHash) {
@@ -192,6 +197,12 @@ func (r runtimePins) acceptsEngine(p ProcessInstance) bool {
 }
 
 func verifyCampaignRuntime(ctx context.Context, root RootDocument, candidate qualificationCampaign) error {
+	if root.Profile == PiRootProfile && candidate.Profile == piCampaignProfile && candidate.PiRuntime != nil && candidate.DirectRuntime == nil {
+		return verifyPiRuntime(ctx, root, *candidate.PiRuntime)
+	}
+	if candidate.PiRuntime != nil {
+		return errUnavailable
+	}
 	if root.Profile == DirectRootProfile && candidate.Profile == directCampaignProfile && candidate.DirectRuntime != nil {
 		return verifyDirectRuntime(ctx, root, *candidate.DirectRuntime)
 	}

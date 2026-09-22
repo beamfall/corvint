@@ -27,7 +27,13 @@ func verifyDirectRuntime(ctx context.Context, root RootDocument, pin DirectRunti
 // Only production kernel readers reach this private seam. Both the child and
 // parent must retain their full metadata around two mapped-code observations.
 func verifyDirectParent(ctx context.Context, pid uint32, consumerPath string, pin DirectRuntime, inspect func(uint32) (processIdentity, error), image func(context.Context, uint32, Image, string) error) error {
-	if !pin.valid() || ctx.Err() != nil {
+	if !pin.valid() {
+		return errUnavailable
+	}
+	return verifyImmediateParent(ctx, pid, consumerPath, pin, inspect, image)
+}
+func verifyImmediateParent(ctx context.Context, pid uint32, consumerPath string, pin DirectRuntime, inspect func(uint32) (processIdentity, error), image func(context.Context, uint32, Image, string) error) error {
+	if !validNativePin(pin) || ctx.Err() != nil {
 		return errUnavailable
 	}
 	child, err := inspect(pid)
