@@ -208,7 +208,7 @@ func TestRunStepRecordsFromLinkedWorktree(t *testing.T) {
 }
 
 func TestWorktreeDigestIgnoresCachedStat(t *testing.T) {
-	t.Run("GL-V0-001-exact-content", func(t *testing.T) {
+	t.Run("GL-V0-001 exact content", func(t *testing.T) {
 		for _, newerIndex := range []bool{false, true} {
 			t.Run(fmt.Sprintf("newer-index-%t", newerIndex), func(t *testing.T) {
 				root := fixtureRepository(t)
@@ -360,7 +360,7 @@ func TestWorktreeDigestWithoutIndex(t *testing.T) {
 }
 
 func TestWorktreeDigestImportFailureRunsWithoutRecord(t *testing.T) {
-	t.Run("GL-V0-005-import-failure", func(t *testing.T) {
+	t.Run("GL-V0-005 import failure", func(t *testing.T) {
 		root := fixtureRepository(t)
 		actualGit, err := exec.LookPath("git")
 		if err != nil {
