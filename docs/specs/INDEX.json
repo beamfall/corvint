@@ -20,7 +20,7 @@
   },
   {
     "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
-    "title": "Frontier decision brief \u2014 2026-08-29",
+    "title": "Frontier decision brief — 2026-08-29",
     "reqPrefix": "",
     "intent": "not-applicable (reading aid; decides nothing)",
     "delivery": "not-applicable",
@@ -715,7 +715,7 @@
   },
   {
     "path": "docs/specs/external-evidence-provider-v1.md",
-    "title": "External Evidence Provider V1 \u2014 repository identity",
+    "title": "External Evidence Provider V1 — repository identity",
     "reqPrefix": "EEP-V1",
     "intent": "accepted (decision 0310)",
     "delivery": "experimental (file transport only)",
@@ -732,7 +732,7 @@
   },
   {
     "path": "docs/specs/external-evidence-provider-v2.md",
-    "title": "External Evidence Provider V2 \u2014 opt-in path-to-path relations",
+    "title": "External Evidence Provider V2 — opt-in path-to-path relations",
     "reqPrefix": "EEP-V2",
     "intent": "accepted (decision 0312)",
     "delivery": "experimental (file transport only)",
@@ -750,7 +750,7 @@
   },
   {
     "path": "docs/specs/external-frontier-obligations-v0.md",
-    "title": "External Frontier Obligations V0 \u2014 a reference-only Change Frontier sidecar",
+    "title": "External Frontier Obligations V0 — a reference-only Change Frontier sidecar",
     "reqPrefix": "EFO-V0",
     "intent": "accepted (decision 0313)",
     "delivery": "experimental (file transport only)",
@@ -768,7 +768,7 @@
   },
   {
     "path": "docs/specs/external-test-selection-v0.md",
-    "title": "External Test Selection V0 \u2014 fail-closed advice from verification relations",
+    "title": "External Test Selection V0 — fail-closed advice from verification relations",
     "reqPrefix": "ETS-V0",
     "intent": "accepted (decision 0311)",
     "delivery": "experimental (file transport only)",
@@ -786,7 +786,7 @@
   },
   {
     "path": "docs/specs/external-test-selection-v1.md",
-    "title": "External Test Selection V1 \u2014 transitive obligations and checkout worktree reads",
+    "title": "External Test Selection V1 — transitive obligations and checkout worktree reads",
     "reqPrefix": "ETS-V1",
     "intent": "accepted (decision 0315)",
     "delivery": "experimental (file transport only)",
@@ -828,10 +828,15 @@
     "intent": "accepted (decision 0324)",
     "delivery": "implemented",
     "claim": "`impact --provider-mcp ARGV_JSON` invokes one bounded local MCP tool and preserves the provider record bytes.",
-    "dependsOn": ["docs/specs/external-evidence-provider-transports-v0.md"],
+    "dependsOn": [
+      "docs/specs/external-evidence-provider-transports-v0.md"
+    ],
     "supersededBy": null,
     "closableToday": true,
-    "implementation": ["internal/extevidence/mcp.go", "internal/procgroup"]
+    "implementation": [
+      "internal/extevidence/mcp.go",
+      "internal/procgroup"
+    ]
   },
   {
     "path": "docs/specs/external-evidence-provider-remote-v0.md",
@@ -840,10 +845,15 @@
     "intent": "accepted (decision 0325)",
     "delivery": "implemented",
     "claim": "A separately built `corvint-remote-provider` fetches one TLS-pinned HTTPS record only with explicit network consent.",
-    "dependsOn": ["docs/specs/external-evidence-provider-transports-v0.md"],
+    "dependsOn": [
+      "docs/specs/external-evidence-provider-transports-v0.md"
+    ],
     "supersededBy": null,
     "closableToday": true,
-    "implementation": ["cmd/corvint-remote-provider", "internal/remoteprovider"]
+    "implementation": [
+      "cmd/corvint-remote-provider",
+      "internal/remoteprovider"
+    ]
   },
   {
     "path": "docs/specs/experimental-source-views-v0.md",
@@ -2256,6 +2266,28 @@
       "internal/authoritystore/pi.go",
       "cmd/corvint/qualified_lifecycle.go",
       "tools/local-authority/pi_release.go"
+    ]
+  },
+  {
+    "path": "docs/specs/stable-operations-v0.md",
+    "title": "Stable operations V0",
+    "reqPrefix": "SOP-V0",
+    "intent": "accepted (decision 0341, 2026-09-22)",
+    "delivery": "implemented",
+    "claim": "Install lifecycle, corrupted-snapshot recovery and a named hostile-regression matrix run locally as release-blocking checks with NOT_COVERED gaps stated.",
+    "dependsOn": [
+      "docs/specs/public-release-v0.md",
+      "docs/specs/release-artifact-integrity-v0.md",
+      "docs/specs/index-snapshot-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": true,
+    "implementation": [
+      "script/check-install-lifecycle.sh",
+      "script/check-install-lifecycle_test.sh",
+      "script/check-hostile-regressions.sh",
+      "script/check-hostile-regressions_test.sh",
+      "docs/RELEASE-RUNBOOK.md"
     ]
   }
 ]

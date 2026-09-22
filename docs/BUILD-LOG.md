@@ -1898,3 +1898,20 @@ recorded: tests alone need none, so the reserved number 0342 stays unused. Gates
 requirement-definitions, traceability-tests, decision-numbers and line-citations checks. Open
 observation for follow-up: the `context` receipt carries no freshness block, so the worktree
 divergence reaches a `context` caller only through the blob hashes, not a named state.
+## 2026-09-22 stable-operations: V1-0017 lifecycle check, hostile matrix, support window, command runbook
+
+Decision 0341 and `docs/specs/stable-operations-v0.md` (`SOP-V0-001`..`012`). Two additive shell
+checks, no Go change. `script/check-install-lifecycle.sh` ran the eight steps against a built
+binary in 2.5 s and its wrapper (two stamped builds, archive path, tampered `SHA256SUMS`, usage)
+in 9.3 s. `script/check-hostile-regressions.sh` ran 27 rows over 12 packages, all PASS, in 28.9 s
+with `memory` and `case-folds-context-index` printed NOT_COVERED; its stub-driven wrapper passed in
+4.5 s. Independent finding against the ticket wording: a truncated or byte-damaged snapshot does
+not fail closed; the read verb exits 0 with byte-identical packet output and leaves the file
+untouched, and `index --if-stale` rebuilds a same-size snapshot that differs in 460 bytes, so the
+spec fixes packet identity as the recovery invariant and leaves snapshot byte identity to
+`index-snapshot-v0.md`. The brief presumed case-fold and interruption cleanup uncovered; both have
+tracked regressions and sit in the matrix. Evidence is darwin arm64 only; other hosts NOT_RUN. No
+frozen evaluation applies to this operations slice. Proposed `make` targets
+`install-lifecycle-test`, `hostile-regressions-check`, `hostile-regressions-test` are not added
+here. `docs/SECURITY.md` still says the support window is a draft owner decision and is stale
+against `SECURITY.md`.
