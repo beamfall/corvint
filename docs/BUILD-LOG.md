@@ -13,6 +13,8 @@ The owner-selected candidate moves the native version, archive smoke, VS Code ex
 and live fixture together. Existing tuple and historical-identity tests carry explicit PUB-V0-001
 claim anchors for OCM review. The draft notes retain UNPROVEN jobs and pending candidate gates;
 no historical evidence, first-parent build calculation or optional alpha parser changes.
+Independent review caught stale executable-test fixtures and the VSC-V0-007 admission clause;
+the repair updates both, the extension README and the selected editor checks.
 
 The retained prechange query located accepted decision 0072, with four ranked results omitted
 and test symbols withheld; original sources and accepted decision 0330 supplied scope. The initial
