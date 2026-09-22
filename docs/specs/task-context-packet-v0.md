@@ -495,6 +495,11 @@ anchor table to the index, snapshot or pack and no packet member; its five ancho
 not a grammar per language, and the bench's separate anchor-bearing subset is
 `tools/retrieval-bench`'s to add, not this packet's.
 
+Operational note (V1-0051): `corvint context` and the generic harness-event dispatch it shares
+(`cmd/corvint/taskcontext.go`, `cmd/corvint/main.go`) write a local pprof CPU profile when the
+operator sets `CPUPROFILE=PATH` in the process environment. It is off by default, diagnostic only,
+and does not widen what either read-only path reads, returns, or mutates (AGENTS.md invariant 4).
+
 ## Failure modes
 
 - An untracked or absent subject: refused with an error naming the revision (TCP-V0-002). An

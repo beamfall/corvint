@@ -6,6 +6,7 @@ import (
 	"io"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/taskman"
 )
 
@@ -39,7 +40,7 @@ func runTaskmanFixture(ctx context.Context, root string, args []string, stdout, 
 	}
 	_, e = stdout.Write(raw)
 	if e != nil {
-		fmt.Fprintln(stderr, "taskman fixture: cannot write fixture output:", e)
+		emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write fixture output"})
 		return 2
 	}
 	return 0

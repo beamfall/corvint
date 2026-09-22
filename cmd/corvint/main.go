@@ -1143,6 +1143,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		emitError(stderr, &gokernel.Error{Code: code, Message: message})
 		return 2
 	}
+	// CPUPROFILE (V1-0051): operator env var, off by default, documented in
+	// cpuProfileHelpNote (help.go, appended to harnessEventHelp) and
+	// task-context-packet-v0.md's Non-goals and authority section.
 	if profilePath := runtimeenv.Value("CPUPROFILE"); profilePath != "" {
 		profile, err := os.Create(profilePath)
 		if err != nil {

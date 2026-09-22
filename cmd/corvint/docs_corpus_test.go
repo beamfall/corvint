@@ -322,6 +322,22 @@ func TestCorpusImpactNativePathSelection(t *testing.T) {
 	})
 }
 
+// TestCorpusRootPreambleFlagAloneDoesNotConsumeCorpusValue covers V1-0052:
+// `--root --corpus=FILE` strips `--corpus=FILE` before relaying, and
+// `corpusNativeValueFollows` correctly declines to bind the option-like
+// `--corpus=FILE` as `--root`'s value, so the relayed argv is exactly
+// `["--root"]` with no native command left after it (`--root` itself lands
+// in the command slot). Pin that exact relay and its resulting error.
+func TestCorpusRootPreambleFlagAloneDoesNotConsumeCorpusValue(t *testing.T) {
+	var out, stderr bytes.Buffer
+	args := []string{"--root", "--corpus=FILE"}
+	code, handled := runCorpusIntegration(context.Background(), args, strings.NewReader(""), &out, &stderr)
+	wantErr := `{"code": "invalid-arguments", "error": "--corpus is supported only on native evidence reads", "ok": false}` + "\n"
+	if !handled || code != 2 || out.Len() != 0 || stderr.String() != wantErr {
+		t.Fatalf("--corpus=FILE shifted into --root's value: handled=%v code=%d stdout=%q stderr=%q, want stderr=%q", handled, code, out.String(), stderr.String(), wantErr)
+	}
+}
+
 func TestCorpusRootPreambleRefusesOptionLikeValue(t *testing.T) {
 	var out, stderr bytes.Buffer
 	args := []string{"--root", "--corpus=corpus.json", "docs", "corpus", "info", "--artifact", "a.json"}
@@ -331,7 +347,12 @@ func TestCorpusRootPreambleRefusesOptionLikeValue(t *testing.T) {
 	}
 }
 
-func TestCorpusRelayWriteFailureReportsOutputFailed(t *testing.T) {
+// TestCorpusRelayNativeFailureStdoutCopyDoesNotDoubleEnvelope covers the
+// V1-0048 fix: when the wrapped native command already failed (and wrote its
+// own error envelope straight to stderr), a failed copy of its captured
+// stdout to the real stdout must not append a second `output-failed`
+// envelope on the same stream.
+func TestCorpusRelayNativeFailureStdoutCopyDoesNotDoubleEnvelope(t *testing.T) {
 	root := taskContextRepository(t)
 	writeCorpusFixture(t, root, cemGit(t, root, "rev-parse", "HEAD"), "cache")
 	args := []string{"--root", root, "query", "--corpus=corpus.json"}
@@ -339,10 +360,19 @@ func TestCorpusRelayWriteFailureReportsOutputFailed(t *testing.T) {
 	if code, handled := runCorpusIntegration(context.Background(), args, strings.NewReader(""), &baseline, &baselineErr); !handled || code == 0 {
 		t.Fatalf("native relay baseline: handled=%v code=%d stderr=%q", handled, code, baselineErr.String())
 	}
+	if !strings.Contains(baselineErr.String(), `"invalid-arguments"`) {
+		t.Fatalf("baseline did not carry the native error envelope: %q", baselineErr.String())
+	}
 	var out stdoutBrokenPipeWriter
 	var stderr bytes.Buffer
-	code, _ := runCorpusIntegration(context.Background(), args, strings.NewReader(""), &out, &stderr)
-	if code != 2 || !strings.Contains(stderr.String(), `"output-failed"`) {
-		t.Fatalf("exit %d, want 2 with output-failed: stderr=%q", code, stderr.String())
+	code, handled := runCorpusIntegration(context.Background(), args, strings.NewReader(""), &out, &stderr)
+	if code != 2 || !handled {
+		t.Fatalf("exit %d handled=%v, want 2 handled=true: stderr=%q", code, handled, stderr.String())
+	}
+	if stderr.String() != baselineErr.String() {
+		t.Fatalf("stdout copy failure altered stderr: got %q, want exactly the native envelope %q", stderr.String(), baselineErr.String())
+	}
+	if strings.Count(stderr.String(), "\"ok\": false") != 1 {
+		t.Fatalf("expected exactly one error envelope on stderr, got %q", stderr.String())
 	}
 }

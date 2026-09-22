@@ -184,7 +184,7 @@ func helpText(topic string) string {
 	case "prove":
 		return proveHelp
 	case "context":
-		return taskContextHelp + contextLookupHelp
+		return taskContextHelp + contextLookupHelp + cpuProfileHelpNote
 	case "index":
 		return indexHelp
 	case "dogfood":
@@ -1007,6 +1007,17 @@ authority. All profiles are read-only, local-only, and emit canonical JSON.
 Mixed-worktree freshness is disclosed where applicable.
 `
 
+// cpuProfileHelpNote documents the CPUPROFILE env knob (V1-0051): it is
+// off by default, operator-set only, and applies to this command and to
+// `context` (taskcontext.go, main.go's harness-event dispatch). It writes a
+// local pprof file and never widens what the command reads, returns, or
+// mutates (AGENTS.md invariant 4).
+const cpuProfileHelpNote = `
+CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU
+profile for this invocation to PATH. Diagnostic only; it does not change
+what is read, returned, or mutated.
+`
+
 const harnessEventHelp = `Compile one experimental agent-harness lifecycle event.
 
 Usage:
@@ -1032,7 +1043,7 @@ block; user-prompt shares query's BuildEval -> EvalQuery repository path. The
 remaining events do not. The command is read-only apart from that one
 bounded local self-observation row, and local-only, and
 emits one canonical corvint-harness-event/0 FALLBACK receipt on stdout.
-`
+` + cpuProfileHelpNote
 
 const localCompletionHelp = `Coordinate an explicitly enrolled local change workflow.
 

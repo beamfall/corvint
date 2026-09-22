@@ -1965,3 +1965,36 @@ defect, so `internal/lrfrepo` is unchanged. Two outcomes are frozen as observed:
 member refuses with `unknown-field` (closed object), and a bound OID absent from the repository
 refuses with `repository-object-unavailable`, ahead of `target-mismatch`. The package test runs
 in about 24 s on a quiet host, dominated by Git subprocesses for the 9 universes it builds.
+## 2026-09-22 batch-A cmd/corvint chores: V1-0030 V1-0047 V1-0048 V1-0051 V1-0052
+
+Five queued `cmd/corvint` chores closed together, all read/write behavior only, no wire or
+requirement-ID change. V1-0047: `taskman fixture`'s stdout-write failure now emits the same
+`output-failed` error envelope as every other command instead of a bare stderr line
+(`taskman_fixture.go`); the stale plain-text assertion in `taskman_fixture_test.go` and a new
+case in `output_write_failure_test.go` cover it. V1-0048: the corpus relay's stdout-copy-failure
+path (`corpus_integration.go`) no longer appends a second `output-failed` envelope after a failed
+native command has already written its own; `docs_corpus_test.go` asserts the resulting stderr is
+byte-identical to the native-only baseline. V1-0052: `docs_corpus_test.go` gained a pinned test for
+`--root --corpus=FILE`, confirming `--corpus` is not consumed as `--root`'s value and the native
+command instead refuses it with `--corpus is supported only on native evidence reads`. V1-0051:
+documented the operator-set `CPUPROFILE` env knob (`context` and the harness-event path) in
+`help.go`'s `context`/`harness event` help text and in `task-context-packet-v0.md`'s Non-goals and
+authority section; no flag added, no requirement ID touched. V1-0030: the advertised
+`docs draft`/`docs consume` example (`docs.go`, `source-documentation-draft-v0.md`) referenced
+`internal/doccompiler`, which exceeds the SDD-V0-005 64-declaration bound and fails
+`documentation-limit-exceeded` when actually run; replaced with `internal/docmaintain --task
+Preview`, verified live against the built binary. `TestDocsHelpPrerequisitesAndWorkingExample` no
+longer runs the parsed example against a synthetic fixture package that happened to export only
+one declaration; it now runs `--root $(cd ../.. )` against this repository's own committed HEAD
+source, so it would have caught the original bound violation.
+
+Gates run: `gofmt -l` on the changed files, `go build ./...`, `go vet ./...`, the targeted tests
+above plus `TestImpactAndHarnessHelpExposeActualLimitsAndUnsupportedProfiles` and
+`TestSupportBoundaryDisclosesTheSelfObservationLedgerWrite`, `internal/specindex`'s
+`TestIndexCoversSpecsAndHeaders`, and `make spec-requirements-check requirement-definitions-check
+traceability-tests-check decision-numbers-check line-citations-check` — all pass. `REQUIREMENTS.tsv`
+unchanged (prose-only spec edits, no requirement IDs touched). No decision record: no published
+wire contract, spec bound, or refusal vocabulary changed; the envelope fixes bring two call sites
+into line with the pattern already used elsewhere in the same files. Full `go test ./...` was not
+run for this scoped batch (per `AGENTS.md`'s Verify section, exhaustive gate reserved for the
+terminal boundary); only the targeted tests above and the listed `make` checks were executed.
