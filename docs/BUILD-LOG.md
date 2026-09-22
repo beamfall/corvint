@@ -7,6 +7,19 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 PUB-V0-020 / GL-V0-001: approved patch qualification repairs
+
+The owner approved the combined repair packet and exact replacement enrollment, retaining the
+original enrollment as cancelled NON-SUCCESS and preserving all failed receipts. The patch adopts
+only the reviewed statless-index source and requirement-anchor delimiters. Candidate c85881a's
+installed browser proof omitted opening the existing roadmap disclosure before checking its text;
+the corrected proof clicks that disclosure, retains all six assertions and reports missing text.
+Primary failures are logged before unchanged cleanup. The temporary corrected browser proof passed
+but does not qualify the original candidate. The prior installed attempt with a mode-0644 local
+authority attachment was also retained as a failed runner setup; its corrected attachment is 0600.
+A combined-source review, fresh immutable CEM, all selected checks and new source-bound installed
+and OpenCode qualification remain required before exact-packet publication approval.
+
 ## 2026-09-22 GL-V0-001/005: exact bytes without cached index stats
 
 A deterministic fixture reproduced a false ledger HIT and stale `one\n` blob after a same-size
