@@ -1952,3 +1952,16 @@ inspection), now corrected. V1-0101, V1-0102, V1-0107 and V1-0108 stay open. Por
 reapplied from the old lineage onto the public history, where `impact --provider-mcp` does exist
 (decision 0324); the guide's MCP bullet on this lineage is a pre-existing follow-up, not part of
 this change.
+## 2026-09-22 ocm-v0-conformance-vectors: freeze the OCM V0 proof wire in `conformance/ocm-v0/`
+
+Ticket V1-0013, decision 0343, requirement `OCM-V0-014`. The suite freezes 25 structural vectors
+(5 valid, 20 hostile) and 4 fixtures with 19 verifier cases for `ocm/0.1-experimental`. Valid
+vectors are the byte output of the real `prepare`, `link`, and `mark` producers over a
+deterministic seed repository with pinned Git identity and dates; `TestFrozenVectorsMatchTheRealProducer`
+rebuilds all 5 universes on every run and requires byte equality. Every vector runs through the
+real structural parser and every fixture case through the real `status` verifier; no double is
+used. All 25 declared refusal codes matched the parser on the first run and no vector exposed a
+defect, so `internal/lrfrepo` is unchanged. Two outcomes are frozen as observed: an extra top-level
+member refuses with `unknown-field` (closed object), and a bound OID absent from the repository
+refuses with `repository-object-unavailable`, ahead of `target-mismatch`. The package test runs
+in about 24 s on a quiet host, dominated by Git subprocesses for the 9 universes it builds.

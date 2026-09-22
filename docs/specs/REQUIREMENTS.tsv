@@ -1380,7 +1380,8 @@ OCM-V0-009	docs/specs/ocm-v0-dogfood.md	123	same-change proposed intent MAY be a
 OCM-V0-010	docs/specs/ocm-v0-dogfood.md	134	default solo use MUST allow visible unknown obligations; a repository MAY opt in
 OCM-V0-011	docs/specs/ocm-v0-dogfood.md	136	maps and reports MUST contain no source, diff, prompt, command-output, ticket-bo
 OCM-V0-012	docs/specs/ocm-v0-dogfood.md	138	parsing, Git access, counts, spans, paths, files, and subprocesses MUST be bound
-OCM-V0-013	docs/specs/ocm-v0-dogfood.md	462	one dogfood change MAY declare an ordered set of pinned Markdown intent
+OCM-V0-013	docs/specs/ocm-v0-dogfood.md	479	one dogfood change MAY declare an ordered set of pinned Markdown intent
+OCM-V0-014	docs/specs/ocm-v0-dogfood.md	146	the `ocm/0.1-experimental` wire profile MUST be frozen by the conformance suite
 PCCO-V0-001	docs/specs/proof-carrying-context-optimization-v0.md	65	An optimization trial MUST begin from one canonical Corvint packet whose exact b
 PCCO-V0-002	docs/specs/proof-carrying-context-optimization-v0.md	69	V0 transformations are only whole-handle omission, exact duplicate elimination,
 PCCO-V0-003	docs/specs/proof-carrying-context-optimization-v0.md	72	Counterfactual search MUST run outside live agent sessions using bounded hierarc

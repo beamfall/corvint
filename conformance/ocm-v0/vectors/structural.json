@@ -1,0 +1,241 @@
+{
+  "schema": "corvint.ocm-v0-conformance.structural/1",
+  "vectors": [
+    {
+      "id": "valid-prepared-all-unassessed",
+      "mode": "valid",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "obligation": "CONF-V0-001",
+      "reason": "unassessed",
+      "universe": [
+        {
+          "id": "CONF-V0-001",
+          "disposition": "unknown",
+          "reason": "unassessed"
+        },
+        {
+          "id": "CONF-V0-002",
+          "disposition": "unknown",
+          "reason": "unassessed"
+        }
+      ],
+      "note": "The minimal map `ocm prepare` writes: empty claims, every obligation unknown/unassessed. Re-marking row 1 unassessed republishes byte-identical output."
+    },
+    {
+      "id": "valid-linked-and-no-test-claim",
+      "mode": "valid",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[{\"blobOid\":\"9795c6366c9030f796f1c4bd191c870383072e70\",\"extractor\":\"corvint-test-claim/1\",\"id\":\"claim:sha256:d97d2bce0f5fd38c4ae3334ed4798f6d76df85bc5d3f4778b9a2f12aaa9c8e27\",\"path\":\"tests/claims_test.go\",\"selector\":\"test:TestClaimA/case:conf-v0\",\"span\":{\"end\":113,\"start\":102},\"spanSha256\":\"02c0549a35247b922f59a2af2e399c5241d4836c4effef5e184ca2c17f5caecf\"}],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[\"claim:sha256:d97d2bce0f5fd38c4ae3334ed4798f6d76df85bc5d3f4778b9a2f12aaa9c8e27\"],\"disposition\":\"linked\",\"hunkIds\":[\"hunk:sha256:738ba86a2b6b17e1ff23e01f90183de27727120f3ebe0e88f722013ac4f76411\"],\"id\":\"CONF-V0-001\",\"reason\":\"change-and-test-linked\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"no-test-claim\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "obligation": "CONF-V0-002",
+      "reason": "no-test-claim",
+      "universe": [
+        {
+          "id": "CONF-V0-001",
+          "disposition": "linked"
+        },
+        {
+          "id": "CONF-V0-002",
+          "disposition": "unknown",
+          "reason": "no-test-claim"
+        }
+      ],
+      "note": "One `linked` row from `ocm link` (one hunk, one claim) beside one `unknown`/`no-test-claim` row from `ocm mark`."
+    },
+    {
+      "id": "valid-unknown-insufficient-evidence",
+      "mode": "valid",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"insufficient-evidence\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "obligation": "CONF-V0-001",
+      "reason": "insufficient-evidence",
+      "universe": [
+        {
+          "id": "CONF-V0-001",
+          "disposition": "unknown",
+          "reason": "insufficient-evidence"
+        },
+        {
+          "id": "CONF-V0-002",
+          "disposition": "unknown",
+          "reason": "unassessed"
+        }
+      ],
+      "note": "`ocm mark --reason insufficient-evidence` on row 1; row 2 stays unassessed."
+    },
+    {
+      "id": "valid-unknown-conflicting-evidence",
+      "mode": "valid",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"conflicting-evidence\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "obligation": "CONF-V0-001",
+      "reason": "conflicting-evidence",
+      "universe": [
+        {
+          "id": "CONF-V0-001",
+          "disposition": "unknown",
+          "reason": "conflicting-evidence"
+        },
+        {
+          "id": "CONF-V0-002",
+          "disposition": "unknown",
+          "reason": "unassessed"
+        }
+      ],
+      "note": "`ocm mark --reason conflicting-evidence` on row 1; row 2 stays unassessed."
+    },
+    {
+      "id": "valid-both-linked-claims-sorted",
+      "mode": "produced",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[{\"blobOid\":\"9795c6366c9030f796f1c4bd191c870383072e70\",\"extractor\":\"corvint-test-claim/1\",\"id\":\"claim:sha256:491151259b1adc2aab6e59b61aca5dd0ee7211aac7da8caff708f865cb5bb3a3\",\"path\":\"tests/claims_test.go\",\"selector\":\"test:TestClaimB/case:conf-v0\",\"span\":{\"end\":200,\"start\":189},\"spanSha256\":\"d62832c44fef26ac30ac2bf1b480221c29f2192faca115a971f25948f4a8e8c0\"},{\"blobOid\":\"9795c6366c9030f796f1c4bd191c870383072e70\",\"extractor\":\"corvint-test-claim/1\",\"id\":\"claim:sha256:d97d2bce0f5fd38c4ae3334ed4798f6d76df85bc5d3f4778b9a2f12aaa9c8e27\",\"path\":\"tests/claims_test.go\",\"selector\":\"test:TestClaimA/case:conf-v0\",\"span\":{\"end\":113,\"start\":102},\"spanSha256\":\"02c0549a35247b922f59a2af2e399c5241d4836c4effef5e184ca2c17f5caecf\"}],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[\"claim:sha256:d97d2bce0f5fd38c4ae3334ed4798f6d76df85bc5d3f4778b9a2f12aaa9c8e27\"],\"disposition\":\"linked\",\"hunkIds\":[\"hunk:sha256:738ba86a2b6b17e1ff23e01f90183de27727120f3ebe0e88f722013ac4f76411\"],\"id\":\"CONF-V0-001\",\"reason\":\"change-and-test-linked\"},{\"claimIds\":[\"claim:sha256:491151259b1adc2aab6e59b61aca5dd0ee7211aac7da8caff708f865cb5bb3a3\"],\"disposition\":\"linked\",\"hunkIds\":[\"hunk:sha256:738ba86a2b6b17e1ff23e01f90183de27727120f3ebe0e88f722013ac4f76411\"],\"id\":\"CONF-V0-002\",\"reason\":\"change-and-test-linked\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "universe": [
+        {
+          "id": "CONF-V0-001",
+          "disposition": "linked"
+        },
+        {
+          "id": "CONF-V0-002",
+          "disposition": "linked"
+        }
+      ],
+      "note": "Two `linked` rows sharing one hunk. The claims array is sorted by claim ID, not by obligation, so claim B precedes claim A. No row is unknown, so there is no identity mark; the structural test proves only that the map parses (the mark reaches the selector) and producer_test.go proves the bytes."
+    },
+    {
+      "id": "hostile-unknown-top-level-member",
+      "mode": "invalid",
+      "code": "unknown-field",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"extra\":\"preserved?\",\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "note": "A canonical map with one extra top-level member. The OCM object is closed: the wire profile says no other fields are allowed, so the member is not preserved; the map is refused."
+    },
+    {
+      "id": "hostile-wrong-spec",
+      "mode": "invalid",
+      "code": "unsupported-spec",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.2\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "note": "Every other member is valid; only `spec` names an unsupported profile."
+    },
+    {
+      "id": "hostile-truncated-file",
+      "mode": "invalid",
+      "code": "unsupported-ocm-json-profile",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{",
+      "note": "The prepared map cut at byte 400. The JSON failure profile is not approximated: the parse refusal is the fixed `unsupported-ocm-json-profile` code (GPK-V0-037)."
+    },
+    {
+      "id": "hostile-not-an-object",
+      "mode": "invalid",
+      "code": "unsupported-ocm-json-profile",
+      "raw": "[]\n",
+      "note": "Valid JSON that is not an object."
+    },
+    {
+      "id": "hostile-empty-object",
+      "mode": "invalid",
+      "code": "missing-field",
+      "raw": "{}\n",
+      "note": "A canonical empty object is missing every required member."
+    },
+    {
+      "id": "hostile-duplicate-json-key",
+      "mode": "invalid",
+      "code": "unsupported-ocm-json-profile",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "note": "Duplicate JSON keys are invalid at the JSON layer, before any OCM member is read."
+    },
+    {
+      "id": "hostile-whitespace-not-canonical",
+      "mode": "invalid",
+      "code": "noncanonical-map",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"spec\": \"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "note": "One insignificant space after a colon; the value is otherwise identical."
+    },
+    {
+      "id": "hostile-unsorted-keys-not-canonical",
+      "mode": "invalid",
+      "code": "noncanonical-map",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\",\"spec\":\"ocm/0.1-experimental\"}\n",
+      "note": "`targetRevision` precedes `spec`; member order is not canonical."
+    },
+    {
+      "id": "hostile-missing-terminal-newline",
+      "mode": "invalid",
+      "code": "noncanonical-map",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}",
+      "note": "Canonical bytes without the one terminal LF."
+    },
+    {
+      "id": "hostile-missing-required-member",
+      "mode": "invalid",
+      "code": "missing-field",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "note": "The `claims` member is absent."
+    },
+    {
+      "id": "hostile-duplicate-obligation-id",
+      "mode": "invalid",
+      "code": "duplicate-obligation",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "note": "Two rows carry the same requirement ID."
+    },
+    {
+      "id": "hostile-invalid-obligation-id",
+      "mode": "invalid",
+      "code": "invalid-obligation-id",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"conf-2\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "note": "A requirement ID outside `^[A-Z][A-Z0-9-]{2,31}-[0-9]{3}$`."
+    },
+    {
+      "id": "hostile-malformed-hunk-reference",
+      "mode": "invalid",
+      "code": "invalid-reference-id",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[{\"blobOid\":\"9795c6366c9030f796f1c4bd191c870383072e70\",\"extractor\":\"corvint-test-claim/1\",\"id\":\"claim:sha256:d97d2bce0f5fd38c4ae3334ed4798f6d76df85bc5d3f4778b9a2f12aaa9c8e27\",\"path\":\"tests/claims_test.go\",\"selector\":\"test:TestClaimA/case:conf-v0\",\"span\":{\"end\":113,\"start\":102},\"spanSha256\":\"02c0549a35247b922f59a2af2e399c5241d4836c4effef5e184ca2c17f5caecf\"}],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[\"claim:sha256:d97d2bce0f5fd38c4ae3334ed4798f6d76df85bc5d3f4778b9a2f12aaa9c8e27\"],\"disposition\":\"linked\",\"hunkIds\":[\"hunk:1\"],\"id\":\"CONF-V0-001\",\"reason\":\"change-and-test-linked\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"no-test-claim\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "note": "A hunk reference that is not `hunk:sha256:<64 hex>`."
+    },
+    {
+      "id": "hostile-fabricated-claim-id",
+      "mode": "invalid",
+      "code": "fabricated-claim-id",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[{\"blobOid\":\"9795c6366c9030f796f1c4bd191c870383072e70\",\"extractor\":\"corvint-test-claim/1\",\"id\":\"claim:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"path\":\"tests/claims_test.go\",\"selector\":\"test:TestClaimA/case:conf-v0\",\"span\":{\"end\":113,\"start\":102},\"spanSha256\":\"02c0549a35247b922f59a2af2e399c5241d4836c4effef5e184ca2c17f5caecf\"}],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[\"claim:sha256:0000000000000000000000000000000000000000000000000000000000000000\"],\"disposition\":\"linked\",\"hunkIds\":[\"hunk:sha256:738ba86a2b6b17e1ff23e01f90183de27727120f3ebe0e88f722013ac4f76411\"],\"id\":\"CONF-V0-001\",\"reason\":\"change-and-test-linked\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"no-test-claim\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "note": "The claim ID (and its reference) is well-formed but is not the SHA-256 of the claim's canonical content."
+    },
+    {
+      "id": "hostile-unsorted-claims",
+      "mode": "invalid",
+      "code": "duplicate-or-unsorted-claims",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[{\"blobOid\":\"9795c6366c9030f796f1c4bd191c870383072e70\",\"extractor\":\"corvint-test-claim/1\",\"id\":\"claim:sha256:d97d2bce0f5fd38c4ae3334ed4798f6d76df85bc5d3f4778b9a2f12aaa9c8e27\",\"path\":\"tests/claims_test.go\",\"selector\":\"test:TestClaimA/case:conf-v0\",\"span\":{\"end\":113,\"start\":102},\"spanSha256\":\"02c0549a35247b922f59a2af2e399c5241d4836c4effef5e184ca2c17f5caecf\"},{\"blobOid\":\"9795c6366c9030f796f1c4bd191c870383072e70\",\"extractor\":\"corvint-test-claim/1\",\"id\":\"claim:sha256:491151259b1adc2aab6e59b61aca5dd0ee7211aac7da8caff708f865cb5bb3a3\",\"path\":\"tests/claims_test.go\",\"selector\":\"test:TestClaimB/case:conf-v0\",\"span\":{\"end\":200,\"start\":189},\"spanSha256\":\"d62832c44fef26ac30ac2bf1b480221c29f2192faca115a971f25948f4a8e8c0\"}],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[\"claim:sha256:d97d2bce0f5fd38c4ae3334ed4798f6d76df85bc5d3f4778b9a2f12aaa9c8e27\"],\"disposition\":\"linked\",\"hunkIds\":[\"hunk:sha256:738ba86a2b6b17e1ff23e01f90183de27727120f3ebe0e88f722013ac4f76411\"],\"id\":\"CONF-V0-001\",\"reason\":\"change-and-test-linked\"},{\"claimIds\":[\"claim:sha256:491151259b1adc2aab6e59b61aca5dd0ee7211aac7da8caff708f865cb5bb3a3\"],\"disposition\":\"linked\",\"hunkIds\":[\"hunk:sha256:738ba86a2b6b17e1ff23e01f90183de27727120f3ebe0e88f722013ac4f76411\"],\"id\":\"CONF-V0-002\",\"reason\":\"change-and-test-linked\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "note": "Two well-formed claims in descending ID order."
+    },
+    {
+      "id": "hostile-invalid-target-revision",
+      "mode": "invalid",
+      "code": "invalid-target-revision",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204\"}\n",
+      "note": "An abbreviated target revision; the wire requires a full commit OID."
+    },
+    {
+      "id": "hostile-invalid-cem-digest",
+      "mode": "invalid",
+      "code": "invalid-cem-digest",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdf\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "note": "A CEM binding digest that is not 64 lowercase hex."
+    },
+    {
+      "id": "hostile-empty-intent-span",
+      "mode": "invalid",
+      "code": "invalid-span",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":10,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "note": "An intent span whose end equals its start."
+    },
+    {
+      "id": "hostile-oversize-map",
+      "mode": "oversize",
+      "code": "ocm-cli-error",
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "note": "The prepared map padded with trailing spaces to 1 MiB + 1 bytes. The size bound refuses it before any parse; the message names the byte limit."
+    },
+    {
+      "id": "hostile-too-many-obligations",
+      "mode": "count",
+      "code": "invalid-obligations",
+      "obligations": 257,
+      "raw": "{\"cem\":{\"mapSha256\":\"59406bdfbff798b1678da518aa963b429f15b417bf9ba140339177a2cd6dc166\",\"patchSha256\":\"fe4b57536357c036442298fbd12ea1416f1071b9e188920739b352fb899624cb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"7a6b4b47b849e3183fc62c18dcf54ffc52f8b57d\",\"path\":\"docs/intent.md\",\"span\":{\"end\":154,\"start\":10},\"spanSha256\":\"ec95b184f5ce9cd7c32f0369733f9e2d0d7d30a62c0fed2986ca7bd8e9bceb24\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-001\",\"reason\":\"unassessed\"},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"CONF-V0-002\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"142f204a79faf621446535f5da4eb347cfa4a84c\"}\n",
+      "note": "257 canonical unknown rows, one past the 256-row bound."
+    }
+  ]
+}
