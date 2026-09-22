@@ -449,6 +449,31 @@ it must read, each with the relation that admitted it, without naming the task's
   preregistration: `docs/plans/context-frame-relation-2026-09-05.md`. Rollback: unset
   the flag or remove the frame pass; default and frozen wires remain unchanged.
 
+- `TCP-V0-022`: (proposed 2026-09-22, not accepted; experimental; decision 0333) With
+  `CORVINT_CONTEXT_ANCHORS=on`, the task's repository anchors are a fourth lexical field matched
+  verbatim. An anchor is a literal of 4 to 256 bytes carrying at least one ASCII word run of
+  three bytes, taken from the task text (TCP-V0-019's decoded string values when the task is
+  valid JSON) by five classes tried in order, each consuming its spans before the next: `error`
+  (a double-quoted string, quotes stripped), `url` (`scheme://` up to whitespace or a closing
+  delimiter), `frame` (`path.ext:line`), `enum` (`Scope::Value`, one or more `::`), `config`
+  (a lowercase dotted key that is not a bare file name with a code, Markdown or data suffix).
+  Anchors keep text order, drop duplicate literals and stop at sixteen. A source carries an
+  anchor when the bytes occur in its bounded body (TCP-V0-014's size bound) with neither
+  word-shaped edge extended by a word byte; the candidates are the intersection of the `Words`
+  postings of the anchor's word runs, and an anchor with more than 512 candidates contributes
+  nothing. A carrying source is credited like a body term: idf from the number of carrying
+  sources, tf the occurrence count, the same k1 and b, tripled under TCP-V0-019's exact weight.
+  The credit lives inside the lexical slot: the row keeps kind `lexical` (or `documentation`),
+  score 300 and authority `vocabulary`, its reason is prefixed `anchor: ` + "`literal` xN" +
+  ` verbatim; `, and it can never precede a reserved TCP-V0-008/TCP-V0-009 row. No index,
+  snapshot or pack change; an unset or other value preserves the existing packet bytes.
+  Falsifier (not yet run: the frozen `agent_retrieval_bench` corpus is not on the build host):
+  a registered `tools/retrieval-bench` run on `v2_code2test` and `v2_trace2code` with the flag
+  unset and `on` must lose at most 0.01 recall@5 on every fold and must report the
+  anchor-bearing samples as their own subset; promotion additionally requires decision 0070's
+  paired ladder. Rollback: unset the flag or remove the anchor field; the default wire never
+  changed.
+
 ## Non-goals and authority
 
 Forward imports of the subject, cross-directory definition-to-reference edges, and re-export
@@ -465,7 +490,10 @@ option to TCP-V0-002 and no byte budget; `budget_shortage` reports slot and work
 Markdown stays the only documentation kind `documentKind` classifies as `instructions`, `decision`,
 or `spec`, so only a Markdown file can own a `TCP-V0-008` governing row or a `TCP-V0-009`
 definition-owner row; widening to another documentation suffix is decision
-`0087-non-markdown-authority-2026-09-11.md`'s to make, not this packet's.
+`0087-non-markdown-authority-2026-09-11.md`'s to make, not this packet's. TCP-V0-022 adds no
+anchor table to the index, snapshot or pack and no packet member; its five anchor shapes are fixed,
+not a grammar per language, and the bench's separate anchor-bearing subset is
+`tools/retrieval-bench`'s to add, not this packet's.
 
 ## Failure modes
 
@@ -505,6 +533,11 @@ definition-owner row; widening to another documentation suffix is decision
   importers, and neither says why; absence is not evidence of absence (invariant 2). A Go
   reference inside the definer's own package has no import edge and ranks by whole-word count
   only.
+- (TCP-V0-022) An anchor whose word runs are all under three bytes, or whose candidate
+  intersection exceeds 512 sources, is not verified and contributes nothing, and the packet does
+  not say so: the anchor field is a credit inside the lexical slot, not a relation, so a missing
+  anchor row is not evidence that the literal is absent (invariant 2). A quoted prose fragment is
+  an `error` anchor by shape; it rarely occurs verbatim and then only adds lexical credit.
 
 ## Acceptance evidence
 
@@ -528,6 +561,9 @@ proposed: the order of each mode, excluded paths absent, the typed refusal, a re
 byte-identical run).
 `internal/contextindex/ranking_regression_test.go` (recipe R, TCP-V0-018: the default path against
 its 2a76e40 golden and one ordering fixture per mechanism).
+`internal/contextindex/context_anchors_test.go` (TCP-V0-022, proposed: one table row per anchor
+class carried verbatim and not by its split tokens, the extraction bounds and whole-anchor rule,
+the `anchor:` reason behind the governing row, default bytes unchanged).
 
 ## Rollback
 
@@ -536,6 +572,9 @@ Delete the two source files, their tests, the help topic, and the dispatch line 
 depends on this packet. TCP-V0-017's lookups roll back alone: delete
 `internal/contextindex/lookup.go`, `cmd/corvint/context_lookup.go`, their tests, the lookup
 dispatch block in `cmd/corvint/main.go`, and the help suffix in `cmd/corvint/help.go`.
+TCP-V0-022 rolls back alone: delete `internal/contextindex/context_anchors.go` and its test, the
+`anchors` fields and the anchor loop in `lexicalHits`, and the `field >= 2` widening in
+`queryTermGain`; the default wire never changed.
 
 ## Traceability
 
@@ -562,3 +601,4 @@ dispatch block in `cmd/corvint/main.go`, and the help suffix in `cmd/corvint/hel
 | TCP-V0-019 | `configureContextTerms`, `contextQueryValues`, `selectContextTerms`, `queryTermGain`, `lexicalHits` | `TestContextIdentifierTermsValuesAndWeights`, `TestContextIdentifierTermsProseAndMalformedFallback`, `TestContextIdentifierTermsExactOutranksParts`, `TestContextIdentifierTermsDefaultBytes` |
 | TCP-V0-021 (accepted measurement) | `registerBeforeRun`, `prepareSnapshotSample`, `validateSnapshotPair`, `runTaskContext`, `ownProcessGroup` | `TestRegistrationOutputAliasesRefuseBeforeRetrievalOrWrites`, `TestRegistrationOutputAllowsDistinctFiles`, `TestSnapshotLatencyReusesCopiesAndRegistersBeforeRetrieval`, `TestSnapshotLatencyRestoresHiddenSnapshotOnCancellation`, `TestSnapshotLatencyRefusesUnknownOrDifferentRanking`, `TestBenchRejectsDirtySampleBeforeNextRetrieval`, `TestSnapshotIndexCancellationLeavesNoDescendant`, `TestBenchSnapshotTraceObservesHitWithoutChangingPacket` |
 | TCP-V0-020 | `frameRelationRows`, `namedTestFrames`, `frameCandidates`, `creditFrameIdentifiers` | `TestFrameRelationSignals`, `TestFrameRelationOrderingAndCoverage`, `TestFrameRelationScopeAndDeterminism` |
+| TCP-V0-022 | `configureContextAnchors`, `taskAnchors`, `anchorCandidates`, `countAnchor`, `anchorOccurrences`, `anchorReason`, `lexicalHits`, `queryTermGain` | `TestContextAnchorClassesMatchVerbatim`, `TestContextAnchorsExtractionBounds`, `TestContextAnchorsExplainAndNeverOutrankAuthority`, `TestContextAnchorsDefaultBytes` |

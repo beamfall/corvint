@@ -1822,3 +1822,34 @@ The known gap is not relabeled unassessed. The new source invalidates target-bou
 prior passes remain historical and mandatory checks must bind the replacement candidate. The
 optional companion is omitted under decision 0331 because its separate installed browser stage
 reached its three-minute timeout; that failure's root cause remains UNKNOWN.
+
+## 2026-09-22 context-repository-anchors: TCP-V0-022 opt-in verbatim anchor field (V1-0084, decision 0333)
+
+Contract: with `CORVINT_CONTEXT_ANCHORS=on`, five fixed anchor classes (quoted error string,
+URL, `Scope::Value` enum, dotted config key, `file.ext:line` frame) are extracted from the task
+and verified verbatim under a whole-anchor edge rule against the bounded bodies of the sources
+whose `Words` postings share every word run of the anchor. Credit is the body-term BM25 form
+inside the lexical slot; the reason carries the distinct prefix `anchor: `literal` xN verbatim; `;
+the row keeps score 300 and authority `vocabulary`, so reserved authority rows always precede it.
+Bounds: 4 to 256 bytes per literal, 16 anchors per task, 512 candidates per anchor (abstain
+beyond). No index, snapshot or pack change; unset or other flag values keep the packet bytes
+(`TestContextAnchorsDefaultBytes` against the recipe golden).
+
+Decision: opt-in rather than default, the TCP-V0-019 shape, because the promotion evidence cannot
+be produced on this host. Decision number: 0321 was assigned but already names the work-queue
+adoption record on `main`; 0333 is used.
+
+Evaluation: NOT_RUN. The frozen retrieval evaluation is `tools/retrieval-bench` over the external
+`agent_retrieval_bench` releases (`benchmark/v2_*/…jsonl`, `corpus/v2_*`); neither directory is
+present on the build host, so no flag-off/flag-on numbers exist. The bench also has no
+anchor-bearing sample subset, so "anchor-bearing queries measured separately" needs a bench change
+outside this ticket's ownership. The acceptance criterion is open, not met.
+
+Gates: `go test ./internal/contextindex/ ./internal/specindex/`, `go vet`, gofmt, and the spec,
+requirement, traceability, decision-number and line-citation checks; results in the ticket
+report.
+
+Audit review (IDX-SNAP-V0-017): the change adds `context_anchors.go` and edits `taskcontext.go`
+and `context_terms.go` on the query side only; no extraction, fact or pack encoding changes, so
+`analyzerSchemaID` stays `corvint-analyzer/73` and only the `TestAnalyzerSchemaInputs` source
+digest is refreshed.
