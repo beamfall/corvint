@@ -32,7 +32,7 @@ try {
   const response = await page.goto(`http://${address}/roadmap`, { waitUntil: "networkidle", timeout: 30_000 });
   if (!response?.ok()) throw new Error(`roadmap HTTP ${response?.status()}`);
   const body = await page.locator("body").innerText();
-  const links = await page.locator('table a[href^="/ticket?id="]').count();
+  const links = await page.locator('.roadmap-ticket a[href^="/ticket?id="]').count();
   if (links !== 11) throw new Error(`roadmap rendered ${links} planning tickets, expected 11: ${body.slice(0, 2000)}`);
   for (const text of ["Finish the smallest installed core / ticket / console path", "Qualify and prepare the public release", "M0", "M4", "read by", "ticket:corvint:planning:IPR-10"]) {
     if (!body.includes(text)) throw new Error(`roadmap lacks ${JSON.stringify(text)}`);
@@ -99,10 +99,10 @@ async function coreProof() {
     const version = coreBrowser.version(); const executableSHA = await fileSHA(executable);
     const page = await coreBrowser.newPage();
     const response = await page.goto(`http://${address}/roadmap`, { waitUntil: 'networkidle', timeout: 30000 }); assert(response?.ok(), 'real browser roadmap failed');
-    const body = await page.locator('body').innerText(); const tickets = await page.locator('table a[href^="/ticket?id="]').count(); const forms = await page.locator('form').count();
-    assert(tickets === 11 && forms === 0, 'roadmap inventory/forms differ');
+    const body = await page.locator('body').innerText(); const tickets = await page.locator('.roadmap-ticket a[href^="/ticket?id="]').count(); const forms = await page.locator('form').count();
+    assert(tickets === 11 && forms === 0, `roadmap inventory/forms differ: tickets=${tickets}, forms=${forms}`);
     for (const text of ['Finish the smallest installed core / ticket / console path', 'Qualify and prepare the public release', 'M0', 'M4', 'read by', 'ticket:corvint:planning:IPR-10']) assert(body.includes(text), 'roadmap missing expected planning evidence');
-    await page.locator('table a[href^="/ticket?id="]').first().click(); assert((await page.locator('body').innerText()).includes('IPR-'), 'real ticket detail missing');
+    await page.locator('.roadmap-ticket a[href^="/ticket?id="]').first().click(); assert((await page.locator('body').innerText()).includes('IPR-'), 'real ticket detail missing');
     const evidenceResponse = await page.goto(`http://${address}/evidence`); assert(evidenceResponse?.ok(), 'real evidence page unavailable');
     async function refusal(headers, token) {
       const payload = new URLSearchParams({ verb: 'ticket-set-title', ...(token === undefined ? {} : { token }) }).toString();

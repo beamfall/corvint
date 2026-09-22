@@ -1273,3 +1273,14 @@ explicit override, descendant cleanup, and successful FALLBACK preservation rema
 Independent review found no blocker. A subsequent dirty-worktree invocation still exceeded the
 ceiling, so this repair makes no universal latency or absence-of-timeout claim. Query deadlines,
 fault visibility and legitimate evidence degradations are unchanged.
+
+### 2026-09-22 — installed roadmap proof followed obsolete table markup
+
+Installed candidate `1ed0e673` passed the corrected planning seed, then failed its roadmap browser
+inventory assertion. The retained console at the original fixture location renders eleven unique
+ticket links and no forms, inside roadmap cards; the proof still searched for table links. Update
+only the three selectors to the existing roadmap-ticket container, preserving count, detail,
+Origin/Host/session refusal, state-preservation and cleanup assertions. A diagnostic copy of the
+Tasks store correctly refused relocation and was discarded as qualification evidence. Browser
+diagnostic attempts were interrupted and remain failed; HTTP inspection establishes this selector
+defect but does not replace the required complete installed browser qualification.
