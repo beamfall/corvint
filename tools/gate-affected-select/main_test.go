@@ -135,6 +135,25 @@ func TestSelectPackagesLinksRootModuleLiteral(t *testing.T) {
 	}
 }
 
+// V1-0059: a path token held only by a package's `_test.go` file still makes
+// that package a direct reader of a dirty path naming it, but must not widen
+// the closure to that package's own importers: a test file is never
+// imported, so nothing reaches `importer` through `holder`'s test literal.
+func TestSelectPackagesStopsClosureAtTestOnlyTokenHolder(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"target/target.go":      "package target\n",
+		"holder/holder_test.go": "package holder\n\nvar ref = \"target\"\n",
+		"importer/importer.go":  "package importer\n\nimport _ \"example.com/fixture/holder\"\n",
+	})
+	var plan receipt
+	plan.Provider.Go.State = "RUNNABLE"
+	plan.Plan.Dirty = []string{"target/gone.go"}
+	const want = "run example.com/fixture/holder example.com/fixture/target"
+	if got := verdict(plan, root); got != want {
+		t.Fatalf("verdict = %q, want %q", got, want)
+	}
+}
+
 // AFP-V0-012 (b): `//go:embed` may reach into a subdirectory that is its own
 // package, so a data path there must reach the embedding ancestor's dependents.
 func TestSelectPackagesReachesEmbeddingAncestorDependents(t *testing.T) {

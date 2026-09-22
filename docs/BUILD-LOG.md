@@ -2071,3 +2071,61 @@ owner Markdown lacked an Agent digest (`unsupported-documentation-source`), a vi
 refusal, not a transport failure. The provider was a transport fixture, not model evidence; the
 owner's original failing machine and configuration remain UNKNOWN, and no FULL host authority is
 claimed. Raw frames and receipts are retained under the session scratchpad `opencode-v1-0022/`.
+## 2026-09-22 gate-affected floor and dogfood rg dependency: V1-0059, V1-0081, V1-0038, V1-0031
+
+V1-0059: `link()` in `tools/gate-affected-select/readers.go` wired a string literal naming a
+package directory as an importer edge whether or not the literal sat in a `_test.go` file. A test
+file is never imported, so its holder's importers can never legitimately be reached through it.
+`link()` now sources that componentRuns edge from a new `nonTestHolders` index (test-only literals
+excluded) while the special root-module literal `"/"` case keeps using every holder, since
+`componentRuns("/")` has no fallback and narrowing it silently drops the holder rather than just
+its closure. New fixture `TestSelectPackagesStopsClosureAtTestOnlyTokenHolder` in `main_test.go`
+pins the behavior. Measured at commit `3f30a02`: global `-unresolved` floor 130 → 125 packages (net
+5 fewer: `cmd/corvint-analyzer-python`, `conformance/frontier-v0`, `internal/dogfoodocm`,
+`internal/frontiernextrepo`, `benchmarks/selfuse-batch`, all previously unresolved only via a
+test-file literal falsely propagating `cmd/corvint`'s unresolved status to its dependents).
+
+V1-0081: with the V1-0059 fix applied, a one-package dirty-path selection
+(`cmd/corvint/go_only_cutover_test.go`) narrowed from 143 to 139 of 218 total packages (65.6% →
+63.8%), still far short of "well under half." Root cause: of the 125 packages left in the
+`-unresolved` floor, 96 (44% of the whole module) self-locate directly — they call `os.Getwd` /
+`runtime.Caller` or carry an escaping literal in their own non-test source — and are correctly
+fail-closed under rule (d); only 29 are propagated through the importer/dependents graph, the only
+part lever (3) can touch from inside `tools/gate-affected-select`. Lever (1) (a shared bounded
+root-location helper) is out of ownership. Lever (2) (drop `-p 1` in `script/gate-affected.sh` when
+the union is wide) was considered and rejected: `AGENTS.md` documents `cmd/corvint` panicking under
+concurrent load at its current ~591s serial runtime, and `cmd/corvint` is selected in nearly every
+plan, so removing serial package execution risks reintroducing that instability for a speed gain
+that does not move the selection-count AC. Disposition: PARTIAL — lever (3) applied and measured
+(130→125 unresolved, 143→139 one-package selection), AC unreachable within ownership because 96/218
+packages self-locate directly in source outside `tools/gate-affected-select`.
+
+V1-0038: `cmd/corvint/dogfood_record.go`'s `os.Getwd()` (line 40) is not the only reason `cmd/corvint`
+is unresolved. `grep -rln 'os\.Getwd\|runtime\.Caller' cmd/corvint/*.go | grep -v _test.go` lists 16
+files with real, independent calls (`dogfood_record.go`, `frontier.go`, `host_adapter.go`,
+`local_completion.go`, `pi_adapter.go`, `eval.go`, `init_adopt.go`, `pi_tools.go`, `lrf.go`,
+`migrate_traces.go`, `main.go`, `ocm.go`, `work.go`, `record.go`, `source_handoff.go`, `witness.go`).
+Bounding only `dogfood_record.go`'s read cannot make `cmd/corvint` leave `-unresolved`; the other 15
+files keep the package fail-closed regardless. Swapping `os.Getwd()` for the lexically-unflagged
+`filepath.Abs("")` (the pattern `resolveExplicitRoot`/`normalizeRoot` already use in `main.go`) was
+rejected as gaming the detector rather than genuinely bounding the read. Disposition: NOT DONE; the
+stated AC needs a coordinated pass over all 16 files, out of this ticket's single-file scope.
+
+V1-0031: `script/dogfood-check.sh`, `script/dogfood-change.sh`, `script/dogfood-bind-range_test.sh`,
+and `script/dogfood-change_test.sh` (89 call sites total, not only the two files the ticket named)
+call `rg` with no preflight; a host without it got a bare "command not found" partway through a run.
+Each of the four now fails closed immediately after its `set` line with `REFUSE
+unsupported-environment-missing-rg` when `rg` is absent from `PATH`, verified by running all four
+with `rg` stripped from `PATH` (each refuses at exit 1 before any Git or build work starts) and
+unchanged (`dogfood-bind-range_test.sh`, `dogfood-change_test.sh` both still exit 0) with `rg`
+present. `docs/DOGFOOD.md` §4 now names `rg` as a prerequisite for `dogfood-change`/`dogfood-check`.
+Disposition: DONE.
+
+Gates run: `gofmt -l tools/gate-affected-select cmd/corvint/dogfood_record.go` (clean); `go vet
+./tools/gate-affected-select/... ./cmd/corvint/...` (clean); `go test -count=1
+./tools/gate-affected-select/...` (pass, includes the new fixture); `bash -n` on all four edited
+scripts (clean); `shellcheck -S warning` on all four (clean); `script/dogfood-bind-range_test.sh`
+and `script/dogfood-change_test.sh` full runs (both exit 0); `make spec-requirements-check
+requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check`
+(pass, no published-contract change). No `cmd/corvint/*.go` file was edited, so its own suite was
+not rerun.

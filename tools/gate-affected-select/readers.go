@@ -49,15 +49,16 @@ type goPackage struct {
 }
 
 type repositoryIndex struct {
-	module    string
-	packages  map[string]*goPackage // by repository-relative directory, "" for the root
-	nested    []string              // directories holding a nested go.mod
-	holders   map[string][]string   // path token -> directories whose files carry it
-	importers map[string][]string   // directory -> directories importing or naming it
+	module         string
+	packages       map[string]*goPackage // by repository-relative directory, "" for the root
+	nested         []string              // directories holding a nested go.mod
+	holders        map[string][]string   // path token -> directories whose files carry it
+	nonTestHolders map[string][]string   // path token -> directories whose non-test files carry it
+	importers      map[string][]string   // directory -> directories importing or naming it
 }
 
 func indexRepository(root, module string) (*repositoryIndex, error) {
-	index := &repositoryIndex{module: module, packages: map[string]*goPackage{}, holders: map[string][]string{}, importers: map[string][]string{}}
+	index := &repositoryIndex{module: module, packages: map[string]*goPackage{}, holders: map[string][]string{}, nonTestHolders: map[string][]string{}, importers: map[string][]string{}}
 	imports := map[string]map[string]bool{}
 	entries := 0
 	err := filepath.WalkDir(root, func(name string, entry fs.DirEntry, err error) error {
@@ -147,6 +148,9 @@ func (index *repositoryIndex) scanFile(root, relative string, expected fs.FileIn
 	for _, literal := range scan.literals {
 		for _, value := range pathTokens(literal, index.module) {
 			index.holders[value] = appendOnce(index.holders[value], directory)
+			if !test {
+				index.nonTestHolders[value] = appendOnce(index.nonTestHolders[value], directory)
+			}
 			if reason := escapesPackage(directory, value, test); reason != "" {
 				pkg.markUnresolved(relative+" "+reason, test)
 			}
@@ -341,9 +345,20 @@ func appendOnce(values []string, value string) []string {
 	return append(values, value)
 }
 
-// link records each package's importers: a module import, or a path token
-// whose component run names another package directory (a test that builds
-// `./cmd/corvint` depends on that package as surely as an importer does).
+// link records each package's importers: a module import, a root-module
+// literal, or a path token whose component run names another package
+// directory (a non-test file that builds `./cmd/corvint` depends on that
+// package as surely as an importer does). A component-run token held only by
+// a package's `_test.go` files is excluded from that last source: a test
+// file is never imported, so nothing reaches that package's own importers
+// through it. readers() and resolvingReaders() still see every holder, test
+// or not, and a component-run token that names a package directory is also a
+// literal readers() can match against a dirty path in that same directory,
+// so a package whose test merely names a dirty path remains selected
+// directly; only the further closure through its own importers is what a
+// test-only token can no longer justify (V1-0059). The root-module literal
+// ("/") has no such componentRuns fallback in readers(), so it keeps using
+// every holder, test files included.
 func (index *repositoryIndex) link(imports map[string]map[string]bool) {
 	for directory, set := range imports {
 		for value := range set {
@@ -352,13 +367,13 @@ func (index *repositoryIndex) link(imports map[string]map[string]bool) {
 			}
 		}
 	}
-	for value, directories := range index.holders {
+	for _, directory := range index.holders["/"] {
+		if directory != "" {
+			index.importers[""] = append(index.importers[""], directory)
+		}
+	}
+	for value, directories := range index.nonTestHolders {
 		if value == "/" {
-			for _, directory := range directories {
-				if directory != "" {
-					index.importers[""] = append(index.importers[""], directory)
-				}
-			}
 			continue
 		}
 		for _, run := range componentRuns(value) {
