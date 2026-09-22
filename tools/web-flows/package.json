@@ -1,0 +1,8 @@
+{
+  "name": "corvint-web-flows-experimental",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "dependencies": { "playwright": "1.63.0", "typescript": "5.9.3" }
+}

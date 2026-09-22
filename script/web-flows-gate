@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+repo=$(cd "$(dirname "$0")/.." && pwd)
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/corvint-web-flows-gate.XXXXXX")
+runner=
+cleanup() {
+  if [[ -n "$runner" ]]; then
+    kill -TERM "$runner" 2>/dev/null || :
+    wait "$runner" 2>/dev/null || :
+  fi
+  rm -rf "$scratch"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+cd "$repo"
+export GOTOOLCHAIN=local GOCACHE=${GOCACHE:-/tmp/corvint-go-build-cache}
+go build -o "$scratch/corvint" ./cmd/corvint
+go build -o "$scratch/corvint-web-flows" ./cmd/corvint-web-flows
+node --test tools/web-flows/test/scan.test.mjs tools/web-flows/test/lifecycle.test.mjs
+export CORVINT_CORE_BIN="$scratch/corvint" CORVINT_FLOW_BIN="$scratch/corvint-web-flows"
+node tools/web-flows/test/e2e.mjs &
+runner=$!
+wait "$runner"
+runner=

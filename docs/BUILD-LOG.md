@@ -4,6 +4,48 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-22 AFU-V0-001..AFU-V0-012: experimental web flow understanding
+
+The owner requested application-flow understanding, test-gap mapping and runtime confirmation, then
+selected a safe web application and authorized implementation. The proposed AFU-V0 contract remains
+experimental: pure `flows` reports compose immutable declared input, literal Playwright assertion
+candidates and optional guided Chromium observations. `flows record` exclusively writes screened
+caller-owned evidence. The separate companion installs no default runtime dependency and performs
+no automatic intent acceptance, ranking change, production crawling or complete-flow claim.
+
+The early end-to-end evaluation found the unchecked-save and missing-viewer-test gaps, discovered
+eight structural controls and two test journeys in each healthy fixture, and detected both seeded
+backend defects. A client cache deliberately hid failed persistence from reload; the independent
+backend probe still contradicted it. A renamed-control/route variant, wrong served identity,
+source drift, source-only scanning, private recording and HTTP/WebSocket sentinels passed. General
+application accuracy, blinded discovery precision/recall, billed tokens and complete-command savings
+remain NOT_OBSERVED. Raw task receipts are retained in the private task evidence directory
+`/private/tmp/corvint-application-flows-20260922`; final exact-source checks belong to keyed dogfood
+observations, rather than being asserted by this preliminary entry.
+
+Independent plan review required a fresh owned-server nonce and frontend/backend/fixture identity.
+The first browser attempt exposed incorrect Git executable/working-directory handling; the next
+exposed that procgroup deliberately refuses its broader descendant-qualification profile. Both
+failed evaluations were retained. The reviewed boundary instead requires non-PARTIAL owned-group
+cleanup, completed browser close and observed server exit, with escaped daemon descendants and
+non-HTTP transports explicitly unqualified. Final review found concurrent shutdown and ambiguous
+route/role evidence; shared cleanup joins pending launches/repeated signals, conflicting route roles
+are refused, and role identity stays caller-declared-unverified. The reviewer accepted both repairs;
+real Chromium SIGINT/SIGTERM regressions observed all captured descendants retired.
+The frozen repository gate then exposed missing root-help inventory and option-like `--root`
+handling in the new dispatcher. The repair adds the command listing and reuses the shared root-value
+classifier, checked by the existing all-command regressions. An earlier gate attempt hit Git-reader
+timeouts; both the isolated cases and their full package subsequently passed unchanged. Failed
+attempts remain in the private evidence; source and CEM are rebound before the next frozen gate.
+
+Corvint self-use: pre-change query and initial dogfood attempt used; the initial no-diff/missing-intent
+refusals remain visible. `affected` selected the new core and CLI with the full gate still mandatory.
+Nonmutating `prove` retained UNPROVEN with twelve citation checks passing and mutation checks NOT_RUN.
+The optional flow route was exercised through real compiled binaries in disposable repositories.
+Mutation, retrieval experiments, documentation generation, native-host qualification and service
+routes are not applicable to this slice; none is counted as adoption or qualification. Bootstrap
+intent and partial requirement coverage retain their actual CEM/OCM dispositions. No promotion.
+
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
