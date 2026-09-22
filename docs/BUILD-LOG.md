@@ -2049,3 +2049,25 @@ assertion in `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths`, and the 
 STATIC_ONLY; no frozen evaluation fits (the CEP §3 gate is an unrun 30-task three-cycle trial).
 The plugin version stays 0.2.2 because `integrations/host-adapters.test.mjs` binds it to the
 shared compatibility matrix this change does not own.
+## 2026-09-22 opencode-mcp-verify: V1-0022 verified at HEAD with real OpenCode sessions
+
+The ticket's repair, the explicit `--protocol-version 2025-11-25` profile (`MCPV0-021..023`), was
+already on the public lineage before this batch; this entry records the verification of the
+current tree against freshly built `corvint-mcp`, `corvint-docs-mcp` and
+`corvint-test-validity-mcp`. Replaying the captured OpenCode `initialize` frame
+(`protocolVersion` `2025-11-25`, `capabilities.roots` `{}`, `clientInfo` opencode) without the
+selector still returns `{"code":-32601,"message":"Method not found"}`, the frame the owner report
+reduced to; with the selector it returns `protocolVersion` `2025-11-25`, `serverInfo` and the
+tools capability, then `tools/list` succeeds. Two installed clients, `/opt/homebrew/bin/opencode`
+reporting 1.18.31 and `~/.opencode/bin/opencode` reporting 1.17.18, each ran an isolated
+`opencode mcp list` (three servers `connected`) and a non-interactive `opencode run` session
+against a deterministic loopback provider under a native outbound-network sandbox. Each session
+completed `corvint.status`, `corvint.query`, `corvint.impact`, `corvint.test_validity`
+(`discover: true`, evidence absent, `UNSUPPORTED`) and `corvint.docs_draft`; every repository
+receipt pinned the fixture commit. Both clients send `notifications/cancelled` for every
+`tools/call` after its response; the server ignores them, now pinned by
+`TestMCPV0022LegacyCancelledAfterCompletionIsIgnored`. A first docs call refused a fixture whose
+owner Markdown lacked an Agent digest (`unsupported-documentation-source`), a visible tool
+refusal, not a transport failure. The provider was a transport fixture, not model evidence; the
+owner's original failing machine and configuration remain UNKNOWN, and no FULL host authority is
+claimed. Raw frames and receipts are retained under the session scratchpad `opencode-v1-0022/`.
