@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/dogfoodocm"
+	"github.com/Beamfall/corvint/internal/lrfrepo"
 )
 
 func parseDogfoodOCMInvocation(arguments []string) (string, []string, bool, error) {
@@ -49,6 +50,7 @@ func runDogfoodOCM(ctx context.Context, root string, arguments []string, stdout,
 		return 2
 	}
 	if _, err := fmt.Fprintf(stdout, "%s\n", encoded); err != nil {
+		emitOCMError(stderr, &lrfrepo.Error{Code: "output-failed", Message: "cannot write dogfood OCM output"})
 		return 2
 	}
 	return 0

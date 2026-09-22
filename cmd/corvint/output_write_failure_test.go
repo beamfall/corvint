@@ -85,3 +85,26 @@ func TestStdoutWriteFailureReportsOutputFailedNotBareExitOne(t *testing.T) {
 		})
 	}
 }
+
+// TestDogfoodOCMStdoutWriteFailureReportsOutputFailed covers the same bare
+// `return 2` in runDogfoodOCM: a failed success-path stdout write must emit
+// the output-failed envelope that ocm.go's emitOCMEnvelope emits.
+func TestDogfoodOCMStdoutWriteFailureReportsOutputFailed(t *testing.T) {
+	t.Parallel()
+	fixture := newOCMReadFixture(t)
+	cemGit(t, fixture.root, "add", fixture.mapPath)
+	cemGit(t, fixture.root, "commit", "-qm", "CEM sidecar")
+	fixture.target = cemGit(t, fixture.root, "rev-parse", "HEAD")
+	writeOCM(t, fixture, ".corvint/change.ocm.001.json", false)
+	cemWrite(t, fixture.root, ".corvint/change.ocm-intents", "docs/intent.md\n")
+	arguments := []string{"--root", fixture.root, "dogfood-ocm", "status", "--expected-base", fixture.base, "--target", fixture.target}
+	if code, _, stderr := runCLI(t, arguments...); code != 0 {
+		t.Fatalf("baseline exit %d: %s", code, stderr)
+	}
+	var stdout stdoutBrokenPipeWriter
+	var stderr bytes.Buffer
+	code := runContext(context.Background(), arguments, strings.NewReader(""), &stdout, &stderr)
+	if code != 2 || !strings.Contains(stderr.String(), `"output-failed"`) {
+		t.Fatalf("exit %d, want 2 with output-failed: stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+	}
+}

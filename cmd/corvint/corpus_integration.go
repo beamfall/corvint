@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
 type corpusCapture struct{ bytes bytes.Buffer }
@@ -34,7 +35,7 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		if name != "--corpus" || !inline {
 			original = append(original, args[i])
 			// Native flags consume their next token; preserve it byte-for-byte.
-			if strings.HasPrefix(name, "--") && !inline && corpusNativeValueFlag(name) && i+1 < len(args) {
+			if strings.HasPrefix(name, "--") && !inline && corpusNativeValueFlag(name) && corpusNativeValueFollows(args, i) {
 				i++
 				original = append(original, args[i])
 			}
@@ -121,7 +122,10 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 	var captured corpusCapture
 	exit := runContext(ctx, original, stdin, &captured, stderr)
 	if exit != 0 {
-		_, _ = stdout.Write(captured.bytes.Bytes())
+		if _, err := stdout.Write(captured.bytes.Bytes()); err != nil {
+			emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write native output"})
+			return 2, true
+		}
 		return exit, true
 	}
 	var native map[string]json.RawMessage
@@ -238,6 +242,7 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 		return 2, true
 	}
 	if _, err := stdout.Write(output); err != nil {
+		emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write corpus output"})
 		return 2, true
 	}
 	return 0, true
@@ -252,6 +257,16 @@ func flagValue(args []string, name string) string {
 		}
 	}
 	return ""
+}
+
+// corpusNativeValueFollows mirrors the native parsers: `--root` refuses an option-like
+// value exactly as rootPreambleValue does, so `--root --corpus=FILE` is never swallowed as
+// the root value; every other native value flag preserves its next token byte-for-byte.
+func corpusNativeValueFollows(args []string, i int) bool {
+	if args[i] == "--root" {
+		return rootPreambleValue(args, i+1)
+	}
+	return i+1 < len(args)
 }
 
 func corpusNativeValueFlag(flag string) bool {

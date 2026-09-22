@@ -24,6 +24,7 @@ func main() {
 		Codes    json.RawMessage `json:"codes"`
 		Capture  string          `json:"capture"`
 		ChildPID string          `json:"childPID"`
+		Overlap  string          `json:"overlap"`
 	}
 	raw, err := os.ReadFile(os.Args[1])
 	if err != nil || json.Unmarshal(raw, &config) != nil {
@@ -86,6 +87,19 @@ func main() {
 		// instead of a generic exit-nonzero code.
 		_ = json.NewEncoder(os.Stderr).Encode(map[string]any{"code": "repository-unreadable", "error": "repository unreadable", "ok": false})
 		os.Exit(1)
+	}
+	if config.Mode == "unsupported-impact-path-suffix" {
+		_ = json.NewEncoder(os.Stderr).Encode(map[string]any{"code": "unsupported-impact-path-suffix", "error": "unsupported impact path suffix", "ok": false})
+		os.Exit(2)
+	}
+	if config.Mode == "delayed" {
+		lock := config.Overlap + ".lock"
+		if err := os.Mkdir(lock, 0700); err != nil {
+			_ = os.WriteFile(config.Overlap, []byte("overlap\n"), 0600)
+		} else {
+			defer os.Remove(lock)
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 	event := at("--event")
 	adapter := map[string]any{"adapterVersion": "0.1.0", "host": at("--host"), "hostVersion": at("--host-version"), "surface": at("--surface")}

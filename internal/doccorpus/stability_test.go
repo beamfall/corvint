@@ -129,11 +129,11 @@ func stabilityFixtureWithBehavior(t *testing.T, editBehavior func(*BehaviorRegis
 		{Scope: "feature-batch", RequiredRepetitions: 3, MinimumPassed: 3},
 		{Scope: "suite", RequiredRepetitions: 3, MinimumPassed: 3},
 	}}
-	policy.SHA256 = hashValue(policy)
+	policy.SHA256 = testHash(t, policy)
 	aggregate := StabilityAggregate{ID: "stability:summary:chromium", Scope: "one-spec", PolicyID: policy.ID, Planned: 3, TestID: provider.BehaviorContracts.Tests[0].ID, Project: provider.BehaviorContracts.Tests[0].Project, ContractID: provider.BehaviorContracts.ContractID, ContractSHA256: provider.BehaviorContracts.ContractSHA256}
 	for i, receipt := range receipts {
 		outcome := receipt.Tests[0]
-		identity := StabilityIdentity{ApplicationRevision: receipt.External.DeclaredAppIdentity, TestRevision: provider.BehaviorContracts.SourceRevision, ConfigSHA256: receipt.Identity.ConfigDigest, ContractSHA256: provider.BehaviorContracts.ContractSHA256, Runner: receipt.Identity.RunnerName, RunnerVersion: receipt.Identity.RunnerVersion, Browser: outcome.Project.Browser, Project: outcome.Project.Name, WorkerPolicy: "workers:1", RetryPolicy: "retries:0", EnvironmentClass: "local", EnvironmentSHA256: hashValue(receipt.Identity.Environment), FixtureSchema: "playwright-use", FixtureSHA256: Digest(outcome.Project.Use)}
+		identity := StabilityIdentity{ApplicationRevision: receipt.External.DeclaredAppIdentity, TestRevision: provider.BehaviorContracts.SourceRevision, ConfigSHA256: receipt.Identity.ConfigDigest, ContractSHA256: provider.BehaviorContracts.ContractSHA256, Runner: receipt.Identity.RunnerName, RunnerVersion: receipt.Identity.RunnerVersion, Browser: outcome.Project.Browser, Project: outcome.Project.Name, WorkerPolicy: "workers:1", RetryPolicy: "retries:0", EnvironmentClass: "local", EnvironmentSHA256: testHash(t, receipt.Identity.Environment), FixtureSchema: "playwright-use", FixtureSHA256: Digest(outcome.Project.Use)}
 		contribution := StabilityContribution{RunKind: "planned-repetition", Repetition: i + 1, Receipt: inputs[i], SourcePaths: map[string]string{"/repo/config.cjs": "src/value.go", "/repo/test.ts": "src/view.ts"}, Identity: identity, Topology: StabilityTopologyBinding{Evidence: anchor(topologyPaths[i], topologyBytes[i], "observed", "observed CI and Playwright run topology"), Value: observedTopologies[i]}, Cleanup: "passed", Attempts: []StabilityAttempt{}}
 		if receipt.Profile == jstestprovider.AttestedExternalProfile {
 			contribution.Identity.ApplicationRevision = provider.BehaviorContracts.SourceRevision
@@ -332,7 +332,7 @@ func TestPlaywrightStabilityTopologyBindings(t *testing.T) {
 		root, manifest := stabilityFixture(t, nil, func(registry *StabilityRegistry) {
 			registry.Policy.Topology.Value.CINodes++
 			registry.Policy.SHA256 = ""
-			registry.Policy.SHA256 = hashValue(registry.Policy)
+			registry.Policy.SHA256 = testHash(t, registry.Policy)
 		})
 		if _, err := Build(context.Background(), root, manifest); err == nil || !strings.Contains(err.Error(), "stability topology policy binding mismatch") {
 			t.Fatalf("unbound repository topology policy accepted: %v", err)

@@ -315,6 +315,32 @@ and container qualification; full fallback remains available.
   specified by TJAA-V0-015. The input MUST be re-read before emission; drift fails with
   `unsupported-affected-drift`. Corvint MUST NOT execute discovery or config.
 
+- `AFP-V0-019`: (proposed technical contract implementing owner-requested issue #57)
+  `affected --snapshot FILE` MUST admit only a closed `corvint-planning-snapshot/0`
+  receipt: `schema`, `commitRevision` (current HEAD commit), `treeRevision` (that
+  commit's complete source/configuration tree), `baseRevision` (existing commit),
+  `changedPaths` (sorted unique canonical repository paths equal to the complete
+  no-renames base-to-commit diff), and `changedPathsSha256` (lowercase SHA-256 of
+  canonical JSON of that array, without newline). Full lowercase Git object IDs
+  are required. Missing, null, duplicate, unknown, incomplete, stale or mismatched
+  inputs MUST fail closed; snapshot refusal is `unsupported-planning-snapshot`
+  with exit 2 and no partial stdout, never fallback to live files. A valid snapshot
+  MUST use immutable blobs for source and mandatory-check declarations, ignoring
+  unrelated dirty/untracked paths; HEAD MUST still match before output. The
+  optional `snapshot` output member MUST identify `IMMUTABLE_COMMITTED_SNAPSHOT`,
+  the exact receipt and `sourceConfigTree`, `worktree=NOT_EVIDENCE`,
+  `status=PLAN_ONLY`, and `accepting=false`. Inputs are authoritative only for
+  those Git bytes; test selection, exclusions and runtime coverage remain advice.
+  The existing output without `--snapshot` MUST remain unchanged. The Playwright
+  form remains non-accepting and retains missing-discovery full-suite fallback.
+  V0 MUST reject overlays, `--base`, external providers/discovery, symlink/gitlink
+  trees and incomplete materialization; it MUST NOT infer a working-tree digest.
+  Bounds are 512 KiB receipt, 4,096 changed paths, 8 MiB tree/diff output,
+  20,000 regular blobs, 64 MiB batch output, and bounded contained Git calls.
+  Private scratch MUST be outside the repository and removed on return/failure;
+  no index, checkout, filter, archive attribute, executable source or test runs.
+  Rollback removes this explicit opt-in route; existing fail-closed profiles stay.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -367,6 +393,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
 | AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active; `failure` path NOT_RUN on a real PR |
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |
+| AFP-V0-019 | `internal/plansnapshot`, `compileSnapshotAffected` | `TestSnapshotImmutableBytesAndCleanup`, `TestSnapshotRejectsIncompleteMismatchedAndStale`, `TestSnapshotStrictWire`, `TestSnapshotRejectsLinksAndIgnoresArchiveAttributes`, `TestAffectedSnapshotMatchesCommittedPlanAcrossDirtySources`, `TestAffectedSnapshotPlaywrightPinsConfigAndSource` |
 | AFP-V0-018 | `playwrightAffectedReceipt`, `compilePlaywrightAffected`, and `typescript.SelectPlaywright` | `TestAffectedPlaywrightProfileEmitsProjectDistinctUnits`, `TestAffectedPlaywrightArgumentsFailClosed`, and `internal/liveverify/affected/typescript/playwright_test.go` |
 | AFP-V0-009 | `affectedAdvice`, `compileAffectedAdvice`, `mandatoryAffectedChecks`, `advisoryAffectedChecks`, `shellQuoteJoin` in `cmd/corvint/affected.go` | `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`, `TestAffectedAdviceReportsNoDeclaredGate`, `TestAffectedAdviceKeepsMandatoryGateAndNeverAdvisesExclusions`, `TestAffectedReceiptMembersAreClosedAndByteStable` (tightened to assert `advice`'s raw JSON key order), `TestAffectedAdviceBoundsTheDeclarationRead`, `TestShellQuoteJoinEscapesMetacharacters`, `TestAffectedAdviceTruncatedMandatoryDeclarationSuppressesNoGate`, `TestAffectedAdviceCapsMandatoryChecksAtSixteen`, `TestAffectedAdviceSkipsCommentsInVerifyFence` |
 

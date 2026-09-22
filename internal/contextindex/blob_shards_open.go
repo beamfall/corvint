@@ -108,15 +108,22 @@ func publishBlobFactAt(directory *os.Root, name string, data []byte) error {
 		return err
 	}
 	defer directory.Remove(temporary)
-	defer file.Close()
-	if _, err := file.Write(data); err != nil {
-		return err
-	}
-	if err := file.Sync(); err != nil {
-		return err
-	}
-	if err := file.Close(); err != nil {
+	if err := writeAndClose(file, data); err != nil {
 		return err
 	}
 	return directory.Rename(temporary, name)
+}
+
+// writeAndClose closes the file exactly once: on the happy path after Sync, so
+// the close error is reported, and on a failed write or sync as cleanup.
+func writeAndClose(file *os.File, data []byte) error {
+	if _, err := file.Write(data); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		file.Close()
+		return err
+	}
+	return file.Close()
 }

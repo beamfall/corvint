@@ -64,6 +64,25 @@ type TestOutcome struct {
 	Artifacts      []FailureArtifact `json:"artifacts,omitempty"`
 }
 
+// BrowserStep is the bounded action trace retained by the redaction-capable
+// external profile. Values entered by input actions never cross this boundary.
+type BrowserStep struct {
+	Title       string            `json:"title"`
+	Category    string            `json:"category,omitempty"`
+	Metadata    map[string]string `json:"metadata,omitempty"`
+	Error       string            `json:"error,omitempty"`
+	Attachments []FailureArtifact `json:"attachments,omitempty"`
+	Steps       []BrowserStep     `json:"steps,omitempty"`
+	Redacted    bool              `json:"redacted,omitempty"`
+}
+
+// SensitiveInputPolicy carries provider additions. Defaults are always
+// applied and cannot be disabled or replaced by these declarations.
+type SensitiveInputPolicy struct {
+	AdditionalActionPatterns  []string `json:"additionalActionPatterns,omitempty"`
+	AdditionalSensitiveFields []string `json:"additionalSensitiveFields,omitempty"`
+}
+
 // InfrastructureFailure records a run-level failure that never produced a
 // per-test result: a bad command/config, a missing browser, a run the
 // reporter itself reports as having found no tests. It is distinct from a
@@ -113,6 +132,7 @@ type Receipt struct {
 	RunnerResources         *procgroup.ResourceUsage         `json:"runnerResources,omitempty"`
 	Schedule                *ExecutionSchedule               `json:"schedule,omitempty"`
 	Profile                 string                           `json:"profile,omitempty"`
+	SensitiveInputPolicy    *SensitiveInputPolicy            `json:"sensitiveInputPolicy,omitempty"`
 	External                *ExternalLifecycle               `json:"external,omitempty"`
 	ApplicationAttestation  *ApplicationAttestationReceipt   `json:"applicationAttestation,omitempty"`
 	TestRepositoryAtStart   *ApplicationRepositoryIdentity   `json:"testRepositoryAtStart,omitempty"`
@@ -159,6 +179,7 @@ type Attempt struct {
 	State       ExecutionState `json:"state"`
 	Retry       int            `json:"retry"`
 	FailureKind string         `json:"failureKind"`
+	Steps       []BrowserStep  `json:"steps,omitempty"`
 }
 
 type ExternalLifecycle struct {

@@ -41,6 +41,7 @@ func testEnvironment(tmp string) []gorunner.EnvironmentVariable {
 	}
 	return []gorunner.EnvironmentVariable{
 		{Name: "GOCACHE", Value: filepath.Join(tmp, "gocache")},
+		{Name: "GOENV", Value: "off"},
 		{Name: "GOPATH", Value: filepath.Join(tmp, "gopath")},
 		{Name: "GOTOOLCHAIN", Value: "local"},
 		{Name: "HOME", Value: home},
@@ -92,6 +93,17 @@ func waitFor(t *testing.T, log *eventLog, deadline time.Duration, match func(Eve
 	return Event{}
 }
 
+func waitForSequenceTerminal(t *testing.T, log *eventLog, sequence uint64, want State, deadline time.Duration) Event {
+	t.Helper()
+	event := waitFor(t, log, deadline, func(event Event) bool {
+		return event.Sequence == sequence && event.State != StateRunning
+	})
+	if event.State != want {
+		t.Fatalf("sequence %d terminal event = %+v, want state %s; all events: %+v", sequence, event, want, log.snapshot())
+	}
+	return event
+}
+
 func baseConfig(t *testing.T, dir, modPath, testPath string, log *eventLog) Config {
 	t.Helper()
 	return Config{
@@ -115,6 +127,8 @@ func baseConfig(t *testing.T, dir, modPath, testPath string, log *eventLog) Conf
 // assertion in a watched test file automatically drives the session from a
 // passing baseline to failed, then back to passed on a second edit.
 func TestRunningFailedPassed(t *testing.T) {
+	const runDeadline = 5 * time.Minute
+
 	dir := t.TempDir()
 	passing := "package fixture\n\nimport \"testing\"\n\nfunc TestAssertion(t *testing.T) {\n\tif false {\n\t\tt.Fatal(\"boom\")\n\t}\n}\n"
 	failing := "package fixture\n\nimport \"testing\"\n\nfunc TestAssertion(t *testing.T) {\n\tif true {\n\t\tt.Fatal(\"boom\")\n\t}\n}\n"
@@ -122,21 +136,31 @@ func TestRunningFailedPassed(t *testing.T) {
 
 	log := &eventLog{}
 	cfg := baseConfig(t, dir, modPath, testPath, log)
+	cfg.Timeout = runDeadline
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	done := make(chan error, 1)
 	go func() { done <- Run(ctx, cfg) }()
+	var shutdownOnce sync.Once
+	shutdown := func() {
+		shutdownOnce.Do(func() {
+			cancel()
+			if err := <-done; err != nil && !errors.Is(err, context.Canceled) {
+				t.Errorf("Run returned unexpected error during shutdown: %v; events: %+v", err, log.snapshot())
+			}
+		})
+	}
+	t.Cleanup(shutdown)
 
 	waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 1 && e.State == StateRunning })
-	passed := waitFor(t, log, 20*time.Second, func(e Event) bool { return e.Sequence == 1 && e.State == StatePassed })
+	passed := waitForSequenceTerminal(t, log, 1, StatePassed, runDeadline)
 	assertProjection(t, passed, testvalidity.ExecutionPassed, "", testvalidity.FreshnessCurrent)
 
 	if err := os.WriteFile(testPath, []byte(failing), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 2 && e.State == StateRunning })
-	failed := waitFor(t, log, 20*time.Second, func(e Event) bool { return e.Sequence == 2 && e.State == StateFailed })
+	failed := waitForSequenceTerminal(t, log, 2, StateFailed, runDeadline)
 	assertProjection(t, failed, testvalidity.ExecutionFailed, "ASSERTION_OR_TEST", testvalidity.FreshnessCurrent)
 	if len(failed.Tests) != 1 || failed.Tests[0].Name != "TestAssertion" || failed.Tests[0].Package != "fixture" ||
 		failed.Tests[0].Projection.Execution.State != testvalidity.ExecutionFailed {
@@ -150,12 +174,8 @@ func TestRunningFailedPassed(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 3 && e.State == StateRunning })
-	waitFor(t, log, 20*time.Second, func(e Event) bool { return e.Sequence == 3 && e.State == StatePassed })
-
-	cancel()
-	if err := <-done; err != nil && !errors.Is(err, context.Canceled) {
-		t.Fatalf("Run returned unexpected error: %v", err)
-	}
+	waitForSequenceTerminal(t, log, 3, StatePassed, runDeadline)
+	shutdown()
 }
 
 // TestPassWithoutRunAbstains drives the session entry point with a malformed

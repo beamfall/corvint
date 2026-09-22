@@ -38,6 +38,8 @@ export const CorvintPlugin = async (host, options = {}) => {
   const runCorvint = createCorvintRunner({ ...options, environment })
   const sessions = new Map()
   const startupContexts = new Map()
+  const pendingFileChanges = new Map()
+  let fileChangeDrain
 
   const notice = (code, event, receiptId) => {
     const payload = { code, event, support: "FALLBACK" }
@@ -72,11 +74,48 @@ export const CorvintPlugin = async (host, options = {}) => {
       response = { code: "adapter-internal-error", event: request.event, ok: false }
     }
     if (!response.ok) {
-      report(response.code ?? "corvint-degraded", request.event)
+      const code = response.code ?? "corvint-degraded"
+      if (request.event === "file-change" && code === "unsupported-impact-path-suffix") {
+        record(code, request.event)
+      } else {
+        report(code, request.event)
+      }
     } else if (response.degradations.length > 0) {
       record(response.degradations.join(","), request.event, response.receiptId)
     }
     return response
+  }
+
+  const drainFileChanges = async () => {
+    await Promise.resolve()
+    while (pendingFileChanges.size > 0) {
+      const [key, batch] = pendingFileChanges.entries().next().value
+      pendingFileChanges.delete(key)
+      await runVisible({
+        event: "file-change",
+        input: {
+          ...(batch.sessionIdSha256 ? { sessionIdSha256: batch.sessionIdSha256 } : {}),
+          paths: [...batch.paths],
+        },
+      })
+    }
+  }
+
+  const queueFileChange = (changed, sessionIdSha256) => {
+    let key = sessionIdSha256 ?? ""
+    if (!pendingFileChanges.has(key) && pendingFileChanges.size >= MAX_SESSIONS) key = ""
+    let batch = pendingFileChanges.get(key)
+    if (!batch) {
+      batch = { paths: new Set(), sessionIdSha256: key || undefined }
+      pendingFileChanges.set(key, batch)
+    }
+    if (batch.paths.size < MAX_TRACKED_PATHS) batch.paths.add(changed)
+    if (!fileChangeDrain) {
+      fileChangeDrain = drainFileChanges().finally(() => {
+        fileChangeDrain = undefined
+      })
+    }
+    return fileChangeDrain
   }
 
   const stateFor = (rawSessionId) => {
@@ -111,6 +150,8 @@ export const CorvintPlugin = async (host, options = {}) => {
 
   const stableHooks = {
     dispose: async () => {
+      if (fileChangeDrain) await fileChangeDrain
+      pendingFileChanges.clear()
       sessions.clear()
       startupContexts.clear()
     },
@@ -129,13 +170,7 @@ export const CorvintPlugin = async (host, options = {}) => {
           const changed = rememberPath(eventFile(event), rawSessionId)
           const sessionIdSha256 = hashSessionId(rawSessionId)
           if (changed) {
-            await runVisible({
-              event: "file-change",
-              input: {
-                ...(sessionIdSha256 ? { sessionIdSha256 } : {}),
-                paths: [changed],
-              },
-            })
+            await queueFileChange(changed, sessionIdSha256)
           }
           return
         }

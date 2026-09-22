@@ -1,5 +1,36 @@
 # Release notes
 
+## 0.5.0a3 experimental alpha
+
+`v0.5.0a3` integrates every GitHub issue open after `v0.5.0a2` (decision 0329): #53 behavior-contract
+provider records and variation reconciliation frontiers, #54 criterion-level falsification controls
+for browser behavior contracts, #55 OpenCode file-change events under bursts and unadmitted
+suffixes, #56 redaction and rejection of sensitive input values in browser runtime evidence, and
+#57 authoritative affected-test planning from explicit dirty-worktree snapshots. It also carries
+`main`'s gate ledger, which records one full-gate pass per distinct content. It retains `v0.5.0a2`'s
+unsigned prerelease, four non-Windows CLI archives and no-promotion boundaries; no companion is
+attached because no exact-candidate companion qualification was run.
+The candidate also fixes thirteen defects found by a pre-release audit: `dogfood-ocm`,
+`taskman-fixture` and `corpus` now report output-write failures with an error envelope, and a
+`--root` preamble refuses an option-like value; context-index authority citations bound a cited
+line range to the target's length, a shard writer closes its file once, and a truncated symbol
+window table is refused; sensitive-input redaction applies longer values first so a shorter
+sensitive value that prefixes a longer one no longer leaks its tail, Vitest reports and external
+config inputs are read under fixed bounds, the readiness probe honours cancellation, and the
+qualified reporter tolerates a moved cached module; behavior falsification counts only executed
+controls toward complete vocabulary, frames workspace digests by file length, gives every receipt at
+least the validator's accepted size, and refuses a wall-clock budget inside the cleanup reserve;
+the documentation-corpus behavior adapter separates reverse-link keys with NUL (which now also
+appears in `lost_reverse_links` strings), names the test in each `missing-reverse-link`
+diagnostic, surfaces an encode error as a digest mismatch, and emits only bundles its own validator
+accepts. The analyzer schema moves to `corvint-analyzer/73`.
+
+No retrieval, host, editor or command is promoted by this version change. Native performance remains
+unmeasured, publisher identity remains `NOT_VERIFIED`, live Playwright `/2` and external MCP host
+qualification remain `NOT_RUN`, and local qualification does not substitute for hosted CI. Exact
+availability and platform claims come only from this version's attached assets and qualification
+evidence; the detailed active scope is in `docs/RELEASE-NOTES-alpha.md`.
+
 ## 0.5.0a2 experimental alpha
 
 The owner selected `v0.5.0a2` for the issue #49 release (decision 0328). It retains `v0.5.0a1`'s

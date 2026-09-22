@@ -133,7 +133,7 @@ func RunUnit(ctx context.Context, cfg UnitConfig) (Receipt, error) {
 		receipt.Cancelled = obs.Cancelled
 		return receipt, nil
 	}
-	data, err := os.ReadFile(outputFile)
+	data, err := readBoundedReport(outputFile)
 	if err != nil {
 		receipt.Infrastructure = &InfrastructureFailure{Reason: "report-not-written", Detail: err.Error()}
 		return receipt, nil
@@ -210,6 +210,7 @@ type E2EConfig struct {
 	AppBuildDir            string // "" => unknown app build identity.
 	TestArgv               []string
 	ApplicationAttestation *ApplicationAttestationProvider
+	SensitiveInputPolicy   *SensitiveInputPolicy
 }
 
 // RunE2E starts the app server, waits for it to answer ServerReadyURL, runs
@@ -221,6 +222,9 @@ type E2EConfig struct {
 func RunE2E(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if cfg.ApplicationAttestation != nil && !cfg.ExternalServer {
 		return Receipt{}, errors.New("application-attestation-requires-external-server")
+	}
+	if cfg.SensitiveInputPolicy != nil && !cfg.ExternalServer {
+		return Receipt{}, errors.New("sensitive-input-redaction-requires-external-server")
 	}
 	if cfg.ExternalServer {
 		return runExternal(ctx, cfg)
@@ -364,14 +368,22 @@ func waitReady(ctx context.Context, url string, limit time.Duration) error {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		resp, err := client.Get(url)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return err
+		}
+		resp, err := client.Do(req)
 		if err == nil {
 			resp.Body.Close()
 			if resp.StatusCode < 500 {
 				return nil
 			}
 		}
-		time.Sleep(50 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(50 * time.Millisecond):
+		}
 	}
 	return &net.OpError{Op: "wait-ready", Err: context.DeadlineExceeded}
 }

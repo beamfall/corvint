@@ -23,7 +23,7 @@ remain `NOT_OBSERVED`; recorded bytes are not billed tokens or proof of savings.
 | Discover repository scope | `features`; `overview`; `review --base FULL_SHA` | Experimental clean-HEAD guidance with inferred immutable evidence, inert next calls and bounded local branch overlap hints. Index/source omissions remain unknown; never closes CEM/OCM/frontier/test obligations. |
 | Ask independent questions together | `batch` with an admitted bounded request | Use only with a current snapshot and independent query/context/path-impact operations. Keep per-operation errors. One question stays standalone. |
 | Prepare an index or adopt a repository | explicit supervised `index --if-stale`; `init` / `adopt` for first adoption | Index writes derived state; no detached refresh or service. Missing/stale snapshot may use an admitted standalone read fallback. |
-| Select tests after a meaningful dirty diff | `affected` | Keep selected Go units, exclusions, unknowns and mandatory repository checks. Advice never permits skipping `make gate` or proves behavioral coverage. |
+| Select tests after a meaningful dirty diff | `affected`; explicit immutable receipt via `affected --snapshot FILE` (AFP-V0-019) | Keep selected Go units, exclusions, unknowns and mandatory repository checks. Advice never permits skipping `make gate` or proves behavioral coverage. |
 | Challenge a context/change/CEM claim | `prove --task TASK`, `prove PATH...`, `prove --base FULL_SHA`, or `prove --cem MAP` | Choose the relevant wrapper; retain embedded receipt and every PASS/FAIL/NOT_RUN. Do not repeat an identical query just to count another feature. |
 | Challenge behavioral test coverage | explicit `prove PATH... --mutate` or range mutation | Only when the task needs this experimental execution and its sandbox/dependencies/budgets admit it. Retain baseline failures, survived mutants and unrun rows; never a hook or every-edit default. |
 | Resume a caller-owned checkpoint | `prove --checkpoint FILE` | Revalidate actual existing `corvint-checkpoint/0` handles against current Git. No automatic writer, invented checkpoint, or claim of full conversation recovery. |
@@ -40,6 +40,7 @@ remain `NOT_OBSERVED`; recorded bytes are not billed tokens or proof of savings.
 | Compare migration evidence | `migration-ratchet --profile FILE` | Bind exact baseline/candidate artifacts and preserve every delta, denominator, exception and comparability rule. Pass is incremental no-regression only; it proves neither adequacy nor completeness. |
 | Inspect a console or release readiness | standalone `corvint-dashboard-snapshot`; explicit bounded `corvint-console`; `script/release-checklist` | Build standalone companions from their retained `cmd/corvint-*` source packages until the closed bundle migration lands. Start an optional loopback server only for useful requested inspection with cleanup. Checklist/archive gates do not sign, tag, publish or promote; keep U4, packet-5 and DR holds. |
 | Change an optional analyzer/integration | owning public route and targeted tests from [spec index](specs/INDEX.json), including [Playwright External Provider V0](specs/playwright-external-provider-v0.md) for externally managed Playwright servers | Distinguish delivered internals, optional artifacts and unbuilt parent contracts. Do not separately launch every analyzer, MCP, Pulse or service; state the exact unavailable/inapplicable boundary. |
+| Falsify an exact browser criterion | separately built `corvint-behavior-falsify plan\|execute --experimental` | Use only caller-reviewed digest-bound hooks in a marked disposable workspace. A kill is criterion-local observation; survivors and every partial/invalid result preserve full-suite fallback and no narrowing authority. |
 | Consume external evidence | `impact --provider FILE`, `--provider-command ARGV_JSON`, or `--provider-mcp ARGV_JSON` | The accepted bounded MCP profile calls one local tool. Remote HTTPS requires the separately built `corvint-remote-provider --allow-network --config FILE` command; Core never fetches network evidence. All routes retain the same strict EEP decode, reference checks and separated authority. |
 
 ## Read, implement, challenge
@@ -62,8 +63,12 @@ slice, build a corpus and retain an actual search/trace receipt. Use explicit co
 reads only where applicable; unsupported providers and absent journeys remain visible. The separate
 MCP server and generated-block writes require their own explicit invocation.
 The experimental behavior-provider profile additionally retains exact flow/test/project joins and
-ordered runtime witnesses; missing consumer fixtures or runtime evidence preserve gaps and full-suite
-fallback. See the behavior-contract section of `docs/specs/documentation-corpus-v1.md`.
+ordered runtime witnesses; `docs corpus behavior-adapter` can produce and reconcile that profile
+from caller-mapped inventories without changing its legacy wire member or authority. Its reviewed
+documentation projection is normative: source/test proposals cannot rewrite stable variation IDs or
+their preconditions, actions, facts and outcomes. Missing consumer fixtures, semantic joins or runtime
+evidence preserve gaps and unconditional full-suite fallback. See the
+behavior-contract and behavior-provider adapter sections of `docs/specs/documentation-corpus-v1.md`.
 The separate stability profile retains independent repetitions, nested Playwright retries and manual
 reruns with raw denominators, cleanup and exact declared-versus-observed execution topology. It never
 upgrades behavior coverage, adequacy or parity.

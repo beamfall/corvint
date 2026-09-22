@@ -3,6 +3,7 @@ package secretscreen
 import (
 	"crypto/sha256"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -55,6 +56,37 @@ func TestPassAssignmentBoundary(t *testing.T) {
 			}
 			if got := MatchString(test.text); got != wantHit {
 				t.Fatalf("MatchString(%q) = %v, want %v", test.text, got, wantHit)
+			}
+		})
+	}
+}
+
+func TestGoVerbosePassMarkerBoundary(t *testing.T) {
+	for _, test := range []struct {
+		name, text string
+		wantHit    bool
+		wantMarker bool
+	}{
+		{name: "top-level", text: "--- PASS: TestExample (0.00s)\n"},
+		{name: "subtest", text: "    --- PASS: TestExample/case (0.01s)\n"},
+		{name: "embedded-bare-assignment", text: "--- PASS: TestExample/pass=synthetic123 (0.00s)\n", wantHit: true, wantMarker: true},
+		{name: "embedded-token", text: "--- PASS: TestExample/ghp_abcdefghijklmnopqrst (0.00s)\n", wantHit: true, wantMarker: true},
+		{name: "real-secret-after-marker", text: "--- PASS: TestExample (0.00s)\npass: synthetic123\n", wantHit: true, wantMarker: true},
+		{name: "non-marker", text: "prefix --- PASS: TestExample (0.00s)\n", wantHit: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := MatchString(test.text); got != test.wantHit {
+				t.Fatalf("MatchString(%q) = %v, want %v", test.text, got, test.wantHit)
+			}
+			screened, hit := Screen(test.text)
+			if hit != test.wantHit {
+				t.Fatalf("Screen(%q) hit = %v, want %v", test.text, hit, test.wantHit)
+			}
+			if !test.wantHit && screened != test.text {
+				t.Fatalf("Screen altered Go marker: got %q, want %q", screened, test.text)
+			}
+			if test.wantMarker && !strings.Contains(screened, "--- PASS: TestExample") {
+				t.Fatalf("Screen removed Go marker while redacting secret: %q", screened)
 			}
 		})
 	}

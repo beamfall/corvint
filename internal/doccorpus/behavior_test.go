@@ -99,7 +99,7 @@ func behaviorFixtureWithAllRuns(t *testing.T, edit func(*BehaviorRegistry), runt
 	for i := range declarations.Legacy {
 		declarations.Legacy[i].Runtime = nil
 	}
-	r.ContractSHA256 = hashValue(declarations)
+	r.ContractSHA256 = testHash(t, declarations)
 	p := ProviderRecord{Schema: BehaviorProviderSchema, ID: "behavior", Version: "1", Source: m.Repository, BehaviorContracts: &r}
 	if runtime {
 		nativeBytes, err := jstestprovider.EncodeQualified(native)

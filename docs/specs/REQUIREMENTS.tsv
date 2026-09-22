@@ -52,6 +52,7 @@ AFP-V0-015	docs/specs/affected-plan-v0.md	249	(accepted by decision 0289) The tr
 AFP-V0-016	docs/specs/affected-plan-v0.md	287	(accepted by decision 0320) `.github/workflows/ci-control-plane.yml` SHALL run
 AFP-V0-017	docs/specs/affected-plan-v0.md	295	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
 AFP-V0-018	docs/specs/affected-plan-v0.md	303	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
+AFP-V0-019	docs/specs/affected-plan-v0.md	318	(proposed technical contract implementing owner-requested issue #57)
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
 AHI-001	docs/specs/agent-harness-integration-v0.md	76	Every adapter MUST consume and produce the transport-neutral Corvint request, re
@@ -76,8 +77,8 @@ AHI-019	docs/specs/agent-harness-integration-v0.md	209	A Claude Code `post-tool`
 AHI-020	docs/specs/agent-harness-integration-v0.md	226	Each host package's own manifest version (`integrations/claude-code/plugins/corv
 AHI-021	docs/specs/agent-harness-integration-v0.md	237	The Claude Code adapter MUST NOT emit a user-visible `systemMessage` for a routi
 AHI-022	docs/specs/agent-harness-integration-v0.md	269	The Gemini CLI and OpenCode adapters MUST apply the `AHI-021` split. A routine
-AHI-023	docs/specs/agent-harness-integration-v0.md	293	An adapter MUST report the host version its host actually provides, and MUST NOT
-AHI-024	docs/specs/agent-harness-integration-v0.md	310	The experimental Pi extension MUST use runtime-provided version `0.85.1`, adapte
+AHI-023	docs/specs/agent-harness-integration-v0.md	299	An adapter MUST report the host version its host actually provides, and MUST NOT
+AHI-024	docs/specs/agent-harness-integration-v0.md	316	The experimental Pi extension MUST use runtime-provided version `0.85.1`, adapte
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
@@ -130,6 +131,18 @@ ATI-V0-009	docs/specs/authority-trigger-index-v0.md	92	The table MUST be bounded
 ATI-V0-010	docs/specs/authority-trigger-index-v0.md	94	The result MUST separately name its two blind spots: every requested path the in
 ATI-V0-011	docs/specs/authority-trigger-index-v0.md	97	The command MUST be read-only over repository and trace state, MUST refuse a pat
 ATI-V0-012	docs/specs/authority-trigger-index-v0.md	100	The index MUST NOT be emitted through `harness event`. `GPK-V0-002` pins that
+BBF-V0-001	docs/specs/browser-behavior-falsification-v0.md	34	Planning and execution are separate opt-in operations. A plan is deterministic,
+BBF-V0-002	docs/specs/browser-behavior-falsification-v0.md	37	Every plan and result binds the exact contract ID/digest, criterion and assertio
+BBF-V0-003	docs/specs/browser-behavior-falsification-v0.md	41	The closed control vocabulary is `wrong-locator`, `wrong-expected-value`,
+BBF-V0-004	docs/specs/browser-behavior-falsification-v0.md	46	A control hook is caller-owned, content-digest pinned, argument-free and run onl
+BBF-V0-005	docs/specs/browser-behavior-falsification-v0.md	52	`killed` requires the target criterion to fail on its expected assertion identit
+BBF-V0-006	docs/specs/browser-behavior-falsification-v0.md	57	Each control result is exactly one of `killed`, `survived`, `not_supported`,
+BBF-V0-007	docs/specs/browser-behavior-falsification-v0.md	61	Results preserve every requested ordinal and actual attempt without replacement.
+BBF-V0-008	docs/specs/browser-behavior-falsification-v0.md	64	Every surviving or invalid control is an explicit criterion-level coverage gap.
+BBF-V0-009	docs/specs/browser-behavior-falsification-v0.md	67	The aggregate reports raw counts for all six statuses and mutation score as
+BBF-V0-010	docs/specs/browser-behavior-falsification-v0.md	70	Plans are bounded by at most 64 controls, 16 attempts per control, a 24-hour tot
+BBF-V0-011	docs/specs/browser-behavior-falsification-v0.md	74	Synthetic conformance covers a tautological assertion, hidden duplicate element,
+BBF-V0-012	docs/specs/browser-behavior-falsification-v0.md	77	Receipts are observations, not authenticated caller honesty, browser-behavior
 BRAIN-DOG-001	docs/specs/technical-brain-dogfood.md	27	butterfly-effect MUST return exact direct static references/dependencies,
 BRAIN-DOG-002	docs/specs/technical-brain-dogfood.md	30	E2E discovery MUST map requirements and journeys to exact scenario/test witnesse
 BRAIN-DOG-003	docs/specs/technical-brain-dogfood.md	32	selective-test guidance MUST name mandatory repository gates first and a smaller
@@ -443,32 +456,38 @@ DCLI-V0-004	docs/specs/direct-native-cli-authority-v0.md	34	**Provenance/trust.*
 DCLI-V0-005	docs/specs/direct-native-cli-authority-v0.md	36	**Common computation/currentness.** Preserve fixed protected paths, release/adap
 DCLI-V0-006	docs/specs/direct-native-cli-authority-v0.md	38	**Negative acceptance.** Closed decoder rejects old/new mixed fields, unknown ho
 DCLI-V0-007	docs/specs/direct-native-cli-authority-v0.md	40	**Rollback.** Revoke/raise protected generation floor, withdraw the direct quali
-DCP-V1-001	docs/specs/documentation-corpus-v1.md	32	The explicit manifest, normalized provider and artifact use closed versioned JSO
-DCP-V1-002	docs/specs/documentation-corpus-v1.md	36	Provenance carries builder identity/revision, shared native compiler/schema/tool
-DCP-V1-003	docs/specs/documentation-corpus-v1.md	42	Each literal source/provider scope has a complete immutable Git inventory checke
-DCP-V1-004	docs/specs/documentation-corpus-v1.md	47	Every claim, relationship and journey step carries revalidatable evidence or an
-DCP-V1-005	docs/specs/documentation-corpus-v1.md	52	Derivation (`generated`, `source-derived`, `observed`, `declared`, `imported`),
-DCP-V1-006	docs/specs/documentation-corpus-v1.md	56	Subjects use generic types: repository, package, module, symbol, endpoint, UI su
-DCP-V1-007	docs/specs/documentation-corpus-v1.md	62	Native providers reuse indexed source/symbol/document evidence and explicitly di
-DCP-V1-008	docs/specs/documentation-corpus-v1.md	69	Journeys contain independently supplied ordered evidence, preconditions, action
-DCP-V1-009	docs/specs/documentation-corpus-v1.md	77	Every capability is explicitly declared with backing records, native tools/provi
-DCP-V1-010	docs/specs/documentation-corpus-v1.md	81	Coverage always names value, denominator, definition/rule, revision and limitati
-DCP-V1-011	docs/specs/documentation-corpus-v1.md	84	Readers verify canonical artifact/digest and rederive all compiler-owned records
-DCP-V1-012	docs/specs/documentation-corpus-v1.md	88	`docs corpus` exposes manifest/build/info/search/get/locate/related/coverage/gap
-DCP-V1-013	docs/specs/documentation-corpus-v1.md	93	Explicit native corpus integration supplies first-class separately attributed
-DCP-V1-014	docs/specs/documentation-corpus-v1.md	98	CEM integration projects original Git documentation spans at the CEM base throug
-DCP-V1-015	docs/specs/documentation-corpus-v1.md	102	Task/work consumers may attach read-only corpus evidence without changing accept
-DCP-V1-016	docs/specs/documentation-corpus-v1.md	104	A separate stdio documentation-corpus MCP server directly calls the native reade
-DCP-V1-017	docs/specs/documentation-corpus-v1.md	109	Declared profiles render Markdown or JSON, optionally grouped as a directory pla
-DCP-V1-018	docs/specs/documentation-corpus-v1.md	119	Input byte bounds apply before decode; record/revision/traversal bounds apply be
-DCP-V1-019	docs/specs/documentation-corpus-v1.md	123	Generic fixtures cover Go, JavaScript/TypeScript, Python or Ruby, unsupported an
-DCP-V1-020	docs/specs/documentation-corpus-v1.md	127	A frozen labelled evaluation records per-case truth/denominators, search precisi
-DCP-V1-021	docs/specs/documentation-corpus-v1.md	131	The opt-in `corvint-corpus-behavior-stability-provider/1` profile aggregates onl
-DCP-V1-022	docs/specs/documentation-corpus-v1.md	139	Planned repetitions use a complete unique ordinal set. Playwright retries remain
-DCP-V1-023	docs/specs/documentation-corpus-v1.md	144	Aggregates separately expose planned, started, completed, passed, failed, timed-
-DCP-V1-024	docs/specs/documentation-corpus-v1.md	149	One repository-owned digest-bound policy defines independent one-spec, feature-b
-DCP-V1-025	docs/specs/documentation-corpus-v1.md	152	Corpus `stability` and capability-gated MCP `docs_get_stability` rederive the ag
-DCP-V1-026	docs/specs/documentation-corpus-v1.md	156	The repository policy and every observed run bind separate full-artifact topolog
+DCP-V1-001	docs/specs/documentation-corpus-v1.md	33	The explicit manifest, normalized provider and artifact use closed versioned JSO
+DCP-V1-002	docs/specs/documentation-corpus-v1.md	37	Provenance carries builder identity/revision, shared native compiler/schema/tool
+DCP-V1-003	docs/specs/documentation-corpus-v1.md	43	Each literal source/provider scope has a complete immutable Git inventory checke
+DCP-V1-004	docs/specs/documentation-corpus-v1.md	48	Every claim, relationship and journey step carries revalidatable evidence or an
+DCP-V1-005	docs/specs/documentation-corpus-v1.md	53	Derivation (`generated`, `source-derived`, `observed`, `declared`, `imported`),
+DCP-V1-006	docs/specs/documentation-corpus-v1.md	57	Subjects use generic types: repository, package, module, symbol, endpoint, UI su
+DCP-V1-007	docs/specs/documentation-corpus-v1.md	63	Native providers reuse indexed source/symbol/document evidence and explicitly di
+DCP-V1-008	docs/specs/documentation-corpus-v1.md	70	Journeys contain independently supplied ordered evidence, preconditions, action
+DCP-V1-009	docs/specs/documentation-corpus-v1.md	78	Every capability is explicitly declared with backing records, native tools/provi
+DCP-V1-010	docs/specs/documentation-corpus-v1.md	82	Coverage always names value, denominator, definition/rule, revision and limitati
+DCP-V1-011	docs/specs/documentation-corpus-v1.md	85	Readers verify canonical artifact/digest and rederive all compiler-owned records
+DCP-V1-012	docs/specs/documentation-corpus-v1.md	89	`docs corpus` exposes manifest/build/info/search/get/locate/related/coverage/gap
+DCP-V1-013	docs/specs/documentation-corpus-v1.md	94	Explicit native corpus integration supplies first-class separately attributed
+DCP-V1-014	docs/specs/documentation-corpus-v1.md	99	CEM integration projects original Git documentation spans at the CEM base throug
+DCP-V1-015	docs/specs/documentation-corpus-v1.md	103	Task/work consumers may attach read-only corpus evidence without changing accept
+DCP-V1-016	docs/specs/documentation-corpus-v1.md	105	A separate stdio documentation-corpus MCP server directly calls the native reade
+DCP-V1-017	docs/specs/documentation-corpus-v1.md	110	Declared profiles render Markdown or JSON, optionally grouped as a directory pla
+DCP-V1-018	docs/specs/documentation-corpus-v1.md	120	Input byte bounds apply before decode; record/revision/traversal bounds apply be
+DCP-V1-019	docs/specs/documentation-corpus-v1.md	124	Generic fixtures cover Go, JavaScript/TypeScript, Python or Ruby, unsupported an
+DCP-V1-020	docs/specs/documentation-corpus-v1.md	128	A frozen labelled evaluation records per-case truth/denominators, search precisi
+DCP-V1-021	docs/specs/documentation-corpus-v1.md	132	The opt-in `corvint-corpus-behavior-stability-provider/1` profile aggregates onl
+DCP-V1-022	docs/specs/documentation-corpus-v1.md	140	Planned repetitions use a complete unique ordinal set. Playwright retries remain
+DCP-V1-023	docs/specs/documentation-corpus-v1.md	145	Aggregates separately expose planned, started, completed, passed, failed, timed-
+DCP-V1-024	docs/specs/documentation-corpus-v1.md	150	One repository-owned digest-bound policy defines independent one-spec, feature-b
+DCP-V1-025	docs/specs/documentation-corpus-v1.md	153	Corpus `stability` and capability-gated MCP `docs_get_stability` rederive the ag
+DCP-V1-026	docs/specs/documentation-corpus-v1.md	157	The repository policy and every observed run bind separate full-artifact topolog
+DCP-V1-027	docs/specs/documentation-corpus-v1.md	164	The opt-in native behavior adapter accepts one closed, bounded
+DCP-V1-028	docs/specs/documentation-corpus-v1.md	172	One deterministic `corvint-behavior-adapter-result/1` bundle contains an exact
+DCP-V1-029	docs/specs/documentation-corpus-v1.md	177	The adapter preserves the same canonical variation set in both directions across
+DCP-V1-030	docs/specs/documentation-corpus-v1.md	184	The result separately reports documented criteria, source-discovered candidates,
+DCP-V1-031	docs/specs/documentation-corpus-v1.md	188	Reconciliation reports every documented or discovered orphan, criterion/test/flo
+DCP-V1-032	docs/specs/documentation-corpus-v1.md	194	An optional prior result yields exact added, removed and content-changed canonic
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
@@ -1199,7 +1218,7 @@ LTA-V0-001	docs/specs/learned-trace-admission-v0.md	42	`corvint eval` MUST score
 LTA-V0-002	docs/specs/learned-trace-admission-v0.md	52	Before either scored arm runs, the evaluation MUST fail closed when any frozen
 LTA-V0-003	docs/specs/learned-trace-admission-v0.md	56	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp
 LTA-V0-004	docs/specs/learned-trace-admission-v0.md	63	The current writer screen (`internal/secretscreen.Pattern`, consumed by `record`
-LTA-V0-005	docs/specs/learned-trace-admission-v0.md	91	(numbered 2026-09-12 by decision 0093; text unchanged from the accepted
+LTA-V0-005	docs/specs/learned-trace-admission-v0.md	92	(numbered 2026-09-12 by decision 0093; text unchanged from the accepted
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	55	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	59	The Python reader MUST accept canonical rows only when their filename and row na
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	64	Dry-run MUST be read-only and bind its plan digest to the stable current commit/
@@ -1230,6 +1249,7 @@ MCPV0-016	docs/specs/mcp-server-2026-07-28-v0.md	325	Repository files, Git outpu
 MCPV0-017	docs/specs/mcp-server-2026-07-28-v0.md	331	All calls are read-only. The server MUST NOT write the repository, Git index, Co
 MCPV0-018	docs/specs/mcp-server-2026-07-28-v0.md	337	Per-call repository and revision identity is acquired once and bound to the Corv
 MCPV0-019	docs/specs/mcp-server-2026-07-28-v0.md	343	Frame allocation, tool arguments, Corvint output, stderr, concurrent requests, p
+MCPV0-020	docs/specs/mcp-server-2026-07-28-v0.md	350	`corvint.query` and `corvint.impact` MAY accept an explicit
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the
@@ -1410,7 +1430,7 @@ PSM-V0-010	docs/specs/playwright-suite-interaction-minimizer-v0.md	70	Every tria
 PSM-V0-011	docs/specs/playwright-suite-interaction-minimizer-v0.md	72	Missing or invalid runner qualification (#39), stability identity (#42), or
 PSM-V0-012	docs/specs/playwright-suite-interaction-minimizer-v0.md	75	Synthetic qualification MUST cover a true predecessor leak, a load-only failure,
 PSM-V0-013	docs/specs/playwright-suite-interaction-minimizer-v0.md	78	The closed `corvint-playwright-suite-interaction-live/0` CLI MUST require
-PUB-V0-001	docs/specs/public-release-v0.md	34	The current version tuple MUST move together to `0.5.0a2`, including native
+PUB-V0-001	docs/specs/public-release-v0.md	34	The current version tuple MUST move together to `0.5.0a3`, including native
 PUB-V0-002	docs/specs/public-release-v0.md	37	The existing native CLI archive gate MUST remain independent. An optional
 PUB-V0-003	docs/specs/public-release-v0.md	44	Companion build output MUST be outside the source checkouts, include exact
 PUB-V0-004	docs/specs/public-release-v0.md	59	The first companion target is macOS arm64. Qualification MUST exercise the
@@ -1452,6 +1472,12 @@ PWP-V1-005	docs/specs/playwright-external-provider-v0.md	38	The provider runs be
 PWP-V1-006	docs/specs/playwright-external-provider-v0.md	39	`/1` binds one clean test repository by root commit, revision and tree before Pl
 PWP-V1-007	docs/specs/playwright-external-provider-v0.md	40	Corvint supplies only canonical configuration bytes on provider stdin and owns o
 PWP-V1-008	docs/specs/playwright-external-provider-v0.md	41	Qualification includes a deterministic, locally owned Docker Compose fixture and
+PWP-V2-001	docs/specs/playwright-external-provider-v0.md	45	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
+PWP-V2-002	docs/specs/playwright-external-provider-v0.md	46	Before reporter serialization, input actions matching the fixed defaults `fill`,
+PWP-V2-003	docs/specs/playwright-external-provider-v0.md	47	Redaction recurses through nested steps and retry attempts. Any sensitive action
+PWP-V2-004	docs/specs/playwright-external-provider-v0.md	48	Provider-declared additional case-insensitive action-title patterns and metadata
+PWP-V2-005	docs/specs/playwright-external-provider-v0.md	49	Reporter output and retained documents are untrusted. Ingestion rejects an unred
+PWP-V2-006	docs/specs/playwright-external-provider-v0.md	50	The conformance fixture contains a deliberately leaking payload that is rejected
 QLF-V0-001	docs/specs/qualified-lifecycle-v0.md	32	The additive `corvint-qualified-lifecycle/0` request MUST be a closed object con
 QLF-V0-002	docs/specs/qualified-lifecycle-v0.md	33	Completed qualified non-Stop events MUST derive repository scope exclusively fro
 QLF-V0-003	docs/specs/qualified-lifecycle-v0.md	34	Qualified Stop MUST derive the active handle inside the same protected scope, co

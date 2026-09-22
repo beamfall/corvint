@@ -7,7 +7,10 @@
 // duplicated in two packages".
 package secretscreen
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 // pythonWhitespace mirrors the Python runtime's str.strip() whitespace set,
 // expressed as a regexp character-class body.
@@ -162,6 +165,23 @@ var Pattern = regexp.MustCompile(`(?i)` + writerQuotedAssignmentAlt + `|` + awsA
 // screen so a detector expansion cannot invalidate immutable stored rows.
 var StoredV1Pattern = regexp.MustCompile(secretPattern(`[a-z0-9_.-]*(?:`+storedV1AssignmentNames+`)[a-z0-9_.-]*`, storedV1CredentialedURLAlt))
 
+var goVerbosePassMarker = regexp.MustCompile(`(?m)^[ \t]*--- PASS: [^\r\n ]+ \([0-9]+(?:\.[0-9]+)?s\)\r?$`)
+
+func writerMatches(text string) [][]int {
+	// A complete Go verbose marker is the one safe place where the bare
+	// assignment grammar sees `PASS:` as a credential field. Mask only that
+	// structural prefix, keeping byte positions unchanged so Pattern's matches
+	// still address text and secrets inside the test name remain screenable.
+	masked := []byte(text)
+	for _, marker := range goVerbosePassMarker.FindAllStringIndex(text, -1) {
+		pass := strings.Index(text[marker[0]:marker[1]], "PASS:")
+		if pass >= 0 {
+			copy(masked[marker[0]+pass:], "GOOK ")
+		}
+	}
+	return Pattern.FindAllStringIndex(string(masked), -1)
+}
+
 func secretPattern(assignmentFields, credentialedURLAlt string) string {
 	return `(?i)` + assignmentFields + `[` + pythonWhitespace + `]*[:=][` + pythonWhitespace + `]*[^` + pythonWhitespace + `]+|` +
 		`-----BEGIN [A-Z ]*PRIVATE KEY-----(?s:.*?)-----END [A-Z ]*PRIVATE KEY-----|` +
@@ -182,7 +202,7 @@ func secretPattern(assignmentFields, credentialedURLAlt string) string {
 // MatchString reports whether text contains secret-shaped content for new
 // writes and Git-history candidate filtering. Stored traces use the v1 matcher.
 func MatchString(text string) bool {
-	return Pattern.MatchString(text)
+	return len(writerMatches(text)) != 0
 }
 
 // MatchStoredV1String reports whether text matches the immutable schema-v1
@@ -194,8 +214,17 @@ func MatchStoredV1String(text string) bool {
 // Screen redacts every secret-shaped match in text with Placeholder and
 // reports whether any redaction occurred.
 func Screen(text string) (redacted string, hit bool) {
-	if !Pattern.MatchString(text) {
+	matches := writerMatches(text)
+	if len(matches) == 0 {
 		return text, false
 	}
-	return Pattern.ReplaceAllString(text, Placeholder), true
+	var screened strings.Builder
+	start := 0
+	for _, match := range matches {
+		screened.WriteString(text[start:match[0]])
+		screened.WriteString(Placeholder)
+		start = match[1]
+	}
+	screened.WriteString(text[start:])
+	return screened.String(), true
 }

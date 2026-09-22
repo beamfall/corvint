@@ -556,6 +556,7 @@ const affectedHelp = `Compile the affected-test selection plan for the dirty wor
 
 Usage:
   corvint [--root PATH] affected
+  corvint [--root PATH] affected --snapshot RECEIPT [--playwright-config PATH]
   corvint [--root PATH] affected --base FULL_COMMIT_ID
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
@@ -567,9 +568,19 @@ The command reads the Git worktree status, builds the multi-language unit graph
 from source text, and writes one affected-plan/0 document to stdout: the
 selector's plan (selected units with witnesses, exclusions, unknowns, scope) and
 provider.go.packages, the exact import paths an operator may copy into a Go
-live-test provider bundle. It runs no test, writes nothing, and never claims
+live-test provider bundle. It runs no test, writes no repository state, and never claims
 that omitted tests are safe to skip; the provider keeps its own
 NO_AFFECTED_SELECTION_PROOF unknown.
+
+--snapshot reads a closed corvint-planning-snapshot/0 JSON receipt with schema,
+commitRevision (current HEAD), treeRevision (all source/config bytes),
+baseRevision, changedPaths (sorted complete base..commit diff), and
+changedPathsSha256 (SHA-256 of canonical JSON changedPaths). It plans from
+verified Git blobs in temporary scratch, then removes that scratch. Dirty
+worktree bytes are not inputs. The output snapshot scope stays PLAN_ONLY and
+accepting=false. Stale, incomplete or mismatched receipts fail closed.
+Overlays, symlink/gitlink trees, --base, providers and discovery are unsupported
+in this bounded snapshot profile; existing profiles are unchanged.
 
 --base joins the committed tree diff FULL_COMMIT_ID..HEAD (renames listed as
 both paths) to the worktree dirty set, so a branch is selected as a whole; the

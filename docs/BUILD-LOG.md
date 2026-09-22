@@ -7,6 +7,121 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-21 audit fix batch: thirteen defects closed before the v0.5.0a3 candidate gate
+
+A pre-release audit of `cmd/corvint`, `internal/contextindex`, `internal/jstestprovider`,
+`internal/behaviorfalsify` and `internal/doccorpus` recorded fifteen defects in
+`docs/agent-memory/bugs.md`; thirteen are fixed on the candidate, each with a focused regression
+test. Contract-visible changes: `dogfood-ocm`, `taskman-fixture` and `corpus` emit an
+`output-failed` envelope when their own output cannot be written; the `corpus` `--root` preamble
+refuses an option-like value (other native values stay uninterrupted because DCP-V1-012/018 require
+`--task --corpus=x` to pass through); BBF-V0-010 now states that the declared wall-clock budget must
+exceed the executor's cleanup reserve, and the per-receipt output limit has a floor equal to the
+validator's accepted receipt bound; JLTP `report-not-written` also covers a Vitest report over the
+4 MiB bounded-report limit and external config input over 256 entries is refused with
+`report-output-overflow`; sensitive-input redaction orders values longest-first, and the
+`sensitive-input-finding-bound-exceeded` slot-63 overwrite is retained as the spec-listed cap
+behavior rather than treated as a defect; DCP-V1 reverse-link keys use a NUL separator, so
+`lost_reverse_links` strings now carry `\u0000` between their parts, `missing-reverse-link` detail
+ends with the test ID, and `artifacts()` refuses an observation whose input is unretained, whose
+digest differs from its run, or whose input already serves another artifact role. Context-index
+production edits move the analyzer schema to `corvint-analyzer/73` with a re-pinned input digest.
+Not fixed: the DCP-V1-032 `--previous` refusal of a bundle carrying a real reconciliation finding
+is an owner decision (`docs/agent-memory/questions.md`), and the `CPUPROFILE` read-command write
+knob stays in `docs/agent-memory/fixes.md`. The 32-bit symbol-window overflow fix is confirmed by
+inspection only; no 32-bit build was run.
+
+## 2026-09-21 PUB-V0-001: v0.5.0a3 candidate integrates issues #53–#57
+
+Decision 0329 moves the version tuple to `0.5.0a3` for the rerelease that integrates the sealed
+issue branches #53, #54, #55, #56 and #57 plus `main`'s gate ledger. The token is the next alpha
+increment; it awaits the owner's confirmation before any tag is pushed. Each issue branch carries
+its own enrolled local-completion or recorded gate evidence and a sealed CEM under
+`.corvint/changes/`; the integrated candidate must additionally pass the full repository gate on
+its exact clean commit before publication. Unsigned prerelease, `NOT_VERIFIED` publisher identity,
+four non-Windows archives plus gate-produced `SHA256SUMS`, no companion, and `NOT_RUN` live
+Playwright `/2` and external MCP host qualification are retained unchanged.
+
+## 2026-09-21 GLTP-V0-048/049: lifecycle test deadline and joined shutdown
+
+`TestRunningFailedPassed` used the production-like fresh `GOCACHE` with both its runner and outer
+terminal-event waits fixed at 20 seconds. The observed full-suite timeout is consistent with cold
+compilation exhausting that budget. A fatal wait also cancelled the session without joining `Run`,
+allowing temporary-file cleanup to race the runner. The test harness now sets the specified
+`GOENV=off`, uses a five-minute
+per-run hang-detector budget, fails immediately with the complete event sequence on an unexpected
+terminal state, and unconditionally cancels and joins `Run` before `TempDir` cleanup. Production
+defaults and session behavior are unchanged. The complete session package passed in 35.808 seconds,
+and ten serial repetitions of the exact lifecycle test passed in 39.069 seconds.
+
+## 2026-09-21 LTA-V0-004: verbose Go PASS marker exception
+
+The pre-change Corvint query selected an unrelated decision and omitted the governing writer-screen
+intent. Direct inspection found that the generic bare-`pass` assignment branch classified exact Go
+verbose-test marker lines as secrets. The writer screen now masks only the structural `PASS:` prefix on complete
+`[whitespace]--- PASS: TestName (seconds)` lines while still detecting a real `pass: value`, token, or other secret
+inside the test name or elsewhere in the same output; `StoredV1Pattern` is unchanged. `TestGoVerbosePassMarkerBoundary` and the
+local-completion `go-verbose-pass-log` regressions cover detector and executed-check behavior.
+Because the writer-screen source is an analyzer input, the reviewed change advances
+`analyzerSchemaID` from `corvint-analyzer/69` to `corvint-analyzer/71` and refreshes its audit pin.
+## 2026-09-21 BBF-V0-001..012: criterion-level browser behavior falsification (issue 54)
+
+The experimental `corvint-behavior-falsify` companion separates deterministic planning from exact
+digest approval, stages caller-owned argument-free hooks, and runs them under bounded process-group
+containment in a caller-marked disposable workspace. It records contract/criterion/assertion,
+application/test/documentation revision, runner/browser/config/environment, perturbation,
+attempt/retry, cleanup and artifact identities. Only the expected assertion failure with unrelated
+criteria and setup still passing can classify `killed`; selector errors, unrelated failures, retry
+masking, stale bindings and cleanup drift are invalid, while process/timeout loss remains
+`infrastructure_failed`. The report retains all six raw statuses and always preserves
+`full-relevant-suite` fallback.
+
+Focused `go test -count=1 ./internal/behaviorfalsify ./cmd/corvint-behavior-falsify` and matching
+`go vet` passed; the same packages also pass `go test -race`. The synthetic matrix covers the expected kill, tautology, hidden duplicate,
+wrong-value survival, wrong assertion, unrelated failure, selector error, timeout, cleanup failure,
+retry masking and stale revision/perturbation/artifact identities. A staged live test helper produced
+and then cleaned a retained artifact with equal pre/post workspace digests; a separate one-second
+timeout proved owned process-group cleanup and workspace restoration; missing descendant-observer
+evidence remains infrastructure rather than success. These are authored synthetic fixtures, not a
+real adopter or browser run. Hook semantics and absence of persistent external effects remain
+caller-owned and unauthenticated; live utility is `NOT_OBSERVED`.
+
+Independent review found cancellation could schedule untouched cleanup hooks, wall-clock accounting
+did not reserve both process shutdown windows, process stdin retained a lower hidden default, plan
+controls were duplicated, report/receipt output was not aggregate-bounded, infrastructure receipts
+accepted contradictory caller strings, and the initial acceptance matrix was incomplete. Repairs
+stop after the interrupted attempt, count only started controls, reserve hook/cleanup shutdown and
+execution time, isolate and bound Git reads, divide the report budget across approved attempts, use
+one non-HTML-escaping deterministic JSON encoding, close infrastructure reason/shape validation and
+add live crash, overflow, cancellation, slow-termination, cleanup, stale-artifact and JSON-expansion
+regressions. The final independent re-review returned `PASS`.
+
+The first frozen canonical gate exposed two local evidence defects. Under concurrent host load the
+timeout regression obtained owned process-group cleanup and restored the workspace but a transient
+`ps` snapshot was unavailable; the already-fail-closed infrastructure result is now asserted without
+turning observer availability into a test prerequisite. The new specification also used a prose
+`Boundary` digest bullet instead of the required `Exists` and `Blocked on` fields, and its README
+clause differed from the indexed claim. The digest and README now share the exact indexed claim.
+The replacement gate passed the full suite, vet/cross-vet, archive and interop before detecting the
+resulting stale requirement line numbers; `REQUIREMENTS.tsv` was regenerated from the repaired spec.
+The next frozen gate passed those checks plus spec, traceability, EOL, CI, release and receipt policy
+before the error-code ownership tail found the new `approved-plan-drift` code unnamed; the owning
+spec now records that code and the shared authorization code explicitly.
+
+Dogfood orientation exposed two limitations retained for review: the initial limit-one query ranked
+the Go-kernel migration spec rather than the behavior-contract seam, and the later focused context
+packet reported captured index revision `70ffae556ba8cecc499501a492b9051485310759` rather than the
+worktree HEAD. Exact repository inspection found `documentation-corpus-v1.md` and
+`internal/doccorpus/behavior.go`; no completeness claim is made for the stale context packet.
+
+The first committed CEM and full gate passed, but enrolled `finish` exposed a distinct
+traceability miss: Go test function names normalized the requirement numbers and yielded no exact
+`BBF-V0-###` OCM claim anchors. Requirement-labelled test cases now bind the existing behavior
+assertions, with added closed-vocabulary and report-limitation checks. The first enrolled full test
+failed in unrelated process/timing tests under concurrent repository-wide runs; a clean serialized
+retry passed. Both observations remain in the private completion evidence rather than being
+reclassified as product behavior.
+
 ## 2026-09-21 GL-V0-001..GL-V0-008: gate ledger, one pass per distinct content
 
 The owner asked that Corvint manage its own gate so parallel agents stop each running a full
@@ -74,6 +189,24 @@ runtime behavior.
 The frozen calibration, held-out replay, kill-gate, and first accepted extractor profile remain open;
 this deterministic slice is not evidence that any model's probabilities are calibrated.
 
+## 2026-09-21 AHI-022: OpenCode file-change burst fallback
+
+Issue #55 reproduced two adapter-local failures: concurrent `file.edited` callbacks overlapped
+Corvint subprocesses, and the structured `unsupported-impact-path-suffix` refusal reached the
+terminal as a fault. The OpenCode adapter now shares one bounded file-change drain, coalesces
+duplicate per-session paths, and records that expected refusal through `client.app.log` while
+leaving the Core non-zero refusal unchanged. The adapter fixture asserts both no overlap across a
+twenty-event burst and preservation of the structured refusal code. Node 16 was outside the
+package's declared `>=20` runtime; supported-runtime verification used Node 22.23.2.
+
+The first full gate passed the issue #55 adapter coverage, but
+`TestBuildQueryAgreesAcrossWorkerCounts` failed cleanup once there and twice in isolated retries
+while `t.TempDir` removed `.git`. The exact failing test passed with Git auto-maintenance disabled.
+The helper now applies the same
+`maintenance.autoDetach=false`, `gc.autoDetach=false`, and `gc.auto=0` fixture boundary as
+`testGit`, so every fixture writer finishes before cleanup. After the repair, the test passed ten
+consecutive isolated runs under concurrent gate load.
+
 ## 2026-09-20 LAC-V0-032: safe roadmap auto-recheck
 
 The roadmap repeats its existing read-only request every 30 seconds. Eligibility remains derived by
@@ -87,6 +220,94 @@ The first full gate reached every package but failed three `internal/contextinde
 `.git/info/refs` after removal began. The shared fixture Git helper now disables auto-gc and keeps
 any maintenance synchronous; the exact combined reproducer and the full gate must pass after this
 repair before the console change is qualified.
+
+## 2026-09-21 PWP-V2: sensitive browser-input evidence boundary
+
+GitHub issue #56 adds explicit `corvint-playwright-external/2` selection. The reporter redacts
+default and bounded provider-added input actions before its private JSON write; the Go boundary
+validates the untrusted report and retained canonical document again. Findings retain only a typed
+code and structural path. `/0` and `/1` reject the new fields and keep their prior behavior.
+
+Focused `internal/jstestprovider`, `internal/testvaliditydoc`, and
+`cmd/corvint-js-test-provider` tests passed, including a deliberately leaking conformance payload
+and an accepted redacted payload. The checked-in Node regression executes the actual reporter over
+nested, retried, escaped, metadata-declared and deliberately leaking actions; its output retains no
+fixture values. Go regressions cover whole-receipt validation, normalization, Unicode case-folding,
+the depth, total-step, string and finding bounds, sibling risk fields, short-value structural
+noninterference, and fixed value-free decoder failures. Raw-step bounds run before fixture recursion;
+scrubbing is restricted to action titles, declared sensitive metadata, and error/attachment/failure
+detail fields so status, identity and criterion text remain unchanged. `node --check` and
+`node --test` passed. The live Playwright reporter matrix is `NOT_RUN`, so `/2` is explicitly non-promotable and
+cannot project passing execution; existing `/0` and `/1` qualifications are unchanged.
+
+The fresh repair reproduced three independent-review P1s before changing code: an already-redacted
+action admitted arbitrary raw risk fields; receiver-prefixed unquoted values escaped sibling errors;
+and retained-document unknown-property diagnostics echoed attacker text. Sensitive tests now require
+canonical redaction of every nonempty diagnostic/attachment field across all retries, including when
+no original value exists. Raw-title matching and extraction share one receiver-aware matcher without
+case-transformed offsets. Malformed `/2` retained documents and inputs whose kind cannot be decoded
+return a fixed typed `sensitive-input-document-invalid` finding. Successfully probed legacy `/0` and
+`/1` closed-decode diagnostics retain their prior behavior. All three focused Go packages, six actual
+Node reporter regressions, reporter syntax checking and focused vet passed after this repair; the
+coordinator owns independent review, the frozen full gate and final dogfood binding.
+
+The fresh task's next independent review reproduced punctuation/Unicode leading-action gaps and
+missing custom/final-argument extraction, including cross-test echoes. Repair cycle 1 replaced
+substring/ASCII-regexp classification with shared Go/JavaScript Unicode token semantics at a bounded
+leading action or receiver position. The original rune sequence supplies the parsed tail; quoted
+commas, escapes and nested parentheses cannot split an argument. Any sensitive action now protects
+every risk field report-wide, including already-redacted manifests with no original candidate.
+Regression controls preserve assertion/navigation prose containing embedded action names. All nine
+actual Node reporter tests, the three focused Go packages and focused vet passed; the independent
+overlay replay reported `leak=false` and successful sanitized document decoding for every reviewed
+title. No live reporter qualification or promotion is inferred from these bounded tests.
+
+Repair cycle 2 reproduced an admitted `custom+entry` pattern that the matcher ignored and a
+zero-word `***` declaration that silently disabled its own detection. Normalization and matching
+now share exactly the non-Unicode-letter/number/mark separator class, and both implementations
+reject zero-word or oversized declarations before accepting evidence. A bounded lexical refusal
+also closes call-bearing receiver expressions containing sensitive action tokens or quoted property
+names. These expressions remain unsupported; rejection is typed and value-free and prevents the
+reporter from writing a partial report after earlier tests. All eleven actual Node reporter tests,
+the three focused Go packages, focused vet, and the independent boundary-check overlay passed.
+The reviewer's unchanged latest replay now stops at `sensitive-input-policy-invalid` because it
+adds `***` to every policy while still expecting successful serialization; the checked-in regression
+asserts that required rejection explicitly. The live `/2` qualification hold remains in force.
+
+## 2026-09-21 AFP-V0-019 / MCPV0-020: explicit immutable planning snapshot (issue #57)
+
+The owner requested authoritative evidence for an explicit immutable snapshot while unrelated
+checkout paths remain dirty. The experimental route binds current commit, complete tree, base,
+exact changed paths and canonical path digest. It does not authenticate caller intent or accept
+runtime coverage. CLI selectors consume bounded committed blobs in disposable private scratch;
+MCP uses the existing immutable revision reader and preserves the outer mixed-worktree binding.
+Query snapshot authority excludes mutable traces/history rather than weakening their drift gate.
+Missing/stale/mismatched receipts fail closed; unsupported overlays and provider/discovery
+composition remain explicit exclusions. Existing live-worktree routes are unchanged.
+
+Pre-change native query succeeded at base `3191c0b95fb154a94f1e758d935b72fe237dfd65`;
+raw evidence, usage baseline and keyed local-completion plan are in `/tmp/corvint-issue57` and the
+worktree-private Git evidence directory. Initial dogfood retained `NOT_PRODUCED` reasons
+`git-diff-failed` (empty range), `missing-intent-scope`, `cem-map-not-produced`, and
+`outcome-input-not-provided`; these are not passing verification. `affected --base` was used
+before tests. Query, affected, CEM/OCM and MCP are applicable routes; learning, providers, mutation,
+console and external host qualification are not part of this source-selection change.
+
+Focused snapshot regressions exposed query history's live-state binding; the repair retains that
+binding for legacy queries and explicitly omits history in the immutable profile. Focused receipt,
+CLI and MCP regressions passed. Final canonical checks and independent review are recorded by
+keyed dogfood observations and the coordinating task, not inferred from these fixture results.
+Independent review cycle 1 reproduced an MCP admission gap: symlink/gitlink rejection had
+only guarded CLI materialization. Shared bounded tree validation now guards both routes, with
+MCP query/impact regressions for both shapes. The same review found final coverage compilation
+dropped the history/trace exclusion disclosure; the compiler now receives that disclosure and
+the MCP wire test asserts it alongside authoritative evidence. The in-flight canonical root suite was cancelled
+before repair (`verification-cancelled`), never counted as passing evidence.
+The builder did not delegate under the sole-builder instruction; independent review belongs to
+the coordinator. Gate-plan/gate-intent scripts are Beamfall workflow tooling, absent here; the
+practical plan review and requirement-linked tests provide local review inputs, not an independent
+gate claim. Rollback removes only explicit snapshot admission and its optional scope fields.
+
 ## 2026-09-20 PWP-V0-003/007/008: standard Playwright device-spread regression
 
 GitHub issue #49 reported that the ordinary Playwright project form
@@ -678,6 +899,43 @@ raw nonblocking reads. Deterministic empty/open and complete/open pipe cases fai
 closed short/complete/oversized cases preserve refusal and valid capability behavior. This restores
 the existing bounded-refusal contract without changing authority or qualification claims. Fresh
 evidence and full verification are required after this repair.
+
+Issue 53 adds only an opt-in native producer/reconciler for the existing issue-40 profile. Gate A
+rejected a conditional fallback, a CLI-only proof that stopped before the compiler, and silent
+genericization of the legacy `golf_e2e` wire member. The accepted shape therefore retains
+unconditional full-suite fallback and that compatibility field, and proves mapped input through
+separately retained migration/discovery/runtime artifacts into the existing Build/Open boundary.
+Nested evidence objects stay closed; only outer record and scalar/list field names are mapped.
+
+The owner clarification added while implementation was in progress makes the caller-reviewed
+documentation inventory normative. Gate A was rerun before continuing. The revised result therefore
+retains a normalized projection keyed by globally unique variation IDs with explicit preconditions,
+actions, observable facts, expected outcomes and allowed projects. Tests carry closed semantic claims;
+reconciliation compares those claims, assertions, pages/events/controls, project executions and
+runtime witnesses in both directions. Source/test proposals cannot mutate that projection. Semantic
+mismatch, undocumented tested behavior, documented untested behavior and missing/extra project
+witnesses remain explicit fail-closed frontier rows.
+
+Pre-change `query` selected unrelated genesis evidence and retained four omissions; tracked-path
+impact selected the corpus implementation/tests with 119 omissions. Dirty `affected` selected the
+corpus and CLI packages, kept language/frontier unknowns, and independently required `make gate`.
+The enrolled local completion session freezes the documentation-corpus spec plus focused, full Go,
+vet, interop and requirement-definition checks. Exact consumer data and live browser execution remain
+NOT_OBSERVED. Independent Sol/high review found incomplete lost-link deltas, observation-subject
+repair, permissive previous-result validation and incomplete orphan/runtime diagnostics. Two bounded
+repair passes closed those findings, including independently testable variation-to-flow,
+variation-to-test and test-to-variation losses; focused adapter and CLI tests passed after repair.
+Gate B then exposed that same-revision lineage rejected ordinary historical comparison and that some
+mapped-input errors named only a logical field rather than its exact JSON pointer. The owner selected
+the backward-compatible interpretation of the vocabulary criterion: `golf_e2e` remains attributed
+legacy caller input, while all new mapping/result/diagnostic vocabulary stays domain-neutral. The
+repair admits only self-consistent earlier revisions of the same repository identities, validates
+retained artifact digests, and reports exact mapped record pointers. The second Gate B pass found
+three remaining diagnostic defects: compound validation could name the wrong field, trailing empty
+RFC-6901 tokens were collapsed, and map iteration made multi-field refusals nondeterministic. Ordered
+field decoding, field-specific validation and literal pointer composition close those cases with
+regressions. Final gate and CEM/OCM reports remain pending; no acceptance, runtime authenticity,
+utility, narrowing or promotion claim is recorded here.
 
 ## 2026-09-19 NTP-V0 integration with repository work-queue adoption
 

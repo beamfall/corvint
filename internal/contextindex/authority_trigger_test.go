@@ -167,3 +167,36 @@ func TestAuthorityTriggersRefuseUnusablePaths(t *testing.T) {
 		t.Fatal("limit 0 was accepted")
 	}
 }
+
+// A citation may name any digit run, so an absurd range must be bounded against
+// the cited target before it is expanded: the lookup returns cleanly and reports
+// the anchor as unreadable rather than allocating over the written range.
+func TestAuthorityTriggersBoundAbsurdCitationRanges(t *testing.T) {
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":      "module example.test/fixture\n\ngo 1.27.0\n",
+		"pkg/core.go": coreSource,
+		"AGENTS.md": "# Instructions\n\nSee `pkg/core.go:1-9223372036854775807@deadbeef`, " +
+			"`pkg/core.go:0-9223372036854775807@deadbeef` and `pkg/core.go:1-9223372036854775807`.\n",
+	})
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := LookupAuthorityTriggers(index, []string{"pkg/core.go"}, 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := triggerRows(t, result)
+	if len(rows) != 3 {
+		t.Fatalf("absurd citations = %v", result)
+	}
+	for _, row := range rows {
+		want := anchorUnreadable
+		if !strings.Contains(row["citation"].(string), "@") {
+			want = anchorUnpinned
+		}
+		if row["anchor"] != want {
+			t.Fatalf("anchor for %v = %v, want %s", row["citation"], row["anchor"], want)
+		}
+	}
+}

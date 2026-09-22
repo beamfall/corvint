@@ -81,6 +81,9 @@ func (postings *windowPostings) UnmarshalBinary(data []byte) error {
 		if count, err = length(); err != nil {
 			return err
 		}
+		if count > len(data)/4 {
+			return errors.New("symbol window table is truncated")
+		}
 		raw, err := next(4 * count)
 		if err != nil {
 			return err

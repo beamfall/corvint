@@ -176,6 +176,24 @@
     "implementation": []
   },
   {
+    "path": "docs/specs/browser-behavior-falsification-v0.md",
+    "title": "Browser behavior falsification V0",
+    "reqPrefix": "BBF-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An opt-in companion runs digest-approved caller hooks against a marked disposable workspace and emits fail-closed criterion-level falsification receipts.",
+    "dependsOn": [
+      "docs/specs/documentation-corpus-v1.md",
+      "docs/specs/js-live-test-provider-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/behaviorfalsify",
+      "cmd/corvint-behavior-falsify"
+    ]
+  },
+  {
     "path": "docs/specs/cem-0.2-canonical-binding.md",
     "title": "CEM 0.2 canonical patch binding",
     "reqPrefix": "CEM-CB",
@@ -1036,11 +1054,11 @@
   },
   {
     "path": "docs/specs/playwright-external-provider-v0.md",
-    "title": "Playwright External Provider V0/V1",
+    "title": "Playwright External Provider V0/V1/V2",
     "reqPrefix": "PWP-V0",
     "intent": "accepted",
-    "delivery": "validated (`/0` Playwright 1.60.0 matrix and 1.63.0 macOS arm64 system-Chrome, bundled-headless-shell and standard device-spread paths; `/1` Docker-backed Playwright 1.63.0)",
-    "claim": "External-server Playwright receipts bind attributable outcomes without owning the app; `/1` adds typed pre/post app and clean test-repository identity.",
+    "delivery": "`/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`",
+    "claim": "External-server Playwright receipts bind outcomes without owning the app; `/1` attests application identity and `/2` redacts sensitive input evidence.",
     "dependsOn": [
       "docs/specs/live-proof-carrying-verification-v0.md"
     ],

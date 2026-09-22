@@ -1,7 +1,7 @@
 ---
 name: tests
 description: Test coverage gaps and flaky tests to stabilise
-updated: 2026-09-18
+updated: 2026-09-21
 ---
 
 # Tests
@@ -15,6 +15,3 @@ One paragraph: what, where (file:line), why it matters, and what done looks like
 
 ### 2026-09-18 cmd/corvint: `TestWorkScriptRejectsCallerScratch/ambient-target` saw its fixture change once on CI
 On main run 35407266937 (`f870f41`, attempt 1) `work_materialization_test.go:603` reported a caller/common manifest change 80ms into the subtest; the sibling kinds passed. It did not reproduce in 100 Linux repetitions, git 2.55 leaves a fresh fixture's `.git` unchanged, and the script has no write path into the caller in ambient mode. The assertion now prints both manifests. Done means the next failure's diff names the writer and it is fixed, or the test stays green long enough to close this out.
-
-### 2026-09-18 liveverify/session: `TestRunningFailedPassed` misses its event wait under full-suite load
-In a full `go test ./...` run, `session_test.go:132` timed out waiting for the next event after `running` (20.49s) and the package took 125s. It passed 2/2 alone (7.7s). This failure was also seen in the #8 run. Done means the wait is keyed on the run's own completion rather than elapsed time, or the budget is sized as a hang detector (decision 0082).

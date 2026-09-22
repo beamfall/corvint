@@ -88,7 +88,15 @@ func Build(ctx context.Context, root string, m Manifest) (*Artifact, error) {
 	if err := c.pin(ctx); err != nil {
 		return nil, err
 	}
-	c.artifact = &Artifact{Schema: Schema, Builder: currentBuilder(), Manifest: m, ManifestSHA256: hashValue(m), ProfileSHA256: hashValue(m.Profile), Tree: c.indexes[m.Repository.Revision].Revision, Subjects: []Subject{}, Claims: []Claim{}, Relations: []Relation{}, Journeys: []Journey{}, Observations: []Observation{}, Capabilities: []Capability{}, Gaps: []Gap{}}
+	manifestSHA256, err := hashValue(m)
+	if err != nil {
+		return nil, err
+	}
+	profileSHA256, err := hashValue(m.Profile)
+	if err != nil {
+		return nil, err
+	}
+	c.artifact = &Artifact{Schema: Schema, Builder: currentBuilder(), Manifest: m, ManifestSHA256: manifestSHA256, ProfileSHA256: profileSHA256, Tree: c.indexes[m.Repository.Revision].Revision, Subjects: []Subject{}, Claims: []Claim{}, Relations: []Relation{}, Journeys: []Journey{}, Observations: []Observation{}, Capabilities: []Capability{}, Gaps: []Gap{}}
 	for _, p := range m.Providers {
 		if p.Kind == "native" {
 			if err := c.native(p); err != nil {
@@ -121,7 +129,11 @@ func Build(ctx context.Context, root string, m Manifest) (*Artifact, error) {
 	sort.Slice(a.Gaps, func(i, j int) bool {
 		return a.Gaps[i].Subject+"\x00"+a.Gaps[i].Kind+"\x00"+a.Gaps[i].Reason < a.Gaps[j].Subject+"\x00"+a.Gaps[j].Kind+"\x00"+a.Gaps[j].Reason
 	})
-	a.SHA256 = hashValue(a)
+	digest, err := hashValue(a)
+	if err != nil {
+		return nil, err
+	}
+	a.SHA256 = digest
 	if _, err := Encode(a); err != nil {
 		return nil, err
 	}

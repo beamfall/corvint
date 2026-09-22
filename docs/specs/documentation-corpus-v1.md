@@ -5,8 +5,9 @@ Date: 2026-09-19
 Intent status: proposed
 Delivery status: experimental
 Authoritative inputs: owner request [issue 31](https://github.com/beamfall/corvint/issues/31),
-owner requests [issue 40](https://github.com/beamfall/corvint/issues/40) and
-[issue 42](https://github.com/beamfall/corvint/issues/42),
+owner requests [issue 40](https://github.com/beamfall/corvint/issues/40),
+[issue 42](https://github.com/beamfall/corvint/issues/42) and
+[issue 53](https://github.com/beamfall/corvint/issues/53),
 `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/deployment-neutral-index-platform-v0.md`,
 `docs/specs/source-documentation-draft-v0.md`, `docs/specs/external-evidence-provider-v0.md`.
 
@@ -160,6 +161,47 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   match exactly before threshold evaluation, and the receipt's verified executed project must belong
   to that project set. A fully passing four-node run cannot qualify a six-node policy, and malformed,
   unbound or mismatched topology refuses the aggregate.
+- `DCP-V1-027`: The opt-in native behavior adapter accepts one closed, bounded
+  `corvint-behavior-adapter-request/1` document. Each generic entity mapping names one input, one
+  RFC-6901 record-list pointer and relative pointers for its scalar or list fields. The caller marks
+  the reviewed flow and variation inventories that form the normative documentation contract. Each
+  globally unique `variation_id` carries explicit preconditions, actions, observable facts, expected
+  outcomes, allowed projects and exact tests. Nested anchors, assertions, semantic test claims,
+  ordered events, runtime runs and observation links use closed wire shapes; the adapter never
+  invents review anchors, repairs identities or sorts event order.
+- `DCP-V1-028`: One deterministic `corvint-behavior-adapter-result/1` bundle contains an exact
+  `corvint-corpus-behavior-provider/1` record, the normalized normative variation projection,
+  canonical test semantic claims and complete migration, live-discovery and runtime sidecar bytes
+  with their SHA-256 identities. The provider retains the issue-40 `golf_e2e` member and digest
+  algorithm. Sidecars remain separately publishable inputs, avoiding self-reference.
+- `DCP-V1-029`: The adapter preserves the same canonical variation set in both directions across
+  flow, variation, exact test ID, Playwright project, assertion and semantic test claim. Preconditions,
+  actions and observable facts match exactly; every expected outcome matches criterion, behavior,
+  matcher, locator and value. Allowed projects, required flow pages/events/negative controls and
+  runtime witnesses reconcile in both directions. Source- or test-discovered candidates remain
+  proposed; generation never rewrites the normative documentation projection, expands its denominator
+  or emits a confirmed missing-E2E finding without an explicit current reviewed absence.
+- `DCP-V1-030`: The result separately reports documented criteria, source-discovered candidates,
+  discovered project executions, linked contracts and runtime-witnessed contracts. Every row names
+  value, denominator, revision, rule and limitations; empty or incomplete input is `unknown` or
+  `unreviewed`, and a zero denominator is undefined.
+- `DCP-V1-031`: Reconciliation reports every documented or discovered orphan, criterion/test/flow
+  contradiction, missing reverse link, assertion-free execution, stale anchor, missing or out-of-order
+  page/assertion event, absent negative control, missing immutable runtime witness, semantic mismatch,
+  undocumented tested behavior, documented untested behavior, unreviewed normative input and missing
+  or extra project witness. Caller labels never qualify a receipt. Every adapter result, including one
+  later accepted by the corpus compiler, retains `full-relevant-suite` fallback and no narrowing authority.
+- `DCP-V1-032`: An optional prior result yields exact added, removed and content-changed canonical
+  variation IDs plus lost flow/test, semantic-claim and assertion reverse links even when aggregate
+  counts are unchanged; semantic fields participate in the content digest. The prior result must pass
+  closed schema, stable provider/contract/repository lineage, self-consistent historical revisions,
+  artifact and contract digests, uniqueness and semantic-link validation before it can affect a delta;
+  a later revision of the same repositories remains comparable. Diagnostics name the input, exact
+  mapped JSON field, revision, digest and corrective action; multi-field refusal selection is
+  deterministic and preserves RFC-6901 empty path tokens. Output
+  ordering and bytes are deterministic, and new mapping, result and diagnostic vocabulary contains no
+  adopter-specific repository, product, organization or path terms; caller data and the legacy
+  compatibility member remain attributed input.
 
 ## Input and authority boundary
 
@@ -243,6 +285,32 @@ Acceptance: `TestBehaviorContractCorpusRoundTrip`, `TestBehaviorContractGaps`,
 `TestBehaviorExactProjectObservation`, `TestBehaviorLegacyParity` and
 `TestBehaviorLegacyAndStabilityIntegration` exercise `DCP-V1-004`,
 `DCP-V1-007..013` and `DCP-V1-019`. Owner acceptance and real consumer fixtures remain promotion gates.
+
+### Experimental behavior-provider adapter (issue 53)
+
+`corvint docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json]` is a read-only
+producer for the issue-40 profile. The request supplies caller-owned documents and immutable input
+identities plus generic mappings for reviewed flows and variations, source candidates, tests, live
+Playwright discovery and runtime witnesses. Each canonical variation retains explicit semantic fields
+and allowed project/test identities; tests name the same variation in a closed claim. Only outer record
+and scalar/list fields are remapped. Closed nested wire objects are decoded unchanged so mapping cannot
+manufacture an anchor, review, assertion, semantic claim or event sequence.
+
+The result is a deterministic bundle rather than a self-extending provider record. It retains the
+provider, the normalized normative variation projection, separately publishable migration, discovery
+and runtime sidecars, a five-denominator coverage projection, a complete reconciliation frontier and
+an incremental identity delta. Source/test proposals cannot enter or rewrite the normative projection.
+The existing corpus compiler remains the validating and Git-rebinding boundary. The adapter's
+`runtime-witnessed` row means only that mapped closed records and a native qualified-receipt document
+join structurally; it is not `verified_tests`, current application freshness, authenticated runtime
+or narrowing authority.
+
+Acceptance: `TestBehaviorAdapterBuildOpen`, `TestBehaviorAdapterConformance`,
+`TestBehaviorAdapterMappingParity`, `TestBehaviorAdapterDelta`,
+`TestBehaviorAdapterReverseLinkKeysDoNotCollide`, `TestBehaviorAdapterMissingReverseLinkNamesEachTest`,
+`TestBehaviorAdapterArtifactsMatchPreviousValidator` and
+`TestBehaviorAdapterCLI` exercise `DCP-V1-027..032`. Exact consumer inputs, live browser execution
+and external utility qualification remain `NOT_OBSERVED`.
 
 ### Experimental repeated Playwright stability evidence (issue 42)
 
@@ -347,6 +415,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-017 | Corpus render and maintenance API | Human byte/permission preservation, malformed/stale/tampered refusal |
 | DCP-V1-019..020 | Conformance fixtures and independent example adapter | Labelled evaluation and actual self-corpus receipt |
 | DCP-V1-021..026 | `internal/doccorpus/stability.go`, corpus reader and MCP bridge | End-to-end aggregate, policy scopes, prior-attempt retention, source rebinding, exact declared/observed topology, cleanup and adversarial controls |
+| DCP-V1-027..032 | `internal/doccorpus/behavior_adapter.go`, `cmd/corvint/docs_corpus.go` | Mapped bundle through existing Build/Open, denominators, frontier/delta, bounds and issue-53 adversarial fixtures |
 
 ## Open decisions
 
