@@ -13,6 +13,9 @@ Missing, weak, or flaky tests, named by file and behaviour. Remove the entry whe
 One paragraph: what, where (file:line), why it matters, and what done looks like.
 -->
 
+### 2026-09-21 cmd/corvint: output-write-failure suite omits `dogfood-ocm` and `taskman-fixture`
+`cmd/corvint/output_write_failure_test.go:24-70@97c21948` covers affected, context-lookup, task-context, index build/if-stale and docs, but not the `dogfood-ocm` or `taskman-fixture` verbs, which is why the missing `output-failed` envelope in `dogfood_ocm.go` went unnoticed. Done: one case per verb asserting the stderr diagnostic and exit 2 on a failing stdout writer.
+
 ### 2026-09-21 behaviorfalsify: vocabulary and wall-clock edges are unasserted
 `TestBBFV0003ClosedControlVocabulary` asserts `Counts`/`Fallback` but not `CompleteVocabulary`, so the `Disposition`-blind count in `execute.go:413-419` passes. Every test uses `WallClockSeconds >= 12`, so a plan at or below the 10s `cleanupReserve` (`plan.go:106`) is never exercised. Add one case each.
 

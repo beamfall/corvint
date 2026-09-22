@@ -13,6 +13,9 @@ Reproducible defects: something is broken, with a reproduction. Remove the entry
 One paragraph: what, where (file:line), why it matters, and what done looks like.
 -->
 
+### 2026-09-21 cmd/corvint: `dogfood-ocm` reports a stdout write failure without an error envelope
+`runDogfoodOCM` returns a bare exit 2 when writing its status to stdout fails (`cmd/corvint/dogfood_ocm.go:51-53@d5f6e5d7`), while the sibling `ocm` verb emits an `output-failed` envelope on stderr first (`cmd/corvint/ocm.go:56-59@553e4c50`). A caller with a closed or full stdout gets no diagnostic. `taskman_fixture.go` has the same bare return (`cmd/corvint/taskman_fixture.go:36-38@8313d8e5`) where its other error paths print to stderr. Done: both write failures emit the `output-failed` diagnostic before exit 2, matching `ocm`. Found by the 2026-09-21 cmd/corvint handler audit.
+
 ### 2026-09-21 contextindex: `citedNumbers` expands a cited line range with no upper bound
 `internal/contextindex/authority_trigger.go:196-202@b8258e73` allocates `end-first+1` ints and loops `first..end` before the `number > len(lines)` guard at `:236-239@fbc71363`; the regex at `:32@138c86b0` accepts any digit run. One backticked citation such as a document line-range citation ending in 9223372036854775807 anywhere in an indexed document panics (`makeslice: cap out of range`) or allocates gigabytes, and `documentCitations` runs over every document before the requested-path filter (`internal/contextindex/authority_trigger.go:137-142@354f6aa7`), so it breaks every `corvint context lookup` authority call, a read command. Done: clamp the range to the target's line count (or a fixed cap) before allocating, with a test.
 
