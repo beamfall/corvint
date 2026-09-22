@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
   "plugin": [
-    "@corvint/opencode"
+    "file:///absolute/path/to/corvint/integrations/opencode/src/index.js"
   ]
 }

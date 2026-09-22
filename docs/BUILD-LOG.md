@@ -1296,3 +1296,28 @@ outbound-network restriction, not an inference or cost benchmark. The independen
 review found one completion-evidence defect: the new clauses initially followed a level-two
 heading, outside OCM's Requirements parser. Moving that heading to level three preserves actual
 clause enumeration; final OCM linkage and frozen checks remain required before local completion.
+
+
+The dedicated OpenCode task retained that source and enrollment, then corrected the developer
+preview installation: the example now uses an available local file URL instead of an unpublished
+npm name. A separate native configuration enables core and test-validity MCP servers with the
+explicit legacy selector. The packaged OpenCode skill routes existing tools on demand without
+expanding the closed MCP registries. Independent review found no remaining protocol defect and
+no blocking setup or skill issue; its forward cases preserved Unicode, non-Go and missing-test
+boundaries. Executable requirement anchors now make MCPV0-021..023 directly linkable by OCM.
+
+The 1.18.31 native probe loaded the plugin and skill and executed status, query, tracked-Go impact,
+test-validity discovery, native context and caller-reported blocked-outcome tools. All repository
+receipts matched the temporary fixture commit; absent retained tests stayed UNSUPPORTED. A first
+probe inherited the parent PWD and therefore selected the wrong project despite subprocess cwd;
+that failed fixture was retained and corrected by binding the child PWD to its actual directory.
+The loopback-only deterministic provider supplies transport evidence, not model-quality evidence.
+The expanded probe's INT/TERM cleanup is checked separately. Original and expanded probe receipts
+remain under the private `corvint-v060-evidence/opencode-compat` and `corvint-opencode-evidence`
+temporary directories. Full gates and exact final CEM/OCM closure remain separate observations.
+
+Focused protocol/server regressions passed. Direct JavaScript invocation was refused because the
+suite requires its Go-owned native fixture; the canonical host-adapter target remains the runner.
+The documentation check exposed an unquoted requirement range parsed as a duplicate definition;
+quoting that prose range preserves its meaning and the executable requirements. The original
+failed checks remain in the private follow-up evidence.

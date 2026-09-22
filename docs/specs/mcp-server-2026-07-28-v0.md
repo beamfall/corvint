@@ -368,7 +368,7 @@ not truncated JSON.
 ### Explicit 2025-11-25 compatibility
 
 The owner-approved OpenCode repair adds a closed, opt-in transport profile. Requirements
-MCPV0-001..020 continue to govern the default modern profile; this section overrides only the
+`MCPV0-001..020` continue to govern the default modern profile; this section overrides only the
 legacy selection, lifecycle and transport metadata described below. Shared bounds, read-only
 receipts, cancellation, process cleanup, and all remaining promotion gates apply to both profiles.
 The [official 2025-11-25 lifecycle](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle)

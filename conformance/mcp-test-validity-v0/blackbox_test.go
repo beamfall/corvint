@@ -146,7 +146,7 @@ func TestToolCatalogueIsExactlyOneReadOnlyTool(t *testing.T) {
 // byte-identical.
 func TestVectorsAndReadOnly(t *testing.T) {
 	for _, version := range []string{protocolVersion, "2025-11-25"} {
-		t.Run(version, func(t *testing.T) { vectorsAndReadOnly(t, version) })
+		t.Run("MCPV0-023 representative tool calls "+version, func(t *testing.T) { vectorsAndReadOnly(t, version) })
 	}
 }
 func vectorsAndReadOnly(t *testing.T, version string) {
