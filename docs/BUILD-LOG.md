@@ -1853,3 +1853,22 @@ Audit review (IDX-SNAP-V0-017): the change adds `context_anchors.go` and edits `
 and `context_terms.go` on the query side only; no extraction, fact or pack encoding changes, so
 `analyzerSchemaID` stays `corvint-analyzer/73` and only the `TestAnalyzerSchemaInputs` source
 digest is refreshed.
+## 2026-09-22 tcq-environment-variants-and-flake-qualifier: shared flake rule and declared observation variants
+
+Ticket `V1-0091`, decision 0339, requirements `TCQ-V0-048..050` in
+`docs/specs/test-claim-qualification-v0.md`. A test observation may now declare a ResultDB-style
+environment variant (`environment` object, key grammar `^[a-z][a-z0-9_]{0,63}$`, at most 32 pairs,
+values at most 256 bytes); an undeclared variant is reported unknown and adds no wire member, so the
+frozen `conformance/tcq-0` vectors are byte-identical. `tcq.Flaky` is the one divergence rule: more
+than one distinct terminal status among `PASSED`/`FAILED`/`ERROR` across runs. `Request.PriorObservations`
+(at most 16, dynamic tuple only, target-bound) lets TCQ pool row statuses per execution key across
+byte-identical variants; a divergent key adds reason 18 `test-flaky` to claims that matched a row and
+removes the relation while the current report state stands. The JS provider derives its Playwright
+state and `flaky-retry` reason from the same rule over recorded attempts; a reporter label can only
+add the qualification. Evidence: `TestObservationEnvironmentIsAdditive`,
+`TestFlakyRuleNeedsDivergentTerminalOutcomes`, `TestSameRevisionDivergentOutcomesAreFlaky`,
+`TestPriorObservationVariantMismatchIsNotFlaky`, `TestPriorObservationsRequireDynamicTupleAndTarget`
+(`internal/tcq/flake_test.go`), `TestFlakyOutcomeIsSharedRule`
+(`internal/jstestprovider/projection_test.go`). Not done here: the frontier CF-V0-016 closed
+vocabulary and `docs/tcq-0.schema.json` do not yet list `test-flaky` or `observation.environment`;
+the frontier shim supplies no priors, so neither can reach them today.

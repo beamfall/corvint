@@ -36,6 +36,11 @@ type Request struct {
 
 	// Expected optionally verifies a cached result byte-for-byte (TCQ-V0-043).
 	Expected []byte
+
+	// PriorObservations are earlier observations of the same target for the
+	// TCQ-V0-050 flake rule. They require the dynamic tuple, bind the resolved
+	// target, and can only remove a relation, never add one.
+	PriorObservations [][]byte
 }
 
 // Evaluate computes one canonical TCQ result. Operational validation stops at
@@ -78,6 +83,7 @@ type rawInputs struct {
 	observation []byte
 	report      []byte
 	expected    []byte
+	priors      [][]byte
 }
 
 func copyInputs(request Request) (rawInputs, error) {
@@ -101,8 +107,28 @@ func copyInputs(request Request) (rawInputs, error) {
 	if inputs.report, err = copyBounded(request.Report, maxReportBytes, false); err != nil {
 		return rawInputs{}, err
 	}
-	inputs.expected, err = copyBounded(request.Expected, maxResultBytes, false)
+	if inputs.expected, err = copyBounded(request.Expected, maxResultBytes, false); err != nil {
+		return rawInputs{}, err
+	}
+	inputs.priors, err = copyPriors(request.PriorObservations)
 	return inputs, err
+}
+
+// copyPriors bounds the TCQ-V0-050 prior set: at most maxPriorObservations,
+// each a present artifact under the observation byte ceiling.
+func copyPriors(priors [][]byte) ([][]byte, error) {
+	if len(priors) > maxPriorObservations {
+		return nil, fail(CodeResourceExhausted)
+	}
+	copies := make([][]byte, 0, len(priors))
+	for _, prior := range priors {
+		copied, err := copyBounded(prior, maxObservationBytes, true)
+		if err != nil {
+			return nil, err
+		}
+		copies = append(copies, copied)
+	}
+	return copies, nil
 }
 
 // checkDynamicShape enforces the exact TCQ-V0-033 combination table: all three
@@ -115,6 +141,9 @@ func checkDynamicShape(request Request) error {
 		}
 	}
 	if present != 0 && present != 3 {
+		return fail(CodeInvalidInput)
+	}
+	if present == 0 && len(request.PriorObservations) > 0 {
 		return fail(CodeInvalidInput)
 	}
 	if request.CEM == nil || request.OCM == nil {
@@ -143,6 +172,7 @@ type parsedDocuments struct {
 	ocm         ocmDocument
 	command     *command
 	observation *observation
+	priors      []observation
 }
 
 func parseArtifacts(inputs rawInputs) (parsedDocuments, error) {
@@ -170,6 +200,13 @@ func parseArtifacts(inputs rawInputs) (parsedDocuments, error) {
 		}
 		document.observation = &observed
 	}
+	for _, prior := range inputs.priors {
+		observed, err := parseObservation(prior)
+		if err != nil {
+			return parsedDocuments{}, err
+		}
+		document.priors = append(document.priors, observed)
+	}
 	if inputs.expected != nil {
 		if _, err := parseCanonical(inputs.expected, resultBounds, CodeInvalidTCQ, CodeNoncanonicalTCQ); err != nil {
 			return parsedDocuments{}, err
@@ -191,6 +228,12 @@ func preflightArtifacts(inputs rawInputs) error {
 		{inputs.command, commandBounds},
 		{inputs.observation, observationBounds},
 		{inputs.expected, resultBounds},
+	}
+	for _, prior := range inputs.priors {
+		checks = append(checks, struct {
+			raw    []byte
+			bounds jsonBounds
+		}{prior, observationBounds})
 	}
 	for _, check := range checks {
 		if err := preflightJSON(check.raw, check.bounds); err != nil {
@@ -227,9 +270,11 @@ func bindRevisions(document parsedDocuments, resolved Resolved) error {
 	return nil
 }
 
-// dynamicContext is the verified report projection, present only in dynamic mode.
+// dynamicContext is the verified report projection, present only in dynamic
+// mode, plus the TCQ-V0-050 flaky execution keys.
 type dynamicContext struct {
 	report *junitReport
+	flaky  map[string]bool
 }
 
 // verifyDynamic runs TCQ-V0-042 stages 6 to 8: command target equality and
@@ -252,6 +297,11 @@ func verifyDynamic(repository Repository, inputs rawInputs, document parsedDocum
 	if document.observation.commandID != document.command.id {
 		return dynamicContext{}, fail(CodeObservationCommandMismatch)
 	}
+	for _, prior := range document.priors {
+		if prior.targetRevision != resolved.TargetRevision {
+			return dynamicContext{}, fail(CodeObservationTargetMismatch)
+		}
+	}
 	if document.observation.reportBytes != int64(len(inputs.report)) ||
 		document.observation.reportSHA256 != sha256Hex(inputs.report) {
 		return dynamicContext{}, fail(CodeReportDigestMismatch)
@@ -266,7 +316,7 @@ func verifyDynamic(repository Repository, inputs rawInputs, document parsedDocum
 	if err := checkObservationRows(*document.observation, report); err != nil {
 		return dynamicContext{}, err
 	}
-	return dynamicContext{report: &report}, nil
+	return dynamicContext{report: &report, flaky: flakyKeys(*document.observation, document.priors)}, nil
 }
 
 // resolveCwd implements TCQ-V0-023: `.` denotes the target root; every other

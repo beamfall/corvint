@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0339-tcq-environment-variants-and-flake-qualifier-2026-09-22.md`](0339-tcq-environment-variants-and-flake-qualifier-2026-09-22.md) | accepted; experimental delivery | Optional declared environment variant per test observation, one shared `tcq.Flaky` rule for every provider, and bounded prior observations that mark a same-revision divergent test `test-flaky` without a relation (`TCQ-V0-048..050`, ticket V1-0091) |
 | [`0333-context-repository-anchors-2026-09-22.md`](0333-context-repository-anchors-2026-09-22.md) | proposed, experimental | Repository anchors (quoted error, URL, enum, config key, stack frame) are an opt-in verbatim lexical field in `context` (TCP-V0-022); no index change, default bytes unchanged. |
 | [`0332-verified-local-workflow-scope-2026-09-22.md`](0332-verified-local-workflow-scope-2026-09-22.md) | accepted scope; delivery unqualified | Qualify the one-binary local change-evidence workflow for 0.6: task orientation, change consequence and evidence-carrying completion; renumbered from 0330 |
 | [`0331-clean-public-history-2026-09-22.md`](0331-clean-public-history-2026-09-22.md) | accepted publication direction | Preserve a verified private archive and publish a guarded parentless snapshot from current public main plus the reviewed licensing policy; retain historical-evidence limits. |

@@ -1763,53 +1763,56 @@ TCP-V0-019	docs/specs/task-context-packet-v0.md	369	(proposed 2026-09-05, not ac
 TCP-V0-020	docs/specs/task-context-packet-v0.md	424	(proposed 2026-09-05, not accepted; experimental) Under
 TCP-V0-021	docs/specs/task-context-packet-v0.md	398	`tools/retrieval-bench --snapshot-latency` MUST materialize a private copy once
 TCP-V0-022	docs/specs/task-context-packet-v0.md	452	(proposed 2026-09-22, not accepted; experimental; decision 0333) With
-TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	85	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
-TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	93	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
-TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	96	TCQ MUST emit exactly one claim result for each selected claim edge and no resul
-TCQ-V0-004	docs/specs/test-claim-qualification-v0.md	102	only OCM extractor `corvint-test-claim/1` is accepted. The verifier MUST re-run
-TCQ-V0-005	docs/specs/test-claim-qualification-v0.md	106	profile dispatch is exactly this table. Unknown extractor IDs are
-TCQ-V0-006	docs/specs/test-claim-qualification-v0.md	120	every claim result exposes independent `associationState`, `hygieneState`, and
-TCQ-V0-007	docs/specs/test-claim-qualification-v0.md	133	association is per selected claim edge. TCQ MUST inspect only the selected ancho
-TCQ-V0-008	docs/specs/test-claim-qualification-v0.md	140	a Python `python-test-name/1` anchor associates only when its exact span is the
-TCQ-V0-009	docs/specs/test-claim-qualification-v0.md	147	a Go `go-test-name/1` anchor associates only when its exact span is the identifi
-TCQ-V0-010	docs/specs/test-claim-qualification-v0.md	152	the selected anchor remains a caller-authored requirement reference. Exact
-TCQ-V0-011	docs/specs/test-claim-qualification-v0.md	157	association with no candidate yields `ABSTAINED` and
-TCQ-V0-012	docs/specs/test-claim-qualification-v0.md	165	WP3 owns semantic relevance. TCQ performs no stopword, identifier-overlap,
-TCQ-V0-013	docs/specs/test-claim-qualification-v0.md	171	Python profile `python-ast/1` is frozen to the Python 3.9 `exec`-mode grammar wi
-TCQ-V0-014	docs/specs/test-claim-qualification-v0.md	178	for Python hygiene, remove one leading docstring. The body is `empty-body` when
-TCQ-V0-015	docs/specs/test-claim-qualification-v0.md	182	Python is `unconditional-skip` when the function or enclosing class has exact
-TCQ-V0-016	docs/specs/test-claim-qualification-v0.md	188	Go profile `go-lexical/1` accepts only a path ending `_test.go` and a bounded to
-TCQ-V0-017	docs/specs/test-claim-qualification-v0.md	193	a Go body with no effective token, or only semicolons and one bare `return`, is
-TCQ-V0-018	docs/specs/test-claim-qualification-v0.md	196	a Go case is a table entry's `name`/`testName`/`test_name` field or the first
-TCQ-V0-019	docs/specs/test-claim-qualification-v0.md	206	a safely delimited unit is `INELIGIBLE` if `empty-body` or
-TCQ-V0-020	docs/specs/test-claim-qualification-v0.md	215	each associated unit binds exactly `extractorProfile`, normalized target `path`,
-TCQ-V0-021	docs/specs/test-claim-qualification-v0.md	219	runtime name is the exact Python function name, Go `TestX`, or admitted
-TCQ-V0-022	docs/specs/test-claim-qualification-v0.md	232	unit ID is `test-unit:sha256:` plus:
-TCQ-V0-023	docs/specs/test-claim-qualification-v0.md	250	dynamic matching requires one canonical `test-command/0.1-experimental` artifact
-TCQ-V0-024	docs/specs/test-claim-qualification-v0.md	264	V0 environment policy is exactly `{"entries":[],"policy":"OMITTED"}`. No
-TCQ-V0-025	docs/specs/test-claim-qualification-v0.md	269	command ID is `test-command:sha256:` plus:
-TCQ-V0-026	docs/specs/test-claim-qualification-v0.md	286	before constructing an XML parser, TCQ MUST use the private report-byte copy to
-TCQ-V0-027	docs/specs/test-claim-qualification-v0.md	298	raw JUnit has no namespace. The document has exactly one root element,
-TCQ-V0-028	docs/specs/test-claim-qualification-v0.md	318	testcase identity requires non-empty `file` and `name`, each at most 1,024 UTF-8
-TCQ-V0-029	docs/specs/test-claim-qualification-v0.md	328	testcase status uses this complete, case-sensitive table. Any other combination,
-TCQ-V0-030	docs/specs/test-claim-qualification-v0.md	342	testcase ordinal is zero-based depth-first document order over every `testcase`
-TCQ-V0-031	docs/specs/test-claim-qualification-v0.md	354	one observation has this exact shape:
-TCQ-V0-032	docs/specs/test-claim-qualification-v0.md	364	observation verification requires the exact raw report and command artifact. It
-TCQ-V0-033	docs/specs/test-claim-qualification-v0.md	371	input combinations are exact:
-TCQ-V0-034	docs/specs/test-claim-qualification-v0.md	383	after source association, matching uses only exact execution keys. Zero matching
-TCQ-V0-035	docs/specs/test-claim-qualification-v0.md	389	`test-report-matched-v0` is emitted if and only if all of these hold: canonical
-TCQ-V0-036	docs/specs/test-claim-qualification-v0.md	398	a TCQ document has this exact top-level shape:
-TCQ-V0-037	docs/specs/test-claim-qualification-v0.md	414	every claim item has exactly this shape:
-TCQ-V0-038	docs/specs/test-claim-qualification-v0.md	427	every unit item has exactly the fields in the unit-ID preimage plus `id`. `units
-TCQ-V0-039	docs/specs/test-claim-qualification-v0.md	433	reason order and vocabulary are exactly:
-TCQ-V0-040	docs/specs/test-claim-qualification-v0.md	460	TCQ ID is `tcq:sha256:` plus
-TCQ-V0-041	docs/specs/test-claim-qualification-v0.md	468	raw limits are checked with a bounded, string-aware scanner before semantic JSON
-TCQ-V0-042	docs/specs/test-claim-qualification-v0.md	486	operational validation stops at the first failing stage in this order:
-TCQ-V0-043	docs/specs/test-claim-qualification-v0.md	530	a TCQ result is a recomputable local cache, not an authority token or execution
-TCQ-V0-044	docs/specs/test-claim-qualification-v0.md	538	every raw CEM, OCM, command, observation, report, and TCQ-result input is requir
-TCQ-V0-045	docs/specs/test-claim-qualification-v0.md	544	TCQ V0 is library and wire conformance only. It adds no `corvint tcq` CLI, raw-a
-TCQ-V0-046	docs/specs/test-claim-qualification-v0.md	549	WP5 MUST expose `authorityClass: CALLER_REPORTED` without aliasing it to
-TCQ-V0-047	docs/specs/test-claim-qualification-v0.md	555	any parser or runtime MAY implement `python-ast/1` when it implements the exact
+TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
+TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
+TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul
+TCQ-V0-004	docs/specs/test-claim-qualification-v0.md	109	only OCM extractor `corvint-test-claim/1` is accepted. The verifier MUST re-run
+TCQ-V0-005	docs/specs/test-claim-qualification-v0.md	113	profile dispatch is exactly this table. Unknown extractor IDs are
+TCQ-V0-006	docs/specs/test-claim-qualification-v0.md	127	every claim result exposes independent `associationState`, `hygieneState`, and
+TCQ-V0-007	docs/specs/test-claim-qualification-v0.md	140	association is per selected claim edge. TCQ MUST inspect only the selected ancho
+TCQ-V0-008	docs/specs/test-claim-qualification-v0.md	147	a Python `python-test-name/1` anchor associates only when its exact span is the
+TCQ-V0-009	docs/specs/test-claim-qualification-v0.md	154	a Go `go-test-name/1` anchor associates only when its exact span is the identifi
+TCQ-V0-010	docs/specs/test-claim-qualification-v0.md	159	the selected anchor remains a caller-authored requirement reference. Exact
+TCQ-V0-011	docs/specs/test-claim-qualification-v0.md	164	association with no candidate yields `ABSTAINED` and
+TCQ-V0-012	docs/specs/test-claim-qualification-v0.md	172	WP3 owns semantic relevance. TCQ performs no stopword, identifier-overlap,
+TCQ-V0-013	docs/specs/test-claim-qualification-v0.md	178	Python profile `python-ast/1` is frozen to the Python 3.9 `exec`-mode grammar wi
+TCQ-V0-014	docs/specs/test-claim-qualification-v0.md	185	for Python hygiene, remove one leading docstring. The body is `empty-body` when
+TCQ-V0-015	docs/specs/test-claim-qualification-v0.md	189	Python is `unconditional-skip` when the function or enclosing class has exact
+TCQ-V0-016	docs/specs/test-claim-qualification-v0.md	195	Go profile `go-lexical/1` accepts only a path ending `_test.go` and a bounded to
+TCQ-V0-017	docs/specs/test-claim-qualification-v0.md	200	a Go body with no effective token, or only semicolons and one bare `return`, is
+TCQ-V0-018	docs/specs/test-claim-qualification-v0.md	203	a Go case is a table entry's `name`/`testName`/`test_name` field or the first
+TCQ-V0-019	docs/specs/test-claim-qualification-v0.md	213	a safely delimited unit is `INELIGIBLE` if `empty-body` or
+TCQ-V0-020	docs/specs/test-claim-qualification-v0.md	222	each associated unit binds exactly `extractorProfile`, normalized target `path`,
+TCQ-V0-021	docs/specs/test-claim-qualification-v0.md	226	runtime name is the exact Python function name, Go `TestX`, or admitted
+TCQ-V0-022	docs/specs/test-claim-qualification-v0.md	239	unit ID is `test-unit:sha256:` plus:
+TCQ-V0-023	docs/specs/test-claim-qualification-v0.md	257	dynamic matching requires one canonical `test-command/0.1-experimental` artifact
+TCQ-V0-024	docs/specs/test-claim-qualification-v0.md	271	V0 environment policy is exactly `{"entries":[],"policy":"OMITTED"}`. No
+TCQ-V0-025	docs/specs/test-claim-qualification-v0.md	276	command ID is `test-command:sha256:` plus:
+TCQ-V0-026	docs/specs/test-claim-qualification-v0.md	293	before constructing an XML parser, TCQ MUST use the private report-byte copy to
+TCQ-V0-027	docs/specs/test-claim-qualification-v0.md	305	raw JUnit has no namespace. The document has exactly one root element,
+TCQ-V0-028	docs/specs/test-claim-qualification-v0.md	325	testcase identity requires non-empty `file` and `name`, each at most 1,024 UTF-8
+TCQ-V0-029	docs/specs/test-claim-qualification-v0.md	335	testcase status uses this complete, case-sensitive table. Any other combination,
+TCQ-V0-030	docs/specs/test-claim-qualification-v0.md	349	testcase ordinal is zero-based depth-first document order over every `testcase`
+TCQ-V0-031	docs/specs/test-claim-qualification-v0.md	361	one observation has this exact shape:
+TCQ-V0-032	docs/specs/test-claim-qualification-v0.md	372	observation verification requires the exact raw report and command artifact. It
+TCQ-V0-033	docs/specs/test-claim-qualification-v0.md	379	input combinations are exact:
+TCQ-V0-034	docs/specs/test-claim-qualification-v0.md	394	after source association, matching uses only exact execution keys. Zero matching
+TCQ-V0-035	docs/specs/test-claim-qualification-v0.md	400	`test-report-matched-v0` is emitted if and only if all of these hold: canonical
+TCQ-V0-036	docs/specs/test-claim-qualification-v0.md	409	a TCQ document has this exact top-level shape:
+TCQ-V0-037	docs/specs/test-claim-qualification-v0.md	427	every claim item has exactly this shape:
+TCQ-V0-038	docs/specs/test-claim-qualification-v0.md	440	every unit item has exactly the fields in the unit-ID preimage plus `id`. `units
+TCQ-V0-039	docs/specs/test-claim-qualification-v0.md	446	reason order and vocabulary are exactly:
+TCQ-V0-040	docs/specs/test-claim-qualification-v0.md	476	TCQ ID is `tcq:sha256:` plus
+TCQ-V0-041	docs/specs/test-claim-qualification-v0.md	484	raw limits are checked with a bounded, string-aware scanner before semantic JSON
+TCQ-V0-042	docs/specs/test-claim-qualification-v0.md	502	operational validation stops at the first failing stage in this order:
+TCQ-V0-043	docs/specs/test-claim-qualification-v0.md	547	a TCQ result is a recomputable local cache, not an authority token or execution
+TCQ-V0-044	docs/specs/test-claim-qualification-v0.md	555	every raw CEM, OCM, command, observation, report, and TCQ-result input is requir
+TCQ-V0-045	docs/specs/test-claim-qualification-v0.md	561	TCQ V0 is library and wire conformance only. It adds no `corvint tcq` CLI, raw-a
+TCQ-V0-046	docs/specs/test-claim-qualification-v0.md	566	WP5 MUST expose `authorityClass: CALLER_REPORTED` without aliasing it to
+TCQ-V0-047	docs/specs/test-claim-qualification-v0.md	572	any parser or runtime MAY implement `python-ast/1` when it implements the exact
+TCQ-V0-048	docs/specs/test-claim-qualification-v0.md	589	an observation MAY declare the environment variant it ran under as one optional
+TCQ-V0-049	docs/specs/test-claim-qualification-v0.md	600	one shared flake rule applies to every Corvint test provider: a test observed at
+TCQ-V0-050	docs/specs/test-claim-qualification-v0.md	607	a caller MAY supply at most 16 prior observations alongside the dynamic tuple.
 TJAA-V0-001	docs/specs/typescript-javascript-affected-adapter-v0.md	31	`Owns` MUST claim exactly `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs`; it M
 TJAA-V0-002	docs/specs/typescript-javascript-affected-adapter-v0.md	35	A normally file-addressable test MUST be one file unit. Its stable identity MUST
 TJAA-V0-003	docs/specs/typescript-javascript-affected-adapter-v0.md	39	Runner detection MUST use direct runner imports/registrations, recognized config

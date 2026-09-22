@@ -17,10 +17,22 @@ var cfV0016Vocabulary = []string{
 	"unparseable-test-unit", "unsupported-anchor-profile", "unsupported-python-grammar",
 }
 
+// priorObservationReasons are the diagnostics only Request.PriorObservations can
+// produce (TCQ-V0-050). The frontier shim in internal/frontierrepo/tcq.go never
+// supplies priors, so they cannot reach the CF-V0-016 table; a shim that starts
+// supplying them must extend that table first.
+var priorObservationReasons = map[string]bool{reasonTestFlaky: true}
+
 // TestReasonVocabularyMatchesFrontierSeam proves this producer emits exactly the
-// diagnostics the frontier consumer declares — no more, no fewer.
+// diagnostics the frontier consumer declares — no more, no fewer — over every
+// input the frontier shim can supply.
 func TestReasonVocabularyMatchesFrontierSeam(t *testing.T) {
-	produced := append([]string(nil), reasonOrder...)
+	produced := make([]string, 0, len(reasonOrder))
+	for _, reason := range reasonOrder {
+		if !priorObservationReasons[reason] {
+			produced = append(produced, reason)
+		}
+	}
 	consumed := append([]string(nil), cfV0016Vocabulary...)
 	sort.Strings(produced)
 	sort.Strings(consumed)

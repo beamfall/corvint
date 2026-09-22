@@ -13,7 +13,7 @@ Authoritative inputs: `docs/specs/ocm-v0-dogfood.md`,
 ## Agent digest
 - Claim: TCQ deterministically qualifies selected OCM test anchors and caller-supplied JUnit matches without proving adequacy or correctness.
 - Status: proposed/implementation-candidate; promotion evidence NOT_RUN
-- Exists: deterministic reference implementation and vectors for selected OCM claim qualification.
+- Exists: deterministic reference implementation and vectors for selected OCM claim qualification; an optional declared environment variant per observation and a shared same-revision flake rule (`TCQ-V0-048..050`).
 - Blocked on: a WP6 authority root, 60-edge labelled corpus, reporter compatibility, and promotion gates.
 - Read next: Threat model and claim boundary; Requirements; Acceptance and adversarial matrix.
 
@@ -72,7 +72,14 @@ MUST NOT upgrade V0 artifacts in place.
 - **expected base** and **caller target**: required invocation inputs supplied independently of all
   artifacts and resolved locally to exact commit OIDs through the CEM 0.2 repository boundary;
 - **observation**: a content-addressed, body-free projection of one caller-supplied JUnit report,
-  its target, command ID, command exit code, and deterministic rows;
+  its target, command ID, command exit code, deterministic rows, and an optional declared
+  environment variant;
+- **environment variant**: the caller-declared name/value pairs under which one observation ran,
+  in the ResultDB variant-key shape; an observation that declares none has an unknown environment,
+  never an empty one;
+- **prior observation**: an earlier verified-shape observation of the same target supplied by the
+  caller so that TCQ can compare outcomes of one test across runs; it is never re-derived from a
+  report and never adds a relation;
 - **operational failure**: invalid, unavailable, unsafe, noncanonical, mismatched, unsupported, or
   exhausted invocation input; it emits no partial TCQ artifact;
 - **claim abstention**: a valid selected edge that V0 cannot associate or classify; it remains a
@@ -357,10 +364,11 @@ MUST NOT upgrade V0 artifacts in place.
   {"commandId":"test-command:sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","exitCode":0,"id":"test-observation:sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","report":{"bytes":24,"format":"junit-xml/corvint-v0","sha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},"rows":[],"spec":"test-observation/0.1-experimental","targetRevision":"0123456789abcdef0123456789abcdef01234567","unkeyedRows":0}
   ```
 
-  All fields are required and no others are allowed. `exitCode` is `0..2147483647`. Rows sort by
+  All fields are required. The only other member allowed is the optional `TCQ-V0-048`
+  `environment` object; no further member is admitted. `exitCode` is `0..2147483647`. Rows sort by
   `(executionKeySha256,id)` and are strictly unique. Observation ID is `test-observation:sha256:`
   plus `SHA-256(UTF8("corvint-test-observation/0.1-experimental") || 0x00 ||
-  canonical-json-value(observation without id))`.
+  canonical-json-value(observation without id))`; a declared `environment` is part of that preimage.
 - `TCQ-V0-032`: observation verification requires the exact raw report and command artifact. It
   re-parses the entire report and re-derives byte count, digest, ordinals, row IDs, rows, and unkeyed
   count. Missing report, altered rows, digest mismatch, target mismatch, or command mismatch is an
@@ -375,6 +383,9 @@ MUST NOT upgrade V0 artifacts in place.
   | absent | absent | absent | valid static TCQ; all associated report states are `NOT_MATCHED` |
   | present | present | present | valid dynamic TCQ after full verification |
   | any other combination | any other combination | any other combination | `invalid-tcq-input` |
+
+  Prior observations (`TCQ-V0-050`) are admitted only alongside the dynamic tuple; with the static
+  combination any prior is `invalid-tcq-input`.
 
   The three artifacts are deliberately separate: a command is a reusable pre-run declaration, an
   observation projects one report under that command, and TCQ recomputes per-claim source
@@ -410,7 +421,9 @@ MUST NOT upgrade V0 artifacts in place.
   {"commandId":"test-command:sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","exitCode":0,"id":"test-observation:sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","reportSha256":"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"}
   ```
 
-  No other conditional shape is valid.
+  No other conditional shape is valid, except that an observation which declares a `TCQ-V0-048`
+  `environment` has that object copied verbatim into the summary as a fifth member `environment`;
+  an undeclared environment adds no member, and the frozen vectors carry none.
 - `TCQ-V0-037`: every claim item has exactly this shape:
 
   ```json
@@ -449,14 +462,17 @@ MUST NOT upgrade V0 artifacts in place.
   15. `test-error`
   16. `target-cleanliness-not-attested`
   17. `command-failed`
+  18. `test-flaky`
 
   Association abstention uses exactly its one applicable association reason. Associated claims add
   all applicable hygiene reasons. Report projection adds exactly one of: no dynamic input or zero
   keyed matches gives `test-not-matched` (except that any unkeyed rows substitute
   `row-identity-unavailable`); repeated matches give `repeated-test-rows`; a unique non-passing row
   gives its exact status reason; a unique passing row gives neither. A unique passing row also adds
-  `target-cleanliness-not-attested` and/or `command-failed` when applicable. Reasons are unique and
-  sorted above.
+  `target-cleanliness-not-attested` and/or `command-failed` when applicable. A claim with one or
+  more matched rows also adds `test-flaky` when `TCQ-V0-050` holds for its execution key; the
+  reason is reachable only through prior observations, so the frontier shim, which supplies none,
+  never emits it. Reasons are unique and sorted above.
 - `TCQ-V0-040`: TCQ ID is `tcq:sha256:` plus
   `SHA-256(UTF8("corvint-tcq/0") || 0x00 || canonical-json-value(TCQ document without id))`. Complete
   command, observation, and TCQ JSON artifacts use UTF-8, lexicographically sorted object keys,
@@ -490,13 +506,14 @@ MUST NOT upgrade V0 artifacts in place.
      completed for every artifact before stage 3 parses any of them (Go evidence:
      `TestPreflightPrecedesStrictParse`);
   3. strict JSON UTF-8, duplicate-key, closed-schema, canonical-byte, exact-profile, ID-grammar,
-     and self-ID checks for OCM, CEM, command, observation, and an optional TCQ result;
+     and self-ID checks for OCM, CEM, command, observation, every prior observation, and an
+     optional TCQ result;
   4. inherited CEM 0.2/OCM dispatch and validation precedence, normatively defined by
      `cem-0.2-canonical-binding.md`, using the same CEM/OCM bytes and independent revisions;
   5. TCQ's local command target equality, target-tree cwd resolution, and remaining command
      validation;
   6. observation target, command ID, and declared report byte-count/digest equality against the
-     copied report bytes;
+     copied report bytes, then every prior observation's target equality;
   7. JUnit byte/token safety preflight, disabled-capability parser construction, strict traversal,
      projection, report/command consistency, and observation-row equality;
   8. selected-edge association, hygiene, execution matching, and reference closure;
@@ -567,6 +584,41 @@ MUST NOT upgrade V0 artifacts in place.
   frozen grammar support/parse then offset/token validation; only the first applicable reason is
   emitted. Parser/runtime identity never enters unit identity.
 
+### Environment variants and same-revision flake qualification
+
+- `TCQ-V0-048`: an observation MAY declare the environment variant it ran under as one optional
+  top-level member `environment`: a JSON object of at most 32 members whose keys match the ResultDB
+  variant-key grammar `^[a-z][a-z0-9_]{0,63}$` and whose values are strings of at most 256 bytes.
+  Any other shape is `invalid-observation`. TCQ never infers, reads, or persists a process
+  environment; the member records only what the caller declared, and `TCQ-V0-024`'s omitted
+  command environment policy is unchanged. An observation without the member has an unknown
+  environment: TCQ reports it as undeclared through the library result and never as an empty
+  variant. A declared variant enters the observation ID preimage (`TCQ-V0-031`) and is copied
+  verbatim into the dynamic observation summary (`TCQ-V0-036`); an undeclared one adds no member,
+  so a consumer that ignores unknown members reads a new document exactly as before and every
+  frozen conformance vector stays byte-identical.
+- `TCQ-V0-049`: one shared flake rule applies to every Corvint test provider: a test observed at
+  one target revision under one environment variant is flaky when its terminal statuses across two
+  or more runs contain more than one distinct value of `PASSED`, `FAILED`, and `ERROR`. `SKIPPED`
+  never contributes, one status repeated never diverges, and a single run is never flaky. The
+  rule is `tcq.Flaky`; a provider MAY map its own attempt vocabulary onto these statuses but MUST
+  NOT substitute its own divergence rule, and a reporter's own flaky label MAY only add the
+  qualification, never remove it, because missing attempt evidence upgrades nothing.
+- `TCQ-V0-050`: a caller MAY supply at most 16 prior observations alongside the dynamic tuple.
+  Each is copied, bounded, preflighted, and parsed exactly as the current observation; more than
+  16 is `tcq-resource-exhausted`, any prior with the static combination is `invalid-tcq-input`,
+  and a prior whose `targetRevision` differs from the resolved caller target is
+  `observation-target-mismatch`. Priors are never re-derived from reports. A prior is comparable
+  with the current observation only when their declared variants are byte-identical, two
+  undeclared variants being equal and a declared variant never equalling an undeclared one. Per
+  execution key, TCQ pools the row statuses of the current observation and every comparable prior;
+  the key is flaky when at least two observations contribute rows to it and `TCQ-V0-049` holds.
+  A claim whose execution key is flaky and whose own projection matched at least one row adds
+  `test-flaky`, keeps the report state its own rows determine, and by `TCQ-V0-035` receives no
+  relation. Priors only remove relations; they never add rows, change the observation summary, or
+  enter the TCQ ID preimage other than through the reasons they add. `TCQ-V0-034` repeated rows
+  inside one observation remain `AMBIGUOUS`, not flaky.
+
 ## Canonical conditional-state table
 
 Every row below carries `authorityClass: CALLER_REPORTED`.
@@ -579,6 +631,7 @@ Every row below carries `authorityClass: CALLER_REPORTED`.
 | duplicate target execution identity or repeated rows | exact identity | independently derived | `AMBIGUOUS` | empty for target ambiguity; all matches for repeated rows | null |
 | one keyed skipped/failed/error row | exact identity | independently derived | exact row status | one | null |
 | one passing row, nonzero command or target not attested clean | exact identity | independently derived | `PASSED` | one | null |
+| matched rows whose execution key diverges across comparable observations (`TCQ-V0-050`) | exact identity | independently derived | own rows' status | own matches | null |
 | every `TCQ-V0-035` condition | exact identity | `ELIGIBLE` | `PASSED` | one | `test-report-matched-v0` |
 
 ## Acceptance and adversarial matrix
@@ -600,6 +653,8 @@ at least these genuine-pass/fabricated-fail/no-input classes:
 | XML grammar | size rejection before parser, DTD/ENTITY/PI preflight, external resolver/network/XInclude disabled, both roots, nested suites, unknown element at every depth, nested testcase, terminal grandchild, namespace, deep/wide/large input |
 | row identity/status | hostile path, classname collision, absent file/name, every status cell, invalid combinations, keyed/unkeyed failure with exit zero |
 | matching | zero/one/two identical rows, same name different path, duplicate target key, nonzero exit, not-attested clean target |
+| environment variant | undeclared variant leaves observation bytes and summary unchanged and reads as unknown; declared variant changes the observation ID and is copied into the summary; bad key grammar, non-string value, and non-object member are `invalid-observation` |
+| flake qualification | divergent current/prior outcomes at one target and variant add `test-flaky` and drop the relation while the current report state stands; same variant, other variant, declared-vs-undeclared, and both-undeclared comparisons; priors with the static combination, at another target, and beyond 16 |
 | wire/cache | duplicate JSON keys, depth before parse, extra/missing fields, reordered rows, tampered IDs/digests, missing each raw cache-verification input, byte-identical fresh-process output |
 | authority/policy | every edge is `CALLER_REPORTED`, signature does not upgrade, default frontier stays open, permissive acknowledgement remains visible and non-closing |
 | privacy/boundary | source/XML/output canaries absent from artifacts and errors; sibling, worktree, alternate object, and denied-object canaries absent |
@@ -623,16 +678,20 @@ Conformance and reporter compatibility are separate gates:
 
 ## YAGNI and rollback
 
-V0 supports Python, Go, strict JUnit, one repository, one expected base, one target, omitted
-environment, and one caller-reported relation. It adds no JavaScript/TypeScript classifier,
-semantic floor, assertion detector, sibling extraction, retry deduplication, coverage ingestion,
+V0 supports Python, Go, strict JUnit, one repository, one expected base, one target, an omitted
+command environment with an optional declared observation variant, bounded prior observations for
+the shared flake rule, and one caller-reported relation. It adds no JavaScript/TypeScript
+classifier, semantic floor, assertion detector, sibling extraction, retry deduplication within one
+observation, flake history storage or retrieval, coverage ingestion,
 path or stream raw-artifact input, artifact persistence, shell execution, daemon, database, network,
 UI, signature, authenticated harness, policy service, or portable promotion claim. WP6 owns any
 harness-controlled/authenticated upgrade after WP4 signal is measured.
 
 If association precision, compatibility, privacy, boundary, or overhead gates fail, remove the TCQ
 producer and consumer while retaining OCM, CEM, source fixtures, and labelled evaluation data. Do
-not weaken abstention or relabel caller reports as proof.
+not weaken abstention or relabel caller reports as proof. `TCQ-V0-048..050` roll back on their own
+by dropping `Request.PriorObservations`, the `environment` member, and reason 18; no frozen vector
+changes because none carries either.
 
 ## Traceability
 
@@ -648,6 +707,9 @@ non-authoritative and slated for separate removal.
 | `TCQ-V0-023..032` | `src/context_corvint_test_claim_junit.py` | canonical command, strict JUnit, observation, tamper, and privacy tests |
 | `TCQ-V0-033..043` | both modules | matching, wire, cache verification, precedence, bounds, and conformance vectors |
 | `TCQ-V0-044..047` | both modules | bounded byte inputs, library-only surface, caller authority, and Python 3.9 grammar tests |
+| `TCQ-V0-048` | `internal/tcq/observation.go`, `internal/tcq/encode.go` | `TestObservationEnvironmentIsAdditive` |
+| `TCQ-V0-049` | `internal/tcq/flake.go`, `internal/jstestprovider/projection.go`, `internal/jstestprovider/playwright.go` | `TestFlakyRuleNeedsDivergentTerminalOutcomes`, `TestFlakyOutcomeIsSharedRule`, `TestParsePlaywrightJSON_MixedStates` |
+| `TCQ-V0-050` | `internal/tcq/evaluate.go`, `internal/tcq/assemble.go` | `TestSameRevisionDivergentOutcomesAreFlaky`, `TestPriorObservationVariantMismatchIsNotFlaky`, `TestPriorObservationsRequireDynamicTupleAndTarget`, `TestReasonVocabularyMatchesFrontierSeam` |
 
 The implementation and deterministic reference vectors are delivered as a candidate. The labelled
 corpus, reporter compatibility measurements, independent implementation, and ten-change dogfood

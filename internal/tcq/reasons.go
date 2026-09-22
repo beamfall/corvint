@@ -21,7 +21,12 @@ const (
 	reasonTestError                    = "test-error"
 	reasonTargetCleanlinessNotAttested = "target-cleanliness-not-attested"
 	reasonCommandFailed                = "command-failed"
+	reasonTestFlaky                    = "test-flaky"
 )
+
+// ReasonTestFlaky is the TCQ-V0-049 flake diagnostic. It is exported because
+// every Corvint test provider emits the shared rule's reason, never its own.
+const ReasonTestFlaky = reasonTestFlaky
 
 var reasonOrder = []string{
 	reasonUnsupportedAnchorProfile,
@@ -41,6 +46,7 @@ var reasonOrder = []string{
 	reasonTestError,
 	reasonTargetCleanlinessNotAttested,
 	reasonCommandFailed,
+	reasonTestFlaky,
 }
 
 var reasonIndex = buildReasonIndex()
