@@ -8,19 +8,63 @@ Windows is `UNSUPPORTED` until equivalent process-tree cleanup is implemented an
 
 ## Install, discover, upgrade, disable, uninstall
 
-Install the package using the package manager that owns your OpenCode configuration, then add
-`"@corvint/opencode"` to the native `plugin` array in `opencode.json`. OpenCode discovers npm
-plugins from that array. Use `opencode.example.json` as the minimal configuration.
+The package is not published to npm yet. From a Corvint checkout, run `npm install` in
+`integrations/opencode`, then use a local file URL in OpenCode's native `plugin` array:
 
-Upgrade the package with that package manager. Temporarily disable it by removing the array entry
-while leaving the package installed. Uninstall it by removing both the array entry and the package.
-OpenCode's local-development alternative is a JavaScript or TypeScript loader in
-`.opencode/plugins/` that re-exports this package.
+```json
+{
+  "plugin": ["file:///absolute/path/to/corvint/integrations/opencode/src/index.js"]
+}
+```
 
-`@corvint/opencode` is not yet published to the npm registry, and OpenCode installs `plugin`
-array entries from that registry, so the array entry alone fails today. Until it is published, run
-`npm install` in `integrations/opencode` of a Corvint checkout (it fetches `@opencode-ai/plugin`) and
-use the loader form with an absolute import of that directory's `src/index.js`.
+Replace the absolute path with your checkout. `opencode.example.json` uses this installable
+local-source form. Alternatively, put a loader in `.opencode/plugins/corvint.js` that exports
+`{ CorvintPlugin }` from that same absolute source path. Use one discovery method to avoid
+registering the adapter twice. Upgrade by updating the checkout and reinstalling its dependencies.
+Disable or uninstall by removing the plugin entry or loader; remove the checkout only when it is
+no longer needed.
+
+## MCP servers
+
+MCP servers are configured separately from the lifecycle plugin. Copy the entries from
+`mcp.example.json` into the `mcp` object in `opencode.json`, replacing executable and repository
+paths. Each command needs its own absolute repository root. The strict MCP profile currently
+requires a repository with a `.git` directory; linked Git worktrees are not admitted.
+
+All Corvint MCP servers default to the latest published MCP protocol, `2026-07-28`.
+OpenCode clients using the older `initialize` handshake need the explicit
+`--protocol-version 2025-11-25` compatibility option shown in the example. Without it,
+initialization returns `Method not found`. This selection changes transport negotiation only;
+repository bounds, tool schemas and Corvint receipts stay the same. Modern clients should omit
+the selector or select `2026-07-28` explicitly.
+
+The example enables `corvint-mcp` and `corvint-test-validity-mcp`. Build them from this checkout
+with `go build -o /absolute/bin/corvint-mcp ./cmd/corvint-mcp` and
+`go build -o /absolute/bin/corvint-test-validity-mcp ./cmd/corvint-test-validity-mcp`, or use
+release binaries containing the compatibility selector. Verify discovery with `opencode mcp list`;
+a connected status alone does not verify a tool call or qualify native lifecycle support.
+The optional docs and experimental corpus servers accept the same selector, but remain separately
+configured companions with their existing prerequisites. Disabling a server uses `enabled: false`;
+uninstalling it removes its `mcp` entry.
+
+See the [MCP transport contract](../../docs/specs/mcp-server-2026-07-28-v0.md) for the exact
+supported profiles, recorded host probes and remaining qualification boundaries.
+
+## Tool selection
+
+The native plugin supplies general task context and explicit outcome observations. The core MCP
+server supplies repository status, narrow workflow-authority queries and tracked-Go impact; the
+separate test-validity server reads retained test evidence. Installing both surfaces makes these
+complementary tools available without expanding either server's frozen registry.
+
+Copy `skills/corvint/` into your project's `.opencode/skills/` (or your global
+`~/.config/opencode/skills/`) to let OpenCode discover the `corvint` skill. It explains which tool
+answers each question, how to interpret unsupported/missing evidence, and when to use the CLI.
+The skill is loaded on demand through OpenCode's native skill tool. The optional documentation
+servers are useful when working with their supported draft or corpus artifacts; they are not
+prerequisites for ordinary code context and test evidence.
+
+## Lifecycle options
 
 Corvint must be available as the `corvint` executable. Package options may set `corvintBinary`,
 `hostVersion`, `automaticTimeoutMs`, `queryTimeoutMs`, and `enableBetaContext`; equivalent explicit
@@ -31,6 +75,12 @@ receives only a small non-secret environment allowlist.
 
 Explicit `corvintBinary`, `hostVersion`, `automaticTimeoutMs`, and `queryTimeoutMs` options take
 precedence over the ambient `CORVINT_BIN` and `CORVINT_OPENCODE_*` variables.
+
+Automatic events and explicit context queries default to 2,000 ms. Automatic overrides accept
+integers from 25 to 2,000 ms; query overrides accept 25 to 10,000 ms. Invalid values use the default.
+These are complete-command deadlines, separate from latency targets. A timeout warning includes
+the applied deadline; it does not diagnose the underlying cause. `FALLBACK` also appears on successful
+receipts when authoritative frontier evidence is unavailable, so inspect `ok` and the named code.
 
 Stable `session.created`, `session.idle`, `session.deleted`, and `file.edited` events plus
 `tool.execute.after` are translated to `corvint harness event`. Raw session IDs are hashed; raw

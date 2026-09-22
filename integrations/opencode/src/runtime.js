@@ -13,16 +13,10 @@ const MAX_STDERR_BYTES = 4_096
 const MAX_ITEMS = 256
 const MAX_PATH_CHARS = 1_024
 const MAX_VALUE_CHARS = 512
-// Hang detector for the corvint subprocess on a non-query event, not a performance
-// budget (decision 0082). AHI-012's 250 ms is a p95 target for what the adapter adds
-// to a lifecycle event; setting the hard kill AT that target killed exactly the runs
-// that were meeting it at the tail. Unlike the Gemini hook, this plugin runs inside
-// the already-started OpenCode host process, so there is no per-event Node startup
-// cost to budget for, and no host-declared kill deadline bounds how high this can go.
-// 500 ms keeps the same doubling margin used for the Gemini adapter's automatic path
-// with room to spare; confirming a tighter, measured floor still wants a fixture-level
-// A/B timing plugin invocation start to timeout under load.
-const AUTOMATIC_TIMEOUT_MS = 500
+// Complete-command hang detector, distinct from AHI-012's 250 ms p95 target.
+// The former 500 ms default killed valid file-change receipts; use the existing
+// automatic-event ceiling without extending the host's bounded wait.
+const AUTOMATIC_TIMEOUT_MS = 2_000
 const MAX_AUTOMATIC_TIMEOUT_MS = 2_000
 const QUERY_TIMEOUT_MS = 2_000
 const MAX_QUERY_TIMEOUT_MS = 10_000
@@ -214,13 +208,14 @@ function stderrFailureCode(stderrText) {
   }
 }
 
-function degradation(event, code) {
+function degradation(event, code, deadlineMs) {
   return {
     code,
     event,
     ok: false,
     profile: PROTOCOL,
     support: SUPPORT,
+    ...(code === "timeout" ? { deadlineMs } : {}),
   }
 }
 
@@ -428,7 +423,7 @@ export function createCorvintRunner(options = {}) {
         killGroup("SIGTERM")
         forceTimer = setTimeout(() => killGroup("SIGKILL"), 25)
         forceTimer.unref?.()
-        reapTimer = setTimeout(() => finish(degradation(event, code)), 100)
+        reapTimer = setTimeout(() => finish(degradation(event, code, timeoutMs)), 100)
         reapTimer.unref?.()
       }
       const abort = () => terminate("host-aborted")
@@ -459,7 +454,7 @@ export function createCorvintRunner(options = {}) {
       child.on("close", (code) => {
         if (settled) return
         if (terminationCode) {
-          finish(degradation(event, terminationCode))
+          finish(degradation(event, terminationCode, timeoutMs))
           return
         }
         if (code !== 0) {

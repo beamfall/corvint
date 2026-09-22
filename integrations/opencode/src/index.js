@@ -41,15 +41,19 @@ export const CorvintPlugin = async (host, options = {}) => {
   const pendingFileChanges = new Map()
   let fileChangeDrain
 
-  const notice = (code, event, receiptId) => {
+  const notice = (code, event, receiptId, deadlineMs) => {
     const payload = { code, event, support: "FALLBACK" }
     if (receiptId) payload.receiptId = receiptId
+    if (code === "timeout") {
+      payload.deadlineMs = deadlineMs
+      payload.detail = "Deadline exceeded; this is a bound, not a diagnosed fault."
+    }
     return `[corvint/opencode] ${JSON.stringify(payload)}`
   }
 
   // A fault the user must act on: a terminal warning.
-  const report = (code, event, receiptId) => {
-    console.warn(notice(code, event, receiptId))
+  const report = (code, event, receiptId, deadlineMs) => {
+    console.warn(notice(code, event, receiptId, deadlineMs))
   }
 
   // AHI-022 (decision 0161 parity): a routine receipt's degradations and an expected guard
@@ -78,7 +82,7 @@ export const CorvintPlugin = async (host, options = {}) => {
       if (request.event === "file-change" && code === "unsupported-impact-path-suffix") {
         record(code, request.event)
       } else {
-        report(code, request.event)
+        report(code, request.event, undefined, response.deadlineMs)
       }
     } else if (response.degradations.length > 0) {
       record(response.degradations.join(","), request.event, response.receiptId)
