@@ -78,7 +78,7 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   `docs/DOGFOOD.md`, `docs/AGENT-ROUTES.md`, `docs/SELF-DEVELOPMENT.md`, and `conformance/*/README.md` (one directory
   below `conformance/`, so a dated results README beneath it is not scanned), covering the forms `dir/file.ext:N`, `dir/file.ext:N-M`,
   `dir/file.ext:N,M`, a basename
-  the Git index tracks at the repository root such as `ROADMAP.md:342`, and a bare `:N` or `:N-M`
+  the Git index tracks at the repository root such as `ROADMAP.md:343`, and a bare `:N` or `:N-M`
   continuation. A root basename names exactly one path, so it MUST be checked as that full path and
   MUST anchor its paragraph as a full-path citation does, including where `docs/specs` holds a file
   of the same name (`README.md`). Any other bare basename, such as `prove.go:767`, MUST NOT be

@@ -26,7 +26,9 @@ enrolled from the sealed base before replaying the patch. No lifecycle record wa
 Command-owner mappings and supporting-gate classifications were corrected before review.
 The worker's five focused documentation checks passed. Fresh Astra/medium review found no HIGH/MED
 findings after the repair; final binding and enrolled checks follow. Raw worker/reviewer usage and
-all refusals remain private development evidence, not sealed cost or savings evidence.
+all refusals remain private development evidence, not sealed cost or savings evidence. The final
+enrolled check exposed four shifted roadmap line citations; each was moved one line after an exact
+old/new passage comparison, preserving the original AT-09/10 meaning and the failed check.
 
 ## 2026-09-22 DCW-V0 / UCV0-013: owner-selected 0.6 local-workflow scope
 
