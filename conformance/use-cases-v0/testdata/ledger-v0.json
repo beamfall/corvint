@@ -8,7 +8,7 @@
     "beamfall-dogfood",
     "sealed-benchmark"
   ],
-  "spec": "corvint-use-case-conformance/1",
+  "spec": "corvint-use-case-conformance/0",
   "statuses": [
     "specified",
     "experimental",
@@ -166,30 +166,6 @@
       "job": "Continuously derive affected obligations, execute the minimum witnessed checks, expose runtime evidence and unknown scope, and bind feedback to the exact worktree.",
       "status": "specified",
       "title": "Live Proof-Carrying Verification"
-    },
-    {
-      "claim": "UNPROVEN",
-      "evidence": {},
-      "id": "UC-TASK-ORIENTATION",
-      "job": "Locate governing intent and original revision-pinned task evidence, preserving omissions and abstention.",
-      "status": "specified",
-      "title": "Task orientation"
-    },
-    {
-      "claim": "UNPROVEN",
-      "evidence": {},
-      "id": "UC-CHANGE-CONSEQUENCE",
-      "job": "Identify supported affected scope for a concrete change, preserving unsupported scope and incomplete frontiers.",
-      "status": "specified",
-      "title": "Change consequence"
-    },
-    {
-      "claim": "UNPROVEN",
-      "evidence": {},
-      "id": "UC-EVIDENCE-CARRYING-COMPLETION",
-      "job": "Bind a real committed change to CEM, OCM, checks, inspected frontier and a retained local outcome without claiming universal correctness or host authority.",
-      "status": "specified",
-      "title": "Evidence-carrying local completion"
     }
   ]
 }

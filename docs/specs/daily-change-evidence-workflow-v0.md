@@ -1,0 +1,104 @@
+# Daily Change-Evidence Workflow V0
+
+Owner: Russell Lewis
+Date: 2026-09-22
+Requirement prefix: `DCW-V0`
+Intent status: accepted scope (decision 0330); evaluation protocol awaits separate freeze
+Delivery status: experimental; milestone NOT_QUALIFIED
+Authoritative inputs: decision 0330, `docs/DOGFOOD.md`, `public-release-v0.md`,
+`use-case-conformance-v0.md`, `local-completion-policy-v0.md`
+
+## Agent digest
+- Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
+- Status: accepted scope; experimental and unqualified.
+- Exists: native commands and local completion primitives; three governed ledger identities.
+- Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
+- Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
+
+## User and job
+
+A developer and a fresh reviewer need to complete a real change with original governing evidence,
+explicit affected scope, checked proof maps and a retained outcome. A successful command or a
+structurally valid map alone does not establish correctness, complete coverage or host authority.
+The published starting point is 0.5.0a3; choosing a candidate version does not qualify 0.6.
+
+## Requirements
+
+- `DCW-V0-001`: Core MUST remain one native Go binary with no required account, network, daemon,
+  mutable database service or companion. The daily path MUST connect task context, impact,
+  CEM, OCM, frontier, selected checks, independent verification/review and retained outcome.
+- `DCW-V0-002`: The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,
+  and `UC-EVIDENCE-CARRYING-COMPLETION`. All existing jobs and claims MUST remain unchanged.
+  Their closed ledger migration MUST satisfy `UCV0-013`.
+- `DCW-V0-003`: Task orientation MUST locate governing intent and original revision-pinned evidence,
+  or preserve explicit omissions/abstention. Inferred context MUST NOT become accepted authority.
+- `DCW-V0-004`: Change consequence MUST identify supported affected scope for a concrete change,
+  preserving unsupported languages, unexamined scope, stale evidence and incomplete frontiers.
+  A selected test list MUST NOT imply full behavioral coverage.
+- `DCW-V0-005`: Evidence-carrying completion MUST bind a real committed change to its immutable
+  base/target, CEM, owning OCMs, actual check observations, inspected reports/frontier and outcome.
+  Missing, stale, dirty, interrupted, unsupported or unknown evidence MUST NOT produce a false
+  complete-evidence verdict. Local policy satisfaction MUST NOT assert universal correctness or
+  formal FULL/Frontier authority.
+- `DCW-V0-006`: Qualification MUST include genuine Corvint and Beamfall changes completed by a fresh
+  agent and reviewer using extracted public artifacts. Real dogfood, hostile tests and sealed
+  benchmarks MUST remain distinct evidence classes under `UCV0-003`.
+- `DCW-V0-007`: Before a sealed run, the exact three jobs, immutable corpus/labels, strongest
+  adequate fixed baseline, correctness thresholds, complete cost accounting, exclusions and
+  invalidation rules MUST be preregistered. The treatment MUST have zero treatment-only critical
+  misses and zero false complete-evidence verdicts on designated missing-evidence cases.
+- `DCW-V0-008`: Measurement MUST retain setup, agent/reviewer work, checks, failures, retries and
+  latency for the complete task. Unobserved token or cost dimensions MUST remain NOT_OBSERVED;
+  bytes MUST NOT be reported as tokens. Savings require a separately accepted threshold and
+  passing paired measurement; this contract makes no savings claim.
+- `DCW-V0-009`: Core command/profile compatibility and deterministic migration MUST be explicit.
+  Fresh init/adopt, cold/incremental index parity, corruption, staleness, dirty/unsupported input,
+  rollback, bounded reads and hostile paths MUST have candidate-specific evidence on each claimed
+  native Darwin/Linux target. Cross-builds MUST NOT stand in for native qualification.
+- `DCW-V0-010`: Codex and Claude MUST resolve the intended installed binary and current plugin
+  artifacts. Exact host versions, enabled skill/hook discovery, real lifecycle operation, visible
+  degradation and rollback MUST be retained. Formal FULL authority and other hosts are separate
+  and nonblocking for this milestone; no installation may silently promote them.
+- `DCW-V0-011`: Console, Tasks, MCP, editor, providers, automatic docs and protected authority MUST
+  remain separately qualified optional companions/experimental profiles. Other shipped profiles
+  MUST remain experimental unless separately qualified; deferred surfaces MUST remain deferred.
+- `DCW-V0-012`: Final version/build, source and proof maps MUST freeze before exact-candidate
+  evaluation and release gates. The required full gate, independent review and artifact/installed
+  qualification MUST pass before milestone readiness. Evidence from a changed target MUST NOT be
+  silently reused. Tagging, pushing, publishing and formal promotion require exact-packet owner approval.
+
+## Non-goals and baseline
+
+This slice creates no daemon, dispatcher, general autonomous authority, new language rewrite,
+universal proof of correctness or automatic host promotion. Existing native commands are the
+baseline; add runtime machinery only for an observed missing behavior. Keep original evidence and
+human authority instead of converting a version label or synthetic packet into product proof.
+
+## Acceptance and evidence
+
+The native planning store's V1-0001/2/7/8/9 and V1-0010/11/12 acceptance criteria retain their
+obligations. Fixture planning records are not execution evidence. Each new row requires contract,
+implementation, hostile-tests, corvint-dogfood, beamfall-dogfood and sealed-benchmark receipts.
+A fresh independent reviewer examines semantic adequacy, not merely digest validity.
+
+| Requirements | Implementation/evidence | Current result |
+|---|---|---|
+| `DCW-V0-002` | `conformance/use-cases-v0`; `TestUCV0ProfileMigration` | migration implemented; qualification pending |
+| `DCW-V0-001`, `DCW-V0-003..006` | existing CLI, CEM/OCM and local completion; real workflow receipts required | NOT_QUALIFIED |
+| `DCW-V0-007..008` | independently sealed complete-task evaluation required | NOT_RUN |
+| `DCW-V0-009..010` | native platform and installed exact-host evidence required | NOT_QUALIFIED |
+| `DCW-V0-011..012` | portfolio, gate and candidate evidence required | NOT_QUALIFIED |
+
+## Compatibility and rollback
+
+Retain historical `/0` use-case admission and use explicit `/1` for the three added jobs. The
+current alpha candidate/installer requires companions and alpha version tokens; Core-only 0.6
+packaging needs an explicit compatible contract before release. This spec does not change that
+wire by implication. If any gate fails, preserve its evidence and keep the affected jobs UNPROVEN.
+Retain the previous working installed binary and public release. Do not rewrite historical receipts.
+
+## Remaining decisions
+
+The exact sealed evaluation protocol, native platform tuples and candidate artifact schema must
+be frozen before execution. Missing cost telemetry or an unavailable independent corpus blocks its
+claim, not honest development work. Discontinue promotion on any false complete-evidence result.

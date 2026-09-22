@@ -809,10 +809,15 @@
     "intent": "accepted (decision 0324)",
     "delivery": "implemented",
     "claim": "`impact --provider-mcp ARGV_JSON` invokes one bounded local MCP tool and preserves the provider record bytes.",
-    "dependsOn": ["docs/specs/external-evidence-provider-transports-v0.md"],
+    "dependsOn": [
+      "docs/specs/external-evidence-provider-transports-v0.md"
+    ],
     "supersededBy": null,
     "closableToday": true,
-    "implementation": ["internal/extevidence/mcp.go", "internal/procgroup"]
+    "implementation": [
+      "internal/extevidence/mcp.go",
+      "internal/procgroup"
+    ]
   },
   {
     "path": "docs/specs/external-evidence-provider-remote-v0.md",
@@ -821,10 +826,15 @@
     "intent": "accepted (decision 0325)",
     "delivery": "implemented",
     "claim": "A separately built `corvint-remote-provider` fetches one TLS-pinned HTTPS record only with explicit network consent.",
-    "dependsOn": ["docs/specs/external-evidence-provider-transports-v0.md"],
+    "dependsOn": [
+      "docs/specs/external-evidence-provider-transports-v0.md"
+    ],
     "supersededBy": null,
     "closableToday": true,
-    "implementation": ["cmd/corvint-remote-provider", "internal/remoteprovider"]
+    "implementation": [
+      "cmd/corvint-remote-provider",
+      "internal/remoteprovider"
+    ]
   },
   {
     "path": "docs/specs/experimental-source-views-v0.md",
@@ -1460,6 +1470,26 @@
     ]
   },
   {
+    "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+    "title": "Daily Change-Evidence Workflow V0",
+    "reqPrefix": "DCW-V0",
+    "intent": "accepted scope (decision 0330); evaluation protocol awaits separate freeze",
+    "delivery": "experimental",
+    "claim": "0.6 requires verified task orientation, change consequence and evidence-carrying local completion.",
+    "dependsOn": [
+      "docs/specs/public-release-v0.md",
+      "docs/specs/use-case-conformance-v0.md",
+      "docs/specs/local-completion-policy-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "conformance/use-cases-v0",
+      "cmd/corvint",
+      "internal/localcompletion"
+    ]
+  },
+  {
     "path": "docs/specs/public-release-v0.md",
     "title": "Public Release V0",
     "reqPrefix": "PUB-V0",
@@ -1938,7 +1968,7 @@
     "path": "docs/specs/use-case-conformance-v0.md",
     "title": "Main Use-Case Conformance V0",
     "reqPrefix": "UCV0",
-    "intent": "proposed",
+    "intent": "proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0330)",
     "delivery": "experimental",
     "claim": "Headline Corvint jobs remain UNPROVEN until each has complete content-addressed promotion evidence.",
     "dependsOn": [

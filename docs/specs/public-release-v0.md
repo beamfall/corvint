@@ -14,6 +14,15 @@ Amendments: decision 0167 (build from the staged export; retained bundle archive
 - Blocked on: integrated roadmap delivery, optional bundle, automatic docs and test qualification, installed-path checks and publication approval.
 - Read next: Human intent; Requirements; Acceptance and rollback.
 
+## 0.6 local-workflow scope
+
+Decision 0330 accepts `daily-change-evidence-workflow-v0.md` for the 0.6 verified-workflow
+milestone. For that milestone only, it supersedes conflicting prerequisites that require optional
+companions or formal FULL host authority before Core qualification. Local Codex and Claude use
+is qualified separately on exact versions. This does not promote any host, waive evidence gates,
+or alter historical alpha artifacts. `PUB-V0-001` remains the current published version until an
+explicit candidate change; 0.6 readiness has not been established.
+
 ## Human intent
 
 On 2026-09-11 the owner requested work until Corvint is ready for a public GitHub release, then

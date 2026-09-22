@@ -7,6 +7,31 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 DCW-V0 / UCV0-013: owner-selected 0.6 local-workflow scope
+
+Decision 0330 records explicit owner acceptance of three narrowly scoped daily-workflow jobs,
+retaining six evidence classes and separating installed Codex/Claude use from formal FULL authority.
+The canonical ledger moves to `/1`; exact historical `/0` admission and bytes remain supported.
+All twenty-two rows remain specified/UNPROVEN. No milestone, host or platform is promoted.
+
+Independent Gate A review found the closed-ID compatibility risk, alpha-only companion-required
+candidate admission, and freeze/enrollment sequencing constraints. The first slice resolves the
+ledger contract and enrolls existing intent before editing; later candidate and evaluation work
+remains required. Original query on the dirty primary abstained with unindexed-worktree-changes.
+Initial no-diff dogfood preparation reported git-diff-failed/missing-intent-scope; enrollment then
+exposed the required lexical intent order and succeeded after canonical ordering. These failed
+attempts are retained in the private task evidence, not reclassified as successes.
+
+Corvint feature routes used: query/index, tracked-Go path impact for the validator/tests, dirty-change
+affected advice and keyed dogfood. The affected advice retains the terminal repository gate and
+unknown scope; it does not replace that gate. No ranking change, sealed corpus access, mutation
+trial or optional service is needed for this slice. Final CEM/OCM/frontier inspection remains required.
+Focused conformance tests and the spec/requirement/traceability/decision/citation checks passed.
+The actual historical/current reader matrix accepts historical `/0` in both readers, accepts `/1`
+only in the new reader, and observes explicit `wrong-spec` from the old reader. Independent
+implementation review found no blocker; its documentation corrections are included. No full gate,
+workflow qualification or savings claim is reported.
+
 ## 2026-09-21 audit fix batch: thirteen defects closed before the v0.5.0a3 candidate gate
 
 A pre-release audit of `cmd/corvint`, `internal/contextindex`, `internal/jstestprovider`,
