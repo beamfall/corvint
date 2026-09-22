@@ -75,6 +75,9 @@ func affectedFixtureRepository(t *testing.T) string {
 	}
 	for _, arguments := range [][]string{
 		{"init", "-q"}, {"config", "user.email", "corvint@example.test"}, {"config", "user.name", "Corvint Test"},
+		// A commit must not spawn detached auto maintenance: it outlives the
+		// fixture command and its .git writes race TempDir cleanup and digests.
+		{"config", "maintenance.auto", "false"}, {"config", "gc.auto", "0"},
 		{"add", "."}, {"commit", "-qm", "fixture"},
 	} {
 		affectedGit(t, root, arguments...)

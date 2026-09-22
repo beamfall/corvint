@@ -2129,3 +2129,30 @@ and `script/dogfood-change_test.sh` full runs (both exit 0); `make spec-requirem
 requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check`
 (pass, no published-contract change). No `cmd/corvint/*.go` file was edited, so its own suite was
 not rerun.
+## 2026-09-22 flaky-batch-b: detached Git auto maintenance and ctime-tick witnesses
+
+Five load-dependent `cmd/corvint` failures (V1-0032, V1-0034, V1-0035, V1-0061, V1-0071) share
+one confirmed mechanism: on this host (git 2.54.0, no global config) every `git commit` spawns
+`git maintenance run --auto --quiet --detach`, a grandchild that outlives the commit, holds
+`.git/objects/maintenance.lock`, and can write `.tmp-<pid>-pack-*` files. Its writes race the
+fixture byte digests, the materialization manifests, `t.TempDir` removal (`.git: directory not
+empty`) and the work adapter runner's process-residue and 250ms pipe-drain checks. Setting
+`maintenance.auto=false` and `gc.auto=0` removes the spawn entirely (GIT_TRACE=1: zero
+maintenance processes across repeated commits). The specific pack write that V1-0061 recorded
+was not reproduced here; that it comes from the same detached process is inferred, not observed.
+Fixed in-scope: the affected fixture, the materialization fixture and the two committing
+final-check scripts now disable both settings, and the runner keeps its last failure cause and
+receipt in memory so the fatal message can name them (the command result and wire are unchanged).
+Not fixed: `queryCLIRepository` in `cmd/corvint/query_test.go` still commits with auto
+maintenance enabled, so V1-0061 and V1-0071 stay open; the drift restoration fatal now prints the
+differing paths. `workDrainTimeout` (250ms) stays as the WQO-V0-034 pin. Repetitions: the five
+named tests `-count=3` pass, the wider work/affected/query set `-count=1` passes.
+
+Three ctime witnesses (V1-0033: `internal/trace`, `internal/authoritystore`,
+`internal/cem/gitauth`) assumed the change time advances between adjacent syscalls; on a coarse
+ctime clock the same-bytes restore lands in the tick of the original write. Each test now
+re-applies its mutation until ctime differs, bounded at 2s, and skips otherwise. Product
+limitation recorded: a restore that completes within one ctime tick is invisible to the witness.
+`TestRunningFailedPassed` (V1-0036) waited 5s for each running event under whole-suite load; the
+waits are now the 5-minute hang detector already used for completion (decision 0082). All four
+tests pass `-count=5` with no skips on this host.

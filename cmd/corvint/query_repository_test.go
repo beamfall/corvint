@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/trace"
@@ -423,7 +424,7 @@ func TestFreshProcessRepositoryQueryRejectsDeterministicDrift(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	before := repositoryBytesDigest(t, root)
+	before, beforePaths := repositoryBytesDigest(t, root), repositoryPathListing(t, root)
 
 	realGit, err := exec.LookPath("git")
 	if err != nil {
@@ -477,8 +478,54 @@ exec %s "$@"
 		t.Fatal(err)
 	}
 	if restored := repositoryBytesDigest(t, root); restored != before {
-		t.Fatal("test fixture did not restore to its exact pre-injection snapshot")
+		t.Fatalf("test fixture did not restore to its exact pre-injection snapshot; differing paths (empty means a same-size content change): %v",
+			repositoryPathDifference(beforePaths, repositoryPathListing(t, root)))
 	}
+}
+
+// repositoryPathListing maps every relative path under root to its mode, size
+// and modification time so a digest mismatch can name the paths that changed,
+// transient Git files (.git/objects/maintenance.lock, .tmp-*-pack-*) included.
+func repositoryPathListing(t *testing.T, root string) map[string]string {
+	t.Helper()
+	listing := map[string]string{}
+	err := filepath.WalkDir(root, func(file string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		relative, err := filepath.Rel(root, file)
+		if err != nil {
+			return err
+		}
+		listing[filepath.ToSlash(relative)] = fmt.Sprintf("%s %d %s", info.Mode(), info.Size(), info.ModTime().UTC().Format(time.RFC3339Nano))
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return listing
+}
+
+// repositoryPathDifference names the paths whose listing entry changed, was
+// removed, or was added between two repositoryPathListing snapshots.
+func repositoryPathDifference(before, after map[string]string) []string {
+	differing := []string{}
+	for path, entry := range before {
+		if after[path] != entry {
+			differing = append(differing, fmt.Sprintf("%s: %q -> %q", path, entry, after[path]))
+		}
+	}
+	for path, entry := range after {
+		if _, present := before[path]; !present {
+			differing = append(differing, fmt.Sprintf("%s: added %q", path, entry))
+		}
+	}
+	sort.Strings(differing)
+	return differing
 }
 
 func TestRepositoryQuerySharedPathAndAuthoritySeparationAreStructural(t *testing.T) {

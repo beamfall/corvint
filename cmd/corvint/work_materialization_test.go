@@ -41,6 +41,10 @@ func materializationFixture(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	materializationGit(t, root, "init", "-q")
+	// A commit must not spawn detached auto maintenance: it outlives the fixture
+	// command and its transient .git writes race the manifests.
+	materializationGit(t, root, "config", "maintenance.auto", "false")
+	materializationGit(t, root, "config", "gc.auto", "0")
 	for name, raw := range map[string]string{"tracked": "pinned bytes\n", ".gitignore": "ignored\n"} {
 		if err := os.WriteFile(filepath.Join(root, name), []byte(raw), 0644); err != nil {
 			t.Fatal(err)

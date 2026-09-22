@@ -116,7 +116,7 @@ func workFinalPriorMutation(capture *workCapture) {
 func workAssertFinalProposal(t *testing.T, capture *workCapture, envelope *workqueue.CapacityEnvelope, output []byte, exit int, observationState, proposalState string) {
 	t.Helper()
 	if exit != 0 || capture.observation.State != observationState {
-		t.Fatalf("exit=%d observation=%+v output=%s", exit, capture.observation, output)
+		t.Fatalf("exit=%d adapter failure=%v failed receipt=%+v observation=%+v output=%s", exit, capture.runner.failure, capture.runner.failureReceipt, capture.observation, output)
 	}
 	result := workFinalResult(t, output)
 	var proposal map[string]json.RawMessage
@@ -148,6 +148,8 @@ func workAssertFinalProposal(t *testing.T, capture *workCapture, envelope *workq
 func TestWorkFinalCheckCaptureBinding(t *testing.T) {
 	t.Parallel()
 	t.Run("WQO-V0-021", func(t *testing.T) {
+		// Scripts that commit disable detached auto maintenance: its grandchild
+		// outlives the adapter leader and reads as residue or an unfinished drain.
 		cases := []struct {
 			name, change, script, observation, proposal string
 			priorMutation, finalMutation, closingError  bool
@@ -159,8 +161,8 @@ func TestWorkFinalCheckCaptureBinding(t *testing.T) {
 			{name: "prior-mutation-and-drift", change: "checkpoint", priorMutation: true, observation: "UNKNOWN", proposal: "STALE"},
 			{name: "closing-inability", script: "printf dirty > '@ROOT@/untracked-final'\n", finalMutation: true, closingError: true, observation: "UNKNOWN", proposal: "EMPTY"},
 			{name: "prior-mutation-and-closing-inability", script: "printf dirty > '@ROOT@/untracked-final'\n", priorMutation: true, finalMutation: true, closingError: true, observation: "UNKNOWN", proposal: "EMPTY"},
-			{name: "source-drift-and-mutation", script: "git -C '@ROOT@' -c user.name=Test -c user.email=test@example.invalid commit --allow-empty -qm advance\n", finalMutation: true, observation: "UNKNOWN", proposal: "STALE"},
-			{name: "contradiction-and-source-drift", change: "policy", script: "git -C '@ROOT@' -c user.name=Test -c user.email=test@example.invalid commit --allow-empty -qm advance\n", finalMutation: true, observation: "CONFLICTED", proposal: "STALE"},
+			{name: "source-drift-and-mutation", script: "git -C '@ROOT@' -c maintenance.auto=false -c gc.auto=0 -c user.name=Test -c user.email=test@example.invalid commit --allow-empty -qm advance\n", finalMutation: true, observation: "UNKNOWN", proposal: "STALE"},
+			{name: "contradiction-and-source-drift", change: "policy", script: "git -C '@ROOT@' -c maintenance.auto=false -c gc.auto=0 -c user.name=Test -c user.email=test@example.invalid commit --allow-empty -qm advance\n", finalMutation: true, observation: "CONFLICTED", proposal: "STALE"},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
