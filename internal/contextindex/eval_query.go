@@ -1326,12 +1326,16 @@ func evalNegativeClaims(records []evalRecordCandidate, queryTerms map[string]str
 	return result
 }
 
+var evalNegativeClaimPattern = regexp.MustCompile(`\b(?:cannot|can't|does not|do not|must not|never|unsupported|forbidden)\b`)
+
 func evalNegativeClaim(value string) bool {
-	return regexp.MustCompile(`\b(?:cannot|can't|does not|do not|must not|never|unsupported|forbidden)\b`).MatchString(value)
+	return evalNegativeClaimPattern.MatchString(value)
 }
 
+var evalCapabilityOverridePattern = regexp.MustCompile(`\b(?:bypass[a-z]*|circumvent[a-z]*|despite|force[a-z]*|immediately|override[a-z]*|skip[a-z]*)\b`)
+
 func evalCapabilityOverride(value string) bool {
-	return regexp.MustCompile(`\b(?:bypass[a-z]*|circumvent[a-z]*|despite|force[a-z]*|immediately|override[a-z]*|skip[a-z]*)\b`).MatchString(value)
+	return evalCapabilityOverridePattern.MatchString(value)
 }
 
 func evalPathAllowed(candidatePath string, intent evalIntent) bool {

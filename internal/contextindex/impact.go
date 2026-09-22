@@ -72,6 +72,12 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 
 	ranked := make([]rankedResult, 0)
 	related := make(map[string]struct{})
+	// V1-0054: built once per call rather than rescanned per changed path (up to
+	// maxImpactPaths) or per ranked record. dirIndex answers "which tracked paths
+	// share this directory" and sortedPaths lets an ADR-document prefix lookup
+	// binary-search instead of scanning every source.
+	dirIndex := dirPathIndex(index)
+	sortedPaths := sortedSourcePaths(index)
 	for _, changedPath := range cleaned {
 		source := index.Sources[changedPath]
 		ranked = append(ranked, rankedResult{score: 1000, order: 0, key: changedPath, result: map[string]any{
@@ -98,7 +104,7 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 				}
 			}
 		}
-		packageReferences := samePackageReferences(index, changedPath, true)
+		packageReferences := samePackageReferencesWithDirIndex(index, changedPath, true, dirIndex)
 		testReferences := make(map[string]packageReference)
 		for _, reference := range packageReferences {
 			if isTestPath(reference.path) {
@@ -109,8 +115,8 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 		if strings.HasSuffix(changedPath, ".go") && !isTestPath(changedPath) {
 			parent, stem := path.Dir(changedPath), strings.TrimSuffix(path.Base(changedPath), ".go")
 			tests := make([]string, 0)
-			for candidate := range index.Sources {
-				if path.Dir(candidate) == parent && strings.HasSuffix(candidate, "_test.go") {
+			for _, candidate := range dirIndex[parent] {
+				if strings.HasSuffix(candidate, "_test.go") {
 					tests = append(tests, candidate)
 				}
 			}
@@ -220,7 +226,7 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 			records = index.Scenarios
 		}
 		if record, ok := records[identifier]; ok {
-			result := recordResult(index, record, 800, "changed path carries "+kind+":"+identifier)
+			result := recordResultWithSortedPaths(index, record, 800, "changed path carries "+kind+":"+identifier, sortedPaths)
 			withholdUnverifiedADRAuthority(result)
 			ranked = append(ranked, rankedResult{score: 800, order: 1, key: key, result: result})
 		}
@@ -445,7 +451,16 @@ func withholdUnverifiedADRAuthority(result map[string]any) {
 	}
 }
 
+// recordResult renders a feature/scenario as a ranked evidence record.
+// recordResultWithSortedPaths is the same computation with the index's source
+// paths supplied pre-sorted, so a caller ranking many records (Impact, up to
+// maxImpactPaths changed paths) builds that slice once instead of once per ADR
+// ID per record (V1-0054).
 func recordResult(index *Index, record Record, score int, reason string) map[string]any {
+	return recordResultWithSortedPaths(index, record, score, reason, nil)
+}
+
+func recordResultWithSortedPaths(index *Index, record Record, score int, reason string, sortedPaths []string) map[string]any {
 	resultEvidence := []any{evidence(record.Path, record.Line, record.BlobHash, reason, "authoritative", "canonical-ledger")}
 	adrOutput, adrIDs := recordSequence(record.Fields["adr"], true)
 	for _, adrValue := range adrIDs {
@@ -454,12 +469,7 @@ func recordResult(index *Index, record Record, score int, reason string) map[str
 		if adrPrefix := projectprofile.ByID(index.ProfileID).ADRPrefix; adrPrefix != "" {
 			prefix = adrPrefix + adr + "-"
 		}
-		matches := make([]string, 0)
-		for sourcePath := range index.Sources {
-			if prefix != "" && strings.HasPrefix(sourcePath, prefix) && strings.HasSuffix(sourcePath, ".md") {
-				matches = append(matches, sourcePath)
-			}
-		}
+		matches := adrDocumentMatches(index, sortedPaths, prefix)
 		sort.Strings(matches)
 		if len(matches) != 0 && len(resultEvidence) < maxEvidence {
 			source := index.Sources[matches[0]]
@@ -507,6 +517,55 @@ func recordResult(index *Index, record Record, score int, reason string) map[str
 		"area": valueOr(record.Fields["area"], ""), "summary": truncateRunes(pythonString(valueOr(record.Fields["summary"], "")), 500),
 		"status": valueOr(record.Fields["status"], ""), "adr": adrOutput,
 		"applies": recordSequenceValue(record.Fields["applies"]), "evidence": resultEvidence[:min(len(resultEvidence), maxEvidence)]}
+}
+
+// adrDocumentMatches returns the tracked `.md` paths naming the ADR prefix, in
+// no particular order (the caller sorts). With sortedPaths supplied it binary
+// searches the prefix range instead of scanning every source path.
+func adrDocumentMatches(index *Index, sortedPaths []string, prefix string) []string {
+	if prefix == "" {
+		return nil
+	}
+	matches := make([]string, 0)
+	if sortedPaths == nil {
+		for sourcePath := range index.Sources {
+			if strings.HasPrefix(sourcePath, prefix) && strings.HasSuffix(sourcePath, ".md") {
+				matches = append(matches, sourcePath)
+			}
+		}
+		return matches
+	}
+	for i := sort.SearchStrings(sortedPaths, prefix); i < len(sortedPaths) && strings.HasPrefix(sortedPaths[i], prefix); i++ {
+		if strings.HasSuffix(sortedPaths[i], ".md") {
+			matches = append(matches, sortedPaths[i])
+		}
+	}
+	return matches
+}
+
+// sortedSourcePaths returns every index.Sources path, sorted, so a caller that
+// needs several prefix lookups over the same index (Impact, once per call)
+// builds the slice once instead of once per lookup.
+func sortedSourcePaths(index *Index) []string {
+	paths := make([]string, 0, len(index.Sources))
+	for sourcePath := range index.Sources {
+		paths = append(paths, sourcePath)
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+// dirPathIndex maps each directory to the index.Sources paths under it, so a
+// caller that needs several same-directory lookups over the same index
+// (Impact, once per call) builds the map once instead of scanning every
+// source per lookup.
+func dirPathIndex(index *Index) map[string][]string {
+	dirs := make(map[string][]string)
+	for sourcePath := range index.Sources {
+		dir := path.Dir(sourcePath)
+		dirs[dir] = append(dirs[dir], sourcePath)
+	}
+	return dirs
 }
 
 func recordSequence(value any, wrapString bool) (any, []any) {
@@ -641,7 +700,16 @@ type packageReference struct {
 	count   int
 }
 
+// samePackageReferences scans every source in changedPath's directory for
+// lines that reference a name changedPath declares. samePackageReferencesWithDirIndex
+// is the same computation with the index's directory->paths map supplied, so
+// a caller scanning many changed paths (Impact, up to maxImpactPaths) builds
+// that map once instead of once per changed path (V1-0054).
 func samePackageReferences(index *Index, changedPath string, includeTests bool) []packageReference {
+	return samePackageReferencesWithDirIndex(index, changedPath, includeTests, nil)
+}
+
+func samePackageReferencesWithDirIndex(index *Index, changedPath string, includeTests bool, dirIndex map[string][]string) []packageReference {
 	if !strings.HasSuffix(changedPath, ".go") || isTestPath(changedPath) {
 		return nil
 	}
@@ -655,11 +723,20 @@ func samePackageReferences(index *Index, changedPath string, includeTests bool) 
 	// name, as the oracle's set is: each matching code line is one pair.
 	names := keys(declared)
 	parent := path.Dir(changedPath)
+	candidates := dirIndex[parent]
+	if dirIndex == nil {
+		for candidate := range index.Sources {
+			if path.Dir(candidate) == parent {
+				candidates = append(candidates, candidate)
+			}
+		}
+	}
 	result := make([]packageReference, 0)
-	for candidate, source := range index.Sources {
-		if candidate == changedPath || (!includeTests && isTestPath(candidate)) || !strings.HasSuffix(candidate, ".go") || path.Dir(candidate) != parent {
+	for _, candidate := range candidates {
+		if candidate == changedPath || (!includeTests && isTestPath(candidate)) || !strings.HasSuffix(candidate, ".go") {
 			continue
 		}
+		source := index.Sources[candidate]
 		text, valid, loaded := source.Text()
 		if !loaded || !valid {
 			continue

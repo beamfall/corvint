@@ -2157,3 +2157,43 @@ limitation recorded: a restore that completes within one ctime tick is invisible
 `TestRunningFailedPassed` (V1-0036) waited 5s for each running event under whole-suite load; the
 waits are now the 5-minute hang detector already used for completion (decision 0082). All four
 tests pass `-count=5` with no skips on this host.
+### 2026-09-22 batch D: contextindex/doccorpus fixes and decision 0337
+
+Six V1 tickets landed in one change. `internal/contextindex`: V1-0049 rewords `citedNumbers`'s doc
+comment to name its two malformed-range degradations explicitly and adds a table test pinning
+`path:5-0`/`path:9-3`; V1-0053 hoists the two `regexp.MustCompile` calls in `eval_query.go` to
+package vars; V1-0054 replaces `impact.go`'s per-changed-path linear scans over `index.Sources` with
+a directory-to-paths index and a sorted path slice built once per call, output verified byte-
+identical against the prior implementation via the package's existing tests; V1-0055 caches
+`authority_trigger.go`'s per-target line splits, builds `range_impact.go`'s map before its linear
+scan instead of after, and merges the two-spawn `cat-file -t`/`rev-parse base^{tree}` open of
+`compileRangeImpact` into one `git rev-parse base^{commit} base^{tree}` call (not `--verify`, which
+this Git version refuses with more than one revision argument) while leaving `verifyRangeBase`'s own
+closing repeat of the same two-spawn pattern untouched, per the ticket. `TestAnalyzerSchemaInputs`'s
+structural digest pin moved `e9058d1...` to `bca73e3...` (schema ID `corvint-analyzer/73` unchanged)
+to reflect these edits.
+
+`internal/doccorpus` (decision 0337, DCP-V1-032 amended): V1-0044 — `reconcileTest` (forward
+emission) already retains a criterion or claim naming a variation absent from the normative set and
+reports it as `undocumented-tested-behavior` (DCP-V1-031) rather than pruning it, but
+`validatePreviousBehaviorAdapterResult` (the `--previous` strict check) fatally refused that same
+retained shape, so a `run1.json` carrying exactly the finding DCP-V1-031 exists to report could not
+be reused for the DCP-V1-032 delta. The validator now tolerates it on the same terms forward emission
+does — the dangling reference must still be a criterion the test itself declares — and a new
+`TestBehaviorAdapterPreviousToleratesDanglingCriterion` end-to-end test exercises run 1 (dangling
+criterion, exits 0 with the `undocumented-tested-behavior` finding) then run 2 (`--previous` run1,
+exits 0). V1-0050 — `lost_reverse_links` entries were joined with a literal NUL, which `textOK`
+forbids in every other corpus text field; the six join sites now use a new `reverseLinkJoin` helper
+(printable `|` separator, backslash-escaped where a field contains `|` or `\`, preserving the same
+collision-freedom the NUL separator gave), and `validatePreviousBehaviorAdapterResult` now runs
+`textOK` over every `Delta.LostReverseLinks` entry on read.
+
+Owner question V1-0060 (should a prior bundle with dangling criteria disqualify a delta outright
+instead of being tolerated) remains open; this batch implements the tolerant reading pending that
+answer and does not close it.
+
+Gates: `gofmt -l`, `GOTOOLCHAIN=local go build ./... && go vet ./...`, targeted
+`GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/contextindex/... ./internal/doccorpus/...
+./internal/specindex/`, and `make spec-requirements-check requirement-definitions-check
+traceability-tests-check decision-numbers-check line-citations-check` all passed. Full `make gate`
+was not run, per batch scope.

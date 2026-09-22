@@ -168,6 +168,40 @@ func TestAuthorityTriggersRefuseUnusablePaths(t *testing.T) {
 	}
 }
 
+// V1-0049: a written `last` of 0 collides with the "no range" sentinel, and an
+// inverted range never satisfies `first <= last`; citedNumbers accepts both
+// rather than refusing them, degrading to a smaller number set instead.
+func TestAuthorityCiteCitedNumbersDegradesMalformedRanges(t *testing.T) {
+	cases := []struct {
+		name  string
+		token string
+		want  []int
+	}{
+		{name: "trailing zero last falls back to first only", token: "`docs/x/y.md:5-0`", want: []int{5}},
+		{name: "inverted range cites no lines", token: "`docs/x/y.md:9-3`", want: []int{}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cites := documentCitations(tc.token)
+			if len(cites) != 1 {
+				t.Fatalf("documentCitations(%q) = %v, want exactly one citation", tc.token, cites)
+			}
+			numbers, inRange := cites[0].citedNumbers(20)
+			if !inRange {
+				t.Fatalf("citedNumbers(%q) reported false, want the malformed range accepted", tc.token)
+			}
+			if len(numbers) != len(tc.want) {
+				t.Fatalf("citedNumbers(%q) = %v, want %v", tc.token, numbers, tc.want)
+			}
+			for i, number := range numbers {
+				if number != tc.want[i] {
+					t.Fatalf("citedNumbers(%q) = %v, want %v", tc.token, numbers, tc.want)
+				}
+			}
+		})
+	}
+}
+
 // A citation may name any digit run, so an absurd range must be bounded against
 // the cited target before it is expanded: the lookup returns cleanly and reports
 // the anchor as unreadable rather than allocating over the written range.

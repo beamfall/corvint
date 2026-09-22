@@ -77,15 +77,17 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	if err != nil {
 		return nil, err
 	}
-	objectType, err := git(ctx, index.Root, maxIdentityBytes, nil, "cat-file", "-t", base)
-	if err != nil || string(objectType) != "commit\n" {
+	// V1-0055: one spawn resolves both the commit and its tree; `^{commit}`
+	// fails the same way `cat-file -t` did when base is not a commit object.
+	resolvedRaw, err := git(ctx, index.Root, maxIdentityBytes, nil, "rev-parse", base+"^{commit}", base+"^{tree}")
+	if err != nil {
 		return nil, &Error{Code: "unsupported-impact-range", Message: "--base must identify an available commit object"}
 	}
-	baseTreeRaw, err := git(ctx, index.Root, maxIdentityBytes, nil, "rev-parse", base+"^{tree}")
-	if err != nil {
+	resolved := strings.Split(strings.TrimSuffix(string(resolvedRaw), "\n"), "\n")
+	if len(resolved) != 2 {
 		return nil, &Error{Code: "unsupported-impact-range", Message: "cannot resolve the base commit tree"}
 	}
-	baseTree := strings.TrimSuffix(string(baseTreeRaw), "\n")
+	baseTree := resolved[1]
 	if !validObjectID(baseTree, index.ObjectFormat) {
 		return nil, &Error{Code: "unsupported-impact-range", Message: "Git returned an invalid base tree identity"}
 	}
@@ -96,6 +98,13 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	changes, err := readRangeChanges(ctx, index, baseTree)
 	if err != nil {
 		return nil, err
+	}
+	// V1-0055: built once so the per-Go-path lookups below (readRangeHunksFor,
+	// the goPaths loop, qualifyRangePathEvidence) are map reads instead of a
+	// linear scan of changes per path.
+	changeByPath := make(map[string]rangeChange, len(changes))
+	for _, change := range changes {
+		changeByPath[change.path] = change
 	}
 	pathLimit := maxImpactPaths
 	if expanded {
@@ -149,9 +158,9 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	hunks := make([]rangeHunk, 0)
 	spans := make(map[string][]rangeHunk, len(goPaths))
 	targetLineCount := 0
-	pathReads := readRangeHunksFor(ctx, index, baseTree, changes, goPaths)
+	pathReads := readRangeHunksFor(ctx, index, baseTree, changeByPath, goPaths)
 	for position, changedPath := range goPaths {
-		change := rangeChangeByPath(changes, changedPath)
+		change := changeByPath[changedPath]
 		pathHunks, hunkErr := pathReads[position].hunks, pathReads[position].err
 		if hunkErr != nil {
 			return nil, hunkErr
@@ -175,7 +184,7 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 		return nil, err
 	}
 
-	rawResults, authorityUncertainty := compileRangeResults(index, goPaths, spans, changes, callerAuthoredPaths(changes))
+	rawResults, authorityUncertainty := compileRangeResults(index, goPaths, spans, changeByPath, callerAuthoredPaths(changes))
 	rawResults = deduplicateAndSortRangeResults(rawResults)
 
 	request := map[string]any{"base": base, "limit": limit}
@@ -192,9 +201,7 @@ func compileRangeImpact(ctx context.Context, index *Index, base string, limit in
 	}
 	hunkRows := make([]any, 0, len(hunks))
 	changeRows := make([]any, 0, len(changes))
-	changeByPath := make(map[string]rangeChange, len(changes))
 	for _, change := range changes {
-		changeByPath[change.path] = change
 		changeRows = append(changeRows, change.binding())
 	}
 	for _, hunk := range hunks {
@@ -369,15 +376,6 @@ func (change rangeChange) binding() map[string]any {
 	return result
 }
 
-func rangeChangeByPath(changes []rangeChange, changedPath string) rangeChange {
-	for _, change := range changes {
-		if change.path == changedPath {
-			return change
-		}
-	}
-	return rangeChange{path: changedPath}
-}
-
 func readRangeChanges(ctx context.Context, index *Index, baseTree string) ([]rangeChange, error) {
 	raw, err := git(ctx, index.Root, maxStatusBytes, nil,
 		"-c", "diff.algorithm=myers", "-c", "diff.indentHeuristic=false", "-c", "diff.renameLimit=200000",
@@ -484,7 +482,7 @@ type rangeHunkRead struct {
 // readRangeHunksFor runs the independent per-path hunk diffs on up to four
 // Git processes. The caller judges the reads in path order, so the first
 // failure it returns is the one a sequential read would have stopped at.
-func readRangeHunksFor(ctx context.Context, index *Index, baseTree string, changes []rangeChange, goPaths []string) []rangeHunkRead {
+func readRangeHunksFor(ctx context.Context, index *Index, baseTree string, changeByPath map[string]rangeChange, goPaths []string) []rangeHunkRead {
 	reads := make([]rangeHunkRead, len(goPaths))
 	workers := min(4, runtime.NumCPU(), max(1, len(goPaths)))
 	var pending sync.WaitGroup
@@ -493,7 +491,7 @@ func readRangeHunksFor(ctx context.Context, index *Index, baseTree string, chang
 		go func(worker int) {
 			defer pending.Done()
 			for position := worker; position < len(goPaths); position += workers {
-				change := rangeChangeByPath(changes, goPaths[position])
+				change := changeByPath[goPaths[position]]
 				reads[position].hunks, reads[position].err = readRangeHunks(ctx, index, baseTree, change)
 			}
 		}(worker)
@@ -546,7 +544,7 @@ func lineInRangeHunks(line int, spans []rangeHunk) bool {
 	return false
 }
 
-func qualifyRangePathEvidence(results []map[string]any, index *Index, spans map[string][]rangeHunk, changes []rangeChange) {
+func qualifyRangePathEvidence(results []map[string]any, index *Index, spans map[string][]rangeHunk, changeByPath map[string]rangeChange) {
 	for _, result := range results {
 		if result["kind"] != "path" {
 			continue
@@ -563,7 +561,7 @@ func qualifyRangePathEvidence(results []map[string]any, index *Index, spans map[
 				fmt.Sprintf("committed diff hunk -%d,%d +%d,%d", hunk.oldStart, hunk.oldLines, hunk.newStart, hunk.newLines),
 				"authoritative", "git-diff-hunk"))
 		}
-		change := rangeChangeByPath(changes, changedPath)
+		change := changeByPath[changedPath]
 		if len(hunkEvidence) == 0 && change.sourcePath != "" {
 			hunkEvidence = append(hunkEvidence, evidence(changedPath, 1, source.BlobHash,
 				fmt.Sprintf("committed Git %s%03d from %s at %s", change.status, change.similarity, change.sourcePath, change.sourceBlob),
@@ -574,7 +572,7 @@ func qualifyRangePathEvidence(results []map[string]any, index *Index, spans map[
 	}
 }
 
-func compileRangeResults(index *Index, goPaths []string, spans map[string][]rangeHunk, changes []rangeChange, authored map[string]struct{}) ([]map[string]any, []any) {
+func compileRangeResults(index *Index, goPaths []string, spans map[string][]rangeHunk, changeByPath map[string]rangeChange, authored map[string]struct{}) ([]map[string]any, []any) {
 	results := make([]map[string]any, 0, len(goPaths))
 	for _, changedPath := range goPaths {
 		results = append(results, map[string]any{
@@ -582,7 +580,7 @@ func compileRangeResults(index *Index, goPaths []string, spans map[string][]rang
 			"summary": "direct committed Go diff path", "evidence": []any{},
 		})
 	}
-	qualifyRangePathEvidence(results, index, spans, changes)
+	qualifyRangePathEvidence(results, index, spans, changeByPath)
 	filtered := *index
 	filtered.Markers = make(map[string][]Marker)
 	for key, markers := range index.Markers {
