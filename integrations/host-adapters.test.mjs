@@ -32,13 +32,13 @@ const events = { 'session-start': 'SessionStart', 'user-prompt': 'BeforeAgent', 
 function fixture(t, mode='valid', codes=['frontier-authority-unavailable'], environmentOverrides={}) {
   const dir = mkdtempSync(join(tmpdir(), 'corvint-adapter-'))
   const root = join(dir, 'repo'); mkdirSync(root); mkdirSync(join(root, '.git'))
-  const capture = join(dir, 'capture'), childPID = join(dir, 'child.pid'), binary = join(dir, 'corvint')
+  const capture = join(dir, 'capture'), childPID = join(dir, 'child.pid'), overlap = join(dir, 'overlap'), binary = join(dir, 'corvint')
   t.after(() => {
     if (existsSync(childPID)) { const pid = Number(readFileSync(childPID, 'utf8')); try { process.kill(pid, 'SIGKILL') } catch {} }
     rmSync(dir, { recursive: true, force: true })
   })
   const config = join(dir, 'fixture.json')
-  writeFileSync(config, JSON.stringify({mode,codes,capture,childPID}), {mode:0o600})
+  writeFileSync(config, JSON.stringify({mode,codes,capture,childPID,overlap}), {mode:0o600})
   writeFileSync(binary, '#!/bin/sh\nexec ' + shellQuote(nativeFixture) + ' ' + shellQuote(config) + ' "$@"\n', {mode:0o700})
   const environment = { ...process.env, PATH: `${dir}:${process.env.PATH}`, SECRET_DO_NOT_LEAK:'secret', GEMINI_API_KEY:'secret' }
   delete environment.CORVINT_GEMINI_HOOK_ACTIVE
@@ -59,7 +59,7 @@ function fixture(t, mode='valid', codes=['frontier-authority-unavailable'], envi
     child.stdin.end(raw ?? JSON.stringify(input))
   })
   const gemini = geminiOnce
-  return {dir,root,binary,runOpen,gemini,captured,childPID,interruptGemini:()=>currentGemini?.kill('SIGTERM')}
+  return {dir,root,binary,runOpen,gemini,captured,childPID,overlap,interruptGemini:()=>currentGemini?.kill('SIGTERM')}
 }
 function request(root,event='session-start') { return {root,event,input:{sessionIdSha256:hashSessionId('raw-session-secret'),...(event==='user-prompt'?{task:'repair the parser'}:{})},query:event==='user-prompt'} }
 function noSecret(row) {assert.equal(row.environment.SECRET_DO_NOT_LEAK,undefined);assert.equal(row.environment.GEMINI_API_KEY,undefined);assert.equal(row.environment.CORVINT_BIN,undefined);assert.equal(row.environment.CORVINT_BIN,undefined);assert.ok(!JSON.stringify(row).includes('raw-session-secret'));assert.ok(!JSON.stringify(row).includes('/private/secret'))}
@@ -315,6 +315,28 @@ test('AHI-022 OpenCode routine receipt goes to the host log and a fault keeps it
  await fault.event({event:{type:'session.created',properties:{info:{id:'session-b'}}}})
  await settle()
  assert.equal(logged.length,before);assert.equal(warnings.length,1);assert.match(warnings[0],/repository-unreadable/)
+
+ const unsupported=await load(fixture(t,'unsupported-impact-path-suffix').binary),warningCount=warnings.length,logCount=logged.length
+ await unsupported.event({event:{type:'file.edited',properties:{file:join(f.root,'page.html'),sessionID:'session-c'}}})
+ await settle()
+ assert.equal(warnings.length,warningCount);assert.equal(logged.length,logCount+1)
+ assert.match(logged.at(-1).body.message,/unsupported-impact-path-suffix/)
+})
+
+test('AHI-022 OpenCode serializes a burst of file-change subprocesses',async t=>{
+ const f=fixture(t,'delayed'), pkg=join(f.dir,'plugin');cpSync(join(here,'opencode'),pkg,{recursive:true})
+ const dependency=join(pkg,'node_modules/@opencode-ai/plugin');mkdirSync(dependency,{recursive:true})
+ writeFileSync(join(dependency,'package.json'),JSON.stringify({name:'@opencode-ai/plugin',type:'module',exports:'./index.js'}))
+ writeFileSync(join(dependency,'index.js'),`export function tool(v){return v};tool.schema={array:v=>({v}),enum:v=>({v}),object:v=>({v}),string:()=>({})}`)
+ const {CorvintPlugin}=await import(pathToFileURL(join(pkg,'src/index.js')))
+ const client={app:{log:async()=>undefined}}
+ const plugin=await CorvintPlugin({directory:f.root,worktree:f.root,client},{corvintBinary:f.binary,hostVersion:'unknown',...OPEN_TIMEOUTS})
+ await Promise.all(Array.from({length:20},(_,i)=>plugin.event({event:{type:'file.edited',properties:{file:join(f.root,'README.md'),sessionID:`session-${i}`}}})))
+ assert.equal(existsSync(f.overlap),false,'file-change subprocesses overlapped')
+ assert.equal(f.captured().length,20)
+ await Promise.all(Array.from({length:20},()=>plugin.event({event:{type:'file.edited',properties:{file:join(f.root,'README.md'),sessionID:'same-session'}}})))
+ assert.equal(f.captured().length,21,'same-session duplicate paths were not coalesced')
+ assert.deepEqual(f.captured().at(-1).input.paths,['README.md'])
 })
 
 test('OpenCode beta context hook envelopes context, refuses terminator collision and escapes hidden characters',async t=>{

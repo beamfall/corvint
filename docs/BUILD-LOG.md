@@ -154,6 +154,24 @@ runtime behavior.
 The frozen calibration, held-out replay, kill-gate, and first accepted extractor profile remain open;
 this deterministic slice is not evidence that any model's probabilities are calibrated.
 
+## 2026-09-21 AHI-022: OpenCode file-change burst fallback
+
+Issue #55 reproduced two adapter-local failures: concurrent `file.edited` callbacks overlapped
+Corvint subprocesses, and the structured `unsupported-impact-path-suffix` refusal reached the
+terminal as a fault. The OpenCode adapter now shares one bounded file-change drain, coalesces
+duplicate per-session paths, and records that expected refusal through `client.app.log` while
+leaving the Core non-zero refusal unchanged. The adapter fixture asserts both no overlap across a
+twenty-event burst and preservation of the structured refusal code. Node 16 was outside the
+package's declared `>=20` runtime; supported-runtime verification used Node 22.23.2.
+
+The first full gate passed the issue #55 adapter coverage, but
+`TestBuildQueryAgreesAcrossWorkerCounts` failed cleanup once there and twice in isolated retries
+while `t.TempDir` removed `.git`. The exact failing test passed with Git auto-maintenance disabled.
+The helper now applies the same
+`maintenance.autoDetach=false`, `gc.autoDetach=false`, and `gc.auto=0` fixture boundary as
+`testGit`, so every fixture writer finishes before cleanup. After the repair, the test passed ten
+consecutive isolated runs under concurrent gate load.
+
 ## 2026-09-20 LAC-V0-032: safe roadmap auto-recheck
 
 The roadmap repeats its existing read-only request every 30 seconds. Eligibility remains derived by
