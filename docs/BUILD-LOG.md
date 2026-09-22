@@ -1872,3 +1872,29 @@ add the qualification. Evidence: `TestObservationEnvironmentIsAdditive`,
 (`internal/jstestprovider/projection_test.go`). Not done here: the frontier CF-V0-016 closed
 vocabulary and `docs/tcq-0.schema.json` do not yet list `test-flaky` or `observation.environment`;
 the frontier shim supplies no priors, so neither can reach them today.
+## 2026-09-22 V1-0009 read-only compiler qualification: case-fold collisions and a read-verb tripwire
+
+Two hostile-path tests and one filesystem tripwire qualify the read-only Core evidence compiler
+(ticket V1-0009, requirements GPK-V0-006 and GPK-V0-007; no requirement text changed). The
+case-fold fixture commits `internal/token/token.go` and `internal/token/Token.go` through Git
+plumbing (`hash-object`, `update-index --cacheinfo`, `write-tree`, `commit-tree`) so it exists on
+case-insensitive macOS, where the worktree can hold only one file. Measured on APFS: `Build`
+pins each path to its own committed blob (token.go f3c6b480, Token.go bc6664aa), never the other
+case's bytes; `DirtyPaths` equals Git's ` M internal/token/Token.go`; `query` and path `impact`
+report freshness `mixed-worktree` naming that path and `learning.local_trace_state`
+`blocked-mixed-worktree`; `context` returns both rows under distinct blob hashes; range `impact`
+refuses `unsupported-impact-worktree` (exit 2); two consecutive runs of every verb are
+byte-identical. No verb silently picks one file, so no kernel change and no `t.Skip` was needed.
+The case-sensitive branch of both tests (no dirty path, `fresh`, range impact accepted) is
+written but not measured locally. `TestReadOnlyVerbsWriteNothing` snapshots the whole fixture
+tree, `.git` and `.corvint` included, as path to kind, mode, sha256 and mtime before and after
+`init`, `adopt`, `query` (with and without the `unplanned-reads.enabled` marker), path `impact`,
+`docs draft`, `harness event` session-start and stop, and `lrf`; the only permitted delta is the
+one self-observation row on session-start with `.corvint/` gitignored. A negative run over
+`index` tripped the comparison on the index files, so the tripwire is live. No decision was
+recorded: tests alone need none, so the reserved number 0342 stays unused. Gates run: gofmt, `go build ./...`, `go vet ./...`,
+`go test ./cmd/corvint/ -run 'ReadOnlyVerbs|CaseFold'` (also `-count=5`),
+`./internal/contextindex/...` and `./internal/specindex/` fully, and the spec-requirements,
+requirement-definitions, traceability-tests, decision-numbers and line-citations checks. Open
+observation for follow-up: the `context` receipt carries no freshness block, so the worktree
+divergence reaches a `context` caller only through the blob hashes, not a named state.
