@@ -827,13 +827,13 @@ GFG-V0-005	docs/specs/go-format-gate-v0.md	58	The failure MUST name each file on
 GFG-V0-006	docs/specs/go-format-gate-v0.md	60	The gate MUST be read-only. It MUST NOT rewrite, stage, or otherwise modify any
 GFG-V0-007	docs/specs/go-format-gate-v0.md	62	A run with nothing to report MUST print nothing and exit zero, and any failure M
 GL-V0-001	docs/specs/gate-ledger-v0.md	51	A step MUST be skipped only when the ledger holds a pass whose key equals the ke
-GL-V0-002	docs/specs/gate-ledger-v0.md	60	Only a step that exits zero MUST be recorded, after it exits. The ledger MUST pa
-GL-V0-003	docs/specs/gate-ledger-v0.md	63	A step without a declared input scope MUST run and MUST NOT be recorded. A step
-GL-V0-004	docs/specs/gate-ledger-v0.md	67	`ledger/go-test` MUST run every package `go test ./...` would run. Packages the
-GL-V0-005	docs/specs/gate-ledger-v0.md	74	The ledger MUST refuse to digest, and therefore run without recording, any
-GL-V0-006	docs/specs/gate-ledger-v0.md	79	Records MUST live in a per-user directory (`CORVINT_GATE_LEDGER_DIR`, else
-GL-V0-007	docs/specs/gate-ledger-v0.md	86	`CORVINT_GATE_LEDGER=off` MUST make every `ledger/STEP` target exactly `make
-GL-V0-008	docs/specs/gate-ledger-v0.md	91	Two runs of one key at once MUST execute the step once: the second MUST wait on
+GL-V0-002	docs/specs/gate-ledger-v0.md	62	Only a step that exits zero MUST be recorded, after it exits. The ledger MUST pa
+GL-V0-003	docs/specs/gate-ledger-v0.md	65	A step without a declared input scope MUST run and MUST NOT be recorded. A step
+GL-V0-004	docs/specs/gate-ledger-v0.md	69	`ledger/go-test` MUST run every package `go test ./...` would run. Packages the
+GL-V0-005	docs/specs/gate-ledger-v0.md	76	The ledger MUST refuse to digest, and therefore run without recording, any
+GL-V0-006	docs/specs/gate-ledger-v0.md	81	Records MUST live in a per-user directory (`CORVINT_GATE_LEDGER_DIR`, else
+GL-V0-007	docs/specs/gate-ledger-v0.md	88	`CORVINT_GATE_LEDGER=off` MUST make every `ledger/STEP` target exactly `make
+GL-V0-008	docs/specs/gate-ledger-v0.md	93	Two runs of one key at once MUST execute the step once: the second MUST wait on
 GLTP-V0-001	docs/specs/go-live-test-provider-v0.md	71	Each V0 document is one UTF-8 canonical JSON object followed by exactly one LF.
 GLTP-V0-002	docs/specs/go-live-test-provider-v0.md	89	Raw `go test -json` is runner input, not canonical Corvint JSON. Its decoder acc
 GLTP-V0-003	docs/specs/go-live-test-provider-v0.md	95	`H(kind, profile, body)` is lowercase SHA-256 of
