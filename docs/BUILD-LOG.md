@@ -1246,3 +1246,17 @@ its own staged specs. The release tuple moves together; historical versions rema
 The full gate will run on the final bound clean candidate, rather than treating development probes
 or the repair branch's scoped checks as release qualification. Companion installation, native
 OpenCode artifact checks and exact-packet publication approval remain explicit separate gates.
+
+
+### 2026-09-22 — patch companion qualification found an uninitialized planning branch
+
+The exact `0.5.0a4` candidate `04e9d473` passed reproducible companion assembly and native
+OpenCode's seven tool routes. Installed core qualification passed provider transitions and docs/MCP
+stages, then failed planning seed with `INTENT_BRANCH_MISMATCH` against the unchanged Tasks
+`e6b9d766` dependency. The planning helper created an empty `.git` directory while declaring
+`intentBranch: main`; Tasks initialization correctly refused it. The same helper is present at the
+public `v0.5.0a3` tag, whose published assets contain no companion/Tasks dependency. Initialize the
+fixture's real Git repository on `main` before Tasks initialization, and exercise the seed with a
+different caller default branch. Preserve the failed candidate and scratch as failure evidence;
+rebuild and qualify the corrected exact candidate before publication. No MCP or Tasks authority
+contract is weakened, and no partial installed-stage success is an overall qualification.

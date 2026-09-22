@@ -24,7 +24,9 @@ fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
 # --- Case 1: full seed produces all eleven tickets with the stated dependencies. ---
 store1="$run_root/store1"
-"$source_root/script/seed-planning-store.sh" "$atm" "$store1" "$roadmap" >/dev/null
+GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=init.defaultBranch GIT_CONFIG_VALUE_0=fixture-default \
+  "$source_root/script/seed-planning-store.sh" "$atm" "$store1" "$roadmap" >/dev/null
+[ "$(git -C "$store1" symbolic-ref --short HEAD)" = main ] || fail "fixture did not pin the queue intent branch"
 count=$(cd "$store1" && "$atm" roadmap | jq '.items | length')
 [ "$count" = 11 ] || fail "expected 11 roadmap tickets after full seed, got $count"
 for pair in "IPR-02:IPR-01" "IPR-04:IPR-01" "IPR-05:IPR-04" "IPR-06:IPR-01" \
