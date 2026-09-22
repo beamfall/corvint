@@ -1464,7 +1464,7 @@
     "title": "Daily Change-Evidence Workflow V0",
     "reqPrefix": "DCW-V0",
     "intent": "accepted scope (decision 0330); evaluation protocol awaits separate freeze",
-    "delivery": "experimental",
+    "delivery": "experimental; milestone NOT_QUALIFIED",
     "claim": "0.6 requires verified task orientation, change consequence and evidence-carrying local completion.",
     "dependsOn": [
       "docs/specs/public-release-v0.md",

@@ -8,8 +8,8 @@ Delivery status: experimental; no protected installation or native qualification
 Authoritative inputs: `agent-harness-integration-v0.md`, `protected-local-execution-v0.md`, `qualified-lifecycle-v0.md`, decision 0009
 
 ## Agent digest
-- Claim: An optional fixed Pi SDK executable can participate in independently qualified protected lifecycle computation without admitting ordinary mutable Pi extensions.
-- Status: accepted direction; experimental; no execution root, completed qualification or FULL claim.
+- Claim: Optional fixed Pi SDK executable with independently qualified protected lifecycle; ordinary extensible Pi remains separate.
+- Status: accepted direction (owner approval, 2026-09-22); technical details experimental; no protected installation or native qualification; no execution root, completed qualification or FULL claim.
 - Exists: experimental repository Node SEA build with embedded Pi 0.85.1 code/assets, native TUI/RPC/reload/session replacement/image tools, startup injection controls and interruption cleanup; closed root/3, campaign/2, Pi qualification and QLF/2 source; functional Pi adapter 0.2.0 remains separate.
 - Blocked on: final immutable release review, protected installation, adversarial/native qualification, independent admission and explicit operator activation.
 - Read next: Requirements; Runtime boundary; Acceptance and rollout.

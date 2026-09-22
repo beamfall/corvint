@@ -10,7 +10,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 
 ## Agent digest
 - Claim: Headline Corvint jobs remain UNPROVEN until each has complete content-addressed promotion evidence.
-- Status: proposed overall; daily-workflow scope accepted (decision 0330); experimental
+- Status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0330); experimental
 - Exists: `conformance/use-cases-v0/ledger.json` and deterministic validator with every job `UNPROVEN`.
 - Blocked on: complete promotion receipts, Corvint and Beamfall dogfood, and sealed outcome benchmarks.
 - Read next: Verified current state; Status and claim model; Acceptance matrix.
