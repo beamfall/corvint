@@ -7,6 +7,32 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 EEP-V0-016/017/018, EEP-TR-011: experimental local provider authoring kit
+
+V1-0027 adds kit 0.1.0: a single-file standard-library Go provider and a separately built checker
+that reuses existing strict record decoders and contained command execution. Consumer pins bind
+exact schema, provider identity, repository revision/root and command executable SHA-256. No Core
+flag/wire/version, authority, installation or transport promotion changes. The experimental record
+window is exactly `/0`, `/1`, `/2` with today's consumer, not historical engine compatibility.
+Provider/consumer examples and implementation remain AGPL; no Apache boundary expansion.
+
+The smallest complete proof copied and authored the provider in scratch, built it offline with
+local Go 1.27.1, and compared its `/0`, `/1`, `/2` file and command composition. The documented
+focused command passed across kit, extevidence, procgroup and Core packages, including the existing
+valid/stale/malformed/ambiguous/repository-mismatch/unsupported cases, exact-pin refusals, Core
+separation, timeout/output/environment bounds and descendant interruption cleanup. An initial
+fixture expectation used `app` where the retained fixture declares `application`; correcting the
+test restored agreement. Independent Sol/low review found no HIGH/MED; stale digest wording was
+corrected. The inherited test fixtures remain synthetic, not external validation.
+
+V1-0013's portable proof freeze (itself awaiting V1-0010), incomplete native ticket coverage and
+owner acceptance remain open. Kit MCP integration stays proposed/out of scope without downgrading
+the already accepted separate MCP profile. Full/interop gate and CEM/OCM completion evidence are
+produced after the source freeze; this entry does not claim those pending gates passed. Pre-change
+dogfood at the empty base-to-HEAD range retained `cem-prepare git-diff-failed`, missing CEM/citations,
+missing intent scope and missing outcome inputs. No billed-token or before-first-query measurement
+was available; no efficiency or promotion claim follows.
+
 ## 2026-09-22 V1-0013 / CEM-CB-003: candidate portable packet finds cross-hunk interop defect
 
 The candidate `protocol/cem-0.2` packet pins a synthetic SHA-1 base, six exact target commits

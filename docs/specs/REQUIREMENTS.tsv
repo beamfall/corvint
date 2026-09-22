@@ -661,6 +661,7 @@ EEP-TR-007	docs/specs/external-evidence-provider-transports-v0.md	77	`impact` wi
 EEP-TR-008	docs/specs/external-evidence-provider-transports-v0.md	80	stderr MUST be bounded and discarded: it never appears in the receipt, a reason,
 EEP-TR-009	docs/specs/external-evidence-provider-transports-v0.md	83	MCP MUST be selected only through the accepted bounded stdio profile in
 EEP-TR-010	docs/specs/external-evidence-provider-transports-v0.md	86	A remote (network) transport is NO-GO on the default local path (decision 0318).
+EEP-TR-011	docs/specs/external-evidence-provider-transports-v0.md	90	The optional authoring-kit checker MUST require and verify an exact lowercase
 EEP-V0-001	docs/specs/external-evidence-provider-v0.md	61	A provider record MUST be one JSON document whose top-level members are exactly
 EEP-V0-002	docs/specs/external-evidence-provider-v0.md	66	`corvint impact --provider FILE PATH...` selects a provider record; the option M
 EEP-V0-003	docs/specs/external-evidence-provider-v0.md	70	Provider output appears only under `context.external`. With the same paths, limi
@@ -676,6 +677,9 @@ EEP-V0-012	docs/specs/external-evidence-provider-v0.md	110	Bounds: at most four 
 EEP-V0-013	docs/specs/external-evidence-provider-v0.md	113	`summary`, `rule`, `reference`, and `reason` text from a record MUST be valid
 EEP-V0-014	docs/specs/external-evidence-provider-v0.md	116	`impact --provider` reads the record and Git and writes no repository, index, or
 EEP-V0-015	docs/specs/external-evidence-provider-v0.md	118	External items never enter `context.results`, ranking, learning, a CEM, an OCM,
+EEP-V0-016	docs/specs/external-evidence-provider-v0.md	121	The experimental versioned local authoring kit MUST contain one copyable native-
+EEP-V0-017	docs/specs/external-evidence-provider-v0.md	125	The kit consumer MUST strictly decode bounded regular-file or contained-command
+EEP-V0-018	docs/specs/external-evidence-provider-v0.md	131	Kit conformance MUST reuse valid, stale, malformed, ambiguous,
 EEP-V1-001	docs/specs/external-evidence-provider-v1.md	54	A record whose top-level `schema` is `external-evidence-provider/1` MUST decode
 EEP-V1-002	docs/specs/external-evidence-provider-v1.md	59	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with
 EEP-V1-003	docs/specs/external-evidence-provider-v1.md	65	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin

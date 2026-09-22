@@ -3,16 +3,16 @@
 Owner: Russell Lewis
 Date: 2026-09-18
 Intent status: accepted (decision 0309)
-Delivery status: experimental (file transport only)
+Delivery status: experimental (file records and local authoring kit; kit promotion blocked on V1-0013)
 Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 `docs/specs/analyzer-capability-contract-v0.md`, `docs/specs/affected-plan-v0.md`,
 `docs/specs/change-frontier-v0.md`, and the feature request Beamfall/corvint#1.
 
 ## Agent digest
 - Claim: `corvint impact --provider FILE` attaches provider records in a separated `context.external` section and changes nothing in the core receipt.
-- Status: accepted (decision 0309, a delegated call on Beamfall/corvint#1)/experimental (file transport only); checked by `TestImpactProviderSectionSeparation`.
-- Exists: `internal/extevidence` and the `--provider` option in `cmd/corvint`; provider items carry the Core-assigned `external-provider` authority, Git-ancestry freshness, and per-path reference verification.
-- Blocked on: nothing for a local command, which is `external-evidence-provider-transports-v0.md` (decision 0316); MCP and remote are not shipped. Cross-repository relationships are `external-evidence-provider-v1.md` (decision 0310).
+- Status: accepted (decision 0309, a delegated call on Beamfall/corvint#1)/experimental (file records and local authoring kit); checked by `TestImpactProviderSectionSeparation`.
+- Exists: experimental authoring kit `examples/evidence-provider/v0` and exact-pin consumer `internal/extevidence/pin.go`; `internal/extevidence` and the `--provider` option in `cmd/corvint`; provider items carry the Core-assigned `external-provider` authority, Git-ancestry freshness, and per-path reference verification.
+- Blocked on: nothing for a local command, which is `external-evidence-provider-transports-v0.md` (decision 0316); Kit promotion needs V1-0013 and owner acceptance; kit MCP remains proposed. Separately accepted MCP/remote profiles are unchanged. Cross-repository relationships are `external-evidence-provider-v1.md` (decision 0310).
 - Read next: Definitions; Requirements; Non-goals and simpler baseline.
 
 ## User and measurable job
@@ -118,10 +118,26 @@ each cited path still exists at that revision, and what was omitted or could not
 - `EEP-V0-015`: External items never enter `context.results`, ranking, learning, a CEM, an OCM,
   or the Change Frontier. A later slice may consume the section explicitly; V0 does not.
 
+- `EEP-V0-016`: The experimental versioned local authoring kit MUST contain one copyable native-Go
+  provider using only the standard library, an explicit provider revision and explicit existing
+  record profile, and a reproducible offline build/conformance command from a clean checkout.
+  Unsupported sample provider revisions/profiles MUST fail explicitly without emitting a record.
+- `EEP-V0-017`: The kit consumer MUST strictly decode bounded regular-file or contained-command
+  bytes, compare the exact requested schema, provider ID/revision and full repository revision,
+  and emit the original complete bytes only after agreement. Profiles `/1` and `/2` MUST also
+  pin a nominated repository ID and root commit. The experimental record compatibility window
+  is exactly `/0`, `/1`, `/2` with the current consumer, not arbitrary historical engine execution.
+  Pins grant neither repository verification nor governing authority; Core still verifies evidence.
+- `EEP-V0-018`: Kit conformance MUST reuse valid, stale, malformed, ambiguous,
+  repository-mismatched and unsupported fixtures, exercise old/current records, prove a provider
+  authored from copied source through file and command transports, and retain Core separation.
+  Promotion MUST remain blocked on V1-0013's portable-proof freeze and owner acceptance; passing
+  local synthetic conformance MUST NOT be reported as acceptance or external validation.
+
 ## Non-goals and simpler baseline
 
-- Command, MCP, and remote transports. A provider that must be executed joins later as a profile
-  family under the Analyzer Capability Contract; the file transport is the baseline that already
+- New transports or analyzer authority. The kit reuses the separately owned contained command
+  transport; MCP and remote remain outside the kit. The file transport is the baseline that already
   lets a third-party project participate without touching Core.
 - Repository identities and cross-repository relationships, delivered by `external-evidence-provider-v1.md`.
 - Test selection. The fail-closed selection the request asks for extends the affected plan's
@@ -130,6 +146,24 @@ each cited path still exists at that revision, and what was omitted or could not
   slice.
 - Discovery, registries, embeddings, an untyped `related-to` graph, semantic correctness claims,
   and any provider-specific vocabulary in Core.
+
+## Authoring kit compatibility, failure and rollback
+
+`examples/evidence-provider/v0/README.md` records the exact kit 0.1.0 invocation, prerequisites,
+fixture map and licensing. The sample emits provider `kit-example` revision `0.1.0`; authoring a
+new provider changes its identity/version explicitly. Existing `/0` fixtures and `/1`/`/2` records
+are consumed by today's strict decoder without changing their wire shape. Mismatched schema,
+provider, repository revision/root or executable digest fails with no record bytes. Other declared
+repositories still require normal checkout binding. `/0` cannot assert cross-repository identity.
+
+The simpler baseline is an operator-authored file with existing `impact --provider`; the kit adds
+no Core flags. No downloads, remote transport, daemon, plugin host, n8n source, new authority, or
+analyzer launch-boundary promotion. Kit MCP remains proposed; existing accepted MCP/remote specs
+are not downgraded. The kit, implementation and tests are AGPL-3.0-or-later; existing enumerated
+Apache-2.0 protocol/interoperability paths retain their boundary, and new Apache files belong only
+under `protocol/**`. Rollback removes the additive kit and pin helper/tests plus indexed kit
+requirements; existing transports, receipts and saved provider records are unchanged. Replacing
+an artifact/version requires a newly reviewed explicit pin, not silently refreshing an old pin.
 
 ## Trust boundary, limits, and failure modes
 
@@ -178,6 +212,10 @@ touched, and that member is absent for every existing caller.
 | `EEP-V0-011` | `internal/extevidence/compose.go` | `TestResultCompositionDirectDownstreamVerification`, `TestItemOrderGroupsByProvider` (provider-id ordering corrected 2026-09-18; section bytes change only for runs where two providers declare the same entity id), `TestImpactProviderEvaluation` |
 | `EEP-V0-012` | `internal/extevidence/compose.go` | `TestLimitsAndOmissions` |
 | `EEP-V0-014` | `cmd/corvint/main.go` | `TestImpactProviderReadOnly` |
+
+| `EEP-V0-016` | `examples/evidence-provider/v0/main.go` | `TestProviderKitAuthoredProvider`, `TestProviderKitProducerRefusals` |
+| `EEP-V0-017` | `internal/extevidence/pin.go`, `examples/evidence-provider/v0/check/main.go` | `TestProviderKitExactPins`, `TestProviderKitChecker` |
+| `EEP-V0-018` | `internal/extevidence/pin_test.go`, kit README | `TestProviderKitFixtureConformance`, `TestProviderKitAuthoredProvider`, `TestImpactProviderSectionSeparation`; V1-0013 freeze and owner acceptance NOT_OBSERVED |
 
 ## Unresolved decisions and promotion or kill criteria
 
