@@ -39,7 +39,8 @@ type provider struct {
 // the impact receipt. It never fails: every problem is a structured entry.
 // checkouts bind V1 repositories to local directories (EEP-V1-003).
 func Section(ctx context.Context, index *contextindex.Index, sources []string, checkouts []Checkout, changedPaths []string, limit int) map[string]any {
-	providers, repository, bound := loadAll(ctx, indexRoot(index), sources, checkouts)
+	root := indexRoot(index)
+	providers, repository, bound := loadAll(ctx, root, sources, checkouts)
 	changed := make(map[string]struct{}, len(changedPaths))
 	for _, path := range changedPaths {
 		changed[path] = struct{}{}
@@ -49,7 +50,7 @@ func Section(ctx context.Context, index *contextindex.Index, sources []string, c
 		if entry.state != StateLoaded {
 			continue
 		}
-		part := composeView(entry.viewOf(repository), changed)
+		part := composeView(entry.viewOf(ctx, root, repository), changed)
 		merged.results = append(merged.results, part.results...)
 		merged.downstream = append(merged.downstream, part.downstream...)
 		merged.verification = append(merged.verification, part.verification...)
@@ -123,11 +124,11 @@ func bindV1(ctx context.Context, root rootRepository, providers []provider, chec
 	return bound
 }
 
-func (entry provider) viewOf(repository tree) *view {
+func (entry provider) viewOf(ctx context.Context, root rootRepository, repository tree) *view {
 	if entry.view != nil {
 		return entry.view
 	}
-	return viewOf(entry.record, repository)
+	return viewOf(ctx, root, entry, repository)
 }
 
 func checkoutUse(providers []provider) map[string]int {

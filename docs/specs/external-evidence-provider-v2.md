@@ -128,13 +128,13 @@ Limits are the V1 record bounds plus the section and selection list limits.
 | Undeclared repository or malformed endpoint | `unresolved` unknown, never composed |
 | Stale revision on either side | `stale-provider-revision`, blocking |
 | Tree mismatch or unrelated history | `stale-provider-revision`, blocking |
-| Missing path or pinned-blob mismatch on either side | `missing-path-reference` or `stale-path-reference`, blocking |
+| Missing or deleted path, or pinned-blob mismatch, on either side | `missing-path-reference` or `stale-path-reference`, blocking |
 | Unbound test side / unbound subject side | `unbound-test-repository` / `unbound-source-repository`, blocking |
 | Ambiguous identity / checkout of other history | `ambiguous-repository-identity` / `repository-binding-mismatch`, blocking |
 | `candidate`, `navigates`, `inferred`, or `covers` under strict | coded candidate; obligation stays uncovered |
 | `implements`, `generates`, `consumes`, `depends-on`, namespaced | widens one hop; never qualifies |
 | Directory scope pinning a blob (V2) | invalid record |
-| Held path missing, stale, or dirty | that path's code, blocking; other held paths are evaluated on their own |
+| Held path missing, deleted, stale, or dirty | that path's code, blocking; other held paths are evaluated on their own |
 | Test side outside the scope it verifies | `missing-path-reference`, blocking |
 
 ## Deterministic acceptance and testing matrix

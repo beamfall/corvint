@@ -98,9 +98,13 @@ each cited path still exists at that revision, and what was omitted or could not
   full commit id known to the repository). Timestamps are never an input.
 - `EEP-V0-010`: Every path endpoint in an included relation carries `verification`: `verified`
   (tracked at the captured revision and, when the relation pins a `blob`, equal to the pinned
-  blob), `stale` (tracked, pinned blob differs), or `missing` (not tracked at the captured
-  revision). An entity endpoint carries `unsupported`. Verification proves identity at the
-  revision, never that the provider's statement is correct.
+  blob), `stale` (tracked, pinned blob differs), `deleted` (not tracked at the captured revision
+  but tracked at the record's declared revision, decided only when freshness is `repository-ahead`,
+  `provider-ahead`, or `unrelated-history`), or `missing` (not tracked at the captured revision and
+  not shown to have been tracked at the declared revision; amended 2026-09-22, issue 64). An entity
+  endpoint carries `unsupported`. Verification proves identity at the revision, never that the
+  provider's statement is correct. Every consumer that treats `missing` as stale MUST treat
+  `deleted` the same way.
 - `EEP-V0-011`: `results` lists each entity joined by a relation to a requested changed path;
   `downstream` lists each entity one relation away from a result entity that is not itself a
   result; `verification` lists each relation of type `verifies`, `covers`, or `asserts` between a
@@ -185,6 +189,7 @@ the exit code, so an existing caller that never passes `--provider` observes no 
 | Unknown top-level member | provider `invalid`; exit 0 |
 | Provider revision equal / ancestor / descendant / orphan / unknown | the five `EEP-V0-009` states |
 | Path tracked with equal, differing, and absent pinned blob; untracked path | `verified`, `stale`, `verified`, `missing` |
+| Untracked path that the declared ancestor revision tracked; same path under `equal` or `revision-unavailable` | `deleted`; `missing` |
 | More entities than `--limit` | `omitted.results` counts the rest |
 | Same inputs twice | identical section bytes |
 | Evaluation over the mock-provider fixture | precision, recall, false-positive relationships 0, abstention accuracy, latency, receipt bytes |
@@ -208,7 +213,7 @@ touched, and that member is absent for every existing caller.
 | `EEP-V0-007` | `internal/extevidence/compose.go` | `TestEvidenceKindLearnedExcluded`, `TestImpactProviderEvaluation` |
 | `EEP-V0-008` | `internal/extevidence/compose.go` | `TestRelationTypesPreserved` |
 | `EEP-V0-009` | `internal/extevidence/freshness.go` | `TestFreshnessStatesFromAncestry` |
-| `EEP-V0-010` | `internal/extevidence/compose.go` | `TestReferenceVerificationStates` |
+| `EEP-V0-010` | `internal/extevidence/compose.go` | `TestReferenceVerificationStates`, `TestReferenceVerificationDeleted` |
 | `EEP-V0-011` | `internal/extevidence/compose.go` | `TestResultCompositionDirectDownstreamVerification`, `TestItemOrderGroupsByProvider` (provider-id ordering corrected 2026-09-18; section bytes change only for runs where two providers declare the same entity id), `TestImpactProviderEvaluation` |
 | `EEP-V0-012` | `internal/extevidence/compose.go` | `TestLimitsAndOmissions` |
 | `EEP-V0-014` | `cmd/corvint/main.go` | `TestImpactProviderReadOnly` |

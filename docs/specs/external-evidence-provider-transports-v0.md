@@ -9,10 +9,10 @@ Authoritative inputs: `AGENTS.md` invariant 7, `docs/specs/external-evidence-pro
 `internal/procgroup`, and the feature request Beamfall/corvint#11.
 
 ## Agent digest
-- Claim: `corvint impact --provider-command ARGV_JSON` runs one contained local provider command and decodes its stdout exactly as a record file.
+- Claim: `corvint impact` and `corvint affected --provider-command ARGV_JSON` run one contained local provider command and decode its stdout exactly as a record file.
 - Status: accepted (decisions 0316, 0317, 0318)/implemented; checked by `TestCommandTransportConformance`.
 - Exists: `internal/extevidence/transport.go` and the `--provider-command` option; MCP and optional HTTPS are governed by decisions 0324 and 0325.
-- Blocked on: no in-scope delivery prerequisite; `corvint affected` does not take `--provider-command` yet.
+- Blocked on: no in-scope delivery prerequisite.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Traceability.
 
 ## User and measurable job
@@ -47,10 +47,12 @@ way the command can fail is one closed provider row with no partial record.
 ## Requirements
 
 - `EEP-TR-001`: The command transport MUST be selected only by `corvint impact --provider-command
-  ARGV_JSON`. A `--provider` value is always a file path, whatever it spells, and never launches a
-  process. `--provider-command` MAY repeat; together with `--provider` it counts toward the shared
-  four-provider bound and carries the same incompatibilities (`--base`, `--working-tree-untracked`)
-  and the same `--repository` pairing. No other verb launches a provider command in this slice.
+  ARGV_JSON` and `corvint affected --provider-command ARGV_JSON` (affected added 2026-09-22). A
+  `--provider` value is always a file path, whatever it spells, and never launches a process.
+  `--provider-command` MAY repeat; together with `--provider` it counts toward the shared
+  four-provider bound and, under `impact`, carries the same incompatibilities (`--base`,
+  `--working-tree-untracked`) and the same `--repository` pairing; under `affected` it carries the
+  ETS-V0-001 dependencies of `--provider`. No other verb launches a provider command.
 - `EEP-TR-002`: `ARGV_JSON` MUST be one JSON array of 1 to 32 strings, at most 4096 bytes, valid
   UTF-8, with no trailing content and no NUL byte in any element; element 0 MUST be an absolute,
   clean executable path. Core makes no `PATH` lookup and invokes no shell. Any defect is an argument
@@ -103,8 +105,6 @@ way the command can fail is one closed provider row with no partial record.
   multi-record protocol, no retries, and no caching of command output.
 - No sandbox of the executable's own behaviour: Corvint bounds and contains the process it launches
   but does not claim to confine what an operator-chosen executable does.
-- `corvint affected --provider-command` is not in this slice; the affected verb's option parsing is
-  owned by the ETS-V0 lane.
 - No general-purpose MCP client and no network client in Core.
 
 ## MCP profile (accepted bounded stdio)
@@ -152,6 +152,7 @@ data at all. Core assigns authority and writes every failure reason.
 | Probe secret and `HOME` in the parent environment | child sees only the four permitted names, empty stdin, the repository root |
 | `command:[...]` passed as `--provider` | read as a file path; `unavailable` |
 | `impact --provider-command '["/bin/cat",RECORD]'` | receipt equals `--provider RECORD` apart from `source`; `mutates: false`; worktree unchanged |
+| `affected --provider-command '["/bin/cat",RECORD]'` | `test_selection` equals `--provider RECORD` apart from `source`; a fifth provider by command is refused |
 
 ## Rollout, rollback, and compatibility
 
@@ -164,11 +165,11 @@ rows. The `decodeRecord` extraction in `section.go` is behaviour-preserving and 
 
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
-| `EEP-TR-001` | `cmd/corvint/main.go`, `internal/extevidence/transport.go` | `TestImpactProviderCommandFlagParsing`, `TestCommandTransportSelectedOnlyExplicitly` |
+| `EEP-TR-001` | `cmd/corvint/main.go`, `cmd/corvint/affected.go`, `internal/extevidence/transport.go` | `TestImpactProviderCommandFlagParsing`, `TestCommandTransportSelectedOnlyExplicitly`, `TestAffectedSelectionArguments` |
 | `EEP-TR-002` | `internal/extevidence/transport.go` | `TestCommandTransportSelectedOnlyExplicitly`, `TestImpactProviderCommandFlagParsing` |
 | `EEP-TR-003` | `internal/extevidence/transport.go` | `TestCommandTransportContainment` |
 | `EEP-TR-004` | `internal/extevidence/transport.go` | `TestCommandTransportFailuresAreClosed` |
-| `EEP-TR-005` | `internal/extevidence/section.go` | `TestCommandTransportConformance`, `TestImpactProviderCommandEndToEnd` |
+| `EEP-TR-005` | `internal/extevidence/section.go`, `internal/extevidence/selection.go` | `TestCommandTransportConformance`, `TestImpactProviderCommandEndToEnd`, `TestAffectedProviderCommandMatchesFile` |
 | `EEP-TR-006` | `internal/extevidence/transport.go` | `TestCommandTransportFailuresAreClosed` |
 | `EEP-TR-007` | `cmd/corvint/main.go` | `TestImpactProviderCommandEndToEnd` |
 | `EEP-TR-008` | `internal/extevidence/transport.go` | `TestCommandTransportFailuresAreClosed` |
@@ -187,4 +188,3 @@ checker/pin helper and its requirements; no existing command transport changes a
   run against a real repository, plus the EEP-V0 promotion evidence.
 - Kill if a command-transport receipt ever differs from the file-transport receipt for the same
   bytes apart from `source`, or if any transport failure is observed to yield record content.
-- `corvint affected --provider-command` is a follow-up once the ETS-V0 lane's parsing is stable.

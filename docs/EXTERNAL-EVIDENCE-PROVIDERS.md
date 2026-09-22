@@ -65,7 +65,8 @@ there is no shell and no `PATH` lookup (`EEP-TR-002`). The command gets empty st
 killed at the time bound (`EEP-TR-004`). Its stdout is decoded exactly as a record file
 (`EEP-TR-005`); stderr is discarded (`EEP-TR-008`), and any failure is one `unavailable` or
 `invalid` provider row with no record content (`EEP-TR-006`). It counts toward the four-provider
-bound; `corvint affected` does not take it yet.
+bound. `corvint affected --provider-command ARGV_JSON` takes the same option with the same rules
+and yields the same `test_selection` as the record file would (`EEP-TR-001`, `ETS-V0-001`).
 
 ## `context.external`
 
@@ -104,9 +105,17 @@ absolute in this slice (`EEP-V0-015`).
 by Git ancestry alone — never a timestamp — and is exactly one of `equal`, `repository-ahead`,
 `provider-ahead`, `unrelated-history`, or `revision-unavailable` (`EEP-V0-009`). Each path endpoint
 also carries `verification`: `verified` (tracked at the captured revision and, when the relation
-pins a blob, equal to it), `stale` (tracked, pinned blob differs), or `missing` (not tracked); an
-entity endpoint carries `unsupported` (`EEP-V0-010`). Verification proves the path's identity at
-that revision — it never proves the provider's statement is correct.
+pins a blob, equal to it), `stale` (tracked, pinned blob differs), `deleted` (not tracked now but
+tracked at the record's declared revision, decided only when that revision is a known commit), or
+`missing` (not tracked, and not shown to have been tracked at the declared revision); an entity
+endpoint carries `unsupported` (`EEP-V0-010`). Verification proves the path's identity at that
+revision — it never proves the provider's statement is correct.
+
+The contract keeps its accepted wire names rather than the vocabulary issue 64 proposed; the
+mapping is: `provider-is-ancestor` is freshness `repository-ahead`; `reference-missing` is
+verification `missing` or `deleted`; `not-observed` is the V1 endpoint state `not-verified`;
+`ambiguous` is identity `ambiguous` (`EEP-V1-004`); `reference-ambiguous` needs symbol identity,
+which the contract does not carry (ticket V1-0101).
 
 With EEP-V1 repositories in play, identity is `resolved`, `unresolved` (no declared origin), or
 `ambiguous` (two declared repositories share an origin) per repository, and binding is one of
@@ -146,6 +155,13 @@ the worktree (`ETS-V0-004`, `ETS-V0-005`); anything else blocks the obligation i
 silently narrowing (`ETS-V0-006`). A V0 record never qualifies a test at all, because it declares no
 repository identity (`ETS-V0-005`).
 
+ETS-V1 (`docs/specs/external-test-selection-v1.md`) replaces the one-hop widening with a bounded
+obligation walk of at most 4 hops and 256 entities per record that follows only declared relations
+(`ETS-V1-001`, `ETS-V1-004`); a cut blocks the edge with `obligation-depth-truncated` or
+`obligation-budget-exhausted`. It also reads each resolved checkout's dirty paths once, and a
+test side bound to a dirty or unreadable checkout blocks with `checkout-worktree-dirty` or
+`checkout-worktree-unreadable` (`ETS-V1-005`).
+
 ## Bounds and limits
 
 At most four provider records, 1,048,576 bytes per record, 1,000 entities and 4,000 relations per
@@ -176,10 +192,12 @@ every advice list at 64 rows with omissions counted (`ETS-V0-010`).
 - MCP and remote provider transports. MCP is a proposed profile (`EEP-TR-009`, decision 0317);
   wrap an MCP server in a local command that prints one record. A remote fetch is NO-GO on the
   default local path (`EEP-TR-010`, decision 0318).
-- Obligations more than one relation hop from a changed path; V2 widening stops at the first hop
-  (`EEP-V2-008`).
-- Inspecting a `--repository` checkout's worktree contents; a checkout binds identity only, and its
-  canonical path is never opened for inspection beyond the Git metadata EEP-V1 already reads.
+- Obligations more than 4 relation hops or 256 entities from a changed path (`ETS-V1-001`);
+  `impact` itself still widens one hop (`EEP-V2-008`).
+- Inspecting a `--repository` checkout's worktree contents beyond its Git status and metadata;
+  `affected` reads a checkout's dirty paths (`ETS-V1-005`) and nothing else in it.
+- Symbol identity (`repository-id:symbol`), provider capability negotiation, and a
+  generated-versus-observed evidence kind; tickets V1-0101, V1-0102, V1-0107.
 - Feeding external evidence into the Change Frontier itself. External items stay out of the frontier
   wire (`EEP-V0-015`); `corvint obligations --cem FILE --impact FILE` instead writes a separate,
   reference-only `external-frontier-obligations/0` sidecar

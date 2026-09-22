@@ -583,8 +583,8 @@ Usage:
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
-          [--provider RECORD ...] [--repository ID=DIR ...]
-          [--selection-profile strict|coverage]
+          [--provider RECORD ...] [--provider-command ARGV_JSON ...]
+          [--repository ID=DIR ...] [--selection-profile strict|coverage]
 
 The command reads the Git worktree status, builds the multi-language unit graph
 from source text, and writes one affected-plan/0 document to stdout: the
@@ -636,6 +636,12 @@ reads a bounded canonical playwright-discovery/0 receipt binding HEAD, config an
 source bytes to the complete unfiltered project/file listing. Missing or mismatched
 discovery emits no file commands and one complete-config fallbackArgv. It executes
 no config or test and cannot be combined with --provider.
+
+--provider-command ARGV_JSON runs one local provider command and reads its
+stdout as a record, exactly as impact does (EEP-TR): a JSON array of strings
+whose first element is an absolute executable path, no shell, scrubbed
+environment, 10s wall time, 1 MiB stdout, every failure one closed provider
+row. It counts toward the same 4-provider bound as --provider.
 `
 
 const proveHelp = `Compile the falsifiable context packet for a task, a change, or a CEM map.

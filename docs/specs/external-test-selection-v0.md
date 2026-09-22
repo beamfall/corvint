@@ -48,7 +48,8 @@ this request as "EEP slice 3".
 
 ## Requirements
 
-- `ETS-V0-001`: `corvint affected` MUST accept `--provider FILE` (up to 4), `--repository ID=DIR`
+- `ETS-V0-001`: `corvint affected` MUST accept `--provider FILE` and `--provider-command
+  ARGV_JSON` (up to 4 together, EEP-TR command rules; amended 2026-09-22), `--repository ID=DIR`
   (up to 8, EEP-V1 binding rules), and `--selection-profile strict|coverage` (default `strict`),
   each as `--flag VALUE` or `--flag=VALUE`. `--repository` and `--selection-profile` without
   `--provider`, a repeated repository id, an unknown profile, and a missing value MUST exit 2 with
@@ -121,7 +122,7 @@ and the EEP V0 and V1 record bounds.
 | Unbounded plan scope (for example a language frontier) | `unknown`, `incomplete-affected-scope` |
 | Changed path with no relation | `full-relevant-suite-required`, `no-external-evidence` |
 | Stale record revision on the test side | `stale-provider-revision`, blocking |
-| Test path missing or changed at the revision | `missing-path-reference` or `stale-path-reference`, blocking |
+| Test path missing or deleted, or changed at the revision | `missing-path-reference` or `stale-path-reference`, blocking |
 | Ambiguous identity or binding | `ambiguous-repository-identity`, blocking |
 | Test repository with no checkout | `unbound-test-repository`, blocking |
 | Namespaced relation type touching an obligation | `unsupported-relation`, blocking |
@@ -154,7 +155,7 @@ without `--provider` is unchanged in both directions.
 
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
-| `ETS-V0-001` | `parseAffectedOptions` in `cmd/corvint/affected.go` | `TestAffectedSelectionArguments` |
+| `ETS-V0-001` | `parseAffectedOptions` in `cmd/corvint/affected.go` | `TestAffectedSelectionArguments`, `TestAffectedProviderCommandMatchesFile` |
 | `ETS-V0-002`, `ETS-V0-009` | `compileAffected`, `affectedSelectionInput` in `cmd/corvint/affected.go` | `TestAffectedSelectionAddsOneMemberAndKeepsEverythingElse`, `TestSelectionMandatoryEchoedUnchanged` |
 | `ETS-V0-003`, `ETS-V0-006` | `state`, `block`, `unrooted` in `internal/extevidence/selection.go` | `TestSelectionConformance`, `TestAffectedSelectionFailsClosed` |
 | `ETS-V0-004`, `ETS-V0-005`, `ETS-V0-008` | `qualify` in `internal/extevidence/selection.go` | `TestSelectionConformance` |

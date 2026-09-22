@@ -1,6 +1,7 @@
 package extevidence
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -11,9 +12,15 @@ const (
 	VerificationVerified    = "verified"
 	VerificationStale       = "stale"
 	VerificationMissing     = "missing"
+	VerificationDeleted     = "deleted"
 	VerificationUnsupported = "unsupported"
 	VerificationNotVerified = "not-verified"
 )
+
+// revisionKnown lists the freshness states under which the provider's
+// declared revision is a commit the repository holds, so its tree can answer
+// whether a path existed there (EEP-V0-010 `deleted`).
+var revisionKnown = map[string]struct{}{FreshnessRepositoryAhead: {}, FreshnessProviderAhead: {}, FreshnessUnrelatedHistory: {}}
 
 // Unknown states (EEP-V0-006, EEP-V0-007).
 const (
@@ -88,6 +95,9 @@ type view struct {
 	primary      string
 	trees        map[string]tree
 	repositories map[string]*repositoryState
+	// deleted holds, per repository, the path endpoints untracked at the
+	// captured revision but tracked at the provider's declared revision.
+	deleted map[string]map[string]struct{}
 	// pathToPath is set only for a V2 record, the one schema that composes a
 	// relation between two paths (EEP-V2-001); revision is its provider revision.
 	pathToPath bool
@@ -100,11 +110,12 @@ type composition struct {
 }
 
 // compose applies EEP-V0-006, -007, -010, and -011 to one loaded record.
-func compose(record Record, changed map[string]struct{}, repository tree) composition {
-	return composeView(viewOf(record, repository), changed)
+func compose(ctx context.Context, root rootRepository, entry provider, changed map[string]struct{}, repository tree) composition {
+	return composeView(viewOf(ctx, root, entry, repository), changed)
 }
 
-func viewOf(record Record, repository tree) *view {
+func viewOf(ctx context.Context, root rootRepository, entry provider, repository tree) *view {
+	record := entry.record
 	v := &view{provider: record.Provider.ID, entities: entityMap(record.Entities), trees: map[string]tree{"": repository}}
 	for _, relation := range record.Relations {
 		resolved, failure := resolve(record, v.entities, relation)
@@ -114,7 +125,49 @@ func viewOf(record Record, repository tree) *view {
 		}
 		v.links = append(v.links, resolved)
 	}
+	gone := deletedPaths(ctx, root.dir, entry.freshness, record.Repository.Revision, repository, v.pathsIn(""))
+	v.deleted = map[string]map[string]struct{}{"": gone}
 	return v
+}
+
+// pathsIn lists every path endpoint the resolved relations place in one
+// repository, sorted and without duplicates.
+func (v *view) pathsIn(repository string) []string {
+	unique := make(map[string]struct{})
+	for _, candidate := range v.links {
+		for _, side := range []endpoint{candidate.from, candidate.to} {
+			if side.isPath() && side.repository == repository {
+				unique[side.path] = struct{}{}
+			}
+		}
+	}
+	paths := make([]string, 0, len(unique))
+	for path := range unique {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+// deletedPaths answers which of paths are untracked at the captured revision
+// yet tracked at the provider's declared revision. It asks Git once, and only
+// when that revision is a known commit and some path is untracked
+// (EEP-V0-010 `deleted`).
+func deletedPaths(ctx context.Context, dir, freshness, revision string, current tree, paths []string) map[string]struct{} {
+	if _, known := revisionKnown[freshness]; !known {
+		return nil
+	}
+	var untracked []string
+	for _, path := range paths {
+		if !current.tracked(path) {
+			untracked = append(untracked, path)
+		}
+	}
+	gone := make(map[string]struct{}, len(untracked))
+	for path := range batchBlobs(ctx, dir, revision, untracked) {
+		gone[path] = struct{}{}
+	}
+	return gone
 }
 
 func entityMap(list []Entity) map[string]Entity {
@@ -192,6 +245,15 @@ func checkPath(path string) string {
 	return ""
 }
 
+// missingState separates a path the provider saw and the repository since
+// dropped from one that is simply absent at the captured revision.
+func (v *view) missingState(target endpoint) string {
+	if _, gone := v.deleted[target.repository][target.path]; gone {
+		return VerificationDeleted
+	}
+	return VerificationMissing
+}
+
 // verify checks one path endpoint in its own repository; a repository that
 // is not bound to a checkout cannot be verified (EEP-V1-007).
 func (v *view) verify(target endpoint) string {
@@ -201,7 +263,7 @@ func (v *view) verify(target endpoint) string {
 	}
 	path, pinned := target.path, target.blob
 	if !repository.tracked(path) {
-		return VerificationMissing
+		return v.missingState(target)
 	}
 	if pinned == "" {
 		return VerificationVerified

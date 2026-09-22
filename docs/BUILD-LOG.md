@@ -1930,3 +1930,25 @@ classification precision; the reviewer-audit kill gate in `docs/CHANGE-EVIDENCE-
 false classification) is the only measured bar and was not exercised here. Not shipped: a
 `cem-0.3.schema.json` and `protocol/cem-0.3` vectors (Apache-2.0 boundary), frontier and dashboard
 profile acceptance, exported or type-aware renames, non-Go languages.
+## 2026-09-22 issue 64 close-out: `deleted` verification, `affected --provider-command`, vocabulary mapping
+
+Issue Beamfall/corvint#64 (generic revision-aware provider contract) was audited in 54fe6c3 as
+mostly delivered by EEP-V0/V1/V2, ETS-V0/V1 and EFO-V0; this change closes the actionable
+remainder. `EEP-V0-010` gains `deleted`: an untracked path endpoint whose path the record's
+declared revision tracked, decided by one extra `git cat-file --batch-check` per view per
+repository over the untracked paths only, and only when freshness is `repository-ahead`,
+`provider-ahead`, or `unrelated-history` (so a `revision-unavailable` record can never claim
+deletion). `deleted` is stale for `EEP-V1-008` and keeps the ETS code `missing-path-reference`,
+so no selection wire changes (`TestReferenceVerificationDeleted`,
+`TestTwoRepositoryDeletedTestPath`). `corvint affected` now takes `--provider-command ARGV_JSON`
+under the same parser and bound as `--provider` (`EEP-TR-001`, `ETS-V0-001`,
+`TestAffectedProviderCommandMatchesFile`). The issue's freshness vocabulary is mapped onto the
+accepted wire names rather than renaming them (recorded in `docs/EXTERNAL-EVIDENCE-PROVIDERS.md`):
+`provider-is-ancestor` is `repository-ahead`, `reference-missing` is `missing`/`deleted`,
+`not-observed` is `not-verified`, and `reference-ambiguous` needs symbol identity (V1-0101).
+Ticket V1-0104's premise was wrong: `--provider-mcp` never existed and the guide's MCP bullet was
+accurate; the guide's stale bullets were the two ETS-V1 items (one-hop widening, no checkout
+inspection), now corrected. V1-0101, V1-0102, V1-0107 and V1-0108 stay open. Port note: this entry was
+reapplied from the old lineage onto the public history, where `impact --provider-mcp` does exist
+(decision 0324); the guide's MCP bullet on this lineage is a pre-existing follow-up, not part of
+this change.

@@ -174,7 +174,7 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 
 // affectedOptionNames are the flags `affected` accepts, each taking one value
 // as `--flag VALUE` or `--flag=VALUE`.
-var affectedOptionNames = map[string]bool{"--snapshot": true, "--base": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--repository": true, "--selection-profile": true}
+var affectedOptionNames = map[string]bool{"--snapshot": true, "--base": true, "--playwright-config": true, "--playwright-discovery": true, "--provider": true, "--provider-command": true, "--repository": true, "--selection-profile": true}
 
 // parseAffectedOptions reads the flags after `affected`. `--base` must
 // already be a full object id: a ref name is resolved by the caller, never
@@ -207,8 +207,8 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			}
 		case "--base":
 			err = setAffectedBase(&invocation, &baseSet, value)
-		case "--provider":
-			err = addAffectedProvider(&invocation, value)
+		case "--provider", "--provider-command":
+			err = addAffectedProvider(&invocation, name, value)
 		case "--repository":
 			err = addAffectedCheckout(&invocation, value)
 		case "--playwright-config":
@@ -270,14 +270,14 @@ func setAffectedBase(invocation *affectedInvocation, baseSet *bool, value string
 	return nil
 }
 
-func addAffectedProvider(invocation *affectedInvocation, value string) error {
-	if value == "" {
-		return argumentError("argument --provider: expected one argument")
+// addAffectedProvider admits one `--provider FILE` or `--provider-command
+// ARGV_JSON` under the bound and argv checks impact applies (EEP-TR-001).
+func addAffectedProvider(invocation *affectedInvocation, name, value string) error {
+	source, err := providerSource(name, value, len(invocation.Providers))
+	if err != nil {
+		return err
 	}
-	if len(invocation.Providers) == extevidence.MaxProviders {
-		return argumentError(fmt.Sprintf("argument --provider: at most %d providers", extevidence.MaxProviders))
-	}
-	invocation.Providers = append(invocation.Providers, value)
+	invocation.Providers = append(invocation.Providers, source)
 	return nil
 }
 

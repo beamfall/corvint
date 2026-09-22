@@ -824,7 +824,7 @@
     "reqPrefix": "EEP-TR",
     "intent": "accepted (decisions 0316, 0317, 0318)",
     "delivery": "implemented",
-    "claim": "`corvint impact --provider-command ARGV_JSON` runs one contained local provider command and decodes its stdout exactly as a record file.",
+    "claim": "`corvint impact` and `corvint affected --provider-command ARGV_JSON` run one contained local provider command and decode its stdout exactly as a record file.",
     "dependsOn": [
       "docs/specs/external-evidence-provider-v0.md",
       "docs/specs/external-evidence-provider-v1.md",

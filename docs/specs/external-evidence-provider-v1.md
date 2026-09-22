@@ -94,7 +94,7 @@ local path, branch name, display name, or record filename is never an identity.
   source when known. `relation_state` is the worst side under the order unresolved > stale >
   not-verified > fresh:
   - binding `unresolved`, `ambiguous`, or `mismatch` gives unresolved;
-  - verification `stale` or `missing`, or freshness `repository-ahead`, `provider-ahead`,
+  - verification `stale`, `missing`, or `deleted`, or freshness `repository-ahead`, `provider-ahead`,
     `unrelated-history`, or `tree-mismatch`, gives stale;
   - binding `unbound` or `unavailable`, freshness `revision-unavailable`, or an entity-only
     relation gives not-verified.
@@ -158,6 +158,7 @@ with the same bounded Git commands as the root. Limits: 8 repositories per recor
 |---|---|---|
 | Two repositories, both sides hold | `fresh`, `crosses_repositories` true | `TestTwoRepositoryProviderComposes` |
 | Missing endpoint on one side | `missing`, relation `stale` | `TestTwoRepositoryProviderComposes` |
+| Endpoint deleted in a checkout since the declared revision | `deleted`, relation `stale` | `TestTwoRepositoryDeletedTestPath` |
 | Equal / ancestor / orphan / unknown / tree-differs revision | per-repository freshness; other repository unaffected | `TestPerRepositoryFreshness` |
 | No checkout, missing dir, subdirectory, other history, relative path | `unbound`, `unavailable`, `unavailable`, `mismatch`, `checkout` | `TestCheckoutBinding` |
 | Shared origin, missing origin, abstention, credential remote | `ambiguous`, `unresolved`, unknowns only, `invalid` | `TestRepositoryIdentityConformance` |

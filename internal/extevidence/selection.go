@@ -65,8 +65,8 @@ var freshnessCodes = map[string]string{
 }
 
 var verificationCodes = map[string]string{
-	VerificationVerified: "", VerificationMissing: "missing-path-reference", VerificationStale: "stale-path-reference",
-	VerificationNotVerified: "unbound-test-repository",
+	VerificationVerified: "", VerificationMissing: "missing-path-reference", VerificationDeleted: "missing-path-reference",
+	VerificationStale: "stale-path-reference", VerificationNotVerified: "unbound-test-repository",
 }
 
 // sourceCodes renames a side code when the side is the verified subject of a
@@ -142,7 +142,7 @@ func Selection(ctx context.Context, dir, revision string, sources []string, chec
 			s.block("provider-"+entry.state, entry.source, "", entry.reason)
 			continue
 		}
-		s.add(entry, entry.viewOf(repository))
+		s.add(entry, entry.viewOf(ctx, root, repository))
 	}
 	return s.result(providers)
 }
