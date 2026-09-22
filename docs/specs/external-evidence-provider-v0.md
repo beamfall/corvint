@@ -1,0 +1,188 @@
+# External Evidence Provider V0
+
+Owner: Russell Lewis
+Date: 2026-09-18
+Intent status: accepted (decision 0309)
+Delivery status: experimental (file transport only)
+Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
+`docs/specs/analyzer-capability-contract-v0.md`, `docs/specs/affected-plan-v0.md`,
+`docs/specs/change-frontier-v0.md`, and the feature request Beamfall/corvint#1.
+
+## Agent digest
+- Claim: `corvint impact --provider FILE` attaches provider records in a separated `context.external` section and changes nothing in the core receipt.
+- Status: accepted (decision 0309, a delegated call on Beamfall/corvint#1)/experimental (file transport only); checked by `TestImpactProviderSectionSeparation`.
+- Exists: `internal/extevidence` and the `--provider` option in `cmd/corvint`; provider items carry the Core-assigned `external-provider` authority, Git-ancestry freshness, and per-path reference verification.
+- Blocked on: nothing for a local command, which is `external-evidence-provider-transports-v0.md` (decision 0316); MCP and remote are not shipped. Cross-repository relationships are `external-evidence-provider-v1.md` (decision 0310).
+- Read next: Definitions; Requirements; Non-goals and simpler baseline.
+
+## User and measurable job
+
+A project that keeps higher-level product evidence outside the repository (documented capabilities,
+routes, journeys, test relationships, coverage gaps) exports that evidence as one record file per
+provider and asks `impact` which externally documented entities a changed path touches. The job is
+done when the receipt names every linked entity with the provider that said so, the typed relation
+and its evidence kind, whether the provider's view is fresh against the captured revision, whether
+each cited path still exists at that revision, and what was omitted or could not be resolved.
+
+## Verified current state
+
+- `corvint impact PATH...` compiles Git-pinned path impact into `context.results`; every evidence
+  item carries `path`, `line`, `blob_hash`, `authority`, `confidence`, and `reason`
+  (`internal/contextindex/impact.go`).
+- External participants join Core only through the Analyzer Capability Contract: a signed native
+  executable launched once, with daemons, network services, and in-process plugins out of scope
+  (`docs/specs/analyzer-capability-contract-v0.md`).
+- The CEM 0.2 decoder refuses unknown fields (`internal/cem/wire/map.go`), so an external
+  obligation cannot ride inside a CEM without a wire change; the Change Frontier is the accepted
+  home for obligations that lack witnesses.
+- The affected plan already emits a read-only, non-authoritative test selection with an unknown
+  frontier (`docs/specs/affected-plan-v0.md`); test-claim qualification already refuses to treat a
+  test's existence as verification.
+
+## Definitions
+
+- **provider record**: one JSON document with `schema` `external-evidence-provider/0`, one provider
+  identity and revision, the full commit id of the repository revision the provider observed, a
+  list of entities, and a list of typed relations.
+- **entity**: one externally documented thing with a stable id, a kind, and a summary. Its identity
+  in the receipt is `<provider-id>:<entity-id>`.
+- **endpoint**: either `path:<repository-relative path>` or `<provider-id>:<entity-id>`. A relation
+  joins two endpoints.
+- **relation**: one typed, directed link between two endpoints with an evidence kind, a derivation
+  rule, and a reference into the provider's own material. An optional `blob` pins the Git blob the
+  provider observed at a path endpoint.
+- **evidence kind**: `declared` (the provider's own authored statement), `observed` (a recorded
+  execution or measurement), or `inferred` (derived by the provider's rule).
+- **external section**: the `context.external` member of the impact receipt. It is the only place
+  provider output appears.
+
+## Requirements
+
+- `EEP-V0-001`: A provider record MUST be one JSON document whose top-level members are exactly
+  `schema`, `provider`, `repository`, `entities`, and `relations`; `schema` MUST equal
+  `external-evidence-provider/0`. Any unknown member at any level, a duplicate entity id, an
+  identifier or text outside the bounds of `EEP-V0-012` and `EEP-V0-013`, or a malformed field
+  makes the whole record `invalid` with one reason. Core never repairs a record.
+- `EEP-V0-002`: `corvint impact --provider FILE PATH...` selects a provider record; the option MAY
+  repeat up to four times. A relative `FILE` resolves against `--root`. `--provider` with `--base`
+  or `--working-tree-untracked` is an argument error, and a fifth `--provider` is an argument
+  error. No other verb accepts providers in V0.
+- `EEP-V0-003`: Provider output appears only under `context.external`. With the same paths, limit,
+  and index, every other member of `context` MUST be byte-identical to a run without `--provider`.
+  Without `--provider` the `external` member is absent.
+- `EEP-V0-004`: The section MUST list every selected provider with `source` as given, the
+  `sha256` of the bytes read, `id`, `revision`, `repository_revision`, `freshness`, `state`, and
+  `reason`. Identical record bytes, changed paths, limit, and index MUST produce an identical
+  section.
+- `EEP-V0-005`: A record that cannot be read is reported with state `unavailable`; a record that
+  fails `EEP-V0-001` is reported with state `invalid`; a loaded record has state `loaded`. Neither
+  failure state changes the exit code, `ok`, or the core receipt. An unavailable or invalid provider
+  contributes no results and no unknowns beyond its own provider entry.
+- `EEP-V0-006`: An endpoint MUST be `path:<path>` or `<provider-id>:<entity-id>`. A path MUST be
+  repository-relative, non-empty, without a leading slash or `..` segment, and at most 1024 bytes.
+  An endpoint with neither prefix, a path outside those bounds, an entity endpoint whose provider
+  id differs from the record's own, or an entity id the record does not declare makes that relation
+  `unresolved`: it is listed under `unknowns` with a reason and contributes nothing else.
+  V0 defines no cross-repository identity; `EEP-V1` does.
+- `EEP-V0-007`: A relation's `evidence` MUST be `declared`, `observed`, or `inferred`. Any other
+  value, including `learned`, excludes that relation to `unknowns` with a reason. Every item in the
+  section carries `authority` `external-provider`, assigned by Core; a record cannot state an
+  authority, and external items never receive a repository authority label.
+- `EEP-V0-008`: A relation `type` is preserved exactly as the provider wrote it: lowercase, digits,
+  hyphens, an optional `<provider-id>:` namespace, at most 64 bytes. Core MUST NOT rename, merge,
+  or collapse types, and MUST NOT derive one type from another.
+- `EEP-V0-009`: `freshness` compares the record's `repository.revision` with the captured commit
+  revision by Git ancestry and reports exactly one of `equal`, `repository-ahead` (the provider's
+  revision is an ancestor of the captured revision), `provider-ahead` (the captured revision is an
+  ancestor of the provider's), `unrelated-history`, or `revision-unavailable` (the value is not a
+  full commit id known to the repository). Timestamps are never an input.
+- `EEP-V0-010`: Every path endpoint in an included relation carries `verification`: `verified`
+  (tracked at the captured revision and, when the relation pins a `blob`, equal to the pinned
+  blob), `stale` (tracked, pinned blob differs), or `missing` (not tracked at the captured
+  revision). An entity endpoint carries `unsupported`. Verification proves identity at the
+  revision, never that the provider's statement is correct.
+- `EEP-V0-011`: `results` lists each entity joined by a relation to a requested changed path;
+  `downstream` lists each entity one relation away from a result entity that is not itself a
+  result; `verification` lists each relation of type `verifies`, `covers`, or `asserts` between a
+  path endpoint that is not a changed path and a listed entity. Every item carries a `reason`
+  naming the changed path or entity and the relation type and evidence kind that admitted it.
+  Ordering is by provider id, then entity id, then relation `from`, `to`, and `type`.
+- `EEP-V0-012`: Bounds: at most four providers, 1048576 bytes per record, 1000 entities and 4000
+  relations per record, and `--limit` entries each in `results`, `downstream`, and `verification`.
+  Entries beyond a bound are dropped from the end of the ordering and counted under `omitted`.
+- `EEP-V0-013`: `summary`, `rule`, `reference`, and `reason` text from a record MUST be valid
+  UTF-8 of at most 512 bytes; identifiers and revisions at most 128 bytes. The section names its
+  provider-authored free-text members under `untrusted_text_fields` so a host can envelope them.
+- `EEP-V0-014`: `impact --provider` reads the record and Git and writes no repository, index, or
+  trace state; the receipt reports `mutates` false.
+- `EEP-V0-015`: External items never enter `context.results`, ranking, learning, a CEM, an OCM,
+  or the Change Frontier. A later slice may consume the section explicitly; V0 does not.
+
+## Non-goals and simpler baseline
+
+- Command, MCP, and remote transports. A provider that must be executed joins later as a profile
+  family under the Analyzer Capability Contract; the file transport is the baseline that already
+  lets a third-party project participate without touching Core.
+- Repository identities and cross-repository relationships, delivered by `external-evidence-provider-v1.md`.
+- Test selection. The fail-closed selection the request asks for extends the affected plan's
+  advice member in its own slice.
+- Any CEM wire change. External obligations become a Change Frontier sidecar input in their own
+  slice.
+- Discovery, registries, embeddings, an untyped `related-to` graph, semantic correctness claims,
+  and any provider-specific vocabulary in Core.
+
+## Trust boundary, limits, and failure modes
+
+A record is repository- or provider-authored data and is never an instruction. Core assigns
+authority; a record cannot claim one. All reads are bounded by `EEP-V0-012` and `EEP-V0-013`.
+Failure is closed: an unreadable or malformed record is a structured `unavailable` or `invalid`
+entry, an unknown revision is `revision-unavailable`, an unresolvable endpoint is an `unknowns`
+entry, and every truncation is counted. No failure inside the section changes the core receipt or
+the exit code, so an existing caller that never passes `--provider` observes no change at all.
+
+## Deterministic acceptance and testing matrix
+
+| Case | Expected |
+|---|---|
+| Valid record, entity linked to changed path | one `results` entry with reason, relation, verification |
+| Record with `learned` relation | relation under `unknowns`; record still `loaded` |
+| Record with foreign provider endpoint | relation `unresolved` under `unknowns` |
+| Missing file | provider `unavailable`; exit 0; core receipt unchanged |
+| Unknown top-level member | provider `invalid`; exit 0 |
+| Provider revision equal / ancestor / descendant / orphan / unknown | the five `EEP-V0-009` states |
+| Path tracked with equal, differing, and absent pinned blob; untracked path | `verified`, `stale`, `verified`, `missing` |
+| More entities than `--limit` | `omitted.results` counts the rest |
+| Same inputs twice | identical section bytes |
+| Evaluation over the mock-provider fixture | precision, recall, false-positive relationships 0, abstention accuracy, latency, receipt bytes |
+
+## Rollout, rollback, and compatibility
+
+The option is additive. Rollback removes `internal/extevidence`, the `--provider` option, this
+document, and decision 0309; no wire other than the impact receipt's optional `external` member is
+touched, and that member is absent for every existing caller.
+
+## Traceability
+
+| Requirement | Implementation surface | Required evidence |
+|---|---|---|
+| `EEP-V0-001`, `EEP-V0-013` | `internal/extevidence/record.go` | `TestProviderRecordSchemaStrict` |
+| `EEP-V0-002` | `cmd/corvint/main.go` | `TestImpactProviderFlagParsing` |
+| `EEP-V0-003`, `EEP-V0-015` | `cmd/corvint/main.go` | `TestImpactProviderSectionSeparation` |
+| `EEP-V0-004` | `internal/extevidence/section.go` | `TestProviderSectionDeterministicAndPinned` |
+| `EEP-V0-005` | `internal/extevidence/section.go` | `TestProviderUnavailableAndInvalidAreStructured` |
+| `EEP-V0-006` | `internal/extevidence/compose.go` | `TestEndpointIdentitiesResolve` |
+| `EEP-V0-007` | `internal/extevidence/compose.go` | `TestEvidenceKindLearnedExcluded`, `TestImpactProviderEvaluation` |
+| `EEP-V0-008` | `internal/extevidence/compose.go` | `TestRelationTypesPreserved` |
+| `EEP-V0-009` | `internal/extevidence/freshness.go` | `TestFreshnessStatesFromAncestry` |
+| `EEP-V0-010` | `internal/extevidence/compose.go` | `TestReferenceVerificationStates` |
+| `EEP-V0-011` | `internal/extevidence/compose.go` | `TestResultCompositionDirectDownstreamVerification`, `TestItemOrderGroupsByProvider` (provider-id ordering corrected 2026-09-18; section bytes change only for runs where two providers declare the same entity id), `TestImpactProviderEvaluation` |
+| `EEP-V0-012` | `internal/extevidence/compose.go` | `TestLimitsAndOmissions` |
+| `EEP-V0-014` | `cmd/corvint/main.go` | `TestImpactProviderReadOnly` |
+
+## Unresolved decisions and promotion or kill criteria
+
+- Promotion to a supported option requires one independent adopter record produced by a system
+  that is not the Beamfall product documentation system, plus a measured false-positive relation
+  rate over a labelled fixture set.
+- Kill if the section cannot stay byte-separate from the core receipt, or if any consumer starts
+  reading external items as authority.

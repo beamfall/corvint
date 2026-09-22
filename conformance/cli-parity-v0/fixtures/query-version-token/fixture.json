@@ -1,0 +1,23 @@
+{
+  "format": "atlas-cli-parity-fixture/0",
+  "files": [
+    {
+      "path": ".gitignore",
+      "type": "file",
+      "mode": "0644",
+      "content": ".context-atlas/\n"
+    },
+    {
+      "path": "go.mod",
+      "type": "file",
+      "mode": "0644",
+      "content": "module example.test/query\n\ngo 1.27.0\n"
+    },
+    {
+      "path": "internal/auth/session.go",
+      "type": "file",
+      "mode": "0644",
+      "content": "package auth\n\nfunc EnforceSessionRevocation() bool { return true }\n"
+    }
+  ]
+}

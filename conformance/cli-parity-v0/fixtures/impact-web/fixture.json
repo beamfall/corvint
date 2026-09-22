@@ -1,0 +1,71 @@
+{
+  "files": [
+    {
+      "content": "module example.test/cli\n\ngo 1.27.0\n",
+      "mode": "0644",
+      "path": "go.mod",
+      "type": "file"
+    },
+    {
+      "content": "package sample\n\nfunc StableValue() string { return \"clean\" }\n",
+      "mode": "0644",
+      "path": "pkg/sample.go",
+      "type": "file"
+    },
+    {
+      "content": "export const Button = () => \"button\";\n",
+      "mode": "0644",
+      "path": "internal/web/app/src/widget/button.ts",
+      "type": "file"
+    },
+    {
+      "content": "export * from \"./button\";\n",
+      "mode": "0644",
+      "path": "internal/web/app/src/widget/index.ts",
+      "type": "file"
+    },
+    {
+      "content": "import { Button } from \"@/widget/button\";\n\nexport const Aliased = Button;\n",
+      "mode": "0644",
+      "path": "internal/web/app/src/pages/aliased.ts",
+      "type": "file"
+    },
+    {
+      "content": "import { Button } from \"widget/button\";\n\nexport const Bare = Button;\n",
+      "mode": "0644",
+      "path": "internal/web/app/src/pages/bare.ts",
+      "type": "file"
+    },
+    {
+      "content": "import { Button } from \"../../widget/button\";\n\nexport const Detail = Button;\n",
+      "mode": "0644",
+      "path": "internal/web/app/src/pages/deep/detail.ts",
+      "type": "file"
+    },
+    {
+      "content": "import { Button } from \"../widget\";\n\nexport const Directory = Button;\n",
+      "mode": "0644",
+      "path": "internal/web/app/src/pages/directory.ts",
+      "type": "file"
+    },
+    {
+      "content": "import { Button } from \"../widget/button\";\n\nexport const Home = Button;\n",
+      "mode": "0644",
+      "path": "internal/web/app/src/pages/home.ts",
+      "type": "file"
+    },
+    {
+      "content": "features:\n  - id: a-first\n    area: auth\n    summary: Synthetic scalar fixture.\n    applies: [server]\n    status: shipped\n",
+      "mode": "0644",
+      "path": "testing/features.yaml",
+      "type": "file"
+    },
+    {
+      "content": "scenarios:\n  - id: z-last\n    area: auth\n    summary: Synthetic scenario fixture.\n    features: [a-first]\n    applies: [server]\n    status: shipped\n",
+      "mode": "0644",
+      "path": "testing/scenarios.yaml",
+      "type": "file"
+    }
+  ],
+  "format": "atlas-cli-parity-fixture/0"
+}

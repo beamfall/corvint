@@ -1,0 +1,3 @@
+[workspace]
+members = ["rust/core", "rust/mid", "rust/leaf", "rust/solo"]
+resolver = "2"

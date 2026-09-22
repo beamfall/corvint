@@ -1,0 +1,1 @@
+{"available":[{"availableUnits":"2","id":"capacity:fixture:queue:io"},{"availableUnits":"3","id":"capacity:fixture:queue:cpu"}],"capabilities":["capability:fixture:queue:a","capability:fixture:queue:b"],"id":"work-capacity-envelope:sha256:a242dff8b2cf7e3c88f97cacf9af1cef5e0be6ac5a1fe46aa8592c6bd7fbae8c","profile":"work-capacity-envelope/0","repositoryAuthorityId":"repo:fixture"}

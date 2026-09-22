@@ -1,0 +1,14 @@
+diff --git a/src/café.txt b/src/café.txt
+--- a/src/café.txt
++++ b/src/café.txt
+@@ -1 +1 @@
+-value = 旧
++value = 新
+diff --git a/src/nonl.txt b/src/nonl.txt
+--- a/src/nonl.txt
++++ b/src/nonl.txt
+@@ -1 +1 @@
+-old
+\ No newline at end of file
++new
+\ No newline at end of file

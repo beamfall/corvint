@@ -1,0 +1,119 @@
+{
+  "profile": "corvint-mcp-test-validity-conformance/0",
+  "protocolVersion": "2026-07-28",
+  "transport": "stdio",
+  "server": "corvint-test-validity-mcp",
+  "tools": ["corvint.test_validity"],
+  "vectors": [
+    {
+      "id": "no-receipt-unsupported",
+      "requirement": "MTV-V0-004",
+      "arguments": {},
+      "expect": {"isError": false, "source": "none", "receipt": null, "runAxes": "UNSUPPORTED", "runReason": "no-input-supplied", "tests": []}
+    },
+    {
+      "id": "discover-retained-evidence",
+      "requirement": "MTV-V0-009",
+      "files": {".corvint/test-evidence/run.json": "{\"receipt\":{\"kind\":\"e2e\",\"tests\":[{\"name\":\"flow\",\"state\":\"failed\"}]}}"},
+      "arguments": {"discover": true},
+      "expect": {"isError": false, "source": "corvint-js-test-provider", "kind": "e2e", "receipt": null, "tests": [{"name": "flow", "execution": "FAILED", "strength": "NOT_MEASURED"}]}
+    },
+    {
+      "id": "discover-with-receipt-refused",
+      "requirement": "MTV-V0-009",
+      "arguments": {"discover": true, "receipt": "out/provider.json"},
+      "expect": {"isError": true, "code": "invalid-arguments"}
+    },
+    {
+      "id": "receipt-recomputed-not-trusted",
+      "requirement": "MTV-V0-005",
+      "files": {"out/provider.json": "{\"receipt\":{\"kind\":\"unit\",\"tests\":[{\"name\":\"adds\",\"state\":\"passed\"}]},\"testProjections\":[{\"projection\":{\"strength\":{\"state\":\"KILLED\"}}}],\"runProjection\":{}}"},
+      "arguments": {"receipt": "out/provider.json"},
+      "expect": {"isError": false, "source": "corvint-js-test-provider", "receipt": "out/provider.json", "tests": [{"name": "adds", "execution": "PASSED", "strength": "NOT_MEASURED"}]}
+    },
+    {
+      "id": "go-session-recomputed-preview",
+      "requirement": "MTV-V0-005",
+      "files": {"out/go-session.json": "{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"failed\",\"identity\":\"abc\",\"sequence\":4,\"scope\":[\"./...\"],\"detail\":\"TestOne\",\"projection\":{\"execution\":{\"state\":\"PASSED\"}},\"testProjections\":[{\"package\":\"fixture\",\"name\":\"TestOne\",\"action\":\"fail\",\"projection\":{\"execution\":{\"state\":\"PASSED\"},\"strength\":{\"state\":\"KILLED\"}}}],\"testProjectionsOmitted\":0}"},
+      "arguments": {"receipt": "out/go-session.json"},
+      "expect": {"isError": false, "source": "corvint-go-test-provider", "kind": "go-session", "tier": "preview", "promotable": false, "receipt": "out/go-session.json", "runExecution": "FAILED", "tests": [{"package": "fixture", "name": "TestOne", "state": "fail", "execution": "FAILED", "strength": "NOT_MEASURED"}]}
+    },
+    {
+      "id": "receipt-not-provider-document",
+      "requirement": "MTV-V0-005",
+      "files": {"out/lint.json": "{\"receipt\":{\"kind\":\"lint\",\"tests\":[]}}"},
+      "arguments": {"receipt": "out/lint.json"},
+      "expect": {"isError": true, "code": "invalid-test-validity-receipt"}
+    },
+    {
+      "id": "receipt-missing",
+      "requirement": "MTV-V0-003",
+      "arguments": {"receipt": "out/absent.json"},
+      "expect": {"isError": true, "code": "invalid-test-validity-receipt"}
+    },
+    {
+      "id": "receipt-oversized",
+      "requirement": "MTV-V0-006",
+      "generated": {"out/big.json": "oversized-input"},
+      "arguments": {"receipt": "out/big.json"},
+      "expect": {"isError": true, "code": "invalid-test-validity-receipt"}
+    },
+    {
+      "id": "result-over-limit",
+      "requirement": "MTV-V0-006",
+      "generated": {"out/many.json": "many-tests"},
+      "arguments": {"receipt": "out/many.json"},
+      "expect": {"isError": true, "code": "test-validity-limit-exceeded"}
+    },
+    {
+      "id": "receipt-parent-escape",
+      "requirement": "MTV-V0-003",
+      "arguments": {"receipt": "../outside.json"},
+      "expect": {"rpcError": -32602}
+    },
+    {
+      "id": "receipt-absolute",
+      "requirement": "MTV-V0-003",
+      "arguments": {"receipt": "/etc/hosts"},
+      "expect": {"rpcError": -32602}
+    },
+    {
+      "id": "receipt-git-directory",
+      "requirement": "MTV-V0-003",
+      "arguments": {"receipt": ".git/config"},
+      "expect": {"rpcError": -32602}
+    },
+    {
+      "id": "receipt-symlink-escape",
+      "requirement": "MTV-V0-003",
+      "generated": {"out/link.json": "symlink-outside"},
+      "arguments": {"receipt": "out/link.json"},
+      "expect": {"isError": true, "code": "receipt-outside-repository"}
+    },
+    {
+      "id": "arguments-wrong-type",
+      "requirement": "MTV-V0-002",
+      "arguments": {"receipt": 5},
+      "expect": {"isError": true, "code": "invalid-arguments"}
+    },
+    {
+      "id": "arguments-unknown-member",
+      "requirement": "MTV-V0-002",
+      "arguments": {"receipt": "out/provider.json", "run": true},
+      "expect": {"isError": true, "code": "invalid-arguments"}
+    },
+    {
+      "id": "arguments-null-receipt",
+      "requirement": "MTV-V0-002",
+      "arguments": {"receipt": null},
+      "expect": {"isError": true, "code": "invalid-arguments"}
+    },
+    {
+      "id": "arguments-case-variant-member",
+      "requirement": "MTV-V0-002",
+      "files": {"out/case-variant.json": "{\"receipt\":{\"kind\":\"unit\",\"tests\":[]},\"testProjections\":[],\"runProjection\":{}}"},
+      "arguments": {"Receipt": "out/case-variant.json"},
+      "expect": {"isError": true, "code": "invalid-arguments"}
+    }
+  ]
+}

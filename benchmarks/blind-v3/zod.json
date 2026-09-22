@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+  "original_frozen_sha256": "d60d20bfb8c60d3f9fd474fd2413c2c8bc951be12e9d7033641d2f11c0ef7e7",
+  "cases": [{
+    "id": "zod-v4-xml-schema-absence",
+    "partition": "heldout-v3",
+    "target_version": "V4",
+    "first_observed_at": "2026-08-22",
+    "mode": "query",
+    "text": "Locate Zod V4's public implementation for converting schemas to or from XML Schema. If the pinned V4 public export surface and documentation do not provide that capability, explicitly abstain and say it is absent; do not substitute the similarly named JSON Schema conversion feature.",
+    "limit": 6,
+    "budget_bytes": 4096,
+    "rationale": "The bounded export-and-doc scope proves a genuine capability absence while JSON Schema provides a strong near-miss that must not be hallucinated as XML support.",
+    "ground_truth": [
+      {"path": "packages/zod/src/v4/classic/external.ts", "line": 33, "contains": "export { toJSONSchema } from \"../core/json-schema-processors.js\";"},
+      {"path": "packages/zod/src/v4/classic/external.ts", "line": 34, "contains": "export { fromJSONSchema } from \"./from-json-schema.js\";"},
+      {"path": "packages/docs/content/json-schema.mdx", "line": 2, "contains": "title: \"JSON Schema\""}
+    ],
+    "negative_source_proof": {
+      "paths": ["packages/zod/src", "packages/docs/content", "README.md", "packages/zod/README.md"],
+      "case_insensitive_pattern": "xml[ -]?schema|toxml|fromxml",
+      "expected_match_count": 0
+    },
+    "expected": {
+      "state": "OUT_OF_SCOPE",
+      "must_include": [],
+      "critical": [],
+      "relevant": [],
+      "must_exclude": [
+        "path:packages/zod/src/v4/core/to-json-schema.ts",
+        "path:packages/zod/src/v4/classic/from-json-schema.ts",
+        "test:packages/zod/src/v4/classic/tests/readonly.test.ts"
+      ]
+    }
+  }]
+}

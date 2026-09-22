@@ -1,0 +1,69 @@
+{
+  "id": "forged-tcq-authority-rejected-upstream",
+  "matrixRows": [
+    "forged TCQ authority or unknown relation"
+  ],
+  "clauses": [
+    "CF-V0-002",
+    "CF-V0-014",
+    "CF-V0-022"
+  ],
+  "intent": "CF-V0-002 forbids accepting a caller-supplied TCQ result as authority OR as a shortcut. A supplied TCQ artifact must still pass canonical upstream validation, and a forged authority or unknown relation is an upstream closed-schema rejection, never a Frontier reinterpretation.",
+  "cases": [
+    {
+      "id": "forged-authority-class",
+      "note": "A supplied TCQ cache declaring authorityClass other than CALLER_REPORTED.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "forged-authority"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "invalid-tcq",
+        "stderr": "{\"code\":\"invalid-tcq\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "fa8b5e726b82b25c4fadf962033a69d7ec277633beda2401967e2955cbc7f7a3"
+      },
+      "assertions": [
+        "TCQ-V0-042 via CF-V0-022 row 2: a closed-schema violation in the supplied TCQ artifact is invalid-tcq, passed through as the exact upstream code.",
+        "CF-V0-002: the forged value is never consulted as authority; TCQ is recomputed from verified inputs.",
+        "CF-V0-014: no forged authority label can upgrade a V0 edge."
+      ]
+    },
+    {
+      "id": "unknown-relation",
+      "note": "A supplied TCQ cache naming a relation outside the tcq/0 vocabulary.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "unknown-relation"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "invalid-tcq",
+        "stderr": "{\"code\":\"invalid-tcq\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "fa8b5e726b82b25c4fadf962033a69d7ec277633beda2401967e2955cbc7f7a3"
+      },
+      "assertions": [
+        "CF-V0-022: an unknown relation is an upstream canonical rejection, not a Frontier item.",
+        "CF-V0-014: a stronger harness relation requires a new TCQ and Frontier profile and MUST NOT reinterpret V0 bytes."
+      ]
+    }
+  ]
+}

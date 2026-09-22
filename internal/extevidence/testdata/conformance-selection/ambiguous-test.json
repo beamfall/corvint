@@ -1,0 +1,83 @@
+{
+  "schema": "external-evidence-provider/1",
+  "provider": {
+    "id": "mockdocs",
+    "revision": "2026-09-18.3"
+  },
+  "repositories": [
+    {
+      "id": "application",
+      "origin": "{{APP_ORIGIN}}",
+      "revision": "{{APP_REVISION}}",
+      "role": "application"
+    },
+    {
+      "id": "e2e",
+      "origin": "{{E2E_ORIGIN}}",
+      "revision": "{{E2E_REVISION}}",
+      "role": "test"
+    },
+    {
+      "id": "e2e-mirror",
+      "origin": "{{E2E_ORIGIN}}",
+      "revision": "{{E2E_REVISION}}",
+      "role": "test"
+    }
+  ],
+  "entities": [
+    {
+      "id": "cap-account",
+      "kind": "capability",
+      "summary": "Account management capability."
+    },
+    {
+      "id": "surface-account",
+      "kind": "surface",
+      "summary": "The account settings route."
+    }
+  ],
+  "relations": [
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-account"
+      },
+      "type": "implements",
+      "evidence": "declared",
+      "rule": "capability-map",
+      "reference": "docs/capabilities.md#account"
+    },
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main_test.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-account"
+      },
+      "type": "verifies",
+      "evidence": "observed",
+      "rule": "unit-run",
+      "reference": "ci/unit/1"
+    },
+    {
+      "from": {
+        "repository": "e2e",
+        "path": "tests/account.spec.ts"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-account"
+      },
+      "type": "verifies",
+      "evidence": "observed",
+      "rule": "e2e-run",
+      "reference": "ci/e2e/7"
+    }
+  ]
+}

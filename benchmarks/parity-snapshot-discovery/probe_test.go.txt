@@ -1,0 +1,359 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"reflect"
+	"sort"
+	"strings"
+	"testing"
+	"time"
+)
+
+// Private independent probe, frozen before candidate implementation.
+// Baseline: a71e58e4e1e080c74644fbf5bcf07ac825696fbd:conformance/cli-parity-v0/snapshot.go
+// Whole source SHA-256: 741884be4d441de2c6faa2f871a1d3a3b38a3889082e978738811242913dbfa1
+// Original snapshotRepository source SHA-256 (including its trailing newline): e4dcb4fd39582aba18218831d209411f242c9e0f0d81f934a6f2a00cca280143
+// The function below is copied exactly, with only its declared name changed.
+// Dependencies intentionally remain shared: review must confirm those stay unchanged.
+func snapshotRepositoryFrozenLoop4(ctx context.Context, root string) (repositorySnapshot, error) {
+	git, err := newSanitizedGit(ctx, root)
+	if err != nil {
+		return repositorySnapshot{}, err
+	}
+	gitDir, err := git.string(ctx, "rev-parse", "--path-format=absolute", "--git-dir")
+	if err != nil {
+		return repositorySnapshot{}, err
+	}
+	commonDir, err := git.string(ctx, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	if err != nil {
+		return repositorySnapshot{}, err
+	}
+	status, err := git.run(ctx, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+	if err != nil {
+		return repositorySnapshot{}, err
+	}
+	entries, err := snapshotTree(root, "worktree", []string{gitDir, commonDir})
+	if err != nil {
+		return repositorySnapshot{}, err
+	}
+	gitEntries, err := snapshotTree(gitDir, "git", nil)
+	if err != nil {
+		return repositorySnapshot{}, err
+	}
+	entries = append(entries, gitEntries...)
+	if !samePath(gitDir, commonDir) {
+		commonEntries, err := snapshotTree(commonDir, "common", nil)
+		if err != nil {
+			return repositorySnapshot{}, err
+		}
+		entries = append(entries, commonEntries...)
+	}
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
+	payload, err := json.Marshal(struct {
+		Entries []snapshotEntry `json:"entries"`
+		Status  []byte          `json:"status"`
+	}{entries, status})
+	if err != nil {
+		return repositorySnapshot{}, err
+	}
+	repositorySHA256, fileModesSHA256, err := snapshotComponentDigests(entries)
+	if err != nil {
+		return repositorySnapshot{}, err
+	}
+	return repositorySnapshot{
+		Entries: entries, Status: status, SHA256: digest(payload), RepositorySHA256: repositorySHA256,
+		FileModesSHA256: fileModesSHA256, StatusSHA256: digest(status),
+	}, nil
+}
+
+// Expected fixture shapes and sample counts are frozen before candidate output.
+var loop4FixtureKinds = []string{"ordinary", "dirty-untracked-symlink", "linked-worktree", "space-parent", "nonascii-parent", "newline-parent", "space-nonascii-newline-parent"}
+
+func loop4Git(t testing.TB, ctx context.Context, git sanitizedGit, args ...string) string {
+	t.Helper()
+	output, err := git.string(ctx, args...)
+	if err != nil {
+		t.Fatalf("fixture git %q: %v", args, err)
+	}
+	return output
+}
+
+func loop4Write(t testing.TB, path, contents string, mode os.FileMode) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(contents), mode); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func loop4Fixture(t testing.TB, ctx context.Context, format, kind string) string {
+	t.Helper()
+	parentName := "parent"
+	switch kind {
+	case "space-parent":
+		parentName = "  spaced parent  "
+	case "nonascii-parent":
+		parentName = "répertoire-日本語"
+	case "newline-parent":
+		parentName = "line\nbreak"
+	case "space-nonascii-newline-parent":
+		parentName = "  répertoire\n日本語  "
+	}
+	parent := filepath.Join(t.TempDir(), parentName)
+	root := filepath.Join(parent, "repository")
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var spec fixtureSpec
+	if err := json.Unmarshal([]byte(testFixture), &spec); err != nil {
+		t.Fatal(err)
+	}
+	if err := materializeEntries(root, spec.Files); err != nil {
+		t.Fatal(err)
+	}
+	git, err := newSanitizedGit(ctx, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	template := filepath.Join(parent, "empty-template")
+	if err := os.Mkdir(template, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	loop4Git(t, ctx, git, "init", "--quiet", "--object-format="+format, "--initial-branch=main", "--template="+template)
+	loop4Git(t, ctx, git, "config", "core.filemode", "true")
+	commit, err := commitFixtureTree(ctx, git, spec.Files, "independent loop4 fixture")
+	if err != nil {
+		t.Fatal(err)
+	}
+	loop4Git(t, ctx, git, "update-ref", "refs/heads/main", commit)
+	loop4Git(t, ctx, git, "read-tree", "HEAD")
+	if kind == "linked-worktree" {
+		linked := filepath.Join(parent, "linked")
+		loop4Git(t, ctx, git, "worktree", "add", "--quiet", "--detach", linked, "HEAD")
+		return linked
+	}
+	if kind == "dirty-untracked-symlink" {
+		loop4Write(t, filepath.Join(root, "AGENTS.md"), "changed tracked bytes\n", 0o644)
+		if err := os.Chmod(filepath.Join(root, "bin", "tool"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Remove(filepath.Join(root, "authority")); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink("src/oracle.py", filepath.Join(root, "authority")); err != nil {
+			t.Fatal(err)
+		}
+		loop4Write(t, filepath.Join(root, "untracked-λ\n.txt"), "untracked bytes\n", 0o600)
+		if err := os.MkdirAll(filepath.Join(root, ".git", "info"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		loop4Write(t, filepath.Join(root, ".git", "info", "exclude"), "ignored-file\n", 0o644)
+		loop4Write(t, filepath.Join(root, "ignored-file"), "ignored still snapshotted\n", 0o640)
+	}
+	return root
+}
+
+type loop4Observation struct {
+	Snapshot   repositorySnapshot
+	Error      string
+	DurationNS int64
+}
+
+type loop4Raw struct {
+	Profile     string             `json:"profile"`
+	Stage       string             `json:"stage"`
+	Fixture     string             `json:"fixture"`
+	Pair        int                `json:"pair"`
+	Order       []string           `json:"order"`
+	OldNS       int64              `json:"oldNs"`
+	NewNS       int64              `json:"newNs"`
+	OldError    string             `json:"oldError"`
+	NewError    string             `json:"newError"`
+	Equal       bool               `json:"equal"`
+	OldSnapshot repositorySnapshot `json:"oldSnapshot"`
+	NewSnapshot repositorySnapshot `json:"newSnapshot"`
+}
+
+func loop4Observe(ctx context.Context, root string, fn func(context.Context, string) (repositorySnapshot, error)) loop4Observation {
+	start := time.Now()
+	snapshot, err := fn(ctx, root)
+	elapsed := time.Since(start).Nanoseconds()
+	message := ""
+	if err != nil {
+		message = err.Error()
+	}
+	return loop4Observation{snapshot, message, elapsed}
+}
+
+func loop4Emit(t testing.TB, raw loop4Raw) {
+	t.Helper()
+	// Full snapshots retain every field and error for independent mismatch inspection.
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log("LOOP4_RAW " + string(encoded))
+}
+
+func loop4Pair(t testing.TB, ctx context.Context, root, fixture, stage string, pair int) {
+	t.Helper()
+	var old, candidate loop4Observation
+	order := []string{"old", "new"}
+	if pair%2 == 0 {
+		old = loop4Observe(ctx, root, snapshotRepositoryFrozenLoop4)
+		candidate = loop4Observe(ctx, root, snapshotRepository)
+	} else {
+		order = []string{"new", "old"}
+		candidate = loop4Observe(ctx, root, snapshotRepository)
+		old = loop4Observe(ctx, root, snapshotRepositoryFrozenLoop4)
+	}
+	equal := reflect.DeepEqual(old.Snapshot, candidate.Snapshot) && old.Error == candidate.Error
+	loop4Emit(t, loop4Raw{"snapshot-paired-probe/0", stage, fixture, pair, order, old.DurationNS, candidate.DurationNS, old.Error, candidate.Error, equal, old.Snapshot, candidate.Snapshot})
+	if !equal {
+		t.Errorf("%s pair %d: complete snapshot/error mismatch; see LOOP4_RAW", fixture, pair)
+	}
+	if stage != "errors" && !strings.Contains(fixture, "newline") && (old.Error != "" || candidate.Error != "") {
+		t.Errorf("%s: real fixture must succeed; old=%q new=%q", fixture, old.Error, candidate.Error)
+	}
+	if stage == "errors" && (old.Error == "" || candidate.Error == "") {
+		t.Errorf("%s: expected refusal missing", fixture)
+	}
+}
+
+func TestLoop4SnapshotDifferential(t *testing.T) {
+	for _, format := range []string{"sha1", "sha256"} {
+		for _, kind := range loop4FixtureKinds {
+			t.Run(format+"/"+kind, func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+				defer cancel()
+				root := loop4Fixture(t, ctx, format, kind)
+				// AB and BA pairs detect source mutation and order-sensitive divergence.
+				for pair := 0; pair < 2; pair++ {
+					loop4Pair(t, ctx, root, format+"/"+kind, "differential", pair)
+				}
+			})
+		}
+	}
+	t.Run("not-repository", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		loop4Pair(t, ctx, t.TempDir(), "not-repository", "errors", 0)
+	})
+	t.Run("cancelled", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		loop4Pair(t, ctx, t.TempDir(), "cancelled", "errors", 0)
+	})
+	t.Run("nil-context", func(t *testing.T) {
+		loop4Pair(t, nil, t.TempDir(), "nil-context", "errors", 0)
+	})
+}
+
+// A fixed-size benchmark expressed as a test avoids testing.B adaptive calibration.
+// Exactly 12 measured pairs and two warmup pairs per each of 14 fixed cells.
+// All cells remain in the population, including fallback/newline outcomes.
+// Gate thresholds are the root's PLAN, not derived or enforced by this probe.
+func TestLoop4SnapshotFixedPairedMeasurement(t *testing.T) {
+	for _, format := range []string{"sha1", "sha256"} {
+		for _, kind := range loop4FixtureKinds {
+			t.Run(format+"/"+kind, func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+				defer cancel()
+				root := loop4Fixture(t, ctx, format, kind)
+				for pair := -2; pair < 12; pair++ {
+					stage := "whole-snapshot"
+					if pair < 0 {
+						stage = "warmup-whole-snapshot"
+					}
+					loop4Pair(t, ctx, root, format+"/"+kind, stage, pair)
+				}
+			})
+		}
+	}
+}
+
+func loop4OldDirectories(ctx context.Context, git sanitizedGit) (string, string, error) {
+	gitDir, err := git.string(ctx, "rev-parse", "--path-format=absolute", "--git-dir")
+	if err != nil {
+		return "", "", err
+	}
+	commonDir, err := git.string(ctx, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	if err != nil {
+		return "", "", err
+	}
+	return gitDir, commonDir, nil
+}
+
+type loop4DirectoryObservation struct {
+	GitDir     string `json:"gitDir"`
+	CommonDir  string `json:"commonDir"`
+	Error      string `json:"error"`
+	DurationNS int64  `json:"durationNs"`
+}
+
+func loop4ObserveDirectories(ctx context.Context, git sanitizedGit, fn func(context.Context, sanitizedGit) (string, string, error)) loop4DirectoryObservation {
+	start := time.Now()
+	gitDir, commonDir, err := fn(ctx, git)
+	elapsed := time.Since(start).Nanoseconds()
+	message := ""
+	if err != nil {
+		message = err.Error()
+	}
+	return loop4DirectoryObservation{gitDir, commonDir, message, elapsed}
+}
+
+// Stage-only ordinary lookup timing: same two formats, 2 warmup +12 measured
+// paired samples. This population is separate from the 14-cell whole snapshot.
+func TestLoop4DirectoryFixedPairedMeasurement(t *testing.T) {
+	for _, format := range []string{"sha1", "sha256"} {
+		t.Run(format, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+			defer cancel()
+			root := loop4Fixture(t, ctx, format, "ordinary")
+			git, err := newSanitizedGit(ctx, root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for pair := -2; pair < 12; pair++ {
+				var old, candidate loop4DirectoryObservation
+				order := []string{"old", "new"}
+				if pair%2 == 0 {
+					old = loop4ObserveDirectories(ctx, git, loop4OldDirectories)
+					candidate = loop4ObserveDirectories(ctx, git, snapshotGitDirectories)
+				} else {
+					order = []string{"new", "old"}
+					candidate = loop4ObserveDirectories(ctx, git, snapshotGitDirectories)
+					old = loop4ObserveDirectories(ctx, git, loop4OldDirectories)
+				}
+				equal := old.GitDir == candidate.GitDir && old.CommonDir == candidate.CommonDir && old.Error == candidate.Error
+				stage := "directory-discovery"
+				if pair < 0 {
+					stage = "warmup-directory-discovery"
+				}
+				raw := struct {
+					Profile string                    `json:"profile"`
+					Stage   string                    `json:"stage"`
+					Fixture string                    `json:"fixture"`
+					Pair    int                       `json:"pair"`
+					Order   []string                  `json:"order"`
+					Old     loop4DirectoryObservation `json:"old"`
+					New     loop4DirectoryObservation `json:"new"`
+					Equal   bool                      `json:"equal"`
+				}{"snapshot-paired-probe/0", stage, format + "/ordinary", pair, order, old, candidate, equal}
+				encoded, err := json.Marshal(raw)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Log("LOOP4_RAW " + string(encoded))
+				if !equal || old.Error != "" || candidate.Error != "" {
+					t.Errorf("directory pair %d differs or failed; see LOOP4_RAW", pair)
+				}
+			}
+		})
+	}
+}
+
+// Compile-time type witnesses keep accidental oracle/candidate API changes visible.
+var _ func(context.Context, string) (repositorySnapshot, error) = snapshotRepositoryFrozenLoop4

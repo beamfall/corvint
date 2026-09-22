@@ -1,0 +1,787 @@
+{
+  "format": "corvint-perf-v0/1",
+  "outcome": "insufficient_evidence",
+  "preregisteredRun": false,
+  "startedAt": "2026-08-29T00:56:26Z",
+  "finishedAt": "2026-08-29T01:30:47Z",
+  "machine": {
+    "goos": "darwin",
+    "goarch": "arm64",
+    "logicalCpus": 12,
+    "goToolchainVersion": "go1.27.0",
+    "pythonVersion": "Python 3.9.6"
+  },
+  "preregistration": {
+    "registeredAt": "2026-08-28T00:00:00Z",
+    "warmupSamples": 5,
+    "measuredSamples": 100,
+    "percentileEstimator": "nearest-rank",
+    "bootstrapResamples": 10000,
+    "bootstrapConfidence": 0.95,
+    "bootstrapSeed": 20260828,
+    "sampleTimeoutMilliseconds": 30000,
+    "interleave": "alternating-per-sample"
+  },
+  "validity": {
+    "requireEqualStdout": true,
+    "requireEqualStderr": true,
+    "requireEqualExitStatus": true,
+    "requireCorpusUnchanged": true,
+    "requireCacheStableDuringMeasurement": true,
+    "forbidTimeouts": true,
+    "forbidFailures": true,
+    "minimumMeasuredSamples": 100,
+    "requirePreregisteredSampleCounts": true
+  },
+  "thresholds": {
+    "nonQueryHarnessP95Milliseconds": 100,
+    "portableProductCapMilliseconds": 250,
+    "queryP95Milliseconds": 500,
+    "nonQueryOracleImprovementFraction": 0.5,
+    "otherCommandRegressionFraction": 0.1
+  },
+  "sanitizedEnvironmentSha256": "2dbca60121097ce732b816cf8f308a5c426695c73059f92395e0ff9a64e5d1b6",
+  "oracleSource": {
+    "revision": "58a2806e4b621ebd13a439ff661b8d0d875133b8",
+    "treeSha256": "04e7ab1ded4b6f121412a1ee55d22977c473c3e5fd5d88702a1fec349aa14429",
+    "unchangedAfterRun": true,
+    "resolvedCommand": "/Applications/Xcode.app/Contents/Developer/usr/bin/python3 -m corvint_cli"
+  },
+  "candidate": {
+    "package": "/private/tmp/corvint-perf-v0-3254275954/corvint",
+    "builtFromRevision": "0d99b2dad21d72f6ddc587933d55a0a0cbbdf88d",
+    "binarySha256": "8a7e2e6edd611f44ed6a9b3fe3d560fb02f8aef7502d870333f8508e7b42380d",
+    "buildCommand": "GOTOOLCHAIN=local CGO_ENABLED=0 go build -o \u003cworkspace\u003e/corvint ./cmd/corvint"
+  },
+  "candidateBuiltFromCorpusRevision": false,
+  "corpora": [
+    {
+      "id": "corvint",
+      "state": "MEASURED",
+      "repositoryPath": ".",
+      "revision": "58a2806e4b621ebd13a439ff661b8d0d875133b8",
+      "treeRevision": "9d90828ef284f2758b5badcd34c67acdea4e0852",
+      "sourceWorktreeClean": true,
+      "runDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "runDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      }
+    },
+    {
+      "id": "beamfall",
+      "state": "MEASURED",
+      "repositoryPath": "~/projects/beamfall-workspace/beamfall",
+      "revision": "fa3b1e7fe5bc6c10e4b09b2729f364780f567a48",
+      "treeRevision": "3a4251e0f0ebe70a489e296b32189634250f69d4",
+      "sourceWorktreeClean": false,
+      "runDigestBefore": {
+        "worktreeSha256": "c8e0f4be1099d5ebf10b8808f7162bc3b2a466928c817e7e5ada3858fc94acdc",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "3a4251e0f0ebe70a489e296b32189634250f69d4"
+      },
+      "runDigestAfter": {
+        "worktreeSha256": "c8e0f4be1099d5ebf10b8808f7162bc3b2a466928c817e7e5ada3858fc94acdc",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "3a4251e0f0ebe70a489e296b32189634250f69d4"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "id": "harness-session-start",
+      "corpus": "corvint",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "session-start",
+        "--input",
+        "-"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 274.790417,
+        "p95Milliseconds": 293.681958,
+        "maxMilliseconds": 336.319917,
+        "p95LowerBoundMilliseconds": 286.946625,
+        "p95UpperBoundMilliseconds": 313.68675,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 25788416,
+        "peakResidentMaxBytes": 26148864
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 53.943208,
+        "p95Milliseconds": 57.295417,
+        "maxMilliseconds": 60.402791,
+        "p95LowerBoundMilliseconds": 55.71225,
+        "p95UpperBoundMilliseconds": 59.264583,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 9650176,
+        "peakResidentMaxBytes": 9781248
+      },
+      "agreedStdoutSha256": "e798dc848ed520b2293382636712c3d31191a58b83c427354b72c9fcf6816637",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "cacheDigestBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "cacheDigestAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "harness-stop",
+      "corpus": "corvint",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "stop",
+        "--input",
+        "-"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 276.788458,
+        "p95Milliseconds": 308.6965,
+        "maxMilliseconds": 332.547792,
+        "p95LowerBoundMilliseconds": 292.728875,
+        "p95UpperBoundMilliseconds": 314.234583,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 25870336,
+        "peakResidentMaxBytes": 26017792
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 53.667459,
+        "p95Milliseconds": 58.761166,
+        "maxMilliseconds": 61.517167,
+        "p95LowerBoundMilliseconds": 57.893458,
+        "p95UpperBoundMilliseconds": 59.930542,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 9617408,
+        "peakResidentMaxBytes": 9928704
+      },
+      "agreedStdoutSha256": "1a01b0330ed258604cd408722ec42a37f918dd63f4a7ddd005aa9bfdb7a46e51",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "cacheDigestBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "cacheDigestAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "harness-post-tool",
+      "corpus": "corvint",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "post-tool",
+        "--input",
+        "-"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 274.508042,
+        "p95Milliseconds": 293.057459,
+        "maxMilliseconds": 311.106,
+        "p95LowerBoundMilliseconds": 287.275625,
+        "p95UpperBoundMilliseconds": 294.381292,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 25575424,
+        "peakResidentMaxBytes": 25919488
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 53.548167,
+        "p95Milliseconds": 57.05,
+        "maxMilliseconds": 61.061625,
+        "p95LowerBoundMilliseconds": 55.977792,
+        "p95UpperBoundMilliseconds": 60.3035,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 9699328,
+        "peakResidentMaxBytes": 9945088
+      },
+      "agreedStdoutSha256": "64fa48c35f9d90bfb6b92ead0b97e7a943550fc0037ade91ec192a7d14497549",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "cacheDigestBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "cacheDigestAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "query-authority-start",
+      "corpus": "corvint",
+      "class": "query",
+      "command": "query",
+      "argv": [
+        "query",
+        "--task",
+        "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket",
+        "--limit",
+        "1"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 948.165708,
+        "p95Milliseconds": 989.946417,
+        "maxMilliseconds": 1020.777709,
+        "p95LowerBoundMilliseconds": 973.350208,
+        "p95UpperBoundMilliseconds": 1005.057875,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 189202432,
+        "peakResidentMaxBytes": 190185472
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 243.038417,
+        "p95Milliseconds": 259.411625,
+        "maxMilliseconds": 274.000959,
+        "p95LowerBoundMilliseconds": 252.663875,
+        "p95UpperBoundMilliseconds": 271.758,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 14761984,
+        "peakResidentMaxBytes": 15040512
+      },
+      "agreedStdoutSha256": "31d1f56e638dcc5c20a0154d01e8209088c4ff5dbca8586aa13bf38534fd3561",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "cacheDigestBefore": "25521cc88e623b6f1563b3d09299427a14234df4ae048477bb74de67d0d0d270",
+      "cacheDigestAfter": "25521cc88e623b6f1563b3d09299427a14234df4ae048477bb74de67d0d0d270"
+    },
+    {
+      "id": "init-inventory",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "init",
+      "argv": [
+        "init"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 485.360875,
+        "p95Milliseconds": 513.102417,
+        "maxMilliseconds": 559.351167,
+        "p95LowerBoundMilliseconds": 502.720542,
+        "p95UpperBoundMilliseconds": 529.941958,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 66584576,
+        "peakResidentMaxBytes": 68386816
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 237.47675,
+        "p95Milliseconds": 251.293083,
+        "maxMilliseconds": 270.375042,
+        "p95LowerBoundMilliseconds": 246.137625,
+        "p95UpperBoundMilliseconds": 254.633375,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 61276160,
+        "peakResidentMaxBytes": 65110016
+      },
+      "agreedStdoutSha256": "ee5803cfb828c882b0924fe1f94da09a15c1f7132bd3b93d89ef0fb478269fd1",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "cacheDigestBefore": "25521cc88e623b6f1563b3d09299427a14234df4ae048477bb74de67d0d0d270",
+      "cacheDigestAfter": "25521cc88e623b6f1563b3d09299427a14234df4ae048477bb74de67d0d0d270"
+    },
+    {
+      "id": "adopt-inventory",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "adopt",
+      "argv": [
+        "adopt"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 482.864125,
+        "p95Milliseconds": 501.566125,
+        "maxMilliseconds": 550.25175,
+        "p95LowerBoundMilliseconds": 498.370334,
+        "p95UpperBoundMilliseconds": 518.142292,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 66650112,
+        "peakResidentMaxBytes": 67043328
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 236.160167,
+        "p95Milliseconds": 244.176125,
+        "maxMilliseconds": 249.363125,
+        "p95LowerBoundMilliseconds": 242.075875,
+        "p95UpperBoundMilliseconds": 247.102,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 60866560,
+        "peakResidentMaxBytes": 65126400
+      },
+      "agreedStdoutSha256": "faf18d59a8a0dea346c82178a31e7d1753891a5813f8fd2b9881ddda7b6bac44",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "cacheDigestBefore": "25521cc88e623b6f1563b3d09299427a14234df4ae048477bb74de67d0d0d270",
+      "cacheDigestAfter": "25521cc88e623b6f1563b3d09299427a14234df4ae048477bb74de67d0d0d270"
+    },
+    {
+      "id": "impact-path",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "impact",
+      "argv": [
+        "impact",
+        "cmd/corvint/main.go",
+        "--limit",
+        "10"
+      ],
+      "state": "insufficient_evidence",
+      "invalidityReasons": [
+        "unequal-stdout"
+      ],
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 1087.004166,
+        "p95Milliseconds": 1137.110125,
+        "maxMilliseconds": 1162.456708,
+        "p95LowerBoundMilliseconds": 1113.732917,
+        "p95UpperBoundMilliseconds": 1145.179083,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 189399040,
+        "peakResidentMaxBytes": 190136320
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 724.136583,
+        "p95Milliseconds": 748.267208,
+        "maxMilliseconds": 781.11475,
+        "p95LowerBoundMilliseconds": 736.61625,
+        "p95UpperBoundMilliseconds": 753.989166,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 66895872,
+        "peakResidentMaxBytes": 67239936
+      },
+      "agreedStdoutSha256": "825c9e0eb19cc09446e4e678a98cfe0382ad8fcf29672c7ead559f70294804a0",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "cacheDigestBefore": "25521cc88e623b6f1563b3d09299427a14234df4ae048477bb74de67d0d0d270",
+      "cacheDigestAfter": "25521cc88e623b6f1563b3d09299427a14234df4ae048477bb74de67d0d0d270"
+    },
+    {
+      "id": "beamfall-harness-session-start",
+      "corpus": "beamfall",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "session-start",
+        "--input",
+        "-"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 283.891458,
+        "p95Milliseconds": 299.331875,
+        "maxMilliseconds": 328.166708,
+        "p95LowerBoundMilliseconds": 295.873708,
+        "p95UpperBoundMilliseconds": 305.27,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 25870336,
+        "peakResidentMaxBytes": 26066944
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 60.075,
+        "p95Milliseconds": 63.899083,
+        "maxMilliseconds": 78.844166,
+        "p95LowerBoundMilliseconds": 62.5115,
+        "p95UpperBoundMilliseconds": 66.199375,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 9617408,
+        "peakResidentMaxBytes": 9830400
+      },
+      "agreedStdoutSha256": "0b20ca6706762964da22b123c44e30860f847b87c20116332e63113ae1fd1ead",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "c8e0f4be1099d5ebf10b8808f7162bc3b2a466928c817e7e5ada3858fc94acdc",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "3a4251e0f0ebe70a489e296b32189634250f69d4"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "c8e0f4be1099d5ebf10b8808f7162bc3b2a466928c817e7e5ada3858fc94acdc",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "3a4251e0f0ebe70a489e296b32189634250f69d4"
+      },
+      "cacheDigestBefore": "25521cc88e623b6f1563b3d09299427a14234df4ae048477bb74de67d0d0d270",
+      "cacheDigestAfter": "25521cc88e623b6f1563b3d09299427a14234df4ae048477bb74de67d0d0d270"
+    },
+    {
+      "id": "beamfall-query-authority-start",
+      "corpus": "beamfall",
+      "class": "query",
+      "command": "query",
+      "argv": [
+        "query",
+        "--task",
+        "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket",
+        "--limit",
+        "1"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 2032.208,
+        "p95Milliseconds": 2132.295958,
+        "maxMilliseconds": 2152.545125,
+        "p95LowerBoundMilliseconds": 2098.580625,
+        "p95UpperBoundMilliseconds": 2139.172583,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 438616064,
+        "peakResidentMaxBytes": 439681024
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 343.808042,
+        "p95Milliseconds": 392.394334,
+        "maxMilliseconds": 414.851125,
+        "p95LowerBoundMilliseconds": 366.1615,
+        "p95UpperBoundMilliseconds": 413.65825,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 18513920,
+        "peakResidentMaxBytes": 18776064
+      },
+      "agreedStdoutSha256": "d21094c3179f074496c2e262d180b7f1920b3160db40c9ab381d42f44abcc734",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "c8e0f4be1099d5ebf10b8808f7162bc3b2a466928c817e7e5ada3858fc94acdc",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "3a4251e0f0ebe70a489e296b32189634250f69d4"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "c8e0f4be1099d5ebf10b8808f7162bc3b2a466928c817e7e5ada3858fc94acdc",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "3a4251e0f0ebe70a489e296b32189634250f69d4"
+      },
+      "cacheDigestBefore": "ff974a82d3efdabaf05857b0482b176ffc76ecf52ae4c9d833677d42c47aa8ec",
+      "cacheDigestAfter": "ff974a82d3efdabaf05857b0482b176ffc76ecf52ae4c9d833677d42c47aa8ec"
+    },
+    {
+      "id": "beamfall-impact-path",
+      "corpus": "beamfall",
+      "class": "other-command",
+      "command": "impact",
+      "argv": [
+        "impact",
+        "internal/graph/graph.go",
+        "--limit",
+        "10"
+      ],
+      "state": "insufficient_evidence",
+      "invalidityReasons": [
+        "unequal-stdout"
+      ],
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 8668.005459,
+        "p95Milliseconds": 8784.953125,
+        "maxMilliseconds": 9065.9535,
+        "p95LowerBoundMilliseconds": 8760.80125,
+        "p95UpperBoundMilliseconds": 8821.141125,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 439140352,
+        "peakResidentMaxBytes": 440303616
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 2556.992583,
+        "p95Milliseconds": 2630.154625,
+        "maxMilliseconds": 2660.267375,
+        "p95LowerBoundMilliseconds": 2594.084084,
+        "p95UpperBoundMilliseconds": 2632.384208,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 226607104,
+        "peakResidentMaxBytes": 227131392
+      },
+      "agreedStdoutSha256": "8a1d6ecc41fb4a48ff2acc654aed6c40e3d2751ff390b35a4c75cd6495b74a27",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "c8e0f4be1099d5ebf10b8808f7162bc3b2a466928c817e7e5ada3858fc94acdc",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "3a4251e0f0ebe70a489e296b32189634250f69d4"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "c8e0f4be1099d5ebf10b8808f7162bc3b2a466928c817e7e5ada3858fc94acdc",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "3a4251e0f0ebe70a489e296b32189634250f69d4"
+      },
+      "cacheDigestBefore": "ff974a82d3efdabaf05857b0482b176ffc76ecf52ae4c9d833677d42c47aa8ec",
+      "cacheDigestAfter": "ff974a82d3efdabaf05857b0482b176ffc76ecf52ae4c9d833677d42c47aa8ec"
+    }
+  ],
+  "gpkV0017Criteria": [
+    {
+      "criterion": "GPK-V0-017(a)",
+      "scope": "harness-session-start",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 100ms reference cap and \u003c= 250ms portable cap",
+      "observed": "candidate p95 57.3ms (95% CI 55.7-59.3ms)"
+    },
+    {
+      "criterion": "GPK-V0-017(c)",
+      "scope": "harness-session-start",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 50% of oracle p95 (146.8ms)",
+      "observed": "candidate p95 57.3ms vs oracle p95 293.7ms"
+    },
+    {
+      "criterion": "GPK-V0-017(a)",
+      "scope": "harness-stop",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 100ms reference cap and \u003c= 250ms portable cap",
+      "observed": "candidate p95 58.8ms (95% CI 57.9-59.9ms)"
+    },
+    {
+      "criterion": "GPK-V0-017(c)",
+      "scope": "harness-stop",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 50% of oracle p95 (154.3ms)",
+      "observed": "candidate p95 58.8ms vs oracle p95 308.7ms"
+    },
+    {
+      "criterion": "GPK-V0-017(a)",
+      "scope": "harness-post-tool",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 100ms reference cap and \u003c= 250ms portable cap",
+      "observed": "candidate p95 57.0ms (95% CI 56.0-60.3ms)"
+    },
+    {
+      "criterion": "GPK-V0-017(c)",
+      "scope": "harness-post-tool",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 50% of oracle p95 (146.5ms)",
+      "observed": "candidate p95 57.0ms vs oracle p95 293.1ms"
+    },
+    {
+      "criterion": "GPK-V0-017(b)",
+      "scope": "query-authority-start",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 500ms",
+      "observed": "candidate p95 259.4ms (95% CI 252.7-271.8ms)"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "init-inventory:p95",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 564.4ms (oracle +10%)",
+      "observed": "candidate 251.3ms vs oracle 513.1ms"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "init-inventory:peak-resident",
+      "verdict": "PASS",
+      "required": "candidate peak-resident \u003c= 69.9MiB (oracle +10%)",
+      "observed": "candidate 58.4MiB vs oracle 63.5MiB"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "adopt-inventory:p95",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 551.7ms (oracle +10%)",
+      "observed": "candidate 244.2ms vs oracle 501.6ms"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "adopt-inventory:peak-resident",
+      "verdict": "PASS",
+      "required": "candidate peak-resident \u003c= 69.9MiB (oracle +10%)",
+      "observed": "candidate 58.0MiB vs oracle 63.6MiB"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "impact-path:p95",
+      "verdict": "NOT_RUN",
+      "required": "candidate p95 \u003c= 1250.8ms (oracle +10%)",
+      "observed": "measurement invalid: unequal-stdout"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "impact-path:peak-resident",
+      "verdict": "NOT_RUN",
+      "required": "candidate peak-resident \u003c= 198.7MiB (oracle +10%)",
+      "observed": "measurement invalid: unequal-stdout"
+    },
+    {
+      "criterion": "GPK-V0-017(a)",
+      "scope": "beamfall-harness-session-start",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 100ms reference cap and \u003c= 250ms portable cap",
+      "observed": "candidate p95 63.9ms (95% CI 62.5-66.2ms)"
+    },
+    {
+      "criterion": "GPK-V0-017(c)",
+      "scope": "beamfall-harness-session-start",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 50% of oracle p95 (149.7ms)",
+      "observed": "candidate p95 63.9ms vs oracle p95 299.3ms"
+    },
+    {
+      "criterion": "GPK-V0-017(b)",
+      "scope": "beamfall-query-authority-start",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 500ms",
+      "observed": "candidate p95 392.4ms (95% CI 366.2-413.7ms)"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "beamfall-impact-path:p95",
+      "verdict": "NOT_RUN",
+      "required": "candidate p95 \u003c= 9663.4ms (oracle +10%)",
+      "observed": "measurement invalid: unequal-stdout"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "beamfall-impact-path:peak-resident",
+      "verdict": "NOT_RUN",
+      "required": "candidate peak-resident \u003c= 460.7MiB (oracle +10%)",
+      "observed": "measurement invalid: unequal-stdout"
+    }
+  ]
+}

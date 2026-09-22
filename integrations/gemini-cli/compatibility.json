@@ -1,0 +1,28 @@
+{
+  "profile": "corvint-gemini-cli-compatibility/0",
+  "adapterVersion": "0.2.4",
+  "protocolVersion": "corvint-harness-event/0",
+  "support": "FALLBACK",
+  "surface": "extension",
+  "documentedAgainstHostVersion": "0.55.1",
+  "testedHostVersions": [],
+  "lastConformanceResult": "NOT_RUN",
+  "timeoutsMs": {
+    "automaticEvent": 500,
+    "host": 1000,
+    "queryEvent": 590
+  },
+  "unavailableCapabilities": [
+    "accepted-frontier-authority",
+    "blocking-frontier-gate",
+    "exact-expansion-command",
+    "mcp-server",
+    "verified-host-version-detection"
+  ],
+  "knownDegradations": [
+    "host-version-unknown",
+    "session-end-best-effort",
+    "tool-output-not-evidence-structured",
+    "unavailable-capabilities-fail-open"
+  ]
+}

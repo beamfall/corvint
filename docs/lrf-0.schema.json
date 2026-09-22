@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:context-corvint:lrf:0",
+  "title": "Lexical Relevance Floor 0",
+  "description": "Source-body-free deterministic candidate and issue projection over verified CEM/OCM inputs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["inputs", "issues", "profile", "results"],
+  "allOf": [{"oneOf": [{"$ref": "#/$defs/cemOnlyDocument"}, {"$ref": "#/$defs/ocmDocument"}]}],
+  "properties": {
+    "profile": {"const": "lrf/0"},
+    "inputs": {"oneOf": [{"$ref": "#/$defs/cem01Inputs"}, {"$ref": "#/$defs/cem02Inputs"}, {"$ref": "#/$defs/ocm02Inputs"}]},
+    "results": {"type": "array", "maxItems": 8192, "items": {"oneOf": [{"$ref": "#/$defs/cemResult"}, {"$ref": "#/$defs/ocmResult"}]}},
+    "issues": {"type": "array", "maxItems": 8192, "items": {"oneOf": [{"$ref": "#/$defs/profileIssue"}, {"$ref": "#/$defs/cemIssue"}, {"$ref": "#/$defs/ocmIssue"}, {"$ref": "#/$defs/obligationIssue"}]}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "gitOid": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"},
+    "hunkId": {"type": "string", "pattern": "^hunk:sha256:[0-9a-f]{64}$"},
+    "evidenceId": {"type": "string", "pattern": "^evidence:sha256:[0-9a-f]{64}$"},
+    "requirementId": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]{2,31}-[0-9]{3}$"},
+    "relation": {"enum": ["specification", "decision", "test-claim", "implementation", "call-site", "dependency", "incident"]},
+    "path": {"type": "string", "minLength": 1, "maxLength": 512, "pattern": "^(?!/)(?!.*\\\\)(?!.*[\\u0000-\\u001f\\u007f])(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*$"},
+    "cemOnlyDocument": {
+      "properties": {
+        "inputs": {"oneOf": [{"$ref": "#/$defs/cem01Inputs"}, {"$ref": "#/$defs/cem02Inputs"}]},
+        "results": {"items": {"$ref": "#/$defs/cemResult"}},
+        "issues": {"items": {"oneOf": [{"$ref": "#/$defs/profileIssue"}, {"$ref": "#/$defs/cemIssue"}]}}
+      }
+    },
+    "ocmDocument": {
+      "properties": {
+        "inputs": {"$ref": "#/$defs/ocm02Inputs"},
+        "results": {"items": {"oneOf": [{"$ref": "#/$defs/cemResult"}, {"$ref": "#/$defs/ocmResult"}]}},
+        "issues": {"items": {"oneOf": [{"$ref": "#/$defs/profileIssue"}, {"$ref": "#/$defs/cemIssue"}, {"$ref": "#/$defs/ocmIssue"}, {"$ref": "#/$defs/obligationIssue"}]}}
+      }
+    },
+    "cem01Inputs": {
+      "type": "array", "minItems": 14, "maxItems": 14, "items": false,
+      "prefixItems": [
+        {"const": "cem/0.1"}, {"$ref": "#/$defs/sha256"}, {"enum": ["explicit-out-of-band", "default-out-of-band"]},
+        {"$ref": "#/$defs/gitOid"}, {"anyOf": [{"$ref": "#/$defs/gitOid"}, {"type": "null"}]}, {"$ref": "#/$defs/sha256"},
+        {"type": "null"}, {"type": "null"}, {"type": "null"}, {"type": "null"}, {"type": "null"}, {"type": "null"}, {"type": "null"}, {"type": "null"}
+      ]
+    },
+    "cem02Inputs": {
+      "type": "array", "minItems": 14, "maxItems": 14, "items": false,
+      "prefixItems": [
+        {"const": "cem/0.2"}, {"$ref": "#/$defs/sha256"}, {"const": "canonical-derived"},
+        {"$ref": "#/$defs/gitOid"}, {"$ref": "#/$defs/gitOid"}, {"$ref": "#/$defs/sha256"}, {"const": ".corvint/change.cem.json"},
+        {"type": "null"}, {"type": "null"}, {"type": "null"}, {"type": "null"}, {"type": "null"}, {"type": "null"}, {"type": "null"}
+      ]
+    },
+    "ocm02Inputs": {
+      "type": "array", "minItems": 14, "maxItems": 14, "items": false,
+      "prefixItems": [
+        {"const": "cem/0.2"}, {"$ref": "#/$defs/sha256"}, {"const": "canonical-derived"},
+        {"$ref": "#/$defs/gitOid"}, {"$ref": "#/$defs/gitOid"}, {"$ref": "#/$defs/sha256"}, {"const": ".corvint/change.cem.json"},
+        {"const": "ocm/0.1-experimental"}, {"$ref": "#/$defs/sha256"}, {"$ref": "#/$defs/path"}, {"$ref": "#/$defs/gitOid"},
+        {"type": "integer", "minimum": 0}, {"type": "integer", "minimum": 1}, {"$ref": "#/$defs/sha256"}
+      ]
+    },
+    "cemResult": {
+      "type": "array", "minItems": 6, "maxItems": 6, "items": false,
+      "prefixItems": [{"const": "cem-basis"}, {"$ref": "#/$defs/hunkId"}, {"$ref": "#/$defs/evidenceId"}, {"$ref": "#/$defs/relation"}, {"const": "producer-declared"}, {"enum": ["cem-lexical-v0", "rejected", "abstained"]}]
+    },
+    "ocmResult": {
+      "type": "array", "minItems": 6, "maxItems": 6, "items": false,
+      "prefixItems": [{"const": "ocm-hunk"}, {"$ref": "#/$defs/requirementId"}, {"$ref": "#/$defs/hunkId"}, {"const": "requirement-hunk"}, {"const": "producer-declared"}, {"enum": ["lexically-proximate-candidate", "rejected", "abstained"]}]
+    },
+    "profileIssue": {
+      "type": "array", "minItems": 5, "maxItems": 5, "items": false,
+      "prefixItems": [{"const": "profile"}, {"const": ""}, {"const": ""}, {"const": ""}, {"const": "relevance-bound-exceeded"}]
+    },
+    "cemIssue": {
+      "type": "array", "minItems": 5, "maxItems": 5, "items": false,
+      "prefixItems": [{"const": "cem-basis"}, {"$ref": "#/$defs/hunkId"}, {"$ref": "#/$defs/evidenceId"}, {"$ref": "#/$defs/relation"}, {"enum": ["deletion-relation-required", "evidence-span-too-broad", "self-referential-basis", "subject-term-bound-exceeded", "insufficient-lexical-support"]}]
+    },
+    "ocmIssue": {
+      "type": "array", "minItems": 5, "maxItems": 5, "items": false,
+      "prefixItems": [{"const": "ocm-hunk"}, {"$ref": "#/$defs/requirementId"}, {"$ref": "#/$defs/hunkId"}, {"const": "requirement-hunk"}, {"enum": ["subject-term-bound-exceeded", "obligation-hunk-mismatch"]}]
+    },
+    "obligationIssue": {
+      "type": "array", "minItems": 5, "maxItems": 5, "items": false,
+      "prefixItems": [{"const": "ocm-obligation"}, {"$ref": "#/$defs/requirementId"}, {"const": ""}, {"const": "requirement-hunk"}, {"const": "no-material-hunk"}]
+    }
+  }
+}

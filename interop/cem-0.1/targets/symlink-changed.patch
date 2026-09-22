@@ -1,0 +1,13 @@
+diff --git a/docs/rule.txt b/docs/rule.txt
+deleted file mode 100644
+--- a/docs/rule.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-Rule: allowed must return False.
+diff --git a/docs/rule.txt b/docs/rule.txt
+new file mode 120000
+--- /dev/null
++++ b/docs/rule.txt
+@@ -0,0 +1 @@
++allowed must return False
+\ No newline at end of file

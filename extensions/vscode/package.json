@@ -1,0 +1,256 @@
+{
+  "name": "corvint-vscode",
+  "displayName": "Corvint Evidence",
+  "description": "Local, revision-pinned Corvint evidence for Visual Studio Code.",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "corvint",
+  "license": "SEE LICENSE IN LICENSE",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other",
+    "Testing"
+  ],
+  "keywords": [
+    "agents",
+    "context",
+    "evidence",
+    "impact",
+    "mcp",
+    "testing"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "main": "./dist/src/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:corvint.selectExecutable",
+    "onCommand:corvint.clearExecutable",
+    "onCommand:corvint.query",
+    "onCommand:corvint.impact",
+    "onCommand:corvint.refresh",
+    "onCommand:corvint.importTestObservation",
+    "onCommand:corvint.clearResults",
+    "onView:corvint.evidence",
+    "onView:corvint.impact",
+    "onView:corvint.why"
+  ],
+  "capabilities": {
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "Corvint V0 requires a trusted local file workspace and a separately installed executable in the workspace extension host."
+    },
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Corvint execution, discovery, configuration-path access, repository reads, and observation import are disabled until the workspace is trusted.",
+      "restrictedConfigurations": [
+        "corvint.executablePath",
+        "corvint.mcpExecutablePath",
+        "corvint.testObservationPath",
+        "corvint.liveTests.enabled",
+        "corvint.liveTests.command",
+        "corvint.liveTests.retainEvidence",
+        "corvint.liveTests.watchPaths",
+        "corvint.liveTests.toolchainPaths",
+        "corvint.executablePath",
+        "corvint.mcpExecutablePath",
+        "corvint.testObservationPath",
+        "corvint.liveTests.enabled",
+        "corvint.liveTests.command",
+        "corvint.liveTests.retainEvidence",
+        "corvint.liveTests.watchPaths",
+        "corvint.liveTests.toolchainPaths"
+      ]
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "corvint.selectExecutable",
+        "title": "Corvint: Select and Pin Executable"
+      },
+      {
+        "command": "corvint.clearExecutable",
+        "title": "Corvint: Clear Pinned Executable"
+      },
+      {
+        "command": "corvint.query",
+        "title": "Corvint: Query Evidence"
+      },
+      {
+        "command": "corvint.impact",
+        "title": "Corvint: Inspect Active File Impact"
+      },
+      {
+        "command": "corvint.refresh",
+        "title": "Corvint: Refresh Last Explicit Query"
+      },
+      {
+        "command": "corvint.importTestObservation",
+        "title": "Corvint: Import Test Observation"
+      },
+      {
+        "command": "corvint.clearResults",
+        "title": "Corvint: Clear Results"
+      }
+    ],
+    "configuration": {
+      "title": "Corvint",
+      "properties": {
+        "corvint.transport": {
+          "type": "string",
+          "enum": [
+            "cli",
+            "mcp-stdio"
+          ],
+          "enumDescriptions": [
+            "Invoke a separately installed corvint executable directly.",
+            "Invoke a separately installed corvint-mcp executable over local MCP 2026-07-28 stdio."
+          ],
+          "default": "cli",
+          "scope": "window",
+          "description": "Explicit local Corvint transport. The extension never falls back between transports."
+        },
+        "corvint.executablePath": {
+          "type": "string",
+          "default": "",
+          "scope": "window",
+          "description": "Absolute path to a corvint candidate, used only by the cli transport. It is never executed until explicitly pinned in a trusted workspace."
+        },
+        "corvint.mcpExecutablePath": {
+          "type": "string",
+          "default": "",
+          "scope": "window",
+          "description": "Absolute path to a corvint-mcp candidate, used only by the mcp-stdio transport. No PATH discovery, network transport, or automatic install is performed."
+        },
+        "corvint.testObservationPath": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Workspace-relative path to a local Corvint go-live-event/0 NDJSON observation. Import is always explicit."
+        },
+        "corvint.maxOutputBytes": {
+          "type": "integer",
+          "default": 262144,
+          "minimum": 4096,
+          "maximum": 1048576,
+          "scope": "window",
+          "description": "Maximum stdout bytes accepted from one Corvint command; stderr has an independent fixed 65,536-byte bound."
+        },
+        "corvint.timeoutMilliseconds": {
+          "type": "integer",
+          "default": 15000,
+          "minimum": 1000,
+          "maximum": 30000,
+          "scope": "window",
+          "description": "Hard timeout for an explicitly requested Corvint command."
+        },
+        "corvint.liveTests.enabled": {
+          "type": "boolean",
+          "default": false,
+          "scope": "resource",
+          "description": "Explicitly enable the configured local test provider in this trusted workspace. JS unit/E2E providers rerun on eligible editor saves."
+        },
+        "corvint.liveTests.command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "scope": "resource",
+          "description": "Provider executable followed by literal arguments (no shell). Use an absolute Corvint (or legacy) JS unit/E2E or Go session provider command. Project test tooling is required."
+        },
+        "corvint.liveTests.retainEvidence": {
+          "type": "boolean",
+          "default": false,
+          "scope": "resource",
+          "description": "Ask a supported provider to retain bounded local evidence for agent/MCP discovery in .corvint/test-evidence."
+        },
+        "corvint.liveTests.watchPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "maxItems": 64,
+          "default": [
+            "."
+          ],
+          "scope": "resource",
+          "description": "Repository-relative files/directories whose editor saves rerun the configured full JS unit/E2E suite. Build, dependency and Corvint/Git state directories are excluded; external filesystem edits do not trigger this alpha profile."
+        },
+        "corvint.liveTests.toolchainPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 16,
+          "default": [],
+          "scope": "resource",
+          "description": "Explicit absolute directories containing project Node/npm/Go tools, prepended only to the enabled live provider PATH. For example /opt/homebrew/bin. No other environment is inherited."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "corvint",
+          "title": "Corvint",
+          "icon": "media/corvint.svg"
+        }
+      ]
+    },
+    "views": {
+      "corvint": [
+        {
+          "id": "corvint.evidence",
+          "name": "Evidence"
+        },
+        {
+          "id": "corvint.impact",
+          "name": "Impact"
+        },
+        {
+          "id": "corvint.why",
+          "name": "Why"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "corvint.refresh",
+          "when": "view == corvint.evidence || view == corvint.impact || view == corvint.why",
+          "group": "navigation"
+        },
+        {
+          "command": "corvint.clearResults",
+          "when": "view == corvint.evidence || view == corvint.impact || view == corvint.why",
+          "group": "navigation"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "biome lint --error-on-warnings .",
+    "test": "npm run compile && node --test dist/test/*.test.js",
+    "deps": "npm ci --ignore-scripts --prefer-offline --no-audit --no-fund",
+    "check": "npm run deps && npm run lint && npm run typecheck && npm test",
+    "package:list": "vsce ls --tree",
+    "package:vsix": "npm run check && vsce package --no-dependencies",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.10",
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.95.0",
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "3.9.2",
+    "typescript": "^5.7.2"
+  }
+}

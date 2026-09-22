@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "commit": "d318b683471101618febed18996405ad26462110",
+  "cases": [
+    {
+      "id": "flask-app-factory-discovery",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "My deployment script sets FLASK_APP=myproject and just runs `flask run`, with no explicit app or factory name given. I want to understand exactly how Flask decides which object in that module to use — does it prefer a `create_app` factory function over a plain `app` instance, and what happens if the module defines more than one Flask instance? Point me to the discovery logic, the recommended factory pattern, and the test that pins down the preference order.",
+      "limit": 8,
+      "budget_bytes": 16000,
+      "rationale": "Ties the documented application-factory pattern to the module-introspection logic that actually implements app discovery for `flask run`, and the test that fixes its preference order (named app/application first, then a lone Flask instance, then create_app/make_app).",
+      "ground_truth": [
+        {"path": "docs/patterns/appfactories.rst", "line": 27, "contains": "def create_app(config_filename):"},
+        {"path": "src/flask/cli.py", "line": 41, "contains": "def find_best_app(module: ModuleType) -> Flask:"},
+        {"path": "tests/test_cli.py", "line": 47, "contains": "def test_find_best_app(test_apps):"}
+      ],
+      "expected": {
+        "must_include": [
+          "path:docs/patterns/appfactories.rst",
+          "symbol:src/flask/cli.py:find_best_app",
+          "test:tests/test_cli.py"
+        ],
+        "critical": [
+          "symbol:src/flask/cli.py:find_best_app",
+          "test:tests/test_cli.py"
+        ],
+        "relevant": [
+          "path:docs/patterns/appfactories.rst",
+          "symbol:src/flask/cli.py:find_best_app",
+          "test:tests/test_cli.py"
+        ],
+        "must_exclude": ["path:src/flask/app.py"]
+      }
+    },
+    {
+      "id": "flask-error-handler-precedence",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "I've registered `@app.errorhandler(Exception)` and `@app.errorhandler(SomeSpecificError)` in the same Flask app, and I need to confirm exactly which handler wins when an exception that is a subclass of both gets raised — does Flask pick the most specific class in the MRO, or just whichever was registered last? Retrieve the documented precedence rule, the lookup implementation, and a test that exercises multiple inheritance across handlers.",
+      "limit": 8,
+      "budget_bytes": 16000,
+      "rationale": "Connects the documented class-hierarchy precedence rule to `_find_error_handler`'s MRO walk over registered handlers, and the test that raises a multiply-inherited exception to pin down which handler wins.",
+      "ground_truth": [
+        {"path": "docs/errorhandling.rst", "line": 159, "contains": "the most specific handler is chosen"},
+        {"path": "src/flask/sansio/app.py", "line": 868, "contains": "def _find_error_handler("},
+        {"path": "tests/test_basic.py", "line": 1021, "contains": "def test_errorhandler_precedence(app, client):"}
+      ],
+      "expected": {
+        "must_include": [
+          "path:docs/errorhandling.rst",
+          "symbol:src/flask/sansio/app.py:_find_error_handler",
+          "test:tests/test_basic.py"
+        ],
+        "critical": [
+          "symbol:src/flask/sansio/app.py:_find_error_handler",
+          "test:tests/test_basic.py"
+        ],
+        "relevant": [
+          "path:docs/errorhandling.rst",
+          "symbol:src/flask/sansio/app.py:_find_error_handler",
+          "test:tests/test_basic.py"
+        ],
+        "must_exclude": ["path:src/flask/sansio/scaffold.py"]
+      }
+    },
+    {
+      "id": "flask-max-content-length",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "I want to cap the size of file uploads for one specific view without lowering the global `MAX_CONTENT_LENGTH` config for the whole app. Can Flask's request object have its content-length limit overridden per request, and does that override take precedence over the app-wide config? Show me the docs describing the upload limit, the property that resolves the effective limit, and a test that exercises both the config default and a request-level override.",
+      "limit": 8,
+      "budget_bytes": 14000,
+      "rationale": "Chains the documented app-wide upload cap to the per-request `max_content_length` property (added in 3.1) and the test exercising both the config default and a request-level override.",
+      "ground_truth": [
+        {"path": "docs/patterns/fileuploads.rst", "line": 144, "contains": "app.config['MAX_CONTENT_LENGTH'] = 16 * 1000 * 1000"},
+        {"path": "src/flask/wrappers.py", "line": 60, "contains": "def max_content_length(self) -> int | None:"},
+        {"path": "tests/test_request.py", "line": 9, "contains": "def test_max_content_length(app: Flask, client: FlaskClient) -> None:"}
+      ],
+      "expected": {
+        "must_include": [
+          "path:docs/patterns/fileuploads.rst",
+          "symbol:src/flask/wrappers.py:max_content_length",
+          "test:tests/test_request.py"
+        ],
+        "critical": [
+          "symbol:src/flask/wrappers.py:max_content_length",
+          "test:tests/test_request.py"
+        ],
+        "relevant": [
+          "path:docs/patterns/fileuploads.rst",
+          "symbol:src/flask/wrappers.py:max_content_length",
+          "test:tests/test_request.py"
+        ],
+        "must_exclude": ["test:tests/test_helpers.py"]
+      }
+    },
+    {
+      "id": "flask-methodview-init-subclass-impact",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "impact",
+      "paths": ["src/flask/views.py"],
+      "text": "A tracked change modifies `views.py` around how `MethodView` infers its `methods` set when a subclass defines handler methods like `get`/`post`/`propfind`. Retrieve the class hook that computes `methods` on subclassing, the `as_view`/`dispatch_request` machinery that consumes it, and the tests that verify method-set inheritance and the implicit HEAD-from-GET fallback. Keep the impact set MethodView-specific, not the whole class-based-views guide.",
+      "limit": 8,
+      "budget_bytes": 16000,
+      "rationale": "`MethodView.__init_subclass__` directly determines the registered `methods` set that `View.as_view`/`dispatch_request` rely on; the impact set should stay on method-inheritance and HEAD-fallback tests rather than the broader views test file or generic URL-rule registration.",
+      "ground_truth": [
+        {"path": "src/flask/views.py", "line": 165, "contains": "def __init_subclass__(cls, **kwargs: t.Any) -> None:"},
+        {"path": "src/flask/views.py", "line": 138, "contains": "class MethodView(View):"},
+        {"path": "src/flask/views.py", "line": 86, "contains": "def as_view("},
+        {"path": "src/flask/views.py", "line": 182, "contains": "def dispatch_request(self, **kwargs: t.Any) -> ft.ResponseReturnValue:"},
+        {"path": "tests/test_views.py", "line": 200, "contains": "def test_methods_var_inheritance(app, client):"},
+        {"path": "tests/test_views.py", "line": 152, "contains": "def test_implicit_head(app, client):"}
+      ],
+      "expected": {
+        "must_include": [
+          "symbol:src/flask/views.py:MethodView",
+          "test:tests/test_views.py"
+        ],
+        "critical": [
+          "symbol:src/flask/views.py:MethodView",
+          "test:tests/test_views.py"
+        ],
+        "relevant": [
+          "path:src/flask/views.py",
+          "symbol:src/flask/views.py:MethodView",
+          "symbol:src/flask/views.py:View",
+          "test:tests/test_views.py"
+        ],
+        "must_exclude": ["path:src/flask/sansio/scaffold.py"]
+      }
+    },
+    {
+      "id": "flask-blueprint-order-negative",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "I have a parent blueprint registered on the app, and a child blueprint registered on the parent (three levels of nesting total). I need to know the exact order that `before_request` callbacks run across that chain — app-level first, then parent, then child? Show me where that per-request ordering is decided, and the test that pins down the sequence for three-level nesting.",
+      "limit": 8,
+      "budget_bytes": 14000,
+      "rationale": "The task text emphasizes 'blueprints' and nesting, which invites retrieving the blueprint registration module; but the per-request callback order is decided by `Flask.preprocess_request` walking `reversed(request.blueprints)`, not by blueprint registration itself, so the negative selector checks that the naming lure is resisted.",
+      "ground_truth": [
+        {"path": "src/flask/app.py", "line": 1369, "contains": "def preprocess_request(self, ctx: AppContext) -> ft.ResponseReturnValue | None:"},
+        {"path": "src/flask/app.py", "line": 1380, "contains": "names = (None, *reversed(req.blueprints))"},
+        {"path": "tests/test_blueprints.py", "line": 911, "contains": "def test_nested_callback_order(app, client):"}
+      ],
+      "expected": {
+        "must_include": [
+          "symbol:src/flask/app.py:preprocess_request",
+          "test:tests/test_blueprints.py"
+        ],
+        "critical": [
+          "symbol:src/flask/app.py:preprocess_request",
+          "test:tests/test_blueprints.py"
+        ],
+        "relevant": [
+          "path:src/flask/app.py",
+          "symbol:src/flask/app.py:preprocess_request",
+          "test:tests/test_blueprints.py"
+        ],
+        "must_exclude": ["path:src/flask/blueprints.py"]
+      }
+    },
+    {
+      "id": "flask-websocket-abstention",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "I need to add a native WebSocket endpoint to my Flask app so a browser client can hold an open bidirectional connection for live chat, without switching frameworks. Where in Flask's request-handling pipeline is the WebSocket upgrade handshake implemented?",
+      "limit": 8,
+      "budget_bytes": 10000,
+      "rationale": "Flask is a WSGI framework and implements no WebSocket upgrade handling anywhere in this repository; docs/async-await.rst explicitly names Quart, a separate ASGI-based project, as the tool for websockets. Correct behavior is abstention, not surfacing the closest-sounding ASGI-deployment doc as though it answered the question.",
+      "ground_truth": [
+        {"path": "docs/async-await.rst", "line": 72, "contains": "handle many concurrent requests, long running requests, and websockets"}
+      ],
+      "expected": {
+        "state": "OUT_OF_SCOPE",
+        "must_include": [],
+        "critical": [],
+        "relevant": [],
+        "must_exclude": ["path:docs/deploying/asgi.rst"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+usage: corvint [-h] [--root ROOT] [--version]
+             {init,adopt,query,feature,impact,eval,lrf,record,migrate-traces,harness,cem,ocm}
+             ...
+
+Compile revision-pinned context for software agents.
+
+positional arguments:
+  {init,adopt,query,feature,impact,eval,lrf,record,migrate-traces,harness,cem,ocm}
+    init                compile the first mechanical evidence state for a new
+                        repository
+    adopt               compile the recoverable mechanical evidence state for
+                        an existing product
+    query               compile context for a natural-language task
+    feature             compile context for a canonical feature id
+    impact              compile affected evidence for changed paths
+    eval                evaluate a frozen retrieval corpus
+    lrf                 apply the deterministic lexical relevance floor
+    record              record one explicit local task outcome
+    migrate-traces      dry-run or apply legacy tree-trace migration
+    harness             translate native agent lifecycle events
+    cem                 create and verify Change Evidence Maps
+    ocm                 create and verify Obligation Closure Maps
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --root ROOT           Git repository root
+  --version             show program's version number and exit

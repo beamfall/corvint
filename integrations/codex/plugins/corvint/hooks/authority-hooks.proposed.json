@@ -1,0 +1,6 @@
+{
+  "description": "Uninstalled protected authority Stop hook template; installer must render an immutable absolute adapter path after independent admission.",
+  "hooks": {
+    "Stop": [{"hooks": [{"type": "command", "command": "/Library/CorvintAuthority/versions/RELEASE_SHA256/corvint native-hook", "timeout": 2, "statusMessage": "Checking protected Frontier"}]}]
+  }
+}

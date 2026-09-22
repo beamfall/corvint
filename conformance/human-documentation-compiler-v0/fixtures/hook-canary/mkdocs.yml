@@ -1,0 +1,10 @@
+site_name: Hook execution canary
+site_url: https://corvint.example.invalid/hook-canary/
+docs_dir: docs
+theme:
+  name: material
+plugins:
+  - search
+hooks:
+  - hostile_hook.py
+

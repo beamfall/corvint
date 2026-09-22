@@ -1,0 +1,274 @@
+{
+  "base": "83da0b029f56e4fc9872696f238265f059a02536",
+  "binary": {
+    "path": "~/.local/bin/corvint",
+    "version": "Corvint 0.4.0a3",
+    "sha256": "cef439b61535f7595e4797d829af6cc5ffc06e4ac2fca1c6195e68aed2b61315",
+    "identity_observed": "after navigation runs; pre-run binary identity NOT_OBSERVED"
+  },
+  "metric_boundary": "Complete subprocess stdout+stderr captured before tool/UI summaries; full-session agent-visible bytes and answer-generation latency NOT_OBSERVED. Source opens count explicit excerpt operations; searches counted separately, not filesystem reads.",
+  "tokens": "NOT_OBSERVED",
+  "cost": "NOT_OBSERVED",
+  "full_session_elapsed": "NOT_OBSERVED",
+  "phases": {
+    "before": {
+      "questions": {
+        "orientation": {
+          "commands": 4,
+          "source_opens": 2,
+          "searches": 1,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 7834,
+          "complete_response_bytes": 12884,
+          "elapsed_seconds": 0.7463142509999999
+        },
+        "capability": {
+          "commands": 5,
+          "source_opens": 2,
+          "searches": 2,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 6908,
+          "complete_response_bytes": 17108,
+          "elapsed_seconds": 0.8003579989999999
+        },
+        "intent": {
+          "commands": 6,
+          "source_opens": 3,
+          "searches": 2,
+          "unsuccessful_commands": 1,
+          "corvint_response_bytes": 4684,
+          "complete_response_bytes": 14276,
+          "elapsed_seconds": 0.532814957
+        },
+        "debugging": {
+          "commands": 7,
+          "source_opens": 3,
+          "searches": 3,
+          "unsuccessful_commands": 1,
+          "corvint_response_bytes": 4771,
+          "complete_response_bytes": 9846,
+          "elapsed_seconds": 0.5378806260000001
+        },
+        "review": {
+          "commands": 8,
+          "source_opens": 3,
+          "searches": 4,
+          "unsuccessful_commands": 3,
+          "corvint_response_bytes": 7171,
+          "complete_response_bytes": 17673,
+          "elapsed_seconds": 0.5203794589999999
+        },
+        "resume": {
+          "commands": 9,
+          "source_opens": 3,
+          "searches": 5,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 7750,
+          "complete_response_bytes": 50397,
+          "elapsed_seconds": 0.5541668740000001
+        },
+        "verification": {
+          "commands": 5,
+          "source_opens": 3,
+          "searches": 1,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 6893,
+          "complete_response_bytes": 12219,
+          "elapsed_seconds": 0.512726916
+        }
+      },
+      "totals": {
+        "commands": 44,
+        "source_opens": 19,
+        "searches": 18,
+        "unsuccessful_commands": 5,
+        "corvint_response_bytes": 46011,
+        "complete_response_bytes": 134403,
+        "elapsed_seconds": 4.204641082
+      }
+    },
+    "reconciled": {
+      "questions": {
+        "orientation": {
+          "commands": 4,
+          "source_opens": 2,
+          "searches": 1,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 8007,
+          "complete_response_bytes": 13229,
+          "elapsed_seconds": 0.5871155840000001
+        },
+        "capability": {
+          "commands": 5,
+          "source_opens": 2,
+          "searches": 2,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 7081,
+          "complete_response_bytes": 17344,
+          "elapsed_seconds": 0.44488604200000004
+        },
+        "intent": {
+          "commands": 6,
+          "source_opens": 3,
+          "searches": 2,
+          "unsuccessful_commands": 1,
+          "corvint_response_bytes": 4857,
+          "complete_response_bytes": 14633,
+          "elapsed_seconds": 0.40859379200000007
+        },
+        "debugging": {
+          "commands": 7,
+          "source_opens": 3,
+          "searches": 3,
+          "unsuccessful_commands": 1,
+          "corvint_response_bytes": 4944,
+          "complete_response_bytes": 10081,
+          "elapsed_seconds": 0.444696624
+        },
+        "review": {
+          "commands": 8,
+          "source_opens": 3,
+          "searches": 4,
+          "unsuccessful_commands": 3,
+          "corvint_response_bytes": 7344,
+          "complete_response_bytes": 17834,
+          "elapsed_seconds": 0.47171650000000004
+        },
+        "resume": {
+          "commands": 9,
+          "source_opens": 3,
+          "searches": 5,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 7923,
+          "complete_response_bytes": 50570,
+          "elapsed_seconds": 0.476186333
+        },
+        "verification": {
+          "commands": 5,
+          "source_opens": 3,
+          "searches": 1,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 7066,
+          "complete_response_bytes": 12108,
+          "elapsed_seconds": 0.419416625
+        }
+      },
+      "totals": {
+        "commands": 44,
+        "source_opens": 19,
+        "searches": 18,
+        "unsuccessful_commands": 5,
+        "corvint_response_bytes": 47222,
+        "complete_response_bytes": 135799,
+        "elapsed_seconds": 3.2526115000000004
+      }
+    },
+    "routed": {
+      "questions": {
+        "orientation": {
+          "commands": 5,
+          "source_opens": 3,
+          "searches": 1,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 8107,
+          "complete_response_bytes": 13548,
+          "elapsed_seconds": 0.421518501
+        },
+        "capability": {
+          "commands": 6,
+          "source_opens": 3,
+          "searches": 2,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 7181,
+          "complete_response_bytes": 17795,
+          "elapsed_seconds": 0.40435633500000007
+        },
+        "intent": {
+          "commands": 7,
+          "source_opens": 5,
+          "searches": 1,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 4957,
+          "complete_response_bytes": 14624,
+          "elapsed_seconds": 0.43645083399999995
+        },
+        "debugging": {
+          "commands": 7,
+          "source_opens": 4,
+          "searches": 2,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 5044,
+          "complete_response_bytes": 10565,
+          "elapsed_seconds": 0.44182412600000004
+        },
+        "review": {
+          "commands": 7,
+          "source_opens": 4,
+          "searches": 2,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 7444,
+          "complete_response_bytes": 18010,
+          "elapsed_seconds": 0.419694667
+        },
+        "resume": {
+          "commands": 7,
+          "source_opens": 3,
+          "searches": 3,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 8023,
+          "complete_response_bytes": 21555,
+          "elapsed_seconds": 0.41492571100000003
+        },
+        "verification": {
+          "commands": 6,
+          "source_opens": 4,
+          "searches": 1,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 7166,
+          "complete_response_bytes": 12209,
+          "elapsed_seconds": 0.406918417
+        }
+      },
+      "totals": {
+        "commands": 45,
+        "source_opens": 26,
+        "searches": 12,
+        "unsuccessful_commands": 0,
+        "corvint_response_bytes": 47922,
+        "complete_response_bytes": 108306,
+        "elapsed_seconds": 2.945688591
+      }
+    },
+    "sol_before": {
+      "questions": {
+        "sol": {
+          "commands": 5,
+          "source_opens": 4,
+          "searches": 0,
+          "unsuccessful_commands": 0,
+          "corvint_response_bytes": 5668,
+          "complete_response_bytes": 11906,
+          "elapsed_seconds": 0.532867833
+        }
+      },
+      "totals": {
+        "commands": 5,
+        "source_opens": 4,
+        "searches": 0,
+        "unsuccessful_commands": 0,
+        "corvint_response_bytes": 5668,
+        "complete_response_bytes": 11906,
+        "elapsed_seconds": 0.532867833
+      }
+    }
+  },
+  "raw_sha256": {
+    "before.jsonl": "65c8b18eaf7694ac5b688f646879dee1c516bfaa238d5be2bfe9c9d302df99f6",
+    "protocol-sol.json": "504779e46a2e209d48add892a72515e4d09806129645ffc918a6be8c346c4d9e",
+    "protocol.json": "7236ee658da2ac41273fe51b2b7d2ead31419e1c9d25ff003262115683dddf90",
+    "reconciled.jsonl": "483433f52f8ef1d89971c949365b66bddab2393c8a44c130128f66eeedd76500",
+    "routed-plan.json": "efdea1eb8ca478677999110d2f01e8555a678a7ec690ffd630f357f5e71f1f31",
+    "routed.jsonl": "851ae9dbe548f01610841df5edef5701eae82af3b6be430940bbe84065428fed",
+    "sol_before.jsonl": "9cd50558c62a6ecc7773a067692828a091164cdbdf4a1c56224f995f48ef0783"
+  }
+}

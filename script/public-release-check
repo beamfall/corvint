@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Explicit settings must not be empty; the check fails before any effect.
+resolve_release_setting() {
+  local name=$1
+  if [ "${!name+x}" = x ]; then
+    [ -n "${!name}" ] || { echo "$name must not be empty" >&2; return 2; }
+  fi
+}
+resolve_release_setting CORVINT_RELEASE_BUNDLE_DIR
+resolve_release_setting CORVINT_PUBLIC_RELEASE_SCRATCH
+resolve_release_setting CORVINT_PUBLIC_RELEASE_RESULT
+resolve_release_setting CORVINT_NPM_CACHE
+resolve_release_setting CORVINT_PLAYWRIGHT_BROWSERS
+resolve_release_setting CORVINT_NODE
+resolve_release_setting CORVINT_PYTHON
+resolve_release_setting CORVINT_PYTHON_SHA256
+resolve_release_setting CORVINT_RELEASE_COMMIT
+resolve_release_setting CORVINT_RELEASE_TREE
+for name in CORVINT_RELEASE_BUNDLE_DIR CORVINT_PUBLIC_RELEASE_SCRATCH CORVINT_PUBLIC_RELEASE_RESULT CORVINT_NPM_CACHE CORVINT_PLAYWRIGHT_BROWSERS CORVINT_NODE CORVINT_PYTHON CORVINT_PYTHON_SHA256 CORVINT_RELEASE_COMMIT CORVINT_RELEASE_TREE; do
+  [ -n "${!name:-}" ] || { echo "public-release-check: set $name" >&2; exit 2; }
+done
+root=$(cd "$(dirname "$0")/.." && pwd -P)
+canonical_missing() { local parent base; parent=$(dirname "$1"); base=$(basename "$1"); printf '%s/%s\n' "$(cd "$parent" && pwd -P)" "$base"; }
+canonical_dir() { cd "$1" && pwd -P; }
+overlap() { case "$1" in "$2"|"$2"/*) return 0;; esac; case "$2" in "$1"|"$1"/*) return 0;; esac; return 1; }
+scratch=$(canonical_missing "$CORVINT_PUBLIC_RELEASE_SCRATCH")
+result=$(canonical_missing "$CORVINT_PUBLIC_RELEASE_RESULT")
+bundle=$(canonical_dir "$CORVINT_RELEASE_BUNDLE_DIR")
+npm_cache=$(canonical_dir "$CORVINT_NPM_CACHE")
+browser_cache=$(canonical_dir "$CORVINT_PLAYWRIGHT_BROWSERS")
+for input in "$root" "$bundle" "$npm_cache" "$browser_cache"; do
+  ! overlap "$scratch" "$input" || { echo "public-release-check: scratch overlaps input" >&2; exit 2; }
+  ! overlap "$result" "$input" || { echo "public-release-check: result overlaps input" >&2; exit 2; }
+done
+! overlap "$scratch" "$result" || { echo "public-release-check: scratch overlaps result" >&2; exit 2; }
+[ ! -e "$scratch" ] && [ ! -L "$scratch" ] || { echo "public-release-check: scratch exists" >&2; exit 2; }
+[ ! -e "$result" ] && [ ! -L "$result" ] || { echo "public-release-check: result exists" >&2; exit 2; }
+[ "$(git -C "$root" rev-parse --verify 'HEAD^{commit}')" = "$CORVINT_RELEASE_COMMIT" ]
+[ "$(git -C "$root" rev-parse 'HEAD^{tree}')" = "$CORVINT_RELEASE_TREE" ]
+[ -z "$(git -C "$root" status --porcelain=v1 --untracked-files=all)" ] || { echo "public-release-check: source is not clean" >&2; exit 1; }
+parent=$(mktemp -d "${TMPDIR:-/tmp}/corvint-public-release-check.XXXXXX")
+parent=$(cd "$parent" && pwd -P)
+runner= observer= descendants="$parent/descendants" published=0 staged_result="$parent/installed-result.json"
+process_start() { ps -p "$1" -o lstart= 2>/dev/null | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'; }
+observe_descendants() {
+  local known=" $runner " parent_pid child_pid child_start
+  while kill -0 "$runner" 2>/dev/null; do
+    for parent_pid in $known; do
+      for child_pid in $(pgrep -P "$parent_pid" 2>/dev/null || :); do
+        case $known in *" $child_pid "*) continue;; esac
+        child_start=$(process_start "$child_pid")
+        if [ -n "$child_start" ]; then printf '%s|%s\n' "$child_pid" "$child_start" >>"$descendants"; known="$known$child_pid "; fi
+      done
+    done
+    sleep 0.02
+  done
+}
+stop_tracked() {
+  local pid started failed=0
+  [ -z "$observer" ] || { kill "$observer" 2>/dev/null || :; wait "$observer" 2>/dev/null || :; }
+  [ -s "$descendants" ] || return 0
+  while IFS='|' read -r pid started; do [ "$(process_start "$pid")" != "$started" ] || kill -TERM "$pid" 2>/dev/null || :; done <"$descendants"
+  sleep 0.1
+  while IFS='|' read -r pid started; do [ "$(process_start "$pid")" != "$started" ] || kill -KILL "$pid" 2>/dev/null || :; done <"$descendants"
+  sleep 0.05
+  while IFS='|' read -r pid started; do [ "$(process_start "$pid")" != "$started" ] || failed=1; done <"$descendants"
+  return "$failed"
+}
+wait_runner_gone() { local i state; for i in $(seq 1 100); do state=$(ps -p "$runner" -o state= 2>/dev/null | tr -d ' ') || return 0; case "$state" in ''|Z*) return 0;; esac; sleep 0.05; done; return 1; }
+stop_runner() {
+  local failed=0 exited=0
+  if [ -n "$runner" ]; then
+    kill -TERM -- "-$runner" 2>/dev/null || :
+    if wait_runner_gone; then exited=1; else
+      kill -KILL -- "-$runner" 2>/dev/null || :
+      if wait_runner_gone; then exited=1; else failed=1; fi
+    fi
+    [ "$exited" -eq 0 ] || wait "$runner" 2>/dev/null || :
+  fi
+  stop_tracked || failed=1
+  runner= observer=
+  return "$failed"
+}
+run_owned() {
+  set -m
+  "$@" & runner=$!
+  : >"$descendants"
+  observe_descendants & observer=$!
+  local status=0
+  wait "$runner" || status=$?
+  stop_tracked || status=1
+  runner= observer=
+  return "$status"
+}
+on_exit() {
+  local code=$? cleanup_failed=0
+  trap - EXIT HUP INT TERM
+  stop_runner || code=1
+  chmod -R u+w "$parent" 2>/dev/null || :
+  rm -rf "$parent" || cleanup_failed=1
+  [ ! -e "$parent" ] && [ ! -L "$parent" ] || cleanup_failed=1
+  if [ "$cleanup_failed" -ne 0 ]; then code=1; fi
+  if [ "$code" -ne 0 ] && [ "$published" -eq 1 ]; then rm -f "$result" || code=1; fi
+  exit "$code"
+}
+interrupted() { local code=$1; trap - HUP INT TERM; stop_runner || code=1; exit "$code"; }
+trap on_exit EXIT
+trap 'interrupted 129' HUP
+trap 'interrupted 130' INT
+trap 'interrupted 143' TERM
+mkdir "$parent/home" "$parent/tmp" "$parent/gotmp" "$parent/gocache"
+export HOME="$parent/home" TMPDIR="$parent/tmp" GOTMPDIR="$parent/gotmp" GOCACHE="$parent/gocache" GOENV=off GOFLAGS=-mod=readonly GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local
+[ "$(go env GOVERSION)" = go1.27.1 ] || { echo "public-release-check: need go1.27.1" >&2; exit 1; }
+checker="$parent/corvint-public-release-check"
+run_owned /bin/sh -c 'cd "$1" && exec go build -o "$2" ./cmd/corvint-public-release-check' sh "$root" "$checker"
+metadata=$(go version -m "$checker")
+grep -Fq 'go1.27.1' <<<"$metadata"
+grep -Fq "vcs.revision=$CORVINT_RELEASE_COMMIT" <<<"$metadata"
+grep -Fq 'vcs.modified=false' <<<"$metadata"
+[ "$(git -C "$root" rev-parse --verify 'HEAD^{commit}')" = "$CORVINT_RELEASE_COMMIT" ]
+[ "$(git -C "$root" rev-parse 'HEAD^{tree}')" = "$CORVINT_RELEASE_TREE" ]
+[ -z "$(git -C "$root" status --porcelain=v1 --untracked-files=all)" ]
+run_owned "$checker" -source-root "$root" -bundle-dir "$bundle" -scratch "$scratch" -output "$staged_result" -npm-cache "$npm_cache" -browser-cache "$browser_cache" -node "$CORVINT_NODE" -python "$CORVINT_PYTHON" -python-sha256 "$CORVINT_PYTHON_SHA256" -expected-commit "$CORVINT_RELEASE_COMMIT" -expected-tree "$CORVINT_RELEASE_TREE"
+ln "$staged_result" "$result"
+published=1
+rm "$staged_result"

@@ -1,0 +1,3 @@
+# Fixture directories named like build outputs; the root .gitignore skips them.
+!build/
+!dist/

@@ -1,0 +1,182 @@
+name: PR test qualification
+
+# Owner-dispatched AFP-V0-014 campaign on the same hosted platform as CI (decision 0320,
+# AFP-V0-017). One job freezes the 200-pair corpus with trusted binaries built from TOOL_SOURCE,
+# each matrix job runs one frozen row (AFP-V0-015 `--row`), and a final job qualifies the
+# retained rows. Dispatch rows=1 first to measure one row, then rows=all. Every output is an
+# artifact for review; nothing here pins, commits, or changes any repository state.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tool_source:
+        description: Reviewed main commit that builds the planner, selector, and driver
+        required: true
+      corpus_end:
+        description: Main commit that ends the 200 first-parent pairs
+        required: true
+      rows:
+        description: "1 (measure one row) or all"
+        required: true
+        default: "1"
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: local
+  GOPROXY: "off"
+  GOSUMDB: "off"
+  GOWORK: "off"
+  GOFLAGS: ""
+  CGO_ENABLED: "1"
+  TOOL_SOURCE: ${{ inputs.tool_source }}
+  CORPUS_END: ${{ inputs.corpus_end }}
+
+jobs:
+  freeze:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      rows: ${{ steps.rows.outputs.rows }}
+    steps:
+      - name: Choose rows
+        id: rows
+        env:
+          ROWS: ${{ inputs.rows }}
+        run: |
+          case "$ROWS" in
+            1) echo 'rows=[1]' >>"$GITHUB_OUTPUT" ;;
+            all) echo "rows=$(seq -s, 1 200 | sed 's/.*/[&]/')" >>"$GITHUB_OUTPUT" ;;
+            *) echo "rows must be 1 or all" >&2; exit 2 ;;
+          esac
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: trusted-tools
+          ref: ${{ inputs.tool_source }}
+          persist-credentials: false
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: history
+          ref: ${{ inputs.corpus_end }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.1"
+      - name: Provision the host exactly as CI does
+        run: |
+          sudo rm -rf /usr/local/go
+          sudo ln -s "$(go env GOROOT)" /usr/local/go
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.1"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ripgrep
+          git config --global user.name corvint-ci
+          git config --global user.email corvint-ci@users.noreply.github.com
+          git config --global maintenance.auto false
+          git config --global gc.auto 0
+      - name: Build trusted planner, selector, and driver
+        working-directory: trusted-tools
+        run: |
+          test "$(git rev-parse HEAD)" = "$TOOL_SOURCE"
+          mkdir -p "$RUNNER_TEMP/frozen/bin"
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/frozen/bin/corvint" ./cmd/corvint
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/frozen/bin/selector" ./tools/gate-affected-select
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/frozen/bin/driver" ./tools/corvint-pr-tests
+      - name: Freeze the corpus
+        run: |
+          test "$(git -C history rev-parse HEAD)" = "$CORPUS_END"
+          b="$RUNNER_TEMP/frozen/bin"
+          "$b/driver" --mode freeze --root "$GITHUB_WORKSPACE/history" --target "$CORPUS_END" \
+            --source "$TOOL_SOURCE" --planner "$b/corvint" --selector "$b/selector" \
+            --out "$RUNNER_TEMP/frozen/shadow"
+          sha256sum "$RUNNER_TEMP/frozen/bin/"* "$RUNNER_TEMP/frozen/shadow/corpus.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: frozen
+          path: |
+            ${{ runner.temp }}/frozen/bin
+            ${{ runner.temp }}/frozen/shadow/corpus.json
+          if-no-files-found: error
+
+  row:
+    needs: freeze
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        row: ${{ fromJSON(needs.freeze.outputs.rows) }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: history
+          ref: ${{ inputs.corpus_end }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.1"
+      - name: Provision the host exactly as CI does
+        run: |
+          sudo rm -rf /usr/local/go
+          sudo ln -s "$(go env GOROOT)" /usr/local/go
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.1"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ripgrep
+          git config --global user.name corvint-ci
+          git config --global user.email corvint-ci@users.noreply.github.com
+          git config --global maintenance.auto false
+          git config --global gc.auto 0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: frozen
+          path: ${{ runner.temp }}/frozen
+      - name: Run one frozen row
+        env:
+          ROW: ${{ matrix.row }}
+        run: |
+          f="$RUNNER_TEMP/frozen"
+          chmod 0555 "$f/bin/"*
+          "$f/bin/driver" --mode shadow --row "$ROW" --root "$GITHUB_WORKSPACE/history" \
+            --source "$TOOL_SOURCE" --planner "$f/bin/corvint" --selector "$f/bin/selector" \
+            --corpus "$f/shadow/corpus.json" --out "$RUNNER_TEMP/shadow"
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: row-${{ matrix.row }}
+          path: ${{ runner.temp }}/shadow/row-*
+          if-no-files-found: error
+
+  qualify:
+    needs: [freeze, row]
+    if: inputs.rows == 'all'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: frozen
+          path: ${{ runner.temp }}/frozen
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: row-*
+          path: ${{ runner.temp }}/evidence
+          merge-multiple: true
+      - name: Qualify the retained rows
+        run: |
+          f="$RUNNER_TEMP/frozen"
+          chmod 0555 "$f/bin/"*
+          "$f/bin/driver" --mode qualify --root "$GITHUB_WORKSPACE" \
+            --corpus "$f/shadow/corpus.json" --evidence "$RUNNER_TEMP/evidence" \
+            --out "$RUNNER_TEMP/qualified"
+          sha256sum "$RUNNER_TEMP/qualified/qualification.json"
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qualification
+          path: ${{ runner.temp }}/qualified
+          if-no-files-found: error

@@ -1,0 +1,196 @@
+#!/usr/bin/env bash
+# Companion bundle gate for PUB-V0-002/003 (docs/specs/public-release-v0.md).
+# Thin wrapper only, matching script/go-archive-gate's convention: the
+# two-independent-builds-must-agree logic already lives inside the Go tool
+# it calls (cmd/corvint-companion-release / internal/companionrelease, per
+# PUB-V0-013/014 — every binary and every archive is built twice and
+# byte-compared there), so this script does not re-run the assembly twice
+# itself. It only sets up an isolated environment, obtains a guaranteed
+# clean taskman checkout, and invokes the tool once.
+#
+# The existing native CLI archive gate (script/go-archive-gate) is
+# unaffected: this script never touches it and is not a `make gate`
+# prerequisite (PUB-V0-002 requires the native gate to remain independent).
+#
+# Usage: script/corvint-companion-release-gate [taskman-repo]
+#   taskman-repo defaults to $CORVINT_TASKMAN_REPO or ~/projects/corvint-tasks.
+#   It is only ever read from (git clone); it is never modified.
+set -euo pipefail
+# Explicit settings must not be empty; the check fails before any effect.
+resolve_release_setting() {
+  local name=$1
+  if [ "${!name+x}" = x ]; then
+    [ -n "${!name}" ] || { echo "$name must not be empty" >&2; return 2; }
+  fi
+}
+if [ -z "${1:-}" ]; then
+  resolve_release_setting CORVINT_TASKMAN_REPO
+fi
+resolve_release_setting CORVINT_COMPANION_OUTPUT
+resolve_release_setting CORVINT_NPM_CACHE
+
+repo=$(cd "$(dirname "$0")/.." && pwd)
+taskman_src=${1:-${CORVINT_TASKMAN_REPO:-$HOME/projects/corvint-tasks}}
+output_parent=${CORVINT_COMPANION_OUTPUT:-/tmp/corvint-companion-release}
+npm_cache=${CORVINT_NPM_CACHE:-}
+
+case $output_parent in
+  "$repo"|"$repo"/*)
+    echo "corvint-companion-release-gate: CORVINT_COMPANION_OUTPUT must be outside $repo" >&2
+    exit 2
+    ;;
+esac
+
+if [ "$(git -C "$taskman_src" rev-parse --is-inside-work-tree 2>/dev/null || :)" != true ] ||
+   ! git -C "$taskman_src" rev-parse --verify 'HEAD^{commit}' >/dev/null 2>&1; then
+  echo "corvint-companion-release-gate: $taskman_src is not a git checkout (pass the corvint-tasks repo path as \$1 or CORVINT_TASKMAN_REPO)" >&2
+  exit 2
+fi
+
+case $output_parent in
+  "$taskman_src"|"$taskman_src"/*)
+    echo "corvint-companion-release-gate: CORVINT_COMPANION_OUTPUT must be outside $taskman_src" >&2
+    exit 2
+    ;;
+esac
+
+parent=$(mktemp -d "${TMPDIR:-/tmp}/corvint-companion-release-gate.XXXXXX")
+# Canonicalize: macOS's default TMPDIR carries a trailing slash, which would
+# otherwise make every path built under $parent fail the tool's strict
+# filepath.Clean(dir) == dir working-directory check.
+parent=$(cd "$parent" && pwd -P)
+
+cleanup() {
+  local code=$?
+  trap - EXIT HUP INT TERM
+  stop_runner || code=1
+  chmod -R u+w "$parent" 2>/dev/null || :
+  rm -rf "$parent" || code=1
+  exit "$code"
+}
+runner=
+observer=
+descendants=
+process_start() { ps -p "$1" -o lstart= 2>/dev/null | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'; }
+observe_descendants() {
+  known=" $runner "
+  while kill -0 "$runner" 2>/dev/null; do
+    for parent_pid in $known; do
+      for child_pid in $(pgrep -P "$parent_pid" 2>/dev/null || :); do
+        case $known in *" $child_pid "*) continue ;; esac
+        child_start=$(process_start "$child_pid")
+        if [ -n "$child_start" ]; then
+          printf '%s|%s\n' "$child_pid" "$child_start" >>"$descendants"
+          known="$known$child_pid "
+        fi
+      done
+    done
+    sleep 0.02
+  done
+}
+stop_tracked_descendants() {
+  [ -n "$observer" ] && kill "$observer" 2>/dev/null || :
+  [ -n "$observer" ] && wait "$observer" 2>/dev/null || :
+  [ -s "$descendants" ] || return 0
+  while IFS='|' read -r child_pid child_start; do
+    [ "$(process_start "$child_pid")" = "$child_start" ] && kill -TERM "$child_pid" 2>/dev/null || :
+  done <"$descendants"
+  sleep 0.05
+  while IFS='|' read -r child_pid child_start; do
+    [ "$(process_start "$child_pid")" = "$child_start" ] && kill -KILL "$child_pid" 2>/dev/null || :
+  done <"$descendants"
+  while IFS='|' read -r child_pid child_start; do
+    [ "$(process_start "$child_pid")" != "$child_start" ] || return 1
+  done <"$descendants"
+}
+wait_runner_gone() {
+  local i state
+  for i in $(seq 1 100); do
+    state=$(ps -p "$runner" -o state= 2>/dev/null | tr -d ' ') || return 0
+    case "$state" in ''|Z*) return 0;; esac
+    sleep 0.05
+  done
+  return 1
+}
+stop_runner() {
+  local failed=0 exited=0
+  if [ -n "$runner" ]; then
+    kill -TERM -- "-$runner" 2>/dev/null || :
+    if wait_runner_gone; then exited=1; else
+      kill -KILL -- "-$runner" 2>/dev/null || :
+      if wait_runner_gone; then exited=1; else failed=1; fi
+    fi
+    # A failed kill is not permission to wait forever for the child.
+    [ "$exited" -eq 0 ] || wait "$runner" 2>/dev/null || :
+  fi
+  stop_tracked_descendants || failed=1
+  runner= observer=
+  return "$failed"
+}
+interrupted() {
+  local code=$1
+  trap - HUP INT TERM
+  stop_runner || code=1
+  exit "$code"
+}
+# A signal trap that returns lets the script resume and report success, so each signal exits 128+N
+# and the EXIT trap cleans up.
+trap cleanup EXIT
+trap 'interrupted 129' HUP
+trap 'interrupted 130' INT
+trap 'interrupted 143' TERM
+chmod 0700 "$parent"
+for directory in home tmp gotmp gocache build; do
+  mkdir "$parent/$directory"
+  chmod 0700 "$parent/$directory"
+done
+
+export HOME="$parent/home"
+export TMPDIR="$parent/tmp"
+export GOTMPDIR="$parent/gotmp"
+export GOCACHE="$parent/gocache"
+export GOENV=off
+export GOFLAGS=-mod=readonly
+export GOPROXY=off
+export GOSUMDB=off
+export GOTOOLCHAIN=local
+
+cd "$repo"
+version=$(go env GOVERSION)
+if [ "$version" != go1.27.1 ]; then
+  echo "corvint-companion-release-gate: refusing — need go1.27.1, PATH has $version" >&2
+  exit 1
+fi
+
+# A fresh local clone guarantees a clean tree/exact commit even when the
+# caller's own corvint-taskman checkout has uncommitted work in progress; the
+# clone only ever reads $taskman_src's committed history.
+taskman_clean="$parent/corvint-taskman-clean"
+git clone --quiet --no-hardlinks "$taskman_src" "$taskman_clean"
+taskman_commit=$(git -C "$taskman_clean" rev-parse --verify 'HEAD^{commit}')
+
+corvint_commit=$(git -C "$repo" rev-parse --verify 'HEAD^{commit}')
+bundle_name="corvint-companion-${corvint_commit:0:12}-${taskman_commit:0:12}-darwin-arm64-$(date -u +%Y%m%dT%H%M%SZ)"
+
+set -m
+go run ./cmd/corvint-companion-release \
+  -source-root "$repo" \
+  -tasks-root "$taskman_clean" \
+  -target darwin/arm64 \
+  -scratch "$parent/build" \
+  -output-parent "$output_parent" \
+  -bundle-name "$bundle_name" \
+  -npm-cache "$npm_cache" &
+runner=$!
+descendants="$parent/descendants"
+: >"$descendants"
+observe_descendants &
+observer=$!
+if wait "$runner"; then
+  status=0
+else
+  status=$?
+fi
+stop_tracked_descendants || status=1
+runner=
+exit "$status"

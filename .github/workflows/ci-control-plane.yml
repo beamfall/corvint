@@ -1,0 +1,60 @@
+name: CI control plane
+
+# Runs from the default branch after each PR CI run (decision 0320, AFP-V0-016). A pull_request
+# workflow runs the PR's own copy of ci.yml, so a PR could set its own narrowing pins. This check
+# reads only GitHub metadata, never checks out or runs PR code, and posts `ci-control-plane` on
+# the PR head: failure when the PR changes anything under `.github/`, success otherwise. The main
+# ruleset requires it, so such a PR merges only through an explicit, logged admin bypass.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  control-plane:
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Report whether the PR changes the trusted CI definition
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD: ${{ github.event.workflow_run.head_sha }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          prs=$(gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
+            --jq ".[] | select(.head.sha == \"$HEAD\") | .number")
+          if [ -z "$prs" ]; then
+            echo "ci-control-plane: no open PR at $HEAD; no status posted"
+            exit 0
+          fi
+          while read -r number; do
+            changed=$(gh api "repos/$REPO/pulls/$number" --jq .changed_files)
+            state=success
+            description="PR changes nothing under .github/"
+            # The files API lists at most 3000 files; a larger PR cannot be proved clean.
+            if [ "$changed" -gt 3000 ]; then
+              state=failure
+              description="PR changes more files than the files API lists"
+            else
+              # A failed listing stops the job, so no status is posted and the merge stays blocked.
+              files=$(gh api --paginate "repos/$REPO/pulls/$number/files?per_page=100" \
+                --jq '.[] | .filename, (.previous_filename // empty)')
+              touched=$(grep -c '^\.github/' <<<"$files" || true)
+              if [ "$touched" -gt 0 ]; then
+                state=failure
+                description="PR changes $touched path(s) under .github/; merge needs an admin bypass"
+              fi
+            fi
+            echo "ci-control-plane: #$number $state: $description"
+            gh api -X POST "repos/$REPO/statuses/$HEAD" -f state="$state" \
+              -f context=ci-control-plane -f description="$description" -f target_url="$RUN_URL" >/dev/null
+          done <<<"$prs"

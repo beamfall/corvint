@@ -1,0 +1,199 @@
+{
+  "id": "partial-dynamic-tuple",
+  "matrixRows": [
+    "partial command/observation/report tuple"
+  ],
+  "clauses": [
+    "CF-V0-003",
+    "CF-V0-022"
+  ],
+  "intent": "CF-V0-003 makes the dynamic tuple all-or-none: every partial combination fails invalid-frontier-input. There are exactly six partial combinations of three members.",
+  "cases": [
+    {
+      "id": "command-only",
+      "note": "Partial tuple: command-only.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "command-only",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "invalid-frontier-input",
+        "stderr": "{\"code\":\"invalid-frontier-input\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "fa648f19fccddd91a0d0e295247d09f19b350827cde7905ba8a7a244ff77b9f5"
+      },
+      "assertions": [
+        "CF-V0-003: every partial combination fails invalid-frontier-input.",
+        "CF-V0-022: the code is Frontier-owned admitted-input mismatch, not an upstream code.",
+        "CF-V0-024: no argv element or command body is echoed."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-ARGV-command-only"
+      ]
+    },
+    {
+      "id": "observation-only",
+      "note": "Partial tuple: observation-only.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "observation-only",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "invalid-frontier-input",
+        "stderr": "{\"code\":\"invalid-frontier-input\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "fa648f19fccddd91a0d0e295247d09f19b350827cde7905ba8a7a244ff77b9f5"
+      },
+      "assertions": [
+        "CF-V0-003: every partial combination fails invalid-frontier-input.",
+        "CF-V0-022: the code is Frontier-owned admitted-input mismatch, not an upstream code.",
+        "CF-V0-024: no argv element or command body is echoed."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-ARGV-observation-only"
+      ]
+    },
+    {
+      "id": "report-only",
+      "note": "Partial tuple: report-only.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "report-only",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "invalid-frontier-input",
+        "stderr": "{\"code\":\"invalid-frontier-input\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "fa648f19fccddd91a0d0e295247d09f19b350827cde7905ba8a7a244ff77b9f5"
+      },
+      "assertions": [
+        "CF-V0-003: every partial combination fails invalid-frontier-input.",
+        "CF-V0-022: the code is Frontier-owned admitted-input mismatch, not an upstream code.",
+        "CF-V0-024: no argv element or command body is echoed."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-ARGV-report-only"
+      ]
+    },
+    {
+      "id": "command+observation",
+      "note": "Partial tuple: command+observation.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "command+observation",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "invalid-frontier-input",
+        "stderr": "{\"code\":\"invalid-frontier-input\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "fa648f19fccddd91a0d0e295247d09f19b350827cde7905ba8a7a244ff77b9f5"
+      },
+      "assertions": [
+        "CF-V0-003: every partial combination fails invalid-frontier-input.",
+        "CF-V0-022: the code is Frontier-owned admitted-input mismatch, not an upstream code.",
+        "CF-V0-024: no argv element or command body is echoed."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-ARGV-command+observation"
+      ]
+    },
+    {
+      "id": "command+report",
+      "note": "Partial tuple: command+report.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "command+report",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "invalid-frontier-input",
+        "stderr": "{\"code\":\"invalid-frontier-input\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "fa648f19fccddd91a0d0e295247d09f19b350827cde7905ba8a7a244ff77b9f5"
+      },
+      "assertions": [
+        "CF-V0-003: every partial combination fails invalid-frontier-input.",
+        "CF-V0-022: the code is Frontier-owned admitted-input mismatch, not an upstream code.",
+        "CF-V0-024: no argv element or command body is echoed."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-ARGV-command+report"
+      ]
+    },
+    {
+      "id": "observation+report",
+      "note": "Partial tuple: observation+report.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "observation+report",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "invalid-frontier-input",
+        "stderr": "{\"code\":\"invalid-frontier-input\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "fa648f19fccddd91a0d0e295247d09f19b350827cde7905ba8a7a244ff77b9f5"
+      },
+      "assertions": [
+        "CF-V0-003: every partial combination fails invalid-frontier-input.",
+        "CF-V0-022: the code is Frontier-owned admitted-input mismatch, not an upstream code.",
+        "CF-V0-024: no argv element or command body is echoed."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-ARGV-observation+report"
+      ]
+    }
+  ]
+}

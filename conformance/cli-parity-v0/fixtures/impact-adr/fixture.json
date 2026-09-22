@@ -1,0 +1,41 @@
+{
+  "files": [
+    {
+      "content": "# ADR-0012: synthetic governing decision\n\nstatus: accepted\n\nPresent only so the ADR authority branch of `impact` is reachable by the corpus.\n",
+      "mode": "0644",
+      "path": "docs/adr/0012-token.md",
+      "type": "file"
+    },
+    {
+      "content": "module example.test/cli\n\ngo 1.27.0\n",
+      "mode": "0644",
+      "path": "go.mod",
+      "type": "file"
+    },
+    {
+      "content": "package sample\n\nfunc StableValue() string { return \"clean\" }\n",
+      "mode": "0644",
+      "path": "pkg/sample.go",
+      "type": "file"
+    },
+    {
+      "content": "package sample\n\n// scenario:z-last feature:a-first\nfunc TestStableValue() {}\n",
+      "mode": "0644",
+      "path": "pkg/sample_test.go",
+      "type": "file"
+    },
+    {
+      "content": "features:\n  - id: a-first\n    area: auth\n    summary: Synthetic scalar fixture.\n    adr: [\"0012\"]\n    applies: [server]\n    status: shipped\n",
+      "mode": "0644",
+      "path": "testing/features.yaml",
+      "type": "file"
+    },
+    {
+      "content": "scenarios:\n  - id: z-last\n    area: auth\n    summary: Synthetic scenario fixture.\n    features: [a-first]\n    applies: [server]\n    status: shipped\n",
+      "mode": "0644",
+      "path": "testing/scenarios.yaml",
+      "type": "file"
+    }
+  ],
+  "format": "atlas-cli-parity-fixture/0"
+}

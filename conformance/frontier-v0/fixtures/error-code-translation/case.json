@@ -1,0 +1,249 @@
+{
+  "id": "error-code-translation",
+  "matrixRows": [
+    "caught timeout, `MemoryError`, interruption, unknown upstream code, and uncatchable termination"
+  ],
+  "clauses": [
+    "CF-V0-022"
+  ],
+  "intent": "The exhaustive CF-V0-022 translation table, including the one row that guarantees nothing.",
+  "cases": [
+    {
+      "id": "caught-timeout",
+      "note": "Injected condition: timeout.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "injected": "timeout"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "frontier-resource-exhausted",
+        "stderr": "{\"code\":\"frontier-resource-exhausted\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "2cd11141ce1eae586a00efa3905aba408a784c752dc2cedd1f1a63d3abcb74cd"
+      },
+      "assertions": [
+        "CF-V0-022: a caught timeout maps to frontier-resource-exhausted.",
+        "CF-V0-022: translation is exhaustive and has NO prefix or message matching.",
+        "CF-V0-024: the envelope includes no unverified value and no exception text."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-EXCEPTION-TEXT-7e44"
+      ]
+    },
+    {
+      "id": "memory-error",
+      "note": "Injected condition: memory-error.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "injected": "memory-error"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "frontier-resource-exhausted",
+        "stderr": "{\"code\":\"frontier-resource-exhausted\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "2cd11141ce1eae586a00efa3905aba408a784c752dc2cedd1f1a63d3abcb74cd"
+      },
+      "assertions": [
+        "CF-V0-022: a caught MemoryError maps to frontier-resource-exhausted.",
+        "CF-V0-022: translation is exhaustive and has NO prefix or message matching.",
+        "CF-V0-024: the envelope includes no unverified value and no exception text."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-EXCEPTION-TEXT-7e44"
+      ]
+    },
+    {
+      "id": "interruption-still-renderable",
+      "note": "Injected condition: interruption.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "injected": "interruption"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "frontier-interrupted",
+        "stderr": "{\"code\":\"frontier-interrupted\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "49290ca0ffa21e8d88a1ddc4389f942182144269a7a84d730f79b1e5d5e2974e"
+      },
+      "assertions": [
+        "CF-V0-022: a caught interruption for which the process remains able to render maps to frontier-interrupted.",
+        "CF-V0-022: translation is exhaustive and has NO prefix or message matching.",
+        "CF-V0-024: the envelope includes no unverified value and no exception text."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-EXCEPTION-TEXT-7e44"
+      ]
+    },
+    {
+      "id": "unknown-upstream-code",
+      "note": "Injected condition: unknown-upstream-code.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "injected": "unknown-upstream-code"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "frontier-internal-error",
+        "stderr": "{\"code\":\"frontier-internal-error\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "5d3ea99e877cfc30200a6009a0c8ff778f10fb68d0611ddd5071ea51f7328ace"
+      },
+      "assertions": [
+        "CF-V0-022: any other caught upstream code maps to frontier-internal-error; the closed allowlist means an unknown FUTURE upstream code cannot pass through.",
+        "CF-V0-022: translation is exhaustive and has NO prefix or message matching.",
+        "CF-V0-024: the envelope includes no unverified value and no exception text."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-EXCEPTION-TEXT-7e44"
+      ]
+    },
+    {
+      "id": "tcq-resource-exhausted",
+      "note": "Explicit upstream tcq-resource-exhausted.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "resource-exhausted"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "frontier-resource-exhausted",
+        "stderr": "{\"code\":\"frontier-resource-exhausted\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "2cd11141ce1eae586a00efa3905aba408a784c752dc2cedd1f1a63d3abcb74cd"
+      },
+      "assertions": [
+        "CF-V0-022: explicit tcq-resource-exhausted maps to frontier-resource-exhausted, NOT passed through as the upstream code, because it is a resource outcome rather than a public non-resource validation error.",
+        "This is the exact boundary between CF-V0-022 rows 2 and 4."
+      ]
+    },
+    {
+      "id": "tcq-public-validation-error-passes-through",
+      "note": "An explicit public non-resource TCQ validation error admitted by TCQ-V0-042.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "validation-error"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "invalid-observation",
+        "stderr": "{\"code\":\"invalid-observation\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "c9aff8b3ca1fa4e2f9c9cf288ad1371cd21dd2331e26f143e6bdd0222ae19764"
+      },
+      "assertions": [
+        "CF-V0-022 row 2: an explicit public non-resource TCQ validation error is emitted as the EXACT upstream code."
+      ]
+    },
+    {
+      "id": "invalid-junit-passes-through",
+      "note": "A JUnit XML grammar violation inside a complete dynamic tuple.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "complete",
+        "lrf": "normal",
+        "tcq": "invalid-junit"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "invalid-junit",
+        "stderr": "{\"code\":\"invalid-junit\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "ac87d11aa22c4836f7c75f9b9576948e5ba716e39d1aa440a74c17fabdc90799"
+      },
+      "assertions": [
+        "CF-V0-021: invalid JUnit is operational Frontier failure, never an open item.",
+        "CF-V0-024: no XML value is echoed."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-JUNIT-XML-VALUE-2b7c"
+      ]
+    },
+    {
+      "id": "uncatchable-termination",
+      "note": "Process kill / uncatchable signal / allocator or OS termination.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "injected": "uncatchable-termination"
+      },
+      "expect": {
+        "kind": "no-output-guarantee",
+        "exitCode": 0,
+        "stdout": "none-or-unspecified"
+      },
+      "assertions": [
+        "CF-V0-022: V0 makes NO JSON, stderr or exit-code guarantee when no handler can execute.",
+        "The only assertion this fixture may make is that no PARTIAL or MISLEADING Frontier document is left behind; it must not assert a code or an exit status.",
+        "CF-V0-030: this is the one matrix row with no output guarantee, and it must not be silently upgraded into one."
+      ]
+    }
+  ]
+}

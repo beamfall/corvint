@@ -1,0 +1,32 @@
+site_name: Corvint Human Documentation Compiler
+site_url: https://corvint.example.invalid/docs/
+docs_dir: docs
+nav:
+  - Home: index.md
+  - Compiler boundary: compiler.md
+theme:
+  name: material
+  custom_dir: overrides
+  features:
+    - navigation.instant
+    - navigation.tracking
+plugins:
+  - search
+hooks:
+  - hooks.py
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+extra_css:
+  - assets/extra.css
+extra_javascript:
+  - assets/extra.js
+validation:
+  nav:
+    omitted_files: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    anchors: warn
+    unrecognized_links: warn
+

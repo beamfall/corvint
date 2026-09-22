@@ -1,0 +1,90 @@
+{
+  "baseRevision": "d05303540eb35fca1715653677e22c609ead0924",
+  "evidence": [
+    {
+      "blobOid": "f675214505e03dc7d084765e0e57c7f2cc4a061b",
+      "id": "evidence:sha256:d95ef5690f1e967a3d740fa44a4e719f61205bebb2a4e3cb037ed8f476e08f5b",
+      "path": "docs/decisions/0320-free-plan-ci-control-plane-and-hosted-qualification-2026-09-19.md",
+      "span": {
+        "end": 2511,
+        "start": 1013
+      },
+      "spanSha256": "881a0d95360f9c28822e88f05c7bdef17bcdcd46266431153c900b0b769bfbf6"
+    },
+    {
+      "blobOid": "f675214505e03dc7d084765e0e57c7f2cc4a061b",
+      "id": "evidence:sha256:985e3beb592367a67d3849bd426fa6c22f18861c90461c7fdbf71a746b1f46b3",
+      "path": "docs/decisions/0320-free-plan-ci-control-plane-and-hosted-qualification-2026-09-19.md",
+      "span": {
+        "end": 2511,
+        "start": 1696
+      },
+      "spanSha256": "c1edb121fd22f450dfff1e809615101aaf775dd08330e544f0e4f4cd249bdc1a"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d95ef5690f1e967a3d740fa44a4e719f61205bebb2a4e3cb037ed8f476e08f5b",
+          "relation": "decision"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:de98f21bce00baa9e8e49e351f1cb1128e0bdca0cfe450ab5211b0e364419e9c",
+      "newRange": {
+        "count": 7,
+        "start": 341
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 341
+      },
+      "path": "docs/specs/affected-plan-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:985e3beb592367a67d3849bd426fa6c22f18861c90461c7fdbf71a746b1f46b3",
+          "relation": "decision"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:bf2940b2c72c0a2ac2322729283d972ff0a7668cc44c4be8cd7cddfba0817abd",
+      "newRange": {
+        "count": 10,
+        "start": 362
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 362
+      },
+      "path": "docs/specs/affected-plan-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d95ef5690f1e967a3d740fa44a4e719f61205bebb2a4e3cb037ed8f476e08f5b",
+          "relation": "decision"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4b106a88893985f43934b51c4dced7590b2b63307d24149eaa0ee76fc68d991e",
+      "newRange": {
+        "count": 17,
+        "start": 54
+      },
+      "oldRange": {
+        "count": 12,
+        "start": 54
+      },
+      "path": "tools/corvint-pr-tests/README.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "961a4365a9925a668d6f72a92a0ce5141f2fd276871c06dff6eeb76be3f239d0",
+  "spec": "cem/0.2"
+}

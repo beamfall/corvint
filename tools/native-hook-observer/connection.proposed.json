@@ -1,0 +1,65 @@
+{
+  "profile": "corvint-native-hook-connection-proposal/0-experimental",
+  "status": "NOT_CONNECTED",
+  "qualification": "UNQUALIFIED",
+  "target": {
+    "surface": "Codex Desktop",
+    "appVersion": "26.901.51231",
+    "appBuild": "8109",
+    "engineVersion": "0.153.4",
+    "engineSHA256": "a30ec314bbd0e3721632234d07db7c99855db3b9f1e32dbe8c791947f07e7629"
+  },
+  "source": "https://learn.chatgpt.com/docs/app-server",
+  "schemaSHA256": {
+    "HookRunSummary": "d9a9d552e57596e5d0db67375e3d9581b5473dfaf957bedeba48da671416a7c3",
+    "HookRunStatus": "026f4356b110a32c2b2a04d4807284099c9e2ebf42520bb414e2f16a1cbeeaeb",
+    "HookOutputEntry": "e4a991c8eb052e88110cb888aa81bd1fb72bec9bc15ffa8d7bee3f4d2bc47ecf",
+    "HookOutputEntryKind": "8bc9293bf87538a9c2b47b74649d4f8bc9faaccac23aff7d1d15b09f0456d83d",
+    "HookMetadata": "36c46dcefbcc46d109fc0f5f9a262a773d9927dfd17b969075ead993d3b7abc6",
+    "HookCompletedNotification": "fa6c0c44e380f38c0be9ce191d97a6c5b7d770627c971243ac3c94d856d458da",
+    "HooksListParams": "2218161912153575b710dc5aaa492a75572ec5a22eb9b0b9d43c04cd207b32e9",
+    "ThreadResumeParams": "e4f64c88205dbba2bf87635d12b9c5803dd6f19b84b5682a71df7fdcf87862fb"
+  },
+  "allowedNotifications": [
+    "hook/started",
+    "hook/completed"
+  ],
+  "allowedRequests": [
+    "initialize",
+    "hooks/list",
+    "thread/resume",
+    "thread/loaded/list"
+  ],
+  "resumeConstraints": {
+    "alreadyRunningSameEngineOnly": true,
+    "excludeTurns": true,
+    "allowHistory": false,
+    "allowPath": false,
+    "allowConfigOverrides": false,
+    "atomicRunningPrecondition": false,
+    "observedRaceOutcome": "DISCARD_CAMPAIGN",
+    "emission": "Buffer redacted projections until before/after/post-observation membership and peer checks pass; never retain raw response metadata."
+  },
+  "connectionRequirements": [
+    "supported same-Desktop-engine transport independently witnessed",
+    "fresh exact schema inventory; initialize optOutNotificationMethods excludes every method except hook/started and hook/completed",
+    "hooks/list effective command and source pins match immutable protected release",
+    "no transcript, app database, process injection or app-owned stdio tapping",
+    "no raw identifiers or bodies persisted",
+    "hook lifecycle status does not alone prove continuation consumption",
+    "Optional --subscribe receives exact already-existing UUIDv7 on bounded stdin, requires before/after loaded membership and active resumed status with excludeTurns=true and no overrides. Any observed race invalidates the campaign; absence of a hidden unload/reload race is not proved."
+  ],
+  "bounds": {
+    "maxFrameBytes": 65536,
+    "maxFrames": 256,
+    "maxSeconds": 30,
+    "maxEntryCount": 32,
+    "maxEntryTextBytes": 8192
+  },
+  "open": [
+    "Current Desktop uses app-owned stdio; supported second-client endpoint has not been established",
+    "Daemon launch/restart requires separate reviewed concrete operator action",
+    "Direct inventory and explicit --subscribe client implemented; no live attachment performed.",
+    "No AHI case or performance/equal-recall campaign has been qualified"
+  ]
+}

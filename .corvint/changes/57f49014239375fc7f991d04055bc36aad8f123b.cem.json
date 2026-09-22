@@ -1,0 +1,210 @@
+{
+  "baseRevision": "822888afb435647d14d630c654764dbfa7c003e8",
+  "evidence": [
+    {
+      "blobOid": "269420794022932866461dc50dd6393517b81eee",
+      "id": "evidence:sha256:97eac3a33d0aa3e0d7cc924c0a903e923717d1e57013ca023d1c324bbcb56494",
+      "path": "docs/specs/public-release-v0.md",
+      "span": {
+        "end": 2662,
+        "start": 2484
+      },
+      "spanSha256": "a4c496b73f8eb01f6ee52870c7e6b1073472fc6ea64ac8473f7a844121d26e40"
+    },
+    {
+      "blobOid": "9d907d08a91b02ac53f996a5e2435ed448a955fd",
+      "id": "evidence:sha256:b701bd33c86379f4f051a6f4459ed334a8f9df0e37cde248e59a1ba7b152ab51",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 6364,
+        "start": 6285
+      },
+      "spanSha256": "49c2c87172e9f7a49e155ae1e8c78fa8bd13cdeee624a0fa0c54738f137a2a14"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:97eac3a33d0aa3e0d7cc924c0a903e923717d1e57013ca023d1c324bbcb56494",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a9176c5671bd3488462c795a473434f535f4b54da12669d8b0f8bada0badd7e9",
+      "newRange": {
+        "count": 20,
+        "start": 7
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 7
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b701bd33c86379f4f051a6f4459ed334a8f9df0e37cde248e59a1ba7b152ab51",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:337b189e7d4d3b5a13331ee183b73e0382e23b5b102795769b654df59c6646c4",
+      "newRange": {
+        "count": 7,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1
+      },
+      "path": "docs/agent-memory/bugs.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b701bd33c86379f4f051a6f4459ed334a8f9df0e37cde248e59a1ba7b152ab51",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a822ccab366152c87f2d28efb97fbc4f92b6aa0a1045a93390108c1661d8d206",
+      "newRange": {
+        "count": 8,
+        "start": 13
+      },
+      "oldRange": {
+        "count": 5,
+        "start": 13
+      },
+      "path": "docs/agent-memory/bugs.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b701bd33c86379f4f051a6f4459ed334a8f9df0e37cde248e59a1ba7b152ab51",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1e2e65185ad7da68df5897bd162f115e987b3b1cd82f9193ed6463a05a58823b",
+      "newRange": {
+        "count": 7,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1
+      },
+      "path": "docs/agent-memory/fixes.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b701bd33c86379f4f051a6f4459ed334a8f9df0e37cde248e59a1ba7b152ab51",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6836632211df32ee7d9a891e2bb7215d903fe283d12386e1375fe0da69fb73a7",
+      "newRange": {
+        "count": 23,
+        "start": 13
+      },
+      "oldRange": {
+        "count": 5,
+        "start": 13
+      },
+      "path": "docs/agent-memory/fixes.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b701bd33c86379f4f051a6f4459ed334a8f9df0e37cde248e59a1ba7b152ab51",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:caad424d9ad66871d5cc93f59bbab94601dce537cab7c65dc9e051896ee8f9d8",
+      "newRange": {
+        "count": 7,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1
+      },
+      "path": "docs/agent-memory/tests.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b701bd33c86379f4f051a6f4459ed334a8f9df0e37cde248e59a1ba7b152ab51",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f9ef9560a955bc739be47401938b8729be78fdedc8eea0fa32c405670f610329",
+      "newRange": {
+        "count": 8,
+        "start": 13
+      },
+      "oldRange": {
+        "count": 5,
+        "start": 13
+      },
+      "path": "docs/agent-memory/tests.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:97eac3a33d0aa3e0d7cc924c0a903e923717d1e57013ca023d1c324bbcb56494",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:db6256d1dab6bd57e971864496771ad153b73b27a1077ce0818320a0e370bf67",
+      "newRange": {
+        "count": 7,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1
+      },
+      "path": "docs/decisions/0329-publish-v050a3-issues53-57-2026-09-21.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:97eac3a33d0aa3e0d7cc924c0a903e923717d1e57013ca023d1c324bbcb56494",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:0cd388bacfd2e95abdd12e0f631053db887b4e06f496f6c4024b5a5df8ede094",
+      "newRange": {
+        "count": 19,
+        "start": 30
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 30
+      },
+      "path": "docs/decisions/0329-publish-v050a3-issues53-57-2026-09-21.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "7946b696cf37187901fbb358dca657957a4319a0b2d78e0cbf7ae970f93a9429",
+  "spec": "cem/0.2"
+}

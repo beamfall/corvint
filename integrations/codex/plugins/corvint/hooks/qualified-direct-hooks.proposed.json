@@ -1,0 +1,9 @@
+{
+  "description": "Uninstalled experimental direct-native Codex CLI QLF/1 template; an independently reviewed installer must render immutable release pins. No completed native qualification is supplied by this file.",
+  "hooks": {
+    "SessionStart": [{"hooks": [{"type": "command", "command": "exec /Library/CorvintAuthority/versions/RELEASE_SHA256/corvint native-hook --qualified-direct-lifecycle", "timeout": 2, "statusMessage": "Reading Corvint lifecycle context"}]}],
+    "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "exec /Library/CorvintAuthority/versions/RELEASE_SHA256/corvint native-hook --qualified-direct-lifecycle", "timeout": 2, "statusMessage": "Reading Corvint task context"}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "exec /Library/CorvintAuthority/versions/RELEASE_SHA256/corvint native-hook --qualified-direct-lifecycle", "timeout": 2, "statusMessage": "Checking Corvint completion and protected Frontier"}]}],
+    "SessionEnd": [{"hooks": [{"type": "command", "command": "exec /Library/CorvintAuthority/versions/RELEASE_SHA256/corvint native-hook --qualified-direct-lifecycle", "timeout": 2, "statusMessage": "Checking Corvint lifecycle scope"}]}]
+  }
+}

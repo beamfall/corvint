@@ -1,0 +1,9 @@
+site_name: Output escape canary
+site_url: https://corvint.example.invalid/output-escape/
+docs_dir: docs
+site_dir: ../escaped-site
+theme:
+  name: material
+plugins:
+  - search
+

@@ -1,0 +1,65 @@
+{
+  "id": "independent-implementation-vectors",
+  "matrixRows": [
+    "independent implementation"
+  ],
+  "clauses": [
+    "CF-V0-019",
+    "CF-V0-006",
+    "CF-V0-007",
+    "CF-V0-028"
+  ],
+  "intent": "CF-V0-028: an independent consumer MUST reproduce every reference result byte-for-byte. The canonical vectors under vectors/ are that independent derivation, authored from the clause text and checked by the reference codec in refcodec.go, which shares no code with the implementation.",
+  "cases": [
+    {
+      "id": "hand-derived-canonical-vectors",
+      "note": "vectors/codec.json and vectors/identity.json. The declared universe carries the CEM `unknown` hunk the expected item comes from, because CF-V0-009 conditions that item on such a hunk existing: `a CEM unknown hunk emits exactly one HUNK_BASIS item`, mapping `no-evidence -> HUNK_NO_EVIDENCE`. Nothing in CF-V0-028 or CF-V0-019 supplies a subject, so a case that named the item without declaring its hunk would be asking the runner to invent one. It cannot: a canonical patch is never empty, so a universe declaring no hunk gets a whitespace-only filler, which CF-V0-008 closes and which therefore emits no item at all.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "unknown",
+            "reason": "no-evidence"
+          }
+        ],
+        "obligations": []
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "1",
+        "items": [
+          {
+            "kind": "HUNK_BASIS",
+            "subjectId": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "reasons": [
+              "HUNK_NO_EVIDENCE"
+            ],
+            "relatedIds": [],
+            "authorityClass": "NONE",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "SUPPLY_HUNK_BASIS"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-019: the implementation's codec MUST agree byte-for-byte with every serialize vector.",
+        "CF-V0-019: the implementation MUST reject every invalid vector with the named reason.",
+        "CF-V0-006 / CF-V0-007: the implementation's universe and item IDs MUST equal the hand-derived identity vectors for the same preimage.",
+        "CF-V0-028: Corvint producer-to-Corvint verifier tests alone cannot satisfy this requirement, so these vectors are authored from the spec and never captured from a run.",
+        "CF-V0-009: the emitted item is the one this universe's CEM `unknown` hunk requires, not one the runner supplied; declaring the hunk is what makes the expectation derivable from the clause rather than from the implementation."
+      ]
+    }
+  ]
+}

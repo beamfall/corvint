@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 384" role="img" aria-labelledby="title desc">
+  <title id="title">Corvint mark</title>
+  <desc id="desc">A corvid silhouette formed by a watchful head and a sweeping wing.</desc>
+  <g fill="#ffffff">
+    <g transform="translate(38 35)" fill-rule="evenodd">
+      <path d="M0 215C8 157 43 85 99 40C143 4 199-16 238 29C271 36 295 51 308 77C271 68 234 64 201 83C178 96 168 116 166 137C146 116 126 108 104 110C60 110 19 159 0 215ZM202 43a11 11 0 1 0-22 0a11 11 0 1 0 22 0Z"/>
+      <path d="M73 132C99 119 122 124 142 147C158 166 168 191 182 217C204 258 237 285 277 310C242 316 210 314 177 307C134 300 100 282 73 258V303C46 283 27 257 26 235C23 191 45 147 73 132Z"/>
+    </g>
+  </g>
+</svg>

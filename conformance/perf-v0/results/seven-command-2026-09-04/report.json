@@ -1,0 +1,932 @@
+{
+  "format": "corvint-perf-v0/1",
+  "outcome": "insufficient_evidence",
+  "preregisteredRun": true,
+  "startedAt": "2026-09-04T18:11:47Z",
+  "finishedAt": "2026-09-04T18:52:39Z",
+  "machine": {
+    "goos": "darwin",
+    "goarch": "arm64",
+    "logicalCpus": 12,
+    "goToolchainVersion": "go1.27.0",
+    "pythonVersion": "Python 3.9.6"
+  },
+  "preregistration": {
+    "registeredAt": "2026-09-04T17:35:32Z",
+    "warmupSamples": 5,
+    "measuredSamples": 100,
+    "percentileEstimator": "nearest-rank",
+    "bootstrapResamples": 10000,
+    "bootstrapConfidence": 0.95,
+    "bootstrapSeed": 20260904,
+    "sampleTimeoutMilliseconds": 120000,
+    "interleave": "alternating-per-sample"
+  },
+  "validity": {
+    "requireEqualStdout": true,
+    "requireEqualStderr": true,
+    "requireEqualExitStatus": true,
+    "requireCorpusUnchanged": true,
+    "requireCacheStableDuringMeasurement": true,
+    "forbidTimeouts": true,
+    "forbidFailures": true,
+    "minimumMeasuredSamples": 100,
+    "requirePreregisteredSampleCounts": true,
+    "corpusUnchangedNote": "The unchanged-corpus predicate covers every measured window. OCM prepare and record may write only during discarded warmups; every measured invocation exercises the resulting idempotent supported path. Any later write, repository-status change, or cache-state change invalidates the task."
+  },
+  "thresholds": {
+    "nonQueryHarnessP95Milliseconds": 100,
+    "portableProductCapMilliseconds": 250,
+    "queryP95Milliseconds": 500,
+    "nonQueryOracleImprovementFraction": 0.5,
+    "otherCommandRegressionFraction": 0.1
+  },
+  "sanitizedEnvironmentSha256": "bf05337e1369c06a81126f3c92c37d22cab0949c5db9f21d5f579e5dd5c77857",
+  "oracleSource": {
+    "revision": "b7f9f489114b48f123a2b8c08b557cc99cf34833",
+    "treeSha256": "61fa2dfa76726eb3636ea5453ebc9091a4bde321751b45ae0dfdffd0dc1a08f1",
+    "unchangedAfterRun": true,
+    "resolvedCommand": "/Applications/Xcode.app/Contents/Developer/usr/bin/python3 -m corvint_cli"
+  },
+  "candidate": {
+    "package": "/private/tmp/corvint-perf-v0-2185227863/corvint",
+    "builtFromRevision": "b7f9f489114b48f123a2b8c08b557cc99cf34833",
+    "binarySha256": "fda984c442a502d8ab37301fa12a0cabadeee990064d88b4c367474c2e8ea10d",
+    "buildCommand": "GOTOOLCHAIN=local CGO_ENABLED=0 go build -o \u003cworkspace\u003e/corvint ./cmd/corvint"
+  },
+  "candidateBuiltFromCorpusRevision": true,
+  "corpora": [
+    {
+      "id": "corvint",
+      "state": "MEASURED",
+      "repositoryPath": ".",
+      "revision": "b7f9f489114b48f123a2b8c08b557cc99cf34833",
+      "treeRevision": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+      "sourceWorktreeClean": true,
+      "runDigestBefore": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "runDigestAfter": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 1
+      }
+    },
+    {
+      "id": "beamfall",
+      "state": "MEASURED",
+      "repositoryPath": "~/projects/beamfall-workspace/beamfall",
+      "revision": "e4ed13872b8ba1a8d117a42657eb110206c95661",
+      "treeRevision": "7c27f3d36091adcb8a8fc9b02887e440ed9140eb",
+      "sourceWorktreeClean": true,
+      "runDigestBefore": {
+        "worktreeSha256": "f38c0edb35ae39f26c41ba3091ab5405000325b404b83e290f50587d719acac9",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7c27f3d36091adcb8a8fc9b02887e440ed9140eb",
+        "ignoredPaths": 1
+      },
+      "runDigestAfter": {
+        "worktreeSha256": "f38c0edb35ae39f26c41ba3091ab5405000325b404b83e290f50587d719acac9",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7c27f3d36091adcb8a8fc9b02887e440ed9140eb",
+        "ignoredPaths": 1
+      }
+    },
+    {
+      "id": "feature-not-run",
+      "state": "NOT_RUN",
+      "reason": "NOT_RUN: feature is reachable in command dispatch but excluded from the corvint --help support boundary: root usage, command inventory, support-boundary text, and the help-topic allowlist omit it.",
+      "repositoryPath": ".",
+      "sourceWorktreeClean": false
+    },
+    {
+      "id": "eval-not-run",
+      "state": "NOT_RUN",
+      "reason": "NOT_RUN: eval is reachable in command dispatch but excluded from the corvint --help support boundary: root usage, command inventory, support-boundary text, and the help-topic allowlist omit it.",
+      "repositoryPath": ".",
+      "sourceWorktreeClean": false
+    }
+  ],
+  "tasks": [
+    {
+      "id": "cem-status-bound",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "cem",
+      "argv": [
+        "cem",
+        "status",
+        "--map",
+        ".corvint/change.cem.json",
+        "--expected-base",
+        "a373f15ff0b658c4283b04fae2fe21e5f73f3c5e",
+        "--target",
+        "ec62d1bc38f8d74d63323f702d3cef6b8a4a1056"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 284.74125,
+        "p95Milliseconds": 302.459708,
+        "maxMilliseconds": 347.037458,
+        "p95LowerBoundMilliseconds": 294.385417,
+        "p95UpperBoundMilliseconds": 305.026834,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 26066944,
+        "peakResidentMaxBytes": 26148864
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 24.511542,
+        "p95Milliseconds": 26.7025,
+        "maxMilliseconds": 30.876084,
+        "p95LowerBoundMilliseconds": 26.257958,
+        "p95UpperBoundMilliseconds": 29.127167,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 16187392,
+        "peakResidentMaxBytes": 16302080
+      },
+      "agreedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "agreedExitStatus": 2,
+      "corpusDigestBefore": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "cacheDigestBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "cacheDigestAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "cem-verify-bound",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "cem",
+      "argv": [
+        "cem",
+        "verify",
+        "--map",
+        ".corvint/change.cem.json",
+        "--expected-base",
+        "a373f15ff0b658c4283b04fae2fe21e5f73f3c5e",
+        "--target",
+        "ec62d1bc38f8d74d63323f702d3cef6b8a4a1056"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 281.427958,
+        "p95Milliseconds": 298.900291,
+        "maxMilliseconds": 322.860958,
+        "p95LowerBoundMilliseconds": 291.944375,
+        "p95UpperBoundMilliseconds": 311.291,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 26181632,
+        "peakResidentMaxBytes": 26361856
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 24.301333,
+        "p95Milliseconds": 26.487416,
+        "maxMilliseconds": 38.795792,
+        "p95LowerBoundMilliseconds": 25.731167,
+        "p95UpperBoundMilliseconds": 27.058666,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 16220160,
+        "peakResidentMaxBytes": 16384000
+      },
+      "agreedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "agreedExitStatus": 2,
+      "corpusDigestBefore": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "cacheDigestBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "cacheDigestAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "ocm-prepare-resume",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "ocm",
+      "argv": [
+        "ocm",
+        "prepare",
+        "--target",
+        "ec62d1bc38f8d74d63323f702d3cef6b8a4a1056",
+        "--expected-base",
+        "a373f15ff0b658c4283b04fae2fe21e5f73f3c5e",
+        "--intent",
+        "docs/specs/release-artifact-integrity-v0.md",
+        "--cem",
+        ".corvint/change.cem.json",
+        "--map",
+        ".corvint/change.ocm.007.json"
+      ],
+      "state": "insufficient_evidence",
+      "invalidityReasons": [
+        "unequal-stderr"
+      ],
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 282.190667,
+        "p95Milliseconds": 301.35575,
+        "maxMilliseconds": 334.988625,
+        "p95LowerBoundMilliseconds": 293.476166,
+        "p95UpperBoundMilliseconds": 307.600333,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 26083328,
+        "peakResidentMaxBytes": 26214400
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 24.185834,
+        "p95Milliseconds": 26.232125,
+        "maxMilliseconds": 28.801166,
+        "p95LowerBoundMilliseconds": 25.718125,
+        "p95UpperBoundMilliseconds": 26.300167,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 16220160,
+        "peakResidentMaxBytes": 16416768
+      },
+      "agreedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "agreedExitStatus": 2,
+      "corpusDigestBefore": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "cacheDigestBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "cacheDigestAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "ocm-status-unclosed",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "ocm",
+      "argv": [
+        "ocm",
+        "status",
+        "--map",
+        ".corvint/change.ocm.007.json",
+        "--cem",
+        ".corvint/change.cem.json",
+        "--expected-base",
+        "a373f15ff0b658c4283b04fae2fe21e5f73f3c5e",
+        "--target",
+        "ec62d1bc38f8d74d63323f702d3cef6b8a4a1056"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 234.005875,
+        "p95Milliseconds": 252.529917,
+        "maxMilliseconds": 282.734875,
+        "p95LowerBoundMilliseconds": 246.343666,
+        "p95UpperBoundMilliseconds": 257.63175,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 25985024,
+        "peakResidentMaxBytes": 26099712
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 9.23225,
+        "p95Milliseconds": 11.1225,
+        "maxMilliseconds": 15.73975,
+        "p95LowerBoundMilliseconds": 10.563291,
+        "p95UpperBoundMilliseconds": 11.811917,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 15056896,
+        "peakResidentMaxBytes": 15237120
+      },
+      "agreedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "agreedExitStatus": 2,
+      "corpusDigestBefore": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "cacheDigestBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "cacheDigestAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "ocm-verify-unclosed",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "ocm",
+      "argv": [
+        "ocm",
+        "verify",
+        "--map",
+        ".corvint/change.ocm.007.json",
+        "--cem",
+        ".corvint/change.cem.json",
+        "--expected-base",
+        "a373f15ff0b658c4283b04fae2fe21e5f73f3c5e",
+        "--target",
+        "ec62d1bc38f8d74d63323f702d3cef6b8a4a1056"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 236.214666,
+        "p95Milliseconds": 271.68325,
+        "maxMilliseconds": 304.778541,
+        "p95LowerBoundMilliseconds": 260.879458,
+        "p95UpperBoundMilliseconds": 285.9515,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 26066944,
+        "peakResidentMaxBytes": 26279936
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 9.56625,
+        "p95Milliseconds": 10.959041,
+        "maxMilliseconds": 12.573209,
+        "p95LowerBoundMilliseconds": 10.667541,
+        "p95UpperBoundMilliseconds": 11.360375,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 14991360,
+        "peakResidentMaxBytes": 15089664
+      },
+      "agreedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "agreedExitStatus": 2,
+      "corpusDigestBefore": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "cacheDigestBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "cacheDigestAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "lrf-cem-bound",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "lrf",
+      "argv": [
+        "lrf",
+        "--cem",
+        ".corvint/change.cem.json",
+        "--expected-base",
+        "a373f15ff0b658c4283b04fae2fe21e5f73f3c5e",
+        "--target",
+        "ec62d1bc38f8d74d63323f702d3cef6b8a4a1056"
+      ],
+      "state": "insufficient_evidence",
+      "invalidityReasons": [
+        "unequal-stderr"
+      ],
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 283.770375,
+        "p95Milliseconds": 311.673291,
+        "maxMilliseconds": 329.597209,
+        "p95LowerBoundMilliseconds": 300.901208,
+        "p95UpperBoundMilliseconds": 315.009584,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 26132480,
+        "peakResidentMaxBytes": 26312704
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 24.559042,
+        "p95Milliseconds": 27.992958,
+        "maxMilliseconds": 40.230917,
+        "p95LowerBoundMilliseconds": 26.419875,
+        "p95UpperBoundMilliseconds": 31.547041,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 16105472,
+        "peakResidentMaxBytes": 16154624
+      },
+      "agreedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "agreedExitStatus": 2,
+      "corpusDigestBefore": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "cacheDigestBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "cacheDigestAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "lrf-cem-ocm-bound",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "lrf",
+      "argv": [
+        "lrf",
+        "--cem",
+        ".corvint/change.cem.json",
+        "--ocm",
+        ".corvint/change.ocm.007.json",
+        "--expected-base",
+        "a373f15ff0b658c4283b04fae2fe21e5f73f3c5e",
+        "--target",
+        "ec62d1bc38f8d74d63323f702d3cef6b8a4a1056"
+      ],
+      "state": "insufficient_evidence",
+      "invalidityReasons": [
+        "unequal-stderr"
+      ],
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 236.849417,
+        "p95Milliseconds": 259.989417,
+        "maxMilliseconds": 306.360792,
+        "p95LowerBoundMilliseconds": 255.51325,
+        "p95UpperBoundMilliseconds": 278.905041,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 26034176,
+        "peakResidentMaxBytes": 26312704
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 25.06625,
+        "p95Milliseconds": 28.77675,
+        "maxMilliseconds": 37.895083,
+        "p95LowerBoundMilliseconds": 26.980417,
+        "p95UpperBoundMilliseconds": 30.6225,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 16154624,
+        "peakResidentMaxBytes": 16220160
+      },
+      "agreedStdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "agreedExitStatus": 2,
+      "corpusDigestBefore": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 0
+      },
+      "cacheDigestBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "cacheDigestAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "record-idempotent-blocked",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "record",
+      "argv": [
+        "record",
+        "--task",
+        "Synthetic preregistered performance fixture",
+        "--changed",
+        "cmd/corvint/main.go",
+        "--verify",
+        "go test ./cmd/corvint",
+        "--outcome",
+        "blocked"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 2040.567333,
+        "p95Milliseconds": 2223.963125,
+        "maxMilliseconds": 2334.167125,
+        "p95LowerBoundMilliseconds": 2133.231042,
+        "p95UpperBoundMilliseconds": 2242.379541,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 287211520,
+        "peakResidentMaxBytes": 287850496
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 3890.967292,
+        "p95Milliseconds": 4196.633084,
+        "maxMilliseconds": 4349.864833,
+        "p95LowerBoundMilliseconds": 4125.924208,
+        "p95UpperBoundMilliseconds": 4223.513125,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 365297664,
+        "peakResidentMaxBytes": 374472704
+      },
+      "agreedStdoutSha256": "98024f1b526407b5522a9dcb6dfb362a30d7ca21e0842e50f8dee8c8370be00f",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 1
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 1
+      },
+      "cacheDigestBefore": "4d94043f5b76ed9dc09a1589d8b58d158062ad3a44dfc3cec66a766342318ba8",
+      "cacheDigestAfter": "4d94043f5b76ed9dc09a1589d8b58d158062ad3a44dfc3cec66a766342318ba8"
+    },
+    {
+      "id": "migrate-traces-dry-run",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "migrate-traces",
+      "argv": [
+        "migrate-traces",
+        "--dry-run"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 1727.989583,
+        "p95Milliseconds": 1856.925334,
+        "maxMilliseconds": 2028.429291,
+        "p95LowerBoundMilliseconds": 1790.428166,
+        "p95UpperBoundMilliseconds": 1910.806667,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 287686656,
+        "peakResidentMaxBytes": 289210368
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 2304.303958,
+        "p95Milliseconds": 2420.963084,
+        "maxMilliseconds": 2572.269375,
+        "p95LowerBoundMilliseconds": 2396.901292,
+        "p95UpperBoundMilliseconds": 2501.041542,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 355368960,
+        "peakResidentMaxBytes": 363282432
+      },
+      "agreedStdoutSha256": "142481bdafe8788fc5265bad2b87aebefe2d161da9023679ee14c21bf9af4786",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 1
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "9c355d3bb11c60b4815ee54f267fa768f51ce25ef28a83ddc70715245d747422",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7a91e5c89e59d1f70ab35c51075611aa69e69dd1",
+        "ignoredPaths": 1
+      },
+      "cacheDigestBefore": "4d94043f5b76ed9dc09a1589d8b58d158062ad3a44dfc3cec66a766342318ba8",
+      "cacheDigestAfter": "4d94043f5b76ed9dc09a1589d8b58d158062ad3a44dfc3cec66a766342318ba8"
+    },
+    {
+      "id": "beamfall-record-idempotent-blocked",
+      "corpus": "beamfall",
+      "class": "other-command",
+      "command": "record",
+      "argv": [
+        "record",
+        "--task",
+        "Synthetic preregistered performance fixture",
+        "--changed",
+        "internal/graph/graph.go",
+        "--verify",
+        "go test ./internal/graph",
+        "--outcome",
+        "blocked"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 2736.892833,
+        "p95Milliseconds": 2829.525709,
+        "maxMilliseconds": 2935.574625,
+        "p95LowerBoundMilliseconds": 2804.317375,
+        "p95UpperBoundMilliseconds": 2848.313417,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 440860672,
+        "peakResidentMaxBytes": 441434112
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 3665.993666,
+        "p95Milliseconds": 3833.715166,
+        "maxMilliseconds": 3958.837834,
+        "p95LowerBoundMilliseconds": 3774.049958,
+        "p95UpperBoundMilliseconds": 3931.957625,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 548454400,
+        "peakResidentMaxBytes": 567197696
+      },
+      "agreedStdoutSha256": "f4478269202ec9666aa300600dc3c5f73902f113531cea49764535ae61bcf564",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "f38c0edb35ae39f26c41ba3091ab5405000325b404b83e290f50587d719acac9",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7c27f3d36091adcb8a8fc9b02887e440ed9140eb",
+        "ignoredPaths": 1
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "f38c0edb35ae39f26c41ba3091ab5405000325b404b83e290f50587d719acac9",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7c27f3d36091adcb8a8fc9b02887e440ed9140eb",
+        "ignoredPaths": 1
+      },
+      "cacheDigestBefore": "38b75ad11c31b1f542594193faa371adff545fbc7c62ada6e153f0ce7341f4c3",
+      "cacheDigestAfter": "38b75ad11c31b1f542594193faa371adff545fbc7c62ada6e153f0ce7341f4c3"
+    },
+    {
+      "id": "beamfall-migrate-traces-dry-run",
+      "corpus": "beamfall",
+      "class": "other-command",
+      "command": "migrate-traces",
+      "argv": [
+        "migrate-traces",
+        "--dry-run"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 2410.272291,
+        "p95Milliseconds": 2495.037208,
+        "maxMilliseconds": 2588.049833,
+        "p95LowerBoundMilliseconds": 2474.153042,
+        "p95UpperBoundMilliseconds": 2509.13225,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 437387264,
+        "peakResidentMaxBytes": 441253888
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 2200.874042,
+        "p95Milliseconds": 2352.562208,
+        "maxMilliseconds": 2511.063458,
+        "p95LowerBoundMilliseconds": 2314.875292,
+        "p95UpperBoundMilliseconds": 2438.149542,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 534560768,
+        "peakResidentMaxBytes": 552452096
+      },
+      "agreedStdoutSha256": "a78d026097a848d6f98fd8cceb06451ae42e523c02cc82b7b81371de4f428e8d",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "f38c0edb35ae39f26c41ba3091ab5405000325b404b83e290f50587d719acac9",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7c27f3d36091adcb8a8fc9b02887e440ed9140eb",
+        "ignoredPaths": 1
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "f38c0edb35ae39f26c41ba3091ab5405000325b404b83e290f50587d719acac9",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "7c27f3d36091adcb8a8fc9b02887e440ed9140eb",
+        "ignoredPaths": 1
+      },
+      "cacheDigestBefore": "38b75ad11c31b1f542594193faa371adff545fbc7c62ada6e153f0ce7341f4c3",
+      "cacheDigestAfter": "38b75ad11c31b1f542594193faa371adff545fbc7c62ada6e153f0ce7341f4c3"
+    }
+  ],
+  "acceptedDivergences": [],
+  "gpkV0017Criteria": [
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "cem-status-bound:p95",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 332.7ms (oracle +10%)",
+      "observed": "candidate 26.7ms vs oracle 302.5ms"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "cem-status-bound:peak-resident",
+      "verdict": "PASS",
+      "required": "candidate peak-resident \u003c= 27.3MiB (oracle +10%)",
+      "observed": "candidate 15.4MiB vs oracle 24.9MiB"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "cem-verify-bound:p95",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 328.8ms (oracle +10%)",
+      "observed": "candidate 26.5ms vs oracle 298.9ms"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "cem-verify-bound:peak-resident",
+      "verdict": "PASS",
+      "required": "candidate peak-resident \u003c= 27.5MiB (oracle +10%)",
+      "observed": "candidate 15.5MiB vs oracle 25.0MiB"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "ocm-prepare-resume:p95",
+      "verdict": "NOT_RUN",
+      "required": "candidate p95 \u003c= 331.5ms (oracle +10%)",
+      "observed": "measurement invalid: unequal-stderr"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "ocm-prepare-resume:peak-resident",
+      "verdict": "NOT_RUN",
+      "required": "candidate peak-resident \u003c= 27.4MiB (oracle +10%)",
+      "observed": "measurement invalid: unequal-stderr"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "ocm-status-unclosed:p95",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 277.8ms (oracle +10%)",
+      "observed": "candidate 11.1ms vs oracle 252.5ms"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "ocm-status-unclosed:peak-resident",
+      "verdict": "PASS",
+      "required": "candidate peak-resident \u003c= 27.3MiB (oracle +10%)",
+      "observed": "candidate 14.4MiB vs oracle 24.8MiB"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "ocm-verify-unclosed:p95",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 298.9ms (oracle +10%)",
+      "observed": "candidate 11.0ms vs oracle 271.7ms"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "ocm-verify-unclosed:peak-resident",
+      "verdict": "PASS",
+      "required": "candidate peak-resident \u003c= 27.3MiB (oracle +10%)",
+      "observed": "candidate 14.3MiB vs oracle 24.9MiB"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "lrf-cem-bound:p95",
+      "verdict": "NOT_RUN",
+      "required": "candidate p95 \u003c= 342.8ms (oracle +10%)",
+      "observed": "measurement invalid: unequal-stderr"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "lrf-cem-bound:peak-resident",
+      "verdict": "NOT_RUN",
+      "required": "candidate peak-resident \u003c= 27.4MiB (oracle +10%)",
+      "observed": "measurement invalid: unequal-stderr"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "lrf-cem-ocm-bound:p95",
+      "verdict": "NOT_RUN",
+      "required": "candidate p95 \u003c= 286.0ms (oracle +10%)",
+      "observed": "measurement invalid: unequal-stderr"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "lrf-cem-ocm-bound:peak-resident",
+      "verdict": "NOT_RUN",
+      "required": "candidate peak-resident \u003c= 27.3MiB (oracle +10%)",
+      "observed": "measurement invalid: unequal-stderr"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "record-idempotent-blocked:p95",
+      "verdict": "FAIL",
+      "required": "candidate p95 \u003c= 2446.4ms (oracle +10%)",
+      "observed": "candidate 4196.6ms vs oracle 2224.0ms"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "record-idempotent-blocked:peak-resident",
+      "verdict": "FAIL",
+      "required": "candidate peak-resident \u003c= 301.3MiB (oracle +10%)",
+      "observed": "candidate 348.4MiB vs oracle 273.9MiB"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "migrate-traces-dry-run:p95",
+      "verdict": "FAIL",
+      "required": "candidate p95 \u003c= 2042.6ms (oracle +10%)",
+      "observed": "candidate 2421.0ms vs oracle 1856.9ms"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "migrate-traces-dry-run:peak-resident",
+      "verdict": "FAIL",
+      "required": "candidate peak-resident \u003c= 301.8MiB (oracle +10%)",
+      "observed": "candidate 338.9MiB vs oracle 274.4MiB"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "beamfall-record-idempotent-blocked:p95",
+      "verdict": "FAIL",
+      "required": "candidate p95 \u003c= 3112.5ms (oracle +10%)",
+      "observed": "candidate 3833.7ms vs oracle 2829.5ms"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "beamfall-record-idempotent-blocked:peak-resident",
+      "verdict": "FAIL",
+      "required": "candidate peak-resident \u003c= 462.5MiB (oracle +10%)",
+      "observed": "candidate 523.0MiB vs oracle 420.4MiB"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "beamfall-migrate-traces-dry-run:p95",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 2744.5ms (oracle +10%)",
+      "observed": "candidate 2352.6ms vs oracle 2495.0ms"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "beamfall-migrate-traces-dry-run:peak-resident",
+      "verdict": "FAIL",
+      "required": "candidate peak-resident \u003c= 458.8MiB (oracle +10%)",
+      "observed": "candidate 509.8MiB vs oracle 417.1MiB"
+    },
+    {
+      "criterion": "GPK-V0-016",
+      "scope": "corpus:feature-not-run",
+      "verdict": "NOT_RUN",
+      "required": "measured on a pinned clean revision",
+      "observed": "NOT_RUN: feature is reachable in command dispatch but excluded from the corvint --help support boundary: root usage, command inventory, support-boundary text, and the help-topic allowlist omit it."
+    },
+    {
+      "criterion": "GPK-V0-016",
+      "scope": "corpus:eval-not-run",
+      "verdict": "NOT_RUN",
+      "required": "measured on a pinned clean revision",
+      "observed": "NOT_RUN: eval is reachable in command dispatch but excluded from the corvint --help support boundary: root usage, command inventory, support-boundary text, and the help-topic allowlist omit it."
+    }
+  ]
+}

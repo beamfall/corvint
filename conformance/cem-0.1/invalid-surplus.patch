@@ -1,0 +1,9 @@
+diff --git a/src/app.py b/src/app.py
+index 1111111..2222222 100644
+--- a/src/app.py
++++ b/src/app.py
+@@ -1,2 +1,2 @@
+ def allowed():
+-    return True
++    return False
++payload hidden after the declared range

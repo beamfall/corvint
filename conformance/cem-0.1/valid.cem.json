@@ -1,0 +1,30 @@
+{
+  "baseRevision": "4ca153370afd9bd8c6034ad73acc3925150ab681",
+  "evidence": [
+    {
+      "blobOid": "d8586f1d6c8e69f34f215d2f4cbf0e491fe795ca",
+      "id": "evidence:sha256:d4e6bac0b0e55e523a945cdfa502ca635239359a5610e8e14a2ce88b5fce0a03",
+      "path": "docs/rule.txt",
+      "span": {"end": 36, "start": 6},
+      "spanSha256": "011b86b87c4e53d9fd73fb75eee8f80ee8137b317d4478807c28dbad05fd96de"
+    }
+  ],
+  "hunks": [
+    {
+      "reason": "evidence-backed",
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:d4e6bac0b0e55e523a945cdfa502ca635239359a5610e8e14a2ce88b5fce0a03",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:07461a992e03e064986720e365dc4bb477da7cefe73da853f51bcb70e2c3100c",
+      "newRange": {"count": 2, "start": 1},
+      "oldRange": {"count": 2, "start": 1},
+      "path": "src/app.py"
+    }
+  ],
+  "patchSha256": "dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c",
+  "spec": "cem/0.1"
+}

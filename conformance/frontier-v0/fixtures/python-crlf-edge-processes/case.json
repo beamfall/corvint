@@ -1,0 +1,139 @@
+{
+  "id": "python-crlf-edge-processes",
+  "matrixRows": [
+    "empty, skipped, unsupported, unassociated, ambiguous, failed, errored, and unmatched claim"
+  ],
+  "clauses": [
+    "CF-V0-012",
+    "CF-V0-015",
+    "CF-V0-016",
+    "CF-V0-020",
+    "TCQ-V0-013",
+    "TCQ-V0-047"
+  ],
+  "intent": "A `.py` claim in CRLF source admitted by frozen `python-ast/1` and CPython receives ordinary associated processing even though the approximate OCM grammar rejects CR bytes, and the unrelated Go edge in the same universe also reports its ordinary reason. Neither a universe refusal nor a blanket Python abstention is permitted; this is the second-direction corpus case for divergence-register DR-0014.",
+  "cases": [
+    {
+      "id": "python-crlf-edge-processes-beside-a-go-edge",
+      "note": "Obligation CF-V0-001's claim lives in a CRLF `.py` document admitted by frozen Python; obligation CF-V0-002's claim is an ordinary Go table case.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          },
+          {
+            "id": "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          }
+        ],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "linked",
+            "claimSource": "python-crlf",
+            "hunkIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "claimIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ]
+          },
+          {
+            "id": "CF-V0-002",
+            "disposition": "linked",
+            "claimSource": "go",
+            "hunkIds": [
+              "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202"
+            ],
+            "claimIds": [
+              "claim:sha256:0202020202020202020202020202020202020202020202020202020202020202"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "4",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "NO_MATERIAL_CHANGE_WITNESS"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_MATERIAL_HUNK"
+          },
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-002",
+            "reasons": [
+              "NO_MATERIAL_CHANGE_WITNESS"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_MATERIAL_HUNK"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "TEST_NOT_MATCHED"
+            ],
+            "relatedIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "SUPPLY_TEST_OBSERVATION"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-002",
+            "reasons": [
+              "TEST_NOT_MATCHED"
+            ],
+            "relatedIds": [
+              "claim:sha256:0202020202020202020202020202020202020202020202020202020202020202"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "SUPPLY_TEST_OBSERVATION"
+          }
+        ]
+      },
+      "assertions": [
+        "TCQ-V0-013: CRLF source admitted by frozen `python-ast/1` receives ordinary associated processing, so the Python edge carries TEST_NOT_MATCHED.",
+        "TCQ-V0-047: the approximate OCM grammar is not a profile gate; its rejection of CR bytes causes neither universe refusal nor Python-edge abstention.",
+        "CF-V0-016: both unmatched claims map to TEST_NOT_MATCHED with ACTIONABLE and SUPPLY_TEST_OBSERVATION.",
+        "CF-V0-015: each obligation keeps exactly one INTENT_TEST item, so the Python edge does not remove or alter the Go edge's item."
+      ]
+    }
+  ]
+}

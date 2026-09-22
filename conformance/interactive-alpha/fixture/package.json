@@ -1,0 +1,10 @@
+{
+  "name": "corvint-interactive-alpha-fixture",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "vitest": "5.0.0"
+  }
+}

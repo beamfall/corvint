@@ -1,0 +1,1511 @@
+{
+  "aggregate": {
+    "abstention_accuracy": 0.833333,
+    "budget_compliance": 1.0,
+    "budgeted_cases": 31,
+    "cases": 31,
+    "critical_evidence_misses": 1,
+    "critical_evidence_total": 30,
+    "exact_search_baseline": {
+      "abstention_accuracy": 0.166667,
+      "query_cases": 23,
+      "top5_success": 0.391304
+    },
+    "latency_ms": 80497.553,
+    "must_exclude_violations": 0,
+    "public_repositories": 4,
+    "recall": 0.976744,
+    "repositories": 5,
+    "repository_evaluations_ready": false,
+    "serialized_result_byte_weighted_precision": 0.842704,
+    "top5_task_success": 0.967742
+  },
+  "corvint_commit": "working-tree:a7be6f0adb991138c5c6045c94925c87412c2a6cd93509c4b105756ef0d2a3bc",
+  "manifest_sha256": "4d337719928d581ceb68aed8cced1eec66786ffc6c1e34d476d7f3bc9e0f3de8",
+  "repositories": [
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "feature:pairing-enroll"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:internal/store/store.go:CreatePairingCode"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:internal/auth/auth.go:ScopeWithDeviceCredential"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:internal/pairing/pairing.go:enrollBackoff"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:internal/pairing/pairing.go:EnrollRequest"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "exact-feature-pairing",
+            "missing": [],
+            "packet_bytes": 4748,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "feature:session-lifecycle"
+              },
+              {
+                "relevant": true,
+                "selector": "scenario:pairing-admin-session-cross-surface"
+              },
+              {
+                "relevant": false,
+                "selector": "decision:docs/adr/0007-web-ui-viewer-manage-admin.md"
+              },
+              {
+                "relevant": true,
+                "selector": "decision:docs/adr/0012-remote-access-and-auth-hardening.md"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:internal/auth/auth.go:Scope"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:internal/auth/auth.go:ScopeFromRequest"
+              }
+            ],
+            "budget_bytes": 14000,
+            "expected_state": null,
+            "id": "natural-language-session-revocation",
+            "missing": [],
+            "packet_bytes": 6104,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "feature:reveal-unlock"
+              },
+              {
+                "relevant": true,
+                "selector": "feature:navigation-manifest"
+              },
+              {
+                "relevant": true,
+                "selector": "scenario:restricted-reveal-playback"
+              },
+              {
+                "relevant": true,
+                "selector": "scenario:reveal-leak-to-child"
+              },
+              {
+                "relevant": true,
+                "selector": "decision:docs/adr/0004-profiles-and-per-profile-customization.md"
+              },
+              {
+                "relevant": false,
+                "selector": "decision:docs/adr/0008-tvos-viewer.md"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:internal/store/reveal.go:ErrRevealPINMismatch"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:internal/graph/system_surface_disclosure.go:navigationManifest"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:internal/store/reveal.go:hashRevealPINArgon2"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:internal/graph/system_surface_disclosure.go:NavigationManifestResponse"
+              }
+            ],
+            "budget_bytes": 18000,
+            "expected_state": null,
+            "id": "ambiguous-reveal-navigation",
+            "missing": [],
+            "packet_bytes": 10692,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "path:internal/auth/auth_test.go"
+              },
+              {
+                "relevant": true,
+                "selector": "feature:access-schedules"
+              },
+              {
+                "relevant": true,
+                "selector": "feature:admin-session"
+              },
+              {
+                "relevant": true,
+                "selector": "feature:session-lifecycle"
+              }
+            ],
+            "budget_bytes": 18000,
+            "expected_state": null,
+            "id": "impact-auth-test",
+            "missing": [],
+            "packet_bytes": 10105,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "path:internal/auth/auth.go"
+              },
+              {
+                "relevant": true,
+                "selector": "test:internal/auth/auth_test.go"
+              },
+              {
+                "relevant": true,
+                "selector": "feature:access-schedules"
+              },
+              {
+                "relevant": true,
+                "selector": "feature:admin-session"
+              },
+              {
+                "relevant": true,
+                "selector": "feature:hls-transcode"
+              },
+              {
+                "relevant": true,
+                "selector": "feature:library-health"
+              },
+              {
+                "relevant": true,
+                "selector": "feature:relock"
+              },
+              {
+                "relevant": true,
+                "selector": "feature:scan-pipeline"
+              },
+              {
+                "relevant": true,
+                "selector": "feature:session-lifecycle"
+              },
+              {
+                "relevant": true,
+                "selector": "reverse-import:internal/app/app.go"
+              }
+            ],
+            "budget_bytes": 30000,
+            "expected_state": null,
+            "id": "impact-auth-production-bounded",
+            "missing": [],
+            "packet_bytes": 20390,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": false,
+                "selector": "feature:my-data-delete"
+              },
+              {
+                "relevant": false,
+                "selector": "feature:trash-review"
+              },
+              {
+                "relevant": false,
+                "selector": "scenario:audited-delete-bypass"
+              },
+              {
+                "relevant": false,
+                "selector": "scenario:offlinepack-store-invariants"
+              },
+              {
+                "relevant": false,
+                "selector": "decision:docs/adr/0051-retention-rules.md"
+              }
+            ],
+            "budget_bytes": 16000,
+            "expected_state": "OUT_OF_SCOPE",
+            "id": "blind-beamfall-immediate-hard-delete-abstention",
+            "missing": [],
+            "packet_bytes": 5687,
+            "partition": "blind-v1",
+            "state": "READY",
+            "state_matches": false,
+            "unexpected": []
+          },
+          {
+            "actual": [],
+            "budget_bytes": 8000,
+            "expected_state": "OUT_OF_SCOPE",
+            "id": "agent-tooling-abstains-product-noise",
+            "missing": [],
+            "packet_bytes": 921,
+            "partition": "development",
+            "state": "OUT_OF_SCOPE",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 0.5,
+          "abstention_cases": 2,
+          "abstention_hits": 1,
+          "advisory_results": 0,
+          "authoritative_results": 40,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 7,
+          "cases": 7,
+          "critical_evidence_misses": 0,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 5,
+          "latency_ms": 57100.592,
+          "must_exclude_total": 3,
+          "must_exclude_violations": 0,
+          "must_read_hits": 9,
+          "must_read_total": 9,
+          "packet_bytes": 58647,
+          "passed_trace_count": 0,
+          "recall": 1.0,
+          "relevant_result_bytes": 49132,
+          "serialized_result_byte_weighted_precision": 0.891866,
+          "top5_task_hits": 6,
+          "top5_task_success": 0.857143,
+          "top5_task_total": 7,
+          "total_result_bytes": 55089,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent"
+        },
+        "revision": "2a1e79c4efe8a4870b5b7b72179a553b472af3d8",
+        "state": "CONFLICT"
+      },
+      "baseline": {
+        "abstention_accuracy": 0.0,
+        "abstention_cases": 2,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "natural-language-session-revocation",
+            "top5_hit": false,
+            "top5_paths": [
+              "docs/plans/roadmap/20-audit-2026-06-30-specialized-per-repo-audit-remedi.md",
+              "docs/plans/roadmap/07-milestone-2-post-parity-features.md",
+              "docs/plans/roadmap/05-milestone-1-launch-blocking.md",
+              "artifacts/plans/roadmap-archive-2026-06-24.md",
+              "artifacts/plans/roadmap-completed-archive-2026-06-29.md"
+            ]
+          },
+          {
+            "id": "ambiguous-reveal-navigation",
+            "top5_hit": false,
+            "top5_paths": [
+              "internal/graph/graph.go",
+              "internal/store/store.go",
+              "internal/graph/graph_test.go",
+              "docs/plans/roadmap/07-milestone-2-post-parity-features.md",
+              "artifacts/plans/roadmap-archive-2026-06-24.md"
+            ]
+          },
+          {
+            "id": "blind-beamfall-immediate-hard-delete-abstention",
+            "top5_hit": false,
+            "top5_paths": [
+              "docs/plans/roadmap/20-audit-2026-06-30-specialized-per-repo-audit-remedi.md",
+              "docs/plans/roadmap/22-backlog-intake-promotion-2026-07-04.md",
+              "artifacts/plans/roadmap-archive-2026-06-24.md",
+              "docs/plans/roadmap/07-milestone-2-post-parity-features.md",
+              "docs/plans/roadmap/05-milestone-1-launch-blocking.md"
+            ]
+          },
+          {
+            "id": "agent-tooling-abstains-product-noise",
+            "top5_hit": false,
+            "top5_paths": [
+              "script/context_corvint_learning_test.py",
+              "docs/plans/roadmap/07-milestone-2-post-parity-features.md",
+              "script/context_corvint_test.py",
+              "script/context_corvint_intent.py",
+              "testing/context-retrieval-goldens.json"
+            ]
+          }
+        ],
+        "latency_ms": 2650.985,
+        "query_cases": 4,
+        "top5_hits": 0,
+        "top5_success": 0.0
+      },
+      "commit": "6e82abd857c77c0ca250b6c4a8f5e1c86684a535",
+      "corpus_sha256": "e9b06eb27f1ed0e5342b57bbdc75f5dedc97b310578f4ffc638349ba1dd8f54b",
+      "id": "beamfall",
+      "language": "Go and TypeScript",
+      "public": false,
+      "url": "https://github.com/beamfall/core.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "symbol:src/flask/cli.py:load_dotenv"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "flask-load-dotenv",
+            "missing": [],
+            "packet_bytes": 1183,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "symbol:src/flask/app.py:async_to_sync"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:src/flask/app.py:ensure_sync"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "flask-ensure-sync",
+            "missing": [],
+            "packet_bytes": 1521,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "symbol:src/flask/sessions.py:open_session"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:src/flask/sessions.py:SecureCookieSession"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:src/flask/sessions.py:SecureCookieSessionInterface"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "flask-cookie-session",
+            "missing": [],
+            "packet_bytes": 1919,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "path:src/flask/sessions.py"
+              },
+              {
+                "relevant": true,
+                "selector": "reverse-import:src/flask/app.py"
+              },
+              {
+                "relevant": true,
+                "selector": "reverse-import:src/flask/ctx.py"
+              },
+              {
+                "relevant": true,
+                "selector": "reverse-import:src/flask/globals.py"
+              },
+              {
+                "relevant": true,
+                "selector": "reverse-import:src/flask/testing.py"
+              },
+              {
+                "relevant": true,
+                "selector": "reverse-import:tests/test_reqctx.py"
+              },
+              {
+                "relevant": true,
+                "selector": "reverse-import:tests/test_session_interface.py"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "flask-session-impact",
+            "missing": [],
+            "packet_bytes": 4470,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": false,
+                "selector": "symbol:src/flask/helpers.py:generator"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:src/flask/helpers.py:stream_with_context"
+              }
+            ],
+            "budget_bytes": 14000,
+            "expected_state": null,
+            "id": "blind-flask-stream-context-public-export",
+            "missing": [],
+            "packet_bytes": 1602,
+            "partition": "blind-v1",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [],
+            "budget_bytes": 8000,
+            "expected_state": "OUT_OF_SCOPE",
+            "id": "flask-kubernetes-abstention",
+            "missing": [],
+            "packet_bytes": 840,
+            "partition": "development",
+            "state": "OUT_OF_SCOPE",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 1,
+          "abstention_hits": 1,
+          "advisory_results": 0,
+          "authoritative_results": 15,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 6,
+          "cases": 6,
+          "critical_evidence_misses": 0,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 5,
+          "latency_ms": 5565.219,
+          "must_exclude_total": 0,
+          "must_exclude_violations": 0,
+          "must_read_hits": 7,
+          "must_read_total": 7,
+          "packet_bytes": 11535,
+          "passed_trace_count": 0,
+          "recall": 1.0,
+          "relevant_result_bytes": 6643,
+          "serialized_result_byte_weighted_precision": 0.949543,
+          "top5_task_hits": 6,
+          "top5_task_success": 1.0,
+          "top5_task_total": 6,
+          "total_result_bytes": 6996,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent"
+        },
+        "revision": "a8da09a58146cd39bc2956bfa5d2f468bf592166",
+        "state": "READY"
+      },
+      "baseline": {
+        "abstention_accuracy": 0.0,
+        "abstention_cases": 1,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "flask-load-dotenv",
+            "top5_hit": true,
+            "top5_paths": [
+              "src/flask/cli.py",
+              "src/flask/app.py",
+              "src/flask/helpers.py",
+              "src/flask/config.py",
+              "src/flask/sansio/scaffold.py"
+            ]
+          },
+          {
+            "id": "flask-ensure-sync",
+            "top5_hit": true,
+            "top5_paths": [
+              "src/flask/app.py",
+              "src/flask/ctx.py",
+              "src/flask/helpers.py",
+              "src/flask/typing.py",
+              "src/flask/sansio/app.py"
+            ]
+          },
+          {
+            "id": "flask-cookie-session",
+            "top5_hit": true,
+            "top5_paths": [
+              "src/flask/sessions.py",
+              "src/flask/sansio/app.py",
+              "tests/test_basic.py",
+              "src/flask/app.py",
+              "src/flask/ctx.py"
+            ]
+          },
+          {
+            "id": "blind-flask-stream-context-public-export",
+            "top5_hit": true,
+            "top5_paths": [
+              "src/flask/app.py",
+              "src/flask/helpers.py",
+              "src/flask/ctx.py",
+              "src/flask/cli.py",
+              "tests/test_helpers.py"
+            ]
+          },
+          {
+            "id": "flask-kubernetes-abstention",
+            "top5_hit": false,
+            "top5_paths": [
+              "src/flask/helpers.py",
+              "tests/test_helpers.py",
+              "src/flask/app.py",
+              "src/flask/views.py",
+              "src/flask/templating.py"
+            ]
+          }
+        ],
+        "latency_ms": 77.38,
+        "query_cases": 5,
+        "top5_hits": 4,
+        "top5_success": 0.8
+      },
+      "commit": "d318b683471101618febed18996405ad26462110",
+      "corpus_sha256": "f0c67ab2c64b56a19983568f379493d9e6f8a185531dd6b0e05ec93e7534c4d7",
+      "id": "flask",
+      "language": "Python",
+      "public": true,
+      "url": "https://github.com/pallets/flask.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "symbol:command.go:Execute"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:command.go:ExecuteC"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:command.go:Command"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:command.go:execute"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:command.go:ExecuteContextC"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "cobra-execute-command",
+            "missing": [],
+            "packet_bytes": 2418,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "symbol:bash_completions.go:GenBashCompletion"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:bash_completionsV2.go:genBashCompletion"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:bash_completions.go:GenBashCompletionFile"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:bash_completionsV2.go:GenBashCompletionV2"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:bash_completions.go:gen"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:bash_completionsV2.go:GenBashCompletionFileV2"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "cobra-bash-completion",
+            "missing": [],
+            "packet_bytes": 2916,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": false,
+                "selector": "symbol:active_help.go:AppendActiveHelp"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:active_help.go:GetActiveHelpConfig"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:active_help.go:activeHelpEnvVar"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "cobra-active-help",
+            "missing": [],
+            "packet_bytes": 1852,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "path:active_help.go"
+              },
+              {
+                "relevant": true,
+                "selector": "test:active_help_test.go"
+              },
+              {
+                "relevant": true,
+                "selector": "reference:bash_completions.go"
+              },
+              {
+                "relevant": true,
+                "selector": "reference:completions.go"
+              },
+              {
+                "relevant": true,
+                "selector": "reference:fish_completions.go"
+              },
+              {
+                "relevant": true,
+                "selector": "reference:powershell_completions.go"
+              },
+              {
+                "relevant": false,
+                "selector": "test:args_test.go"
+              },
+              {
+                "relevant": true,
+                "selector": "test:bash_completionsV2_test.go"
+              },
+              {
+                "relevant": true,
+                "selector": "test:bash_completions_test.go"
+              },
+              {
+                "relevant": false,
+                "selector": "test:cobra_test.go"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "cobra-active-help-impact",
+            "missing": [],
+            "packet_bytes": 4419,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "path:flag_groups.go"
+              },
+              {
+                "relevant": true,
+                "selector": "test:flag_groups_test.go"
+              },
+              {
+                "relevant": true,
+                "selector": "reference:command.go"
+              },
+              {
+                "relevant": false,
+                "selector": "reference:completions.go"
+              },
+              {
+                "relevant": false,
+                "selector": "test:active_help_test.go"
+              },
+              {
+                "relevant": false,
+                "selector": "test:args_test.go"
+              }
+            ],
+            "budget_bytes": 18000,
+            "expected_state": null,
+            "id": "blind-cobra-flag-groups-impact",
+            "missing": [],
+            "packet_bytes": 4129,
+            "partition": "blind-v1",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [],
+            "budget_bytes": 8000,
+            "expected_state": "OUT_OF_SCOPE",
+            "id": "cobra-image-abstention",
+            "missing": [],
+            "packet_bytes": 817,
+            "partition": "development",
+            "state": "OUT_OF_SCOPE",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 1,
+          "abstention_hits": 1,
+          "advisory_results": 0,
+          "authoritative_results": 30,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 6,
+          "cases": 6,
+          "critical_evidence_misses": 0,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 6,
+          "latency_ms": 2067.045,
+          "must_exclude_total": 0,
+          "must_exclude_violations": 0,
+          "must_read_hits": 9,
+          "must_read_total": 9,
+          "packet_bytes": 16551,
+          "passed_trace_count": 0,
+          "recall": 1.0,
+          "relevant_result_bytes": 10011,
+          "serialized_result_byte_weighted_precision": 0.786781,
+          "top5_task_hits": 6,
+          "top5_task_success": 1.0,
+          "top5_task_total": 6,
+          "total_result_bytes": 12724,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent"
+        },
+        "revision": "5a3b2c8e9af4c74e607a0a55e7910c1edb5d266f",
+        "state": "READY"
+      },
+      "baseline": {
+        "abstention_accuracy": 0.0,
+        "abstention_cases": 1,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "cobra-execute-command",
+            "top5_hit": true,
+            "top5_paths": [
+              "command.go",
+              "command_test.go",
+              "site/content/user_guide.md",
+              "completions_test.go",
+              "completions.go"
+            ]
+          },
+          {
+            "id": "cobra-bash-completion",
+            "top5_hit": true,
+            "top5_paths": [
+              "completions_test.go",
+              "site/content/completions/_index.md",
+              "completions.go",
+              "bash_completionsV2.go",
+              "bash_completions.go"
+            ]
+          },
+          {
+            "id": "cobra-active-help",
+            "top5_hit": false,
+            "top5_paths": [
+              "site/content/active_help.md",
+              "completions.go",
+              "site/content/user_guide.md",
+              "bash_completionsV2.go",
+              "zsh_completions.go"
+            ]
+          },
+          {
+            "id": "cobra-image-abstention",
+            "top5_hit": false,
+            "top5_paths": [
+              "site/content/completions/_index.md",
+              ".github/workflows/test.yml",
+              "site/content/user_guide.md",
+              "README.md",
+              "bash_completions_test.go"
+            ]
+          }
+        ],
+        "latency_ms": 29.189,
+        "query_cases": 4,
+        "top5_hits": 2,
+        "top5_success": 0.5
+      },
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "corpus_sha256": "d744bec14c6ee54f03082b5db4a2897f4d77e1cf928dd4a886c63af0dbe8e3ad",
+      "id": "cobra",
+      "language": "Go",
+      "public": true,
+      "url": "https://github.com/spf13/cobra.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "symbol:packages/zod/src/v4/classic/from-json-schema.ts:fromJSONSchema"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:packages/zod/src/v4/classic/from-json-schema.ts:convertSchema"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v4/classic/from-json-schema.ts:typeSchema"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v4/classic/from-json-schema.ts:type"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:packages/zod/src/v4/classic/from-json-schema.ts:convertBaseSchema"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v4/classic/from-json-schema.ts:propZodSchema"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "zod-from-json-schema",
+            "missing": [],
+            "packet_bytes": 3179,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "symbol:packages/zod/src/v4/core/errors.ts:treeifyError"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:packages/zod/src/v4/core/errors.ts:$ZodErrorTree"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v4/core/errors.ts:issues"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "zod-treeify-errors",
+            "missing": [],
+            "packet_bytes": 1945,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "symbol:packages/zod/src/v4/core/schemas.ts:$ZodDiscriminatedUnion"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:packages/zod/src/v4/core/api.ts:_discriminatedUnion"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:packages/zod/src/v4/classic/schemas.ts:discriminatedUnion"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:packages/zod/src/v4/core/api.ts:$ZodDiscriminatedUnionParams"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:packages/zod/src/v4/classic/schemas.ts:ZodDiscriminatedUnion"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "zod-discriminated-union",
+            "missing": [],
+            "packet_bytes": 2798,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "path:packages/zod/src/v4/core/memoizer.ts"
+              },
+              {
+                "relevant": true,
+                "selector": "reverse-import:packages/zod/src/v4/core/compile.ts"
+              },
+              {
+                "relevant": true,
+                "selector": "reverse-import:packages/zod/src/v4/core/index.ts"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "zod-memoizer-impact",
+            "missing": [],
+            "packet_bytes": 3413,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "symbol:packages/zod/src/v4/core/parse.ts:_safeParseAsync"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:packages/zod/src/v4/classic/parse.ts:safeParseAsync"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v4/core/parse.ts:_parseAsync"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v4/classic/parse.ts:ZodSafeParseResult"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v4/core/parse.ts:safeParseAsync"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v4/classic/parse.ts:ZodSafeParseSuccess"
+              }
+            ],
+            "budget_bytes": 20000,
+            "expected_state": null,
+            "id": "blind-zod-v4-safe-parse-async",
+            "missing": [],
+            "packet_bytes": 3128,
+            "partition": "blind-v1",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [],
+            "budget_bytes": 8000,
+            "expected_state": "OUT_OF_SCOPE",
+            "id": "zod-network-abstention",
+            "missing": [],
+            "packet_bytes": 824,
+            "partition": "development",
+            "state": "OUT_OF_SCOPE",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 1,
+          "abstention_hits": 1,
+          "advisory_results": 0,
+          "authoritative_results": 23,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 6,
+          "cases": 6,
+          "critical_evidence_misses": 0,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 7,
+          "latency_ms": 10539.503,
+          "must_exclude_total": 0,
+          "must_exclude_violations": 0,
+          "must_read_hits": 9,
+          "must_read_total": 9,
+          "packet_bytes": 15287,
+          "passed_trace_count": 0,
+          "recall": 1.0,
+          "relevant_result_bytes": 7801,
+          "serialized_result_byte_weighted_precision": 0.710733,
+          "top5_task_hits": 6,
+          "top5_task_success": 1.0,
+          "top5_task_total": 6,
+          "total_result_bytes": 10976,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent"
+        },
+        "revision": "1f8fe962ebac8d3898be3f0eed07a2f2bba571e2",
+        "state": "READY"
+      },
+      "baseline": {
+        "abstention_accuracy": 0.0,
+        "abstention_cases": 1,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "zod-from-json-schema",
+            "top5_hit": false,
+            "top5_paths": [
+              "packages/zod/src/v4/core/schemas.ts",
+              "packages/zod/src/v3/types.ts",
+              "packages/zod/src/v4/classic/schemas.ts",
+              "packages/zod/src/v4/classic/tests/to-json-schema.test.ts",
+              "pnpm-lock.yaml"
+            ]
+          },
+          {
+            "id": "zod-treeify-errors",
+            "top5_hit": false,
+            "top5_paths": [
+              "packages/docs-v3/home.md",
+              "packages/zod/src/v4/core/compile.ts",
+              "wiki/compile-plan.md",
+              "packages/zod/src/v4/classic/tests/to-json-schema.test.ts",
+              "packages/zod/src/v4/classic/tests/discriminated-unions.test.ts"
+            ]
+          },
+          {
+            "id": "zod-discriminated-union",
+            "top5_hit": true,
+            "top5_paths": [
+              "packages/bench/compile-matrix.ts",
+              "packages/zod/src/v4/core/schemas.ts",
+              "packages/zod/src/v3/types.ts",
+              "packages/zod/src/v4/classic/schemas.ts",
+              "packages/zod/src/v4/mini/schemas.ts"
+            ]
+          },
+          {
+            "id": "blind-zod-v4-safe-parse-async",
+            "top5_hit": false,
+            "top5_paths": [
+              "packages/zod/src/v4/core/schemas.ts",
+              "packages/zod/src/v4/classic/schemas.ts",
+              "packages/docs-v3/home.md",
+              "packages/zod/src/v4/core/compile.ts",
+              "wiki/compiled-constructor-graph.md"
+            ]
+          },
+          {
+            "id": "zod-network-abstention",
+            "top5_hit": false,
+            "top5_paths": [
+              "pnpm-lock.yaml",
+              "packages/docs-v3/home.md",
+              "packages/docs-v3/README_KO.md",
+              "packages/docs/components/ecosystem.tsx",
+              "packages/docs/pnpm-lock.yaml"
+            ]
+          }
+        ],
+        "latency_ms": 391.217,
+        "query_cases": 5,
+        "top5_hits": 1,
+        "top5_success": 0.2
+      },
+      "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+      "corpus_sha256": "6eda5bd55b7d8f9594b5a7647c3eaca868be777e75b683ae4a02de2fe28aa79d",
+      "id": "zod",
+      "language": "TypeScript",
+      "public": true,
+      "url": "https://github.com/colinhacks/zod.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "symbol:lib/terminate/kill-descendants.js:killDescendantsFunction"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:lib/terminate/kill-descendants.js:killDescendantsUnix"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:lib/terminate/kill-descendants.js:killDescendantsWindows"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:lib/terminate/kill-descendants.js:getKillFunction"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "execa-kill-descendants",
+            "missing": [],
+            "packet_bytes": 2362,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "symbol:lib/arguments/options.js:normalizeOptions"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:lib/methods/parameters.js:normalizeParameters"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:lib/pipe/pipe-arguments.js:normalizePipeArguments"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:lib/arguments/options.js:options"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:lib/methods/parameters.js:filePath"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:lib/pipe/pipe-arguments.js:mapDestinationArguments"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "execa-normalize-parameters",
+            "missing": [],
+            "packet_bytes": 2973,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "symbol:lib/io/max-buffer.js:handleMaxBuffer"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:lib/io/max-buffer.js:getMaxBufferUnit"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:lib/io/max-buffer.js:checkIpcMaxBuffer"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:lib/io/max-buffer.js:isMaxBufferSync"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:lib/io/max-buffer.js:getMaxBufferMessage"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:lib/io/max-buffer.js:getMaxBufferInfo"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "execa-max-buffer",
+            "missing": [],
+            "packet_bytes": 2920,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "path:lib/terminate/kill-descendants.js"
+              },
+              {
+                "relevant": true,
+                "selector": "reverse-import:lib/methods/main-async.js"
+              },
+              {
+                "relevant": true,
+                "selector": "reverse-import:test/terminate/kill-descendants.js"
+              }
+            ],
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "execa-kill-impact",
+            "missing": [],
+            "packet_bytes": 3450,
+            "partition": "development",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "symbol:lib/io/contents.js:getStreamOutput"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:lib/io/output-async.js:outputStreams"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:types/subprocess/stdout.d.ts:InputOutputStream"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:lib/io/output-async.js:setStandardStreamMaxListeners"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:lib/io/output-async.js:streamProperty"
+              }
+            ],
+            "budget_bytes": 14000,
+            "expected_state": null,
+            "id": "blind-execa-async-max-buffer-overflow",
+            "missing": [
+              "symbol:lib/io/max-buffer.js:handleMaxBuffer"
+            ],
+            "packet_bytes": 2682,
+            "partition": "blind-v1",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "actual": [],
+            "budget_bytes": 8000,
+            "expected_state": "OUT_OF_SCOPE",
+            "id": "execa-database-abstention",
+            "missing": [],
+            "packet_bytes": 829,
+            "partition": "development",
+            "state": "OUT_OF_SCOPE",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 1,
+          "abstention_hits": 1,
+          "advisory_results": 0,
+          "authoritative_results": 24,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 6,
+          "cases": 6,
+          "critical_evidence_misses": 1,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 7,
+          "latency_ms": 5225.194,
+          "must_exclude_total": 0,
+          "must_exclude_violations": 0,
+          "must_read_hits": 8,
+          "must_read_total": 9,
+          "packet_bytes": 15216,
+          "passed_trace_count": 0,
+          "recall": 0.888889,
+          "relevant_result_bytes": 7889,
+          "serialized_result_byte_weighted_precision": 0.723828,
+          "top5_task_hits": 6,
+          "top5_task_success": 1.0,
+          "top5_task_total": 6,
+          "total_result_bytes": 10899,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent"
+        },
+        "revision": "f8ab67228ee0a417058f9bc2282945f915f64f39",
+        "state": "CONFLICT"
+      },
+      "baseline": {
+        "abstention_accuracy": 1.0,
+        "abstention_cases": 1,
+        "abstention_hits": 1,
+        "cases": [
+          {
+            "id": "execa-kill-descendants",
+            "top5_hit": false,
+            "top5_paths": [
+              "docs/api.md",
+              "docs/termination.md",
+              "test/terminate/kill-descendants.js",
+              "types/arguments/options.d.ts",
+              "test/pipe/methods.js"
+            ]
+          },
+          {
+            "id": "execa-normalize-parameters",
+            "top5_hit": false,
+            "top5_paths": [
+              "test/arguments/command-resolution.js",
+              "lib/pipe/pipe-arguments.js",
+              "lib/methods/main-async.js",
+              "lib/methods/main-sync.js",
+              "types/arguments/options.d.ts"
+            ]
+          },
+          {
+            "id": "execa-max-buffer",
+            "top5_hit": true,
+            "top5_paths": [
+              "test/io/max-buffer.js",
+              "docs/api.md",
+              "test/io/iterate.js",
+              "docs/termination.md",
+              "lib/io/max-buffer.js"
+            ]
+          },
+          {
+            "id": "blind-execa-async-max-buffer-overflow",
+            "top5_hit": false,
+            "top5_paths": [
+              "docs/api.md",
+              "docs/output.md",
+              "lib/methods/main-async.js",
+              "lib/pipe/setup.js",
+              "docs/input.md"
+            ]
+          },
+          {
+            "id": "execa-database-abstention",
+            "top5_hit": true,
+            "top5_paths": []
+          }
+        ],
+        "latency_ms": 362.195,
+        "query_cases": 5,
+        "top5_hits": 2,
+        "top5_success": 0.4
+      },
+      "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+      "corpus_sha256": "346879378acad6e7e10b30436b3abc4e6d5351163807f861523ebd4ae5a7b575",
+      "id": "execa",
+      "language": "JavaScript",
+      "public": true,
+      "url": "https://github.com/sindresorhus/execa.git"
+    }
+  ],
+  "schema_version": 1,
+  "v4_release": {
+    "blocked_by": [
+      "abstention",
+      "all_repository_evaluations_ready",
+      "full_recall",
+      "zero_critical_misses"
+    ],
+    "checks": {
+      "abstention": false,
+      "all_cases_budgeted": true,
+      "all_repository_evaluations_ready": false,
+      "budget_compliance": true,
+      "five_repositories": true,
+      "four_public_repositories": true,
+      "full_recall": false,
+      "precision": true,
+      "top5_success": true,
+      "twenty_five_cases": true,
+      "zero_critical_misses": false,
+      "zero_forbidden_hits": true
+    },
+    "ready": false
+  }
+}

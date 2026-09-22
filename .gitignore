@@ -1,0 +1,34 @@
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/
+build/
+dist/
+.context-corvint/
+.corvint-benchmark-cache/
+.corvint/change.ocm.json
+.corvint/change.ocm-intents
+.corvint/change.ocm-status.json
+.corvint/change.ocm.[0-9][0-9][0-9].json
+.corvint/self-observations.jsonl
+.corvint/dogfood-report.json
+.corvint/index/
+.corvint/test-evidence/
+.claude/settings.local.json
+.claude/worktrees/
+
+# In-progress reviewer-trial artifacts; only the finished report is evidence.
+benchmarks/results/*.partial.json
+.corvint/leases/
+.corvint/unplanned-reads.jsonl
+.corvint/unplanned-reads.enabled
+.corvint/.unplanned-reads.*
+
+# Locally built binaries at the repository root. Build outputs, not sources.
+/corvint
+/corvint
+/corvint-console
+/corvint-companion-release
+
+# Installed JavaScript dependencies (extensions/, integrations/).
+node_modules/

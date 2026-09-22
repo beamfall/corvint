@@ -1,0 +1,102 @@
+{
+  "id": "linked-obligation-no-material-candidate",
+  "matrixRows": [
+    "linked obligation without material candidate"
+  ],
+  "clauses": [
+    "CF-V0-012",
+    "CF-V0-015"
+  ],
+  "intent": "With no lexical candidate and no abstention, a structurally linked obligation uses NO_MATERIAL_CHANGE_WITNESS with relatedIds equal to EVERY structurally referenced hunk ID.",
+  "cases": [
+    {
+      "id": "two-referenced-hunks-no-candidate",
+      "note": "Both referenced hunks close on their own bases but neither is a lexical candidate.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          },
+          {
+            "id": "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          }
+        ],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "linked",
+            "hunkIds": [
+              "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202",
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "claimIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "tcqReasons": [
+              "test-not-matched"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "2",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "NO_MATERIAL_CHANGE_WITNESS"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+              "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_MATERIAL_HUNK"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "TEST_NOT_MATCHED"
+            ],
+            "relatedIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "SUPPLY_TEST_OBSERVATION"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-012: reason is NO_MATERIAL_CHANGE_WITNESS with PRODUCER_DECLARED, ACTIONABLE, LINK_MATERIAL_HUNK.",
+        "CF-V0-012: relatedIds are the sorted unique set of EVERY structurally referenced hunk ID.",
+        "CF-V0-020: caller array order (H2 before H1) cannot override the sort.",
+        "CF-V0-015: the obligation still emits its INTENT_TEST item."
+      ]
+    }
+  ]
+}

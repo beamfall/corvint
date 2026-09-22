@@ -1,0 +1,673 @@
+{
+ "schema": "external-test-selection-conformance/0",
+ "note": "Synthetic labelled cases. relevant lists the tests that exercise the changed code; safe_to_narrow is the label the evaluation compares against the returned state.",
+ "cases": [
+  {
+   "name": "positive-verifies-cross-repository",
+   "record": "verifies.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [
+    "e2e"
+   ],
+   "state": "narrow-selection-allowed",
+   "codes": [],
+   "selected": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "safe_to_narrow": true
+  },
+  {
+   "name": "positive-asserts",
+   "record": "asserts.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [
+    "e2e"
+   ],
+   "state": "narrow-selection-allowed",
+   "codes": [],
+   "selected": [
+    "e2e:tests/journey.spec.ts"
+   ],
+   "relevant": [
+    "e2e:tests/journey.spec.ts"
+   ],
+   "safe_to_narrow": true
+  },
+  {
+   "name": "positive-covers-coverage-profile",
+   "record": "covers.json",
+   "profile": "coverage",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "narrow-selection-allowed",
+   "codes": [],
+   "selected": [
+    "application:pkg/main_test.go"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go"
+   ],
+   "safe_to_narrow": true
+  },
+  {
+   "name": "negative-covers-strict-profile",
+   "record": "covers.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "profile-excluded-relation"
+   ],
+   "selected": [],
+   "relevant": [
+    "application:pkg/main_test.go"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "negative-navigates",
+   "record": "navigates.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [
+    "e2e"
+   ],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "navigation-only-evidence"
+   ],
+   "selected": [],
+   "relevant": [],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "negative-inferred",
+   "record": "inferred.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "inferred-only-evidence"
+   ],
+   "selected": [],
+   "relevant": [
+    "application:pkg/main_test.go"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "negative-learned",
+   "record": "learned.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "excluded-evidence-kind"
+   ],
+   "selected": [],
+   "relevant": [
+    "application:pkg/main_test.go"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "negative-v0-record",
+   "record": "v0",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "no-repository-identity"
+   ],
+   "selected": [],
+   "relevant": [],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "stale-provider-revision",
+   "record": "stale-provider.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [
+    "e2e"
+   ],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "stale-provider-revision"
+   ],
+   "selected": [
+    "e2e:tests/account.spec.ts"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "stale-path-reference",
+   "record": "stale-reference.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "stale-path-reference"
+   ],
+   "selected": [],
+   "relevant": [
+    "application:pkg/main_test.go"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "stale-cross-repository-side",
+   "record": "cross-stale.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [
+    "e2e"
+   ],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "stale-provider-revision"
+   ],
+   "selected": [
+    "application:pkg/main_test.go"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "missing-path-reference",
+   "record": "missing-reference.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "missing-path-reference"
+   ],
+   "selected": [],
+   "relevant": [],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "ambiguous-test-repository",
+   "record": "ambiguous-test.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "ambiguous-repository-identity"
+   ],
+   "selected": [
+    "application:pkg/main_test.go"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "ambiguous-root-repository",
+   "record": "ambiguous-root.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "ambiguous-repository-identity"
+   ],
+   "selected": [],
+   "relevant": [
+    "application:pkg/main_test.go"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "unbound-test-repository",
+   "record": "verifies.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "unbound-test-repository"
+   ],
+   "selected": [
+    "application:pkg/main_test.go"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "unavailable-provider",
+   "record": "",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "blocked",
+   "codes": [
+    "provider-unavailable"
+   ],
+   "selected": [],
+   "relevant": [],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "unsupported-relation",
+   "record": "unsupported.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "unsupported-relation"
+   ],
+   "selected": [
+    "application:pkg/main_test.go"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "partial-evidence-two-paths",
+   "record": "verifies.json",
+   "profile": "strict",
+   "changed": [
+    "docs/guide.md",
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [
+    "e2e"
+   ],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "no-external-evidence"
+   ],
+   "selected": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "widened-downstream-entity",
+   "record": "widen.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "no-external-evidence"
+   ],
+   "selected": [
+    "application:pkg/main_test.go"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "worktree-dirty-path",
+   "record": "verifies.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [
+    "pkg/main.go"
+   ],
+   "incomplete": [],
+   "bind": [
+    "e2e"
+   ],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "worktree-dirty-path"
+   ],
+   "selected": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "abstention-incomplete-scope",
+   "record": "verifies.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [
+    "unparsed-source: lib/legacy.rb"
+   ],
+   "bind": [
+    "e2e"
+   ],
+   "state": "unknown",
+   "codes": [],
+   "selected": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "abstention-no-changed-paths",
+   "record": "verifies.json",
+   "profile": "strict",
+   "changed": [],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [
+    "e2e"
+   ],
+   "state": "unknown",
+   "codes": [],
+   "selected": [],
+   "relevant": [],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "empty-selection-is-not-proof",
+   "record": "verifies.json",
+   "profile": "strict",
+   "changed": [
+    "docs/guide.md"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [
+    "e2e"
+   ],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "no-external-evidence"
+   ],
+   "selected": [],
+   "relevant": [],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "multihop-second-hop-uncovered",
+   "record": "multihop.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "no-external-evidence"
+   ],
+   "selected": [
+    "application:pkg/main_test.go",
+    "application:pkg/main_test.go"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "multihop-every-hop-verified",
+   "record": "multihop-covered.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "narrow-selection-allowed",
+   "codes": [],
+   "selected": [
+    "application:pkg/main_test.go",
+    "application:pkg/main_test.go",
+    "application:pkg/main_test.go"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go"
+   ],
+   "safe_to_narrow": true
+  },
+  {
+   "name": "multihop-cycle-terminates",
+   "record": "cycle.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "narrow-selection-allowed",
+   "codes": [],
+   "selected": [
+    "application:pkg/main_test.go",
+    "application:pkg/main_test.go",
+    "application:pkg/main_test.go"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go"
+   ],
+   "safe_to_narrow": true
+  },
+  {
+   "name": "multihop-depth-truncated",
+   "record": "deep.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "obligation-depth-truncated"
+   ],
+   "selected": [
+    "application:pkg/main_test.go",
+    "application:pkg/main_test.go",
+    "application:pkg/main_test.go",
+    "application:pkg/main_test.go",
+    "application:pkg/main_test.go"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go"
+   ],
+   "safe_to_narrow": false
+  },
+  {
+   "name": "checkout-clean-inspected",
+   "record": "verifies.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [
+    "e2e"
+   ],
+   "state": "narrow-selection-allowed",
+   "codes": [],
+   "selected": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "safe_to_narrow": true,
+   "checkout": "clean"
+  },
+  {
+   "name": "checkout-dirty",
+   "record": "verifies.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [
+    "e2e"
+   ],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "checkout-worktree-dirty"
+   ],
+   "selected": [
+    "application:pkg/main_test.go"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "safe_to_narrow": false,
+   "checkout": "dirty"
+  },
+  {
+   "name": "checkout-unreadable",
+   "record": "verifies.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [
+    "e2e"
+   ],
+   "state": "full-relevant-suite-required",
+   "codes": [
+    "checkout-worktree-unreadable"
+   ],
+   "selected": [
+    "application:pkg/main_test.go"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go",
+    "e2e:tests/account.spec.ts"
+   ],
+   "safe_to_narrow": false,
+   "checkout": "unreadable"
+  }
+ ]
+}

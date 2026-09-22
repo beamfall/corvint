@@ -1,0 +1,29 @@
+{
+  "files": [
+    {
+      "content": "module example.test/harness\n\ngo 1.27.0\n",
+      "mode": "0644",
+      "path": "go.mod",
+      "type": "file"
+    },
+    {
+      "content": "package sample\n\n// scenario:z-last feature:a11y-high-contrast\nfunc StableValue() string { return \"clean\" }\n",
+      "mode": "0644",
+      "path": "pkg/sample.go",
+      "type": "file"
+    },
+    {
+      "content": "features:\n  - id: a11y-high-contrast\n    area: accessibility\n    summary: Synthetic scalar fixture.\n    adr: [12]\n    applies: [server]\n    status: shipped\n",
+      "mode": "0644",
+      "path": "testing/features.yaml",
+      "type": "file"
+    },
+    {
+      "content": "scenarios:\n  - id: z-last\n    area: accessibility\n    summary: Synthetic scenario fixture.\n    features: [a11y-high-contrast]\n    applies: [server]\n    status: shipped\n",
+      "mode": "0644",
+      "path": "testing/scenarios.yaml",
+      "type": "file"
+    }
+  ],
+  "format": "atlas-cli-parity-fixture/0"
+}

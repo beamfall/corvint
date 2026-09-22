@@ -1,0 +1,29 @@
+{
+  "files": [
+    {
+      "content": ".context-atlas/\n",
+      "mode": "0644",
+      "path": ".gitignore",
+      "type": "file"
+    },
+    {
+      "content": "# Project instructions\n\nThe roadmap is the only active work queue.\nRun `make orient`, then `script/context-packet.sh --ticket ID`.\nUse `script/roadmap.sh` and run the required workflow gates.\n",
+      "mode": "0644",
+      "path": "AGENTS.md",
+      "type": "file"
+    },
+    {
+      "content": "#!/bin/sh\nexit 0\n",
+      "mode": "0755",
+      "path": "script/context-packet.sh",
+      "type": "file"
+    },
+    {
+      "content": "#!/bin/sh\nexit 0\n",
+      "mode": "0755",
+      "path": "script/roadmap.sh",
+      "type": "file"
+    }
+  ],
+  "format": "atlas-cli-parity-fixture/0"
+}

@@ -1,0 +1,320 @@
+{
+  "coverage": {
+    "answerability": {
+      "known": 1,
+      "nearest_claims": [
+        {
+          "blob_hash": "f89a40e2b7c13968ce317bffdd997221551eb7f4",
+          "lacks": [],
+          "path": "lib/scan/def.go",
+          "supports": [
+            "zqframe"
+          ]
+        }
+      ],
+      "reason": "1 sources name at least 1 of the 1 known specific terms together",
+      "required": 1,
+      "specific_terms": [
+        {
+          "sources": 1,
+          "term": "zqframe",
+          "tracked_paths": 0
+        }
+      ],
+      "support": 1,
+      "supporting_sources": 1,
+      "verdict": "supported"
+    },
+    "budget_shortage": "none",
+    "candidates": 12,
+    "critical": [
+      {
+        "path": "AGENTS.md",
+        "relation": "governing"
+      }
+    ],
+    "critical_missing": [],
+    "governance": "reserved",
+    "included_results": 12,
+    "omitted_results": 0,
+    "unexamined": [
+      {
+        "relation": "governing",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "spec-mentioned",
+        "state": "not-applicable",
+        "withheld": null
+      },
+      {
+        "relation": "pair",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "mentioned",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "definition",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "reverse-import",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "reference",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "cochange",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "sibling",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "test",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "lexical",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "documentation",
+        "state": "examined",
+        "withheld": 1
+      }
+    ]
+  },
+  "mutates": false,
+  "ok": true,
+  "request": {
+    "limit": 20,
+    "task_chars": 66
+  },
+  "results": [
+    {
+      "action": "Read this project's standing instructions before changing anything.",
+      "evidence": [
+        {
+          "authority": "project-instructions",
+          "blob_hash": "3496b2a2be26bb3580c7fb2d516146922456b065",
+          "confidence": "high",
+          "line": 1,
+          "path": "AGENTS.md",
+          "reason": "the highest-precedence tracked instruction file"
+        }
+      ],
+      "id": "AGENTS.md",
+      "kind": "governing",
+      "score": 1000,
+      "summary": "this project's standing instructions; also documentation"
+    },
+    {
+      "action": "Open this file: the task names it or its counterpart, so act on it as the task says.",
+      "evidence": [
+        {
+          "authority": "task-text",
+          "blob_hash": "ac5cfc79ed2f506a2495a586bdd20adc8881bea8",
+          "confidence": "high",
+          "line": 1,
+          "path": "pkg/parser/parser.go",
+          "reason": "the task names pkg/parser/parser.go"
+        }
+      ],
+      "id": "pkg/parser/parser.go",
+      "kind": "mentioned",
+      "score": 950,
+      "summary": "named in the task; also test, lexical"
+    },
+    {
+      "action": "Update this test: it is the subject's test counterpart, so a behaviour change in the subject changes what it must assert.",
+      "evidence": [
+        {
+          "authority": "test-convention",
+          "blob_hash": "016996ca17ff402490815f538bf8523fbcd236af",
+          "confidence": "high",
+          "line": 1,
+          "path": "pkg/parser/parser_test.go",
+          "reason": "test counterpart of pkg/parser/parser.go"
+        }
+      ],
+      "id": "pkg/parser/parser_test.go",
+      "kind": "pair",
+      "score": 940,
+      "summary": "test counterpart of pkg/parser/parser.go, which the task names; also test, lexical"
+    },
+    {
+      "action": "Open this definition of `zqframe`, which the task names: a change to how `zqframe` is defined or used must be reconciled here.",
+      "evidence": [
+        {
+          "authority": "syntax",
+          "blob_hash": "f89a40e2b7c13968ce317bffdd997221551eb7f4",
+          "confidence": "high",
+          "line": 3,
+          "path": "lib/scan/def.go",
+          "reason": "defines zqframe"
+        }
+      ],
+      "id": "lib/scan/def.go",
+      "kind": "definition",
+      "score": 850,
+      "summary": "defines zqframe, which the task names; also lexical"
+    },
+    {
+      "action": "Read this file only if the task terms it matches (4 distinct task terms, 1 occurrences; rarest `parser` (idf 1.31); bm25 4.17) are load-bearing; a term match is not a relation.",
+      "evidence": [
+        {
+          "authority": "vocabulary",
+          "blob_hash": "32e8166294af59cd4b297e7872d7ba95a62b739f",
+          "confidence": "low",
+          "line": 1,
+          "path": "pkg/parser/helpers.go",
+          "reason": "4 distinct task terms, 1 occurrences; rarest `parser` (idf 1.31); bm25 4.17"
+        }
+      ],
+      "id": "pkg/parser/helpers.go",
+      "kind": "lexical",
+      "score": 300,
+      "summary": "4 task terms match"
+    },
+    {
+      "action": "Read this file only if the task terms it matches (documentation: 4 distinct task terms, 4 occurrences; rarest `drop` (idf 2.16); bm25 7.37) are load-bearing; a term match is not a relation.",
+      "evidence": [
+        {
+          "authority": "vocabulary",
+          "blob_hash": "73009a5e289a2dce681cb5c697ac48b6de5cf056",
+          "confidence": "low",
+          "line": 1,
+          "path": "docs/needle.md",
+          "reason": "documentation: 4 distinct task terms, 4 occurrences; rarest `drop` (idf 2.16); bm25 7.37"
+        }
+      ],
+      "id": "docs/needle.md",
+      "kind": "documentation",
+      "score": 300,
+      "summary": "4 task terms match"
+    },
+    {
+      "action": "Read this file only if the task terms it matches (documentation: 1 distinct task terms, 1 occurrences; rarest `signal` (idf 1.31); bm25 1.56) are load-bearing; a term match is not a relation.",
+      "evidence": [
+        {
+          "authority": "vocabulary",
+          "blob_hash": "d71b6f12057e81fafc2e8ace62e5b4f4d2fcf5c7",
+          "confidence": "low",
+          "line": 1,
+          "path": "docs/guide.md",
+          "reason": "documentation: 1 distinct task terms, 1 occurrences; rarest `signal` (idf 1.31); bm25 1.56"
+        }
+      ],
+      "id": "docs/guide.md",
+      "kind": "documentation",
+      "score": 300,
+      "summary": "1 task terms match"
+    },
+    {
+      "action": "Read this file only if the task terms it matches (3 distinct task terms, 3 occurrences; rarest `signal` (idf 1.31); bm25 3.49) are load-bearing; a term match is not a relation.",
+      "evidence": [
+        {
+          "authority": "vocabulary",
+          "blob_hash": "57aec4318954ec25274e8a1eb254ea358ea6df02",
+          "confidence": "low",
+          "line": 1,
+          "path": "internal/other/short.go",
+          "reason": "3 distinct task terms, 3 occurrences; rarest `signal` (idf 1.31); bm25 3.49"
+        }
+      ],
+      "id": "internal/other/short.go",
+      "kind": "lexical",
+      "score": 300,
+      "summary": "3 task terms match"
+    },
+    {
+      "action": "Read this file only if the task terms it matches (3 distinct task terms, 1 occurrences; rarest `needle` (idf 1.65); bm25 3.21) are load-bearing; a term match is not a relation.",
+      "evidence": [
+        {
+          "authority": "vocabulary",
+          "blob_hash": "02cd1208a294a7b5e197d032d17dce1cf563b51d",
+          "confidence": "low",
+          "line": 1,
+          "path": "cmd/needle/main.go",
+          "reason": "3 distinct task terms, 1 occurrences; rarest `needle` (idf 1.65); bm25 3.21"
+        }
+      ],
+      "id": "cmd/needle/main.go",
+      "kind": "lexical",
+      "score": 300,
+      "summary": "3 task terms match"
+    },
+    {
+      "action": "Read this file only if the task terms it matches (2 distinct task terms, 1 occurrences; rarest `go` (idf 2.16); bm25 2.85) are load-bearing; a term match is not a relation.",
+      "evidence": [
+        {
+          "authority": "vocabulary",
+          "blob_hash": "ca69142ccac937cc4235bd646fc0eac6b23542d2",
+          "confidence": "low",
+          "line": 1,
+          "path": "go.mod",
+          "reason": "2 distinct task terms, 1 occurrences; rarest `go` (idf 2.16); bm25 2.85"
+        }
+      ],
+      "id": "go.mod",
+      "kind": "lexical",
+      "score": 300,
+      "summary": "2 task terms match"
+    },
+    {
+      "action": "Read this file only if the task terms it matches (1 distinct task terms, 0 occurrences; rarest `go` (idf 0.31); bm25 0.31) are load-bearing; a term match is not a relation.",
+      "evidence": [
+        {
+          "authority": "vocabulary",
+          "blob_hash": "d8a21132207a497f8e8a574d137ab2ec27ba9a61",
+          "confidence": "low",
+          "line": 1,
+          "path": "internal/other/unrelated.go",
+          "reason": "1 distinct task terms, 0 occurrences; rarest `go` (idf 0.31); bm25 0.31"
+        }
+      ],
+      "id": "internal/other/unrelated.go",
+      "kind": "lexical",
+      "score": 300,
+      "summary": "1 task terms match"
+    },
+    {
+      "action": "Read this file only if the task terms it matches (1 distinct task terms, 0 occurrences; rarest `go` (idf 0.31); bm25 0.31) are load-bearing; a term match is not a relation.",
+      "evidence": [
+        {
+          "authority": "vocabulary",
+          "blob_hash": "5a3b62bffd5a00634ca475e3622edf0b1f07bfbe",
+          "confidence": "low",
+          "line": 1,
+          "path": "lib/frob/frob.go",
+          "reason": "1 distinct task terms, 0 occurrences; rarest `go` (idf 0.31); bm25 0.31"
+        }
+      ],
+      "id": "lib/frob/frob.go",
+      "kind": "lexical",
+      "score": 300,
+      "summary": "1 task terms match"
+    }
+  ],
+  "revision": "ab74aca1a80c6e56812a6061096007b3f4e28dee",
+  "schema_version": 1,
+  "state": "READY",
+  "subject": null,
+  "tool": "context"
+}

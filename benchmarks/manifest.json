@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "repositories": [
+    {
+      "id": "beamfall",
+      "url": "https://github.com/beamfall/core.git",
+      "commit": "6e82abd857c77c0ca250b6c4a8f5e1c86684a535",
+      "language": "Go and TypeScript",
+      "public": false,
+      "cases": "testing/context-retrieval-goldens.json"
+    },
+    {
+      "id": "flask",
+      "url": "https://github.com/pallets/flask.git",
+      "commit": "d318b683471101618febed18996405ad26462110",
+      "language": "Python",
+      "public": true,
+      "cases": "benchmarks/cases/flask.json"
+    },
+    {
+      "id": "cobra",
+      "url": "https://github.com/spf13/cobra.git",
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "language": "Go",
+      "public": true,
+      "cases": "benchmarks/cases/cobra.json"
+    },
+    {
+      "id": "zod",
+      "url": "https://github.com/colinhacks/zod.git",
+      "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+      "language": "TypeScript",
+      "public": true,
+      "cases": "benchmarks/cases/zod.json"
+    },
+    {
+      "id": "execa",
+      "url": "https://github.com/sindresorhus/execa.git",
+      "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+      "language": "JavaScript",
+      "public": true,
+      "cases": "benchmarks/cases/execa.json"
+    }
+  ]
+}

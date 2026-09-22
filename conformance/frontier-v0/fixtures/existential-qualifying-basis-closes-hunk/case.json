@@ -1,0 +1,51 @@
+{
+  "id": "existential-qualifying-basis-closes-hunk",
+  "matrixRows": [
+    "one qualifying and one rejected basis"
+  ],
+  "clauses": [
+    "CF-V0-008",
+    "CF-V0-016"
+  ],
+  "intent": "CF-V0-008 makes a qualifying basis EXISTENTIAL: one cem-lexical-v0 edge closes the hunk, and rejected extra bases stay in the recomputed LRF diagnostics without reopening it.",
+  "cases": [
+    {
+      "id": "one-qualifying-one-rejected",
+      "note": "Basis A emits cem-lexical-v0; basis B is rejected as span-too-broad.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "qualifying",
+              "rejected-span-too-broad"
+            ]
+          }
+        ],
+        "obligations": []
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 0,
+        "stdout": "frontier-json",
+        "frontierState": "EMPTY",
+        "itemCount": "0"
+      },
+      "assertions": [
+        "CF-V0-008: the hunk emits NO HUNK_BASIS item because at least one basis edge qualifies.",
+        "CF-V0-008: the rejected basis remains in the recomputed LRF diagnostics and does not enter a blocking item.",
+        "CF-V0-016: Frontier neither discards nor promotes a nonblocking diagnostic when an existential witness succeeds."
+      ]
+    }
+  ]
+}

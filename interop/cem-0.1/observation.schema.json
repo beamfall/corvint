@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://corvint.invalid/schema/cem-external-interop-observation-1.json",
+  "title": "CEM external interoperability observation 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["doctor", "lane", "profile", "publication", "runs", "state"],
+  "properties": {
+    "doctor": {"$ref": "#/$defs/doctor"},
+    "lane": {"const": "consumer"},
+    "profile": {"const": "cem-external-interop-observation/1"},
+    "publication": {"const": "COMMITTED"},
+    "runs": {
+      "type": "array", "items": {"$ref": "#/$defs/run"}, "maxItems": 2
+    },
+    "state": {"enum": ["STARTED", "PASS", "FAIL"]}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullableOid": {
+      "oneOf": [
+        {"type": "null"},
+        {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"}
+      ]
+    },
+    "duration": {"type": "integer", "minimum": 0},
+    "nullableInteger": {
+      "oneOf": [{"type": "null"}, {"type": "integer"}]
+    },
+    "nullableCode": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/code"}
+      ]
+    },
+    "code": {
+      "type": "string", "minLength": 1, "maxLength": 64,
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "requiredCounts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["drift", "invalid", "valid"],
+      "properties": {
+        "drift": {"const": 6}, "invalid": {"const": 19}, "valid": {"const": 7}
+      }
+    },
+    "doctor": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "artifactCount", "corvintCommit", "corvintTreeState", "durationNs",
+        "gitObjectFormats", "manifestSha256", "packetSha256", "required", "state"
+      ],
+      "properties": {
+        "artifactCount": {"const": 51},
+        "corvintCommit": {"$ref": "#/$defs/nullableOid"},
+        "corvintTreeState": {"enum": ["clean", "modified", "standalone"]},
+        "durationNs": {"$ref": "#/$defs/duration"},
+        "gitObjectFormats": {
+          "type": "object", "additionalProperties": false,
+          "required": ["sha1", "sha256"],
+          "properties": {"sha1": {"const": "PASS"}, "sha256": {"const": "PASS"}}
+        },
+        "manifestSha256": {"$ref": "#/$defs/sha256"},
+        "packetSha256": {"$ref": "#/$defs/sha256"},
+        "required": {"$ref": "#/$defs/requiredCounts"},
+        "state": {"const": "PASS"}
+      }
+    },
+    "case": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "durationNs", "exitCode", "failureCode", "group", "name", "state"
+      ],
+      "properties": {
+        "durationNs": {"$ref": "#/$defs/duration"},
+        "exitCode": {"$ref": "#/$defs/nullableInteger"},
+        "failureCode": {"$ref": "#/$defs/nullableCode"},
+        "group": {"enum": ["valid", "invalid", "drift"]},
+        "name": {
+          "type": "string", "minLength": 1, "maxLength": 80,
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "state": {"enum": ["PASS", "FAIL", "UNSUPPORTED"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"state": {"const": "PASS"}}},
+          "then": {"properties": {"failureCode": {"type": "null"}}},
+          "else": {"properties": {"failureCode": {"$ref": "#/$defs/code"}}}
+        }
+      ]
+    },
+    "runCounts": {
+      "type": "object", "additionalProperties": false,
+      "required": ["fail", "pass", "unsupported"],
+      "properties": {
+        "fail": {"type": "integer", "minimum": 0, "maximum": 32},
+        "pass": {"type": "integer", "minimum": 0, "maximum": 32},
+        "unsupported": {"type": "integer", "minimum": 0, "maximum": 32}
+      }
+    },
+    "run": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "cases", "counts", "durationNs", "implementationSha256", "manifestSha256",
+        "packetSha256", "sequence", "state"
+      ],
+      "properties": {
+        "cases": {
+          "type": "array", "items": {"$ref": "#/$defs/case"},
+          "minItems": 32, "maxItems": 32
+        },
+        "counts": {"$ref": "#/$defs/runCounts"},
+        "durationNs": {"$ref": "#/$defs/duration"},
+        "implementationSha256": {"$ref": "#/$defs/sha256"},
+        "manifestSha256": {"$ref": "#/$defs/sha256"},
+        "packetSha256": {"$ref": "#/$defs/sha256"},
+        "sequence": {"type": "integer", "minimum": 1, "maximum": 2},
+        "state": {"enum": ["PASS", "FAIL"]}
+      }
+    }
+  }
+}

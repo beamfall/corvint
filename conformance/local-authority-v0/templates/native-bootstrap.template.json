@@ -1,0 +1,232 @@
+{
+  "profile": "corvint-native-bootstrap-plan/0",
+  "status": "INERT_NOT_READY_FOR_ACTIVATION",
+  "releaseId": null,
+  "finalManifestSHA256": null,
+  "dedicatedRepositoryRoot": null,
+  "readerAuditSHA256": null,
+  "fixtureManifestSHA256": null,
+  "hookConfigurationSHA256": null,
+  "rollbackConfigurationSHA256": null,
+  "steps": [
+    {
+      "id": "freeze",
+      "action": "Freeze exact reviewed release, fixture OPEN/EMPTY targets, enrollment capsules, native case matrix and collector hashes; retain source gates. Unknown values stop activation."
+    },
+    {
+      "id": "checkpoint",
+      "action": "Checkpoint active tasks and predeclare normal app quit, exact owned daemon shutdown and supported hook configuration backup/restore. No broad process kill or unspecified global plugin refresh."
+    },
+    {
+      "id": "reader",
+      "action": "Before launching candidate app/engine, independently audit local-only identity scope and all authority-group privileges, then run protected admit-reader with reviewed root-owned audit. Every admitted reader may read the entire included capsule source/history."
+    },
+    {
+      "id": "execution-root",
+      "action": "Independent operator admits matching Root /1 epoch/generation, reader UID/GID, release tuple and execution policy/floor. Leave hostQualification null. Signer and installer never admit their own root."
+    },
+    {
+      "id": "launch",
+      "action": "Fresh normal app and shared engine launch after group membership change; launch actual CLI with --remote unix://<exact socket> from the dedicated repository. Observe actual consumer uid/euid and effective groups, boot/app/engine births, reciprocal socket identity and hook child cwd. Wrong cwd or stale credentials stops campaign."
+    },
+    {
+      "id": "hooks",
+      "action": "Render one combined plugin hooks/hooks.json retaining SessionStart, UserPromptSubmit and SessionEnd and replacing only the legacy Stop with the protected absolute Stop command. Do not also load the Stop-only proposal. Review exact hashes with CLI /hooks; verify effective hooks/list and fresh-task cache adoption. Record precise prior marketplace/version/artifact/trust/enable state for rollback."
+    },
+    {
+      "id": "phases",
+      "action": "Execute only the 12 separately predeclared candidate documents: four OPEN, four EMPTY, two expiry, two revocation. Publish OPEN once immediately before O-D1 and EMPTY once immediately before E-D1. Keep each handle unchanged through its phases. Expiry/failure stops; no renewal loop or return to OPEN."
+    },
+    {
+      "id": "withdraw",
+      "action": "Failure, abandonment or later teardown only: independently revoke candidate root and remove campaign, restore the exact prior hook configuration, and run withdraw-reader before ending owned candidate processes. Old open descriptors are not claimed revoked. Successful evidence review may instead preserve the measured runtime under the qualification handoff below."
+    },
+    {
+      "id": "qualification",
+      "action": "Success handoff only after complete actual native evidence: remove the campaign, preserve root/floor/reader/publication/release and the exact live measured runtime with the intended final combined hooks, then independently admit existing completed HostQualification fields. Do not restore legacy Stop or fabricate evidence. Unverified same-lifetime hook restoration or app restart blocks this handoff; a later fresh launch cannot inherit old AppInstance pins."
+    }
+  ],
+  "phases": [
+    {
+      "id": "OPEN",
+      "target": null,
+      "enrollmentHandle": null,
+      "capsuleSHA256": null,
+      "nonce": null,
+      "campaignId": null,
+      "issuedAt": null,
+      "expiresAt": null,
+      "maximumSeconds": 900,
+      "activeSelection": "Publish this fresh OPEN handle only once immediately before O-D1; reuse unchanged through O-D1/O-D2/O-C1/O-C2. Do not prepublish EMPTY.",
+      "observations": [
+        "Desktop first Stop block",
+        "Desktop recursive Stop release",
+        "CLI first Stop block",
+        "CLI recursive Stop release"
+      ]
+    },
+    {
+      "id": "EMPTY",
+      "target": null,
+      "enrollmentHandle": null,
+      "capsuleSHA256": null,
+      "nonce": null,
+      "campaignId": null,
+      "issuedAt": null,
+      "expiresAt": null,
+      "maximumSeconds": 900,
+      "activeSelection": "After all OPEN phases close, clean checkout fixed EMPTY and publish this fresh handle once immediately before E-D1; reuse unchanged for the remaining eight candidate phases.",
+      "observations": [
+        "Desktop Stop release",
+        "CLI Stop release",
+        "Predeclared expiry/refusal",
+        "Independent revocation/refusal"
+      ]
+    }
+  ],
+  "notProduced": [
+    "Exact final release and native fixture",
+    "Actual fresh consumer credentials and hook child cwd",
+    "Native case matrix and complete eleven-case receipts",
+    "Native timing/recall/resource evidence",
+    "Completed HostQualification",
+    "Supported complete startup/end observation path",
+    "Exact prior installed plugin/cache/trust restoration inventory",
+    "Independent operator identity and 12-phase calendar"
+  ],
+  "candidatePhaseCount": 12,
+  "candidatePhases": [
+    {
+      "id": "O-D1",
+      "publication": "OPEN",
+      "campaignId": null,
+      "issuedAt": null,
+      "expiresAt": null,
+      "durationSeconds": 600,
+      "positiveSlots": 10,
+      "surface": "codex-desktop",
+      "status": "INERT_REQUIRES_INDEPENDENT_PHASE_DOCUMENT"
+    },
+    {
+      "id": "O-D2",
+      "publication": "OPEN",
+      "campaignId": null,
+      "issuedAt": null,
+      "expiresAt": null,
+      "durationSeconds": 600,
+      "positiveSlots": 10,
+      "surface": "codex-desktop",
+      "status": "INERT_REQUIRES_INDEPENDENT_PHASE_DOCUMENT"
+    },
+    {
+      "id": "O-C1",
+      "publication": "OPEN",
+      "campaignId": null,
+      "issuedAt": null,
+      "expiresAt": null,
+      "durationSeconds": 600,
+      "positiveSlots": 10,
+      "surface": "codex-cli",
+      "status": "INERT_REQUIRES_INDEPENDENT_PHASE_DOCUMENT"
+    },
+    {
+      "id": "O-C2",
+      "publication": "OPEN",
+      "campaignId": null,
+      "issuedAt": null,
+      "expiresAt": null,
+      "durationSeconds": 600,
+      "positiveSlots": 10,
+      "surface": "codex-cli",
+      "status": "INERT_REQUIRES_INDEPENDENT_PHASE_DOCUMENT"
+    },
+    {
+      "id": "E-D1",
+      "publication": "EMPTY",
+      "campaignId": null,
+      "issuedAt": null,
+      "expiresAt": null,
+      "durationSeconds": 600,
+      "positiveSlots": 10,
+      "surface": "codex-desktop",
+      "status": "INERT_REQUIRES_INDEPENDENT_PHASE_DOCUMENT"
+    },
+    {
+      "id": "E-D2",
+      "publication": "EMPTY",
+      "campaignId": null,
+      "issuedAt": null,
+      "expiresAt": null,
+      "durationSeconds": 600,
+      "positiveSlots": 10,
+      "surface": "codex-desktop",
+      "status": "INERT_REQUIRES_INDEPENDENT_PHASE_DOCUMENT"
+    },
+    {
+      "id": "E-C1",
+      "publication": "EMPTY",
+      "campaignId": null,
+      "issuedAt": null,
+      "expiresAt": null,
+      "durationSeconds": 600,
+      "positiveSlots": 10,
+      "surface": "codex-cli",
+      "status": "INERT_REQUIRES_INDEPENDENT_PHASE_DOCUMENT"
+    },
+    {
+      "id": "E-C2",
+      "publication": "EMPTY",
+      "campaignId": null,
+      "issuedAt": null,
+      "expiresAt": null,
+      "durationSeconds": 600,
+      "positiveSlots": 10,
+      "surface": "codex-cli",
+      "status": "INERT_REQUIRES_INDEPENDENT_PHASE_DOCUMENT"
+    },
+    {
+      "id": "X-D",
+      "publication": "EMPTY",
+      "campaignId": null,
+      "issuedAt": null,
+      "expiresAt": null,
+      "durationSeconds": 120,
+      "positiveSlots": 0,
+      "surface": "codex-desktop",
+      "status": "INERT_REQUIRES_INDEPENDENT_PHASE_DOCUMENT"
+    },
+    {
+      "id": "X-C",
+      "publication": "EMPTY",
+      "campaignId": null,
+      "issuedAt": null,
+      "expiresAt": null,
+      "durationSeconds": 120,
+      "positiveSlots": 0,
+      "surface": "codex-cli",
+      "status": "INERT_REQUIRES_INDEPENDENT_PHASE_DOCUMENT"
+    },
+    {
+      "id": "R-D",
+      "publication": "EMPTY",
+      "campaignId": null,
+      "issuedAt": null,
+      "expiresAt": null,
+      "durationSeconds": 180,
+      "positiveSlots": 0,
+      "surface": "codex-desktop",
+      "status": "INERT_REQUIRES_INDEPENDENT_PHASE_DOCUMENT"
+    },
+    {
+      "id": "R-C",
+      "publication": "EMPTY",
+      "campaignId": null,
+      "issuedAt": null,
+      "expiresAt": null,
+      "durationSeconds": 180,
+      "positiveSlots": 0,
+      "surface": "codex-cli",
+      "status": "INERT_REQUIRES_INDEPENDENT_PHASE_DOCUMENT"
+    }
+  ]
+}

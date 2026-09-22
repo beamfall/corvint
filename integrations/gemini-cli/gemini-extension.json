@@ -1,0 +1,6 @@
+{
+  "name": "corvint",
+  "version": "0.2.4",
+  "description": "FALLBACK Corvint evidence receipts and advisory lifecycle observations for Gemini CLI",
+  "contextFileName": "GEMINI.md"
+}

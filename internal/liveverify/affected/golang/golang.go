@@ -1,0 +1,372 @@
+// Package golang is the Go implementation of the affected-selection language
+// seam.
+//
+// A unit is one directory of Go files, which is exactly one Go package. Import
+// edges are read from source text with the standard parser in imports-only
+// mode; the Go toolchain is never executed, so the graph can be rebuilt on a
+// dirty worktree with no build cache and no module download.
+//
+// The observed modules are the root module, or every module a root go.work
+// lists. Each module is walked under its own module path, so a unit identity is
+// always an import path and an edge between two workspace modules resolves the
+// same way an edge inside one module does.
+package golang
+
+import (
+	"errors"
+	"fmt"
+	"go/parser"
+	"go/token"
+	"io/fs"
+	"os"
+	"path"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
+)
+
+// Frontier reasons this plugin can raise.
+const (
+	// FrontierBuildConstraint reports files excluded from the observed graph by
+	// a build constraint. Their imports are not edges in this graph.
+	FrontierBuildConstraint = "go:build-constraint-variants"
+	// FrontierUnparsedSource reports a file the parser rejected.
+	FrontierUnparsedSource = "go:unparsed-source"
+	// FrontierCgo reports cgo, whose C side carries edges Go source cannot show.
+	FrontierCgo = "go:cgo-frontier"
+	// FrontierModulePath reports that an observed module's path could not be
+	// read, which makes every import into that module unresolvable.
+	FrontierModulePath = "go:module-path-unresolved"
+	// FrontierNestedModule reports a go.mod below the root that no go.work use
+	// directive lists. Its packages belong to a module path this plugin did not
+	// observe, so they are absent from the graph.
+	FrontierNestedModule = "go:nested-module-frontier"
+	// FrontierIncludedDirectoryWalkBounded reports an opted-in build directory
+	// whose independent entry bound was exhausted.
+	FrontierIncludedDirectoryWalkBounded = "go:included-directory-walk-bounded"
+)
+
+// module is one go.mod directory. Listed modules are observed; an unlisted one
+// is a frontier. Path is empty when the manifest declares no readable module
+// path, and unit identities then fall back to repository-relative directories.
+type module struct {
+	dir    string
+	path   string
+	listed bool
+}
+
+// Language observes Go packages under one module root.
+type Language struct{}
+
+// New returns the Go language plugin.
+func New() Language { return Language{} }
+
+// Name is the plugin namespace.
+func (Language) Name() string { return "go" }
+
+// Owns reports whether a path is Go source text.
+func (Language) Owns(relative string) bool { return strings.HasSuffix(relative, ".go") }
+
+// Units observes every Go package in the repository rooted at root: the root
+// module alone, or every module a root go.work lists.
+func (language Language) Units(root string) (affected.Result, error) {
+	frontier := map[string]bool{}
+	observed, includedDirectoryBounded, err := affected.SourceFilesIncluding(root, func(name string) bool {
+		return strings.HasSuffix(name, ".go") || name == "go.mod"
+	}, "build", "dist", "target")
+	if err != nil {
+		return affected.Result{}, err
+	}
+	if includedDirectoryBounded {
+		frontier[FrontierIncludedDirectoryWalkBounded] = true
+	}
+	files := make([]string, 0, len(observed))
+	manifests := make([]string, 0, len(observed))
+	for _, relative := range observed {
+		if path.Base(relative) == "go.mod" {
+			manifests = append(manifests, relative)
+			continue
+		}
+		files = append(files, relative)
+	}
+	if len(files) == 0 && len(manifests) == 0 {
+		_, statErr := os.Stat(filepath.Join(root, "go.work"))
+		if errors.Is(statErr, fs.ErrNotExist) {
+			return affected.Result{Frontier: sortedKeys(frontier)}, nil
+		}
+		if statErr != nil {
+			return affected.Result{}, statErr
+		}
+	}
+	modules, err := observeModules(root, manifests, frontier)
+	if err != nil {
+		return affected.Result{}, err
+	}
+	directories, owners := groupByDirectory(files, modules)
+	units := make([]affected.Unit, 0, len(directories))
+	imports := make(map[string]map[string]bool, len(directories))
+	for _, directory := range sortedKeys(directories) {
+		unit, importPaths, err := language.observeDirectory(root, owners[directory], directory, directories[directory], frontier)
+		if err != nil {
+			return affected.Result{}, err
+		}
+		if unit.ID == "" {
+			continue
+		}
+		units = append(units, unit)
+		imports[unit.ID] = importPaths
+	}
+	resolve(units, imports)
+	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
+}
+
+// observeDirectory turns one directory of Go files into one unit plus the raw
+// import path set its files declare.
+func (Language) observeDirectory(root string, owner module, directory string, files []string, frontier map[string]bool) (affected.Unit, map[string]bool, error) {
+	sources := make([]string, 0, len(files))
+	tests := make([]string, 0, len(files))
+	importPaths := make(map[string]bool, 16)
+	fileSet := token.NewFileSet()
+	for _, relative := range files {
+		body, err := affected.ReadSource(root, relative)
+		if err != nil {
+			frontier[FrontierUnparsedSource] = true
+			continue
+		}
+		if hasBuildConstraint(body) {
+			frontier[FrontierBuildConstraint] = true
+		}
+		file, err := parser.ParseFile(fileSet, relative, body, parser.ImportsOnly)
+		if err != nil {
+			frontier[FrontierUnparsedSource] = true
+			continue
+		}
+		for _, spec := range file.Imports {
+			value, unquoteErr := strconv.Unquote(spec.Path.Value)
+			if unquoteErr != nil {
+				frontier[FrontierUnparsedSource] = true
+				continue
+			}
+			if value == "C" {
+				frontier[FrontierCgo] = true
+				continue
+			}
+			importPaths[value] = true
+		}
+		if strings.HasSuffix(relative, "_test.go") {
+			tests = append(tests, relative)
+			continue
+		}
+		sources = append(sources, relative)
+	}
+	if len(sources) == 0 && len(tests) == 0 {
+		return affected.Unit{}, nil, nil
+	}
+	sort.Strings(sources)
+	sort.Strings(tests)
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests}, importPaths, nil
+}
+
+// resolve rewrites each unit's raw Go import paths into the unit identities
+// this graph knows. An import outside the module is an external dependency and
+// is dropped: it cannot be a dirty repository path.
+func resolve(units []affected.Unit, imports map[string]map[string]bool) {
+	byImportPath := make(map[string]string, len(units))
+	for _, unit := range units {
+		byImportPath[strings.TrimPrefix(unit.ID, "go:")] = unit.ID
+	}
+	for index := range units {
+		unit := &units[index]
+		edges := make([]string, 0, len(imports[unit.ID]))
+		for value := range imports[unit.ID] {
+			target, known := byImportPath[value]
+			if !known || target == unit.ID {
+				continue
+			}
+			edges = append(edges, target)
+		}
+		sort.Strings(edges)
+		unit.Imports = edges
+	}
+}
+
+// unitID is the import path of the package in directory, which lies inside its
+// owning module. Without a module path the repository-relative directory is the
+// only identity available.
+func unitID(owner module, directory string) string {
+	if owner.path == "" {
+		return "go:" + directory
+	}
+	return "go:" + path.Join(owner.path, relativeTo(directory, owner.dir))
+}
+
+func relativeTo(directory, moduleDir string) string {
+	if moduleDir == "." {
+		return directory
+	}
+	if directory == moduleDir {
+		return "."
+	}
+	return strings.TrimPrefix(directory, moduleDir+"/")
+}
+
+// observeModules maps every go.mod directory to its module. The observed set is
+// the root module, or the go.work use set when the root declares one; a go.mod
+// outside that set is a frontier, and its packages are dropped from the graph
+// rather than attributed to the module above them.
+func observeModules(root string, manifests []string, frontier map[string]bool) (map[string]module, error) {
+	listed, err := workspaceDirectories(root)
+	if err != nil {
+		return nil, err
+	}
+	modules := make(map[string]module, len(listed)+len(manifests))
+	for _, directory := range listed {
+		modulePath, err := readModulePath(filepath.Join(root, filepath.FromSlash(directory)))
+		if err != nil {
+			frontier[FrontierModulePath] = true
+		}
+		modules[directory] = module{dir: directory, path: modulePath, listed: true}
+	}
+	for _, manifest := range manifests {
+		directory := path.Dir(manifest)
+		if _, known := modules[directory]; known {
+			continue
+		}
+		frontier[FrontierNestedModule] = true
+		modules[directory] = module{dir: directory}
+	}
+	return modules, nil
+}
+
+// workspaceDirectories lists the module directories the root's go.work uses,
+// or the root alone when there is no go.work. Only the use grammar is read: a
+// "use DIR" line or a "use (" block with one directory per line. A directory
+// outside the root cannot be observed and is skipped.
+func workspaceDirectories(root string) ([]string, error) {
+	body, err := os.ReadFile(filepath.Join(root, "go.work"))
+	if errors.Is(err, fs.ErrNotExist) {
+		return []string{"."}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	directories := make([]string, 0, 8)
+	inBlock := false
+	for _, line := range strings.Split(string(body), "\n") {
+		fields := strings.Fields(stripComment(line))
+		switch {
+		case len(fields) == 0:
+		case inBlock && fields[0] == ")":
+			inBlock = false
+		case inBlock:
+			directories = appendUse(directories, fields[0])
+		case fields[0] != "use" || len(fields) != 2:
+		case fields[1] == "(":
+			inBlock = true
+		default:
+			directories = appendUse(directories, fields[1])
+		}
+	}
+	if len(directories) == 0 {
+		return []string{"."}, nil
+	}
+	return directories, nil
+}
+
+func stripComment(line string) string {
+	if index := strings.Index(line, "//"); index >= 0 {
+		return line[:index]
+	}
+	return line
+}
+
+func appendUse(directories []string, value string) []string {
+	cleaned := path.Clean(filepath.ToSlash(strings.Trim(value, "\"`")))
+	if cleaned == "." || affected.ValidRelativePath(cleaned) {
+		return append(directories, cleaned)
+	}
+	return directories
+}
+
+// enclosingModule finds the nearest module at or above directory and reports
+// whether it is one this plugin observes.
+func enclosingModule(directory string, modules map[string]module) (module, bool) {
+	for {
+		owner, known := modules[directory]
+		if known {
+			return owner, owner.listed
+		}
+		if directory == "." {
+			return module{}, false
+		}
+		directory = path.Dir(directory)
+	}
+}
+
+// readModulePath extracts the module path from go.mod without importing the
+// module tooling: the first "module <path>" line wins, which is the whole of
+// the grammar that matters here.
+func readModulePath(root string) (string, error) {
+	body, err := os.ReadFile(filepath.Join(root, "go.mod"))
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(string(body), "\n") {
+		fields := strings.Fields(stripComment(line))
+		if len(fields) != 2 || fields[0] != "module" {
+			continue
+		}
+		value := strings.Trim(fields[1], "\"")
+		if value == "" {
+			continue
+		}
+		return value, nil
+	}
+	return "", fmt.Errorf("%w: go.mod declares no module path", affected.ErrInvalidLanguage)
+}
+
+// hasBuildConstraint reports a //go:build line in the file header. Its presence
+// means the observed graph may differ from the graph a different GOOS, GOARCH,
+// or tag set would produce, which is a frontier rather than an error.
+func hasBuildConstraint(body []byte) bool {
+	for _, line := range strings.Split(string(body), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "package ") {
+			return false
+		}
+		if strings.HasPrefix(trimmed, "//go:build") {
+			return true
+		}
+	}
+	return false
+}
+
+// groupByDirectory buckets files by directory and names the module each
+// directory belongs to. A directory inside an unlisted module, or outside every
+// module, is dropped.
+func groupByDirectory(files []string, modules map[string]module) (map[string][]string, map[string]module) {
+	directories := make(map[string][]string, 256)
+	owners := make(map[string]module, 256)
+	for _, file := range files {
+		directory := path.Dir(file)
+		owner, observed := enclosingModule(directory, modules)
+		if !observed {
+			continue
+		}
+		directories[directory] = append(directories[directory], file)
+		owners[directory] = owner
+	}
+	return directories, owners
+}
+
+func sortedKeys[Value any](values map[string]Value) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}

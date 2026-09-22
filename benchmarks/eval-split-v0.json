@@ -1,0 +1,188 @@
+{
+  "schema_version": 1,
+  "rule": "atlas-eval-split-v0",
+  "heldout_modulus": 5,
+  "heldout_provenance": "previously-observed",
+  "corpora": [
+    {
+      "cases": "benchmarks/cases/cobra.json",
+      "rows": [
+        {
+          "id": "cobra-execute-command",
+          "split": "dev",
+          "row_sha256": "36a8f85713ff56d6371034013dcee5f962d76c998a97c40fd37823fa245e1658"
+        },
+        {
+          "id": "cobra-bash-completion",
+          "split": "dev",
+          "row_sha256": "9f2991eb6f9b3aaecbb20351bac4ec89a860f099fbd4364b5ef404b0ed14593a"
+        },
+        {
+          "id": "cobra-active-help",
+          "split": "dev",
+          "row_sha256": "149dff7538c1c14e2a887111a05ca862a030f5912560ffaed74ed3ad3ee0c366"
+        },
+        {
+          "id": "cobra-active-help-impact",
+          "split": "dev",
+          "row_sha256": "6635fe83d692dbdc8b5bd6ac67c0a897d4cbbabde82de5575db1460c8c23649a"
+        },
+        {
+          "id": "blind-cobra-flag-groups-impact",
+          "split": "dev",
+          "row_sha256": "c9e249420dec67afd55b529d875c6b394deed7145875bedb8bc1295093c41ef7"
+        },
+        {
+          "id": "cobra-image-abstention",
+          "split": "dev",
+          "row_sha256": "d1869f71cb8e2f2af2a3f534813844c9e576232eab1f1b867aa85c0a2fa703a0"
+        }
+      ]
+    },
+    {
+      "cases": "benchmarks/cases/execa.json",
+      "rows": [
+        {
+          "id": "execa-kill-descendants",
+          "split": "heldout",
+          "row_sha256": "1fa5f828c4b5c739291bf669f3964fe199134a2fa98e052c4f8824e9620f915f"
+        },
+        {
+          "id": "execa-normalize-parameters",
+          "split": "dev",
+          "row_sha256": "6074712cae2c0be18a902da7b53504d36c1c589b11fbfac7c947f1bbb185af2e"
+        },
+        {
+          "id": "execa-max-buffer",
+          "split": "dev",
+          "row_sha256": "1f485fee262d29251fdf1b2e63b749dc384d8f71f26b49fc45396ac102235fde"
+        },
+        {
+          "id": "execa-kill-impact",
+          "split": "heldout",
+          "row_sha256": "211950e455773994614e37fbc3517b9ba44fe0d2877fffe7bcf3e54df2b7c257"
+        },
+        {
+          "id": "blind-execa-async-max-buffer-overflow",
+          "split": "dev",
+          "row_sha256": "a1eed4c7a79eec6dcf5e3325355d770d4fee5cae82b33f43ffc381212d860ffb"
+        },
+        {
+          "id": "execa-database-abstention",
+          "split": "heldout",
+          "row_sha256": "bd0eb46fdb6f911a43414453ea121dacbcf449d73e507265fb496736a8ccfbe8"
+        }
+      ]
+    },
+    {
+      "cases": "benchmarks/cases/flask.json",
+      "rows": [
+        {
+          "id": "flask-load-dotenv",
+          "split": "dev",
+          "row_sha256": "ef7f88ec40c7091aeebe5e6585a9ff379c6245d638f48bf1f230e73107df10ae"
+        },
+        {
+          "id": "flask-ensure-sync",
+          "split": "heldout",
+          "row_sha256": "e6875eb6ea3f4ae35025c62cc737e0a8b24f020ed5052b940cfa455356fe91a5"
+        },
+        {
+          "id": "flask-cookie-session",
+          "split": "dev",
+          "row_sha256": "4f12cbd76e58a3d4841950de54aafb1b061c5745bf3748c184aa50e6510e2fd9"
+        },
+        {
+          "id": "flask-session-impact",
+          "split": "dev",
+          "row_sha256": "81c62cddb893505e5e9af654e700e1626c91357e8950b0fae2d2dd026f4543b0"
+        },
+        {
+          "id": "blind-flask-stream-context-public-export",
+          "split": "dev",
+          "row_sha256": "2b2b1e14314efb805b90aba269e7d6335febf3fc893cdc829537157b3c0401f4"
+        },
+        {
+          "id": "flask-kubernetes-abstention",
+          "split": "dev",
+          "row_sha256": "01d404f12794c2266a4c5121ecfb190b724f6a1a460bd6d5d6a3625021203c1f"
+        }
+      ]
+    },
+    {
+      "cases": "benchmarks/cases/zod.json",
+      "rows": [
+        {
+          "id": "zod-from-json-schema",
+          "split": "heldout",
+          "row_sha256": "4d9487d6b32e06f906870304f7e623539dc37a1f5c917ab9f7ce60f59cdf6d76"
+        },
+        {
+          "id": "zod-treeify-errors",
+          "split": "heldout",
+          "row_sha256": "6487a6ed779b2bef3289a7ef342d5d866fb2d00323685a952ac7d9808f86ea55"
+        },
+        {
+          "id": "zod-discriminated-union",
+          "split": "dev",
+          "row_sha256": "90a6b207bce506bb565373c9ee2d11ef860b2c46757a27c859289b292016ded1"
+        },
+        {
+          "id": "zod-memoizer-impact",
+          "split": "dev",
+          "row_sha256": "2ecec4d9c6bfd68e337e94c6044a85c78e46424bdf354a7f8fd41c23dc34236e"
+        },
+        {
+          "id": "blind-zod-v4-safe-parse-async",
+          "split": "dev",
+          "row_sha256": "10f92300966d1ffdbc64d9bbccdaca7e427c8ea7cae1998f19e7acd9e528b88b"
+        },
+        {
+          "id": "zod-network-abstention",
+          "split": "dev",
+          "row_sha256": "a64d46b9e6cc8d51bf43612fc80bb4491fcc916bf9f6add3f9f2f136e1683539"
+        }
+      ]
+    },
+    {
+      "cases": "testing/context-retrieval-goldens.json",
+      "rows": [
+        {
+          "id": "exact-feature-pairing",
+          "split": "dev",
+          "row_sha256": "bb9684a42d45219eecc584868bd0d57e1108d2068f36430c0a3aad3b2e55d43b"
+        },
+        {
+          "id": "natural-language-session-revocation",
+          "split": "heldout",
+          "row_sha256": "3074ad888dedf8749eb628fc11e2c4a595a44e5b1ce98da7f9ec7eef7214f885"
+        },
+        {
+          "id": "ambiguous-reveal-navigation",
+          "split": "dev",
+          "row_sha256": "627218f9996da42f2b6b2e0cbcc7843c74e4147c7d49f68ae662abba8d921f91"
+        },
+        {
+          "id": "impact-auth-test",
+          "split": "heldout",
+          "row_sha256": "0bcaefa964a40b8b02b9769521525638e7f107280da83e68ab70c945f3f84dbf"
+        },
+        {
+          "id": "impact-auth-production-bounded",
+          "split": "dev",
+          "row_sha256": "323366e78a5fa484b59ee416627d854bfabe0421665a80419e7dbf9a7952bcaf"
+        },
+        {
+          "id": "blind-beamfall-immediate-hard-delete-abstention",
+          "split": "heldout",
+          "row_sha256": "2e920ec9e2e84b2ca0f31ceaa0670aa253ae2f445ed840318296f062ef399cbf"
+        },
+        {
+          "id": "agent-tooling-abstains-product-noise",
+          "split": "dev",
+          "row_sha256": "35f4b961dc260fb2c004795b8b414417e40b9d77b727142d9363e34e2b59da0c"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,725 @@
+{
+  "aggregate": {
+    "abstention_accuracy": 0.0,
+    "budget_compliance": 1.0,
+    "budgeted_cases": 5,
+    "cases": 5,
+    "critical_evidence_misses": 8,
+    "critical_evidence_total": 10,
+    "epistemic_state_accuracy": 0.0,
+    "epistemic_state_cases": 1,
+    "exact_search_baseline": {
+      "abstention_accuracy": 0.0,
+      "query_cases": 3,
+      "top5_success": 0.666667
+    },
+    "expected_state_accuracy": 0.8,
+    "latency_ms": 1463.355,
+    "must_exclude_total": 14,
+    "must_exclude_violations": 0,
+    "must_read_total": 11,
+    "positive_cases": 4,
+    "public_repositories": 4,
+    "recall": 0.181818,
+    "repositories": 5,
+    "repository_evaluations_ready": false,
+    "revision_pinned_cases": 5,
+    "serialized_result_byte_weighted_precision": 0.258638,
+    "top5_task_success": 0.6
+  },
+  "corvint_commit": "working-tree:7727bd8ce38b8c28ce987e95cadd73e58c2f9d34e0d5e801daf768a8baddf27a",
+  "manifest_sha256": "4fb67a876e35090f3fd454099311963fdbe82df1aab63d042c345503bb32a10d",
+  "provenance": {
+    "declared_partitions": {
+      "heldout-v3": 5
+    },
+    "evaluation_partitions": {
+      "unattested-heldout": 5
+    },
+    "first_run_evidence": null,
+    "track": "challenge-replay"
+  },
+  "repositories": [
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "feature:offline-packs"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:internal/graph/graph.go:SetOfflinePacks"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:internal/graph/graph_offline_packs.go:OfflinePackInfo"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:internal/graph/graph_offline_packs.go:offlinePackInfo"
+              }
+            ],
+            "budget_bytes": 3072,
+            "declared_partition": "heldout-v3",
+            "evaluation_partition": "unattested-heldout",
+            "expected_state": null,
+            "id": "beamfall-feature-offline-packs",
+            "missing": [],
+            "packet_bytes": 2717,
+            "partition": "heldout-v3",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 0,
+          "abstention_hits": 0,
+          "advisory_results": 0,
+          "authoritative_results": 4,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 1,
+          "cases": 1,
+          "critical_evidence_misses": 0,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 1,
+          "epistemic_state_accuracy": 1.0,
+          "epistemic_state_cases": 0,
+          "epistemic_state_hits": 0,
+          "latency_ms": 155.499,
+          "must_exclude_total": 3,
+          "must_exclude_violations": 0,
+          "must_read_hits": 1,
+          "must_read_total": 1,
+          "packet_bytes": 2717,
+          "passed_trace_count": 0,
+          "recall": 1.0,
+          "relevant_result_bytes": 957,
+          "serialized_result_byte_weighted_precision": 0.443672,
+          "top5_task_hits": 1,
+          "top5_task_success": 1.0,
+          "top5_task_total": 1,
+          "total_result_bytes": 2157,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent",
+          "widening_accuracy": 1.0,
+          "widening_cases": 0,
+          "widening_hits": 0
+        },
+        "revision": "2a1e79c4efe8a4870b5b7b72179a553b472af3d8",
+        "state": "READY"
+      },
+      "baseline": {
+        "abstention_accuracy": 1.0,
+        "abstention_cases": 0,
+        "abstention_hits": 0,
+        "cases": [],
+        "latency_ms": 0.005,
+        "query_cases": 0,
+        "top5_hits": 0,
+        "top5_success": 1.0
+      },
+      "commit": "6e82abd857c77c0ca250b6c4a8f5e1c86684a535",
+      "contract": {
+        "cases": 1,
+        "critical_evidence_misses": 0,
+        "critical_evidence_total": 1,
+        "epistemic_state_cases": 0,
+        "epistemic_state_hits": 0,
+        "expected_state_cases": 1,
+        "expected_state_hits": 1,
+        "must_exclude_total": 3,
+        "must_exclude_violations": 0,
+        "must_read_hits": 1,
+        "must_read_total": 1,
+        "positive_cases": 1,
+        "revision_pinned_cases": 1
+      },
+      "corpus_sha256": "0ba2a4010203f33149647cd3b9f7c3e8bab2f7bd4a8fdca672a5d2c749959a70",
+      "id": "beamfall",
+      "language": "Go and TypeScript",
+      "partitions": {
+        "declared": {
+          "heldout-v3": 1
+        },
+        "evaluation": {
+          "unattested-heldout": 1
+        }
+      },
+      "public": false,
+      "url": "https://github.com/beamfall/core.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "symbol:src/flask/helpers.py:stream_with_context"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:src/flask/app.py:test_request_context"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:src/flask/app.py:request_context"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:src/flask/helpers.py:generator"
+              }
+            ],
+            "budget_bytes": 18000,
+            "declared_partition": "heldout-v3",
+            "evaluation_partition": "unattested-heldout",
+            "expected_state": null,
+            "id": "flask-stream-with-context",
+            "missing": [
+              "path:docs/patterns/streaming.rst",
+              "test:tests/test_helpers.py"
+            ],
+            "packet_bytes": 2502,
+            "partition": "heldout-v3",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 0,
+          "abstention_hits": 0,
+          "advisory_results": 0,
+          "authoritative_results": 4,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 1,
+          "cases": 1,
+          "critical_evidence_misses": 2,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 3,
+          "epistemic_state_accuracy": 1.0,
+          "epistemic_state_cases": 0,
+          "epistemic_state_hits": 0,
+          "latency_ms": 185.637,
+          "must_exclude_total": 2,
+          "must_exclude_violations": 0,
+          "must_read_hits": 1,
+          "must_read_total": 3,
+          "packet_bytes": 2502,
+          "passed_trace_count": 0,
+          "recall": 0.333333,
+          "relevant_result_bytes": 372,
+          "serialized_result_byte_weighted_precision": 0.256375,
+          "top5_task_hits": 1,
+          "top5_task_success": 1.0,
+          "top5_task_total": 1,
+          "total_result_bytes": 1451,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent",
+          "widening_accuracy": 1.0,
+          "widening_cases": 0,
+          "widening_hits": 0
+        },
+        "revision": "a8da09a58146cd39bc2956bfa5d2f468bf592166",
+        "state": "CONFLICT"
+      },
+      "baseline": {
+        "abstention_accuracy": 1.0,
+        "abstention_cases": 0,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "flask-stream-with-context",
+            "top5_hit": true,
+            "top5_paths": [
+              "src/flask/helpers.py"
+            ]
+          }
+        ],
+        "latency_ms": 1.103,
+        "query_cases": 1,
+        "top5_hits": 1,
+        "top5_success": 1.0
+      },
+      "commit": "d318b683471101618febed18996405ad26462110",
+      "contract": {
+        "cases": 1,
+        "critical_evidence_misses": 2,
+        "critical_evidence_total": 3,
+        "epistemic_state_cases": 0,
+        "epistemic_state_hits": 0,
+        "expected_state_cases": 1,
+        "expected_state_hits": 1,
+        "must_exclude_total": 2,
+        "must_exclude_violations": 0,
+        "must_read_hits": 1,
+        "must_read_total": 3,
+        "positive_cases": 1,
+        "revision_pinned_cases": 1
+      },
+      "corpus_sha256": "52c49c8279a35b88164b327ade0c50b14990b4eb334a7c22b2983c616fd48844",
+      "id": "flask",
+      "language": "Python",
+      "partitions": {
+        "declared": {
+          "heldout-v3": 1
+        },
+        "evaluation": {
+          "unattested-heldout": 1
+        }
+      },
+      "public": true,
+      "url": "https://github.com/pallets/flask.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "path:zsh_completions.go"
+              },
+              {
+                "relevant": false,
+                "selector": "test:zsh_completions_test.go"
+              },
+              {
+                "relevant": false,
+                "selector": "reference:completions.go"
+              },
+              {
+                "relevant": false,
+                "selector": "test:active_help_test.go"
+              },
+              {
+                "relevant": false,
+                "selector": "test:args_test.go"
+              },
+              {
+                "relevant": false,
+                "selector": "test:bash_completionsV2_test.go"
+              },
+              {
+                "relevant": false,
+                "selector": "test:bash_completions_test.go"
+              },
+              {
+                "relevant": false,
+                "selector": "test:cobra_test.go"
+              }
+            ],
+            "budget_bytes": 12000,
+            "declared_partition": "heldout-v3",
+            "evaluation_partition": "unattested-heldout",
+            "expected_state": null,
+            "id": "cobra-zsh-no-description-impact",
+            "missing": [
+              "path:completions.go",
+              "symbol:zsh_completions.go:GenZshCompletionFileNoDesc",
+              "symbol:zsh_completions.go:GenZshCompletionNoDesc",
+              "test:completions_test.go"
+            ],
+            "packet_bytes": 5082,
+            "partition": "heldout-v3",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 0,
+          "abstention_hits": 0,
+          "advisory_results": 0,
+          "authoritative_results": 8,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 1,
+          "cases": 1,
+          "critical_evidence_misses": 3,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 3,
+          "epistemic_state_accuracy": 1.0,
+          "epistemic_state_cases": 0,
+          "epistemic_state_hits": 0,
+          "latency_ms": 407.557,
+          "must_exclude_total": 3,
+          "must_exclude_violations": 0,
+          "must_read_hits": 0,
+          "must_read_total": 4,
+          "packet_bytes": 5082,
+          "passed_trace_count": 0,
+          "recall": 0.0,
+          "relevant_result_bytes": 2062,
+          "serialized_result_byte_weighted_precision": 0.434929,
+          "top5_task_hits": 1,
+          "top5_task_success": 1.0,
+          "top5_task_total": 1,
+          "total_result_bytes": 4741,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent",
+          "widening_accuracy": 1.0,
+          "widening_cases": 0,
+          "widening_hits": 0
+        },
+        "revision": "5a3b2c8e9af4c74e607a0a55e7910c1edb5d266f",
+        "state": "CONFLICT"
+      },
+      "baseline": {
+        "abstention_accuracy": 1.0,
+        "abstention_cases": 0,
+        "abstention_hits": 0,
+        "cases": [],
+        "latency_ms": 0.007,
+        "query_cases": 0,
+        "top5_hits": 0,
+        "top5_success": 1.0
+      },
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "contract": {
+        "cases": 1,
+        "critical_evidence_misses": 3,
+        "critical_evidence_total": 3,
+        "epistemic_state_cases": 0,
+        "epistemic_state_hits": 0,
+        "expected_state_cases": 1,
+        "expected_state_hits": 1,
+        "must_exclude_total": 3,
+        "must_exclude_violations": 0,
+        "must_read_hits": 0,
+        "must_read_total": 4,
+        "positive_cases": 1,
+        "revision_pinned_cases": 1
+      },
+      "corpus_sha256": "de671de3f68318303fbd9fbd077dbc7d2c30d4bc32ba6e123a4ec1d6d9aad7f4",
+      "id": "cobra",
+      "language": "Go",
+      "partitions": {
+        "declared": {
+          "heldout-v3": 1
+        },
+        "evaluation": {
+          "unattested-heldout": 1
+        }
+      },
+      "public": true,
+      "url": "https://github.com/spf13/cobra.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v4/classic/from-json-schema.ts:fromJSONSchema"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v4/classic/from-json-schema.ts:convertBaseSchema"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v4/classic/from-json-schema.ts:convertSchema"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v4/core/json-schema-processors.ts:toJSONSchema"
+              }
+            ],
+            "budget_bytes": 4096,
+            "declared_partition": "heldout-v3",
+            "evaluation_partition": "unattested-heldout",
+            "expected_state": "OUT_OF_SCOPE",
+            "id": "zod-v4-xml-schema-absence",
+            "missing": [],
+            "packet_bytes": 3473,
+            "partition": "heldout-v3",
+            "state": "READY",
+            "state_matches": false,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 0.0,
+          "abstention_cases": 1,
+          "abstention_hits": 0,
+          "advisory_results": 0,
+          "authoritative_results": 4,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 1,
+          "cases": 1,
+          "critical_evidence_misses": 0,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 0,
+          "epistemic_state_accuracy": 0.0,
+          "epistemic_state_cases": 1,
+          "epistemic_state_hits": 0,
+          "latency_ms": 466.483,
+          "must_exclude_total": 3,
+          "must_exclude_violations": 0,
+          "must_read_hits": 0,
+          "must_read_total": 0,
+          "packet_bytes": 3473,
+          "passed_trace_count": 0,
+          "recall": 1.0,
+          "relevant_result_bytes": 0,
+          "serialized_result_byte_weighted_precision": 0.0,
+          "top5_task_hits": 0,
+          "top5_task_success": 0.0,
+          "top5_task_total": 1,
+          "total_result_bytes": 2524,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent",
+          "widening_accuracy": 1.0,
+          "widening_cases": 0,
+          "widening_hits": 0
+        },
+        "revision": "1f8fe962ebac8d3898be3f0eed07a2f2bba571e2",
+        "state": "CONFLICT"
+      },
+      "baseline": {
+        "abstention_accuracy": 0.0,
+        "abstention_cases": 1,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "zod-v4-xml-schema-absence",
+            "top5_hit": false,
+            "top5_paths": [
+              "packages/zod/src/v4/classic/from-json-schema.ts"
+            ]
+          }
+        ],
+        "latency_ms": 1.225,
+        "query_cases": 1,
+        "top5_hits": 0,
+        "top5_success": 0.0
+      },
+      "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+      "contract": {
+        "cases": 1,
+        "critical_evidence_misses": 0,
+        "critical_evidence_total": 0,
+        "epistemic_state_cases": 1,
+        "epistemic_state_hits": 0,
+        "expected_state_cases": 1,
+        "expected_state_hits": 0,
+        "must_exclude_total": 3,
+        "must_exclude_violations": 0,
+        "must_read_hits": 0,
+        "must_read_total": 0,
+        "positive_cases": 0,
+        "revision_pinned_cases": 1
+      },
+      "corpus_sha256": "d29343894b93179a475eeb3d05f87a4d8a9a1c6e661a06d713c75746df27b5f4",
+      "id": "zod",
+      "language": "TypeScript",
+      "partitions": {
+        "declared": {
+          "heldout-v3": 1
+        },
+        "evaluation": {
+          "unattested-heldout": 1
+        }
+      },
+      "public": true,
+      "url": "https://github.com/colinhacks/zod.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": false,
+                "selector": "symbol:lib/stdio/handle.js:validateFileObjectMode"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:lib/transform/object-mode.js:getOutputObjectModes"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:lib/stdio/handle-async.js:objectMode"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:lib/stdio/handle.js:objectMode"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:lib/transform/object-mode.js:writableObjectMode"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:lib/stdio/handle.js:getFileDescriptor"
+              }
+            ],
+            "budget_bytes": 10000,
+            "declared_partition": "heldout-v3",
+            "evaluation_partition": "unattested-heldout",
+            "expected_state": null,
+            "id": "execa-strip-final-newline",
+            "missing": [
+              "path:docs/api.md",
+              "symbol:lib/io/strip-newline.js:stripNewline",
+              "test:test/io/strip-newline.js"
+            ],
+            "packet_bytes": 3161,
+            "partition": "heldout-v3",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 0,
+          "abstention_hits": 0,
+          "advisory_results": 0,
+          "authoritative_results": 6,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 1,
+          "cases": 1,
+          "critical_evidence_misses": 3,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 3,
+          "epistemic_state_accuracy": 1.0,
+          "epistemic_state_cases": 0,
+          "epistemic_state_hits": 0,
+          "latency_ms": 248.179,
+          "must_exclude_total": 3,
+          "must_exclude_violations": 0,
+          "must_read_hits": 0,
+          "must_read_total": 3,
+          "packet_bytes": 3161,
+          "passed_trace_count": 0,
+          "recall": 0.0,
+          "relevant_result_bytes": 0,
+          "serialized_result_byte_weighted_precision": 0.0,
+          "top5_task_hits": 0,
+          "top5_task_success": 0.0,
+          "top5_task_total": 1,
+          "total_result_bytes": 2238,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent",
+          "widening_accuracy": 1.0,
+          "widening_cases": 0,
+          "widening_hits": 0
+        },
+        "revision": "f8ab67228ee0a417058f9bc2282945f915f64f39",
+        "state": "CONFLICT"
+      },
+      "baseline": {
+        "abstention_accuracy": 1.0,
+        "abstention_cases": 0,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "execa-strip-final-newline",
+            "top5_hit": true,
+            "top5_paths": [
+              "lib/stdio/handle.js",
+              "lib/io/strip-newline.js"
+            ]
+          }
+        ],
+        "latency_ms": 0.954,
+        "query_cases": 1,
+        "top5_hits": 1,
+        "top5_success": 1.0
+      },
+      "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+      "contract": {
+        "cases": 1,
+        "critical_evidence_misses": 3,
+        "critical_evidence_total": 3,
+        "epistemic_state_cases": 0,
+        "epistemic_state_hits": 0,
+        "expected_state_cases": 1,
+        "expected_state_hits": 1,
+        "must_exclude_total": 3,
+        "must_exclude_violations": 0,
+        "must_read_hits": 0,
+        "must_read_total": 3,
+        "positive_cases": 1,
+        "revision_pinned_cases": 1
+      },
+      "corpus_sha256": "c389e4b988d441676cd6fb4ff2284b91c46f06be51953f4c688dea66d5e9de67",
+      "id": "execa",
+      "language": "JavaScript",
+      "partitions": {
+        "declared": {
+          "heldout-v3": 1
+        },
+        "evaluation": {
+          "unattested-heldout": 1
+        }
+      },
+      "public": true,
+      "url": "https://github.com/sindresorhus/execa.git"
+    }
+  ],
+  "schema_version": 1,
+  "v4_release": {
+    "applicable": false,
+    "blocked_by": [
+      "abstention",
+      "all_repository_evaluations_ready",
+      "epistemic_state_accuracy",
+      "expected_state_accuracy",
+      "full_recall",
+      "precision",
+      "release_manifest",
+      "top5_success",
+      "twenty_five_cases",
+      "twenty_revision_pinned_cases",
+      "zero_critical_misses"
+    ],
+    "checks": {
+      "abstention": false,
+      "all_cases_budgeted": true,
+      "all_repository_evaluations_ready": false,
+      "budget_compliance": true,
+      "critical_ground_truth_present": true,
+      "epistemic_cases_present": true,
+      "epistemic_state_accuracy": false,
+      "expected_state_accuracy": false,
+      "five_repositories": true,
+      "forbidden_controls_present": true,
+      "four_public_repositories": true,
+      "full_recall": false,
+      "positive_cases_present": true,
+      "precision": false,
+      "release_manifest": false,
+      "top5_success": false,
+      "twenty_five_cases": false,
+      "twenty_revision_pinned_cases": false,
+      "zero_critical_misses": false,
+      "zero_forbidden_hits": true
+    },
+    "ready": false
+  }
+}

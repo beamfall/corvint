@@ -1,0 +1,192 @@
+{
+  "config": {
+    "argv": [
+      "/opt/homebrew/Cellar/node@22/22.23.2_1/bin/node",
+      "/private/tmp/pw-scratch/node_modules/.bin/playwright",
+      "test",
+      "timeout.spec.js",
+      "--timeout=500",
+      "--reporter=json"
+    ],
+    "configFile": "/private/tmp/pw-scratch/playwright.config.js",
+    "rootDir": "/private/tmp/pw-scratch",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/private/tmp/pw-scratch/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "",
+        "name": "",
+        "testDir": "/private/tmp/pw-scratch",
+        "testIgnore": [],
+        "testMatch": [
+          "/.*\\.(spec)\\.js$/"
+        ],
+        "timeout": 500
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 6,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "timeout.spec.js",
+      "file": "timeout.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "times out",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 500,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "",
+              "projectName": "",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "timedOut",
+                  "duration": 545,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 500ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 500ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 500ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "/private/tmp/pw-scratch/timeout.spec.js",
+                        "column": 14,
+                        "line": 4
+                      },
+                      "message": "Error: page.waitForTimeout: Test timeout of 500ms exceeded.\n\n  2 | test('times out', async ({ page }) => {\n  3 |   await page.goto('/');\n> 4 |   await page.waitForTimeout(3000);\n    |              ^\n  5 | });\n  6 |\n    at /private/tmp/pw-scratch/timeout.spec.js:4:14"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-12T02:23:59.245Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/private/tmp/pw-scratch/test-results/timeout-times-out/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/private/tmp/pw-scratch/test-results/timeout-times-out/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/private/tmp/pw-scratch/test-results/timeout-times-out/trace.zip"
+                    }
+                  ]
+                },
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "timedOut",
+                  "duration": 546,
+                  "error": {
+                    "message": "\u001b[31mTest timeout of 500ms exceeded.\u001b[39m",
+                    "stack": "\u001b[31mTest timeout of 500ms exceeded.\u001b[39m"
+                  },
+                  "errors": [
+                    {
+                      "message": "\u001b[31mTest timeout of 500ms exceeded.\u001b[39m"
+                    },
+                    {
+                      "location": {
+                        "file": "/private/tmp/pw-scratch/timeout.spec.js",
+                        "column": 14,
+                        "line": 4
+                      },
+                      "message": "Error: page.waitForTimeout: Test timeout of 500ms exceeded.\n\n  2 | test('times out', async ({ page }) => {\n  3 |   await page.goto('/');\n> 4 |   await page.waitForTimeout(3000);\n    |              ^\n  5 | });\n  6 |\n    at /private/tmp/pw-scratch/timeout.spec.js:4:14"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 1,
+                  "startTime": "2026-09-12T02:24:00.171Z",
+                  "annotations": [],
+                  "attachments": [
+                    {
+                      "name": "screenshot",
+                      "contentType": "image/png",
+                      "path": "/private/tmp/pw-scratch/test-results/timeout-times-out-retry1/test-failed-1.png"
+                    },
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/private/tmp/pw-scratch/test-results/timeout-times-out-retry1/error-context.md"
+                    },
+                    {
+                      "name": "trace",
+                      "contentType": "application/zip",
+                      "path": "/private/tmp/pw-scratch/test-results/timeout-times-out-retry1/trace.zip"
+                    }
+                  ]
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "3979fee3f3adb343beff-871f6a8643b3d7a512bb",
+          "file": "timeout.spec.js",
+          "line": 2,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-12T02:23:58.982Z",
+    "duration": 1866.081,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

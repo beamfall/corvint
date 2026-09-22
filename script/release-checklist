@@ -1,0 +1,156 @@
+#!/bin/sh
+# Read-only release readiness report. This script never builds, tags, signs,
+# publishes, promotes, repairs, or writes a status artifact.
+set -eu
+
+if [ "$#" -ne 0 ]; then
+  echo "usage: script/release-checklist" >&2
+  exit 2
+fi
+
+root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd -P)
+head=$(git -C "$root" rev-parse --verify HEAD) || exit 2
+head_tree=$(git -C "$root" rev-parse --verify 'HEAD^{tree}') || exit 2
+git_dir=$(git -C "$root" rev-parse --absolute-git-dir) || exit 2
+incomplete=0
+
+emit() {
+  status=$1
+  step=$2
+  clause=$3
+  reason=$4
+  printf '%s\t%s\t%s\t%s\n' "$status" "$step" "$clause" "$reason"
+  if [ "$status" != PASS ]; then
+    incomplete=1
+  fi
+}
+
+# GOC-V0-001 is decided from the Git index, not the worktree: an untracked stray legacy file
+# must not fail a gate about repository content that was never staged, and a tracked legacy
+# file removed from the worktree alone (without `git rm`) must still fail it. `git add`/`git
+# rm` is what changes this result, the same polarity every other index-based gate in script/
+# uses.
+if legacy_paths=$(git -C "$root" ls-files -- src/corvint_cli.py pyproject.toml setup.py); then
+  :
+else
+  echo "release-checklist: git ls-files failed" >&2
+  exit 2
+fi
+if [ -n "$legacy_paths" ]; then
+  emit FAIL native-runtime GOC-V0-001 "legacy Python implementation or wheel packaging remains"
+else
+  emit PASS native-runtime GOC-V0-001 "legacy Python implementation and wheel packaging are absent"
+fi
+emit NOT_RUN native-performance GOC-V0-005 "paired measurement cancelled by owner; native performance unmeasured"
+
+go_archive_report="$git_dir/corvint/release-go-archive-report.json"
+if [ ! -f "$go_archive_report" ]; then
+  emit NOT_RUN go-archive ARTIFACT-GO-V0-001..007 "private archive verification witness is absent"
+else
+  status_cache=$(mktemp -d "${TMPDIR:-/tmp}/corvint-release-status.XXXXXX") || exit 2
+  if archive_status=$(cd "$root" && GOCACHE="$status_cache" GOTOOLCHAIN=local GOENV=off GOPROXY=off GOSUMDB=off GOFLAGS=-mod=readonly \
+      go run ./conformance/release-artifact-v0 archive-status \
+      --witness "$go_archive_report" --revision "$head" --tree "$head_tree" 2>/dev/null); then
+    :
+  else
+    archive_status=INVALID
+  fi
+  rm -rf "$status_cache"
+  if [ "$archive_status" = STALE ]; then
+    emit NOT_RUN go-archive ARTIFACT-GO-V0-001..007 "archive witness is not bound to HEAD"
+  elif [ "$archive_status" = PASS ]; then
+    emit PASS go-archive ARTIFACT-GO-V0-001..007 "current-revision archive build and verification pass"
+  elif [ "$archive_status" = FAIL ]; then
+    emit FAIL go-archive ARTIFACT-GO-V0-001..007 "current-revision archive verification fails"
+  else
+    emit FAIL go-archive ARTIFACT-GO-V0-001..007 "archive witness is malformed, unsafe, or noncanonical"
+  fi
+fi
+
+# GOC-V0-010: the private receipt `make gate` records only after every gate step passed. It proves
+# the complete gate ran at HEAD's commit and tree together with the archive witness read above.
+gate_receipt="$git_dir/corvint/release-gate-receipt"
+if [ ! -e "$gate_receipt" ] && [ ! -L "$gate_receipt" ]; then
+  emit NOT_RUN full-gate GOC-V0-010 "full gate receipt is absent"
+elif [ -L "$gate_receipt" ] || [ ! -f "$gate_receipt" ]; then
+  emit FAIL full-gate GOC-V0-010 "full gate receipt is malformed, unsafe, or noncanonical"
+elif [ "$(wc -l < "$gate_receipt" | tr -d ' ')" != 1 ] ||
+    [ "$(tail -c 1 "$gate_receipt" | od -An -tx1 | tr -d ' \n')" != 0a ] ||
+    ! grep -Eqx 'corvint-gate-receipt/0 ([0-9a-f]{40}|[0-9a-f]{64}) ([0-9a-f]{40}|[0-9a-f]{64}) [0-9a-f]{64}' "$gate_receipt"; then
+  emit FAIL full-gate GOC-V0-010 "full gate receipt is malformed, unsafe, or noncanonical"
+else
+  read -r _ receipt_revision receipt_tree receipt_witness < "$gate_receipt"
+  if [ "$receipt_revision" != "$head" ] || [ "$receipt_tree" != "$head_tree" ]; then
+    emit NOT_RUN full-gate GOC-V0-010 "full gate receipt is not bound to HEAD"
+  elif [ ! -f "$go_archive_report" ] || [ -L "$go_archive_report" ] ||
+      [ "$(shasum -a 256 "$go_archive_report" | awk '{print $1}')" != "$receipt_witness" ]; then
+    emit NOT_RUN full-gate GOC-V0-010 "full gate receipt names another archive witness"
+  else
+    emit PASS full-gate GOC-V0-010 "complete gate passed at HEAD with the current archive witness"
+  fi
+fi
+
+version=$(cat "$root/VERSION" 2>/dev/null || true)
+case $version in
+  ''|*[!0-9A-Za-z.+-]*)
+    emit FAIL tag ARTIFACT-RDY-V0-003 "VERSION is absent or invalid"
+    expected_tag=
+    ;;
+  *)
+    expected_tag="v$version"
+    # Resolved under refs/tags/ only: a branch or other ref spelled like the tag is not a tag.
+    # `rev-parse --verify --quiet` exits 1 when the ref simply does not resolve (a legitimate
+    # NOT_RUN); any other nonzero exit is a Git read failure, an invalid environment
+    # (ARTIFACT-RDY-V0-001) that must be diagnosed and exit 2, not folded into "tag is absent".
+    if tag_commit=$(git -C "$root" rev-parse --verify --quiet "refs/tags/$expected_tag^{commit}" 2>/dev/null); then
+      :
+    else
+      rc=$?
+      if [ "$rc" -eq 1 ]; then
+        tag_commit=
+      else
+        echo "release-checklist: git rev-parse failed for refs/tags/$expected_tag" >&2
+        exit 2
+      fi
+    fi
+    if [ -z "$tag_commit" ]; then
+      emit NOT_RUN tag ARTIFACT-RDY-V0-003 "expected release tag is absent"
+    elif [ "$tag_commit" = "$head" ]; then
+      emit PASS tag ARTIFACT-RDY-V0-003 "expected release tag points at HEAD"
+    else
+      emit FAIL tag ARTIFACT-RDY-V0-003 "expected release tag points at another revision"
+    fi
+    ;;
+esac
+
+# ARTIFACT-RDY-V0-006..009 (decision 0141): the receipt is read from HEAD's commit and bound to the
+# revision it records, not to HEAD. Only a positive reader verdict passes; a reader that cannot run
+# is FAIL, never PASS.
+if [ -z "$expected_tag" ]; then
+  emit NOT_RUN publication ARTIFACT-RDY-V0-004 "no valid release tag names a receipt"
+elif ! receipt_entry=$(git -C "$root" ls-tree HEAD -- "docs/releases/$expected_tag/publication-receipt.json"); then
+  echo "release-checklist: git ls-tree failed" >&2
+  exit 2
+elif [ -z "$receipt_entry" ]; then
+  emit NOT_RUN publication ARTIFACT-RDY-V0-004 "no repository-owner publication receipt is present"
+else
+  status_cache=$(mktemp -d "${TMPDIR:-/tmp}/corvint-release-status.XXXXXX") || exit 2
+  if publication_status=$(cd "$root" && GOCACHE="$status_cache" GOTOOLCHAIN=local GOENV=off GOPROXY=off GOSUMDB=off GOFLAGS=-mod=readonly \
+      go run ./conformance/release-artifact-v0 publication-status \
+      --witness "$go_archive_report" --revision "$head" --tag "$expected_tag" 2>/dev/null); then
+    :
+  else
+    publication_status=INVALID
+  fi
+  rm -rf "$status_cache"
+  case $publication_status in
+    PASS) emit PASS publication ARTIFACT-RDY-V0-004 "owner receipt binds the tag revision and witnessed digests" ;;
+    STALE) emit NOT_RUN publication ARTIFACT-RDY-V0-004 "receipt is not bound to the exact tag revision under HEAD" ;;
+    UNWITNESSED) emit NOT_RUN publication ARTIFACT-RDY-V0-004 "receipt digests have no archive witness at its revision" ;;
+    MISMATCH) emit FAIL publication ARTIFACT-RDY-V0-004 "receipt digests contradict the archive witness" ;;
+    *) emit FAIL publication ARTIFACT-RDY-V0-004 "publication receipt is malformed, unsafe, or unreadable" ;;
+  esac
+fi
+emit NOT_RUN promotion ARTIFACT-RDY-V0-005 "no repository-owner promotion acceptance is present"
+
+exit "$incomplete"

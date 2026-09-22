@@ -1,0 +1,196 @@
+{
+  "roadmapPath": "docs/plans/integrated-product-roadmap-2026-09-12.md",
+  "expectedDigestSha256": "a13c1e465c0dd348831400793881c9bbaf8ea74d1e12d05be3e52c84e37f8368",
+  "queueId": "queue:corvint:planning",
+  "tickets": [
+    {
+      "localToken": "IPR-01",
+      "title": "Finish the smallest installed core / ticket / console path",
+      "milestone": "M0",
+      "owner": "corvint-console",
+      "priority": "P1",
+      "labels": ["ipr-roadmap", "M0"],
+      "requirementRefs": ["TCP-02", "TCP-02b"],
+      "order": "1",
+      "dependsOn": [],
+      "acceptanceCriteria": [
+        "Create, reload, refine and inspect one durable ticket.",
+        "Stale-revision edits refuse without changes.",
+        "A source/evidence link resolves.",
+        "Nonzero child exit cannot become success.",
+        "Stopping the console leaves no owned descendants; record actual platform/browser evidence."
+      ],
+      "body": "Copy of docs/plans/integrated-product-roadmap-2026-09-12.md, section IPR-01 (\"Finish the smallest installed core / ticket / console path\"). This ticket is a disposable planning projection: the Markdown document remains the human-owned source of authority, and this store is only its tracked copy. Execution is disabled on this ticket and this store; it is a fixture (executionClass MANUAL, never admitted or dispatched). Depends: none. Owner: Corvint console and task-manager TCP-02/02b. State: in progress. Work: repair the observed console child-exit classification and align form byte limits with ATM; provide reproducible explicit initialization in an isolated planning fixture, then run the actual atm, corvint-dashboard-snapshot and corvint-console binaries against it. Rollback: stop/remove optional companions; preserve the store and the default Corvint CLI."
+    },
+    {
+      "localToken": "IPR-02",
+      "title": "Add the roadmap to task manager's dashboard",
+      "milestone": "M1",
+      "owner": "corvint-console",
+      "priority": "P2",
+      "labels": ["ipr-roadmap", "M1"],
+      "requirementRefs": [],
+      "order": "2",
+      "dependsOn": ["IPR-01"],
+      "acceptanceCriteria": [
+        "Browser tests cover multiple milestones, an unassigned ticket, a blocked chain, missing evidence, pagination, keyboard operation, revision conflict and cycle rejection.",
+        "Read-only visits do not mutate the store.",
+        "Editing one ticket updates the roadmap after reload."
+      ],
+      "body": "Copy of docs/plans/integrated-product-roadmap-2026-09-12.md, section IPR-02 (\"Add the roadmap to task manager's dashboard\"). This ticket is a disposable planning projection: the Markdown document remains the human-owned source of authority, and this store is only its tracked copy. Execution is disabled on this ticket and this store; it is a fixture (executionClass MANUAL, never admitted or dispatched). Depends: IPR-01. Owner: task-manager existing roadmap reader; Corvint console. Work: add a Roadmap view grouped by existing milestone values, with ticket status, priority, owner, blockers, next action, acceptance criteria and links to requirement/evidence details; reuse atm roadmap and bounded ticket detail reads; keep unassigned tickets visible; show declared status separately from observed gate/acceptance evidence. Rollback: remove the view; existing ticket records and CLI roadmap remain usable."
+    },
+    {
+      "localToken": "IPR-03",
+      "title": "Bootstrap this plan using existing ticket operations",
+      "milestone": "M0",
+      "owner": "task-manager",
+      "priority": "P1",
+      "labels": ["ipr-roadmap", "M0"],
+      "requirementRefs": ["TCP-02", "TCP-02b"],
+      "order": "3",
+      "dependsOn": [],
+      "acceptanceCriteria": [
+        "All eleven slices appear in atm roadmap; criteria and dependency details match this source.",
+        "Replay creates no duplicates; resume after interruption completes the remaining operations.",
+        "A changed source digest requires a reviewed refinement, not overwrite."
+      ],
+      "body": "Copy of docs/plans/integrated-product-roadmap-2026-09-12.md, section IPR-03 (\"Bootstrap this plan using existing ticket operations\"). This ticket is a disposable planning projection: the Markdown document remains the human-owned source of authority, and this store is only its tracked copy. Execution is disabled on this ticket and this store; it is a fixture (executionClass MANUAL, never admitted or dispatched); it does not authorize real work admission or evidence promotion. Depends: none; existing TCP-02/02b store and mutation primitives. Owner: task-manager planning fixture under existing ticket contracts. Execute before IPR-01/02 so it can track them. Work: initialize an isolated planning store with execution disabled; create these slices through existing ticket mutations, preserving IPR- source IDs, owning AT-/TCP- references, milestones, criteria and source digest; create tickets first, then set dependencies using their actual native IDs; use stable request IDs so interrupted seeding can replay completed requests without duplicates; retain the per-operation receipts (this is not an atomic bulk import). This is a disposable planning projection, not full TCP-06 import or authority cutover; full TCP-06 import/authority switching remains in M5 behind TCP-03/05 and the existing gates. Rollback: retain receipts and discard only the disposable planning store; no real-store reinitialization, new schema or new import framework is required for this bootstrap."
+    },
+    {
+      "localToken": "IPR-04",
+      "title": "Expose source-bound documentation through MCP",
+      "milestone": "M2",
+      "owner": "at-15",
+      "priority": "P2",
+      "labels": ["ipr-roadmap", "M2"],
+      "requirementRefs": ["AT-15"],
+      "order": "4",
+      "dependsOn": ["IPR-01"],
+      "acceptanceCriteria": [
+        "A real MCP client generates a page and consumes those exact bytes.",
+        "Edited source, tampered drafts, invalid paths and unsupported input refuse or report explicit uncertainty.",
+        "CLI and MCP outputs agree on claims and provenance; tool errors do not report success."
+      ],
+      "body": "Copy of docs/plans/integrated-product-roadmap-2026-09-12.md, section IPR-04 (\"Expose source-bound documentation through MCP\"). This ticket is a disposable planning projection: the Markdown document remains the human-owned source of authority, and this store is only its tracked copy. Execution is disabled on this ticket and this store; it is a fixture (executionClass MANUAL, never admitted or dispatched). Depends: IPR-01. Owner: AT-15, source-documentation draft, MCP registry. Work: expose the existing draft/consume implementation through validated MCP tools with exact source identities, citations and unknowns; keep read-only calls read-only. Rollback: unregister the tools; retain the existing CLI and user-owned documents."
+    },
+    {
+      "localToken": "IPR-05",
+      "title": "Automatically maintain useful human documentation",
+      "milestone": "M2",
+      "owner": "at-15",
+      "priority": "P2",
+      "labels": ["ipr-roadmap", "M2"],
+      "requirementRefs": ["AT-15"],
+      "order": "5",
+      "dependsOn": ["IPR-04"],
+      "acceptanceCriteria": [
+        "Add/change/remove a supported capability across real revisions; automatically refresh affected content, retain conflicts, avoid unrelated churn, and demonstrate clean versus incremental equality.",
+        "The next agent task uses MCP to consume and rederive the page.",
+        "Qualify the existing first HDC renderer profile before claiming rendered-doc delivery."
+      ],
+      "body": "Copy of docs/plans/integrated-product-roadmap-2026-09-12.md, section IPR-05 (\"Automatically maintain useful human documentation\"). This ticket is a disposable planning projection: the Markdown document remains the human-owned source of authority, and this store is only its tracked copy. Execution is disabled on this ticket and this store; it is a fixture (executionClass MANUAL, never admitted or dispatched). Depends: IPR-04. Owner: AT-15, HDC, source-draft and deployment-neutral continuous maintenance; freeze an accepted bounded-session slice under that owner before implementing automatic writes. Work: in an explicitly enabled, bounded local session, detect eligible changes and update one useful Corvint capability page with source-backed API/usage information, retained behavior examples and limitations; preview proposed writes and apply under configured authorization with atomic replacement and conflict checks; never overwrite human intent or turn inferred prose into accepted requirements. Rollback: disable the session and restore prior generated bytes; keep human edits intact."
+    },
+    {
+      "localToken": "IPR-06",
+      "title": "Share honest test validity between agent and editor",
+      "milestone": "M3",
+      "owner": "tcq-lpcv",
+      "priority": "P2",
+      "labels": ["ipr-roadmap", "M3"],
+      "requirementRefs": ["TCQ", "LPCV"],
+      "order": "6",
+      "dependsOn": ["IPR-01"],
+      "acceptanceCriteria": [
+        "Shared vectors for empty/always-skipped tests, wrong target, stale execution, unmatched reports, passing reported results, unsupported input, and surviving/killed mutations.",
+        "Agent and editor agree; passing does not imply adequacy, and a killed mutation only establishes the witnessed distinction.",
+        "An unsupported case never becomes a universal \"valid\" boolean."
+      ],
+      "body": "Copy of docs/plans/integrated-product-roadmap-2026-09-12.md, section IPR-06 (\"Share honest test validity between agent and editor\"). This ticket is a disposable planning projection: the Markdown document remains the human-owned source of authority, and this store is only its tracked copy. Execution is disabled on this ticket and this store; it is a fixture (executionClass MANUAL, never admitted or dispatched). Depends: IPR-01. Owner: TCQ, LPCV and VS Code contracts. Work: expose one native verifier/result representation to CLI/MCP and VS Code, preserving separate association, hygiene, freshness, execution and strength-evidence axes with reasons and anchors; freeze the shared language-neutral provider lifecycle under LPCV for both Go and JS/E2E adapters; bind source, configuration, command, provider/toolchain and observed environment identities. Rollback: disable new projections; preserve raw evidence and existing qualification behavior."
+    },
+    {
+      "localToken": "IPR-07",
+      "title": "Automatic Go test tracking",
+      "milestone": "M3",
+      "owner": "at-14",
+      "priority": "P2",
+      "labels": ["ipr-roadmap", "M3"],
+      "requirementRefs": ["AT-14", "GLTP", "LPCV"],
+      "order": "7",
+      "dependsOn": ["IPR-06"],
+      "acceptanceCriteria": [
+        "Editing a real assertion automatically transitions feedback through running to failed/passed; a second edit makes an older result stale even if it finishes later.",
+        "Cancellation, timeout, output caps and shutdown leave no descendants.",
+        "Record exact supported platform and scope; required repository gates still run."
+      ],
+      "body": "Copy of docs/plans/integrated-product-roadmap-2026-09-12.md, section IPR-07 (\"Automatic Go test tracking\"). This ticket is a disposable planning projection: the Markdown document remains the human-owned source of authority, and this store is only its tracked copy. Execution is disabled on this ticket and this store; it is a fixture (executionClass MANUAL, never admitted or dispatched). Depends: IPR-06. Owner: AT-14, GLTP and LPCV. Work: reuse the experimental Go provider; explicitly enable a foreground session with bounded debounce, cancellation, current-input identity and predictable full/configured-scope fallback when affected selection cannot justify omission; do not install a permanent daemon. Rollback: disable automatic runs; explicit test commands continue to work."
+    },
+    {
+      "localToken": "IPR-08",
+      "title": "Add one JS/TS unit and E2E provider path",
+      "milestone": "M3",
+      "owner": "lpcv",
+      "priority": "P2",
+      "labels": ["ipr-roadmap", "M3"],
+      "requirementRefs": ["LPCV"],
+      "order": "8",
+      "dependsOn": ["IPR-06"],
+      "acceptanceCriteria": [
+        "A real unit assertion failure and real browser workflow failure automatically surface with source links; a fix reruns and clears only current failures.",
+        "Demonstrate flaky/retry, skipped, infrastructure failure, cancellation and stale-app-build states without false green.",
+        "Interruption cleanup must prove no owned server/browser descendants survive."
+      ],
+      "body": "Copy of docs/plans/integrated-product-roadmap-2026-09-12.md, section IPR-08 (\"Add one JS/TS unit and E2E provider path\"). This ticket is a disposable planning projection: the Markdown document remains the human-owned source of authority, and this store is only its tracked copy. Execution is disabled on this ticket and this store; it is a fixture (executionClass MANUAL, never admitted or dispatched). Depends: IPR-06 shared LPCV lifecycle; Go qualification is not a prerequisite. Owner: new bounded LPCV provider slice. Work: select one installed JS/TS unit runner and one E2E runner from the target application's actual stack (candidate choice if none is present: Vitest plus Playwright, a planning assumption, not delivered support); bind test/configuration/application build and environment identities; manage E2E server, browser and worker lifetimes explicitly. Rollback: disable that provider; retain explicit runner commands and evidence artifacts."
+    },
+    {
+      "localToken": "IPR-09",
+      "title": "Deliver editor and agent live feedback",
+      "milestone": "M3",
+      "owner": "vscode-mcp",
+      "priority": "P2",
+      "labels": ["ipr-roadmap", "M3"],
+      "requirementRefs": ["VSCode", "MCP", "LPCV"],
+      "order": "9",
+      "dependsOn": ["IPR-07", "IPR-08"],
+      "acceptanceCriteria": [
+        "In a real VS Code extension host and MCP client, follow the same Go, unit and E2E failure/fix sequence and inspect matching identities, reasons and stale states.",
+        "Reopening the workspace must not silently relabel old receipts current.",
+        "Unavailable providers are explained."
+      ],
+      "body": "Copy of docs/plans/integrated-product-roadmap-2026-09-12.md, section IPR-09 (\"Deliver editor and agent live feedback\"). This ticket is a disposable planning projection: the Markdown document remains the human-owned source of authority, and this store is only its tracked copy. Execution is disabled on this ticket and this store; it is a fixture (executionClass MANUAL, never admitted or dispatched). Depends: IPR-07, IPR-08. Owner: VS Code, MCP, LPCV. Work: connect actual current receipts to Test Explorer, diagnostics/source navigation and agent MCP queries; support explicit enable/disable and rerun controls with configured execution authority. Rollback: disable automatic/editor providers without changing test source or gate policy."
+    },
+    {
+      "localToken": "IPR-10",
+      "title": "Join the dashboard around a real change",
+      "milestone": "M4",
+      "owner": "console",
+      "priority": "P2",
+      "labels": ["ipr-roadmap", "M4"],
+      "requirementRefs": [],
+      "order": "10",
+      "dependsOn": ["IPR-02", "IPR-03", "IPR-05", "IPR-09"],
+      "acceptanceCriteria": [
+        "Create a ticket, inspect Corvint context, change code, observe automatic test failure and fix including E2E, refresh/consume docs, and inspect the result from roadmap and dashboard.",
+        "A stale test or conflicting doc blocks its corresponding evidence claim.",
+        "Ticket completion requires the owning accepted criteria/gate workflow; the dashboard cannot invent receipts."
+      ],
+      "body": "Copy of docs/plans/integrated-product-roadmap-2026-09-12.md, section IPR-10 (\"Join the dashboard around a real change\"). This ticket is a disposable planning projection: the Markdown document remains the human-owned source of authority, and this store is only its tracked copy. Execution is disabled on this ticket and this store; it is a fixture (executionClass MANUAL, never admitted or dispatched). Depends: IPR-02, IPR-03, IPR-05, IPR-09. Owner: console, snapshots, task manager. Work: link the roadmap ticket to current source evidence, test results and generated-doc status; show what needs action and why; preserve provenance when opening detail views. Rollback: remove integrated panels; keep each underlying CLI and stored record usable."
+    },
+    {
+      "localToken": "IPR-11",
+      "title": "Qualify and prepare the public release",
+      "milestone": "M4",
+      "owner": "pub-v0",
+      "priority": "P1",
+      "labels": ["ipr-roadmap", "M4"],
+      "requirementRefs": ["PUB-V0", "AT-17"],
+      "order": "11",
+      "dependsOn": ["IPR-10"],
+      "acceptanceCriteria": [
+        "Extracted artifacts repeat IPR-10 on the named qualified platform with actual browser/editor/MCP clients.",
+        "Release notes accurately identify every experimental or unsupported surface.",
+        "Public-readiness requires all five requested outcomes, not only the Go CLI archive."
+      ],
+      "body": "Copy of docs/plans/integrated-product-roadmap-2026-09-12.md, section IPR-11 (\"Qualify and prepare the public release\"). This ticket is a disposable planning projection: the Markdown document remains the human-owned source of authority, and this store is only its tracked copy. Execution is disabled on this ticket and this store; it is a fixture (executionClass MANUAL, never admitted or dispatched). Depends: IPR-10. Owner: PUB-V0, release artifact gate, AT-17, companion bundle. Work: finish independent review, source/CEM/OCM commits, canonical Go/interop/race/extension/taskman gates, reproducible native and companion archives, matching source/licenses and installed-path smoke tests; reuse passed evidence only where its exact source/profile remains applicable. External holds: GitHub billing currently prevents hosted checks; that state must be reported separately and the required hosted check resolved before claiming it passed. Publication, visibility, tags, push and signing await the owner's approval of the concrete candidate. Rollback: retain the prior artifact and disable/remove optional companions; no destructive data migration or source-history rewrite is part of this roadmap."
+    }
+  ]
+}

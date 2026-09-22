@@ -1,0 +1,24 @@
+CORPUS corvint revision=58a2806e4b621ebd13a439ff661b8d0d875133b8 tree=9d90828ef284f2758b5badcd34c67acdea4e0852 tree-identity=proved source-worktree-clean=false
+TASK harness-session-start class=non-query-harness state=valid oracle-p95=366.7ms candidate-p95=117.0ms
+TASK harness-stop class=non-query-harness state=valid oracle-p95=387.6ms candidate-p95=107.3ms
+TASK harness-post-tool class=non-query-harness state=valid oracle-p95=376.4ms candidate-p95=113.0ms
+TASK query-authority-start class=query state=valid oracle-p95=1256.9ms candidate-p95=453.4ms
+TASK init-inventory class=other-command state=valid oracle-p95=603.6ms candidate-p95=286.4ms
+TASK adopt-inventory class=other-command state=valid oracle-p95=599.9ms candidate-p95=294.5ms
+TASK impact-path class=other-command state=insufficient_evidence oracle-p95=1330.5ms candidate-p95=846.8ms
+NOT_RUN corpus=beamfall reason=beamfall-not-pinned-to-a-clean-revision: the repository is under continuous concurrent write by a live agent fleet, so it cannot hold the same revision, cache state, and unchanged-repository predicates GPK-V0-016 requires for the duration of a run. Enabling this corpus needs only a pinned clean revision in the revision field, which work item W12 (GPK-V0-022) provides.
+FAIL GPK-V0-017(a) scope=harness-session-start required="candidate p95 <= 100ms reference cap and <= 250ms portable cap" observed="candidate p95 117.0ms (95% CI 106.2-120.3ms)"
+PASS GPK-V0-017(c) scope=harness-session-start required="candidate p95 <= 50% of oracle p95 (183.3ms)" observed="candidate p95 117.0ms vs oracle p95 366.7ms"
+FAIL GPK-V0-017(a) scope=harness-stop required="candidate p95 <= 100ms reference cap and <= 250ms portable cap" observed="candidate p95 107.3ms (95% CI 106.8-113.6ms)"
+PASS GPK-V0-017(c) scope=harness-stop required="candidate p95 <= 50% of oracle p95 (193.8ms)" observed="candidate p95 107.3ms vs oracle p95 387.6ms"
+FAIL GPK-V0-017(a) scope=harness-post-tool required="candidate p95 <= 100ms reference cap and <= 250ms portable cap" observed="candidate p95 113.0ms (95% CI 108.1-119.1ms)"
+PASS GPK-V0-017(c) scope=harness-post-tool required="candidate p95 <= 50% of oracle p95 (188.2ms)" observed="candidate p95 113.0ms vs oracle p95 376.4ms"
+PASS GPK-V0-017(b) scope=query-authority-start required="candidate p95 <= 500ms" observed="candidate p95 453.4ms (95% CI 439.5-489.4ms)"
+PASS GPK-V0-017(d) scope=init-inventory:p95 required="candidate p95 <= 664.0ms (oracle +10%)" observed="candidate 286.4ms vs oracle 603.6ms"
+PASS GPK-V0-017(d) scope=init-inventory:peak-resident required="candidate peak-resident <= 72.0MiB (oracle +10%)" observed="candidate 58.1MiB vs oracle 65.4MiB"
+PASS GPK-V0-017(d) scope=adopt-inventory:p95 required="candidate p95 <= 659.9ms (oracle +10%)" observed="candidate 294.5ms vs oracle 599.9ms"
+PASS GPK-V0-017(d) scope=adopt-inventory:peak-resident required="candidate peak-resident <= 72.0MiB (oracle +10%)" observed="candidate 58.3MiB vs oracle 65.5MiB"
+NOT_RUN GPK-V0-017(d) scope=impact-path:p95 required="candidate p95 <= 1463.6ms (oracle +10%)" observed="measurement invalid: unequal-stdout"
+NOT_RUN GPK-V0-017(d) scope=impact-path:peak-resident required="candidate peak-resident <= 199.7MiB (oracle +10%)" observed="measurement invalid: unequal-stdout"
+NOT_RUN GPK-V0-016 scope=corpus:beamfall required="measured on a pinned clean revision" observed="beamfall-not-pinned-to-a-clean-revision: the repository is under continuous concurrent write by a live agent fleet, so it cannot hold the same revision, cache state, and unchanged-repository predicates GPK-V0-016 requires for the duration of a run. Enabling this corpus needs only a pinned clean revision in the revision field, which work item W12 (GPK-V0-022) provides."
+SUMMARY outcome=insufficient_evidence preregistered=true corpora-measured=1 corpora-not-run=1 tasks=7 valid-tasks=6 invalid-tasks=1 samples-per-runtime=100 warmups=5 criteria-pass=8 criteria-fail=3 criteria-not-run=3

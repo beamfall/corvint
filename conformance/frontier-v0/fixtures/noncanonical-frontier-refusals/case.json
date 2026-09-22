@@ -1,0 +1,150 @@
+{
+  "id": "noncanonical-frontier-refusals",
+  "matrixRows": [
+    "OPEN with empty items, EMPTY with items, or any extra stop-decision field",
+    "decimal offset beyond the signed 64-bit range"
+  ],
+  "clauses": [
+    "CF-V0-004",
+    "CF-V0-005",
+    "CF-V0-018",
+    "CF-V0-019",
+    "CF-V0-022"
+  ],
+  "intent": "CF-V0-004 admits exactly two state/items combinations and gives V0 NO stop-decision field. CF-V0-019 requires every offset to be a decimal string that fits a signed 64-bit integer, rejecting a longer digit run rather than wrapping it. CF-V0-022 routes a Frontier document shape, codec, state, order or ID mismatch to noncanonical-frontier. These are fail-closed refusals, not emitted documents.",
+  "cases": [
+    {
+      "id": "open-with-empty-items",
+      "note": "A candidate document declaring OPEN with items: [].",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "noncanonical-frontier",
+        "stderr": "{\"code\":\"noncanonical-frontier\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "383d80757f7217a71a647f4b59146976e0707a80b910dac289e30c912eed62c5"
+      },
+      "assertions": [
+        "CF-V0-004: OPEN requires at least one item; the pair is not a valid combination.",
+        "CF-V0-022: the code is noncanonical-frontier with exit 2 and NO stdout — never a document emitted with a warning."
+      ]
+    },
+    {
+      "id": "empty-with-items",
+      "note": "A candidate document declaring EMPTY with a non-empty items array.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "noncanonical-frontier",
+        "stderr": "{\"code\":\"noncanonical-frontier\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "383d80757f7217a71a647f4b59146976e0707a80b910dac289e30c912eed62c5"
+      },
+      "assertions": [
+        "CF-V0-004: EMPTY requires exact items: []."
+      ]
+    },
+    {
+      "id": "extra-stop-decision-field",
+      "note": "A candidate document carrying an additional top-level stop-decision field.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "noncanonical-frontier",
+        "stderr": "{\"code\":\"noncanonical-frontier\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "383d80757f7217a71a647f4b59146976e0707a80b910dac289e30c912eed62c5"
+      },
+      "assertions": [
+        "CF-V0-004: V0 has no stop-decision field or hook authority.",
+        "CF-V0-018: the top-level keys are EXACTLY frontierState, id, inputs, items, profile, scope, universeId; an extra key is a closed-shape violation.",
+        "CF-V0-027: V0 MUST NOT advertise a completed Stop hook."
+      ]
+    },
+    {
+      "id": "retrieval-packet-term-in-wire",
+      "note": "A candidate document carrying READY / NEEDS_WIDENING / OUT_OF_SCOPE.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "noncanonical-frontier",
+        "stderr": "{\"code\":\"noncanonical-frontier\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "383d80757f7217a71a647f4b59146976e0707a80b910dac289e30c912eed62c5"
+      },
+      "assertions": [
+        "CF-V0-005: READY, NEEDS_WIDENING and OUT_OF_SCOPE are retrieval-packet terms and MUST NOT appear in the frontier wire."
+      ]
+    },
+    {
+      "id": "decimal-offset-beyond-int64-range",
+      "note": "A candidate document whose intentSpan.start digit run no longer fits a signed 64-bit integer.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "noncanonical-frontier",
+        "stderr": "{\"code\":\"noncanonical-frontier\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "383d80757f7217a71a647f4b59146976e0707a80b910dac289e30c912eed62c5"
+      },
+      "assertions": [
+        "CF-V0-019: every offset is a base-10 string with no sign or leading zero whose value fits a signed 64-bit integer; a verifier rejects a longer digit run rather than wrapping it onto a bound value."
+      ]
+    }
+  ]
+}

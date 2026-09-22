@@ -1,0 +1,96 @@
+{
+  "id": "passing-caller-report-stays-open",
+  "matrixRows": [
+    "exact passing TCQ caller report"
+  ],
+  "clauses": [
+    "CF-V0-014",
+    "CF-V0-015",
+    "CF-V0-016"
+  ],
+  "intent": "The headline non-closure: a clean target, a passing row, exit zero and a signature over caller-controlled bytes cannot upgrade CALLER_REPORTED authority. The frontier stays OPEN.",
+  "cases": [
+    {
+      "id": "clean-target-passing-rows-exit-zero",
+      "note": "Complete dynamic tuple, target attested clean, every row passing, exit zero, and the TCQ result signed by the caller.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "complete",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          }
+        ],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "linked",
+            "hunkIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "claimIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "tcqRelation": "test-report-matched-v0"
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "2",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "NO_MATERIAL_CHANGE_WITNESS"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_MATERIAL_HUNK"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "CALLER_REPORTED_NONCLOSING"
+            ],
+            "relatedIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "AUTHORITY_REQUIRED",
+            "nextAction": "ESTABLISH_HARNESS_AUTHORITY"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-014: test-report-matched-v0 plus CALLER_REPORTED emits CALLER_REPORTED_NONCLOSING.",
+        "CF-V0-016: order 1 gives AUTHORITY_REQUIRED and ESTABLISH_HARNESS_AUTHORITY.",
+        "CF-V0-004: frontierState is OPEN and exit is 1; a passing report never yields EMPTY.",
+        "CF-V0-014: signatures over caller-controlled V0 bytes, clean-target statements, passing rows and exit zero cannot upgrade that authority.",
+        "CF-V0-005: there is no acknowledgement, exception, score, confidence or permissive-success input that could turn this OPEN into EMPTY."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-JUNIT-SYSTEM-OUT-11ab"
+      ]
+    }
+  ]
+}

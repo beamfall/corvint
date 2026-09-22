@@ -1,0 +1,36 @@
+CORPUS corvint revision=58a2806e4b621ebd13a439ff661b8d0d875133b8 tree=9d90828ef284f2758b5badcd34c67acdea4e0852 tree-identity=proved source-worktree-clean=true
+TASK harness-session-start class=non-query-harness state=valid oracle-p95=292.2ms candidate-p95=57.2ms
+TASK harness-stop class=non-query-harness state=valid oracle-p95=299.9ms candidate-p95=59.6ms
+TASK harness-post-tool class=non-query-harness state=valid oracle-p95=291.8ms candidate-p95=57.2ms
+TASK query-authority-start class=query state=valid oracle-p95=985.8ms candidate-p95=256.4ms
+TASK init-inventory class=other-command state=valid oracle-p95=507.6ms candidate-p95=251.4ms
+TASK adopt-inventory class=other-command state=valid oracle-p95=502.9ms candidate-p95=245.2ms
+TASK impact-path class=other-command state=insufficient_evidence oracle-p95=1125.7ms candidate-p95=746.9ms
+TASK harness-user-prompt class=query state=valid oracle-p95=1051.3ms candidate-p95=317.3ms
+CORPUS beamfall revision=fa3b1e7fe5bc6c10e4b09b2729f364780f567a48 tree=3a4251e0f0ebe70a489e296b32189634250f69d4 tree-identity=proved source-worktree-clean=false
+TASK beamfall-harness-session-start class=non-query-harness state=valid oracle-p95=302.2ms candidate-p95=63.0ms
+TASK beamfall-query-authority-start class=query state=valid oracle-p95=2121.7ms candidate-p95=370.5ms
+TASK beamfall-impact-path class=other-command state=insufficient_evidence oracle-p95=8813.9ms candidate-p95=2593.5ms
+TASK beamfall-harness-user-prompt class=query state=insufficient_evidence oracle-p95=2139.9ms candidate-p95=448.9ms
+PASS GPK-V0-017(a) scope=harness-session-start required="candidate p95 <= 100ms reference cap and <= 250ms portable cap" observed="candidate p95 57.2ms (95% CI 56.0-58.1ms)"
+PASS GPK-V0-017(c) scope=harness-session-start required="candidate p95 <= 50% of oracle p95 (146.1ms)" observed="candidate p95 57.2ms vs oracle p95 292.2ms"
+PASS GPK-V0-017(a) scope=harness-stop required="candidate p95 <= 100ms reference cap and <= 250ms portable cap" observed="candidate p95 59.6ms (95% CI 57.9-60.6ms)"
+PASS GPK-V0-017(c) scope=harness-stop required="candidate p95 <= 50% of oracle p95 (150.0ms)" observed="candidate p95 59.6ms vs oracle p95 299.9ms"
+PASS GPK-V0-017(a) scope=harness-post-tool required="candidate p95 <= 100ms reference cap and <= 250ms portable cap" observed="candidate p95 57.2ms (95% CI 55.5-58.3ms)"
+PASS GPK-V0-017(c) scope=harness-post-tool required="candidate p95 <= 50% of oracle p95 (145.9ms)" observed="candidate p95 57.2ms vs oracle p95 291.8ms"
+PASS GPK-V0-017(b) scope=query-authority-start required="candidate p95 <= 500ms" observed="candidate p95 256.4ms (95% CI 252.5-258.2ms)"
+PASS GPK-V0-017(d) scope=init-inventory:p95 required="candidate p95 <= 558.4ms (oracle +10%)" observed="candidate 251.4ms vs oracle 507.6ms"
+PASS GPK-V0-017(d) scope=init-inventory:peak-resident required="candidate peak-resident <= 69.8MiB (oracle +10%)" observed="candidate 58.7MiB vs oracle 63.5MiB"
+PASS GPK-V0-017(d) scope=adopt-inventory:p95 required="candidate p95 <= 553.2ms (oracle +10%)" observed="candidate 245.2ms vs oracle 502.9ms"
+PASS GPK-V0-017(d) scope=adopt-inventory:peak-resident required="candidate peak-resident <= 69.7MiB (oracle +10%)" observed="candidate 58.1MiB vs oracle 63.4MiB"
+NOT_RUN GPK-V0-017(d) scope=impact-path:p95 required="candidate p95 <= 1238.3ms (oracle +10%)" observed="measurement invalid: unequal-stdout"
+NOT_RUN GPK-V0-017(d) scope=impact-path:peak-resident required="candidate peak-resident <= 198.6MiB (oracle +10%)" observed="measurement invalid: unequal-stdout"
+PASS GPK-V0-017(b) scope=harness-user-prompt required="candidate p95 <= 500ms" observed="candidate p95 317.3ms (95% CI 310.8-323.2ms)"
+PASS GPK-V0-017(a) scope=beamfall-harness-session-start required="candidate p95 <= 100ms reference cap and <= 250ms portable cap" observed="candidate p95 63.0ms (95% CI 62.3-65.0ms)"
+PASS GPK-V0-017(c) scope=beamfall-harness-session-start required="candidate p95 <= 50% of oracle p95 (151.1ms)" observed="candidate p95 63.0ms vs oracle p95 302.2ms"
+PASS GPK-V0-017(b) scope=beamfall-query-authority-start required="candidate p95 <= 500ms" observed="candidate p95 370.5ms (95% CI 361.3-393.1ms)"
+NOT_RUN GPK-V0-017(d) scope=beamfall-impact-path:p95 required="candidate p95 <= 9695.3ms (oracle +10%)" observed="measurement invalid: unequal-stdout"
+NOT_RUN GPK-V0-017(d) scope=beamfall-impact-path:peak-resident required="candidate peak-resident <= 461.3MiB (oracle +10%)" observed="measurement invalid: unequal-stdout"
+NOT_RUN GPK-V0-017(b) scope=beamfall-harness-user-prompt required="candidate p95 <= 500ms" observed="measurement invalid: unequal-stdout"
+CANDIDATE revision=3f675d37ecc9a0a0040ef8b5b91f82342af07153 corpus-pinned=false sha256=ced3cfd95bbbb5b339b2a21eea966271adee65e732bd480817710cf0f970fd6d
+SUMMARY outcome=insufficient_evidence preregistered=false corpora-measured=2 corpora-not-run=0 tasks=12 valid-tasks=9 invalid-tasks=3 samples-per-runtime=100 warmups=5 criteria-pass=15 criteria-fail=0 criteria-not-run=5

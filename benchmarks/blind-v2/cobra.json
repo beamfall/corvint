@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+  "cases": [{
+    "id": "cobra.one-required-runtime-completion.v1",
+    "partition": "heldout-v2",
+    "target_version": "V6",
+    "mode": "query",
+    "text": "Trace MarkFlagsOneRequired from annotation registration through command execution and shell completion. What happens when no group flag is set, when one is set, and while completing unset flags?",
+    "limit": 8,
+    "budget_bytes": 28000,
+    "rationale": "A maintainer extending flag groups must preserve both runtime validation and completion behavior across persistent and local flags.",
+    "ground_truth": [
+      {"path": "flag_groups.go", "line": 49, "contains": "func (c *Command) MarkFlagsOneRequired"},
+      {"path": "flag_groups.go", "line": 81, "contains": "func (c *Command) ValidateFlagGroups"},
+      {"path": "flag_groups.go", "line": 225, "contains": "func (c *Command) enforceFlagGroupsForCompletion"},
+      {"path": "command.go", "line": 1010, "contains": "c.ValidateFlagGroups()"},
+      {"path": "completions.go", "line": 433, "contains": "finalCmd.enforceFlagGroupsForCompletion()"},
+      {"path": "flag_groups_test.go", "line": 71, "contains": "at least one of the flags in the group [a b] is required"},
+      {"path": "completions_test.go", "line": 3277, "contains": "MarkFlagsMutuallyExclusive"},
+      {"path": "site/content/user_guide.md", "line": 353, "contains": "MarkFlagsOneRequired"}
+    ],
+    "expected": {
+      "critical": ["symbol:flag_groups.go:MarkFlagsOneRequired", "symbol:flag_groups.go:ValidateFlagGroups", "symbol:flag_groups.go:enforceFlagGroupsForCompletion"],
+      "must_include": ["path:command.go", "path:completions.go", "test:flag_groups_test.go", "test:completions_test.go"],
+      "relevant": ["path:flag_groups.go", "path:site/content/user_guide.md"],
+      "must_exclude": ["symbol:flag_groups.go:MarkFlagsRequiredTogether", "symbol:flag_groups.go:MarkFlagsMutuallyExclusive"]
+    }
+  }]
+}

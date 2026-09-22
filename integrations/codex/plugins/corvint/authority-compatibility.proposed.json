@@ -1,0 +1,15 @@
+{
+  "profile": "corvint-authority-event/0",
+  "status": "EXPERIMENTAL_UNINSTALLED",
+  "support": "UNAVAILABLE",
+  "authority": "NONE",
+  "qualifiedHostTuples": [],
+  "defaultConsumer": "fixed-protected-store-or-unavailable",
+  "rootAdmission": "NOT_PRODUCED",
+  "consumerPin": "NOT_PRODUCED",
+  "adapterPin": "NOT_PRODUCED",
+  "nativeObservation": "NOT_PRODUCED",
+  "fullConformance": "NOT_RUN",
+  "owningSpec": "docs/specs/protected-local-execution-v0.md",
+  "legacyCompatibility": "compatibility.json"
+}

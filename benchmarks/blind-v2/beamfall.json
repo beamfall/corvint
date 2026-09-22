@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "commit": "6e82abd857c77c0ca250b6c4a8f5e1c86684a535",
+  "cases": [{
+    "id": "beamfall.compat-binding-impact.v1",
+    "partition": "heldout-v2",
+    "target_version": "V4",
+    "mode": "impact",
+    "paths": ["internal/streamtoken/compat_binding.go"],
+    "limit": 10,
+    "budget_bytes": 36000,
+    "rationale": "A maintainer changing compatibility fail-closed semantics must find minting, request-wide stamp reuse, byte-serving verification, composition-root wiring, and regression coverage.",
+    "ground_truth": [
+      {"path": "internal/streamtoken/compat_binding.go", "line": 39, "contains": "func StampCompatDecision"},
+      {"path": "internal/streamtoken/compat_binding.go", "line": 81, "contains": "func VerifyCompatDecision"},
+      {"path": "internal/streamtoken/streamtoken.go", "line": 250, "contains": "stampCompatDecisionForIssue"},
+      {"path": "internal/playback/compat_stamp.go", "line": 23, "contains": "streamtoken.StampCompatDecision"},
+      {"path": "internal/mediahttp/compat_verify.go", "line": 23, "contains": "h.tokens.VerifyCompatDecision"},
+      {"path": "internal/server/compat_streamtoken_adapter.go", "line": 41, "contains": "compatStreamTokenResolver{server: s}"}
+    ],
+    "expected": {
+      "must_include": [
+        "symbol:internal/streamtoken/streamtoken.go:Issue",
+        "symbol:internal/playback/compat_stamp.go:compatDecisionContext",
+        "symbol:internal/mediahttp/compat_verify.go:verifyCompatDecision",
+        "symbol:internal/server/compat_streamtoken_adapter.go:bindCompatStreamTokens",
+        "test:internal/streamtoken/compat_binding_test.go"
+      ],
+      "critical": ["path:internal/streamtoken/compat_binding.go"],
+      "relevant": [
+        "reference:internal/streamtoken/compat_binding.go",
+        "test:internal/mediahttp/compat_verify_test.go",
+        "test:internal/conformance/compat_decision_durability_test.go"
+      ],
+      "nearest_context": ["reverse-import:internal/streamtoken"],
+      "must_exclude": ["path:internal/streamtoken/circle_protocol.go"]
+    }
+  }]
+}

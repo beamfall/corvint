@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  go-product:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    # Protected workflow/ruleset NOT_VERIFIED: owner review is required before enabling pins.
+    # Promotion requires reviewed immutable tool/artifact pins. Empty pins keep full CI.
+    env:
+      CORVINT_PR_TOOL_SOURCE: ""
+      CORVINT_PR_QUALIFICATION_SOURCE: ""
+      CORVINT_PR_QUALIFICATION_SHA256: ""
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+      CGO_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: source
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.1"
+      - name: Provision the host tools the product's fixed PATH resolves
+        # Child processes run under worksource.PlatformPath, which reaches Go through
+        # /usr/local/go/bin rather than setup-go's tool cache. The dogfood shell tests use rg,
+        # and the Git fixtures commit under the global identity. Automatic maintenance is off so
+        # no detached `git maintenance` outlives a fixture commit and races its TempDir cleanup.
+        run: |
+          sudo rm -rf /usr/local/go
+          sudo ln -s "$(go env GOROOT)" /usr/local/go
+          test "$(/usr/local/go/bin/go env GOVERSION)" = "go1.27.1"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ripgrep
+          git config --global user.name corvint-ci
+          git config --global user.email corvint-ci@users.noreply.github.com
+          git config --global maintenance.auto false
+          git config --global gc.auto 0
+          git --version
+      - name: Capture trusted tool source outside tested checkout
+        continue-on-error: true
+        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != ''
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: trusted-tools
+          ref: ${{ env.CORVINT_PR_TOOL_SOURCE }}
+          persist-credentials: false
+      - name: Capture separately pinned qualification artifact
+        continue-on-error: true
+        if: github.event_name == 'pull_request' && env.CORVINT_PR_QUALIFICATION_SOURCE != ''
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: trusted-qualification
+          ref: ${{ env.CORVINT_PR_QUALIFICATION_SOURCE }}
+          sparse-checkout: .github/qualifications
+          persist-credentials: false
+      - name: Build pinned planner, selector, and driver
+        continue-on-error: true
+        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != ''
+        working-directory: trusted-tools
+        run: |
+          test "$(git rev-parse HEAD)" = "$CORVINT_PR_TOOL_SOURCE"
+          mkdir -p "$RUNNER_TEMP/corvint-pr-bin"
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/corvint" ./cmd/corvint
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/selector" ./tools/gate-affected-select
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/driver" ./tools/corvint-pr-tests
+      - name: Go tests (full until matching shadow qualification)
+        working-directory: source
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          TESTED_MERGE: ${{ github.sha }}
+        run: |
+          test "$(go env GOVERSION)" = "go1.27.1"
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ -x "$RUNNER_TEMP/corvint-pr-bin/driver" ]; then
+            "$RUNNER_TEMP/corvint-pr-bin/driver" --root "$PWD" --base "$PR_BASE" --head "$PR_HEAD" --target "$TESTED_MERGE" --source "$CORVINT_PR_TOOL_SOURCE" --planner "$RUNNER_TEMP/corvint-pr-bin/corvint" --selector "$RUNNER_TEMP/corvint-pr-bin/selector" --out "$RUNNER_TEMP/corvint-pr-result" --qualification "$GITHUB_WORKSPACE/trusted-qualification/.github/qualifications/pr-go-race.json" --qualification-sha256 "$CORVINT_PR_QUALIFICATION_SHA256"
+          else
+            echo 'corvint-pr-tests: FULL (main/release or trusted tool pin unavailable)'
+            go test -json -p 1 -count=1 -race -timeout 50m ./...
+          fi
+      - name: Selection audit
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/corvint-pr-result/selection.json" ]; then
+            cat "$RUNNER_TEMP/corvint-pr-result/selection.json"
+            cat "$RUNNER_TEMP/corvint-pr-result/execution.json"
+            head -c 1048576 "$RUNNER_TEMP/corvint-pr-result/go.json"
+            head -c 262144 "$RUNNER_TEMP/corvint-pr-result/go.stderr"
+          fi
+      - name: Full static, formatting and build checks
+        working-directory: source
+        run: |
+          test -z "$(gofmt -l cmd internal tools)"
+          go vet ./...
+          CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
+      - name: Independent interop under production toolchain
+        working-directory: source/interop/cem01-go
+        run: |
+          go test -count=1 -timeout 30m ./...
+          go vet ./...
+
+  go-interop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.23.12"
+      - name: Go gate
+        working-directory: interop/cem01-go
+        env:
+          GOFLAGS: ""
+          GOPROXY: "off"
+          GOTOOLCHAIN: local
+          GOWORK: "off"
+        run: |
+          test -z "$(gofmt -l .)"
+          go test -count=1 ./...
+          go vet ./...
+          GOOS=windows GOARCH=amd64 go build ./...
+
+  artifact-integrity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.1"
+      - name: Verify native Go archives
+        env:
+          GOTOOLCHAIN: local
+          GOPROXY: "off"
+          GOWORK: "off"
+        run: make go-archive-gate

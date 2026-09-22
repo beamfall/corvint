@@ -1,0 +1,21 @@
+{
+  "name": "corvint",
+  "version": "0.2.2",
+  "description": "Revision-pinned, proof-carrying code context for Codex",
+  "author": {
+    "name": "Russell Lewis"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Corvint",
+    "shortDescription": "Proof-carrying code context.",
+    "longDescription": "Corvint supplies bounded revision-pinned context and evidence receipts while preserving explicit uncertainty.",
+    "developerName": "Russell Lewis",
+    "category": "Productivity",
+    "capabilities": [
+      "code-context",
+      "change-evidence"
+    ],
+    "defaultPrompt": "Use Corvint to find the smallest revision-pinned evidence packet before searching manually."
+  }
+}

@@ -1,0 +1,7 @@
+diff --git a/src/app.py b/src/app.py
+--- a/src/app.py
++++ b/src/app.py
+@@ -1,2 +1,2 @@
+ def allowed():
+-    return True
++    return False

@@ -1,0 +1,200 @@
+{
+  "id": "local-subject-term-bound-abstention",
+  "matrixRows": [
+    "local CEM or OCM `subject-term-bound-exceeded` beside unrelated valid edges"
+  ],
+  "clauses": [
+    "CF-V0-010",
+    "CF-V0-012",
+    "CF-V0-016",
+    "CF-V0-021"
+  ],
+  "intent": "A LOCAL term-bound abstention keeps its own subject OPEN under PROFILE_REQUIRED / DEFINE_SUPPORTED_PROFILE while unrelated results stay available. It is NOT the aggregate bound document, which CF-V0-021 makes an operational failure.",
+  "cases": [
+    {
+      "id": "cem-local-abstention-beside-valid-hunk",
+      "note": "Hunk 1 abstains locally; hunk 2 closes on a qualifying basis.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "local-term-bound"
+            ]
+          },
+          {
+            "id": "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          }
+        ],
+        "obligations": []
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "1",
+        "items": [
+          {
+            "kind": "HUNK_BASIS",
+            "subjectId": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "reasons": [
+              "SUBJECT_TERM_BOUND_EXCEEDED"
+            ],
+            "relatedIds": [
+              "evidence:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "PROFILE_REQUIRED",
+            "nextAction": "DEFINE_SUPPORTED_PROFILE"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-010: a local term-bound abstention maps to SUBJECT_TERM_BOUND_EXCEEDED with PROFILE_REQUIRED and DEFINE_SUPPORTED_PROFILE.",
+        "CF-V0-010: SUBJECT_TERM_BOUND_EXCEEDED is FIRST in the frozen retained order.",
+        "CF-V0-021: the unrelated hunk still closes; a local abstention is not an operational failure."
+      ]
+    },
+    {
+      "id": "ocm-local-abstention-beside-valid-obligation",
+      "note": "Obligation A's referenced hunk edge abstains for the term-bound issue; obligation B does not.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          },
+          {
+            "id": "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          }
+        ],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "linked",
+            "hunkIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "claimIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "reason": "subject-term-bound-exceeded",
+            "tcqReasons": [
+              "test-not-matched"
+            ]
+          },
+          {
+            "id": "CF-V0-002",
+            "disposition": "linked",
+            "hunkIds": [
+              "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202"
+            ],
+            "claimIds": [
+              "claim:sha256:0202020202020202020202020202020202020202020202020202020202020202"
+            ],
+            "tcqReasons": [
+              "test-not-matched"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "4",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "SUBJECT_TERM_BOUND_EXCEEDED"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "PROFILE_REQUIRED",
+            "nextAction": "DEFINE_SUPPORTED_PROFILE"
+          },
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-002",
+            "reasons": [
+              "NO_MATERIAL_CHANGE_WITNESS"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_MATERIAL_HUNK"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "TEST_NOT_MATCHED"
+            ],
+            "relatedIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "SUPPLY_TEST_OBSERVATION"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-002",
+            "reasons": [
+              "TEST_NOT_MATCHED"
+            ],
+            "relatedIds": [
+              "claim:sha256:0202020202020202020202020202020202020202020202020202020202020202"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "SUPPLY_TEST_OBSERVATION"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-012: with no lexical candidate, an abstaining referenced hunk edge selects SUBJECT_TERM_BOUND_EXCEEDED before the two ordinary reasons.",
+        "CF-V0-012: each obligation is evaluated independently; the unrelated obligation keeps its own result.",
+        "CF-V0-016: INTENT_CHANGE has exactly one reason."
+      ]
+    }
+  ]
+}

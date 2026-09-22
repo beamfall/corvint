@@ -1,0 +1,449 @@
+{
+  "profile": "corvint-beta-rung/0",
+  "authority": [
+    "docs/specs/go-production-kernel-migration-v0.md GPK-V0-042",
+    "docs/decisions/0007-omnibus-ratification-2026-08-29.md D1"
+  ],
+  "capturedAt": "2026-09-01",
+  "priorLabel": "FALLBACK",
+  "openDivergences": [
+    {
+      "id": "DR-0032",
+      "commands": ["ocm"],
+      "summary": "The requested native missing-case hint changes stderr; adjudication and a discriminating frozen corpus row remain pending."
+    }
+  ],
+  "admissions": [
+    {
+      "command": "init",
+      "surfaces": ["cli"],
+      "admitted": false,
+      "evidence": {
+        "gpkV0017Criteria": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/cli-parity-v0/manifest.json",
+            "conformance/perf-v0/results/corvint-2026-08-28-merged-head/report.json",
+            "conformance/perf-v0/results/seven-command-2026-09-04/report.json"
+          ],
+          "detail": "Parity PASS (8 cases replay byte-exactly). Own thresholds PASS: init-inventory p95 251.7ms against an oracle+10% bound of 562.5ms, peak resident 57.6MiB against 69.7MiB. The run's own outcome is insufficient_evidence, and criterion (d) remains NOT_RUN slice-wide: S (pinned b7f9f489) now measures cem, ocm, record, and migrate-traces with at least one PASS or FAIL scope each, and attempted lrf, which is NOT_RUN on both scopes (unequal-stderr); frontier still has no perf-v0 measurement, and feature and eval have no criterion (d) row at all, though S's separate GPK-V0-016 rows mark both NOT_RUN as excluded from the corvint --help support boundary. So 'no OTHER supported command regresses' remains NOT_RUN slice-wide. GPK-V0-017: any threshold not measured is NOT_RUN, not waived."
+        },
+        "w11ReproducibleBuild": {
+          "verdict": "PASS",
+          "sources": ["conformance/release-artifact-v0/results/2026-08-29/report.json"],
+          "detail": "Five targets byte-identical across two same-profile CGO_ENABLED=0 builds with distinct cold caches; three pinned legal files PASS; zero module requirements and zero binary dependencies. Two limits ride along and bound every admission below: native smoke is PASS on darwin/arm64 only and NOT_RUN on the other four targets (GPK-V0-018: cross-compilation is not execution evidence), and the report still carries pendingEvidence W10-performance-GPK-V0-016-017."
+        },
+        "w12DogfoodAndRollback": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/README.md",
+            "conformance/perf-v0/results/beamfall-dogfood-w12-2026-08-29/README.md",
+            "conformance/perf-v0/results/rollback-2026-08-29/README.md"
+          ],
+          "detail": "Corvint self-dogfood PASS (cases 12 and 13 byte-equal at 13154 and 428442 bytes). Rollback PASS (init receipt and init --full-receipt byte-identical across runtimes). The Beamfall dogfood case matrix does not exercise init at all, so the W12 evidence set is incomplete for this command."
+        }
+      },
+      "disclosedDivergences": [],
+      "blockers": [
+        "GPK-V0-017 criterion (d) is NOT_RUN slice-wide: seven supported commands have no p95 or peak-resident measurement.",
+        "The W12 Beamfall dogfood matrix does not include init."
+      ]
+    },
+    {
+      "command": "adopt",
+      "surfaces": ["cli"],
+      "admitted": false,
+      "evidence": {
+        "gpkV0017Criteria": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/cli-parity-v0/manifest.json",
+            "conformance/perf-v0/results/corvint-2026-08-28-merged-head/report.json"
+          ],
+          "detail": "Parity PASS (4 cases). Own thresholds PASS: adopt-inventory p95 247.5ms against 564.9ms, peak resident 57.6MiB against 69.8MiB. Blocked with init on the same slice-wide criterion (d) gap."
+        },
+        "w11ReproducibleBuild": {
+          "verdict": "PASS",
+          "sources": ["conformance/release-artifact-v0/results/2026-08-29/report.json"],
+          "detail": "Shared artifact verdict; see init. Execution evidence exists on darwin/arm64 only."
+        },
+        "w12DogfoodAndRollback": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/README.md",
+            "conformance/perf-v0/results/beamfall-dogfood-w12-2026-08-29/README.md",
+            "conformance/perf-v0/results/rollback-2026-08-29/README.md"
+          ],
+          "detail": "Corvint self-dogfood PASS (case 14 byte-equal at 13197 bytes). Rollback PASS (adopt receipt and adopt --full-receipt byte-identical). The Beamfall dogfood matrix does not exercise adopt."
+        }
+      },
+      "disclosedDivergences": [],
+      "blockers": [
+        "GPK-V0-017 criterion (d) is NOT_RUN slice-wide.",
+        "The W12 Beamfall dogfood matrix does not include adopt."
+      ]
+    },
+    {
+      "command": "query",
+      "surfaces": ["cli"],
+      "admitted": false,
+      "evidence": {
+        "gpkV0017Criteria": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/cli-parity-v0/manifest.json",
+            "conformance/perf-v0/results/corvint-2026-08-28-merged-head/report.json",
+            "conformance/perf-v0/results/beamfall-dogfood-2026-08-28-optimized/report.json"
+          ],
+          "detail": "Parity PASS for the authority-start seed and the accepted GPK-V0-043/GPK-V0-044 repository matrix: default and explicit limits 1/10/50, unbudgeted and budget selection, matching passed trace evidence, nonmatching and non-passed traces, absent and mixed-worktree trace states, malformed and out-of-range inputs, read nonmutation, two typed refusals, and the DR-0008 relevance-floor known divergence. Focused Go regressions cover malformed/unreadable stores, ancestry faults, drift, packet fields, and authority separation. Own threshold PASS only for the older authority-start profile on both corpora: criterion (b) query-authority-start p95 350.6ms and beamfall-query-authority-start, both against the 500ms cap. The repository profile is unmeasured; criterion (d) remains NOT_RUN slice-wide, and every perf report in the repository carries outcome insufficient_evidence."
+        },
+        "w11ReproducibleBuild": {
+          "verdict": "PASS",
+          "sources": ["conformance/release-artifact-v0/results/2026-08-29/report.json"],
+          "detail": "Shared artifact verdict. The release gate's own smoke case is a real read-only query on darwin/arm64: queryIntent project-operations, queryOk true, repositoryUnchanged true."
+        },
+        "w12DogfoodAndRollback": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/README.md",
+            "conformance/perf-v0/results/beamfall-dogfood-w12-2026-08-29/README.md",
+            "conformance/perf-v0/results/rollback-2026-08-29/README.md"
+          ],
+          "detail": "The older GPK-V0-028 authority-start profile passed all three W12 legs: Corvint self-dogfood cases 10 and 11 byte-equal at 4298 and 4380 bytes; Beamfall query-authority-start byte-equal at 5138 bytes on the pinned tree 3a4251e0; rollback query receipt byte-identical at 2198 bytes with the Python cache present, absent, and Python-authored. Those runs predate GPK-V0-043 and GPK-V0-044 and do not exercise the trace-consuming repository profile, so the widened slice is NOT_RUN rather than promoted by inherited evidence. The rollback run also records the unchanged authority-start unsupported-query-trace-state refusal once any local trace row exists."
+        }
+      },
+      "disclosedDivergences": [],
+      "blockers": [
+        "GPK-V0-017 criterion (d) is NOT_RUN slice-wide, so the GPK-V0-017 evidence source has never returned anything but insufficient_evidence.",
+        "The GPK-V0-043/GPK-V0-044 repository profile has no accepted performance, Corvint/Beamfall dogfood, or rollback run; the compatibility label remains FALLBACK and admission remains false."
+      ]
+    },
+    {
+      "command": "impact",
+      "surfaces": ["cli"],
+      "admitted": false,
+      "evidence": {
+        "gpkV0017Criteria": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/cli-parity-v0/manifest.json",
+            "conformance/perf-v0/results/corvint-2026-08-28-merged-head/report.json"
+          ],
+          "detail": "Parity PASS, with two rows deliberately known-divergent (DR-0007 impact-self-authored-adr, DR-0009 impact-ranked-past-limit). Both impact-path criterion (d) scopes report NOT_RUN with observed 'measurement invalid: unequal-stdout', the DR-0004 evidence-ordering divergence; the beamfall-impact-path scopes are NOT_RUN for the same reason."
+        },
+        "w11ReproducibleBuild": {
+          "verdict": "PASS",
+          "sources": ["conformance/release-artifact-v0/results/2026-08-29/report.json"],
+          "detail": "Shared artifact verdict; see init."
+        },
+        "w12DogfoodAndRollback": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/README.md",
+            "conformance/perf-v0/results/beamfall-dogfood-w12-2026-08-29/README.md",
+            "conformance/perf-v0/results/rollback-2026-08-29/README.md"
+          ],
+          "detail": "Inside the declared profile both dogfoods are byte-equal: Corvint case 15 at 5510 bytes and Beamfall impact-go-source at 16744 bytes. Outside it both record a structured refusal on a .py path (unsupported-impact-path), which is a declared capability gap, not a divergence. The rollback run never exercised impact successfully: its subject repository drew unsupported-impact-repository, so the rollback leg is unmeasured for this command."
+        }
+      },
+      "disclosedDivergences": [],
+      "blockers": [
+        "GPK-V0-017 criterion (d) is NOT_RUN for impact itself: the measurement is invalid under DR-0004 unequal-stdout.",
+        "The W12 rollback run did not exercise impact."
+      ]
+    },
+    {
+      "command": "harness",
+      "surfaces": ["cli", "plugin", "extension"],
+      "admitted": false,
+      "evidence": {
+        "gpkV0017Criteria": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/cli-parity-v0/manifest.json",
+            "conformance/perf-v0/results/corvint-2026-08-28-merged-head/report.json",
+            "conformance/perf-v0/results/beamfall-dogfood-2026-08-28-optimized/report.json",
+            "conformance/perf-v0/results/beamfall-userprompt-divergence-2026-08-28/report.json"
+          ],
+          "detail": "Parity PASS across all six lifecycle events, with harness-user-prompt-out-of-scope known-divergent under DR-0008. Measured: criteria (a) and (c) PASS for session-start 61.4ms, stop 57.8ms, and post-tool 58.4ms against the 100ms cap, plus beamfall-harness-session-start; criterion (b) PASS for harness-user-prompt on the Corvint corpus. Unmeasured and therefore NOT_RUN: the file-change and session-end events on either corpus, and beamfall-harness-user-prompt, which the divergence run reports NOT_RUN."
+        },
+        "w11ReproducibleBuild": {
+          "verdict": "PASS",
+          "sources": ["conformance/release-artifact-v0/results/2026-08-29/report.json"],
+          "detail": "Shared artifact verdict; see init. The plugin and extension surfaces additionally have no black-box install/session/uninstall conformance run, which integrations/compatibility.json declares as a global degradation."
+        },
+        "w12DogfoodAndRollback": {
+          "verdict": "FAIL",
+          "sources": [
+            "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/README.md",
+            "conformance/perf-v0/results/beamfall-dogfood-w12-2026-08-29/README.md",
+            "conformance/perf-v0/results/rollback-2026-08-29/README.md"
+          ],
+          "detail": "The Beamfall dogfood's harness-user-prompt case was not byte-equal, 5527 oracle bytes against 4784 candidate bytes; DR-0005 and the independent DR-0013 transport defect are now repaired, so that evidence is stale and needs a re-run rather than a re-reading. The Corvint self-dogfood's case 8 (file-change on a Python path) was also not byte-equal at the time of the run, 4851 against 3759 bytes, which became DR-0006; DR-0006 is now LANDED and repaired, so that half of the W12 evidence is stale too. Rollback PASS on the four events it exercised; session-end, user-prompt, and file-change are recorded NOT_TESTED there."
+        }
+      },
+      "disclosedDivergences": [],
+      "blockers": [
+        "GPK-V0-017 is NOT_RUN for two of six events and for the Beamfall user-prompt scope.",
+        "The W12 Beamfall dogfood predates the DR-0005 and DR-0013 repairs and must be re-run before its user-prompt row means anything at the current head.",
+        "The W12 Corvint self-dogfood predates the DR-0006 repair and must be re-run before its file-change row means anything at the current head."
+      ]
+    },
+    {
+      "command": "cem",
+      "surfaces": ["cli"],
+      "admitted": false,
+      "evidence": {
+        "gpkV0017Criteria": {
+          "verdict": "NOT_RUN",
+          "sources": ["conformance/cli-parity-v0/manifest.json", "conformance/perf-v0/results/seven-command-2026-09-04/report.json"],
+          "detail": "Parity PASS across all seven actions and the argparse surface (37 cases). The retained seven-command report (S), pinned at revision b7f9f489 rather than current HEAD and carrying overall outcome insufficient_evidence, now measures cem-status-bound and cem-verify-bound: criterion (d) p95 and peak-resident PASS on both scopes. Those two passing measurements share an agreed empty stdout and exit status 2, so they evidence a bounded scope, not a successful cem workflow. No other cem scope is measured, so criterion (d) remains NOT_RUN overall."
+        },
+        "w11ReproducibleBuild": {
+          "verdict": "PASS",
+          "sources": ["conformance/release-artifact-v0/results/2026-08-29/report.json"],
+          "detail": "Shared artifact verdict; see init."
+        },
+        "w12DogfoodAndRollback": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/README.md",
+            "conformance/perf-v0/results/beamfall-dogfood-w12-2026-08-29/README.md",
+            "conformance/perf-v0/results/rollback-2026-08-29/README.md"
+          ],
+          "detail": "Neither dogfood ran cem: both were restricted to read-only cases and cem's mutating actions write local artifacts. Rollback exercised cem status and cem prepare only, where the written map is byte-identical across runtimes (sha256 64c10850) and each runtime verified the other's map without rewriting it."
+        }
+      },
+      "disclosedDivergences": [],
+      "blockers": [
+        "GPK-V0-017 criterion (d) is measured (PASS) for only two of cem's seven actions, both under an empty-stdout/exit-2 scope, and S's overall outcome remains insufficient_evidence at pinned revision b7f9f489, not current HEAD.",
+        "Neither W12 dogfood exercised cem; rollback covered two of seven actions."
+      ]
+    },
+    {
+      "command": "ocm",
+      "surfaces": ["cli"],
+      "admitted": false,
+      "evidence": {
+        "gpkV0017Criteria": {
+          "verdict": "NOT_RUN",
+          "sources": ["conformance/cli-parity-v0/manifest.json", "conformance/perf-v0/results/seven-command-2026-09-04/report.json"],
+          "detail": "Parity PASS across all seven actions (9 cases). S (pinned b7f9f489, overall outcome insufficient_evidence) measures three ocm scopes: ocm-status-unclosed and ocm-verify-unclosed PASS on criterion (d) p95 and peak-resident, but those two passing measurements share an agreed empty stdout and exit status 2, so they evidence a bounded scope, not a successful ocm workflow; ocm-prepare-resume is NOT_RUN on both, measurement invalid: unequal-stderr. Criterion (d) remains NOT_RUN overall."
+        },
+        "w11ReproducibleBuild": {
+          "verdict": "PASS",
+          "sources": ["conformance/release-artifact-v0/results/2026-08-29/report.json"],
+          "detail": "Shared artifact verdict; see init."
+        },
+        "w12DogfoodAndRollback": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/README.md",
+            "conformance/perf-v0/results/beamfall-dogfood-w12-2026-08-29/README.md",
+            "conformance/perf-v0/results/rollback-2026-08-29/README.md"
+          ],
+          "detail": "No W12 leg exercised ocm. The rollback run records ocm verify and ocm report as NOT_TESTED, and the only ocm invocation there is an argument-negative."
+        }
+      },
+      "disclosedDivergences": ["DR-0032"],
+      "blockers": [
+        "GPK-V0-017 criterion (d) PASSes only on ocm-status-unclosed and ocm-verify-unclosed, both under an empty-stdout/exit-2 scope; ocm-prepare-resume is NOT_RUN (unequal-stderr), and S's overall outcome is insufficient_evidence at pinned revision b7f9f489, not current HEAD.",
+        "No W12 leg exercised ocm."
+      ]
+    },
+    {
+      "command": "lrf",
+      "surfaces": ["cli"],
+      "admitted": false,
+      "evidence": {
+        "gpkV0017Criteria": {
+          "verdict": "NOT_RUN",
+          "sources": ["conformance/cli-parity-v0/manifest.json", "conformance/perf-v0/results/seven-command-2026-09-04/report.json"],
+          "detail": "Parity PASS on the supported-edge profile (2 cases), with the .py claim in --ocm carried as the lrf-ocm-python-claim-refusal row rather than as parity (GPK-V0-041, DR-0010). S (pinned b7f9f489, overall outcome insufficient_evidence) attempted lrf-cem-bound and lrf-cem-ocm-bound; both are NOT_RUN on criterion (d) p95 and peak-resident, measurement invalid: unequal-stderr."
+        },
+        "w11ReproducibleBuild": {
+          "verdict": "PASS",
+          "sources": ["conformance/release-artifact-v0/results/2026-08-29/report.json"],
+          "detail": "Shared artifact verdict; see init."
+        },
+        "w12DogfoodAndRollback": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/README.md",
+            "conformance/perf-v0/results/beamfall-dogfood-w12-2026-08-29/README.md",
+            "conformance/perf-v0/results/rollback-2026-08-29/README.md"
+          ],
+          "detail": "No W12 leg exercised lrf. The self-dogfood excluded it as not a context/harness operation and the rollback run records it NOT_TESTED."
+        }
+      },
+      "disclosedDivergences": [],
+      "blockers": [
+        "GPK-V0-017 criterion (d) is NOT_RUN for both measured lrf scopes (unequal-stderr), and S's overall outcome is insufficient_evidence at pinned revision b7f9f489, not current HEAD.",
+        "No W12 leg exercised lrf."
+      ]
+    },
+    {
+      "command": "frontier",
+      "surfaces": ["cli"],
+      "admitted": false,
+      "evidence": {
+        "gpkV0017Criteria": {
+          "verdict": "NOT_RUN",
+          "sources": ["conformance/cli-parity-v0/manifest.json"],
+          "detail": "frontier has no row in the parity corpus at all: it is a Go-only surface with no Python oracle, so 'all its parity cases pass' has nothing to range over. No perf-v0 run measures it."
+        },
+        "w11ReproducibleBuild": {
+          "verdict": "PASS",
+          "sources": ["conformance/release-artifact-v0/results/2026-08-29/report.json"],
+          "detail": "Shared artifact verdict; see init."
+        },
+        "w12DogfoodAndRollback": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/README.md",
+            "conformance/perf-v0/results/beamfall-dogfood-w12-2026-08-29/README.md",
+            "conformance/perf-v0/results/rollback-2026-08-29/README.md"
+          ],
+          "detail": "No W12 leg exercised frontier."
+        }
+      },
+      "disclosedDivergences": [],
+      "blockers": [
+        "frontier has no parity corpus row and no perf measurement."
+      ]
+    },
+    {
+      "command": "record",
+      "surfaces": ["cli"],
+      "admitted": false,
+      "evidence": {
+        "gpkV0017Criteria": {
+          "verdict": "NOT_RUN",
+          "sources": ["conformance/cli-parity-v0/manifest.json", "conformance/perf-v0/results/seven-command-2026-09-04/report.json"],
+          "detail": "Parity PASS (positive, negative, and hostile cases; the positive uses declared repository-root normalization and the hostile rejection the accepted oracle-only lock divergence). S (pinned b7f9f489, overall outcome insufficient_evidence) now measures record-idempotent-blocked on both corpora: criterion (d) p95 and peak-resident FAIL on Corvint (candidate 4196.6ms vs oracle 2224.0ms; 348.4MiB vs 273.9MiB) and FAIL on Beamfall (candidate 3833.7ms vs oracle 2829.5ms; 523.0MiB vs 420.4MiB)."
+        },
+        "w11ReproducibleBuild": {
+          "verdict": "PASS",
+          "sources": ["conformance/release-artifact-v0/results/2026-08-29/report.json"],
+          "detail": "Shared artifact verdict; see init."
+        },
+        "w12DogfoodAndRollback": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/README.md",
+            "conformance/perf-v0/results/beamfall-dogfood-w12-2026-08-29/README.md",
+            "conformance/perf-v0/results/rollback-2026-08-29/README.md"
+          ],
+          "detail": "Neither dogfood ran record; both were restricted to read-only cases. Rollback covered it thoroughly and cleanly: a full mixed-runtime round trip in both orders, identical trace_id derivation, byte-preserved rows, and idempotent recognition of the other runtime's rows."
+        }
+      },
+      "disclosedDivergences": [],
+      "blockers": [
+        "GPK-V0-017 criterion (d) FAILs on both p95 and peak-resident, on both Corvint and Beamfall corpora, per S; S's overall outcome is also insufficient_evidence at pinned revision b7f9f489, not current HEAD.",
+        "Neither W12 dogfood exercised record."
+      ]
+    },
+    {
+      "command": "migrate-traces",
+      "surfaces": ["cli"],
+      "admitted": false,
+      "evidence": {
+        "gpkV0017Criteria": {
+          "verdict": "NOT_RUN",
+          "sources": ["conformance/cli-parity-v0/manifest.json", "conformance/perf-v0/results/seven-command-2026-09-04/report.json"],
+          "detail": "Parity PASS (5 cases: positive, negative, and a hostile stale-plan rejection carrying the declared oracle-only lock divergence). S (pinned b7f9f489, overall outcome insufficient_evidence) now measures migrate-traces-dry-run on both corpora: on Corvint criterion (d) p95 and peak-resident both FAIL (candidate 2421.0ms vs oracle 1856.9ms; 338.9MiB vs 274.4MiB); on Beamfall p95 PASSes (candidate 2352.6ms vs oracle 2495.0ms) but peak-resident FAILs (candidate 509.8MiB vs oracle 417.1MiB)."
+        },
+        "w11ReproducibleBuild": {
+          "verdict": "PASS",
+          "sources": ["conformance/release-artifact-v0/results/2026-08-29/report.json"],
+          "detail": "Shared artifact verdict; see init."
+        },
+        "w12DogfoodAndRollback": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/README.md",
+            "conformance/perf-v0/results/beamfall-dogfood-w12-2026-08-29/README.md",
+            "conformance/perf-v0/results/rollback-2026-08-29/README.md"
+          ],
+          "detail": "Neither dogfood ran migrate-traces. Rollback exercised --dry-run only, where both runtimes report legacy_trace_files 0 with an identical plan_digest over a mixed-runtime store; --apply is recorded NOT_TESTED."
+        }
+      },
+      "disclosedDivergences": [],
+      "blockers": [
+        "GPK-V0-017 criterion (d) FAILs on Corvint p95 and peak-resident and on Beamfall peak-resident, per S; only Beamfall p95 PASSes, and S's overall outcome is insufficient_evidence at pinned revision b7f9f489, not current HEAD.",
+        "The mutating --apply path is untested in every W12 leg."
+      ]
+    },
+    {
+      "command": "feature",
+      "surfaces": ["cli"],
+      "admitted": false,
+      "evidence": {
+        "gpkV0017Criteria": {
+          "verdict": "NOT_RUN",
+          "sources": ["conformance/cli-parity-v0/manifest.json", "conformance/perf-v0/results/seven-command-2026-09-04/report.json"],
+          "detail": "Parity PASS (6 cases). No GPK-V0-017(d) criterion measures feature; S (pinned b7f9f489) records it as a GPK-V0-016 NOT_RUN row because feature is excluded from the corvint --help support boundary (root usage, command inventory, support-boundary text, and the help-topic allowlist all omit it)."
+        },
+        "w11ReproducibleBuild": {
+          "verdict": "PASS",
+          "sources": ["conformance/release-artifact-v0/results/2026-08-29/report.json"],
+          "detail": "Shared artifact verdict; see init."
+        },
+        "w12DogfoodAndRollback": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/README.md",
+            "conformance/perf-v0/results/beamfall-dogfood-w12-2026-08-29/README.md",
+            "conformance/perf-v0/results/rollback-2026-08-29/README.md"
+          ],
+          "detail": "Corvint self-dogfood case 17 byte-equal at 769 bytes. The Beamfall dogfood and the rollback run did not exercise feature."
+        }
+      },
+      "disclosedDivergences": [],
+      "blockers": [
+        "feature is reachable but absent from the candidate's declared support boundary in its own --help, so a beta label would claim a surface the binary does not document.",
+        "No GPK-V0-017 measurement exists, and two of three W12 legs did not exercise it."
+      ]
+    },
+    {
+      "command": "eval",
+      "surfaces": ["cli"],
+      "admitted": false,
+      "evidence": {
+        "gpkV0017Criteria": {
+          "verdict": "NOT_RUN",
+          "sources": ["conformance/cli-parity-v0/manifest.json", "conformance/perf-v0/results/seven-command-2026-09-04/report.json"],
+          "detail": "Parity PASS (3 cases). No GPK-V0-017(d) criterion measures eval; S (pinned b7f9f489) records it as a GPK-V0-016 NOT_RUN row because eval is excluded from the corvint --help support boundary (root usage, command inventory, support-boundary text, and the help-topic allowlist all omit it)."
+        },
+        "w11ReproducibleBuild": {
+          "verdict": "PASS",
+          "sources": ["conformance/release-artifact-v0/results/2026-08-29/report.json"],
+          "detail": "Shared artifact verdict; see init."
+        },
+        "w12DogfoodAndRollback": {
+          "verdict": "NOT_RUN",
+          "sources": [
+            "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/README.md",
+            "conformance/perf-v0/results/beamfall-dogfood-w12-2026-08-29/README.md",
+            "conformance/perf-v0/results/rollback-2026-08-29/README.md"
+          ],
+          "detail": "Corvint self-dogfood case 18 records both runtimes failing identically on a corpus path, which is agreement on a refusal rather than a supported operation. The Beamfall dogfood and the rollback run did not exercise eval."
+        }
+      },
+      "disclosedDivergences": [],
+      "blockers": [
+        "eval is reachable but absent from the candidate's declared support boundary in its own --help.",
+        "No GPK-V0-017 measurement exists, and no W12 leg exercised eval on a supported path."
+      ]
+    }
+  ],
+  "notes": [
+    "2026-09-12: DR-0034 is LANDED, closed by IDX-SNAP-V0-018 (decision 0095), which adopts the Go index path screen including .claude; query and eval drop the disclosure. No admission label changes.",
+    "2026-09-08: DR-0032 is OPEN and disclosed for ocm. The missing-case hint does not promote the command or change any admission label; its adjudication and corpus gap remain pending.",
+    "2026-09-04: DR-0014 closed, so the register holds no open entry and openDivergences is empty. That removes the only divergence-shaped blocker on this record; every remaining blocker below is missing measurement, not an unrepaired defect.",
+    "No command is admitted to beta at this revision. GPK-V0-042 accepts no evidence class weaker than the three it names, and one of the three has never returned a sufficient verdict: every report under conformance/perf-v0/results/ carries outcome insufficient_evidence, including the retained seven-command report (S, conformance/perf-v0/results/seven-command-2026-09-04/report.json, pinned at revision b7f9f489 rather than current HEAD, 100 measured samples per runtime across all eleven scopes), because GPK-V0-017 criterion (d) requires that no OTHER supported command regress and, per S, record and migrate-traces now measure FAIL on p95 and/or peak-resident while ocm-prepare-resume and both lrf scopes remain NOT_RUN (unequal-stderr).",
+    "Decision 0007 D1 term 4 states that all three evidence sources are 'already green'. At this head that premise does not hold for any of the three: the 2026-08-28 merged-head GPK-V0-017 run (conformance/perf-v0/results/corvint-2026-08-28-merged-head/report.json) reports 11 PASS / 0 FAIL / 3 NOT_RUN with outcome insufficient_evidence, and the retained seven-command report S (pinned b7f9f489, 2026-09-04) reports 9 PASS / 7 FAIL / 8 NOT_RUN, also insufficient_evidence; the W11 report is PASS on reproducibility while carrying pendingEvidence W10-performance-GPK-V0-016-017 and smoke NOT_RUN on four of five targets; and W12's GPK-V0-021 self-dogfood closes NOT_PROVEN overall while GPK-V0-022 carries NOT_APPLICABLE and PARTIAL rows and GPK-V0-024's fourth sentence is NOT_PROVEN. The rung is real and the machinery is in place; the evidence is not yet there to use it.",
+    "query has exactly one PASS (w11ReproducibleBuild), the same as every other command; its own gpkV0017Criteria and w12DogfoodAndRollback are both NOT_RUN, so no command is a near miss on the count of sources. query's blockers are the slice-wide criterion (d) gap and the absent GPK-V0-043/GPK-V0-044 repository-profile evidence: no accepted performance, Corvint/Beamfall dogfood, or rollback run exists for that profile, so the compatibility label remains FALLBACK. S (pinned b7f9f489, outcome insufficient_evidence) adds partial criterion (d) evidence for cem, ocm, lrf, record, and migrate-traces, but none reaches query's own authority-start depth: cem's two PASS scopes share an empty-stdout/exit-2 result, ocm-prepare-resume and both lrf scopes are NOT_RUN (unequal-stderr), and record and migrate-traces now carry FAIL scopes on at least one corpus.",
+    "Every admission is additionally bounded by execution evidence existing on darwin/arm64 alone. GPK-V0-018 states cross-compilation is not execution evidence, so admitting a command on a platform whose native matrix has not run would claim more than W11 proves."
+  ]
+}

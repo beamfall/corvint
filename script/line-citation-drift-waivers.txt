@@ -1,0 +1,16 @@
+# Narrow waiver for a citation whose cited content has drifted (anchor mismatch, or the
+# line is now blank/bracket-only because content shifted by a line or two), where fixing
+# it would require editing a document or lines this lane is forbidden from touching. See
+# DCG-V0-020. Each row is <citing-doc><TAB><path>:<first>[-<last>] naming the exact
+# citation exempted from the trivial-line and anchor-mismatch failures only; the
+# file-existence and line-range checks still apply. Remove a row once the citation is
+# repinned or fixed by whichever lane owns the document.
+#
+# decision 0170 (lane cclcpfinish owns internal/localcompletion; this lane may not touch it):
+docs/decisions/0170-local-completion-intents-pin-at-enrollment-head-2026-09-12.md	internal/localcompletion/lifecycle.go:114-115
+docs/decisions/0170-local-completion-intents-pin-at-enrollment-head-2026-09-12.md	internal/localcompletion/finish.go:154-162
+#
+# decision 0158 (off-limits document; its three citations below drifted by one line each):
+docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/worksource/git.go:191
+docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/dashboard/roadmap/atm.go:131
+docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/localcompletion/storage.go:429

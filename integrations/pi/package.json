@@ -1,0 +1,11 @@
+{
+  "name": "@corvint/pi",
+  "version": "0.1.1",
+  "type": "module",
+  "description": "Experimental FALLBACK Pi lifecycle adapter for Corvint",
+  "license": "AGPL-3.0-or-later",
+  "files": ["index.ts", "runtime.js", "compatibility.json", "README.md"],
+  "pi": {"extensions": ["./index.ts"]},
+  "peerDependencies": {"@earendil-works/pi-coding-agent": "0.85.1"},
+  "corvintIntegration": {"adapterVersion":"0.1.1","host":"pi","surface":"extension","protocol":"corvint-harness-event/0","support":"FALLBACK","testedHostVersions":[],"apiReferenceVersion":"0.85.1","timeoutsMs":{"automaticEvent":2000,"queryEvent":2000}}
+}

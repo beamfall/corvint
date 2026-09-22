@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@corvint/opencode",
+  "version": "0.2.5",
+  "description": "FALLBACK OpenCode lifecycle adapter for Corvint",
+  "type": "module",
+  "exports": "./src/index.js",
+  "files": [
+    "src",
+    "README.md",
+    "opencode.example.json"
+  ],
+  "dependencies": {
+    "@opencode-ai/plugin": "1.18.21"
+  },
+  "engines": {
+    "node": ">=20",
+    "opencode": "1.18.21"
+  },
+  "license": "AGPL-3.0-or-later",
+  "keywords": [
+    "corvint",
+    "opencode",
+    "plugin"
+  ],
+  "corvintIntegration": {
+    "adapterVersion": "0.2.5",
+    "apiReferenceVersion": "1.18.21",
+    "host": "opencode",
+    "lastConformance": {
+      "status": "not-run",
+      "testedAt": null
+    },
+    "protocol": "corvint-harness-event/0",
+    "supportedOperatingSystems": [
+      "darwin",
+      "linux"
+    ],
+    "support": "FALLBACK",
+    "surface": "plugin",
+    "testedHostVersions": [],
+    "timeoutsMs": {
+      "automaticEvent": 500,
+      "queryEvent": 2000
+    },
+    "unavailableCapabilities": [
+      "authoritative frontier stop or continuation",
+      "stable automatic context injection",
+      "exact handle expansion",
+      "bundled Corvint MCP server",
+      "Windows process-tree cleanup conformance"
+    ]
+  }
+}

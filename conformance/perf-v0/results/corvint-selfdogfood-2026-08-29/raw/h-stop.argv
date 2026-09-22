@@ -1,0 +1,1 @@
+--root /private/tmp/corvint-self harness event --host claude-code --host-version 1.0.0 --surface cli --adapter-version 0.1.0 --input - --event stop

@@ -1,0 +1,32 @@
+vocabulary	identifier	target	admissible
+kind	argument	-	-
+kind	value	-	-
+kind	artifact	-	-
+kind	repository-state	-	-
+kind	host-capability	-	-
+kind	request	-	-
+fix	worktree-impact.remove-path	impact --working-tree-untracked path operand	the refused path is omitted from the operands
+fix	impact.use-tracked-path-profile	impact invocation	impact <path> without --working-tree-untracked, for a path the Git index tracks or holds as intent-to-add
+fix	git.add-intent-to-add	Git index entry for the refused path	an intent-to-add entry recorded by git add -N <path>
+fix	worktree-impact.make-path-untracked	worktree file at the refused path	a regular, non-ignored file that git status reports as untracked
+fix	worktree-impact.nest-path	refused path operand	a .go path inside a package directory, not at the repository root
+fix	go-mod.qualify-module-path	go.mod module directive	a module path containing at least one slash
+fix	cli.use-git-repository-root	--root operand (the working directory when --root is omitted)	a directory that holds a .git entry
+fix	impact.omit-budget-bytes	impact --budget-bytes option	the option is omitted from the impact invocation
+fix	index.write-snapshot	index snapshot for the current tree and binary	a snapshot written by corvint index at this tree with this binary
+fix	host.put-git-on-path	PATH environment variable	a PATH on which a git executable is found
+fix	affected.use-commit-base	affected --base operand	a full commit id that resolves to a commit in this repository
+fix	affected.omit-base	affected invocation	affected without --base, the worktree-only form
+fix	git.create-head-commit	repository HEAD	a HEAD that resolves to a commit and its tree, as after a first git commit
+fix	prove.use-bounded-base	prove --base operand	a commit whose range to HEAD lists changed paths within the byte bound
+fix	prove.use-repository-object-format-checkpoint	prove --checkpoint document	a checkpoint whose repository.object_format equals the repository-object-format evidence value
+fix	surprise.use-commit-revision	surprise --base or --target operand	a revision that resolves to a commit in this repository
+fix	git.clean-tracked-worktree	tracked worktree files	git status --porcelain --untracked-files=no prints no entries
+fix	impact.omit-unadmitted-path	impact path operand, batch impact paths entry, or harness file-change paths entry	the refused path is omitted and every remaining path carries a suffix the repository index admits
+fix	prove.use-diff-bounded-base	prove --base operand	a commit whose range diff to HEAD over Go and Python paths is within the byte bound
+fix	attest.use-ed25519-private-key	prove --attest-key operand	a PEM file of at most 16 KiB holding exactly one PKCS#8 PRIVATE KEY block for an Ed25519 key
+fix	attest.use-ed25519-public-key	prove --attest-public-key operand	a PEM file of at most 16 KiB holding exactly one PKIX PUBLIC KEY block for an Ed25519 key
+fix	attest.use-readable-envelope	prove --verify-cem-attestation operand	a readable regular DSSE envelope file of at most 8 MiB
+fix	cem.use-repository-relative-map-path	prove --cem operand	a relative path with no .. segment and no segment that case-folds to .git
+fix	cem.use-readable-map	prove --cem operand	a regular file under --root of at most 4 MiB reached through no symlinked path component
+fix	prove-observe.pipe-prove-packet	prove-observe stdin	the falsifiable-packet document corvint prove wrote, unmodified, of at most 8 MiB

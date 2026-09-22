@@ -1,0 +1,9 @@
+case	oracle_bytes	candidate_bytes	byte_equal	oracle_rc	candidate_rc	status_stable
+harness-session-start	867	867	yes	0	0	yes
+harness-post-tool	819	819	yes	0	0	yes
+harness-stop	833	833	yes	0	0	yes
+harness-user-prompt	5680	4937	no	0	0	yes
+query-authority-start	5206	5206	yes	0	0	yes
+impact-go-source	16800	16800	yes	0	0	yes
+impact-refuses-python	2277	0	no	0	2	yes
+harness-rejects-unknown-field	0	0	yes	2	2	yes

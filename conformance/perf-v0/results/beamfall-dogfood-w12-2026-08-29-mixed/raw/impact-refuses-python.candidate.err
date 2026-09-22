@@ -1,0 +1,1 @@
+{"code": "unsupported-impact-path", "error": "native Go impact currently supports only .go paths", "ok": false}

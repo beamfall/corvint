@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "repositories": [
+    {
+      "scored_revision": "6e82abd857c77c0ca250b6c4a8f5e1c86684a535",
+      "traces": [
+        {
+          "schema_version": 1,
+          "revision": "d65eba6f0994e44b9b8f13bc04df0c75ea15aa10",
+          "trace_id": "c5136b8944240bc3d2929dcf11a7171899dbe5a99faf330aa19b5c4a565e0bbf",
+          "task": "repair session expiry device revocation",
+          "opened_paths": [],
+          "changed_paths": ["internal/auth/auth.go"],
+          "verification": [],
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "scored_revision": "d318b683471101618febed18996405ad26462110",
+      "traces": [
+        {
+          "schema_version": 1,
+          "revision": "2a8a38b051fc248865730bf3511bf2e2ea325e81",
+          "trace_id": "2a36145bed4b2809da4cc973b68be87b5e79a11122d98e51ba857e4f82574962",
+          "task": "repair dotenv CLI environment loader",
+          "opened_paths": [],
+          "changed_paths": ["src/flask/cli.py"],
+          "verification": [],
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "scored_revision": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "traces": [
+        {
+          "schema_version": 1,
+          "revision": "ad460ea8f249db69c943a365fb84f3a59042d54e",
+          "trace_id": "88ea8eb22e01460ba89c33a79c3516aa89a153310aa460a4b20e559498bd6206",
+          "task": "command execution lifecycle hooks regression",
+          "opened_paths": [],
+          "changed_paths": ["command.go"],
+          "verification": [],
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "scored_revision": "e516c3baf22615e20934116abebfed6c000222c2",
+      "traces": [
+        {
+          "schema_version": 1,
+          "revision": "555e5f46fed0e6ba25ecf931eae96f7b980a6650",
+          "trace_id": "f7edf590110ec3b24260da974992736b85c82290aabde3a996d15610f1fcfa76",
+          "task": "JSON Schema Zod conversion support",
+          "opened_paths": [],
+          "changed_paths": ["packages/zod/src/v4/classic/from-json-schema.ts"],
+          "verification": [],
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "scored_revision": "8017b279e19347efaf2587711c2d57dbd4330740",
+      "traces": [
+        {
+          "schema_version": 1,
+          "revision": "e7717338a35aa53196ba3cad1498a1a50cd3905c",
+          "trace_id": "5c7c93a693b49ab0eddd95fdec8e1f822984a4621dba8855e8b85400060fa61a",
+          "task": "subprocess terminate descendant processes cleanup",
+          "opened_paths": [],
+          "changed_paths": ["lib/terminate/kill-descendants.js"],
+          "verification": [],
+          "outcome": "passed"
+        }
+      ]
+    }
+  ]
+}

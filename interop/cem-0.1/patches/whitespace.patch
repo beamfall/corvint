@@ -1,0 +1,6 @@
+diff --git a/src/style.txt b/src/style.txt
+--- a/src/style.txt
++++ b/src/style.txt
+@@ -1 +1 @@
+-value = 1
++value  =	1

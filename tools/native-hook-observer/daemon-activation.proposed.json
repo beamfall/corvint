@@ -1,0 +1,122 @@
+{
+  "profile": "corvint-desktop-daemon-activation-proposal/0-experimental",
+  "status": "NOT_ACTIVATED_REVIEW_REQUIRED",
+  "qualification": "UNQUALIFIED",
+  "purpose": "Expose a supported second client to the exact daemon used by Codex Desktop, without editing the signed app or global launch environment.",
+  "pinnedEngine": {
+    "path": "/Applications/Codex.app/Contents/Resources/codex",
+    "sha256": "a30ec314bbd0e3721632234d07db7c99855db3b9f1e32dbe8c791947f07e7629"
+  },
+  "controlSocket": "~/.codex/app-server-control/app-server-control.sock",
+  "current": {
+    "transport": "app-owned stdio",
+    "socketExists": false,
+    "bundledGitExists": false,
+    "daemonVersionProbe": "NO_SOCKET"
+  },
+  "preconditions": [
+    "Preserve/checkpoint every active Codex task before any normal app quit.",
+    "Obtain explicit approval for concrete app restart and bounded daemon start; this file is not approval.",
+    "Recheck exact app/engine/framework signatures, fuses, ASAR header and all hashes against this observation.",
+    "Confirm local host configuration has no codex_cli_command override through a supported settings surface; do not read app databases.",
+    "Require no app-server override config arguments; CODEX_CLI_PATH and FORCE_CLI are cleared only for the new app process.",
+    "Freeze controlled daemon ownership/cleanup and prevent another campaign from sharing or replacing it.",
+    "Complete direct native Go client inventory attachment review and interruption tests before connecting; it starts no child. Optional --subscribe is reversible observation setup with bounded membership/status checks; any observed rehydration/race discards the campaign.",
+    "Independently admit the reader and execution-only Root /1 before fresh app/engine launch. After launch, observe exact UID/effective groups, PID births, boot identity, reciprocal socket and actual hook child cwd; admit only the separately predeclared short-lived candidate document. Completed HostQualification remains absent until actual native evidence and independent review."
+  ],
+  "reviewedLaterSequence": [
+    {
+      "action": "Normal quit of Codex through its supported UI after tasks checkpoint; do not force kill or use open --fresh."
+    },
+    {
+      "argv": [
+        "/Applications/Codex.app/Contents/Resources/codex",
+        "app-server",
+        "daemon",
+        "start"
+      ],
+      "effect": "Start supported local daemon only; never bootstrap or enable remote control. Verify no durable installation occurred."
+    },
+    {
+      "argv": [
+        "/Applications/Codex.app/Contents/Resources/codex",
+        "app-server",
+        "daemon",
+        "version"
+      ],
+      "require": "appServerVersion is exactly 0.153.4 and peer process image/code identity matches the pinned engine."
+    },
+    {
+      "argv": [
+        "/usr/bin/open",
+        "-a",
+        "/Applications/Codex.app",
+        "--env",
+        "CODEX_APP_SERVER_USE_LOCAL_DAEMON=1",
+        "--env",
+        "CODEX_APP_SERVER_FORCE_CLI=",
+        "--env",
+        "CODEX_CLI_PATH="
+      ],
+      "effect": "Launch existing app with scoped environment; no config, app binary or launchctl environment edit."
+    },
+    {
+      "action": "Witness fresh Desktop and engine PID/birth/boot identity, actual consumer credentials/cwd, and reciprocal live Unix-stream socket handles. Bind topology=shared-daemon only in the independently admitted candidate document; do not invent qualifiedSurfaces or completed evidence digests. Events remain explicitly unattributed to a client surface. Completed HostQualification is a later decision after actual Desktop and CLI evidence."
+    },
+    {
+      "argv": [
+        "corvint-native-hook-observer",
+        "client",
+        "QUALIFICATION_CWD"
+      ],
+      "effect": "After activation approval, bounded direct supported Unix-WebSocket /rpc attachment validates LOCAL_PEERPID + live exact engine CDHash and projects hooks/list digests only. It spawns no proxy or child, resumes no task, and closes the socket on exit. This does not qualify Desktop."
+    },
+    {
+      "action": "initialize experimentalApi=true,requestAttestation=false,optOutNotificationMethods=every exact generated method except hook/started and hook/completed; fail on schema drift."
+    },
+    {
+      "action": "hooks/list for exact qualification cwd; persist only bounded metadata/digests, never command bodies or raw task identifiers."
+    },
+    {
+      "argv": [
+        "corvint-native-hook-observer",
+        "client",
+        "QUALIFICATION_CWD",
+        "--subscribe"
+      ],
+      "stdin": "Exact independently confirmed existing active UUIDv7 plus newline; supplied in memory, never a command argument or persisted file.",
+      "effect": "Check bounded thread/loaded/list membership, call thread/resume only with threadId and excludeTurns=true, require exact ID/cwd/active status and no returned turns/history page, recheck loaded membership. Observe only typed hook events for <=30 seconds, then recheck membership/peer before emitting hashes. Socket closure detaches this client.",
+      "raceLimit": "No atomic already-running-only API exists. Resume can rehydrate an unloaded existing task if it races; no new task/turn is requested. Any observed unload/status mismatch invalidates and discards campaign; hidden races are not ruled out or promoted into authority.",
+      "privacy": "Resume response schema includes preview/paths/config metadata even with excludeTurns=true. Client discards these in memory and never emits/persists them; it issues no thread/read, turns/list, items/list, or history request."
+    }
+  ],
+  "rollback": [
+    "Failure, abandonment or later teardown only: checkpoint and normal-quit the qualification app before stopping its owned daemon. A successful independent qualification handoff instead preserves the exact measured runtime.",
+    "Stop only the daemon created by this campaign after revalidating recorded process/socket ownership; do not stop a replacement or pre-existing daemon.",
+    "Use pinned codex app-server daemon stop; never bootstrap/uninstall or modify user config.",
+    "Relaunch /usr/bin/open -a /Applications/Codex.app without extra environment and verify original stdio mode."
+  ],
+  "openGates": [
+    "Shared-daemon runtime verifier is implemented with reciprocal kernel socket handles, exact socket path, PID birth checks and per-surface evidence digests. Its local Unix-socket regression is not an actual Desktop connection witness or qualification campaign.",
+    "Loaded framework/JS bytes of the already-running app are not retrospectively proved by static validation plus main-image CDHash. Fresh verified launch and actual host observations are required.",
+    "No native AHI case, performance threshold, critical recall result or root admission is established by this proposal.",
+    "Non-query p95 remains <=250ms and query p95<=500ms; no relaxed threshold.",
+    "Both codex-desktop and codex-cli actual evidence are mandatory before shared-runtime FULL; Desktop-only evidence refuses admission."
+  ],
+  "realCLICampaign": {
+    "source": "Exact pinned engine --help, observed 2026-09-08",
+    "supportedOption": "--remote ADDR accepts ws://, wss://, unix://, unix://PATH",
+    "argv": [
+      "/Applications/Codex.app/Contents/Resources/codex",
+      "--remote",
+      "unix://~/.codex/app-server-control/app-server-control.sock"
+    ],
+    "status": "NOT_RUN",
+    "requirement": "Actual independently observed CLI hook-consumption cases on this shared daemon, separately from Desktop. Observer connection or proxy is never relabelled as CLI evidence."
+  },
+  "successHandoff": [
+    "After all required actual evidence is complete, remove the candidate document and retain the execution root, reader, publication, final release, intended measured hooks and exact live runtime while independent review completes.",
+    "The independent operator may populate the existing completed HostQualification only from accepted evidence and still-current runtime observations. No app restart, legacy Stop restoration or unverified same-lifetime cache reload is treated as preserving qualification.",
+    "The currently missing supported startup observation prevents a complete eleven-case campaign; this proposed success branch is not executable or approved now."
+  ]
+}

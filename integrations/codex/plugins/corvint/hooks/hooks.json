@@ -1,0 +1,54 @@
+{
+  "description": "Bounded Corvint context and lifecycle receipts.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint adapter codex",
+            "timeout": 2,
+            "statusMessage": "Loading Corvint evidence"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint adapter codex",
+            "timeout": 2,
+            "statusMessage": "Compiling Corvint context"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint adapter codex",
+            "timeout": 2,
+            "statusMessage": "Checking local completion"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "other",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint adapter codex",
+            "timeout": 2
+          }
+        ]
+      }
+    ]
+  }
+}

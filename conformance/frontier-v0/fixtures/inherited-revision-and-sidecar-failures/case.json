@@ -1,0 +1,149 @@
+{
+  "id": "inherited-revision-and-sidecar-failures",
+  "matrixRows": [
+    "missing/mismatched expected base or target; forged sidecar"
+  ],
+  "clauses": [
+    "CF-V0-002",
+    "CF-V0-021",
+    "CF-V0-022"
+  ],
+  "intent": "CF-V0-022's first row passes an explicit public validation error admitted by the pinned CEM/OCM verifier through as the EXACT inherited code; CF-V0-021 gives that native precedence priority over every later Frontier check.",
+  "cases": [
+    {
+      "id": "missing-expected-base",
+      "note": "CEM-CB-021 stable code.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "missing",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "expected-base-required",
+        "stderr": "{\"code\":\"expected-base-required\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "4b1caf5acf30311e6fd414af894658f97aae09f5189096c1260806839950fb92"
+      },
+      "assertions": [
+        "CF-V0-022: the exact inherited code is emitted, not a Frontier-owned translation.",
+        "CF-V0-021: no Frontier result is produced."
+      ]
+    },
+    {
+      "id": "missing-target",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "missing",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "note": "Base is checked before target (CF-V0-021 step 4).",
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "target-required",
+        "stderr": "{\"code\":\"target-required\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "fdaaa84ce60b79d8f2a63f05edf1c3e6474660a8273502861dee115a78ff96a3"
+      },
+      "assertions": [
+        "CF-V0-021: with a valid base, the missing target yields target-required."
+      ]
+    },
+    {
+      "id": "mismatched-expected-base",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "mismatched",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "note": "A self-consistent map whose base does not resolve to the independent input.",
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "base-revision-mismatch",
+        "stderr": "{\"code\":\"base-revision-mismatch\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "84cf736bf77b52445008147728c975e83e0e82f84e5ca3663fe51a4fecf5708b"
+      },
+      "assertions": [
+        "CF-V0-022: base-revision-mismatch passes through exactly."
+      ]
+    },
+    {
+      "id": "mismatched-target",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "mismatched",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "target-mismatch",
+        "stderr": "{\"code\":\"target-mismatch\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "5dfd6b59869758058d03b2f7c85f0646db387ee0c7252a3d6105dbe220e2ed96"
+      },
+      "note": "Caller target resolution disagrees.",
+      "assertions": [
+        "CF-V0-022: target-mismatch passes through exactly."
+      ]
+    },
+    {
+      "id": "forged-sidecar",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "forged",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "note": "Target-side .corvint/change.cem.json bytes do not equal the bounded raw copy.",
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "excluded-artifact-mismatch",
+        "stderr": "{\"code\":\"excluded-artifact-mismatch\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "744d5afc00d540c12bc5ae22243bbb16e3344bd3c30add902269e486253bdb99"
+      },
+      "assertions": [
+        "CF-V0-002: the same bounded immutable byte copies must reach the shared verifier, so forged target bytes are rejected there.",
+        "CF-V0-024: the forged bytes are never echoed."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-FORGED-SIDECAR-8f21"
+      ]
+    }
+  ]
+}

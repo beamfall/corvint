@@ -1,0 +1,7 @@
+diff --git a/src/style.txt b/src/style.txt
+index 1111111..2222222 120000
+--- a/src/style.txt
++++ b/src/style.txt
+@@ -1 +1 @@
+-value = 1
++value = 2

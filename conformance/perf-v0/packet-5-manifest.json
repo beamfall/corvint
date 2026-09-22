@@ -1,0 +1,132 @@
+{
+  "format": "corvint-perf-v0/2",
+  "profile": {
+    "clause": "GPK-V0-016",
+    "cutoffClause": "GPK-V0-017",
+    "description": "Preregistered Packet 5-only current-pin harness requalification under decision 0016. The closed corpus has exactly six harness rows across Corvint and Beamfall, with five discarded warmups and 100 measured fresh processes per runtime and row and no sample, candidate-revision, or task-selection override. Packet 4 is excluded and remains NOT_RUN/incomplete; this manifest is not global cutover or compatibility-completion evidence."
+  },
+  "oracleCommand": "python3 -m corvint_cli",
+  "candidatePackage": "./cmd/corvint",
+  "preregistration": {
+    "registeredAt": "2026-08-31T13:47:21Z",
+    "warmupSamples": 5,
+    "measuredSamples": 100,
+    "percentileEstimator": "nearest-rank",
+    "bootstrapResamples": 10000,
+    "bootstrapConfidence": 0.95,
+    "bootstrapSeed": 20260828,
+    "sampleTimeoutMilliseconds": 30000,
+    "interleave": "alternating-per-sample"
+  },
+  "validity": {
+    "requireEqualStdout": true,
+    "requireEqualStderr": true,
+    "requireEqualExitStatus": true,
+    "requireCorpusUnchanged": true,
+    "requireCacheStableDuringMeasurement": true,
+    "forbidTimeouts": true,
+    "forbidFailures": true,
+    "minimumMeasuredSamples": 100,
+    "requirePreregisteredSampleCounts": true
+  },
+  "thresholds": {
+    "nonQueryHarnessP95Milliseconds": 100,
+    "portableProductCapMilliseconds": 250,
+    "queryP95Milliseconds": 500,
+    "nonQueryOracleImprovementFraction": 0.5,
+    "otherCommandRegressionFraction": 0.1
+  },
+  "claimScope": {
+    "id": "packet-5-current-pin-requalification",
+    "decision": "0016",
+    "includedTaskIds": [
+      "harness-user-prompt",
+      "beamfall-harness-user-prompt",
+      "harness-file-change",
+      "beamfall-harness-file-change",
+      "harness-compact-session-start",
+      "beamfall-harness-compact-session-start"
+    ],
+    "excludedClaims": [
+      "packet-4-completion",
+      "packet-4-promotion",
+      "combined-packet-4-5-completion",
+      "global-cutover",
+      "global-compatibility"
+    ]
+  },
+  "corpora": [
+    {
+      "id": "corvint",
+      "repositoryPath": ".",
+      "revision": "0794de05b90bb5d74533568190f847e8e0f1db29",
+      "enabled": true,
+      "notRunReason": "",
+      "indexNote": "The Corvint corpus, frozen Python oracle, and candidate share commit 0794de05b90bb5d74533568190f847e8e0f1db29 and tree 09891579e88d9bd94a19e0690e8f3a177daa28f3. Five discarded warmups settle the shared content-addressed cache before the measured window."
+    },
+    {
+      "id": "beamfall",
+      "repositoryPath": "~/projects/beamfall-workspace/beamfall",
+      "revision": "1b039e75f9d35348d8ed577e1cb37e4f317ce223",
+      "enabled": true,
+      "notRunReason": "",
+      "indexNote": "The pinned Beamfall target tree is b6de7ab13777d7db02d1c147c9b8ecb024e7efcf and is materialized with history back to c577218dde5a91e1ef0ba771c05d2d6d1110172f. The source checkout is read-only."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "harness-user-prompt",
+      "corpus": "corvint",
+      "class": "query",
+      "command": "harness",
+      "argv": ["harness", "event", "--host", "claude-code", "--host-version", "1.0.0", "--surface", "plugin", "--adapter-version", "0.1.0", "--event", "user-prompt", "--input", "-"],
+      "stdin": "{\"task\":\"Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket\"}",
+      "workspace": {"materialization": "pinned-tree", "reset": "once", "mutation": "none"}
+    },
+    {
+      "id": "beamfall-harness-user-prompt",
+      "corpus": "beamfall",
+      "class": "query",
+      "command": "harness",
+      "argv": ["harness", "event", "--host", "claude-code", "--host-version", "1.0.0", "--surface", "plugin", "--adapter-version", "0.1.0", "--event", "user-prompt", "--input", "-"],
+      "stdin": "{\"task\":\"Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket\"}",
+      "workspace": {"materialization": "pinned-history", "baseRevision": "c577218dde5a91e1ef0ba771c05d2d6d1110172f", "reset": "once", "mutation": "none"}
+    },
+    {
+      "id": "harness-file-change",
+      "corpus": "corvint",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": ["harness", "event", "--host", "claude-code", "--host-version", "1.0.0", "--surface", "plugin", "--adapter-version", "0.1.0", "--event", "file-change", "--input", "-"],
+      "stdin": "{\"paths\":[\"cmd/corvint/main.go\"]}",
+      "workspace": {"materialization": "pinned-tree", "reset": "once", "mutation": "none"}
+    },
+    {
+      "id": "beamfall-harness-file-change",
+      "corpus": "beamfall",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": ["harness", "event", "--host", "claude-code", "--host-version", "1.0.0", "--surface", "plugin", "--adapter-version", "0.1.0", "--event", "file-change", "--input", "-"],
+      "stdin": "{\"paths\":[\"internal/graph/graph.go\"]}",
+      "workspace": {"materialization": "pinned-history", "baseRevision": "c577218dde5a91e1ef0ba771c05d2d6d1110172f", "reset": "once", "mutation": "none"}
+    },
+    {
+      "id": "harness-compact-session-start",
+      "corpus": "corvint",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": ["harness", "event", "--host", "claude-code", "--host-version", "1.0.0", "--surface", "plugin", "--adapter-version", "0.1.0", "--event", "session-start", "--input", "-"],
+      "stdin": "{\"startSource\":\"compact\"}",
+      "workspace": {"materialization": "pinned-tree", "reset": "once", "mutation": "none"}
+    },
+    {
+      "id": "beamfall-harness-compact-session-start",
+      "corpus": "beamfall",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": ["harness", "event", "--host", "claude-code", "--host-version", "1.0.0", "--surface", "plugin", "--adapter-version", "0.1.0", "--event", "session-start", "--input", "-"],
+      "stdin": "{\"startSource\":\"compact\"}",
+      "workspace": {"materialization": "pinned-history", "baseRevision": "c577218dde5a91e1ef0ba771c05d2d6d1110172f", "reset": "once", "mutation": "none"}
+    }
+  ]
+}

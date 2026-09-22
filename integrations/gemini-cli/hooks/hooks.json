@@ -1,0 +1,79 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "sequential": true,
+        "hooks": [
+          {
+            "name": "corvint-session-start",
+            "type": "command",
+            "command": "node \"${extensionPath}${/}hooks${/}corvint-hook.mjs\" session-start",
+            "timeout": 1000,
+            "description": "Request bounded Corvint startup context; fail open with a visible degradation."
+          }
+        ]
+      }
+    ],
+    "BeforeAgent": [
+      {
+        "matcher": "*",
+        "sequential": true,
+        "hooks": [
+          {
+            "name": "corvint-user-prompt",
+            "type": "command",
+            "command": "node \"${extensionPath}${/}hooks${/}corvint-hook.mjs\" user-prompt",
+            "timeout": 1000,
+            "description": "Request a receipt-linked minimum witness for the current task."
+          }
+        ]
+      }
+    ],
+    "AfterTool": [
+      {
+        "matcher": "^(write_file|replace)$",
+        "sequential": true,
+        "hooks": [
+          {
+            "name": "corvint-file-change",
+            "type": "command",
+            "command": "node \"${extensionPath}${/}hooks${/}corvint-hook.mjs\" after-tool",
+            "timeout": 1000,
+            "description": "Record only a successful host-observed file path; never forward tool input or output."
+          }
+        ]
+      }
+    ],
+    "AfterAgent": [
+      {
+        "matcher": "*",
+        "sequential": true,
+        "hooks": [
+          {
+            "name": "corvint-advisory-stop",
+            "type": "command",
+            "command": "node \"${extensionPath}${/}hooks${/}corvint-hook.mjs\" stop",
+            "timeout": 1000,
+            "description": "Request an advisory frontier receipt once; never deny or retry the turn."
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "sequential": true,
+        "hooks": [
+          {
+            "name": "corvint-session-end",
+            "type": "command",
+            "command": "node \"${extensionPath}${/}hooks${/}corvint-hook.mjs\" session-end",
+            "timeout": 1000,
+            "description": "Submit the bounded session-end observation available from Gemini CLI."
+          }
+        ]
+      }
+    ]
+  }
+}

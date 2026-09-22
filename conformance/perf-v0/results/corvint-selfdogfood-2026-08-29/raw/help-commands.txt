@@ -1,0 +1,193 @@
+===== help init =====
+Compile one bounded mechanical repository inventory.
+
+Usage:
+  corvint [--root PATH] (init | adopt) [--authority-id ID] [--revision REV]
+    [--exclude-prefix PATH] [--full-receipt]
+
+--revision defaults to HEAD. --exclude-prefix is repeatable. The default output
+is a bounded sealed summary; --full-receipt emits the complete canonical receipt.
+Both activations are read-only and local-only.
+
+===== help adopt =====
+Compile one bounded mechanical repository inventory.
+
+Usage:
+  corvint [--root PATH] (init | adopt) [--authority-id ID] [--revision REV]
+    [--exclude-prefix PATH] [--full-receipt]
+
+--revision defaults to HEAD. --exclude-prefix is repeatable. The default output
+is a bounded sealed summary; --full-receipt emits the complete canonical receipt.
+Both activations are read-only and local-only.
+
+===== help query =====
+Compile the experimental project-operations authority-start receipt.
+
+Usage:
+  corvint [--root PATH] query --task TASK --limit 1 [--budget-bytes N]
+
+Parity-qualified prompt (exact bytes):
+  "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket"
+
+Options:
+  --task TASK  Required ASCII task, 1-2000 characters. Only task text classified
+               as project-operations is supported; this is not general query.
+  --limit 1    Required explicitly. No other value is supported.
+  --budget-bytes N  Optional packet budget (range: 1024-1000000 bytes).
+
+Requirements:
+  Darwin or Linux; a Git repository accepted by the bounded Go index; one
+  uniquely highest-ranked regular root AGENTS.md encoded as UTF-8 with LF line
+  endings; and either no local trace directory or a mixed worktree, where trace
+  learning is blocked. Every other query profile is rejected.
+
+The command is read-only and local-only. It emits one canonical JSON receipt on
+stdout. Unsupported profiles emit one structured error on stderr and exit 2.
+
+===== help impact =====
+Compile experimental impact evidence for nested Go files.
+
+Usage:
+  corvint [--root PATH] impact [--limit N] PATH...
+  corvint [--root PATH] impact --working-tree-untracked [--limit N] PATH...
+  corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N]
+
+Arguments:
+  PATH  One or more normalized repository-relative .go paths in a non-root Go package.
+        By default every path must be tracked at the captured revision.
+
+Options:
+  --limit N                  Maximum results (default: 10; range: 1-50).
+  --working-tree-untracked   Explicitly select the separate revision-absent
+                             working-tree evidence profile. It accepts no value.
+  --base FULL_COMMIT_ID      Select the separate committed range profile from
+                             an immutable base commit to the captured HEAD.
+  --                         Treat all remaining arguments as paths.
+
+Requirements:
+  Darwin or Linux; a Git repository with a slash-qualified Go module; no absolute
+  or parent-traversal paths; at most 100 paths and 1024 characters per path. The
+  immutable index admits at most 1,000,000 bytes per source and 128 MiB in total.
+  --budget-bytes and non-Go, root-package, unsupported-platform, and oversized
+  inputs are rejected rather than approximated.
+
+The committed range profile requires a clean, stable worktree; derives changed
+Go paths and exact old/new admitted-Go hunk spans itself; binds base/head commit
+and tree, status, full-delta and hunk digests, and omissions; admits marker and
+ADR relations only from target lines added or replaced by the diff; and rejects
+rename, copy, delete, type-change, binary, excluded-Go, oversized, or drifting
+ranges.
+
+The default profile is unchanged and uses only revision-tracked evidence. The
+explicit working-tree profile accepts only captured mixed-status paths absent
+from that revision; binds contained, single-link regular-file identity and
+stable twice-read bytes; caps target files at 1,000,000 bytes and their aggregate
+at 64,000,000 bytes; parses Go package/import context; and fails closed on path,
+file, status, revision, or read races. Its bytes are observed, not immutable Git
+authority. All profiles are read-only, local-only, and emit canonical JSON.
+Mixed-worktree freshness is disclosed where applicable.
+
+===== help cem =====
+Change Evidence Map producer and verifier.
+
+Usage:
+  corvint [--root PATH] cem begin --patch PATCH --output MAP [--base REV]
+  corvint [--root PATH] cem prepare --base REV --target REV [--patch CACHE] [--replace]
+  corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH
+    (--bytes START:END | --lines START:END) --relation RELATION [--output MAP]
+  corvint [--root PATH] cem mark --map MAP --hunk SELECTOR
+    --disposition unknown|mechanical --reason REASON [--output MAP]
+  corvint [--root PATH] cem status --map MAP [OPTIONS]
+  corvint [--root PATH] cem verify --map MAP [OPTIONS]
+  corvint [--root PATH] cem report --map MAP [--output REPORT] [OPTIONS]
+
+Actions:
+  begin    Build a cem/0.1 candidate from exact out-of-band patch bytes.
+  prepare  Derive the canonical base-to-target patch and write or resume the
+           cem/0.2 candidate at .corvint/change.cem.json. Commit the candidate,
+           then run the returned verification action against HEAD.
+  cite     Compile a byte or one-based line span of base evidence into the
+           normative span and attach it to one hunk with a typed relation.
+  mark     Record an explicit unknown or byte-verifiable mechanical disposition.
+  status   Local completion check; verify is the equivalent machine/CI surface;
+           report renders the optional human view. All three verify identically.
+
+Verification options:
+  --expected-base REV  Independent expected base. Required for cem/0.2.
+  --target REV         Verification target. Required for cem/0.2.
+  --patch PATH         cem/0.1 only: exact out-of-band patch bytes. A cem/0.2
+                       invocation supplying --patch fails invalid-arguments.
+  --max-unknown N      Policy ceiling on unknown hunks.
+  --max-mechanical N   Policy ceiling on mechanical hunks.
+
+cem/0.2 verification requires --expected-base and --target, derives the
+canonical whole-repository patch itself excluding exactly
+.corvint/change.cem.json, and reports assurance "canonical". cem/0.1 keeps the
+historical explicit/default out-of-band patch behavior with its envelope
+warnings. All commands are local-only; reports can disclose repository
+information and stay local by default.
+
+===== help ocm =====
+Verify an Obligation Closure Map and its bound CEM.
+
+Usage:
+  corvint [--root PATH] ocm status --map MAP [OPTIONS]
+  corvint [--root PATH] ocm verify --map MAP [OPTIONS]
+  corvint [--root PATH] ocm report --map MAP [--output REPORT] [OPTIONS]
+
+Options:
+  --cem PATH          Bound CEM map (default: .corvint/change.cem.json).
+  --max-unknown N     Optional non-negative unknown-obligation ceiling.
+  --expected-base REV Independent expected base; required for CEM 0.2.
+  --target REV        Independent target; required for CEM 0.2.
+
+status and verify are read-only. report writes one source-body-free 0600 local
+report atomically only after a passing verification and policy verdict. The
+mutating prepare, link, and mark actions remain on the Python implementation.
+
+===== help lrf =====
+Verify repository authority and apply the lexical relevance floor.
+
+Usage:
+  corvint [--root PATH] lrf --cem MAP [--ocm MAP] [--patch PATCH]
+    [--expected-base REV] [--target REV]
+
+Options:
+  --cem MAP           Required CEM 0.1 or 0.2 map.
+  --ocm MAP           Optional canonical OCM bound to the CEM and target.
+  --patch PATCH       CEM 0.1 only: exact out-of-band patch. Omission uses the
+                      per-worktree Git-dir default corvint/change.patch.
+  --expected-base REV Independent expected base; required for CEM 0.2.
+  --target REV        Optional for CEM 0.1 and required for CEM 0.2.
+
+The command reads maps from bounded regular files, verifies CEM, optional OCM,
+patch, revision, blob, and span identities through local Git objects, then emits
+one canonical lrf/0 document. Normal results exit 0, including rejected or
+abstained edges; aggregate bound results exit 1. Structural, context, I/O, or
+interruption failures emit no LRF stdout and exit 2. The command is read-only,
+local-only, and always uses the frozen public bounds.
+
+===== help record =====
+Record one explicit local task outcome.
+
+Usage:
+  corvint [--root PATH] record --task TASK [--opened PATH] --changed PATH
+    --verify COMMAND --outcome (passed | failed | blocked)
+
+--opened, --changed, and --verify are repeatable; --opened defaults to empty.
+The repository must be clean, every path must be a safe source at HEAD, and
+verification commands are secret-screened and shell-bounded. The command
+atomically writes one local trace row and is idempotent by trace id.
+
+===== help migrate-traces =====
+Plan or apply legacy tree-trace migration.
+
+Usage:
+  corvint [--root PATH] migrate-traces --dry-run
+  corvint [--root PATH] migrate-traces --apply --plan-digest LOWERCASE_SHA256
+
+Exactly one of --dry-run and --apply is required. Dry-run validates the complete
+bounded trace store and writes nothing. Apply requires the exact unchanged
+dry-run digest, publishes canonical commit traces and byte-preserved quarantine
+copies, then removes verified legacy candidates. The command is local-only.
+

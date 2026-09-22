@@ -1,0 +1,55 @@
+{
+  "cases": [
+    {
+      "argv": [
+        "query",
+        "--task",
+        "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket",
+        "--limit",
+        "1"
+      ],
+      "commitRevision": "052ae237f347cfb389d2229661f41bcd6772b773",
+      "exitStatus": 0,
+      "id": "corvint-clean-authority-start-2026-08-23",
+      "mutation": "none",
+      "repository": "corvint",
+      "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdinSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutBytes": 3563,
+      "stdoutSha256": "d20d7ef82ff09e969825c227f19563e0e75147a86fd57decc567dfcbeb9781fb",
+      "treeRevision": "0eb4103a58128f8a590099ae89434b3f3fdf2bd1"
+    },
+    {
+      "argv": [
+        "query",
+        "--task",
+        "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket",
+        "--limit",
+        "1"
+      ],
+      "commitRevision": "5ff2dd7037c18bd93b1e7b55508ca04279f3b6b9",
+      "exitStatus": 0,
+      "id": "beamfall-clean-authority-start-2026-08-23",
+      "mutation": "none",
+      "repository": "beamfall",
+      "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdinSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutBytes": 5137,
+      "stdoutSha256": "7d87fd080ffde154d7ad3d645af8f03d9668bf226848f90c70a1eb3ce94e6a59",
+      "treeRevision": "406696c978dd4283d98990e250ad42708a4685e0"
+    }
+  ],
+  "candidateCommand": "corvint",
+  "oracleCommand": "python3 -m corvint_cli",
+  "profile": "corvint-authority-start-query-parity/0",
+  "runtimeAuthority": false,
+  "selectedEnvironment": {
+    "CORVINT_CACHE_DIR": "external-private-temp",
+    "PYTHONPATH": "candidate-src"
+  },
+  "task": "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket"
+}

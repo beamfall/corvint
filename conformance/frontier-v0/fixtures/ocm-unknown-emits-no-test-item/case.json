@@ -1,0 +1,205 @@
+{
+  "id": "ocm-unknown-emits-no-test-item",
+  "matrixRows": [
+    "OCM unknown"
+  ],
+  "clauses": [
+    "CF-V0-011",
+    "CF-V0-013"
+  ],
+  "intent": "CF-V0-011 emits exactly one INTENT_CHANGE item and NO INTENT_TEST item for an OCM unknown obligation, because no selected test edge exists. Fabricating a test item would be an invented obligation.",
+  "cases": [
+    {
+      "id": "unassessed",
+      "note": "OCM unknown reason unassessed maps to OBLIGATION_UNASSESSED.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "unknown",
+            "reason": "unassessed"
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "1",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "OBLIGATION_UNASSESSED"
+            ],
+            "relatedIds": [],
+            "authorityClass": "NONE",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_OBLIGATION"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-011: exactly one INTENT_CHANGE item with reason OBLIGATION_UNASSESSED.",
+        "CF-V0-011: NO INTENT_TEST item is emitted for this obligation.",
+        "CF-V0-011: authorityClass is NONE, relatedIds is empty, ACTIONABLE, LINK_OBLIGATION."
+      ]
+    },
+    {
+      "id": "no-test-claim",
+      "note": "OCM unknown reason no-test-claim maps to OBLIGATION_NO_TEST_CLAIM.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "unknown",
+            "reason": "no-test-claim"
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "1",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "OBLIGATION_NO_TEST_CLAIM"
+            ],
+            "relatedIds": [],
+            "authorityClass": "NONE",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_OBLIGATION"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-011: exactly one INTENT_CHANGE item with reason OBLIGATION_NO_TEST_CLAIM.",
+        "CF-V0-011: NO INTENT_TEST item is emitted for this obligation.",
+        "CF-V0-011: authorityClass is NONE, relatedIds is empty, ACTIONABLE, LINK_OBLIGATION."
+      ]
+    },
+    {
+      "id": "insufficient-evidence",
+      "note": "OCM unknown reason insufficient-evidence maps to OBLIGATION_INSUFFICIENT_EVIDENCE.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "unknown",
+            "reason": "insufficient-evidence"
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "1",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "OBLIGATION_INSUFFICIENT_EVIDENCE"
+            ],
+            "relatedIds": [],
+            "authorityClass": "NONE",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_OBLIGATION"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-011: exactly one INTENT_CHANGE item with reason OBLIGATION_INSUFFICIENT_EVIDENCE.",
+        "CF-V0-011: NO INTENT_TEST item is emitted for this obligation.",
+        "CF-V0-011: authorityClass is NONE, relatedIds is empty, ACTIONABLE, LINK_OBLIGATION."
+      ]
+    },
+    {
+      "id": "conflicting-evidence",
+      "note": "OCM unknown reason conflicting-evidence maps to OBLIGATION_CONFLICTING_EVIDENCE.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "unknown",
+            "reason": "conflicting-evidence"
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "1",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "OBLIGATION_CONFLICTING_EVIDENCE"
+            ],
+            "relatedIds": [],
+            "authorityClass": "NONE",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_OBLIGATION"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-011: exactly one INTENT_CHANGE item with reason OBLIGATION_CONFLICTING_EVIDENCE.",
+        "CF-V0-011: NO INTENT_TEST item is emitted for this obligation.",
+        "CF-V0-011: authorityClass is NONE, relatedIds is empty, ACTIONABLE, LINK_OBLIGATION."
+      ]
+    }
+  ]
+}

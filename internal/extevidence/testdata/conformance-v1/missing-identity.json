@@ -1,0 +1,9 @@
+{
+  "schema": "external-evidence-provider/1",
+  "provider": {"id": "mockdocs", "revision": "2026-09-18.2"},
+  "repositories": [{"id": "application", "revision": "{{APP_REVISION}}"}],
+  "entities": [{"id": "cap-account", "kind": "capability", "summary": "Account management capability."}],
+  "relations": [
+    {"from": {"repository": "application", "path": "pkg/main.go"}, "to": {"provider": "mockdocs", "entity": "cap-account"}, "type": "implements", "evidence": "declared", "rule": "capability-map", "reference": "docs/capabilities.md#account"}
+  ]
+}

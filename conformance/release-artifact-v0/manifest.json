@@ -1,0 +1,48 @@
+{
+  "schema": "corvint.release-artifact-v0",
+  "toolchain": {
+    "goVersion": "go1.27.1",
+    "goModDirective": "1.27.1",
+    "forbiddenGoModDirective": "toolchain",
+    "gotoolchain": "local"
+  },
+  "profile": {
+    "package": "./cmd/corvint",
+    "modulePath": "github.com/Beamfall/corvint",
+    "binaryName": "corvint",
+    "buildFlags": ["-trimpath"],
+    "environment": {
+      "CGO_ENABLED": "0",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "GOFLAGS": "-mod=readonly",
+      "GOSUMDB": "off"
+    }
+  },
+  "targets": [
+    {"goos": "darwin", "goarch": "amd64", "binarySuffix": ""},
+    {"goos": "darwin", "goarch": "arm64", "binarySuffix": ""},
+    {"goos": "linux", "goarch": "amd64", "binarySuffix": ""},
+    {"goos": "linux", "goarch": "arm64", "binarySuffix": ""},
+    {"goos": "windows", "goarch": "amd64", "binarySuffix": ".exe"}
+  ],
+  "legalFiles": [
+    {"path": "LICENSE", "sha256": "196fbeabc292687bcea70da40d01c0777f8eb243ec1c11cb7b1f647bb8dd6108"},
+    {"path": "LICENSE-APACHE-2.0", "sha256": "a55dcdf3a62566e48883e0c0caba22c65f8fe5431aed6437422ba447e60cd27b"},
+    {"path": "LICENSING.md", "sha256": "05222f14148648f2cfc55c38cf1ce6bd7aec76f15faa469c02d6d23e2d0517a8"},
+    {"path": "PROVENANCE.md", "sha256": "8ac9527a2ec3dc585595eadad841674fa5bbfbf86005afa1f92d1a378a5a2cb7"}
+  ],
+  "smoke": {
+    "versionArgument": "--version",
+    "expectedVersion": "Corvint 0.5.0a3",
+    "queryTask": "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket",
+    "queryLimit": "1",
+    "expectedIntent": "project-operations",
+    "fixtureInstructions": "# Agents\n\nGate: run the repository gate before commit.\nQueue: the roadmap holds the active tickets.\n",
+    "crossCompileNotRunReason": "NOT_RUN: this host cannot execute the target. GPK-V0-018 states cross-compilation is not execution evidence; native conformance, filesystem-safety, process-cleanup, and read-nonmutation matrices remain owed on that operating system."
+  },
+  "pendingEvidence": [
+    "W10-performance-GPK-V0-016-017"
+  ]
+}

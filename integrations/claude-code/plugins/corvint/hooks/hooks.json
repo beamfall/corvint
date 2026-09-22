@@ -1,0 +1,89 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "session-start"
+            ],
+            "timeout": 2,
+            "statusMessage": "Loading bounded Corvint context"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "user-prompt"
+            ],
+            "timeout": 2,
+            "statusMessage": "Querying Corvint"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "post-tool"
+            ],
+            "timeout": 2,
+            "statusMessage": "Recording Corvint observation"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "stop"
+            ],
+            "timeout": 2,
+            "statusMessage": "Checking Corvint frontier availability"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "session-end"
+            ],
+            "timeout": 1
+          }
+        ]
+      }
+    ]
+  }
+}

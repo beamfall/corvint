@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "repository": "sindresorhus/execa",
+  "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+  "cases": [
+    {
+      "id": "execa-kill-descendants",
+      "mode": "query",
+      "text": "terminate a subprocess and kill all descendant processes",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "getKillFunction selects direct-child or process-tree termination for killDescendants.",
+      "ground_truth": [
+        {"path": "lib/terminate/kill-descendants.js", "line": 18, "contains": "getKillFunction"},
+        {"path": "lib/terminate/kill-descendants.js", "line": 12, "contains": "getSpawnOptions"},
+        {"path": "lib/terminate/kill-descendants.js", "line": 23, "contains": "killDescendantsFunction"},
+        {"path": "lib/terminate/kill-descendants.js", "line": 29, "contains": "killDescendantsUnix"},
+        {"path": "lib/terminate/kill-descendants.js", "line": 48, "contains": "killDescendantsWindows"},
+        {"path": "lib/terminate/kill-descendants.js", "line": 67, "contains": "getTaskkillFile"},
+        {"path": "lib/terminate/kill.js", "line": 25, "contains": "subprocessKill"},
+        {"path": "test/terminate/kill-descendants.js", "line": 35, "contains": "killDescendants terminates"}
+      ],
+      "expected": {
+        "must_include": ["symbol:lib/terminate/kill-descendants.js:getKillFunction"],
+        "critical": ["symbol:lib/terminate/kill-descendants.js:getKillFunction"],
+        "relevant": [
+          "symbol:lib/terminate/kill-descendants.js:getKillFunction",
+          "symbol:lib/terminate/kill-descendants.js:getSpawnOptions",
+          "symbol:lib/terminate/kill-descendants.js:killDescendantsFunction",
+          "symbol:lib/terminate/kill-descendants.js:getTaskkillFile",
+          "symbol:lib/terminate/kill-descendants.js:killDescendantsUnix",
+          "symbol:lib/terminate/kill-descendants.js:killDescendantsWindows",
+          "symbol:lib/terminate/kill.js:subprocessKill"
+        ]
+      }
+    },
+    {
+      "id": "execa-normalize-parameters",
+      "mode": "query",
+      "text": "normalize command file arguments and subprocess options",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "normalizeParameters validates raw call values before normalizeOptions resolves command files and subprocess options.",
+      "ground_truth": [
+        {"path": "lib/methods/parameters.js", "line": 6, "contains": "normalizeParameters"},
+        {"path": "lib/arguments/options.js", "line": 21, "contains": "normalizeOptions"},
+        {"path": "lib/arguments/options.js", "line": 30, "contains": "parseCommandFile"},
+        {"path": "lib/arguments/command-file.js", "line": 10, "contains": "parseCommandFile"},
+        {"path": "lib/arguments/file-url.js", "line": 4, "contains": "safeNormalizeFileUrl"},
+        {"path": "lib/methods/create.js", "line": 47, "contains": "parseArguments"},
+        {"path": "lib/methods/create.js", "line": 51, "contains": "normalizeParameters"}
+      ],
+      "expected": {
+        "must_include": [
+          "symbol:lib/methods/parameters.js:normalizeParameters",
+          "symbol:lib/arguments/options.js:normalizeOptions"
+        ],
+        "critical": [
+          "symbol:lib/methods/parameters.js:normalizeParameters",
+          "symbol:lib/arguments/options.js:normalizeOptions"
+        ],
+        "relevant": [
+          "symbol:lib/methods/parameters.js:normalizeParameters",
+          "symbol:lib/arguments/options.js:normalizeOptions",
+          "symbol:lib/arguments/command-file.js:parseCommandFile",
+          "symbol:lib/arguments/file-url.js:safeNormalizeFileUrl",
+          "symbol:lib/methods/create.js:parseArguments"
+        ]
+      }
+    },
+    {
+      "id": "execa-max-buffer",
+      "mode": "query",
+      "text": "handle subprocess output that exceeds the maximum buffer",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "handleMaxBuffer annotates overflow errors and related helpers format and truncate them.",
+      "ground_truth": [
+        {"path": "lib/io/max-buffer.js", "line": 7, "contains": "handleMaxBuffer"},
+        {"path": "lib/io/max-buffer.js", "line": 22, "contains": "getMaxBufferUnit"},
+        {"path": "lib/io/max-buffer.js", "line": 39, "contains": "checkIpcMaxBuffer"},
+        {"path": "lib/io/max-buffer.js", "line": 50, "contains": "getMaxBufferMessage"},
+        {"path": "lib/io/max-buffer.js", "line": 55, "contains": "getMaxBufferInfo"},
+        {"path": "lib/io/max-buffer.js", "line": 74, "contains": "isMaxBufferSync"},
+        {"path": "lib/io/max-buffer.js", "line": 79, "contains": "truncateMaxBufferSync"},
+        {"path": "lib/io/max-buffer.js", "line": 89, "contains": "getMaxBufferSync"},
+        {"path": "test/io/max-buffer.js", "line": 13, "contains": "maxBuffer exceeded"}
+      ],
+      "expected": {
+        "must_include": ["symbol:lib/io/max-buffer.js:handleMaxBuffer"],
+        "critical": ["symbol:lib/io/max-buffer.js:handleMaxBuffer"],
+        "relevant": [
+          "symbol:lib/io/max-buffer.js:handleMaxBuffer",
+          "symbol:lib/io/max-buffer.js:getMaxBufferUnit",
+          "symbol:lib/io/max-buffer.js:checkIpcMaxBuffer",
+          "symbol:lib/io/max-buffer.js:getMaxBufferMessage",
+          "symbol:lib/io/max-buffer.js:getMaxBufferInfo",
+          "symbol:lib/io/max-buffer.js:isMaxBufferSync",
+          "symbol:lib/io/max-buffer.js:truncateMaxBufferSync",
+          "symbol:lib/io/max-buffer.js:getMaxBufferSync"
+        ]
+      }
+    },
+    {
+      "id": "execa-kill-impact",
+      "mode": "impact",
+      "paths": ["lib/terminate/kill-descendants.js"],
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "The async subprocess constructor and dedicated termination tests import this module directly.",
+      "ground_truth": [
+        {"path": "lib/methods/main-async.js", "line": 17, "contains": "kill-descendants"},
+        {"path": "test/terminate/kill-descendants.js", "line": 9, "contains": "kill-descendants"}
+      ],
+      "expected": {
+        "must_include": [
+          "path:lib/terminate/kill-descendants.js",
+          "reverse-import:lib/methods/main-async.js",
+          "reverse-import:test/terminate/kill-descendants.js"
+        ],
+        "critical": ["reverse-import:lib/methods/main-async.js"],
+        "relevant": [
+          "path:lib/terminate/kill-descendants.js",
+          "reverse-import:lib/methods/main-async.js",
+          "reverse-import:test/terminate/kill-descendants.js"
+        ]
+      }
+    },
+    {
+      "id": "blind-execa-async-max-buffer-overflow",
+      "partition": "blind-v1",
+      "mode": "query",
+      "text": "find where asynchronous output collection enforces the maximum buffer and annotates the overflow before destroying the stream",
+      "limit": 5,
+      "budget_bytes": 14000,
+      "rationale": "A blind reviewer selected the async collection call site and overflow handler before seeing Atlas code or output.",
+      "ground_truth": [
+        {"path": "lib/io/contents.js", "line": 10, "contains": "getStreamOutput = async"},
+        {"path": "lib/io/contents.js", "line": 89, "contains": "getStream(iterable, {maxBuffer})"},
+        {"path": "lib/io/contents.js", "line": 91, "contains": "handleBufferedData(handleMaxBuffer"},
+        {"path": "lib/io/max-buffer.js", "line": 7, "contains": "handleMaxBuffer"},
+        {"path": "lib/io/max-buffer.js", "line": 17, "contains": "error.maxBufferInfo"},
+        {"path": "lib/io/max-buffer.js", "line": 18, "contains": "stream.destroy()"}
+      ],
+      "expected": {
+        "must_include": [
+          "symbol:lib/io/contents.js:getStreamOutput",
+          "symbol:lib/io/max-buffer.js:handleMaxBuffer"
+        ],
+        "critical": [
+          "symbol:lib/io/contents.js:getStreamOutput",
+          "symbol:lib/io/max-buffer.js:handleMaxBuffer"
+        ],
+        "relevant": [
+          "symbol:lib/io/contents.js:getStreamOutput",
+          "symbol:lib/io/max-buffer.js:handleMaxBuffer"
+        ],
+        "must_exclude": []
+      }
+    },
+    {
+      "id": "execa-database-abstention",
+      "mode": "query",
+      "text": "render a relational database migration schema",
+      "limit": 8,
+      "budget_bytes": 8000,
+      "rationale": "Execa contains no relational database schema or migration renderer.",
+      "ground_truth": [],
+      "expected": {"state": "OUT_OF_SCOPE", "must_exclude": [], "relevant": []}
+    }
+  ]
+}

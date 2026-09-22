@@ -1,0 +1,9 @@
+site_name: Offline plugin semantics
+site_url: https://corvint.example.invalid/offline/
+docs_dir: docs
+theme:
+  name: material
+plugins:
+  - search
+  - offline
+

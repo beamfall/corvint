@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "corvint",
+  "displayName": "Corvint",
+  "version": "0.2.2",
+  "description": "Developer-preview, receipt-linked repository context for Claude Code",
+  "author": {
+    "name": "Corvint Project"
+  },
+  "keywords": [
+    "context",
+    "evidence",
+    "git"
+  ],
+  "metadata": {
+    "support": "FALLBACK",
+    "adapterVersion": "0.1.0",
+    "adapterProfile": "claude-code-plugin/0",
+    "protocolProfile": "corvint-harness-event/0",
+    "compatibilityFile": "compatibility.json",
+    "localCompletionProfile": "corvint-dogfood-event/0"
+  }
+}

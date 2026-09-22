@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "corvint.release-go-archive-report.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "revision", "tree", "manifestSha256", "toolchain", "verdict", "limits", "targets", "reasons"],
+  "properties": {
+    "schema": {"const": "corvint.release-go-archive-report.v1"},
+    "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "tree": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "manifestSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "toolchain": {"const": "go1.27.1"},
+    "verdict": {"enum": ["PASS", "FAIL"]},
+    "limits": {"$ref": "#/$defs/limits"},
+    "targets": {"type": "array", "maxItems": 5, "items": {"$ref": "#/$defs/target"}},
+    "reasons": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/reason"}}
+  },
+  "allOf": [
+    {"if": {"properties": {"verdict": {"const": "PASS"}}}, "then": {"properties": {"targets": {"minItems": 5, "maxItems": 5}, "reasons": {"maxItems": 0}}}},
+    {"if": {"properties": {"verdict": {"const": "FAIL"}}}, "then": {"properties": {"reasons": {"minItems": 1}}}}
+  ],
+  "$defs": {
+    "digest": {
+      "type": "object", "additionalProperties": false, "required": ["sha256", "bytes"],
+      "properties": {"sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "bytes": {"type": "integer", "minimum": 1}}
+    },
+    "limits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["targets", "membersPerArchive", "maximumArchiveBytes", "maximumTotalArchiveBytes", "maximumReportBytes", "maximumWitnessBytes"],
+      "properties": {
+        "targets": {"const": 5}, "membersPerArchive": {"const": 6},
+        "maximumArchiveBytes": {"type": "integer", "minimum": 1, "maximum": 67108864},
+        "maximumTotalArchiveBytes": {"type": "integer", "minimum": 1, "maximum": 335544320},
+        "maximumReportBytes": {"const": 1048576}, "maximumWitnessBytes": {"const": 65536}
+      }
+    },
+    "target": {
+      "type": "object", "additionalProperties": false,
+      "required": ["goos", "goarch", "binaryName", "archiveName", "buildA", "buildB", "assemblyA", "assemblyB", "retainedBinary", "retainedArchive"],
+      "properties": {
+        "goos": {"enum": ["darwin", "linux", "windows"]}, "goarch": {"enum": ["amd64", "arm64"]},
+        "binaryName": {"enum": ["corvint", "corvint.exe"]},
+        "archiveName": {"type": "string", "pattern": "^corvint_(darwin|linux)_(amd64|arm64)\\.tar\\.gz$|^corvint_windows_amd64\\.zip$"},
+        "buildA": {"$ref": "#/$defs/digest"}, "buildB": {"$ref": "#/$defs/digest"},
+        "assemblyA": {"$ref": "#/$defs/digest"}, "assemblyB": {"$ref": "#/$defs/digest"},
+        "retainedBinary": {"$ref": "#/$defs/digest"}, "retainedArchive": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "reason": {
+      "type": "object", "additionalProperties": false, "required": ["code"],
+      "properties": {"code": {"type": "string", "pattern": "^[a-z0-9-]{1,64}$"}, "target": {"type": "string", "pattern": "^(darwin|linux|windows)/(amd64|arm64)$"}}
+    }
+  }
+}

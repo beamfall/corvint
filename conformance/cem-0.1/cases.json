@@ -1,0 +1,58 @@
+{
+  "valid": "valid.cem.json",
+  "invalidPatches": [
+    {
+      "name": "surplus-hunk-payload",
+      "patch": "invalid-surplus.patch",
+      "patchSha256": "9f5d613509c8766a18f843d575fb099bfa9ecbb834319602ae93c149013d923a",
+      "referenceCode": "extra-hunk-payload"
+    }
+  ],
+  "invalid": [
+    {
+      "name": "patch-digest-mismatch",
+      "operation": "set",
+      "pointer": "/patchSha256",
+      "value": "0000000000000000000000000000000000000000000000000000000000000000",
+      "referenceCode": "patch-digest-mismatch"
+    },
+    {
+      "name": "fabricated-evidence-id",
+      "operation": "set",
+      "pointer": "/evidence/0/id",
+      "value": "evidence:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "referenceCode": "fabricated-evidence-id"
+    },
+    {
+      "name": "uncited-hunk",
+      "operation": "remove",
+      "pointer": "/hunks/0",
+      "referenceCode": "uncited-hunk"
+    },
+    {
+      "name": "unsupported-without-basis",
+      "operation": "set",
+      "pointer": "/hunks/0/basis",
+      "value": [],
+      "referenceCode": "unsupported-without-basis"
+    },
+    {
+      "name": "path-traversal",
+      "operation": "set",
+      "pointer": "/evidence/0/path",
+      "value": "docs/../docs/rule.txt",
+      "referenceCode": "path-traversal",
+      "acceptableCodes": ["path-traversal", "fabricated-evidence-id"]
+    },
+    {
+      "name": "unproven-mechanical",
+      "operation": "set-many",
+      "values": {
+        "/hunks/0/disposition": "mechanical",
+        "/hunks/0/reason": "whitespace-only",
+        "/hunks/0/basis": []
+      },
+      "referenceCode": "unproven-mechanical"
+    }
+  ]
+}

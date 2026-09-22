@@ -1,0 +1,50 @@
+{
+  "profile": "corvint-harness-compatibility/0",
+  "support": "FALLBACK",
+  "adapter": {
+    "host": "claude-code",
+    "surface": "plugin",
+    "version": "0.2.2"
+  },
+  "host": {
+    "minimumTestedVersion": "2.1.238",
+    "maximumTestedVersion": "2.1.267",
+    "pluginApiVersion": "unversioned-by-host"
+  },
+  "surfaces": {
+    "hooks": "FALLBACK",
+    "skills": "FALLBACK",
+    "mcp": "UNAVAILABLE"
+  },
+  "lastValidation": {
+    "date": "2026-09-13",
+    "level": "STATIC_ONLY",
+    "adapterVersion": "0.1.4",
+    "operatingSystem": "macOS"
+  },
+  "lastConformance": {
+    "status": "NOT_RUN",
+    "date": null
+  },
+  "timeoutsMs": {
+    "host": 1000
+  },
+  "degradations": [
+    "frontier-authority-unavailable",
+    "host-version-unreported-by-hook-api",
+    "mcp-server-unavailable",
+    "session-end-explicit-outcome-unavailable",
+    "full-black-box-conformance-not-run"
+  ],
+  "localCompletion": {
+    "profile": "corvint-dogfood-event/0",
+    "events": [
+      "session-start",
+      "user-prompt",
+      "stop",
+      "session-end"
+    ],
+    "validation": "production-Go-CLI adapter regressions; installed host matrix NOT_RUN",
+    "authority": "local enrollment only; no Frontier authority or execution attestation"
+  }
+}

@@ -1,0 +1,174 @@
+diff --git a/cmd/beamfall/main.go b/cmd/beamfall/main.go
+index b2530be15..45430d8c4 100644
+--- a/cmd/beamfall/main.go
++++ b/cmd/beamfall/main.go
+@@ -48,6 +48,10 @@ func runWithOutput(ctx context.Context, args []string, stdout io.Writer) error {
+ 		// Internal FFmpeg hardening re-exec target (ADR-0012 §10); not an
+ 		// operator command — dispatched by internal/ffmpeg, omitted from help.
+ 		return ffmpegShim(ctx, args[1:])
++	case "worker-shim":
++		// Internal integration worker hardening re-exec target (ADR-0058 §4);
++		// not an operator command — dispatched by internal/integrationhost, omitted from help.
++		return workerShim(ctx, args[1:])
+ 	case "release":
+ 		return releaseCommand(ctx, args[1:], stdout)
+ 	case "reset-admin-password":
+diff --git a/internal/integrationhost/supervisor.go b/internal/integrationhost/supervisor.go
+index 27db2189f..f0a26836f 100644
+--- a/internal/integrationhost/supervisor.go
++++ b/internal/integrationhost/supervisor.go
+@@ -27,25 +27,54 @@ const SocketFlag = "--host-api-socket"
+ // (os.NewFile(3, ...)), because ExtraFiles[0] maps to fd 3.
+ const CapabilityTokenFD = 3
+ 
+-// workerRlimits bounds a single worker process (mirrors ffmpeg/hardening.go).
+-// These are a hard safety ceiling, not the resource-governor's scheduling knobs:
+-// a runaway or malicious worker is CPU/memory/fd-bounded, not just crash-bounded.
+-type workerRlimits struct {
++// WorkerRlimits bundles the compile-time rlimit ceilings the worker-shim applies
++// to each integration worker child. Exported so cmd/beamfall's worker-shim reads
++// one source of truth rather than duplicating the numbers (mirrors
++// internal/ffmpeg.Rlimits / DefaultRlimits for the ffmpeg-shim seam).
++type WorkerRlimits struct {
+ 	CPUSeconds uint64
+ 	ASBytes    uint64
+ 	NoFile     uint64
+ }
+ 
+-func defaultWorkerRlimits() workerRlimits {
+-	return workerRlimits{
+-		// A worker is an integration glue process, not a transcoder: far tighter
+-		// than ffmpeg's ceilings. 30 min CPU, 1 GiB address space, 256 fds.
++// DefaultWorkerRlimits returns the rlimit ceilings applied to every integration
++// worker child (ADR-0058 §4). The worker-shim calls this to learn what limits to
++// set on itself before exec'ing the worker artifact.
++//
++// A worker is an integration glue process, not a transcoder: far tighter ceilings
++// than the ffmpeg defaults. 30 min CPU, 1 GiB address space, 256 fds.
++func DefaultWorkerRlimits() WorkerRlimits {
++	return WorkerRlimits{
+ 		CPUSeconds: 30 * 60,
+ 		ASBytes:    1 << 30,
+ 		NoFile:     256,
+ 	}
+ }
+ 
++// shimSubcommand is the hidden server subcommand the supervisor re-execs the
++// worker artifact through. Intentionally undocumented in the top-level help.
++const shimSubcommand = "worker-shim"
++
++// ShimEnvVar names an explicit override for the worker-shim binary path. When
++// set, it wins over os.Executable in DefaultShimPath — for deployments where
++// os.Executable is unreliable, or a test exercising the real shim.
++const ShimEnvVar = "BEAMFALL_WORKER_SHIM"
++
++// DefaultShimPath resolves the beamfall binary to re-exec as the worker-shim
++// (ADR-0058 §4, mirroring internal/ffmpeg.DefaultShimPath). Returns "" when the
++// path cannot be resolved, in which case SetHardeningShim leaves hardening off —
++// never a boot failure. The server entrypoint calls SetHardeningShim at startup.
++func DefaultShimPath() string {
++	if override := os.Getenv(ShimEnvVar); override != "" {
++		return override
++	}
++	exe, err := os.Executable()
++	if err != nil {
++		return ""
++	}
++	return exe
++}
++
+ // Supervisor launches and supervises one Integration Worker out-of-process. It
+ // opens the Host API socket, mints a one-shot capability token, launches the
+ // worker hardened (rlimits + Pdeathsig orphan guard), runs the token handshake,
+@@ -57,6 +86,7 @@ type Supervisor struct {
+ 	host     *Host
+ 	logger   *slog.Logger
+ 	now      func() time.Time
++	shimPath string // re-exec binary for rlimit hardening; "" = no shim (un-hardened)
+ 
+ 	mu       sync.Mutex
+ 	token    string // one-shot capability token; cleared after handshake
+@@ -76,6 +106,27 @@ func NewSupervisor(pluginID string, artifact Artifact, host *Host, logger *slog.
+ 	return &Supervisor{pluginID: pluginID, artifact: artifact, host: host, logger: logger, now: now}
+ }
+ 
++// SetHardeningShim points the Supervisor at the beamfall binary to re-exec as
++// the worker-shim (ADR-0058 §4, mirrors internal/ffmpeg.(*Runner).SetHardeningShim).
++// Call SetHardeningShim(DefaultShimPath()) at startup; leave unset in tests so the
++// test binary never re-execs itself as a shim.
++func (s *Supervisor) SetHardeningShim(path string) { s.shimPath = path }
++
++// workerCommand builds the exec.Cmd that launches the worker artifact, wrapping
++// it in the worker-shim re-exec when a shimPath is configured. The shim applies
++// rlimits then execs the artifact in place (same PID), so the Pdeathsig orphan
++// guard set by applyWorkerHardening still binds. Without a shim the artifact
++// runs directly — un-hardened fallback (rlimits discarded), never a failure.
++func (s *Supervisor) workerCommand(ctx context.Context, artifactPath string, artifactArgs []string) *exec.Cmd {
++	if s.shimPath == "" {
++		return exec.CommandContext(ctx, artifactPath, artifactArgs...)
++	}
++	// worker-shim -- <artifact> <args...>
++	shimArgs := append([]string{shimSubcommand, "--"}, artifactPath)
++	shimArgs = append(shimArgs, artifactArgs...)
++	return exec.CommandContext(ctx, s.shimPath, shimArgs...)
++}
++
+ // ErrWorkerExited is returned by Run when the worker process exits (cleanly or
+ // not). The supervisor never propagates a worker crash as a server failure; the
+ // caller decides whether to restart per the lifecycle policy.
+@@ -125,11 +176,11 @@ func (s *Supervisor) Run(ctx context.Context) error {
+ 	}
+ 	defer func() { _ = tokenR.Close() }()
+ 
+-	cmd := exec.CommandContext(ctx, s.artifact.Path, SocketFlag, sockPath)
+-	cmd.Env = []string{} // clean env: the worker inherits nothing
++	cmd := s.workerCommand(ctx, s.artifact.Path, []string{SocketFlag, sockPath})
++	cmd.Env = []string{} // clean env: the worker (and shim) inherit nothing
+ 	cmd.Dir = sockDir
+ 	cmd.ExtraFiles = []*os.File{tokenR} // becomes fd3 in the child
+-	applyWorkerHardening(cmd, defaultWorkerRlimits())
++	applyWorkerHardening(cmd, DefaultWorkerRlimits())
+ 
+ 	if err := cmd.Start(); err != nil {
+ 		_ = tokenW.Close()
+diff --git a/internal/integrationhost/sysproc_linux.go b/internal/integrationhost/sysproc_linux.go
+index 2025ae271..54d5a8315 100644
+--- a/internal/integrationhost/sysproc_linux.go
++++ b/internal/integrationhost/sysproc_linux.go
+@@ -7,18 +7,17 @@ import (
+ 	"syscall"
+ )
+ 
+-// applyWorkerHardening sets the OS-level orphan guard on a worker process
+-// (ADR-0058, mirroring internal/ffmpeg/sysproc_linux.go). On Linux,
++// applyWorkerHardening sets the OS-level orphan guard on the worker command
++// (ADR-0058 §4, mirroring internal/ffmpeg/sysproc_linux.go). On Linux,
+ // Pdeathsig=SIGKILL kills the worker if the server exits unexpectedly, so a
+ // worker can never outlive and orphan the server — the security-critical
+ // containment property the supervisor depends on for crash containment.
+ //
+-// Per-process rlimit ceilings (CPU/address-space/fd) need a setrlimit call
+-// between fork and exec, which Go's os/exec exposes only through the same
+-// re-exec worker-shim seam ffmpeg uses (DefaultRlimits there). That shim is the
+-// documented place those limits land; this direct path sets the orphan guard.
+-// The limits are threaded through so the shim seam reads one source of truth.
+-func applyWorkerHardening(cmd *exec.Cmd, limits workerRlimits) {
++// When the supervisor has a shimPath set, the command is already the worker-shim
++// wrapper built by workerCommand; the shim applies setrlimit then execs the
++// artifact in place (same PID), so this Pdeathsig guard binds the artifact too.
++// Without a shim the artifact runs directly and limits are unenforced — the
++// un-hardened fallback (never a boot failure; hardening is defense-in-depth).
++func applyWorkerHardening(cmd *exec.Cmd, _ WorkerRlimits) {
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGKILL}
+-	_ = limits
+ }
+diff --git a/internal/integrationhost/sysproc_other.go b/internal/integrationhost/sysproc_other.go
+index 115be1b48..4421dc7a7 100644
+--- a/internal/integrationhost/sysproc_other.go
++++ b/internal/integrationhost/sysproc_other.go
+@@ -8,4 +8,4 @@ import "os/exec"
+ // setrlimit-via-shim path are Linux-specific (same split as
+ // internal/ffmpeg/sysproc_other.go). The worker still runs out-of-process with a
+ // clean environment and context-cancel kill — the cross-platform containment.
+-func applyWorkerHardening(_ *exec.Cmd, _ workerRlimits) {}
++func applyWorkerHardening(_ *exec.Cmd, _ WorkerRlimits) {}

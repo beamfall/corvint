@@ -1,0 +1,11 @@
+{
+  "files": [
+    {
+      "content": "# Synthetic repository\n",
+      "mode": "0644",
+      "path": "README.md",
+      "type": "file"
+    }
+  ],
+  "format": "atlas-cli-parity-fixture/0"
+}

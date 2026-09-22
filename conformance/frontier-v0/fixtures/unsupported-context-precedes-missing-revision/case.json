@@ -1,0 +1,67 @@
+{
+  "id": "unsupported-context-precedes-missing-revision",
+  "matrixRows": [
+    "CEM 0.1 or OCM bound to 0.1 plus missing expected base or target"
+  ],
+  "clauses": [
+    "CF-V0-001",
+    "CF-V0-021",
+    "CF-V0-022"
+  ],
+  "intent": "CF-V0-021 orders admitted-profile/context rejection (step 3) strictly before the missing-base then missing-target checks (step 4), so the unsupported code wins.",
+  "cases": [
+    {
+      "id": "cem-0.1-and-missing-base",
+      "note": "Both defects are present; the profile rejection is reached first.",
+      "declared": {
+        "cemProfile": "cem/0.1",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "missing",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "unsupported-frontier-context",
+        "stderr": "{\"code\":\"unsupported-frontier-context\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "856d864891c80d5a7d9af3628bc44427cfe560c0ae23efce223550743a86874d"
+      },
+      "assertions": [
+        "CF-V0-021 step 3 precedes step 4: the emitted code is unsupported-frontier-context, never the inherited expected-base-required.",
+        "CF-V0-004: no stdout is produced before revision-required validation."
+      ]
+    },
+    {
+      "id": "ocm-0.1-and-missing-target",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-bound-to-cem-0.1",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "missing",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "note": "Same ordering with the target-side defect.",
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "unsupported-frontier-context",
+        "stderr": "{\"code\":\"unsupported-frontier-context\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "856d864891c80d5a7d9af3628bc44427cfe560c0ae23efce223550743a86874d"
+      },
+      "assertions": [
+        "CF-V0-021: the emitted code is unsupported-frontier-context, never target-required."
+      ]
+    }
+  ]
+}

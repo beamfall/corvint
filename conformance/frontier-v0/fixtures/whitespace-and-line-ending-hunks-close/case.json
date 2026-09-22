@@ -1,0 +1,131 @@
+{
+  "id": "whitespace-and-line-ending-hunks-close",
+  "matrixRows": [
+    "verified whitespace-only or line-ending-only hunk"
+  ],
+  "clauses": [
+    "CF-V0-008",
+    "CF-V0-018"
+  ],
+  "intent": "CF-V0-008 closes a hunk whose disposition is a MECHANICALLY REVERIFIED whitespace-only or line-ending-only. The EMPTY document is a canonical codec/refusal case; the V0 entry point rejects its zero-obligation universe.",
+  "cases": [
+    {
+      "id": "whitespace-only",
+      "note": "One hunk, disposition whitespace-only, no obligations.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "whitespace-only"
+          }
+        ],
+        "obligations": []
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 0,
+        "stdout": "frontier-json",
+        "frontierState": "EMPTY",
+        "itemCount": "0"
+      },
+      "assertions": [
+        "CF-V0-008: no HUNK_BASIS item is emitted for a reverified whitespace-only hunk.",
+        "CF-V0-004: EMPTY requires exact items: [] and exit 0.",
+        "CF-V0-018: V0 can be EMPTY only when the intent scope has no linked obligation and all hunks close."
+      ]
+    },
+    {
+      "id": "line-ending-only",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202",
+            "disposition": "line-ending-only"
+          }
+        ],
+        "obligations": []
+      },
+      "note": "Same for a line-ending-only hunk.",
+      "expect": {
+        "kind": "result",
+        "exitCode": 0,
+        "stdout": "frontier-json",
+        "frontierState": "EMPTY",
+        "itemCount": "0"
+      },
+      "assertions": [
+        "CF-V0-008: no HUNK_BASIS item is emitted."
+      ]
+    },
+    {
+      "id": "supported-alone-does-not-close",
+      "note": "The negative control: CF-V0-008 says a CEM `supported` disposition ALONE never closes. The hunk carries one non-qualifying basis, which is what the expected reason requires: CF-V0-010 derives the remaining hunk reasons as \"the unique union across every rejected or term-bound-abstained basis\", so INSUFFICIENT_LEXICAL_SUPPORT cannot exist unless a rejected basis edge produced it. The case used to declare no basis at all and an empty relatedIds; both were wrong for the same reason. Once the rejecting edge exists, CF-V0-010's membership sentence — \"its `relatedIds` are exactly the sorted unique evidence IDs whose LRF edge contributes a retained reason\" — puts that edge's evidence ID in relatedIds.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0303030303030303030303030303030303030303030303030303030303030303",
+            "disposition": "supported",
+            "bases": [
+              "rejected-insufficient-lexical-support"
+            ]
+          }
+        ],
+        "obligations": []
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "1",
+        "items": [
+          {
+            "kind": "HUNK_BASIS",
+            "subjectId": "hunk:sha256:0303030303030303030303030303030303030303030303030303030303030303",
+            "reasons": [
+              "INSUFFICIENT_LEXICAL_SUPPORT"
+            ],
+            "relatedIds": [
+              "evidence:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "NARROW_OR_REPLACE_BASIS"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-008: a supported disposition with no qualifying LRF basis leaves the hunk OPEN.",
+        "CF-V0-010: the item is PRODUCER_DECLARED / ACTIONABLE / NARROW_OR_REPLACE_BASIS.",
+        "CF-V0-010: relatedIds hold exactly the evidence of the rejected basis that contributed INSUFFICIENT_LEXICAL_SUPPORT; a basis-derived reason with no evidence ID would contradict the union that produced it."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "id": "aggregate-lrf-bound-is-resource-exhaustion",
+  "matrixRows": [
+    "aggregate LRF `relevance-bound-exceeded` result"
+  ],
+  "clauses": [
+    "CF-V0-021",
+    "CF-V0-022"
+  ],
+  "intent": "The trap this row exists to catch: relevance-bound-exceeded is an LRF RESULT ISSUE, and CF-V0-022 says it MUST NOT appear in a Frontier error envelope. A complete LRF bound document translates to frontier-resource-exhausted.",
+  "cases": [
+    {
+      "id": "aggregate-bound-document",
+      "note": "LRF returns a COMPLETE bound document whose only profile issue is relevance-bound-exceeded.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "aggregate-relevance-bound-exceeded",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "frontier-resource-exhausted",
+        "stderr": "{\"code\":\"frontier-resource-exhausted\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "2cd11141ce1eae586a00efa3905aba408a784c752dc2cedd1f1a63d3abcb74cd"
+      },
+      "assertions": [
+        "CF-V0-022: a complete LRF bound document containing only relevance-bound-exceeded maps to frontier-resource-exhausted.",
+        "CF-V0-022: relevance-bound-exceeded MUST NOT appear anywhere in the envelope — not as the code, not as a message, not as a nested field.",
+        "CF-V0-021: an aggregate LRF bound document is an operational Frontier failure, NEVER an open item.",
+        "CF-V0-023: no partial Frontier result is written."
+      ],
+      "forbiddenSubstrings": [
+        "relevance-bound-exceeded"
+      ]
+    },
+    {
+      "id": "unsupported-lrf-context-passes-through",
+      "note": "The contrasting row: an explicit unsupported-lrf-context is inherited exactly.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "unsupported-lrf-context",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "unsupported-lrf-context",
+        "stderr": "{\"code\":\"unsupported-lrf-context\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "32b8314036c281438ac7ec3d1b2eb1bcda34e736fcf06984879e7d1540f4596e"
+      },
+      "assertions": [
+        "CF-V0-022 row 2: an explicit unsupported-lrf-context is emitted as the EXACT upstream code, not translated to a Frontier-owned code.",
+        "This case and the one above prove the two LRF rows are distinguished by whether the issue is a result issue or an explicit validation error."
+      ]
+    }
+  ]
+}

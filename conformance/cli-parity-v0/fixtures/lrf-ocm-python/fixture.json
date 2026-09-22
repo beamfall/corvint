@@ -1,0 +1,67 @@
+{
+  "format": "atlas-cli-parity-fixture/0",
+  "parentFiles": [
+    {
+      "path": ".gitignore",
+      "type": "file",
+      "mode": "0644",
+      "content": ".atlas/\n"
+    },
+    {
+      "path": "docs/rule.md",
+      "type": "file",
+      "mode": "0644",
+      "content": "# Server rules\n\n## Requirements\n\n- `HTTP-001`: the second-generation server constructor must be used here.\n"
+    },
+    {
+      "path": "pkg/app/app.py",
+      "type": "file",
+      "mode": "0644",
+      "content": "\"\"\"Server construction.\"\"\"\n\nVALUE = 1\n"
+    },
+    {
+      "path": "pkg/app/app_test.py",
+      "type": "file",
+      "mode": "0644",
+      "content": "from pkg.app.app import VALUE\n\n\ndef test_constructor_selection():\n    \"\"\"HTTP-001: the second-generation server constructor must be used.\"\"\"\n    assert VALUE == 2\n"
+    }
+  ],
+  "files": [
+    {
+      "path": ".atlas/change.cem.json",
+      "type": "untracked-file",
+      "mode": "0644",
+      "content": "{\n  \"baseRevision\": \"f5389c641f092d653de73bca8e1c7122f74d3d2d\",\n  \"evidence\": [\n    {\n      \"blobOid\": \"86530fd288310c841885df9655f4faccd20940f6\",\n      \"id\": \"evidence:sha256:645494eed175da709b882846c049fb657cbb9496753be2d51474c81568b996d4\",\n      \"path\": \"docs/rule.md\",\n      \"span\": {\n        \"end\": 96,\n        \"start\": 24\n      },\n      \"spanSha256\": \"0bab322ac58c477d57a835d1242aa461482fe7618e45d25e584c2db086e4b625\"\n    }\n  ],\n  \"excludedPath\": \".atlas/change.cem.json\",\n  \"hunks\": [\n    {\n      \"basis\": [\n        {\n          \"evidenceId\": \"evidence:sha256:645494eed175da709b882846c049fb657cbb9496753be2d51474c81568b996d4\",\n          \"relation\": \"specification\"\n        }\n      ],\n      \"disposition\": \"supported\",\n      \"id\": \"hunk:sha256:9b3ca176a4dba55b8c1021e264b8e46b0081b9014e6c71a18b4857bc1c2712b9\",\n      \"newRange\": {\n        \"count\": 3,\n        \"start\": 1\n      },\n      \"oldRange\": {\n        \"count\": 3,\n        \"start\": 1\n      },\n      \"path\": \"pkg/app/app.py\",\n      \"reason\": \"evidence-backed\"\n    }\n  ],\n  \"patchSha256\": \"bd49fe0b1f34624cdf25bbe9f6e8f2d6d2a22e84a5ab534c3b29eff3510ff4d0\",\n  \"spec\": \"cem/0.2\"\n}\n"
+    },
+    {
+      "path": ".atlas/change.ocm.json",
+      "type": "untracked-file",
+      "mode": "0644",
+      "content": "{\"cem\":{\"mapSha256\":\"c74cc974197411d0576d17b1d348b64cc3142596960e017a1cd2757317d79d8f\",\"patchSha256\":\"bd49fe0b1f34624cdf25bbe9f6e8f2d6d2a22e84a5ab534c3b29eff3510ff4d0\"},\"claims\":[{\"blobOid\":\"1553806bc480f95877efefae14ba32cf48bf7869\",\"extractor\":\"atlas-test-claim/1\",\"id\":\"claim:sha256:fbb605f0e3e9b3e22739eb8d2f61fc95d8c9be42eb3c7af45d952d667416d55e\",\"path\":\"pkg/app/app_test.py\",\"selector\":\"test:test_constructor_selection#doc\",\"span\":{\"end\":140,\"start\":70},\"spanSha256\":\"cd58622f68ed98704a5a932c48d3b58394be19c3f9e8da61065b2af9feecf439\"}],\"intentScope\":{\"blobOid\":\"86530fd288310c841885df9655f4faccd20940f6\",\"path\":\"docs/rule.md\",\"span\":{\"end\":107,\"start\":16},\"spanSha256\":\"3cff1749d1b2cd8fd188b07cbd533bd3b82629f3fac112bfe26b6e5e6067e9e6\"},\"obligations\":[{\"claimIds\":[\"claim:sha256:fbb605f0e3e9b3e22739eb8d2f61fc95d8c9be42eb3c7af45d952d667416d55e\"],\"disposition\":\"linked\",\"hunkIds\":[\"hunk:sha256:9b3ca176a4dba55b8c1021e264b8e46b0081b9014e6c71a18b4857bc1c2712b9\"],\"id\":\"HTTP-001\",\"reason\":\"change-and-test-linked\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"7203184eba7a325ca94c7396d7d54863ff98a7f4\"}\n"
+    },
+    {
+      "path": ".gitignore",
+      "type": "file",
+      "mode": "0644",
+      "content": ".atlas/\n"
+    },
+    {
+      "path": "docs/rule.md",
+      "type": "file",
+      "mode": "0644",
+      "content": "# Server rules\n\n## Requirements\n\n- `HTTP-001`: the second-generation server constructor must be used here.\n"
+    },
+    {
+      "path": "pkg/app/app.py",
+      "type": "file",
+      "mode": "0644",
+      "content": "\"\"\"Server construction.\"\"\"\n\nVALUE = 2\n"
+    },
+    {
+      "path": "pkg/app/app_test.py",
+      "type": "file",
+      "mode": "0644",
+      "content": "from pkg.app.app import VALUE\n\n\ndef test_constructor_selection():\n    \"\"\"HTTP-001: the second-generation server constructor must be used.\"\"\"\n    assert VALUE == 2\n"
+    }
+  ]
+}

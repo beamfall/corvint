@@ -1,0 +1,104 @@
+{
+  "schema": "external-evidence-provider/1",
+  "provider": {
+    "id": "mockdocs",
+    "revision": "2026-09-19.1"
+  },
+  "repositories": [
+    {
+      "id": "application",
+      "origin": "{{APP_ORIGIN}}",
+      "revision": "{{APP_REVISION}}",
+      "role": "application"
+    }
+  ],
+  "entities": [
+    {
+      "id": "cap-a",
+      "kind": "capability",
+      "summary": "Capability cap-a."
+    },
+    {
+      "id": "cap-b",
+      "kind": "capability",
+      "summary": "Capability cap-b."
+    },
+    {
+      "id": "cap-c",
+      "kind": "capability",
+      "summary": "Capability cap-c."
+    }
+  ],
+  "relations": [
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-a"
+      },
+      "type": "implements",
+      "evidence": "declared",
+      "rule": "capability-map",
+      "reference": "ci/capability-map"
+    },
+    {
+      "from": {
+        "provider": "mockdocs",
+        "entity": "cap-a"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-b"
+      },
+      "type": "depends-on",
+      "evidence": "declared",
+      "rule": "dependency-map",
+      "reference": "ci/dependency-map"
+    },
+    {
+      "from": {
+        "provider": "mockdocs",
+        "entity": "cap-b"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-c"
+      },
+      "type": "depends-on",
+      "evidence": "declared",
+      "rule": "dependency-map",
+      "reference": "ci/dependency-map"
+    },
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main_test.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-a"
+      },
+      "type": "verifies",
+      "evidence": "observed",
+      "rule": "unit-run",
+      "reference": "ci/unit-run"
+    },
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main_test.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-b"
+      },
+      "type": "verifies",
+      "evidence": "observed",
+      "rule": "unit-run",
+      "reference": "ci/unit-run"
+    }
+  ]
+}

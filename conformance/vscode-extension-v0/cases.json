@@ -1,0 +1,824 @@
+{
+  "profile": "corvint-vscode-conformance-cases/0",
+  "sourceStatus": "experimental",
+  "officialApiEvidence": [
+    "https://code.visualstudio.com/api/references/vscode-api",
+    "https://code.visualstudio.com/api/extension-guides/workspace-trust",
+    "https://code.visualstudio.com/api/extension-guides/testing",
+    "https://code.visualstudio.com/api/working-with-extensions/testing-extension"
+  ],
+  "limits": {
+    "automaticTimeoutMs": 2000,
+    "maxStdoutBytes": 262144,
+    "maxStderrBytes": 65536,
+    "maxUiTextBytes": 16384
+  },
+  "cases": [
+    {
+      "id": "VSC-CONF-DISCOVERY-001",
+      "requirements": ["VSC-V0-006", "VSC-V0-007", "VSC-V0-008", "VSC-V0-010"],
+      "title": "configured executable resolves to one canonical local file",
+      "setup": {"trusted": true, "configuredExecutable": "${fixture}/bin/corvint", "version": "0.5.0a3"},
+      "action": {"kind": "discover"},
+      "expect": {"result": "ready", "executionCount": 1, "exactArgv": ["--version"], "pinned": true, "versionExact": "0.5.0a3", "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-ACTIVATION-001",
+      "requirements": ["VSC-V0-003", "VSC-V0-016", "VSC-V0-021", "VSC-V0-034"],
+      "title": "activation is inert before an explicit command",
+      "setup": {"trusted": true, "binaryAvailable": true, "configuredExecutable": "${fixture}/must-not-open/corvint"},
+      "action": {"kind": "activate-only"},
+      "expect": {"result": "ready", "executionCount": 0, "activationInert": true, "noProjectedEvidence": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-DISCOVERY-004",
+      "requirements": ["VSC-V0-006", "VSC-V0-009", "VSC-V0-039"],
+      "title": "PATH is captured once and candidates preserve fixed kind and component order",
+      "setup": {"trusted": true, "path": ":relative:${fixture}/one::${fixture}/two", "candidates": ["${fixture}/one/corvint", "${fixture}/two/corvint", "${fixture}/two/corvint"], "mutatePathDuringDiscovery": true},
+      "action": {"kind": "discover"},
+      "expect": {"result": "ready", "executionCount": 1, "discoveryOrder": ["${fixture}/two/corvint", "${fixture}/one/corvint", "${fixture}/two/corvint"], "pathCapturedOnce": true, "noShell": true, "noPathLookup": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-DISCOVERY-005",
+      "requirements": ["VSC-V0-006", "VSC-V0-007", "VSC-V0-039", "VSC-V0-040"],
+      "title": "configured expansion strings special files and ambiguous version output fail closed",
+      "setup": {"trusted": true, "configuredCandidates": ["~/corvint", "$HOME/corvint", "file:///corvint", "${fixture}/fifo/corvint", "${fixture}/directory/corvint", "${fixture}/newline/corvint\n"]},
+      "action": {"kind": "discover-all-hostile-candidates"},
+      "expect": {"result": "degraded", "executionCount": 0, "status": "Incompatible", "failureCode": "CLI_INCOMPATIBLE", "noProjectedEvidence": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-DISCOVERY-002",
+      "requirements": ["VSC-V0-001", "VSC-V0-002", "VSC-V0-003"],
+      "title": "web extension host is explicitly unsupported",
+      "setup": {"trusted": true, "extensionHost": "web", "binaryAvailable": true},
+      "action": {"kind": "discover"},
+      "expect": {"result": "unsupported", "executionCount": 0, "status": "Unsupported", "failureCode": "ROOT_UNSUPPORTED", "hostKind": "web", "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-DISCOVERY-003",
+      "requirements": ["VSC-V0-002", "VSC-V0-014"],
+      "title": "remote workspace resolves and executes Corvint in the same remote extension host",
+      "setup": {"trusted": true, "extensionHost": "remote", "binaryAvailableInRemoteHost": true, "binaryAvailableInLocalHost": true},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "ready", "executionCount": 1, "sameHostPin": true, "noShell": true, "noPathLookup": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-PIN-001",
+      "requirements": ["VSC-V0-008", "VSC-V0-009", "VSC-V0-042"],
+      "title": "pinned executable survives PATH mutation without shell relookup",
+      "setup": {"trusted": true, "pathCandidates": ["${fixture}/first/corvint", "${fixture}/second/corvint"], "mutatePathAfterDiscovery": true},
+      "action": {"kind": "run-twice", "command": "query"},
+      "expect": {"result": "ready", "executionCount": 2, "sameExecutable": true, "sameIdentity": true, "noShell": true, "noPathLookup": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-PIN-002",
+      "requirements": ["VSC-V0-008", "VSC-V0-020", "VSC-V0-039"],
+      "title": "pinned file identity change fails closed until explicit rediscovery",
+      "setup": {"trusted": true, "replacePinnedFileAfterDiscovery": true},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "degraded", "executionCount": 0, "status": "Degraded", "failureCode": "PIN_DRIFT", "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-PIN-003",
+      "requirements": ["VSC-V0-008"],
+      "title": "same-UID replace-and-restore execution race remains explicit",
+      "setup": {"trusted": true, "replaceBetweenPrecheckAndSpawnThenRestore": true},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "ready", "executionCount": 1, "uncertaintyContains": "same-uid-replacement", "noAttestationClaim": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-TRUST-001",
+      "requirements": ["VSC-V0-003", "VSC-V0-011", "VSC-V0-039"],
+      "title": "untrusted workspace denies every Corvint execution surface",
+      "setup": {"trusted": false, "binaryAvailable": true},
+      "action": {"kind": "exercise-all-commands-and-tests"},
+      "expect": {"result": "denied", "executionCount": 0, "status": "Restricted", "failureCode": "RESTRICTED", "noReads": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-TRUST-002",
+      "requirements": ["VSC-V0-011", "VSC-V0-012"],
+      "title": "trust grant starts fresh without reusing untrusted input or UI",
+      "setup": {"trusted": false, "thenGrantTrust": true, "untrustedConfiguredExecutable": "${fixture}/must-not-open/corvint"},
+      "action": {"kind": "grant-trust-and-discover"},
+      "expect": {"result": "ready", "priorModelCleared": true, "freshDiscovery": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-ROOT-001",
+      "requirements": ["VSC-V0-005", "VSC-V0-013"],
+      "title": "multi-root workspace never guesses a root and rejects escaping roots",
+      "setup": {"trusted": true, "workspaceRoots": ["${fixture}/one", "${fixture}/two"], "activeDocument": null, "escapingRealRoot": true},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "denied", "executionCount": 0, "status": "Unsupported", "failureCode": "ROOT_UNSUPPORTED", "rootChoiceRequired": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-SNAPSHOT-001",
+      "requirements": ["VSC-V0-004", "VSC-V0-005", "VSC-V0-020", "VSC-V0-023"],
+      "title": "mixed root revision receipt and command identities never join one snapshot",
+      "setup": {"trusted": true, "cliBehavior": "mixed-snapshot-identities"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "degraded", "status": "Degraded", "failureCode": "INVALID_JSON", "noMixedSnapshot": true, "noProjectedEvidence": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-BINARY-001",
+      "requirements": ["VSC-V0-006", "VSC-V0-020"],
+      "title": "missing Corvint binary degrades visibly and does not install",
+      "setup": {"trusted": true, "binaryAvailable": false},
+      "action": {"kind": "discover"},
+      "expect": {"result": "degraded", "executionCount": 0, "status": "No CLI", "failureCode": "CLI_MISSING", "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-BINARY-002",
+      "requirements": ["VSC-V0-007", "VSC-V0-010", "VSC-V0-020"],
+      "title": "incompatible Corvint version degrades without command execution",
+      "setup": {"trusted": true, "binaryAvailable": true, "version": "0.0.0-incompatible"},
+      "action": {"kind": "discover"},
+      "expect": {"result": "degraded", "maxExecutionCount": 1, "status": "Incompatible", "failureCode": "CLI_INCOMPATIBLE", "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-CANCEL-001",
+      "requirements": ["VSC-V0-018", "VSC-V0-020", "VSC-V0-039", "VSC-V0-042"],
+      "title": "VS Code cancellation terminates the exact direct child without containment overclaim",
+      "setup": {"trusted": true, "cliBehavior": "wait"},
+      "action": {"kind": "cancel-explicit-query"},
+      "expect": {"result": "cancelled", "executionCount": 1, "terminated": true, "terminationReason": "cancelled", "outputContains": "cancelled", "noDescendantContainmentClaim": true, "residueZero": true, "noShell": true, "noPathLookup": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-TIMEOUT-001",
+      "requirements": ["VSC-V0-017", "VSC-V0-018", "VSC-V0-020", "VSC-V0-039", "VSC-V0-042"],
+      "title": "automatic version probe deadline is at most two seconds",
+      "setup": {"trusted": true, "cliBehavior": "wait"},
+      "action": {"kind": "version-probe"},
+      "expect": {"result": "degraded", "executionCount": 1, "terminated": true, "terminationReason": "timeout", "maxTimeoutMs": 2000, "noDescendantContainmentClaim": true, "residueZero": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-PROCESS-001",
+      "requirements": ["VSC-V0-015", "VSC-V0-016", "VSC-V0-042"],
+      "title": "fixed query uses exact argv cwd and published allowlisted environment",
+      "setup": {"trusted": true, "cliKind": "corvint", "workspaceRoot": "${fixture}/root", "task": "impact of parser", "inheritedEnvironment": {"HOME": "/fixture/home", "TMPDIR": "/fixture/tmp", "SECRET_TOKEN": "must-not-pass", "GIT_ASKPASS": "must-not-pass"}},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "ready", "executionCount": 1, "exactArgv": ["--root", "${root}", "query", "--task", "impact of parser", "--limit", "1"], "cwdIsRoot": true, "environmentAllowlisted": true, "environmentExact": {"GIT_TERMINAL_PROMPT": "0", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "HOME": "/fixture/home", "TMPDIR": "/fixture/tmp"}, "noShell": true, "noPathLookup": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-PROCESS-002",
+      "requirements": ["VSC-V0-009", "VSC-V0-016", "VSC-V0-039", "VSC-V0-042"],
+      "title": "all four CLI adapters use exact arrays and never retry another CLI kind",
+      "setup": {"trusted": true, "operations": ["corvint/query", "corvint/impact", "corvint/query", "corvint/impact"], "hostileTaskAndPaths": true},
+      "action": {"kind": "run-adapter-matrix"},
+      "expect": {"result": "ready", "executionCount": 4, "adapterMatrix": [
+        {"cliKind": "corvint", "logicalOperation": "query", "argv": ["--root", "${root}", "query", "--task", "q;`$()", "--limit", "1"]},
+        {"cliKind": "corvint", "logicalOperation": "impact", "argv": ["--root", "${root}", "impact", "--limit", "20", "--", "-leading.go", "space name.go"]},
+        {"cliKind": "corvint", "logicalOperation": "query", "argv": ["--root", "${root}", "query", "--task", "q;`$()", "--limit", "1"]},
+        {"cliKind": "corvint", "logicalOperation": "impact", "argv": ["--root", "${root}", "impact", "--limit", "20", "--", "-leading.go", "space name.go"]}
+      ], "noShell": true, "noPathLookup": true, "noRetryOrFailover": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-PROCESS-003",
+      "requirements": ["VSC-V0-016", "VSC-V0-017", "VSC-V0-020", "VSC-V0-039"],
+      "title": "invalid task path and resource settings fail before spawn",
+      "setup": {"trusted": true, "invalidTasks": ["", "${over2000Scalars}", "line\nbreak"], "invalidPaths": ["", ".", "..", "../escape", "/absolute", "control\u0001"], "invalidSettings": {"timeoutMilliseconds": 999, "maxOutputBytes": 1048577}},
+      "action": {"kind": "exercise-invalid-inputs"},
+      "expect": {"result": "degraded", "executionCount": 0, "status": "Incompatible", "failureCode": "CLI_INCOMPATIBLE", "noProjectedEvidence": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-OUTPUT-001",
+      "requirements": ["VSC-V0-017", "VSC-V0-020", "VSC-V0-039"],
+      "title": "stdout overflow terminates parsing and degrades visibly",
+      "setup": {"trusted": true, "cliBehavior": "stdout-overflow"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "degraded", "executionCount": 1, "terminated": true, "terminationReason": "stdout-overflow", "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-OUTPUT-002",
+      "requirements": ["VSC-V0-017", "VSC-V0-020", "VSC-V0-039"],
+      "title": "stderr overflow is bounded and degrades visibly",
+      "setup": {"trusted": true, "cliBehavior": "stderr-overflow"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "degraded", "executionCount": 1, "terminated": true, "terminationReason": "stderr-overflow", "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-OUTPUT-003",
+      "requirements": ["VSC-V0-017", "VSC-V0-019", "VSC-V0-039"],
+      "title": "stdout and stderr exact bounds are admitted without off-by-one truncation",
+      "setup": {"trusted": true, "cliBehavior": "exact-output-bounds"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "ready", "executionCount": 1, "stdoutBytesExact": 262144, "stderrBytesExact": 65536, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-OUTPUT-004",
+      "requirements": ["VSC-V0-017", "VSC-V0-019", "VSC-V0-020", "VSC-V0-039"],
+      "title": "invalid UTF-8 and a valid JSON prefix plus trailing bytes reject the whole result",
+      "setup": {"trusted": true, "cliBehaviors": ["invalid-utf8", "json-plus-trailing-byte"]},
+      "action": {"kind": "run-hostile-output-matrix"},
+      "expect": {"result": "degraded", "status": "Degraded", "failureCodeOneOf": ["INVALID_UTF8", "INVALID_JSON"], "noProjectedEvidence": true, "snapshotCleared": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-JSON-001",
+      "requirements": ["VSC-V0-019", "VSC-V0-020", "VSC-V0-039"],
+      "title": "malformed JSON produces no partial UI projection",
+      "setup": {"trusted": true, "cliBehavior": "malformed-json"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "degraded", "status": "Degraded", "failureCode": "INVALID_JSON", "noProjectedEvidence": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-JSON-002",
+      "requirements": ["VSC-V0-019", "VSC-V0-020", "VSC-V0-039"],
+      "title": "duplicate JSON member names are rejected",
+      "setup": {"trusted": true, "cliBehavior": "duplicate-json-members"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "degraded", "status": "Degraded", "failureCode": "INVALID_JSON", "noProjectedEvidence": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-JSON-003",
+      "requirements": ["VSC-V0-017", "VSC-V0-019", "VSC-V0-020", "VSC-V0-039"],
+      "title": "oversized valid JSON is rejected before projection",
+      "setup": {"trusted": true, "cliBehavior": "oversized-valid-json"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "degraded", "status": "Degraded", "failureCode": "OUTPUT_LIMIT", "noProjectedEvidence": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-JSON-004",
+      "requirements": ["VSC-V0-019", "VSC-V0-020", "VSC-V0-039"],
+      "title": "excessive JSON nesting is rejected before projection",
+      "setup": {"trusted": true, "cliBehavior": "excessive-json-depth"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "degraded", "status": "Degraded", "failureCode": "INVALID_JSON", "maxJsonDepth": 32, "noProjectedEvidence": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-JSON-005",
+      "requirements": ["VSC-V0-019", "VSC-V0-020", "VSC-V0-039", "VSC-V0-040"],
+      "title": "dangerous keys unsupported schema and request or revision mismatches reject atomically",
+      "setup": {"trusted": true, "cliBehaviors": ["dangerous-json-keys", "unsupported-schema", "request-mismatch", "revision-mismatch", "unexpected-top-level-key"]},
+      "action": {"kind": "run-hostile-envelope-matrix"},
+      "expect": {"result": "degraded", "status": "Degraded", "failureCodeOneOf": ["INVALID_JSON", "UNSUPPORTED_PROFILE"], "noProjectedEvidence": true, "snapshotCleared": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-JSON-006",
+      "requirements": ["VSC-V0-019", "VSC-V0-020"],
+      "title": "a failed refresh cannot present the previous receipt as current",
+      "setup": {"trusted": true, "firstBehavior": "valid", "secondBehavior": "malformed-json"},
+      "action": {"kind": "run-then-refresh"},
+      "expect": {"result": "degraded", "status": "Degraded", "failureCode": "INVALID_JSON", "snapshotCleared": true, "priorSnapshotHistorical": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-HOSTILE-001",
+      "requirements": ["VSC-V0-024", "VSC-V0-025", "VSC-V0-039", "VSC-V0-040"],
+      "title": "ANSI and control characters cannot create terminal or command effects",
+      "setup": {"trusted": true, "cliBehavior": "hostile-ansi-control"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "ready", "uiTextSafe": true, "noCommandUris": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-HOSTILE-002",
+      "requirements": ["VSC-V0-013", "VSC-V0-025", "VSC-V0-039", "VSC-V0-040"],
+      "title": "out-of-workspace and traversal paths never become navigable locations",
+      "setup": {"trusted": true, "cliBehavior": "hostile-paths"},
+      "action": {"kind": "run", "command": "impact"},
+      "expect": {"result": "ready", "locationsWithinWorkspace": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-HOSTILE-003",
+      "requirements": ["VSC-V0-025", "VSC-V0-031", "VSC-V0-039", "VSC-V0-040"],
+      "title": "hostile and duplicate test names receive safe stable unique IDs",
+      "setup": {"trusted": true, "cliBehavior": "hostile-test-names"},
+      "action": {"kind": "discover-tests"},
+      "expect": {"result": "ready", "testIdsUnique": true, "uiTextSafe": true, "noCommandUris": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-HOSTILE-004",
+      "requirements": ["VSC-V0-025", "VSC-V0-031", "VSC-V0-039", "VSC-V0-040"],
+      "title": "hostile URI schemes and invalid ranges are rejected",
+      "setup": {"trusted": true, "cliBehavior": "hostile-uri-ranges"},
+      "action": {"kind": "exercise-all-projections"},
+      "expect": {"result": "ready", "locationsWithinWorkspace": true, "minRejectedLocations": 4, "uiTextSafe": true, "noCommandUris": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-REDACTION-001",
+      "requirements": ["VSC-V0-025", "VSC-V0-033", "VSC-V0-034", "VSC-V0-039", "VSC-V0-040"],
+      "title": "secrets are absent from every UI and log projection",
+      "setup": {"trusted": true, "secret": "CORVINT-CONFORMANCE-SECRET-7f4c", "cliBehavior": "echo-secret-everywhere"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "degraded", "forbiddenText": ["CORVINT-CONFORMANCE-SECRET-7f4c"], "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-DIAGNOSTIC-001",
+      "requirements": ["VSC-V0-025", "VSC-V0-026", "VSC-V0-041", "VSC-V0-043"],
+      "title": "diagnostics map only valid bounded workspace locations",
+      "setup": {"trusted": true, "cliBehavior": "mixed-diagnostics"},
+      "action": {"kind": "refresh-diagnostics"},
+      "expect": {"result": "ready", "diagnosticsSafe": true, "locationsWithinWorkspace": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-DIAGNOSTIC-002",
+      "requirements": ["VSC-V0-026", "VSC-V0-041", "VSC-V0-043"],
+      "title": "new diagnostic generation atomically withdraws stale diagnostics",
+      "setup": {"trusted": true, "cliBehavior": "two-diagnostic-generations"},
+      "action": {"kind": "refresh-diagnostics-twice"},
+      "expect": {"result": "ready", "diagnosticGenerationReplaced": true, "diagnosticsSafe": true, "locationsWithinWorkspace": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-DECORATION-001",
+      "requirements": ["VSC-V0-025", "VSC-V0-027", "VSC-V0-041", "VSC-V0-043"],
+      "title": "decorations are display-only and disposed on refresh",
+      "setup": {"trusted": true, "cliBehavior": "mixed-decorations"},
+      "action": {"kind": "refresh-decorations-twice"},
+      "expect": {"result": "ready", "decorationsSafe": true, "authorityUnchanged": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-TESTING-001",
+      "requirements": ["VSC-V0-028", "VSC-V0-030", "VSC-V0-031", "VSC-V0-032", "VSC-V0-033"],
+      "title": "live-test observations map to exact VS Code test states",
+      "setup": {"trusted": true, "sharedCorvintVerifier": "available", "observationBehavior": "all-test-statuses"},
+      "action": {"kind": "import-observation"},
+      "expect": {"result": "ready", "executionCount": 0, "noRunProfile": true, "testStatusMap": {"PASSED": "passed", "FAILED": "failed", "ERRORED": "errored", "MALFORMED": "errored", "UNKNOWN": "errored", "SKIPPED": "skipped"}, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-TESTING-002",
+      "requirements": ["VSC-V0-028", "VSC-V0-032", "VSC-V0-033"],
+      "title": "cancelled imported observation maps to skipped plus explicit cancelled state",
+      "setup": {"trusted": true, "sharedCorvintVerifier": "available", "observationBehavior": "cancelled-terminal"},
+      "action": {"kind": "import-observation"},
+      "expect": {"result": "ready", "executionCount": 0, "testStatus": "skipped", "outputContains": "cancelled", "noRunProfile": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-TESTING-003",
+      "requirements": ["VSC-V0-028", "VSC-V0-041", "VSC-V0-043"],
+      "title": "Testing API is import-only with no RunProfile or test execution",
+      "setup": {"trusted": true, "observationBehavior": "valid"},
+      "action": {"kind": "exercise-test-controller"},
+      "expect": {"result": "ready", "executionCount": 0, "noRunProfile": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-TESTING-004",
+      "requirements": ["VSC-V0-029", "VSC-V0-039", "VSC-V0-040"],
+      "title": "observation symlink escape and read-time identity drift are rejected",
+      "setup": {"trusted": true, "observationBehavior": "symlink-escape-and-identity-drift"},
+      "action": {"kind": "import-observation"},
+      "expect": {"result": "degraded", "executionCount": 0, "status": "Degraded", "failureCode": "OBSERVATION_CHANGED", "noProjectedEvidence": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-TESTING-005",
+      "requirements": ["VSC-V0-030", "VSC-V0-032", "VSC-V0-039", "VSC-V0-040"],
+      "title": "mixed run identities and duplicate terminal records never produce a false pass",
+      "setup": {"trusted": true, "observationBehavior": "mixed-identities-duplicate-terminal"},
+      "action": {"kind": "import-observation"},
+      "expect": {"result": "degraded", "executionCount": 0, "status": "Degraded", "failureCode": "UNVERIFIED_IMPORT", "noProjectedEvidence": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-TESTING-006",
+      "requirements": ["VSC-V0-029", "VSC-V0-030", "VSC-V0-033", "VSC-V0-035"],
+      "title": "observation is one stable bounded file read with no watcher or digest follow-up",
+      "setup": {"trusted": true, "observationBehavior": "valid-structural-import-with-output-digests"},
+      "action": {"kind": "import-observation"},
+      "expect": {"result": "degraded", "executionCount": 0, "status": "Degraded", "failureCode": "UNVERIFIED_IMPORT", "observationReadOnce": true, "verificationState": "UNVERIFIED_IMPORT", "digestNotResolved": true, "noRunProfile": true, "noProjectedEvidence": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-TESTING-007",
+      "requirements": ["VSC-V0-030", "VSC-V0-032", "VSC-V0-039", "VSC-V0-040"],
+      "title": "sequence event-root or terminal identity mismatch rejects every earlier pass",
+      "setup": {"trusted": true, "observationBehaviors": ["sequence-gap", "event-root-mismatch", "terminal-identity-mismatch"]},
+      "action": {"kind": "import-hostile-observation-matrix"},
+      "expect": {"result": "degraded", "status": "Degraded", "failureCode": "UNVERIFIED_IMPORT", "noPassedTests": true, "noProjectedEvidence": true, "snapshotCleared": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-TESTING-008",
+      "requirements": ["VSC-V0-031", "VSC-V0-032", "VSC-V0-033", "VSC-V0-041"],
+      "title": "opaque Corvint IDs define the only hierarchy and one finite ended TestRun",
+      "setup": {"trusted": true, "sharedCorvintVerifier": "available", "observationBehavior": "opaque-package-and-test-ids"},
+      "action": {"kind": "import-observation"},
+      "expect": {"result": "ready", "executionCount": 0, "testHierarchy": [{"id": "pkg:opaque", "parentId": null}, {"id": "test:opaque/with/slash", "parentId": "pkg:opaque"}], "testRunEnded": true, "testOutputBounded": true, "noRunProfile": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-PRESENTATION-001",
+      "requirements": ["VSC-V0-021", "VSC-V0-022", "VSC-V0-023", "VSC-V0-024", "VSC-V0-041", "VSC-V0-043"],
+      "title": "native command status and TreeView surface is exact bounded and accessible",
+      "setup": {"trusted": true, "cliBehavior": "valid-bounded-receipt"},
+      "action": {"kind": "inspect-native-surface"},
+      "expect": {"result": "ready", "exactCommands": true, "statusAccessible": true, "exactTreeViews": true, "treeBounds": true, "noWhyExecution": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-AUTHORITY-001",
+      "requirements": ["VSC-V0-004", "VSC-V0-023", "VSC-V0-026", "VSC-V0-027", "VSC-V0-030", "VSC-V0-037"],
+      "title": "views diagnostics decorations and tests cannot upgrade Corvint authority",
+      "setup": {"trusted": true, "cliBehavior": "authority-confusion"},
+      "action": {"kind": "exercise-all-projections"},
+      "expect": {"result": "ready", "authorityUnchanged": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-PRIVACY-001",
+      "requirements": ["VSC-V0-034", "VSC-V0-035", "VSC-V0-037", "VSC-V0-040"],
+      "title": "normal operation has no network telemetry or extension storage",
+      "setup": {"trusted": true, "binaryAvailable": true},
+      "action": {"kind": "exercise-normal-lifecycle"},
+      "expect": {"result": "ready", "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-UPDATE-001",
+      "requirements": ["VSC-V0-010", "VSC-V0-036"],
+      "title": "Corvint binary discovery never silently installs or updates",
+      "setup": {"trusted": true, "binaryAvailable": false, "marketplaceUpdateAvailable": true},
+      "action": {"kind": "check-updates"},
+      "expect": {"result": "degraded", "executionCount": 0, "status": "No CLI", "failureCode": "CLI_MISSING", "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-STATIC-001",
+      "requirements": ["VSC-V0-001", "VSC-V0-028", "VSC-V0-034", "VSC-V0-035", "VSC-V0-036", "VSC-V0-037", "VSC-V0-044"],
+      "title": "package and bundle omit forbidden authority network storage and updater surfaces",
+      "setup": {"trusted": true, "extensionArtifact": "installed"},
+      "action": {"kind": "static-audit"},
+      "expect": {"result": "ready", "forbiddenSurfacesAbsent": ["webview", "network", "telemetry", "database", "shell", "terminal", "workspace-edit", "code-action", "test-run-profile", "updater"], "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-RESIDUE-001",
+      "requirements": ["VSC-V0-018", "VSC-V0-038", "VSC-V0-042", "VSC-V0-043"],
+      "title": "disable disposes all extension-owned host resources",
+      "setup": {"trusted": true, "active": true},
+      "action": {"kind": "disable"},
+      "expect": {"result": "disabled", "residueZero": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-RESIDUE-002",
+      "requirements": ["VSC-V0-018", "VSC-V0-038", "VSC-V0-042", "VSC-V0-043"],
+      "title": "uninstall leaves no extension-owned state or process residue",
+      "setup": {"trusted": true, "active": true},
+      "action": {"kind": "uninstall"},
+      "expect": {"result": "uninstalled", "residueZero": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-TRANSPORT-001",
+      "requirements": ["VSC-V0-046", "VSC-V0-056"],
+      "title": "CLI is the default and an explicit transport change clears all state without fallback",
+      "setup": {"trusted": true, "initialTransport": null, "populateAllProjectionState": true},
+      "action": {"kind": "switch-transport", "to": "mcp-stdio"},
+      "expect": {"result": "ready", "executionCount": 0, "transportDefault": "cli", "selectedTransport": "mcp-stdio", "transportSwitchCleared": true, "noRetryOrFailover": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-PIN-001",
+      "requirements": ["VSC-V0-047", "VSC-V0-048"],
+      "title": "explicit absolute corvint-mcp path is hash pinned without PATH or version probing",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "configuredMcpExecutable": "${fixture}/bin/corvint-mcp", "pathContainsOtherMcp": true},
+      "action": {"kind": "pin-mcp-executable"},
+      "expect": {"result": "ready", "executionCount": 0, "mcpPinned": true, "mcpDiscoverySources": ["configuration"], "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-PIN-002",
+      "requirements": ["VSC-V0-047", "VSC-V0-056"],
+      "title": "missing relative URI symlink and wrong-basename MCP paths fail without replacement search",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "configuredMcpExecutables": ["", "corvint-mcp", "file:///corvint-mcp", "${fixture}/bin/not-corvint-mcp", "${fixture}/link/corvint-mcp"]},
+      "action": {"kind": "pin-hostile-mcp-paths"},
+      "expect": {"result": "degraded", "executionCount": 0, "status": "No CLI", "failureCodeOneOf": ["MCP_MISSING", "MCP_INCOMPATIBLE"], "noRetryOrFailover": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-PROCESS-001",
+      "requirements": ["VSC-V0-048", "VSC-V0-052"],
+      "title": "one explicit operation owns one fresh local stdio child with root only in argv",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "operation": "query", "workspaceRoot": "${fixture}/root"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "ready", "executionCount": 1, "exactArgv": ["--root", "${root}"], "cwdIsRoot": true, "mcpFreshProcess": true, "mcpStdioLifecycle": true, "noNetworkTransport": true, "noShell": true, "noPathLookup": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-DISCOVERY-001",
+      "requirements": ["VSC-V0-049", "VSC-V0-050"],
+      "title": "modern discovery is first with exact metadata and no legacy initialization",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "serverBehavior": "valid-discovery", "extensionVersion": "0.1.0"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "ready", "executionCount": 1, "mcpPinned": true, "mcpRequestSequence": ["server/discover", "tools/list", "tools/call"], "mcpMetadataVersion": "0.1.0", "mcpDiscoveryExact": true, "mcpServerIdentityRecorded": true, "noServerOriginatedMessages": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-DISCOVERY-002",
+      "requirements": ["VSC-V0-049", "VSC-V0-050", "VSC-V0-056"],
+      "title": "legacy missing contradictory or interactive discovery fails without initialize fallback",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "serverBehaviors": ["method-not-found", "legacy-version", "input-required", "server-request", "advertised-sampling"]},
+      "action": {"kind": "run-hostile-mcp-discovery-matrix"},
+      "expect": {"result": "degraded", "status": "Degraded", "failureCodeOneOf": ["MCP_INCOMPATIBLE", "MCP_INTERACTION_REQUIRED", "MCP_PROTOCOL"], "mcpNoLegacyInitialize": true, "noRetryOrFailover": true, "noProjectedEvidence": true, "snapshotCleared": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-TOOLSET-001",
+      "requirements": ["VSC-V0-051", "VSC-V0-052"],
+      "title": "tools list matches the exact MCPV0 registry and only query or impact may be called",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "serverBehavior": "exact-three-tool-registry"},
+      "action": {"kind": "run", "command": "impact"},
+      "expect": {"result": "ready", "executionCount": 1, "mcpToolsetExact": true, "mcpInvokedTool": "corvint.impact", "mcpStatusCallCount": 0, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-TOOLSET-002",
+      "requirements": ["VSC-V0-051", "VSC-V0-056"],
+      "title": "extra reordered schema-mismatched repeated-cursor or ninth-page catalogs reject",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "serverBehaviors": ["extra-tool", "reordered-tools", "weakened-schema", "unexpected-next-cursor", "repeated-cursor", "ninth-page", "oversized-cursor", "input-required"]},
+      "action": {"kind": "run-hostile-toolset-matrix"},
+      "expect": {"result": "degraded", "status": "Degraded", "failureCodeOneOf": ["MCP_TOOLSET_MISMATCH", "MCP_PROTOCOL", "MCP_INTERACTION_REQUIRED"], "mcpCatalogBounds": true, "noRetryOrFailover": true, "noProjectedEvidence": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-CALL-001",
+      "requirements": ["VSC-V0-052", "VSC-V0-053"],
+      "title": "query and impact use closed root-free arguments and canonical bridge results",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "operations": ["query", "impact"]},
+      "action": {"kind": "run-mcp-call-matrix"},
+      "expect": {"result": "ready", "executionCount": 2, "mcpCallArguments": [{"name": "corvint.query", "arguments": {"task": "q;`$()"}}, {"name": "corvint.impact", "arguments": {"paths": ["-leading.go", "space name.go"], "limit": 20}}], "mcpBridgeResultExact": true, "authorityUnchanged": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-CALL-002",
+      "requirements": ["VSC-V0-050", "VSC-V0-053", "VSC-V0-056"],
+      "title": "tool error interaction request and authority-expanding server surfaces remain inert",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "serverBehaviors": ["is-error", "input-required", "sampling-request", "elicitation-request", "roots-request", "resources-notification", "prompts-notification", "tasks-notification", "subscription-notification"]},
+      "action": {"kind": "run-hostile-mcp-call-matrix"},
+      "expect": {"result": "degraded", "status": "Degraded", "failureCodeOneOf": ["MCP_TOOL_ERROR", "MCP_INTERACTION_REQUIRED", "MCP_PROTOCOL"], "noServerOriginatedMessages": true, "noProjectedEvidence": true, "authorityUnchanged": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-CALL-003",
+      "requirements": ["VSC-V0-023", "VSC-V0-053"],
+      "title": "null-receipt abstention preserves the bounded bridge gap without invented evidence",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "operation": "query", "serverBehavior": "null-receipt-unsupported-intent"},
+      "action": {"kind": "run", "command": "query"},
+      "expect": {"result": "ready", "executionCount": 1, "mcpNullAbstentionExact": true, "mcpAuthorityProjected": true, "authorityUnchanged": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-CALL-004",
+      "requirements": ["VSC-V0-053", "VSC-V0-056"],
+      "title": "READY authority laundering and malformed abstention correlations reject atomically",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "serverBehaviors": ["ready-not-observed", "ready-none-authority", "ready-active-abstention", "ready-null-receipt", "abstained-observed", "abstained-repository-authority", "abstained-none-reason", "query-retained-receipt"]},
+      "action": {"kind": "run-hostile-mcp-authority-matrix"},
+      "expect": {"result": "degraded", "executionCount": 8, "status": "Degraded", "failureCode": "MCP_PROTOCOL", "mcpAuthorityCorrelationRejected": true, "noProjectedEvidence": true, "snapshotCleared": true, "authorityUnchanged": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-CALL-005",
+      "requirements": ["VSC-V0-023", "VSC-V0-053"],
+      "title": "only retained impact OUT_OF_SCOPE receipt preserves exclusion evidence under abstention",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "operation": "impact", "serverBehavior": "retained-impact-out-of-scope"},
+      "action": {"kind": "run", "command": "impact"},
+      "expect": {"result": "ready", "executionCount": 1, "mcpRetainedOutOfScopeExact": true, "mcpAuthorityProjected": true, "authorityUnchanged": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-IDENTITY-001",
+      "requirements": ["VSC-V0-047", "VSC-V0-050", "VSC-V0-053", "VSC-V0-056"],
+      "title": "repository profile digest widths revision binding and per-stage server identity cannot drift",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "serverBehaviors": ["unknown-repository-profile", "sha1-with-64-revision", "sha256-with-40-revision", "dirty-digest-wrong-width", "receipt-tree-revision-mismatch", "server-version-drift"]},
+      "action": {"kind": "run-hostile-mcp-identity-matrix"},
+      "expect": {"result": "degraded", "executionCount": 6, "status": "Degraded", "failureCode": "MCP_PROTOCOL", "mcpIdentityCorrelationRejected": true, "noProjectedEvidence": true, "snapshotCleared": true, "authorityUnchanged": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-INPUT-001",
+      "requirements": ["VSC-V0-052", "VSC-V0-056"],
+      "title": "unpaired-surrogate MCP query and path input reject before process spawn",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "invalidTasks": ["bad\ud800task"], "invalidPaths": ["src/\ud800.go"]},
+      "action": {"kind": "run-hostile-mcp-surrogate-inputs"},
+      "expect": {"result": "degraded", "executionCount": 0, "status": "Degraded", "failureCode": "MCP_INPUT_UNSUPPORTED", "mcpInputRejectedPreSpawn": true, "noProjectedEvidence": true, "snapshotCleared": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-FRAME-001",
+      "requirements": ["VSC-V0-054", "VSC-V0-056"],
+      "title": "hostile framing IDs messages notifications and output limits reject atomically",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "serverBehaviors": ["partial-line", "batch", "invalid-utf8", "duplicate-key", "dangerous-key", "wrong-id", "duplicate-id", "unknown-id", "late-id", "stdout-noise", "progress-notification", "message-notification", "notification-65", "stdout-overflow", "stderr-overflow"]},
+      "action": {"kind": "run-hostile-mcp-frame-matrix"},
+      "expect": {"result": "degraded", "status": "Degraded", "failureCodeOneOf": ["MCP_PROTOCOL", "INVALID_UTF8", "INVALID_JSON", "OUTPUT_LIMIT"], "mcpFramingBounds": true, "noProjectedEvidence": true, "snapshotCleared": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-CANCEL-001",
+      "requirements": ["VSC-V0-055", "VSC-V0-056"],
+      "title": "cancellation sends one matching notification before EOF and escalates only the direct child",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "serverBehavior": "ignore-cancel-and-eof-with-late-result"},
+      "action": {"kind": "cancel-explicit-query"},
+      "expect": {"result": "cancelled", "executionCount": 1, "mcpCancellationSequence": ["notifications/cancelled:3", "stdin-close", "wait-eof:250", "TERM", "wait-term:250", "KILL"], "mcpCancelledRequestId": 3, "mcpLateResultIgnored": true, "noDescendantContainmentClaim": true, "noRetryOrFailover": true, "residueZero": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-MCP-RUNTIME-001",
+      "requirements": ["VSC-V0-057"],
+      "title": "packaged Extension Host MCP client evidence requires an installed publishable corvint-mcp runtime",
+      "setup": {"trusted": true, "transport": "mcp-stdio", "requiresPublishableCorvintMcp": true},
+      "action": {"kind": "run-packaged-mcp-runtime-matrix"},
+      "expect": {"resultOneOf": ["ready", "not-run"], "notRunAllowed": true, "mcpRuntimeEvidence": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-ELECTRON-001",
+      "requirements": ["VSC-V0-011", "VSC-V0-012", "VSC-V0-021", "VSC-V0-022", "VSC-V0-023", "VSC-V0-026", "VSC-V0-027", "VSC-V0-028", "VSC-V0-038", "VSC-V0-043"],
+      "title": "real pinned Extension Hosts exercise distinct trusted and untrusted profiles",
+      "setup": {"trustedProfile": "fresh-user-data/trusted", "untrustedProfile": "fresh-user-data/untrusted", "pinnedVscodeVersionRequired": true},
+      "action": {"kind": "run-vscode-electron-profiles"},
+      "expect": {"resultOneOf": ["ready", "not-run"], "notRunAllowed": true, "actualElectronProfiles": ["trusted", "untrusted"], "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-PERF-001",
+      "requirements": ["VSC-V0-045"],
+      "title": "adapter overhead activation process count and model memory are measured",
+      "setup": {"trusted": true, "warmRuns": 100},
+      "action": {"kind": "measure-performance"},
+      "expect": {"resultOneOf": ["ready", "not-run"], "notRunAllowed": true, "effectsEmpty": true}
+    },
+    {
+      "id": "VSC-CONF-LIVE-DISABLED-001",
+      "requirements": ["VSC-V0-058"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":false,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"activate"},{"op":"capture","label":"disabled"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"disabled","phase":"disabled","items":[],"diagnostics":[]}],"events":[]},"executionCount":0}
+    },
+    {
+      "id": "VSC-CONF-LIVE-UNTRUSTED-002",
+      "requirements": ["VSC-V0-058","VSC-V0-075"],
+      "setup": {"trusted":false,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"activate"},{"op":"capture","label":"untrusted"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"untrusted","snapshotAbsent":true,"items":[],"diagnostics":[]}],"events":[]},"executionCount":0}
+    },
+    {
+      "id": "VSC-CONF-LIVE-CLEANUP-003",
+      "requirements": ["VSC-V0-059","VSC-V0-074"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"spawn-descendant","ignoreTerm":true},{"op":"configure","values":{"corvint.liveTests.enabled":false}},{"op":"probe-group"},{"op":"capture","label":"disabled"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"disabled","phase":"disabled","items":[],"diagnostics":[]}],"events":[{"kind":"spawn","label":"provider"},{"kind":"spawn","label":"descendant"},{"kind":"configure","label":"disable"},{"kind":"group-probe","label":"provider","groupAbsent":true},{"kind":"capture","label":"disabled"}]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-PASSED-004",
+      "requirements": ["VSC-V0-060"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"passed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"PASSED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"PASSED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"exit","code":0},{"op":"capture","label":"PASSED"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"PASSED","phase":"completed","items":[{"id":"addition","state":"passed"}],"diagnostics":[],"documentDigest":"sha256:2ebae49f6cd647d2e8a937150cb8f1a3f29b384c8c05124beac570c996c23c99"}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-FAILED-005",
+      "requirements": ["VSC-V0-060"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"failed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"exit","code":0},{"op":"capture","label":"FAILED"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"FAILED","phase":"completed","items":[{"id":"addition","state":"failed"}],"diagnostics":[{"file":"fixture.test.js","line":0,"message":"ASSERTION_OR_TEST"}],"documentDigest":"sha256:e68ce020ac341bdc236603f35fa45db40b5de919937f7d55d57de24e792e428a"}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-SKIPPED-006",
+      "requirements": ["VSC-V0-060"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"skipped\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"SKIPPED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"SKIPPED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"exit","code":0},{"op":"capture","label":"SKIPPED"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"SKIPPED","phase":"completed","items":[{"id":"addition","state":"skipped"}],"diagnostics":[],"documentDigest":"sha256:0117241470c67eb48d3ceca35aa459f32a20cde454faa775cef94c8425b186ff"}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-INFRASTRUCTURE-007",
+      "requirements": ["VSC-V0-060"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"infrastructure\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"INFRASTRUCTURE\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"INFRASTRUCTURE\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"exit","code":0},{"op":"capture","label":"INFRASTRUCTURE"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"INFRASTRUCTURE","phase":"completed","items":[{"id":"addition","state":"errored"},{"id":"js-run:unit","state":"errored"}],"diagnostics":[],"documentDigest":"sha256:7a96fa0492650f99991016f6a18e3aad70e346251cd824fd224fdc611235fc76"}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-CANCELLED-008",
+      "requirements": ["VSC-V0-060"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"cancelled\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"CANCELLED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"CANCELLED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"exit","code":0},{"op":"capture","label":"CANCELLED"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"CANCELLED","phase":"completed","items":[{"id":"addition","state":"errored"},{"id":"js-run:unit","state":"errored"}],"diagnostics":[],"documentDigest":"sha256:7e38921be665c5491b518f67d61ffe2da8d9244bd5b87cba5426af09ca2ce2a9"}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-UNSUPPORTED-009",
+      "requirements": ["VSC-V0-060"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"unsupported\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"UNSUPPORTED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"UNSUPPORTED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"exit","code":0},{"op":"capture","label":"UNSUPPORTED"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"UNSUPPORTED","phase":"completed","items":[{"id":"addition","state":"errored"},{"id":"js-run:unit","state":"errored"}],"diagnostics":[],"documentDigest":"sha256:1c8773183fe9bc37ce890e31ef33dc0176fcb34fb301dc999e438b6f80f28ab5"}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-STALE-PASSED-010",
+      "requirements": ["VSC-V0-061"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"passed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"STALE\",\"reason\":\"superseded\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"PASSED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"STALE\",\"reason\":\"superseded\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"PASSED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"exit","code":0},{"op":"capture","label":"PASSED"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"PASSED","phase":"completed","items":[{"id":"addition","state":"errored"},{"id":"js-run:unit","state":"errored"}],"diagnostics":[],"documentDigest":"sha256:f7b787fb0e530b9086cfbed972b24db2ab98004127311cd59fb295e04e458cf1"}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-STALE-FAILED-011",
+      "requirements": ["VSC-V0-061"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"failed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"STALE\",\"reason\":\"superseded\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"STALE\",\"reason\":\"superseded\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"exit","code":0},{"op":"capture","label":"FAILED"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"FAILED","phase":"completed","items":[{"id":"addition","state":"errored"},{"id":"js-run:unit","state":"errored"}],"diagnostics":[],"documentDigest":"sha256:b26f1d23ee552882ca8f7eda93e1310ca12ca0cb471e9fc884a2bd700f14089b"}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-ADVISORY-012",
+      "requirements": ["VSC-V0-062"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"passed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"ABSTAINED\",\"reason\":\"warning\",\"anchors\":[]},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"PASSED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"SURVIVED\",\"reason\":\"witness\",\"anchors\":[]}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"ABSTAINED\",\"reason\":\"warning\",\"anchors\":[]},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"PASSED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"SURVIVED\",\"reason\":\"witness\",\"anchors\":[]}}}"},{"op":"exit","code":0},{"op":"capture","label":"advisory"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"advisory","phase":"completed","items":[{"id":"addition","state":"passed"}],"diagnostics":[],"documentDigest":"sha256:0a982477d7fbbec4089746b71d7bd434bca669827de4ef0a83a3aa429f22635e","output":["Strength: SURVIVED: witness \u00b7 Hygiene warning: ABSTAINED: warning\r\n"]}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-DIAGNOSTIC-RESET-013",
+      "requirements": ["VSC-V0-063"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"failed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"exit","code":0},{"op":"capture","label":"failed"},{"op":"configure","values":{"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit","second"]}},{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"passed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"PASSED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"PASSED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"exit","code":0},{"op":"capture","label":"resolved"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"failed","phase":"completed","items":[{"id":"addition","state":"failed"}],"diagnostics":[{"file":"fixture.test.js","line":0,"message":"ASSERTION_OR_TEST"}]},{"step":"resolved","phase":"completed","items":[{"id":"addition","state":"passed"}],"diagnostics":[]}],"events":[],"generationAdvances":[[0,1]]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-IDENTITY-014",
+      "requirements": ["VSC-V0-064"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-go-test-provider","session"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"running\",\"identity\":\"a\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\"}"},{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"running\",\"identity\":\"b\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\"}"},{"op":"capture","label":"new"},{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"failed\",\"identity\":\"a\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\"}"},{"op":"capture","label":"late"},{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"passed\",\"identity\":\"b\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\"}"},{"op":"capture","label":"current"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"new","phase":"running","items":[{"id":"scope","state":"started"}],"diagnostics":[],"inputIdentity":"b"},{"step":"late","phase":"running","items":[{"id":"scope","state":"started"}],"diagnostics":[],"inputIdentity":"b"},{"step":"current","phase":"completed","items":[{"id":"scope","state":"passed"}],"diagnostics":[],"inputIdentity":"b"}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-MALFORMED-015",
+      "requirements": ["VSC-V0-065"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"running\",\"identity\":\"a\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\"}"},{"op":"capture","label":"before"},{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"invented\"}\n"},{"op":"capture","label":"after"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"before","phase":"running","items":[{"id":"scope","state":"started"}],"diagnostics":[]},{"step":"after","phase":"running","items":[{"id":"scope","state":"started"}],"diagnostics":[]}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-UNAVAILABLE-016",
+      "requirements": ["VSC-V0-066"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":[]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"activate"},{"op":"capture","label":"refused"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"refused","phase":"unavailable","items":[{"id":"corvint-live-tests:unavailable","state":"errored"}],"diagnostics":[],"output":["Corvint live tests unavailable: corvint.liveTests.command is empty or is not a list of non-empty strings"]}],"events":[]},"executionCount":0}
+    },
+    {
+      "id": "VSC-CONF-LIVE-PER-TEST-017",
+      "requirements": ["VSC-V0-067"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"running\",\"identity\":\"a\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\"}"},{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"passed\",\"identity\":\"a\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\",\"testProjections\":[{\"package\":\"pkg\",\"name\":\"TestOne\",\"action\":\"pass\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"SKIPPED\",\"reason\":\"\",\"anchors\":[]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}]}"},{"op":"capture","label":"per-test"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"per-test","phase":"completed","items":[{"id":"scope","state":"passed"},{"id":"pkg#TestOne","state":"skipped"}],"diagnostics":[]}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-CONTRADICTION-018",
+      "requirements": ["VSC-V0-068"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"running\",\"identity\":\"a\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\"}"},{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"passed\",\"identity\":\"a\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"capture","label":"unknown"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"unknown","phase":"completed","items":[{"id":"scope","state":"errored"}],"diagnostics":[]}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-ANCHOR-019",
+      "requirements": ["VSC-V0-069"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"running\",\"identity\":\"a\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\"}"},{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"failed\",\"identity\":\"a\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\",\"testProjections\":[{\"package\":\"pkg\",\"name\":\"TestOne\",\"action\":\"fail\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}]}"},{"op":"capture","label":"anchor"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"anchor","phase":"completed","items":[{"id":"scope","state":"failed"},{"id":"pkg#TestOne","state":"failed"}],"diagnostics":[{"file":"fixture.test.js","line":0,"message":"ASSERTION_OR_TEST"}]}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-ANCHOR-020",
+      "requirements": ["VSC-V0-069"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"running\",\"identity\":\"a\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\"}"},{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"failed\",\"identity\":\"a\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\",\"testProjections\":[{\"package\":\"pkg\",\"name\":\"TestOne\",\"action\":\"fail\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"input-identity:fixture\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}]}"},{"op":"capture","label":"anchor"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"anchor","phase":"completed","items":[{"id":"scope","state":"failed"},{"id":"pkg#TestOne","state":"failed"}],"diagnostics":[]}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-ANCHOR-021",
+      "requirements": ["VSC-V0-069"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"running\",\"identity\":\"a\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\"}"},{"op":"stdout","value":"{\"profile\":\"corvint-go-live-session-event/0\",\"state\":\"failed\",\"identity\":\"a\",\"sequence\":1,\"scope\":[\"scope\"],\"detail\":\"\",\"testProjections\":[{\"package\":\"pkg\",\"name\":\"TestOne\",\"action\":\"fail\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}]}"},{"op":"capture","label":"anchor"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"anchor","phase":"completed","items":[{"id":"scope","state":"failed"},{"id":"pkg#TestOne","state":"failed"}],"diagnostics":[]}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-RETAIN-022",
+      "requirements": ["VSC-V0-070"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.retainEvidence":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"activate"},{"op":"capture","label":"started"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"started","phase":"pending","items":[{"id":"corvint-live-tests:pending","state":"errored"}],"diagnostics":[]}],"events":[{"kind":"spawn","label":"provider","argv":["/fixture/corvint-js-test-provider","unit","--retain"]}]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-RETAIN-023",
+      "requirements": ["VSC-V0-070"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.retainEvidence":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","e2e"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"activate"},{"op":"capture","label":"started"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"started","phase":"pending","items":[{"id":"corvint-live-tests:pending","state":"errored"}],"diagnostics":[]}],"events":[{"kind":"spawn","label":"provider","argv":["/fixture/corvint-js-test-provider","e2e","--retain"]}]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-RETAIN-024",
+      "requirements": ["VSC-V0-070"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.retainEvidence":true,"corvint.liveTests.command":["/fixture/corvint-go-test-provider","session"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"activate"},{"op":"capture","label":"started"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"started","phase":"disabled","items":[],"diagnostics":[]}],"events":[{"kind":"spawn","label":"provider","argv":["/fixture/corvint-go-test-provider","session","--retain"]}]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-COMPLETION-025",
+      "requirements": ["VSC-V0-071","VSC-V0-074","VSC-V0-075"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"failed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"exit","code":0},{"op":"capture","label":"result"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"result","phase":"completed","items":[{"id":"addition","state":"failed"}],"diagnostics":[{"file":"fixture.test.js","line":0,"message":"ASSERTION_OR_TEST"}],"documentDigest":"sha256:e68ce020ac341bdc236603f35fa45db40b5de919937f7d55d57de24e792e428a"}],"events":[{"kind":"spawn","label":"provider"},{"kind":"exit","label":"provider"},{"kind":"group-probe","label":"provider","groupAbsent":true},{"kind":"capture","label":"result"}]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-INVALID-COMPLETION-026",
+      "requirements": ["VSC-V0-071"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"failed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}{}"},{"op":"exit","code":0},{"op":"capture","label":"unavailable"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"unavailable","phase":"unavailable","items":[{"id":"corvint-live-tests:unavailable","state":"errored"}],"diagnostics":[],"documentDigest":null}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-INVALID-COMPLETION-027",
+      "requirements": ["VSC-V0-071"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"failed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}trailing"},{"op":"exit","code":0},{"op":"capture","label":"unavailable"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"unavailable","phase":"unavailable","items":[{"id":"corvint-live-tests:unavailable","state":"errored"}],"diagnostics":[],"documentDigest":null}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-INVALID-COMPLETION-028",
+      "requirements": ["VSC-V0-071"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"failed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}{"},{"op":"exit","code":0},{"op":"capture","label":"unavailable"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"unavailable","phase":"unavailable","items":[{"id":"corvint-live-tests:unavailable","state":"errored"}],"diagnostics":[],"documentDigest":null}],"events":[]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-SAVE-029",
+      "requirements": ["VSC-V0-072"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"failed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"exit","code":0},{"op":"capture","label":"old"},{"op":"save","path":"fixture.test.js"},{"op":"save","path":"fixture.test.js"},{"op":"capture","label":"pending"},{"op":"await-spawn","count":2},{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"passed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"PASSED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"PASSED\",\"reason\":\"\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"exit","code":0},{"op":"capture","label":"new"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"old","phase":"completed","items":[{"id":"addition","state":"failed"}],"diagnostics":[{"file":"fixture.test.js","line":0,"message":"ASSERTION_OR_TEST"}]},{"step":"pending","phase":"pending","items":[{"id":"corvint-live-tests:pending","state":"errored"}],"diagnostics":[],"documentDigest":null,"inputIdentity":null},{"step":"new","phase":"completed","items":[{"id":"addition","state":"passed"}],"diagnostics":[]}],"events":[{"kind":"spawn","label":"first"},{"kind":"save","label":"first"},{"kind":"save","label":"second"},{"kind":"spawn","label":"replacement"}],"generationAdvances":[[0,1],[0,2]],"minimumDelays":[{"from":2,"to":3,"ms":250}]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-STDIN-030",
+      "requirements": ["VSC-V0-076"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"],"corvint.liveTests.toolchainPaths":["/fixture/tools","/fixture/tools"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"await-stdin-open"},{"op":"configure","values":{"corvint.liveTests.enabled":false}},{"op":"await-stdin-eof"},{"op":"probe-group"},{"op":"capture","label":"disabled"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"disabled","phase":"disabled","items":[],"diagnostics":[]}],"events":[{"kind":"spawn","label":"provider","env":{"PATH":"/fixture/tools:/usr/bin:/bin:/usr/sbin:/sbin"}},{"kind":"configure","label":"disable"},{"kind":"stdin-eof","label":"provider"},{"kind":"group-probe","label":"provider","groupAbsent":true}]}}
+    },
+    {
+      "id": "VSC-CONF-LIVE-INFLIGHT-031",
+      "requirements": ["VSC-V0-073"],
+      "setup": {"trusted":true,"workspace":"file","configuration":{"corvint.liveTests.enabled":true,"corvint.liveTests.command":["/fixture/corvint-js-test-provider","unit"]}},
+      "action": {"kind":"exercise-live-provider","steps":[{"op":"arm-termination-output","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"failed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"PASSED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"PASSED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}","label":"old"},{"op":"activate"},{"op":"capture","label":"old-pending"},{"op":"save-burst","path":"fixture.test.js","count":2,"label":"burst"},{"op":"await-termination-output","label":"old"},{"op":"probe-group","label":"old"},{"op":"capture","label":"after-late"},{"op":"await-spawn","count":2},{"op":"stdout","value":"{\"receipt\":{\"kind\":\"unit\"},\"testProjections\":[{\"name\":\"addition\",\"state\":\"failed\",\"projection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}],\"runProjection\":{\"association\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"hygiene\":{\"state\":\"UNSUPPORTED\",\"reason\":\"no-association-input\",\"anchors\":null},\"freshness\":{\"state\":\"CURRENT\",\"reason\":\"\",\"anchors\":[\"input-identity:fixture\"]},\"execution\":{\"state\":\"FAILED\",\"reason\":\"ASSERTION_OR_TEST\",\"anchors\":[\"fixture.test.js:1\"]},\"strength\":{\"state\":\"NOT_MEASURED\",\"reason\":\"no-mutation-run\",\"anchors\":null}}}"},{"op":"exit","code":0},{"op":"capture","label":"replacement"}]},
+      "expect": {"resultOneOf":["ready","not-run"],"notRunAllowed":true,"liveTests":{"checkpoints":[{"step":"old-pending","phase":"pending","items":[{"id":"corvint-live-tests:pending","state":"errored"}],"diagnostics":[],"documentDigest":null,"inputIdentity":null},{"step":"after-late","phase":"pending","items":[{"id":"corvint-live-tests:pending","state":"errored"}],"diagnostics":[],"documentDigest":null,"inputIdentity":null},{"step":"replacement","phase":"completed","items":[{"id":"addition","state":"failed"}],"diagnostics":[{"file":"fixture.test.js","line":0,"message":"ASSERTION_OR_TEST"}]}],"events":[{"kind":"spawn","label":"old"},{"kind":"save","label":"burst"},{"kind":"stdout","label":"old"},{"kind":"group-probe","label":"old","groupAbsent":true},{"kind":"capture","label":"after-late"},{"kind":"spawn","label":"replacement"},{"kind":"capture","label":"replacement"}],"generationAdvances":[[0,1],[0,2]],"minimumDelays":[{"from":1,"to":5,"ms":250}]}}
+    }
+  ]
+}

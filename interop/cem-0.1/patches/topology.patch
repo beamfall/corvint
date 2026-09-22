@@ -1,0 +1,21 @@
+diff --git a/src/new.txt b/src/new.txt
+new file mode 100644
+--- /dev/null
++++ b/src/new.txt
+@@ -0,0 +1 @@
++new
+diff --git a/src/doomed.txt b/src/doomed.txt
+deleted file mode 100644
+--- a/src/doomed.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-gone
+diff --git a/src/oldname.txt b/src/renamed.txt
+similarity index 50%
+rename from src/oldname.txt
+rename to src/renamed.txt
+--- a/src/oldname.txt
++++ b/src/renamed.txt
+@@ -1 +1 @@
+-before
++after

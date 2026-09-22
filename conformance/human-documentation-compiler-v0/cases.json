@@ -1,0 +1,138 @@
+{
+  "cases": [
+    {
+      "allowed": [{"code": "review-required", "decision": "PLANNED"}],
+      "fixture": "corvint-material",
+      "id": "corvint-material-plan",
+      "operation": "plan",
+      "requiredSignals": ["config-authority-mkdocs", "material-profile", "site-url", "navigation-features", "search-explicit", "pymdown-extension", "extra-local-assets", "theme-override", "hook-declared", "strict-validation", "non-overwriting-plan", "evidence-anchored-claims"]
+    },
+    {
+      "allowed": [{"code": "environment-unavailable", "decision": "ABSTAINED"}],
+      "fixture": "material-build-safe",
+      "id": "build-environment-unavailable",
+      "operation": "build",
+      "requiredSignals": ["config-authority-mkdocs", "environment-unavailable"]
+    },
+    {
+      "allowed": [{"code": "environment-version-mismatch", "decision": "ABSTAINED"}],
+      "fixture": "material-build-safe",
+      "id": "material-version-mismatch",
+      "operation": "build",
+      "requiredSignals": ["config-authority-mkdocs", "environment-version-mismatch"]
+    },
+    {
+      "allowed": [{"code": "search-not-configured", "decision": "REJECTED"}],
+      "fixture": "search-omitted",
+      "id": "plugins-replace-default-search",
+      "operation": "inspect",
+      "requiredSignals": ["plugins-configured", "search-missing"]
+    },
+    {
+      "allowed": [{"code": "config-path-escape", "decision": "REJECTED"}],
+      "fixture": "inherit-escape",
+      "id": "config-inherit-path-escape",
+      "operation": "inspect",
+      "requiredSignals": ["config-inherit", "path-escape"]
+    },
+    {
+      "allowed": [{"code": "include-path-escape", "decision": "REJECTED"}],
+      "fixture": "include-escape",
+      "id": "markdown-include-path-escape",
+      "operation": "inspect",
+      "requiredSignals": ["markdown-include", "path-escape", "pymdown-extension"]
+    },
+    {
+      "allowed": [{"code": "project-code-unqualified", "decision": "ABSTAINED"}],
+      "fixture": "plugin-canary",
+      "id": "unknown-plugin-canary",
+      "operation": "build",
+      "requiredSignals": ["plugin-project-code", "plugin-unknown", "build-not-started"]
+    },
+    {
+      "allowed": [{"code": "project-code-unqualified", "decision": "ABSTAINED"}],
+      "fixture": "hook-canary",
+      "id": "unknown-hook-canary",
+      "operation": "build",
+      "requiredSignals": ["hook-project-code", "hook-unknown", "build-not-started"]
+    },
+    {
+      "allowed": [{"code": "offline-not-qualified", "decision": "ABSTAINED"}],
+      "fixture": "remote-assets",
+      "id": "privacy-remote-assets-canary",
+      "operation": "build",
+      "requiredSignals": ["privacy-fetch-enabled", "remote-assets", "site-url", "network-denial-not-observed", "offline-unknown"]
+    },
+    {
+      "allowed": [{"code": "review-required", "decision": "PLANNED"}],
+      "fixture": "offline-plugin",
+      "id": "offline-plugin-is-config-owned",
+      "operation": "plan",
+      "requiredSignals": ["offline-plugin-declared", "output-semantics-changed", "config-not-rewritten", "offline-not-proven"]
+    },
+    {
+      "allowed": [{"code": "source-path-escape", "decision": "REJECTED"}],
+      "fixture": "symlink-escape",
+      "id": "docs-dir-symlink-escape",
+      "operation": "inspect",
+      "requiredSignals": ["symlink", "path-escape"]
+    },
+    {
+      "allowed": [{"code": "output-path-escape", "decision": "REJECTED"}],
+      "fixture": "output-escape",
+      "id": "configured-site-dir-escape",
+      "operation": "build",
+      "requiredSignals": ["site-dir-outside-workspace", "isolated-output-required"]
+    },
+    {
+      "allowed": [{"code": "stale-source", "decision": "REJECTED"}],
+      "fixture": "material-build-safe",
+      "id": "stale-plan-source",
+      "operation": "apply-plan",
+      "requiredSignals": ["source-digest-mismatch", "no-write"]
+    },
+    {
+      "allowed": [{"code": "unsupported-claim", "decision": "REJECTED"}],
+      "fixture": "material-build-safe",
+      "id": "hallucinated-supported-claim",
+      "operation": "validate-plan",
+      "requiredSignals": ["claim-evidence-missing", "no-write"]
+    },
+    {
+      "allowed": [{"code": "strict-receipt-invalid", "decision": "REJECTED"}],
+      "fixture": "false-strict-pass",
+      "id": "false-strict-build-pass",
+      "operation": "build",
+      "requiredSignals": ["strict-zero-exit", "expected-output-missing", "build-strict-not-pass"]
+    },
+    {
+      "allowed": [{"code": "build-timeout-cleanup", "decision": "REJECTED"}],
+      "fixture": "subprocess-hang",
+      "id": "subprocess-timeout-cleanup",
+      "operation": "build",
+      "requiredSignals": ["build-timeout", "process-group-cleaned", "build-strict-not-pass"]
+    },
+    {
+      "allowed": [{"code": "output-bound-exceeded", "decision": "REJECTED"}],
+      "fixture": "output-flood",
+      "id": "build-output-bound",
+      "operation": "build",
+      "requiredSignals": ["output-bound-exceeded", "process-group-cleaned", "build-strict-not-pass"]
+    },
+    {
+      "allowed": [{"code": "strict-build-pass", "decision": "BUILT"}, {"code": "environment-unavailable", "decision": "ABSTAINED"}],
+      "fixture": "material-build-safe",
+      "id": "strict-build-project-environment",
+      "operation": "build",
+      "requiredSignals": ["config-authority-mkdocs"]
+    },
+    {
+      "allowed": [{"code": "offline-qualified", "decision": "BUILT"}, {"code": "network-denial-not-observed", "decision": "ABSTAINED"}],
+      "fixture": "material-build-safe",
+      "id": "offline-qualification-external-harness",
+      "operation": "build",
+      "requiredSignals": ["config-authority-mkdocs"]
+    }
+  ],
+  "profile": "corvint-human-documentation-compiler-conformance/0"
+}

@@ -1,0 +1,221 @@
+//go:build unix
+
+package mcp20260728
+
+import (
+	"errors"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
+	"testing"
+	"time"
+)
+
+func TestTerminationSignalsCancelInFlightDescendantGroup(t *testing.T) {
+	for _, signal := range []os.Signal{os.Interrupt, syscall.SIGTERM} {
+		t.Run(signal.String(), func(t *testing.T) {
+			root := fixtureRepository(t)
+			fakeDirectory, pidFile := installBlockingFakeGit(t)
+			client := startServerWithEnv(t, root,
+				"PATH="+fakeDirectory+string(os.PathListSeparator)+os.Getenv("PATH"),
+			)
+			t.Cleanup(func() {
+				_ = client.stdin.Close()
+				if client.command.ProcessState == nil {
+					_ = client.command.Process.Kill()
+				}
+			})
+			client.sendJSON(t, request(90, "tools/call", map[string]any{
+				"_meta": requestMeta(), "name": "corvint.status", "arguments": map[string]any{},
+			}))
+			pids := waitForRecordedPIDs(t, pidFile, 3*time.Second)
+			t.Cleanup(func() {
+				for _, pid := range pids {
+					if process, err := os.FindProcess(pid); err == nil {
+						_ = process.Kill()
+					}
+				}
+			})
+			started := time.Now()
+			if err := client.command.Process.Signal(signal); err != nil {
+				t.Fatalf("signal %s: %v", signal, err)
+			}
+			waitForSignalExit(t, client, 3*time.Second)
+			_ = client.stdin.Close()
+			if elapsed := time.Since(started); elapsed > 3*time.Second {
+				t.Fatalf("signal %s exit took %s", signal, elapsed)
+			}
+			waitForProcessesGone(t, pids, 3*time.Second)
+		})
+	}
+}
+
+// A client that closes the read end of the server's stdout while a tool call
+// holds a Git child is a transport failure (MCPV0-011): the next response write
+// must fail rather than kill the process by SIGPIPE, cancel the in-flight call,
+// reap its descendant group, and exit with the transport-failure status.
+func TestClosedStdoutCancelsInFlightDescendantGroup(t *testing.T) {
+	root := fixtureRepository(t)
+	fakeDirectory, pidFile := installBlockingFakeGit(t)
+	command := exec.Command(serverBinary, "--root", root)
+	command.Env = replaceEnvironment(os.Environ(), "PATH="+fakeDirectory+string(os.PathListSeparator)+os.Getenv("PATH"))
+	stdin, err := command.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdoutRead, stdoutWrite, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &stdioClient{command: command, stdin: stdin}
+	command.Stdout = stdoutWrite
+	command.Stderr = &client.stderr
+	if err := command.Start(); err != nil {
+		t.Fatal(err)
+	}
+	_ = stdoutWrite.Close()
+	t.Cleanup(func() {
+		_ = stdin.Close()
+		if command.ProcessState == nil {
+			_ = command.Process.Kill()
+		}
+	})
+	client.sendJSON(t, request(92, "tools/call", map[string]any{
+		"_meta": requestMeta(), "name": "corvint.status", "arguments": map[string]any{},
+	}))
+	pids := waitForRecordedPIDs(t, pidFile, 3*time.Second)
+	t.Cleanup(func() {
+		for _, pid := range pids {
+			if process, err := os.FindProcess(pid); err == nil {
+				_ = process.Kill()
+			}
+		}
+	})
+	if err := stdoutRead.Close(); err != nil {
+		t.Fatal(err)
+	}
+	client.sendJSON(t, request(93, "server/discover", map[string]any{"_meta": requestMeta()}))
+	done := make(chan error, 1)
+	go func() { done <- command.Wait() }()
+	var waitErr error
+	select {
+	case waitErr = <-done:
+	case <-time.After(3 * time.Second):
+		_ = command.Process.Kill()
+		<-done
+		t.Fatalf("server did not exit after stdout closed; stderr=%q", client.stderr.String())
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(waitErr, &exitErr) || exitErr.ExitCode() != 2 {
+		t.Fatalf("closed-stdout exit = %v, want status 2; stderr=%q", waitErr, client.stderr.String())
+	}
+	if stderr := client.stderr.String(); stderr != "corvint-mcp: transport failed\n" {
+		t.Fatalf("closed-stdout stderr = %q", stderr)
+	}
+	waitForProcessesGone(t, pids, 3*time.Second)
+}
+
+// installBlockingFakeGit puts a git on a private PATH directory that records
+// its own pid and a background child's pid, then blocks on that child.
+func installBlockingFakeGit(t *testing.T) (directory, pidFile string) {
+	t.Helper()
+	directory = t.TempDir()
+	pidFile = filepath.Join(t.TempDir(), "pids")
+	script := "#!/bin/sh\n/bin/sleep 60 </dev/null >/dev/null 2>/dev/null &\nchild=$!\nprintf '%s %s\\n' \"$$\" \"$child\" > " + shellQuote(pidFile) + "\nwait \"$child\"\n"
+	if err := os.WriteFile(filepath.Join(directory, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return directory, pidFile
+}
+
+func waitForSignalExit(t *testing.T, client *stdioClient, timeout time.Duration) {
+	t.Helper()
+	type drainResult struct {
+		body []byte
+		err  error
+	}
+	drained := make(chan drainResult, 1)
+	go func() {
+		body, err := io.ReadAll(client.stdout)
+		drained <- drainResult{body: body, err: err}
+	}()
+	done := make(chan error, 1)
+	go func() { done <- client.command.Wait() }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("server signal exit: %v; stderr=%q", err, client.stderr.String())
+		}
+		remainder := <-drained
+		if remainder.err != nil || len(remainder.body) != 0 {
+			t.Fatalf("signal-exit stdout: bytes=%q err=%v", remainder.body, remainder.err)
+		}
+	case <-time.After(timeout):
+		_ = client.command.Process.Signal(syscall.SIGQUIT)
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			_ = client.command.Process.Kill()
+			<-done
+		}
+		<-drained
+		t.Fatalf("server did not exit before deadline; SIGQUIT stack=%q", client.stderr.String())
+	}
+}
+
+func shellQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
+}
+
+func waitForRecordedPIDs(t *testing.T, pidFile string, timeout time.Duration) []int {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		raw, err := os.ReadFile(pidFile)
+		if err == nil && len(raw) > 0 {
+			fields := strings.Fields(string(raw))
+			if len(fields) != 2 {
+				t.Fatalf("invalid fake Git pid file %q", raw)
+			}
+			pids := make([]int, 0, len(fields))
+			for _, field := range fields {
+				pid, parseErr := strconv.Atoi(field)
+				if parseErr != nil || pid < 1 {
+					t.Fatalf("invalid fake Git pid %q", field)
+				}
+				pids = append(pids, pid)
+			}
+			return pids
+		}
+		if !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("fake Git did not start before %s", timeout)
+	return nil
+}
+
+func waitForProcessesGone(t *testing.T, pids []int, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		alive := false
+		for _, pid := range pids {
+			process, err := os.FindProcess(pid)
+			if err == nil && process.Signal(syscall.Signal(0)) == nil {
+				alive = true
+				break
+			}
+		}
+		if !alive {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("descendant processes survived server termination: %v", pids)
+}

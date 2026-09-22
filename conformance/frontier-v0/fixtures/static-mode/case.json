@@ -1,0 +1,94 @@
+{
+  "id": "static-mode",
+  "matrixRows": [
+    "no dynamic tuple"
+  ],
+  "clauses": [
+    "CF-V0-003",
+    "CF-V0-015",
+    "CF-V0-018"
+  ],
+  "intent": "With all three dynamic inputs absent, Frontier computes static TCQ, records testMode STATIC, and still binds the recomputed TCQ ID.",
+  "cases": [
+    {
+      "id": "absent-tuple",
+      "note": "No command, observation or report.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          }
+        ],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "linked",
+            "hunkIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "claimIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "tcqReasons": [
+              "test-not-matched"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "2",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "NO_MATERIAL_CHANGE_WITNESS"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_MATERIAL_HUNK"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "TEST_NOT_MATCHED"
+            ],
+            "relatedIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "SUPPLY_TEST_OBSERVATION"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-003: inputs.testMode is exactly STATIC.",
+        "CF-V0-003: inputs.tcqId binds the RECOMPUTED static TCQ ID; a caller-supplied ID is never accepted.",
+        "CF-V0-015: the linked obligation still emits an INTENT_TEST item with authorityClass CALLER_REPORTED.",
+        "CF-V0-018: inputs has exactly cemSha256, lrfSha256, ocmSha256, policy, tcqId, testMode."
+      ]
+    }
+  ]
+}

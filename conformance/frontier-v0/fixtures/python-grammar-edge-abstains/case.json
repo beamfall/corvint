@@ -1,0 +1,139 @@
+{
+  "id": "python-grammar-edge-abstains",
+  "matrixRows": [
+    "empty, skipped, unsupported, unassociated, ambiguous, failed, errored, and unmatched claim"
+  ],
+  "clauses": [
+    "CF-V0-012",
+    "CF-V0-015",
+    "CF-V0-016",
+    "CF-V0-020",
+    "TCQ-V0-013",
+    "TCQ-V0-047"
+  ],
+  "intent": "A `.py` claim whose blob the frozen `python-ast/1` grammar refuses abstains as an UNSUPPORTED test claim on its own edge, and the unrelated Go edge in the same universe still reports its ordinary reason. The Go host's own Python grammar accepts this blob, so a surface that consulted that grammar instead would publish a qualification here; this is the corpus case for divergence-register DR-0014.",
+  "cases": [
+    {
+      "id": "python-post-3.9-edge-abstains-beside-a-go-edge",
+      "note": "Obligation CF-V0-001's claim lives in a `.py` document carrying Python 3.10 structured-pattern syntax; obligation CF-V0-002's claim is an ordinary Go table case.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          },
+          {
+            "id": "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          }
+        ],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "linked",
+            "claimSource": "python-post-3.9",
+            "hunkIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "claimIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ]
+          },
+          {
+            "id": "CF-V0-002",
+            "disposition": "linked",
+            "claimSource": "go",
+            "hunkIds": [
+              "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202"
+            ],
+            "claimIds": [
+              "claim:sha256:0202020202020202020202020202020202020202020202020202020202020202"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "4",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "NO_MATERIAL_CHANGE_WITNESS"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_MATERIAL_HUNK"
+          },
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-002",
+            "reasons": [
+              "NO_MATERIAL_CHANGE_WITNESS"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_MATERIAL_HUNK"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "TEST_CLAIM_UNSUPPORTED"
+            ],
+            "relatedIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "PROFILE_REQUIRED",
+            "nextAction": "DEFINE_SUPPORTED_PROFILE"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-002",
+            "reasons": [
+              "TEST_NOT_MATCHED"
+            ],
+            "relatedIds": [
+              "claim:sha256:0202020202020202020202020202020202020202020202020202020202020202"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "SUPPLY_TEST_OBSERVATION"
+          }
+        ]
+      },
+      "assertions": [
+        "TCQ-V0-013: source the frozen `python-ast/1` grammar rejects abstains the affected Python edge; there is no fallback host parse, so the edge carries no qualification.",
+        "TCQ-V0-047: the abstention is PER EDGE and Go processing remains available; obligation CF-V0-002's Go edge keeps its ordinary TEST_NOT_MATCHED reason.",
+        "CF-V0-016: an unsupported claim maps to TEST_CLAIM_UNSUPPORTED with PROFILE_REQUIRED and DEFINE_SUPPORTED_PROFILE, which is the projection a published qualification would NOT produce.",
+        "CF-V0-015: each obligation keeps exactly one INTENT_TEST item, so one abstaining edge does not remove or close the other obligation's item."
+      ]
+    }
+  ]
+}

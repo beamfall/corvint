@@ -1,0 +1,81 @@
+{
+  "profile": "corvint-harness-matrix/0",
+  "adapterProtocol": "corvint-harness-event/0",
+  "generatedAt": "2026-08-23",
+  "entries": [
+    {
+      "adapterVersion": "0.2.2",
+      "documentedAgainstHostVersion": "2.1.238",
+      "host": "claude-code",
+      "hostVersion": "2.1.267",
+      "hostVersionEvidence": "native-static-validator-only",
+      "hostVersionEvidenceAdapterVersion": "0.1.4",
+      "operatingSystem": "macOS",
+      "surface": "plugin",
+      "status": "FALLBACK",
+      "validation": "native-static-plus-adapter-fixtures"
+    },
+    {
+      "adapterVersion": "0.2.2",
+      "documentedAgainstHostVersion": "0.149.0",
+      "host": "codex",
+      "hostVersion": "0.149.0",
+      "hostVersionEvidence": "native-manifest-validator-only",
+      "hostVersionEvidenceAdapterVersion": "unknown",
+      "operatingSystem": "macOS",
+      "surface": "plugin",
+      "status": "FALLBACK",
+      "validation": "native-manifest-plus-adapter-fixtures"
+    },
+    {
+      "adapterVersion": "0.2.4",
+      "documentedAgainstHostVersion": "0.55.1",
+      "host": "gemini-cli",
+      "hostVersion": "0.54.0",
+      "hostVersionEvidence": "native-static-validator-only",
+      "hostVersionEvidenceAdapterVersion": "0.1.0",
+      "operatingSystem": "macOS",
+      "surface": "extension",
+      "status": "FALLBACK",
+      "validation": "native-static-plus-adapter-fixtures"
+    },
+    {
+      "adapterVersion": "0.2.5",
+      "documentedAgainstHostVersion": "1.18.21",
+      "host": "opencode",
+      "hostVersion": "1.18.20",
+      "hostVersionEvidence": "local-binary-observed; plugin-not-installed",
+      "hostForcedRuntime": {"name": "node", "versionRange": ">=20"},
+      "operatingSystem": "darwin-linux",
+      "surface": "plugin",
+      "status": "FALLBACK",
+      "validation": "adapter-fixtures-only"
+    }
+  ],
+  "globalDegradations": [
+    "accepted-frontier-authority-unavailable",
+    "exact-expansion-command-unavailable",
+    "mcp-server-unavailable",
+    "black-box-install-session-uninstall-conformance-not-run"
+  ],
+  "receiptDegradationPolicy": {
+    "match": "subset-of-recognised",
+    "onUnrecognised": "refuse",
+    "note": "An adapter accepts any subset of the recognised codes, including the empty set, so that core closing a gap is never an adapter break. A code outside the set is a contract the adapter has not been validated against and MUST refuse loudly instead of silently disabling the surface.",
+    "recognised": [
+      "compaction-critical-evidence-overflow",
+      "compaction-dirty-set-over-budget",
+      "compaction-untracked-paths-not-rehydratable",
+      "frontier-authority-unavailable",
+      "host-version-unknown",
+      "outcome-persistence-unavailable"
+    ],
+    "conformingAdapters": ["claude-code", "codex", "gemini-cli", "opencode"],
+    "display": {
+      "rule": "name-every-code-or-signal-elision",
+      "note": "A receipt's degradation codes reach the user through a host-shaped message. That message MUST name every code the receipt carries, or state how many it left out. A short honest message is fine; one that looks complete while a code is missing is not, and the receipts that carry the most codes are exactly the ones where the omission costs the most. An adapter that renders the whole receipt (codex) or the whole list (opencode) conforms as it stands; an adapter that renders a bounded list (claude-code, gemini-cli) appends a \"+N more\" marker whenever the bound bites. The marker is a count derived from the list length, never code text, so it does not weaken the rule that an unrecognised code is named by the corvint invocation rather than interpolated into the session.",
+      "elisionMarker": "+N more",
+      "conformingAdapters": ["claude-code", "codex", "gemini-cli", "opencode"]
+    }
+  }
+}

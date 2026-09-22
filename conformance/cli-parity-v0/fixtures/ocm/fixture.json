@@ -1,0 +1,41 @@
+{
+  "format": "atlas-cli-parity-fixture/0",
+  "files": [
+    {
+      "path": ".atlas/change.cem.json",
+      "type": "untracked-file",
+      "mode": "0644",
+      "content": "{\n  \"baseRevision\": \"e55335091a1c204a230904e29681d968f063a11d\",\n  \"evidence\": [\n    {\n      \"blobOid\": \"05880d216b033612ddb91c50b62f801d72093305\",\n      \"id\": \"evidence:sha256:9e7aaabfa1a405880b2f2cdb7cf1feeaaf5eca80bd2467182e8dbb77603e3b72\",\n      \"path\": \"docs/rule.txt\",\n      \"span\": {\n        \"end\": 36,\n        \"start\": 6\n      },\n      \"spanSha256\": \"32bb833df7f9af477d5bb137ff61192354ee3553519b55adb696d32c286c4eab\"\n    }\n  ],\n  \"hunks\": [\n    {\n      \"basis\": [\n        {\n          \"evidenceId\": \"evidence:sha256:9e7aaabfa1a405880b2f2cdb7cf1feeaaf5eca80bd2467182e8dbb77603e3b72\",\n          \"relation\": \"specification\"\n        }\n      ],\n      \"disposition\": \"supported\",\n      \"id\": \"hunk:sha256:6f0e2157b0b3b3ec3c7df6cb5f9cebee8b64688a46c5c9c67a1f7c569f097af3\",\n      \"newRange\": {\n        \"count\": 2,\n        \"start\": 1\n      },\n      \"oldRange\": {\n        \"count\": 2,\n        \"start\": 1\n      },\n      \"path\": \"src/app.py\",\n      \"reason\": \"evidence-backed\"\n    }\n  ],\n  \"patchSha256\": \"40199fec5d79fc7c865a9f1601db479efb54bc0afd537fde97fe391af62b75a9\",\n  \"spec\": \"cem/0.1\"\n}\n"
+    },
+    {
+      "path": ".atlas/change.ocm.json",
+      "type": "untracked-file",
+      "mode": "0644",
+      "content": "{\"cem\":{\"mapSha256\":\"b5dd7e72b5ac97761622647b9cb2af4b8cf193937e58d4e41fe1553a8f61754d\",\"patchSha256\":\"40199fec5d79fc7c865a9f1601db479efb54bc0afd537fde97fe391af62b75a9\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"05880d216b033612ddb91c50b62f801d72093305\",\"path\":\"docs/rule.txt\",\"span\":{\"end\":38,\"start\":0},\"spanSha256\":\"75bb8e1e0e7acc9585ebccff26cc2881c010a65984c34086c6cf7e918bfba0ba\"},\"obligations\":[],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"e55335091a1c204a230904e29681d968f063a11d\"}\n"
+    },
+    {
+      "path": ".gitignore",
+      "type": "file",
+      "mode": "0644",
+      "content": ".atlas/\n"
+    },
+    {
+      "path": "change.patch",
+      "type": "file",
+      "mode": "0644",
+      "content": "diff --git a/src/app.py b/src/app.py\nindex 1111111..2222222 100644\n--- a/src/app.py\n+++ b/src/app.py\n@@ -1,2 +1,2 @@\n import os\n-HTTPServer_v2 = 1\n+HTTPServer_v2 = 2\n"
+    },
+    {
+      "path": "docs/rule.txt",
+      "type": "file",
+      "mode": "0644",
+      "content": "line1\nHTTPServer_v2 must be used here\n"
+    },
+    {
+      "path": "src/app.py",
+      "type": "file",
+      "mode": "0644",
+      "content": "import os\nHTTPServer_v2 = 1\n"
+    }
+  ]
+}

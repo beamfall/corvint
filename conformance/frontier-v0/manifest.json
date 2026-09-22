@@ -1,0 +1,218 @@
+{
+  "schema": "corvint.frontier-v0-conformance/1",
+  "spec": "docs/specs/change-frontier-v0.md",
+  "profile": "frontier/0",
+  "errorProfile": "frontier-error/0",
+  "derivation": "Every expectation in this suite is authored from the clause text in the spec above. No expectation was captured from, or verified against, internal/frontier. CF-V0-028 requires exactly this independence.",
+  "vectorFiles": [
+    "vectors/codec.json",
+    "vectors/identity.json"
+  ],
+  "matrix": [
+    {
+      "matrixRow": "CEM 0.1 or OCM bound to 0.1",
+      "requiredResult": "`unsupported-frontier-context`, exit 2, no stdout",
+      "fixtures": [
+        "unsupported-context-upstream-profile"
+      ]
+    },
+    {
+      "matrixRow": "CEM 0.1 or OCM bound to 0.1 plus missing expected base or target",
+      "requiredResult": "`unsupported-frontier-context`, exit 2, no stdout before revision-required validation",
+      "fixtures": [
+        "unsupported-context-precedes-missing-revision"
+      ]
+    },
+    {
+      "matrixRow": "missing/mismatched expected base or target; forged sidecar",
+      "requiredResult": "inherited exact failure, no Frontier result",
+      "fixtures": [
+        "inherited-revision-and-sidecar-failures"
+      ]
+    },
+    {
+      "matrixRow": "partial command/observation/report tuple",
+      "requiredResult": "`invalid-frontier-input`",
+      "fixtures": [
+        "partial-dynamic-tuple"
+      ]
+    },
+    {
+      "matrixRow": "no dynamic tuple",
+      "requiredResult": "static TCQ ID, `testMode: STATIC`",
+      "fixtures": [
+        "static-mode"
+      ]
+    },
+    {
+      "matrixRow": "exact dynamic caller tuple",
+      "requiredResult": "dynamic TCQ ID, `DYNAMIC_CALLER_REPORTED`; never test closure",
+      "fixtures": [
+        "dynamic-caller-reported-mode"
+      ]
+    },
+    {
+      "matrixRow": "verified whitespace-only or line-ending-only hunk",
+      "requiredResult": "no hunk item",
+      "fixtures": [
+        "whitespace-and-line-ending-hunks-close"
+      ]
+    },
+    {
+      "matrixRow": "each CEM unknown reason",
+      "requiredResult": "stable item ID and exact mapped reason/action",
+      "fixtures": [
+        "cem-unknown-reason-mapping"
+      ]
+    },
+    {
+      "matrixRow": "one qualifying and one rejected basis",
+      "requiredResult": "hunk closes; rejected edge remains in LRF diagnostics",
+      "fixtures": [
+        "existential-qualifying-basis-closes-hunk"
+      ]
+    },
+    {
+      "matrixRow": "broad, self-referential, and unrelated bases with no qualifier",
+      "requiredResult": "one item; all mapped reasons retained in priority order",
+      "fixtures": [
+        "hunk-reason-union-frozen-order"
+      ]
+    },
+    {
+      "matrixRow": "local CEM or OCM `subject-term-bound-exceeded` beside unrelated valid edges",
+      "requiredResult": "affected subject remains OPEN with `PROFILE_REQUIRED` / `DEFINE_SUPPORTED_PROFILE`; unrelated results remain available",
+      "fixtures": [
+        "local-subject-term-bound-abstention"
+      ]
+    },
+    {
+      "matrixRow": "supported deletion",
+      "requiredResult": "`DELETION_RELATION_REQUIRED`, `PROFILE_REQUIRED`",
+      "fixtures": [
+        "supported-deletion-requires-profile"
+      ]
+    },
+    {
+      "matrixRow": "OCM unknown",
+      "requiredResult": "one intent-change item; no fabricated intent-test item",
+      "fixtures": [
+        "ocm-unknown-emits-no-test-item"
+      ]
+    },
+    {
+      "matrixRow": "linked obligation without material candidate",
+      "requiredResult": "`NO_MATERIAL_CHANGE_WITNESS`",
+      "fixtures": [
+        "linked-obligation-no-material-candidate"
+      ]
+    },
+    {
+      "matrixRow": "linked obligation with one or more lexical candidates",
+      "requiredResult": "one `LEXICAL_CANDIDATE_NONCLOSING` intent-change item containing exactly candidate hunk IDs; never closes",
+      "fixtures": [
+        "lexical-candidate-nonclosing"
+      ]
+    },
+    {
+      "matrixRow": "one hunk shared across obligations",
+      "requiredResult": "independent intent-change result per obligation",
+      "fixtures": [
+        "shared-hunk-independent-obligations"
+      ]
+    },
+    {
+      "matrixRow": "empty, skipped, unsupported, unassociated, ambiguous, failed, errored, and unmatched claim",
+      "requiredResult": "exact reason union and priority-selected action",
+      "fixtures": [
+        "intent-test-reason-union-and-priority",
+        "python-grammar-edge-abstains",
+        "python-crlf-edge-processes"
+      ]
+    },
+    {
+      "matrixRow": "exact passing TCQ caller report",
+      "requiredResult": "`CALLER_REPORTED_NONCLOSING`, `AUTHORITY_REQUIRED`, `frontierState: OPEN`",
+      "fixtures": [
+        "passing-caller-report-stays-open"
+      ]
+    },
+    {
+      "matrixRow": "forged TCQ authority or unknown relation",
+      "requiredResult": "upstream canonical rejection",
+      "fixtures": [
+        "forged-tcq-authority-rejected-upstream"
+      ]
+    },
+    {
+      "matrixRow": "evidence maps repaired without patch/intent change",
+      "requiredResult": "same universe/item IDs; resolved items disappear",
+      "fixtures": [
+        "stable-identity-after-evidence-repair"
+      ]
+    },
+    {
+      "matrixRow": "patch or intent identity changed",
+      "requiredResult": "new universe and item IDs",
+      "fixtures": [
+        "new-identity-on-patch-or-intent-change"
+      ]
+    },
+    {
+      "matrixRow": "OPEN with empty items, EMPTY with items, or any extra stop-decision field",
+      "requiredResult": "`noncanonical-frontier`",
+      "fixtures": [
+        "noncanonical-frontier-refusals"
+      ]
+    },
+    {
+      "matrixRow": "decimal offset beyond the signed 64-bit range",
+      "requiredResult": "`noncanonical-frontier`; never wrapped onto a bound value",
+      "fixtures": [
+        "noncanonical-frontier-refusals"
+      ]
+    },
+    {
+      "matrixRow": "aggregate LRF `relevance-bound-exceeded` result",
+      "requiredResult": "`frontier-resource-exhausted`; never pass the issue through as an operational code",
+      "fixtures": [
+        "aggregate-lrf-bound-is-resource-exhaustion"
+      ]
+    },
+    {
+      "matrixRow": "caught timeout, `MemoryError`, interruption, unknown upstream code, and uncatchable termination",
+      "requiredResult": "exact `CF-V0-022` translation; no output guarantee only for the uncatchable case",
+      "fixtures": [
+        "error-code-translation"
+      ]
+    },
+    {
+      "matrixRow": "reordered caller arrays and two fresh processes",
+      "requiredResult": "byte-identical result",
+      "fixtures": [
+        "determinism-reordered-arrays-and-fresh-processes"
+      ]
+    },
+    {
+      "matrixRow": "source, report, command, sibling, and exception canaries",
+      "requiredResult": "absent from valid and error output",
+      "fixtures": [
+        "privacy-canaries"
+      ]
+    },
+    {
+      "matrixRow": "every Frontier limit and limit plus one",
+      "requiredResult": "complete result versus fail-closed exhaustion",
+      "fixtures": [
+        "resource-limits"
+      ]
+    },
+    {
+      "matrixRow": "independent implementation",
+      "requiredResult": "byte-identical canonical vectors",
+      "fixtures": [
+        "independent-implementation-vectors"
+      ]
+    }
+  ]
+}

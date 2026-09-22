@@ -1,0 +1,284 @@
+{
+ "cells": {
+  "absent_term/default": {
+   "parity": {
+    "basis": "full stdout byte equality per sample at a fixed workload",
+    "compared": 100,
+    "differing_ordinals": [],
+    "incomparable": 0,
+    "pairs": 100,
+    "verdict": "IDENTICAL"
+   },
+   "timing": {
+    "baseline": {
+     "attempts": 100,
+     "count": 100,
+     "failure_kinds": {},
+     "failures": 0,
+     "max_ns": 331225417,
+     "max_rss": 236060672,
+     "max_rss_units": "bytes",
+     "min_ns": 160445917,
+     "p50_ns": 168690958,
+     "p95_ns": 206415459,
+     "p99_ns": 274783250,
+     "unit": "nanoseconds"
+    },
+    "candidate": {
+     "attempts": 100,
+     "count": 100,
+     "failure_kinds": {},
+     "failures": 0,
+     "max_ns": 223261208,
+     "max_rss": 165281792,
+     "max_rss_units": "bytes",
+     "min_ns": 107157625,
+     "p50_ns": 115578750,
+     "p95_ns": 131647542,
+     "p99_ns": 157326084,
+     "unit": "nanoseconds"
+    }
+   }
+  },
+  "baseline_terms/default": {
+   "parity": {
+    "basis": "full stdout byte equality per sample at a fixed workload",
+    "compared": 100,
+    "differing_ordinals": [],
+    "incomparable": 0,
+    "pairs": 100,
+    "verdict": "IDENTICAL"
+   },
+   "timing": {
+    "baseline": {
+     "attempts": 100,
+     "count": 100,
+     "failure_kinds": {},
+     "failures": 0,
+     "max_ns": 236256209,
+     "max_rss": 238911488,
+     "max_rss_units": "bytes",
+     "min_ns": 157843542,
+     "p50_ns": 170261208,
+     "p95_ns": 206495209,
+     "p99_ns": 235041875,
+     "unit": "nanoseconds"
+    },
+    "candidate": {
+     "attempts": 100,
+     "count": 100,
+     "failure_kinds": {},
+     "failures": 0,
+     "max_ns": 172552834,
+     "max_rss": 164495360,
+     "max_rss_units": "bytes",
+     "min_ns": 105243375,
+     "p50_ns": 114069167,
+     "p95_ns": 143603250,
+     "p99_ns": 169736333,
+     "unit": "nanoseconds"
+    }
+   }
+  },
+  "named_definition/default": {
+   "parity": {
+    "basis": "full stdout byte equality per sample at a fixed workload",
+    "compared": 100,
+    "differing_ordinals": [],
+    "incomparable": 0,
+    "pairs": 100,
+    "verdict": "IDENTICAL"
+   },
+   "timing": {
+    "baseline": {
+     "attempts": 100,
+     "count": 100,
+     "failure_kinds": {},
+     "failures": 0,
+     "max_ns": 342163334,
+     "max_rss": 165576704,
+     "max_rss_units": "bytes",
+     "min_ns": 158506792,
+     "p50_ns": 170291958,
+     "p95_ns": 195164500,
+     "p99_ns": 231927041,
+     "unit": "nanoseconds"
+    },
+    "candidate": {
+     "attempts": 100,
+     "count": 100,
+     "failure_kinds": {},
+     "failures": 0,
+     "max_ns": 179116291,
+     "max_rss": 213139456,
+     "max_rss_units": "bytes",
+     "min_ns": 106099084,
+     "p50_ns": 114181042,
+     "p95_ns": 130621334,
+     "p99_ns": 156610334,
+     "unit": "nanoseconds"
+    }
+   }
+  },
+  "subject_lookup/default": {
+   "parity": {
+    "basis": "full stdout byte equality per sample at a fixed workload",
+    "compared": 100,
+    "differing_ordinals": [],
+    "incomparable": 0,
+    "pairs": 100,
+    "verdict": "IDENTICAL"
+   },
+   "timing": {
+    "baseline": {
+     "attempts": 100,
+     "count": 100,
+     "failure_kinds": {},
+     "failures": 0,
+     "max_ns": 308501250,
+     "max_rss": 163807232,
+     "max_rss_units": "bytes",
+     "min_ns": 165240875,
+     "p50_ns": 185200917,
+     "p95_ns": 225148666,
+     "p99_ns": 298000250,
+     "unit": "nanoseconds"
+    },
+    "candidate": {
+     "attempts": 100,
+     "count": 100,
+     "failure_kinds": {},
+     "failures": 0,
+     "max_ns": 287840958,
+     "max_rss": 207716352,
+     "max_rss_units": "bytes",
+     "min_ns": 164663083,
+     "p50_ns": 181632417,
+     "p95_ns": 225548834,
+     "p99_ns": 269814167,
+     "unit": "nanoseconds"
+    }
+   }
+  }
+ },
+ "finished_unix": 1788708677.1448379,
+ "frozen": {
+  "binaries": {
+   "baseline": {
+    "bytes": 14510306,
+    "path": "/private/tmp/corvint-claude-storage-20260906/corvint-baseline",
+    "sha256": "9d127e5c787ce6c0cecc17cfc41dd0cee8630384e59f86963e407096ed69ebcd"
+   },
+   "candidate": {
+    "bytes": 14527138,
+    "path": "/private/tmp/corvint-claude-storage-20260906/corvint-candidate",
+    "sha256": "680ecc427e0c2a9d5586ed2ec982e7fcf721a64cf7c09474887b46d6698028f0"
+   }
+  },
+  "config": {
+   "corvint_root": "~/projects/corvint",
+   "baseline": "/private/tmp/corvint-claude-storage-20260906/corvint-baseline",
+   "candidate": "/private/tmp/corvint-claude-storage-20260906/corvint-candidate",
+   "modes": [
+    "default"
+   ],
+   "out": "/private/tmp/corvint-claude-storage-20260906/measure-default",
+   "root": "/private/tmp/corvint-storage-audit-20260906/repo",
+   "samples": 100,
+   "tasks": [
+    {
+     "id": "baseline_terms",
+     "task": "snapshot demux split"
+    },
+    {
+     "id": "named_definition",
+     "task": "explain `LoadContextSnapshot`"
+    },
+    {
+     "id": "subject_lookup",
+     "subject": "internal/contextindex/snapshot.go",
+     "task": "explain snapshot storage retrieval"
+    },
+    {
+     "id": "absent_term",
+     "task": "zzCorvintNoSuchTerm8472"
+    }
+   ],
+   "timeout_seconds": 30,
+   "warmups": 3
+  },
+  "config_bytes": 845,
+  "config_sha256": "1da1b7334837f5a15d9499c83c0d1a6ce293798fff5ba892e07ff2e76fe33d07",
+  "environment": {
+   "always_set": {
+    "CORVINT_BENCH_SNAPSHOT_TRACE": "1"
+   },
+   "git_and_corvint_removed": [
+    "GIT_PAGER"
+   ],
+   "note": "the ordinary user environment is inherited so PATH and HOME resolve normally",
+   "per_mode": {
+    "default": {}
+   }
+  },
+  "host": {
+   "cpu_count": 12,
+   "load_at_start": [
+    19.51904296875,
+    42.5703125,
+    30.2265625
+   ],
+   "machine": "arm64",
+   "platform": "macOS-26.6.2-arm64-arm-64bit",
+   "processor": "arm",
+   "python": "3.9.6 (default, May 22 2026, 11:13:45) \n[Clang 21.0.0 (clang-2100.1.1.101)]",
+   "python_executable": "/Applications/Xcode.app/Contents/Developer/usr/bin/python3"
+  },
+  "repository": {
+   "clean": true,
+   "commit": "0a227a94df6ad02e35c01965d05c46be9b367905",
+   "root": "/private/tmp/corvint-storage-audit-20260906/repo",
+   "tree": "d02007dd61665b525f4776be393467c8a9482419"
+  },
+  "started_unix": 1788708523.1649501,
+  "supervisor": "~/projects/corvint/benchmarks/selfuse-batch/investigate.py"
+ },
+ "labels": {
+  "measurement": "fresh CLI process per operation on a WARM OS page cache; not a cold-disk measurement",
+  "not_claimed": [
+   "cold disk latency",
+   "pass/fail latency thresholds",
+   "token or billed cost",
+   "host load control beyond the recorded load average"
+  ],
+  "quantiles": "exact nearest-rank over the observed usable samples; no interpolation, no imputed values",
+  "snapshot": "each binary's snapshot was primed by the caller before this run; the harness never runs `index`",
+  "usable_sample": "exit 0, complete capture, and an observed corvint-bench-snapshot hit=true"
+ },
+ "parity_verdict": "IDENTICAL",
+ "repository_state": {
+  "after": {
+   "corvint_listing_sha256": "a23b38ae565830c1cffa37bb2d2a8cb8d7502a4cfbdee604fb92fcab990f0764",
+   "clean": true,
+   "head": "0a227a94df6ad02e35c01965d05c46be9b367905",
+   "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "tree": "d02007dd61665b525f4776be393467c8a9482419"
+  },
+  "corvint_listing_unchanged": true,
+  "before": {
+   "corvint_listing_sha256": "a23b38ae565830c1cffa37bb2d2a8cb8d7502a4cfbdee604fb92fcab990f0764",
+   "clean": true,
+   "head": "0a227a94df6ad02e35c01965d05c46be9b367905",
+   "status_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+   "tree": "d02007dd61665b525f4776be393467c8a9482419"
+  },
+  "commit_unchanged": true,
+  "note": "the listing hashes name/size/mtime of .corvint entries; access time is deliberately not read, and a changed atime would not be a write",
+  "status_unchanged": true
+ },
+ "warmups": {
+  "count": 24,
+  "note": "warmups are excluded from every timing summary; their outcome is recorded",
+  "ok": 24
+ }
+}

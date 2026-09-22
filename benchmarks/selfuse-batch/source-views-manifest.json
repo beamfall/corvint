@@ -1,0 +1,171 @@
+{
+  "profile": "experimental-source-view/0",
+  "intent": "proposed",
+  "currentState": {
+    "status": "STALE_HISTORICAL",
+    "reason": "Every sources, tests, handoffTests and argv entry below describes the Python bundle at reviewedBaseline. Commit 54735d98 (2026-09-11) deleted those files and replaced them with native Go commands; the recorded digests and test runs are not re-verifiable against the current tree and were not recomputed.",
+    "implementation": [
+      "cmd/corvint/source_handoff.go",
+      "cmd/corvint/host_adapter.go"
+    ],
+    "argv": [
+      "corvint",
+      "adapter",
+      "source-view",
+      "--root",
+      "ROOT",
+      "--packet",
+      "FILE",
+      "--commit",
+      "FULL_OID",
+      "--result",
+      "N",
+      "--evidence",
+      "N",
+      "--lines",
+      "START:END"
+    ],
+    "automaticHandoffArgv": [
+      "corvint",
+      "adapter",
+      "claude-source-handoff",
+      "--packet-out",
+      "NEW_ABSOLUTE_EXTERNAL_FILE"
+    ],
+    "tests": {
+      "path": "cmd/corvint/source_handoff_test.go",
+      "command": "GOTOOLCHAIN=local go test -count=1 -timeout 30m -run 'SourceView|SourceHandoff' ./cmd/corvint"
+    },
+    "nativeSourceDigests": "NOT_PRODUCED",
+    "conformanceGaps": "See Native implementation status in docs/specs/experimental-source-views-v0.md"
+  },
+  "requirements": [
+    "ESV-V0-001",
+    "ESV-V0-002",
+    "ESV-V0-003",
+    "ESV-V0-004",
+    "ESV-V0-005",
+    "ESV-V0-006",
+    "ESV-V0-007"
+  ],
+  "reviewedBaseline": "0a227a94df6ad02e35c01965d05c46be9b367905",
+  "sourceBundleSha256": "eeb4cfcf20d004d5c3f8d81b3450cb74b99e170a3c37ded0b7244eaf29878dba",
+  "sourceBundleHashRule": "SHA-256 of UTF-8 compact JSON sources array, insertion order shown, separators comma/colon, no terminal LF",
+  "sources": [
+    {
+      "path": "benchmarks/selfuse-batch/source_views.py",
+      "sha256": "d2e1f70c41ba1e29a09b9a299ef1c434ada9b3e8babc5cf50635fcf97af5c992"
+    },
+    {
+      "path": "benchmarks/selfuse-batch/automatic_source_hook.py",
+      "sha256": "d1fa4af20471c86eb11d25a0ff2a23f4726ddd622a3fb0fd9621b7caee7fafdf"
+    },
+    {
+      "path": "benchmarks/selfuse-batch/investigate.py",
+      "sha256": "0cb3f89df128f422e5a401fd2ae4d63275c73e2cae8de6cff58f9f753fd9a603"
+    },
+    {
+      "path": "experiments/_bounded_process.py",
+      "sha256": "3bc9b10951931922007bba46d0d9675c767fa1ab084dd67c4c864101572d8f96"
+    }
+  ],
+  "spec": {
+    "path": "docs/specs/experimental-source-views-v0.md",
+    "sha256": "d345ac09339c631f6c8116f33f9c9cd102b16e9f11f7c6e7d02c45bc1e7b2058"
+  },
+  "tests": {
+    "path": "tests/test_selfuse_source_views.py",
+    "sha256": "eef57a82b3d86db72f34eb3c5378f50a28e475eb3bd3b94598591c8b67377e53",
+    "command": "python3 -m unittest discover -s tests -p test_selfuse_source_views.py",
+    "passed": 16,
+    "elapsedSeconds": 22.639
+  },
+  "review": "Independent read-only plan GO and fresh final GO after interrupted-publication repair; no outstanding implementation findings",
+  "toolDescription": "Read one exact contiguous source view from an immutable Git blob referenced by a caller-selected evidence handle in a saved Corvint context packet. Select zero-based result and evidence indexes plus either inclusive line bounds or a requirement ID. Returns source identity, exact text, complete packet metadata, and typed refusal with raw Git fallback.",
+  "argv": [
+    "python3",
+    "CONSUMER_ROOT/benchmarks/selfuse-batch/source_views.py",
+    "--root",
+    "ROOT",
+    "--packet",
+    "FILE",
+    "--commit",
+    "FULL_OID",
+    "--result",
+    "N",
+    "--evidence",
+    "N",
+    "--lines",
+    "START:END"
+  ],
+  "alternativeSelector": [
+    "--requirement",
+    "ID"
+  ],
+  "optionalBudget": [
+    "--max-bytes",
+    "1..16384"
+  ],
+  "fullTaskEvaluation": "One DEVELOPMENT availability screen: both initial answers failed critical criteria; zero source-view adoption; no attributable consumer effect",
+  "joint50PercentTarget": "NOT_ESTABLISHED",
+  "canonicalGateAndFinalBinding": "Full integration gate NOT_RUN: coordinator-owned. Leaf focused tests/docs and independent review PASS; post-commit CEM/dogfood reported separately.",
+  "handoffTests": {
+    "path": "tests/test_automatic_source_handoff.py",
+    "sha256": "cffc8ffea723baa3e5980cb82127464ff546920b8e1b08da07a2ccad19899fa1",
+    "command": "CORVINT_HANDOFF_TEST_PLUGIN=~/projects/corvint/integrations/claude-code/plugins/corvint python3 -B -m unittest discover -s tests -p test_automatic_source_handoff.py",
+    "passed": 9,
+    "elapsedSeconds": 13.504,
+    "scope": "Direct live plugin output boundary, native source consumer; synthetic packet fixtures, no model invocation. Final test bodies passed; later docstring-only ESV anchors do not alter execution."
+  },
+  "automaticHandoff": {
+    "profile": "experimental-automatic-source-handoff/0",
+    "argv": [
+      "python3",
+      "CONSUMER_ROOT/benchmarks/selfuse-batch/automatic_source_hook.py",
+      "--plugin",
+      "RESOLVED_PLUGIN_PATH",
+      "--packet-out",
+      "NEW_ABSOLUTE_EXTERNAL_FILE"
+    ],
+    "consumerDigestArgument": [
+      "--packet-sha256",
+      "PACKET_SHA256"
+    ],
+    "registration": "Caller must explicitly wire the wrapper in an isolated development harness. No default installation or historical ordinal-grammar repair.",
+    "nativeProof": {
+      "profile": "development-handoff-proof/0",
+      "source_commit": "0a227a94df6ad02e35c01965d05c46be9b367905",
+      "source_tree": "d02007dd61665b525f4776be393467c8a9482419",
+      "source_worktree": "dirty implementation under test; evidence read from immutable HEAD",
+      "plugin": {
+        "path": "~/projects/corvint/integrations/claude-code/plugins/corvint",
+        "script": "~/projects/corvint/integrations/claude-code/plugins/corvint/scripts/corvint_hook.py",
+        "script_sha256": "26d799df52fa21329513a1d3e97da8bc577c4373d5b74bad73c25110ccfa0e44",
+        "hooks_sha256": "58ac34cddd2be7efa87ad01ed52091d93d25bffd2371bebbae686c298ffed635"
+      },
+      "implementation_bytes": {
+        "benchmarks/selfuse-batch/automatic_source_hook.py": "d1fa4af20471c86eb11d25a0ff2a23f4726ddd622a3fb0fd9621b7caee7fafdf",
+        "benchmarks/selfuse-batch/source_views.py": "d2e1f70c41ba1e29a09b9a299ef1c434ada9b3e8babc5cf50635fcf97af5c992",
+        "benchmarks/selfuse-batch/investigate.py": "0cb3f89df128f422e5a401fd2ae4d63275c73e2cae8de6cff58f9f753fd9a603",
+        "experiments/_bounded_process.py": "3bc9b10951931922007bba46d0d9675c767fa1ab084dd67c4c864101572d8f96"
+      },
+      "packet_sha256": "b3f483b033bacec92a42e075db5e2c5de906022fde0b3eaa5f95707286bebe97",
+      "selected": {
+        "result": 1,
+        "evidence": 0,
+        "path": "docs/specs/experimental-source-views-v0.md",
+        "line": 70,
+        "blob_hash": "7d17c9f7615d99678bc06e26f0cd7cff13cd4814",
+        "reason": "defines ESV-V0-001",
+        "authority": "repository-spec",
+        "confidence": "high",
+        "kind": "spec-mentioned",
+        "action": "Read the requirement clause this task names before changing its behavior."
+      },
+      "view_sha256": "7218d1951e56318716917c8cff140095f75ab18269832e00ef0b77d8530f7c90",
+      "proof": "native corvint capture -> actual resolved plugin additionalContext -> direct consumer; no second context query",
+      "host_model_delivery": "NOT_OBSERVED",
+      "whole_task_savings": "NOT_ESTABLISHED"
+    }
+  }
+}

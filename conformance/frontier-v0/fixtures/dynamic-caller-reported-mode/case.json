@@ -1,0 +1,96 @@
+{
+  "id": "dynamic-caller-reported-mode",
+  "matrixRows": [
+    "exact dynamic caller tuple"
+  ],
+  "clauses": [
+    "CF-V0-003",
+    "CF-V0-014",
+    "CF-V0-015"
+  ],
+  "intent": "With all three present, Frontier performs complete dynamic verification and records DYNAMIC_CALLER_REPORTED. CF-V0-015 keeps every edge CALLER_REPORTED in BOTH modes, so the dynamic tuple never closes a test item.",
+  "cases": [
+    {
+      "id": "complete-tuple",
+      "note": "Command, observation and JUnit report all supplied and mutually consistent.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "complete",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          }
+        ],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "linked",
+            "hunkIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "claimIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "tcqRelation": "test-report-matched-v0"
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "2",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "NO_MATERIAL_CHANGE_WITNESS"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_MATERIAL_HUNK"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "CALLER_REPORTED_NONCLOSING"
+            ],
+            "relatedIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "AUTHORITY_REQUIRED",
+            "nextAction": "ESTABLISH_HARNESS_AUTHORITY"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-003: inputs.testMode is exactly DYNAMIC_CALLER_REPORTED.",
+        "CF-V0-003: inputs.tcqId binds the recomputed DYNAMIC TCQ ID.",
+        "CF-V0-014: the test-report-matched-v0 relation maps to CALLER_REPORTED_NONCLOSING and never removes the INTENT_TEST item.",
+        "CF-V0-004: frontierState is OPEN, so exit is 1, never 0."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-COMMAND-BODY-4c19",
+        "CORVINT-CANARY-REPORT-BODY-9d02"
+      ]
+    }
+  ]
+}

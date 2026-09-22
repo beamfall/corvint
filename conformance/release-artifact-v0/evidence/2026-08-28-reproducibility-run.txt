@@ -1,0 +1,93 @@
+Corvint release artifact reproducibility run
+==========================================
+
+Date          2026-08-28
+Commit        5151eac41c0d4d5f3442e5924628ab1508609335 (branch w11-repro-builds)
+Host          darwin/arm64
+Gate          script/check-release-artifact-reproducibility.sh
+Work item     W11 (GPK-V0-018 build reproducibility; GPK-V0-019 Go extension)
+
+SUMMARY targets=5 byte-identical=5 of 5 checksums=5 smoke-pass=1 smoke-not-run=4 smoke-fail=0 legal-files=3 module-requirements=0 undeclared-dependencies=0 verdict=PASS pending-evidence=W10-performance-GPK-V0-016-017
+exit code 0
+
+Preflight
+---------
+selected toolchain      go1.27.0        (expected go1.27.0)
+GOTOOLCHAIN             local
+go.mod go directive     1.27.0          (exact)
+go.mod toolchain lines  0
+worktree                clean
+module requirements     0
+
+Profile
+-------
+package        ./cmd/corvint
+binary name    corvint        (never "corvint": GPK-V0-015 forbids it, GPK-V0-023 gates it)
+build flags    -trimpath
+environment    CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOFLAGS=-mod=readonly GOSUMDB=off
+cache          each of the two builds used its own cold GOCACHE and TMPDIR
+
+Two same-profile builds per target, byte-identical
+--------------------------------------------------
+target          identical  bytes     sha256 (both builds)
+darwin/amd64    YES        8560112   5e266c7335987f74e870ae3d1adea1f28eeff365dd2c921e5bf7685c9e7c075c
+darwin/arm64    YES        7953954   4e513a3e7383c0eda6f6a5713101f1d1f03066eadba237b50216924dd749bc7c
+linux/amd64     YES        8539614   12ea1fb9e137df6f0f765cf77946ed4cd92b90cf116e6092056e36886a54ad66
+linux/arm64     YES        7925840   23d6d60f964149af9ec1543e20978f0062d0cae76ae9aa302acc7aeed5965926
+windows/amd64   YES        8612864   9ede469fecb9814646a69cbdcea0d07febaec53bcfa29c7c1d589cec391dfd1d
+
+SHA256SUMS (one row per exact artifact)
+---------------------------------------
+5e266c7335987f74e870ae3d1adea1f28eeff365dd2c921e5bf7685c9e7c075c  corvint-darwin-amd64
+4e513a3e7383c0eda6f6a5713101f1d1f03066eadba237b50216924dd749bc7c  corvint-darwin-arm64
+12ea1fb9e137df6f0f765cf77946ed4cd92b90cf116e6092056e36886a54ad66  corvint-linux-amd64
+23d6d60f964149af9ec1543e20978f0062d0cae76ae9aa302acc7aeed5965926  corvint-linux-arm64
+9ede469fecb9814646a69cbdcea0d07febaec53bcfa29c7c1d589cec391dfd1d  corvint-windows-amd64.exe
+
+Embedded provenance (verified on every target, example darwin/arm64)
+--------------------------------------------------------------------
+go             go1.27.0
+path           github.com/corvint-context/corvint/cmd/corvint
+CGO_ENABLED    0
+-trimpath      true
+vcs.revision   5151eac41c0d4d5f3442e5924628ab1508609335
+vcs.modified   false
+deps           (empty: no undeclared runtime dependency)
+
+Smoke tests
+-----------
+darwin/arm64    PASS     native execution on this host.
+                         --version   -> "Corvint 0.4.0a0"
+                         real read-only query on a temporary Git repository
+                         -> intent "project-operations", repository unchanged
+                         (git status --porcelain empty before and after).
+darwin/amd64    NOT_RUN  this host cannot execute the target.
+linux/amd64     NOT_RUN  this host cannot execute the target.
+linux/arm64     NOT_RUN  this host cannot execute the target.
+windows/amd64   NOT_RUN  this host cannot execute the target.
+
+GPK-V0-018 states cross-compilation is not execution evidence. The four NOT_RUN
+targets still owe their native conformance, filesystem-safety, process-cleanup,
+and read-nonmutation matrices, plus exact Python process comparison wherever the
+Python oracle supports that operating system. These are named gaps, not inferred
+support.
+
+Legal files (GPK-V0-020, pinned by digest in manifest.json)
+-----------------------------------------------------------
+LICENSE        PASS  cdb7dd035e8a8536a2b5c90ba6fb7a6270a1b989f7b52f3f87c4877e2fa6c893
+LICENSING.md   PASS  3644e08703d30ff724fcd061faa2c77bff055be49ebd95b9e2feebe6c73726be
+PROVENANCE.md  PASS  12455e604564cc757992b5d408f652812f48b4650d21f3a37eba8cf9d985eef5
+
+Verdict scope
+-------------
+PASS is a build-reproducibility verdict only. The W11 contribution to the
+release gate remains PENDING: W10's performance evidence (GPK-V0-016..017) does
+not exist yet, and pendingEvidence is non-empty. The release gate MUST NOT be
+declared satisfied on this run.
+
+Fail-closed refusal, demonstrated on the same tree before the gate was committed:
+
+  SUMMARY targets=0 byte-identical=0 of 0 ... verdict=FAIL pending-evidence=W10-performance-GPK-V0-016-017
+  FAIL dirty-worktree: worktree is dirty:
+  ?? conformance/release-artifact-v0/
+  exit code 1

@@ -1,0 +1,23 @@
+{
+  "files": [
+    {
+      "content": ".context-atlas/\n",
+      "mode": "0644",
+      "path": ".gitignore",
+      "type": "file"
+    },
+    {
+      "content": "module example.test/trace-migration\n\ngo 1.27.0\n",
+      "mode": "0644",
+      "path": "go.mod",
+      "type": "file"
+    },
+    {
+      "content": "package sample\n\nfunc Value() string { return \"synthetic\" }\n",
+      "mode": "0644",
+      "path": "pkg/value.go",
+      "type": "file"
+    }
+  ],
+  "format": "atlas-cli-parity-fixture/0"
+}

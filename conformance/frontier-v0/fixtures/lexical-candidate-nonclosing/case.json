@@ -1,0 +1,188 @@
+{
+  "id": "lexical-candidate-nonclosing",
+  "matrixRows": [
+    "linked obligation with one or more lexical candidates"
+  ],
+  "clauses": [
+    "CF-V0-012",
+    "CF-V0-025"
+  ],
+  "intent": "A lexically-proximate candidate is a RETRIEVAL AID, never a witness. relatedIds are exactly the sorted unique CANDIDATE hunk IDs, not every referenced hunk.",
+  "cases": [
+    {
+      "id": "one-candidate",
+      "note": "One of two referenced hunks emits lexically-proximate-candidate.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "ocm-lexical-candidate"
+            ]
+          },
+          {
+            "id": "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          }
+        ],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "linked",
+            "hunkIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+              "hunk:sha256:0202020202020202020202020202020202020202020202020202020202020202"
+            ],
+            "claimIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "tcqReasons": [
+              "test-not-matched"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "2",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "LEXICAL_CANDIDATE_NONCLOSING"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "AUTHORITY_REQUIRED",
+            "nextAction": "ESTABLISH_CHANGE_WITNESS"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "TEST_NOT_MATCHED"
+            ],
+            "relatedIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "SUPPLY_TEST_OBSERVATION"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-012: relatedIds contain EXACTLY the candidate hunk IDs, so H2 is absent.",
+        "CF-V0-012: AUTHORITY_REQUIRED / ESTABLISH_CHANGE_WITNESS; the candidate never closes the item.",
+        "CF-V0-025: the item asserts only that no qualifying relation was accepted; it is not evidence that the change is wrong or unwitnessed in fact."
+      ]
+    },
+    {
+      "id": "multiple-candidates",
+      "note": "Two candidates; both appear, sorted and deduplicated.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "ocm-lexical-candidate"
+            ]
+          },
+          {
+            "id": "hunk:sha256:0303030303030303030303030303030303030303030303030303030303030303",
+            "disposition": "supported",
+            "bases": [
+              "ocm-lexical-candidate"
+            ]
+          }
+        ],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "linked",
+            "hunkIds": [
+              "hunk:sha256:0303030303030303030303030303030303030303030303030303030303030303",
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+              "hunk:sha256:0303030303030303030303030303030303030303030303030303030303030303"
+            ],
+            "claimIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "tcqReasons": [
+              "test-not-matched"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "2",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "LEXICAL_CANDIDATE_NONCLOSING"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+              "hunk:sha256:0303030303030303030303030303030303030303030303030303030303030303"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "AUTHORITY_REQUIRED",
+            "nextAction": "ESTABLISH_CHANGE_WITNESS"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "TEST_NOT_MATCHED"
+            ],
+            "relatedIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "SUPPLY_TEST_OBSERVATION"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-012: a repeated caller reference is deduplicated.",
+        "CF-V0-020: relatedIds sort lexicographically regardless of caller array order."
+      ]
+    }
+  ]
+}

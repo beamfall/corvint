@@ -1,0 +1,749 @@
+{
+  "version": "sqlite-review-adversarial/v1",
+  "classes": [
+    {
+      "name": "write-returning-cross-product",
+      "seed": 202608260351,
+      "cases": 92
+    }
+  ],
+  "cases": [
+    {
+      "name": "hex-adjacent-letter",
+      "sql": "SELECT 0x1g;",
+      "want": "rejected"
+    },
+    {
+      "name": "hex-adjacent-underscore",
+      "sql": "SELECT 0x1_;",
+      "want": "rejected"
+    },
+    {
+      "name": "hex-adjacent-dollar",
+      "sql": "SELECT 0x1$;",
+      "want": "rejected"
+    },
+    {
+      "name": "hex-overflow",
+      "sql": "SELECT 0x10000000000000000;",
+      "want": "rejected"
+    },
+    {
+      "name": "hex-lower",
+      "sql": "SELECT 0x0;",
+      "want": "candidate"
+    },
+    {
+      "name": "hex-upper-prefix",
+      "sql": "SELECT 0X1;",
+      "want": "candidate"
+    },
+    {
+      "name": "hex-mixed-digits",
+      "sql": "SELECT 0xDeAdBeEf;",
+      "want": "candidate"
+    },
+    {
+      "name": "hex-min-signed",
+      "sql": "SELECT 0x8000000000000000;",
+      "want": "candidate"
+    },
+    {
+      "name": "hex-negative-one",
+      "sql": "SELECT 0xFFFFFFFFFFFFFFFF;",
+      "want": "candidate"
+    },
+    {
+      "name": "trigger-empty",
+      "sql": "CREATE TRIGGER tr AFTER INSERT ON t BEGIN END;",
+      "want": "rejected"
+    },
+    {
+      "name": "trigger-missing-body-semicolon",
+      "sql": "CREATE TRIGGER tr AFTER INSERT ON t BEGIN SELECT 1 END;",
+      "want": "rejected"
+    },
+    {
+      "name": "trigger-unsupported-body",
+      "sql": "CREATE TRIGGER tr AFTER INSERT ON t BEGIN PRAGMA foreign_keys; END;",
+      "want": "rejected"
+    },
+    {
+      "name": "trigger-one-statement",
+      "sql": "CREATE TRIGGER tr AFTER INSERT ON t BEGIN SELECT 1; END;",
+      "want": "candidate"
+    },
+    {
+      "name": "trigger-two-statements",
+      "sql": "CREATE TRIGGER tr AFTER INSERT ON t BEGIN SELECT 1; SELECT 2; END;",
+      "want": "candidate"
+    },
+    {
+      "name": "line-comment-control",
+      "sql": "SELECT 1;--\u0001\n",
+      "want": "rejected"
+    },
+    {
+      "name": "block-comment-nul",
+      "sql": "SELECT 1;/*\u0000*/",
+      "want": "rejected"
+    },
+    {
+      "name": "quoted-load-extension-double",
+      "sql": "SELECT \"load_extension\"('x');",
+      "want": "rejected"
+    },
+    {
+      "name": "quoted-load-extension-backtick",
+      "sql": "SELECT `load_extension`('x');",
+      "want": "rejected"
+    },
+    {
+      "name": "quoted-load-extension-bracket",
+      "sql": "SELECT [load_extension]('x');",
+      "want": "rejected"
+    },
+    {
+      "name": "quoted-load-extension-column",
+      "sql": "SELECT \"load_extension\" FROM t;",
+      "want": "candidate"
+    },
+    {
+      "name": "trigger-qualified-insert",
+      "sql": "CREATE TRIGGER tr AFTER INSERT ON t BEGIN INSERT INTO main.log VALUES (1); END;",
+      "want": "rejected"
+    },
+    {
+      "name": "trigger-qualified-update",
+      "sql": "CREATE TRIGGER tr AFTER INSERT ON t BEGIN UPDATE main.log SET id=1; END;",
+      "want": "rejected"
+    },
+    {
+      "name": "trigger-qualified-delete",
+      "sql": "CREATE TRIGGER tr AFTER INSERT ON t BEGIN DELETE FROM main.log; END;",
+      "want": "rejected"
+    },
+    {
+      "name": "trigger-direct-cte",
+      "sql": "CREATE TRIGGER tr AFTER INSERT ON t BEGIN WITH c AS (SELECT 1) SELECT * FROM c; END;",
+      "want": "rejected"
+    },
+    {
+      "name": "trigger-insert-default-values",
+      "sql": "CREATE TRIGGER tr AFTER INSERT ON t BEGIN INSERT INTO log DEFAULT VALUES; END;",
+      "want": "rejected"
+    },
+    {
+      "name": "trigger-unqualified-dml",
+      "sql": "CREATE TRIGGER tr AFTER INSERT ON t BEGIN INSERT INTO log VALUES (1); UPDATE log SET id=2; DELETE FROM log WHERE id=2; SELECT 1; END;",
+      "want": "candidate"
+    },
+    {
+      "name": "returning-name",
+      "sql": "CREATE TABLE RETURNING (id INTEGER);",
+      "want": "rejected"
+    },
+    {
+      "name": "returning-alias",
+      "sql": "SELECT 1 AS RETURNING;",
+      "want": "rejected"
+    },
+    {
+      "name": "returning-context",
+      "sql": "INSERT INTO t VALUES (1) RETURNING id;",
+      "want": "candidate"
+    },
+    {
+      "name": "strict-context-name",
+      "sql": "CREATE TABLE strict (id INTEGER);",
+      "want": "candidate"
+    },
+    {
+      "name": "strict-context-alias",
+      "sql": "SELECT 1 AS strict;",
+      "want": "candidate"
+    },
+    {
+      "name": "pragma-reserved-value",
+      "sql": "PRAGMA foreign_keys=SELECT;",
+      "want": "rejected"
+    },
+    {
+      "name": "pragma-parenthesized-reserved",
+      "sql": "PRAGMA foreign_keys=(SELECT);",
+      "want": "rejected"
+    },
+    {
+      "name": "pragma-arbitrary-name",
+      "sql": "PRAGMA cache_size=1;",
+      "want": "rejected"
+    },
+    {
+      "name": "pragma-keyword",
+      "sql": "PRAGMA foreign_keys=ON;",
+      "want": "candidate"
+    },
+    {
+      "name": "pragma-number",
+      "sql": "PRAGMA foreign_keys=1;",
+      "want": "candidate"
+    },
+    {
+      "name": "pragma-string",
+      "sql": "PRAGMA foreign_keys='on';",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-01",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-02",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING (id);",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-03",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING +id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-04",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING -id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-05",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING NOT id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-06",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id + 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-07",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id - 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-08",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id * 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-09",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id / 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-10",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id % 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-11",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id || 'v';",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-12",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id | 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-13",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id & 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-14",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id << 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-15",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id >> 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-16",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id = 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-17",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id == 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-18",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id != 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-19",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id <> 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-20",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id < 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-21",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id > 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-22",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id <= 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-plain-23",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 RETURNING id >= 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-01",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-02",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING (id);",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-03",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING +id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-04",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING -id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-05",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING NOT id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-06",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id + 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-07",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id - 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-08",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id * 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-09",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id / 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-10",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id % 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-11",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id || 'v';",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-12",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id | 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-13",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id & 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-14",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id << 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-15",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id >> 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-16",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id = 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-17",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id == 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-18",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id != 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-19",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id <> 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-20",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id < 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-21",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id > 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-22",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id <= 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-update-where-23",
+      "class": "write-returning-cross-product",
+      "sql": "UPDATE t SET id = 8 WHERE id = 8 RETURNING id >= 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-01",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-02",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING (id);",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-03",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING +id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-04",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING -id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-05",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING NOT id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-06",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id + 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-07",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id - 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-08",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id * 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-09",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id / 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-10",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id % 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-11",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id || 'v';",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-12",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id | 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-13",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id & 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-14",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id << 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-15",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id >> 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-16",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id = 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-17",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id == 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-18",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id != 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-19",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id <> 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-20",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id < 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-21",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id > 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-22",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id <= 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-plain-23",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t RETURNING id >= 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-01",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-02",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING (id);",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-03",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING +id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-04",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING -id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-05",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING NOT id;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-06",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id + 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-07",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id - 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-08",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id * 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-09",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id / 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-10",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id % 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-11",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id || 'v';",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-12",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id | 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-13",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id & 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-14",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id << 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-15",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id >> 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-16",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id = 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-17",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id == 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-18",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id != 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-19",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id <> 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-20",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id < 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-21",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id > 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-22",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id <= 1;",
+      "want": "candidate"
+    },
+    {
+      "name": "write-returning-delete-where-23",
+      "class": "write-returning-cross-product",
+      "sql": "DELETE FROM t WHERE id = 8 RETURNING id >= 1;",
+      "want": "candidate"
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "id": "supported-deletion-requires-profile",
+  "matrixRows": [
+    "supported deletion"
+  ],
+  "clauses": [
+    "CF-V0-010"
+  ],
+  "intent": "CF-V0-010 maps deletion abstention to DELETION_RELATION_REQUIRED and requires PROFILE_REQUIRED / DEFINE_SUPPORTED_PROFILE, because no V0 relation can witness a deletion.",
+  "cases": [
+    {
+      "id": "supported-deletion-hunk",
+      "note": "A supported deletion hunk whose only basis abstains for deletion. CF-V0-010's membership sentence — \"its `relatedIds` are exactly the sorted unique evidence IDs whose LRF edge contributes a retained reason\" — is unconditional: it states no exception for the deletion map, and a deletion abstention IS an edge outcome, taken per cited basis. So the one abstaining basis edge contributes DELETION_RELATION_REQUIRED and its evidence ID is retained. The suite originally expected `relatedIds: []` here by analogy with CF-V0-009; that analogy is wrong, because CF-V0-009 and CF-V0-011 say \"empty `relatedIds`\" in words when they mean it and CF-V0-010 deliberately does not, an asymmetry CF-V0-017 restates as \"CEM unknown is empty; unresolved supported CEM uses CF-V0-010\".",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "deletion",
+            "bases": [
+              "deletion-abstained"
+            ]
+          }
+        ],
+        "obligations": []
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "1",
+        "items": [
+          {
+            "kind": "HUNK_BASIS",
+            "subjectId": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "reasons": [
+              "DELETION_RELATION_REQUIRED"
+            ],
+            "relatedIds": [
+              "evidence:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "PROFILE_REQUIRED",
+            "nextAction": "DEFINE_SUPPORTED_PROFILE"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-010: deletion abstention maps to DELETION_RELATION_REQUIRED.",
+        "CF-V0-010: relatedIds are exactly the sorted unique evidence IDs whose LRF edge contributes a retained reason. DELETION_RELATION_REQUIRED is a retained reason and the abstention is an edge outcome, so the abstaining basis's evidence ID is retained; an empty relatedIds here would leave a retained reason no edge contributed.",
+        "CF-V0-010: resolutionClass is PROFILE_REQUIRED and nextAction is DEFINE_SUPPORTED_PROFILE, never ACTIONABLE / NARROW_OR_REPLACE_BASIS.",
+        "CF-V0-029: closing this needs a NEW profile identifier; frontier/0 cannot gain a deletion relation."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,130 @@
+{
+  "profile": "corvint-workflow-screening/0",
+  "pinnedCommit": "01aa66ad071756f7308bb04b0ec379b051a231e3",
+  "purpose": "AT-08 (ROADMAP.md) depends on AT-05/AT-06/AT-07, which are not yet built. This registry names every existing task corpus and states, per corpus, whether it may be sampled as a fresh AT-08 unseen task and why not when it may not.",
+  "statuses": ["development", "reserved-release-evidence", "excluded-tuned", "quarantined-exposure"],
+  "corpora": [
+    {
+      "id": "cw-trial-pilot",
+      "path": "tools/cw-trial/testdata/pilot/tasks.json",
+      "task_count": 5,
+      "repositories": ["etcd-io/etcd"],
+      "partition_label_in_file": "pilot",
+      "status_for_at08": "development",
+      "reason": "Authored after Corvint output was seen and explicitly \"never held-out\", so it is development forever under benchmarks/README.md's first-observation rule (tools/cw-trial/testdata/pilot/tasks.json:2-3).",
+      "reusable_as": "sampling-template"
+    },
+    {
+      "id": "heldout-v1",
+      "path": "tools/cw-trial/testdata/heldout-v1/manifest.json",
+      "task_count": 50,
+      "repositories": [
+        {"repo": "gin-gonic/gin", "count": 15},
+        {"repo": "etcd-io/etcd", "count": 6},
+        {"repo": "huggingface/transformers", "count": 5},
+        {"repo": "pallets/click", "count": 5},
+        {"repo": "huggingface/diffusers", "count": 3},
+        {"repo": "tokio-rs/tokio", "count": 3},
+        {"repo": "caddyserver/caddy", "count": 3},
+        {"repo": "pypa/pip", "count": 2},
+        {"repo": "astral-sh/ruff", "count": 2},
+        {"repo": "vuejs/core", "count": 1},
+        {"repo": "tox-dev/tox", "count": 1},
+        {"repo": "pytest-dev/pytest", "count": 1},
+        {"repo": "spring-projects/spring-boot", "count": 1},
+        {"repo": "clap-rs/clap", "count": 1},
+        {"repo": "vitejs/vite", "count": 1}
+      ],
+      "partition_label_in_file": "held-out",
+      "status_for_at08": "development",
+      "reason": "The manifest's own first_observation field demotes the set to development from 2026-09-02 even though the retained partition field still reads held-out (tools/cw-trial/testdata/heldout-v1/manifest.json:4-16).",
+      "reusable_as": "sampling-template"
+    },
+    {
+      "id": "unseen-corvint-v1",
+      "path": "tools/cw-trial/testdata/unseen-corvint-v1/tasks.json",
+      "task_count": 34,
+      "repositories": ["Beamfall/corvint"],
+      "partition_label_in_file": "unseen",
+      "status_for_at08": "excluded-tuned",
+      "reason": "Used for the corvint/aider/grep four-arm comparison (docs/BUILD-LOG.md, heading 'Four arms on the unseen set') and, as a subset of unseen-corvint-v2, swept into v2's sibling-order tuning (docs/BUILD-LOG.md, heading 'Swift module importers (decision 0030) and sibling name order (decision 0031)'); the Swift-importer probe (decision 0030) ran on beamfall-apple, not this corpus.",
+      "reusable_as": "sampling-template"
+    },
+    {
+      "id": "unseen-corvint-v2",
+      "path": "tools/cw-trial/testdata/unseen-corvint-v2/tasks.json",
+      "task_count": 63,
+      "repositories": ["Beamfall/corvint"],
+      "partition_label_in_file": "unseen",
+      "status_for_at08": "excluded-tuned",
+      "reason": "Superset of v1 (all 34 v1 tasks plus 29 new) frozen for and used in sibling-order tuning (tools/cw-trial/testdata/unseen-corvint-v2/tasks.json:2-11; docs/BUILD-LOG.md, heading 'Swift module importers (decision 0030) and sibling name order (decision 0031)').",
+      "reusable_as": "sampling-template"
+    },
+    {
+      "id": "unseen-beamfall",
+      "path": "tools/cw-trial/testdata/unseen-beamfall/tasks.json",
+      "task_count": 60,
+      "repositories": ["Beamfall/beamfall"],
+      "partition_label_in_file": "unseen",
+      "status_for_at08": "excluded-tuned",
+      "reason": "Evaluated and used in the same sibling-order selection pass as the other unseen sets (docs/BUILD-LOG.md, heading 'Swift module importers (decision 0030) and sibling name order (decision 0031)').",
+      "reusable_as": "sampling-template"
+    },
+    {
+      "id": "unseen-beamfall-apple",
+      "path": "tools/cw-trial/testdata/unseen-beamfall-apple/tasks.json",
+      "task_count": 40,
+      "repositories": ["Beamfall/beamfall-apple"],
+      "partition_label_in_file": "unseen",
+      "status_for_at08": "excluded-tuned",
+      "reason": "Directly used to tune Swift module importers (decision 0030) and sibling ordering (decision 0031); offline gold placement probed against this set (docs/BUILD-LOG.md, heading 'Swift module importers (decision 0030) and sibling name order (decision 0031)').",
+      "reusable_as": "sampling-template"
+    },
+    {
+      "id": "cem-trial-pilot",
+      "path": "tools/cem-trial/testdata/pilot/tasks.json",
+      "task_count": 5,
+      "repositories": ["Beamfall/beamfall"],
+      "partition_label_in_file": "pilot",
+      "status_for_at08": "development",
+      "reason": "Five Beamfall changes selected from 620 candidates, explicitly \"never held-out\"; its valid 50-lane rerun still counts only as development evidence (tools/cem-trial/testdata/pilot/README.md:3-9; docs/BUILD-LOG.md, heading 'The CEM reviewer-trial pilot ran validly, and it does not show the effect').",
+      "reusable_as": "sampling-template"
+    },
+    {
+      "id": "blind-v2",
+      "path": "benchmarks/blind-v2-manifest.json",
+      "task_count": 5,
+      "repositories": ["beamfall", "flask", "cobra", "zod", "execa"],
+      "partition_label_in_file": "heldout-v2",
+      "status_for_at08": "development",
+      "reason": "Already observed as a challenge diagnosis (7/10 critical misses on first run) with two V4-targeting and three V6-targeting cases, so it cannot serve as a fresh AT-08 unseen sample (docs/V4-STATUS.md:51; benchmarks/blind-v2/beamfall.json:6-7).",
+      "reusable_as": "sampling-template"
+    },
+    {
+      "id": "blind-v3",
+      "path": "benchmarks/blind-v3-manifest.json",
+      "task_count": 5,
+      "repositories": ["beamfall", "flask", "cobra", "zod", "execa"],
+      "partition_label_in_file": "heldout-v3",
+      "status_for_at08": "development",
+      "reason": "First observed 2026-08-22 and explicitly designated the mechanism-development signal by decision 0037 (docs/decisions/0037-release-owner-calls-2026-09-03.md:49; benchmarks/blind-v3-manifest.json:4).",
+      "reusable_as": "sampling-template"
+    },
+    {
+      "id": "blind-v4",
+      "path": "benchmarks/blind-v4-manifest.json",
+      "task_count": 31,
+      "repositories": [
+        {"repo": "beamfall", "count": 7},
+        {"repo": "flask", "count": 6},
+        {"repo": "cobra", "count": 6},
+        {"repo": "zod", "count": 6},
+        {"repo": "execa", "count": 6}
+      ],
+      "partition_label_in_file": "heldout-v4",
+      "status_for_at08": "quarantined-exposure",
+      "reason": "On 2026-09-06 an audit-follow-up reviewer accessed the reserved zod.json, flask.json and cobra.json label files without an authorized V4 release run. This thread has observed protected material; the original first_observed_at=null is no longer evidence of an unexposed partition. Quarantine the whole partition for this task and require an independently approved replacement or exposure adjudication before any sealed-release claim; no case data or frozen manifest was rewritten.",
+      "reusable_as": "none"
+    }
+  ]
+}

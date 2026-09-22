@@ -1,0 +1,150 @@
+{
+  "profile": "audit-finite-policy-development/0",
+  "authority": "PROPOSED CF-V0-016/017, not accepted execution authority",
+  "base": "6adc6e1ad82ca49d2daa28fbaecf596310028730",
+  "source": "docs/specs/change-frontier-v0.md",
+  "source_blob": "4a03d33df5c58b1568404d8094474911a98eacf5",
+  "oracle": "independent reviewer extracted before reading closure.go; root transcribed immutable rows",
+  "domain": "18 atomic sources and all8191nonempty subsets of13distinct reasons; aliases checked atomically and duplicate compound control",
+  "priorities": [
+    {
+      "reason": "CALLER_REPORTED_NONCLOSING",
+      "resolution": "AUTHORITY_REQUIRED",
+      "action": "ESTABLISH_HARNESS_AUTHORITY"
+    },
+    {
+      "reason": "TARGET_CLEANLINESS_NOT_ATTESTED",
+      "resolution": "ACTIONABLE",
+      "action": "RERUN_TEST_COMMAND"
+    },
+    {
+      "reason": "COMMAND_FAILED",
+      "resolution": "ACTIONABLE",
+      "action": "RERUN_TEST_COMMAND"
+    },
+    {
+      "reason": "TEST_ERROR",
+      "resolution": "ACTIONABLE",
+      "action": "FIX_OR_RERUN_TEST"
+    },
+    {
+      "reason": "TEST_FAILED",
+      "resolution": "ACTIONABLE",
+      "action": "FIX_OR_RERUN_TEST"
+    },
+    {
+      "reason": "TEST_SKIPPED",
+      "resolution": "ACTIONABLE",
+      "action": "FIX_OR_RERUN_TEST"
+    },
+    {
+      "reason": "TEST_IDENTITY_AMBIGUOUS",
+      "resolution": "ACTIONABLE",
+      "action": "DISAMBIGUATE_TEST_IDENTITY"
+    },
+    {
+      "reason": "TEST_ROW_IDENTITY_UNAVAILABLE",
+      "resolution": "ACTIONABLE",
+      "action": "SUPPLY_TEST_OBSERVATION"
+    },
+    {
+      "reason": "TEST_NOT_MATCHED",
+      "resolution": "ACTIONABLE",
+      "action": "SUPPLY_TEST_OBSERVATION"
+    },
+    {
+      "reason": "TEST_CLAIM_EMPTY",
+      "resolution": "ACTIONABLE",
+      "action": "REPAIR_TEST_CLAIM"
+    },
+    {
+      "reason": "TEST_CLAIM_UNCONDITIONAL_SKIP",
+      "resolution": "ACTIONABLE",
+      "action": "REPAIR_TEST_CLAIM"
+    },
+    {
+      "reason": "TEST_CLAIM_UNASSOCIATED",
+      "resolution": "ACTIONABLE",
+      "action": "REPAIR_TEST_CLAIM"
+    },
+    {
+      "reason": "TEST_CLAIM_UNSUPPORTED",
+      "resolution": "PROFILE_REQUIRED",
+      "action": "DEFINE_SUPPORTED_PROFILE"
+    }
+  ],
+  "sources": [
+    {
+      "source": "@relation",
+      "priority": 0
+    },
+    {
+      "source": "target-cleanliness-not-attested",
+      "priority": 1
+    },
+    {
+      "source": "command-failed",
+      "priority": 2
+    },
+    {
+      "source": "test-error",
+      "priority": 3
+    },
+    {
+      "source": "test-failed",
+      "priority": 4
+    },
+    {
+      "source": "test-skipped",
+      "priority": 5
+    },
+    {
+      "source": "execution-identity-ambiguous",
+      "priority": 6
+    },
+    {
+      "source": "repeated-test-rows",
+      "priority": 6
+    },
+    {
+      "source": "row-identity-unavailable",
+      "priority": 7
+    },
+    {
+      "source": "test-not-matched",
+      "priority": 8
+    },
+    {
+      "source": "empty-body",
+      "priority": 9
+    },
+    {
+      "source": "unconditional-skip",
+      "priority": 10
+    },
+    {
+      "source": "claim-association-missing",
+      "priority": 11
+    },
+    {
+      "source": "claim-association-ambiguous",
+      "priority": 11
+    },
+    {
+      "source": "python-offset-mismatch",
+      "priority": 11
+    },
+    {
+      "source": "unparseable-test-unit",
+      "priority": 11
+    },
+    {
+      "source": "unsupported-anchor-profile",
+      "priority": 12
+    },
+    {
+      "source": "unsupported-python-grammar",
+      "priority": 12
+    }
+  ]
+}

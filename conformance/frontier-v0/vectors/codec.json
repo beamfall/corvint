@@ -1,0 +1,391 @@
+{
+  "spec": "docs/specs/change-frontier-v0.md",
+  "clause": "CF-V0-019",
+  "derivation": "hand-authored from clause text; SHA-256 values computed with a standalone script and cross-checked with shasum(1)",
+  "vectors": [
+    {
+      "id": "serialize/empty-object",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "empty object round-trips; no whitespace.",
+      "input": "{}",
+      "expect": "{}",
+      "expectSha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+    },
+    {
+      "id": "serialize/empty-array",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "empty array round-trips.",
+      "input": "[]",
+      "expect": "[]",
+      "expectSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "serialize/literals",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "true/false/null are written literally; keys sort f<n<t by raw byte.",
+      "input": "{\"t\":true,\"f\":false,\"n\":null}",
+      "expect": "{\"f\":false,\"n\":null,\"t\":true}",
+      "expectSha256": "22e00dc2f7b01420f940fbdbfbdf34fa0667cc6500186495023ba37722cbd05e"
+    },
+    {
+      "id": "serialize/key-sort-ascii-raw-bytes",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "Raw UTF-8 byte order, not case-insensitive collation: 'A'=0x41 < 'Z'=0x5a < '_'=0x5f < 'a'=0x61.",
+      "input": "{\"a\":\"\",\"_\":\"\",\"Z\":\"\",\"A\":\"\"}",
+      "expect": "{\"A\":\"\",\"Z\":\"\",\"_\":\"\",\"a\":\"\"}",
+      "expectSha256": "cb1c169c302568729367ed17e819bd71941f2104e64d02798b6b943a019d2f06"
+    },
+    {
+      "id": "serialize/key-sort-prefix",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "A shorter key that is a byte prefix of a longer key sorts first.",
+      "input": "{\"ab\":\"\",\"abc\":\"\",\"a\":\"\"}",
+      "expect": "{\"a\":\"\",\"ab\":\"\",\"abc\":\"\"}",
+      "expectSha256": "5e64191c9d176943cf09d72decc517bc0c49521cf745957f476552a4a768b317"
+    },
+    {
+      "id": "serialize/key-sort-raw-utf8-not-utf16",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "U+FF3A encodes ef bc ba and U+10000 encodes f0 90 80 80, so U+FF3A sorts first. A UTF-16 code-unit sort would place the surrogate pair (d800 dc00) first and is wrong.",
+      "input": "{\"\\ud800\\udc00\":\"astral\",\"\\uff3a\":\"fullwidth\"}",
+      "expect": "{\"Ｚ\":\"fullwidth\",\"𐀀\":\"astral\"}",
+      "expectSha256": "180705240e1e5633a5ffad0b9bbc786ea4c21f17a3da37b8c1d2a33bbf7630dc"
+    },
+    {
+      "id": "serialize/escape-quote-and-backslash",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "Only \" and \\\\ take a two-character escape.",
+      "input": "{\"k\":\"a\\\"b\\\\c\"}",
+      "expect": "{\"k\":\"a\\\"b\\\\c\"}",
+      "expectSha256": "c29d69a896d23e0cd79ce2f2adcb1446aa698be3e82521a4729947cef539f11a"
+    },
+    {
+      "id": "serialize/escape-controls-lowercase-u00xx",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "Every U+0000..U+001F scalar is \\u00xx with lowercase hex; \\t and \\n do NOT use their short forms.",
+      "input": "{\"k\":\"\\u0000\\u0009\\u000a\\u000d\\u001f\"}",
+      "expect": "{\"k\":\"\\u0000\\u0009\\u000a\\u000d\\u001f\"}",
+      "expectSha256": "763eb10bd0f228cbeaf31704e9ec37b3411dbde75fb9c690dbf177589f31832e"
+    },
+    {
+      "id": "serialize/no-optional-escaping",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "U+00E9, U+2028, '/' and U+007F are all above U+001F, so each is emitted as its original UTF-8 bytes with no optional escaping and no Unicode normalization.",
+      "input": "{\"k\":\"\\u00e9\\u2028/\\u007f\"}",
+      "expect": "{\"k\":\"é /\"}",
+      "expectSha256": "66fdcf0c869644c1c9d42543842e2a16de4803168fa1a5cfce2bd192316dc75e"
+    },
+    {
+      "id": "serialize/nfc-nfd-not-normalized",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "U+00E9 and U+0065 U+0301 are distinct keys; the codec never normalizes them together.",
+      "input": "{\"\\u00e9\":\"precomposed\",\"e\\u0301\":\"decomposed\"}",
+      "expect": "{\"é\":\"decomposed\",\"é\":\"precomposed\"}",
+      "expectSha256": "c57984b0473441c370eb2a4c714ab07e698c13c59a816c319f421fc3fe3de928"
+    },
+    {
+      "id": "serialize/array-order-preserved",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "Arrays keep declared order; only object keys sort.",
+      "input": "{\"a\":[\"z\",\"m\",\"a\",true,null]}",
+      "expect": "{\"a\":[\"z\",\"m\",\"a\",true,null]}",
+      "expectSha256": "cfd81e18dd8ee0ebf904f963bf0bb23fee611565d38bf570ef23b8cd8cf31b94"
+    },
+    {
+      "id": "serialize/nested-sort",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "Sorting applies at every object depth, including objects inside arrays.",
+      "input": "{\"b\":{\"z\":\"\",\"a\":\"\"},\"a\":[{\"y\":\"\",\"x\":\"\"}]}",
+      "expect": "{\"a\":[{\"x\":\"\",\"y\":\"\"}],\"b\":{\"a\":\"\",\"z\":\"\"}}",
+      "expectSha256": "0e210da37bcf5da4e1de9338ad2f5d593beb950049f6a8c242c15cf17ac21ebc"
+    },
+    {
+      "id": "serialize/whitespace-stripped",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "Serialization emits no whitespace, so a spaced input serializes to the compact canonical form.",
+      "input": "{ \"b\" : \"1\" , \"a\" : [ \"x\" ] }",
+      "expect": "{\"a\":[\"x\"],\"b\":\"1\"}",
+      "expectSha256": "b9b43600917720ba6a871724a05b821c315f79f483d2c4736e309905647268ff"
+    },
+    {
+      "id": "serialize/decimal-strings",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "Counts, ordinals and offsets are base-10 strings, never JSON numbers.",
+      "input": "{\"end\":\"48\",\"start\":\"0\"}",
+      "expect": "{\"end\":\"48\",\"start\":\"0\"}",
+      "expectSha256": "8506f7ae497a0960625619313fc1117a67892cc6f535b75c452c5b308f38b60f"
+    },
+    {
+      "id": "serialize/spec-item-example",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "CF-V0-017's literal closed item shape is already canonical: reserialization is the identity.",
+      "input": "{\"authorityClass\":\"CALLER_REPORTED\",\"id\":\"frontier-item:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"kind\":\"INTENT_TEST\",\"nextAction\":\"SUPPLY_TEST_OBSERVATION\",\"reasons\":[\"TEST_NOT_MATCHED\"],\"relatedIds\":[\"claim:sha256:0000000000000000000000000000000000000000000000000000000000000000\"],\"resolutionClass\":\"ACTIONABLE\",\"subjectId\":\"CF-V0-001\"}",
+      "expect": "{\"authorityClass\":\"CALLER_REPORTED\",\"id\":\"frontier-item:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"kind\":\"INTENT_TEST\",\"nextAction\":\"SUPPLY_TEST_OBSERVATION\",\"reasons\":[\"TEST_NOT_MATCHED\"],\"relatedIds\":[\"claim:sha256:0000000000000000000000000000000000000000000000000000000000000000\"],\"resolutionClass\":\"ACTIONABLE\",\"subjectId\":\"CF-V0-001\"}",
+      "expectSha256": "47d68be103b0c25ab41a80019cc3c8907cd93e3bd9383b9a0c4df2b8746f8a7d"
+    },
+    {
+      "id": "serialize/spec-result-example",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "CF-V0-018's literal valid-open example is already canonical: reserialization is the identity.",
+      "input": "{\"frontierState\":\"OPEN\",\"id\":\"frontier:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"inputs\":{\"cemSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"lrfSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"ocmSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"policy\":\"strict-v0\",\"tcqId\":\"tcq:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"testMode\":\"STATIC\"},\"items\":[{\"authorityClass\":\"CALLER_REPORTED\",\"id\":\"frontier-item:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"kind\":\"INTENT_TEST\",\"nextAction\":\"SUPPLY_TEST_OBSERVATION\",\"reasons\":[\"TEST_NOT_MATCHED\"],\"relatedIds\":[\"claim:sha256:0000000000000000000000000000000000000000000000000000000000000000\"],\"resolutionClass\":\"ACTIONABLE\",\"subjectId\":\"CF-V0-001\"}],\"profile\":\"frontier/0\",\"scope\":{\"baseRevision\":\"0000000000000000000000000000000000000000\",\"excludedPath\":\".corvint/change.cem.json\",\"intentBlobOid\":\"0000000000000000000000000000000000000000\",\"intentPath\":\"docs/specs/change-frontier-v0.md\",\"intentSpan\":{\"end\":\"1\",\"start\":\"0\"},\"intentSpanSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"objectFormat\":\"sha1\",\"patchSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"targetRevision\":\"0000000000000000000000000000000000000000\"},\"universeId\":\"frontier-universe:sha256:0000000000000000000000000000000000000000000000000000000000000000\"}",
+      "expect": "{\"frontierState\":\"OPEN\",\"id\":\"frontier:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"inputs\":{\"cemSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"lrfSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"ocmSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"policy\":\"strict-v0\",\"tcqId\":\"tcq:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"testMode\":\"STATIC\"},\"items\":[{\"authorityClass\":\"CALLER_REPORTED\",\"id\":\"frontier-item:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"kind\":\"INTENT_TEST\",\"nextAction\":\"SUPPLY_TEST_OBSERVATION\",\"reasons\":[\"TEST_NOT_MATCHED\"],\"relatedIds\":[\"claim:sha256:0000000000000000000000000000000000000000000000000000000000000000\"],\"resolutionClass\":\"ACTIONABLE\",\"subjectId\":\"CF-V0-001\"}],\"profile\":\"frontier/0\",\"scope\":{\"baseRevision\":\"0000000000000000000000000000000000000000\",\"excludedPath\":\".corvint/change.cem.json\",\"intentBlobOid\":\"0000000000000000000000000000000000000000\",\"intentPath\":\"docs/specs/change-frontier-v0.md\",\"intentSpan\":{\"end\":\"1\",\"start\":\"0\"},\"intentSpanSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"objectFormat\":\"sha1\",\"patchSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"targetRevision\":\"0000000000000000000000000000000000000000\"},\"universeId\":\"frontier-universe:sha256:0000000000000000000000000000000000000000000000000000000000000000\"}",
+      "expectSha256": "f40abaf1f94e91a4bebde6f8aaac5337aa3c6b4e88491a4651bfe90955f4d08e"
+    },
+    {
+      "id": "serialize/universe-preimage-cf-v0-006",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "The CF-V0-006 universe preimage object, keys already in canonical order.",
+      "input": "{\"baseRevision\":\"0000000000000000000000000000000000000000\",\"excludedPath\":\".corvint/change.cem.json\",\"intent\":{\"blobOid\":\"0000000000000000000000000000000000000000\",\"path\":\"docs/specs/change-frontier-v0.md\",\"span\":{\"end\":\"1\",\"start\":\"0\"},\"spanSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"objectFormat\":\"sha1\",\"patchSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"targetRevision\":\"0000000000000000000000000000000000000000\"}",
+      "expect": "{\"baseRevision\":\"0000000000000000000000000000000000000000\",\"excludedPath\":\".corvint/change.cem.json\",\"intent\":{\"blobOid\":\"0000000000000000000000000000000000000000\",\"path\":\"docs/specs/change-frontier-v0.md\",\"span\":{\"end\":\"1\",\"start\":\"0\"},\"spanSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"objectFormat\":\"sha1\",\"patchSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"targetRevision\":\"0000000000000000000000000000000000000000\"}",
+      "expectSha256": "0ea2fff4b641a22d2dc7a12bb99c6f402a34b12d2b2013db491120c3b3b49478"
+    },
+    {
+      "id": "serialize/item-preimage-cf-v0-007",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "The CF-V0-007 item preimage object, keys already in canonical order.",
+      "input": "{\"kind\":\"HUNK_BASIS\",\"subjectId\":\"hunk:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"universeId\":\"frontier-universe:sha256:aab660578aec747688bdfedf78f99f065c8aa11b418a1dc8fcfd187ca46c23f3\"}",
+      "expect": "{\"kind\":\"HUNK_BASIS\",\"subjectId\":\"hunk:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"universeId\":\"frontier-universe:sha256:aab660578aec747688bdfedf78f99f065c8aa11b418a1dc8fcfd187ca46c23f3\"}",
+      "expectSha256": "ca87c8e5d8bf895e61648cdb6314eab045d015e6e923550f1359e2846421565d"
+    },
+    {
+      "id": "serialize/error-envelope-cf-v0-022",
+      "mode": "serialize",
+      "clause": "CF-V0-019",
+      "note": "The bounded stderr envelope; \"code\" < \"profile\" by raw byte.",
+      "input": "{\"code\":\"noncanonical-frontier\",\"profile\":\"frontier-error/0\"}",
+      "expect": "{\"code\":\"noncanonical-frontier\",\"profile\":\"frontier-error/0\"}",
+      "expectSha256": "6dccb1bfe12d902d0b2d8af207d822b43ec279dd0f7c9390c56cb95949d2fac0"
+    },
+    {
+      "id": "invalid/duplicate-object-key",
+      "mode": "invalid",
+      "clause": "CF-V0-019",
+      "note": "A duplicate object key is invalid input, never last-wins.",
+      "reason": "duplicate-key",
+      "input": "{\"a\":\"1\",\"a\":\"2\"}"
+    },
+    {
+      "id": "invalid/duplicate-key-nested",
+      "mode": "invalid",
+      "clause": "CF-V0-019",
+      "note": "Duplicate detection applies at every depth.",
+      "reason": "duplicate-key",
+      "input": "{\"o\":{\"a\":\"1\",\"a\":\"2\"}}"
+    },
+    {
+      "id": "invalid/bom",
+      "mode": "invalid",
+      "clause": "CF-V0-019",
+      "note": "A UTF-8 BOM prefix is invalid input even though the remainder parses.",
+      "reason": "bom",
+      "inputHex": "efbbbf7b7d"
+    },
+    {
+      "id": "invalid/invalid-utf8-in-string",
+      "mode": "invalid",
+      "clause": "CF-V0-019",
+      "note": "0xff is not a UTF-8 continuation or lead byte.",
+      "reason": "invalid-utf8",
+      "inputHex": "7b226b223a22ff227d"
+    },
+    {
+      "id": "invalid/invalid-utf8-in-key",
+      "mode": "invalid",
+      "clause": "CF-V0-019",
+      "note": "Invalid UTF-8 in a key is rejected with the same force as in a value.",
+      "reason": "invalid-utf8",
+      "inputHex": "7b22ff223a226b227d"
+    },
+    {
+      "id": "invalid/invalid-utf8-truncated-sequence",
+      "mode": "invalid",
+      "clause": "CF-V0-019",
+      "note": "A truncated two-byte sequence 0xc3 with no continuation byte.",
+      "reason": "invalid-utf8",
+      "inputHex": "7b226b223a22c3227d"
+    },
+    {
+      "id": "invalid/unpaired-high-surrogate",
+      "mode": "invalid",
+      "clause": "CF-V0-019",
+      "note": "A lone high surrogate escape does not denote a Unicode scalar.",
+      "reason": "unpaired-surrogate",
+      "input": "{\"k\":\"\\ud800\"}"
+    },
+    {
+      "id": "invalid/unpaired-low-surrogate",
+      "mode": "invalid",
+      "clause": "CF-V0-019",
+      "note": "A lone low surrogate escape does not denote a Unicode scalar.",
+      "reason": "unpaired-surrogate",
+      "input": "{\"k\":\"\\udc00\"}"
+    },
+    {
+      "id": "invalid/reversed-surrogate-pair",
+      "mode": "invalid",
+      "clause": "CF-V0-019",
+      "note": "Low followed by high is two lone surrogates, not a pair.",
+      "reason": "unpaired-surrogate",
+      "input": "{\"k\":\"\\udc00\\ud800\"}"
+    },
+    {
+      "id": "invalid/json-number-integer",
+      "mode": "invalid",
+      "clause": "CF-V0-019",
+      "note": "JSON numbers are forbidden; a count is the base-10 string \"1\".",
+      "reason": "number-forbidden",
+      "input": "{\"k\":1}"
+    },
+    {
+      "id": "invalid/json-number-float",
+      "mode": "invalid",
+      "clause": "CF-V0-019",
+      "note": "A fractional JSON number is forbidden for the same reason.",
+      "reason": "number-forbidden",
+      "input": "{\"k\":1.5}"
+    },
+    {
+      "id": "invalid/json-number-in-array",
+      "mode": "invalid",
+      "clause": "CF-V0-019",
+      "note": "The prohibition is on the value kind, not the position.",
+      "reason": "number-forbidden",
+      "input": "{\"k\":[\"0\",1]}"
+    },
+    {
+      "id": "invalid/json-number-zero",
+      "mode": "invalid",
+      "clause": "CF-V0-019",
+      "note": "Even 0 must be the string \"0\".",
+      "reason": "number-forbidden",
+      "input": "{\"k\":0}"
+    },
+    {
+      "id": "verify/canonical-item-example",
+      "mode": "verify",
+      "clause": "CF-V0-019",
+      "note": "The CF-V0-017 example survives parse-reserialize-compare unchanged.",
+      "input": "{\"authorityClass\":\"CALLER_REPORTED\",\"id\":\"frontier-item:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"kind\":\"INTENT_TEST\",\"nextAction\":\"SUPPLY_TEST_OBSERVATION\",\"reasons\":[\"TEST_NOT_MATCHED\"],\"relatedIds\":[\"claim:sha256:0000000000000000000000000000000000000000000000000000000000000000\"],\"resolutionClass\":\"ACTIONABLE\",\"subjectId\":\"CF-V0-001\"}",
+      "canonical": true
+    },
+    {
+      "id": "verify/canonical-result-example",
+      "mode": "verify",
+      "clause": "CF-V0-019",
+      "note": "The CF-V0-018 example survives parse-reserialize-compare unchanged.",
+      "input": "{\"frontierState\":\"OPEN\",\"id\":\"frontier:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"inputs\":{\"cemSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"lrfSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"ocmSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"policy\":\"strict-v0\",\"tcqId\":\"tcq:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"testMode\":\"STATIC\"},\"items\":[{\"authorityClass\":\"CALLER_REPORTED\",\"id\":\"frontier-item:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"kind\":\"INTENT_TEST\",\"nextAction\":\"SUPPLY_TEST_OBSERVATION\",\"reasons\":[\"TEST_NOT_MATCHED\"],\"relatedIds\":[\"claim:sha256:0000000000000000000000000000000000000000000000000000000000000000\"],\"resolutionClass\":\"ACTIONABLE\",\"subjectId\":\"CF-V0-001\"}],\"profile\":\"frontier/0\",\"scope\":{\"baseRevision\":\"0000000000000000000000000000000000000000\",\"excludedPath\":\".corvint/change.cem.json\",\"intentBlobOid\":\"0000000000000000000000000000000000000000\",\"intentPath\":\"docs/specs/change-frontier-v0.md\",\"intentSpan\":{\"end\":\"1\",\"start\":\"0\"},\"intentSpanSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"objectFormat\":\"sha1\",\"patchSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"targetRevision\":\"0000000000000000000000000000000000000000\"},\"universeId\":\"frontier-universe:sha256:0000000000000000000000000000000000000000000000000000000000000000\"}",
+      "canonical": true
+    },
+    {
+      "id": "verify/unsorted-keys",
+      "mode": "verify",
+      "clause": "CF-V0-019",
+      "note": "Semantically equal but not byte equal after reserialization: the verifier MUST refuse.",
+      "input": "{\"b\":\"1\",\"a\":\"0\"}",
+      "canonical": false
+    },
+    {
+      "id": "verify/interior-whitespace",
+      "mode": "verify",
+      "clause": "CF-V0-019",
+      "note": "Whitespace is not canonical even though it parses.",
+      "input": "{\"a\": \"0\"}",
+      "canonical": false
+    },
+    {
+      "id": "verify/short-escape-tab",
+      "mode": "verify",
+      "clause": "CF-V0-019",
+      "note": "\\t parses but reserializes as \\u0009, so the input is not canonical.",
+      "input": "{\"k\":\"\\t\"}",
+      "canonical": false
+    },
+    {
+      "id": "verify/uppercase-hex-escape",
+      "mode": "verify",
+      "clause": "CF-V0-019",
+      "note": "\\u000A reserializes as \\u000a: the hex digits are lowercase.",
+      "input": "{\"k\":\"\\u000A\"}",
+      "canonical": false
+    },
+    {
+      "id": "verify/optional-solidus-escape",
+      "mode": "verify",
+      "clause": "CF-V0-019",
+      "note": "\\/ reserializes as /, so the escaped form is not canonical.",
+      "input": "{\"k\":\"\\/\"}",
+      "canonical": false
+    },
+    {
+      "id": "verify/trailing-lf-inside-codec",
+      "mode": "verify",
+      "clause": "CF-V0-019",
+      "note": "codec() emits no terminal LF, so bytes carrying one are not codec output.",
+      "input": "{}\n",
+      "canonical": false
+    },
+    {
+      "id": "document/exactly-one-lf",
+      "mode": "document",
+      "clause": "CF-V0-019",
+      "note": "A complete document is codec(document) plus exactly one LF.",
+      "input": "{\"frontierState\":\"OPEN\",\"id\":\"frontier:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"inputs\":{\"cemSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"lrfSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"ocmSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"policy\":\"strict-v0\",\"tcqId\":\"tcq:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"testMode\":\"STATIC\"},\"items\":[{\"authorityClass\":\"CALLER_REPORTED\",\"id\":\"frontier-item:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"kind\":\"INTENT_TEST\",\"nextAction\":\"SUPPLY_TEST_OBSERVATION\",\"reasons\":[\"TEST_NOT_MATCHED\"],\"relatedIds\":[\"claim:sha256:0000000000000000000000000000000000000000000000000000000000000000\"],\"resolutionClass\":\"ACTIONABLE\",\"subjectId\":\"CF-V0-001\"}],\"profile\":\"frontier/0\",\"scope\":{\"baseRevision\":\"0000000000000000000000000000000000000000\",\"excludedPath\":\".corvint/change.cem.json\",\"intentBlobOid\":\"0000000000000000000000000000000000000000\",\"intentPath\":\"docs/specs/change-frontier-v0.md\",\"intentSpan\":{\"end\":\"1\",\"start\":\"0\"},\"intentSpanSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"objectFormat\":\"sha1\",\"patchSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"targetRevision\":\"0000000000000000000000000000000000000000\"},\"universeId\":\"frontier-universe:sha256:0000000000000000000000000000000000000000000000000000000000000000\"}\n",
+      "canonical": true,
+      "inputSha256": "ab0456c8bddbd50f29aff3942ad805ffc0b7debffee9bc2eae5eaa32694e5771"
+    },
+    {
+      "id": "document/no-terminal-lf",
+      "mode": "document",
+      "clause": "CF-V0-019",
+      "note": "codec() bytes alone are not a complete document.",
+      "input": "{\"frontierState\":\"OPEN\",\"id\":\"frontier:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"inputs\":{\"cemSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"lrfSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"ocmSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"policy\":\"strict-v0\",\"tcqId\":\"tcq:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"testMode\":\"STATIC\"},\"items\":[{\"authorityClass\":\"CALLER_REPORTED\",\"id\":\"frontier-item:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"kind\":\"INTENT_TEST\",\"nextAction\":\"SUPPLY_TEST_OBSERVATION\",\"reasons\":[\"TEST_NOT_MATCHED\"],\"relatedIds\":[\"claim:sha256:0000000000000000000000000000000000000000000000000000000000000000\"],\"resolutionClass\":\"ACTIONABLE\",\"subjectId\":\"CF-V0-001\"}],\"profile\":\"frontier/0\",\"scope\":{\"baseRevision\":\"0000000000000000000000000000000000000000\",\"excludedPath\":\".corvint/change.cem.json\",\"intentBlobOid\":\"0000000000000000000000000000000000000000\",\"intentPath\":\"docs/specs/change-frontier-v0.md\",\"intentSpan\":{\"end\":\"1\",\"start\":\"0\"},\"intentSpanSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"objectFormat\":\"sha1\",\"patchSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"targetRevision\":\"0000000000000000000000000000000000000000\"},\"universeId\":\"frontier-universe:sha256:0000000000000000000000000000000000000000000000000000000000000000\"}",
+      "canonical": false,
+      "inputSha256": "f40abaf1f94e91a4bebde6f8aaac5337aa3c6b4e88491a4651bfe90955f4d08e"
+    },
+    {
+      "id": "document/two-terminal-lf",
+      "mode": "document",
+      "clause": "CF-V0-019",
+      "note": "Exactly one LF; a second is not canonical.",
+      "input": "{\"frontierState\":\"OPEN\",\"id\":\"frontier:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"inputs\":{\"cemSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"lrfSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"ocmSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"policy\":\"strict-v0\",\"tcqId\":\"tcq:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"testMode\":\"STATIC\"},\"items\":[{\"authorityClass\":\"CALLER_REPORTED\",\"id\":\"frontier-item:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"kind\":\"INTENT_TEST\",\"nextAction\":\"SUPPLY_TEST_OBSERVATION\",\"reasons\":[\"TEST_NOT_MATCHED\"],\"relatedIds\":[\"claim:sha256:0000000000000000000000000000000000000000000000000000000000000000\"],\"resolutionClass\":\"ACTIONABLE\",\"subjectId\":\"CF-V0-001\"}],\"profile\":\"frontier/0\",\"scope\":{\"baseRevision\":\"0000000000000000000000000000000000000000\",\"excludedPath\":\".corvint/change.cem.json\",\"intentBlobOid\":\"0000000000000000000000000000000000000000\",\"intentPath\":\"docs/specs/change-frontier-v0.md\",\"intentSpan\":{\"end\":\"1\",\"start\":\"0\"},\"intentSpanSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"objectFormat\":\"sha1\",\"patchSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"targetRevision\":\"0000000000000000000000000000000000000000\"},\"universeId\":\"frontier-universe:sha256:0000000000000000000000000000000000000000000000000000000000000000\"}\n\n",
+      "canonical": false,
+      "inputSha256": "aa40bb77c651d760d8cf810cf11d26cd667b9aa4960630fa0252de02cb55abf8"
+    },
+    {
+      "id": "document/crlf-terminator",
+      "mode": "document",
+      "clause": "CF-V0-019",
+      "note": "CRLF is not one LF.",
+      "input": "{\"frontierState\":\"OPEN\",\"id\":\"frontier:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"inputs\":{\"cemSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"lrfSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"ocmSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"policy\":\"strict-v0\",\"tcqId\":\"tcq:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"testMode\":\"STATIC\"},\"items\":[{\"authorityClass\":\"CALLER_REPORTED\",\"id\":\"frontier-item:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"kind\":\"INTENT_TEST\",\"nextAction\":\"SUPPLY_TEST_OBSERVATION\",\"reasons\":[\"TEST_NOT_MATCHED\"],\"relatedIds\":[\"claim:sha256:0000000000000000000000000000000000000000000000000000000000000000\"],\"resolutionClass\":\"ACTIONABLE\",\"subjectId\":\"CF-V0-001\"}],\"profile\":\"frontier/0\",\"scope\":{\"baseRevision\":\"0000000000000000000000000000000000000000\",\"excludedPath\":\".corvint/change.cem.json\",\"intentBlobOid\":\"0000000000000000000000000000000000000000\",\"intentPath\":\"docs/specs/change-frontier-v0.md\",\"intentSpan\":{\"end\":\"1\",\"start\":\"0\"},\"intentSpanSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"objectFormat\":\"sha1\",\"patchSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"targetRevision\":\"0000000000000000000000000000000000000000\"},\"universeId\":\"frontier-universe:sha256:0000000000000000000000000000000000000000000000000000000000000000\"}\r\n",
+      "canonical": false,
+      "inputSha256": "3899293dba6e65c348d8d4b05598b32a0153f6fc4d2555803f3c7a066f93af5f"
+    },
+    {
+      "id": "document/leading-lf",
+      "mode": "document",
+      "clause": "CF-V0-019",
+      "note": "The LF is terminal, not leading.",
+      "input": "\n{\"frontierState\":\"OPEN\",\"id\":\"frontier:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"inputs\":{\"cemSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"lrfSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"ocmSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"policy\":\"strict-v0\",\"tcqId\":\"tcq:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"testMode\":\"STATIC\"},\"items\":[{\"authorityClass\":\"CALLER_REPORTED\",\"id\":\"frontier-item:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"kind\":\"INTENT_TEST\",\"nextAction\":\"SUPPLY_TEST_OBSERVATION\",\"reasons\":[\"TEST_NOT_MATCHED\"],\"relatedIds\":[\"claim:sha256:0000000000000000000000000000000000000000000000000000000000000000\"],\"resolutionClass\":\"ACTIONABLE\",\"subjectId\":\"CF-V0-001\"}],\"profile\":\"frontier/0\",\"scope\":{\"baseRevision\":\"0000000000000000000000000000000000000000\",\"excludedPath\":\".corvint/change.cem.json\",\"intentBlobOid\":\"0000000000000000000000000000000000000000\",\"intentPath\":\"docs/specs/change-frontier-v0.md\",\"intentSpan\":{\"end\":\"1\",\"start\":\"0\"},\"intentSpanSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"objectFormat\":\"sha1\",\"patchSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"targetRevision\":\"0000000000000000000000000000000000000000\"},\"universeId\":\"frontier-universe:sha256:0000000000000000000000000000000000000000000000000000000000000000\"}\n",
+      "canonical": false,
+      "inputSha256": "999115f6ffc639ceb42fffbc971b0ade7ebefd00d26e71543414932b653240bd"
+    }
+  ]
+}

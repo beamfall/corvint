@@ -1,0 +1,115 @@
+{
+  "arms": [
+    {
+      "definition": "A0 - admitted verbs at the pinned commit: query, context (task-context selection/expansion, cmd/corvint/taskcontext.go), and impact. No other Corvint verb, flag, or unreleased branch is in scope. batch (cmd/corvint/batch.go) does not exist at the pinned commit and its spec is proposed/experimental, so it is not part of this arm; it is scoped under arm candidate until its spec is accepted. The pinned commit remains this arm's reproducibility anchor.",
+      "id": "current-corvint",
+      "label": "current admitted Corvint (A0)"
+    },
+    {
+      "definition": "Ordinary agent tool access (read, grep/find, run tests, edit) with no Corvint verb, plus a required structured notes template: intent, handles (path plus exact Git blob hash, or a path:line locator), decisions, progress, outcome, nextAction, unknowns, failedApproaches, commandsRun.",
+      "id": "native-plus-notes",
+      "label": "unrestricted native tools plus competent structured notes"
+    },
+    {
+      "definition": "Whatever AT-05 (task-context selection/expansion), AT-06, and AT-07 (checkpoint/expansion) deliver by the time AT-08 runs, plus batch (cmd/corvint/batch.go) until its spec is accepted into arm current-corvint; exact surface not frozen here.",
+      "id": "candidate",
+      "label": "candidate"
+    }
+  ],
+  "classes": [
+    {
+      "definition": "Get from one open question to a cited architecture, ownership, and a safe first runnable action, without a broad repository read.",
+      "id": "start",
+      "solved": "OWNER DECISION",
+      "source": "BRAIN-DOG-004"
+    },
+    {
+      "definition": "Return the direct references/dependencies, bounded consequence candidates, and affected specs/tests/contracts for a stated question, naming unexamined dynamic surfaces rather than asserting runtime causality.",
+      "id": "investigate",
+      "solved": "OWNER DECISION",
+      "source": "BRAIN-DOG-001, BRAIN-DOG-010"
+    },
+    {
+      "definition": "Reconstruct a prior session's working set (evidence handles, decisions, unknowns, changed hunks, outcome) well enough to continue or hand it off, compiled into a content-addressed delta an independent updater can verify.",
+      "id": "resume",
+      "solved": "OWNER DECISION",
+      "source": "BRAIN-DOG-017, BRAIN-DOG-018"
+    },
+    {
+      "definition": "Combine exact change/CEM evidence, consequences, tests, intent, ownership, conflicts, and unknowns for a diff, without asserting correctness or merge safety.",
+      "id": "change-review",
+      "solved": "OWNER DECISION",
+      "source": "BRAIN-DOG-006"
+    }
+  ],
+  "metrics": [
+    "turns",
+    "inputTokens",
+    "cacheCreationTokens",
+    "cacheReadTokens",
+    "outputTokens",
+    "sourceOpens",
+    "broadSearches",
+    "compactions",
+    "retries",
+    "unparsedLines",
+    "observedWorkers",
+    "cancelledWorkers",
+    "failedWorkers",
+    "solvedWorkers",
+    "completion",
+    "independentCorrectnessLabel",
+    "criticalMisses",
+    "p50WallLatency",
+    "p95WallLatency",
+    "agentVisibleResponseBytes",
+    "unnecessaryOutputBytes",
+    "warmFirstPacketLatency",
+    "expansionLatency",
+    "broadSearchMissClassification"
+  ],
+  "pinnedCommit": "01aa66ad071756f7308bb04b0ec379b051a231e3",
+  "profile": "corvint-workflow-baseline/0",
+  "rules": [
+    {
+      "id": "WB-001",
+      "text": "A scorer MUST refuse the run outright if any transcript is double-counted across workers."
+    },
+    {
+      "id": "WB-002",
+      "text": "Cancelled and failed workers MUST stay in the denominator for every per-task and per-class rate; they MUST NOT be dropped or excluded."
+    },
+    {
+      "id": "WB-003",
+      "text": "If a class or arm has zero solved tasks, every per-solved ratio for that class/arm MUST be reported undefined, and the run MUST be labelled screening-only rather than a pass/fail result."
+    },
+    {
+      "id": "WB-004",
+      "text": "A token-savings claim MUST be NOT_OBSERVED unless all of the following hold: every metric total needed for the claim is observed (no NOT_OBSERVED total anywhere in the session), every worker in the session was observed (complete all-worker coverage, no NOT_OBSERVED total in the corpus-level _totals fields), the comparator arm's correctness is non-inferior (DOGFOOD-009), and zero critical misses were added relative to the comparator; a powered comparison alone, without all four conditions, MUST NOT support the claim. Partial telemetry MAY support engineering discussion but MUST NOT support a complete-cost claim."
+    },
+    {
+      "id": "WB-005",
+      "text": "Pricing MUST be recorded alongside token totals and MUST NOT be applied to produce a dollar cost claim."
+    },
+    {
+      "id": "WB-006",
+      "text": "Cancelled and failed attempts MUST stay in the all-attempt cost denominator per WB-002; a paired arm-to-arm comparison on a task MUST be computed only over tasks where both arms produced an outcome, and an unpaired task MUST NOT enter a paired comparison. The report MUST publish the all-attempt table and the paired table side by side, so that pairing/cancellation cannot remove expensive failures from view."
+    },
+    {
+      "id": "WB-007",
+      "text": "Held-out tasks used for this freeze's comparison MUST NOT be used afterward to tune Corvint, arm B's notes template, or the candidate arm; a tuned task is development forever."
+    },
+    {
+      "id": "WB-008",
+      "text": "All three arms MUST run under equal model, effort, and shared surface (same repository checkout, same native tools, same source access, same initial context text, same token and time budget) for a given task; an arm-specific advantage in any of those dimensions invalidates the comparison for that task."
+    },
+    {
+      "id": "WB-009",
+      "text": "Arm B's structured notes template MUST be kept current across the task and MUST carry intent, handles, decisions taken, current progress, outcome so far, next action, unknowns, failedApproaches, and commandsRun; a handle hash is permitted but not mandatory, and a precise path:line locator is acceptable in place of a blob hash."
+    },
+    {
+      "id": "WB-010",
+      "text": "The number of tasks per class, the number of repeats per task, and the paired statistical test are OWNER DECISION and remain open; a comparison produced before the owner sets them is screening-only and MUST NOT be reported as a powered superiority or non-inferiority result."
+    }
+  ]
+}

@@ -1,0 +1,257 @@
+{
+  "id": "privacy-canaries",
+  "matrixRows": [
+    "source, report, command, sibling, and exception canaries"
+  ],
+  "clauses": [
+    "CF-V0-024",
+    "CF-V0-022"
+  ],
+  "intent": "CF-V0-024 requires result AND error output to be source-body-free, diff-body-free, command-body-free and report-body-free, and forbids echoing an unverified path, OID, digest, ID, count, XML value, argv element, sibling canary or exception on invalid input.",
+  "cases": [
+    {
+      "id": "valid-open-result-carries-no-canary",
+      "note": "Every body carries a distinctive canary; the run succeeds and emits an OPEN result.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "complete",
+        "lrf": "normal",
+        "tcq": "normal",
+        "canaries": [
+          {
+            "where": "source-body",
+            "value": "CORVINT-CANARY-SOURCE-BODY-3f1a"
+          },
+          {
+            "where": "diff-body",
+            "value": "CORVINT-CANARY-DIFF-BODY-c40e"
+          },
+          {
+            "where": "command-body",
+            "value": "CORVINT-CANARY-COMMAND-BODY-4c19"
+          },
+          {
+            "where": "report-body",
+            "value": "CORVINT-CANARY-REPORT-BODY-9d02"
+          },
+          {
+            "where": "sibling-path",
+            "value": "CORVINT-CANARY-SIBLING-PATH-6a83"
+          },
+          {
+            "where": "exception-text",
+            "value": "CORVINT-CANARY-EXCEPTION-TEXT-7e44"
+          }
+        ],
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          }
+        ],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "linked",
+            "hunkIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "claimIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "tcqRelation": "test-report-matched-v0"
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "2",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "NO_MATERIAL_CHANGE_WITNESS"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_MATERIAL_HUNK"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "CALLER_REPORTED_NONCLOSING"
+            ],
+            "relatedIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "AUTHORITY_REQUIRED",
+            "nextAction": "ESTABLISH_HARNESS_AUTHORITY"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-024: no canary appears anywhere in the valid stdout document.",
+        "CF-V0-024: verified paths, IDs, selectors and hashes are emitted ONLY in the exact valid result fields of CF-V0-018 — the canaries are in bodies, which are never a result field."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-SOURCE-BODY-3f1a",
+        "CORVINT-CANARY-DIFF-BODY-c40e",
+        "CORVINT-CANARY-COMMAND-BODY-4c19",
+        "CORVINT-CANARY-REPORT-BODY-9d02",
+        "CORVINT-CANARY-SIBLING-PATH-6a83",
+        "CORVINT-CANARY-EXCEPTION-TEXT-7e44"
+      ]
+    },
+    {
+      "id": "invalid-input-error-carries-no-canary",
+      "note": "The same canaries with a partial dynamic tuple, so the run fails operationally.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "command-only",
+        "lrf": "normal",
+        "tcq": "normal",
+        "canaries": [
+          {
+            "where": "source-body",
+            "value": "CORVINT-CANARY-SOURCE-BODY-3f1a"
+          },
+          {
+            "where": "diff-body",
+            "value": "CORVINT-CANARY-DIFF-BODY-c40e"
+          },
+          {
+            "where": "command-body",
+            "value": "CORVINT-CANARY-COMMAND-BODY-4c19"
+          },
+          {
+            "where": "report-body",
+            "value": "CORVINT-CANARY-REPORT-BODY-9d02"
+          },
+          {
+            "where": "sibling-path",
+            "value": "CORVINT-CANARY-SIBLING-PATH-6a83"
+          },
+          {
+            "where": "exception-text",
+            "value": "CORVINT-CANARY-EXCEPTION-TEXT-7e44"
+          }
+        ]
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "invalid-frontier-input",
+        "stderr": "{\"code\":\"invalid-frontier-input\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "fa648f19fccddd91a0d0e295247d09f19b350827cde7905ba8a7a244ff77b9f5"
+      },
+      "assertions": [
+        "CF-V0-024: invalid input MUST NOT echo an unverified path, OID, digest, ID, count, XML value, argv element, sibling canary or exception.",
+        "CF-V0-022: the envelope is exactly {code, profile} — there is no message field a canary could reach.",
+        "The exact stderr bytes are pinned by digest, so a leak cannot hide in an added field."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-SOURCE-BODY-3f1a",
+        "CORVINT-CANARY-DIFF-BODY-c40e",
+        "CORVINT-CANARY-COMMAND-BODY-4c19",
+        "CORVINT-CANARY-REPORT-BODY-9d02",
+        "CORVINT-CANARY-SIBLING-PATH-6a83",
+        "CORVINT-CANARY-EXCEPTION-TEXT-7e44"
+      ]
+    },
+    {
+      "id": "sibling-repository-canary",
+      "note": "A forged gitfile redirecting into a sibling repository whose path carries a canary.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "canaries": [
+          {
+            "where": "sibling-path",
+            "value": "CORVINT-CANARY-SIBLING-PATH-6a83"
+          }
+        ]
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "repository-object-unavailable",
+        "stderr": "{\"code\":\"repository-object-unavailable\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "e4c433267c931ad982064ca3fb29eaac8defbbe9180966dc2666a8ebe1133326"
+      },
+      "assertions": [
+        "CF-V0-002: repository boundary validation happens inside the shared verifier.",
+        "CF-V0-024: the sibling path never appears in the envelope."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-SIBLING-PATH-6a83"
+      ]
+    },
+    {
+      "id": "human-mode-static-message",
+      "note": "Human rendering of the same failure.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "report-only",
+        "lrf": "normal",
+        "tcq": "normal",
+        "canaries": [
+          {
+            "where": "command-body",
+            "value": "CORVINT-CANARY-COMMAND-BODY-4c19"
+          }
+        ]
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "invalid-frontier-input",
+        "stderr": "{\"code\":\"invalid-frontier-input\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "fa648f19fccddd91a0d0e295247d09f19b350827cde7905ba8a7a244ff77b9f5"
+      },
+      "assertions": [
+        "CF-V0-022: human mode may render ONE STATIC message for the same code and MUST NOT include unverified values.",
+        "CF-V0-026: JSON and human output are two renderings of one computation."
+      ],
+      "forbiddenSubstrings": [
+        "CORVINT-CANARY-COMMAND-BODY-4c19"
+      ]
+    }
+  ]
+}

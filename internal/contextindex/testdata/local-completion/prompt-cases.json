@@ -1,0 +1,17 @@
+[
+  {"task":"can you fix all that","reason":"explicit-task-anchor-required","paths":[]},
+  {"task":"so its fully dogfooding now?","reason":"explicit-task-anchor-required","paths":[]},
+  {"task":"could you handle those too?","reason":"explicit-task-anchor-required","paths":[]},
+  {"task":"is it all finished now?","reason":"explicit-task-anchor-required","paths":[]},
+  {"task":"session expiry revocation","reason":"explicit-task-anchor-required","paths":[]},
+  {"task":"Repair `ParsePacket`","reason":"none","paths":["pkg/packet.go"]},
+  {"task":"All","reason":"none","paths":["pkg/packet.go"]},
+  {"task":"fix `Now`","reason":"none","paths":["pkg/packet.go"]},
+  {"task":"inspect pkg/packet.go","reason":"none","paths":["pkg/packet.go"]},
+  {"task":"repair PKT-001","reason":"none","paths":["docs/specs/packet.md"]},
+  {"task":"repair PKT-999","reason":"anchor-not-found","paths":[]},
+  {"task":"repair `SecretCanaryUnknown`","reason":"anchor-not-found","paths":[]},
+  {"task":"inspect pkg/missing.go","reason":"anchor-not-found","paths":[]},
+  {"task":"repair `DuplicateName`","reason":"ambiguous-anchor","paths":["other/other.go","pkg/packet.go"]},
+  {"task":"inspect duplicate.go","reason":"ambiguous-anchor","paths":["one/duplicate.go","two/duplicate.go"]}
+]

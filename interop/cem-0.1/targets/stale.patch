@@ -1,0 +1,6 @@
+diff --git a/docs/rule.txt b/docs/rule.txt
+--- a/docs/rule.txt
++++ b/docs/rule.txt
+@@ -1 +1 @@
+-Rule: allowed must return False.
++Rule: allowed  must return False.

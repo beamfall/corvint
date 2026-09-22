@@ -1,0 +1,5830 @@
+{
+  "profile": "private-development-parity-snapshot-screen/0",
+  "base": "a71e58e4e1e080c74644fbf5bcf07ac825696fbd",
+  "plan": "# Bounded parity snapshot discovery optimization\n\nBase a71e58e4e1e080c74644fbf5bcf07ac825696fbd. Owner: existing GPK-V0-002/005 verification obligations, ROADMAP verification-cost backlog; no AT ticket closure.\n\nProblem: the last canonical cli-parity package consumed408.224s. Every before/after snapshot separately launches sanitized bounded Git for absolute git-dir and common-dir. A combined rev-parse can remove one discovery launch per ordinary snapshot, without changing fixture materialization, cache behavior, workers or process policy. Benefit unmeasured.\n\nOwned implementation: conformance/cli-parity-v0/snapshot.go plus focused snapshot tests. Docs: README implementation note, owning GPK spec implementation evidence (no requirement change), spec index only if required, BUILD-LOG measured outcome and matching optimization backlog. No manifest, corpus, normalization, oracle, native CLI, model, prompt, cache or scheduler changes.\n\nAlgorithm: run rev-parse --path-format=absolute --git-dir --git-common-dir through the existing sanitized bounded Git adapter. Accept only exactly two nonempty absolute paths after the existing per-value whitespace trimming semantics. If output is ambiguous (including newline paths), or the combined invocation fails, use the existing two calls and preserve their error precedence. Continue unchanged status call, whole-worktree/git/common snapshots, sorting, hashes and output. No output-derived path is trusted as authority beyond existing Git discovery; no snapshot exclusion changes. Cancellation must remain bounded, with no unowned child.\n\nAcceptance criteria frozen before implementation:\nA1 Exact full repositorySnapshot equality versus the old two-call implementation on ordinary SHA1/SHA256, linked, dirty/untracked, symlink, nonASCII/spaces, newline-parent fixtures. Errors preserve old failure behavior; malformed combined output never becomes successful incomplete discovery.\nA2 Ordinary snapshots use one discovery subprocess rather than two; ambiguous/failing combined lookup falls back and preserves all source/git/common observations. Real fixtures and narrow fake-executable invocation logging independently discriminate paths/counts, no test only reasserts implementation constants.\nA3 Every corpus case still uses all three fresh sequential executions and before/after snapshots; full baseline and candidate replay use the same unchanged installed subject binary and manifest and produce byte-identical ordered transcript, including known divergences, identity and NOT_RUN cells.\nA4 Existing owned-process supervision/cancellation semantics remain intact; focused interruption/fallback fixtures prove no lingering child. No new daemon/server or escaping child profile.\nA5 Real next-use: changed runner verifies this slice in the canonical gate; no roadmap promotion or complete-task/token savings claim.\n\nVerification: record the old runner binary before implementation and full baseline replay under the qualified supervisor. An independent reviewer checks this plan, then source/test evidence after build. Root retains an exact source copy of old snapshotRepository as a private differential/benchmark reference. Run fixed-size paired snapshot samples with all dimensions compared and preserve failures; run one full old/new replay under identical worker/GOMAXPROCS settings and same subject SHA. Wall results are engineering screen only, host/cache effects NOT_OBSERVED. Land only with exact correctness/parity, fewer launches, and measured snapshot improvement without a demonstrated full-replay regression; ambiguous timings remain inconclusive, never task-cost savings. Keep one canonical gate after final source freeze and final CEM/OCM dogfood workflow.\n\nTime/work bound: one implementation/review repair slice; no recursive tools. If discovery combining is not safe/useful, preserve negative evidence and stop this candidate, continuing the existing loop later.\n\n## Gate A resolution (frozen before implementation / candidate measurements)\nIndependent capture_review: no HIGH; two MED and two LOW addressed here.\n- Performance screen: 12 old/new pairs per fixed fixture, alternating AB then BA, report each raw duration and median paired whole-snapshot relative change pooled over the fixed matrix; discovery-stage timing separately. Require at least5% median whole-snapshot improvement and exact equality for this bounded screen. One already-registered full baseline replay followed by one full candidate replay; candidate elapsed must be <=105% of baseline for a non-regression screen. If noisy or thresholds fail, label inconclusive/regressed and do not land for performance on these data; do not change N/threshold after observing candidate. No confidence interval, population or full-task cost claim.\n- Timeout tradeoff consciously accepted for this experiment: combined lookup plus two legacy calls can spend at most90s of configured per-process timeout versus60s before (excluding bounded shutdown overhead), always capped earlier by caller cancellation/deadline. Ordinary path reduces work; ambiguity/failure may add one bounded call. Preserve this downside in docs/results. No new global timer or changes to shared process policy. Validate cancellation with a short caller deadline and dead-child assertion. Reject any unbounded continuation after context cancellation.\n- Exact errors: fallback tests discriminate legacy git-dir error and legacy common-dir error text/order after ambiguous/failed combined lookup. They retain complete raw attempts. Successful malformed responses cannot be treated as full paths. Use line splitting plus per-value TrimSpace, never Fields/Scanner.\n- Discovery launch-count assertions cover ordinary one-call success and full three-call fallback; a legacy first-call failure legitimately stops after the combined attempt plus first legacy attempt.\n\n## Candidate repair after complete R1 screen\nR1 preserved in candidate-r1.json and the original paired runs: all snapshot fields equal,31.4% pooled median improvement, but four newline-parent cells regressed31\u201333%. Avoid the already-known ambiguous case by directly using legacy discovery when git.dir contains LF. This does not claim a clean root rules out newline metadata elsewhere; output-discovered ambiguity still falls back. Real newline-root launch expectation becomes2; forced ambiguous combined output remains3. Rerun the entire same14-cell,12-pair matrix and separate stage screen for the changed candidate; keep thresholds, order, scorer and allR1 failures/observations. Full replay comparison remains pending, against the frozen original runner and unchanged subject. No mixed-revision summary or original-candidate full-replay claim.\n",
+  "runs": {
+    "r1": {
+      "analysis": {
+        "profile": "private-parity-snapshot-screen/0",
+        "differential_pairs": 31,
+        "whole_pairs": 168,
+        "all_fields_equal": true,
+        "whole_median_paired_improvement": 0.31409938132647774,
+        "frozen_threshold": 0.05,
+        "whole_screen_pass": true,
+        "cells": [
+          {
+            "fixture": "sha1/dirty-untracked-symlink",
+            "pairs": 12,
+            "old_median_ns": 79378354.0,
+            "new_median_ns": 54046104.5,
+            "median_paired_improvement": 0.31913819563743817,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha1/linked-worktree",
+            "pairs": 12,
+            "old_median_ns": 79288083.0,
+            "new_median_ns": 53863937.5,
+            "median_paired_improvement": 0.32126425407097076,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha1/newline-parent",
+            "pairs": 12,
+            "old_median_ns": 79601000.0,
+            "new_median_ns": 105519312.5,
+            "median_paired_improvement": -0.31155000810565114,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha1/nonascii-parent",
+            "pairs": 12,
+            "old_median_ns": 78674291.5,
+            "new_median_ns": 53676521.0,
+            "median_paired_improvement": 0.3161921379946009,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha1/ordinary",
+            "pairs": 12,
+            "old_median_ns": 78348437.5,
+            "new_median_ns": 53565791.5,
+            "median_paired_improvement": 0.3188262366471762,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha1/space-nonascii-newline-parent",
+            "pairs": 12,
+            "old_median_ns": 77710938.0,
+            "new_median_ns": 102684354.0,
+            "median_paired_improvement": -0.3183641997583221,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha1/space-parent",
+            "pairs": 12,
+            "old_median_ns": 79037833.0,
+            "new_median_ns": 54203770.5,
+            "median_paired_improvement": 0.312660092141564,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha256/dirty-untracked-symlink",
+            "pairs": 12,
+            "old_median_ns": 79519020.5,
+            "new_median_ns": 53918000.0,
+            "median_paired_improvement": 0.3206800619955459,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha256/linked-worktree",
+            "pairs": 12,
+            "old_median_ns": 79351104.0,
+            "new_median_ns": 53381874.5,
+            "median_paired_improvement": 0.3265958298190949,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha256/newline-parent",
+            "pairs": 12,
+            "old_median_ns": 79243271.0,
+            "new_median_ns": 105150584.0,
+            "median_paired_improvement": -0.325728154726152,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha256/nonascii-parent",
+            "pairs": 12,
+            "old_median_ns": 78992167.0,
+            "new_median_ns": 54153145.5,
+            "median_paired_improvement": 0.31464505919613595,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha256/ordinary",
+            "pairs": 12,
+            "old_median_ns": 79047937.5,
+            "new_median_ns": 53759479.5,
+            "median_paired_improvement": 0.31471842110159387,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha256/space-nonascii-newline-parent",
+            "pairs": 12,
+            "old_median_ns": 79604145.5,
+            "new_median_ns": 104456437.5,
+            "median_paired_improvement": -0.31427936442974025,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha256/space-parent",
+            "pairs": 12,
+            "old_median_ns": 79431250.0,
+            "new_median_ns": 53801500.0,
+            "median_paired_improvement": 0.32207593972584764,
+            "error_pairs": 0
+          }
+        ],
+        "source_stream_sha256": {
+          "differential": "46d3458220e94faa8a337ca68771638c9297aa61bb1a0a7d42686d82b0be362a",
+          "whole": "e0b9148f9631f30e4d3cf1abb24b79796df04b8ba14cbb8cc4a4404c7e2dacd2",
+          "directory": "07a57dd375f30bddda13904c7ca9f0e3b54e1a53338b8d7e16b59fbc5bc96fb8"
+        },
+        "claim_boundary": "Fixed engineering screen; setup/warmup excluded from function intervals but retained in outer wall. Full-task costs, tokens, host load and cache effects NOT_OBSERVED. No population estimate.",
+        "directory_pairs": 24,
+        "directory_median_paired_improvement": 0.5009898184138533
+      },
+      "whole_samples_including_warmups": [
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78508958,
+          "newNs": 54065875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77532500,
+          "newNs": 53491334,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 76628667,
+          "newNs": 53393250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 76809042,
+          "newNs": 53442792,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78105000,
+          "newNs": 52185750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79448500,
+          "newNs": 53561292,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79722333,
+          "newNs": 53229375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78363542,
+          "newNs": 53687000,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 81180375,
+          "newNs": 54128625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77749917,
+          "newNs": 53674125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 77975500,
+          "newNs": 52999625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79352667,
+          "newNs": 53570291,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78333333,
+          "newNs": 54123625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78479875,
+          "newNs": 53574417,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78460041,
+          "newNs": 54469042,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78791750,
+          "newNs": 54077625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79209666,
+          "newNs": 54234750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79054041,
+          "newNs": 54196125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80023875,
+          "newNs": 54204000,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79498333,
+          "newNs": 53969167,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79499625,
+          "newNs": 54112000,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78648000,
+          "newNs": 53885500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79039917,
+          "newNs": 55172583,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79202750,
+          "newNs": 53840292,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79258375,
+          "newNs": 53980209,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79652375,
+          "newNs": 53119208,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79754166,
+          "newNs": 54513291,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79670333,
+          "newNs": 53444334,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 125079500,
+          "newNs": 51582459,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79404541,
+          "newNs": 52177417,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80243584,
+          "newNs": 53706625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77914041,
+          "newNs": 52185375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 77927500,
+          "newNs": 53134417,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77982916,
+          "newNs": 52716250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80451208,
+          "newNs": 53511625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77495958,
+          "newNs": 53934500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80421375,
+          "newNs": 54152875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79889000,
+          "newNs": 54304667,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79385042,
+          "newNs": 54624000,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79374041,
+          "newNs": 53793375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79202125,
+          "newNs": 54223333,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78607375,
+          "newNs": 54092167,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80260458,
+          "newNs": 54330958,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 76603375,
+          "newNs": 54935125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 74738917,
+          "newNs": 52134958,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78055083,
+          "newNs": 53127708,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78469500,
+          "newNs": 54135625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79068083,
+          "newNs": 54629167,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80396542,
+          "newNs": 54276083,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79079750,
+          "newNs": 53801500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79247167,
+          "newNs": 54893833,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79202584,
+          "newNs": 54271916,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79007583,
+          "newNs": 54471834,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78804708,
+          "newNs": 54629792,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79824834,
+          "newNs": 53790250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78727166,
+          "newNs": 52976875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 75709541,
+          "newNs": 51202250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 73852542,
+          "newNs": 50463750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 73583458,
+          "newNs": 51538708,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 76551750,
+          "newNs": 52090208,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 77356167,
+          "newNs": 53904250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79415083,
+          "newNs": 53416625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79293417,
+          "newNs": 54482625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78313375,
+          "newNs": 54043500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 76697000,
+          "newNs": 53568458,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79035208,
+          "newNs": 53784584,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79556708,
+          "newNs": 53964875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79267500,
+          "newNs": 53216625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80163042,
+          "newNs": 53385250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77004334,
+          "newNs": 53863917,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 82223875,
+          "newNs": 105500916,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79060250,
+          "newNs": 105449875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78871833,
+          "newNs": 106654417,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79495417,
+          "newNs": 104965375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79442000,
+          "newNs": 103800375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79243041,
+          "newNs": 105471000,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79043625,
+          "newNs": 102258375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79706583,
+          "newNs": 105626375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 81548708,
+          "newNs": 106439333,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80200791,
+          "newNs": 106165667,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79285542,
+          "newNs": 104049833,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 81100958,
+          "newNs": 105567625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80119125,
+          "newNs": 103617667,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80919084,
+          "newNs": 106065250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 76452125,
+          "newNs": 100599667,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78976917,
+          "newNs": 103296084,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79165709,
+          "newNs": 104539833,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79196500,
+          "newNs": 106859500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80468000,
+          "newNs": 103434166,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77746584,
+          "newNs": 101955583,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78491583,
+          "newNs": 103413125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77675292,
+          "newNs": 103756541,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 77151583,
+          "newNs": 101147000,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 75245250,
+          "newNs": 99846542,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 74122417,
+          "newNs": 97783959,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 76177375,
+          "newNs": 97453541,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 74773459,
+          "newNs": 101946375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79556958,
+          "newNs": 104174250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78030584,
+          "newNs": 53531042,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79443459,
+          "newNs": 54116916,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79088750,
+          "newNs": 53745250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79213125,
+          "newNs": 54079375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78407083,
+          "newNs": 54346708,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79173333,
+          "newNs": 53619834,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79674875,
+          "newNs": 52792000,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78432958,
+          "newNs": 52592042,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79007125,
+          "newNs": 54984125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79218792,
+          "newNs": 55888416,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 77247542,
+          "newNs": 54181541,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78175834,
+          "newNs": 53773709,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79593042,
+          "newNs": 53559583,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 75766917,
+          "newNs": 52638166,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 77991041,
+          "newNs": 54191875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80775834,
+          "newNs": 53959834,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79869042,
+          "newNs": 53212250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79109167,
+          "newNs": 54664417,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78926625,
+          "newNs": 54218708,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79858375,
+          "newNs": 53522750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79625291,
+          "newNs": 54159333,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80225916,
+          "newNs": 54656500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79306291,
+          "newNs": 53806333,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78708833,
+          "newNs": 54100792,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80255875,
+          "newNs": 53170041,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79412750,
+          "newNs": 54029667,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80403875,
+          "newNs": 53682458,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78997792,
+          "newNs": 53046458,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 123039958,
+          "newNs": 52060958,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77728875,
+          "newNs": 52808208,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79375333,
+          "newNs": 53130333,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79343500,
+          "newNs": 53252541,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79358708,
+          "newNs": 53415583,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80259042,
+          "newNs": 54071958,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80545875,
+          "newNs": 53549500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80788541,
+          "newNs": 53211083,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79974375,
+          "newNs": 53613125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78503709,
+          "newNs": 53898208,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 77853666,
+          "newNs": 53228375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78803125,
+          "newNs": 53348166,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78945334,
+          "newNs": 53964083,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78088417,
+          "newNs": 53189500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 73416917,
+          "newNs": 50687125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 76319083,
+          "newNs": 49571584,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78398750,
+          "newNs": 53616125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79562209,
+          "newNs": 53935541,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79708041,
+          "newNs": 53871541,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79457125,
+          "newNs": 54368791,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79326292,
+          "newNs": 53778792,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79134459,
+          "newNs": 54286416,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79601417,
+          "newNs": 53824208,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79765750,
+          "newNs": 53677708,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80171334,
+          "newNs": 52466041,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77725167,
+          "newNs": 52612334,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 77849541,
+          "newNs": 53685125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79405375,
+          "newNs": 54440750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78957792,
+          "newNs": 54477167,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78375583,
+          "newNs": 54042584,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78129542,
+          "newNs": 53548958,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77399209,
+          "newNs": 53251917,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79280334,
+          "newNs": 53803375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80044209,
+          "newNs": 54214666,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78352667,
+          "newNs": 54548583,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80399959,
+          "newNs": 54176833,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78912208,
+          "newNs": 54262167,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78929042,
+          "newNs": 54129458,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79486417,
+          "newNs": 54473875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79392875,
+          "newNs": 54752875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 76380583,
+          "newNs": 51395292,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79055292,
+          "newNs": 52811334,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79219166,
+          "newNs": 101178041,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77200375,
+          "newNs": 99207209,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79973792,
+          "newNs": 104432875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78320375,
+          "newNs": 98474584,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 77186125,
+          "newNs": 102173125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77120583,
+          "newNs": 102838250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78963417,
+          "newNs": 105692875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80337542,
+          "newNs": 105433209,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79965583,
+          "newNs": 106141417,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 76997792,
+          "newNs": 105548000,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79402750,
+          "newNs": 104731250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79597666,
+          "newNs": 105711041,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79288167,
+          "newNs": 105744833,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79198375,
+          "newNs": 104867959,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80443042,
+          "newNs": 105901791,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78069583,
+          "newNs": 104336292,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78941875,
+          "newNs": 104865667,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79987417,
+          "newNs": 104172375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78653792,
+          "newNs": 104465541,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79814625,
+          "newNs": 104839417,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 81302875,
+          "newNs": 106160792,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79669625,
+          "newNs": 104767334,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79538666,
+          "newNs": 104311084,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79946375,
+          "newNs": 104182083,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79523833,
+          "newNs": 104447334,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79956583,
+          "newNs": 105725708,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79048375,
+          "newNs": 104140458,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 74635625,
+          "newNs": 98785750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        }
+      ],
+      "source": {
+        "baseline_function_exact": true,
+        "shared_snapshot_helpers_unchanged": true,
+        "fixture_runner_manifest_unchanged": true,
+        "candidate_snapshot_sha256": "df35d1bf4c3486dca91d094be1fd12fcacda8c26e77db9adca85cdf885b66542",
+        "test_sha256": "a4f86d38f23fe195dfe61394a0068193112df8e30a5f6cb3ebe5e1c767f2c9d1",
+        "probe_sha256": "6471e0283afefc31a8d01f0cf7773e5fe645a30b1004da56bd78bc7ea156588b",
+        "prior_check_failure": "Root slice extraction accidentally included the following fixture-list declaration. Correct function boundary proves exact old copy; probe/source bytes unchanged."
+      }
+    },
+    "r2": {
+      "analysis": {
+        "profile": "private-parity-snapshot-screen/0",
+        "differential_pairs": 31,
+        "whole_pairs": 168,
+        "all_fields_equal": true,
+        "whole_median_paired_improvement": 0.3141648260126648,
+        "frozen_threshold": 0.05,
+        "whole_screen_pass": true,
+        "cells": [
+          {
+            "fixture": "sha1/dirty-untracked-symlink",
+            "pairs": 12,
+            "old_median_ns": 78955854.5,
+            "new_median_ns": 53554895.5,
+            "median_paired_improvement": 0.3189442983348058,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha1/linked-worktree",
+            "pairs": 12,
+            "old_median_ns": 79996271.0,
+            "new_median_ns": 54103583.0,
+            "median_paired_improvement": 0.32365052500053737,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha1/newline-parent",
+            "pairs": 12,
+            "old_median_ns": 79671437.5,
+            "new_median_ns": 79419353.5,
+            "median_paired_improvement": -0.0019519826298715704,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha1/nonascii-parent",
+            "pairs": 12,
+            "old_median_ns": 79213979.0,
+            "new_median_ns": 53934875.0,
+            "median_paired_improvement": 0.32064112122298566,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha1/ordinary",
+            "pairs": 12,
+            "old_median_ns": 79695271.0,
+            "new_median_ns": 54203229.0,
+            "median_paired_improvement": 0.32016501687380616,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha1/space-nonascii-newline-parent",
+            "pairs": 12,
+            "old_median_ns": 79574499.5,
+            "new_median_ns": 79974979.5,
+            "median_paired_improvement": -0.0012922037343839172,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha1/space-parent",
+            "pairs": 12,
+            "old_median_ns": 78930375.5,
+            "new_median_ns": 53986917.0,
+            "median_paired_improvement": 0.3189942468644559,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha256/dirty-untracked-symlink",
+            "pairs": 12,
+            "old_median_ns": 77944083.5,
+            "new_median_ns": 53759062.5,
+            "median_paired_improvement": 0.31259067244072447,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha256/linked-worktree",
+            "pairs": 12,
+            "old_median_ns": 79569729.0,
+            "new_median_ns": 53920479.0,
+            "median_paired_improvement": 0.3218858930162839,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha256/newline-parent",
+            "pairs": 12,
+            "old_median_ns": 79773271.0,
+            "new_median_ns": 79723229.5,
+            "median_paired_improvement": 0.0008176233945588081,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha256/nonascii-parent",
+            "pairs": 12,
+            "old_median_ns": 79413916.5,
+            "new_median_ns": 54320937.5,
+            "median_paired_improvement": 0.31618673650847684,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha256/ordinary",
+            "pairs": 12,
+            "old_median_ns": 79366521.0,
+            "new_median_ns": 54255312.5,
+            "median_paired_improvement": 0.31874810991165503,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha256/space-nonascii-newline-parent",
+            "pairs": 12,
+            "old_median_ns": 79732312.5,
+            "new_median_ns": 79006646.0,
+            "median_paired_improvement": 0.004510588092919562,
+            "error_pairs": 0
+          },
+          {
+            "fixture": "sha256/space-parent",
+            "pairs": 12,
+            "old_median_ns": 79790291.5,
+            "new_median_ns": 54211541.5,
+            "median_paired_improvement": 0.32019787305780895,
+            "error_pairs": 0
+          }
+        ],
+        "source_stream_sha256": {
+          "differential": "df2da3be7f823712fa669ada4ebb323b5fbf762704dc20d5307d56329fffd83e",
+          "whole": "17d59de2b983a40aa80528937195e74b14994aa9c09c9c6213e773235b7f7b63",
+          "directory": "427dcc9e4240f3b8aa87dfb7b0605ea0618ff23e1108f5a59a85620e64d58cf7"
+        },
+        "claim_boundary": "Fixed engineering screen; setup/warmup excluded from function intervals but retained in outer wall. Full-task costs, tokens, host load and cache effects NOT_OBSERVED. No population estimate.",
+        "directory_pairs": 24,
+        "directory_median_paired_improvement": 0.5000893932041965
+      },
+      "whole_samples_including_warmups": [
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78781250,
+          "newNs": 54570125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79137292,
+          "newNs": 55544834,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 77325750,
+          "newNs": 53274042,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78551375,
+          "newNs": 53910000,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 82383250,
+          "newNs": 54782333,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80119875,
+          "newNs": 54444500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79547125,
+          "newNs": 53937209,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79145250,
+          "newNs": 54227375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79913000,
+          "newNs": 54280500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79636875,
+          "newNs": 54163584,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79753667,
+          "newNs": 54672708,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80532583,
+          "newNs": 54396083,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79871334,
+          "newNs": 53715042,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/ordinary",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79467167,
+          "newNs": 54179083,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79704625,
+          "newNs": 54650916,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78178208,
+          "newNs": 53898875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78892584,
+          "newNs": 52640750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 75692625,
+          "newNs": 53534708,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 75431292,
+          "newNs": 51352291,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 75846375,
+          "newNs": 51254458,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 75007833,
+          "newNs": 53457875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80421458,
+          "newNs": 52696041,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78925459,
+          "newNs": 54207500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78986250,
+          "newNs": 54479750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79764750,
+          "newNs": 54515208,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79309334,
+          "newNs": 53575083,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80539791,
+          "newNs": 54631750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/dirty-untracked-symlink",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79688916,
+          "newNs": 54294375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 121629125,
+          "newNs": 51436750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79646625,
+          "newNs": 52733791,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80630084,
+          "newNs": 54685375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79461916,
+          "newNs": 54351625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79519417,
+          "newNs": 54634000,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80256042,
+          "newNs": 53815958,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80786750,
+          "newNs": 54157333,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80290833,
+          "newNs": 54498666,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79410000,
+          "newNs": 53317083,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79457250,
+          "newNs": 54017417,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80115417,
+          "newNs": 52745875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79877125,
+          "newNs": 53768292,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80136333,
+          "newNs": 54049833,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/linked-worktree",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79802541,
+          "newNs": 54252875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79787458,
+          "newNs": 54794291,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79499333,
+          "newNs": 54042125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79796667,
+          "newNs": 54278667,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79554875,
+          "newNs": 54240458,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79039917,
+          "newNs": 55009667,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79964208,
+          "newNs": 54218417,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78151208,
+          "newNs": 51070750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77879333,
+          "newNs": 50567291,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 74774125,
+          "newNs": 51149125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78820834,
+          "newNs": 52322666,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80338541,
+          "newNs": 54639208,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80750875,
+          "newNs": 56330625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 77460916,
+          "newNs": 52842042,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78343459,
+          "newNs": 53755417,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80475416,
+          "newNs": 54197208,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79567958,
+          "newNs": 53841250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80616250,
+          "newNs": 54200083,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79110875,
+          "newNs": 53632333,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80089458,
+          "newNs": 53722000,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79780916,
+          "newNs": 54053584,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78754208,
+          "newNs": 54049958,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79081042,
+          "newNs": 53836708,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79488333,
+          "newNs": 53571041,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79338292,
+          "newNs": 54217667,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78794959,
+          "newNs": 54264584,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78813916,
+          "newNs": 53824875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78305833,
+          "newNs": 52718583,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/nonascii-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79317083,
+          "newNs": 54033042,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80633416,
+          "newNs": 80017208,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80100666,
+          "newNs": 80234875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80613458,
+          "newNs": 80773666,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79446250,
+          "newNs": 80686417,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80487041,
+          "newNs": 79940709,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80051375,
+          "newNs": 79445666,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79896625,
+          "newNs": 79119042,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80044416,
+          "newNs": 79162417,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 75173250,
+          "newNs": 75155541,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 74603250,
+          "newNs": 76393500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 74560042,
+          "newNs": 79095833,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80779375,
+          "newNs": 81295958,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78095167,
+          "newNs": 79979833,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/newline-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79241167,
+          "newNs": 79393041,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79519167,
+          "newNs": 79102417,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80337416,
+          "newNs": 79530584,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80923542,
+          "newNs": 80685666,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79632791,
+          "newNs": 77482500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78984917,
+          "newNs": 81866666,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79082375,
+          "newNs": 80212666,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80077875,
+          "newNs": 79240750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78811417,
+          "newNs": 79753875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80574125,
+          "newNs": 80135209,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80189541,
+          "newNs": 79086708,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80279542,
+          "newNs": 80723000,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79412084,
+          "newNs": 79928250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79426750,
+          "newNs": 78003542,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha1/space-nonascii-newline-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79516208,
+          "newNs": 80021709,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 77802250,
+          "newNs": 55677125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78469542,
+          "newNs": 55608625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79358709,
+          "newNs": 56612125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79374333,
+          "newNs": 52625125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80123125,
+          "newNs": 54184750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79474208,
+          "newNs": 53681875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79132917,
+          "newNs": 54977583,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 74746417,
+          "newNs": 52365041,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 74530792,
+          "newNs": 51245667,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 75252542,
+          "newNs": 51020333,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78139375,
+          "newNs": 54979625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80437542,
+          "newNs": 54705541,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80565125,
+          "newNs": 54325875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/ordinary",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79760833,
+          "newNs": 54429125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79901417,
+          "newNs": 54661250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 77402125,
+          "newNs": 54657584,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79348500,
+          "newNs": 54573791,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 76131000,
+          "newNs": 51493916,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 75333834,
+          "newNs": 51757750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 74853708,
+          "newNs": 51505458,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 76744125,
+          "newNs": 52320667,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 76066000,
+          "newNs": 50671625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 76529917,
+          "newNs": 55384041,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80113208,
+          "newNs": 53130167,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80726250,
+          "newNs": 55582583,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80138000,
+          "newNs": 55536541,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79144042,
+          "newNs": 54534208,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/dirty-untracked-symlink",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80041000,
+          "newNs": 54387958,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 123196750,
+          "newNs": 52804292,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79730417,
+          "newNs": 53397834,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78981084,
+          "newNs": 54540833,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 82247541,
+          "newNs": 53752667,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 82129125,
+          "newNs": 54392500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79589333,
+          "newNs": 54088291,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80055167,
+          "newNs": 54168208,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79550125,
+          "newNs": 53108625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79665792,
+          "newNs": 54291625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78670834,
+          "newNs": 54291042,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 76214042,
+          "newNs": 51107708,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 74028750,
+          "newNs": 51115500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 73703667,
+          "newNs": 51847708,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/linked-worktree",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80161541,
+          "newNs": 51872791,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80432250,
+          "newNs": 54768250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 81732500,
+          "newNs": 53499125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 83898542,
+          "newNs": 60109083,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79454500,
+          "newNs": 55571667,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80159500,
+          "newNs": 54544292,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79918542,
+          "newNs": 54084500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79785917,
+          "newNs": 54439625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79278500,
+          "newNs": 54702958,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80150667,
+          "newNs": 53985375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79219083,
+          "newNs": 53777584,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79794666,
+          "newNs": 54119125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79562208,
+          "newNs": 54035250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80582125,
+          "newNs": 52738708,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79645750,
+          "newNs": 54303958,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79782583,
+          "newNs": 54422500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79646208,
+          "newNs": 54004125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79095500,
+          "newNs": 54364333,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80625500,
+          "newNs": 54617875,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78704750,
+          "newNs": 54277542,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79686334,
+          "newNs": 54896250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79047750,
+          "newNs": 53285000,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79089916,
+          "newNs": 53994250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80046666,
+          "newNs": 54580458,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79675875,
+          "newNs": 54219375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79966459,
+          "newNs": 53523500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79942542,
+          "newNs": 54755208,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79151958,
+          "newNs": 54526834,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/nonascii-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 74893750,
+          "newNs": 52501750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80692750,
+          "newNs": 79450167,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79249417,
+          "newNs": 82109125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78463250,
+          "newNs": 80107541,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79131583,
+          "newNs": 80209834,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78472208,
+          "newNs": 79859125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80437750,
+          "newNs": 81302250,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80108250,
+          "newNs": 78683750,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79831375,
+          "newNs": 79349125,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80380125,
+          "newNs": 80377583,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80735500,
+          "newNs": 79042667,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 78667333,
+          "newNs": 82293542,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80459375,
+          "newNs": 78504208,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 77869750,
+          "newNs": 77007792,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/newline-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79715167,
+          "newNs": 79587334,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": -2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79073958,
+          "newNs": 79233417,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "warmup-whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": -1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80276083,
+          "newNs": 79658084,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 0,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79772417,
+          "newNs": 79888208,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 1,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78948459,
+          "newNs": 79233542,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 2,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79692208,
+          "newNs": 78617292,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 3,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79681584,
+          "newNs": 79021375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 4,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 79948166,
+          "newNs": 80589375,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 5,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 79850583,
+          "newNs": 81104167,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 6,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80417916,
+          "newNs": 78587041,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 7,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 80486791,
+          "newNs": 78991917,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 8,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 80806542,
+          "newNs": 80021625,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 9,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 75018958,
+          "newNs": 78522166,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 10,
+          "order": [
+            "old",
+            "new"
+          ],
+          "oldNs": 75051791,
+          "newNs": 74996584,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        },
+        {
+          "stage": "whole-snapshot",
+          "fixture": "sha256/space-nonascii-newline-parent",
+          "pair": 11,
+          "order": [
+            "new",
+            "old"
+          ],
+          "oldNs": 78086500,
+          "newNs": 75228500,
+          "oldError": "",
+          "newError": "",
+          "equal": true
+        }
+      ],
+      "source": {
+        "baseline_function_exact": true,
+        "shared_snapshot_helpers_unchanged": true,
+        "fixture_runner_manifest_unchanged": true,
+        "candidate_snapshot_sha256": "656724dc09a7ac773b799088410b571a2fb4d745d8a904976ff0efa9f838c4ad",
+        "test_sha256": "43190425cad8e3dd2aed2f95cef6da30c8b236fca51ff19ccc30958937271509",
+        "probe_sha256": "6471e0283afefc31a8d01f0cf7773e5fe645a30b1004da56bd78bc7ea156588b",
+        "prior_check_failure": "Root slice extraction accidentally included the following fixture-list declaration. Correct function boundary proves exact old copy; probe/source bytes unchanged.",
+        "candidate": "r2"
+      }
+    }
+  },
+  "full_replay": {
+    "state": "PASS",
+    "comparison": {
+      "baseline": {
+        "exit_code": 0,
+        "wall_seconds": 379.474617792
+      },
+      "candidate": {
+        "exit_code": 0,
+        "wall_seconds": 359.225562834
+      },
+      "ordered_output_byte_equal": true,
+      "output_bytes": 12350,
+      "output_sha256": "553c5ffffa8f720471decc8db921d1adf446f1d1218af29db79246d1eb2a063a",
+      "candidate_output_sha256": "553c5ffffa8f720471decc8db921d1adf446f1d1218af29db79246d1eb2a063a",
+      "wall_ratio": 0.9466392374915072,
+      "observed_seconds_reduced": 20.249054957999988,
+      "observed_relative_reduction": 0.053360762508492754,
+      "frozen_maximum_ratio": 1.05,
+      "screen_pass": true,
+      "subject_sha256": "8dc155d008184d4fa27158af60d6515df1e30b6f9e66fb8f7762e4f3e1f3f587",
+      "baseline_runner_sha256": "e1a3864c1eb5217e539bce774d3b7c7a7693607ccb9151aa7ac7c3dc3e803981",
+      "candidate_runner_sha256": "a0519b2562d4a267a1adb436273fdc9459b4a0fd63802d0287bae745b780b860",
+      "manifest_sha256": "22912f77dd252196e952bd3f27c1ea6ba0655865ee97e042dcc958efe4bbd7b7",
+      "capture": "Complete merged outer stdout/stderr log. The unchanged replay checks each subject process stdout/stderr independently; outer stream attribution was not separately observed.",
+      "limitations": [
+        "One full AB comparison, not a population/tail estimate.",
+        "Model/prompt/cache behavior unchanged; host-load/cache effects NOT_OBSERVED.",
+        "Not complete-task cost or token savings.",
+        "133 parity cases and3 refusals preserved; full-GPK process matrix remains PARTIAL; detached descendants NOT_RUN."
+      ]
+    }
+  },
+  "raw_location": "Local Git evidence: .git/corvint/parity-snapshot-20260906; complete process streams and full snapshots remain private.",
+  "limitations": [
+    "Engineering screen only, no complete-task token/cost savings or product promotion.",
+    "Outer full replay supervisor merges stdout/stderr; the replay itself checks the subject process streams separately.",
+    "Focused fake-Git tests retain invocation order and final legacy errors, not complete internal combined-attempt stdout/stderr.",
+    "Original R1 newline regressions retained; R2 reruns exactly the same fixed matrix, thresholds and scorer.",
+    "Host load and cache effects NOT_OBSERVED; existing model/prompt/cache behavior unchanged."
+  ],
+  "verification": {
+    "code_review": "Independent capture_review PASS after LF guard; no source blocker.",
+    "canonical_gate": "NOT_RUN at evidence packaging; recorded separately after source commit.",
+    "internal_raw_attempt_gap": "Gate A wording about complete internal attempts was overbroad. Focused fakes retain argv order and final legacy errors; complete outer runs remain retained."
+  }
+}

@@ -1,0 +1,158 @@
+Corvint release artifact reproducibility run
+==========================================
+
+Date          2026-08-29
+Work item     W11 (GPK-V0-018 build reproducibility; GPK-V0-019 accepted Go extension)
+Commit        c4b3b255a4c0ef9b6b4736ea8436faf136a51a7c (branch integration/go-migration)
+HEAD tree     323b3f0610dc35478bf1593d8d8f41ac22e61d16
+Host          darwin/arm64
+Toolchain     go1.27.0 (go version go1.27.0 darwin/arm64); GOTOOLCHAIN=local; go.mod `go 1.27.0`,
+              0 `toolchain` directives
+Gate          script/check-release-artifact-reproducibility.sh
+              -> GOTOOLCHAIN=local go run ./conformance/release-artifact-v0
+
+Target coverage
+---------------
+All five GPK-V0-018 targets are covered, and coverage is enforced rather than incidental:
+`conformance/release-artifact-v0/manifest.go` declares
+
+  requiredTargets = darwin/amd64, darwin/arm64, linux/amd64, linux/arm64, windows/amd64
+
+and `Manifest.validateTargets` rejects a manifest that omits any of them
+("manifest omits GPK-V0-018 required targets: ..."). Dropping a target is therefore a spec change,
+not a quiet manifest edit. No extension was needed for this run.
+
+Exact commands run
+------------------
+1. Baseline on the live working tree (fail-closed refusal, reproduced today):
+
+     cd /private/tmp/corvint-integration
+     CORVINT_RELEASE_ARTIFACT_OUTPUT=/private/tmp/corvint-w11-dirty \
+       script/check-release-artifact-reproducibility.sh
+
+   SUMMARY targets=0 byte-identical=0 of 0 checksums=0 smoke-pass=0 smoke-not-run=0 smoke-fail=0 legal-files=3 module-requirements=0 undeclared-dependencies=0 verdict=FAIL pending-evidence=W10-performance-GPK-V0-016-017
+   FAIL dirty-worktree: worktree is dirty:
+   ?? .dogfood/
+   ?? conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/
+   ?? conformance/perf-v0/results/beamfall-dogfood-w12-2026-08-29/
+   ?? conformance/perf-v0/results/rollback-2026-08-29/
+   ?? script/dogfood-w12.sh
+   exit status 1
+
+   The refusal is correct: `checkCommit` requires one exact clean commit, and this shared
+   checkout carries untracked output from concurrently running W12 dogfood work. The listed
+   paths belong to other work items, not to W11, and were not removed.
+
+2. Measured run, on a pristine clone of the same commit (source repo untouched; no
+   `git add`/`commit`/`checkout`/`stash` anywhere):
+
+     git clone --no-hardlinks /private/tmp/corvint-integration /private/tmp/corvint-w11-clean
+     cd /private/tmp/corvint-w11-clean
+     git rev-parse HEAD            # c4b3b255a4c0ef9b6b4736ea8436faf136a51a7c
+     git rev-parse 'HEAD^{tree}'   # 323b3f0610dc35478bf1593d8d8f41ac22e61d16   (== source HEAD tree)
+     git status --porcelain        # empty
+     CORVINT_RELEASE_ARTIFACT_OUTPUT=/private/tmp/corvint-w11-out \
+       script/check-release-artifact-reproducibility.sh
+
+   SUMMARY targets=5 byte-identical=5 of 5 checksums=5 smoke-pass=1 smoke-not-run=4 smoke-fail=0 legal-files=3 module-requirements=0 undeclared-dependencies=0 verdict=PASS pending-evidence=W10-performance-GPK-V0-016-017
+   exit code 0
+
+   The clone's HEAD tree object is byte-for-byte the source repository's HEAD tree, so the
+   measured bytes correspond to commit c4b3b25 exactly. `-trimpath` removes the build path, and
+   the embedded `vcs.revision` in every artifact re-proves the binding from inside the binary.
+
+3. Independent re-verification of the byte-identity claim, outside the gate:
+
+     for f in build-a/*; do n=$(basename $f); cmp -s build-a/$n build-b/$n && echo equal; done
+     shasum -a 256 build-a/* build-b/*
+
+   All five pairs: `cmp` equal, `shasum -a 256` equal.
+
+Profile (manifest.json is the authority; nothing inferred)
+----------------------------------------------------------
+package        ./cmd/corvint
+binary name    corvint          (never "corvint": GPK-V0-015 forbids it, GPK-V0-023 gates it)
+build flags    -trimpath
+environment    CGO_ENABLED=0 GOTOOLCHAIN=local GOPROXY=off GOFLAGS=-mod=readonly GOSUMDB=off
+cache          each of the two builds per target used its own cold GOCACHE and its own TMPDIR,
+               so the comparison is a determinism test, not a cache-hit test
+cross-compile  CGO_ENABLED=0 needs no C toolchain; all four non-host targets built from this host
+
+Per-target result: two same-profile builds, byte-identical
+-----------------------------------------------------------
+target          build A sha256                                                    build B sha256                                                    bytes    identical  PASS/FAIL
+darwin/amd64    85e329ccaa1d9e698dc0f06cbadf26b269e7d66e995a3fb0da9acd80bea154a0  85e329ccaa1d9e698dc0f06cbadf26b269e7d66e995a3fb0da9acd80bea154a0  8600896  YES        PASS
+darwin/arm64    521b41ba183fb7630a1c08be1ced0cade432ade2b2d851878a307a60cd0d06e0  521b41ba183fb7630a1c08be1ced0cade432ade2b2d851878a307a60cd0d06e0  7990930  YES        PASS
+linux/amd64     5b880fe0a5917c2e943550a54ba9bd682acba362d1181afd95174384022fb029  5b880fe0a5917c2e943550a54ba9bd682acba362d1181afd95174384022fb029  8577163  YES        PASS
+linux/arm64     76d79c1482ee89f3504ea5233d27577858940835e8e776550a2efd88235ab46a  76d79c1482ee89f3504ea5233d27577858940835e8e776550a2efd88235ab46a  7938621  YES        PASS
+windows/amd64   50ac1dcd5f7dfebdabebfd05b2adb2dfcbcafd41782ad2e1025569618537e274  50ac1dcd5f7dfebdabebfd05b2adb2dfcbcafd41782ad2e1025569618537e274  8647680  YES        PASS
+
+No target failed to build; no row was dropped. 5 of 5 targets built and compared.
+
+These digests differ from the 2026-08-28 run because that run was at commit 5151eac. Each artifact
+embeds `vcs.revision` and `vcs.time`, so a different commit is expected to produce a different
+checksum. The reproducibility claim is same-commit, same-profile, which both runs satisfy.
+
+SHA256SUMS (one checksum per exact artifact)
+--------------------------------------------
+85e329ccaa1d9e698dc0f06cbadf26b269e7d66e995a3fb0da9acd80bea154a0  corvint-darwin-amd64
+521b41ba183fb7630a1c08be1ced0cade432ade2b2d851878a307a60cd0d06e0  corvint-darwin-arm64
+5b880fe0a5917c2e943550a54ba9bd682acba362d1181afd95174384022fb029  corvint-linux-amd64
+76d79c1482ee89f3504ea5233d27577858940835e8e776550a2efd88235ab46a  corvint-linux-arm64
+50ac1dcd5f7dfebdabebfd05b2adb2dfcbcafd41782ad2e1025569618537e274  corvint-windows-amd64.exe
+
+Embedded provenance, verified on every target (example darwin/arm64)
+---------------------------------------------------------------------
+go             go1.27.0
+path           github.com/corvint-context/corvint/cmd/corvint
+-buildmode     exe
+-compiler      gc
+-trimpath      true
+CGO_ENABLED    0
+GOOS/GOARCH    darwin/arm64
+vcs            git
+vcs.revision   c4b3b255a4c0ef9b6b4736ea8436faf136a51a7c
+vcs.modified   false
+vcs.time       2026-08-29T04:27:07Z
+deps           (empty: no undeclared runtime dependency)
+
+Dependencies
+------------
+go.mod module requirements   0
+binary dependency lists      0 non-empty (all five artifacts carry an empty `deps`)
+
+Legal files (GPK-V0-020, pinned by digest in manifest.json)
+-----------------------------------------------------------
+LICENSE        PASS  cdb7dd035e8a8536a2b5c90ba6fb7a6270a1b989f7b52f3f87c4877e2fa6c893
+LICENSING.md   PASS  3644e08703d30ff724fcd061faa2c77bff055be49ebd95b9e2feebe6c73726be
+PROVENANCE.md  PASS  12455e604564cc757992b5d408f652812f48b4650d21f3a37eba8cf9d985eef5
+
+Smoke tests
+-----------
+darwin/arm64    PASS     native execution on this host.
+                         --version -> "Corvint 0.4.0a0"
+                         real read-only query on a temporary Git repository
+                         -> intent "project-operations", repository unchanged.
+darwin/amd64    NOT_RUN  this host cannot execute the target.
+linux/amd64     NOT_RUN  this host cannot execute the target.
+linux/arm64     NOT_RUN  this host cannot execute the target.
+windows/amd64   NOT_RUN  this host cannot execute the target.
+
+GPK-V0-018 states cross-compilation is not execution evidence. The four NOT_RUN targets still owe
+their native conformance, filesystem-safety, process-cleanup, and read-nonmutation matrices, plus
+exact Python process comparison wherever the Python oracle supports that operating system. Named
+gaps, not inferred support.
+
+Verdict scope
+-------------
+PASS is a build-reproducibility verdict only. `pendingEvidence` is non-empty
+(`W10-performance-GPK-V0-016-017`), so the release gate as a whole MUST NOT be declared satisfied
+on this run. Cross-builder reproducibility and publication (signature, attestation, SBOM, upload)
+remain out of scope and unclaimed.
+
+Open GPK-V0-020 finding: see `gpk-v0-020-notices-assessment.md` in this directory. Nothing in this
+repository assembles a Go binary archive, so the clause's "Binary archives carry the exact
+applicable notices" sentence is UNVERIFIED for the Go artifact.
+
+Timing note: no timing or benchmark measurement was taken during this run, deliberately. The host
+carries concurrent agent workloads, so any wall-clock figure would be uninterpretable.

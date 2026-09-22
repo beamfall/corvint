@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "repository": "pallets/flask",
+  "commit": "d318b683471101618febed18996405ad26462110",
+  "cases": [
+    {
+      "id": "flask-load-dotenv",
+      "mode": "query",
+      "text": "load environment variables from dotenv files for the CLI",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "Flask's CLI-specific dotenv loader and its configuration helper own this behavior.",
+      "ground_truth": [
+        {"path": "src/flask/cli.py", "line": 698, "contains": "def load_dotenv"},
+        {"path": "src/flask/cli.py", "line": 493, "contains": "def _env_file_callback"},
+        {"path": "src/flask/cli.py", "line": 510, "contains": "load_dotenv(value"},
+        {"path": "src/flask/helpers.py", "line": 36, "contains": "def get_load_dotenv"},
+        {"path": "tests/test_cli.py", "line": 536, "contains": "test_load_dotenv"}
+      ],
+      "expected": {
+        "must_include": ["symbol:src/flask/cli.py:load_dotenv"],
+        "critical": ["symbol:src/flask/cli.py:load_dotenv"],
+        "relevant": [
+          "symbol:src/flask/cli.py:load_dotenv",
+          "symbol:src/flask/cli.py:_env_file_callback",
+          "symbol:src/flask/helpers.py:get_load_dotenv"
+        ]
+      }
+    },
+    {
+      "id": "flask-ensure-sync",
+      "mode": "query",
+      "text": "convert an async view function to synchronous WSGI execution",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "Flask.ensure_sync selects the async conversion path and async_to_sync performs it.",
+      "ground_truth": [
+        {"path": "src/flask/app.py", "line": 1068, "contains": "def ensure_sync"},
+        {"path": "src/flask/app.py", "line": 1082, "contains": "def async_to_sync"},
+        {"path": "src/flask/views.py", "line": 86, "contains": "def as_view"},
+        {"path": "src/flask/views.py", "line": 110, "contains": "ensure_sync"},
+        {"path": "tests/test_async.py", "line": 82, "contains": "test_async_route"}
+      ],
+      "expected": {
+        "must_include": ["symbol:src/flask/app.py:ensure_sync"],
+        "critical": ["symbol:src/flask/app.py:ensure_sync"],
+        "relevant": [
+          "symbol:src/flask/app.py:ensure_sync",
+          "symbol:src/flask/app.py:async_to_sync",
+          "symbol:src/flask/views.py:as_view"
+        ]
+      }
+    },
+    {
+      "id": "flask-cookie-session",
+      "mode": "query",
+      "text": "open a signed cookie session from an incoming request",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "SecureCookieSessionInterface implements signed-cookie loading through open_session.",
+      "ground_truth": [
+        {"path": "src/flask/sessions.py", "line": 284, "contains": "class SecureCookieSessionInterface"},
+        {"path": "src/flask/sessions.py", "line": 323, "contains": "def open_session"},
+        {"path": "src/flask/sessions.py", "line": 57, "contains": "class SecureCookieSession"},
+        {"path": "src/flask/ctx.py", "line": 381, "contains": "def _get_session"},
+        {"path": "src/flask/testing.py", "line": 136, "contains": "def session_transaction"},
+        {"path": "tests/test_reqctx.py", "line": 10, "contains": "SecureCookieSessionInterface"}
+      ],
+      "expected": {
+        "must_include": ["symbol:src/flask/sessions.py:open_session"],
+        "critical": ["symbol:src/flask/sessions.py:open_session"],
+        "relevant": [
+          "symbol:src/flask/sessions.py:SecureCookieSessionInterface",
+          "symbol:src/flask/sessions.py:open_session",
+          "symbol:src/flask/sessions.py:SecureCookieSession",
+          "symbol:src/flask/ctx.py:_get_session",
+          "symbol:src/flask/testing.py:session_transaction"
+        ]
+      }
+    },
+    {
+      "id": "flask-session-impact",
+      "mode": "impact",
+      "paths": ["src/flask/sessions.py"],
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "Changing the session interfaces affects Flask's app wiring and direct session tests.",
+      "ground_truth": [
+        {"path": "src/flask/app.py", "line": 46, "contains": "from .sessions import"},
+        {"path": "src/flask/ctx.py", "line": 22, "contains": "from .sessions import"},
+        {"path": "src/flask/globals.py", "line": 12, "contains": "from .sessions import"},
+        {"path": "src/flask/testing.py", "line": 18, "contains": "from .sessions import"},
+        {"path": "tests/test_reqctx.py", "line": 10, "contains": "from flask.sessions import"},
+        {"path": "tests/test_session_interface.py", "line": 3, "contains": "from flask.sessions import"}
+      ],
+      "expected": {
+        "must_include": [
+          "path:src/flask/sessions.py",
+          "reverse-import:src/flask/app.py",
+          "reverse-import:tests/test_reqctx.py"
+        ],
+        "critical": ["reverse-import:src/flask/app.py"],
+        "relevant": [
+          "path:src/flask/sessions.py",
+          "reverse-import:src/flask/app.py",
+          "reverse-import:src/flask/ctx.py",
+          "reverse-import:src/flask/globals.py",
+          "reverse-import:src/flask/testing.py",
+          "reverse-import:tests/test_reqctx.py",
+          "reverse-import:tests/test_session_interface.py"
+        ]
+      }
+    },
+    {
+      "id": "blind-flask-stream-context-public-export",
+      "partition": "blind-v1",
+      "mode": "query",
+      "text": "find the Flask stream with context implementation that keeps request context active while yielding the original generator",
+      "limit": 5,
+      "budget_bytes": 14000,
+      "rationale": "A blind reviewer selected the concrete implementation and behavior before seeing Atlas code or output.",
+      "ground_truth": [
+        {"path": "src/flask/helpers.py", "line": 63, "contains": "def stream_with_context("},
+        {"path": "src/flask/helpers.py", "line": 133, "contains": "with ctx:"},
+        {"path": "src/flask/helpers.py", "line": 137, "contains": "yield from gen"},
+        {"path": "src/flask/__init__.py", "line": 21, "contains": "from .helpers import stream_with_context as stream_with_context"}
+      ],
+      "expected": {
+        "must_include": ["symbol:src/flask/helpers.py:stream_with_context"],
+        "critical": ["symbol:src/flask/helpers.py:stream_with_context"],
+        "relevant": ["symbol:src/flask/helpers.py:stream_with_context"],
+        "must_exclude": []
+      }
+    },
+    {
+      "id": "flask-kubernetes-abstention",
+      "mode": "query",
+      "text": "generate a Kubernetes horizontal pod autoscaler manifest",
+      "limit": 8,
+      "budget_bytes": 8000,
+      "rationale": "Flask contains no Kubernetes autoscaler implementation or specification.",
+      "ground_truth": [],
+      "expected": {"state": "OUT_OF_SCOPE", "must_exclude": [], "relevant": []}
+    }
+  ]
+}

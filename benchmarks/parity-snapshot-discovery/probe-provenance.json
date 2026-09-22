@@ -1,0 +1,35 @@
+{
+  "baseline": "a71e58e4e1e080c74644fbf5bcf07ac825696fbd",
+  "source": "conformance/cli-parity-v0/snapshot.go",
+  "sourceSHA256": "741884be4d441de2c6faa2f871a1d3a3b38a3889082e978738811242913dbfa1",
+  "oldFunctionSHA256": "e4dcb4fd39582aba18218831d209411f242c9e0f0d81f934a6f2a00cca280143",
+  "transform": "Rename snapshotRepository declaration only; dependencies remain shared and must be unchanged",
+  "candidateOutputConsulted": false,
+  "probeSHA256": "6471e0283afefc31a8d01f0cf7773e5fe645a30b1004da56bd78bc7ea156588b",
+  "functionCopyVerified": true,
+  "validation": "gofmt parse/format and exact function text equality only; tests/benchmarks NOT_RUN",
+  "fixtureMatrix": {
+    "formats": [
+      "sha1",
+      "sha256"
+    ],
+    "kinds": [
+      "ordinary",
+      "dirty-untracked-symlink",
+      "linked-worktree",
+      "space-parent",
+      "nonascii-parent",
+      "newline-parent",
+      "space-nonascii-newline-parent"
+    ]
+  },
+  "wholeSnapshotPerCell": {
+    "warmupPairs": 2,
+    "measuredPairs": 12,
+    "order": "alternating old/new then new/old",
+    "fallbackAndNewlineCells": "retained in population"
+  },
+  "directoryStage": "2 ordinary format cells; same 2 warmup and 12 measured pairs; separate population",
+  "expectedErrors": "nil context, cancelled context, not repository; newline fixture legacy errors allowed iff exact old/new error and snapshot equality",
+  "thresholds": "Root PLAN only: pooled median whole-snapshot paired relative improvement >= 5%; full replay <=105% old baseline separately; no fixture/output-dependent adjustment"
+}

@@ -1,0 +1,264 @@
+{
+  "schema": "corvint.release-artifact-v0",
+  "commit": "5151eac41c0d4d5f3442e5924628ab1508609335",
+  "tree": "bd03a39cfbda6b9e5204cb3ededa54f36678c16e",
+  "toolchain": {
+    "selectedGoVersion": "go1.27.0",
+    "expectedGoVersion": "go1.27.0",
+    "gotoolchainEnv": "local",
+    "goModDirective": "1.27.0",
+    "goModToolchainLines": 0,
+    "status": "PASS"
+  },
+  "profile": {
+    "package": "./cmd/corvint",
+    "binaryName": "corvint",
+    "buildFlags": [
+      "-trimpath"
+    ],
+    "environment": {
+      "CGO_ENABLED": "0",
+      "GOFLAGS": "-mod=readonly",
+      "GOPROXY": "off",
+      "GOTOOLCHAIN": "local"
+    }
+  },
+  "targets": [
+    {
+      "goos": "darwin",
+      "goarch": "amd64",
+      "artifact": "/tmp/corvint-w11-build/run1/build-a/corvint-darwin-amd64",
+      "buildA": {
+        "sha256": "5e266c7335987f74e870ae3d1adea1f28eeff365dd2c921e5bf7685c9e7c075c",
+        "bytes": 8560112,
+        "distinctCache": "cache-a"
+      },
+      "buildB": {
+        "sha256": "5e266c7335987f74e870ae3d1adea1f28eeff365dd2c921e5bf7685c9e7c075c",
+        "bytes": 8560112,
+        "distinctCache": "cache-b"
+      },
+      "byteIdentical": true,
+      "sha256": "5e266c7335987f74e870ae3d1adea1f28eeff365dd2c921e5bf7685c9e7c075c",
+      "buildInfo": {
+        "-buildmode": "exe",
+        "-compiler": "gc",
+        "-trimpath": "true",
+        "CGO_ENABLED": "0",
+        "GOAMD64": "v1",
+        "GOARCH": "amd64",
+        "GOOS": "darwin",
+        "deps": "",
+        "go": "go1.27.0",
+        "mod": "v0.0.0-20260828185610-5151eac41c0d",
+        "path": "github.com/corvint-context/corvint/cmd/corvint",
+        "vcs": "git",
+        "vcs.modified": "false",
+        "vcs.revision": "5151eac41c0d4d5f3442e5924628ab1508609335",
+        "vcs.time": "2026-08-28T18:56:10Z"
+      },
+      "native": false,
+      "smoke": {
+        "status": "NOT_RUN",
+        "reason": "NOT_RUN: this host cannot execute the target. GPK-V0-018 states cross-compilation is not execution evidence; native conformance, filesystem-safety, process-cleanup, and read-nonmutation matrices remain owed on that operating system.",
+        "queryOk": false,
+        "repositoryUnchanged": false
+      }
+    },
+    {
+      "goos": "darwin",
+      "goarch": "arm64",
+      "artifact": "/tmp/corvint-w11-build/run1/build-a/corvint-darwin-arm64",
+      "buildA": {
+        "sha256": "4e513a3e7383c0eda6f6a5713101f1d1f03066eadba237b50216924dd749bc7c",
+        "bytes": 7953954,
+        "distinctCache": "cache-a"
+      },
+      "buildB": {
+        "sha256": "4e513a3e7383c0eda6f6a5713101f1d1f03066eadba237b50216924dd749bc7c",
+        "bytes": 7953954,
+        "distinctCache": "cache-b"
+      },
+      "byteIdentical": true,
+      "sha256": "4e513a3e7383c0eda6f6a5713101f1d1f03066eadba237b50216924dd749bc7c",
+      "buildInfo": {
+        "-buildmode": "exe",
+        "-compiler": "gc",
+        "-trimpath": "true",
+        "CGO_ENABLED": "0",
+        "GOARCH": "arm64",
+        "GOARM64": "v8.0",
+        "GOOS": "darwin",
+        "deps": "",
+        "go": "go1.27.0",
+        "mod": "v0.0.0-20260828185610-5151eac41c0d",
+        "path": "github.com/corvint-context/corvint/cmd/corvint",
+        "vcs": "git",
+        "vcs.modified": "false",
+        "vcs.revision": "5151eac41c0d4d5f3442e5924628ab1508609335",
+        "vcs.time": "2026-08-28T18:56:10Z"
+      },
+      "native": true,
+      "smoke": {
+        "status": "PASS",
+        "versionOutput": "Corvint 0.4.0a0",
+        "queryIntent": "project-operations",
+        "queryOk": true,
+        "repositoryUnchanged": true
+      }
+    },
+    {
+      "goos": "linux",
+      "goarch": "amd64",
+      "artifact": "/tmp/corvint-w11-build/run1/build-a/corvint-linux-amd64",
+      "buildA": {
+        "sha256": "12ea1fb9e137df6f0f765cf77946ed4cd92b90cf116e6092056e36886a54ad66",
+        "bytes": 8539614,
+        "distinctCache": "cache-a"
+      },
+      "buildB": {
+        "sha256": "12ea1fb9e137df6f0f765cf77946ed4cd92b90cf116e6092056e36886a54ad66",
+        "bytes": 8539614,
+        "distinctCache": "cache-b"
+      },
+      "byteIdentical": true,
+      "sha256": "12ea1fb9e137df6f0f765cf77946ed4cd92b90cf116e6092056e36886a54ad66",
+      "buildInfo": {
+        "-buildmode": "exe",
+        "-compiler": "gc",
+        "-trimpath": "true",
+        "CGO_ENABLED": "0",
+        "GOAMD64": "v1",
+        "GOARCH": "amd64",
+        "GOOS": "linux",
+        "deps": "",
+        "go": "go1.27.0",
+        "mod": "v0.0.0-20260828185610-5151eac41c0d",
+        "path": "github.com/corvint-context/corvint/cmd/corvint",
+        "vcs": "git",
+        "vcs.modified": "false",
+        "vcs.revision": "5151eac41c0d4d5f3442e5924628ab1508609335",
+        "vcs.time": "2026-08-28T18:56:10Z"
+      },
+      "native": false,
+      "smoke": {
+        "status": "NOT_RUN",
+        "reason": "NOT_RUN: this host cannot execute the target. GPK-V0-018 states cross-compilation is not execution evidence; native conformance, filesystem-safety, process-cleanup, and read-nonmutation matrices remain owed on that operating system.",
+        "queryOk": false,
+        "repositoryUnchanged": false
+      }
+    },
+    {
+      "goos": "linux",
+      "goarch": "arm64",
+      "artifact": "/tmp/corvint-w11-build/run1/build-a/corvint-linux-arm64",
+      "buildA": {
+        "sha256": "23d6d60f964149af9ec1543e20978f0062d0cae76ae9aa302acc7aeed5965926",
+        "bytes": 7925840,
+        "distinctCache": "cache-a"
+      },
+      "buildB": {
+        "sha256": "23d6d60f964149af9ec1543e20978f0062d0cae76ae9aa302acc7aeed5965926",
+        "bytes": 7925840,
+        "distinctCache": "cache-b"
+      },
+      "byteIdentical": true,
+      "sha256": "23d6d60f964149af9ec1543e20978f0062d0cae76ae9aa302acc7aeed5965926",
+      "buildInfo": {
+        "-buildmode": "exe",
+        "-compiler": "gc",
+        "-trimpath": "true",
+        "CGO_ENABLED": "0",
+        "GOARCH": "arm64",
+        "GOARM64": "v8.0",
+        "GOOS": "linux",
+        "deps": "",
+        "go": "go1.27.0",
+        "mod": "v0.0.0-20260828185610-5151eac41c0d",
+        "path": "github.com/corvint-context/corvint/cmd/corvint",
+        "vcs": "git",
+        "vcs.modified": "false",
+        "vcs.revision": "5151eac41c0d4d5f3442e5924628ab1508609335",
+        "vcs.time": "2026-08-28T18:56:10Z"
+      },
+      "native": false,
+      "smoke": {
+        "status": "NOT_RUN",
+        "reason": "NOT_RUN: this host cannot execute the target. GPK-V0-018 states cross-compilation is not execution evidence; native conformance, filesystem-safety, process-cleanup, and read-nonmutation matrices remain owed on that operating system.",
+        "queryOk": false,
+        "repositoryUnchanged": false
+      }
+    },
+    {
+      "goos": "windows",
+      "goarch": "amd64",
+      "artifact": "/tmp/corvint-w11-build/run1/build-a/corvint-windows-amd64.exe",
+      "buildA": {
+        "sha256": "9ede469fecb9814646a69cbdcea0d07febaec53bcfa29c7c1d589cec391dfd1d",
+        "bytes": 8612864,
+        "distinctCache": "cache-a"
+      },
+      "buildB": {
+        "sha256": "9ede469fecb9814646a69cbdcea0d07febaec53bcfa29c7c1d589cec391dfd1d",
+        "bytes": 8612864,
+        "distinctCache": "cache-b"
+      },
+      "byteIdentical": true,
+      "sha256": "9ede469fecb9814646a69cbdcea0d07febaec53bcfa29c7c1d589cec391dfd1d",
+      "buildInfo": {
+        "-buildmode": "exe",
+        "-compiler": "gc",
+        "-trimpath": "true",
+        "CGO_ENABLED": "0",
+        "GOAMD64": "v1",
+        "GOARCH": "amd64",
+        "GOOS": "windows",
+        "deps": "",
+        "go": "go1.27.0",
+        "mod": "v0.0.0-20260828185610-5151eac41c0d",
+        "path": "github.com/corvint-context/corvint/cmd/corvint",
+        "vcs": "git",
+        "vcs.modified": "false",
+        "vcs.revision": "5151eac41c0d4d5f3442e5924628ab1508609335",
+        "vcs.time": "2026-08-28T18:56:10Z"
+      },
+      "native": false,
+      "smoke": {
+        "status": "NOT_RUN",
+        "reason": "NOT_RUN: this host cannot execute the target. GPK-V0-018 states cross-compilation is not execution evidence; native conformance, filesystem-safety, process-cleanup, and read-nonmutation matrices remain owed on that operating system.",
+        "queryOk": false,
+        "repositoryUnchanged": false
+      }
+    }
+  ],
+  "legalFiles": [
+    {
+      "path": "LICENSE",
+      "sha256": "cdb7dd035e8a8536a2b5c90ba6fb7a6270a1b989f7b52f3f87c4877e2fa6c893",
+      "expectedSha256": "cdb7dd035e8a8536a2b5c90ba6fb7a6270a1b989f7b52f3f87c4877e2fa6c893",
+      "status": "PASS"
+    },
+    {
+      "path": "LICENSING.md",
+      "sha256": "3644e08703d30ff724fcd061faa2c77bff055be49ebd95b9e2feebe6c73726be",
+      "expectedSha256": "3644e08703d30ff724fcd061faa2c77bff055be49ebd95b9e2feebe6c73726be",
+      "status": "PASS"
+    },
+    {
+      "path": "PROVENANCE.md",
+      "sha256": "12455e604564cc757992b5d408f652812f48b4650d21f3a37eba8cf9d985eef5",
+      "expectedSha256": "12455e604564cc757992b5d408f652812f48b4650d21f3a37eba8cf9d985eef5",
+      "status": "PASS"
+    }
+  ],
+  "dependencies": {
+    "moduleRequirements": 0,
+    "binaryDependencies": [],
+    "status": "PASS"
+  },
+  "pendingEvidence": [
+    "W10-performance-GPK-V0-016-017"
+  ],
+  "verdict": "PASS",
+  "reasons": null
+}

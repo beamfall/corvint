@@ -1,0 +1,260 @@
+{
+  "id": "intent-test-reason-union-and-priority",
+  "matrixRows": [
+    "empty, skipped, unsupported, unassociated, ambiguous, failed, errored, and unmatched claim"
+  ],
+  "clauses": [
+    "CF-V0-013",
+    "CF-V0-015",
+    "CF-V0-016"
+  ],
+  "intent": "CF-V0-016 freezes the INTENT_TEST reason order and requires the union across every selected claim edge, with only the FIRST retained reason supplying resolutionClass and nextAction.",
+  "cases": [
+    {
+      "id": "matrix-named-eight-diagnostics",
+      "note": "The exact eight diagnostics the matrix row names, declared out of priority order across eight selected claim edges of one obligation.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          }
+        ],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "linked",
+            "hunkIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "claimIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+              "claim:sha256:0202020202020202020202020202020202020202020202020202020202020202",
+              "claim:sha256:0303030303030303030303030303030303030303030303030303030303030303",
+              "claim:sha256:0404040404040404040404040404040404040404040404040404040404040404",
+              "claim:sha256:0505050505050505050505050505050505050505050505050505050505050505",
+              "claim:sha256:0606060606060606060606060606060606060606060606060606060606060606",
+              "claim:sha256:0707070707070707070707070707070707070707070707070707070707070707",
+              "claim:sha256:0808080808080808080808080808080808080808080808080808080808080808"
+            ],
+            "tcqReasons": [
+              "empty-body",
+              "unconditional-skip",
+              "unsupported-anchor-profile",
+              "claim-association-missing",
+              "claim-association-ambiguous",
+              "test-failed",
+              "test-error",
+              "test-not-matched"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "2",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "NO_MATERIAL_CHANGE_WITNESS"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_MATERIAL_HUNK"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "TEST_ERROR",
+              "TEST_FAILED",
+              "TEST_NOT_MATCHED",
+              "TEST_CLAIM_EMPTY",
+              "TEST_CLAIM_UNCONDITIONAL_SKIP",
+              "TEST_CLAIM_UNASSOCIATED",
+              "TEST_CLAIM_UNSUPPORTED"
+            ],
+            "relatedIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+              "claim:sha256:0202020202020202020202020202020202020202020202020202020202020202",
+              "claim:sha256:0303030303030303030303030303030303030303030303030303030303030303",
+              "claim:sha256:0404040404040404040404040404040404040404040404040404040404040404",
+              "claim:sha256:0505050505050505050505050505050505050505050505050505050505050505",
+              "claim:sha256:0606060606060606060606060606060606060606060606060606060606060606",
+              "claim:sha256:0707070707070707070707070707070707070707070707070707070707070707",
+              "claim:sha256:0808080808080808080808080808080808080808080808080808080808080808"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "FIX_OR_RERUN_TEST"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-016: reasons are the deduplicated union stored in the frozen priority order, not lexical order.",
+        "CF-V0-016: TEST_ERROR is order 4 and is the first retained reason, so resolutionClass is ACTIONABLE and nextAction is FIX_OR_RERUN_TEST; later reasons stay visible and cannot alter them.",
+        "CF-V0-015: relatedIds are ALL OCM-selected claim IDs, sorted and deduplicated, whether their edge associates, abstains, matches or fails.",
+        "CF-V0-013: each claim edge is evaluated independently; no ANY/ALL quantifier is inferred."
+      ]
+    },
+    {
+      "id": "every-mapped-diagnostic",
+      "note": "All seventeen TCQ diagnostics at once, proving the whole CF-V0-016 table and that execution-identity-ambiguous and repeated-test-rows collapse to one reason, as do the four order-12 diagnostics and the two order-13 diagnostics.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "qualifying"
+            ]
+          }
+        ],
+        "obligations": [
+          {
+            "id": "CF-V0-001",
+            "disposition": "linked",
+            "hunkIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "claimIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+              "claim:sha256:0202020202020202020202020202020202020202020202020202020202020202",
+              "claim:sha256:0303030303030303030303030303030303030303030303030303030303030303",
+              "claim:sha256:0404040404040404040404040404040404040404040404040404040404040404",
+              "claim:sha256:0505050505050505050505050505050505050505050505050505050505050505",
+              "claim:sha256:0606060606060606060606060606060606060606060606060606060606060606",
+              "claim:sha256:0707070707070707070707070707070707070707070707070707070707070707",
+              "claim:sha256:0808080808080808080808080808080808080808080808080808080808080808",
+              "claim:sha256:0909090909090909090909090909090909090909090909090909090909090909",
+              "claim:sha256:0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+              "claim:sha256:0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+              "claim:sha256:0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+              "claim:sha256:0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+              "claim:sha256:0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+              "claim:sha256:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+              "claim:sha256:1010101010101010101010101010101010101010101010101010101010101010",
+              "claim:sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            ],
+            "tcqReasons": [
+              "target-cleanliness-not-attested",
+              "command-failed",
+              "test-error",
+              "test-failed",
+              "test-skipped",
+              "execution-identity-ambiguous",
+              "repeated-test-rows",
+              "row-identity-unavailable",
+              "test-not-matched",
+              "empty-body",
+              "unconditional-skip",
+              "claim-association-missing",
+              "claim-association-ambiguous",
+              "python-offset-mismatch",
+              "unparseable-test-unit",
+              "unsupported-anchor-profile",
+              "unsupported-python-grammar"
+            ]
+          }
+        ]
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "2",
+        "items": [
+          {
+            "kind": "INTENT_CHANGE",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "NO_MATERIAL_CHANGE_WITNESS"
+            ],
+            "relatedIds": [
+              "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "LINK_MATERIAL_HUNK"
+          },
+          {
+            "kind": "INTENT_TEST",
+            "subjectId": "CF-V0-001",
+            "reasons": [
+              "TARGET_CLEANLINESS_NOT_ATTESTED",
+              "COMMAND_FAILED",
+              "TEST_ERROR",
+              "TEST_FAILED",
+              "TEST_SKIPPED",
+              "TEST_IDENTITY_AMBIGUOUS",
+              "TEST_ROW_IDENTITY_UNAVAILABLE",
+              "TEST_NOT_MATCHED",
+              "TEST_CLAIM_EMPTY",
+              "TEST_CLAIM_UNCONDITIONAL_SKIP",
+              "TEST_CLAIM_UNASSOCIATED",
+              "TEST_CLAIM_UNSUPPORTED"
+            ],
+            "relatedIds": [
+              "claim:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+              "claim:sha256:0202020202020202020202020202020202020202020202020202020202020202",
+              "claim:sha256:0303030303030303030303030303030303030303030303030303030303030303",
+              "claim:sha256:0404040404040404040404040404040404040404040404040404040404040404",
+              "claim:sha256:0505050505050505050505050505050505050505050505050505050505050505",
+              "claim:sha256:0606060606060606060606060606060606060606060606060606060606060606",
+              "claim:sha256:0707070707070707070707070707070707070707070707070707070707070707",
+              "claim:sha256:0808080808080808080808080808080808080808080808080808080808080808",
+              "claim:sha256:0909090909090909090909090909090909090909090909090909090909090909",
+              "claim:sha256:0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a",
+              "claim:sha256:0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
+              "claim:sha256:0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c",
+              "claim:sha256:0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d",
+              "claim:sha256:0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e0e",
+              "claim:sha256:0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f",
+              "claim:sha256:1010101010101010101010101010101010101010101010101010101010101010",
+              "claim:sha256:1111111111111111111111111111111111111111111111111111111111111111"
+            ],
+            "authorityClass": "CALLER_REPORTED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "RERUN_TEST_COMMAND"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-016: seventeen diagnostics map onto twelve unique reasons; the union deduplicates.",
+        "CF-V0-016: TARGET_CLEANLINESS_NOT_ATTESTED is order 2 and here the first retained reason, so nextAction is RERUN_TEST_COMMAND.",
+        "CF-V0-016: CALLER_REPORTED_NONCLOSING (order 1) is absent because no TCQ relation was emitted; it is not synthesised from CALLER_REPORTED authority alone.",
+        "CF-V0-023: 12 reasons is within the 32-reason per-item limit."
+      ]
+    }
+  ]
+}

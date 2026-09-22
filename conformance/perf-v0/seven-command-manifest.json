@@ -1,0 +1,261 @@
+{
+  "format": "corvint-perf-v0/1",
+  "profile": {
+    "clause": "GPK-V0-016",
+    "cutoffClause": "GPK-V0-017(d)",
+    "description": "Preregistered extension for the supported-command regression criterion. Every task is paired against the frozen Python oracle with identical argv, corpus, cache state, and validity predicates. Mutating commands enter their measured windows only after discarded warmups establish an idempotent steady state. Feature and eval are typed NOT_RUN because they are reachable in dispatch but absent from the candidate binary's own --help support boundary. This document contains no observations and a run never rewrites it."
+  },
+  "oracleCommand": "python3 -m corvint_cli",
+  "candidatePackage": "./cmd/corvint",
+  "preregistration": {
+    "registeredAt": "2026-09-04T17:35:32Z",
+    "warmupSamples": 5,
+    "measuredSamples": 100,
+    "percentileEstimator": "nearest-rank",
+    "bootstrapResamples": 10000,
+    "bootstrapConfidence": 0.95,
+    "bootstrapSeed": 20260904,
+    "sampleTimeoutMilliseconds": 120000,
+    "interleave": "alternating-per-sample"
+  },
+  "validity": {
+    "requireEqualStdout": true,
+    "requireEqualStderr": true,
+    "requireEqualExitStatus": true,
+    "requireCorpusUnchanged": true,
+    "requireCacheStableDuringMeasurement": true,
+    "forbidTimeouts": true,
+    "forbidFailures": true,
+    "minimumMeasuredSamples": 100,
+    "requirePreregisteredSampleCounts": true,
+    "corpusUnchangedNote": "The unchanged-corpus predicate covers every measured window. OCM prepare and record may write only during discarded warmups; every measured invocation exercises the resulting idempotent supported path. Any later write, repository-status change, or cache-state change invalidates the task."
+  },
+  "thresholds": {
+    "nonQueryHarnessP95Milliseconds": 100,
+    "portableProductCapMilliseconds": 250,
+    "queryP95Milliseconds": 500,
+    "nonQueryOracleImprovementFraction": 0.5,
+    "otherCommandRegressionFraction": 0.1
+  },
+  "corpora": [
+    {
+      "id": "corvint",
+      "repositoryPath": ".",
+      "revision": "b7f9f489114b48f123a2b8c08b557cc99cf34833",
+      "enabled": true,
+      "notRunReason": "",
+      "indexNote": "The Corvint corpus is pinned before this preregistration. Its committed .corvint/change.cem.json binds base a373f15ff0b658c4283b04fae2fe21e5f73f3c5e to target ec62d1bc38f8d74d63323f702d3cef6b8a4a1056 and supplies the CEM, OCM, and LRF task fixture. Discarded warmups establish idempotent OCM and trace artifacts before measurement."
+    },
+    {
+      "id": "beamfall",
+      "repositoryPath": "~/projects/beamfall-workspace/beamfall",
+      "revision": "e4ed13872b8ba1a8d117a42657eb110206c95661",
+      "enabled": true,
+      "notRunReason": "",
+      "indexNote": "The clean Beamfall corpus is pinned before this preregistration. It covers the portable record idempotency and trace-migration dry-run paths; discarded warmups establish the trace artifact before measurement."
+    },
+    {
+      "id": "feature-not-run",
+      "repositoryPath": ".",
+      "revision": "",
+      "enabled": false,
+      "notRunReason": "NOT_RUN: feature is reachable in command dispatch but excluded from the corvint --help support boundary: root usage, command inventory, support-boundary text, and the help-topic allowlist omit it.",
+      "indexNote": "No feature task is fabricated outside the candidate's declared support boundary."
+    },
+    {
+      "id": "eval-not-run",
+      "repositoryPath": ".",
+      "revision": "",
+      "enabled": false,
+      "notRunReason": "NOT_RUN: eval is reachable in command dispatch but excluded from the corvint --help support boundary: root usage, command inventory, support-boundary text, and the help-topic allowlist omit it.",
+      "indexNote": "No eval task is fabricated outside the candidate's declared support boundary."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "cem-status-bound",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "cem",
+      "argv": [
+        "cem",
+        "status",
+        "--map",
+        ".corvint/change.cem.json",
+        "--expected-base",
+        "a373f15ff0b658c4283b04fae2fe21e5f73f3c5e",
+        "--target",
+        "ec62d1bc38f8d74d63323f702d3cef6b8a4a1056"
+      ],
+      "stdin": ""
+    },
+    {
+      "id": "cem-verify-bound",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "cem",
+      "argv": [
+        "cem",
+        "verify",
+        "--map",
+        ".corvint/change.cem.json",
+        "--expected-base",
+        "a373f15ff0b658c4283b04fae2fe21e5f73f3c5e",
+        "--target",
+        "ec62d1bc38f8d74d63323f702d3cef6b8a4a1056"
+      ],
+      "stdin": ""
+    },
+    {
+      "id": "ocm-prepare-resume",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "ocm",
+      "argv": [
+        "ocm",
+        "prepare",
+        "--target",
+        "ec62d1bc38f8d74d63323f702d3cef6b8a4a1056",
+        "--expected-base",
+        "a373f15ff0b658c4283b04fae2fe21e5f73f3c5e",
+        "--intent",
+        "docs/specs/release-artifact-integrity-v0.md",
+        "--cem",
+        ".corvint/change.cem.json",
+        "--map",
+        ".corvint/change.ocm.007.json"
+      ],
+      "stdin": ""
+    },
+    {
+      "id": "ocm-status-unclosed",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "ocm",
+      "argv": [
+        "ocm",
+        "status",
+        "--map",
+        ".corvint/change.ocm.007.json",
+        "--cem",
+        ".corvint/change.cem.json",
+        "--expected-base",
+        "a373f15ff0b658c4283b04fae2fe21e5f73f3c5e",
+        "--target",
+        "ec62d1bc38f8d74d63323f702d3cef6b8a4a1056"
+      ],
+      "stdin": ""
+    },
+    {
+      "id": "ocm-verify-unclosed",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "ocm",
+      "argv": [
+        "ocm",
+        "verify",
+        "--map",
+        ".corvint/change.ocm.007.json",
+        "--cem",
+        ".corvint/change.cem.json",
+        "--expected-base",
+        "a373f15ff0b658c4283b04fae2fe21e5f73f3c5e",
+        "--target",
+        "ec62d1bc38f8d74d63323f702d3cef6b8a4a1056"
+      ],
+      "stdin": ""
+    },
+    {
+      "id": "lrf-cem-bound",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "lrf",
+      "argv": [
+        "lrf",
+        "--cem",
+        ".corvint/change.cem.json",
+        "--expected-base",
+        "a373f15ff0b658c4283b04fae2fe21e5f73f3c5e",
+        "--target",
+        "ec62d1bc38f8d74d63323f702d3cef6b8a4a1056"
+      ],
+      "stdin": ""
+    },
+    {
+      "id": "lrf-cem-ocm-bound",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "lrf",
+      "argv": [
+        "lrf",
+        "--cem",
+        ".corvint/change.cem.json",
+        "--ocm",
+        ".corvint/change.ocm.007.json",
+        "--expected-base",
+        "a373f15ff0b658c4283b04fae2fe21e5f73f3c5e",
+        "--target",
+        "ec62d1bc38f8d74d63323f702d3cef6b8a4a1056"
+      ],
+      "stdin": ""
+    },
+    {
+      "id": "record-idempotent-blocked",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "record",
+      "argv": [
+        "record",
+        "--task",
+        "Synthetic preregistered performance fixture",
+        "--changed",
+        "cmd/corvint/main.go",
+        "--verify",
+        "go test ./cmd/corvint",
+        "--outcome",
+        "blocked"
+      ],
+      "stdin": ""
+    },
+    {
+      "id": "migrate-traces-dry-run",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "migrate-traces",
+      "argv": [
+        "migrate-traces",
+        "--dry-run"
+      ],
+      "stdin": ""
+    },
+    {
+      "id": "beamfall-record-idempotent-blocked",
+      "corpus": "beamfall",
+      "class": "other-command",
+      "command": "record",
+      "argv": [
+        "record",
+        "--task",
+        "Synthetic preregistered performance fixture",
+        "--changed",
+        "internal/graph/graph.go",
+        "--verify",
+        "go test ./internal/graph",
+        "--outcome",
+        "blocked"
+      ],
+      "stdin": ""
+    },
+    {
+      "id": "beamfall-migrate-traces-dry-run",
+      "corpus": "beamfall",
+      "class": "other-command",
+      "command": "migrate-traces",
+      "argv": [
+        "migrate-traces",
+        "--dry-run"
+      ],
+      "stdin": ""
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "format": "atlas-cli-parity-fixture/0",
+  "parentFiles": [
+    {
+      "path": ".gitignore",
+      "type": "file",
+      "mode": "0644",
+      "content": ".atlas/\n"
+    },
+    {
+      "path": "docs/rule.md",
+      "type": "file",
+      "mode": "0644",
+      "content": "# Server rules\n\n## Requirements\n\n- `HTTP-001`: the second-generation server constructor must be used here.\n"
+    },
+    {
+      "path": "go.mod",
+      "type": "file",
+      "mode": "0644",
+      "content": "module example.test/ocm\n\ngo 1.27.0\n"
+    },
+    {
+      "path": "pkg/app/app.go",
+      "type": "file",
+      "mode": "0644",
+      "content": "package app\n\n// Value selects the server constructor generation.\nvar Value = 1\n"
+    },
+    {
+      "path": "pkg/app/app_test.go",
+      "type": "file",
+      "mode": "0644",
+      "content": "package app\n\nimport \"testing\"\n\nfunc TestConstructorSelection(t *testing.T) {\n\tcases := []struct {\n\t\tname string\n\t\twant int\n\t}{\n\t\t{name: \"HTTP-001: the second-generation server constructor must be used\", want: 2},\n\t}\n\tfor _, item := range cases {\n\t\tif Value != item.want {\n\t\t\tt.Fatalf(\"%s: got %d\", item.name, Value)\n\t\t}\n\t}\n}\n"
+    }
+  ],
+  "files": [
+    {
+      "path": ".atlas/change.patch",
+      "type": "untracked-file",
+      "mode": "0644",
+      "content": "diff --git a/pkg/app/app.go b/pkg/app/app.go\nindex edd046b28deeb647ee490b51d5b50a248cdc6c64..54b2726f8bf2641d7d5b8e8df6ba6f2abb571c92 100644\n--- a/pkg/app/app.go\n+++ b/pkg/app/app.go\n@@ -1,4 +1,4 @@\n package app\n \n // Value selects the server constructor generation.\n-var Value = 1\n+var Value = 2\n"
+    },
+    {
+      "path": ".gitignore",
+      "type": "file",
+      "mode": "0644",
+      "content": ".atlas/\n"
+    },
+    {
+      "path": "docs/rule.md",
+      "type": "file",
+      "mode": "0644",
+      "content": "# Server rules\n\n## Requirements\n\n- `HTTP-001`: the second-generation server constructor must be used here.\n"
+    },
+    {
+      "path": "go.mod",
+      "type": "file",
+      "mode": "0644",
+      "content": "module example.test/ocm\n\ngo 1.27.0\n"
+    },
+    {
+      "path": "pkg/app/app.go",
+      "type": "file",
+      "mode": "0644",
+      "content": "package app\n\n// Value selects the server constructor generation.\nvar Value = 2\n"
+    },
+    {
+      "path": "pkg/app/app_test.go",
+      "type": "file",
+      "mode": "0644",
+      "content": "package app\n\nimport \"testing\"\n\nfunc TestConstructorSelection(t *testing.T) {\n\tcases := []struct {\n\t\tname string\n\t\twant int\n\t}{\n\t\t{name: \"HTTP-001: the second-generation server constructor must be used\", want: 2},\n\t}\n\tfor _, item := range cases {\n\t\tif Value != item.want {\n\t\t\tt.Fatalf(\"%s: got %d\", item.name, Value)\n\t\t}\n\t}\n}\n"
+    }
+  ]
+}

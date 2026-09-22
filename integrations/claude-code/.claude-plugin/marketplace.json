@@ -1,0 +1,22 @@
+{
+  "name": "corvint",
+  "owner": {
+    "name": "Corvint Project"
+  },
+  "description": "Developer-preview Claude Code integrations for Corvint",
+  "version": "0.1.0",
+  "plugins": [
+    {
+      "name": "corvint",
+      "source": "./plugins/corvint",
+      "description": "Bounded, receipt-linked Corvint context hooks for Claude Code",
+      "version": "0.2.2",
+      "category": "Development",
+      "tags": [
+        "context",
+        "evidence",
+        "git"
+      ]
+    }
+  ]
+}

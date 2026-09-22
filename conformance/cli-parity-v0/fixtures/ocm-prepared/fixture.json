@@ -1,0 +1,79 @@
+{
+  "format": "atlas-cli-parity-fixture/0",
+  "parentFiles": [
+    {
+      "path": ".gitignore",
+      "type": "file",
+      "mode": "0644",
+      "content": ".atlas/\n"
+    },
+    {
+      "path": "docs/rule.md",
+      "type": "file",
+      "mode": "0644",
+      "content": "# Server rules\n\n## Requirements\n\n- `HTTP-001`: the second-generation server constructor must be used here.\n"
+    },
+    {
+      "path": "go.mod",
+      "type": "file",
+      "mode": "0644",
+      "content": "module example.test/ocm\n\ngo 1.27.0\n"
+    },
+    {
+      "path": "pkg/app/app.go",
+      "type": "file",
+      "mode": "0644",
+      "content": "package app\n\n// Value selects the server constructor generation.\nvar Value = 1\n"
+    },
+    {
+      "path": "pkg/app/app_test.go",
+      "type": "file",
+      "mode": "0644",
+      "content": "package app\n\nimport \"testing\"\n\nfunc TestConstructorSelection(t *testing.T) {\n\tcases := []struct {\n\t\tname string\n\t\twant int\n\t}{\n\t\t{name: \"HTTP-001: the second-generation server constructor must be used\", want: 2},\n\t}\n\tfor _, item := range cases {\n\t\tif Value != item.want {\n\t\t\tt.Fatalf(\"%s: got %d\", item.name, Value)\n\t\t}\n\t}\n}\n"
+    }
+  ],
+  "files": [
+    {
+      "path": ".atlas/change.cem.json",
+      "type": "untracked-file",
+      "mode": "0644",
+      "content": "{\n  \"baseRevision\": \"c192e99eb59d229b502dbc01701da847de437cff\",\n  \"evidence\": [\n    {\n      \"blobOid\": \"86530fd288310c841885df9655f4faccd20940f6\",\n      \"id\": \"evidence:sha256:645494eed175da709b882846c049fb657cbb9496753be2d51474c81568b996d4\",\n      \"path\": \"docs/rule.md\",\n      \"span\": {\n        \"end\": 96,\n        \"start\": 24\n      },\n      \"spanSha256\": \"0bab322ac58c477d57a835d1242aa461482fe7618e45d25e584c2db086e4b625\"\n    }\n  ],\n  \"excludedPath\": \".atlas/change.cem.json\",\n  \"hunks\": [\n    {\n      \"basis\": [\n        {\n          \"evidenceId\": \"evidence:sha256:645494eed175da709b882846c049fb657cbb9496753be2d51474c81568b996d4\",\n          \"relation\": \"specification\"\n        }\n      ],\n      \"disposition\": \"supported\",\n      \"id\": \"hunk:sha256:64c44e7d40bd23c3b89fc78ff6425741d9d90cb3dfbfa11c7b836887847f65c5\",\n      \"newRange\": {\n        \"count\": 4,\n        \"start\": 1\n      },\n      \"oldRange\": {\n        \"count\": 4,\n        \"start\": 1\n      },\n      \"path\": \"pkg/app/app.go\",\n      \"reason\": \"evidence-backed\"\n    }\n  ],\n  \"patchSha256\": \"96ba3b98fdc46a2d54c0b7d338939fb95568418cd7e7eb0282ae4d2ba9479ecb\",\n  \"spec\": \"cem/0.2\"\n}\n"
+    },
+    {
+      "path": ".atlas/change.ocm.json",
+      "type": "untracked-file",
+      "mode": "0644",
+      "content": "{\"cem\":{\"mapSha256\":\"6887935d3bdd0a33b171af51258b1a95f44b111ac1f58a341ffd5d433ba291f8\",\"patchSha256\":\"96ba3b98fdc46a2d54c0b7d338939fb95568418cd7e7eb0282ae4d2ba9479ecb\"},\"claims\":[],\"intentScope\":{\"blobOid\":\"86530fd288310c841885df9655f4faccd20940f6\",\"path\":\"docs/rule.md\",\"span\":{\"end\":107,\"start\":16},\"spanSha256\":\"3cff1749d1b2cd8fd188b07cbd533bd3b82629f3fac112bfe26b6e5e6067e9e6\"},\"obligations\":[{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"HTTP-001\",\"reason\":\"unassessed\"}],\"spec\":\"ocm/0.1-experimental\",\"targetRevision\":\"3bd8f2c220fea2801e791715fb3b39b805b6e144\"}\n"
+    },
+    {
+      "path": ".gitignore",
+      "type": "file",
+      "mode": "0644",
+      "content": ".atlas/\n"
+    },
+    {
+      "path": "docs/rule.md",
+      "type": "file",
+      "mode": "0644",
+      "content": "# Server rules\n\n## Requirements\n\n- `HTTP-001`: the second-generation server constructor must be used here.\n"
+    },
+    {
+      "path": "go.mod",
+      "type": "file",
+      "mode": "0644",
+      "content": "module example.test/ocm\n\ngo 1.27.0\n"
+    },
+    {
+      "path": "pkg/app/app.go",
+      "type": "file",
+      "mode": "0644",
+      "content": "package app\n\n// Value selects the server constructor generation.\nvar Value = 2\n"
+    },
+    {
+      "path": "pkg/app/app_test.go",
+      "type": "file",
+      "mode": "0644",
+      "content": "package app\n\nimport \"testing\"\n\nfunc TestConstructorSelection(t *testing.T) {\n\tcases := []struct {\n\t\tname string\n\t\twant int\n\t}{\n\t\t{name: \"HTTP-001: the second-generation server constructor must be used\", want: 2},\n\t}\n\tfor _, item := range cases {\n\t\tif Value != item.want {\n\t\t\tt.Fatalf(\"%s: got %d\", item.name, Value)\n\t\t}\n\t}\n}\n"
+    }
+  ]
+}

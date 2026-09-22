@@ -1,0 +1,65 @@
+{
+  "files": [
+    {
+      "content": "module example.test/cli\n\ngo 1.27.0\n",
+      "mode": "0644",
+      "path": "go.mod",
+      "type": "file"
+    },
+    {
+      "content": "package sample\n\nfunc StableValue() string { return \"clean\" }\n",
+      "mode": "0644",
+      "path": "pkg/sample.go",
+      "type": "file"
+    },
+    {
+      "content": "VERSION = \"1\"\n",
+      "mode": "0644",
+      "path": "src/pkg/__init__.py",
+      "type": "file"
+    },
+    {
+      "content": "def run() -> str:\n    return \"engine\"\n",
+      "mode": "0644",
+      "path": "src/pkg/engine.py",
+      "type": "file"
+    },
+    {
+      "content": "from src.pkg.engine import run\n\n\ndef main() -> str:\n    return run()\n",
+      "mode": "0644",
+      "path": "tools/dotted.py",
+      "type": "file"
+    },
+    {
+      "content": "import pkg.engine\n\n\ndef main() -> str:\n    return pkg.engine.run()\n",
+      "mode": "0644",
+      "path": "tools/rooted.py",
+      "type": "file"
+    },
+    {
+      "content": "from src.pkg import VERSION\n\n\ndef main() -> str:\n    return VERSION\n",
+      "mode": "0644",
+      "path": "tools/version.py",
+      "type": "file"
+    },
+    {
+      "content": "# scenario:z-last feature:a-first\nimport pkg.engine\n\n\ndef test_run() -> None:\n    assert pkg.engine.run() == \"engine\"\n",
+      "mode": "0644",
+      "path": "tests/test_engine.py",
+      "type": "file"
+    },
+    {
+      "content": "features:\n  - id: a-first\n    area: auth\n    summary: Synthetic scalar fixture.\n    applies: [server]\n    status: shipped\n",
+      "mode": "0644",
+      "path": "testing/features.yaml",
+      "type": "file"
+    },
+    {
+      "content": "scenarios:\n  - id: z-last\n    area: auth\n    summary: Synthetic scenario fixture.\n    features: [a-first]\n    applies: [server]\n    status: shipped\n",
+      "mode": "0644",
+      "path": "testing/scenarios.yaml",
+      "type": "file"
+    }
+  ],
+  "format": "atlas-cli-parity-fixture/0"
+}

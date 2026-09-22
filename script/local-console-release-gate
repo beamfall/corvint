@@ -1,0 +1,71 @@
+#!/bin/sh
+# Companion bundle gate (PUB-V0-011..015): builds the optional console
+# companion distribution (corvint, corvint-console, corvint-dashboard-snapshot,
+# atm) for darwin/arm64 via cmd/corvint-companion-release and retains it
+# outside both checkouts. Local evidence only: it never tags, pushes, signs
+# or publishes anything.
+#
+# This script did not previously exist in the repository; it is a new gate,
+# not an edit to prior behavior.
+set -eu
+
+usage() {
+  echo "usage: $(basename "$0") [--taskman <path>] [--output <dir>] [-h|--help]" >&2
+}
+
+root=$(cd "$(dirname "$0")/.." && pwd)
+
+corvint_root=${CORVINT_COMPANION_CORVINT_ROOT:-$root}
+taskman_root=${CORVINT_COMPANION_TASKMAN_ROOT:-}
+scratch=${CORVINT_COMPANION_SCRATCH:-$(mktemp -d /tmp/corvint-companion-gate.XXXXXX)}
+output_parent=${CORVINT_COMPANION_OUTPUT:-/tmp/corvint-companion-release}
+bundle_name=${CORVINT_COMPANION_BUNDLE_NAME:-corvint-companion-darwin-arm64}
+target=${CORVINT_COMPANION_TARGET:-darwin/arm64}
+
+while [ $# -gt 0 ]; do
+  case $1 in
+    --taskman)
+      [ $# -ge 2 ] || { echo "local-console-release-gate: --taskman requires a path" >&2; usage; exit 2; }
+      taskman_root=$2
+      shift 2
+      ;;
+    --output)
+      [ $# -ge 2 ] || { echo "local-console-release-gate: --output requires a path" >&2; usage; exit 2; }
+      output_parent=$2
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "local-console-release-gate: unknown argument: $1" >&2
+      usage
+      exit 2
+      ;;
+  esac
+done
+
+if [ -z "$taskman_root" ]; then
+  echo "local-console-release-gate: set CORVINT_COMPANION_TASKMAN_ROOT to a clean corvint-tasks checkout" >&2
+  exit 2
+fi
+
+for candidate in "$corvint_root" "$taskman_root"; do
+  case $output_parent in
+    "$candidate"|"$candidate"/*)
+      echo "local-console-release-gate: output parent must be outside $candidate" >&2
+      exit 2
+      ;;
+  esac
+done
+
+GOTOOLCHAIN=local go build -o "$scratch/corvint-companion-release" ./cmd/corvint-companion-release
+
+exec "$scratch/corvint-companion-release" \
+  -corvint-root "$corvint_root" \
+  -taskman-root "$taskman_root" \
+  -target "$target" \
+  -scratch "$scratch/work" \
+  -output-parent "$output_parent" \
+  -bundle-name "$bundle_name"

@@ -1,0 +1,72 @@
+{
+  "profile": "corvint-mcp-2026-07-28-conformance/0",
+  "protocolVersion": "2026-07-28",
+  "transport": "stdio",
+  "limits": {
+    "inputLineBytes": 1048576,
+    "outputLineBytes": 1048576,
+    "jsonDepth": 64
+  },
+  "officialConformance": {
+    "status": "NOT_RUN",
+    "reason": "official server runner requires Streamable HTTP; local stdio P0 exposes no listener",
+    "latestGitHubRelease": "v0.1.16",
+    "serverInvocation": "server --url URL"
+  },
+  "officialSchema": {
+    "provenanceUrl": "https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/271ecc9accafdd9b83a3c869fa67c22953b2af80/schema/2026-07-28/schema.json",
+    "observedSha256": "ef70b61f99b6d2e5e3b46863822eab08dff6a45bedc7a08914e0e5b133f40203",
+    "validationStatus": "NOT_RUN",
+    "validationReason": "the schema is not vendored or loaded by this no-network black-box suite; the digest records provenance only"
+  },
+  "executionEvidence": {
+    "progressNotifications": {
+      "status": "NOT_OBSERVED",
+      "reason": "no production tool exposes a deterministic long-running progress hook"
+    }
+  },
+  "promotionBlockers": [
+    {
+      "code": "INHERITED_KERNEL_GIT_PATH_NOT_PINNED",
+      "status": "NOT_OBSERVED",
+      "reason": "the in-process Corvint kernel resolves Git from PATH per operation"
+    }
+  ],
+  "cases": [
+    "discover-exact",
+    "discover-closed-params",
+    "per-request-meta",
+    "unsupported-version",
+    "removed-methods",
+    "tool-catalogue",
+    "resource-omission",
+    "unknown-tool",
+    "closed-tool-schema",
+    "impact-limit-integer-schema",
+    "repository-filter-no-execution",
+    "effective-worktree-root-binding",
+    "optional-empty-status-arguments",
+    "required-query-impact-arguments",
+    "duplicate-key",
+    "nested-duplicate-key",
+    "invalid-utf8",
+    "malformed-json",
+    "invalid-jsonrpc-envelope",
+    "batch-rejected",
+    "oversize-frame",
+    "exact-limit-frame",
+    "crlf-frame",
+    "depth-overflow",
+    "cancel-structural",
+    "progress-execution-not-observed",
+    "logging-opt-in",
+    "roots-no-server-call",
+    "clean-eof",
+    "sigint-exit",
+    "sigterm-exit",
+    "no-surviving-descendants",
+    "revision-bound-read-only",
+    "secret-sanitization",
+    "stdout-purity"
+  ]
+}

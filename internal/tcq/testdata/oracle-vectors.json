@@ -1,0 +1,1513 @@
+{
+ "blobs": {
+  "pkg/hard_test.go": {
+   "candidates": [
+    {
+     "end": 304,
+     "producer": "go-table-case",
+     "selector": "test:TestCases/case:first-case",
+     "start": 294
+    },
+    {
+     "end": 378,
+     "producer": "go-table-case",
+     "selector": "test:TestCases/case:has-space",
+     "start": 369
+    },
+    {
+     "end": 342,
+     "producer": "go-table-case",
+     "selector": "test:TestCases/case:second-case",
+     "start": 331
+    },
+    {
+     "end": 556,
+     "producer": "go-table-case",
+     "selector": "test:TestDuplicateCase/case:dup",
+     "start": 553
+    },
+    {
+     "end": 597,
+     "producer": "go-table-case",
+     "selector": "test:TestDuplicateCase/case:dup",
+     "start": 594
+    },
+    {
+     "end": 195,
+     "producer": "go-test-name",
+     "selector": "test:TestCases",
+     "start": 186
+    },
+    {
+     "end": 469,
+     "producer": "go-test-name",
+     "selector": "test:TestDuplicateCase",
+     "start": 452
+    },
+    {
+     "end": 152,
+     "producer": "go-test-name",
+     "selector": "test:TestInRawString",
+     "start": 137
+    },
+    {
+     "end": 108,
+     "producer": "go-test-name",
+     "selector": "test:TestRaw",
+     "start": 101
+    },
+    {
+     "end": 683,
+     "producer": "go-test-name",
+     "selector": "test:TestRuneLiteral",
+     "start": 668
+    },
+    {
+     "end": 639,
+     "producer": "go-test-name",
+     "selector": "test:TestSemicolonsOnly",
+     "start": 621
+    }
+   ],
+   "error": null,
+   "goSpans": [
+    {
+     "cases": [],
+     "nameEnd": 108,
+     "nameStart": 101,
+     "runtimeName": "TestRaw"
+    },
+    {
+     "cases": [
+      {
+       "end": 304,
+       "start": 294,
+       "value": "first-case"
+      },
+      {
+       "end": 342,
+       "start": 331,
+       "value": "second_case"
+      }
+     ],
+     "nameEnd": 195,
+     "nameStart": 186,
+     "runtimeName": "TestCases"
+    },
+    {
+     "cases": [
+      {
+       "end": 556,
+       "start": 553,
+       "value": "dup"
+      },
+      {
+       "end": 597,
+       "start": 594,
+       "value": "dup"
+      }
+     ],
+     "nameEnd": 469,
+     "nameStart": 452,
+     "runtimeName": "TestDuplicateCase"
+    },
+    {
+     "cases": [],
+     "nameEnd": 639,
+     "nameStart": 621,
+     "runtimeName": "TestSemicolonsOnly"
+    },
+    {
+     "cases": [],
+     "nameEnd": 683,
+     "nameStart": 668,
+     "runtimeName": "TestRuneLiteral"
+    }
+   ],
+   "oid": "9e5ec793e66d7f886f161dedabc56138499a1ccf",
+   "pythonSpans": [],
+   "source": "package sample\n\nimport \"testing\"\n\n/* block comment\nfunc TestInBlockComment(t *testing.T) {}\n*/\n\nfunc TestRaw(t *testing.T) {\n\ts := `func TestInRawString(t *testing.T) {}`\n\t_ = s\n}\n\nfunc TestCases(t *testing.T) {\n\tfor _, tc := range []struct {\n\t\ttestName string\n\t\twant     int\n\t}{\n\t\t{testName: \"first-case\", want: 1},\n\t\t{testName: \"second_case\", want: 2},\n\t\t{testName: \"has space\", want: 3},\n\t\t{testName: dynamicName, want: 4},\n\t} {\n\t\t_ = tc\n\t}\n}\n\nfunc TestDuplicateCase(t *testing.T) {\n\tnames := []string{}\n\t_ = names\n\tx := struct{ name string }{name: \"dup\"}\n\ty := struct{ name string }{name: \"dup\"}\n\t_, _ = x, y\n}\n\nfunc TestSemicolonsOnly(t *testing.T) { ; ; }\n\nfunc TestRuneLiteral(t *testing.T) {\n\tif '}' == '}' {\n\t\tt.Log(\"brace rune\")\n\t}\n}\n",
+   "units": [
+    {
+     "associationKind": "GO_TEST_FUNCTION",
+     "bodyEnd": 178,
+     "bodySha256": "e939ffe595ec14cee2b1c7d9202d31c0b0d3d2e8f90e0eb2c7bc7c8d0feecc54",
+     "bodyStart": 124,
+     "empty": false,
+     "executionKey": "3764d47393ad524268081de37e86d91cf3c76772d004faeb588900e6c16112ec",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:1cff331018b3e922ae113f7efe644c591cfbb89afcacaff1a8d7e42b436e1574",
+     "path": "pkg/hard_test.go",
+     "runtimeName": "TestRaw",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"9e5ec793e66d7f886f161dedabc56138499a1ccf\",\"bodySha256\":\"e939ffe595ec14cee2b1c7d9202d31c0b0d3d2e8f90e0eb2c7bc7c8d0feecc54\",\"bodySpan\":{\"end\":178,\"start\":124},\"executionKeySha256\":\"3764d47393ad524268081de37e86d91cf3c76772d004faeb588900e6c16112ec\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:1cff331018b3e922ae113f7efe644c591cfbb89afcacaff1a8d7e42b436e1574\",\"path\":\"pkg/hard_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TEST_FUNCTION",
+     "bodyEnd": 444,
+     "bodySha256": "7bc91436ea228d040cb7063286cca558ab10552baac1a97f3b6d854bf766f352",
+     "bodyStart": 211,
+     "empty": false,
+     "executionKey": "c77dfe4107040ac39c74964def5ccf27ca7b4637510e77661ac12f42e51ece05",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:ea0d5da0230dbd27f107b48ef1c99454d73b325ab03990adbe12c1b92b69a6aa",
+     "path": "pkg/hard_test.go",
+     "runtimeName": "TestCases",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"9e5ec793e66d7f886f161dedabc56138499a1ccf\",\"bodySha256\":\"7bc91436ea228d040cb7063286cca558ab10552baac1a97f3b6d854bf766f352\",\"bodySpan\":{\"end\":444,\"start\":211},\"executionKeySha256\":\"c77dfe4107040ac39c74964def5ccf27ca7b4637510e77661ac12f42e51ece05\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:ea0d5da0230dbd27f107b48ef1c99454d73b325ab03990adbe12c1b92b69a6aa\",\"path\":\"pkg/hard_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TEST_FUNCTION",
+     "bodyEnd": 613,
+     "bodySha256": "b2b2a7c85f3ad4c07a3e5cc80e6f93db72d28ba1539c00f4b80891f2e5c8c089",
+     "bodyStart": 485,
+     "empty": false,
+     "executionKey": "bf336509a01024566463481cda96c5f652b2a73425e1fddd087c8964f1bd93cc",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:94ce532b6f3dbda4f40bd4e1dfe601c433e06126a9dcc9b386ecb671905b1be1",
+     "path": "pkg/hard_test.go",
+     "runtimeName": "TestDuplicateCase",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"9e5ec793e66d7f886f161dedabc56138499a1ccf\",\"bodySha256\":\"b2b2a7c85f3ad4c07a3e5cc80e6f93db72d28ba1539c00f4b80891f2e5c8c089\",\"bodySpan\":{\"end\":613,\"start\":485},\"executionKeySha256\":\"bf336509a01024566463481cda96c5f652b2a73425e1fddd087c8964f1bd93cc\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:94ce532b6f3dbda4f40bd4e1dfe601c433e06126a9dcc9b386ecb671905b1be1\",\"path\":\"pkg/hard_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TEST_FUNCTION",
+     "bodyEnd": 660,
+     "bodySha256": "fda7b301cb3b3172662d50e7f39e7a2b33553317902cd69ee95fbdbbcfab6cdc",
+     "bodyStart": 655,
+     "empty": true,
+     "executionKey": "fec15b2038249522f458e1345ba989a853471adb0ccde19ff94708b2d83421e9",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:ac370f453353380913dff147ac448b194aefb1091471d05d3019f631c38b9f5b",
+     "path": "pkg/hard_test.go",
+     "runtimeName": "TestSemicolonsOnly",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"9e5ec793e66d7f886f161dedabc56138499a1ccf\",\"bodySha256\":\"fda7b301cb3b3172662d50e7f39e7a2b33553317902cd69ee95fbdbbcfab6cdc\",\"bodySpan\":{\"end\":660,\"start\":655},\"executionKeySha256\":\"fec15b2038249522f458e1345ba989a853471adb0ccde19ff94708b2d83421e9\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:ac370f453353380913dff147ac448b194aefb1091471d05d3019f631c38b9f5b\",\"path\":\"pkg/hard_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TEST_FUNCTION",
+     "bodyEnd": 742,
+     "bodySha256": "edc5b6c3571da2560fcf531bde3728c5ea7c06c963ba51fe6c7ef4e4ba69ab94",
+     "bodyStart": 699,
+     "empty": false,
+     "executionKey": "f702a9436732a45d0bc521f84093c5a703221d80941fbf64153d7da9387dde93",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:a703babcc6e9013a8019f2a7aa32e7e054cf4183afbf8d10bfa9615bf57b5d9b",
+     "path": "pkg/hard_test.go",
+     "runtimeName": "TestRuneLiteral",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"9e5ec793e66d7f886f161dedabc56138499a1ccf\",\"bodySha256\":\"edc5b6c3571da2560fcf531bde3728c5ea7c06c963ba51fe6c7ef4e4ba69ab94\",\"bodySpan\":{\"end\":742,\"start\":699},\"executionKeySha256\":\"f702a9436732a45d0bc521f84093c5a703221d80941fbf64153d7da9387dde93\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:a703babcc6e9013a8019f2a7aa32e7e054cf4183afbf8d10bfa9615bf57b5d9b\",\"path\":\"pkg/hard_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TABLE_CASE",
+     "bodyEnd": 444,
+     "bodySha256": "7bc91436ea228d040cb7063286cca558ab10552baac1a97f3b6d854bf766f352",
+     "bodyStart": 211,
+     "empty": false,
+     "executionKey": "cb68ca12ca6e796f7fcbf418b01fd7e2d1c8e2de3393b7f315b7813325be967a",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:021eb9e127572190015e024f338b3f6d2f0a76380caea3b190a365299fa04e0e",
+     "path": "pkg/hard_test.go",
+     "runtimeName": "TestCases/first-case",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"9e5ec793e66d7f886f161dedabc56138499a1ccf\",\"bodySha256\":\"7bc91436ea228d040cb7063286cca558ab10552baac1a97f3b6d854bf766f352\",\"bodySpan\":{\"end\":444,\"start\":211},\"executionKeySha256\":\"cb68ca12ca6e796f7fcbf418b01fd7e2d1c8e2de3393b7f315b7813325be967a\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:021eb9e127572190015e024f338b3f6d2f0a76380caea3b190a365299fa04e0e\",\"path\":\"pkg/hard_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TABLE_CASE",
+     "bodyEnd": 444,
+     "bodySha256": "7bc91436ea228d040cb7063286cca558ab10552baac1a97f3b6d854bf766f352",
+     "bodyStart": 211,
+     "empty": false,
+     "executionKey": "9fa293e80bbaa8bb3860c6342e4a712674fbfcab56bfa614d95d2764df001670",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:3e3e805c0308518e7203422683b76b764af031476218f1adc722269f42a14742",
+     "path": "pkg/hard_test.go",
+     "runtimeName": "TestCases/second_case",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"9e5ec793e66d7f886f161dedabc56138499a1ccf\",\"bodySha256\":\"7bc91436ea228d040cb7063286cca558ab10552baac1a97f3b6d854bf766f352\",\"bodySpan\":{\"end\":444,\"start\":211},\"executionKeySha256\":\"9fa293e80bbaa8bb3860c6342e4a712674fbfcab56bfa614d95d2764df001670\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:3e3e805c0308518e7203422683b76b764af031476218f1adc722269f42a14742\",\"path\":\"pkg/hard_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TABLE_CASE",
+     "bodyEnd": 613,
+     "bodySha256": "b2b2a7c85f3ad4c07a3e5cc80e6f93db72d28ba1539c00f4b80891f2e5c8c089",
+     "bodyStart": 485,
+     "empty": false,
+     "executionKey": "c833bd6a6e5836921e15f7fdee965af9fead3212587f0d4a39c39deac522e938",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:60e43516b89cf0f78c68b3471d5144108a369abd0d152d184dd7deac7a790f67",
+     "path": "pkg/hard_test.go",
+     "runtimeName": "TestDuplicateCase/dup",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"9e5ec793e66d7f886f161dedabc56138499a1ccf\",\"bodySha256\":\"b2b2a7c85f3ad4c07a3e5cc80e6f93db72d28ba1539c00f4b80891f2e5c8c089\",\"bodySpan\":{\"end\":613,\"start\":485},\"executionKeySha256\":\"c833bd6a6e5836921e15f7fdee965af9fead3212587f0d4a39c39deac522e938\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:60e43516b89cf0f78c68b3471d5144108a369abd0d152d184dd7deac7a790f67\",\"path\":\"pkg/hard_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TABLE_CASE",
+     "bodyEnd": 613,
+     "bodySha256": "b2b2a7c85f3ad4c07a3e5cc80e6f93db72d28ba1539c00f4b80891f2e5c8c089",
+     "bodyStart": 485,
+     "empty": false,
+     "executionKey": "c833bd6a6e5836921e15f7fdee965af9fead3212587f0d4a39c39deac522e938",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:60e43516b89cf0f78c68b3471d5144108a369abd0d152d184dd7deac7a790f67",
+     "path": "pkg/hard_test.go",
+     "runtimeName": "TestDuplicateCase/dup",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"9e5ec793e66d7f886f161dedabc56138499a1ccf\",\"bodySha256\":\"b2b2a7c85f3ad4c07a3e5cc80e6f93db72d28ba1539c00f4b80891f2e5c8c089\",\"bodySpan\":{\"end\":613,\"start\":485},\"executionKeySha256\":\"c833bd6a6e5836921e15f7fdee965af9fead3212587f0d4a39c39deac522e938\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:60e43516b89cf0f78c68b3471d5144108a369abd0d152d184dd7deac7a790f67\",\"path\":\"pkg/hard_test.go\"}"
+    }
+   ]
+  },
+  "pkg/helpers.go": {
+   "candidates": [
+    {
+     "end": 55,
+     "producer": "go-test-name",
+     "selector": "test:TestNotATestFile",
+     "start": 39
+    }
+   ],
+   "error": null,
+   "goSpans": [],
+   "oid": "74bb7c4f63737a789e9805b7bb77ec8681aa661a",
+   "pythonSpans": [],
+   "source": "package sample\n\nimport \"testing\"\n\nfunc TestNotATestFile(t *testing.T) {\n\tt.Log(\"x\")\n}\n",
+   "units": []
+  },
+  "pkg/sample_test.go": {
+   "candidates": [
+    {
+     "end": 531,
+     "producer": "go-table-case",
+     "selector": "test:TestTable/case:alpha-case",
+     "start": 521
+    },
+    {
+     "end": 554,
+     "producer": "go-table-case",
+     "selector": "test:TestTable/case:beta-case",
+     "start": 545
+    },
+    {
+     "end": 577,
+     "producer": "go-table-case",
+     "selector": "test:TestTable/case:esc-aped",
+     "start": 568
+    },
+    {
+     "end": 158,
+     "producer": "go-test-name",
+     "selector": "test:TestAlpha",
+     "start": 149
+    },
+    {
+     "end": 247,
+     "producer": "go-test-name",
+     "selector": "test:TestBareReturn",
+     "start": 233
+    },
+    {
+     "end": 208,
+     "producer": "go-test-name",
+     "selector": "test:TestEmpty",
+     "start": 199
+    },
+    {
+     "end": 393,
+     "producer": "go-test-name",
+     "selector": "test:TestLateSkip",
+     "start": 381
+    },
+    {
+     "end": 293,
+     "producer": "go-test-name",
+     "selector": "test:TestSkipFirst",
+     "start": 280
+    },
+    {
+     "end": 343,
+     "producer": "go-test-name",
+     "selector": "test:TestSkipNow",
+     "start": 332
+    },
+    {
+     "end": 124,
+     "producer": "go-test-name",
+     "selector": "test:TestStringLookalike",
+     "start": 105
+    },
+    {
+     "end": 455,
+     "producer": "go-test-name",
+     "selector": "test:TestTable",
+     "start": 446
+    },
+    {
+     "end": 621,
+     "producer": "go-test-name",
+     "selector": "test:TestWrongSignature",
+     "start": 603
+    }
+   ],
+   "error": null,
+   "goSpans": [
+    {
+     "cases": [],
+     "nameEnd": 158,
+     "nameStart": 149,
+     "runtimeName": "TestAlpha"
+    },
+    {
+     "cases": [],
+     "nameEnd": 208,
+     "nameStart": 199,
+     "runtimeName": "TestEmpty"
+    },
+    {
+     "cases": [],
+     "nameEnd": 247,
+     "nameStart": 233,
+     "runtimeName": "TestBareReturn"
+    },
+    {
+     "cases": [],
+     "nameEnd": 293,
+     "nameStart": 280,
+     "runtimeName": "TestSkipFirst"
+    },
+    {
+     "cases": [],
+     "nameEnd": 343,
+     "nameStart": 332,
+     "runtimeName": "TestSkipNow"
+    },
+    {
+     "cases": [],
+     "nameEnd": 393,
+     "nameStart": 381,
+     "runtimeName": "TestLateSkip"
+    },
+    {
+     "cases": [
+      {
+       "end": 531,
+       "start": 521,
+       "value": "alpha-case"
+      }
+     ],
+     "nameEnd": 455,
+     "nameStart": 446,
+     "runtimeName": "TestTable"
+    }
+   ],
+   "oid": "a2220f41e135d4c26432adead02a297e792b2651",
+   "pythonSpans": [],
+   "source": "package sample\n\nimport \"testing\"\n\n// func TestCommentLookalike(t *testing.T) { }\nconst lookalike = \"func TestStringLookalike(t *testing.T) {}\"\n\nfunc TestAlpha(t *testing.T) {\n\tt.Log(\"alpha\")\n}\n\nfunc TestEmpty(t *testing.T) {\n}\n\nfunc TestBareReturn(t *testing.T) {\n\treturn\n}\n\nfunc TestSkipFirst(t *testing.T) {\n\tt.Skip(\"no\")\n}\n\nfunc TestSkipNow(t *testing.T) {\n\tt.SkipNow()\n}\n\nfunc TestLateSkip(t *testing.T) {\n\tt.Log(\"x\")\n\tt.Skip(\"late\")\n}\n\nfunc TestTable(t *testing.T) {\n\tcases := []struct {\n\t\tname string\n\t}{\n\t\t{name: \"alpha-case\"},\n\t\t{name: \"beta case\"},\n\t\t{name: \"esc\\\"aped\"},\n\t}\n\t_ = cases\n}\n\nfunc TestWrongSignature(b *testing.B) {\n\tb.Log(\"x\")\n}\n\nfunc helper(t *testing.T) {\n\tt.Log(\"not a test\")\n}\n",
+   "units": [
+    {
+     "associationKind": "GO_TEST_FUNCTION",
+     "bodyEnd": 191,
+     "bodySha256": "749b7947f785836e0d60a484852cfeb6acdf5e554ce3fa521e7ea7cc1f1dc1fc",
+     "bodyStart": 174,
+     "empty": false,
+     "executionKey": "7d9af16c0f292dd93f212995c5b001a173f8054bffb185d3eb4c7f7a95cf7054",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:f9b4a78eabe1be2afe9594ac401e9d5e85d7603c6fcdfb650d859b499db62604",
+     "path": "pkg/sample_test.go",
+     "runtimeName": "TestAlpha",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"a2220f41e135d4c26432adead02a297e792b2651\",\"bodySha256\":\"749b7947f785836e0d60a484852cfeb6acdf5e554ce3fa521e7ea7cc1f1dc1fc\",\"bodySpan\":{\"end\":191,\"start\":174},\"executionKeySha256\":\"7d9af16c0f292dd93f212995c5b001a173f8054bffb185d3eb4c7f7a95cf7054\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:f9b4a78eabe1be2afe9594ac401e9d5e85d7603c6fcdfb650d859b499db62604\",\"path\":\"pkg/sample_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TEST_FUNCTION",
+     "bodyEnd": 225,
+     "bodySha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+     "bodyStart": 224,
+     "empty": true,
+     "executionKey": "b710c2d62236eb49c0d9befeaa3c98c15a4b8b23409fd421cc4ce1b098a89fa4",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:af40367400131c86b677255baea698bae8a9076eb212b4eabec359bfff248716",
+     "path": "pkg/sample_test.go",
+     "runtimeName": "TestEmpty",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"a2220f41e135d4c26432adead02a297e792b2651\",\"bodySha256\":\"01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b\",\"bodySpan\":{\"end\":225,\"start\":224},\"executionKeySha256\":\"b710c2d62236eb49c0d9befeaa3c98c15a4b8b23409fd421cc4ce1b098a89fa4\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:af40367400131c86b677255baea698bae8a9076eb212b4eabec359bfff248716\",\"path\":\"pkg/sample_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TEST_FUNCTION",
+     "bodyEnd": 272,
+     "bodySha256": "aae1b2a240c7a10d7b9abefe32e976921ea2ae3e09c3d34d2dc51a30fd3f9f17",
+     "bodyStart": 263,
+     "empty": true,
+     "executionKey": "b8fbdaf38cede25bac4c5a13bb681a9dc55336b77840dce79862a15d2e96e22a",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:583944c96531bdbc813f89f927f13839d6ed99ed542017832fac3af6606d0984",
+     "path": "pkg/sample_test.go",
+     "runtimeName": "TestBareReturn",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"a2220f41e135d4c26432adead02a297e792b2651\",\"bodySha256\":\"aae1b2a240c7a10d7b9abefe32e976921ea2ae3e09c3d34d2dc51a30fd3f9f17\",\"bodySpan\":{\"end\":272,\"start\":263},\"executionKeySha256\":\"b8fbdaf38cede25bac4c5a13bb681a9dc55336b77840dce79862a15d2e96e22a\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:583944c96531bdbc813f89f927f13839d6ed99ed542017832fac3af6606d0984\",\"path\":\"pkg/sample_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TEST_FUNCTION",
+     "bodyEnd": 324,
+     "bodySha256": "156e5a8a090eb8bce825e98e314e7d50fd56b3afeb7c2006dbe93a27998ed3b3",
+     "bodyStart": 309,
+     "empty": false,
+     "executionKey": "30ed3ab9dc76ccba74753f900638e9de110ca557e3b8d613689e9734639dac52",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:0884a52b115b8d144d3207063491d720b5937a05263b23c6c732473df8f32a94",
+     "path": "pkg/sample_test.go",
+     "runtimeName": "TestSkipFirst",
+     "skipped": true,
+     "wire": "{\"blobOid\":\"a2220f41e135d4c26432adead02a297e792b2651\",\"bodySha256\":\"156e5a8a090eb8bce825e98e314e7d50fd56b3afeb7c2006dbe93a27998ed3b3\",\"bodySpan\":{\"end\":324,\"start\":309},\"executionKeySha256\":\"30ed3ab9dc76ccba74753f900638e9de110ca557e3b8d613689e9734639dac52\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:0884a52b115b8d144d3207063491d720b5937a05263b23c6c732473df8f32a94\",\"path\":\"pkg/sample_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TEST_FUNCTION",
+     "bodyEnd": 373,
+     "bodySha256": "98cb2ef47e7f94849ecdf24407144d5d9392f58545522559dff0dcbed988297c",
+     "bodyStart": 359,
+     "empty": false,
+     "executionKey": "d54e9750710676cdb89d710b7345c9ca2aee207edc9d05f43a2078e305ade995",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:c1c9a1ccf760949d25d3282edd0c165955294aff14f6c86ff962b2268897dbb2",
+     "path": "pkg/sample_test.go",
+     "runtimeName": "TestSkipNow",
+     "skipped": true,
+     "wire": "{\"blobOid\":\"a2220f41e135d4c26432adead02a297e792b2651\",\"bodySha256\":\"98cb2ef47e7f94849ecdf24407144d5d9392f58545522559dff0dcbed988297c\",\"bodySpan\":{\"end\":373,\"start\":359},\"executionKeySha256\":\"d54e9750710676cdb89d710b7345c9ca2aee207edc9d05f43a2078e305ade995\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:c1c9a1ccf760949d25d3282edd0c165955294aff14f6c86ff962b2268897dbb2\",\"path\":\"pkg/sample_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TEST_FUNCTION",
+     "bodyEnd": 438,
+     "bodySha256": "791af935439c953a19b939c94679ad17b69053875661b34803e3b0ec8622e71c",
+     "bodyStart": 409,
+     "empty": false,
+     "executionKey": "a186236d7e1fbcbec9f863dde34c977fe40a838f295f0dd7b2e4cb041bd17fb6",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:fca23f56d82b66c16f7be230da545bf0cbda7268b92af866d47990ee0914f1aa",
+     "path": "pkg/sample_test.go",
+     "runtimeName": "TestLateSkip",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"a2220f41e135d4c26432adead02a297e792b2651\",\"bodySha256\":\"791af935439c953a19b939c94679ad17b69053875661b34803e3b0ec8622e71c\",\"bodySpan\":{\"end\":438,\"start\":409},\"executionKeySha256\":\"a186236d7e1fbcbec9f863dde34c977fe40a838f295f0dd7b2e4cb041bd17fb6\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:fca23f56d82b66c16f7be230da545bf0cbda7268b92af866d47990ee0914f1aa\",\"path\":\"pkg/sample_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TEST_FUNCTION",
+     "bodyEnd": 595,
+     "bodySha256": "3516a3df8990ebddf6a931235475ab261a4afb68bd65eb64e9d442df69c188da",
+     "bodyStart": 471,
+     "empty": false,
+     "executionKey": "d3216de1a19d83d6895560af931149f3f26debad6e8e87d2a762ecdad0293c74",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:093035966d94730cff3b64ccac47638d7fb1ae43f8219e6543defce9d893be42",
+     "path": "pkg/sample_test.go",
+     "runtimeName": "TestTable",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"a2220f41e135d4c26432adead02a297e792b2651\",\"bodySha256\":\"3516a3df8990ebddf6a931235475ab261a4afb68bd65eb64e9d442df69c188da\",\"bodySpan\":{\"end\":595,\"start\":471},\"executionKeySha256\":\"d3216de1a19d83d6895560af931149f3f26debad6e8e87d2a762ecdad0293c74\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:093035966d94730cff3b64ccac47638d7fb1ae43f8219e6543defce9d893be42\",\"path\":\"pkg/sample_test.go\"}"
+    },
+    {
+     "associationKind": "GO_TABLE_CASE",
+     "bodyEnd": 595,
+     "bodySha256": "3516a3df8990ebddf6a931235475ab261a4afb68bd65eb64e9d442df69c188da",
+     "bodyStart": 471,
+     "empty": false,
+     "executionKey": "a1800a7a6757994b9a7c47065348cabc52d152a5605a48305f10547e9008cc3e",
+     "extractorProfile": "go-lexical/1",
+     "id": "test-unit:sha256:cc7b99ae9e5e2996a33da7242c111eeeb67a82e44f96d88e234b82642c4795c6",
+     "path": "pkg/sample_test.go",
+     "runtimeName": "TestTable/alpha-case",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"a2220f41e135d4c26432adead02a297e792b2651\",\"bodySha256\":\"3516a3df8990ebddf6a931235475ab261a4afb68bd65eb64e9d442df69c188da\",\"bodySpan\":{\"end\":595,\"start\":471},\"executionKeySha256\":\"a1800a7a6757994b9a7c47065348cabc52d152a5605a48305f10547e9008cc3e\",\"extractorProfile\":\"go-lexical/1\",\"id\":\"test-unit:sha256:cc7b99ae9e5e2996a33da7242c111eeeb67a82e44f96d88e234b82642c4795c6\",\"path\":\"pkg/sample_test.go\"}"
+    }
+   ]
+  },
+  "pkg/test_concat.py": {
+   "candidates": [
+    {
+     "end": 34,
+     "producer": "python-docstring",
+     "selector": "test:test_concat#doc",
+     "start": 23
+    },
+    {
+     "end": 15,
+     "producer": "python-test-name",
+     "selector": "test:test_concat",
+     "start": 4
+    }
+   ],
+   "error": null,
+   "goSpans": [],
+   "oid": "25e65295f006c96f6a44329476e450a9ac6e5040",
+   "pythonSpans": [
+    {
+     "docEnd": 34,
+     "docStart": 23,
+     "nameEnd": 15,
+     "nameStart": 4,
+     "runtimeName": "test_concat"
+    }
+   ],
+   "source": "def test_concat():\n    \"part one \"\n    \"part two\"\n    assert 1\n",
+   "units": [
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 62,
+     "bodySha256": "c6861b98711fe853f05948cbbc45adc2a19a1abcb8361d80d96da99670eb605f",
+     "bodyStart": 23,
+     "empty": false,
+     "executionKey": "68e9c18b6c06716f30a3ccddb88ad5c978bfb9dae403a03d79613b117cb3724c",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:7d29a87aaad2f1875bb29e3d43512a46dac5d06463e33d5da0fc59d5a8bd5457",
+     "path": "pkg/test_concat.py",
+     "runtimeName": "test_concat",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"25e65295f006c96f6a44329476e450a9ac6e5040\",\"bodySha256\":\"c6861b98711fe853f05948cbbc45adc2a19a1abcb8361d80d96da99670eb605f\",\"bodySpan\":{\"end\":62,\"start\":23},\"executionKeySha256\":\"68e9c18b6c06716f30a3ccddb88ad5c978bfb9dae403a03d79613b117cb3724c\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:7d29a87aaad2f1875bb29e3d43512a46dac5d06463e33d5da0fc59d5a8bd5457\",\"path\":\"pkg/test_concat.py\"}"
+    }
+   ]
+  },
+  "pkg/test_crlf.py": {
+   "candidates": [
+    {
+     "end": 39,
+     "producer": "python-docstring",
+     "selector": "test:test_first#doc",
+     "start": 23
+    },
+    {
+     "end": 86,
+     "producer": "python-test-name",
+     "selector": "test:test_async_second",
+     "start": 69
+    },
+    {
+     "end": 14,
+     "producer": "python-test-name",
+     "selector": "test:test_first",
+     "start": 4
+    }
+   ],
+   "error": null,
+   "goSpans": [],
+   "oid": "9b80e491ea46f95815abd778ed0bc45562cea734",
+   "pythonSpans": [
+    {
+     "docEnd": 39,
+     "docStart": 23,
+     "nameEnd": 14,
+     "nameStart": 4,
+     "runtimeName": "test_first"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 86,
+     "nameStart": 69,
+     "runtimeName": "test_async_second"
+    }
+   ],
+   "source": "def test_first():\r\n    \"\"\"Doc REQ-9.\"\"\"\r\n    assert 1\r\n\r\n\r\nasync def test_async_second():\r\n    assert 2\r\n",
+   "units": [
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 53,
+     "bodySha256": "dda30e3b09e7f336d84532e66f853bc03d84b6d661cb1a1e7e45ad8a4c82b45a",
+     "bodyStart": 23,
+     "empty": false,
+     "executionKey": "ba8bc84d8ffdb5140cc789e32ba4fb5ce3d6f63a1949a32a0690c453d3c42bc6",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:512b1c236cb81f47d974f8404d01bd9d1ca46a0305d91ac62d586954b8282b25",
+     "path": "pkg/test_crlf.py",
+     "runtimeName": "test_first",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"9b80e491ea46f95815abd778ed0bc45562cea734\",\"bodySha256\":\"dda30e3b09e7f336d84532e66f853bc03d84b6d661cb1a1e7e45ad8a4c82b45a\",\"bodySpan\":{\"end\":53,\"start\":23},\"executionKeySha256\":\"ba8bc84d8ffdb5140cc789e32ba4fb5ce3d6f63a1949a32a0690c453d3c42bc6\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:512b1c236cb81f47d974f8404d01bd9d1ca46a0305d91ac62d586954b8282b25\",\"path\":\"pkg/test_crlf.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 103,
+     "bodySha256": "7f15365ef06742bae6b1bae127f42b89f43b824c452f0687417f947b789ce2f0",
+     "bodyStart": 95,
+     "empty": false,
+     "executionKey": "fc9e742880b25d916947136f23d498c8ad43791ef9bfdf935c3c2bd450b2dbdf",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:6570e3407014db80c52d33832bbbe41667f7ad75ad796987ac0df4468e0bbe4a",
+     "path": "pkg/test_crlf.py",
+     "runtimeName": "test_async_second",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"9b80e491ea46f95815abd778ed0bc45562cea734\",\"bodySha256\":\"7f15365ef06742bae6b1bae127f42b89f43b824c452f0687417f947b789ce2f0\",\"bodySpan\":{\"end\":103,\"start\":95},\"executionKeySha256\":\"fc9e742880b25d916947136f23d498c8ad43791ef9bfdf935c3c2bd450b2dbdf\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:6570e3407014db80c52d33832bbbe41667f7ad75ad796987ac0df4468e0bbe4a\",\"path\":\"pkg/test_crlf.py\"}"
+    }
+   ]
+  },
+  "pkg/test_duplicate.py": {
+   "candidates": [
+    {
+     "end": 12,
+     "producer": "python-test-name",
+     "selector": "test:test_dup",
+     "start": 4
+    },
+    {
+     "end": 43,
+     "producer": "python-test-name",
+     "selector": "test:test_dup",
+     "start": 35
+    }
+   ],
+   "error": null,
+   "goSpans": [],
+   "oid": "37b8da5e153438ebdcddf6a0799cac5a393b8012",
+   "pythonSpans": [
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 12,
+     "nameStart": 4,
+     "runtimeName": "test_dup"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 43,
+     "nameStart": 35,
+     "runtimeName": "test_dup"
+    }
+   ],
+   "source": "def test_dup():\n    assert 1\n\n\ndef test_dup():\n    assert 2\n",
+   "units": [
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 28,
+     "bodySha256": "936532365911c06877f085240a5155dd959490a12fefd5ff70d526e7c4ea9548",
+     "bodyStart": 20,
+     "empty": false,
+     "executionKey": "3e5046f93ac578d4e39f0d5fcc3272339f6a2793200c178987fde5423dfdd0ad",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:0b92c5e0616ced4a7721956b5c75f1d2c8774c09d3ad4d0a84d5940ea67e1702",
+     "path": "pkg/test_duplicate.py",
+     "runtimeName": "test_dup",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"37b8da5e153438ebdcddf6a0799cac5a393b8012\",\"bodySha256\":\"936532365911c06877f085240a5155dd959490a12fefd5ff70d526e7c4ea9548\",\"bodySpan\":{\"end\":28,\"start\":20},\"executionKeySha256\":\"3e5046f93ac578d4e39f0d5fcc3272339f6a2793200c178987fde5423dfdd0ad\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:0b92c5e0616ced4a7721956b5c75f1d2c8774c09d3ad4d0a84d5940ea67e1702\",\"path\":\"pkg/test_duplicate.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 59,
+     "bodySha256": "7f15365ef06742bae6b1bae127f42b89f43b824c452f0687417f947b789ce2f0",
+     "bodyStart": 51,
+     "empty": false,
+     "executionKey": "3e5046f93ac578d4e39f0d5fcc3272339f6a2793200c178987fde5423dfdd0ad",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:617200cb2ba2d3d9a1ae1edaacecca95b2f055a409bec8d1c874481d2da5c10a",
+     "path": "pkg/test_duplicate.py",
+     "runtimeName": "test_dup",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"37b8da5e153438ebdcddf6a0799cac5a393b8012\",\"bodySha256\":\"7f15365ef06742bae6b1bae127f42b89f43b824c452f0687417f947b789ce2f0\",\"bodySpan\":{\"end\":59,\"start\":51},\"executionKeySha256\":\"3e5046f93ac578d4e39f0d5fcc3272339f6a2793200c178987fde5423dfdd0ad\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:617200cb2ba2d3d9a1ae1edaacecca95b2f055a409bec8d1c874481d2da5c10a\",\"path\":\"pkg/test_duplicate.py\"}"
+    }
+   ]
+  },
+  "pkg/test_hard.py": {
+   "candidates": [
+    {
+     "end": 312,
+     "producer": "python-docstring",
+     "selector": "test:test_deep#doc",
+     "start": 295
+    },
+    {
+     "end": 171,
+     "producer": "python-docstring",
+     "selector": "test:test_multiline_signature#doc",
+     "start": 134
+    },
+    {
+     "end": 471,
+     "producer": "python-docstring",
+     "selector": "test:test_string_body#doc",
+     "start": 445
+    },
+    {
+     "end": 518,
+     "producer": "python-test-name",
+     "selector": "test:test_async_await",
+     "start": 502
+    },
+    {
+     "end": 763,
+     "producer": "python-test-name",
+     "selector": "test:test_bracket_continuation",
+     "start": 738
+    },
+    {
+     "end": 390,
+     "producer": "python-test-name",
+     "selector": "test:test_class_skipped",
+     "start": 372
+    },
+    {
+     "end": 284,
+     "producer": "python-test-name",
+     "selector": "test:test_deep",
+     "start": 275
+    },
+    {
+     "end": 565,
+     "producer": "python-test-name",
+     "selector": "test:test_lambda_default",
+     "start": 546
+    },
+    {
+     "end": 114,
+     "producer": "python-test-name",
+     "selector": "test:test_multiline_signature",
+     "start": 90
+    },
+    {
+     "end": 437,
+     "producer": "python-test-name",
+     "selector": "test:test_string_body",
+     "start": 421
+    },
+    {
+     "end": 206,
+     "producer": "python-test-name",
+     "selector": "test:test_tabbed",
+     "start": 195
+    },
+    {
+     "end": 690,
+     "producer": "python-test-name",
+     "selector": "test:test_unicode_literal",
+     "start": 670
+    },
+    {
+     "end": 622,
+     "producer": "python-test-name",
+     "selector": "test:test_walrus",
+     "start": 611
+    }
+   ],
+   "error": null,
+   "goSpans": [],
+   "oid": "bd9da97a029ee2c12f5605644da1603172c376e9",
+   "pythonSpans": [
+    {
+     "docEnd": 171,
+     "docStart": 134,
+     "nameEnd": 114,
+     "nameStart": 90,
+     "runtimeName": "test_multiline_signature"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 206,
+     "nameStart": 195,
+     "runtimeName": "test_tabbed"
+    },
+    {
+     "docEnd": 312,
+     "docStart": 295,
+     "nameEnd": 284,
+     "nameStart": 275,
+     "runtimeName": "test_deep"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 390,
+     "nameStart": 372,
+     "runtimeName": "test_class_skipped"
+    },
+    {
+     "docEnd": 471,
+     "docStart": 445,
+     "nameEnd": 437,
+     "nameStart": 421,
+     "runtimeName": "test_string_body"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 518,
+     "nameStart": 502,
+     "runtimeName": "test_async_await"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 565,
+     "nameStart": 546,
+     "runtimeName": "test_lambda_default"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 622,
+     "nameStart": 611,
+     "runtimeName": "test_walrus"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 690,
+     "nameStart": 670,
+     "runtimeName": "test_unicode_literal"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 763,
+     "nameStart": 738,
+     "runtimeName": "test_bracket_continuation"
+    }
+   ],
+   "source": "# -*- coding: utf-8 -*-\né = 1\n\n\n@pytest.mark.parametrize(\n    \"value\",\n    [1, 2],\n)\ndef test_multiline_signature(\n    value,\n):\n    \"\"\"Multi\n    line REQ-3 docstring.\"\"\"\n    assert value\n\n\ndef test_tabbed():\n\tassert 1  # trailing comment\n\n\nclass Outer:\n\tclass Inner:\n\t\tdef test_deep(self):\n\t\t\t\"\"\"Deep REQ-4.\"\"\"\n\t\t\tassert 2\n\n\n@unittest.skip(\"cls\")\nclass Skipped:\n    def test_class_skipped(self):\n        assert 3\n\n\ndef test_string_body():\n    \"a plain string statement\"\n    \"another one\"\n\n\nasync def test_async_await():\n    await thing()\n\n\ndef test_lambda_default(fn=lambda a: a):\n    assert fn(1) == 1\n\n\ndef test_walrus():\n    if (n := 3) > 1:\n        assert n\n\n\ndef test_unicode_literal():\n    assert \"café ✓\" == \"café ✓\"\n\n\ndef test_bracket_continuation():\n    values = [\n        1,\n        2,\n    ]\n    assert values\n",
+   "units": [
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 188,
+     "bodySha256": "9e2274d3a42fc1fb22fe1e6f7c2f191d04333d720fc14c9faadb1fc123f85bbb",
+     "bodyStart": 134,
+     "empty": false,
+     "executionKey": "6d6dfd1765ee4efb78d0be04891fc3f13a7466aaa79b5d2f376d5eab79a6e082",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:86210fe9cd0b4f8b6375ee3fdfa9539d9c9b9bbc85cc6e5d714b92e4913fdecd",
+     "path": "pkg/test_hard.py",
+     "runtimeName": "test_multiline_signature",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"bd9da97a029ee2c12f5605644da1603172c376e9\",\"bodySha256\":\"9e2274d3a42fc1fb22fe1e6f7c2f191d04333d720fc14c9faadb1fc123f85bbb\",\"bodySpan\":{\"end\":188,\"start\":134},\"executionKeySha256\":\"6d6dfd1765ee4efb78d0be04891fc3f13a7466aaa79b5d2f376d5eab79a6e082\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:86210fe9cd0b4f8b6375ee3fdfa9539d9c9b9bbc85cc6e5d714b92e4913fdecd\",\"path\":\"pkg/test_hard.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 219,
+     "bodySha256": "936532365911c06877f085240a5155dd959490a12fefd5ff70d526e7c4ea9548",
+     "bodyStart": 211,
+     "empty": false,
+     "executionKey": "137e29c2e55c0e52194b041237fb09722d67cdb5852347bba1c7b53e195a8b66",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:cdcfac5d4157d34fd790bf24472fee0d41196e9c51f3ca781f9147f4847d8435",
+     "path": "pkg/test_hard.py",
+     "runtimeName": "test_tabbed",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"bd9da97a029ee2c12f5605644da1603172c376e9\",\"bodySha256\":\"936532365911c06877f085240a5155dd959490a12fefd5ff70d526e7c4ea9548\",\"bodySpan\":{\"end\":219,\"start\":211},\"executionKeySha256\":\"137e29c2e55c0e52194b041237fb09722d67cdb5852347bba1c7b53e195a8b66\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:cdcfac5d4157d34fd790bf24472fee0d41196e9c51f3ca781f9147f4847d8435\",\"path\":\"pkg/test_hard.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 324,
+     "bodySha256": "4631bbf0524479a0af712c1da3656c44b7998fa23a75024c14098750f495e609",
+     "bodyStart": 295,
+     "empty": false,
+     "executionKey": "30002f7a8358767e98608bfb53a0e68478ba580a33d6573f404d15a32dd29ff2",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:e0942b20c720383091feb2b3afc14c90f9dd3f31108a6b9a1063221f5c6ac18b",
+     "path": "pkg/test_hard.py",
+     "runtimeName": "test_deep",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"bd9da97a029ee2c12f5605644da1603172c376e9\",\"bodySha256\":\"4631bbf0524479a0af712c1da3656c44b7998fa23a75024c14098750f495e609\",\"bodySpan\":{\"end\":324,\"start\":295},\"executionKeySha256\":\"30002f7a8358767e98608bfb53a0e68478ba580a33d6573f404d15a32dd29ff2\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:e0942b20c720383091feb2b3afc14c90f9dd3f31108a6b9a1063221f5c6ac18b\",\"path\":\"pkg/test_hard.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 414,
+     "bodySha256": "b796907fe7f0bca5b61d963386afd61958d7657cd19651e8a43b252d50cdc950",
+     "bodyStart": 406,
+     "empty": false,
+     "executionKey": "72a7852b5b819f9a0f8d288b6edb9ea4be9192f6e436404eb701d680e638af94",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:96e3b6971631c96bcbb184a450dfbbc1ec74f2700d6548ebbde7979710a1e4d0",
+     "path": "pkg/test_hard.py",
+     "runtimeName": "test_class_skipped",
+     "skipped": true,
+     "wire": "{\"blobOid\":\"bd9da97a029ee2c12f5605644da1603172c376e9\",\"bodySha256\":\"b796907fe7f0bca5b61d963386afd61958d7657cd19651e8a43b252d50cdc950\",\"bodySpan\":{\"end\":414,\"start\":406},\"executionKeySha256\":\"72a7852b5b819f9a0f8d288b6edb9ea4be9192f6e436404eb701d680e638af94\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:96e3b6971631c96bcbb184a450dfbbc1ec74f2700d6548ebbde7979710a1e4d0\",\"path\":\"pkg/test_hard.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 489,
+     "bodySha256": "4adf7ca8dc4c269189ca76cdc2f91c47f69501471c9366d23c1302c0869ab02a",
+     "bodyStart": 445,
+     "empty": true,
+     "executionKey": "f00a4ba81ff90ef448fbaa6569b0946a1fb300096f2419ee848455d30bd9d01c",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:440c6cfd28b69b3d976337c11afade98cdaed57396a7f1a74876294e24cd300a",
+     "path": "pkg/test_hard.py",
+     "runtimeName": "test_string_body",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"bd9da97a029ee2c12f5605644da1603172c376e9\",\"bodySha256\":\"4adf7ca8dc4c269189ca76cdc2f91c47f69501471c9366d23c1302c0869ab02a\",\"bodySpan\":{\"end\":489,\"start\":445},\"executionKeySha256\":\"f00a4ba81ff90ef448fbaa6569b0946a1fb300096f2419ee848455d30bd9d01c\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:440c6cfd28b69b3d976337c11afade98cdaed57396a7f1a74876294e24cd300a\",\"path\":\"pkg/test_hard.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 539,
+     "bodySha256": "4575f36fd32b84a0c55c196c75540292837c3f5626c57fc105c1ac1ba6edf184",
+     "bodyStart": 526,
+     "empty": false,
+     "executionKey": "0391f00e67dbe04dc2ccaf9a51896f2a50682a5ef9a97529e596b1d04459195c",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:f1fd87a360f141730add84eb6a783d2daf76afaa7a5595ac321b719a74af00e3",
+     "path": "pkg/test_hard.py",
+     "runtimeName": "test_async_await",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"bd9da97a029ee2c12f5605644da1603172c376e9\",\"bodySha256\":\"4575f36fd32b84a0c55c196c75540292837c3f5626c57fc105c1ac1ba6edf184\",\"bodySpan\":{\"end\":539,\"start\":526},\"executionKeySha256\":\"0391f00e67dbe04dc2ccaf9a51896f2a50682a5ef9a97529e596b1d04459195c\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:f1fd87a360f141730add84eb6a783d2daf76afaa7a5595ac321b719a74af00e3\",\"path\":\"pkg/test_hard.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 604,
+     "bodySha256": "17f1b312ce9d56bf6e0d65b744c4376441d1667b14bd8afb153a279806481fd6",
+     "bodyStart": 587,
+     "empty": false,
+     "executionKey": "4e4977de66b9abf23cb95de69bfa308b6568ac0fbf89021f094613e6db10c63f",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:42d88032c207030cd0c7adcaa24d51c6ff02d2708989815cc2173b30ea184b7a",
+     "path": "pkg/test_hard.py",
+     "runtimeName": "test_lambda_default",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"bd9da97a029ee2c12f5605644da1603172c376e9\",\"bodySha256\":\"17f1b312ce9d56bf6e0d65b744c4376441d1667b14bd8afb153a279806481fd6\",\"bodySpan\":{\"end\":604,\"start\":587},\"executionKeySha256\":\"4e4977de66b9abf23cb95de69bfa308b6568ac0fbf89021f094613e6db10c63f\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:42d88032c207030cd0c7adcaa24d51c6ff02d2708989815cc2173b30ea184b7a\",\"path\":\"pkg/test_hard.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 663,
+     "bodySha256": "8f59f61d9411bacd9a6c2a851970252dbbe000a2b5276dfcadf7e11d99306bfc",
+     "bodyStart": 630,
+     "empty": false,
+     "executionKey": "80292f0603348ea919d01663bed00bd4c19f3311d2ba7b8948d4dd57453595e7",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:793615d24d806f5db13e2a08d48515eb3e845b72e25a5e3e2a4fde21267c3432",
+     "path": "pkg/test_hard.py",
+     "runtimeName": "test_walrus",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"bd9da97a029ee2c12f5605644da1603172c376e9\",\"bodySha256\":\"8f59f61d9411bacd9a6c2a851970252dbbe000a2b5276dfcadf7e11d99306bfc\",\"bodySpan\":{\"end\":663,\"start\":630},\"executionKeySha256\":\"80292f0603348ea919d01663bed00bd4c19f3311d2ba7b8948d4dd57453595e7\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:793615d24d806f5db13e2a08d48515eb3e845b72e25a5e3e2a4fde21267c3432\",\"path\":\"pkg/test_hard.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 731,
+     "bodySha256": "33c1e4d8ccb65ace425eaeebbb1988770ad70fc179b2d81dfe03d2e009ab6b92",
+     "bodyStart": 698,
+     "empty": false,
+     "executionKey": "2b725a4136757307bd19545f80283029e7a1f12cae60670e345e9829c1fbe4aa",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:7e5d93b595d436a53c00bc1fbafbaa9e756091f3c8581fc66f7666a2937a71c7",
+     "path": "pkg/test_hard.py",
+     "runtimeName": "test_unicode_literal",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"bd9da97a029ee2c12f5605644da1603172c376e9\",\"bodySha256\":\"33c1e4d8ccb65ace425eaeebbb1988770ad70fc179b2d81dfe03d2e009ab6b92\",\"bodySpan\":{\"end\":731,\"start\":698},\"executionKeySha256\":\"2b725a4136757307bd19545f80283029e7a1f12cae60670e345e9829c1fbe4aa\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:7e5d93b595d436a53c00bc1fbafbaa9e756091f3c8581fc66f7666a2937a71c7\",\"path\":\"pkg/test_hard.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 827,
+     "bodySha256": "b357f19c2f30af9fb9d40329b1c9c9ec58c4e96c14cab31912f509e73c3d5441",
+     "bodyStart": 771,
+     "empty": false,
+     "executionKey": "76f082ed6c64ccf2ade7ee955918fbd4dbca31bb9a11f207f01c8a2e1cd5ef01",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:f44c2c642aed642af2a851a2fbf9d01e39b8c82c949bc0d4cb2d53c2a219429f",
+     "path": "pkg/test_hard.py",
+     "runtimeName": "test_bracket_continuation",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"bd9da97a029ee2c12f5605644da1603172c376e9\",\"bodySha256\":\"b357f19c2f30af9fb9d40329b1c9c9ec58c4e96c14cab31912f509e73c3d5441\",\"bodySpan\":{\"end\":827,\"start\":771},\"executionKeySha256\":\"76f082ed6c64ccf2ade7ee955918fbd4dbca31bb9a11f207f01c8a2e1cd5ef01\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:f44c2c642aed642af2a851a2fbf9d01e39b8c82c949bc0d4cb2d53c2a219429f\",\"path\":\"pkg/test_hard.py\"}"
+    }
+   ]
+  },
+  "pkg/test_match.py": {
+   "candidates": [
+    {
+     "end": 14,
+     "producer": "python-test-name",
+     "selector": "test:test_match",
+     "start": 4
+    }
+   ],
+   "error": "unsupported-python-grammar",
+   "goSpans": [],
+   "oid": "a4ee1bd6b757d1db7ae120ba80ff74c1c912460a",
+   "pythonSpans": [],
+   "source": "def test_match(value):\n    match value:\n        case 1:\n            return 1\n    return 0\n",
+   "units": []
+  },
+  "pkg/test_repeated.py": {
+   "candidates": [
+    {
+     "end": 16,
+     "producer": "python-test-name",
+     "selector": "test:test_dupname",
+     "start": 4
+    }
+   ],
+   "error": "python-offset-mismatch",
+   "goSpans": [],
+   "oid": "ef04c25506757dc5ee8e3a8a181ce99eb43679f7",
+   "pythonSpans": [],
+   "source": "def test_dupname(test_dupname=1):\n    assert test_dupname\n",
+   "units": []
+  },
+  "pkg/test_simple.py": {
+   "candidates": [
+    {
+     "end": 79,
+     "producer": "python-docstring",
+     "selector": "test:test_alpha#doc",
+     "start": 40
+    },
+    {
+     "end": 193,
+     "producer": "python-docstring",
+     "selector": "test:test_docstring_only#doc",
+     "start": 165
+    },
+    {
+     "end": 871,
+     "producer": "python-docstring",
+     "selector": "test:test_method#doc",
+     "start": 842
+    },
+    {
+     "end": 32,
+     "producer": "python-test-name",
+     "selector": "test:test_alpha",
+     "start": 22
+    },
+    {
+     "end": 247,
+     "producer": "python-test-name",
+     "selector": "test:test_bare_return",
+     "start": 231
+    },
+    {
+     "end": 607,
+     "producer": "python-test-name",
+     "selector": "test:test_calls_skip",
+     "start": 592
+    },
+    {
+     "end": 350,
+     "producer": "python-test-name",
+     "selector": "test:test_decorated_skip",
+     "start": 331
+    },
+    {
+     "end": 157,
+     "producer": "python-test-name",
+     "selector": "test:test_docstring_only",
+     "start": 138
+    },
+    {
+     "end": 213,
+     "producer": "python-test-name",
+     "selector": "test:test_ellipsis",
+     "start": 200
+    },
+    {
+     "end": 119,
+     "producer": "python-test-name",
+     "selector": "test:test_empty_body",
+     "start": 104
+    },
+    {
+     "end": 959,
+     "producer": "python-test-name",
+     "selector": "test:test_inner",
+     "start": 949
+    },
+    {
+     "end": 723,
+     "producer": "python-test-name",
+     "selector": "test:test_later_skip",
+     "start": 708
+    },
+    {
+     "end": 826,
+     "producer": "python-test-name",
+     "selector": "test:test_method",
+     "start": 815
+    },
+    {
+     "end": 929,
+     "producer": "python-test-name",
+     "selector": "test:test_nested_holder",
+     "start": 911
+    },
+    {
+     "end": 410,
+     "producer": "python-test-name",
+     "selector": "test:test_pytest_skip",
+     "start": 394
+    },
+    {
+     "end": 662,
+     "producer": "python-test-name",
+     "selector": "test:test_raise_skip",
+     "start": 647
+    },
+    {
+     "end": 286,
+     "producer": "python-test-name",
+     "selector": "test:test_returns_value",
+     "start": 268
+    },
+    {
+     "end": 566,
+     "producer": "python-test-name",
+     "selector": "test:test_skip_if_dynamic",
+     "start": 546
+    },
+    {
+     "end": 486,
+     "producer": "python-test-name",
+     "selector": "test:test_skip_if_true",
+     "start": 469
+    }
+   ],
+   "error": null,
+   "goSpans": [],
+   "oid": "27120a78348b41b2a996d6db862cfc7e9027182f",
+   "pythonSpans": [
+    {
+     "docEnd": 79,
+     "docStart": 40,
+     "nameEnd": 32,
+     "nameStart": 22,
+     "runtimeName": "test_alpha"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 119,
+     "nameStart": 104,
+     "runtimeName": "test_empty_body"
+    },
+    {
+     "docEnd": 193,
+     "docStart": 165,
+     "nameEnd": 157,
+     "nameStart": 138,
+     "runtimeName": "test_docstring_only"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 213,
+     "nameStart": 200,
+     "runtimeName": "test_ellipsis"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 247,
+     "nameStart": 231,
+     "runtimeName": "test_bare_return"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 286,
+     "nameStart": 268,
+     "runtimeName": "test_returns_value"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 350,
+     "nameStart": 331,
+     "runtimeName": "test_decorated_skip"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 410,
+     "nameStart": 394,
+     "runtimeName": "test_pytest_skip"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 486,
+     "nameStart": 469,
+     "runtimeName": "test_skip_if_true"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 566,
+     "nameStart": 546,
+     "runtimeName": "test_skip_if_dynamic"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 607,
+     "nameStart": 592,
+     "runtimeName": "test_calls_skip"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 662,
+     "nameStart": 647,
+     "runtimeName": "test_raise_skip"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 723,
+     "nameStart": 708,
+     "runtimeName": "test_later_skip"
+    },
+    {
+     "docEnd": 871,
+     "docStart": 842,
+     "nameEnd": 826,
+     "nameStart": 815,
+     "runtimeName": "test_method"
+    },
+    {
+     "docEnd": -1,
+     "docStart": -1,
+     "nameEnd": 929,
+     "nameStart": 911,
+     "runtimeName": "test_nested_holder"
+    }
+   ],
+   "source": "import unittest\n\n\ndef test_alpha():\n    \"\"\"Anchors REQ-1 for the alpha path.\"\"\"\n    assert 1 == 1\n\n\ndef test_empty_body():\n    pass\n\n\ndef test_docstring_only():\n    \"\"\"Only a docstring here.\"\"\"\n\n\ndef test_ellipsis():\n    ...\n\n\ndef test_bare_return():\n    return\n\n\ndef test_returns_value():\n    return 3\n\n\n@unittest.skip(\"why\")\ndef test_decorated_skip():\n    assert True\n\n\n@pytest.mark.skip\ndef test_pytest_skip():\n    assert True\n\n\n@unittest.skipIf(True, \"always\")\ndef test_skip_if_true():\n    assert True\n\n\n@unittest.skipIf(FLAG, \"dynamic\")\ndef test_skip_if_dynamic():\n    assert True\n\n\ndef test_calls_skip(self):\n    self.skipTest(\"nope\")\n\n\ndef test_raise_skip():\n    raise unittest.SkipTest(\"nope\")\n\n\ndef test_later_skip(self):\n    assert True\n    self.skipTest(\"late\")\n\n\nclass Suite(unittest.TestCase):\n    def test_method(self):\n        \"\"\"Method docstring REQ-2.\"\"\"\n        self.assertTrue(True)\n\n    def test_nested_holder(self):\n        def test_inner():\n            pass\n        test_inner()\n",
+   "units": [
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 97,
+     "bodySha256": "0c8363d519d4ffbd856f688d97cf0f1fdd0f2f2f71b8c209cfac258f22111211",
+     "bodyStart": 40,
+     "empty": false,
+     "executionKey": "f82eec5133bfde1565c34a5d4f4e721b4299c0c34b2a86e5541f3b7475f94809",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:b52ebd27eeeb6694e84fc1c810769522867ae1f0c4a73153eb771050c8b8767d",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_alpha",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"0c8363d519d4ffbd856f688d97cf0f1fdd0f2f2f71b8c209cfac258f22111211\",\"bodySpan\":{\"end\":97,\"start\":40},\"executionKeySha256\":\"f82eec5133bfde1565c34a5d4f4e721b4299c0c34b2a86e5541f3b7475f94809\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:b52ebd27eeeb6694e84fc1c810769522867ae1f0c4a73153eb771050c8b8767d\",\"path\":\"pkg/test_simple.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 131,
+     "bodySha256": "d74ff0ee8da3b9806b18c877dbf29bbde50b5bd8e4dad7a3a725000feb82e8f1",
+     "bodyStart": 127,
+     "empty": true,
+     "executionKey": "0589d9d01ffbe9b7ee2a79ee801d5506605e0f45b586b6318db7e2be6a30c95e",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:c983c1ac6d42eb584f113f4af0cbac96a82c9accd695ec486d8663ee64a83d0a",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_empty_body",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"d74ff0ee8da3b9806b18c877dbf29bbde50b5bd8e4dad7a3a725000feb82e8f1\",\"bodySpan\":{\"end\":131,\"start\":127},\"executionKeySha256\":\"0589d9d01ffbe9b7ee2a79ee801d5506605e0f45b586b6318db7e2be6a30c95e\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:c983c1ac6d42eb584f113f4af0cbac96a82c9accd695ec486d8663ee64a83d0a\",\"path\":\"pkg/test_simple.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 193,
+     "bodySha256": "62fc8b9ccf211eb9ddd1804ddad0289e58e41bfbb85232372ab76a0f765d650a",
+     "bodyStart": 165,
+     "empty": true,
+     "executionKey": "146c3b1a6b40c8387df48644d7c2057725f7e055251826ff2984649c9f271135",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:65075f4a2ead63498dd1a86d8cc9a0b02297056257d8df76f1216e021cc41ffa",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_docstring_only",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"62fc8b9ccf211eb9ddd1804ddad0289e58e41bfbb85232372ab76a0f765d650a\",\"bodySpan\":{\"end\":193,\"start\":165},\"executionKeySha256\":\"146c3b1a6b40c8387df48644d7c2057725f7e055251826ff2984649c9f271135\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:65075f4a2ead63498dd1a86d8cc9a0b02297056257d8df76f1216e021cc41ffa\",\"path\":\"pkg/test_simple.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 224,
+     "bodySha256": "ab5df625bc76dbd4e163bed2dd888df828f90159bb93556525c31821b6541d46",
+     "bodyStart": 221,
+     "empty": true,
+     "executionKey": "d293fa9cc951a2e5d6db11515a160d465c54b1421e4878b48da72a3679d7bcf3",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:05244c0eb130ebd3f792b23bd482b26616652c5171db9e45a82c2afcdcd96b89",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_ellipsis",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"ab5df625bc76dbd4e163bed2dd888df828f90159bb93556525c31821b6541d46\",\"bodySpan\":{\"end\":224,\"start\":221},\"executionKeySha256\":\"d293fa9cc951a2e5d6db11515a160d465c54b1421e4878b48da72a3679d7bcf3\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:05244c0eb130ebd3f792b23bd482b26616652c5171db9e45a82c2afcdcd96b89\",\"path\":\"pkg/test_simple.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 261,
+     "bodySha256": "7187f0675eb3827939741acf7342ba78836ecec21a31ecf3f34a55309d3bee8a",
+     "bodyStart": 255,
+     "empty": true,
+     "executionKey": "ae852fceac8fd7b8c15e748baf6f75547daf4211a60d99fca3c187e638a43ed5",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:7f3ff1a041b77e821c5f75eb3efa81b47d82436e08374418ee5d3df98ed960c7",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_bare_return",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"7187f0675eb3827939741acf7342ba78836ecec21a31ecf3f34a55309d3bee8a\",\"bodySpan\":{\"end\":261,\"start\":255},\"executionKeySha256\":\"ae852fceac8fd7b8c15e748baf6f75547daf4211a60d99fca3c187e638a43ed5\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:7f3ff1a041b77e821c5f75eb3efa81b47d82436e08374418ee5d3df98ed960c7\",\"path\":\"pkg/test_simple.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 302,
+     "bodySha256": "5663d706294d7e4defa203655b5046d931d7c6fefd4931e7f88df2c47bcf9992",
+     "bodyStart": 294,
+     "empty": false,
+     "executionKey": "ae5b32fcb442070d535ffe9d57002dfabbbefbcd4acfe6e7d743099afeb9f0d9",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:c0bbcc859f229238a6c42f31b5c812bece0b2edf37c1fd6a266c9409a760b1b8",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_returns_value",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"5663d706294d7e4defa203655b5046d931d7c6fefd4931e7f88df2c47bcf9992\",\"bodySpan\":{\"end\":302,\"start\":294},\"executionKeySha256\":\"ae5b32fcb442070d535ffe9d57002dfabbbefbcd4acfe6e7d743099afeb9f0d9\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:c0bbcc859f229238a6c42f31b5c812bece0b2edf37c1fd6a266c9409a760b1b8\",\"path\":\"pkg/test_simple.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 369,
+     "bodySha256": "e250660e1da089b037e60a96c29fdbababdc332f2a97228ea1256df8436bfbc8",
+     "bodyStart": 358,
+     "empty": false,
+     "executionKey": "5e970aecb52b324db629f1e8fbb5b319109651756d20940a78804612ccb7fe35",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:b1efd8e39ae5140f43ddfd731303d8bf97315b33dcf24fb440396e161758e5fd",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_decorated_skip",
+     "skipped": true,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"e250660e1da089b037e60a96c29fdbababdc332f2a97228ea1256df8436bfbc8\",\"bodySpan\":{\"end\":369,\"start\":358},\"executionKeySha256\":\"5e970aecb52b324db629f1e8fbb5b319109651756d20940a78804612ccb7fe35\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:b1efd8e39ae5140f43ddfd731303d8bf97315b33dcf24fb440396e161758e5fd\",\"path\":\"pkg/test_simple.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 429,
+     "bodySha256": "e250660e1da089b037e60a96c29fdbababdc332f2a97228ea1256df8436bfbc8",
+     "bodyStart": 418,
+     "empty": false,
+     "executionKey": "2d581fe08648b53cd0ae918b9a600c6610d8cc0b93d36c1cebfafbcf40c6430d",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:f98cf5274508252fb95e00a60a32c741153511f33980fc082bfc3eee5ff480d5",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_pytest_skip",
+     "skipped": true,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"e250660e1da089b037e60a96c29fdbababdc332f2a97228ea1256df8436bfbc8\",\"bodySpan\":{\"end\":429,\"start\":418},\"executionKeySha256\":\"2d581fe08648b53cd0ae918b9a600c6610d8cc0b93d36c1cebfafbcf40c6430d\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:f98cf5274508252fb95e00a60a32c741153511f33980fc082bfc3eee5ff480d5\",\"path\":\"pkg/test_simple.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 505,
+     "bodySha256": "e250660e1da089b037e60a96c29fdbababdc332f2a97228ea1256df8436bfbc8",
+     "bodyStart": 494,
+     "empty": false,
+     "executionKey": "6279490e2a775481afc99946a53c0b1057e709a948be5abb22399531f351f283",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:32ff08a70b30af4979a705cce3f5c34a8e2e4867b9a9b6822882ddd489d2edfb",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_skip_if_true",
+     "skipped": true,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"e250660e1da089b037e60a96c29fdbababdc332f2a97228ea1256df8436bfbc8\",\"bodySpan\":{\"end\":505,\"start\":494},\"executionKeySha256\":\"6279490e2a775481afc99946a53c0b1057e709a948be5abb22399531f351f283\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:32ff08a70b30af4979a705cce3f5c34a8e2e4867b9a9b6822882ddd489d2edfb\",\"path\":\"pkg/test_simple.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 585,
+     "bodySha256": "e250660e1da089b037e60a96c29fdbababdc332f2a97228ea1256df8436bfbc8",
+     "bodyStart": 574,
+     "empty": false,
+     "executionKey": "80170bc8159a598ae7c8e4d313dedb9f746450c757968514c32036398ea589fa",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:0c4aeff6b2a0e1bb9b22e7ea2cab7116f2ceebbc5241988762fff0d95c9c97a6",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_skip_if_dynamic",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"e250660e1da089b037e60a96c29fdbababdc332f2a97228ea1256df8436bfbc8\",\"bodySpan\":{\"end\":585,\"start\":574},\"executionKeySha256\":\"80170bc8159a598ae7c8e4d313dedb9f746450c757968514c32036398ea589fa\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:0c4aeff6b2a0e1bb9b22e7ea2cab7116f2ceebbc5241988762fff0d95c9c97a6\",\"path\":\"pkg/test_simple.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 640,
+     "bodySha256": "ba63fb1c1ee39fa230eb60f2c2649349ff327ca48cab663dded06de5a357ebd8",
+     "bodyStart": 619,
+     "empty": false,
+     "executionKey": "cadce6131b380f89569c9e15928fbae2d89881f294f00a5057693042d5c82c0d",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:0d3c7122020473ea316226fd4391c6bc0c7fb6f2b3c421b6aa100c21aad32ceb",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_calls_skip",
+     "skipped": true,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"ba63fb1c1ee39fa230eb60f2c2649349ff327ca48cab663dded06de5a357ebd8\",\"bodySpan\":{\"end\":640,\"start\":619},\"executionKeySha256\":\"cadce6131b380f89569c9e15928fbae2d89881f294f00a5057693042d5c82c0d\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:0d3c7122020473ea316226fd4391c6bc0c7fb6f2b3c421b6aa100c21aad32ceb\",\"path\":\"pkg/test_simple.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 701,
+     "bodySha256": "7635c2ad41cd9c165bcc6b96a8753d06104b3f81cd5c71dc549ed11f5d45967b",
+     "bodyStart": 670,
+     "empty": false,
+     "executionKey": "f24fd24aa28173039cb0bf331912bba7282209b15a76b32c6c82977f8edc71b4",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:fd9af7d28203bfbab08260524c2d04fbff054d5b365da16210fde118973e7ebf",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_raise_skip",
+     "skipped": true,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"7635c2ad41cd9c165bcc6b96a8753d06104b3f81cd5c71dc549ed11f5d45967b\",\"bodySpan\":{\"end\":701,\"start\":670},\"executionKeySha256\":\"f24fd24aa28173039cb0bf331912bba7282209b15a76b32c6c82977f8edc71b4\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:fd9af7d28203bfbab08260524c2d04fbff054d5b365da16210fde118973e7ebf\",\"path\":\"pkg/test_simple.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 772,
+     "bodySha256": "3ba4cbf14ae4239b49926f1cd2e6156ef1f187f1d7e0f59adb9fd7317702fa1e",
+     "bodyStart": 735,
+     "empty": false,
+     "executionKey": "e870f403520884d02feb684ddf3cbb6f245d7b718c2dd090557d4bbcfec20e0e",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:1649eeefd3b10162d7b69f11707242b2405a59f1de4f2733a8c088215c485bce",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_later_skip",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"3ba4cbf14ae4239b49926f1cd2e6156ef1f187f1d7e0f59adb9fd7317702fa1e\",\"bodySpan\":{\"end\":772,\"start\":735},\"executionKeySha256\":\"e870f403520884d02feb684ddf3cbb6f245d7b718c2dd090557d4bbcfec20e0e\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:1649eeefd3b10162d7b69f11707242b2405a59f1de4f2733a8c088215c485bce\",\"path\":\"pkg/test_simple.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 901,
+     "bodySha256": "e60a23216eefb894493eca4a691952776310c66ed35b396c2a3ea3f59d8a46b9",
+     "bodyStart": 842,
+     "empty": false,
+     "executionKey": "6aac56c456f2a61b9159135c6081b8a2e21431d208b69626f949d24238c4d4c0",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:6a0bfdef3dca1217daf24d49111897c4a3007b343e7277a2c241540322977fbd",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_method",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"e60a23216eefb894493eca4a691952776310c66ed35b396c2a3ea3f59d8a46b9\",\"bodySpan\":{\"end\":901,\"start\":842},\"executionKeySha256\":\"6aac56c456f2a61b9159135c6081b8a2e21431d208b69626f949d24238c4d4c0\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:6a0bfdef3dca1217daf24d49111897c4a3007b343e7277a2c241540322977fbd\",\"path\":\"pkg/test_simple.py\"}"
+    },
+    {
+     "associationKind": "PYTHON_TEST_FUNCTION",
+     "bodyEnd": 1000,
+     "bodySha256": "41a3cac6858abdc38c1ab9e5c1a6c56a5635fa71554255880265fbfb90e3ef80",
+     "bodyStart": 945,
+     "empty": false,
+     "executionKey": "65b8962807bb11474afc965599580474248d9306e60cce2b76b730c07aaa842b",
+     "extractorProfile": "python-ast/1",
+     "id": "test-unit:sha256:5d18c3bbdc07c2bafbc0ba456bca6eb6864b2b50f41563225b66a7f4b84f6051",
+     "path": "pkg/test_simple.py",
+     "runtimeName": "test_nested_holder",
+     "skipped": false,
+     "wire": "{\"blobOid\":\"27120a78348b41b2a996d6db862cfc7e9027182f\",\"bodySha256\":\"41a3cac6858abdc38c1ab9e5c1a6c56a5635fa71554255880265fbfb90e3ef80\",\"bodySpan\":{\"end\":1000,\"start\":945},\"executionKeySha256\":\"65b8962807bb11474afc965599580474248d9306e60cce2b76b730c07aaa842b\",\"extractorProfile\":\"python-ast/1\",\"id\":\"test-unit:sha256:5d18c3bbdc07c2bafbc0ba456bca6eb6864b2b50f41563225b66a7f4b84f6051\",\"path\":\"pkg/test_simple.py\"}"
+    }
+   ]
+  }
+ },
+ "canonical": {
+  "escapes": "{\"backslash\":\"a\\\\b\",\"control\":\"a\\u0001b\",\"del\":\"ab\",\"newline\":\"a\\nb\",\"quote\":\"a\\\"b\",\"tab\":\"a\\tb\",\"unicode\":\"café ✓\"}",
+  "nested": "{\"a\":-5,\"z\":[1,{\"x\":true,\"y\":null}]}\n",
+  "sortedKeys": "{\"\":4,\"A\":2,\"a\":3,\"b\":1}"
+ },
+ "command": "{\"argv\":[\"python3\",\"-m\",\"unittest\"],\"cleanTarget\":\"CALLER_ATTESTED_CLEAN\",\"cwd\":\".\",\"environment\":{\"entries\":[],\"policy\":\"OMITTED\"},\"id\":\"test-command:sha256:16f041b3639fbb4d315a857e3f6f2101eeaaa09862dd9474f81ddd56c5af0b33\",\"runner\":{\"identity\":\"python-unittest\",\"version\":\"3.13.7\"},\"spec\":\"test-command/0.1-experimental\",\"targetRevision\":\"0123456789abcdef0123456789abcdef01234567\"}\n",
+ "commandNotAttested": "{\"argv\":[\"go\",\"test\",\"./...\"],\"cleanTarget\":\"NOT_ATTESTED\",\"cwd\":\"sub/dir\",\"environment\":{\"entries\":[],\"policy\":\"OMITTED\"},\"id\":\"test-command:sha256:17129a26a567cfdc6b64deb7fd302f52eebd5bc3ac8e5f6d97a7d5c9fce8d907\",\"runner\":{\"identity\":\"go-test\",\"version\":\"1.24.0\"},\"spec\":\"test-command/0.1-experimental\",\"targetRevision\":\"0123456789abcdef0123456789abcdef01234567\"}\n",
+ "executionKeys": {
+  "pkg/sample_test.go|TestAlpha": "7d9af16c0f292dd93f212995c5b001a173f8054bffb185d3eb4c7f7a95cf7054",
+  "pkg/sample_test.go|TestTable/alpha-case": "a1800a7a6757994b9a7c47065348cabc52d152a5605a48305f10547e9008cc3e",
+  "pkg/test_simple.py|test_alpha": "f82eec5133bfde1565c34a5d4f4e721b4299c0c34b2a86e5541f3b7475f94809",
+  "unicode": "876b9568ee6527c5bd5263706d9891dd6c7e27a36c0f2277ed8d3229e0b3731b"
+ },
+ "normalPaths": {
+  "": null,
+  ".": null,
+  "..": null,
+  "./a/b.go": "a/b.go",
+  "/abs/x": null,
+  "C:/x": null,
+  "a/../b": null,
+  "a//b": null,
+  "a/b.go": "a/b.go",
+  "a\\b.go": "a/b.go"
+ },
+ "selectorFragments": {
+  "  ": "unnamed",
+  "Alpha Case": "alpha-case",
+  "HTTPServer2Ready": "httpserver2-ready",
+  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "alpha-case": "alpha-case",
+  "class": "class",
+  "manyBodies": "many-body",
+  "policies": "policy",
+  "read_files": "read-file",
+  "ss": "ss"
+ }
+}

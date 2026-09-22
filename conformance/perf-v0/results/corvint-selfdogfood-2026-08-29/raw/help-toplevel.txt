@@ -1,0 +1,53 @@
+Corvint experimental Go candidate
+
+Usage:
+  corvint [--root PATH] (init | adopt) [--authority-id ID] [--revision REV]
+    [--exclude-prefix PATH] [--full-receipt]
+  corvint [--root PATH] query --task TASK --limit 1 [--budget-bytes N]
+  corvint [--root PATH] impact [--limit N] [--working-tree-untracked] PATH...
+  corvint [--root PATH] impact --base FULL_COMMIT_ID [--limit N]
+  corvint [--root PATH] harness event OPTIONS
+  corvint [--root PATH] cem ACTION OPTIONS
+  corvint [--root PATH] ocm (status | verify | report) OPTIONS
+  corvint [--root PATH] lrf --cem MAP [OPTIONS]
+  corvint [--root PATH] record --task TASK [--opened PATH] --changed PATH
+    --verify COMMAND --outcome (passed | failed | blocked)
+  corvint [--root PATH] migrate-traces (--dry-run | --apply) [--plan-digest SHA256]
+  corvint [--root PATH] COMMAND --help
+  corvint help [init|adopt|query|impact|cem|ocm|lrf|record|migrate-traces]
+  corvint help harness event
+  corvint --version
+
+Commands:
+  init           Compile the first mechanical repository inventory.
+  adopt          Compile the recoverable mechanical repository inventory.
+  query          Compile the narrow project-operations authority-start receipt.
+  impact         Compile path, untracked-file, or committed-range impact evidence.
+  harness event  Compile one supported agent-harness lifecycle event.
+  cem            Change Evidence Map producer/verifier: begin, prepare, cite,
+                 mark, status, verify, and report.
+  ocm            Read-only OCM status/verify plus local reviewer report.
+  lrf            Verify repository authority and apply the lexical relevance floor.
+  record         Record one explicit local task outcome.
+  migrate-traces Plan or apply legacy tree-trace migration.
+
+Global options:
+  --root PATH  Repository root (default: current directory). An explicit root is
+               made absolute, expands ~ or ~/, and resolves symlinks when
+               possible. init, adopt, query, and impact require it to contain .git up front;
+               cem validates the repository at its frozen precedence stage.
+  --version    Print the experimental candidate version.
+  --help       Print this help on stdout and exit 0.
+
+Support boundary:
+  This binary implements only the experimental slices listed above; it is not
+  the complete Corvint CLI. init, adopt, query, and impact are qualified only on Darwin and
+  Linux. All commands are local-only and make no network or telemetry request.
+
+  init, adopt, query, impact, harness, and lrf read without mutating. ocm status and verify are
+  also read-only. record writes one atomic
+  local trace row, and migrate-traces --dry-run
+  also reads without mutating; --apply rewrites the local trace store. cem begin, prepare, cite,
+  and mark write local CEM artifacts (the map and the patch cache), and cem
+  report writes the local review report; ocm report writes the local OCM review report; no
+  other files are touched.

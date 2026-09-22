@@ -1,0 +1,53 @@
+name: Verify Change Evidence Map
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# The verifier needs only repository reads. Do not use pull_request_target,
+# write permissions, secrets, deployments, artifact uploads, or checkout credentials.
+permissions:
+  contents: read
+
+jobs:
+  cem:
+    runs-on: ubuntu-latest
+    steps:
+      # Keep the verifier script and executable in a checkout of the protected base,
+      # never in a PR head checkout. Pin this action to a reviewed full commit
+      # SHA in a production repository.
+      - name: Check out trusted base
+        # actions/checkout v4.2.2; keep this full SHA under dependency review.
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          fetch-depth: 1
+          persist-credentials: false
+
+      # This checkout is untrusted input only. Nothing from it is executed.
+      - name: Check out PR head as data
+        # actions/checkout v4.2.2; keep this full SHA under dependency review.
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: head
+          fetch-depth: 1
+          persist-credentials: false
+
+      # This intentionally uses a linux/amd64 corvint executable that the adopting
+      # repository has built from a reviewed Corvint revision, hashed, and checked in.
+      # 0.4.0a4 is Corvint staging, not a published package or GitHub release.
+
+      - name: Verify CEM
+        env:
+          CEM_REPOSITORY: ${{ github.workspace }}/base
+          CEM_HEAD_REPOSITORY: ${{ github.workspace }}/head
+          CEM_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CEM_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CEM_PROFILE: cem/0.2
+          CEM_MAP_PATH: .corvint/change.cem.json
+          CEM_MAX_UNKNOWN: 0
+          CEM_MAX_MECHANICAL: 0
+          CORVINT_BIN: ${{ github.workspace }}/base/tools/corvint/corvint
+        run: "$GITHUB_WORKSPACE/base/examples/cem/verify-pr.sh"

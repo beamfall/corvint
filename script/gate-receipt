@@ -1,0 +1,72 @@
+#!/bin/sh
+# GOC-V0-010: the private full-gate receipt. `make gate` runs `clear` before its first step and
+# `record` only after every step passed. `record` binds HEAD's commit and tree to the SHA-256 of the
+# archive witness that go-archive-gate recorded during the same run, and refuses, leaving no
+# receipt, unless the worktree is clean and that witness is PASS for HEAD. `clear` also stamps the
+# commit and tree the gate starts at from a clean worktree; `record` refuses unless HEAD still is
+# that stamp, so steps that ran on other content never bind to the HEAD seen at the end.
+set -eu
+
+usage() { echo "usage: script/gate-receipt clear|record" >&2; exit 2; }
+refuse() { printf 'gate-receipt: REFUSE %s\n' "$1" >&2; exit 1; }
+[ "$#" -eq 1 ] || usage
+
+root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
+git_dir=$(git -C "$root" rev-parse --absolute-git-dir)
+witness="$git_dir/corvint/release-go-archive-report.json"
+receipt="$git_dir/corvint/release-gate-receipt"
+start="$git_dir/corvint/release-gate-start"
+# A `git status` that fails is an unknown worktree, never a clean one. `git status` does not see a
+# tracked file edited under skip-worktree or assume-unchanged (`ls-files -v` tags S or lower case),
+# nor an ignored `.go` file that `go ./...` compiles (outside `.`/`_`-prefixed and testdata dirs).
+clean() {
+  porcelain=$(git -C "$root" status --porcelain=v1 --untracked-files=all) && [ -z "$porcelain" ] &&
+    flagged=$(git -C "$root" ls-files -v) && ! printf '%s\n' "$flagged" | grep -q '^[a-zS]' &&
+    ignored=$(git -C "$root" ls-files --others --ignored --exclude-standard -- '*.go') &&
+    ! printf '%s\n' "$ignored" | grep -v -E '(^|/)([._][^/]*|testdata)/' | grep -q .
+}
+head_state() {
+  head_commit=$(git -C "$root" rev-parse --verify 'HEAD^{commit}') &&
+    head_tree=$(git -C "$root" rev-parse --verify 'HEAD^{tree}') &&
+    printf '%s %s\n' "$head_commit" "$head_tree"
+}
+
+case $1 in
+clear)
+  rm -f "$receipt" "$start"
+  clean || exit 0
+  state=$(head_state) || exit 0
+  mkdir -p "$(dirname "$start")"
+  (umask 077; printf '%s\n' "$state" > "$start.$$")
+  mv -f "$start.$$" "$start"
+  exit 0 ;;
+record) rm -f "$receipt" ;;
+*) usage ;;
+esac
+
+[ -f "$witness" ] && [ ! -L "$witness" ] || refuse archive-witness-absent
+clean || refuse worktree-not-clean
+[ -f "$start" ] && [ ! -L "$start" ] || refuse worktree-not-clean-at-start
+state=$(head_state) || refuse head-moved-during-gate
+[ "$(cat "$start")" = "$state" ] || refuse head-moved-during-gate
+revision=${state% *}
+tree=${state#* }
+digest=$(shasum -a 256 "$witness" | awk '{print $1}')
+
+status_cache=$(mktemp -d "${TMPDIR:-/tmp}/corvint-gate-receipt.XXXXXX")
+# A signal trap that returns lets the script resume and report success, so each signal exits 128+N
+# and the EXIT trap cleans up.
+trap 'rm -rf "$status_cache"' EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+status=$(cd "$root" && GOCACHE="$status_cache" GOTOOLCHAIN=local GOENV=off GOPROXY=off GOSUMDB=off \
+  GOFLAGS=-mod=readonly go run ./conformance/release-artifact-v0 archive-status \
+  --witness "$witness" --revision "$revision" --tree "$tree" 2>/dev/null) || status=INVALID
+[ "$status" = PASS ] || refuse archive-witness-not-pass
+# The witness must be the one archive-status just judged, not one rewritten while it ran.
+[ "$(shasum -a 256 "$witness" | awk '{print $1}')" = "$digest" ] || refuse archive-witness-changed
+
+temporary="$receipt.$$"
+(umask 077; printf 'corvint-gate-receipt/0 %s %s %s\n' "$revision" "$tree" "$digest" > "$temporary")
+mv -f "$temporary" "$receipt"

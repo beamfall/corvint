@@ -1,0 +1,8 @@
+go 1.26
+
+use ./core // one directive per line
+
+use (
+	./app
+	../outside
+)

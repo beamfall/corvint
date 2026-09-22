@@ -1,0 +1,414 @@
+{
+  "format": "corvint-perf-v0/2",
+  "profile": {
+    "clause": "GPK-V0-016",
+    "cutoffClause": "GPK-V0-017",
+    "description": "Preregistered Packet 5 current-pin harness requalification retry under decision 0016 P5R-V0-004, ratified by decision 0086 with exact DR-0026 stdout pairs. The closed corpus has the six 2026-08-31 harness rows across Corvint and Beamfall plus their six snapshot-present mirrors (decision 0084 item 3), which bind GPK-V0-017(a)'s index-building events and (b); twelve rows, five discarded warmups and 100 measured fresh processes per runtime and row, and no sample, candidate-revision, or task-selection override. Cold-corpus index-building and query rows are reported beside the binding rows and are not thresholds. Packet 4 is excluded and remains NOT_RUN/incomplete; this manifest is not global cutover or compatibility-completion evidence."
+  },
+  "oracleCommand": "python3 -m corvint_cli",
+  "candidatePackage": "./cmd/corvint",
+  "preregistration": {
+    "registeredAt": "2026-09-11T17:01:18Z",
+    "warmupSamples": 5,
+    "measuredSamples": 100,
+    "percentileEstimator": "nearest-rank",
+    "bootstrapResamples": 10000,
+    "bootstrapConfidence": 0.95,
+    "bootstrapSeed": 20260828,
+    "sampleTimeoutMilliseconds": 120000,
+    "interleave": "alternating-per-sample"
+  },
+  "validity": {
+    "requireEqualStdout": true,
+    "requireEqualStderr": true,
+    "requireEqualExitStatus": true,
+    "requireCorpusUnchanged": true,
+    "requireCacheStableDuringMeasurement": true,
+    "forbidTimeouts": true,
+    "forbidFailures": true,
+    "minimumMeasuredSamples": 100,
+    "requirePreregisteredSampleCounts": true
+  },
+  "thresholds": {
+    "nonQueryHarnessP95Milliseconds": 100,
+    "portableProductCapMilliseconds": 250,
+    "queryP95Milliseconds": 500,
+    "nonQueryOracleImprovementFraction": 0.5,
+    "otherCommandRegressionFraction": 0.1
+  },
+  "claimScope": {
+    "id": "packet-5-current-pin-requalification-retry-2-2026-09-11",
+    "decision": "0016",
+    "includedTaskIds": [
+      "harness-user-prompt",
+      "beamfall-harness-user-prompt",
+      "harness-file-change",
+      "beamfall-harness-file-change",
+      "harness-compact-session-start",
+      "beamfall-harness-compact-session-start",
+      "harness-user-prompt-snapshot-present",
+      "beamfall-harness-user-prompt-snapshot-present",
+      "harness-file-change-snapshot-present",
+      "beamfall-harness-file-change-snapshot-present",
+      "harness-compact-session-start-snapshot-present",
+      "beamfall-harness-compact-session-start-snapshot-present"
+    ],
+    "excludedClaims": [
+      "packet-4-completion",
+      "packet-4-promotion",
+      "combined-packet-4-5-completion",
+      "global-cutover",
+      "global-compatibility"
+    ]
+  },
+  "corpora": [
+    {
+      "id": "corvint",
+      "repositoryPath": ".",
+      "revision": "b9d1be2dc2e6bf2e9818c8d1faae2976d998295a",
+      "enabled": true,
+      "notRunReason": "",
+      "indexNote": "The Corvint corpus, frozen Python oracle, and candidate share commit b9d1be2dc2e6bf2e9818c8d1faae2976d998295a and tree 7ba5987d0baaffa89408142fc9e1675d66a989bb. Five discarded warmups settle the shared content-addressed cache before the measured window."
+    },
+    {
+      "id": "corvint-snapshot-present",
+      "repositoryPath": ".",
+      "revision": "b9d1be2dc2e6bf2e9818c8d1faae2976d998295a",
+      "enabled": true,
+      "notRunReason": "",
+      "setup": [
+        [
+          "index"
+        ]
+      ],
+      "indexNote": "This corpus measures the Corvint snapshot-hit path: the candidate runs `corvint index` once against the materialized corpus before the five discarded warmups and the 100 measured samples, outside timing, so a persisted index artifact exists under .corvint/index/ for every measured invocation. The Corvint corpus, frozen Python oracle, and candidate share commit b9d1be2dc2e6bf2e9818c8d1faae2976d998295a and tree 7ba5987d0baaffa89408142fc9e1675d66a989bb. Five discarded warmups settle the shared content-addressed cache before the measured window."
+    },
+    {
+      "id": "beamfall",
+      "repositoryPath": "~/projects/beamfall-workspace/beamfall",
+      "revision": "fa3b1e7fe5bc6c10e4b09b2729f364780f567a48",
+      "enabled": true,
+      "notRunReason": "",
+      "indexNote": "This corpus measures the snapshot-miss path: no setup runs before the warmups, so every measured invocation compiles its bounded context index in-process, the same as the corvint corpus. The five discarded warmups settle the content-addressed CORVINT_CACHE_DIR entries both runtimes read. GPK-V0-022 additionally requires that repository status before and after each read-only case be identical, which the runner's own unchanged-repository predicate enforces per measured window."
+    },
+    {
+      "id": "beamfall-snapshot-present",
+      "repositoryPath": "~/projects/beamfall-workspace/beamfall",
+      "revision": "fa3b1e7fe5bc6c10e4b09b2729f364780f567a48",
+      "enabled": true,
+      "notRunReason": "",
+      "setup": [
+        [
+          "index"
+        ]
+      ],
+      "indexNote": "This corpus measures the snapshot-hit path: the candidate runs `corvint index` once against the materialized corpus before the five discarded warmups and the 100 measured samples, outside timing, so a persisted index artifact exists under .corvint/index/ for every measured invocation. The warmups then settle the content-addressed CORVINT_CACHE_DIR entries both runtimes read. GPK-V0-022 additionally requires that repository status before and after each read-only case be identical, which the runner's own unchanged-repository predicate enforces per measured window against the post-setup corpus state."
+    }
+  ],
+  "tasks": [
+    {
+      "id": "harness-user-prompt",
+      "corpus": "corvint",
+      "class": "query",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "user-prompt",
+        "--input",
+        "-"
+      ],
+      "stdin": "{\"task\":\"Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket\"}",
+      "acceptedDivergences": [
+        "DR-0021"
+      ]
+    },
+    {
+      "id": "beamfall-harness-user-prompt",
+      "corpus": "beamfall",
+      "class": "query",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "user-prompt",
+        "--input",
+        "-"
+      ],
+      "stdin": "{\"task\":\"Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket\"}",
+      "acceptedDivergences": [
+        "DR-0026"
+      ]
+    },
+    {
+      "id": "harness-file-change",
+      "corpus": "corvint",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "file-change",
+        "--input",
+        "-"
+      ],
+      "stdin": "{\"paths\":[\"cmd/corvint/main.go\"]}",
+      "acceptedDivergences": [
+        "DR-0004",
+        "DR-0009",
+        "DR-0021"
+      ]
+    },
+    {
+      "id": "beamfall-harness-file-change",
+      "corpus": "beamfall",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "file-change",
+        "--input",
+        "-"
+      ],
+      "stdin": "{\"paths\":[\"internal/graph/graph.go\"]}",
+      "acceptedDivergences": [
+        "DR-0009"
+      ]
+    },
+    {
+      "id": "harness-compact-session-start",
+      "corpus": "corvint",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "session-start",
+        "--input",
+        "-"
+      ],
+      "stdin": "{\"startSource\":\"compact\"}"
+    },
+    {
+      "id": "beamfall-harness-compact-session-start",
+      "corpus": "beamfall",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "session-start",
+        "--input",
+        "-"
+      ],
+      "stdin": "{\"startSource\":\"compact\"}"
+    },
+    {
+      "id": "harness-user-prompt-snapshot-present",
+      "corpus": "corvint-snapshot-present",
+      "class": "query",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "user-prompt",
+        "--input",
+        "-"
+      ],
+      "stdin": "{\"task\":\"Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket\"}",
+      "acceptedDivergences": [
+        "DR-0021"
+      ]
+    },
+    {
+      "id": "beamfall-harness-user-prompt-snapshot-present",
+      "corpus": "beamfall-snapshot-present",
+      "class": "query",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "user-prompt",
+        "--input",
+        "-"
+      ],
+      "stdin": "{\"task\":\"Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket\"}",
+      "acceptedDivergences": [
+        "DR-0026"
+      ]
+    },
+    {
+      "id": "harness-file-change-snapshot-present",
+      "corpus": "corvint-snapshot-present",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "file-change",
+        "--input",
+        "-"
+      ],
+      "stdin": "{\"paths\":[\"cmd/corvint/main.go\"]}",
+      "acceptedDivergences": [
+        "DR-0004",
+        "DR-0009",
+        "DR-0021"
+      ]
+    },
+    {
+      "id": "beamfall-harness-file-change-snapshot-present",
+      "corpus": "beamfall-snapshot-present",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "file-change",
+        "--input",
+        "-"
+      ],
+      "stdin": "{\"paths\":[\"internal/graph/graph.go\"]}",
+      "acceptedDivergences": [
+        "DR-0009"
+      ]
+    },
+    {
+      "id": "harness-compact-session-start-snapshot-present",
+      "corpus": "corvint-snapshot-present",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "session-start",
+        "--input",
+        "-"
+      ],
+      "stdin": "{\"startSource\":\"compact\"}"
+    },
+    {
+      "id": "beamfall-harness-compact-session-start-snapshot-present",
+      "corpus": "beamfall-snapshot-present",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "session-start",
+        "--input",
+        "-"
+      ],
+      "stdin": "{\"startSource\":\"compact\"}"
+    }
+  ]
+}

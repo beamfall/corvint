@@ -1,0 +1,1 @@
+@interface ObjectiveCFixture : NSObject @end

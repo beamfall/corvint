@@ -1,0 +1,95 @@
+{
+  "id": "unsupported-context-upstream-profile",
+  "matrixRows": [
+    "CEM 0.1 or OCM bound to 0.1"
+  ],
+  "clauses": [
+    "CF-V0-001",
+    "CF-V0-004",
+    "CF-V0-022"
+  ],
+  "intent": "CF-V0-001 names CEM 0.1 and OCM-bound-to-CEM-0.1 as exactly unsupported-frontier-context; CF-V0-022 routes a Frontier-owned profile mismatch to that code with exit 2 and no stdout.",
+  "cases": [
+    {
+      "id": "cem-0.1-artifact",
+      "note": "The supplied change-evidence map declares cem/0.1.",
+      "declared": {
+        "cemProfile": "cem/0.1",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "unsupported-frontier-context",
+        "stderr": "{\"code\":\"unsupported-frontier-context\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "856d864891c80d5a7d9af3628bc44427cfe560c0ae23efce223550743a86874d"
+      },
+      "assertions": [
+        "CF-V0-001: a cem/0.1 artifact fails unsupported-frontier-context.",
+        "CF-V0-004: exit 2 and no Frontier JSON on stdout.",
+        "CF-V0-024: the envelope carries no path, OID, digest or profile string from the rejected input."
+      ]
+    },
+    {
+      "id": "ocm-bound-to-cem-0.1",
+      "note": "A canonical OCM whose binding names cem/0.1.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-bound-to-cem-0.1",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "unsupported-frontier-context",
+        "stderr": "{\"code\":\"unsupported-frontier-context\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "856d864891c80d5a7d9af3628bc44427cfe560c0ae23efce223550743a86874d"
+      },
+      "assertions": [
+        "CF-V0-001: OCM bound to CEM 0.1 fails unsupported-frontier-context.",
+        "CF-V0-022: the code is Frontier-owned, not an inherited upstream code."
+      ]
+    },
+    {
+      "id": "both-0.1",
+      "note": "Both artifacts on the 0.1 lineage; one code, not two.",
+      "declared": {
+        "cemProfile": "cem/0.1",
+        "ocmProfile": "ocm/0.1-bound-to-cem-0.1",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal"
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "unsupported-frontier-context",
+        "stderr": "{\"code\":\"unsupported-frontier-context\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "856d864891c80d5a7d9af3628bc44427cfe560c0ae23efce223550743a86874d"
+      },
+      "assertions": [
+        "CF-V0-022: exactly one bounded stderr object is written, never one per rejected input."
+      ]
+    }
+  ]
+}

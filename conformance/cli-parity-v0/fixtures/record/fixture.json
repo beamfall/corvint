@@ -1,0 +1,23 @@
+{
+  "format": "atlas-cli-parity-fixture/0",
+  "files": [
+    {
+      "path": ".gitignore",
+      "type": "file",
+      "mode": "0644",
+      "content": ".context-atlas/\n"
+    },
+    {
+      "path": "go.mod",
+      "type": "file",
+      "mode": "0644",
+      "content": "module example.test/record\n\ngo 1.27.0\n"
+    },
+    {
+      "path": "internal/example/value.go",
+      "type": "file",
+      "mode": "0644",
+      "content": "package example\n"
+    }
+  ]
+}

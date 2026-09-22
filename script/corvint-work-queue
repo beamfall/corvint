@@ -1,0 +1,142 @@
+#!/bin/bash
+set -eu
+umask 077
+
+# Reject rebinding before any metadata read or temporary allocation. Keep the
+# outer PATH intact: repository build tools run at repository-code trust.
+for name in GIT_DIR GIT_COMMON_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE GIT_REPLACE_REF_BASE GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS; do
+  if declare -p "$name" >/dev/null 2>&1; then
+    printf '%s\n' "unsupported ambient $name" >&2
+    exit 2
+  fi
+done
+case $(/usr/bin/uname -s) in
+  Darwin) git_path=/opt/homebrew/bin:/usr/local/bin:/usr/local/go/bin:/usr/bin:/bin:/usr/sbin:/sbin ;;
+  Linux) git_path=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin ;;
+  *) exit 2 ;;
+esac
+git_executable=
+IFS=: read -r -a git_directories <<< "$git_path"
+for directory in "${git_directories[@]}"; do
+  if [ -f "$directory/git" ] && [ -x "$directory/git" ]; then git_executable="$directory/git"; break; fi
+done
+if [ -z "$git_executable" ]; then exit 2; fi
+script_git() {
+  /usr/bin/env -i PATH="$git_path" LANG=C LC_ALL=C TZ=UTC NO_COLOR=1 HOME=/dev/null TMPDIR=/tmp GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null GIT_OPTIONAL_LOCKS=0 GIT_TERMINAL_PROMPT=0 GIT_NO_LAZY_FETCH=1 "$git_executable" --no-replace-objects -c core.fsmonitor=false -c core.untrackedCache=false -c core.hooksPath=/dev/null -c core.excludesFile= -c credential.helper= -c submodule.recurse=false "$@"
+}
+root=$(script_git rev-parse --show-toplevel)
+revision=$(script_git rev-parse --verify HEAD)
+git_dir=$(script_git rev-parse --absolute-git-dir)
+common_dir=$(script_git rev-parse --path-format=absolute --git-common-dir)
+root=$(cd -P -- "$root" && pwd -P)
+git_dir=$(cd -P -- "$git_dir" && pwd -P)
+common_dir=$(cd -P -- "$common_dir" && pwd -P)
+
+outside_repository() {
+  for protected in "$root" "$git_dir" "$common_dir"; do
+    ancestor="$1"
+    depth=0
+    while :; do
+      if [ "$ancestor" -ef "$protected" ]; then return 1; fi
+      if [ "$ancestor" = / ]; then break; fi
+      depth=$((depth + 1))
+      if [ "$depth" -gt 256 ]; then return 1; fi
+      ancestor="${ancestor%/*}"
+      if [ -z "$ancestor" ]; then ancestor=/; fi
+    done
+  done
+  return 0
+}
+owner="${TMPDIR:-/tmp}/corvint-work-queue-owner"
+shared=false
+if [ -d "$owner" ] && [ ! -L "$owner" ] && [ -f "$owner/tuple" ] && [ ! -L "$owner/tuple" ]; then
+  owner=$(cd -P -- "$owner" && pwd -P)
+  if ! outside_repository "$owner"; then
+    printf '%s\n' 'work queue scratch overlaps repository metadata or target' >&2
+    exit 2
+  fi
+  expected=$(printf '%s\n%s' "$root" "$revision")
+  actual=$(cat "$owner/tuple")
+  if [ "$actual" = "$expected" ]; then shared=true; fi
+fi
+
+child=
+owned_group=false
+scratch=
+cleanup_child() {
+  [ -n "$child" ] || return 0
+  if "$owned_group"; then
+    kill -TERM -- "-$child" 2>/dev/null || :
+    attempts=0
+    while kill -0 -- "-$child" 2>/dev/null && [ "$attempts" -lt 20 ]; do
+      sleep 0.05
+      attempts=$((attempts + 1))
+    done
+    kill -KILL -- "-$child" 2>/dev/null || :
+  else
+    kill -TERM "$child" 2>/dev/null || :
+    kill -KILL "$child" 2>/dev/null || :
+  fi
+  wait "$child" 2>/dev/null || :
+  child=
+}
+cleanup() {
+  cleanup_child
+  if ! "$shared" && [ -n "$scratch" ]; then rm -rf -- "$scratch"; fi
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+if "$shared"; then
+  # The observer owns this process group and the entire private TMPDIR.
+  scratch="$owner/build"
+  if [ -L "$scratch" ]; then exit 2; fi
+  mkdir -p "$scratch"
+else
+  temporary_root=$(cd -P /tmp && pwd -P)
+  if ! outside_repository "$temporary_root"; then exit 2; fi
+  scratch=$(mktemp -d "$temporary_root/corvint-work-queue.XXXXXXXX")
+  mkdir -p "$scratch/home" "$scratch/tmp/corvint-work-queue-owner"
+  printf '%s\n%s\n' "$root" "$revision" > "$scratch/tmp/corvint-work-queue-owner/tuple"
+  # Noninteractive Bash job control gives each direct child an owned group.
+  set -m
+  owned_group=true
+fi
+
+run_child() {
+  "$@" &
+  child=$!
+  result=0
+  wait "$child" || result=$?
+  cleanup_child
+  return "$result"
+}
+
+# Go's build cache is keyed by the content of every compile input and the toolchain,
+# so a per-user cache outside the repository and every run tuple only skips
+# recompiling unchanged packages: each capture still builds this run's source bytes.
+# -trimpath drops the materialization directory from those keys; without it every
+# fresh private target misses the cache for each repository package.
+# A cache directory this user does not privately own falls back to run-private
+# compilation (WQO-V0-005).
+build_cache="$scratch/cache"
+user_cache="$(cd -P /tmp && pwd -P)/corvint-work-queue-gocache-$(/usr/bin/id -u)"
+mkdir -m 700 "$user_cache" 2>/dev/null || :
+if [ -d "$user_cache" ] && [ ! -L "$user_cache" ] && [ -O "$user_cache" ] && [ -n "$(/usr/bin/find "$user_cache" -maxdepth 0 -perm 700)" ] && outside_repository "$user_cache"; then
+  build_cache="$user_cache"
+fi
+
+target="$scratch/corvint-work-queue"
+if [ ! -x "$target" ]; then
+  mkdir -p "$scratch/home" "$scratch/tmp"
+  # The qualified source identity already binds this build; private Git intentionally
+  # exports the target closure without ancestor history needed by VCS stamping.
+  run_child env HOME="$scratch/home" TMPDIR="$scratch/tmp" GOPATH="$scratch/gopath" GOCACHE="$build_cache" GOTMPDIR="$scratch/tmp" GOTOOLCHAIN=local go build -trimpath -buildvcs=false -o "$target.pending" "$root/cmd/corvint-work-queue"
+  mv "$target.pending" "$target"
+fi
+if "$shared"; then
+  run_child "$target" "$@"
+else
+  run_child env HOME="$scratch/home" TMPDIR="$scratch/tmp" "$target" "$@"
+fi

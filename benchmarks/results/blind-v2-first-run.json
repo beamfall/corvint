@@ -1,0 +1,608 @@
+{
+  "aggregate": {
+    "abstention_accuracy": 0.0,
+    "budget_compliance": 1.0,
+    "budgeted_cases": 5,
+    "cases": 5,
+    "critical_evidence_misses": 7,
+    "critical_evidence_total": 10,
+    "epistemic_state_accuracy": 0.0,
+    "exact_search_baseline": {
+      "abstention_accuracy": 0.0,
+      "query_cases": 4,
+      "top5_success": 0.5
+    },
+    "latency_ms": 13941.17,
+    "must_exclude_violations": 0,
+    "public_repositories": 4,
+    "recall": 0.071429,
+    "repositories": 5,
+    "repository_evaluations_ready": false,
+    "serialized_result_byte_weighted_precision": 0.182141,
+    "top5_task_success": 0.4
+  },
+  "corvint_commit": "working-tree:f6b6c6b564667652c6396f65e88f395493e23176e7b6ccce13def07902f76ad3",
+  "manifest_sha256": "1365eec079f861d8abe03123afdeefa4bd9da23f51bb2c7efce4366f553c87b1",
+  "repositories": [
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": true,
+                "selector": "path:internal/streamtoken/compat_binding.go"
+              },
+              {
+                "relevant": false,
+                "selector": "test:internal/streamtoken/streamtoken_test.go"
+              },
+              {
+                "relevant": true,
+                "selector": "test:internal/streamtoken/compat_binding_test.go"
+              },
+              {
+                "relevant": false,
+                "selector": "feature:hls-transcode"
+              },
+              {
+                "relevant": false,
+                "selector": "feature:relock"
+              },
+              {
+                "relevant": false,
+                "selector": "feature:scan-pipeline"
+              },
+              {
+                "relevant": false,
+                "selector": "reference:internal/streamtoken/streamtoken.go"
+              },
+              {
+                "relevant": false,
+                "selector": "reverse-import:internal/app/app.go"
+              },
+              {
+                "relevant": false,
+                "selector": "reverse-import:internal/graph/graph.go"
+              },
+              {
+                "relevant": false,
+                "selector": "reverse-import:internal/mediahttp/compat_verify.go"
+              }
+            ],
+            "budget_bytes": 36000,
+            "expected_state": null,
+            "id": "beamfall.compat-binding-impact.v1",
+            "missing": [
+              "symbol:internal/mediahttp/compat_verify.go:verifyCompatDecision",
+              "symbol:internal/playback/compat_stamp.go:compatDecisionContext",
+              "symbol:internal/server/compat_streamtoken_adapter.go:bindCompatStreamTokens",
+              "symbol:internal/streamtoken/streamtoken.go:Issue"
+            ],
+            "packet_bytes": 12122,
+            "partition": "heldout-v2",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 0,
+          "abstention_hits": 0,
+          "advisory_results": 0,
+          "authoritative_results": 10,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 1,
+          "cases": 1,
+          "critical_evidence_misses": 0,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 1,
+          "epistemic_state_accuracy": 1.0,
+          "epistemic_state_cases": 0,
+          "epistemic_state_hits": 0,
+          "latency_ms": 8078.255,
+          "must_exclude_total": 1,
+          "must_exclude_violations": 0,
+          "must_read_hits": 1,
+          "must_read_total": 5,
+          "packet_bytes": 12122,
+          "passed_trace_count": 0,
+          "recall": 0.2,
+          "relevant_result_bytes": 2696,
+          "serialized_result_byte_weighted_precision": 0.226993,
+          "top5_task_hits": 1,
+          "top5_task_success": 1.0,
+          "top5_task_total": 1,
+          "total_result_bytes": 11877,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent",
+          "widening_accuracy": 1.0,
+          "widening_cases": 0,
+          "widening_hits": 0
+        },
+        "revision": "2a1e79c4efe8a4870b5b7b72179a553b472af3d8",
+        "state": "CONFLICT"
+      },
+      "baseline": {
+        "abstention_accuracy": 1.0,
+        "abstention_cases": 0,
+        "abstention_hits": 0,
+        "cases": [],
+        "latency_ms": 0.007,
+        "query_cases": 0,
+        "top5_hits": 0,
+        "top5_success": 1.0
+      },
+      "commit": "6e82abd857c77c0ca250b6c4a8f5e1c86684a535",
+      "corpus_sha256": "d7ec09eaf48e96414a0c6cd4f4814bac39f0d4893333a2cc8e6b3986044bb1f0",
+      "id": "beamfall",
+      "language": "Go and TypeScript",
+      "public": false,
+      "url": "https://github.com/beamfall/core.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": false,
+                "selector": "symbol:src/flask/app.py:test_client"
+              }
+            ],
+            "budget_bytes": 18000,
+            "expected_state": "OUT_OF_SCOPE",
+            "id": "flask.native-async-test-client-negative.v1",
+            "missing": [],
+            "packet_bytes": 1285,
+            "partition": "heldout-v2",
+            "state": "READY",
+            "state_matches": false,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 0.0,
+          "abstention_cases": 1,
+          "abstention_hits": 0,
+          "advisory_results": 0,
+          "authoritative_results": 1,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 1,
+          "cases": 1,
+          "critical_evidence_misses": 0,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 0,
+          "epistemic_state_accuracy": 0.0,
+          "epistemic_state_cases": 1,
+          "epistemic_state_hits": 0,
+          "latency_ms": 1466.368,
+          "must_exclude_total": 2,
+          "must_exclude_violations": 0,
+          "must_read_hits": 0,
+          "must_read_total": 0,
+          "packet_bytes": 1285,
+          "passed_trace_count": 0,
+          "recall": 1.0,
+          "relevant_result_bytes": 0,
+          "serialized_result_byte_weighted_precision": 0.0,
+          "top5_task_hits": 0,
+          "top5_task_success": 0.0,
+          "top5_task_total": 1,
+          "total_result_bytes": 349,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent",
+          "widening_accuracy": 1.0,
+          "widening_cases": 0,
+          "widening_hits": 0
+        },
+        "revision": "a8da09a58146cd39bc2956bfa5d2f468bf592166",
+        "state": "CONFLICT"
+      },
+      "baseline": {
+        "abstention_accuracy": 0.0,
+        "abstention_cases": 1,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "flask.native-async-test-client-negative.v1",
+            "top5_hit": false,
+            "top5_paths": [
+              "src/flask/app.py",
+              "src/flask/helpers.py",
+              "tests/test_helpers.py",
+              "src/flask/sansio/app.py",
+              "tests/test_async.py"
+            ]
+          }
+        ],
+        "latency_ms": 23.0,
+        "query_cases": 1,
+        "top5_hits": 0,
+        "top5_success": 0.0
+      },
+      "commit": "d318b683471101618febed18996405ad26462110",
+      "corpus_sha256": "18cb13945d26bf7a6e31d9ea62a000342df3dbf376aa2084e3a3da5a792a4a52",
+      "id": "flask",
+      "language": "Python",
+      "public": true,
+      "url": "https://github.com/pallets/flask.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": false,
+                "selector": "symbol:command.go:SetCompletionCommandGroupID"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:flag_groups.go:enforceFlagGroupsForCompletion"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:command.go:SetHelpCommandGroupID"
+              },
+              {
+                "relevant": true,
+                "selector": "symbol:flag_groups.go:MarkFlagsOneRequired"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:command.go:Flags"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:flag_groups.go:processFlagForGroupAnnotation"
+              }
+            ],
+            "budget_bytes": 28000,
+            "expected_state": null,
+            "id": "cobra.one-required-runtime-completion.v1",
+            "missing": [
+              "path:command.go",
+              "path:completions.go",
+              "symbol:flag_groups.go:ValidateFlagGroups",
+              "test:completions_test.go",
+              "test:flag_groups_test.go"
+            ],
+            "packet_bytes": 3041,
+            "partition": "heldout-v2",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 0,
+          "abstention_hits": 0,
+          "advisory_results": 0,
+          "authoritative_results": 6,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 1,
+          "cases": 1,
+          "critical_evidence_misses": 1,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 3,
+          "epistemic_state_accuracy": 1.0,
+          "epistemic_state_cases": 0,
+          "epistemic_state_hits": 0,
+          "latency_ms": 597.496,
+          "must_exclude_total": 2,
+          "must_exclude_violations": 0,
+          "must_read_hits": 0,
+          "must_read_total": 4,
+          "packet_bytes": 3041,
+          "passed_trace_count": 0,
+          "recall": 0.0,
+          "relevant_result_bytes": 745,
+          "serialized_result_byte_weighted_precision": 0.342057,
+          "top5_task_hits": 1,
+          "top5_task_success": 1.0,
+          "top5_task_total": 1,
+          "total_result_bytes": 2178,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent",
+          "widening_accuracy": 1.0,
+          "widening_cases": 0,
+          "widening_hits": 0
+        },
+        "revision": "5a3b2c8e9af4c74e607a0a55e7910c1edb5d266f",
+        "state": "CONFLICT"
+      },
+      "baseline": {
+        "abstention_accuracy": 1.0,
+        "abstention_cases": 0,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "cobra.one-required-runtime-completion.v1",
+            "top5_hit": true,
+            "top5_paths": [
+              "site/content/user_guide.md",
+              "completions_test.go",
+              "site/content/completions/_index.md",
+              "completions.go",
+              "command.go"
+            ]
+          }
+        ],
+        "latency_ms": 18.988,
+        "query_cases": 1,
+        "top5_hits": 1,
+        "top5_success": 1.0
+      },
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "corpus_sha256": "90d8245bfc47123052dc95ef88c9201f505e2585d839dc74ccd4b9089cf67565",
+      "id": "cobra",
+      "language": "Go",
+      "public": true,
+      "url": "https://github.com/spf13/cobra.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v3/types.ts:freeze"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v3/helpers/parseUtil.ts:isAsync"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:packages/zod/src/v3/types.ts:ZodReadonly"
+              }
+            ],
+            "budget_bytes": 30000,
+            "expected_state": null,
+            "id": "zod.v4-readonly-freeze-claim.v1",
+            "missing": [
+              "path:packages/docs/content/api.mdx",
+              "path:packages/zod/src/v4/core/compile.ts",
+              "symbol:packages/zod/src/v4/core/schemas.ts:$ZodReadonly",
+              "symbol:packages/zod/src/v4/core/schemas.ts:handleReadonlyResult",
+              "test:packages/zod/src/v4/classic/tests/readonly.test.ts",
+              "test:packages/zod/src/v4/core/tests/compile.test.ts"
+            ],
+            "packet_bytes": 2954,
+            "partition": "heldout-v2",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 0,
+          "abstention_hits": 0,
+          "advisory_results": 0,
+          "authoritative_results": 3,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 1,
+          "cases": 1,
+          "critical_evidence_misses": 3,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 3,
+          "epistemic_state_accuracy": 1.0,
+          "epistemic_state_cases": 0,
+          "epistemic_state_hits": 0,
+          "latency_ms": 2643.82,
+          "must_exclude_total": 2,
+          "must_exclude_violations": 0,
+          "must_read_hits": 0,
+          "must_read_total": 3,
+          "packet_bytes": 2954,
+          "passed_trace_count": 0,
+          "recall": 0.0,
+          "relevant_result_bytes": 0,
+          "serialized_result_byte_weighted_precision": 0.0,
+          "top5_task_hits": 0,
+          "top5_task_success": 0.0,
+          "top5_task_total": 1,
+          "total_result_bytes": 2046,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent",
+          "widening_accuracy": 1.0,
+          "widening_cases": 0,
+          "widening_hits": 0
+        },
+        "revision": "1f8fe962ebac8d3898be3f0eed07a2f2bba571e2",
+        "state": "CONFLICT"
+      },
+      "baseline": {
+        "abstention_accuracy": 1.0,
+        "abstention_cases": 0,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "zod.v4-readonly-freeze-claim.v1",
+            "top5_hit": true,
+            "top5_paths": [
+              "packages/zod/src/v4/core/compile.ts",
+              "wiki/compiled-constructor-graph.md",
+              "packages/zod/src/v4/core/schemas.ts",
+              "wiki/compile-plan.md",
+              "packages/zod/src/v4/core/tests/compile-differential.test.ts"
+            ]
+          }
+        ],
+        "latency_ms": 301.734,
+        "query_cases": 1,
+        "top5_hits": 1,
+        "top5_success": 1.0
+      },
+      "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+      "corpus_sha256": "969f7df7a7ad436014e210d460cac80faaa4f0ec2a15241d1f3ab909db48d35b",
+      "id": "zod",
+      "language": "TypeScript",
+      "public": true,
+      "url": "https://github.com/colinhacks/zod.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "actual": [
+              {
+                "relevant": false,
+                "selector": "symbol:test-d/return/lines-main.test-d.ts:linesBufferResult"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:test-d/return/no-buffer-specific.test-d.ts:noBufferStderrResult"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:types/arguments/encoding-option.d.ts:BufferEncodingOption"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:test-d/return/lines-main.test-d.ts:linesBufferFd3Result"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:test-d/return/no-buffer-specific.test-d.ts:noBufferAllResult"
+              },
+              {
+                "relevant": false,
+                "selector": "symbol:types/arguments/encoding-option.d.ts:BinaryEncodingOption"
+              }
+            ],
+            "budget_bytes": 26000,
+            "expected_state": null,
+            "id": "execa.lines-binary-encoding.v1",
+            "missing": [
+              "path:lib/arguments/encoding-option.js",
+              "path:types/return/result-stdout.d.ts",
+              "symbol:lib/arguments/options.js:normalizeOptions",
+              "test:test-d/return/lines-main.test-d.ts",
+              "test:test/stdio/lines-noop.js"
+            ],
+            "packet_bytes": 3321,
+            "partition": "heldout-v2",
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 0,
+          "abstention_hits": 0,
+          "advisory_results": 0,
+          "authoritative_results": 6,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 1,
+          "cases": 1,
+          "critical_evidence_misses": 3,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 3,
+          "epistemic_state_accuracy": 1.0,
+          "epistemic_state_cases": 0,
+          "epistemic_state_hits": 0,
+          "latency_ms": 1155.231,
+          "must_exclude_total": 1,
+          "must_exclude_violations": 0,
+          "must_read_hits": 0,
+          "must_read_total": 2,
+          "packet_bytes": 3321,
+          "passed_trace_count": 0,
+          "recall": 0.0,
+          "relevant_result_bytes": 0,
+          "serialized_result_byte_weighted_precision": 0.0,
+          "top5_task_hits": 0,
+          "top5_task_success": 0.0,
+          "top5_task_total": 1,
+          "total_result_bytes": 2442,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent",
+          "widening_accuracy": 1.0,
+          "widening_cases": 0,
+          "widening_hits": 0
+        },
+        "revision": "f8ab67228ee0a417058f9bc2282945f915f64f39",
+        "state": "CONFLICT"
+      },
+      "baseline": {
+        "abstention_accuracy": 1.0,
+        "abstention_cases": 0,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "execa.lines-binary-encoding.v1",
+            "top5_hit": false,
+            "top5_paths": [
+              "docs/api.md",
+              "types/arguments/options.d.ts",
+              "docs/output.md",
+              "test/io/max-buffer.js",
+              "test/resolve/no-buffer.js"
+            ]
+          }
+        ],
+        "latency_ms": 203.304,
+        "query_cases": 1,
+        "top5_hits": 0,
+        "top5_success": 0.0
+      },
+      "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+      "corpus_sha256": "5a0e7e98ecebdf8d3124151dc3f91e92c65d6df19adcc362aff97bf17bc5a3c1",
+      "id": "execa",
+      "language": "JavaScript",
+      "public": true,
+      "url": "https://github.com/sindresorhus/execa.git"
+    }
+  ],
+  "schema_version": 1,
+  "v4_release": {
+    "blocked_by": [
+      "abstention",
+      "all_repository_evaluations_ready",
+      "epistemic_state_accuracy",
+      "full_recall",
+      "precision",
+      "top5_success",
+      "twenty_five_cases",
+      "zero_critical_misses"
+    ],
+    "checks": {
+      "abstention": false,
+      "all_cases_budgeted": true,
+      "all_repository_evaluations_ready": false,
+      "budget_compliance": true,
+      "epistemic_state_accuracy": false,
+      "five_repositories": true,
+      "four_public_repositories": true,
+      "full_recall": false,
+      "precision": false,
+      "top5_success": false,
+      "twenty_five_cases": false,
+      "zero_critical_misses": false,
+      "zero_forbidden_hits": true
+    },
+    "ready": false
+  }
+}

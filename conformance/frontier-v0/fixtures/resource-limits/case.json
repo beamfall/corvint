@@ -1,0 +1,448 @@
+{
+  "id": "resource-limits",
+  "matrixRows": [
+    "every Frontier limit and limit plus one"
+  ],
+  "clauses": [
+    "CF-V0-023",
+    "CF-V0-004",
+    "CF-V0-022"
+  ],
+  "intent": "Every one of the seven CF-V0-023 bounds at N and at N+1. The three kind bounds are driven independently with the other kinds empty, because 2048+256+256 happens to equal the 2,560 total bound and a naive implementation that checks only the total would otherwise pass.",
+  "cases": [
+    {
+      "id": "hunkItems-at-limit",
+      "note": "Exactly 2048 HUNK_BASIS items: the bound is inclusive, so this is a COMPLETE result.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "counts": {
+          "hunkItems": "2048"
+        }
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "2048"
+      },
+      "assertions": [
+        "CF-V0-023: 2048 is the exact declared bound for HUNK_BASIS items and MUST NOT fail.",
+        "CF-V0-023: checked counts occur before append, so the Nth append is admitted.",
+        "CF-V0-004: the result is a complete valid document with exit 1."
+      ]
+    },
+    {
+      "id": "hunkItems-at-limit-plus-one",
+      "note": "Exactly 2049 HUNK_BASIS items: one past the bound.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "counts": {
+          "hunkItems": "2049"
+        }
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "frontier-resource-exhausted",
+        "stderr": "{\"code\":\"frontier-resource-exhausted\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "2cd11141ce1eae586a00efa3905aba408a784c752dc2cedd1f1a63d3abcb74cd"
+      },
+      "assertions": [
+        "CF-V0-023: exceeding the hunkItems limit fails frontier-resource-exhausted with exit 2.",
+        "CF-V0-023: NO PARTIAL Frontier result is emitted — stdout is empty, not truncated.",
+        "CF-V0-023: the check occurs before append (or, for outputBytes, before output allocation), so the over-limit document is never built.",
+        "Evaluation and kill criteria: partial output on exhaustion is an immediate release blocker."
+      ]
+    },
+    {
+      "id": "intentChangeItems-at-limit",
+      "note": "Exactly 256 INTENT_CHANGE items: the bound is inclusive, so this is a COMPLETE result.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "counts": {
+          "intentChangeItems": "256"
+        }
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "512"
+      },
+      "assertions": [
+        "CF-V0-023: 256 is the exact declared bound for INTENT_CHANGE items and MUST NOT fail.",
+        "CF-V0-023: checked counts occur before append, so the Nth append is admitted.",
+        "CF-V0-004: the result is a complete valid document with exit 1."
+      ]
+    },
+    {
+      "id": "intentChangeItems-at-limit-plus-one",
+      "note": "Exactly 257 INTENT_CHANGE items: one past the bound.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "counts": {
+          "intentChangeItems": "257"
+        }
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "frontier-resource-exhausted",
+        "stderr": "{\"code\":\"frontier-resource-exhausted\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "2cd11141ce1eae586a00efa3905aba408a784c752dc2cedd1f1a63d3abcb74cd"
+      },
+      "assertions": [
+        "CF-V0-023: exceeding the intentChangeItems limit fails frontier-resource-exhausted with exit 2.",
+        "CF-V0-023: NO PARTIAL Frontier result is emitted — stdout is empty, not truncated.",
+        "CF-V0-023: the check occurs before append (or, for outputBytes, before output allocation), so the over-limit document is never built.",
+        "Evaluation and kill criteria: partial output on exhaustion is an immediate release blocker."
+      ]
+    },
+    {
+      "id": "intentTestItems-at-limit",
+      "note": "Exactly 256 INTENT_TEST items: the bound is inclusive, so this is a COMPLETE result.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "counts": {
+          "intentTestItems": "256"
+        }
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "512"
+      },
+      "assertions": [
+        "CF-V0-023: 256 is the exact declared bound for INTENT_TEST items and MUST NOT fail.",
+        "CF-V0-023: checked counts occur before append, so the Nth append is admitted.",
+        "CF-V0-004: the result is a complete valid document with exit 1."
+      ]
+    },
+    {
+      "id": "intentTestItems-at-limit-plus-one",
+      "note": "Exactly 257 INTENT_TEST items: one past the bound.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "counts": {
+          "intentTestItems": "257"
+        }
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "frontier-resource-exhausted",
+        "stderr": "{\"code\":\"frontier-resource-exhausted\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "2cd11141ce1eae586a00efa3905aba408a784c752dc2cedd1f1a63d3abcb74cd"
+      },
+      "assertions": [
+        "CF-V0-023: exceeding the intentTestItems limit fails frontier-resource-exhausted with exit 2.",
+        "CF-V0-023: NO PARTIAL Frontier result is emitted — stdout is empty, not truncated.",
+        "CF-V0-023: the check occurs before append (or, for outputBytes, before output allocation), so the over-limit document is never built.",
+        "Evaluation and kill criteria: partial output on exhaustion is an immediate release blocker."
+      ]
+    },
+    {
+      "id": "totalItems-at-limit",
+      "note": "Exactly 2560 items of every kind: the bound is inclusive, so this is a COMPLETE result.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "counts": {
+          "totalItems": "2560"
+        }
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "2560"
+      },
+      "assertions": [
+        "CF-V0-023: 2560 is the exact declared bound for items of every kind and MUST NOT fail.",
+        "CF-V0-023: checked counts occur before append, so the Nth append is admitted.",
+        "CF-V0-004: the result is a complete valid document with exit 1."
+      ]
+    },
+    {
+      "id": "totalItems-at-limit-plus-one",
+      "note": "Exactly 2561 items of every kind: one past the bound.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "counts": {
+          "totalItems": "2561"
+        }
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "frontier-resource-exhausted",
+        "stderr": "{\"code\":\"frontier-resource-exhausted\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "2cd11141ce1eae586a00efa3905aba408a784c752dc2cedd1f1a63d3abcb74cd"
+      },
+      "assertions": [
+        "CF-V0-023: exceeding the totalItems limit fails frontier-resource-exhausted with exit 2.",
+        "CF-V0-023: NO PARTIAL Frontier result is emitted — stdout is empty, not truncated.",
+        "CF-V0-023: the check occurs before append (or, for outputBytes, before output allocation), so the over-limit document is never built.",
+        "Evaluation and kill criteria: partial output on exhaustion is an immediate release blocker."
+      ]
+    },
+    {
+      "id": "relatedIdsPerItem-at-limit",
+      "note": "Exactly 64 relatedIds on one item: the bound is inclusive, so this is a COMPLETE result.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "counts": {
+          "relatedIdsPerItem": "64"
+        }
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "1"
+      },
+      "assertions": [
+        "CF-V0-023: 64 is the exact declared bound for relatedIds on one item and MUST NOT fail.",
+        "CF-V0-023: checked counts occur before append, so the Nth append is admitted.",
+        "CF-V0-004: the result is a complete valid document with exit 1."
+      ]
+    },
+    {
+      "id": "relatedIdsPerItem-at-limit-plus-one",
+      "note": "Exactly 65 relatedIds on one item: one past the bound.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "counts": {
+          "relatedIdsPerItem": "65"
+        }
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "frontier-resource-exhausted",
+        "stderr": "{\"code\":\"frontier-resource-exhausted\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "2cd11141ce1eae586a00efa3905aba408a784c752dc2cedd1f1a63d3abcb74cd"
+      },
+      "assertions": [
+        "CF-V0-023: exceeding the relatedIdsPerItem limit fails frontier-resource-exhausted with exit 2.",
+        "CF-V0-023: NO PARTIAL Frontier result is emitted — stdout is empty, not truncated.",
+        "CF-V0-023: the check occurs before append (or, for outputBytes, before output allocation), so the over-limit document is never built.",
+        "Evaluation and kill criteria: partial output on exhaustion is an immediate release blocker."
+      ]
+    },
+    {
+      "id": "reasonsPerItem-at-limit",
+      "note": "32 reasons on one item. UNSATISFIABLE BY CONSTRUCTION, and deliberately kept: CF-V0-023's bound is real and enforced, but no universe can reach it. CF-V0-010 and CF-V0-016 are CLOSED unions with unique members, so an item's reason count is bounded by its kind's table and not by CF-V0-023 - HUNK_BASIS unions the five CF-V0-010 basis diagnostics, INTENT_CHANGE 'has exactly one reason' (CF-V0-016), and INTENT_TEST unions the one relation reason with the twelve distinct reasons the CF-V0-016 TCQ mapping produces, for a reachable maximum of 13. The declared bound of 32 is therefore defence in depth over a narrower algebra. The conformance runner skips this case with that reason (capability reason-union-beyond-algebra); the bound itself and the reachable maximum of 13 are both tested at the boundary that enforces them, in internal/frontier/reason_bound_test.go.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "counts": {
+          "reasonsPerItem": "32"
+        }
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "1"
+      },
+      "assertions": [
+        "CF-V0-023: 32 is the exact declared bound for reasons on one item and MUST NOT fail.",
+        "CF-V0-023: checked counts occur before append, so the Nth append is admitted.",
+        "CF-V0-004: the result is a complete valid document with exit 1."
+      ]
+    },
+    {
+      "id": "reasonsPerItem-at-limit-plus-one",
+      "note": "33 reasons on one item. UNSATISFIABLE BY CONSTRUCTION for the same reason as the at-limit case: the closed CF-V0-010 and CF-V0-016 reason unions cap an item at 13 reasons, so neither N nor N+1 can be materialized from any repository. The refusal at N+1 is tested directly against both guards that own the bound in internal/frontier/reason_bound_test.go. The case is kept rather than deleted so the CF-V0-023 row stays exhaustive and the unreachability stays recorded.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "counts": {
+          "reasonsPerItem": "33"
+        }
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "frontier-resource-exhausted",
+        "stderr": "{\"code\":\"frontier-resource-exhausted\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "2cd11141ce1eae586a00efa3905aba408a784c752dc2cedd1f1a63d3abcb74cd"
+      },
+      "assertions": [
+        "CF-V0-023: exceeding the reasonsPerItem limit fails frontier-resource-exhausted with exit 2.",
+        "CF-V0-023: NO PARTIAL Frontier result is emitted — stdout is empty, not truncated.",
+        "CF-V0-023: the check occurs before append (or, for outputBytes, before output allocation), so the over-limit document is never built.",
+        "Evaluation and kill criteria: partial output on exhaustion is an immediate release blocker."
+      ]
+    },
+    {
+      "id": "outputBytes-at-limit",
+      "note": "Exactly 4194304 bytes of the complete output document: the bound is inclusive, so this is a COMPLETE result.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "counts": {
+          "outputBytes": "4194304"
+        }
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "1"
+      },
+      "assertions": [
+        "CF-V0-023: 4194304 is the exact declared bound for bytes of the complete output document and MUST NOT fail.",
+        "CF-V0-023: checked counts occur before append, so the Nth append is admitted.",
+        "CF-V0-004: the result is a complete valid document with exit 1."
+      ]
+    },
+    {
+      "id": "outputBytes-at-limit-plus-one",
+      "note": "Exactly 4194305 bytes of the complete output document: one past the bound.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "counts": {
+          "outputBytes": "4194305"
+        }
+      },
+      "expect": {
+        "kind": "error",
+        "exitCode": 2,
+        "stdout": "none",
+        "errorCode": "frontier-resource-exhausted",
+        "stderr": "{\"code\":\"frontier-resource-exhausted\",\"profile\":\"frontier-error/0\"}\n",
+        "stderrSha256": "2cd11141ce1eae586a00efa3905aba408a784c752dc2cedd1f1a63d3abcb74cd"
+      },
+      "assertions": [
+        "CF-V0-023: exceeding the outputBytes limit fails frontier-resource-exhausted with exit 2.",
+        "CF-V0-023: NO PARTIAL Frontier result is emitted — stdout is empty, not truncated.",
+        "CF-V0-023: the check occurs before append (or, for outputBytes, before output allocation), so the over-limit document is never built.",
+        "Evaluation and kill criteria: partial output on exhaustion is an immediate release blocker."
+      ]
+    }
+  ]
+}

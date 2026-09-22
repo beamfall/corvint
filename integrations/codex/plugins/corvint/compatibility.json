@@ -1,0 +1,36 @@
+{
+  "profile": "corvint-harness-compatibility/0",
+  "support": "FALLBACK",
+  "adapter": {
+    "host": "codex",
+    "surface": "plugin",
+    "version": "0.2.2"
+  },
+  "host": {
+    "minimumStaticallyValidatedVersion": "0.149.0",
+    "maximumStaticallyValidatedVersion": "0.149.0",
+    "staticallyValidatedAdapterVersion": "unknown",
+    "blackBoxTestedVersions": []
+  },
+  "operatingSystems": ["macOS"],
+  "surfaces": {
+    "hooks": "FALLBACK",
+    "skills": "FALLBACK",
+    "mcp": "UNAVAILABLE"
+  },
+  "lastConformance": {
+    "status": "NOT_RUN",
+    "date": null
+  },
+  "timeoutsMs": {
+    "host": 2000
+  },
+  "degradations": [
+    "frontier-authority-unavailable",
+    "compaction-rehydration-repository-dirty-paths-only",
+    "compaction-untracked-paths-not-rehydratable",
+    "host-version-unknown",
+    "mcp-server-unavailable",
+    "full-black-box-conformance-not-run"
+  ]
+}

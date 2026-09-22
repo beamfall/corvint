@@ -1,0 +1,74 @@
+{
+  "id": "hunk-reason-union-frozen-order",
+  "matrixRows": [
+    "broad, self-referential, and unrelated bases with no qualifier"
+  ],
+  "clauses": [
+    "CF-V0-010",
+    "CF-V0-016",
+    "CF-V0-020"
+  ],
+  "intent": "CF-V0-010 fixes the retained hunk reason order exactly as SUBJECT_TERM_BOUND_EXCEEDED, EVIDENCE_SPAN_TOO_BROAD, SELF_REFERENTIAL_BASIS, INSUFFICIENT_LEXICAL_SUPPORT, and requires relatedIds to be exactly the sorted unique evidence IDs whose edge contributes a retained reason.",
+  "cases": [
+    {
+      "id": "three-rejected-bases-no-qualifier",
+      "note": "Bases declared out of reason order to prove the stored order is frozen, not input order.",
+      "declared": {
+        "cemProfile": "cem/0.2",
+        "ocmProfile": "ocm/0.1-experimental",
+        "objectFormat": "sha1",
+        "expectedBase": "matching",
+        "target": "matching",
+        "sidecar": "canonical",
+        "dynamicTuple": "absent",
+        "lrf": "normal",
+        "tcq": "normal",
+        "hunks": [
+          {
+            "id": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "disposition": "supported",
+            "bases": [
+              "rejected-insufficient-lexical-support",
+              "rejected-self-referential",
+              "rejected-span-too-broad"
+            ]
+          }
+        ],
+        "obligations": []
+      },
+      "expect": {
+        "kind": "result",
+        "exitCode": 1,
+        "stdout": "frontier-json",
+        "frontierState": "OPEN",
+        "itemCount": "1",
+        "items": [
+          {
+            "kind": "HUNK_BASIS",
+            "subjectId": "hunk:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+            "reasons": [
+              "EVIDENCE_SPAN_TOO_BROAD",
+              "SELF_REFERENTIAL_BASIS",
+              "INSUFFICIENT_LEXICAL_SUPPORT"
+            ],
+            "relatedIds": [
+              "evidence:sha256:0101010101010101010101010101010101010101010101010101010101010101",
+              "evidence:sha256:0202020202020202020202020202020202020202020202020202020202020202",
+              "evidence:sha256:0303030303030303030303030303030303030303030303030303030303030303"
+            ],
+            "authorityClass": "PRODUCER_DECLARED",
+            "resolutionClass": "ACTIONABLE",
+            "nextAction": "NARROW_OR_REPLACE_BASIS"
+          }
+        ]
+      },
+      "assertions": [
+        "CF-V0-010: exactly ONE item is emitted for the hunk however many bases were rejected.",
+        "CF-V0-010: reasons are the unique union in the frozen order, not lexical order and not input order.",
+        "CF-V0-010: relatedIds are exactly the sorted unique evidence IDs whose edge contributes a retained reason.",
+        "CF-V0-010: resolutionClass is ACTIONABLE and nextAction is NARROW_OR_REPLACE_BASIS, because no deletion or local term-bound abstention is present.",
+        "CF-V0-020: relatedIds sort lexicographically."
+      ]
+    }
+  ]
+}

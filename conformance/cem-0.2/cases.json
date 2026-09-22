@@ -1,0 +1,10 @@
+{
+  "validAssurance": "structural-only",
+  "invalid": [
+    {"name": "missing-excluded-path", "operation": "remove", "referenceCode": "missing-field"},
+    {"name": "custom-excluded-path", "operation": "set", "value": "custom.json", "referenceCode": "invalid-excluded-path"},
+    {"name": "glob-excluded-path", "operation": "set", "value": ".corvint/*.json", "referenceCode": "invalid-excluded-path"},
+    {"name": "array-excluded-path", "operation": "set", "value": [".corvint/change.cem.json"], "referenceCode": "invalid-excluded-path"},
+    {"name": "surplus-field", "operation": "surplus", "referenceCode": "unknown-field"}
+  ]
+}

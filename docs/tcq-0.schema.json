@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:context-corvint:tcq:0",
+  "title": "Test Claim Qualification 0",
+  "description": "Deterministic caller-reported test-claim qualification result.",
+  "$comment": "CALLER_REPORTED is never frontier-closing authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "baseRevision",
+    "claims",
+    "commandId",
+    "id",
+    "issues",
+    "observation",
+    "ocmSha256",
+    "profile",
+    "targetRevision",
+    "units"
+  ],
+  "properties": {
+    "baseRevision": {"$ref": "#/$defs/gitOid"},
+    "claims": {
+      "type": "array",
+      "maxItems": 512,
+      "items": {"$ref": "#/$defs/claim"}
+    },
+    "commandId": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/commandId"}
+      ]
+    },
+    "id": {"type": "string", "pattern": "^tcq:sha256:[0-9a-f]{64}$"},
+    "issues": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {"$ref": "#/$defs/issue"}
+    },
+    "observation": {
+      "oneOf": [
+        {"type": "null"},
+        {"$ref": "#/$defs/observationSummary"}
+      ]
+    },
+    "ocmSha256": {"$ref": "#/$defs/sha256"},
+    "profile": {"const": "tcq/0"},
+    "targetRevision": {"$ref": "#/$defs/gitOid"},
+    "units": {
+      "type": "array",
+      "maxItems": 512,
+      "items": {"$ref": "#/$defs/unit"}
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"commandId": {"type": "null"}}, "required": ["commandId"]},
+      "then": {"properties": {"observation": {"type": "null"}}},
+      "else": {"properties": {"observation": {"$ref": "#/$defs/observationSummary"}}}
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "gitOid": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"},
+    "commandId": {
+      "type": "string",
+      "pattern": "^test-command:sha256:[0-9a-f]{64}$"
+    },
+    "claimId": {"type": "string", "pattern": "^claim:sha256:[0-9a-f]{64}$"},
+    "unitId": {"type": "string", "pattern": "^test-unit:sha256:[0-9a-f]{64}$"},
+    "rowId": {"type": "string", "pattern": "^test-row:sha256:[0-9a-f]{64}$"},
+    "reason": {
+      "enum": [
+        "unsupported-anchor-profile",
+        "claim-association-missing",
+        "claim-association-ambiguous",
+        "unsupported-python-grammar",
+        "python-offset-mismatch",
+        "unparseable-test-unit",
+        "empty-body",
+        "unconditional-skip",
+        "execution-identity-ambiguous",
+        "row-identity-unavailable",
+        "test-not-matched",
+        "repeated-test-rows",
+        "test-skipped",
+        "test-failed",
+        "test-error",
+        "target-cleanliness-not-attested",
+        "command-failed"
+      ]
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "anchorProfile",
+        "associationKind",
+        "associationState",
+        "authorityClass",
+        "claimId",
+        "executionKeySha256",
+        "hygieneState",
+        "obligationId",
+        "reasons",
+        "relation",
+        "reportState",
+        "rowIds",
+        "testUnitId"
+      ],
+      "properties": {
+        "anchorProfile": {
+          "oneOf": [
+            {"type": "null"},
+            {"enum": ["python-test-name/1", "python-docstring/1", "go-test-name/1", "go-table-case/1"]}
+          ]
+        },
+        "associationKind": {
+          "oneOf": [
+            {"type": "null"},
+            {"enum": ["PYTHON_DOCSTRING_FUNCTION", "PYTHON_TEST_FUNCTION", "GO_TEST_FUNCTION", "GO_TABLE_CASE"]}
+          ]
+        },
+        "associationState": {"enum": ["ASSOCIATED", "ABSTAINED"]},
+        "authorityClass": {"const": "CALLER_REPORTED"},
+        "claimId": {"$ref": "#/$defs/claimId"},
+        "executionKeySha256": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/sha256"}]
+        },
+        "hygieneState": {"enum": ["ELIGIBLE", "INELIGIBLE", "ABSTAINED"]},
+        "obligationId": {"type": "string", "minLength": 1, "maxLength": 36},
+        "reasons": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/reason"}
+        },
+        "relation": {
+          "oneOf": [{"type": "null"}, {"const": "test-report-matched-v0"}]
+        },
+        "reportState": {"enum": ["NOT_MATCHED", "PASSED", "FAILED", "ERROR", "SKIPPED", "AMBIGUOUS"]},
+        "rowIds": {
+          "type": "array",
+          "maxItems": 10000,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/rowId"}
+        },
+        "testUnitId": {
+          "oneOf": [{"type": "null"}, {"$ref": "#/$defs/unitId"}]
+        }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claimId", "obligationId", "reason"],
+      "properties": {
+        "claimId": {"$ref": "#/$defs/claimId"},
+        "obligationId": {"type": "string", "minLength": 1, "maxLength": 36},
+        "reason": {"$ref": "#/$defs/reason"}
+      }
+    },
+    "observationSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commandId", "exitCode", "id", "reportSha256"],
+      "properties": {
+        "commandId": {"$ref": "#/$defs/commandId"},
+        "exitCode": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+        "id": {"type": "string", "pattern": "^test-observation:sha256:[0-9a-f]{64}$"},
+        "reportSha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["end", "start"],
+      "properties": {
+        "end": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "start": {"type": "integer", "minimum": 0, "maximum": 9007199254740991}
+      }
+    },
+    "unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blobOid",
+        "bodySha256",
+        "bodySpan",
+        "executionKeySha256",
+        "extractorProfile",
+        "id",
+        "path"
+      ],
+      "properties": {
+        "blobOid": {"$ref": "#/$defs/gitOid"},
+        "bodySha256": {"$ref": "#/$defs/sha256"},
+        "bodySpan": {"$ref": "#/$defs/span"},
+        "executionKeySha256": {"$ref": "#/$defs/sha256"},
+        "extractorProfile": {"enum": ["python-ast/1", "go-lexical/1"]},
+        "id": {"$ref": "#/$defs/unitId"},
+        "path": {"type": "string", "minLength": 1, "maxLength": 512}
+      }
+    }
+  }
+}
