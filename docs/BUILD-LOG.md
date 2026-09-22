@@ -7,6 +7,41 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 PUB-V0-023/025/026: V1-0017 operational prerequisites
+
+The owner's parallel V1-0017 instruction authorizes a prerequisite slice, not ticket completion or
+future-release qualification. Native ticket audit retained V1-0008/V1-0015 OPEN, coverage INCOMPLETE,
+and actor authentication, historical acceptance, runtime qualification, liveness and publication
+NOT_OBSERVED. The initial native query abstained below its relevance floor; targeted Go impact and
+original installer/spec sources supplied context. No current release candidate or user installation
+was modified.
+
+Audit found that candidate and installed version probes used unbounded `exec.Output` without owned
+descendant cleanup, and installation followed static symlinked store components. Existing procgroup
+supervision now bounds both probes and suppresses child output in errors; store admission refuses
+symlink components, aliases, overlap and invalid existing paths before effects. Candidate input
+materialization is bounded to its existing closed set. Independent plan review rejected WalkDir's
+unbounded pre-callback enumeration; bounded ReadDir fixes that before implementation. Initial focused
+fixtures caught sibling checks extending into a large unrelated temporary ancestor; checks now cover
+the store name and managed descendants. No new release format, service or persisted-state migration
+was introduced. Removing this change restores the preceding installer; retained candidates and
+older installs need no migration.
+
+Temporary shell/archive fixtures exercise coexistence, explicit rollback, corrupt-destination
+refusal, backup reinstall, scoped removal, hostile paths, bounded probes and joined interruption.
+These are mechanism evidence, not genuine future release artifact/native-platform qualification.
+Focused package tests passed (2.015s), race tests passed (3.543s), and focused vet plus specification
+checks passed. Independent final review found one test-only PID-reuse cleanup hazard and one
+missing exact-version/nonzero-exit fixture. Identity-bound cleanup after cancel/join and the new
+fixture passed targeted race tests (3.414s); the same reviewer accepted the repair with no remaining
+findings. The release orchestrator explicitly holds the terminal full gate behind current release
+qualification. It remains NOT_RUN here; native finish/seal and exact future-artifact qualification
+remain pending. Exact source/CEM/OCM handles are retained privately for continuation. See
+[the runbook](RELEASE-RUNBOOK.md) for remaining artifact/platform, support policy and predecessor
+requirements. Existing alpha security policy is preserved; stable promises remain drafts. Store
+ownership is exclusive; concurrent hostile renames, escaped groups and power-loss durability are
+explicitly unqualified.
+
 ## 2026-09-22 PUB-V0-020 / GL-V0-001: approved patch qualification repairs
 
 The owner approved the combined repair packet and exact replacement enrollment, retaining the

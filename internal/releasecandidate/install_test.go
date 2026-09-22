@@ -28,7 +28,7 @@ func testPUBV0025VersionedInstallCoexistsAndNeverReplaces(t *testing.T) {
 		return &VerifiedCandidate{Manifest: Manifest{Version: "0.5.0a1", CorvintVersion: "Corvint 0.5.0a1 (build 9)"}, files: map[string][]byte{archivePath: coreArchiveFixture(t, runtime.GOOS+"_"+runtime.GOARCH)}}, nil
 	}
 	t.Cleanup(func() { verifyForInstall = previous })
-	store := filepath.Join(t.TempDir(), "store")
+	store := filepath.Join(canonicalTemp(t), "store")
 	installed, err := InstallCore(t.Context(), candidate, store)
 	if err != nil {
 		t.Fatal(err)
@@ -57,6 +57,10 @@ func TestPUBV0026CandidateVerifierRejectsChecksumDrift(t *testing.T) {
 }
 
 func coreArchiveFixture(t *testing.T, platform string) []byte {
+	return coreScriptArchive(t, platform, "#!/bin/sh\nprintf '%s\\n' 'Corvint 0.5.0a1 (build 9)'\n")
+}
+
+func coreScriptArchive(t *testing.T, platform, program string) []byte {
 	t.Helper()
 	var compressed bytes.Buffer
 	gzipWriter, err := gzip.NewWriterLevel(&compressed, gzip.BestCompression)
@@ -65,7 +69,7 @@ func coreArchiveFixture(t *testing.T, platform string) []byte {
 	}
 	gzipWriter.Header.ModTime = time.Unix(0, 0)
 	tarWriter := tar.NewWriter(gzipWriter)
-	script := []byte("#!/bin/sh\nprintf '%s\\n' 'Corvint 0.5.0a1 (build 9)'\n")
+	script := []byte(program)
 	name := "corvint_" + platform + "/corvint"
 	if err := tarWriter.WriteHeader(&tar.Header{Name: name, Mode: 0o755, Size: int64(len(script)), ModTime: time.Unix(0, 0), Typeflag: tar.TypeReg}); err != nil {
 		t.Fatal(err)
