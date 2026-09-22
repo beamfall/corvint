@@ -15,7 +15,7 @@ One paragraph: what, where (file:line), why it matters, and what done looks like
 
 ### 2026-09-22 cmd/corvint: repository-query drift fixture restoration failed once in the full gate
 
-`TestFreshProcessRepositoryQueryRejectsDeterministicDrift` failed at `cmd/corvint/query_repository_test.go:480`
+`TestFreshProcessRepositoryQueryRejectsDeterministicDrift` failed at `cmd/corvint/query_repository_test.go:480@dee43fbd`
 on Pi audit target `bb339355e8c10d164da06276ab11dfa185f4983a`: the query correctly rejected drift,
 but the fixture did not restore to its exact pre-injection snapshot. Ten unmodified isolated
 repetitions and 100 instrumented repetitions passed; the cause remains UNKNOWN. The failed gate

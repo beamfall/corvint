@@ -7,6 +7,24 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22: selected completed source enters the 0.6 candidate
+
+The owner selected the completed installation/recovery, candidate portable-proof, experimental
+provider-kit and native Pi tool slices for 0.6, retaining their original qualification limits.
+Their source commits, the exact-content gate repair, browser disclosure proof repair and MCP
+empty-PID-file fixture repair are integrated without importing another task's CEM or local outcome.
+Protected Pi runtime and formal FULL authority remain excluded. The previous integration enrollment
+is retained as cancelled non-success; its single replacement keeps the existing base/checks and
+adds the four owning scopes plus gate-ledger and releasecandidate race coverage.
+
+Independent combined-source review found no blockers. The early metadata preflight found citation
+line drift from the additive host/Makefile changes and an unanchored failure-backlog citation;
+relocations preserve the exact cited content and historical references retain their named commit.
+Corvint query, path impact and affected planning supplied change context; the unavailable first
+impact path remains a retained refusal. Learning and provider ingestion are excluded from this
+integration evidence. Final source/CEM binding, exact-target checks, artifacts, native/installed
+hosts and the separately governed workflow campaign remain required; no slice result promotes 0.6.
+
 ## 2026-09-22 MCPV0-011: lifecycle fixture waits for PID publication
 
 The c0f1eee full gate failed `TestClosedStdoutCancelsInFlightDescendantGroup` with `<nil>` at its

@@ -61,8 +61,8 @@ form a closed legacy allowlist. A scanned document absent from that index-read l
 of its citations require anchors.
 
 On 2026-09-13, decision 0176 widened DCG-V0-001 to scan `docs/decisions/*.md`. A historically-framed
-citation (decision 0105's `Makefile:129-136`, reviewed once against a named commit) converted to the
-prose form `Makefile@<hash>` rather than being repinned. 40 other stale citations across 16 other
+citation from decision 0105, reviewed once against a named commit, converted to the
+prose form `Makefile@3c41cad3` rather than being repinned. 40 other stale citations across 16 other
 decisions were repinned or relocated-and-repinned against their current lines. Decision 0158 is
 off-limits to that change and carries 30 unpinned citations, 3 of them landing on a since-shifted
 blank or bracket-only line; it was admitted to the DCG-V0-018 legacy allowlist as the one-time

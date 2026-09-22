@@ -56,7 +56,7 @@ themselves remain owned by `release-artifact-integrity-v0.md`.
 ## Verified current state
 
 At `5b496119` the script was wired into `make gate` through the `go-archive-gate` target (historical
-`Makefile@5b496119`). The current target is `Makefile:99@df81c156`; it runs
+`Makefile@5b496119`). The current target is `Makefile:100@df81c156`; it runs
 `go run ./conformance/release-artifact-v0 archive --revision HEAD` (`script/go-archive-gate:36`)
 followed by an `archive-status` cross-check against a witness under the repository's Git directory.
 
