@@ -80,6 +80,15 @@ The native planning store's V1-0001/2/7/8/9 and V1-0010/11/12 acceptance criteri
 obligations. Fixture planning records are not execution evidence. Each new row requires contract,
 implementation, hostile-tests, corvint-dogfood, beamfall-dogfood and sealed-benchmark receipts.
 A fresh independent reviewer examines semantic adequacy, not merely digest validity.
+The exact product candidate `T` is frozen before judged runs; its binary, source archive,
+version/build, commit/tree and proof maps identify what the six evidence classes and
+native/full/artifact/installed-host gates assess. Later evidence-only snapshot `E`
+may retain reports, receipts and ledger changes bound to `T`, with its own scoped
+CEM/OCM, integrity/docs checks and independent semantic review. These checks prove
+`E`'s integrity, not an `E`-built binary. A Beamfall receipt retains the actual
+Beamfall `repositoryRevision` and separately binds Corvint `T` artifact hashes.
+`T`'s archived `UNPROVEN` claims remain unchanged; only owner-accepted `E` evidence
+may qualify the explicitly named `T`. No such acceptance is recorded here.
 
 | Requirements | Implementation/evidence | Current result |
 |---|---|---|
@@ -96,6 +105,10 @@ current alpha candidate/installer requires companions and alpha version tokens; 
 packaging needs an explicit compatible contract before release. This spec does not change that
 wire by implication. If any gate fails, preserve its evidence and keep the affected jobs UNPROVEN.
 Retain the previous working installed binary and public release. Do not rewrite historical receipts.
+Any runtime behavior, test, selected check, fixture, owning normative requirement or
+`T` proof-map change requires a new candidate and invalidates affected evidence.
+Preserve failed and incomplete `T` and `E` records; neither local PATH activation nor
+evidence-only publication replaces the immutable retained candidate.
 
 ## Remaining decisions
 

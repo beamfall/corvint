@@ -7,6 +7,16 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 decision 0330: Core candidate and evidence packet clarification
+
+The accepted Core-only 0.6 scope now distinguishes immutable tested candidate `T` from
+later evidence-only publication snapshot `E`. The public-release contract maps the
+retained `PUB-V0-022..026` Core safeguards to existing native archive/report/checksum
+inputs and keeps optional combined alpha machinery separate. The daily-workflow
+acceptance and rollback clauses retain all six evidence classes, exact candidate
+invalidation and literal archived `UNPROVEN` claims. This is a development contract
+clarification, not candidate qualification, ledger promotion or publication.
+
 ## 2026-09-22 decision 0330: 0.6 portfolio and native status reconciliation
 
 The 127-entry index and installed 0.5.0a3 build 45 command help were inventoried into

@@ -23,6 +23,36 @@ is qualified separately on exact versions. This does not promote any host, waive
 or alter historical alpha artifacts. `PUB-V0-001` remains the current published version until an
 explicit candidate change; 0.6 readiness has not been established.
 
+For this Core-only scope, `PUB-V0-022..026` retain their applicable safeguards without
+making the optional combined alpha bundle a prerequisite. The existing native archive-gate
+archive, reproducibility report and `SHA256SUMS` are the Core artifact inputs; the
+candidate packet must retain a closed inventory, source archive and applicable legal
+provenance, exact version/build/commit/tree/Go toolchain/target identity, independently
+verified reproducibility and checksums, and installed `corvint --version` evidence.
+`PUB-V0-022`'s companion input and `PUB-V0-023..024`'s companion identities and rows
+apply only to the separate combined alpha profile. Core still requires its own native
+Darwin/Linux, full, artifact, installed-host and sealed workflow gates, including all
+six evidence classes. `PUB-V0-025..026` retain immutable version/platform candidate
+storage, refusal to replace an existing path, and fail-closed verification. Operator-
+approved local PATH activation is a separate selection of an installed binary; it
+does not replace or mutate retained candidate artifacts. The existing combined alpha
+manifest reader and installer are unchanged and do not admit a Core-only packet.
+
+Freeze product candidate `T` before judged runs: its version/build, commit/tree,
+binary, source archive and proof maps identify the exact tested product. Later
+evidence-only publication snapshot `E` contains actual reports, receipts and ledger
+changes bound to `T`; it does not rebuild or redefine `T`. Give `E` its own scoped
+CEM/OCM, integrity and documentation checks, and independent semantic review. Those
+checks establish `E`'s publication integrity, not that an `E`-built binary passed
+`T`'s exact-target gates. A change to runtime behavior, tests or selected checks,
+fixtures, an owning normative requirement, or `T`'s proof maps requires a new candidate
+and invalidates affected evidence. A Beamfall receipt keeps the actual Beamfall
+`repositoryRevision` and separately binds the evaluated Corvint `T` artifact hashes;
+review verifies that join. `T`'s archived `UNPROVEN` ledger claims remain literal.
+Only an owner-accepted `E` packet may qualify explicitly named `T`; it cannot silently
+rewrite `T`'s archived claims. Exact-packet owner approval remains required before
+promotion or publication. This scope remains `NOT_QUALIFIED`.
+
 ## Human intent
 
 On 2026-09-11 the owner requested work until Corvint is ready for a public GitHub release, then
