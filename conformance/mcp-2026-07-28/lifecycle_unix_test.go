@@ -74,6 +74,10 @@ func terminationSignalsCancelInFlightDescendantGroup(t *testing.T, version strin
 // must fail rather than kill the process by SIGPIPE, cancel the in-flight call,
 // reap its descendant group, and exit with the transport-failure status.
 func TestClosedStdoutCancelsInFlightDescendantGroup(t *testing.T) {
+	t.Run("MCPV0-011 closed stdout cancels descendants", closedStdoutCancelsInFlightDescendantGroup)
+}
+
+func closedStdoutCancelsInFlightDescendantGroup(t *testing.T) {
 	root := fixtureRepository(t)
 	fakeDirectory, pidFile := installBlockingFakeGit(t)
 	command := exec.Command(serverBinary, "--root", root)

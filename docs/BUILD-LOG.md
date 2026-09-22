@@ -1661,3 +1661,15 @@ in this integration. Its CEM/OCMs, final gate and independent source review must
 target; earlier input checks cannot qualify it. Optional browser/host evidence remains separately
 qualified, and sealed correctness/cost and genuine dual-repository workflow evidence remain
 required before owner acceptance of the exact 0.6 packet.
+
+## 2026-09-22 MCPV0-011: literal lifecycle claim anchor
+
+Candidate 794f93d passed the full gate, focused checks, four-archive qualification and direct
+OpenCode tool/edit proofs. Native completion correctly refused an explicitly assessed MCPV0-011
+claim gap: the existing stdout-close test names the requirement only in an excluded comment.
+A literal named subtest now wraps the unchanged stdout-close lifecycle assertions. The wrapper
+preserves all behavior, deadlines and cleanup; extraction and completion policy are unchanged.
+The known gap is not relabeled unassessed. The new source invalidates target-bound qualification;
+prior passes remain historical and mandatory checks must bind the replacement candidate. The
+optional companion is omitted under decision 0331 because its separate installed browser stage
+reached its three-minute timeout; that failure's root cause remains UNKNOWN.
