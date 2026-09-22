@@ -1301,3 +1301,16 @@ it was corrected to assert only the ledger-owned private index/lock names. Corvi
 query/impact, dirty affected/path impact and enrolled CEM/OCM are the applicable self-use routes;
 learning/evaluation/provider routes are not applicable. Focused checks qualify this repair only;
 the mandatory full gate remains pending on the coordinator's frozen integrated Core target.
+
+## 2026-09-22 PUB-V0-020 / GL-V0-001: approved patch qualification repairs
+
+The owner approved the combined repair packet and exact replacement enrollment, retaining the
+original enrollment as cancelled NON-SUCCESS and preserving all failed receipts. The patch adopts
+only the reviewed statless-index source and requirement-anchor delimiters. Candidate c85881a's
+installed browser proof omitted opening the existing roadmap disclosure before checking its text;
+the corrected proof clicks that disclosure, retains all six assertions and reports missing text.
+Primary failures are logged before unchanged cleanup. The temporary corrected browser proof passed
+but does not qualify the original candidate. The prior installed attempt with a mode-0644 local
+authority attachment was also retained as a failed runner setup; its corrected attachment is 0600.
+A combined-source review, fresh immutable CEM, all selected checks and new source-bound installed
+and OpenCode qualification remain required before exact-packet publication approval.
