@@ -442,9 +442,10 @@ test('CRB-V0-009 CRB-V0-012 AHI-010 published matrix rows bind renamed shipped d
   'gemini-cli':d=>({host:'gemini-cli',surface:d.surface,adapterVersion:d.adapterVersion,status:d.support}),
   opencode:d=>({host:d.corvintIntegration.host,surface:d.corvintIntegration.surface,adapterVersion:d.corvintIntegration.adapterVersion,status:d.corvintIntegration.support}),
  }
- const sources={'claude-code':'claude-code/plugins/corvint/compatibility.json',codex:'codex/plugins/corvint/compatibility.json','gemini-cli':'gemini-cli/compatibility.json',opencode:'opencode/package.json'}
+ shipped.pi=shipped.opencode
+ const sources={'claude-code':'claude-code/plugins/corvint/compatibility.json',codex:'codex/plugins/corvint/compatibility.json','gemini-cli':'gemini-cli/compatibility.json',opencode:'opencode/package.json',pi:'pi/package.json'}
  // AHI-010 (decision 0244): the adapter version is the package's AHI-020 manifest version, compared as an exact string.
- const manifests={'claude-code':'claude-code/plugins/corvint/.claude-plugin/plugin.json',codex:'codex/plugins/corvint/.codex-plugin/plugin.json','gemini-cli':'gemini-cli/gemini-extension.json',opencode:'opencode/package.json'}
+ const manifests={'claude-code':'claude-code/plugins/corvint/.claude-plugin/plugin.json',codex:'codex/plugins/corvint/.codex-plugin/plugin.json','gemini-cli':'gemini-cli/gemini-extension.json',opencode:'opencode/package.json',pi:'pi/package.json'}
  assert.deepEqual(matrix.entries.map(e=>e.host).sort(),Object.keys(sources).sort())
  for(const entry of matrix.entries) {
   const declared=shipped[entry.host](read(sources[entry.host]))

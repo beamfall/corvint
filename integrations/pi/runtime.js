@@ -6,20 +6,30 @@ const KEYS=['profile','event','host','surface','hostVersion','adapterVersion','s
 const CODES=new Set(['invalid-input','unsupported-event','unsupported-host-version','core-unavailable','invalid-core-response','output-too-large','deadline','untrusted-project']);
 const DEGRADATIONS=new Set(['compaction-critical-evidence-overflow','compaction-dirty-set-over-budget','compaction-untracked-paths-not-rehydratable','frontier-authority-unavailable','outcome-persistence-unavailable']);
 export function validEnvelope(v,event) {
- if(!v || typeof v!=='object' || Array.isArray(v) || JSON.stringify(Object.keys(v).sort())!==JSON.stringify(KEYS) || v.profile!=='corvint-pi-adapter/0' || v.event!==event || v.host!=='pi'||v.surface!=='extension'||v.adapterVersion!=='0.1.0'||v.support!=='FALLBACK'||v.shouldContinue!==false||typeof v.context!=='string'||!Array.isArray(v.degradations)||new Set(v.degradations).size!==v.degradations.length||!v.degradations.every(x=>DEGRADATIONS.has(x)))return false;
+ if(!EVENTS.has(event) || !v || typeof v!=='object' || Array.isArray(v) || JSON.stringify(Object.keys(v).sort())!==JSON.stringify(KEYS) || v.profile!=='corvint-pi-adapter/0' || v.event!==event || v.host!=='pi'||v.surface!=='extension'||v.adapterVersion!=='0.1.2'||v.support!=='FALLBACK'||v.shouldContinue!==false||typeof v.context!=='string'||!Array.isArray(v.degradations)||new Set(v.degradations).size!==v.degradations.length||!v.degradations.every(x=>DEGRADATIONS.has(x)))return false;
  if(v.fault!==null)return CODES.has(v.fault)&&v.receiptId===null&&v.context===''&&v.degradations.length===0&&(v.hostVersion==='0.85.1'||(v.hostVersion===null&&['invalid-input','unsupported-event','unsupported-host-version','deadline'].includes(v.fault)));
  if(v.context!=='' && (!['session-start','user-prompt'].includes(event)||!v.context.startsWith('BEGIN CORVINT REPOSITORY DATA\n')||!v.context.endsWith('\nEND CORVINT REPOSITORY DATA')))return false;
  return v.hostVersion==='0.85.1'&&typeof v.receiptId==='string'&&/^harness-receipt:sha256:[0-9a-f]{64}$/.test(v.receiptId);
 }
-export function decodeEnvelope(raw) {
+export function decodeObject(raw) {
  const value=JSON.parse(raw);
- // JSON.parse discards duplicate keys; retain the closed top-level key count.
+ if(!value||typeof value!=='object'||Array.isArray(value))throw Error('object required');
+ // Inspect keys before JSON.parse's last-key-wins behavior can erase mixed identities.
  const tokens=raw.match(/"(?:[^"\\]|\\.)*"|[{}\[\]:,]|[^\s{}\[\]:,]+/g)??[];
- let depth=0,count=0;
- for(let i=0;i<tokens.length;i++){const t=tokens[i];if(t==='{'||t==='[')depth++;else if(t==='}'||t===']')depth--;else if(depth===1&&t.startsWith('"')&&tokens[i+1]===':')count++;}
- if(count!==KEYS.length)throw Error('closed envelope keys');
+ const stack=[];
+ for(let i=0;i<tokens.length;i++) {
+  const token=tokens[i];
+  if(token==='{'){stack.push(new Set());continue;}
+  if(token==='['){stack.push(null);continue;}
+  if(token==='}'||token===']'){stack.pop();continue;}
+  if(!token.startsWith('"')||tokens[i+1]!==':')continue;
+  const key=JSON.parse(token), keys=stack.at(-1);
+  if(keys.has(key))throw Error('duplicate key');
+  keys.add(key);
+ }
  return value;
 }
+export const decodeEnvelope=decodeObject;
 export function createRunner({binary,env=process.env,spawnImpl=spawn}={}) {
  let conflict=false;
  if(binary===undefined){binary=env.CORVINT_BIN;conflict=binary!==undefined&&!binary;}

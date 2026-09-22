@@ -45,11 +45,26 @@
       "host": "opencode",
       "hostVersion": "1.18.20",
       "hostVersionEvidence": "local-binary-observed; plugin-not-installed",
-      "hostForcedRuntime": {"name": "node", "versionRange": ">=20"},
+      "hostForcedRuntime": {
+        "name": "node",
+        "versionRange": ">=20"
+      },
       "operatingSystem": "darwin-linux",
       "surface": "plugin",
       "status": "FALLBACK",
       "validation": "adapter-fixtures-only"
+    },
+    {
+      "adapterVersion": "0.1.2",
+      "documentedAgainstHostVersion": "0.85.1",
+      "host": "pi",
+      "hostVersion": "0.85.1",
+      "hostVersionEvidence": "offline-native-package-lifecycle-and-context",
+      "hostVersionEvidenceAdapterVersion": "0.1.2",
+      "operatingSystem": "darwin-arm64",
+      "surface": "extension",
+      "status": "FALLBACK",
+      "validation": "native-offline-fixtures; protected-qualification-not-run"
     }
   ],
   "globalDegradations": [
@@ -70,12 +85,22 @@
       "host-version-unknown",
       "outcome-persistence-unavailable"
     ],
-    "conformingAdapters": ["claude-code", "codex", "gemini-cli", "opencode"],
+    "conformingAdapters": [
+      "claude-code",
+      "codex",
+      "gemini-cli",
+      "opencode"
+    ],
     "display": {
       "rule": "name-every-code-or-signal-elision",
       "note": "A receipt's degradation codes reach the user through a host-shaped message. That message MUST name every code the receipt carries, or state how many it left out. A short honest message is fine; one that looks complete while a code is missing is not, and the receipts that carry the most codes are exactly the ones where the omission costs the most. An adapter that renders the whole receipt (codex) or the whole list (opencode) conforms as it stands; an adapter that renders a bounded list (claude-code, gemini-cli) appends a \"+N more\" marker whenever the bound bites. The marker is a count derived from the list length, never code text, so it does not weaken the rule that an unrecognised code is named by the corvint invocation rather than interpolated into the session.",
       "elisionMarker": "+N more",
-      "conformingAdapters": ["claude-code", "codex", "gemini-cli", "opencode"]
+      "conformingAdapters": [
+        "claude-code",
+        "codex",
+        "gemini-cli",
+        "opencode"
+      ]
     }
   }
 }

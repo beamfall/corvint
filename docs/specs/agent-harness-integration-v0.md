@@ -314,7 +314,7 @@ do not reinterpret this Frontier result.
   accepts, which `AHI-022` routes off the terminal for the two JavaScript hosts.
 
 - `AHI-024`: The experimental Pi extension MUST use runtime-provided version `0.85.1`, adapter
-  `0.1.0`, host `pi`, and surface `extension`; other versions MUST refuse visibly. The native
+  `0.1.2`, host `pi`, and surface `extension`; other versions MUST refuse visibly. The native
   translator argv is exactly `adapter pi EVENT`, where EVENT is one of `session-start`,
   `user-prompt`, `file-change`, `post-tool`, `stop`, or `session-end`. Its UTF-8 stdin is bounded
   to 131072 bytes and contains exactly `hostVersion` and event-normalized `input`. Unknown,
@@ -326,7 +326,10 @@ do not reinterpret this Frontier result.
   `corvint-pi-adapter/0` profile described below. Fallback MUST always report continuation false.
 
   Session start/reload/new/resume/fork map to startup/resume/clear/resume/resume respectively;
-  successful compaction maps to compact recovery. Before-agent-start forwards only bounded
+  successful compaction maps to compact recovery. Session-tree navigation resets transient state
+  and requests resume context. Startup/compaction context is supplied once through the ephemeral
+  context hook on the next model request (including same-turn compaction retries), never persisted
+  in Pi session history. Pending recovery is discarded on session/root changes or prompt failure. Before-agent-start forwards only bounded
   prompt text and appends native framed data ephemerally to that turn's system prompt. Tool
   observations MUST never forward messages, raw tool content or details, or infer verification
   from a tool name. Explicit typed path observations remain subject to core containment.
@@ -342,7 +345,11 @@ do not reinterpret this Frontier result.
   and refuses an empty value before spawning.
 
   `/corvint-context` maps text to user-prompt input.task. `/corvint-outcome` accepts only an
-  explicit session-end outcome JSON under the existing kernel schema. Expansion remains the
+  explicit session-end outcome JSON under the existing kernel schema. The shim rejects non-object,
+  duplicate-key, oversized and caller-identity input before merging the host identity; the native
+  kernel retains deeper validation and invalid input returns `invalid-input`. Persistence
+  degradation is shown to the user, never reported as recorded success. Faults use UI notices
+  or stderr in non-UI modes, without adding automatic messages to model history. Expansion remains the
   documented existing `adapter source-view` route with native selector validation. No automatic
   task/outcome or new source-selector parser is permitted. Package/version declarations and
   compatibility evidence MUST agree. This functional extension is FALLBACK until its exact
@@ -350,7 +357,7 @@ do not reinterpret this Frontier result.
 
   The output has exactly `profile`, `event`, `host`, `surface`, `hostVersion`, `adapterVersion`,
   `support`, `receiptId`, `context`, `degradations`, `fault`, and `shouldContinue`. Constants are
-  `corvint-pi-adapter/0`, `pi`, `extension`, `0.1.0`, `FALLBACK`, and false respectively.
+  `corvint-pi-adapter/0`, `pi`, `extension`, `0.1.2`, `FALLBACK`, and false respectively.
   Event is the admitted selector, or null only for an unsupported-event fault. Success has
   hostVersion `0.85.1`, an existing `harness-receipt:sha256:` request identity with 64 lowercase
   hexadecimal digits, string context (empty or native framed data), recognized degradation
@@ -669,3 +676,17 @@ checks closed output, explicit-option precedence and a TERM-ignoring grandchild 
 Pi0.85.1 local-provider fixtures verify two-turn ephemeral native context and distinguish startup
 SIGINT cancellation from successful completion. These are functional FALLBACK witnesses only;
 protected authority, permissions, all native surfaces and latency/recall qualification remain open.
+
+
+### Pi functional repair evidence (2026-09-22)
+
+`TestPiInvalidOutcomeInput` and the Pi JavaScript runtime/extension regressions are part of the
+canonical host-adapter gate. `integrations/pi/host.test.mjs` separately exercises actual Pi 0.85.1
+on macOS arm64 with an in-process offline provider: native local-package install, disable, update,
+re-enable and remove; two-turn context delivery without session persistence; explicit outcome
+refusal/degradation; startup SIGINT/SIGTERM cleanup and descendant cancellation. Handler tests
+cover startup/reload/new/resume/fork/tree, same-turn compact recovery, root/session drift, trust,
+private tool/message content and shutdown cleanup. These tests add functional evidence only;
+interactive TUI/RPC, Linux/Windows, latency/recall and protected FULL qualification are not established.
+Rollback reverts this repair and its package/native adapter version together; the prior known
+recovery and outcome defects return. No outcome writer or authority claim is introduced.

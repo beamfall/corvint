@@ -1335,3 +1335,29 @@ fixture's real Git repository on `main` before Tasks initialization, and exercis
 different caller default branch. Preserve the failed candidate and scratch as failure evidence;
 rebuild and qualify the corrected exact candidate before publication. No MCP or Tasks authority
 contract is weakened, and no partial installed-stage success is an overall qualification.
+
+## 2026-09-22 AHI-002, AHI-003, AHI-010, AHI-024: Pi lifecycle and outcome repair
+
+The owner requested a complete Pi integration audit. Independent review reproduced discarded
+startup/compaction packets, hidden outcome-persistence degradation, malformed outcome JSON
+silently normalized to empty input, and conflicting package/native adapter identities. Four
+handler regressions failed against the original logic before repair. The extension now supplies
+bounded startup/compaction recovery once through Pi's ephemeral context hook, including retries
+without a new agent-start event, clears stale session/root state, rejects duplicate and mixed
+identity command input, and exposes fallback persistence limits without storing automatic faults
+in model history. Native invalid outcome input is distinguished from core unavailability. Package,
+native translator, shim and compatibility metadata agree on 0.1.2; the host pin remains 0.85.1.
+
+Actual Pi 0.85.1 on macOS arm64 passed an offline local-provider fixture for package install,
+disable/update/re-enable/remove, two-turn ephemeral context and session non-persistence, explicit
+outcome errors and startup SIGINT/SIGTERM descendant cleanup. The canonical host-adapter target now
+runs the Pi JavaScript regressions. Full gate and immutable CEM/OCM completion evidence are retained
+in the task's private dogfood reports, not inferred from these focused passes. No protected FULL,
+interactive TUI/RPC, Linux/Windows, latency/recall or outcome-persistence claim is added.
+
+Self-development routes used: initial query, pre-change dogfood coordination, dirty-diff affected
+advice and native adapter/host tests; final CEM/OCM/frontier/finish use the enrolled plan. The first
+query's measurement was not started in advance (NOT_OBSERVED); no savings claim is made. The
+initial same-base coordination reported cem-prepare git-diff-failed, missing intent scope and
+outcome input, retained under /tmp/corvint-pi-audit/start-dogfood.log. Non-Go path impact, provider
+qualification, trace migration and mutation testing are inapplicable to this adapter repair.
