@@ -42,6 +42,16 @@
       "spanSha256": "8802bfdf6dba2a7eddd52ab34c41fed7e785b6c1a138ecc54b9d8d1936df115c"
     },
     {
+      "blobOid": "269420794022932866461dc50dd6393517b81eee",
+      "id": "evidence:sha256:aaee8c49537980155d8944ad8d0632bc93db7b616b86cb83697b9a4a029dcfb0",
+      "path": "docs/specs/public-release-v0.md",
+      "span": {
+        "end": 20971,
+        "start": 19338
+      },
+      "spanSha256": "b95d0ed0daf303f4a5753a7cad3ab7b91cf5a520bc0ad2be2f5700a37e839393"
+    },
+    {
       "blobOid": "141dea5c759d3da1cb370120d46a4e9ab958343d",
       "id": "evidence:sha256:a2001bef92754ce8674c09db3817a868a73efaf465cd703388ecc256bf4f4e16",
       "path": "docs/decisions/0329-publish-v050a3-issues53-57-2026-09-21.md",
@@ -671,14 +681,18 @@
     {
       "basis": [
         {
-          "evidenceId": "evidence:sha256:97eac3a33d0aa3e0d7cc924c0a903e923717d1e57013ca023d1c324bbcb56494",
+          "evidenceId": "evidence:sha256:aaee8c49537980155d8944ad8d0632bc93db7b616b86cb83697b9a4a029dcfb0",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:a3ec1eea8c7022fac6e54bb5599c51f220d4bf4bb50012f25c2de94f051537dd",
           "relation": "specification"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:41ba3e12630f678f6b20c1c2dd6dd8ddb785fcf891781564f008748244fd9771",
+      "id": "hunk:sha256:3c881b94652bd0e78b4f158433246f6f8f5c11fcbba16f2519089bd0b6360e42",
       "newRange": {
-        "count": 64,
+        "count": 78,
         "start": 1185
       },
       "oldRange": {
@@ -1715,8 +1729,48 @@
       },
       "path": "internal/mcp/server/server.go",
       "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:aaee8c49537980155d8944ad8d0632bc93db7b616b86cb83697b9a4a029dcfb0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:acbca35d84d257c8313d9dc6b1ee9c7d8405420dce7c3818290f0742a863347e",
+      "newRange": {
+        "count": 8,
+        "start": 14
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 14
+      },
+      "path": "script/atm-fixture-store.sh",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:aaee8c49537980155d8944ad8d0632bc93db7b616b86cb83697b9a4a029dcfb0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:43c5481e0aafdb98e293fc4132c89e4c3a569ad714050782df9164769061503c",
+      "newRange": {
+        "count": 9,
+        "start": 24
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 24
+      },
+      "path": "script/seed-planning-store_test.sh",
+      "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "a84ff9fae4a6ba159b21ac4d765fa473fea6b20e41716504767ee6781928577f",
+  "patchSha256": "cfdca51c6a757eb13d26802844fa048e3704ed85cb8e4b8230fd391a5a638a7c",
   "spec": "cem/0.2"
 }
