@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"strings"
@@ -66,6 +67,115 @@ type processResponse struct {
 	Spec   string      `json:"spec"`
 	Drift  []driftItem `json:"drift"`
 	Code   string      `json:"code,omitempty"`
+}
+
+// This supplemental packet does not alter the frozen CEM 0.1 manifest.
+func TestPortableProfileCompatibility(t *testing.T) {
+	t.Run("CEM-CB-004 historical reader compatibility", testPortableProfileCompatibility)
+}
+
+func testPortableProfileCompatibility(t *testing.T) {
+	kit, err := filepath.Abs("../../protocol/cem-0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(kit, "manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shaHex(raw) != "9389102480c910ddb1366d385702bcf44a72dadbbece9e68bce683420f64983a" {
+		t.Fatal("portable manifest digest changed")
+	}
+	var manifest struct {
+		Author, Timestamp, BaseRevision, BaseMessage string
+		ArtifactSHA256                               map[string]string
+		Cases                                        []struct {
+			Name, Map, LegacyMap, Patch, TargetRevision string
+			Accept                                      bool
+			Drift                                       []driftItem
+		}
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if len(manifest.Cases) != 6 || len(manifest.ArtifactSHA256) != 21 {
+		t.Fatal("portable vector matrix changed")
+	}
+	verifyArtifactDigests(t, kit, manifest.ArtifactSHA256)
+	exe := filepath.Join(t.TempDir(), "cem01-go")
+	if runtime.GOOS == "windows" {
+		exe += ".exe"
+	}
+	cmd := exec.Command("go", "build", "-o", exe, ".")
+	cmd.Env = append(os.Environ(), "GOWORK=off")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("go build: %v: %s", err, out)
+	}
+	recipe := suiteManifest{}
+	recipe.Repository.Root = "repository/base"
+	recipe.Repository.Author = manifest.Author
+	recipe.Repository.Timestamp = manifest.Timestamp
+	recipe.Repository.Message = manifest.BaseMessage
+	for _, testCase := range manifest.Cases {
+		t.Run("CEM-CB-004 historical reader "+testCase.Name, func(t *testing.T) {
+			repo := filepath.Join(t.TempDir(), "repo")
+			reconstructRepository(t, kit, repo, "sha1", recipe)
+			if got := strings.TrimSpace(gitManifest(t, repo, nil, "rev-parse", "HEAD")); got != manifest.BaseRevision {
+				t.Fatalf("base = %s, want %s", got, manifest.BaseRevision)
+			}
+			gitManifest(t, repo, nil, "apply", "--index", filepath.Join(kit, testCase.Patch))
+			mapBytes, err := os.ReadFile(filepath.Join(kit, testCase.Map))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.MkdirAll(filepath.Join(repo, ".corvint"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(repo, ".corvint/change.cem.json"), mapBytes, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			gitManifest(t, repo, nil, "add", ".corvint/change.cem.json")
+			gitManifest(t, repo, commitEnv(t, manifest.Author, manifest.Timestamp), "commit", "-qm", testCase.Name)
+			if got := strings.TrimSpace(gitManifest(t, repo, nil, "rev-parse", "HEAD")); got != testCase.TargetRevision {
+				t.Fatalf("target = %s, want %s", got, testCase.TargetRevision)
+			}
+			status, rejected, _ := invokeConsumer(t, exe, repo, filepath.Join(kit, testCase.Map), filepath.Join(kit, testCase.Patch), testCase.TargetRevision)
+			if status != 1 || rejected.Accept {
+				t.Fatalf("historical reader failed to reject 0.2: exit=%d response=%+v", status, rejected)
+			}
+			status, accepted, _ := invokeConsumer(t, exe, repo, filepath.Join(kit, testCase.LegacyMap), filepath.Join(kit, testCase.Patch), testCase.TargetRevision)
+			wantStatus := 1
+			if testCase.Accept {
+				wantStatus = 0
+			}
+			if status != wantStatus || accepted.Accept != testCase.Accept || !reflect.DeepEqual(accepted.Drift, testCase.Drift) {
+				t.Fatalf("legacy result exit=%d response=%+v, want exit=%d accept=%v drift=%+v", status, accepted, wantStatus, testCase.Accept, testCase.Drift)
+			}
+			if testCase.Name == "stable" {
+				legacyBytes, err := os.ReadFile(filepath.Join(kit, testCase.LegacyMap))
+				if err != nil {
+					t.Fatal(err)
+				}
+				var legacy cemMap
+				if err := json.Unmarshal(legacyBytes, &legacy); err != nil {
+					t.Fatal(err)
+				}
+				legacy.Hunks[0].Basis = append(legacy.Hunks[0].Basis, legacy.Hunks[0].Basis[0])
+				duplicateBytes, err := json.Marshal(legacy)
+				if err != nil {
+					t.Fatal(err)
+				}
+				duplicatePath := filepath.Join(t.TempDir(), "duplicate.cem.json")
+				if err := os.WriteFile(duplicatePath, duplicateBytes, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				status, rejected, _ := invokeConsumer(t, exe, repo, duplicatePath, filepath.Join(kit, testCase.Patch), testCase.TargetRevision)
+				if status != 1 || rejected.Accept || rejected.Code != "duplicate-basis" {
+					t.Fatalf("duplicate within one hunk: exit=%d response=%+v", status, rejected)
+				}
+			}
+		})
+	}
 }
 
 func TestManifestProcessBoundaryConformance(t *testing.T) {

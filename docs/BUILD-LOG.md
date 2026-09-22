@@ -7,6 +7,38 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 V1-0013 / CEM-CB-003: candidate portable packet finds cross-hunk interop defect
+
+The candidate `protocol/cem-0.2` packet pins a synthetic SHA-1 base, six exact target commits
+including their raw CEM sidecars, and 21 artifacts. Formula-derived expectations cover every drift
+state, ordered mixed evidence and explicit unknowns. Native status verifies canonical authority and
+sidecar bytes and refuses zero-unknown completion for the unknown case. The separate historical
+reader rejects 0.2 and consumes independently decoded, pinned 0.1 exact-patch equivalents; the
+original frozen 32-case matrix and wire profiles are unchanged.
+
+The first historical-reader run rejected legal evidence/relation reuse across different hunks as
+`duplicate-basis`. Its pair set lived outside the hunk loop. Independent contract review confirmed
+that supported-hunk uniqueness is local to the hunk; moving the set preserves same-hunk rejection.
+The supplemental process-boundary regression exercises both cases. This is reference portability
+evidence, not independently authored 0.2 interoperability or a semantic-support claim.
+
+Pre-change enrollment uses base `ab5310cb4f00d15c33fe112c0e0335fe28f9db20`. The original Corvint
+query returned an unrelated accepted-spec lead and explicit omissions; scoped original contracts
+supplied context. Initial `dogfood-change` retained `git-diff-failed` because base and target were
+identical before implementation, missing intent-file input and absent outcome input; the corrected
+enrollment retains the actual CEM intent. Measurement-before-first-query and billed task costs are
+NOT_OBSERVED. `affected` retains nested-module, unowned-vector and language-frontier unknowns.
+Applicable routes are query, affected, CEM/OCM, frontier and enrolled completion. Provider, mutation,
+learning/retrieval evaluations and service routes are not applicable to this packet/reader repair.
+
+Focused native and independent-reader vectors passed after the repair; the integrated independent
+diff review found no blockers. Full/interop gates and
+final CEM/OCM/report review are required on the final committed target; retain their exact receipts
+in the task's private evidence rather than treating these focused passes as those gates. The native
+store remains fixture-only with V1-0010 open and coverage incomplete. Formal minimum-wire freeze,
+independently authored 0.2 consumer/producer, OCM/frontier portability qualification and owner
+acceptance remain blockers. No version, release candidate, publication or runtime authority changes.
+
 ## 2026-09-22 PUB-V0-023/025/026: V1-0017 operational prerequisites
 
 The owner's parallel V1-0017 instruction authorizes a prerequisite slice, not ticket completion or

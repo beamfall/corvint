@@ -1,0 +1,14 @@
+diff --git a/a.txt b/a.txt
+index 4a58007052a65fbc2fc3f910f2855f45a4058e74..feae347d8510cfba5eb8c8ac80056777b07c2528 100644
+--- a/a.txt
++++ b/a.txt
+@@ -1 +1 @@
+-alpha
++replaced
+diff --git a/app.txt b/app.txt
+index 90be1f3056c4f471f977a28497b8d4b392c55a02..294186e497a23bf3fbfde12aacc7f720f668fe9a 100644
+--- a/app.txt
++++ b/app.txt
+@@ -1 +1 @@
+-before
++after

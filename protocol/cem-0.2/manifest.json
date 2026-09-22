@@ -1,0 +1,189 @@
+{
+  "profile": "cem-portable-vectors/0",
+  "status": "candidate-not-frozen",
+  "author": "Portable Proof <proof@example.invalid>",
+  "timestamp": "2026-01-01T00:00:00Z",
+  "baseRevision": "2fe3f277a5f73e3b407b0f542674bce217640141",
+  "baseMessage": "portable base",
+  "cases": [
+    {
+      "name": "stable",
+      "map": "maps/stable.cem02.json",
+      "legacyMap": "maps/stable.cem01.json",
+      "patch": "patches/stable.patch",
+      "targetRevision": "063206893869c1163cab3d47c217dfb85b4d568a",
+      "accept": true,
+      "unknownHunks": 0,
+      "drift": [
+        {
+          "evidenceId": "evidence:sha256:21288997a8eda13c29a8daef92da00e949947f4f79c17f7855ecadbc40e8114c",
+          "path": "a.txt",
+          "status": "stable",
+          "targetBlobOid": "4a58007052a65fbc2fc3f910f2855f45a4058e74",
+          "targetSpan": {
+            "start": 0,
+            "end": 6
+          }
+        },
+        {
+          "evidenceId": "evidence:sha256:824c77e2e4e000a90992e6690cbca44a23c6f74f87a0a14768da70b49c4ca2e5",
+          "path": "b.txt",
+          "status": "stable",
+          "targetBlobOid": "65b2df87f7df3aeedef04be96703e55ac19c2cfb",
+          "targetSpan": {
+            "start": 0,
+            "end": 5
+          }
+        }
+      ]
+    },
+    {
+      "name": "relocated",
+      "map": "maps/relocated.cem02.json",
+      "legacyMap": "maps/relocated.cem01.json",
+      "patch": "patches/relocated.patch",
+      "targetRevision": "1fe9e9098d6d5110f8d64210d3cb9a4d510473d3",
+      "accept": true,
+      "unknownHunks": 0,
+      "drift": [
+        {
+          "evidenceId": "evidence:sha256:21288997a8eda13c29a8daef92da00e949947f4f79c17f7855ecadbc40e8114c",
+          "path": "a.txt",
+          "status": "relocated",
+          "targetBlobOid": "84db70948b998e14dcd4f602f76775f6b4c5ec7f",
+          "targetSpan": {
+            "start": 7,
+            "end": 13
+          }
+        },
+        {
+          "evidenceId": "evidence:sha256:824c77e2e4e000a90992e6690cbca44a23c6f74f87a0a14768da70b49c4ca2e5",
+          "path": "b.txt",
+          "status": "stable",
+          "targetBlobOid": "65b2df87f7df3aeedef04be96703e55ac19c2cfb",
+          "targetSpan": {
+            "start": 0,
+            "end": 5
+          }
+        }
+      ]
+    },
+    {
+      "name": "stale",
+      "map": "maps/stale.cem02.json",
+      "legacyMap": "maps/stale.cem01.json",
+      "patch": "patches/stale.patch",
+      "targetRevision": "aa531e45c5f9d0bb9bca1f127e8d8f378e5c3b2c",
+      "accept": false,
+      "unknownHunks": 0,
+      "drift": [
+        {
+          "evidenceId": "evidence:sha256:21288997a8eda13c29a8daef92da00e949947f4f79c17f7855ecadbc40e8114c",
+          "path": "a.txt",
+          "status": "stale",
+          "targetBlobOid": "feae347d8510cfba5eb8c8ac80056777b07c2528",
+          "targetSpan": null
+        },
+        {
+          "evidenceId": "evidence:sha256:824c77e2e4e000a90992e6690cbca44a23c6f74f87a0a14768da70b49c4ca2e5",
+          "path": "b.txt",
+          "status": "stable",
+          "targetBlobOid": "65b2df87f7df3aeedef04be96703e55ac19c2cfb",
+          "targetSpan": {
+            "start": 0,
+            "end": 5
+          }
+        }
+      ]
+    },
+    {
+      "name": "ambiguous",
+      "map": "maps/ambiguous.cem02.json",
+      "legacyMap": "maps/ambiguous.cem01.json",
+      "patch": "patches/ambiguous.patch",
+      "targetRevision": "74626c163242224a93e77abb7228606099e0df09",
+      "accept": false,
+      "unknownHunks": 0,
+      "drift": [
+        {
+          "evidenceId": "evidence:sha256:21288997a8eda13c29a8daef92da00e949947f4f79c17f7855ecadbc40e8114c",
+          "path": "a.txt",
+          "status": "ambiguous",
+          "targetBlobOid": "a0e2502ce98a1e847604f949cdfa4b155a33b99b",
+          "targetSpan": null
+        },
+        {
+          "evidenceId": "evidence:sha256:824c77e2e4e000a90992e6690cbca44a23c6f74f87a0a14768da70b49c4ca2e5",
+          "path": "b.txt",
+          "status": "stable",
+          "targetBlobOid": "65b2df87f7df3aeedef04be96703e55ac19c2cfb",
+          "targetSpan": {
+            "start": 0,
+            "end": 5
+          }
+        }
+      ]
+    },
+    {
+      "name": "deleted",
+      "map": "maps/deleted.cem02.json",
+      "legacyMap": "maps/deleted.cem01.json",
+      "patch": "patches/deleted.patch",
+      "targetRevision": "7447959da419d2271e414ba9856c53a93316e031",
+      "accept": false,
+      "unknownHunks": 0,
+      "drift": [
+        {
+          "evidenceId": "evidence:sha256:21288997a8eda13c29a8daef92da00e949947f4f79c17f7855ecadbc40e8114c",
+          "path": "a.txt",
+          "status": "deleted",
+          "targetBlobOid": null,
+          "targetSpan": null
+        },
+        {
+          "evidenceId": "evidence:sha256:824c77e2e4e000a90992e6690cbca44a23c6f74f87a0a14768da70b49c4ca2e5",
+          "path": "b.txt",
+          "status": "stable",
+          "targetBlobOid": "65b2df87f7df3aeedef04be96703e55ac19c2cfb",
+          "targetSpan": {
+            "start": 0,
+            "end": 5
+          }
+        }
+      ]
+    },
+    {
+      "name": "unknown",
+      "map": "maps/unknown.cem02.json",
+      "legacyMap": "maps/unknown.cem01.json",
+      "patch": "patches/unknown.patch",
+      "targetRevision": "171e3a70171524fc4f5e957ec432df9f9889618d",
+      "accept": true,
+      "unknownHunks": 1,
+      "drift": []
+    }
+  ],
+  "artifactSha256": {
+    "maps/ambiguous.cem01.json": "278ff7443cc88a1aacbffe0a84ecc4834cbf26ab5cf4d2a0b44021d01facab56",
+    "maps/ambiguous.cem02.json": "74d686eca3946b85ca88c1e6266c652a2acc8e4fc96771c801b5d0b3cb56b20e",
+    "maps/deleted.cem01.json": "a8f07a6e1860503a3ed2aab015aa9b0d5ce9a884a103d077e6155b176ba7e67e",
+    "maps/deleted.cem02.json": "40996b6889276e9ff9c00f68654cdbe90d995ef05e1c4c4860712e0bf9b2c0c7",
+    "maps/relocated.cem01.json": "5aefcddd87abbdea9e3a6b2bc4f7287eb6c319b5b77566301ff87084aa616b18",
+    "maps/relocated.cem02.json": "d80dc6ecba23f6e57fc82b4f244cfa28ffd9479c5282fd374a7fdb41e9cd8b92",
+    "maps/stable.cem01.json": "919946546a8d467826e7175ac90e7266995032bb7b767533162e34bc00df3fcf",
+    "maps/stable.cem02.json": "d650efadcf43831cf22262798e8d4e3ba60f13d320e5721115b5895da034e6c4",
+    "maps/stale.cem01.json": "8727014e0d460c22d37399e9d1547501ef86a98211a529cc2729972d388fe5f5",
+    "maps/stale.cem02.json": "da9e2b20ef3fbd4254a4b4f4a8046414d20c319822aea060321a0aaec8c571b9",
+    "maps/unknown.cem01.json": "1ade5273c96cbcb34bfe99cdb367274a3521bc379bfc65f8406499636b25f4be",
+    "maps/unknown.cem02.json": "6f7270241b0e338bb97e3388fca139d9517ab9e5a2713890f627d69cbdcd355d",
+    "patches/ambiguous.patch": "9d51ec15b02d470062415f5f5161901976d8bb32eaa55ad53b0b487b958080b7",
+    "patches/deleted.patch": "8c3e579d0a10481d0274ae28ac2bcb359e48b31a3d7c7e8a003f5eec32ac1afd",
+    "patches/relocated.patch": "cb5982fa7015b0110108ace7ffef851d596a6caf8e7f476add39c771090f3619",
+    "patches/stable.patch": "d05ddf46e8bb0e27ee08c77f894961e12334a0be32563d77b155f808d703c399",
+    "patches/stale.patch": "07569a6a4c35b162c092656cc3a1dc1443ec9d3e375ee260f18f154735649d59",
+    "patches/unknown.patch": "d05ddf46e8bb0e27ee08c77f894961e12334a0be32563d77b155f808d703c399",
+    "repository/base/a.txt": "b6a98d9ce9a2d9149288fa3df42d377c3e42737afdcdaf714e33c0a100b51060",
+    "repository/base/app.txt": "9160d4be34c8695bd172a76c7c7966587ea5a4d991ad22c87b2b91af54aa9ebb",
+    "repository/base/b.txt": "f2c82decdd7181cf98945929a62598db7e6b477e11f6e0eb0ae97020eff151ad"
+  }
+}

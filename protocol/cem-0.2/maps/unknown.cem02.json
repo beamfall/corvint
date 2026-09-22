@@ -1,0 +1,24 @@
+{
+  "spec": "cem/0.2",
+  "baseRevision": "2fe3f277a5f73e3b407b0f542674bce217640141",
+  "patchSha256": "d05ddf46e8bb0e27ee08c77f894961e12334a0be32563d77b155f808d703c399",
+  "excludedPath": ".corvint/change.cem.json",
+  "evidence": [],
+  "hunks": [
+    {
+      "id": "hunk:sha256:a98a33995b18206629f40346bdc9e4a85d608b5d722d4e7503229484e2fedfe6",
+      "path": "app.txt",
+      "oldRange": {
+        "start": 1,
+        "count": 1
+      },
+      "newRange": {
+        "start": 1,
+        "count": 1
+      },
+      "disposition": "unknown",
+      "reason": "no-evidence",
+      "basis": []
+    }
+  ]
+}

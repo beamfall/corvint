@@ -23,6 +23,12 @@ JSON and mathematical wire integers, Unicode and canonical identities, bounded r
 edge cases, empty blobs, overlapping drift, Git isolation, deadline enforcement, and batched
 capacity.
 
+`TestPortableProfileCompatibility` additionally consumes the candidate raw packet in
+`protocol/cem-0.2` through this consumer's process ABI: it rejects 0.2 and checks separately pinned
+0.1 equivalents, including ordered mixed drift, unknowns and evidence reuse across hunks. Repeated
+basis pairs remain invalid within one hunk. This supplement changes neither the historical frozen
+matrix nor the consumer's 0.1-only profile; it does not establish independent 0.2 interoperability.
+
 ## Run
 
 ```console

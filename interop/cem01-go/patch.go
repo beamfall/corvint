@@ -660,9 +660,10 @@ func verifyHunkMap(m *cemMap, p *parsedPatch) *cemError {
 	for _, e := range m.Evidence {
 		evidenceByID[e.ID] = true
 	}
-	cited, mapIDs, pairs := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	cited, mapIDs := map[string]bool{}, map[string]bool{}
 	validRelations := map[string]bool{"specification": true, "decision": true, "test-claim": true, "implementation": true, "call-site": true, "dependency": true, "incident": true}
 	for _, mh := range m.Hunks {
+		pairs := map[string]bool{}
 		ph := parsed[mh.ID]
 		if ph == nil || mapIDs[mh.ID] {
 			return invalid("hunk-id")
