@@ -159,10 +159,10 @@ func portableAuthorityFailures(t *testing.T, root string, valid ReadOptions) {
 		name, code string
 		options    ReadOptions
 	}{
-		{"CEM-CB-010 missing base", "expected-base-required", ReadOptions{MapPath: valid.MapPath, Target: valid.Target}},
-		{"CEM-CB-010 missing target", "target-required", ReadOptions{MapPath: valid.MapPath, ExpectedBase: valid.ExpectedBase}},
-		{"CEM-CB-010 wrong base", "base-revision-mismatch", ReadOptions{MapPath: valid.MapPath, ExpectedBase: valid.Target, Target: valid.Target}},
-		{"CEM-CB-012 external patch", "invalid-arguments", ReadOptions{MapPath: valid.MapPath, ExpectedBase: valid.ExpectedBase, Target: valid.Target, PatchGiven: true, PatchPath: "unused.patch"}},
+		{name: "CEM-CB-010 missing base", code: "expected-base-required", options: ReadOptions{MapPath: valid.MapPath, Target: valid.Target}},
+		{name: "CEM-CB-010 missing target", code: "target-required", options: ReadOptions{MapPath: valid.MapPath, ExpectedBase: valid.ExpectedBase}},
+		{name: "CEM-CB-010 wrong base", code: "base-revision-mismatch", options: ReadOptions{MapPath: valid.MapPath, ExpectedBase: valid.Target, Target: valid.Target}},
+		{name: "CEM-CB-012 external patch", code: "invalid-arguments", options: ReadOptions{MapPath: valid.MapPath, ExpectedBase: valid.ExpectedBase, Target: valid.Target, PatchGiven: true, PatchPath: "unused.patch"}},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			result, err := openSession(t, root).Read(context.Background(), "status", testCase.options)
