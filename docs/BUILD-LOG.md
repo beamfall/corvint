@@ -1998,3 +1998,36 @@ wire contract, spec bound, or refusal vocabulary changed; the envelope fixes bri
 into line with the pattern already used elsewhere in the same files. Full `go test ./...` was not
 run for this scoped batch (per `AGENTS.md`'s Verify section, exhaustive gate reserved for the
 terminal boundary); only the targeted tests above and the listed `make` checks were executed.
+## 2026-09-22 batch C: bounded lists, published bounds and redundant-parse cleanup
+
+Six scoped fixes closed from the agent-memory backlog. V1-0043 (BBF-V0-010): `validateControl`
+now caps `UnrelatedCriteria` and `RequiredSetup` at 1000 entries each (`maxControlListLength`,
+decision 0336), so `acceptedReceiptBound` can no longer exceed the 32 MiB document bound; math and
+rollback are in `docs/decisions/0336-behaviorfalsify-control-list-cap-2026-09-22.md`. V1-0046
+published both previously-unstated bounds next to their spec rows with no new requirement IDs:
+`externalMaxConfigInputs` (256) beside PWP-V0's `config-inputs-unobserved`, and the 10s
+`cleanupReserve` beside BBF-V0-010; PWP-V0's row also notes the current code path actually refuses
+an over-count as `report-output-overflow`, not `config-inputs-unobserved`, ahead of the ticket's
+framing. V1-0045: `RunUnit`'s report read now uses its own `unitReportOutputLimit` (16 MiB, equal
+to `defaultOutputLimit`) instead of the external provider's 4 MiB `externalOutputLimit`, cited in
+`js-live-test-provider-v0.md`'s `report-not-written` row. V1-0056: `qualified-reporter.cjs` now
+memoizes `--version` per executable path (`observedVersions`, mirroring `bundledBrowsers`); Go's
+`sensitive_input_boundary.go` builds one `strings.Replacer` per receipt instead of one
+`ReplaceAll` per sensitive value per field, preserving the existing longest-first prefix ordering
+(`TestSensitiveInputPrefixOverlappingValuesRedactLongestFirst` still passes unmodified in intent,
+call-site signature only). `application_attestation.go`'s "read the executable three times" item
+does not apply to the current file: it has exactly two content reads, at prepare-time (stage and
+digest) and inside `unchanged()` (later drift re-check), which are semantically required to happen
+at different times and cannot be merged without breaking drift detection; left untouched. The "JS
+emits paths only" companion item was skipped per the batch brief, since it is not a pure removal.
+V1-0058: `internal/extevidence/mcp.go` dropped the two `mcpObject(...)`-then-`strictMCP(...)`
+redundant pairs whose `mcpObject` result was already discarded (`mcpResponse`'s envelope decode,
+and the initial handshake's `info` decode), since `strictMCP` alone already re-derives the same
+duplicate-key and unknown-field checks; content/isError decoding, which uses its `mcpObject`
+return value, is unchanged. V1-0057: `candidateAdjacency` (`internal/workqueue/proposal.go`) now
+calls a new allocation-free `overlaps` helper instead of `len(intersection(...)) == 0`, dropping
+the per-pair slice allocation and sort; `TestCandidateAdjacencyGroupOverlap` pins the adjacency
+edges. All six changes keep existing test suites green; behaviorfalsify, jstestprovider,
+extevidence and workqueue package tests all pass. UNKNOWN: whether the PWP-V0 `config-inputs-
+unobserved` naming mismatch found while doing V1-0046 needs its own ticket, versus being purely a
+documentation clarification — left as a note rather than filed separately.

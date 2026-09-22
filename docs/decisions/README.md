@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0336-behaviorfalsify-control-list-cap-2026-09-22.md`](0336-behaviorfalsify-control-list-cap-2026-09-22.md) | accepted, batch bug fix | `validateControl` caps `UnrelatedCriteria` and `RequiredSetup` at 1000 entries each (BBF-V0-010) so the per-receipt output floor can never exceed the 32 MiB document bound. |
 | [`0343-ocm-v0-conformance-vectors-2026-09-22.md`](0343-ocm-v0-conformance-vectors-2026-09-22.md) | accepted | Freeze the `ocm/0.1-experimental` wire with producer-derived conformance vectors and fixtures in `conformance/ocm-v0/` (`OCM-V0-014`, ticket V1-0013). |
 | [`0338-cem-0-3-structural-mechanical-reasons-2026-09-22.md`](0338-cem-0-3-structural-mechanical-reasons-2026-09-22.md) | accepted (experimental delivery) | Add `cem/0.3` as `cem/0.2` plus Go `rename`, `move`, `import-reorder` and `formatter-only` mechanical reasons the verifier re-proves from the base blob and patch |
 | [`0341-stable-operations-qualification-2026-09-22.md`](0341-stable-operations-qualification-2026-09-22.md) | accepted | Stable operations for V1-0017: an install-lifecycle check, a named hostile-regression matrix with NOT_COVERED rows, the 0.x support window and a command runbook; snapshot recovery is packet identity, not byte identity. |

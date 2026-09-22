@@ -75,7 +75,9 @@ claim is added.
 The provider's closed refusal codes are:
 
 - `config-input-drift`
-- `config-inputs-unobserved`
+- `config-inputs-unobserved` (checked against at most `externalMaxConfigInputs`, 256, reporter-observed
+  config entries; beyond that count the report is refused as `report-output-overflow` before this
+  check runs)
 - `external-app-identity-required`
 - `external-config-version-test-files-required`
 - `external-input-bound-or-secret`

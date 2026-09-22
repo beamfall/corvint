@@ -207,7 +207,7 @@ func runExternal(ctx context.Context, cfg E2EConfig) (Receipt, error) {
 	if !lifecycle.InputsUnchanged {
 		r.Infrastructure = &InfrastructureFailure{Reason: "input-identity-changed", Detail: "bound config, test, package or declared environment changed"}
 	}
-	data, readErr := readBoundedReport(reportPath)
+	data, readErr := readBoundedReport(reportPath, externalOutputLimit)
 	if readErr != nil {
 		if r.Infrastructure == nil {
 			r.Infrastructure = &InfrastructureFailure{Reason: "report-not-written", Detail: readErr.Error()}
@@ -411,14 +411,14 @@ func externalReady(ctx context.Context, address string, limit time.Duration) err
 	}
 }
 
-func readBoundedReport(path string) ([]byte, error) {
+func readBoundedReport(path string, limit int) ([]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	data, err := io.ReadAll(io.LimitReader(f, externalOutputLimit+1))
-	if len(data) > externalOutputLimit {
+	data, err := io.ReadAll(io.LimitReader(f, int64(limit)+1))
+	if len(data) > limit {
 		return nil, errors.New("report-output-overflow")
 	}
 	return data, err

@@ -18,6 +18,11 @@ import (
 const (
 	defaultOutputLimit = 16 << 20
 	defaultTimeout     = 5 * time.Minute
+	// unitReportOutputLimit bounds the Vitest JSON report file RunUnit reads back
+	// (js-live-test-provider-v0.md row report-not-written). It is its own named bound rather than
+	// the external provider's 4 MiB externalOutputLimit, sized at least equal to defaultOutputLimit
+	// so a multi-thousand-test suite with stack traces does not surface as report-not-written.
+	unitReportOutputLimit = defaultOutputLimit
 )
 
 // Config is the shared subset of binding inputs both adapters need: the
@@ -133,7 +138,7 @@ func RunUnit(ctx context.Context, cfg UnitConfig) (Receipt, error) {
 		receipt.Cancelled = obs.Cancelled
 		return receipt, nil
 	}
-	data, err := readBoundedReport(outputFile)
+	data, err := readBoundedReport(outputFile, unitReportOutputLimit)
 	if err != nil {
 		receipt.Infrastructure = &InfrastructureFailure{Reason: "report-not-written", Detail: err.Error()}
 		return receipt, nil
