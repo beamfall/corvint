@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@corvint/opencode",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "FALLBACK OpenCode lifecycle adapter for Corvint",
   "type": "module",
   "exports": "./src/index.js",
@@ -26,7 +26,7 @@
     "plugin"
   ],
   "corvintIntegration": {
-    "adapterVersion": "0.2.5",
+    "adapterVersion": "0.2.6",
     "apiReferenceVersion": "1.18.21",
     "host": "opencode",
     "lastConformance": {
@@ -42,7 +42,7 @@
     "surface": "plugin",
     "testedHostVersions": [],
     "timeoutsMs": {
-      "automaticEvent": 500,
+      "automaticEvent": 2000,
       "queryEvent": 2000
     },
     "unavailableCapabilities": [
