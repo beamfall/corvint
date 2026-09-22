@@ -90,7 +90,11 @@ a performance budget (decision 0082). Go's 600s default is too tight to use here
 Use the matching row in `docs/AGENT-ROUTES.md` for a bounded route from question to original evidence.
 Spec questions: read `docs/specs/INDEX.json` or the target spec's Agent digest first. Look up
 requirement IDs in `docs/specs/REQUIREMENTS.tsv`; open a full spec body only after the digest points
-to a section. Backlog questions: `rg -n '^### ' docs/agent-memory/*.md` first.
+to a section. Backlog questions: the local roadmap is the Corvint task store `.taskman/`, read with
+`corvint-tasks queue status`, `roadmap`, `ticket search --label agent-memory`, and `ticket show`;
+file new bugs, fixes, test gaps, optimizations, ideas and open questions as tickets (label
+`agent-memory` plus `bugs|fixes|tests|optimizations|ideas|questions`), never as Markdown entries
+under `docs/agent-memory/`, which stays only as a redirect.
 
 Corvint is licensed under the GNU Affero General Public License v3.0 or later. `LICENSE` carries the
 AGPL text and `PROVENANCE.md` records the copyright basis. `LICENSING.md` is the authoritative path

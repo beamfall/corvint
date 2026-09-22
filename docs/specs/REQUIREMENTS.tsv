@@ -53,6 +53,18 @@ AFP-V0-016	docs/specs/affected-plan-v0.md	287	(accepted by decision 0320) `.gith
 AFP-V0-017	docs/specs/affected-plan-v0.md	295	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
 AFP-V0-018	docs/specs/affected-plan-v0.md	303	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
 AFP-V0-019	docs/specs/affected-plan-v0.md	318	(proposed technical contract implementing owner-requested issue #57)
+AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
+AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
+AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
+AFU-V0-004	docs/specs/application-flow-understanding-v0.md	76	Map tests at the test-case and relevant assertion level. Distinguish declared li
+AFU-V0-005	docs/specs/application-flow-understanding-v0.md	80	Report actionable gaps: no test found in the declared inventory, exercised witho
+AFU-V0-006	docs/specs/application-flow-understanding-v0.md	84	In an explicitly started safe test session, discover available actions from the
+AFU-V0-007	docs/specs/application-flow-understanding-v0.md	88	Before verification, freeze independently justified expected outcomes; compare e
+AFU-V0-008	docs/specs/application-flow-understanding-v0.md	94	Bind observations to repository/tree and served build, test/assertion and config
+AFU-V0-009	docs/specs/application-flow-understanding-v0.md	98	Learning is an explicit local record operation over bounded, screened artifacts.
+AFU-V0-010	docs/specs/application-flow-understanding-v0.md	102	Use a separately invoked optional browser/test provider with declared action sco
+AFU-V0-011	docs/specs/application-flow-understanding-v0.md	106	Source, UI text and imported artifacts are untrusted data, never execution instr
+AFU-V0-012	docs/specs/application-flow-understanding-v0.md	110	Explain each flow and gap through source/assertion/run evidence, expose contradi
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
 AHI-001	docs/specs/agent-harness-integration-v0.md	76	Every adapter MUST consume and produce the transport-neutral Corvint request, re

@@ -1,5 +1,24 @@
 [
   {
+    "path": "docs/specs/application-flow-understanding-v0.md",
+    "title": "Application Flow Understanding V0",
+    "reqPrefix": "AFU-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Corvint maps declared web flows to source-bound assertion candidates and bounded browser observations, preserving coverage gaps and contradictions.",
+    "dependsOn": [
+      "docs/specs/js-live-test-provider-v0.md",
+      "docs/specs/ocm-v0-dogfood.md"
+    ],
+    "supersededBy": null,
+    "closableToday": true,
+    "implementation": [
+      "internal/appflows",
+      "cmd/corvint-web-flows",
+      "tools/web-flows"
+    ]
+  },
+  {
     "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
     "title": "Frontier decision brief \u2014 2026-08-29",
     "reqPrefix": "",

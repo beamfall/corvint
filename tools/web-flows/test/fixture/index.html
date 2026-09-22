@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Flow fixture</title></head><body>
+<form id="entry"><label for="name">Item</label><input id="name" required><button id="save">Save</button></form>
+<output id="status">ready</output><div id="items"></div><a id="help" href="/help">Help</a>
+<script>
+const role = location.pathname.includes('viewer') ? 'viewer' : 'editor';
+const items = document.querySelector('#items');
+items.textContent = localStorage.getItem('last-item') || '';
+document.querySelector('#entry').addEventListener('submit', async event => {
+  event.preventDefault();
+  const name = document.querySelector('#name').value;
+  const response = await fetch('/api/items', { method:'POST', headers:{ 'content-type':'application/json' }, body:JSON.stringify({ name, role }) });
+  const result = await response.json();
+  document.querySelector('#status').textContent = result.status;
+  if (result.status === 'saved') { localStorage.setItem('last-item', name); items.textContent = name; }
+});
+</script></body></html>

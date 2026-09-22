@@ -724,7 +724,7 @@ var (
 		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
 		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
 		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet"}
+		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet", "flows"}
 )
 
 func knownHost(value string) bool {
@@ -940,6 +940,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 				return 2
 			}
 			return runAffected(ctx, root, stdout, stderr)
+		}
+		if root, rest, requested := flowInvocation(arguments); requested {
+			return runFlows(ctx, root, rest, stdout, stderr)
 		}
 		if options, isObligations, obligationsErr := parseObligationsInvocation(arguments); isObligations {
 			if obligationsErr != nil {
