@@ -1385,3 +1385,28 @@ Origin/Host/session refusal, state-preservation and cleanup assertions. A diagno
 Tasks store correctly refused relocation and was discarded as qualification evidence. Browser
 diagnostic attempts were interrupted and remain failed; HTTP inspection establishes this selector
 defect but does not replace the required complete installed browser qualification.
+
+## 2026-09-22 decision 0330: integrate reviewed source for the 0.6 candidate
+
+The version slice passed its tuple, historical-identity, documentation and editor checks, then
+strict completion at `055257f` and seal `7230485`. Its later sealed head is not relabelled as the
+completion target. New enrollment there refused `worktree-prior-completion-stale`; a fresh isolated
+checkout of the same sealed base was enrolled before source edits, preserving both generations.
+
+The integration retains main's publication-record content (`63635b4`), reviewed MCP/OpenCode
+source (`5f5b754`, `dbdda0d`), the declared-branch fixture repair (`39b61a0`), Pi fallback repair
+(`b8b2ffc`), OpenCode automatic-event deadline/diagnostics (`4d1b9b7`) and the reviewed roadmap
+selectors (`98d74ea`). Source-only commits preserve original references and receipts; importing
+sealed sidecars would violate the new slice's CEM boundary. Build-log conflicts retain each added
+record without copying unrelated alpha version changes. The requirement locator is regenerated
+from the integrated specs. Later Pi protected/FULL work remains a separate lane.
+
+The Pi input's full gate failed a query fixture restoration assertion; its focused repetitions do
+not establish a fix or gate pass. The pending test backlog retains that failure and unknown cause.
+Prechange query and tracked-Go impact were captured at the actual isolated root; query omissions
+and the initial empty-diff coordinator failure remain in private evidence. Independent plan review
+accepted the source/check scope and exact-target sequence. No new runtime behavior was designed
+in this integration. Its CEM/OCMs, final gate and independent source review must bind the integrated
+target; earlier input checks cannot qualify it. Optional browser/host evidence remains separately
+qualified, and sealed correctness/cost and genuine dual-repository workflow evidence remain
+required before owner acceptance of the exact 0.6 packet.

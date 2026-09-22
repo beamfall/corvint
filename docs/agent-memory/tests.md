@@ -13,6 +13,16 @@ Missing, weak, or flaky tests, named by file and behaviour. Remove the entry whe
 One paragraph: what, where (file:line), why it matters, and what done looks like.
 -->
 
+### 2026-09-22 cmd/corvint: repository-query drift fixture restoration failed once in the full gate
+
+`TestFreshProcessRepositoryQueryRejectsDeterministicDrift` failed at `cmd/corvint/query_repository_test.go:480`
+on Pi audit target `bb339355e8c10d164da06276ab11dfa185f4983a`: the query correctly rejected drift,
+but the fixture did not restore to its exact pre-injection snapshot. Ten unmodified isolated
+repetitions and 100 instrumented repetitions passed; the cause remains UNKNOWN. The failed gate
+is retained in `/tmp/corvint-pi-audit/verify-gate.json`, with diagnosis in
+`/tmp/corvint-pi-audit/drift-instrumented.log`. Another failure requires package-context diagnosis;
+no flake fix or full-gate PASS is established by isolated repetitions.
+
 ### 2026-09-22 cmd/corvint: pin that `--root --corpus=FILE` does not consume the corpus flag as the root value
 `cmd/corvint/corpus_integration.go:28-48@334f0351` strips `--corpus=` before relaying, so `corpusNativeValueFollows` correctly declines to bind `--corpus=...` as `--root`'s value, but the surviving argv then binds `--root` to the next positional. No test covers the refusal or the shifted argv. Done: one test that passes `--root --corpus=FILE` and asserts the exact relayed argv and error.
 
