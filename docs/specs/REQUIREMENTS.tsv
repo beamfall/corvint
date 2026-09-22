@@ -92,6 +92,11 @@ AHI-022	docs/specs/agent-harness-integration-v0.md	272	The Gemini CLI and OpenCo
 AHI-023	docs/specs/agent-harness-integration-v0.md	302	An adapter MUST report the host version its host actually provides, and MUST NOT
 AHI-024	docs/specs/agent-harness-integration-v0.md	319	The experimental Pi extension MUST use runtime-provided version `0.85.1`, adapte
 AHI-025	docs/specs/agent-harness-integration-v0.md	386	The owner-requested complete Pi integration MUST expose native model-callable
+AHI-026	docs/specs/agent-harness-integration-v0.md	423	The Claude Code plugin MUST register the compaction hook events the installed ho
+AHI-027	docs/specs/agent-harness-integration-v0.md	433	`pre-compact` MUST emit, as plain stdout the host joins verbatim into the compac
+AHI-028	docs/specs/agent-harness-integration-v0.md	441	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv
+AHI-029	docs/specs/agent-harness-integration-v0.md	452	Neither compaction event writes repository, index, trace, or store state; the on
+AHI-030	docs/specs/agent-harness-integration-v0.md	454	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,

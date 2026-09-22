@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0340-claude-code-compaction-pin-hooks-2026-09-22.md`](0340-claude-code-compaction-pin-hooks-2026-09-22.md) | accepted; registration static-verified, live cycle NOT_RUN | Register Claude Code `PreCompact`/`PostCompact`: pin the compact packet's revision and tracked dirty paths before compaction, verify the preserved pin and name non-rehydratable paths after; model-facing rehydration stays `SessionStart(source=compact)` |
 | [`0336-behaviorfalsify-control-list-cap-2026-09-22.md`](0336-behaviorfalsify-control-list-cap-2026-09-22.md) | accepted, batch bug fix | `validateControl` caps `UnrelatedCriteria` and `RequiredSetup` at 1000 entries each (BBF-V0-010) so the per-receipt output floor can never exceed the 32 MiB document bound. |
 | [`0343-ocm-v0-conformance-vectors-2026-09-22.md`](0343-ocm-v0-conformance-vectors-2026-09-22.md) | accepted | Freeze the `ocm/0.1-experimental` wire with producer-derived conformance vectors and fixtures in `conformance/ocm-v0/` (`OCM-V0-014`, ticket V1-0013). |
 | [`0338-cem-0-3-structural-mechanical-reasons-2026-09-22.md`](0338-cem-0-3-structural-mechanical-reasons-2026-09-22.md) | accepted (experimental delivery) | Add `cem/0.3` as `cem/0.2` plus Go `rename`, `move`, `import-reorder` and `formatter-only` mechanical reasons the verifier re-proves from the base blob and patch |

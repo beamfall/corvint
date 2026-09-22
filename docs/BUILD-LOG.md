@@ -2031,3 +2031,21 @@ edges. All six changes keep existing test suites green; behaviorfalsify, jstestp
 extevidence and workqueue package tests all pass. UNKNOWN: whether the PWP-V0 `config-inputs-
 unobserved` naming mismatch found while doing V1-0046 needs its own ticket, versus being purely a
 documentation clarification — left as a note rather than filed separately.
+## 2026-09-22 claude-code-compaction-pin-hooks: PreCompact/PostCompact pin verdict for V1-0094
+
+Decision 0340 registers `PreCompact` and `PostCompact` on the Claude Code plugin (AHI-026 to
+AHI-030). The hook names, payload fields and stdout routing were read from the installed Claude
+Code 2.1.267 hook runner; no further compaction event exists there to register. `pre-compact`
+prints a `corvint-compaction-pin/0` line (HEAD tree, dirty-path counts, at most 24 tracked dirty
+paths) that the host joins into the compactor's instructions; `post-compact` re-validates the pin
+the summary preserved, checks the tree and each path with one hermetic read-only `cat-file`, and
+prints a `corvint-compaction-report/0` line naming every non-rehydratable path. The host shows that
+report to the user only, so the model-facing rehydration remains `SessionStart(source=compact)`,
+which now opens with a disclosure saying so; a host without the events ignores the registration
+and that disclosure plus `compatibility.json` `compactionHooks` keep the gap visible. Evidence:
+`TestAHI026`..`TestAHI029` in `cmd/corvint/host_adapter_compaction_test.go`, the AHI-030
+assertion in `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths`, and the extended
+`TestAHI017AdapterHostKillMatchesDeclaredHooks`. Live compaction cycle NOT_RUN; black-box status
+STATIC_ONLY; no frozen evaluation fits (the CEP §3 gate is an unrun 30-task three-cycle trial).
+The plugin version stays 0.2.2 because `integrations/host-adapters.test.mjs` binds it to the
+shared compatibility matrix this change does not own.
