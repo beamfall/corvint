@@ -472,22 +472,22 @@ DCP-V1-013	docs/specs/documentation-corpus-v1.md	94	Explicit native corpus integ
 DCP-V1-014	docs/specs/documentation-corpus-v1.md	99	CEM integration projects original Git documentation spans at the CEM base throug
 DCP-V1-015	docs/specs/documentation-corpus-v1.md	103	Task/work consumers may attach read-only corpus evidence without changing accept
 DCP-V1-016	docs/specs/documentation-corpus-v1.md	105	A separate stdio documentation-corpus MCP server directly calls the native reade
-DCP-V1-017	docs/specs/documentation-corpus-v1.md	110	Declared profiles render Markdown or JSON, optionally grouped as a directory pla
-DCP-V1-018	docs/specs/documentation-corpus-v1.md	120	Input byte bounds apply before decode; record/revision/traversal bounds apply be
-DCP-V1-019	docs/specs/documentation-corpus-v1.md	124	Generic fixtures cover Go, JavaScript/TypeScript, Python or Ruby, unsupported an
-DCP-V1-020	docs/specs/documentation-corpus-v1.md	128	A frozen labelled evaluation records per-case truth/denominators, search precisi
-DCP-V1-021	docs/specs/documentation-corpus-v1.md	132	The opt-in `corvint-corpus-behavior-stability-provider/1` profile aggregates onl
-DCP-V1-022	docs/specs/documentation-corpus-v1.md	140	Planned repetitions use a complete unique ordinal set. Playwright retries remain
-DCP-V1-023	docs/specs/documentation-corpus-v1.md	145	Aggregates separately expose planned, started, completed, passed, failed, timed-
-DCP-V1-024	docs/specs/documentation-corpus-v1.md	150	One repository-owned digest-bound policy defines independent one-spec, feature-b
-DCP-V1-025	docs/specs/documentation-corpus-v1.md	153	Corpus `stability` and capability-gated MCP `docs_get_stability` rederive the ag
-DCP-V1-026	docs/specs/documentation-corpus-v1.md	157	The repository policy and every observed run bind separate full-artifact topolog
-DCP-V1-027	docs/specs/documentation-corpus-v1.md	164	The opt-in native behavior adapter accepts one closed, bounded
-DCP-V1-028	docs/specs/documentation-corpus-v1.md	172	One deterministic `corvint-behavior-adapter-result/1` bundle contains an exact
-DCP-V1-029	docs/specs/documentation-corpus-v1.md	177	The adapter preserves the same canonical variation set in both directions across
-DCP-V1-030	docs/specs/documentation-corpus-v1.md	184	The result separately reports documented criteria, source-discovered candidates,
-DCP-V1-031	docs/specs/documentation-corpus-v1.md	188	Reconciliation reports every documented or discovered orphan, criterion/test/flo
-DCP-V1-032	docs/specs/documentation-corpus-v1.md	194	An optional prior result yields exact added, removed and content-changed canonic
+DCP-V1-017	docs/specs/documentation-corpus-v1.md	113	Declared profiles render Markdown or JSON, optionally grouped as a directory pla
+DCP-V1-018	docs/specs/documentation-corpus-v1.md	123	Input byte bounds apply before decode; record/revision/traversal bounds apply be
+DCP-V1-019	docs/specs/documentation-corpus-v1.md	127	Generic fixtures cover Go, JavaScript/TypeScript, Python or Ruby, unsupported an
+DCP-V1-020	docs/specs/documentation-corpus-v1.md	131	A frozen labelled evaluation records per-case truth/denominators, search precisi
+DCP-V1-021	docs/specs/documentation-corpus-v1.md	135	The opt-in `corvint-corpus-behavior-stability-provider/1` profile aggregates onl
+DCP-V1-022	docs/specs/documentation-corpus-v1.md	143	Planned repetitions use a complete unique ordinal set. Playwright retries remain
+DCP-V1-023	docs/specs/documentation-corpus-v1.md	148	Aggregates separately expose planned, started, completed, passed, failed, timed-
+DCP-V1-024	docs/specs/documentation-corpus-v1.md	153	One repository-owned digest-bound policy defines independent one-spec, feature-b
+DCP-V1-025	docs/specs/documentation-corpus-v1.md	156	Corpus `stability` and capability-gated MCP `docs_get_stability` rederive the ag
+DCP-V1-026	docs/specs/documentation-corpus-v1.md	160	The repository policy and every observed run bind separate full-artifact topolog
+DCP-V1-027	docs/specs/documentation-corpus-v1.md	167	The opt-in native behavior adapter accepts one closed, bounded
+DCP-V1-028	docs/specs/documentation-corpus-v1.md	175	One deterministic `corvint-behavior-adapter-result/1` bundle contains an exact
+DCP-V1-029	docs/specs/documentation-corpus-v1.md	180	The adapter preserves the same canonical variation set in both directions across
+DCP-V1-030	docs/specs/documentation-corpus-v1.md	187	The result separately reports documented criteria, source-discovered candidates,
+DCP-V1-031	docs/specs/documentation-corpus-v1.md	191	Reconciliation reports every documented or discovered orphan, criterion/test/flo
+DCP-V1-032	docs/specs/documentation-corpus-v1.md	197	An optional prior result yields exact added, removed and content-changed canonic
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
@@ -1250,6 +1250,9 @@ MCPV0-017	docs/specs/mcp-server-2026-07-28-v0.md	331	All calls are read-only. Th
 MCPV0-018	docs/specs/mcp-server-2026-07-28-v0.md	337	Per-call repository and revision identity is acquired once and bound to the Corv
 MCPV0-019	docs/specs/mcp-server-2026-07-28-v0.md	343	Frame allocation, tool arguments, Corvint output, stderr, concurrent requests, p
 MCPV0-020	docs/specs/mcp-server-2026-07-28-v0.md	350	`corvint.query` and `corvint.impact` MAY accept an explicit
+MCPV0-021	docs/specs/mcp-server-2026-07-28-v0.md	377	All four existing MCP commands MUST accept at most one
+MCPV0-022	docs/specs/mcp-server-2026-07-28-v0.md	383	A legacy connection MUST initialize independently for each Serve invocation. It
+MCPV0-023	docs/specs/mcp-server-2026-07-28-v0.md	399	Legacy calls MUST reuse each existing command's closed tool registry and native
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the
@@ -1263,14 +1266,14 @@ MER-V0-010	docs/specs/migration-evidence-ratchet-v0.md	68	The profile decoder MU
 MER-V0-011	docs/specs/migration-evidence-ratchet-v0.md	71	`corvint migration-ratchet --profile FILE` MUST write exactly one canonical JSON
 MER-V0-012	docs/specs/migration-evidence-ratchet-v0.md	75	Executable negatives MUST cover a renamed test masquerading as delete/add, a wea
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	38	The profile MUST be served by the separate executable `corvint-test-validity-mcp
-MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	45	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two
-MTV-V0-003	docs/specs/mcp-test-validity-profile-v0.md	52	Receipt location contract. The only receipt source MUST be the caller's `receipt
-MTV-V0-004	docs/specs/mcp-test-validity-profile-v0.md	70	With neither `receipt` nor `discover: true`, the call MUST succeed with the `cor
-MTV-V0-005	docs/specs/mcp-test-validity-profile-v0.md	73	With a `receipt`, the document MUST be exactly what `corvint test-validity
-MTV-V0-006	docs/specs/mcp-test-validity-profile-v0.md	83	A successful result's `structuredContent` MUST be `{schema:
-MTV-V0-007	docs/specs/mcp-test-validity-profile-v0.md	91	The tool MUST open no network connection or listener, start no process, run no
-MTV-V0-008	docs/specs/mcp-test-validity-profile-v0.md	98	`conformance/mcp-test-validity-v0/cases.json` MUST hold the profile's black-box
-MTV-V0-009	docs/specs/mcp-test-validity-profile-v0.md	103	`discover: true` (decision 0202) MUST return, as the result's `document`, exactl
+MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	47	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two
+MTV-V0-003	docs/specs/mcp-test-validity-profile-v0.md	54	Receipt location contract. The only receipt source MUST be the caller's `receipt
+MTV-V0-004	docs/specs/mcp-test-validity-profile-v0.md	72	With neither `receipt` nor `discover: true`, the call MUST succeed with the `cor
+MTV-V0-005	docs/specs/mcp-test-validity-profile-v0.md	75	With a `receipt`, the document MUST be exactly what `corvint test-validity
+MTV-V0-006	docs/specs/mcp-test-validity-profile-v0.md	85	A successful result's `structuredContent` MUST be `{schema:
+MTV-V0-007	docs/specs/mcp-test-validity-profile-v0.md	93	The tool MUST open no network connection or listener, start no process, run no
+MTV-V0-008	docs/specs/mcp-test-validity-profile-v0.md	100	`conformance/mcp-test-validity-v0/cases.json` MUST hold the profile's black-box
+MTV-V0-009	docs/specs/mcp-test-validity-profile-v0.md	105	`discover: true` (decision 0202) MUST return, as the result's `document`, exactl
 NEC-V0-001	docs/specs/necessity-labels-v0.md	46	`corvint [--root PATH] necessity --task TEXT [--subject PATH] [--limit N]` MUST
 NEC-V0-002	docs/specs/necessity-labels-v0.md	50	The verb MUST load the index exactly as `context --task` does (the tree's snapsh
 NEC-V0-003	docs/specs/necessity-labels-v0.md	54	Each counterfactual MUST run over a shallow copy of the index whose `Sources`,
@@ -1612,10 +1615,10 @@ SDD-V0-003	docs/specs/source-documentation-draft-v0.md	43	Every entry carries or
 SDD-V0-004	docs/specs/source-documentation-draft-v0.md	58	`docs consume` reads actual Markdown on stdin, freshly rederives the canonical d
 SDD-V0-005	docs/specs/source-documentation-draft-v0.md	66	Bound source preamble/digest to 64 lines, declarations and importers to 64 entri
 SDD-V0-006	docs/specs/source-documentation-draft-v0.md	72	An MCP client can call `corvint.docs_draft` and `corvint.docs_consume`
-SDD-V0-007	docs/specs/source-documentation-draft-v0.md	98	An explicitly enabled, bounded local session (`internal/docmaintain`,
-SDD-V0-008	docs/specs/source-documentation-draft-v0.md	114	Eligibility is decided by comparing the draft's cited source identities — each
-SDD-V0-009	docs/specs/source-documentation-draft-v0.md	122	`--preview` computes and returns the proposed page bytes, a unified diff against
-SDD-V0-010	docs/specs/source-documentation-draft-v0.md	134	The session never runs unless `--enable` is given together with exactly one of
+SDD-V0-007	docs/specs/source-documentation-draft-v0.md	101	An explicitly enabled, bounded local session (`internal/docmaintain`,
+SDD-V0-008	docs/specs/source-documentation-draft-v0.md	117	Eligibility is decided by comparing the draft's cited source identities — each
+SDD-V0-009	docs/specs/source-documentation-draft-v0.md	125	`--preview` computes and returns the proposed page bytes, a unified diff against
+SDD-V0-010	docs/specs/source-documentation-draft-v0.md	137	The session never runs unless `--enable` is given together with exactly one of
 SEA-V0-001	docs/specs/source-evidence-axes-v0.md	168	The source MUST assign all six axes with a claim, exact scalar scope, witnesses,
 SEA-V0-002	docs/specs/source-evidence-axes-v0.md	170	The source MUST preserve the six independent vocabularies and initial assignment
 SEA-V0-003	docs/specs/source-evidence-axes-v0.md	172	The opted-in wrapper MUST bind the unchanged payload and captured producer/Git/i

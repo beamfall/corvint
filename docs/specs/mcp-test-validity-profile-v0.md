@@ -36,12 +36,14 @@ freshness to the worktree's current digests, exactly as `corvint test-validity -
 ## Requirements
 
 - `MTV-V0-001`: The profile MUST be served by the separate executable `corvint-test-validity-mcp
-  --root ABSOLUTE_CLEAN_ROOT` (or `--version`) over MCP 2026-07-28 stdio through
+  --root ABSOLUTE_CLEAN_ROOT` (or `--version`) over default MCP 2026-07-28 stdio through
   `internal/mcp/server`, with server name `corvint-test-validity-mcp` and tool-error profile
   `corvint-test-validity-mcp-tool-error/0`. `tools/list` MUST advertise exactly one tool,
   `corvint.test_validity`, annotated read-only, idempotent, non-destructive and not open-world. It
   MUST NOT add a tool, argv option or enum value to `corvint-mcp`, `corvint-docs-mcp` or
-  `conformance/mcp-2026-07-28`.
+  `conformance/mcp-2026-07-28` as part of this projection. The separately owner-approved shared
+  compatibility amendment MCPV0-021..023 permits the explicit `--protocol-version 2025-11-25`
+  selector on this existing command without changing its tool, receipt or authority contract.
 - `MTV-V0-002`: The tool's input schema MUST be a closed JSON Schema 2020-12 object with two
   optional members, `discover` (a boolean, `MTV-V0-009`) and `receipt`: a string of 1 to 1024 characters that is not absolute and has no
   empty, `.`, `..` or `.git` segment and no backslash. Arguments over 4 KiB or not valid UTF-8, a
