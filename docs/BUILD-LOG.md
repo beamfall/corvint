@@ -1361,3 +1361,16 @@ query's measurement was not started in advance (NOT_OBSERVED); no savings claim 
 initial same-base coordination reported cem-prepare git-diff-failed, missing intent scope and
 outcome input, retained under /tmp/corvint-pi-audit/start-dogfood.log. Non-Go path impact, provider
 qualification, trace migration and mutation testing are inapplicable to this adapter repair.
+
+### 2026-09-22 — OpenCode automatic file-change deadline
+
+The user reported file-change `corvint-command-failed`/`timeout` on an unavailable work repository.
+Against the exact `1ed0e673` binary, this repository reproduced a 500 ms default timeout while
+the existing 2,000 ms override completed a receipt in 1,077 ms. These are correctness observations
+under concurrent gates, not p95 results or a diagnosis of the remote repository. OpenCode now uses
+the existing automatic ceiling by default and reports the actual deadline as a bound rather than
+a diagnosed fault. A 750 ms valid-receipt regression fails under the old default; default hang,
+explicit override, descendant cleanup, and successful FALLBACK preservation remain covered.
+Independent review found no blocker. A subsequent dirty-worktree invocation still exceeded the
+ceiling, so this repair makes no universal latency or absence-of-timeout claim. Query deadlines,
+fault visibility and legitimate evidence degradations are unchanged.

@@ -76,6 +76,12 @@ receives only a small non-secret environment allowlist.
 Explicit `corvintBinary`, `hostVersion`, `automaticTimeoutMs`, and `queryTimeoutMs` options take
 precedence over the ambient `CORVINT_BIN` and `CORVINT_OPENCODE_*` variables.
 
+Automatic events and explicit context queries default to 2,000 ms. Automatic overrides accept
+integers from 25 to 2,000 ms; query overrides accept 25 to 10,000 ms. Invalid values use the default.
+These are complete-command deadlines, separate from latency targets. A timeout warning includes
+the applied deadline; it does not diagnose the underlying cause. `FALLBACK` also appears on successful
+receipts when authoritative frontier evidence is unavailable, so inspect `ok` and the named code.
+
 Stable `session.created`, `session.idle`, `session.deleted`, and `file.edited` events plus
 `tool.execute.after` are translated to `corvint harness event`. Raw session IDs are hashed; raw
 prompts, transcripts, tool arguments, tool output, and environment maps are never sent. The

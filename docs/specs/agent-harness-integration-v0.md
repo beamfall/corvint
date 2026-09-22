@@ -152,6 +152,9 @@ do not reinterpret this Frontier result.
   Corvint operation. Missed deadlines degrade visibly rather than blocking the host indefinitely; an
   `corvint-invocation-timeout` line MUST name the deadline it exceeded and state that the deadline is a
   bound, not a diagnosed fault.
+  OpenCode automatic events default to the existing 2,000 ms ceiling; valid explicit overrides
+  remain 25–2,000 ms. Its `timeout` notice MUST carry `deadlineMs` and the same bound-versus-fault
+  distinction. A completed `FALLBACK` receipt MUST retain its actual degradation codes.
 - `AHI-013`: Default injected context MUST be smaller than the manual-search baseline at equal
   critical-evidence recall. Corvint MUST publish bytes and, where the host exposes them, measured input
   tokens; serialized bytes alone are not a token-savings claim.
