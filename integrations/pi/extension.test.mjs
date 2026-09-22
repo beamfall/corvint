@@ -7,7 +7,7 @@ import register from './extension.js';
 function fixture(t, {hasUI=true, trusted=true}={}) {
  const handlers=new Map(), commands=new Map(), calls=[], notices=[], messages=[];
  const runner={async close(){}, async run(request){calls.push(request);return {context:`CTX:${request.event}:${request.input.startSource??request.input.task??''}`,receiptId:String(calls.length),degradations:request.input.outcome?['outcome-persistence-unavailable']:[]};}};
- const pi={on(name,handler){handlers.set(name,handler)},registerCommand(name,command){commands.set(name,command)},sendMessage(message,options){messages.push({message,options})}};
+ const pi={on(name,handler){handlers.set(name,handler)},registerCommand(name,command){commands.set(name,command)},registerTool(){},sendMessage(message,options){messages.push({message,options})}};
  const ctx={cwd:'/fixture',hasUI,ui:{notify:(...args)=>notices.push(args)},isProjectTrusted:()=>trusted,sessionManager:{getSessionId:()=> 'private-session'}};
  const listeners=new Set([...process.listeners('SIGINT'),...process.listeners('SIGTERM')]);
  register(pi,{runner,version:'0.85.1'});

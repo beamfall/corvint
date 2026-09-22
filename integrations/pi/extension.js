@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { createHash } from 'node:crypto';
 import { decodeObject } from './runtime.js';
+import { registerTools, toolObservations } from './tools.js';
 
 const STARTS={startup:'startup',reload:'resume',new:'clear',resume:'resume',fork:'resume'};
 const OUTCOME_KEYS=new Set(['outcome','taskSha256','openedPaths','changedPaths','verification']);
@@ -9,11 +10,12 @@ export default function register(pi, {runner, version}) {
  let interrupting=false, starting=false, startupExitCode=0, generation=0, recovery;
  const seen=new Set();
  const identity=ctx=>createHash('sha256').update(String(ctx.sessionManager.getSessionId())).digest('hex');
- const notice=(ctx,code)=>{
-  const text=`Corvint unavailable: ${code}. Frontier authority remains unavailable.`;
+ const notice=(ctx,code,detail='')=>{
+  const text=`Corvint unavailable: ${code}. Frontier authority remains unavailable.${detail}`;
   if(ctx.hasUI)ctx.ui.notify(text,'warning');
   else process.stderr.write(text+'\n');
  };
+ const tools=registerTools(pi,{runner,version,notice});
  const signalInterrupt=(signal,listener)=>{
   if(starting&&!startupExitCode)startupExitCode=signal==='SIGINT'?130:143;
   if(interrupting)return;
@@ -51,6 +53,7 @@ export default function register(pi, {runner, version}) {
  }
  async function transition(ctx,startSource) {
   generation++;
+  tools.clear();
   seen.clear();
   recovery=undefined;
   await runner.close();
@@ -78,7 +81,11 @@ export default function register(pi, {runner, version}) {
   // Pi's context hook changes this request only, including an automatic compaction retry.
   return {messages:[...e.messages,{role:'custom',customType:'corvint-recovery',content:pending.context,display:false,timestamp:Date.now()}]};
  });
- pi.on('tool_result',async(_,ctx)=>{await event(ctx,'post-tool');});
+ pi.on('tool_result',async(e,ctx)=>{
+  let input;
+  try{input=toolObservations(e.details?.corvint)}catch{notice(ctx,'invalid-input');return;}
+  await event(ctx,'post-tool',input);
+ });
  pi.on('agent_end',async(e,ctx)=>{
   const terminal=e.messages.findLast(m=>m.role==='assistant');
   if(!terminal||!['stop','error','aborted','toolUse','length'].includes(terminal.stopReason))notice(ctx,'invalid-adapter-response');
@@ -86,6 +93,7 @@ export default function register(pi, {runner, version}) {
  });
  pi.on('session_shutdown',async(_,ctx)=>{
   generation++;
+  tools.clear();
   recovery=undefined;
   try{await runner.close();await event(ctx,'session-end');}
   finally{await runner.close();seen.clear();process.removeListener('SIGINT',interrupt);process.removeListener('SIGTERM',terminate);}

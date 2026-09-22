@@ -61,7 +61,7 @@ endif
 
 # Native adapter and opt-in handoff regressions are owned by the reproducible source gate.
 host-adapter-test:
-	node --test integrations/pi/runtime.test.mjs integrations/pi/extension.test.mjs
+	node --test integrations/pi/runtime.test.mjs integrations/pi/extension.test.mjs integrations/pi/tools.test.mjs
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 ./cmd/corvint -run '^(TestDogfoodEvent|TestCodexHostAdapter|TestClaudeNativeDogfoodLifecycle|TestClaudeSourceHandoffCLI|TestHostAdapter|TestPi)'
 
 go-version:

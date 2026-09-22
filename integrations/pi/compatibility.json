@@ -1,7 +1,7 @@
 {
   "host": "pi",
   "surface": "extension",
-  "adapterVersion": "0.1.2",
+  "adapterVersion": "0.2.0",
   "apiReferenceVersion": "0.85.1",
   "support": "FALLBACK",
   "testedHostVersions": [
@@ -15,9 +15,9 @@
   ],
   "lastConformance": {
     "hostVersion": "0.85.1",
-    "adapterVersion": "0.1.2",
+    "adapterVersion": "0.2.0",
     "operatingSystem": "darwin-arm64",
-    "validation": "offline-native-package-lifecycle-and-context",
+    "validation": "offline-native-package-tools-tui-rpc-and-cleanup",
     "test": "integrations/pi/host.test.mjs"
   }
 }

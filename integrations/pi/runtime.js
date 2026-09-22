@@ -6,10 +6,22 @@ const KEYS=['profile','event','host','surface','hostVersion','adapterVersion','s
 const CODES=new Set(['invalid-input','unsupported-event','unsupported-host-version','core-unavailable','invalid-core-response','output-too-large','deadline','untrusted-project']);
 const DEGRADATIONS=new Set(['compaction-critical-evidence-overflow','compaction-dirty-set-over-budget','compaction-untracked-paths-not-rehydratable','frontier-authority-unavailable','outcome-persistence-unavailable']);
 export function validEnvelope(v,event) {
- if(!EVENTS.has(event) || !v || typeof v!=='object' || Array.isArray(v) || JSON.stringify(Object.keys(v).sort())!==JSON.stringify(KEYS) || v.profile!=='corvint-pi-adapter/0' || v.event!==event || v.host!=='pi'||v.surface!=='extension'||v.adapterVersion!=='0.1.2'||v.support!=='FALLBACK'||v.shouldContinue!==false||typeof v.context!=='string'||!Array.isArray(v.degradations)||new Set(v.degradations).size!==v.degradations.length||!v.degradations.every(x=>DEGRADATIONS.has(x)))return false;
+ if(!EVENTS.has(event) || !v || typeof v!=='object' || Array.isArray(v) || JSON.stringify(Object.keys(v).sort())!==JSON.stringify(KEYS) || v.profile!=='corvint-pi-adapter/0' || v.event!==event || v.host!=='pi'||v.surface!=='extension'||v.adapterVersion!=='0.2.0'||v.support!=='FALLBACK'||v.shouldContinue!==false||typeof v.context!=='string'||!Array.isArray(v.degradations)||new Set(v.degradations).size!==v.degradations.length||!v.degradations.every(x=>DEGRADATIONS.has(x)))return false;
  if(v.fault!==null)return CODES.has(v.fault)&&v.receiptId===null&&v.context===''&&v.degradations.length===0&&(v.hostVersion==='0.85.1'||(v.hostVersion===null&&['invalid-input','unsupported-event','unsupported-host-version','deadline'].includes(v.fault)));
  if(v.context!=='' && (!['session-start','user-prompt'].includes(event)||!v.context.startsWith('BEGIN CORVINT REPOSITORY DATA\n')||!v.context.endsWith('\nEND CORVINT REPOSITORY DATA')))return false;
  return v.hostVersion==='0.85.1'&&typeof v.receiptId==='string'&&/^harness-receipt:sha256:[0-9a-f]{64}$/.test(v.receiptId);
+}
+const TOOL_KEYS=['profile','operation','hostVersion','adapterVersion','support','ok','mutation','context','packet','fault'].sort();
+const TOOL_FAULTS=new Set(['unsupported-operation','invalid-input','unsupported-host-version','core-unavailable','context-unavailable','stale-context','source-unavailable','record-unavailable','invalid-core-response','output-too-large']);
+export function validToolEnvelope(v,operation) {
+ if(!['context','expand','record'].includes(operation)||!v||JSON.stringify(Object.keys(v).sort())!==JSON.stringify(TOOL_KEYS)||v.profile!=='corvint-pi-tool/0'||v.operation!==operation||v.adapterVersion!=='0.2.0'||v.support!=='FALLBACK'||typeof v.ok!=='boolean'||typeof v.context!=='string'||!['not-attempted','recorded','unknown'].includes(v.mutation))return false;
+ if(operation!=='record'&&v.mutation!=='not-attempted')return false;
+ if(!v.ok)return TOOL_FAULTS.has(v.fault)&&v.context===''&&v.packet===null&&(v.hostVersion==='0.85.1'||(v.hostVersion===null&&['invalid-input','unsupported-operation','unsupported-host-version'].includes(v.fault)));
+ if(v.hostVersion!=='0.85.1'||v.fault!==null||!v.context.startsWith('BEGIN CORVINT REPOSITORY DATA\n')||!v.context.endsWith('\nEND CORVINT REPOSITORY DATA'))return false;
+ if(operation==='record'&&v.mutation!=='recorded')return false;
+ if(operation!=='context')return v.packet===null;
+ const p=v.packet;
+ return p&&JSON.stringify(Object.keys(p).sort())===JSON.stringify(['commit','evidenceHandle','json','sha256'])&&p.evidenceHandle==='context-packet:sha256:'+p.sha256&&typeof p.json==='string'&&Buffer.byteLength(p.json)<=65536&&typeof p.commit==='string'&&typeof p.sha256==='string'&&/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(p.commit)&&/^[0-9a-f]{64}$/.test(p.sha256);
 }
 export function decodeObject(raw) {
  const value=JSON.parse(raw);
@@ -35,7 +47,7 @@ export function createRunner({binary,env=process.env,spawnImpl=spawn}={}) {
  if(binary===undefined){binary=env.CORVINT_BIN;conflict=binary!==undefined&&!binary;}
  if(binary!==undefined&&(!binary||!isAbsolute(binary)))conflict=true;
  const pending=new Set();
- async function run({cwd,event,input,hostVersion,signal}) {
+ async function run({cwd,event,input,hostVersion,signal,operation}) {
   if(conflict)return {fault:'invalid-binary-config'};
   if(!binary)return {fault:'missing-binary'};
   if(process.platform==='win32')return {fault:'cleanup-failed'};
@@ -51,20 +63,20 @@ export function createRunner({binary,env=process.env,spawnImpl=spawn}={}) {
     if(settled)return;settled=true;for(const t of [deadline,killTimer,poll,hard])clearTimeout(t);signal?.removeEventListener('abort',abort);pending.delete(cancel);
     if(reason)return resolve({fault:reason});
     if(exit!==0)return resolve({fault:'core-unavailable'});
-    try{const raw=new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(stdout));const v=decodeEnvelope(raw);resolve(validEnvelope(v,event)?v:{fault:'invalid-adapter-response'});}catch{resolve({fault:'invalid-adapter-response'})}
+    try{const raw=new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(stdout));const v=decodeEnvelope(raw);resolve((operation?validToolEnvelope(v,operation):validEnvelope(v,event))?v:{fault:'invalid-adapter-response'});}catch{resolve({fault:'invalid-adapter-response'})}
    };
    const check=()=>{clearTimeout(poll);if(closed&&!alive())finish();else poll=setTimeout(check,15)};
    const cancel=(code='aborted')=>{if(settled)return;reason??=code;send('SIGTERM');if(!killTimer)killTimer=setTimeout(()=>send('SIGKILL'),100);check();};
    const abort=()=>cancel();pending.add(cancel);signal?.addEventListener('abort',abort,{once:true});
-   try{child=spawnImpl(binary,['adapter','pi',event],{cwd,env:allowed,shell:false,detached:true,stdio:['pipe','pipe','pipe']});}catch{reason='missing-binary';closed=true;finish();return;}
+   try{child=spawnImpl(binary,['adapter',operation?'pi-tool':'pi',operation??event],{cwd,env:allowed,shell:false,detached:true,stdio:['pipe','pipe','pipe']});}catch{reason='missing-binary';closed=true;finish();return;}
    deadline=setTimeout(()=>cancel('deadline'),1700);
    hard=setTimeout(()=>{reason='cleanup-failed';send('SIGKILL');check();},2000);
    child.on('error',()=>{reason='missing-binary';closed=true;if(!alive())finish();else cancel(reason)});
-   child.stdout.on('data',chunk=>{size+=chunk.length;if(size>8000)cancel('output-too-large');else stdout.push(chunk)});
+   child.stdout.on('data',chunk=>{size+=chunk.length;if(size>(operation?65536:8000))cancel('output-too-large');else stdout.push(chunk)});
    child.stderr.on('data',chunk=>{stderrSize+=chunk.length;if(stderrSize>4096)cancel('output-too-large')});
    child.on('close',code=>{closed=true;exit=code;if(alive())cancel('cleanup-failed');else finish()});
    child.stdin.on('error',()=>{});child.stdin.end(bytes);
   });
  }
- return {run,async close(){for(const cancel of pending)cancel();while(pending.size)await new Promise(r=>setTimeout(r,10));return;}};
+ return {run,tool:request=>run(request),async close(){for(const cancel of pending)cancel();while(pending.size)await new Promise(r=>setTimeout(r,10));return;}};
 }

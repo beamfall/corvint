@@ -7,6 +7,30 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 AHI-025: explicit Pi operations and full-support direction
+
+The owner explicitly requested complete Pi support, including protected authority and formal FULL.
+The additive functional slice reuses native context, immutable source-view validation and the
+explicit trace writer. It adds bounded in-memory packet handles and typed supplied observations,
+without changing legacy lifecycle authority or making automatic outcome writes. Existing enrollment
+and its failed canonical query-fixture restoration check remain visible; the next source invalidates
+prior checks. The functional slice is independently reviewable and remains separate from release
+0.6 integration until selected. Native and focused regression results are retained in the Pi task
+checkpoint; unrun qualification stays unclaimed.
+
+Independent review found two functional defects: the explicit slash command discarded uncertain-
+write guidance, and the context tool failed to forward its supplied evidence handle. Both are
+repaired and the repair-only review found no remaining required issue. Focused native Pi/source
+checks, 21 JavaScript regressions, and four actual Pi host/cleanup checks pass. Actual host evidence
+includes print-mode query/expansion/edit/verification/explicit recording, RPC new-session recovery,
+and native TUI prompt/shutdown. Canonical verification is queued against the frozen next target;
+these focused results are not a full gate or protected qualification.
+
+The protected-runtime feasibility review found the installed Node/JavaScript Pi cannot inherit the
+Codex-only direct admission. The official Pi 0.85.1 standalone darwin-arm64 archive is a concrete
+candidate, but immutable mapped code, external extension/resource closure and actual native launch
+must be proved before a Pi-specific technical profile or execution-root admission is accepted.
+
 ## 2026-09-22 EEP-V0-016/017/018: frozen kit gate failed, no retry
 
 The one enrolled full gate on `b835a7464836ee8d25ea828de0f2921ad672a254` failed with exit 2

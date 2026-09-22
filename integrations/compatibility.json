@@ -55,12 +55,12 @@
       "validation": "adapter-fixtures-only"
     },
     {
-      "adapterVersion": "0.1.2",
+      "adapterVersion": "0.2.0",
       "documentedAgainstHostVersion": "0.85.1",
       "host": "pi",
       "hostVersion": "0.85.1",
-      "hostVersionEvidence": "offline-native-package-lifecycle-and-context",
-      "hostVersionEvidenceAdapterVersion": "0.1.2",
+      "hostVersionEvidence": "offline-native-package-tools-tui-rpc-and-cleanup",
+      "hostVersionEvidenceAdapterVersion": "0.2.0",
       "operatingSystem": "darwin-arm64",
       "surface": "extension",
       "status": "FALLBACK",
