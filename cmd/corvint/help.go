@@ -163,6 +163,8 @@ func helpText(topic string) string {
 		return affectedHelp
 	case "obligations":
 		return obligationsHelp
+	case "flows":
+		return flowsHelp
 	case "necessity":
 		return necessityHelp
 	case "surprise":
@@ -241,6 +243,7 @@ Usage:
   corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]
   corvint [--root PATH] affected
   corvint obligations --cem FILE --impact FILE [--limit N]
+  corvint [--root PATH] flows --manifest FILE [--evidence FILE]
   corvint [--root PATH] docs (draft | consume) --source PATH --package DIRECTORY [--task TEXT]
   corvint [--root PATH] batch < REQUEST
   corvint [--root PATH] work observe
@@ -260,7 +263,7 @@ Usage:
   corvint [--root PATH] witness --base REV [--head REV] [--cem MAP] [--json]
   corvint test-validity [--receipt FILE]
   corvint [--root PATH] COMMAND --help
-  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|migration-ratchet|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity]
+  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|migration-ratchet|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity|flows]
   corvint help harness [event]
   corvint --version
 
@@ -291,6 +294,8 @@ Commands:
   review         Compose experimental range advice and local branch overlaps.
   affected       Compile the affected-test selection plan for the dirty worktree;
                  runs no test and never writes.
+  flows          Report experimental application flows, assertion candidates and
+                 observed outcomes; record explicitly with the record subcommand.
   obligations    Compose the external-obligations sidecar that joins a CEM's
                  hunks to an impact receipt's external section; never writes.
   prove          Compile the query packet and attach a falsifier verdict to
@@ -528,6 +533,23 @@ repository's falsification rate (FALSIFICATION) and one FALSIFIER line per
 falsifier: judged rows are PASS or FAIL, failed rows are FAIL. Host adapter
 degradations are tallied as ADAPTER-DEGRADATION lines by host/event/code,
 counting retained hour windows with the newest window.
+`
+
+const flowsHelp = `Inspect experimental web-flow assertion candidates and runtime observations.
+
+Usage:
+  corvint [--root PATH] flows --manifest FILE [--evidence FILE]
+  corvint [--root PATH] flows record --manifest FILE --evidence FILE --output FILE
+
+Read-only inspection binds declared tracked source and test files to Git and emits
+application-flow-report/0. Static assertions are candidates, not passing tests.
+Stale, missing, unsupported and contradicted evidence remains visible. Universal
+application completeness is never claimed. Core reads launch no browser or server.
+
+The separate corvint-web-flows companion parses JS/TS and optionally observes an
+explicitly trusted local app. Its proposed execution profile remains experimental.
+record explicitly writes one screened private evidence file and refuses overwrite;
+it does not update ranking or accept inferred intent. No automatic ledger is written.
 `
 
 const obligationsHelp = `Compose the external-frontier-obligations/0 sidecar for one CEM.
