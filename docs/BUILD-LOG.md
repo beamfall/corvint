@@ -7,6 +7,20 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 PPI-V0 / decision 0330: protected Pi source joins the 0.6 candidate
+
+The owner directly approved one replacement of the integration enrollment to include the reviewed
+protected Pi source as optional experimental FALLBACK. The 19fb7ea generation, its maps and reports
+are preserved; it was cancelled once as NON-SUCCESS. The contract commit landed first because Begin
+pins every intent at HEAD, then one Begin under the same key adopted the independently reviewed
+thirteen-scope, eight-check plan. The runtime and lifecycle commits and the MCPV0-011 literal anchor
+follow as source only; every runtime blob matches its reviewed commit, and only build-log, spec
+index and citation metadata differ. The added Makefile target shifted three citations, which now
+point at the same cited content; the unanchored compat-replay citation had already named the wrong
+line and now names `spec-requirements-check`. This authorizes no protected installation, principal
+admission, activation, FULL claim or compiled runtime distribution, whose notices remain incomplete.
+The earlier entry that excludes the protected runtime records the previous generation's scope.
+
 ## 2026-09-22: selected completed source enters the 0.6 candidate
 
 The owner selected the completed installation/recovery, candidate portable-proof, experimental

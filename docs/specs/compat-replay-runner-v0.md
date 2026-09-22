@@ -782,7 +782,7 @@ those two packages, this file, and its `docs/specs/README.md` and `docs/specs/IN
 then regenerating the requirement index
 with `script/gen-spec-requirements.sh > docs/specs/REQUIREMENTS.tsv`. That regeneration is a
 mandatory part of *every* edit to this file, not of rollback alone, because each clause's line
-number is recorded there and `Makefile:75`'s `spec-requirements-check` compares it byte for byte.
+number is recorded there and `Makefile:130`'s `spec-requirements-check` compares it byte for byte.
 It implements the AT-10 slice of `docs/specs/compat-trial-v0.md` (`CTR-V0-001`-`003`,
 `CTR-V0-010`, "as written") without adjudicating a label or naming the baseline; promote to
 `implemented` only once `tools/compat-trial` exists and every row above passes `make gate`.
