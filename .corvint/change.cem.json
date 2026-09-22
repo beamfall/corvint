@@ -52,6 +52,16 @@
       "spanSha256": "ce73738569e475dc40195bd42ce37c75bf7bebb1e4d922fc8277a50de78c145f"
     },
     {
+      "blobOid": "1514a9ce15c529280a195dd75db745ba168c38cc",
+      "id": "evidence:sha256:e1ada3fbbcdadca0313b86e5b78368538247ec331555a5f342cb670e7399b24a",
+      "path": "docs/specs/mcp-server-2026-07-28-v0.md",
+      "span": {
+        "end": 19980,
+        "start": 18539
+      },
+      "spanSha256": "f2e4e2f44f11cfef5cac06cfed7ec090b87c49d135832d13e8eff6b94a534e63"
+    },
+    {
       "blobOid": "3e442891005f1604220a4377047a05922ddd0b37",
       "id": "evidence:sha256:114953013bbc3644d33847a4cb80fd3235c30aebf4c8468e5bc5779e4da8ee60",
       "path": "docs/specs/agent-harness-integration-v0.md",
@@ -635,6 +645,46 @@
     {
       "basis": [
         {
+          "evidenceId": "evidence:sha256:e1ada3fbbcdadca0313b86e5b78368538247ec331555a5f342cb670e7399b24a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:45afed2aa9f470a02e14b7c30d34aaf741ea9be6c6e4822f990dc434c6203c1c",
+      "newRange": {
+        "count": 28,
+        "start": 186
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 171
+      },
+      "path": "conformance/mcp-2026-07-28/lifecycle_unix_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e1ada3fbbcdadca0313b86e5b78368538247ec331555a5f342cb670e7399b24a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b1cd4042a5c7f5edfc66d97f0037c436993cca8526ba81b4119d9f746d996708",
+      "newRange": {
+        "count": 7,
+        "start": 228
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 191
+      },
+      "path": "conformance/mcp-2026-07-28/lifecycle_unix_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
           "evidenceId": "evidence:sha256:0ddcf38a4cb335d05edbd1537afc419356d992459b90243e899027e7ba51fd65",
           "relation": "specification"
         },
@@ -821,12 +871,16 @@
         {
           "evidenceId": "evidence:sha256:05d9e096f355936ab4adc0663b7ce9196dcd8b577239b48e5aeb5cfeaf6c4811",
           "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:e1ada3fbbcdadca0313b86e5b78368538247ec331555a5f342cb670e7399b24a",
+          "relation": "specification"
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:9ca0db2eecb3809c04e8ed3c7127adaa3a95803da5c8134fd802dab2d609183e",
+      "id": "hunk:sha256:61e8713809d6c887aab7522392762fe6af1c86b0c6346b1efba7ebaa32631345",
       "newRange": {
-        "count": 132,
+        "count": 144,
         "start": 1185
       },
       "oldRange": {
@@ -2581,6 +2635,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "631e5db19699b791d0967c289898e492468b1b87854addb634de8fc28cf0f72e",
+  "patchSha256": "99eda5f9a52f94e1799ebe5ecd046f4669e6eb6c513add86a051a2822c081a64",
   "spec": "cem/0.2"
 }
