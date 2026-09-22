@@ -15,7 +15,7 @@ import (
 // alone. A blanket rewrite (for example a sed pass turning every `"Corvint 0.4.0aN"` into the
 // new tuple) would have passed every existing gate.
 func TestHistoricalBenchmarkEvidenceRetainsOriginalVersionIdentity(t *testing.T) {
-	t.Run("PUB-V0-001-historical-version-identities", func(t *testing.T) {
+	t.Run("PUB-V0-001 historical version identities", func(t *testing.T) {
 		root := filepath.Join("..", "..")
 		read := func(relative string) string {
 			data, err := os.ReadFile(filepath.Join(root, relative))

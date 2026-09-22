@@ -12,7 +12,7 @@ import (
 // go-archive-gate smoke); the VS Code exact admission and its conformance case are not, so a
 // version bump that forgot them would otherwise pass every gate.
 func TestPublicReleaseVersionTupleMovesTogether(t *testing.T) {
-	t.Run("PUB-V0-001-current-version-tuple", func(t *testing.T) {
+	t.Run("PUB-V0-001 current version tuple", func(t *testing.T) {
 		root := filepath.Join("..", "..")
 		read := func(relative string) string {
 			data, err := os.ReadFile(filepath.Join(root, relative))
