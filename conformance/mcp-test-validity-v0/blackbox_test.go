@@ -122,6 +122,10 @@ func loadManifest(t *testing.T) manifest {
 // MTV-V0-001/MTV-V0-002/MTV-V0-009: the profile advertises exactly one read-only,
 // closed-world tool with a closed input schema.
 func TestToolCatalogueIsExactlyOneReadOnlyTool(t *testing.T) {
+	t.Run("MTV-V0-001 exactly one read-only tool", toolCatalogueIsExactlyOneReadOnlyTool)
+}
+
+func toolCatalogueIsExactlyOneReadOnlyTool(t *testing.T) {
 	cases := loadManifest(t)
 	client := startServer(t, fixtureRepository(t))
 	defer client.close(t)

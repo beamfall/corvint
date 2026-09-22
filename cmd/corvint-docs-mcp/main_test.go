@@ -89,7 +89,7 @@ func docsFixtureRoot(t *testing.T) string {
 // closed to exactly the two docs tools and that draft/consume agree on bytes.
 func TestServeToolsListAndCallRoundTripsDocsDraftAndConsume(t *testing.T) {
 	for _, version := range []string{protocol.Version, protocol.LegacyVersion} {
-		t.Run(version, func(t *testing.T) { roundTripDocs(t, version) })
+		t.Run("SDD-V0-006 docs draft and consume round trip "+version, func(t *testing.T) { roundTripDocs(t, version) })
 	}
 }
 

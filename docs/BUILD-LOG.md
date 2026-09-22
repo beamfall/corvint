@@ -7,6 +7,17 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 MTV-V0-001 / SDD-V0-006: literal test anchors for the 0.6 completion
+
+Native finish at 9e57c41 refused with `ocm-bindings-required` after all eight plan checks passed:
+MTV-V0-001, SDD-V0-006, PUB-V0-010 and PUB-V0-020 carried explicit `no-test-claim` marks, which
+local completion treats as an assessed gap. The owner selected anchoring: the unchanged
+`TestToolCatalogueIsExactlyOneReadOnlyTool` body now runs as case `MTV-V0-001 exactly one
+read-only tool`, and the existing docs round-trip profiles are named `SDD-V0-006 docs draft and
+consume round trip <version>`, following the MCPV0-011 precedent (8d8eed2). No assertion changes.
+PUB-V0-010 and PUB-V0-020 have no extractable test and stay unassessed; their no-test-claim
+assessment remains in the review record and release packet. The refused finish receipt is retained.
+
 ## 2026-09-22 IPR-03: seed data re-pins the reconciled roadmap digest
 
 The exact-target seed-fixture check refused because 9148240 edited the roadmap header, outcome and
