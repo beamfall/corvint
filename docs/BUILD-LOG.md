@@ -7,6 +7,20 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-22 PUB-V0-001: v0.5.0a3 published
+
+Tag `v0.5.0a3` points at `822888a`, the merge of pull request #59 (`codex/release-v050a3`), and the
+GitHub prerelease carries the four non-Windows archives plus the gate-produced `SHA256SUMS`, all
+built from the gated candidate `f441e96` with digests equal to the private archive witness
+(decision 0329, publication record). Evidence chain: `make gate` exit 0 on clean `f441e96`
+(Go-archive `verdict=PASS`); CEM bind `f441e96` (116 supported hunks, OCM linkage 0/26 unknown,
+recorded as `NOT_OBSERVED` for the base window); `dogfood-check` PASS; seal `cc8792a`; independent
+review with no blocker. Two limitations are recorded rather than hidden: the local trace record
+`.context-corvint/traces/6b50c2e7....jsonl` from a discarded earlier bind commit was moved out of
+the worktree so the rebind could read the trace store (`unsupported-query-trace-state`), and the
+`cmd/corvint/query_test.go:139` flake seen once on the #56 gate did not recur and remains unproven.
+Issues #53, #54, #55, #56 and #57 closed on merge. `v0.5.0a2` is unchanged.
+
 ## 2026-09-21 audit fix batch: thirteen defects closed before the v0.5.0a3 candidate gate
 
 A pre-release audit of `cmd/corvint`, `internal/contextindex`, `internal/jstestprovider`,
