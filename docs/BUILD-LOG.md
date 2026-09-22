@@ -2143,8 +2143,9 @@ was not reproduced here; that it comes from the same detached process is inferre
 Fixed in-scope: the affected fixture, the materialization fixture and the two committing
 final-check scripts now disable both settings, and the runner keeps its last failure cause and
 receipt in memory so the fatal message can name them (the command result and wire are unchanged).
-Not fixed: `queryCLIRepository` in `cmd/corvint/query_test.go` still commits with auto
-maintenance enabled, so V1-0061 and V1-0071 stay open; the drift restoration fatal now prints the
+Integration follow-up: `queryCLIRepository` in `cmd/corvint/query_test.go` now also disables
+both settings (the same two `git config` lines as the affected fixture), which removes the
+detached-maintenance cause behind V1-0061 and V1-0071; the drift restoration fatal now prints the
 differing paths. `workDrainTimeout` (250ms) stays as the WQO-V0-034 pin. Repetitions: the five
 named tests `-count=3` pass, the wider work/affected/query set `-count=1` passes.
 
