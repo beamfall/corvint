@@ -91,3 +91,18 @@ whose four commands begin with `exec` and use `--qualified-direct-lifecycle` (QL
 It writes only a caller-owned review sidecar; root/2, direct runtime admission and
 native qualification remain separate operator actions under DCLI-V0. Legacy preparation
 refuses this template. No hook or protected file is installed by preparation.
+
+### Experimental protected Pi packaging
+
+`prepare-pi-release OUTPUT BUILD_DIR GO_ROOT GIT_BINARY SOURCE_REVISION ADAPTER_TEMPLATE`
+uses the sealed Pi build's `corvint`, `pi-protected` and `manifest.json`. Its distinct
+`corvint-pi-authority-release/0` manifest binds these images and the copied build metadata,
+with the existing execution tools and inert adapter declaration. Copied image hashes are
+rechecked before the manifest is written. `install-pi-release BUNDLE MANIFEST_SHA256`
+requires the independent root operator, exact reviewed manifest and no existing non-Pi
+admission. Legacy installation refuses the Pi release profile. No command creates an
+accepted root, campaign or completed qualification. `remove-release` retains exact-file
+ownership/drift checks and requires revocation of an admission referencing the release.
+Revoked Pi admission permits the same guarded reader withdrawal as legacy root/1.
+Actual installation, rollback, input/license closure and native FULL qualification remain
+unverified; see `../../docs/specs/protected-pi-runtime-v0.md`.

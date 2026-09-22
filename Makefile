@@ -30,6 +30,7 @@ pi-protected-build:
 
 pi-protected-test: pi-protected-build
 	node --test integrations/pi-protected/*.test.mjs
+	cd tools/local-authority && GOTOOLCHAIN=local go test -count=1 -timeout 30m ./... && GOTOOLCHAIN=local go vet ./...
 
 # gate is the reproducible verification gate: it must pass from a fresh clone with no private
 # .corvint/ state. dogfood-check is a separate authoring-time discipline step (AGENTS.md), run

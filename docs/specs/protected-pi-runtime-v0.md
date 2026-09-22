@@ -10,8 +10,8 @@ Authoritative inputs: `agent-harness-integration-v0.md`, `protected-local-execut
 ## Agent digest
 - Claim: An optional fixed Pi SDK executable can participate in independently qualified protected lifecycle computation without admitting ordinary mutable Pi extensions.
 - Status: accepted direction; experimental; no execution root, completed qualification or FULL claim.
-- Exists: experimental repository Node SEA build with embedded Pi 0.85.1 code/assets, native TUI/RPC/reload/session replacement/image tools, startup injection controls and interruption cleanup; functional Pi adapter 0.2.0 remains separate.
-- Blocked on: final immutable release review, new closed Pi authority profile, adversarial/native qualification, independent admission and explicit operator activation.
+- Exists: experimental repository Node SEA build with embedded Pi 0.85.1 code/assets, native TUI/RPC/reload/session replacement/image tools, startup injection controls and interruption cleanup; closed root/3, campaign/2, Pi qualification and QLF/2 source; functional Pi adapter 0.2.0 remains separate.
+- Blocked on: final immutable release review, protected installation, adversarial/native qualification, independent admission and explicit operator activation.
 - Read next: Requirements; Runtime boundary; Acceptance and rollout.
 
 ## Human intent and verified starting point
@@ -70,10 +70,49 @@ asynchronous writes are validated after their updater completes and before persi
 keys are never interpolated, command keys and credential environment overrides refuse. Native OAuth
 data remains supported. Source fixtures prove these restrictions, not protected admission.
 
-The versioned wire definition is implemented and reviewed with the authority slice; this document
-accepts no reinterpretation of existing schemas. Normal Pi remains the simpler default. Linux,
+Normal Pi remains the simpler default. Linux,
 Windows, arbitrary extensions/providers implemented as code, automatic root admission, a permanent
 service, and event-origin attestation are outside this bounded profile.
+
+## Closed Pi wire and native lifecycle
+
+`corvint-protected-root/3` retains the fixed execution-policy fields of root/1 and replaces the
+host qualification member with `piQualification`. It cannot carry `hostQualification` or
+`directQualification`. A completed `corvint-native-qualified-pi-host/0` has exactly `profile`,
+`evidenceSHA256`, `runtime` and `qualifiedSurfaces`. The ordered surfaces are `pi-tui`, `pi-rpc`,
+each with its independently reviewed `evidenceSHA256`; both describe the same immutable image.
+
+The runtime object has exactly the DirectRuntime primitive pin fields: `topology`, `host`,
+`surface`, `bootSessionUUID`, `hostInstance` (decimal-string PID, seconds and microseconds),
+`hostImage` (absolute path and SHA256), `hostCDHash`, `runtimeAdmissionEvidenceSHA256`,
+`parentPolicy`, `osBuild` and `architecture`. Pi values are fixed to `protected-pi-sdk`, `pi`,
+`pi-native`, `immediate-host` and `arm64`. The host must be `pi-protected` beside the protected
+consumer. Full image hashing, kernel code flags/CDHash, process identities and protected release
+checks surround the read. The binary embeds the consumer SHA256 at build time; the SDK refuses
+an unprotected, writable, linked, ACL-bearing or changed consumer before spawning it.
+
+`corvint-native-qualification-campaign/2` retains the existing closed campaign fields and uses
+the Pi runtime object under `runtime`. Its scope is exactly
+`ALL_NATIVE_LIFECYCLE_EVENTS_IN_EXACT_REPOSITORY`; its independently admitted lifetime is at
+most 900 seconds. It cannot be consumed by legacy or direct Codex entrypoints. The candidate
+support scope is `candidate-protected-pi-runtime`; it is always FALLBACK/UNQUALIFIED. Completed
+support scope is `qualified-protected-pi-runtime`, requiring both surface evidence bindings.
+
+`corvint-qualified-lifecycle/2` accepts exactly `profile`, `event` and `input`. Events and input
+fields retain QLF's four-event contract, including mandatory `stopHookActive` on Stop. The result
+retains QLF's closed typed fields and domain-separated digest, with `host: pi`, `hostSHA256` and
+`runtimeAdmissionEvidenceSHA256` instead of desktop app/engine hashes. Event surface remains
+`unattributed` and request provenance remains `caller-asserted`. The protected SDK verifies the
+request/result digests, closed authority fields and 8000-byte bound before using the receipt.
+
+The SDK waits for `agent_settled` before issuing Stop. Only a successful stop/length completion,
+current trusted session, idle host, no queued input and fresh permitted Stop receipt can enqueue
+one follow-up. Abort/error, trust/session/input drift, malformed replies and recursion cannot
+restart a turn. Recursive unresolved state is displayed without triggering a model turn. Missing
+admission uses a separate ordinary FALLBACK request and a visible degradation; malformed qualified
+output is never reinterpreted as authority. Post-tool observations and explicit outcome/record
+tools retain ordinary Pi semantics; explicit outcomes do not enter QLF's empty session-end input.
+No fixture seam, test result, image signature or release manifest admits a root or qualification.
 
 ## Acceptance and rollout
 
@@ -88,8 +127,8 @@ service, and event-origin attestation are outside this bounded profile.
 | Requirement | Implementation/evidence | Current gap |
 |---|---|---|
 | PPI-V0-001..003 | `integrations/pi-protected/build.mjs`, `runtime.ts`, `settings.mjs`; `runtime.test.mjs`, `startup.test.mjs` | final protected image/consumer freeze, input/license audit and independently admitted closure NOT_PRODUCED |
-| PPI-V0-004 | Ordinary adapter `integrations/pi/host.test.mjs`; protected SDK TUI/RPC/reload/replacement/image and interruption fixtures | protected lifecycle and recursion NOT_PRODUCED |
-| PPI-V0-005..007 | Existing authoritystore/QLF are reference mechanisms only | new Pi profile and runtime admission NOT_PRODUCED |
+| PPI-V0-004 | Ordinary adapter `integrations/pi/host.test.mjs`; protected SDK TUI/RPC/reload/replacement/image; `authority.test.mjs` idle/recursion/cancellation fixtures | actual protected lifecycle and recursion NOT_PRODUCED |
+| PPI-V0-005..007 | `internal/authoritystore/pi*.go`, `cmd/corvint/qualified_pi_test.go`, `integrations/pi-protected/qualified-runner.mjs` and `authority.test.mjs` | actual protected runtime admission, privacy/permissions and currentness evidence NOT_PRODUCED |
 | PPI-V0-008..009 | AHI conformance and this accepted scope | qualification, operator installation and rollback evidence NOT_RUN |
 
 Stop promotion when a mutable executable dependency remains, real native behavior fails, or any

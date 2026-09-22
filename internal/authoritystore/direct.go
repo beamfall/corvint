@@ -37,7 +37,10 @@ type DirectQualification struct {
 var bootUUID = regexp.MustCompile(`^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$`)
 
 func (r DirectRuntime) valid() bool {
-	return r.Topology == "direct-native-cli" && r.Host == "codex" && r.Surface == "codex-cli" && r.ParentPolicy == "immediate-host" && r.Architecture == "arm64" && r.OSBuild != "" && bootUUID.MatchString(r.BootSessionUUID) && processPin(r.HostInstance) && filepath.IsAbs(r.HostImage.Path) && filepath.Clean(r.HostImage.Path) == r.HostImage.Path && hexDigest(r.HostImage.SHA256) && len(r.HostCDHash) == 40 && objectID(r.HostCDHash) && hexDigest(r.RuntimeAdmissionEvidenceSHA256)
+	return r.Topology == "direct-native-cli" && r.Host == "codex" && r.Surface == "codex-cli" && validNativePin(r)
+}
+func validNativePin(r DirectRuntime) bool {
+	return r.ParentPolicy == "immediate-host" && r.Architecture == "arm64" && r.OSBuild != "" && bootUUID.MatchString(r.BootSessionUUID) && processPin(r.HostInstance) && filepath.IsAbs(r.HostImage.Path) && filepath.Clean(r.HostImage.Path) == r.HostImage.Path && hexDigest(r.HostImage.SHA256) && len(r.HostCDHash) == 40 && objectID(r.HostCDHash) && hexDigest(r.RuntimeAdmissionEvidenceSHA256)
 }
 func (q *DirectQualification) valid() bool {
 	return q != nil && q.Profile == directQualificationProfile && hexDigest(q.EvidenceSHA256) && q.Runtime.valid()
@@ -51,6 +54,8 @@ func (r RootDocument) MarshalJSON() ([]byte, error) {
 	var q any = r.HostQualification
 	if r.Profile == DirectRootProfile {
 		q = r.DirectQualification
+	} else if r.Profile == PiRootProfile {
+		q = r.PiQualification
 	}
 	return json.Marshal(struct {
 		*rootWire
@@ -82,6 +87,12 @@ func (r *RootDocument) UnmarshalJSON(raw []byte) error {
 				return errUnavailable
 			}
 			value.DirectQualification = &q
+		case PiRootProfile:
+			var q PiQualification
+			if localauthority.Decode(wire.Qualification, &q) != nil || !q.valid() {
+				return errUnavailable
+			}
+			value.PiQualification = &q
 		default:
 			return errUnavailable
 		}
@@ -96,6 +107,8 @@ func (c qualificationCampaign) MarshalJSON() ([]byte, error) {
 	var runtime any = c.Runtime
 	if c.Profile == directCampaignProfile {
 		runtime = c.DirectRuntime
+	} else if c.Profile == piCampaignProfile {
+		runtime = c.PiRuntime
 	}
 	return json.Marshal(struct {
 		*campaignWire
@@ -124,6 +137,12 @@ func (c *qualificationCampaign) UnmarshalJSON(raw []byte) error {
 			return errUnavailable
 		}
 		value.DirectRuntime = &r
+	case piCampaignProfile:
+		var r PiRuntime
+		if localauthority.Decode(wire.Runtime, &r) != nil || !r.valid() {
+			return errUnavailable
+		}
+		value.PiRuntime = &r
 	default:
 		return errUnavailable
 	}
@@ -131,9 +150,12 @@ func (c *qualificationCampaign) UnmarshalJSON(raw []byte) error {
 	return nil
 }
 func (r RootDocument) hasQualification() bool {
-	return r.HostQualification != nil || r.DirectQualification != nil
+	return r.HostQualification != nil || r.DirectQualification != nil || r.PiQualification != nil
 }
 func (r RootDocument) qualification() any {
+	if r.Profile == PiRootProfile {
+		return r.PiQualification
+	}
 	if r.Profile == DirectRootProfile {
 		return r.DirectQualification
 	}

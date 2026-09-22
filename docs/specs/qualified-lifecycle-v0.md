@@ -165,3 +165,13 @@ that new version; root/1, campaign/0, authority-event/0 and QLF/0 keep their exi
 Legacy authority-event refuses root/2. A completed direct qualification cannot inherit Desktop
 support or recover through a candidate if invalid. This prospective source profile does not accept
 an execution root or weaken decision 0009.
+
+## Prospective protected Pi SDK profile (PPI-V0)
+
+The separately scoped [protected Pi runtime](protected-pi-runtime-v0.md) adds root/3,
+campaign/2 and QLF/2 for the closed Pi SDK image. Its immediate-host topology is
+`protected-pi-sdk`, and completed qualification requires both `pi-tui` and `pi-rpc`
+evidence for that image. The four-event input contract, caller-asserted provenance,
+unattributed event surface, protected currentness, non-Stop privacy and independent
+admission obligations are unchanged. Earlier profiles cannot consume Pi admission.
+PPI source tests and sealed images do not grant FULL or accept an execution root.

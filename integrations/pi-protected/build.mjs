@@ -14,8 +14,8 @@ async function checked(command,args,options={}) {
  if(result.code!==0)throw Error(`${command} failed: ${result.stderr||result.stdout}`);
  return result;
 }
-async function bundle(entry,plugins,banner='') {
- const result=await Bun.build({entrypoints:[entry],target:'node',format:'cjs',banner,plugins,define:{'import.meta.resolve':'undefined','import.meta.url':'__corvintModuleURL','PI_BUNDLED_NODE':'true','process.env.PI_PACKAGE_DIR':'__corvintAssetRoot'}});
+async function bundle(entry,plugins,banner='',defines={}) {
+ const result=await Bun.build({entrypoints:[entry],target:'node',format:'cjs',banner,plugins,define:{'import.meta.resolve':'undefined','import.meta.url':'__corvintModuleURL','PI_BUNDLED_NODE':'true','process.env.PI_PACKAGE_DIR':'__corvintAssetRoot',...defines}});
  if(!result.success)throw Error(result.logs.join('\n'));
  if(result.outputs.length!==1)throw Error('unexpected-bundle-splitting');
  return result.outputs[0].text();
@@ -26,6 +26,8 @@ async function main(){
  if(!archive||digest(readFileSync(archive))!==archiveSHA)throw Error('pinned-node-archive-required');
  if(JSON.parse(readFileSync(join(sdk,'package.json'))).version!=='0.85.1')throw Error('pinned-pi-required');
  mkdirSync(release,{recursive:true});
+ await checked('go',['build','-trimpath','-o',join(release,'corvint'),'./cmd/corvint'],{cwd:root,env:{...process.env,GOTOOLCHAIN:'local',GOCACHE:process.env.CORVINT_GOCACHE??'/tmp/corvint-go-build-cache'},timeout:180000});
+ const consumerSHA256=digest(readFileSync(join(release,'corvint')));
  const node=join(out,'node');
  await checked('/usr/bin/python3',['-c',`import tarfile,sys\nwith tarfile.open(sys.argv[1]) as t:\n m=t.getmember('node-v${nodeVersion}-darwin-arm64/bin/node')\n assert m.isfile()\n with open(sys.argv[2],'wb') as f:f.write(t.extractfile(m).read())`,archive,node]);
  chmodSync(node,0o755);
@@ -62,7 +64,7 @@ async function main(){
   b.onLoad({filter:/^image-worker$/,namespace:'corvint'},()=>({contents:`export default ${JSON.stringify(worker)}`,loader:'js'}));
   b.onLoad({filter:/\/utils\/image-resize\.js$/},()=>({contents:readFileSync(join(here,'image-resize.mjs'),'utf8'),loader:'js',resolveDir:here}));
  }};
- const source=await bundle(join(here,'runtime.ts'),[basePlugin,mainPlugin],banner);
+ const source=await bundle(join(here,'runtime.ts'),[basePlugin,mainPlugin],banner,{CORVINT_CONSUMER_SHA256:JSON.stringify(consumerSHA256)});
  const main=join(out,'runtime.cjs'),blob=join(out,'runtime.blob'),binary=join(release,'pi-protected');
  writeFileSync(main,source);
  writeFileSync(join(out,'sea.json'),JSON.stringify({main,output:blob,disableExperimentalSEAWarning:true,useCodeCache:true,execArgvExtension:'none',execArgv:['--disable-sigusr1','--openssl-config=/dev/null','--']}));
@@ -72,7 +74,6 @@ async function main(){
  await checked(node,[join(here,'node_modules/postject/dist/cli.js'),binary,'NODE_SEA_BLOB',blob,'--sentinel-fuse','NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2','--macho-segment-name','NODE_SEA']);
  await checked('/usr/bin/codesign',['--sign','-','--options','runtime','--entitlements',join(here,'runtime-entitlements.plist'),binary]);
  await checked('/usr/bin/codesign',['--verify','--strict',binary]);
- await checked('go',['build','-trimpath','-o',join(release,'corvint'),'./cmd/corvint'],{cwd:root,env:{...process.env,GOTOOLCHAIN:'local',GOCACHE:process.env.CORVINT_GOCACHE??'/tmp/corvint-go-build-cache'},timeout:180000});
  const manifest={schema:'corvint-pi-protected-build/0',status:'EXPERIMENTAL_UNQUALIFIED',pi:'0.85.1',node:nodeVersion,bun:Bun.version,nodeArchiveSHA256:archiveSHA,lockSHA256:digest(readFileSync(join(here,'package-lock.json'))),bundleSHA256:digest(source),workerSHA256:digest(worker),photonSHA256:digest(Buffer.from(wasm,'base64')),entitlementsSHA256:digest(readFileSync(join(here,'runtime-entitlements.plist'))),assets:Object.fromEntries(Object.entries(assets).map(([k,v])=>[k,digest(Buffer.from(v,'base64'))])),images:Object.fromEntries(['pi-protected','corvint'].map(k=>[k,digest(readFileSync(join(release,k)))]))};
  writeFileSync(join(release,'manifest.json'),JSON.stringify(manifest,null,2)+'\n');
  console.log(JSON.stringify({release,sha256:manifest.images['pi-protected'],status:manifest.status}));

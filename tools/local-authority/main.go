@@ -66,6 +66,12 @@ func main() {
 	}
 }
 func entry() error {
+	if len(os.Args) == 8 && os.Args[1] == "prepare-pi-release" {
+		return prepareReleaseProfile(os.Args[2], filepath.Join(os.Args[3], "corvint"), os.Args[4], os.Args[5], os.Args[6], os.Args[7], os.Args[3])
+	}
+	if len(os.Args) == 4 && os.Args[1] == "install-pi-release" {
+		return installReleaseProfile(os.Args[2], os.Args[3], true)
+	}
 	if len(os.Args) == 5 && os.Args[1] == "prepare-qualified-direct-hooks" {
 		return prepareQualifiedHooksProfile(os.Args[2], os.Args[3], os.Args[4], true)
 	}

@@ -8,7 +8,8 @@ import {FileAuthStorageBackend} from '@corvint/pi-internal/core/auth-storage.js'
 import {loadAnthropicOAuth,loadOpenAICodexOAuth,loadGitHubCopilotOAuth,loadOpenRouterOAuth,loadKimiCodingOAuth,loadXaiOAuth,loadRadiusOAuth} from '@corvint/pi-ai-internal/auth/oauth/load.js';
 import * as bedrock from '@corvint/pi-ai-internal/api/bedrock-converse-stream.js';
 import {setBedrockProviderModule} from '@corvint/pi-ai-internal/api/bedrock-converse-stream.lazy.js';
-import register from '../pi/extension.js';
+import registerProtected from './extension.mjs';
+import {createQualifiedRunner} from './qualified-runner.mjs';
 import {createRunner} from '../pi/runtime.js';
 import {createCredentials,parseArguments,readSettings} from './settings.mjs';
 
@@ -17,7 +18,8 @@ class FixedResources {
  constructor(readonly cwd:string,readonly consumer:string){}
  async reload(){
   const runtime=createExtensionRuntime();
-  const extension=await loadExtensionFromFactory(pi=>register(pi,{runner:createRunner({binary:this.consumer}),version:'0.85.1'}),this.cwd,createEventBus(),runtime,'<compiled-corvint>');
+  const installed=/^\/Library\/CorvintAuthority\/versions\/[0-9a-f]{64}\/pi-protected$/.test(process.execPath);
+  const extension=await loadExtensionFromFactory(pi=>registerProtected(pi,{ordinary:createRunner({binary:this.consumer}),qualified:createQualifiedRunner({binary:this.consumer,consumerSHA256:CORVINT_CONSUMER_SHA256}),installed,version:'0.85.1'}),this.cwd,createEventBus(),runtime,'<compiled-corvint>');
   this.result={extensions:[extension],errors:[],runtime};
  }
  getExtensions(){return this.result}

@@ -193,7 +193,10 @@ func resolveObservedProfile(ctx context.Context, handle string, files protectedF
 		return unavailable, errUnavailable
 	}
 	resolution := authorityevent.Resolution{State: result.State, UniverseSHA256: result.UniverseSHA256, RootCurrent: true, QualifiedHostSHA256: qualification, RemediationAllowed: root.RemediationAllowed}
-	if root.Profile == DirectRootProfile {
+	if root.Profile == PiRootProfile {
+		resolution.SupportScope = "qualified-protected-pi-runtime"
+		resolution.QualifiedSurfaces = []string{"pi-tui", "pi-rpc"}
+	} else if root.Profile == DirectRootProfile {
 		resolution.SupportScope = "qualified-direct-native-runtime"
 		resolution.QualifiedSurfaces = []string{"codex-cli"}
 	} else if root.HostQualification.Topology == "shared-daemon" {
@@ -232,7 +235,7 @@ func decodeRoot(raw, floorRaw []byte) (RootDocument, GenerationFloor, uint32, er
 	if localauthority.Decode(raw, &root) != nil || localauthority.Decode(floorRaw, &floor) != nil {
 		return root, floor, 0, errUnavailable
 	}
-	if (root.Profile != RootProfile && root.Profile != DirectRootProfile) || root.Admission != "OPERATOR_ACCEPTED" || root.KeyClass != "PRODUCTION" || root.Revoked {
+	if (root.Profile != RootProfile && root.Profile != DirectRootProfile && root.Profile != PiRootProfile) || root.Admission != "OPERATOR_ACCEPTED" || root.KeyClass != "PRODUCTION" || root.Revoked {
 		return root, floor, 0, errUnavailable
 	}
 	if root.RootID == "" || strings.Contains(strings.ToLower(root.RootID), "fixture") {

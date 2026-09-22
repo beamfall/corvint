@@ -37,6 +37,31 @@ behavior remain unchanged. The regression joins or stops its delayed writer duri
 The failed full-gate receipt is retained; focused lifecycle validation and a fresh exact-candidate
 full gate are required, with no scope or enrollment replacement and no relabeling of old evidence.
 
+## 2026-09-22 PPI-V0-005..009: isolated Pi authority source and packaging
+
+The experimental Pi lane adds closed root/3, campaign/2, qualified-pi-host/0 and QLF/2
+without changing earlier profile meanings. Both native surfaces require separate evidence
+bindings to one admitted image. Runtime checks bind protected full-image bytes, live hardened
+code flags/CDHash, immediate parent and process birth, boot, OS/architecture and actual cwd.
+Non-Stop reads retain their protected-publication privacy boundary. Candidate campaigns remain
+900-second FALLBACK/UNQUALIFIED exercises; they cannot supply completed qualification.
+
+The fixed SDK embeds its consumer hash, checks protected ancestry before spawning, verifies
+closed receipts and waits for native idle completion before one permitted follow-up. Independent
+review found stale Stop reuse after trust withdrawal, lost ordinary context on missing admission,
+and silent recursive unresolved state. Fresh epoch-bound receipts/current trust, separate FALLBACK
+requests with explicit degradation, and visible bounded unresolved status repair those findings.
+Repair review found no additional issue; cancellation regression confirms no surviving descendant.
+Focused Pi/Direct/Qualified Go tests and the rebuilt native TUI/RPC/reload/replacement/image/startup
+suite pass. The final handler repair's rebuilt native run is still required at source freeze.
+
+Optional Pi release preparation binds the host, consumer and build manifest in a distinct immutable
+release profile. The installer refuses another host's admission; exact-file removal and revoked
+reader withdrawal remain explicit. Focused packaging and the optional authority module's ordinary
+suite pass; independent packaging review found no actionable issue. No protected state was changed.
+Full gate, license/input closure audit, privileged installation, real protected OPEN/EMPTY/recursive
+campaign, latency/recall and independent FULL admission remain NOT_PRODUCED/NOT_RUN.
+
 ## 2026-09-22 PPI-V0-001..004: closed Pi SDK runtime proof
 
 The owner accepted the reviewed optional protected Pi direction, separately from privileged

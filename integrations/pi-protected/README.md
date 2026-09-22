@@ -26,8 +26,12 @@ download or install these optional dependencies.
 
 Outputs are in `integrations/pi-protected/build/release`. `manifest.json` records
 the exact experimental image and embedded inputs. Ad-hoc signing establishes an
-image identity; it supplies no authority or completed qualification. There is no
-installer or automatic privileged activation in this build.
+image identity; it supplies no authority or completed qualification. The optional
+`tools/local-authority` preparer accepts `prepare-pi-release OUTPUT BUILD_DIR GO_ROOT
+GIT_BINARY SOURCE_REVISION ADAPTER_TEMPLATE`; `install-pi-release BUNDLE MANIFEST_SHA256`
+is an explicit protected operator step. Preparation produces reviewable caller-owned
+files only. Installation refuses another host's admission and creates no accepted
+root, key, campaign or qualification. License/input review remains unfinished.
 
 ## Runtime data
 
@@ -53,3 +57,10 @@ coding tools still run with the user's permissions.
 Rebuilding changes the image identity. Do not reuse an earlier image's admission
 or qualification. Removing this experimental directory and selecting ordinary Pi
 restores the ordinary FALLBACK path without changing any protected store.
+
+An installed image uses QLF/2 only with a separately admitted Pi root/campaign.
+Missing admission preserves ordinary context with an explicit degradation. An idle
+successful turn can request at most one permitted remediation; recursive unresolved
+state is displayed and releases. Abort/error, untrusted or replaced sessions, queued
+input and malformed replies cannot trigger continuation. Post-tool observations and
+explicit record/outcome routes remain ordinary caller-reported operations.
