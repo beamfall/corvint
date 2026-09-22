@@ -183,7 +183,8 @@ func (c *compiler) importBehavior(p Provider, r *BehaviorRegistry) error {
 	for i := range declarations.Tests {
 		declarations.Tests[i].Runtime = nil
 	}
-	if hashValue(declarations) != r.ContractSHA256 {
+	contractSHA256, err := hashValue(declarations)
+	if err != nil || contractSHA256 != r.ContractSHA256 {
 		return fail("behavior contract digest mismatch")
 	}
 	ids := []string{}

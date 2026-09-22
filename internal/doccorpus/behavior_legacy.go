@@ -54,7 +54,11 @@ func (c *compiler) importBehaviorLegacy(r *BehaviorRegistry) error {
 	locations := []string{}
 	for _, legacy := range r.Legacy {
 		ids = append(ids, legacy.ID)
-		locations = append(locations, hashValue([]string{legacy.Suite, legacy.Evidence.Repository, legacy.Evidence.Revision, legacy.Evidence.Path, legacy.Case}))
+		location, err := hashValue([]string{legacy.Suite, legacy.Evidence.Repository, legacy.Evidence.Revision, legacy.Evidence.Path, legacy.Case})
+		if err != nil {
+			return err
+		}
+		locations = append(locations, location)
 		if !textOK(legacy.Suite) || !textOK(legacy.Case) || !words("executable disabled")[legacy.State] || !uniqueIdentities(legacy.Fixtures) || !uniqueIdentities(legacy.Roles) || len(legacy.Criteria) > MaxRecords {
 			return fail("invalid legacy case identity")
 		}
@@ -95,7 +99,11 @@ func (c *compiler) importBehaviorLegacy(r *BehaviorRegistry) error {
 			if !textOK(mapping.Criterion) || !textOK(mapping.LegacyCase) || !textOK(mapping.LegacyCriterion) || !words("same stronger new obsolete blocked")[mapping.Relation] {
 				return fail("invalid legacy criterion mapping")
 			}
-			keys = append(keys, hashValue([]string{mapping.Criterion, mapping.LegacyCase, mapping.LegacyCriterion}))
+			key, err := hashValue([]string{mapping.Criterion, mapping.LegacyCase, mapping.LegacyCriterion})
+			if err != nil {
+				return err
+			}
+			keys = append(keys, key)
 			if err := c.checkAnchor(mapping.Review, true); err != nil {
 				return err
 			}
@@ -143,7 +151,7 @@ func (c *compiler) compileBehaviorLegacy(report *BehaviorReport) {
 				continue
 			}
 			mapped[mapping.Criterion] = true
-			parityKeys = append(parityKeys, hashValue([]string{legacy.ID, criterion.ID}))
+			parityKeys = append(parityKeys, legacy.ID+"\x00"+criterion.ID)
 			retained := false
 			for _, assertion := range test.Assertions {
 				if assertion.Criterion == mapping.Criterion && assertion.Matcher == criterion.Matcher && assertion.Locator == criterion.Locator && assertion.Value == criterion.Value && behaviorAssertionValid(r, test, assertion) {
@@ -185,7 +193,7 @@ func (c *compiler) compileBehaviorLegacy(report *BehaviorReport) {
 			c.behaviorGap(legacy.ID, "unreviewed-legacy-join", "legacy case has no extracted assertion criteria")
 		}
 		for _, criterion := range legacy.Criteria {
-			if !covered[hashValue([]string{legacy.ID, criterion.ID})] {
+			if !covered[legacy.ID+"\x00"+criterion.ID] {
 				complete = false
 				c.behaviorGap(legacy.ID, "missing-legacy-criterion", "legacy branch lacks a fully eligible parity target: "+criterion.ID)
 			}

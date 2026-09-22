@@ -664,9 +664,9 @@ func assertIndependentReverseLinkDeltas(t *testing.T, previous BehaviorAdapterRe
 	variation := previous.Variations[0]
 	testID := variation.Tests[0]
 	links := []string{
-		"variation-flow:" + variation.ID + ":" + variation.Flow,
-		"variation-test:" + variation.ID + ":" + testID,
-		"test-variation:" + testID + ":" + variation.ID,
+		"variation-flow:" + variation.ID + "\x00" + variation.Flow,
+		"variation-test:" + variation.ID + "\x00" + testID,
+		"test-variation:" + testID + "\x00" + variation.ID,
 	}
 	for index, link := range links {
 		currentRaw, _ := Encode(previous)
@@ -682,7 +682,10 @@ func assertIndependentReverseLinkDeltas(t *testing.T, previous BehaviorAdapterRe
 		case 2:
 			current.Provider.BehaviorContracts.Tests[0].Criteria = []string{}
 		}
-		delta := behaviorAdapterDelta(&previous, current)
+		delta, err := behaviorAdapterDelta(&previous, current)
+		if err != nil {
+			t.Fatal(err)
+		}
 		lost := stringSet(delta.LostReverseLinks)
 		if !lost[link] {
 			t.Fatalf("reverse-link loss %q was hidden: %+v", link, delta)
@@ -796,4 +799,87 @@ func behaviorAdapterReplaceRevision(value any, old, revision string) {
 			behaviorAdapterReplaceRevision(child, old, revision)
 		}
 	}
+}
+
+func TestBehaviorAdapterReverseLinkKeysDoNotCollide(t *testing.T) {
+	registry := &BehaviorRegistry{}
+	previous := BehaviorAdapterResult{Provider: ProviderRecord{BehaviorContracts: registry}, Variations: []BehaviorAdapterVariation{{ID: "a", Tests: []string{"b:c"}}}}
+	current := BehaviorAdapterResult{Provider: ProviderRecord{BehaviorContracts: registry}, Variations: []BehaviorAdapterVariation{{ID: "a:b", Tests: []string{"c"}}}}
+	delta, err := behaviorAdapterDelta(&previous, current)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(delta.LostReverseLinks, "variation-test:a\x00b:c") {
+		t.Fatalf("colliding variation/test pair hid the lost link: %+v", delta.LostReverseLinks)
+	}
+}
+
+func TestBehaviorAdapterMissingReverseLinkNamesEachTest(t *testing.T) {
+	fixture := behaviorAdapterFixture(t)
+	behaviorAdapterEditRow(t, &fixture.request, "variations", func(row map[string]any) { row["testKeys"] = []any{} })
+	behaviorAdapterAppendRow(t, &fixture.request, "tests", func(row map[string]any) {
+		row["testKey"] = "second-test"
+		row["displayTitle"] = "Second test"
+		row["variationClaims"] = []any{}
+		delete(row, "witness")
+	})
+	result := buildBehaviorAdapter(t, fixture.request, nil)
+	details := map[string]bool{}
+	for _, diagnostic := range result.Frontier {
+		if diagnostic.Kind == "missing-reverse-link" && diagnostic.Input == "variations" {
+			details[diagnostic.Detail] = true
+		}
+	}
+	if len(details) != 2 {
+		t.Fatalf("two offending tests did not yield two distinct diagnostics: %+v", result.Frontier)
+	}
+}
+
+func TestBehaviorAdapterArtifactsMatchPreviousValidator(t *testing.T) {
+	fixture := behaviorAdapterFixture(t)
+	previous := buildBehaviorAdapter(t, fixture.request, nil)
+	if !slices.ContainsFunc(previous.Artifacts, func(artifact BehaviorAdapterArtifact) bool { return artifact.Role == "receipt" }) {
+		t.Fatalf("receipt artifact missing: %+v", previous.Artifacts)
+	}
+	previousRaw, err := Encode(previous)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buildBehaviorAdapter(t, fixture.request, previousRaw)
+	unretained := fixture.request
+	unretained.Inputs = slices.DeleteFunc(slices.Clone(fixture.request.Inputs), func(input BehaviorAdapterInput) bool { return input.ID == "receipt" })
+	raw, _ := Encode(unretained)
+	if _, err := BuildBehaviorAdapter(raw, nil); err == nil || !strings.Contains(err.Error(), "retained receipt input") {
+		t.Fatalf("unretained observation input accepted: %v", err)
+	}
+	shared := unretained
+	discovery := behaviorAdapterRequestInput(&shared, "discovery")
+	shared.Observations = slices.Clone(fixture.request.Observations)
+	shared.Observations[0].Input = discovery.Anchor.Path
+	shared.Observations[0].InputRevision = discovery.Anchor.Revision
+	shared.Observations[0].RunID = discovery.Anchor.SHA256
+	raw, _ = Encode(shared)
+	if _, err := BuildBehaviorAdapter(raw, nil); err == nil || !strings.Contains(err.Error(), "already serves the discovery role") {
+		t.Fatalf("observation on the discovery input accepted: %v", err)
+	}
+}
+
+func behaviorAdapterAppendRow(t *testing.T, request *BehaviorAdapterRequest, inputID string, edit func(map[string]any)) {
+	t.Helper()
+	input := behaviorAdapterRequestInput(request, inputID)
+	var document map[string]any
+	if err := jsonstd.Unmarshal([]byte(input.Document), &document); err != nil {
+		t.Fatal(err)
+	}
+	inventory := document["inventory"].(map[string]any)
+	records := inventory["items"].([]any)
+	var row map[string]any
+	if err := jsonstd.Unmarshal(behaviorAdapterRaw(t, records[0]), &row); err != nil {
+		t.Fatal(err)
+	}
+	edit(row)
+	inventory["items"] = append(records, row)
+	input.Document = string(behaviorAdapterRaw(t, document))
+	input.Anchor.SHA256 = Digest([]byte(input.Document))
+	input.Anchor.SpanSHA256 = input.Anchor.SHA256
 }

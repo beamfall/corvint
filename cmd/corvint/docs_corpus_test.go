@@ -321,3 +321,28 @@ func TestCorpusImpactNativePathSelection(t *testing.T) {
 		}
 	})
 }
+
+func TestCorpusRootPreambleRefusesOptionLikeValue(t *testing.T) {
+	var out, stderr bytes.Buffer
+	args := []string{"--root", "--corpus=corpus.json", "docs", "corpus", "info", "--artifact", "a.json"}
+	code, handled := runCorpusIntegration(context.Background(), args, strings.NewReader(""), &out, &stderr)
+	if !handled || code != 2 || out.Len() != 0 {
+		t.Fatalf("--corpus swallowed as the --root value: handled=%v code=%d stdout=%q stderr=%q", handled, code, out.String(), stderr.String())
+	}
+}
+
+func TestCorpusRelayWriteFailureReportsOutputFailed(t *testing.T) {
+	root := taskContextRepository(t)
+	writeCorpusFixture(t, root, cemGit(t, root, "rev-parse", "HEAD"), "cache")
+	args := []string{"--root", root, "query", "--corpus=corpus.json"}
+	var baseline, baselineErr bytes.Buffer
+	if code, handled := runCorpusIntegration(context.Background(), args, strings.NewReader(""), &baseline, &baselineErr); !handled || code == 0 {
+		t.Fatalf("native relay baseline: handled=%v code=%d stderr=%q", handled, code, baselineErr.String())
+	}
+	var out stdoutBrokenPipeWriter
+	var stderr bytes.Buffer
+	code, _ := runCorpusIntegration(context.Background(), args, strings.NewReader(""), &out, &stderr)
+	if code != 2 || !strings.Contains(stderr.String(), `"output-failed"`) {
+		t.Fatalf("exit %d, want 2 with output-failed: stderr=%q", code, stderr.String())
+	}
+}

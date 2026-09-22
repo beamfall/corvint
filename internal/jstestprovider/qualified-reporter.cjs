@@ -379,7 +379,8 @@ class Reporter {
     this.configFiles = {};
     for (const file of Object.keys(require.cache)) {
       if (file.includes('/node_modules/') || file.startsWith(require('node:path').dirname(this.path) + '/')) continue;
-      if (fs.statSync(file).isFile()) this.configFiles[file] = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+      // A module moved or removed since it was loaded is skipped rather than aborting onBegin.
+      try { if (fs.statSync(file).isFile()) this.configFiles[file] = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'); } catch { continue; }
     }
     for (const test of suite.allTests()) {
       const file = test.location.file;

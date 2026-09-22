@@ -306,7 +306,9 @@ join structurally; it is not `verified_tests`, current application freshness, au
 or narrowing authority.
 
 Acceptance: `TestBehaviorAdapterBuildOpen`, `TestBehaviorAdapterConformance`,
-`TestBehaviorAdapterMappingParity`, `TestBehaviorAdapterDelta` and
+`TestBehaviorAdapterMappingParity`, `TestBehaviorAdapterDelta`,
+`TestBehaviorAdapterReverseLinkKeysDoNotCollide`, `TestBehaviorAdapterMissingReverseLinkNamesEachTest`,
+`TestBehaviorAdapterArtifactsMatchPreviousValidator` and
 `TestBehaviorAdapterCLI` exercise `DCP-V1-027..032`. Exact consumer inputs, live browser execution
 and external utility qualification remain `NOT_OBSERVED`.
 

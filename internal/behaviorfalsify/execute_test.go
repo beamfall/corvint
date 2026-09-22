@@ -153,7 +153,7 @@ func TestBBFV0003ClosedControlVocabulary(t *testing.T) {
 			t.Fatal(err)
 		}
 		report, err := Execute(context.Background(), plan, plan.Digest)
-		if err != nil || report.Counts[StatusNotSupported] != len(kinds) || report.Counts[StatusKilled] != 0 || report.Fallback != "full-relevant-suite" {
+		if err != nil || report.Counts[StatusNotSupported] != len(kinds) || report.Counts[StatusKilled] != 0 || report.CompleteVocabulary || report.Fallback != "full-relevant-suite" {
 			t.Fatalf("unsupported controls report = %+v, err=%v", report, err)
 		}
 		request.Controls[0].Kind = "outside-closed-vocabulary"
@@ -584,6 +584,73 @@ func TestBBFV0004ReservedEnvironmentCannotOverrideBoundary(t *testing.T) {
 	request.Runner.EnvironmentSHA256 = digestJSON(declaredEnvironment(request.DeclaredEnvKeys))
 	if _, err := BuildPlan(request); err == nil {
 		t.Fatal("reserved runner environment unexpectedly accepted")
+	}
+}
+
+func TestBBFV0004WorkspaceDigestFramesFileContent(t *testing.T) {
+	empties := t.TempDir()
+	for _, name := range []string{"a", "b"} {
+		if err := os.WriteFile(filepath.Join(empties, name), nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	info, err := os.Stat(filepath.Join(empties, "b"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	collision := t.TempDir()
+	if err := os.WriteFile(filepath.Join(collision, "a"), []byte("b\x00"+info.Mode().String()+"\x00"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	first, err := workspaceDigest(empties)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := workspaceDigest(collision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == second {
+		t.Fatalf("file content spoofed a sibling entry: %s", first)
+	}
+}
+
+func TestBBFV0010ReceiptOutputLimitFitsAcceptedReceiptAtPlanBound(t *testing.T) {
+	hook := testCommand(t)
+	controls := make([]ControlSpec, 0, 64)
+	for index := 0; index < 64; index++ {
+		control := liveControl(t, "control-"+strings.Repeat("x", index+1), "killed")
+		control.Hook = hook
+		controls = append(controls, control)
+	}
+	request := liveRequest(t, controls)
+	request.Attempts = 16
+	plan, err := BuildPlan(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	control := plan.Controls[0]
+	receipt := classificationReceipt(plan, control)
+	receipt.Unrelated[0].AssertionID = strings.Repeat("a", 4096)
+	receipt.Infrastructure = &InfrastructureFailure{Reason: "timeout", Detail: strings.Repeat("d", 4096)}
+	for index := 0; index < 64; index++ {
+		receipt.Artifacts = append(receipt.Artifacts, Artifact{Path: strings.Repeat("p", 4095) + string(rune('a'+index%26)), SHA256: digestN("artifact")})
+	}
+	encoded, err := Encode(receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	share := maxDocumentBytes / (8 * 64 * 16)
+	if limit := receiptOutputLimit(plan, control); len(encoded) > limit || len(encoded) <= share {
+		t.Fatalf("receipt bytes=%d limit=%d share=%d", len(encoded), limit, share)
+	}
+}
+
+func TestBBFV0010PlanRefusesBudgetInsideCleanupReserve(t *testing.T) {
+	request := testRequest(t, []ControlSpec{{ID: "deferred", Kind: WrongLocator, Disposition: "not_run", Definition: map[string]string{"reason": "fixture"}}})
+	request.WallClockSeconds = int(cleanupReserve / time.Second)
+	if _, err := BuildPlan(request); err == nil {
+		t.Fatal("wall clock budget inside cleanup reserve unexpectedly accepted")
 	}
 }
 

@@ -25,6 +25,10 @@ import (
 const ExternalProfile = "corvint-playwright-external/0"
 const externalOutputLimit = 4 << 20
 
+// externalMaxConfigInputs bounds how many reporter-observed config inputs are
+// re-opened and digested at bind time; beyond it the report is refused as overflow.
+const externalMaxConfigInputs = 256
+
 const (
 	qualifiedBundledBrowserName      = "chromium-headless-shell"
 	qualifiedBundledBrowserRevision  = "1243"
@@ -422,6 +426,9 @@ func readBoundedReport(path string) ([]byte, error) {
 
 func bindQualifiedReport(r *Receipt, report qualifiedReport) error {
 	r.Schedule = report.Schedule
+	if len(report.ConfigFiles) > externalMaxConfigInputs {
+		return errors.New("report-output-overflow")
+	}
 	if report.ConfigFiles[r.Identity.ConfigFile] != r.Identity.ConfigDigest {
 		return errors.New("config-inputs-unobserved")
 	}

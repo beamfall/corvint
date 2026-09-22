@@ -67,6 +67,10 @@ func CEMProjection(ctx context.Context, root string, a *Artifact, data []byte, c
 		return nil, fail("no documentation claim found for CEM projection")
 	}
 	receipt := map[string]any{"schema": "corvint-corpus-cem/1", "artifact_sha256": a.SHA256, "cem_sha256": Digest(data), "base_revision": cem.BaseRevision, "claims": rows, "authority": "generated-documentation", "mutates": false}
-	receipt["sha256"] = hashValue(receipt)
+	digest, err := hashValue(receipt)
+	if err != nil {
+		return nil, err
+	}
+	receipt["sha256"] = digest
 	return receipt, nil
 }

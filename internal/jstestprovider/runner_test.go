@@ -4,6 +4,9 @@ package jstestprovider
 
 import (
 	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -154,5 +157,20 @@ func TestE2EBoundaryFailure_WaitNotCompleted(t *testing.T) {
 	failure := e2eBoundaryFailure(procgroup.Observation{Started: true, Stdout: []byte("{}")})
 	if failure == nil || failure.Reason != "wait-not-completed" {
 		t.Fatalf("want wait-not-completed, got %+v", failure)
+	}
+}
+
+func TestWaitReadyStopsOnCancellation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { <-r.Context().Done() }))
+	defer server.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(20*time.Millisecond, cancel)
+	start := time.Now()
+	err := waitReady(ctx, server.URL, 5*time.Second)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err=%v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 500*time.Millisecond {
+		t.Fatalf("readiness probe outlived cancellation: %v", elapsed)
 	}
 }

@@ -61,10 +61,13 @@ var anchorRank = map[string]int{
 	anchorUnreadable: 3,
 }
 
+// first..last is the written range when last is non-zero; extras is the written
+// comma list. Neither is expanded until anchorState has bounded it against the
+// cited target, so a citation naming an absurd range costs nothing to read.
 type authorityCite struct {
 	token, target, pin string
-	line               int
-	numbers            []int
+	line, first, last  int
+	extras             []int
 }
 
 type authorityTriggerRow struct {
@@ -180,12 +183,21 @@ func documentCitations(text string) []authorityCite {
 
 func citationFromMatch(line int, match []string) authorityCite {
 	first, _ := strconv.Atoi(match[2])
+	last, _ := strconv.Atoi(match[4])
+	extras := make([]int, 0)
+	for _, extra := range strings.Split(match[3], ",") {
+		if number, err := strconv.Atoi(extra); err == nil {
+			extras = append(extras, number)
+		}
+	}
 	return authorityCite{
-		token:   strings.Trim(match[0], "`"),
-		target:  match[1],
-		pin:     match[5],
-		line:    line,
-		numbers: citedNumbers(first, match[3], match[4]),
+		token:  strings.Trim(match[0], "`"),
+		target: match[1],
+		pin:    match[5],
+		line:   line,
+		first:  first,
+		last:   last,
+		extras: extras,
 	}
 }
 
@@ -193,21 +205,27 @@ func citationFromMatch(line int, match []string) authorityCite {
 // covers its endpoints inclusively and a comma list covers the listed lines in
 // written order, with the range winning when both are written. The two must agree
 // exactly, because that gate's --hash is the only supported way to mint a pin.
-func citedNumbers(first int, extras, last string) []int {
-	if end, err := strconv.Atoi(last); err == nil {
-		numbers := make([]int, 0, maxInt(end-first+1, 0))
-		for number := first; number <= end; number++ {
+// It reports false, before expanding anything, when a cited line falls outside a
+// target of `count` lines.
+func (cite authorityCite) citedNumbers(count int) ([]int, bool) {
+	inRange := func(number int) bool { return number >= 1 && number <= count }
+	if cite.last != 0 {
+		if cite.last >= cite.first && !(inRange(cite.first) && inRange(cite.last)) {
+			return nil, false
+		}
+		numbers := make([]int, 0, maxInt(cite.last-cite.first+1, 0))
+		for number := cite.first; number <= cite.last; number++ {
 			numbers = append(numbers, number)
 		}
-		return numbers
+		return numbers, true
 	}
-	numbers := []int{first}
-	for _, extra := range strings.Split(extras, ",") {
-		if number, err := strconv.Atoi(extra); err == nil {
-			numbers = append(numbers, number)
+	numbers := append([]int{cite.first}, cite.extras...)
+	for _, number := range numbers {
+		if !inRange(number) {
+			return nil, false
 		}
 	}
-	return numbers
+	return numbers, true
 }
 
 func triggerRow(index *Index, record Record, cite authorityCite) authorityTriggerRow {
@@ -233,12 +251,11 @@ func anchorState(index *Index, cite authorityCite) string {
 		return anchorUnreadable
 	}
 	lines := strings.Split(text, "\n")
-	for _, number := range cite.numbers {
-		if number < 1 || number > len(lines) {
-			return anchorUnreadable
-		}
+	numbers, inRange := cite.citedNumbers(len(lines))
+	if !inRange {
+		return anchorUnreadable
 	}
-	if strings.HasPrefix(anchorOf(lines, cite.numbers), cite.pin) {
+	if strings.HasPrefix(anchorOf(lines, numbers), cite.pin) {
 		return anchorPinned
 	}
 	return anchorDrifted

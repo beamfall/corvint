@@ -28,3 +28,15 @@ func TestNTPV0008CommandBoundary(t *testing.T) {
 		}
 	})
 }
+
+func TestTaskmanFixtureWriteFailureReportsDiagnostic(t *testing.T) {
+	previous := taskmanPreview
+	taskmanPreview = func(context.Context, string, string, string) ([]byte, error) { return []byte("{}\n"), nil }
+	t.Cleanup(func() { taskmanPreview = previous })
+	var out stdoutBrokenPipeWriter
+	var err bytes.Buffer
+	code := runWork(context.Background(), t.TempDir(), []string{"plan-fixture", "--executor", "/fixture", "--observations", "observations.json"}, &out, &err)
+	if code != 2 || !strings.HasPrefix(err.String(), "taskman fixture:") {
+		t.Fatalf("code=%d stdout=%q stderr=%q", code, out.String(), err.String())
+	}
+}

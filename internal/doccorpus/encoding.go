@@ -35,7 +35,13 @@ func decode(data []byte, target any) error {
 	}
 	return nil
 }
-func hashValue(value any) string { data, _ := Encode(value); return Digest(data) }
+func hashValue(value any) (string, error) {
+	data, err := Encode(value)
+	if err != nil {
+		return "", err
+	}
+	return Digest(data), nil
+}
 func validPath(value string) bool {
 	if value == "" || len(value) > 1024 || !utf8.ValidString(value) {
 		return false
@@ -100,7 +106,8 @@ func ParseArtifact(data []byte) (*Artifact, error) {
 	}
 	digest := a.SHA256
 	a.SHA256 = ""
-	if digest != hashValue(a) {
+	expected, err := hashValue(a)
+	if err != nil || digest != expected {
 		return nil, fail("artifact digest mismatch")
 	}
 	a.SHA256 = digest

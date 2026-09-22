@@ -130,7 +130,7 @@ func TestCorpusClosedInputsAndTamper(t *testing.T) {
 			}
 			a.Claims[0].Text = "invented behavior"
 			a.SHA256 = ""
-			a.SHA256 = hashValue(a)
+			a.SHA256 = testHash(t, a)
 			data, _ := Encode(a)
 			if _, err := Open(context.Background(), root, data); err == nil {
 				t.Fatal("rehashing tampered claims accepted")
@@ -142,4 +142,19 @@ func TestCorpusClosedInputsAndTamper(t *testing.T) {
 			}
 		})
 	})
+}
+
+func testHash(t *testing.T, value any) string {
+	t.Helper()
+	digest, err := hashValue(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return digest
+}
+
+func TestHashValueRefusesOversizedValue(t *testing.T) {
+	if _, err := hashValue(strings.Repeat("a", MaxBytes)); err == nil || !strings.Contains(err.Error(), "output bound exceeded") {
+		t.Fatalf("oversized value hashed instead of refused: %v", err)
+	}
 }

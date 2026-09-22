@@ -7,6 +7,30 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 The public tree starts this log at the 0.4.0a4 alpha. Entries written before publication are internal
 working records and are referenced from decisions and specifications as historical context only.
 
+## 2026-09-21 audit fix batch: thirteen defects closed before the v0.5.0a3 candidate gate
+
+A pre-release audit of `cmd/corvint`, `internal/contextindex`, `internal/jstestprovider`,
+`internal/behaviorfalsify` and `internal/doccorpus` recorded fifteen defects in
+`docs/agent-memory/bugs.md`; thirteen are fixed on the candidate, each with a focused regression
+test. Contract-visible changes: `dogfood-ocm`, `taskman-fixture` and `corpus` emit an
+`output-failed` envelope when their own output cannot be written; the `corpus` `--root` preamble
+refuses an option-like value (other native values stay uninterrupted because DCP-V1-012/018 require
+`--task --corpus=x` to pass through); BBF-V0-010 now states that the declared wall-clock budget must
+exceed the executor's cleanup reserve, and the per-receipt output limit has a floor equal to the
+validator's accepted receipt bound; JLTP `report-not-written` also covers a Vitest report over the
+4 MiB bounded-report limit and external config input over 256 entries is refused with
+`report-output-overflow`; sensitive-input redaction orders values longest-first, and the
+`sensitive-input-finding-bound-exceeded` slot-63 overwrite is retained as the spec-listed cap
+behavior rather than treated as a defect; DCP-V1 reverse-link keys use a NUL separator, so
+`lost_reverse_links` strings now carry `\u0000` between their parts, `missing-reverse-link` detail
+ends with the test ID, and `artifacts()` refuses an observation whose input is unretained, whose
+digest differs from its run, or whose input already serves another artifact role. Context-index
+production edits move the analyzer schema to `corvint-analyzer/73` with a re-pinned input digest.
+Not fixed: the DCP-V1-032 `--previous` refusal of a bundle carrying a real reconciliation finding
+is an owner decision (`docs/agent-memory/questions.md`), and the `CPUPROFILE` read-command write
+knob stays in `docs/agent-memory/fixes.md`. The 32-bit symbol-window overflow fix is confirmed by
+inspection only; no 32-bit build was run.
+
 ## 2026-09-21 PUB-V0-001: v0.5.0a3 candidate integrates issues #53–#57
 
 Decision 0329 moves the version tuple to `0.5.0a3` for the rerelease that integrates the sealed

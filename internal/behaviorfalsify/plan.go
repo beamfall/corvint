@@ -106,6 +106,9 @@ func validateRequest(request Request) error {
 	if len(request.Controls) == 0 || len(request.Controls) > 64 || request.Attempts < 1 || request.Attempts > 16 || request.TimeoutSeconds < 1 || request.TimeoutSeconds > 3600 || request.WallClockSeconds < request.TimeoutSeconds || request.WallClockSeconds > 24*60*60 {
 		return errors.New("invalid falsification bounds")
 	}
+	if time.Duration(request.WallClockSeconds)*time.Second <= cleanupReserve {
+		return errors.New("wall clock budget does not exceed cleanup reserve")
+	}
 	if request.ExternalState != "none" {
 		return errors.New("persistent external state is outside the admitted boundary")
 	}
@@ -348,10 +351,14 @@ func workspaceDigest(root string) (string, error) {
 		if err != nil {
 			return err
 		}
-		_, copyErr := io.Copy(hash, file)
+		fmt.Fprintf(hash, "%d\x00", info.Size())
+		copied, copyErr := io.Copy(hash, file)
 		closeErr := file.Close()
 		if copyErr != nil {
 			return copyErr
+		}
+		if copied != info.Size() {
+			return errors.New("workspace changed during digest")
 		}
 		return closeErr
 	})

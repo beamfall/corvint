@@ -220,7 +220,8 @@ func validatePreviousBehaviorAdapterResult(request BehaviorAdapterRequest, resul
 	for index := range declarations.Tests {
 		declarations.Tests[index].Runtime = nil
 	}
-	if registry.ContractSHA256 != hashValue(declarations) {
+	contractSHA256, err := hashValue(declarations)
+	if err != nil || registry.ContractSHA256 != contractSHA256 {
 		return invalid("contract digest")
 	}
 	if !validBehaviorAdapterArtifacts(result.Provider, registry, result.Artifacts) {
@@ -622,16 +623,27 @@ func (a *behaviorAdapter) build(previous *BehaviorAdapterResult) (BehaviorAdapte
 	for index := range declarations.Tests {
 		declarations.Tests[index].Runtime = nil
 	}
-	registry.ContractSHA256 = hashValue(declarations)
+	contractSHA256, err := hashValue(declarations)
+	if err != nil {
+		return BehaviorAdapterResult{}, err
+	}
+	registry.ContractSHA256 = contractSHA256
 	if err := a.validateObservationSubjects(tests); err != nil {
 		return BehaviorAdapterResult{}, err
 	}
 	provider := a.provider(registry)
 	a.reconcile(&provider, discovery, variations)
-	artifacts := a.artifacts(provider)
+	artifacts, err := a.artifacts(provider)
+	if err != nil {
+		return BehaviorAdapterResult{}, err
+	}
 	result := BehaviorAdapterResult{Schema: BehaviorAdapterResultSchema, Provider: provider, Variations: variations, Claims: a.claimRecords(), Artifacts: artifacts, Frontier: a.frontier, Fallback: "full-relevant-suite", Limitations: behaviorAdapterLimitations()}
 	result.Coverage = behaviorAdapterCoverage(provider, discovery, variations, a.linkedReady, a.variationRuntimeReady, result.Limitations)
-	result.Delta = behaviorAdapterDelta(previous, result)
+	delta, err := behaviorAdapterDelta(previous, result)
+	if err != nil {
+		return BehaviorAdapterResult{}, err
+	}
+	result.Delta = delta
 	sortBehaviorAdapterResult(&result)
 	return result, nil
 }
@@ -1295,7 +1307,7 @@ func (a *behaviorAdapter) reconcileVariations(variations []BehaviorAdapterVariat
 		for _, test := range tests {
 			if slices.Contains(test.Criteria, variation.ID) && !slices.Contains(variation.Tests, test.ID) {
 				ready = false
-				a.gap("variation:"+variation.ID, "missing-reverse-link", variation.ID, "tests", "test references the variation but the normative reverse test list omits it", "add the exact test identity to the reviewed variation or remove the proposed reference")
+				a.gap("variation:"+variation.ID, "missing-reverse-link", variation.ID, "tests", "test references the variation but the normative reverse test list omits it: "+test.ID, "add the exact test identity to the reviewed variation or remove the proposed reference")
 			}
 		}
 		allRuntime := ready
@@ -1527,7 +1539,7 @@ func (a *behaviorAdapter) gapFromInput(input BehaviorAdapterInput, kind, subject
 	a.frontier = append(a.frontier, BehaviorAdapterDiagnostic{Kind: kind, Subject: subject, Input: input.ID, Field: field, Revision: input.Anchor.Revision, Digest: input.Anchor.SHA256, Detail: detail, Correction: correction})
 }
 
-func (a *behaviorAdapter) artifacts(provider ProviderRecord) []BehaviorAdapterArtifact {
+func (a *behaviorAdapter) artifacts(provider ProviderRecord) ([]BehaviorAdapterArtifact, error) {
 	roles := map[string]string{a.request.MigrationInput: "migration", a.request.DiscoveryInput: "discovery"}
 	for _, test := range provider.BehaviorContracts.Tests {
 		if test.Runtime != nil {
@@ -1537,9 +1549,14 @@ func (a *behaviorAdapter) artifacts(provider ProviderRecord) []BehaviorAdapterAr
 		}
 	}
 	for _, observation := range provider.Observations {
-		if input, ok := a.inputForPath(observation.InputRevision, observation.Input); ok {
-			roles[input.ID] = "receipt"
+		input, ok := a.inputForPath(observation.InputRevision, observation.Input)
+		if !ok || Digest([]byte(input.Document)) != observation.RunID {
+			return nil, fail("behavior adapter observation must name a retained receipt input with the run identity digest")
 		}
+		if role, taken := roles[input.ID]; taken && role != "receipt" {
+			return nil, fail("behavior adapter observation receipt input already serves the " + role + " role")
+		}
+		roles[input.ID] = "receipt"
 	}
 	artifacts := make([]BehaviorAdapterArtifact, 0, len(roles))
 	for id, role := range roles {
@@ -1549,7 +1566,7 @@ func (a *behaviorAdapter) artifacts(provider ProviderRecord) []BehaviorAdapterAr
 	sort.Slice(artifacts, func(i, j int) bool {
 		return artifacts[i].Role+"\x00"+artifacts[i].Input < artifacts[j].Role+"\x00"+artifacts[j].Input
 	})
-	return artifacts
+	return artifacts, nil
 }
 
 func behaviorAdapterCoverage(provider ProviderRecord, discovery BehaviorDiscovery, variations []BehaviorAdapterVariation, linkedReady, runtimeReady map[string]bool, limitations []string) []BehaviorAdapterCoverage {
@@ -1611,12 +1628,18 @@ func allStrings(values []string, set map[string]bool) bool {
 	return true
 }
 
-func behaviorAdapterDelta(previous *BehaviorAdapterResult, current BehaviorAdapterResult) BehaviorAdapterDelta {
+func behaviorAdapterDelta(previous *BehaviorAdapterResult, current BehaviorAdapterResult) (BehaviorAdapterDelta, error) {
 	if previous == nil {
-		return BehaviorAdapterDelta{AddedCriteria: []string{}, RemovedCriteria: []string{}, ChangedCriteria: []string{}, LostReverseLinks: []string{}, PreviousAvailable: false}
+		return BehaviorAdapterDelta{AddedCriteria: []string{}, RemovedCriteria: []string{}, ChangedCriteria: []string{}, LostReverseLinks: []string{}, PreviousAvailable: false}, nil
 	}
-	before := behaviorVariationDigests(previous.Variations)
-	after := behaviorVariationDigests(current.Variations)
+	before, err := behaviorVariationDigests(previous.Variations)
+	if err != nil {
+		return BehaviorAdapterDelta{}, err
+	}
+	after, err := behaviorVariationDigests(current.Variations)
+	if err != nil {
+		return BehaviorAdapterDelta{}, err
+	}
 	delta := BehaviorAdapterDelta{PreviousAvailable: true, AddedCriteria: []string{}, RemovedCriteria: []string{}, ChangedCriteria: []string{}, LostReverseLinks: []string{}}
 	for id, digest := range after {
 		if old, ok := before[id]; !ok {
@@ -1630,8 +1653,14 @@ func behaviorAdapterDelta(previous *BehaviorAdapterResult, current BehaviorAdapt
 			delta.RemovedCriteria = append(delta.RemovedCriteria, id)
 		}
 	}
-	beforeLinks := behaviorReverseLinks(*previous)
-	afterLinks := behaviorReverseLinks(current)
+	beforeLinks, err := behaviorReverseLinks(*previous)
+	if err != nil {
+		return BehaviorAdapterDelta{}, err
+	}
+	afterLinks, err := behaviorReverseLinks(current)
+	if err != nil {
+		return BehaviorAdapterDelta{}, err
+	}
 	for link := range beforeLinks {
 		if !afterLinks[link] {
 			delta.LostReverseLinks = append(delta.LostReverseLinks, link)
@@ -1641,28 +1670,36 @@ func behaviorAdapterDelta(previous *BehaviorAdapterResult, current BehaviorAdapt
 	sort.Strings(delta.RemovedCriteria)
 	sort.Strings(delta.ChangedCriteria)
 	sort.Strings(delta.LostReverseLinks)
-	return delta
+	return delta, nil
 }
 
-func behaviorVariationDigests(variations []BehaviorAdapterVariation) map[string]string {
+func behaviorVariationDigests(variations []BehaviorAdapterVariation) (map[string]string, error) {
 	result := map[string]string{}
 	for _, variation := range variations {
-		result[variation.ID] = hashValue(variation)
+		digest, err := hashValue(variation)
+		if err != nil {
+			return nil, err
+		}
+		result[variation.ID] = digest
 	}
-	return result
+	return result, nil
 }
 
-func behaviorReverseLinks(adapterResult BehaviorAdapterResult) map[string]bool {
+func behaviorReverseLinks(adapterResult BehaviorAdapterResult) (map[string]bool, error) {
 	links := map[string]bool{}
 	provider := adapterResult.Provider
 	if provider.BehaviorContracts == nil {
-		return links
+		return links, nil
 	}
 	tests := map[string]BehaviorTest{}
 	for _, test := range provider.BehaviorContracts.Tests {
 		tests[test.ID] = test
 		for _, assertion := range test.Assertions {
-			links["assertion:"+test.ID+":"+assertion.Criterion+":"+assertion.ID+":"+hashValue(assertion)] = true
+			digest, err := hashValue(assertion)
+			if err != nil {
+				return nil, err
+			}
+			links["assertion:"+test.ID+"\x00"+assertion.Criterion+"\x00"+assertion.ID+"\x00"+digest] = true
 		}
 	}
 	for _, flow := range provider.BehaviorContracts.Flows {
@@ -1673,26 +1710,30 @@ func behaviorReverseLinks(adapterResult BehaviorAdapterResult) map[string]bool {
 			}
 			for _, criterion := range flow.Criteria {
 				if slices.Contains(test.Criteria, criterion) {
-					links["flow-test:"+flow.ID+":"+criterion+":"+testID+":"+test.Project] = true
+					links["flow-test:"+flow.ID+"\x00"+criterion+"\x00"+testID+"\x00"+test.Project] = true
 				}
 			}
 		}
 	}
 	for _, variation := range adapterResult.Variations {
-		links["variation-flow:"+variation.ID+":"+variation.Flow] = true
+		links["variation-flow:"+variation.ID+"\x00"+variation.Flow] = true
 		for _, testID := range variation.Tests {
-			links["variation-test:"+variation.ID+":"+testID] = true
+			links["variation-test:"+variation.ID+"\x00"+testID] = true
 		}
 	}
 	for _, test := range provider.BehaviorContracts.Tests {
 		for _, criterion := range test.Criteria {
-			links["test-variation:"+test.ID+":"+criterion] = true
+			links["test-variation:"+test.ID+"\x00"+criterion] = true
 		}
 	}
 	for _, record := range adapterResult.Claims {
-		links["claim:"+record.TestID+":"+record.Claim.VariationID+":"+hashValue(record.Claim)] = true
+		digest, err := hashValue(record.Claim)
+		if err != nil {
+			return nil, err
+		}
+		links["claim:"+record.TestID+"\x00"+record.Claim.VariationID+"\x00"+digest] = true
 	}
-	return links
+	return links, nil
 }
 
 func sortBehaviorAdapterResult(result *BehaviorAdapterResult) {

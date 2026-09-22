@@ -11,6 +11,7 @@ function loadReporter(includeGrammar = false) {
   const module = {exports: {}};
   const fakeRequire = name => name === 'playwright' ? {chromium: {executablePath: () => ''}} : require(name);
   fakeRequire.resolve = name => name === 'playwright' ? 'playwright' : require.resolve(name);
+  fakeRequire.cache = require.cache;
   const runtime = vm.runInThisContext(`(function(require,module,exports,__filename,__dirname){${source}\nreturn {Reporter: module.exports, sensitiveActionMatch, collectTailCandidates, sensitivePolicy};})`, {filename})(fakeRequire, module, module.exports, filename, __dirname);
   return includeGrammar ? runtime : runtime.Reporter;
 }
@@ -216,5 +217,20 @@ test('unsupported sensitive receiver calls reject without writing any report', (
       assert.throws(() => reporter.onEnd({status: 'failed'}), error => error.code === 'sensitive-input-action-syntax-unsupported');
       assert.equal(fs.existsSync(output), false);
     } finally { fs.rmSync(dir, {recursive: true}); }
+  }
+});
+
+test('a cached module that moved since load is skipped instead of aborting onBegin', () => {
+  const Reporter = loadReporter();
+  const output = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-moved-')), 'report.json');
+  const moved = path.join(os.tmpdir(), 'corvint-moved-module-' + process.pid + '.cjs');
+  require.cache[moved] = {id: moved, filename: moved, loaded: true, exports: {}};
+  try {
+    const reporter = new Reporter({output});
+    reporter.onBegin({workers: 1, version: '1.60.0'}, {allTests: () => []});
+    assert.equal(reporter.configFiles[moved], undefined);
+    assert.ok(Object.keys(reporter.configFiles).includes(__filename));
+  } finally {
+    delete require.cache[moved];
   }
 });

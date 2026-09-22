@@ -9,6 +9,10 @@ import (
 	"github.com/Beamfall/corvint/internal/taskman"
 )
 
+// taskmanPreview is a variable only so a test can reach the stdout write path
+// without a live trusted-local executor.
+var taskmanPreview = taskman.Preview
+
 func runTaskmanFixture(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {
 	flags := map[string]string{}
 	for i := 0; i < len(args); i += 2 {
@@ -28,13 +32,14 @@ func runTaskmanFixture(ctx context.Context, root string, args []string, stdout, 
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	raw, e := taskman.Preview(ctx, root, flags["--executor"], flags["--observations"])
+	raw, e := taskmanPreview(ctx, root, flags["--executor"], flags["--observations"])
 	if e != nil {
 		fmt.Fprintln(stderr, "taskman fixture:", e)
 		return 2
 	}
 	_, e = stdout.Write(raw)
 	if e != nil {
+		fmt.Fprintln(stderr, "taskman fixture: cannot write fixture output:", e)
 		return 2
 	}
 	return 0

@@ -137,7 +137,7 @@ func executeAttempt(ctx context.Context, plan Plan, control PlannedControl, atte
 		result.Reasons = []string{"wall-clock-budget-exhausted"}
 		return result
 	}
-	hookRaw, hookProcess := runPinned(ctx, *control.Hook, plan.Request.DisposableRoot, plan.Request.DeclaredEnvKeys, "control", input, timeout, receiptOutputLimit(plan))
+	hookRaw, hookProcess := runPinned(ctx, *control.Hook, plan.Request.DisposableRoot, plan.Request.DeclaredEnvKeys, "control", input, timeout, receiptOutputLimit(plan, control))
 	result.HookProcess = hookProcess
 	var receipt HookReceipt
 	if processSucceeded(hookProcess) {
@@ -380,18 +380,29 @@ func controlExecuted(result ControlResult) bool {
 	return false
 }
 
-func receiptOutputLimit(plan Plan) int {
+func receiptOutputLimit(plan Plan, control PlannedControl) int {
 	slots := 0
-	for _, control := range plan.Controls {
-		if control.Disposition == "run" {
+	for _, planned := range plan.Controls {
+		if planned.Disposition == "run" {
 			slots += plan.Request.Attempts
 		}
 	}
-	if slots < 1 {
-		return maxDocumentBytes / 8
-	}
 	// Leave room for Unicode escaping, validated artifact metadata, process evidence and framing.
-	return maxDocumentBytes / (8 * slots)
+	share := maxDocumentBytes / 8
+	if slots >= 1 {
+		share = maxDocumentBytes / (8 * slots)
+	}
+	// A receipt the validators accept always fits; the report bound still fails closed on the total.
+	return max(share, acceptedReceiptBound(control))
+}
+
+func acceptedReceiptBound(control PlannedControl) int {
+	// Every string the validators accept is at most 4096 bytes: 15 target, runner and
+	// target-observation identities, one infrastructure detail, 64 artifact paths, two IDs per
+	// unrelated observation and one per setup observation. The factor two leaves room for JSON
+	// framing, digests and escaping.
+	strings := 15 + 1 + 64 + 2*len(control.UnrelatedCriteria) + len(control.RequiredSetup)
+	return 2 * strings * 4096
 }
 
 func validInfrastructureReceipt(plan Plan, receipt HookReceipt) bool {
@@ -414,7 +425,9 @@ func controlWorkspaceRestored(result ControlResult) bool {
 func completeVocabulary(controls []PlannedControl) bool {
 	seen := map[ControlKind]bool{}
 	for _, control := range controls {
-		seen[control.Kind] = true
+		if control.Disposition == "run" {
+			seen[control.Kind] = true
+		}
 	}
 	return len(seen) == len(controlKinds)
 }

@@ -141,8 +141,8 @@ BBF-V0-007	docs/specs/browser-behavior-falsification-v0.md	61	Results preserve e
 BBF-V0-008	docs/specs/browser-behavior-falsification-v0.md	64	Every surviving or invalid control is an explicit criterion-level coverage gap.
 BBF-V0-009	docs/specs/browser-behavior-falsification-v0.md	67	The aggregate reports raw counts for all six statuses and mutation score as
 BBF-V0-010	docs/specs/browser-behavior-falsification-v0.md	70	Plans are bounded by at most 64 controls, 16 attempts per control, a 24-hour tot
-BBF-V0-011	docs/specs/browser-behavior-falsification-v0.md	73	Synthetic conformance covers a tautological assertion, hidden duplicate element,
-BBF-V0-012	docs/specs/browser-behavior-falsification-v0.md	76	Receipts are observations, not authenticated caller honesty, browser-behavior
+BBF-V0-011	docs/specs/browser-behavior-falsification-v0.md	74	Synthetic conformance covers a tautological assertion, hidden duplicate element,
+BBF-V0-012	docs/specs/browser-behavior-falsification-v0.md	77	Receipts are observations, not authenticated caller honesty, browser-behavior
 BRAIN-DOG-001	docs/specs/technical-brain-dogfood.md	27	butterfly-effect MUST return exact direct static references/dependencies,
 BRAIN-DOG-002	docs/specs/technical-brain-dogfood.md	30	E2E discovery MUST map requirements and journeys to exact scenario/test witnesse
 BRAIN-DOG-003	docs/specs/technical-brain-dogfood.md	32	selective-test guidance MUST name mandatory repository gates first and a smaller

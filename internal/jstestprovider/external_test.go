@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os/exec"
@@ -523,5 +524,44 @@ func TestQualifiedEncodingRejectsSecretAndBounds(t *testing.T) {
 	r.Tests[0].FailureMessage = strings.Repeat("x", externalOutputLimit)
 	if _, err := EncodeQualified(r); err == nil {
 		t.Fatal("oversize retained")
+	}
+}
+
+func TestSensitiveInputPrefixOverlappingValuesRedactLongestFirst(t *testing.T) {
+	r := Receipt{Profile: SensitiveExternalProfile, SensitiveInputPolicy: &SensitiveInputPolicy{}, Tests: []TestOutcome{{
+		Name: "prefix", FullName: "suite > prefix", State: StateFailed, FailureMessage: "saw hunter2extra then hunter2",
+		Attempts: []Attempt{{State: StateFailed, Steps: []BrowserStep{{Title: `Fill "hunter2extra"`}, {Title: `Fill "hunter2"`}}}},
+	}}}
+	policy, err := sensitivePolicy(r.SensitiveInputPolicy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := boundaryCollectSensitiveValues(r, policy)
+	for range 32 {
+		values := boundaryCollectSensitiveValues(r, policy)
+		if strings.Join(values, "\x00") != strings.Join(first, "\x00") {
+			t.Fatalf("sensitive value order drifted: %q vs %q", values, first)
+		}
+		if got := boundaryScrubText("saw hunter2extra then hunter2", values); got != "saw [REDACTED] then [REDACTED]" {
+			t.Fatalf("partial redaction: %q", got)
+		}
+	}
+	redacted, err := RedactSensitiveInputEvidence(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if encoded, _ := json.Marshal(redacted); strings.Contains(string(encoded), "hunter2") || strings.Contains(string(encoded), "extra") {
+		t.Fatalf("prefix leak: %s", encoded)
+	}
+}
+
+func TestQualifiedReportRefusesConfigInputOverflow(t *testing.T) {
+	r := qualifiedFixture(t)
+	report := qualifiedReport{Version: r.Identity.RunnerVersion, Status: "passed", Tests: r.Tests, ConfigFiles: map[string]string{r.Identity.ConfigFile: r.Identity.ConfigDigest}}
+	for i := range externalMaxConfigInputs {
+		report.ConfigFiles[fmt.Sprintf("/missing/helper-%d.cjs", i)] = "digest"
+	}
+	if err := bindQualifiedReport(&r, report); err == nil || err.Error() != "report-output-overflow" {
+		t.Fatalf("config input overflow err=%v", err)
 	}
 }

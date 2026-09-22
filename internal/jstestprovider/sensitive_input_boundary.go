@@ -3,6 +3,7 @@ package jstestprovider
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -59,7 +60,6 @@ func ValidateSensitiveInputEvidence(receipt Receipt) []SensitiveInputFinding {
 	if findings := sensitiveInputShapeFindings(receipt, policy); len(findings) != 0 {
 		return findings
 	}
-	values := boundaryCollectSensitiveValues(receipt, policy)
 	findings := []SensitiveInputFinding{}
 	protectedReport := false
 	for ti := range receipt.Tests {
@@ -69,7 +69,7 @@ func ValidateSensitiveInputEvidence(receipt Receipt) []SensitiveInputFinding {
 		}
 		protectedReport = protectedReport || testSensitive
 	}
-	boundaryValidateRiskFields(receipt, values, protectedReport, &findings)
+	boundaryValidateRiskFields(receipt, protectedReport, &findings)
 	return findings
 }
 
@@ -105,6 +105,14 @@ func boundaryCollectSensitiveValues(receipt Receipt, policy normalizedSensitiveP
 	for value := range seen {
 		values = append(values, value)
 	}
+	// Longest first, so a value that is a prefix of another never leaves the
+	// longer value's tail behind; the bytewise tiebreak keeps output deterministic.
+	sort.Slice(values, func(i, j int) bool {
+		if len(values[i]) != len(values[j]) {
+			return len(values[i]) > len(values[j])
+		}
+		return values[i] < values[j]
+	})
 	return values
 }
 
@@ -145,17 +153,13 @@ func boundaryScrubReceiptRiskFields(receipt *Receipt, sensitive []string) {
 	}
 }
 
-func boundaryValidateRiskFields(receipt Receipt, sensitive []string, protectedReport bool, findings *[]SensitiveInputFinding) {
+// A non-empty sensitive value set always comes from a step that
+// boundaryValidateSteps also flags, so protectedReport is true whenever there
+// is anything to search for; risk fields on a protected report must already be
+// empty or the marker, and no substring search is needed.
+func boundaryValidateRiskFields(receipt Receipt, protectedReport bool, findings *[]SensitiveInputFinding) {
 	unsafe := func(value string, protected bool) bool {
-		if protected {
-			return value != "" && value != SensitiveInputRedactionMarker
-		}
-		for _, item := range sensitive {
-			if item != "" && strings.Contains(value, item) {
-				return true
-			}
-		}
-		return false
+		return protected && value != "" && value != SensitiveInputRedactionMarker
 	}
 	var visit func([]BrowserStep, string, bool)
 	visit = func(steps []BrowserStep, path string, protected bool) {
@@ -348,6 +352,9 @@ func boundaryRedactStepRiskFields(steps []BrowserStep) {
 	}
 }
 
+// boundaryAppendFinding keeps the first sensitiveInputMaxFindings-1 findings
+// and turns the last slot into the finding-bound-exceeded marker (spec code
+// sensitive-input-finding-bound-exceeded); later findings are dropped.
 func boundaryAppendFinding(findings *[]SensitiveInputFinding, finding SensitiveInputFinding) {
 	if len(*findings) >= sensitiveInputMaxFindings {
 		(*findings)[sensitiveInputMaxFindings-1] = SensitiveInputFinding{Code: SensitiveInputFindingBoundExceeded, Path: "receipt"}

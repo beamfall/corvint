@@ -161,7 +161,8 @@ func (c *compiler) compileStability(provider string, behavior BehaviorRegistry, 
 	}
 	policy := registry.Policy
 	policy.SHA256 = ""
-	if !wireDigest(registry.Policy.SHA256) || hashValue(policy) != registry.Policy.SHA256 {
+	policyDigest, err := hashValue(policy)
+	if err != nil || !wireDigest(registry.Policy.SHA256) || policyDigest != registry.Policy.SHA256 {
 		return fail("stability policy digest mismatch")
 	}
 	declaredTopology, err := c.stabilityTopology(provider, registry.Policy.ID, registry.Policy.Topology, "declared-policy", "evidence", "")
@@ -388,7 +389,8 @@ func (c *compiler) stabilityOutcome(behavior BehaviorRegistry, aggregate Stabili
 			return testvaliditydoc.Test{}, nil, fail("contradictory attested test revision")
 		}
 	}
-	if !applicationQualified || !applicationRevisionDeclared || !wire.IsGitOid(identity.TestRevision) || !wire.IsSha256(identity.ConfigSHA256) || !wire.IsSha256(identity.ContractSHA256) || identity.ApplicationRevision != applicationRevision || identity.TestRevision != behavior.SourceRevision || identity.ConfigSHA256 != receipt.Identity.ConfigDigest || identity.ContractSHA256 != behavior.ContractSHA256 || identity.Runner != receipt.Identity.RunnerName || identity.RunnerVersion != receipt.Identity.RunnerVersion || identity.Browser != test.Project.Browser || identity.Project != test.Project.Name || identity.EnvironmentSHA256 != hashValue(receipt.Identity.Environment) || identity.FixtureSHA256 != Digest(test.Project.Use) {
+	environmentSHA256, err := hashValue(receipt.Identity.Environment)
+	if err != nil || !applicationQualified || !applicationRevisionDeclared || !wire.IsGitOid(identity.TestRevision) || !wire.IsSha256(identity.ConfigSHA256) || !wire.IsSha256(identity.ContractSHA256) || identity.ApplicationRevision != applicationRevision || identity.TestRevision != behavior.SourceRevision || identity.ConfigSHA256 != receipt.Identity.ConfigDigest || identity.ContractSHA256 != behavior.ContractSHA256 || identity.Runner != receipt.Identity.RunnerName || identity.RunnerVersion != receipt.Identity.RunnerVersion || identity.Browser != test.Project.Browser || identity.Project != test.Project.Name || identity.EnvironmentSHA256 != environmentSHA256 || identity.FixtureSHA256 != Digest(test.Project.Use) {
 		return testvaliditydoc.Test{}, nil, fail("contradictory stability receipt identity")
 	}
 	for _, value := range []string{identity.WorkerPolicy, identity.RetryPolicy, identity.EnvironmentClass, identity.FixtureSchema} {

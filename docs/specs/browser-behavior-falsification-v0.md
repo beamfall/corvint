@@ -68,8 +68,9 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   `killed/(killed+survived)` only when that denominator is nonzero. It reports supported, requested
   and executed denominators separately and never labels partial support universally adequate.
 - `BBF-V0-010`: Plans are bounded by at most 64 controls, 16 attempts per control, a 24-hour total
-  declared budget, 32 MiB input/output and 64 MiB per retained artifact. Cancellation, timeout and
-  output overflow terminate owned processes; missing descendant-cleanup evidence is not success.
+  declared budget that must also exceed the executor's cleanup reserve, 32 MiB input/output and
+  64 MiB per retained artifact. Cancellation, timeout and output overflow terminate owned
+  processes; missing descendant-cleanup evidence is not success.
 - `BBF-V0-011`: Synthetic conformance covers a tautological assertion, hidden duplicate element,
   wrong-value survival, expected kill, unrelated failure, timeout, cleanup failure, retry-hidden
   outcome and stale contract/revision/perturbation/artifact digests.
