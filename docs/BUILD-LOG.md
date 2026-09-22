@@ -1326,3 +1326,15 @@ keep the existing bounded retry. Malformed PID data, deadlines, process cleanup 
 behavior remain unchanged. The regression joins or stops its delayed writer during cleanup.
 The failed full-gate receipt is retained; focused lifecycle validation and a fresh exact-candidate
 full gate are required, with no scope or enrollment replacement and no relabeling of old evidence.
+
+## 2026-09-22 MCPV0-011: literal lifecycle claim anchor
+
+Candidate 794f93d passed the full gate, focused checks, four-archive qualification and direct
+OpenCode tool/edit proofs. Native completion correctly refused an explicitly assessed MCPV0-011
+claim gap: the existing stdout-close test names the requirement only in an excluded comment.
+A literal named subtest now wraps the unchanged stdout-close lifecycle assertions. The wrapper
+preserves all behavior, deadlines and cleanup; extraction and completion policy are unchanged.
+The known gap is not relabeled unassessed. The new source invalidates target-bound qualification;
+prior passes remain historical and mandatory checks must bind the replacement candidate. The
+optional companion is omitted under decision 0331 because its separate installed browser stage
+reached its three-minute timeout; that failure's root cause remains UNKNOWN.
