@@ -186,6 +186,28 @@ func shellQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
+func TestRecordedPIDsWaitsForEmptyFilePublication(t *testing.T) {
+	pidFile := filepath.Join(t.TempDir(), "pids")
+	if err := os.WriteFile(pidFile, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	written := make(chan error, 1)
+	timer := time.AfterFunc(30*time.Millisecond, func() {
+		written <- os.WriteFile(pidFile, []byte("123 456\n"), 0o600)
+	})
+	t.Cleanup(func() {
+		if !timer.Stop() {
+			if err := <-written; err != nil {
+				t.Error(err)
+			}
+		}
+	})
+	pids := waitForRecordedPIDs(t, pidFile, time.Second)
+	if len(pids) != 2 || pids[0] != 123 || pids[1] != 456 {
+		t.Fatalf("published pids = %v", pids)
+	}
+}
+
 func waitForRecordedPIDs(t *testing.T, pidFile string, timeout time.Duration) []int {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
@@ -206,7 +228,7 @@ func waitForRecordedPIDs(t *testing.T, pidFile string, timeout time.Duration) []
 			}
 			return pids
 		}
-		if !os.IsNotExist(err) {
+		if err != nil && !os.IsNotExist(err) {
 			t.Fatal(err)
 		}
 		time.Sleep(10 * time.Millisecond)
