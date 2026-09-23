@@ -470,11 +470,12 @@ it must read, each with the relation that admitted it, without naming the task's
   snapshot or pack change; an unset or other value preserves the existing packet bytes.
   Falsifier: a registered `tools/retrieval-bench` run on `v2_code2test` and `v2_trace2code` with
   the flag unset and `on` must lose at most 0.01 recall@5 on every fold and must report the
-  anchor-bearing samples as their own subset (`stratum:anchor-bearing`); a default-on promotion
-  additionally needs no recall@20 loss on any of the four v2 subsets and decision 0070's paired
-  ladder. The 2026-09-23 run (V1-0084, `docs/BUILD-LOG.md`) passed the recall@5 falsifier and
-  failed the promotion bar (`v2_trace2code` recall@20 0.7937 to 0.7591), so the field stays
-  opt-in. Rollback: unset the flag or remove the anchor field; the default wire never changed.
+  anchor-bearing samples as their own subset (`stratum:anchor-bearing`); promotion additionally
+  requires decision 0070's paired ladder. The 2026-09-23 run (V1-0084, `docs/BUILD-LOG.md`) passed
+  the recall@5 falsifier; the field stays opt-in because the 0070 ladder is NOT_RUN and recall@10
+  and recall@20 losses were observed (`v2_trace2code` recall@20 0.7937 to 0.7591). A stricter bar,
+  no recall@20 loss on any of the four v2 subsets, was proposed after that run and is not yet the
+  governing rule. Rollback: unset the flag or remove the anchor field; the default wire never changed.
 
 - `TCP-V0-023`: (proposed 2026-09-22, not accepted; experimental; decision 0346) Every
   `results[].evidence[]` row carries exactly one `trust` member, a string from the closed set

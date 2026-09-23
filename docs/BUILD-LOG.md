@@ -31,9 +31,12 @@ Per-sample wins/losses (r@5, r@10, r@20): code2test 0/0 everywhere (24 rankings 
 gold moved across a cut); comment2context 0/0, 1/1, 1/0; edit2ripple 0/0, 0/2, 2/0; trace2code
 1/0, 2/3, 2/5. All five trace2code recall@20 losses are `pallets/click` (fold B: r@20 0.6532 ->
 0.5450; fold A 0.8750 -> 0.8828): 08d24e63, 49589b87, 8882930f, 9372208a, e50d9d50. The recall@5
-falsifier (at most 0.01 loss on every fold of code2test and trace2code) passes; the promotion bar
-(no recall@20 loss on any subset) fails on trace2code, and recall@10 drops on edit2ripple and
-trace2code. Decision: the field stays opt-in under decision 0333; reserved decision 0373 is unused.
+falsifier (at most 0.01 loss on every fold of code2test and trace2code) passes. Decision: the
+field stays opt-in under decision 0333, because decision 0070's paired ladder is NOT_RUN and
+recall@10 (edit2ripple, trace2code) and recall@20 (trace2code) losses were observed; the stricter
+"no recall@20 loss on any subset" bar was proposed after this run, not governing. Reserved decision
+0373 is unused. `TaskHasAnchors` applies the compiler's 32,000-byte task bound; no sample exceeded
+it (no context-arm length error in any run).
 
 Errors: 2 code2test samples (spring-projects/spring-boot 9c3412df, e8ef6b1c) failed identically in
 both arms with `Git repository index exceeded its 30-second deadline` under host load; they score

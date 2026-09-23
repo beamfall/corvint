@@ -88,7 +88,7 @@ the temporary snapshot copies it makes.
   a gold file in the top k. Strata: `positive`, `natural_no_gold` (`metadata.organic`), and
   `counterfactual_no_gold`, which the bench reports separately. A sample whose full query text
   carries at least one TCP-V0-022 repository anchor (`contextindex.TaskHasAnchors`, the five
-  classes `context` extracts under `CORVINT_CONTEXT_ANCHORS=on`) records `anchor_bearing: true`
+  classes `context` extracts under `CORVINT_CONTEXT_ANCHORS=on`, within its 32,000-byte bound) records `anchor_bearing: true`
   (absent otherwise, so reports without anchors keep their bytes) and is also averaged under
   `stratum:anchor-bearing`, whatever the flag's value in the run. Means are reported over all
   samples, per task type, and per stratum (`n` counts the group, `positives` the samples the

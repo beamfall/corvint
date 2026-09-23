@@ -65,10 +65,11 @@ func configureContextAnchors(compiler *taskContextCompiler) *taskContextCompiler
 
 // TaskHasAnchors reports whether task carries at least one TCP-V0-022
 // anchor, by the extraction the compiler applies under
-// CORVINT_CONTEXT_ANCHORS=on; the retrieval bench reads it to report the
-// anchor-bearing samples as their own stratum.
+// CORVINT_CONTEXT_ANCHORS=on, within the compiler's task bound; the
+// retrieval bench reads it to report the anchor-bearing samples as their own
+// stratum.
 func TaskHasAnchors(task string) bool {
-	return len(taskAnchors(contextQueryValues(task))) > 0
+	return len(task) <= maxTaskContextChars && len(taskAnchors(contextQueryValues(task))) > 0
 }
 
 // taskAnchors lists the task's anchors in text order, each class consuming
