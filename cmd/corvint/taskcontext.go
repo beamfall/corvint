@@ -183,7 +183,7 @@ const taskContextHelp = `Compile the task-context packet: the files to read for 
 Usage:
   corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N]
 
-Read-only and Go-only (task-context-packet-v0, experimental). The packet lists
+Writes nothing; Go-only (task-context-packet-v0, experimental). The packet lists
 files admitted by relations a term search cannot express, each with one
 evidence line naming the relation, then fills the remaining slots with the
 files a term search would list:
@@ -208,6 +208,12 @@ carried under "subject" and never appears among "results": it is the subject
 of the question, not one of its answers. Without --subject the packet has the
 retrieval shape (mentioned, definition, lexical). "state" is READY when at
 least one result exists and NO_CANDIDATES otherwise; --limit defaults to 20.
+
+When an admitted learned trace .context-corvint/slot-weights.json exists
+(learned-trace-admission-v0, LTA-V0-011, experimental), rows of higher-weighted
+relations move ahead and the packet discloses the file's path, sha256 and
+weights as "learned_slot_weights"; a malformed file refuses, and
+corvint eval --reset-slot-weights restores the default order.
 
 Experimental opt-in views (experimental-source-views-v0, ESV-V0-008..010);
 without these flags the packet bytes are unchanged:
@@ -249,7 +255,11 @@ func compileTaskContext(ctx context.Context, options taskContextOptions, load fu
 	if err != nil {
 		return nil, hit, err
 	}
-	packet, err := contextindex.TaskContext(ctx, index, options.task, options.subject, options.limit)
+	admitted, err := contextindex.LoadAdmittedSlotWeights(options.root)
+	if err != nil {
+		return nil, hit, err
+	}
+	packet, err := contextindex.TaskContextWeighted(ctx, index, options.task, options.subject, options.limit, admitted)
 	if err == nil {
 		attachLSPEvidence(ctx, index, options.subject, packet, options.limit)
 	}

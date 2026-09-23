@@ -4,6 +4,87 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0088, decision 0368, LTA-V0-009..012: ledger negative labels for slot weights
+
+V1-0088 adds an explicit, operator-invoked learning step on an existing verb:
+`corvint eval --learn-slot-weights [--goldens FILE] [--admit]`, with the rollback
+`corvint eval --reset-slot-weights`. The step reads the unplanned-read and self-observation ledgers
+through their existing bounded readers as negative labels. Distinct paths are capped at 256, and
+planned re-reads are counted but not labelled. It proposes at most four slot-weight traces within
+-2..2 and scores each against the default slot order on the frozen golden's held-out `query` rows
+through the `context` packet. It admits a proposal to `.context-corvint/slot-weights.json` only with
+`--admit` and an `improved` delta. `context` and `query` never open the ledgers, and the default
+packet bytes are unchanged when no admitted file exists.
+
+Decision 0368 is `proposed`. The ticket conflicts with AGENTS.md invariant 4, `SOL-V0-003` and the
+`URE-V0` non-goals, which say the ledgers are never a learning input. The decision proposes the
+amendment text for owner ratification and edits none of those documents. Delivery stays
+experimental until the owner rules.
+
+First run on this repository, at implementation commit `fa6367b` (tree `d6d5f3b7`) with goldens
+`testing/context-retrieval-goldens.json` (`sha256:d4ae96df2a3bf01d05a44a848894390c915b8ea34b93cabba9ef2a31a4ad9392`):
+
+- Real ledger: the main checkout's `.corvint/self-observations.jsonl` (58 rows,
+  sha256 `ea276e6b…d0e6d`), copied into the clone's ignored `.corvint/`. The main checkout has no
+  unplanned-read ledger (the marker is off). The run found 0 label paths (0 `OBSERVED` misses and
+  0 unplanned paths) and refused with `no negative labels`; nothing was scored or written.
+- Synthetic labels, labelled as synthetic and not observed data: four hand-written unplanned rows
+  (three test paths, one Go source path). Two held-out cases scored. The baseline had 0 critical
+  misses, 0 must-include hits and 0 top-five hits. All four proposals (`test` +1/+2,
+  `definition` +1/+2) were `not distinguished`, with 0 improved and 0 regressed cases. The run refused
+  with `no held-out improvement`, even with `--admit`, and wrote no file.
+- Why every arm is zero: the frozen golden describes the Atlas fixture, not this repository. Of its
+  two held-out `query` rows, one carries only `feature:`/`scenario:` selectors, which have no
+  path-bearing form in a `context` packet. The other's four `symbol:` selectors all name
+  `internal/auth/auth.go`, which does not exist here. With this golden the gate cannot admit any
+  proposal. A useful admission needs a golden whose held-out `symbol:`/`file:` rows name this
+  repository's paths.
+
+Known mismatch: the adapter prompt packet that feeds the ledgers is not the `context` compile() packet
+being weighted. That is why the held-out gate, not the labels, decides admission.
+
+Verification: `corvint affected --base a98d770` selected 63 packages (scope UNKNOWN, LANGUAGE_FRONTIER
+unknowns). `go vet` on them exited 0. `go test -count=1 -timeout 30m` on them passed 58 packages and
+failed 5 under a loaded host. Reruns sorted the failures:
+- `internal/contextindex` `TestAnalyzerSchemaInputs` was caused by this change: the new
+  contextindex sources are audited inputs. Fixed by bumping `analyzerSchemaID` to
+  `corvint-analyzer/74` and repinning both audit pins (moved to `corvint-analyzer/75` when merged with main, which took `/74` for decision 0367).
+- Passed when rerun alone: `cmd/corvint` `TestExperimentalKernelAdapterContext` and
+  `TestHostAdapterJavaScriptHosts`, `internal/playwrightminimize`
+  `TestPSMLiveResetFailureStillCleansUp`, and `benchmarks/selfuse-batch`
+  `TestRealNativeBatchFallbackAndReadOnlyParity`.
+- Pre-existing: four `cmd/corvint-go-test-provider` tests
+  (`TestProviderCommandUsesPinnedLiveParentAuthorityE2E`,
+  `TestProductionParentBindsNonASCIIRepositoryPath`,
+  `TestExecute{Normal,Interrupted}...HasNoRecordedSurvivors`). They fail identically at BASE
+  `a98d770`, and the package does not import any changed package.
+
+After the bump:
+- The `LTAV0` and `TestAnalyzer*` tests in `internal/slotlearn`, `internal/evalrepo`,
+  `internal/contextindex` and `cmd/corvint` pass, and `go vet` passes.
+- The focused-docs gate (`make spec-requirements-check requirement-definitions-check
+  traceability-tests-check decision-numbers-check line-citations-check`) exits 0.
+
+NOT_RUN: `make gate` (owner policy); the exhaustive `go test ./...`; independent review; a frozen
+external retrieval benchmark (not requested). NOT_OBSERVED: any admitted trace on real labels.
+
+Review fixes (independent review of PR #92, three confirmed defects). (1) `batch`'s `context`
+operation now loads the admitted file and calls `TaskContextWeighted`, so it stays byte-equal to
+standalone `context` under weights (`SBQ-V0-003`, `TestBatchContextAppliesAdmittedSlotWeights`, which
+fails without the fix); `necessity`, `disagree` and `touchsurprise` stay unweighted, now stated in
+`LTA-V0-011`. (2) Prose labels (`.md`, `.mdx`, `.rst`, `.txt`) map to `documentation`, the kind the
+packet emits for them, and `documentation` joins the learnable slots; other `docs/` paths stay
+`lexical` (`LTA-V0-009`). Default packets are unchanged because an empty weight map is the identity
+order; the whole `internal/contextindex` suite passes. (3) The loader refuses an absent, non-object
+or incomplete `evaluation` block (`goldens_sha256`, a 40- or 64-hex `revision`, `baseline` and `arm`
+results); the gate now writes both arm results. The file is operator-owned and the loader checks
+shape, not provenance (`LTA-V0-011`). `context --help` names `learned_slot_weights`, one loader test
+is renamed to `TestLTAV0011...`, and the analyzer audit digest (`/75` after the merge with main) is repinned for the changed
+`slot_weights.go` bytes. No extraction or encoding changed. Verified: the focused-docs gate exits 0;
+`go test` of `internal/slotlearn`, `internal/evalrepo` and `internal/contextindex` passes;
+`cmd/corvint -run 'TestLTAV0|TestAnalyzer|TestEval|TestBatch|TestSBQ|TestTaskContext|Help'` passes;
+`go vet` and `gofmt -l` are clean. Still NOT_RUN: `make gate` and the exhaustive `go test ./...`.
+
 ## 2026-09-23 V1-0146, V1-0010 AC3: reviewer leg of the daily path from the v0.7.0 archive, recorded outcome
 
 Independent reviewer, fresh clone of PR #102 at seal head `165e2d7` (merge base `d18db3d`), binary
