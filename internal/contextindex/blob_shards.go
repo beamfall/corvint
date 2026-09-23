@@ -47,8 +47,8 @@ type blobFacts struct {
 
 func blobShardsEnabled() bool { return runtimeenv.Value("INDEX_SHARDS") == "1" }
 
-func blobShardPath(root, format, engineID, oid, path string) string {
-	return filepath.Join(SnapshotDirectory(root), "blobs", engineID, fmt.Sprintf("%s-%s-%x.afs", format, oid, sha256.Sum256([]byte(path))))
+func blobShardPath(directory, format, engineID, oid, path string) string {
+	return filepath.Join(directory, "blobs", engineID, fmt.Sprintf("%s-%s-%x.afs", format, oid, sha256.Sum256([]byte(path))))
 }
 
 // BuildForSnapshot is the writer's full-table build. Other Build consumers do
@@ -162,6 +162,7 @@ func shardEvidence(ctx context.Context, root string, observation repositoryObser
 }
 
 func readBlobFacts(root, format, engineID string, entries []treeEntry) (map[string]*blobFacts, error) {
+	base, directory := snapshotLocation(root)
 	results := make([]*blobFacts, len(entries))
 	failures := make([]error, len(entries))
 	workers := min(4, runtime.NumCPU(), max(1, len(entries)))
@@ -172,7 +173,7 @@ func readBlobFacts(root, format, engineID string, entries []treeEntry) (map[stri
 		go func(worker int) {
 			defer pending.Done()
 			for i := worker; i < len(entries); i += workers {
-				results[i], failures[i] = readBlobFact(root, format, engineID, entries[i], &budget)
+				results[i], failures[i] = readBlobFact(base, directory, format, engineID, entries[i], &budget)
 			}
 		}(worker)
 	}
@@ -189,15 +190,17 @@ func readBlobFacts(root, format, engineID string, entries []treeEntry) (map[stri
 	return facts, nil
 }
 
-func readBlobFact(root, format, engineID string, entry treeEntry, budget *blobReadBudget) (*blobFacts, error) {
-	target := blobShardPath(root, format, engineID, entry.oid, entry.path)
-	if err := shardRegularPath(root, target); err != nil {
+// readBlobFact reads one fact under the store directory; base anchors the
+// no-follow walk (snapshotLocation).
+func readBlobFact(base, directory, format, engineID string, entry treeEntry, budget *blobReadBudget) (*blobFacts, error) {
+	target := blobShardPath(directory, format, engineID, entry.oid, entry.path)
+	if err := shardRegularPath(base, target); err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	file, err := openBlobShard(root, target)
+	file, err := openBlobShard(base, target)
 	if err != nil {
 		return nil, err
 	}
@@ -318,12 +321,13 @@ func (chunk *compiledSources) collectBlobFact(fact *blobFacts, imports importPol
 // Publication is a synced temporary followed by rename. Existing valid facts
 // are immutable; corrupt facts are replaceable only by this explicit writer.
 func writeBlobShards(index *Index, engineID string) error {
+	base, directory := snapshotLocation(index.Root)
 	paths := blobSourcePaths(index.Sources)
 	tokeniser := newTokeniser()
 	for _, path := range paths {
 		source := index.Sources[path]
 		entry := treeEntry{path, source.BlobHash, source.Mode, len(source.Data)}
-		if fact, err := readBlobFact(index.Root, index.ObjectFormat, engineID, entry, nil); err == nil && fact != nil {
+		if fact, err := readBlobFact(base, directory, index.ObjectFormat, engineID, entry, nil); err == nil && fact != nil {
 			continue
 		}
 		local := &Index{Sources: map[string]Source{path: source}}
@@ -344,8 +348,8 @@ func writeBlobShards(index *Index, engineID string) error {
 			continue
 		}
 		digest := sha256.Sum256(payload)
-		target := blobShardPath(index.Root, index.ObjectFormat, engineID, source.BlobHash, path)
-		if err := publishBlobFact(index.Root, target, append(digest[:], payload...)); err != nil {
+		target := blobShardPath(directory, index.ObjectFormat, engineID, source.BlobHash, path)
+		if err := publishBlobFact(base, target, append(digest[:], payload...)); err != nil {
 			return err
 		}
 	}

@@ -15,6 +15,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
 func observedSnapshotState(stderr string) string {
@@ -42,7 +44,7 @@ func cleanWorkspace(ctx context.Context, root string) error {
 // Every sample receives a matched cold call; only the first sample for each
 // materialized tree writes a snapshot. Renaming happens outside timed spans.
 func prepareSnapshotSample(ctx context.Context, configuration options, item sample, root string, retrieve retriever) (answer arm, err error) {
-	directory := filepath.Join(root, ".corvint", "index")
+	directory := contextindex.SnapshotDirectory(root)
 	hidden := ""
 	_, statErr := os.Stat(directory)
 	primed := statErr == nil

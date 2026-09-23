@@ -24,9 +24,16 @@ import (
 // keyed by object format, tree OID, and the digest of the binary that
 // compiled it; the two fields that depend on the worktree, DirtyPaths and
 // StatusSHA256, are left out and filled in at load time from `git status`.
+// Nothing in the file depends on the worktree, so it lives under the Git
+// common directory and every linked worktree at that tree reads the one copy
+// (DIRTY-CACHE-013).
 const (
-	snapshotFormat              = "corvint-index-snapshot/1"
-	snapshotKeep                = 8
+	snapshotFormat = "corvint-index-snapshot/1"
+	snapshotKeep   = 8
+	// sharedSnapshotSubpath is the store under the Git common directory;
+	// snapshotSubpath is the per-worktree fallback for a root whose common
+	// directory does not resolve from its `.git` metadata.
+	sharedSnapshotSubpath       = "corvint/index"
 	snapshotSubpath             = ".corvint/index"
 	snapshotTemporaryStaleAfter = time.Hour
 	corvintIgnore               = "/.gitignore\n/index/\n/self-observations.jsonl\n/.self-observations.*\n"
@@ -138,18 +145,35 @@ func digestExecutable() string {
 // read. Empty when the executable cannot be read, which disables snapshots.
 func LoadedEngineID() string { return engine() }
 
-// SnapshotDirectory is where a repository's snapshots live.
+// SnapshotDirectory is where a repository's snapshots live: `corvint/index`
+// under the Git common directory, shared by every linked worktree, or the
+// worktree's own `.corvint/index` when the common directory cannot be resolved
+// from `.git` metadata without a Git process (DIRTY-CACHE-013).
 func SnapshotDirectory(root string) string {
-	return filepath.Join(root, filepath.FromSlash(snapshotSubpath))
+	_, directory := snapshotLocation(root)
+	return directory
 }
 
-// refuseLinkedSnapshotDirectory rejects a `.corvint` or `.corvint/index` that
-// exists as anything but a real directory. A repository can commit either as a
-// symlink, and following it would write and evict outside the worktree
+// snapshotLocation returns the directory that anchors the store's no-follow
+// walks (the Git common directory, or root on the fallback) and the store
+// directory beneath it.
+func snapshotLocation(root string) (string, string) {
+	common, err := gitstatus.CommonDirectory(root)
+	if err != nil {
+		return root, filepath.Join(root, filepath.FromSlash(snapshotSubpath))
+	}
+	return common, filepath.Join(common, filepath.FromSlash(sharedSnapshotSubpath))
+}
+
+// refuseLinkedSnapshotDirectory rejects a worktree `.corvint`, or either
+// component of the snapshot directory, that exists as anything but a real
+// directory. A repository can commit `.corvint` as a symlink, and following it,
+// or a linked store component, would write and evict outside the store
 // (IDX-SNAP-V0-005). A component that does not exist yet is fine.
 func refuseLinkedSnapshotDirectory(root string) error {
-	for _, component := range []string{".corvint", snapshotSubpath} {
-		info, err := os.Lstat(filepath.Join(root, filepath.FromSlash(component)))
+	_, directory := snapshotLocation(root)
+	for _, component := range []string{filepath.Join(root, ".corvint"), filepath.Dir(directory), directory} {
+		info, err := os.Lstat(component)
 		if errors.Is(err, os.ErrNotExist) {
 			continue
 		}
@@ -190,22 +214,29 @@ func syncAndClose(file *os.File) error {
 
 // WriteSnapshot persists index for its tree, atomically, and keeps the
 // directory to the newest snapshotKeep files (DIRTY-CACHE-007's entry bound).
+// Writers from several worktrees take no lock: each publishes a complete,
+// synced file by rename onto the same key, the last rename wins, and a reader
+// holds whichever complete file it opened (DIRTY-CACHE-013).
 func WriteSnapshot(index *Index) (SnapshotReceipt, error) {
 	engineID := engine()
 	if engineID == "" {
 		return SnapshotReceipt{}, &Error{Message: "index snapshot disabled: the running binary cannot be digested"}
 	}
 	directory := SnapshotDirectory(index.Root)
+	corvintDirectory := filepath.Join(index.Root, ".corvint")
 	if err := refuseLinkedSnapshotDirectory(index.Root); err != nil {
 		return SnapshotReceipt{}, err
 	}
 	if err := os.MkdirAll(directory, 0o755); err != nil {
 		return SnapshotReceipt{}, err
 	}
+	if err := os.MkdirAll(corvintDirectory, 0o755); err != nil {
+		return SnapshotReceipt{}, err
+	}
 	if err := refuseLinkedSnapshotDirectory(index.Root); err != nil {
 		return SnapshotReceipt{}, err
 	}
-	if err := writeCorvintIgnore(directory); err != nil {
+	if err := writeCorvintIgnore(corvintDirectory); err != nil {
 		return SnapshotReceipt{}, err
 	}
 	// The directory ignores itself, so a repository with no rule for it stays
@@ -298,8 +329,8 @@ func writePackSnapshot(directory, target string, index *Index, engineID string) 
 	return written, nil
 }
 
-func writeCorvintIgnore(snapshotDirectory string) error {
-	ignorePath := filepath.Join(filepath.Dir(snapshotDirectory), ".gitignore")
+func writeCorvintIgnore(corvintDirectory string) error {
+	ignorePath := filepath.Join(corvintDirectory, ".gitignore")
 	file, err := os.OpenFile(ignorePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if os.IsExist(err) {
 		return nil
@@ -715,10 +746,11 @@ func decodeSnapshotHeader(decoder *gob.Decoder, identity repositoryIdentity, eng
 	return nil
 }
 
-// snapshotDirectoryPresent reports whether `.corvint/index` exists as a real
-// directory under a real `.corvint`. Readers refuse what the writer refuses: a
-// committed symlink would otherwise serve a snapshot from outside the worktree,
-// so a linked component is the IDX-SNAP-V0-003 miss, as absence is.
+// snapshotDirectoryPresent reports whether the snapshot directory exists as a
+// real directory under a real parent, with no linked worktree `.corvint`.
+// Readers refuse what the writer refuses: a symlink would otherwise serve a
+// snapshot from outside the store, so a linked component is the IDX-SNAP-V0-003
+// miss, as absence is.
 func snapshotDirectoryPresent(root string) bool {
 	if refuseLinkedSnapshotDirectory(root) != nil {
 		return false

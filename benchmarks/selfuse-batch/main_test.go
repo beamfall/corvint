@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
 func TestMain(m *testing.M) {
@@ -320,7 +322,7 @@ func TestRealNativeBatchFallbackAndReadOnlyParity(t *testing.T) {
 				}
 			}
 			if state == "absent" {
-				if _, err := os.Stat(filepath.Join(root, ".corvint", "index")); !os.IsNotExist(err) {
+				if _, err := os.Stat(contextindex.SnapshotDirectory(root)); !os.IsNotExist(err) {
 					t.Fatal("read created index", err)
 				}
 			}

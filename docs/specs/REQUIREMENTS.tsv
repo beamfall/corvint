@@ -568,6 +568,7 @@ DIRTY-CACHE-009	docs/specs/revision-cache-dirty-worktree-v0.md	60	a 30-sample do
 DIRTY-CACHE-010	docs/specs/revision-cache-dirty-worktree-v0.md	63	the implementation MUST add no overlay, session, background process, database,
 DIRTY-CACHE-011	docs/specs/revision-cache-dirty-worktree-v0.md	69	each index build MUST resolve the repository storage object format and exact
 DIRTY-CACHE-012	docs/specs/revision-cache-dirty-worktree-v0.md	76	the separate `working-tree-untracked` impact authority profile (`GPK-V0-029`)
+DIRTY-CACHE-013	docs/specs/revision-cache-dirty-worktree-v0.md	83	the native disk snapshot store (`index-snapshot-v0`) MUST live at
 DNAS-V0-001	docs/specs/dotnet-affected-selection-v0.md	35	`Name` MUST be `dotnet`; `Owns` MUST accept `.cs` case-insensitively and MUST NO
 DNAS-V0-002	docs/specs/dotnet-affected-selection-v0.md	37	Framework discovery MUST require both project evidence and matching source
 DNAS-V0-003	docs/specs/dotnet-affected-selection-v0.md	41	One statically addressable test unit MUST own one `.cs` file and have identity
@@ -1136,28 +1137,28 @@ HDCV0-CAP-012	docs/specs/human-documentation-compiler-v0.md	529	A successful out
 HDCV0-CAP-013	docs/specs/human-documentation-compiler-v0.md	545	Canonical JSON retains `HDCV0-041`. A raw artifact digest is
 HDCV0-CAP-014	docs/specs/human-documentation-compiler-v0.md	557	The implementation core, broker, cleanup-only mode, runner, cgroup observer, and
 IDX-SNAP-V0-001	docs/specs/index-snapshot-v0.md	37	`corvint [--root PATH] index` builds the index of the committed tree exactly as
-IDX-SNAP-V0-002	docs/specs/index-snapshot-v0.md	54	`context` reads the repository's identity and status as a build's opening
-IDX-SNAP-V0-003	docs/specs/index-snapshot-v0.md	62	any mismatch (no file, a different tree, a different engine, a different
-IDX-SNAP-V0-004	docs/specs/index-snapshot-v0.md	69	a dirty worktree reads the same snapshot; only `DirtyPaths` and
-IDX-SNAP-V0-005	docs/specs/index-snapshot-v0.md	75	`index` is the only verb that writes under `.corvint/index/`; `context` and ever
-IDX-SNAP-V0-006	docs/specs/index-snapshot-v0.md	91	a hit and a miss produce byte-identical `context` output for the same
-IDX-SNAP-V0-007	docs/specs/index-snapshot-v0.md	93	`index` keeps the newest eight snapshot files in the directory and removes
-IDX-SNAP-V0-008	docs/specs/index-snapshot-v0.md	97	the two per-prompt query verbs read the snapshot on the same terms as
-IDX-SNAP-V0-009	docs/specs/index-snapshot-v0.md	118	a repository with no `.corvint/index/` directory is a miss without a Git
-IDX-SNAP-V0-010	docs/specs/index-snapshot-v0.md	121	the two index-building harness events read the snapshot on the same terms as IDX
-IDX-SNAP-V0-011	docs/specs/index-snapshot-v0.md	122	`corvint [--root PATH] index --if-stale` reads the header of the file
-IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	131	the Claude Code plugin's lifecycle hooks do not automatically invoke a
-IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	142	During committed-source pinning, a blob whose bytes begin with
-IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	169	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
-IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	210	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
-IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	284	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
-IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	322	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
-IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	147	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
-IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	353	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
-IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	371	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
-IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	398	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
-IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	426	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
-IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	440	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
+IDX-SNAP-V0-002	docs/specs/index-snapshot-v0.md	57	`context` reads the repository's identity and status as a build's opening
+IDX-SNAP-V0-003	docs/specs/index-snapshot-v0.md	65	any mismatch (no file, a different tree, a different engine, a different
+IDX-SNAP-V0-004	docs/specs/index-snapshot-v0.md	72	a dirty worktree reads the same snapshot; only `DirtyPaths` and
+IDX-SNAP-V0-005	docs/specs/index-snapshot-v0.md	78	`index` is the only verb that writes under `.corvint/index/`; `context` and ever
+IDX-SNAP-V0-006	docs/specs/index-snapshot-v0.md	95	a hit and a miss produce byte-identical `context` output for the same
+IDX-SNAP-V0-007	docs/specs/index-snapshot-v0.md	97	`index` keeps the newest eight snapshot files in the directory and removes
+IDX-SNAP-V0-008	docs/specs/index-snapshot-v0.md	101	the two per-prompt query verbs read the snapshot on the same terms as
+IDX-SNAP-V0-009	docs/specs/index-snapshot-v0.md	122	a repository with no `.corvint/index/` directory is a miss without a Git
+IDX-SNAP-V0-010	docs/specs/index-snapshot-v0.md	125	the two index-building harness events read the snapshot on the same terms as IDX
+IDX-SNAP-V0-011	docs/specs/index-snapshot-v0.md	126	`corvint [--root PATH] index --if-stale` reads the header of the file
+IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	135	the Claude Code plugin's lifecycle hooks do not automatically invoke a
+IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	146	During committed-source pinning, a blob whose bytes begin with
+IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	173	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
+IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	214	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
+IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	288	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
+IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	326	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
+IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	151	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
+IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	357	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
+IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	375	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
+IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	402	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
+IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	430	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
+IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	444	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
 KA-V0-001	docs/specs/kotlin-android-candidate-v0.md	28	The command and its package remain isolated, unregistered, and unreachable from
 KA-V0-002	docs/specs/kotlin-android-candidate-v0.md	30	A request is one UTF-8, canonical-JSON object followed by one LF. It has the clo
 KA-V0-003	docs/specs/kotlin-android-candidate-v0.md	34	The target is exactly Android/arm64/none. The twelve input rows below occur once
@@ -1846,16 +1847,16 @@ SOL-V0-009	docs/specs/self-observation-ledger-v0.md	103	`corvint prove-observe` 
 SOL-V0-010	docs/specs/self-observation-ledger-v0.md	110	The `codex` and `claude-code` host adapters (`corvint adapter`) MUST attempt one
 SOP-V0-001	docs/specs/stable-operations-v0.md	69	The install-lifecycle check MUST accept either one release archive whose single
 SOP-V0-002	docs/specs/stable-operations-v0.md	73	The check MUST create a committed fixture repository in its own temporary direct
-SOP-V0-003	docs/specs/stable-operations-v0.md	76	An upgrade MUST install into a second store beside the first and run `corvint
-SOP-V0-004	docs/specs/stable-operations-v0.md	85	Uninstall is removal of the store directories. Afterwards the fixture's tracked
-SOP-V0-005	docs/specs/stable-operations-v0.md	88	A backup is an archive of `.corvint` taken while no Corvint writer runs. After t
-SOP-V0-006	docs/specs/stable-operations-v0.md	91	With the snapshot truncated to zero bytes, and separately with bytes overwritten
-SOP-V0-007	docs/specs/stable-operations-v0.md	96	The hostile-regression check MUST hold a matrix of `category`, Go package and te
-SOP-V0-008	docs/specs/stable-operations-v0.md	101	Every test function the matrix names MUST be defined in a tracked `_test.go` fil
-SOP-V0-009	docs/specs/stable-operations-v0.md	104	A category with no tracked regression MUST be printed as
-SOP-V0-010	docs/specs/stable-operations-v0.md	109	`SECURITY.md` MUST state the private reporting channel, the acknowledgment windo
-SOP-V0-011	docs/specs/stable-operations-v0.md	112	`docs/RELEASE-NOTES.md` is the changelog. Each published release MUST have an en
-SOP-V0-012	docs/specs/stable-operations-v0.md	115	`docs/RELEASE-RUNBOOK.md` MUST be an ordered list of exact commands from a clean
+SOP-V0-003	docs/specs/stable-operations-v0.md	77	An upgrade MUST install into a second store beside the first and run `corvint
+SOP-V0-004	docs/specs/stable-operations-v0.md	86	Uninstall is removal of the store directories. Afterwards the fixture's tracked
+SOP-V0-005	docs/specs/stable-operations-v0.md	89	A backup is an archive of `.corvint` and the snapshot store taken while no Corvi
+SOP-V0-006	docs/specs/stable-operations-v0.md	92	With the snapshot truncated to zero bytes, and separately with bytes overwritten
+SOP-V0-007	docs/specs/stable-operations-v0.md	97	The hostile-regression check MUST hold a matrix of `category`, Go package and te
+SOP-V0-008	docs/specs/stable-operations-v0.md	102	Every test function the matrix names MUST be defined in a tracked `_test.go` fil
+SOP-V0-009	docs/specs/stable-operations-v0.md	105	A category with no tracked regression MUST be printed as
+SOP-V0-010	docs/specs/stable-operations-v0.md	110	`SECURITY.md` MUST state the private reporting channel, the acknowledgment windo
+SOP-V0-011	docs/specs/stable-operations-v0.md	113	`docs/RELEASE-NOTES.md` is the changelog. Each published release MUST have an en
+SOP-V0-012	docs/specs/stable-operations-v0.md	116	`docs/RELEASE-RUNBOOK.md` MUST be an ordered list of exact commands from a clean
 SRG-V0-001	docs/specs/spec-requirement-index-generator-v0.md	71	The generator MUST derive its input set from the paths Git reports as tracked
 SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	75	The generator MUST recognise a requirement id as a token matching an uppercase
 SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	79	The generator MUST classify each occurrence of an id into exactly one of three
