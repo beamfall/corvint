@@ -1505,7 +1505,7 @@ PSM-V0-010	docs/specs/playwright-suite-interaction-minimizer-v0.md	70	Every tria
 PSM-V0-011	docs/specs/playwright-suite-interaction-minimizer-v0.md	72	Missing or invalid runner qualification (#39), stability identity (#42), or
 PSM-V0-012	docs/specs/playwright-suite-interaction-minimizer-v0.md	75	Synthetic qualification MUST cover a true predecessor leak, a load-only failure,
 PSM-V0-013	docs/specs/playwright-suite-interaction-minimizer-v0.md	78	The closed `corvint-playwright-suite-interaction-live/0` CLI MUST require
-PUB-V0-001	docs/specs/public-release-v0.md	73	The current version tuple MUST move together to `0.6.0`, including native
+PUB-V0-001	docs/specs/public-release-v0.md	73	The current version tuple MUST move together to `0.7.0`, including native
 PUB-V0-002	docs/specs/public-release-v0.md	76	The existing native CLI archive gate MUST remain independent. An optional
 PUB-V0-003	docs/specs/public-release-v0.md	83	Companion build output MUST be outside the source checkouts, include exact
 PUB-V0-004	docs/specs/public-release-v0.md	98	The first companion target is macOS arm64. Qualification MUST exercise the

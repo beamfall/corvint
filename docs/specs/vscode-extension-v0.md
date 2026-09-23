@@ -168,7 +168,7 @@ The build number is not part of the pin; the executable digest already distingui
 (?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:(?:a|b|rc)(?:0|[1-9][0-9]*)|-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?(?:\+[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?
 ```
 
-This grammar admits the current `0.6.0`, which is the only V0 developer-preview token admitted
+This grammar admits the current `0.7.0`, which is the only V0 developer-preview token admitted
 for `corvint`. Every other token is `CLI_INCOMPATIBLE` until an amendment adds an
 exact tested tuple. Version is pin identity, not capability proof: installed and worktree builds
 with the same token may expose different commands. Symlink chains are allowed only through the
