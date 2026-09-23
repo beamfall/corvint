@@ -7,30 +7,22 @@ Corvint is a local-first, proof-carrying context compiler for software agents.
 1. Evidence is pinned to immutable Git content and always explains its inclusion.
 2. Missing evidence produces uncertainty or abstention, never invented certainty.
 3. Project-owned authority outranks syntax, history, and learned task traces.
-4. Read commands do not mutate repository or trace state. The one exception is the bounded local
-   self-observation ledger `.corvint/self-observations.jsonl`, written by `harness event` on the
-   three `SOL-V0-001` events, by the commands `SOL-V0-007` enumerates on an `unsupported-*`
-   failure, and by the host `adapter` on a `SOL-V0-010` adapter degradation; it is private derived state and never an input to ranking, learning, evidence,
-   or authority. A second private ledger `.corvint/unplanned-reads.jsonl` is written only while the
-   operator-created marker `.corvint/unplanned-reads.enabled` exists; like the self-observation ledger
-   it is bounded, local, derived state and never an input to ranking, learning, evidence, or
-   authority.
+4. Read commands do not mutate repository or trace state. The only exceptions are two bounded,
+   private, local ledgers under `.corvint/` (`self-observations.jsonl`, and `unplanned-reads.jsonl`
+   while the operator marker `.corvint/unplanned-reads.enabled` exists). Their writers are defined by
+   `SOL-V0-001`, `SOL-V0-007` and `SOL-V0-010`; neither is ever an input to ranking, learning,
+   evidence, or authority.
 5. Learning is explicit, local, bounded, secret-screened, and evaluation-gated.
 6. Corvint integrates with existing specs and agents; it does not require a new spec language.
 7. The default local product remains one native-Go binary with no account, network dependency,
    mutable/external database service, hosted service, embeddings, permanent daemon, UI, or broad
-   language rewrite. A selected immutable embedded index encoding is derived state, not a database
-   service; it still requires the accepted benchmark/format gate. A
-   capability outside that local boundary requires its own accepted profile, must reuse the same
-   transport-neutral immutable index contract, and cannot silently broaden the local path. The
-   deployment-neutral index direction is governed by
-   `docs/specs/deployment-neutral-index-platform-v0.md`; a measured production hot path may move
-   languages only under an accepted exact-parity migration contract with staged rollback, and
-   `docs/specs/go-production-kernel-migration-v0.md` governs the current Go migration. An optional,
-   separately-built, loopback-only, read-through local console may be started explicitly by the
-   operator (decision 0081, `docs/specs/local-admin-console-v0.md`). It is not part of the default
-   local product, installs no service, holds no database, opens no outbound connection, and carries
-   no authority; the default install remains one native-Go binary with no UI.
+   language rewrite. An immutable embedded index encoding is derived state, not a database, and still
+   needs the benchmark/format gate. Anything outside that boundary needs its own accepted profile on
+   the same transport-neutral immutable index contract and cannot silently broaden the local path:
+   see `docs/specs/deployment-neutral-index-platform-v0.md`,
+   `docs/specs/go-production-kernel-migration-v0.md` (hot-path language moves need exact parity and
+   staged rollback), and decision 0081 / `docs/specs/local-admin-console-v0.md` (optional,
+   operator-started, loopback-only console with no authority).
 8. Substantive capabilities are spec-driven. Record the human-owned intent, numbered requirements,
    non-goals, failure modes, acceptance evidence, and rollback before calling implementation done.
    Generated or inferred documentation can propose intent but cannot accept or govern it.
@@ -62,6 +54,12 @@ At change start run `make dogfood-change BASE=<sha>`. Final binding and checking
 follow `docs/DOGFOOD.md` §4, commit the CEM, then rerun `dogfood-change` and `dogfood-check` from
 a clean worktree against the same base, and finish with `make dogfood-seal BASE=<sha>`, which moves
 the checked CEM out of the shared tracked path. Keep every `NOT_PRODUCED` reason visible.
+
+## Repository etiquette
+
+Base every branch and worktree on `origin/main`. The pre-snapshot private lineage (local `main` in some
+checkouts) has no merge base with it and must never be merged or cherry-picked wholesale; see
+`docs/decisions/0331-clean-public-history-2026-09-22.md`.
 
 ## Verify
 
@@ -96,9 +94,7 @@ file new bugs, fixes, test gaps, optimizations, ideas and open questions as tick
 `agent-memory` plus `bugs|fixes|tests|optimizations|ideas|questions`), never as Markdown entries
 under `docs/agent-memory/`, which stays only as a redirect.
 
-Corvint is licensed under the GNU Affero General Public License v3.0 or later. `LICENSE` carries the
-AGPL text and `PROVENANCE.md` records the copyright basis. `LICENSING.md` is the authoritative path
-boundary: the enumerated protocol/interoperability paths are plain Apache-2.0 (`LICENSE-APACHE-2.0`),
-and every other path is AGPL-3.0. A new Apache-2.0 file belongs in `protocol/**`; widening that
-boundary requires amending `docs/decisions/0002-future-publication-transition.md`. Preserve each
-path's applicable terms, third-party notices, and provenance when publishing or extracting source.
+Corvint is AGPL-3.0-or-later; `LICENSING.md` is the authoritative path boundary. A new Apache-2.0 file
+belongs in `protocol/**`; widening that boundary requires amending
+`docs/decisions/0002-future-publication-transition.md`. Preserve each path's terms, third-party
+notices, and provenance when publishing or extracting source.
