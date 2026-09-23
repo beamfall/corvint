@@ -2302,7 +2302,7 @@
     "path": "docs/specs/stable-operations-v0.md",
     "title": "Stable operations V0",
     "reqPrefix": "SOP-V0",
-    "intent": "accepted (decision 0341, 2026-09-22)",
+    "intent": "accepted (decision 0341, 2026-09-22; `SOP-V0-003` and `SOP-V0-009` amended by decision 0360, 2026-09-23)",
     "delivery": "implemented",
     "claim": "Install lifecycle, corrupted-snapshot recovery and a named hostile-regression matrix run locally as release-blocking checks with NOT_COVERED gaps stated.",
     "dependsOn": [
@@ -2317,6 +2317,7 @@
       "script/check-install-lifecycle_test.sh",
       "script/check-hostile-regressions.sh",
       "script/check-hostile-regressions_test.sh",
+      "internal/contextindex/hostile_operations_test.go",
       "docs/RELEASE-RUNBOOK.md"
     ]
   },

@@ -4,6 +4,58 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0017 decision 0360 / SOP-V0-003 / SOP-V0-009: cross-version lifecycle and hostile matrix closure
+
+Reproduced the known N-1 failure: `script/check-install-lifecycle.sh` with 0.6.0 (build 90, built
+from tag `v0.6.0`) as `CORVINT_LIFECYCLE_BINARY` and 0.7.0 as the upgrade failed `upgrade-b` with
+"packet bytes changed across the upgrade". The only diff was the additive 0.7.0 packet fields
+`coverage.governance_refused` and evidence `trust` (decision 0346), so the 0341 byte rule could never
+pass a wire-changing release. Decision 0360 compares a distinct upgrade with the packet the upgrade
+binary builds from a cold index of a clone at the same commit, and reports `packet=identical|changed`.
+Same-bytes upgrades and rollback, the downgrade path, keep byte identity. Wrapper case 5 stubs a wire
+change (must pass, `packet=changed`) and a nondeterministic packet (must fail `upgrade-b`). PR #84
+review found that an upgrade whose read verb exits 0 with no output passed, because two empty packet
+files compare equal; the step now requires a non-empty packet and an `ok` cold index, and case 5
+adds that stub, which must fail `upgrade-b` with "read verb produced no packet".
+
+Lifecycle on release archives produced from `1894b9e` by `conformance/release-artifact-v0 archive`
+(`Corvint 0.7.0 (build 12)`; `shasum -a 256 -c SHA256SUMS` OK for all five archives). Every cell is
+the step line of the retained report; each run ended `SUMMARY status=PASS`.
+
+| Step | darwin arm64 same | darwin arm64 N-1 | linux arm64 same | linux arm64 N-1 | darwin amd64 (Rosetta) same | darwin amd64 (Rosetta) N-1 | linux amd64 |
+|---|---|---|---|---|---|---|---|
+| install-a | ok | ok (0.6.0 b90) | ok | ok (0.6.0 b90) | ok | ok (0.6.0 b90) | NOT_RUN |
+| first-index | ok | ok | ok | ok | ok | ok | NOT_RUN |
+| upgrade-b | ok same-bytes | ok packet=changed | ok same-bytes | ok packet=changed | ok same-bytes | ok packet=changed | NOT_RUN |
+| rollback-a | ok | ok | ok | ok | ok | ok | NOT_RUN |
+| uninstall | ok | ok | ok | ok | ok | ok | NOT_RUN |
+| backup-restore | ok | ok | ok | ok | ok | ok | NOT_RUN |
+| corrupt-truncate | ok | ok | ok | ok | ok | ok | NOT_RUN |
+| corrupt-overwrite | ok | ok | ok | ok | ok | ok | NOT_RUN |
+
+linux arm64 ran in the local `golang:1.27.1` container (git 2.47.3), not on native hardware; darwin
+amd64 ran under Rosetta 2 on the arm64 host. linux amd64 is NOT_RUN: no amd64 image or host was
+available. The N-1 run from 0.6.0 into the installed 0.7.0 (build 46) also passed on darwin arm64.
+
+Hostile matrix (SOP-V0-009): the `memory` row is a Go-heap bound on one index build over a tracked
+source 64 times `maxSourceBytes`; about 2.5 MB is allocated, and with the size exclusion mutated
+away the test fails at 514 MB. The `case-folds-context-index` row builds two tracked paths that
+differ only by case on a case-insensitive worktree; it fails only when both the dirty-set guard and
+the worktree blob-oid check are removed, so either alone keeps each path on its own blob. `make
+hostile-regressions-check` on darwin arm64: 29 rows PASS, `memory-resident` NOT_COVERED (no
+regression bounds whole-process or git child memory). In the linux arm64 container it passed with
+both case-fold rows NOT_RUN (case-sensitive filesystem).
+
+AC3: `SECURITY.md` already held the 0.x support window and private reporting channel; `docs/SECURITY.md`
+now points to it instead of calling the policy a draft, and on 2026-09-23 the GitHub API reported
+private vulnerability reporting enabled (no live report sent). `docs/RELEASE-NOTES.md` is the
+changelog; the runbook gains the 0700 output parent, the unqualified Windows zip and the upgrade
+report form. The 1.0 support duration stays an owner decision for V1-0021.
+
+Found, not fixed: the build stamp at `origin/main` HEAD is 12 while the published 0.7.0 is build 46,
+because the history reset restarted the first-parent count; build numbers are no longer monotonic
+(PUB-V0-021). NOT_RUN: full gate (owner policy), linux amd64 lifecycle and hostile matrix, native
+linux hardware. No artifact was promoted or published.
 ## 2026-09-23 CEM-PILOT-024..027: understand, review and CI-verification recipes (V1-0026)
 
 `examples/cem/recipes/` adds three Bash recipes over one committed `BASE..HEAD` change, composed
