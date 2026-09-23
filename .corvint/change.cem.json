@@ -82,9 +82,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:56d9af6ad206ae499bc381fac6053ea67d46860be3ff672d9544514728487f1e",
+      "id": "hunk:sha256:19ac501806851e6cee877be184b07ba28d2848740eed447190e7b022a5a92e52",
       "newRange": {
-        "count": 42,
+        "count": 50,
         "start": 4
       },
       "oldRange": {
@@ -122,7 +122,7 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:20ca83b9df3253086222ec9ff8fd46ea92ec38ade285a4cab14c956f9d441913",
+      "id": "hunk:sha256:f06fe0dd16dbf364fa9e56891217ef5dd02f6a4eb09b268e7b036c911a6af5b3",
       "newRange": {
         "count": 16,
         "start": 983
@@ -162,13 +162,13 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:7e89022ea5271d4cad6d5ed52222245e0a000dac26df548132e7a69aa028d800",
+      "id": "hunk:sha256:eb395b7c0a9f8af3d39d3edb85fb4563dbadf26c5dcca6c65bc088131fa1c337",
       "newRange": {
-        "count": 8,
+        "count": 11,
         "start": 51
       },
       "oldRange": {
-        "count": 7,
+        "count": 9,
         "start": 51
       },
       "path": "docs/specs/go-only-cutover-v0.md",
@@ -282,9 +282,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:fbd1da9e411581a4a24cbe501fa601f287e5cbad3dc8c3c76091d1294c514cc4",
+      "id": "hunk:sha256:19594ab945ff897f90c60be539ae3ca0373f14fcdb0ffd67b2c182f71820a8d8",
       "newRange": {
-        "count": 71,
+        "count": 91,
         "start": 214
       },
       "oldRange": {
@@ -295,6 +295,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "30aa3059e69e1f7ec6c4a7311e9373257c4d1099816cdc8ecc818c8a1d70432b",
+  "patchSha256": "6c212460bf9282211421eb1522cab0f598921e68f2944a4c8e2779161b50b151",
   "spec": "cem/0.2"
 }
