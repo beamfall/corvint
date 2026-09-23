@@ -35,6 +35,8 @@ func TestContextBenchRowsMapToSamplesAndBadRowsAreRefused(t *testing.T) {
 		"gold not json": `{"instance_id":"x","repo":"o/n","base_commit":"c","problem_statement":"p","gold_context":"[{"}`,
 		"inverted span": `{"instance_id":"x","repo":"o/n","base_commit":"c","problem_statement":"p","gold_context":"[{\"file\":\"a.py\",\"start_line\":5,\"end_line\":4}]"}`,
 		"zero line":     `{"instance_id":"x","repo":"o/n","base_commit":"c","problem_statement":"p","gold_context":"[{\"file\":\"a.py\",\"start_line\":0,\"end_line\":4}]"}`,
+		"line past cap": `{"instance_id":"x","repo":"o/n","base_commit":"c","problem_statement":"p","gold_context":"[{\"file\":\"a.py\",\"start_line\":1,\"end_line\":9223372036854775807},{\"file\":\"b.py\",\"start_line\":1,\"end_line\":9223372036854775807}]"}`,
+		"fractional":    `{"instance_id":"x","repo":"o/n","base_commit":"c","problem_statement":"p","gold_context":"[{\"file\":\"a.py\",\"start_line\":1.5,\"end_line\":4}]"}`,
 	}
 	for name, line := range bad {
 		path := filepath.Join(t.TempDir(), "rows.jsonl")

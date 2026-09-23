@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -10,9 +11,9 @@ import (
 
 const certainReply = "```json\n{\"claims\":[{\"kind\":\"source-file\",\"value\":\"port.go\",\"confidence\":\"certain\",\"evidence\":\"none\"}]}\n```\n"
 
-// CEP-V0-004/005: on an already-fixed control every valid claim is FALSE, a
-// certain one is a recorded failure, and a produced packet that does not
-// abstain is a recorded failure even when the agent abstains.
+// CEP-V0-004/005: on an already-fixed control every valid claim is FALSE and
+// a certain one is the agent's recorded failure; whether a produced packet
+// abstained is recorded apart and never sets control_failed.
 func TestAlreadyFixedControlScoresAnyConfidentAnswerAsFailure(t *testing.T) {
 	abstaining := `{"state":"NO_CANDIDATES","results":[]}`
 	withheld := `{"state":"READY","results":[{"id":"AGENTS.md"}],"coverage":{"answerability":{"verdict":"unsupported-conjunction"}}}`
@@ -28,8 +29,8 @@ func TestAlreadyFixedControlScoresAnyConfidentAnswerAsFailure(t *testing.T) {
 		{"silence abstains", armRecord{Reply: "Already fixed at this revision."}, map[string]float64{"abstained": 1, "control_failed": 0}, "packet_abstained"},
 		{"abstaining packet", armRecord{Reply: "```json\n{\"claims\":[]}\n```", Context: abstaining, ContextState: "NO_CANDIDATES"}, map[string]float64{"abstained": 1, "packet_abstained": 1, "control_failed": 0}, ""},
 		{"withheld packet abstains", armRecord{Reply: "none", Context: withheld, ContextState: "READY"}, map[string]float64{"packet_abstained": 1, "control_failed": 0}, ""},
-		{"answering packet fails", armRecord{Reply: "none", Context: answering, ContextState: "READY"}, map[string]float64{"abstained": 1, "packet_abstained": 0, "control_failed": 1}, ""},
-		{"cut packet fails", armRecord{Reply: "none", Context: answering[:20], ContextState: "READY"}, map[string]float64{"packet_abstained": 0, "control_failed": 1}, ""},
+		{"answering packet is recorded apart", armRecord{Reply: "none", Context: answering, ContextState: "READY"}, map[string]float64{"abstained": 1, "packet_abstained": 0, "control_failed": 0}, ""},
+		{"cut packet did not abstain", armRecord{Reply: "none", Context: answering[:20], ContextState: "READY"}, map[string]float64{"packet_abstained": 0, "control_failed": 0}, ""},
 		{"failed producer is unobserved", armRecord{Reply: "none", ContextState: "UNREADABLE", ContextError: "corvint: exit 2"}, map[string]float64{"control_failed": 0}, "packet_abstained"},
 	}
 	for _, item := range cases {
@@ -91,8 +92,30 @@ func TestAlreadyFixedFixtureRecordsAConfidentAnswerAsFailure(t *testing.T) {
 			t.Fatalf("%s: %+v", name, arm)
 		}
 		summary := document.Arms[name].(map[string]any)["already_fixed"].(map[string]any)
-		if summary["tasks"] != 1 || summary["control_failed"] != 1.0 || summary["packets"] != 0.0 {
+		if summary["tasks"] != 1 || summary["errors"] != 0 || summary["control_failed"] != 1.0 || summary["packets"] != 0.0 {
 			t.Fatalf("%s summary: %v", name, summary)
 		}
+	}
+}
+
+// CEP-V0-005: a scored control stays out of the arm's other aggregates, so a
+// real task's success, abstention and retrieval rates are the same with or
+// without a control beside it.
+func TestAlreadyFixedControlStaysOutOfRealTaskAggregates(t *testing.T) {
+	real := taskRecord{ID: "real", Arms: map[string]*armRecord{"grep": {WallMs: int64(5), Metrics: map[string]float64{
+		"success": 1, "abstained": 0, "gold_in_context": 1, "packet_top_5": 1, "f1": 1,
+	}}}}
+	control := taskRecord{ID: "control", Control: controlAlreadyFixed, Arms: map[string]*armRecord{"grep": {WallMs: int64(7), Metrics: map[string]float64{
+		"success": 0, "abstained": 1, "gold_in_context": 0, "packet_top_5": 0, "f1": 0, "control_failed": 0,
+	}}}}
+	alone := summarizeArm([]taskRecord{real}, "grep")
+	mixed := summarizeArm([]taskRecord{real, control}, "grep")
+	controls, present := mixed["already_fixed"].(map[string]any)
+	if !present || controls["tasks"] != 1 || controls["control_failed"] != 0.0 {
+		t.Fatalf("already_fixed: %v", mixed["already_fixed"])
+	}
+	delete(mixed, "already_fixed")
+	if !reflect.DeepEqual(alone, mixed) {
+		t.Fatalf("a control changed the real-task aggregates:\nalone %v\nmixed %v", alone, mixed)
 	}
 }

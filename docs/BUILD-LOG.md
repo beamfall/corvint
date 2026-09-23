@@ -61,6 +61,13 @@ scored `control_failed` 1 on all three arms. Current Corvint therefore fails the
 Gaps: ContextBench full run NOT_RUN; symbol/span granularities NOT_MEASURED; model-agent control
 arm NOT_RUN; no held-out control set (the fixture is synthetic, NOT_OBSERVED as held-out evidence).
 
+Review fixes (PR #96): control tasks now stay out of every other arm aggregate and are counted only
+under `already_fixed`; `control_failed` is the agent's `certain` claim alone, shared by every arm,
+with packet abstention recorded apart as `packet_abstained`; ContextBench spans ending past line
+10,000,000 are refused and line numbers stay integers; rescoring both pilot reports with
+`cw-trial score` gives `control_failed` 0 on all arms for the abstaining agent and 1 on all arms for
+the certain one, with the corvint packet `packet_abstained` 0 in both.
+
 ## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
 
 V1-0012 measured the daily change-evidence loop as it exists at `origin/main` 1894b9e against a

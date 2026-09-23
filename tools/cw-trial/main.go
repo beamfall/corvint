@@ -1855,6 +1855,9 @@ func summarizeArm(details []taskRecord, name string) map[string]any {
 		if !present {
 			continue
 		}
+		if record.Control == controlAlreadyFixed {
+			continue
+		}
 		if arm.Error != "" {
 			errorCount++
 		}

@@ -21,8 +21,9 @@ own requirements) while keeping the owning spec the ticket fixed.
   repository cloning and the network stay out of the tool. File and line coverage/precision follow
   ContextBench's `coverage_precision` definitions with whole-file line prediction, because a packet
   names files, not spans. Symbol and byte-span granularities are not measured.
-- The already-fixed control carries no gold; any `certain` claim, and any produced corvint packet
-  that does not abstain, is a recorded control failure. New report fields appear only for
+- The already-fixed control carries no gold; a `certain` claim is the agent's recorded control
+  failure on every arm, packet abstention is recorded apart, and controls stay out of the arm's
+  other aggregates. New report fields appear only for
   ContextBench rows and control tasks, so committed reports keep their bytes.
 - Results are evidence a later promotion may cite, never a promotion (`CEP-V0-006`).
 

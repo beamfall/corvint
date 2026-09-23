@@ -18,6 +18,11 @@ import (
 // exported one JSON object per line and never reads Parquet or the network.
 const contextBenchTask = "contextbench"
 
+// maxContextBenchLine caps a gold span's end line (CEP-V0-001): no source file
+// in the bench comes near ten million lines, and the cap keeps every line sum
+// exact, so a hostile span cannot overflow a total into invented coverage.
+const maxContextBenchLine = 10_000_000
+
 // contextBenchRow is one ContextBench row, keeping the dataset's column names.
 // gold_context is itself a JSON-encoded list of spans.
 type contextBenchRow struct {
@@ -79,8 +84,11 @@ func contextBenchSample(line []byte) (sample, error) {
 		if span.StartLine < 1 || span.EndLine < span.StartLine {
 			return sample{}, fmt.Errorf("contextbench row %s: span %s:%d-%d is not a line range", row.InstanceID, path, span.StartLine, span.EndLine)
 		}
+		if span.EndLine > maxContextBenchLine {
+			return sample{}, fmt.Errorf("contextbench row %s: span %s ends at line %d, beyond %d", row.InstanceID, path, span.EndLine, maxContextBenchLine)
+		}
 		files[path] = true
-		lines = append(lines, map[string]any{"file": path, "start_line": float64(span.StartLine), "end_line": float64(span.EndLine)})
+		lines = append(lines, map[string]any{"file": path, "start_line": span.StartLine, "end_line": span.EndLine})
 	}
 	goldPaths := make([]any, 0, len(files))
 	for _, path := range sortedKeys(files) {
@@ -155,9 +163,9 @@ func goldLineIntervals(item sample) map[string][]lineInterval {
 	for _, entry := range spans {
 		span, _ := entry.(map[string]any)
 		path, _ := span["file"].(string)
-		start, _ := span["start_line"].(float64)
-		end, _ := span["end_line"].(float64)
-		result[path] = append(result[path], lineInterval{int(start), int(end)})
+		start, _ := span["start_line"].(int)
+		end, _ := span["end_line"].(int)
+		result[path] = append(result[path], lineInterval{start, end})
 	}
 	return result
 }

@@ -38,17 +38,14 @@ func scoringGold(item *taskRecord) map[string][]string {
 	return item.Gold
 }
 
-// controlMetrics adds the already-fixed outcome (CEP-V0-005): a certain claim
-// is a recorded failure, and so is a produced corvint packet that did not
-// abstain. packet_abstained is recorded only for a produced corvint packet.
+// controlMetrics adds the already-fixed outcome (CEP-V0-005): control_failed
+// is the agent's own failure, a certain claim, so every arm is compared on it.
+// packet_abstained is recorded apart, and only for a produced corvint packet.
 func controlMetrics(metrics map[string]float64, record *armRecord) {
-	failed := metrics["confidently_wrong_task"] == 1
+	metrics["control_failed"] = metrics["confidently_wrong_task"]
 	if record.ContextState != "" && record.ContextError == "" {
-		abstained := packetAbstained(record.Context)
-		metrics["packet_abstained"] = boolFloat(abstained)
-		failed = failed || !abstained
+		metrics["packet_abstained"] = boolFloat(packetAbstained(record.Context))
 	}
-	metrics["control_failed"] = boolFloat(failed)
 }
 
 // packetAbstained reads a task-context packet as tools/retrieval-bench does:
@@ -72,16 +69,21 @@ func packetAbstained(contextText string) bool {
 	return packet.State == "NO_CANDIDATES" || packet.State == "OUT_OF_SCOPE" || withheld || len(packet.Results) == 0
 }
 
-// controlSummary counts one arm's already-fixed controls; it is nil when the
-// arm ran none, so a report without controls keeps its bytes.
+// controlSummary counts one arm's already-fixed controls, which the arm's
+// other aggregates leave out; it is nil when the arm ran none, so a report
+// without controls keeps its bytes.
 func controlSummary(details []taskRecord, name string) map[string]any {
-	tasks, failed, observed, abstained := 0, 0.0, 0.0, 0.0
+	tasks, errored, failed, observed, abstained := 0, 0, 0.0, 0.0, 0.0
 	for _, item := range details {
 		arm := item.Arms[name]
-		if item.Control != controlAlreadyFixed || arm == nil || arm.Metrics == nil {
+		if item.Control != controlAlreadyFixed || arm == nil {
 			continue
 		}
 		tasks++
+		if arm.Metrics == nil {
+			errored++
+			continue
+		}
 		failed += arm.Metrics["control_failed"]
 		if value, present := arm.Metrics["packet_abstained"]; present {
 			observed++
@@ -91,7 +93,7 @@ func controlSummary(details []taskRecord, name string) map[string]any {
 	if tasks == 0 {
 		return nil
 	}
-	return map[string]any{"tasks": tasks, "control_failed": failed, "packets": observed, "packet_abstained": abstained}
+	return map[string]any{"tasks": tasks, "errors": errored, "control_failed": failed, "packets": observed, "packet_abstained": abstained}
 }
 
 func boolFloat(value bool) float64 {

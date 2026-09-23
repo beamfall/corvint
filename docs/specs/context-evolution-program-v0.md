@@ -4,12 +4,13 @@ Owner: Russell Lewis
 Frozen: 2026-08-23
 Intent status: proposed
 Delivery status: experimental
-Document kind: hypothesis catalog (prose intent only; no numbered requirement clauses, so OCM
-must abstain rather than invent coverage). Decision 0179 (2026-09-13) holds this catalog
-prose-only permanently; a hypothesis gains `PREFIX-NNN` clauses only via a separate accepting
-slice's own requirements, never by relabelling this prose. Decision 0372 (2026-09-23) adds one such
-separate slice below, the external evaluation slice (`CEP-V0-001`..`006`): its clauses govern only
-the evaluation harnesses, and the five hypotheses above stay prose.
+Document kind: hypothesis catalog plus one accepting slice. The five hypotheses are prose intent
+only, with no numbered clauses, so OCM must abstain on them rather than invent coverage; decision
+0179 (2026-09-13) holds them prose-only permanently, and a hypothesis gains `PREFIX-NNN` clauses
+only via a separate accepting slice's own requirements, never by relabelling its prose. The one
+numbered set here, `CEP-V0-001`..`006`, belongs to the external evaluation slice accepted by
+decision 0372 (2026-09-23), and governs only the `tools/retrieval-bench` and `tools/cw-trial`
+evaluation harnesses.
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/agent-harness-integration-v0.md`,
 `docs/specs/proof-carrying-context-optimization-v0.md`, `docs/DOGFOOD.md`
@@ -193,8 +194,9 @@ to the five hypotheses above and no `corvint` command.
   `contextbench`, and the distinct files of the JSON-encoded `gold_context` spans are the gold.
   Gold paths MUST be normalised exactly as ContextBench's `_normalize_rel_path` does, including its
   leading `.`/`/` strip. A row lacking `instance_id`, `repo`, `base_commit` or `problem_statement`, with
-  a `gold_context` that is not a JSON span list, or with a span whose start line is below 1 or whose end
-  precedes its start MUST be refused with its line number. The tool MUST NOT read Parquet or the
+  a `gold_context` that is not a JSON span list, or with a span whose start line is below 1, whose end
+  precedes its start, whose end exceeds 10,000,000, or whose line numbers are not integers MUST be
+  refused with its line number; line numbers stay integers end to end. The tool MUST NOT read Parquet or the
   network.
 - `CEP-V0-002`: ContextBench metrics. For every error-free arm answer on a ContextBench sample, the
   report MUST add `cb_file_coverage`, `cb_file_precision`, `cb_line_coverage` and `cb_line_precision`
@@ -214,12 +216,15 @@ to the five hypotheses above and no `corvint` command.
   change. Such a task MUST carry no gold, and any other `control` value MUST be refused. Every valid
   claim on it is judged against an empty gold per kind, so each claim is `FALSE`, never `UNJUDGED`.
 - `CEP-V0-005`: Control scoring. On an already-fixed control each arm record MUST carry
-  `control_failed`: 1 when the agent made a `certain` claim, and 1 when a produced corvint packet did
-  not abstain; a packet abstains on `NO_CANDIDATES` or `OUT_OF_SCOPE`, no result row, or an
-  `unsupported-conjunction` answerability verdict, and a packet that does not parse did not abstain.
-  `packet_abstained` is recorded only for a produced packet. An arm's summary MUST carry an
-  `already_fixed` block (tasks, control failures, packets observed, packets abstained) only when the
-  arm ran a control, so a report without controls keeps its bytes.
+  `control_failed`, the agent's own failure: 1 exactly when the agent made a `certain` claim, so
+  every arm is compared on the same measure. Whether a produced corvint packet abstained is recorded
+  apart as `packet_abstained`, only for a produced packet, and never sets `control_failed`; a packet
+  abstains on `NO_CANDIDATES` or `OUT_OF_SCOPE`, no result row, or an `unsupported-conjunction`
+  answerability verdict, and a packet that does not parse did not abstain. Control tasks MUST stay
+  out of every other arm aggregate (task and error counts, success, abstention, retrieval rates,
+  F1, tool calls, wall time, tokens) and are reported only in the arm's `already_fixed` block (tasks,
+  errors, control failures, packets observed, packets abstained), present only when the arm ran a
+  control, so a report without controls keeps its bytes.
 - `CEP-V0-006`: Evidence, not promotion. Results of this slice are measured evidence that a later
   promotion decision may cite, never a promotion: no result changes a spec's intent or delivery
   status, a ranking default, or a product claim. Each recorded run MUST name in `docs/BUILD-LOG.md`
@@ -252,7 +257,7 @@ to the five hypotheses above and no `corvint` command.
 | CEP-V0-002 | `contextBenchMetrics`, `mergeLines`, `fileLineCount`; `judge` | `TestContextBenchFixtureScoresFileAndLineCoverage` |
 | CEP-V0-003 | `readSamples` digest, `resolveSnapshot` | `TestContextBenchFixtureScoresFileAndLineCoverage` (pinned `samples_sha256`); full ContextBench run `NOT_RUN` (BUILD-LOG V1-0097) |
 | CEP-V0-004 | `validateControl`, `scoringGold` in `tools/cw-trial/control.go` | `TestAlreadyFixedControlRefusesGoldAndUnknownControls`; `TestAlreadyFixedFixtureRecordsAConfidentAnswerAsFailure` |
-| CEP-V0-005 | `controlMetrics`, `packetAbstained`, `controlSummary`; `scoreArm`, `summarizeArm` | `TestAlreadyFixedControlScoresAnyConfidentAnswerAsFailure`; `TestAlreadyFixedFixtureRecordsAConfidentAnswerAsFailure` |
+| CEP-V0-005 | `controlMetrics`, `packetAbstained`, `controlSummary`; `scoreArm`, `summarizeArm` | `TestAlreadyFixedControlScoresAnyConfidentAnswerAsFailure`; `TestAlreadyFixedFixtureRecordsAConfidentAnswerAsFailure`; `TestAlreadyFixedControlStaysOutOfRealTaskAggregates` |
 | CEP-V0-006 | BUILD-LOG V1-0097 entry, decision 0372 | fixtures only under `testdata/`; no report committed |
 
 Rollback: revert the V1-0097 change. `contextbench.go`, `control.go`, their tests and fixtures are

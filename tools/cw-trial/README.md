@@ -73,8 +73,9 @@ frozen before its author sees any Corvint output (`benchmarks/README.md`); the t
 the manifest digest.
 
 A task may carry `"control": "already-fixed"` and no gold (CEP-V0-004/005): its issue is already
-resolved at the pinned revision, so every valid claim is `FALSE`, a `certain` claim or a produced
-corvint packet that does not abstain sets `control_failed`, and the arm summary gains an
+resolved at the pinned revision, so every valid claim is `FALSE` and a `certain` claim sets
+`control_failed` on any arm. Whether a produced corvint packet abstained is recorded apart as
+`packet_abstained`. Controls stay out of the arm's other aggregates and are counted only in its
 `already_fixed` block. `testdata/already-fixed` holds a synthetic fixture (never held-out
 evidence).
 
