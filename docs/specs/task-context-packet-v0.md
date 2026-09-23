@@ -511,6 +511,45 @@ it must read, each with the relation that admitted it, without naming the task's
   errors. When neither `--summary` nor `--expand` is given, the command prints exactly the bytes
   of TCP-V0-001..023: the packet, its members and its ranking are unchanged. Both views are read
   commands: they write no repository, index, snapshot, trace or `.corvint/` state.
+- `TCP-V0-039`: (proposed 2026-09-23, not accepted; experimental; decision 0370) A file's role
+  line is derived only from its own doc comments in the pinned blob at the indexed revision, by a
+  fixed per-suffix rule, and is never generated. The candidate comments, in order: Go (`.go`), the
+  column-0 `//` run or `/* */` block ending on the line above the `package` clause, then the same
+  above each column-0 `func`, `type`, `var` or `const` line, with `//word:` and `//+build`
+  directive lines left out; Python (`.py`), the module docstring (the first statement after blank
+  and `#` lines, a string literal with an optional `r`/`u` prefix); Rust (`.rs`), the first
+  column-0 `//!` run, then the doc-marker comments; the doc-marker suffixes (`.js`, `.jsx`,
+  `.mjs`, `.cjs`, `.ts`, `.tsx`, `.java`, `.kt`, `.scala`, `.swift`, `.cs`, `.c`, `.h`, `.cc`,
+  `.cpp`, `.hpp`, `.php`, `.dart`), every column-0 `/** */` block and `///` run in file order.
+  Any other suffix has no role line. The line is the first candidate whose first paragraph (from
+  the first non-empty content line to an empty line, a `@tag` line or a code fence; Markdown
+  heading lines skipped; `@file`/`@fileoverview` keep their text) carries none of `copyright`,
+  `spdx-license-identifier`, `licensed under`, `code generated`, `do not edit` (case-insensitive)
+  and yields a first sentence (cut after the first `. `), whitespace collapsed, control characters
+  dropped, cut to at most 160 bytes on a rune boundary, that holds an ASCII word run of three
+  bytes. Only the first 64 KiB of a blob is read. The line carries the 1-based line range of its
+  comment. The same blob yields the same bytes on every run.
+- `TCP-V0-040`: (proposed 2026-09-23, not accepted; experimental; decision 0370) With
+  `CORVINT_CONTEXT_ROLES=on`, the role line is a fifth lexical field. After the body, path,
+  identifier and anchor (TCP-V0-022) fields are credited, the at most 512 sources with the highest
+  lexical score (ties by source id) are read within TCP-V0-014's size bound; for each whose role
+  line exists, every task term the line carries, tokenised as the body `Terms` table tokenises a
+  source, is credited once with its body idf times 1.0, the path field's form, before the lexical
+  order is taken. The credit lives inside the lexical slot: the row keeps kind `lexical`, score 300
+  and authority `vocabulary`, and never precedes a reserved TCP-V0-008/TCP-V0-009 row. No index,
+  snapshot or pack change (the analyzer schema is unchanged). Unset or any other value preserves
+  the existing packet bytes.
+- `TCP-V0-041`: (proposed 2026-09-23, not accepted; experimental; decision 0370) A row the role
+  field credited names its source comment: its reason starts with `role: `, the Go-quoted line,
+  the comment's range as `(PATH:START-END)` with 1-based lines, ` matches `, the matched terms
+  sorted, each backquoted and joined by `, `, and `; `. A row the field did not credit carries no
+  `role:` prefix.
+- `TCP-V0-042`: (proposed 2026-09-23, not accepted; experimental; decision 0370) The field stays
+  opt-in unless a frozen `tools/retrieval-bench --arms context` run over `v2_code2test`,
+  `v2_comment2context`, `v2_edit2ripple` and `v2_trace2code`, with the flag unset and `on` and the
+  same binary, shows no recall@20 loss on any of the four; recall@5/10/20 and the losing cases are
+  recorded in `docs/BUILD-LOG.md`. The 2026-09-23 run (V1-0096) lost recall@20 on
+  `v2_comment2context` (0.5042 to 0.4938, four samples), so the field stays opt-in.
 
 ## Non-goals and authority
 
@@ -538,6 +577,11 @@ label alone, so it cannot disagree with the label and does not verify it; a row 
 labels `syntax` is `repository-content` by label. Stamping `trust` on the `query` and `impact`
 wires (held byte-exact by GPK-V0-002 and `conformance/cli-parity-v0`) and on the `external`
 section's rows is not this slice's to do.
+
+The role line (TCP-V0-039..042) adds no packet member, relation, index table or model: the role line is read from
+the blob, never summarised by a model or stored, and a file without a qualifying doc comment has
+none. Non-code suffixes, Ruby, shell and non-column-0 comments are out of scope, as is a role line
+for a source outside the 512 highest-scoring lexical candidates.
 
 TCP-V0-024 adds no packet member, ranking input or row. The summary is a projection of the exact
 default bytes, and expansion reads Git objects at the handle's pinned tree. Neither view changes
@@ -596,6 +640,12 @@ and does not widen what either read-only path reads, returns, or mutates (AGENTS
   `coverage.governance_refused` names its relation, path and class; the row itself stays in
   `results`. An unlisted label is refused the same way as `tool-output`; the packet does not say
   the label is unknown, so a new generator label must be added to the table to be trusted.
+- (TCP-V0-039..041) A file whose doc comment is absent, a licence or generator header, past the
+  64 KiB scan bound, or not column 0 has no role line, and a source outside the 512 highest
+  lexical candidates is not read for one; the packet does not say so, so a row without a `role:`
+  prefix is not evidence that the file states no role (invariant 2). A first sentence ending in an
+  abbreviation (`e.g. `) is cut early; a stale or wrong doc comment is credited as written, which
+  is why the credit stays inside the lexical slot and below every reserved authority row.
 - (TCP-V0-024) A view flag could leak into the default path and change its bytes.
   `TestContextDefaultWireIsTheGolden` compares the default stdout with bytes captured from the base
   binary (`1894b9e5`), and mixed or orphaned view flags are argument errors
@@ -633,6 +683,11 @@ its label's and the governing row is `project-authority`; a tainted reserved row
 today's wire to the wire minus `trust`); the recipe golden of
 `internal/contextindex/ranking_regression_test.go` re-captured with only the `trust` member and
 the empty `governance_refused` array added.
+`internal/contextindex/rolesummary_test.go` (TCP-V0-039..041, proposed: two extractions equal
+and match `testdata/role-summary-golden.tsv` over one fixture per rule; the length, scan and
+candidate bounds; the `role:` reason with its comment range behind the governing row; default
+bytes equal the recipe golden with the flag unset, `off` or unknown); TCP-V0-042's frozen
+bench figures in `docs/BUILD-LOG.md`.
 `cmd/corvint/context_summary_test.go` (TCP-V0-024, experimental: default bytes equal the
 base-binary golden `cmd/corvint/testdata/context-default-wire.golden`; flag mixing refused; the
 summary and expansion evidence listed under ESV-V0-008..009).
@@ -650,6 +705,9 @@ TCP-V0-022 rolls back alone: delete `internal/contextindex/context_anchors.go` a
 TCP-V0-023 rolls back alone: delete `internal/contextindex/trust.go` and its test, the `trust`
 stamp in `packet` and the `governance_refused` member, point `governance` and `criticalSelectors`
 back at `compiler.reserved`, and re-capture the recipe golden.
+The role line (TCP-V0-039..042) rolls back alone: unset `CORVINT_CONTEXT_ROLES`, or delete
+`internal/contextindex/rolesummary.go`, its test and golden, and the `roles` field, the role
+credit loop and the `role` reason prefix in `taskcontext.go`; the default wire never changed.
 TCP-V0-024 rolls back alone to current packets. Follow the V1-0023 rollback in
 `experimental-source-views-v0` (Acceptance and rollback): delete `cmd/corvint/context_summary.go`,
 its test and golden, and the view flags, check and help paragraph in `cmd/corvint/taskcontext.go`.
@@ -682,4 +740,8 @@ The default wire never changed.
 | TCP-V0-020 | `frameRelationRows`, `namedTestFrames`, `frameCandidates`, `creditFrameIdentifiers` | `TestFrameRelationSignals`, `TestFrameRelationOrderingAndCoverage`, `TestFrameRelationScopeAndDeterminism` |
 | TCP-V0-022 | `configureContextAnchors`, `taskAnchors`, `anchorCandidates`, `countAnchor`, `anchorOccurrences`, `anchorReason`, `lexicalHits`, `queryTermGain` | `TestContextAnchorClassesMatchVerbatim`, `TestContextAnchorsExtractionBounds`, `TestContextAnchorsExplainAndNeverOutrankAuthority`, `TestContextAnchorsDefaultBytes` |
 | TCP-V0-023 | `trustByAuthority`, `TrustClass`, `TrustTainted`, `governanceRows`, `governanceRefused` (`internal/contextindex/trust.go`); the `trust` stamp in `taskContextCompiler.packet` | `TestTrustClassIsClosedAndDeterministic`, `TestTaskContextRowsCarryOneTrustClass`, `TestTaskContextGovernanceRefusesATaintedReservedRow`, `TestTaskContextWireIsAdditiveForAnOldConsumer`, `TestContextRecipeDefaultPathIsByteIdentical` (re-captured golden) |
+| TCP-V0-039 | `extractRoleSummary`, `roleLine`, `firstParagraph`, `goRoleBlocks`, `commentAbove`, `pythonRoleBlocks`, `docstring`, `rustRoleBlocks`, `docMarkerBlocks`, `markerBlock` | `TestRoleSummaryExtractionIsCommentOnlyAndReproducible`, `TestRoleSummaryBounds` |
+| TCP-V0-040 | `configureContextRoles`, `roleHits`, `roleCandidates`, `roleTerms`, `lexicalHits` | `TestContextRolesExplainAndNeverOutrankAuthority`, `TestContextRolesDefaultBytes` |
+| TCP-V0-041 | `roleReason`, `lexicalRows` | `TestContextRolesExplainAndNeverOutrankAuthority` |
+| TCP-V0-042 | `tools/retrieval-bench` (unchanged); decision 0370 | frozen bench figures in `docs/BUILD-LOG.md` |
 | TCP-V0-024 | `parseTaskContextInvocation`, `checkContextViewArguments`, `runTaskContext` (view dispatch); `summarizeContextPacket`, `runContextExpand` (`cmd/corvint/context_summary.go`) | `TestContextDefaultWireIsTheGolden`, `TestParseContextViewArguments`, `TestContextSummaryAndExpandAreReadOnly` |

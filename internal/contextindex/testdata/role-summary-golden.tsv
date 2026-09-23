@@ -1,0 +1,17 @@
+docs/readme.md	-
+go/block.go	1-4	Package block is documented in a block.
+go/decl.go	7-7	Open opens the ledger file.
+go/directive.go	3-5	Package unix wraps the kernel calls.
+go/doc.go	1-2	Package parser reads task text into terms.
+go/generated.go	-
+go/license.go	3-3	Package frob frobnicates values.
+go/none.go	-
+java/Client.java	6-8	HTTP client for the registry.
+js/overview.js	4-7	Rule to flag unused variables.
+py/code.py	-
+py/module.py	3-6	Command line entry points.
+py/oneline.py	1-1	Fixture helpers for the parser tests.
+py/raw.py	1-3	Regex helpers.
+rs/item.rs	3-3	Parses a command line.
+rs/lib.rs	2-4	A runtime for writing reliable applications.
+ts/cut.ts	1-1	word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word abcd

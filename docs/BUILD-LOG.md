@@ -4,6 +4,56 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0096 TCP-V0-039..042: opt-in role-line field from doc comments (decision 0370)
+
+Contract: a file's role line is the first sentence of its package, module or top-level doc comment
+(Go, Python, Rust, and `/**`/`///` doc-marker languages), read deterministically from the pinned
+blob, at most 160 bytes, with licence and generator headers refused and 64 KiB scanned
+(`internal/contextindex/rolesummary.go`, golden `testdata/role-summary-golden.tsv`). With
+`CORVINT_CONTEXT_ROLES=on`, the role lines of the 512 highest-scoring lexical sources are a fifth
+lexical field (path-field form, body idf, gain 1.0 frozen before the run). A row that uses one
+carries the reason prefix `role: "LINE" (PATH:START-END) matches ...; `, keeps score 300 and
+authority `vocabulary`, and never precedes a reserved authority row. The line is derived per call,
+never stored: no index, snapshot or pack change, `analyzerSchemaID` stays `corvint-analyzer/73`,
+and only the `TestAnalyzerSchemaInputs` source digest is repinned. With the flag unset, `off` or
+unknown, the recipe golden bytes are unchanged (`TestContextRolesDefaultBytes`).
+
+Frozen evaluation: `tools/retrieval-bench --arms context`, the same branch-built binary, flag
+unset versus `on`, over the full positive strata with no `--max-samples`. Paired means over
+positives:
+
+| Subset | n | recall@5 off/on | recall@10 off/on | recall@20 off/on | W/L @20 |
+| --- | --- | --- | --- | --- | --- |
+| v2_code2test | 106 | 0.2689 / 0.2689 | 0.3805 / 0.3711 | 0.4928 / 0.5022 | 1/0 |
+| v2_comment2context | 80 | 0.2562 / 0.2604 | 0.3438 / 0.3250 | 0.5042 / 0.4938 | 1/4 |
+| v2_edit2ripple | 58 | 0.3563 / 0.3563 | 0.5043 / 0.4813 | 0.6236 / 0.6336 | 2/0 |
+| v2_trace2code | 101 | 0.4010 / 0.4257 | 0.5083 / 0.5033 | 0.7937 / 0.7987 | 1/0 |
+
+Losing cases (sample IDs, on below off): comment2context @20 `41deac7db89b57cead1c85e0`,
+`7d5c2788e4c30bb773cb6643`, `c2af1d6140c0b8b749bd1b77`, `e1280404f66f39671f1939e5`; @10
+`0b514d819e10c606b274e8c0`, `38c2a13af5bdc49dd7d75a2f`, `8e6bf4a9d26a7468cab5a5da`. edit2ripple
+@10 `18a155cebfee9969b166934c`, `262ecc80fa3618111feb4987`. trace2code @10
+`a4218c7e484b796962f32982`, `fa19b2ec3770df1f1285f072`. code2test @10
+`b2bcc7a9cd02595dccde4bb0`. Seven samples failed in both arms: edit2ripple
+`78906550756a325d653e88b9`, `e271598f05638161b8b0fbdc`, `445f0e5cb04c0403b28b2294`, and code2test
+`2177ce0889655fd1979b99c1`, `9c3412dfb452df23d783c5e6`, `d58f6487e6e2721dd5266c21`,
+`e8ef6b1c59b7afde52d0cded`. The error was "Git repository index exceeded its 30-second deadline",
+on a host at load 40 to 300 from parallel workers. They score zero in both arms, so the pairing
+stays symmetric. The losing cases were not inspected (NOT_OBSERVED: the reason text was not read, to keep corpus content out).
+Reports stay in the scratchpad, uncommitted.
+
+Gating: comment2context lost recall@20, so the rule in TCP-V0-042 keeps the field opt-in
+(decision 0370). No bootstrap interval was computed for the on/off difference (NOT_PRODUCED: the
+bench pairs arms, not flag settings).
+
+Gates: `corvint affected` selected 62 Go packages. `go test -count=1 -timeout 30m` passed 60 of
+them. `internal/contextindex` first failed `TestAnalyzerSchemaInputs` on the source digest, which
+was repinned, and then passed. `cmd/corvint-go-test-provider` failed process-lifecycle
+qualification tests (1 failure, then 5 different ones, on a rerun under load). That package does
+not depend on `internal/contextindex`; this is recorded as pre-existing and load-sensitive, not
+fixed here. `go vet` is clean on all 62, and the focused-docs gate passes. `make gate`:
+NOT_RUN (owner policy).
+
 ## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
 
 V1-0012 measured the daily change-evidence loop as it exists at `origin/main` 1894b9e against a
