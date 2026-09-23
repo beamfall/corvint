@@ -44,8 +44,8 @@ test('PPI-V0-002 hardened SEA rejects startup injection with live positive contr
 test('PPI-V0-004 interrupted harness reaps a signal-ignoring descendant',async t=>{
  const scratch=mkdtempSync(join(tmpdir(),'pi-cleanup-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const fixture=join(scratch,'owner.mjs');
- const python="import os,signal,time\nsignal.signal(signal.SIGTERM,signal.SIG_IGN)\npid=os.fork()\nif pid: print(pid,flush=True)\nwhile True: time.sleep(1)";
- writeFileSync(fixture,`import {run} from ${JSON.stringify(new URL('./process.mjs',import.meta.url).href)};await run('/usr/bin/python3',['-c',${JSON.stringify(python)}],{onStdout(data){process.stdout.write(data)}});`);
+ const shell="trap '' TERM\nsleep 86400 &\necho $!\nwait";
+ writeFileSync(fixture,`import {run} from ${JSON.stringify(new URL('./process.mjs',import.meta.url).href)};await run('/bin/sh',['-c',${JSON.stringify(shell)}],{onStdout(data){process.stdout.write(data)}});`);
  let descendant;
  const result=await run(process.execPath,[fixture],{onStdout(bytes,child){descendant=Number(bytes.toString().trim());if(Number.isSafeInteger(descendant)&&descendant>1)child.kill('SIGTERM')}});
  assert.equal(result.code,143);assert.ok(descendant>1);

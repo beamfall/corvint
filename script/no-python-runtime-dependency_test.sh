@@ -1,16 +1,17 @@
 #!/bin/sh
 # GOC-V0-008 falsifying assertion: Corvint's own build, tests, hooks, packaging and default
 # execution paths (Makefile, script/*.sh, integrations/**/*.mjs and integrations/**/*.json)
-# must carry no literal Python-interpreter invocation. Two things are never flagged: the
+# must carry no literal Python-interpreter invocation. Three things are never flagged: the
 # CORVINT_TEST_EXTERNAL_PYTEST opt-in, which lets an explicitly requested command run against a
-# user's own Python project, and the `corvint-analyzer-python` Go tool family (its name embeds
+# user's own Python project, the `corvint-analyzer-python` Go tool family (its name embeds
 # "python" but it is Go source that analyzes Python as fixture data, not a Python interpreter
-# dependency of Corvint's own build/tests/hooks/packaging).
+# dependency of Corvint's own build/tests/hooks/packaging), and this check's own name, which the
+# Makefile's gate step must spell.
 set -eu
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 pattern='\<python3?\>|\<pip\>|\<pytest\>'
-allowed='CORVINT_TEST_EXTERNAL_PYTEST|analyzer-python'
+allowed='CORVINT_TEST_EXTERNAL_PYTEST|analyzer-python|no-python-runtime-dependency'
 
 self=$(CDPATH='' cd -- "$(dirname "$0")" && pwd -P)/$(basename "$0")
 targets=$(
@@ -26,7 +27,7 @@ if [ -n "$violations" ]; then
 fi
 
 # Falsifying self-test: prove the scan genuinely fires on a real invocation and genuinely
-# allows both carved-out exceptions, so this is not a vacuous always-pass grep.
+# allows every carved-out exception, so this is not a vacuous always-pass grep.
 fixture=$(mktemp "${TMPDIR:-/tmp}/corvint-no-python-dep.XXXXXX")
 trap 'rm -f "$fixture"' EXIT
 
@@ -46,6 +47,12 @@ fi
 printf 'go build -o corvint-analyzer-python ./cmd/corvint-analyzer-python\n' > "$fixture"
 if grep -nE "$pattern" "$fixture" | grep -vE "$allowed" >/dev/null; then
   echo "self-test: the corvint-analyzer-python Go tool name was not allowed" >&2
+  exit 1
+fi
+
+printf 'no-python-runtime-dependency-test:\n\t@script/no-python-runtime-dependency_test.sh\n' > "$fixture"
+if grep -nE "$pattern" "$fixture" | grep -vE "$allowed" >/dev/null; then
+  echo "self-test: this check's own Makefile gate step was not allowed" >&2
   exit 1
 fi
 
