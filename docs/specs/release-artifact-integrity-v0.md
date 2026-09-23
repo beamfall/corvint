@@ -343,7 +343,11 @@ turning observation into execution.
   dependent row. Before outward action, tag, publication, and promotion remain `NOT_RUN`.
   The expected prepublication exit one is a lifecycle observation, not a verdict that applicable
   exact-target native, artifact, CEM, OCM, or public-release prerequisites failed; it is not a
-  substitute for those gates.
+  substitute for those gates. With the single argument `--pre-promotion` the report is identical
+  and the exit judges only the rows a candidate can satisfy before any outward action: zero when
+  native-runtime, go-archive, and full-gate are `PASS` and no row is `FAIL`, one otherwise.
+  `NOT_RUN` on native-performance (`GOC-V0-005`), tag, publication, and promotion does not lower
+  that exit, and the mode never reports a `NOT_RUN` as `PASS` (ticket V1-0189).
 - `ARTIFACT-RDY-V0-002`: native-runtime is owned by `GOC-V0-001`; native-performance is owned by
   `GOC-V0-005`; Go archive build and verification by `ARTIFACT-GO-V0-001..007`; full-gate by
   `GOC-V0-010`, whose private receipt binds a complete `make gate` to HEAD and the archive witness.
@@ -438,6 +442,7 @@ and the checklist's publication block to the prior unconditional `NOT_RUN`. Rest
 | `ARTIFACT-RDY-V0-007` | `publicationBinding`, `ancestryBinding` | `TestPublicationReceiptBindsToTheRecordedTagRevisionNotHead` |
 | `ARTIFACT-RDY-V0-008` | `publicationWitnessStatus`, `witnessedPublicationDigests` | `TestPublicationReceiptDigestsMustMatchTheRecordedRevisionWitness` |
 | `ARTIFACT-RDY-V0-009` | closed `git` reads; publication block of `script/release-checklist` | `TestPublicationStatusIsReadOnly`; `script/release-checklist_test.sh` receipt rows |
+| `ARTIFACT-RDY-V0-001` `--pre-promotion` exit | `mode`, `failed`, `candidate_incomplete` in `script/release-checklist` | `script/release-checklist_test.sh` pre-promotion block: identical rows, exit 0 with the three candidate rows `PASS` and the rest `NOT_RUN`, exit 1 on a tag `FAIL` or an absent witness, exit 2 on any other argument |
 
 ## Signing options — alpha selection
 
