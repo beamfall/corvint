@@ -1125,8 +1125,9 @@ attestation or Frontier closure. Native event is a separate bounded adapter prof
 handoff is read-only. Without --receipt it emits a receipt naming the session key,
 root, bound revision, sorted task anchors, prompt packet sha256 and bytes, and
 degradations. With --receipt FILE (that emitted document) it re-resolves the same
-packet, or exits 1 reporting the exact root, revision, enrollment, anchor and packet
-drift and withholds the recompiled packet. The receipt grants no authority.
+packet and prints its exact bytes as packetBase64, or exits 1 reporting the exact
+root, revision, enrollment, anchor and packet drift and withholds the recompiled
+packet. The receipt grants no authority.
 `
 
 // rootPreambleValue reports whether arguments[index] may be consumed as the value of a bare `--root`

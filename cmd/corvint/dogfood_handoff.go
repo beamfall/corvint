@@ -3,9 +3,12 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -27,7 +30,21 @@ const (
 	handoffLimit      = 10
 	handoffMaxAnchors = 32
 	handoffAnchorLen  = 512
+	handoffRootLen    = 4096
+	handoffPacketKind = "corvint-dogfood-prompt/0"
 )
+
+var (
+	handoffDigestPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	handoffObjectPattern = regexp.MustCompile(`^([0-9a-f]{40}|[0-9a-f]{64})?$`)
+	handoffPlanPattern   = regexp.MustCompile(`^([0-9a-f]{64})?$`)
+	handoffWorktrees     = map[string]bool{"clean": true, "mixed": true}
+	handoffLifecycles    = map[string]bool{"inactive": true, "active": true, "satisfied": true, "cancelled": true}
+)
+
+// handoffProbe is the repository stability probe; tests replace it to reach
+// the drift refusals, which otherwise need a concurrent writer.
+var handoffProbe = gokernel.ProbeRepositoryContext
 
 // Field order is the JSON name order, so emit's encoder output stays canonical.
 type handoffReceipt struct {
@@ -132,13 +149,14 @@ func consumeDogfoodHandoff(ctx context.Context, root, key, name string, stdout, 
 		return emitLocalCompletionFailure(stderr, handoffErrorCode(err))
 	}
 	drift := handoffDrift(received, current)
-	handoff := map[string]any{"state": "reresolved", "drift": drift, "packetSha256": current.Packet.SHA256}
+	handoff := map[string]any{"state": "reresolved", "drift": drift, "degradations": current.Degradations, "packetSha256": current.Packet.SHA256}
 	payload := map[string]any{"ok": true, "profile": "corvint-local-completion/0", "tool": "dogfood-handoff", "mode": "consume", "mutates": false, "claim": "caller-owned-selected-workflow-only", "handoff": handoff}
 	if len(drift) != 0 {
 		// A drifted receipt reports the difference; the recompiled packet is withheld.
 		handoff["state"] = "drifted"
 	} else {
-		payload["packet"] = packet
+		// emit escapes non-ASCII, so the exact digested bytes travel as base64.
+		payload["packetBase64"] = base64.StdEncoding.EncodeToString(packet)
 	}
 	if err = emit(stdout, payload); err != nil {
 		return emitLocalCompletionFailure(stderr, "output-failed")
@@ -175,9 +193,10 @@ func validHandoffAnchors(anchors []string) bool {
 }
 
 // resolveHandoff compiles the dogfood prompt packet for the enrolled scope and
-// the anchors, inside a repository stability bracket. It writes nothing.
-func resolveHandoff(ctx context.Context, root, key string, anchors []string) (handoffReceipt, map[string]any, error) {
-	before, err := gokernel.ProbeRepositoryContext(ctx, root)
+// the anchors, inside a repository stability bracket, and returns the exact
+// digested packet bytes. It writes nothing.
+func resolveHandoff(ctx context.Context, root, key string, anchors []string) (handoffReceipt, []byte, error) {
+	before, err := handoffProbe(ctx, root)
 	if err != nil {
 		return handoffReceipt{}, nil, err
 	}
@@ -216,7 +235,7 @@ func resolveHandoff(ctx context.Context, root, key string, anchors []string) (ha
 	if err != nil {
 		return handoffReceipt{}, nil, err
 	}
-	after, err := gokernel.ProbeRepositoryContext(ctx, root)
+	after, err := handoffProbe(ctx, root)
 	if err != nil {
 		return handoffReceipt{}, nil, err
 	}
@@ -224,13 +243,28 @@ func resolveHandoff(ctx context.Context, root, key string, anchors []string) (ha
 		return handoffReceipt{}, nil, errors.New("dogfood-handoff-repository-drift")
 	}
 	receipt := handoffReceipt{
-		Anchors: digests, Authority: "none", Profile: handoffProfile, Root: root, SessionKey: key,
+		Anchors: digests, Authority: "none", Profile: handoffProfile, Root: handoffRootIdentity(root), SessionKey: key,
 		Degradations: handoffDegradations(evaluation.Lifecycle, before.DirtyPathCount, packet),
 		Enrollment:   handoffEnrollment{Base: evaluation.Base, Lifecycle: evaluation.Lifecycle, PlanDigest: evaluation.PlanDigest},
-		Packet:       handoffPacket{BudgetBytes: handoffBudget, Bytes: len(encoded), Limit: handoffLimit, Profile: "corvint-dogfood-prompt/0", SHA256: dogfoodSHA(encoded)},
+		Packet:       handoffPacket{BudgetBytes: handoffBudget, Bytes: len(encoded), Limit: handoffLimit, Profile: handoffPacketKind, SHA256: dogfoodSHA(encoded)},
 		Revision:     handoffRevision{Commit: before.CommitRevision, DirtyPathsSHA256: before.DirtyPathsSHA, Tree: before.TreeRevision, WorktreeState: before.WorktreeState},
 	}
-	return receipt, packet, nil
+	return receipt, encoded, nil
+}
+
+// handoffRootIdentity names a root by its symlink-resolved Git toplevel, so an
+// alias such as /tmp for /private/tmp or a subdirectory is not root drift.
+func handoffRootIdentity(root string) string {
+	resolved, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return root
+	}
+	for directory := resolved; directory != filepath.Dir(directory); directory = filepath.Dir(directory) {
+		if _, err := os.Lstat(filepath.Join(directory, ".git")); err == nil {
+			return directory
+		}
+	}
+	return resolved
 }
 
 // handoffAnchorDigests binds each anchor to its own resolution and task
@@ -259,7 +293,12 @@ func handoffDegradations(lifecycle string, dirty int, packet map[string]any) []s
 	if dirty > 0 {
 		degradations = append(degradations, "uncommitted-work")
 	}
-	if reason, _ := packet["resolution"].(map[string]any)["reason"].(string); reason != "none" {
+	resolution, _ := packet["resolution"].(map[string]any)
+	reason, ok := resolution["reason"].(string)
+	if !ok {
+		reason = "resolution-unavailable"
+	}
+	if reason != "none" {
 		degradations = append(degradations, reason)
 	}
 	slices.Sort(degradations)
@@ -268,9 +307,10 @@ func handoffDegradations(lifecycle string, dirty int, packet map[string]any) []s
 
 // handoffDrift lists every receipt member the receiver could not reproduce, in
 // a fixed order: root, revision, enrollment, each anchor, then the packet.
+// Every receipt value it echoes has passed validHandoffDocument.
 func handoffDrift(received, current handoffReceipt) []map[string]any {
 	drift := []map[string]any{}
-	if received.Root != current.Root {
+	if handoffRootIdentity(received.Root) != current.Root {
 		drift = append(drift, map[string]any{"field": "root", "receipt": received.Root, "current": current.Root})
 	}
 	if received.Revision != current.Revision {
@@ -290,40 +330,57 @@ func handoffDrift(received, current handoffReceipt) []map[string]any {
 	return drift
 }
 
-// decodeHandoff accepts exactly one emitted handoff document with no unknown
-// members, then validates the receipt shape. Digests are identity, not trust.
+// decodeHandoff accepts exactly the bytes emit produced for one handoff
+// document. Re-encoding never yields a duplicate, case-folded, unknown or
+// reordered member or trailing data, so the byte comparison is stricter than
+// the plan parser; every field must then have its emitted shape.
 func decodeHandoff(raw []byte) (handoffReceipt, error) {
 	invalid := errors.New("invalid-handoff-receipt")
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.DisallowUnknownFields()
 	var document handoffDocument
-	if decoder.Decode(&document) != nil || decoder.Decode(&struct{}{}) != io.EOF {
+	if json.Unmarshal(raw, &document) != nil {
 		return handoffReceipt{}, invalid
 	}
-	receipt := document.Receipt
-	if document.Tool != "dogfood-handoff" || document.Mode != "emit" || !document.OK || document.Mutates {
+	var canonical bytes.Buffer
+	if emit(&canonical, document) != nil || !bytes.Equal(canonical.Bytes(), raw) {
 		return handoffReceipt{}, invalid
 	}
-	if receipt.Profile != handoffProfile || receipt.Authority != "none" || !handoffDigestPattern.MatchString(receipt.SessionKey) {
+	if !validHandoffDocument(document) {
 		return handoffReceipt{}, invalid
 	}
-	if receipt.Packet.BudgetBytes != handoffBudget || receipt.Packet.Limit != handoffLimit || !handoffDigestPattern.MatchString(receipt.Packet.SHA256) {
-		return handoffReceipt{}, invalid
-	}
-	anchors := make([]string, 0, len(receipt.Anchors))
-	for _, anchor := range receipt.Anchors {
-		if !handoffDigestPattern.MatchString(anchor.SHA256) {
-			return handoffReceipt{}, invalid
-		}
-		anchors = append(anchors, anchor.Anchor)
-	}
-	if !validHandoffAnchors(anchors) {
-		return handoffReceipt{}, invalid
-	}
-	return receipt, nil
+	return document.Receipt, nil
 }
 
-var handoffDigestPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
+func validHandoffDocument(document handoffDocument) bool {
+	receipt := document.Receipt
+	checks := []bool{
+		document.Tool == "dogfood-handoff", document.Mode == "emit", document.OK, !document.Mutates,
+		receipt.Profile == handoffProfile, receipt.Authority == "none",
+		handoffDigestPattern.MatchString(receipt.SessionKey), validHandoffRoot(receipt.Root),
+		handoffObjectPattern.MatchString(receipt.Revision.Commit), handoffObjectPattern.MatchString(receipt.Revision.Tree),
+		handoffDigestPattern.MatchString(receipt.Revision.DirtyPathsSHA256), handoffWorktrees[receipt.Revision.WorktreeState],
+		handoffObjectPattern.MatchString(receipt.Enrollment.Base), handoffPlanPattern.MatchString(receipt.Enrollment.PlanDigest),
+		handoffLifecycles[receipt.Enrollment.Lifecycle],
+		receipt.Packet.Profile == handoffPacketKind, receipt.Packet.BudgetBytes == handoffBudget, receipt.Packet.Limit == handoffLimit,
+		receipt.Packet.Bytes >= 1, receipt.Packet.Bytes <= handoffBudget, handoffDigestPattern.MatchString(receipt.Packet.SHA256),
+		validHandoffAnchorDigests(receipt.Anchors),
+	}
+	return !slices.Contains(checks, false)
+}
+
+func validHandoffRoot(root string) bool {
+	return len(root) <= handoffRootLen && filepath.IsAbs(root) && filepath.Clean(root) == root && utf8.ValidString(root) && !strings.ContainsFunc(root, unicode.IsControl)
+}
+
+func validHandoffAnchorDigests(anchors []handoffAnchor) bool {
+	names := make([]string, 0, len(anchors))
+	for _, anchor := range anchors {
+		if !handoffDigestPattern.MatchString(anchor.SHA256) {
+			return false
+		}
+		names = append(names, anchor.Anchor)
+	}
+	return validHandoffAnchors(names)
+}
 
 // handoffErrorCode keeps only fixed codes on stderr; the failure writer maps
 // anything else to its generic code.

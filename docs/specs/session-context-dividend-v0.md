@@ -29,12 +29,10 @@ knowledge updater.
 Status: deferred after the independent 2026-08-22 technical-brain review. Corvint first strengthens
 the CEM/OCM proof boundary and validates the Unknown Frontier on historical changes. This contract
 remains design history and MUST NOT drive implementation until that flagship clears its outcome
-gate.
-
-The one exception is the handoff-receipt slice requested by owner ticket V1-0199 (2026-09-23):
-`SESSION-V0-017..019` below, delivered experimentally as a read-only subverb of the existing
-`dogfood` verb. It adds no `corvint session` verb, private session store, delta, capsule reuse, or
-token-saving claim; `SESSION-V0-001..016` stay deferred and unimplemented.
+gate, except for the handoff-receipt slice `SESSION-V0-017..019` that owner ticket V1-0199
+(2026-09-23) requested as an experimental read-only subverb of the existing `dogfood` verb. That
+slice adds no `corvint session` verb, private session store, delta, capsule reuse or token-saving
+claim; `SESSION-V0-001..016` stay deferred and unimplemented.
 
 ## Verified current state
 
@@ -164,37 +162,52 @@ and `close` mutate private session state.
 A handed-off enrollment keeps its original session key and root (`LCP-V0-003`), but without a
 receipt the receiving session re-derives its context and may silently see different evidence. This
 slice names what the receiver must re-resolve and makes any difference explicit. It reuses the
-`corvint-dogfood-prompt/0` packet compiler (`LCP-V0-010/011`) unchanged.
+`corvint-dogfood-prompt/0` packet compiler (`LCP-V0-010/011`) unchanged. The packet it names is the
+handoff packet, compiled at the fixed budget 8000 from the anchor tokens alone; it is not the packet
+of any earlier prompt event, whose task text and budget the receipt does not retain. `--session-key`
+is optional as for every dogfood action (`LCP-V0-003`); the key it selects is the one compared.
 
-- `SESSION-V0-017`: `corvint dogfood handoff --session-key KEY [--anchors TEXT]` MUST be read-only
+- `SESSION-V0-017`: `corvint dogfood handoff [--session-key KEY] [--anchors TEXT]` MUST be read-only
   (`mutates=false`; no repository, enrollment, trace, ledger or index-snapshot write) and emit one
-  `corvint-dogfood-handoff/0` receipt naming the session key, resolved root, bound revision (commit,
+  `corvint-dogfood-handoff/0` receipt naming the session key, the root as its symlink-resolved Git
+  toplevel, bound revision (commit,
   tree, worktree state and dirty-path digest), enrollment lifecycle, base and plan digest, the
   sorted unique task anchors each with the SHA-256 of its own single-anchor resolution and task
   evidence, the SHA-256 and byte count of the LF-terminated canonical `corvint-dogfood-prompt/0`
   packet compiled from those anchors and the enrolled scope at budget 8000 and limit 10, and a
   sorted degradation list: always `frontier-authority-unavailable`, plus `enrollment-<lifecycle>`
   when the enrollment is neither active nor satisfied, `uncommitted-work` for a dirty worktree, and
-  the packet resolution reason when it is not `none`. Anchors are whitespace-delimited tokens only,
+  the packet resolution reason when it is not `none` (`resolution-unavailable` when the packet
+  carries none). Anchors are whitespace-delimited tokens only,
   at most 32, each at most 512 bytes with no control characters; no other task text is retained.
 - `SESSION-V0-018`: The receipt MUST carry `authority: none` and be emitted a second time framed by
   the untrusted repository-data envelope (`internal/repoenvelope`). It grants no authority,
   satisfies no local completion condition, and its digests are identity, not authenticity: a
   same-UID rewrite yields a different, equally untrusted receipt. A receiver MUST require its
-  explicit session key to equal the receipt key (`handoff-session-key-mismatch`) and refuse unknown
-  members, trailing data, a non-`none` authority, noncanonical anchors, malformed digests, or a
-  foreign budget or limit as `invalid-handoff-receipt`.
-- `SESSION-V0-019`: `corvint dogfood handoff --session-key KEY --receipt FILE` MUST be read-only,
-  read that emitted document, and recompile the packet from its anchors and the current enrollment.
-  When root, revision, enrollment, every anchor digest and the packet digest and bytes all match,
-  it exits 0 with state `reresolved` and returns the byte-identical packet. Otherwise it exits 1
-  with state `drifted`, lists each differing member in the fixed order root, revision, enrollment,
-  anchor (by name), packet with both receipt and current values, and withholds the recompiled
-  packet instead of silently substituting it.
+  selected session key to equal the receipt key (`handoff-session-key-mismatch`). It MUST refuse as
+  `invalid-handoff-receipt` any document whose bytes differ from what `emit` produces for its
+  decoded value (so duplicate, case-folded, unknown or reordered members, reformatting and trailing
+  data fail) and any field outside its emitted shape: a non-`none` authority, a root that is not a
+  clean absolute path of at most 4096 bytes without control characters, a commit, tree or base that
+  is not empty or 40 or 64 lowercase hex, a plan digest that is not empty or 64 lowercase hex, a
+  malformed session key, dirty-path, anchor or packet digest, a worktree state other than `clean` or
+  `mixed`, a lifecycle other than `inactive`, `active`, `satisfied` or `cancelled`, a foreign packet
+  profile, budget or limit, packet bytes outside 1..8000, or unsorted, duplicate or malformed
+  anchors.
+  Drift rows echo only receipt values that passed this validation.
+- `SESSION-V0-019`: `corvint dogfood handoff [--session-key KEY] --receipt FILE` MUST be read-only,
+  read that emitted document as a regular file of at most 64 KiB, and recompile the packet from its
+  anchors and the current enrollment. Both results report the current degradation list. When root
+  (compared as symlink-resolved Git toplevels), revision, enrollment, every anchor digest and the
+  packet digest and bytes all match, it exits 0 with state `reresolved` and returns `packetBase64`,
+  the base64 of exactly the digested packet bytes, because stdout escapes non-ASCII. Otherwise it
+  exits 1 with state `drifted`, lists each differing member in the fixed order root, revision,
+  enrollment, anchor (by name), packet with both receipt and current values, and withholds the
+  recompiled packet instead of silently substituting it.
 
 Failure modes: a repository or snapshot change during the read fails
-`dogfood-handoff-repository-drift` or `dogfood-handoff-context-drift`; an unreadable receipt fails
-`handoff-receipt-unavailable`; malformed anchors fail `invalid-handoff-anchors`; `--anchors` with
+`dogfood-handoff-repository-drift` or `dogfood-handoff-context-drift`; a missing, non-regular,
+symlinked or oversized receipt fails `handoff-receipt-unavailable`; malformed anchors fail `invalid-handoff-anchors`; `--anchors` with
 `--receipt` fails `invalid-local-completion-option`; packet compiler refusals keep their
 `LCP-V0-011` codes. Non-goals: persistence of receipts, transfer between repositories or access
 contexts, automatic handoff by a host adapter, and any reuse decision. Rollback: remove the
@@ -293,6 +306,6 @@ back; repository source, accepted intent, and existing traces remain unchanged.
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | SESSION-V0-001..016 | not started (deferred) | implementation, hostile fixtures, dogfood receipt, and paired outcome trial pending |
-| SESSION-V0-017 | `cmd/corvint/dogfood_handoff.go` | `TestDogfoodHandoffReceiptReresolvesSamePacket` |
-| SESSION-V0-018 | `cmd/corvint/dogfood_handoff.go` | `TestDogfoodHandoffReceiptReresolvesSamePacket`; `TestDogfoodHandoffReportsRevisionAndAnchorDrift` |
-| SESSION-V0-019 | `cmd/corvint/dogfood_handoff.go` | `TestDogfoodHandoffReceiptReresolvesSamePacket`; `TestDogfoodHandoffReportsRevisionAndAnchorDrift` |
+| SESSION-V0-017 | `cmd/corvint/dogfood_handoff.go` | `TestDogfoodHandoffReceiptReresolvesSamePacket`; `TestDogfoodHandoffReportsEnrollmentDriftAndDegradations`; `TestDogfoodHandoffRefusesUnstableRepository` |
+| SESSION-V0-018 | `cmd/corvint/dogfood_handoff.go` | `TestDogfoodHandoffReceiptReresolvesSamePacket`; `TestDogfoodHandoffReportsRevisionAndAnchorDrift`; `TestDogfoodHandoffRefusesMalformedReceiptsAndAnchors` |
+| SESSION-V0-019 | `cmd/corvint/dogfood_handoff.go` | `TestDogfoodHandoffReceiptReresolvesSamePacket`; `TestDogfoodHandoffReportsRevisionAndAnchorDrift`; `TestDogfoodHandoffReportsEnrollmentDriftAndDegradations`; `TestDogfoodHandoffReceiptUnavailable` |

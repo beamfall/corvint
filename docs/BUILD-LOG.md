@@ -29,6 +29,24 @@ exclusive options fail closed). `go test ./cmd/corvint`, `go vet ./cmd/corvint` 
 index, requirement, traceability, decision-number and line-citation checks pass. The post-commit
 CEM bind, check and seal loop was not run for this change.
 
+Review repair (independent review, same day): receipt fields are untrusted, so the receiver now
+accepts only a document whose bytes equal what `emit` produces for its decoded value (this rejects
+duplicate, case-folded, unknown and reordered members, reformatting and trailing data; it is
+stricter than the unexported `strictJSON`/`wire.Parse` path, which a mutation check showed added
+nothing) and whose every field has its emitted shape: clean absolute root of at most 4096 bytes,
+lowercase-hex or empty revisions and plan digest, closed worktree and lifecycle enums, the constant
+packet profile and bytes in 1..budget. Drift rows echo only validated values. Stdout escapes
+non-ASCII, so exit 0 now returns `packetBase64` with exactly the digested bytes rather than claiming
+byte identity for escaped JSON; the test hashes the decoded bytes of a non-ASCII fixture. Consume
+reports current degradations, roots compare as symlink-resolved Git toplevels, and the spec now
+says the receipt re-resolves the handoff packet (budget 8000, anchor-only task text), not an earlier
+prompt-event packet. The session-context-dividend MUST NOT sentence now carries the V1-0199
+exception itself (owner review pending). Added evidence:
+`TestDogfoodHandoffReportsEnrollmentDriftAndDegradations`,
+`TestDogfoodHandoffRefusesMalformedReceiptsAndAnchors`, `TestDogfoodHandoffRefusesUnstableRepository`
+(through a probe seam) and the unix-only `TestDogfoodHandoffReceiptUnavailable` (symlink, FIFO,
+oversized, missing), plus a no-write assertion on the drift path.
+
 ## 2026-09-23 V1-0191 MCPV0-016: corvint-mcp pins Git at start; official schema executes
 
 Finding: the MCP 2026-07-28 spec kept two promotion blockers. The shared Git resolver memoised

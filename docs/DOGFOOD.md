@@ -478,8 +478,10 @@ Before handing off, the sending session runs `corvint dogfood handoff --session-
 "ANCHOR..."` with the task's requirement IDs, paths or symbols as anchors, and passes the emitted
 document to the receiver. It names the key, root, bound revision, anchors, the dogfood prompt
 packet's SHA-256 and bytes, and the degradation list. The receiver runs `corvint dogfood handoff
---session-key KEY --receipt FILE` before relying on its context. Exit 0 (`reresolved`) returns the
-byte-identical packet. Exit 1 (`drifted`) lists the exact root, revision, enrollment, anchor or
+--session-key KEY --receipt FILE` before relying on its context. Exit 0 (`reresolved`) returns
+`packetBase64`, whose decoded bytes hash to the receipt digest. This is the handoff packet compiled
+from the anchors alone, not the packet of an earlier prompt event.
+Exit 1 (`drifted`) lists the exact root, revision, enrollment, anchor or
 packet difference and withholds the packet: report that drift and decide explicitly rather than
 treating a recompiled context as the one handed over. Both steps are read-only. The receipt is
 untrusted data with `authority: none` and satisfies no completion condition (SESSION-V0-017..019).

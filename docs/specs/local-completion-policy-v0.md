@@ -299,7 +299,7 @@ elsewhere are not repeated.
 | `invalid-lifecycle` | `internal/localcompletion/storage.go:309` | the saved lifecycle is not `active`, `satisfied` or `cancelled` |
 | `invalid-local-completion-action` | `cmd/corvint/local_completion.go:122` | the action is not `begin`, `verify`, `review`, `status`, `finish`, `cancel` or `handoff` |
 | `invalid-local-completion-json` | `internal/localcompletion/storage.go:50` | strict JSON input does not parse |
-| `invalid-local-completion-option` | `cmd/corvint/local_completion.go:131` | an option is not allowed for the action |
+| `invalid-local-completion-option` | `cmd/corvint/local_completion.go:131`; `cmd/corvint/local_completion.go:152` | an option is not allowed for the action, or the mutually exclusive `--anchors` and `--receipt` are both given |
 | `invalid-local-completion-option-value` | `cmd/corvint/local_completion.go:144` | an option value is empty or longer than 4096 bytes |
 | `invalid-local-completion-schema` | `internal/localcompletion/storage.go:58` | strict JSON input parsed and passed the JSON type check, but decoding into the target type with unknown fields disallowed failed; the JSON type check emits the same code at `internal/localcompletion/storage.go:67`, and a required-field read of input that is not an object at `internal/localcompletion/storage.go:342` |
 | `invalid-local-state-directory` | `internal/localcompletion/lifecycle.go:547` | the session's generation path exists and is not a directory |
