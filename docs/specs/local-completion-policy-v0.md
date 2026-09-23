@@ -9,7 +9,7 @@ Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-
 ## Agent digest
 - Claim: Explicitly enrolled changes require selected checks, bound evidence and inspected reports before local completion; no execution attestation.
 - Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task)/implemented
-- Exists: all 12 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter.
+- Exists: all 13 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter.
 - Blocked on: current-change canonical verification, report acknowledgment, strict outcome qualification and installed-hook validation, recorded separately; complete host-version matrix NOT_RUN.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -176,9 +176,9 @@ frozen broad query profile. None of those legacy profile meanings is changed her
 - `LCP-V0-010`: New-profile prompt context MUST separate project governance, declared enrollment scope
   and current-task evidence. It may reuse the task-context compiler with an empty subject. Root
   instructions remain available without lexical relevance, but never establish task answerability.
-  Without an explicit path, requirement ID or source-backed identifier anchor, automatic context
-  retains bounded governance/scope and reports `explicit-task-anchor-required`; it withholds incidental
-  lexical rows. Unknown/ambiguous anchors and stale scope remain explicit. General natural-language
+  Without an explicit path, requirement ID, source-backed identifier or task mention (`LCP-V0-013`)
+  anchor, automatic context retains bounded governance/scope and reports
+  `explicit-task-anchor-required`; it withholds incidental lexical rows. Unknown/ambiguous anchors and stale scope remain explicit. General natural-language
   discovery stays available through the unchanged direct query command. No pronoun resolution or
   transcript reconstruction is claimed. Empty startup context stays unresolved. A qualified name
   whose terminal symbol alone matches remains `qualification-unverified`; an otherwise resolved
@@ -194,7 +194,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   output becomes one fixed degradation, never a truncated path, key, packet or resealed receipt.
   A budget that cannot retain the mandatory fields fails `unsupported-dogfood-context-budget`, and
   explicit-anchor context over its bounded candidate profile fails `unsupported-dogfood-context-bounds`
-  (`internal/contextindex/local_completion_context.go:239,430`); the native event reports either as
+  (`internal/contextindex/local_completion_context.go:247,627`); the native event reports either as
   the fixed `dogfood-event-unavailable` (`cmd/corvint/local_completion_event.go:135`).
 - `LCP-V0-012`: Private plans, observations and report sets MUST have explicit byte/count limits,
   strict schema/duplicate-field/path validation, atomic publication and bounded ownership. No daemon,
@@ -202,6 +202,31 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   process uses cancellation and descendant cleanup with a regression. A concurrent enrollment cannot
   silently overwrite an active owner. Two-session contention and same-owner interleaving must
   prove shared legacy artifacts cannot be acknowledged or published under the wrong owner. Errors preserve prior valid state.
+- `LCP-V0-013`: Prompt context MUST accept a task mention as an explicit anchor. A mention is one
+  whitespace-delimited field, after trimming leading quotes, backticks, asterisks and brackets and
+  any run of trailing punctuation or symbols other than `_`, whose path part is path-shaped (it
+  contains `/`, has an extension, or is tracked). So `localhost:8080` and `issue#12` stay ordinary
+  text, while a dotted host such as `example.com:443` is path-shaped and is `anchor-not-found`. A
+  matched field is removed whole from the text left for path and identifier anchors, and mentions
+  are deduplicated by their parsed form. Each form has one resolution rule: (1) `path:line`,
+  `path:line-line` and `path:line:column` (which names the line) resolve the path exactly, or a bare
+  file name by base name, and require `1 <= start <= end <=` the bound source's line count. The row
+  names the start line with relation `explicit-line` and authority `task-text`; the row schema is
+  unchanged. A line outside the source is `anchor-not-found`, more than one in-range candidate is
+  `ambiguous-anchor`, and an unreadable source is `anchor-evidence-unavailable`. (2) `path#name`
+  matches declarations named exactly `name` within the resolved path only. None is
+  `anchor-not-found` (a `#L12` fragment is such a miss, not a line form), more than one is
+  `ambiguous-anchor`, and a dotted name that is not itself a symbol falls back to its terminal part
+  as `qualification-unverified`. (3) A commit is 7 to 40, or exactly 64, lowercase hex characters
+  with at least one digit and one letter. Only a prefix of the bound commit resolves, as a revision
+  anchor with no path row; any other commit is `anchor-evidence-unavailable`, because this profile
+  reads no history (`LCP-V0-011`). (4) A requirement ID keeps its existing definition rule. Every
+  row is pinned to its bound blob, a dirty path stays `anchor-worktree-changed`, and a dirty
+  candidate with no match in its bound blob (a line or declaration added in the worktree) is also
+  `anchor-worktree-changed` with no row. Such a candidate still counts, so beside another match the
+  anchor is `ambiguous-anchor`. A zero or inverted line range is `anchor-not-found` even on a dirty
+  path. Mentions count toward the 32-anchor bound, and no mention is resolved lexically, by pronoun,
+  or from a transcript.
 
 ## Non-goals and simpler baseline
 
@@ -263,7 +288,7 @@ elsewhere are not repeated.
 | `invalid-check-argv` | `internal/localcompletion/storage.go:163` | a check's first argv element is empty, or any element exceeds 4096 bytes or contains NUL |
 | `invalid-check-bound` | `internal/localcompletion/storage.go:159` | a check has fewer than 1 or more than 64 argv elements, or a timeout outside 1..3600 seconds |
 | `invalid-check-id` | `internal/localcompletion/storage.go:155` | a check id does not match `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$` or repeats |
-| `invalid-dogfood-context` | `internal/contextindex/local_completion_context.go:59` | prompt context was requested without an index at an immutable revision |
+| `invalid-dogfood-context` | `internal/contextindex/local_completion_context.go:60` | prompt context was requested without an index at an immutable revision |
 | `invalid-dogfood-event-arguments` | `cmd/corvint/local_completion_event.go:97` | an event option is repeated |
 | `invalid-dogfood-event-budget` | `cmd/corvint/local_completion_event.go:110` | the requested byte budget exceeds the event maximum |
 | `invalid-dogfood-event-input` | `cmd/corvint/local_completion_event.go:171` | the event input exceeds the kernel input bound or is not valid UTF-8 |
@@ -329,10 +354,10 @@ Each row cites the first emitting site and states only the condition checked the
 
 | Code | First emitting site | Condition at the cited site |
 |---|---|---|
-| `ambiguous-anchor` | `internal/contextindex/local_completion_context.go:387@0e96865e` | the resolution `reason` when no earlier case applies and an anchor matched more than one candidate |
-| `anchor-evidence-unavailable` | `internal/contextindex/local_completion_context.go:383@b7524c52` | the resolution `reason` when anchors exist and a task-evidence candidate was unreadable or requirement definitions were capped |
-| `anchor-not-found` | `internal/contextindex/local_completion_context.go:385@07c6c8fe` | the resolution `reason` when no earlier case applies and an anchor matched no candidate |
-| `anchor-worktree-changed` | `internal/contextindex/local_completion_context.go:389@37e9b097` | the resolution `reason` when no earlier case applies and a task-evidence path is among the index's dirty paths |
+| `ambiguous-anchor` | `internal/contextindex/local_completion_context.go:584@0e96865e` | the resolution `reason` when no earlier case applies and an anchor matched more than one candidate |
+| `anchor-evidence-unavailable` | `internal/contextindex/local_completion_context.go:580@b7524c52` | the resolution `reason` when anchors exist and a task-evidence candidate was unreadable or requirement definitions were capped |
+| `anchor-not-found` | `internal/contextindex/local_completion_context.go:582@07c6c8fe` | the resolution `reason` when no earlier case applies and an anchor matched no candidate |
+| `anchor-worktree-changed` | `internal/contextindex/local_completion_context.go:586@37e9b097` | the resolution `reason` when no earlier case applies and a task-evidence path is among the index's dirty paths |
 | `local-policy-continuation-limit` | `cmd/corvint/local_completion_event.go:340@50f727f3` | a `stop` event that would block has `stopHookActive` true; decision `release` |
 | `local-policy-incomplete` | `cmd/corvint/local_completion_event.go:338@3862af35` | a `stop` event whose lifecycle is `active`, or `satisfied` without the evaluation satisfied; decision `block` |
 
@@ -364,6 +389,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-010 | `TestDogfoodPromptFrozenAnchors`; `TestDogfoodPromptScopeDoesNotResolveAndPreservesStaleness`; frozen follow-up and explicit/unknown/ambiguous anchors |
 | LCP-V0-011 | `TestDogfoodPromptPrivacyNoHistoryAndNonmutation`; `TestDogfoodPromptCriticalBudgetAndImpossibleEnvelope` |
 | LCP-V0-012 | `TestLocalStateBoundsAndContention`; `TestVerificationCancellationCleansDescendant`; `TestDogfoodPromptBoundsAndCancellation` |
+| LCP-V0-013 | `TestDogfoodPromptMentionAnchors` (frozen `mention-cases.json`); `TestDogfoodPromptMentionIdentityAndRefusals`; `TestUseCaseHostileTaskOrientation` prompt-mention cases |
 
 ## Rollout, rollback and remaining gates
 

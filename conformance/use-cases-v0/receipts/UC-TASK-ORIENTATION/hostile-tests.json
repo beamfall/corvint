@@ -7,13 +7,13 @@
     ]
   },
   "evidenceClass": "hostile-tests",
-  "repositoryRevision": "1c6451f4aab403bbc59d8ba2bbb2416f9d57638e",
+  "repositoryRevision": "289d7f3275e083ce31398415b0d49e6832fa9c84",
   "result": "PASS",
   "spec": "corvint-use-case-evidence/0",
   "subjects": [
     {
       "path": "cmd/corvint/usecase_hostile_task_orientation_test.go",
-      "sha256": "f41e064f4d0b614680525b816e8aa1e19cba5f4a34b452b1cab7dce7e3cdbe2c"
+      "sha256": "f5c7818be0c0eefeedee7d4f4061d35854b12ccddfa2701314ede6b2315c1e07"
     }
   ],
   "useCaseId": "UC-TASK-ORIENTATION"

@@ -180,7 +180,7 @@
         },
         "hostile-tests": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/hostile-tests.json",
-          "sha256": "863a0206e7732a8f370b109b2a81974567b0ad8c9c15bd4bcdf5ba857d0a56f0"
+          "sha256": "5a335fee1fa118a78733f2860bce7df196c6d411c055f5813cafe74c5105a941"
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/implementation.json",

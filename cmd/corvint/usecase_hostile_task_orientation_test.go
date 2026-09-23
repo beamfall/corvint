@@ -8,12 +8,14 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/localcompletion"
 )
 
 const orientationTask = "does `Split` keep empty keys"
 
 // orientationCase is one hostile input to the UC-TASK-ORIENTATION
-// entrypoints (`corvint context`, `corvint query`). Category is the UCV0-006
+// entrypoints (`corvint context`, `corvint query`, and the native user-prompt
+// event that compiles prompt context). Category is the UCV0-006
 // case category and class is the V1-0188 hostile class it exercises.
 type orientationCase struct {
 	category, class, name string
@@ -41,6 +43,17 @@ func TestUseCaseHostileTaskOrientation(t *testing.T) {
 		{"negative", "symlinked-or-relocated-subjects", "uncommitted relocation is refused at its new path", func(t *testing.T, root string) {
 			gitFixture(t, root, "mv", "cache/demux.go", "cache/moved.go")
 			orientationRefusal(t, root, "cache/moved.go", "subject path is not tracked at revision")
+		}},
+		{"negative", "missing-anchors", "prompt mention past the end of the file is anchor-not-found", func(t *testing.T, root string) {
+			resolved := orientationPrompt(t, root, "check cache/demux.go:1")
+			rows := resolved["task_evidence"].([]any)
+			if resolved["resolution"].(map[string]any)["reason"] != "none" || len(rows) != 1 || rows[0].(map[string]any)["blob_hash"] != gitFixture(t, root, "rev-parse", "HEAD:cache/demux.go") {
+				t.Fatalf("an in-range line mention is not pinned to the committed blob: %v", resolved)
+			}
+			missing := orientationPrompt(t, root, "check cache/demux.go:9999")
+			if missing["resolution"].(map[string]any)["reason"] != "anchor-not-found" || len(missing["task_evidence"].([]any)) != 0 {
+				t.Fatalf("an out-of-range line mention was answered: %v", missing)
+			}
 		}},
 		// hostile: the answer stays pinned to the committed tree.
 		{"hostile", "stale-index", "snapshot behind HEAD is a miss", func(t *testing.T, root string) {
@@ -141,6 +154,13 @@ func TestUseCaseHostileTaskOrientation(t *testing.T) {
 				t.Fatalf("an unavailable provider contributed results: %v", row)
 			}
 		}},
+		{"hostile", "dirty-worktree", "prompt mention of a dirty path is anchor-worktree-changed", func(t *testing.T, root string) {
+			appendFile(t, filepath.Join(root, "cache", "demux.go"), "\n// dirty\n")
+			packet := orientationPrompt(t, root, "check cache/demux.go:1")
+			if packet["freshness"] != "mixed-worktree" || packet["resolution"].(map[string]any)["reason"] != "anchor-worktree-changed" {
+				t.Fatalf("a dirty mention was presented as current: %v", packet)
+			}
+		}},
 		// abstention: no candidate is invented.
 		{"abstention", "missing-anchors", "query with no relevant candidate abstains", func(t *testing.T, root string) {
 			answer := orientationQuery(t, root, "zzqx frobnicate quuxwidget")
@@ -190,6 +210,18 @@ func orientationContext(t *testing.T, root, task, subject string) map[string]any
 		t.Fatalf("context exit %d: %s", code, stderr)
 	}
 	return decodeObject(t, stdout)
+}
+
+// orientationPrompt runs the native user-prompt event without an enrollment and
+// returns its prompt-context packet (LCP-V0-010, LCP-V0-013).
+func orientationPrompt(t *testing.T, root, task string) map[string]any {
+	t.Helper()
+	input := mustJSON(t, map[string]string{"sessionIdSha256": localcompletion.HashSession("orientation"), "task": task})
+	var stdout, stderr bytes.Buffer
+	if status := runLocalCompletionEvent(lifecycleDeadlineContext(), root, dogfoodEventArguments("user-prompt"), bytes.NewReader(input), &stdout, &stderr); status != 0 {
+		t.Fatalf("user-prompt event exit %d: %s", status, &stderr)
+	}
+	return decodeObject(t, stdout.Bytes())["context"].(map[string]any)
 }
 
 func orientationQuery(t *testing.T, root, task string) map[string]any {

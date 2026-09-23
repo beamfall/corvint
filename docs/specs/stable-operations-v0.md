@@ -188,7 +188,7 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | bounded-output | `internal/trace` | `internal/trace/record_test.go:390@cc18800d` |
 | bounded-output | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:189@0595c93c` |
 | time | `internal/procgroup` | `internal/procgroup/process_test.go:52@028e61d3`, `internal/procgroup/process_test.go:62@704c3abb` |
-| time | `internal/contextindex` | `internal/contextindex/local_completion_context_test.go:185@1bcaa713` |
+| time | `internal/contextindex` | `internal/contextindex/local_completion_context_test.go:193@1bcaa713` |
 | interruption-cleanup | `internal/procgroup` | `internal/procgroup/process_test.go:519@9aa96910`, `internal/procgroup/process_test.go:95@0a8f0be2`, `internal/procgroup/process_hook_test.go:13@f0458815` |
 | interruption-cleanup | `internal/releasecandidate` | `internal/releasecandidate/operations_posix_test.go:18@d8182271`, `internal/releasecandidate/operations_test.go:238@eab69ef3` |
 | interruption-cleanup | `internal/contextindex` | `internal/contextindex/fifo_unix_test.go:36@5098dd43` |
