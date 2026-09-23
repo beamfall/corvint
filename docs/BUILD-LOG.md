@@ -4,6 +4,59 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0207 UCV0-006, UCV0-010: corvint-dogfood receipts for the three Core use cases
+
+V1-0011 criterion 3 asks that Corvint and Beamfall dogfood receipts bind real changes and stay
+distinct from hostile tests and sealed benchmarks. This entry records the Corvint half; Beamfall
+dogfood stays owner-run (V1-0184).
+
+Change chosen: the V1-0188 review-repair increment of PR #111 (commits 1c6451f and 789245c),
+completed in a fresh clone through the `docs/DOGFOOD.md` daily path with binaries `dogfood-change`
+builds from the tree, not the installed release. Its base a062f730426424c4767eb79ea88d89363c412963
+is the seal of the first V1-0188 cycle, so the bound range is seven files: two Go test edits, two
+repinned `hostile-tests` receipts, the ledger, this log and the CEM. Its bind commit is
+8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8; its CEM is sealed on `main` at
+`.corvint/changes/8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8.cem.json` by commit 955d2ad, which
+`script/dogfood-seal.sh` writes only after `dogfood-check.sh` exits 0, so `dogfood-check` PASS for
+that binding is inferred from the seal, not held by any subject. The increment is itself
+hostile-tests work on the same three rows. It still serves as dogfood evidence because the class
+attests that the daily path was used on a real Corvint change, not what the change contains, and the
+`hostile-tests` receipts stay pinned to their own entrypoints; whether that distinctness is enough
+for V1-0011 criterion 3 is the owner's call. It was preferred over the V1-0202 change, whose
+`prechange-impact` is `OUT_OF_SCOPE` with no result because that change touched no Go file. The
+daily path never retains its orientation, consequence and completion outputs in the tree
+(`.git/corvint/` and the ignored `.corvint/dogfood-report.json`), so each receipt pins a
+byte-identical copy under `receipts/<useCaseId>/corvint-dogfood/` beside the sealed CEM.
+`local-outcome.json` is not copied because it names an absolute local trace-store path; the report
+binds it through `localOutcomeEvidenceSha256`.
+
+What each retained artifact shows, read before writing the receipt:
+
+- UC-TASK-ORIENTATION, `prechange-query.json` (revision tree 15fd5f4e, state `READY`): the
+  script's default request `Dogfood change from a062f7304264 to HEAD` (`DOGFOOD_TASK` unset),
+  limit 1, returned `docs/decisions/0048-four-owner-calls-2026-09-04.md` with authoritative
+  evidence and no abstention. It is the post-commit rerun at the bind commit: its `history_tip` is
+  8668f77b and 15fd5f4e is that commit's tree. It shows the orientation step ran on the change,
+  not that orientation preceded the work (`docs/DOGFOOD.md` §1) or that its answer was relevant;
+  relevance is what the sealed benchmark and hostile tests measure. A later receipt should set
+  `DOGFOOD_TASK` and retain the start-of-change query.
+- UC-CHANGE-CONSEQUENCE, `prechange-impact.json` (profile
+  `corvint-range-impact-expanded/experimental`, range `CLEAN`, state `READY`): two authoritative
+  results, the two changed Go test files, with the uncertainty row that five non-Go changed paths
+  are outside the native Go range profile.
+- UC-EVIDENCE-CARRYING-COMPLETION, `dogfood-report.json` (profile `corvint-dogfood-change/0`,
+  `complete: true`): all nine steps `PRODUCED`; OCM aggregate `ready-for-review` with 13 of 13
+  UCV0 requirements `unassessed`; `testExecution` `NOT_RUN`; `dogfoodCheck.outputsAgree` true;
+  anchor `NOT_OBSERVED`.
+
+Each receipt attests `{"outcome":"PASS","repository":"corvint"}`, pins the bind commit, and lists
+two subjects: the retained artifact and the sealed CEM. The ledger rows gain a `corvint-dogfood`
+evidence entry and stay `experimental` with claim `UNPROVEN`; the validator reports `valid: true`
+with 15 evidence references. The receipts prove that one real change was completed through the
+daily path with bound, internally consistent evidence (`DCW-V0-015`), not that the change is
+correct or that its tests are adequate. Remaining for `verified`: `beamfall-dogfood` (V1-0184).
+No product code changed.
+
 ## 2026-09-23 V1-0202, PCCO-V0-015..016, AFP-V0-020, UCV0-003: daily-loop preregistration amendment 1 and sealed run-002 (three PASS)
 
 Defect (V1-0202): `harness.py` `consequence_case` scored only `plan.selected`, so the AFP-V0-020 fix
