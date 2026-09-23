@@ -50,6 +50,40 @@ removed each worktree with `git worktree remove`.
 Decision: record the result; change no code. Sharing the clean base across linked worktrees is
 filed as BUG V1-0212 (P2, v0-9), with the numbers above and the atomic-rename requirement.
 
+## 2026-09-23 V1-0191 MCPV0-016: corvint-mcp pins Git at start; official schema executes
+
+Finding: the MCP 2026-07-28 spec kept two promotion blockers. The shared Git resolver memoised
+`git` per `PATH` and `DEVELOPER_DIR` but resolved it at first use, not at start, and
+`plansnapshot` looked `git` up on `PATH` on every call that carried a planning snapshot. A `git`
+planted earlier on the server's `PATH` after start could therefore run.
+Official-schema execution was `NOT_RUN`, because the no-network suite had no local copy of the
+pinned schema to validate against.
+
+Decision: `gitstatus.Pin` resolves Git once and fixes that absolute path for the process, and
+`Executable` returns it from then on. `plansnapshot` now spawns the resolver's path instead of its
+own lookup. `corvint-mcp` calls `Pin` before building the bridge and exits with status 2 when Git
+does not resolve. The official schema stays unvendored. `PROVENANCE.md`
+states that all source here is owner-authored, and the upstream schema repository is moving from
+MIT to Apache-2.0, so copying it in would need its own rights record. Instead
+`TestServerTrafficMatchesOfficialSchema` runs when `CORVINT_MCP_OFFICIAL_SCHEMA` names a local copy.
+It refuses any digest other than the pinned one. It validates the suite's discovery, tool-list,
+tool-call and error requests and the live server's responses against the schema's `$defs`, and it
+fails on any JSON Schema keyword its checker does not implement. `cases.json` now lists no
+promotion blockers. `internal/gitstatus` is an audited analyzer input, so the analyzer schema moves
+to `corvint-analyzer/78`. The status stays proposed and experimental: official MCP conformance, the
+task-context and `cem report` tools, and owner acceptance remain. This amends proposed MCP spec
+text; the owner's PR review is its human review.
+
+Evidence: `TestGitPlantedOnPathAfterStartNeverRuns` plants a `git` that writes a marker after the
+server starts. It then calls `corvint.status` and `corvint.impact` with a planning snapshot; both
+succeed with no marker written. The test fails with the `Pin` call removed from `corvint-mcp`, and
+again with the old `plansnapshot` lookup restored, so it observes both. A second subtest starts the
+server with no `git` on `PATH` and gets exit status 2 with `corvint-mcp: git unavailable`. An
+independent review found the `plansnapshot` bypass, which this change then closed. The opt-in schema run
+passed on 2026-09-23 against a copy whose SHA-256 matched the pin, with and without `-race`. The
+affected Go packages pass; `TestHostAdapterJavaScriptHarnessInterruption` failed once at host load
+above 100 and passed three times alone. `make gate` was not run (owner preference).
+
 ## 2026-09-23 V1-0204 AFP-V0-020: every plugin names a changed unit no test reaches
 
 Finding: AFP-V0-020 named a changed Go package with no tests as `NO_SELECTABLE_TEST`, but the
