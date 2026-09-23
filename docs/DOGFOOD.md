@@ -41,7 +41,8 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    When `BASE` still tracks an earlier unsealed `.corvint/change.cem.json`, this pass replaces it (the
    `CEM-PILOT-018` mismatch line triggers `--replace`), `git status` shows ` M .corvint/change.cem.json`,
    and the modified tracked sidecar adds `ocm-prepare-001: excluded-artifact-mismatch`,
-   `ocm-status-001: exit-2` and `ocm-aggregate: intent-scope-drift`; `cem-status` then also refuses it
+   `ocm-status-001: exit-2` (`not-ready` on a later pass) and
+   `ocm-aggregate: intent-scope-drift`; `cem-status` then also refuses it
    with `excluded-artifact-mismatch` (in `<git-dir>/corvint/cem-status.json` it is a
    `verification.issues` code, not a policy issue). The final seal removes the shared path.
 4. Write the citation plan from the prepared map. The hunk count is
