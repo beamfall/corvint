@@ -4,21 +4,25 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
-## 2026-09-23 V1-0187 AFP-V0-020: reached Go packages without tests are unknown scope
+## 2026-09-23 V1-0187 AFP-V0-020: changed Go packages without tests are unknown scope
 
 Defect: `affected.Select` skipped every unit with no tests before checking whether traversal reached
 it, so a changed Go package without a `_test.go` file appeared in none of `selected`, `excluded`,
 `unknown`, and the plan stayed `BOUNDED`. All five `treatmentOnlyCriticalMisses` in
-`benchmarks/daily-loop-v0/runs/run-001.json` are such packages. Fix: a reached `go:` unit with no
-tests now adds `plan.unknown` `{reason: NO_SELECTABLE_TEST, detail: <unit id>}`, which makes the
-scope `UNKNOWN` under AFP-V0-004; an unreached one adds nothing. The rule is Go-only: applied to
+`benchmarks/daily-loop-v0/runs/run-001.json` are such packages. Fix: a changed `go:` unit (one that
+owns a changed path) with no tests now adds `plan.unknown` `{reason: NO_SELECTABLE_TEST, detail:
+<unit id>}`, which makes the scope `UNKNOWN` under AFP-V0-004; an untested dependent of the change or
+an unreached unit adds nothing. Review correction: the first commit fired for every reached untested
+unit, which added unrelated `cmd/` and testdata packages to a change's unknowns (4 for `--base
+062b0151`, 13 at run-001 commit `50a96470`). The rule is Go-only: applied to
 every plugin it made about 30 existing tests fail across six plugins (TypeScript, Ruby, Kotlin, Rust,
 .NET, Playwright), because those plugins model sources and tests as separate units. Every
 TypeScript source edit, for example, would have gone `UNKNOWN`. Tests:
-`TestSelectNamesReachedUntestedGoPackageAsUnknownScope`,
+`TestSelectNamesChangedUntestedGoPackageAsUnknownScope`,
 `TestSelectTraversesUntestedUnitsWithoutSelectingThem` (non-Go stays bounded),
-`TestAffectedUntestedGoPackageIsUnknownScope`. A build at the fix names all five misses as
-`NO_SELECTABLE_TEST` at their three run-001 commits. Criterion 2, the sealed daily-loop re-run and
+`TestAffectedUntestedGoPackageIsUnknownScope`. A build at the corrected fix names exactly the five
+misses as `NO_SELECTABLE_TEST` at their three run-001 commits (2, 2 and 1), and nothing else.
+Remaining gap: an untested non-Go source unit that no test unit reaches is still omitted. Criterion 2, the sealed daily-loop re-run and
 re-score, is NOT_RUN here. `harness.py` `consequence_case` scores only `plan.selected`, so the
 re-score has to read `plan.unknown` as well.
 

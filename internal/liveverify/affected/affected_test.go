@@ -172,20 +172,22 @@ func TestSelectTraversesUntestedUnitsWithoutSelectingThem(t *testing.T) {
 	}
 }
 
-// AFP-V0-020: a reached Go package with no tests is named as unknown scope,
-// never omitted; an unreached one raises nothing.
-func TestSelectNamesReachedUntestedGoPackageAsUnknownScope(t *testing.T) {
+// AFP-V0-020: a changed Go package with no tests is named as unknown scope,
+// never omitted; an untested dependent of the change and an unreached package
+// raise nothing.
+func TestSelectNamesChangedUntestedGoPackageAsUnknownScope(t *testing.T) {
 	language := fake{name: "go", units: []Unit{
-		{ID: "go:core", Sources: []string{"core/core.go"}, Tests: []string{"core/core_test.go"}},
+		{ID: "go:changed", Sources: []string{"changed/changed.go"}},
+		{ID: "go:core", Sources: []string{"core/core.go"}, Tests: []string{"core/core_test.go"}, Imports: []string{"go:changed"}},
+		{ID: "go:dependent", Sources: []string{"dependent/dependent.go"}, Imports: []string{"go:changed"}},
 		{ID: "go:idle", Sources: []string{"idle/idle.go"}},
-		{ID: "go:untested", Sources: []string{"untested/untested.go"}, Imports: []string{"go:core"}},
 	}}
 	graph, err := Build(t.TempDir(), language)
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := Select(graph, []string{"core/core.go"})
-	want := Unknown{Reason: UnknownNoSelectableTest, Detail: "go:untested"}
+	plan := Select(graph, []string{"changed/changed.go"})
+	want := Unknown{Reason: UnknownNoSelectableTest, Detail: "go:changed"}
 	if plan.Scope != ScopeUnknown || len(plan.Unknown) != 1 || plan.Unknown[0] != want {
 		t.Fatalf("scope=%s unknown=%v want %v", plan.Scope, plan.Unknown, want)
 	}

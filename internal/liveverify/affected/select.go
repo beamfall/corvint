@@ -35,8 +35,8 @@ const (
 	// UnknownLanguageFrontier reports that a plugin could not resolve part of
 	// its own graph exactly.
 	UnknownLanguageFrontier = "LANGUAGE_FRONTIER"
-	// UnknownNoSelectableTest reports a reached Go package that declares no
-	// tests, so no test of its own can check the change (AFP-V0-020).
+	// UnknownNoSelectableTest reports a changed Go package (one owning a dirty
+	// path) that declares no tests, so no test of its own checks it (AFP-V0-020).
 	UnknownNoSelectableTest = "NO_SELECTABLE_TEST"
 )
 
@@ -102,9 +102,9 @@ type Plan struct {
 //
 // A unit is traversed whether or not it declares tests; it is selected only if
 // it declares at least one, because a unit with no tests contributes no check.
-// A reached Go package with no tests is named as unknown scope instead of being
-// omitted (AFP-V0-020). Other plugins keep tests in separate units, so their
-// untested source units are checked through the test units that reach them.
+// A changed Go package (one owning a dirty path) with no tests is named as
+// unknown scope instead of being omitted (AFP-V0-020). An untested non-Go unit
+// is still skipped, and nothing names it when no selected test reaches it.
 //
 // Selected units are emitted in the AFP-V0-007 order: witness chain length
 // ascending, shared directory prefix with the witness's dirty path descending,
@@ -127,13 +127,13 @@ func Select(graph *Graph, dirty []string) Plan {
 	reached := graph.traverse(seeds)
 	for _, id := range graph.order {
 		unit := graph.units[id]
-		witness, hit := reached[id]
-		if len(unit.Tests) == 0 && hit && strings.HasPrefix(id, "go:") {
+		if _, changed := seeds[id]; changed && len(unit.Tests) == 0 && strings.HasPrefix(id, "go:") {
 			plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
 		}
 		if len(unit.Tests) == 0 {
 			continue
 		}
+		witness, hit := reached[id]
 		if !hit {
 			plan.Excluded = append(plan.Excluded, Exclusion{
 				UnitID:       id,
