@@ -245,10 +245,10 @@ mkdir -p "$test_root/fake-go"
 cat > "$test_root/fake-go/go" <<'SH'
 #!/bin/sh
 for arg do
-  if [ "$arg" = archive-status ]; then
-    printf 'PASS\n'
-    exit 0
-  fi
+  case $arg in
+    archive-status) printf '%s\n' "${FAKE_ARCHIVE_STATUS:-PASS}"; exit 0 ;;
+    publication-status) printf 'STALE\n'; exit 0 ;;
+  esac
 done
 exit 1
 SH
@@ -272,13 +272,33 @@ test "$(row full-gate)" = PASS
 test "$(row tag)" = NOT_RUN
 test "$(row publication)" = NOT_RUN
 test "$(row promotion)" = NOT_RUN
-# VERSION names the tag already placed on an earlier commit: a FAIL, so still exit 1.
+# Each candidate row alone short of PASS still exits 1: a stale archive witness with a PASS full
+# gate, then a PASS archive witness with no full-gate receipt.
+set +e
+FAKE_ARCHIVE_STATUS=STALE PATH="$test_root/fake-go:$PATH" "$repository/script/release-checklist" --pre-promotion > "$test_root/pre-report"
+pre_status=$?
+set -e
+test "$pre_status" -eq 1
+test "$(awk -F '\t' '$1 != "PASS" && $1 != "NOT_RUN" { print $2 }' "$test_root/pre-report")" = ""
+test "$(awk -F '\t' '$2 == "go-archive" || $2 == "full-gate" { print $1 }' "$test_root/pre-report" | tr "\n" " ")" = "NOT_RUN PASS "
+mv "$git_dir/corvint/release-gate-receipt" "$test_root/gate-receipt"
+set +e
+PATH="$test_root/fake-go:$PATH" "$repository/script/release-checklist" --pre-promotion > "$test_root/pre-report"
+pre_status=$?
+set -e
+test "$pre_status" -eq 1
+test "$(awk -F '\t' '$1 != "PASS" && $1 != "NOT_RUN" { print $2 }' "$test_root/pre-report")" = ""
+test "$(awk -F '\t' '$2 == "go-archive" || $2 == "full-gate" { print $1 }' "$test_root/pre-report" | tr "\n" " ")" = "PASS NOT_RUN "
+mv "$test_root/gate-receipt" "$git_dir/corvint/release-gate-receipt"
+# VERSION names the tag already placed on an earlier commit: the tag row is the only FAIL and every
+# candidate row is PASS, so the FAIL alone keeps the exit at 1.
 printf '0.5.0a1\n' > "$repository/VERSION"
 set +e
 PATH="$test_root/fake-go:$PATH" "$repository/script/release-checklist" --pre-promotion > "$test_root/pre-report"
 pre_status=$?
 set -e
 test "$pre_status" -eq 1
-test "$(awk -F '\t' '$2 == "tag" { print $1 }' "$test_root/pre-report")" = FAIL
+test "$(awk -F '\t' '$1 == "FAIL" { print $2 }' "$test_root/pre-report")" = tag
+test "$(awk -F '\t' '$2 == "native-runtime" || $2 == "go-archive" || $2 == "full-gate" { print $1 }' "$test_root/pre-report" | tr "\n" " ")" = "PASS PASS PASS "
 rm -rf "$git_dir/corvint"
 printf 'release-checklist: native boundary, unmeasured status, full-gate receipt, tag binding, receipt row, pre-promotion exit and nonmutation pass\n'

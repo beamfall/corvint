@@ -30,7 +30,7 @@ re-candidating because their `candidate-source-or-policy` binding is stale.
 Evidence: `script/release-checklist_test.sh` passes with the new block (identical rows in both
 modes, exit 0 with the three candidate rows `PASS` under a fake `go` archive-status reader and the
 other four `NOT_RUN`, exit 1 with the witness absent or the tag row `FAIL`, exit 2 for any other
-argument). On this tree at c71b0e5 both modes exit 1 with identical rows: native-runtime `PASS`,
+argument). On this tree at b195af3 both modes exit 1 with identical rows: native-runtime `PASS`,
 tag `FAIL` (`VERSION` 0.7.0 while `v0.7.0` points at another revision), the rest `NOT_RUN`; the
 pre-promotion exit becomes 0 only for a candidate whose `VERSION` names an unplaced tag after
 `make gate` records both witnesses at its head. `ARTIFACT-RDY-V0-001` and the `GOC-V0` current-state
@@ -39,6 +39,14 @@ paragraph record the mode; `make gate` is `NOT_RUN` under the focused-verificati
 The argument parser moved the archive-witness guard down, so the anchored citation in
 `docs/specs/go-archive-gate-v0.md` was repinned from lines 47-48 to 74-75 after reading them: the
 anchor `74e4657d` is unchanged and the cited sentence still holds.
+
+Review repair (independent review of PR #117): the test suite now isolates each candidate row
+(a stale archive witness with a PASS full gate, and a PASS witness with no gate receipt, each exit
+1) and the tag `FAIL` alone (publication `NOT_RUN`, every candidate row `PASS`, exit 1). Dropping
+`go-archive` or `full-gate` from the candidate set, or the `FAIL` latch, now fails the suite; before
+the repair the first two passed it. The `go-only-cutover-v0.md` sentence now says the exit is 0
+only when no row is `FAIL`. Open for the owner: `VERSION` is 0.7.0, already tagged at 678c1b1, so a
+candidate on main keeps a tag `FAIL` until `VERSION` names an untagged release.
 
 ## 2026-09-23 V1-0207 UCV0-006, UCV0-010: corvint-dogfood receipts for the three Core use cases
 

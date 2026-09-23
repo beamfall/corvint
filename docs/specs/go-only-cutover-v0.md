@@ -51,10 +51,11 @@ witness bound to the exact commit, tree and archive digests (`GOC-V0-006`). `GOC
 complete `make gate` run to that witness. At the frozen release candidate, in a clean worktree, run
 `PATH=/opt/homebrew/Cellar/go/1.27.0/bin:$PATH make gate` and then `script/release-checklist`.
 The gate must exit 0 and the checklist must print `PASS` on both the `go-archive` and `full-gate`
-rows; `script/release-checklist --pre-promotion` exits 0 exactly then, before any tag (ticket
-V1-0189). Together they would prove that every gate step passed at that exact commit and tree, and that
-the archive witness is the one the same run recorded. Both remain NOT_RUN: running the gate at the
-release candidate belongs to the coordinator, not to this change.
+rows; `script/release-checklist --pre-promotion` exits 0 only then and only when no row is
+`FAIL`, before any tag (ticket V1-0189). Together they would prove that every gate step passed
+at that exact commit and tree, and that the archive witness is the one the same run recorded.
+Both remain NOT_RUN: running the gate at the release candidate belongs to the coordinator, not to
+this change.
 
 ## Requirements
 

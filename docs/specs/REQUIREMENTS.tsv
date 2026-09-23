@@ -983,16 +983,16 @@ GLTP-V0-049	docs/specs/go-live-test-provider-v0.md	1399	The session publishes on
 GLTP-V0-050	docs/specs/go-live-test-provider-v0.md	1422	Every published event also carries `projection`: one
 GLTP-V0-051	docs/specs/go-live-test-provider-v0.md	1449	A terminal event whose run completed — classified `passed` or `failed` before an
 GLTP-V0-052	docs/specs/go-live-test-provider-v0.md	1480	A `skip` action MUST project the per-test execution axis `SKIPPED` with reason
-GOC-V0-001	docs/specs/go-only-cutover-v0.md	61	The current tree MUST contain no legacy `src/corvint_cli.py` or
-GOC-V0-002	docs/specs/go-only-cutover-v0.md	64	Default Go verification MUST NOT execute, reconstruct from Git, or install the
-GOC-V0-003	docs/specs/go-only-cutover-v0.md	67	Removal of live comparisons MUST preserve unique positive, negative, malformed-i
-GOC-V0-004	docs/specs/go-only-cutover-v0.md	70	Legacy trace migration MUST remain supported using independently authored canoni
-GOC-V0-005	docs/specs/go-only-cutover-v0.md	72	The cancelled Packet 5 paired retry MUST NOT run. A historical PASS/FAIL/NOT_RUN
-GOC-V0-006	docs/specs/go-only-cutover-v0.md	76	Go archives MUST remain reproducible, source-bound, offline, checksum-verified a
-GOC-V0-007	docs/specs/go-only-cutover-v0.md	79	Rollback MUST use a retained prior Go artifact or Git revision, without receipt,
-GOC-V0-008	docs/specs/go-only-cutover-v0.md	83	Maintained Corvint adapters and developer tools MUST have no Python interpreter
-GOC-V0-009	docs/specs/go-only-cutover-v0.md	89	The cutover's final coordinator MAY complete with `prechange-impact` visibly
-GOC-V0-010	docs/specs/go-only-cutover-v0.md	96	A complete `make gate` MUST first remove the private receipt
+GOC-V0-001	docs/specs/go-only-cutover-v0.md	62	The current tree MUST contain no legacy `src/corvint_cli.py` or
+GOC-V0-002	docs/specs/go-only-cutover-v0.md	65	Default Go verification MUST NOT execute, reconstruct from Git, or install the
+GOC-V0-003	docs/specs/go-only-cutover-v0.md	68	Removal of live comparisons MUST preserve unique positive, negative, malformed-i
+GOC-V0-004	docs/specs/go-only-cutover-v0.md	71	Legacy trace migration MUST remain supported using independently authored canoni
+GOC-V0-005	docs/specs/go-only-cutover-v0.md	73	The cancelled Packet 5 paired retry MUST NOT run. A historical PASS/FAIL/NOT_RUN
+GOC-V0-006	docs/specs/go-only-cutover-v0.md	77	Go archives MUST remain reproducible, source-bound, offline, checksum-verified a
+GOC-V0-007	docs/specs/go-only-cutover-v0.md	80	Rollback MUST use a retained prior Go artifact or Git revision, without receipt,
+GOC-V0-008	docs/specs/go-only-cutover-v0.md	84	Maintained Corvint adapters and developer tools MUST have no Python interpreter
+GOC-V0-009	docs/specs/go-only-cutover-v0.md	90	The cutover's final coordinator MAY complete with `prechange-impact` visibly
+GOC-V0-010	docs/specs/go-only-cutover-v0.md	97	A complete `make gate` MUST first remove the private receipt
 GPK-V0-001	docs/specs/go-production-kernel-migration-v0.md	102	The migration MUST preserve the complete CLI surface present at the pinned
 GPK-V0-002	docs/specs/go-production-kernel-migration-v0.md	109	For every supported parity case, Go and the Python oracle MUST produce the exact
 GPK-V0-003	docs/specs/go-production-kernel-migration-v0.md	117	Go MUST reproduce every accepted receipt, map, report, identity, digest preimage
