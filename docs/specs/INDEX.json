@@ -1487,7 +1487,9 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [
+      "benchmarks/daily-loop-v0/harness.py"
+    ]
   },
   {
     "path": "docs/specs/proof-preserving-abstraction-v0.md",

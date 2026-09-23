@@ -1463,6 +1463,9 @@ PCCO-V0-011	docs/specs/proof-carrying-context-optimization-v0.md	101	Profiles ex
 PCCO-V0-012	docs/specs/proof-carrying-context-optimization-v0.md	105	The primary metric is complete cache-aware cost per solved task, including every
 PCCO-V0-013	docs/specs/proof-carrying-context-optimization-v0.md	109	Training artifacts remain repository-local, owner-readable, secret-screened,
 PCCO-V0-014	docs/specs/proof-carrying-context-optimization-v0.md	113	Profiles are advisory performance artifacts, never project authority, accepted
+PCCO-V0-015	docs/specs/proof-carrying-context-optimization-v0.md	115	(proposed for V1-0012, not accepted) A correctness or cost comparison of the dai
+PCCO-V0-016	docs/specs/proof-carrying-context-optimization-v0.md	121	(proposed for V1-0012, not accepted) Each run MUST emit one result binding the
+PCCO-V0-017	docs/specs/proof-carrying-context-optimization-v0.md	126	(proposed for V1-0012, not accepted) A cost-reduction claim is retained only whe
 PLE-V0-001	docs/specs/protected-local-execution-v0.md	27	The optional `corvint-protected-execution/0` profile MUST preserve all legacy pr
 PLE-V0-002	docs/specs/protected-local-execution-v0.md	28	A protected immutable release and independently admitted root/policy MUST bind t
 PLE-V0-003	docs/specs/protected-local-execution-v0.md	29	Ingestion MUST bound and independently bind expected Git base/target/tree, CEM,
