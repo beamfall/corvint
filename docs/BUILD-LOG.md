@@ -4,6 +4,67 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0202, PCCO-V0-015..016, AFP-V0-020, UCV0-003: daily-loop preregistration amendment 1 and sealed run-002 (three PASS)
+
+Defect (V1-0202): `harness.py` `consequence_case` scored only `plan.selected`, so the AFP-V0-020 fix
+(V1-0187), which names a changed Go package without tests as a `NO_SELECTABLE_TEST` unknown, could
+not change the UC-CHANGE-CONSEQUENCE score. The sealed preregistration fixed that rule ("selected =
+go: unit IDs"), so the rule change is preregistration amendment 1, recorded in
+`benchmarks/daily-loop-v0/preregistration.json` (`amendments[0]`) before any run used it: the
+treatment covers a critical package when `plan.selected` names a `go:` unit of it or when
+`plan.unknown` carries a `NO_SELECTABLE_TEST` entry naming it; named packages are reported
+separately (`namedNoSelectableTest`) and are not counted as selected. The corpus, jobs, baseline,
+thresholds and exclusions are unchanged. The amended preregistration seals harness sha256
+`4a27e8ef8b753b9c87b4d5d86da77aefe95343bd1dc980f59fdc00aa7d4c6960` (was `17b41f50…2d242`) and
+candidate `d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe` (was 1894b9e); its own sha256 is
+`ee94b7ca16c3f3a88ffe253483bdeb0d0f21c1a7de710126244dcec34f20dc96` (was `73f178f8…04b9d`).
+Under the invalidation rule a changed harness is a new numbered run; run-001 and its receipts stay
+as recorded.
+
+Sealed run-002 (`benchmarks/daily-loop-v0/runs/run-002.json`, sha256
+`e1ccb1e6bf960020e2b8c662c18f02612f7e3df8f0ad0a48916cb37b20ca9af4`) used candidate binary
+`15ec2fb02a52ddeb779d2079c953098a3c25553a6db6e6bbc48f9842c1fc476e` built from d3c8d0f, three runs
+per measurement, rehearsal target a64624c. Its three sealed-benchmark receipts under
+`benchmarks/daily-loop-v0/receipts/run-002/`:
+
+| Receipt | sha256 | Result |
+| --- | --- | --- |
+| `UC-TASK-ORIENTATION.json` | `44eebef9960a2ec362e104cf43210af4a02ba19ce24194546f8ebe90817c1f77` | PASS |
+| `UC-CHANGE-CONSEQUENCE.json` | `208de893cb83a3d15cb39fb38b53901b33bba5158f08b4e10230d5ece8fbe7ab` | PASS |
+| `UC-EVIDENCE-CARRYING-COMPLETION.json` | `ae6ece856092a08b737d938ab6f87e36939281316a590809859388b4c1138471` | PASS |
+
+- **Consequence, PASS (C2).** Three scored cases, zero abstentions, zero treatment-only critical
+  misses. The five run-001 misses are now named: `internal/cem/coverprofile` and
+  `internal/cemdiscriminate` at 50a9647, `cmd/corvint-test-validity-mcp` and
+  `integrations/testfixture` at 362721c, and `cmd/corvint-web-flows` at af247a1, each as a
+  `NO_SELECTABLE_TEST` unknown and nothing else; every scope is `UNKNOWN` as AFP-V0-004 requires.
+- **Orientation, PASS (C1).** Six scored cases, zero abstentions, zero treatment-only critical
+  misses. The run-001 miss (`docs/AGENT-ROUTES.md` at 1d4cbaa) is resolved by the V1-0186 fix
+  (PR #110), which is in the candidate.
+- **Completion, PASS (C3).** 36 designated cases, 0 false complete verdicts, 0 positive-control
+  refusals, unchanged from run-001.
+
+Control (unsealed, amendment 1 `control`): the same harness with `candidateCommit` 1894b9e (the
+run-001 candidate) and preregistration sha256
+`e7d4c3ff15dd423c2e8945bf1120aa11a375c5a9af285dd352d3568e1820eb4e`, run-id `control-prefix-1894b9e`,
+result sha256 `95e4eca99a7cc23f0b51f943e5564100c13fa8ceb13535078218c2fc8ea74733`, kept under
+`~/projects/corvint-release-evidence/daily-loop-control-1894b9e/`. It records consequence FAIL with
+the same five treatment-only misses as run-001 (none named as unknown), orientation FAIL with the
+same one miss, and completion PASS. So the amendment does not score the pre-fix build as covered:
+the PASS comes from AFP-V0-020, not from the rule change.
+
+A first execution of run-002 was discarded: it passed a sibling clone as `--repo`, so its receipts
+carried subject paths relative to that clone (result sha256
+`68e7edc18bff8ccfa9bc11309bb736930f35efa240f6f00d0b604f032150613b`, same three PASS outcomes). The
+retained run-002 is the second execution with the harness's own checkout as `--repo`, as run-001
+was.
+
+Ledger: `conformance/use-cases-v0/ledger.json` binds the three run-002 receipts as
+`sealed-benchmark` evidence on the three Core rows (`UCV0-003`, `UCV0-007`); the validator reports
+`valid: true`. The rows stay `experimental` and `UNPROVEN`: no `corvint-dogfood` or
+`beamfall-dogfood` receipt exists (V1-0184, V1-0011). Complete task cost and human failure rate stay
+`NOT_OBSERVED`; the result reads "measured, no savings claim" (PCCO-V0-017). Full gate: `NOT_RUN` by
+owner policy; the V1-0202 ticket's `full-gate` requirement is left to the candidate head.
 ## 2026-09-23 V1-0188 follow-up: the dirty-package-without-tests hostile case runs
 
 The V1-0188 hostile receipt for `UC-CHANGE-CONSEQUENCE` recorded one skipped case,
