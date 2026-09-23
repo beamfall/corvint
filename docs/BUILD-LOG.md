@@ -36,6 +36,141 @@ V1-0203 (`testdata/` directories indexed as Go units), V1-0204 (changed untested
 omitted silently), V1-0205 (idf floor for `instruction-routed` matching, re-measure the recall@5 and
 recall@10 dips), V1-0206 (untested TCP-V0-047 cases and the fenced-code-block path question).
 
+## 2026-09-23 V1-0188 UCV0-006: hostile-tests receipts for the three Core use cases
+
+Criterion 1 of V1-0188. One table-driven, entrypoint-level hostile test file per Core use case,
+with subtests named `<category>/<class>/<case>` so the UCV0-006 categories `negative`, `hostile`
+and `abstention` are visible per use case. The tests were committed first (`5eddd496`). Each
+`hostile-tests` receipt pins a `repositoryRevision` and the `shasum -a 256` of its test file at that
+revision, and each attests `cases` `["abstention","hostile","negative"]`. After independent review,
+UC-TASK-ORIENTATION and UC-CHANGE-CONSEQUENCE pin 1c6451f4aab403bbc59d8ba2bbb2416f9d57638e;
+UC-EVIDENCE-CARRYING-COMPLETION keeps 5eddd496edf240997ed6af58501a31bf9cdfa320, because its test file
+did not change.
+The ledger rows gain a `hostile-tests` evidence entry and stay `experimental` with claim `UNPROVEN`.
+The `go run ./conformance/use-cases-v0` validator reports `valid: true` with 9 evidence references.
+No product code changed.
+
+UC-TASK-ORIENTATION (`corvint context`, `corvint query`), in
+`cmd/corvint/usecase_hostile_task_orientation_test.go`, receipt
+`conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/hostile-tests.json`:
+
+- Stale index is hostile, a miss:
+  - A snapshot behind HEAD, garbage `.gob` bytes, or a symlinked `.corvint/index` each give context
+    output byte-identical to a cold build, with `revision` equal to the HEAD tree.
+  - For the stale and corrupt snapshots, query output is byte-identical to a cold build as well.
+  - For the symlinked snapshot, query labels `.corvint/index` as a `mixed-worktree` path. Git sees
+    the symlink as untracked.
+- Dirty worktree:
+  - Hostile: context cites only committed blobs and never a worktree-only definition.
+  - Hostile: query reports `freshness.state` `mixed-worktree` and names the dirty path.
+  - Abstention: `unindexed-worktree-changes`.
+- Missing anchors:
+  - Negative: an untracked or absent `--subject` gets exit 2 with
+    `subject path is not tracked at revision`.
+  - Abstention: query reports `no-relevant-candidates`, and context reports answerability
+    `no-specific-terms`.
+- Malformed provider records are hostile and degrade: a `gopls` that emits a truncated LSP frame gives
+  one `external.providers` row with state `unavailable`, reason `gopls session failed`, and no
+  results.
+- Symlinked or relocated subjects:
+  - Negative: `../outside.go` is refused with `impact path must be normalized and
+    repository-relative`, exit 2.
+  - Negative: an uncommitted `git mv` target is refused as not tracked.
+  - Hostile: a tracked symlink subject is pinned to the link's own blob, and its `reference`
+    relation is `subject-symbols-incomplete`.
+- Skipped: none.
+
+UC-CHANGE-CONSEQUENCE (`corvint affected`), in
+`cmd/corvint/usecase_hostile_change_consequence_test.go`, receipt
+`conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/hostile-tests.json`:
+
+- Stale index is hostile:
+  - A stale `.corvint/index` snapshot leaves the plan byte-identical. `corvint affected` never reads
+    the snapshot, so this case documents that independence rather than a refusal.
+  - A provider record pinned to a superseded revision gives `full-relevant-suite-required` with
+    `stale-provider-revision`.
+- Dirty worktree:
+  - Hostile: a dirty edit selects its dependency closure while scope stays `BOUNDED`.
+  - Abstention: a deleted source gives scope `UNKNOWN`, with `UNINDEXED_SOURCE_PATH` and the
+    exclusion `UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED`.
+- Missing anchors:
+  - Negative, AFP-V0-006, exit 2: a base that is not a commit and a repository without HEAD both
+    give `unsupported-affected-revision`.
+  - Negative, AFP-V0-006, exit 2: an abbreviated base gives `invalid-arguments`.
+  - Abstention: a clean tree reports `NO_REPOSITORY_GATE_DECLARED` and `NO_ADVISORY_GO_COMMAND` with
+    no checks.
+- Malformed provider records are hostile:
+  - A truncated record or a foreign schema gives `blocked` / `provider-unavailable` with
+    `provider-invalid`.
+  - An unparseable `go.mod` gives `UNKNOWN` with `LANGUAGE_FRONTIER go:module-path-unresolved` and
+    `MODULE_PATH_UNRESOLVED`.
+- Symlinked or relocated subjects:
+  - Hostile: a record naming a relocated test path gives `full-relevant-suite-required` with
+    `missing-path-reference`.
+  - Hostile: a record naming `../outside_test.go` gives `unresolved-endpoint`.
+  - Hostile: an untracked file symlink gives `UNKNOWN` with `UNINDEXED_SOURCE_PATH`.
+  - Hostile: an untracked directory symlink gives `UNKNOWN` with `UNOWNED_DIRTY_PATH`.
+  - Hostile: a committed symlink to an outside directory is not walked. The outside directory holds
+    `extdir_test.go`, so a walked directory would enter the plan: replacing the symlink with a real
+    directory holding the same files makes the case fail with `go:example.com/g/extdir` excluded.
+  - Abstention: an uncommitted `git mv` gives `UNKNOWN`. The move destination appears in no plan
+    list; that is part of the V1-0187 defect and is not asserted here.
+- Skipped (defect, not fixed here): `hostile/dirty-worktree/dirty package without tests is named`.
+  A dirty Go package with no test files leaves scope `BOUNDED` and is absent from the selected,
+  excluded and unknown lists. That is a silent omission. The unmerged V1-0187 branch fixes it
+  (AFP-V0-020, `NO_SELECTABLE_TEST`); remove the skip when that branch lands.
+
+UC-EVIDENCE-CARRYING-COMPLETION (`corvint cem`, `corvint dogfood`), in
+`cmd/corvint/usecase_hostile_evidence_completion_test.go`, receipt
+`conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/hostile-tests.json`:
+
+- Stale index is hostile, a refusal: a candidate map followed by a later commit gives
+  `cem status` exit 1, state `invalid`, `patch-digest-mismatch`.
+- Dirty worktree:
+  - Hostile: a worktree edit leaves `cem status` byte-identical, because status is derived from
+    commits.
+  - Hostile: `cem anchor` on a dirty committed map gives exit 2 `anchor-map-dirty`.
+  - Negative: on an uncommitted map it gives `anchor-map-uncommitted`.
+  - The `dirty-worktree` refusal of the dogfood loop lives in `script/dogfood-check.sh`, not in the
+    Go CLI. The test comment records this.
+- Missing anchors:
+  - Negative: a citation of an absent evidence path gives `missing-evidence`, exit 2.
+  - Negative: a wrong `--expected-base` gives exit 1, `invalid`, `base-revision-mismatch`.
+  - Abstention: an uncited hunk counts `unknown` 1 and `supported` 0, and a zero-unknown policy
+    fails with `max-unknown-exceeded`, exit 1.
+  - Abstention: an unenrolled `dogfood status` reports lifecycle `inactive` and `satisfied` false.
+- Malformed provider records (the CEM map):
+  - Negative: `cem/9.9` gives `unsupported-spec`.
+  - Hostile: a truncated map or a duplicate key gives `invalid-json`, exit 2.
+- Symlinked or relocated subjects are hostile, and each gives exit 2:
+  - A committed symlink evidence path gives `missing-evidence`.
+  - A symlinked `--map` gives `cannot read CEM map`.
+  - A symlinked `.git` gives `repository-object-unavailable`.
+  - A map relocated under a subdirectory `--root` gives `repository-object-unavailable`.
+- Skipped: none.
+
+Spec: the `use-case-conformance-v0.md` status paragraph now records the `hostile-tests` receipts. No
+requirement was added or renumbered; `REQUIREMENTS.tsv` was regenerated for the line shift.
+
+Verification was focused, per the owner's policy for scoped work; `make gate` is NOT_RUN. Results
+after the review fixes:
+
+- `go test -count=1 -run 'Hostile|UseCase' ./cmd/corvint/`: exit 0, 46 use-case subtests pass and 1
+  is skipped.
+- `go test -count=1 -timeout 30m ./cmd/corvint/ ./conformance/use-cases-v0/` (before the review):
+  exit 0.
+- `go vet ./cmd/corvint/ ./conformance/use-cases-v0/`: exit 0. `gofmt -l cmd conformance`: no files.
+- `go run ./conformance/use-cases-v0`: exit 0, `valid: true`, `useCaseCount` 22, `evidenceCount` 9,
+  `experimental` 3, `specified` 19, `verified` 0, `UNPROVEN` 22.
+- `go test -count=1 ./conformance/use-cases-v0/ ./internal/specindex/`: exit 0.
+- `make spec-requirements-check requirement-definitions-check traceability-tests-check
+  decision-numbers-check line-citations-check`: exit 0.
+
+Criterion 2 of V1-0188 is NOT_RUN. The three rows stay `experimental` and `UNPROVEN`, with no
+`corvint-dogfood` or `beamfall-dogfood` receipt. The branch is stacked on
+`claude/v1-0001-scope-ratified` (8d6c5fa), because the rows and receipts it extends exist only
+there and not yet on `origin/main`.
+
 ## 2026-09-23 V1-0186 TCP-V0-047: governing instructions route task orientation
 
 Cause (daily-loop run-001 UC-TASK-ORIENTATION critical miss): for "move the agent-memory backlog into
