@@ -41,6 +41,15 @@ clones, not extracted release archives. The pre-change query ranked
 `docs/specs/analyzer-capability-contract-v0.md` first and omitted both `docs/DOGFOOD.md` and the
 owning spec: a context miss. The required full gate is NOT_RUN by owner policy.
 
+Review of PR #83 returned FIX-FIRST, reproduced by the reviewer and re-reproduced here in a scratch
+clone at base 0ed41f2 (sealed, so no tracked shared sidecar): the first pass lists only
+`cem-cite: citation-plan-not-provided` and `cem-status: not-ready` (`max-unknown-exceeded`) with
+`?? .corvint/change.cem.json`, and the cited rerun lists only `local-outcome: record-index-failed`.
+The OCM refusals and ` M` state documented first occur only while `BASE` tracks an unsealed sidecar,
+so steps 3 and 4 now describe both cases. The worktree hint no longer claims the sidecar is the cause,
+since `record-index-failed` and `unsupported-impact-worktree` also follow any other uncommitted file,
+and `ocm-status-NNN` rows, which printed no `fix:` line, now name the matching `ocm-prepare` row first.
+
 ## 2026-09-22 AFU-V0-001..AFU-V0-012: experimental web flow understanding
 
 The owner requested application-flow understanding, test-gap mapping and runtime confirmation, then

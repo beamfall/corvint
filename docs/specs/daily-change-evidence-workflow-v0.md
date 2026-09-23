@@ -71,8 +71,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   example, the expected state after each step including the refusals that are expected before the
   CEM sidecar is committed, and the reason string each fail-closed class produces. A class that was
   not reproduced MUST be labelled NOT_OBSERVED, not described.
-- `DCW-V0-014`: A `dogfood-change` not-complete row caused by a malformed or missing input, or by the
-  expected uncommitted-sidecar state, MUST be followed by a `fix:` line naming the correction. The
+- `DCW-V0-014`: A `dogfood-change` not-complete row caused by a malformed or missing input, or by
+  uncommitted worktree changes such as the prepared sidecar (including every `ocm-status-NNN` row),
+  MUST be followed by a `fix:` line naming the correction. The
   `dogfood-check` failures `dogfood-report-missing`, `dogfood-report-drift` and `intent-scope-drift`
   MUST each print a `fix:` line; for `dogfood-report-drift` that line MUST distinguish a report bound
   to another base or target from an incomplete report. A refusal caused by a local trace recorded

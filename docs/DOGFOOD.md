@@ -33,21 +33,25 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    or abstention is recorded in `docs/BUILD-LOG.md`, not repaired by rewording the task.
 2. Bind intent, implement, run the focused checks and commit (sections 2 and 3). Only ignored paths
    may remain modified.
-3. Export every input except `DOGFOOD_CITATIONS`, then run `make dogfood-change BASE=$BASE`. Expected:
-   `dogfood-change: FAIL not-complete` listing `cem-cite: citation-plan-not-provided`,
-   `ocm-prepare-001: excluded-artifact-mismatch`, `ocm-status-001: exit-2`,
-   `ocm-aggregate: intent-scope-drift` and `cem-status: not-ready`, and `git status` shows
-   ` M .corvint/change.cem.json`. OCM and CEM status both refuse the uncommitted sidecar with
-   `excluded-artifact-mismatch` (in `<git-dir>/corvint/cem-status.json` it is a
-   `verification.issues` code, not a policy issue). When `BASE`
-   still carries an earlier unsealed `.corvint/change.cem.json`, this pass replaces it (the
-   `CEM-PILOT-018` mismatch line triggers `--replace`), and the final seal removes the shared path.
+3. Export every input except `DOGFOOD_CITATIONS`, then run `make dogfood-change BASE=$BASE`. Expected
+   when `BASE` carries no shared `.corvint/change.cem.json` (the normal case once a seal has moved it):
+   `dogfood-change: FAIL not-complete` listing only `cem-cite: citation-plan-not-provided` and
+   `cem-status: not-ready` (policy issue `max-unknown-exceeded`, because no hunk is cited yet); every
+   OCM row and `local-outcome` are produced, and `git status` shows `?? .corvint/change.cem.json`.
+   When `BASE` still tracks an earlier unsealed `.corvint/change.cem.json`, this pass replaces it (the
+   `CEM-PILOT-018` mismatch line triggers `--replace`), `git status` shows ` M .corvint/change.cem.json`,
+   and the modified tracked sidecar adds `ocm-prepare-001: excluded-artifact-mismatch`,
+   `ocm-status-001: exit-2` and `ocm-aggregate: intent-scope-drift`; `cem-status` then also refuses it
+   with `excluded-artifact-mismatch` (in `<git-dir>/corvint/cem-status.json` it is a
+   `verification.issues` code, not a policy issue). The final seal removes the shared path.
 4. Write the citation plan from the prepared map. The hunk count is
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
-   Export `DOGFOOD_CITATIONS` and rerun `make dogfood-change BASE=$BASE`. `cem-cite` is now produced;
-   the modified sidecar additionally makes `prechange-impact: unsupported-impact-worktree` and
-   `local-outcome: record-index-failed` appear. Every refusal in steps 3 and 4 prints the same
-   `fix:` line: it is expected until the sidecar is committed.
+   Export `DOGFOOD_CITATIONS` and rerun `make dogfood-change BASE=$BASE`. `cem-cite` and, for an
+   untracked sidecar, `cem-status` are now produced; the only remaining row is
+   `local-outcome: record-index-failed`. A modified tracked sidecar additionally keeps the OCM and
+   `cem-status` rows of step 3 and adds `prechange-impact: unsupported-impact-worktree`. Each row
+   prints its own `fix:` line; `prechange-impact`, `ocm-prepare-NNN`, `ocm-status-NNN` and
+   `local-outcome` name the uncommitted worktree, and all of them clear once the sidecar is committed.
 5. Commit the sidecar: `git add .corvint/change.cem.json && git commit -m "chore: bind change evidence"`.
    From the first pass on, add commits rather than amending or rebasing: each clean pass records a
    local trace for its `HEAD`, and once that commit is no longer an ancestor of `HEAD` the query and

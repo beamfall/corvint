@@ -576,7 +576,9 @@ fix_hint() {
     ocm-prepare-*:invalid-requirements-section)
       printf 'intent must be a spec that exists at BASE and contains exactly one "## Requirements" heading' ;;
     ocm-prepare-*:excluded-artifact-mismatch|prechange-impact:unsupported-impact-worktree|local-outcome:record-index-failed)
-      printf 'expected while the prepared .corvint/change.cem.json is uncommitted; commit it, then rerun make dogfood-change' ;;
+      printf 'the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change' ;;
+    ocm-status-*)
+      printf 'fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change' ;;
     cem-status:not-ready)
       printf 'read verification.issues and policyIssues in %s: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk' "$evidence/cem-status.json" ;;
     ocm-aggregate:intent-scope-drift)

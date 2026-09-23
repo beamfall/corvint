@@ -255,6 +255,9 @@ if [[ $action == ocm && $sub == prepare ]]; then
     shift
   done
 fi
+if [[ $action == ocm && $sub == status && -n ${DOGFOOD_TEST_OCM_STATUS_EXIT:-} ]]; then
+  exit "$DOGFOOD_TEST_OCM_STATUS_EXIT"
+fi
 if [[ $action == dogfood-ocm && $sub == status ]]; then
   if [[ -n ${DOGFOOD_TEST_EXPECTED_INTENTS:-} ]]; then
     expected=$(cat "$DOGFOOD_TEST_EXPECTED_INTENTS")
@@ -574,6 +577,7 @@ phase_jobs="$phase_jobs $!"
     rg -Fxq -- '    fix: set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)'
   pending_status=0
   pending_output=$(DOGFOOD_TEST_OCM_PREPARE_CODE=excluded-artifact-mismatch DOGFOOD_TEST_CEM_UNKNOWNS=1 \
+    DOGFOOD_TEST_OCM_STATUS_EXIT=1 \
     CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
     DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || pending_status=$?
@@ -582,7 +586,10 @@ phase_jobs="$phase_jobs $!"
     rg -Fxq -- '    fix: set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json'
   printf '%s\n' "$pending_output" | rg -Fxq -- '  ocm-prepare-001: excluded-artifact-mismatch'
   printf '%s\n' "$pending_output" | \
-    rg -Fxq -- '    fix: expected while the prepared .corvint/change.cem.json is uncommitted; commit it, then rerun make dogfood-change'
+    rg -Fxq -- '    fix: the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change'
+  printf '%s\n' "$pending_output" | rg -Fxq -- '  ocm-status-001: not-ready'
+  printf '%s\n' "$pending_output" | \
+    rg -Fxq -- '    fix: fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change'
   printf '%s\n' "$pending_output" | rg -Fxq -- '  cem-status: not-ready'
   printf '%s\n' "$pending_output" | \
     rg -q '^    fix: read verification\.issues and policyIssues in .*/cem-status\.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk$'
