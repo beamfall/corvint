@@ -24,16 +24,29 @@ Frozen retrieval bench (`tools/retrieval-bench`, `--arms context --max-samples 2
 samples per subset, candidate binary sha256 `2ef0ffa7c20182a36061d8e6fc847d55f353501e29eb365731efa02a2c270bb3`
 built from this branch, host load 30-390 from parallel workers; reports are scratch, uncommitted):
 
-| Subset | recall@5 | recall@10 | recall@20 | ranked lists identical off/on | provider loaded / not applicable | p50 wall ms off / on |
+| Subset | recall@5 | recall@10 | recall@20 | ranked lists identical off/on | provider with ≥1 relation / loaded with 0 relations / not applicable | p50 wall ms off / on |
 | --- | --- | --- | --- | --- | --- | --- |
-| v2_code2test | 0.333 | 0.358 | 0.428 | 20/20 | 15 / 5 | 3840 / 7636 |
-| v2_comment2context | 0.383 | 0.492 | 0.633 | 20/20 | 12 / 8 | 2901 / 3751 |
-| v2_trace2code | 0.375 | 0.450 | 0.817 | 20/20 | 19 / 1 | 874 / 1988 |
-| v2_edit2ripple | 0.358 | 0.488 | 0.592 | 20/20 | 13 / 7 | 385 / 746 |
-| v2_abstention | no positives (abstained 0.05 both) | | | 20/20 | 0 / 20 | 769 / 544 |
+| v2_code2test | 0.333 | 0.358 | 0.428 | 20/20 | 7 / 8 / 5 | 3840 / 7636 |
+| v2_comment2context | 0.383 | 0.492 | 0.633 | 20/20 | 3 / 9 / 8 | 2901 / 3751 |
+| v2_trace2code | 0.375 | 0.450 | 0.817 | 20/20 | 8 / 11 / 1 | 874 / 1988 |
+| v2_edit2ripple | 0.358 | 0.488 | 0.592 | 20/20 | 4 / 9 / 7 | 385 / 746 |
+| v2_abstention | no positives (abstained 0.05 both) | | | 20/20 | 0 / 0 / 20 | 769 / 544 |
+
+The applicability column is a recount derived from the existing on-run capture JSONL, not a rerun.
+The first report counted every `loaded` provider row (15/12/19/13). Independent review found that
+`ask` swallowed JSON-RPC query errors, so a run where every query failed still said `loaded`. Real
+gopls v0.22.0 on caddyserver__caddy@aed1af59 answered 39 of 39 queries with `no package metadata
+for file`. 37 of the 59 `loaded` runs had 0 relations: all 13 caddy runs, 23 etcd runs and 1 gin
+run. The captures predate `failed_queries`, so the recount splits on at least one relation rather
+than on at least one successful query. Review fixes (decision 0371 unchanged): `failed_queries` now
+sits beside `queries_issued` (EEP-V0-025, TCP-V0-043). A run whose every issued query failed is an
+`unavailable` row naming the first error (EEP-V0-026, TCP-V0-045). A server whose `serverInfo.name`
+is not `gopls` is refused, and a `PATH` lookup error, including `exec.ErrDot`, is `gopls executable
+not found` (EEP-V0-024). `TestExpandEveryQueryFailedIsUnavailable` covers these with a fake server.
+The bench was not rerun after the fixes; results are unaffected by construction.
 
 Recall is identical off and on in every subset, as designed: the bench scores `results` and the
-provider writes only `external`. The applicability column is the observed provider state; gopls
+provider writes only `external`. The not-applicable count is the observed provider state; gopls
 applies only to Go modules, and non-Go samples report `not applicable: no committed, unmodified Go
 file among the seeds`. The offline capture diagnostic found gold files among external path
 endpoints in 7 (code2test), 2 (comment2context) and 6 (trace2code) samples, but in 0 samples was

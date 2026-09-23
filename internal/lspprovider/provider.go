@@ -82,6 +82,9 @@ type expansion struct {
 	stopped  string
 	outside  int
 	unpinned int
+	failed   int
+	first    string
+	foreign  string
 }
 
 // Expand runs one bounded expansion. It never fails: an unusable seed set,
@@ -111,6 +114,12 @@ func Expand(ctx context.Context, request Request) Result {
 	found, failure := run(ctx, root, request, seeds)
 	if failure != "" {
 		result.Failure = failure
+		return result
+	}
+	result.Query["queries_issued"] = found.queries
+	result.Query["failed_queries"] = found.failed
+	if found.queries > 0 && found.failed == found.queries {
+		result.Failure = fmt.Sprintf("gopls answered all %d queries with an error; first: %s", found.queries, clip(printable(found.first)))
 		return result
 	}
 	result.Record, result.Origins = record(request, origin, found, result.Query)
@@ -198,6 +207,8 @@ func run(ctx context.Context, root string, request Request, seeds []string) (exp
 		return found, fmt.Sprintf("gopls exceeded %s wall time; process group killed", Timeout)
 	case observation.Cancelled:
 		return found, "gopls cancelled"
+	case found.foreign != "":
+		return found, fmt.Sprintf("language server identified as %s, not gopls; refused", found.foreign)
 	case found.version == "":
 		return found, "gopls session failed"
 	case !observation.ExitObserved || observation.ExitStatus != 0:
@@ -233,6 +244,9 @@ func dialogue(root string, request Request, seeds []string, reader io.Reader, wr
 	})
 	if err != nil {
 		return expansion{}, err
+	}
+	if name := serverName(initialized); name != ProviderID {
+		return expansion{foreign: name}, errForeign
 	}
 	if err := s.notify("initialized", map[string]any{}); err != nil {
 		return expansion{}, err
@@ -317,6 +331,10 @@ func (walk *walker) ask(origin string, query target) ([]string, error) {
 	if err != nil {
 		if errors.Is(err, errSession) {
 			return nil, err
+		}
+		walk.found.failed++
+		if walk.found.first == "" {
+			walk.found.first = err.Error()
 		}
 		return nil, nil
 	}
@@ -411,7 +429,6 @@ func record(request Request, origin string, found expansion, query map[string]an
 			origins = append(origins, found.from)
 		}
 	}
-	query["queries_issued"] = found.queries
 	query["stopped"] = found.stopped
 	query["outside_repository"] = found.outside
 	document := map[string]any{
@@ -468,6 +485,35 @@ func relation(found link, kind, fromBlob, toBlob, digest string) map[string]any 
 }
 
 var versionUnsafe = regexp.MustCompile(`[^A-Za-z0-9._/-]`)
+
+var errForeign = errors.New("language server is not gopls")
+
+// serverName is the initialize response's serverInfo.name, reduced to the
+// identifier grammar (`unnamed` when absent); only `gopls` is accepted
+// (EEP-V0-024).
+func serverName(initialized json.RawMessage) string {
+	var response struct {
+		ServerInfo struct {
+			Name string `json:"name"`
+		} `json:"serverInfo"`
+	}
+	_ = json.Unmarshal(initialized, &response)
+	name := versionUnsafe.ReplaceAllString(response.ServerInfo.Name, "-")
+	if name == "" {
+		return "unnamed"
+	}
+	return name[:min(len(name), 64)]
+}
+
+// printable replaces control characters in server-supplied error text.
+func printable(text string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, text)
+}
 
 // serverVersion reads gopls's version from the initialize response's
 // serverInfo, whose version member is gopls's JSON build description.

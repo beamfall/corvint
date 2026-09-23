@@ -516,7 +516,7 @@ it must read, each with the relation that admitted it, without naming the task's
   `CORVINT_CONTEXT_LSP=gopls`, a `--task` packet gains one `external` member: the section of
   `EEP-V0-023` built from one in-process gopls expansion (`EEP-V0-024`, `EEP-V0-025`), plus a
   `query` member naming the provider, the query digest, the seeds, the bounds, `queries_issued`,
-  `stopped` (empty, `query-budget` or `soft-deadline`), `outside_repository` and `omitted_rows`.
+  `failed_queries`, `stopped` (empty, `query-budget` or `soft-deadline`), `outside_repository` and `omitted_rows`.
   Unset, or any other value, prints exactly the bytes of `TCP-V0-001..024`. No flag, verb or
   help text is added.
 - `TCP-V0-044`: The `external` member is separate evidence, never a ranking input: `results`,
@@ -525,8 +525,8 @@ it must read, each with the relation that admitted it, without naming the task's
   order (at most three, `EEP-V0-025`). Path relations are anchored on the seeds and the hop-one
   files a relation starts from, each one names its hop origin in `relation.reference`, and the
   section's list limit is the packet's `--limit`.
-- `TCP-V0-045`: When gopls is absent, the task names no usable Go seed, or the session fails or
-  times out, the packet is the unchanged packet plus an `external` member whose one provider row
+- `TCP-V0-045`: When gopls is absent, the task names no usable Go seed, the session fails or
+  times out, or every issued query failed, the packet is the unchanged packet plus an `external` member whose one provider row
   is `unavailable` with the `EEP-V0-026` reason, and the exit code is 0. That row is the packet's
   visible coverage entry for the missing expansion; no partial relation is kept.
 - `TCP-V0-046`: The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
@@ -724,5 +724,5 @@ wire never changed.
 | TCP-V0-024 | `parseTaskContextInvocation`, `checkContextViewArguments`, `runTaskContext` (view dispatch); `summarizeContextPacket`, `runContextExpand` (`cmd/corvint/context_summary.go`) | `TestContextDefaultWireIsTheGolden`, `TestParseContextViewArguments`, `TestContextSummaryAndExpandAreReadOnly` |
 | TCP-V0-043 | `attachLSPEvidence`, `lspSeeds`, `committedText` (`cmd/corvint/context_lsp.go`); `compileTaskContext` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestContextDefaultWireIsTheGolden` |
 | TCP-V0-044 | `attachLSPEvidence`, `extevidence.InlineSection`, `lspprovider.Expand` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandLiveGopls` |
-| TCP-V0-045 | `attachLSPEvidence`, `lspprovider.Expand` failure reasons | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandDegrades` |
+| TCP-V0-045 | `attachLSPEvidence`, `lspprovider.Expand` failure reasons | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandDegrades`, `TestExpandEveryQueryFailedIsUnavailable` |
 | TCP-V0-046 | `tools/retrieval-bench` `context` arm, flag unset and `gopls` | V1-0099 entry in `docs/BUILD-LOG.md` (measured off/on reports) |

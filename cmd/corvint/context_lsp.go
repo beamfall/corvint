@@ -23,7 +23,10 @@ func attachLSPEvidence(ctx context.Context, index *contextindex.Index, subject s
 	if runtimeenv.Value("CONTEXT_LSP") != lspprovider.ProviderID {
 		return
 	}
-	executable, _ := exec.LookPath(lspprovider.ProviderID)
+	executable, err := exec.LookPath(lspprovider.ProviderID)
+	if err != nil {
+		executable = "" // includes exec.ErrDot: a gopls in the repository is never run
+	}
 	result := lspprovider.Expand(ctx, lspprovider.Request{
 		Root: index.Root, Revision: index.CommitRevision, Seeds: lspSeeds(subject, packet),
 		Committed: func(path string) (string, string, bool) { return committedText(index, path) }, Executable: executable,

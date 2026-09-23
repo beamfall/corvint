@@ -77,7 +77,7 @@ func (s *session) call(method string, params any) (json.RawMessage, error) {
 			continue
 		}
 		if incoming.Error != nil {
-			return nil, fmt.Errorf("%s: server error %d", method, incoming.Error.Code)
+			return nil, fmt.Errorf("%s: server error %d: %s", method, incoming.Error.Code, incoming.Error.Message)
 		}
 		return incoming.Result, nil
 	}

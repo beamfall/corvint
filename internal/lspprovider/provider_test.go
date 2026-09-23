@@ -190,3 +190,76 @@ func TestExpandLiveGopls(t *testing.T) {
 		t.Fatalf("a modified file must be omitted, not trusted: %s", modified.Record)
 	}
 }
+
+// TestMain turns the test binary into a fake language server when a wrapper
+// script invokes it with LSPPROVIDER_FAKE set: it answers initialize with the
+// given serverInfo name and every definition or reference query with an
+// error, as gopls does for a package it cannot load.
+func TestMain(m *testing.M) {
+	if name := os.Getenv("LSPPROVIDER_FAKE"); name != "" {
+		fakeServer(name)
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
+}
+
+func fakeServer(name string) {
+	s := &session{reader: bufio.NewReader(os.Stdin), writer: os.Stdout}
+	for {
+		request, err := s.read()
+		if err != nil || request.Method == "exit" {
+			return
+		}
+		if len(request.ID) == 0 {
+			continue
+		}
+		reply := map[string]any{"jsonrpc": "2.0", "id": request.ID}
+		switch {
+		case request.Method == "initialize":
+			reply["result"] = map[string]any{"serverInfo": map[string]any{"name": name, "version": "v0.0.0-fake"}}
+		case strings.HasPrefix(request.Method, "textDocument/"):
+			reply["error"] = map[string]any{"code": 0, "message": "no package metadata for file\nfake"}
+		default:
+			reply["result"] = nil
+		}
+		_ = s.send(reply)
+	}
+}
+
+// fakeGopls is an absolute executable that runs this test binary as the
+// fake server under the given serverInfo name.
+func fakeGopls(t *testing.T, name string) string {
+	t.Helper()
+	binary, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "gopls")
+	script := fmt.Sprintf("#!/bin/sh\nLSPPROVIDER_FAKE=%s exec %q \"$@\"\n", name, binary)
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+// TestExpandEveryQueryFailedIsUnavailable: a server that answers every query
+// with an error is not a loaded provider with zero relations but a failure
+// naming the first error, with the failed queries counted (EEP-V0-026); a
+// server that is not gopls is refused (EEP-V0-024).
+func TestExpandEveryQueryFailedIsUnavailable(t *testing.T) {
+	t.Parallel()
+	m := newModule(t)
+	result := Expand(context.Background(), m.request(t, fakeGopls(t, "gopls"), "a/a.go"))
+	issued, _ := result.Query["queries_issued"].(int)
+	if result.Record != nil || issued == 0 || result.Query["failed_queries"] != issued {
+		t.Fatalf("record %s, query %v", result.Record, result.Query)
+	}
+	want := fmt.Sprintf("gopls answered all %d queries with an error; first: textDocument/", issued)
+	if !strings.HasPrefix(result.Failure, want) || !strings.Contains(result.Failure, "no package metadata for file fake") {
+		t.Fatalf("failure %q", result.Failure)
+	}
+	foreign := Expand(context.Background(), m.request(t, fakeGopls(t, "other-server"), "a/a.go"))
+	if foreign.Record != nil || foreign.Failure != "language server identified as other-server, not gopls; refused" {
+		t.Fatalf("foreign: failure %q, record %s", foreign.Failure, foreign.Record)
+	}
+}

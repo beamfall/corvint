@@ -195,7 +195,10 @@ each cited path still exists at that revision, and what was omitted or could not
   message, and 64 KiB of captured stderr. A record exists only after a clean exit 0 with the
   process group proven cleaned up. The record's `provider.revision` is the gopls module version
   from the `initialize` response's `serverInfo`, reduced to the identifier grammar (`unknown` when
-  absent). The query digest is SHA-256 over the canonical JSON of the provider id, the index
+  absent). A server whose `serverInfo.name` is not exactly `gopls` (including an absent name) is
+  refused before any query, which tightens the otherwise unconstrained server identity. The
+  executable is only an absolute `PATH` match; a `PATH` lookup error, including a match relative to
+  the working directory, is `gopls executable not found`. The query digest is SHA-256 over the canonical JSON of the provider id, the index
   commit, the seeds and the bounds; it is reported as `query.sha256` and opens every relation's
   `reference`.
 - `EEP-V0-025`: The expansion is at most two hops. Seeds are at most three `.go` paths whose
@@ -210,13 +213,16 @@ each cited path still exists at that revision, and what was omitted or could not
   `reference` names the digest, the hop, the seed and, at hop two, the hop-one file it came
   through. A location outside the repository is counted (`outside_repository`); a file not
   indexed as text, or whose working-tree bytes differ from the index, is omitted and counted
-  (`omitted_rows`); the record keeps at most 32 relations and 64 KiB.
+  (`omitted_rows`); a query the server answers with an error is counted (`failed_queries`, beside
+  `queries_issued`); the record keeps at most 32 relations and 64 KiB.
 - `EEP-V0-026`: An absent or failing provider yields no record and no partial rows: the section
   holds one `unavailable` provider row whose reason names the cause (`not applicable: no
   committed, unmodified Go file among the seeds`, `gopls executable not found`, `gopls did not
   start`, `gopls exceeded 20s wall time; process group killed`, `gopls cancelled`, `gopls session
-  failed`, `gopls did not exit cleanly`, `gopls process group not proven cleaned up`, or a
-  repository, root commit or cache-directory reason). The exit code and every other packet member
+  failed`, `gopls did not exit cleanly`, `gopls process group not proven cleaned up`, `language
+  server identified as NAME, not gopls; refused`, `gopls answered all N queries with an error;
+  first: ERROR` when at least one query was issued and every one failed, or a repository, root
+  commit or cache-directory reason). The exit code and every other packet member
   are unchanged.
 
 ## Non-goals and simpler baseline
@@ -326,9 +332,9 @@ their tests, the fixture `lsp-gopls.json`, the one `attachLSPEvidence` call in
 | `EEP-V0-021` | `examples/evidence-provider/v0/conformance/main.go` | `TestProviderKitConformanceRunner` |
 | `EEP-V0-022` | `examples/evidence-provider/v0/authoring-proof.sh` | recorded run in the kit README and `docs/BUILD-LOG.md` |
 | `EEP-V0-023` | `InlineSection`, `sectionOf` in `internal/extevidence/section.go`; `attachLSPEvidence` in `cmd/corvint/context_lsp.go` | `TestLSPRecordConformance`, `TestContextLSPOffKeepsTheGoldenAndOnDegrades` |
-| `EEP-V0-024` | `Expand`, `run`, `environment`, `querySummary`, `serverVersion` in `internal/lspprovider/provider.go`; `internal/lspprovider/session.go` | `TestExpandLiveGopls`, `TestSessionAnswersServerRequests` |
+| `EEP-V0-024` | `Expand`, `run`, `environment`, `querySummary`, `serverVersion`, `serverName` in `internal/lspprovider/provider.go`; `internal/lspprovider/session.go` | `TestExpandLiveGopls`, `TestExpandEveryQueryFailedIsUnavailable`, `TestSessionAnswersServerRequests` |
 | `EEP-V0-025` | `dialogue`, `walker`, `record`, `relation` in `internal/lspprovider/provider.go`; `targets` in `internal/lspprovider/targets.go` | `TestExpandLiveGopls`, `TestTargets`, `TestLSPRecordConformance` |
-| `EEP-V0-026` | `Expand`, `run` in `internal/lspprovider/provider.go`; `InlineSection` | `TestExpandDegrades`, `TestLSPUnavailableIsVisible`, `TestContextLSPOffKeepsTheGoldenAndOnDegrades` |
+| `EEP-V0-026` | `Expand`, `run` in `internal/lspprovider/provider.go`; `InlineSection` | `TestExpandDegrades`, `TestExpandEveryQueryFailedIsUnavailable`, `TestLSPUnavailableIsVisible`, `TestContextLSPOffKeepsTheGoldenAndOnDegrades` |
 
 ## Unresolved decisions and promotion or kill criteria
 
