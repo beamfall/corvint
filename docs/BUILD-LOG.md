@@ -2371,3 +2371,27 @@ and the `positive-observed-with-generated-candidate` case over
 NOT MET / UNKNOWN: no external consumer has exercised the marker; an independent adopter record is
 still the EEP-V0 promotion criterion. `conformance/` holds no external-evidence suite, so the pinned
 fixture lives only under `internal/extevidence/testdata`.
+
+## 2026-09-22 provider-capability-declaration: optional `capabilities` record member checked by Core (V1-0102, decision 0351)
+
+Changed: `internal/extevidence` records (`Record`, `Record1`) accept one optional top-level member
+`capabilities` with lists `schemas` and `evidence_kinds`, validated like the rest of the record
+(`EEP-TR-012`). `decodeRecord` checks a declared list before composition: the record schema must be
+declared; under `impact` every used evidence kind must be declared; under `affected` `declared` or
+`observed` must be declared. A shortfall is the new closed state `unsupported` with a Core-authored
+reason naming the provider id and the first missing capability; `affected` then blocks with a
+`provider-unsupported` blocking reason (`EEP-TR-013`). A declaration never widens acceptance
+(`EEP-TR-014`). The shipped handshake is the record member because the only shipped transports are
+file and command; MCP stays an unshipped profile (`EEP-TR-009`), so no transport-level negotiation
+was added. Absent means undeclared: every existing fixture and conformance corpus passes unchanged.
+
+Measured: `internal/extevidence` passes in 91.6s; `TestSelectionEvaluation` over the labelled corpus
+(now 33 selection cases, 73 evaluated variants) reports precision 1.000 (55/55), unsafe narrowing
+0/54, abstention accuracy 7/7, receipt max 7032 bytes. New evidence: `TestCapabilitiesNegotiation`
+(absent, sufficient, kinds-undeclared, missing-kind, missing-schema, empty-schemas),
+`TestCapabilitiesDecodeStrict`, and the `positive-capabilities-sufficient` and
+`negative-capabilities-unsupported` cases over `testdata/conformance-selection/capabilities.json`.
+
+NOT MET / UNKNOWN: no transport-level handshake exists because no shipped transport can carry one;
+no external provider has declared the member; `conformance/` holds no external-evidence suite, so the
+fixture lives only under `internal/extevidence/testdata`.

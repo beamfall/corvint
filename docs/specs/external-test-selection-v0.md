@@ -61,8 +61,9 @@ this request as "EEP slice 3".
   `note`, and `untrusted_text_fields`. Without `--provider`, the receipt MUST be byte-identical to
   a run before this slice. With it, every other receipt member MUST be byte-identical.
 - `ETS-V0-003`: `state` is exactly one of `narrow-selection-allowed`,
-  `full-relevant-suite-required`, `blocked`, or `unknown`, decided in this order: any unavailable
-  or invalid record → `blocked` (`provider-unavailable`); a plan scope that is not bounded →
+  `full-relevant-suite-required`, `blocked`, or `unknown`, decided in this order: any unavailable,
+  invalid, or unsupported record (`EEP-TR-013`) → `blocked` (`provider-unavailable`, with a
+  `provider-unsupported` blocking reason); a plan scope that is not bounded →
   `unknown` (`incomplete-affected-scope`); no changed path → `unknown` (`no-changed-paths`); any
   uncovered obligation or blocking reason → `full-relevant-suite-required` (`open-obligations`);
   otherwise `narrow-selection-allowed`. The state MUST NOT depend on how many tests were selected.
@@ -122,6 +123,7 @@ and the EEP V0 and V1 record bounds.
 | Condition | Result |
 |---|---|
 | Record absent or invalid | `blocked`, `provider-unavailable` |
+| Declared capabilities without `declared` or `observed` evidence | `blocked`, `provider-unavailable`; blocking reason `provider-unsupported` |
 | Unbounded plan scope (for example a language frontier) | `unknown`, `incomplete-affected-scope` |
 | Changed path with no relation | `full-relevant-suite-required`, `no-external-evidence` |
 | Stale record revision on the test side | `stale-provider-revision`, blocking |
@@ -137,7 +139,7 @@ and the EEP V0 and V1 record bounds.
 
 | Case | Expected | Test |
 |---|---|---|
-| 31 labelled cases in `conformance-selection/cases.json` | labelled state, codes, and selected tests | `TestSelectionConformance` |
+| 33 labelled cases in `conformance-selection/cases.json` | labelled state, codes, and selected tests | `TestSelectionConformance` |
 | `generated.json`: one `observed` and one `generated` `verifies` relation to the same obligation | `narrow-selection-allowed`; only the observed test selected; the generated test a candidate coded `generated-only-evidence` | `TestSelectionConformance` |
 | Corpus evaluation | unsafe 0, precision 1, abstention exact | `TestSelectionEvaluation` |
 | Selected row fields | full provenance, `unscored`, limitations | `TestSelectionRowProvenance` |

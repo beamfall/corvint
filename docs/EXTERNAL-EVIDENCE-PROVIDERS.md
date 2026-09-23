@@ -46,6 +46,13 @@ never repairs a record (`EEP-V0-001`).
   a local path, branch name, display name, or record filename is never an identity.
 - **V2** (`EEP-V2-001`, `EEP-V2-002`): a path relation's `from` and `to` are both
   `{repository, path[, blob]}` endpoints, each resolved independently under the V1 endpoint rules.
+- **`capabilities`** (optional on every version; `EEP-TR-012`, `EEP-TR-013`): `{"schemas": [...],
+  "evidence_kinds": [...]}` lists the complete set of record schemas and evidence kinds the provider
+  supports. Leave it out and nothing changes. Declare it and Core checks it before composing:
+  `schemas` must name the record's own schema, and `evidence_kinds` must cover every kind the
+  record uses under `impact`, or include `declared` or `observed` under `affected`. A shortfall
+  closes the provider as `unsupported` with a Core-authored reason (`blocked`,
+  `provider-unsupported` in test selection); it never widens what Core accepts.
 
 ## Running it
 
@@ -204,8 +211,8 @@ every advice list at 64 rows with omissions counted (`ETS-V0-010`).
   `impact` itself still widens one hop (`EEP-V2-008`).
 - Inspecting a `--repository` checkout's worktree contents beyond its Git status and metadata;
   `affected` reads a checkout's dirty paths (`ETS-V1-005`) and nothing else in it.
-- Symbol identity (`repository-id:symbol`), provider capability negotiation, and a
-  generated-versus-observed evidence kind; tickets V1-0101, V1-0102, V1-0107.
+- Symbol identity (`repository-id:symbol`); ticket V1-0101. Capability negotiation is the record
+  member above (V1-0102); the `generated` kind is `EEP-V0-019` (V1-0107).
 - Feeding external evidence into the Change Frontier itself. External items stay out of the frontier
   wire (`EEP-V0-015`); `corvint obligations --cem FILE --impact FILE` instead writes a separate,
   reference-only `external-frontier-obligations/0` sidecar

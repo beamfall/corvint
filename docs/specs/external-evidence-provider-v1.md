@@ -53,7 +53,8 @@ local path, branch name, display name, or record filename is never an identity.
 
 - `EEP-V1-001`: A record whose top-level `schema` is `external-evidence-provider/1` MUST decode
   strictly as V1: UTF-8, one JSON document, no unknown member, at most `MaxRecordBytes`, with
-  `provider`, `repositories`, `entities`, and `relations`. Dispatch reads only `schema`;
+  `provider`, `repositories`, `entities`, and `relations`, plus the optional `capabilities`
+  member of `EEP-TR-012`. Dispatch reads only `schema`;
   `external-evidence-provider/2` decodes by the same rules (`EEP-V2-001`), and every other schema
   value follows `EEP-V0-001` unchanged.
 - `EEP-V1-002`: `repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with a

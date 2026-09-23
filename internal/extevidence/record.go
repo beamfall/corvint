@@ -28,6 +28,7 @@ const (
 	maxIdentifier  = 128
 	maxPath        = 1024
 	maxType        = 64
+	maxCapability  = 32
 )
 
 // Evidence kinds a relation may carry (EEP-V0-007). A generated relation was
@@ -42,11 +43,21 @@ const (
 
 // Record is one decoded provider record.
 type Record struct {
-	Schema     string     `json:"schema"`
-	Provider   Identity   `json:"provider"`
-	Repository Repository `json:"repository"`
-	Entities   []Entity   `json:"entities"`
-	Relations  []Relation `json:"relations"`
+	Schema       string        `json:"schema"`
+	Provider     Identity      `json:"provider"`
+	Repository   Repository    `json:"repository"`
+	Entities     []Entity      `json:"entities"`
+	Relations    []Relation    `json:"relations"`
+	Capabilities *Capabilities `json:"capabilities,omitempty"`
+}
+
+// Capabilities is the optional provider capability declaration (EEP-TR-012).
+// A nil member is undeclared and changes nothing; a present list, even empty,
+// is the complete set the provider supports, and Core refuses a record whose
+// invocation needs something outside it (EEP-TR-013).
+type Capabilities struct {
+	Schemas       []string `json:"schemas,omitempty"`
+	EvidenceKinds []string `json:"evidence_kinds,omitempty"`
 }
 
 // Identity names a provider and its own revision.
@@ -143,6 +154,33 @@ func validate(record Record) error {
 		if err := validateRelation(position, relation); err != nil {
 			return err
 		}
+	}
+	return validateCapabilities(record.Capabilities)
+}
+
+func validateCapabilities(declared *Capabilities) error {
+	if declared == nil {
+		return nil
+	}
+	if err := checkCapabilityList("capabilities.schemas", declared.Schemas); err != nil {
+		return err
+	}
+	return checkCapabilityList("capabilities.evidence_kinds", declared.EvidenceKinds)
+}
+
+func checkCapabilityList(field string, values []string) error {
+	if len(values) > maxCapability {
+		return fmt.Errorf("%s exceeds %d entries", field, maxCapability)
+	}
+	seen := make(map[string]struct{}, len(values))
+	for position, value := range values {
+		if err := checkIdentifier(fmt.Sprintf("%s[%d]", field, position), value); err != nil {
+			return err
+		}
+		if _, duplicate := seen[value]; duplicate {
+			return fmt.Errorf("%s[%d]: duplicate %q", field, position, value)
+		}
+		seen[value] = struct{}{}
 	}
 	return nil
 }

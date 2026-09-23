@@ -679,50 +679,53 @@ EEP-REMOTE-001	docs/specs/external-evidence-provider-remote-v0.md	26	The separat
 EEP-REMOTE-002	docs/specs/external-evidence-provider-remote-v0.md	30	Fetch MUST be a single GET, with normal certificate/hostname validation and
 EEP-REMOTE-003	docs/specs/external-evidence-provider-remote-v0.md	36	Optional bearer credentials MUST be read only from a regular, non-symlink,
 EEP-REMOTE-004	docs/specs/external-evidence-provider-remote-v0.md	42	Complete successful body bytes MUST be written unchanged and decoded only
-EEP-TR-001	docs/specs/external-evidence-provider-transports-v0.md	49	The command transport MUST be selected only by `corvint impact --provider-comman
-EEP-TR-002	docs/specs/external-evidence-provider-transports-v0.md	56	`ARGV_JSON` MUST be one JSON array of 1 to 32 strings, at most 4096 bytes, valid
-EEP-TR-003	docs/specs/external-evidence-provider-transports-v0.md	60	The command MUST run with only `PATH` and `TMPDIR` (when set) plus `LANG=C` and
-EEP-TR-004	docs/specs/external-evidence-provider-transports-v0.md	65	Each selected command MUST be launched once, with no retry, under a 10-second wa
-EEP-TR-005	docs/specs/external-evidence-provider-transports-v0.md	68	A command that completes cleanly MUST have its complete stdout decoded by the sa
-EEP-TR-006	docs/specs/external-evidence-provider-transports-v0.md	73	Every transport failure MUST yield one provider row in a closed state with an em
-EEP-TR-007	docs/specs/external-evidence-provider-transports-v0.md	79	`impact` with a provider command MUST remain a read command: the receipt reports
-EEP-TR-008	docs/specs/external-evidence-provider-transports-v0.md	82	stderr MUST be bounded and discarded: it never appears in the receipt, a reason,
-EEP-TR-009	docs/specs/external-evidence-provider-transports-v0.md	85	MCP MUST be selected only through the accepted bounded stdio profile in
-EEP-TR-010	docs/specs/external-evidence-provider-transports-v0.md	88	A remote (network) transport is NO-GO on the default local path (decision 0318).
-EEP-TR-011	docs/specs/external-evidence-provider-transports-v0.md	92	The optional authoring-kit checker MUST require and verify an exact lowercase
+EEP-TR-001	docs/specs/external-evidence-provider-transports-v0.md	52	The command transport MUST be selected only by `corvint impact --provider-comman
+EEP-TR-002	docs/specs/external-evidence-provider-transports-v0.md	59	`ARGV_JSON` MUST be one JSON array of 1 to 32 strings, at most 4096 bytes, valid
+EEP-TR-003	docs/specs/external-evidence-provider-transports-v0.md	63	The command MUST run with only `PATH` and `TMPDIR` (when set) plus `LANG=C` and
+EEP-TR-004	docs/specs/external-evidence-provider-transports-v0.md	68	Each selected command MUST be launched once, with no retry, under a 10-second wa
+EEP-TR-005	docs/specs/external-evidence-provider-transports-v0.md	71	A command that completes cleanly MUST have its complete stdout decoded by the sa
+EEP-TR-006	docs/specs/external-evidence-provider-transports-v0.md	76	Every transport failure MUST yield one provider row in a closed state with an em
+EEP-TR-007	docs/specs/external-evidence-provider-transports-v0.md	82	`impact` with a provider command MUST remain a read command: the receipt reports
+EEP-TR-008	docs/specs/external-evidence-provider-transports-v0.md	85	stderr MUST be bounded and discarded: it never appears in the receipt, a reason,
+EEP-TR-009	docs/specs/external-evidence-provider-transports-v0.md	88	MCP MUST be selected only through the accepted bounded stdio profile in
+EEP-TR-010	docs/specs/external-evidence-provider-transports-v0.md	91	A remote (network) transport is NO-GO on the default local path (decision 0318).
+EEP-TR-011	docs/specs/external-evidence-provider-transports-v0.md	95	The optional authoring-kit checker MUST require and verify an exact lowercase
+EEP-TR-012	docs/specs/external-evidence-provider-transports-v0.md	102	A record on any transport MAY carry one optional top-level member `capabilities`
+EEP-TR-013	docs/specs/external-evidence-provider-transports-v0.md	110	When a list is declared, Core MUST check it against what the invocation requires
+EEP-TR-014	docs/specs/external-evidence-provider-transports-v0.md	119	A declared capability never widens what Core accepts: an unknown identifier in
 EEP-V0-001	docs/specs/external-evidence-provider-v0.md	63	A provider record MUST be one JSON document whose top-level members are exactly
-EEP-V0-002	docs/specs/external-evidence-provider-v0.md	68	`corvint impact --provider FILE PATH...` selects a provider record; the option M
-EEP-V0-003	docs/specs/external-evidence-provider-v0.md	72	Provider output appears only under `context.external`. With the same paths, limi
-EEP-V0-004	docs/specs/external-evidence-provider-v0.md	75	The section MUST list every selected provider with `source` as given, the
-EEP-V0-005	docs/specs/external-evidence-provider-v0.md	79	A record that cannot be read is reported with state `unavailable`; a record that
-EEP-V0-006	docs/specs/external-evidence-provider-v0.md	83	An endpoint MUST be `path:<path>` or `<provider-id>:<entity-id>`. A path MUST be
-EEP-V0-007	docs/specs/external-evidence-provider-v0.md	89	A relation's `evidence` MUST be `declared`, `observed`, `inferred`, or `generate
-EEP-V0-008	docs/specs/external-evidence-provider-v0.md	94	A relation `type` is preserved exactly as the provider wrote it: lowercase, digi
-EEP-V0-009	docs/specs/external-evidence-provider-v0.md	97	`freshness` compares the record's `repository.revision` with the captured commit
-EEP-V0-010	docs/specs/external-evidence-provider-v0.md	102	Every path endpoint in an included relation carries `verification`: `verified`
-EEP-V0-011	docs/specs/external-evidence-provider-v0.md	111	`results` lists each entity joined by a relation to a requested changed path;
-EEP-V0-012	docs/specs/external-evidence-provider-v0.md	117	Bounds: at most four providers, 1048576 bytes per record, 1000 entities and 4000
-EEP-V0-013	docs/specs/external-evidence-provider-v0.md	120	`summary`, `rule`, `reference`, and `reason` text from a record MUST be valid
-EEP-V0-014	docs/specs/external-evidence-provider-v0.md	123	`impact --provider` reads the record and Git and writes no repository, index, or
-EEP-V0-015	docs/specs/external-evidence-provider-v0.md	125	External items never enter `context.results`, ranking, learning, a CEM, an OCM,
-EEP-V0-016	docs/specs/external-evidence-provider-v0.md	128	The experimental versioned local authoring kit MUST contain one copyable native-
-EEP-V0-017	docs/specs/external-evidence-provider-v0.md	132	The kit consumer MUST strictly decode bounded regular-file or contained-command
-EEP-V0-018	docs/specs/external-evidence-provider-v0.md	138	Kit conformance MUST reuse valid, stale, malformed, ambiguous,
-EEP-V0-019	docs/specs/external-evidence-provider-v0.md	143	A `generated` relation composes exactly as the other admitted kinds, and every
+EEP-V0-002	docs/specs/external-evidence-provider-v0.md	69	`corvint impact --provider FILE PATH...` selects a provider record; the option M
+EEP-V0-003	docs/specs/external-evidence-provider-v0.md	73	Provider output appears only under `context.external`. With the same paths, limi
+EEP-V0-004	docs/specs/external-evidence-provider-v0.md	76	The section MUST list every selected provider with `source` as given, the
+EEP-V0-005	docs/specs/external-evidence-provider-v0.md	80	A record that cannot be read is reported with state `unavailable`; a record that
+EEP-V0-006	docs/specs/external-evidence-provider-v0.md	86	An endpoint MUST be `path:<path>` or `<provider-id>:<entity-id>`. A path MUST be
+EEP-V0-007	docs/specs/external-evidence-provider-v0.md	92	A relation's `evidence` MUST be `declared`, `observed`, `inferred`, or `generate
+EEP-V0-008	docs/specs/external-evidence-provider-v0.md	97	A relation `type` is preserved exactly as the provider wrote it: lowercase, digi
+EEP-V0-009	docs/specs/external-evidence-provider-v0.md	100	`freshness` compares the record's `repository.revision` with the captured commit
+EEP-V0-010	docs/specs/external-evidence-provider-v0.md	105	Every path endpoint in an included relation carries `verification`: `verified`
+EEP-V0-011	docs/specs/external-evidence-provider-v0.md	114	`results` lists each entity joined by a relation to a requested changed path;
+EEP-V0-012	docs/specs/external-evidence-provider-v0.md	120	Bounds: at most four providers, 1048576 bytes per record, 1000 entities and 4000
+EEP-V0-013	docs/specs/external-evidence-provider-v0.md	123	`summary`, `rule`, `reference`, and `reason` text from a record MUST be valid
+EEP-V0-014	docs/specs/external-evidence-provider-v0.md	126	`impact --provider` reads the record and Git and writes no repository, index, or
+EEP-V0-015	docs/specs/external-evidence-provider-v0.md	128	External items never enter `context.results`, ranking, learning, a CEM, an OCM,
+EEP-V0-016	docs/specs/external-evidence-provider-v0.md	131	The experimental versioned local authoring kit MUST contain one copyable native-
+EEP-V0-017	docs/specs/external-evidence-provider-v0.md	135	The kit consumer MUST strictly decode bounded regular-file or contained-command
+EEP-V0-018	docs/specs/external-evidence-provider-v0.md	141	Kit conformance MUST reuse valid, stale, malformed, ambiguous,
+EEP-V0-019	docs/specs/external-evidence-provider-v0.md	146	A `generated` relation composes exactly as the other admitted kinds, and every
 EEP-V1-001	docs/specs/external-evidence-provider-v1.md	54	A record whose top-level `schema` is `external-evidence-provider/1` MUST decode
-EEP-V1-002	docs/specs/external-evidence-provider-v1.md	59	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with
-EEP-V1-003	docs/specs/external-evidence-provider-v1.md	65	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin
-EEP-V1-004	docs/specs/external-evidence-provider-v1.md	69	Identity MUST be evaluated per declared repository: `unresolved` without an
-EEP-V1-005	docs/specs/external-evidence-provider-v1.md	72	Binding MUST be evaluated per declared repository:
-EEP-V1-006	docs/specs/external-evidence-provider-v1.md	83	Freshness MUST be evaluated per repository against its bound `HEAD` with the
-EEP-V1-007	docs/specs/external-evidence-provider-v1.md	88	A path endpoint MUST be verified in its own repository with the `EEP-V0-010`
-EEP-V1-008	docs/specs/external-evidence-provider-v1.md	91	Every V1 item MUST carry `repository`, `endpoints`, `relation_state`, and
-EEP-V1-009	docs/specs/external-evidence-provider-v1.md	103	`--repository ID=DIR` MAY repeat up to 8 times, each ID at most once, and only
-EEP-V1-010	docs/specs/external-evidence-provider-v1.md	107	Cross-repository relations MUST come only from declared records. Core never infe
-EEP-V1-011	docs/specs/external-evidence-provider-v1.md	111	A V0 record, and every run without `--repository`, MUST produce the same section
-EEP-V1-012	docs/specs/external-evidence-provider-v1.md	114	Section composition, ordering, the `--limit` bound, and omission counts follow
-EEP-V1-013	docs/specs/external-evidence-provider-v1.md	116	No failure MAY surface as empty success. A missing, conflicting, or ambiguous
-EEP-V1-014	docs/specs/external-evidence-provider-v1.md	120	The section MUST carry no credential, file body, or resolved local path, and
+EEP-V1-002	docs/specs/external-evidence-provider-v1.md	60	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with
+EEP-V1-003	docs/specs/external-evidence-provider-v1.md	66	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin
+EEP-V1-004	docs/specs/external-evidence-provider-v1.md	70	Identity MUST be evaluated per declared repository: `unresolved` without an
+EEP-V1-005	docs/specs/external-evidence-provider-v1.md	73	Binding MUST be evaluated per declared repository:
+EEP-V1-006	docs/specs/external-evidence-provider-v1.md	84	Freshness MUST be evaluated per repository against its bound `HEAD` with the
+EEP-V1-007	docs/specs/external-evidence-provider-v1.md	89	A path endpoint MUST be verified in its own repository with the `EEP-V0-010`
+EEP-V1-008	docs/specs/external-evidence-provider-v1.md	92	Every V1 item MUST carry `repository`, `endpoints`, `relation_state`, and
+EEP-V1-009	docs/specs/external-evidence-provider-v1.md	104	`--repository ID=DIR` MAY repeat up to 8 times, each ID at most once, and only
+EEP-V1-010	docs/specs/external-evidence-provider-v1.md	108	Cross-repository relations MUST come only from declared records. Core never infe
+EEP-V1-011	docs/specs/external-evidence-provider-v1.md	112	A V0 record, and every run without `--repository`, MUST produce the same section
+EEP-V1-012	docs/specs/external-evidence-provider-v1.md	115	Section composition, ordering, the `--limit` bound, and omission counts follow
+EEP-V1-013	docs/specs/external-evidence-provider-v1.md	117	No failure MAY surface as empty success. A missing, conflicting, or ambiguous
+EEP-V1-014	docs/specs/external-evidence-provider-v1.md	121	The section MUST carry no credential, file body, or resolved local path, and
 EEP-V2-001	docs/specs/external-evidence-provider-v2.md	47	A record whose `schema` is `external-evidence-provider/2` MUST decode under ever
 EEP-V2-002	docs/specs/external-evidence-provider-v2.md	51	Each endpoint of a path relation MUST resolve independently under the `EEP-V1`
 EEP-V2-003	docs/specs/external-evidence-provider-v2.md	55	When at least one V2 record loads, `context.external` MUST gain `path_relations`
@@ -770,17 +773,17 @@ ESV-V0-007	docs/specs/experimental-source-views-v0.md	161	The opt-in development
 ETS-V0-001	docs/specs/external-test-selection-v0.md	51	`corvint affected` MUST accept `--provider FILE` and `--provider-command
 ETS-V0-002	docs/specs/external-test-selection-v0.md	57	With `--provider`, `advice` MUST gain `test_selection` with schema
 ETS-V0-003	docs/specs/external-test-selection-v0.md	63	`state` is exactly one of `narrow-selection-allowed`,
-ETS-V0-004	docs/specs/external-test-selection-v0.md	69	The strict profile admits `verifies` and `asserts`; the coverage profile also
-ETS-V0-005	docs/specs/external-test-selection-v0.md	71	A relation qualifies only when its type is admitted, its evidence is `declared`
-ETS-V0-006	docs/specs/external-test-selection-v0.md	76	Any record, identity, binding, freshness, verification, or unsupported-relation
-ETS-V0-007	docs/specs/external-test-selection-v0.md	81	Every selected and candidate row MUST carry the provider, provider revision, ent
-ETS-V0-008	docs/specs/external-test-selection-v0.md	86	Every candidate, uncovered obligation, and blocking reason MUST carry a named co
-ETS-V0-009	docs/specs/external-test-selection-v0.md	89	`mandatory` MUST echo every mandatory check unchanged. Selection never removes,
-ETS-V0-010	docs/specs/external-test-selection-v0.md	91	Rows are sorted by a total key. Every list is bounded at 64 rows and `omitted`
-ETS-V0-011	docs/specs/external-test-selection-v0.md	93	The conformance corpus MUST cover positive, negative, stale, missing, ambiguous,
-ETS-V0-012	docs/specs/external-test-selection-v0.md	96	The evaluation MUST report precision, unsafe-narrowing rate, abstention accuracy
-ETS-V0-013	docs/specs/external-test-selection-v0.md	98	The member MUST carry no file body, credential, or resolved checkout directory.
-ETS-V0-014	docs/specs/external-test-selection-v0.md	101	A `generated` relation (`EEP-V0-019`) is weak evidence: it is listed as a candid
+ETS-V0-004	docs/specs/external-test-selection-v0.md	70	The strict profile admits `verifies` and `asserts`; the coverage profile also
+ETS-V0-005	docs/specs/external-test-selection-v0.md	72	A relation qualifies only when its type is admitted, its evidence is `declared`
+ETS-V0-006	docs/specs/external-test-selection-v0.md	77	Any record, identity, binding, freshness, verification, or unsupported-relation
+ETS-V0-007	docs/specs/external-test-selection-v0.md	82	Every selected and candidate row MUST carry the provider, provider revision, ent
+ETS-V0-008	docs/specs/external-test-selection-v0.md	87	Every candidate, uncovered obligation, and blocking reason MUST carry a named co
+ETS-V0-009	docs/specs/external-test-selection-v0.md	90	`mandatory` MUST echo every mandatory check unchanged. Selection never removes,
+ETS-V0-010	docs/specs/external-test-selection-v0.md	92	Rows are sorted by a total key. Every list is bounded at 64 rows and `omitted`
+ETS-V0-011	docs/specs/external-test-selection-v0.md	94	The conformance corpus MUST cover positive, negative, stale, missing, ambiguous,
+ETS-V0-012	docs/specs/external-test-selection-v0.md	97	The evaluation MUST report precision, unsafe-narrowing rate, abstention accuracy
+ETS-V0-013	docs/specs/external-test-selection-v0.md	99	The member MUST carry no file body, credential, or resolved checkout directory.
+ETS-V0-014	docs/specs/external-test-selection-v0.md	102	A `generated` relation (`EEP-V0-019`) is weak evidence: it is listed as a candid
 ETS-V1-001	docs/specs/external-test-selection-v1.md	46	The obligation walk MUST replace the one-hop widening. It is bounded at
 ETS-V1-002	docs/specs/external-test-selection-v1.md	49	A cut MUST block every edge entity with `obligation-depth-truncated` or
 ETS-V1-003	docs/specs/external-test-selection-v1.md	51	A cut MUST add one `unknowns` row per edge entity with `code`, `provider`,

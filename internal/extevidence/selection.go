@@ -136,7 +136,7 @@ type selector struct {
 // executes nothing, and never fails: every problem is a structured entry.
 func Selection(ctx context.Context, dir, revision string, sources []string, checkouts []Checkout, input SelectionInput) map[string]any {
 	root := headRoot(dir, revision)
-	root.changed = input.Changed
+	root.changed, root.selecting = input.Changed, true
 	providers, repository, bound := loadAll(ctx, root, sources, checkouts)
 	s := newSelector(input)
 	s.inspect(ctx, bound)

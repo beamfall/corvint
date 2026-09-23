@@ -61,7 +61,8 @@ each cited path still exists at that revision, and what was omitted or could not
 ## Requirements
 
 - `EEP-V0-001`: A provider record MUST be one JSON document whose top-level members are exactly
-  `schema`, `provider`, `repository`, `entities`, and `relations`; `schema` MUST equal
+  `schema`, `provider`, `repository`, `entities`, and `relations`, plus the optional
+  `capabilities` declaration of `EEP-TR-012` (decision 0351); `schema` MUST equal
   `external-evidence-provider/0`. Any unknown member at any level, a duplicate entity id, an
   identifier or text outside the bounds of `EEP-V0-012` and `EEP-V0-013`, or a malformed field
   makes the whole record `invalid` with one reason. Core never repairs a record.
@@ -77,9 +78,11 @@ each cited path still exists at that revision, and what was omitted or could not
   `reason`. Identical record bytes, changed paths, limit, and index MUST produce an identical
   section.
 - `EEP-V0-005`: A record that cannot be read is reported with state `unavailable`; a record that
-  fails `EEP-V0-001` is reported with state `invalid`; a loaded record has state `loaded`. Neither
-  failure state changes the exit code, `ok`, or the core receipt. An unavailable or invalid provider
-  contributes no results and no unknowns beyond its own provider entry.
+  fails `EEP-V0-001` is reported with state `invalid`; a record whose declared capabilities omit
+  what the invocation requires is reported with state `unsupported` (`EEP-TR-013`); a loaded
+  record has state `loaded`. No failure state changes the exit code, `ok`, or the core receipt. An
+  unavailable, invalid, or unsupported provider contributes no results and no unknowns beyond its
+  own provider entry.
 - `EEP-V0-006`: An endpoint MUST be `path:<path>` or `<provider-id>:<entity-id>`. A path MUST be
   repository-relative, non-empty, without a leading slash or `..` segment, and at most 1024 bytes.
   An endpoint with neither prefix, a path outside those bounds, an entity endpoint whose provider
@@ -198,6 +201,7 @@ the exit code, so an existing caller that never passes `--provider` observes no 
 | Record with one `observed` and one `generated` relation | both admitted; the generated item's `relation.evidence` and `reason` say `generated`; nothing under `unknowns` |
 | Record with foreign provider endpoint | relation `unresolved` under `unknowns` |
 | Missing file | provider `unavailable`; exit 0; core receipt unchanged |
+| Record whose `capabilities.evidence_kinds` omit a kind it uses | provider `unsupported` with a Core-authored reason; nothing composes; exit 0 |
 | Unknown top-level member | provider `invalid`; exit 0 |
 | Provider revision equal / ancestor / descendant / orphan / unknown | the five `EEP-V0-009` states |
 | Path tracked with equal, differing, and absent pinned blob; untracked path | `verified`, `stale`, `verified`, `missing` |
@@ -218,11 +222,11 @@ table; a record carrying it then returns to `excluded-evidence-kind`, and no oth
 
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
-| `EEP-V0-001`, `EEP-V0-013` | `internal/extevidence/record.go` | `TestProviderRecordSchemaStrict` |
+| `EEP-V0-001`, `EEP-V0-013` | `internal/extevidence/record.go` | `TestProviderRecordSchemaStrict`, `TestCapabilitiesDecodeStrict` |
 | `EEP-V0-002` | `cmd/corvint/main.go` | `TestImpactProviderFlagParsing` |
 | `EEP-V0-003`, `EEP-V0-015` | `cmd/corvint/main.go` | `TestImpactProviderSectionSeparation` |
 | `EEP-V0-004` | `internal/extevidence/section.go` | `TestProviderSectionDeterministicAndPinned` |
-| `EEP-V0-005` | `internal/extevidence/section.go` | `TestProviderUnavailableAndInvalidAreStructured` |
+| `EEP-V0-005` | `internal/extevidence/section.go` | `TestProviderUnavailableAndInvalidAreStructured`, `TestCapabilitiesNegotiation` |
 | `EEP-V0-006` | `internal/extevidence/compose.go` | `TestEndpointIdentitiesResolve` |
 | `EEP-V0-007` | `internal/extevidence/compose.go` | `TestEvidenceKindLearnedExcluded`, `TestEvidenceKindGeneratedAdmitted`, `TestImpactProviderEvaluation` |
 | `EEP-V0-008` | `internal/extevidence/compose.go` | `TestRelationTypesPreserved` |

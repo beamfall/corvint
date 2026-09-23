@@ -43,6 +43,9 @@ way the command can fail is one closed provider row with no partial record.
   in the receipt as `command:` followed by the compact JSON argv.
 - **transport failure**: any outcome in which the command did not run to a clean zero exit within
   its bounds with its process group proven cleaned up.
+- **capability declaration**: the optional top-level record member `capabilities`, carried by the
+  record bytes themselves on every transport, in which a provider lists the complete set of record
+  `schemas` and relation `evidence_kinds` it supports (added 2026-09-22, decision 0351).
 
 ## Requirements
 
@@ -96,6 +99,26 @@ way the command can fail is one closed provider row with no partial record.
   The trusted local executable and parent paths MUST stay immutable between hashing and launch;
   concurrent hostile substitution is outside this local operator trust contract. Executable hashing
   precedes the runner timeout. A saved invocation's expected pins MUST NOT update automatically.
+- `EEP-TR-012`: A record on any transport MAY carry one optional top-level member `capabilities`
+  with the optional lists `schemas` and `evidence_kinds`, each of at most 32 unique identifiers
+  under the `EEP-V0-012` identifier bound. An absent member, or an absent list inside it, is
+  undeclared and changes nothing: a record without the member decodes and composes exactly as
+  before. A present list, even empty, is the complete set the provider supports. Any other member
+  inside `capabilities`, a duplicate, or a non-identifier makes the record
+  `invalid` under `EEP-V0-001`. No transport adds a handshake of its own: negotiation is the
+  record member.
+- `EEP-TR-013`: When a list is declared, Core MUST check it against what the invocation requires
+  before anything from the record composes: `schemas` must contain the record's own `schema`;
+  under `impact`, `evidence_kinds` must contain every kind a relation in the record uses; under
+  `affected`, `evidence_kinds` must contain `declared` or `observed`, the only kinds that qualify
+  a selection (`ETS-V0-005`). A missing requirement yields one provider row in the closed state
+  `unsupported` whose reason is Core-authored, names the provider id and the first missing
+  capability, and carries nothing from the record: no `results`, `downstream`, `verification`,
+  `path_relations`, or `unknowns` under `impact`, and `blocked` (`provider-unsupported`) under
+  `affected`. The check is deterministic: the same bytes and verb always yield the same row.
+- `EEP-TR-014`: A declared capability never widens what Core accepts: an unknown identifier in
+  either list is carried as declared and ignored, `learned` stays excluded whether or not it is
+  declared, and no declaration changes ranking, authority, freshness, or the core receipt.
 
 ## Non-goals and simpler baseline
 
@@ -138,6 +161,7 @@ data at all. Core assigns authority and writes every failure reason.
 | Process group not proven cleaned up | `unavailable` | `command process group not proven cleaned up` |
 | Malformed, trailing, or schema-invalid stdout | `invalid` | the file transport's decode reason |
 | Invalid `ARGV_JSON` | argument error | nothing launched |
+| Declared `capabilities` omit the record schema or a required evidence kind | `unsupported` | `provider ID declares capabilities without schema S` or `... without evidence kind K` |
 
 ## Deterministic acceptance and testing matrix
 
@@ -153,13 +177,21 @@ data at all. Core assigns authority and writes every failure reason.
 | `command:[...]` passed as `--provider` | read as a file path; `unavailable` |
 | `impact --provider-command '["/bin/cat",RECORD]'` | receipt equals `--provider RECORD` apart from `source`; `mutates: false`; worktree unchanged |
 | `affected --provider-command '["/bin/cat",RECORD]'` | `test_selection` equals `--provider RECORD` apart from `source`; a fifth provider by command is refused |
+| Record without `capabilities` | `Capabilities` nil; state, receipt, and every existing fixture unchanged |
+| `capabilities` covering the record's schema and every used kind | `loaded`; receipt equals the undeclared record's |
+| `capabilities.evidence_kinds` omitting a used kind, or `schemas` omitting the record schema (including an empty list) | `unsupported`; Core-authored reason; empty `results`, `downstream`, `verification`, `unknowns` |
+| `affected` with `evidence_kinds: ["observed"]`; with `["inferred"]` | `narrow-selection-allowed`; `blocked` with `provider-unsupported` |
+| Unknown member inside `capabilities`; duplicate entry; empty identifier | `invalid` |
 
 ## Rollout, rollback, and compatibility
 
 The option is additive; a caller that never passes `--provider-command` observes no change. Rollback
 removes `internal/extevidence/transport.go`, the command branch in `load`, the
 `--provider-command` option and help text, this document, decisions 0316 to 0318, and their index
-rows. The `decodeRecord` extraction in `section.go` is behaviour-preserving and may stay.
+rows. The `decodeRecord` extraction in `section.go` is behaviour-preserving and may stay. The
+capability declaration (decision 0351) rolls back on its own by removing `Capabilities` from both
+record types, `rootRepository.unsupported`, and `StateUnsupported`; a record carrying the member
+then becomes `invalid` under strict decode, and every other record is unchanged.
 
 ## Traceability
 
@@ -176,6 +208,9 @@ rows. The `decodeRecord` extraction in `section.go` is behaviour-preserving and 
 | `EEP-TR-009` | `internal/extevidence/mcp.go`; decision 0324 | `TestMCPTransportConformance` |
 | `EEP-TR-010` | this document; decision 0318 | review: no network client in `internal/extevidence` |
 
+| `EEP-TR-012` | `Capabilities`, `validateCapabilities` in `internal/extevidence/record.go`; `Record1` in `record1.go` | `TestCapabilitiesNegotiation`, `TestCapabilitiesDecodeStrict` |
+| `EEP-TR-013` | `rootRepository.unsupported`, `decodeRecord` in `internal/extevidence/section.go`; `Selection` in `selection.go` | `TestCapabilitiesNegotiation`, `TestSelectionConformance` |
+| `EEP-TR-014` | `rootRepository.unsupported` in `internal/extevidence/section.go`; `evidenceKinds` in `compose.go` | `TestCapabilitiesNegotiation` |
 | `EEP-TR-011` | `internal/extevidence/pin.go`, `examples/evidence-provider/v0/check/main.go` | `TestProviderKitCommandPins`, `TestCommandTransportContainment`, `TestCommandTransportFailuresAreClosed`, `TestRunProcessInterruptionLeavesNoDescendant`, `TestSupervisorSignalReapsNestedOwnedGroup` |
 
 The kit checker is additive and experimental (V1-0027); its `/0`, `/1`, `/2` compatibility window

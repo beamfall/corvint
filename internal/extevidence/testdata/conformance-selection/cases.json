@@ -151,6 +151,50 @@
    "safe_to_narrow": true
   },
   {
+   "name": "positive-capabilities-sufficient",
+   "record": "capabilities.json",
+   "values": {
+    "CAPABILITY_KIND": "observed"
+   },
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "narrow-selection-allowed",
+   "codes": [],
+   "selected": [
+    "application:pkg/main_test.go"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go"
+   ],
+   "safe_to_narrow": true
+  },
+  {
+   "name": "negative-capabilities-unsupported",
+   "record": "capabilities.json",
+   "values": {
+    "CAPABILITY_KIND": "inferred"
+   },
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "blocked",
+   "codes": [
+    "provider-unsupported"
+   ],
+   "selected": [],
+   "relevant": [],
+   "safe_to_narrow": false
+  },
+  {
    "name": "negative-learned",
    "record": "learned.json",
    "profile": "strict",

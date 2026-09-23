@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -19,6 +20,7 @@ const (
 	StateLoaded      = "loaded"
 	StateUnavailable = "unavailable"
 	StateInvalid     = "invalid"
+	StateUnsupported = "unsupported"
 )
 
 // UntrustedTextFields names the provider-authored free text in the section (EEP-V0-013).
@@ -79,6 +81,37 @@ type rootRepository struct {
 	// changed lists the root paths a V2 directory scope may hold, so the
 	// tree can answer for them (EEP-V2-012).
 	changed []string
+	// selecting marks an `affected` invocation, which needs declared or
+	// observed evidence rather than every kind the record uses (EEP-TR-013).
+	selecting bool
+}
+
+// unsupported is the Core-authored reason a declared capability set omits
+// what this invocation requires, or empty when it declares enough or nothing
+// (EEP-TR-013). Only the first missing capability is named.
+func (root rootRepository) unsupported(id, schema string, declared *Capabilities, used []string) string {
+	if declared == nil {
+		return ""
+	}
+	if declared.Schemas != nil && !slices.Contains(declared.Schemas, schema) {
+		return fmt.Sprintf("provider %s declares capabilities without schema %s", id, schema)
+	}
+	if declared.EvidenceKinds == nil {
+		return ""
+	}
+	if root.selecting {
+		qualifying := []string{EvidenceDeclared, EvidenceObserved}
+		if slices.ContainsFunc(qualifying, func(kind string) bool { return slices.Contains(declared.EvidenceKinds, kind) }) {
+			return ""
+		}
+		return fmt.Sprintf("provider %s declares capabilities without evidence kind %s or %s", id, EvidenceDeclared, EvidenceObserved)
+	}
+	for _, kind := range used {
+		if !slices.Contains(declared.EvidenceKinds, kind) {
+			return fmt.Sprintf("provider %s declares capabilities without evidence kind %s", id, kind)
+		}
+	}
+	return ""
 }
 
 func indexRoot(index *contextindex.Index) rootRepository {
@@ -187,6 +220,14 @@ func decodeRecord(ctx context.Context, root rootRepository, entry provider, data
 			entry.state, entry.reason = StateInvalid, err.Error()
 			return entry
 		}
+		used := make([]string, 0, len(record.Relations))
+		for _, relation := range record.Relations {
+			used = append(used, relation.Evidence)
+		}
+		if reason := root.unsupported(record.Provider.ID, record.Schema, record.Capabilities, used); reason != "" {
+			entry.state, entry.reason = StateUnsupported, reason
+			return entry
+		}
 		entry.record1, entry.state = &record, StateLoaded
 		entry.reason = "record decoded; freshness by Git ancestry per declared repository"
 		return entry
@@ -194,6 +235,14 @@ func decodeRecord(ctx context.Context, root rootRepository, entry provider, data
 	record, err := Decode(data)
 	if err != nil {
 		entry.state, entry.reason = StateInvalid, err.Error()
+		return entry
+	}
+	used := make([]string, 0, len(record.Relations))
+	for _, relation := range record.Relations {
+		used = append(used, relation.Evidence)
+	}
+	if reason := root.unsupported(record.Provider.ID, record.Schema, record.Capabilities, used); reason != "" {
+		entry.state, entry.reason = StateUnsupported, reason
 		return entry
 	}
 	entry.record, entry.state = record, StateLoaded
