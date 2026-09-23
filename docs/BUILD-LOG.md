@@ -4,6 +4,35 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-22 V1-0027 EEP-V0-020/021/022: kit 0.2.0 profile contract and two-transport proof
+
+Re-audit of kit 0.1.0 found three open acceptance gaps. The checker's schema comparison used Go's
+last-value-wins decoding, so a record repeating its top-level `schema` (first `/3`, then `/1`)
+passed a `/1` pin, and unsupported and mismatched profiles shared one reason. The kit's
+two-transport comparison ran only in-process, not through a `corvint impact` binary, and no script
+proved authoring from the kit directory alone. Kit 0.2.0 (`EEP-V0-020`) versions the kit separately
+from provider revisions. It keeps the exact `/0`, `/1`, `/2` window and gives ambiguous (repeated
+member, or pinned origin claimed twice), unsupported and mismatched profiles distinct refusals.
+`TestProviderKitProfileReasons` pins the checker outcome for each of the valid, stale, malformed,
+ambiguous, repository-mismatched and unsupported classes. The standard-library runner (`EEP-V0-021`)
+builds a copied `main.go` offline and runs 9 cases through `impact --provider` and
+`--provider-command`. Each case produced an equal external section apart from `source`, a core
+receipt equal to the no-provider receipt, `mutates` false and its pinned outcome.
+
+Clean-checkout proof (`EEP-V0-022`): `sh examples/evidence-provider/v0/authoring-proof.sh
+LOCAL_CLONE 8bd9cc3d979e39129c728cd1d75b0e433ee964a3 CORVINT` (a local clone) sparse-checked-out
+only the kit directory, built the runner and provider offline and passed all 9 cases. It passed
+against a Corvint built from that commit and against the installed 0.7.0 build 46. A copy authored
+as `authored-docs` revision `1.4.2` passed the same runner. Core `impact` still decodes a repeated
+member as its last value. Changing that is a Core behaviour change outside this slice and is
+reported as a follow-up. Default product unchanged: no file under `cmd/`, no flag, wire or receipt
+changed, and `ReadPinned` has no caller outside the kit checker.
+
+Focused verification: `go test` of the kit packages, `internal/extevidence`, `internal/specindex`
+and `cmd/corvint`, `go vet` of the same, and the focused-docs gate. Full gate and interop gate
+NOT_RUN (owner policy for scoped work). Pre-change dogfood collection NOT_RUN. V1-0013 freeze,
+owner acceptance, independent review and external validation NOT_OBSERVED. The fixtures are
+synthetic.
 ## 2026-09-22 CEM-PILOT-020..023 / decision 0356: portable digest-pinned CEM CI verifier (V1-0015)
 
 `interop/cem01-go` gains a `ci` mode. It derives the exact base-to-head patch with the

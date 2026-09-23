@@ -214,7 +214,9 @@ then becomes `invalid` under strict decode, and every other record is unchanged.
 | `EEP-TR-011` | `internal/extevidence/pin.go`, `examples/evidence-provider/v0/check/main.go` | `TestProviderKitCommandPins`, `TestCommandTransportContainment`, `TestCommandTransportFailuresAreClosed`, `TestRunProcessInterruptionLeavesNoDescendant`, `TestSupervisorSignalReapsNestedOwnedGroup` |
 
 The kit checker is additive and experimental (V1-0027); its `/0`, `/1`, `/2` compatibility window
-and promotion hold are owned by `EEP-V0-016` through `EEP-V0-018`. Rollback removes only the kit
+and promotion hold are owned by `EEP-V0-016` through `EEP-V0-018`, and its profile reasons by
+`EEP-V0-020`, and its conformance runner, which drives the unchanged `--provider-command` option of
+a Corvint binary and adds no transport, by `EEP-V0-021`. Rollback removes only the kit
 checker/pin helper and its requirements; no existing command transport changes are necessary.
 
 ## Unresolved decisions and promotion or kill criteria
