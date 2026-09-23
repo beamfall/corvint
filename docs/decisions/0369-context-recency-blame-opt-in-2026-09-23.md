@@ -19,11 +19,12 @@ reader.
 1. History is read only from Git objects reachable from the indexed commit: the `cochange` slot's
    window (newest 200 non-merge commits, shallow boundaries dropped), the indexed commit's
    committer time as "now", and `git blame --porcelain` bounded to that window, to the first 10
-   lexical candidates and to 4 MiB. No worktree, clock, index, snapshot or pack input.
+   lexical candidates the slot can still admit and to 4 MiB. No worktree, clock, index, snapshot or pack input.
 2. Recency is `0.5^(age/90 days)` of a path's newest window commit; blame freshness is the decayed
    share of its current lines last changed inside the window. The lexical fill is reordered by
    BM25 x (1 + 0.25 recency + 0.25 blame) within the positions each of code and documentation
-   already hold; the `cochange` slot by its decay-weighted count. Order changes only: no row,
+   already hold; the `cochange` slot by its decay-weighted count. Both are reordered before the
+   slot cap and the limit, so which candidates a slot admits can change. No admitted row's
    score, kind or authority changes, and reserved and syntax slots are untouched.
 3. Every affected row names each feature, with its value or its abstention reason
    (`beyond the 10-file blame bound`, `no commit in the N-commit window`, `history-unreadable`,

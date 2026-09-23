@@ -22,7 +22,8 @@ var codeOwnersLocations = []string{".github/CODEOWNERS", "CODEOWNERS", "docs/COD
 
 // blameTouch is one blamed path. inWindow counts the current lines whose last
 // change is a commit the window reaches; a boundary line (older than the
-// window, or a root commit's) is outside it.
+// window, a root commit's, or the full window's oldest commit, which Git marks
+// as the OLDEST..COMMIT range boundary) is outside it.
 type blameTouch struct {
 	state           string
 	lines, inWindow int
@@ -38,7 +39,8 @@ type blameCommit struct {
 	boundary bool
 }
 
-// blameHead blames the first contextBlameCap rows, in their current order.
+// blameHead blames the first contextBlameCap rows, in their current order;
+// recencyLexical passes only the rows take could still admit.
 func (recency *contextRecency) blameHead(rows []contextRow) {
 	if recency.state != "examined" {
 		return
@@ -73,7 +75,7 @@ func parseBlame(raw []byte) (map[string]*blameCommit, map[string]int) {
 		case strings.HasPrefix(line, "\t"):
 			lines[current]++
 			header = true
-		case header && line != "":
+		case header && strings.TrimSpace(line) != "":
 			current, header = strings.Fields(line)[0], false
 			if commits[current] == nil {
 				commits[current] = &blameCommit{}

@@ -157,9 +157,11 @@ func (recency *contextRecency) reason(candidate string) string {
 
 // recencyLexical reorders the lexical fill by BM25 x (1 + 0.25 recency +
 // 0.25 blame), code rows among the code positions and documentation rows among
-// the documentation positions, so TCP-V0-013's placement is kept. Blame runs
-// on the first contextBlameCap candidates in BM25 order; every other
-// candidate's blame feature abstains. Each row's reason names both features.
+// the documentation positions, so TCP-V0-013's placement is kept. The whole
+// fill is reordered before take applies the limit, so which rows the slot
+// admits can change. Blame runs on the first contextBlameCap candidates in
+// BM25 order that take could still admit; every other candidate's blame
+// feature abstains. Each row's reason names both features.
 func (compiler *taskContextCompiler) recencyLexical(rows []contextRow) []contextRow {
 	if compiler.recency == nil {
 		return rows
@@ -169,7 +171,7 @@ func (compiler *taskContextCompiler) recencyLexical(rows []contextRow) []context
 	for _, hit := range compiler.lexical {
 		bm25[hit.path] = hit.score
 	}
-	recency.blameHead(rows)
+	recency.blameHead(compiler.unchosen(rows))
 	factor := make(map[string]float64, len(rows))
 	for index := range rows {
 		candidate := rows[index].path
@@ -183,6 +185,22 @@ func (compiler *taskContextCompiler) recencyLexical(rows []contextRow) []context
 		reorderKind(rows, kind, func(candidate string) float64 { return bm25[candidate] * factor[candidate] })
 	}
 	return rows
+}
+
+// unchosen is the rows take could still admit: not the subject and not a
+// path an earlier slot chose, whose lexical copy take drops as a duplicate.
+func (compiler *taskContextCompiler) unchosen(rows []contextRow) []contextRow {
+	open := make([]contextRow, 0, len(rows))
+	for _, row := range rows {
+		if row.path == compiler.subject {
+			continue
+		}
+		if _, seen := compiler.chosen[row.path]; seen {
+			continue
+		}
+		open = append(open, row)
+	}
+	return open
 }
 
 // reorderKind stable-sorts the rows of one kind by key, descending, inside

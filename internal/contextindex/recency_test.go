@@ -235,3 +235,37 @@ func TestContextRecencyCoverageMember(t *testing.T) {
 		}
 	})
 }
+
+// TestContextRecencyCanChangeLexicalMembership: the fill is reordered before
+// the limit, so a recent candidate below the cut can displace an older one.
+func TestContextRecencyCanChangeLexicalMembership(t *testing.T) {
+	t.Run("TCP-V0-035", func(t *testing.T) {
+		root := recencyRepository(t)
+		body := "package fixture\n\n// Widget renders the gizmo.\nfunc Widget() string { return \"gizmo\" }\n"
+		for index := range 5 {
+			writeTestFile(t, root, fmt.Sprintf("a%d.go", index), body)
+		}
+		recencyCommit(t, root, recencyOldDate, "old widgets")
+		writeTestFile(t, root, "z/new.go", body)
+		recencyCommit(t, root, recencyNewDate, "new widget")
+		index, err := Build(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lexical := func() []string {
+			packet, err := TaskContext(context.Background(), index, "Where does the gizmo widget render", "", 3)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return contextRowsByKind(t, packet)["lexical"]
+		}
+		t.Setenv("CORVINT_CONTEXT_RECENCY", "")
+		if off := fmt.Sprint(lexical()); off != "[a0.go a1.go a2.go]" {
+			t.Fatalf("default lexical rows = %s", off)
+		}
+		t.Setenv("CORVINT_CONTEXT_RECENCY", "on")
+		if on := fmt.Sprint(lexical()); on != "[z/new.go a0.go a1.go]" {
+			t.Fatalf("recency lexical rows = %s, want the recent file admitted and a2.go cut", on)
+		}
+	})
+}

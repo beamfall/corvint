@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -62,6 +63,9 @@ func TestParseBlamePorcelainCountsLinesPerCommit(t *testing.T) {
 		if touch.freshness < 0.33 || touch.freshness > 0.34 {
 			t.Fatalf("freshness = %f, want one fresh line of three", touch.freshness)
 		}
+		if commits, lines := parseBlame([]byte(" \t \n")); len(commits)+len(lines) != 0 {
+			t.Fatalf("an all-whitespace header line parsed as %+v %v", commits, lines)
+		}
 	})
 }
 
@@ -102,6 +106,41 @@ func TestContextRecencyReportsCodeOwnersBlameDisagreement(t *testing.T) {
 		}
 		if reason := rowReason(t, packet, "agree/c.go"); strings.Contains(reason, "ownership") {
 			t.Fatalf("an agreeing owner must report nothing: %q", reason)
+		}
+	})
+}
+
+// TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit: a path an earlier
+// slot admitted is not blamed, so coverage.recency.ownership never lists a
+// disagreement the admitted row's reason does not name.
+func TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit(t *testing.T) {
+	t.Run("TCP-V0-037", func(t *testing.T) {
+		root := recencyRepository(t)
+		body := "package fixture\n\nfunc Flange() string { return \"flange\" }\n"
+		for _, name := range []string{"email/a.go", "team/b.go"} {
+			writeTestFile(t, root, name, body)
+		}
+		writeTestFile(t, root, ".github/CODEOWNERS", "* corvint@example.test\n/email/ someone@example.test\n/team/ @org/team\n")
+		recencyCommit(t, root, recencyOldDate, "start")
+		for _, name := range []string{"email/a.go", "team/b.go"} {
+			writeTestFile(t, root, name, body+"\n// flange tuned\n")
+		}
+		recencyCommit(t, root, recencyNewDate, "tune flanges")
+		t.Setenv("CORVINT_CONTEXT_RECENCY", "on")
+		packet := recencyPacket(t, root, "tune the flange in email/a.go", "")
+		if kinds := contextRowsByKind(t, packet); !slices.Contains(kinds["mentioned"], "email/a.go") {
+			t.Fatalf("rows = %v, want email/a.go admitted as mentioned", kinds)
+		}
+		summary := packet["coverage"].(map[string]any)["recency"].(map[string]any)
+		states := map[string]string{}
+		for _, entry := range mapsFromAny(summary["ownership"]) {
+			states[entry["path"].(string)] = entry["state"].(string)
+		}
+		if len(states) != 1 || states["team/b.go"] != "unverifiable" {
+			t.Fatalf("ownership states = %v, want only the lexical row team/b.go", states)
+		}
+		if reason := rowReason(t, packet, "email/a.go"); strings.Contains(reason, "ownership") || strings.Contains(reason, "blame") {
+			t.Fatalf("the mentioned row was blamed: %q", reason)
 		}
 	})
 }

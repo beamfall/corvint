@@ -9,7 +9,8 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 V1-0089 adds three history features to the `context` packet behind `CORVINT_CONTEXT_RECENCY=on`:
 90-day half-life recency, blame last-touch freshness and CODEOWNERS/blame disagreement
 (`internal/contextindex/recency.go`, `blame.go`). All three read only Git objects reachable from
-the indexed commit, are bounded (200-commit window, 10 blamed files, 4 MiB), change row order only,
+the indexed commit, are bounded (200-commit window, 10 blamed files, 4 MiB), reorder the lexical
+and `cochange` slots before their cap and the limit (so which candidates they admit can change),
 and name each value or abstention reason in the row reason. A CODEOWNERS owner who matches no
 in-window blame author is reported as `disagrees` or `unverifiable`; it never changes ranking.
 Unset, the packet bytes are unchanged.
@@ -27,7 +28,7 @@ Frozen `agent_retrieval_bench` context arm, off vs on, candidate `a3521dd9…cde
 | abstention | n/a (0 positives) | n/a | n/a; abstained 0.05 / 0.05 |
 
 Every ranked list is identical on and off (100/100 samples). The features did run: summed packet
-bytes rose 36-40% per subset (row reasons and `coverage.recency`). The equality is structural, not
+bytes rose 31-40% per subset (row reasons and `coverage.recency`). The equality is structural, not
 evidence of safety: the bench rebuilds each snapshot as one commit, so recency is 1 everywhere and
 every blame line is a root boundary. `corvint eval` against beamfall/core at 6e82abd (7 cases) is
 also identical off and on (recall 1.0, top-5 success 1.0, must-read 11/11, no critical misses,
@@ -45,6 +46,13 @@ NOT_RUN: `make gate` (owner policy); the full-sample bench (host contention, loa
 `cmd/corvint-go-test-provider` test failed on the branch with a post-run authority revalidation
 timeout. It passed on the branch and at base when run side by side, and the package does not import
 `internal/contextindex`.
+
+Review fixes: the spec, decision 0369 and this entry now say the reorder can change which
+candidates a slot admits (`TestContextRecencyCanChangeLexicalMembership`); blame runs only on
+candidates the lexical slot can still admit, so `coverage.recency.ownership` never lists an
+earlier slot's row (`TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit`); `parseBlame`
+skips an all-whitespace header line; and the full window's oldest commit, a blame range
+boundary, is documented as outside the window. The bench readings above predate these fixes.
 
 ## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
 

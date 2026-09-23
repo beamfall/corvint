@@ -525,14 +525,18 @@ it must read, each with the relation that admitted it, without naming the task's
   count: each co-change commit it counted weighs its own decay. Every lexical row's reason gains
   `; recency R (last commit D days before the indexed commit, 90-day half-life); <blame reason>;
   rank bm25 x F`, and every `cochange` row's reason gains `; recency-weighted W (90-day
-  half-life)`, so each contributing feature is named. The flag changes order only: no row is added
-  or removed, and no score, kind or authority changes. An unset or other value preserves the
+  half-life)`, so each contributing feature is named. Both slots are reordered before their cap and
+  the limit apply, so which candidates the lexical and `cochange` slots admit can change: a recent
+  candidate below the cut can displace an older one. No admitted row's score, kind or authority
+  changes, and the reserved and syntax slots are untouched. An unset or other value preserves the
   existing packet bytes (the recipe golden).
 - `TCP-V0-036`: (proposed 2026-09-23, not accepted; experimental; decision 0369) The blame
   feature runs `git blame --porcelain` at the indexed commit on at most the first 10 lexical
-  candidates in BM25 order, limited to the window (`OLDEST..COMMIT` when the window holds 200
-  commits) and to 4 MiB of output. A line whose last change is a boundary commit (older than the
-  window, or a root commit) is outside the window; freshness is the sum of the in-window lines'
+  candidates in BM25 order that the slot can still admit (not the subject, not a path an earlier
+  slot chose), limited to the window (`OLDEST..COMMIT` when the window holds 200 commits) and to 4
+  MiB of output. A line whose last change is a boundary commit (older than the window, a root
+  commit, or the full window's oldest commit, which Git marks as the range boundary) is outside
+  the window; freshness is the sum of the in-window lines'
   decay over all lines. Beyond any bound the feature abstains and says so in the row reason:
   `blame abstained (beyond the 10-file blame bound)`, `blame abstained (blame-unreadable)`, or the
   history state. Recency abstains the same way: `recency abstained (no commit in the N-commit
@@ -758,7 +762,7 @@ The recency features (TCP-V0-035..038) roll back alone: delete `internal/context
 | TCP-V0-022 | `configureContextAnchors`, `taskAnchors`, `anchorCandidates`, `countAnchor`, `anchorOccurrences`, `anchorReason`, `lexicalHits`, `queryTermGain` | `TestContextAnchorClassesMatchVerbatim`, `TestContextAnchorsExtractionBounds`, `TestContextAnchorsExplainAndNeverOutrankAuthority`, `TestContextAnchorsDefaultBytes` |
 | TCP-V0-023 | `trustByAuthority`, `TrustClass`, `TrustTainted`, `governanceRows`, `governanceRefused` (`internal/contextindex/trust.go`); the `trust` stamp in `taskContextCompiler.packet` | `TestTrustClassIsClosedAndDeterministic`, `TestTaskContextRowsCarryOneTrustClass`, `TestTaskContextGovernanceRefusesATaintedReservedRow`, `TestTaskContextWireIsAdditiveForAnOldConsumer`, `TestContextRecipeDefaultPathIsByteIdentical` (re-captured golden) |
 | TCP-V0-024 | `parseTaskContextInvocation`, `checkContextViewArguments`, `runTaskContext` (view dispatch); `summarizeContextPacket`, `runContextExpand` (`cmd/corvint/context_summary.go`) | `TestContextDefaultWireIsTheGolden`, `TestParseContextViewArguments`, `TestContextSummaryAndExpandAreReadOnly` |
-| TCP-V0-035 | `startContextRecency`, `contextRecency.read`, `parse`, `decay`, `weight`, `reason`, `recencyLexical`, `reorderKind`, `recencyCochange` (`internal/contextindex/recency.go`) | `TestContextRecencyDefaultBytes`, `TestContextRecencyRanksRecentLexicalRowsAndNamesFeatures`, `TestContextRecencyWeightsCochangeByAge` |
-| TCP-V0-036 | `blameHead`, `blamePath`, `parseBlame`, `touch`, `blameReason` (`internal/contextindex/blame.go`) | `TestContextRecencyBoundsBlameAndAbstains`, `TestContextRecencyWindowIsTheCochangeWindow`, `TestParseBlamePorcelainCountsLinesPerCommit` |
-| TCP-V0-037 | `codeOwners`, `parseCodeOwners`, `codeOwnersPattern`, `owning`, `checkOwners`, `ownerMatchesAny`, `ownership` | `TestCodeOwnersPatternFollowsGitHubSyntax`, `TestContextRecencyReportsCodeOwnersBlameDisagreement` |
+| TCP-V0-035 | `startContextRecency`, `contextRecency.read`, `parse`, `decay`, `weight`, `reason`, `recencyLexical`, `reorderKind`, `recencyCochange` (`internal/contextindex/recency.go`) | `TestContextRecencyDefaultBytes`, `TestContextRecencyRanksRecentLexicalRowsAndNamesFeatures`, `TestContextRecencyCanChangeLexicalMembership`, `TestContextRecencyWeightsCochangeByAge` |
+| TCP-V0-036 | `blameHead`, `blamePath`, `parseBlame`, `touch`, `blameReason` (`internal/contextindex/blame.go`), `unchosen` (`recency.go`) | `TestContextRecencyBoundsBlameAndAbstains`, `TestContextRecencyWindowIsTheCochangeWindow`, `TestParseBlamePorcelainCountsLinesPerCommit` |
+| TCP-V0-037 | `codeOwners`, `parseCodeOwners`, `codeOwnersPattern`, `owning`, `checkOwners`, `ownerMatchesAny`, `ownership` | `TestCodeOwnersPatternFollowsGitHubSyntax`, `TestContextRecencyReportsCodeOwnersBlameDisagreement`, `TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit` |
 | TCP-V0-038 | `recencyCoverage` | `TestContextRecencyCoverageMember` |
