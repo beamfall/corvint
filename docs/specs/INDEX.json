@@ -2307,5 +2307,22 @@
       "script/check-hostile-regressions_test.sh",
       "docs/RELEASE-RUNBOOK.md"
     ]
+  },
+  {
+    "path": "docs/specs/corvint-1.0-product-and-release-v1.md",
+    "title": "Corvint 1.0 product and release scope V1",
+    "reqPrefix": "PRS-V1",
+    "intent": "proposed (DRAFT pending owner acceptance, V1-0001)",
+    "delivery": "not-started",
+    "claim": "Draft for owner ratification: 1.0 Core is the local change-evidence loop and proof wire; companions, host FULL and independent interop leave the Core path.",
+    "dependsOn": [
+      "docs/specs/public-release-v0.md",
+      "docs/specs/daily-change-evidence-workflow-v0.md",
+      "docs/specs/agent-harness-integration-v0.md",
+      "docs/specs/stable-operations-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
