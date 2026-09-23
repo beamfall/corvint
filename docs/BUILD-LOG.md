@@ -22,7 +22,7 @@ receipt already described: scope `UNKNOWN` with `util` named in the unknown list
 Verification (this clone, HEAD after the test commit):
 
 - `go test -count=1 -run TestUseCaseHostile ./cmd/corvint/`: exit 0; the change-consequence
-  table reports 19 `PASS` subtests and no `SKIP`.
+  table reports 18 `PASS` cases and no `SKIP` (the fixed case among them).
 - `go test -count=1 ./conformance/use-cases-v0/`, `go run ./conformance/use-cases-v0 -root .
   -ledger conformance/use-cases-v0/ledger.json`, `go vet ./cmd/corvint/
   ./conformance/use-cases-v0/`, `go test ./internal/specindex/` and
