@@ -3,9 +3,9 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `PRS-V1`
-Status: DRAFT pending owner acceptance
-Intent status: proposed (DRAFT pending owner acceptance, V1-0001)
-Delivery status: not-started
+Status: accepted (decision 0373, 2026-09-23)
+Intent status: accepted (decision 0373, V1-0001)
+Delivery status: not-started (the Core-only candidate path is a V1-0007 or V1-0018 follow-up)
 Authoritative inputs: `../../AGENTS.md` invariants 1-8, `public-release-v0.md` (the 0.6 local-workflow
 scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 `../decisions/0332-verified-local-workflow-scope-2026-09-22.md`, `daily-change-evidence-workflow-v0.md`,
@@ -13,10 +13,10 @@ scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 (0.7.0 build 46), task-store tickets V1-0001..V1-0021.
 
 ## Agent digest
-- Claim: Draft for owner ratification: 1.0 Core is the local change-evidence loop and proof wire; companions, host FULL and independent interop leave the Core path.
-- Status: proposed (DRAFT pending owner acceptance, V1-0001) / not-started
-- Exists: this draft only; it decides nothing until the owner answers the questions below and a numbered decision records acceptance.
-- Blocked on: owner answers to "Decisions the owner must make"; then V1-0002 queue reconciliation and V1-0007 contract freeze.
+- Claim: Accepted scope: 1.0 Core is the local change-evidence loop and proof wire; companions, host FULL and independent interop leave the Core path (decision 0373).
+- Status: accepted (decision 0373, V1-0001) / not-started
+- Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; no Core-only candidate path exists yet.
+- Blocked on: V1-0002 queue reconciliation and V1-0007 contract freeze; the untouched repository for V1-0019 and the native linux/amd64 host are not yet named.
 - Read next: Decisions the owner must make; Classification of shipped surfaces; Externally dependent gates.
 
 ## Human intent
@@ -28,9 +28,9 @@ path. Decision 0332 already cut those from the 0.6 milestone only. This draft pr
 cut permanent for 1.0, names every shipped surface's classification, and turns the gates that
 need third parties into explicit owner choices rather than silent blockers.
 
-The draft is written for acceptance or rejection as a whole or clause by clause. Nothing here is in
-force today. Until a numbered decision records acceptance, `public-release-v0.md`, decision 0332
-and the task-store release criteria remain authoritative.
+Decision 0373 (2026-09-23) accepts every clause. `public-release-v0.md` carries the prospective
+1.0 amendment, decision 0332 keeps governing the 0.6 milestone, and the task-store release criteria
+are reconciled to this spec. Acceptance of scope is not delivery, qualification or promotion.
 
 ## Core definition
 
@@ -110,7 +110,7 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint prove` | Core | Proof over pinned evidence; `UC-EVIDENCE-CARRYING-COMPLETION`. |
 | `corvint cem`, `ocm`, `frontier` | Core | The proof wire to be frozen by V1-0013. |
 | `corvint dogfood`, internal `dogfood-record`, `dogfood-ocm` | Core | Retained local outcome of the dogfood loop. |
-| `corvint adapter` (codex, claude-code, claude-source-handoff) | Core if owner question 5 is yes, else companion | Thin host entry for the two Core host rows. |
+| `corvint adapter` (codex, claude-code, claude-source-handoff) | Core (decision 0373, question 5: yes) | Thin host entry for the two Core host rows. |
 | `corvint --version`, `help` | Core | Identity and discovery of the Core verbs. |
 | `corvint docs` (draft, watch, apply, maintain) | companion | Decision 0332 names automatic docs a companion. |
 | `corvint test-validity` | companion | Test-provider profile; decision 0332 companion. |
@@ -135,7 +135,7 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint-corpus-mcp`, `corvint-behavior-falsify`, `corvint-playwright-minimize`, `corvint-web-flows`, `corvint-pulse`, `corvint-work-queue` | experimental | Prototypes with proposed or experimental specs. |
 | `corvint-analyzer-*` external analyzer binaries and `corvint-go-toolchain-receipt` | deferred | Analyzer candidate profiles are deferred; Core analysis is the in-binary kernel. |
 | `corvint-analyzer-structured-data` | rejected | Its candidate spec is rejected as specified. |
-| Claude Code plugin, Codex plugin trees | Core if owner question 5 is yes, else companion | Carry the hooks for the two Core host rows. |
+| Claude Code plugin, Codex plugin trees | Core (decision 0373, question 5: yes) | Carry the hooks for the two Core host rows. |
 | Codex `authority-hooks`, `qualified-hooks`, `qualified-direct-hooks` proposed trees | post-1.0 | Require formal host authority. |
 | Gemini CLI extension, OpenCode plugin, Pi extension | companion | FALLBACK hosts outside Core. |
 | `integrations/pi-protected` | experimental | Protected Pi runtime is an accepted direction with experimental delivery. |
@@ -159,7 +159,8 @@ proposes a disposition and states the amendment it requires. The owner may choos
   After acceptance, the coordinator amends the task-store v1-0 release criterion and the V1-0021
   acceptance criterion to replace "independent interoperability passes" with "the frozen wire's
   canonical vectors and in-repo second consumer pass; no interoperability claim". V1-0015, which
-  depends on V1-0014, keeps its own gate but loses its dependency edge for the Core path.
+  depends on V1-0014, is already COMPLETED; its recorded dependency edge stays and is moot for the
+  Core path (the store refuses `set-dependencies` on completed tickets).
 
 ### V1-0019: untouched-repository validation
 
@@ -236,7 +237,9 @@ proposes a disposition and states the amendment it requires. The owner may choos
 
 ## Decisions the owner must make
 
-Answer each yes or no. A "no" keeps the current `public-release-v0.md` rule for that item.
+Answered on 2026-09-23: yes to all eleven, recorded with notes in
+`../decisions/0373-corvint-1.0-scope-ratified-2026-09-23.md`. The linux/amd64 host (question 4)
+and the untouched repository (question 8) are still unnamed. The questions stay as asked.
 
 1. Accept the Core definition (`PRS-V1-001`) and the companion list as written?
 2. Accept the classification table as the 1.0 disposition of every shipped surface (`PRS-V1-010`)?
@@ -260,8 +263,9 @@ Answer each yes or no. A "no" keeps the current `public-release-v0.md` rule for 
 
 ## Non-goals
 
-- Accepting anything. This draft proposes; the owner decides.
-- Changing any `PUB-V0` requirement text, any other spec, or any task-store ticket in this change.
+- Delivering anything. Accepted scope is not qualification, a candidate, or promotion.
+- Changing any `PUB-V0` requirement text; the amendment is prose in `public-release-v0.md`, like the
+  2026-09-16 Core release scope amendment.
 - Promoting any host, platform or companion, or rewriting historical evidence.
 - Adding a new spec language, runtime, service or dependency.
 - Choosing the untouched repository for V1-0019 or the linux/amd64 host.
@@ -279,8 +283,8 @@ Answer each yes or no. A "no" keeps the current `public-release-v0.md` rule for 
 
 ## Acceptance evidence
 
-- Owner acceptance: a numbered decision in `docs/decisions/` that answers every question above and
-  references this spec. Status today: `NOT_PRODUCED` (pending owner).
+- Owner acceptance: `../decisions/0373-corvint-1.0-scope-ratified-2026-09-23.md` answers every
+  question above and references this spec. Status: PRODUCED (2026-09-23).
 - Document consistency: the focused-docs gate passes with this spec, its `INDEX.json` row, its
   `README.md` row and regenerated `REQUIREMENTS.tsv`.
 - Classification completeness: every top-level `corvint` verb, `cmd/` binary, `integrations/` tree and
@@ -291,7 +295,7 @@ Answer each yes or no. A "no" keeps the current `public-release-v0.md` rule for 
 
 | Requirement | Evidence | Status |
 |---|---|---|
-| `PRS-V1-001..012` | Owner acceptance decision | `NOT_PRODUCED` (pending owner) |
+| `PRS-V1-001..012` | Decision 0373 | PRODUCED (2026-09-23) |
 | `PRS-V1-010` | Review of this table against the base commit's verbs, binaries and trees | review only |
 | `PRS-V1-004` | Native install lifecycle on each Core platform | darwin/arm64 retained for 0.7.0; linux/amd64 `NOT_RUN` |
 | `PRS-V1-007` | V1-0014 | `NOT_RUN` |
@@ -307,5 +311,5 @@ Answer each yes or no. A "no" keeps the current `public-release-v0.md` rule for 
 ## Rollback
 
 Delete this file, its `INDEX.json` entry and its `README.md` row, regenerate `REQUIREMENTS.tsv`,
-and remove the "Proposed v1 amendment" paragraph in `public-release-v0.md` and the pointer sentence
+and remove the "1.0 Core scope amendment" section in `public-release-v0.md` and the pointer sentence
 in `../PRODUCT.md`. No code, ticket, decision or evidence depends on this draft.

@@ -4,6 +4,58 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0001, decision 0373, PRS-V1-001..012, V1-0011 UCV0-003, V1-0088 decision 0368: 1.0 scope ratified, invariant-4 amendment applied, Core ledger rows experimental
+
+The owner answered the eleven 1.0-scope questions of `docs/specs/corvint-1.0-product-and-release-v1.md`
+yes on 2026-09-23 and delegated the five open 0.7 dispositions. Decision 0373 records the answers, the
+delegated dispositions (items 12 to 16) and their effects; the spec status moves to accepted and every
+"owner question 5" placeholder now reads "Core (decision 0373, question 5: yes)". Ticket V1-0001 is
+completed against the decision file (sha256
+`2ad06ea55cc43173734a364a4eadd818c3e767d3ae74de2d733908a2b7cd2673`). Scope consequences applied in
+this change: `docs/specs/public-release-v0.md` gains a "1.0 Core scope amendment" section (0.6 scope
+extends to the 1.0 Core candidate; the FULL clause and the PUB-V0-004/005/006/009/010/020/022 inputs
+bind the companion host profile; installed Codex and Claude Core rows stay FALLBACK; no
+interoperability claim, V1-0014 is post-1.0); V1-0019 becomes MANUAL with one owner-selected untouched
+public repository; V1-0021 and the v1-0 criterion replace "independent interoperability passes" with
+the frozen wire's canonical vectors plus the in-repo second consumer, with no interoperability claim;
+V1-0015 keeps its recorded V1-0014 dependency (the ticket is COMPLETED, so `set-dependencies` is refused with TICKET_STATE and the dependency is moot); v0-7 drops V1-0014.
+
+Delegated dispositions. Item 12: decision 0368's invariant-4 amendment is ratified and applied to
+`AGENTS.md`, `SOL-V0-003`, the `unplanned-read-events-v0` non-goals, the `reads` help text and the
+`unplannedread` package comment: the ledgers reach ranking only through the operator-invoked
+`corvint eval --learn-slot-weights` step and the frozen held-out gate (`LTA-V0-009` to `LTA-V0-012`);
+V1-0088 was completed as experimental delivery before this ratification and the 0368 status line says
+so. Item 13: V1-0083 (decision 0367, identifier PageRank) did not meet its closing rule, so 0367 is
+accepted as experimental and off by default, the ticket is archived as not delivered and removed from
+v0-7, and criterion 7 of v0-7 now says items failing their frozen evaluation are archived as not
+delivered; the follow-ups (score-competing graph, smaller cap, test-file edges, the NOT_RUN full-sample
+rerun) are filed as ticket V1-0185. Item 14: V1-0023 compact summaries move to v0-8 with spike V1-0154;
+criterion 1 of v0-7 now reads that summaries ship experimental and opt-in with the trial deferred to
+0.8. Item 15: V1-0100 appflows is completed as delivered-experimental against ticket criterion 6 and
+v0-7 criterion 8; `make gate` NOT_RUN for that ticket and its acceptance packet NOT_PRODUCED. Item 16:
+the three Core rows of `conformance/use-cases-v0/ledger.json` (UC-TASK-ORIENTATION,
+UC-CHANGE-CONSEQUENCE, UC-EVIDENCE-CARRYING-COMPLETION) move from `specified` to `experimental` on
+`contract` and `implementation` receipts pinned to `062b0151b603a5d637cdd0ad0f560edefee921a4`
+(`corvint-use-case-evidence/0`, digests: orientation contract `4bbed299…c8fe`, implementation
+`76adf551…eb5d`; consequence `fe946089…d968`, `bd61d670…cb75`; completion `01a4daf8…0cbb`,
+`2505a414…27dc`). Validator: valid, 22 use cases, 3 experimental, 19 specified, 6 evidence receipts,
+ledger sha256 `2f80c0bf5721ef827c43180e3bb113615c713070c35edb05d18b8c065e0ba559`; every claim stays
+UNPROVEN. `verified` was not reachable: daily-loop run-001 records FAIL on two Core jobs, no
+Beamfall dogfood receipt exists and no hostile-tests receipts exist, so V1-0011 stays open and the
+four gaps are filed as tickets V1-0186 (orientation miss of `docs/AGENT-ROUTES.md`), V1-0187 (`affected`
+naming test-less changed packages as unknown scope), V1-0184 (a Beamfall daily-path receipt) and V1-0188
+(hostile-tests receipts for the three jobs). `TestUCV0ProfileMigration` now validates the in-tree ledger and strips evidence before its
+temp-root checks. Also filed: V1-0190, the 0.7.0 to 0.8.0 N-1 `upgrade-b` qualification for 0.8 (owner answer 19), and
+V1-0189, the structural non-zero exit of the release-checklist gate before promotion.
+
+Verification: `go run ./conformance/use-cases-v0`, `go test ./conformance/use-cases-v0/ ./cmd/corvint/
+./internal/unplannedread/`, `go vet` on the touched packages and the focused docs targets
+(`spec-requirements-check requirement-definitions-check traceability-tests-check
+decision-numbers-check line-citations-check`) pass. `make gate` NOT_RUN for this change; the
+authorized single gate run is scheduled at the v0-6/v0-7 candidate head. Rollback: revert the change,
+reopen V1-0001, V1-0083 and V1-0100, restore the v0-7 ticket list and criteria, and return the three
+ledger rows to `specified`.
+
 ## 2026-09-23 V1-0004 PUB-V0-016, PUB-V0-020: core wrapper mode and first PASS retained core run
 
 `script/public-release-check` selects `editor` (unset) or `core` via `CORVINT_PUBLIC_RELEASE_QUALIFICATION`;

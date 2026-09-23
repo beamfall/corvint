@@ -1,7 +1,7 @@
 # Decision 0368: Ledger negative labels for context slot weights
 
-Date: 2026-09-23. Status: proposed (experimental delivery; ticket V1-0088). Requires owner
-ratification of the invariant-4 amendment below before it can be accepted or merged as delivered.
+Date: 2026-09-23. Status: accepted, experimental delivery (ticket V1-0088); the invariant-4 amendment
+below was ratified by decision 0373 item 12 and applied to AGENTS.md, `SOL-V0-003` and `URE-V0`.
 
 This decision:
 
