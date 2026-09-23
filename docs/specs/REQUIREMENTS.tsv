@@ -1870,6 +1870,11 @@ TCP-V0-021	docs/specs/task-context-packet-v0.md	399	`tools/retrieval-bench --sna
 TCP-V0-022	docs/specs/task-context-packet-v0.md	453	(proposed 2026-09-22, not accepted; experimental; decision 0333) With
 TCP-V0-023	docs/specs/task-context-packet-v0.md	478	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
 TCP-V0-024	docs/specs/task-context-packet-v0.md	504	(proposed 2026-09-23, not accepted; experimental; decision 0364) This amends the
+TCP-V0-025	docs/specs/task-context-packet-v0.md	517	(proposed 2026-09-23, not accepted; experimental; decision 0366) With
+TCP-V0-026	docs/specs/task-context-packet-v0.md	534	(proposed 2026-09-23, not accepted; experimental; decision 0366) After the core
+TCP-V0-027	docs/specs/task-context-packet-v0.md	544	(proposed 2026-09-23, not accepted; experimental; decision 0366) The declared
+TCP-V0-028	docs/specs/task-context-packet-v0.md	552	(proposed 2026-09-23, not accepted; experimental; decision 0366) With the flag
+TCP-V0-029	docs/specs/task-context-packet-v0.md	566	(proposed 2026-09-23, not accepted; experimental; decision 0366) The evaluation
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul

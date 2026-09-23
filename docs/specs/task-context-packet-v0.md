@@ -19,7 +19,7 @@ evidence row), `AGENTS.md` invariants 1, 2, 3, 4, and 8.
 ## Agent digest
 - Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
 - Status: proposed/experimental
-- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`).
+- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/span_rank.go` and `internal/contextindex/sufficiency.go` (TCP-V0-025..029 opt-in `CORVINT_CONTEXT_SPANS=on` line-budgeted spans and `coverage.sufficiency`, experimental, decision 0366).
 - Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012, which is implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it.
 - Read next: Requirements; Non-goals; Failure modes.
 
@@ -512,6 +512,74 @@ it must read, each with the relation that admitted it, without naming the task's
   of TCP-V0-001..023: the packet, its members and its ranking are unchanged. Both views are read
   commands: they write no repository, index, snapshot, trace or `.corvint/` state.
 
+### Line-budgeted spans and evidence-set sufficiency (proposed 2026-09-23, decision 0366)
+
+- `TCP-V0-025`: (proposed 2026-09-23, not accepted; experimental; decision 0366) With
+  `CORVINT_CONTEXT_SPANS=on`, the packet gains one top-level `spans` member,
+  `{line_budget, lines_used, omitted, rows}`. Each row is `{role, path, start_line, end_line,
+  symbol, reason, confidence, blob_hash, authority, trust}`: an explicit 1-based inclusive line
+  range of one pinned source (`blob_hash` is the source's indexed blob, invariant 1), the reason
+  it was chosen, and `trust` derived from `authority` by TCP-V0-023's table. A `core` row comes
+  from a packet result row, in result rank order, skipping the reserved `governing` and
+  `spec-mentioned` rows: first the declarations (`langsymbols.go` symbols) of the task's names
+  the file defines (TCP-V0-010-eligible identifiers by weight, then TCP-V0-016 names), at most
+  three per file, authority `syntax`, confidence `high`; else the first line naming the heaviest
+  task name as a whole word, widened to its enclosing declaration, `syntax`/`medium`; else the
+  earliest line carrying the most distinct task lexical terms, widened the same way,
+  `vocabulary`/`low`. A declaration ends at the grammar's end line when one is recorded, else the
+  line before the file's next symbol, else the file's end, with trailing blank lines trimmed; a
+  line with no enclosing declaration takes five lines either side. At most eight core rows.
+  An unset flag or any other value (`off`, `ON`, `unknown`) leaves the packet byte-identical to
+  the TCP-V0-001..024 packet: no `spans` member and no `coverage.sufficiency`.
+- `TCP-V0-026`: (proposed 2026-09-23, not accepted; experimental; decision 0366) After the core
+  rows, each core row whose symbol has at least four bytes yields at most two `call-site` rows:
+  the sources carrying the symbol as a whole identifier in the `Words` postings (none when more
+  than `contextMaxDefiners`+1 sources carry it, the definer included), ordered packet result rows
+  by rank, then the definer's reverse importers (the TCP-V0-004 `reverse-import` rule), then the
+  rest, each tier by path. A call site is a window of two lines either side of the first line in
+  that source naming the symbol whose window overlaps no core row. Its reason is "names `S` at
+  line L, the declaration of the core span P:S-E", authority `syntax`, confidence `medium`. A
+  call site is a lexical whole-word use, not a resolved call: a same-named symbol in another
+  scope is reported as a call site.
+- `TCP-V0-027`: (proposed 2026-09-23, not accepted; experimental; decision 0366) The declared
+  line budget is 240 lines. Core rows, then call-site rows, are taken in order; a candidate that
+  overlaps an already selected row is dropped silently, one that would take `lines_used` past
+  `line_budget` is counted in `omitted` and skipped, and no row exceeds 80 lines. The flag changes
+  no other packet byte: `results`, their order, `coverage.included_results`, the existing byte and
+  result bounds and every other member are those of the flag-off packet. Spans read only
+  size-bounded (TCP-V0-014) pinned index sources and the command stays a read command
+  (invariant 4); an unindexed, oversized or non-text source yields no span.
+- `TCP-V0-028`: (proposed 2026-09-23, not accepted; experimental; decision 0366) With the flag
+  on, `coverage.sufficiency` is `{verdict, reason, anchors_total, missing_total, anchors,
+  missing}`. The task's anchors are its mentioned tracked paths (kind `path`) and its TCP-V0-016
+  specific names (kind `name`). A path anchor is `satisfied` when a selected span reads that path,
+  `insufficient` when the path is indexed but no span reads it, and `unknown` when it is not
+  indexed (with the evidence-gap reason). A name anchor is `satisfied` only when a selected span's
+  own lines, re-read from the pinned source with the range bounds-checked, carry the name as a
+  whole word, or the span's path carries it; `insufficient` when an indexed source or tracked
+  path names it but no span carries it; `unknown` when nothing indexed names it. The verdict is
+  `unknown` with no anchors, `insufficient` if any anchor is, else `unknown` if any anchor is,
+  else `satisfied`: missing evidence never reads as sufficient (invariant 2). `anchors` and
+  `missing` list at most sixteen entries each; the totals always count every anchor, and every
+  anchor that is not satisfied is named in `missing`. `satisfied` means the selected lines carry
+  the task's own anchors; it does not mean they answer the task.
+- `TCP-V0-029`: (proposed 2026-09-23, not accepted; experimental; decision 0366) The evaluation
+  is `tools/retrieval-bench --arms context` over the frozen `v2_*` releases with the flag unset
+  and `on`, recording recall@5/10/20 per subset, plus two span metrics scored offline from the
+  `--context-packets` capture against each sample's `gold_spans` (a gold span is `{path,
+  start_line, end_line}`; a row covers it when the paths are equal and the ranges share a line):
+  - core-span recall: per positive sample with gold spans, the fraction of its gold spans that
+    some emitted span row covers, averaged over the subset's samples (a sample with no packet
+    scores 0);
+  - sufficiency precision: among samples whose verdict is `satisfied`, the fraction whose rows
+    cover every gold span (a `satisfied` verdict on a no-gold `v2_abstention` sample counts as
+    incorrect), reported with the number of `satisfied` samples.
+  The control is the flag-off packet read as a ±15-line window around each result's first
+  evidence line, in rank order, under the same 240-line budget. Falsifier: any subset's
+  recall@20 differing between flag off and on refutes TCP-V0-027; core-span recall below the
+  control on a subset, or sufficiency precision below the subset's base rate of fully covered
+  samples, is a losing case to record, and blocks promotion to default-on.
+
 ## Non-goals and authority
 
 Forward imports of the subject, cross-directory definition-to-reference edges, and re-export
@@ -542,6 +610,12 @@ section's rows is not this slice's to do.
 TCP-V0-024 adds no packet member, ranking input or row. The summary is a projection of the exact
 default bytes, and expansion reads Git objects at the handle's pinned tree. Neither view changes
 `query`, `impact` or any `protocol/**` wire, and neither adds a root verb.
+
+The span amendment (TCP-V0-025..028) adds no index encoding, snapshot field, ranking input or result
+row: spans are chosen after the result rows are final and read only what the index already holds.
+They do not resolve calls (a call site is a whole-word use), do not choose results by span, and do
+not make `satisfied` a claim that the task is answered. Default-on, spans on the `query`/`impact`
+wires, and a caller-chosen line budget are not this slice's to do.
 
 Operational note (V1-0051): `corvint context` and the generic harness-event dispatch it shares
 (`cmd/corvint/taskcontext.go`, `cmd/corvint/main.go`) write a local pprof CPU profile when the
@@ -600,6 +674,19 @@ and does not widen what either read-only path reads, returns, or mutates (AGENTS
   `TestContextDefaultWireIsTheGolden` compares the default stdout with bytes captured from the base
   binary (`1894b9e5`), and mixed or orphaned view flags are argument errors
   (`TestParseContextViewArguments`).
+- (TCP-V0-025) The flag could leak into the default path. `TestContextSpansDefaultBytes` holds
+  the recipe golden for unset, `off`, `ON` and `unknown`.
+- (TCP-V0-025, TCP-V0-026) A declaration without a recorded end line is bounded by the next
+  symbol, so a span can include trailing comments or stop early in a file whose grammar records
+  no nested symbols; a call site can be a same-named use in another scope, or a comment. Rows say
+  which rule chose them (`reason`, `confidence`, `authority`), not that they are correct.
+- (TCP-V0-027) A long definition is clipped at 80 lines and a span that would overrun the budget
+  is dropped and counted in `omitted`, so the selected lines can miss the part that matters; the
+  row's range says exactly what was selected.
+- (TCP-V0-028) An anchor that is present only in an unindexed file, or that the change will add,
+  is `unknown`, and a name the task quotes loosely may never match; the verdict is then `unknown`
+  or `insufficient`, never `satisfied`. A path anchor is satisfied by any span on that path, even
+  one that misses the relevant lines.
 
 ## Acceptance evidence
 
@@ -636,6 +723,16 @@ the empty `governance_refused` array added.
 `cmd/corvint/context_summary_test.go` (TCP-V0-024, experimental: default bytes equal the
 base-binary golden `cmd/corvint/testdata/context-default-wire.golden`; flag mixing refused; the
 summary and expansion evidence listed under ESV-V0-008..009).
+`internal/contextindex/span_rank_test.go` (TCP-V0-025..027, experimental: default bytes equal the
+recipe golden for every non-`on` flag value; the named definition is a core row with its explicit
+range, reason, authority and blob; a caller outside the core yields a call-site row naming the core
+range; rows stay under the budget and the per-row cap, a 3-line budget omits, the flag-on packet
+minus `spans` and `coverage.sufficiency` equals the flag-off packet, and the fixture repository is
+unchanged) and `internal/contextindex/sufficiency_test.go` (TCP-V0-028, table-driven: carried,
+absent, forged, out-of-range, inverted and other-path spans, an unindexed name, no anchors,
+satisfied plus unknown, and a tracked but unindexed path; a satisfied set never holds a
+non-satisfied anchor and every missing anchor is named). TCP-V0-029's measured on/off reading is
+the V1-0098 entry in `docs/BUILD-LOG.md`.
 
 ## Rollback
 
@@ -654,6 +751,9 @@ TCP-V0-024 rolls back alone to current packets. Follow the V1-0023 rollback in
 `experimental-source-views-v0` (Acceptance and rollback): delete `cmd/corvint/context_summary.go`,
 its test and golden, and the view flags, check and help paragraph in `cmd/corvint/taskcontext.go`.
 The default wire never changed.
+The span amendment (TCP-V0-025..029) rolls back alone: unset `CORVINT_CONTEXT_SPANS`, or delete
+`internal/contextindex/span_rank.go`, `internal/contextindex/sufficiency.go`, their tests, and the
+`attachSpans` call in `TaskContext`. The default wire never changed and no state persists.
 
 ## Traceability
 
@@ -683,3 +783,8 @@ The default wire never changed.
 | TCP-V0-022 | `configureContextAnchors`, `taskAnchors`, `anchorCandidates`, `countAnchor`, `anchorOccurrences`, `anchorReason`, `lexicalHits`, `queryTermGain` | `TestContextAnchorClassesMatchVerbatim`, `TestContextAnchorsExtractionBounds`, `TestContextAnchorsExplainAndNeverOutrankAuthority`, `TestContextAnchorsDefaultBytes` |
 | TCP-V0-023 | `trustByAuthority`, `TrustClass`, `TrustTainted`, `governanceRows`, `governanceRefused` (`internal/contextindex/trust.go`); the `trust` stamp in `taskContextCompiler.packet` | `TestTrustClassIsClosedAndDeterministic`, `TestTaskContextRowsCarryOneTrustClass`, `TestTaskContextGovernanceRefusesATaintedReservedRow`, `TestTaskContextWireIsAdditiveForAnOldConsumer`, `TestContextRecipeDefaultPathIsByteIdentical` (re-captured golden) |
 | TCP-V0-024 | `parseTaskContextInvocation`, `checkContextViewArguments`, `runTaskContext` (view dispatch); `summarizeContextPacket`, `runContextExpand` (`cmd/corvint/context_summary.go`) | `TestContextDefaultWireIsTheGolden`, `TestParseContextViewArguments`, `TestContextSummaryAndExpandAreReadOnly` |
+| TCP-V0-025 | `contextSpansEnabled`, `attachSpans`, `newSpanRanker`, `coreSpans`, `rowSpans`, `definitionSpans`, `namedLineSpan`, `termLineSpan`, `extent`, `enclosing`, `spanRanker.packet` (`internal/contextindex/span_rank.go`) | `TestContextSpansDefaultBytes`, `TestContextSpansCoreAndCallSite` |
+| TCP-V0-026 | `callSites`, `coreCallSites`, `orderCallers`, `callerKey`, `callSite` | `TestContextSpansCoreAndCallSite` |
+| TCP-V0-027 | `spanRanker.rank`, `coveredBy`, `spanRanker.lines`, `extent` (80-line clip) | `TestContextSpansBudgetAndBounds` |
+| TCP-V0-028 | `sufficiency`, `pathAnchor`, `nameAnchor`, `spanCarries`, `setVerdict`, `sufficiencyVerdict.packet` (`internal/contextindex/sufficiency.go`) | `TestContextSufficiency` |
+| TCP-V0-029 | `tools/retrieval-bench --arms context --context-packets` with the flag unset and `on`; the offline span scorer is a scratch script, not committed | measured reading in `docs/BUILD-LOG.md` (V1-0098) |
