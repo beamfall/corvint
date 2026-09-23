@@ -4,6 +4,44 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0205, V1-0206 TCP-V0-047: routing idf floor 2.0, unheld terms and fenced blocks
+
+Cause (V1-0186 follow-up): `instructionRoutedRows` routed any governing passage that shared two task
+terms however common, so ordinary words (`test`, `spec`, `index`, `command`) routed paths for
+unrelated tasks and cost code2test recall@5 and edit2ripple recall@10/@5. A second cause came up
+in review. A task term the body term table does not hold, such as a camelCase compound the table
+splits, got the maximum idf and counted as rare. Paths inside fenced code blocks were also routed
+as if they were prose, and the fence opened and closed on any fence line.
+
+Fix: a shared term counts only when the table holds it and its idf is at least
+`contextRoutedMinIDF` = 2.0, which excludes terms held by more than about 13.5% of sources. A
+passage still needs two such terms. Fenced blocks are skipped, and `nextFence` closes a fence only
+with the same character, at least the opening length and an empty info string, as CommonMark
+requires. A fence indented four or more spaces inside a list item is still not recognized; that is
+a known limit. Analyzer schema moves to `corvint-analyzer/79` (after #123 took 78). New tests:
+`TestTaskContextRoutingClosesFencesAsCommonMark` (other character, shorter fence, info string) and
+`TestTaskContextRoutingSkipsCompoundsTheTableSplits`. The promotion control now asserts that the
+`documentation docs/ROUTES.md` pair is absent. Negative controls: with the floor removed, the held
+check removed, or the fence rules reverted, the matching test fails.
+
+Frozen `tools/retrieval-bench` v2, `--arms context`, all samples, `CORVINT_CONTEXT_*` unset
+(recall@20 / @10 / @5), base d138a58 then floor 1.5 then floor 2.0: code2test 0.5116/0.3994/0.2830,
+then 0.5116/0.3994/0.2877 in both floor arms; comment2context 0.5042/0.3438/0.2562 and trace2code
+0.7937/0.5083/0.4010 unchanged in every arm; edit2ripple 0.6293/0.4928/0.3448, then
+0.6293/0.5101/0.3448, then 0.6293/0.5101/0.3621; the abstention rate is 0.1707 in every arm. Floor
+2.0 recovers the pre-V1-0186 numbers on every subset, and it dominates 1.5, so 2.0 is chosen. The
+bench binaries predate the held-term guard and the fence-close rules. Those two changes only remove
+routed rows, and they were not re-benched. Reports:
+`/private/tmp/claude-501/-Users-russelllewis-projects-corvint/dd54e7f8-328f-4e5e-ac2a-20e9a455cd73/scratchpad/w0186-bench-v205{base,f15,f20}-{code2test,comment2context,trace2code,abstention,edit2ripple}.json`.
+
+Probes against this repository, using seven unrelated tasks (a set reconstructed after the session
+context was compacted, so it is not a frozen fixture). The base binary routes four of the seven,
+and the final binary routes none. The V1-0186 orientation task still routes `docs/AGENT-ROUTES.md`
+and `docs/specs/INDEX.json` through `backlog`, `memory`, `store`. The independent review found a
+MEDIUM issue (unheld compounds took the maximum idf), a LOW issue (the fence toggle), a LOW issue
+(the loose promotion control) and nits; all are fixed here. A stale `taskLexicalTerms` comment
+found in that review is filed as a follow-up.
+
 ## 2026-09-23 V1-0191 MCPV0-016: corvint-mcp pins Git at start; official schema executes
 
 Finding: the MCP 2026-07-28 spec kept two promotion blockers. The shared Git resolver memoised
