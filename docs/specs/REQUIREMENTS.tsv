@@ -322,6 +322,12 @@ CEM-SM-007	docs/specs/cem-0.3-structural-mechanical.md	57	`rename` MUST hold onl
 CEM-SM-008	docs/specs/cem-0.3-structural-mechanical.md	62	`move` MUST hold only when tokens outside top-level declarations are unchanged,
 CEM-SM-009	docs/specs/cem-0.3-structural-mechanical.md	65	`import-reorder` MUST hold only when the ordered import specs differ, their
 CEM-SM-010	docs/specs/cem-0.3-structural-mechanical.md	68	`formatter-only` MUST hold only when `go/format` renders the base and the image
+CEP-V0-001	docs/specs/context-evolution-program-v0.md	189	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench
+CEP-V0-002	docs/specs/context-evolution-program-v0.md	199	ContextBench metrics. For every error-free arm answer on a ContextBench sample,
+CEP-V0-003	docs/specs/context-evolution-program-v0.md	207	Pinned offline runs. Every external run MUST be local and offline: rows and
+CEP-V0-004	docs/specs/context-evolution-program-v0.md	212	Already-fixed control. A `tools/cw-trial` task MAY carry `control:
+CEP-V0-005	docs/specs/context-evolution-program-v0.md	216	Control scoring. On an already-fixed control each arm record MUST carry
+CEP-V0-006	docs/specs/context-evolution-program-v0.md	223	Evidence, not promotion. Results of this slice are measured evidence that a late
 CF-V0-001	docs/specs/change-frontier-v0.md	84	one invocation MUST accept exactly one verified `cem/0.2` artifact under its can
 CF-V0-002	docs/specs/change-frontier-v0.md	89	the implementation MUST pass the same bounded immutable CEM and OCM byte copies
 CF-V0-003	docs/specs/change-frontier-v0.md	93	optional dynamic test input is exactly the all-or-none tuple `(canonical command

@@ -439,7 +439,7 @@
   {
     "path": "docs/specs/context-evolution-program-v0.md",
     "title": "Context Evolution Program V0",
-    "reqPrefix": "",
+    "reqPrefix": "CEP-V0",
     "intent": "proposed",
     "delivery": "experimental",
     "claim": "Five independent context-evolution hypotheses require frozen held-out evidence before promotion.",
@@ -450,7 +450,9 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/gokernel"
+      "internal/gokernel",
+      "tools/retrieval-bench",
+      "tools/cw-trial"
     ]
   },
   {

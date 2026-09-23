@@ -136,6 +136,7 @@ type task struct {
 	Snapshot    string              `json:"snapshot,omitempty"`
 	Text        string              `json:"text"`
 	Gold        map[string][]string `json:"gold"`
+	Control     string              `json:"control,omitempty"`
 	Source      any                 `json:"source,omitempty"`
 }
 
@@ -195,6 +196,8 @@ type taskRecord struct {
 	Repo       string              `json:"repo"`
 	BaseCommit string              `json:"base_commit"`
 	Gold       map[string][]string `json:"gold"`
+	// Control is the task's control kind (CEP-V0-004); absent for a real task.
+	Control string `json:"control,omitempty"`
 	// HistoryCommits is the number of commits behind the copy's HEAD when the
 	// snapshot was materialised from --history; absent for a chunk rebuild.
 	HistoryCommits int `json:"history_commits,omitempty"`
@@ -615,7 +618,7 @@ func validateTask(item task) error {
 			return fmt.Errorf("gold kind %q is not a claim kind", kind)
 		}
 	}
-	return nil
+	return validateControl(item)
 }
 
 func readBounded(path string, limit int64) ([]byte, error) {
@@ -894,7 +897,7 @@ type invocation struct {
 // invokePending to run from empty directories, so no invocation can reach
 // the repository.
 func dispatchTask(ctx context.Context, configuration options, runner agent, item task, root string, space *workspaces, prior *reuseSource, saver *checkpointer) (taskRecord, []invocation) {
-	record := taskRecord{ID: item.ID, Kind: item.Kind, Repo: item.Repo, BaseCommit: item.BaseCommit, Gold: item.Gold, Subject: item.ChangedFile, Arms: map[string]*armRecord{}}
+	record := taskRecord{ID: item.ID, Kind: item.Kind, Repo: item.Repo, BaseCommit: item.BaseCommit, Gold: item.Gold, Control: item.Control, Subject: item.ChangedFile, Arms: map[string]*armRecord{}}
 	record.GoldAtBase, record.GoldChecked = goldPresent(item.Gold, func(value string) bool {
 		info, err := os.Lstat(filepath.Join(root, filepath.FromSlash(value)))
 		return err == nil && info.Mode().IsRegular()
@@ -1581,7 +1584,7 @@ func failedInvocation(record *armRecord) (int, bool) {
 }
 
 func scoreArm(record *armRecord, item *taskRecord) {
-	gold := item.Gold
+	gold := scoringGold(item)
 	record.Claims, record.Metrics = nil, nil
 	if code, failed := failedInvocation(record); record.Error == "" && failed {
 		record.Error = fmt.Sprintf("agent exited with status %d and left no claims block", code)
@@ -1630,6 +1633,9 @@ func scoreArm(record *armRecord, item *taskRecord) {
 		metrics["utilisation_gap"] = 1
 	}
 	retrievalMetrics(metrics, record, item)
+	if item.Control == controlAlreadyFixed {
+		controlMetrics(metrics, record)
+	}
 	record.Metrics = metrics
 }
 
@@ -1880,7 +1886,7 @@ func summarizeArm(details []taskRecord, name string) map[string]any {
 	if toolCallsObserved && len(scored) > 0 {
 		toolCallSummary, exploredSummary = toolCalls, exploredTasks
 	}
-	return map[string]any{
+	summary := map[string]any{
 		"tool_calls":               toolCallSummary,
 		"explored_tasks":           exploredSummary,
 		"tasks":                    len(scored) + errorCount,
@@ -1906,6 +1912,10 @@ func summarizeArm(details []taskRecord, name string) map[string]any {
 		"wall_ms":                  wallMs,
 		"tokens":                   tokenSummary,
 	}
+	if controls := controlSummary(details, name); controls != nil {
+		summary["already_fixed"] = controls
+	}
+	return summary
 }
 
 func reusedCount(details []taskRecord, name string) int {

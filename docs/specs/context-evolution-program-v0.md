@@ -7,7 +7,9 @@ Delivery status: experimental
 Document kind: hypothesis catalog (prose intent only; no numbered requirement clauses, so OCM
 must abstain rather than invent coverage). Decision 0179 (2026-09-13) holds this catalog
 prose-only permanently; a hypothesis gains `PREFIX-NNN` clauses only via a separate accepting
-slice's own requirements, never by relabelling this prose.
+slice's own requirements, never by relabelling this prose. Decision 0372 (2026-09-23) adds one such
+separate slice below, the external evaluation slice (`CEP-V0-001`..`006`): its clauses govern only
+the evaluation harnesses, and the five hypotheses above stay prose.
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/agent-harness-integration-v0.md`,
 `docs/specs/proof-carrying-context-optimization-v0.md`, `docs/DOGFOOD.md`
@@ -15,7 +17,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 ## Agent digest
 - Claim: Five independent context-evolution hypotheses require frozen held-out evidence before promotion.
 - Status: proposed/experimental
-- Exists: `internal/gokernel` local evidence for authority closure and snapshot capsules.
+- Exists: `internal/gokernel` local evidence for authority closure and snapshot capsules; external evaluation slice `CEP-V0-001`..`006` in `tools/retrieval-bench` and `tools/cw-trial`.
 - Blocked on: frozen held-out outcome trials.
 - Read next: `proof-carrying-context-optimization-v0.md` and `agent-harness-integration-v0.md`.
 
@@ -172,6 +174,91 @@ a learned profile project authority; passing item 5 does not establish a shared 
 - Code Compression Bench and CompactBench motivate cache-aware solved-task cost and multi-cycle
   compaction evaluation: `https://github.com/daseinlabs/code-compression-bench` and
   `https://github.com/compactbench/compactbench`.
+
+## External evaluation slice
+
+Decision 0372 accepts this slice as the separate accepting slice decision 0179 requires. It governs
+two local harnesses that score Corvint packets against outside evidence: the ContextBench
+(`https://arxiv.org/abs/2602.05892`, `EuniAI/ContextBench`) row adapter in `tools/retrieval-bench`,
+and an already-fixed abstention control in the confidently-wrong trial `tools/cw-trial`
+(`https://arxiv.org/abs/2603.25764`, `docs/specs/confidently-wrong-trial-v0.md`). It adds no clause
+to the five hypotheses above and no `corvint` command.
+
+## Requirements
+
+- `CEP-V0-001`: ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench row
+  exported one JSON object per line with the dataset's own column names, recognised by an
+  `instance_id` member, and map it to exactly one sample: `instance_id` is the ID, `repo` and
+  `base_commit` pin the snapshot, `problem_statement` is the verbatim query, the task type is
+  `contextbench`, and the distinct files of the JSON-encoded `gold_context` spans are the gold.
+  Gold paths MUST be normalised exactly as ContextBench's `_normalize_rel_path` does, including its
+  leading `.`/`/` strip. A row lacking `instance_id`, `repo`, `base_commit` or `problem_statement`, with
+  a `gold_context` that is not a JSON span list, or with a span whose start line is below 1 or whose end
+  precedes its start MUST be refused with its line number. The tool MUST NOT read Parquet or the
+  network.
+- `CEP-V0-002`: ContextBench metrics. For every error-free arm answer on a ContextBench sample, the
+  report MUST add `cb_file_coverage`, `cb_file_precision`, `cb_line_coverage` and `cb_line_precision`
+  beside the bench's own metrics, with ContextBench's definitions: coverage is shared over gold,
+  precision is shared over predicted, an empty gold has coverage 1 and an empty prediction precision 1.
+  The prediction is the ranking cut at the limit. Line intervals merge when they overlap or touch. A
+  ranked file predicts every line it has in the snapshot copy, because a packet names files, not
+  spans; a ranked path absent from the copy predicts no line. Symbol and byte-span granularities are
+  not measured and MUST NOT be reported.
+- `CEP-V0-003`: Pinned offline runs. Every external run MUST be local and offline: rows and
+  repository snapshots come only from explicit local `--samples` and `--snapshot`/`--corpus` inputs,
+  and the report carries the sha256 of the samples file as `samples_sha256`. A run whose subset or
+  snapshots are not locally available MUST be recorded as `NOT_RUN` with the reason, never
+  approximated from another subset.
+- `CEP-V0-004`: Already-fixed control. A `tools/cw-trial` task MAY carry `control:
+  "already-fixed"`: its issue is already resolved at the pinned revision, so nothing is left to
+  change. Such a task MUST carry no gold, and any other `control` value MUST be refused. Every valid
+  claim on it is judged against an empty gold per kind, so each claim is `FALSE`, never `UNJUDGED`.
+- `CEP-V0-005`: Control scoring. On an already-fixed control each arm record MUST carry
+  `control_failed`: 1 when the agent made a `certain` claim, and 1 when a produced corvint packet did
+  not abstain; a packet abstains on `NO_CANDIDATES` or `OUT_OF_SCOPE`, no result row, or an
+  `unsupported-conjunction` answerability verdict, and a packet that does not parse did not abstain.
+  `packet_abstained` is recorded only for a produced packet. An arm's summary MUST carry an
+  `already_fixed` block (tasks, control failures, packets observed, packets abstained) only when the
+  arm ran a control, so a report without controls keeps its bytes.
+- `CEP-V0-006`: Evidence, not promotion. Results of this slice are measured evidence that a later
+  promotion decision may cite, never a promotion: no result changes a spec's intent or delivery
+  status, a ranking default, or a product claim. Each recorded run MUST name in `docs/BUILD-LOG.md`
+  the exact subset, its samples-file sha256, the metric definitions and every `NOT_RUN` label, and
+  report files and bench data MUST NOT be committed; only small synthetic fixtures are.
+
+## Non-goals (external evaluation slice)
+
+- No new `corvint` verb, flag, packet field or ranking change; the harnesses are tools only.
+- No ContextBench agent harness, repository cloning, Parquet reader, tree-sitter symbol extraction,
+  or byte-span scoring.
+- No held-out claim: the committed fixtures are synthetic scoring fixtures.
+- No "already fixed" detection in Corvint itself; the control measures its absence.
+
+## Failure modes (external evaluation slice)
+
+- A ContextBench export whose columns drift is refused per row (`CEP-V0-001`), never partly scored.
+- A snapshot missing a gold file still counts that file's gold lines; a ranked path missing from the
+  snapshot predicts no line, so line precision is not inflated.
+- Whole-file line prediction makes `cb_line_precision` a lower bound on what a span-granular packet
+  could reach; it is reported as such, not compared to span-predicting agents as equal.
+- A failed corvint producer on a control leaves `packet_abstained` absent: an unobserved packet is
+  not an abstention.
+
+## Acceptance evidence and rollback (external evaluation slice)
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| CEP-V0-001 | `decodeSample`, `contextBenchSample`, `contextBenchPath` in `tools/retrieval-bench/contextbench.go`; `readSamples`, `queryText` | `TestContextBenchRowsMapToSamplesAndBadRowsAreRefused` |
+| CEP-V0-002 | `contextBenchMetrics`, `mergeLines`, `fileLineCount`; `judge` | `TestContextBenchFixtureScoresFileAndLineCoverage` |
+| CEP-V0-003 | `readSamples` digest, `resolveSnapshot` | `TestContextBenchFixtureScoresFileAndLineCoverage` (pinned `samples_sha256`); full ContextBench run `NOT_RUN` (BUILD-LOG V1-0097) |
+| CEP-V0-004 | `validateControl`, `scoringGold` in `tools/cw-trial/control.go` | `TestAlreadyFixedControlRefusesGoldAndUnknownControls`; `TestAlreadyFixedFixtureRecordsAConfidentAnswerAsFailure` |
+| CEP-V0-005 | `controlMetrics`, `packetAbstained`, `controlSummary`; `scoreArm`, `summarizeArm` | `TestAlreadyFixedControlScoresAnyConfidentAnswerAsFailure`; `TestAlreadyFixedFixtureRecordsAConfidentAnswerAsFailure` |
+| CEP-V0-006 | BUILD-LOG V1-0097 entry, decision 0372 | fixtures only under `testdata/`; no report committed |
+
+Rollback: revert the V1-0097 change. `contextbench.go`, `control.go`, their tests and fixtures are
+new files; the `readSamples`, `queryText`, `judge`, `validateTask`, `scoreArm` and `summarizeArm` hooks
+are single calls, and existing reports keep their bytes because the new fields appear only for
+ContextBench rows and already-fixed controls.
 
 ## Traceability
 

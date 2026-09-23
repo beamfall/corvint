@@ -179,6 +179,18 @@ where impact errors. Its `state` is the plan's scope; `UNKNOWN` means the select
 abstentions include changed files no language plugin owns, so compare `hit@k` over the details
 whose `arms.affected.abstained` is false with the same slice of the other arms.
 
+## ContextBench rows (CEP-V0-001..003)
+
+`--samples` also reads ContextBench (arXiv 2602.05892) rows exported one JSON object per line with
+the dataset's columns (`instance_id`, `repo`, `base_commit`, `problem_statement`, `gold_context`);
+the tool reads no Parquet and clones nothing, so each repository must be supplied at its base commit
+with `--snapshot` or `--corpus`. The query is the problem statement verbatim and the gold is the
+distinct files of the gold spans, normalised as ContextBench does. Each arm adds
+`cb_file_coverage`, `cb_file_precision`, `cb_line_coverage` and `cb_line_precision` (ContextBench's
+definitions; a ranked file predicts all of its lines, so line precision is a whole-file lower
+bound). Symbol and span granularities are not measured. `testdata/contextbench` is a synthetic
+fixture.
+
 ## Matched snapshot latency (proposed TCP-V0-021)
 
 Add `--snapshot-latency --output REPORT.json` to measure an explicit cold and hit `context`

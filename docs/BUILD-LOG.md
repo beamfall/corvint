@@ -4,6 +4,63 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0097, decision 0372, CEP-V0-001..CEP-V0-006: external retrieval evaluation and the already-fixed control
+
+V1-0097 (spike) adds the external evaluation slice to `docs/specs/context-evolution-program-v0.md`
+as the separate accepting slice decision 0179 requires (decision 0372); the five hypotheses stay
+prose. Results below are evidence a later promotion may cite, never a promotion (`CEP-V0-006`).
+
+**ContextBench adapter (`CEP-V0-001`..`003`).** `tools/retrieval-bench --samples` now reads
+ContextBench (arXiv 2602.05892; evaluator `EuniAI/ContextBench` at
+`1436c28a8eb95496da4ea69ad458b9f8a8eb7d61`, Apache-2.0) rows exported one JSON object per line.
+Gold paths replicate `_normalize_rel_path` exactly, including Python's `lstrip("./")`, which also
+turns `.github/x.yml` into `github/x.yml`; the adapter keeps that quirk so gold matches the
+upstream scorer. Metrics replicate `metrics/compute.py` `coverage_precision` at file and line
+granularity (coverage = shared/gold, empty gold 1; precision = shared/predicted, empty prediction 1;
+line intervals merge when they overlap or touch). The prediction is the ranking cut at `--limit`,
+and a ranked file predicts all of its lines, so `cb_line_precision` is a whole-file lower bound.
+Symbol and byte-span granularities: NOT_MEASURED (they need tree-sitter definitions and byte
+offsets the packet does not carry). Fixture `tools/retrieval-bench/testdata/contextbench/rows.jsonl`
+(sha256 `9678b04832679f000e2eb5cac3230c5698f34b0f78c1c195cedfb0250af61fbc`, two synthetic rows,
+one chunk-file snapshot). A smoke run of the base `corvint context` arm on that fixture, offline,
+answered READY on both rows (file coverage 1.0 on both; file precision 0.667 and 0.5; line
+precision 0.444 and 0.375); fixture numbers are scoring checks, not evidence.
+Full ContextBench run: NOT_RUN. The rows are downloadable (Hugging Face `Contextbench/ContextBench`,
+`default` 1,136 rows in a 26,102,607-byte Parquet per the dataset API, not downloaded), but the
+dataset ships no repository snapshots: its evaluator clones 66 upstream repositories at their base
+commits, a networked fetch well above the 2 GB bound and outside the offline rule (`CEP-V0-003`).
+
+**Agent Retrieval Bench baseline (`context` arm, base a98d770).** `corvint` and
+`tools/retrieval-bench` built from a98d770 (`GOTOOLCHAIN=local` go1.27.1), `--arms context`,
+`--limit 20` (default), all samples, snapshots from the local `--corpus` chunk files; reports stay
+under the session scratchpad, uncommitted. Metric definitions are the tool's (`tools/retrieval-bench/README.md`
+"Metrics"): per positive sample, `recall@k` = gold files in the top k over gold files, with the
+sample's given files removed from the ranking first; means over positive samples.
+
+| Subset (samples file) | sha256 | n (positive) | errors | recall@5 | recall@10 | recall@20 | hit@20 | abstained |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| `v2_trace2code/trace2code.jsonl` | `9d0ff50155fa4f65c1bbb632abc4f1f11393c50fa7b0a9249e06128b368b6266` | 101 (101) | 0 | 0.4010 | 0.5083 | 0.7937 | 0.8614 | 0.0099 |
+| `v2_edit2ripple/edit2ripple.jsonl` | `31d97ffe815dda8730149880c0159239a986eceb306e5a5df816dfc420717cef` | 58 (58) | 0 | 0.3621 | 0.5101 | 0.6293 | 0.7586 | 0 |
+| `v2_comment2context/comment2context.jsonl` | `543267024f7f06127c50664a3a1b8825d3c213e4b12dbbfabf9a3346902ad796` | 80 (80) | 0 | 0.2562 | 0.3438 | 0.5042 | 0.6500 | 0 |
+| `v2_code2test/code2test.jsonl` | `712b2699d3f963c2f940688ae5248304263c4ecda1b3831b2801c95712a50b85` | 106 (106) | 0 | 0.2877 | 0.3994 | 0.5116 | 0.6038 | 0 |
+
+No sample was skipped as unlabeled in any subset. The code2test run was started separately after
+comment2context (same binaries and flags) because host contention slowed the sequential loop.
+
+**Already-fixed control (`CEP-V0-004`, `CEP-V0-005`; arXiv 2603.25764).** `tools/cw-trial` tasks may
+carry `control: "already-fixed"` with no gold; every valid claim is FALSE, and a `certain` claim or
+a produced corvint packet that does not abstain sets `control_failed`. Fixture
+`tools/cw-trial/testdata/already-fixed` (one synthetic Go task: the reported empty-string panic is
+already handled and tested at the pinned revision). Pilot arm run offline with the base `corvint`
+and two script agents (no model): an abstaining agent scored `control_failed` 0 on `none` and
+`grep` but 1 on `corvint`, because the packet answered READY with `port.go`, `port_test.go`,
+`README.md` (answerability verdict `no-specific-terms`), so `packet_abstained` 0; a certain agent
+scored `control_failed` 1 on all three arms. Current Corvint therefore fails the control: it has no
+"already fixed" signal. Codex/model arm: NOT_RUN (needs a model and the network).
+
+Gaps: ContextBench full run NOT_RUN; symbol/span granularities NOT_MEASURED; model-agent control
+arm NOT_RUN; no held-out control set (the fixture is synthetic, NOT_OBSERVED as held-out evidence).
+
 ## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
 
 V1-0012 measured the daily change-evidence loop as it exists at `origin/main` 1894b9e against a

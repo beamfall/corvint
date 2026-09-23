@@ -369,8 +369,8 @@ func readSamples(configuration options) ([]sample, string, map[string]int, error
 		if len(line) > maxSampleBytes {
 			return nil, "", nil, fmt.Errorf("sample on line %d exceeds %d bytes", number+1, maxSampleBytes)
 		}
-		var item sample
-		if err := json.Unmarshal(line, &item); err != nil {
+		item, err := decodeSample(line)
+		if err != nil {
 			return nil, "", nil, fmt.Errorf("sample on line %d: %w", number+1, err)
 		}
 		if item.ID == "" || item.Repo == "" || item.BaseCommit == "" || item.TaskType == "" {
@@ -412,6 +412,10 @@ func readBounded(path string, limit int64) ([]byte, error) {
 // space after every comma and colon. Both arms see it; Corvint sees at most
 // maxQueryChars of it.
 func queryText(item sample) string {
+	if item.TaskType == contextBenchTask {
+		statement, _ := item.Query["problem_statement"].(string)
+		return statement
+	}
 	buffer := &bytes.Buffer{}
 	pythonJSON(buffer, item.Query)
 	return buffer.String()
@@ -862,6 +866,9 @@ func judge(ctx context.Context, configuration options, corvint retriever, contex
 	})
 	for name, answer := range report.Arms {
 		report.Metrics[name] = score(answer, report.Gold, hardNegatives(item), report.Stratum, configuration.limit)
+		if item.TaskType == contextBenchTask && answer.Error == "" {
+			contextBenchMetrics(report.Metrics[name], answer, item, root, configuration.limit)
+		}
 	}
 	return report
 }
