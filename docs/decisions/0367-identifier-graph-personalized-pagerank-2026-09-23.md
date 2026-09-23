@@ -86,6 +86,14 @@ test-file edges are the open follow-ups. None is taken here.
 - Unset, `off` or any other value leaves the packet byte-identical to the recipe golden
   (`TestContextGraphDefaultBytes`). The index gains one derived section, so every snapshot rebuilds
   once under schema `/74`.
+- Default-path cost: the graph is built on every index and decoded and checked on every snapshot
+  load even when the flag is unset. On this repository (3,489 paths, 47,384 arcs, 10,706 names) the
+  encoded section is 836,194 bytes, `buildIdentGraph` takes 30-31 ms and decode plus `check` about
+  0.2 ms (five runs, host load 13-35).
+- A graph past a bound is stored edgeless with one name offset (`boundedIdentGraph`) so `check`
+  accepts it; without that offset every saved bounded index failed to load and fell back to a
+  silent rebuild (`TestIdentGraphBoundedSnapshotReloads`, both snapshot formats). A bounded flag
+  other than 0 or 1 is a decode error.
 - Rollback: unset `CORVINT_CONTEXT_GRAPH`. To remove the slot, delete
   `internal/contextindex/identgraph.go`, `ppr.go` and their tests, the `IdentGraph` member, the
   `vocab.identgraph` section and the compile, `compile` and `rowAction` hooks, and bump

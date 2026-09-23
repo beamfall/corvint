@@ -40,6 +40,14 @@ failed once in six runs at BASE under the same load (six of six passed on the br
 alternated); focused-docs gate passed. NOT_RUN: full-sample evaluation, the other 57 affected
 packages, the unfiltered `./cmd/corvint` suite. NOT_OBSERVED: any recall@20 gain.
 
+Review fix: a graph past a bound was stored with no name offset, so `check` rejected it and every
+saved bounded index was a silent cache miss; `boundedIdentGraph` now stores one offset, a bounded
+flag other than 0 or 1 fails decode, and `TestIdentGraphBoundedSnapshotReloads` covers write, load
+and `graph-bounded` abstention under both snapshot formats. Default-path cost, measured on this
+repository with the flag unset (3,489 paths, 47,384 arcs, 10,706 names): 836,194 bytes of snapshot
+section, 30-31 ms to build, about 0.2 ms to decode and check (host load 13-35). The Git index
+deadline error no longer names a fixed 30-second limit.
+
 ## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
 
 V1-0012 measured the daily change-evidence loop as it exists at `origin/main` 1894b9e against a
