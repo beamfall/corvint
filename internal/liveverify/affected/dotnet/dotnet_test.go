@@ -183,7 +183,8 @@ func TestNonCSharpProjectReferencingCSharpWidensInsteadOfExcluding(t *testing.T)
 		}
 		plan := affected.Select(graph, []string{"Core/Core.cs"})
 		want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierProjectReference}
-		if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 1 || plan.Unknown[0] != want {
+		untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "dotnet:Core/Core.csproj"}
+		if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
 			t.Errorf("%s: scope=%s unknown=%v", extension, plan.Scope, plan.Unknown)
 		}
 	}

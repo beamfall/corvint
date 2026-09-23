@@ -35,8 +35,8 @@ const (
 	// UnknownLanguageFrontier reports that a plugin could not resolve part of
 	// its own graph exactly.
 	UnknownLanguageFrontier = "LANGUAGE_FRONTIER"
-	// UnknownNoSelectableTest reports a changed Go package (one owning a dirty
-	// path) that declares no tests, so no test of its own checks it (AFP-V0-020).
+	// UnknownNoSelectableTest reports a changed unit (one owning a dirty path)
+	// that no selectable test checks under its plugin's rule (AFP-V0-020).
 	UnknownNoSelectableTest = "NO_SELECTABLE_TEST"
 )
 
@@ -102,9 +102,8 @@ type Plan struct {
 //
 // A unit is traversed whether or not it declares tests; it is selected only if
 // it declares at least one, because a unit with no tests contributes no check.
-// A changed Go package (one owning a dirty path) with no tests is named as
-// unknown scope instead of being omitted (AFP-V0-020). An untested non-Go unit
-// is still skipped, and nothing names it when no selected test reaches it.
+// A changed unit that no selectable test checks is named as unknown scope
+// instead of being omitted (AFP-V0-020); untestedRules holds each plugin's rule.
 //
 // Selected units are emitted in the AFP-V0-007 order: witness chain length
 // ascending, shared directory prefix with the witness's dirty path descending,
@@ -127,7 +126,7 @@ func Select(graph *Graph, dirty []string) Plan {
 	reached := graph.traverse(seeds)
 	for _, id := range graph.order {
 		unit := graph.units[id]
-		if _, changed := seeds[id]; changed && len(unit.Tests) == 0 && strings.HasPrefix(id, "go:") {
+		if _, changed := seeds[id]; changed && graph.untested(id) {
 			plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
 		}
 		if len(unit.Tests) == 0 {
@@ -292,6 +291,23 @@ func (graph *Graph) witnessKind(id, path string) string {
 		}
 	}
 	return WitnessDirectSource
+}
+
+// untestedRules names, per plugin, when a changed unit has no selectable test
+// (AFP-V0-020). Go tests are package-scoped, so a package is untested when it
+// declares none of its own. Every other plugin may keep tests in the unit itself
+// or in units that depend on it, so a unit is untested when no unit it reaches,
+// itself included, declares a test.
+var untestedRules = map[string]func(*Graph, string) bool{
+	"go": func(graph *Graph, id string) bool { return len(graph.units[id].Tests) == 0 },
+}
+
+func (graph *Graph) untested(id string) bool {
+	rule, own := untestedRules[strings.SplitN(id, ":", 2)[0]]
+	if own {
+		return rule(graph, id)
+	}
+	return !graph.testReach[id]
 }
 
 // traverse walks reverse dependency edges breadth-first from the seeds.

@@ -38,6 +38,30 @@ passed on 2026-09-23 against a copy whose SHA-256 matched the pin, with and with
 affected Go packages pass; `TestHostAdapterJavaScriptHarnessInterruption` failed once at host load
 above 100 and passed three times alone. `make gate` was not run (owner preference).
 
+## 2026-09-23 V1-0204 AFP-V0-020: every plugin names a changed unit no test reaches
+
+Finding: AFP-V0-020 named a changed Go package with no tests as `NO_SELECTABLE_TEST`, but the
+other seven plugins silently omitted a changed source unit that no test reached. The plan stayed
+`BOUNDED` with nothing selected for it.
+
+Decision: each plugin defines "no selectable test" through one lookup table in `affected.Select`.
+Go keeps its own-tests rule, because the go tool runs a package's tests only against that package.
+Every other plugin may keep tests in the unit itself, as Rust does, or in units that depend on it.
+A changed unit there has no selectable test when no unit it reaches through the graph, itself
+included, declares a test. The graph computes that set once when it is built, with one walk over
+forward imports from every unit that declares a test, so each changed unit costs one lookup. A
+frontier plan now also names such a unit when the frontier hides the edge from its test. The
+TypeScript, Ruby and .NET frontier tests expect that second unknown. The Playwright plan still
+widens to the full relevant suite only on the shared graph's other unknowns, so it does not yet
+name such a helper and stays `BOUNDED` for it. How it should report one is V1-0211, a follow-up.
+This amends proposed AFP-V0-020 text; the owner's PR review is its human review.
+
+Evidence: `TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020` removes the conformance fixture's
+`solo` tests in every language. An edit to `solo` must give `NO_SELECTABLE_TEST` at `UNKNOWN`
+scope, and an edit to `core` must not. It fails for all seven non-Go plugins on the base rule and
+passes with the change, and it checks that the unknown names the `solo` unit. `make gate` was
+not run (owner preference).
+
 ## 2026-09-23 V1-0192 LCP-V0-010, LCP-V0-013: task mentions anchor prompt context
 
 The native user-prompt event resolved only explicit paths, requirement IDs and source-backed
