@@ -5,7 +5,7 @@ Date: 2026-09-01
 Requirement prefix: `FPK-V0`
 Intent status: accepted (decision 0052)
 Delivery status: experimental
-Revision status: revision 18 (FPK-V0-015 and FPK-V0-030 refuse repeated and case-variant JSON member names in a signed envelope and CEM statement; revision 17 FPK-V0-030 refuses a signed CEM claim `CEMStatement` could not have produced; revision 16 restated FPK-V0-021 and FPK-V0-024 rationale against the implemented checkpoint branch)
+Revision status: revision 19 (FPK-V0-032 stamps one trust class on every proof row and refuses a tainted row as a basis; revision 18 FPK-V0-015 and FPK-V0-030 refuse repeated and case-variant JSON member names in a signed envelope and CEM statement; revision 17 FPK-V0-030 refuses a signed CEM claim `CEMStatement` could not have produced; revision 16 restated FPK-V0-021 and FPK-V0-024 rationale against the implemented checkpoint branch)
 Authoritative inputs: `docs/plans/BREAKTHROUGH-BET-2026-09-01.md` (the bet this is slice 1 of),
 `docs/reviews/FABLE-5.1-AUDIT-2026-09-01.md` (F2, F3), `docs/specs/go-production-kernel-migration-v0.md`
 (GPK-V0-002 exact parity of the `query` wire), `conformance/cli-parity-v0` (byte-exact replay of committed
@@ -16,7 +16,7 @@ expectations; its Python oracle was retired by decision 0088), `docs/decisions/0
 ## Agent digest
 - Claim: `corvint prove` embeds the unchanged query packet and attaches a mechanical falsifier and PASS/FAIL/NOT_RUN verdict beside every evidence row.
 - Status: accepted (decision 0052)/experimental
-- Exists: `cmd/corvint/prove.go` and its test files, `internal/liveverify/pyresolve`, `internal/liveverify/jsresolve`, `internal/liveverify/mutate`, `internal/liveverify/pymutate`, `internal/attest`, help topic `prove`.
+- Exists: `cmd/corvint/prove.go` and its test files, `internal/liveverify/pyresolve`, `internal/liveverify/jsresolve`, `internal/liveverify/mutate`, `internal/liveverify/pymutate`, `internal/attest`, help topic `prove`; `cmd/corvint/prove_trust.go` (FPK-V0-032 trust class, proposed).
 - Blocked on: the 19-of-20 second-checkout witness replay gate, a falsification rate over time, and the three-arm trial in the bet.
 - Read next: Requirements; Non-goals and authority; Failure modes.
 
@@ -1029,6 +1029,23 @@ above stands with that substitution.
   `cmd/corvint/prove_attest_cem.go`, its test, `attest.ReadPublicKey`, the `--attest-cem` branch of
   `attestProof`, the help paragraph, and this clause; FPK-V0-015 output is unchanged either way.
 
+- **FPK-V0-032:** (proposed 2026-09-22, not accepted; experimental; decision 0346) Every
+  `proof.rows[]` entry MUST carry exactly one `trust` member, a string from the closed set
+  `project-authority`, `repository-content`, `repository-history`, `external-provider`,
+  `tool-output`, derived from the row's `authority` by the TCP-V0-023 table of
+  `docs/specs/task-context-packet-v0.md` (`contextindex.TrustClass`, one table for both packets)
+  and from no other input; a label the table does not name is `tool-output`. A row whose class is
+  `external-provider` or `tool-output` is tainted and MUST NOT satisfy a basis: whatever the
+  FPK-V0-003 tables would assign, its `falsifier` is `none`, so it is `NOT_RUN`, is never `PASS`,
+  never counts toward `proven_results` and never answers for its result under FPK-V0-005; and it
+  carries a `refusal` member, absent on every other row, naming the class, the result kind and
+  id, and the path and line. The embedded packet is unchanged (FPK-V0-002). The change is
+  additive: a consumer decoding the previous row shape reads the same values, and `prove
+  observe` and the CEM ledger readers, which decode only `falsifier` and `falsified`, are
+  unaffected. No label today's packet generators emit is tainted, so the rows of a repository-only
+  proof carry no `refusal`. Rollback: delete `cmd/corvint/prove_trust.go` and its test, the
+  `Trust` and `Refusal` members of `proveRow`, and restore the three `falsifierFor` call sites.
+
 ## Simpler baseline and why it is insufficient
 
 Re-reading the cited file from the index and comparing hashes would be cheaper, but it would check
@@ -1073,6 +1090,12 @@ onto SLSA, SPDX, or CycloneDX predicates: those schemas describe how an artifact
 why context was judged relevant, and a consumer reading a Corvint judgement through such a field
 would read a claim Corvint never made.
 
+The FPK-V0-032 trust class is a refusal keyed on the label, not a verdict on the label or on
+relevance: `prove` does not verify that a row's `authority` is true, so a row a forged packet
+labels `syntax` is `repository-content` by label. The `query` and `impact` wires carry no `trust`
+member (GPK-V0-002), and an `external` section row (`internal/extevidence`) is outside
+`proof.rows` in v0.
+
 ## Failure modes
 
 | Mode | Observable behaviour |
@@ -1082,6 +1105,7 @@ would read a claim Corvint never made.
 | `cat-file` fails, output over bound, or stream unreadable | exit 2, `unsupported-prove-history` |
 | Cited path dirty or unframable | row `NOT_RUN`; result `unproven` |
 | Cited blob absent, replaced, or line out of range | row `FAIL`; result `failed` |
+| (FPK-V0-032) Row whose `authority` derives a tainted trust class (`external-provider`, `tool-output`, or an unlisted label) | row keeps falsifier `none` and `NOT_RUN`, `refusal` names the row; result `unproven` |
 | Packet with only vocabulary rows | every row `history-consistent`/`PASS` when its citation resolves; `state: CITED` when the packet was `READY` |
 | Citing Go blob does not parse, or the claimed import or identifier is not on the cited line | row `FAIL`; result `failed` |
 | Declaring blob lacks the named top-level declaration | row `FAIL`; result `failed` |
@@ -1202,6 +1226,7 @@ which is the whole of what the row asserts.
 | FPK-V0-029 | `documentStatus` (`internal/contextindex/parse.go`) and its oracle twin in `src/context_corvint_index.py`; consumed by `documentAuthority` | `TestDocumentStatusReadsEveryFieldShapeAndCapturesTheTokenAlone`, `TestDocumentStatusIsAnchoredAndHeadingsTruncateByRune`, `test_document_status_reads_every_field_shape_and_captures_the_token_alone`, `conformance/cli-parity-v0` with unchanged stdout digests |
 | FPK-V0-030 | experimental prototype: `CEMStatement`, `VerifyCEM`, `ErrCEMBytesMismatch` (`internal/attest/cem.go`); wired by FPK-V0-031 | `TestCEMAttestationRoundTripsThroughTheExistingEnvelope` (predicate type, single subject with independently computed digest, no embedded bytes, `VERIFIED`), `TestCEMAttestationRefusesTamperedMapBytes` (flipped, empty, and appended bytes refused; non-CEM input not attested), `TestCEMAttestationDisclosesMissingMapBytes` (`NOT_RUN` with reason), `TestCEMAttestationRefusesASignedStatementThatIsNotACEMClaim` (validly signed statement with another `_type` or `predicateType`, zero or two subjects, or a subject name or digest that disagrees with the predicate refused with and without bytes, never as a byte mismatch), `TestCEMAttestationRefusesAMalformedSignedClaim` (validly signed empty, 63-digit, and uppercase sha256, negative size, empty spec, and empty name refused with and without bytes), `TestCEMAttestationRefusesADuplicateStatementMember` (repeated `predicateType` and predicate `size`), `TestCEMAttestationRefusesACaseVariantStatementMember` (`PredicateType` beside `predicateType`, predicate `Spec` beside `spec`), `TestCEMAttestationAcceptsUnknownStatementMembers` (undefined top-level and predicate members still `VERIFIED`); each refusal test fails with its refusal branch disabled |
 | FPK-V0-031 | experimental prototype: `attestProof`, `cemAttestationInput`, `parseProveCEMArguments` (`--attest-cem`), `parseProveVerifyCEMArguments`, `runVerifyCEMAttestation`, `verifyCEMAttestation` (`cmd/corvint/prove_attest_cem.go`), `attest.ReadPublicKey` | `TestProveCEMAttestOutputIsUnchangedWithoutAttestCEM` (`--attest` and `--attest-key` bytes equal the FPK-V0-015 statement and envelope rebuilt in-test, and are the first of two lines under `--attest-cem`), `TestProveCEMAttestationRoundTripsThroughTheCLI` (emit, verify `VERIFIED` with independently computed digest and size, tree digest unchanged), `TestProveCEMAttestationVerifyRefusesAChangedMap` (exit 2 `attest-cem-mismatch`, empty stdout), `TestProveCEMAttestationVerifyDisclosesMissingMapBytes` (`NOT_RUN` with reason), `TestProveCEMAttestationVerifyRefusesAnUnusablePublicKey` (missing, private-key PEM, and over-16-KiB key exit 2 `attest-public-key-unavailable`, empty stdout), `TestProveCEMAttestationVerifyRefusesAnUnreadableEnvelope` (missing envelope and the valid envelope whitespace-padded past 8 MiB exit 2 `attest-envelope-unavailable`), `TestProveCEMAttestationVerifyRefusesAnEnvelopeThatDoesNotVerify` (other signer's key, changed `payloadType`, changed payload, and the same-key FPK-V0-015 envelope exit 2 `attest-verification-failed`), `TestProveCEMAttestationVerifyRefusesInvalidArguments` (missing key flag, empty `--cem=`, repeated and unknown flags exit 2 `invalid-arguments`), `TestProveCEMAttestCEMRefusesInvalidArguments` (`--attest-cem=yes`, repeated `--attest-cem`, and `--attest-cem` in impact mode exit 2 `invalid-arguments`, empty stdout), `TestProveCEMAttestationVerifyRefusesAnUnavailableMap` (absolute, climbing with the signed map present at its target, missing, and over-4-MiB `--cem` exit 2 `map-unavailable`), `TestProveCEMAttestationVerifyRefusesASymlinkedOrCaseFoldedGitMap` (a symlinked parent, whether it resolves inside or outside `--root`, and a path component that case-folds equal to `.git`, exit 2 `map-unavailable`), `TestProveCEMAttestFailsWhenTheCEMStatementCannotBeBuilt` (`attestProof` with an attestable proof document and an empty CEM name or non-CEM bytes returns `attest-failed` and no output; the CLI reaches this branch only after the CEM verifier accepted the map, so the test calls `attestProof` directly), `TestReadBoundedFileRefusesFIFO`, `TestReadBoundedFileRefusesDirectory`; each refusal test fails with its refusal branch disabled |
+| FPK-V0-032 | `classifyTrust` (`cmd/corvint/prove_trust.go`), `proveRow.Trust`, `proveRow.Refusal`; `contextindex.TrustClass`, `contextindex.TrustTainted` | `TestProveRowsCarryOneTrustClassAndOldConsumersDecode` (every row of a real proof carries the class its label derives, none refused, and the previous row shape decodes the wire to the wire minus `trust` and `refusal`), `TestProveRefusesATaintedRowAsBasis` (a learned-ledger row and an unlisted label keep falsifier `none` and are refused by name even when marked `PASS`, so they count as unproven; a `syntax` row and an affected-test row are untouched) |
 
 ### 2026-09-12 literal marker audit
 

@@ -819,6 +819,7 @@ FPK-V0-028	docs/specs/falsifiable-packet-v0.md	939	(experimental prototype, deci
 FPK-V0-029	docs/specs/falsifiable-packet-v0.md	955	(accepted 2026-09-07 by decision 0080) A document's `status`, which decides ever
 FPK-V0-030	docs/specs/falsifiable-packet-v0.md	968	(experimental prototype, not advertised) A CEM MUST be attestable in the same DS
 FPK-V0-031	docs/specs/falsifiable-packet-v0.md	994	(experimental prototype, not advertised; help labels it experimental) The CLI
+FPK-V0-032	docs/specs/falsifiable-packet-v0.md	1032	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
 GAG-V0-001	docs/specs/go-archive-gate-v0.md	131	The gate MUST create one private parent directory under `${TMPDIR:-/tmp}` with a
 GAG-V0-002	docs/specs/go-archive-gate-v0.md	135	The gate MUST export `HOME`, `TMPDIR`, `GOTMPDIR`, and `GOCACHE` to those privat
 GAG-V0-003	docs/specs/go-archive-gate-v0.md	139	The gate MUST pin the toolchain to the locally installed one rather than allowin
@@ -1769,28 +1770,29 @@ SRG-V0-005	docs/specs/spec-requirement-index-generator-v0.md	89	For a rank 0 win
 SRG-V0-006	docs/specs/spec-requirement-index-generator-v0.md	94	The generator MUST write to stdout a single header line `id`, `file`, `line`,
 SRG-V0-007	docs/specs/spec-requirement-index-generator-v0.md	98	The generator MUST write no file, mutate no repository state, and produce
 SRG-V0-008	docs/specs/spec-requirement-index-generator-v0.md	101	`spec-requirements-check` MUST regenerate the index and byte-compare it against
-TCP-V0-001	docs/specs/task-context-packet-v0.md	48	`context` MUST be read-only. It builds one index over the committed tree and
-TCP-V0-002	docs/specs/task-context-packet-v0.md	51	The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]
-TCP-V0-003	docs/specs/task-context-packet-v0.md	57	Results are files. Each result row carries `kind`, `id` (the path), `score`,
-TCP-V0-004	docs/specs/task-context-packet-v0.md	75	The slots run in this order and each is capped at three rows before the lexical
-TCP-V0-005	docs/specs/task-context-packet-v0.md	120	The subject is never a result. It is carried under `subject` with its path and a
-TCP-V0-006	docs/specs/task-context-packet-v0.md	127	`state` is `READY` when at least one result exists and `NO_CANDIDATES` otherwise
-TCP-V0-007	docs/specs/task-context-packet-v0.md	138	Output is canonical JSON (`gokernel.CanonicalJSON`), byte-identical over an
-TCP-V0-008	docs/specs/task-context-packet-v0.md	141	(A) V0 reserves at most one `governing` row. The implementation MUST build a gov
-TCP-V0-009	docs/specs/task-context-packet-v0.md	150	(A) The implementation MUST build a definition-owner resolver; no existing helpe
-TCP-V0-010	docs/specs/task-context-packet-v0.md	165	(A) The implementation MUST build a definition-eligibility predicate applied ins
-TCP-V0-011	docs/specs/task-context-packet-v0.md	170	(A) `coverage` gains four members with fixed shapes. `critical` (what TCP-V0-008
-TCP-V0-012	docs/specs/task-context-packet-v0.md	188	(A) Before TCP-V0-008..011 leaves experimental these tests MUST exist and pass,
-TCP-V0-013	docs/specs/task-context-packet-v0.md	199	Documentation-suffix hits (`.md`, `.mdx`, `.rst`, `.txt`) produced by the lexica
-TCP-V0-014	docs/specs/task-context-packet-v0.md	206	(accepted 2026-09-05 by decision 0066; experimental) The lexical slot scores eve
-TCP-V0-015	docs/specs/task-context-packet-v0.md	234	(proposed 2026-09-05 by decision 0067; experimental) In the retrieval shape (no
-TCP-V0-016	docs/specs/task-context-packet-v0.md	302	(accepted 2026-09-12 by decision 0068's amendment, amended by decision 0146;
-TCP-V0-017	docs/specs/task-context-packet-v0.md	266	(proposed 2026-09-05, not accepted; experimental) `context` offers three read-on
-TCP-V0-018	docs/specs/task-context-packet-v0.md	357	(retired 2026-09-05 by decision 0078) The experimental recipe R and every
-TCP-V0-019	docs/specs/task-context-packet-v0.md	369	(proposed 2026-09-05, not accepted; experimental) With
-TCP-V0-020	docs/specs/task-context-packet-v0.md	424	(proposed 2026-09-05, not accepted; experimental) Under
-TCP-V0-021	docs/specs/task-context-packet-v0.md	398	`tools/retrieval-bench --snapshot-latency` MUST materialize a private copy once
-TCP-V0-022	docs/specs/task-context-packet-v0.md	452	(proposed 2026-09-22, not accepted; experimental; decision 0333) With
+TCP-V0-001	docs/specs/task-context-packet-v0.md	49	`context` MUST be read-only. It builds one index over the committed tree and
+TCP-V0-002	docs/specs/task-context-packet-v0.md	52	The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]
+TCP-V0-003	docs/specs/task-context-packet-v0.md	58	Results are files. Each result row carries `kind`, `id` (the path), `score`,
+TCP-V0-004	docs/specs/task-context-packet-v0.md	76	The slots run in this order and each is capped at three rows before the lexical
+TCP-V0-005	docs/specs/task-context-packet-v0.md	121	The subject is never a result. It is carried under `subject` with its path and a
+TCP-V0-006	docs/specs/task-context-packet-v0.md	128	`state` is `READY` when at least one result exists and `NO_CANDIDATES` otherwise
+TCP-V0-007	docs/specs/task-context-packet-v0.md	139	Output is canonical JSON (`gokernel.CanonicalJSON`), byte-identical over an
+TCP-V0-008	docs/specs/task-context-packet-v0.md	142	(A) V0 reserves at most one `governing` row. The implementation MUST build a gov
+TCP-V0-009	docs/specs/task-context-packet-v0.md	151	(A) The implementation MUST build a definition-owner resolver; no existing helpe
+TCP-V0-010	docs/specs/task-context-packet-v0.md	166	(A) The implementation MUST build a definition-eligibility predicate applied ins
+TCP-V0-011	docs/specs/task-context-packet-v0.md	171	(A) `coverage` gains four members with fixed shapes. `critical` (what TCP-V0-008
+TCP-V0-012	docs/specs/task-context-packet-v0.md	189	(A) Before TCP-V0-008..011 leaves experimental these tests MUST exist and pass,
+TCP-V0-013	docs/specs/task-context-packet-v0.md	200	Documentation-suffix hits (`.md`, `.mdx`, `.rst`, `.txt`) produced by the lexica
+TCP-V0-014	docs/specs/task-context-packet-v0.md	207	(accepted 2026-09-05 by decision 0066; experimental) The lexical slot scores eve
+TCP-V0-015	docs/specs/task-context-packet-v0.md	235	(proposed 2026-09-05 by decision 0067; experimental) In the retrieval shape (no
+TCP-V0-016	docs/specs/task-context-packet-v0.md	303	(accepted 2026-09-12 by decision 0068's amendment, amended by decision 0146;
+TCP-V0-017	docs/specs/task-context-packet-v0.md	267	(proposed 2026-09-05, not accepted; experimental) `context` offers three read-on
+TCP-V0-018	docs/specs/task-context-packet-v0.md	358	(retired 2026-09-05 by decision 0078) The experimental recipe R and every
+TCP-V0-019	docs/specs/task-context-packet-v0.md	370	(proposed 2026-09-05, not accepted; experimental) With
+TCP-V0-020	docs/specs/task-context-packet-v0.md	425	(proposed 2026-09-05, not accepted; experimental) Under
+TCP-V0-021	docs/specs/task-context-packet-v0.md	399	`tools/retrieval-bench --snapshot-latency` MUST materialize a private copy once
+TCP-V0-022	docs/specs/task-context-packet-v0.md	453	(proposed 2026-09-22, not accepted; experimental; decision 0333) With
+TCP-V0-023	docs/specs/task-context-packet-v0.md	478	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul

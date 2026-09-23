@@ -1518,12 +1518,13 @@ func (compiler *taskContextCompiler) namedSpecPaths(specs []string, text string)
 // instruction file, else a defining spec, else neither -- which is not a claim
 // that the repository has none (invariant 2).
 func (compiler *taskContextCompiler) governance() string {
-	for _, row := range compiler.reserved {
+	rows := compiler.governanceRows()
+	for _, row := range rows {
 		if row.kind == governingRelation {
 			return "reserved"
 		}
 	}
-	if len(compiler.reserved) != 0 {
+	if len(rows) != 0 {
 		return specMentionedRelation
 	}
 	return "unresolved"
@@ -1588,7 +1589,7 @@ func (compiler *taskContextCompiler) criticalSelectors(rows []contextRow) ([]any
 		included[row.path] = struct{}{}
 	}
 	carried, missing := make([]any, 0), make([]any, 0)
-	ordered := slices.Clone(compiler.reserved)
+	ordered := compiler.governanceRows()
 	sort.SliceStable(ordered, func(left, right int) bool {
 		leftRank := slices.Index(contextRelationOrder, ordered[left].kind)
 		rightRank := slices.Index(contextRelationOrder, ordered[right].kind)
@@ -1733,6 +1734,7 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 	for _, row := range rows {
 		source, pinned := compiler.index.Sources[row.path]
 		entry := evidence(row.path, row.line, source.BlobHash, row.reason, row.confidence, row.authority)
+		entry["trust"] = TrustClass(row.authority)
 		if !pinned {
 			// An empty blob_hash alone does not disclose that the row is
 			// unpinned (AGENTS.md invariant 2): downgrade the confidence the
@@ -1772,7 +1774,7 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 			"omitted_results": maxInt(compiler.admitted-len(rows), 0),
 			"governance":      compiler.governance(), "critical": critical, "critical_missing": missing,
 			"unexamined": compiler.unexamined(), "budget_shortage": compiler.budgetShortage(),
-			"answerability": compiler.answerability.packet(compiler.index),
+			"answerability": compiler.answerability.packet(compiler.index), "governance_refused": compiler.governanceRefused(),
 		},
 		"results": results,
 	}

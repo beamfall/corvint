@@ -35,6 +35,7 @@
     ],
     "critical_missing": [],
     "governance": "reserved",
+    "governance_refused": [],
     "included_results": 12,
     "omitted_results": 0,
     "unexamined": [
@@ -116,7 +117,8 @@
           "confidence": "high",
           "line": 1,
           "path": "AGENTS.md",
-          "reason": "the highest-precedence tracked instruction file"
+          "reason": "the highest-precedence tracked instruction file",
+          "trust": "project-authority"
         }
       ],
       "id": "AGENTS.md",
@@ -133,7 +135,8 @@
           "confidence": "high",
           "line": 1,
           "path": "pkg/parser/parser.go",
-          "reason": "the task names pkg/parser/parser.go"
+          "reason": "the task names pkg/parser/parser.go",
+          "trust": "repository-content"
         }
       ],
       "id": "pkg/parser/parser.go",
@@ -150,7 +153,8 @@
           "confidence": "high",
           "line": 1,
           "path": "pkg/parser/parser_test.go",
-          "reason": "test counterpart of pkg/parser/parser.go"
+          "reason": "test counterpart of pkg/parser/parser.go",
+          "trust": "repository-content"
         }
       ],
       "id": "pkg/parser/parser_test.go",
@@ -167,7 +171,8 @@
           "confidence": "high",
           "line": 3,
           "path": "lib/scan/def.go",
-          "reason": "defines zqframe"
+          "reason": "defines zqframe",
+          "trust": "repository-content"
         }
       ],
       "id": "lib/scan/def.go",
@@ -184,7 +189,8 @@
           "confidence": "low",
           "line": 1,
           "path": "pkg/parser/helpers.go",
-          "reason": "4 distinct task terms, 1 occurrences; rarest `parser` (idf 1.31); bm25 4.17"
+          "reason": "4 distinct task terms, 1 occurrences; rarest `parser` (idf 1.31); bm25 4.17",
+          "trust": "repository-content"
         }
       ],
       "id": "pkg/parser/helpers.go",
@@ -201,7 +207,8 @@
           "confidence": "low",
           "line": 1,
           "path": "docs/needle.md",
-          "reason": "documentation: 4 distinct task terms, 4 occurrences; rarest `drop` (idf 2.16); bm25 7.37"
+          "reason": "documentation: 4 distinct task terms, 4 occurrences; rarest `drop` (idf 2.16); bm25 7.37",
+          "trust": "repository-content"
         }
       ],
       "id": "docs/needle.md",
@@ -218,7 +225,8 @@
           "confidence": "low",
           "line": 1,
           "path": "docs/guide.md",
-          "reason": "documentation: 1 distinct task terms, 1 occurrences; rarest `signal` (idf 1.31); bm25 1.56"
+          "reason": "documentation: 1 distinct task terms, 1 occurrences; rarest `signal` (idf 1.31); bm25 1.56",
+          "trust": "repository-content"
         }
       ],
       "id": "docs/guide.md",
@@ -235,7 +243,8 @@
           "confidence": "low",
           "line": 1,
           "path": "internal/other/short.go",
-          "reason": "3 distinct task terms, 3 occurrences; rarest `signal` (idf 1.31); bm25 3.49"
+          "reason": "3 distinct task terms, 3 occurrences; rarest `signal` (idf 1.31); bm25 3.49",
+          "trust": "repository-content"
         }
       ],
       "id": "internal/other/short.go",
@@ -252,7 +261,8 @@
           "confidence": "low",
           "line": 1,
           "path": "cmd/needle/main.go",
-          "reason": "3 distinct task terms, 1 occurrences; rarest `needle` (idf 1.65); bm25 3.21"
+          "reason": "3 distinct task terms, 1 occurrences; rarest `needle` (idf 1.65); bm25 3.21",
+          "trust": "repository-content"
         }
       ],
       "id": "cmd/needle/main.go",
@@ -269,7 +279,8 @@
           "confidence": "low",
           "line": 1,
           "path": "go.mod",
-          "reason": "2 distinct task terms, 1 occurrences; rarest `go` (idf 2.16); bm25 2.85"
+          "reason": "2 distinct task terms, 1 occurrences; rarest `go` (idf 2.16); bm25 2.85",
+          "trust": "repository-content"
         }
       ],
       "id": "go.mod",
@@ -286,7 +297,8 @@
           "confidence": "low",
           "line": 1,
           "path": "internal/other/unrelated.go",
-          "reason": "1 distinct task terms, 0 occurrences; rarest `go` (idf 0.31); bm25 0.31"
+          "reason": "1 distinct task terms, 0 occurrences; rarest `go` (idf 0.31); bm25 0.31",
+          "trust": "repository-content"
         }
       ],
       "id": "internal/other/unrelated.go",
@@ -303,7 +315,8 @@
           "confidence": "low",
           "line": 1,
           "path": "lib/frob/frob.go",
-          "reason": "1 distinct task terms, 0 occurrences; rarest `go` (idf 0.31); bm25 0.31"
+          "reason": "1 distinct task terms, 0 occurrences; rarest `go` (idf 0.31); bm25 0.31",
+          "trust": "repository-content"
         }
       ],
       "id": "lib/frob/frob.go",

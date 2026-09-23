@@ -13,12 +13,13 @@ confidence), `docs/decisions/0033-term-table-2026-09-02.md` (whole-token terms f
 consumer), `docs/decisions/0065-documentation-is-searchable-evidence-with-its-own-placement-2026-09-05.md`
 (documentation admission and placement), `docs/decisions/0067-test-code-linking-in-the-context-packet-2026-09-05.md`
 (the `test` relation), `docs/specs/go-production-kernel-migration-v0.md` (the `impact` reverse-import rules this
-packet reuses), `AGENTS.md` invariants 1, 2, 4, and 8.
+packet reuses), `docs/decisions/0346-packet-trust-class-2026-09-22.md` (the `trust` class on every
+evidence row), `AGENTS.md` invariants 1, 2, 3, 4, and 8.
 
 ## Agent digest
 - Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
 - Status: proposed/experimental
-- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed).
+- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed).
 - Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012, which is implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it.
 - Read next: Requirements; Non-goals; Failure modes.
 
@@ -474,6 +475,33 @@ it must read, each with the relation that admitted it, without naming the task's
   paired ladder. Rollback: unset the flag or remove the anchor field; the default wire never
   changed.
 
+- `TCP-V0-023`: (proposed 2026-09-22, not accepted; experimental; decision 0346) Every
+  `results[].evidence[]` row carries exactly one `trust` member, a string from the closed set
+  `project-authority`, `repository-content`, `repository-history`, `external-provider`,
+  `tool-output`, derived from the row's own `authority` label by the table below and from no
+  other input, so two rows with one label carry one class on every run. A label the table does
+  not name derives `tool-output`: an unlisted label is the least trusted class, never a more
+  trusted one by omission (invariant 2). A class is tainted when it is `external-provider` or
+  `tool-output`; content fetched from a provider or produced by a tool is read, never trusted,
+  however it is labelled. A reserved row (TCP-V0-008, TCP-V0-009) whose class is tainted
+  satisfies neither the `governance` receipt nor the `critical` selectors (TCP-V0-011) and is
+  named, in reservation order, in `coverage.governance_refused`, an always-present array of
+  `{relation, path, trust, reason}` objects; it stays in `results` with its class so the reader
+  sees what was set aside. The array is empty on every packet today's generators produce,
+  because no reserved generator emits a tainted label. The change is additive: a consumer
+  decoding the previous row shape reads the same values, and the `query` and `impact` wires
+  (GPK-V0-002, `conformance/cli-parity-v0`) and the `external` section (`internal/extevidence`)
+  carry no `trust` member. The one table is `trustByAuthority` in `internal/contextindex/trust.go`;
+  `prove` reuses it (FPK-V0-032).
+
+  | `authority` label | `trust` |
+  |---|---|
+  | `project-instructions`, `instruction-reference`, `repository-spec`, `accepted-spec`, `accepted-decision`, `non-binding-decision`, `accepted-contract`, `partially-superseded-contract`, `document-reference`, `canonical-ledger`, `source-marker`, `test-marker` | `project-authority` |
+  | `syntax`, `git-tree`, `test-convention`, `task-text`, `directory`, `vocabulary`, `affected-selection`, `cem-supported`, `cem-mechanical`, `cem-unknown` | `repository-content` |
+  | `git-history` | `repository-history` |
+  | `external-provider` | `external-provider` |
+  | `unverified-contract`, `unverified-ledger`, `local-task-trace`, `generated-documentation`, and every label not listed | `tool-output` |
+
 ## Non-goals and authority
 
 Forward imports of the subject, cross-directory definition-to-reference edges, and re-export
@@ -494,6 +522,12 @@ definition-owner row; widening to another documentation suffix is decision
 anchor table to the index, snapshot or pack and no packet member; its five anchor shapes are fixed,
 not a grammar per language, and the bench's separate anchor-bearing subset is
 `tools/retrieval-bench`'s to add, not this packet's.
+
+TCP-V0-023 adds no input and no ranking change: the class is a function of the `authority`
+label alone, so it cannot disagree with the label and does not verify it; a row a forged packet
+labels `syntax` is `repository-content` by label. Stamping `trust` on the `query` and `impact`
+wires (held byte-exact by GPK-V0-002 and `conformance/cli-parity-v0`) and on the `external`
+section's rows is not this slice's to do.
 
 Operational note (V1-0051): `corvint context` and the generic harness-event dispatch it shares
 (`cmd/corvint/taskcontext.go`, `cmd/corvint/main.go`) write a local pprof CPU profile when the
@@ -543,6 +577,11 @@ and does not widen what either read-only path reads, returns, or mutates (AGENTS
   not say so: the anchor field is a credit inside the lexical slot, not a relation, so a missing
   anchor row is not evidence that the literal is absent (invariant 2). A quoted prose fragment is
   an `error` anchor by shape; it rarely occurs verbatim and then only adds lexical credit.
+- (TCP-V0-023) A reserved row whose label derives a tainted class: `governance` reads as if the
+  row were absent (`unresolved` when it was the only governing row), `critical` omits it, and
+  `coverage.governance_refused` names its relation, path and class; the row itself stays in
+  `results`. An unlisted label is refused the same way as `tool-output`; the packet does not say
+  the label is unknown, so a new generator label must be added to the table to be trusted.
 
 ## Acceptance evidence
 
@@ -569,6 +608,13 @@ its 2a76e40 golden and one ordering fixture per mechanism).
 `internal/contextindex/context_anchors_test.go` (TCP-V0-022, proposed: one table row per anchor
 class carried verbatim and not by its split tokens, the extraction bounds and whole-anchor rule,
 the `anchor:` reason behind the governing row, default bytes unchanged).
+`internal/contextindex/trust_test.go` (TCP-V0-023, proposed: the table is closed and
+deterministic and an unlisted label is `tool-output`; every packet row carries one class equal to
+its label's and the governing row is `project-authority`; a tainted reserved row satisfies neither
+`governance` nor `critical` and is named in `governance_refused`; the previous row shape decodes
+today's wire to the wire minus `trust`); the recipe golden of
+`internal/contextindex/ranking_regression_test.go` re-captured with only the `trust` member and
+the empty `governance_refused` array added.
 
 ## Rollback
 
@@ -580,6 +626,9 @@ dispatch block in `cmd/corvint/main.go`, and the help suffix in `cmd/corvint/hel
 TCP-V0-022 rolls back alone: delete `internal/contextindex/context_anchors.go` and its test, the
 `anchors` fields and the anchor loop in `lexicalHits`, and the `field >= 2` widening in
 `queryTermGain`; the default wire never changed.
+TCP-V0-023 rolls back alone: delete `internal/contextindex/trust.go` and its test, the `trust`
+stamp in `packet` and the `governance_refused` member, point `governance` and `criticalSelectors`
+back at `compiler.reserved`, and re-capture the recipe golden.
 
 ## Traceability
 
@@ -607,3 +656,4 @@ TCP-V0-022 rolls back alone: delete `internal/contextindex/context_anchors.go` a
 | TCP-V0-021 (accepted measurement) | `registerBeforeRun`, `prepareSnapshotSample`, `validateSnapshotPair`, `runTaskContext`, `ownProcessGroup` | `TestRegistrationOutputAliasesRefuseBeforeRetrievalOrWrites`, `TestRegistrationOutputAllowsDistinctFiles`, `TestSnapshotLatencyReusesCopiesAndRegistersBeforeRetrieval`, `TestSnapshotLatencyRestoresHiddenSnapshotOnCancellation`, `TestSnapshotLatencyRefusesUnknownOrDifferentRanking`, `TestBenchRejectsDirtySampleBeforeNextRetrieval`, `TestSnapshotIndexCancellationLeavesNoDescendant`, `TestBenchSnapshotTraceObservesHitWithoutChangingPacket` |
 | TCP-V0-020 | `frameRelationRows`, `namedTestFrames`, `frameCandidates`, `creditFrameIdentifiers` | `TestFrameRelationSignals`, `TestFrameRelationOrderingAndCoverage`, `TestFrameRelationScopeAndDeterminism` |
 | TCP-V0-022 | `configureContextAnchors`, `taskAnchors`, `anchorCandidates`, `countAnchor`, `anchorOccurrences`, `anchorReason`, `lexicalHits`, `queryTermGain` | `TestContextAnchorClassesMatchVerbatim`, `TestContextAnchorsExtractionBounds`, `TestContextAnchorsExplainAndNeverOutrankAuthority`, `TestContextAnchorsDefaultBytes` |
+| TCP-V0-023 | `trustByAuthority`, `TrustClass`, `TrustTainted`, `governanceRows`, `governanceRefused` (`internal/contextindex/trust.go`); the `trust` stamp in `taskContextCompiler.packet` | `TestTrustClassIsClosedAndDeterministic`, `TestTaskContextRowsCarryOneTrustClass`, `TestTaskContextGovernanceRefusesATaintedReservedRow`, `TestTaskContextWireIsAdditiveForAnOldConsumer`, `TestContextRecipeDefaultPathIsByteIdentical` (re-captured golden) |

@@ -2242,3 +2242,43 @@ pre-existing citations in `docs/specs/falsifiable-packet-v0.md`, `docs/decisions
 `docs/specs/go-production-kernel-migration-v0.md` that cite `internal/contextindex` and
 `cmd/corvint` lines this change does not touch; they were not repinned because those files are
 outside this change's ownership. Full `make gate` was not run, per ticket scope.
+## 2026-09-22 packet-trust-class: one `trust` class per cited row; tainted rows satisfy no basis
+
+Ticket V1-0090, decision 0346 (proposed, experimental delivery), TCP-V0-023 and FPK-V0-032.
+
+What changed: `internal/contextindex/trust.go` holds the closed five-class enum
+(`project-authority`, `repository-content`, `repository-history`, `external-provider`,
+`tool-output`), the one derivation table `trustByAuthority` keyed on the existing `authority`
+label (an unlisted label is `tool-output`), and `TrustTainted`. `context` stamps `trust` on every
+`results[].evidence[]` row, computes `governance` and `critical` over the non-tainted reserved rows
+only, and adds the always-present `coverage.governance_refused` array naming each refused row.
+`prove` (`cmd/corvint/prove_trust.go`) stamps `trust` on every `proof.rows[]` entry through the
+same table; a tainted row keeps falsifier `none` (never `PASS`, never `proven_results`) and carries
+a `refusal` naming the row. No new input is read; the `query`/`impact` wires, the `external`
+section and the CEM ledger readers are untouched.
+
+Measured: the recipe golden `internal/contextindex/testdata/context-recipe-default-golden.json`
+re-captured with exactly 12 added `"trust"` members (11 `repository-content`, 1
+`project-authority`) and one added `"governance_refused": []`; no other byte changed. The
+`TestAnalyzerSchemaInputs` audit digest was repinned (consumer-only change, schema stays
+`corvint-analyzer/73`, as the two prior repins did). Every row of the `prove` fixture proof is
+untainted and unrefused (`TestProveRowsCarryOneTrustClassAndOldConsumersDecode`). Old-consumer
+decoding covered for both wires by decoding the previous struct shapes and comparing canonical
+JSON with the new members deleted.
+
+NOT MET / follow-ups (text only, no tickets filed): the `query`/`impact` evidence rows carry no
+`trust` (byte-exact under GPK-V0-002 and `conformance/cli-parity-v0`; needs its own amendment);
+`internal/extevidence` external-section rows are not stamped (outside this change's ownership);
+`prove checkpoint` claimed-authority rows are not classified; no external consumer has exercised
+the new members.
+
+Gates: `gofmt -l` (nothing), `GOTOOLCHAIN=local go build ./... && go vet ./...`,
+`GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/contextindex/... ./internal/specindex/`
+(ok, 134.5s and 0.2s), `cmd/corvint -run` over the two new prove tests plus the twenty context-,
+answerability- and prove-row tests the wire change touches (ok), and `make spec-requirements-check
+requirement-definitions-check traceability-tests-check decision-numbers-check` all passed.
+`make line-citations-check` FAILS on 18 citations (decision 0082, `falsifiable-packet-v0.md`
+rows citing `internal/contextindex/impact.go`, and `go-production-kernel-migration-v0.md` citing
+`range_impact.go`); the same 18 fail with the index read from base 4519cad and none names a file
+this change touched, so they are pre-existing from the batch D commit and were not repinned here.
+Full `make gate` was not run, per ticket scope.
