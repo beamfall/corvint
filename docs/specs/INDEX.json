@@ -726,6 +726,7 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint",
+      "examples/evidence-provider/v0",
       "internal/extevidence"
     ]
   },

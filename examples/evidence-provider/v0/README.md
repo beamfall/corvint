@@ -19,8 +19,8 @@ refuses every profile failure with its own reason and no record bytes:
 
 | Record | Checker reason |
 |---|---|
-| Top-level `schema` member repeated | `ambiguous record profile: repeated schema member` |
-| Any other member name repeated in one object | `ambiguous record: repeated member "PATH"` |
+| Top-level `schema` member repeated, ignoring letter case | `ambiguous record profile: repeated schema member` |
+| Any other member name repeated in one object, ignoring letter case | `ambiguous record: repeated member "PATH"` |
 | `schema` absent or not `/0`, `/1`, `/2` | `unsupported record profile` |
 | Supported `schema` other than `--profile` | `record schema differs from pin` |
 | `/1`, `/2`: pinned origin declared by more than one repository | `ambiguous pinned repository origin` |

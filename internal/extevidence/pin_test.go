@@ -199,6 +199,7 @@ func TestProviderKitProfileReasons(t *testing.T) {
 		mismatched := pin1
 		mismatched.Origin = p.e2e.first
 		repeatedID := bytes.Replace(v0, []byte(`"id": "mockdocs"`), []byte(`"id": "mockdocs", "id": "other"`), 1)
+		caseID := bytes.Replace(v0, []byte(`"id": "mockdocs"`), []byte(`"ID": "other", "id": "mockdocs"`), 1)
 		deep := []byte(strings.Repeat("[", maxPinnedDepth+2) + strings.Repeat("]", maxPinnedDepth+2))
 		for _, c := range []struct {
 			name string
@@ -214,6 +215,9 @@ func TestProviderKitProfileReasons(t *testing.T) {
 			{"too deep", deep, pin, "record is not a strict JSON document: nesting exceeds 32"},
 			{"ambiguous profile", append([]byte(`{"schema":"external-evidence-provider/3",`), v0[1:]...), pin, "ambiguous record profile: repeated schema member"},
 			{"ambiguous identity", repeatedID, pin, `ambiguous record: repeated member "provider.id"`},
+			{"ambiguous profile case variant", append([]byte(`{"schema":"external-evidence-provider/3",`), bytes.Replace(v0, []byte(`"schema"`), []byte(`"SCHEMA"`), 1)[1:]...), pin, "ambiguous record profile: repeated schema member"},
+			{"ambiguous profile fold variant", append([]byte(`{"\u017fchema":"external-evidence-provider/3",`), v0[1:]...), pin, "ambiguous record profile: repeated schema member"},
+			{"ambiguous identity case variant", caseID, pin, `ambiguous record: repeated member "provider.id"`},
 			{"ambiguous repository", conformance(t, "ambiguous.json", p.values()), pin1, "ambiguous pinned repository origin"},
 			{"repository mismatch", v1, mismatched, "repository origin differs from pin"},
 			{"unsupported profile", mutate(t, v0, func(r map[string]any) { r["schema"] = "external-evidence-provider/3" }), pin, "unsupported record profile"},

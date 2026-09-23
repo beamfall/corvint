@@ -156,7 +156,8 @@ each cited path still exists at that revision, and what was omitted or could not
   record profiles `external-evidence-provider/0`, `/1` and `/2`; its compatibility window is those
   three profiles read by the current checkout's consumer, and pins saved under kit 0.1.0 keep
   their meaning. The kit consumer MUST refuse each profile
-  failure with its own reason and no record bytes: a member name repeated within one object is
+  failure with its own reason and no record bytes: a member name repeated within one object,
+  compared ignoring letter case under the simple case folding Go's decoder applies, is
   `ambiguous record profile: repeated schema member` for the top-level `schema` and
   `ambiguous record: repeated member "PATH"` otherwise, any other declared profile or none is
   `unsupported record profile`, a supported profile other than the pin is

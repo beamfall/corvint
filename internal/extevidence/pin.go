@@ -11,6 +11,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
+	"unicode"
 )
 
 // Pin is an exact authoring-kit consumer contract, not a Core authority claim.
@@ -115,7 +117,7 @@ func profileReason(data []byte, pinned string) error {
 	if err != nil {
 		return fmt.Errorf("record is not a strict JSON document: %s", trimJSONError(err))
 	}
-	if repeated == "schema" {
+	if strings.EqualFold(repeated, "schema") {
 		return errors.New("ambiguous record profile: repeated schema member")
 	}
 	if repeated != "" {
@@ -133,6 +135,8 @@ func profileReason(data []byte, pinned string) error {
 
 // repeatedMember returns the dotted path of the first member name repeated
 // within one object of the next JSON value, or "" when every name is unique.
+// Names are compared under the same simple case folding Go's decoder uses to
+// match members, so "schema" and "SCHEMA" are one repeated member.
 func repeatedMember(decoder *json.Decoder, prefix string, depth int) (string, error) {
 	if depth > maxPinnedDepth {
 		return "", fmt.Errorf("nesting exceeds %d", maxPinnedDepth)
@@ -153,12 +157,13 @@ func repeatedMember(decoder *json.Decoder, prefix string, depth int) (string, er
 			if err != nil {
 				return "", err
 			}
-			child = prefix + key.(string)
-			if seen[child] {
-				return child, nil
+			name := key.(string)
+			folded := strings.Map(foldRune, name)
+			if seen[folded] {
+				return prefix + name, nil
 			}
-			seen[child] = true
-			child += "."
+			seen[folded] = true
+			child = prefix + name + "."
 		}
 		if found, err := repeatedMember(decoder, child, depth+1); found != "" || err != nil {
 			return found, err
@@ -166,6 +171,16 @@ func repeatedMember(decoder *json.Decoder, prefix string, depth int) (string, er
 	}
 	_, err = decoder.Token()
 	return "", err
+}
+
+// foldRune maps a rune to the smallest rune of its simple case-folding orbit,
+// the equivalence encoding/json applies to member names.
+func foldRune(r rune) rune {
+	smallest := r
+	for folded := unicode.SimpleFold(r); folded != r; folded = unicode.SimpleFold(folded) {
+		smallest = min(smallest, folded)
+	}
+	return smallest
 }
 
 func (pin Pin) checkIdentity(identity Identity, revision string) error {
