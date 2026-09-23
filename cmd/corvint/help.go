@@ -262,6 +262,8 @@ Usage:
   corvint [--root PATH] prove --verify-cem-attestation ENVELOPE --attest-public-key PEM
     [--cem MAP]
   corvint [--root PATH] prove --checkpoint FILE
+  corvint [--root PATH] prove --export-bundle (--task TEXT [...] | --checkpoint FILE)
+  corvint [--root PATH] prove --replay-bundle FILE
   corvint [--root PATH] prove-observe < PROOF
   corvint [--root PATH] witness --base REV [--head REV] [--cem MAP] [--json]
   corvint test-validity [--receipt FILE]
@@ -752,6 +754,20 @@ binding baseRevision and patchSha256, offline against the Ed25519 PKIX key at
 PEM: VERIFIED when --cem MAP bytes match, else NOT_RUN (cem-bytes-not-supplied).
 It exits 2 with attest-public-key-unavailable, attest-envelope-unavailable,
 attest-verification-failed, attest-cem-mismatch, or map-unavailable.
+
+Experimental failure bundles (decision 0361):
+  corvint [--root PATH] prove --export-bundle (--task TEXT [...] | --checkpoint FILE)
+  corvint [--root PATH] prove --replay-bundle FILE
+
+--export-bundle prints one historical corvint-failure-bundle/0 JSON document
+to stdout, never a file: the exact arguments, HEAD commit, tree and cited blob
+ids, the engine version and profile, the checkpoint bytes, and the original
+receipt or refusal. It needs a clean worktree and refuses secret-shaped text
+(bundle-secret-detected) and bundles over 8 MiB. --replay-bundle reruns it on
+this checkout and prints a historical corvint-failure-replay/0 report,
+reproduced (exit 0) or diverged (exit 1), or exits 2 with invalid-bundle,
+unsupported-version, tampered, missing-input, incompatible-engine,
+missing-git-object, drift, or mixed-worktree. Neither is a fresh proof.
 
 proof.ledger is the repository's falsification rate: the share of judged
 rows (PASS or FAIL) that failed, over every proof recorded with

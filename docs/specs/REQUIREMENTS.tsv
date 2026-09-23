@@ -833,6 +833,15 @@ FPK-V0-037	docs/specs/falsifiable-packet-v0.md	1120	(proposed 2026-09-22, not ac
 FPK-V0-038	docs/specs/falsifiable-packet-v0.md	1134	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
 FPK-V0-039	docs/specs/falsifiable-packet-v0.md	1142	(proposed 2026-09-22, not accepted; experimental; decision 0355) The same
 FPK-V0-040	docs/specs/falsifiable-packet-v0.md	1155	(proposed 2026-09-22, not accepted; experimental; decision 0355) `anchor` and
+FPK-V0-041	docs/specs/falsifiable-packet-v0.md	1165	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint prove
+FPK-V0-042	docs/specs/falsifiable-packet-v0.md	1176	(proposed 2026-09-23, not accepted; experimental; decision 0361) The bundle is o
+FPK-V0-043	docs/specs/falsifiable-packet-v0.md	1189	(proposed 2026-09-23, not accepted; experimental; decision 0361) Export is
+FPK-V0-044	docs/specs/falsifiable-packet-v0.md	1199	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint [--roo
+FPK-V0-045	docs/specs/falsifiable-packet-v0.md	1207	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay refuses
+FPK-V0-046	docs/specs/falsifiable-packet-v0.md	1228	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay compares
+FPK-V0-047	docs/specs/falsifiable-packet-v0.md	1244	(proposed 2026-09-23, not accepted; experimental; decision 0361) Bundles and
+FPK-V0-048	docs/specs/falsifiable-packet-v0.md	1249	(proposed 2026-09-23, not accepted; experimental; decision 0361) Existing
+FPK-V0-049	docs/specs/falsifiable-packet-v0.md	1257	(proposed 2026-09-23, not accepted; experimental; decision 0361) Non-goals:
 GAG-V0-001	docs/specs/go-archive-gate-v0.md	131	The gate MUST create one private parent directory under `${TMPDIR:-/tmp}` with a
 GAG-V0-002	docs/specs/go-archive-gate-v0.md	135	The gate MUST export `HOME`, `TMPDIR`, `GOTMPDIR`, and `GOCACHE` to those privat
 GAG-V0-003	docs/specs/go-archive-gate-v0.md	139	The gate MUST pin the toolchain to the locally installed one rather than allowin
