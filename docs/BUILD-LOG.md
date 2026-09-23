@@ -24,6 +24,10 @@ their requirement IDs or dispatch them (`internal/genesis` with `cmd/corvint/ini
 `internal/contextindex` with `internal/worktreeimpact`, `benchmarks/dogfood-measure`, `internal/tcq`).
 No spec body, intent or delivery value changes. Verified: focused-docs gate, `internal/specindex`,
 `internal/console`, `internal/companionrelease` tests and vet. `make gate` `NOT_RUN` (owner policy).
+Dogfood: cem-prepare, cem-cite (20/20 hunks supported) and local-outcome `PRODUCED`; ocm-prepare-001
+`NOT_PRODUCED` `invalid-requirements-section` ("intent must contain exactly one ## Requirements heading") for both
+`docs/specs/README.md` and `docs/SPEC-DRIVEN-DEVELOPMENT.md`, so ocm-aggregate `intent-scope-drift`,
+dogfood-check `FAIL dogfood-report-drift` and the seal was refused.
 V1-0001 (scope ratification) remains open, so the dispositions reflect the index, not ratified 1.0 scope.
 
 ## 2026-09-22 AFU-V0-001..AFU-V0-012: experimental web flow understanding
