@@ -67,7 +67,6 @@
       "cmd/corvint",
       "internal/gokernel",
       "internal/repoenvelope",
-      "src/context_corvint_harness.py",
       "conformance/harness-event-v0"
     ]
   },
@@ -228,9 +227,7 @@
     "implementation": [
       "internal/cem",
       "cmd/corvint",
-      "conformance/cem-0.2",
-      "src/context_corvint_cem.py",
-      "src/context_corvint_cem_workflow.py"
+      "conformance/cem-0.2"
     ]
   },
   {
@@ -292,8 +289,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "internal/cem",
-      "experiments/cem-first-run"
+      "internal/cem"
     ]
   },
   {
@@ -932,8 +928,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "src/context_corvint_genesis.py",
-      "src/corvint_cli.py"
+      "internal/genesis",
+      "cmd/corvint/init_adopt.go"
     ]
   },
   {
@@ -1421,8 +1417,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "src/context_corvint_ocm.py",
-      "src/context_corvint_ocm_workflow.py",
       "cmd/corvint/dogfood_ocm.go",
       "internal/dogfoodocm",
       "internal/lrfrepo/ocm.go",
@@ -1430,9 +1424,7 @@
       "script/dogfood-check.sh",
       "script/dogfood-change_test.sh",
       "internal/dogfoodocm/aggregate_test.go",
-      "internal/lrfrepo/ocm_prepare_test.go",
-      "tests/test_context_corvint_ocm.py",
-      "tests/test_context_corvint_ocm_workflow.py"
+      "internal/lrfrepo/ocm_prepare_test.go"
     ]
   },
   {
@@ -1611,7 +1603,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "tools/release_artifact.py",
       "script/release-checklist",
       "conformance/release-artifact-v0",
       "conformance/release-artifact-v0/archive-verifier",
@@ -1680,10 +1671,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "src/context_corvint.py",
-      "src/context_corvint_index.py",
-      "tests/test_context_corvint.py",
-      "tests/test_context_corvint_cache.py"
+      "internal/contextindex",
+      "internal/worktreeimpact"
     ]
   },
   {
@@ -1766,7 +1755,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "src/context_corvint_claims.py",
       "internal/semescalate"
     ]
   },
@@ -1947,7 +1935,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "benchmarks/dogfood_measure.py"
+      "benchmarks/dogfood-measure"
     ]
   },
   {
@@ -1965,8 +1953,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "src/context_corvint_test_claim.py",
-      "src/context_corvint_test_claim_junit.py"
+      "internal/tcq"
     ]
   },
   {
@@ -2015,8 +2002,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "conformance/use-cases-v0",
-      "tests/test_use_case_conformance.py"
+      "conformance/use-cases-v0"
     ]
   },
   {

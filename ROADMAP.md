@@ -1,12 +1,12 @@
 # Roadmap
 
-The owner's 2026-09-12 integrated release request is tracked in
-[Corvint integrated product roadmap](docs/plans/integrated-product-roadmap-2026-09-12.md):
-working Corvint, automatic docs through MCP, agent/VS Code automatic test tracking including E2E,
-the local dashboard, and task manager with a roadmap. Its delivery slices reference the owning
-`AT-` and `TCP-` work below; they do not replace those contracts or declare them complete.
+Live execution status has one authority: the Corvint task store `.taskman/` (queue `queue:corvint:main`),
+read with `corvint-tasks queue status`, `corvint-tasks roadmap`, `corvint-tasks release list` and
+`corvint-tasks ticket show <ID>` in a checkout whose store is initialized; never initialize a replacement.
+Every checkbox, `Status` line, date and selection below is history as of `1894b9e`, not live status; the
+[disposition table](#disposition-of-indexed-specs-and-shipped-commands) at the end maps every indexed spec and shipped verb.
 
-The accepted [0.6 local-workflow scope](docs/decisions/0332-verified-local-workflow-scope-2026-09-22.md) and [0.6 portfolio reading map](docs/PORTFOLIO-0.6.md) govern the current qualification target. It remains **NOT_QUALIFIED**. The broader integrated outcome and AT/E/U selections below remain historical intent, not a live execution queue. When an initialized `.taskman` store is present, its native queue and receipt own current execution status; otherwise work in a workspace that has the store. Do not initialize a replacement or infer status from this Markdown.
+Human-owned sources: [decision 0332](docs/decisions/0332-verified-local-workflow-scope-2026-09-22.md) (accepted 0.6 local-workflow scope), the owner's [integrated product roadmap](docs/plans/integrated-product-roadmap-2026-09-12.md) and [docs/PRODUCT.md](docs/PRODUCT.md); ticket V1-0001 owns ratifying 1.0 scope. The [0.6 portfolio](docs/PORTFOLIO-0.6.md) is a reading map, not status.
 
 Dates are targets; evidence gates, not dates, promote a version. Every version must deliver one
 useful standalone workflow before the next begins. An experiment that misses its kill criterion is
@@ -37,7 +37,7 @@ claim: charge every regression and failed attempt, measure the complete workflow
 strongest adequate baseline, and retain the exact eligibility and promotion gates below.
 
 Wave 1 is landed at `300e181`; its measured failures and limits remain in
-`docs/reviews/nextgen-wave1-2026-09-05.md`. The owner prioritizes reliable evidence
+decisions 0073, 0075 and 0078 (the cited review file is not in the public history). The owner prioritizes reliable evidence
 selection and honest uncertainty (AT-02/05), complete cost measurement alongside
 it (AT-01/08), and downstream reviewer usefulness (AT-17). The isolated H1 latency
 prototype is paused. These are existing queue owners, not a second roadmap.
@@ -232,7 +232,7 @@ local work. All behavioral tickets inherit the build/review/dogfood loop above.
   run change-start `make dogfood-change BASE=<base>` and retain its complete report. No invented closure.
 
 - [ ] **AT-01 — Measure complete Astra development cost.** E00a; `DOGFOOD-008/009`, `BRAIN-DOG-013`, `PCCO-V0-012` where applicable.
-  **Size:** M. **Depends:** AT-00. **Owns:** `benchmarks/dogfood_measure.py` and the smallest host-side accounting adapter.
+  **Size:** M. **Depends:** AT-00. **Owns:** `benchmarks/dogfood-measure` and the smallest host-side accounting adapter.
   **Accept:** one all-worker receipt includes retries, compaction, source opens, review and failed work;
   missing telemetry is explicit; freeze context/recovery baselines and scorer edge cases independently of compatibility.
   P7 cost-receipt scope accepts only an explicit host log passed on the command line; automatic
@@ -330,7 +330,7 @@ local work. All behavioral tickets inherit the build/review/dogfood loop above.
   cannot create a qualifying COMPLETE subset.
   The independently reviewed measurement amendment
   is proposed/inactive; its sidecar does not alter frozen WB/WS receipts or authorize execution.
-  **Status 2026-09-04:** Astra hunt found no fresh holdout source for start/resume and every existing corpus development-only or reserved; screening protocol and exclusion registry drafted (`benchmarks/workflow-screening-v0.md/.json`, `WS-001..008`); review running; evaluation `NOT_RUN` until AT-05/06/07 land.
+  **Status 2026-09-04:** Astra hunt found no fresh holdout source for start/resume and every existing corpus development-only or reserved; screening protocol and exclusion registry drafted (`benchmarks/workflow-screening-v0.md` and `.json`, `WS-001..008`); review running; evaluation `NOT_RUN` until AT-05/06/07 land.
 
 - [ ] **AT-09 — Freeze the compatibility experiment independently.** E00b/P0.
   **Size:** M. **Depends:** AT-00. **Owns:** applied-intelligence experiment contract, supplied-input development corpus and baseline.
@@ -641,3 +641,217 @@ is deliberate. V4 work is limited to making the reference producer honest, deter
 replaceable. A proposed Core node, edge, model, service, database, UI, or integration must name the
 user task, simpler baseline, frozen evaluation, resource budget, and kill criterion; otherwise it
 stays outside Core.
+
+## Disposition of indexed specs and shipped commands
+
+Generated at `1894b9e` from `docs/specs/INDEX.json`, `topLevelCommands` in `cmd/corvint/main.go` plus
+the four dispatcher-only verbs, and ticket touch paths in `.taskman/tickets/`. The index record and the
+task store win on any disagreement. Disposition normalizes the index `delivery`: `implemented` means
+`implemented` or validated and never implies qualification or 1.0 completion; `experimental` covers
+every experimental, partial or unqualified delivery; `proposed` is `not-started`; `deferred` is frozen
+under the status model in `docs/SPEC-DRIVEN-DEVELOPMENT.md`; `superseded` names the successor; `dropped`
+is rejected intent; `reading aid` is not-applicable. "Tickets naming it" lists non-archived tickets whose
+touch paths name the spec or the verb's `cmd/corvint/<verb>.go`; read their status with
+`corvint-tasks ticket show`. V1-0007 owns freezing the whole Core command surface and is not repeated
+per row.
+
+### Milestones
+
+| Release | Title |
+|---|---|
+| `v0-4-0-a5` | Corvint 0.4.0a5 honest public alpha |
+| `v0-5` | Corvint 0.5 Core contract freeze |
+| `v0-6` | Corvint 0.6 verified daily workflow |
+| `v0-7` | Corvint 0.7.0 portable proof and inspectable workflows |
+| `v0-8` | Corvint 0.8 dependable integrations and operations |
+| `v0-9` | Corvint 0.9 release candidate |
+| `v1-0` | Corvint 1.0 stable |
+
+Milestone `m0-scope` is a ticket label, not a release.
+
+### Indexed specs (131)
+
+| Spec | Disposition | Tickets naming it |
+|---|---|---|
+| [affected-plan-v0.md](docs/specs/affected-plan-v0.md) | experimental | none |
+| [agent-harness-integration-v0.md](docs/specs/agent-harness-integration-v0.md) | experimental | V1-0005, V1-0111, V1-0112 |
+| [analyzer-candidate-profiles.md](docs/specs/analyzer-candidate-profiles.md) | deferred | none |
+| [analyzer-capability-contract-v0.md](docs/specs/analyzer-capability-contract-v0.md) | experimental | none |
+| [analyzer-python-native-candidate.md](docs/specs/analyzer-python-native-candidate.md) | deferred | none |
+| [application-flow-understanding-v0.md](docs/specs/application-flow-understanding-v0.md) | experimental | V1-0100 |
+| [applied-intelligence-breakthroughs-v0.md](docs/specs/applied-intelligence-breakthroughs-v0.md) | proposed | none |
+| [authority-trigger-index-v0.md](docs/specs/authority-trigger-index-v0.md) | implemented | none |
+| [beamfall-shadow-dogfood-v1.md](docs/specs/beamfall-shadow-dogfood-v1.md) | superseded by `docs/specs/analyzer-capability-contract-v0.md` | none |
+| [browser-behavior-falsification-v0.md](docs/specs/browser-behavior-falsification-v0.md) | experimental | none |
+| [cem-0.2-canonical-binding.md](docs/specs/cem-0.2-canonical-binding.md) | experimental | none |
+| [cem-0.3-structural-mechanical.md](docs/specs/cem-0.3-structural-mechanical.md) | experimental | none |
+| [cem-external-interop-v0.md](docs/specs/cem-external-interop-v0.md) | experimental | none |
+| [cem-go-portability-probe.md](docs/specs/cem-go-portability-probe.md) | experimental | none |
+| [cem-pilot-kit.md](docs/specs/cem-pilot-kit.md) | experimental | none |
+| [cem-reviewer-trial-v0.md](docs/specs/cem-reviewer-trial-v0.md) | experimental | none |
+| [change-frontier-profile-1.md](docs/specs/change-frontier-profile-1.md) | proposed | none |
+| [change-frontier-v0.md](docs/specs/change-frontier-v0.md) | experimental | V1-0013 |
+| [change-witness-relation-v0.md](docs/specs/change-witness-relation-v0.md) | experimental | none |
+| [compaction-kernel-v0.md](docs/specs/compaction-kernel-v0.md) | experimental | none |
+| [compat-replay-runner-v0.md](docs/specs/compat-replay-runner-v0.md) | experimental | none |
+| [compat-trial-v0.md](docs/specs/compat-trial-v0.md) | proposed | none |
+| [confidently-wrong-trial-v0.md](docs/specs/confidently-wrong-trial-v0.md) | experimental | none |
+| [context-evolution-program-v0.md](docs/specs/context-evolution-program-v0.md) | experimental | V1-0083, V1-0088, V1-0094, V1-0097 |
+| [correlated-witness-collapse-x0.md](docs/specs/correlated-witness-collapse-x0.md) | experimental | none |
+| [corvint-rebrand-v0.md](docs/specs/corvint-rebrand-v0.md) | experimental | none |
+| [corvint-self-development-v0.md](docs/specs/corvint-self-development-v0.md) | experimental | none |
+| [corvint-witness-v0.md](docs/specs/corvint-witness-v0.md) | experimental | none |
+| [cross-audience-truth-nondivergence-v0.md](docs/specs/cross-audience-truth-nondivergence-v0.md) | experimental | none |
+| [daily-change-evidence-workflow-v0.md](docs/specs/daily-change-evidence-workflow-v0.md) | experimental | none |
+| [decision-number-gate-v0.md](docs/specs/decision-number-gate-v0.md) | implemented | none |
+| [dependency-source-evidence-v0.md](docs/specs/dependency-source-evidence-v0.md) | experimental | none |
+| [deployment-neutral-index-platform-v0.md](docs/specs/deployment-neutral-index-platform-v0.md) | proposed | none |
+| [diagnostic-repair-contract-v0.md](docs/specs/diagnostic-repair-contract-v0.md) | implemented | none |
+| [direct-native-cli-authority-v0.md](docs/specs/direct-native-cli-authority-v0.md) | experimental | none |
+| [documentation-citation-gate-v0.md](docs/specs/documentation-citation-gate-v0.md) | implemented | none |
+| [documentation-corpus-v1.md](docs/specs/documentation-corpus-v1.md) | experimental | none |
+| [dotnet-affected-selection-v0.md](docs/specs/dotnet-affected-selection-v0.md) | experimental | none |
+| [eol-policy-gate-v0.md](docs/specs/eol-policy-gate-v0.md) | implemented | none |
+| [error-code-ownership-gate-v0.md](docs/specs/error-code-ownership-gate-v0.md) | implemented | none |
+| [expanded-range-impact-v0.md](docs/specs/expanded-range-impact-v0.md) | experimental | none |
+| [experimental-source-views-v0.md](docs/specs/experimental-source-views-v0.md) | experimental | V1-0023 |
+| [expert-audit-followup-v0.md](docs/specs/expert-audit-followup-v0.md) | experimental | none |
+| [external-evidence-provider-mcp-v0.md](docs/specs/external-evidence-provider-mcp-v0.md) | implemented | none |
+| [external-evidence-provider-remote-v0.md](docs/specs/external-evidence-provider-remote-v0.md) | implemented | none |
+| [external-evidence-provider-transports-v0.md](docs/specs/external-evidence-provider-transports-v0.md) | implemented | V1-0027, V1-0102, V1-0103 |
+| [external-evidence-provider-v0.md](docs/specs/external-evidence-provider-v0.md) | experimental | V1-0027, V1-0042, V1-0101, V1-0105, V1-0106, V1-0107 |
+| [external-evidence-provider-v1.md](docs/specs/external-evidence-provider-v1.md) | experimental | none |
+| [external-evidence-provider-v2.md](docs/specs/external-evidence-provider-v2.md) | experimental | none |
+| [external-frontier-obligations-v0.md](docs/specs/external-frontier-obligations-v0.md) | experimental | none |
+| [external-test-selection-v0.md](docs/specs/external-test-selection-v0.md) | experimental | V1-0041 |
+| [external-test-selection-v1.md](docs/specs/external-test-selection-v1.md) | experimental | none |
+| [falsifiable-packet-v0.md](docs/specs/falsifiable-packet-v0.md) | experimental | V1-0024, V1-0086, V1-0090, V1-0092, V1-0093 |
+| [FRONTIER-DECISION-BRIEF-2026-08-29.md](docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md) | reading aid | none |
+| [gate-ledger-v0.md](docs/specs/gate-ledger-v0.md) | implemented | V1-0037 |
+| [genesis-backfill.md](docs/specs/genesis-backfill.md) | experimental | none |
+| [go-archive-gate-v0.md](docs/specs/go-archive-gate-v0.md) | implemented | none |
+| [go-format-gate-v0.md](docs/specs/go-format-gate-v0.md) | implemented | none |
+| [go-live-test-provider-v0.md](docs/specs/go-live-test-provider-v0.md) | experimental | none |
+| [go-only-cutover-v0.md](docs/specs/go-only-cutover-v0.md) | experimental | none |
+| [go-production-kernel-migration-v0.md](docs/specs/go-production-kernel-migration-v0.md) | experimental | none |
+| [harness-authority-relation-v0.md](docs/specs/harness-authority-relation-v0.md) | superseded by `docs/decisions/0009-harness-authority-boundary.md` | none |
+| [human-documentation-compiler-v0.md](docs/specs/human-documentation-compiler-v0.md) | experimental | none |
+| [index-snapshot-v0.md](docs/specs/index-snapshot-v0.md) | experimental | V1-0113 |
+| [js-live-test-provider-v0.md](docs/specs/js-live-test-provider-v0.md) | experimental | V1-0045 |
+| [kotlin-android-candidate-v0.md](docs/specs/kotlin-android-candidate-v0.md) | deferred | none |
+| [kotlin-jvm-affected-test-v0.md](docs/specs/kotlin-jvm-affected-test-v0.md) | experimental | none |
+| [learned-trace-admission-v0.md](docs/specs/learned-trace-admission-v0.md) | experimental | V1-0088, V1-0095 |
+| [lexical-relevance-floor-v0.md](docs/specs/lexical-relevance-floor-v0.md) | experimental | none |
+| [live-proof-carrying-verification-v0.md](docs/specs/live-proof-carrying-verification-v0.md) | proposed | none |
+| [local-admin-console-v0.md](docs/specs/local-admin-console-v0.md) | experimental | V1-0025 |
+| [local-completion-policy-v0.md](docs/specs/local-completion-policy-v0.md) | implemented | none |
+| [local-observability-dashboard-v0.md](docs/specs/local-observability-dashboard-v0.md) | experimental | V1-0025 |
+| [local-trace-producer-migration-v0.md](docs/specs/local-trace-producer-migration-v0.md) | experimental | none |
+| [mcp-server-2026-07-28-v0.md](docs/specs/mcp-server-2026-07-28-v0.md) | experimental | none |
+| [mcp-test-validity-profile-v0.md](docs/specs/mcp-test-validity-profile-v0.md) | experimental | none |
+| [migration-evidence-ratchet-v0.md](docs/specs/migration-evidence-ratchet-v0.md) | experimental | none |
+| [native-cem-adapter.md](docs/specs/native-cem-adapter.md) | experimental | none |
+| [native-jvm-bridge-analyzer-candidates-v0.md](docs/specs/native-jvm-bridge-analyzer-candidates-v0.md) | deferred | none |
+| [native-observer-prearm-v0.md](docs/specs/native-observer-prearm-v0.md) | experimental | none |
+| [native-taskman-planning-v0.md](docs/specs/native-taskman-planning-v0.md) | experimental | none |
+| [necessity-labels-v0.md](docs/specs/necessity-labels-v0.md) | experimental | none |
+| [observation-corpus-authority-v0.md](docs/specs/observation-corpus-authority-v0.md) | experimental | none |
+| [ocm-v0-dogfood.md](docs/specs/ocm-v0-dogfood.md) | experimental | V1-0013 |
+| [optional-artifact-check-scripts-v0.md](docs/specs/optional-artifact-check-scripts-v0.md) | experimental | none |
+| [outcome-calibration-v0.md](docs/specs/outcome-calibration-v0.md) | experimental | none |
+| [playwright-external-provider-v0.md](docs/specs/playwright-external-provider-v0.md) | implemented | none |
+| [playwright-suite-interaction-minimizer-v0.md](docs/specs/playwright-suite-interaction-minimizer-v0.md) | experimental | none |
+| [proof-carrying-context-optimization-v0.md](docs/specs/proof-carrying-context-optimization-v0.md) | proposed | V1-0012 |
+| [proof-preserving-abstraction-v0.md](docs/specs/proof-preserving-abstraction-v0.md) | experimental | none |
+| [protected-local-execution-v0.md](docs/specs/protected-local-execution-v0.md) | experimental | none |
+| [protected-pi-runtime-v0.md](docs/specs/protected-pi-runtime-v0.md) | experimental | none |
+| [public-release-v0.md](docs/specs/public-release-v0.md) | experimental | V1-0001 |
+| [pulse-snapshot-lease-v0.md](docs/specs/pulse-snapshot-lease-v0.md) | experimental | none |
+| [qualified-lifecycle-v0.md](docs/specs/qualified-lifecycle-v0.md) | experimental | none |
+| [release-artifact-integrity-v0.md](docs/specs/release-artifact-integrity-v0.md) | experimental | none |
+| [repository-guidance-v0.md](docs/specs/repository-guidance-v0.md) | experimental | none |
+| [requirement-definition-gate-v0.md](docs/specs/requirement-definition-gate-v0.md) | implemented | none |
+| [retrieval-bench-diagnostics-v0.md](docs/specs/retrieval-bench-diagnostics-v0.md) | experimental | none |
+| [retrieval-eval-comparability-v0.md](docs/specs/retrieval-eval-comparability-v0.md) | experimental | V1-0121 |
+| [retriever-disagreement-v0.md](docs/specs/retriever-disagreement-v0.md) | experimental | none |
+| [revision-cache-dirty-worktree-v0.md](docs/specs/revision-cache-dirty-worktree-v0.md) | experimental | none |
+| [ruby-affected-test-adapter-v0.md](docs/specs/ruby-affected-test-adapter-v0.md) | experimental | none |
+| [rust-affected-test-understanding-v0.md](docs/specs/rust-affected-test-understanding-v0.md) | experimental | none |
+| [rust-analyzer-candidate-v0.md](docs/specs/rust-analyzer-candidate-v0.md) | deferred | none |
+| [scope-lease-v0.md](docs/specs/scope-lease-v0.md) | experimental | none |
+| [self-observation-ledger-v0.md](docs/specs/self-observation-ledger-v0.md) | experimental | none |
+| [semantic-escalation-gate-v0.md](docs/specs/semantic-escalation-gate-v0.md) | experimental | none |
+| [session-context-dividend-v0.md](docs/specs/session-context-dividend-v0.md) | deferred | none |
+| [shader-glsl-metal-analyzer-candidate-v0.md](docs/specs/shader-glsl-metal-analyzer-candidate-v0.md) | deferred | none |
+| [snapshot-batch-v0.md](docs/specs/snapshot-batch-v0.md) | experimental | none |
+| [source-documentation-draft-v0.md](docs/specs/source-documentation-draft-v0.md) | experimental | V1-0003, V1-0030 |
+| [source-evidence-axes-v0.md](docs/specs/source-evidence-axes-v0.md) | proposed | none |
+| [spec-requirement-index-generator-v0.md](docs/specs/spec-requirement-index-generator-v0.md) | implemented | none |
+| [sql-native-ratchet-gate-v0.md](docs/specs/sql-native-ratchet-gate-v0.md) | experimental | none |
+| [stable-operations-v0.md](docs/specs/stable-operations-v0.md) | implemented | none |
+| [structured-data-analyzer-candidate-v1.md](docs/specs/structured-data-analyzer-candidate-v1.md) | dropped | none |
+| [swift-affected-test-understanding-v0.md](docs/specs/swift-affected-test-understanding-v0.md) | experimental | none |
+| [swift-apple-analyzer-candidate-v0.md](docs/specs/swift-apple-analyzer-candidate-v0.md) | deferred | none |
+| [task-context-packet-v0.md](docs/specs/task-context-packet-v0.md) | experimental | V1-0023, V1-0083, V1-0084, V1-0089, V1-0090, V1-0096, V1-0098, V1-0099, V1-0114, V1-0115, V1-0116, V1-0118, V1-0119, V1-0122 |
+| [technical-brain-dogfood.md](docs/specs/technical-brain-dogfood.md) | proposed | none |
+| [test-claim-qualification-v0.md](docs/specs/test-claim-qualification-v0.md) | experimental | V1-0085, V1-0086, V1-0091 |
+| [touch-set-surprise-v0.md](docs/specs/touch-set-surprise-v0.md) | experimental | none |
+| [traceability-test-gate-v0.md](docs/specs/traceability-test-gate-v0.md) | implemented | none |
+| [typescript-javascript-affected-adapter-v0.md](docs/specs/typescript-javascript-affected-adapter-v0.md) | experimental | none |
+| [unplanned-read-events-v0.md](docs/specs/unplanned-read-events-v0.md) | experimental | none |
+| [use-case-conformance-v0.md](docs/specs/use-case-conformance-v0.md) | experimental | V1-0011 |
+| [verification-planner-observer-v0.md](docs/specs/verification-planner-observer-v0.md) | deferred | none |
+| [verified-absence-frontier-v0.md](docs/specs/verified-absence-frontier-v0.md) | superseded by `docs/specs/change-frontier-v0.md` | none |
+| [vscode-extension-v0.md](docs/specs/vscode-extension-v0.md) | deferred | none |
+| [work-queue-observation-v0.md](docs/specs/work-queue-observation-v0.md) | experimental | none |
+
+### Shipped commands (46)
+
+| Verb | Owning spec | Disposition | Tickets naming it |
+|---|---|---|---|
+| `init` | [genesis-backfill.md](docs/specs/genesis-backfill.md) | experimental | none |
+| `adopt` | [genesis-backfill.md](docs/specs/genesis-backfill.md) | experimental | none |
+| `query` | [go-production-kernel-migration-v0.md](docs/specs/go-production-kernel-migration-v0.md) | experimental | none |
+| `feature` | [go-production-kernel-migration-v0.md](docs/specs/go-production-kernel-migration-v0.md) | experimental | none |
+| `impact` | [go-production-kernel-migration-v0.md](docs/specs/go-production-kernel-migration-v0.md) | experimental | none |
+| `eval` | [retrieval-eval-comparability-v0.md](docs/specs/retrieval-eval-comparability-v0.md) | experimental | V1-0121 |
+| `lrf` | [lexical-relevance-floor-v0.md](docs/specs/lexical-relevance-floor-v0.md) | experimental | none |
+| `record` | [learned-trace-admission-v0.md](docs/specs/learned-trace-admission-v0.md) | experimental | V1-0088, V1-0095 |
+| `migrate-traces` | [local-trace-producer-migration-v0.md](docs/specs/local-trace-producer-migration-v0.md) | experimental | none |
+| `harness` | [agent-harness-integration-v0.md](docs/specs/agent-harness-integration-v0.md) | experimental | V1-0005, V1-0111, V1-0112 |
+| `cem` | [cem-0.2-canonical-binding.md](docs/specs/cem-0.2-canonical-binding.md) | experimental | none |
+| `ocm` | [ocm-v0-dogfood.md](docs/specs/ocm-v0-dogfood.md) | experimental | V1-0013 |
+| `work` | [work-queue-observation-v0.md](docs/specs/work-queue-observation-v0.md) | experimental | V1-0082 |
+| `context` | [task-context-packet-v0.md](docs/specs/task-context-packet-v0.md) | experimental | V1-0023, V1-0083, V1-0084, V1-0089, V1-0090, V1-0096, V1-0098, V1-0099, V1-0114, V1-0115, V1-0116, V1-0118, V1-0119, V1-0122 |
+| `adapter` | [agent-harness-integration-v0.md](docs/specs/agent-harness-integration-v0.md) | experimental | V1-0005, V1-0111, V1-0112 |
+| `dogfood` | [local-completion-policy-v0.md](docs/specs/local-completion-policy-v0.md) | implemented | none |
+| `dogfood-ocm` | [ocm-v0-dogfood.md](docs/specs/ocm-v0-dogfood.md) | experimental | V1-0013 |
+| `frontier` | [change-frontier-v0.md](docs/specs/change-frontier-v0.md) | experimental | V1-0013 |
+| `observations` | [self-observation-ledger-v0.md](docs/specs/self-observation-ledger-v0.md) | experimental | none |
+| `affected` | [affected-plan-v0.md](docs/specs/affected-plan-v0.md) | experimental | V1-0103 |
+| `obligations` | [external-frontier-obligations-v0.md](docs/specs/external-frontier-obligations-v0.md) | experimental | none |
+| `prove` | [falsifiable-packet-v0.md](docs/specs/falsifiable-packet-v0.md) | experimental | V1-0024, V1-0086, V1-0090, V1-0092, V1-0093 |
+| `prove-observe` | [self-observation-ledger-v0.md](docs/specs/self-observation-ledger-v0.md) | experimental | none |
+| `index` | [index-snapshot-v0.md](docs/specs/index-snapshot-v0.md) | experimental | V1-0113 |
+| `batch` | [snapshot-batch-v0.md](docs/specs/snapshot-batch-v0.md) | experimental | none |
+| `docs` | [source-documentation-draft-v0.md](docs/specs/source-documentation-draft-v0.md) | experimental | V1-0003, V1-0030 |
+| `depsource` | [dependency-source-evidence-v0.md](docs/specs/dependency-source-evidence-v0.md) | experimental | none |
+| `necessity` | [necessity-labels-v0.md](docs/specs/necessity-labels-v0.md) | experimental | none |
+| `surprise` | [touch-set-surprise-v0.md](docs/specs/touch-set-surprise-v0.md) | experimental | none |
+| `answerability` | [retriever-disagreement-v0.md](docs/specs/retriever-disagreement-v0.md) | experimental | none |
+| `kernel` | [compaction-kernel-v0.md](docs/specs/compaction-kernel-v0.md) | experimental | none |
+| `lease` | [scope-lease-v0.md](docs/specs/scope-lease-v0.md) | experimental | none |
+| `reads` | [unplanned-read-events-v0.md](docs/specs/unplanned-read-events-v0.md) | experimental | none |
+| `calibrate` | [outcome-calibration-v0.md](docs/specs/outcome-calibration-v0.md) | experimental | none |
+| `witness` | [corvint-witness-v0.md](docs/specs/corvint-witness-v0.md) | experimental | none |
+| `test-validity` | [mcp-test-validity-profile-v0.md](docs/specs/mcp-test-validity-profile-v0.md) | experimental | none |
+| `features` | [repository-guidance-v0.md](docs/specs/repository-guidance-v0.md) | experimental | none |
+| `overview` | [repository-guidance-v0.md](docs/specs/repository-guidance-v0.md) | experimental | none |
+| `review` | [repository-guidance-v0.md](docs/specs/repository-guidance-v0.md) | experimental | none |
+| `migration-ratchet` | [migration-evidence-ratchet-v0.md](docs/specs/migration-evidence-ratchet-v0.md) | experimental | none |
+| `flows` | [application-flow-understanding-v0.md](docs/specs/application-flow-understanding-v0.md) | experimental | V1-0100 |
+| `skill-export` | [learned-trace-admission-v0.md](docs/specs/learned-trace-admission-v0.md) | experimental | V1-0088, V1-0095 |
+| `authority-event` (dispatcher-only) | [protected-local-execution-v0.md](docs/specs/protected-local-execution-v0.md) | experimental | none |
+| `dogfood-observe` (dispatcher-only) | [self-observation-ledger-v0.md](docs/specs/self-observation-ledger-v0.md) | experimental | none |
+| `native-hook` (dispatcher-only) | [direct-native-cli-authority-v0.md](docs/specs/direct-native-cli-authority-v0.md) | experimental | none |
+| `qualified-event` (dispatcher-only) | [qualified-lifecycle-v0.md](docs/specs/qualified-lifecycle-v0.md) | experimental | none |
