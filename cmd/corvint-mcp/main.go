@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"sort"
 
+	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/server"
@@ -45,6 +46,10 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	if versionOnly {
 		_, _ = fmt.Fprintln(stdout, serverName+" "+serverVersion)
 		return 0
+	}
+	if _, err := gitstatus.Pin(); err != nil {
+		_, _ = fmt.Fprintln(stderr, "corvint-mcp: git unavailable")
+		return 2
 	}
 	registry, registryErr := bridge.New(root)
 	if registryErr != nil {
