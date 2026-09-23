@@ -40,7 +40,7 @@ and the final binary routes none. The V1-0186 orientation task still routes `doc
 and `docs/specs/INDEX.json` through `backlog`, `memory`, `store`. The independent review found a
 MEDIUM issue (unheld compounds took the maximum idf), a LOW issue (the fence toggle), a LOW issue
 (the loose promotion control) and nits; all are fixed here. A stale `taskLexicalTerms` comment
-found in that review is filed as a follow-up.
+found in that review is filed as V1-0214.
 
 ## 2026-09-23 V1-0191 MCPV0-016: corvint-mcp pins Git at start; official schema executes
 
