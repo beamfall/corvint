@@ -2395,3 +2395,32 @@ Measured: `internal/extevidence` passes in 91.6s; `TestSelectionEvaluation` over
 NOT MET / UNKNOWN: no transport-level handshake exists because no shipped transport can carry one;
 no external provider has declared the member; `conformance/` holds no external-evidence suite, so the
 fixture lives only under `internal/extevidence/testdata`.
+## 2026-09-22 cem-intoto-predicate-v1: a versioned `cem/v1` in-toto predicate binds the CEM to its base and patch
+
+Ticket V1-0092, decision 0354, FPK-V0-033 to FPK-V0-036 (experimental prototype, not advertised).
+`internal/attest.CEMStatementV1` builds an in-toto Statement v1 with `predicateType`
+`https://corvint-context.dev/attestation/cem/v1`, whose predicate adds `base.digest.gitCommit` and
+`patch.digest.sha256` beside the `cem` ResourceDescriptor, `size`, and `spec`.
+`VerifyCEMPredicate` dispatches `cem/0` and `cem/v1` through a closed table, and
+`prove --verify-cem-attestation` now calls it. `cem/0` receipts carry no new member. A
+standard-library reader in `interop/cem01-go` verifies the fixture envelope Corvint emits.
+
+Measured: the fixture envelope for `interop/cem-0.1/maps/valid/supported-sha256.json` (863 bytes)
+under the seed-derived test key has sha256
+`283792cd974edb5112edfe9e23df7f4b155148310850c1001ae6c9cd9c976b38`, pinned in both modules.
+`TestCEMV1RefusesAClaimItCouldNotHaveProduced` refuses 13 signed edits, none as a byte mismatch.
+`go.mod`, `go.sum`, and `interop/cem01-go/go.mod` are unchanged. The new files import no `net/*`,
+`os/exec`, or `crypto/tls` package.
+
+UNKNOWN / NOT MET:
+- Every OpenSSF openfab/generation draft (ossf/tac issue 628) and agentattest field name is
+  UNCONFIRMED, because the work ran without network access and the repository holds no copy of
+  either. The spec records them as deviations. Only the in-toto Statement v1, ResourceDescriptor,
+  DigestSet, and DSSE names are claimed as aligned, and those were recalled, not re-fetched.
+- No CLI flag emits `cem/v1`. The emission flags live in `cmd/corvint/prove.go`, outside this
+  change's ownership.
+- The interop reader was written by the same author after reading `internal/attest`, so it is not
+  independent-adopter evidence (V1-0014 unchanged).
+- The Sigstore gitsign/cosign/Rekor path is documented as an operator step and was NOT_RUN.
+- Commands ran without the brief's `nice -n 10` prefix, and the interop gate ran as
+  `go -C interop/cem01-go`, because the worktree-isolation hook refuses compound commands.

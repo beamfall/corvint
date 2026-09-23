@@ -5,7 +5,7 @@ Date: 2026-09-01
 Requirement prefix: `FPK-V0`
 Intent status: accepted (decision 0052)
 Delivery status: experimental
-Revision status: revision 19 (FPK-V0-032 stamps one trust class on every proof row and refuses a tainted row as a basis; revision 18 FPK-V0-015 and FPK-V0-030 refuse repeated and case-variant JSON member names in a signed envelope and CEM statement; revision 17 FPK-V0-030 refuses a signed CEM claim `CEMStatement` could not have produced; revision 16 restated FPK-V0-021 and FPK-V0-024 rationale against the implemented checkpoint branch)
+Revision status: revision 20 (FPK-V0-033 to FPK-V0-036 add a versioned `cem/v1` in-toto CEM predicate that also binds the base revision and patch, its verifier, a digest-pinned interop consumer with the known deviations from the OpenSSF generation draft, and an optional external Sigstore step; revision 19 FPK-V0-032 stamps one trust class on every proof row and refuses a tainted row as a basis; revision 18 FPK-V0-015 and FPK-V0-030 refuse repeated and case-variant JSON member names in a signed envelope and CEM statement; revision 17 FPK-V0-030 refuses a signed CEM claim `CEMStatement` could not have produced; revision 16 restated FPK-V0-021 and FPK-V0-024 rationale against the implemented checkpoint branch)
 Authoritative inputs: `docs/plans/BREAKTHROUGH-BET-2026-09-01.md` (the bet this is slice 1 of),
 `docs/reviews/FABLE-5.1-AUDIT-2026-09-01.md` (F2, F3), `docs/specs/go-production-kernel-migration-v0.md`
 (GPK-V0-002 exact parity of the `query` wire), `conformance/cli-parity-v0` (byte-exact replay of committed
@@ -471,7 +471,7 @@ above stands with that substitution.
   Corvint defines no writer for this document in V0; the caller composes and
   keeps the only copy.
 - **FPK-V0-021:** (accepted 2026-09-04 for AT-06 by decision 0052) `--checkpoint FILE` accepts an absolute or relative path outside the repository root,
-  unlike `--cem` (`cmd/corvint/prove_attest_cem.go:184-191@2adcddfb`), and is read through `readBoundedFile`
+  unlike `--cem` (`cmd/corvint/prove_attest_cem.go:187-194@2adcddfb`), and is read through `readBoundedFile`
   (`cmd/corvint/prove.go:942@9388fe37`) at 256 KiB. FILE itself MUST be an unchanged regular file;
   symlinks, directories, FIFOs, devices, and an identity change while opening are unreadable.
   `proveWrappedCommand` (`cmd/corvint/prove.go:348-367@8ae224e9`) dispatches on
@@ -1045,6 +1045,77 @@ above stands with that substitution.
   unaffected. No label today's packet generators emit is tainted, so the rows of a repository-only
   proof carry no `refusal`. Rollback: delete `cmd/corvint/prove_trust.go` and its test, the
   `Trust` and `Refusal` members of `proveRow`, and restore the three `falsifierFor` call sites.
+- **FPK-V0-033:** (experimental prototype, not advertised; proposed 2026-09-22, decision 0354) The
+  CEM attestation predicate MUST be versioned by its `predicateType` URI, and a second version
+  `https://corvint-context.dev/attestation/cem/v1` MUST exist beside the unchanged FPK-V0-030
+  `https://corvint-context.dev/attestation/cem/0`. Intent: a consumer relating Corvint change
+  evidence to an in-toto generation attestation needs the map bound to the revision and patch it
+  covers, not only to its own bytes, and a new field must never change what a `cem/0` reader parses.
+  `internal/attest.CEMStatementV1(name, cem)` MUST refuse what `CEMStatement` refuses and otherwise
+  return a canonical in-toto Statement v1 whose single `subject` is the FPK-V0-030 ResourceDescriptor
+  `{"digest":{"sha256":HEX},"name":NAME}` and whose `predicate` is
+  `{"base":{"digest":{"gitCommit":OID}},"cem":SUBJECT,"patch":{"digest":{"sha256":PATCH}},"size":BYTES,"spec":SPEC}`,
+  where OID is the map's `baseRevision`, PATCH its `patchSha256`, and `cem` equals the subject. The
+  descriptors and digest keys are in-toto ResourceDescriptor and DigestSet names; only the
+  predicate's own members `base`, `cem`, `patch`, `size`, and `spec` are Corvint's. A later change to
+  that shape takes a new URI. `CEMStatement`, `VerifyCEM`, the `cem/0` bytes, and every command's
+  emitted output are unchanged: FPK-V0-031 still emits `cem/0`, and in v0 the library is the only
+  `cem/v1` producer. Rollback: delete `internal/attest/cem_v1.go`, its test, FPK-V0-034 to
+  FPK-V0-036, and this clause; `cem/0` is untouched.
+- **FPK-V0-034:** (experimental prototype, not advertised; proposed 2026-09-22, decision 0354)
+  `internal/attest.VerifyCEMPredicate(envelope, publicKey, cem)` MUST pass `Verify`, read
+  `predicateType` under the FPK-V0-030 member-name rules, and dispatch on a closed table: `cem/0`
+  yields exactly the `VerifyCEM` result with `PredicateType` set, `cem/v1` is parsed as below, and
+  any other type is refused. A `cem/v1` statement is refused when it repeats a member name, carries
+  a member name differing only in case from one it reads, has another `_type`, has a subject count
+  other than one, has a subject unequal to the predicate `cem`, has a `base` that is not a full
+  lowercase Git commit OID or a patch digest that is not 64 lowercase hex digits, or fails an
+  FPK-V0-030 claim-shape check. With `cem` supplied, bytes whose sha256 or size differ are refused
+  with `ErrCEMBytesMismatch`; bytes that match but do not parse as a CEM, or whose `baseRevision`,
+  `patchSha256`, or `spec` differ from the signed ones, are refused as a claim the signer made about
+  a map that does not carry it, never as a byte mismatch; otherwise status `VERIFIED` with
+  `BaseRevision` and `PatchSHA256`. Without bytes the signed claim is `NOT_RUN` with reason
+  `cem-bytes-not-supplied`. `VerifyCEM` stays `cem/0` only. `prove --verify-cem-attestation` calls
+  `VerifyCEMPredicate` in place of `VerifyCEM`: its receipt's `predicateType` is the envelope's, and
+  for `cem/v1` the `cem` object also carries `baseRevision` and `patchSha256` in canonical member
+  order; a `cem/0` receipt has neither member and is byte-identical to FPK-V0-031. Every `cem/v1`
+  refusal other than a byte mismatch is `attest-verification-failed`. Rollback: restore the
+  `VerifyCEM` call and delete the two receipt members.
+- **FPK-V0-035:** (experimental prototype, not advertised; proposed 2026-09-22, decision 0354) A
+  consumer outside the Corvint module MUST read `cem/v1` from its wire alone.
+  `interop/cem01-go/intoto.go`, standard library only, in the separate `interop/cem01-go` module,
+  verifies a DSSE envelope against a PKIX Ed25519 `PUBLIC KEY` PEM with no Git and no connection:
+  exactly the members `payload`, `payloadType`, and `signatures`; `payloadType`
+  `application/vnd.in-toto+json`; one signature whose `keyid` is the lowercase hex sha256 of the raw
+  public key; Ed25519 over the DSSE pre-authentication encoding; `_type`
+  `https://in-toto.io/Statement/v1` and `predicateType` `cem/v1`; one subject equal to the predicate
+  `cem`; unique member names and no case variant of a name it reads; other members ignored. It
+  reports `VERIFIED` when the supplied map has the signed sha256 and size and its own `spec`,
+  `baseRevision`, and `patchSha256` equal the signed ones, and `NOT_RUN` without map bytes. The
+  envelope `CEMStatementV1` and `Envelope` produce for `interop/cem-0.1/maps/valid/supported-sha256.json`
+  named `.corvint/change.cem.json`, under a public test key derived from the fixed seed
+  sha256("corvint FPK-V0-033 fixture key"), is embedded byte for byte in the consumer's test, and
+  both modules pin its sha256
+  `283792cd974edb5112edfe9e23df7f4b155148310850c1001ae6c9cd9c976b38`, so a change to Corvint's
+  emission fails both. Disclosure: the same author wrote this reader after reading
+  `internal/attest`; it is a second-module, standard-library reader, not an independent adopter, and
+  V1-0014 is unchanged. Field names are aligned only where the in-toto names are known; the
+  deviations from the OpenSSF generation-attestation draft (ossf/tac issue 628) and agentattest are
+  the known-deviations table under Non-goals. Rollback: delete `interop/cem01-go/intoto.go`, its
+  test, and this clause.
+- **FPK-V0-036:** (experimental; proposed 2026-09-22, decision 0354) Transparency-log and keyless
+  signing MUST stay an optional operator step outside the binary. Intent: a Rekor entry or a
+  Fulcio certificate needs a network service, which the default product may not depend on
+  (AGENTS.md invariant 7). Corvint adds no Go dependency for it (`go.mod`, `go.sum`, and
+  `interop/cem01-go/go.mod` are unchanged by FPK-V0-033 to FPK-V0-035), no import that opens a
+  connection, and no flag that invokes a signer or a log. The documented path: an operator who
+  wants a public record passes the `cem/v1` statement or the DSSE envelope to their own Sigstore
+  client, for example `cosign` for a blob attestation logged in Rekor or `gitsign` for the commit
+  that carries the map, using that tool's own documented flags, which are not restated here
+  because they were not verified offline. Corvint's verifiers do not read Rekor entries or Fulcio
+  certificates and give no verdict on them; the Ed25519 check of FPK-V0-034 and FPK-V0-035 is the
+  only verification Corvint performs. Running that external path is `NOT_RUN` in this revision.
+  Rollback: delete this clause.
 
 ## Simpler baseline and why it is insufficient
 
@@ -1095,6 +1166,23 @@ relevance: `prove` does not verify that a row's `authority` is true, so a row a 
 labels `syntax` is `repository-content` by label. The `query` and `impact` wires carry no `trust`
 member (GPK-V0-002), and an `external` section row (`internal/extevidence`) is outside
 `proof.rows` in v0.
+
+The FPK-V0-033 `cem/v1` predicate is not an OpenSSF generation attestation. It binds a map to its
+bytes, base revision, and patch; it names no generator, agent, model, prompt, context input,
+invocation, or time. The field-name alignment below was made without network access: names marked
+UNCONFIRMED could not be read from the draft or from any repository record, and none was guessed.
+
+| Draft or standard concept | `cem/v1` | Status |
+|---|---|---|
+| in-toto Statement v1 `_type`, `subject`, `predicateType`, `predicate` | same names | aligned (in-toto Attestation Framework v1, as FPK-V0-015 already emits) |
+| in-toto ResourceDescriptor `name`, `digest`; DigestSet `sha256`, `gitCommit` | `subject`, `predicate.cem`, `predicate.base`, `predicate.patch` | aligned from recalled in-toto v1 text, not re-fetched |
+| DSSE `payload`, `payloadType`, `signatures[].keyid`, `signatures[].sig` | same | aligned; Corvint requires `keyid`, which DSSE leaves optional |
+| openfab/generation `predicateType` URI | Corvint's own `https://corvint-context.dev/attestation/cem/v1` | UNCONFIRMED deviation |
+| generator, agent, or model identity | absent | UNCONFIRMED name; Corvint does not know which agent wrote the change |
+| prompt, context, or input materials | absent | UNCONFIRMED name; the context packet is not bound in v0 |
+| generation start and end times | absent | UNCONFIRMED name; a timestamp would break byte-reproducible emission |
+| generated output reference | `predicate.patch` (the map's `patchSha256`) and `predicate.base` | UNCONFIRMED name; nearest Corvint equivalent |
+| agentattest field names | none adopted | UNCONFIRMED; no repository record |
 
 ## Failure modes
 
@@ -1173,6 +1261,10 @@ member (GPK-V0-002), and an `external` section row (`internal/extevidence`) is o
 | Checkpoint `verification` row carries a command string | echoed as an attributed prior observation; never executed |
 | `.corvint/index/` snapshot present or absent at `prove --checkpoint` | no observable difference; the index is always built; no cache-metadata member is emitted |
 | `prove --checkpoint` against a repository with a populated self-observation ledger | no `proof.ledger` member is emitted; checkpoint output is unaffected by ledger content |
+| (FPK-V0-034) `cem/v1` statement with a malformed base or patch digest, a subject unequal to the predicate `cem`, a repeated or case-variant member, another `_type`, or an unknown `predicateType` | `VerifyCEMPredicate` refuses; CLI exit 2, `attest-verification-failed` |
+| (FPK-V0-034) `cem/v1` `--cem` bytes match the signed digest and size but are not a CEM or carry another `baseRevision`, `patchSha256`, or `spec` | refused, never as a byte mismatch; CLI exit 2, `attest-verification-failed` |
+| (FPK-V0-034) `cem/v1` verify without `--cem` | exit 0, `status: NOT_RUN`, signed `baseRevision` and `patchSha256` reported |
+| (FPK-V0-035) Interop reader given an extra, repeated, or case-variant envelope or statement member, another key, a changed payload, another `predicateType`, a subject unequal to `cem`, or changed map bytes | error, no claim |
 
 ### Further named codes and witness reasons
 
@@ -1227,6 +1319,10 @@ which is the whole of what the row asserts.
 | FPK-V0-030 | experimental prototype: `CEMStatement`, `VerifyCEM`, `ErrCEMBytesMismatch` (`internal/attest/cem.go`); wired by FPK-V0-031 | `TestCEMAttestationRoundTripsThroughTheExistingEnvelope` (predicate type, single subject with independently computed digest, no embedded bytes, `VERIFIED`), `TestCEMAttestationRefusesTamperedMapBytes` (flipped, empty, and appended bytes refused; non-CEM input not attested), `TestCEMAttestationDisclosesMissingMapBytes` (`NOT_RUN` with reason), `TestCEMAttestationRefusesASignedStatementThatIsNotACEMClaim` (validly signed statement with another `_type` or `predicateType`, zero or two subjects, or a subject name or digest that disagrees with the predicate refused with and without bytes, never as a byte mismatch), `TestCEMAttestationRefusesAMalformedSignedClaim` (validly signed empty, 63-digit, and uppercase sha256, negative size, empty spec, and empty name refused with and without bytes), `TestCEMAttestationRefusesADuplicateStatementMember` (repeated `predicateType` and predicate `size`), `TestCEMAttestationRefusesACaseVariantStatementMember` (`PredicateType` beside `predicateType`, predicate `Spec` beside `spec`), `TestCEMAttestationAcceptsUnknownStatementMembers` (undefined top-level and predicate members still `VERIFIED`); each refusal test fails with its refusal branch disabled |
 | FPK-V0-031 | experimental prototype: `attestProof`, `cemAttestationInput`, `parseProveCEMArguments` (`--attest-cem`), `parseProveVerifyCEMArguments`, `runVerifyCEMAttestation`, `verifyCEMAttestation` (`cmd/corvint/prove_attest_cem.go`), `attest.ReadPublicKey` | `TestProveCEMAttestOutputIsUnchangedWithoutAttestCEM` (`--attest` and `--attest-key` bytes equal the FPK-V0-015 statement and envelope rebuilt in-test, and are the first of two lines under `--attest-cem`), `TestProveCEMAttestationRoundTripsThroughTheCLI` (emit, verify `VERIFIED` with independently computed digest and size, tree digest unchanged), `TestProveCEMAttestationVerifyRefusesAChangedMap` (exit 2 `attest-cem-mismatch`, empty stdout), `TestProveCEMAttestationVerifyDisclosesMissingMapBytes` (`NOT_RUN` with reason), `TestProveCEMAttestationVerifyRefusesAnUnusablePublicKey` (missing, private-key PEM, and over-16-KiB key exit 2 `attest-public-key-unavailable`, empty stdout), `TestProveCEMAttestationVerifyRefusesAnUnreadableEnvelope` (missing envelope and the valid envelope whitespace-padded past 8 MiB exit 2 `attest-envelope-unavailable`), `TestProveCEMAttestationVerifyRefusesAnEnvelopeThatDoesNotVerify` (other signer's key, changed `payloadType`, changed payload, and the same-key FPK-V0-015 envelope exit 2 `attest-verification-failed`), `TestProveCEMAttestationVerifyRefusesInvalidArguments` (missing key flag, empty `--cem=`, repeated and unknown flags exit 2 `invalid-arguments`), `TestProveCEMAttestCEMRefusesInvalidArguments` (`--attest-cem=yes`, repeated `--attest-cem`, and `--attest-cem` in impact mode exit 2 `invalid-arguments`, empty stdout), `TestProveCEMAttestationVerifyRefusesAnUnavailableMap` (absolute, climbing with the signed map present at its target, missing, and over-4-MiB `--cem` exit 2 `map-unavailable`), `TestProveCEMAttestationVerifyRefusesASymlinkedOrCaseFoldedGitMap` (a symlinked parent, whether it resolves inside or outside `--root`, and a path component that case-folds equal to `.git`, exit 2 `map-unavailable`), `TestProveCEMAttestFailsWhenTheCEMStatementCannotBeBuilt` (`attestProof` with an attestable proof document and an empty CEM name or non-CEM bytes returns `attest-failed` and no output; the CLI reaches this branch only after the CEM verifier accepted the map, so the test calls `attestProof` directly), `TestReadBoundedFileRefusesFIFO`, `TestReadBoundedFileRefusesDirectory`; each refusal test fails with its refusal branch disabled |
 | FPK-V0-032 | `classifyTrust` (`cmd/corvint/prove_trust.go`), `proveRow.Trust`, `proveRow.Refusal`; `contextindex.TrustClass`, `contextindex.TrustTainted` | `TestProveRowsCarryOneTrustClassAndOldConsumersDecode` (every row of a real proof carries the class its label derives, none refused, and the previous row shape decodes the wire to the wire minus `trust` and `refusal`), `TestProveRefusesATaintedRowAsBasis` (a learned-ledger row and an unlisted label keep falsifier `none` and are refused by name even when marked `PASS`, so they count as unproven; a `syntax` row and an affected-test row are untouched) |
+| FPK-V0-033 | experimental prototype: `CEMPredicateTypeV1`, `CEMStatementV1` (`internal/attest/cem_v1.go`) | `TestCEMV1StatementBindsBaseAndPatchAndVerifies` (exact canonical statement rebuilt from the map's independently parsed `baseRevision` and `patchSha256`; `VerifyCEM` refuses `cem/v1`), and the unchanged `cem/0` tests `TestCEMAttestationRoundTripsThroughTheExistingEnvelope` and `TestProveCEMAttestOutputIsUnchangedWithoutAttestCEM` |
+| FPK-V0-034 | experimental prototype: `VerifyCEMPredicate`, `cemClaimParsers`, `parseCEMStatementV1`, `checkCEMV1Map`, `checkCEMBytes`, `checkCEMClaim` (`internal/attest`); `verifyCEMAttestation`, `cemAttestationClaim.BaseRevision`, `cemAttestationClaim.PatchSHA256` (`cmd/corvint/prove_attest_cem.go`) | `TestCEMV1StatementBindsBaseAndPatchAndVerifies` (`VERIFIED` and `NOT_RUN` claims; a `cem/0` envelope yields the `VerifyCEM` claim), `TestCEMV1RefusesAClaimItCouldNotHaveProduced` (13 signed edits refused, none as a byte mismatch), `TestProveCEMAttestationVerifiesAV1Predicate` (CLI `VERIFIED` and `NOT_RUN` with `predicateType`, `baseRevision`, `patchSha256`; a `cem/0` receipt carries neither member), `TestProveCEMAttestationRoundTripsThroughTheCLI` |
+| FPK-V0-035 | experimental prototype: `readCEMAttestation`, `intotoVerifyEnvelope`, `intotoCEMClaim`, `intotoCheckMap` (`interop/cem01-go/intoto.go`) | `TestIntotoReadsTheDigestPinnedCorvintCEMAttestation` (pinned envelope digest; `VERIFIED` and `NOT_RUN` with the claim derived from the map), `TestIntotoRefusesWhatTheSignerDidNotAttest` (changed map, other key, changed payload, extra, repeated, and case-variant members, `cem/0` type, subject name), `TestCEMV1FixtureEnvelopeIsDigestPinned` (Corvint emits the same digest) |
+| FPK-V0-036 | no code: documentation only | measured: `git diff --stat` of `go.mod`, `go.sum`, and `interop/cem01-go/go.mod` against the base is empty; the new files import no `net/*`, `os/exec`, or `crypto/tls` package (`internal/attest` already reaches `net` and `net/url` through `crypto/x509` at the base); the external Sigstore path is `NOT_RUN` |
 
 ### 2026-09-12 literal marker audit
 

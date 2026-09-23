@@ -825,6 +825,10 @@ FPK-V0-029	docs/specs/falsifiable-packet-v0.md	955	(accepted 2026-09-07 by decis
 FPK-V0-030	docs/specs/falsifiable-packet-v0.md	968	(experimental prototype, not advertised) A CEM MUST be attestable in the same DS
 FPK-V0-031	docs/specs/falsifiable-packet-v0.md	994	(experimental prototype, not advertised; help labels it experimental) The CLI
 FPK-V0-032	docs/specs/falsifiable-packet-v0.md	1032	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
+FPK-V0-033	docs/specs/falsifiable-packet-v0.md	1048	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) The
+FPK-V0-034	docs/specs/falsifiable-packet-v0.md	1065	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354)
+FPK-V0-035	docs/specs/falsifiable-packet-v0.md	1084	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) A
+FPK-V0-036	docs/specs/falsifiable-packet-v0.md	1106	(experimental; proposed 2026-09-22, decision 0354) Transparency-log and keyless
 GAG-V0-001	docs/specs/go-archive-gate-v0.md	131	The gate MUST create one private parent directory under `${TMPDIR:-/tmp}` with a
 GAG-V0-002	docs/specs/go-archive-gate-v0.md	135	The gate MUST export `HOME`, `TMPDIR`, `GOTMPDIR`, and `GOCACHE` to those privat
 GAG-V0-003	docs/specs/go-archive-gate-v0.md	139	The gate MUST pin the toolchain to the locally installed one rather than allowin

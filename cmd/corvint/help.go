@@ -746,10 +746,10 @@ Experimental, not a stable contract: --attest-cem (cem mode) implies --attest
 and prints a second line after the unchanged statement or envelope, a CEM
 statement (predicate https://corvint-context.dev/attestation/cem/0) naming MAP by
 path, sha256, and size, signed with the same key when --attest-key is given.
---verify-cem-attestation ENVELOPE checks one such envelope offline against the
-Ed25519 PKIX public key at PEM and prints status VERIFIED when --cem MAP bytes
-match, or NOT_RUN with reason cem-bytes-not-supplied without --cem. It exits 2
-with attest-public-key-unavailable, attest-envelope-unavailable,
+--verify-cem-attestation ENVELOPE checks such an envelope, or a cem/v1 one also
+binding baseRevision and patchSha256, offline against the Ed25519 PKIX key at
+PEM: VERIFIED when --cem MAP bytes match, else NOT_RUN (cem-bytes-not-supplied).
+It exits 2 with attest-public-key-unavailable, attest-envelope-unavailable,
 attest-verification-failed, attest-cem-mismatch, or map-unavailable.
 
 proof.ledger is the repository's falsification rate: the share of judged

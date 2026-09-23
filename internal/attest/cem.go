@@ -41,6 +41,11 @@ type CEMVerification struct {
 	Spec   string
 	Status string
 	Reason string
+	// PredicateType is set by VerifyCEMPredicate only; BaseRevision and
+	// PatchSHA256 only for a CEMPredicateTypeV1 claim.
+	PredicateType string
+	BaseRevision  string
+	PatchSHA256   string
 }
 
 type cemDigest struct {
@@ -109,6 +114,13 @@ func VerifyCEM(envelope []byte, publicKey ed25519.PublicKey, cem []byte) (CEMVer
 	if err != nil {
 		return CEMVerification{}, err
 	}
+	return checkCEMBytes(claim, cem)
+}
+
+// checkCEMBytes returns claim NOT_RUN for nil cem, and otherwise VERIFIED when
+// cem has the signed sha256 and size and, for a CEMPredicateTypeV1 claim, the
+// signed baseRevision and patchSha256.
+func checkCEMBytes(claim CEMVerification, cem []byte) (CEMVerification, error) {
 	if cem == nil {
 		claim.Status, claim.Reason = CEMNotRun, cemBytesNotSupplied
 		return claim, nil
@@ -119,6 +131,11 @@ func VerifyCEM(envelope []byte, publicKey ed25519.PublicKey, cem []byte) (CEMVer
 	}
 	if int64(len(cem)) != claim.Size {
 		return CEMVerification{}, fmt.Errorf("%w: size", ErrCEMBytesMismatch)
+	}
+	if claim.PredicateType == CEMPredicateTypeV1 {
+		if err := checkCEMV1Map(claim, cem); err != nil {
+			return CEMVerification{}, err
+		}
 	}
 	claim.Status = CEMVerified
 	return claim, nil
@@ -145,21 +162,28 @@ func parseCEMStatement(payload []byte) (CEMVerification, error) {
 	if statement.Subject[0] != (cemSubject{Digest: predicate.Digest, Name: predicate.Name}) {
 		return CEMVerification{}, errors.New("attest: CEM subject and predicate disagree")
 	}
-	if !lowerHexSHA256(predicate.Digest.SHA256) {
+	return checkCEMClaim(CEMVerification{
+		Name: predicate.Name, SHA256: predicate.Digest.SHA256, Size: predicate.Size, Spec: predicate.Spec,
+	})
+}
+
+// checkCEMClaim refuses a claim CEMStatement or CEMStatementV1 could not have
+// produced: a sha256 that is not 64 lowercase hex digits, a negative size, or
+// an empty name or spec.
+func checkCEMClaim(claim CEMVerification) (CEMVerification, error) {
+	if !lowerHexSHA256(claim.SHA256) {
 		return CEMVerification{}, errors.New("attest: CEM claim sha256 is not 64 lowercase hex digits")
 	}
-	if predicate.Size < 0 {
+	if claim.Size < 0 {
 		return CEMVerification{}, errors.New("attest: CEM claim size is negative")
 	}
-	if predicate.Name == "" {
+	if claim.Name == "" {
 		return CEMVerification{}, errors.New("attest: CEM claim name is empty")
 	}
-	if predicate.Spec == "" {
+	if claim.Spec == "" {
 		return CEMVerification{}, errors.New("attest: CEM claim spec is empty")
 	}
-	return CEMVerification{
-		Name: predicate.Name, SHA256: predicate.Digest.SHA256, Size: predicate.Size, Spec: predicate.Spec,
-	}, nil
+	return claim, nil
 }
 
 // lowerHexSHA256 reports whether digest is the 64 lowercase hex digits
