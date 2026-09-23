@@ -83,6 +83,8 @@ func decodeObject(t *testing.T, raw []byte) map[string]any {
 // TestContextDefaultWireIsTheGolden pins TCP-V0-024's compatibility claim: the
 // default invocation prints the bytes captured from the base commit's binary
 // (1894b9e5) over this fixture, so the opt-in views leave the wire unchanged.
+// TCP-V0-047 later added only the `instruction-routed` entry to
+// `coverage.unexamined`.
 func TestContextDefaultWireIsTheGolden(t *testing.T) {
 	t.Parallel()
 	root := evidenceSummaryRepository(t)

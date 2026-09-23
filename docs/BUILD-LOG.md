@@ -4,6 +4,32 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0186 TCP-V0-047: governing instructions route task orientation
+
+Cause (daily-loop run-001 UC-TASK-ORIENTATION critical miss): for "move the agent-memory backlog into
+the Corvint task store" at 933b4306, `docs/AGENT-ROUTES.md` is a lexical `documentation` hit (seven
+distinct terms, fifth documentation row) but `lexicalRows` (TCP-V0-013) places at most two
+documentation rows after the five-row code head and then every remaining code row (about 1,630)
+before the rest, so it sits far outside `--limit` 20 or 50. `AGENTS.md`, the governing row, names it
+in the "Agent routing" passage that shares `agent`, `backlog`, `memory`; no reservation read it.
+
+Fix: `instructionRoutedRows` reserves up to two `instruction-routed` rows after the `spec-mentioned`
+rows: tracked, backtick-quoted paths the governing file names in a passage (paragraph or list item)
+sharing at least two distinct task terms, strongest passage by summed idf first. Authority
+`instruction-reference`; reason "named by the governing instructions for this task: FILE:LINE shares
+...". Analyzer schema moves to `corvint-analyzer/76`; both context goldens gain only the
+`instruction-routed` `unexamined` entry. Tests: `TestTaskContextRoutesPathsTheGoverningInstructionsNameForTheTask`
+(positive, one-term negative, byte identity) and `TestTaskContextCapsInstructionRoutedRows`.
+Reproduction: `docs/AGENT-ROUTES.md` is result 2, reason cites `AGENTS.md:90` sharing `agent`,
+`backlog`, `memory`; `docs/specs/INDEX.json` is result 3 (`AGENTS.md:91`).
+
+Frozen `tools/retrieval-bench` v2, `--arms context`, all samples, `CORVINT_CONTEXT_*` unset, base
+062b0151 then fix (recall@20 / @10 / @5): code2test 0.5116/0.3994/0.2877 then 0.5116/0.3994/0.2830;
+comment2context 0.5042/0.3438/0.2562 unchanged; trace2code 0.7937/0.5083/0.4010 unchanged;
+edit2ripple 0.6293/0.5101/0.3621 then 0.6293/0.4928/0.3448; abstention rate 0.1707 unchanged. Ten of
+427 packets changed (transformers, eslint, caddy); no sample lost recall@20, one edit2ripple sample
+lost recall@10. Criterion 2, the sealed daily-loop re-run: NOT_RUN (not this ticket's step).
+
 ## 2026-09-23 V1-0004 PUB-V0-016, PUB-V0-020: core wrapper mode and first PASS retained core run
 
 `script/public-release-check` selects `editor` (unset) or `core` via `CORVINT_PUBLIC_RELEASE_QUALIFICATION`;
