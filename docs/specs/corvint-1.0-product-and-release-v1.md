@@ -5,7 +5,7 @@ Date: 2026-09-22
 Requirement prefix: `PRS-V1`
 Status: accepted (decision 0373, 2026-09-23)
 Intent status: accepted (decision 0373, V1-0001)
-Delivery status: not-started (the Core-only candidate path is a V1-0007 or V1-0018 follow-up)
+Delivery status: not-started
 Authoritative inputs: `../../AGENTS.md` invariants 1-8, `public-release-v0.md` (the 0.6 local-workflow
 scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 `../decisions/0332-verified-local-workflow-scope-2026-09-22.md`, `daily-change-evidence-workflow-v0.md`,
