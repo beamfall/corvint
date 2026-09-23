@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# This wrapper asserts on captured output with ripgrep (rg); without it every rg call below fails
+# as a bare "command not found" partway through, which reads as a real regression instead of a
+# missing prerequisite. Fail closed here, before any fixture is built.
+if ! command -v rg >/dev/null 2>&1; then
+    printf 'dogfood-change_test: REFUSE unsupported-environment-missing-rg\n' >&2
+    exit 1
+fi
+
 source_root=$(cd "$(dirname "$0")/.." && pwd)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-dogfood-change-test.XXXXXX")
 active_runner=

@@ -27,7 +27,7 @@ import (
 	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
-const version = "0.6.0"
+const version = "0.7.0"
 const maximumImpactLimit = 50
 const defaultHarnessBudgetBytes = 8_000
 
@@ -724,7 +724,7 @@ var (
 		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
 		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
 		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet", "flows"}
+		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet", "flows", "skill-export"}
 )
 
 func knownHost(value string) bool {
@@ -898,6 +898,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		}
 		if calibrateInvoked(arguments) {
 			return runCalibrate(ctx, arguments, stdout, stderr)
+		}
+		if skillExportInvoked(arguments) {
+			return runSkillExport(ctx, arguments, stdout, stderr)
 		}
 		if options, isProve, proveErr := parseProveInvocation(arguments); isProve {
 			if proveErr != nil {
@@ -1143,6 +1146,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		emitError(stderr, &gokernel.Error{Code: code, Message: message})
 		return 2
 	}
+	// CPUPROFILE (V1-0051): operator env var, off by default, documented in
+	// cpuProfileHelpNote (help.go, appended to harnessEventHelp) and
+	// task-context-packet-v0.md's Non-goals and authority section.
 	if profilePath := runtimeenv.Value("CPUPROFILE"); profilePath != "" {
 		profile, err := os.Create(profilePath)
 		if err != nil {

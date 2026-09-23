@@ -56,7 +56,7 @@ suite that runs in about 25 — while leaving the documented growth room to be a
 performance question it is.
 
 Per-package cost stays tracked in `docs/agent-memory/optimizations.md`. The specific lever this
-measurement exposes is `workProductionFixture` (`cmd/corvint/work_materialization_test.go:216@fe512fab`),
+measurement exposes is `workProductionFixture` (`cmd/corvint/work_materialization_test.go:220@fe512fab`),
 which copies the entire `internal/` tree and runs `git init`/`add`/`commit` once per subcase; the
 five `TestWorkFinalCheck*` tests spend about 255 s of the package's 596 s that way.
 

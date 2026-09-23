@@ -86,17 +86,24 @@ func unitValues(units map[string]testUnit) []wire.Value {
 }
 
 // observationSummary is the exact TCQ-V0-036 dynamic summary. Values are copied
-// from the verified observation; no other conditional shape is valid.
+// from the verified observation; no other conditional shape is valid, except
+// that a declared TCQ-V0-048 variant is copied as `environment` and an
+// undeclared one leaves the member out, which readers take as unknown.
 func observationSummary(document parsedDocuments, dynamic dynamicContext) wire.Value {
 	if document.observation == nil {
 		return jsonNull()
 	}
-	return jsonObject(
+	summary := jsonObject(
 		member{"commandId", jsonString(document.observation.commandID)},
 		member{"exitCode", jsonInt(document.observation.exitCode)},
 		member{"id", jsonString(document.observation.id)},
 		member{"reportSha256", jsonString(dynamic.report.sha256)},
 	)
+	if document.observation.environment != nil {
+		summary.Obj.Keys = append(summary.Obj.Keys, "environment")
+		summary.Obj.Values["environment"] = environmentValue(document.observation.environment)
+	}
+	return summary
 }
 
 // encodeResult builds the TCQ-V0-036 document and its TCQ-V0-040 identity. The
@@ -136,5 +143,9 @@ func encodeResult(document parsedDocuments, dynamic dynamicContext, resolved Res
 	if expected != nil && string(expected) != string(raw) {
 		return Result{}, fail(CodeInvalidTCQ)
 	}
-	return Result{raw: raw, id: identity, claims: claims}, nil
+	result := Result{raw: raw, id: identity, claims: claims}
+	if document.observation != nil {
+		result.environment = document.observation.environment
+	}
+	return result, nil
 }

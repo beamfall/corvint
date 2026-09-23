@@ -422,6 +422,45 @@ func TestBehaviorAdapterConformance(t *testing.T) {
 	})
 }
 
+// TestBehaviorAdapterPreviousToleratesDanglingCriterion is the V1-0044
+// end-to-end regression: run 1 emits a real "undocumented-tested-behavior"
+// finding for a criterion the test declares but the normative variation set
+// does not (behavior_adapter.go:1195), exactly as forward emission
+// (reconcileTest) retains rather than prunes it; run 1 must still exit 0
+// (buildBehaviorAdapter fails the test on error). Run 2 then feeds that
+// same result back as --previous and must also succeed, which is the DCP-V1-032
+// delta case that was unusable before this fix.
+func TestBehaviorAdapterPreviousToleratesDanglingCriterion(t *testing.T) {
+	fixture := behaviorAdapterFixture(t)
+	behaviorAdapterEditRow(t, &fixture.request, "tests", func(row map[string]any) {
+		// Append rather than replace: the test keeps its documented criteria
+		// (and each variation's own "tests" back-reference stays valid), and
+		// gains one additional criterion the normative variation set does not
+		// declare, plus the matching claim reconcileTest requires to accept it.
+		row["criterionKeys"] = append(row["criterionKeys"].([]any), "proposed-only")
+		claims := row["variationClaims"].([]any)
+		row["variationClaims"] = append(claims, map[string]any{
+			"variation_id": "proposed-only", "preconditions": []any{"fixture-ready"},
+			"actions": []any{"open-summary"}, "observable_facts": []any{"summary-count-visible"},
+		})
+	})
+	run1 := buildBehaviorAdapter(t, fixture.request, nil)
+	if run1.Fallback != "full-relevant-suite" {
+		t.Fatalf("run1 fallback relaxed: %+v", run1)
+	}
+	if !slices.ContainsFunc(run1.Frontier, func(d BehaviorAdapterDiagnostic) bool { return d.Kind == "undocumented-tested-behavior" }) {
+		t.Fatalf("run1 missing the dangling-criterion finding: %+v", run1.Frontier)
+	}
+	run1Raw, err := Encode(run1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	run2 := buildBehaviorAdapter(t, fixture.request, run1Raw)
+	if !run2.Delta.PreviousAvailable {
+		t.Fatalf("run2 did not accept run1 as --previous: %+v", run2.Delta)
+	}
+}
+
 func TestBehaviorAdapterReviewedAbsenceAndBounds(t *testing.T) {
 	fixture := behaviorAdapterFixture(t)
 	behaviorAdapterEditRow(t, &fixture.request, "variations", func(row map[string]any) { row["testKeys"] = []any{} })
@@ -664,9 +703,9 @@ func assertIndependentReverseLinkDeltas(t *testing.T, previous BehaviorAdapterRe
 	variation := previous.Variations[0]
 	testID := variation.Tests[0]
 	links := []string{
-		"variation-flow:" + variation.ID + "\x00" + variation.Flow,
-		"variation-test:" + variation.ID + "\x00" + testID,
-		"test-variation:" + testID + "\x00" + variation.ID,
+		"variation-flow:" + reverseLinkJoin(variation.ID, variation.Flow),
+		"variation-test:" + reverseLinkJoin(variation.ID, testID),
+		"test-variation:" + reverseLinkJoin(testID, variation.ID),
 	}
 	for index, link := range links {
 		currentRaw, _ := Encode(previous)
@@ -809,7 +848,7 @@ func TestBehaviorAdapterReverseLinkKeysDoNotCollide(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !slices.Contains(delta.LostReverseLinks, "variation-test:a\x00b:c") {
+	if !slices.Contains(delta.LostReverseLinks, "variation-test:"+reverseLinkJoin("a", "b:c")) {
 		t.Fatalf("colliding variation/test pair hid the lost link: %+v", delta.LostReverseLinks)
 	}
 }

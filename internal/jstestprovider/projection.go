@@ -108,6 +108,31 @@ func hasSensitiveInputEvidence(r Receipt) bool {
 	return false
 }
 
+// tcqStatus maps a per-attempt execution state onto the TCQ report vocabulary
+// that the shared flake rule (tcq.Flaky, TCQ-V0-049) judges. Harness states
+// that produced no test result map to error or skipped; a state outside the
+// table maps to "" and is ignored by the rule.
+var tcqStatus = map[ExecutionState]string{
+	StatePassed:         tcq.ReportPassed,
+	StateFailed:         tcq.ReportFailed,
+	StateTimedOut:       tcq.ReportError,
+	StateInfrastructure: tcq.ReportError,
+	StateSkipped:        tcq.ReportSkipped,
+	StateInterrupted:    tcq.ReportSkipped,
+}
+
+// flakyOutcome applies the shared TCQ-V0-049 rule to the recorded attempts. A
+// reporter's own flaky label stands on its own, so missing attempt evidence
+// never upgrades a labelled flake to a clean pass; recorded attempts can only
+// add the qualification.
+func flakyOutcome(outcome TestOutcome) bool {
+	statuses := make([]string, 0, len(outcome.Attempts))
+	for _, attempt := range outcome.Attempts {
+		statuses = append(statuses, tcqStatus[attempt.State])
+	}
+	return outcome.State == StateFlaky || tcq.Flaky(statuses)
+}
+
 // ToTestProjection projects one TestOutcome through the shared
 // testvalidity.Project (internal/testvalidity/projection.go). Ordinary
 // per-test states (passed/failed/skipped/flaky) carry ClaimFacts, since they
@@ -127,7 +152,7 @@ func ToTestProjection(outcome TestOutcome) testvalidity.Projection {
 			ReportState:      reportStateFor(outcome.State),
 			Anchors:          anchors,
 		}
-		if outcome.State == StateFlaky {
+		if flakyOutcome(outcome) {
 			claim.Reasons = []string{"flaky-retry"}
 		}
 		return testvalidity.Project(testvalidity.Input{Claim: &claim})

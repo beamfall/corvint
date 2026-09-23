@@ -43,6 +43,7 @@ func queryCLIRepository(t *testing.T) string {
 	root := t.TempDir()
 	for _, arguments := range [][]string{
 		{"init", "-q"},
+		{"config", "maintenance.auto", "false"}, {"config", "gc.auto", "0"},
 		{"config", "user.email", "corvint@example.test"},
 		{"config", "user.name", "Corvint Test"},
 	} {

@@ -404,7 +404,9 @@ Cross-field validation is exact:
   WQO-V0-046 is the one exception, and it adds no store root either: when the
   queue's store is provably the qualified committed tree itself, complete monitored
   manifests are complete store scope. Corvint's own `decision-0046-v0` self-dogfood
-  mapping is not that exception and keeps the paragraph above.
+  mapping is the same exception (decision 0348): its queue store is also `docs/worklist.json`
+  in the qualified committed tree, and the byte-reproduction argument that qualifies
+  `repository-worklist-v0` holds for it identically, so it is not held to the paragraph above.
 
 ### 5.4 Deterministic shadow proposal
 
@@ -544,15 +546,18 @@ work likely to clash on this repository, and what is the most work that can star
   no stdin read; root help and the public command inventory MUST omit it. It is not an alias
   for a WQO command.
 
-### 5.7 Repository adoption (decision 0321)
+### 5.7 Repository adoption (decisions 0321, 0348)
 
-These requirements let a repository other than Corvint reach a `VALIDATED_AT` observation
-without a new policy vocabulary, store root, or adapter protocol. They change no wire profile.
+These requirements let a repository other than Corvint, or Corvint's own self-dogfood
+repository, reach a `VALIDATED_AT` observation without a new policy vocabulary, store root,
+or adapter protocol. They change no wire profile.
 
 - `WQO-V0-046`: The store scope is complete exactly when the policy `mappingVersion` is
-  `repository-worklist-v0` and Corvint, independently of the adapter, recomputes that closed
-  mapping from the qualified committed tree and obtains byte-identical canonical snapshot,
-  details, and checkpoint documents. The committed worklist is then the queue's whole store, so
+  `repository-worklist-v0` or `decision-0046-v0` and Corvint, independently of the adapter,
+  recomputes that closed mapping from the qualified committed tree and obtains byte-identical
+  canonical snapshot, details, and checkpoint documents. Both mappings close over the same
+  qualified committed worklist file (`.corvint/worklist.json` for `repository-worklist-v0`,
+  `docs/worklist.json` for `decision-0046-v0`), which is then the queue's whole store, so
   complete monitored pre/post manifests of WQO-V0-017 are complete store scope and equal
   manifests report `UNCHANGED_OBSERVED`. The final check repeats the comparison for the second
   checkpoint against the closing source. Any other mapping version, an unreadable or invalid
@@ -755,7 +760,7 @@ repository's existing roadmap files; a repository with another queue writes its 
 | Derived collisions/wave | WQO-V0-041..045 | closure goldens, optimality fixtures, clash report |
 | Direct closure boundary | WQO-V0-042 | `internal/workqueue/collision.go`, `TestIndexCollisionSourceDirectNeighboursOnly`, `TestIndexCollisionSourceResolvesGoModuleImports`, `TestDeriveWorkCollisionsResolvesGoModuleImports` |
 | Retired competing command | WQO-V0-045 | `cmd/corvint/main.go`, `cmd/corvint/help.go`, `TestLanePlanRetired` |
-| Store scope by mapping reproduction | WQO-V0-046 | `cmd/corvint/work.go` `workMappingReproduced`, `TestWorkMappingReproduced`, `TestWorkAdoptedRepositoryWorklist` |
+| Store scope by mapping reproduction | WQO-V0-046 | `cmd/corvint/work.go` `workMappingReproduced`, `TestWorkMappingReproduced`, `TestWorkMappingReproducedSelfDogfood`, `TestWorkAdoptedRepositoryWorklist` |
 | Repository adoption | WQO-V0-047..048 | `cmd/corvint/work_adopt.go`, `internal/worklistadapter`, `TestWorkAdoptedRepositoryWorklist`, `TestWorkMappingReproduced` |
 | Bound adoption executable | WQO-V0-049..050 | `cmd/corvint/work_executable_binding.go`, `TestWorkInitBindsExplicitExecutableWQOV0049`, `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`, `TestWorkExecutableMissingAndSymlinkSwapWQOV0049`, `TestWorkExecutableChangeRequiresReviewedRebindWQOV0050` |
 
@@ -900,13 +905,16 @@ The final bounded local evidence follow-up adds these independently reviewed wit
 | WQO-V0-007/030 | `TestProducerOperationBoundary` in `cmd/corvint-work-queue/operation_boundary_test.go` | Forbidden verbs and invalid argv fail before scratch/source acquisition; supported operations reach the discriminating acquisition failure. The direct test launches no adapter or Git child and does not qualify an external adapter. |
 | WQO-V0-026 | `TestLocalProseSelectionInvariance` in `conformance/work-queue-v0/local_evidence_test.go` | Independently rebound benign/adversarial title/body fixtures retain authoritative facts, stable selected tickets, routes and exclusion/abstention reasons. Parsed complete wires, fifty frozen identity preimages and a stale-content negative support a nonempty pure `ProposeWave` witness. Its validated inputs are explicitly synthetic. |
 | WQO-V0-028 | `TestLocalHistoricalSerialization` in the same file | Exact independent checkpoint A/B wire oracles and identities; serializing B leaves historical A objects, bytes and bindings unchanged. This tests the existing machine serializer, not a new renderer or actual eligible production. |
-| WQO-V0-033 | The descriptive network-qualification case inside `TestObserveWorkUsesOnlyTargetMaterialization` | Actual capture retains `HOST_UNOBSERVED` and `NETWORK_UNOBSERVED`, alongside unknown mutation scope. It establishes the emitted qualifier, not absence of network/model/service activity. |
+| WQO-V0-033 | The descriptive network-qualification case inside `TestObserveWorkUsesOnlyTargetMaterialization` | Actual capture retains `HOST_UNOBSERVED` and `NETWORK_UNOBSERVED` regardless of store scope. It establishes the emitted qualifier, not absence of network/model/service activity. |
 
 These focused Go tests and all five new native claim extraction/re-extraction checks passed on
 exact retained source. The independent pure fixtures use hypothetical complete mutation evidence
 for their synthetic validated state; the actual default observer over the `decision-0046-v0`
-self-dogfood mapping remains `UNKNOWN` with incomplete mutation scope (the WQO-V0-046 adoption path
-is witnessed separately by `TestWorkAdoptedRepositoryWorklist`). No synthetic state or structural link is promoted into production eligibility.
+self-dogfood mapping (decision 0348) now reaches complete store scope under WQO-V0-046 on a clean,
+undrifted capture, the same as the `repository-worklist-v0` adoption path witnessed by
+`TestWorkAdoptedRepositoryWorklist` — witnessed here by `TestWorkMappingReproducedSelfDogfood` and
+`TestObserveWorkUsesOnlyTargetMaterialization`. No synthetic state or structural link is promoted
+into production eligibility.
 
 The native paired-prose CLI harness in `conformance/work-queue-v0/cmd/cli-prose` separately checks
 the frozen identity registry and reconstructs capture inputs through the Go fixture producer. The

@@ -153,8 +153,8 @@ Prerequisites:
   non-test exported-name declarations. Dirty worktree edits are not source evidence.
 
 Example from a Corvint checkout with committed sources:
-  corvint docs draft --source docs/specs/source-documentation-draft-v0.md --package internal/doccompiler > /tmp/corvint-source-draft.md
-  corvint docs consume --source docs/specs/source-documentation-draft-v0.md --package internal/doccompiler --task Plan < /tmp/corvint-source-draft.md
+  corvint docs draft --source docs/specs/source-documentation-draft-v0.md --package internal/docmaintain > /tmp/corvint-source-draft.md
+  corvint docs consume --source docs/specs/source-documentation-draft-v0.md --package internal/docmaintain --task Preview < /tmp/corvint-source-draft.md
 
 Contract and remaining bounds: docs/specs/source-documentation-draft-v0.md
 

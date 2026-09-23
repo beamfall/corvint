@@ -28,6 +28,36 @@ func TestToTestProjection_NeverCollapsesToBoolean(t *testing.T) {
 	}
 }
 
+// TestFlakyOutcomeIsSharedRule pins that the provider's flake qualification is
+// the shared TCQ-V0-049 rule over recorded attempts, with the reporter label
+// retained when no attempts were recorded.
+func TestFlakyOutcomeIsSharedRule(t *testing.T) {
+	attempts := func(states ...ExecutionState) []Attempt {
+		recorded := make([]Attempt, 0, len(states))
+		for retry, state := range states {
+			recorded = append(recorded, Attempt{State: state, Retry: retry})
+		}
+		return recorded
+	}
+	cases := []struct {
+		name    string
+		outcome TestOutcome
+		want    bool
+	}{
+		{"failed-then-passed-under-passed-label", TestOutcome{State: StatePassed, Attempts: attempts(StateFailed, StatePassed)}, true},
+		{"timed-out-then-passed", TestOutcome{State: StatePassed, Attempts: attempts(StateTimedOut, StatePassed)}, true},
+		{"passed-twice", TestOutcome{State: StatePassed, Attempts: attempts(StatePassed, StatePassed)}, false},
+		{"skipped-then-passed", TestOutcome{State: StatePassed, Attempts: attempts(StateSkipped, StatePassed)}, false},
+		{"label-without-attempts", TestOutcome{State: StateFlaky}, true},
+		{"failed-without-attempts", TestOutcome{State: StateFailed}, false},
+	}
+	for _, c := range cases {
+		if got := flakyOutcome(c.outcome); got != c.want {
+			t.Errorf("%s: flakyOutcome = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
 func TestToTestProjection_HarnessIncompleteStates(t *testing.T) {
 	cases := []struct {
 		state     ExecutionState

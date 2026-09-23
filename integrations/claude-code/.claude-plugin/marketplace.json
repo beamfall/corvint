@@ -10,7 +10,7 @@
       "name": "corvint",
       "source": "./plugins/corvint",
       "description": "Bounded, receipt-linked Corvint context hooks for Claude Code",
-      "version": "0.2.2",
+      "version": "0.2.3",
       "category": "Development",
       "tags": [
         "context",

@@ -157,9 +157,13 @@ nongenerated UTF-8 LF Markdown with exactly one literal digest outside fenced co
 example and this contract's path. From a Corvint checkout with committed sources:
 
 ```sh
-corvint docs draft --source docs/specs/source-documentation-draft-v0.md --package internal/doccompiler > /tmp/corvint-source-draft.md
-corvint docs consume --source docs/specs/source-documentation-draft-v0.md --package internal/doccompiler --task Plan < /tmp/corvint-source-draft.md
+corvint docs draft --source docs/specs/source-documentation-draft-v0.md --package internal/docmaintain > /tmp/corvint-source-draft.md
+corvint docs consume --source docs/specs/source-documentation-draft-v0.md --package internal/docmaintain --task Preview < /tmp/corvint-source-draft.md
 ```
+
+`internal/doccompiler` itself exceeds the SDD-V0-005 64-declaration/importer bound and is not a
+working example (V1-0030, 2026-09-22); `internal/docmaintain` is the smallest package this repository
+keeps under that bound while still producing a non-empty `--task Preview` consumption result.
 
 `draft` emits Markdown only. `consume` emits JSON fields `profile` (`corvint-documentation-consumption/0`),
 `state` (`READY` or `NO_CANDIDATES`), `derivation` (`GENERATED`), `validation` (`SOURCE_REDERIVED`),

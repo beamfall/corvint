@@ -208,6 +208,47 @@ func mustJSON(t *testing.T, value any) []byte {
 	return out
 }
 
+// EEP-TR-001, EEP-TR-005: `affected --provider-command` yields the same
+// test_selection as `--provider` over the same bytes, apart from the provider
+// row's source, and counts toward the shared provider bound.
+func TestAffectedProviderCommandMatchesFile(t *testing.T) {
+	t.Parallel()
+	root, base, record := affectedSelectionRepository(t)
+	fromFile, _, stderr, code := runAffectedArguments(t, root, "--base", base, "--provider", record)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	argv, _ := json.Marshal([]string{"/bin/cat", record})
+	fromCommand, _, stderr, code := runAffectedArguments(t, root, "--base", base, "--provider-command", string(argv))
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	fileSelection, commandSelection := testSelection(t, fromFile), testSelection(t, fromCommand)
+	fileRows, commandRows := fileSelection["provider_evidence"].([]any), commandSelection["provider_evidence"].([]any)
+	if len(fileRows) != 1 || len(commandRows) != 1 {
+		t.Fatalf("provider rows: file %d command %d", len(fileRows), len(commandRows))
+	}
+	fileRow, commandRow := fileRows[0].(map[string]any), commandRows[0].(map[string]any)
+	if commandRow["source"] != "command:"+string(argv) || fileRow["source"] != record {
+		t.Fatalf("sources: file %v command %v", fileRow["source"], commandRow["source"])
+	}
+	delete(fileRow, "source")
+	delete(commandRow, "source")
+	want, _ := json.Marshal(fileSelection)
+	got, _ := json.Marshal(commandSelection)
+	if !bytes.Equal(want, got) {
+		t.Fatalf("test_selection differs by transport:\nfile:    %s\ncommand: %s", want, got)
+	}
+	arguments := []string{"--base", base}
+	for range 4 {
+		arguments = append(arguments, "--provider", record)
+	}
+	arguments = append(arguments, "--provider-command", string(argv))
+	if _, _, stderr, code := runAffectedArguments(t, root, arguments...); code != 2 || !strings.Contains(stderr, "at most 4 providers") {
+		t.Fatalf("a fifth provider by command must be refused: %d %s", code, stderr)
+	}
+}
+
 // ETS-V0-001: the new flags are bounded and dependent, and unknown flags
 // still fail as before.
 func TestAffectedSelectionArguments(t *testing.T) {
@@ -223,6 +264,8 @@ func TestAffectedSelectionArguments(t *testing.T) {
 		{[]string{"--provider", "p.json", "--repository", "e2e=a", "--repository", "e2e=b"}, "bound twice"},
 		{[]string{"--provider"}, "requires exactly one value"},
 		{[]string{"--provider", "p.json", "--limit", "3"}, "unrecognized arguments"},
+		{[]string{"--provider-command", `["bin/provider"]`}, "absolute, clean path"},
+		{[]string{"--provider-command", "p.json"}, "expected a JSON array"},
 	} {
 		_, stdout, stderr, code := runAffectedArguments(t, root, tc.arguments...)
 		if code != 2 || len(stdout) != 0 || !strings.Contains(stderr, tc.message) {
@@ -235,6 +278,9 @@ func TestAffectedSelectionArguments(t *testing.T) {
 	}
 	if _, _, stderr, code := runAffectedArguments(t, root, providers...); code != 2 || !strings.Contains(stderr, "at most 4 providers") {
 		t.Errorf("a fifth provider must be refused: %d %s", code, stderr)
+	}
+	if !strings.Contains(affectedHelp, "--provider-command ARGV_JSON") {
+		t.Error("help must document --provider-command")
 	}
 	if !strings.Contains(affectedHelp, "--selection-profile strict|coverage") {
 		t.Error("help must document --selection-profile")

@@ -20,11 +20,13 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/cem/coverprofile"
 )
 
 const (
 	MaxOutputBytes   = int64(8 << 20)
-	MaxCoverageBytes = int64(256 << 20)
+	MaxCoverageBytes = coverprofile.MaxBytes
 	// MaxPackages leaves room for the executable and four frozen go arguments
 	// within the 4,096-element argv bound.
 	MaxPackages   = 4_091

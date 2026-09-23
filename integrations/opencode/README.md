@@ -43,6 +43,10 @@ with `go build -o /absolute/bin/corvint-mcp ./cmd/corvint-mcp` and
 `go build -o /absolute/bin/corvint-test-validity-mcp ./cmd/corvint-test-validity-mcp`, or use
 release binaries containing the compatibility selector. Verify discovery with `opencode mcp list`;
 a connected status alone does not verify a tool call or qualify native lifecycle support.
+Development probes with OpenCode CLI 1.17.18 and 1.18.31 connected the core, test-validity and
+docs servers built from this checkout and completed one call per tool through this selector; both
+clients send `notifications/cancelled` after each completed call, which the server ignores. These
+probes are transport evidence only, not a host-version support claim.
 The optional docs and experimental corpus servers accept the same selector, but remain separately
 configured companions with their existing prerequisites. Disabling a server uses `enabled: false`;
 uninstalling it removes its `mcp` entry.

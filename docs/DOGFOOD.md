@@ -85,6 +85,10 @@ When local Git configuration `corvint.dogfood.anchor` names one anchor ref, both
 implicit anchor such as `origin/main` is selected. Without a configured anchor, the caller base
 remains operative and the private report records the anchor as `NOT_OBSERVED`:
 
+`dogfood-change` and `dogfood-check` require `rg` (ripgrep) on `PATH` to assert on their own evidence
+output; a host missing it gets a `REFUSE unsupported-environment-missing-rg` line instead of a
+misleading failure partway through the run.
+
 ```console
 $ make dogfood-change BASE=BASE_SHA
 $ git add .corvint/change.cem.json

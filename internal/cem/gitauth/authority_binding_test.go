@@ -166,11 +166,30 @@ func TestAuthorityBindingRejectsObservedNamespaceAndModeDrift(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := os.WriteFile(file, []byte("same bytes"), 0644); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Chtimes(file, before.ModTime(), before.ModTime()); err != nil {
-				t.Fatal(err)
+			// A restore that lands within one ctime tick is invisible to the
+			// witness (coarse ctime on ext4 containers): re-apply it until the
+			// change time actually advances, bounded; skip when it never does.
+			deadline := time.Now().Add(2 * time.Second)
+			for {
+				if err := os.WriteFile(file, []byte("same bytes"), 0644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Chtimes(file, before.ModTime(), before.ModTime()); err != nil {
+					t.Fatal(err)
+				}
+				after, err := os.Stat(file)
+				if err != nil {
+					t.Fatal(err)
+				}
+				beforeSec, beforeNsec, _ := authorityChangeTime(before)
+				afterSec, afterNsec, _ := authorityChangeTime(after)
+				if beforeSec != afterSec || beforeNsec != afterNsec {
+					return
+				}
+				if time.Now().After(deadline) {
+					t.Skip("file change time did not advance within 2s on this filesystem")
+				}
+				time.Sleep(20 * time.Millisecond)
 			}
 		},
 	}

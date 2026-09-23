@@ -28,6 +28,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -41,8 +42,13 @@ const (
 	treeScope   = "tree"
 	neverScope  = "never"
 	unresolved  = "go-test-unresolved"
+	packageStep = "go-test-package"
 	toolingPath = "Makefile"
 )
+
+// listFields are the `go list -json` fields the per-package bound reads: the
+// files compiled or embedded into a package's test binary and its dependencies.
+const listFields = "ImportPath,Dir,Module,Deps,GoFiles,CgoFiles,IgnoredGoFiles,TestGoFiles,XTestGoFiles,EmbedFiles,TestEmbedFiles,XTestEmbedFiles,SFiles,CFiles,HFiles,CXXFiles,MFiles,FFiles,SwigFiles,SwigCXXFiles,SysoFiles"
 
 // tooling is read by every step: the gate's own definition and helpers.
 var tooling = []string{toolingPath, "go.mod", "go.sum", "script/", "tools/"}
@@ -92,6 +98,31 @@ type record struct {
 	DurationMS int64    `json:"duration_ms"`
 	Host       string   `json:"host"`
 	Packages   []string `json:"packages,omitempty"`
+	Bound      string   `json:"bound,omitempty"` // how a per-package bound was proven (GL-V0-009)
+}
+
+// packageKey is one resolved package's per-package content key, or the reason
+// it runs unrecorded when its bound cannot be proven.
+type packageKey struct {
+	pkg, key, bound, reason string
+}
+
+// listedPackage is the `go list -json` subset in listFields.
+type listedPackage struct {
+	ImportPath string
+	Dir        string
+	Module     *struct{ Path string }
+	Deps       []string
+	GoFiles, CgoFiles, IgnoredGoFiles, TestGoFiles, XTestGoFiles, EmbedFiles, TestEmbedFiles, XTestEmbedFiles,
+	SFiles, CFiles, HFiles, CXXFiles, MFiles, FFiles, SwigFiles, SwigCXXFiles, SysoFiles []string
+}
+
+func (p listedPackage) files() []string {
+	var files []string
+	for _, list := range [][]string{p.GoFiles, p.CgoFiles, p.IgnoredGoFiles, p.TestGoFiles, p.XTestGoFiles, p.EmbedFiles, p.TestEmbedFiles, p.XTestEmbedFiles, p.SFiles, p.CFiles, p.HFiles, p.CXXFiles, p.MFiles, p.FFiles, p.SwigFiles, p.SwigCXXFiles, p.SysoFiles} {
+		files = append(files, list...)
+	}
+	return files
 }
 
 // ledger is one invocation's view: the repository root, the worktree digest and
@@ -229,18 +260,26 @@ func (l *ledger) runStep(step string, packages []string, command []string) int {
 }
 
 // goTest partitions `./...` into the packages whose reads their literals bound,
-// which Go's own test cache may answer, and the unresolved packages, which run
-// with -count=1 under a tree-keyed record (GL-V0-004). When the partition cannot
-// be computed every package runs with -count=1 under the tree key.
+// which run under one content key each (GL-V0-009) and Go's own test cache,
+// and the unresolved packages, which run with -count=1 under a tree-keyed
+// record (GL-V0-004). When the partition cannot be computed every package runs
+// with -count=1 under the tree key; when the bounds cannot be computed the
+// resolved packages run through the Go test cache alone, unrecorded.
 func (l *ledger) goTest(goTest []string) int {
 	resolved, unresolvedPkgs, reason := l.partition()
 	if reason != "" {
 		fmt.Fprintf(l.stdout, "%sPARTITION unavailable: %s; every package runs uncached\n", prefixOut, reason)
 		return l.runStep(unresolved, []string{"./..."}, append(append([]string{}, goTest...), "-count=1", "./..."))
 	}
-	fmt.Fprintf(l.stdout, "%sPARTITION %d resolved packages through the Go test cache, %d unresolved under the tree key\n", prefixOut, len(resolved), len(unresolvedPkgs))
+	fmt.Fprintf(l.stdout, "%sPARTITION %d resolved packages under per-package keys, %d unresolved under the tree key\n", prefixOut, len(resolved), len(unresolvedPkgs))
 	if len(resolved) > 0 {
-		if code := execute(append(append([]string{}, goTest...), resolved...)); code != 0 {
+		keyed, reason := l.packageKeys(resolved)
+		if reason != "" {
+			fmt.Fprintf(l.stdout, "%sBOUNDS unavailable: %s; resolved packages run through the Go test cache\n", prefixOut, reason)
+			if code := execute(append(append([]string{}, goTest...), resolved...)); code != 0 {
+				return code
+			}
+		} else if code := l.runPackages(keyed, goTest); code != 0 {
 			return code
 		}
 	}
@@ -307,13 +346,261 @@ func (l *ledger) key(step string, packages []string) (string, string) {
 	if l.digestErr != "" {
 		return "", l.digestErr
 	}
-	inputs := l.inputs(scope)
+	return l.digestKey(step, l.inputs(scope), packages), ""
+}
+
+// digestKey is the key of step over inputs: the schema, the tool identity,
+// the Go environment a test reads, and the packages the step names.
+func (l *ledger) digestKey(step, inputs string, packages []string) string {
 	h := sha256.New()
-	fmt.Fprintf(h, "%s\nstep %s\ntool %s\nenv GO_TEST_TIMEOUT=%s\ninputs %s\n", schema, step, l.identity, os.Getenv("GO_TEST_TIMEOUT"), inputs)
+	fmt.Fprintf(h, "%s\nstep %s\ntool %s\nenv GO_TEST_TIMEOUT=%s\nenv GOFLAGS=%s\ninputs %s\n", schema, step, l.identity, os.Getenv("GO_TEST_TIMEOUT"), os.Getenv("GOFLAGS"), inputs)
 	for _, pkg := range packages {
 		fmt.Fprintf(h, "package %s\n", pkg)
 	}
-	return hex.EncodeToString(h.Sum(nil)), ""
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// packageKeys derives one content key per resolved package (GL-V0-009) over
+// its proven bound: every file `go list -deps -test` compiles or embeds into
+// the package's test binary, every path the affected-plan selector's rules (a)
+// to (c) attribute to the package, and the gate tooling. A package whose bound
+// cannot be proven carries a reason instead and runs unrecorded; a bound the
+// tool cannot compute at all returns the reason for every package.
+func (l *ledger) packageKeys(resolved []string) ([]packageKey, string) {
+	if l.dirErr != "" {
+		return nil, l.dirErr
+	}
+	if l.digestErr != "" {
+		return nil, l.digestErr
+	}
+	module, err := modulePath(filepath.Join(l.root, "go.mod"))
+	if err != nil {
+		return nil, err.Error()
+	}
+	bounds, err := l.selectorBounds(module)
+	if err != nil {
+		return nil, err.Error()
+	}
+	listed, err := l.listedFiles(module)
+	if err != nil {
+		return nil, err.Error()
+	}
+	present := map[string]bool{}
+	for _, entry := range l.entries {
+		present[entry.path] = true
+	}
+	var keyed []packageKey
+	for _, pkg := range resolved {
+		keyed = append(keyed, l.packageKey(pkg, bounds[pkg], listed[pkg], present))
+	}
+	return keyed, ""
+}
+
+func (l *ledger) packageKey(pkg string, bound map[string]string, files []string, present map[string]bool) packageKey {
+	if bound == nil {
+		return packageKey{pkg: pkg, reason: "the selector attributes no path to it"}
+	}
+	if files == nil {
+		return packageKey{pkg: pkg, reason: "go list does not list it"}
+	}
+	inputs := map[string]bool{}
+	rules := map[string]int{}
+	for p, rule := range bound {
+		inputs[p] = true
+		rules[rule]++
+	}
+	for _, f := range files {
+		if !present[f] {
+			return packageKey{pkg: pkg, reason: "go list names " + f + ", which the worktree digest does not hold"}
+		}
+		inputs[f] = true
+	}
+	h := sha256.New()
+	digested := 0
+	for _, entry := range l.entries {
+		if inputs[entry.path] || inScope(entry.path, tooling) {
+			fmt.Fprintf(h, "%s\n", entry.line)
+			digested++
+		}
+	}
+	proof := fmt.Sprintf("go list -deps -test %d files; selector frontier %d, reader %d paths; %d entries digested with the gate tooling", len(files), rules["frontier"], rules["reader"], digested)
+	return packageKey{pkg: pkg, key: l.digestKey(packageStep, "entries "+hex.EncodeToString(h.Sum(nil)), []string{pkg}), bound: proof}
+}
+
+// selectorBounds asks gate-affected-select for the paths rules (a) to (c)
+// attribute to each resolved package, over the exact worktree entries.
+func (l *ledger) selectorBounds(module string) (map[string]map[string]string, error) {
+	var paths strings.Builder
+	for _, entry := range l.entries {
+		paths.WriteString(entry.path + "\n")
+	}
+	out, err := outputInput(l.root, strings.NewReader(paths.String()), "go", "run", "./tools/gate-affected-select", "-bounds", module, l.root)
+	if err != nil {
+		return nil, errors.New("gate-affected-select -bounds failed: " + err.Error())
+	}
+	bounds := map[string]map[string]string{}
+	for _, line := range strings.Split(out, "\n") {
+		if !strings.HasPrefix(line, "bound ") {
+			continue
+		}
+		fields := strings.SplitN(strings.TrimPrefix(line, "bound "), " ", 3)
+		if len(fields) != 3 {
+			return nil, errors.New("unreadable bound line: " + line)
+		}
+		if bounds[fields[0]] == nil {
+			bounds[fields[0]] = map[string]string{}
+		}
+		bounds[fields[0]][fields[2]] = fields[1]
+	}
+	return bounds, nil
+}
+
+// listedFiles maps every root-module package to the repository-relative files
+// of its test binary's transitive closure within the module, from one
+// `go list -deps -test -json ./...`.
+func (l *ledger) listedFiles(module string) (map[string][]string, error) {
+	out, err := output(l.root, "go", "list", "-deps", "-test", "-json="+listFields, "./...")
+	if err != nil {
+		return nil, errors.New("go list -deps -test failed: " + err.Error())
+	}
+	root, err := filepath.EvalSymlinks(l.root)
+	if err != nil {
+		return nil, err
+	}
+	packages := map[string]listedPackage{}
+	decoder := json.NewDecoder(strings.NewReader(out))
+	for decoder.More() {
+		var p listedPackage
+		if err := decoder.Decode(&p); err != nil {
+			return nil, errors.New("go list output: " + err.Error())
+		}
+		packages[p.ImportPath] = p
+	}
+	files := map[string][]string{}
+	for name, p := range packages {
+		if p.Module == nil || p.Module.Path != module || strings.Contains(name, " [") || strings.HasSuffix(name, ".test") {
+			continue
+		}
+		closure := p
+		if test, ok := packages[name+".test"]; ok {
+			closure = test
+		}
+		set := map[string]bool{}
+		for _, dep := range append([]string{name}, closure.Deps...) {
+			d, ok := packages[dep]
+			if !ok || d.Module == nil || d.Module.Path != module {
+				continue
+			}
+			dir, err := relativeDirectory(root, d.Dir)
+			if err != nil {
+				return nil, err
+			}
+			for _, f := range d.files() {
+				set[path.Join(dir, filepath.ToSlash(f))] = true
+			}
+		}
+		files[name] = sortedKeys(set)
+	}
+	return files, nil
+}
+
+func relativeDirectory(root, dir string) (string, error) {
+	dir, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return "", err
+	}
+	rel, err := filepath.Rel(root, dir)
+	if err != nil {
+		return "", err
+	}
+	if rel == "." {
+		return "", nil
+	}
+	if strings.HasPrefix(rel, "..") {
+		return "", errors.New("go list names a directory outside the worktree: " + dir)
+	}
+	return filepath.ToSlash(rel), nil
+}
+
+func sortedKeys(set map[string]bool) []string {
+	keys := make([]string, 0, len(set))
+	for key := range set {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// runPackages runs the resolved packages whose key has no recorded pass in one
+// go test invocation, holding each key's lock, and records each package on
+// exit zero (GL-V0-009). A package with a reason runs in the same invocation
+// and is not recorded.
+func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
+	var pending []packageKey
+	for _, p := range keyed {
+		if p.reason != "" {
+			fmt.Fprintf(l.stdout, "%sRUN %s %s: %s\n", prefixOut, packageStep, p.pkg, p.reason)
+			pending = append(pending, p)
+			continue
+		}
+		if rec, hit := l.lookup(p.key); hit {
+			fmt.Fprintf(l.stdout, "%sHIT %s %s %s (recorded %s on %s)\n", prefixOut, packageStep, p.pkg, short(p.key), rec.RecordedAt, rec.Host)
+			continue
+		}
+		pending = append(pending, p)
+	}
+	sort.Slice(pending, func(i, j int) bool { return pending[i].key < pending[j].key })
+	var unlocks []func()
+	defer func() {
+		for _, unlock := range unlocks {
+			unlock()
+		}
+	}()
+	var run []packageKey
+	for _, p := range pending {
+		if p.reason != "" {
+			run = append(run, p)
+			continue
+		}
+		unlock, err := l.lock(p.key, packageStep+" "+p.pkg)
+		if err != nil {
+			fmt.Fprintf(l.stdout, "%sRUN %s %s: ledger lock unavailable: %s\n", prefixOut, packageStep, p.pkg, err)
+			p.reason = err.Error()
+			run = append(run, p)
+			continue
+		}
+		unlocks = append(unlocks, unlock)
+		if rec, hit := l.lookup(p.key); hit {
+			fmt.Fprintf(l.stdout, "%sHIT %s %s %s (recorded %s on %s while waiting)\n", prefixOut, packageStep, p.pkg, short(p.key), rec.RecordedAt, rec.Host)
+			continue
+		}
+		fmt.Fprintf(l.stdout, "%sRUN %s %s: no recorded pass for %s\n", prefixOut, packageStep, p.pkg, short(p.key))
+		run = append(run, p)
+	}
+	if len(run) == 0 {
+		return 0
+	}
+	sort.Slice(run, func(i, j int) bool { return run[i].pkg < run[j].pkg })
+	command := append([]string{}, goTest...)
+	for _, p := range run {
+		command = append(command, p.pkg)
+	}
+	started := time.Now()
+	if code := execute(command); code != 0 {
+		return code
+	}
+	for _, p := range run {
+		if p.reason != "" {
+			continue
+		}
+		rec := record{Schema: schema, Step: packageStep, Key: p.key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: []string{p.pkg}, Bound: p.bound}
+		if err := l.record(rec); err != nil {
+			fmt.Fprintf(l.stderr, "%sRECORD %s %s failed: %s\n", prefixOut, packageStep, p.pkg, err)
+			continue
+		}
+		fmt.Fprintf(l.stdout, "%sRECORD %s %s %s\n", prefixOut, packageStep, p.pkg, short(p.key))
+	}
+	return 0
 }
 
 // inputs digests the tree entries scope selects; a tree scope is the tree id itself.
@@ -652,8 +939,13 @@ func gitOutputEnvInput(dir, env string, input io.Reader, args ...string) (string
 }
 
 func output(dir string, name string, args ...string) (string, error) {
+	return outputInput(dir, nil, name, args...)
+}
+
+func outputInput(dir string, input io.Reader, name string, args ...string) (string, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
+	cmd.Stdin = input
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()

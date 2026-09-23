@@ -53,7 +53,8 @@ local path, branch name, display name, or record filename is never an identity.
 
 - `EEP-V1-001`: A record whose top-level `schema` is `external-evidence-provider/1` MUST decode
   strictly as V1: UTF-8, one JSON document, no unknown member, at most `MaxRecordBytes`, with
-  `provider`, `repositories`, `entities`, and `relations`. Dispatch reads only `schema`;
+  `provider`, `repositories`, `entities`, and `relations`, plus the optional `capabilities`
+  member of `EEP-TR-012`. Dispatch reads only `schema`;
   `external-evidence-provider/2` decodes by the same rules (`EEP-V2-001`), and every other schema
   value follows `EEP-V0-001` unchanged.
 - `EEP-V1-002`: `repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with a
@@ -94,7 +95,7 @@ local path, branch name, display name, or record filename is never an identity.
   source when known. `relation_state` is the worst side under the order unresolved > stale >
   not-verified > fresh:
   - binding `unresolved`, `ambiguous`, or `mismatch` gives unresolved;
-  - verification `stale` or `missing`, or freshness `repository-ahead`, `provider-ahead`,
+  - verification `stale`, `missing`, or `deleted`, or freshness `repository-ahead`, `provider-ahead`,
     `unrelated-history`, or `tree-mismatch`, gives stale;
   - binding `unbound` or `unavailable`, freshness `revision-unavailable`, or an entity-only
     relation gives not-verified.
@@ -158,6 +159,7 @@ with the same bounded Git commands as the root. Limits: 8 repositories per recor
 |---|---|---|
 | Two repositories, both sides hold | `fresh`, `crosses_repositories` true | `TestTwoRepositoryProviderComposes` |
 | Missing endpoint on one side | `missing`, relation `stale` | `TestTwoRepositoryProviderComposes` |
+| Endpoint deleted in a checkout since the declared revision | `deleted`, relation `stale` | `TestTwoRepositoryDeletedTestPath` |
 | Equal / ancestor / orphan / unknown / tree-differs revision | per-repository freshness; other repository unaffected | `TestPerRepositoryFreshness` |
 | No checkout, missing dir, subdirectory, other history, relative path | `unbound`, `unavailable`, `unavailable`, `mismatch`, `checkout` | `TestCheckoutBinding` |
 | Shared origin, missing origin, abstention, credential remote | `ambiguous`, `unresolved`, unknowns only, `invalid` | `TestRepositoryIdentityConformance` |

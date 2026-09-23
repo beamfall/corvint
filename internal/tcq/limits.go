@@ -19,6 +19,10 @@ const (
 	maxCollisionUnitsPerBlob = 10_000
 	maxCollisionUnits        = 20_000
 
+	maxPriorObservations     = 16
+	maxEnvironmentPairs      = 32
+	maxEnvironmentValueBytes = 256
+
 	maxTestcases         = 10_000
 	maxXMLElements       = 50_000
 	maxXMLDepth          = 32

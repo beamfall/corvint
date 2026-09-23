@@ -132,6 +132,9 @@ func untrackedAuthorityPaths(index *Index, paths []string) []string {
 func authorityTriggerRows(index *Index, requested map[string]struct{}) ([]authorityTriggerRow, []string) {
 	rows := make([]authorityTriggerRow, 0)
 	unread := make([]string, 0)
+	// V1-0055: a target cited more than once (by one document or several)
+	// otherwise has its text re-split into lines per citation.
+	lineCache := make(map[string][]string)
 	for _, document := range sortedStrings(documentPaths(index)) {
 		record := index.Documents[document]
 		text, valid, loaded := index.Sources[record.Path].Text()
@@ -141,7 +144,7 @@ func authorityTriggerRows(index *Index, requested map[string]struct{}) ([]author
 		}
 		for _, cite := range documentCitations(text) {
 			if _, wanted := requested[cite.target]; wanted {
-				rows = append(rows, triggerRow(index, record, cite))
+				rows = append(rows, triggerRow(index, record, cite, lineCache))
 			}
 		}
 	}
@@ -207,6 +210,12 @@ func citationFromMatch(line int, match []string) authorityCite {
 // exactly, because that gate's --hash is the only supported way to mint a pin.
 // It reports false, before expanding anything, when a cited line falls outside a
 // target of `count` lines.
+//
+// A written `last` of 0 is not distinguished from an absent one (0 doubles as the
+// sentinel for "no range"), so `path:N-0` silently degrades to citing only `N`
+// rather than being refused. An inverted range such as `path:9-3` also is not
+// refused: it degrades to citing zero lines. Neither malformed form makes
+// citedNumbers report false; both are accepted with a reduced number set.
 func (cite authorityCite) citedNumbers(count int) ([]int, bool) {
 	inRange := func(number int) bool { return number >= 1 && number <= count }
 	if cite.last != 0 {
@@ -228,13 +237,13 @@ func (cite authorityCite) citedNumbers(count int) ([]int, bool) {
 	return numbers, true
 }
 
-func triggerRow(index *Index, record Record, cite authorityCite) authorityTriggerRow {
+func triggerRow(index *Index, record Record, cite authorityCite, lineCache map[string][]string) authorityTriggerRow {
 	authority, confidence := documentAuthority(record)
 	status, _ := record.Fields["status"].(string)
 	return authorityTriggerRow{
 		target: cite.target, document: record.Path, kind: record.Kind,
 		title: stringValue(record.Fields["title"]), status: status,
-		authority: authority, confidence: confidence, anchor: anchorState(index, cite),
+		authority: authority, confidence: confidence, anchor: anchorState(index, cite, lineCache),
 		token: cite.token, blobHash: record.BlobHash, line: cite.line,
 	}
 }
@@ -242,15 +251,14 @@ func triggerRow(index *Index, record Record, cite authorityCite) authorityTrigge
 // anchorState recomputes the citation's anchor over the cited path at the index
 // revision. A pin therefore reports whether the cited bytes are still the bytes
 // the author read at that revision, not whether an uncommitted edit changed them.
-func anchorState(index *Index, cite authorityCite) string {
+func anchorState(index *Index, cite authorityCite, lineCache map[string][]string) string {
 	if cite.pin == "" {
 		return anchorUnpinned
 	}
-	text, valid, loaded := index.Sources[cite.target].Text()
-	if !valid || !loaded {
+	lines, ok := targetLines(index, cite.target, lineCache)
+	if !ok {
 		return anchorUnreadable
 	}
-	lines := strings.Split(text, "\n")
 	numbers, inRange := cite.citedNumbers(len(lines))
 	if !inRange {
 		return anchorUnreadable
@@ -259,6 +267,24 @@ func anchorState(index *Index, cite authorityCite) string {
 		return anchorPinned
 	}
 	return anchorDrifted
+}
+
+// targetLines returns the cited target's text split into lines, cached by
+// target path in cache so a target cited more than once is split once
+// (V1-0055). A failed read is cached too, as an explicit nil entry
+// distinguished from strings.Split's always-non-nil result.
+func targetLines(index *Index, target string, cache map[string][]string) ([]string, bool) {
+	if lines, cached := cache[target]; cached {
+		return lines, lines != nil
+	}
+	text, valid, loaded := index.Sources[target].Text()
+	if !valid || !loaded {
+		cache[target] = nil
+		return nil, false
+	}
+	lines := strings.Split(text, "\n")
+	cache[target] = lines
+	return lines, true
 }
 
 // anchorOf is `anchor_of` in script/check-line-citations.sh: each cited line

@@ -124,7 +124,7 @@ an archive, and a `PASS` from `archive-verifier` asserts bytes only.
 
 The default CEM profile trusts the local Git executable, the local Git object database,
 repository metadata, and same-user OS integrity as roots of trust that must remain stable during
-one verifier call (`docs/CHANGE-EVIDENCE-MAP.md:226-227@012d2dcc`). CEM 0.1 is not a same-UID
+one verifier call (`docs/CHANGE-EVIDENCE-MAP.md:252-253@012d2dcc`). CEM 0.1 is not a same-UID
 sandbox and is not a signature format; authenticity of a change still requires an external signed
 commit, CI artifact, or signature envelope. A separately specified protected profile exists for hostile
 object-store mutation but is not the default and must not be presented as one.

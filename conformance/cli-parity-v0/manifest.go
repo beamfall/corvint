@@ -610,8 +610,9 @@ const packetBytesPrefix = `"packet_bytes":`
 
 // validKnownDivergence closes the stdout-divergence admission to the eight
 // adjudicated `python-defect` entries that have one (DR-0007, DR-0008, DR-0009,
-// DR-0015, DR-0016, DR-0017, DR-0025, DR-0035, over nine cases), and to exactly the byte
-// regions each one's clause produces. Nothing else may be declared away, and
+// DR-0015, DR-0016, DR-0017, DR-0025, DR-0035, over nine cases) plus the two
+// intentional Go extensions DR-0039 and DR-0040 (one case each), and to exactly
+// the byte regions each one's clause produces. Nothing else may be declared away, and
 // every rewrite's candidate side is the form the clause names rather than bytes
 // read off the candidate.
 func validKnownDivergence(item parityCase) bool {
@@ -641,8 +642,63 @@ func validKnownDivergence(item parityCase) bool {
 		return validTaskBoundDivergence(item)
 	case "query-version-token":
 		return validVersionTokenDivergence(item)
+	case "cem-mark-invalid-reason":
+		return validMarkReasonDivergence(item)
+	case "cem-invalid-subcommand":
+		return validCEMActionDivergence(item)
 	}
 	return false
+}
+
+// cemActionChoices is the `cem` action list the candidate's invalid-subcommand
+// refusal enumerates: the oracle's seven actions plus `cover` (`TCQ-V0-051`,
+// decision 0347), `discriminate` (`TCQ-V0-055`, decision 0353), `anchor` and
+// `provenance` (`FPK-V0-037`, decision 0355), which the candidate adds last in
+// that order.
+const cemActionChoices = "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover', 'discriminate', 'anchor', 'provenance'"
+
+// oracleCEMActionChoices is the retired oracle's seven-action list.
+const oracleCEMActionChoices = "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report'"
+
+// validCEMActionDivergence pins `DR-0040` to the `cem` invalid-subcommand
+// refusal: both runtimes refuse with exit status 2 and an empty stdout, and the
+// single stderr rewrite replaces the candidate's eleven-action list with the
+// oracle's seven.
+func validCEMActionDivergence(item parityCase) bool {
+	divergence := item.KnownDivergence
+	if item.Argv[0] != "cem" || divergence.Register != "DR-0040" || divergence.Clause != "TCQ-V0-051" {
+		return false
+	}
+	if len(divergence.Rewrites) != 0 || len(divergence.StderrRewrites) != 1 {
+		return false
+	}
+	rewrite := divergence.StderrRewrites[0]
+	return rewrite.Candidate == cemActionChoices && rewrite.Oracle == oracleCEMActionChoices
+}
+
+// markReasonChoices is the `cem mark --reason` choice list `CEM-SM-001`
+// (decision 0338) requires the candidate to enumerate: the five `cem/0.2`
+// reasons plus the four structural reasons, in the order the refusal names them.
+const markReasonChoices = "'conflicting-evidence', 'formatter-only', 'import-reorder', 'insufficient-evidence', 'line-ending-only', 'move', 'no-evidence', 'rename', 'whitespace-only'"
+
+// oracleMarkReasonChoices is the retired oracle's five-reason choice list.
+const oracleMarkReasonChoices = "'conflicting-evidence', 'insufficient-evidence', 'line-ending-only', 'no-evidence', 'whitespace-only'"
+
+// validMarkReasonDivergence pins `DR-0039` to the `cem mark` invalid-reason
+// refusal: both runtimes refuse with exit status 2 and an empty stdout, and the
+// single stderr rewrite replaces the candidate's nine-reason choice list with
+// the oracle's five. The argv must name an unknown reason so that neither side
+// reaches the map.
+func validMarkReasonDivergence(item parityCase) bool {
+	divergence := item.KnownDivergence
+	if item.Argv[0] != "cem" || divergence.Register != "DR-0039" || divergence.Clause != "CEM-SM-001" {
+		return false
+	}
+	if len(divergence.Rewrites) != 0 || len(divergence.StderrRewrites) != 1 {
+		return false
+	}
+	rewrite := divergence.StderrRewrites[0]
+	return rewrite.Candidate == markReasonChoices && rewrite.Oracle == oracleMarkReasonChoices
 }
 
 // exclusionCountPrefix and exclusionCountSuffix bound the one receipt region

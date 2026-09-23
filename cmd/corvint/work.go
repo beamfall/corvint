@@ -21,6 +21,9 @@ const (
 	workPolicyPath     = ".corvint/work-queue-policy.json"
 	workAggregateLimit = 49 << 20
 	workStderrLimit    = 1 << 20
+	// workSelfDogfoodMapping is Corvint's own closed worklistadapter mapping
+	// version (decision 0348, amending decision 0321/WQO-V0-046).
+	workSelfDogfoodMapping = "decision-0046-v0"
 )
 
 type workOptions struct {
@@ -382,14 +385,15 @@ func workFreshAtReturn(parent context.Context, root string, capture *workCapture
 	return checkpointDrift || sourceDrift, ""
 }
 
-// workMappingReproduced reports whether the adapter documents are exactly the
-// adoptable repository worklist mapping of the qualified committed tree
-// (WQO-V0-046). Only then is that tree the queue's whole store, so complete
-// monitored manifests are complete store scope. Corvint's own decision-0046-v0
-// self-dogfood mapping stays store-unqualified (WQO-V0-017). A nil document is
-// not compared.
+// workMappingReproduced reports whether the adapter documents are exactly one
+// of the two closed worklistadapter mappings of the qualified committed tree
+// (WQO-V0-046): the adoptable repository worklist, or Corvint's own
+// decision-0046-v0 self-dogfood worklist (decision 0348, amending decision
+// 0321). Only then is that tree the queue's whole store, so complete
+// monitored manifests are complete store scope. A nil document is not
+// compared.
 func workMappingReproduced(source *worksource.Source, policy *workqueue.Policy, snapshot, details, checkpoint []byte) bool {
-	if policy.MappingVersion != worklistadapter.RepositoryMapping {
+	if policy.MappingVersion != worklistadapter.RepositoryMapping && policy.MappingVersion != workSelfDogfoodMapping {
 		return false
 	}
 	expectedSnapshot, expectedDetails, expectedCheckpoint, err := worklistadapter.DocumentsFromSource(source, policy)

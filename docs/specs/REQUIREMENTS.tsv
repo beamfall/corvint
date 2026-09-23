@@ -92,6 +92,11 @@ AHI-022	docs/specs/agent-harness-integration-v0.md	272	The Gemini CLI and OpenCo
 AHI-023	docs/specs/agent-harness-integration-v0.md	302	An adapter MUST report the host version its host actually provides, and MUST NOT
 AHI-024	docs/specs/agent-harness-integration-v0.md	319	The experimental Pi extension MUST use runtime-provided version `0.85.1`, adapte
 AHI-025	docs/specs/agent-harness-integration-v0.md	386	The owner-requested complete Pi integration MUST expose native model-callable
+AHI-026	docs/specs/agent-harness-integration-v0.md	423	The Claude Code plugin MUST register the compaction hook events the installed ho
+AHI-027	docs/specs/agent-harness-integration-v0.md	433	`pre-compact` MUST emit, as plain stdout the host joins verbatim into the compac
+AHI-028	docs/specs/agent-harness-integration-v0.md	441	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv
+AHI-029	docs/specs/agent-harness-integration-v0.md	452	Neither compaction event writes repository, index, trace, or store state; the on
+AHI-030	docs/specs/agent-harness-integration-v0.md	454	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
@@ -154,8 +159,8 @@ BBF-V0-007	docs/specs/browser-behavior-falsification-v0.md	61	Results preserve e
 BBF-V0-008	docs/specs/browser-behavior-falsification-v0.md	64	Every surviving or invalid control is an explicit criterion-level coverage gap.
 BBF-V0-009	docs/specs/browser-behavior-falsification-v0.md	67	The aggregate reports raw counts for all six statuses and mutation score as
 BBF-V0-010	docs/specs/browser-behavior-falsification-v0.md	70	Plans are bounded by at most 64 controls, 16 attempts per control, a 24-hour tot
-BBF-V0-011	docs/specs/browser-behavior-falsification-v0.md	74	Synthetic conformance covers a tautological assertion, hidden duplicate element,
-BBF-V0-012	docs/specs/browser-behavior-falsification-v0.md	77	Receipts are observations, not authenticated caller honesty, browser-behavior
+BBF-V0-011	docs/specs/browser-behavior-falsification-v0.md	76	Synthetic conformance covers a tautological assertion, hidden duplicate element,
+BBF-V0-012	docs/specs/browser-behavior-falsification-v0.md	79	Receipts are observations, not authenticated caller honesty, browser-behavior
 BRAIN-DOG-001	docs/specs/technical-brain-dogfood.md	27	butterfly-effect MUST return exact direct static references/dependencies,
 BRAIN-DOG-002	docs/specs/technical-brain-dogfood.md	30	E2E discovery MUST map requirements and journeys to exact scenario/test witnesse
 BRAIN-DOG-003	docs/specs/technical-brain-dogfood.md	32	selective-test guidance MUST name mandatory repository gates first and a smaller
@@ -290,6 +295,16 @@ CEM-PILOT-016	docs/specs/cem-pilot-kit.md	132	Corvint repository changes MUST us
 CEM-PILOT-017	docs/specs/cem-pilot-kit.md	135	every Git subprocess MUST ignore ambient repository/config redirection. Patch
 CEM-PILOT-018	docs/specs/cem-pilot-kit.md	138	when prepare refuses an existing map under `CEM-PILOT-002`, the untyped
 CEM-PILOT-019	docs/specs/cem-pilot-kit.md	145	`cem verify` same-path drift MUST use only the five frozen statuses. A target en
+CEM-SM-001	docs/specs/cem-0.3-structural-mechanical.md	41	`cem/0.3` MUST be the `cem/0.2` wire shape plus the four structural reasons.
+CEM-SM-002	docs/specs/cem-0.3-structural-mechanical.md	44	The verifier MUST prove a structural reason from the base blob at `baseRevision`
+CEM-SM-003	docs/specs/cem-0.3-structural-mechanical.md	48	For `rename`, `import-reorder`, and `formatter-only` the image MUST be the hunk
+CEM-SM-004	docs/specs/cem-0.3-structural-mechanical.md	50	For `move` the image MUST be the whole group applied, because a move is a paired
+CEM-SM-005	docs/specs/cem-0.3-structural-mechanical.md	52	Any parse, scan, or format failure on the base or the image MUST refuse the
+CEM-SM-006	docs/specs/cem-0.3-structural-mechanical.md	54	`mark --disposition mechanical` with a structural reason MUST upgrade a `cem/0.2
+CEM-SM-007	docs/specs/cem-0.3-structural-mechanical.md	57	`rename` MUST hold only when the token streams differ by one identifier pair
+CEM-SM-008	docs/specs/cem-0.3-structural-mechanical.md	62	`move` MUST hold only when tokens outside top-level declarations are unchanged,
+CEM-SM-009	docs/specs/cem-0.3-structural-mechanical.md	65	`import-reorder` MUST hold only when the ordered import specs differ, their
+CEM-SM-010	docs/specs/cem-0.3-structural-mechanical.md	68	`formatter-only` MUST hold only when `go/format` renders the base and the image
 CF-V0-001	docs/specs/change-frontier-v0.md	84	one invocation MUST accept exactly one verified `cem/0.2` artifact under its can
 CF-V0-002	docs/specs/change-frontier-v0.md	89	the implementation MUST pass the same bounded immutable CEM and OCM byte copies
 CF-V0-003	docs/specs/change-frontier-v0.md	93	optional dynamic test input is exactly the all-or-none tuple `(canonical command
@@ -664,49 +679,53 @@ EEP-REMOTE-001	docs/specs/external-evidence-provider-remote-v0.md	26	The separat
 EEP-REMOTE-002	docs/specs/external-evidence-provider-remote-v0.md	30	Fetch MUST be a single GET, with normal certificate/hostname validation and
 EEP-REMOTE-003	docs/specs/external-evidence-provider-remote-v0.md	36	Optional bearer credentials MUST be read only from a regular, non-symlink,
 EEP-REMOTE-004	docs/specs/external-evidence-provider-remote-v0.md	42	Complete successful body bytes MUST be written unchanged and decoded only
-EEP-TR-001	docs/specs/external-evidence-provider-transports-v0.md	49	The command transport MUST be selected only by `corvint impact --provider-comman
-EEP-TR-002	docs/specs/external-evidence-provider-transports-v0.md	54	`ARGV_JSON` MUST be one JSON array of 1 to 32 strings, at most 4096 bytes, valid
-EEP-TR-003	docs/specs/external-evidence-provider-transports-v0.md	58	The command MUST run with only `PATH` and `TMPDIR` (when set) plus `LANG=C` and
-EEP-TR-004	docs/specs/external-evidence-provider-transports-v0.md	63	Each selected command MUST be launched once, with no retry, under a 10-second wa
-EEP-TR-005	docs/specs/external-evidence-provider-transports-v0.md	66	A command that completes cleanly MUST have its complete stdout decoded by the sa
-EEP-TR-006	docs/specs/external-evidence-provider-transports-v0.md	71	Every transport failure MUST yield one provider row in a closed state with an em
-EEP-TR-007	docs/specs/external-evidence-provider-transports-v0.md	77	`impact` with a provider command MUST remain a read command: the receipt reports
-EEP-TR-008	docs/specs/external-evidence-provider-transports-v0.md	80	stderr MUST be bounded and discarded: it never appears in the receipt, a reason,
-EEP-TR-009	docs/specs/external-evidence-provider-transports-v0.md	83	MCP MUST be selected only through the accepted bounded stdio profile in
-EEP-TR-010	docs/specs/external-evidence-provider-transports-v0.md	86	A remote (network) transport is NO-GO on the default local path (decision 0318).
-EEP-TR-011	docs/specs/external-evidence-provider-transports-v0.md	90	The optional authoring-kit checker MUST require and verify an exact lowercase
-EEP-V0-001	docs/specs/external-evidence-provider-v0.md	61	A provider record MUST be one JSON document whose top-level members are exactly
-EEP-V0-002	docs/specs/external-evidence-provider-v0.md	66	`corvint impact --provider FILE PATH...` selects a provider record; the option M
-EEP-V0-003	docs/specs/external-evidence-provider-v0.md	70	Provider output appears only under `context.external`. With the same paths, limi
-EEP-V0-004	docs/specs/external-evidence-provider-v0.md	73	The section MUST list every selected provider with `source` as given, the
-EEP-V0-005	docs/specs/external-evidence-provider-v0.md	77	A record that cannot be read is reported with state `unavailable`; a record that
-EEP-V0-006	docs/specs/external-evidence-provider-v0.md	81	An endpoint MUST be `path:<path>` or `<provider-id>:<entity-id>`. A path MUST be
-EEP-V0-007	docs/specs/external-evidence-provider-v0.md	87	A relation's `evidence` MUST be `declared`, `observed`, or `inferred`. Any other
-EEP-V0-008	docs/specs/external-evidence-provider-v0.md	91	A relation `type` is preserved exactly as the provider wrote it: lowercase, digi
-EEP-V0-009	docs/specs/external-evidence-provider-v0.md	94	`freshness` compares the record's `repository.revision` with the captured commit
-EEP-V0-010	docs/specs/external-evidence-provider-v0.md	99	Every path endpoint in an included relation carries `verification`: `verified`
-EEP-V0-011	docs/specs/external-evidence-provider-v0.md	104	`results` lists each entity joined by a relation to a requested changed path;
-EEP-V0-012	docs/specs/external-evidence-provider-v0.md	110	Bounds: at most four providers, 1048576 bytes per record, 1000 entities and 4000
-EEP-V0-013	docs/specs/external-evidence-provider-v0.md	113	`summary`, `rule`, `reference`, and `reason` text from a record MUST be valid
-EEP-V0-014	docs/specs/external-evidence-provider-v0.md	116	`impact --provider` reads the record and Git and writes no repository, index, or
-EEP-V0-015	docs/specs/external-evidence-provider-v0.md	118	External items never enter `context.results`, ranking, learning, a CEM, an OCM,
-EEP-V0-016	docs/specs/external-evidence-provider-v0.md	121	The experimental versioned local authoring kit MUST contain one copyable native-
-EEP-V0-017	docs/specs/external-evidence-provider-v0.md	125	The kit consumer MUST strictly decode bounded regular-file or contained-command
-EEP-V0-018	docs/specs/external-evidence-provider-v0.md	131	Kit conformance MUST reuse valid, stale, malformed, ambiguous,
+EEP-TR-001	docs/specs/external-evidence-provider-transports-v0.md	52	The command transport MUST be selected only by `corvint impact --provider-comman
+EEP-TR-002	docs/specs/external-evidence-provider-transports-v0.md	59	`ARGV_JSON` MUST be one JSON array of 1 to 32 strings, at most 4096 bytes, valid
+EEP-TR-003	docs/specs/external-evidence-provider-transports-v0.md	63	The command MUST run with only `PATH` and `TMPDIR` (when set) plus `LANG=C` and
+EEP-TR-004	docs/specs/external-evidence-provider-transports-v0.md	68	Each selected command MUST be launched once, with no retry, under a 10-second wa
+EEP-TR-005	docs/specs/external-evidence-provider-transports-v0.md	71	A command that completes cleanly MUST have its complete stdout decoded by the sa
+EEP-TR-006	docs/specs/external-evidence-provider-transports-v0.md	76	Every transport failure MUST yield one provider row in a closed state with an em
+EEP-TR-007	docs/specs/external-evidence-provider-transports-v0.md	82	`impact` with a provider command MUST remain a read command: the receipt reports
+EEP-TR-008	docs/specs/external-evidence-provider-transports-v0.md	85	stderr MUST be bounded and discarded: it never appears in the receipt, a reason,
+EEP-TR-009	docs/specs/external-evidence-provider-transports-v0.md	88	MCP MUST be selected only through the accepted bounded stdio profile in
+EEP-TR-010	docs/specs/external-evidence-provider-transports-v0.md	91	A remote (network) transport is NO-GO on the default local path (decision 0318).
+EEP-TR-011	docs/specs/external-evidence-provider-transports-v0.md	95	The optional authoring-kit checker MUST require and verify an exact lowercase
+EEP-TR-012	docs/specs/external-evidence-provider-transports-v0.md	102	A record on any transport MAY carry one optional top-level member `capabilities`
+EEP-TR-013	docs/specs/external-evidence-provider-transports-v0.md	110	When a list is declared, Core MUST check it against what the invocation requires
+EEP-TR-014	docs/specs/external-evidence-provider-transports-v0.md	119	A declared capability never widens what Core accepts: an unknown identifier in
+EEP-V0-001	docs/specs/external-evidence-provider-v0.md	63	A provider record MUST be one JSON document whose top-level members are exactly
+EEP-V0-002	docs/specs/external-evidence-provider-v0.md	69	`corvint impact --provider FILE PATH...` selects a provider record; the option M
+EEP-V0-003	docs/specs/external-evidence-provider-v0.md	73	Provider output appears only under `context.external`. With the same paths, limi
+EEP-V0-004	docs/specs/external-evidence-provider-v0.md	76	The section MUST list every selected provider with `source` as given, the
+EEP-V0-005	docs/specs/external-evidence-provider-v0.md	80	A record that cannot be read is reported with state `unavailable`; a record that
+EEP-V0-006	docs/specs/external-evidence-provider-v0.md	86	An endpoint MUST be `path:<path>` or `<provider-id>:<entity-id>`. A path MUST be
+EEP-V0-007	docs/specs/external-evidence-provider-v0.md	92	A relation's `evidence` MUST be `declared`, `observed`, `inferred`, or `generate
+EEP-V0-008	docs/specs/external-evidence-provider-v0.md	97	A relation `type` is preserved exactly as the provider wrote it: lowercase, digi
+EEP-V0-009	docs/specs/external-evidence-provider-v0.md	100	`freshness` compares the record's `repository.revision` with the captured commit
+EEP-V0-010	docs/specs/external-evidence-provider-v0.md	105	Every path endpoint in an included relation carries `verification`: `verified`
+EEP-V0-011	docs/specs/external-evidence-provider-v0.md	114	`results` lists each entity joined by a relation to a requested changed path;
+EEP-V0-012	docs/specs/external-evidence-provider-v0.md	120	Bounds: at most four providers, 1048576 bytes per record, 1000 entities and 4000
+EEP-V0-013	docs/specs/external-evidence-provider-v0.md	123	`summary`, `rule`, `reference`, and `reason` text from a record MUST be valid
+EEP-V0-014	docs/specs/external-evidence-provider-v0.md	126	`impact --provider` reads the record and Git and writes no repository, index, or
+EEP-V0-015	docs/specs/external-evidence-provider-v0.md	128	External items never enter `context.results`, ranking, learning, a CEM, an OCM,
+EEP-V0-016	docs/specs/external-evidence-provider-v0.md	131	The experimental versioned local authoring kit MUST contain one copyable native-
+EEP-V0-017	docs/specs/external-evidence-provider-v0.md	135	The kit consumer MUST strictly decode bounded regular-file or contained-command
+EEP-V0-018	docs/specs/external-evidence-provider-v0.md	141	Kit conformance MUST reuse valid, stale, malformed, ambiguous,
+EEP-V0-019	docs/specs/external-evidence-provider-v0.md	146	A `generated` relation composes exactly as the other admitted kinds, and every
 EEP-V1-001	docs/specs/external-evidence-provider-v1.md	54	A record whose top-level `schema` is `external-evidence-provider/1` MUST decode
-EEP-V1-002	docs/specs/external-evidence-provider-v1.md	59	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with
-EEP-V1-003	docs/specs/external-evidence-provider-v1.md	65	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin
-EEP-V1-004	docs/specs/external-evidence-provider-v1.md	69	Identity MUST be evaluated per declared repository: `unresolved` without an
-EEP-V1-005	docs/specs/external-evidence-provider-v1.md	72	Binding MUST be evaluated per declared repository:
-EEP-V1-006	docs/specs/external-evidence-provider-v1.md	83	Freshness MUST be evaluated per repository against its bound `HEAD` with the
-EEP-V1-007	docs/specs/external-evidence-provider-v1.md	88	A path endpoint MUST be verified in its own repository with the `EEP-V0-010`
-EEP-V1-008	docs/specs/external-evidence-provider-v1.md	91	Every V1 item MUST carry `repository`, `endpoints`, `relation_state`, and
-EEP-V1-009	docs/specs/external-evidence-provider-v1.md	103	`--repository ID=DIR` MAY repeat up to 8 times, each ID at most once, and only
-EEP-V1-010	docs/specs/external-evidence-provider-v1.md	107	Cross-repository relations MUST come only from declared records. Core never infe
-EEP-V1-011	docs/specs/external-evidence-provider-v1.md	111	A V0 record, and every run without `--repository`, MUST produce the same section
-EEP-V1-012	docs/specs/external-evidence-provider-v1.md	114	Section composition, ordering, the `--limit` bound, and omission counts follow
-EEP-V1-013	docs/specs/external-evidence-provider-v1.md	116	No failure MAY surface as empty success. A missing, conflicting, or ambiguous
-EEP-V1-014	docs/specs/external-evidence-provider-v1.md	120	The section MUST carry no credential, file body, or resolved local path, and
+EEP-V1-002	docs/specs/external-evidence-provider-v1.md	60	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with
+EEP-V1-003	docs/specs/external-evidence-provider-v1.md	66	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin
+EEP-V1-004	docs/specs/external-evidence-provider-v1.md	70	Identity MUST be evaluated per declared repository: `unresolved` without an
+EEP-V1-005	docs/specs/external-evidence-provider-v1.md	73	Binding MUST be evaluated per declared repository:
+EEP-V1-006	docs/specs/external-evidence-provider-v1.md	84	Freshness MUST be evaluated per repository against its bound `HEAD` with the
+EEP-V1-007	docs/specs/external-evidence-provider-v1.md	89	A path endpoint MUST be verified in its own repository with the `EEP-V0-010`
+EEP-V1-008	docs/specs/external-evidence-provider-v1.md	92	Every V1 item MUST carry `repository`, `endpoints`, `relation_state`, and
+EEP-V1-009	docs/specs/external-evidence-provider-v1.md	104	`--repository ID=DIR` MAY repeat up to 8 times, each ID at most once, and only
+EEP-V1-010	docs/specs/external-evidence-provider-v1.md	108	Cross-repository relations MUST come only from declared records. Core never infe
+EEP-V1-011	docs/specs/external-evidence-provider-v1.md	112	A V0 record, and every run without `--repository`, MUST produce the same section
+EEP-V1-012	docs/specs/external-evidence-provider-v1.md	115	Section composition, ordering, the `--limit` bound, and omission counts follow
+EEP-V1-013	docs/specs/external-evidence-provider-v1.md	117	No failure MAY surface as empty success. A missing, conflicting, or ambiguous
+EEP-V1-014	docs/specs/external-evidence-provider-v1.md	121	The section MUST carry no credential, file body, or resolved local path, and
 EEP-V2-001	docs/specs/external-evidence-provider-v2.md	47	A record whose `schema` is `external-evidence-provider/2` MUST decode under ever
 EEP-V2-002	docs/specs/external-evidence-provider-v2.md	51	Each endpoint of a path relation MUST resolve independently under the `EEP-V1`
 EEP-V2-003	docs/specs/external-evidence-provider-v2.md	55	When at least one V2 record loads, `context.external` MUST gain `path_relations`
@@ -751,19 +770,20 @@ ESV-V0-004	docs/specs/experimental-source-views-v0.md	140	Refuse malformed input
 ESV-V0-005	docs/specs/experimental-source-views-v0.md	153	Remain opt-in under `experimental-source-view/0`, with no edits to existing publ
 ESV-V0-006	docs/specs/experimental-source-views-v0.md	156	Treat focused synthetic correctness checks as development evidence only. The
 ESV-V0-007	docs/specs/experimental-source-views-v0.md	161	The opt-in development wrapper captures exactly one automatic canonical packet
-ETS-V0-001	docs/specs/external-test-selection-v0.md	51	`corvint affected` MUST accept `--provider FILE` (up to 4), `--repository ID=DIR
-ETS-V0-002	docs/specs/external-test-selection-v0.md	56	With `--provider`, `advice` MUST gain `test_selection` with schema
-ETS-V0-003	docs/specs/external-test-selection-v0.md	62	`state` is exactly one of `narrow-selection-allowed`,
-ETS-V0-004	docs/specs/external-test-selection-v0.md	68	The strict profile admits `verifies` and `asserts`; the coverage profile also
-ETS-V0-005	docs/specs/external-test-selection-v0.md	70	A relation qualifies only when its type is admitted, its evidence is `declared`
-ETS-V0-006	docs/specs/external-test-selection-v0.md	75	Any record, identity, binding, freshness, verification, or unsupported-relation
-ETS-V0-007	docs/specs/external-test-selection-v0.md	80	Every selected and candidate row MUST carry the provider, provider revision, ent
-ETS-V0-008	docs/specs/external-test-selection-v0.md	85	Every candidate, uncovered obligation, and blocking reason MUST carry a named co
-ETS-V0-009	docs/specs/external-test-selection-v0.md	88	`mandatory` MUST echo every mandatory check unchanged. Selection never removes,
-ETS-V0-010	docs/specs/external-test-selection-v0.md	90	Rows are sorted by a total key. Every list is bounded at 64 rows and `omitted`
-ETS-V0-011	docs/specs/external-test-selection-v0.md	92	The conformance corpus MUST cover positive, negative, stale, missing, ambiguous,
-ETS-V0-012	docs/specs/external-test-selection-v0.md	95	The evaluation MUST report precision, unsafe-narrowing rate, abstention accuracy
-ETS-V0-013	docs/specs/external-test-selection-v0.md	97	The member MUST carry no file body, credential, or resolved checkout directory.
+ETS-V0-001	docs/specs/external-test-selection-v0.md	51	`corvint affected` MUST accept `--provider FILE` and `--provider-command
+ETS-V0-002	docs/specs/external-test-selection-v0.md	57	With `--provider`, `advice` MUST gain `test_selection` with schema
+ETS-V0-003	docs/specs/external-test-selection-v0.md	63	`state` is exactly one of `narrow-selection-allowed`,
+ETS-V0-004	docs/specs/external-test-selection-v0.md	70	The strict profile admits `verifies` and `asserts`; the coverage profile also
+ETS-V0-005	docs/specs/external-test-selection-v0.md	72	A relation qualifies only when its type is admitted, its evidence is `declared`
+ETS-V0-006	docs/specs/external-test-selection-v0.md	77	Any record, identity, binding, freshness, verification, or unsupported-relation
+ETS-V0-007	docs/specs/external-test-selection-v0.md	82	Every selected and candidate row MUST carry the provider, provider revision, ent
+ETS-V0-008	docs/specs/external-test-selection-v0.md	87	Every candidate, uncovered obligation, and blocking reason MUST carry a named co
+ETS-V0-009	docs/specs/external-test-selection-v0.md	90	`mandatory` MUST echo every mandatory check unchanged. Selection never removes,
+ETS-V0-010	docs/specs/external-test-selection-v0.md	92	Rows are sorted by a total key. Every list is bounded at 64 rows and `omitted`
+ETS-V0-011	docs/specs/external-test-selection-v0.md	94	The conformance corpus MUST cover positive, negative, stale, missing, ambiguous,
+ETS-V0-012	docs/specs/external-test-selection-v0.md	97	The evaluation MUST report precision, unsafe-narrowing rate, abstention accuracy
+ETS-V0-013	docs/specs/external-test-selection-v0.md	99	The member MUST carry no file body, credential, or resolved checkout directory.
+ETS-V0-014	docs/specs/external-test-selection-v0.md	102	A `generated` relation (`EEP-V0-019`) is weak evidence: it is listed as a candid
 ETS-V1-001	docs/specs/external-test-selection-v1.md	46	The obligation walk MUST replace the one-hop widening. It is bounded at
 ETS-V1-002	docs/specs/external-test-selection-v1.md	49	A cut MUST block every edge entity with `obligation-depth-truncated` or
 ETS-V1-003	docs/specs/external-test-selection-v1.md	51	A cut MUST add one `unknowns` row per edge entity with `code`, `provider`,
@@ -804,6 +824,15 @@ FPK-V0-028	docs/specs/falsifiable-packet-v0.md	939	(experimental prototype, deci
 FPK-V0-029	docs/specs/falsifiable-packet-v0.md	955	(accepted 2026-09-07 by decision 0080) A document's `status`, which decides ever
 FPK-V0-030	docs/specs/falsifiable-packet-v0.md	968	(experimental prototype, not advertised) A CEM MUST be attestable in the same DS
 FPK-V0-031	docs/specs/falsifiable-packet-v0.md	994	(experimental prototype, not advertised; help labels it experimental) The CLI
+FPK-V0-032	docs/specs/falsifiable-packet-v0.md	1032	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
+FPK-V0-033	docs/specs/falsifiable-packet-v0.md	1048	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) The
+FPK-V0-034	docs/specs/falsifiable-packet-v0.md	1065	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354)
+FPK-V0-035	docs/specs/falsifiable-packet-v0.md	1084	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) A
+FPK-V0-036	docs/specs/falsifiable-packet-v0.md	1106	(experimental; proposed 2026-09-22, decision 0354) Transparency-log and keyless
+FPK-V0-037	docs/specs/falsifiable-packet-v0.md	1120	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
+FPK-V0-038	docs/specs/falsifiable-packet-v0.md	1134	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
+FPK-V0-039	docs/specs/falsifiable-packet-v0.md	1142	(proposed 2026-09-22, not accepted; experimental; decision 0355) The same
+FPK-V0-040	docs/specs/falsifiable-packet-v0.md	1155	(proposed 2026-09-22, not accepted; experimental; decision 0355) `anchor` and
 GAG-V0-001	docs/specs/go-archive-gate-v0.md	131	The gate MUST create one private parent directory under `${TMPDIR:-/tmp}` with a
 GAG-V0-002	docs/specs/go-archive-gate-v0.md	135	The gate MUST export `HOME`, `TMPDIR`, `GOTMPDIR`, and `GOCACHE` to those privat
 GAG-V0-003	docs/specs/go-archive-gate-v0.md	139	The gate MUST pin the toolchain to the locally installed one rather than allowin
@@ -843,14 +872,15 @@ GFG-V0-004	docs/specs/go-format-gate-v0.md	56	A file fails when its bytes differ
 GFG-V0-005	docs/specs/go-format-gate-v0.md	58	The failure MUST name each file on its own line and MUST print the exact command
 GFG-V0-006	docs/specs/go-format-gate-v0.md	60	The gate MUST be read-only. It MUST NOT rewrite, stage, or otherwise modify any
 GFG-V0-007	docs/specs/go-format-gate-v0.md	62	A run with nothing to report MUST print nothing and exit zero, and any failure M
-GL-V0-001	docs/specs/gate-ledger-v0.md	51	A step MUST be skipped only when the ledger holds a pass whose key equals the ke
-GL-V0-002	docs/specs/gate-ledger-v0.md	62	Only a step that exits zero MUST be recorded, after it exits. The ledger MUST pa
-GL-V0-003	docs/specs/gate-ledger-v0.md	65	A step without a declared input scope MUST run and MUST NOT be recorded. A step
-GL-V0-004	docs/specs/gate-ledger-v0.md	69	`ledger/go-test` MUST run every package `go test ./...` would run. Packages the
-GL-V0-005	docs/specs/gate-ledger-v0.md	76	The ledger MUST refuse to digest, and therefore run without recording, any
-GL-V0-006	docs/specs/gate-ledger-v0.md	81	Records MUST live in a per-user directory (`CORVINT_GATE_LEDGER_DIR`, else
-GL-V0-007	docs/specs/gate-ledger-v0.md	88	`CORVINT_GATE_LEDGER=off` MUST make every `ledger/STEP` target exactly `make
-GL-V0-008	docs/specs/gate-ledger-v0.md	93	Two runs of one key at once MUST execute the step once: the second MUST wait on
+GL-V0-001	docs/specs/gate-ledger-v0.md	53	A step MUST be skipped only when the ledger holds a pass whose key equals the ke
+GL-V0-002	docs/specs/gate-ledger-v0.md	64	Only a step that exits zero MUST be recorded, after it exits. The ledger MUST pa
+GL-V0-003	docs/specs/gate-ledger-v0.md	67	A step without a declared input scope MUST run and MUST NOT be recorded. A step
+GL-V0-004	docs/specs/gate-ledger-v0.md	71	`ledger/go-test` MUST run every package `go test ./...` would run. Packages the
+GL-V0-005	docs/specs/gate-ledger-v0.md	79	The ledger MUST refuse to digest, and therefore run without recording, any
+GL-V0-006	docs/specs/gate-ledger-v0.md	84	Records MUST live in a per-user directory (`CORVINT_GATE_LEDGER_DIR`, else
+GL-V0-007	docs/specs/gate-ledger-v0.md	91	`CORVINT_GATE_LEDGER=off` MUST make every `ledger/STEP` target exactly `make
+GL-V0-008	docs/specs/gate-ledger-v0.md	96	Two runs of one key at once MUST execute the step once: the second MUST wait on
+GL-V0-009	docs/specs/gate-ledger-v0.md	99	A resolved package MUST run under its own key, step `go-test-package`, derived a
 GLTP-V0-001	docs/specs/go-live-test-provider-v0.md	71	Each V0 document is one UTF-8 canonical JSON object followed by exactly one LF.
 GLTP-V0-002	docs/specs/go-live-test-provider-v0.md	89	Raw `go test -json` is runner input, not canonical Corvint JSON. Its decoder acc
 GLTP-V0-003	docs/specs/go-live-test-provider-v0.md	95	`H(kind, profile, body)` is lowercase SHA-256 of
@@ -1248,6 +1278,9 @@ LTA-V0-002	docs/specs/learned-trace-admission-v0.md	52	Before either scored arm 
 LTA-V0-003	docs/specs/learned-trace-admission-v0.md	56	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp
 LTA-V0-004	docs/specs/learned-trace-admission-v0.md	63	The current writer screen (`internal/secretscreen.Pattern`, consumed by `record`
 LTA-V0-005	docs/specs/learned-trace-admission-v0.md	92	(numbered 2026-09-12 by decision 0093; text unchanged from the accepted
+LTA-V0-006	docs/specs/learned-trace-admission-v0.md	100	`corvint skill-export --out DIR` MUST be the only path that exports learned rule
+LTA-V0-007	docs/specs/learned-trace-admission-v0.md	106	An admitted learned rule is a stored row with outcome `passed` that the reader
+LTA-V0-008	docs/specs/learned-trace-admission-v0.md	113	Each exported skill MUST load under the Agent Skills frontmatter contract that
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	55	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	59	The Python reader MUST accept canonical rows only when their filename and row na
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	64	Dry-run MUST be read-only and bind its plan digest to the stable current commit/
@@ -1370,7 +1403,8 @@ OCM-V0-009	docs/specs/ocm-v0-dogfood.md	123	same-change proposed intent MAY be a
 OCM-V0-010	docs/specs/ocm-v0-dogfood.md	134	default solo use MUST allow visible unknown obligations; a repository MAY opt in
 OCM-V0-011	docs/specs/ocm-v0-dogfood.md	136	maps and reports MUST contain no source, diff, prompt, command-output, ticket-bo
 OCM-V0-012	docs/specs/ocm-v0-dogfood.md	138	parsing, Git access, counts, spans, paths, files, and subprocesses MUST be bound
-OCM-V0-013	docs/specs/ocm-v0-dogfood.md	462	one dogfood change MAY declare an ordered set of pinned Markdown intent
+OCM-V0-013	docs/specs/ocm-v0-dogfood.md	479	one dogfood change MAY declare an ordered set of pinned Markdown intent
+OCM-V0-014	docs/specs/ocm-v0-dogfood.md	146	the `ocm/0.1-experimental` wire profile MUST be frozen by the conformance suite
 PCCO-V0-001	docs/specs/proof-carrying-context-optimization-v0.md	65	An optimization trial MUST begin from one canonical Corvint packet whose exact b
 PCCO-V0-002	docs/specs/proof-carrying-context-optimization-v0.md	69	V0 transformations are only whole-handle omission, exact duplicate elimination,
 PCCO-V0-003	docs/specs/proof-carrying-context-optimization-v0.md	72	Counterfactual search MUST run outside live agent sessions using bounded hierarc
@@ -1471,7 +1505,7 @@ PSM-V0-010	docs/specs/playwright-suite-interaction-minimizer-v0.md	70	Every tria
 PSM-V0-011	docs/specs/playwright-suite-interaction-minimizer-v0.md	72	Missing or invalid runner qualification (#39), stability identity (#42), or
 PSM-V0-012	docs/specs/playwright-suite-interaction-minimizer-v0.md	75	Synthetic qualification MUST cover a true predecessor leak, a load-only failure,
 PSM-V0-013	docs/specs/playwright-suite-interaction-minimizer-v0.md	78	The closed `corvint-playwright-suite-interaction-live/0` CLI MUST require
-PUB-V0-001	docs/specs/public-release-v0.md	73	The current version tuple MUST move together to `0.6.0`, including native
+PUB-V0-001	docs/specs/public-release-v0.md	73	The current version tuple MUST move together to `0.7.0`, including native
 PUB-V0-002	docs/specs/public-release-v0.md	76	The existing native CLI archive gate MUST remain independent. An optional
 PUB-V0-003	docs/specs/public-release-v0.md	83	Companion build output MUST be outside the source checkouts, include exact
 PUB-V0-004	docs/specs/public-release-v0.md	98	The first companion target is macOS arm64. Qualification MUST exercise the
@@ -1733,6 +1767,18 @@ SOL-V0-007	docs/specs/self-observation-ledger-v0.md	57	Every emitted `unsupporte
 SOL-V0-008	docs/specs/self-observation-ledger-v0.md	95	**Accepted 2026-09-01.** `corvint dogfood-observe` is the one additional bounded
 SOL-V0-009	docs/specs/self-observation-ledger-v0.md	101	`corvint prove-observe` is the second bounded internal process writer surface.
 SOL-V0-010	docs/specs/self-observation-ledger-v0.md	108	The `codex` and `claude-code` host adapters (`corvint adapter`) MUST attempt one
+SOP-V0-001	docs/specs/stable-operations-v0.md	53	The install-lifecycle check MUST accept either one release archive whose single
+SOP-V0-002	docs/specs/stable-operations-v0.md	57	The check MUST create a committed fixture repository in its own temporary direct
+SOP-V0-003	docs/specs/stable-operations-v0.md	60	An upgrade MUST install into a second store beside the first, run `corvint index
+SOP-V0-004	docs/specs/stable-operations-v0.md	64	Uninstall is removal of the store directories. Afterwards the fixture's tracked
+SOP-V0-005	docs/specs/stable-operations-v0.md	67	A backup is an archive of `.corvint` taken while no Corvint writer runs. After t
+SOP-V0-006	docs/specs/stable-operations-v0.md	70	With the snapshot truncated to zero bytes, and separately with bytes overwritten
+SOP-V0-007	docs/specs/stable-operations-v0.md	75	The hostile-regression check MUST hold a matrix of `category`, Go package and te
+SOP-V0-008	docs/specs/stable-operations-v0.md	80	Every test function the matrix names MUST be defined in a tracked `_test.go` fil
+SOP-V0-009	docs/specs/stable-operations-v0.md	83	A category with no tracked regression MUST be printed as
+SOP-V0-010	docs/specs/stable-operations-v0.md	88	`SECURITY.md` MUST state the private reporting channel, the acknowledgment windo
+SOP-V0-011	docs/specs/stable-operations-v0.md	91	`docs/RELEASE-NOTES.md` is the changelog. Each published release MUST have an en
+SOP-V0-012	docs/specs/stable-operations-v0.md	94	`docs/RELEASE-RUNBOOK.md` MUST be an ordered list of exact commands from a clean
 SRG-V0-001	docs/specs/spec-requirement-index-generator-v0.md	71	The generator MUST derive its input set from the paths Git reports as tracked
 SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	75	The generator MUST recognise a requirement id as a token matching an uppercase
 SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	79	The generator MUST classify each occurrence of an id into exactly one of three
@@ -1741,74 +1787,87 @@ SRG-V0-005	docs/specs/spec-requirement-index-generator-v0.md	89	For a rank 0 win
 SRG-V0-006	docs/specs/spec-requirement-index-generator-v0.md	94	The generator MUST write to stdout a single header line `id`, `file`, `line`,
 SRG-V0-007	docs/specs/spec-requirement-index-generator-v0.md	98	The generator MUST write no file, mutate no repository state, and produce
 SRG-V0-008	docs/specs/spec-requirement-index-generator-v0.md	101	`spec-requirements-check` MUST regenerate the index and byte-compare it against
-TCP-V0-001	docs/specs/task-context-packet-v0.md	48	`context` MUST be read-only. It builds one index over the committed tree and
-TCP-V0-002	docs/specs/task-context-packet-v0.md	51	The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]
-TCP-V0-003	docs/specs/task-context-packet-v0.md	57	Results are files. Each result row carries `kind`, `id` (the path), `score`,
-TCP-V0-004	docs/specs/task-context-packet-v0.md	75	The slots run in this order and each is capped at three rows before the lexical
-TCP-V0-005	docs/specs/task-context-packet-v0.md	120	The subject is never a result. It is carried under `subject` with its path and a
-TCP-V0-006	docs/specs/task-context-packet-v0.md	127	`state` is `READY` when at least one result exists and `NO_CANDIDATES` otherwise
-TCP-V0-007	docs/specs/task-context-packet-v0.md	138	Output is canonical JSON (`gokernel.CanonicalJSON`), byte-identical over an
-TCP-V0-008	docs/specs/task-context-packet-v0.md	141	(A) V0 reserves at most one `governing` row. The implementation MUST build a gov
-TCP-V0-009	docs/specs/task-context-packet-v0.md	150	(A) The implementation MUST build a definition-owner resolver; no existing helpe
-TCP-V0-010	docs/specs/task-context-packet-v0.md	165	(A) The implementation MUST build a definition-eligibility predicate applied ins
-TCP-V0-011	docs/specs/task-context-packet-v0.md	170	(A) `coverage` gains four members with fixed shapes. `critical` (what TCP-V0-008
-TCP-V0-012	docs/specs/task-context-packet-v0.md	188	(A) Before TCP-V0-008..011 leaves experimental these tests MUST exist and pass,
-TCP-V0-013	docs/specs/task-context-packet-v0.md	199	Documentation-suffix hits (`.md`, `.mdx`, `.rst`, `.txt`) produced by the lexica
-TCP-V0-014	docs/specs/task-context-packet-v0.md	206	(accepted 2026-09-05 by decision 0066; experimental) The lexical slot scores eve
-TCP-V0-015	docs/specs/task-context-packet-v0.md	234	(proposed 2026-09-05 by decision 0067; experimental) In the retrieval shape (no
-TCP-V0-016	docs/specs/task-context-packet-v0.md	302	(accepted 2026-09-12 by decision 0068's amendment, amended by decision 0146;
-TCP-V0-017	docs/specs/task-context-packet-v0.md	266	(proposed 2026-09-05, not accepted; experimental) `context` offers three read-on
-TCP-V0-018	docs/specs/task-context-packet-v0.md	357	(retired 2026-09-05 by decision 0078) The experimental recipe R and every
-TCP-V0-019	docs/specs/task-context-packet-v0.md	369	(proposed 2026-09-05, not accepted; experimental) With
-TCP-V0-020	docs/specs/task-context-packet-v0.md	424	(proposed 2026-09-05, not accepted; experimental) Under
-TCP-V0-021	docs/specs/task-context-packet-v0.md	398	`tools/retrieval-bench --snapshot-latency` MUST materialize a private copy once
-TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	85	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
-TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	93	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
-TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	96	TCQ MUST emit exactly one claim result for each selected claim edge and no resul
-TCQ-V0-004	docs/specs/test-claim-qualification-v0.md	102	only OCM extractor `corvint-test-claim/1` is accepted. The verifier MUST re-run
-TCQ-V0-005	docs/specs/test-claim-qualification-v0.md	106	profile dispatch is exactly this table. Unknown extractor IDs are
-TCQ-V0-006	docs/specs/test-claim-qualification-v0.md	120	every claim result exposes independent `associationState`, `hygieneState`, and
-TCQ-V0-007	docs/specs/test-claim-qualification-v0.md	133	association is per selected claim edge. TCQ MUST inspect only the selected ancho
-TCQ-V0-008	docs/specs/test-claim-qualification-v0.md	140	a Python `python-test-name/1` anchor associates only when its exact span is the
-TCQ-V0-009	docs/specs/test-claim-qualification-v0.md	147	a Go `go-test-name/1` anchor associates only when its exact span is the identifi
-TCQ-V0-010	docs/specs/test-claim-qualification-v0.md	152	the selected anchor remains a caller-authored requirement reference. Exact
-TCQ-V0-011	docs/specs/test-claim-qualification-v0.md	157	association with no candidate yields `ABSTAINED` and
-TCQ-V0-012	docs/specs/test-claim-qualification-v0.md	165	WP3 owns semantic relevance. TCQ performs no stopword, identifier-overlap,
-TCQ-V0-013	docs/specs/test-claim-qualification-v0.md	171	Python profile `python-ast/1` is frozen to the Python 3.9 `exec`-mode grammar wi
-TCQ-V0-014	docs/specs/test-claim-qualification-v0.md	178	for Python hygiene, remove one leading docstring. The body is `empty-body` when
-TCQ-V0-015	docs/specs/test-claim-qualification-v0.md	182	Python is `unconditional-skip` when the function or enclosing class has exact
-TCQ-V0-016	docs/specs/test-claim-qualification-v0.md	188	Go profile `go-lexical/1` accepts only a path ending `_test.go` and a bounded to
-TCQ-V0-017	docs/specs/test-claim-qualification-v0.md	193	a Go body with no effective token, or only semicolons and one bare `return`, is
-TCQ-V0-018	docs/specs/test-claim-qualification-v0.md	196	a Go case is a table entry's `name`/`testName`/`test_name` field or the first
-TCQ-V0-019	docs/specs/test-claim-qualification-v0.md	206	a safely delimited unit is `INELIGIBLE` if `empty-body` or
-TCQ-V0-020	docs/specs/test-claim-qualification-v0.md	215	each associated unit binds exactly `extractorProfile`, normalized target `path`,
-TCQ-V0-021	docs/specs/test-claim-qualification-v0.md	219	runtime name is the exact Python function name, Go `TestX`, or admitted
-TCQ-V0-022	docs/specs/test-claim-qualification-v0.md	232	unit ID is `test-unit:sha256:` plus:
-TCQ-V0-023	docs/specs/test-claim-qualification-v0.md	250	dynamic matching requires one canonical `test-command/0.1-experimental` artifact
-TCQ-V0-024	docs/specs/test-claim-qualification-v0.md	264	V0 environment policy is exactly `{"entries":[],"policy":"OMITTED"}`. No
-TCQ-V0-025	docs/specs/test-claim-qualification-v0.md	269	command ID is `test-command:sha256:` plus:
-TCQ-V0-026	docs/specs/test-claim-qualification-v0.md	286	before constructing an XML parser, TCQ MUST use the private report-byte copy to
-TCQ-V0-027	docs/specs/test-claim-qualification-v0.md	298	raw JUnit has no namespace. The document has exactly one root element,
-TCQ-V0-028	docs/specs/test-claim-qualification-v0.md	318	testcase identity requires non-empty `file` and `name`, each at most 1,024 UTF-8
-TCQ-V0-029	docs/specs/test-claim-qualification-v0.md	328	testcase status uses this complete, case-sensitive table. Any other combination,
-TCQ-V0-030	docs/specs/test-claim-qualification-v0.md	342	testcase ordinal is zero-based depth-first document order over every `testcase`
-TCQ-V0-031	docs/specs/test-claim-qualification-v0.md	354	one observation has this exact shape:
-TCQ-V0-032	docs/specs/test-claim-qualification-v0.md	364	observation verification requires the exact raw report and command artifact. It
-TCQ-V0-033	docs/specs/test-claim-qualification-v0.md	371	input combinations are exact:
-TCQ-V0-034	docs/specs/test-claim-qualification-v0.md	383	after source association, matching uses only exact execution keys. Zero matching
-TCQ-V0-035	docs/specs/test-claim-qualification-v0.md	389	`test-report-matched-v0` is emitted if and only if all of these hold: canonical
-TCQ-V0-036	docs/specs/test-claim-qualification-v0.md	398	a TCQ document has this exact top-level shape:
-TCQ-V0-037	docs/specs/test-claim-qualification-v0.md	414	every claim item has exactly this shape:
-TCQ-V0-038	docs/specs/test-claim-qualification-v0.md	427	every unit item has exactly the fields in the unit-ID preimage plus `id`. `units
-TCQ-V0-039	docs/specs/test-claim-qualification-v0.md	433	reason order and vocabulary are exactly:
-TCQ-V0-040	docs/specs/test-claim-qualification-v0.md	460	TCQ ID is `tcq:sha256:` plus
-TCQ-V0-041	docs/specs/test-claim-qualification-v0.md	468	raw limits are checked with a bounded, string-aware scanner before semantic JSON
-TCQ-V0-042	docs/specs/test-claim-qualification-v0.md	486	operational validation stops at the first failing stage in this order:
-TCQ-V0-043	docs/specs/test-claim-qualification-v0.md	530	a TCQ result is a recomputable local cache, not an authority token or execution
-TCQ-V0-044	docs/specs/test-claim-qualification-v0.md	538	every raw CEM, OCM, command, observation, report, and TCQ-result input is requir
-TCQ-V0-045	docs/specs/test-claim-qualification-v0.md	544	TCQ V0 is library and wire conformance only. It adds no `corvint tcq` CLI, raw-a
-TCQ-V0-046	docs/specs/test-claim-qualification-v0.md	549	WP5 MUST expose `authorityClass: CALLER_REPORTED` without aliasing it to
-TCQ-V0-047	docs/specs/test-claim-qualification-v0.md	555	any parser or runtime MAY implement `python-ast/1` when it implements the exact
+TCP-V0-001	docs/specs/task-context-packet-v0.md	49	`context` MUST be read-only. It builds one index over the committed tree and
+TCP-V0-002	docs/specs/task-context-packet-v0.md	52	The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]
+TCP-V0-003	docs/specs/task-context-packet-v0.md	58	Results are files. Each result row carries `kind`, `id` (the path), `score`,
+TCP-V0-004	docs/specs/task-context-packet-v0.md	76	The slots run in this order and each is capped at three rows before the lexical
+TCP-V0-005	docs/specs/task-context-packet-v0.md	121	The subject is never a result. It is carried under `subject` with its path and a
+TCP-V0-006	docs/specs/task-context-packet-v0.md	128	`state` is `READY` when at least one result exists and `NO_CANDIDATES` otherwise
+TCP-V0-007	docs/specs/task-context-packet-v0.md	139	Output is canonical JSON (`gokernel.CanonicalJSON`), byte-identical over an
+TCP-V0-008	docs/specs/task-context-packet-v0.md	142	(A) V0 reserves at most one `governing` row. The implementation MUST build a gov
+TCP-V0-009	docs/specs/task-context-packet-v0.md	151	(A) The implementation MUST build a definition-owner resolver; no existing helpe
+TCP-V0-010	docs/specs/task-context-packet-v0.md	166	(A) The implementation MUST build a definition-eligibility predicate applied ins
+TCP-V0-011	docs/specs/task-context-packet-v0.md	171	(A) `coverage` gains four members with fixed shapes. `critical` (what TCP-V0-008
+TCP-V0-012	docs/specs/task-context-packet-v0.md	189	(A) Before TCP-V0-008..011 leaves experimental these tests MUST exist and pass,
+TCP-V0-013	docs/specs/task-context-packet-v0.md	200	Documentation-suffix hits (`.md`, `.mdx`, `.rst`, `.txt`) produced by the lexica
+TCP-V0-014	docs/specs/task-context-packet-v0.md	207	(accepted 2026-09-05 by decision 0066; experimental) The lexical slot scores eve
+TCP-V0-015	docs/specs/task-context-packet-v0.md	235	(proposed 2026-09-05 by decision 0067; experimental) In the retrieval shape (no
+TCP-V0-016	docs/specs/task-context-packet-v0.md	303	(accepted 2026-09-12 by decision 0068's amendment, amended by decision 0146;
+TCP-V0-017	docs/specs/task-context-packet-v0.md	267	(proposed 2026-09-05, not accepted; experimental) `context` offers three read-on
+TCP-V0-018	docs/specs/task-context-packet-v0.md	358	(retired 2026-09-05 by decision 0078) The experimental recipe R and every
+TCP-V0-019	docs/specs/task-context-packet-v0.md	370	(proposed 2026-09-05, not accepted; experimental) With
+TCP-V0-020	docs/specs/task-context-packet-v0.md	425	(proposed 2026-09-05, not accepted; experimental) Under
+TCP-V0-021	docs/specs/task-context-packet-v0.md	399	`tools/retrieval-bench --snapshot-latency` MUST materialize a private copy once
+TCP-V0-022	docs/specs/task-context-packet-v0.md	453	(proposed 2026-09-22, not accepted; experimental; decision 0333) With
+TCP-V0-023	docs/specs/task-context-packet-v0.md	478	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
+TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
+TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
+TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul
+TCQ-V0-004	docs/specs/test-claim-qualification-v0.md	109	only OCM extractor `corvint-test-claim/1` is accepted. The verifier MUST re-run
+TCQ-V0-005	docs/specs/test-claim-qualification-v0.md	113	profile dispatch is exactly this table. Unknown extractor IDs are
+TCQ-V0-006	docs/specs/test-claim-qualification-v0.md	127	every claim result exposes independent `associationState`, `hygieneState`, and
+TCQ-V0-007	docs/specs/test-claim-qualification-v0.md	140	association is per selected claim edge. TCQ MUST inspect only the selected ancho
+TCQ-V0-008	docs/specs/test-claim-qualification-v0.md	147	a Python `python-test-name/1` anchor associates only when its exact span is the
+TCQ-V0-009	docs/specs/test-claim-qualification-v0.md	154	a Go `go-test-name/1` anchor associates only when its exact span is the identifi
+TCQ-V0-010	docs/specs/test-claim-qualification-v0.md	159	the selected anchor remains a caller-authored requirement reference. Exact
+TCQ-V0-011	docs/specs/test-claim-qualification-v0.md	164	association with no candidate yields `ABSTAINED` and
+TCQ-V0-012	docs/specs/test-claim-qualification-v0.md	172	WP3 owns semantic relevance. TCQ performs no stopword, identifier-overlap,
+TCQ-V0-013	docs/specs/test-claim-qualification-v0.md	178	Python profile `python-ast/1` is frozen to the Python 3.9 `exec`-mode grammar wi
+TCQ-V0-014	docs/specs/test-claim-qualification-v0.md	185	for Python hygiene, remove one leading docstring. The body is `empty-body` when
+TCQ-V0-015	docs/specs/test-claim-qualification-v0.md	189	Python is `unconditional-skip` when the function or enclosing class has exact
+TCQ-V0-016	docs/specs/test-claim-qualification-v0.md	195	Go profile `go-lexical/1` accepts only a path ending `_test.go` and a bounded to
+TCQ-V0-017	docs/specs/test-claim-qualification-v0.md	200	a Go body with no effective token, or only semicolons and one bare `return`, is
+TCQ-V0-018	docs/specs/test-claim-qualification-v0.md	203	a Go case is a table entry's `name`/`testName`/`test_name` field or the first
+TCQ-V0-019	docs/specs/test-claim-qualification-v0.md	213	a safely delimited unit is `INELIGIBLE` if `empty-body` or
+TCQ-V0-020	docs/specs/test-claim-qualification-v0.md	222	each associated unit binds exactly `extractorProfile`, normalized target `path`,
+TCQ-V0-021	docs/specs/test-claim-qualification-v0.md	226	runtime name is the exact Python function name, Go `TestX`, or admitted
+TCQ-V0-022	docs/specs/test-claim-qualification-v0.md	239	unit ID is `test-unit:sha256:` plus:
+TCQ-V0-023	docs/specs/test-claim-qualification-v0.md	257	dynamic matching requires one canonical `test-command/0.1-experimental` artifact
+TCQ-V0-024	docs/specs/test-claim-qualification-v0.md	271	V0 environment policy is exactly `{"entries":[],"policy":"OMITTED"}`. No
+TCQ-V0-025	docs/specs/test-claim-qualification-v0.md	276	command ID is `test-command:sha256:` plus:
+TCQ-V0-026	docs/specs/test-claim-qualification-v0.md	293	before constructing an XML parser, TCQ MUST use the private report-byte copy to
+TCQ-V0-027	docs/specs/test-claim-qualification-v0.md	305	raw JUnit has no namespace. The document has exactly one root element,
+TCQ-V0-028	docs/specs/test-claim-qualification-v0.md	325	testcase identity requires non-empty `file` and `name`, each at most 1,024 UTF-8
+TCQ-V0-029	docs/specs/test-claim-qualification-v0.md	335	testcase status uses this complete, case-sensitive table. Any other combination,
+TCQ-V0-030	docs/specs/test-claim-qualification-v0.md	349	testcase ordinal is zero-based depth-first document order over every `testcase`
+TCQ-V0-031	docs/specs/test-claim-qualification-v0.md	361	one observation has this exact shape:
+TCQ-V0-032	docs/specs/test-claim-qualification-v0.md	372	observation verification requires the exact raw report and command artifact. It
+TCQ-V0-033	docs/specs/test-claim-qualification-v0.md	379	input combinations are exact:
+TCQ-V0-034	docs/specs/test-claim-qualification-v0.md	394	after source association, matching uses only exact execution keys. Zero matching
+TCQ-V0-035	docs/specs/test-claim-qualification-v0.md	400	`test-report-matched-v0` is emitted if and only if all of these hold: canonical
+TCQ-V0-036	docs/specs/test-claim-qualification-v0.md	409	a TCQ document has this exact top-level shape:
+TCQ-V0-037	docs/specs/test-claim-qualification-v0.md	427	every claim item has exactly this shape:
+TCQ-V0-038	docs/specs/test-claim-qualification-v0.md	440	every unit item has exactly the fields in the unit-ID preimage plus `id`. `units
+TCQ-V0-039	docs/specs/test-claim-qualification-v0.md	446	reason order and vocabulary are exactly:
+TCQ-V0-040	docs/specs/test-claim-qualification-v0.md	476	TCQ ID is `tcq:sha256:` plus
+TCQ-V0-041	docs/specs/test-claim-qualification-v0.md	484	raw limits are checked with a bounded, string-aware scanner before semantic JSON
+TCQ-V0-042	docs/specs/test-claim-qualification-v0.md	502	operational validation stops at the first failing stage in this order:
+TCQ-V0-043	docs/specs/test-claim-qualification-v0.md	547	a TCQ result is a recomputable local cache, not an authority token or execution
+TCQ-V0-044	docs/specs/test-claim-qualification-v0.md	555	every raw CEM, OCM, command, observation, report, and TCQ-result input is requir
+TCQ-V0-045	docs/specs/test-claim-qualification-v0.md	561	TCQ V0 is library and wire conformance only. It adds no `corvint tcq` CLI, raw-a
+TCQ-V0-046	docs/specs/test-claim-qualification-v0.md	566	WP5 MUST expose `authorityClass: CALLER_REPORTED` without aliasing it to
+TCQ-V0-047	docs/specs/test-claim-qualification-v0.md	572	any parser or runtime MAY implement `python-ast/1` when it implements the exact
+TCQ-V0-048	docs/specs/test-claim-qualification-v0.md	589	an observation MAY declare the environment variant it ran under as one optional
+TCQ-V0-049	docs/specs/test-claim-qualification-v0.md	600	one shared flake rule applies to every Corvint test provider: a test observed at
+TCQ-V0-050	docs/specs/test-claim-qualification-v0.md	607	a caller MAY supply at most 16 prior observations alongside the dynamic tuple.
+TCQ-V0-051	docs/specs/test-claim-qualification-v0.md	630	`corvint cem cover --map MAP --coverprofile PATH --test-run TEXT [--output PATH]
+TCQ-V0-052	docs/specs/test-claim-qualification-v0.md	639	the witness is one optional hunk member `coverage` admitted only on `cem/0.3`:
+TCQ-V0-053	docs/specs/test-claim-qualification-v0.md	647	`cover` writes a witness on every hunk of the map, never on a subset. The covere
+TCQ-V0-054	docs/specs/test-claim-qualification-v0.md	652	the reviewer report (`corvint cem report`) lists every hunk whose basis cites a
+TCQ-V0-055	docs/specs/test-claim-qualification-v0.md	670	`corvint cem discriminate --map MAP --target REV [--max-hunks N]
+TCQ-V0-056	docs/specs/test-claim-qualification-v0.md	681	the witness is one optional hunk member `discriminates` admitted only on
+TCQ-V0-057	docs/specs/test-claim-qualification-v0.md	692	candidates are, in map order, the hunks whose path is Go source (not a
+TCQ-V0-058	docs/specs/test-claim-qualification-v0.md	701	the reviewer report appends the witness to each `## Test claims` line: a
 TJAA-V0-001	docs/specs/typescript-javascript-affected-adapter-v0.md	31	`Owns` MUST claim exactly `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs`; it M
 TJAA-V0-002	docs/specs/typescript-javascript-affected-adapter-v0.md	35	A normally file-addressable test MUST be one file unit. Its stable identity MUST
 TJAA-V0-003	docs/specs/typescript-javascript-affected-adapter-v0.md	39	Runner detection MUST use direct runner imports/registrations, recognized config
@@ -2020,36 +2079,36 @@ WQO-V0-014	docs/specs/work-queue-observation-v0.md	366	State precedence is exact
 WQO-V0-015	docs/specs/work-queue-observation-v0.md	373	Unknown codes are exactly `ACCESS_INCOMPLETE`, `ADAPTER_INVALID`,
 WQO-V0-016	docs/specs/work-queue-observation-v0.md	383	Derived state is disposable. Cache keys bind policy, source, scope, and access
 WQO-V0-017	docs/specs/work-queue-observation-v0.md	388	Corvint MUST NOT write repository, index, worktree, queue, checkpoint, lease/coo
-WQO-V0-018	docs/specs/work-queue-observation-v0.md	411	`work propose-wave` consumes one `VALIDATED_AT` observation, exact snapshot, val
-WQO-V0-019	docs/specs/work-queue-observation-v0.md	417	A ticket is eligible only when lifecycle is `READY`, authority `COMPLETE`, selec
-WQO-V0-020	docs/specs/work-queue-observation-v0.md	427	Corvint walks the WQO-V0-044 selection order once. For each selected ticket it c
-WQO-V0-021	docs/specs/work-queue-observation-v0.md	434	Every `READY` ticket appears exactly once using the first applicable row and exa
-WQO-V0-022	docs/specs/work-queue-observation-v0.md	456	Capabilities are opaque repository-defined exact facts. Runtime, model, reasonin
-WQO-V0-023	docs/specs/work-queue-observation-v0.md	461	Non-READY lifecycle classes are never entries or selections. Continuation/adopti
-WQO-V0-024	docs/specs/work-queue-observation-v0.md	465	V0 supports exactly one repository authority. Every typed fact uses it. Any fore
-WQO-V0-025	docs/specs/work-queue-observation-v0.md	469	Immediately before return, Corvint reruns fixed `verify` and repository acquisit
-WQO-V0-026	docs/specs/work-queue-observation-v0.md	475	Queue IDs, titles, bodies, criteria, comments, route labels, holder names, reaso
-WQO-V0-027	docs/specs/work-queue-observation-v0.md	479	Corvint never executes, interpolates, templates, evaluates, or shells queue data
-WQO-V0-028	docs/specs/work-queue-observation-v0.md	485	Presentation may say only `VALIDATED_AT(checkpoint)`,
-WQO-V0-029	docs/specs/work-queue-observation-v0.md	639	Beamfall MUST add one supported atomic read-only adapter surface equivalent to
-WQO-V0-030	docs/specs/work-queue-observation-v0.md	647	Corvint MUST NOT call Beamfall mutation verbs or `fanout-plan --claim`. Adapter
-WQO-V0-031	docs/specs/work-queue-observation-v0.md	652	`PARTIAL`, `CONFLICTED`, `STALE`, or `UNKNOWN` always produces an empty proposal
-WQO-V0-032	docs/specs/work-queue-observation-v0.md	656	Timeout, cancellation, non-zero exit, malformed bytes, digest mismatch, overflow
-WQO-V0-033	docs/specs/work-queue-observation-v0.md	671	Corvint core makes no network request, model call, database, daemon, embedding,
-WQO-V0-034	docs/specs/work-queue-observation-v0.md	678	Independent Go conformance validates every schema, identity, decision row, bound
-WQO-V0-035	docs/specs/work-queue-observation-v0.md	698	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec
-WQO-V0-036	docs/specs/work-queue-observation-v0.md	701	Before counting, freeze an independent recorder profile/version, repository-orac
-WQO-V0-037	docs/specs/work-queue-observation-v0.md	707	Of 500 consecutive cycles, at least 100 contain active leases, 100 at least two
-WQO-V0-038	docs/specs/work-queue-observation-v0.md	713	Passing permits only owner-reviewed assisted read-only display. Where the frozen
-WQO-V0-039	docs/specs/work-queue-observation-v0.md	721	Rollback disables commands and deletes disposable state without canonical repair
-WQO-V0-040	docs/specs/work-queue-observation-v0.md	724	Any policy, adapter/profile, mapping, schema, lifecycle, route/capacity/collisio
-WQO-V0-041	docs/specs/work-queue-observation-v0.md	495	Each ticket's `touchPaths` declares the repository paths its work intends to cha
-WQO-V0-042	docs/specs/work-queue-observation-v0.md	501	Corvint expands each ticket's declared paths at `repositorySource.commit` into a
-WQO-V0-043	docs/specs/work-queue-observation-v0.md	516	Two READY tickets clash when their closures share one path. For every path share
-WQO-V0-044	docs/specs/work-queue-observation-v0.md	526	Selection maximizes the number of selected tickets. Let C be the READY tickets t
-WQO-V0-045	docs/specs/work-queue-observation-v0.md	538	The wave is analysis, never dispatch. Corvint reports which tickets can start to
-WQO-V0-046	docs/specs/work-queue-observation-v0.md	552	The store scope is complete exactly when the policy `mappingVersion` is
-WQO-V0-047	docs/specs/work-queue-observation-v0.md	564	`corvint work init --repository NAME --corvint-executable ABSOLUTE_FILE`
-WQO-V0-048	docs/specs/work-queue-observation-v0.md	578	`corvint work adapter snapshot|details|verify` is the
-WQO-V0-049	docs/specs/work-queue-observation-v0.md	590	The initialization executable is one canonical absolute executable regular file
-WQO-V0-050	docs/specs/work-queue-observation-v0.md	610	`corvint work rebind --corvint-executable ABSOLUTE_FILE` is the only supported
+WQO-V0-018	docs/specs/work-queue-observation-v0.md	413	`work propose-wave` consumes one `VALIDATED_AT` observation, exact snapshot, val
+WQO-V0-019	docs/specs/work-queue-observation-v0.md	419	A ticket is eligible only when lifecycle is `READY`, authority `COMPLETE`, selec
+WQO-V0-020	docs/specs/work-queue-observation-v0.md	429	Corvint walks the WQO-V0-044 selection order once. For each selected ticket it c
+WQO-V0-021	docs/specs/work-queue-observation-v0.md	436	Every `READY` ticket appears exactly once using the first applicable row and exa
+WQO-V0-022	docs/specs/work-queue-observation-v0.md	458	Capabilities are opaque repository-defined exact facts. Runtime, model, reasonin
+WQO-V0-023	docs/specs/work-queue-observation-v0.md	463	Non-READY lifecycle classes are never entries or selections. Continuation/adopti
+WQO-V0-024	docs/specs/work-queue-observation-v0.md	467	V0 supports exactly one repository authority. Every typed fact uses it. Any fore
+WQO-V0-025	docs/specs/work-queue-observation-v0.md	471	Immediately before return, Corvint reruns fixed `verify` and repository acquisit
+WQO-V0-026	docs/specs/work-queue-observation-v0.md	477	Queue IDs, titles, bodies, criteria, comments, route labels, holder names, reaso
+WQO-V0-027	docs/specs/work-queue-observation-v0.md	481	Corvint never executes, interpolates, templates, evaluates, or shells queue data
+WQO-V0-028	docs/specs/work-queue-observation-v0.md	487	Presentation may say only `VALIDATED_AT(checkpoint)`,
+WQO-V0-029	docs/specs/work-queue-observation-v0.md	644	Beamfall MUST add one supported atomic read-only adapter surface equivalent to
+WQO-V0-030	docs/specs/work-queue-observation-v0.md	652	Corvint MUST NOT call Beamfall mutation verbs or `fanout-plan --claim`. Adapter
+WQO-V0-031	docs/specs/work-queue-observation-v0.md	657	`PARTIAL`, `CONFLICTED`, `STALE`, or `UNKNOWN` always produces an empty proposal
+WQO-V0-032	docs/specs/work-queue-observation-v0.md	661	Timeout, cancellation, non-zero exit, malformed bytes, digest mismatch, overflow
+WQO-V0-033	docs/specs/work-queue-observation-v0.md	676	Corvint core makes no network request, model call, database, daemon, embedding,
+WQO-V0-034	docs/specs/work-queue-observation-v0.md	683	Independent Go conformance validates every schema, identity, decision row, bound
+WQO-V0-035	docs/specs/work-queue-observation-v0.md	703	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec
+WQO-V0-036	docs/specs/work-queue-observation-v0.md	706	Before counting, freeze an independent recorder profile/version, repository-orac
+WQO-V0-037	docs/specs/work-queue-observation-v0.md	712	Of 500 consecutive cycles, at least 100 contain active leases, 100 at least two
+WQO-V0-038	docs/specs/work-queue-observation-v0.md	718	Passing permits only owner-reviewed assisted read-only display. Where the frozen
+WQO-V0-039	docs/specs/work-queue-observation-v0.md	726	Rollback disables commands and deletes disposable state without canonical repair
+WQO-V0-040	docs/specs/work-queue-observation-v0.md	729	Any policy, adapter/profile, mapping, schema, lifecycle, route/capacity/collisio
+WQO-V0-041	docs/specs/work-queue-observation-v0.md	497	Each ticket's `touchPaths` declares the repository paths its work intends to cha
+WQO-V0-042	docs/specs/work-queue-observation-v0.md	503	Corvint expands each ticket's declared paths at `repositorySource.commit` into a
+WQO-V0-043	docs/specs/work-queue-observation-v0.md	518	Two READY tickets clash when their closures share one path. For every path share
+WQO-V0-044	docs/specs/work-queue-observation-v0.md	528	Selection maximizes the number of selected tickets. Let C be the READY tickets t
+WQO-V0-045	docs/specs/work-queue-observation-v0.md	540	The wave is analysis, never dispatch. Corvint reports which tickets can start to
+WQO-V0-046	docs/specs/work-queue-observation-v0.md	555	The store scope is complete exactly when the policy `mappingVersion` is
+WQO-V0-047	docs/specs/work-queue-observation-v0.md	569	`corvint work init --repository NAME --corvint-executable ABSOLUTE_FILE`
+WQO-V0-048	docs/specs/work-queue-observation-v0.md	583	`corvint work adapter snapshot|details|verify` is the
+WQO-V0-049	docs/specs/work-queue-observation-v0.md	595	The initialization executable is one canonical absolute executable regular file
+WQO-V0-050	docs/specs/work-queue-observation-v0.md	615	`corvint work rebind --corvint-executable ABSOLUTE_FILE` is the only supported

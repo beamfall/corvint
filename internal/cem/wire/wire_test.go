@@ -372,3 +372,42 @@ func TestConformance02CasesConsumed(t *testing.T) {
 		}
 	}
 }
+
+// TestSpec03StructuralReasons pins the additive cem/0.3 vocabulary: 0.3
+// accepts the structural reasons, 0.2 and 0.1 still reject them, and 0.3
+// keeps the 0.2 excludedPath obligation (CEM-SM-001).
+func TestSpec03StructuralReasons(t *testing.T) {
+	render := func(spec, reason, excluded string) []byte {
+		return []byte(`{"spec":"` + spec + `","baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681",` +
+			`"patchSha256":"dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c",` + excluded +
+			`"evidence":[],"hunks":[{"id":"hunk:sha256:07461a992e03e064986720e365dc4bb477da7cefe73da853f51bcb70e2c3100c",` +
+			`"path":"src/a.go","oldRange":{"start":1,"count":2},"newRange":{"start":1,"count":2},` +
+			`"disposition":"mechanical","reason":"` + reason + `","basis":[]}]}`)
+	}
+	excluded := `"excludedPath":".corvint/change.cem.json",`
+	for reason := range StructuralReasons {
+		if _, err := ParseMap(render(Spec03, reason, excluded)); err != nil {
+			t.Errorf("cem/0.3 %s: %v", reason, err)
+		}
+		for _, spec := range []string{Spec01, Spec02} {
+			path := excluded
+			if spec == Spec01 {
+				path = ""
+			}
+			_, err := ParseMap(render(spec, reason, path))
+			if err == nil || cemcode.CodeOf(err) != cemcode.InvalidField {
+				t.Errorf("%s %s: got %v, want invalid-field", spec, reason, err)
+			}
+		}
+	}
+	if _, err := ParseMap(render(Spec03, "whitespace-only", excluded)); err != nil {
+		t.Errorf("cem/0.3 whitespace-only: %v", err)
+	}
+	_, err := ParseMap(render(Spec03, "rename", ""))
+	if err == nil || cemcode.CodeOf(err) != cemcode.MissingField {
+		t.Errorf("cem/0.3 without excludedPath: got %v, want missing-field", err)
+	}
+	if !MechanicalReason(Spec03, "move") || MechanicalReason(Spec02, "move") || !MechanicalReason(Spec01, "whitespace-only") {
+		t.Error("MechanicalReason vocabulary is not gated by spec")
+	}
+}

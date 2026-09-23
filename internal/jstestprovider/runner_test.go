@@ -3,6 +3,7 @@
 package jstestprovider
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
@@ -104,6 +105,27 @@ func TestRunUnit_StaleCallerOutputFileIsNotReadBack(t *testing.T) {
 	}
 	if len(receipt.Tests) != 0 || receipt.Infrastructure == nil || receipt.Infrastructure.Reason != "report-not-written" {
 		t.Fatalf("want report-not-written and no outcomes, got tests=%d infrastructure=%+v", len(receipt.Tests), receipt.Infrastructure)
+	}
+}
+
+// TestRunUnit_ReportBoundIsItsOwnAndNotTheExternalProviders pins that the
+// unit path's report bound (unitReportOutputLimit) is a named bound of its
+// own, at least as large as the external provider's externalOutputLimit
+// (4 MiB): a report between the two sizes must not overflow under the
+// unit-path bound while it would under the external one.
+func TestRunUnit_ReportBoundIsItsOwnAndNotTheExternalProviders(t *testing.T) {
+	if unitReportOutputLimit < externalOutputLimit {
+		t.Fatalf("unitReportOutputLimit = %d must be at least externalOutputLimit = %d", unitReportOutputLimit, externalOutputLimit)
+	}
+	path := filepath.Join(t.TempDir(), "report.json")
+	oversizedForExternal := bytes.Repeat([]byte("x"), externalOutputLimit+1)
+	writeFile(t, path, string(oversizedForExternal))
+
+	if _, err := readBoundedReport(path, unitReportOutputLimit); err != nil {
+		t.Fatalf("report within the unit bound unexpectedly refused: %v", err)
+	}
+	if _, err := readBoundedReport(path, externalOutputLimit); err == nil || err.Error() != "report-output-overflow" {
+		t.Fatalf("want report-output-overflow under the external bound, got err=%v", err)
 	}
 }
 

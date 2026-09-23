@@ -643,6 +643,9 @@ func TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths(t *testing.T) {
 		t.Fatalf("output=%s err=%v", &stdout, err)
 	}
 	contextText, _ := claudeHookOutput(t, output)["additionalContext"].(string)
+	if !strings.HasPrefix(contextText, compactionDisclosure) { // AHI-030
+		t.Fatalf("compact start context does not begin with the compaction disclosure: %s", contextText)
+	}
 	start, end := strings.Index(contextText, "{\"adapter\":"), strings.LastIndex(contextText, "\nEND CORVINT REPOSITORY DATA")
 	if start < 0 || end <= start {
 		t.Fatalf("no framed receipt: %s", contextText)

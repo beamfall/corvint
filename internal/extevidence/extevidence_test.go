@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -206,15 +207,16 @@ func TestProviderUnavailableAndInvalidAreStructured(t *testing.T) {
 
 func loaded(t *testing.T, repo repository, data []byte, changed ...string) composition {
 	t.Helper()
-	record, err := Decode(data)
-	if err != nil {
-		t.Fatal(err)
+	ctx, root := context.Background(), indexRoot(repo.index())
+	entry := decodeRecord(ctx, root, provider{}, data)
+	if entry.state != StateLoaded {
+		t.Fatal(entry.reason)
 	}
 	set := make(map[string]struct{}, len(changed))
 	for _, path := range changed {
 		set[path] = struct{}{}
 	}
-	return compose(record, set, repositoryTree(context.Background(), indexRoot(repo.index()), []provider{{state: StateLoaded, record: record}}))
+	return compose(ctx, root, entry, set, repositoryTree(ctx, root, []provider{entry}))
 }
 
 func TestEndpointIdentitiesResolve(t *testing.T) {
@@ -265,6 +267,31 @@ func TestEvidenceKindLearnedExcluded(t *testing.T) {
 		if entry.toMap()["authority"] != Authority {
 			t.Fatalf("Core must assign authority %q", Authority)
 		}
+	}
+}
+
+// TestEvidenceKindGeneratedAdmitted checks EEP-V0-019: a generated relation is
+// admitted with its kind visible, so a consumer can exclude it, while an
+// observed relation from the same record composes as before.
+func TestEvidenceKindGeneratedAdmitted(t *testing.T) {
+	t.Parallel()
+	repo := newRepository(t)
+	record := fmt.Sprintf(`{"schema":"external-evidence-provider/0","provider":{"id":"mockgen","revision":"1"},"repository":{"revision":%q},
+"entities":[{"id":"cap-x","kind":"capability","summary":"Capability x."}],
+"relations":[{"from":"path:pkg/main.go","to":"mockgen:cap-x","type":"implements","evidence":"observed","rule":"trace","reference":"runs/1"},
+{"from":"path:pkg/main_test.go","to":"mockgen:cap-x","type":"verifies","evidence":"generated","rule":"model","reference":"model/v3"}]}`, repo.head)
+	out := loaded(t, repo, []byte(record), "pkg/main.go")
+	if len(out.unknowns) != 0 {
+		t.Fatalf("a generated relation must not be excluded: %+v", out.unknowns)
+	}
+	if len(out.results) != 1 || out.results[0].link.relation.Evidence != EvidenceObserved {
+		t.Fatalf("observed relation must compose one result: %+v", out.results)
+	}
+	if len(out.verification) != 1 || out.verification[0].link.relation.Evidence != EvidenceGenerated {
+		t.Fatalf("generated relation must be listed under verification: %+v", out.verification)
+	}
+	if row := out.verification[0].toMap(); row["relation"].(map[string]any)["evidence"] != EvidenceGenerated || !strings.Contains(row["reason"].(string), "generated") {
+		t.Fatalf("generated kind must be visible in the row and its reason: %v", row)
 	}
 }
 
@@ -422,6 +449,42 @@ func TestReferenceVerificationStates(t *testing.T) {
 	for key, state := range want {
 		if states[key] != state {
 			t.Errorf("%s = %q, want %q", key, states[key], state)
+		}
+	}
+}
+
+// EEP-V0-010 `deleted`: a path the provider saw at its declared revision but
+// the captured revision no longer tracks is `deleted`, and only when that
+// revision is a known commit; otherwise it stays `missing`.
+func TestReferenceVerificationDeleted(t *testing.T) {
+	t.Parallel()
+	repo := newRepository(t)
+	index := repo.index()
+	delete(index.Tracked, "pkg/main_test.go") // dropped at the captured revision, tracked at first
+	ctx, root := context.Background(), indexRoot(index)
+	relations := func(r map[string]any) {
+		r["relations"] = []any{
+			map[string]any{"from": "path:pkg/main.go", "to": "mockdocs:cap-stable-value", "type": "implements", "evidence": "declared", "rule": "r", "reference": "x"},
+			map[string]any{"from": "path:pkg/main_test.go", "to": "mockdocs:cap-stable-value", "type": "verifies", "evidence": "observed", "rule": "r", "reference": "x"},
+			map[string]any{"from": "path:pkg/absent_test.go", "to": "mockdocs:cap-stable-value", "type": "verifies", "evidence": "observed", "rule": "r", "reference": "x"},
+		}
+	}
+	for _, tc := range []struct{ name, revision, want string }{
+		{"provider at an ancestor", repo.first, VerificationDeleted},
+		{"provider at the captured revision", repo.head, VerificationMissing},
+		{"provider on unrelated history", repo.orphan, VerificationMissing},
+	} {
+		entry := decodeRecord(ctx, root, provider{}, mutate(t, fixture(t, tc.revision), relations))
+		if entry.state != StateLoaded {
+			t.Fatal(entry.reason)
+		}
+		out := compose(ctx, root, entry, map[string]struct{}{"pkg/main.go": {}}, repositoryTree(ctx, root, []provider{entry}))
+		states := map[string]string{}
+		for _, entry := range out.verification {
+			states[entry.path] = entry.state
+		}
+		if states["pkg/main_test.go"] != tc.want || states["pkg/absent_test.go"] != VerificationMissing {
+			t.Errorf("%s: states = %v, want main_test %q and absent_test %q", tc.name, states, tc.want, VerificationMissing)
 		}
 	}
 }

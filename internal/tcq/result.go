@@ -51,9 +51,10 @@ type ClaimResult struct {
 // authority token or execution record (TCQ-V0-043): Raw is the canonical bytes
 // the identity commits to, and every consumer must recompute rather than trust.
 type Result struct {
-	raw    []byte
-	id     string
-	claims []ClaimResult
+	raw         []byte
+	id          string
+	claims      []ClaimResult
+	environment map[string]string
 }
 
 // Raw returns the canonical document bytes, terminal LF included.
@@ -64,3 +65,18 @@ func (result Result) ID() string { return result.id }
 
 // Claims returns one result per selected edge, in TCQ-V0-003 order.
 func (result Result) Claims() []ClaimResult { return append([]ClaimResult(nil), result.claims...) }
+
+// ObservationEnvironment returns the verified observation's declared TCQ-V0-048
+// variant. The second value is false when the invocation was static or the
+// observation declared no environment: the environment is then unknown, and no
+// caller may substitute an empty variant for it.
+func (result Result) ObservationEnvironment() (map[string]string, bool) {
+	if result.environment == nil {
+		return nil, false
+	}
+	copied := make(map[string]string, len(result.environment))
+	for key, value := range result.environment {
+		copied[key] = value
+	}
+	return copied, true
+}

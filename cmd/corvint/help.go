@@ -11,6 +11,7 @@ const authorityStartPrompt = "Identify the active work queue, required workflow 
 var cemHelpActions = map[string]bool{
 	"begin": true, "prepare": true, "cite": true, "mark": true,
 	"status": true, "verify": true, "report": true,
+	"anchor": true, "provenance": true,
 }
 
 // helpSubcommands are the retired oracle's nested argparse choices (GPK-V0-062): a token after the
@@ -181,10 +182,12 @@ func helpText(topic string) string {
 		return readsHelp
 	case "calibrate":
 		return calibrateHelp
+	case "skill-export":
+		return skillExportHelp
 	case "prove":
 		return proveHelp
 	case "context":
-		return taskContextHelp + contextLookupHelp
+		return taskContextHelp + contextLookupHelp + cpuProfileHelpNote
 	case "index":
 		return indexHelp
 	case "dogfood":
@@ -263,7 +266,7 @@ Usage:
   corvint [--root PATH] witness --base REV [--head REV] [--cem MAP] [--json]
   corvint test-validity [--receipt FILE]
   corvint [--root PATH] COMMAND --help
-  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|migration-ratchet|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity|flows]
+  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|migration-ratchet|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|skill-export|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity|flows]
   corvint help harness [event]
   corvint --version
 
@@ -324,6 +327,9 @@ Commands:
                  Experimental.
   calibrate      Compare recorded packet stances with recorded outcomes; never
                  writes and never applies a threshold. Experimental.
+  skill-export   Export admitted learned traces as SKILL.md documents into an
+                 operator-named directory; never writes repository or trace state.
+                 Experimental.
   witness        Compile the unwitnessed surface of one committed range without
                  mutating repository or trace state.
   test-validity  Project a live-test provider receipt through the shared
@@ -583,8 +589,8 @@ Usage:
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
-          [--provider RECORD ...] [--repository ID=DIR ...]
-          [--selection-profile strict|coverage]
+          [--provider RECORD ...] [--provider-command ARGV_JSON ...]
+          [--repository ID=DIR ...] [--selection-profile strict|coverage]
 
 The command reads the Git worktree status, builds the multi-language unit graph
 from source text, and writes one affected-plan/0 document to stdout: the
@@ -636,6 +642,12 @@ reads a bounded canonical playwright-discovery/0 receipt binding HEAD, config an
 source bytes to the complete unfiltered project/file listing. Missing or mismatched
 discovery emits no file commands and one complete-config fallbackArgv. It executes
 no config or test and cannot be combined with --provider.
+
+--provider-command ARGV_JSON runs one local provider command and reads its
+stdout as a record, exactly as impact does (EEP-TR): a JSON array of strings
+whose first element is an absolute executable path, no shell, scrubbed
+environment, 10s wall time, 1 MiB stdout, every failure one closed provider
+row. It counts toward the same 4-provider bound as --provider.
 `
 
 const proveHelp = `Compile the falsifiable context packet for a task, a change, or a CEM map.
@@ -735,10 +747,10 @@ Experimental, not a stable contract: --attest-cem (cem mode) implies --attest
 and prints a second line after the unchanged statement or envelope, a CEM
 statement (predicate https://corvint-context.dev/attestation/cem/0) naming MAP by
 path, sha256, and size, signed with the same key when --attest-key is given.
---verify-cem-attestation ENVELOPE checks one such envelope offline against the
-Ed25519 PKIX public key at PEM and prints status VERIFIED when --cem MAP bytes
-match, or NOT_RUN with reason cem-bytes-not-supplied without --cem. It exits 2
-with attest-public-key-unavailable, attest-envelope-unavailable,
+--verify-cem-attestation ENVELOPE checks such an envelope, or a cem/v1 one also
+binding baseRevision and patchSha256, offline against the Ed25519 PKIX key at
+PEM: VERIFIED when --cem MAP bytes match, else NOT_RUN (cem-bytes-not-supplied).
+It exits 2 with attest-public-key-unavailable, attest-envelope-unavailable,
 attest-verification-failed, attest-cem-mismatch, or map-unavailable.
 
 proof.ledger is the repository's falsification rate: the share of judged
@@ -820,6 +832,11 @@ Usage:
   corvint [--root PATH] cem status --map MAP [OPTIONS]
   corvint [--root PATH] cem verify --map MAP [OPTIONS]
   corvint [--root PATH] cem report --map MAP [--output REPORT] [OPTIONS]
+  corvint [--root PATH] cem cover --map MAP --coverprofile PATH --test-run ID [--output MAP]
+  corvint [--root PATH] cem discriminate --map MAP --target REV [--max-hunks N]
+    [--max-mutants N] [--wall-time DURATION] [--output MAP]
+  corvint [--root PATH] cem anchor --map MAP [--commit REV]
+  corvint [--root PATH] cem provenance --commit REV
 
 Actions:
   begin    Build a cem/0.1 candidate from exact out-of-band patch bytes.
@@ -831,6 +848,21 @@ Actions:
   mark     Record an explicit unknown or byte-verifiable mechanical disposition.
   status   Local completion check; verify is the equivalent machine/CI surface;
            report renders the optional human view. All three verify identically.
+  cover    Record a patch coverage witness on every hunk from one local Go
+           coverprofile named by --test-run; upgrades the map to cem/0.3.
+  discriminate
+           Mutate the map's changed Go hunks (at most --max-hunks hunks and
+           --max-mutants mutants each, within --wall-time; defaults 8, 8, 10m)
+           against the _test.go files their test claims cite, and record a
+           discriminates / survived / not-run witness pinned to --target and
+           the test selection digest. Survivors downgrade the report; the run
+           never fails the build.
+  anchor   (experimental) Write a pointer to the map committed at HEAD as the
+           refs/notes/corvint note of REV (default HEAD); refuses a dirty,
+           untracked, or uncommitted map and never replaces a different note.
+  provenance  (experimental, read-only) Report REV's Corvint anchor, Git AI
+           refs/notes/ai note, and Assisted-by/Agent-Logs-Url trailers as
+           untrusted repository-history rows; no URL is fetched.
 
 Verification options:
   --expected-base REV  Independent expected base. Required for cem/0.2.
@@ -1001,6 +1033,17 @@ authority. All profiles are read-only, local-only, and emit canonical JSON.
 Mixed-worktree freshness is disclosed where applicable.
 `
 
+// cpuProfileHelpNote documents the CPUPROFILE env knob (V1-0051): it is
+// off by default, operator-set only, and applies to this command and to
+// `context` (taskcontext.go, main.go's harness-event dispatch). It writes a
+// local pprof file and never widens what the command reads, returns, or
+// mutates (AGENTS.md invariant 4).
+const cpuProfileHelpNote = `
+CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU
+profile for this invocation to PATH. Diagnostic only; it does not change
+what is read, returned, or mutated.
+`
+
 const harnessEventHelp = `Compile one experimental agent-harness lifecycle event.
 
 Usage:
@@ -1026,7 +1069,7 @@ block; user-prompt shares query's BuildEval -> EvalQuery repository path. The
 remaining events do not. The command is read-only apart from that one
 bounded local self-observation row, and local-only, and
 emits one canonical corvint-harness-event/0 FALLBACK receipt on stdout.
-`
+` + cpuProfileHelpNote
 
 const localCompletionHelp = `Coordinate an explicitly enrolled local change workflow.
 

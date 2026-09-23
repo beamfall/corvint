@@ -52,14 +52,17 @@ each cited path still exists at that revision, and what was omitted or could not
   rule, and a reference into the provider's own material. An optional `blob` pins the Git blob the
   provider observed at a path endpoint.
 - **evidence kind**: `declared` (the provider's own authored statement), `observed` (a recorded
-  execution or measurement), or `inferred` (derived by the provider's rule).
+  execution or measurement), `inferred` (derived by the provider's rule), or `generated` (produced
+  by a model or heuristic with no observation behind it; added 2026-09-22 for issue 64, decision
+  0350).
 - **external section**: the `context.external` member of the impact receipt. It is the only place
   provider output appears.
 
 ## Requirements
 
 - `EEP-V0-001`: A provider record MUST be one JSON document whose top-level members are exactly
-  `schema`, `provider`, `repository`, `entities`, and `relations`; `schema` MUST equal
+  `schema`, `provider`, `repository`, `entities`, and `relations`, plus the optional
+  `capabilities` declaration of `EEP-TR-012` (decision 0351); `schema` MUST equal
   `external-evidence-provider/0`. Any unknown member at any level, a duplicate entity id, an
   identifier or text outside the bounds of `EEP-V0-012` and `EEP-V0-013`, or a malformed field
   makes the whole record `invalid` with one reason. Core never repairs a record.
@@ -75,17 +78,20 @@ each cited path still exists at that revision, and what was omitted or could not
   `reason`. Identical record bytes, changed paths, limit, and index MUST produce an identical
   section.
 - `EEP-V0-005`: A record that cannot be read is reported with state `unavailable`; a record that
-  fails `EEP-V0-001` is reported with state `invalid`; a loaded record has state `loaded`. Neither
-  failure state changes the exit code, `ok`, or the core receipt. An unavailable or invalid provider
-  contributes no results and no unknowns beyond its own provider entry.
+  fails `EEP-V0-001` is reported with state `invalid`; a record whose declared capabilities omit
+  what the invocation requires is reported with state `unsupported` (`EEP-TR-013`); a loaded
+  record has state `loaded`. No failure state changes the exit code, `ok`, or the core receipt. An
+  unavailable, invalid, or unsupported provider contributes no results and no unknowns beyond its
+  own provider entry.
 - `EEP-V0-006`: An endpoint MUST be `path:<path>` or `<provider-id>:<entity-id>`. A path MUST be
   repository-relative, non-empty, without a leading slash or `..` segment, and at most 1024 bytes.
   An endpoint with neither prefix, a path outside those bounds, an entity endpoint whose provider
   id differs from the record's own, or an entity id the record does not declare makes that relation
   `unresolved`: it is listed under `unknowns` with a reason and contributes nothing else.
   V0 defines no cross-repository identity; `EEP-V1` does.
-- `EEP-V0-007`: A relation's `evidence` MUST be `declared`, `observed`, or `inferred`. Any other
-  value, including `learned`, excludes that relation to `unknowns` with a reason. Every item in the
+- `EEP-V0-007`: A relation's `evidence` MUST be `declared`, `observed`, `inferred`, or `generated`
+  (`EEP-V0-019`). Any other value, including `learned`, excludes that relation to `unknowns` with
+  a reason. Every item in the
   section carries `authority` `external-provider`, assigned by Core; a record cannot state an
   authority, and external items never receive a repository authority label.
 - `EEP-V0-008`: A relation `type` is preserved exactly as the provider wrote it: lowercase, digits,
@@ -98,9 +104,13 @@ each cited path still exists at that revision, and what was omitted or could not
   full commit id known to the repository). Timestamps are never an input.
 - `EEP-V0-010`: Every path endpoint in an included relation carries `verification`: `verified`
   (tracked at the captured revision and, when the relation pins a `blob`, equal to the pinned
-  blob), `stale` (tracked, pinned blob differs), or `missing` (not tracked at the captured
-  revision). An entity endpoint carries `unsupported`. Verification proves identity at the
-  revision, never that the provider's statement is correct.
+  blob), `stale` (tracked, pinned blob differs), `deleted` (not tracked at the captured revision
+  but tracked at the record's declared revision, decided only when freshness is `repository-ahead`,
+  `provider-ahead`, or `unrelated-history`), or `missing` (not tracked at the captured revision and
+  not shown to have been tracked at the declared revision; amended 2026-09-22, issue 64). An entity
+  endpoint carries `unsupported`. Verification proves identity at the revision, never that the
+  provider's statement is correct. Every consumer that treats `missing` as stale MUST treat
+  `deleted` the same way.
 - `EEP-V0-011`: `results` lists each entity joined by a relation to a requested changed path;
   `downstream` lists each entity one relation away from a result entity that is not itself a
   result; `verification` lists each relation of type `verifies`, `covers`, or `asserts` between a
@@ -133,6 +143,14 @@ each cited path still exists at that revision, and what was omitted or could not
   authored from copied source through file and command transports, and retain Core separation.
   Promotion MUST remain blocked on V1-0013's portable-proof freeze and owner acceptance; passing
   local synthetic conformance MUST NOT be reported as acceptance or external validation.
+- `EEP-V0-019`: A `generated` relation composes exactly as the other admitted kinds, and every
+  item it admits carries `generated` in `relation.evidence` and names the kind in its `reason`, so
+  a consumer can down-weight or exclude generated items from that member alone. Core neither ranks
+  nor down-weights external items (`EEP-V0-015`); the one Core consumer, test selection, treats
+  `generated` as weak evidence that never qualifies and never blocks (`ETS-V0-014`). `learned`
+  stays excluded: it names a feedback-trained source whose derivation the record cannot cite,
+  whereas a `generated` relation still carries the generator as `rule` and its material as
+  `reference`.
 
 ## Non-goals and simpler baseline
 
@@ -180,11 +198,14 @@ the exit code, so an existing caller that never passes `--provider` observes no 
 |---|---|
 | Valid record, entity linked to changed path | one `results` entry with reason, relation, verification |
 | Record with `learned` relation | relation under `unknowns`; record still `loaded` |
+| Record with one `observed` and one `generated` relation | both admitted; the generated item's `relation.evidence` and `reason` say `generated`; nothing under `unknowns` |
 | Record with foreign provider endpoint | relation `unresolved` under `unknowns` |
 | Missing file | provider `unavailable`; exit 0; core receipt unchanged |
+| Record whose `capabilities.evidence_kinds` omit a kind it uses | provider `unsupported` with a Core-authored reason; nothing composes; exit 0 |
 | Unknown top-level member | provider `invalid`; exit 0 |
 | Provider revision equal / ancestor / descendant / orphan / unknown | the five `EEP-V0-009` states |
 | Path tracked with equal, differing, and absent pinned blob; untracked path | `verified`, `stale`, `verified`, `missing` |
+| Untracked path that the declared ancestor revision tracked; same path under `equal` or `revision-unavailable` | `deleted`; `missing` |
 | More entities than `--limit` | `omitted.results` counts the rest |
 | Same inputs twice | identical section bytes |
 | Evaluation over the mock-provider fixture | precision, recall, false-positive relationships 0, abstention accuracy, latency, receipt bytes |
@@ -193,22 +214,24 @@ the exit code, so an existing caller that never passes `--provider` observes no 
 
 The option is additive. Rollback removes `internal/extevidence`, the `--provider` option, this
 document, and decision 0309; no wire other than the impact receipt's optional `external` member is
-touched, and that member is absent for every existing caller.
+touched, and that member is absent for every existing caller. The `generated` kind (decision 0350)
+rolls back on its own by removing `EvidenceGenerated` from the kind map and the weak-evidence
+table; a record carrying it then returns to `excluded-evidence-kind`, and no other record changes.
 
 ## Traceability
 
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
-| `EEP-V0-001`, `EEP-V0-013` | `internal/extevidence/record.go` | `TestProviderRecordSchemaStrict` |
+| `EEP-V0-001`, `EEP-V0-013` | `internal/extevidence/record.go` | `TestProviderRecordSchemaStrict`, `TestCapabilitiesDecodeStrict` |
 | `EEP-V0-002` | `cmd/corvint/main.go` | `TestImpactProviderFlagParsing` |
 | `EEP-V0-003`, `EEP-V0-015` | `cmd/corvint/main.go` | `TestImpactProviderSectionSeparation` |
 | `EEP-V0-004` | `internal/extevidence/section.go` | `TestProviderSectionDeterministicAndPinned` |
-| `EEP-V0-005` | `internal/extevidence/section.go` | `TestProviderUnavailableAndInvalidAreStructured` |
+| `EEP-V0-005` | `internal/extevidence/section.go` | `TestProviderUnavailableAndInvalidAreStructured`, `TestCapabilitiesNegotiation` |
 | `EEP-V0-006` | `internal/extevidence/compose.go` | `TestEndpointIdentitiesResolve` |
-| `EEP-V0-007` | `internal/extevidence/compose.go` | `TestEvidenceKindLearnedExcluded`, `TestImpactProviderEvaluation` |
+| `EEP-V0-007` | `internal/extevidence/compose.go` | `TestEvidenceKindLearnedExcluded`, `TestEvidenceKindGeneratedAdmitted`, `TestImpactProviderEvaluation` |
 | `EEP-V0-008` | `internal/extevidence/compose.go` | `TestRelationTypesPreserved` |
 | `EEP-V0-009` | `internal/extevidence/freshness.go` | `TestFreshnessStatesFromAncestry` |
-| `EEP-V0-010` | `internal/extevidence/compose.go` | `TestReferenceVerificationStates` |
+| `EEP-V0-010` | `internal/extevidence/compose.go` | `TestReferenceVerificationStates`, `TestReferenceVerificationDeleted` |
 | `EEP-V0-011` | `internal/extevidence/compose.go` | `TestResultCompositionDirectDownstreamVerification`, `TestItemOrderGroupsByProvider` (provider-id ordering corrected 2026-09-18; section bytes change only for runs where two providers declare the same entity id), `TestImpactProviderEvaluation` |
 | `EEP-V0-012` | `internal/extevidence/compose.go` | `TestLimitsAndOmissions` |
 | `EEP-V0-014` | `cmd/corvint/main.go` | `TestImpactProviderReadOnly` |
@@ -216,6 +239,7 @@ touched, and that member is absent for every existing caller.
 | `EEP-V0-016` | `examples/evidence-provider/v0/main.go` | `TestProviderKitAuthoredProvider`, `TestProviderKitProducerRefusals` |
 | `EEP-V0-017` | `internal/extevidence/pin.go`, `examples/evidence-provider/v0/check/main.go` | `TestProviderKitExactPins`, `TestProviderKitChecker` |
 | `EEP-V0-018` | `internal/extevidence/pin_test.go`, kit README | `TestProviderKitFixtureConformance`, `TestProviderKitAuthoredProvider`, `TestImpactProviderSectionSeparation`; V1-0013 freeze and owner acceptance NOT_OBSERVED |
+| `EEP-V0-019` | `evidenceKinds` in `internal/extevidence/compose.go`, `weakEvidence` in `internal/extevidence/selection.go` | `TestEvidenceKindGeneratedAdmitted`, `TestSelectionConformance` |
 
 ## Unresolved decisions and promotion or kill criteria
 

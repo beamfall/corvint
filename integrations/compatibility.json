@@ -4,7 +4,7 @@
   "generatedAt": "2026-08-23",
   "entries": [
     {
-      "adapterVersion": "0.2.2",
+      "adapterVersion": "0.2.3",
       "documentedAgainstHostVersion": "2.1.238",
       "host": "claude-code",
       "hostVersion": "2.1.267",
@@ -40,7 +40,7 @@
       "validation": "native-static-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.2.6",
+      "adapterVersion": "0.2.7",
       "documentedAgainstHostVersion": "1.18.21",
       "host": "opencode",
       "hostVersion": "1.18.20",

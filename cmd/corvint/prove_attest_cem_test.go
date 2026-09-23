@@ -407,3 +407,65 @@ func TestProveCEMAttestFailsWhenTheCEMStatementCannotBeBuilt(t *testing.T) {
 		}
 	}
 }
+
+// TestProveCEMAttestationVerifiesAV1Predicate checks FPK-V0-034 at the CLI: a
+// cem/v1 envelope verifies with its predicateType, baseRevision and
+// patchSha256 in the receipt, VERIFIED with --cem and NOT_RUN without, while a
+// cem/0 receipt carries neither new member.
+func TestProveCEMAttestationVerifiesAV1Predicate(t *testing.T) {
+	t.Parallel()
+	root, _ := proveCEMRepository(t)
+	mapBytes, err := os.ReadFile(filepath.Join(root, ".corvint", "change.cem.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := wire.ParseMap(mapBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statement, err := attest.CEMStatementV1(".corvint/change.cem.json", mapBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope, err := attest.Envelope(statement, privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicDER, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := t.TempDir()
+	envelopePath, publicKeyPath := filepath.Join(directory, "cem.dsse.json"), filepath.Join(directory, "signer.pub")
+	if err := os.WriteFile(envelopePath, envelope, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(publicKeyPath, pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: publicDER}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		arguments []string
+		status    string
+	}{
+		{[]string{"--cem", ".corvint/change.cem.json"}, attest.CEMVerified},
+		{nil, attest.CEMNotRun},
+	} {
+		arguments := append([]string{"--verify-cem-attestation", envelopePath, "--attest-public-key", publicKeyPath}, test.arguments...)
+		receipt, _, stderr, code := runProveCLI(t, root, arguments...)
+		claim, _ := receipt["cem"].(map[string]any)
+		if code != 0 || receipt["status"] != test.status || receipt["predicateType"] != attest.CEMPredicateTypeV1 ||
+			claim["baseRevision"] != document.BaseRevision || claim["patchSha256"] != document.PatchSha256 {
+			t.Fatalf("exit %d, receipt %v, stderr %s", code, receipt, stderr)
+		}
+	}
+	v0Root, v0Envelope, v0PublicKey := emitCEMAttestation(t)
+	_, stdout, stderr, code := runProveCLI(t, v0Root, "--verify-cem-attestation", v0Envelope,
+		"--attest-public-key", v0PublicKey, "--cem", ".corvint/change.cem.json")
+	if code != 0 || bytes.Contains(stdout, []byte("baseRevision")) || bytes.Contains(stdout, []byte("patchSha256")) {
+		t.Fatalf("cem/0 receipt exit %d: %s %s", code, stdout, stderr)
+	}
+}

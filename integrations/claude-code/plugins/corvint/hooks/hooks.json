@@ -84,6 +84,40 @@
           }
         ]
       }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "pre-compact"
+            ],
+            "timeout": 2,
+            "statusMessage": "Pinning Corvint evidence before compaction"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "post-compact"
+            ],
+            "timeout": 2,
+            "statusMessage": "Verifying the Corvint compaction pin"
+          }
+        ]
+      }
     ]
   }
 }

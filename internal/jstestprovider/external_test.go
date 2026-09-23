@@ -542,7 +542,7 @@ func TestSensitiveInputPrefixOverlappingValuesRedactLongestFirst(t *testing.T) {
 		if strings.Join(values, "\x00") != strings.Join(first, "\x00") {
 			t.Fatalf("sensitive value order drifted: %q vs %q", values, first)
 		}
-		if got := boundaryScrubText("saw hunter2extra then hunter2", values); got != "saw [REDACTED] then [REDACTED]" {
+		if got := boundaryScrubText(boundaryScrubReplacer(values), "saw hunter2extra then hunter2"); got != "saw [REDACTED] then [REDACTED]" {
 			t.Fatalf("partial redaction: %q", got)
 		}
 	}

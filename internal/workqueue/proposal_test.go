@@ -398,6 +398,38 @@ func lexRanksLess(left, right []Rank) bool {
 	return false
 }
 
+// TestCandidateAdjacencyGroupOverlap pins candidateAdjacency's group-overlap
+// edges (WQO-V0), which now uses the allocation-free overlaps() instead of
+// intersection(), so a candidate pair is adjacent exactly when their group
+// sets share a member, both directions, and non-overlapping pairs stay
+// disconnected.
+func TestCandidateAdjacencyGroupOverlap(t *testing.T) {
+	candidates := []candidate{
+		{groups: []string{"a", "b"}},
+		{groups: []string{"b", "c"}},
+		{groups: []string{"d"}},
+	}
+	adjacency := candidateAdjacency(candidates)
+	want := [][]int{{1}, {0}, nil}
+	for index := range candidates {
+		if !equalInts(adjacency[index], want[index]) {
+			t.Fatalf("adjacency[%d] = %v, want %v", index, adjacency[index], want[index])
+		}
+	}
+}
+
+func equalInts(left, right []int) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
+}
+
 func equalRanks(left, right []Rank) bool {
 	if len(left) != len(right) {
 		return false

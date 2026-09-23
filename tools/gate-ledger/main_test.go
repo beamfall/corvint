@@ -387,3 +387,81 @@ func TestWorktreeDigestImportFailureRunsWithoutRecord(t *testing.T) {
 		}
 	})
 }
+
+// TestGoTestKeysResolvedPackagesPerPackage replays GL-V0-009: a resolved
+// package runs under a key over its proven bound and records how the bound
+// was proven, the key is hit from a linked worktree, an edit inside the bound
+// reruns the package and its dependents, and an edit outside it does not (the
+// root package encloses every path, so only the nested packages are asserted).
+func TestGoTestKeysResolvedPackagesPerPackage(t *testing.T) {
+	files := map[string]string{
+		"go.mod":                "module example.com/fixture\n\ngo 1.27\n",
+		"core/core.go":          "package core\n",
+		"core/core_test.go":     "package core\n\nimport \"testing\"\n\nfunc TestCore(t *testing.T) {}\n",
+		"dep/dep.go":            "package dep\n\nimport _ \"example.com/fixture/core\"\n",
+		"reader/reader_test.go": "package reader\n\nvar guide = \"docs/guide.md\"\n",
+		"docs/guide.md":         "guide\n",
+	}
+	for _, name := range []string{"main.go", "readers.go"} {
+		data, err := os.ReadFile(filepath.Join("..", "gate-affected-select", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		files["tools/gate-affected-select/"+name] = string(data)
+	}
+	root := fixtureRepository(t)
+	for file, body := range files {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, filepath.FromSlash(file))), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		write(t, root, file, body)
+	}
+	git(t, root, "add", "-A")
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "packages")
+	log := filepath.Join(t.TempDir(), "ARGS")
+	args := []string{"go-test", "--", "sh", "-c", `echo "$@" >> "$0"`, log}
+	packageLines := func(out string) string {
+		var lines []string
+		for _, line := range strings.Split(out, "\n") {
+			if strings.Contains(line, "go-test-package") {
+				lines = append(lines, line[:strings.LastIndex(line, " ")])
+			}
+		}
+		return strings.Join(lines, "\n")
+	}
+	code, out := ledgerRun(t, args...)
+	if code != 0 || !strings.Contains(out, "RECORD go-test-package example.com/fixture/core ") || !strings.Contains(out, "RECORD go-test-package example.com/fixture/reader ") {
+		t.Fatalf("first run: code %d, %q", code, out)
+	}
+	bound, _ := filepath.Glob(filepath.Join(os.Getenv("CORVINT_GATE_LEDGER_DIR"), "*.json"))
+	for _, name := range bound {
+		data, _ := os.ReadFile(name)
+		if strings.Contains(string(data), `"step":"go-test-package"`) && !strings.Contains(string(data), `"bound":"go list -deps -test `) {
+			t.Errorf("record without a bound proof: %s", data)
+		}
+	}
+	linked := filepath.Join(t.TempDir(), "linked")
+	git(t, root, "worktree", "add", "-q", "--detach", linked, "HEAD")
+	t.Chdir(linked)
+	if _, out := ledgerRun(t, args...); !strings.Contains(out, "HIT go-test-package example.com/fixture/core ") || strings.Contains(out, "RUN go-test-package") {
+		t.Fatalf("linked worktree: %q", out)
+	}
+	t.Chdir(root)
+	write(t, root, "core/core.go", "package core\n\nvar changed = true\n")
+	_, out = ledgerRun(t, args...)
+	if lines := packageLines(out); !strings.Contains(lines, "RUN go-test-package example.com/fixture/core:") || !strings.Contains(lines, "RUN go-test-package example.com/fixture/dep:") || !strings.Contains(lines, "HIT go-test-package example.com/fixture/reader") {
+		t.Fatalf("edit inside core's bound: %q", out)
+	}
+	data, _ := os.ReadFile(log)
+	if last := data[strings.LastIndex(strings.TrimSpace(string(data)), "\n")+1:]; !strings.Contains(string(last), "example.com/fixture/core example.com/fixture/dep") || strings.Contains(string(last), "reader") {
+		t.Fatalf("go test received %q", last)
+	}
+	write(t, root, "docs/guide.md", "guide, edited\n")
+	if _, out := ledgerRun(t, args...); !strings.Contains(out, "RUN go-test-package example.com/fixture/reader:") || !strings.Contains(out, "HIT go-test-package example.com/fixture/core ") {
+		t.Fatalf("edit inside reader's bound: %q", out)
+	}
+	write(t, root, "docs/decisions/0001.md", "one, edited\n")
+	if _, out := ledgerRun(t, args...); strings.Contains(out, "RUN go-test-package example.com/fixture/") {
+		t.Fatalf("edit outside the bounds of core, dep and reader: %q", out)
+	}
+}

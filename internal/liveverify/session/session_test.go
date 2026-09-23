@@ -127,6 +127,8 @@ func baseConfig(t *testing.T, dir, modPath, testPath string, log *eventLog) Conf
 // assertion in a watched test file automatically drives the session from a
 // passing baseline to failed, then back to passed on a second edit.
 func TestRunningFailedPassed(t *testing.T) {
+	// Every wait below is a hang detector, not a performance bound (decision
+	// 0082): under whole-suite load the running event alone has taken >5s.
 	const runDeadline = 5 * time.Minute
 
 	dir := t.TempDir()
@@ -152,14 +154,14 @@ func TestRunningFailedPassed(t *testing.T) {
 	}
 	t.Cleanup(shutdown)
 
-	waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 1 && e.State == StateRunning })
+	waitFor(t, log, runDeadline, func(e Event) bool { return e.Sequence == 1 && e.State == StateRunning })
 	passed := waitForSequenceTerminal(t, log, 1, StatePassed, runDeadline)
 	assertProjection(t, passed, testvalidity.ExecutionPassed, "", testvalidity.FreshnessCurrent)
 
 	if err := os.WriteFile(testPath, []byte(failing), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 2 && e.State == StateRunning })
+	waitFor(t, log, runDeadline, func(e Event) bool { return e.Sequence == 2 && e.State == StateRunning })
 	failed := waitForSequenceTerminal(t, log, 2, StateFailed, runDeadline)
 	assertProjection(t, failed, testvalidity.ExecutionFailed, "ASSERTION_OR_TEST", testvalidity.FreshnessCurrent)
 	if len(failed.Tests) != 1 || failed.Tests[0].Name != "TestAssertion" || failed.Tests[0].Package != "fixture" ||
@@ -173,7 +175,7 @@ func TestRunningFailedPassed(t *testing.T) {
 	if err := os.WriteFile(testPath, []byte(passing), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	waitFor(t, log, 5*time.Second, func(e Event) bool { return e.Sequence == 3 && e.State == StateRunning })
+	waitFor(t, log, runDeadline, func(e Event) bool { return e.Sequence == 3 && e.State == StateRunning })
 	waitForSequenceTerminal(t, log, 3, StatePassed, runDeadline)
 	shutdown()
 }

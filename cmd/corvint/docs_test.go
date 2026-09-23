@@ -341,19 +341,14 @@ func TestDocsHelpPrerequisitesAndWorkingExample(t *testing.T) {
 			t.Errorf("help omits prerequisite %q", required)
 		}
 	}
-	root := docsRepository(t)
-	for name, body := range map[string]string{
-		"docs/specs/source-documentation-draft-v0.md": "# Source draft\n## Agent digest\n- Claim: Plan\n## Details\nFull source.\n",
-		"internal/doccompiler/api.go":                 "package doccompiler\nfunc Plan() {}\n",
-	} {
-		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0644); err != nil {
-			t.Fatal(err)
-		}
+	// V1-0030: exercise the advertised example against this repository's own
+	// committed HEAD source, not a synthetic fixture — a synthetic
+	// internal/doccompiler stand-in previously masked the real package
+	// exceeding the 64-declaration bound (SDD-V0-005).
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
 	}
-	docsCommit(t, root)
 	commands := 0
 	input := ""
 	for _, line := range strings.Split(docsHelp, "\n") {

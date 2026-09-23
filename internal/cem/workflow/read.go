@@ -34,16 +34,16 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 		return nil, err
 	}
 	// Stage 3: profile-forbidden arguments.
-	if document.Spec == wire.Spec02 && options.PatchGiven {
-		return nil, invalidArguments("cem/0.2 %s does not accept --patch", action)
+	if wire.Canonical(document.Spec) && options.PatchGiven {
+		return nil, invalidArguments("%s %s does not accept --patch", document.Spec, action)
 	}
 	// Stage 4: profile-required independent inputs.
-	if document.Spec == wire.Spec02 {
+	if wire.Canonical(document.Spec) {
 		if options.ExpectedBase == "" {
-			return nil, cemcode.New(cemcode.ExpectedBaseRequired, "cem/0.2 %s requires --expected-base", action)
+			return nil, cemcode.New(cemcode.ExpectedBaseRequired, "%s %s requires --expected-base", document.Spec, action)
 		}
 		if options.Target == "" {
-			return nil, cemcode.New(cemcode.TargetRequired, "cem/0.2 %s requires --target", action)
+			return nil, cemcode.New(cemcode.TargetRequired, "%s %s requires --target", document.Spec, action)
 		}
 	}
 	// Stages 5–6: repository validation, after every stage-2/3/4 judgment.
@@ -112,7 +112,7 @@ func (e patchEnvelope) apply(result map[string]any, isStatus bool) {
 }
 
 func (s *Session) runVerification(ctx context.Context, document *wire.Map, raw []byte, options ReadOptions) (map[string]any, map[string]any, []any, patchEnvelope, error) {
-	if document.Spec == wire.Spec02 {
+	if wire.Canonical(document.Spec) {
 		envelope := patchEnvelope{
 			legacyPatch: nil, patchSource: "canonical-derived",
 			excluded: wire.ExcludedCEMPath, warnings: []any{},
@@ -249,6 +249,85 @@ func sameFile(first, second string) bool {
 }
 
 // renderReportText renders the deterministic human report.
+// Test-claim qualification outcomes rendered by the reviewer report
+// (TCQ-V0-053). A hunk citing test-claim evidence is `tested` only when its
+// coverage witness covers at least one added line; otherwise the claim is
+// downgraded and the reason names why. A survived mutant (TCQ-V0-058) is the
+// strongest reason and outranks a missing or uncovered coverage witness.
+const (
+	claimTested           = "tested"
+	claimNoWitness        = "no-coverage-witness"
+	claimWitnessUncovered = "coverage-witness-uncovered"
+	claimMutantsSurvived  = "mutants-survived"
+)
+
+func testClaimOutcome(hunk wire.Hunk) string {
+	if hunk.Discriminates != nil && hunk.Discriminates.State == wire.DiscriminationSurvived {
+		return claimMutantsSurvived
+	}
+	if hunk.Coverage == nil {
+		return claimNoWitness
+	}
+	if hunk.Coverage.State != wire.CoverageCovered {
+		return claimWitnessUncovered
+	}
+	return claimTested
+}
+
+func citesTestClaim(hunk wire.Hunk) bool {
+	for _, item := range hunk.Basis {
+		if item.Relation == "test-claim" {
+			return true
+		}
+	}
+	return false
+}
+
+// renderTestClaims lists every hunk that cites a test claim with its
+// qualification; it is empty when no hunk does, so reports without test
+// claims keep their current shape.
+func renderTestClaims(document *wire.Map) string {
+	var out strings.Builder
+	for _, hunk := range document.Hunks {
+		if !citesTestClaim(hunk) {
+			continue
+		}
+		if out.Len() == 0 {
+			out.WriteString("\n## Test claims\n\n")
+		}
+		outcome := testClaimOutcome(hunk)
+		if outcome == claimTested {
+			out.WriteString(fmt.Sprintf("- %s `%s`: tested (test run %s, coverprofile `%s`)%s\n",
+				mdreport.CodeSpan(hunk.Path), hunk.ID, mdreport.CodeSpan(hunk.Coverage.TestRun), hunk.Coverage.ProfileSha256, mutationNote(hunk)))
+			continue
+		}
+		out.WriteString(fmt.Sprintf("- %s `%s`: downgraded from tested; reason `%s`%s\n",
+			mdreport.CodeSpan(hunk.Path), hunk.ID, outcome, mutationNote(hunk)))
+	}
+	return out.String()
+}
+
+// mutationNote appends a hunk's discrimination witness to its test-claim
+// line (TCQ-V0-058): the kill count, every surviving mutant, or why the run
+// did not judge the hunk. A hunk without a witness renders as before.
+func mutationNote(hunk wire.Hunk) string {
+	witness := hunk.Discriminates
+	if witness == nil {
+		return ""
+	}
+	switch witness.State {
+	case wire.DiscriminationDiscriminates:
+		return fmt.Sprintf("; discriminates (killed %d of %d mutants)", witness.Killed, witness.Mutants)
+	case wire.DiscriminationNotRun:
+		return fmt.Sprintf("; mutation not-run (%s)", mdreport.CodeSpan(witness.Detail))
+	}
+	survivors := make([]string, 0, len(witness.Survivors))
+	for _, mutant := range witness.Survivors {
+		survivors = append(survivors, fmt.Sprintf("%s at %s:%d", mutant.Operator, mdreport.CodeSpan(hunk.Path), mutant.Line))
+	}
+	return fmt.Sprintf(" (%d of %d mutants survived: %s)", witness.Survived, witness.Mutants, strings.Join(survivors, "; "))
+}
+
 func renderReportText(document *wire.Map, verification, counts map[string]any, work, policy []any) string {
 	var out strings.Builder
 	out.WriteString("# Change Evidence Map review\n\n")
@@ -265,6 +344,7 @@ func renderReportText(document *wire.Map, verification, counts map[string]any, w
 	}
 	out.WriteString(fmt.Sprintf("\n## Dispositions\n\n- total: %d\n- supported: %d\n- unknown: %d\n- mechanical: %d\n",
 		counts["total"], counts["supported"], counts["unknown"], counts["mechanical"]))
+	out.WriteString(renderTestClaims(document))
 	if issues, ok := verification["issues"].([]any); ok && len(issues) > 0 {
 		out.WriteString("\n## Issues\n\n")
 		for _, issue := range issues {

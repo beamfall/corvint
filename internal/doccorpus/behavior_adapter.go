@@ -248,6 +248,14 @@ func validatePreviousBehaviorAdapterResult(request BehaviorAdapterRequest, resul
 		}
 		claimIDs[key] = true
 	}
+	for _, link := range result.Delta.LostReverseLinks {
+		// V1-0050: lost_reverse_links is a published text field; the corpus
+		// text rule (textOK) was not enforced on read, so a NUL-joined value
+		// from before this fix would otherwise round-trip silently.
+		if !textOK(link) {
+			return invalid("lost reverse link")
+		}
+	}
 	metrics := make([]string, 0, len(result.Coverage))
 	for _, row := range result.Coverage {
 		metrics = append(metrics, row.Metric)
@@ -297,16 +305,37 @@ func validatePreviousBehaviorAdapterResult(request BehaviorAdapterRequest, resul
 	for _, test := range registry.Tests {
 		for _, criterion := range test.Criteria {
 			variation, ok := variations[criterion]
+			if !ok {
+				// V1-0044: forward emission (reconcileTest) does not prune a
+				// criterion absent from the normative variation set; it retains
+				// it and reports undocumented-tested-behavior. A prior result
+				// carrying that finding is not invalid input.
+				continue
+			}
 			claim, claimed := claims[test.ID+"\x00"+criterion]
-			if !ok || !slices.Contains(variation.Tests, test.ID) || !claimed || !behaviorAdapterClaimMatches(claim, variation) {
+			if !slices.Contains(variation.Tests, test.ID) || !claimed || !behaviorAdapterClaimMatches(claim, variation) {
 				return invalid("test variation claim")
 			}
 		}
 	}
 	for _, record := range result.Claims {
 		test, testExists := tests[record.TestID]
+		if !testExists {
+			return invalid("orphan claim")
+		}
 		variation, variationExists := variations[record.Claim.VariationID]
-		if !testExists || !variationExists || !slices.Contains(test.Criteria, variation.ID) || !slices.Contains(variation.Tests, test.ID) || !behaviorAdapterClaimMatches(record.Claim, variation) {
+		if !variationExists {
+			// Same dangling-reference tolerance as above, but only for a
+			// variation the test itself still declares as a criterion: that is
+			// the shape reconcileTest retains and reports as
+			// undocumented-tested-behavior. A claim naming a variation the test
+			// never declared is not a retained finding, it is corruption.
+			if slices.Contains(test.Criteria, record.Claim.VariationID) {
+				continue
+			}
+			return invalid("orphan claim")
+		}
+		if !slices.Contains(test.Criteria, variation.ID) || !slices.Contains(variation.Tests, test.ID) || !behaviorAdapterClaimMatches(record.Claim, variation) {
 			return invalid("orphan claim")
 		}
 	}
@@ -1685,6 +1714,22 @@ func behaviorVariationDigests(variations []BehaviorAdapterVariation) (map[string
 	return result, nil
 }
 
+// reverseLinkJoin joins a reverse-link key's fields into one printable string.
+// The corpus text rule (encoding.go textOK) forbids NUL in any published
+// field, so this can no longer join fields with "\x00" as lost_reverse_links
+// did before V1-0050 (fcdb12dc). A field may itself contain "|" or "\", so
+// each field is backslash-escaped before joining on "|"; that keeps distinct
+// field tuples from folding into the same joined string the way an
+// unescaped separator could.
+func reverseLinkJoin(parts ...string) string {
+	escaped := make([]string, len(parts))
+	for i, part := range parts {
+		part = strings.ReplaceAll(part, "\\", "\\\\")
+		escaped[i] = strings.ReplaceAll(part, "|", "\\|")
+	}
+	return strings.Join(escaped, "|")
+}
+
 func behaviorReverseLinks(adapterResult BehaviorAdapterResult) (map[string]bool, error) {
 	links := map[string]bool{}
 	provider := adapterResult.Provider
@@ -1699,7 +1744,7 @@ func behaviorReverseLinks(adapterResult BehaviorAdapterResult) (map[string]bool,
 			if err != nil {
 				return nil, err
 			}
-			links["assertion:"+test.ID+"\x00"+assertion.Criterion+"\x00"+assertion.ID+"\x00"+digest] = true
+			links["assertion:"+reverseLinkJoin(test.ID, assertion.Criterion, assertion.ID, digest)] = true
 		}
 	}
 	for _, flow := range provider.BehaviorContracts.Flows {
@@ -1710,20 +1755,20 @@ func behaviorReverseLinks(adapterResult BehaviorAdapterResult) (map[string]bool,
 			}
 			for _, criterion := range flow.Criteria {
 				if slices.Contains(test.Criteria, criterion) {
-					links["flow-test:"+flow.ID+"\x00"+criterion+"\x00"+testID+"\x00"+test.Project] = true
+					links["flow-test:"+reverseLinkJoin(flow.ID, criterion, testID, test.Project)] = true
 				}
 			}
 		}
 	}
 	for _, variation := range adapterResult.Variations {
-		links["variation-flow:"+variation.ID+"\x00"+variation.Flow] = true
+		links["variation-flow:"+reverseLinkJoin(variation.ID, variation.Flow)] = true
 		for _, testID := range variation.Tests {
-			links["variation-test:"+variation.ID+"\x00"+testID] = true
+			links["variation-test:"+reverseLinkJoin(variation.ID, testID)] = true
 		}
 	}
 	for _, test := range provider.BehaviorContracts.Tests {
 		for _, criterion := range test.Criteria {
-			links["test-variation:"+test.ID+"\x00"+criterion] = true
+			links["test-variation:"+reverseLinkJoin(test.ID, criterion)] = true
 		}
 	}
 	for _, record := range adapterResult.Claims {
@@ -1731,7 +1776,7 @@ func behaviorReverseLinks(adapterResult BehaviorAdapterResult) (map[string]bool,
 		if err != nil {
 			return nil, err
 		}
-		links["claim:"+record.TestID+"\x00"+record.Claim.VariationID+"\x00"+digest] = true
+		links["claim:"+reverseLinkJoin(record.TestID, record.Claim.VariationID, digest)] = true
 	}
 	return links, nil
 }

@@ -70,6 +70,11 @@ type workAdapterRunner struct {
 	bound         *workExecutable
 	binding       workCorvintExecutableBinding
 	verifyTarget  func(context.Context) error
+	// failure and failureReceipt keep the last unsuccessful invocation's cause
+	// and receipt for in-process diagnosis; the command result carries only
+	// the error code and drops the receipt.
+	failure        error
+	failureReceipt workqueue.AdapterReceipt
 }
 
 func newWorkAdapterRunner(ctx context.Context, root, path string, source workSource, policy *workqueue.Policy) (*workAdapterRunner, error) {
@@ -149,6 +154,7 @@ func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimi
 		runner.total += int64(receipt.StdoutBytes)
 		workqueue.RefreshReceipt(&receipt)
 		if err != nil {
+			runner.failure, runner.failureReceipt = err, receipt
 			return nil, receipt, err
 		}
 		return stdout.data, receipt, nil

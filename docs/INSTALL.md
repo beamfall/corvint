@@ -304,6 +304,18 @@ is active; inspect and quarantine only the abandoned staging directory you own. 
 concurrent-writer safety and power-loss durability are not provided. Never remove the retained
 candidate or another version as part of staging cleanup.
 
-The fixture lifecycle regressions exercise these mechanisms in temporary directories. They do not
-qualify a future release, every supported platform, or restoration of arbitrary ticket-store data.
-See the [release runbook](RELEASE-RUNBOOK.md) and [security/support boundaries](SECURITY.md).
+What a damaged snapshot does, measured (`SOP-V0-006` in
+[Stable operations V0](specs/stable-operations-v0.md)): a read verb such as `corvint context`
+treats a truncated or byte-corrupted `.corvint/index/*.gob` as a miss, rebuilds in memory, exits 0
+with the same packet bytes, and never rewrites the file; `corvint index --if-stale` reports
+`mutates: true`, writes a fresh snapshot of the same size, and the next `--if-stale` reports
+`fresh`. The rebuilt snapshot is not byte-identical to the original, so compare packets, not
+snapshot files, when checking a recovery.
+
+`script/check-install-lifecycle.sh` runs this whole lifecycle in a temporary directory against one
+release archive (`CORVINT_LIFECYCLE_ARCHIVE`) or one binary (`CORVINT_LIFECYCLE_BINARY`): verified
+install, first index and read, upgrade into a second store, rollback, uninstall with `.corvint`
+retained, backup and restore of `.corvint`, and both corruption cases. It prints one `step NAME: ok`
+line per step and a final `SUMMARY status=PASS|FAIL` line; it does not qualify a future release,
+every supported platform, or restoration of arbitrary ticket-store data. See the
+[release runbook](RELEASE-RUNBOOK.md) and [security/support boundaries](SECURITY.md).

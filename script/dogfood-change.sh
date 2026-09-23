@@ -6,6 +6,14 @@
 set -uo pipefail
 export LC_ALL=C
 
+# This script asserts on evidence output with ripgrep (rg); without it every rg call below fails
+# as a bare "command not found" deep into the run, which reads as a real defect instead of a
+# missing prerequisite. Fail closed here, before any build or Git work starts.
+if ! command -v rg >/dev/null 2>&1; then
+    printf 'dogfood-change: REFUSE unsupported-environment-missing-rg\n' >&2
+    exit 1
+fi
+
 # Read the executable selection before Git, temporary files, or a selected executable can run.
 corvint_bin_set=${CORVINT_BIN+x}
 corvint_bin=${CORVINT_BIN-}

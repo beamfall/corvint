@@ -116,40 +116,51 @@ func boundaryCollectSensitiveValues(receipt Receipt, policy normalizedSensitiveP
 	return values
 }
 
-func boundaryScrubText(value string, sensitive []string) string {
+// boundaryScrubReplacer builds one strings.Replacer for the whole receipt: a single pass per
+// field instead of one strings.ReplaceAll per sensitive value per field. Patterns keep
+// boundaryCollectSensitiveValues' longest-first order, which Replacer also uses to pick the
+// match at a given position, so a value that is a prefix of another still never leaves the
+// longer value's tail behind.
+func boundaryScrubReplacer(sensitive []string) *strings.Replacer {
+	pairs := make([]string, 0, 2*len(sensitive))
+	for _, item := range sensitive {
+		pairs = append(pairs, item, SensitiveInputRedactionMarker)
+	}
+	return strings.NewReplacer(pairs...)
+}
+
+func boundaryScrubText(replacer *strings.Replacer, value string) string {
 	if value == SensitiveInputRedactionMarker {
 		return value
 	}
-	for _, item := range sensitive {
-		value = strings.ReplaceAll(value, item, SensitiveInputRedactionMarker)
-	}
-	return value
+	return replacer.Replace(value)
 }
 
 func boundaryScrubReceiptRiskFields(receipt *Receipt, sensitive []string) {
+	replacer := boundaryScrubReplacer(sensitive)
 	var scrubSteps func([]BrowserStep)
 	scrubSteps = func(steps []BrowserStep) {
 		for i := range steps {
-			steps[i].Error = boundaryScrubText(steps[i].Error, sensitive)
+			steps[i].Error = boundaryScrubText(replacer, steps[i].Error)
 			for j := range steps[i].Attachments {
-				steps[i].Attachments[j].Name = boundaryScrubText(steps[i].Attachments[j].Name, sensitive)
-				steps[i].Attachments[j].Path = boundaryScrubText(steps[i].Attachments[j].Path, sensitive)
+				steps[i].Attachments[j].Name = boundaryScrubText(replacer, steps[i].Attachments[j].Name)
+				steps[i].Attachments[j].Path = boundaryScrubText(replacer, steps[i].Attachments[j].Path)
 			}
 			scrubSteps(steps[i].Steps)
 		}
 	}
 	for i := range receipt.Tests {
-		receipt.Tests[i].FailureMessage = boundaryScrubText(receipt.Tests[i].FailureMessage, sensitive)
+		receipt.Tests[i].FailureMessage = boundaryScrubText(replacer, receipt.Tests[i].FailureMessage)
 		for j := range receipt.Tests[i].Artifacts {
-			receipt.Tests[i].Artifacts[j].Name = boundaryScrubText(receipt.Tests[i].Artifacts[j].Name, sensitive)
-			receipt.Tests[i].Artifacts[j].Path = boundaryScrubText(receipt.Tests[i].Artifacts[j].Path, sensitive)
+			receipt.Tests[i].Artifacts[j].Name = boundaryScrubText(replacer, receipt.Tests[i].Artifacts[j].Name)
+			receipt.Tests[i].Artifacts[j].Path = boundaryScrubText(replacer, receipt.Tests[i].Artifacts[j].Path)
 		}
 		for j := range receipt.Tests[i].Attempts {
 			scrubSteps(receipt.Tests[i].Attempts[j].Steps)
 		}
 	}
 	if receipt.Infrastructure != nil {
-		receipt.Infrastructure.Detail = boundaryScrubText(receipt.Infrastructure.Detail, sensitive)
+		receipt.Infrastructure.Detail = boundaryScrubText(replacer, receipt.Infrastructure.Detail)
 	}
 }
 

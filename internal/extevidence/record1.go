@@ -31,6 +31,7 @@ type Record1 struct {
 	Repositories []Repository1 `json:"repositories"`
 	Entities     []Entity      `json:"entities"`
 	Relations    []Relation1   `json:"relations"`
+	Capabilities *Capabilities `json:"capabilities,omitempty"`
 }
 
 // Repository1 declares one repository: `id` and `origin` are authoritative,
@@ -137,7 +138,7 @@ func validate1(record Record1) error {
 			return err
 		}
 	}
-	return nil
+	return validateCapabilities(record.Capabilities)
 }
 
 // checkScope2 refuses a pinned blob on a V2 directory scope: a path ending in

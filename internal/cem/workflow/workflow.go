@@ -85,7 +85,7 @@ func invalidArguments(format string, args ...any) *cemcode.Error {
 func buildCandidate(spec, base string, patchBytes []byte, parsed *patch.Patch) *wire.Map {
 	digest := sha256.Sum256(patchBytes)
 	document := &wire.Map{Spec: spec, BaseRevision: base, PatchSha256: hex.EncodeToString(digest[:])}
-	if spec == wire.Spec02 {
+	if wire.Canonical(spec) {
 		document.ExcludedPath = wire.ExcludedCEMPath
 	}
 	for _, hunk := range parsed.Hunks {
@@ -117,7 +117,7 @@ func encodeMap(document *wire.Map) []byte {
 		"patchSha256":  document.PatchSha256,
 		"spec":         document.Spec,
 	}
-	if document.Spec == wire.Spec02 {
+	if wire.Canonical(document.Spec) {
 		value["excludedPath"] = document.ExcludedPath
 	}
 	return indentedCanonicalJSON(value)
@@ -233,13 +233,49 @@ func documentHunks(document *wire.Map) []any {
 		for _, item := range hunk.Basis {
 			basis = append(basis, map[string]any{"evidenceId": item.EvidenceID, "relation": item.Relation})
 		}
-		hunks = append(hunks, map[string]any{
+		entry := map[string]any{
 			"basis": basis, "disposition": hunk.Disposition, "id": hunk.ID,
 			"newRange": rangeValue(hunk.NewRange), "oldRange": rangeValue(hunk.OldRange),
 			"path": hunk.Path, "reason": hunk.Reason,
-		})
+		}
+		if hunk.Coverage != nil {
+			entry["coverage"] = coverageValue(hunk.Coverage)
+		}
+		if hunk.Discriminates != nil {
+			entry["discriminates"] = discriminationValue(hunk.Discriminates)
+		}
+		hunks = append(hunks, entry)
 	}
 	return hunks
+}
+
+func coverageValue(witness *wire.CoverageWitness) map[string]any {
+	covered := make([]any, 0, len(witness.Covered))
+	for _, item := range witness.Covered {
+		covered = append(covered, rangeValue(item))
+	}
+	return map[string]any{
+		"covered": covered, "mode": witness.Mode, "profileSha256": witness.ProfileSha256,
+		"state": witness.State, "testRun": witness.TestRun,
+	}
+}
+
+func discriminationValue(witness *wire.DiscriminationWitness) map[string]any {
+	survivors := make([]any, 0, len(witness.Survivors))
+	for _, item := range witness.Survivors {
+		survivors = append(survivors, map[string]any{
+			"description": item.Description, "line": item.Line, "operator": item.Operator,
+		})
+	}
+	return map[string]any{
+		"bounds": map[string]any{
+			"maxHunks": witness.Bounds.MaxHunks, "maxMutants": witness.Bounds.MaxMutants,
+			"wallTimeSeconds": witness.Bounds.WallTimeSeconds,
+		},
+		"detail": witness.Detail, "killed": witness.Killed, "mutants": witness.Mutants,
+		"selectionSha256": witness.SelectionSha256, "state": witness.State,
+		"survived": witness.Survived, "survivors": survivors, "treeRevision": witness.TreeRevision,
+	}
 }
 
 func rangeValue(value wire.Range) map[string]any {
@@ -294,7 +330,7 @@ func successVerification(document *wire.Map, outcome *verify.Outcome, driftRejec
 	if driftRejected {
 		result["issues"] = []any{map[string]any{"code": cemcode.EvidenceDrift, "message": "CEM evidence changed at target"}}
 	}
-	if document.Spec == wire.Spec02 {
+	if wire.Canonical(document.Spec) {
 		result["assurance"] = "canonical"
 	}
 	return result
@@ -318,7 +354,7 @@ func failureVerification(spec string, err error, canonicallyBound bool) map[stri
 		"patchSha256": "", "hunksTotal": 0, "evidenceTotal": 0,
 		"issues": []any{map[string]any{"code": code, "message": message}}, "drift": []any{},
 	}
-	if spec == wire.Spec02 {
+	if wire.Canonical(spec) {
 		result["assurance"] = "structural-only"
 		if canonicallyBound {
 			result["assurance"] = "canonical"

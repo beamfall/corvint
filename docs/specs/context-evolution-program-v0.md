@@ -89,7 +89,13 @@ unresolved, or rehydrated without reading the transcript or claiming model atten
 **Simpler baseline.** Trust native compaction and re-search the repository after an obvious miss.
 
 **Current evidence.** Codex exposes a compact-start lifecycle, and Corvint now rehydrates exact tracked
-dirty-path impact while digesting untracked gaps. No survival manifest or multi-cycle trial exists.
+dirty-path impact while digesting untracked gaps. The Claude Code plugin additionally registers
+`PreCompact` and `PostCompact` (decision 0340, AHI-026 to AHI-030): before compaction it pins the
+compact packet's revision and tracked dirty paths into the compactor's instructions, and after
+compaction it verifies the pin the summary preserved against the object store and names every
+non-rehydratable path to the user. That is a per-cycle pin verdict, not a survival manifest: the
+verdict never reaches model context, the hook payloads were read from the installed 2.1.267 host
+only, and no live compaction cycle or multi-cycle trial has run.
 
 **Gate.** Run at least three forced compaction cycles in each of 30 held-out tasks across Corvint,
 Beamfall, and an unrelated repository. Require zero critical-selector loss, 100% classification of
@@ -173,6 +179,6 @@ a learned profile project authority; passing item 5 does not establish a shared 
 |---|---:|---|---|
 | Authority Closure Compiler | experimental | Corvint/Beamfall dogfood + focused regressions | 100-prompt/10-repository authority corpus |
 | Portable Snapshot Context Capsule | experimental | shared core, protocol golden, single-snapshot regressions | four-host black-box matrix |
-| Proof-Carrying Compaction Survival | not-started | exact dirty-path compact recovery only | 30-task three-cycle survival trial |
+| Proof-Carrying Compaction Survival | not-started | exact dirty-path compact recovery; Claude Code `PreCompact`/`PostCompact` pin verdict (`TestAHI027ClaudePreCompactEmitsPinFromCompactionBlock`, `TestAHI028ClaudePostCompactReportsNonRehydratablePaths`), live cycle `NOT_RUN` | 30-task three-cycle survival trial |
 | Counterfactual Minimum Witness Compiler | not-started | frozen PCCO contract only | observed held-out cost-per-solved-task trial |
 | Live Context Frontier | not-started | composition hypothesis only | 30 five-session mutation sequences |
