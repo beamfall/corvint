@@ -358,7 +358,7 @@ and treat that as closing?
 Already closed: acknowledgement may not mint `HARNESS_ATTESTED` (`HAR-V0-010`,
 `harness-authority-relation-v0.md:150-155`), and `strict-v0` has no acknowledgement input at all
 (`CF-V0-005`, `change-frontier-v0.md:105-109`). `CF-V0`'s deferred list gives the reason acknowledgement
-waits: "current wires have no authority capable of expressing them" (`:486-487`).
+waits: "current wires have no authority capable of expressing them" (`:508-509`).
 
 **Options.**
 

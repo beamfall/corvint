@@ -338,7 +338,7 @@ CF-V0-029	docs/specs/change-frontier-v0.md	410	profile evolution is additive by 
 CF-V0-030	docs/specs/change-frontier-v0.md	413	delivery remains `experimental` and candidate-only until implementation, canonic
 CF-V0-031	docs/specs/change-frontier-v0.md	366	a governing document confers authority on a change set only when it is resolved
 CF-V0-032	docs/specs/change-frontier-v0.md	381	the "reported as such" disposition `CF-V0-031` requires is a closed, named form,
-CF-V0-033	docs/specs/change-frontier-v0.md	440	`corvint frontier` MUST be read-only, per AGENTS.md invariant 4: on every path —
+CF-V0-033	docs/specs/change-frontier-v0.md	445	`corvint frontier` MUST be read-only, per AGENTS.md invariant 4: on every path —
 CF-V0-034	docs/specs/change-frontier-v0.md	418	from 2026-09-22 `frontier/0` with error profile `frontier-error/0` is frozen by
 CF-V1-001	docs/specs/change-frontier-profile-1.md	102	the profile identifier is exactly `frontier/1`; its error profile is exactly
 CF-V1-002	docs/specs/change-frontier-profile-1.md	105	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,

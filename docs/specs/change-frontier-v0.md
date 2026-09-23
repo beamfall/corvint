@@ -420,7 +420,12 @@ the invariant is restated here over authority resolution itself.
   `vectors/` and `fixtures/` by SHA-256, and the suite MUST fail on any byte drift or any unlisted
   or missing file. Its `states` MUST pin the stable, relocated, stale, ambiguous, deleted and
   unknown states to existing fixture cases or codec vectors, or state the gap where no vector
-  reaches the state. Successor rule: under `CF-V0-029` a successor profile takes a new identifier
+  reaches the state. A state whose named case skips at runtime MUST also state that skip as a gap.
+  The frozen gaps are: relocated evidence has no frontier vector; the inherited CEM `evidence-drift`
+  refusal has no frontier vector; and the deleted state has only a case that skips at runtime with
+  capability `obligation-free-universe`, as do one stable, one stale, one ambiguous and one unknown
+  case. The relocated, `evidence-drift` and deleted states are pinned at the CEM layer instead.
+  Successor rule: under `CF-V0-029` a successor profile takes a new identifier
   and its own suite, and this suite's bytes and expected outcomes are never edited. The successor
   reader MUST reproduce every frozen `frontier/0` result, or refuse it with one stated,
   deterministic code and exit 2 before stdout. Migration rule: a `frontier/0` result is derived

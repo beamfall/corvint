@@ -289,7 +289,7 @@ A rebaseline is therefore not a re-capture, and this is the expensive part:
   immediate blocker: it is exactly what `CF-V0-029` forbids.
 - One `INTENT_TEST` item removed while the accepted root set is empty is an immediate blocker, on the
   same footing as `CF-V0`'s "caller-reported TCQ relation closing one item"
-  (`docs/specs/change-frontier-v0.md:466-469`).
+  (`docs/specs/change-frontier-v0.md:471-474`).
 - Advertising `EMPTY`, a Stop hook, or a cleared degradation on the strength of this profile alone is
   an immediate blocker under `CF-V1-016`.
 
