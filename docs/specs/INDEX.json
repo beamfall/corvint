@@ -1,5 +1,28 @@
 [
   {
+    "path": "docs/specs/core-compatibility-freeze-v1.md",
+    "title": "Core Compatibility Freeze V1",
+    "reqPrefix": "CCF-V1",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.7.0 to 1.0.",
+    "dependsOn": [
+      "docs/specs/affected-plan-v0.md",
+      "docs/specs/diagnostic-repair-contract-v0.md",
+      "docs/specs/falsifiable-packet-v0.md",
+      "docs/specs/genesis-backfill.md",
+      "docs/specs/go-production-kernel-migration-v0.md",
+      "docs/specs/index-snapshot-v0.md",
+      "docs/specs/local-trace-producer-migration-v0.md",
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint"
+    ]
+  },
+  {
     "path": "docs/specs/application-flow-understanding-v0.md",
     "title": "Application Flow Understanding V0",
     "reqPrefix": "AFU-V0",

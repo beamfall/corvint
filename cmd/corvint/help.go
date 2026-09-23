@@ -344,7 +344,7 @@ Global options:
   --version    Print the Corvint version and build number.
   --help       Print this help on stdout and exit 0.
 
-Support boundary:
+` + commandMaturityHelp + `Support boundary:
   This binary is the only Corvint runtime and implements only the slices listed
   above; commands marked Experimental carry no stability promise. init, adopt, query, feature, and impact are qualified only on Darwin and
   Linux. All commands are local-only and make no network or telemetry request.
@@ -1116,4 +1116,25 @@ advisory affected advice and local refs/heads overlap hints; max-refs is 1..32.
 Missing sources, index data and bounded branch paths remain unknown. No scripts,
 tests or suggestions execute. No index, trace or observation ledger is written.
 CEM, OCM, frontier and mandatory test obligations remain open.
+`
+
+// commandMaturityHelp is the root-help section that names the frozen Core verbs and labels every
+// other dispatched verb Experimental with its owning spec prefix (CCF-V1-008).
+const commandMaturityHelp = `Command maturity:
+  Core (decision 0332, contract CCF-V1 in
+  docs/specs/core-compatibility-freeze-v1.md); only the modes and profiles that
+  contract lists are frozen:
+    init, adopt, index, query, context, impact, affected, prove, cem, ocm,
+    frontier, dogfood
+  Experimental, no stability promise; the owning spec prefix is in parentheses:
+    feature (GPK-V0), eval (REC-V0), lrf (LRF-V0), record (LTPM-V0),
+    migrate-traces (LTPM-V0), harness (AHI), work (WQO-V0), adapter (AHI),
+    dogfood-ocm (OCM-V0), observations (SOL-V0), obligations (EFO-V0),
+    prove-observe (SOL-V0), batch (SBQ-V0), docs (SDD-V0),
+    depsource (DSE-V0), necessity (NEC-V0), surprise (TSS-V0),
+    answerability (RDS-V0), kernel (CKN-V0), lease (SCL-V0), reads (URE-V0),
+    calibrate (OCL-V0), witness (AGW-V0), test-validity (MTV-V0),
+    features (RGV-V0), overview (RGV-V0), review (RGV-V0),
+    migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0)
+
 `

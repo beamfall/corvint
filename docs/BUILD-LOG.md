@@ -4,6 +4,45 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 CCF-V1-001..CCF-V1-008, decision 0358: Core compatibility freeze (V1-0007)
+
+Ticket V1-0007 asked for a frozen compatibility boundary for the Core commands without freezing
+companion or research profiles by accident. The new contract `docs/specs/core-compatibility-freeze-v1.md`
+(intent proposed, delivery experimental) takes the Core set from the accepted decision 0332:
+`init`, `adopt`, `index`, `query`, `context`, `impact`, `affected`, `prove`, `cem`, `ocm`, `frontier`
+and `dogfood`'s retained local outcome. A first draft used the ticket's seven-verb list; review
+corrected it to 0332 because project authority outranks the ticket (invariant 3). The contract lists
+the per-mode identifiers, the refusal envelope, exit classes and code families, the admission,
+freshness, omission and abstention members, a breaking-change rule, and the N-1 policy. The N-1
+baseline is 0.7.0; `git diff v0.7.0 1894b9e -- cmd/corvint internal` is empty, so no Core state or
+profile changed before this change. Decision 0358 records the policy. Root help gains a
+`Command maturity:` section (the `commandMaturityHelp` const, concatenated into `rootHelp` after every
+anchored help.go line citation; help.go grows from 1119 to 1140 lines). It lists the twelve Core
+verbs and labels the other 30 `topLevelCommands` verbs Experimental with an indexed owning spec prefix.
+A first draft claimed no verb is hidden; review found that `runContext` dispatches `native-hook`,
+`authority-event` and `qualified-event` before the `topLevelCommands` check. They are now recorded as
+undocumented adapter plumbing outside the freeze and pinned by a source-scan test.
+
+Measured: `cmd/corvint/core_freeze_test.go` passes four tests with 27 subtests (22 Core modes,
+5 refusals). The five added verbs pin `index` (`corvint-index-snapshot/1`, and the `--if-stale` fresh
+receipt without `ok` or `profile`), `cem status`/`verify` (`cem/0.2`), `ocm status`/`verify`
+(`ocm/0.1-experimental`), `frontier --json` (`frontier/0`, exit 1 when open, no `ok` or `mutates`)
+and `dogfood status` (`corvint-local-completion/0`). Negative edits failed the tests as intended: one
+dropped a help label and named an unindexed owner, and one added a fifth literal pre-dispatch verb to
+`runContext`. The first draft's cli-parity-v0 replay reported parity=104 retired=29 with exit 0, and 15
+invocations of the then-seven Core verbs on a scratch fixture were byte-identical under the installed
+0.7.0 build 46 and the candidate. Reviewer-observed, not rerun here: `affected --base`,
+`prove --base` and `context --task` were byte-identical against installed 0.7.0. The authority-start
+query reports `context.mode=query` with `context.intent.id=project-operations`. Owner assignments for
+`eval` (REC-V0), `adapter` (AHI), `record` (LTPM-V0) and `test-validity` (MTV-V0) are judgement calls
+from spec mentions and remain open to owner correction.
+
+NOT_RUN: `make gate` and the exhaustive `go test ./...` (owner policy; focused tests only).
+NOT_RUN: V1-0001 ratification of this contract. NOT_PRODUCED: pinned modes for `cem begin`,
+`prepare`, `cite`, `mark`, `report`, `cover`, `discriminate`, `anchor` and `provenance`; `ocm prepare`,
+`link`, `mark` and `report`; the frontier human rendering and dynamic test mode; `dogfood begin`,
+`verify`, `finish`, `review` and `cancel`; and CCF-V1-005 member lists for the five added verbs.
+NOT_PRODUCED: a byte-level 0.7.0 comparison for the five added verbs.
 ## 2026-09-22 V1-0008 IDX-SNAP-V0-022, IDX-SNAP-V0-023, GENESIS-025: init, adopt and index lifecycle qualification
 
 Ticket V1-0008 asked for three things: the two activation doors, the cold-versus-incremental index
