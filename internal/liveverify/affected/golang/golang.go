@@ -67,8 +67,12 @@ func New() Language { return Language{} }
 // Name is the plugin namespace.
 func (Language) Name() string { return "go" }
 
-// Owns reports whether a path is Go source text.
-func (Language) Owns(relative string) bool { return strings.HasSuffix(relative, ".go") }
+// Owns reports whether a path is Go source text. A file below a testdata
+// directory is fixture data, which the go tool never builds, so a change to it
+// is an unowned data path rather than a package source.
+func (Language) Owns(relative string) bool {
+	return strings.HasSuffix(relative, ".go") && !inTestdata(relative)
+}
 
 // Units observes every Go package in the repository rooted at root: the root
 // module alone, or every module a root go.work lists.
@@ -235,6 +239,9 @@ func observeModules(root string, manifests []string, frontier map[string]bool) (
 		if _, known := modules[directory]; known {
 			continue
 		}
+		if fixtureOfObservedModule(directory, modules) {
+			continue
+		}
 		frontier[FrontierNestedModule] = true
 		modules[directory] = module{dir: directory}
 	}
@@ -345,8 +352,8 @@ func hasBuildConstraint(body []byte) bool {
 }
 
 // groupByDirectory buckets files by directory and names the module each
-// directory belongs to. A directory inside an unlisted module, or outside every
-// module, is dropped.
+// directory belongs to. A directory inside an unlisted module, outside every
+// module, or below a testdata directory of its module is dropped.
 func groupByDirectory(files []string, modules map[string]module) (map[string][]string, map[string]module) {
 	directories := make(map[string][]string, 256)
 	owners := make(map[string]module, 256)
@@ -356,10 +363,32 @@ func groupByDirectory(files []string, modules map[string]module) (map[string][]s
 		if !observed {
 			continue
 		}
+		if inTestdata(relativeTo(directory, owner.dir)) {
+			continue
+		}
 		directories[directory] = append(directories[directory], file)
 		owners[directory] = owner
 	}
 	return directories, owners
+}
+
+// fixtureOfObservedModule reports whether a go.mod directory lies below a
+// testdata directory of an observed module. The go tool ignores testdata, so
+// such a manifest is fixture data, not a nested module frontier.
+func fixtureOfObservedModule(directory string, modules map[string]module) bool {
+	owner, observed := enclosingModule(path.Dir(directory), modules)
+	return observed && inTestdata(relativeTo(directory, owner.dir))
+}
+
+// inTestdata reports whether any component of a slash-separated relative path
+// is testdata, the directory name the go tool never treats as a package.
+func inTestdata(relative string) bool {
+	for _, component := range strings.Split(relative, "/") {
+		if component == "testdata" {
+			return true
+		}
+	}
+	return false
 }
 
 func sortedKeys[Value any](values map[string]Value) []string {

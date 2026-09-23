@@ -152,3 +152,74 @@ func fixtureRoot(t *testing.T, name string) string {
 	}
 	return root
 }
+
+// A file below testdata is fixture data the go tool never builds: it forms no
+// unit, a fixture go.mod is no nested-module frontier, and a fixture edit is an
+// unowned data path, not an untested package (V1-0203).
+func TestTestdataIsFixtureDataNotAPackage_AFPV0008(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                         "module example.test/m\n",
+		"pkg/pkg.go":                     "package pkg\n",
+		"pkg/pkg_test.go":                "package pkg\n",
+		"pkg/testdata/fixture.go":        "package fixture\n",
+		"pkg/testdata/module/go.mod":     "module example.test/fixture\n",
+		"pkg/testdata/module/fixture.go": "package fixture\n",
+		"testdata/top/top.go":            "package top\n",
+	})
+	result, err := golang.New().Units(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Units) != 1 || result.Units[0].ID != "go:example.test/m/pkg" {
+		t.Fatalf("units=%+v", result.Units)
+	}
+	if len(result.Frontier) != 0 {
+		t.Fatalf("frontier=%v", result.Frontier)
+	}
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixture := affected.Select(graph, []string{"pkg/testdata/fixture.go"})
+	want := []affected.Unknown{{Reason: affected.UnknownUnownedDirtyPath, Detail: "pkg/testdata/fixture.go"}}
+	if fmt.Sprint(fixture.Unknown) != fmt.Sprint(want) || fixture.Scope != affected.ScopeUnknown {
+		t.Fatalf("fixture edit scope=%s unknown=%v", fixture.Scope, fixture.Unknown)
+	}
+	source := affected.Select(graph, []string{"pkg/pkg.go"})
+	if fmt.Sprint(source.SelectedTests()) != "[pkg/pkg_test.go]" || source.Scope != affected.ScopeBounded {
+		t.Fatalf("source edit selected=%v scope=%s unknown=%v", source.SelectedTests(), source.Scope, source.Unknown)
+	}
+}
+
+// The testdata rule is relative to the owning module, as the go tool applies
+// it: a workspace module whose own directory lies below testdata is observed.
+func TestWorkspaceModuleBelowTestdataIsObserved_AFPV0008(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.work":                   "go 1.22\n\nuse ./testdata/ws\n",
+		"testdata/ws/go.mod":        "module example.test/ws\n",
+		"testdata/ws/ws.go":         "package ws\n",
+		"testdata/ws/testdata/x.go": "package x\n",
+	})
+	result, err := golang.New().Units(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Units) != 1 || result.Units[0].ID != "go:example.test/ws" {
+		t.Fatalf("units=%+v", result.Units)
+	}
+}
+
+func writeFiles(t *testing.T, root string, files map[string]string) {
+	t.Helper()
+	for relative, body := range files {
+		target := filepath.Join(root, filepath.FromSlash(relative))
+		if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(target, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
