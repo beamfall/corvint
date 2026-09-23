@@ -26,6 +26,26 @@ type VerifiedCandidate struct {
 
 var verifyForInstall = VerifyContext
 
+// candidateProfile is one admitted manifest profile's closed source and role
+// inventory. The Core-only profile has no companion or Tasks input
+// (PRS-V1-005): its companion rows stay NOT_RUN as "companion not present".
+type candidateProfile struct {
+	sources   []string
+	roles     map[string]int
+	companion bool
+}
+
+var candidateProfiles = map[string]candidateProfile{
+	manifestProfile: {
+		sources: []string{"corvint", "corvint-tasks"}, companion: true,
+		roles: map[string]int{"core-archive": 4, "core-gate-checksums": 1, "core-gate-report": 1, "companion-archive": 1, "companion-checksum": 1, "companion-installed-smoke": 1, "corvint-source": 1, "corvint-tasks-source": 1, "qualification-receipt": 1, "release-notes": 1},
+	},
+	coreManifestProfile: {
+		sources: []string{"corvint"},
+		roles:   map[string]int{"core-archive": 4, "core-gate-checksums": 1, "core-gate-report": 1, "corvint-source": 1, "qualification-receipt": 1, "release-notes": 1},
+	},
+}
+
 type candidateCompanionEvidence struct {
 	manifest                   companionrelease.BundleManifest
 	corvintCommit, corvintTree string
@@ -82,11 +102,12 @@ func VerifyContext(ctx context.Context, directory string) (*VerifiedCandidate, e
 	if err := decodeClosed(files["MANIFEST.json"], &manifest); err != nil {
 		return nil, fmt.Errorf("candidate manifest: %w", err)
 	}
-	if manifest.Profile != manifestProfile || !versionPattern.MatchString(manifest.Version) || manifest.CorvintVersion != "Corvint "+manifest.Version+" (build "+manifest.BuildNumber+")" || manifest.GoVersion != "go1.27.1" || len(manifest.Sources) != 2 || manifest.Sources[0].Name != "corvint" || manifest.Sources[1].Name != "corvint-tasks" {
+	profile, admitted := candidateProfiles[manifest.Profile]
+	if !admitted || !versionPattern.MatchString(manifest.Version) || manifest.CorvintVersion != "Corvint "+manifest.Version+" (build "+manifest.BuildNumber+")" || manifest.GoVersion != "go1.27.1" || len(manifest.Sources) != len(profile.sources) {
 		return nil, fmt.Errorf("candidate manifest identity is invalid")
 	}
-	for _, source := range manifest.Sources {
-		if !objectPattern.MatchString(source.Commit) || !objectPattern.MatchString(source.Tree) {
+	for index, source := range manifest.Sources {
+		if source.Name != profile.sources[index] || !objectPattern.MatchString(source.Commit) || !objectPattern.MatchString(source.Tree) {
 			return nil, fmt.Errorf("candidate source identity is invalid")
 		}
 	}
@@ -122,10 +143,10 @@ func VerifyContext(ctx context.Context, directory string) (*VerifiedCandidate, e
 	if err := decodeClosed(files["QUALIFICATION.json"], &qualification); err != nil {
 		return nil, fmt.Errorf("candidate qualification: %w", err)
 	}
-	if err := validateQualification(qualification); err != nil {
+	if err := validateQualification(qualification, profile); err != nil {
 		return nil, err
 	}
-	if err := validateCandidateEvidence(ctx, files, manifest, assets, qualification); err != nil {
+	if err := validateCandidateEvidence(ctx, files, manifest, assets, qualification, profile); err != nil {
 		return nil, err
 	}
 	return &VerifiedCandidate{Directory: resolved, Manifest: manifest, Qualification: qualification, files: files}, nil
@@ -150,7 +171,7 @@ func validateCandidateChecksums(files map[string][]byte) error {
 	return nil
 }
 
-func validateCandidateEvidence(ctx context.Context, files map[string][]byte, manifest Manifest, assets map[string]Asset, qualification Qualification) error {
+func validateCandidateEvidence(ctx context.Context, files map[string][]byte, manifest Manifest, assets map[string]Asset, qualification Qualification, profile candidateProfile) error {
 	var report coreReport
 	if err := decodeClosed(files["evidence/core-verification-report.json"], &report); err != nil {
 		return fmt.Errorf("candidate core report: %w", err)
@@ -167,7 +188,7 @@ func validateCandidateEvidence(ctx context.Context, files map[string][]byte, man
 			return fmt.Errorf("candidate core checksum report disagrees for %s", target.ArchiveName)
 		}
 	}
-	wantRoles := map[string]int{"core-archive": 4, "core-gate-checksums": 1, "core-gate-report": 1, "companion-archive": 1, "companion-checksum": 1, "companion-installed-smoke": 1, "corvint-source": 1, "corvint-tasks-source": 1, "qualification-receipt": 1, "release-notes": 1}
+	wantRoles := profile.roles
 	roleCounts := map[string]int{}
 	for _, asset := range assets {
 		if _, admitted := wantRoles[asset.Role]; !admitted {
@@ -208,26 +229,14 @@ func validateCandidateEvidence(ctx context.Context, files map[string][]byte, man
 			}
 		}
 	}
-	archivePath, checksumPath, smokePath, err := candidateCompanionPaths(assets)
-	if err != nil {
-		return err
-	}
-	temporary, err := os.MkdirTemp("", "corvint-candidate-verify-")
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(temporary)
 	if len(hostBinary) == 0 {
 		return fmt.Errorf("candidate lacks a host core binary for exact version verification")
 	}
-	probeDirectory := filepath.Join(temporary, "probe")
-	companionDirectory := filepath.Join(temporary, "companion")
-	if err := os.Mkdir(probeDirectory, 0o700); err != nil {
+	probeDirectory, err := os.MkdirTemp("", "corvint-candidate-verify-")
+	if err != nil {
 		return err
 	}
-	if err := os.Mkdir(companionDirectory, 0o700); err != nil {
-		return err
-	}
+	defer os.RemoveAll(probeDirectory)
 	hostPath := filepath.Join(probeDirectory, "corvint")
 	if err := os.WriteFile(hostPath, hostBinary, 0o700); err != nil {
 		return err
@@ -235,6 +244,33 @@ func validateCandidateEvidence(ctx context.Context, files map[string][]byte, man
 	if err := probeCoreVersion(ctx, hostPath, probeDirectory, manifest.CorvintVersion); err != nil {
 		return fmt.Errorf("candidate host core version: %w", err)
 	}
+	if profile.companion {
+		if err := validateCandidateCompanion(files, manifest, assets); err != nil {
+			return err
+		}
+	}
+	for _, row := range qualification.Rows {
+		if row.Status == "PASS" {
+			if _, present := files[row.Evidence]; !present {
+				return fmt.Errorf("qualification evidence %s is absent", row.Evidence)
+			}
+		}
+	}
+	return nil
+}
+
+// validateCandidateCompanion reverifies the combined profile's companion
+// bundle and binds its Corvint and Tasks identities and source archives.
+func validateCandidateCompanion(files map[string][]byte, manifest Manifest, assets map[string]Asset) error {
+	archivePath, checksumPath, smokePath, err := candidateCompanionPaths(assets)
+	if err != nil {
+		return err
+	}
+	companionDirectory, err := os.MkdirTemp("", "corvint-candidate-companion-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(companionDirectory)
 	for _, candidatePath := range []string{archivePath, checksumPath, smokePath} {
 		if err := os.WriteFile(filepath.Join(companionDirectory, filepath.Base(candidatePath)), files[candidatePath], 0o600); err != nil {
 			return err
@@ -254,13 +290,6 @@ func validateCandidateEvidence(ctx context.Context, files map[string][]byte, man
 		entry, present := bundle.entries[bundlePath]
 		if !present || !bytes.Equal(entry, files[candidatePath]) {
 			return fmt.Errorf("candidate source archive %s disagrees", candidatePath)
-		}
-	}
-	for _, row := range qualification.Rows {
-		if row.Status == "PASS" {
-			if _, present := files[row.Evidence]; !present {
-				return fmt.Errorf("qualification evidence %s is absent", row.Evidence)
-			}
 		}
 	}
 	return nil
@@ -292,7 +321,7 @@ func candidateCompanionPaths(assets map[string]Asset) (archive, checksum, smoke 
 	return archive, checksum, smoke, nil
 }
 
-func validateQualification(qualification Qualification) error {
+func validateQualification(qualification Qualification, profile candidateProfile) error {
 	platforms := []string{"darwin/amd64", "darwin/arm64", "linux/amd64", "linux/arm64"}
 	workflows := []string{"core-archive", "companion-bundle", "version-identity", "affected-selection", "playwright-external-discovery", "documentation-corpus-discovery", "work-queue-observation"}
 	if qualification.Profile != qualificationProfile || len(qualification.Rows) != len(platforms)*len(workflows) {
@@ -302,7 +331,7 @@ func validateQualification(qualification Qualification) error {
 	for _, platform := range platforms {
 		for _, workflow := range workflows {
 			status := "NOT_RUN"
-			if workflow == "core-archive" || platform == "darwin/arm64" {
+			if workflow == "core-archive" || (profile.companion && platform == "darwin/arm64") {
 				status = "PASS"
 			}
 			want[platform+"\x00"+workflow] = status
@@ -312,7 +341,8 @@ func validateQualification(qualification Qualification) error {
 	for _, row := range qualification.Rows {
 		key := row.Platform + "\x00" + row.Workflow
 		expected, admitted := want[key]
-		if seen[key] || !admitted || (row.Status != "PASS" && row.Status != "FAIL" && row.Status != "NOT_RUN") || row.Status == "FAIL" || row.Status != expected || row.Evidence == "" {
+		misreportedCompanion := !profile.companion && row.Workflow == "companion-bundle" && row.Evidence != "companion not present"
+		if seen[key] || !admitted || (row.Status != "PASS" && row.Status != "FAIL" && row.Status != "NOT_RUN") || row.Status == "FAIL" || row.Status != expected || row.Evidence == "" || misreportedCompanion {
 			return fmt.Errorf("invalid qualification row %s/%s", row.Platform, row.Workflow)
 		}
 		seen[key] = true

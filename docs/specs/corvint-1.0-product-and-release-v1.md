@@ -15,7 +15,7 @@ scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 ## Agent digest
 - Claim: Accepted scope: 1.0 Core is the local change-evidence loop and proof wire; companions, host FULL and independent interop leave the Core path (decision 0373).
 - Status: accepted (decision 0373, V1-0001) / not-started
-- Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; no Core-only candidate path exists yet.
+- Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; the candidate reader and installer admit a Core-only profile (V1-0125), but no assembler produces one yet.
 - Blocked on: V1-0002 queue reconciliation and V1-0007 contract freeze; the untouched repository for V1-0019 and the native linux/amd64 host are not yet named.
 - Read next: Decisions the owner must make; Classification of shipped surfaces; Externally dependent gates.
 

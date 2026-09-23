@@ -4,6 +4,24 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0125 PRS-V1-005: Core-only candidate reader and installer
+
+Finding: `releasecandidate.VerifyContext`, and through it `InstallCore`, refused a candidate that
+lists only Core artifacts with `candidate manifest identity is invalid`. The reader required two
+sources, the companion and Tasks roles, a verified companion bundle and PASS darwin/arm64 companion
+rows, so `PRS-V1-005` (no companion input) had no reader or installer path.
+
+Decision: a second closed manifest profile, `corvint-core-release-candidate/0`, selects a Core-only
+inventory (sources `[corvint]`, no companion or Tasks roles). All Core checks are unchanged. The
+receipt keeps its 28 rows: `core-archive` PASS and every other row `NOT_RUN`, with
+`companion-bundle` evidence `companion not present`. Any other status is refused. The combined
+profile is unchanged. Contract: `public-release-v0.md`, "Core-only candidate reader and installer".
+
+Evidence: `TestPRSV1005CoreOnlyCandidateVerifiesAndInstalls` verifies and installs a Core-only
+fixture without consulting companion evidence. It refuses a companion PASS claim and a drifted
+core archive. Limits: the Core-only source archive is bound by digest only, and the assembler still
+requires companions, so no Core-only candidate can be produced yet.
+
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
 
 Finding: nothing stated which Corvint commands are safe as a triggered CI, hook or team-automation
