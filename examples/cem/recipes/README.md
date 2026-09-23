@@ -19,12 +19,14 @@ correct, reviewed or safe to skip tests for.
 ## Common behaviour
 
 - Prerequisites: Bash 3.2 or later, Git, and a `corvint` executable (tested with the installed
-  release, Corvint 0.7.0 build 46, and a build of this checkout). Recipe 3 needs no `corvint`.
+  release, Corvint 0.7.0 build 46, and a build of this checkout). Recipe 3 runs no `corvint`, but
+  producing its map does.
 - Every command runs as a child in its own process group, bounded by `RECIPE_TIMEOUT` seconds per
-  step (default 600). A step that overruns is killed and the recipe exits 2. `EXIT`, `HUP`, `INT`
-  or `TERM` of the recipe kills the running step first.
+  step (default 600). A step that overruns gets `TERM`, then `KILL` after a 2-second grace, and
+  the recipe exits 2. `EXIT`, `HUP`, `INT` or `TERM` of the recipe kills the running step first.
 - Each step writes `NAME.out` and `NAME.stderr` into `RECIPE_OUT` (default: a new temporary
-  directory). Keep `RECIPE_OUT` outside the repository. Refusals stay there: nothing is deleted,
+  directory). `RECIPE_OUT` must be new or empty (exit 2 otherwise), so receipts from different
+  runs never mix; keep it outside the repository. Refusals stay there: nothing is deleted,
   retried or replaced to turn a refusal into success.
 - Standard output is one `step=NAME exit=N` line per step and one final `outcome=...` line.
 
@@ -122,8 +124,9 @@ adds the network-denied sandbox.
 ## Fixtures and tests
 
 `script/cem-recipes_test.sh` (`make cem-recipes-test`) builds fixture repositories and runs every
-row above, the accepted and complete paths, a step killed at `RECIPE_TIMEOUT=1`, and a recipe
-interrupted with `TERM`, asserting that no step process survives. `CORVINT_BIN=$(command -v corvint)`
+row above, the accepted and complete paths, a step killed at `RECIPE_TIMEOUT=1`, a `TERM`-ignoring
+step that must end within the 2-second grace, and a recipe interrupted with `TERM` while its step
+ignores `TERM`, asserting that no step process survives. `CORVINT_BIN=$(command -v corvint)`
 runs it against an installed release; without it the test builds `corvint` from the checkout.
 The verifier is always built from the checkout's `interop/cem01-go`; the pinned public-proxy fetch
 is not exercised.

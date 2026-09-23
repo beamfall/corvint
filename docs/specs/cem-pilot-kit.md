@@ -188,11 +188,13 @@ Owner-requested for 0.7.0 on 2026-09-22 (ticket V1-0026); delivery is experiment
 - `CEM-PILOT-026`: a recipe MUST NOT convert a refusal or uncertainty into success. Understand and
   review exit 0 only when every step exits 0 (and impact is `READY`, the map is committed at HEAD),
   3 when a step refuses or evidence is incomplete, and 2 for invalid recipe input or a timeout; the CI
-  recipe exits with the verifier's 0..5. Every step's stdout and stderr stay in `RECIPE_OUT`, and no
-  recipe replaces an outdated or invalid map.
+  recipe exits with the verifier's 0..5, and 2 when the verifier returns no verdict. Every step's
+  stdout and stderr stay in `RECIPE_OUT`, which must be new or empty, and no recipe replaces an
+  outdated or invalid map.
 - `CEM-PILOT-027`: each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`
   seconds (default 600), and the recipe MUST kill the running step's group on its own exit, `HUP`,
-  `INT`, or `TERM`.
+  `INT`, or `TERM`: `TERM` first, then `KILL` after a 2-second grace, so a step that ignores `TERM`
+  still ends within `RECIPE_TIMEOUT` plus the grace.
 
 ## Non-goals
 

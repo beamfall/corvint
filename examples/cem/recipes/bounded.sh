@@ -5,17 +5,27 @@
 # run_step NAME ARGV... runs one child in its own process group, with standard output in
 # "$recipe_out/NAME.out" and standard error in "$recipe_out/NAME.stderr". The group is killed
 # after RECIPE_TIMEOUT seconds (default 600; the step then returns 124), and on EXIT, HUP, INT
-# or TERM of the recipe, so no child outlives it. Each step line and the final outcome line go
-# to standard output.
+# or TERM of the recipe, so no child outlives it: TERM first, then KILL after a 2-second grace.
+# Each step line and the final outcome line go to standard output.
 
 set -m
 recipe_timeout=${RECIPE_TIMEOUT:-600}
 child_pid=
 watch_pid=
 
+# kill_group PGID: TERM the process group, allow a 2-second grace, then KILL what remains.
+kill_group() {
+  kill -TERM -- "-$1" 2>/dev/null || return 0
+  sleep 1
+  kill -0 -- "-$1" 2>/dev/null || return 0
+  sleep 1
+  kill -KILL -- "-$1" 2>/dev/null
+  return 0
+}
+
 stop_children() {
   if [ -n "$watch_pid" ]; then kill -TERM -- "-$watch_pid" 2>/dev/null; fi
-  if [ -n "$child_pid" ]; then kill -TERM -- "-$child_pid" 2>/dev/null; fi
+  if [ -n "$child_pid" ]; then kill_group "$child_pid"; fi
   child_pid=
   watch_pid=
 }
@@ -40,6 +50,7 @@ if [ -z "$recipe_out" ]; then
   recipe_out=$(mktemp -d "${TMPDIR:-/tmp}/corvint-recipe.XXXXXX") || operational 'cannot create output directory'
 fi
 mkdir -p "$recipe_out" || operational 'cannot create RECIPE_OUT'
+[ -z "$(ls -A "$recipe_out")" ] || operational 'RECIPE_OUT must be a new or empty directory'
 recipe_out=$(CDPATH='' cd -- "$recipe_out" && pwd -P)
 
 run_step() {
@@ -56,10 +67,12 @@ run_step() {
       elapsed=$((elapsed + 1))
     done
     : > "$recipe_out/$name.timeout"
-    kill -TERM -- "-$child_pid" 2>/dev/null
+    kill_group "$child_pid"
   ) &
   watch_pid=$!
   wait "$child_pid" 2>/dev/null || status=$?
+  # Group members that outlived the leader, such as a TERM-ignoring grandchild, go too.
+  kill -KILL -- "-$child_pid" 2>/dev/null
   kill -TERM -- "-$watch_pid" 2>/dev/null
   wait "$watch_pid" 2>/dev/null
   child_pid=

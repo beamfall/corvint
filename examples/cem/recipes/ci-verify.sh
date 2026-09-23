@@ -39,6 +39,7 @@ if [ "$status" -eq 124 ]; then
   exit 2
 fi
 if [ "$status" -gt 5 ]; then status=2; fi
+[ -n "$verdict" ] || status=2
 printf 'outcome=%s exit=%s recovery=%s out=%s\n' "${verdict:-operational}" "$status" \
   "${recovery[$status]}" "$recipe_out"
 exit "$status"

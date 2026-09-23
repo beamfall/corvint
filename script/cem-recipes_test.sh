@@ -138,6 +138,10 @@ expect 3 'outcome=incomplete refused=prepare'
 grep -q 'not a valid CEM document' "$out/prepare.out" "$out/prepare.stderr" || fail 'r-unsupported refusal not retained'
 git -C "$repo" checkout -q -- .corvint/change.cem.json
 
+run r-bad-cap review-change.sh "${review[@]}" CEM_MAX_UNKNOWN=many
+expect 2 'CEM_MAX_UNKNOWN must be a whole number'
+[ ! -e "$out/prepare.out" ] || fail 'r-bad-cap ran prepare'
+
 # --- Recipe 3: portable CI verification of a cem/0.1 map ------------------------------------
 ci="$test_root/ci"
 new_repo "$ci"
@@ -202,8 +206,24 @@ run b-timeout understand-change.sh "${understand[@]}" CORVINT_BIN="$test_root/ha
 expect 2 'outcome=operational timeout=impact'
 ! kill -0 "$(cat "$test_root/stub.pid")" 2>/dev/null || fail 'b-timeout left the step running'
 
+# A step that ignores TERM is killed after the 2-second grace, so the bound still holds.
+printf '#!/bin/sh
+trap "" TERM
+echo $$ > "%s/stub.pid"
+exec sleep 60
+' "$test_root" > "$test_root/stubborn"
+chmod +x "$test_root/stubborn"
+started=$SECONDS
+run b-stubborn understand-change.sh "${understand[@]}" CORVINT_BIN="$test_root/stubborn" RECIPE_TIMEOUT=1
+expect 2 'step=impact exit=124'
+[ $((SECONDS - started)) -le 6 ] || fail "b-stubborn took $((SECONDS - started)) s, bound is 1 + 2 s grace"
+! kill -0 "$(cat "$test_root/stub.pid")" 2>/dev/null || fail 'b-stubborn left the step running'
+
+run b-out-reused understand-change.sh "${understand[@]}" RECIPE_OUT="$test_root/out/b-stubborn"
+expect 2 'RECIPE_OUT must be a new or empty directory'
+
 rm -f "$test_root/stub.pid"
-env RECIPE_OUT="$test_root/out/b-interrupt" CORVINT_BIN="$test_root/hang" "${review[@]}" \
+env RECIPE_OUT="$test_root/out/b-interrupt" CORVINT_BIN="$test_root/stubborn" "${review[@]}" \
   "$recipes/review-change.sh" > "$test_root/b-interrupt.log" 2>&1 &
 recipe_pid=$!
 for _ in $(seq 50); do [ -s "$test_root/stub.pid" ] && break; sleep 0.1; done

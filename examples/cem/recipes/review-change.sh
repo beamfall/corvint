@@ -31,6 +31,8 @@ max_unknown=${CEM_MAX_UNKNOWN:-0}
 max_mechanical=${CEM_MAX_MECHANICAL:-0}
 map=.corvint/change.cem.json
 [ -n "$base" ] || operational 'CORVINT_BASE is required'
+case $max_unknown in ''|*[!0123456789]*) operational 'CEM_MAX_UNKNOWN must be a whole number' ;; esac
+case $max_mechanical in ''|*[!0123456789]*) operational 'CEM_MAX_MECHANICAL must be a whole number' ;; esac
 
 finish() {
   printf 'outcome=%s %s out=%s\n' "$1" "$2" "$recipe_out"
