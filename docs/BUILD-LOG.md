@@ -2282,3 +2282,37 @@ rows citing `internal/contextindex/impact.go`, and `go-production-kernel-migrati
 `range_impact.go`); the same 18 fail with the index read from base 4519cad and none names a file
 this change touched, so they are pre-existing from the batch D commit and were not repinned here.
 Full `make gate` was not run, per ticket scope.
+
+## 2026-09-22 gate-repair: DR-0039/DR-0040 `cem` choice-list extensions declared and the CEM trust citation repinned
+
+The full `make gate` on the V1-0085 tree (base 1603d4a) reported two failures; repairing the first
+exposed a third of the same shape. None touched a frozen expectation.
+
+- `conformance/cli-parity-v0` `TestGPKV0002ManifestReplay`: `cem-mark-invalid-reason` failed
+  `stderrSha256` (candidate `531926b2…`, manifest `b03c3c67…`) because decision 0338 added the four
+  `cem/0.3` structural reasons to the `--reason` choice set (`CEM-SM-001`). Once declared, the next
+  case `cem-invalid-subcommand` failed the same way (candidate `bab3d5ea…`, manifest `2a7db57b…`)
+  because decision 0347 added `cem cover` to the action list (`TCQ-V0-051`). Both are recorded as
+  intentional Go extensions in `conformance/divergence-register.md` (`DR-0039`, `DR-0040`) with the
+  exact candidate and oracle bytes, declared as one-rewrite `stderrRewrites` `knownDivergence`
+  entries in `manifest.json`, and pinned by `validMarkReasonDivergence` and
+  `validCEMActionDivergence` in `manifest.go`. Measured: applying each single substitution to the
+  candidate stderr reproduces the frozen digest byte-for-byte; the `SUMMARY` moves from
+  `known-divergences=24` to `known-divergences=26`; the `cem` inventory row reports 19 byte-exact
+  cases and names both declarations. The `flag provided but not defined: -candidate` text in the
+  package output is emitted by the passing `TestCaptureCLIRejectsCandidateAuthority`, which expects
+  that refusal; it is not a failure.
+- `conformance/release-artifact-v0` `TestReleaseNotesCEMTrustCitationLandsOnTrustRoots`:
+  `docs/RELEASE-NOTES-alpha.md` cited `docs/CHANGE-EVIDENCE-MAP.md:226-227@012d2dcc`, which
+  commits 5ab91e3 and 1603d4a moved to lines 241-242. Repinned to `241-242`; the `@012d2dcc` anchor
+  is unchanged because `script/check-line-citations.sh --hash docs/CHANGE-EVIDENCE-MAP.md:241-242`
+  reproduces it. No other document cites `docs/CHANGE-EVIDENCE-MAP.md` by line. The two declarations
+  shifted lines in `manifest.json` and `runner_test.go`, so `docs/decisions/0051-*.md:24` and
+  `docs/specs/compat-replay-runner-v0.md:17` were repinned to `manifest.json:3552@f1a2ef9a` and
+  `runner_test.go:1216@6ead4d11` (anchors unchanged). `make line-citations-check` still reports the
+  18 pre-existing failures in `docs/specs/falsifiable-packet-v0.md`, `docs/decisions/0082-*.md` and
+  `docs/specs/go-production-kernel-migration-v0.md` that this change does not touch.
+
+Not done in this change: `conformance/cli-parity-v0/README.md`'s known-divergence list (outside the
+repair's ownership) does not yet carry `DR-0039`/`DR-0040` bullets. UNKNOWN: whether the rest of the
+full `make gate` is green after this repair; only the two named packages were rerun.

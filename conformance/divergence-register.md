@@ -2776,3 +2776,81 @@ a manifest that drops any declaration. The alternative, keeping `.atlas/` and `.
 the state-directory names and `atlas` as a tooling term to retain full oracle parity, was rejected
 by decision 0308's one-name rule; re-executing a retired case requires new fixtures captured under
 an accepted successor to `GOC-V0-002`, not an edit to the frozen bytes.
+
+### DR-0039 — `cem mark`: the candidate's invalid `--reason` refusal enumerates the four `cem/0.3` structural reasons
+
+- **Status:** CLOSED 2026-09-22 — adjudicated **intentional divergence** (a Go extension) under
+  decision 0338 (`docs/decisions/0338-cem-0-3-structural-mechanical-reasons-2026-09-22.md`,
+  `CEM-SM-001` in `docs/specs/cem-0.3-structural-mechanical.md`).
+- **Command:** `cem mark` (one case, `cem-mark-invalid-reason`). **Discovered:** 2026-09-22 by the
+  full gate after ticket V1-0087 landed: `TestGPKV0002ManifestReplay` reported
+  `FAIL cem-mark-invalid-reason stderrSha256: candidate=531926b2… manifest=b03c3c67…`.
+
+**Divergence.** `CEM-SM-001` makes `cem/0.3` the `cem/0.2` wire shape plus the four structural
+reasons `rename`, `move`, `import-reorder`, `formatter-only`, so decision 0338 added them to the
+`--reason` choice set in `internal/cem/cli/cli.go`. An unknown reason is still refused by both
+runtimes with exit status 2, an empty stdout, and the `invalid-arguments` envelope; only the choice
+list inside the refusal differs. Observed bytes on the frozen argv (`--reason nope`):
+
+- candidate (sha256 `531926b2159ab354360a813536b84ac99e5cd448d6b49575f2886229e0fbc3f1`):
+  `{"code": "invalid-arguments", "error": "argument --reason: invalid choice: 'nope' (choose from
+  'conflicting-evidence', 'formatter-only', 'import-reorder', 'insufficient-evidence',
+  'line-ending-only', 'move', 'no-evidence', 'rename', 'whitespace-only')", "ok": false}`
+- oracle (frozen `stderrSha256` `b03c3c674a71033198e48de3aed1bdeaae63554283f6b6109d9da9100ed6fbfe`):
+  the same envelope with `(choose from 'conflicting-evidence', 'insufficient-evidence',
+  'line-ending-only', 'no-evidence', 'whitespace-only')`.
+
+Replacing the candidate's choice list with the oracle's, once, reproduces the frozen digest exactly.
+
+**Adjudication: intentional divergence (Go extension).** Not repaired on either side. The retired
+oracle predates `cem/0.3` and cannot know the structural reasons; the candidate satisfies
+`CEM-SM-001`. This is not a `python-defect` against the oracle's own spec, and `GPK-V0-033`'s three
+outcomes name no "extension" case, so the entry is adjudicated under `GPK-V0-033`'s rule that spec
+text, not the oracle, is the authority, with `CEM-SM-001` as the clause the candidate bytes are
+authored from. No `GPK-V0-02x`/`03x` clause governs option-choice enumeration (`GPK-V0-027` and
+`GPK-V0-028` govern `impact` paths and the `query` task bound); `DR-0037` is the nearest CLI-surface
+precedent and, like this entry, is an intentional divergence carried without repair. Re-authoring
+the frozen expectation from the candidate is forbidden by `GOC-V0-002`.
+
+**Scope of the repair.** One `knownDivergence` on `cem-mark-invalid-reason` with no stdout rewrite
+and one `stderrRewrites` entry (the nine-reason list for the five-reason list), validated by
+`validMarkReasonDivergence`, which pins the case to `cem`, register `DR-0039`, clause `CEM-SM-001`,
+exactly one stderr rewrite, and the exact candidate and oracle byte strings. The runner requires the
+candidate string to occur exactly once, so a candidate that drops or reorders a reason fails the
+uniqueness check rather than passing by rewrite. Together with `DR-0040` the `SUMMARY` line moves
+from `known-divergences=24` to `known-divergences=26` and the `cem` inventory row reports 19
+byte-exact cases and names both declarations. `conformance/cli-parity-v0/README.md`'s
+known-divergence list was not updated in this change (outside its ownership) and should gain
+`DR-0039` and `DR-0040` bullets.
+
+### DR-0040 — `cem`: the candidate's invalid-subcommand refusal enumerates the `cover` action
+
+- **Status:** CLOSED 2026-09-22 — adjudicated **intentional divergence** (a Go extension) under
+  decision 0347 (`docs/decisions/0347-patch-coverage-witness-from-a-local-coverprofile-2026-09-22.md`,
+  `TCQ-V0-051` in `docs/specs/test-claim-qualification-v0.md`).
+- **Command:** `cem` (one case, `cem-invalid-subcommand`). **Discovered:** 2026-09-22 by the
+  `cli-parity-v0` replay once `DR-0039` was declared: the runner reports the first failing case,
+  and `cem-invalid-subcommand` was the next.
+
+**Divergence.** `TCQ-V0-051` adds `corvint cem cover`, listed last in `cemActionOrder`, so the
+candidate's refusal of an unknown action enumerates eight actions where the retired oracle
+enumerated seven. Both runtimes refuse `bogus` with exit status 2, an empty stdout, and the
+`invalid-arguments` envelope. Observed bytes on the frozen argv (`cem bogus`):
+
+- candidate (sha256 `bab3d5ea3ee4a509ee83aab022cb41a65328f4a299f413d85af2929f9209520f`):
+  `{"code": "invalid-arguments", "error": "argument cem_command: invalid choice: 'bogus' (choose
+  from 'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover')", "ok": false}`
+- oracle (frozen `stderrSha256` `2a7db57bf388b00caf69fe67aa0db6d2eae74e1f461d9db50243e2f17aabe749`):
+  the same envelope with `(choose from 'begin', 'prepare', 'cite', 'mark', 'verify', 'status',
+  'report')`.
+
+Replacing the candidate's action list with the oracle's, once, reproduces the frozen digest exactly.
+
+**Adjudication: intentional divergence (Go extension).** Not repaired on either side, on the same
+reasoning as `DR-0039`: the retired oracle predates the coverage witness, the candidate satisfies
+`TCQ-V0-051`, and `GOC-V0-002` forbids re-authoring the frozen expectation from the candidate.
+
+**Scope of the repair.** One `knownDivergence` on `cem-invalid-subcommand` with no stdout rewrite
+and one `stderrRewrites` entry (the eight-action list for the seven-action list), validated by
+`validCEMActionDivergence`, which pins the case to `cem`, register `DR-0040`, clause
+`TCQ-V0-051`, exactly one stderr rewrite, and the exact candidate and oracle byte strings.

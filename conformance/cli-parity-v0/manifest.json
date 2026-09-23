@@ -61,7 +61,7 @@
     {
       "command": "cem",
       "status": "PARTIAL",
-      "reason": "21 of 37 cases replay byte-exactly: begin, the cite/mark/prepare/status/verify argument negatives and the argparse surface. 16 cases are RETIRED under decision 0308 because their frozen argv or fixture addresses the oracle's .atlas/change.cem.json map path (the seven cite evidence outcomes, three mark hunk cases, prepare create/resume, status bound and unresolvable-expected-base, verify bound and policy-limit); their frozen expectations are kept unchanged. The DR-0003 prepare rejection-path divergence remains parked"
+      "reason": "19 of 37 cases replay byte-exactly: begin, the cite/mark/prepare/status/verify argument negatives and the argparse surface; cem-mark-invalid-reason and cem-invalid-subcommand replay under the DR-0039 and DR-0040 stderr choice-list declarations. 16 cases are RETIRED under decision 0308 because their frozen argv or fixture addresses the oracle's .atlas/change.cem.json map path (the seven cite evidence outcomes, three mark hunk cases, prepare create/resume, status bound and unresolvable-expected-base, verify bound and policy-limit); their frozen expectations are kept unchanged. The DR-0003 prepare rejection-path divergence remains parked"
     },
     {
       "command": "eval",
@@ -1096,6 +1096,18 @@
       "fixtureSha256": "bc30e3b9e5a606c060d3c3dd0da7fedc68f9e9ac65268eeee384482af732e848",
       "exitStatus": 2,
       "mutation": "none",
+      "knownDivergence": {
+        "register": "DR-0040",
+        "clause": "TCQ-V0-051",
+        "rewrites": [],
+        "stderrRewrites": [
+          {
+            "candidate": "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover'",
+            "oracle": "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report'"
+          }
+        ],
+        "reason": "DR-0040 / TCQ-V0-051 (decision 0347): the candidate exposes cem cover, so its invalid-subcommand refusal enumerates eight actions where the retired oracle enumerated seven. Both refuse 'bogus' with exit status 2, an empty stdout and an otherwise identical refusal; only the action list differs. Intentional Go extension adjudicated under GPK-V0-033; the frozen expectation is kept unchanged."
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "e83860abb7a2b0c6ece808abb76a3c547abb46a90fe477e47cf55612fb5723bd",
@@ -1286,6 +1298,18 @@
       "fixtureSha256": "bc30e3b9e5a606c060d3c3dd0da7fedc68f9e9ac65268eeee384482af732e848",
       "exitStatus": 2,
       "mutation": "none",
+      "knownDivergence": {
+        "register": "DR-0039",
+        "clause": "CEM-SM-001",
+        "rewrites": [],
+        "stderrRewrites": [
+          {
+            "candidate": "'conflicting-evidence', 'formatter-only', 'import-reorder', 'insufficient-evidence', 'line-ending-only', 'move', 'no-evidence', 'rename', 'whitespace-only'",
+            "oracle": "'conflicting-evidence', 'insufficient-evidence', 'line-ending-only', 'no-evidence', 'whitespace-only'"
+          }
+        ],
+        "reason": "DR-0039 / CEM-SM-001 (decision 0338): cem/0.3 admits the four structural reasons rename, move, import-reorder and formatter-only, so the candidate's invalid-choice refusal enumerates nine reasons where the retired oracle enumerated five. Both refuse 'nope' with exit status 2, an empty stdout and an otherwise identical refusal; only the choice list differs. Intentional Go extension adjudicated under GPK-V0-033; the frozen expectation is kept unchanged."
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "e83860abb7a2b0c6ece808abb76a3c547abb46a90fe477e47cf55612fb5723bd",
