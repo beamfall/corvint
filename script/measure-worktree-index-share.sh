@@ -34,13 +34,21 @@ seconds() {
   { TIMEFORMAT=%R; time "$@" >"$out" 2>"$out.err"; } 2>&1
 }
 
+# fail STEP WT OUT stops the run when a corvint step exits non-zero, so no
+# row reports a partial result; the EXIT trap still removes the worktrees.
+fail() {
+  printf 'measure: %s failed in %s:\n' "$1" "$2" >&2
+  cat "$3.err" >&2
+  exit 3
+}
+
 snapshot_bytes() { find "$1/.corvint/index" -type f -name '*.gob' -exec cat {} + 2>/dev/null | wc -c | tr -d ' '; }
 snapshot_oid() { find "$1/.corvint/index" -type f -name '*.gob' -exec git hash-object {} + 2>/dev/null | tr '\n' ' '; }
 common_gobs() { find "$common" -name '*.gob' | wc -l | tr -d ' '; }
 
 query() {
   local wt=$1 label=$2 out="$scratch/q.json" t
-  t=$(seconds "$out" "$corvint" --root "$wt" query --task "$task" --limit 3)
+  t=$(seconds "$out" "$corvint" --root "$wt" query --task "$task" --limit 3) || fail "query $label" "$wt" "$out"
   printf '%s\tquery-%s\t%s\t%s\t%s\t%s\n' "${wt##*/}" "$label" "$t" \
     "$(jq -r '.context.state + "/" + .context.freshness.state + " mixed=" + (.context.freshness.mixed_paths|join(","))' "$out")" \
     "$(snapshot_bytes "$wt")" "$(common_gobs)"
@@ -48,7 +56,7 @@ query() {
 
 index_if_stale() {
   local wt=$1 out="$scratch/i.json" t
-  t=$(seconds "$out" "$corvint" --root "$wt" index --if-stale)
+  t=$(seconds "$out" "$corvint" --root "$wt" index --if-stale) || fail index "$wt" "$out"
   printf '%s\tindex-if-stale\t%s\t%s\t%s\t%s\n' "${wt##*/}" "$t" \
     "$(jq -r 'if .mutates then "BUILT " + .path else "fresh " + .path end' "$out")" \
     "$(snapshot_bytes "$wt")" "$(common_gobs)"
