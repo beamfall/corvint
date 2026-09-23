@@ -4,6 +4,56 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0098 TCP-V0-025..029: opt-in line-budgeted span rows and sufficiency check (decision 0366)
+
+V1-0098 adds `CORVINT_CONTEXT_SPANS=on` to `context`: `packet.spans` (core declaration rows
+plus call-site windows under a declared 240-line budget, each with explicit lines and a reason)
+and `coverage.sufficiency` (per task anchor `satisfied|insufficient|unknown`, set `satisfied`
+only when every anchor is, missing anchors named). Code lives in
+`internal/contextindex/span_rank.go` and `sufficiency.go`; `TaskContext` gains one call. With the
+flag unset or any other value the packet equals the recipe golden (`TestContextSpansDefaultBytes`),
+and the flag changes no `results` byte (`TestContextSpansBudgetAndBounds`). No index encoding
+changed: `analyzerSchemaID` stays `corvint-analyzer/73` and only the `TestAnalyzerSchemaInputs`
+digest was repinned for the two new production files, as for earlier consumer-only changes.
+
+Frozen evaluation (TCP-V0-029): `tools/retrieval-bench --arms context --context-packets`, all
+samples of the five `v2_*` releases (no `--max-samples`), flag set empty (off) and `on`, `corvint`
+built from this branch. recall@5/10/20, flag off = flag on in every subset: `v2_trace2code`
+0.401/0.508/0.794 (n=101); `v2_code2test` 0.288/0.399/0.512 (n=106; the flag-off run lost 3 samples
+to the 30-second Git index deadline under host load and read 0.278/0.390/0.502, and the 3 retried
+flag-off rank identically to flag-on); `v2_comment2context` 0.256/0.344/0.504 (n=80);
+`v2_edit2ripple` 0.356/0.504/0.624 (n=58, 3 sample errors in both modes); `v2_abstention` has no
+gold (abstained 0.171 in both modes). Core-span recall against the ±15-line control: trace2code
+0.133 vs 0.077 (7 wins, 4 losses), code2test 0.034 vs 0.007 (7 wins, 2 losses), comment2context
+0.091 vs 0.016 (11 wins, 1 loss); edit2ripple has file-level gold only and is not scorable.
+Sufficiency: trace2code 0 `satisfied` (precision undefined, base rate 0.109); code2test 1 of 41
+`satisfied` fully covered (0.024 vs base rate 0.009); comment2context 1 of 22 `satisfied` fully
+covered (0.045 vs base rate 0.038); abstention 2 `satisfied` on no-gold samples (0.0); edit2ripple 1
+`satisfied`, not scorable against spans (its rows do include the gold file). Losing cases: span
+recall below control on trace2code `05041faae6e19b6882e3074a`, `3bd1eecf0ebcd9c6b334fa92`,
+`7db765ce2d8ea9b3f68029fd`, `9f0d0d1bb836481d62b838aa`, comment2context `3fd987cc42a8a4550add3562`,
+code2test `29168597c41ad9e94b95412c`, `c9059c66a5c31bceb46c9edf`. No sufficiency precision falls
+below its base rate, but `satisfied` also appears on no-gold
+`abstention_candidate__organic_issue__e783b22ef915b1c2fb513b60` and `...__5013784e701897f60233c4dc`
+(generic anchors `TargetClosedError`; `mock`, `patch`). Verdict: the feature stays opt-in (decision
+0366); `satisfied` is not evidence of gold coverage.
+
+The ten runs (plus the 3-sample code2test retry) ran in parallel on a host shared with other workers
+(load average 65 to 371), so latency figures in the reports are not comparable and are not recorded.
+Reports and captures stay in the session scratchpad and are not committed. Verification: `go test`
+of `./internal/contextindex/... ./internal/specindex/` and `-run Context ./cmd/corvint/` pass, `go
+vet` on those packages is clean, and the focused-docs gate passes. NOT_RUN: the other units selected
+by `corvint affected --base a98d770` (61 Go units plus 16 unknowns; the change is flag-gated and the
+default bytes are test-proven identical), `make gate` (owner policy), and any paired or promotion
+evaluation. NOT_PRODUCED: a committed span scorer (the TCP-V0-029 scorer is a scratch script).
+NOT_OBSERVED: any agent consuming span rows in a real task.
+
+Review fixes (PR #99): `coverage.sufficiency` gains `scope: task-anchors` and its reason now reads
+"N of M task anchors carried by the selected lines; not evidence the task is answered", the
+call-site reason reads "names `S` at line L; `S` is declared by the core span P:S-E" (TCP-V0-026/028
+reworded), two stale comments are corrected, and the analyzer digest is repinned with the schema
+still `corvint-analyzer/73`; the frozen-evaluation figures above predate the fix, which changes only
+wording and adds one member.
 ## 2026-09-23 V1-0083, decision 0367, TCP-V0-030..034: identifier graph and opt-in personalized PageRank slot
 
 V1-0083 adds a deterministic identifier definition/reference graph to the index and an opt-in

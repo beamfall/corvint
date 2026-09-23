@@ -54,6 +54,7 @@ func TaskContext(ctx context.Context, index *Index, task, subject string, limit 
 		rows = compiler.reservedOnly(rows)
 	}
 	packet := compiler.packet(rows, limit)
+	compiler.attachSpans(packet, rows)
 	if err := index.SnapshotRefusal(); err != nil {
 		return nil, err
 	}
