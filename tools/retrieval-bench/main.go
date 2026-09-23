@@ -29,6 +29,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -110,6 +111,7 @@ type sampleReport struct {
 	Given          []string           `json:"given"`
 	QueryChars     int                `json:"query_chars"`
 	QueryTruncated bool               `json:"query_truncated"`
+	AnchorBearing  bool               `json:"anchor_bearing,omitempty"`
 	Arms           map[string]arm     `json:"arms"`
 	Metrics        map[string]metrics `json:"metrics"`
 }
@@ -800,7 +802,7 @@ func judge(ctx context.Context, configuration options, corvint retriever, contex
 	report := sampleReport{
 		ID: item.ID, TaskType: item.TaskType, Repo: item.Repo, BaseCommit: item.BaseCommit,
 		Stratum: stratum(item), Partition: partition(item.Repo), Gold: goldFiles(item), Given: given,
-		QueryChars: utf8.RuneCountInString(full), QueryTruncated: truncated,
+		QueryChars: utf8.RuneCountInString(full), QueryTruncated: truncated, AnchorBearing: contextindex.TaskHasAnchors(full),
 		Arms: map[string]arm{}, Metrics: map[string]metrics{},
 	}
 	timed := func(name string, produce func() arm) {
@@ -1429,6 +1431,9 @@ func summarize(reports []sampleReport, limit int) map[string]any {
 			groups["task:"+report.TaskType] = append(groups["task:"+report.TaskType], sampleMetrics)
 			groups["stratum:"+report.Stratum] = append(groups["stratum:"+report.Stratum], sampleMetrics)
 			groups["fold:"+report.Partition] = append(groups["fold:"+report.Partition], sampleMetrics)
+			if report.AnchorBearing {
+				groups["stratum:anchor-bearing"] = append(groups["stratum:anchor-bearing"], sampleMetrics)
+			}
 		}
 		summary := map[string]any{}
 		for group, members := range groups {
