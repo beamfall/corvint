@@ -11,7 +11,7 @@ Authoritative inputs: `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`,
 ## Agent digest
 - Claim: `corvint impact --provider FILE` attaches provider records in a separated `context.external` section and changes nothing in the core receipt.
 - Status: accepted (decision 0309)/experimental (file records and local authoring kit; kit promotion blocked on V1-0013); checked by `TestImpactProviderSectionSeparation`.
-- Exists: experimental authoring kit `examples/evidence-provider/v0` and exact-pin consumer `internal/extevidence/pin.go`; `internal/extevidence` and the `--provider` option in `cmd/corvint`; provider items carry the Core-assigned `external-provider` authority, Git-ancestry freshness, and per-path reference verification.
+- Exists: experimental authoring kit `examples/evidence-provider/v0` and exact-pin consumer `internal/extevidence/pin.go`; `internal/extevidence` and the `--provider` option in `cmd/corvint`; provider items carry the Core-assigned `external-provider` authority, Git-ancestry freshness, and per-path reference verification; `EEP-V0-023..026` (proposed, experimental, decision 0371) add the Core-owned in-process gopls provider `internal/lspprovider`, off unless `CORVINT_CONTEXT_LSP=gopls`.
 - Blocked on: nothing for a local command, which is `external-evidence-provider-transports-v0.md` (decision 0316); Kit promotion needs V1-0013 and owner acceptance; kit MCP remains proposed. Separately accepted MCP/remote profiles are unchanged. Cross-repository relationships are `external-evidence-provider-v1.md` (decision 0310).
 - Read next: Definitions; Requirements; Non-goals and simpler baseline.
 
@@ -176,6 +176,49 @@ each cited path still exists at that revision, and what was omitted or could not
   present, builds the runner there offline, and runs it against a named Corvint binary with only
   Git, local Go 1.27.1 and Darwin or Linux as prerequisites.
 
+### Core-owned local language-server provider (proposed 2026-09-23; experimental; decision 0371)
+
+- `EEP-V0-023`: A Core-owned local provider MAY produce one `external-evidence-provider/2` record
+  in process. Its first and only instance is gopls, selected by `CORVINT_CONTEXT_LSP=gopls` on
+  `corvint context` (`TCP-V0-043`); it is off by default and installs no daemon, service or
+  configuration. The record takes the one decode, capability check, Git-ancestry freshness and
+  endpoint verification every transport shares (`InlineSection` in
+  `internal/extevidence/section.go`), under provider source `lsp:gopls`, so its items carry the
+  Core-assigned `external-provider` authority and trust class (`TCP-V0-023`), are never project
+  authority, and never enter core results or ranking (`EEP-V0-015`, `EEP-V2-003`).
+- `EEP-V0-024`: Each invocation owns one `gopls serve` process: the executable found on `PATH`,
+  started in the canonical repository root inside an owned process group
+  (`internal/procgroup`), with an environment limited to the Go toolchain's locations plus
+  `GOPROXY=off`, `GOSUMDB=off`, `GOTOOLCHAIN=local` and a private `GOPLSCACHE` directory removed
+  afterwards. It is bounded by a 20 s hard wall time that kills the group, a 15 s soft deadline
+  after which no query is issued, 64 MiB of server output counted by the client, 4 MiB per
+  message, and 64 KiB of captured stderr. A record exists only after a clean exit 0 with the
+  process group proven cleaned up. The record's `provider.revision` is the gopls module version
+  from the `initialize` response's `serverInfo`, reduced to the identifier grammar (`unknown` when
+  absent). The query digest is SHA-256 over the canonical JSON of the provider id, the index
+  commit, the seeds and the bounds; it is reported as `query.sha256` and opens every relation's
+  `reference`.
+- `EEP-V0-025`: The expansion is at most two hops. Seeds are at most three `.go` paths whose
+  indexed text equals the working tree. Hop one queries each seed at up to eight top-level
+  function, method and type declarations (`textDocument/references`, declarations excluded,
+  skipping `_`, `init` and `main`) and up to eight distinct selector and call names
+  (`textDocument/definition`). Hop two queries the three hop-one files most often reached (then by
+  path) and never relates to a seed or hop-one file. At most 64 queries run. Each distinct
+  (origin, file, type) is one relation from the queried file to the answered file, of type
+  `gopls:referenced-by` or `gopls:uses-definition`, evidence `inferred`, both endpoints pinned to
+  their index blobs; its `rule` names the method, the one-based position and the symbol, and its
+  `reference` names the digest, the hop, the seed and, at hop two, the hop-one file it came
+  through. A location outside the repository is counted (`outside_repository`); a file not
+  indexed as text, or whose working-tree bytes differ from the index, is omitted and counted
+  (`omitted_rows`); the record keeps at most 32 relations and 64 KiB.
+- `EEP-V0-026`: An absent or failing provider yields no record and no partial rows: the section
+  holds one `unavailable` provider row whose reason names the cause (`not applicable: no
+  committed, unmodified Go file among the seeds`, `gopls executable not found`, `gopls did not
+  start`, `gopls exceeded 20s wall time; process group killed`, `gopls cancelled`, `gopls session
+  failed`, `gopls did not exit cleanly`, `gopls process group not proven cleaned up`, or a
+  repository, root commit or cache-directory reason). The exit code and every other packet member
+  are unchanged.
+
 ## Non-goals and simpler baseline
 
 - New transports or analyzer authority. The kit reuses the separately owned contained command
@@ -218,6 +261,11 @@ Failure is closed: an unreadable or malformed record is a structured `unavailabl
 entry, an unknown revision is `revision-unavailable`, an unresolvable endpoint is an `unknowns`
 entry, and every truncation is counted. No failure inside the section changes the core receipt or
 the exit code, so an existing caller that never passes `--provider` observes no change at all.
+The Core-owned gopls provider (`EEP-V0-023`) inherits these rules and adds its own: gopls reads the
+working tree, so any file whose bytes differ from the index is omitted rather than trusted; gopls
+shares the user's Go build cache and follows the user's Go telemetry mode, which Corvint neither
+reads nor changes; and module downloads are disabled, so a module whose dependencies are not
+already local yields fewer relations, never a fetch.
 
 ## Deterministic acceptance and testing matrix
 
@@ -236,6 +284,9 @@ the exit code, so an existing caller that never passes `--provider` observes no 
 | More entities than `--limit` | `omitted.results` counts the rest |
 | Same inputs twice | identical section bytes |
 | Evaluation over the mock-provider fixture | precision, recall, false-positive relationships 0, abstention accuracy, latency, receipt bytes |
+| gopls record fixture `testdata/conformance-path/lsp-gopls.json` in process and from a file | same `path_relations`; `external-provider` trust; each reference names its hop origin |
+| Live gopls over a committed four-package module | hop-one and hop-two relations pinned to blobs; a modified file omitted and counted |
+| No Go seed; no executable; a server that exits at once | one `unavailable` row with its reason; no record |
 
 ## Rollout, rollback, and compatibility
 
@@ -244,6 +295,10 @@ document, and decision 0309; no wire other than the impact receipt's optional `e
 touched, and that member is absent for every existing caller. The `generated` kind (decision 0350)
 rolls back on its own by removing `EvidenceGenerated` from the kind map and the weak-evidence
 table; a record carrying it then returns to `excluded-evidence-kind`, and no other record changes.
+`EEP-V0-023..026` roll back alone: delete `internal/lspprovider`, `cmd/corvint/context_lsp.go`,
+their tests, the fixture `lsp-gopls.json`, the one `attachLSPEvidence` call in
+`compileTaskContext`, and `InlineSection` with its `sectionOf` split in
+`internal/extevidence/section.go`; unset `CORVINT_CONTEXT_LSP`. No other wire changes.
 
 ## Traceability
 
@@ -270,6 +325,10 @@ table; a record carrying it then returns to `excluded-evidence-kind`, and no oth
 | `EEP-V0-020` | `profileReason`, `repeatedMember` in `internal/extevidence/pin.go` | `TestProviderKitProfileReasons` |
 | `EEP-V0-021` | `examples/evidence-provider/v0/conformance/main.go` | `TestProviderKitConformanceRunner` |
 | `EEP-V0-022` | `examples/evidence-provider/v0/authoring-proof.sh` | recorded run in the kit README and `docs/BUILD-LOG.md` |
+| `EEP-V0-023` | `InlineSection`, `sectionOf` in `internal/extevidence/section.go`; `attachLSPEvidence` in `cmd/corvint/context_lsp.go` | `TestLSPRecordConformance`, `TestContextLSPOffKeepsTheGoldenAndOnDegrades` |
+| `EEP-V0-024` | `Expand`, `run`, `environment`, `querySummary`, `serverVersion` in `internal/lspprovider/provider.go`; `internal/lspprovider/session.go` | `TestExpandLiveGopls`, `TestSessionAnswersServerRequests` |
+| `EEP-V0-025` | `dialogue`, `walker`, `record`, `relation` in `internal/lspprovider/provider.go`; `targets` in `internal/lspprovider/targets.go` | `TestExpandLiveGopls`, `TestTargets`, `TestLSPRecordConformance` |
+| `EEP-V0-026` | `Expand`, `run` in `internal/lspprovider/provider.go`; `InlineSection` | `TestExpandDegrades`, `TestLSPUnavailableIsVisible`, `TestContextLSPOffKeepsTheGoldenAndOnDegrades` |
 
 ## Unresolved decisions and promotion or kill criteria
 

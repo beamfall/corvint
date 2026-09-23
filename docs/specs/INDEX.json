@@ -748,7 +748,8 @@
     "implementation": [
       "cmd/corvint",
       "examples/evidence-provider/v0",
-      "internal/extevidence"
+      "internal/extevidence",
+      "internal/lspprovider"
     ]
   },
   {
@@ -1950,7 +1951,8 @@
     "closableToday": false,
     "implementation": [
       "internal/contextindex",
-      "cmd/corvint"
+      "cmd/corvint",
+      "internal/lspprovider"
     ]
   },
   {
