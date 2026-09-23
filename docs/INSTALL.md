@@ -106,6 +106,14 @@ branch overlap hints. Replace `FULL_BASE_SHA` with the full ancestor commit imme
 the changes. These commands refuse dirty trees, do not execute suggested next calls, and do not
 close review or test obligations. See the [guidance contract](specs/repository-guidance-v0.md).
 
+For a whole change, [`examples/cem/recipes/`](../examples/cem/recipes/README.md) has three
+experimental Bash recipes: understand a `BASE..HEAD` range (`impact`, `affected`, `context`),
+prepare a change-evidence review (`cem prepare`, `status`, `report`, `review`), and verify a
+committed `cem/0.1` map in CI with the digest-pinned portable verifier. Each is bounded, keeps
+every refusal in its output directory, and exits non-zero rather than reporting success on
+missing, stale or unsupported evidence (`CEM-PILOT-024`..`027` in
+[the pilot kit](specs/cem-pilot-kit.md)).
+
 ## Optional workflow bundle
 
 The planned, separately assembled **macOS arm64** workflow bundle will contain nine native binaries:
