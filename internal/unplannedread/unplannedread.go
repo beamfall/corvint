@@ -1,7 +1,8 @@
 // Package unplannedread measures reads that Corvint failed to prevent: tool
 // calls that opened a project file the delivered context packet did not
 // already carry. It is an explicitly opt-in, bounded, local, private ledger.
-// It is never an input to ranking, learning, evidence, or authority, and it
+// It is never an input to ranking, evidence, or authority, is read as labels
+// only by the operator-invoked slot-weight learning step (decision 0368), and
 // stores no file contents.
 package unplannedread
 

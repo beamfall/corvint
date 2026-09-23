@@ -9,16 +9,17 @@ Requirement prefix: `LTA-V0`
 Authoritative inputs: `docs/decisions/0058-learning-loop-evaluation-gate-and-retention-2026-09-05.md`;
 `docs/decisions/0037-release-owner-calls-2026-09-03.md` item 4; AGENTS.md invariant 5;
 `docs/specs/go-production-kernel-migration-v0.md` `GPK-V0-044`; and
-`docs/specs/local-trace-producer-migration-v0.md`. `LTA-V0-009` to `LTA-V0-012` are proposed by
-`docs/decisions/0368-ledger-negative-labels-for-slot-weights-2026-09-23.md` and stay experimental
-until the owner ratifies its amendment to AGENTS.md invariant 4.
+`docs/specs/local-trace-producer-migration-v0.md`. `LTA-V0-009` to `LTA-V0-012` were proposed by
+`docs/decisions/0368-ledger-negative-labels-for-slot-weights-2026-09-23.md` and accepted by
+decision 0373 (item 12) with experimental delivery; their output reaches ranking only through the
+frozen held-out gate.
 
 ## Agent digest
 - Claim: Learned-path mechanism changes require a pinned two-arm gate, while `record` reclaims unchanged trace-store caps by deterministic whole-file eviction.
 - Status: accepted (decision 0058); experimental.
 - Exists: the local trace writer and reader, Python-parity learned-path query behavior, the baseline frozen-corpus evaluation arm, and the read-only `skill-export` projection of admitted `passed` rows to Agent Skills documents (decision 0349).
 - Blocked on: a first registered development run under both engines; blind-v4 remains sealed.
-- Read next: `LTA-V0-001`, `LTA-V0-002`, then `LTA-V0-003`; `LTA-V0-006` for the skill export; `LTA-V0-009` for ledger-labelled slot weights (proposed, decision 0368).
+- Read next: `LTA-V0-001`, `LTA-V0-002`, then `LTA-V0-003`; `LTA-V0-006` for the skill export; `LTA-V0-009` for ledger-labelled slot weights (decision 0368, accepted by 0373, experimental).
 
 ## User and measurable job
 
@@ -117,7 +118,7 @@ screens shared the assignment-pattern vocabulary, which did not include `credent
   to its directory name, a non-empty one-line `description` of at most 1,024 characters, a short
   `SKILL.md` body, and the full paths and commands in `references/trace.md` (progressive
   disclosure). The acceptance fixture is a Go parser shaped like a host loader; no real host runs.
-- `LTA-V0-009`: (proposed, decision 0368) `corvint eval --learn-slot-weights [--goldens FILE]
+- `LTA-V0-009`: (decision 0368, accepted by 0373, experimental) `corvint eval --learn-slot-weights [--goldens FILE]
   [--admit]` MUST be the only reader of `.corvint/unplanned-reads.jsonl` and
   `.corvint/self-observations.jsonl` as labels, and only through their existing bounded readers
   (128 KiB per ledger, 2 KiB per row). Its negative labels are the distinct paths of unplanned reads
@@ -128,7 +129,7 @@ screens shared the assignment-pattern vocabulary, which did not include `credent
   `lexical` for any other `docs/` path; otherwise `definition`), and at most four proposals raise the most-labelled slots by 1 and then
   2. `context` and `query` MUST NOT open either ledger or depend on the learning package: their
   bytes are identical with the ledgers present, absent or populated.
-- `LTA-V0-010`: (proposed, decision 0368) Each proposal MUST be scored against the default slot
+- `LTA-V0-010`: (decision 0368, accepted by 0373, experimental) Each proposal MUST be scored against the default slot
   order on the frozen golden's held-out split (`CaseSplit`) by the `context` packet over the
   held-out `query` rows, counting critical misses, must-include hits and top-five hits over
   path-bearing selectors (`symbol:PATH:NAME`, `file:PATH`). The report MUST carry the goldens
@@ -137,7 +138,7 @@ screens shared the assignment-pattern vocabulary, which did not include `credent
   when critical misses rise or at least two more cases regress, and otherwise `not distinguished`.
   With no labels, or no `improved` proposal, the step MUST refuse admission, write nothing and say
   why. It MUST fail when the repository revision changes during scoring.
-- `LTA-V0-011`: (proposed, decision 0368) Only `--admit` with an `improved` proposal MAY write
+- `LTA-V0-011`: (decision 0368, accepted by 0373, experimental) Only `--admit` with an `improved` proposal MAY write
   `.context-corvint/slot-weights.json` (schema 1: `weights` over the ten learnable slot relations,
   each an integer in -2..2, plus the gate's evaluation block), atomically and at most 4,096 bytes.
   The file is operator-owned local state: the loader checks its shape, not its provenance, so the
@@ -152,7 +153,7 @@ screens shared the assignment-pattern vocabulary, which did not include `credent
   one whose `evaluation` block is absent or lacks that shape, MUST fail `context` closed with a
   message naming the rollback command, never fall back silently. `necessity`, `disagree` and
   `touchsurprise` compile the unweighted `contextindex.TaskContext` packet and do not read the file.
-- `LTA-V0-012`: (proposed, decision 0368) `corvint eval --reset-slot-weights` MUST remove the
+- `LTA-V0-012`: (decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weights` MUST remove the
   admitted file, report whether it removed one, succeed when none exists, and return `context` to
   its default bytes. It takes no other argument.
 

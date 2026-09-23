@@ -16,7 +16,7 @@ The product and executable are Corvint. The `corvint-*` wire/profile identities,
 tools, and canonical `.corvint` and `.context-corvint` paths are protocol and repository-state
 contracts. `cmd/corvint-*` paths are source package names.
 
-The accepted [0.6 verified local-workflow scope](decisions/0332-verified-local-workflow-scope-2026-09-22.md) and [portfolio reading map](PORTFOLIO-0.6.md) define the current Core qualification target. Its status is **NOT_QUALIFIED**; installed Codex/Claude use, six evidence classes, and candidate-bound gates remain open. A proposed 1.0 Core and companion scope awaits owner acceptance in the DRAFT [Corvint 1.0 product and release scope](specs/corvint-1.0-product-and-release-v1.md); it has no authority until a numbered decision accepts it.
+The accepted [0.6 verified local-workflow scope](decisions/0332-verified-local-workflow-scope-2026-09-22.md) and [portfolio reading map](PORTFOLIO-0.6.md) define the current Core qualification target. Its status is **NOT_QUALIFIED**; installed Codex/Claude use, six evidence classes, and candidate-bound gates remain open. Decision 0373 accepts the [Corvint 1.0 product and release scope](specs/corvint-1.0-product-and-release-v1.md): 1.0 Core is the local change-evidence loop and proof wire; companions, host FULL and independent interoperability leave the Core path. Accepted scope is not qualification or promotion.
 
 ## Product loop
 

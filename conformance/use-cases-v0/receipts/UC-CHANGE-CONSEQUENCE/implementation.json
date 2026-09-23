@@ -1,0 +1,23 @@
+{
+  "attestation": {
+    "entrypoints": [
+      "corvint impact",
+      "corvint affected"
+    ]
+  },
+  "evidenceClass": "implementation",
+  "repositoryRevision": "062b0151b603a5d637cdd0ad0f560edefee921a4",
+  "result": "PASS",
+  "spec": "corvint-use-case-evidence/0",
+  "subjects": [
+    {
+      "path": "cmd/corvint/main.go",
+      "sha256": "fddb4b6a11af8ba6adfa1e8e0761e84bf0e4f5b247386078e7a8540c24357e8f"
+    },
+    {
+      "path": "cmd/corvint/affected.go",
+      "sha256": "63bc1c030a35f25ebd0a325ad1abb40f42e7d24307089852bccc77831495bc13"
+    }
+  ],
+  "useCaseId": "UC-CHANGE-CONSEQUENCE"
+}
