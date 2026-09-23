@@ -45,8 +45,14 @@ stays `UNPROVEN`. Their sealed-benchmark receipts from run-001 record `FAIL` for
 consequence and `PASS` for completion; sealed run-002 (preregistration amendment 1, ticket V1-0202)
 records `PASS` for all three, and its receipts are bound to the rows. Ticket V1-0188 added a
 `hostile-tests` receipt per row, pinned to its entrypoint test file
-`cmd/corvint/usecase_hostile_*_test.go`. No `corvint-dogfood` or `beamfall-dogfood` receipt
-exists, so none of the three can be `verified` (ticket V1-0011).
+`cmd/corvint/usecase_hostile_*_test.go`. Ticket V1-0207 added a `corvint-dogfood` receipt per
+row, pinned to bind commit 8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8 of the V1-0188 review-repair
+increment, which went through the `docs/DOGFOOD.md` daily path; each receipt's subjects are that
+commit's sealed CEM and a byte-identical copy of the retained daily-path artifact for the row
+(`prechange-query`, `prechange-impact`, `dogfood-report`) under
+`receipts/<useCaseId>/corvint-dogfood/`. No
+`beamfall-dogfood` receipt exists (ticket V1-0184), so none of the three can be `verified` (ticket
+V1-0011).
 
 ## Status and claim model
 

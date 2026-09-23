@@ -1,0 +1,23 @@
+{
+  "profile": "corvint-dogfood-change/0",
+  "base": "a062f730426424c4767eb79ea88d89363c412963",
+  "target": "8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8",
+  "complete": true,
+  "steps": [
+    {"name": "prechange-query", "status": "PRODUCED", "reason": "none"},
+    {"name": "prechange-impact", "status": "PRODUCED", "reason": "none"},
+    {"name": "cem-prepare", "status": "PRODUCED", "reason": "none"},
+    {"name": "cem-cite", "status": "PRODUCED", "reason": "none"},
+    {"name": "ocm-prepare-001", "status": "PRODUCED", "reason": "none"},
+    {"name": "ocm-status-001", "status": "PRODUCED", "reason": "none"},
+    {"name": "ocm-aggregate", "status": "PRODUCED", "reason": "none"},
+    {"name": "cem-status", "status": "PRODUCED", "reason": "none"},
+    {"name": "local-outcome", "status": "PRODUCED", "reason": "none"}
+  ],
+  "ocmStatus": {"aggregate":{"coverage":{"linked":0,"total":13,"unknown":13},"state":"ready-for-review"},"mutates":false,"ok":true,"scopeSetSha256":"afa404a9a8fb5b5dad9d9a146689924630071c2c67f52a3e0e3e80bfd48a3b15","scopes":[{"coverage":{"linked":0,"total":13,"unknown":13},"map":".corvint/change.ocm.001.json","mapSha256":"a736809c841ecb6f1f9b0045d4a4706d7f7c4fdbbea12bc3f64dcd8b10663005","path":"docs/specs/use-case-conformance-v0.md","state":"ready-for-review"}],"testExecution":{"state":"NOT_RUN"},"tool":"dogfood-ocm-status","worklist":[{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"UCV0-001","reason":"unassessed","scope":1,"selector":1},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"UCV0-002","reason":"unassessed","scope":1,"selector":2},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"UCV0-003","reason":"unassessed","scope":1,"selector":3},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"UCV0-004","reason":"unassessed","scope":1,"selector":4},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"UCV0-005","reason":"unassessed","scope":1,"selector":5},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"UCV0-006","reason":"unassessed","scope":1,"selector":6},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"UCV0-007","reason":"unassessed","scope":1,"selector":7},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"UCV0-008","reason":"unassessed","scope":1,"selector":8},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"UCV0-009","reason":"unassessed","scope":1,"selector":9},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"UCV0-010","reason":"unassessed","scope":1,"selector":10},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"UCV0-011","reason":"unassessed","scope":1,"selector":11},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"UCV0-012","reason":"unassessed","scope":1,"selector":12},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"UCV0-013","reason":"unassessed","scope":1,"selector":13}]}
+  ,"localOutcomeEvidenceSha256": "sha256:111ba26b744721e396c7511908b2a08b3cb7e4ea88c7e377fe65956f19663711"
+  ,"contextAbstentionEvidenceSha256": null
+  ,"anchor": {"state": "NOT_OBSERVED", "mergeBase": null}
+  ,"dogfoodPolicy": {"bootstrapUnknown": 0, "maximumUnknownAfterBootstrap": 0}
+  ,"dogfoodCheck": {"baseVerifierSha256": "sha256:5506533abf934cfcd8bb6fb168f9dd036558c15d731972cce18cb5a2ce2661c4", "treeVerifierSha256": "sha256:e04701e06c7f55404e8f8ca69db1701a317e0638e0e2cd72cef74dab6f809419", "overrideVerifierSha256": null, "bootstrapUnknown": 0, "maximumUnknownAfterBootstrap": 0, "outputsAgree": true}
+}
