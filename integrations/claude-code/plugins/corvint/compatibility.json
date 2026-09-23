@@ -4,7 +4,7 @@
   "adapter": {
     "host": "claude-code",
     "surface": "plugin",
-    "version": "0.2.2"
+    "version": "0.2.3"
   },
   "host": {
     "minimumTestedVersion": "2.1.238",
