@@ -74,7 +74,15 @@ func qualifyColdAndIncremental(t *testing.T, source, prior, target string) {
 	t.Logf("IDX-SNAP-V0-022: %s after %s: canonical index %d bytes sha256 %x", target, prior, len(coldBytes), sha256.Sum256(coldBytes))
 }
 
+// qualifyDefaultPath clears the opt-in writer settings so an exported shard or
+// snapshot-format setting cannot move these tests off the default gob path.
+func qualifyDefaultPath(t *testing.T) {
+	t.Setenv("CORVINT_INDEX_SHARDS", "")
+	t.Setenv("CORVINT_SNAPSHOT_FORMAT", "")
+}
+
 func TestColdAndIncrementalSnapshotsAreByteIdentical(t *testing.T) {
+	qualifyDefaultPath(t)
 	t.Run("IDX-SNAP-V0-022 fixture", func(t *testing.T) {
 		source := impactRepositoryWithFiles(t, map[string]string{
 			"go.mod":             "module example.test/lifecycle\n\ngo 1.27.0\n",
@@ -133,6 +141,7 @@ func requireSnapshotMiss(t *testing.T, root, state string) {
 // matrix of IDX-SNAP-V0-023: unsupported input, corruption, staleness, dirty
 // state and rollback each end in one asserted outcome, never a panic.
 func TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes(t *testing.T) {
+	qualifyDefaultPath(t)
 	root := impactRepositoryWithFiles(t, map[string]string{
 		"go.mod":          "module example.test/hostile\n\ngo 1.27.0\n",
 		"app/app.go":      "package app\n\nfunc Run() string { return \"first\" }\n",

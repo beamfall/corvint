@@ -1108,7 +1108,7 @@ IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	353	(accepted 2026-09-13 by deci
 IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	371	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
 IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	398	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
 IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	426	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
-IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	438	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
+IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	440	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
 KA-V0-001	docs/specs/kotlin-android-candidate-v0.md	28	The command and its package remain isolated, unregistered, and unreachable from
 KA-V0-002	docs/specs/kotlin-android-candidate-v0.md	30	A request is one UTF-8, canonical-JSON object followed by one LF. It has the clo
 KA-V0-003	docs/specs/kotlin-android-candidate-v0.md	34	The target is exactly Android/arm64/none. The twelve input rows below occur once

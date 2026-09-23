@@ -151,11 +151,13 @@ separate run envelope; it is not inserted into immutable Git facts or canonical 
   (`defaultLimits`), under the ten-minute fallback bound. A caller deadline or budget that expires
   once the repository has opened and the revision has resolved yields a `PARTIAL` receipt that
   still pins revision and tree, names the single gap `git-timeout`, lists no entries, and records
-  zero model calls. A Git read that hangs
-  while the repository opens yields the `INVALID` receipt `invalid-repository` instead. Measured on
-  this repository, 20 runs each, network denied: `init` p95 0.259 s and `adopt` p95 0.257 s
-  (`docs/BUILD-LOG.md`, 2026-09-22 V1-0008). Falsifier: an activation that outlives its deadline by
-  more than the per-read Git cleanup, or a timed-out receipt with any other state or gap.
+  zero model calls. A deadline that expires after the repository opens but before the revision
+  resolves yields an `INVALID` receipt with the single gap `git-timeout` and no revision. A Git
+  read that hangs while the repository opens yields the `INVALID` receipt `invalid-repository`.
+  Measured on this repository, 20 runs each, network denied: `init` p95 0.259 s and `adopt` p95
+  0.257 s (`docs/BUILD-LOG.md`, 2026-09-22 V1-0008). Falsifier: an activation that outlives its
+  deadline by more than the per-read Git cleanup, or a timed-out receipt outside these three
+  outcomes.
 
 ## Backfill sequence
 

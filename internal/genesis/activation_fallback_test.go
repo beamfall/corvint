@@ -9,6 +9,18 @@ import (
 	"time"
 )
 
+// deadlineOnCancel reports an expired deadline once cancelled, so the test
+// can end the activation at a point it chose instead of at a wall-clock
+// deadline that host load could move before repository open.
+type deadlineOnCancel struct{ context.Context }
+
+func (ctx deadlineOnCancel) Err() error {
+	if ctx.Context.Err() != nil {
+		return context.DeadlineExceeded
+	}
+	return nil
+}
+
 // TestActivationFallsBackToABoundedReceiptWhenGitHangs pins GENESIS-025's
 // fallback: a Git that stops answering after repository open ends the
 // activation at the caller's deadline with a PARTIAL receipt that still pins
@@ -24,16 +36,29 @@ func TestActivationFallsBackToABoundedReceiptWhenGitHangs(t *testing.T) {
 	}
 	root := genesisRepository(t, git, "sha1")
 	bin := t.TempDir()
-	// Repository open answers; every later Git read hangs.
-	script := "#!/bin/sh\ncase \" $* \" in *\" rev-parse \"*) exec " + git + " \"$@\" ;; esac\nexec sleep 60\n"
+	marker := filepath.Join(bin, "hanging")
+	// Repository open answers; every later Git read marks that it hangs, then hangs.
+	script := "#!/bin/sh\ncase \" $* \" in *\" rev-parse \"*) exec " + git + " \"$@\" ;; esac\n: > '" + marker + "'\nexec sleep 60\n"
 	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	for _, activation := range []string{"init", "adopt"} {
-		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		if err := os.RemoveAll(marker); err != nil {
+			t.Fatal(err)
+		}
+		inner, cancel := context.WithCancel(context.Background())
+		go func() {
+			for inner.Err() == nil {
+				if _, err := os.Stat(marker); err == nil {
+					cancel()
+					return
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+		}()
 		started := time.Now()
-		receipt := CompileRepositoryInventory(ctx, root, activation, nil, "HEAD", nil)
+		receipt := CompileRepositoryInventory(deadlineOnCancel{inner}, root, activation, nil, "HEAD", nil)
 		elapsed := time.Since(started)
 		cancel()
 		if elapsed > 20*time.Second {

@@ -45,6 +45,17 @@ hangs after repository open, with a 0.5 s caller deadline. Under that wrapper ea
 within about 0.6 s. The receipt is `PARTIAL`, still pins revision and tree, and carries the single
 gap `git-timeout` with zero model calls.
 
+Review repair: the first version of this test used a 0.5 s wall-clock deadline that also had to
+cover the real `rev-parse` calls that open the repository. Under load, independent review saw 57 of
+60 runs fail, with `INVALID` + `invalid-repository`, or `INVALID` + `git-timeout` and no revision.
+The repaired test cancels only after the wrapper records that it has entered its hang branch, and
+the cancelled context reports an expired deadline. Built with `go test -c` and run on the Darwin
+host with 8 `yes > /dev/null` burners at load average 50 to 80:
+- `-test.count=20`, sequential: 20 of 20 pass, twice.
+- 12 parallel copies of `-test.count=5`: 60 of 60 pass.
+The burners were killed afterwards. The lifecycle tests now clear `CORVINT_INDEX_SHARDS` and
+`CORVINT_SNAPSHOT_FORMAT`, so exported opt-in settings cannot move them off the default gob path.
+
 Finding, recorded and not changed: a Git that hangs during repository open yields the `INVALID`
 gap `invalid-repository`, not `git-timeout`. `openRepository` maps a failed layout probe to
 `invalid-repository`. The outcome is bounded but names the wrong cause.

@@ -430,7 +430,9 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   commit and then moved to this one. The moved repository MUST probe not fresh before the second
   `index` (`IDX-SNAP-V0-011`). This is identity of the served index, not of the file: the gob bytes
   of two writes of one tree differ (map order, Non-goals), and a byte-deterministic file encoding
-  stays behind the `deployment-neutral-index-platform-v0.md` gate. Measured on this repository
+  stays behind the `deployment-neutral-index-platform-v0.md` gate. The default path has no
+  incremental build (`BuildForSnapshot` calls `Build` when blob shards are off), so this identity
+  covers a full rebuild after a move, not the reuse of prior facts. Measured on this repository
   (target `1894b9e5`, prior `7e9b1856`, 3,819 tracked files): canonical index 87,658,954 bytes,
   sha256 `76b96397439184b02f7173942d76dfb87d5d7d35183a4d8b5c6bd0044ffdbfa9`, equal in three runs.
   Falsifier: any byte of the canonical encoding that differs between the cold and the incremental
