@@ -1264,6 +1264,9 @@ LTA-V0-002	docs/specs/learned-trace-admission-v0.md	52	Before either scored arm 
 LTA-V0-003	docs/specs/learned-trace-admission-v0.md	56	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp
 LTA-V0-004	docs/specs/learned-trace-admission-v0.md	63	The current writer screen (`internal/secretscreen.Pattern`, consumed by `record`
 LTA-V0-005	docs/specs/learned-trace-admission-v0.md	92	(numbered 2026-09-12 by decision 0093; text unchanged from the accepted
+LTA-V0-006	docs/specs/learned-trace-admission-v0.md	100	`corvint skill-export --out DIR` MUST be the only path that exports learned rule
+LTA-V0-007	docs/specs/learned-trace-admission-v0.md	106	An admitted learned rule is a stored row with outcome `passed` that the reader
+LTA-V0-008	docs/specs/learned-trace-admission-v0.md	113	Each exported skill MUST load under the Agent Skills frontmatter contract that
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	55	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	59	The Python reader MUST accept canonical rows only when their filename and row na
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	64	Dry-run MUST be read-only and bind its plan digest to the stable current commit/

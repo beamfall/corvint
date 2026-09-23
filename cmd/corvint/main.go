@@ -724,7 +724,7 @@ var (
 		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
 		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
 		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet", "flows"}
+		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "features", "overview", "review", "migration-ratchet", "flows", "skill-export"}
 )
 
 func knownHost(value string) bool {
@@ -898,6 +898,9 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		}
 		if calibrateInvoked(arguments) {
 			return runCalibrate(ctx, arguments, stdout, stderr)
+		}
+		if skillExportInvoked(arguments) {
+			return runSkillExport(ctx, arguments, stdout, stderr)
 		}
 		if options, isProve, proveErr := parseProveInvocation(arguments); isProve {
 			if proveErr != nil {

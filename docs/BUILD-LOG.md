@@ -2316,3 +2316,39 @@ exposed a third of the same shape. None touched a frozen expectation.
 Not done in this change: `conformance/cli-parity-v0/README.md`'s known-divergence list (outside the
 repair's ownership) does not yet carry `DR-0039`/`DR-0040` bullets. UNKNOWN: whether the rest of the
 full `make gate` is green after this repair; only the two named packages were rerun.
+## 2026-09-22 learned-rule-skill-export: `corvint skill-export --out DIR` projects admitted traces to Agent Skills documents
+
+Ticket V1-0095, decision 0349, requirements `LTA-V0-006` to `LTA-V0-008` in
+`docs/specs/learned-trace-admission-v0.md`. New package `internal/skillexport` renders one
+`corvint-learned-<16 trace-id hex>/` directory per admitted rule (a stored row with outcome
+`passed` that `tracerecordrepo.Read` re-validated): `SKILL.md` with YAML frontmatter (`name`,
+one-line `description` folded from the task and bounded at 200 runes) and a short body, and
+`references/trace.md` with the opened and changed paths and verification commands (progressive
+disclosure). Each document names the admission evidence digest, `sha256:` over the exact
+`trace.Encode` row bytes, and the evaluation result verbatim as `NOT_RECORDED`, because
+`LTA-V0-001` admits the learned-path mechanism and never an individual row, so no per-row
+evaluation result exists to cite. `failed` and `blocked` rows and rows whose digest does not
+re-validate are refused. New verb `cmd/corvint/skill_export.go` reads through the ordinary
+snapshot and trace reader, accepts only `--out DIR`, refuses a `DIR` inside `.corvint` (after
+symlink resolution of the nearest existing ancestor), writes only under `DIR`, and prints a JSON
+manifest; `main.go` gained one dispatch and `help.go` one topic, which shifted twelve unchanged
+citations in four specs by three or five lines (repinned; every content hash unchanged).
+
+Measured: `internal/skillexport` 3 tests and `cmd/corvint` 2 new tests pass; the four existing
+verb-registration tests pass; in the fixture (`calibrateRepository(t, 3)`, one `passed` row) the
+export writes 1 directory, the repository tree digest is unchanged, and a second run into another
+`DIR` yields identical file bytes and a manifest identical apart from `DIR`.
+
+UNKNOWN / NOT MET: no real Claude Code or Codex host loaded an exported skill; the round-trip
+fixture `TestHostRoundTripLoadsExportedSkill_LTA008` is a Go parser shaped like a loader's
+frontmatter read and the published Agent Skills bounds (name 1..64 `[a-z0-9-]`, description
+1..1024). The evaluation result is `NOT_RECORDED` for every row until a per-row evaluation
+linkage exists. The worktree was fast-forwarded from 362721c to the wave base 4519cad before
+work started.
+
+Gates: `gofmt -l`, `GOTOOLCHAIN=local go build ./... && go vet ./...`, targeted
+`GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/skillexport/... ./internal/specindex/`
+plus `cmd/corvint -run` over the six touched tests, and `make spec-requirements-check
+requirement-definitions-check traceability-tests-check decision-numbers-check` all passed;
+`make line-citations-check` reports the same 18 pre-existing failures as the base, none added.
+Full `make gate` was not run, per wave scope.

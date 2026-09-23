@@ -181,6 +181,8 @@ func helpText(topic string) string {
 		return readsHelp
 	case "calibrate":
 		return calibrateHelp
+	case "skill-export":
+		return skillExportHelp
 	case "prove":
 		return proveHelp
 	case "context":
@@ -263,7 +265,7 @@ Usage:
   corvint [--root PATH] witness --base REV [--head REV] [--cem MAP] [--json]
   corvint test-validity [--receipt FILE]
   corvint [--root PATH] COMMAND --help
-  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|migration-ratchet|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity|flows]
+  corvint help [init|adopt|query|feature|eval|impact|cem|ocm|lrf|frontier|record|migrate-traces|migration-ratchet|observations|affected|obligations|features|overview|review|prove|context|index|batch|docs|depsource|necessity|surprise|answerability|kernel|lease|reads|calibrate|skill-export|dogfood|work|prove-observe|adapter|dogfood-ocm|witness|test-validity|flows]
   corvint help harness [event]
   corvint --version
 
@@ -324,6 +326,9 @@ Commands:
                  Experimental.
   calibrate      Compare recorded packet stances with recorded outcomes; never
                  writes and never applies a threshold. Experimental.
+  skill-export   Export admitted learned traces as SKILL.md documents into an
+                 operator-named directory; never writes repository or trace state.
+                 Experimental.
   witness        Compile the unwitnessed surface of one committed range without
                  mutating repository or trace state.
   test-validity  Project a live-test provider receipt through the shared

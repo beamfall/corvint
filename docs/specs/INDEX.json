@@ -1182,6 +1182,7 @@
       "internal/trace",
       "internal/tracerecordrepo",
       "internal/secretscreen",
+      "internal/skillexport",
       "cmd/corvint"
     ]
   },
