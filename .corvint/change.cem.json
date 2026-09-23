@@ -62,9 +62,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:81e9b8b9e8260bd28a7c89321b86d79c17bb57cbe219c81c956f035d84297a04",
+      "id": "hunk:sha256:af4718159e23d8eef96a1abdb1f12367059d0f499e211ca62c13ac2625141b43",
       "newRange": {
-        "count": 33,
+        "count": 37,
         "start": 4
       },
       "oldRange": {
@@ -255,6 +255,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "1dd5e00a749dd54fa9d51a939ce380ed7f5974f35e5d26629e1854d303d04ded",
+  "patchSha256": "076a93410b0e0db7a9581f10c457ef73dbe382df470c4e8adc81e3f841908bcb",
   "spec": "cem/0.2"
 }
