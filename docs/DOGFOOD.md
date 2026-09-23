@@ -20,7 +20,7 @@ gate ran (`DCW-V0-015`).
 | `BASE` | Full 40-hex commit before the change's first commit; never `HEAD` | `BASE=$(git rev-parse origin/main)` taken when branching |
 | `DOGFOOD_TASK` | One sentence describing the change, not project-operations wording (section 1) | `Deliver the documented daily change-evidence adopter path.` |
 | `DOGFOOD_INTENTS_FILE` | Path to a file of 1 to 16 repository-relative spec paths, sorted, LF-terminated, no absolute path and no `.` or `..` segment. Each spec exists at `BASE` and has exactly one `## Requirements` heading (`rg -c '^## Requirements' SPEC` prints 1); a spec created in this change cannot be an intent (section 2) | file content `docs/specs/daily-change-evidence-workflow-v0.md` |
-| `DOGFOOD_CITATIONS` | Path to a TSV file, not the rows. One `ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION` row per CEM hunk in `hunks` order, ordinals from 1, LF-terminated, at most 256 rows; the span must exist at `BASE`. Only the hunk of an intent spec absent at `BASE` may be left out; leaving out any other unknown hunk, or an ordinal above the hunk count, refuses the whole plan (`DCW-V0-016`) | row `1	AGENTS.md	26:28	specification` |
+| `DOGFOOD_CITATIONS` | Path to a TSV file, not the rows. One `ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION` row per CEM hunk in `hunks` order, ordinals from 1, LF-terminated, at most 256 rows; the span must exist at `BASE`. Only the hunk of an intent spec absent at `BASE` may be left out; leaving out any other unknown hunk, or an ordinal above the hunk count, refuses the whole plan (`DCW-V0-019`) | row `1	AGENTS.md	26:28	specification` |
 | `DOGFOOD_VERIFY_FILE` | Path to a file with one shell-free verification command per line, each at most 512 characters; `DOGFOOD_VERIFY` takes the same lines inline (section 7) | line `go test ./internal/lrfrepo` |
 | `DOGFOOD_OUTCOME` | `passed`, `failed` or `blocked` | `passed` |
 
@@ -356,7 +356,7 @@ ranges (`internal/cem/wire/canonical.go:68-79`), and an ordinal is its position 
 worklist, so any later commit other than the sidecar commit can change both. Write the plan from the
 map prepared for the final implementation commit (a run without `DOGFOOD_CITATIONS` prepares it and
 reports `cem-cite NOT_PRODUCED citation-plan-not-provided`), and rewrite it after any further commit.
-Before any cite the coordinator binds a nonempty plan to the map it just prepared (`DCW-V0-016`): an
+Before any cite the coordinator binds a nonempty plan to the map it just prepared (`DCW-V0-019`): an
 ordinal above the hunk count, or an unknown hunk named by neither ordinal nor ID, refuses the whole
 plan as `citation-plan-map-mismatch`, except the hunk of an intent path absent at `BASE`, which an
 author leaves out deliberately (section 2). A stale full hunk ID refuses `unknown-hunk-id`. A stale

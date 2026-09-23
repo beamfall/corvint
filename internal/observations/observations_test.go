@@ -810,7 +810,7 @@ func TestDogfoodReasonAdmitsEveryRegisteredCEMCode(t *testing.T) {
 }
 
 // TestDogfoodReasonAdmitsCitationPlanMapMismatch: the coordinator's refusal of a
-// plan written for another prepared map is observable (DCW-V0-016, V1-0173).
+// plan written for another prepared map is observable (DCW-V0-019, V1-0173).
 func TestDogfoodReasonAdmitsCitationPlanMapMismatch(t *testing.T) {
 	row := Event{Kind: "dogfood-step", Step: "cem-cite", Status: "NOT_PRODUCED", Reason: "citation-plan-map-mismatch"}
 	if err := validateWriterContract(row); err != nil {

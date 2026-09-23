@@ -451,7 +451,7 @@ validate_citation_plan() {
 }
 
 # citation_plan_matches_map binds a plan to the map prepared in this run
-# (DCW-V0-016): no ordinal may exceed the map's hunk count, and every hunk the
+# (DCW-V0-019): no ordinal may exceed the map's hunk count, and every hunk the
 # map still records as unknown must be named by ordinal or full ID unless its
 # path is an intent absent at BASE, the bootstrap hunk an author deliberately
 # leaves uncited. An empty plan stays a no-op. Only a regular map is read, at

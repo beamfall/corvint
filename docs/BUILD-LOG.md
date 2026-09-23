@@ -4,7 +4,7 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
-## 2026-09-23 V1-0173 DCW-V0-016: a citation plan must match the map prepared in the same run
+## 2026-09-23 V1-0173 DCW-V0-019: a citation plan must match the map prepared in the same run
 
 Finding: `dogfood-change` applied a stale 9-row `DOGFOOD_CITATIONS` plan by ordinal to a map a later
 commit had re-prepared with 10 hunks; nothing refused it, and the tenth hunk stayed unknown.

@@ -1012,7 +1012,7 @@ cmp "$citation_artifacts/prepared.json" "$citation_case/final.json"
 ) &
 phase_jobs="$phase_jobs $!"
 
-# V1-0173 / DCW-V0-016: a plan binds to the map prepared in this run before any cite.
+# V1-0173 / DCW-V0-019: a plan binds to the map prepared in this run before any cite.
 (
 use_citation_clone citation-map-repo
 awk 'BEGIN { for (i=1; i<=9; i++) print i "\tdocs/specs/intent-a.md\t1:1\tspecification" }' \
