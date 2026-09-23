@@ -1,0 +1,20 @@
+{
+  "attestation": {
+    "cases": [
+      "abstention",
+      "hostile",
+      "negative"
+    ]
+  },
+  "evidenceClass": "hostile-tests",
+  "repositoryRevision": "1c6451f4aab403bbc59d8ba2bbb2416f9d57638e",
+  "result": "PASS",
+  "spec": "corvint-use-case-evidence/0",
+  "subjects": [
+    {
+      "path": "cmd/corvint/usecase_hostile_task_orientation_test.go",
+      "sha256": "f41e064f4d0b614680525b816e8aa1e19cba5f4a34b452b1cab7dce7e3cdbe2c"
+    }
+  ],
+  "useCaseId": "UC-TASK-ORIENTATION"
+}
