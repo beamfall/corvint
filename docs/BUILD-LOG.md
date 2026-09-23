@@ -4,6 +4,31 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-22 V1-0002: roadmap reconciled to the task store as the one execution authority
+
+Status audit and repair, not capability promotion. `ROADMAP.md` now opens by naming the Corvint task
+store `.taskman/` as the only live execution status, with its read commands, and declares every
+checkbox, `Status` line and selection in the body history as of `1894b9e`. The body is kept in place
+because specifications cite it by line (`compat-trial-v0.md`, `compat-replay-runner-v0.md`); the
+preamble keeps its seven-line length so those citations still land on the same text. A generated
+disposition table at the end maps all 131 `docs/specs/INDEX.json` entries and all 46 shipped verbs
+(42 `topLevelCommands` plus four dispatcher-only) to implemented / experimental / proposed / deferred /
+superseded / dropped / reading aid, derived from each index `delivery`, `intent` and `supersededBy`,
+plus the non-archived tickets whose touch paths name the spec or the verb's source file. Three broken
+roadmap paths are repaired (`docs/reviews/nextgen-wave1-2026-09-05.md` to decisions 0073/0075/0078,
+`benchmarks/dogfood_measure.py` to `benchmarks/dogfood-measure`, the `workflow-screening-v0` pair).
+Both `docs/plans` files gain a one-line header that supersedes them as execution status only; their
+owner intent is unchanged. `INDEX.json` `implementation` lists drop 20 retired Python/experiment paths
+that no longer exist in the tree; four entries left empty are repointed to the Go packages that cite
+their requirement IDs or dispatch them (`internal/genesis` with `cmd/corvint/init_adopt.go`,
+`internal/contextindex` with `internal/worktreeimpact`, `benchmarks/dogfood-measure`, `internal/tcq`).
+No spec body, intent or delivery value changes. Verified: focused-docs gate, `internal/specindex`,
+`internal/console`, `internal/companionrelease` tests and vet. `make gate` `NOT_RUN` (owner policy).
+Dogfood: bound with intent `docs/specs/corvint-self-development-v0.md`; every dogfood-change step `PRODUCED`
+(20/20 hunks supported), dogfood-check passed and `make dogfood-seal` sealed the CEM. An earlier attempt with
+`docs/specs/README.md` and `docs/SPEC-DRIVEN-DEVELOPMENT.md` was refused `invalid-requirements-section`.
+V1-0001 (scope ratification) remains open, so the dispositions reflect the index, not ratified 1.0 scope.
+
 ## 2026-09-22 AFU-V0-001..AFU-V0-012: experimental web flow understanding
 
 The owner requested application-flow understanding, test-gap mapping and runtime confirmation, then

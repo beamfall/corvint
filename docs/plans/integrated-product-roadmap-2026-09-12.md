@@ -1,5 +1,7 @@
 # Corvint integrated product roadmap
 
+> Superseded as execution status by the Corvint task store (`corvint-tasks queue status`, `roadmap`, `release list`); see [ROADMAP.md](../../ROADMAP.md). The owner intent below is retained unchanged.
+
 Owner: Russell Lewis  
 Updated: 2026-09-12  
 Status: owner-requested outcomes; proposed implementation sequence; not release-qualified
