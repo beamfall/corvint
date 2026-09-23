@@ -129,6 +129,28 @@
    "safe_to_narrow": false
   },
   {
+   "name": "positive-observed-with-generated-candidate",
+   "record": "generated.json",
+   "profile": "strict",
+   "changed": [
+    "pkg/main.go"
+   ],
+   "worktree": [],
+   "incomplete": [],
+   "bind": [],
+   "state": "narrow-selection-allowed",
+   "codes": [
+    "generated-only-evidence"
+   ],
+   "selected": [
+    "application:pkg/main_test.go"
+   ],
+   "relevant": [
+    "application:pkg/main_test.go"
+   ],
+   "safe_to_narrow": true
+  },
+  {
    "name": "negative-learned",
    "record": "learned.json",
    "profile": "strict",

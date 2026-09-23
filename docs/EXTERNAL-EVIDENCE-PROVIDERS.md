@@ -126,11 +126,19 @@ endpoints, ordered `unresolved` > `stale` > `not-verified` > `fresh` (`EEP-V1-00
 ## `learned` evidence is excluded
 
 A relation's `evidence` must be `declared` (the provider's own authored statement), `observed` (a
-recorded execution or measurement), or `inferred` (derived by the provider's own rule). Any other
-value — most importantly `learned` — excludes that relation to `unknowns` instead of admitting it
-(`EEP-V0-007`). This keeps Corvint's own learning loop and any provider's model-derived guesses out
-of the receipt on the same terms: a `learned` relation never reaches `results`, `downstream`,
-`verification`, or `path_relations`, no matter how confident the provider's evidence claim.
+recorded execution or measurement), `inferred` (derived by the provider's own rule), or `generated`
+(produced by a model or heuristic with no observation behind it). Any other value — most
+importantly `learned` — excludes that relation to `unknowns` instead of admitting it
+(`EEP-V0-007`). This keeps Corvint's own learning loop out of the receipt: a `learned` relation
+never reaches `results`, `downstream`, `verification`, or `path_relations`, no matter how confident
+the provider's evidence claim.
+
+A `generated` relation is admitted, but every item it admits says so in `relation.evidence` and in
+its `reason`, so a consumer that wants only observed evidence can drop those items by that one
+member (`EEP-V0-019`). Test selection never qualifies on it: a generated test is a candidate coded
+`generated-only-evidence`, like an `inferred` one (`ETS-V0-014`). Use `generated` for a
+model-suggested or heuristic link you have not executed, and `observed` only for a link a recorded
+run or measurement supports.
 
 ## Unknowns
 

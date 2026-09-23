@@ -2352,3 +2352,22 @@ plus `cmd/corvint -run` over the six touched tests, and `make spec-requirements-
 requirement-definitions-check traceability-tests-check decision-numbers-check` all passed;
 `make line-citations-check` reports the same 18 pre-existing failures as the base, none added.
 Full `make gate` was not run, per wave scope.
+## 2026-09-22 generated-evidence-kind: `generated` joins the external evidence kinds (V1-0107, decision 0350)
+
+`generated` is now the fourth admitted evidence kind in `internal/extevidence` (`EEP-V0-007`,
+`EEP-V0-019`): `impact` composes it like the other kinds with the kind visible in
+`relation.evidence` and the item `reason`, and test selection lists it as a candidate coded
+`generated-only-evidence` that never qualifies or blocks (`ETS-V0-014`, `weakEvidence` lookup in
+`selection.go`). `learned` stays excluded. The decode path is unchanged: `evidence` was already an
+identifier and unknown kinds were excluded at composition, so no existing record decodes
+differently.
+
+Measured: `internal/extevidence` passes in 62s; `TestSelectionEvaluation` over the labelled corpus
+(now 31 selection cases, 71 evaluated variants) reports precision 1.000 (54/54), unsafe narrowing
+0/53, abstention accuracy 6/6, receipt max 7032 bytes. New evidence: `TestEvidenceKindGeneratedAdmitted`
+and the `positive-observed-with-generated-candidate` case over
+`testdata/conformance-selection/generated.json`.
+
+NOT MET / UNKNOWN: no external consumer has exercised the marker; an independent adopter record is
+still the EEP-V0 promotion criterion. `conformance/` holds no external-evidence suite, so the pinned
+fixture lives only under `internal/extevidence/testdata`.

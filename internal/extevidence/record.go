@@ -30,11 +30,14 @@ const (
 	maxType        = 64
 )
 
-// Evidence kinds a relation may carry (EEP-V0-007).
+// Evidence kinds a relation may carry (EEP-V0-007). A generated relation was
+// produced by a model or heuristic, not observed; it is listed with its kind
+// so a consumer can exclude it, and it never qualifies a selection (EEP-V0-019).
 const (
-	EvidenceDeclared = "declared"
-	EvidenceObserved = "observed"
-	EvidenceInferred = "inferred"
+	EvidenceDeclared  = "declared"
+	EvidenceObserved  = "observed"
+	EvidenceInferred  = "inferred"
+	EvidenceGenerated = "generated"
 )
 
 // Record is one decoded provider record.

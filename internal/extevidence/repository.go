@@ -282,7 +282,7 @@ func (v *view) resolve1(relation *Relation1) (link, *unknown) {
 		return link{}, &unknown{provider: v.provider, relation: keys, structured: relation, state: state, reason: reason}
 	}
 	if _, known := evidenceKinds[relation.Evidence]; !known {
-		return failure(unknownExcluded, fmt.Sprintf("evidence kind %q is not declared, observed, or inferred", relation.Evidence))
+		return failure(unknownExcluded, fmt.Sprintf("evidence kind %q is not declared, observed, inferred, or generated", relation.Evidence))
 	}
 	from, reason := v.endpoint1(relation.From)
 	if reason != "" {

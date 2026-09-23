@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -266,6 +267,31 @@ func TestEvidenceKindLearnedExcluded(t *testing.T) {
 		if entry.toMap()["authority"] != Authority {
 			t.Fatalf("Core must assign authority %q", Authority)
 		}
+	}
+}
+
+// TestEvidenceKindGeneratedAdmitted checks EEP-V0-019: a generated relation is
+// admitted with its kind visible, so a consumer can exclude it, while an
+// observed relation from the same record composes as before.
+func TestEvidenceKindGeneratedAdmitted(t *testing.T) {
+	t.Parallel()
+	repo := newRepository(t)
+	record := fmt.Sprintf(`{"schema":"external-evidence-provider/0","provider":{"id":"mockgen","revision":"1"},"repository":{"revision":%q},
+"entities":[{"id":"cap-x","kind":"capability","summary":"Capability x."}],
+"relations":[{"from":"path:pkg/main.go","to":"mockgen:cap-x","type":"implements","evidence":"observed","rule":"trace","reference":"runs/1"},
+{"from":"path:pkg/main_test.go","to":"mockgen:cap-x","type":"verifies","evidence":"generated","rule":"model","reference":"model/v3"}]}`, repo.head)
+	out := loaded(t, repo, []byte(record), "pkg/main.go")
+	if len(out.unknowns) != 0 {
+		t.Fatalf("a generated relation must not be excluded: %+v", out.unknowns)
+	}
+	if len(out.results) != 1 || out.results[0].link.relation.Evidence != EvidenceObserved {
+		t.Fatalf("observed relation must compose one result: %+v", out.results)
+	}
+	if len(out.verification) != 1 || out.verification[0].link.relation.Evidence != EvidenceGenerated {
+		t.Fatalf("generated relation must be listed under verification: %+v", out.verification)
+	}
+	if row := out.verification[0].toMap(); row["relation"].(map[string]any)["evidence"] != EvidenceGenerated || !strings.Contains(row["reason"].(string), "generated") {
+		t.Fatalf("generated kind must be visible in the row and its reason: %v", row)
 	}
 }
 

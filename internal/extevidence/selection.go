@@ -50,8 +50,12 @@ var contextTypes = map[string]string{"navigates": "navigation-only-evidence", "c
 // obligation, and it cannot veto one another relation qualified (ETS-V0-006).
 var nonBlocking = map[string]struct{}{
 	"navigation-only-evidence": {}, "candidate-only-evidence": {}, "profile-excluded-relation": {},
-	"inferred-only-evidence": {}, "excluded-evidence-kind": {},
+	"inferred-only-evidence": {}, "generated-only-evidence": {}, "excluded-evidence-kind": {},
 }
+
+// weakEvidence codes the evidence kinds that never qualify: a rule-derived
+// or model-generated relation is listed, never selected on (ETS-V0-014).
+var weakEvidence = map[string]string{EvidenceInferred: "inferred-only-evidence", EvidenceGenerated: "generated-only-evidence"}
 
 var identityCodes = map[string]string{IdentityUnresolved: "unresolved-repository-identity", IdentityAmbiguous: "ambiguous-repository-identity"}
 
@@ -557,10 +561,7 @@ func (s *selector) weakCode(relationType, evidence string) string {
 	if verifying && !admitted {
 		return "profile-excluded-relation"
 	}
-	if evidence == EvidenceInferred {
-		return "inferred-only-evidence"
-	}
-	return ""
+	return weakEvidence[evidence]
 }
 
 // unsupportedCode refuses a namespaced relation type: its meaning belongs to

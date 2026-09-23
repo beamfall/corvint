@@ -31,7 +31,7 @@ const (
 
 var verificationTypes = map[string]struct{}{"verifies": {}, "covers": {}, "asserts": {}}
 
-var evidenceKinds = map[string]struct{}{EvidenceDeclared: {}, EvidenceObserved: {}, EvidenceInferred: {}}
+var evidenceKinds = map[string]struct{}{EvidenceDeclared: {}, EvidenceObserved: {}, EvidenceInferred: {}, EvidenceGenerated: {}}
 
 // tree answers the two repository questions composition asks about a path.
 type tree struct {
@@ -199,7 +199,7 @@ func resolve(record Record, entities map[string]Entity, relation Relation) (link
 	if _, known := evidenceKinds[relation.Evidence]; !known {
 		return link{}, &unknown{
 			provider: record.Provider.ID, relation: relation, state: unknownExcluded,
-			reason: fmt.Sprintf("evidence kind %q is not declared, observed, or inferred", relation.Evidence),
+			reason: fmt.Sprintf("evidence kind %q is not declared, observed, inferred, or generated", relation.Evidence),
 		}
 	}
 	from, reason := parseEndpoint(record, entities, relation.From, relation)

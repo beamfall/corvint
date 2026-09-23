@@ -52,7 +52,9 @@ each cited path still exists at that revision, and what was omitted or could not
   rule, and a reference into the provider's own material. An optional `blob` pins the Git blob the
   provider observed at a path endpoint.
 - **evidence kind**: `declared` (the provider's own authored statement), `observed` (a recorded
-  execution or measurement), or `inferred` (derived by the provider's rule).
+  execution or measurement), `inferred` (derived by the provider's rule), or `generated` (produced
+  by a model or heuristic with no observation behind it; added 2026-09-22 for issue 64, decision
+  0350).
 - **external section**: the `context.external` member of the impact receipt. It is the only place
   provider output appears.
 
@@ -84,8 +86,9 @@ each cited path still exists at that revision, and what was omitted or could not
   id differs from the record's own, or an entity id the record does not declare makes that relation
   `unresolved`: it is listed under `unknowns` with a reason and contributes nothing else.
   V0 defines no cross-repository identity; `EEP-V1` does.
-- `EEP-V0-007`: A relation's `evidence` MUST be `declared`, `observed`, or `inferred`. Any other
-  value, including `learned`, excludes that relation to `unknowns` with a reason. Every item in the
+- `EEP-V0-007`: A relation's `evidence` MUST be `declared`, `observed`, `inferred`, or `generated`
+  (`EEP-V0-019`). Any other value, including `learned`, excludes that relation to `unknowns` with
+  a reason. Every item in the
   section carries `authority` `external-provider`, assigned by Core; a record cannot state an
   authority, and external items never receive a repository authority label.
 - `EEP-V0-008`: A relation `type` is preserved exactly as the provider wrote it: lowercase, digits,
@@ -137,6 +140,14 @@ each cited path still exists at that revision, and what was omitted or could not
   authored from copied source through file and command transports, and retain Core separation.
   Promotion MUST remain blocked on V1-0013's portable-proof freeze and owner acceptance; passing
   local synthetic conformance MUST NOT be reported as acceptance or external validation.
+- `EEP-V0-019`: A `generated` relation composes exactly as the other admitted kinds, and every
+  item it admits carries `generated` in `relation.evidence` and names the kind in its `reason`, so
+  a consumer can down-weight or exclude generated items from that member alone. Core neither ranks
+  nor down-weights external items (`EEP-V0-015`); the one Core consumer, test selection, treats
+  `generated` as weak evidence that never qualifies and never blocks (`ETS-V0-014`). `learned`
+  stays excluded: it names a feedback-trained source whose derivation the record cannot cite,
+  whereas a `generated` relation still carries the generator as `rule` and its material as
+  `reference`.
 
 ## Non-goals and simpler baseline
 
@@ -184,6 +195,7 @@ the exit code, so an existing caller that never passes `--provider` observes no 
 |---|---|
 | Valid record, entity linked to changed path | one `results` entry with reason, relation, verification |
 | Record with `learned` relation | relation under `unknowns`; record still `loaded` |
+| Record with one `observed` and one `generated` relation | both admitted; the generated item's `relation.evidence` and `reason` say `generated`; nothing under `unknowns` |
 | Record with foreign provider endpoint | relation `unresolved` under `unknowns` |
 | Missing file | provider `unavailable`; exit 0; core receipt unchanged |
 | Unknown top-level member | provider `invalid`; exit 0 |
@@ -198,7 +210,9 @@ the exit code, so an existing caller that never passes `--provider` observes no 
 
 The option is additive. Rollback removes `internal/extevidence`, the `--provider` option, this
 document, and decision 0309; no wire other than the impact receipt's optional `external` member is
-touched, and that member is absent for every existing caller.
+touched, and that member is absent for every existing caller. The `generated` kind (decision 0350)
+rolls back on its own by removing `EvidenceGenerated` from the kind map and the weak-evidence
+table; a record carrying it then returns to `excluded-evidence-kind`, and no other record changes.
 
 ## Traceability
 
@@ -210,7 +224,7 @@ touched, and that member is absent for every existing caller.
 | `EEP-V0-004` | `internal/extevidence/section.go` | `TestProviderSectionDeterministicAndPinned` |
 | `EEP-V0-005` | `internal/extevidence/section.go` | `TestProviderUnavailableAndInvalidAreStructured` |
 | `EEP-V0-006` | `internal/extevidence/compose.go` | `TestEndpointIdentitiesResolve` |
-| `EEP-V0-007` | `internal/extevidence/compose.go` | `TestEvidenceKindLearnedExcluded`, `TestImpactProviderEvaluation` |
+| `EEP-V0-007` | `internal/extevidence/compose.go` | `TestEvidenceKindLearnedExcluded`, `TestEvidenceKindGeneratedAdmitted`, `TestImpactProviderEvaluation` |
 | `EEP-V0-008` | `internal/extevidence/compose.go` | `TestRelationTypesPreserved` |
 | `EEP-V0-009` | `internal/extevidence/freshness.go` | `TestFreshnessStatesFromAncestry` |
 | `EEP-V0-010` | `internal/extevidence/compose.go` | `TestReferenceVerificationStates`, `TestReferenceVerificationDeleted` |
@@ -221,6 +235,7 @@ touched, and that member is absent for every existing caller.
 | `EEP-V0-016` | `examples/evidence-provider/v0/main.go` | `TestProviderKitAuthoredProvider`, `TestProviderKitProducerRefusals` |
 | `EEP-V0-017` | `internal/extevidence/pin.go`, `examples/evidence-provider/v0/check/main.go` | `TestProviderKitExactPins`, `TestProviderKitChecker` |
 | `EEP-V0-018` | `internal/extevidence/pin_test.go`, kit README | `TestProviderKitFixtureConformance`, `TestProviderKitAuthoredProvider`, `TestImpactProviderSectionSeparation`; V1-0013 freeze and owner acceptance NOT_OBSERVED |
+| `EEP-V0-019` | `evidenceKinds` in `internal/extevidence/compose.go`, `weakEvidence` in `internal/extevidence/selection.go` | `TestEvidenceKindGeneratedAdmitted`, `TestSelectionConformance` |
 
 ## Unresolved decisions and promotion or kill criteria
 

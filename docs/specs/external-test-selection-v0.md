@@ -42,7 +42,7 @@ this request as "EEP slice 3".
   profile admits and which meets every condition of `ETS-V0-005`.
 - **Selected test**: the test side of a qualifying relation. **Candidate test**: the test side of
   any other relation to an obligation, listed with its exclusion code.
-- **Weak evidence**: a context type (`navigates`, `candidate`), `inferred` or excluded evidence,
+- **Weak evidence**: a context type (`navigates`, `candidate`), `inferred`, `generated`, or excluded evidence,
   or `covers` under the strict profile. It neither qualifies nor blocks.
 - **Mandatory check**: an `advice.checks` entry of kind `mandatory` (AFP-V0-009).
 
@@ -98,6 +98,9 @@ this request as "EEP slice 3".
 - `ETS-V0-013`: The member MUST carry no file body, credential, or resolved checkout directory. A
   checkout is echoed as given. `relation.rule` and `relation.reference` are listed in
   `untrusted_text_fields`.
+- `ETS-V0-014`: A `generated` relation (`EEP-V0-019`) is weak evidence: it is listed as a candidate
+  with code `generated-only-evidence`, never qualifies an obligation, and never blocks one, exactly
+  as `inferred` is treated. Added 2026-09-22 (issue 64, decision 0350).
 
 ## Non-goals and simpler baseline
 
@@ -134,7 +137,8 @@ and the EEP V0 and V1 record bounds.
 
 | Case | Expected | Test |
 |---|---|---|
-| 23 labelled cases in `conformance-selection/cases.json` | labelled state, codes, and selected tests | `TestSelectionConformance` |
+| 31 labelled cases in `conformance-selection/cases.json` | labelled state, codes, and selected tests | `TestSelectionConformance` |
+| `generated.json`: one `observed` and one `generated` `verifies` relation to the same obligation | `narrow-selection-allowed`; only the observed test selected; the generated test a candidate coded `generated-only-evidence` | `TestSelectionConformance` |
 | Corpus evaluation | unsafe 0, precision 1, abstention exact | `TestSelectionEvaluation` |
 | Selected row fields | full provenance, `unscored`, limitations | `TestSelectionRowProvenance` |
 | Mandatory checks | echoed unchanged | `TestSelectionMandatoryEchoedUnchanged` |
@@ -163,6 +167,7 @@ without `--provider` is unchanged in both directions.
 | `ETS-V0-010` | `result` in `internal/extevidence/selection.go` | `TestSelectionDeterministic`, `TestSelectionOmissionAccounting` |
 | `ETS-V0-011`, `ETS-V0-012` | `internal/extevidence/testdata/conformance-selection/` | `TestSelectionConformance`, `TestSelectionEvaluation` |
 | `ETS-V0-013` | `result`, `provenance` in `internal/extevidence/selection.go` | `TestSelectionPrivate` |
+| `ETS-V0-014` | `weakEvidence`, `weakCode` in `internal/extevidence/selection.go` | `TestSelectionConformance` |
 
 ## Unresolved decisions and promotion or kill criteria
 
