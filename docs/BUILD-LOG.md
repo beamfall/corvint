@@ -4,7 +4,7 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
-## 2026-09-23 V1-0126 AFP-V0-021: an unowned dirty path selects the packages that name it
+## 2026-09-23 V1-0126 AFP-V0-021: a dirty path selects the packages that name it
 
 Finding: `corvint affected` selected nothing for a docs-only change. On 34e798b a one-line append to
 `docs/RELEASE-NOTES.md` gave zero selections and `EMPTY_SELECTION`, although
@@ -22,6 +22,14 @@ Evidence: the same probe now selects 26 packages, `RUNNABLE`, still `UNKNOWN`. T
 gate's rule (c) readers of the path plus those among its unresolved packages. Graph build CPU rose
 from about 2.3 s to 4.3 s user time on this repository. The CEM sidecar narrowing is not mirrored.
 The doc checks and the selected packages pass; `make gate` was not run (owner preference).
+
+Review follow-up: the gate applies rule (c) to every dirty path, so the plan now does too. An
+appended `extensions/vscode/src/executable.ts`, owned by the TypeScript plugin, had selected only
+TypeScript tests; it now also selects `conformance/release-artifact-v0`, which names it. The token
+bound became a per-package mark reported as `go:path-token-bound:<unit>` only in a plan that
+attempts a match, instead of a graph frontier that would widen every plan; no package in this
+repository reaches it. A lex error under a `testdata` or `_`-prefixed directory no longer raises
+`go:unparsed-source`.
 
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
 

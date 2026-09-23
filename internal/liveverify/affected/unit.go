@@ -42,15 +42,17 @@ const MaxPathsPerUnit = 20_000
 // Imports name other Unit identities; an import that a plugin could not resolve
 // to a repository unit is omitted here and reported through Result.Frontier.
 // PathTokens are the sorted, unique path-shaped tokens of the string literals
-// the unit's own files carry; a dirty path no plugin owns selects the units
-// whose tokens name it (AFP-V0-021). A plugin that reads no literals leaves it
-// empty.
+// the unit's own files carry; every dirty path selects the units whose tokens
+// name it (AFP-V0-021). A plugin that reads no literals leaves it empty.
+// PathTokensBounded reports that the plugin dropped the unit's tokens at its
+// bound, so the unit's reads are unknown.
 type Unit struct {
-	ID         string   `json:"id"`
-	Sources    []string `json:"sources"`
-	Tests      []string `json:"tests"`
-	Imports    []string `json:"imports"`
-	PathTokens []string `json:"pathTokens,omitempty"`
+	ID                string   `json:"id"`
+	Sources           []string `json:"sources"`
+	Tests             []string `json:"tests"`
+	Imports           []string `json:"imports"`
+	PathTokens        []string `json:"pathTokens,omitempty"`
+	PathTokensBounded bool     `json:"pathTokensBounded,omitempty"`
 }
 
 // Result is what one Language plugin observed for a repository.

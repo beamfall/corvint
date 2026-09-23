@@ -308,6 +308,83 @@ func TestLanguageFrontierWidensEveryPlanFromThatGraph(t *testing.T) {
 	}
 }
 
+// readerPlan builds chain() with the given path tokens on x:solo and x:mid,
+// beside a y plugin that owns assets/logo.y, and plans dirty (AFP-V0-021).
+func readerPlan(t *testing.T, solo, mid []string, bounded bool, dirty ...string) Plan {
+	t.Helper()
+	language := chain()
+	language.units[1].PathTokens = mid
+	language.units[3].PathTokens = solo
+	language.units[3].PathTokensBounded = bounded
+	other := fake{name: "y", units: []Unit{{ID: "y:ui", Sources: []string{"assets/logo.y"}, Tests: []string{"assets/logo_test.y"}}}}
+	graph, err := Build(t.TempDir(), language, other)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return Select(graph, dirty)
+}
+
+func witnesses(plan Plan) map[string]Witness {
+	byUnit := map[string]Witness{}
+	for _, selection := range plan.Selected {
+		byUnit[selection.UnitID] = selection.Witness
+	}
+	return byUnit
+}
+
+// AFP-V0-021: a path another plugin owns still selects the units that name it,
+// and the match adds no unknown entry.
+func TestOwnedDirtyPathSelectsTheUnitsThatNameIt(t *testing.T) {
+	plan := readerPlan(t, []string{"assets/logo.y"}, nil, false, "assets/logo.y")
+	got := witnesses(plan)
+	if len(got) != 2 || got["y:ui"].Kind != WitnessDirectSource || got["x:solo"].Kind != WitnessPathLiteralReader {
+		t.Fatalf("selected=%+v", plan.Selected)
+	}
+	if len(plan.Unknown) != 0 || plan.Scope != ScopeBounded {
+		t.Fatalf("scope=%s unknown=%+v", plan.Scope, plan.Unknown)
+	}
+}
+
+// AFP-V0-021: of two dirty paths naming one reader, the smaller is its witness.
+func TestReaderWitnessIsTheSmallestNamingDirtyPath(t *testing.T) {
+	plan := readerPlan(t, []string{"a.md", "b.md"}, nil, false, "b.md", "a.md")
+	got := witnesses(plan)
+	if len(got) != 1 || got["x:solo"].DirtyPath != "a.md" {
+		t.Fatalf("selected=%+v", plan.Selected)
+	}
+	if len(plan.Unknown) != 2 {
+		t.Fatalf("unknown=%+v", plan.Unknown)
+	}
+}
+
+// AFP-V0-021: a unit the dependency walk reached keeps that witness.
+func TestReaderReachedByDependencyKeepsItsDependencyWitness(t *testing.T) {
+	plan := readerPlan(t, nil, []string{"notes.md"}, false, "core.x", "notes.md")
+	if got := witnesses(plan)["x:mid"]; got.Kind != WitnessDependency || got.DirtyPath != "core.x" {
+		t.Fatalf("x:mid witness=%+v", got)
+	}
+}
+
+// AFP-V0-021: a unit whose tokens were dropped at the plugin's bound is unknown
+// once a match is attempted, unless something else reached it.
+func TestBoundedPathTokensAreUnknownOnlyWhenAMatchIsAttempted(t *testing.T) {
+	bound := Unknown{Reason: UnknownLanguageFrontier, Detail: "x:" + PathTokenBound + ":x:solo"}
+	cases := []struct {
+		dirty []string
+		want  []Unknown
+	}{
+		{dirty: nil, want: []Unknown{}},
+		{dirty: []string{"core.x"}, want: []Unknown{bound}},
+		{dirty: []string{"solo.x"}, want: []Unknown{}},
+	}
+	for _, c := range cases {
+		plan := readerPlan(t, nil, nil, true, c.dirty...)
+		if len(plan.Unknown) != len(c.want) || (len(c.want) == 1 && plan.Unknown[0] != bound) {
+			t.Fatalf("dirty=%v unknown=%+v want=%+v", c.dirty, plan.Unknown, c.want)
+		}
+	}
+}
+
 func TestGraphDigestChangesWithEveryObservedInput(t *testing.T) {
 	base, err := Build(t.TempDir(), chain())
 	if err != nil {

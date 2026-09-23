@@ -8,24 +8,43 @@ import "strings"
 // (AFP-V0-011, AFP-V0-013), so it cannot import this package without widening
 // that trusted build, and this package cannot import a main package.
 
-// readers selects, for every dirty path no plugin owns, each unit not already
-// reached whose path tokens name it, with a PATH_LITERAL_READER witness
-// (AFP-V0-021). Like rule (c) the reader is not traversed to its dependents.
-// The path keeps its UNOWNED_DIRTY_PATH entry: a literal index cannot bound
-// the reads a path assembled at run time makes, so the selection only adds.
-// Unknown entries arrive in dirty-path order and units in id order, so the
-// smallest naming dirty path is each reader's witness.
-func (graph *Graph) readers(reached map[string]Witness, unknown []Unknown) {
-	for _, entry := range unknown {
-		if entry.Reason != UnknownUnownedDirtyPath {
-			continue
-		}
-		for _, id := range graph.namers(entry.Detail) {
+// PathTokenBound names, in a LANGUAGE_FRONTIER detail
+// "<namespace>:path-token-bound:<unit>", a unit whose plugin dropped its path
+// tokens at the bound (AFP-V0-021).
+const PathTokenBound = "path-token-bound"
+
+// readers selects, for every dirty path, as rule (c) does whether or not a
+// plugin owns the path, each unit not already reached whose path tokens name
+// it, with a PATH_LITERAL_READER witness (AFP-V0-021). Like rule (c) the reader
+// is not traversed to its dependents, and no unknown entry is added or removed
+// for a match: a literal index cannot bound the reads a path assembled at run
+// time makes, so the selection only adds. Dirty paths arrive sorted and units
+// in id order, so the smallest naming dirty path is each reader's witness.
+func (graph *Graph) readers(reached map[string]Witness, dirty []string) {
+	for _, dirtyPath := range dirty {
+		for _, id := range graph.namers(dirtyPath) {
 			if _, seen := reached[id]; !seen {
-				reached[id] = Witness{Kind: WitnessPathLiteralReader, DirtyPath: entry.Detail, Via: []string{id}}
+				reached[id] = Witness{Kind: WitnessPathLiteralReader, DirtyPath: dirtyPath, Via: []string{id}}
 			}
 		}
 	}
+}
+
+// tokenBounds names, once a reader match was attempted, every unit whose
+// tokens were dropped at the plugin's bound and that nothing else reached: it
+// may read a dirty path the plan cannot see.
+func (graph *Graph) tokenBounds(reached map[string]Witness, dirty []string) []Unknown {
+	unknown := make([]Unknown, 0)
+	for _, id := range graph.order {
+		if len(dirty) == 0 || !graph.units[id].PathTokensBounded {
+			continue
+		}
+		if _, seen := reached[id]; !seen {
+			namespace := strings.SplitN(id, ":", 2)[0]
+			unknown = append(unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: namespace + ":" + PathTokenBound + ":" + id})
+		}
+	}
+	return unknown
 }
 
 // namers lists, in id order, the units carrying a path token that names

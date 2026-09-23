@@ -50,11 +50,11 @@ const (
 	// FrontierIncludedDirectoryWalkBounded reports an opted-in build directory
 	// whose independent entry bound was exhausted.
 	FrontierIncludedDirectoryWalkBounded = "go:included-directory-walk-bounded"
-	// FrontierPathTokenBound reports a package carrying more distinct path
-	// tokens than affected.MaxPathsPerUnit; its tokens are dropped, so it
-	// selects as a reader of no dirty path (AFP-V0-021).
-	FrontierPathTokenBound = "go:path-token-bound"
 )
+
+// maxPathTokens bounds one package's distinct path tokens. A package over it
+// keeps none and is marked PathTokensBounded (AFP-V0-021); tests lower it.
+var maxPathTokens = affected.MaxPathsPerUnit
 
 // The path-token lexicon of tools/gate-affected-select (AFP-V0-012): printf
 // verbs are removed, then every run of path characters is one token.
@@ -177,7 +177,7 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 			}
 			importPaths[value] = true
 		}
-		if err := pathTokens(body[importsEnd(fileSet, file):], owner.path, names); err != nil {
+		if err := pathTokens(body[importsEnd(fileSet, file):], owner.path, names); err != nil && !ignoredByGo(directory) {
 			frontier[FrontierUnparsedSource] = true
 		}
 		if strings.HasSuffix(relative, "_test.go") {
@@ -191,11 +191,24 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 	}
 	sort.Strings(sources)
 	sort.Strings(tests)
-	if len(names) > affected.MaxPathsPerUnit {
-		frontier[FrontierPathTokenBound] = true
+	bounded := len(names) > maxPathTokens
+	if bounded {
 		names = nil
 	}
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names)}, importPaths, nil
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathTokensBounded: bounded}, importPaths, nil
+}
+
+// ignoredByGo reports a repository-relative directory the go tool's package
+// patterns and the fast tier's index skip: one with a testdata or `_`-prefixed
+// component. A file there that does not lex is no build input, so it raises no
+// frontier.
+func ignoredByGo(directory string) bool {
+	for _, component := range strings.Split(directory, "/") {
+		if component == "testdata" || strings.HasPrefix(component, "_") {
+			return true
+		}
+	}
+	return false
 }
 
 // importsEnd is the byte offset just past a file's import declarations, which
@@ -210,8 +223,9 @@ func importsEnd(fileSet *token.FileSet, file *ast.File) int {
 }
 
 // pathTokens adds the path tokens of every string literal in body to names,
-// with the owning module's import path rewritten to a root-anchored path
-// (AFP-V0-021, the AFP-V0-012 lexicon). A lexical error is returned.
+// with the owning module's import path rewritten to a path anchored at that
+// module's directory (AFP-V0-021, the AFP-V0-012 lexicon). A lexical error is
+// returned.
 func pathTokens(body []byte, modulePath string, names map[string]bool) error {
 	var lexErr error
 	var lexer scanner.Scanner
@@ -234,8 +248,10 @@ func pathTokens(body []byte, modulePath string, names map[string]bool) error {
 	}
 }
 
-// rootAnchored rewrites an import path under the module to the root-anchored
-// path of its directory; the module path itself is the root.
+// rootAnchored rewrites an import path under the module to its directory
+// relative to the module's own directory, with a leading slash; the module path
+// itself is "/". Matching ignores the anchor, so a workspace module's paths
+// still name its files by their trailing components.
 func rootAnchored(name, modulePath string) string {
 	if modulePath == "" {
 		return name
