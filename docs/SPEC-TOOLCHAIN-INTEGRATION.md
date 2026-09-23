@@ -22,7 +22,7 @@ That is a genuine complement rather than an overlap, and it is the whole opportu
 This is not caution. Corvint's arithmetic refuses it, and the refusal is already written down.
 
 A caller's own report of what it executed is `CALLER_REPORTED`, and `CF-V0-014`
-(`docs/specs/change-frontier-v0.md:166-171`) states that signatures, clean-target statements,
+(`docs/specs/change-frontier-v0.md:198-202@c291e702`) states that signatures, clean-target statements,
 passing rows, and exit zero **cannot upgrade that authority**. If Corvint drives spec -> code -> tested,
 Corvint *is* the caller. Every test it ran to satisfy an obligation it generated from a spec it parsed
 would enter its own ledger at the weakest authority class and close nothing. Corvint would produce a
@@ -34,14 +34,14 @@ artifact also witness it. Driving the build inverts exactly that: Corvint become
 code, the tests, and the execution, and no second party is left to witness any of it.
 
 The proposition is also already a stated non-goal, three times over: **autonomous code editing** and
-**a new specification language** are both listed at `docs/PRODUCT.md:355-357`, and
-`docs/specs/live-proof-carrying-verification-v0.md:431-432@38b12d34` forbids "generating tests, weakening
+**a new specification language** are both listed at `docs/PRODUCT.md:361-363@27e81383`, and
+`docs/specs/live-proof-carrying-verification-v0.md:516-517@38b12d34` forbids "generating tests, weakening
 assertions, rewriting product code … auto-fixing failures, merging, deploying, or publishing".
 
 One apparent counterexample is not one: `internal/liveverify/gorunner/` really does run `go test`.
 But LPCV positions Corvint as owning "identity, composition, conservative scope, provenance, and honest
 uncertainty" while "runtime providers remain the authority for what executed"
-(`docs/specs/live-proof-carrying-verification-v0.md:53-55@5c658cc9`). Corvint executes as an instrument
+(`docs/specs/live-proof-carrying-verification-v0.md:53-55@bf0b8fa7`). Corvint executes as an instrument
 under an owning verifier's authority. That is the precedent, and it is the opposite of owning the
 build.
 
@@ -52,7 +52,7 @@ build.
 The harness authors, plans, writes, and runs. Corvint says what was known, what is cited, and what
 remains unwitnessed — sitting on *both* sides of someone else's edit: the minimum witness before,
 the frontier after. SpecKit and OpenSpec are adapted as **intent sources**, never replaced; the
-adapter contract already exists at `docs/specs/verified-absence-frontier-v0.md:177-179`, which
+adapter contract already exists at `docs/specs/verified-absence-frontier-v0.md:183-185@76be4742`, which
 requires preserving native requirement IDs and lifecycle state.
 
 The translation boundary is one line: `native requirement ID -> ocmIntent{path, blobOID, span,
@@ -71,12 +71,12 @@ Corvint reads its `specs/NNN-slug/spec.md` output. That is still worth doing, bu
 a contract.
 
 Neither tool emits an identifier matching Corvint's requirement grammar
-(`^- \`[A-Z][A-Z0-9-]{2,31}-[0-9]{3}\`: `, `src/context_corvint_ocm.py:43-46`), so an ID-mapping layer
+(`^- \`[A-Z][A-Z0-9-]{2,31}-[0-9]{3}\`: `, `internal/lrfrepo/ocm.go:37@13c45269`), so an ID-mapping layer
 is unavoidable in both cases.
 
 ## The three constraints any integration must respect
 
-1. **CEM 0.1 cannot cite evidence introduced in the same commit** (`docs/DOGFOOD.md:32-36`). A flow
+1. **CEM 0.1 cannot cite evidence introduced in the same commit** (`docs/DOGFOOD.md:152-155@2d724bbb`). A flow
    where the agent writes the spec and the code together needs a two-commit shape or an explicit
    bootstrap-unknown. This is a hard ordering constraint, not a preference.
 2. **Intent identity is a byte span, and specs get edited.** `ocmIntent` pins
@@ -97,7 +97,7 @@ independent verdict axes. Those are shipped and running in CI.
 
 What does not exist is the **closing decision**. `corvint frontier` is unimplemented, and the harness
 `stop` event returns `frontier.state: UNAVAILABLE` and "cannot continue or block the host"
-(`docs/specs/agent-harness-integration-v0.md:57-59`). Everything downstream of it is a solved
+(`docs/specs/agent-harness-integration-v0.md:68-70@3208c7de`). Everything downstream of it is a solved
 problem; that one gate is the whole bet.
 
 ## Staged adoption
@@ -117,8 +117,8 @@ problem; that one gate is the whole bet.
 ## Modelling debt to clear first
 
 `authorityClass` currently carries four incompatible value sets — in the MCP bridge
-(`internal/mcp/bridge/bridge.go:520`), in the frontier spec
-(`change-frontier-v0.md:217`), as a lowercase constant in LRF (`internal/lrf/types.go:12`), and as a
+(`internal/mcp/bridge/bridge.go:531@87b754dd`), in the frontier spec
+(`change-frontier-v0.md:217`), as a lowercase constant in LRF (`internal/lrf/types.go:12@fc816169`), and as a
 seven-value lattice in the dashboard spec. The ordering between them is asserted per context and
 defined globally nowhere. Any spec-toolchain integration adds a fifth. One ordered lattice, one
 casing, one owner — before the adapter, not after.
