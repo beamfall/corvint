@@ -39,6 +39,7 @@ func TaskContext(ctx context.Context, index *Index, task, subject string, limit 
 		}
 	}
 	compiler := newTaskContextCompiler(index, task, subject)
+	compiler.recency = startContextRecency(ctx, index)
 	if subject != "" {
 		compiler.startHistory(ctx)
 	}
@@ -107,6 +108,9 @@ type taskContextCompiler struct {
 	// anchors is TCP-V0-022's verbatim literal field, empty unless
 	// `CORVINT_CONTEXT_ANCHORS=on`.
 	anchors []taskAnchor
+	// recency is TCP-V0-035..038's history reading, nil unless
+	// `CORVINT_CONTEXT_RECENCY=on`.
+	recency *contextRecency
 }
 
 // startHistory reads the co-change history beside the slots that do not need
@@ -233,14 +237,14 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 		if len(compiler.history) == 0 {
 			compiler.markState("empty-history", "cochange")
 		}
-		rows = compiler.takeSlot(rows, compiler.cochangeRows(), contextCochangeCap)
+		rows = compiler.takeSlot(rows, compiler.recencyCochange(compiler.cochangeRows()), contextCochangeCap)
 		rows = compiler.takeSlot(rows, compiler.siblingRows(), contextSiblingCap)
 	}
 	if compiler.subject == "" && !frameActive {
 		compiler.markRan("test")
 		rows = compiler.takeSlot(rows, compiler.testRows(compiler.testAnchors(rows, limit)), contextTestCap)
 	}
-	rows = compiler.takeSlot(rows, compiler.lexicalRows(len(rows)), limit)
+	rows = compiler.takeSlot(rows, compiler.recencyLexical(compiler.lexicalRows(len(rows))), limit)
 	rows = compiler.corroborate(rows)
 	rows = compiler.reserve(rows)
 	// `candidates` is the distinct paths the slots admitted (TCP-V0-006); a
@@ -1765,7 +1769,7 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 			subject.(map[string]any)["evidence_gap"] = compiler.subjectEvidenceGap()
 		}
 	}
-	return map[string]any{
+	packet := map[string]any{
 		"tool": "context", "ok": true, "mutates": false, "schema_version": 1,
 		"revision": compiler.index.Revision, "state": state, "subject": subject,
 		"request": map[string]any{"limit": limit, "task_chars": len(compiler.task)},
@@ -1778,6 +1782,8 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 		},
 		"results": results,
 	}
+	compiler.recencyCoverage(packet["coverage"].(map[string]any), rows)
+	return packet
 }
 
 // rowAction says what to do with the file for this task, one sentence per

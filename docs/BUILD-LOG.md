@@ -4,6 +4,48 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0089 TCP-V0-035..038, decision 0369: opt-in recency, blame and ownership in context
+
+V1-0089 adds three history features to the `context` packet behind `CORVINT_CONTEXT_RECENCY=on`:
+90-day half-life recency, blame last-touch freshness and CODEOWNERS/blame disagreement
+(`internal/contextindex/recency.go`, `blame.go`). All three read only Git objects reachable from
+the indexed commit, are bounded (200-commit window, 10 blamed files, 4 MiB), change row order only,
+and name each value or abstention reason in the row reason. A CODEOWNERS owner who matches no
+in-window blame author is reported as `disagrees` or `unverifiable`; it never changes ranking.
+Unset, the packet bytes are unchanged.
+
+Frozen `agent_retrieval_bench` context arm, off vs on, candidate `a3521dd9…cde3f1`, bench binary
+`229abcc7…670ff`, `--limit 20`, `--max-samples 20` per subset (folds A and B, same sample set both arms,
+`samples_sha256` equal):
+
+| Subset | recall@5 off/on | recall@10 off/on | recall@20 off/on |
+| --- | --- | --- | --- |
+| code2test | 0.3333 / 0.3333 | 0.3583 / 0.3583 | 0.4283 / 0.4283 |
+| trace2code | 0.3750 / 0.3750 | 0.4500 / 0.4500 | 0.8167 / 0.8167 |
+| comment2context | 0.3833 / 0.3833 | 0.4917 / 0.4917 | 0.6333 / 0.6333 |
+| edit2ripple | 0.3583 / 0.3583 | 0.4875 / 0.4875 | 0.5917 / 0.5917 |
+| abstention | n/a (0 positives) | n/a | n/a; abstained 0.05 / 0.05 |
+
+Every ranked list is identical on and off (100/100 samples). The features did run: summed packet
+bytes rose 36-40% per subset (row reasons and `coverage.recency`). The equality is structural, not
+evidence of safety: the bench rebuilds each snapshot as one commit, so recency is 1 everywhere and
+every blame line is a root boundary. `corvint eval` against beamfall/core at 6e82abd (7 cases) is
+also identical off and on (recall 1.0, top-5 success 1.0, must-read 11/11, no critical misses,
+abstention 1/1), because eval exercises query, feature and impact and never `context`. On this
+repository at limit 10 the `context` call took 1.27 s off and 1.64 s on.
+
+Decision 0369 keeps the features opt-in: no available corpus can show a gain or a loss, so a
+no-regression reading does not justify default-on. Promotion needs a frozen corpus that keeps
+commit history. The ticket said CODEOWNERS was already parsed; it was not, so `blame.go` adds a
+bounded parser. `TestAnalyzerSchemaInputs` repins only `auditedSHA256` (query-side change;
+schema stays `corvint-analyzer/73`).
+
+NOT_RUN: `make gate` (owner policy); the full-sample bench (host contention, load average above
+60; `--max-samples 20` recorded above); any corpus with real history. Under the same load one
+`cmd/corvint-go-test-provider` test failed on the branch with a post-run authority revalidation
+timeout. It passed on the branch and at base when run side by side, and the package does not import
+`internal/contextindex`.
+
 ## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
 
 V1-0012 measured the daily change-evidence loop as it exists at `origin/main` 1894b9e against a
