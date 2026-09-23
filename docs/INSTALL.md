@@ -262,6 +262,11 @@ absolute editor/MCP paths. Re-select and pin the editor executable when its iden
 Do not mix companions from different manifests. Roll back by restoring the previous directory,
 VSIX and configured paths; no persisted-state migration is introduced by this alpha.
 
+Support window: for every 0.x version only the latest published release receives security fixes
+(see the [security policy](../SECURITY.md)). The qualified upgrade path is from the previous
+published release; an older version reads a repository after a newer one wrote its snapshot, so
+rollback needs no index cleanup.
+
 An interrupted download or extraction is not an installation: retry into a fresh directory and
 repeat checksum verification before executing anything. For an interrupted test run, wait for
 cleanup, inspect its incomplete/cancelled state, then save again or restart the explicit session.
@@ -315,7 +320,10 @@ snapshot files, when checking a recovery.
 `script/check-install-lifecycle.sh` runs this whole lifecycle in a temporary directory against one
 release archive (`CORVINT_LIFECYCLE_ARCHIVE`) or one binary (`CORVINT_LIFECYCLE_BINARY`): verified
 install, first index and read, upgrade into a second store, rollback, uninstall with `.corvint`
-retained, backup and restore of `.corvint`, and both corruption cases. It prints one `step NAME: ok`
+retained, backup and restore of `.corvint`, and both corruption cases. With
+`CORVINT_LIFECYCLE_UPGRADE_BINARY` set to a different release, the upgrade's packet is compared to
+the packet that release builds from a cold index and reported `packet=identical` or
+`packet=changed`, since releases may change the packet wire. It prints one `step NAME: ok`
 line per step and a final `SUMMARY status=PASS|FAIL` line; it does not qualify a future release,
 every supported platform, or restoration of arbitrary ticket-store data. See the
 [release runbook](RELEASE-RUNBOOK.md) and [security/support boundaries](SECURITY.md).

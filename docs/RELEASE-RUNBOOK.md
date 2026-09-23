@@ -42,9 +42,12 @@ output directories outside the checkout; the reproducibility script refuses one 
 
 5. Produce the release archives into a new private directory. The producer writes
    `corvint_<goos>_<goarch>.tar.gz` for darwin/linux × amd64/arm64, `SHA256SUMS` and
-   `verification-report.json`; retain the whole directory. Windows is not a qualified target.
+   `verification-report.json`; retain the whole directory. It also writes
+   `corvint_windows_amd64.zip`, which is not a qualified target. The output's parent must already
+   exist as a real 0700 directory, or the producer refuses.
 
    ```sh
+   mkdir -m 0700 /abs/release/X.Y.Z
    GOTOOLCHAIN=local go run ./conformance/release-artifact-v0 archive \
      --revision FULL_COMMIT --output /abs/release/X.Y.Z/core
    ```
@@ -67,7 +70,10 @@ output directories outside the checkout; the reproducibility script refuses one 
 8. Install lifecycle on this host's archive: verified install, first index and read, upgrade into
    a second store, rollback, uninstall with `.corvint` retained, backup/restore, and corrupted-snapshot
    recovery. Set `CORVINT_LIFECYCLE_UPGRADE_BINARY` to the previous release's `corvint` to exercise a
-   real cross-version upgrade; without it the upgrade is reported `same-bytes`. Then the hostile
+   real cross-version upgrade, compared to the packet the new binary builds from a cold index and
+   reported `packet=identical` or `packet=changed` (decision 0360); without it the upgrade is
+   reported `same-bytes`. `make install-lifecycle-test` and `make hostile-regressions-test` check the
+   two scripts themselves. Then the hostile
    regression matrix; both must end `status=PASS` / `check-hostile-regressions: PASS`. Repeat step 8
    on each supported host with its own archive; a host not run is `NOT_RUN`, never implied.
 
@@ -123,6 +129,6 @@ Public tags and published assets are never moved, deleted or rewritten. To roll 
 | Upgrade, rollback, reinstall, removal | `TestPUBV0025RecoveryLifecycle`; `script/check-install-lifecycle.sh` (SOP-V0-001..006) | Native runs on every supported host with the previous release as the upgrade source |
 | Store symlinks, case aliases and overlap | `TestPUBV0025HostileStore`, no-replace promotion tests | Exclusive store ownership; concurrent malicious renames unqualified |
 | Probe output, cancellation and descendants | `TestPUBV0026ProbeFailureCleansInstall`, `TestPUBV0026InterruptedInstallReapsDescendant`, `internal/procgroup` | Escaped descendants remain outside owned-group proof |
-| Hostile repositories, paths, symlinks, case folds, bounded output, time, interruption, secrets, corrupt derived state | `script/check-hostile-regressions.sh` (SOP-V0-007..009), 27 rows | `memory` and `case-folds-context-index` are NOT_COVERED |
+| Hostile repositories, paths, symlinks, case folds, bounded output, time, interruption, secrets, corrupt derived state | `script/check-hostile-regressions.sh` (SOP-V0-007..009), 29 rows | `memory-resident` (whole-process and git child memory) is NOT_COVERED; case-fold rows are NOT_RUN on a case-sensitive filesystem |
 | Hostile archives and repository exports | `internal/companionrelease` unsafe path, casefold, source count/byte tests; `go-archive-gate-injection-test` | Capability-specific exact artifact/security gates; injection gate is opt-in |
 | Secrets and evidence | `internal/secretscreen`, `internal/trace`, local-completion screening | Review retained release evidence before sharing; fixtures are not a comprehensive audit |

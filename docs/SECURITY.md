@@ -1,15 +1,17 @@
 # Operational security and support
 
-The repository's [security policy](../SECURITY.md) owns vulnerability reporting and the existing
-alpha support statement. It currently specifies private GitHub vulnerability reporting, security
-fixes for the latest published alpha, and acknowledgment within seven days. This operational note
-adds no support promise. Confirm the reporting channel works before a future release; no live
-report was sent or reporting-channel availability qualified by this change.
+The repository's [security policy](../SECURITY.md) owns vulnerability reporting and the support
+window (`SOP-V0-010`): private GitHub vulnerability reporting, acknowledgment within seven days, and
+for every 0.x version security fixes for the latest published release only. A release leaves the
+window when its successor is published; a withdrawn release leaves it immediately. This note adds
+no promise beyond that. On 2026-09-23 the GitHub API reported private vulnerability reporting
+enabled for the repository; no live report has been sent through it.
 
-A stable support duration, supported upgrade/downgrade range, end-of-support notice period,
-maintainer escalation/contact fallback and stable response commitments remain **draft owner
-decisions** for V1-0017. Do not infer them from the alpha policy, a ticket's OPEN state, a fixture
-pass or a release gate. The [changelog](RELEASE-NOTES.md) remains the release history.
+Supported upgrade path: the lifecycle check (`SOP-V0-003`) qualifies an upgrade from the previous
+published release (N-1) into a new store and rollback to it; other ranges are not qualified. The
+1.0 support duration, end-of-support notice period and maintainer escalation fallback are owner
+decisions for V1-0021 and are not implied by the 0.x window. The [changelog](RELEASE-NOTES.md) is
+the release history and the [release runbook](RELEASE-RUNBOOK.md) the reproducible procedure.
 
 The default Core is one native Go binary with no account, permanent daemon or external database.
 Installation uses the existing verified candidate and version/platform store. It neither installs
@@ -30,6 +32,8 @@ Before sharing diagnostics, inspect them for repository paths, source contents a
 existing secret-screening regressions cover traces and product evidence; suppression of candidate
 probe output adds a narrower boundary, not a guarantee that arbitrary diagnostics are secret-free.
 
-V1-0017 stays open: V1-0008 and V1-0015 predecessor evidence, exact future immutable release artifacts,
-per-platform native lifecycle runs, hostile-repository/security qualification, full gate and accepted
-stable support policy are separate requirements. No artifact is promoted or published by this work.
+Release-blocking regressions for hostile repositories, paths, symlinks, case folds, bounded output,
+memory, time, interruption cleanup and secret screening are the matrix in
+[Stable operations V0](specs/stable-operations-v0.md), run by `make hostile-regressions-check`.
+Whole-process resident memory is NOT_COVERED there. Lifecycle runs are recorded per host; linux amd64
+is NOT_RUN. No artifact is promoted or published by this work.

@@ -1767,18 +1767,18 @@ SOL-V0-007	docs/specs/self-observation-ledger-v0.md	57	Every emitted `unsupporte
 SOL-V0-008	docs/specs/self-observation-ledger-v0.md	95	**Accepted 2026-09-01.** `corvint dogfood-observe` is the one additional bounded
 SOL-V0-009	docs/specs/self-observation-ledger-v0.md	101	`corvint prove-observe` is the second bounded internal process writer surface.
 SOL-V0-010	docs/specs/self-observation-ledger-v0.md	108	The `codex` and `claude-code` host adapters (`corvint adapter`) MUST attempt one
-SOP-V0-001	docs/specs/stable-operations-v0.md	53	The install-lifecycle check MUST accept either one release archive whose single
-SOP-V0-002	docs/specs/stable-operations-v0.md	57	The check MUST create a committed fixture repository in its own temporary direct
-SOP-V0-003	docs/specs/stable-operations-v0.md	60	An upgrade MUST install into a second store beside the first, run `corvint index
-SOP-V0-004	docs/specs/stable-operations-v0.md	64	Uninstall is removal of the store directories. Afterwards the fixture's tracked
-SOP-V0-005	docs/specs/stable-operations-v0.md	67	A backup is an archive of `.corvint` taken while no Corvint writer runs. After t
-SOP-V0-006	docs/specs/stable-operations-v0.md	70	With the snapshot truncated to zero bytes, and separately with bytes overwritten
-SOP-V0-007	docs/specs/stable-operations-v0.md	75	The hostile-regression check MUST hold a matrix of `category`, Go package and te
-SOP-V0-008	docs/specs/stable-operations-v0.md	80	Every test function the matrix names MUST be defined in a tracked `_test.go` fil
-SOP-V0-009	docs/specs/stable-operations-v0.md	83	A category with no tracked regression MUST be printed as
-SOP-V0-010	docs/specs/stable-operations-v0.md	88	`SECURITY.md` MUST state the private reporting channel, the acknowledgment windo
-SOP-V0-011	docs/specs/stable-operations-v0.md	91	`docs/RELEASE-NOTES.md` is the changelog. Each published release MUST have an en
-SOP-V0-012	docs/specs/stable-operations-v0.md	94	`docs/RELEASE-RUNBOOK.md` MUST be an ordered list of exact commands from a clean
+SOP-V0-001	docs/specs/stable-operations-v0.md	69	The install-lifecycle check MUST accept either one release archive whose single
+SOP-V0-002	docs/specs/stable-operations-v0.md	73	The check MUST create a committed fixture repository in its own temporary direct
+SOP-V0-003	docs/specs/stable-operations-v0.md	76	An upgrade MUST install into a second store beside the first and run `corvint
+SOP-V0-004	docs/specs/stable-operations-v0.md	84	Uninstall is removal of the store directories. Afterwards the fixture's tracked
+SOP-V0-005	docs/specs/stable-operations-v0.md	87	A backup is an archive of `.corvint` taken while no Corvint writer runs. After t
+SOP-V0-006	docs/specs/stable-operations-v0.md	90	With the snapshot truncated to zero bytes, and separately with bytes overwritten
+SOP-V0-007	docs/specs/stable-operations-v0.md	95	The hostile-regression check MUST hold a matrix of `category`, Go package and te
+SOP-V0-008	docs/specs/stable-operations-v0.md	100	Every test function the matrix names MUST be defined in a tracked `_test.go` fil
+SOP-V0-009	docs/specs/stable-operations-v0.md	103	A category with no tracked regression MUST be printed as
+SOP-V0-010	docs/specs/stable-operations-v0.md	108	`SECURITY.md` MUST state the private reporting channel, the acknowledgment windo
+SOP-V0-011	docs/specs/stable-operations-v0.md	111	`docs/RELEASE-NOTES.md` is the changelog. Each published release MUST have an en
+SOP-V0-012	docs/specs/stable-operations-v0.md	114	`docs/RELEASE-RUNBOOK.md` MUST be an ordered list of exact commands from a clean
 SRG-V0-001	docs/specs/spec-requirement-index-generator-v0.md	71	The generator MUST derive its input set from the paths Git reports as tracked
 SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	75	The generator MUST recognise a requirement id as a token matching an uppercase
 SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	79	The generator MUST classify each occurrence of an id into exactly one of three

@@ -41,14 +41,15 @@ secret-screening	./internal/secretscreen	TestSecretPatternParityCorpus TestScree
 secret-screening	./internal/trace	TestLTAV0004RecordRefusesWriterOnlySecretShapes
 secret-screening	./internal/contextindex	TestSecretPatternMatchesHistorySecretShapes
 corrupted-derived-state	./internal/contextindex	TestPackSnapshotRefusesCorruptionTruncationAndOutOfRangeAsAMiss TestBlobShardCorruptionRefusesAccelerationAndReadFallsBack TestSnapshotRefusesTermTableOffsetsOutsideTheirSlices TestAnalyzerPackProbeMissesACorruptBody
+memory	./internal/contextindex	TestBuildAllocationStaysBoundedOverAnOversizedTrackedSource
+case-folds-context-index	./internal/contextindex	TestBuildPinsEachCaseFoldedTrackedPathToItsOwnBlob
 ROWS
 }
 
 # category<TAB>reason for the categories no tracked test exercises.
 not_covered() {
   cat <<'ROWS'
-memory	no regression bounds resident memory; the input-size bounds under bounded-output are a proxy, not a memory limit
-case-folds-context-index	no regression covers tracked paths that differ only by case in the context index on a case-insensitive worktree
+memory-resident	no regression bounds whole-process resident memory or git child memory; the memory row bounds the Go heap one index build allocates
 ROWS
 }
 

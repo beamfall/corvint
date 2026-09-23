@@ -14,6 +14,9 @@
 #                                     SHA256SUMS for it. One of the two is required.
 #   CORVINT_LIFECYCLE_UPGRADE_BINARY  the executable installed as the upgrade (default: the same
 #                                     bytes as the first install, reported as a same-bytes upgrade).
+#                                     Its packet is compared to the one it builds from a cold index
+#                                     of a clone at the same commit, since a newer release may
+#                                     change the packet wire; `packet=changed` reports that.
 #   CORVINT_LIFECYCLE_REPORT          a file the step report is also written to (default: none).
 set -eu
 
@@ -122,9 +125,9 @@ make_fixture() {
   )
 }
 
-# read_packet STORE OUT: one read verb whose bytes are compared across every later step.
+# read_packet STORE OUT [ROOT]: one read verb whose bytes are compared across every later step.
 read_packet() {
-  "$1/corvint" --root "$fixture" context --task "Identify the active work queue" --limit 1 > "$2"
+  "$1/corvint" --root "${3:-$fixture}" context --task "Identify the active work queue" --limit 1 > "$2"
 }
 
 # index STORE MODE OUT: `corvint index` (MODE=full) or `corvint index --if-stale` (MODE=if-stale).
@@ -161,14 +164,25 @@ read_packet "$store/a" "$work/packet1.json" || fail first-index "read verb faile
 test -s "$work/packet1.json" || fail first-index "read verb produced no packet"
 say "step first-index: ok snapshot=$(basename "$snapshot") bytes=$snapshot_size"
 
-# 3. Upgrade into B; A stays in place. A read through B yields the same packet bytes.
+# 3. Upgrade into B; A stays in place. A same-bytes upgrade reads the first packet's bytes; a
+#    distinct upgrade reads the bytes B builds from a cold index of a clone at the same commit.
 upgrade_source=${upgrade:-$binary}
 install "$store/b" "$upgrade_source" || fail upgrade-b "install or checksum verification failed"
 version_b=$(cat "$store/b/version.txt")
 index "$store/b" if-stale "$work/index-b.json" || fail upgrade-b "corvint index --if-stale failed"
 read_packet "$store/b" "$work/packet-b.json" || fail upgrade-b "read verb failed"
-cmp -s "$work/packet1.json" "$work/packet-b.json" || fail upgrade-b "packet bytes changed across the upgrade"
-if test -n "$upgrade"; then say "step upgrade-b: ok version=$version_b"; else say "step upgrade-b: ok version=$version_b same-bytes"; fi
+if test -n "$upgrade"; then
+  git clone -q "$fixture" "$work/fixture-cold" || fail upgrade-b "cold fixture clone failed"
+  "$store/b/corvint" --root "$work/fixture-cold" index > "$work/index-cold.json" || fail upgrade-b "cold corvint index failed"
+  read_packet "$store/b" "$work/packet-cold.json" "$work/fixture-cold" || fail upgrade-b "cold read verb failed"
+  cmp -s "$work/packet-cold.json" "$work/packet-b.json" || fail upgrade-b "packet bytes differ from the upgrade's cold-index packet"
+  packet=identical
+  cmp -s "$work/packet1.json" "$work/packet-b.json" || packet=changed
+  say "step upgrade-b: ok version=$version_b packet=$packet"
+else
+  cmp -s "$work/packet1.json" "$work/packet-b.json" || fail upgrade-b "packet bytes changed across the upgrade"
+  say "step upgrade-b: ok version=$version_b same-bytes"
+fi
 
 # 4. Rollback: A still runs and still produces the same packet.
 test -x "$store/a/corvint" || fail rollback-a "store A was disturbed by the upgrade"

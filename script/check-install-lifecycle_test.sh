@@ -3,7 +3,8 @@ set -eu
 
 # Drives script/check-install-lifecycle.sh against two builds of this checkout stamped as build 1
 # and build 2: the binary path with a real upgrade, the archive path with the release layout,
-# a tampered archive refused at the checksum step before anything runs, the usage refusal, and
+# a tampered archive refused at the checksum step before anything runs, the usage refusal,
+# stubbed cross-version upgrades (a changed packet wire passes, an unreproducible packet fails), and
 # the report file. Every run happens in the wrapper's own temporary directory; nothing here
 # writes into the checkout.
 
@@ -47,6 +48,10 @@ case $output in
   *same-bytes*) fail "a genuine upgrade was reported as same-bytes" ;;
 esac
 case $output in
+  *"step upgrade-b: ok version=Corvint "*"(build 2) packet=identical"*) ;;
+  *) fail "an upgrade with an unchanged packet wire was not reported packet=identical: $output" ;;
+esac
+case $output in
   *"SUMMARY status=PASS version_a=Corvint_"*"_(build_1) version_b=Corvint_"*"_(build_2)"*) ;;
   *) fail "summary line missing or wrong: $output" ;;
 esac
@@ -84,5 +89,27 @@ test "$status" -eq 2 || fail "no input exited $status, not 2"
 status=0
 CORVINT_LIFECYCLE_BINARY="$test_root/corvint-1" "$script" extra >/dev/null 2>&1 || status=$?
 test "$status" -eq 2 || fail "an extra argument exited $status, not 2"
+
+# 5. A cross-version upgrade whose packet wire changes passes against its own cold-index packet
+#    and reports packet=changed; one whose packet is not reproducible fails at upgrade-b.
+stub_upgrade() {
+  printf '#!/bin/sh\ncase " $* " in\n  *" context "*) "%s" "$@" | sed %s ;;\n  *) exec "%s" "$@" ;;\nesac\n' \
+    "$test_root/corvint-2" "$2" "$test_root/corvint-2" > "$1"
+  chmod 0755 "$1"
+}
+stub_upgrade "$test_root/corvint-wire" '"s/^{/{\"wire_change\":true,/"'
+output=$(CORVINT_LIFECYCLE_BINARY="$test_root/corvint-1" CORVINT_LIFECYCLE_UPGRADE_BINARY="$test_root/corvint-wire" "$script") || fail "a wire-changing upgrade failed: $output"
+case $output in
+  *"step upgrade-b: ok version=Corvint "*"(build 2) packet=changed"*"SUMMARY status=PASS"*) ;;
+  *) fail "a wire-changing upgrade was not reported packet=changed with PASS: $output" ;;
+esac
+stub_upgrade "$test_root/corvint-nonce" '"s/^{/{\"nonce\":$$,/"'
+status=0
+output=$(CORVINT_LIFECYCLE_BINARY="$test_root/corvint-1" CORVINT_LIFECYCLE_UPGRADE_BINARY="$test_root/corvint-nonce" "$script" 2>&1) || status=$?
+test "$status" -eq 1 || fail "an unreproducible upgrade packet exited $status, not 1"
+case $output in
+  *"step upgrade-b: FAIL packet bytes differ from the upgrade's cold-index packet"*"SUMMARY status=FAIL step=upgrade-b"*) ;;
+  *) fail "an unreproducible upgrade packet was not refused at upgrade-b: $output" ;;
+esac
 
 echo "check-install-lifecycle_test.sh: ok"
