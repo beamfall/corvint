@@ -4,6 +4,90 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0024, decision 0361, FPK-V0-041..FPK-V0-049: failure-reproduction bundles
+
+Ticket V1-0024 adds `prove --export-bundle` and `prove --replay-bundle FILE`. These are
+experimental and proposed, not accepted. There is no new root verb. Export is an explicit opt-in
+for query and checkpoint results on a clean worktree. It writes one canonical JSON bundle (at most
+8 MiB, string values secret-screened, self-digested) to stdout. Replay recomputes the frozen
+request on another checkout and reports `reproduced`, or `diverged` with the differing member
+paths, or refuses with a named code. The declared exclusions are `error.message` and
+`proof.ledger`. Both documents carry `historical: true`, and `prove-observe` now refuses any
+document with a `historical` member.
+
+Two findings shaped the contract. First, screening the whole encoded receipt as one string
+matched the `{"history-consistent":{"PASS":N}` counts as a credential assignment, so every cited
+bundle was refused. Only string values are screened now. Second, the checkpoint parser does not
+resolve symlinks, but the query parser does. A root-equality check on replay therefore refused
+`/tmp` against `/private/tmp`. It was removed, because the wrapped parsers already refuse `--root`
+after `prove`.
+
+AC5 real reproduction on a second plain clone. The binary was
+`go build -o $S/corvint-ac5 ./cmd/corvint` at `d88342b955b8246613fe22e62926380c3fc0eee5` (tree
+`439ea68b2ce9357654117b6335a19cab3433d0c6`), and it reports `Corvint 0.7.0 (build 0)`. `$S` is a
+scratch directory outside the repository.
+
+- `corvint-ac5 prove --export-bundle --task "add OAuth2 login with Google to the web dashboard"`
+  was run in the clean first clone. It exited 0 with a 5021-byte bundle, `bundle_sha256`
+  `d87ecc12...5b8bc3ad`. The original receipt is the context failure `state: OUT_OF_SCOPE`,
+  `receipt_sha256` `be7e6a5c...0ce37ee1`, with no cited blobs.
+- `corvint-ac5 prove --export-bundle --checkpoint $S/ac5-checkpoint.json` was run against a
+  document of `{"version":"corvint-checkpoint/0"}`. It exited 0 with a 794-byte bundle,
+  `bundle_sha256` `0cb8f977...b11fedf6`. The original is the refusal
+  `invalid-checkpoint-document` (exit 2).
+- `git clone -q <first clone> $S/ac5-second` produced HEAD `d88342b9...`. It has no `.git/commondir`,
+  so it is not a linked worktree. The checkpoint input file was then deleted.
+- In `$S/ac5-second`, `corvint-ac5 prove --replay-bundle $S/ac5-query.bundle` exited 0 with
+  `outcome: "reproduced"`, `differences: []`, `historical: true`, and profile
+  `corvint-failure-replay/0`. The same command for `$S/ac5-checkpoint.bundle` also exited 0,
+  `reproduced`, from the frozen bytes.
+- A cited receipt also reproduced. `prove --export-bundle --task "replay a failure bundle on a
+  second checkout"` was run in the clean `$S/ac5-second` and gave `state: READY`, 14 cited blobs,
+  18140 bytes, and `bundle_sha256` `92ed8a1f...7cc0f2d8`. `prove --replay-bundle` in a third plain
+  clone, `$S/ac5-third`, exited 0 `reproduced`.
+- Hostile cases on the same clone:
+  - a version edit without resealing exited 2 `tampered`;
+  - a tracked-file edit exited 2 `mixed-worktree`;
+  - `corvint-ac5 prove-observe` given the bundle and given the replay report each exited 2
+    `invalid-proof-document`, and no `.corvint/self-observations.jsonl` was created.
+
+Independent review of PR #86 returned FIX-FIRST with two defects, both fixed in a follow-up
+commit:
+- Replay checked only that `repository.blobs` ids were well-formed and present. A resealed
+  bundle with a cited blob moved to another path, with `blobs: []`, or with an extra
+  `../../etc/passwd` entry still reported `reproduced`. Replay now refuses `tampered` unless the
+  blob list equals the set the original receipt cites.
+- `prove-observe` accepted `"historical": null`. It now refuses any document with the member,
+  whatever its value.
+
+The new test cases fail without the fixes and pass with them.
+
+Focused hostile-input tests are in `cmd/corvint/prove_bundle_test.go`. They cover 19 replay
+refusal cases, including drift and mixed worktree, plus divergence, export refusals, the size
+bound, and the `prove-observe` historical refusal.
+
+Verification. `corvint affected --base 1894b9e5` selected only
+`go:github.com/Beamfall/corvint/cmd/corvint`, with 18 unknowns: 13 language-frontier and 5
+docs paths. The following passed:
+- `GOTOOLCHAIN=local go vet ./cmd/corvint`;
+- the focused-docs targets (`spec-requirements-check`, `requirement-definitions-check`,
+  `traceability-tests-check`, `decision-numbers-check`, `line-citations-check`);
+- `make error-code-ownership-check`;
+- `make interop-gate`, which took 21 s.
+
+`GOTOOLCHAIN=local go test -count=1 -timeout 30m ./cmd/corvint` also passed, in 245 s, on the
+tree committed as `d88342b9`.
+
+The help.go insertion moved lines, so three existing line citations were repinned: two in
+`FRONTIER-DECISION-BRIEF-2026-08-29.md`, and the `prove_checkpoint.go` spans in
+`falsifiable-packet-v0.md`.
+
+Not produced:
+- `make gate`: NOT_RUN (owner policy).
+- `full-gate`: NOT_RUN.
+- Independent review of the bundle contract: NOT_PRODUCED.
+- A replay across two different Corvint builds of the same version: NOT_OBSERVED. `build` is
+  recorded but not compared.
 ## 2026-09-23 V1-0010 DCW-V0-013..015: daily change-evidence adopter path
 
 `docs/DOGFOOD.md` now opens with one ordered daily adopter path from the pre-change receipts to the

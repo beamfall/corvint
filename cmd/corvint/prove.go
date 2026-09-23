@@ -598,7 +598,7 @@ func compileCheckpointProof(ctx context.Context, gitExecutable string, options o
 	if err != nil {
 		return nil, err
 	}
-	document, err := readCheckpointDocument(options.prove.checkpointPath)
+	document, err := checkpointDocumentFor(ctx, options.prove.checkpointPath)
 	if err != nil {
 		return nil, err
 	}
