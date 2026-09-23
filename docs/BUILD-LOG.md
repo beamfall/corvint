@@ -2496,3 +2496,52 @@ synthetic fixture; the cost numbers are from one host under two load conditions 
 budget. FPK-V0-028's replay cohort and the TCQ promotion gates remain `NOT_RUN`. The prototype
 label was narrowed, not removed: the TCQ requirements, cost, and rollback now govern the shared
 runner, while FPK-V0-028's own experimental label stays because its acceptance is unmet.
+## 2026-09-22 self-dogfood-mapping-qualifies-store-scope: decision 0348, V1-0082
+
+`workMappingReproduced` (`cmd/corvint/work.go`) now accepts Corvint's own `decision-0046-v0`
+self-dogfood mapping (`docs/worklist.json`) alongside `repository-worklist-v0`, using the same
+byte-reproduction argument decision 0321 established and explicitly deferred ("qualify both closed
+mappings... can be proposed separately"). WQO-V0-017 and the WQO-V0-046 requirement body in
+`docs/specs/work-queue-observation-v0.md` are amended to name `decision-0046-v0` as the same
+exception, citing decision 0348; the section 5.7 header, its witness table row for WQO-V0-033, the
+following paragraph, and the WQO-V0-046 traceability row are updated to match.
+
+The WQO-V0-021/025/032 final-check fixtures (`cmd/corvint/work_final_check_test.go`) previously got
+incomplete initial store scope only as a side effect of the mapping staying unqualified. The
+`.git`-nested-FIFO marker (`workFinalIncompleteScope`) still produces that incompleteness, unchanged;
+what changed is how `closing-inability` and `prior-mutation-and-closing-inability` now signal the
+required mutation: each script prepends `git commit --allow-empty` (the same technique
+`source-drift-and-mutation` already used) so the Git-directory monitored root's own independent
+manifest scan records the change via its existing-entry content-diff branch, instead of relying on
+the caller-tree root walk — which turned out to be permanently blind to new top-level files whenever
+anything inside `.git` (sorted first, fully depth-first) aborts the walk. The untracked-file write
+that dirties `git status` for the closing failure is unchanged. `TestWorkMappingReproducedSelfDogfood`
+(`cmd/corvint/work_adopt_test.go`) directly proves `decision-0046-v0` now reproduces and that tampered
+adapter output still disqualifies it. `TestObserveWorkUsesOnlyTargetMaterialization`
+(`cmd/corvint/work_observe_test.go`) is updated from `StateUnknown`/`"UNKNOWN"` to
+`StateValidated`/`"UNCHANGED_OBSERVED"` — its clean, undrifted production fixture now reaches complete
+store scope, which was never its stated purpose (materialization isolation) but was an incidental
+dependency on the mapping staying unqualified.
+
+`script/gen-spec-requirements.sh` regenerated `docs/specs/REQUIREMENTS.tsv` with no field diff besides
+line numbers (requirement IDs stable). The spec's Agent-digest `Claim:` line is unchanged, so no
+README/INDEX sync was needed.
+
+Gates: `gofmt -l cmd/corvint internal/workqueue internal/specindex docs` clean;
+`GOTOOLCHAIN=local go build ./...` and full `go vet ./...` clean;
+`GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/specindex/...` passed (0.42s);
+targeted `-run '^(TestWorkFinalCheckCaptureBinding|TestWorkMappingReproduced|
+TestWorkMappingReproducedSelfDogfood|TestObserveWorkUsesOnlyTargetMaterialization)$'
+./cmd/corvint/...` passed at `-count=1` (57.9s) and was separately confirmed stable at `-count=3`
+(479.8s, exit 0) earlier in the same session; `internal/workqueue/...` passed (2.3s). All 107
+`Test...` functions found across `cmd/corvint/work*.go`, `internal/workqueue/*.go`, and
+`internal/worklistadapter/*.go` were run and pass (one pre-existing, unrelated skip:
+`TestWorkAdapterProcess`). `make spec-requirements-check requirement-definitions-check
+traceability-tests-check decision-numbers-check` passed. `make line-citations-check` fails on 18
+pre-existing citations in `docs/decisions/0082-*.md` and `docs/specs/falsifiable-packet-v0.md`/
+`go-production-kernel-migration-v0.md`, all pointing at `internal/contextindex/impact.go`,
+`internal/contextindex/range_impact.go`, and `cmd/corvint/work_materialization_test.go` — files last
+changed by already-committed, already-merged commits (`4519cad`, `b8b1225`) outside this ticket's
+ownership (`cmd/corvint/work*.go` and `internal/workqueue/**`, not `work_materialization_test.go`,
+and not `internal/contextindex`); none of the 18 broken citations reference any file this change
+touched. Full `make gate` was not run, per ticket scope.

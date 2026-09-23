@@ -503,7 +503,8 @@ func workAdoptedRun(t *testing.T, root string, arguments ...string) workAdoptedR
 	return result
 }
 
-// WQO-V0-046: store scope is complete only for exact repository-worklist-v0 output.
+// WQO-V0-046: store scope is complete only for exact repository-worklist-v0 output
+// (decision-0046-v0's self-dogfood counterpart is covered by TestWorkMappingReproducedSelfDogfood).
 func TestWorkMappingReproduced(t *testing.T) {
 	t.Parallel()
 	root := materializationFixture(t)
@@ -540,6 +541,36 @@ func TestWorkMappingReproduced(t *testing.T) {
 	}
 	if exit := run([]string{"--root", t.TempDir(), "work", "init", "--repository", "bad name", "--corvint-executable", workBoundCorvint(t)}, strings.NewReader(""), &stdout, &stderr); exit != 2 {
 		t.Fatal("invalid repository token accepted")
+	}
+}
+
+// WQO-V0-046: decision-0046-v0 (Corvint's own self-dogfood mapping, docs/worklist.json)
+// qualifies store scope by the same exact byte-reproduction argument as repository-worklist-v0.
+func TestWorkMappingReproducedSelfDogfood(t *testing.T) {
+	t.Parallel()
+	selfRoot := workProductionFixture(t)
+	selfSource, err := worksource.Acquire(context.Background(), selfRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer selfSource.Close()
+	selfPolicy, err := workqueue.ParsePolicy(workSourceTestFile(t, selfSource, worklistadapter.PolicyPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if selfPolicy.MappingVersion != workSelfDogfoodMapping {
+		t.Fatalf("fixture policy mapping = %q, want %q", selfPolicy.MappingVersion, workSelfDogfoodMapping)
+	}
+	selfSnapshot, selfDetails, selfCheckpoint, err := worklistadapter.DocumentsFromSource(selfSource, selfPolicy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !workMappingReproduced(selfSource, selfPolicy, selfSnapshot.Canonical(), selfDetails.Canonical(), selfCheckpoint.Canonical()) {
+		t.Fatal("decision-0046-v0 exact mapping output not reproduced")
+	}
+	tamperedSelf := append(append([]byte(nil), selfCheckpoint.Canonical()...), ' ')
+	if workMappingReproduced(selfSource, selfPolicy, selfSnapshot.Canonical(), selfDetails.Canonical(), tamperedSelf) {
+		t.Fatal("differing decision-0046-v0 adapter output qualified store scope")
 	}
 }
 
