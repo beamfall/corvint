@@ -4,6 +4,34 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0100 AFU-V0-001..AFU-V0-012: application-flow gate evidence and traceability
+
+The experimental slice already landed through PR #65. This change adds no behaviour; it reruns the
+frozen browser evaluation on base `a98d770` and replaces the grouped traceability rows in
+`docs/specs/application-flow-understanding-v0.md` with one row per requirement, each naming its
+tests or an explicit gap. No new requirement ID or decision was needed.
+
+`script/web-flows-gate` (after `npm ci` in `tools/web-flows`; Node v22.23.2, Playwright 1.63.0,
+Chromium already installed) exited 0: 6/6 scanner and lifecycle tests, 9/9 browser cases
+(`development-fixture`, `held-back-selectors`, `persist-broken`, `auth-broken`,
+`wrong-served-identity`, `cross-origin-http-and-websocket` with 0 sentinel requests, `source-only`,
+`SIGINT` with 5 and `SIGTERM` with 3 retired descendants), `seededDefectsDetected:2`,
+`falseConfirmations:0`. The false-confirmation field is a literal in `tools/web-flows/test/e2e.mjs`;
+the zero rests on the per-case assertions that pass, not on a computed count.
+
+Explicit gaps now recorded instead of implied coverage: no test asserts the emitted
+`test-syntax-unresolved:<path>` gap or a test file from another framework, the standing
+`non-http-browser-transports-unqualified` and `escaped-daemon-descendants-unqualified` gaps, the
+`unaddressable-or-visual-control` gap, budget truncation gaps, secret-shaped input refusal, the
+per-flow `next` action, or the copy of evidence gaps into the report frontier. The absence of a
+combined confidence score is structural (the `Flow` and `Report` types) with no negative test.
+
+`make gate` is NOT_RUN in this change by owner policy and remains a release-attestation item.
+Complete-command benefit, blinded discovery precision/recall and external-application accuracy
+remain NOT_OBSERVED. Profile acceptance and promotion are not performed: the spec stays
+intent proposed / delivery experimental and awaits an explicit owner decision recorded in the spec
+and this log.
+
 ## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
 
 V1-0012 measured the daily change-evidence loop as it exists at `origin/main` 1894b9e against a
