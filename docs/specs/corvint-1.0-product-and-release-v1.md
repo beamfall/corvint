@@ -108,11 +108,11 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint context` | Core | Task context packet; `UC-TASK-ORIENTATION`. |
 | `corvint impact`, `affected` | Core | Change consequence and verification selection; `UC-CHANGE-CONSEQUENCE`. |
 | `corvint prove` | Core | Proof over pinned evidence; `UC-EVIDENCE-CARRYING-COMPLETION`. |
-| `corvint cem`, `ocm`, `frontier` | Core | The proof wire frozen by V1-0013. |
+| `corvint cem`, `ocm`, `frontier` | Core | The proof wire to be frozen by V1-0013. |
 | `corvint dogfood`, internal `dogfood-record`, `dogfood-ocm` | Core | Retained local outcome of the dogfood loop. |
 | `corvint adapter` (codex, claude-code, claude-source-handoff) | Core if owner question 5 is yes, else companion | Thin host entry for the two Core host rows. |
 | `corvint --version`, `help` | Core | Identity and discovery of the Core verbs. |
-| `corvint docs` (draft, watch, apply) | companion | Decision 0332 names automatic docs a companion. |
+| `corvint docs` (draft, watch, apply, maintain) | companion | Decision 0332 names automatic docs a companion. |
 | `corvint test-validity` | companion | Test-provider profile; decision 0332 companion. |
 | `corvint harness event`, `pi-tool` | companion | Entry points for non-Core hosts. |
 | `corvint witness`, `batch`, `obligations` | experimental | Accepted directions with experimental delivery; not part of the Core loop. |
@@ -140,6 +140,7 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | Gemini CLI extension, OpenCode plugin, Pi extension | companion | FALLBACK hosts outside Core. |
 | `integrations/pi-protected` | experimental | Protected Pi runtime is an accepted direction with experimental delivery. |
 | `extensions/vscode` | deferred | `vscode-extension-v0.md` is deferred. |
+| `integrations/testfixture` | none (test-only) | Test fixture tree; never shipped. |
 | DeepSeek Harness plugin | post-1.0 | A committed product goal that is not shipped. |
 | Hosted service, embeddings, permanent daemon, database service in the default binary | rejected | Invariant 7. |
 
@@ -295,6 +296,13 @@ Answer each yes or no. A "no" keeps the current `public-release-v0.md` rule for 
 | `PRS-V1-004` | Native install lifecycle on each Core platform | darwin/arm64 retained for 0.7.0; linux/amd64 `NOT_RUN` |
 | `PRS-V1-007` | V1-0014 | `NOT_RUN` |
 | `PRS-V1-008` | V1-0019 | `NOT_RUN` |
+
+## Sections not applicable to a scope spec
+
+- Simpler baseline: not applicable; this spec selects scope and does not add a mechanism.
+- Trust boundary and resource limits: not applicable; every named surface keeps its owning spec's limits.
+- Rollout, compatibility and drift rules: not applicable; the owning contracts and `CCF-V1` carry them.
+- Promotion or kill criteria: not applicable; acceptance is the owner decision `PRS-V1-012` records.
 
 ## Rollback
 
