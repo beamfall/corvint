@@ -4,6 +4,33 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0004 PUB-V0-016, PUB-V0-020: core wrapper mode and first PASS retained core run
+
+`script/public-release-check` selects `editor` (unset) or `core` via `CORVINT_PUBLIC_RELEASE_QUALIFICATION`;
+core forwards `CORVINT_NODE_SHA256`, `CORVINT_NPM_SHA256`, `CORVINT_GO_AUTHORITY_BUNDLE`, `CORVINT_GO_AUTHORITY_SHA256`
+as the four core flags, editor refuses them, and empty or unknown selection exits 2 before effects.
+
+Attempt 1 at commit `4b9957ed` (bundle/2 `07d5245b...f04a6`) completed offline-dependencies, providers,
+provider-interruption and docs, then failed planning: b228c33 (V1-0002) added a two-line superseded header
+to `docs/plans/integrated-product-roadmap-2026-09-12.md` (now `d3b7a8d0...`) while
+`script/seed-planning-store-data.json` still pinned `22298b8d...`, so `seed-planning-store.sh` refused.
+Console was NOT_RUN and no result file was produced. The eleven IPR sections are unchanged, so commit
+`72a16ef1` repins the digest; `seed-planning-store_test.sh` passes against the bundle `corvint-tasks`.
+
+Attempt 2 at commit `72a16ef1016a9ed4b8f9481e05fe09ea9857a202`, tree `d6e93e58d5a9f648656af0d4259992bde56f4d87`,
+bundle/2 `d84773d58848ffaaecd7c7d4a7b2ec75616aaea117a959657464baa470085bc8` (Tasks `e6b9d76`): `status: PASS`,
+profile `corvint-public-release-core-installed/0`, result sha256
+`aa86e5552c6ea2eed5fc6aeadeaf4f1839b40368f8222b073c88b01c26265b2d`, identity `ac9e3917...320f7`. All six
+stages completed (offline-dependencies, providers with 28 receipts, provider-interruption, docs, planning with
+the eleven-ticket roadmap read back through `corvint-tasks`, console). Inputs: a 16 MB npm cache seeded from the
+fixture lock (`04aea4de...49c2c`), a browser cache of only `chromium_headless_shell-1243` (`9edf5670...3f98`,
+Chrome for Testing 153.0.8010.12), node 22.23.2 `0143ba3f...cc1a1e`, npm 10.9.8 `8e5f6f34...fcbe7`,
+`/usr/bin/python3` `b8763cf2...f610e9`, go1.27.1 `548608a9...8509b` and a caller-measured trusted-local 0600 Go
+attachment `d2fe8448...5dc98` (verifier `1b897c55...61704`). The result and its `SHA256SUMS` are retained
+locally (the repository names no committed location); the checker removed its scratch on success.
+NOT_RUN: `make gate`; the other four platforms of the companion matrix (no attempt made). This run qualifies
+the commit above, not a release candidate: a candidate head needs its own run.
+
 ## 2026-09-23 V1-0088, decision 0368, LTA-V0-009..012: ledger negative labels for slot weights
 
 V1-0088 adds an explicit, operator-invoked learning step on an existing verb:

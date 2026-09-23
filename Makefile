@@ -282,6 +282,9 @@ companion-release-gate:
 
 # public-release-check is the opt-in retained-artifact qualification. Required
 # paths and frozen source identities are passed through the named CORVINT_* env.
+# CORVINT_PUBLIC_RELEASE_QUALIFICATION selects editor (default) or core (bundle /2,
+# PUB-V0-020); core also needs CORVINT_NODE_SHA256, CORVINT_NPM_SHA256,
+# CORVINT_GO_AUTHORITY_BUNDLE and CORVINT_GO_AUTHORITY_SHA256, which editor refuses.
 public-release-check:
 	@script/public-release-check
 
