@@ -86,7 +86,10 @@ output directories outside the checkout; the reproducibility script refuses one 
 
    The optional companion and installed qualification keep their own gates:
    `script/corvint-companion-release-gate` and `script/public-release-check`; run them when the
-   release includes those tuples and retain their reports.
+   release includes those tuples and retain their reports. For companion bundle `/2`, run
+   `script/public-release-check` with `CORVINT_PUBLIC_RELEASE_QUALIFICATION=core` and set
+   `CORVINT_NODE_SHA256`, `CORVINT_NPM_SHA256`, `CORVINT_GO_AUTHORITY_BUNDLE` and
+   `CORVINT_GO_AUTHORITY_SHA256` alongside the ten common settings (PUB-V0-020).
 
 9. Changelog entry. Add the `## X.Y.Z` section at the top of `docs/RELEASE-NOTES.md` naming the
    version, `Corvint X.Y.Z (build N)` and `FULL_COMMIT`, where `N` is

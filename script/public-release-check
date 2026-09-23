@@ -17,6 +17,15 @@ resolve_release_setting CORVINT_PYTHON
 resolve_release_setting CORVINT_PYTHON_SHA256
 resolve_release_setting CORVINT_RELEASE_COMMIT
 resolve_release_setting CORVINT_RELEASE_TREE
+resolve_release_setting CORVINT_PUBLIC_RELEASE_QUALIFICATION
+# Core (companion profile /2, PUB-V0-020) needs four frozen runtime/authority settings; editor refuses them.
+qualification=${CORVINT_PUBLIC_RELEASE_QUALIFICATION:-editor}
+core_settings="CORVINT_NODE_SHA256 CORVINT_NPM_SHA256 CORVINT_GO_AUTHORITY_BUNDLE CORVINT_GO_AUTHORITY_SHA256"
+case $qualification in
+  editor) for name in $core_settings; do [ -z "${!name+x}" ] || { echo "public-release-check: editor qualification refuses $name" >&2; exit 2; }; done;;
+  core) for name in $core_settings; do [ -n "${!name:-}" ] || { echo "public-release-check: core qualification needs $name" >&2; exit 2; }; done;;
+  *) echo "public-release-check: CORVINT_PUBLIC_RELEASE_QUALIFICATION must be editor or core" >&2; exit 2;;
+esac
 for name in CORVINT_RELEASE_BUNDLE_DIR CORVINT_PUBLIC_RELEASE_SCRATCH CORVINT_PUBLIC_RELEASE_RESULT CORVINT_NPM_CACHE CORVINT_PLAYWRIGHT_BROWSERS CORVINT_NODE CORVINT_PYTHON CORVINT_PYTHON_SHA256 CORVINT_RELEASE_COMMIT CORVINT_RELEASE_TREE; do
   [ -n "${!name:-}" ] || { echo "public-release-check: set $name" >&2; exit 2; }
 done
@@ -34,6 +43,14 @@ for input in "$root" "$bundle" "$npm_cache" "$browser_cache"; do
   ! overlap "$result" "$input" || { echo "public-release-check: result overlaps input" >&2; exit 2; }
 done
 ! overlap "$scratch" "$result" || { echo "public-release-check: scratch overlaps result" >&2; exit 2; }
+core_args=()
+if [ "$qualification" = core ]; then
+  case $CORVINT_GO_AUTHORITY_BUNDLE in /*) ;; *) echo "public-release-check: CORVINT_GO_AUTHORITY_BUNDLE must be absolute" >&2; exit 2;; esac
+  [ -f "$CORVINT_GO_AUTHORITY_BUNDLE" ] && [ ! -L "$CORVINT_GO_AUTHORITY_BUNDLE" ] || { echo "public-release-check: Go authority bundle must be a regular file" >&2; exit 2; }
+  authority=$(canonical_missing "$CORVINT_GO_AUTHORITY_BUNDLE")
+  for output in "$scratch" "$result"; do ! overlap "$output" "$authority" || { echo "public-release-check: output overlaps Go authority" >&2; exit 2; }; done
+  core_args=(-node-sha256 "$CORVINT_NODE_SHA256" -npm-sha256 "$CORVINT_NPM_SHA256" -go-authority-bundle "$authority" -go-authority-sha256 "$CORVINT_GO_AUTHORITY_SHA256")
+fi
 [ ! -e "$scratch" ] && [ ! -L "$scratch" ] || { echo "public-release-check: scratch exists" >&2; exit 2; }
 [ ! -e "$result" ] && [ ! -L "$result" ] || { echo "public-release-check: result exists" >&2; exit 2; }
 [ "$(git -C "$root" rev-parse --verify 'HEAD^{commit}')" = "$CORVINT_RELEASE_COMMIT" ]
@@ -121,7 +138,7 @@ grep -Fq 'vcs.modified=false' <<<"$metadata"
 [ "$(git -C "$root" rev-parse --verify 'HEAD^{commit}')" = "$CORVINT_RELEASE_COMMIT" ]
 [ "$(git -C "$root" rev-parse 'HEAD^{tree}')" = "$CORVINT_RELEASE_TREE" ]
 [ -z "$(git -C "$root" status --porcelain=v1 --untracked-files=all)" ]
-run_owned "$checker" -source-root "$root" -bundle-dir "$bundle" -scratch "$scratch" -output "$staged_result" -npm-cache "$npm_cache" -browser-cache "$browser_cache" -node "$CORVINT_NODE" -python "$CORVINT_PYTHON" -python-sha256 "$CORVINT_PYTHON_SHA256" -expected-commit "$CORVINT_RELEASE_COMMIT" -expected-tree "$CORVINT_RELEASE_TREE"
+run_owned "$checker" -qualification "$qualification" ${core_args[@]+"${core_args[@]}"} -source-root "$root" -bundle-dir "$bundle" -scratch "$scratch" -output "$staged_result" -npm-cache "$npm_cache" -browser-cache "$browser_cache" -node "$CORVINT_NODE" -python "$CORVINT_PYTHON" -python-sha256 "$CORVINT_PYTHON_SHA256" -expected-commit "$CORVINT_RELEASE_COMMIT" -expected-tree "$CORVINT_RELEASE_TREE"
 ln "$staged_result" "$result"
 published=1
 rm "$staged_result"
