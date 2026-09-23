@@ -19,7 +19,7 @@ evidence row), `AGENTS.md` invariants 1, 2, 3, 4, and 8.
 ## Agent digest
 - Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
 - Status: proposed/experimental
-- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed).
+- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`).
 - Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012, which is implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it.
 - Read next: Requirements; Non-goals; Failure modes.
 
@@ -501,6 +501,16 @@ it must read, each with the relation that admitted it, without naming the task's
   | `git-history` | `repository-history` |
   | `external-provider` | `external-provider` |
   | `unverified-contract`, `unverified-ledger`, `local-task-trace`, `generated-documentation`, and every label not listed | `tool-output` |
+- `TCP-V0-024`: (proposed 2026-09-23, not accepted; experimental; decision 0364) This amends the
+  TCP-V0-002 invocation with two opt-in views, whose behaviour `experimental-source-views-v0`
+  owns (`ESV-V0-008`, `ESV-V0-009`, `ESV-V0-010`):
+  - `--summary [--summary-bytes N]` adds a bounded projection to a `--task` invocation;
+  - `context --expand HANDLE [--max-bytes N]` replaces `--task` and accepts no other context flag.
+
+  `--summary-bytes` without `--summary`, and `--max-bytes` without `--expand`, are argument
+  errors. When neither `--summary` nor `--expand` is given, the command prints exactly the bytes
+  of TCP-V0-001..023: the packet, its members and its ranking are unchanged. Both views are read
+  commands: they write no repository, index, snapshot, trace or `.corvint/` state.
 
 ## Non-goals and authority
 
@@ -528,6 +538,10 @@ label alone, so it cannot disagree with the label and does not verify it; a row 
 labels `syntax` is `repository-content` by label. Stamping `trust` on the `query` and `impact`
 wires (held byte-exact by GPK-V0-002 and `conformance/cli-parity-v0`) and on the `external`
 section's rows is not this slice's to do.
+
+TCP-V0-024 adds no packet member, ranking input or row. The summary is a projection of the exact
+default bytes, and expansion reads Git objects at the handle's pinned tree. Neither view changes
+`query`, `impact` or any `protocol/**` wire, and neither adds a root verb.
 
 Operational note (V1-0051): `corvint context` and the generic harness-event dispatch it shares
 (`cmd/corvint/taskcontext.go`, `cmd/corvint/main.go`) write a local pprof CPU profile when the
@@ -582,6 +596,10 @@ and does not widen what either read-only path reads, returns, or mutates (AGENTS
   `coverage.governance_refused` names its relation, path and class; the row itself stays in
   `results`. An unlisted label is refused the same way as `tool-output`; the packet does not say
   the label is unknown, so a new generator label must be added to the table to be trusted.
+- (TCP-V0-024) A view flag could leak into the default path and change its bytes.
+  `TestContextDefaultWireIsTheGolden` compares the default stdout with bytes captured from the base
+  binary (`1894b9e5`), and mixed or orphaned view flags are argument errors
+  (`TestParseContextViewArguments`).
 
 ## Acceptance evidence
 
@@ -615,6 +633,9 @@ its label's and the governing row is `project-authority`; a tainted reserved row
 today's wire to the wire minus `trust`); the recipe golden of
 `internal/contextindex/ranking_regression_test.go` re-captured with only the `trust` member and
 the empty `governance_refused` array added.
+`cmd/corvint/context_summary_test.go` (TCP-V0-024, experimental: default bytes equal the
+base-binary golden `cmd/corvint/testdata/context-default-wire.golden`; flag mixing refused; the
+summary and expansion evidence listed under ESV-V0-008..009).
 
 ## Rollback
 
@@ -629,6 +650,10 @@ TCP-V0-022 rolls back alone: delete `internal/contextindex/context_anchors.go` a
 TCP-V0-023 rolls back alone: delete `internal/contextindex/trust.go` and its test, the `trust`
 stamp in `packet` and the `governance_refused` member, point `governance` and `criticalSelectors`
 back at `compiler.reserved`, and re-capture the recipe golden.
+TCP-V0-024 rolls back alone to current packets. Follow the V1-0023 rollback in
+`experimental-source-views-v0` (Acceptance and rollback): delete `cmd/corvint/context_summary.go`,
+its test and golden, and the view flags, check and help paragraph in `cmd/corvint/taskcontext.go`.
+The default wire never changed.
 
 ## Traceability
 
@@ -657,3 +682,4 @@ back at `compiler.reserved`, and re-capture the recipe golden.
 | TCP-V0-020 | `frameRelationRows`, `namedTestFrames`, `frameCandidates`, `creditFrameIdentifiers` | `TestFrameRelationSignals`, `TestFrameRelationOrderingAndCoverage`, `TestFrameRelationScopeAndDeterminism` |
 | TCP-V0-022 | `configureContextAnchors`, `taskAnchors`, `anchorCandidates`, `countAnchor`, `anchorOccurrences`, `anchorReason`, `lexicalHits`, `queryTermGain` | `TestContextAnchorClassesMatchVerbatim`, `TestContextAnchorsExtractionBounds`, `TestContextAnchorsExplainAndNeverOutrankAuthority`, `TestContextAnchorsDefaultBytes` |
 | TCP-V0-023 | `trustByAuthority`, `TrustClass`, `TrustTainted`, `governanceRows`, `governanceRefused` (`internal/contextindex/trust.go`); the `trust` stamp in `taskContextCompiler.packet` | `TestTrustClassIsClosedAndDeterministic`, `TestTaskContextRowsCarryOneTrustClass`, `TestTaskContextGovernanceRefusesATaintedReservedRow`, `TestTaskContextWireIsAdditiveForAnOldConsumer`, `TestContextRecipeDefaultPathIsByteIdentical` (re-captured golden) |
+| TCP-V0-024 | `parseTaskContextInvocation`, `checkContextViewArguments`, `runTaskContext` (view dispatch); `summarizeContextPacket`, `runContextExpand` (`cmd/corvint/context_summary.go`) | `TestContextDefaultWireIsTheGolden`, `TestParseContextViewArguments`, `TestContextSummaryAndExpandAreReadOnly` |

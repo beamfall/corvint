@@ -1,0 +1,274 @@
+{
+  "schema_version": "evidence-summary-trial-preregistration-v0",
+  "status": "PREREGISTERED_NOT_RUN",
+  "outcome": "NOT_OBSERVED",
+  "ticket": "V1-0023",
+  "authority": {
+    "requirements": "ESV-V0-010, ESV-V0-008, ESV-V0-009, TCP-V0-024",
+    "decision": "docs/decisions/0364-compact-evidence-summaries-exact-drill-down-2026-09-23.md",
+    "accepted_by": "NOT_ACCEPTED: owner acceptance is required before the trial may run or any result may promote the views"
+  },
+  "promotion_hold": "The summary and expand views stay experimental and do not satisfy the V1-0023 release delivery claim until this trial runs to completion under this registration and the owner accepts its result.",
+  "hypothesis": "On matched complete tasks, summary plus on-demand exact expansion reduces total retrieval and follow-up read bytes and complete task cost without lowering correctness or raising missed critical evidence, compared with current full packets.",
+  "arms": [
+    {
+      "id": "current-packets",
+      "invocation": "corvint context --task TEXT [--limit N]",
+      "follow_up": "any read the agent chooses"
+    },
+    {
+      "id": "summary-expand",
+      "invocation": "corvint context --task TEXT [--limit N] --summary --summary-bytes 8192",
+      "follow_up": "corvint context --expand HANDLE [--max-bytes N], or any read the agent chooses"
+    }
+  ],
+  "fixed_conditions": {
+    "model": "one model identifier, recorded before the first job and identical in both arms",
+    "effort": "one reasoning-effort setting, identical in both arms",
+    "framing": "one system and task prompt template, identical except for the arm's invocation line",
+    "cache_policy": "a fresh session per job and arm; provider prompt caching left at its default and recorded; no shared scratch state between arms",
+    "corvint_binary": "one build, recorded by version and sha256",
+    "order": "arm order randomised per job with a recorded seed",
+    "repetitions": "one run per job and arm; a repeat needs a new registration"
+  },
+  "jobs": [
+    {
+      "id": "esv-trial-cobra-execute-command",
+      "case_ref": "benchmarks/cases/cobra.json#cobra-execute-command",
+      "repository": "spf13/cobra",
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "partition": "development",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-cobra-bash-completion",
+      "case_ref": "benchmarks/cases/cobra.json#cobra-bash-completion",
+      "repository": "spf13/cobra",
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "partition": "development",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-cobra-active-help",
+      "case_ref": "benchmarks/cases/cobra.json#cobra-active-help",
+      "repository": "spf13/cobra",
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "partition": "development",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-cobra-image-abstention",
+      "case_ref": "benchmarks/cases/cobra.json#cobra-image-abstention",
+      "repository": "spf13/cobra",
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "partition": "development",
+      "job_kind": "abstention",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-execa-kill-descendants",
+      "case_ref": "benchmarks/cases/execa.json#execa-kill-descendants",
+      "repository": "sindresorhus/execa",
+      "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+      "partition": "development",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-execa-normalize-parameters",
+      "case_ref": "benchmarks/cases/execa.json#execa-normalize-parameters",
+      "repository": "sindresorhus/execa",
+      "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+      "partition": "development",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-execa-max-buffer",
+      "case_ref": "benchmarks/cases/execa.json#execa-max-buffer",
+      "repository": "sindresorhus/execa",
+      "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+      "partition": "development",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-blind-execa-async-max-buffer-overflow",
+      "case_ref": "benchmarks/cases/execa.json#blind-execa-async-max-buffer-overflow",
+      "repository": "sindresorhus/execa",
+      "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+      "partition": "blind-v1",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-execa-database-abstention",
+      "case_ref": "benchmarks/cases/execa.json#execa-database-abstention",
+      "repository": "sindresorhus/execa",
+      "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+      "partition": "development",
+      "job_kind": "abstention",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-flask-load-dotenv",
+      "case_ref": "benchmarks/cases/flask.json#flask-load-dotenv",
+      "repository": "pallets/flask",
+      "commit": "d318b683471101618febed18996405ad26462110",
+      "partition": "development",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-flask-ensure-sync",
+      "case_ref": "benchmarks/cases/flask.json#flask-ensure-sync",
+      "repository": "pallets/flask",
+      "commit": "d318b683471101618febed18996405ad26462110",
+      "partition": "development",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-flask-cookie-session",
+      "case_ref": "benchmarks/cases/flask.json#flask-cookie-session",
+      "repository": "pallets/flask",
+      "commit": "d318b683471101618febed18996405ad26462110",
+      "partition": "development",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-blind-flask-stream-context-public-export",
+      "case_ref": "benchmarks/cases/flask.json#blind-flask-stream-context-public-export",
+      "repository": "pallets/flask",
+      "commit": "d318b683471101618febed18996405ad26462110",
+      "partition": "blind-v1",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-flask-kubernetes-abstention",
+      "case_ref": "benchmarks/cases/flask.json#flask-kubernetes-abstention",
+      "repository": "pallets/flask",
+      "commit": "d318b683471101618febed18996405ad26462110",
+      "partition": "development",
+      "job_kind": "abstention",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-zod-from-json-schema",
+      "case_ref": "benchmarks/cases/zod.json#zod-from-json-schema",
+      "repository": "colinhacks/zod",
+      "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+      "partition": "development",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-zod-treeify-errors",
+      "case_ref": "benchmarks/cases/zod.json#zod-treeify-errors",
+      "repository": "colinhacks/zod",
+      "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+      "partition": "development",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-zod-discriminated-union",
+      "case_ref": "benchmarks/cases/zod.json#zod-discriminated-union",
+      "repository": "colinhacks/zod",
+      "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+      "partition": "development",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-blind-zod-v4-safe-parse-async",
+      "case_ref": "benchmarks/cases/zod.json#blind-zod-v4-safe-parse-async",
+      "repository": "colinhacks/zod",
+      "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+      "partition": "blind-v1",
+      "job_kind": "locate-and-explain",
+      "task_text_source": "case text, verbatim"
+    },
+    {
+      "id": "esv-trial-zod-network-abstention",
+      "case_ref": "benchmarks/cases/zod.json#zod-network-abstention",
+      "repository": "colinhacks/zod",
+      "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+      "partition": "development",
+      "job_kind": "abstention",
+      "task_text_source": "case text, verbatim"
+    }
+  ],
+  "exclusion_registry": [
+    {
+      "case": "cobra-active-help-impact",
+      "case_ref": "benchmarks/cases/cobra.json#cobra-active-help-impact",
+      "reason": "impact mode: the summary and expand views are opt-in on `context` only; impact packets are unchanged and have no summary arm"
+    },
+    {
+      "case": "blind-cobra-flag-groups-impact",
+      "case_ref": "benchmarks/cases/cobra.json#blind-cobra-flag-groups-impact",
+      "reason": "impact mode: the summary and expand views are opt-in on `context` only; impact packets are unchanged and have no summary arm"
+    },
+    {
+      "case": "execa-kill-impact",
+      "case_ref": "benchmarks/cases/execa.json#execa-kill-impact",
+      "reason": "impact mode: the summary and expand views are opt-in on `context` only; impact packets are unchanged and have no summary arm"
+    },
+    {
+      "case": "flask-session-impact",
+      "case_ref": "benchmarks/cases/flask.json#flask-session-impact",
+      "reason": "impact mode: the summary and expand views are opt-in on `context` only; impact packets are unchanged and have no summary arm"
+    },
+    {
+      "case": "zod-memoizer-impact",
+      "case_ref": "benchmarks/cases/zod.json#zod-memoizer-impact",
+      "reason": "impact mode: the summary and expand views are opt-in on `context` only; impact packets are unchanged and have no summary arm"
+    },
+    {
+      "case": "any job whose repository or commit cannot be fetched at the pinned commit",
+      "reason": "recorded as NOT_RUN with the fetch refusal; never replaced by another case"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "retrieval-bytes",
+      "definition": "stdout bytes of every corvint invocation in the job"
+    },
+    {
+      "id": "follow-up-reads",
+      "definition": "count and bytes of source reads after the first packet, including --expand calls and ordinary file reads"
+    },
+    {
+      "id": "correctness",
+      "definition": "blind reviewer verdict against the case ground_truth and expected members; abstention jobs score a correct abstention"
+    },
+    {
+      "id": "missed-evidence",
+      "definition": "expected must_include items and critical rows the final answer does not cite"
+    },
+    {
+      "id": "reviewer-adequacy",
+      "definition": "blind reviewer rates whether the cited evidence suffices to verify the answer without further reads"
+    },
+    {
+      "id": "total-cost",
+      "definition": "complete input, output and cache token units and wall time per job, from host telemetry"
+    },
+    {
+      "id": "unknown-telemetry",
+      "definition": "count of jobs whose token or time telemetry is missing; any missing value leaves total-cost NOT ESTABLISHED for that arm"
+    },
+    {
+      "id": "losing-cases",
+      "definition": "every job where summary-expand is worse on correctness or missed-evidence, listed by id, whatever the aggregate"
+    }
+  ],
+  "decision_rule": "Promotion needs no correctness loss, no increase in missed critical evidence, complete telemetry, and lower total-cost on the aggregate; any losing case is reported by id. A failed or incomplete trial keeps the views experimental.",
+  "observations": "NOT_OBSERVED"
+}

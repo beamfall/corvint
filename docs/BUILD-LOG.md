@@ -4,6 +4,49 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0023 ESV-V0-005, ESV-V0-008..010, TCP-V0-024 / decision 0364: opt-in evidence summaries with exact drill-down
+
+Ticket V1-0023 adds two opt-in views to the existing `context` verb. It adds no root verb, changes
+no `protocol/**` wire, and makes no `query` change.
+
+- `--summary [--summary-bytes N]` projects the exact default stdout into at most N bytes.
+  - Every non-`results` member is kept verbatim.
+  - Rows are compact, each with a `cv1:TREE:BLOB:RANGE:PATH` handle.
+  - The `summary` member records totals, the full packet's sha256, `evidence_complete: "UNKNOWN"`
+    and a continuation route.
+  - It refuses rather than drop a critical row.
+- `--expand HANDLE` returns only the pinned Git-object bytes and recomputes the blob object ID.
+  - It refuses invalid, stale, missing and ambiguous handles, never substituting current content.
+  - It refuses hostile handles (traversal, absolute path, leading dash, control or non-UTF-8 bytes,
+    oversize input, huge or reversed ranges) before any Git read.
+
+ESV-V0-005 is resolved. The manifest's `currentState.nativeSourceDigests` freezes the sha256 of
+`cmd/corvint/source_handoff.go` and `cmd/corvint/context_summary.go`, and
+`TestSourceViewNativeSourceDigestsAreFrozen` recomputes both. `cmd/corvint/host_adapter.go` is
+excluded (decision 0364).
+
+Measured:
+
+- `TestContextDefaultWireIsTheGolden`: the default stdout equals a golden captured from a binary
+  built at base `1894b9e5` over the same fixture (tree `348e320a`).
+- Budget sweeps: output stays at or under budget, and truncation and critical-row refusal are both
+  observed.
+- `TestContextSummaryAndExpandAreReadOnly`: no `.corvint/` directory and an unchanged
+  `git status --porcelain --ignored` after summary, expansion and refusals.
+- A self-repository sample at base with `--limit 50` went from 31054 bytes to 7865. The summary
+  showed 13 of 50 rows, the 2 critical rows included, and its sha256 matched the full packet.
+  This is a byte measurement only, not a task-cost result.
+
+Labels:
+
+- The matched complete-task trial (AC4) is NOT_OBSERVED. It is preregistered in
+  `benchmarks/evidence-summary-trial-v0.json`: 19 jobs, 5 impact cases excluded, metrics and a
+  decision rule.
+- The views stay experimental and do not satisfy the V1-0023 release delivery claim until that
+  trial runs and the owner accepts it.
+- Full gate NOT_RUN (owner policy).
+- Owner acceptance NOT_PRODUCED.
+
 ## 2026-09-22 AFU-V0-001..AFU-V0-012: experimental web flow understanding
 
 The owner requested application-flow understanding, test-gap mapping and runtime confirmation, then
