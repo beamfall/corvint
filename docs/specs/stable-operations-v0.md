@@ -123,7 +123,9 @@ The simpler baseline is the prose runbook and the `internal/releasecandidate` fi
 existed before this spec: they prove installer mechanics but never ran a released executable through
 its own index and read path. This spec adds no service, daemon, package manager, signing, auto-update
 or downgrade migration; it does not qualify Windows, does not measure resident memory, and does not
-replace `script/public-release-check` or the companion release gate.
+replace `script/public-release-check` or the companion release gate. Running Corvint as a triggered
+read-only step in CI, a git hook or a team automation is operator guidance in
+[`../AUTOMATION.md`](../AUTOMATION.md); it adds no requirement here and no always-on component.
 
 ## Trust boundary, limits, and failure modes
 
