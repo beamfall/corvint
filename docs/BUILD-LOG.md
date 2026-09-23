@@ -47,8 +47,8 @@ Repository mutation: `git worktree list` showed only the primary checkout before
 `git status --short` was the same before and after (only the then-untracked script). The trap
 removed each worktree with `git worktree remove`.
 
-Decision: record the result; change no code. Sharing the clean base across linked worktrees is a
-proposed follow-up BUG and is not filed in this change.
+Decision: record the result; change no code. Sharing the clean base across linked worktrees is
+filed as BUG V1-0212 (P2, v0-9), with the numbers above and the atomic-rename requirement.
 ## 2026-09-23 V1-0204 AFP-V0-020: every plugin names a changed unit no test reaches
 
 Finding: AFP-V0-020 named a changed Go package with no tests as `NO_SELECTABLE_TEST`, but the

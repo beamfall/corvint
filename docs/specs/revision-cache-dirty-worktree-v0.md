@@ -124,7 +124,7 @@ are diagnostic only. The dirty view did behave as `DIRTY-CACHE-003` requires wit
 worktree. A tracked edit gave that worktree's query `mixed-worktree` without a rebuild. The
 snapshot bytes did not change, a sibling worktree's query stayed `fresh`, and the edited worktree
 returned to `fresh` after the restore. Sharing one clean base across linked worktrees is not
-delivered.
+delivered; BUG V1-0212 tracks it.
 
 ## Traceability
 
