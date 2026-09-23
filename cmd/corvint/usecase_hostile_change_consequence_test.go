@@ -139,7 +139,6 @@ func TestUseCaseHostileChangeConsequence(t *testing.T) {
 			}
 		}},
 		{"hostile", "dirty-worktree", "dirty package without tests is named", func(t *testing.T) {
-			t.Skip("V1-0188 follow-up: a dirty Go package with no test files leaves scope BOUNDED and is absent from selected, excluded and unknown (silent omission); fixed by the unmerged V1-0187 branch (AFP-V0-020, NO_SELECTABLE_TEST)")
 			root := consequenceRepository(t)
 			cemWrite(t, root, "util/util.go", "package util\n\nfunc Util() int { return 4 }\n")
 			cemGit(t, root, "add", ".")
