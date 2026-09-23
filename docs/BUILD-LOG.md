@@ -4,6 +4,44 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0148 DCG-V0-001, V1-0010 AC3, V1-0146: stale DOGFOOD citation fixed via the daily path from the v0.7.0 archive
+
+Fix (V1-0148). `docs/SPEC-TOOLCHAIN-INTEGRATION.md` constraint 1 cited DOGFOOD lines 32-36 (now the
+daily-path steps); the same-commit CEM constraint is DOGFOOD section 2, lines 152-155. The file was
+outside the gate, so the stale citation passed at the base. DCG-V0-001 and `scanned_doc()` now name
+it; outside the legacy allowlist (DCG-V0-018) all ten of its citations need anchors, so each was read
+and pinned: seven had moved and were repointed, one kept its lines with reworded text that still
+holds, one named the deleted `src/context_corvint_ocm.py` and now names the requirement-ID pattern in
+`internal/lrfrepo/ocm.go`, one was unchanged. With the old citation restored the gate fails (anchor
+required); with the fix it passes, as do `line-citations-test` and `spec-requirements-check`.
+Follow-ups, not changed: the file's two bare-basename citations stay unchecked by DCG-V0-001 design,
+and its 2026-08-29 claim that `corvint frontier` is unimplemented is stale prose.
+
+Fresh-agent leg (V1-0010 AC3). Binary from the public v0.7.0 `corvint_darwin_arm64.tar.gz` (release
+and inner SHA256SUMS OK), `Corvint 0.7.0 (build 46)`, sha256
+`5fdbab207f6d15bd8ef341365642769cb58a11a76d935c37df77776ad0d09bad`, equal to the arm64 build A, build B
+and retained digest in the release `verification-report.json` (PASS, revision `41f2b689`). Orientation
+and every pre-bind `dogfood-change` pass ran with it as `CORVINT_BIN`; it was accepted (no private
+build under the Git evidence directory). The bind pass, check and seal follow this commit and are
+recorded in the pull request.
+
+Orientation. `corvint query` (limit 1) returned decision 0136, not the owning spec: a partial miss.
+Path impact on the two files did not surface `documentation-citation-gate-v0.md`: a miss. Range
+impact before any edit (base equal to head) was CLEAN with no results.
+
+Deviations from the DOGFOOD.md expected state. Step 3 matched. Step 4: (a) the first plan got
+`cem-cite: cite-span-not-stable` with no `fix:` line and no row ordinal (DCW-V0-014 promises a `fix:`);
+a row cited DCG-V0-001 lines hunk 7 edits, and citing unchanged lines 76-77 cleared it. (b) After an
+added BUILD-LOG commit the map was re-prepared with 10 hunks, and the 9-row plan was applied by
+ordinal without any row-count refusal: every citation shifted one hunk and one hunk stayed unknown.
+(c) Rerunning with a corrected plan added to, not replaced, those citations, so the untracked map had
+to be deleted. (d) The pass after that deletion started clean and ended exit 0, no output,
+`"complete": true`, `local-outcome` PRODUCED, with `?? .corvint/change.cem.json` still uncommitted,
+instead of the documented `local-outcome: record-index-failed`.
+
+NOT_RUN: `make gate` and the full Go suite (owner policy); step 7 (`ocm link`/`ocm mark`).
+NOT_OBSERVED: the independent reviewer leg from extracted archives (V1-0146), pending on the PR.
+
 ## 2026-09-23 V1-0097, decision 0372, CEP-V0-001..CEP-V0-006: external retrieval evaluation and the already-fixed control
 
 V1-0097 (spike) adds the external evaluation slice to `docs/specs/context-evolution-program-v0.md`

@@ -75,7 +75,7 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
 
 - `DCG-V0-001`: The gate MUST check every backticked citation in `docs/specs/*.md`,
   `docs/agent-memory/*.md`, `docs/decisions/*.md`, and the current-contract documents `README.md`,
-  `docs/DOGFOOD.md`, `docs/AGENT-ROUTES.md`, `docs/SELF-DEVELOPMENT.md`, and `conformance/*/README.md` (one directory
+  `docs/DOGFOOD.md`, `docs/AGENT-ROUTES.md`, `docs/SELF-DEVELOPMENT.md`, `docs/SPEC-TOOLCHAIN-INTEGRATION.md`, and `conformance/*/README.md` (one directory
   below `conformance/`, so a dated results README beneath it is not scanned), covering the forms `dir/file.ext:N`, `dir/file.ext:N-M`,
   `dir/file.ext:N,M`, a basename
   the Git index tracks at the repository root such as `ROADMAP.md:343`, and a bare `:N` or `:N-M`
