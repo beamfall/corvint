@@ -16,8 +16,8 @@
   "officialSchema": {
     "provenanceUrl": "https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/271ecc9accafdd9b83a3c869fa67c22953b2af80/schema/2026-07-28/schema.json",
     "observedSha256": "ef70b61f99b6d2e5e3b46863822eab08dff6a45bedc7a08914e0e5b133f40203",
-    "validationStatus": "NOT_RUN",
-    "validationReason": "the schema is not vendored or loaded by this no-network black-box suite; the digest records provenance only"
+    "validationStatus": "OPT_IN",
+    "validationReason": "TestServerTrafficMatchesOfficialSchema validates live server traffic against a local copy named by CORVINT_MCP_OFFICIAL_SCHEMA after checking observedSha256; the default no-network run skips it"
   },
   "executionEvidence": {
     "progressNotifications": {
@@ -25,13 +25,7 @@
       "reason": "no production tool exposes a deterministic long-running progress hook"
     }
   },
-  "promotionBlockers": [
-    {
-      "code": "INHERITED_KERNEL_GIT_PATH_NOT_PINNED",
-      "status": "NOT_OBSERVED",
-      "reason": "the in-process Corvint kernel resolves Git from PATH per operation"
-    }
-  ],
+  "promotionBlockers": [],
   "cases": [
     "discover-exact",
     "discover-closed-params",
@@ -67,6 +61,8 @@
     "no-surviving-descendants",
     "revision-bound-read-only",
     "secret-sanitization",
-    "stdout-purity"
+    "stdout-purity",
+    "git-executable-pinned",
+    "official-schema-traffic"
   ]
 }
