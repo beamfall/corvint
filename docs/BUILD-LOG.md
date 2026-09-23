@@ -4,6 +4,23 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0004 PUB-V0-016, PUB-V0-020: core wrapper mode and first retained core run
+
+`script/public-release-check` selects `editor` (unset) or `core` via `CORVINT_PUBLIC_RELEASE_QUALIFICATION`;
+core forwards `CORVINT_NODE_SHA256`, `CORVINT_NPM_SHA256`, `CORVINT_GO_AUTHORITY_BUNDLE`, `CORVINT_GO_AUTHORITY_SHA256`
+as the four core flags, editor refuses them, and empty or unknown selection exits 2 before effects.
+The run bound commit `4b9957edb2691128617681f4496be05839a125ef`, tree `3fda38655199dfcc0f7904dacbbb8003f0f35e58`,
+bundle/2 `07d5245b535620295a5e86e301ee6eae70b3414b3619d5ce24f72b89a17f04a6` (Tasks `e6b9d76`), a 16 MB npm cache
+seeded from the fixture lock, a browser cache of only `chromium_headless_shell-1243`, node 22.23.2
+`0143ba3f...cc1a1e`, npm 10.9.8 `8e5f6f34...fcbe7`, `/usr/bin/python3` `b8763cf2...f610e9` and a caller-measured
+trusted-local 0600 Go attachment `11058bf9...e3f82` (verifier `1b897c55...61704`, go1.27.1 `548608a9...8509b`).
+Offline-dependencies, providers (JS unit, JS E2E and Go fail-fix transitions matched through MCP),
+provider-interruption (TERM/INT, no cancelled receipt) and docs completed. Planning failed: b228c33
+(V1-0002) added a header to `docs/plans/integrated-product-roadmap-2026-09-12.md` (now `d3b7a8d0...`)
+but `script/seed-planning-store-data.json` still pins `22298b8d...`, so `seed-planning-store.sh` refuses
+(its own test fails the same way). That refinement needs review outside this ticket, so console is
+NOT_RUN, the result file is NOT_PRODUCED (no status), no process survived, and the failed scratch is kept locally.
+
 ## 2026-09-23 V1-0146, V1-0010 AC3: reviewer leg of the daily path from the v0.7.0 archive, recorded outcome
 
 Independent reviewer, fresh clone of PR #102 at seal head `165e2d7` (merge base `d18db3d`), binary
