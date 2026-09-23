@@ -4,6 +4,22 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-22 V1-0001 PRS-V1-001..PRS-V1-012: draft Corvint 1.0 scope for owner ratification
+
+Ticket V1-0001 drafts `docs/specs/corvint-1.0-product-and-release-v1.md` (`PRS-V1`), labelled
+DRAFT pending owner acceptance. It defines 1.0 Core as the local change-evidence loop (`init`,
+`adopt`, `index`, `query`, `context`, `impact`, `affected`, `prove`), the CEM/OCM/frontier proof
+wire and the dogfood loop; lists companions; proposes darwin/arm64 and linux/amd64 as Core
+platforms, darwin/amd64 and linux/arm64 as FALLBACK and Windows as UNSUPPORTED; classifies every
+top-level verb, `cmd/` binary and integration tree at the base commit; and proposes dispositions
+for V1-0014 (post-1.0, no interoperability claim), V1-0019 (Core blocker, owner-closable), host
+FULL/authority tuples (post-1.0) and `PUB-V0-020`/V1-0004 (companion), each with the
+`public-release-v0.md` amendment it needs. Eleven yes/no owner questions close the draft.
+`public-release-v0.md` gains only a "Proposed v1 amendment" pointer and `docs/PRODUCT.md` only a
+pointer sentence; no `PUB-V0` requirement changes. Owner acceptance: `NOT_PRODUCED` (pending; no
+decision file is created for a draft). The linux/amd64 native lifecycle stays `NOT_RUN`, and the
+0.7.0 N-1 upgrade failure at SOP-V0-003 `upgrade-b` remains an open 1.0 compatibility blocker.
+Verification is the focused-docs gate and the `internal/specindex` tests; no behaviour changed.
 ## 2026-09-22 V1-0027 EEP-V0-020/021/022: kit 0.2.0 profile contract and two-transport proof
 
 Re-audit of kit 0.1.0 found three open acceptance gaps. The checker's schema comparison used Go's

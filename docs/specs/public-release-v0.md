@@ -53,6 +53,13 @@ Only an owner-accepted `E` packet may qualify explicitly named `T`; it cannot si
 rewrite `T`'s archived claims. Exact-packet owner approval remains required before
 promotion or publication. This scope remains `NOT_QUALIFIED`.
 
+## Proposed v1 amendment
+
+A DRAFT pending owner acceptance, [`corvint-1.0-product-and-release-v1.md`](corvint-1.0-product-and-release-v1.md)
+(`PRS-V1`, ticket V1-0001), proposes how this spec would be amended prospectively for the 1.0 Core
+candidate: Core platforms, companion and host dispositions, and the externally dependent gates. It
+changes no requirement here and has no authority until a numbered decision records acceptance.
+
 ## Human intent
 
 On 2026-09-11 the owner requested work until Corvint is ready for a public GitHub release, then
