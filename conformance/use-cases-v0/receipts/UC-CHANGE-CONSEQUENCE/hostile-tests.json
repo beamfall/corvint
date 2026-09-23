@@ -1,0 +1,20 @@
+{
+  "attestation": {
+    "cases": [
+      "abstention",
+      "hostile",
+      "negative"
+    ]
+  },
+  "evidenceClass": "hostile-tests",
+  "repositoryRevision": "5eddd496edf240997ed6af58501a31bf9cdfa320",
+  "result": "PASS",
+  "spec": "corvint-use-case-evidence/0",
+  "subjects": [
+    {
+      "path": "cmd/corvint/usecase_hostile_change_consequence_test.go",
+      "sha256": "cebf42d5aedff86670c29290a871f0058cb43cb76166a2c319c44292dddc25ce"
+    }
+  ],
+  "useCaseId": "UC-CHANGE-CONSEQUENCE"
+}

@@ -174,6 +174,10 @@
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/contract.json",
           "sha256": "4bbed2999a26ef27452e5c84eb14c406ab91a2d01f4d979d2fe0d414f1d9c8fe"
         },
+        "hostile-tests": {
+          "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/hostile-tests.json",
+          "sha256": "61fb8315ef3bf7b42496921c7bc09a2dcb2110f5e86c0ef37f55b5b61485f36e"
+        },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/implementation.json",
           "sha256": "76adf551c074c4f7c31ce2f1faa9f12516b3a0fa18a652eac0f82c998197eb5d"
@@ -191,6 +195,10 @@
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/contract.json",
           "sha256": "fe946089b12329fdbfc1c82817b7a59258cf016f5b6d004ff4e0292ed51ed968"
         },
+        "hostile-tests": {
+          "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/hostile-tests.json",
+          "sha256": "67ba1066295f33496f28f79ed4ca733506a29c7575538bec4a4df09b30cc66cf"
+        },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/implementation.json",
           "sha256": "bd61d6704de3178508f0166e0aebaeefc6defc177960cbdebf7f166fec2dcb75"
@@ -207,6 +215,10 @@
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/contract.json",
           "sha256": "01a4daf808bfda81c3b544276cb6c93c44e5d003e46d1ceb8e1fdc82f89b0cbb"
+        },
+        "hostile-tests": {
+          "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/hostile-tests.json",
+          "sha256": "02f1215a208fa4be0de353c63ec3248ba507c39846e5bc0960828bb0ac893a37"
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/implementation.json",

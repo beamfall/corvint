@@ -42,7 +42,8 @@ sealed outcome benchmark required for `VERIFIED`.
 On 2026-09-23 (decision 0373 item 16) the three daily-workflow rows moved to `experimental` with
 `contract` and `implementation` receipts under `conformance/use-cases-v0/receipts/`; every claim
 stays `UNPROVEN`. Their sealed-benchmark receipts from run-001 record `FAIL` for orientation and
-consequence and `PASS` for completion, and no `hostile-tests`, `corvint-dogfood` or
+consequence and `PASS` for completion. Ticket V1-0188 added a `hostile-tests` receipt per row,
+pinned to its entrypoint test file `cmd/corvint/usecase_hostile_*_test.go`. No `corvint-dogfood` or
 `beamfall-dogfood` receipt exists, so none of the three can be `verified` (ticket V1-0011).
 
 ## Status and claim model
