@@ -2,8 +2,10 @@ package gitstatus
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -17,8 +19,24 @@ const appleGitShim = "/usr/bin/git"
 
 var executableCache struct {
 	sync.Mutex
-	key   string
-	value string
+	key    string
+	value  string
+	pinned string
+}
+
+// Pin resolves Git once and fixes that absolute path for the rest of the
+// process, so a later PATH or DEVELOPER_DIR change, or a git planted earlier on
+// PATH after start, cannot change which binary a kernel spawns. It refuses when
+// Git does not resolve to an absolute path.
+func Pin() (string, error) {
+	value := Executable()
+	if !filepath.IsAbs(value) {
+		return "", errors.New("git executable unresolved")
+	}
+	executableCache.Lock()
+	defer executableCache.Unlock()
+	executableCache.pinned = value
+	return value, nil
 }
 
 // Executable returns the path to spawn for Git. It is the executable `git`
@@ -26,10 +44,14 @@ var executableCache struct {
 // execute, so each spawn runs the same binary without paying the shim again.
 // The result is memoised per PATH and DEVELOPER_DIR value; when `git` cannot be
 // resolved the literal name is returned so the spawn fails as it did before.
+// After Pin, it returns the pinned path.
 func Executable() string {
 	key := os.Getenv("PATH") + "\x00" + os.Getenv("DEVELOPER_DIR")
 	executableCache.Lock()
 	defer executableCache.Unlock()
+	if executableCache.pinned != "" {
+		return executableCache.pinned
+	}
 	if executableCache.key == key && executableCache.value != "" {
 		return executableCache.value
 	}

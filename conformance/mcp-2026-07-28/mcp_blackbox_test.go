@@ -119,7 +119,8 @@ func TestCaseInventoryIsClosed(t *testing.T) {
 		"invalid-jsonrpc-envelope", "batch-rejected", "oversize-frame", "exact-limit-frame", "crlf-frame", "depth-overflow",
 		"cancel-structural", "progress-execution-not-observed", "logging-opt-in", "roots-no-server-call",
 		"clean-eof", "sigint-exit", "sigterm-exit", "no-surviving-descendants",
-		"revision-bound-read-only", "secret-sanitization", "stdout-purity",
+		"revision-bound-read-only", "secret-sanitization", "stdout-purity", "git-executable-pinned",
+		"official-schema-traffic",
 	}
 	if got.Profile != "corvint-mcp-2026-07-28-conformance/0" || got.ProtocolVersion != protocolVersion ||
 		got.Transport != "stdio" || got.Limits.InputLineBytes != maxLineBytes ||
@@ -129,12 +130,10 @@ func TestCaseInventoryIsClosed(t *testing.T) {
 		got.OfficialConformance.ServerInvocation != "server --url URL" ||
 		got.OfficialSchema.ProvenanceURL != "https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/271ecc9accafdd9b83a3c869fa67c22953b2af80/schema/2026-07-28/schema.json" ||
 		got.OfficialSchema.ObservedSHA256 != "ef70b61f99b6d2e5e3b46863822eab08dff6a45bedc7a08914e0e5b133f40203" ||
-		got.OfficialSchema.ValidationStatus != "NOT_RUN" || got.OfficialSchema.ValidationReason == "" ||
+		got.OfficialSchema.ValidationStatus != "OPT_IN" || got.OfficialSchema.ValidationReason == "" ||
 		got.ExecutionEvidence.ProgressNotifications.Status != "NOT_OBSERVED" ||
 		got.ExecutionEvidence.ProgressNotifications.Reason == "" ||
-		len(got.PromotionBlockers) != 1 ||
-		got.PromotionBlockers[0].Code != "INHERITED_KERNEL_GIT_PATH_NOT_PINNED" ||
-		got.PromotionBlockers[0].Status != "NOT_OBSERVED" || got.PromotionBlockers[0].Reason == "" ||
+		len(got.PromotionBlockers) != 0 ||
 		!reflect.DeepEqual(got.Cases, wantCases) {
 		t.Fatalf("invalid conformance manifest: %#v", got)
 	}

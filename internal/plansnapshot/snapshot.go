@@ -10,7 +10,6 @@ import (
 	"errors"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -18,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
@@ -89,9 +89,11 @@ type reader struct {
 	budget       *gitrun.Budget
 }
 
+// newReader runs the shared Git resolver, so a process that pinned Git at start
+// never looks it up on PATH again (MCPV0-016).
 func newReader(root string) (*reader, error) {
-	binary, err := exec.LookPath("git")
-	if err != nil {
+	binary := gitstatus.Executable()
+	if !filepath.IsAbs(binary) {
 		return nil, ErrInvalid
 	}
 	return &reader{root, binary, gitrun.NewBudget(12, 30*time.Second)}, nil
