@@ -629,7 +629,7 @@ it qualifies a claim without proving adequacy or correctness.
 
 - `TCQ-V0-051`: `corvint cem cover --map MAP --coverprofile PATH --test-run TEXT [--output PATH]`
   reads exactly one local Go coverprofile named by the operator, bounded at the gorunner
-  coverage bound, through the gorunner coverprofile parser (`ParseCoverProfile`); Corvint never
+  coverage bound, through the `internal/cem/coverprofile` parser (`Parse`); Corvint never
   discovers profiles, runs tests, or accepts a second parser. The witness records the profile's
   SHA-256 and the operator's `--test-run` identity (1..256 bytes, no control characters)
   verbatim; Corvint never derives, verifies, or normalizes either. A hunk path matches a profile
@@ -820,14 +820,14 @@ non-authoritative and slated for separate removal.
 | `TCQ-V0-048` | `internal/tcq/observation.go`, `internal/tcq/encode.go` | `TestObservationEnvironmentIsAdditive` |
 | `TCQ-V0-049` | `internal/tcq/flake.go`, `internal/jstestprovider/projection.go`, `internal/jstestprovider/playwright.go` | `TestFlakyRuleNeedsDivergentTerminalOutcomes`, `TestFlakyOutcomeIsSharedRule`, `TestParsePlaywrightJSON_MixedStates` |
 | `TCQ-V0-050` | `internal/tcq/evaluate.go`, `internal/tcq/assemble.go` | `TestSameRevisionDivergentOutcomesAreFlaky`, `TestPriorObservationVariantMismatchIsNotFlaky`, `TestPriorObservationsRequireDynamicTupleAndTarget`, `TestReasonVocabularyMatchesFrontierSeam` |
-| `TCQ-V0-051` | `internal/cem/workflow/cover.go`, `internal/cem/cli/cli.go`, `internal/liveverify/gorunner/coverage.go` | `TestCoverRefusesAmbiguousAndInvalidInputs`, `TestParseCoverProfileExportsBlocks` |
+| `TCQ-V0-051` | `internal/cem/workflow/cover.go`, `internal/cem/cli/cli.go`, `internal/cem/coverprofile/coverprofile.go`, `internal/liveverify/gorunner/coverage.go` | `TestCoverRefusesAmbiguousAndInvalidInputs`, `TestParseCoverProfileExportsBlocks` |
 | `TCQ-V0-052` | `internal/cem/wire/map.go` | `TestSpec03CoverageWitness` |
 | `TCQ-V0-053` | `internal/cem/workflow/cover.go`, `internal/cem/workflow/workflow.go` | `TestCoverRecordsCoverageWitnessAndReportDowngrades` |
 | `TCQ-V0-054` | `internal/cem/workflow/read.go` | `TestCoverRecordsCoverageWitnessAndReportDowngrades` |
-| `TCQ-V0-055` | `internal/cem/workflow/discriminate.go`, `internal/cem/cli/cli.go` | `TestDiscriminateRefusesInvalidBoundsAndTarget`, `TestDiscriminateRecordsWitnessAndReportDowngrades` |
-| `TCQ-V0-056` | `internal/cem/wire/discriminate.go`, `internal/cem/wire/map.go` | `TestSpec03DiscriminationWitness` |
-| `TCQ-V0-057` | `internal/cem/workflow/discriminate.go`, `internal/cem/workflow/workflow.go`, `internal/liveverify/mutate/mutate.go` | `TestDiscriminateRecordsWitnessAndReportDowngrades` |
-| `TCQ-V0-058` | `internal/cem/workflow/read.go` | `TestDiscriminateRecordsWitnessAndReportDowngrades` |
+| `TCQ-V0-055` | `internal/cem/workflow/discriminate.go`, `internal/cem/cli/cli.go`, `internal/cemdiscriminate/cemdiscriminate.go`, `cmd/corvint/cem_discriminate.go` | `TestDiscriminateRefusesInvalidBoundsAndTarget`, `TestDiscriminateRecordsWitnessAndReportDowngrades`, `TestDiscriminateWithoutRunnerIsNotRun` |
+| `TCQ-V0-056` | `internal/cem/wire/discriminate.go`, `internal/cem/wire/map.go`, `internal/cemdiscriminate/cemdiscriminate.go` | `TestSpec03DiscriminationWitness` |
+| `TCQ-V0-057` | `internal/cem/workflow/discriminate.go`, `internal/cem/workflow/workflow.go`, `internal/cemdiscriminate/cemdiscriminate.go`, `internal/liveverify/mutate/mutate.go` | `TestDiscriminateRecordsWitnessAndReportDowngrades` |
+| `TCQ-V0-058` | `internal/cem/workflow/read.go`, `internal/cemdiscriminate/cemdiscriminate.go` | `TestDiscriminateRecordsWitnessAndReportDowngrades` |
 
 The implementation and deterministic reference vectors are delivered as a candidate. The labelled
 corpus, reporter compatibility measurements, independent implementation, and ten-change dogfood

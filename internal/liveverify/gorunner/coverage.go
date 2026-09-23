@@ -11,18 +11,21 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/cem/coverprofile"
 )
 
-type CoverageMode string
+// CoverageMode is the coverprofile mode; the grammar lives in
+// internal/cem/coverprofile so the CEM seams need not import this runner.
+type CoverageMode = coverprofile.Mode
 
 const (
-	CoverageModeSet    CoverageMode = "set"
-	CoverageModeCount  CoverageMode = "count"
-	CoverageModeAtomic CoverageMode = "atomic"
+	CoverageModeSet    = coverprofile.ModeSet
+	CoverageModeCount  = coverprofile.ModeCount
+	CoverageModeAtomic = coverprofile.ModeAtomic
 )
 
 type CoverageCompleteness string
@@ -378,49 +381,12 @@ func parseCoverageProfile(raw []byte, request CoverageRequest) ([]byte, []string
 }
 
 // CoverageBlock is one parsed coverprofile block line.
-type CoverageBlock struct {
-	ProfilePath string
-	StartLine   uint64
-	StartColumn uint64
-	EndLine     uint64
-	EndColumn   uint64
-	Statements  uint64
-	Count       uint64
-}
+type CoverageBlock = coverprofile.Block
 
-// ParseCoverProfile parses one local coverprofile without a source mapping:
-// the mode header, then every block line under the runner's block grammar.
-// It applies no file mapping, duplicate, or size rule; the capture path keeps
-// those. TCQ-V0-051 consumes it for patch-coverage witnesses.
+// ParseCoverProfile parses one local coverprofile without a source mapping
+// (internal/cem/coverprofile.Parse).
 func ParseCoverProfile(raw []byte) (CoverageMode, []CoverageBlock, error) {
-	if len(raw) == 0 || !utf8.Valid(raw) || bytes.IndexByte(raw, 0) >= 0 {
-		return "", nil, errors.New("malformed coverage profile")
-	}
-	scanner := bufio.NewScanner(bytes.NewReader(raw))
-	scanner.Buffer(make([]byte, 64<<10), 1<<20)
-	if !scanner.Scan() || !strings.HasPrefix(scanner.Text(), "mode: ") {
-		return "", nil, errors.New("coverage mode is absent")
-	}
-	mode := CoverageMode(strings.TrimPrefix(scanner.Text(), "mode: "))
-	if coverageObservationMode(mode) == "NONE" {
-		return "", nil, errors.New("coverage mode is invalid")
-	}
-	var blocks []CoverageBlock
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "mode: ") {
-			return "", nil, errors.New("mixed coverage mode")
-		}
-		block, err := ParseCoverageBlockLine(line, mode)
-		if err != nil {
-			return "", nil, err
-		}
-		blocks = append(blocks, block)
-	}
-	if err := scanner.Err(); err != nil {
-		return "", nil, err
-	}
-	return mode, blocks, nil
+	return coverprofile.Parse(raw)
 }
 
 func parseCoverageBlock(line string, mode CoverageMode) (string, string, error) {
@@ -434,52 +400,10 @@ func parseCoverageBlock(line string, mode CoverageMode) (string, string, error) 
 }
 
 // ParseCoverageBlockLine parses one coverprofile block line under mode with
-// the grammar the runner applies to its own captured profile.
+// the grammar the runner applies to its own captured profile
+// (internal/cem/coverprofile.ParseBlockLine).
 func ParseCoverageBlockLine(line string, mode CoverageMode) (CoverageBlock, error) {
-	fields := strings.Fields(line)
-	if len(fields) != 3 || strings.ContainsAny(line, "\r\t") {
-		return CoverageBlock{}, errors.New("malformed coverage block")
-	}
-	colon := strings.LastIndexByte(fields[0], ':')
-	if colon <= 0 {
-		return CoverageBlock{}, errors.New("coverage location is absent")
-	}
-	profilePath := fields[0][:colon]
-	rangeParts := strings.Split(fields[0][colon+1:], ",")
-	if len(rangeParts) != 2 {
-		return CoverageBlock{}, errors.New("coverage range is malformed")
-	}
-	startLine, startColumn, err := parseCoveragePosition(rangeParts[0])
-	if err != nil {
-		return CoverageBlock{}, err
-	}
-	endLine, endColumn, err := parseCoveragePosition(rangeParts[1])
-	if err != nil || endLine < startLine || endLine == startLine && endColumn <= startColumn {
-		return CoverageBlock{}, errors.New("coverage range is invalid")
-	}
-	statements, err := strconv.ParseUint(fields[1], 10, 32)
-	if err != nil || statements == 0 {
-		return CoverageBlock{}, errors.New("coverage statement count is invalid")
-	}
-	count, err := strconv.ParseUint(fields[2], 10, 64)
-	if err != nil || mode == CoverageModeSet && count > 1 {
-		return CoverageBlock{}, errors.New("coverage counter is invalid")
-	}
-	return CoverageBlock{ProfilePath: profilePath, StartLine: startLine, StartColumn: startColumn,
-		EndLine: endLine, EndColumn: endColumn, Statements: statements, Count: count}, nil
-}
-
-func parseCoveragePosition(value string) (uint64, uint64, error) {
-	parts := strings.Split(value, ".")
-	if len(parts) != 2 {
-		return 0, 0, errors.New("coverage position is malformed")
-	}
-	line, lineErr := strconv.ParseUint(parts[0], 10, 32)
-	column, columnErr := strconv.ParseUint(parts[1], 10, 32)
-	if lineErr != nil || columnErr != nil || line == 0 || column == 0 {
-		return 0, 0, errors.New("coverage position is invalid")
-	}
-	return line, column, nil
+	return coverprofile.ParseBlockLine(line, mode)
 }
 
 func validateCoverageSource(file CoverageSourceFile) error {

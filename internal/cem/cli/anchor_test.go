@@ -21,7 +21,7 @@ func TestAnchorActionsParseLikeTheirSiblings(t *testing.T) {
 		{[]string{"anchor", "--map", "/abs.json"}, "argument --map: path must be repository-relative"},
 		{[]string{"anchor", "--map", "m.json", "--bogus"}, "unrecognized arguments: --bogus"},
 		{[]string{"provenance"}, "the following arguments are required: --commit"},
-		{[]string{"bogus"}, "'report', 'cover', 'anchor', 'provenance')"},
+		{[]string{"bogus"}, "'report', 'cover', 'discriminate', 'anchor', 'provenance')"},
 		{[]string{"anchor", "--map", "m.json"}, "argument cem_command: invalid choice: 'anchor'"},
 		{[]string{"provenance", "--commit", "HEAD"}, "argument cem_command: invalid choice: 'provenance'"},
 	}

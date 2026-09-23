@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
@@ -11,8 +12,21 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/cemdiscriminate"
 	"github.com/Beamfall/corvint/internal/liveverify/mutate"
 )
+
+// The binary installs the mutation runner from cmd/corvint; these tests
+// install the same one.
+func init() { OpenHunkJudge = openTestHunkJudge }
+
+func openTestHunkJudge(ctx context.Context, root, target string) (HunkJudge, error) {
+	judge, err := cemdiscriminate.Open(ctx, root, target)
+	if err != nil {
+		return nil, err
+	}
+	return judge, nil
+}
 
 const calcFiller = "// filler one\n// filler two\n// filler three\n// filler four\n// filler five\n// filler six\n// filler seven\n// filler eight\n"
 
@@ -190,5 +204,30 @@ func TestDiscriminateRefusesInvalidBoundsAndTarget(t *testing.T) {
 	after, err := os.ReadFile(filepath.Join(root, wire.ExcludedCEMPath))
 	if err != nil || string(after) != string(before) {
 		t.Fatalf("a refusal changed the map: %v", err)
+	}
+}
+
+// TestDiscriminateWithoutRunnerIsNotRun pins the uninstalled-hook seam: with
+// no mutation runner installed every selected hunk carries the
+// runner-unavailable not-run witness, and nothing panics.
+func TestDiscriminateWithoutRunnerIsNotRun(t *testing.T) {
+	installed := OpenHunkJudge
+	OpenHunkJudge = nil
+	defer func() { OpenHunkJudge = installed }()
+	root, base, target := makeCalcRepo(t)
+	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+		t.Fatal(err)
+	}
+	citeTest(t, root, "1", "pkg/calc/calc_test.go")
+	gitCmd(t, root, "add", wire.ExcludedCEMPath)
+	gitCmd(t, root, "commit", "-qm", "candidate")
+	result, err := openSession(t, root).Discriminate(ctx(), DiscriminateOptions{MapPath: wire.ExcludedCEMPath, Target: "HEAD"})
+	if err != nil || result["notRun"] != 2 || result["discriminates"] != 0 {
+		t.Fatalf("uninstalled runner: %v %v", err, result)
+	}
+	first := readMap(t, root).Hunks[0].Discriminates
+	if first == nil || first.State != wire.DiscriminationNotRun ||
+		first.Detail != "mutation runner unavailable: no mutation runner is installed" {
+		t.Fatalf("uninstalled runner witness %+v", first)
 	}
 }

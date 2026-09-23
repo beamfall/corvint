@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
@@ -13,7 +13,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/wire"
-	"github.com/Beamfall/corvint/internal/liveverify/mutate"
 )
 
 // DiscriminateOptions run bounded hunk mutation against the tests a map's
@@ -49,10 +48,10 @@ type hunkCandidate struct {
 }
 
 // Discriminate records a mutation discrimination witness on every hunk
-// (TCQ-V0-055..058). It reuses the prove --mutate runner (mutate.Open and
-// Export.Judge with Complete set) on the map's changed hunks only, pins the run
-// to the resolved --target tree revision and to the digest of the selected
-// test files, and never fails the build: a survived mutant is a visible
+// (TCQ-V0-055..058). It reuses the prove --mutate runner through the
+// installed OpenHunkJudge (internal/cemdiscriminate) on the map's changed
+// hunks only, pins the run to the resolved --target tree revision and to the
+// digest of the selected test files, and never fails the build: a survived mutant is a visible
 // downgrade in the report, and a hunk the bounds or the host leave unjudged
 // carries an explicit not-run witness with its reason.
 func (s *Session) Discriminate(ctx context.Context, options DiscriminateOptions) (map[string]any, error) {
@@ -260,84 +259,31 @@ func (s *Session) judgeHunks(ctx context.Context, document *wire.Map, target str
 			witnesses[candidate.index] = notRun("wall time exhausted")
 			continue
 		}
-		witnesses[candidate.index] = judgeHunk(budgeted, exported, document.Hunks[candidate.index], candidate.tests, bounds)
+		witness := exported.Judge(budgeted, document.Hunks[candidate.index], candidate.tests, int(bounds.MaxMutants), bounds.wallTime)
+		witness.Detail = boundedDetail(witness.Detail)
+		witnesses[candidate.index] = witness
 	}
 	return witnesses
 }
 
-func openRunner(ctx context.Context, root, target string) (*mutate.Export, error) {
-	gitExecutable, err := exec.LookPath("git")
-	if err != nil {
-		return nil, err
-	}
-	return mutate.Open(ctx, mutate.Request{Root: root, Git: gitExecutable, Revision: target})
+// HunkJudge judges one hunk's mutants against its cited test files on one
+// exported copy of the target tree. Its not-run details are bounded here.
+type HunkJudge interface {
+	Judge(ctx context.Context, hunk wire.Hunk, tests []string, maxMutants int, wallTime time.Duration) wire.DiscriminationWitness
+	Close()
 }
 
-// judgeHunk runs every mutant of one hunk against each cited test file and
-// folds the reports: a mutant survives only when every cited test lets it
-// live, and any report the runner could not complete makes the hunk not-run.
-func judgeHunk(ctx context.Context, exported *mutate.Export, hunk wire.Hunk, tests []string, bounds discriminationBounds) wire.DiscriminationWitness {
-	if hunk.NewRange.Count == 0 {
-		return notRun("hunk adds no lines")
-	}
-	span := mutate.LineSpan{Start: int(hunk.NewRange.Start), End: int(hunk.NewRange.Start + hunk.NewRange.Count - 1)}
-	var reports []mutate.Report
-	for _, test := range tests {
-		report, err := exported.Judge(ctx, mutate.Request{
-			ChangedPath: hunk.Path, TestPath: test, Lines: []mutate.LineSpan{span},
-			MaxMutants: int(bounds.MaxMutants), Budget: bounds.wallTime, Complete: true,
-		})
-		if err != nil {
-			return notRun("mutation runner failed for " + test + ": " + err.Error())
-		}
-		if report.Verdict != mutate.Killed && report.Verdict != mutate.Survived {
-			return notRun(strings.ToLower(string(report.Verdict)) + ": " + report.Detail)
-		}
-		reports = append(reports, report)
-	}
-	return foldReports(hunk.Path, reports)
-}
+// OpenHunkJudge serves `cem discriminate` (internal/cemdiscriminate). The
+// binary installs it, so the CEM seams' dependency closure stays the standard
+// library and internal/cem; an uninstalled runner is an unavailable runner,
+// so every selected hunk carries a not-run witness.
+var OpenHunkJudge func(ctx context.Context, root, target string) (HunkJudge, error)
 
-// foldReports intersects survivors across the cited tests of one hunk. The
-// mutant plan is a function of the changed file and lines, so every report
-// judged the same mutants and the first report's counts describe the set.
-func foldReports(path string, reports []mutate.Report) wire.DiscriminationWitness {
-	survivors := reports[0].Survivors
-	for _, report := range reports[1:] {
-		survivors = survivedBoth(survivors, report.Survivors)
+func openRunner(ctx context.Context, root, target string) (HunkJudge, error) {
+	if OpenHunkJudge == nil {
+		return nil, errors.New("no mutation runner is installed")
 	}
-	witness := wire.DiscriminationWitness{
-		Mutants: int64(reports[0].Mutants), Survived: int64(len(survivors)),
-		Survivors: []wire.SurvivingMutant{}, State: wire.DiscriminationDiscriminates,
-	}
-	witness.Killed = witness.Mutants - int64(reports[0].Uncompilable) - witness.Survived
-	for _, mutant := range survivors {
-		witness.Survivors = append(witness.Survivors, wire.SurvivingMutant{
-			Operator: mutant.Operator, Line: int64(mutant.Line),
-			Description: fmt.Sprintf("%s at %s:%d (bytes %d..%d) passed every cited test", mutant.Operator, path, mutant.Line, mutant.Start, mutant.End),
-		})
-	}
-	if witness.Survived > 0 {
-		witness.State = wire.DiscriminationSurvived
-	}
-	if witness.Killed == 0 && witness.Survived == 0 {
-		return notRun("no mutant compiled")
-	}
-	return witness
-}
-
-func survivedBoth(first, second []mutate.Survivor) []mutate.Survivor {
-	keep := map[mutate.Survivor]bool{}
-	for _, mutant := range second {
-		keep[mutant] = true
-	}
-	var both []mutate.Survivor
-	for _, mutant := range first {
-		if keep[mutant] {
-			both = append(both, mutant)
-		}
-	}
-	return both
+	return OpenHunkJudge(ctx, root, target)
 }
 
 func notRun(detail string) wire.DiscriminationWitness {

@@ -2545,3 +2545,32 @@ changed by already-committed, already-merged commits (`4519cad`, `b8b1225`) outs
 ownership (`cmd/corvint/work*.go` and `internal/workqueue/**`, not `work_materialization_test.go`,
 and not `internal/contextindex`); none of the 18 broken citations reference any file this change
 touched. Full `make gate` was not run, per ticket scope.
+
+## 2026-09-22 cem-seam-closure: `cem cover` and `cem discriminate` no longer pull runners into the stdlib-only CEM seams
+
+Two integration regressions broke the native-cem-adapter claim ("CEM seams depend only on the Go
+standard library and local Git", `TestCEMSeamsDependOnlyOnStdlibAndGit`): `go list -deps
+./internal/cem/...` reached `internal/liveverify/gorunner` through `internal/cem/workflow/cover.go`
+(TCQ-V0-051..054) and `internal/liveverify/mutate` through `internal/cem/workflow/discriminate.go`
+(TCQ-V0-055..058). Fix shape: the Go coverprofile grammar (`Mode`, `Block`, `Parse`,
+`ParseBlockLine`, `MaxBytes`) moved into the stdlib-only `internal/cem/coverprofile`, and gorunner
+keeps its exported API by aliasing and thin wrappers. The mutation judge (`Open`, per-hunk judging,
+survivor folding) moved to `internal/cemdiscriminate`, outside `internal/cem`, and reaches workflow
+through the injected hook `workflow.OpenHunkJudge`, which `cmd/corvint/cem_discriminate.go`
+installs in the style of `cemcli.GitNotes`. When the hook is not installed, discriminate treats
+the runner as unavailable and marks every selected hunk `not-run`; it does not panic. Outputs,
+refusals, and wire are unchanged. A third stale expectation from the same integration,
+`internal/cem/cli/anchor_test.go`'s invalid-choice list without `discriminate`, was corrected.
+Specs: TCQ-V0-051 and TCQ-V0-055..058 traceability rows and the TCQ-V0-051 parser prose name the
+new surfaces; native-cem-adapter lists `coverprofile` and both binary-installed hooks.
+
+Gates: gofmt clean; `go build ./...` and `go vet ./...`; the seam closure contains no non-stdlib
+package outside `internal/cem` except `crypto/internal/entropy/v1.0.0`; `go test` over
+`./internal/cem/...`, `./internal/cemdiscriminate/...`, gorunner, mutate, and specindex;
+`TestCEMSeamsDependOnlyOnStdlibAndGit`, `TestCEMHelpSurfaces`, and `TestCEMErrorPrecedence`;
+`interop/cem01-go` build; spec-requirements, requirement-definitions, traceability-tests, and
+decision-numbers checks. The rest of `cmd/corvint` was not run. NOT MET: `line-citations-check`
+fails on two citations in `docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md` (:245 and :257,
+pointing at `cmd/corvint/help.go`). Those citations were already stale at the base commit, and this
+change touches neither file. gorunner's `TestRunCollectsRealUnitCoverage` timed out at its 30 s
+fixture bound once, at a 15-minute load average of 128, and passed on rerun.

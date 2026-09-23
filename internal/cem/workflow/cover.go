@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/coverprofile"
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/publish"
 	"github.com/Beamfall/corvint/internal/cem/wire"
-	"github.com/Beamfall/corvint/internal/liveverify/gorunner"
 )
 
 // CoverOptions attach one local coverprofile to every hunk of a map.
@@ -46,7 +46,7 @@ func (s *Session) Cover(ctx context.Context, options CoverOptions) (map[string]a
 	if err != nil {
 		return nil, err
 	}
-	mode, blocks, err := gorunner.ParseCoverProfile(raw)
+	mode, blocks, err := coverprofile.Parse(raw)
 	if err != nil {
 		return nil, cemcode.New(cemcode.InvalidArguments, "coverprofile: %s", err.Error())
 	}
@@ -100,7 +100,7 @@ func (s *Session) readCoverprofile(path string) ([]byte, error) {
 	if path == "" {
 		return nil, invalidArguments("--coverprofile is required")
 	}
-	bound := int(gorunner.MaxCoverageBytes)
+	bound := int(coverprofile.MaxBytes)
 	if filepath.IsAbs(path) {
 		return publish.ReadBoundedFile(path, bound, cemcode.InvalidArguments)
 	}
@@ -110,7 +110,7 @@ func (s *Session) readCoverprofile(path string) ([]byte, error) {
 // coveredLinesByPath collects, per profile path, every line a block with a
 // positive count spans. A profile path is the Go import path plus file name,
 // so it is matched to a hunk path by suffix in profileLinesFor.
-func coveredLinesByPath(blocks []gorunner.CoverageBlock) map[string]map[int64]bool {
+func coveredLinesByPath(blocks []coverprofile.Block) map[string]map[int64]bool {
 	lines := map[string]map[int64]bool{}
 	for _, block := range blocks {
 		if block.Count == 0 {
