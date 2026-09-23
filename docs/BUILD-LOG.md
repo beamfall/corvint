@@ -6,7 +6,7 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
 ## 2026-09-22 V1-0013 / CEM-CB-025 / OCM-V0-015 / CF-V0-034: minimum portable proof wire frozen
 
-Ticket V1-0013, decision 0356. The minimum portable proof wire is frozen as of 2026-09-22:
+Ticket V1-0013, decision 0357. The minimum portable proof wire is frozen as of 2026-09-22:
 `cem/0.2` with the N-1 `cem/0.1` reader, `ocm/0.1-experimental`, and `frontier/0` with
 `frontier-error/0`. `cem/0.3` stays experimental and outside the frozen minimum.
 `protocol/cem-0.2/manifest.json` `status` is now `frozen`, and its new manifest SHA-256

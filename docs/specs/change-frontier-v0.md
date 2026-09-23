@@ -436,7 +436,7 @@ the invariant is restated here over authority resolution itself.
   conformance data only; it is not the promotion evidence `CF-V0-030` requires.
 
 Wire freeze: `frontier/0` and `frontier-error/0` are frozen as of 2026-09-22 (`CF-V0-034`,
-decision 0356).
+decision 0357).
 
 ### Repository read-only guarantee
 
@@ -543,7 +543,7 @@ None of these deferred decisions may be silently resolved by the V0 implementati
 | `CF-V0-031` (accepted 2026-08-29) | every authority-conferring resolver, Frontier-owned or not | an adversarial case where the change set authors its own accepted governing document and MUST NOT receive `authoritative`/`accepted-contract`, plus the named uncertainty entry. Held by `TestRangeImpactRefusesAuthorityFromSelfAuthoredADR` and `TestRangeImpactWithholdsSelfAuthoredLedgerAuthority` (`internal/contextindex/range_impact_test.go`), `TestImpactWithholdsUnverifiableADRAuthority` (`internal/contextindex/impact_test.go`), and parity case `impact-self-authored-adr` (`conformance/cli-parity-v0`) |
 | `CF-V0-032` (accepted 2026-08-29) | the withheld-authority reporting form on every such resolver | the same cases, asserting confidence `low` with authority exactly `unverified-contract` / `unverified-ledger` and an uncertainty entry derived from the emitted evidence; its exact `impact` wording and leading placement are held by `TestImpactWithholdsUnverifiableADRAuthority` |
 | `CF-V0-033` (accepted 2026-09-12, decision 0162) | `cmd/corvint/frontier.go` and `internal/frontier` | `cmd/corvint`: `TestCLIReadVerbsLeaveTheRepositoryByteIdentical`, subtest "frontier reports an EMPTY frontier through the registered adapters", and `TestRunFrontierUnsupportedRefusalLeavesRepositoryUnchanged` (successful and refused CLI-level repository-byte assertions) |
-| `CF-V0-034` (decision 0356) | `conformance/frontier-v0/` (`manifest.go` `ValidateStates`/`ValidateArtifacts`, `manifest.json` `states`/`artifactSha256`) | `conformance/frontier-v0/fixtures_test.go`: `TestManifestPinsStatesAndArtifacts`, `TestArtifactDigestDriftFails`; N-1 refusal: `TestRunFixturesAgainstImplementation` cases `unsupported-context-upstream-profile/*` |
+| `CF-V0-034` (decision 0357) | `conformance/frontier-v0/` (`manifest.go` `ValidateStates`/`ValidateArtifacts`, `manifest.json` `states`/`artifactSha256`) | `conformance/frontier-v0/fixtures_test.go`: `TestManifestPinsStatesAndArtifacts`, `TestArtifactDigestDriftFails`; N-1 refusal: `TestRunFixturesAgainstImplementation` cases `unsupported-context-upstream-profile/*` |
 | Outcome protocol | preregistered third-party-PR replay, constructed separately at first release cut | explicit `PASS`, `FAIL`, or `NOT_RUN` record; currently `NOT_RUN` |
 
 Before promotion, rollback removes the derived Frontier result and preview wrapper. It preserves CEM,

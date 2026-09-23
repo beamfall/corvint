@@ -1,4 +1,4 @@
-# Decision 0356 — Freeze the minimum portable proof wire: `cem/0.2`, `ocm/0.1-experimental`, `frontier/0`
+# Decision 0357 — Freeze the minimum portable proof wire: `cem/0.2`, `ocm/0.1-experimental`, `frontier/0`
 
 Date: 2026-09-22. Status: accepted (ticket V1-0013). Amends
 `docs/specs/cem-0.2-canonical-binding.md` (`CEM-CB-025`), `docs/specs/ocm-v0-dogfood.md`

@@ -278,7 +278,7 @@ base and target, deriving the patch, and applying target-side artifact binding. 
 envelopes remain unchanged and omit this field.
 
 **Frozen minimum proof wire (2026-09-22).** The minimum portable proof wire is frozen as of
-2026-09-22 (decision 0356): `cem/0.2` with its N-1 `cem/0.1` reader, pinned by
+2026-09-22 (decision 0357): `cem/0.2` with its N-1 `cem/0.1` reader, pinned by
 [`../protocol/cem-0.2/manifest.json`](../protocol/cem-0.2/manifest.json) (`CEM-CB-025`);
 `ocm/0.1-experimental`, pinned by `conformance/ocm-v0/` (`OCM-V0-014`, `OCM-V0-015`); and
 `frontier/0` with `frontier-error/0`, pinned by `conformance/frontier-v0/` (`CF-V0-034`). Each

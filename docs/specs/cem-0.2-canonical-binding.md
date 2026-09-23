@@ -488,7 +488,7 @@ case.
 
 ### Frozen portable proof wire (V1-0013)
 
-Frozen 2026-09-22 (decision 0356): `cem/0.2` with its N-1 `cem/0.1` reader (`CEM-CB-025`,
+Frozen 2026-09-22 (decision 0357): `cem/0.2` with its N-1 `cem/0.1` reader (`CEM-CB-025`,
 `protocol/cem-0.2/`), `ocm/0.1-experimental` (`OCM-V0-014`/`OCM-V0-015`, `conformance/ocm-v0/`)
 and `frontier/0` with `frontier-error/0` (`CF-V0-034`, `conformance/frontier-v0/`). Each packet
 pins every vector file by SHA-256 and pins the stable, relocated, stale, ambiguous, deleted and

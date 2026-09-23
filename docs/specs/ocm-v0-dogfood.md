@@ -173,7 +173,7 @@ claim, and mutation ordering deltas below.
 ## Wire profile
 
 Wire freeze: `ocm/0.1-experimental` is frozen as of 2026-09-22 by `conformance/ocm-v0/`
-(`OCM-V0-014`, `OCM-V0-015`, decisions 0343 and 0356). The freeze fixes the conformance bytes; it
+(`OCM-V0-014`, `OCM-V0-015`, decisions 0343 and 0357). The freeze fixes the conformance bytes; it
 does not change this spec's intent or delivery status.
 
 Frozen requirement-line syntax (inline-code, bold-colon, or bold-period):

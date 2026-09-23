@@ -2,7 +2,7 @@
 
 This Apache-2.0 packet supplements the existing CEM contracts. It changes no wire. On 2026-09-22
 it became the frozen conformance packet for the `cem/0.2` profile with its N-1 `cem/0.1` reader
-(`CEM-CB-025`, decision 0356): its `status` is `frozen`, and a successor profile adds a new packet
+(`CEM-CB-025`, decision 0357): its `status` is `frozen`, and a successor profile adds a new packet
 instead of editing these bytes. The freeze was made before V1-0010 delivered verified daily-loop
 evidence; that dependency remains open. The historical `interop/cem-0.1/manifest.json` and its
 32-case external matrix are unchanged.
