@@ -141,7 +141,7 @@ reproduces it: `script/dogfood-check.sh:305-313` exits 1 with `FAIL dogfood-repo
 `.corvint/dogfood-report.json` is gitignored and only the author's `dogfood-change` writes it. A
 fresh-clone trigger can therefore verify a sealed CEM with `cem verify`, but cannot reproduce the
 author's dogfood-check verifier comparison. That comparison is author-only evidence
-(`DCW-V0-016`, `docs/DOGFOOD.md` step 11); on a bind commit the failure now also prints a
+(`DCW-V0-017`, `docs/DOGFOOD.md` step 11); on a bind commit the failure now also prints a
 `review:` line naming the `cem verify` command a reviewer runs instead. The worked example below
 pins a commit that predates that line.
 

@@ -753,7 +753,7 @@ sealed_head_status=0
 sealed_head=$(cd "$sealed_repo" && script/dogfood-check.sh "$sealed_b0" 2>&1) || sealed_head_status=$?
 test "$sealed_head_status" = 2
 printf '%s\n' "$sealed_head" | rg -q '^dogfood-check: REFUSE sealed-head$'
-# DCW-V0-016: a reviewer's clone of the bind commit has no report and is told what to verify.
+# DCW-V0-017: a reviewer's clone of the bind commit has no report and is told what to verify.
 git -C "$sealed_repo" checkout -q --detach "$sealed_s1"
 reviewer_status=0
 reviewer=$(cd "$sealed_repo" && script/dogfood-check.sh "$sealed_b0" 2>&1) || reviewer_status=$?

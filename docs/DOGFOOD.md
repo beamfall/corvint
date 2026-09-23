@@ -76,7 +76,7 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
     sealed=.corvint/changes/<bind-commit>.cem.json` and one rename-only commit.
 11. Hand the branch and reports to an independent reviewer (section 6) and keep the outcome
     recorded by step 6 (section 7). The verifier digests and `outputsAgree` in the report's
-    `dogfoodCheck` line are author-only evidence (`DCW-V0-016`): the check also needs the author's
+    `dogfoodCheck` line are author-only evidence (`DCW-V0-017`): the check also needs the author's
     private `<git-dir>/corvint/local-outcome.json` and OCM maps, and nothing committed binds the
     report's digest, so a handed-off report is not the reviewer's own observation. In a fresh clone
     `make dogfood-check` on the bind commit fails `dogfood-report-missing` and prints a `review:`

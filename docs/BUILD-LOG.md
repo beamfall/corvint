@@ -4,7 +4,7 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
-## 2026-09-23 V1-0182 DCW-V0-016: dogfood-check verifier agreement is author-only evidence
+## 2026-09-23 V1-0182 DCW-V0-017: dogfood-check verifier agreement is author-only evidence
 
 Finding: in a fresh clone of the V1-0213 bind commit `5397b08` (base `34e798b`), `make dogfood-check`
 with `CORVINT_BIN` set fails `dogfood-report-missing` and names only the author's `dogfood-change`.
@@ -14,7 +14,7 @@ snapshot and abstention evidence, and no committed artifact binds the report's d
 
 Decision: option (b) of the ticket. A `DOGFOOD_REPORT` input would have to trust an unauthenticated
 report plus further private files, or rerun the author's coordinator, so reviewer-side
-`outputsAgree` is not offered. `DCW-V0-016` (new requirement in an accepted spec, owner review) and
+`outputsAgree` is not offered. `DCW-V0-017` (new requirement in an accepted spec, owner review) and
 `docs/DOGFOOD.md` step 11 state that the verifier set and `outputsAgree` are author-only and name
 what the reviewer verifies instead: `cem verify` and strict `cem status` on the committed CEM with
 their own binary, the seal as one exact rename, and the report's semantics. When `HEAD` tracks
