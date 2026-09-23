@@ -4,6 +4,31 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0025 LAC-V0-033..036 / decision 0362: console chain pane from hunk to recorded verification
+
+The optional console gains `/chain`. For a sealed change it renders the chain hunk → cited evidence →
+governing requirement → recorded verification at pinned revisions. It reads only the sealed CEM at its
+object id, the untracked OCM maps under `.corvint/`, the local trace
+`.context-corvint/traces/<change>.jsonl`, and Git objects those maps pin. Every edge names the artifact
+and field that justify it (for example `hunks[0].basis[0].evidenceId = evidence[0].id`, or
+`obligations[0].hunkIds[0]` of an OCM map bound by `targetRevision` and `cem.mapSha256`). Cited spans are
+re-read at their `blobOid` and rehashed. An edge the artifacts do not establish renders as a
+`missing`, `stale`, `ambiguous`, `unverified` or `unsupported` gap row with its reason.
+
+Measured: `TestConsoleChainComplete`, `TestConsoleChainGaps` (one subtest per class),
+`TestConsoleChainTextMatchDecoy`, `TestConsoleChainHostileContent` and
+`TestConsoleChainKeyboardNavigation` pass. A deliberate mutation that binds every OCM map regardless of
+digest and revision made the decoy test fail on `href="#req-FIX-V0-003"`, so that test discriminates.
+Against this repository at base `1894b9e` the built console listed all 35 sealed changes. Change
+`f6e68755` rendered its binding and three evidence edges linked, its three requirement edges
+`missing`, and its verification `unverified`, because OCM maps and traces are local to the worktree
+that sealed a change.
+
+NOT_OBSERVED: the U4 operator-time comparison against the CLI with a human (ticket AC4); no timing is
+recorded. NOT_RUN: `make gate` (owner policy) and the companion-release gate. Frontier artifacts are not
+consumed; none exist per change. Launch behaviour is untouched, so foreground-process cleanup is
+unchanged (`TestConsoleHTTPProcessCleanup`, `internal/console/lifecycle_test.go:168`).
+
 ## 2026-09-22 AFU-V0-001..AFU-V0-012: experimental web flow understanding
 
 The owner requested application-flow understanding, test-gap mapping and runtime confirmation, then
