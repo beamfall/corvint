@@ -52,10 +52,12 @@ endif
 # ledger/STEP runs STEP through tools/gate-ledger (docs/specs/gate-ledger-v0.md): the step is
 # skipped only when a pass is recorded for byte-identical inputs, from any worktree of this
 # user, and it records only after STEP exits zero. ledger/go-test splits `./...` into the
-# packages Go's own test cache may answer and the unresolved packages, which run with -count=1
-# under a whole-tree key. Every step still runs unchanged on its own target, and
-# CORVINT_GATE_LEDGER=off makes ledger/STEP exactly `make STEP`. The sub-make receives the same
-# makefiles as this one so an overriding makefile (script/gate-receipt_test.sh) reaches it.
+# resolved packages, each keyed on its proven bound (the go list test closure plus every path
+# gate-affected-select -bounds attributes to it) so a pass hits from any worktree, and the
+# unresolved packages, which run with -count=1 under a whole-tree key. Every step still runs
+# unchanged on its own target, and CORVINT_GATE_LEDGER=off makes ledger/STEP exactly `make STEP`.
+# The sub-make receives the same makefiles as this one so an overriding makefile
+# (script/gate-receipt_test.sh) reaches it.
 GATE_LEDGER = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/gate-ledger
 SUB_MAKE = $(MAKE) $(addprefix -f ,$(MAKEFILE_LIST))
 ifeq ($(CORVINT_GATE_LEDGER),off)

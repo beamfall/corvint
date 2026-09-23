@@ -18,6 +18,12 @@
 // `unresolved <pkg>: <reason>` lines for ROOT, one per package, with no verdict.
 // tools/gate-ledger (GL-V0-004) reads it to decide which packages `go test` may
 // answer from its cache and which the ledger keys on the whole tree.
+//
+// Usage: gate-affected-select -bounds MODULE ROOT reads worktree paths, one per
+// line, on stdin and prints the same `unresolved` lines plus one
+// `bound <pkg> <rule> <path>` line per path rules (a) to (c) attribute to each
+// resolved package. tools/gate-ledger (GL-V0-009) keys a resolved package on
+// the content of its bound.
 package main
 
 import (
@@ -70,11 +76,14 @@ const maxPlanBytes = 8 << 20
 
 func main() {
 	if len(os.Args) != 4 {
-		fmt.Fprintln(os.Stderr, "usage: gate-affected-select PLAN MODULE ROOT | -unresolved MODULE ROOT")
+		fmt.Fprintln(os.Stderr, "usage: gate-affected-select PLAN MODULE ROOT | -unresolved MODULE ROOT | -bounds MODULE ROOT < PATHS")
 		os.Exit(2)
 	}
-	if os.Args[1] == "-unresolved" {
+	if os.Args[1] == "-unresolved" || os.Args[1] == "-bounds" {
 		lines, err := unresolvedPackages(os.Args[2], os.Args[3])
+		if os.Args[1] == "-bounds" {
+			lines, err = packageBounds(os.Args[2], os.Args[3], stdinPaths())
+		}
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -93,6 +102,15 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Println(strings.Join(selectPackages(plan, os.Args[2], os.Args[3]), "\n"))
+}
+
+// stdinPaths reads the worktree paths `-bounds` attributes, one per line.
+func stdinPaths() []string {
+	data, err := io.ReadAll(io.LimitReader(os.Stdin, maxPlanBytes+1))
+	if err != nil || len(data) > maxPlanBytes {
+		return nil
+	}
+	return strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
 }
 
 func readPlan(name string) ([]byte, error) {
@@ -156,32 +174,13 @@ func selectPackages(plan receipt, module, root string) []string {
 		}
 	}
 	for _, dirty := range sortedUnique(plan.Plan.Dirty) {
-		if packageSource(dirty) && !index.nestedModule(dirty) {
-			directory := parentDirectory(dirty)
-			if index.packages[directory] != nil {
-				add([]string{directory}, "frontier", " <- "+dirty)
+		for _, rule := range index.attribute(dirty) {
+			if rule.kind == "data" {
+				lines = append(lines, "data "+dirty)
+				continue
 			}
-			add(index.dependents(directory), "frontier", " <- "+dirty)
-		} else {
-			lines = append(lines, "data "+dirty)
-			enclosing := index.enclosing(dirty)
-			add(enclosing, "reader", " <- "+dirty)
-			if len(enclosing) > 0 && parentDirectory(dirty) == enclosing[0] {
-				add(index.dependents(enclosing[0]), "frontier", " <- "+dirty)
-			}
-			// `//go:embed` reaches into subdirectories that are packages of
-			// their own, so every embedding ancestor's output can change.
-			for _, directory := range enclosing {
-				if index.packages[directory].embeds {
-					add(index.dependents(directory), "frontier", " <- "+dirty)
-				}
-			}
+			add(rule.directories, rule.kind, " <- "+dirty)
 		}
-		readers := index.readers
-		if dirty == changeEvidence {
-			readers = index.resolvingReaders
-		}
-		add(readers(dirty), "reader", " <- "+dirty)
 	}
 	unresolved := index.unresolved()
 	for _, directory := range sortedKeys(unresolved) {
@@ -202,6 +201,114 @@ func selectPackages(plan receipt, module, root string) []string {
 		return append(lines, "NOTHING no dirty or committed path; no Go package to test")
 	}
 	return append(lines, "run "+strings.Join(selected, " "))
+}
+
+// attribution is one AFP-V0-012 rule applied to one path: the kind
+// selectPackages prints (`frontier`, `data`, `reader`) and the package
+// directories it selects; a `data` line selects none itself.
+type attribution struct {
+	kind        string
+	directories []string
+}
+
+// attribute applies rules (a) to (c) to one path, in the order selectPackages
+// prints them: (a) a package source selects its package and that directory's
+// dependents; (b) any other path selects its enclosing packages, the nearest
+// one's dependents when the path sits directly in it, and the dependents of
+// every embedding ancestor (`//go:embed` reaches into subdirectories that are
+// packages of their own); (c) every path selects the packages whose files name
+// it. Rule (d), the unresolved packages, is index.unresolved().
+func (index *repositoryIndex) attribute(dirty string) []attribution {
+	readers := index.readers
+	if dirty == changeEvidence {
+		readers = index.resolvingReaders
+	}
+	return append(index.attributeStructure(dirty), attribution{"reader", readers(dirty)})
+}
+
+// attributeStructure is attribute without rule (c).
+func (index *repositoryIndex) attributeStructure(dirty string) []attribution {
+	var rules []attribution
+	if packageSource(dirty) && !index.nestedModule(dirty) {
+		directory := parentDirectory(dirty)
+		if index.packages[directory] != nil {
+			rules = append(rules, attribution{"frontier", []string{directory}})
+		}
+		rules = append(rules, attribution{"frontier", index.dependents(directory)})
+	} else {
+		rules = append(rules, attribution{"data", nil})
+		enclosing := index.enclosing(dirty)
+		rules = append(rules, attribution{"reader", enclosing})
+		if len(enclosing) > 0 && parentDirectory(dirty) == enclosing[0] {
+			rules = append(rules, attribution{"frontier", index.dependents(enclosing[0])})
+		}
+		for _, directory := range enclosing {
+			if index.packages[directory].embeds {
+				rules = append(rules, attribution{"frontier", index.dependents(directory)})
+			}
+		}
+	}
+	return rules
+}
+
+// packageBounds indexes ROOT and, for every package, prints either the
+// `unresolved <pkg>: "<reason>"` line of unresolvedPackages or one
+// `bound <pkg> <rule> <path>` line per path of paths that rules (a) to (c)
+// attribute to the package, in import-path then path order, tagged with the
+// first rule that selects it. The bound of a resolved package is therefore
+// every worktree path whose change would select it: the complete set of paths
+// its tests can read (GL-V0-009). A path carrying a control character cannot
+// be printed on one line and is an error.
+func packageBounds(module, root string, paths []string) ([]string, error) {
+	index, err := indexRepository(root, module)
+	if err != nil {
+		return nil, fmt.Errorf("the repository could not be indexed: %w", err)
+	}
+	reasons := index.unresolved()
+	bounds := map[string]map[string]string{}
+	bind := func(directories []string, kind, p string) {
+		for _, directory := range directories {
+			if bounds[directory] == nil {
+				bounds[directory] = map[string]string{}
+			}
+			if _, seen := bounds[directory][p]; !seen {
+				bounds[directory][p] = kind
+			}
+		}
+	}
+	for _, p := range paths {
+		if strings.ContainsFunc(p, unicode.IsControl) {
+			return nil, fmt.Errorf("a path contains a control character")
+		}
+		for _, rule := range index.attributeStructure(p) {
+			bind(rule.directories, rule.kind, p)
+		}
+		if p == changeEvidence {
+			bind(index.resolvingReaders(p), "reader", p)
+		}
+	}
+	// Rule (c) over every path at once: the same namesPath relation readers()
+	// applies per dirty path, evaluated token by token.
+	matcher := newPathMatcher(paths)
+	for value, directories := range index.holders {
+		for _, i := range matcher.named(value) {
+			if paths[i] != changeEvidence {
+				bind(directories, "reader", paths[i])
+			}
+		}
+	}
+	var lines []string
+	for _, directory := range sortedKeys(index.packages) {
+		pkg := importPath(module, directory)
+		if reasons[directory] != "" {
+			lines = append(lines, fmt.Sprintf("unresolved %s: %q\n", pkg, reasons[directory]))
+			continue
+		}
+		for _, p := range sortedKeys(bounds[directory]) {
+			lines = append(lines, fmt.Sprintf("bound %s %s %s\n", pkg, bounds[directory][p], p))
+		}
+	}
+	return lines, nil
 }
 
 // packageSource reports whether dirtyPath is a `.go` file outside testdata, `.`,

@@ -942,7 +942,7 @@
     "reqPrefix": "GL-V0",
     "intent": "accepted (owner instruction 2026-09-21)",
     "delivery": "implemented",
-    "claim": "`make gate` skips a step only when this user recorded a pass for byte-identical inputs of that step, from any worktree, and never narrows what a step tests.",
+    "claim": "`make gate` skips a step, or one resolved package, only when this user recorded a pass for byte-identical inputs, from any worktree, never narrowing a step.",
     "dependsOn": [
       "docs/specs/go-only-cutover-v0.md",
       "docs/specs/affected-plan-v0.md"
@@ -952,7 +952,8 @@
     "implementation": [
       "tools/gate-ledger/main.go",
       "tools/gate-ledger/main_test.go",
-      "tools/gate-affected-select/main.go"
+      "tools/gate-affected-select/main.go",
+      "tools/gate-affected-select/readers.go"
     ]
   },
   {

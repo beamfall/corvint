@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -308,5 +309,58 @@ func TestUnresolvedPackagesListsRootLocators(t *testing.T) {
 	broken := writeFixture(t, map[string]string{"bad/bad.go": "package bad\n\nimport (\n"})
 	if _, err := unresolvedPackages(fixtureModule, broken); err == nil {
 		t.Error("an unindexable repository returned a list")
+	}
+}
+
+// TestPackageBoundsAttributesResolvedPackages pins the `-bounds` mode the gate
+// ledger keys resolved packages on (GL-V0-009): every path rules (a) to (c)
+// attribute to a package is listed under its first rule, and an unresolved
+// package carries its rule (d) reason instead of a bound.
+func TestPackageBoundsAttributesResolvedPackages(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"core/core.go":           "package core\n",
+		"dep/dep.go":             "package dep\n\nimport _ \"example.com/fixture/core\"\n",
+		"reader/reader_test.go":  "package reader\n\nvar guide = \"docs/guide.md\"\n",
+		"walker/walker.go":       "package walker\n\nimport \"runtime\"\n\nvar _, file, _, _ = runtime.Caller(0)\n",
+		"docs/guide.md":          "guide\n",
+		"core/testdata/seed.txt": "seed\n",
+	})
+	paths := []string{"core/core.go", "core/testdata/seed.txt", "dep/dep.go", "docs/guide.md", "reader/reader_test.go", "walker/walker.go"}
+	lines, err := packageBounds(fixtureModule, root, paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(lines, "")
+	want := "bound example.com/fixture/core frontier core/core.go\n" +
+		"bound example.com/fixture/core reader core/testdata/seed.txt\n" +
+		"bound example.com/fixture/dep frontier core/core.go\n" +
+		"bound example.com/fixture/dep frontier dep/dep.go\n" +
+		"bound example.com/fixture/reader reader docs/guide.md\n" +
+		"bound example.com/fixture/reader frontier reader/reader_test.go\n" +
+		"unresolved example.com/fixture/walker: \"walker/walker.go calls runtime.Caller\"\n"
+	if got != want {
+		t.Errorf("bounds:\n%s\nwant:\n%s", got, want)
+	}
+	if _, err := packageBounds(fixtureModule, root, []string{"docs/\x01.md"}); err == nil {
+		t.Error("a path with a control character was bounded")
+	}
+}
+
+// TestPathMatcherAgreesWithNamesPath keeps the batched rule (c) matcher the
+// `-bounds` mode uses equal to the per-path namesPath relation of readers().
+func TestPathMatcherAgreesWithNamesPath(t *testing.T) {
+	paths := []string{"docs/guide.md", "docs/specs/gate-ledger-v0.md", "internal/x/testdata/seed.txt", "testdata/seed.txt", "a/b/c/d.go", "docs/decisions/0001.md", ".corvint/change.cem.json"}
+	values := []string{"docs/guide.md", "guide.md", "docs/specs/", "specs/gate-ledger-v0.md", "gate-ledger-v0", "testdata/seed.txt", "x/testdata", "seed", "b/c", "/c/d.go", "docs", "0001.md", "decisions/000", ".corvint/change.cem.json", "nothing/here", "", "/"}
+	matcher := newPathMatcher(paths)
+	for _, value := range values {
+		var want []int
+		for i, p := range paths {
+			if namesPath(value, p) {
+				want = append(want, i)
+			}
+		}
+		if got := matcher.named(value); fmt.Sprint(got) != fmt.Sprint(want) {
+			t.Errorf("%q: matcher %v, namesPath %v", value, got, want)
+		}
 	}
 }

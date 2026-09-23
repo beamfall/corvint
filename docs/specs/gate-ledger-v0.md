@@ -8,13 +8,15 @@ Delivery status: implemented
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 8 and its Verify block, the owner
 instruction of 2026-09-21 that Corvint manage which gate work is already proven so parallel agents
 stop repeating a full gate each, `go-only-cutover-v0.md` GOC-V0-010 for the receipt the gate
-records, and `affected-plan-v0.md` for the affected tier this ledger must not replace.
+records, `affected-plan-v0.md` for the affected tier this ledger must not replace and for the
+rules (a) to (d) whose index proves a resolved package's bound, and decision 0352 for the
+per-package key (GL-V0-009).
 
 ## Agent digest
-- Claim: `make gate` skips a step only when this user recorded a pass for byte-identical inputs of that step, from any worktree, and never narrows what a step tests.
-- Status: accepted (owner instruction 2026-09-21) / implemented
-- Exists: `tools/gate-ledger` (`run`, `go-test`, `plan`), the `ledger/STEP` targets in `Makefile`, `gate-affected-select -unresolved`, `tools/gate-ledger/main_test.go`, the ledger-off branch of `script/gate-receipt_test.sh`.
-- Blocked on: nothing. The unresolved packages (`cmd/corvint` among them) rerun on any tree change; narrowing them is the affected tier's job, not this ledger's.
+- Claim: `make gate` skips a step, or one resolved package, only when this user recorded a pass for byte-identical inputs, from any worktree, never narrowing a step.
+- Status: accepted (owner instruction 2026-09-21; GL-V0-009 decision 0352) / implemented
+- Exists: `tools/gate-ledger` (`run`, `go-test`, `plan`), the `ledger/STEP` targets in `Makefile`, `gate-affected-select -unresolved` and `-bounds`, `tools/gate-ledger/main_test.go`, the ledger-off branch of `script/gate-receipt_test.sh`.
+- Blocked on: nothing. The unresolved packages (`cmd/corvint` among them) rerun on any tree change; narrowing them is the affected tier's job, not this ledger's. Resolved packages key per package across worktrees (GL-V0-009).
 - Read next: Requirements; Non-goals; Trust boundary, limits, and failure modes; Unresolved.
 
 ## Human intent and scope
@@ -50,9 +52,9 @@ therefore come from something keyed on content, not from Go's cache.
 
 - `GL-V0-001`: A step MUST be skipped only when the ledger holds a pass whose key equals the key
   of the current run. The key MUST derive from the record schema, the step name, the ledger tool's
-  own identity (its Go source digest and the pinned toolchain version), `GO_TEST_TIMEOUT`, and a
-  digest of the step's declared inputs taken from the exact worktree content: tracked and untracked
-  files with ignored files excluded, written as a Git tree through a private index so the
+  own identity (its Go source digest and the pinned toolchain version), `GO_TEST_TIMEOUT`,
+  `GOFLAGS`, and a digest of the step's declared inputs taken from the exact worktree content:
+  tracked and untracked files with ignored files excluded, written as a Git tree through a private index so the
   repository index is never touched. Cached stat data or timestamps MUST NOT authorize content reuse.
   Tracked files remain included when ignored; ignored untracked files remain excluded.
   The key MUST NOT include the worktree path, branch, commit,
@@ -70,9 +72,10 @@ therefore come from something keyed on content, not from Go's cache.
   affected-plan index lists as unresolved (`gate-affected-select -unresolved`) MUST run with
   `-count=1` under one record keyed on the whole tree id and the package list; every other package
   MUST run without `-count=1`, so Go's own test cache may answer it, with the same flags `make
-  go-test` uses. When the partition cannot be computed (no module path, `go list` or the index
-  failing, a package outside the module), every package MUST run with `-count=1` under the tree
-  key. `make go-test` and `make gate-affected` MUST keep running with `-count=1` unchanged.
+  go-test` uses, under the per-package key of GL-V0-009. When the partition cannot be computed (no
+  module path, `go list` or the index failing, a package outside the module), every package MUST
+  run with `-count=1` under the tree key. `make go-test` and `make gate-affected` MUST keep
+  running with `-count=1` unchanged.
 - `GL-V0-005`: The ledger MUST refuse to digest, and therefore run without recording, any
   worktree whose content `git status` cannot see fully: a tracked file marked skip-worktree or
   assume-unchanged, an ignored `.go` file outside `.`-, `_`- and `testdata` directories that the
@@ -93,6 +96,23 @@ therefore come from something keyed on content, not from Go's cache.
 - `GL-V0-008`: Two runs of one key at once MUST execute the step once: the second MUST wait on a
   per-key lock and read the record the first wrote. A lock the tool cannot take MUST make the
   step run without recording.
+- `GL-V0-009`: A resolved package MUST run under its own key, step `go-test-package`, derived as
+  GL-V0-001 derives every key from the package's import path and a digest of the worktree entries
+  in its proven bound together with the gate tooling. The bound MUST be the union of every file
+  `go list -deps -test` compiles or embeds into the package's test binary within the module and
+  every worktree path whose change would select the package under `affected-plan-v0.md` rules (a)
+  to (c), taken from the same index and relation `make gate-affected` uses
+  (`gate-affected-select -bounds`); by construction of rule (d) that union covers every path a
+  resolved package's tests can read. The record MUST state how the bound was proven: the `go
+  list` file count, the path count per selector rule, and the number of entries digested. A
+  package whose bound cannot be proven, because the selector attributes no path to it, `go list`
+  does not list it, or `go list` names a file the worktree digest does not hold, MUST run in the
+  same `go test` invocation and MUST NOT be recorded; when the bounds cannot be computed at all,
+  every resolved package MUST run through Go's test cache unrecorded, as before this requirement.
+  Resolved packages without a recorded pass MUST run in one `go test` invocation with the flags
+  `make go-test` uses, each under its per-key lock (GL-V0-008), and each MUST be recorded only
+  when that invocation exits zero. The record format MUST stay additive: `bound` is an optional
+  field, and records without it keep matching.
 
 ## Non-goals and simpler baseline
 
@@ -102,8 +122,8 @@ test cache is discarded by `-count=1`. It is correct and slow, and it is still w
 This ledger never narrows a step: a miss runs the same command `make STEP` runs, over the same
 inputs. It is not the affected tier and does not replace it; the only principled way to run fewer
 packages for a tree change is `affected-plan-v0.md`, with its own qualification. It does not share
-records between users or hosts, does not run in CI, does not key resolved packages per package
-across worktrees (see Unresolved), and does not change what the GOC-V0-010 receipt means: a
+records between users or hosts, does not run in CI, does not key unresolved packages per package
+(their reads have no proven bound; see Unresolved), and does not change what the GOC-V0-010 receipt means: a
 receipt still says every step passed for the HEAD the run started at, whether a step's pass was
 executed or replayed from a record keyed on identical content.
 
@@ -122,6 +142,9 @@ a tree id, a time, a host and a package list, and only key equality matters.
 | Ledger directory absent, shared, symlinked, or another user's | run, no record (GL-V0-006) |
 | Record unreadable or mismatched | treated as absent (GL-V0-006) |
 | Partition unavailable for `go-test` | every package with `-count=1` under the tree key (GL-V0-004) |
+| Bounds unavailable for `go-test` (selector, `go list`, module path or digest failing) | resolved packages through Go's test cache, no record (GL-V0-009) |
+| A resolved package's bound cannot be proven | runs in the resolved batch, no record (GL-V0-009) |
+| One package of the resolved batch fails | status through, no package of the batch recorded (GL-V0-002, GL-V0-009) |
 | Per-key lock unavailable | run, no record (GL-V0-008) |
 | `CORVINT_GATE_LEDGER=off` | every step runs as `make STEP`, nothing printed by the ledger (GL-V0-007) |
 
@@ -132,7 +155,15 @@ plan. The unresolved packages key on the whole tree, so any tree change reruns a
 `cmd/corvint` unresolved, that is most of the suite's wall time. A step whose scope is declared
 too narrowly would hit when it should run; every declared scope therefore errs wide (`tree` where
 a script reads paths the declaration cannot enumerate), and the scope table is inputs to every
-key, so widening a scope invalidates its records.
+key, so widening a scope invalidates its records. The per-package bounds cost one selector index
+and one `go list -deps -test` per `ledger/go-test`, about three and a half seconds on this
+repository (`../BUILD-LOG.md`, 2026-09-22). A bound errs wide the same way a scope does: rule (c)
+attributes every path a package's string literals name, so a package holding a broad path token
+(`docs/`, `internal/`) is keyed on hundreds of paths and reruns more often than its tests need,
+never less. A package at the module root encloses every path under rule (b) and therefore reruns
+on any change. Tests that read the tree through git or the environment rather than a literal are
+unresolved by rule (d) and stay on the tree key; a resolved package whose test reads a path no
+literal names is outside rule (d)'s promise, not a gap this ledger can detect.
 
 ## Acceptance criteria and testing matrix
 
@@ -150,6 +181,7 @@ directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` li
 | GL-V0-006 | the same test: a `0755` ledger directory runs and records nothing |
 | GL-V0-007 | the same test: `CORVINT_GATE_LEDGER=off` runs silently; `TestRunStepSkipsOnlyRecordedIdenticalInputs`: `plan` leaves the run count unchanged; `script/gate-receipt_test.sh` ordering probe through the `ledger/` targets |
 | GL-V0-008 | `lock` in `tools/gate-ledger/main.go`, flock per key with a second lookup after acquisition; inspection |
+| GL-V0-009 | `TestGoTestKeysResolvedPackagesPerPackage`: three resolved packages record with a `bound` proof, hit from a `git worktree add` checkout, an edit to a package's source reruns it and its dependent while a reader package hits, an edit to a path a test literal names reruns only that reader, an edit outside every nested bound hits; `TestPackageBoundsAttributesResolvedPackages`: the `-bounds` listing per rule and the unresolved reason; `TestPathMatcherAgreesWithNamesPath`: the batched rule (c) matcher equals `namesPath`; measured cross-worktree hit in `../BUILD-LOG.md` (2026-09-22) |
 
 ## Traceability
 
@@ -163,6 +195,7 @@ directory; `tools/gate-affected-select/main_test.go` covers the `-unresolved` li
 | GL-V0-006 | `ledgerDirectory`, `lookup`, `record`, `prune`; `ownedByInvokingUser` in `tools/gate-ledger/platform_unix.go` (`platform_other.go` refuses the directory on non-Unix hosts) | `TestRunStepRefusesWhatItCannotDigest` |
 | GL-V0-007 | `open`, `plan`; the `ledger/%` targets and their `off` branch in `Makefile` | `TestRunStepRefusesWhatItCannotDigest`; `script/gate-receipt_test.sh` |
 | GL-V0-008 | `lock`; `lockExclusive` in `tools/gate-ledger/platform_unix.go` (`platform_other.go` fails the lock on non-Unix hosts) | inspection |
+| GL-V0-009 | `packageKeys`, `packageKey`, `selectorBounds`, `listedFiles`, `runPackages`, `digestKey` in `tools/gate-ledger/main.go`; `packageBounds`, `attribute`, `attributeStructure` in `tools/gate-affected-select/main.go` and `pathMatcher` in `tools/gate-affected-select/readers.go` | `TestGoTestKeysResolvedPackagesPerPackage`; `TestPackageBoundsAttributesResolvedPackages`; `TestPathMatcherAgreesWithNamesPath` |
 
 ## Rollout, rollback, and drift
 
@@ -179,13 +212,11 @@ scope table or the key derivation invalidates every record.
 
 ## Unresolved
 
-- Resolved packages hit only in the worktree that recorded them, because Go's test cache hashes
-  absolute paths. A per-package content key (the package's transitive source plus the files its
-  tests open, which the affected-plan index already bounds) would let a resolved package hit across
-  worktrees; it is a separate slice, because it must prove the bound is complete before a hit is
-  trusted.
 - `cmd/corvint` is unresolved because of one `os.Getwd` in its dogfood recording; bounding that
-  read would move the largest package under Go's cache in the same worktree, but still not across
-  worktrees without the slice above.
+  read would move the largest package under a per-package key (GL-V0-009) and let it hit across
+  worktrees.
+- A resolved batch is recorded package by package but run as one `go test` invocation, so one
+  failing package leaves every package of the batch unrecorded; recording the packages `go test`
+  reported as `ok` would need the tool to parse test output, which it does not do.
 - The receipt records a pass whose steps may have been replayed; whether the receipt should name
   the records it replayed from is not decided here.

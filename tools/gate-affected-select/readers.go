@@ -633,3 +633,83 @@ func (candidate run) matchesAt(parts []string) bool {
 	}
 	return true
 }
+
+// pathMatcher answers namesPath for one token against many paths at once:
+// the paths are split once, and a run with an exact component (one matched
+// whole, not by suffix or prefix) is tried only at the positions carrying that
+// component, so the relation stays namesPath's while the work per token is
+// proportional to the paths that can match.
+type pathMatcher struct {
+	parts    [][]string
+	occurred map[string][]occurrence // component -> where it occurs
+}
+
+type occurrence struct {
+	path, position int
+}
+
+func newPathMatcher(paths []string) *pathMatcher {
+	m := &pathMatcher{occurred: map[string][]occurrence{}}
+	for i, p := range paths {
+		parts := strings.Split(p, "/")
+		m.parts = append(m.parts, parts)
+		for j, component := range parts {
+			m.occurred[component] = append(m.occurred[component], occurrence{i, j})
+		}
+	}
+	return m
+}
+
+// named returns the indices, ascending, of the paths namesPath(value, path)
+// holds for.
+func (m *pathMatcher) named(value string) []int {
+	matched := map[int]bool{}
+	for _, candidate := range componentRuns(value) {
+		exact := candidate.exactPosition()
+		if exact < 0 {
+			for i, parts := range m.parts {
+				if !matched[i] && candidate.matchesAnywhere(parts) {
+					matched[i] = true
+				}
+			}
+			continue
+		}
+		for _, at := range m.occurred[candidate.components[exact]] {
+			offset := at.position - exact
+			if matched[at.path] || offset < 0 || offset+len(candidate.components) > len(m.parts[at.path]) {
+				continue
+			}
+			if candidate.matchesAt(m.parts[at.path][offset:]) {
+				matched[at.path] = true
+			}
+		}
+	}
+	indices := make([]int, 0, len(matched))
+	for i := range matched {
+		indices = append(indices, i)
+	}
+	sort.Ints(indices)
+	return indices
+}
+
+// exactPosition is a position matchesAt compares whole, or -1 when the run is
+// two components matched by suffix and prefix only.
+func (candidate run) exactPosition() int {
+	last := len(candidate.components) - 1
+	for position := range candidate.components {
+		if (position == 0 && candidate.partialFirst && position != last) || (position == last && candidate.partialLast) {
+			continue
+		}
+		return position
+	}
+	return -1
+}
+
+func (candidate run) matchesAnywhere(parts []string) bool {
+	for offset := 0; offset+len(candidate.components) <= len(parts); offset++ {
+		if candidate.matchesAt(parts[offset:]) {
+			return true
+		}
+	}
+	return false
+}

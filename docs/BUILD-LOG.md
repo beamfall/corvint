@@ -2574,3 +2574,67 @@ fails on two citations in `docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md` (:2
 pointing at `cmd/corvint/help.go`). Those citations were already stale at the base commit, and this
 change touches neither file. gorunner's `TestRunCollectsRealUnitCoverage` timed out at its 30 s
 fixture bound once, at a 15-minute load average of 128, and passed on rerun.
+## 2026-09-22 gate-ledger-per-package-bound: resolved test packages key on a proven per-package bound
+
+Ticket V1-0037 (decision 0352, GL-V0-009). `ledger/go-test` used to hand the resolved packages to
+Go's own test cache, which is per-`GOCACHE` and keyed on absolute paths, so a second worktree of the
+same commit reran every one of them. Each resolved package now runs under its own ledger step
+`go-test-package` whose key digests the worktree entries in a proven bound plus the gate tooling
+(`Makefile`, `go.mod`, `go.sum`, `script/`, `tools/`), `GO_TEST_TIMEOUT`, and `GOFLAGS`. The bound is
+the union of two readers the gate already trusts: the in-module files of the package's test closure
+from one `go list -deps -test -json ./...` (`tools/gate-ledger/main.go:369@4dd19278`), and every
+path `gate-affected-select -bounds` attributes to the package under the selector's rules (a)-(c)
+(`tools/gate-affected-select/main.go:262@ba85708b`; the new `pathMatcher`,
+`tools/gate-affected-select/readers.go:651@50d71fd4`, evaluates rule (c) once per literal token
+over all paths, 16.7 s to 3.1 s on this tree, with output identical to the per-path `readers()`,
+pinned by `TestPathMatcherAgreesWithNamesPath`). No second dependency walker was written. A package
+whose bound cannot be proven (the selector attributes nothing to it, `go list` does not list it, or
+`go list` names a file the worktree digest does not hold) runs in the same batch unrecorded
+(`tools/gate-ledger/main.go:399@cbbc1553`); if the bounds cannot be computed at all the step prints
+`BOUNDS unavailable: ...` and falls back to the pre-change Go-test-cache path. Each record carries
+an additive `bound` field stating how the bound was proven; `gate-ledger/1` entries without it keep
+matching. The resolved packages still run as one `go test` batch
+(`tools/gate-ledger/main.go:538@fc23e453`), so a batch failure records none of them. Spec:
+`docs/specs/gate-ledger-v0.md:99@20c09b98`; README/INDEX claim mirrored; REQUIREMENTS.tsv
+regenerated; `docs/specs/go-archive-gate-v0.md` citation `Makefile:109` repinned to `:111` (same
+anchor, moved by the ledger comment). The `Makefile` change is comment-only on the `ledger/` block.
+
+Measured on this tree (219 test packages): 94 resolved packages received a proven per-package key
+(none unprovable), 125 unresolved stay on the whole-tree key. Run A, throwaway `git worktree add`
+of the WIP commit under the scratchpad, empty ledger dir, `GO_TEST_TIMEOUT=30m`, host shared with
+other agents' test runs: 94 `RUN go-test-package ... no recorded pass` lines, one batch `go test`
+over the 94 packages passed and recorded 94 records with `duration_ms` 230319 (230.3 s for the
+batch; every record of a batch carries the batch time). Example record: `internal/projectprofile`,
+key `552bcef9a88e...`, bound `go list -deps -test 1 files; selector frontier 1, reader 1697 paths;
+1929 entries digested with the gate tooling` (rule (c) attributes 1697 literal-named paths to that
+package, which is the price of never narrowing a step). The unresolved batch then ran and failed in
+8 of 125 packages (`cmd/corvint`, `cmd/corvint-go-test-provider`, `conformance/cli-parity-v0`,
+`conformance/release-artifact-v0`, `internal/analyzernativebridge`, `internal/behaviorfalsify`,
+`internal/liveverify/session`, `internal/playwrightminimize`), so no `go-test-unresolved` record
+was written; whole run 18:56 wall, 335% CPU. Seven of those failures are timeouts or event waits
+under the shared load (V1-0032, V1-0034, V1-0036 describe the same shapes); the eighth,
+`TestReleaseNotesCEMTrustCitationLandsOnTrustRoots` in `conformance/release-artifact-v0`, is a
+`docs/CHANGE-EVIDENCE-MAP.md:226-227` wording check that fails in 0.2 s on this branch and touches
+no file this change edits, so it predates the change. Run B, a second `git worktree add` of the
+same commit, same ledger dir: process start to `PARTITION` 3.0 s (includes the `go run` build and
+both bound readers), 94 `HIT go-test-package` lines by 4.96 s from start, zero
+`RUN go-test-package`, e.g. `HIT go-test-package github.com/Beamfall/corvint/internal/projectprofile
+552bcef9a88e (recorded 2026-09-23T00:22:26Z on Russells-Mac-Studio.local)`: the 230 s batch
+became a 5 s check from another worktree. The unresolved batch then reran under its tree key
+because run A's batch never recorded, and failed again in 5 of the same 8 packages (12:58 wall for
+the whole run B). Both throwaway worktrees were removed afterwards. Timings are
+from a loaded host and are upper bounds, not benchmarks.
+
+NOT MET / UNKNOWN: `make dogfood-change` and the post-commit dogfood bind were not run (the batch
+brief limited gates to the listed commands). The brief's `nice -n 10 env ... go test` form was
+refused by the sandbox; the same test command ran without `nice`. `make line-citations-check`
+reports 18 pre-existing failures in `docs/specs/falsifiable-packet-v0.md` and
+`docs/specs/go-production-kernel-migration-v0.md` (stale `internal/contextindex/*` citations, all
+present on the untouched base tree and outside this change's file ownership); the one citation this
+change moved was repinned.
+
+Gates: `gofmt -l` over every Go package directory printed nothing; `GOTOOLCHAIN=local go build
+./... && go vet ./...`; `GOTOOLCHAIN=local go test -count=1 -timeout 30m ./tools/gate-ledger/...
+./tools/gate-affected-select/... ./internal/specindex/` (55.7 s / 0.8 s / 0.7 s); and `make
+spec-requirements-check requirement-definitions-check traceability-tests-check
+decision-numbers-check` all passed. Full `make gate` was not run, per batch scope.
