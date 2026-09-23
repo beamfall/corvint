@@ -28,5 +28,8 @@
   {"task":"inspect sized.go:3","reason":"none","rows":["one/sized.go:3"]},
   {"task":"fix abc1234 in one/abc1234x.go","reason":"anchor-evidence-unavailable","rows":["one/abc1234x.go:1"]},
   {"task":"call example.com:443","reason":"anchor-not-found","rows":[]},
-  {"task":"inspect .env:1","reason":"anchor-evidence-unavailable","rows":[]}
+  {"task":"inspect .env:1","reason":"anchor-evidence-unavailable","rows":[]},
+  {"task":"at pkg/packet.go:4-","reason":"none","rows":["pkg/packet.go:4"]},
+  {"task":"at pkg/packet.go:4…","reason":"none","rows":["pkg/packet.go:4"]},
+  {"task":"see **pkg/packet.go:4**","reason":"none","rows":["pkg/packet.go:4"]}
 ]

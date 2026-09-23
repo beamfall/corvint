@@ -39,7 +39,13 @@ could skip its later checks. The parser now trims any trailing run of brackets a
 accepts `path:line:column`, removes matched fields whole, and deduplicates by parsed form; a dirty
 candidate without a match in its bound blob counts as worktree-changed. `LCP-V0-013` now states
 these rules and narrows the `host:port` claim: a dotted host is path-shaped. The frozen corpus grows
-to 30 cases and the analyzer digest is repinned.
+to 33 cases and the analyzer digest is repinned. A second review found that trailing `-`, `…` or
+`**` still fell back to line 1, that a zero or inverted range on a dirty path claimed a worktree
+change, and that a dirty base-name candidate beside a clean match made the anchor ambiguous without
+the spec saying so. The trailing trim now covers any punctuation or symbol except `_`, impossible
+ranges are `anchor-not-found` first, and `LCP-V0-013` states the ambiguity: the worktree copy may
+hold the line. Markdown links such as `[a.go:4](a.go#L4)` remain unparsed and report
+`anchor-not-found`.
 
 ## 2026-09-23 V1-0207 UCV0-006, UCV0-010: corvint-dogfood receipts for the three Core use cases
 

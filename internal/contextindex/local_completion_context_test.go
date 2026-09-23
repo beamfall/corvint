@@ -413,6 +413,20 @@ func TestDogfoodPromptMentionIdentityAndRefusals(t *testing.T) {
 				t.Fatalf("%s on a dirty path: %v", task, packet)
 			}
 		}
+		// No content satisfies an inverted or zero range, dirty or not.
+		for _, task := range []string{"inspect pkg/packet.go:0", "inspect pkg/packet.go:9-4"} {
+			packet = localPrompt(t, index, task, nil, 20, 8000)
+			if packet["resolution"].(map[string]any)["reason"] != "anchor-not-found" {
+				t.Fatalf("%s on a dirty path: %v", task, packet["resolution"])
+			}
+		}
+		// A dirty base-name candidate may hold the line in the worktree, so a
+		// clean in-range match beside it is ambiguous, not unique.
+		index.DirtyPaths = []string{"two/sized.go"}
+		packet = localPrompt(t, index, "inspect sized.go:3", nil, 20, 8000)
+		if packet["resolution"].(map[string]any)["reason"] != "ambiguous-anchor" || !reflect.DeepEqual(localPromptRows(packet), []string{"one/sized.go:3"}) {
+			t.Fatalf("dirty base-name candidate: %v", packet)
+		}
 		index = localMentionFixture(t)
 		delete(index.Sources, "pkg/packet.go")
 		packet = localPrompt(t, index, "inspect pkg/packet.go:99", nil, 20, 8000)

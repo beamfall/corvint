@@ -284,13 +284,19 @@ var localPromptLineMention = regexp.MustCompile(`^([^\s:#]+):([0-9]{1,9})(?:-([0
 var localPromptSymbolMention = regexp.MustCompile(`^([^\s:#]+)#([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)$`)
 var localPromptCommitMention = regexp.MustCompile(`^(?:[0-9a-f]{7,40}|[0-9a-f]{64})$`)
 
+// A mention never ends in punctuation or a symbol other than `_`, which can end
+// an identifier; so `:4-`, `:4…` and `:4**` all end at the line number.
+func trailingMentionRune(r rune) bool {
+	return r != '_' && (unicode.IsPunct(r) || unicode.IsSymbol(r))
+}
+
 // mentions returns the distinct mentions and the task without their fields, so
 // removing a mention never cuts into another word.
 func (compiler *localPromptCompiler) mentions() ([]taskMention, string) {
 	found := []taskMention{}
 	rest := []string{}
 	for _, field := range strings.Fields(compiler.task) {
-		token := strings.TrimRight(strings.TrimLeft(field, "`\"'([{<"), "`\"'()[]{}<>,;:?!.")
+		token := strings.TrimRightFunc(strings.TrimLeft(field, "`\"'*([{<"), trailingMentionRune)
 		mention, ok := compiler.mention(strings.TrimPrefix(token, "./"))
 		if !ok {
 			rest = append(rest, field)
@@ -353,10 +359,15 @@ func (compiler *localPromptCompiler) resolveLines(token string, start, end int) 
 	if !compiler.ready() {
 		return
 	}
+	// A range that no content can satisfy is not-found even on a dirty path.
+	if start < 1 || end < start {
+		compiler.countAnchor(0)
+		return
+	}
 	matches := []string{}
 	for _, candidate := range candidates {
 		text, loaded := sourceTextBounded(compiler.index.Sources[candidate])
-		if !loaded || start >= 1 && start <= end && end <= sourceLineCount(text) {
+		if !loaded || end <= sourceLineCount(text) {
 			matches = append(matches, candidate)
 		}
 	}
