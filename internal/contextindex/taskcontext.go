@@ -114,6 +114,8 @@ type taskContextCompiler struct {
 	// roles is TCP-V0-040's role-line field, off unless
 	// `CORVINT_CONTEXT_ROLES=on`.
 	roles bool
+	// graphRanking is TCP-V0-034's opt-in, set by `CORVINT_CONTEXT_GRAPH=on`.
+	graphRanking bool
 }
 
 // startHistory reads the co-change history beside the slots that do not need
@@ -196,7 +198,7 @@ var (
 )
 
 func newTaskContextCompiler(index *Index, task, subject string) *taskContextCompiler {
-	return configureContextRoles(configureContextAnchors(configureContextTerms(&taskContextCompiler{
+	return configureContextGraph(configureContextRoles(configureContextAnchors(configureContextTerms(&taskContextCompiler{
 		index:         index,
 		task:          task,
 		subject:       subject,
@@ -207,7 +209,7 @@ func newTaskContextCompiler(index *Index, task, subject string) *taskContextComp
 		candidates:    map[string][]string{},
 		relationState: map[string]string{},
 		promoted:      map[string]string{},
-	})))
+	}))))
 }
 
 // compile runs the slots in evidence order and fills the remainder lexically.
@@ -250,6 +252,7 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	rows = compiler.takeSlot(rows, compiler.recencyLexical(compiler.lexicalRows(len(rows))), limit)
 	rows = compiler.corroborate(rows)
 	rows = compiler.reserve(rows)
+	rows = compiler.placeGraphRows(rows, limit)
 	// `candidates` is the distinct paths the slots admitted (TCP-V0-006); a
 	// row a slot cap held back is `withheld`, not a candidate.
 	compiler.admitted = len(rows)
@@ -1558,8 +1561,8 @@ func (compiler *taskContextCompiler) governance() string {
 // looked and how many candidates its generator held back (TCP-V0-011). It is
 // measured from what the generators already produced and widens nothing.
 func (compiler *taskContextCompiler) unexamined() []any {
-	report := make([]any, 0, len(contextRelationOrder))
-	for _, relation := range contextRelationOrder {
+	report := make([]any, 0, len(contextRelationOrder)+1)
+	for _, relation := range compiler.contextRelations() {
 		state := compiler.relationState[relation]
 		if state == "" {
 			state = "not-applicable"
@@ -1837,6 +1840,8 @@ func rowAction(row contextRow) string {
 			return "Update this test: it " + row.reason + ", so a behaviour change in that file changes what it must assert."
 		}
 		return "Read this source: it " + row.reason + ", so the admitted test exercises what is defined here."
+	case contextGraphRelation:
+		return graphAction(row)
 	default:
 		return "Read this file only if the task terms it matches (" + row.reason + ") are load-bearing; a term match is not a relation."
 	}

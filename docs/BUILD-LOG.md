@@ -4,6 +4,49 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0083, decision 0367, TCP-V0-030..034: identifier graph and opt-in personalized PageRank slot
+
+V1-0083 adds a deterministic identifier definition/reference graph to the index and an opt-in
+`graph` slot in `corvint context` that ranks files near the task anchors by personalized PageRank.
+The graph is derived from the indexed Symbols and the Words postings at the indexed revision and
+stored as `TermTable.IdentGraph` (pack section `vocab.identgraph`); `analyzerSchemaID` moves to
+`corvint-analyzer/74` and `TestAnalyzerSchemaInputs` is repinned. Under `CORVINT_CONTEXT_GRAPH=on`
+the slot seeds from the subject and anchored rows, admits at most five low-confidence tail rows
+after every relation row, names the seed and hop path in each reason, and abstains as `no-seed` or
+`graph-bounded`. Unset, the packet is byte-identical to the recipe golden.
+
+Frozen evaluation, `tools/retrieval-bench --arms context --max-samples 30` per subset, flag unset
+versus `on`, same branch binary (reports `V1-0083-{off,on}-<subset>.json` in the session
+scratchpad, not committed). The sample bound is recorded: unbounded runs managed about 0.5 samples
+a minute at host load ~300.
+
+| Subset | recall@5 off/on | recall@10 off/on | recall@20 off/on |
+| --- | --- | --- | --- |
+| code2test | 0.4056 / 0.4056 | 0.5222 / 0.5222 | 0.5856 / 0.5289 |
+| comment2context | 0.3278 / 0.3278 | 0.4222 / 0.4222 | 0.5278 / 0.4389 |
+| edit2ripple | 0.3833 / 0.3833 | 0.4694 / 0.4694 | 0.5667 / 0.5639 |
+| trace2code | 0.4833 / 0.4833 | 0.5833 / 0.5833 | 0.8611 / 0.8278 |
+
+recall@20 regresses on all four subsets (13 losing samples, 2 wins, listed in decision 0367), so
+the ticket's closing rule (improve recall@20 on code2test, comment2context and edit2ripple) is not
+met and the slot stays opt-in. The losses are gold files held by lexical tail rows that graph
+rows displaced.
+
+Verification: `corvint affected --base a98d770` (62 packages selected; the exhaustive gate is
+NOT_RUN per owner policy); `go test` of `./internal/contextindex/...` and `./internal/specindex/`
+passed; `go vet` of those and `./cmd/corvint` passed; `go test -run 'Context|Index|Snapshot|Pack'
+./cmd/corvint` failed only `TestExperimentalKernelAdapterContext`, a 250 ms deadline test that also
+failed once in six runs at BASE under the same load (six of six passed on the branch when
+alternated); focused-docs gate passed. NOT_RUN: full-sample evaluation, the other 57 affected
+packages, the unfiltered `./cmd/corvint` suite. NOT_OBSERVED: any recall@20 gain.
+
+Review fix: a graph past a bound was stored with no name offset, so `check` rejected it and every
+saved bounded index was a silent cache miss; `boundedIdentGraph` now stores one offset, a bounded
+flag other than 0 or 1 fails decode, and `TestIdentGraphBoundedSnapshotReloads` covers write, load
+and `graph-bounded` abstention under both snapshot formats. Default-path cost, measured on this
+repository with the flag unset (3,489 paths, 47,384 arcs, 10,706 names): 836,194 bytes of snapshot
+section, 30-31 ms to build, about 0.2 ms to decode and check (host load 13-35). The Git index
+deadline error no longer names a fixed 30-second limit.
 ## 2026-09-23 V1-0084 TCP-V0-022 anchor evaluation: flag off/on over four v2 subsets (decision 0333 kept)
 
 Ticket `V1-0084` acceptance criterion 3, requirement `TCP-V0-022`, decision 0333 (unchanged).

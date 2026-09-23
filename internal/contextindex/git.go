@@ -258,7 +258,7 @@ func gitRaw(ctx context.Context, root string, outputLimit, expected int, stdin [
 
 func contextError(ctx context.Context) error {
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return &Error{Message: "Git repository index exceeded its 30-second deadline"}
+		return &Error{Message: "Git repository index exceeded its deadline"}
 	}
 	return &Error{Message: "Git repository index was cancelled"}
 }
