@@ -87,6 +87,13 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   uncited hunk leaves `cem-status` `not-ready`, so the check fails `dogfood-report-drift`. A passing
   check or a seal MUST be described as structural closure, never as correctness, test adequacy or a
   passing project gate.
+- `DCW-V0-018`: `dogfood-change` MUST link an OCM obligation only from a row of the optional,
+  author-written `DOGFOOD_OCM_LINKS` plan, applied through the verified `corvint ocm link` after that
+  intent's map is prepared on every pass. It MUST NOT infer a link from names, paths or history.
+  Without the input it MUST run no link and report no link row, so every requirement stays
+  `unassessed`. A missing or malformed plan MUST report `ocm-links` NOT_PRODUCED, and a refused
+  link MUST report `ocm-link-NNN` NOT_PRODUCED with the refusal code, each followed by a `fix:`
+  line; neither refusal withholds the OCM aggregate.
 
 ## Non-goals and baseline
 
@@ -119,6 +126,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-009..010` | native platform and installed exact-host evidence required | NOT_QUALIFIED |
 | `DCW-V0-011..012` | portfolio, gate and candidate evidence required | NOT_QUALIFIED |
 | `DCW-V0-013..015` | `docs/DOGFOOD.md` "Daily adopter path"; `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed`; scratch reproductions recorded in the V1-0010 build-log entry | implemented; the SIGINT interrupt and reviewer leg NOT_OBSERVED |
+| `DCW-V0-018` | `script/dogfood-change_test.sh` link phase; the replay of the sealed LAC-V0-032 change recorded in the V1-0142 build-log entry | implemented; a link on a change delivered through this loop NOT_OBSERVED |
 
 ## Compatibility and rollback
 

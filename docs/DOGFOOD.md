@@ -23,6 +23,7 @@ gate ran (`DCW-V0-015`).
 | `DOGFOOD_CITATIONS` | Path to a TSV file, not the rows. One `ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION` row per CEM hunk in `hunks` order, ordinals from 1, LF-terminated, at most 256 rows; the span must exist at `BASE` | row `1	AGENTS.md	26:28	specification` |
 | `DOGFOOD_VERIFY_FILE` | Path to a file with one shell-free verification command per line, each at most 512 characters; `DOGFOOD_VERIFY` takes the same lines inline (section 7) | line `go test ./internal/lrfrepo` |
 | `DOGFOOD_OUTCOME` | `passed`, `failed` or `blocked` | `passed` |
+| `DOGFOOD_OCM_LINKS` | Optional path to a TSV file, not the rows. One `INTENT<TAB>REQUIREMENT<TAB>HUNK[,HUNK...]<TAB>TEST_PATH<TAB>CLAIM[,CLAIM...]` row per requirement the author links, LF-terminated, at most 256 rows; `INTENT` is listed in `DOGFOOD_INTENTS_FILE`, each hunk is a cited CEM ordinal or hunk ID, and each claim is a test selector at `HEAD` whose anchor contains the exact requirement ID (step 7, section 5) | row `docs/specs/local-admin-console-v0.md	LAC-V0-032	7,8	internal/console/roadmap_test.go	test:TestRoadmapSafeAutoRecheck/case:lac-v0-safe-auto-recheck` |
 
 Every `dogfood-change` refusal caused by one of these inputs prints the step and reason, then a
 `fix:` line naming the correction (`DCW-V0-014`).
@@ -61,10 +62,13 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
 6. Run `make dogfood-change BASE=$BASE` again. Expected: no output, exit 0, and
    `.corvint/dogfood-report.json` contains `"complete": true`. An uncited hunk instead leaves
    `cem-status: not-ready` (policy issue `max-unknown-exceeded`).
-7. Optionally record requirement evidence: `corvint ocm link` or `corvint ocm mark` on
-   `.corvint/change.ocm.NNN.json` (section 5), then rerun step 6 on the same `HEAD` so the aggregate
-   includes it. Any later commit regenerates the maps with `--replace` and drops those records.
-   Without them every requirement stays `unassessed`, which means "not assessed by this change".
+7. Optionally link requirement evidence: rerun step 6 with `DOGFOOD_OCM_LINKS` naming the author's
+   link plan. After each map is prepared, every row for that intent runs through `corvint ocm link`
+   and reports `ocm-link-NNN`; a refusal leaves that requirement unlinked and prints a `fix:` line
+   (`DCW-V0-018`). Keep the plan exported on every later pass, because each new `HEAD` regenerates
+   the maps with `--replace`. Nothing is linked without a row, and every unlinked requirement stays
+   `unassessed`, which means "not assessed by this change". `corvint ocm mark` (section 5) is
+   still manual and is dropped by the next commit.
 8. Inspect what a reviewer sees: `corvint cem report` and `corvint ocm report` (section 6), and
    `corvint frontier --cem .corvint/change.cem.json --ocm .corvint/change.ocm.001.json
    --expected-base $BASE --target HEAD`, whose exit 1 is a valid open frontier.
@@ -95,8 +99,9 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Rewritten | amend or rebase after a recorded pass | `prechange-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor clears it | not reached |
 | Sealed | check on the seal commit, or a change containing a seal | `REFUSE sealed-cem-in-change` | `REFUSE sealed-head` |
 
-Test-claim linkage through `corvint ocm link` is NOT_OBSERVED in this path: it needs a Go test that
-names the requirement ID, and the V1-0010 run exercised only `ocm mark`.
+Test-claim linkage through `DOGFOOD_OCM_LINKS` needs a Go test that names the requirement ID. It was
+observed for V1-0142 by replaying the sealed LAC-V0-032 change: `ocm-link-001` PRODUCED and the
+aggregate reported 1 of 32 linked.
 
 ## Required loop for substantive changes
 

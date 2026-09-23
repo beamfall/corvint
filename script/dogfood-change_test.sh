@@ -255,6 +255,10 @@ if [[ $action == ocm && $sub == prepare ]]; then
     shift
   done
 fi
+if [[ $action == ocm && $sub == link && -n ${DOGFOOD_TEST_OCM_LINK_CODE:-} ]]; then
+  printf '{"code": "%s", "error": "refused", "ok": false}\n' "$DOGFOOD_TEST_OCM_LINK_CODE" >&2
+  exit 2
+fi
 if [[ $action == ocm && $sub == status && -n ${DOGFOOD_TEST_OCM_STATUS_EXIT:-} ]]; then
   exit "$DOGFOOD_TEST_OCM_STATUS_EXIT"
 fi
@@ -700,6 +704,49 @@ printf 'file gate\n\ngo vet ./...\n' > "$test_root/verify.txt"
   rm -f .corvint/dogfood-report.json
   "${verify_env[@]}" DOGFOOD_VERIFY=$'\n \t\n' script/dogfood-change.sh "$base" || :
   rg -q '"name": "local-outcome", "status": "NOT_PRODUCED", "reason": "outcome-input-not-provided"' .corvint/dogfood-report.json
+) &
+phase_jobs="$phase_jobs $!"
+
+# DOGFOOD_OCM_LINKS applies only the author's explicit rows through ocm link, after each scope's
+# prepare and before its status (DCW-V0-018); without it no link is attempted.
+# Only an explicit DOGFOOD_OCM_LINKS row links an obligation; refusals name a fix (DCW-V0-018).
+links_repo="$test_root/links-repo"
+git clone -q "$test_root/repo" "$links_repo"
+: > "$test_root/links-corvint.log"
+printf 'docs/specs/intent-a.md\tTEST-A-001\t1,2\tscript/a_test.go\ttest:TestA/case:test-a,test:TestB\n' > "$test_root/links.tsv"
+printf 'docs/specs/intent-c.md\tTEST-C-001\t1\tscript/a_test.go\ttest:TestA\n' > "$test_root/links-unlisted.tsv"
+(
+  cd "$links_repo"
+  links_env=(env CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/links-corvint.log"
+    DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt"
+    DOGFOOD_OUTCOME=passed DOGFOOD_VERIFY='test gate')
+  "${links_env[@]}" script/dogfood-change.sh "$base" 2>/dev/null || :
+  if rg -q ' ocm link ' "$test_root/links-corvint.log"; then exit 1; fi
+  git diff --quiet HEAD -- .corvint/change.cem.json || {
+    git -c user.name=t -c user.email=t@example.invalid commit -qm cem .corvint/change.cem.json
+  }
+  "${links_env[@]}" DOGFOOD_OCM_LINKS="$test_root/links.tsv" script/dogfood-change.sh "$base"
+  rg -q '"complete": true' .corvint/dogfood-report.json
+  test "$(rg -c ' ocm link ' "$test_root/links-corvint.log")" = 1
+  rg -qF -- "ocm link --map .corvint/change.ocm.001.json --cem .corvint/change.cem.json --obligation TEST-A-001 --test-path script/a_test.go --expected-base $base --target $(git rev-parse HEAD) --hunk 1 --hunk 2 --claim test:TestA/case:test-a --claim test:TestB" "$test_root/links-corvint.log"
+  awk '/ ocm prepare .*ocm[.]001/ { p = NR } / ocm link / { l = NR } / ocm status --map .corvint\/change.ocm.001/ { s = NR }
+    END { exit !(p < l && l < s) }' "$test_root/links-corvint.log"
+  rg -q '"name": "ocm-link-001", "status": "PRODUCED", "reason": "none"' .corvint/dogfood-report.json
+  if rg -q '"name": "ocm-link-002"' .corvint/dogfood-report.json; then exit 1; fi
+  links_output=$(DOGFOOD_TEST_OCM_LINK_CODE=claim-obligation-mismatch "${links_env[@]}" \
+    DOGFOOD_OCM_LINKS="$test_root/links.tsv" script/dogfood-change.sh "$base" 2>&1) && exit 1
+  rg -q '"name": "ocm-link-001", "status": "NOT_PRODUCED", "reason": "claim-obligation-mismatch"' .corvint/dogfood-report.json
+  rg -q '"name": "ocm-aggregate", "status": "PRODUCED"' .corvint/dogfood-report.json
+  printf '%s\n' "$links_output" | rg -q '^  ocm-link-001: claim-obligation-mismatch$'
+  printf '%s\n' "$links_output" | rg -q '^    fix: read .*/ocm-link-001[.]stderr: '
+  links_output=$("${links_env[@]}" DOGFOOD_OCM_LINKS="$test_root/links-unlisted.tsv" \
+    script/dogfood-change.sh "$base" 2>&1) && exit 1
+  printf '%s\n' "$links_output" | rg -q '^  ocm-links: invalid-ocm-link-plan$'
+  test "$(rg -c ' ocm link ' "$test_root/links-corvint.log")" = 2
+  links_output=$("${links_env[@]}" DOGFOOD_OCM_LINKS="$test_root/links-absent.tsv" \
+    script/dogfood-change.sh "$base" 2>&1) && exit 1
+  printf '%s\n' "$links_output" | rg -q '^  ocm-links: ocm-link-plan-unavailable$'
+  printf '%s\n' "$links_output" | rg -q '^    fix: DOGFOOD_OCM_LINKS must be the path of a TSV file'
 ) &
 phase_jobs="$phase_jobs $!"
 

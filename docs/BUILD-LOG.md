@@ -4,6 +4,25 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0142 DCW-V0-018: the dogfood loop links OCM obligations from an explicit author plan
+
+Finding: `dogfood-change` regenerates every OCM map with `--replace` on each pass and never runs
+`ocm link`, so each sealed change reported every requirement `unassessed`. Replaying sealed V1-0196
+(base 01b6804, bind 3500aba) gave 0 of 12 linked. Links added by hand were dropped by the next commit.
+
+Decision: an optional `DOGFOOD_OCM_LINKS` TSV plan names, per intent, the requirement, the cited CEM
+hunks, the test path and the test claims. After each map is prepared on every pass, each row runs
+through the verified `corvint ocm link` and reports `ocm-link-NNN`. Nothing is inferred: without the
+plan no link runs and no row is reported. A missing or malformed plan (`ocm-links`) or a refused link
+is NOT_PRODUCED with a `fix:` line, and the OCM aggregate is still produced. No new verb or wire
+change; OCM-V0-013 already limits map changes to verified link and mark.
+
+Evidence: `script/dogfood-change_test.sh` covers no plan (no link call), a two-hunk two-claim row
+with exact argv and prepare-link-status order, a refused link, an unlisted intent and a missing
+plan. Removing the claim arguments fails the test. Replaying sealed 75039ff (base af6fd52,
+LAC-V0-032) through the patched script with a one-row plan produced `ocm-link-001` and 1 of 32
+linked. A link on a change delivered through this loop is NOT_OBSERVED; `make gate` was not run.
+
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
 
 Finding: nothing stated which Corvint commands are safe as a triggered CI, hook or team-automation
