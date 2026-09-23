@@ -4,6 +4,28 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0204 AFP-V0-020: every plugin names a changed unit no test reaches
+
+Finding: AFP-V0-020 named a changed Go package with no tests as `NO_SELECTABLE_TEST`, but the
+other seven plugins silently omitted a changed source unit that no test reached. The plan stayed
+`BOUNDED` with nothing selected for it.
+
+Decision: each plugin defines "no selectable test" through one lookup table in `affected.Select`.
+Go keeps its own-tests rule, because the go tool runs a package's tests only against that package.
+Every other plugin keeps tests in separate units, so a changed unit there has no selectable test
+when no unit it reaches through the graph, itself included, declares a test. A frontier plan now
+also names such a unit when the frontier hides the edge from its test. The TypeScript, Ruby and
+.NET frontier tests expect that second unknown. The Playwright plan widens to the full relevant
+suite only on the shared graph's other unknowns. A full E2E suite cannot exercise a helper that
+no spec reaches, so treating that unknown as a dynamic source would run every spec for nothing.
+Whether the Playwright plan should name that helper in its own unknown vocabulary is V1-0211,
+a follow-up. This amends proposed AFP-V0-020 text; the owner's PR review is its human review.
+
+Evidence: `TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020` removes the conformance fixture's
+`solo` tests in every language. An edit to `solo` must give `NO_SELECTABLE_TEST` at `UNKNOWN`
+scope, and an edit to `core` must not. It fails for all seven non-Go plugins on the base rule and
+passes with the change. `make gate` was not run (owner preference).
+
 ## 2026-09-23 V1-0203 AFP-V0-008: the Go plugin ignores `testdata`
 
 Finding (V1-0187 review, NIT 3): the Go plugin built units from `testdata/` directories, which the

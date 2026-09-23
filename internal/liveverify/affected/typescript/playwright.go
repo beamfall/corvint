@@ -157,7 +157,7 @@ func selectPlaywrightStatic(root, configPath string, dirty []string) (Playwright
 	}
 	normalizedDirty := affected.NormalizePaths(dirty)
 	base := affected.Select(graph, normalizedDirty)
-	if base.Scope == affected.ScopeUnknown {
+	if graphFrontierUnresolved(base) {
 		selectionUnknown = append(selectionUnknown, PlaywrightUnknown{Axis: PlaywrightAxisSelection, Reason: PlaywrightUnknownDynamicSource, Detail: "the shared TypeScript graph has an unresolved selection frontier"})
 	}
 	selected := selectPlaywrightUnits(configPath, base, projects, units, normalizedDirty)
@@ -1300,4 +1300,15 @@ func sortedUnique(values []string) []string {
 func containsString(values []string, want string) bool {
 	index := sort.SearchStrings(values, want)
 	return index < len(values) && values[index] == want
+}
+
+// A changed helper no spec reaches is NO_SELECTABLE_TEST in the shared plan; a
+// full E2E suite cannot exercise it either, so only another unknown widens here.
+func graphFrontierUnresolved(base affected.Plan) bool {
+	for _, unknown := range base.Unknown {
+		if unknown.Reason != affected.UnknownNoSelectableTest {
+			return true
+		}
+	}
+	return false
 }

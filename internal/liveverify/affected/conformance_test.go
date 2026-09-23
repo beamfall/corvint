@@ -1,6 +1,7 @@
 package affected_test
 
 import (
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -28,6 +29,8 @@ type seamCase struct {
 	wantTests []string
 	// wantExcluded is every test file the plan must exclude with a certificate.
 	wantExcluded []string
+	// solo is the unrelated unit's source path.
+	solo string
 	// ownedUnindexed is a path this plugin claims but no unit declares.
 	ownedUnindexed string
 	// permanentFrontier is a seam limitation that makes every plan unknown.
@@ -38,6 +41,7 @@ func seamCases() []seamCase {
 	return []seamCase{
 		{
 			language:       golang.New(),
+			solo:           "solo/solo.go",
 			dirty:          "core/core.go",
 			wantTests:      []string{"core/core_test.go", "leaf/leaf_test.go", "mid/mid_test.go"},
 			wantExcluded:   []string{"solo/solo_test.go"},
@@ -45,6 +49,7 @@ func seamCases() []seamCase {
 		},
 		{
 			language:       python.New(),
+			solo:           "src/solo.py",
 			dirty:          "src/core.py",
 			wantTests:      []string{"tests/test_core.py", "tests/test_leaf.py", "tests/test_mid.py"},
 			wantExcluded:   []string{"tests/test_solo.py"},
@@ -52,6 +57,7 @@ func seamCases() []seamCase {
 		},
 		{
 			language:       dotnet.New(),
+			solo:           "dotnet/solo/Solo.cs",
 			dirty:          "dotnet/core/Core.cs",
 			wantTests:      []string{"dotnet/core/CoreTests.cs", "dotnet/leaf/LeafTests.cs", "dotnet/mid/MidTests.cs"},
 			wantExcluded:   []string{"dotnet/solo/SoloTests.cs"},
@@ -59,6 +65,7 @@ func seamCases() []seamCase {
 		},
 		{
 			language: kotlin.New(),
+			solo:     "kotlin/solo/src/main/kotlin/solo/Solo.kt",
 			dirty:    "kotlin/core/src/main/kotlin/core/Core.kt",
 			wantTests: []string{
 				"kotlin/core/src/test/kotlin/core/CoreTest.kt",
@@ -70,6 +77,7 @@ func seamCases() []seamCase {
 		},
 		{
 			language:       rubyadapter.New(),
+			solo:           "lib/solo.rb",
 			dirty:          "lib/core.rb",
 			wantTests:      []string{"spec/core_spec.rb", "spec/leaf_spec.rb", "spec/mid_spec.rb"},
 			wantExcluded:   []string{"spec/solo_spec.rb"},
@@ -77,6 +85,7 @@ func seamCases() []seamCase {
 		},
 		{
 			language:       rust.New(),
+			solo:           "rust/solo/src/lib.rs",
 			dirty:          "rust/core/src/lib.rs",
 			wantTests:      []string{"rust/core/src/lib.rs", "rust/leaf/tests/leaf.rs", "rust/mid/src/lib.rs"},
 			wantExcluded:   []string{"rust/solo/src/lib.rs"},
@@ -84,6 +93,7 @@ func seamCases() []seamCase {
 		},
 		{
 			language:          swift.New(),
+			solo:              "swift/solo/Solo.swift",
 			dirty:             "swift/core/Core.swift",
 			wantTests:         []string{"swift/tests/CoreTests.swift", "swift/tests/LeafLegacyTests.swift", "swift/tests/LeafModernTests.swift", "swift/tests/MidTests.swift"},
 			wantExcluded:      []string{"swift/tests/SoloTests.swift"},
@@ -92,6 +102,7 @@ func seamCases() []seamCase {
 		},
 		{
 			language:       typescript.New(),
+			solo:           "web/solo.mjs",
 			dirty:          "web/core.mjs",
 			wantTests:      []string{"web/tests/core.test.mjs", "web/tests/leaf.test.mjs", "web/tests/mid.test.mjs"},
 			wantExcluded:   []string{"web/tests/solo.test.mjs"},
@@ -372,4 +383,70 @@ func isSuperset(superset, subset []string) bool {
 		}
 	}
 	return true
+}
+
+// TestSeamWidensWhenNoTestReachesAChangedUnit proves AFP-V0-020 for every
+// plugin. With solo's tests removed, an edit to solo reaches no test and widens
+// the plan; an edit to core leaves the untested solo unchanged and stays bounded.
+func TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020(t *testing.T) {
+	for _, testCase := range seamCases() {
+		t.Run(testCase.language.Name(), func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.CopyFS(root, os.DirFS(fixtureRoot(t))); err != nil {
+				t.Fatal(err)
+			}
+			for _, test := range testCase.wantExcluded {
+				untestSolo(t, filepath.Join(root, filepath.FromSlash(test)), test == testCase.solo)
+			}
+			if project, ok := plainSoloProjects[testCase.language.Name()]; ok {
+				if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(project)), []byte(`<Project Sdk="Microsoft.NET.Sdk" />`), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			graph, err := affected.Build(root, testCase.language)
+			if err != nil {
+				t.Fatalf("build: %v", err)
+			}
+			changed := affected.Select(graph, []string{testCase.solo})
+			if changed.Scope != affected.ScopeUnknown || !hasNoSelectableTest(changed) {
+				t.Fatalf("changed untested unit scope=%s unknown=%v", changed.Scope, changed.Unknown)
+			}
+			unchanged := affected.Select(graph, []string{testCase.dirty})
+			if hasNoSelectableTest(unchanged) || (testCase.permanentFrontier == "" && unchanged.Scope != affected.ScopeBounded) {
+				t.Fatalf("unchanged untested unit scope=%s unknown=%v", unchanged.Scope, unchanged.Unknown)
+			}
+		})
+	}
+}
+
+// plainSoloProjects names a solo test project that would otherwise declare
+// test discovery with no test source left.
+var plainSoloProjects = map[string]string{"dotnet": "dotnet/solo/Solo.csproj"}
+
+// untestSolo removes a test file, or strips the test attribute from a source
+// that carries its own test, as Rust's solo crate does.
+func untestSolo(t *testing.T, path string, inSource bool) {
+	t.Helper()
+	if !inSource {
+		if err := os.Remove(path); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(strings.ReplaceAll(string(content), "#[test]\n", "")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func hasNoSelectableTest(plan affected.Plan) bool {
+	for _, unknown := range plan.Unknown {
+		if unknown.Reason == affected.UnknownNoSelectableTest {
+			return true
+		}
+	}
+	return false
 }

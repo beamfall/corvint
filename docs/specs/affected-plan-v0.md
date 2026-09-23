@@ -349,11 +349,15 @@ and container qualification; full fallback remains available.
   no index, checkout, filter, archive attribute, executable source or test runs.
   Rollback removes this explicit opt-in route; existing fail-closed profiles stay.
 
-- `AFP-V0-020`: (proposed; ticket V1-0187) A changed Go package (one that owns a changed path)
-  that declares no test MUST be named in `plan.unknown` with reason `NO_SELECTABLE_TEST` and its
-  unit id as detail, never silently omitted, so `plan.scope` is `UNKNOWN` (AFP-V0-004). An untested
-  package that only depends on a change, or is not reached, raises nothing. Other plugins keep tests
-  in separate units and are unchanged. Rollback restores the silent skip.
+- `AFP-V0-020`: (proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed path)
+  with no selectable test MUST be named in `plan.unknown` with reason `NO_SELECTABLE_TEST` and its
+  unit id as detail, never silently omitted, so `plan.scope` is `UNKNOWN` (AFP-V0-004). Each plugin
+  defines "no selectable test". A Go package has none when it declares no test of its own, because
+  the go tool runs a package's tests only against that package. Every other plugin keeps tests in
+  separate units, so its changed unit has none when no unit it reaches through the graph, itself
+  included, declares a test. An untested unit that only depends on a change, or is not reached,
+  raises nothing. The Playwright plan widens only on the shared graph's other unknowns, because a
+  full E2E suite cannot exercise a helper that no spec reaches. Rollback restores the silent skip.
 
 ## Non-goals and authority
 
@@ -375,10 +379,9 @@ An unreadable or invalid `--playwright-config`, or a Playwright graph that canno
 `UNKNOWN` plan with `FULL_RELEVANT_SUITE`, not a command failure.
 Exhausting an admitted-directory sub-bound instead skips only that subtree and reports
 `go:included-directory-walk-bounded` at `UNKNOWN` scope; it is not a graph refusal.
-A dirty path owned by no plugin, or a changed Go package (one that owns a changed path) with no
-test (AFP-V0-020): the plan widens to `UNKNOWN` scope rather than narrowing. Remaining gap: an
-untested non-Go source unit that no test unit reaches is still omitted without an unknown. A
-potentially deleted or renamed-away Go path widens and names that possibility on its package
+A dirty path owned by no plugin, or a changed unit (one that owns a changed path) with no
+selectable test in any language (AFP-V0-020): the plan widens to `UNKNOWN` scope rather than
+narrowing. A potentially deleted or renamed-away Go path widens and names that possibility on its package
 exclusion rather than claiming no dependency path. An unreadable subtree:
 `unsupported-affected-graph`, never a silently smaller graph. Worktree or HEAD changed during
 compilation: `unsupported-affected-drift`. A `--base` that is not a full commit id:
@@ -412,7 +415,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-019 | `internal/plansnapshot`, `compileSnapshotAffected` | `TestSnapshotImmutableBytesAndCleanup`, `TestSnapshotRejectsIncompleteMismatchedAndStale`, `TestSnapshotStrictWire`, `TestSnapshotRejectsLinksAndIgnoresArchiveAttributes`, `TestAffectedSnapshotMatchesCommittedPlanAcrossDirtySources`, `TestAffectedSnapshotPlaywrightPinsConfigAndSource` |
 | AFP-V0-018 | `playwrightAffectedReceipt`, `compilePlaywrightAffected`, and `typescript.SelectPlaywright` | `TestAffectedPlaywrightProfileEmitsProjectDistinctUnits`, `TestAffectedPlaywrightArgumentsFailClosed`, and `internal/liveverify/affected/typescript/playwright_test.go` |
 | AFP-V0-009 | `affectedAdvice`, `compileAffectedAdvice`, `mandatoryAffectedChecks`, `advisoryAffectedChecks`, `shellQuoteJoin` in `cmd/corvint/affected.go` | `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`, `TestAffectedAdviceReportsNoDeclaredGate`, `TestAffectedAdviceKeepsMandatoryGateAndNeverAdvisesExclusions`, `TestAffectedReceiptMembersAreClosedAndByteStable` (tightened to assert `advice`'s raw JSON key order), `TestAffectedAdviceBoundsTheDeclarationRead`, `TestShellQuoteJoinEscapesMetacharacters`, `TestAffectedAdviceTruncatedMandatoryDeclarationSuppressesNoGate`, `TestAffectedAdviceCapsMandatoryChecksAtSixteen`, `TestAffectedAdviceSkipsCommentsInVerifyFence` |
-| AFP-V0-020 | `UnknownNoSelectableTest` in `affected.Select` (`internal/liveverify/affected/select.go`) | `TestSelectNamesChangedUntestedGoPackageAsUnknownScope`, `TestSelectTraversesUntestedUnitsWithoutSelectingThem` (a non-Go untested unit stays bounded), `TestAffectedUntestedGoPackageIsUnknownScope` |
+| AFP-V0-020 | `UnknownNoSelectableTest` in `affected.Select` (`internal/liveverify/affected/select.go`) | `TestSelectNamesChangedUntestedGoPackageAsUnknownScope`, `TestSelectTraversesUntestedUnitsWithoutSelectingThem` (an untested unit the change only reaches stays bounded), `TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020` (every plugin), `TestPlaywrightDiscoveryReconciliation` (an unreached helper keeps the Playwright plan), `TestAffectedUntestedGoPackageIsUnknownScope` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

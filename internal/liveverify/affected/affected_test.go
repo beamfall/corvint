@@ -168,7 +168,7 @@ func TestSelectTraversesUntestedUnitsWithoutSelectingThem(t *testing.T) {
 		}
 	}
 	if plan.Scope != ScopeBounded || len(plan.Unknown) != 0 {
-		t.Fatalf("a non-Go untested unit must not widen scope (AFP-V0-020 is Go-only): scope=%s unknown=%v", plan.Scope, plan.Unknown)
+		t.Fatalf("an untested unit the change only reaches must not widen scope (AFP-V0-020): scope=%s unknown=%v", plan.Scope, plan.Unknown)
 	}
 }
 
