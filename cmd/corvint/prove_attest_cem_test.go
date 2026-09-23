@@ -469,3 +469,76 @@ func TestProveCEMAttestationVerifiesAV1Predicate(t *testing.T) {
 		t.Fatalf("cem/0 receipt exit %d: %s %s", code, stdout, stderr)
 	}
 }
+
+// TestProveCEMAttestCEMV1EmitsTheV1Predicate checks FPK-V0-050: --attest-cem-v1
+// keeps the FPK-V0-015 first line byte-identical to --attest-cem, emits exactly
+// CEMStatementV1 over the map as the unsigned second line, and its signed
+// second line round-trips through --verify-cem-attestation as cem/v1.
+func TestProveCEMAttestCEMV1EmitsTheV1Predicate(t *testing.T) {
+	t.Parallel()
+	root, base := proveCEMRepository(t)
+	common := []string{"--root", root, "prove", "--cem", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD"}
+	mapBytes, err := os.ReadFile(filepath.Join(root, ".corvint", "change.cem.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := wire.ParseMap(mapBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantV1, err := attest.CEMStatementV1(".corvint/change.cem.json", mapBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v0, stderr, code := runProveArguments(t, append(common, "--attest", "--attest-cem")...)
+	if code != 0 {
+		t.Fatalf("--attest-cem exit %d: %s", code, stderr)
+	}
+	v1, stderr, code := runProveArguments(t, append(common, "--attest-cem-v1")...)
+	v0Lines, v1Lines := strings.Split(string(v0), "\n"), strings.Split(string(v1), "\n")
+	if code != 0 || len(v1Lines) != 3 || v1Lines[0] != v0Lines[0] || v1Lines[1] != string(wantV1) || v1Lines[2] != "" {
+		t.Fatalf("--attest-cem-v1 exit %d, output %q: %s", code, v1, stderr)
+	}
+	keyPath, publicKey := proveTestKey(t)
+	signed, stderr, code := runProveArguments(t, append(common, "--attest-key", keyPath, "--attest-cem-v1")...)
+	lines := strings.Split(strings.TrimSuffix(string(signed), "\n"), "\n")
+	if code != 0 || len(lines) != 2 {
+		t.Fatalf("signed emit exit %d, %d lines: %s", code, len(lines), stderr)
+	}
+	publicDER, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := t.TempDir()
+	envelopePath, publicKeyPath := filepath.Join(directory, "cem.dsse.json"), filepath.Join(directory, "signer.pub")
+	if err := os.WriteFile(envelopePath, []byte(lines[1]), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(publicKeyPath, pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: publicDER}), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	receipt, _, stderr, code := runProveCLI(t, root, "--verify-cem-attestation", envelopePath,
+		"--attest-public-key", publicKeyPath, "--cem", ".corvint/change.cem.json")
+	claim, _ := receipt["cem"].(map[string]any)
+	if code != 0 || receipt["status"] != attest.CEMVerified || receipt["predicateType"] != attest.CEMPredicateTypeV1 ||
+		claim["baseRevision"] != document.BaseRevision || claim["patchSha256"] != document.PatchSha256 {
+		t.Fatalf("verify exit %d, receipt %v, stderr %s", code, receipt, stderr)
+	}
+}
+
+// TestProveCEMAttestCEMV1RefusesInvalidArguments checks FPK-V0-050's grammar:
+// --attest-cem-v1 with a value, repeated, beside --attest-cem, or outside CEM
+// mode exits 2 with invalid-arguments and prints nothing.
+func TestProveCEMAttestCEMV1RefusesInvalidArguments(t *testing.T) {
+	t.Parallel()
+	root, base := proveCEMRepository(t)
+	common := []string{"--cem", ".corvint/change.cem.json", "--expected-base", base, "--target", "HEAD"}
+	for _, arguments := range [][]string{
+		append(append([]string{}, common...), "--attest-cem-v1=yes"),
+		append(append([]string{}, common...), "--attest-cem-v1", "--attest-cem-v1"),
+		append(append([]string{}, common...), "--attest-cem", "--attest-cem-v1"),
+		{"--attest-cem-v1", "docs/rule.txt"},
+	} {
+		verifyCEMAttestationRefusal(t, root, "invalid-arguments", arguments...)
+	}
+}

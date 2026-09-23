@@ -4,6 +4,54 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0092 cem-v1-emission: `prove --attest-cem-v1` and the checked OpenFab/agentattest alignment
+
+Ticket V1-0092, decision 0365 (amends 0354), FPK-V0-050 and FPK-V0-051 (new), FPK-V0-033,
+FPK-V0-035, and FPK-V0-036 (amended). All are experimental and not advertised. The entry closes the
+two gaps that the `cem-intoto-predicate-v1` entry recorded.
+
+Changed:
+- `prove --cem MAP ... --attest-cem-v1` is a new flag on the existing CEM mode. It prints the
+  unchanged first line, then `CEMStatementV1(MAP, bytes)`, signed under `--attest-key`. The flag
+  takes no value, cannot repeat, and cannot be given with `--attest-cem` (`invalid-arguments`). No
+  root verb is added. `helpBooleanFlags` and the two `prove` usage lines name the flag.
+- The known-deviations table now compares `cem/v1` field by field with fetched sources:
+  ossf/tac issue 628, which links the OpenFab `openfab/generation` v0.1 draft (revision 0.1.3,
+  Open-fab-ai/openfab `f558da05`); agentattest predicate v1 (AuroraAeon/agentattest `a19e7f96`);
+  in-toto/attestation `spec/v1` (`fd2609c1`); and DSSE `envelope.md` (`1d3370f6`).
+- Confirmed aligned: the in-toto Statement v1 layer and the `{name, digest.sha256}` subject shape
+  in both drafts, and the DSSE envelope used by agentattest.
+- Deviations: the OpenFab v0.1 envelope is DSSE-style with no PAE. Member names are snake_case in
+  OpenFab and camelCase in `cem/v1`. agentattest's `repo.baseCommit` corresponds to `cem/v1`'s
+  `base.digest.gitCommit`. OpenFab's `spec_ref` means something other than `cem/v1`'s `spec`. The
+  agent, model, prompt, material, time, acceptance, and approval fields are absent from `cem/v1`.
+- No `cem/v1` byte changed, and no draft field was adopted. The OpenFab draft's own `$id`
+  (`openfab.ai`) disagrees with its stated `predicateType` (`open-fab.ai`).
+
+Measured:
+- A committed map (`.corvint/changes/d517913....cem.json`) was run with the base binary (a98d770)
+  and the branch binary. Five invocations were byte-identical on stdout and stderr: no attest,
+  `--attest`, `--attest --attest-cem`, `--attest-key`, and `--attest-key --attest-cem`. Their
+  sizes were 3917, 4351, 4842, 6049, and 6954 bytes.
+- `--attest-key --attest-cem-v1` gave the same first line. Its second line verified through
+  `prove --verify-cem-attestation` as `cem/v1` `VERIFIED` with `baseRevision` and `patchSha256`.
+  A scratch test (not kept) passed the same envelope to the `interop/cem01-go` reader
+  `readCEMAttestation`, which returned `VERIFIED` with the map and `NOT_RUN` without it.
+- `go list -deps ./cmd/corvint` has 0 packages matching sigstore, rekor, fulcio, cosign, gitsign,
+  or securesystemslib. It has 0 packages outside the standard library and the Corvint module.
+  `go.mod`, `go.sum`, and `interop/cem01-go/go.mod` are unchanged.
+
+NOT_RUN / NOT_PRODUCED:
+- The Sigstore gitsign/cosign/Rekor external step is NOT_RUN. It remains an optional operator step.
+- `make gate` and the exhaustive `go test ./...` are NOT_RUN (owner policy). Verification was
+  `corvint affected`, which selected `cmd/corvint`, plus `internal/attest`, the interop gate, and the
+  focused-docs gate.
+- No independent adopter has read `cem/v1` (V1-0014 is unchanged). Neither draft's own verifier
+  was run against a Corvint envelope, so envelope incompatibility with OpenFab v0.1 is inferred from
+  its documented shape and was NOT_OBSERVED.
+- "agentattest" is ambiguous on GitHub: three repositories carry the name. The in-toto one
+  (AuroraAeon) was compared, and this choice is recorded as an assumption in FPK-V0-051.
+
 ## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
 
 V1-0012 measured the daily change-evidence loop as it exists at `origin/main` 1894b9e against a

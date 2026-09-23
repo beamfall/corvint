@@ -119,12 +119,12 @@ var referenceLanguages = map[string]bool{".go": true, ".py": true, ".js": true, 
 // independent inputs the verifier demands, and the attestation request.
 // `attest` wraps the document as an in-toto Statement; `attestKey` names a
 // PKCS#8 Ed25519 PEM whose signature seals it in a DSSE envelope; `attestCEM`
-// adds the FPK-V0-031 CEM statement. `envelopePath` and `publicKeyPath` are the
-// verify-cem mode inputs.
+// adds the FPK-V0-031 CEM statement, `cem/v1` with `attestCEMV1` (FPK-V0-050).
+// `envelopePath` and `publicKeyPath` are the verify-cem mode inputs.
 type proveOptions struct {
 	mapPath, expectedBase, target, patch, attestKey string
 	checkpointPath, envelopePath, publicKeyPath     string
-	patchGiven, attest, attestCEM                   bool
+	patchGiven, attest, attestCEM, attestCEMV1      bool
 }
 
 // falsifierByAuthority is the closed assignment table. Authorities that cite
@@ -381,12 +381,12 @@ func parseProveCEMArguments(rootArguments, rest []string) (options, error) {
 	seen := map[string]bool{}
 	for index := 0; index < len(rest); {
 		name, value, inline := strings.Cut(rest[index], "=")
-		if name == "--attest" || name == "--attest-cem" {
+		if name == "--attest" || name == "--attest-cem" || name == "--attest-cem-v1" {
 			if inline {
 				return result, argumentError("argument " + name + ": ignored explicit argument " + value)
 			}
-			if seen[name] {
-				return result, argumentError("argument " + name + ": may not be repeated")
+			if refusal := attestFlagRefusal(seen, name); refusal != nil {
+				return result, refusal
 			}
 			seen[name] = true
 			index++
@@ -414,7 +414,7 @@ func parseProveCEMArguments(rootArguments, rest []string) (options, error) {
 		*field = value
 	}
 	result.prove.patchGiven = seen["--patch"]
-	result.prove.attestCEM = seen["--attest-cem"]
+	result.prove.attestCEM, result.prove.attestCEMV1 = seen["--attest-cem"] || seen["--attest-cem-v1"], seen["--attest-cem-v1"]
 	result.prove.attest = seen["--attest"] || seen["--attest-key"] || result.prove.attestCEM
 	if result.prove.mapPath == "" {
 		return result, argumentError("argument --cem: expected one argument")
@@ -882,7 +882,7 @@ func attestProof(document []byte, subjects []attest.Subject, cem *cemAttestation
 	}
 	statements := [][]byte{statement}
 	if cem != nil {
-		cemStatement, err := attest.CEMStatement(cem.name, cem.bytes)
+		cemStatement, err := cem.statement()
 		if err != nil {
 			return nil, &gokernel.Error{Code: "attest-failed", Message: "cannot build the CEM statement"}
 		}
