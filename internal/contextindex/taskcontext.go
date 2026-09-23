@@ -111,6 +111,9 @@ type taskContextCompiler struct {
 	// recency is TCP-V0-035..038's history reading, nil unless
 	// `CORVINT_CONTEXT_RECENCY=on`.
 	recency *contextRecency
+	// roles is TCP-V0-040's role-line field, off unless
+	// `CORVINT_CONTEXT_ROLES=on`.
+	roles bool
 }
 
 // startHistory reads the co-change history beside the slots that do not need
@@ -193,7 +196,7 @@ var (
 )
 
 func newTaskContextCompiler(index *Index, task, subject string) *taskContextCompiler {
-	return configureContextAnchors(configureContextTerms(&taskContextCompiler{
+	return configureContextRoles(configureContextAnchors(configureContextTerms(&taskContextCompiler{
 		index:         index,
 		task:          task,
 		subject:       subject,
@@ -204,7 +207,7 @@ func newTaskContextCompiler(index *Index, task, subject string) *taskContextComp
 		candidates:    map[string][]string{},
 		relationState: map[string]string{},
 		promoted:      map[string]string{},
-	}))
+	})))
 }
 
 // compile runs the slots in evidence order and fills the remainder lexically.
@@ -949,6 +952,7 @@ type lexicalHit struct {
 	rarest                string
 	documentation         bool
 	anchors               []anchorHit
+	role                  *roleHit
 }
 
 // lexicalHits is the scored posting walk, run once per compile: the test slot
@@ -1040,6 +1044,18 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 			credit(3, source, anchor.literal, idf, idf*tf*(k1+1)/(tf+norm))
 		}
 	}
+	// TCP-V0-040: a role line is a fifth field over the highest-scoring
+	// sources, credited as a path term is: tf 1, no length normalisation.
+	roles := map[uint32]*roleHit{}
+	for _, role := range compiler.roleHits(table, scores) {
+		for _, term := range role.terms {
+			if low, high, ok := table.Terms.find(term); ok {
+				idf := idfOf(high - low)
+				credit(1, role.source, term, idf, idf*roleGain)
+			}
+		}
+		roles[role.source] = &role
+	}
 	hits := make([]lexicalHit, 0)
 	for source, count := range distinct {
 		if count > 0 {
@@ -1047,6 +1063,7 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 				path: table.Paths[source], source: uint32(source), distinct: count, occurrences: occurrences[source],
 				score: scores[source], rarestIDF: rarestIDF[source], rarest: rarest[source],
 				documentation: isDocumentationSuffix(table.Paths[source]), anchors: anchorHits[uint32(source)],
+				role: roles[uint32(source)],
 			})
 		}
 	}
@@ -1091,6 +1108,9 @@ func (compiler *taskContextCompiler) lexicalRows(taken int) []contextRow {
 			item.distinct, item.occurrences, item.rarest, item.rarestIDF, item.score)
 		if len(item.anchors) > 0 {
 			reason = anchorReason(item.anchors) + reason
+		}
+		if item.role != nil {
+			reason = roleReason(item.role) + reason
 		}
 		if item.documentation {
 			kind = "documentation"
