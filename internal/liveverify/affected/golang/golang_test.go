@@ -222,6 +222,49 @@ func TestWorkspaceModuleBelowTestdataIsObserved_AFPV0008(t *testing.T) {
 	}
 }
 
+// AFP-V0-021: a dirty path no plugin owns selects the package whose own files
+// name it by literal, witnessed as PATH_LITERAL_READER, and stays unknown. An
+// import path is an edge, never a token; a dependent of the reader and a path
+// no literal names select nothing.
+func TestPathLiteralSelectsItsReaderPackage_AFPV0021(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":            "module example.test/m\n",
+		"docs/guide.md":     "guide\n",
+		"pkg/pkg.go":        "package pkg\n\nimport _ \"example.test/m/other\"\n",
+		"pkg/pkg_test.go":   "package pkg\n\nconst guide, data = \"../docs/guide.md\", \"example.test/m/data/%s.json\"\n",
+		"other/other.go":    "package other\n",
+		"user/user.go":      "package user\n\nimport _ \"example.test/m/pkg\"\n",
+		"user/user_test.go": "package user\n",
+	})
+	result, err := golang.New().Units(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, unit := range result.Units {
+		if unit.ID == "go:example.test/m/pkg" && fmt.Sprint(unit.PathTokens) != "[../docs/guide.md .json /data/]" {
+			t.Fatalf("pkg path tokens=%q", unit.PathTokens)
+		}
+	}
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	named := affected.Select(graph, []string{"docs/guide.md"})
+	want := []affected.Selection{{UnitID: "go:example.test/m/pkg", Tests: []string{"pkg/pkg_test.go"}, Witness: affected.Witness{Kind: affected.WitnessPathLiteralReader, DirtyPath: "docs/guide.md", Via: []string{"go:example.test/m/pkg"}}}}
+	unknown := []affected.Unknown{{Reason: affected.UnknownUnownedDirtyPath, Detail: "docs/guide.md"}}
+	if fmt.Sprint(named.Selected) != fmt.Sprint(want) || fmt.Sprint(named.Unknown) != fmt.Sprint(unknown) || named.Scope != affected.ScopeUnknown {
+		t.Fatalf("named path selected=%v unknown=%v scope=%s", named.Selected, named.Unknown, named.Scope)
+	}
+	if reader := affected.Select(graph, []string{"data/x.json"}); len(reader.Selected) != 1 {
+		t.Fatalf("a root-anchored module literal must name its path: %v", reader.Selected)
+	}
+	unnamed := affected.Select(graph, []string{"other/notes.md"})
+	if len(unnamed.Selected) != 0 || fmt.Sprint(unnamed.Unknown) != "[{UNOWNED_DIRTY_PATH other/notes.md}]" {
+		t.Fatalf("unnamed path selected=%v unknown=%v", unnamed.Selected, unnamed.Unknown)
+	}
+}
+
 func writeFiles(t *testing.T, root string, files map[string]string) {
 	t.Helper()
 	for relative, body := range files {

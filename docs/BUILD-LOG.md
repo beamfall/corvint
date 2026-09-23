@@ -4,6 +4,25 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0126 AFP-V0-021: an unowned dirty path selects the packages that name it
+
+Finding: `corvint affected` selected nothing for a docs-only change. On 34e798b a one-line append to
+`docs/RELEASE-NOTES.md` gave zero selections and `EMPTY_SELECTION`, although
+`conformance/release-artifact-v0` reads that file by literal and the fast tier's AFP-V0-012 rule (c)
+already names such readers.
+
+Decision: the Go plugin records each package's path tokens with the rule (c) lexicon, and
+`affected.Select` adds every unit whose tokens name an unowned dirty path, witnessed
+`PATH_LITERAL_READER`, without traversing its dependents. The path keeps `UNOWNED_DIRTY_PATH`, so
+the scope stays `UNKNOWN`. The gate tool reports 129 packages whose reads no literal bounds (rule
+(d)), and this plan does not model them. The naming relation is mirrored, not shared:
+`tools/gate-affected-select` is a stdlib-only `package main` built by the trusted PR driver.
+
+Evidence: the same probe now selects 26 packages, `RUNNABLE`, still `UNKNOWN`. That set equals the
+gate's rule (c) readers of the path plus those among its unresolved packages. Graph build CPU rose
+from about 2.3 s to 4.3 s user time on this repository. The CEM sidecar narrowing is not mirrored.
+The doc checks and the selected packages pass; `make gate` was not run (owner preference).
+
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
 
 Finding: nothing stated which Corvint commands are safe as a triggered CI, hook or team-automation

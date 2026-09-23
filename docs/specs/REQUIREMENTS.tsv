@@ -54,6 +54,7 @@ AFP-V0-017	docs/specs/affected-plan-v0.md	303	(accepted by decision 0320) `.gith
 AFP-V0-018	docs/specs/affected-plan-v0.md	311	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
 AFP-V0-019	docs/specs/affected-plan-v0.md	326	(proposed technical contract implementing owner-requested issue #57)
 AFP-V0-020	docs/specs/affected-plan-v0.md	352	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
+AFP-V0-021	docs/specs/affected-plan-v0.md	363	(proposed; ticket V1-0126) A dirty path no plugin owns (`UNOWNED_DIRTY_PATH`)
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and

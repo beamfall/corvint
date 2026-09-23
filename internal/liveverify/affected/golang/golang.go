@@ -15,12 +15,15 @@ package golang
 import (
 	"errors"
 	"fmt"
+	"go/ast"
 	"go/parser"
+	"go/scanner"
 	"go/token"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -47,6 +50,17 @@ const (
 	// FrontierIncludedDirectoryWalkBounded reports an opted-in build directory
 	// whose independent entry bound was exhausted.
 	FrontierIncludedDirectoryWalkBounded = "go:included-directory-walk-bounded"
+	// FrontierPathTokenBound reports a package carrying more distinct path
+	// tokens than affected.MaxPathsPerUnit; its tokens are dropped, so it
+	// selects as a reader of no dirty path (AFP-V0-021).
+	FrontierPathTokenBound = "go:path-token-bound"
+)
+
+// The path-token lexicon of tools/gate-affected-select (AFP-V0-012): printf
+// verbs are removed, then every run of path characters is one token.
+var (
+	printfVerb = regexp.MustCompile(`%[-+# 0-9.*]*[a-zA-Z%]`)
+	pathToken  = regexp.MustCompile(`[A-Za-z0-9._~@+/-]+`)
 )
 
 // module is one go.mod directory. Listed modules are observed; an unlisted one
@@ -135,6 +149,7 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 	sources := make([]string, 0, len(files))
 	tests := make([]string, 0, len(files))
 	importPaths := make(map[string]bool, 16)
+	names := make(map[string]bool, 16)
 	fileSet := token.NewFileSet()
 	for _, relative := range files {
 		body, err := affected.ReadSource(root, relative)
@@ -162,6 +177,9 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 			}
 			importPaths[value] = true
 		}
+		if err := pathTokens(body[importsEnd(fileSet, file):], owner.path, names); err != nil {
+			frontier[FrontierUnparsedSource] = true
+		}
 		if strings.HasSuffix(relative, "_test.go") {
 			tests = append(tests, relative)
 			continue
@@ -173,7 +191,62 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 	}
 	sort.Strings(sources)
 	sort.Strings(tests)
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests}, importPaths, nil
+	if len(names) > affected.MaxPathsPerUnit {
+		frontier[FrontierPathTokenBound] = true
+		names = nil
+	}
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names)}, importPaths, nil
+}
+
+// importsEnd is the byte offset just past a file's import declarations, which
+// are the only declarations an imports-only parse keeps. An import path is an
+// edge, never a path token.
+func importsEnd(fileSet *token.FileSet, file *ast.File) int {
+	end := file.Name.End()
+	for _, decl := range file.Decls {
+		end = decl.End()
+	}
+	return fileSet.Position(end).Offset
+}
+
+// pathTokens adds the path tokens of every string literal in body to names,
+// with the owning module's import path rewritten to a root-anchored path
+// (AFP-V0-021, the AFP-V0-012 lexicon). A lexical error is returned.
+func pathTokens(body []byte, modulePath string, names map[string]bool) error {
+	var lexErr error
+	var lexer scanner.Scanner
+	lexer.Init(token.NewFileSet().AddFile("", -1, len(body)), body, func(_ token.Position, message string) { lexErr = errors.New(message) }, 0)
+	for {
+		_, kind, text := lexer.Scan()
+		if kind == token.EOF {
+			return lexErr
+		}
+		if kind != token.STRING {
+			continue
+		}
+		value, err := strconv.Unquote(text)
+		if err != nil {
+			continue
+		}
+		for _, name := range pathToken.FindAllString(printfVerb.ReplaceAllString(value, " "), -1) {
+			names[rootAnchored(name, modulePath)] = true
+		}
+	}
+}
+
+// rootAnchored rewrites an import path under the module to the root-anchored
+// path of its directory; the module path itself is the root.
+func rootAnchored(name, modulePath string) string {
+	if modulePath == "" {
+		return name
+	}
+	if name == modulePath {
+		return "/"
+	}
+	if rest, under := strings.CutPrefix(name, modulePath+"/"); under {
+		return "/" + rest
+	}
+	return name
 }
 
 // resolve rewrites each unit's raw Go import paths into the unit identities

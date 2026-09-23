@@ -12,6 +12,9 @@ const (
 	WitnessDirectSource = "DIRECT_SOURCE_CHANGE"
 	WitnessDirectTest   = "DIRECT_TEST_CHANGE"
 	WitnessDependency   = "DEPENDENCY_PATH"
+	// WitnessPathLiteralReader names a unit whose own files carry a string
+	// literal naming a dirty path no plugin owns (AFP-V0-021).
+	WitnessPathLiteralReader = "PATH_LITERAL_READER"
 )
 
 // Exclusion reasons. Every eligible unit that is not selected carries one,
@@ -104,6 +107,8 @@ type Plan struct {
 // it declares at least one, because a unit with no tests contributes no check.
 // A changed unit that no selectable test checks is named as unknown scope
 // instead of being omitted (AFP-V0-020); untestedRules holds each plugin's rule.
+// A dirty path no plugin owns stays unknown and also selects the units whose
+// path literals name it (AFP-V0-021).
 //
 // Selected units are emitted in the AFP-V0-007 order: witness chain length
 // ascending, shared directory prefix with the witness's dirty path descending,
@@ -124,6 +129,7 @@ func Select(graph *Graph, dirty []string) Plan {
 	seeds, unknown := graph.seed(normalized)
 	plan.Unknown = append(plan.Unknown, unknown...)
 	reached := graph.traverse(seeds)
+	graph.readers(reached, unknown)
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {

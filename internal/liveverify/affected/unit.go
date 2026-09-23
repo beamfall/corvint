@@ -41,11 +41,16 @@ const MaxPathsPerUnit = 20_000
 // Every path is repository-relative, slash-separated, sorted, and unique.
 // Imports name other Unit identities; an import that a plugin could not resolve
 // to a repository unit is omitted here and reported through Result.Frontier.
+// PathTokens are the sorted, unique path-shaped tokens of the string literals
+// the unit's own files carry; a dirty path no plugin owns selects the units
+// whose tokens name it (AFP-V0-021). A plugin that reads no literals leaves it
+// empty.
 type Unit struct {
-	ID      string   `json:"id"`
-	Sources []string `json:"sources"`
-	Tests   []string `json:"tests"`
-	Imports []string `json:"imports"`
+	ID         string   `json:"id"`
+	Sources    []string `json:"sources"`
+	Tests      []string `json:"tests"`
+	Imports    []string `json:"imports"`
+	PathTokens []string `json:"pathTokens,omitempty"`
 }
 
 // Result is what one Language plugin observed for a repository.
@@ -86,7 +91,10 @@ func validUnit(unit Unit, namespace string) error {
 	if err := validPathList(unit.Tests); err != nil {
 		return err
 	}
-	return validIdentifierList(unit.Imports)
+	if err := validIdentifierList(unit.Imports); err != nil {
+		return err
+	}
+	return validIdentifierList(unit.PathTokens)
 }
 
 func validPathList(values []string) error {
