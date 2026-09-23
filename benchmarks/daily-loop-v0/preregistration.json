@@ -4,7 +4,7 @@
   "ticket": "V1-0012",
   "requirements": ["PCCO-V0-015", "PCCO-V0-016", "PCCO-V0-017"],
   "authoredAt": "2026-09-23",
-  "candidateCommit": "1894b9e5c992d69a7cbefa4b305485494e5622c4",
+  "candidateCommit": "d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe",
   "candidateBuild": "harness.py builds ./cmd/corvint with GOTOOLCHAIN=local go build -trimpath from git archive of candidateCommit; no other binary is scored",
   "targetVersion": "0.7.0",
   "runsPerMeasurement": 3,
@@ -23,7 +23,7 @@
       "useCaseId": "UC-CHANGE-CONSEQUENCE",
       "question": "After editing, does the loop select every changed Go package for verification?",
       "cases": "every corpus case runs; only cases with consequence.eligible true are scored",
-      "treatment": "corvint --root WT affected --base FIRST_PARENT at the merge; selected = go: unit IDs. Also recorded, unscored: corvint impact --base FIRST_PARENT --range-profile expanded-256 --limit 20",
+      "treatment": "corvint --root WT affected --base FIRST_PARENT at the merge; covered = go: unit IDs in plan.selected plus the go: unit named by each plan.unknown entry with reason NO_SELECTABLE_TEST (amendment 1: a changed package with no selectable test is named for verification, not silently omitted; it is still not selected and is reported separately). Also recorded, unscored: corvint impact --base FIRST_PARENT --range-profile expanded-256 --limit 20",
       "baseline": "plain git: changed root-module Go package import paths plus every root-module package whose .go files contain the quoted import path (git grep -l -F)",
       "critical": "root-module Go packages (import paths) containing a .go file the merge added or modified; nested modules, testdata and _ or . directories excluded",
       "abstention": "exit status non-zero or ok not true; an abstention scores an empty selection and fails the job"
@@ -112,8 +112,24 @@
     "receipts": "benchmarks/daily-loop-v0/receipts/RUN_ID/USE_CASE_ID.json in corvint-use-case-evidence/0 sealed-benchmark form; result and attestation outcome are PASS or FAIL per job, subjects are this file, corpus.json and the result",
     "losingRuns": "every run file and receipt is kept, whatever its outcome"
   },
+  "amendments": [
+    {
+      "number": 1,
+      "date": "2026-09-23",
+      "ticket": "V1-0202",
+      "supersedesPreregistrationSha256": "73f178f8b1bcaaa57115c2ee9389f3a57fa3d889ee6e8a50035edeec3ae04b9d",
+      "supersedesHarnessSha256": "17b41f50ef41a2fff87625c7a4159de128280fc324136b5f5e863d7fdf32d242",
+      "changes": [
+        "jobs.consequence.treatment: coverage of a critical package also counts a plan.unknown entry with reason NO_SELECTABLE_TEST naming it (AFP-V0-020, merged in 343368d); harness.py consequence_case reads plan.unknown and records namedNoSelectableTest and covered beside selected",
+        "candidateCommit moves from 1894b9e5c992d69a7cbefa4b305485494e5622c4 (pre-fix) to d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe, the first-parent head containing AFP-V0-020",
+        "sealed.harnessSha256 resealed; corpus.json, thresholds, exclusions, baselines and every other job are unchanged"
+      ],
+      "earlierRuns": "run-001 stays as scored under the superseded digests; no run file or receipt is deleted",
+      "control": "one unsealed control run of this harness against candidate 1894b9e (the superseded candidateCommit) is recorded in docs/BUILD-LOG.md only, to show the pre-fix build still misses the five packages"
+    }
+  ],
   "sealed": {
     "corpusSha256": "412058c23a20d0b6eb643ac591180f340b63b53a75c68a93977b7625b554cde2",
-    "harnessSha256": "17b41f50ef41a2fff87625c7a4159de128280fc324136b5f5e863d7fdf32d242"
+    "harnessSha256": "4a27e8ef8b753b9c87b4d5d86da77aefe95343bd1dc980f59fdc00aa7d4c6960"
   }
 }

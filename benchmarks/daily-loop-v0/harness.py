@@ -8,6 +8,12 @@ candidate from its commit, runs every treatment and baseline, scores it, and
 writes one result plus three corvint-use-case-evidence/0 receipts. Nothing here
 estimates a value it cannot observe: live-agent dimensions stay NOT_OBSERVED
 unless an observation file is supplied.
+
+Consequence scoring rule (preregistration amendment 1, V1-0202): the treatment
+covers a critical package when `plan.selected` names a `go:` unit of that
+package, or when `plan.unknown` carries a `NO_SELECTABLE_TEST` entry whose
+detail names it (AFP-V0-020). A changed package with no selectable test is then
+named for verification rather than silently omitted; it is still not selected.
 """
 import argparse
 import hashlib
@@ -215,6 +221,10 @@ def parse_json(raw):
         return None
 
 
+def unit_packages(unit_ids):
+    return sorted({u[3:].split("::")[0] for u in unit_ids if u.startswith("go:")})
+
+
 def score(critical, treatment, baseline):
     miss_t = sorted(set(critical) - set(treatment))
     miss_b = sorted(set(critical) - set(baseline))
@@ -246,8 +256,10 @@ def consequence_case(b, case):
     runs = b.repeat([b.corvint, "--root", b.wt, "affected", "--base", case["parent"]])
     doc = parse_json(runs[0]["stdout"])
     abstained = runs[0]["exit"] != 0 or not doc or doc.get("ok") is not True
-    selected = [] if abstained else sorted({u["unitId"][3:].split("::")[0] for u in doc["plan"]["selected"]
-                                            if u["unitId"].startswith("go:")})
+    selected = [] if abstained else unit_packages(u["unitId"] for u in doc["plan"]["selected"])
+    named = [] if abstained else unit_packages(u["detail"] for u in doc["plan"]["unknown"]
+                                             if u["reason"] == "NO_SELECTABLE_TEST")
+    covered = sorted(set(selected) | set(named))
     impact = b.repeat([b.corvint, "--root", b.wt, "impact", "--base", case["parent"],
                        "--range-profile", "expanded-256", "--limit", str(PACKET_LIMIT)])
     idoc = parse_json(impact[0]["stdout"]) or {}
@@ -259,7 +271,8 @@ def consequence_case(b, case):
                           "deterministic": stability(runs), "retries": retries(runs), "abstained": abstained,
                           "scope": doc["plan"]["scope"] if not abstained else None,
                           "unknownCount": len(doc["plan"]["unknown"]) if not abstained else None,
-                          "selectedGoPackages": len(selected), "selected": selected},
+                          "selectedGoPackages": len(selected), "selected": selected,
+                          "namedNoSelectableTest": named, "covered": covered},
             "impactRange": {"argv": ["corvint", "impact", "--base", case["parent"], "--range-profile", "expanded-256",
                                      "--limit", str(PACKET_LIMIT)],
                             "runs": [observation(r) for r in impact], "latency": timing([r["wallMs"] for r in impact]),
@@ -267,7 +280,7 @@ def consequence_case(b, case):
                             "uncertainty": coverage.get("uncertainty")},
             "baseline": {"procedure": "changed-packages-plus-direct-importers", "selectedGoPackages": len(baseline),
                          "latency": timing(walls)},
-            "score": score(c["critical"], selected, baseline)}
+            "score": score(c["critical"], covered, baseline)}
 
 
 # ---------------------------------------------------------------- completion: CEM level
