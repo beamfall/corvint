@@ -10,6 +10,7 @@ import (
 const (
 	Spec01          = "cem/0.1"
 	Spec02          = "cem/0.2"
+	Spec03          = "cem/0.3"
 	ExcludedCEMPath = ".corvint/change.cem.json"
 
 	MaxMapBytes    = 4 << 20
@@ -35,6 +36,22 @@ var mechanicalReasons = map[string]bool{
 	"whitespace-only": true, "line-ending-only": true,
 }
 
+// StructuralReasons enumerates the cem/0.3 mechanical reasons proved by
+// Go structural comparison (CEM-SM-001); 0.1 and 0.2 documents reject them.
+var StructuralReasons = map[string]bool{
+	"rename": true, "move": true, "import-reorder": true, "formatter-only": true,
+}
+
+// Canonical reports whether spec is a canonical committed-change profile:
+// cem/0.2, or cem/0.3 which adds the structural reason vocabulary and the
+// optional hunk coverage witness.
+func Canonical(spec string) bool { return spec == Spec02 || spec == Spec03 }
+
+// MechanicalReason reports whether reason is registered for spec.
+func MechanicalReason(spec, reason string) bool {
+	return mechanicalReasons[reason] || (spec == Spec03 && StructuralReasons[reason])
+}
+
 // Span is a zero-based half-open raw-byte range.
 type Span struct{ Start, End int64 }
 
@@ -56,23 +73,87 @@ type Basis struct {
 	Relation   string
 }
 
-// Hunk is one mapped patch hunk.
-type Hunk struct {
-	ID          string
-	Path        string
-	OldRange    Range
-	NewRange    Range
-	Disposition string
-	Reason      string
-	Basis       []Basis
+// CoverageWitness is one hunk's optional cem/0.3 patch-coverage witness: the
+// added lines one identified test run executed according to one local
+// coverprofile (TCQ-V0-051). Covered ranges are one-based new-side line
+// ranges inside the hunk's newRange, ascending and non-adjacent; an empty
+// list is State CoverageUncovered, never an omitted witness.
+type CoverageWitness struct {
+	ProfileSha256 string
+	TestRun       string
+	Mode          string
+	State         string
+	Covered       []Range
 }
 
-// Map is a validated CEM 0.1 or 0.2 document.
+// Frozen coverage witness vocabulary.
+const (
+	CoverageCovered   = "covered"
+	CoverageUncovered = "uncovered"
+	MaxTestRunBytes   = 256
+)
+
+var coverageModes = map[string]bool{"set": true, "count": true, "atomic": true}
+
+// DiscriminationWitness is one hunk's optional cem/0.3 mutation witness: whether
+// the tests its test claims cite kill bounded mutants of the hunk's new-side
+// lines on one tree revision (TCQ-V0-056). Survivors describe every mutant
+// that lived; a hunk the run never judged carries State DiscriminationNotRun
+// with zero counts and its Detail, never an omitted witness.
+type DiscriminationWitness struct {
+	TreeRevision    string
+	SelectionSha256 string
+	Mutants         int64
+	Killed          int64
+	Survived        int64
+	Survivors       []SurvivingMutant
+	Bounds          DiscriminationBounds
+	State           string
+	Detail          string
+}
+
+// SurvivingMutant is one mutant the selected tests let live.
+type SurvivingMutant struct {
+	Operator    string
+	Line        int64
+	Description string
+}
+
+// DiscriminationBounds are the caps one discriminate run declared.
+type DiscriminationBounds struct {
+	MaxHunks        int64
+	MaxMutants      int64
+	WallTimeSeconds int64
+}
+
+// Frozen discrimination witness vocabulary.
+const (
+	DiscriminationDiscriminates = "discriminates"
+	DiscriminationSurvived      = "survived"
+	DiscriminationNotRun        = "not-run"
+	MaxDiscriminationTextBytes  = 512
+)
+
+// Hunk is one mapped patch hunk. Coverage and Discriminates are nil unless a
+// cem/0.3 witness is recorded.
+type Hunk struct {
+	ID            string
+	Path          string
+	OldRange      Range
+	NewRange      Range
+	Disposition   string
+	Reason        string
+	Basis         []Basis
+	Coverage      *CoverageWitness
+	Discriminates *DiscriminationWitness
+}
+
+// Map is a validated CEM 0.1, 0.2, or 0.3 document.
 type Map struct {
 	Spec         string
 	BaseRevision string
 	PatchSha256  string
-	ExcludedPath string // empty for 0.1; the frozen literal for 0.2
+	ExcludedPath string // empty for 0.1; the frozen literal for 0.2 and 0.3
 	Evidence     []Evidence
 	Hunks        []Hunk
 }
@@ -99,11 +180,11 @@ func ParseMap(data []byte) (*Map, error) {
 	if !present {
 		return nil, cemcode.New(cemcode.MissingField, "spec is required")
 	}
-	if spec.Kind != KindString || (spec.Str != Spec01 && spec.Str != Spec02) {
-		return nil, cemcode.New(cemcode.UnsupportedSpec, "spec must be %q or %q", Spec01, Spec02)
+	if spec.Kind != KindString || (spec.Str != Spec01 && !Canonical(spec.Str)) {
+		return nil, cemcode.New(cemcode.UnsupportedSpec, "spec must be %q, %q, or %q", Spec01, Spec02, Spec03)
 	}
 	required := []string{"spec", "baseRevision", "patchSha256", "evidence", "hunks"}
-	if spec.Str == Spec02 {
+	if Canonical(spec.Str) {
 		required = []string{"spec", "baseRevision", "patchSha256", "excludedPath", "evidence", "hunks"}
 	}
 	if err := requireClosedKeys(root.Obj, required); err != nil {
@@ -146,7 +227,7 @@ func validateFields(object *Object, result *Map) error {
 		return fieldError("patchSha256 must be 64 lowercase hex bytes")
 	}
 	result.PatchSha256 = digest.Str
-	if result.Spec == Spec02 {
+	if Canonical(result.Spec) {
 		excluded, _ := object.Get("excludedPath")
 		if excluded.Kind != KindString || excluded.Str != ExcludedCEMPath {
 			return cemcode.New(cemcode.InvalidExcludedPath, "excludedPath must be the exact string %q", ExcludedCEMPath)
@@ -175,7 +256,7 @@ func validateFields(object *Object, result *Map) error {
 		return fieldError("hunks must be an array of at most %d items", MaxHunks)
 	}
 	for _, item := range hunks.Arr {
-		record, err := validateHunk(item)
+		record, err := validateHunk(item, result.Spec)
 		if err != nil {
 			return err
 		}
@@ -248,11 +329,21 @@ func validateRange(value Value, name string) (Range, error) {
 	return Range{Start: start.Int, Count: count.Int}, nil
 }
 
-func validateHunk(item Value) (Hunk, error) {
+func validateHunk(item Value, spec string) (Hunk, error) {
 	if item.Kind != KindObject {
 		return Hunk{}, fieldError("hunks items must be objects")
 	}
 	keys := []string{"id", "path", "oldRange", "newRange", "disposition", "reason", "basis"}
+	coverageValue, hasCoverage := item.Obj.Get("coverage")
+	witnessed := hasCoverage && spec == Spec03
+	if witnessed {
+		keys = append(keys, "coverage")
+	}
+	discriminatesValue, hasDiscriminates := item.Obj.Get("discriminates")
+	discriminated := hasDiscriminates && spec == Spec03
+	if discriminated {
+		keys = append(keys, "discriminates")
+	}
 	if err := requireClosedKeys(item.Obj, keys); err != nil {
 		return Hunk{}, err
 	}
@@ -301,10 +392,99 @@ func validateHunk(item Value) (Hunk, error) {
 	}
 	hunk := Hunk{ID: id.Str, Path: path.Str, OldRange: oldRange, NewRange: newRange,
 		Disposition: disposition.Str, Reason: reason.Str, Basis: bases}
-	if err := validateDisposition(hunk); err != nil {
+	if err := validateDisposition(hunk, spec); err != nil {
 		return Hunk{}, err
 	}
+	if witnessed {
+		witness, err := validateCoverage(coverageValue, newRange)
+		if err != nil {
+			return Hunk{}, err
+		}
+		hunk.Coverage = &witness
+	}
+	if discriminated {
+		witness, err := validateDiscrimination(discriminatesValue, newRange)
+		if err != nil {
+			return Hunk{}, err
+		}
+		hunk.Discriminates = &witness
+	}
 	return hunk, nil
+}
+
+// ValidateTestRun checks the verbatim test run identity a coverage witness
+// records: non-empty, at most MaxTestRunBytes, and free of control characters.
+func ValidateTestRun(text string) error {
+	if text == "" || len(text) > MaxTestRunBytes {
+		return fieldError("coverage testRun must be 1..%d bytes", MaxTestRunBytes)
+	}
+	for _, character := range text {
+		if character < 0x20 || character == 0x7f {
+			return fieldError("coverage testRun must not contain control characters")
+		}
+	}
+	return nil
+}
+
+func validateCoverage(value Value, newRange Range) (CoverageWitness, error) {
+	if value.Kind != KindObject {
+		return CoverageWitness{}, fieldError("hunk coverage must be an object")
+	}
+	if err := requireClosedKeys(value.Obj, []string{"profileSha256", "testRun", "mode", "state", "covered"}); err != nil {
+		return CoverageWitness{}, err
+	}
+	profile, _ := value.Obj.Get("profileSha256")
+	if profile.Kind != KindString || !IsSha256(profile.Str) {
+		return CoverageWitness{}, fieldError("coverage profileSha256 must be a lowercase SHA-256 digest")
+	}
+	testRun, _ := value.Obj.Get("testRun")
+	if testRun.Kind != KindString {
+		return CoverageWitness{}, fieldError("coverage testRun must be a string")
+	}
+	if err := ValidateTestRun(testRun.Str); err != nil {
+		return CoverageWitness{}, err
+	}
+	mode, _ := value.Obj.Get("mode")
+	if mode.Kind != KindString || !coverageModes[mode.Str] {
+		return CoverageWitness{}, fieldError("coverage mode must be set, count, or atomic")
+	}
+	state, _ := value.Obj.Get("state")
+	if state.Kind != KindString || (state.Str != CoverageCovered && state.Str != CoverageUncovered) {
+		return CoverageWitness{}, fieldError("coverage state must be %s or %s", CoverageCovered, CoverageUncovered)
+	}
+	coveredValue, _ := value.Obj.Get("covered")
+	if coveredValue.Kind != KindArray {
+		return CoverageWitness{}, fieldError("coverage covered must be an array")
+	}
+	covered, err := validateCoveredRanges(coveredValue.Arr, newRange)
+	if err != nil {
+		return CoverageWitness{}, err
+	}
+	if (len(covered) > 0) != (state.Str == CoverageCovered) {
+		return CoverageWitness{}, fieldError("coverage state must agree with its covered ranges")
+	}
+	return CoverageWitness{ProfileSha256: profile.Str, TestRun: testRun.Str, Mode: mode.Str,
+		State: state.Str, Covered: covered}, nil
+}
+
+// validateCoveredRanges requires ascending, non-adjacent, non-empty line
+// ranges that lie inside the hunk's new-side range.
+func validateCoveredRanges(entries []Value, newRange Range) ([]Range, error) {
+	covered := []Range{}
+	limit := newRange.Start + newRange.Count
+	next := newRange.Start
+	for _, entry := range entries {
+		item, err := validateRange(entry, "coverage covered entries")
+		if err != nil {
+			return nil, err
+		}
+		if item.Count < 1 || item.Start < next || item.Start+item.Count > limit {
+			return nil, fieldError("coverage covered ranges must be ascending, non-adjacent, and inside newRange")
+		}
+		covered = append(covered, item)
+		next = item.Start + item.Count + 1
+	}
+	return covered, nil
 }
 
 func validateBasis(entry Value) (Basis, error) {
@@ -325,7 +505,7 @@ func validateBasis(entry Value) (Basis, error) {
 	return Basis{EvidenceID: id.Str, Relation: relation.Str}, nil
 }
 
-func validateDisposition(hunk Hunk) error {
+func validateDisposition(hunk Hunk, spec string) error {
 	switch hunk.Disposition {
 	case "supported":
 		if len(hunk.Basis) == 0 {
@@ -339,7 +519,7 @@ func validateDisposition(hunk Hunk) error {
 			return fieldError("unknown hunks require an empty basis and an unknown reason")
 		}
 	case "mechanical":
-		if len(hunk.Basis) != 0 || !mechanicalReasons[hunk.Reason] {
+		if len(hunk.Basis) != 0 || !MechanicalReason(spec, hunk.Reason) {
 			return fieldError("mechanical hunks require an empty basis and a mechanical reason")
 		}
 	default:

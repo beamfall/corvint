@@ -46,6 +46,13 @@ never repairs a record (`EEP-V0-001`).
   a local path, branch name, display name, or record filename is never an identity.
 - **V2** (`EEP-V2-001`, `EEP-V2-002`): a path relation's `from` and `to` are both
   `{repository, path[, blob]}` endpoints, each resolved independently under the V1 endpoint rules.
+- **`capabilities`** (optional on every version; `EEP-TR-012`, `EEP-TR-013`): `{"schemas": [...],
+  "evidence_kinds": [...]}` lists the complete set of record schemas and evidence kinds the provider
+  supports. Leave it out and nothing changes. Declare it and Core checks it before composing:
+  `schemas` must name the record's own schema, and `evidence_kinds` must cover every kind the
+  record uses under `impact`, or include `declared` or `observed` under `affected`. A shortfall
+  closes the provider as `unsupported` with a Core-authored reason (`blocked`,
+  `provider-unsupported` in test selection); it never widens what Core accepts.
 
 ## Running it
 
@@ -65,7 +72,8 @@ there is no shell and no `PATH` lookup (`EEP-TR-002`). The command gets empty st
 killed at the time bound (`EEP-TR-004`). Its stdout is decoded exactly as a record file
 (`EEP-TR-005`); stderr is discarded (`EEP-TR-008`), and any failure is one `unavailable` or
 `invalid` provider row with no record content (`EEP-TR-006`). It counts toward the four-provider
-bound; `corvint affected` does not take it yet.
+bound. `corvint affected --provider-command ARGV_JSON` takes the same option with the same rules
+and yields the same `test_selection` as the record file would (`EEP-TR-001`, `ETS-V0-001`).
 
 ## `context.external`
 
@@ -104,9 +112,17 @@ absolute in this slice (`EEP-V0-015`).
 by Git ancestry alone — never a timestamp — and is exactly one of `equal`, `repository-ahead`,
 `provider-ahead`, `unrelated-history`, or `revision-unavailable` (`EEP-V0-009`). Each path endpoint
 also carries `verification`: `verified` (tracked at the captured revision and, when the relation
-pins a blob, equal to it), `stale` (tracked, pinned blob differs), or `missing` (not tracked); an
-entity endpoint carries `unsupported` (`EEP-V0-010`). Verification proves the path's identity at
-that revision — it never proves the provider's statement is correct.
+pins a blob, equal to it), `stale` (tracked, pinned blob differs), `deleted` (not tracked now but
+tracked at the record's declared revision, decided only when that revision is a known commit), or
+`missing` (not tracked, and not shown to have been tracked at the declared revision); an entity
+endpoint carries `unsupported` (`EEP-V0-010`). Verification proves the path's identity at that
+revision — it never proves the provider's statement is correct.
+
+The contract keeps its accepted wire names rather than the vocabulary issue 64 proposed; the
+mapping is: `provider-is-ancestor` is freshness `repository-ahead`; `reference-missing` is
+verification `missing` or `deleted`; `not-observed` is the V1 endpoint state `not-verified`;
+`ambiguous` is identity `ambiguous` (`EEP-V1-004`); `reference-ambiguous` needs symbol identity,
+which the contract does not carry (ticket V1-0101).
 
 With EEP-V1 repositories in play, identity is `resolved`, `unresolved` (no declared origin), or
 `ambiguous` (two declared repositories share an origin) per repository, and binding is one of
@@ -117,11 +133,19 @@ endpoints, ordered `unresolved` > `stale` > `not-verified` > `fresh` (`EEP-V1-00
 ## `learned` evidence is excluded
 
 A relation's `evidence` must be `declared` (the provider's own authored statement), `observed` (a
-recorded execution or measurement), or `inferred` (derived by the provider's own rule). Any other
-value — most importantly `learned` — excludes that relation to `unknowns` instead of admitting it
-(`EEP-V0-007`). This keeps Corvint's own learning loop and any provider's model-derived guesses out
-of the receipt on the same terms: a `learned` relation never reaches `results`, `downstream`,
-`verification`, or `path_relations`, no matter how confident the provider's evidence claim.
+recorded execution or measurement), `inferred` (derived by the provider's own rule), or `generated`
+(produced by a model or heuristic with no observation behind it). Any other value — most
+importantly `learned` — excludes that relation to `unknowns` instead of admitting it
+(`EEP-V0-007`). This keeps Corvint's own learning loop out of the receipt: a `learned` relation
+never reaches `results`, `downstream`, `verification`, or `path_relations`, no matter how confident
+the provider's evidence claim.
+
+A `generated` relation is admitted, but every item it admits says so in `relation.evidence` and in
+its `reason`, so a consumer that wants only observed evidence can drop those items by that one
+member (`EEP-V0-019`). Test selection never qualifies on it: a generated test is a candidate coded
+`generated-only-evidence`, like an `inferred` one (`ETS-V0-014`). Use `generated` for a
+model-suggested or heuristic link you have not executed, and `observed` only for a link a recorded
+run or measurement supports.
 
 ## Unknowns
 
@@ -145,6 +169,13 @@ or `checkout` binding, the record is fresh, the test path is verified, and the p
 the worktree (`ETS-V0-004`, `ETS-V0-005`); anything else blocks the obligation it touches rather than
 silently narrowing (`ETS-V0-006`). A V0 record never qualifies a test at all, because it declares no
 repository identity (`ETS-V0-005`).
+
+ETS-V1 (`docs/specs/external-test-selection-v1.md`) replaces the one-hop widening with a bounded
+obligation walk of at most 4 hops and 256 entities per record that follows only declared relations
+(`ETS-V1-001`, `ETS-V1-004`); a cut blocks the edge with `obligation-depth-truncated` or
+`obligation-budget-exhausted`. It also reads each resolved checkout's dirty paths once, and a
+test side bound to a dirty or unreadable checkout blocks with `checkout-worktree-dirty` or
+`checkout-worktree-unreadable` (`ETS-V1-005`).
 
 ## Bounds and limits
 
@@ -176,10 +207,12 @@ every advice list at 64 rows with omissions counted (`ETS-V0-010`).
 - MCP and remote provider transports. MCP is a proposed profile (`EEP-TR-009`, decision 0317);
   wrap an MCP server in a local command that prints one record. A remote fetch is NO-GO on the
   default local path (`EEP-TR-010`, decision 0318).
-- Obligations more than one relation hop from a changed path; V2 widening stops at the first hop
-  (`EEP-V2-008`).
-- Inspecting a `--repository` checkout's worktree contents; a checkout binds identity only, and its
-  canonical path is never opened for inspection beyond the Git metadata EEP-V1 already reads.
+- Obligations more than 4 relation hops or 256 entities from a changed path (`ETS-V1-001`);
+  `impact` itself still widens one hop (`EEP-V2-008`).
+- Inspecting a `--repository` checkout's worktree contents beyond its Git status and metadata;
+  `affected` reads a checkout's dirty paths (`ETS-V1-005`) and nothing else in it.
+- Symbol identity (`repository-id:symbol`); ticket V1-0101. Capability negotiation is the record
+  member above (V1-0102); the `generated` kind is `EEP-V0-019` (V1-0107).
 - Feeding external evidence into the Change Frontier itself. External items stay out of the frontier
   wire (`EEP-V0-015`); `corvint obligations --cem FILE --impact FILE` instead writes a separate,
   reference-only `external-frontier-obligations/0` sidecar

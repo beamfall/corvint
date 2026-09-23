@@ -42,13 +42,14 @@ this request as "EEP slice 3".
   profile admits and which meets every condition of `ETS-V0-005`.
 - **Selected test**: the test side of a qualifying relation. **Candidate test**: the test side of
   any other relation to an obligation, listed with its exclusion code.
-- **Weak evidence**: a context type (`navigates`, `candidate`), `inferred` or excluded evidence,
+- **Weak evidence**: a context type (`navigates`, `candidate`), `inferred`, `generated`, or excluded evidence,
   or `covers` under the strict profile. It neither qualifies nor blocks.
 - **Mandatory check**: an `advice.checks` entry of kind `mandatory` (AFP-V0-009).
 
 ## Requirements
 
-- `ETS-V0-001`: `corvint affected` MUST accept `--provider FILE` (up to 4), `--repository ID=DIR`
+- `ETS-V0-001`: `corvint affected` MUST accept `--provider FILE` and `--provider-command
+  ARGV_JSON` (up to 4 together, EEP-TR command rules; amended 2026-09-22), `--repository ID=DIR`
   (up to 8, EEP-V1 binding rules), and `--selection-profile strict|coverage` (default `strict`),
   each as `--flag VALUE` or `--flag=VALUE`. `--repository` and `--selection-profile` without
   `--provider`, a repeated repository id, an unknown profile, and a missing value MUST exit 2 with
@@ -60,8 +61,9 @@ this request as "EEP slice 3".
   `note`, and `untrusted_text_fields`. Without `--provider`, the receipt MUST be byte-identical to
   a run before this slice. With it, every other receipt member MUST be byte-identical.
 - `ETS-V0-003`: `state` is exactly one of `narrow-selection-allowed`,
-  `full-relevant-suite-required`, `blocked`, or `unknown`, decided in this order: any unavailable
-  or invalid record → `blocked` (`provider-unavailable`); a plan scope that is not bounded →
+  `full-relevant-suite-required`, `blocked`, or `unknown`, decided in this order: any unavailable,
+  invalid, or unsupported record (`EEP-TR-013`) → `blocked` (`provider-unavailable`, with a
+  `provider-unsupported` blocking reason); a plan scope that is not bounded →
   `unknown` (`incomplete-affected-scope`); no changed path → `unknown` (`no-changed-paths`); any
   uncovered obligation or blocking reason → `full-relevant-suite-required` (`open-obligations`);
   otherwise `narrow-selection-allowed`. The state MUST NOT depend on how many tests were selected.
@@ -97,6 +99,9 @@ this request as "EEP slice 3".
 - `ETS-V0-013`: The member MUST carry no file body, credential, or resolved checkout directory. A
   checkout is echoed as given. `relation.rule` and `relation.reference` are listed in
   `untrusted_text_fields`.
+- `ETS-V0-014`: A `generated` relation (`EEP-V0-019`) is weak evidence: it is listed as a candidate
+  with code `generated-only-evidence`, never qualifies an obligation, and never blocks one, exactly
+  as `inferred` is treated. Added 2026-09-22 (issue 64, decision 0350).
 
 ## Non-goals and simpler baseline
 
@@ -118,10 +123,11 @@ and the EEP V0 and V1 record bounds.
 | Condition | Result |
 |---|---|
 | Record absent or invalid | `blocked`, `provider-unavailable` |
+| Declared capabilities without `declared` or `observed` evidence | `blocked`, `provider-unavailable`; blocking reason `provider-unsupported` |
 | Unbounded plan scope (for example a language frontier) | `unknown`, `incomplete-affected-scope` |
 | Changed path with no relation | `full-relevant-suite-required`, `no-external-evidence` |
 | Stale record revision on the test side | `stale-provider-revision`, blocking |
-| Test path missing or changed at the revision | `missing-path-reference` or `stale-path-reference`, blocking |
+| Test path missing or deleted, or changed at the revision | `missing-path-reference` or `stale-path-reference`, blocking |
 | Ambiguous identity or binding | `ambiguous-repository-identity`, blocking |
 | Test repository with no checkout | `unbound-test-repository`, blocking |
 | Namespaced relation type touching an obligation | `unsupported-relation`, blocking |
@@ -133,7 +139,8 @@ and the EEP V0 and V1 record bounds.
 
 | Case | Expected | Test |
 |---|---|---|
-| 23 labelled cases in `conformance-selection/cases.json` | labelled state, codes, and selected tests | `TestSelectionConformance` |
+| 33 labelled cases in `conformance-selection/cases.json` | labelled state, codes, and selected tests | `TestSelectionConformance` |
+| `generated.json`: one `observed` and one `generated` `verifies` relation to the same obligation | `narrow-selection-allowed`; only the observed test selected; the generated test a candidate coded `generated-only-evidence` | `TestSelectionConformance` |
 | Corpus evaluation | unsafe 0, precision 1, abstention exact | `TestSelectionEvaluation` |
 | Selected row fields | full provenance, `unscored`, limitations | `TestSelectionRowProvenance` |
 | Mandatory checks | echoed unchanged | `TestSelectionMandatoryEchoedUnchanged` |
@@ -154,7 +161,7 @@ without `--provider` is unchanged in both directions.
 
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
-| `ETS-V0-001` | `parseAffectedOptions` in `cmd/corvint/affected.go` | `TestAffectedSelectionArguments` |
+| `ETS-V0-001` | `parseAffectedOptions` in `cmd/corvint/affected.go` | `TestAffectedSelectionArguments`, `TestAffectedProviderCommandMatchesFile` |
 | `ETS-V0-002`, `ETS-V0-009` | `compileAffected`, `affectedSelectionInput` in `cmd/corvint/affected.go` | `TestAffectedSelectionAddsOneMemberAndKeepsEverythingElse`, `TestSelectionMandatoryEchoedUnchanged` |
 | `ETS-V0-003`, `ETS-V0-006` | `state`, `block`, `unrooted` in `internal/extevidence/selection.go` | `TestSelectionConformance`, `TestAffectedSelectionFailsClosed` |
 | `ETS-V0-004`, `ETS-V0-005`, `ETS-V0-008` | `qualify` in `internal/extevidence/selection.go` | `TestSelectionConformance` |
@@ -162,6 +169,7 @@ without `--provider` is unchanged in both directions.
 | `ETS-V0-010` | `result` in `internal/extevidence/selection.go` | `TestSelectionDeterministic`, `TestSelectionOmissionAccounting` |
 | `ETS-V0-011`, `ETS-V0-012` | `internal/extevidence/testdata/conformance-selection/` | `TestSelectionConformance`, `TestSelectionEvaluation` |
 | `ETS-V0-013` | `result`, `provenance` in `internal/extevidence/selection.go` | `TestSelectionPrivate` |
+| `ETS-V0-014` | `weakEvidence`, `weakCode` in `internal/extevidence/selection.go` | `TestSelectionConformance` |
 
 ## Unresolved decisions and promotion or kill criteria
 

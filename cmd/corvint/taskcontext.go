@@ -82,6 +82,10 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 // snapshot when `corvint index` wrote one, else one index build over the
 // committed tree; no trace, ledger, or snapshot write on any path.
 func runTaskContext(ctx context.Context, options taskContextOptions, stdout, stderr io.Writer) int {
+	// CPUPROFILE (V1-0051): operator env var, off by default, documented in
+	// cpuProfileHelpNote (help.go) and task-context-packet-v0.md's Non-goals
+	// and authority section; it writes a local diagnostic file and does not
+	// widen what this read-only command reads, returns, or mutates.
 	if profilePath := runtimeenv.Value("CPUPROFILE"); profilePath != "" {
 		profile, err := os.Create(profilePath)
 		if err != nil {

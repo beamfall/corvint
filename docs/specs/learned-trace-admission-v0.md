@@ -14,9 +14,9 @@ Authoritative inputs: `docs/decisions/0058-learning-loop-evaluation-gate-and-ret
 ## Agent digest
 - Claim: Learned-path mechanism changes require a pinned two-arm gate, while `record` reclaims unchanged trace-store caps by deterministic whole-file eviction.
 - Status: accepted (decision 0058); experimental.
-- Exists: the local trace writer and reader, Python-parity learned-path query behavior, and the baseline frozen-corpus evaluation arm.
+- Exists: the local trace writer and reader, Python-parity learned-path query behavior, the baseline frozen-corpus evaluation arm, and the read-only `skill-export` projection of admitted `passed` rows to Agent Skills documents (decision 0349).
 - Blocked on: a first registered development run under both engines; blind-v4 remains sealed.
-- Read next: `LTA-V0-001`, `LTA-V0-002`, then `LTA-V0-003`.
+- Read next: `LTA-V0-001`, `LTA-V0-002`, then `LTA-V0-003`; `LTA-V0-006` for the skill export.
 
 ## User and measurable job
 
@@ -97,13 +97,33 @@ screens shared the assignment-pattern vocabulary, which did not include `credent
   maps that kind to `unsupported-query-trace-state`, preserving `GPK-V0-044` semantics. Only `record`
   may pass such a candidate into `LTA-V0-003`'s unreachable-first retention tier; below the cap it
   remains a refusal.
+- `LTA-V0-006`: `corvint skill-export --out DIR` MUST be the only path that exports learned rules.
+  It MUST read the pinned trace store and the committed index through the ordinary trace reader,
+  MUST write only under the operator-named `DIR` and refuse a `DIR` inside the repository's
+  `.corvint` directory, and MUST NOT create or change repository or trace state. For the same
+  admitted rows it MUST produce byte-identical `SKILL.md` and `references/trace.md` files, one
+  directory per rule ordered by skill name, and a manifest that is byte-identical apart from `DIR`.
+- `LTA-V0-007`: An admitted learned rule is a stored row with outcome `passed` that the reader
+  re-validated (schema, revision, path, and stored-secret screens). Each exported skill MUST name
+  the admission evidence digest, `sha256:` over the exact row bytes the store holds
+  (`trace.Encode`), and the evaluation result verbatim. V0 records no per-row evaluation result
+  because `LTA-V0-001` admits the mechanism and never an individual row, so the value MUST be
+  exactly `NOT_RECORDED`; an export MUST NOT synthesize any other value. A `failed` or `blocked`
+  row, or a row whose digest does not re-validate, MUST NOT be exported.
+- `LTA-V0-008`: Each exported skill MUST load under the Agent Skills frontmatter contract that
+  Claude Code and Codex share: a `name` of 1 to 64 lowercase alphanumerics and single hyphens equal
+  to its directory name, a non-empty one-line `description` of at most 1,024 characters, a short
+  `SKILL.md` body, and the full paths and commands in `references/trace.md` (progressive
+  disclosure). The acceptance fixture is a Go parser shaped like a host loader; no real host runs.
 
 ## Non-goals and simpler baseline
 
 The simpler baseline is the empty-trace evaluation arm and hard refusal at the existing store cap.
 V0 does not evaluate or admit an individual user's store or row, change trace schema v1, change the
 three caps, tune learned-path constants, authorize blind-v4 observation, add wall-clock retention,
-rewrite a row, change dashboard bytes, add `auth`, or add an entropy heuristic.
+rewrite a row, change dashboard bytes, add `auth`, or add an entropy heuristic. The skill export
+(`LTA-V0-006` to `LTA-V0-008`) does not import skills, export `failed` or `blocked` rows, run a
+host, or record or synthesize a per-row evaluation result.
 
 The current secret detector in `internal/secretscreen` and the shipped Python oracle includes
 `credential|credentials|passphrase|passwd`. The 2026-09-06 user-authorized audit repair also detects
@@ -161,6 +181,12 @@ clears a published eviction; drift leaves those recovery bytes unchanged and ref
 
 The bounded replay-window read distinction is `LTA-V0-005`.
 
+Skill export fails closed with the existing read-failure codes on any trace read failure, and with
+`unsupported-query-trace-state` on a row that cannot be re-encoded or a skill-name collision; an
+unwritable `DIR` is an argument error. Because it writes only under `DIR`, no failure leaves
+partial repository or trace state. An exported directory is an operator-owned copy that grants no
+authority to its contents.
+
 ## Acceptance evidence and testing matrix
 
 | Requirement | Deterministic acceptance evidence |
@@ -169,6 +195,9 @@ The bounded replay-window read distinction is `LTA-V0-005`.
 | `LTA-V0-002` | exact-task and outcome-commit fixture contaminants each fail before scoring; registered fixture digest mismatch fails |
 | `LTA-V0-003` | a cap fixture evicts whole files in all three ancestry/outcome tiers, preserves the append target and unchanged row bytes, and fails with recovery guidance when only that target can be reclaimed; `TestAppendRepositoryDriftPreventsInterruptedRecoveryMutation` proves repository drift cannot mutate staged recovery bytes |
 | `LTA-V0-005` | a candidate older than the bounded replay window reads as kind `replay-window` with the exact diagnostic and truncated count, distinct from an unreachable revision |
+| `LTA-V0-006` | a store holding `passed`, `failed`, and `blocked` rows exports exactly one skill directory, the repository tree digest is unchanged, a second run into another `DIR` yields identical file bytes and manifest, and `--out` inside `.corvint`, a missing `--out`, or an unknown flag is refused |
+| `LTA-V0-007` | `SKILL.md` and `references/trace.md` both carry `sha256:` over `trace.Encode` bytes and `Evaluation: NOT_RECORDED`; a `failed` or `blocked` row and a row with a mismatched digest are refused |
+| `LTA-V0-008` | a loader-shaped parser reads the frontmatter, finds `name` equal to the directory within the 64-character `[a-z0-9-]` bound and a one-line `description` within 1,024 characters with control characters folded, and reloads the digest from the body |
 | writer/stored-reader screen compatibility | one shared fixture corpus proves the four baseline patterns agree; new assignment-key and quoted-property cases reject in both writers while Go/Python stored-v1 validation and both dashboard readers retain their previous result; benign quoted properties remain admissible, Git-history screening uses the current detector, and ledger output redacts the synthetic value |
 
 Blind-v4 is not acceptance evidence for this spec. A first development result is first-observation
@@ -194,6 +223,9 @@ repaired by silently changing the oracle after evaluation.
 | `LTA-V0-003` | `internal/trace`, `internal/tracerecordrepo` | focused cap-order, whole-file, append-target, and bounded-ancestry tests |
 | `LTA-V0-004` | `internal/secretscreen.Pattern`, consumed by `internal/trace` record admission and `internal/contextindex` `containsSecret` | `TestSecretPatternParityCorpus` (writer-only rows, stored-v1 non-match, and length-floor, bare-`pass` and hyphenated-host curl non-matches), `TestGoVerbosePassMarkerBoundary`, `TestScreenConsumesWholeQuotedAssignmentValue`, `TestScreenRedactsAWSSecretAdjacentToItsKeyID`, `TestScreenRedactsCredentialAfterAuthorizationScheme`, `TestScreenRedactsWholePasswordContainingAtSign`, `TestCredentialedURLPasswordStopsAtQueryFragmentOrQuote`, `TestLTAV0004RecordRefusesWriterOnlySecretShapes`, `TestSecretPatternMatchesHistorySecretShapes` |
 | `LTA-V0-005` | `internal/tracerecordrepo` | `TestReadBoundsTraceReplayWithoutRefusingLargeRepositories` (subtest `candidate outside bounded replay`) |
+| `LTA-V0-006` | `internal/skillexport`, `cmd/corvint/skill_export.go` | `TestExportProducesDeterministicBytes_LTA006`, `TestSkillExportWritesOnlyOperatorDirectory_LTA006`, `TestSkillExportInvocationFlags_LTA006` |
+| `LTA-V0-007` | `internal/skillexport` | `TestExportNamesAdmissionDigestAndEvaluation_LTA007` |
+| `LTA-V0-008` | `internal/skillexport` | `TestHostRoundTripLoadsExportedSkill_LTA008` |
 | writer/stored-reader screen compatibility | `internal/secretscreen`, `internal/trace`, `src/context_corvint_trace.py`, `internal/dashboard/adapters/trace.go`, `conformance/dashboard-snapshot-v0/trace_corpus.go` | `TestSecretPatternParityCorpus`, `TestQuotedCredentialsRejectNewRecordsButRetainStoredV1`, `TestSecretPatternMatchesHistorySecretShapes`, `TestAppendRedactsQuotedCredentialPath`, `TestScreenConsumesWholeQuotedAssignmentValue`, `TestScreenRedactsAWSSecretAdjacentToItsKeyID`, Python `SecretPatternParityTest` and `CorvintLearningTest.test_trace_inputs_fail_closed`; stored-v1 compatibility and intentional-asymmetry tests |
 
 ## Rollback
@@ -201,7 +233,9 @@ repaired by silently changing the oracle after evaluation.
 Remove the fixture registration and second arm, restoring the baseline-only report and live-store
 refusal; remove the eviction branch, restoring hard refusal at the cap; and revert both writer
 screen additions together. The reader copies remain unchanged. Rollback deletes no trace, rewrites
-no row, mutates no frozen partition, and requires no data migration.
+no row, mutates no frozen partition, and requires no data migration. Removing the `skill-export`
+verb and `internal/skillexport` restores the prior binary; exported directories are operator-owned
+copies outside the repository and need no cleanup.
 
 ## Unresolved decisions and promotion or kill criteria
 

@@ -36,7 +36,7 @@ func TestTaskmanFixtureWriteFailureReportsDiagnostic(t *testing.T) {
 	var out stdoutBrokenPipeWriter
 	var err bytes.Buffer
 	code := runWork(context.Background(), t.TempDir(), []string{"plan-fixture", "--executor", "/fixture", "--observations", "observations.json"}, &out, &err)
-	if code != 2 || !strings.HasPrefix(err.String(), "taskman fixture:") {
+	if code != 2 || !strings.Contains(err.String(), `"output-failed"`) {
 		t.Fatalf("code=%d stdout=%q stderr=%q", code, out.String(), err.String())
 	}
 }

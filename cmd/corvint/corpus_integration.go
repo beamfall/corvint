@@ -122,10 +122,10 @@ func runCorpusIntegration(ctx context.Context, args []string, stdin io.Reader, s
 	var captured corpusCapture
 	exit := runContext(ctx, original, stdin, &captured, stderr)
 	if exit != 0 {
-		if _, err := stdout.Write(captured.bytes.Bytes()); err != nil {
-			emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write native output"})
-			return 2, true
-		}
+		// The native command already wrote its own error envelope to stderr; a
+		// failed copy of its (usually empty) stdout here must not append a
+		// second envelope on the same stream.
+		_, _ = stdout.Write(captured.bytes.Bytes())
 		return exit, true
 	}
 	var native map[string]json.RawMessage

@@ -9,10 +9,10 @@ Authoritative inputs: `AGENTS.md` invariant 7, `docs/specs/external-evidence-pro
 `internal/procgroup`, and the feature request Beamfall/corvint#11.
 
 ## Agent digest
-- Claim: `corvint impact --provider-command ARGV_JSON` runs one contained local provider command and decodes its stdout exactly as a record file.
+- Claim: `corvint impact` and `corvint affected --provider-command ARGV_JSON` run one contained local provider command and decode its stdout exactly as a record file.
 - Status: accepted (decisions 0316, 0317, 0318)/implemented; checked by `TestCommandTransportConformance`.
 - Exists: `internal/extevidence/transport.go` and the `--provider-command` option; MCP and optional HTTPS are governed by decisions 0324 and 0325.
-- Blocked on: no in-scope delivery prerequisite; `corvint affected` does not take `--provider-command` yet.
+- Blocked on: no in-scope delivery prerequisite.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Traceability.
 
 ## User and measurable job
@@ -43,14 +43,19 @@ way the command can fail is one closed provider row with no partial record.
   in the receipt as `command:` followed by the compact JSON argv.
 - **transport failure**: any outcome in which the command did not run to a clean zero exit within
   its bounds with its process group proven cleaned up.
+- **capability declaration**: the optional top-level record member `capabilities`, carried by the
+  record bytes themselves on every transport, in which a provider lists the complete set of record
+  `schemas` and relation `evidence_kinds` it supports (added 2026-09-22, decision 0351).
 
 ## Requirements
 
 - `EEP-TR-001`: The command transport MUST be selected only by `corvint impact --provider-command
-  ARGV_JSON`. A `--provider` value is always a file path, whatever it spells, and never launches a
-  process. `--provider-command` MAY repeat; together with `--provider` it counts toward the shared
-  four-provider bound and carries the same incompatibilities (`--base`, `--working-tree-untracked`)
-  and the same `--repository` pairing. No other verb launches a provider command in this slice.
+  ARGV_JSON` and `corvint affected --provider-command ARGV_JSON` (affected added 2026-09-22). A
+  `--provider` value is always a file path, whatever it spells, and never launches a process.
+  `--provider-command` MAY repeat; together with `--provider` it counts toward the shared
+  four-provider bound and, under `impact`, carries the same incompatibilities (`--base`,
+  `--working-tree-untracked`) and the same `--repository` pairing; under `affected` it carries the
+  ETS-V0-001 dependencies of `--provider`. No other verb launches a provider command.
 - `EEP-TR-002`: `ARGV_JSON` MUST be one JSON array of 1 to 32 strings, at most 4096 bytes, valid
   UTF-8, with no trailing content and no NUL byte in any element; element 0 MUST be an absolute,
   clean executable path. Core makes no `PATH` lookup and invokes no shell. Any defect is an argument
@@ -94,6 +99,26 @@ way the command can fail is one closed provider row with no partial record.
   The trusted local executable and parent paths MUST stay immutable between hashing and launch;
   concurrent hostile substitution is outside this local operator trust contract. Executable hashing
   precedes the runner timeout. A saved invocation's expected pins MUST NOT update automatically.
+- `EEP-TR-012`: A record on any transport MAY carry one optional top-level member `capabilities`
+  with the optional lists `schemas` and `evidence_kinds`, each of at most 32 unique identifiers
+  under the `EEP-V0-012` identifier bound. An absent member, or an absent list inside it, is
+  undeclared and changes nothing: a record without the member decodes and composes exactly as
+  before. A present list, even empty, is the complete set the provider supports. Any other member
+  inside `capabilities`, a duplicate, or a non-identifier makes the record
+  `invalid` under `EEP-V0-001`. No transport adds a handshake of its own: negotiation is the
+  record member.
+- `EEP-TR-013`: When a list is declared, Core MUST check it against what the invocation requires
+  before anything from the record composes: `schemas` must contain the record's own `schema`;
+  under `impact`, `evidence_kinds` must contain every kind a relation in the record uses; under
+  `affected`, `evidence_kinds` must contain `declared` or `observed`, the only kinds that qualify
+  a selection (`ETS-V0-005`). A missing requirement yields one provider row in the closed state
+  `unsupported` whose reason is Core-authored, names the provider id and the first missing
+  capability, and carries nothing from the record: no `results`, `downstream`, `verification`,
+  `path_relations`, or `unknowns` under `impact`, and `blocked` (`provider-unsupported`) under
+  `affected`. The check is deterministic: the same bytes and verb always yield the same row.
+- `EEP-TR-014`: A declared capability never widens what Core accepts: an unknown identifier in
+  either list is carried as declared and ignored, `learned` stays excluded whether or not it is
+  declared, and no declaration changes ranking, authority, freshness, or the core receipt.
 
 ## Non-goals and simpler baseline
 
@@ -103,8 +128,6 @@ way the command can fail is one closed provider row with no partial record.
   multi-record protocol, no retries, and no caching of command output.
 - No sandbox of the executable's own behaviour: Corvint bounds and contains the process it launches
   but does not claim to confine what an operator-chosen executable does.
-- `corvint affected --provider-command` is not in this slice; the affected verb's option parsing is
-  owned by the ETS-V0 lane.
 - No general-purpose MCP client and no network client in Core.
 
 ## MCP profile (accepted bounded stdio)
@@ -138,6 +161,7 @@ data at all. Core assigns authority and writes every failure reason.
 | Process group not proven cleaned up | `unavailable` | `command process group not proven cleaned up` |
 | Malformed, trailing, or schema-invalid stdout | `invalid` | the file transport's decode reason |
 | Invalid `ARGV_JSON` | argument error | nothing launched |
+| Declared `capabilities` omit the record schema or a required evidence kind | `unsupported` | `provider ID declares capabilities without schema S` or `... without evidence kind K` |
 
 ## Deterministic acceptance and testing matrix
 
@@ -152,29 +176,41 @@ data at all. Core assigns authority and writes every failure reason.
 | Probe secret and `HOME` in the parent environment | child sees only the four permitted names, empty stdin, the repository root |
 | `command:[...]` passed as `--provider` | read as a file path; `unavailable` |
 | `impact --provider-command '["/bin/cat",RECORD]'` | receipt equals `--provider RECORD` apart from `source`; `mutates: false`; worktree unchanged |
+| `affected --provider-command '["/bin/cat",RECORD]'` | `test_selection` equals `--provider RECORD` apart from `source`; a fifth provider by command is refused |
+| Record without `capabilities` | `Capabilities` nil; state, receipt, and every existing fixture unchanged |
+| `capabilities` covering the record's schema and every used kind | `loaded`; receipt equals the undeclared record's |
+| `capabilities.evidence_kinds` omitting a used kind, or `schemas` omitting the record schema (including an empty list) | `unsupported`; Core-authored reason; empty `results`, `downstream`, `verification`, `unknowns` |
+| `affected` with `evidence_kinds: ["observed"]`; with `["inferred"]` | `narrow-selection-allowed`; `blocked` with `provider-unsupported` |
+| Unknown member inside `capabilities`; duplicate entry; empty identifier | `invalid` |
 
 ## Rollout, rollback, and compatibility
 
 The option is additive; a caller that never passes `--provider-command` observes no change. Rollback
 removes `internal/extevidence/transport.go`, the command branch in `load`, the
 `--provider-command` option and help text, this document, decisions 0316 to 0318, and their index
-rows. The `decodeRecord` extraction in `section.go` is behaviour-preserving and may stay.
+rows. The `decodeRecord` extraction in `section.go` is behaviour-preserving and may stay. The
+capability declaration (decision 0351) rolls back on its own by removing `Capabilities` from both
+record types, `rootRepository.unsupported`, and `StateUnsupported`; a record carrying the member
+then becomes `invalid` under strict decode, and every other record is unchanged.
 
 ## Traceability
 
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
-| `EEP-TR-001` | `cmd/corvint/main.go`, `internal/extevidence/transport.go` | `TestImpactProviderCommandFlagParsing`, `TestCommandTransportSelectedOnlyExplicitly` |
+| `EEP-TR-001` | `cmd/corvint/main.go`, `cmd/corvint/affected.go`, `internal/extevidence/transport.go` | `TestImpactProviderCommandFlagParsing`, `TestCommandTransportSelectedOnlyExplicitly`, `TestAffectedSelectionArguments` |
 | `EEP-TR-002` | `internal/extevidence/transport.go` | `TestCommandTransportSelectedOnlyExplicitly`, `TestImpactProviderCommandFlagParsing` |
 | `EEP-TR-003` | `internal/extevidence/transport.go` | `TestCommandTransportContainment` |
 | `EEP-TR-004` | `internal/extevidence/transport.go` | `TestCommandTransportFailuresAreClosed` |
-| `EEP-TR-005` | `internal/extevidence/section.go` | `TestCommandTransportConformance`, `TestImpactProviderCommandEndToEnd` |
+| `EEP-TR-005` | `internal/extevidence/section.go`, `internal/extevidence/selection.go` | `TestCommandTransportConformance`, `TestImpactProviderCommandEndToEnd`, `TestAffectedProviderCommandMatchesFile` |
 | `EEP-TR-006` | `internal/extevidence/transport.go` | `TestCommandTransportFailuresAreClosed` |
 | `EEP-TR-007` | `cmd/corvint/main.go` | `TestImpactProviderCommandEndToEnd` |
 | `EEP-TR-008` | `internal/extevidence/transport.go` | `TestCommandTransportFailuresAreClosed` |
 | `EEP-TR-009` | `internal/extevidence/mcp.go`; decision 0324 | `TestMCPTransportConformance` |
 | `EEP-TR-010` | this document; decision 0318 | review: no network client in `internal/extevidence` |
 
+| `EEP-TR-012` | `Capabilities`, `validateCapabilities` in `internal/extevidence/record.go`; `Record1` in `record1.go` | `TestCapabilitiesNegotiation`, `TestCapabilitiesDecodeStrict` |
+| `EEP-TR-013` | `rootRepository.unsupported`, `decodeRecord` in `internal/extevidence/section.go`; `Selection` in `selection.go` | `TestCapabilitiesNegotiation`, `TestSelectionConformance` |
+| `EEP-TR-014` | `rootRepository.unsupported` in `internal/extevidence/section.go`; `evidenceKinds` in `compose.go` | `TestCapabilitiesNegotiation` |
 | `EEP-TR-011` | `internal/extevidence/pin.go`, `examples/evidence-provider/v0/check/main.go` | `TestProviderKitCommandPins`, `TestCommandTransportContainment`, `TestCommandTransportFailuresAreClosed`, `TestRunProcessInterruptionLeavesNoDescendant`, `TestSupervisorSignalReapsNestedOwnedGroup` |
 
 The kit checker is additive and experimental (V1-0027); its `/0`, `/1`, `/2` compatibility window
@@ -187,4 +223,3 @@ checker/pin helper and its requirements; no existing command transport changes a
   run against a real repository, plus the EEP-V0 promotion evidence.
 - Kill if a command-transport receipt ever differs from the file-transport receipt for the same
   bytes apart from `source`, or if any transport failure is observed to yield record content.
-- `corvint affected --provider-command` is a follow-up once the ETS-V0 lane's parsing is stable.

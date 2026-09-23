@@ -1822,3 +1822,819 @@ The known gap is not relabeled unassessed. The new source invalidates target-bou
 prior passes remain historical and mandatory checks must bind the replacement candidate. The
 optional companion is omitted under decision 0331 because its separate installed browser stage
 reached its three-minute timeout; that failure's root cause remains UNKNOWN.
+
+## 2026-09-22 context-repository-anchors: TCP-V0-022 opt-in verbatim anchor field (V1-0084, decision 0333)
+
+Contract: with `CORVINT_CONTEXT_ANCHORS=on`, five fixed anchor classes (quoted error string,
+URL, `Scope::Value` enum, dotted config key, `file.ext:line` frame) are extracted from the task
+and verified verbatim under a whole-anchor edge rule against the bounded bodies of the sources
+whose `Words` postings share every word run of the anchor. Credit is the body-term BM25 form
+inside the lexical slot; the reason carries the distinct prefix `anchor: `literal` xN verbatim; `;
+the row keeps score 300 and authority `vocabulary`, so reserved authority rows always precede it.
+Bounds: 4 to 256 bytes per literal, 16 anchors per task, 512 candidates per anchor (abstain
+beyond). No index, snapshot or pack change; unset or other flag values keep the packet bytes
+(`TestContextAnchorsDefaultBytes` against the recipe golden).
+
+Decision: opt-in rather than default, the TCP-V0-019 shape, because the promotion evidence cannot
+be produced on this host. Decision number: 0321 was assigned but already names the work-queue
+adoption record on `main`; 0333 is used.
+
+Evaluation: NOT_RUN. The frozen retrieval evaluation is `tools/retrieval-bench` over the external
+`agent_retrieval_bench` releases (`benchmark/v2_*/…jsonl`, `corpus/v2_*`); neither directory is
+present on the build host, so no flag-off/flag-on numbers exist. The bench also has no
+anchor-bearing sample subset, so "anchor-bearing queries measured separately" needs a bench change
+outside this ticket's ownership. The acceptance criterion is open, not met.
+
+Gates: `go test ./internal/contextindex/ ./internal/specindex/`, `go vet`, gofmt, and the spec,
+requirement, traceability, decision-number and line-citation checks; results in the ticket
+report.
+
+Audit review (IDX-SNAP-V0-017): the change adds `context_anchors.go` and edits `taskcontext.go`
+and `context_terms.go` on the query side only; no extraction, fact or pack encoding changes, so
+`analyzerSchemaID` stays `corvint-analyzer/73` and only the `TestAnalyzerSchemaInputs` source
+digest is refreshed.
+## 2026-09-22 tcq-environment-variants-and-flake-qualifier: shared flake rule and declared observation variants
+
+Ticket `V1-0091`, decision 0339, requirements `TCQ-V0-048..050` in
+`docs/specs/test-claim-qualification-v0.md`. A test observation may now declare a ResultDB-style
+environment variant (`environment` object, key grammar `^[a-z][a-z0-9_]{0,63}$`, at most 32 pairs,
+values at most 256 bytes); an undeclared variant is reported unknown and adds no wire member, so the
+frozen `conformance/tcq-0` vectors are byte-identical. `tcq.Flaky` is the one divergence rule: more
+than one distinct terminal status among `PASSED`/`FAILED`/`ERROR` across runs. `Request.PriorObservations`
+(at most 16, dynamic tuple only, target-bound) lets TCQ pool row statuses per execution key across
+byte-identical variants; a divergent key adds reason 18 `test-flaky` to claims that matched a row and
+removes the relation while the current report state stands. The JS provider derives its Playwright
+state and `flaky-retry` reason from the same rule over recorded attempts; a reporter label can only
+add the qualification. Evidence: `TestObservationEnvironmentIsAdditive`,
+`TestFlakyRuleNeedsDivergentTerminalOutcomes`, `TestSameRevisionDivergentOutcomesAreFlaky`,
+`TestPriorObservationVariantMismatchIsNotFlaky`, `TestPriorObservationsRequireDynamicTupleAndTarget`
+(`internal/tcq/flake_test.go`), `TestFlakyOutcomeIsSharedRule`
+(`internal/jstestprovider/projection_test.go`). Not done here: the frontier CF-V0-016 closed
+vocabulary and `docs/tcq-0.schema.json` do not yet list `test-flaky` or `observation.environment`;
+the frontier shim supplies no priors, so neither can reach them today.
+## 2026-09-22 V1-0009 read-only compiler qualification: case-fold collisions and a read-verb tripwire
+
+Two hostile-path tests and one filesystem tripwire qualify the read-only Core evidence compiler
+(ticket V1-0009, requirements GPK-V0-006 and GPK-V0-007; no requirement text changed). The
+case-fold fixture commits `internal/token/token.go` and `internal/token/Token.go` through Git
+plumbing (`hash-object`, `update-index --cacheinfo`, `write-tree`, `commit-tree`) so it exists on
+case-insensitive macOS, where the worktree can hold only one file. Measured on APFS: `Build`
+pins each path to its own committed blob (token.go f3c6b480, Token.go bc6664aa), never the other
+case's bytes; `DirtyPaths` equals Git's ` M internal/token/Token.go`; `query` and path `impact`
+report freshness `mixed-worktree` naming that path and `learning.local_trace_state`
+`blocked-mixed-worktree`; `context` returns both rows under distinct blob hashes; range `impact`
+refuses `unsupported-impact-worktree` (exit 2); two consecutive runs of every verb are
+byte-identical. No verb silently picks one file, so no kernel change and no `t.Skip` was needed.
+The case-sensitive branch of both tests (no dirty path, `fresh`, range impact accepted) is
+written but not measured locally. `TestReadOnlyVerbsWriteNothing` snapshots the whole fixture
+tree, `.git` and `.corvint` included, as path to kind, mode, sha256 and mtime before and after
+`init`, `adopt`, `query` (with and without the `unplanned-reads.enabled` marker), path `impact`,
+`docs draft`, `harness event` session-start and stop, and `lrf`; the only permitted delta is the
+one self-observation row on session-start with `.corvint/` gitignored. A negative run over
+`index` tripped the comparison on the index files, so the tripwire is live. No decision was
+recorded: tests alone need none, so the reserved number 0342 stays unused. Gates run: gofmt, `go build ./...`, `go vet ./...`,
+`go test ./cmd/corvint/ -run 'ReadOnlyVerbs|CaseFold'` (also `-count=5`),
+`./internal/contextindex/...` and `./internal/specindex/` fully, and the spec-requirements,
+requirement-definitions, traceability-tests, decision-numbers and line-citations checks. Open
+observation for follow-up: the `context` receipt carries no freshness block, so the worktree
+divergence reaches a `context` caller only through the blob hashes, not a named state.
+## 2026-09-22 stable-operations: V1-0017 lifecycle check, hostile matrix, support window, command runbook
+
+Decision 0341 and `docs/specs/stable-operations-v0.md` (`SOP-V0-001`..`012`). Two additive shell
+checks, no Go change. `script/check-install-lifecycle.sh` ran the eight steps against a built
+binary in 2.5 s and its wrapper (two stamped builds, archive path, tampered `SHA256SUMS`, usage)
+in 9.3 s. `script/check-hostile-regressions.sh` ran 27 rows over 12 packages, all PASS, in 28.9 s
+with `memory` and `case-folds-context-index` printed NOT_COVERED; its stub-driven wrapper passed in
+4.5 s. Independent finding against the ticket wording: a truncated or byte-damaged snapshot does
+not fail closed; the read verb exits 0 with byte-identical packet output and leaves the file
+untouched, and `index --if-stale` rebuilds a same-size snapshot that differs in 460 bytes, so the
+spec fixes packet identity as the recovery invariant and leaves snapshot byte identity to
+`index-snapshot-v0.md`. The brief presumed case-fold and interruption cleanup uncovered; both have
+tracked regressions and sit in the matrix. Evidence is darwin arm64 only; other hosts NOT_RUN. No
+frozen evaluation applies to this operations slice. Proposed `make` targets
+`install-lifecycle-test`, `hostile-regressions-check`, `hostile-regressions-test` are not added
+here. `docs/SECURITY.md` still says the support window is a draft owner decision and is stale
+against `SECURITY.md`.
+## 2026-09-22 cem-0-3-structural-mechanical: Go structural mechanical reasons the verifier re-proves
+
+Ticket V1-0087, decision 0338, spec `docs/specs/cem-0.3-structural-mechanical.md` (`CEM-SM-001..010`).
+`cem/0.3` is `cem/0.2` plus `rename`, `move`, `import-reorder`, and `formatter-only`; 0.1 and 0.2
+maps still reject that vocabulary, `prepare` still emits 0.2, and `mark` upgrades only when a
+structural reason is used. Each reason is recomputed from the base blob and the patch with the Go
+standard library and refused as `unproven-mechanical` on any parse or format failure. Fixture
+pairs cover a true positive and a near-miss per class (a hidden `"hello"`/`"hi"` edit, a
+`ToUpper`/`ToLower` swap, a shadowing rename, a `helper(21)`/`helper(22)` edit), plus selector,
+exported, directive, `var`-order and `init`-order refusals. One admitted overlap: gofmt sorts
+imports, so an import reorder is also formatter-only. No frozen evaluation exists for mechanical
+classification precision; the reviewer-audit kill gate in `docs/CHANGE-EVIDENCE-MAP.md` (20%
+false classification) is the only measured bar and was not exercised here. Not shipped: a
+`cem-0.3.schema.json` and `protocol/cem-0.3` vectors (Apache-2.0 boundary), frontier and dashboard
+profile acceptance, exported or type-aware renames, non-Go languages.
+## 2026-09-22 issue 64 close-out: `deleted` verification, `affected --provider-command`, vocabulary mapping
+
+Issue Beamfall/corvint#64 (generic revision-aware provider contract) was audited in 54fe6c3 as
+mostly delivered by EEP-V0/V1/V2, ETS-V0/V1 and EFO-V0; this change closes the actionable
+remainder. `EEP-V0-010` gains `deleted`: an untracked path endpoint whose path the record's
+declared revision tracked, decided by one extra `git cat-file --batch-check` per view per
+repository over the untracked paths only, and only when freshness is `repository-ahead`,
+`provider-ahead`, or `unrelated-history` (so a `revision-unavailable` record can never claim
+deletion). `deleted` is stale for `EEP-V1-008` and keeps the ETS code `missing-path-reference`,
+so no selection wire changes (`TestReferenceVerificationDeleted`,
+`TestTwoRepositoryDeletedTestPath`). `corvint affected` now takes `--provider-command ARGV_JSON`
+under the same parser and bound as `--provider` (`EEP-TR-001`, `ETS-V0-001`,
+`TestAffectedProviderCommandMatchesFile`). The issue's freshness vocabulary is mapped onto the
+accepted wire names rather than renaming them (recorded in `docs/EXTERNAL-EVIDENCE-PROVIDERS.md`):
+`provider-is-ancestor` is `repository-ahead`, `reference-missing` is `missing`/`deleted`,
+`not-observed` is `not-verified`, and `reference-ambiguous` needs symbol identity (V1-0101).
+Ticket V1-0104's premise was wrong: `--provider-mcp` never existed and the guide's MCP bullet was
+accurate; the guide's stale bullets were the two ETS-V1 items (one-hop widening, no checkout
+inspection), now corrected. V1-0101, V1-0102, V1-0107 and V1-0108 stay open. Port note: this entry was
+reapplied from the old lineage onto the public history, where `impact --provider-mcp` does exist
+(decision 0324); the guide's MCP bullet on this lineage is a pre-existing follow-up, not part of
+this change.
+## 2026-09-22 ocm-v0-conformance-vectors: freeze the OCM V0 proof wire in `conformance/ocm-v0/`
+
+Ticket V1-0013, decision 0343, requirement `OCM-V0-014`. The suite freezes 25 structural vectors
+(5 valid, 20 hostile) and 4 fixtures with 19 verifier cases for `ocm/0.1-experimental`. Valid
+vectors are the byte output of the real `prepare`, `link`, and `mark` producers over a
+deterministic seed repository with pinned Git identity and dates; `TestFrozenVectorsMatchTheRealProducer`
+rebuilds all 5 universes on every run and requires byte equality. Every vector runs through the
+real structural parser and every fixture case through the real `status` verifier; no double is
+used. All 25 declared refusal codes matched the parser on the first run and no vector exposed a
+defect, so `internal/lrfrepo` is unchanged. Two outcomes are frozen as observed: an extra top-level
+member refuses with `unknown-field` (closed object), and a bound OID absent from the repository
+refuses with `repository-object-unavailable`, ahead of `target-mismatch`. The package test runs
+in about 24 s on a quiet host, dominated by Git subprocesses for the 9 universes it builds.
+## 2026-09-22 batch-A cmd/corvint chores: V1-0030 V1-0047 V1-0048 V1-0051 V1-0052
+
+Five queued `cmd/corvint` chores closed together, all read/write behavior only, no wire or
+requirement-ID change. V1-0047: `taskman fixture`'s stdout-write failure now emits the same
+`output-failed` error envelope as every other command instead of a bare stderr line
+(`taskman_fixture.go`); the stale plain-text assertion in `taskman_fixture_test.go` and a new
+case in `output_write_failure_test.go` cover it. V1-0048: the corpus relay's stdout-copy-failure
+path (`corpus_integration.go`) no longer appends a second `output-failed` envelope after a failed
+native command has already written its own; `docs_corpus_test.go` asserts the resulting stderr is
+byte-identical to the native-only baseline. V1-0052: `docs_corpus_test.go` gained a pinned test for
+`--root --corpus=FILE`, confirming `--corpus` is not consumed as `--root`'s value and the native
+command instead refuses it with `--corpus is supported only on native evidence reads`. V1-0051:
+documented the operator-set `CPUPROFILE` env knob (`context` and the harness-event path) in
+`help.go`'s `context`/`harness event` help text and in `task-context-packet-v0.md`'s Non-goals and
+authority section; no flag added, no requirement ID touched. V1-0030: the advertised
+`docs draft`/`docs consume` example (`docs.go`, `source-documentation-draft-v0.md`) referenced
+`internal/doccompiler`, which exceeds the SDD-V0-005 64-declaration bound and fails
+`documentation-limit-exceeded` when actually run; replaced with `internal/docmaintain --task
+Preview`, verified live against the built binary. `TestDocsHelpPrerequisitesAndWorkingExample` no
+longer runs the parsed example against a synthetic fixture package that happened to export only
+one declaration; it now runs `--root $(cd ../.. )` against this repository's own committed HEAD
+source, so it would have caught the original bound violation.
+
+Gates run: `gofmt -l` on the changed files, `go build ./...`, `go vet ./...`, the targeted tests
+above plus `TestImpactAndHarnessHelpExposeActualLimitsAndUnsupportedProfiles` and
+`TestSupportBoundaryDisclosesTheSelfObservationLedgerWrite`, `internal/specindex`'s
+`TestIndexCoversSpecsAndHeaders`, and `make spec-requirements-check requirement-definitions-check
+traceability-tests-check decision-numbers-check line-citations-check` — all pass. `REQUIREMENTS.tsv`
+unchanged (prose-only spec edits, no requirement IDs touched). No decision record: no published
+wire contract, spec bound, or refusal vocabulary changed; the envelope fixes bring two call sites
+into line with the pattern already used elsewhere in the same files. Full `go test ./...` was not
+run for this scoped batch (per `AGENTS.md`'s Verify section, exhaustive gate reserved for the
+terminal boundary); only the targeted tests above and the listed `make` checks were executed.
+## 2026-09-22 batch C: bounded lists, published bounds and redundant-parse cleanup
+
+Six scoped fixes closed from the agent-memory backlog. V1-0043 (BBF-V0-010): `validateControl`
+now caps `UnrelatedCriteria` and `RequiredSetup` at 1000 entries each (`maxControlListLength`,
+decision 0336), so `acceptedReceiptBound` can no longer exceed the 32 MiB document bound; math and
+rollback are in `docs/decisions/0336-behaviorfalsify-control-list-cap-2026-09-22.md`. V1-0046
+published both previously-unstated bounds next to their spec rows with no new requirement IDs:
+`externalMaxConfigInputs` (256) beside PWP-V0's `config-inputs-unobserved`, and the 10s
+`cleanupReserve` beside BBF-V0-010; PWP-V0's row also notes the current code path actually refuses
+an over-count as `report-output-overflow`, not `config-inputs-unobserved`, ahead of the ticket's
+framing. V1-0045: `RunUnit`'s report read now uses its own `unitReportOutputLimit` (16 MiB, equal
+to `defaultOutputLimit`) instead of the external provider's 4 MiB `externalOutputLimit`, cited in
+`js-live-test-provider-v0.md`'s `report-not-written` row. V1-0056: `qualified-reporter.cjs` now
+memoizes `--version` per executable path (`observedVersions`, mirroring `bundledBrowsers`); Go's
+`sensitive_input_boundary.go` builds one `strings.Replacer` per receipt instead of one
+`ReplaceAll` per sensitive value per field, preserving the existing longest-first prefix ordering
+(`TestSensitiveInputPrefixOverlappingValuesRedactLongestFirst` still passes unmodified in intent,
+call-site signature only). `application_attestation.go`'s "read the executable three times" item
+does not apply to the current file: it has exactly two content reads, at prepare-time (stage and
+digest) and inside `unchanged()` (later drift re-check), which are semantically required to happen
+at different times and cannot be merged without breaking drift detection; left untouched. The "JS
+emits paths only" companion item was skipped per the batch brief, since it is not a pure removal.
+V1-0058: `internal/extevidence/mcp.go` dropped the two `mcpObject(...)`-then-`strictMCP(...)`
+redundant pairs whose `mcpObject` result was already discarded (`mcpResponse`'s envelope decode,
+and the initial handshake's `info` decode), since `strictMCP` alone already re-derives the same
+duplicate-key and unknown-field checks; content/isError decoding, which uses its `mcpObject`
+return value, is unchanged. V1-0057: `candidateAdjacency` (`internal/workqueue/proposal.go`) now
+calls a new allocation-free `overlaps` helper instead of `len(intersection(...)) == 0`, dropping
+the per-pair slice allocation and sort; `TestCandidateAdjacencyGroupOverlap` pins the adjacency
+edges. All six changes keep existing test suites green; behaviorfalsify, jstestprovider,
+extevidence and workqueue package tests all pass. UNKNOWN: whether the PWP-V0 `config-inputs-
+unobserved` naming mismatch found while doing V1-0046 needs its own ticket, versus being purely a
+documentation clarification — left as a note rather than filed separately.
+## 2026-09-22 claude-code-compaction-pin-hooks: PreCompact/PostCompact pin verdict for V1-0094
+
+Decision 0340 registers `PreCompact` and `PostCompact` on the Claude Code plugin (AHI-026 to
+AHI-030). The hook names, payload fields and stdout routing were read from the installed Claude
+Code 2.1.267 hook runner; no further compaction event exists there to register. `pre-compact`
+prints a `corvint-compaction-pin/0` line (HEAD tree, dirty-path counts, at most 24 tracked dirty
+paths) that the host joins into the compactor's instructions; `post-compact` re-validates the pin
+the summary preserved, checks the tree and each path with one hermetic read-only `cat-file`, and
+prints a `corvint-compaction-report/0` line naming every non-rehydratable path. The host shows that
+report to the user only, so the model-facing rehydration remains `SessionStart(source=compact)`,
+which now opens with a disclosure saying so; a host without the events ignores the registration
+and that disclosure plus `compatibility.json` `compactionHooks` keep the gap visible. Evidence:
+`TestAHI026`..`TestAHI029` in `cmd/corvint/host_adapter_compaction_test.go`, the AHI-030
+assertion in `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths`, and the extended
+`TestAHI017AdapterHostKillMatchesDeclaredHooks`. Live compaction cycle NOT_RUN; black-box status
+STATIC_ONLY; no frozen evaluation fits (the CEP §3 gate is an unrun 30-task three-cycle trial).
+The plugin version stays 0.2.2 because `integrations/host-adapters.test.mjs` binds it to the
+shared compatibility matrix this change does not own.
+## 2026-09-22 opencode-mcp-verify: V1-0022 verified at HEAD with real OpenCode sessions
+
+The ticket's repair, the explicit `--protocol-version 2025-11-25` profile (`MCPV0-021..023`), was
+already on the public lineage before this batch; this entry records the verification of the
+current tree against freshly built `corvint-mcp`, `corvint-docs-mcp` and
+`corvint-test-validity-mcp`. Replaying the captured OpenCode `initialize` frame
+(`protocolVersion` `2025-11-25`, `capabilities.roots` `{}`, `clientInfo` opencode) without the
+selector still returns `{"code":-32601,"message":"Method not found"}`, the frame the owner report
+reduced to; with the selector it returns `protocolVersion` `2025-11-25`, `serverInfo` and the
+tools capability, then `tools/list` succeeds. Two installed clients, `/opt/homebrew/bin/opencode`
+reporting 1.18.31 and `~/.opencode/bin/opencode` reporting 1.17.18, each ran an isolated
+`opencode mcp list` (three servers `connected`) and a non-interactive `opencode run` session
+against a deterministic loopback provider under a native outbound-network sandbox. Each session
+completed `corvint.status`, `corvint.query`, `corvint.impact`, `corvint.test_validity`
+(`discover: true`, evidence absent, `UNSUPPORTED`) and `corvint.docs_draft`; every repository
+receipt pinned the fixture commit. Both clients send `notifications/cancelled` for every
+`tools/call` after its response; the server ignores them, now pinned by
+`TestMCPV0022LegacyCancelledAfterCompletionIsIgnored`. A first docs call refused a fixture whose
+owner Markdown lacked an Agent digest (`unsupported-documentation-source`), a visible tool
+refusal, not a transport failure. The provider was a transport fixture, not model evidence; the
+owner's original failing machine and configuration remain UNKNOWN, and no FULL host authority is
+claimed. Raw frames and receipts are retained under the session scratchpad `opencode-v1-0022/`.
+## 2026-09-22 gate-affected floor and dogfood rg dependency: V1-0059, V1-0081, V1-0038, V1-0031
+
+V1-0059: `link()` in `tools/gate-affected-select/readers.go` wired a string literal naming a
+package directory as an importer edge whether or not the literal sat in a `_test.go` file. A test
+file is never imported, so its holder's importers can never legitimately be reached through it.
+`link()` now sources that componentRuns edge from a new `nonTestHolders` index (test-only literals
+excluded) while the special root-module literal `"/"` case keeps using every holder, since
+`componentRuns("/")` has no fallback and narrowing it silently drops the holder rather than just
+its closure. New fixture `TestSelectPackagesStopsClosureAtTestOnlyTokenHolder` in `main_test.go`
+pins the behavior. Measured at commit `3f30a02`: global `-unresolved` floor 130 → 125 packages (net
+5 fewer: `cmd/corvint-analyzer-python`, `conformance/frontier-v0`, `internal/dogfoodocm`,
+`internal/frontiernextrepo`, `benchmarks/selfuse-batch`, all previously unresolved only via a
+test-file literal falsely propagating `cmd/corvint`'s unresolved status to its dependents).
+
+V1-0081: with the V1-0059 fix applied, a one-package dirty-path selection
+(`cmd/corvint/go_only_cutover_test.go`) narrowed from 143 to 139 of 218 total packages (65.6% →
+63.8%), still far short of "well under half." Root cause: of the 125 packages left in the
+`-unresolved` floor, 96 (44% of the whole module) self-locate directly — they call `os.Getwd` /
+`runtime.Caller` or carry an escaping literal in their own non-test source — and are correctly
+fail-closed under rule (d); only 29 are propagated through the importer/dependents graph, the only
+part lever (3) can touch from inside `tools/gate-affected-select`. Lever (1) (a shared bounded
+root-location helper) is out of ownership. Lever (2) (drop `-p 1` in `script/gate-affected.sh` when
+the union is wide) was considered and rejected: `AGENTS.md` documents `cmd/corvint` panicking under
+concurrent load at its current ~591s serial runtime, and `cmd/corvint` is selected in nearly every
+plan, so removing serial package execution risks reintroducing that instability for a speed gain
+that does not move the selection-count AC. Disposition: PARTIAL — lever (3) applied and measured
+(130→125 unresolved, 143→139 one-package selection), AC unreachable within ownership because 96/218
+packages self-locate directly in source outside `tools/gate-affected-select`.
+
+V1-0038: `cmd/corvint/dogfood_record.go`'s `os.Getwd()` (line 40) is not the only reason `cmd/corvint`
+is unresolved. `grep -rln 'os\.Getwd\|runtime\.Caller' cmd/corvint/*.go | grep -v _test.go` lists 16
+files with real, independent calls (`dogfood_record.go`, `frontier.go`, `host_adapter.go`,
+`local_completion.go`, `pi_adapter.go`, `eval.go`, `init_adopt.go`, `pi_tools.go`, `lrf.go`,
+`migrate_traces.go`, `main.go`, `ocm.go`, `work.go`, `record.go`, `source_handoff.go`, `witness.go`).
+Bounding only `dogfood_record.go`'s read cannot make `cmd/corvint` leave `-unresolved`; the other 15
+files keep the package fail-closed regardless. Swapping `os.Getwd()` for the lexically-unflagged
+`filepath.Abs("")` (the pattern `resolveExplicitRoot`/`normalizeRoot` already use in `main.go`) was
+rejected as gaming the detector rather than genuinely bounding the read. Disposition: NOT DONE; the
+stated AC needs a coordinated pass over all 16 files, out of this ticket's single-file scope.
+
+V1-0031: `script/dogfood-check.sh`, `script/dogfood-change.sh`, `script/dogfood-bind-range_test.sh`,
+and `script/dogfood-change_test.sh` (89 call sites total, not only the two files the ticket named)
+call `rg` with no preflight; a host without it got a bare "command not found" partway through a run.
+Each of the four now fails closed immediately after its `set` line with `REFUSE
+unsupported-environment-missing-rg` when `rg` is absent from `PATH`, verified by running all four
+with `rg` stripped from `PATH` (each refuses at exit 1 before any Git or build work starts) and
+unchanged (`dogfood-bind-range_test.sh`, `dogfood-change_test.sh` both still exit 0) with `rg`
+present. `docs/DOGFOOD.md` §4 now names `rg` as a prerequisite for `dogfood-change`/`dogfood-check`.
+Disposition: DONE.
+
+Gates run: `gofmt -l tools/gate-affected-select cmd/corvint/dogfood_record.go` (clean); `go vet
+./tools/gate-affected-select/... ./cmd/corvint/...` (clean); `go test -count=1
+./tools/gate-affected-select/...` (pass, includes the new fixture); `bash -n` on all four edited
+scripts (clean); `shellcheck -S warning` on all four (clean); `script/dogfood-bind-range_test.sh`
+and `script/dogfood-change_test.sh` full runs (both exit 0); `make spec-requirements-check
+requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check`
+(pass, no published-contract change). No `cmd/corvint/*.go` file was edited, so its own suite was
+not rerun.
+## 2026-09-22 flaky-batch-b: detached Git auto maintenance and ctime-tick witnesses
+
+Five load-dependent `cmd/corvint` failures (V1-0032, V1-0034, V1-0035, V1-0061, V1-0071) share
+one confirmed mechanism: on this host (git 2.54.0, no global config) every `git commit` spawns
+`git maintenance run --auto --quiet --detach`, a grandchild that outlives the commit, holds
+`.git/objects/maintenance.lock`, and can write `.tmp-<pid>-pack-*` files. Its writes race the
+fixture byte digests, the materialization manifests, `t.TempDir` removal (`.git: directory not
+empty`) and the work adapter runner's process-residue and 250ms pipe-drain checks. Setting
+`maintenance.auto=false` and `gc.auto=0` removes the spawn entirely (GIT_TRACE=1: zero
+maintenance processes across repeated commits). The specific pack write that V1-0061 recorded
+was not reproduced here; that it comes from the same detached process is inferred, not observed.
+Fixed in-scope: the affected fixture, the materialization fixture and the two committing
+final-check scripts now disable both settings, and the runner keeps its last failure cause and
+receipt in memory so the fatal message can name them (the command result and wire are unchanged).
+Integration follow-up: `queryCLIRepository` in `cmd/corvint/query_test.go` now also disables
+both settings (the same two `git config` lines as the affected fixture), which removes the
+detached-maintenance cause behind V1-0061 and V1-0071; the drift restoration fatal now prints the
+differing paths. `workDrainTimeout` (250ms) stays as the WQO-V0-034 pin. Repetitions: the five
+named tests `-count=3` pass, the wider work/affected/query set `-count=1` passes.
+
+Three ctime witnesses (V1-0033: `internal/trace`, `internal/authoritystore`,
+`internal/cem/gitauth`) assumed the change time advances between adjacent syscalls; on a coarse
+ctime clock the same-bytes restore lands in the tick of the original write. Each test now
+re-applies its mutation until ctime differs, bounded at 2s, and skips otherwise. Product
+limitation recorded: a restore that completes within one ctime tick is invisible to the witness.
+`TestRunningFailedPassed` (V1-0036) waited 5s for each running event under whole-suite load; the
+waits are now the 5-minute hang detector already used for completion (decision 0082). All four
+tests pass `-count=5` with no skips on this host.
+### 2026-09-22 batch D: contextindex/doccorpus fixes and decision 0337
+
+Six V1 tickets landed in one change. `internal/contextindex`: V1-0049 rewords `citedNumbers`'s doc
+comment to name its two malformed-range degradations explicitly and adds a table test pinning
+`path:5-0`/`path:9-3`; V1-0053 hoists the two `regexp.MustCompile` calls in `eval_query.go` to
+package vars; V1-0054 replaces `impact.go`'s per-changed-path linear scans over `index.Sources` with
+a directory-to-paths index and a sorted path slice built once per call, output verified byte-
+identical against the prior implementation via the package's existing tests; V1-0055 caches
+`authority_trigger.go`'s per-target line splits, builds `range_impact.go`'s map before its linear
+scan instead of after, and merges the two-spawn `cat-file -t`/`rev-parse base^{tree}` open of
+`compileRangeImpact` into one `git rev-parse base^{commit} base^{tree}` call (not `--verify`, which
+this Git version refuses with more than one revision argument) while leaving `verifyRangeBase`'s own
+closing repeat of the same two-spawn pattern untouched, per the ticket. `TestAnalyzerSchemaInputs`'s
+structural digest pin moved `e9058d1...` to `bca73e3...` (schema ID `corvint-analyzer/73` unchanged)
+to reflect these edits.
+
+`internal/doccorpus` (decision 0337, DCP-V1-032 amended): V1-0044 — `reconcileTest` (forward
+emission) already retains a criterion or claim naming a variation absent from the normative set and
+reports it as `undocumented-tested-behavior` (DCP-V1-031) rather than pruning it, but
+`validatePreviousBehaviorAdapterResult` (the `--previous` strict check) fatally refused that same
+retained shape, so a `run1.json` carrying exactly the finding DCP-V1-031 exists to report could not
+be reused for the DCP-V1-032 delta. The validator now tolerates it on the same terms forward emission
+does — the dangling reference must still be a criterion the test itself declares — and a new
+`TestBehaviorAdapterPreviousToleratesDanglingCriterion` end-to-end test exercises run 1 (dangling
+criterion, exits 0 with the `undocumented-tested-behavior` finding) then run 2 (`--previous` run1,
+exits 0). V1-0050 — `lost_reverse_links` entries were joined with a literal NUL, which `textOK`
+forbids in every other corpus text field; the six join sites now use a new `reverseLinkJoin` helper
+(printable `|` separator, backslash-escaped where a field contains `|` or `\`, preserving the same
+collision-freedom the NUL separator gave), and `validatePreviousBehaviorAdapterResult` now runs
+`textOK` over every `Delta.LostReverseLinks` entry on read.
+
+Owner question V1-0060 (should a prior bundle with dangling criteria disqualify a delta outright
+instead of being tolerated) remains open; this batch implements the tolerant reading pending that
+answer and does not close it.
+
+Gates: `gofmt -l`, `GOTOOLCHAIN=local go build ./... && go vet ./...`, targeted
+`GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/contextindex/... ./internal/doccorpus/...
+./internal/specindex/`, and `make spec-requirements-check requirement-definitions-check
+traceability-tests-check decision-numbers-check line-citations-check` all passed. Full `make gate`
+was not run, per batch scope.
+
+## 2026-09-22 patch-coverage-witness: `cem cover` records a per-hunk coverage witness from one local coverprofile and `cem report` downgrades unwitnessed test claims
+
+Ticket V1-0085, decision 0347
+(`docs/decisions/0347-patch-coverage-witness-from-a-local-coverprofile-2026-09-22.md`),
+`TCQ-V0-051..054` in `docs/specs/test-claim-qualification-v0.md`. The TCQ YAGNI paragraph's
+"coverage ingestion" exclusion is replaced by the four requirements, the acceptance matrix gains a
+`coverage witness` row, and the rollback paragraph names how the slice comes out.
+
+What changed: `internal/cem/wire/map.go` admits one optional closed-key hunk member `coverage`
+(`{profileSha256, testRun, mode, state, covered}`) on `cem/0.3` only, with ranges required to be
+ascending, non-adjacent, inside `newRange`, and consistent with `state`; `cem/0.1` and `cem/0.2`
+keep rejecting it as `unknown-field`, so no fixture, conformance vector, `protocol/cem-0.2`
+schema, or `interop/cem01-go` consumer changed. `internal/cem/workflow/cover.go` adds
+`Session.Cover` and `internal/cem/cli/cli.go` the `cem cover --map --coverprofile --test-run
+[--output]` action: one operator-named local profile, bounded at the gorunner coverage bound,
+parsed by the gorunner parser now exported as `ParseCoverProfile`/`ParseCoverageBlockLine` (no
+behaviour change to live verify), intersected with each hunk's added lines (diff-cover semantics),
+and written on every hunk as `covered` or `uncovered`; the map is upgraded to `cem/0.3` as a
+structural `mark` does. `internal/cem/workflow/read.go` adds a `## Test claims` section to
+`cem report` listing each `test-claim` hunk as `tested` or downgraded with reason
+`no-coverage-witness` / `coverage-witness-uncovered`; dispositions, counts, worklist and the
+`status`/`verify` envelopes are unchanged.
+
+Measured: four new tests (`TestSpec03CoverageWitness`, `TestParseCoverProfileExportsBlocks`,
+`TestCoverRecordsCoverageWitnessAndReportDowngrades`, `TestCoverRefusesAmbiguousAndInvalidInputs`)
+pass; package runs `internal/cem/wire` 1.7s, `internal/cem/workflow` 87.3s,
+`internal/liveverify/gorunner` 24.0s, `internal/specindex` 0.9s, all `ok` at `-count=1`.
+
+NOT MET / UNKNOWN: `corvint cem cover --help` and the cem help text do not list `cover` because
+`cmd/corvint/help.go` (`cemHelpActions`) was outside this change's ownership; the command
+dispatches. `docs/specs/cem-0.3-structural-mechanical.md` still describes the profile as adding
+only the structural reasons and was not amended (not owned). No live `go test -coverprofile`
+end-to-end run against a real repository was performed; the workflow test uses a synthetic
+profile whose path suffix matches the hunk path. Reporter and labelled-corpus promotion gates of
+the TCQ spec remain NOT_RUN.
+
+Gates: `gofmt -l` (nothing), `GOTOOLCHAIN=local go build ./... && go vet ./...`, targeted
+`GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/cem/... ./internal/liveverify/gorunner/
+./internal/specindex/`, and `make spec-requirements-check requirement-definitions-check
+traceability-tests-check decision-numbers-check` passed. `make line-citations-check` fails on 18
+pre-existing citations in `docs/specs/falsifiable-packet-v0.md`, `docs/decisions/0082-*.md` and
+`docs/specs/go-production-kernel-migration-v0.md` that cite `internal/contextindex` and
+`cmd/corvint` lines this change does not touch; they were not repinned because those files are
+outside this change's ownership. Full `make gate` was not run, per ticket scope.
+## 2026-09-22 packet-trust-class: one `trust` class per cited row; tainted rows satisfy no basis
+
+Ticket V1-0090, decision 0346 (proposed, experimental delivery), TCP-V0-023 and FPK-V0-032.
+
+What changed: `internal/contextindex/trust.go` holds the closed five-class enum
+(`project-authority`, `repository-content`, `repository-history`, `external-provider`,
+`tool-output`), the one derivation table `trustByAuthority` keyed on the existing `authority`
+label (an unlisted label is `tool-output`), and `TrustTainted`. `context` stamps `trust` on every
+`results[].evidence[]` row, computes `governance` and `critical` over the non-tainted reserved rows
+only, and adds the always-present `coverage.governance_refused` array naming each refused row.
+`prove` (`cmd/corvint/prove_trust.go`) stamps `trust` on every `proof.rows[]` entry through the
+same table; a tainted row keeps falsifier `none` (never `PASS`, never `proven_results`) and carries
+a `refusal` naming the row. No new input is read; the `query`/`impact` wires, the `external`
+section and the CEM ledger readers are untouched.
+
+Measured: the recipe golden `internal/contextindex/testdata/context-recipe-default-golden.json`
+re-captured with exactly 12 added `"trust"` members (11 `repository-content`, 1
+`project-authority`) and one added `"governance_refused": []`; no other byte changed. The
+`TestAnalyzerSchemaInputs` audit digest was repinned (consumer-only change, schema stays
+`corvint-analyzer/73`, as the two prior repins did). Every row of the `prove` fixture proof is
+untainted and unrefused (`TestProveRowsCarryOneTrustClassAndOldConsumersDecode`). Old-consumer
+decoding covered for both wires by decoding the previous struct shapes and comparing canonical
+JSON with the new members deleted.
+
+NOT MET / follow-ups (text only, no tickets filed): the `query`/`impact` evidence rows carry no
+`trust` (byte-exact under GPK-V0-002 and `conformance/cli-parity-v0`; needs its own amendment);
+`internal/extevidence` external-section rows are not stamped (outside this change's ownership);
+`prove checkpoint` claimed-authority rows are not classified; no external consumer has exercised
+the new members.
+
+Gates: `gofmt -l` (nothing), `GOTOOLCHAIN=local go build ./... && go vet ./...`,
+`GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/contextindex/... ./internal/specindex/`
+(ok, 134.5s and 0.2s), `cmd/corvint -run` over the two new prove tests plus the twenty context-,
+answerability- and prove-row tests the wire change touches (ok), and `make spec-requirements-check
+requirement-definitions-check traceability-tests-check decision-numbers-check` all passed.
+`make line-citations-check` FAILS on 18 citations (decision 0082, `falsifiable-packet-v0.md`
+rows citing `internal/contextindex/impact.go`, and `go-production-kernel-migration-v0.md` citing
+`range_impact.go`); the same 18 fail with the index read from base 4519cad and none names a file
+this change touched, so they are pre-existing from the batch D commit and were not repinned here.
+Full `make gate` was not run, per ticket scope.
+
+## 2026-09-22 gate-repair: DR-0039/DR-0040 `cem` choice-list extensions declared and the CEM trust citation repinned
+
+The full `make gate` on the V1-0085 tree (base 1603d4a) reported two failures; repairing the first
+exposed a third of the same shape. None touched a frozen expectation.
+
+- `conformance/cli-parity-v0` `TestGPKV0002ManifestReplay`: `cem-mark-invalid-reason` failed
+  `stderrSha256` (candidate `531926b2…`, manifest `b03c3c67…`) because decision 0338 added the four
+  `cem/0.3` structural reasons to the `--reason` choice set (`CEM-SM-001`). Once declared, the next
+  case `cem-invalid-subcommand` failed the same way (candidate `bab3d5ea…`, manifest `2a7db57b…`)
+  because decision 0347 added `cem cover` to the action list (`TCQ-V0-051`). Both are recorded as
+  intentional Go extensions in `conformance/divergence-register.md` (`DR-0039`, `DR-0040`) with the
+  exact candidate and oracle bytes, declared as one-rewrite `stderrRewrites` `knownDivergence`
+  entries in `manifest.json`, and pinned by `validMarkReasonDivergence` and
+  `validCEMActionDivergence` in `manifest.go`. Measured: applying each single substitution to the
+  candidate stderr reproduces the frozen digest byte-for-byte; the `SUMMARY` moves from
+  `known-divergences=24` to `known-divergences=26`; the `cem` inventory row reports 19 byte-exact
+  cases and names both declarations. The `flag provided but not defined: -candidate` text in the
+  package output is emitted by the passing `TestCaptureCLIRejectsCandidateAuthority`, which expects
+  that refusal; it is not a failure.
+- `conformance/release-artifact-v0` `TestReleaseNotesCEMTrustCitationLandsOnTrustRoots`:
+  `docs/RELEASE-NOTES-alpha.md` cited `docs/CHANGE-EVIDENCE-MAP.md:226-227@012d2dcc`, which
+  commits 5ab91e3 and 1603d4a moved to lines 241-242. Repinned to `241-242`; the `@012d2dcc` anchor
+  is unchanged because `script/check-line-citations.sh --hash docs/CHANGE-EVIDENCE-MAP.md:241-242`
+  reproduces it. No other document cites `docs/CHANGE-EVIDENCE-MAP.md` by line. The two declarations
+  shifted lines in `manifest.json` and `runner_test.go`, so `docs/decisions/0051-*.md:24` and
+  `docs/specs/compat-replay-runner-v0.md:17` were repinned to `manifest.json:3552@f1a2ef9a` and
+  `runner_test.go:1216@6ead4d11` (anchors unchanged). `make line-citations-check` still reports the
+  18 pre-existing failures in `docs/specs/falsifiable-packet-v0.md`, `docs/decisions/0082-*.md` and
+  `docs/specs/go-production-kernel-migration-v0.md` that this change does not touch.
+
+Not done in this change: `conformance/cli-parity-v0/README.md`'s known-divergence list (outside the
+repair's ownership) does not yet carry `DR-0039`/`DR-0040` bullets. UNKNOWN: whether the rest of the
+full `make gate` is green after this repair; only the two named packages were rerun.
+## 2026-09-22 learned-rule-skill-export: `corvint skill-export --out DIR` projects admitted traces to Agent Skills documents
+
+Ticket V1-0095, decision 0349, requirements `LTA-V0-006` to `LTA-V0-008` in
+`docs/specs/learned-trace-admission-v0.md`. New package `internal/skillexport` renders one
+`corvint-learned-<16 trace-id hex>/` directory per admitted rule (a stored row with outcome
+`passed` that `tracerecordrepo.Read` re-validated): `SKILL.md` with YAML frontmatter (`name`,
+one-line `description` folded from the task and bounded at 200 runes) and a short body, and
+`references/trace.md` with the opened and changed paths and verification commands (progressive
+disclosure). Each document names the admission evidence digest, `sha256:` over the exact
+`trace.Encode` row bytes, and the evaluation result verbatim as `NOT_RECORDED`, because
+`LTA-V0-001` admits the learned-path mechanism and never an individual row, so no per-row
+evaluation result exists to cite. `failed` and `blocked` rows and rows whose digest does not
+re-validate are refused. New verb `cmd/corvint/skill_export.go` reads through the ordinary
+snapshot and trace reader, accepts only `--out DIR`, refuses a `DIR` inside `.corvint` (after
+symlink resolution of the nearest existing ancestor), writes only under `DIR`, and prints a JSON
+manifest; `main.go` gained one dispatch and `help.go` one topic, which shifted twelve unchanged
+citations in four specs by three or five lines (repinned; every content hash unchanged).
+
+Measured: `internal/skillexport` 3 tests and `cmd/corvint` 2 new tests pass; the four existing
+verb-registration tests pass; in the fixture (`calibrateRepository(t, 3)`, one `passed` row) the
+export writes 1 directory, the repository tree digest is unchanged, and a second run into another
+`DIR` yields identical file bytes and a manifest identical apart from `DIR`.
+
+UNKNOWN / NOT MET: no real Claude Code or Codex host loaded an exported skill; the round-trip
+fixture `TestHostRoundTripLoadsExportedSkill_LTA008` is a Go parser shaped like a loader's
+frontmatter read and the published Agent Skills bounds (name 1..64 `[a-z0-9-]`, description
+1..1024). The evaluation result is `NOT_RECORDED` for every row until a per-row evaluation
+linkage exists. The worktree was fast-forwarded from 362721c to the wave base 4519cad before
+work started.
+
+Gates: `gofmt -l`, `GOTOOLCHAIN=local go build ./... && go vet ./...`, targeted
+`GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/skillexport/... ./internal/specindex/`
+plus `cmd/corvint -run` over the six touched tests, and `make spec-requirements-check
+requirement-definitions-check traceability-tests-check decision-numbers-check` all passed;
+`make line-citations-check` reports the same 18 pre-existing failures as the base, none added.
+Full `make gate` was not run, per wave scope.
+## 2026-09-22 generated-evidence-kind: `generated` joins the external evidence kinds (V1-0107, decision 0350)
+
+`generated` is now the fourth admitted evidence kind in `internal/extevidence` (`EEP-V0-007`,
+`EEP-V0-019`): `impact` composes it like the other kinds with the kind visible in
+`relation.evidence` and the item `reason`, and test selection lists it as a candidate coded
+`generated-only-evidence` that never qualifies or blocks (`ETS-V0-014`, `weakEvidence` lookup in
+`selection.go`). `learned` stays excluded. The decode path is unchanged: `evidence` was already an
+identifier and unknown kinds were excluded at composition, so no existing record decodes
+differently.
+
+Measured: `internal/extevidence` passes in 62s; `TestSelectionEvaluation` over the labelled corpus
+(now 31 selection cases, 71 evaluated variants) reports precision 1.000 (54/54), unsafe narrowing
+0/53, abstention accuracy 6/6, receipt max 7032 bytes. New evidence: `TestEvidenceKindGeneratedAdmitted`
+and the `positive-observed-with-generated-candidate` case over
+`testdata/conformance-selection/generated.json`.
+
+NOT MET / UNKNOWN: no external consumer has exercised the marker; an independent adopter record is
+still the EEP-V0 promotion criterion. `conformance/` holds no external-evidence suite, so the pinned
+fixture lives only under `internal/extevidence/testdata`.
+
+## 2026-09-22 provider-capability-declaration: optional `capabilities` record member checked by Core (V1-0102, decision 0351)
+
+Changed: `internal/extevidence` records (`Record`, `Record1`) accept one optional top-level member
+`capabilities` with lists `schemas` and `evidence_kinds`, validated like the rest of the record
+(`EEP-TR-012`). `decodeRecord` checks a declared list before composition: the record schema must be
+declared; under `impact` every used evidence kind must be declared; under `affected` `declared` or
+`observed` must be declared. A shortfall is the new closed state `unsupported` with a Core-authored
+reason naming the provider id and the first missing capability; `affected` then blocks with a
+`provider-unsupported` blocking reason (`EEP-TR-013`). A declaration never widens acceptance
+(`EEP-TR-014`). The shipped handshake is the record member because the only shipped transports are
+file and command; MCP stays an unshipped profile (`EEP-TR-009`), so no transport-level negotiation
+was added. Absent means undeclared: every existing fixture and conformance corpus passes unchanged.
+
+Measured: `internal/extevidence` passes in 91.6s; `TestSelectionEvaluation` over the labelled corpus
+(now 33 selection cases, 73 evaluated variants) reports precision 1.000 (55/55), unsafe narrowing
+0/54, abstention accuracy 7/7, receipt max 7032 bytes. New evidence: `TestCapabilitiesNegotiation`
+(absent, sufficient, kinds-undeclared, missing-kind, missing-schema, empty-schemas),
+`TestCapabilitiesDecodeStrict`, and the `positive-capabilities-sufficient` and
+`negative-capabilities-unsupported` cases over `testdata/conformance-selection/capabilities.json`.
+
+NOT MET / UNKNOWN: no transport-level handshake exists because no shipped transport can carry one;
+no external provider has declared the member; `conformance/` holds no external-evidence suite, so the
+fixture lives only under `internal/extevidence/testdata`.
+## 2026-09-22 cem-intoto-predicate-v1: a versioned `cem/v1` in-toto predicate binds the CEM to its base and patch
+
+Ticket V1-0092, decision 0354, FPK-V0-033 to FPK-V0-036 (experimental prototype, not advertised).
+`internal/attest.CEMStatementV1` builds an in-toto Statement v1 with `predicateType`
+`https://corvint-context.dev/attestation/cem/v1`, whose predicate adds `base.digest.gitCommit` and
+`patch.digest.sha256` beside the `cem` ResourceDescriptor, `size`, and `spec`.
+`VerifyCEMPredicate` dispatches `cem/0` and `cem/v1` through a closed table, and
+`prove --verify-cem-attestation` now calls it. `cem/0` receipts carry no new member. A
+standard-library reader in `interop/cem01-go` verifies the fixture envelope Corvint emits.
+
+Measured: the fixture envelope for `interop/cem-0.1/maps/valid/supported-sha256.json` (863 bytes)
+under the seed-derived test key has sha256
+`283792cd974edb5112edfe9e23df7f4b155148310850c1001ae6c9cd9c976b38`, pinned in both modules.
+`TestCEMV1RefusesAClaimItCouldNotHaveProduced` refuses 13 signed edits, none as a byte mismatch.
+`go.mod`, `go.sum`, and `interop/cem01-go/go.mod` are unchanged. The new files import no `net/*`,
+`os/exec`, or `crypto/tls` package.
+
+UNKNOWN / NOT MET:
+- Every OpenSSF openfab/generation draft (ossf/tac issue 628) and agentattest field name is
+  UNCONFIRMED, because the work ran without network access and the repository holds no copy of
+  either. The spec records them as deviations. Only the in-toto Statement v1, ResourceDescriptor,
+  DigestSet, and DSSE names are claimed as aligned, and those were recalled, not re-fetched.
+- No CLI flag emits `cem/v1`. The emission flags live in `cmd/corvint/prove.go`, outside this
+  change's ownership.
+- The interop reader was written by the same author after reading `internal/attest`, so it is not
+  independent-adopter evidence (V1-0014 unchanged).
+- The Sigstore gitsign/cosign/Rekor path is documented as an operator step and was NOT_RUN.
+- Commands ran without the brief's `nice -n 10` prefix, and the interop gate ran as
+  `go -C interop/cem01-go`, because the worktree-isolation hook refuses compound commands.
+## 2026-09-22 git-native-cem-anchoring: `cem anchor` notes-ref pointer and read-only `cem provenance` (V1-0093)
+
+Changed (decision 0355, FPK-V0-037 to FPK-V0-040, all experimental):
+- `cem anchor --map MAP [--commit REV]` is an explicit mutation (`mutates: true`). It writes a
+  `corvint-cem-anchor/0` JSON pointer (commit, path, blob, SHA-256, spec) for the map committed
+  at HEAD to `refs/notes/corvint` on REV, under a fixed committer identity.
+- It refuses an untracked, absent, staged, or modified map, a blob missing from the object
+  database, and a different existing note. Every refusal leaves the notes ref unmoved.
+- `cem provenance --commit REV` is read-only. It verifies the anchor by digest, and reads a
+  foreign Git AI `authorship/3.0.0` note on `refs/notes/ai` and the `Assisted-by` and
+  `Agent-Logs-Url` trailers.
+- Every row it emits carries `trust: repository-history` and `authority: git-history`, with a
+  distinct `kind` per source. Foreign text sits only in a bounded `untrusted` member.
+- The trust enum, `trust.go`, and `prove_trust.go` are untouched.
+- `internal/gitnotes` is reached from `internal/cem/cli` only through the `cemcli.GitNotes` hook
+  set in `cmd/corvint`.
+- Two FRONTIER brief citations into `cmd/corvint/help.go` were repinned (785-792, 880). Their
+  content is unchanged.
+
+Measured:
+- `internal/gitnotes`: 4 tests pass (7.0s), including 6 refusal subtests.
+- `internal/cem/cli` and `internal/specindex` pass.
+- `cmd/corvint -run` over `TestCEMAnchorAndProvenanceInteropThroughTheCLI`, `TestCEMHelpSurfaces`,
+  and `TestCEMErrorPrecedence` passes.
+- The `go list -deps` closure of `internal/gitnotes` holds no `net` package.
+- Bounds: 256 bytes per foreign string, 64 entries per list, 1 MiB per note, 4 MiB per map.
+
+NOT MET / UNKNOWN:
+- `TestCEMSeamsDependOnlyOnStdlibAndGit` fails on `internal/liveverify/gorunner`. The import is
+  in `internal/cem/workflow/cover.go` (a43c652, V1-0085), which this change leaves untouched, and
+  `cli.go` gains no import. So the failure is inferred to be pre-existing at d2aa0c8; it was not
+  rerun at base.
+- The fixtures are Go tests in `internal/gitnotes` and `cmd/corvint`, not `interop/cem01-go`.
+  That module is an independent Apache-2.0 CEM 0.1 verifier and the pointer is not CEM wire.
+- The Git AI format was checked against its published v3.0.0 spec only. No note produced by the
+  real Git AI tool was read.
+- No provenance row feeds `query`, `prove`, ranking, or authority.
+- Notes are not pushed or fetched.
+- The root `--help` mutation-boundary paragraph does not yet name `cem anchor`; it was outside
+  this change's ownership.
+- `nice -n 10` could not be used: the worktree guard refused it, so tests ran un-niced.
+- Full `make gate` was not run, per ticket scope.
+
+## 2026-09-22 hunk-mutation-discriminates-witness: `cem discriminate` records a bounded mutation witness per hunk (V1-0086, decision 0353)
+
+What changed: a new explicit action `corvint cem discriminate --map MAP --target REV
+[--max-hunks N] [--max-mutants N] [--wall-time DURATION] [--output MAP]`
+(`internal/cem/workflow/discriminate.go`, wired in `internal/cem/cli/cli.go` and `cem` help)
+reuses the FPK-V0-028 runner (`internal/liveverify/mutate`: `Open`, `Export.Judge` with
+`Complete`) on the map's changed Go hunks against the `_test.go` files their `test-claim` basis
+cites, and writes the optional closed-key `cem/0.3` hunk member `discriminates`
+(`internal/cem/wire/discriminate.go`) with `state` `discriminates`, `survived`, or `not-run`,
+killed/survived counts, every survivor described, the bounds enforced, the resolved target
+object ID, and the selection digest of the selected test paths. `cem report` appends the witness
+to each `## Test claims` line and downgrades a `survived` hunk with reason `mutants-survived`,
+listing each survivor; status, verify, counts, worklist, and exit status are unchanged. The only
+runner change is additive: `Report.Survivors` (`[]Survivor{Operator, Line, Start, End}`) filled by
+both judge paths; `prove --mutate` reads none of it. `cem` help also gained the `cover` action
+that decision 0347 left out. Specs: TCQ-V0-055..058 with an acceptance row, rollback, and
+traceability; one paragraph appended to the FPK requirements records the shared runner and
+keeps FPK-V0-028's experimental label and 19-of-20 replay gate `NOT_RUN`.
+
+Measured on this host (macOS `sandbox-exec`, workflow test fixture of one Go module, one
+selected hunk, 4 mutants, `--max-mutants 6`, `--wall-time 5m`): one bounded run 5.7 s on a quiet
+host and 30.5–32.8 s while seven other agents were building and testing concurrently; refusals run
+no mutant and complete in under a second. The runner's cost is one sandboxed `go test` per mutant.
+
+UNKNOWN / NOT MET: no end-to-end run against a real repository change was performed, only the
+synthetic fixture; the cost numbers are from one host under two load conditions and are not a
+budget. FPK-V0-028's replay cohort and the TCQ promotion gates remain `NOT_RUN`. The prototype
+label was narrowed, not removed: the TCQ requirements, cost, and rollback now govern the shared
+runner, while FPK-V0-028's own experimental label stays because its acceptance is unmet.
+## 2026-09-22 self-dogfood-mapping-qualifies-store-scope: decision 0348, V1-0082
+
+`workMappingReproduced` (`cmd/corvint/work.go`) now accepts Corvint's own `decision-0046-v0`
+self-dogfood mapping (`docs/worklist.json`) alongside `repository-worklist-v0`, using the same
+byte-reproduction argument decision 0321 established and explicitly deferred ("qualify both closed
+mappings... can be proposed separately"). WQO-V0-017 and the WQO-V0-046 requirement body in
+`docs/specs/work-queue-observation-v0.md` are amended to name `decision-0046-v0` as the same
+exception, citing decision 0348; the section 5.7 header, its witness table row for WQO-V0-033, the
+following paragraph, and the WQO-V0-046 traceability row are updated to match.
+
+The WQO-V0-021/025/032 final-check fixtures (`cmd/corvint/work_final_check_test.go`) previously got
+incomplete initial store scope only as a side effect of the mapping staying unqualified. The
+`.git`-nested-FIFO marker (`workFinalIncompleteScope`) still produces that incompleteness, unchanged;
+what changed is how `closing-inability` and `prior-mutation-and-closing-inability` now signal the
+required mutation: each script prepends `git commit --allow-empty` (the same technique
+`source-drift-and-mutation` already used) so the Git-directory monitored root's own independent
+manifest scan records the change via its existing-entry content-diff branch, instead of relying on
+the caller-tree root walk — which turned out to be permanently blind to new top-level files whenever
+anything inside `.git` (sorted first, fully depth-first) aborts the walk. The untracked-file write
+that dirties `git status` for the closing failure is unchanged. `TestWorkMappingReproducedSelfDogfood`
+(`cmd/corvint/work_adopt_test.go`) directly proves `decision-0046-v0` now reproduces and that tampered
+adapter output still disqualifies it. `TestObserveWorkUsesOnlyTargetMaterialization`
+(`cmd/corvint/work_observe_test.go`) is updated from `StateUnknown`/`"UNKNOWN"` to
+`StateValidated`/`"UNCHANGED_OBSERVED"` — its clean, undrifted production fixture now reaches complete
+store scope, which was never its stated purpose (materialization isolation) but was an incidental
+dependency on the mapping staying unqualified.
+
+`script/gen-spec-requirements.sh` regenerated `docs/specs/REQUIREMENTS.tsv` with no field diff besides
+line numbers (requirement IDs stable). The spec's Agent-digest `Claim:` line is unchanged, so no
+README/INDEX sync was needed.
+
+Gates: `gofmt -l cmd/corvint internal/workqueue internal/specindex docs` clean;
+`GOTOOLCHAIN=local go build ./...` and full `go vet ./...` clean;
+`GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/specindex/...` passed (0.42s);
+targeted `-run '^(TestWorkFinalCheckCaptureBinding|TestWorkMappingReproduced|
+TestWorkMappingReproducedSelfDogfood|TestObserveWorkUsesOnlyTargetMaterialization)$'
+./cmd/corvint/...` passed at `-count=1` (57.9s) and was separately confirmed stable at `-count=3`
+(479.8s, exit 0) earlier in the same session; `internal/workqueue/...` passed (2.3s). All 107
+`Test...` functions found across `cmd/corvint/work*.go`, `internal/workqueue/*.go`, and
+`internal/worklistadapter/*.go` were run and pass (one pre-existing, unrelated skip:
+`TestWorkAdapterProcess`). `make spec-requirements-check requirement-definitions-check
+traceability-tests-check decision-numbers-check` passed. `make line-citations-check` fails on 18
+pre-existing citations in `docs/decisions/0082-*.md` and `docs/specs/falsifiable-packet-v0.md`/
+`go-production-kernel-migration-v0.md`, all pointing at `internal/contextindex/impact.go`,
+`internal/contextindex/range_impact.go`, and `cmd/corvint/work_materialization_test.go` — files last
+changed by already-committed, already-merged commits (`4519cad`, `b8b1225`) outside this ticket's
+ownership (`cmd/corvint/work*.go` and `internal/workqueue/**`, not `work_materialization_test.go`,
+and not `internal/contextindex`); none of the 18 broken citations reference any file this change
+touched. Full `make gate` was not run, per ticket scope.
+
+## 2026-09-22 cem-seam-closure: `cem cover` and `cem discriminate` no longer pull runners into the stdlib-only CEM seams
+
+Two integration regressions broke the native-cem-adapter claim ("CEM seams depend only on the Go
+standard library and local Git", `TestCEMSeamsDependOnlyOnStdlibAndGit`): `go list -deps
+./internal/cem/...` reached `internal/liveverify/gorunner` through `internal/cem/workflow/cover.go`
+(TCQ-V0-051..054) and `internal/liveverify/mutate` through `internal/cem/workflow/discriminate.go`
+(TCQ-V0-055..058). Fix shape: the Go coverprofile grammar (`Mode`, `Block`, `Parse`,
+`ParseBlockLine`, `MaxBytes`) moved into the stdlib-only `internal/cem/coverprofile`, and gorunner
+keeps its exported API by aliasing and thin wrappers. The mutation judge (`Open`, per-hunk judging,
+survivor folding) moved to `internal/cemdiscriminate`, outside `internal/cem`, and reaches workflow
+through the injected hook `workflow.OpenHunkJudge`, which `cmd/corvint/cem_discriminate.go`
+installs in the style of `cemcli.GitNotes`. When the hook is not installed, discriminate treats
+the runner as unavailable and marks every selected hunk `not-run`; it does not panic. Outputs,
+refusals, and wire are unchanged. A third stale expectation from the same integration,
+`internal/cem/cli/anchor_test.go`'s invalid-choice list without `discriminate`, was corrected.
+Specs: TCQ-V0-051 and TCQ-V0-055..058 traceability rows and the TCQ-V0-051 parser prose name the
+new surfaces; native-cem-adapter lists `coverprofile` and both binary-installed hooks.
+
+Gates: gofmt clean; `go build ./...` and `go vet ./...`; the seam closure contains no non-stdlib
+package outside `internal/cem` except `crypto/internal/entropy/v1.0.0`; `go test` over
+`./internal/cem/...`, `./internal/cemdiscriminate/...`, gorunner, mutate, and specindex;
+`TestCEMSeamsDependOnlyOnStdlibAndGit`, `TestCEMHelpSurfaces`, and `TestCEMErrorPrecedence`;
+`interop/cem01-go` build; spec-requirements, requirement-definitions, traceability-tests, and
+decision-numbers checks. The rest of `cmd/corvint` was not run. NOT MET: `line-citations-check`
+fails on two citations in `docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md` (:245 and :257,
+pointing at `cmd/corvint/help.go`). Those citations were already stale at the base commit, and this
+change touches neither file. gorunner's `TestRunCollectsRealUnitCoverage` timed out at its 30 s
+fixture bound once, at a 15-minute load average of 128, and passed on rerun.
+## 2026-09-22 gate-ledger-per-package-bound: resolved test packages key on a proven per-package bound
+
+Ticket V1-0037 (decision 0352, GL-V0-009). `ledger/go-test` used to hand the resolved packages to
+Go's own test cache, which is per-`GOCACHE` and keyed on absolute paths, so a second worktree of the
+same commit reran every one of them. Each resolved package now runs under its own ledger step
+`go-test-package` whose key digests the worktree entries in a proven bound plus the gate tooling
+(`Makefile`, `go.mod`, `go.sum`, `script/`, `tools/`), `GO_TEST_TIMEOUT`, and `GOFLAGS`. The bound is
+the union of two readers the gate already trusts: the in-module files of the package's test closure
+from one `go list -deps -test -json ./...` (`tools/gate-ledger/main.go:369@4dd19278`), and every
+path `gate-affected-select -bounds` attributes to the package under the selector's rules (a)-(c)
+(`tools/gate-affected-select/main.go:262@ba85708b`; the new `pathMatcher`,
+`tools/gate-affected-select/readers.go:651@50d71fd4`, evaluates rule (c) once per literal token
+over all paths, 16.7 s to 3.1 s on this tree, with output identical to the per-path `readers()`,
+pinned by `TestPathMatcherAgreesWithNamesPath`). No second dependency walker was written. A package
+whose bound cannot be proven (the selector attributes nothing to it, `go list` does not list it, or
+`go list` names a file the worktree digest does not hold) runs in the same batch unrecorded
+(`tools/gate-ledger/main.go:399@cbbc1553`); if the bounds cannot be computed at all the step prints
+`BOUNDS unavailable: ...` and falls back to the pre-change Go-test-cache path. Each record carries
+an additive `bound` field stating how the bound was proven; `gate-ledger/1` entries without it keep
+matching. The resolved packages still run as one `go test` batch
+(`tools/gate-ledger/main.go:538@fc23e453`), so a batch failure records none of them. Spec:
+`docs/specs/gate-ledger-v0.md:99@20c09b98`; README/INDEX claim mirrored; REQUIREMENTS.tsv
+regenerated; `docs/specs/go-archive-gate-v0.md` citation `Makefile:109` repinned to `:111` (same
+anchor, moved by the ledger comment). The `Makefile` change is comment-only on the `ledger/` block.
+
+Measured on this tree (219 test packages): 94 resolved packages received a proven per-package key
+(none unprovable), 125 unresolved stay on the whole-tree key. Run A, throwaway `git worktree add`
+of the WIP commit under the scratchpad, empty ledger dir, `GO_TEST_TIMEOUT=30m`, host shared with
+other agents' test runs: 94 `RUN go-test-package ... no recorded pass` lines, one batch `go test`
+over the 94 packages passed and recorded 94 records with `duration_ms` 230319 (230.3 s for the
+batch; every record of a batch carries the batch time). Example record: `internal/projectprofile`,
+key `552bcef9a88e...`, bound `go list -deps -test 1 files; selector frontier 1, reader 1697 paths;
+1929 entries digested with the gate tooling` (rule (c) attributes 1697 literal-named paths to that
+package, which is the price of never narrowing a step). The unresolved batch then ran and failed in
+8 of 125 packages (`cmd/corvint`, `cmd/corvint-go-test-provider`, `conformance/cli-parity-v0`,
+`conformance/release-artifact-v0`, `internal/analyzernativebridge`, `internal/behaviorfalsify`,
+`internal/liveverify/session`, `internal/playwrightminimize`), so no `go-test-unresolved` record
+was written; whole run 18:56 wall, 335% CPU. Seven of those failures are timeouts or event waits
+under the shared load (V1-0032, V1-0034, V1-0036 describe the same shapes); the eighth,
+`TestReleaseNotesCEMTrustCitationLandsOnTrustRoots` in `conformance/release-artifact-v0`, is a
+`docs/CHANGE-EVIDENCE-MAP.md:226-227` wording check that fails in 0.2 s on this branch and touches
+no file this change edits, so it predates the change. Run B, a second `git worktree add` of the
+same commit, same ledger dir: process start to `PARTITION` 3.0 s (includes the `go run` build and
+both bound readers), 94 `HIT go-test-package` lines by 4.96 s from start, zero
+`RUN go-test-package`, e.g. `HIT go-test-package github.com/Beamfall/corvint/internal/projectprofile
+552bcef9a88e (recorded 2026-09-23T00:22:26Z on Russells-Mac-Studio.local)`: the 230 s batch
+became a 5 s check from another worktree. The unresolved batch then reran under its tree key
+because run A's batch never recorded, and failed again in 5 of the same 8 packages (12:58 wall for
+the whole run B). Both throwaway worktrees were removed afterwards. Timings are
+from a loaded host and are upper bounds, not benchmarks.
+
+NOT MET / UNKNOWN: `make dogfood-change` and the post-commit dogfood bind were not run (the batch
+brief limited gates to the listed commands). The brief's `nice -n 10 env ... go test` form was
+refused by the sandbox; the same test command ran without `nice`. `make line-citations-check`
+reports 18 pre-existing failures in `docs/specs/falsifiable-packet-v0.md` and
+`docs/specs/go-production-kernel-migration-v0.md` (stale `internal/contextindex/*` citations, all
+present on the untouched base tree and outside this change's file ownership); the one citation this
+change moved was repinned.
+
+Gates: `gofmt -l` over every Go package directory printed nothing; `GOTOOLCHAIN=local go build
+./... && go vet ./...`; `GOTOOLCHAIN=local go test -count=1 -timeout 30m ./tools/gate-ledger/...
+./tools/gate-affected-select/... ./internal/specindex/` (55.7 s / 0.8 s / 0.7 s); and `make
+spec-requirements-check requirement-definitions-check traceability-tests-check
+decision-numbers-check` all passed. Full `make gate` was not run, per batch scope.

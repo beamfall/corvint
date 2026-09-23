@@ -495,6 +495,17 @@ func intersection(values []string, set map[string]struct{}) []string {
 	return sortedUnique(result)
 }
 
+// overlaps reports whether any value is in set, without intersection's
+// allocation and sort: candidateAdjacency only needs a boolean per pair.
+func overlaps(values []string, set map[string]struct{}) bool {
+	for _, value := range values {
+		if _, found := set[value]; found {
+			return true
+		}
+	}
+	return false
+}
+
 func proposalEntry(ticket TicketSummary, state, reason string, groups []string) ProposalEntry {
 	if groups == nil {
 		groups = []string{}
@@ -532,7 +543,7 @@ func candidateAdjacency(candidates []candidate) [][]int {
 	adjacency := make([][]int, len(candidates))
 	for left := 0; left < len(candidates); left++ {
 		for right := left + 1; right < len(candidates); right++ {
-			if len(intersection(candidates[right].groups, groups[left])) == 0 {
+			if !overlaps(candidates[right].groups, groups[left]) {
 				continue
 			}
 			adjacency[left] = append(adjacency[left], right)

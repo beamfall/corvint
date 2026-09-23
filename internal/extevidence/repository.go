@@ -248,13 +248,19 @@ func view1(ctx context.Context, root rootRepository, record Record1, bound *bind
 			pinned[primary] = append(pinned[primary], v.held(side, root.changed)...)
 		}
 	}
+	v.deleted = map[string]map[string]struct{}{}
 	for id, state := range states {
+		dir := root.dir
 		switch state.binding {
 		case BindingRoot:
 			v.trees[id] = root.tree(ctx, pinned[id])
 		case BindingCheckout:
+			dir = bound.checkouts[id].dir
 			v.trees[id] = checkoutTree(ctx, bound.checkouts[id], pinned[id])
+		default:
+			continue
 		}
+		v.deleted[id] = deletedPaths(ctx, dir, state.freshness, state.declared.Revision, v.trees[id], v.pathsIn(id))
 	}
 	return v
 }
@@ -276,7 +282,7 @@ func (v *view) resolve1(relation *Relation1) (link, *unknown) {
 		return link{}, &unknown{provider: v.provider, relation: keys, structured: relation, state: state, reason: reason}
 	}
 	if _, known := evidenceKinds[relation.Evidence]; !known {
-		return failure(unknownExcluded, fmt.Sprintf("evidence kind %q is not declared, observed, or inferred", relation.Evidence))
+		return failure(unknownExcluded, fmt.Sprintf("evidence kind %q is not declared, observed, inferred, or generated", relation.Evidence))
 	}
 	from, reason := v.endpoint1(relation.From)
 	if reason != "" {
@@ -391,11 +397,15 @@ var freshnessStates = map[string]string{
 	FreshnessUnrelatedHistory: RelationStale, FreshnessTreeMismatch: RelationStale,
 }
 
+// staleVerification lists the path verification states that make a relation
+// side stale (EEP-V1-008): the pinned content differs, or the path is gone.
+var staleVerification = map[string]struct{}{VerificationStale: {}, VerificationMissing: {}, VerificationDeleted: {}}
+
 func sideState(repository *repositoryState, verification string) string {
 	if state, decided := sideStates[repository.binding]; decided {
 		return state
 	}
-	if verification == VerificationStale || verification == VerificationMissing {
+	if _, unverified := staleVerification[verification]; unverified {
 		return RelationStale
 	}
 	return freshnessStates[repository.freshness]

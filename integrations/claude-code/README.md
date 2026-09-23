@@ -67,6 +67,15 @@ A file-change path outside the repository or untracked at HEAD cannot become rev
 After Claude Code compacts a session, `SessionStart(source=compact)` rehydrates a bounded impact
 packet for the dirty paths tracked at the pinned revision; untracked paths remain a count/digest
 gap. The adapter never reads the transcript.
+`PreCompact` and `PostCompact` (decision 0340) add a pin around that cycle: before compaction the
+adapter prints one `corvint-compaction-pin/0` line (revision, dirty-path counts, at most 24 tracked
+dirty paths) that the host joins into the compactor's instructions; after compaction it re-reads
+the pin from the summary, verifies the pinned tree and paths against the object store with one
+read-only `git cat-file`, and prints a `corvint-compaction-report/0` line naming every
+non-rehydratable path. Claude Code shows that report to the user only; the compact `SessionStart`
+packet stays the model-facing rehydration, and it now opens with a disclosure saying so. The hook
+names and payloads were read from the installed Claude Code 2.1.267; a host without these events
+ignores the registration silently, and no live compaction cycle has been run against them.
 
 The exact tested range and unavailable capabilities are in
 `plugins/corvint/compatibility.json`. Static validation is not black-box conformance.

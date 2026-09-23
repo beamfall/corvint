@@ -99,7 +99,7 @@ func (compiler *taskContextCompiler) queryTermGain(field int, term string, gain 
 	if compiler.selectedTerms == nil {
 		return gain
 	}
-	if field == 2 {
+	if field >= 2 {
 		return gain * contextExactTermWeight
 	}
 	return gain * compiler.selectedTerms.weights[term]

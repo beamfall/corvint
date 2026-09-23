@@ -129,7 +129,7 @@ do not reinterpret this Frontier result.
   may be labelled full support. The `host-adapter` translator reports an unrecognised hook event as
   the degraded reason `unsupported-hook-event`, and oversized or malformed hook input as
   `hook-input-too-large` or `malformed-hook-json`, each in a `systemMessage` that says coding
-  continues (`cmd/corvint/host_adapter.go:39,124,128@b3341e84`). These are faults under `AHI-021`.
+  continues (`cmd/corvint/host_adapter.go:39,126,130@b3341e84`). These are faults under `AHI-021`.
 - `AHI-010`: Each release MUST publish tested host-version ranges, adapter and protocol versions,
   unavailable capabilities, known degradations, and the last conformance result. The adapter version
   in a published matrix row and in its shipped declaration identifies the host package the record
@@ -420,6 +420,41 @@ do not reinterpret this Frontier result.
   context-unavailable, stale-context, source-unavailable, record-unavailable,
   invalid-core-response or output-too-large. Host version is null only before validation.
   Runtime-local AHI-024 faults retain their meaning. No tool can request authority or FULL.
+- `AHI-026`: The Claude Code plugin MUST register the compaction hook events the installed host's
+  hook API documents, `PreCompact` and `PostCompact` (read from the installed Claude Code 2.1.267
+  hook runner, decision 0340), as matcherless command groups running
+  `corvint adapter claude-code pre-compact|post-compact` under the AHI-017 declared-kill table, and
+  `compatibility.json` MUST name the host version the registration was verified against as its
+  maximum tested host version. The adapter admits exactly the documented triggers `manual` and
+  `auto`; any other trigger degrades `invalid-compaction-trigger`. A host without these events
+  ignores the registration silently, so the gap MUST stay visible without them: every compact
+  `SessionStart` context carries the AHI-030 disclosure and `compatibility.json` states that the
+  live compaction cycle is `NOT_RUN`. Existing event names and receipts are unchanged.
+- `AHI-027`: `pre-compact` MUST emit, as plain stdout the host joins verbatim into the compactor's
+  custom instructions, one instruction line and one `corvint-compaction-pin/0` line naming the
+  revision of the compact `SessionStart` receipt's `context.compaction` block, its tracked and
+  untracked dirty-path counts, at most 24 admitted project-relative tracked dirty paths within
+  1500 path bytes, and the count of paths elided. The block comes from the same read-only
+  `session-start`/`compact` call AHI-003 uses; a missing or invalid block degrades
+  `compaction-block-unavailable`. Non-degraded output on the two compaction events is text, not
+  hook JSON; degradations keep the `systemMessage` envelope and the 8000-byte bound.
+- `AHI-028`: `post-compact` MUST re-read the last pin the untrusted `compact_summary` preserved,
+  re-validating every field so that a malformed or absent pin degrades
+  `compaction-pin-not-preserved`, and MUST verify the pinned tree and each pinned path against the
+  immutable object store with one hermetic, bounded `git cat-file --batch-check`
+  (`compaction-pin-revision-unavailable` when the tree is gone,
+  `compaction-pin-verification-unavailable` when Git fails or exceeds 500 ms, `git-unavailable`
+  without a Git executable). It then MUST emit one `corvint-compaction-report/0` line naming the
+  pinned revision, whether the current revision matches or moved, the rehydrated count, every
+  non-rehydratable pinned path by name, the elided and untracked counts, and the current dirty
+  count. The host shows that line to the user only; the model-facing packet re-emission remains
+  the compact `SessionStart` receipt of AHI-003.
+- `AHI-029`: Neither compaction event writes repository, index, trace, or store state; the only
+  write on the path is the SOL-V0-010 self-observation row a degradation records.
+- `AHI-030`: Every compact `SessionStart` context MUST begin with a fixed trusted disclosure that
+  names the host version the pin hooks are registered for, that their verdict reaches the user
+  only, and that this packet is the model-facing rehydration and, on a host without the compaction
+  events, the only one.
 
 ## Native platform profiles
 
@@ -427,7 +462,7 @@ do not reinterpret this Frontier result.
 |---|---|---|---|---|
 | Codex CLI/Desktop | `codex` | Codex plugin | skills, hooks, MCP | test startup/resume/clear/compact separately; compaction recovery remains dirty-path-only |
 | Codex IDE | `codex` (shared host; separate surface status) | standalone Codex integration | standalone skill, shared MCP, supported hooks | plugins are unavailable; never inherit CLI/Desktop status |
-| Claude Code | `claude-code` | Claude Code plugin | skills, hooks, MCP | publish minimum/maximum tested plugin API versions |
+| Claude Code | `claude-code` | Claude Code plugin | skills, hooks, MCP | publish minimum/maximum tested plugin API versions; `PreCompact`/`PostCompact` pin hooks verified against 2.1.267 only, live cycle `NOT_RUN` |
 | Gemini CLI | `gemini-cli` | Gemini CLI extension | context file, commands, skills, hooks, MCP | validate extension environment filtering and hook schemas |
 | OpenCode | `opencode` | OpenCode plugin | stable session/tool/file events, tools, MCP; beta context/session hooks isolated | remain `FALLBACK` until a pinned version passes safe frontier/continuation conformance |
 | Pi | `pi` (experimental; AHI-024) | Pi extension | native session/tool lifecycle plus Corvint protocol | claim only the Pi releases in the tested matrix |
@@ -481,6 +516,14 @@ store. A passing MCP smoke test alone cannot promote a platform to fully support
 - The adapter inherits Corvint's local-only Git and repository boundary. It never fetches, starts a
   daemon, adds a database, phones home, reads a transcript, copies a host knowledge graph, or
   weakens host sandbox/approval policy.
+- Compaction non-goals (`AHI-026`..`030`): the pin is not a survival manifest and the
+  `compact_summary` is never trusted beyond the re-validated pin fields; `PostCompact` cannot
+  block compaction or reach model context, so the report is user display only; `PreCompact` exit
+  status never blocks compaction; neither event reads the transcript; the CEP §3 survival trial is
+  not claimed by any of this.
+- Failure mode (`AHI-027`): a summary that drops the pin line leaves `post-compact` with nothing
+  to verify; it degrades `compaction-pin-not-preserved` and the compact `SessionStart` packet is
+  the whole recovery.
 - V0 does not claim model-internal observation, causal attribution, test execution authority,
   complete tool interception, an empty Frontier, or compatibility outside the tested matrix.
 
@@ -497,15 +540,21 @@ there, which is the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:850@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
+| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:855@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
+| `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:114@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
+| `compaction-pin-not-preserved` | `cmd/corvint/host_adapter_compaction.go:83@5fbc4775` | Claude adapter: `compact_summary` holds no pin line whose every field re-validates |
+| `compaction-pin-revision-unavailable` | `cmd/corvint/host_adapter_compaction.go:90@81c5dd24` | Claude adapter: the object store reports the pinned tree as missing |
+| `compaction-pin-verification-unavailable` | `cmd/corvint/host_adapter_compaction.go:199@1c06bb2b` | Claude adapter: the pin's `cat-file --batch-check` failed, timed out, or answered a different number of queries |
+| `git-unavailable` | `cmd/corvint/host_adapter_compaction.go:182@1f1f42d0` | Claude adapter: no `git` executable is on `PATH` when `post-compact` verifies a pin |
 | `harness-input-too-large` | `internal/gokernel/harness.go:361` | "harness input exceeds its byte limit" |
 | `harness-output-too-large` | `internal/gokernel/harness.go:466` | "harness response exceeds its byte budget" |
+| `invalid-compaction-trigger` | `cmd/corvint/host_adapter_compaction.go:67@3ccad220` | Claude adapter: the `PreCompact`/`PostCompact` `trigger` is not `manual` or `auto` |
 | `invalid-harness-adapter` | `internal/gokernel/harness.go:70` | "invalid <label>" |
 | `invalid-harness-budget` | `internal/gokernel/harness.go:340` | "harness budget must be at least <value> bytes" |
 | `invalid-repository-root` | `internal/gokernel/harness.go:376` | "cannot resolve repository root" |
-| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:608@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
-| `project-root-unavailable` | `cmd/corvint/host_adapter.go:305@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
+| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:613@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
+| `project-root-unavailable` | `cmd/corvint/host_adapter.go:307@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
 | `repository-identity-malformed` | `internal/gokernel/repository.go:172` | "Git object identity is malformed" |
 | `repository-probe-cancelled` | `internal/gokernel/repository.go:161` | "Git repository probe was cancelled" |
 | `repository-probe-timeout` | `internal/gokernel/repository.go:159` | "Git repository probe exceeded its 10-second deadline" |
@@ -605,6 +654,11 @@ not-a-repository rule rolls back as that decision's Rollback section describes.
 |---|---|---|
 | `AHI-001`, `003`, `005`, `014` | shared `corvint harness event` core and `internal/projectpath` | canonical receipt, bounds, privacy, revision, and event fixtures; `TestHostAdapterAbsentPathContainment` and `TestRelativeAliasesAndUncertainty` cover `AHI-014` path containment, and the `integrations/host-adapters.test.mjs` test `AHI-014 Gemini classifies changed paths on resolved symlinks like internal/projectpath` under `TestHostAdapterJavaScriptHosts` covers the Gemini hook's symlink resolution; `TestClaudeAdapterForkSessionStartIsResume` covers the Claude `fork` start source; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` drives the Claude `SessionStart(source=compact)` hook entrypoint over a mixed dirty worktree and requires the tracked impact, the untracked count and `compaction-untracked-paths-not-rehydratable` from the receipt's own snapshot; `TestQualifiedLifecycleCompactSessionStartRehydratesDirtyPaths` requires the same for the qualified profile under FULL and FALLBACK and refuses a reordered, extra or dropped code; `TestAHI014EventExpectationsAreHostConsistent` (`conformance/harness-event-v0/host_schema_test.go`) pins each `common-logical-interaction.json` event's closed host set and requires every present host's golden `expected` object to be byte-identical, so a per-host field or host-membership mutation of that fixture fails here |
 | `AHI-025` | `cmd/corvint/pi_tools.go`, `integrations/pi/tools.js` | `TestPiToolContextExpansion`, `TestPiToolRecord`, `TestPiToolClosedInput` and native Pi tool/RPC fixtures |
+| `AHI-026` | `integrations/claude-code/plugins/corvint/hooks/hooks.json`, `compatibility.json` `compactionHooks`, `cmd/corvint/host_adapter.go` declared-kill table | `TestAHI026ClaudeCompactionHooksRegisteredAgainstHostAPI` (matcherless `PreCompact`/`PostCompact` groups, verified host version equals the tested maximum, closed trigger set) and `TestAHI017AdapterHostKillMatchesDeclaredHooks` (the two new declared kills) |
+| `AHI-027` | `cmd/corvint/host_adapter_compaction.go` (`runClaudeCompactionEvent`, `compactionBlockFor`, `compactionPinLine`), `emitAdapterOutput` plain-stdout branch | `TestAHI027ClaudePreCompactEmitsPinFromCompactionBlock` (instruction plus pin as text, pin equals the fixture's HEAD tree and tracked dirty path, 24-path bound with hostile paths elided) |
+| `AHI-028` | `cmd/corvint/host_adapter_compaction.go` (`runClaudePostCompact`, `parseCompactionPin`, `compactionPinMissing`, `compactionReportLine`) | `TestAHI028ClaudePostCompactReportsNonRehydratablePaths` (exact report naming the pinned path the tree lacks; lost, escaping and unresolvable pins degrade by name) |
+| `AHI-029` | both compaction events | `TestAHI029ClaudeCompactionHooksMutateNothing` (byte-size snapshot of the whole fixture including `.git` is unchanged across a pin and its verification) |
+| `AHI-030` | `cmd/corvint/host_adapter_compaction.go` (`compactSessionDisclosure`), Claude branch of `runClaudeAdapter` | `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (compact `SessionStart` additionalContext begins with the disclosure) |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |
 | `AHI-011`, `015` | embedded `internal/gokernel/host-schema.json` admission table and shared lifecycle command | schema/admission tests plus one host-keyed golden fixture per admitted host |
 | `AHI-002`, `006..010` | four native packages and release matrix | install/uninstall, lifecycle, degradation, and version fixtures; for `AHI-010`, the `integrations/host-adapters.test.mjs` test under `TestHostAdapterJavaScriptHosts` binding each `integrations/compatibility.json` row to its shipped declaration and its row's adapter version to the package manifest version, and asserting `globalDegradations` disjoint from `receiptDegradationPolicy.recognised` |
@@ -684,7 +738,10 @@ Observed qualification and omissions are recorded in
   `https://developers.openai.com/codex/extend/mcp`; the documented compaction lifecycle includes
   `PreCompact`, `PostCompact`, and `SessionStart` with source `compact`
 - Claude Code: `https://code.claude.com/docs/en/plugins`,
-  `https://code.claude.com/docs/en/hooks`, and `https://code.claude.com/docs/en/mcp`
+  `https://code.claude.com/docs/en/hooks`, and `https://code.claude.com/docs/en/mcp`; the
+  installed 2.1.267 hook runner documents `PreCompact` (trigger, custom_instructions; stdout joined
+  into the compactor's instructions), `PostCompact` (trigger, compact_summary; stdout shown to the
+  user only), and `SessionStart` with source `compact`
 - Gemini CLI: `https://geminicli.com/docs/extensions/reference/` and
   `https://geminicli.com/docs/hooks/reference/`
 - OpenCode: `https://opencode.ai/v2/docs/build/plugins` and

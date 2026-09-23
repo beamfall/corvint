@@ -2,7 +2,15 @@
 
 ## Supported versions
 
-Corvint is in alpha. Only the most recent published alpha receives security fixes.
+Support window for every 0.x version: only the latest published release receives security fixes.
+A release is outside the window the moment its successor is published, and a withdrawn release
+(see the [release runbook](docs/RELEASE-RUNBOOK.md)) is outside it immediately. The 1.0 support
+window is set by the owner at V1-0021 (accept and promote Corvint 1.0 stable) and recorded here.
+
+| Version | Supported |
+|---|---|
+| latest published 0.x release | yes |
+| any earlier 0.x release | no |
 
 ## Reporting a vulnerability
 

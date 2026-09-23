@@ -3,6 +3,8 @@ package jstestprovider
 import (
 	"encoding/json"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/tcq"
 )
 
 // Playwright's JSON reporter schema, confirmed empirically against
@@ -135,13 +137,24 @@ func playwrightOutcome(spec playwrightSpec, t playwrightTest) TestOutcome {
 // though the underlying result.status is "interrupted" (confirmed against
 // testdata/playwright-interrupted.json), so reading only the aggregate would
 // misclassify a cancellation as an ordinary skip.
+// resultStatuses maps Playwright attempt statuses onto the TCQ report vocabulary
+// so the shared TCQ-V0-049 rule, not the reporter's `flaky` label, decides that
+// a test which passed on retry is flaky.
+func resultStatuses(results []playwrightResult) []string {
+	statuses := make([]string, 0, len(results))
+	for _, result := range results {
+		statuses = append(statuses, tcqStatus[ExecutionState(result.Status)])
+	}
+	return statuses
+}
+
 func playwrightState(t playwrightTest, last *playwrightResult, message string) ExecutionState {
 	if last == nil {
 		return StateSkipped
 	}
 	switch last.Status {
 	case "passed":
-		if t.Status == "flaky" {
+		if tcq.Flaky(resultStatuses(t.Results)) {
 			return StateFlaky
 		}
 		return StatePassed

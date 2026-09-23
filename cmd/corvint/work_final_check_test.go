@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -44,7 +45,26 @@ cat "$HOME/first-checkpoint"
 	}
 	materializationGit(t, root, "add", ".")
 	materializationGit(t, root, "commit", "-qm", "final checkpoint fixture")
+	workFinalIncompleteScope(t, root)
 	return root
+}
+
+// workFinalIncompleteScope places an untracked FIFO inside the qualified
+// source's Git metadata directory (one of observeWork's monitoredRoots,
+// cmd/corvint/work.go) so the WQO-V0-017 manifest scan reports an
+// unsupported entry there (workManifestEntry, work_mutation.go) on every
+// capture this fixture drives. .git is outside what the caller-tree
+// qualification check inspects, so this keeps monitoredComplete false and so
+// keeps every final-check fixture's initial (and closing) scope incomplete,
+// independent of whether the worklist-adapter mapping byte-reproduces
+// (WQO-V0-046, decision 0348). Without it, once decision-0046-v0 qualifies,
+// ProposeWave's full StateValidated path runs against this fixture's minimal
+// worklist/envelope instead of the closed-scope path these tests exercise.
+func workFinalIncompleteScope(t *testing.T, root string) {
+	t.Helper()
+	if err := syscall.Mkfifo(filepath.Join(root, ".git", "unsupported-manifest-entry"), 0600); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func workFinalEnvelope(t *testing.T) (*workqueue.CapacityEnvelope, string) {
@@ -116,7 +136,7 @@ func workFinalPriorMutation(capture *workCapture) {
 func workAssertFinalProposal(t *testing.T, capture *workCapture, envelope *workqueue.CapacityEnvelope, output []byte, exit int, observationState, proposalState string) {
 	t.Helper()
 	if exit != 0 || capture.observation.State != observationState {
-		t.Fatalf("exit=%d observation=%+v output=%s", exit, capture.observation, output)
+		t.Fatalf("exit=%d adapter failure=%v failed receipt=%+v observation=%+v output=%s", exit, capture.runner.failure, capture.runner.failureReceipt, capture.observation, output)
 	}
 	result := workFinalResult(t, output)
 	var proposal map[string]json.RawMessage
@@ -148,6 +168,8 @@ func workAssertFinalProposal(t *testing.T, capture *workCapture, envelope *workq
 func TestWorkFinalCheckCaptureBinding(t *testing.T) {
 	t.Parallel()
 	t.Run("WQO-V0-021", func(t *testing.T) {
+		// Scripts that commit disable detached auto maintenance: its grandchild
+		// outlives the adapter leader and reads as residue or an unfinished drain.
 		cases := []struct {
 			name, change, script, observation, proposal string
 			priorMutation, finalMutation, closingError  bool
@@ -157,10 +179,10 @@ func TestWorkFinalCheckCaptureBinding(t *testing.T) {
 			{name: "snapshot-contradiction", change: "snapshot", observation: "CONFLICTED", proposal: "EMPTY"},
 			{name: "checkpoint-drift", change: "checkpoint", observation: "STALE", proposal: "STALE"},
 			{name: "prior-mutation-and-drift", change: "checkpoint", priorMutation: true, observation: "UNKNOWN", proposal: "STALE"},
-			{name: "closing-inability", script: "printf dirty > '@ROOT@/untracked-final'\n", finalMutation: true, closingError: true, observation: "UNKNOWN", proposal: "EMPTY"},
-			{name: "prior-mutation-and-closing-inability", script: "printf dirty > '@ROOT@/untracked-final'\n", priorMutation: true, finalMutation: true, closingError: true, observation: "UNKNOWN", proposal: "EMPTY"},
-			{name: "source-drift-and-mutation", script: "git -C '@ROOT@' -c user.name=Test -c user.email=test@example.invalid commit --allow-empty -qm advance\n", finalMutation: true, observation: "UNKNOWN", proposal: "STALE"},
-			{name: "contradiction-and-source-drift", change: "policy", script: "git -C '@ROOT@' -c user.name=Test -c user.email=test@example.invalid commit --allow-empty -qm advance\n", finalMutation: true, observation: "CONFLICTED", proposal: "STALE"},
+			{name: "closing-inability", script: "git -C '@ROOT@' -c maintenance.auto=false -c gc.auto=0 -c user.name=Test -c user.email=test@example.invalid commit --allow-empty -qm advance\nprintf dirty > '@ROOT@/untracked-final'\n", finalMutation: true, closingError: true, observation: "UNKNOWN", proposal: "EMPTY"},
+			{name: "prior-mutation-and-closing-inability", script: "git -C '@ROOT@' -c maintenance.auto=false -c gc.auto=0 -c user.name=Test -c user.email=test@example.invalid commit --allow-empty -qm advance\nprintf dirty > '@ROOT@/untracked-final'\n", priorMutation: true, finalMutation: true, closingError: true, observation: "UNKNOWN", proposal: "EMPTY"},
+			{name: "source-drift-and-mutation", script: "git -C '@ROOT@' -c maintenance.auto=false -c gc.auto=0 -c user.name=Test -c user.email=test@example.invalid commit --allow-empty -qm advance\n", finalMutation: true, observation: "UNKNOWN", proposal: "STALE"},
+			{name: "contradiction-and-source-drift", change: "policy", script: "git -C '@ROOT@' -c maintenance.auto=false -c gc.auto=0 -c user.name=Test -c user.email=test@example.invalid commit --allow-empty -qm advance\n", finalMutation: true, observation: "CONFLICTED", proposal: "STALE"},
 		}
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {

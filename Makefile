@@ -18,7 +18,7 @@ GO_TEST_TIMEOUT ?= 30m
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build gate gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check decision-numbers-check eol-policy-check eol-policy-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check dogfood-change dogfood-check dogfood-seal dogfood-bind-range dogfood-bind-range-test error-code-ownership-check error-code-ownership-test cem-verify-pr-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test
+.PHONY: build gate gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check decision-numbers-check eol-policy-check eol-policy-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check dogfood-change dogfood-check dogfood-seal dogfood-bind-range dogfood-bind-range-test error-code-ownership-check error-code-ownership-test cem-verify-pr-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test
 
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
@@ -52,10 +52,12 @@ endif
 # ledger/STEP runs STEP through tools/gate-ledger (docs/specs/gate-ledger-v0.md): the step is
 # skipped only when a pass is recorded for byte-identical inputs, from any worktree of this
 # user, and it records only after STEP exits zero. ledger/go-test splits `./...` into the
-# packages Go's own test cache may answer and the unresolved packages, which run with -count=1
-# under a whole-tree key. Every step still runs unchanged on its own target, and
-# CORVINT_GATE_LEDGER=off makes ledger/STEP exactly `make STEP`. The sub-make receives the same
-# makefiles as this one so an overriding makefile (script/gate-receipt_test.sh) reaches it.
+# resolved packages, each keyed on its proven bound (the go list test closure plus every path
+# gate-affected-select -bounds attributes to it) so a pass hits from any worktree, and the
+# unresolved packages, which run with -count=1 under a whole-tree key. Every step still runs
+# unchanged on its own target, and CORVINT_GATE_LEDGER=off makes ledger/STEP exactly `make STEP`.
+# The sub-make receives the same makefiles as this one so an overriding makefile
+# (script/gate-receipt_test.sh) reaches it.
 GATE_LEDGER = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/gate-ledger
 SUB_MAKE = $(MAKE) $(addprefix -f ,$(MAKEFILE_LIST))
 ifeq ($(CORVINT_GATE_LEDGER),off)
@@ -241,6 +243,15 @@ error-code-ownership-test:
 # or when the covered-site count differs from script/diagnostic-coverage.count (DRC-V0-011/012).
 diagnostic-coverage-check:
 	@script/check-diagnostic-coverage.sh
+
+install-lifecycle-test:
+	@script/check-install-lifecycle_test.sh
+
+hostile-regressions-check:
+	@script/check-hostile-regressions.sh
+
+hostile-regressions-test:
+	@script/check-hostile-regressions_test.sh
 
 # sql-native-ratchets is opt-in only and is NOT a `make gate` prerequisite: it builds
 # cmd/corvint twice and runs 30 benchmark samples pinned to one local Go toolchain

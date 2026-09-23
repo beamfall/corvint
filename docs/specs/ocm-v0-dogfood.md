@@ -143,6 +143,17 @@ claim, and mutation ordering deltas below.
   `unsupported-object-alternates`. Implicit fetch is forbidden. Validated repository administrative
   metadata is authority and MUST remain stable for one invocation; hostile same-identity mutation is
   outside the V0 trust boundary.
+- `OCM-V0-014`: the `ocm/0.1-experimental` wire profile MUST be frozen by the conformance suite
+  `conformance/ocm-v0/`: every valid vector is the byte output of the real `prepare`, `link`, and
+  `mark` producers over a deterministic seed repository and MUST re-derive byte-for-byte on every
+  run; every vector and fixture case MUST be exercised against the real structural parser and the
+  real `status` verifier, never a double; the suite MUST cover a valid minimal map, every
+  disposition and every `unknown` reason, canonical round-trip identity, and the hostile cases
+  (extra top-level member, wrong `spec`, truncated or non-object input, oversize map, obligation
+  bound, duplicate JSON key, duplicate or invalid requirement ID, non-canonical encoding, dangling
+  hunk and claim references, order and set mismatch, stale CEM digests, target mismatch). A
+  producer byte or refusal code that drifts from the frozen data is a wire change and MUST be
+  recorded in this spec before the data is refrozen. Accepted 2026-09-22 by decision 0343.
 
 ## Wire profile
 
@@ -364,6 +375,11 @@ both missing revision arguments, target mismatch plus forged target sidecar, and
 configured alternate. Integration fixtures accept target-side sidecar absence and an exact `100644`
 raw-byte match, while forged bytes or mode `100755` fail `excluded-artifact-mismatch` through OCM.
 
+The `OCM-V0-014` conformance suite is a gate, not a dogfood change: `go test ./conformance/ocm-v0/`
+re-derives every valid vector from the real producers over the deterministic seed universe and
+offers every vector and fixture case to the real parser and verifier. Its frozen data changes only
+after this spec records the wire change (decision 0343).
+
 The global `--root` names the sole requested worktree boundary. After reciprocal validation, its
 per-worktree administrative directory and common local object store are authorized repository
 metadata even when a supported linked-worktree layout places them outside the worktree directory.
@@ -420,6 +436,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-006..012 | `src/context_corvint_ocm_workflow.py`, `src/corvint_cli.py` | `tests/test_context_corvint_ocm_workflow.py`, `tests/test_cli.py` |
 | OCM-V0-012 (Git bound reached while resolving the OCM target keeps its runner code) | `internal/lrfrepo/ocm.go` (`verifyOCMBinding`, `gitBoundReached`) | `internal/lrfrepo/ocm_read_test.go:TestOCMBindingNamesGitBudgetExpiryNotMissingObject` |
 | OCM-V0-013 | `script/dogfood-change.sh`, `script/dogfood-check.sh`, `internal/dogfoodocm`, `cmd/corvint/dogfood_ocm.go` | `internal/dogfoodocm/aggregate_test.go`, `script/dogfood-change_test.sh`, `cmd/corvint/ocm_test.go:TestDogfoodOCMArgumentErrorsAreInvalidArguments` |
+| OCM-V0-014 | `conformance/ocm-v0/` (`universe.go`, `adapter.go`, `vectors.go`, `fixtures.go`, `manifest.go`, `vectors/structural.json`, `fixtures/*/case.json`, `manifest.json`) | `conformance/ocm-v0/structural_test.go:TestStructuralVectorsAgainstRealParser`, `conformance/ocm-v0/structural_test.go:TestValidVectorsAreCanonical`, `conformance/ocm-v0/structural_test.go:TestStructuralVectorsCoverEveryDisposition`, `conformance/ocm-v0/producer_test.go:TestFrozenVectorsMatchTheRealProducer`, `conformance/ocm-v0/fixtures_test.go:TestFixturesAgainstRealVerifier`, `conformance/ocm-v0/fixtures_test.go:TestSuiteDataIsSelfConsistent` |
 
 Native selector diagnostic amendment to `OCM-V0-007` (2026-09-08): the owner's Task 2
 follow-up explicitly requests printing the normalized fragment on a miss. A missing `/case:` selector retains

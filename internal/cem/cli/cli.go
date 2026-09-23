@@ -86,8 +86,8 @@ var cemActions = map[string]cemAction{
 		choices: map[string][]string{
 			"--disposition": {"unknown", "mechanical"},
 			"--reason": {
-				"conflicting-evidence", "insufficient-evidence", "line-ending-only",
-				"no-evidence", "whitespace-only",
+				"conflicting-evidence", "formatter-only", "import-reorder", "insufficient-evidence",
+				"line-ending-only", "move", "no-evidence", "rename", "whitespace-only",
 			},
 		},
 	},
@@ -97,11 +97,32 @@ var cemActions = map[string]cemAction{
 		arguments: []string{"--map", "--patch", "--output", "--target", "--expected-base", "--max-unknown", "--max-mechanical"},
 		required:  []string{"--map"},
 	},
+	"cover": {
+		arguments: []string{"--map", "--coverprofile", "--test-run", "--output"},
+		required:  []string{"--map", "--coverprofile", "--test-run"},
+	},
+	"discriminate": {
+		arguments: []string{"--map", "--target", "--max-hunks", "--max-mutants", "--wall-time", "--output"},
+		required:  []string{"--map", "--target"},
+	},
+	"anchor": {
+		arguments: []string{"--map", "--commit"},
+		required:  []string{"--map"},
+		paths:     []string{"--map"},
+	},
+	"provenance": {arguments: []string{"--commit"}, required: []string{"--commit"}},
 }
 
 // cemActionOrder is the order the oracle declares its subparsers in, which is
-// the order its invalid-choice message lists them in.
-var cemActionOrder = []string{"begin", "prepare", "cite", "mark", "verify", "status", "report"}
+// the order its invalid-choice message lists them in; cover (TCQ-V0-051),
+// discriminate (TCQ-V0-055), anchor and provenance (FPK-V0-037..040) have no
+// oracle counterpart and are listed last.
+var cemActionOrder = []string{"begin", "prepare", "cite", "mark", "verify", "status", "report", "cover", "discriminate", "anchor", "provenance"}
+
+// GitNotes serves anchor and provenance (internal/gitnotes). The binary
+// installs it, so the CEM seams' dependency closure stays the standard library
+// and internal/cem; an uninstalled handler is an invalid choice.
+var GitNotes func(ctx context.Context, root, action string, values map[string]string) (map[string]any, error)
 
 func quotedChoices(values []string) string {
 	quoted := make([]string, 0, len(values))
@@ -388,6 +409,21 @@ func dispatchCEM(ctx context.Context, root string, arguments []string) (map[stri
 			Disposition: flags.values["--disposition"], Reason: flags.values["--reason"],
 			Output: flags.values["--output"],
 		})
+	case "cover":
+		return session.Cover(ctx, workflow.CoverOptions{
+			MapPath: flags.values["--map"], Coverprofile: flags.values["--coverprofile"],
+			TestRun: flags.values["--test-run"], Output: flags.values["--output"],
+		})
+	case "discriminate":
+		return session.Discriminate(ctx, workflow.DiscriminateOptions{
+			MapPath: flags.values["--map"], Target: flags.values["--target"],
+			MaxHunks: flags.values["--max-hunks"], MaxMutants: flags.values["--max-mutants"],
+			WallTime: flags.values["--wall-time"], Output: flags.values["--output"],
+		})
+	case "anchor", "provenance":
+		if GitNotes != nil {
+			return GitNotes(ctx, root, action, flags.values)
+		}
 	case "status", "verify", "report":
 		maxUnknown, err := flags.limit("--max-unknown")
 		if err != nil {

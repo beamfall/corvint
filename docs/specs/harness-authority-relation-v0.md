@@ -30,7 +30,7 @@ has committed to. Every candidate root in this repository is caller-owned:
 | any signature over those bytes | the bytes and the key are both caller-controlled | `CF-V0-014`, `:193-197` |
 | the Go live-test provider receipt | its own type doc says **"caller-owned, non-persistent canonical transcript"** | `internal/liveverify/provider/receipt.go:57` |
 | the harness adapter itself | it normalizes host-supplied fields and obeys host policy; the host is the caller | `AHI-014`, `docs/specs/agent-harness-integration-v0.md:140-142` |
-| the Frontier verifier running the tests itself | forbidden: no shell runner, no execution | `CF-V0-026` (`:340-344`), `TCQ-V0-045` (`:544-548`) |
+| the Frontier verifier running the tests itself | forbidden: no shell runner, no execution | `CF-V0-026` (`:340-344`), `TCQ-V0-045` (`:561-565`) |
 
 And TCQ V0 states the boundary directly: Corvint "does **not** resist a malicious or compromised
 same-UID caller or task agent. That caller can fabricate a command artifact, JUnit report,

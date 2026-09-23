@@ -196,6 +196,51 @@ func TestMCPV0022LegacyCancellationAndProgress(t *testing.T) {
 	}
 }
 
+// OpenCode 1.17.18 and 1.18.31 send notifications/cancelled for every tools/call
+// after its response arrived; the connection must ignore them and keep serving.
+func TestMCPV0022LegacyCancelledAfterCompletionIsIgnored(t *testing.T) {
+	input, sender := io.Pipe()
+	output, writer := io.Pipe()
+	ctx, cancel := context.WithCancel(context.Background())
+	calls := 0
+	instance := legacyServer(t, HandlerFunc(func(context.Context, protocol.Request, Notifier) (map[string]any, *protocol.RPCError) {
+		calls++
+		return map[string]any{"content": []any{}}, nil
+	}))
+	done := make(chan error, 1)
+	go func() { done <- instance.Serve(ctx, input, writer) }()
+	t.Cleanup(func() {
+		cancel()
+		_ = sender.Close()
+		_ = output.Close()
+		<-done
+	})
+	decoder := json.NewDecoder(output)
+	exchange := func(frame string, id float64) {
+		t.Helper()
+		if _, err := io.WriteString(sender, frame+"\n"); err != nil {
+			t.Fatal(err)
+		}
+		var response map[string]any
+		if err := decoder.Decode(&response); err != nil {
+			t.Fatal(err)
+		}
+		if response["id"] != id || response["result"] == nil {
+			t.Fatalf("frame %q got %#v", frame, response)
+		}
+	}
+	exchange(legacyInitialize, 0)
+	_, _ = io.WriteString(sender, legacyInitializedNotification+"\n")
+	exchange(`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"corvint.status","arguments":{},"_meta":{"progressToken":2}}}`, 2)
+	_, _ = io.WriteString(sender, `{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":2,"reason":"AbortError: The operation was aborted."}}`+"\n")
+	exchange(`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"corvint.query","arguments":{"task":"t"},"_meta":{"progressToken":3}}}`, 3)
+	_, _ = io.WriteString(sender, `{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":3,"reason":"AbortError: The operation was aborted."}}`+"\n")
+	exchange(`{"jsonrpc":"2.0","id":4,"method":"ping"}`, 4)
+	if calls != 2 {
+		t.Fatalf("calls=%d", calls)
+	}
+}
+
 func TestMCPV0022LegacyBlockedInitializeCancels(t *testing.T) {
 	instance := legacyServer(t, HandlerFunc(func(context.Context, protocol.Request, Notifier) (map[string]any, *protocol.RPCError) {
 		t.Error("unexpected handler")

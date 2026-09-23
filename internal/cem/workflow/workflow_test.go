@@ -1475,3 +1475,109 @@ func TestReportRefusesNormalizationVariantOfMapPath(t *testing.T) {
 		t.Fatal("report overwrote the map through a normalization variant")
 	}
 }
+
+// makeGoRepo commits base and target revisions of one Go file.
+func makeGoRepo(t *testing.T, base, target string) (string, string, string) {
+	t.Helper()
+	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitCmd(t, root, "init", "-q", "-b", "main")
+	writeFile(t, root, "pkg/a.go", base)
+	gitCmd(t, root, "add", ".")
+	gitCmd(t, root, "commit", "-qm", "base")
+	baseSHA := gitCmd(t, root, "rev-parse", "HEAD")
+	writeFile(t, root, "pkg/a.go", target)
+	gitCmd(t, root, "add", ".")
+	gitCmd(t, root, "commit", "-qm", "target")
+	return root, baseSHA, gitCmd(t, root, "rev-parse", "HEAD")
+}
+
+const importReorderBase = "package pkg\n\nimport (\n\t\"strings\"\n\t\"fmt\"\n)\n\n// Shout upper-cases s.\nfunc Shout(s string) string { return fmt.Sprint(strings.ToUpper(s)) }\n"
+const importReorderTarget = "package pkg\n\nimport (\n\t\"fmt\"\n\t\"strings\"\n)\n\n// Shout upper-cases s.\nfunc Shout(s string) string { return fmt.Sprint(strings.ToUpper(s)) }\n"
+
+// markStructural prepares, marks hunk 1 mechanical with reason, commits the
+// map, and returns the status envelope (CEM-SM-006).
+func markStructural(t *testing.T, root, base, target, reason string) map[string]any {
+	t.Helper()
+	session := openSession(t, root)
+	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.Mark(ctx(), MarkOptions{
+		MapPath: wire.ExcludedCEMPath, Hunk: "1", Disposition: "mechanical", Reason: reason,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, wire.ExcludedCEMPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := wire.ParseMap(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if document.Spec != wire.Spec03 {
+		t.Fatalf("spec after structural mark = %q, want %q", document.Spec, wire.Spec03)
+	}
+	gitCmd(t, root, "add", wire.ExcludedCEMPath)
+	gitCmd(t, root, "commit", "-qm", "candidate")
+	result, err := openSession(t, root).Read(ctx(), "status", ReadOptions{
+		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return result
+}
+
+// TestMarkStructuralReasonUpgradesToSpec03AndVerifies is the end-to-end
+// cem/0.3 path: mark upgrades the map, and the LLM-free verifier proves the
+// import reorder from the base blob and patch alone.
+func TestMarkStructuralReasonUpgradesToSpec03AndVerifies(t *testing.T) {
+	root, base, target := makeGoRepo(t, importReorderBase, importReorderTarget)
+	result := markStructural(t, root, base, target, "import-reorder")
+	verification := result["verification"].(map[string]any)
+	if result["ok"] != true || verification["valid"] != true {
+		encoded, _ := json.Marshal(result)
+		t.Fatalf("structural status not green: %s", encoded)
+	}
+	if counts := result["counts"]; fmt.Sprint(counts) != "map[mechanical:1 supported:0 total:1 unknown:0]" {
+		t.Fatalf("counts = %v", counts)
+	}
+}
+
+// TestMarkStructuralReasonWrongClassIsRefused pins that a structural claim
+// the verifier cannot reproduce fails unproven-mechanical rather than being
+// accepted on the author's word.
+func TestMarkStructuralReasonWrongClassIsRefused(t *testing.T) {
+	root, base, target := makeGoRepo(t, importReorderBase, importReorderTarget)
+	result := markStructural(t, root, base, target, "rename")
+	verification := result["verification"].(map[string]any)
+	issues := verification["issues"].([]any)
+	if result["ok"] != false || verification["valid"] != false || len(issues) == 0 {
+		t.Fatalf("wrong-class claim accepted: %+v", verification)
+	}
+	if code := issues[0].(map[string]any)["code"]; code != cemcode.UnprovenMechanical {
+		t.Fatalf("issue code %v, want %s", code, cemcode.UnprovenMechanical)
+	}
+}
+
+// TestMarkStructuralReasonRefusedOnSpec01 pins that a 0.1 map never gains
+// the structural vocabulary.
+func TestMarkStructuralReasonRefusedOnSpec01(t *testing.T) {
+	root, _, _ := makeRepo(t)
+	writeFile(t, root, "staged.cem.json", `{"spec":"cem/0.1","baseRevision":"4ca153370afd9bd8c6034ad73acc3925150ab681",`+
+		`"patchSha256":"dec61287f7b726144fc19d67f0e07f3c40410c28bc19831a4b0f9fb96487717c",`+
+		`"evidence":[],"hunks":[{"id":"hunk:sha256:07461a992e03e064986720e365dc4bb477da7cefe73da853f51bcb70e2c3100c",`+
+		`"path":"src/app.py","oldRange":{"start":1,"count":2},"newRange":{"start":1,"count":2},`+
+		`"disposition":"unknown","reason":"no-evidence","basis":[]}]}`)
+	_, err := openSession(t, root).Mark(ctx(), MarkOptions{
+		MapPath: "staged.cem.json", Hunk: "1", Disposition: "mechanical", Reason: "rename", Output: "out.cem.json",
+	})
+	if cemcode.CodeOf(err) != cemcode.InvalidArguments {
+		t.Fatalf("got %v, want invalid-arguments", err)
+	}
+}

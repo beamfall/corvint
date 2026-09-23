@@ -1,10 +1,20 @@
 package tcq
 
 import (
+	"regexp"
+	"sort"
+
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
 var observationFields = []string{"commandId", "exitCode", "id", "report", "rows", "spec", "targetRevision", "unkeyedRows"}
+
+// observationVariantFields is the TCQ-V0-048 shape: the same closed set plus the
+// one optional `environment` member. No other member is ever admitted.
+var observationVariantFields = append([]string{"environment"}, observationFields...)
+
+// environmentKeyPattern is the ResultDB variant-key grammar TCQ-V0-048 adopts.
+var environmentKeyPattern = regexp.MustCompile(`^[a-z][a-z0-9_]{0,63}$`)
 
 // observation is the verified `test-observation/0.1-experimental` projection.
 // TCQ-V0-032 makes it a caller-reported projection, never authorization: every
@@ -18,6 +28,18 @@ type observation struct {
 	reportBytes    int64
 	unkeyedRows    int64
 	rows           []wire.Value
+	// environment is the TCQ-V0-048 declared variant. A nil map means the
+	// observation declared none and its environment is unknown, never empty.
+	environment map[string]string
+}
+
+// variantKey is the TCQ-V0-050 comparability key: the canonical bytes of the
+// declared variant, or the empty string for an undeclared one.
+func (observed observation) variantKey() string {
+	if observed.environment == nil {
+		return ""
+	}
+	return string(canonicalValue(environmentValue(observed.environment)))
 }
 
 // parseObservation implements TCQ-V0-031: exact shape, `exitCode` in
@@ -28,7 +50,7 @@ func parseObservation(raw []byte) (observation, error) {
 	if err != nil {
 		return observation{}, err
 	}
-	object, err := exactObject(value, observationFields, CodeInvalidObservation)
+	object, err := observationObject(value)
 	if err != nil {
 		return observation{}, err
 	}
@@ -48,6 +70,18 @@ func parseObservation(raw []byte) (observation, error) {
 	}
 	result.id = identity
 	return result, nil
+}
+
+// observationObject admits exactly the TCQ-V0-031 shape, or that shape plus the
+// TCQ-V0-048 `environment` member when the document carries one.
+func observationObject(value wire.Value) (*wire.Object, error) {
+	if value.Kind != wire.KindObject {
+		return nil, fail(CodeInvalidObservation)
+	}
+	if _, declared := value.Obj.Get("environment"); declared {
+		return exactObject(value, observationVariantFields, CodeInvalidObservation)
+	}
+	return exactObject(value, observationFields, CodeInvalidObservation)
 }
 
 func readObservationFields(object *wire.Object) (observation, error) {
@@ -79,10 +113,54 @@ func readObservationFields(object *wire.Object) (observation, error) {
 	if err != nil {
 		return observation{}, err
 	}
+	environment, err := readEnvironment(object)
+	if err != nil {
+		return observation{}, err
+	}
 	return observation{
 		commandID: commandID, targetRevision: target, exitCode: exitCode,
 		reportSHA256: reportSHA, reportBytes: reportBytes, unkeyedRows: unkeyed, rows: rows,
+		environment: environment,
 	}, nil
+}
+
+// readEnvironment implements TCQ-V0-048: an absent member is an unknown
+// environment; a present one is an object of at most maxEnvironmentPairs
+// ResultDB-grammar keys with string values of at most maxEnvironmentValueBytes.
+func readEnvironment(object *wire.Object) (map[string]string, error) {
+	value, declared := object.Get("environment")
+	if !declared {
+		return nil, nil
+	}
+	if value.Kind != wire.KindObject || len(value.Obj.Keys) > maxEnvironmentPairs {
+		return nil, fail(CodeInvalidObservation)
+	}
+	environment := make(map[string]string, len(value.Obj.Keys))
+	for _, key := range value.Obj.Keys {
+		if !environmentKeyPattern.MatchString(key) {
+			return nil, fail(CodeInvalidObservation)
+		}
+		item := value.Obj.Values[key]
+		if item.Kind != wire.KindString || len(item.Str) > maxEnvironmentValueBytes {
+			return nil, fail(CodeInvalidObservation)
+		}
+		environment[key] = item.Str
+	}
+	return environment, nil
+}
+
+// environmentValue encodes a declared variant with its keys in canonical order.
+func environmentValue(environment map[string]string) wire.Value {
+	keys := make([]string, 0, len(environment))
+	for key := range environment {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	members := make([]member, 0, len(keys))
+	for _, key := range keys {
+		members = append(members, member{key, jsonString(environment[key])})
+	}
+	return jsonObject(members...)
 }
 
 func readReportSummary(value wire.Value) (int64, string, error) {
@@ -148,7 +226,15 @@ func readObservationRow(object *wire.Object) (string, string, error) {
 // MakeTestObservation projects one caller-supplied JUnit report under one
 // command into a canonical observation. Per TCQ-V0-029 an exit code of zero
 // alongside any failed or errored testcase is `report-command-inconsistent`.
+// The observation declares no environment variant (TCQ-V0-048).
 func MakeTestObservation(repository Repository, commandRaw, reportRaw []byte, targetRevision string, exitCode int64) ([]byte, error) {
+	return MakeTestObservationInEnvironment(repository, commandRaw, reportRaw, targetRevision, exitCode, nil)
+}
+
+// MakeTestObservationInEnvironment is MakeTestObservation with a declared
+// TCQ-V0-048 environment variant. A nil environment declares none; a non-nil
+// map, even an empty one, is the declared variant and enters the observation ID.
+func MakeTestObservationInEnvironment(repository Repository, commandRaw, reportRaw []byte, targetRevision string, exitCode int64, environment map[string]string) ([]byte, error) {
 	commandValue, err := parseCommand(commandRaw)
 	if err != nil {
 		return nil, err
@@ -176,6 +262,10 @@ func MakeTestObservation(repository Repository, commandRaw, reportRaw []byte, ta
 		member{"targetRevision", jsonString(targetRevision)},
 		member{"unkeyedRows", jsonInt(int64(report.unkeyedCount))},
 	)
+	if environment != nil {
+		document.Obj.Keys = append(document.Obj.Keys, "environment")
+		document.Obj.Values["environment"] = environmentValue(environment)
+	}
 	identity := observationPrefix + domainHash(domainObservation, canonicalValue(document))
 	document.Obj.Keys = append(document.Obj.Keys, "id")
 	document.Obj.Values["id"] = jsonString(identity)

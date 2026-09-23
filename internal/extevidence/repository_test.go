@@ -125,6 +125,24 @@ func section1(t *testing.T, p pair, data []byte, checkouts []Checkout, changed .
 	return decoded
 }
 
+// EEP-V0-010 `deleted` under EEP-V1: a bound checkout that has since removed
+// a path the record pinned at an ancestor revision reports `deleted`, while a
+// path the checkout never held stays `missing`; both make the relation stale.
+func TestTwoRepositoryDeletedTestPath(t *testing.T) {
+	t.Parallel()
+	p := newPair(t)
+	gitIn(t, p.e2e.root, "rm", "-q", "tests/account.spec.ts")
+	gitIn(t, p.e2e.root, "commit", "-qm", "remove account spec")
+	section := section1(t, p, conformance(t, "two-repository.json", p.values()), []Checkout{{ID: "e2e", Source: p.e2e.root}}, "pkg/main.go")
+	verification := itemsByPath(section, "verification")
+	if gone := verification["tests/account.spec.ts"]; gone["verification"] != VerificationDeleted || gone["relation_state"] != RelationStale {
+		t.Fatalf("removed path = %v", gone)
+	}
+	if never := verification["tests/removed.spec.ts"]; never["verification"] != VerificationMissing || never["relation_state"] != RelationStale {
+		t.Fatalf("never-tracked path = %v", never)
+	}
+}
+
 func providerRow(section map[string]any) map[string]any {
 	return section["providers"].([]any)[0].(map[string]any)
 }

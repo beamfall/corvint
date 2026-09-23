@@ -27,6 +27,10 @@ const (
 	maxArtifactBytes  = 64 << 20
 	maxWorkspaceBytes = 1 << 30
 	maxWorkspaceFiles = 100_000
+	// maxControlListLength bounds UnrelatedCriteria and RequiredSetup (BBF-V0-010): at this cap,
+	// acceptedReceiptBound() in execute.go stays below maxDocumentBytes even when both lists are
+	// full, so the per-receipt floor can never exceed the 32 MiB document bound.
+	maxControlListLength = 1000
 )
 
 var (
@@ -186,6 +190,9 @@ func validateControl(target TargetIdentity, control ControlSpec) error {
 	}
 	if !uniqueStrings(control.UnrelatedCriteria, func(value string) bool { return idPattern.MatchString(value) && value != target.CriterionID }) || !uniqueStrings(control.RequiredSetup, idPattern.MatchString) {
 		return errors.New("invalid unrelated criterion or setup identity")
+	}
+	if len(control.UnrelatedCriteria) > maxControlListLength || len(control.RequiredSetup) > maxControlListLength {
+		return errors.New("unrelated criteria or required setup list too long")
 	}
 	switch control.Disposition {
 	case "run":

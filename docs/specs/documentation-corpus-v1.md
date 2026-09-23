@@ -199,7 +199,12 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   counts are unchanged; semantic fields participate in the content digest. The prior result must pass
   closed schema, stable provider/contract/repository lineage, self-consistent historical revisions,
   artifact and contract digests, uniqueness and semantic-link validation before it can affect a delta;
-  a later revision of the same repositories remains comparable. Diagnostics name the input, exact
+  a later revision of the same repositories remains comparable. Semantic-link validation tolerates a
+  criterion or claim naming a variation absent from the normative set when DCP-V1-031 reconciliation
+  itself retains and reports that same reference; a claim naming a variation reconciliation would not
+  have retained still refuses (decision 0337). Lost reverse-link entries are printable corpus text,
+  never the NUL-joined form corpus text fields forbid elsewhere, and are validated as such when a
+  prior result is read. Diagnostics name the input, exact
   mapped JSON field, revision, digest and corrective action; multi-field refusal selection is
   deterministic and preserves RFC-6901 empty path tokens. Output
   ordering and bytes are deterministic, and new mapping, result and diagnostic vocabulary contains no

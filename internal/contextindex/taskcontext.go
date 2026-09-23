@@ -104,6 +104,9 @@ type taskContextCompiler struct {
 	// slot and the lexical fill.
 	lexical       []lexicalHit
 	selectedTerms *contextTermSelection
+	// anchors is TCP-V0-022's verbatim literal field, empty unless
+	// `CORVINT_CONTEXT_ANCHORS=on`.
+	anchors []taskAnchor
 }
 
 // startHistory reads the co-change history beside the slots that do not need
@@ -186,7 +189,7 @@ var (
 )
 
 func newTaskContextCompiler(index *Index, task, subject string) *taskContextCompiler {
-	return configureContextTerms(&taskContextCompiler{
+	return configureContextAnchors(configureContextTerms(&taskContextCompiler{
 		index:         index,
 		task:          task,
 		subject:       subject,
@@ -197,7 +200,7 @@ func newTaskContextCompiler(index *Index, task, subject string) *taskContextComp
 		candidates:    map[string][]string{},
 		relationState: map[string]string{},
 		promoted:      map[string]string{},
-	})
+	}))
 }
 
 // compile runs the slots in evidence order and fills the remainder lexically.
@@ -941,6 +944,7 @@ type lexicalHit struct {
 	score, rarestIDF      float64
 	rarest                string
 	documentation         bool
+	anchors               []anchorHit
 }
 
 // lexicalHits is the scored posting walk, run once per compile: the test slot
@@ -1012,13 +1016,33 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 			}
 		}
 	}
+	// TCP-V0-022: an anchor is a fourth field, verified verbatim over the
+	// sources its words' postings share; its idf is the verified posting
+	// length and its tf the whole-anchor occurrence count, scored like a body
+	// term. The anchor field is a credit inside the lexical slot, so an anchor
+	// row keeps the slot's score and never outranks a reserved authority row.
+	var anchorHits map[uint32][]anchorHit
+	for _, anchor := range compiler.anchors {
+		if anchorHits == nil {
+			anchorHits = map[uint32][]anchorHit{}
+		}
+		sources, counts := compiler.anchorOccurrences(table, anchor.literal)
+		idf := idfOf(len(sources))
+		for index, source := range sources {
+			tf := float64(counts[index])
+			norm := k1 * (1 - b + b*float64(lengths[source])/average)
+			occurrences[source] += counts[index]
+			anchorHits[source] = append(anchorHits[source], anchorHit{literal: anchor.literal, count: counts[index]})
+			credit(3, source, anchor.literal, idf, idf*tf*(k1+1)/(tf+norm))
+		}
+	}
 	hits := make([]lexicalHit, 0)
 	for source, count := range distinct {
 		if count > 0 {
 			hits = append(hits, lexicalHit{
 				path: table.Paths[source], source: uint32(source), distinct: count, occurrences: occurrences[source],
 				score: scores[source], rarestIDF: rarestIDF[source], rarest: rarest[source],
-				documentation: isDocumentationSuffix(table.Paths[source]),
+				documentation: isDocumentationSuffix(table.Paths[source]), anchors: anchorHits[uint32(source)],
 			})
 		}
 	}
@@ -1061,6 +1085,9 @@ func (compiler *taskContextCompiler) lexicalRows(taken int) []contextRow {
 		kind := "lexical"
 		reason := fmt.Sprintf("%d distinct task terms, %d occurrences; rarest `%s` (idf %.2f); bm25 %.2f",
 			item.distinct, item.occurrences, item.rarest, item.rarestIDF, item.score)
+		if len(item.anchors) > 0 {
+			reason = anchorReason(item.anchors) + reason
+		}
 		if item.documentation {
 			kind = "documentation"
 			reason = "documentation: " + reason
@@ -1491,12 +1518,13 @@ func (compiler *taskContextCompiler) namedSpecPaths(specs []string, text string)
 // instruction file, else a defining spec, else neither -- which is not a claim
 // that the repository has none (invariant 2).
 func (compiler *taskContextCompiler) governance() string {
-	for _, row := range compiler.reserved {
+	rows := compiler.governanceRows()
+	for _, row := range rows {
 		if row.kind == governingRelation {
 			return "reserved"
 		}
 	}
-	if len(compiler.reserved) != 0 {
+	if len(rows) != 0 {
 		return specMentionedRelation
 	}
 	return "unresolved"
@@ -1561,7 +1589,7 @@ func (compiler *taskContextCompiler) criticalSelectors(rows []contextRow) ([]any
 		included[row.path] = struct{}{}
 	}
 	carried, missing := make([]any, 0), make([]any, 0)
-	ordered := slices.Clone(compiler.reserved)
+	ordered := compiler.governanceRows()
 	sort.SliceStable(ordered, func(left, right int) bool {
 		leftRank := slices.Index(contextRelationOrder, ordered[left].kind)
 		rightRank := slices.Index(contextRelationOrder, ordered[right].kind)
@@ -1706,6 +1734,7 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 	for _, row := range rows {
 		source, pinned := compiler.index.Sources[row.path]
 		entry := evidence(row.path, row.line, source.BlobHash, row.reason, row.confidence, row.authority)
+		entry["trust"] = TrustClass(row.authority)
 		if !pinned {
 			// An empty blob_hash alone does not disclose that the row is
 			// unpinned (AGENTS.md invariant 2): downgrade the confidence the
@@ -1745,7 +1774,7 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 			"omitted_results": maxInt(compiler.admitted-len(rows), 0),
 			"governance":      compiler.governance(), "critical": critical, "critical_missing": missing,
 			"unexamined": compiler.unexamined(), "budget_shortage": compiler.budgetShortage(),
-			"answerability": compiler.answerability.packet(compiler.index),
+			"answerability": compiler.answerability.packet(compiler.index), "governance_refused": compiler.governanceRefused(),
 		},
 		"results": results,
 	}

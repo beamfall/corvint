@@ -4,7 +4,7 @@
   "adapter": {
     "host": "claude-code",
     "surface": "plugin",
-    "version": "0.2.2"
+    "version": "0.2.3"
   },
   "host": {
     "minimumTestedVersion": "2.1.238",
@@ -46,5 +46,28 @@
     ],
     "validation": "production-Go-CLI adapter regressions; installed host matrix NOT_RUN",
     "authority": "local enrollment only; no Frontier authority or execution attestation"
+  },
+  "compactionHooks": {
+    "events": [
+      "PreCompact",
+      "PostCompact"
+    ],
+    "triggers": [
+      "manual",
+      "auto"
+    ],
+    "verifiedHostVersion": "2.1.267",
+    "verification": "STATIC_ONLY: hook names, payload fields and stdout handling read from the installed 2.1.267 hook runner; a live compaction cycle is NOT_RUN",
+    "pin": "corvint-compaction-pin/0 on PreCompact stdout, joined by the host into the compactor instructions; PostCompact re-reads it from compact_summary and reports the verdict to the user only",
+    "modelChannel": "SessionStart(source=compact) remains the only post-compaction packet the model receives",
+    "olderHosts": "a host that lacks these events ignores the registration silently; the compact SessionStart context then states that no pin verification ran",
+    "degradations": [
+      "invalid-compaction-trigger",
+      "compaction-pin-not-preserved",
+      "compaction-pin-revision-unavailable",
+      "compaction-pin-verification-unavailable",
+      "compaction-block-unavailable",
+      "git-unavailable"
+    ]
   }
 }

@@ -50,8 +50,12 @@ var contextTypes = map[string]string{"navigates": "navigation-only-evidence", "c
 // obligation, and it cannot veto one another relation qualified (ETS-V0-006).
 var nonBlocking = map[string]struct{}{
 	"navigation-only-evidence": {}, "candidate-only-evidence": {}, "profile-excluded-relation": {},
-	"inferred-only-evidence": {}, "excluded-evidence-kind": {},
+	"inferred-only-evidence": {}, "generated-only-evidence": {}, "excluded-evidence-kind": {},
 }
+
+// weakEvidence codes the evidence kinds that never qualify: a rule-derived
+// or model-generated relation is listed, never selected on (ETS-V0-014).
+var weakEvidence = map[string]string{EvidenceInferred: "inferred-only-evidence", EvidenceGenerated: "generated-only-evidence"}
 
 var identityCodes = map[string]string{IdentityUnresolved: "unresolved-repository-identity", IdentityAmbiguous: "ambiguous-repository-identity"}
 
@@ -65,8 +69,8 @@ var freshnessCodes = map[string]string{
 }
 
 var verificationCodes = map[string]string{
-	VerificationVerified: "", VerificationMissing: "missing-path-reference", VerificationStale: "stale-path-reference",
-	VerificationNotVerified: "unbound-test-repository",
+	VerificationVerified: "", VerificationMissing: "missing-path-reference", VerificationDeleted: "missing-path-reference",
+	VerificationStale: "stale-path-reference", VerificationNotVerified: "unbound-test-repository",
 }
 
 // sourceCodes renames a side code when the side is the verified subject of a
@@ -132,7 +136,7 @@ type selector struct {
 // executes nothing, and never fails: every problem is a structured entry.
 func Selection(ctx context.Context, dir, revision string, sources []string, checkouts []Checkout, input SelectionInput) map[string]any {
 	root := headRoot(dir, revision)
-	root.changed = input.Changed
+	root.changed, root.selecting = input.Changed, true
 	providers, repository, bound := loadAll(ctx, root, sources, checkouts)
 	s := newSelector(input)
 	s.inspect(ctx, bound)
@@ -142,7 +146,7 @@ func Selection(ctx context.Context, dir, revision string, sources []string, chec
 			s.block("provider-"+entry.state, entry.source, "", entry.reason)
 			continue
 		}
-		s.add(entry, entry.viewOf(repository))
+		s.add(entry, entry.viewOf(ctx, root, repository))
 	}
 	return s.result(providers)
 }
@@ -557,10 +561,7 @@ func (s *selector) weakCode(relationType, evidence string) string {
 	if verifying && !admitted {
 		return "profile-excluded-relation"
 	}
-	if evidence == EvidenceInferred {
-		return "inferred-only-evidence"
-	}
-	return ""
+	return weakEvidence[evidence]
 }
 
 // unsupportedCode refuses a namespaced relation type: its meaning belongs to

@@ -175,11 +175,22 @@ type reportProjection struct {
 	reasons []string
 }
 
-// projectReport implements TCQ-V0-021's collision rule and TCQ-V0-034's matching
+// projectReport matches the unit's rows, then applies TCQ-V0-050: a claim whose
+// execution key is flaky across observations and whose own projection matched
+// at least one row adds `test-flaky`, which TCQ-V0-035 turns into no relation.
+func projectReport(unit testUnit, document parsedDocuments, dynamic dynamicContext, cache *blobCache) reportProjection {
+	projection := matchReport(unit, document, dynamic, cache)
+	if len(projection.rowIDs) > 0 && dynamic.flaky[unit.executionKey] {
+		projection.reasons = append(projection.reasons, reasonTestFlaky)
+	}
+	return projection
+}
+
+// matchReport implements TCQ-V0-021's collision rule and TCQ-V0-034's matching
 // rule. Execution ambiguity is decided before any row is consulted: a duplicated
 // target key is AMBIGUOUS even when exactly one row matches, because a key match
 // never identifies which colliding body ran.
-func projectReport(unit testUnit, document parsedDocuments, dynamic dynamicContext, cache *blobCache) reportProjection {
+func matchReport(unit testUnit, document parsedDocuments, dynamic dynamicContext, cache *blobCache) reportProjection {
 	if cache.collisions[unit.executionKey] > 1 {
 		return reportProjection{state: ReportAmbiguous, reasons: []string{reasonExecutionIdentityAmbiguous}}
 	}

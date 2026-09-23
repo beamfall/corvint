@@ -219,9 +219,8 @@ func (path proveAffectedPath) verdict() string {
 	return falsifiedNotRun
 }
 
-// proveRow is one verdict, keyed by the row it judges: the result id and the
-// row's own citation, in packet order. kind and reason are the claim's shape
-// and text; they steer the falsifier and stay off the wire.
+// proveRow is one verdict, keyed by the row it judges: the result id and the row's own citation,
+// in packet order. kind and reason are the claim's shape and text; they steer the falsifier and stay off the wire.
 type proveRow struct {
 	Authority string `json:"authority"`
 	BlobHash  string `json:"blob_hash"`
@@ -230,12 +229,13 @@ type proveRow struct {
 	// Kind is the result's kind. Two results of one packet can share an id
 	// (an external-package test file is both a `test` and a `reverse-import`
 	// result), so a row is bound to its result by kind and id together.
-	Kind   string `json:"kind"`
-	Line   int    `json:"line"`
-	Path   string `json:"path"`
-	Result string `json:"result"`
-	// Detail is the mutation runner's one-line report and is present only on
-	// a `test-kills-mutant` row that was actually run.
+	Kind    string `json:"kind"`
+	Line    int    `json:"line"`
+	Path    string `json:"path"`
+	Refusal string `json:"refusal,omitempty"`
+	Result  string `json:"result"`
+	Trust   string `json:"trust"`
+	// Detail is the mutation runner's one-line report, present only on a `test-kills-mutant` row that ran.
 	Detail  string                `json:"detail,omitempty"`
 	Witness *proveMutationWitness `json:"witness,omitempty"`
 	reason  string
@@ -679,7 +679,7 @@ func affectedRow(test, changed string) proveRow {
 		Authority: authorityAffected, Kind: kindAffectedTest, Line: 1, Path: test, Result: test,
 		reason: affectedClaimPrefix + changed,
 	}
-	row.Falsifier = falsifierFor(row)
+	classifyTrust(&row)
 	if !mutationClaim(test, changed) {
 		row.Falsifier = falsifierNone
 	}
@@ -984,7 +984,7 @@ func cemRows(document *wire.Map) []proveRow {
 		if len(row.basis) != 0 {
 			row.BlobHash = blobs[row.basis[0]]
 		}
-		row.Falsifier = falsifierFor(row)
+		classifyTrust(&row)
 		rows = append(rows, row)
 	}
 	return rows
@@ -1088,7 +1088,7 @@ func assignFalsifiers(packet map[string]any) []proveRow {
 				Line: integerAt(item, "line"), Path: stringAt(item, "path"), Result: stringAt(result, "id"),
 				Kind: stringAt(result, "kind"), reason: stringAt(item, "reason"),
 			}
-			row.Falsifier = falsifierFor(row)
+			classifyTrust(&row)
 			rows = append(rows, row)
 		}
 	}

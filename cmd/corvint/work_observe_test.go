@@ -88,7 +88,7 @@ func testObserveWorkUsesOnlyTargetMaterialization(t *testing.T, root, marker str
 		t.Fatalf("observe: %s", code)
 	}
 	defer capture.Close()
-	if capture.observation.State != workqueue.StateUnknown || capture.observation.MutationState != "UNKNOWN" {
+	if capture.observation.State != workqueue.StateValidated || capture.observation.MutationState != "UNCHANGED_OBSERVED" {
 		t.Fatalf("observation %#v", capture.observation)
 	}
 	t.Run("WQO-V0-013 receipt count", func(t *testing.T) {

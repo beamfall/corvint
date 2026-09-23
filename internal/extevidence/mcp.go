@@ -64,9 +64,6 @@ func mcpExchange(reader io.Reader, writer io.WriteCloser) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := mcpObject(initial, "protocolVersion", "capabilities", "serverInfo", "instructions"); err != nil {
-		return nil, err
-	}
 	var info struct {
 		ProtocolVersion string                     `json:"protocolVersion"`
 		Capabilities    map[string]json.RawMessage `json:"capabilities"`
@@ -149,9 +146,6 @@ func mcpExchange(reader io.Reader, writer io.WriteCloser) ([]byte, error) {
 func mcpResponse(scanner *bufio.Scanner, id string) (json.RawMessage, error) {
 	if !scanner.Scan() {
 		return nil, errMCP
-	}
-	if _, err := mcpObject(scanner.Bytes(), "jsonrpc", "id", "result"); err != nil {
-		return nil, err
 	}
 	var response struct {
 		JSONRPC string          `json:"jsonrpc"`

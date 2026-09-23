@@ -68,6 +68,18 @@ func TestStdoutWriteFailureReportsOutputFailedNotBareExitOne(t *testing.T) {
 				return []string{"--root", root, "docs", "draft", "--source", "owner.md", "--package", "cache"}
 			},
 		},
+		{
+			name: "taskman fixture",
+			root: func(t *testing.T) string {
+				previous := taskmanPreview
+				taskmanPreview = func(context.Context, string, string, string) ([]byte, error) { return []byte("{}\n"), nil }
+				t.Cleanup(func() { taskmanPreview = previous })
+				return t.TempDir()
+			},
+			args: func(root string) []string {
+				return []string{"--root", root, "work", "plan-fixture", "--executor", "/fixture", "--observations", "observations.json"}
+			},
+		},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {

@@ -112,10 +112,12 @@ type cemAttestationReceipt struct {
 }
 
 type cemAttestationClaim struct {
-	Digest map[string]string `json:"digest"`
-	Name   string            `json:"name"`
-	Size   int64             `json:"size"`
-	Spec   string            `json:"spec"`
+	BaseRevision string            `json:"baseRevision,omitempty"`
+	Digest       map[string]string `json:"digest"`
+	Name         string            `json:"name"`
+	PatchSHA256  string            `json:"patchSha256,omitempty"`
+	Size         int64             `json:"size"`
+	Spec         string            `json:"spec"`
 }
 
 // runVerifyCEMAttestation verifies a CEM DSSE envelope offline and prints the
@@ -131,8 +133,9 @@ func runVerifyCEMAttestation(options options, stdout, stderr io.Writer) int {
 		CEM: cemAttestationClaim{
 			Digest: map[string]string{"sha256": verification.SHA256}, Name: verification.Name,
 			Size: verification.Size, Spec: verification.Spec,
+			BaseRevision: verification.BaseRevision, PatchSHA256: verification.PatchSHA256,
 		},
-		OK: true, PredicateType: attest.CEMPredicateType, Reason: verification.Reason,
+		OK: true, PredicateType: verification.PredicateType, Reason: verification.Reason,
 		Status: verification.Status, Tool: "prove",
 	})
 	if err != nil {
@@ -159,7 +162,7 @@ func verifyCEMAttestation(options options) (attest.CEMVerification, error) {
 	if err != nil {
 		return attest.CEMVerification{}, err
 	}
-	verification, err := attest.VerifyCEM(envelope, publicKey, mapBytes)
+	verification, err := attest.VerifyCEMPredicate(envelope, publicKey, mapBytes)
 	if errors.Is(err, attest.ErrCEMBytesMismatch) {
 		return attest.CEMVerification{}, &gokernel.Error{Code: "attest-cem-mismatch", Message: "the CEM bytes differ from the attested sha256 or size"}
 	}
@@ -170,7 +173,7 @@ func verifyCEMAttestation(options options) (attest.CEMVerification, error) {
 }
 
 // readAttestedMap reads the map bytes to check, unparsed so a changed map is
-// reported as a digest mismatch; no --cem returns nil, which VerifyCEM
+// reported as a digest mismatch; no --cem returns nil, which VerifyCEMPredicate
 // discloses as NOT_RUN.
 func readAttestedMap(root, mapPath string) ([]byte, error) {
 	if mapPath == "" {

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
@@ -652,6 +653,39 @@ func TestBBFV0010PlanRefusesBudgetInsideCleanupReserve(t *testing.T) {
 	if _, err := BuildPlan(request); err == nil {
 		t.Fatal("wall clock budget inside cleanup reserve unexpectedly accepted")
 	}
+}
+
+func TestBBFV0010ControlListLengthCapProtectsDocumentBound(t *testing.T) {
+	buildControl := func(unrelatedCount, setupCount int) ControlSpec {
+		unrelated := make([]string, unrelatedCount)
+		for index := range unrelated {
+			unrelated[index] = fmt.Sprintf("criterion:unrelated-%d", index)
+		}
+		setup := make([]string, setupCount)
+		for index := range setup {
+			setup[index] = fmt.Sprintf("setup:%d", index)
+		}
+		return ControlSpec{
+			ID: "deferred", Kind: WrongLocator, Disposition: "not_run", Definition: map[string]string{"reason": "fixture"},
+			UnrelatedCriteria: unrelated, RequiredSetup: setup,
+		}
+	}
+	t.Run("at cap is accepted and stays within the document bound", func(t *testing.T) {
+		request := testRequest(t, []ControlSpec{buildControl(maxControlListLength, maxControlListLength)})
+		plan, err := BuildPlan(request)
+		if err != nil {
+			t.Fatalf("control lists at the cap unexpectedly refused: %v", err)
+		}
+		if bound := acceptedReceiptBound(plan.Controls[0]); bound > maxDocumentBytes {
+			t.Fatalf("acceptedReceiptBound() = %d exceeds maxDocumentBytes = %d at the cap", bound, maxDocumentBytes)
+		}
+	})
+	t.Run("just over cap is refused", func(t *testing.T) {
+		request := testRequest(t, []ControlSpec{buildControl(maxControlListLength+1, maxControlListLength)})
+		if _, err := BuildPlan(request); err == nil {
+			t.Fatal("unrelated criteria list one over the cap unexpectedly accepted")
+		}
+	})
 }
 
 func matchingReceipt(invocation Invocation) HookReceipt {

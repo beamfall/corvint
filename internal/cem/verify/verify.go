@@ -1,7 +1,7 @@
 // Package verify composes the CEM seams into the frozen repository-conformant
-// verifier: exact-patch (cem/0.1) and canonical (cem/0.2) verification with
-// the frozen validation precedence, mechanical byte proofs, and same-path
-// evidence drift.
+// verifier: exact-patch (cem/0.1) and canonical (cem/0.2, cem/0.3) verification
+// with the frozen validation precedence, mechanical byte and Go structural
+// proofs, and same-path evidence drift.
 package verify
 
 import (
@@ -110,8 +110,8 @@ type CanonicalOptions struct {
 // check onward, so callers claim "canonical" assurance only when it was
 // actually established.
 func Canonical(ctx context.Context, repository *gitauth.Repository, document *wire.Map, options CanonicalOptions) (*Outcome, bool, error) {
-	if document.Spec != wire.Spec02 {
-		return nil, false, cemcode.New(cemcode.UnsupportedSpec, "canonical verification accepts cem/0.2 only")
+	if !wire.Canonical(document.Spec) {
+		return nil, false, cemcode.New(cemcode.UnsupportedSpec, "canonical verification accepts cem/0.2 or cem/0.3 only")
 	}
 	if options.ExpectedBase == "" {
 		return nil, false, cemcode.New(cemcode.ExpectedBaseRequired, "canonical verification requires an independent expected base")
@@ -226,7 +226,7 @@ func inherited(ctx context.Context, repository *gitauth.Repository, document *wi
 	if err := checkEvidence(ctx, repository, document, baseOID); err != nil {
 		return nil, err
 	}
-	if err := checkMechanical(document, parsed); err != nil {
+	if err := checkMechanical(document, parsed, source); err != nil {
 		return nil, err
 	}
 	outcome := &Outcome{BaseRevision: baseOID}
@@ -343,18 +343,18 @@ func checkEvidence(ctx context.Context, repository *gitauth.Repository, document
 	return nil
 }
 
-// checkMechanical proves every mechanical claim directly from removed and
-// added bytes.
-func checkMechanical(document *wire.Map, parsed *patch.Patch) error {
-	derived := map[string]*patch.Hunk{}
-	for _, hunk := range parsed.Hunks {
-		derived[hunk.ID] = hunk
-	}
+// checkMechanical proves every mechanical claim the verifier can reproduce:
+// byte reasons directly from a hunk's removed and added bytes, and the
+// cem/0.3 structural reasons from the base blob and the patch (CEM-SM-002).
+// A claim it cannot reproduce is refused; the author's word is never an
+// input.
+func checkMechanical(document *wire.Map, parsed *patch.Patch, source sim.BlobSource) error {
+	proofs := indexProofs(parsed, source)
 	for _, mapped := range document.Hunks {
 		if mapped.Disposition != "mechanical" {
 			continue
 		}
-		if !mechanicalProven(derived[mapped.ID], mapped.Reason) {
+		if !proofs.proven(mapped.ID, mapped.Reason) {
 			return cemcode.New(cemcode.UnprovenMechanical,
 				"hunk %s does not prove %s", mapped.ID, mapped.Reason)
 		}

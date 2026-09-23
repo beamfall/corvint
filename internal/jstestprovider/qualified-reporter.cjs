@@ -12,6 +12,7 @@ const qualifiedBundledBrowser = {
   pathSuffix: '/chromium_headless_shell-1243/chrome-headless-shell-mac-arm64/chrome-headless-shell'
 };
 const bundledBrowsers = new Map();
+const observedVersions = new Map();
 const redactionMarker = '[REDACTED]';
 const defaultSensitiveActions = ['fill', 'type', 'inserttext', 'insert-text', 'insert text', 'presssequentially', 'press sequentially'];
 const defaultSensitiveFields = ['value', 'text', 'inputvalue', 'input-value'];
@@ -280,8 +281,11 @@ function fileSha256(file) {
 }
 
 function observedVersion(executablePath) {
+  if (observedVersions.has(executablePath)) return observedVersions.get(executablePath);
   const stdout = childProcess.spawnSync(executablePath, ['--version'], {encoding: 'utf8'}).stdout;
-  return typeof stdout === 'string' ? stdout.trim() : '';
+  const version = typeof stdout === 'string' ? stdout.trim() : '';
+  observedVersions.set(executablePath, version);
+  return version;
 }
 
 function bundledBrowserIdentity(headless) {

@@ -63,6 +63,8 @@ var adapterDeclaredHostKill = map[string]time.Duration{
 	"claude-code post-tool":     2 * time.Second,
 	"claude-code stop":          2 * time.Second,
 	"claude-code session-end":   time.Second,
+	"claude-code pre-compact":   2 * time.Second,
+	"claude-code post-compact":  2 * time.Second,
 }
 
 const (
@@ -296,7 +298,7 @@ func adapterGetenv(ctx context.Context, name string) string {
 }
 
 func runClaudeAdapter(ctx context.Context, event string, payload map[string]any) (hookOutput map[string]any) {
-	known := map[string]bool{"session-start": true, "user-prompt": true, "file-change": true, "post-tool": true, "stop": true, "session-end": true}
+	known := map[string]bool{"session-start": true, "user-prompt": true, "file-change": true, "post-tool": true, "stop": true, "session-end": true, "pre-compact": true, "post-compact": true}
 	if !known[event] {
 		return degradedAdapterOutput("unsupported-hook-event")
 	}
@@ -313,6 +315,9 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 		refuseUndeliveredPacket(root, event, payload)
 		return claudeDegradedOutput(event, reason)
 	}
+	if event == "pre-compact" || event == "post-compact" {
+		return runClaudeCompactionEvent(ctx, root, event, normalized, payload)
+	}
 	if event == "post-tool" {
 		unplannedread.HookPostToolSession(root, normalized["sessionIdSha256"].(string), payload)
 	}
@@ -322,7 +327,7 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 	}
 	guidance := claudeGuidance(root, normalized["sessionIdSha256"].(string))
 	reserve, _ := json.Marshal(renderClaudeContext(event, "", guidance))
-	disclosure := promptBoundDisclosure(event, payload)
+	disclosure := promptBoundDisclosure(event, payload) + compactSessionDisclosure(event, normalized)
 	kernel := experimentalKernelContext(ctx, event, root)
 	budget := adapterOutputLimit - len(reserve) - 1 - promptBoundReserve(disclosure) - promptBoundReserve(kernel)
 	result, reason := invokeDogfoodEvent(ctx, root, "claude-code", event, normalized, budget)
@@ -848,6 +853,9 @@ func emitAdapterOutput(stdout io.Writer, value map[string]any) int {
 	raw, err := json.Marshal(value)
 	if err != nil || len(raw)+1 > adapterOutputLimit {
 		raw, _ = json.Marshal(degradedAdapterOutput("corvint-output-too-large"))
+	}
+	if text, ok := value[adapterPlainStdoutKey].(string); ok && err == nil && len(raw)+1 <= adapterOutputLimit {
+		raw = []byte(text) // the host reads this event's stdout as text, not hook JSON (decision 0340)
 	}
 	raw = append(raw, '\n')
 	_, _ = stdout.Write(raw)
