@@ -126,7 +126,7 @@ func Select(graph *Graph, dirty []string) Plan {
 	reached := graph.traverse(seeds)
 	for _, id := range graph.order {
 		unit := graph.units[id]
-		if _, changed := seeds[id]; changed && graph.untested(id, seeds[id]) {
+		if _, changed := seeds[id]; changed && graph.untested(id) {
 			plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownNoSelectableTest, Detail: id})
 		}
 		if len(unit.Tests) == 0 {
@@ -293,33 +293,24 @@ func (graph *Graph) witnessKind(id, path string) string {
 	return WitnessDirectSource
 }
 
-// traverse walks reverse dependency edges breadth-first from the seeds.
 // untestedRules names, per plugin, when a changed unit has no selectable test
 // (AFP-V0-020). Go tests are package-scoped, so a package is untested when it
-// declares none of its own. Every other plugin keeps tests in units that
-// depend on sources, so a unit is untested when no unit it reaches, itself
-// included, declares a test.
-var untestedRules = map[string]func(*Graph, string, Witness) bool{
-	"go": func(graph *Graph, id string, _ Witness) bool { return len(graph.units[id].Tests) == 0 },
+// declares none of its own. Every other plugin may keep tests in the unit itself
+// or in units that depend on it, so a unit is untested when no unit it reaches,
+// itself included, declares a test.
+var untestedRules = map[string]func(*Graph, string) bool{
+	"go": func(graph *Graph, id string) bool { return len(graph.units[id].Tests) == 0 },
 }
 
-func (graph *Graph) untested(id string, seed Witness) bool {
+func (graph *Graph) untested(id string) bool {
 	rule, own := untestedRules[strings.SplitN(id, ":", 2)[0]]
 	if own {
-		return rule(graph, id, seed)
+		return rule(graph, id)
 	}
-	return !graph.reachesTest(id, seed)
+	return !graph.testReach[id]
 }
 
-func (graph *Graph) reachesTest(id string, seed Witness) bool {
-	for reached := range graph.traverse(map[string]Witness{id: seed}) {
-		if len(graph.units[reached].Tests) != 0 {
-			return true
-		}
-	}
-	return false
-}
-
+// traverse walks reverse dependency edges breadth-first from the seeds.
 func (graph *Graph) traverse(seeds map[string]Witness) map[string]Witness {
 	reached := make(map[string]Witness, len(seeds))
 	frontier := make([]string, 0, len(seeds))

@@ -18,6 +18,7 @@ type Graph struct {
 	order      []string
 	owner      map[string]string
 	dependents map[string][]string
+	testReach  map[string]bool
 	claimants  map[string]Language
 	languages  []string
 	frontier   []string
@@ -120,6 +121,33 @@ func (graph *Graph) finish() {
 	for target := range graph.dependents {
 		sort.Strings(graph.dependents[target])
 	}
+	graph.testReach = graph.unitsReachingTests()
+}
+
+// unitsReachingTests names every unit that reaches, itself included, a unit
+// declaring a test along reverse dependency edges: one walk over forward
+// imports from every unit that declares a test.
+func (graph *Graph) unitsReachingTests() map[string]bool {
+	reach := make(map[string]bool)
+	frontier := make([]string, 0, len(graph.order))
+	for _, id := range graph.order {
+		if len(graph.units[id].Tests) != 0 {
+			reach[id] = true
+			frontier = append(frontier, id)
+		}
+	}
+	for len(frontier) != 0 {
+		id := frontier[len(frontier)-1]
+		frontier = frontier[:len(frontier)-1]
+		for _, target := range graph.units[id].Imports {
+			if _, known := graph.units[target]; !known || reach[target] {
+				continue
+			}
+			reach[target] = true
+			frontier = append(frontier, target)
+		}
+	}
+	return reach
 }
 
 func (graph *Graph) computeDigest() (string, error) {

@@ -407,12 +407,13 @@ func TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020(t *testing.T) {
 			if err != nil {
 				t.Fatalf("build: %v", err)
 			}
+			owner, _ := graph.OwnerOf(testCase.solo)
 			changed := affected.Select(graph, []string{testCase.solo})
-			if changed.Scope != affected.ScopeUnknown || !hasNoSelectableTest(changed) {
-				t.Fatalf("changed untested unit scope=%s unknown=%v", changed.Scope, changed.Unknown)
+			if named := noSelectableTest(changed); changed.Scope != affected.ScopeUnknown || len(named) != 1 || named[0] != owner {
+				t.Fatalf("changed untested unit %s scope=%s unknown=%v", owner, changed.Scope, changed.Unknown)
 			}
 			unchanged := affected.Select(graph, []string{testCase.dirty})
-			if hasNoSelectableTest(unchanged) || (testCase.permanentFrontier == "" && unchanged.Scope != affected.ScopeBounded) {
+			if len(noSelectableTest(unchanged)) != 0 || (testCase.permanentFrontier == "" && unchanged.Scope != affected.ScopeBounded) {
 				t.Fatalf("unchanged untested unit scope=%s unknown=%v", unchanged.Scope, unchanged.Unknown)
 			}
 		})
@@ -442,11 +443,13 @@ func untestSolo(t *testing.T, path string, inSource bool) {
 	}
 }
 
-func hasNoSelectableTest(plan affected.Plan) bool {
+// noSelectableTest returns the units a plan names as having no selectable test.
+func noSelectableTest(plan affected.Plan) []string {
+	var named []string
 	for _, unknown := range plan.Unknown {
 		if unknown.Reason == affected.UnknownNoSelectableTest {
-			return true
+			named = append(named, unknown.Detail)
 		}
 	}
-	return false
+	return named
 }

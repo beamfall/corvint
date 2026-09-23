@@ -1302,8 +1302,9 @@ func containsString(values []string, want string) bool {
 	return index < len(values) && values[index] == want
 }
 
-// A changed helper no spec reaches is NO_SELECTABLE_TEST in the shared plan; a
-// full E2E suite cannot exercise it either, so only another unknown widens here.
+// A changed helper no spec reaches is NO_SELECTABLE_TEST in the shared plan.
+// Only the graph's other unknowns widen the Playwright plan, which does not yet
+// name that helper; ticket V1-0211 decides how it reports one (AFP-V0-020).
 func graphFrontierUnresolved(base affected.Plan) bool {
 	for _, unknown := range base.Unknown {
 		if unknown.Reason != affected.UnknownNoSelectableTest {

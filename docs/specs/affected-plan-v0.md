@@ -353,11 +353,13 @@ and container qualification; full fallback remains available.
   with no selectable test MUST be named in `plan.unknown` with reason `NO_SELECTABLE_TEST` and its
   unit id as detail, never silently omitted, so `plan.scope` is `UNKNOWN` (AFP-V0-004). Each plugin
   defines "no selectable test". A Go package has none when it declares no test of its own, because
-  the go tool runs a package's tests only against that package. Every other plugin keeps tests in
-  separate units, so its changed unit has none when no unit it reaches through the graph, itself
-  included, declares a test. An untested unit that only depends on a change, or is not reached,
-  raises nothing. The Playwright plan widens only on the shared graph's other unknowns, because a
-  full E2E suite cannot exercise a helper that no spec reaches. Rollback restores the silent skip.
+  the go tool runs a package's tests only against that package. Every other plugin may keep tests in
+  the unit itself or in units that depend on it, so its changed unit has none when no unit it
+  reaches through the graph, itself included, declares a test. An untested unit that only depends
+  on a change, or is not reached, raises nothing. The Playwright plan does not yet name such a
+  unit: it widens only on the shared graph's other unknowns, so a changed helper that no spec
+  reaches leaves it `BOUNDED` with nothing selected for that helper until ticket V1-0211 decides
+  how it reports one. Rollback restores the silent skip.
 
 ## Non-goals and authority
 

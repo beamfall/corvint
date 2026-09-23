@@ -12,19 +12,21 @@ other seven plugins silently omitted a changed source unit that no test reached.
 
 Decision: each plugin defines "no selectable test" through one lookup table in `affected.Select`.
 Go keeps its own-tests rule, because the go tool runs a package's tests only against that package.
-Every other plugin keeps tests in separate units, so a changed unit there has no selectable test
-when no unit it reaches through the graph, itself included, declares a test. A frontier plan now
-also names such a unit when the frontier hides the edge from its test. The TypeScript, Ruby and
-.NET frontier tests expect that second unknown. The Playwright plan widens to the full relevant
-suite only on the shared graph's other unknowns. A full E2E suite cannot exercise a helper that
-no spec reaches, so treating that unknown as a dynamic source would run every spec for nothing.
-Whether the Playwright plan should name that helper in its own unknown vocabulary is V1-0211,
-a follow-up. This amends proposed AFP-V0-020 text; the owner's PR review is its human review.
+Every other plugin may keep tests in the unit itself, as Rust does, or in units that depend on it.
+A changed unit there has no selectable test when no unit it reaches through the graph, itself
+included, declares a test. The graph computes that set once when it is built, with one walk over
+forward imports from every unit that declares a test, so each changed unit costs one lookup. A
+frontier plan now also names such a unit when the frontier hides the edge from its test. The
+TypeScript, Ruby and .NET frontier tests expect that second unknown. The Playwright plan still
+widens to the full relevant suite only on the shared graph's other unknowns, so it does not yet
+name such a helper and stays `BOUNDED` for it. How it should report one is V1-0211, a follow-up.
+This amends proposed AFP-V0-020 text; the owner's PR review is its human review.
 
 Evidence: `TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020` removes the conformance fixture's
 `solo` tests in every language. An edit to `solo` must give `NO_SELECTABLE_TEST` at `UNKNOWN`
 scope, and an edit to `core` must not. It fails for all seven non-Go plugins on the base rule and
-passes with the change. `make gate` was not run (owner preference).
+passes with the change, and it checks that the unknown names the `solo` unit. `make gate` was
+not run (owner preference).
 
 ## 2026-09-23 V1-0192 LCP-V0-010, LCP-V0-013: task mentions anchor prompt context
 
