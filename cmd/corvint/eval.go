@@ -22,6 +22,9 @@ func runEvalInvocation(ctx context.Context, arguments []string, stdout, stderr i
 		emitError(stderr, err)
 		return 2, true
 	}
+	if code, handled := runSlotWeightsInvocation(ctx, root, rest, stdout, stderr); handled {
+		return code, true
+	}
 	options, err := parseEvalFlags(root, rest)
 	if err != nil {
 		var argument *gokernel.Error

@@ -295,7 +295,11 @@ func runBatchOperation(ctx context.Context, root string, index *contextindex.Ind
 			queryBudget: operation.budget, queryIntent: intent,
 		}, index)
 	case "context":
-		return contextindex.TaskContext(ctx, index, operation.task, operation.subject, operation.limit)
+		admitted, err := contextindex.LoadAdmittedSlotWeights(root)
+		if err != nil {
+			return nil, err
+		}
+		return contextindex.TaskContextWeighted(ctx, index, operation.task, operation.subject, operation.limit, admitted)
 	}
 	paths, err := batchImpactPaths(operation.paths)
 	if err != nil {

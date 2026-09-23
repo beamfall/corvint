@@ -452,6 +452,43 @@ func TestBatchMatchesStandaloneVerbsAtOneSnapshot(t *testing.T) {
 	}
 }
 
+func TestBatchContextAppliesAdmittedSlotWeights(t *testing.T) {
+	t.Parallel()
+	// SBQ-V0-003 with LTA-V0-011: an admitted slot-weight file reorders the
+	// batch context operation exactly as it reorders the standalone packet.
+	root := batchRepository(t)
+	runIndexForTest(t, root, false)
+	path := filepath.Join(root, filepath.FromSlash(contextindex.SlotWeightsPath))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	admitted := `{"schemaVersion":1,"weights":{"test":2},"evaluation":{"goldens_sha256":"sha256:` + strings.Repeat("a", 64) +
+		`","revision":"` + strings.Repeat("b", 40) + `","heldout_cases":2,` +
+		`"baseline":{"critical_misses":0,"must_include_hits":1,"top5_hits":1},"arm":{"critical_misses":0,"must_include_hits":2,"top5_hits":2}}}`
+	if err := os.WriteFile(path, []byte(admitted), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	task := "does Split keep empty demux keys"
+	request, err := json.Marshal(map[string]any{"operations": []map[string]any{
+		{"id": "packet", "verb": "context", "task": task, "subject": "cache/demux.go"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := runBatchForTest(t, root, string(request))
+	if code != 0 {
+		t.Fatalf("exit=%d stderr=%s", code, stderr)
+	}
+	document := decodeBatchDocument(t, stdout)
+	want := standalonePacket(t, root, "context", "--task", task, "--subject", "cache/demux.go")
+	if len(document.Operations) != 1 || !document.Operations[0].OK {
+		t.Fatalf("operations = %s", stdout)
+	}
+	if got := document.Operations[0].Context; !bytes.Equal(got, want) || !bytes.Contains(got, []byte(`"learned_slot_weights"`)) {
+		t.Fatalf("weighted batch receipt differs from the standalone packet\nbatch      = %s\nstandalone = %s", got, want)
+	}
+}
+
 func TestBatchContinuesPastAFailingOperation(t *testing.T) {
 	t.Parallel()
 	// SBQ-V0-004: a per-operation refusal carries the standalone verb's error

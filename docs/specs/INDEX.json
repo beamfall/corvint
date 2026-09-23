@@ -1210,6 +1210,8 @@
       "internal/tracerecordrepo",
       "internal/secretscreen",
       "internal/skillexport",
+      "internal/slotlearn",
+      "internal/contextindex",
       "cmd/corvint"
     ]
   },

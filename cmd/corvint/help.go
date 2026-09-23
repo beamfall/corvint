@@ -474,6 +474,8 @@ const evalHelp = `Evaluate a frozen retrieval corpus through the native candidat
 
 Usage:
   corvint [--root PATH] eval [--goldens FILE] [--trace-fixture FILE]
+  corvint [--root PATH] eval --learn-slot-weights [--goldens FILE] [--admit]
+  corvint [--root PATH] eval --reset-slot-weights
 
 Without --goldens, use the repository's .corvint/eval.json or
 testing/context-retrieval-goldens.json when available. --trace-fixture adds the
@@ -483,6 +485,13 @@ Select the owning spec's registered development or frozen evaluation inputs;
 never open a sealed holdout or infer promotion from an unregistered run. Preserve
 both arms, failures and unknowns. A routine explicit outcome record does not
 require a new learned-mechanism evaluation.
+
+--learn-slot-weights reads the local unplanned-read and self-observation ledgers
+as negative labels, proposes bounded context slot weights and scores them on the
+frozen held-out split. Only with --admit and an improved delta does it write
+.context-corvint/slot-weights.json; --reset-slot-weights removes that file and
+restores the default slot order. These experimental steps (decision 0368) are
+eval's only writes.
 `
 
 const activationHelp = `Compile one bounded mechanical repository inventory.
