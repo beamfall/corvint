@@ -42,6 +42,25 @@ MEDIUM issue (unheld compounds took the maximum idf), a LOW issue (the fence tog
 (the loose promotion control) and nits; all are fixed here. A stale `taskLexicalTerms` comment
 found in that review is filed as V1-0214.
 
+## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
+
+Finding: nothing stated which Corvint commands are safe as a triggered CI, hook or team-automation
+step, what each may write, or how each exits.
+
+Decision: `docs/AUTOMATION.md` lists `affected` (writes nothing) and `cem verify`, `cem status`,
+`witness` and `impact --base` (at most one bounded self-observation row, and only when that ledger
+and its temporaries are gitignored) as the triggered read-only steps. Each has source-cited exit
+codes, output profile and inputs. `cem report` and `make dogfood-check` are excluded because they
+write local state. The page states that Corvint runs no always-on component and that a triggered
+run grants no authority (decisions 0081 and 0373). `stable-operations-v0.md` and `AGENT-ROUTES.md`
+link it.
+
+Evidence: the worked example ran from a fresh `git clone --no-local` at 01b6804 with base a6a6b8b.
+It verified the sealed V1-0204 CEM (canonical, 39 of 39 hunks supported), left the clone unchanged,
+and reproduced V1-0182 (`dogfood-check` fails `dogfood-report-missing`). Its runtimes were measured
+under heavy benchmark load and are inflated. Signal exit codes of the Go commands, Linux and
+shallow clones were not exercised. The doc checks pass; `make gate` was not run (owner preference).
+
 ## 2026-09-23 V1-0191 MCPV0-016: corvint-mcp pins Git at start; official schema executes
 
 Finding: the MCP 2026-07-28 spec kept two promotion blockers. The shared Git resolver memoised
