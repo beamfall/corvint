@@ -108,14 +108,14 @@ ARTIFACT-GO-V0-007	docs/specs/release-artifact-integrity-v0.md	171	all build and
 ARTIFACT-GO-V0-008	docs/specs/release-artifact-integrity-v0.md	283	Archive checksums prove integrity only. This profile creates no signature,
 ARTIFACT-GO-V0-009	docs/specs/release-artifact-integrity-v0.md	289	The untracked-path allowance of decision 0142 MUST NOT apply to the loose
 ARTIFACT-RDY-V0-001	docs/specs/release-artifact-integrity-v0.md	328	`script/release-checklist` MUST be deterministic and read-only. It prints
-ARTIFACT-RDY-V0-002	docs/specs/release-artifact-integrity-v0.md	347	native-runtime is owned by `GOC-V0-001`; native-performance is owned by
-ARTIFACT-RDY-V0-003	docs/specs/release-artifact-integrity-v0.md	355	a tag row reports only an exact release tag already pointing at the
-ARTIFACT-RDY-V0-004	docs/specs/release-artifact-integrity-v0.md	361	publication is `PASS` only with a repository-owner-approved receipt that
-ARTIFACT-RDY-V0-005	docs/specs/release-artifact-integrity-v0.md	365	promotion is `PASS` only with a repository-owner acceptance record naming
-ARTIFACT-RDY-V0-006	docs/specs/release-artifact-integrity-v0.md	377	the receipt is the blob at `docs/releases/<tag>/publication-receipt.json`
-ARTIFACT-RDY-V0-007	docs/specs/release-artifact-integrity-v0.md	389	the release revision is the receipt's `revision`, not `HEAD`. `PASS`
-ARTIFACT-RDY-V0-008	docs/specs/release-artifact-integrity-v0.md	397	every attached digest MUST be witnessed locally by the private archive
-ARTIFACT-RDY-V0-009	docs/specs/release-artifact-integrity-v0.md	406	the reader is read-only and offline. It invokes only local `git`, with the
+ARTIFACT-RDY-V0-002	docs/specs/release-artifact-integrity-v0.md	351	native-runtime is owned by `GOC-V0-001`; native-performance is owned by
+ARTIFACT-RDY-V0-003	docs/specs/release-artifact-integrity-v0.md	359	a tag row reports only an exact release tag already pointing at the
+ARTIFACT-RDY-V0-004	docs/specs/release-artifact-integrity-v0.md	365	publication is `PASS` only with a repository-owner-approved receipt that
+ARTIFACT-RDY-V0-005	docs/specs/release-artifact-integrity-v0.md	369	promotion is `PASS` only with a repository-owner acceptance record naming
+ARTIFACT-RDY-V0-006	docs/specs/release-artifact-integrity-v0.md	381	the receipt is the blob at `docs/releases/<tag>/publication-receipt.json`
+ARTIFACT-RDY-V0-007	docs/specs/release-artifact-integrity-v0.md	393	the release revision is the receipt's `revision`, not `HEAD`. `PASS`
+ARTIFACT-RDY-V0-008	docs/specs/release-artifact-integrity-v0.md	401	every attached digest MUST be witnessed locally by the private archive
+ARTIFACT-RDY-V0-009	docs/specs/release-artifact-integrity-v0.md	410	the reader is read-only and offline. It invokes only local `git`, with the
 ARTIFACT-V0-001	docs/specs/release-artifact-integrity-v0.md	42	(superseded 2026-09-12 by decision 0088; obligation now carried by
 ARTIFACT-V0-002	docs/specs/release-artifact-integrity-v0.md	52	(superseded 2026-09-12 by decision 0088; obligation now carried by
 ARTIFACT-V0-003	docs/specs/release-artifact-integrity-v0.md	65	(superseded 2026-09-12 by decision 0088; obligation now carried by
@@ -983,16 +983,16 @@ GLTP-V0-049	docs/specs/go-live-test-provider-v0.md	1399	The session publishes on
 GLTP-V0-050	docs/specs/go-live-test-provider-v0.md	1422	Every published event also carries `projection`: one
 GLTP-V0-051	docs/specs/go-live-test-provider-v0.md	1449	A terminal event whose run completed — classified `passed` or `failed` before an
 GLTP-V0-052	docs/specs/go-live-test-provider-v0.md	1480	A `skip` action MUST project the per-test execution axis `SKIPPED` with reason
-GOC-V0-001	docs/specs/go-only-cutover-v0.md	60	The current tree MUST contain no legacy `src/corvint_cli.py` or
-GOC-V0-002	docs/specs/go-only-cutover-v0.md	63	Default Go verification MUST NOT execute, reconstruct from Git, or install the
-GOC-V0-003	docs/specs/go-only-cutover-v0.md	66	Removal of live comparisons MUST preserve unique positive, negative, malformed-i
-GOC-V0-004	docs/specs/go-only-cutover-v0.md	69	Legacy trace migration MUST remain supported using independently authored canoni
-GOC-V0-005	docs/specs/go-only-cutover-v0.md	71	The cancelled Packet 5 paired retry MUST NOT run. A historical PASS/FAIL/NOT_RUN
-GOC-V0-006	docs/specs/go-only-cutover-v0.md	75	Go archives MUST remain reproducible, source-bound, offline, checksum-verified a
-GOC-V0-007	docs/specs/go-only-cutover-v0.md	78	Rollback MUST use a retained prior Go artifact or Git revision, without receipt,
-GOC-V0-008	docs/specs/go-only-cutover-v0.md	82	Maintained Corvint adapters and developer tools MUST have no Python interpreter
-GOC-V0-009	docs/specs/go-only-cutover-v0.md	88	The cutover's final coordinator MAY complete with `prechange-impact` visibly
-GOC-V0-010	docs/specs/go-only-cutover-v0.md	95	A complete `make gate` MUST first remove the private receipt
+GOC-V0-001	docs/specs/go-only-cutover-v0.md	61	The current tree MUST contain no legacy `src/corvint_cli.py` or
+GOC-V0-002	docs/specs/go-only-cutover-v0.md	64	Default Go verification MUST NOT execute, reconstruct from Git, or install the
+GOC-V0-003	docs/specs/go-only-cutover-v0.md	67	Removal of live comparisons MUST preserve unique positive, negative, malformed-i
+GOC-V0-004	docs/specs/go-only-cutover-v0.md	70	Legacy trace migration MUST remain supported using independently authored canoni
+GOC-V0-005	docs/specs/go-only-cutover-v0.md	72	The cancelled Packet 5 paired retry MUST NOT run. A historical PASS/FAIL/NOT_RUN
+GOC-V0-006	docs/specs/go-only-cutover-v0.md	76	Go archives MUST remain reproducible, source-bound, offline, checksum-verified a
+GOC-V0-007	docs/specs/go-only-cutover-v0.md	79	Rollback MUST use a retained prior Go artifact or Git revision, without receipt,
+GOC-V0-008	docs/specs/go-only-cutover-v0.md	83	Maintained Corvint adapters and developer tools MUST have no Python interpreter
+GOC-V0-009	docs/specs/go-only-cutover-v0.md	89	The cutover's final coordinator MAY complete with `prechange-impact` visibly
+GOC-V0-010	docs/specs/go-only-cutover-v0.md	96	A complete `make gate` MUST first remove the private receipt
 GPK-V0-001	docs/specs/go-production-kernel-migration-v0.md	102	The migration MUST preserve the complete CLI surface present at the pinned
 GPK-V0-002	docs/specs/go-production-kernel-migration-v0.md	109	For every supported parity case, Go and the Python oracle MUST produce the exact
 GPK-V0-003	docs/specs/go-production-kernel-migration-v0.md	117	Go MUST reproduce every accepted receipt, map, report, identity, digest preimage

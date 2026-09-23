@@ -3,16 +3,31 @@
 # publishes, promotes, repairs, or writes a status artifact.
 set -eu
 
-if [ "$#" -ne 0 ]; then
-  echo "usage: script/release-checklist" >&2
-  exit 2
-fi
+# The report is identical in both modes; only the exit differs (ARTIFACT-RDY-V0-001, ticket V1-0189).
+mode=lifecycle
+case $# in
+  0) ;;
+  1)
+    if [ "$1" = --pre-promotion ]; then
+      mode=pre-promotion
+    else
+      echo "usage: script/release-checklist [--pre-promotion]" >&2
+      exit 2
+    fi
+    ;;
+  *)
+    echo "usage: script/release-checklist [--pre-promotion]" >&2
+    exit 2
+    ;;
+esac
 
 root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd -P)
 head=$(git -C "$root" rev-parse --verify HEAD) || exit 2
 head_tree=$(git -C "$root" rev-parse --verify 'HEAD^{tree}') || exit 2
 git_dir=$(git -C "$root" rev-parse --absolute-git-dir) || exit 2
 incomplete=0
+failed=0
+candidate_incomplete=0
 
 emit() {
   status=$1
@@ -23,6 +38,18 @@ emit() {
   if [ "$status" != PASS ]; then
     incomplete=1
   fi
+  if [ "$status" = FAIL ]; then
+    failed=1
+  fi
+  # The rows a candidate can satisfy before any outward action: a static tree check and the two
+  # private witnesses `make gate` records at HEAD.
+  case $step in
+    native-runtime|go-archive|full-gate)
+      if [ "$status" != PASS ]; then
+        candidate_incomplete=1
+      fi
+      ;;
+  esac
 }
 
 # GOC-V0-001 is decided from the Git index, not the worktree: an untracked stray legacy file
@@ -153,4 +180,14 @@ else
 fi
 emit NOT_RUN promotion ARTIFACT-RDY-V0-005 "no repository-owner promotion acceptance is present"
 
+# The lifecycle exit is zero only when all seven rows are PASS. Before promotion the tag,
+# publication and promotion rows are NOT_RUN by design and native-performance stays NOT_RUN under
+# GOC-V0-005, so --pre-promotion judges only the candidate rows: zero when native-runtime,
+# go-archive and full-gate are PASS and no row is FAIL. A NOT_RUN is never reported as PASS.
+if [ "$mode" = pre-promotion ]; then
+  if [ "$failed" -eq 1 ] || [ "$candidate_incomplete" -eq 1 ]; then
+    exit 1
+  fi
+  exit 0
+fi
 exit "$incomplete"

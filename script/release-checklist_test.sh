@@ -214,4 +214,71 @@ prior=$(cat "$repository/conformance/perf-v0/results/historical/report.json")
 checklist
 test "$before" = "$(git -C "$repository" status --porcelain=v1 -uall)"
 test "$prior" = "$(cat "$repository/conformance/perf-v0/results/historical/report.json")"
-printf 'release-checklist: native boundary, unmeasured status, full-gate receipt, tag binding, receipt row and nonmutation pass\n'
+# ARTIFACT-RDY-V0-001 (ticket V1-0189): --pre-promotion prints the same seven rows and exits on the
+# candidate rows only. NOT_RUN on native-performance, tag, publication and promotion does not lower
+# the exit; a FAIL anywhere or a candidate row short of PASS still exits 1; any other argument is a
+# usage error. A fake `go` stands in for the archive-status reader this fixture cannot build.
+pre_promotion() {
+  set +e
+  "$repository/script/release-checklist" --pre-promotion > "$test_root/pre-report"
+  pre_status=$?
+  set -e
+}
+set +e
+"$repository/script/release-checklist" --candidate > /dev/null 2>&1
+status=$?
+set -e
+test "$status" -eq 2
+set +e
+"$repository/script/release-checklist" --pre-promotion extra > /dev/null 2>&1
+status=$?
+set -e
+test "$status" -eq 2
+printf '0.5.0a9\n' > "$repository/VERSION"
+checklist
+pre_promotion
+test "$pre_status" -eq 1
+cmp -s "$test_root/report" "$test_root/pre-report"
+test "$(row go-archive)" = NOT_RUN
+test "$(row tag)" = NOT_RUN
+mkdir -p "$test_root/fake-go"
+cat > "$test_root/fake-go/go" <<'SH'
+#!/bin/sh
+for arg do
+  if [ "$arg" = archive-status ]; then
+    printf 'PASS\n'
+    exit 0
+  fi
+done
+exit 1
+SH
+chmod +x "$test_root/fake-go/go"
+mkdir -p "$git_dir/corvint"
+printf 'witness\n' > "$git_dir/corvint/release-go-archive-report.json"
+full_gate_receipt > "$git_dir/corvint/release-gate-receipt"
+set +e
+PATH="$test_root/fake-go:$PATH" "$repository/script/release-checklist" > "$test_root/report"
+status=$?
+PATH="$test_root/fake-go:$PATH" "$repository/script/release-checklist" --pre-promotion > "$test_root/pre-report"
+pre_status=$?
+set -e
+test "$status" -eq 1
+test "$pre_status" -eq 0
+cmp -s "$test_root/report" "$test_root/pre-report"
+test "$(row native-runtime)" = PASS
+test "$(row native-performance)" = NOT_RUN
+test "$(row go-archive)" = PASS
+test "$(row full-gate)" = PASS
+test "$(row tag)" = NOT_RUN
+test "$(row publication)" = NOT_RUN
+test "$(row promotion)" = NOT_RUN
+# VERSION names the tag already placed on an earlier commit: a FAIL, so still exit 1.
+printf '0.5.0a1\n' > "$repository/VERSION"
+set +e
+PATH="$test_root/fake-go:$PATH" "$repository/script/release-checklist" --pre-promotion > "$test_root/pre-report"
+pre_status=$?
+set -e
+test "$pre_status" -eq 1
+test "$(awk -F '\t' '$2 == "tag" { print $1 }' "$test_root/pre-report")" = FAIL
+rm -rf "$git_dir/corvint"
+printf 'release-checklist: native boundary, unmeasured status, full-gate receipt, tag binding, receipt row, pre-promotion exit and nonmutation pass\n'
