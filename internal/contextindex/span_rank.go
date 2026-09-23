@@ -170,7 +170,7 @@ func coveredBy(selected []contextSpan, span contextSpan) bool {
 func (ranker *spanRanker) coreSpans() []contextSpan {
 	cores := make([]contextSpan, 0, contextSpanCoreCap)
 	for _, row := range ranker.rows {
-		if row.kind == governingRelation || row.kind == specMentionedRelation {
+		if reservedRelation(row.kind) {
 			continue
 		}
 		cores = append(cores, ranker.rowSpans(row.path)...)
