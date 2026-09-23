@@ -97,11 +97,16 @@ var cemActions = map[string]cemAction{
 		arguments: []string{"--map", "--patch", "--output", "--target", "--expected-base", "--max-unknown", "--max-mechanical"},
 		required:  []string{"--map"},
 	},
+	"cover": {
+		arguments: []string{"--map", "--coverprofile", "--test-run", "--output"},
+		required:  []string{"--map", "--coverprofile", "--test-run"},
+	},
 }
 
 // cemActionOrder is the order the oracle declares its subparsers in, which is
-// the order its invalid-choice message lists them in.
-var cemActionOrder = []string{"begin", "prepare", "cite", "mark", "verify", "status", "report"}
+// the order its invalid-choice message lists them in; cover (TCQ-V0-051) has
+// no oracle counterpart and is listed last.
+var cemActionOrder = []string{"begin", "prepare", "cite", "mark", "verify", "status", "report", "cover"}
 
 func quotedChoices(values []string) string {
 	quoted := make([]string, 0, len(values))
@@ -387,6 +392,11 @@ func dispatchCEM(ctx context.Context, root string, arguments []string) (map[stri
 			MapPath: flags.values["--map"], Hunk: flags.values["--hunk"],
 			Disposition: flags.values["--disposition"], Reason: flags.values["--reason"],
 			Output: flags.values["--output"],
+		})
+	case "cover":
+		return session.Cover(ctx, workflow.CoverOptions{
+			MapPath: flags.values["--map"], Coverprofile: flags.values["--coverprofile"],
+			TestRun: flags.values["--test-run"], Output: flags.values["--output"],
 		})
 	case "status", "verify", "report":
 		maxUnknown, err := flags.limit("--max-unknown")

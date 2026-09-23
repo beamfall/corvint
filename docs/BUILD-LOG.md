@@ -2197,3 +2197,48 @@ Gates: `gofmt -l`, `GOTOOLCHAIN=local go build ./... && go vet ./...`, targeted
 ./internal/specindex/`, and `make spec-requirements-check requirement-definitions-check
 traceability-tests-check decision-numbers-check line-citations-check` all passed. Full `make gate`
 was not run, per batch scope.
+
+## 2026-09-22 patch-coverage-witness: `cem cover` records a per-hunk coverage witness from one local coverprofile and `cem report` downgrades unwitnessed test claims
+
+Ticket V1-0085, decision 0347
+(`docs/decisions/0347-patch-coverage-witness-from-a-local-coverprofile-2026-09-22.md`),
+`TCQ-V0-051..054` in `docs/specs/test-claim-qualification-v0.md`. The TCQ YAGNI paragraph's
+"coverage ingestion" exclusion is replaced by the four requirements, the acceptance matrix gains a
+`coverage witness` row, and the rollback paragraph names how the slice comes out.
+
+What changed: `internal/cem/wire/map.go` admits one optional closed-key hunk member `coverage`
+(`{profileSha256, testRun, mode, state, covered}`) on `cem/0.3` only, with ranges required to be
+ascending, non-adjacent, inside `newRange`, and consistent with `state`; `cem/0.1` and `cem/0.2`
+keep rejecting it as `unknown-field`, so no fixture, conformance vector, `protocol/cem-0.2`
+schema, or `interop/cem01-go` consumer changed. `internal/cem/workflow/cover.go` adds
+`Session.Cover` and `internal/cem/cli/cli.go` the `cem cover --map --coverprofile --test-run
+[--output]` action: one operator-named local profile, bounded at the gorunner coverage bound,
+parsed by the gorunner parser now exported as `ParseCoverProfile`/`ParseCoverageBlockLine` (no
+behaviour change to live verify), intersected with each hunk's added lines (diff-cover semantics),
+and written on every hunk as `covered` or `uncovered`; the map is upgraded to `cem/0.3` as a
+structural `mark` does. `internal/cem/workflow/read.go` adds a `## Test claims` section to
+`cem report` listing each `test-claim` hunk as `tested` or downgraded with reason
+`no-coverage-witness` / `coverage-witness-uncovered`; dispositions, counts, worklist and the
+`status`/`verify` envelopes are unchanged.
+
+Measured: four new tests (`TestSpec03CoverageWitness`, `TestParseCoverProfileExportsBlocks`,
+`TestCoverRecordsCoverageWitnessAndReportDowngrades`, `TestCoverRefusesAmbiguousAndInvalidInputs`)
+pass; package runs `internal/cem/wire` 1.7s, `internal/cem/workflow` 87.3s,
+`internal/liveverify/gorunner` 24.0s, `internal/specindex` 0.9s, all `ok` at `-count=1`.
+
+NOT MET / UNKNOWN: `corvint cem cover --help` and the cem help text do not list `cover` because
+`cmd/corvint/help.go` (`cemHelpActions`) was outside this change's ownership; the command
+dispatches. `docs/specs/cem-0.3-structural-mechanical.md` still describes the profile as adding
+only the structural reasons and was not amended (not owned). No live `go test -coverprofile`
+end-to-end run against a real repository was performed; the workflow test uses a synthetic
+profile whose path suffix matches the hunk path. Reporter and labelled-corpus promotion gates of
+the TCQ spec remain NOT_RUN.
+
+Gates: `gofmt -l` (nothing), `GOTOOLCHAIN=local go build ./... && go vet ./...`, targeted
+`GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/cem/... ./internal/liveverify/gorunner/
+./internal/specindex/`, and `make spec-requirements-check requirement-definitions-check
+traceability-tests-check decision-numbers-check` passed. `make line-citations-check` fails on 18
+pre-existing citations in `docs/specs/falsifiable-packet-v0.md`, `docs/decisions/0082-*.md` and
+`docs/specs/go-production-kernel-migration-v0.md` that cite `internal/contextindex` and
+`cmd/corvint` lines this change does not touch; they were not repinned because those files are
+outside this change's ownership. Full `make gate` was not run, per ticket scope.

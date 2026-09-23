@@ -233,13 +233,28 @@ func documentHunks(document *wire.Map) []any {
 		for _, item := range hunk.Basis {
 			basis = append(basis, map[string]any{"evidenceId": item.EvidenceID, "relation": item.Relation})
 		}
-		hunks = append(hunks, map[string]any{
+		entry := map[string]any{
 			"basis": basis, "disposition": hunk.Disposition, "id": hunk.ID,
 			"newRange": rangeValue(hunk.NewRange), "oldRange": rangeValue(hunk.OldRange),
 			"path": hunk.Path, "reason": hunk.Reason,
-		})
+		}
+		if hunk.Coverage != nil {
+			entry["coverage"] = coverageValue(hunk.Coverage)
+		}
+		hunks = append(hunks, entry)
 	}
 	return hunks
+}
+
+func coverageValue(witness *wire.CoverageWitness) map[string]any {
+	covered := make([]any, 0, len(witness.Covered))
+	for _, item := range witness.Covered {
+		covered = append(covered, rangeValue(item))
+	}
+	return map[string]any{
+		"covered": covered, "mode": witness.Mode, "profileSha256": witness.ProfileSha256,
+		"state": witness.State, "testRun": witness.TestRun,
+	}
 }
 
 func rangeValue(value wire.Range) map[string]any {

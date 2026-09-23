@@ -249,6 +249,59 @@ func sameFile(first, second string) bool {
 }
 
 // renderReportText renders the deterministic human report.
+// Test-claim qualification outcomes rendered by the reviewer report
+// (TCQ-V0-053). A hunk citing test-claim evidence is `tested` only when its
+// coverage witness covers at least one added line; otherwise the claim is
+// downgraded and the reason names why.
+const (
+	claimTested           = "tested"
+	claimNoWitness        = "no-coverage-witness"
+	claimWitnessUncovered = "coverage-witness-uncovered"
+)
+
+func testClaimOutcome(hunk wire.Hunk) string {
+	if hunk.Coverage == nil {
+		return claimNoWitness
+	}
+	if hunk.Coverage.State != wire.CoverageCovered {
+		return claimWitnessUncovered
+	}
+	return claimTested
+}
+
+func citesTestClaim(hunk wire.Hunk) bool {
+	for _, item := range hunk.Basis {
+		if item.Relation == "test-claim" {
+			return true
+		}
+	}
+	return false
+}
+
+// renderTestClaims lists every hunk that cites a test claim with its
+// qualification; it is empty when no hunk does, so reports without test
+// claims keep their current shape.
+func renderTestClaims(document *wire.Map) string {
+	var out strings.Builder
+	for _, hunk := range document.Hunks {
+		if !citesTestClaim(hunk) {
+			continue
+		}
+		if out.Len() == 0 {
+			out.WriteString("\n## Test claims\n\n")
+		}
+		outcome := testClaimOutcome(hunk)
+		if outcome == claimTested {
+			out.WriteString(fmt.Sprintf("- %s `%s`: tested (test run %s, coverprofile `%s`)\n",
+				mdreport.CodeSpan(hunk.Path), hunk.ID, mdreport.CodeSpan(hunk.Coverage.TestRun), hunk.Coverage.ProfileSha256))
+			continue
+		}
+		out.WriteString(fmt.Sprintf("- %s `%s`: downgraded from tested; reason `%s`\n",
+			mdreport.CodeSpan(hunk.Path), hunk.ID, outcome))
+	}
+	return out.String()
+}
+
 func renderReportText(document *wire.Map, verification, counts map[string]any, work, policy []any) string {
 	var out strings.Builder
 	out.WriteString("# Change Evidence Map review\n\n")
@@ -265,6 +318,7 @@ func renderReportText(document *wire.Map, verification, counts map[string]any, w
 	}
 	out.WriteString(fmt.Sprintf("\n## Dispositions\n\n- total: %d\n- supported: %d\n- unknown: %d\n- mechanical: %d\n",
 		counts["total"], counts["supported"], counts["unknown"], counts["mechanical"]))
+	out.WriteString(renderTestClaims(document))
 	if issues, ok := verification["issues"].([]any); ok && len(issues) > 0 {
 		out.WriteString("\n## Issues\n\n")
 		for _, issue := range issues {

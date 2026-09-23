@@ -1841,6 +1841,10 @@ TCQ-V0-047	docs/specs/test-claim-qualification-v0.md	572	any parser or runtime M
 TCQ-V0-048	docs/specs/test-claim-qualification-v0.md	589	an observation MAY declare the environment variant it ran under as one optional
 TCQ-V0-049	docs/specs/test-claim-qualification-v0.md	600	one shared flake rule applies to every Corvint test provider: a test observed at
 TCQ-V0-050	docs/specs/test-claim-qualification-v0.md	607	a caller MAY supply at most 16 prior observations alongside the dynamic tuple.
+TCQ-V0-051	docs/specs/test-claim-qualification-v0.md	630	`corvint cem cover --map MAP --coverprofile PATH --test-run TEXT [--output PATH]
+TCQ-V0-052	docs/specs/test-claim-qualification-v0.md	639	the witness is one optional hunk member `coverage` admitted only on `cem/0.3`:
+TCQ-V0-053	docs/specs/test-claim-qualification-v0.md	647	`cover` writes a witness on every hunk of the map, never on a subset. The covere
+TCQ-V0-054	docs/specs/test-claim-qualification-v0.md	652	the reviewer report (`corvint cem report`) lists every hunk whose basis cites a
 TJAA-V0-001	docs/specs/typescript-javascript-affected-adapter-v0.md	31	`Owns` MUST claim exactly `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs`; it M
 TJAA-V0-002	docs/specs/typescript-javascript-affected-adapter-v0.md	35	A normally file-addressable test MUST be one file unit. Its stable identity MUST
 TJAA-V0-003	docs/specs/typescript-javascript-affected-adapter-v0.md	39	Runner detection MUST use direct runner imports/registrations, recognized config

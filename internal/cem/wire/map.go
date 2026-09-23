@@ -43,7 +43,8 @@ var StructuralReasons = map[string]bool{
 }
 
 // Canonical reports whether spec is a canonical committed-change profile:
-// cem/0.2, or cem/0.3 which adds only the structural reason vocabulary.
+// cem/0.2, or cem/0.3 which adds the structural reason vocabulary and the
+// optional hunk coverage witness.
 func Canonical(spec string) bool { return spec == Spec02 || spec == Spec03 }
 
 // MechanicalReason reports whether reason is registered for spec.
@@ -72,7 +73,30 @@ type Basis struct {
 	Relation   string
 }
 
-// Hunk is one mapped patch hunk.
+// CoverageWitness is one hunk's optional cem/0.3 patch-coverage witness: the
+// added lines one identified test run executed according to one local
+// coverprofile (TCQ-V0-051). Covered ranges are one-based new-side line
+// ranges inside the hunk's newRange, ascending and non-adjacent; an empty
+// list is State CoverageUncovered, never an omitted witness.
+type CoverageWitness struct {
+	ProfileSha256 string
+	TestRun       string
+	Mode          string
+	State         string
+	Covered       []Range
+}
+
+// Frozen coverage witness vocabulary.
+const (
+	CoverageCovered   = "covered"
+	CoverageUncovered = "uncovered"
+	MaxTestRunBytes   = 256
+)
+
+var coverageModes = map[string]bool{"set": true, "count": true, "atomic": true}
+
+// Hunk is one mapped patch hunk. Coverage is nil unless a cem/0.3 witness is
+// recorded.
 type Hunk struct {
 	ID          string
 	Path        string
@@ -81,6 +105,7 @@ type Hunk struct {
 	Disposition string
 	Reason      string
 	Basis       []Basis
+	Coverage    *CoverageWitness
 }
 
 // Map is a validated CEM 0.1, 0.2, or 0.3 document.
@@ -269,6 +294,11 @@ func validateHunk(item Value, spec string) (Hunk, error) {
 		return Hunk{}, fieldError("hunks items must be objects")
 	}
 	keys := []string{"id", "path", "oldRange", "newRange", "disposition", "reason", "basis"}
+	coverageValue, hasCoverage := item.Obj.Get("coverage")
+	witnessed := hasCoverage && spec == Spec03
+	if witnessed {
+		keys = append(keys, "coverage")
+	}
 	if err := requireClosedKeys(item.Obj, keys); err != nil {
 		return Hunk{}, err
 	}
@@ -320,7 +350,89 @@ func validateHunk(item Value, spec string) (Hunk, error) {
 	if err := validateDisposition(hunk, spec); err != nil {
 		return Hunk{}, err
 	}
+	if witnessed {
+		witness, err := validateCoverage(coverageValue, newRange)
+		if err != nil {
+			return Hunk{}, err
+		}
+		hunk.Coverage = &witness
+	}
 	return hunk, nil
+}
+
+// ValidateTestRun checks the verbatim test run identity a coverage witness
+// records: non-empty, at most MaxTestRunBytes, and free of control characters.
+func ValidateTestRun(text string) error {
+	if text == "" || len(text) > MaxTestRunBytes {
+		return fieldError("coverage testRun must be 1..%d bytes", MaxTestRunBytes)
+	}
+	for _, character := range text {
+		if character < 0x20 || character == 0x7f {
+			return fieldError("coverage testRun must not contain control characters")
+		}
+	}
+	return nil
+}
+
+func validateCoverage(value Value, newRange Range) (CoverageWitness, error) {
+	if value.Kind != KindObject {
+		return CoverageWitness{}, fieldError("hunk coverage must be an object")
+	}
+	if err := requireClosedKeys(value.Obj, []string{"profileSha256", "testRun", "mode", "state", "covered"}); err != nil {
+		return CoverageWitness{}, err
+	}
+	profile, _ := value.Obj.Get("profileSha256")
+	if profile.Kind != KindString || !IsSha256(profile.Str) {
+		return CoverageWitness{}, fieldError("coverage profileSha256 must be a lowercase SHA-256 digest")
+	}
+	testRun, _ := value.Obj.Get("testRun")
+	if testRun.Kind != KindString {
+		return CoverageWitness{}, fieldError("coverage testRun must be a string")
+	}
+	if err := ValidateTestRun(testRun.Str); err != nil {
+		return CoverageWitness{}, err
+	}
+	mode, _ := value.Obj.Get("mode")
+	if mode.Kind != KindString || !coverageModes[mode.Str] {
+		return CoverageWitness{}, fieldError("coverage mode must be set, count, or atomic")
+	}
+	state, _ := value.Obj.Get("state")
+	if state.Kind != KindString || (state.Str != CoverageCovered && state.Str != CoverageUncovered) {
+		return CoverageWitness{}, fieldError("coverage state must be %s or %s", CoverageCovered, CoverageUncovered)
+	}
+	coveredValue, _ := value.Obj.Get("covered")
+	if coveredValue.Kind != KindArray {
+		return CoverageWitness{}, fieldError("coverage covered must be an array")
+	}
+	covered, err := validateCoveredRanges(coveredValue.Arr, newRange)
+	if err != nil {
+		return CoverageWitness{}, err
+	}
+	if (len(covered) > 0) != (state.Str == CoverageCovered) {
+		return CoverageWitness{}, fieldError("coverage state must agree with its covered ranges")
+	}
+	return CoverageWitness{ProfileSha256: profile.Str, TestRun: testRun.Str, Mode: mode.Str,
+		State: state.Str, Covered: covered}, nil
+}
+
+// validateCoveredRanges requires ascending, non-adjacent, non-empty line
+// ranges that lie inside the hunk's new-side range.
+func validateCoveredRanges(entries []Value, newRange Range) ([]Range, error) {
+	covered := []Range{}
+	limit := newRange.Start + newRange.Count
+	next := newRange.Start
+	for _, entry := range entries {
+		item, err := validateRange(entry, "coverage covered entries")
+		if err != nil {
+			return nil, err
+		}
+		if item.Count < 1 || item.Start < next || item.Start+item.Count > limit {
+			return nil, fieldError("coverage covered ranges must be ascending, non-adjacent, and inside newRange")
+		}
+		covered = append(covered, item)
+		next = item.Start + item.Count + 1
+	}
+	return covered, nil
 }
 
 func validateBasis(entry Value) (Basis, error) {

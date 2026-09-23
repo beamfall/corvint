@@ -13,7 +13,7 @@ Authoritative inputs: `docs/specs/ocm-v0-dogfood.md`,
 ## Agent digest
 - Claim: TCQ deterministically qualifies selected OCM test anchors and caller-supplied JUnit matches without proving adequacy or correctness.
 - Status: proposed/implementation-candidate; promotion evidence NOT_RUN
-- Exists: deterministic reference implementation and vectors for selected OCM claim qualification; an optional declared environment variant per observation and a shared same-revision flake rule (`TCQ-V0-048..050`).
+- Exists: deterministic reference implementation and vectors for selected OCM claim qualification; an optional declared environment variant per observation and a shared same-revision flake rule (`TCQ-V0-048..050`); a per-hunk patch coverage witness from one local coverprofile with a visible reviewer-report downgrade (`TCQ-V0-051..054`).
 - Blocked on: a WP6 authority root, 60-edge labelled corpus, reporter compatibility, and promotion gates.
 - Read next: Threat model and claim boundary; Requirements; Acceptance and adversarial matrix.
 
@@ -619,6 +619,44 @@ MUST NOT upgrade V0 artifacts in place.
   enter the TCQ ID preimage other than through the reasons they add. `TCQ-V0-034` repeated rows
   inside one observation remain `AMBIGUOUS`, not flaky.
 
+### Patch coverage witness
+
+A test claim says a test exercises a hunk; a coverage witness records whether one named test run
+reached the hunk's added lines. The witness is decision 0347
+(`docs/decisions/0347-patch-coverage-witness-from-a-local-coverprofile-2026-09-22.md`): it is
+ingested from one operator-named local coverprofile, never discovered or produced by Corvint, and
+it qualifies a claim without proving adequacy or correctness.
+
+- `TCQ-V0-051`: `corvint cem cover --map MAP --coverprofile PATH --test-run TEXT [--output PATH]`
+  reads exactly one local Go coverprofile named by the operator, bounded at the gorunner
+  coverage bound, through the gorunner coverprofile parser (`ParseCoverProfile`); Corvint never
+  discovers profiles, runs tests, or accepts a second parser. The witness records the profile's
+  SHA-256 and the operator's `--test-run` identity (1..256 bytes, no control characters)
+  verbatim; Corvint never derives, verifies, or normalizes either. A hunk path matches a profile
+  path that equals it or ends in `/` plus it; two distinct matching profile paths, a malformed
+  profile, an empty or oversized test-run identity, and a non-canonical (`cem/0.1`) map are each
+  refused as `invalid-arguments` and leave the map unchanged.
+- `TCQ-V0-052`: the witness is one optional hunk member `coverage` admitted only on `cem/0.3`:
+  `{profileSha256, testRun, mode ∈ {set,count,atomic}, state ∈ {covered,uncovered},
+  covered: [{start,count}...]}` with closed keys. `covered` ranges are one-based new-side lines,
+  ascending, non-adjacent, `count ≥ 1`, and inside the hunk's `newRange`; `state` is `covered`
+  exactly when `covered` is non-empty, and any disagreement is `invalid-field`. `cem/0.1` and
+  `cem/0.2` reject the member as `unknown-field`, so a consumer that predates the witness reads
+  every existing map exactly as before; `cover` declares `cem/0.3` on a canonical map the way a
+  structural reason does (CEM-SM-006).
+- `TCQ-V0-053`: `cover` writes a witness on every hunk of the map, never on a subset. The covered
+  ranges are the hunk's added lines (`+` body lines, not context) intersected with the lines of
+  profile blocks whose count is positive, folded into maximal ranges; a hunk with no such line
+  carries `state: uncovered` with an empty `covered` array. An absent witness and an uncovered
+  witness are distinct states, and neither is ever read as tested.
+- `TCQ-V0-054`: the reviewer report (`corvint cem report`) lists every hunk whose basis cites a
+  `test-claim` relation under `## Test claims`. A hunk whose witness is `covered` is `tested`
+  with its test run and profile digest shown; a hunk with no witness is downgraded with reason
+  `no-coverage-witness`, and a hunk whose witness is `uncovered` with reason
+  `coverage-witness-uncovered`. The downgrade is rendering only: dispositions, counts, the
+  worklist, and the `status`/`verify` envelopes are unchanged, and a map without test claims
+  renders exactly as before.
+
 ## Canonical conditional-state table
 
 Every row below carries `authorityClass: CALLER_REPORTED`.
@@ -655,6 +693,7 @@ at least these genuine-pass/fabricated-fail/no-input classes:
 | matching | zero/one/two identical rows, same name different path, duplicate target key, nonzero exit, not-attested clean target |
 | environment variant | undeclared variant leaves observation bytes and summary unchanged and reads as unknown; declared variant changes the observation ID and is copied into the summary; bad key grammar, non-string value, and non-object member are `invalid-observation` |
 | flake qualification | divergent current/prior outcomes at one target and variant add `test-flaky` and drop the relation while the current report state stands; same variant, other variant, declared-vs-undeclared, and both-undeclared comparisons; priors with the static combination, at another target, and beyond 16 |
+| coverage witness | `cem/0.3` accepts a covered and an uncovered witness; `cem/0.1` and `cem/0.2` reject the member; disagreeing state, out-of-range, overlapping, adjacent ranges, bad digest, empty or control-character test run, bad mode or state, surplus key; cover of a covered added line, a profile reaching only a context line (uncovered, never absent), ambiguous profile path, malformed profile, empty test run; report shows `tested`, `no-coverage-witness`, `coverage-witness-uncovered` |
 | wire/cache | duplicate JSON keys, depth before parse, extra/missing fields, reordered rows, tampered IDs/digests, missing each raw cache-verification input, byte-identical fresh-process output |
 | authority/policy | every edge is `CALLER_REPORTED`, signature does not upgrade, default frontier stays open, permissive acknowledgement remains visible and non-closing |
 | privacy/boundary | source/XML/output canaries absent from artifacts and errors; sibling, worktree, alternate object, and denied-object canaries absent |
@@ -680,9 +719,12 @@ Conformance and reporter compatibility are separate gates:
 
 V0 supports Python, Go, strict JUnit, one repository, one expected base, one target, an omitted
 command environment with an optional declared observation variant, bounded prior observations for
-the shared flake rule, and one caller-reported relation. It adds no JavaScript/TypeScript
+the shared flake rule, one caller-reported relation, and one operator-named Go coverprofile
+ingested as a per-hunk witness (`TCQ-V0-051..054`). It adds no JavaScript/TypeScript
 classifier, semantic floor, assertion detector, sibling extraction, retry deduplication within one
-observation, flake history storage or retrieval, coverage ingestion,
+observation, flake history storage or retrieval, coverprofile discovery, test execution, non-Go
+coverage formats, statement- or branch-level coverage thresholds, coverage-driven disposition or
+count changes,
 path or stream raw-artifact input, artifact persistence, shell execution, daemon, database, network,
 UI, signature, authenticated harness, policy service, or portable promotion claim. WP6 owns any
 harness-controlled/authenticated upgrade after WP4 signal is measured.
@@ -691,7 +733,10 @@ If association precision, compatibility, privacy, boundary, or overhead gates fa
 producer and consumer while retaining OCM, CEM, source fixtures, and labelled evaluation data. Do
 not weaken abstention or relabel caller reports as proof. `TCQ-V0-048..050` roll back on their own
 by dropping `Request.PriorObservations`, the `environment` member, and reason 18; no frozen vector
-changes because none carries either.
+changes because none carries either. `TCQ-V0-051..054` roll back by removing the `cem cover`
+action, the `coverage` hunk member from the `cem/0.3` validator, and the `## Test claims` report
+section; every map written without `cover` is unchanged, and a map that carries a witness fails
+closed as `unknown-field` rather than being read as tested.
 
 ## Traceability
 
@@ -710,6 +755,10 @@ non-authoritative and slated for separate removal.
 | `TCQ-V0-048` | `internal/tcq/observation.go`, `internal/tcq/encode.go` | `TestObservationEnvironmentIsAdditive` |
 | `TCQ-V0-049` | `internal/tcq/flake.go`, `internal/jstestprovider/projection.go`, `internal/jstestprovider/playwright.go` | `TestFlakyRuleNeedsDivergentTerminalOutcomes`, `TestFlakyOutcomeIsSharedRule`, `TestParsePlaywrightJSON_MixedStates` |
 | `TCQ-V0-050` | `internal/tcq/evaluate.go`, `internal/tcq/assemble.go` | `TestSameRevisionDivergentOutcomesAreFlaky`, `TestPriorObservationVariantMismatchIsNotFlaky`, `TestPriorObservationsRequireDynamicTupleAndTarget`, `TestReasonVocabularyMatchesFrontierSeam` |
+| `TCQ-V0-051` | `internal/cem/workflow/cover.go`, `internal/cem/cli/cli.go`, `internal/liveverify/gorunner/coverage.go` | `TestCoverRefusesAmbiguousAndInvalidInputs`, `TestParseCoverProfileExportsBlocks` |
+| `TCQ-V0-052` | `internal/cem/wire/map.go` | `TestSpec03CoverageWitness` |
+| `TCQ-V0-053` | `internal/cem/workflow/cover.go`, `internal/cem/workflow/workflow.go` | `TestCoverRecordsCoverageWitnessAndReportDowngrades` |
+| `TCQ-V0-054` | `internal/cem/workflow/read.go` | `TestCoverRecordsCoverageWitnessAndReportDowngrades` |
 
 The implementation and deterministic reference vectors are delivered as a candidate. The labelled
 corpus, reporter compatibility measurements, independent implementation, and ten-change dogfood

@@ -117,8 +117,13 @@ Every parsed hunk MUST appear once, identified by:
 - `path`: the post-image path, or the pre-image path for a delete;
 - `oldRange` and `newRange`: `{start, count}` copied from the hunk header;
 - `disposition`: `supported`, `unknown`, or `mechanical`;
-- `reason`: one disposition-specific enumerated code; and
-- `basis`: evidence references for supported hunks.
+- `reason`: one disposition-specific enumerated code;
+- `basis`: evidence references for supported hunks; and
+- `coverage` (`cem/0.3` only, optional): one patch coverage witness written by `cem cover`
+  (`TCQ-V0-052`): `{profileSha256, testRun, mode, state, covered}`, where `state` is `covered`
+  or `uncovered` and `covered` lists the ascending, non-adjacent added-line ranges inside
+  `newRange` that the named coverprofile reached. `cem/0.1` and `cem/0.2` reject the key as
+  `unknown-field`.
 
 The hunk body digest is SHA-256 of the exact diff body bytes after the `@@` header. The hunk ID is
 SHA-256 of canonical UTF-8 JSON containing `contentSha256`, `oldPath`, `newPath`, `oldRange`, and
@@ -171,7 +176,11 @@ The experimental `cem/0.3` profile ([`specs/cem-0.3-structural-mechanical.md`](s
 adds four Go-only structural reasons, `rename`, `move`, `import-reorder`, and `formatter-only`,
 that the verifier recomputes from the base blob and the patch with the Go standard library. A
 0.1 or 0.2 map carrying one of them is invalid, and a claim the verifier cannot reproduce fails
-`unproven-mechanical`.
+`unproven-mechanical`. The same profile admits the optional per-hunk `coverage` witness
+(`TCQ-V0-051..054`, [`specs/test-claim-qualification-v0.md`](specs/test-claim-qualification-v0.md)):
+`cem cover` intersects one operator-named local Go coverprofile with each hunk's added lines and
+records a `covered` or `uncovered` witness on every hunk, and `cem report` downgrades a
+`test-claim` basis whose hunk has no covering witness with a visible reason.
 
 ## Verification and drift
 
@@ -244,8 +253,8 @@ Fresh `corvint cem prepare` runs emit the separate experimental `cem/0.2` profil
 [`cem-0.2.schema.json`](cem-0.2.schema.json). It adds only the fixed
 `"excludedPath":".corvint/change.cem.json"` field. `status`, `verify`, and `report` require an
 independent expected base and target, derive the WP1-pinned patch themselves, and reject `--patch`.
-`cem/0.3` keeps that shape and only widens the mechanical reason vocabulary; every canonical rule
-in this section applies to both profiles.
+`cem/0.3` keeps that shape and adds only the wider mechanical reason vocabulary and the optional
+hunk `coverage` witness; every canonical rule in this section applies to both profiles.
 If the sidecar exists in the target tree, its mode must be `100644` and its raw blob bytes must equal
 the verified input. `prepare` is the preceding candidate phase: it ignores inherited target-side
 sidecar bytes, because committing the generated map creates the final revision. Its returned
@@ -305,6 +314,16 @@ upgrades the map to `cem/0.3`):
 ```console
 corvint cem mark --map .corvint/change.cem.json --hunk 1 \
   --disposition unknown --reason insufficient-evidence
+```
+
+Use `cover` after running the tests yourself to attach one local coverprofile as a per-hunk
+witness; Corvint neither runs tests nor finds profiles, and the command upgrades a canonical map
+to `cem/0.3`:
+
+```console
+go test -coverprofile=cover.out ./pkg/...
+corvint cem cover --map .corvint/change.cem.json \
+  --coverprofile cover.out --test-run 'go test -coverprofile=cover.out ./pkg/...'
 ```
 
 ## Example shape
