@@ -133,7 +133,7 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
 - `CRR-V0-002`: Environment allow-list, reconciled with the mandatory determinism variables.
   - (a) The launched command's environment MUST equal the descriptor's `env` allowlist
     (`CTR-V0-001`) exactly, set through `Cmd.Env` on every launch, never inherited;
-    `tools/cw-trial/main.go:1457` and `tools/cem-trial/main.go:901` explicitly inherit the full environment and are not the replay policy.
+    `tools/cw-trial/main.go:1460` and `tools/cem-trial/main.go:901` explicitly inherit the full environment and are not the replay policy.
     `Cmd.Env` MUST also be non-nil for an *empty* allowlist, because a nil `Cmd.Env` inherits
     `os.Environ()`. At the extraction base, `conformance/cli-parity-v0/process.go` used
     `append([]string(nil), spec.Env...)` and returned nil for an empty allowlist; the delivered
@@ -355,7 +355,7 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     Replay retains the zero-value `OverflowFail` policy: the trial adapters' explicit
     `OverflowTruncate` policy MUST NOT be reused for byte-equality judgments.
   - (c) Stdin: supply `stdin{path,sha256}` from the descriptor rather than hard-code
-    EOF stdin as the trial `runCommand` adapters do (`tools/cw-trial/main.go:1455`, `tools/cem-trial/main.go:899`), and
+    EOF stdin as the trial `runCommand` adapters do (`tools/cw-trial/main.go:1458`, `tools/cem-trial/main.go:899`), and
     refuse before launch when the stdin file's computed digest differs from the pinned `sha256`.
   - (d) Budgets: `CTR-V0-003`'s 10 s per-process ceiling and 120 s request budget per `tasks[]`
     entry, cumulative across that entry's six repetitions (decision 0054), MUST each be enforced by *actively* cancelling and terminating the

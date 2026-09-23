@@ -1,0 +1,15 @@
+{
+  "partition": "pilot",
+  "source": "Synthetic already-fixed control (CEP-V0-004, arXiv 2603.25764): the reported panic is already guarded, and tested, at the pinned revision, so the only right reply is an abstention. A fixture for the control's scoring, never held-out evidence.",
+  "tasks": [
+    {
+      "base_commit": "1111111111111111111111111111111111111111",
+      "control": "already-fixed",
+      "gold": {},
+      "id": "already-fixed-portparse-empty",
+      "kind": "retrieval",
+      "repo": "example/portparse",
+      "text": "Bug report: ParsePort panics when it is given an empty string instead of returning an error. Which source file must change to fix this, and which test file should cover the fix?"
+    }
+  ]
+}
