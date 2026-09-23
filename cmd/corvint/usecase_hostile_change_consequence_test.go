@@ -39,6 +39,7 @@ func TestUseCaseHostileChangeConsequence(t *testing.T) {
 			consequenceRefusal(t, root, "unsupported-affected-revision")
 		}},
 		// hostile: degradation labels, never a narrower bounded answer.
+		// affected never reads .corvint/index; this case documents that independence.
 		{"hostile", "stale-index", "stale snapshot does not change the plan", func(t *testing.T) {
 			root := consequenceRepository(t)
 			runIndexForTest(t, root, false)
@@ -117,6 +118,7 @@ func TestUseCaseHostileChangeConsequence(t *testing.T) {
 			root := consequenceRepository(t)
 			outside := t.TempDir()
 			cemWrite(t, outside, "extdir.go", "package extdir\n\nfunc Ext() int { return 3 }\n")
+			cemWrite(t, outside, "extdir_test.go", "package extdir\n\nimport \"testing\"\n\nfunc TestExt(t *testing.T) { _ = Ext() }\n")
 			if err := os.Symlink(outside, filepath.Join(root, "extdir")); err != nil {
 				t.Fatal(err)
 			}

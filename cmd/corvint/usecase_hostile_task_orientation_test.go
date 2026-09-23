@@ -88,7 +88,7 @@ func TestUseCaseHostileTaskOrientation(t *testing.T) {
 			}
 			committed := gitFixture(t, root, "rev-parse", "HEAD:cache/demux.go")
 			evidence := string(mustJSON(t, packet["results"]))
-			if strings.Contains(evidence, "defines Extra") {
+			if strings.Contains(evidence, gitFixture(t, root, "hash-object", "cache/demux.go")) {
 				t.Fatalf("a worktree-only definition was cited: %s", evidence)
 			}
 			if !strings.Contains(evidence, `"blob_hash":"`+committed+`"`) {
