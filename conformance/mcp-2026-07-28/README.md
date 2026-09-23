@@ -41,20 +41,30 @@ Corvint P0 deliberately exposes no network listener, so the official result is
 `v0.1.16`; current official server usage remains `server --url URL`. The exact
 dated official schema observed by this corpus has SHA-256
 `ef70b61f99b6d2e5e3b46863822eab08dff6a45bedc7a08914e0e5b133f40203`.
-That digest is provenance only: the schema is not vendored or loaded by this
-no-network runner, so official-schema execution remains `NOT_RUN`.
+The schema is not vendored, so the default no-network run skips
+`TestServerTrafficMatchesOfficialSchema` and official-schema execution stays
+`NOT_RUN` there. To execute it, fetch the pinned file and name it:
+
+```console
+curl -fsSL -o /tmp/mcp-2026-07-28-schema.json https://raw.githubusercontent.com/modelcontextprotocol/modelcontextprotocol/271ecc9accafdd9b83a3c869fa67c22953b2af80/schema/2026-07-28/schema.json
+CORVINT_MCP_OFFICIAL_SCHEMA=/tmp/mcp-2026-07-28-schema.json GOTOOLCHAIN=local go test -count=1 -run OfficialSchema ./conformance/mcp-2026-07-28
+```
+
+The test refuses a file whose SHA-256 differs from the pin, then checks the
+suite's discovery, tool-list, tool-call and error requests and the live
+server's responses against the schema's `$defs`. Its checker covers exactly
+the JSON Schema 2020-12 keywords that schema uses and fails on any other
+keyword, and `format` stays an annotation as 2020-12 defaults.
 
 The production tools do not expose a deterministic long-running progress
 hook. The suite validates progress-token input, absence of unsolicited
 notifications, and correlation if a notification appears, but executed
 progress delivery remains `NOT_OBSERVED` rather than a compatibility claim.
 
-One promotion blocker is inherited below this MCP layer:
-`INHERITED_KERNEL_GIT_PATH_NOT_PINNED`. The in-process Corvint kernel launches
-Git directly but currently resolves it from `PATH` for each operation rather
-than pinning one executable identity at process start. This suite does not
-mislabel that property as verified; it remains `NOT_OBSERVED` until the kernel
-boundary is repaired and independently exercised.
+`corvint-mcp` pins one absolute Git executable at start and refuses to start
+when Git does not resolve. `TestGitPlantedOnPathAfterStartNeverRuns` plants a
+`git` earlier on the server's `PATH` after start and observes that it never
+runs, which closes the former `INHERITED_KERNEL_GIT_PATH_NOT_PINNED` blocker.
 
 The 2026-09-06 read-safety cases exercise private-metadata Git status through the real MCP process:
 configured clean/process filters cannot execute, `core.worktree` cannot redirect observations

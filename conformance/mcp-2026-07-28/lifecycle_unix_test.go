@@ -138,6 +138,34 @@ func closedStdoutCancelsInFlightDescendantGroup(t *testing.T) {
 	waitForProcessesGone(t, pids, 3*time.Second)
 }
 
+// A git planted earlier on PATH after the server starts must never run: the
+// server pins one absolute Git executable at start and never looks Git up on
+// PATH again (MCPV0-016).
+func TestGitPlantedOnPathAfterStartNeverRuns(t *testing.T) {
+	t.Run("MCPV0-016 git executable pinned at start", gitPlantedOnPathAfterStartNeverRuns)
+}
+
+func gitPlantedOnPathAfterStartNeverRuns(t *testing.T) {
+	planted := t.TempDir()
+	marker := filepath.Join(t.TempDir(), "planted-git-ran")
+	client := startServerWithEnv(t, fixtureRepository(t), "PATH="+planted+string(os.PathListSeparator)+os.Getenv("PATH"))
+	defer client.close(t)
+	successResult(t, client.call(t, 94, "server/discover", map[string]any{"_meta": requestMeta()}))
+	script := "#!/bin/sh\n: > " + shellQuote(marker) + "\nexit 1\n"
+	if err := os.WriteFile(filepath.Join(planted, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	status := successResult(t, client.call(t, 95, "tools/call", map[string]any{
+		"_meta": requestMeta(), "name": "corvint.status", "arguments": map[string]any{},
+	}))
+	if status["isError"] == true {
+		t.Fatalf("status after planting git=%s", canonicalJSON(status))
+	}
+	if _, err := os.Stat(marker); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("git planted on PATH after start ran: %v", err)
+	}
+}
+
 // installBlockingFakeGit puts a git on a private PATH directory that records
 // its own pid and a background child's pid, then blocks on that child.
 func installBlockingFakeGit(t *testing.T) (directory, pidFile string) {
