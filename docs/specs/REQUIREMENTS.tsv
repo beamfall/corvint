@@ -865,6 +865,7 @@ GENESIS-021	docs/specs/genesis-backfill.md	124	every model call MUST be restrict
 GENESIS-022	docs/specs/genesis-backfill.md	130	a model result MAY create only a `MODEL_PROPOSED_ANCHORED`/`INFERRED` candidate
 GENESIS-023	docs/specs/genesis-backfill.md	135	unchanged immutable inputs and an unchanged routing profile MUST reuse the prior
 GENESIS-024	docs/specs/genesis-backfill.md	143	activation MUST emit a canonical, source-content-free receipt whose operational
+GENESIS-025	docs/specs/genesis-backfill.md	149	(proposed 2026-09-22, V1-0008, not accepted) an activation MUST end within its t
 GFG-V0-001	docs/specs/go-format-gate-v0.md	46	The gate MUST check every Go file in the repository's tracked set, obtained from
 GFG-V0-002	docs/specs/go-format-gate-v0.md	50	The tracked set spans every Go module in the repository. The gate MUST NOT carry
 GFG-V0-003	docs/specs/go-format-gate-v0.md	52	The formatter MUST be the `gofmt` of the toolchain `go env GOROOT` names under
@@ -1106,6 +1107,8 @@ IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	147	(accepted 2026-09-12 by deci
 IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	353	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
 IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	371	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
 IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	398	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
+IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	426	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
+IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	438	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
 KA-V0-001	docs/specs/kotlin-android-candidate-v0.md	28	The command and its package remain isolated, unregistered, and unreachable from
 KA-V0-002	docs/specs/kotlin-android-candidate-v0.md	30	A request is one UTF-8, canonical-JSON object followed by one LF. It has the clo
 KA-V0-003	docs/specs/kotlin-android-candidate-v0.md	34	The target is exactly Android/arm64/none. The twelve input rows below occur once

@@ -4,6 +4,95 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-22 V1-0008 IDX-SNAP-V0-022, IDX-SNAP-V0-023, GENESIS-025: init, adopt and index lifecycle qualification
+
+Ticket V1-0008 asked for three things: the two activation doors, the cold-versus-incremental index
+lifecycle, and hostile snapshot states, each qualified with evidence. The three requirements are
+proposed and record outcomes the code at base `1894b9e5c992d69a7cbefa4b305485494e5622c4` already
+produces. No hostile case panicked or ran unbounded, so no behaviour changed. The corpus is this
+repository at that base: 3,819 tracked files, tree `7aa62ddc4c6b1afa9c2cc3d9940d7d6c2632d45f`,
+object format sha1.
+
+Hosts. The Darwin host reports `uname -m` = `arm64` and `uname -sr` = `Darwin 25.6.0`. `sw_vers`
+gives ProductName macOS, ProductVersion 26.6.2, BuildVersion 25G83. It is an Apple M2 Max with 12
+CPUs and 64 GiB, running Apple Git 2.54.0. The Linux run used a `golang:1.27.1` container on that
+host's Docker VM with `--network none`: `uname -m` = `aarch64`, `uname -sr` = `Linux
+6.8.0-117-generic`, Debian GNU/Linux 13, 6 CPUs, git 2.47.3, go1.27.1 linux/arm64. Both
+binaries were built from the base tree.
+
+Activation timing (`GENESIS-025`, AC1). Each door ran 20 times on the corpus from a minimal
+environment: `PATH=/usr/bin:/bin` and a scratch `HOME`. Network was denied on Darwin by
+`sandbox-exec` with `(deny network*)` and on Linux by `--network none`. No model, account or build
+step ran, and every receipt records `model.callCount` 0. p95 is the nearest rank, sample
+`ceil(0.95n)` of the sorted samples, so the 19th of 20.
+
+| Host | Door | min | median | p95 | max (s) |
+|---|---|---|---|---|---|
+| Darwin arm64 | `init` | 0.252 | 0.255 | 0.259 | 0.262 |
+| Darwin arm64 | `adopt` | 0.252 | 0.254 | 0.257 | 0.259 |
+| Linux arm64 | `init` | 0.579 | 0.685 | 0.843 | 0.893 |
+| Linux arm64 | `adopt` | 0.459 | 0.633 | 0.774 | 0.783 |
+
+All 80 runs exited 0 with `ok:true` and a `PARTIAL` receipt. `PARTIAL` comes from six `binary-asset`
+gaps (`GENESIS-024`) out of 3,813 `INCLUDED` and 6 `UNSUPPORTED` entries. The receipts cite the
+revision and tree. The receipt ID was identical on both hosts:
+- `init`: `genesis-inventory:sha256:540e45d3ba2f39742fef72632a36b2606e2dfa994444c802486fde896b87f2ef`
+- `adopt`: `genesis-inventory:sha256:b7d91a68c0bb1919cfc2eedac3ff13126184dd37bcf65a6e0d385a88a8fe2f8c`
+
+Fallback. The default activation budget is 120 s, well under ten minutes.
+`TestActivationFallsBackToABoundedReceiptWhenGitHangs` asserts this. It also uses a Git wrapper that
+hangs after repository open, with a 0.5 s caller deadline. Under that wrapper each door returns
+within about 0.6 s. The receipt is `PARTIAL`, still pins revision and tree, and carries the single
+gap `git-timeout` with zero model calls.
+
+Finding, recorded and not changed: a Git that hangs during repository open yields the `INVALID`
+gap `invalid-repository`, not `git-timeout`. `openRepository` maps a failed layout probe to
+`invalid-repository`. The outcome is bounded but names the wrong cause.
+
+Cold versus incremental (`IDX-SNAP-V0-022`, AC2). `TestColdAndIncrementalSnapshotsAreByteIdentical`
+indexes the target in a fresh clone. It then indexes it again in a clone that first indexed the
+prior commit and moved ahead; that clone must probe not fresh before re-indexing. The test requires
+the two served indexes to be byte-identical under a canonical JSON encoding with the worktree fields
+cleared.
+
+With `CORVINT_LIFECYCLE_CORPUS` set, the corpus subtest used target `1894b9e5`, prior `7e9b1856`.
+It passed three of three runs on Darwin and three of three on Linux arm64. The canonical index was
+87,658,954 bytes, sha256 `76b96397439184b02f7173942d76dfb87d5d7d35183a4d8b5c6bd0044ffdbfa9`, on every
+run on both hosts. The fixture subtest, covering modify, add, delete and rename, runs unconditionally.
+
+Negative result: the gob file itself is not byte-identical. Two `corvint index` writes of tree
+`7aa62ddc` with engine `8084efe883cb0fe3` produced 68,770,546-byte files with sha256 `f3d1a145...`
+and `9ec03e48...`, because gob encodes maps in iteration order. The spec Non-goals already state
+this. A byte-deterministic file encoding therefore stays NOT_PRODUCED behind the
+`deployment-neutral-index-platform-v0.md` format gate.
+
+The default path has no incremental build: a moved repository rebuilds in full. The only
+incremental path is blob shards (`IDX-SNAP-V0-016`, proposed/off), which is NOT_RUN here.
+
+Hostile states (`IDX-SNAP-V0-023`, AC3). `TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes`
+asserts one exact outcome for each state and saw no panic or error return:
+- Unsupported input: the exclusion `source exceeds size bound` for a source over 1,000,000 bytes, an
+  unsupported-suffix count of 1 for a PNG, and a binary body under an admitted suffix that is loaded
+  but not valid text. The snapshot round-trips equal.
+- Corruption: an empty file, a torn header, a torn body, a file one byte short and a garbled header
+  each produce a miss on load, probe and compact event load. Restoring the file serves the original
+  index again.
+- Staleness: produces a miss.
+- Dirty state: the hit remains, `DirtyPaths` holds only the modified path, the committed body is
+  served, and the snapshot directory is unchanged.
+- Rollback (`reset --hard` to a retained prior commit): the hit is identical to the original and the
+  probe reports fresh.
+Focused tests passed on both hosts.
+
+NOT_RUN:
+- Linux amd64, and Linux outside a container VM.
+- `make gate` and the full-gate required by the ticket (owner policy).
+- The blob-shard incremental path.
+- Timing under load, and timing on repositories other than this one.
+- A hang during repository open in the timed runs.
+
+NOT_OBSERVED: a qualified external corpus.
+
 ## 2026-09-22 AFU-V0-001..AFU-V0-012: experimental web flow understanding
 
 The owner requested application-flow understanding, test-gap mapping and runtime confirmation, then

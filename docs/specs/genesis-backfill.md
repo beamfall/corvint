@@ -146,6 +146,16 @@ separate run envelope; it is not inserted into immutable Git facts or canonical 
   unsupported formats, missing access, shallow/missing history, parser failures, budget stops, and
   the semantic frontier. `INVALID` advances no reusable knowledge. Semantic unknowns do not make a
   mechanically complete inventory invalid.
+- `GENESIS-025`: (proposed 2026-09-22, V1-0008, not accepted) an activation MUST end within its time
+  budget and never wait on Git past it. The default budget is 120 s total with 30 s per Git read
+  (`defaultLimits`), under the ten-minute fallback bound. A caller deadline or budget that expires
+  once the repository has opened and the revision has resolved yields a `PARTIAL` receipt that
+  still pins revision and tree, names the single gap `git-timeout`, lists no entries, and records
+  zero model calls. A Git read that hangs
+  while the repository opens yields the `INVALID` receipt `invalid-repository` instead. Measured on
+  this repository, 20 runs each, network denied: `init` p95 0.259 s and `adopt` p95 0.257 s
+  (`docs/BUILD-LOG.md`, 2026-09-22 V1-0008). Falsifier: an activation that outlives its deadline by
+  more than the per-read Git cleanup, or a timed-out receipt with any other state or gap.
 
 ## Backfill sequence
 
@@ -338,4 +348,5 @@ non-authoritative and slated for separate removal. The native surface is `intern
 | `GENESIS-002` | `src/context_corvint_genesis.py` mechanical inventory | tracked denominator, classification, source-class, boundary, hostile-path, and budget tests; language-specific parsing pending |
 | `GENESIS-019` | resolver-accounting and zero-call receipt fields | mechanical resolver denominator and zero-model trap tests; remaining resolver families pending |
 | `GENESIS-024` | canonical inventory receipt and bounded summary | determinism, tamper, dirty, budget, no-spec, invalid-input, unsafe-path frontier, unsafe-path blob read, blob-read-failure count, unsafe-path summary order, and summary-bound tests |
+| `GENESIS-025` (proposed) | `defaultLimits`, `runRaw`, the tree-read fallback in `CompileRepositoryInventory` | `TestActivationFallsBackToABoundedReceiptWhenGitHangs` (`internal/genesis/activation_fallback_test.go`); timings in `docs/BUILD-LOG.md` (2026-09-22 V1-0008) |
 | `GENESIS-003..018`, `GENESIS-020..023` | not implemented | Corvint, Beamfall, external-source, semantic-routing, and brownfield gates pending |

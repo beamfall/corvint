@@ -418,6 +418,43 @@ behind the explicit opt-in `CORVINT_SNAPSHOT_FORMAT=pack`.
   unconditional build for `impactWorktree`/`impactBaseSet` in the `impact` dispatch in
   `cmd/corvint/main.go`.
 
+### Proposed (2026-09-22, V1-0008, not accepted): lifecycle qualification
+
+These two clauses record outcomes the current code already produces; they add no behaviour. They
+qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays proposed/off.
+
+- `IDX-SNAP-V0-022`: (proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
+  hit serves MUST be byte-identical under a canonical encoding (JSON of the decoded `Index` with
+  `Root`, `DirtyPaths` and `StatusSHA256` cleared, map keys ordered) whether the snapshot was written
+  cold in a fresh clone or incrementally, after the same repository first indexed an earlier
+  commit and then moved to this one. The moved repository MUST probe not fresh before the second
+  `index` (`IDX-SNAP-V0-011`). This is identity of the served index, not of the file: the gob bytes
+  of two writes of one tree differ (map order, Non-goals), and a byte-deterministic file encoding
+  stays behind the `deployment-neutral-index-platform-v0.md` gate. Measured on this repository
+  (target `1894b9e5`, prior `7e9b1856`, 3,819 tracked files): canonical index 87,658,954 bytes,
+  sha256 `76b96397439184b02f7173942d76dfb87d5d7d35183a4d8b5c6bd0044ffdbfa9`, equal in three runs.
+  Falsifier: any byte of the canonical encoding that differs between the cold and the incremental
+  hit. Rollback: delete the test; nothing else depends on this clause.
+- `IDX-SNAP-V0-023`: (proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
+  state below in the one stated outcome, with no panic and no error return:
+  (a) unsupported input: a tracked source over `maxSourceBytes` is recorded as the single exclusion
+  `source exceeds size bound`, a tracked file with an unadmitted suffix only raises
+  `UnsupportedSuffixCount`, both stay in `Tracked` and out of `Sources`, a binary body under an
+  admitted suffix is loaded but not valid text, and the snapshot round-trips equal to the build;
+  (b) corruption: an empty file, a torn header, a torn body, a file one byte short, and a garbled
+  header each make `LoadSnapshot` return no index, no hit and no error, `ProbeSnapshot` report not
+  fresh with no error, and compact `LoadEventSnapshot` miss with no error (`IDX-SNAP-V0-003`,
+  `IDX-SNAP-V0-011`); restoring the original bytes serves the original index again;
+  (c) staleness: after a new commit changes the tree, every loader misses as in (b);
+  (d) dirty state: a modified tracked file leaves the hit in place, lists only that path in
+  `DirtyPaths`, serves the committed body, and writes nothing to `.corvint/index/`
+  (`IDX-SNAP-V0-004`, `IDX-SNAP-V0-006`);
+  (e) rollback: resetting the repository to an earlier commit whose snapshot is still retained
+  (`IDX-SNAP-V0-007`) hits that snapshot, probes fresh, and serves an index byte-identical under
+  `IDX-SNAP-V0-022`'s encoding to the one first served for that commit.
+  Falsifier: a panic, an error return, or any other outcome in one of the five states. Rollback:
+  delete the test; nothing else depends on this clause.
+
 ## Non-goals and authority
 
 No daemon, no watcher, no write from a read verb, no cross-repository store, no network. The
@@ -502,6 +539,11 @@ harness events); `TestPackQueryAndEventLoadsVerifyABodyOnlyWhenItIsRead`
 (`cmd/corvint/index_snapshot_test.go`) and the same refusal test for `IDX-SNAP-V0-019`;
 `TestProveKernelAndWitnessReadTheSnapshotWithoutChangingAByte` and the same refusal test for `IDX-SNAP-V0-020`;
 `TestImpactRangeAndWorkingTreeProfilesReadTheSnapshotWithoutChangingAByte` for `IDX-SNAP-V0-021`; the timing readings in `docs/BUILD-LOG.md` (2026-09-02).
+`TestColdAndIncrementalSnapshotsAreByteIdentical` and
+`TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes`
+(`internal/contextindex/lifecycle_qualification_test.go`) for `IDX-SNAP-V0-022` and
+`IDX-SNAP-V0-023`; the corpus subtest runs only when `CORVINT_LIFECYCLE_CORPUS` names a clone
+(`docs/BUILD-LOG.md`, 2026-09-22 V1-0008).
 `TestProbeSnapshotReadsOnlyTheMatchingHeader` (`internal/contextindex/snapshot_test.go`) probes a
 written snapshot fresh and the same file truncated by one byte as a miss (`IDX-SNAP-V0-011`);
 `TestBlobShardReadRefusesInRootLeafSymlink` (`internal/contextindex/blob_shards_open_test.go`)
@@ -552,3 +594,5 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-019 (accepted, decision 0177) | `impact`/`feature` dispatch in `runContext`, `overSnapshot`, `deferredSnapshotIndex`, `snapshotIndex`, `standaloneImpactContext` | `TestImpactAndFeatureReadTheSnapshotWithoutChangingAByte`, `TestPackQueryAndEventVerbsRereadARefusedBodyWithoutChangingAByte` |
 | IDX-SNAP-V0-020 (accepted, decision 0180) | `provePacket`, `runKernel`, `runWitness`, `snapshotOrBuild`, `overSnapshot` | `TestProveKernelAndWitnessReadTheSnapshotWithoutChangingAByte`, `TestPackQueryAndEventVerbsRereadARefusedBodyWithoutChangingAByte` |
 | IDX-SNAP-V0-021 (accepted, decision 0182) | `impact` dispatch in `runContext`, `overSnapshot`, `snapshotIndex` | `TestImpactRangeAndWorkingTreeProfilesReadTheSnapshotWithoutChangingAByte` |
+| IDX-SNAP-V0-022 (proposed) | `BuildForSnapshot`, `WriteSnapshot`, `LoadSnapshot`, `ProbeSnapshot` | `TestColdAndIncrementalSnapshotsAreByteIdentical` |
+| IDX-SNAP-V0-023 (proposed) | `admittedEntries`, `LoadSnapshot`, `ProbeSnapshot`, `LoadEventSnapshot`, `evictSnapshots` | `TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes` |
