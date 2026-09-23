@@ -122,6 +122,10 @@ if [[ $action == impact ]]; then
     crash) printf '%s\n' 'process failed' >&2; exit 7 ;;
   esac
 fi
+if [[ $action == query && ${DOGFOOD_TEST_QUERY:-} == unreachable-trace ]]; then
+  printf '%s\n' '{"code": "unsupported-query-trace-state", "error": "local trace store contains unreachable revision: 1111111111111111111111111111111111111111", "ok": false}' >&2
+  exit 2
+fi
 if [[ $action == query && ${DOGFOOD_TEST_QUERY:-} == authority-trace-state ]]; then
   printf '%s\n' '{"code": "unsupported-query-trace-state", "error": "native Go authority-start query requires an absent clean-tree local trace store", "ok": false}' >&2
   exit 2
@@ -581,7 +585,7 @@ phase_jobs="$phase_jobs $!"
     rg -Fxq -- '    fix: expected while the prepared .corvint/change.cem.json is uncommitted; commit it, then rerun make dogfood-change'
   printf '%s\n' "$pending_output" | rg -Fxq -- '  cem-status: not-ready'
   printf '%s\n' "$pending_output" | \
-    rg -q '^    fix: read policyIssues in .*/cem-status\.json; a hunk stays unknown until DOGFOOD_CITATIONS cites it$'
+    rg -q '^    fix: read verification\.issues and policyIssues in .*/cem-status\.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk$'
   printf '1\tAGENTS.md\n' > "$test_root/malformed-citations.tsv"
   malformed_status=0
   malformed_output=$(CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" \
@@ -598,6 +602,18 @@ phase_jobs="$phase_jobs $!"
   printf '%s\n' "$missing_report_output" | rg -Fxq -- 'dogfood-check: FAIL dogfood-report-missing'
   printf '%s\n' "$missing_report_output" | \
     rg -Fxq -- "  fix: run make dogfood-change BASE=$base on this HEAD until it reports complete"
+
+  unreachable_output=$(DOGFOOD_TEST_QUERY=unreachable-trace CORVINT_BIN="$test_root/bin/corvint" \
+    DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
+    DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
+    DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || :
+  printf '%s\n' "$unreachable_output" | rg -Fxq -- '  prechange-query: unsupported-query-trace-state'
+  printf '%s\n' "$unreachable_output" | \
+    rg -q '^  local trace store: a recorded trace names a commit no longer reachable from HEAD; '
+  if printf '%s\n' "$wording_output" | rg -q '^  local trace store:'; then
+    printf 'dogfood-change blamed history for a wording refusal\n' >&2
+    exit 1
+  fi
 
   CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \

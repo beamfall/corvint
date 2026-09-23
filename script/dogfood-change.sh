@@ -578,7 +578,7 @@ fix_hint() {
     ocm-prepare-*:excluded-artifact-mismatch|prechange-impact:unsupported-impact-worktree|local-outcome:record-index-failed)
       printf 'expected while the prepared .corvint/change.cem.json is uncommitted; commit it, then rerun make dogfood-change' ;;
     cem-status:not-ready)
-      printf 'read policyIssues in %s; a hunk stays unknown until DOGFOOD_CITATIONS cites it' "$evidence/cem-status.json" ;;
+      printf 'read verification.issues and policyIssues in %s: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk' "$evidence/cem-status.json" ;;
     ocm-aggregate:intent-scope-drift)
       printf 'fix the ocm-prepare or ocm-status row above; otherwise the intents file changed during the run' ;;
     local-outcome:outcome-input-not-provided)
@@ -600,6 +600,12 @@ if awk -F '\t' '$2 != "PRODUCED" && !($1 == "local-outcome" && $2 == "NOT_PRODUC
   if rg -q '^\{"code": "unsupported-query-trace-state", "error": "native Go authority-start query ' \
     "$evidence/prechange-query.stderr"; then
     printf '  prechange-query: DOGFOOD_TASK wording selected the authority-start profile, which refuses a present local trace store; keep this receipt and the task (docs/DOGFOOD.md section 1)\n' >&2
+  fi
+  # Amending or rebasing after a recorded pass strands that trace; query and
+  # the recorder then refuse every later run with this message.
+  if rg -q -e '"error": "local trace store contains unreachable revision: ' \
+    "$evidence/prechange-query.stderr" "$evidence/local-outcome.stderr" 2>/dev/null; then
+    printf '  local trace store: a recorded trace names a commit no longer reachable from HEAD; restore that commit as an ancestor and add new commits instead of amending or rebasing (docs/DOGFOOD.md "Daily adopter path")\n' >&2
   fi
   printf '  full report: %s\n' "$report" >&2
   exit 1

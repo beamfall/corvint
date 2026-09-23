@@ -13,6 +13,14 @@ sidecar with a `fix:` line; `dogfood-check` adds one to `dogfood-report-missing`
 `dogfood-report-drift` (separate lines for a report bound to another base or head and for an
 incomplete report) and `intent-scope-drift`. No reason code changed. `docs/INSTALL.md` points to the
 path. The shell test asserts every new line and fails when one is altered (mutation observed).
+Dogfooding this change showed that before the sidecar commit `cem-status` is `not-ready` with an
+empty `policyIssues` and `excluded-artifact-mismatch` in `verification.issues`, so its hint names both.
+Amending the implementation commit after the first pass stranded the trace that pass recorded: the
+next pass refused `prechange-query: unsupported-query-trace-state` and `local-outcome: record-failed`
+with `local trace store contains unreachable revision`. Restoring that commit as an ancestor
+(`git reset --soft` onto it, then a new commit) cleared both without touching the trace store, so the
+path now says to add commits and the coordinator names the cause. No supported command removes a
+stranded trace; that recovery gap is reported, not fixed here.
 
 Friction that motivated the change came from seven fresh-agent worker runs that each bound and
 sealed a real change from plain clones of the public repository (PRs #74 to #80): the intents file

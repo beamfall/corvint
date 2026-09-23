@@ -37,7 +37,9 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `dogfood-change: FAIL not-complete` listing `cem-cite: citation-plan-not-provided`,
    `ocm-prepare-001: excluded-artifact-mismatch`, `ocm-status-001: exit-2`,
    `ocm-aggregate: intent-scope-drift` and `cem-status: not-ready`, and `git status` shows
-   ` M .corvint/change.cem.json`. OCM refuses until the prepared CEM is committed. When `BASE`
+   ` M .corvint/change.cem.json`. OCM and CEM status both refuse the uncommitted sidecar with
+   `excluded-artifact-mismatch` (in `<git-dir>/corvint/cem-status.json` it is a
+   `verification.issues` code, not a policy issue). When `BASE`
    still carries an earlier unsealed `.corvint/change.cem.json`, this pass replaces it (the
    `CEM-PILOT-018` mismatch line triggers `--replace`), and the final seal removes the shared path.
 4. Write the citation plan from the prepared map. The hunk count is
@@ -47,6 +49,10 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `local-outcome: record-index-failed` appear. Every refusal in steps 3 and 4 prints the same
    `fix:` line: it is expected until the sidecar is committed.
 5. Commit the sidecar: `git add .corvint/change.cem.json && git commit -m "chore: bind change evidence"`.
+   From the first pass on, add commits rather than amending or rebasing: each clean pass records a
+   local trace for its `HEAD`, and once that commit is no longer an ancestor of `HEAD` the query and
+   the recorder refuse every later pass (`prechange-query: unsupported-query-trace-state`,
+   `local-outcome: record-failed`, both reading `local trace store contains unreachable revision`).
 6. Run `make dogfood-change BASE=$BASE` again. Expected: no output, exit 0, and
    `.corvint/dogfood-report.json` contains `"complete": true`. An uncited hunk instead leaves
    `cem-status: not-ready` (policy issue `max-unknown-exceeded`).
@@ -81,6 +87,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Unsupported | host without `rg` | `REFUSE unsupported-environment-missing-rg` | `REFUSE unsupported-environment-missing-rg` |
 | Unsupported | intent without exactly one `## Requirements` heading | `ocm-prepare-001: invalid-requirements-section`, `ocm-aggregate: intent-scope-drift` | NOT_OBSERVED |
 | Drift | OCM map marked or linked without a rerun | not applicable | `FAIL intent-scope-drift`, `fix:` reruns `dogfood-change` |
+| Rewritten | amend or rebase after a recorded pass | `prechange-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor clears it | not reached |
 | Sealed | check on the seal commit, or a change containing a seal | `REFUSE sealed-cem-in-change` | `REFUSE sealed-head` |
 
 Test-claim linkage through `corvint ocm link` is NOT_OBSERVED in this path: it needs a Go test that

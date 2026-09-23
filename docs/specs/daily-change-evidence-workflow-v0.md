@@ -75,7 +75,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   expected uncommitted-sidecar state, MUST be followed by a `fix:` line naming the correction. The
   `dogfood-check` failures `dogfood-report-missing`, `dogfood-report-drift` and `intent-scope-drift`
   MUST each print a `fix:` line; for `dogfood-report-drift` that line MUST distinguish a report bound
-  to another base or target from an incomplete report. Reason codes MUST NOT change.
+  to another base or target from an incomplete report. A refusal caused by a local trace recorded
+  at a commit that is no longer an ancestor of `HEAD` MUST name that cause. Reason codes MUST NOT
+  change.
 - `DCW-V0-015`: Dirty, stale, interrupted, unsupported and unknown evidence MUST each end the loop
   without `"complete": true` or `dogfood-check: PASS`: a dirty or untracked worktree refuses
   `dirty-worktree`; a report older than `HEAD` fails `dogfood-report-drift`; an interrupted run
