@@ -4,6 +4,33 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0188 follow-up: the dirty-package-without-tests hostile case runs
+
+The V1-0188 hostile receipt for `UC-CHANGE-CONSEQUENCE` recorded one skipped case,
+`hostile/dirty-worktree/dirty package without tests is named`, because a dirty Go package with no
+test files was silently omitted from the plan (the V1-0187 defect). V1-0187 merged in PR #108
+(343368d, `AFP-V0-020`, `NO_SELECTABLE_TEST`), so the skip is removed and the case asserts what the
+receipt already described: scope `UNKNOWN` with `util` named in the unknown list.
+
+- `cmd/corvint/usecase_hostile_change_consequence_test.go`: the `t.Skip` line is deleted; nothing
+  else changes. The case now fails if the omission returns.
+- `conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/hostile-tests.json` is repinned to the
+  test commit (`repositoryRevision` 6b601a9, subject sha256 043337bb…) and the ledger row's receipt
+  digest follows (ce42c53f…). The attestation cases, result and the row's `experimental` /
+  `UNPROVEN` status are unchanged: a running hostile case is not a dogfood or benchmark receipt.
+
+Verification (this clone, HEAD after the test commit):
+
+- `go test -count=1 -run TestUseCaseHostile ./cmd/corvint/`: exit 0; the change-consequence
+  table reports 19 `PASS` subtests and no `SKIP`.
+- `go test -count=1 ./conformance/use-cases-v0/`, `go run ./conformance/use-cases-v0 -root .
+  -ledger conformance/use-cases-v0/ledger.json`, `go vet ./cmd/corvint/
+  ./conformance/use-cases-v0/`, `go test ./internal/specindex/` and
+  `make spec-requirements-check requirement-definitions-check traceability-tests-check
+  decision-numbers-check line-citations-check`: exit 0.
+
+NOT_RUN: `make gate` (owner focused-verification policy). Criterion 2 of V1-0188 stays NOT_RUN.
+
 ## 2026-09-23 v0-5 candidate recaptured at 5957c5f with the one authorized candidate-head gate run; V1-0202 to V1-0206 filed
 
 The owner authorized one `make gate` run at a candidate head (decision 0373, answer C). It ran in a
