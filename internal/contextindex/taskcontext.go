@@ -183,9 +183,11 @@ const (
 	contextSpecMentionCap = 3
 	// contextRoutedCap bounds the reserved instruction-routed rows, and a
 	// passage of the governing file routes only when it shares at least
-	// contextRoutedMinTerms distinct task terms (TCP-V0-047).
+	// contextRoutedMinTerms distinct task terms whose body idf reaches
+	// contextRoutedMinIDF, so words most sources use never count (TCP-V0-047).
 	contextRoutedCap      = 2
 	contextRoutedMinTerms = 2
+	contextRoutedMinIDF   = 2.0
 )
 
 // The two reserved relations (TCP-V0-008/009) and the fixed relation order
@@ -210,6 +212,7 @@ var (
 	contextEscape     = regexp.MustCompile(`\\+[ntr"\\]`)
 	contextBackquoted = regexp.MustCompile("`([^`\n]+)`")
 	contextListItem   = regexp.MustCompile(`^[ \t]*(?:[-*+]|[0-9]+\.)[ \t]`)
+	contextFence      = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})(.*)$")
 	contextJSONKey    = regexp.MustCompile(`"[A-Za-z0-9_]+":`)
 )
 
@@ -1287,7 +1290,10 @@ func (compiler *taskContextCompiler) governingRow() (contextRow, bool) {
 }
 
 // instructionPassage is one paragraph or list item of the governing file: a
-// run of non-blank lines, where a Markdown list item opens a new passage.
+// run of non-blank lines, where a Markdown list item opens a new passage. A
+// fenced code block is literal text, not routing prose: its lines, fences
+// included, end a passage and belong to none. A fence closes only as
+// CommonMark closes it (see nextFence).
 type instructionPassage struct {
 	line  int
 	lines []string
@@ -1303,23 +1309,44 @@ type routedPassage struct {
 
 func instructionPassages(text string) []instructionPassage {
 	passages := make([]instructionPassage, 0)
-	open := false
+	open, fence := false, ""
 	for index, line := range strings.Split(text, "\n") {
-		blank := strings.TrimSpace(line) == ""
-		if !blank && (!open || contextListItem.MatchString(line)) {
+		inside := fence != ""
+		fence = nextFence(fence, line)
+		prose := !inside && fence == "" && strings.TrimSpace(line) != ""
+		if prose && (!open || contextListItem.MatchString(line)) {
 			passages = append(passages, instructionPassage{line: index + 1})
 		}
-		if !blank {
+		if prose {
 			passages[len(passages)-1].lines = append(passages[len(passages)-1].lines, line)
 		}
-		open = !blank
+		open = prose
 	}
 	return passages
 }
 
+// nextFence returns the fence open after line, "" when none is: a fence line
+// opens one when none is open, and closes the open one only with the same
+// character, at least as long, and no info string, so a fence of the other
+// kind or a shorter one inside a block is literal text.
+func nextFence(open, line string) string {
+	match := contextFence.FindStringSubmatch(line)
+	if match == nil {
+		return open
+	}
+	if open == "" {
+		return match[1]
+	}
+	closes := match[1][0] == open[0] && len(match[1]) >= len(open) && strings.TrimSpace(match[2]) == ""
+	if !closes {
+		return open
+	}
+	return ""
+}
+
 // instructionRoutedRows reserves the tracked paths the governing instructions
-// name, in backticks, inside a passage that shares at least
-// contextRoutedMinTerms distinct task terms (TCP-V0-047). The project's own
+// name, in backticks, inside a passage that routedPassages keeps
+// (TCP-V0-047). The project's own
 // routing outranks lexical placement (invariant 3), but only where its words
 // meet the task's, so a path named in an unrelated passage reserves nothing.
 func (compiler *taskContextCompiler) instructionRoutedRows(taken []contextRow) []contextRow {
@@ -1367,8 +1394,10 @@ func (compiler *taskContextCompiler) instructionRoutedRows(taken []contextRow) [
 }
 
 // routedPassages keeps the passages that share at least contextRoutedMinTerms
-// distinct task terms, strongest first: summed body idf of the shared terms,
-// then file order.
+// distinct task terms at or above contextRoutedMinIDF, strongest first: summed
+// body idf of those terms, then file order. A term the body term table does
+// not hold, such as an unsplit camelCase compound, has no document frequency
+// and never counts.
 func (compiler *taskContextCompiler) routedPassages(text string) []routedPassage {
 	table := compiler.index.vocabulary()
 	corpus := float64(len(table.Paths))
@@ -1381,11 +1410,17 @@ func (compiler *taskContextCompiler) routedPassages(text string) []routedPassage
 			if _, ok := task[term]; !ok {
 				continue
 			}
-			shared = append(shared, term)
-			if low, high, ok := table.Terms.find(term); ok {
-				postings := float64(high - low)
-				weight += math.Log(1 + (corpus-postings+0.5)/(postings+0.5))
+			low, high, held := table.Terms.find(term)
+			if !held {
+				continue
 			}
+			postings := float64(high - low)
+			idf := math.Log(1 + (corpus-postings+0.5)/(postings+0.5))
+			if idf < contextRoutedMinIDF {
+				continue
+			}
+			shared = append(shared, term)
+			weight += idf
 		}
 		if len(shared) < contextRoutedMinTerms {
 			continue
