@@ -4,6 +4,38 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0203 AFP-V0-008: the Go plugin ignores `testdata`
+
+Finding (V1-0187 review, NIT 3): the Go plugin built units from `testdata/` directories, which the
+go tool never treats as packages. Under AFP-V0-020 a fixture edit could then read as a changed Go
+package with no tests (`NO_SELECTABLE_TEST`), and a fixture `go.mod` raised
+`go:nested-module-frontier`.
+
+Decision: a directory named `testdata` below an observed module's root, with its descendants,
+contributes no unit and no nested-module frontier, and `Owns` rejects a `.go` path with a
+`testdata` component. The rule is applied relative to the owning module, as the go tool applies
+it, so a `go.work` module whose own root lies below `testdata` is still observed. A fixture edit
+now reads as `UNOWNED_DIRTY_PATH`, the reason the selector already documents for fixtures, so the
+plan stays `UNKNOWN` for it. Attributing the fixture to the enclosing package was rejected here:
+other packages can read the same files, so that narrowing would be unsound in the full plan. The
+fast tier (AFP-V0-012) keeps its own enclosing-package attribution. This amends accepted AFP-V0-008
+text (decision 0057); the owner's PR review is the human review that change requires.
+
+Evidence: `TestTestdataIsFixtureDataNotAPackage_AFPV0008` and
+`TestWorkspaceModuleBelowTestdataIsObserved_AFPV0008` fail on the base plugin and pass with the
+change. Replay of `corvint affected --base 062b0151b603a5d637cdd0ad0f560edefee921a4` on a clean
+tree at b195af3 gives the same 65 selected units with identical witnesses and identical unknowns
+before and after; the only graph difference is one fixture unit
+(`internal/liveverify/gotest/testdata/livefixture`) gone from `plan.excluded`. The Go packages the
+affected plan selected for this change pass. `make gate` was not run (owner preference).
+
+Review repair: an independent review found that `Owns`, which sees only the repository-relative
+path, also disowns an unindexed file of such a workspace module. A deleted or added file there is
+labelled `UNOWNED_DIRTY_PATH` instead of `UNINDEXED_SOURCE_PATH`, and the module's unit is then
+excluded as `NO_DEPENDENCY_PATH_TO_DIRTY_UNIT`. The plan stays `UNKNOWN`, so no selection is
+narrowed. The spec now states the limit and the workspace test asserts it; module-aware ownership
+was set aside as a larger change than this rare layout warrants.
+
 ## 2026-09-23 V1-0189 ARTIFACT-RDY-V0-001: `release-checklist --pre-promotion` exit for candidates
 
 Ticket V1-0189 (filed with decision 0373 item 17): the `release-checklist` policy gate expects exit
