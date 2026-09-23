@@ -65,5 +65,8 @@ func run(dir string, check bool) error {
 			return err
 		}
 	}
-	return manifest.Validate(vectors, fixtures)
+	if err := manifest.Validate(vectors, fixtures); err != nil {
+		return err
+	}
+	return manifest.ValidateArtifacts(dir)
 }

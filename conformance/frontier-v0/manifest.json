@@ -214,5 +214,47 @@
         "independent-implementation-vectors"
       ]
     }
-  ]
+  ],
+  "states": [
+    {"state": "stable", "cases": ["static-mode/absent-tuple", "shared-hunk-independent-obligations/one-hunk-two-obligations", "stable-identity-after-evidence-repair/after-repair-same-universe"]},
+    {"state": "relocated", "gap": "frontier/0 consumes the verified CEM, whose relocated evidence passes with its target span; no frontier fixture pins it, because a cited span that moves between base and target makes its evidence file a hunk the synthesized universe cannot bind. Relocation is pinned at the CEM layer (protocol/cem-0.2 case relocated)."},
+    {"state": "stale", "cases": ["inherited-revision-and-sidecar-failures/mismatched-target", "inherited-revision-and-sidecar-failures/mismatched-expected-base", "inherited-revision-and-sidecar-failures/forged-sidecar", "new-identity-on-patch-or-intent-change/patch-identity-changed"], "gap": "The inherited CEM `evidence-drift` refusal (CF-V0-021/CF-V0-022, exit 2) has no frontier fixture: the real CEM producer refuses to cite an unstable span, and a drifted evidence file becomes an unbindable hunk. It is pinned at the CEM layer (protocol/cem-0.2 cases stale, ambiguous, deleted)."},
+    {"state": "ambiguous", "cases": ["ocm-unknown-emits-no-test-item/conflicting-evidence", "cem-unknown-reason-mapping/conflicting-evidence", "codec:invalid/duplicate-object-key", "codec:invalid/duplicate-key-nested"]},
+    {"state": "deleted", "cases": ["supported-deletion-requires-profile/supported-deletion-hunk"]},
+    {"state": "unknown", "cases": ["ocm-unknown-emits-no-test-item/unassessed", "ocm-unknown-emits-no-test-item/no-test-claim", "ocm-unknown-emits-no-test-item/insufficient-evidence", "cem-unknown-reason-mapping/no-evidence"]}
+  ],
+  "artifactSha256": {
+    "fixtures/aggregate-lrf-bound-is-resource-exhaustion/case.json": "639655c1e368352c383f0d31b8716a97f14020aa85c5a0565682c9b710eebb6a",
+    "fixtures/cem-unknown-reason-mapping/case.json": "0db6ed1b0382563bfaa52b3f9065c5c9a7213b65448bf126a85d5e05a65e3b71",
+    "fixtures/determinism-reordered-arrays-and-fresh-processes/case.json": "0598a181fa08aa32a2e0bdadb9879900580ef84fbd210adfe6bc85b562c0f74f",
+    "fixtures/dynamic-caller-reported-mode/case.json": "fade08db3add80b439ca0cb44b53d74fb1c0b2482bb91dfb3af29822a12e5f2f",
+    "fixtures/error-code-translation/case.json": "cfc97039b6a0eee17cc8edff115237e02e08f753690c12d60469c13e877207c6",
+    "fixtures/existential-qualifying-basis-closes-hunk/case.json": "7544ef9b129104f413c658d22e235a6bd30de28ee6a9cc7bcdd1918dcff194e0",
+    "fixtures/forged-tcq-authority-rejected-upstream/case.json": "1e243f483550950f09773bd1149b1266b9addaedb7a6a0b8eceef00f9b874eb9",
+    "fixtures/hunk-reason-union-frozen-order/case.json": "bb0aa94bac90cffa2ec2aafbde06e0f7d9ec171067bd67062e9d5e216e1e1c16",
+    "fixtures/independent-implementation-vectors/case.json": "a30922b91c546ec8fbcf7fe6b497ed5a3a2bc8ef6ac5d96b385a7c938116b67a",
+    "fixtures/inherited-revision-and-sidecar-failures/case.json": "defd7b6146afca62273b6a2fdb6cd0e2ac39ebd8e71c04324706c7d9d050e28b",
+    "fixtures/intent-test-reason-union-and-priority/case.json": "5d15a92f5fc1aa716564ac597129687c30e99d7c955f5147f199867e08ac7096",
+    "fixtures/lexical-candidate-nonclosing/case.json": "224af8d26563c0477898cd00e0282ff6f7e86214134511b125c0894ddaf2d67b",
+    "fixtures/linked-obligation-no-material-candidate/case.json": "7f867a4a2c2ab57b51391fb118db137aca87dbee24de0f978c2a00591392ad50",
+    "fixtures/local-subject-term-bound-abstention/case.json": "bc9ce995e8979e184a598a51ebd7ef1d672b2a7dc7a139e4712d1b0dfb624bee",
+    "fixtures/new-identity-on-patch-or-intent-change/case.json": "2ca6ae163e40b8d22da0fa3c4a242ca20e531f1e30bb9fcc15720a455141d0e6",
+    "fixtures/noncanonical-frontier-refusals/case.json": "14eb5135dee16e6243d8f2d3613c189b42310b502d5d64e284f60ee71bd0f43e",
+    "fixtures/ocm-unknown-emits-no-test-item/case.json": "4736014f45c639698e2c5ea3e5a6e101ab2e99cc750387c180f653f561ab69ea",
+    "fixtures/partial-dynamic-tuple/case.json": "74bb4ed3f2b7b5bbfa70bcbf634c0385ed93ad36afb09a0b2d30a5c614e36e24",
+    "fixtures/passing-caller-report-stays-open/case.json": "52e2864b1ec3b8661266846dfa81bb00a7c8d412ccb1bfc810409f074718b3b5",
+    "fixtures/privacy-canaries/case.json": "781fcecec4ddf7da98a89cde8b174612102925c704183c85fff9e45ca2d6cffb",
+    "fixtures/python-crlf-edge-processes/case.json": "a362149ee14b89b6a21264d1f9d5b868406cab110a4dedf09ac40e978b269125",
+    "fixtures/python-grammar-edge-abstains/case.json": "ed9732dcd921c309d94acfd7f36eae10087bc93d32d1a3c2dc573efe13e5fd0e",
+    "fixtures/resource-limits/case.json": "a66c6f0eca09052ca39eeff0e31b5ea3f6ae8c7c68993f70b18f61f16ec64954",
+    "fixtures/shared-hunk-independent-obligations/case.json": "2a48833250bfbd0e1db7cd33270b361c61ce99f67a1d8b34210b58fbd6fa8822",
+    "fixtures/stable-identity-after-evidence-repair/case.json": "41ac21d2b4d361259c0e0fa046976401aba366312b70a5c1b6fe979c729c34c1",
+    "fixtures/static-mode/case.json": "c1be05633d79a378246325b33aabce7ce6df16fae83d5565e85a947183d3d954",
+    "fixtures/supported-deletion-requires-profile/case.json": "dceaf912355e651fc4a1046211c26966659cc3d013143f158fe588337ab62db8",
+    "fixtures/unsupported-context-precedes-missing-revision/case.json": "cf1713d479e754292778676cce7dcc28f521e5f45a50733061723749b4f1e5e0",
+    "fixtures/unsupported-context-upstream-profile/case.json": "17eba1fc2b8a8200e610690d31ae7adefc145e47ce04640e5d8dc3de04373544",
+    "fixtures/whitespace-and-line-ending-hunks-close/case.json": "7e173ab29e811416dd0efbe572f365553dc79340e684ccf456b2948fdc9c0302",
+    "vectors/codec.json": "a2ed9d3dc0411e8e61143956e9f38c4975afed6f10ea17eac4af5751142012da",
+    "vectors/identity.json": "56ac4f03e2ca393c9b0e36cee0e12062cb36ed847a0a2279f214e27e00fa69bb"
+  }
 }

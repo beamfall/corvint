@@ -72,7 +72,7 @@ its finding is that the action is not currently available.
 - `CF-V0`'s own deferred-decision list already sketches the shape: "one process owns the exact
   command launch, target, report bytes, and exit result and passes a non-caller capability directly
   to a new profile. Its wire and portability remain a separate decision"
-  (`docs/specs/change-frontier-v0.md:497-499`).
+  (`docs/specs/change-frontier-v0.md:514-516`).
 - An execution surface exists in the tree and is **not** an authority root:
   `internal/liveverify/{gorunner,provider,gotest,godiscovery,parentverify,affected}` implements a Go
   test runner with canonical receipts and process ownership, under `go-live-test-provider-v0.md`

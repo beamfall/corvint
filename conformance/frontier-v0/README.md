@@ -22,7 +22,7 @@ automatically wrong — re-read the clause and decide which one is.
 | `vectors/codec.json` | 45 hand-derived `CF-V0-019` commitment-codec vectors |
 | `vectors/identity.json` | 4 `CF-V0-006` universe IDs, 12 `CF-V0-007` item IDs, 1 `CF-V0-019` frontier ID |
 | `fixtures/<row>/case.json` | one directory per row of the spec's conformance and adversarial matrix |
-| `manifest.json` | matrix row → fixture ledger, with each row's required result verbatim |
+| `manifest.json` | matrix row → fixture ledger, with each row's required result verbatim; the six hostile evidence states (`states`, with stated gaps); the SHA-256 of every vector and fixture file (`artifactSha256`, `CF-V0-034`) |
 | `refcodec.go` | independent native derivation checked against the hand-authored bytes |
 | `refcodec.go` | an independent Go implementation of the `CF-V0-019` codec |
 | `adapter.go` | the only seam to the implementation, deliberately tiny |
