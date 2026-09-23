@@ -414,7 +414,8 @@ func TestMultilineJSXQuoteAmbiguityRaisesFrontier(t *testing.T) {
 	}
 	plan := affected.Select(graph, []string{"src/dep.ts"})
 	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierUnparsedSource}
-	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 1 || plan.Unknown[0] != want {
+	untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "typescript:src/dep.ts"}
+	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
 		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
 	}
 }
@@ -430,7 +431,8 @@ func TestSameLineJSXApostropheAmbiguityRaisesFrontier(t *testing.T) {
 	}
 	plan := affected.Select(graph, []string{"src/dep.ts"})
 	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierUnparsedSource}
-	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 1 || plan.Unknown[0] != want {
+	untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "typescript:src/dep.ts"}
+	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
 		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
 	}
 }
@@ -446,7 +448,8 @@ func TestStandaloneJSXApostrophesRaiseFrontier(t *testing.T) {
 	}
 	plan := affected.Select(graph, []string{"src/dep.ts"})
 	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierUnparsedSource}
-	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 1 || plan.Unknown[0] != want {
+	untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "typescript:src/dep.ts"}
+	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
 		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
 	}
 }
@@ -462,7 +465,8 @@ func TestJSXTextCannotImitateALiteralOpeningContext(t *testing.T) {
 	}
 	plan := affected.Select(graph, []string{"src/dep.ts"})
 	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierUnparsedSource}
-	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 1 || plan.Unknown[0] != want {
+	untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "typescript:src/dep.ts"}
+	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
 		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
 	}
 }
@@ -478,7 +482,8 @@ func TestKeywordEndingJSXTextCannotHideRequireWithoutBraces(t *testing.T) {
 	}
 	plan := affected.Select(graph, []string{"return.ts"})
 	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierUnparsedSource}
-	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 1 || plan.Unknown[0] != want {
+	untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "typescript:return.ts"}
+	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
 		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
 	}
 }
@@ -525,7 +530,8 @@ func TestUnownedModuleExtensionTestWidensItsImportedSource(t *testing.T) {
 		}
 		plan := affected.Select(graph, []string{"src/a.ts"})
 		want := []affected.Unknown{{Reason: affected.UnknownLanguageFrontier, Detail: FrontierUnparsedSource}}
-		if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 1 || plan.Unknown[0] != want[0] {
+		untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "typescript:src/a.ts"}
+		if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want[0] || plan.Unknown[1] != untested {
 			t.Errorf("%s: scope=%s unknown=%v", test, plan.Scope, plan.Unknown)
 		}
 	}

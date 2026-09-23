@@ -318,7 +318,8 @@ func TestRakeTestTaskDynamicLoadPathRaisesFrontier(t *testing.T) {
 	}
 	plan := affected.Select(graph, []string{"src/gadget.rb"})
 	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierDynamicLoad}
-	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 1 || plan.Unknown[0] != want {
+	untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "ruby:source:src/gadget"}
+	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
 		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
 	}
 }
@@ -339,7 +340,8 @@ end
 	}
 	plan := affected.Select(graph, []string{"src/gadget.rb"})
 	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierDynamicLoad}
-	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 1 || plan.Unknown[0] != want {
+	untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "ruby:source:src/gadget"}
+	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
 		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
 	}
 }
