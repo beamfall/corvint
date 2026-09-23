@@ -4,6 +4,41 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0197 RCB-V0-001..007: `cem export` writes a content-addressed receipt bundle
+
+Decision: the export is `corvint cem export`, an action of an existing verb, because no new root
+verb may be added and the CEM defines the change a bundle is keyed by. `witness` is a
+single-report command and `dogfood` is the mutating lease lifecycle. The bundle holds exact copies
+of the CEM, a saved witness report, `.corvint/dogfood-report.json` and the GOC-V0-010 full-gate
+receipt. Each is bound by resolved base and target, and each is listed with its sha256 and every
+`NOT_RUN`, `NOT_PRODUCED` or `not-run` value as an RFC 6901 pointer. A receipt that is missing or
+bound elsewhere is listed as absent with a reason, never synthesized. Gate-ledger records stay
+out, because GL-V0-006 forbids any product-path reader. The output must lie outside the worktree
+and both Git directories (`bundle-output-refused`). `script/verify-receipt-bundle.sh` needs only
+POSIX tools and a SHA-256 command.
+
+Evidence: PR #122's sealed CEM, with the witness report compiled in a plain clone checked out at
+ace0a96 (`corvint witness --base a6a6b8b6 --head ace0a96 --cem .corvint/change.cem.json --json`,
+byte-identical CEM), exported from a clone of this branch with
+`corvint cem export --map .corvint/changes/ace0a96bd5ffcfa2af8013e23a1cf3220b46c24f.cem.json
+--target ace0a96bd5ffcfa2af8013e23a1cf3220b46c24f --output $OUT --witness $WITNESS`. The manifest
+sha256 is `65d16c73974d8b09f1882fe38617592cc201ffbfebb920ac134f4a9c110564da`. The CEM is present
+(sha256 `b9c6f94b…c052`, no axes). The witness is present (sha256 `85f5f431…39dc`) with nine
+`NOT_RUN` axes at `/obligations/0..8/verdict`. The dogfood report and gate receipt are absent
+`not-found`: that clone has neither `.corvint/dogfood-report.json` nor `$GIT_DIR/corvint`, and the
+primary checkout was out of bounds for the worker. The verifier, run as
+`env -i PATH=/usr/bin:/bin sh script/verify-receipt-bundle.sh $OUT` from `/`, printed:
+
+```
+manifest sha256 65d16c73974d8b09f1882fe38617592cc201ffbfebb920ac134f4a9c110564da
+MATCH receipts/cem.json b9c6f94bd4c103cdedc6ffe2b9727e8b760aedcd4654ea501da6311a3e53c052
+MATCH receipts/witness.json 85f5f4318a9b8ac97bbd5c627e58eb649bdc801a5e256dd41ed8c22031a639dc
+PASS
+```
+
+It exited 0. DR-0040's candidate cem choice list now has twelve actions. `make gate` was not run
+(owner preference).
+
 ## 2026-09-23 V1-0204 AFP-V0-020: every plugin names a changed unit no test reaches
 
 Finding: AFP-V0-020 named a changed Go package with no tests as `NO_SELECTABLE_TEST`, but the

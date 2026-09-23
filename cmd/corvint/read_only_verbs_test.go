@@ -200,6 +200,18 @@ func TestReadOnlyVerbsWriteNothing(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "cem export writes only the bundle outside the worktree",
+			setup: func(t *testing.T) (string, func() int) {
+				fixture := newLRFFixture(t, wire.Spec02)
+				output := filepath.Join(t.TempDir(), "bundle")
+				return fixture.root, func() int {
+					code, _, _ := runCLI(t, "--root", fixture.root, "cem", "export", "--map", fixture.mapPath,
+						"--target", fixture.target, "--output", output)
+					return code
+				}
+			},
+		},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
