@@ -234,6 +234,43 @@ func TestAffectedUnownedDirtyPathIsUnknownScope(t *testing.T) {
 	}
 }
 
+// AFP-V0-020: an edited Go package with no _test.go file is named in
+// plan.unknown and leaves scope UNKNOWN instead of being omitted.
+func TestAffectedUntestedGoPackageIsUnknownScope(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	source := filepath.Join(root, "untested", "untested.go")
+	if err := os.MkdirAll(filepath.Dir(source), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(source, []byte("package untested\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "untested package")
+	if err := os.WriteFile(source, []byte("package untested\n\nconst Value = 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	receipt, _, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	plan := receipt["plan"].(map[string]any)
+	if plan["scope"] != "UNKNOWN" {
+		t.Fatalf("an edited package without tests must leave scope UNKNOWN: %v", plan)
+	}
+	found := false
+	for _, item := range plan["unknown"].([]any) {
+		entry := item.(map[string]any)
+		if entry["reason"] == "NO_SELECTABLE_TEST" && entry["detail"] == "go:example.com/fixture/untested" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected NO_SELECTABLE_TEST for go:example.com/fixture/untested: %v", plan["unknown"])
+	}
+}
+
 func TestAffectedRejectsNonRepositoryAndExtraArguments(t *testing.T) {
 	t.Parallel()
 	var stdout, stderr bytes.Buffer

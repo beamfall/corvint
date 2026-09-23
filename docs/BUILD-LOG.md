@@ -37,6 +37,28 @@ terms route, however common), filed as a follow-up. Retained reports (with their
 Review follow-up: `coreSpans` (TCP-V0-025) now skips `instruction-routed` rows like the other
 reserved rows (`TestContextSpansSkipInstructionRoutedRows`). Criterion 2, the sealed daily-loop
 re-run: NOT_RUN (not this ticket's step).
+
+## 2026-09-23 V1-0187 AFP-V0-020: changed Go packages without tests are unknown scope
+
+Defect: `affected.Select` skipped every unit with no tests before checking whether traversal reached
+it, so a changed Go package without a `_test.go` file appeared in none of `selected`, `excluded`,
+`unknown`, and the plan stayed `BOUNDED`. All five `treatmentOnlyCriticalMisses` in
+`benchmarks/daily-loop-v0/runs/run-001.json` are such packages. Fix: a changed `go:` unit (one that
+owns a changed path) with no tests now adds `plan.unknown` `{reason: NO_SELECTABLE_TEST, detail:
+<unit id>}`, which makes the scope `UNKNOWN` under AFP-V0-004; an untested dependent of the change or
+an unreached unit adds nothing. Review correction: the first commit fired for every reached untested
+unit, which added unrelated `cmd/` and testdata packages to a change's unknowns (4 for `--base
+062b0151`, 13 at run-001 commit `50a96470`). The rule is Go-only: applied to
+every plugin it made about 30 existing tests fail across six plugins (TypeScript, Ruby, Kotlin, Rust,
+.NET, Playwright), because those plugins model sources and tests as separate units. Every
+TypeScript source edit, for example, would have gone `UNKNOWN`. Tests:
+`TestSelectNamesChangedUntestedGoPackageAsUnknownScope`,
+`TestSelectTraversesUntestedUnitsWithoutSelectingThem` (non-Go stays bounded),
+`TestAffectedUntestedGoPackageIsUnknownScope`. A build at the corrected fix names exactly the five
+misses as `NO_SELECTABLE_TEST` at their three run-001 commits (2, 2 and 1), and nothing else.
+Remaining gap: an untested non-Go source unit that no test unit reaches is still omitted. Criterion 2, the sealed daily-loop re-run and
+re-score, is NOT_RUN here. `harness.py` `consequence_case` scores only `plan.selected`, so the
+re-score has to read `plan.unknown` as well.
 ## 2026-09-23 V1-0001, decision 0373, PRS-V1-001..012, V1-0011 UCV0-003, V1-0088 decision 0368: 1.0 scope ratified, invariant-4 amendment applied, Core ledger rows experimental
 
 The owner answered the eleven 1.0-scope questions of `docs/specs/corvint-1.0-product-and-release-v1.md`
