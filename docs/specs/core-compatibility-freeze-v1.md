@@ -5,14 +5,14 @@ Date: 2026-09-22
 Requirement prefix: `CCF-V1`
 Intent status: proposed
 Delivery status: experimental
-Authoritative inputs: ticket V1-0007, decision 0356, `AGENTS.md` invariants 1, 2, 4 and 8,
+Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), decision 0356, `AGENTS.md` invariants 1, 2, 4 and 8,
 `conformance/cli-parity-v0/manifest.json`, and the owning specs of each Core verb listed in CCF-V1-002.
 
 ## Agent digest
-- Claim: The seven Core verbs keep their command modes, wire profiles, error envelope and state readers compatible from 0.7.0 to 1.0.
-- Status: proposed intent, experimental delivery; the Core boundary awaits owner ratification in V1-0001
+- Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.7.0 to 1.0.
+- Status: proposed intent, experimental delivery; the Core set is taken from accepted decision 0332, this contract awaits owner ratification in V1-0001
 - Exists: this contract, decision 0356, the root-help `Command maturity:` section (`commandMaturityHelp`), and `cmd/corvint/core_freeze_test.go`
-- Blocked on: V1-0001 owner ratification of the seven-verb Core boundary; the exhaustive gate for this change is NOT_RUN
+- Blocked on: V1-0001 owner ratification of this contract; pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
 
 ## Intent and scope
@@ -27,19 +27,22 @@ reach users. It freezes what 0.7.0 already emits; it changes no verb's runtime b
 output. Everything not listed stays experimental, so no companion or research profile becomes
 frozen by omission.
 
-The N-1 baseline is the published 0.7.0 release (tag `v0.7.0`, gated commit 41f2b68). At the time of
-this contract `git diff v0.7.0 HEAD -- cmd/corvint internal` is empty, so no Core state or profile has
-changed since that baseline.
+The N-1 baseline is the published 0.7.0 release (tag `v0.7.0`, gated commit 41f2b68). At this
+contract's base commit 1894b9e, `git diff v0.7.0 1894b9e -- cmd/corvint internal` is empty, so no Core
+state or profile had changed since that baseline; this change adds only root-help text and tests.
 
 ## Requirements
 
-- **CCF-V1-001:** The Core command set MUST be exactly `init`, `adopt`, `query`, `context`, `impact`,
-  `affected` and `prove`. This set is the V1-0007 ticket's assumption and remains proposed until the
-  owner ratifies or corrects it under V1-0001; a correction changes this requirement and the
-  `frozenCoreVerbs` list in the same change. `feature`, although platform-qualified with `query`, is
-  not Core under this contract.
-- **CCF-V1-002:** Each frozen Core mode MUST emit one canonical JSON document on stdout with
-  `ok=true` and `mutates=false`, and the identifiers below, byte for byte:
+- **CCF-V1-001:** The Core command set MUST be exactly `init`, `adopt`, `index`, `query`, `context`,
+  `impact`, `affected`, `prove`, `cem`, `ocm`, `frontier` and `dogfood`. The set is the accepted
+  decision 0332 (`docs/decisions/0332-verified-local-workflow-scope-2026-09-22.md:21@17ce43a4`), which
+  names Core contracts for these verbs and, for `dogfood`, only its retained local outcome. Project
+  authority outranks the ticket's earlier seven-verb assumption (AGENTS.md invariant 3). A change to the
+  set changes this requirement and the `frozenCoreVerbs` list in the same change. `feature` and
+  `dogfood-ocm` are not Core.
+- **CCF-V1-002:** Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout
+  with `ok=true` and `mutates=false`, unless its row says otherwise, and the identifiers below, byte
+  for byte:
 
   | Verb and mode | Identifier members |
   |---|---|
@@ -51,17 +54,33 @@ changed since that baseline.
   | `impact --working-tree-untracked PATH...` | `context.profile` = `corvint-working-tree-impact/0` |
   | `affected`, default and `--base FULL_COMMIT_ID` | `tool=affected`; `profile` = `affected-plan/0` |
   | `prove --task`, `prove PATH...`, `prove --base FULL_COMMIT_ID` | `tool=prove`; `profile` = `falsifiable-packet/0`; with `--base`, `packet.profile` = `corvint-range-impact/0` |
+  | `index` | `command=index`; `profile` = `corvint-index-snapshot/1`; `mutates=true` (the snapshot write) |
+  | `index --if-stale` with a fresh snapshot | `state=fresh`, `mutates=false`; no `ok`, `profile` or `command` member |
+  | `cem status` / `cem verify` on a committed map | `tool` = `cem-status` / `cem-verify`; `verification.spec` = `cem/0.2` |
+  | `ocm status` / `ocm verify` | `tool` = `ocm-status` / `ocm-verify`; `verification.spec` = `ocm/0.1-experimental` |
+  | `frontier --json` | exit 0 for an empty and 1 for an open frontier; `profile` = `frontier/0`; `frontierState`; no `ok` or `mutates` member |
+  | `dogfood status` (the retained local outcome) | `tool=dogfood-status`; `profile` = `corvint-local-completion/0`; `claim` = `caller-owned-selected-workflow-only` |
 
   The genesis identifiers keep their `0.1-experimental` spelling: the bytes are frozen, not the word,
   and the `receiptId` digest domain `atlas-genesis-inventory/0.1-experimental`
   (`internal/genesis/inventory.go:257@744add89`) is frozen with them because changing it changes every receipt id.
+  The CEM, OCM and frontier document schemas stay governed by their owning specs (CEM-CB, OCM-V0,
+  CF-V0); this contract pins only the identifiers above and neither restates nor changes those schemas.
+  NOT_PRODUCED: no pinned mode for `cem begin`, `prepare`, `cite`, `mark`, `report`, `cover`,
+  `discriminate`, `anchor` and `provenance`; `ocm prepare`, `link`, `mark` and `report`; the frontier
+  human rendering and dynamic test mode; and `dogfood begin`, `verify`, `finish`, `review` and
+  `cancel`. They are Core verbs' modes without a frozen identifier until a later change pins them with
+  a test.
 - **CCF-V1-003:** These modes and profiles MUST stay outside the freeze and MUST NOT be advertised as
   Core compatibility: `impact --provider*`, `--repository` and `--range-profile expanded-256`;
   `affected --snapshot`, `--playwright-config`, `--provider*` and `--selection-profile`; `prove --cem`,
   `--attest*`, `--verify-cem-attestation`, `--checkpoint` and `--mutate`; `context` lookup subcommands
   (for example `context authority`); and the profiles `external-evidence-provider/*`,
   `external-test-selection/0`, `playwright-affected/0`, `corvint-planning-snapshot/0`,
-  `corvint-checkpoint/0`, CEM and OCM documents, and in-toto statements. Their owning specs govern them.
+  `corvint-checkpoint/0` and in-toto statements. Their owning specs govern them. The verbs
+  `native-hook`, `authority-event` and `qualified-event` are undocumented adapter plumbing that
+  `runContext` dispatches before the `topLevelCommands` check (`cmd/corvint/main.go:790@e2ed60e2`); they
+  are absent from root help and outside the freeze.
 - **CCF-V1-004:** A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line built by
   `emitError` (`cmd/corvint/main.go:1333@40010ccd`): `code`, `error` and `ok=false`, plus the DRC-V0-006
   diagnostic members `subject`, `evidence`, `supported_fixes` and optional `terminal` where the site was
@@ -86,7 +105,9 @@ changed since that baseline.
   `samplesTruncated`. `affected`: `plan.scope`, `plan.unknown`, `plan.excluded`, `advice.status` and
   `provider.go.state` (AFP-V0-003/004). `prove`: `state` and `proof.{counts, proven_results,
   unproven_results, failed_results}` with every row's falsifier verdict (FPK-V0). A frozen
-  enumeration may gain a value only under CCF-V1-006.
+  enumeration may gain a value only under CCF-V1-006. For `index`, `cem`, `ocm`, `frontier` and
+  `dogfood status` this contract lists no further members: NOT_PRODUCED; their owning specs
+  (IDX-SNAP-V0, CEM-CB, OCM-V0, CF-V0, LCP-V0) govern them.
 - **CCF-V1-006:** Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.json`
   (`query`, `impact`, `init`, `adopt`), any stdout or stderr byte change is breaking unless recorded in
   `conformance/divergence-register.md` with a decision. For every other frozen mode: adding an optional
@@ -109,8 +130,10 @@ changed since that baseline.
 - **CCF-V1-008:** Root help MUST carry a `Command maturity:` section that lists the Core verbs of
   CCF-V1-001 and labels every other dispatched top-level verb `Experimental` with the requirement
   prefix of its owning spec, which `docs/specs/INDEX.json` MUST index. Every dispatched verb is exactly
-  one of Core or labelled. No verb is hidden: the repository has no hidden-verb mechanism, and
-  `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb` requires every dispatched verb in `Commands:`.
+  one of Core or labelled, and `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb` requires every
+  `topLevelCommands` verb in `Commands:`. The only verbs dispatched outside `topLevelCommands` are the
+  three CCF-V1-003 plumbing verbs; they MUST stay out of root help, and a fourth such verb fails
+  `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp`.
 
 ## Non-goals
 
@@ -126,15 +149,17 @@ changed since that baseline.
 - A Core refusal changes exit class, stdout or code family: `TestCoreRefusalsKeepTheFrozenEnvelope` fails.
 - A new verb is dispatched without a maturity label, or a label names an unindexed owner:
   `TestRootHelpLabelsEveryVerbWithMaturityAndOwner` fails.
-- The owner narrows or widens the Core set in V1-0001: this contract, its test list and decision 0356
-  must change together; until then the boundary is an assumption.
+- A verb is dispatched before the `topLevelCommands` check without being pinned as plumbing:
+  `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` fails.
+- The owner changes the Core set of decision 0332: this contract, its test list and decision 0356
+  must change together.
 - A byte change hides inside a frozen member's content (for example ranking order): only the
-  cli-parity replay catches it, for the four pinned verbs; for `context`, `affected` and `prove` the
-  contract relies on each verb's own spec tests.
+  cli-parity replay catches it, for the four pinned verbs; for the other eight Core verbs the contract
+  relies on each verb's own spec tests.
 
 ## Acceptance evidence
 
-- `GOTOOLCHAIN=local go test -count=1 -run 'TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope|TestRootHelpLabelsEveryVerbWithMaturityAndOwner' ./cmd/corvint`.
+- `GOTOOLCHAIN=local go test -count=1 -run 'TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope|TestRootHelpLabelsEveryVerbWithMaturityAndOwner|TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp' ./cmd/corvint`.
 - The cli-parity replay over the 133-case manifest against a candidate built from this change.
 - The cited N-1 and migration tests in Traceability.
 
@@ -143,13 +168,14 @@ changed since that baseline.
 | Requirement | Evidence |
 |---|---|
 | CCF-V1-001, CCF-V1-002 | `TestCoreVerbsEmitTheFrozenProfiles` |
+| CCF-V1-003 | `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
 | CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics` |
 | CCF-V1-005 | `TestCoreVerbsEmitTheFrozenProfiles` (envelope); per-verb member tests in AFP-V0, FPK-V0, TCP-V0 and GPK-V0 |
 | CCF-V1-006 | cli-parity-v0 replay; `TestCoreVerbsEmitTheFrozenProfiles` |
 | CCF-V1-007 (a) | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSectionedSnapshotRefusesACorruptSectionAsAMiss`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
 | CCF-V1-007 (b) | `TestMigrateTracesDryRunMatchesPythonOracleBytes`, `TestMigrateTracesApplyMatchesPythonOracle`, `TestMigrateTracesPlanDigestMismatchWritesNothing`, `TestMigrationCandidateDriftCheckCoversWholePlan`, `TestMigrationQuarantineBindingDetectsReplacement`, `TestPythonOracleMigrationTransform`, `TestReadBoundsTraceReplayWithoutRefusingLargeRepositories`, `TestStoreReadRejectsWholeStoreViolations` |
 | CCF-V1-007 (c) | `TestProveObserveRejectsWhatIsNotAProof`, `TestProveObserveRecordsOnlyTheVerdictCounts`, `TestStatementIsByteStableAcrossCalls`, `TestPUBV0024InstalledCoreDiscoveryWorkflows` |
-| CCF-V1-008 | `TestRootHelpLabelsEveryVerbWithMaturityAndOwner`, `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb` |
+| CCF-V1-008 | `TestRootHelpLabelsEveryVerbWithMaturityAndOwner`, `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb`, `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
 
 ## Rollback
 

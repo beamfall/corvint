@@ -203,14 +203,14 @@ CATN-V0-012	docs/specs/cross-audience-truth-nondivergence-v0.md	127	V0 is bounde
 CATN-V0-013	docs/specs/cross-audience-truth-nondivergence-v0.md	134	This profile MUST NOT be presented as HDC delivery, audience usefulness,
 CATN-V0-014	docs/specs/cross-audience-truth-nondivergence-v0.md	137	A `CONFLICTED` claim MUST carry at least two evidence anchors with distinct
 CATN-V0-015	docs/specs/cross-audience-truth-nondivergence-v0.md	147	The truth-digest input and the canonical bundle bytes MUST be exactly the
-CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	36	The Core command set MUST be exactly `init`, `adopt`, `query`, `context`, `impac
-CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	41	Each frozen Core mode MUST emit one canonical JSON document on stdout with
-CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	58	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised
-CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	65	A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line bu
-CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	76	The admission, freshness, omission and abstention members MUST keep their names,
-CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	90	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
-CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	98	N-1 and migration policy. Every Core reader MUST accept the documents and state
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	109	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
+CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	36	The Core command set MUST be exactly `init`, `adopt`, `index`, `query`, `context
+CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	43	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout
+CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	74	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised
+CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	84	A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line bu
+CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	95	The admission, freshness, omission and abstention members MUST keep their names,
+CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	111	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
+CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	119	N-1 and migration policy. Every Core reader MUST accept the documents and state
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	130	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa

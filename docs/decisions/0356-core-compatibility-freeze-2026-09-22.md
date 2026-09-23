@@ -1,8 +1,9 @@
 # Decision 0356 — Freeze the Core command, wire and migration contract and label every other verb experimental
 
 Date: 2026-09-22. Status: proposed (experimental delivery; ticket V1-0007). Owning contract:
-`docs/specs/core-compatibility-freeze-v1.md` (CCF-V1-001 to CCF-V1-008). The Core boundary is an
-assumption pending owner ratification in V1-0001. No runtime behaviour or wire output changes.
+`docs/specs/core-compatibility-freeze-v1.md` (CCF-V1-001 to CCF-V1-008). The Core set comes from the
+accepted decision 0332; this contract awaits owner ratification in V1-0001. No runtime behaviour or
+wire output changes.
 
 ## Context
 
@@ -17,12 +18,15 @@ frozen by accident.
 
 ## Decision
 
-1. Core is `init`, `adopt`, `query`, `context`, `impact`, `affected` and `prove`, the set the
-   V1-0007 ticket names. The owner ratifies or corrects it in V1-0001; a correction amends CCF-V1-001
-   and the test list together.
+1. Core is `init`, `adopt`, `index`, `query`, `context`, `impact`, `affected`, `prove`, `cem`, `ocm`,
+   `frontier` and `dogfood` (its retained local outcome), the set the accepted decision 0332 names.
+   Project authority outranks the ticket's earlier seven-verb assumption (AGENTS.md invariant 3). A
+   change to that set amends CCF-V1-001 and the test list together.
 2. What is frozen is what 0.7.0 already emits: the per-mode identifiers in CCF-V1-002, the refusal
    envelope, exit classes and code families in CCF-V1-004, and the admission, freshness, omission and
-   abstention members in CCF-V1-005. Modes and profiles listed in CCF-V1-003 stay outside.
+   abstention members in CCF-V1-005. Modes and profiles listed in CCF-V1-003 stay outside. The CEM,
+   OCM and frontier document schemas stay with their owning specs; modes of the five added verbs that
+   no test pins yet are recorded as NOT_PRODUCED rather than frozen by assumption.
 3. The breaking-change rule (CCF-V1-006): byte changes on cli-parity-pinned output need a divergence
    register entry and a decision; elsewhere, adding optional members is compatible and anything that
    removes, renames, retypes, re-enumerates or re-identifies a frozen member needs a new profile
@@ -31,21 +35,25 @@ frozen by accident.
    any mismatch; durable traces keep the legacy reader and the explicit digest-bound migration; each
    in-repository reader of a Core profile accepts N and N-1 in the change that bumps it.
 5. Root help gains a `Command maturity:` section (CCF-V1-008). It lists the Core verbs and labels each
-   other dispatched verb Experimental with the requirement prefix of its owning spec. No verb is
-   hidden, because the repository has no hidden-verb mechanism and adding one would be new behaviour
-   outside this ticket.
+   other `topLevelCommands` verb Experimental with the requirement prefix of its owning spec. Three
+   hook-plumbing verbs, `native-hook`, `authority-event` and `qualified-event`, are dispatched before
+   the `topLevelCommands` check and are absent from root help. They are recorded as undocumented adapter
+   plumbing outside the freeze (CCF-V1-003) and pinned, so a fourth such verb fails a test.
 
 ## Alternatives set aside
 
-- Hide experimental verbs from default help. Rejected: no mechanism exists, and
-  `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb` requires every dispatched verb in `Commands:`.
+- Hide experimental verbs from default help. Rejected: `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb`
+  requires every `topLevelCommands` verb in `Commands:`, and moving verbs into the pre-dispatch
+  plumbing path would be new behaviour outside this ticket.
 - Rename the `genesis-inventory/0.1-experimental` identifiers before freezing. Rejected: renaming is a
   wire change and would change every receipt id; the bytes are frozen as they are.
-- Include `feature` in Core because it shares the platform qualification. Not done: the ticket names
-  seven verbs; the owner can add it in V1-0001.
+- Keep the ticket's seven-verb set. Rejected: accepted decision 0332 already names twelve Core verbs,
+  and project authority outranks the ticket's assumption.
+- Include `feature` or `dogfood-ocm` in Core. Not done: decision 0332 names neither.
 
 ## Consequences
 
-A new top-level verb cannot ship without a maturity label and an indexed owner, and a Core identifier
-cannot change without failing `TestCoreVerbsEmitTheFrozenProfiles`. Rollback is a revert of the change
+A new top-level verb cannot ship without a maturity label and an indexed owner, a new pre-dispatch
+verb cannot ship without being pinned as plumbing, and a Core identifier cannot change without failing
+`TestCoreVerbsEmitTheFrozenProfiles`. Rollback is a revert of the change
 that adds the contract, this decision, the help section and the test; no state is migrated.

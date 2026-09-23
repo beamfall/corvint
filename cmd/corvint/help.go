@@ -1121,15 +1121,16 @@ CEM, OCM, frontier and mandatory test obligations remain open.
 // commandMaturityHelp is the root-help section that names the frozen Core verbs and labels every
 // other dispatched verb Experimental with its owning spec prefix (CCF-V1-008).
 const commandMaturityHelp = `Command maturity:
-  Core (contract CCF-V1, docs/specs/core-compatibility-freeze-v1.md); only the
-  modes and profiles that contract lists are frozen:
-    init, adopt, query, context, impact, affected, prove
+  Core (decision 0332, contract CCF-V1 in
+  docs/specs/core-compatibility-freeze-v1.md); only the modes and profiles that
+  contract lists are frozen:
+    init, adopt, index, query, context, impact, affected, prove, cem, ocm,
+    frontier, dogfood
   Experimental, no stability promise; the owning spec prefix is in parentheses:
     feature (GPK-V0), eval (REC-V0), lrf (LRF-V0), record (LTPM-V0),
-    migrate-traces (LTPM-V0), harness (AHI), cem (CEM-CB), ocm (OCM-V0),
-    work (WQO-V0), adapter (AHI), dogfood (LCP-V0), dogfood-ocm (OCM-V0),
-    frontier (CF-V0), observations (SOL-V0), obligations (EFO-V0),
-    prove-observe (SOL-V0), index (IDX-SNAP-V0), batch (SBQ-V0), docs (SDD-V0),
+    migrate-traces (LTPM-V0), harness (AHI), work (WQO-V0), adapter (AHI),
+    dogfood-ocm (OCM-V0), observations (SOL-V0), obligations (EFO-V0),
+    prove-observe (SOL-V0), batch (SBQ-V0), docs (SDD-V0),
     depsource (DSE-V0), necessity (NEC-V0), surprise (TSS-V0),
     answerability (RDS-V0), kernel (CKN-V0), lease (SCL-V0), reads (URE-V0),
     calibrate (OCL-V0), witness (AGW-V0), test-validity (MTV-V0),
