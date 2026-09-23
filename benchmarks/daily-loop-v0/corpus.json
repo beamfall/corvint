@@ -1,0 +1,543 @@
+{
+  "cases": [
+    {
+      "branchTip": "c280bc658b3fd36c4408a65879375f077707b7b8",
+      "changedFiles": 1,
+      "commit": "1894b9e5c992d69a7cbefa4b305485494e5622c4",
+      "completion": [],
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "docs/RELEASE-NOTES.md"
+        ],
+        "eligible": true
+      },
+      "parent": "7e9b1856e7843ddccc51dd17a5dc335769129e6b",
+      "task": "correct the 0.7.0 notes to the gated commit 41f2b68 (build 46)"
+    },
+    {
+      "branchTip": "20214ae591c5963919cabe2bdc0461c8c9bb85ee",
+      "changedFiles": 253,
+      "commit": "50a964705e934e2d0cebb7d64dc93642adf375ab",
+      "completion": [],
+      "consequence": {
+        "critical": [
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/conformance/cli-parity-v0",
+          "github.com/Beamfall/corvint/conformance/ocm-v0",
+          "github.com/Beamfall/corvint/internal/attest",
+          "github.com/Beamfall/corvint/internal/authoritystore",
+          "github.com/Beamfall/corvint/internal/behaviorfalsify",
+          "github.com/Beamfall/corvint/internal/cem/cli",
+          "github.com/Beamfall/corvint/internal/cem/coverprofile",
+          "github.com/Beamfall/corvint/internal/cem/gitauth",
+          "github.com/Beamfall/corvint/internal/cem/verify",
+          "github.com/Beamfall/corvint/internal/cem/wire",
+          "github.com/Beamfall/corvint/internal/cem/workflow",
+          "github.com/Beamfall/corvint/internal/cemdiscriminate",
+          "github.com/Beamfall/corvint/internal/contextindex",
+          "github.com/Beamfall/corvint/internal/doccorpus",
+          "github.com/Beamfall/corvint/internal/extevidence",
+          "github.com/Beamfall/corvint/internal/gitnotes",
+          "github.com/Beamfall/corvint/internal/jstestprovider",
+          "github.com/Beamfall/corvint/internal/liveverify/gorunner",
+          "github.com/Beamfall/corvint/internal/liveverify/mutate",
+          "github.com/Beamfall/corvint/internal/liveverify/session",
+          "github.com/Beamfall/corvint/internal/mcp/server",
+          "github.com/Beamfall/corvint/internal/skillexport",
+          "github.com/Beamfall/corvint/internal/tcq",
+          "github.com/Beamfall/corvint/internal/trace",
+          "github.com/Beamfall/corvint/internal/workqueue",
+          "github.com/Beamfall/corvint/tools/gate-affected-select",
+          "github.com/Beamfall/corvint/tools/gate-ledger"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "Makefile",
+          "README.md",
+          "SECURITY.md",
+          "VERSION",
+          "cmd/corvint/affected.go",
+          "cmd/corvint/affected_selection_test.go",
+          "cmd/corvint/affected_test.go",
+          "cmd/corvint/corpus_integration.go",
+          "cmd/corvint/docs.go",
+          "cmd/corvint/docs_corpus_test.go",
+          "cmd/corvint/docs_test.go",
+          "cmd/corvint/help.go",
+          "cmd/corvint/host_adapter.go",
+          "cmd/corvint/host_adapter_test.go",
+          "cmd/corvint/main.go",
+          "cmd/corvint/output_write_failure_test.go",
+          "cmd/corvint/prove.go",
+          "cmd/corvint/prove_attest_cem.go",
+          "cmd/corvint/prove_attest_cem_test.go",
+          "cmd/corvint/query_repository_test.go",
+          "cmd/corvint/query_test.go",
+          "cmd/corvint/taskcontext.go",
+          "cmd/corvint/taskman_fixture.go",
+          "cmd/corvint/taskman_fixture_test.go",
+          "cmd/corvint/work.go",
+          "cmd/corvint/work_adopt_test.go",
+          "cmd/corvint/work_final_check_test.go",
+          "cmd/corvint/work_materialization_test.go",
+          "cmd/corvint/work_observe_test.go",
+          "cmd/corvint/work_runner.go",
+          "conformance/cli-parity-v0/manifest.go",
+          "conformance/cli-parity-v0/manifest.json",
+          "conformance/cli-parity-v0/runner_test.go",
+          "conformance/divergence-register.md",
+          "conformance/release-artifact-v0/manifest.json",
+          "conformance/vscode-extension-v0/cases.json",
+          "docs/CHANGE-EVIDENCE-MAP.md",
+          "docs/DOGFOOD.md",
+          "docs/EXTERNAL-EVIDENCE-PROVIDERS.md",
+          "docs/INSTALL.md",
+          "docs/RELEASE-NOTES-alpha.md",
+          "docs/RELEASE-NOTES.md",
+          "docs/RELEASE-RUNBOOK.md",
+          "docs/decisions/0051-go-only-receipt-members-are-registered-divergences-2026-09-04.md",
+          "docs/decisions/0082-gate-test-deadline-is-a-hang-detector-2026-09-07.md",
+          "docs/decisions/0161-claude-adapter-quiet-notices-2026-09-12.md",
+          "docs/decisions/0188-ahi-golden-events-are-cross-host-identical-2026-09-13.md",
+          "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
+          "docs/specs/agent-harness-integration-v0.md",
+          "docs/specs/browser-behavior-falsification-v0.md",
+          "docs/specs/compat-replay-runner-v0.md",
+          "docs/specs/context-evolution-program-v0.md",
+          "docs/specs/documentation-corpus-v1.md",
+          "docs/specs/external-evidence-provider-transports-v0.md",
+          "docs/specs/external-evidence-provider-v0.md",
+          "docs/specs/external-evidence-provider-v1.md",
+          "docs/specs/external-evidence-provider-v2.md",
+          "docs/specs/external-test-selection-v0.md",
+          "docs/specs/falsifiable-packet-v0.md",
+          "docs/specs/gate-ledger-v0.md",
+          "docs/specs/go-archive-gate-v0.md",
+          "docs/specs/go-production-kernel-migration-v0.md",
+          "docs/specs/harness-authority-relation-v0.md",
+          "docs/specs/index-snapshot-v0.md",
+          "docs/specs/js-live-test-provider-v0.md",
+          "docs/specs/learned-trace-admission-v0.md",
+          "docs/specs/mcp-server-2026-07-28-v0.md",
+          "docs/specs/native-cem-adapter.md",
+          "docs/specs/ocm-v0-dogfood.md",
+          "docs/specs/playwright-external-provider-v0.md",
+          "docs/specs/public-release-v0.md",
+          "docs/specs/source-documentation-draft-v0.md",
+          "docs/specs/task-context-packet-v0.md",
+          "docs/specs/test-claim-qualification-v0.md",
+          "docs/specs/vscode-extension-v0.md",
+          "docs/specs/work-queue-observation-v0.md",
+          "extensions/vscode/README.md",
+          "extensions/vscode/src/executable.ts",
+          "extensions/vscode/test/executable-process.test.ts",
+          "integrations/claude-code/.claude-plugin/marketplace.json",
+          "integrations/claude-code/README.md",
+          "integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json",
+          "integrations/claude-code/plugins/corvint/compatibility.json",
+          "integrations/claude-code/plugins/corvint/hooks/hooks.json",
+          "integrations/compatibility.json",
+          "integrations/opencode/README.md",
+          "integrations/opencode/package.json",
+          "internal/attest/cem.go",
+          "internal/authoritystore/repository_metadata_test.go",
+          "internal/behaviorfalsify/execute_test.go",
+          "internal/behaviorfalsify/plan.go",
+          "internal/cem/cli/cli.go",
+          "internal/cem/gitauth/authority_binding_test.go",
+          "internal/cem/verify/verify.go",
+          "internal/cem/wire/map.go",
+          "internal/cem/wire/wire_test.go",
+          "internal/cem/workflow/commands.go",
+          "internal/cem/workflow/read.go",
+          "internal/cem/workflow/workflow.go",
+          "internal/cem/workflow/workflow_test.go",
+          "internal/contextindex/analyzer_schema_test.go",
+          "internal/contextindex/authority_trigger.go",
+          "internal/contextindex/authority_trigger_test.go",
+          "internal/contextindex/context_terms.go",
+          "internal/contextindex/eval_query.go",
+          "internal/contextindex/impact.go",
+          "internal/contextindex/range_impact.go",
+          "internal/contextindex/ranking_regression_test.go",
+          "internal/contextindex/taskcontext.go",
+          "internal/contextindex/testdata/context-recipe-default-golden.json",
+          "internal/doccorpus/behavior_adapter.go",
+          "internal/doccorpus/behavior_adapter_test.go",
+          "internal/extevidence/compose.go",
+          "internal/extevidence/extevidence_test.go",
+          "internal/extevidence/mcp.go",
+          "internal/extevidence/record.go",
+          "internal/extevidence/record1.go",
+          "internal/extevidence/repository.go",
+          "internal/extevidence/repository_test.go",
+          "internal/extevidence/section.go",
+          "internal/extevidence/selection.go",
+          "internal/extevidence/testdata/conformance-selection/cases.json",
+          "internal/jstestprovider/external.go",
+          "internal/jstestprovider/external_test.go",
+          "internal/jstestprovider/playwright.go",
+          "internal/jstestprovider/projection.go",
+          "internal/jstestprovider/projection_test.go",
+          "internal/jstestprovider/qualified-reporter.cjs",
+          "internal/jstestprovider/runner.go",
+          "internal/jstestprovider/runner_test.go",
+          "internal/jstestprovider/sensitive_input_boundary.go",
+          "internal/liveverify/gorunner/coverage.go",
+          "internal/liveverify/gorunner/runner.go",
+          "internal/liveverify/mutate/group.go",
+          "internal/liveverify/mutate/mutate.go",
+          "internal/liveverify/session/session_test.go",
+          "internal/mcp/server/legacy_test.go",
+          "internal/tcq/assemble.go",
+          "internal/tcq/encode.go",
+          "internal/tcq/evaluate.go",
+          "internal/tcq/limits.go",
+          "internal/tcq/observation.go",
+          "internal/tcq/reasons.go",
+          "internal/tcq/result.go",
+          "internal/tcq/seam_test.go",
+          "internal/trace/metadata_unix_test.go",
+          "internal/workqueue/proposal.go",
+          "internal/workqueue/proposal_test.go",
+          "script/dogfood-bind-range_test.sh",
+          "script/dogfood-change.sh",
+          "script/dogfood-change_test.sh",
+          "script/dogfood-check.sh",
+          "tools/gate-affected-select/main.go",
+          "tools/gate-affected-select/main_test.go",
+          "tools/gate-affected-select/readers.go",
+          "tools/gate-ledger/main.go",
+          "tools/gate-ledger/main_test.go"
+        ],
+        "eligible": false
+      },
+      "parent": "6dda276406609416573ab6bba1261c93e540d586",
+      "task": "preserve repository anchors verbatim in lexical queries"
+    },
+    {
+      "branchTip": "fb037a78fbab6ca04ca981a747590ae976deaaa9",
+      "changedFiles": 1,
+      "commit": "ca929b35557fc9878eb51bbdf755818b4ad215b3",
+      "completion": [],
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "AGENTS.md"
+        ],
+        "eligible": true
+      },
+      "parent": "362721cdcf0626c1b0345b69cd9f2fbfc9a32957",
+      "task": "trim AGENTS.md invariants and licensing to pointers, add lineage rule"
+    },
+    {
+      "branchTip": "63a5e0ac2be2034c6319989224ecc525c719a5c1",
+      "changedFiles": 166,
+      "commit": "362721cdcf0626c1b0345b69cd9f2fbfc9a32957",
+      "completion": [
+        {
+          "base": "f1b9e349ac564b032e677d548b6be9a40a533c0a",
+          "bind": "055257fa1197b4c2d5c1d056b8f623d778319edc",
+          "citedEvidencePaths": [
+            "docs/decisions/0330-verified-local-workflow-scope-2026-09-22.md",
+            "docs/specs/public-release-v0.md"
+          ],
+          "sealedPath": ".corvint/changes/055257fa1197b4c2d5c1d056b8f623d778319edc.cem.json",
+          "sealedSha256": "238b0dc6071ba7e4be32aee2467d422374cdea3c5d2048af10d5d85b4f30c595"
+        },
+        {
+          "base": "0651b5263d092952056ff274f54712af87dd1683",
+          "bind": "2bbf560d53170a37717b23cd1b763c5a337db5f6",
+          "citedEvidencePaths": [
+            "AGENTS.md",
+            "ROADMAP.md",
+            "docs/decisions/0330-verified-local-workflow-scope-2026-09-22.md",
+            "docs/specs/native-taskman-planning-v0.md"
+          ],
+          "sealedPath": ".corvint/changes/2bbf560d53170a37717b23cd1b763c5a337db5f6.cem.json",
+          "sealedSha256": "7e2d33b53630c7dc1d7988b0e0c76b7ad3a805caf3824cf8e1df8db7164a9a50"
+        },
+        {
+          "base": "822888afb435647d14d630c654764dbfa7c003e8",
+          "bind": "2f492ae6e4da92e18a023e630a5bfed90f6e0b2a",
+          "citedEvidencePaths": [
+            "AGENTS.md",
+            "conformance/use-cases-v0/main_test.go",
+            "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+            "docs/specs/use-case-conformance-v0.md"
+          ],
+          "sealedPath": ".corvint/changes/2f492ae6e4da92e18a023e630a5bfed90f6e0b2a.cem.json",
+          "sealedSha256": "5ac0d246937478e7052ae7c4c2269b3a9fd5095efc05a43d7c94bacf8724af76"
+        },
+        {
+          "base": "dac29206862695094385a20cc79ebcbdce389d91",
+          "bind": "b06ae036cae96a8470cded65122708df4e019637",
+          "citedEvidencePaths": [
+            "docs/decisions/0330-verified-local-workflow-scope-2026-09-22.md",
+            "docs/specs/daily-change-evidence-workflow-v0.md",
+            "docs/specs/public-release-v0.md"
+          ],
+          "sealedPath": ".corvint/changes/b06ae036cae96a8470cded65122708df4e019637.cem.json",
+          "sealedSha256": "cbc5b14577f51bd800b1025020303dd50219a0472d85ec21f8ab4eb9e9004a4b"
+        }
+      ],
+      "consequence": {
+        "critical": [
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/cmd/corvint-corpus-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-docs-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-test-validity-mcp",
+          "github.com/Beamfall/corvint/conformance/mcp-2026-07-28",
+          "github.com/Beamfall/corvint/conformance/mcp-test-validity-v0",
+          "github.com/Beamfall/corvint/conformance/release-artifact-v0",
+          "github.com/Beamfall/corvint/conformance/use-cases-v0",
+          "github.com/Beamfall/corvint/examples/evidence-provider/v0",
+          "github.com/Beamfall/corvint/examples/evidence-provider/v0/check",
+          "github.com/Beamfall/corvint/integrations/testfixture",
+          "github.com/Beamfall/corvint/internal/authoritystore",
+          "github.com/Beamfall/corvint/internal/cem/workflow",
+          "github.com/Beamfall/corvint/internal/extevidence",
+          "github.com/Beamfall/corvint/internal/mcp/protocol",
+          "github.com/Beamfall/corvint/internal/mcp/server",
+          "github.com/Beamfall/corvint/internal/releasecandidate",
+          "github.com/Beamfall/corvint/tools/gate-ledger"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "AGENTS.md",
+          "Makefile",
+          "README.md",
+          "ROADMAP.md",
+          "VERSION",
+          "cmd/corvint-corpus-mcp/main.go",
+          "cmd/corvint-corpus-mcp/main_test.go",
+          "cmd/corvint-docs-mcp/main.go",
+          "cmd/corvint-docs-mcp/main_test.go",
+          "cmd/corvint-mcp/main.go",
+          "cmd/corvint-mcp/main_test.go",
+          "cmd/corvint-test-validity-mcp/main.go",
+          "cmd/corvint/host_adapter.go",
+          "cmd/corvint/main.go",
+          "cmd/corvint/pi_adapter.go",
+          "cmd/corvint/pi_adapter_test.go",
+          "cmd/corvint/qualified_lifecycle.go",
+          "cmd/corvint/source_handoff.go",
+          "conformance/interactive-alpha/roadmap-proof.mjs",
+          "conformance/mcp-2026-07-28/lifecycle_unix_test.go",
+          "conformance/mcp-2026-07-28/mcp_blackbox_test.go",
+          "conformance/mcp-test-validity-v0/blackbox_test.go",
+          "conformance/release-artifact-v0/historical_evidence_version_test.go",
+          "conformance/release-artifact-v0/manifest.json",
+          "conformance/release-artifact-v0/version_tuple_test.go",
+          "conformance/use-cases-v0/README.md",
+          "conformance/use-cases-v0/ledger.json",
+          "conformance/use-cases-v0/main.go",
+          "conformance/use-cases-v0/main_test.go",
+          "conformance/vscode-extension-v0/cases.json",
+          "docs/AGENT-ROUTES.md",
+          "docs/INSTALL.md",
+          "docs/PRODUCT.md",
+          "docs/RELEASE-NOTES.md",
+          "docs/SPEC-DRIVEN-DEVELOPMENT.md",
+          "docs/decisions/0161-claude-adapter-quiet-notices-2026-09-12.md",
+          "docs/decisions/0188-ahi-golden-events-are-cross-host-identical-2026-09-13.md",
+          "docs/plans/integrated-product-roadmap-2026-09-12.md",
+          "docs/specs/agent-harness-integration-v0.md",
+          "docs/specs/cem-0.2-canonical-binding.md",
+          "docs/specs/compat-replay-runner-v0.md",
+          "docs/specs/compat-trial-v0.md",
+          "docs/specs/documentation-citation-gate-v0.md",
+          "docs/specs/documentation-corpus-v1.md",
+          "docs/specs/external-evidence-provider-transports-v0.md",
+          "docs/specs/external-evidence-provider-v0.md",
+          "docs/specs/gate-ledger-v0.md",
+          "docs/specs/go-archive-gate-v0.md",
+          "docs/specs/mcp-server-2026-07-28-v0.md",
+          "docs/specs/mcp-test-validity-profile-v0.md",
+          "docs/specs/native-taskman-planning-v0.md",
+          "docs/specs/public-release-v0.md",
+          "docs/specs/qualified-lifecycle-v0.md",
+          "docs/specs/release-artifact-integrity-v0.md",
+          "docs/specs/source-documentation-draft-v0.md",
+          "docs/specs/use-case-conformance-v0.md",
+          "docs/specs/vscode-extension-v0.md",
+          "extensions/vscode/README.md",
+          "extensions/vscode/src/executable.ts",
+          "extensions/vscode/test/executable-process.test.ts",
+          "integrations/compatibility.json",
+          "integrations/host-adapters.test.mjs",
+          "integrations/pi/README.md",
+          "integrations/pi/compatibility.json",
+          "integrations/pi/index.ts",
+          "integrations/pi/package.json",
+          "integrations/pi/runtime.js",
+          "integrations/pi/runtime.test.mjs",
+          "integrations/testfixture/main.go",
+          "internal/authoritystore/campaign.go",
+          "internal/authoritystore/direct.go",
+          "internal/authoritystore/direct_darwin.go",
+          "internal/authoritystore/lifecycle.go",
+          "internal/authoritystore/native_darwin.go",
+          "internal/authoritystore/store.go",
+          "internal/authoritystore/types.go",
+          "internal/authoritystore/unavailable_other.go",
+          "internal/mcp/server/server.go",
+          "internal/releasecandidate/install.go",
+          "internal/releasecandidate/install_test.go",
+          "interop/cem01-go/README.md",
+          "interop/cem01-go/manifest_test.go",
+          "interop/cem01-go/patch.go",
+          "script/atm-fixture-store.sh",
+          "script/check-host-package-versions.sh",
+          "script/seed-planning-store-data.json",
+          "script/seed-planning-store_test.sh",
+          "tools/gate-ledger/main.go",
+          "tools/gate-ledger/main_test.go",
+          "tools/local-authority/README.md",
+          "tools/local-authority/main.go",
+          "tools/local-authority/reader_operator.go",
+          "tools/local-authority/release.go"
+        ],
+        "eligible": false
+      },
+      "parent": "8869cf289d1ffed663d9413a93b87adc9b657ed9",
+      "task": "Integrate Corvint 0.6.0 onto the public history"
+    },
+    {
+      "branchTip": "e5928586c14fed91a73dc5ada1bd525dd4031b31",
+      "changedFiles": 8,
+      "commit": "8869cf289d1ffed663d9413a93b87adc9b657ed9",
+      "completion": [],
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "integrations/compatibility.json",
+          "integrations/opencode/README.md",
+          "integrations/opencode/opencode.example.json",
+          "integrations/opencode/package.json",
+          "integrations/opencode/src/index.js",
+          "integrations/opencode/src/runtime.js"
+        ],
+        "eligible": true
+      },
+      "parent": "f5cc4f04f225fb2d447e8e67f6a1595c1270193c",
+      "task": "update the OpenCode adapter to 0.2.6 from v0.6.0"
+    },
+    {
+      "branchTip": "a52eb912f0e0ac09bbe8b1b83fce814b94e29f6a",
+      "changedFiles": 29,
+      "commit": "af247a1d6d6efcfe3cb0348f7cdf34b794943d40",
+      "completion": [
+        {
+          "base": "1d4cbaa7bdbd01d24abfc5ddbd5b1efa5013693f",
+          "bind": "b22c12eb1227e4a7d844baa1ee8e166e543af486",
+          "citedEvidencePaths": [
+            "AGENTS.md"
+          ],
+          "sealedPath": ".corvint/changes/b22c12eb1227e4a7d844baa1ee8e166e543af486.cem.json",
+          "sealedSha256": "a2929498dd40391a377896c9b5e44a5a8c6a001ba89a9c7fae86ac483f11e12a"
+        }
+      ],
+      "consequence": {
+        "critical": [
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/cmd/corvint-web-flows",
+          "github.com/Beamfall/corvint/internal/appflows"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "AGENTS.md",
+          "cmd/corvint/help.go",
+          "cmd/corvint/main.go",
+          "docs/SELF-DEVELOPMENT.md",
+          "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
+          "docs/specs/falsifiable-packet-v0.md",
+          "docs/specs/index-snapshot-v0.md"
+        ],
+        "eligible": true
+      },
+      "parent": "1d4cbaa7bdbd01d24abfc5ddbd5b1efa5013693f",
+      "task": "port application flow understanding onto the public history"
+    },
+    {
+      "branchTip": "136e00107caaad58bde1b3912607d6cd64509be0",
+      "changedFiles": 8,
+      "commit": "1d4cbaa7bdbd01d24abfc5ddbd5b1efa5013693f",
+      "completion": [],
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "AGENTS.md",
+          "docs/AGENT-ROUTES.md",
+          "docs/agent-memory/bugs.md",
+          "docs/agent-memory/fixes.md",
+          "docs/agent-memory/ideas.md",
+          "docs/agent-memory/optimizations.md",
+          "docs/agent-memory/questions.md",
+          "docs/agent-memory/tests.md"
+        ],
+        "eligible": true
+      },
+      "parent": "933b43061fe61f9d1bf9cbd48bc4d65e5f060c59",
+      "task": "move the agent-memory backlog into the Corvint task store"
+    },
+    {
+      "branchTip": "9060149c20fd1dbedc3333c8f38e8545f136e87e",
+      "changedFiles": 1,
+      "commit": "933b43061fe61f9d1bf9cbd48bc4d65e5f060c59",
+      "completion": [],
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "README.md"
+        ],
+        "eligible": true
+      },
+      "parent": "89223a911d7e4d3e1f372106b0027fb0fdfd9a89",
+      "task": "point the README at the 0.6.0 release"
+    }
+  ],
+  "excluded": [
+    {
+      "commit": "7e9b1856e7843ddccc51dd17a5dc335769129e6b",
+      "rule": "E2-empty-after-path-exclusions"
+    },
+    {
+      "commit": "6dda276406609416573ab6bba1261c93e540d586",
+      "rule": "E2-empty-after-path-exclusions"
+    },
+    {
+      "commit": "f5cc4f04f225fb2d447e8e67f6a1595c1270193c",
+      "rule": "E2-empty-after-path-exclusions"
+    },
+    {
+      "commit": "89223a911d7e4d3e1f372106b0027fb0fdfd9a89",
+      "rule": "E1-no-first-parent-diff"
+    }
+  ],
+  "head": "1894b9e5c992d69a7cbefa4b305485494e5622c4",
+  "profile": "corvint-daily-loop-corpus/0"
+}

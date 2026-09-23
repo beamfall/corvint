@@ -1,5 +1,7 @@
 # Agent task manager — owner intent and build plan (2026-09-04)
 
+> Superseded as execution status by the Corvint task store (`corvint-tasks queue status`, `roadmap`, `release list`); see [ROADMAP.md](../../ROADMAP.md). The owner intent below is retained unchanged.
+
 Status: **accepted**, revision 6 (round 6 Claude + Codex applied; decision 0052). Owner intent is
 recorded verbatim from the 2026-09-04 session. Nothing here is built or advertised. The accepted
 repository is the sibling module `~/projects/corvint-taskman`; its binary is `atm`.

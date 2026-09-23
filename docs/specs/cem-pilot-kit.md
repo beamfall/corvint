@@ -10,7 +10,7 @@ onboarding, security, and wire-contract reviews recorded in `docs/BUILD-LOG.md`
 ## Agent digest
 - Claim: The CEM pilot kit freezes a safe first-run, reviewer-report, and outcome-trial contract for experimental CEM 0.1 use.
 - Status: accepted/experimental
-- Exists: `internal/cem`, reviewer reporting, `experiments/cem-first-run`, and frozen contracts.
+- Exists: `internal/cem`, reviewer reporting, `experiments/cem-first-run`, frozen contracts, and the proposed portable `interop/cem01-go ci` verifier (CEM-PILOT-020..023).
 - Blocked on: independent external outcome evidence.
 - Read next: `cem-external-interop-v0.md` and `cem-0.2-canonical-binding.md`.
 
@@ -150,6 +150,55 @@ within 15 minutes.
   literal path, not that the path was removed; no `type-changed` status or reason member is added
   (decision 0098).
 
+### Portable CI verifier
+
+- `CEM-PILOT-020`: (proposed; accepted with decision 0356) the portable CI example
+  (`examples/cem/github-actions-portable.yml`, `examples/cem/verify-portable.sh`) MUST pin the
+  `interop/cem01-go` verifier by module pseudo-version and executable SHA-256, MUST build it only in
+  a fetch step with `-trimpath` and `CGO_ENABLED=0`, MUST check the executable digest before
+  executing it and exit 2 without executing on a mismatch, and MUST run verification inside a
+  network-denied sandbox. Verification uses no LLM, index, retriever, or network (decision 0356).
+- `CEM-PILOT-021`: (proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSON
+  line with schema `cem-ci-report/0` and the fixed members `schema`, `verdict`, `exit`, `code`,
+  `profile`, `base`, `head`, `mapPath`, `mapSha256`, `patchSha256`, `hunks`, `evidence`, `drift`,
+  and `limits`. The line MUST be byte-deterministic for the same inputs, at most 6 MiB, and MUST
+  hold only digests, paths, spans, counts, and verdicts, never source or diff text. An invalid
+  invocation MUST echo no argument.
+- `CEM-PILOT-022`: (proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
+  the `docs/CEM-CI.md` profile and exit 0 `accepted`, 1 `rejected`, 2 `operational`, 3
+  `missing-evidence` (map absent, or unknown hunks), 4 `unsupported-profile` (a map `spec` other
+  than `cem/0.1`), or 5 `repository-mismatch` (a declared commit absent, or map `baseRevision` not
+  the declared base), with the verdict and a bounded `code` in the report. For a structurally valid
+  map, unsafe drift ranks before unknown hunks. The `verify` mode and its adapter ABI (`CEM-GO-002`)
+  are unchanged.
+- `CEM-PILOT-023`: (proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
+  exact pinned install, digest computation, and invocation, the exit taxonomy, the report members,
+  and the verifier's limits.
+
+### Workflow recipes
+
+Owner-requested for 0.7.0 on 2026-09-22 (ticket V1-0026); delivery is experimental.
+
+- `CEM-PILOT-024`: `examples/cem/recipes/` MUST ship three ordinary Bash scripts, each composing
+  only existing commands: `understand-change.sh` (`impact --base`, `affected --base`, `context`),
+  `review-change.sh` (`cem prepare`, strict `cem status` with unknown/mechanical caps, a committed-map
+  check, `cem report`, `review --base`), and `ci-verify.sh` (`examples/cem/verify-portable.sh`). They
+  add no Corvint verb, workflow language, scheduler, service, or LLM call, and `ci-verify.sh` needs
+  no hosted Corvint service or network.
+- `CEM-PILOT-025`: `examples/cem/recipes/README.md` MUST state for each recipe its supported inputs,
+  prerequisites, exact invocation, expected output, completion boundary, experimental status and
+  owning contract, and one missing, stale, and unsupported evidence case with its recovery.
+- `CEM-PILOT-026`: a recipe MUST NOT convert a refusal or uncertainty into success. Understand and
+  review exit 0 only when every step exits 0 (and impact is `READY`, the map is committed at HEAD),
+  3 when a step refuses or evidence is incomplete, and 2 for invalid recipe input or a timeout; the CI
+  recipe exits with the verifier's 0..5, and 2 when the verifier returns no verdict. Every step's
+  stdout and stderr stay in `RECIPE_OUT`, which must be new or empty, and no recipe replaces an
+  outdated or invalid map.
+- `CEM-PILOT-027`: each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`
+  seconds (default 600), and the recipe MUST kill the running step's group on its own exit, `HUP`,
+  `INT`, or `TERM`: `TERM` first, then `KILL` after a 2-second grace, so a step that ignores `TERM`
+  still ends within `RECIPE_TIMEOUT` plus the grace.
+
 ## Non-goals
 
 - proving that cited evidence semantically supports or caused an edit;
@@ -158,6 +207,7 @@ within 15 minutes.
 - Jira, E2E, signature, attestation, or multi-repository extensions to `cem/0.1`;
 - claiming interoperability from Corvint-authored tests or fixtures;
 - running or fabricating the real 30×30 trial without human operators and blind reviewers.
+- a workflow language, scheduler, or hosted runner for the recipes (`CEM-PILOT-024`).
 
 ## Failure and trust model
 
@@ -200,6 +250,8 @@ implementation non-authoritative and slated for separate removal.
 | CEM-PILOT-015 | `src/corvint_cli.py` | CLI success, invalid-input, and policy-failure tests |
 | CEM-PILOT-016 | `docs/DOGFOOD.md`, `script/dogfood-change.sh`, `.corvint/change.cem.json` | synchronized self-change report and local outcome trace; caller-selected plans remain bounded local orchestration, with no new CEM wire or interoperability claim |
 | CEM-PILOT-017 | Git environment and `experiments/_bounded_process.py` | hostile-environment, output-ceiling, process-group cleanup, and argv-shape regressions shared by first-run and dogfood measurement tests |
+| CEM-PILOT-020..023 | `interop/cem01-go/ci.go`, `examples/cem/verify-portable.sh`, `examples/cem/github-actions-portable.yml`, `examples/cem/README.md` | `interop/cem01-go/ci_test.go`: `TestCIVerdictsAndExits` (all six verdicts, determinism, bound, and a scan for every fixture source line), `TestCIAcceptedReportShape`, `TestCIInvocationEchoesNothing`, `TestCIReportWorstCaseBound`, and `TestCIPortableWorkflowOffline` (fresh-cache installs from a local module proxy agree on the digest, a mismatched stub is never executed, and the script run under an OS network sandbox that refuses a probe connection returns the in-process report byte for byte). The fetch from `proxy.golang.org` and the GitHub runner `unshare --net` step remain `NOT_RUN` |
+| CEM-PILOT-024..027 | `examples/cem/recipes/understand-change.sh`, `review-change.sh`, `ci-verify.sh`, `bounded.sh`, `README.md` | `script/cem-recipes_test.sh` (`make cem-recipes-test`, not a gate member) on fixture repositories: understand completes on a Go range and refuses a missing base, a dirty worktree, and reports a no-Go range `OUT_OF_SCOPE`; review refuses unknown hunks, an uncommitted map, a stale map (bytes unchanged), and an invalid-spec map, and completes once cited and committed; CI accepts a cited `cem/0.1` map, and returns missing (3), stale (1), `cem/0.2` unsupported (4), and digest-mismatch (2, never executed); a step is killed at `RECIPE_TIMEOUT=1` and on recipe `TERM`. Run against installed Corvint 0.7.0 build 46 and a checkout build. A first-use time by a reader unfamiliar with the recipes is `NOT_OBSERVED` |
 
 ## Traceability
 
@@ -216,7 +268,8 @@ implementation non-authoritative and slated for separate removal.
 
 Ship only as experimental documentation and local tooling. Existing `begin|cite|mark|verify`
 contracts remain compatible. New convenience commands may be removed without a data migration;
-maps remain plain `cem/0.1`. If the 15-minute journey fails, simplify the workflow before adding
+maps remain plain `cem/0.1`. The recipes under `examples/cem/recipes/` are removed by deleting that
+directory and the `cem-recipes-test` target; no command, map, or ledger depends on them. If the 15-minute journey fails, simplify the workflow before adding
 features. If external implementations cannot consume the kit within one engineer-day or the 30×30
 trial misses its value gates, redesign or kill CEM 0.1 rather than expanding it.
 
@@ -234,3 +287,8 @@ trial misses its value gates, redesign or kill CEM 0.1 rather than expanding it.
   minute requirement once, but a first-use median and external adoption remain `NOT_RUN`;
 - no external independent implementation exists;
 - the real 30-treatment/30-control trial has not run.
+- the portable verifier workflow has not run on a GitHub runner, and no pseudo-version or
+  executable digest of a published revision is recorded yet (`CEM-PILOT-020`).
+- the recipes (`CEM-PILOT-024`..`027`) are exercised only on Corvint-authored fixtures; time to a
+  first valid receipt, review, or CI verification by a reader unfamiliar with them is
+  `NOT_OBSERVED`, and the CI recipe's verifier comes from a checkout build, not a published pin.

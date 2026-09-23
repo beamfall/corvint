@@ -151,6 +151,30 @@ each cited path still exists at that revision, and what was omitted or could not
   stays excluded: it names a feedback-trained source whose derivation the record cannot cite,
   whereas a `generated` relation still carries the generator as `rule` and its material as
   `reference`.
+- `EEP-V0-020`: The kit declares its own version, currently `0.2.0` (kit README title and the
+  runner's `kitVersion`), separately from any provider revision. Kit 0.2.0 supports exactly the
+  record profiles `external-evidence-provider/0`, `/1` and `/2`; its compatibility window is those
+  three profiles read by the current checkout's consumer, and pins saved under kit 0.1.0 keep
+  their meaning. The kit consumer MUST refuse each profile
+  failure with its own reason and no record bytes: a member name repeated within one object,
+  compared ignoring letter case under the simple case folding Go's decoder applies, is
+  `ambiguous record profile: repeated schema member` for the top-level `schema` and
+  `ambiguous record: repeated member "PATH"` otherwise, any other declared profile or none is
+  `unsupported record profile`, a supported profile other than the pin is
+  `record schema differs from pin`, and a `/1` or `/2` record in which more than one repository
+  declares the pinned origin is `ambiguous pinned repository origin`.
+- `EEP-V0-021`: The kit MUST carry a standard-library Go conformance runner that builds the
+  provider from a copy of the kit's `main.go` offline, commits a scratch Git repository, and runs
+  `corvint impact` over the file transport (`--provider`) and the contained command transport
+  (`--provider-command`) for valid `/0`, `/1`, `/2`, stale, repository-mismatched, malformed,
+  ambiguous and unsupported-profile cases plus a refused unsupported-profile request. Each case
+  MUST produce the same external section on both transports apart from the provider source, a
+  core receipt equal to the receipt without a provider, `mutates` false, and its pinned outcome;
+  any disagreement exits nonzero.
+- `EEP-V0-022`: The kit MUST carry a clean-checkout authoring proof script that checks out only the
+  kit directory at a named commit into a fresh scratch clone, refuses when any other path is
+  present, builds the runner there offline, and runs it against a named Corvint binary with only
+  Git, local Go 1.27.1 and Darwin or Linux as prerequisites.
 
 ## Non-goals and simpler baseline
 
@@ -167,9 +191,12 @@ each cited path still exists at that revision, and what was omitted or could not
 
 ## Authoring kit compatibility, failure and rollback
 
-`examples/evidence-provider/v0/README.md` records the exact kit 0.1.0 invocation, prerequisites,
-fixture map and licensing. The sample emits provider `kit-example` revision `0.1.0`; authoring a
-new provider changes its identity/version explicitly. Existing `/0` fixtures and `/1`/`/2` records
+`examples/evidence-provider/v0/README.md` records the exact kit 0.2.0 invocation, prerequisites,
+fixture map with pinned outcomes, the authoring proof command and its recorded result, and
+licensing. Kit 0.2.0 only adds refusals for ambiguous profile, identity and repository-origin
+declarations that 0.1.0 accepted; no unambiguous record 0.1.0 accepted changes outcome. The sample
+emits provider `kit-example` revision `0.1.0`, which is not the kit version; authoring a new
+provider changes its identity/version explicitly. Existing `/0` fixtures and `/1`/`/2` records
 are consumed by today's strict decoder without changing their wire shape. Mismatched schema,
 provider, repository revision/root or executable digest fails with no record bytes. Other declared
 repositories still require normal checkout binding. `/0` cannot assert cross-repository identity.
@@ -240,6 +267,9 @@ table; a record carrying it then returns to `excluded-evidence-kind`, and no oth
 | `EEP-V0-017` | `internal/extevidence/pin.go`, `examples/evidence-provider/v0/check/main.go` | `TestProviderKitExactPins`, `TestProviderKitChecker` |
 | `EEP-V0-018` | `internal/extevidence/pin_test.go`, kit README | `TestProviderKitFixtureConformance`, `TestProviderKitAuthoredProvider`, `TestImpactProviderSectionSeparation`; V1-0013 freeze and owner acceptance NOT_OBSERVED |
 | `EEP-V0-019` | `evidenceKinds` in `internal/extevidence/compose.go`, `weakEvidence` in `internal/extevidence/selection.go` | `TestEvidenceKindGeneratedAdmitted`, `TestSelectionConformance` |
+| `EEP-V0-020` | `profileReason`, `repeatedMember` in `internal/extevidence/pin.go` | `TestProviderKitProfileReasons` |
+| `EEP-V0-021` | `examples/evidence-provider/v0/conformance/main.go` | `TestProviderKitConformanceRunner` |
+| `EEP-V0-022` | `examples/evidence-provider/v0/authoring-proof.sh` | recorded run in the kit README and `docs/BUILD-LOG.md` |
 
 ## Unresolved decisions and promotion or kill criteria
 

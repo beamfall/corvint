@@ -93,6 +93,18 @@ not decide whether cited evidence is relevant or whether the change is correct.
   is retained by 0.2 `prepare` in the private per-worktree Git cache, so a later `cite` after
   `begin` derives the patch from `HEAD` and refuses `patch-unavailable` when it cannot. This
   producer precheck does not alter the inherited verifier drift rules.
+- `CEM-CB-025`: from 2026-09-22 the `cem/0.2` profile, with `cem/0.1` as its N-1 profile, is
+  frozen by the canonical conformance packet `protocol/cem-0.2/manifest.json` (`status`
+  `frozen`). A consumer MUST verify the packet's pinned raw-manifest SHA-256 and every
+  `artifactSha256` entry before it runs any case. A frozen vector's bytes and expected decoded
+  outcome MUST NOT change; a wire change MUST take a new exact profile identifier with its own
+  packet (`CEM-CB-002`, `CEM-CB-004`). The reader of a frozen profile N MUST read every frozen N-1
+  vector, with its explicit patch, to the same acceptance, the same drift records (evidence ID,
+  path, status, target blob and span) and the same unknown count, and MUST NOT grant it N's
+  canonical assurance. Migration rule: a retained map is never rewritten in place to a newer
+  profile (`CEM-CB-005`); moving to a newer profile means preparing a new map from Git under that
+  profile and citing again, every `unknown` hunk stays `unknown` until it is cited or marked, and
+  no frozen digest is regenerated.
 
 `cem/0.2` is the closed `cem/0.1` shape plus required `excludedPath`; its versioned JSON Schema is
 the normative shape contract.
@@ -474,23 +486,34 @@ case.
 
 ## Delivery dependencies and gate
 
-### Candidate portable daily-loop boundary (V1-0013)
+### Frozen portable proof wire (V1-0013)
 
-The native roadmap authorizes preparation before predecessor V1-0010 closes, not formal wire
-freeze or promotion. The candidate minimum is the existing `cem/0.2` canonical map with its
+Frozen 2026-09-22 (decision 0357): `cem/0.2` with its N-1 `cem/0.1` reader (`CEM-CB-025`,
+`protocol/cem-0.2/`), `ocm/0.1-experimental` (`OCM-V0-014`/`OCM-V0-015`, `conformance/ocm-v0/`)
+and `frontier/0` with `frontier-error/0` (`CF-V0-034`, `conformance/frontier-v0/`). Each packet
+pins every vector file by SHA-256 and pins the stable, relocated, stale, ambiguous, deleted and
+unknown states to cases or to a stated gap. The freeze fixes the conformance bytes and the
+successor rule; it does not promote any profile's intent or delivery status. It was made on owner
+direction before predecessor V1-0010 delivered a verified daily-loop minimum, which remains open.
+
+The minimum is the existing `cem/0.2` canonical map with its
 `cem/0.1` reader retained, one `ocm/0.1-experimental` map for each owning intent, and the existing
 `frontier/0` advisory report over that bound scope. OCM linkage does not prove passing checks;
 frontier output does not confer closure authority. This inventory adds no fields, profile versions,
-optional evidence families or accepted requirements. The daily workflow must establish its actual
-minimum before any of these experimental profiles is frozen for 1.0.
+optional evidence families or accepted requirements. If the daily workflow later shows this
+minimum is wrong, the correction is a new profile identifier under `CEM-CB-025`, never an edit of
+the frozen packets.
 
-`protocol/cem-0.2/manifest.json` supplies candidate raw canonical vectors for stable, relocated,
+`protocol/cem-0.2/manifest.json` supplies the frozen raw canonical vectors for stable, relocated,
 stale, ambiguous, deleted and unknown evidence, with two-record drift ordering and exact committed
 sidecars. `TestPortableCanonicalVectors` consumes the packet through the native status workflow;
 `TestPortableProfileCompatibility` consumes its separately pinned 0.1 maps through the existing
 independent parser and requires the historical reader to reject 0.2. Both pin the same raw manifest
 but share no parser or reconstruction helper. The frozen 0.1 matrix is unchanged. Historical
 exact-patch compatibility is not a downgrade/migration of canonical assurance.
+
+`TestPortableCanonicalVectors` also reads each case's 0.1 map and explicit patch through the
+current native reader (`CEM-CB-025`).
 
 Remaining promotion evidence is explicit: verified daily-loop minimum, independently authored
 0.2 consumer and producer interoperability, OCM/frontier portability and compatibility qualification,
@@ -552,7 +575,8 @@ non-authoritative and slated for separate removal.
 | `CEM-CB-001..005` | `internal/cem/{wire,workflow,verify}`, versioned schemas and conformance; historical Python producer | core, dual-schema and dual-conformance tests; `TestCiteAcceptsRelocatedEvidenceSpan`, `TestCiteRefusesStaleEvidenceSpan`, `TestCiteRefusesAmbiguousEvidenceSpan`, `TestCiteRefusesDeletedEvidenceSpanWithVerifierClassification`, `TestCiteRefusesRenamedSourceEvidenceWithVerifierClassification`, `TestCiteRemovedIntentRefusalNamesBasePin`; independent interop remains external | `PASS`; external interop `NOT_RUN` |
 | `CEM-CB-006..009` | `src/context_corvint_cem.py`, `src/context_corvint_cem_workflow.py` | fixed exclusion, base/target mode, raw-byte, path-denial tests | `PASS` |
 | `CEM-CB-010..016` | CEM core/workflow and `src/corvint_cli.py` CEM commands | independent authority, structural/canonical assurance, canonical/explicit/default, resume, exact-envelope tests | `PASS` |
-| `CEM-CB-001..004`, `CEM-CB-009..012` | `protocol/cem-0.2` candidate packet; native workflow and separate historical reader | `TestPortableCanonicalVectors`, `TestPortableProfileCompatibility`: raw committed sidecars, mixed ordered drift, explicit unknown policy and N-1 refusal | candidate reference evidence; formal freeze and independent 0.2 qualification pending |
+| `CEM-CB-001..004`, `CEM-CB-009..012` | `protocol/cem-0.2` frozen packet; native workflow and separate historical reader | `TestPortableCanonicalVectors`, `TestPortableProfileCompatibility`: raw committed sidecars, mixed ordered drift, explicit unknown policy and N-1 refusal | frozen reference evidence; independent 0.2 qualification pending |
+| `CEM-CB-025` | `protocol/cem-0.2/manifest.json` (`status` `frozen`), `internal/cem/workflow/portable_test.go` | `TestPortableCanonicalVectors`: manifest and artifact digests, and each 0.1 `legacyMap` read by the current native reader to the same acceptance, drift and unknowns without canonical assurance | `PASS` locally; full and interop gates `NOT_RUN` |
 | `CEM-CB-017..020` | shared CEM/OCM repository-boundary validation | primary/linked equivalence, bounded oversized/growth/symlink/FIFO metadata, alternate precedence, locally complete promisor tests, `TestResolveIgnoresRepositoryGrafts`, `TestRevisionOperandsAreNeverOptions`, `TestTimeoutReapIsBoundedWhenEscapedDescendantHoldsPipes`, `TestSessionStopIsBoundedWhenEscapedDescendantHoldsPipes` | `PASS` |
 | `CEM-CB-023..024` | `internal/cem/gitauth/{object,diff}.go` per-read tree and blob identity plus changed-path coverage | `TestAccuracyWholeTreePublicReadersAgree`, `TestGitIntegrityCommitAndTreeLinks` nested-tree case, `TestCanonicalDiffRejectsMislabeledBlobInputs`, `TestCanonicalDiffRefusesBlobFreeOmission`, `TestRequestMemoPrimitiveParityAndCopies` child counts | `PASS` |
 | `CEM-CB-021..022` | CEM verifier, workflow, and CLI envelopes | stable error and fresh-process deterministic JSON tests | `PASS` |

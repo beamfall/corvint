@@ -4,6 +4,638 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
+
+V1-0012 measured the daily change-evidence loop as it exists at `origin/main` 1894b9e against a
+fixed plain-Git baseline. `benchmarks/daily-loop-v0/preregistration.json` (sha256
+`73f178f8b1bcaaa57115c2ee9389f3a57fa3d889ee6e8a50035edeec3ae04b9d`) seals the three Core jobs
+(task orientation, change consequence, evidence-carrying completion), the eight-commit first-parent
+corpus (`corpus.json`, sha256 `412058c2…4cde2`, four exclusions under rules E1/E2), the harness
+(`harness.py`, sha256 `17b41f50…2d242`), thresholds C1-C3, exclusions E1-E6 and invalidation rules.
+It was committed in 69b5f4d before any sealed observation. Harness smoke checks ran before the seal,
+on synthetic non-corpus commits only; the preregistration discloses them. PCCO-V0-015..017 are
+proposed, not accepted.
+
+Sealed run-001 (`benchmarks/daily-loop-v0/runs/run-001.json`, sha256
+`70e452d219ade1041dd4a05b8f762f858c44af5bd57627c2813d7389b1c2c29f`) used candidate binary
+`d28312fc…7096e` built from 1894b9e, with three runs per measurement. Its three
+`corvint-use-case-evidence/0` sealed-benchmark receipts are under
+`benchmarks/daily-loop-v0/receipts/run-001/`:
+
+| Receipt | sha256 | Result |
+| --- | --- | --- |
+| `UC-TASK-ORIENTATION.json` | `4bd2a48c3a9d421e0f9e40d9ba47d5de9fe198ee84e9c2e7de25551e12325f98` | FAIL |
+| `UC-CHANGE-CONSEQUENCE.json` | `66513302c06063447419232d7bff8053bba87534b66c26301d4b2babd230a06f` | FAIL |
+| `UC-EVIDENCE-CARRYING-COMPLETION.json` | `64c81ecc5f258420df3d2330d723b07eac0a836f13c27ea253231f8ac8fa136f` | PASS |
+
+All three are kept.
+
+- **Orientation, FAIL (C1).** Six scored cases produced one treatment-only critical miss:
+  `docs/AGENT-ROUTES.md` at 1d4cbaa. The lexical baseline found it and the `context` packet did not.
+  There were zero abstentions.
+- **Consequence, FAIL (C2).** Three scored cases produced five treatment-only critical misses:
+  `internal/cem/coverprofile` and `internal/cemdiscriminate` at 50a9647,
+  `cmd/corvint-test-validity-mcp` and `integrations/testfixture` at 362721c, and
+  `cmd/corvint-web-flows` at af247a1. All five are changed packages with no `_test.go` file.
+  `affected` selects test-bearing units, so it neither selected these packages nor named them as
+  unknown; its overall scope stayed `UNKNOWN`. A post-run re-observation with the byte-identical
+  candidate confirmed the af247a1 plan. The scoring is unchanged, because the sealed critical
+  definition counts every changed root-module package.
+- **Completion, PASS (C3).** 36 designated missing-evidence cases produced 0 false complete
+  verdicts, and every case was informative. The CEM cases were five committed CEMs times six
+  mutants, and every mutant was refused with its intended code (`patch-digest-mismatch`,
+  `uncited-hunk`, `unsupported-without-basis`, `fabricated-evidence-id`, `base-revision-mismatch`,
+  `max-unknown-exceeded`). The six loop variants were all refused:
+  - L1 stale-after-bind, L2 CEM removed, L3 CEM tampered, L5 without `DOGFOOD_VERIFY_FILE`, and
+    L6 without `DOGFOOD_CITATIONS` each gave `dogfood-check: FAIL dogfood-report-drift`.
+  - L4 local outcome removed gave `FAIL local-outcome-evidence-drift`.
+
+  All positive and re-encoded controls were COMPLETE. The plain-Git baseline gives no evidence
+  verdict, so it is `NOT_APPLICABLE` here.
+
+Latency, retries and failures were measured over three runs:
+
+- Every treatment output was deterministic across its three runs, and no command needed a retry.
+- Each complete fresh loop took 4 invocations, 2 of them the documented expected first-pass
+  failures. The rehearsed loop took a median of 54.3 s (34.6 s to 102.5 s).
+- Median `context` time was 2.9 s against 0.5 s for the baseline. Median `affected` time was 2.6 s
+  against 0.05 s. Median `cem status` time was 0.33 s to 1.0 s.
+- Host load averaged 60-67 on 12 CPUs, so latency is descriptive only and no p95 claim is made.
+
+Complete task tokens and human failure rate are `NOT_OBSERVED`, because no live model-driven agent
+or human reviewer ran. The harness accepts them through `--agent-observations`. The result reads
+"measured, no savings claim".
+
+The completion receipt validates against a scratch ledger copy with `conformance/use-cases-v0`
+(`valid: true`). The two FAIL receipts are refused there only as `result-not-pass` and
+`outcome-not-pass`. `conformance/use-cases-v0/ledger.json` is unchanged, since that is V1-0011
+scope. The full gate is `NOT_RUN` by owner policy.
+## 2026-09-23 V1-0024, decision 0361, FPK-V0-041..FPK-V0-049: failure-reproduction bundles
+
+Ticket V1-0024 adds `prove --export-bundle` and `prove --replay-bundle FILE`. These are
+experimental and proposed, not accepted. There is no new root verb. Export is an explicit opt-in
+for query and checkpoint results on a clean worktree. It writes one canonical JSON bundle (at most
+8 MiB, string values secret-screened, self-digested) to stdout. Replay recomputes the frozen
+request on another checkout and reports `reproduced`, or `diverged` with the differing member
+paths, or refuses with a named code. The declared exclusions are `error.message` and
+`proof.ledger`. Both documents carry `historical: true`, and `prove-observe` now refuses any
+document with a `historical` member.
+
+Two findings shaped the contract. First, screening the whole encoded receipt as one string
+matched the `{"history-consistent":{"PASS":N}` counts as a credential assignment, so every cited
+bundle was refused. Only string values are screened now. Second, the checkpoint parser does not
+resolve symlinks, but the query parser does. A root-equality check on replay therefore refused
+`/tmp` against `/private/tmp`. It was removed, because the wrapped parsers already refuse `--root`
+after `prove`.
+
+AC5 real reproduction on a second plain clone. The binary was
+`go build -o $S/corvint-ac5 ./cmd/corvint` at `d88342b955b8246613fe22e62926380c3fc0eee5` (tree
+`439ea68b2ce9357654117b6335a19cab3433d0c6`), and it reports `Corvint 0.7.0 (build 0)`. `$S` is a
+scratch directory outside the repository.
+
+- `corvint-ac5 prove --export-bundle --task "add OAuth2 login with Google to the web dashboard"`
+  was run in the clean first clone. It exited 0 with a 5021-byte bundle, `bundle_sha256`
+  `d87ecc12...5b8bc3ad`. The original receipt is the context failure `state: OUT_OF_SCOPE`,
+  `receipt_sha256` `be7e6a5c...0ce37ee1`, with no cited blobs.
+- `corvint-ac5 prove --export-bundle --checkpoint $S/ac5-checkpoint.json` was run against a
+  document of `{"version":"corvint-checkpoint/0"}`. It exited 0 with a 794-byte bundle,
+  `bundle_sha256` `0cb8f977...b11fedf6`. The original is the refusal
+  `invalid-checkpoint-document` (exit 2).
+- `git clone -q <first clone> $S/ac5-second` produced HEAD `d88342b9...`. It has no `.git/commondir`,
+  so it is not a linked worktree. The checkpoint input file was then deleted.
+- In `$S/ac5-second`, `corvint-ac5 prove --replay-bundle $S/ac5-query.bundle` exited 0 with
+  `outcome: "reproduced"`, `differences: []`, `historical: true`, and profile
+  `corvint-failure-replay/0`. The same command for `$S/ac5-checkpoint.bundle` also exited 0,
+  `reproduced`, from the frozen bytes.
+- A cited receipt also reproduced. `prove --export-bundle --task "replay a failure bundle on a
+  second checkout"` was run in the clean `$S/ac5-second` and gave `state: READY`, 14 cited blobs,
+  18140 bytes, and `bundle_sha256` `92ed8a1f...7cc0f2d8`. `prove --replay-bundle` in a third plain
+  clone, `$S/ac5-third`, exited 0 `reproduced`.
+- Hostile cases on the same clone:
+  - a version edit without resealing exited 2 `tampered`;
+  - a tracked-file edit exited 2 `mixed-worktree`;
+  - `corvint-ac5 prove-observe` given the bundle and given the replay report each exited 2
+    `invalid-proof-document`, and no `.corvint/self-observations.jsonl` was created.
+
+Independent review of PR #86 returned FIX-FIRST with two defects, both fixed in a follow-up
+commit:
+- Replay checked only that `repository.blobs` ids were well-formed and present. A resealed
+  bundle with a cited blob moved to another path, with `blobs: []`, or with an extra
+  `../../etc/passwd` entry still reported `reproduced`. Replay now refuses `tampered` unless the
+  blob list equals the set the original receipt cites.
+- `prove-observe` accepted `"historical": null`. It now refuses any document with the member,
+  whatever its value.
+
+The new test cases fail without the fixes and pass with them.
+
+Focused hostile-input tests are in `cmd/corvint/prove_bundle_test.go`. They cover 19 replay
+refusal cases, including drift and mixed worktree, plus divergence, export refusals, the size
+bound, and the `prove-observe` historical refusal.
+
+Verification. `corvint affected --base 1894b9e5` selected only
+`go:github.com/Beamfall/corvint/cmd/corvint`, with 18 unknowns: 13 language-frontier and 5
+docs paths. The following passed:
+- `GOTOOLCHAIN=local go vet ./cmd/corvint`;
+- the focused-docs targets (`spec-requirements-check`, `requirement-definitions-check`,
+  `traceability-tests-check`, `decision-numbers-check`, `line-citations-check`);
+- `make error-code-ownership-check`;
+- `make interop-gate`, which took 21 s.
+
+`GOTOOLCHAIN=local go test -count=1 -timeout 30m ./cmd/corvint` also passed, in 245 s, on the
+tree committed as `d88342b9`.
+
+The help.go insertion moved lines, so three existing line citations were repinned: two in
+`FRONTIER-DECISION-BRIEF-2026-08-29.md`, and the `prove_checkpoint.go` spans in
+`falsifiable-packet-v0.md`.
+
+Not produced:
+- `make gate`: NOT_RUN (owner policy).
+- `full-gate`: NOT_RUN.
+- Independent review of the bundle contract: NOT_PRODUCED.
+- A replay across two different Corvint builds of the same version: NOT_OBSERVED. `build` is
+  recorded but not compared.
+## 2026-09-23 V1-0010 DCW-V0-013..015: daily change-evidence adopter path
+
+`docs/DOGFOOD.md` now opens with one ordered daily adopter path from the pre-change receipts to the
+seal, with each input's exact format, the expected state after every step and a fail-closed table.
+`dogfood-change` follows each not-complete row caused by an input mistake or by the uncommitted
+sidecar with a `fix:` line; `dogfood-check` adds one to `dogfood-report-missing`,
+`dogfood-report-drift` (separate lines for a report bound to another base or head and for an
+incomplete report) and `intent-scope-drift`. No reason code changed. `docs/INSTALL.md` points to the
+path. The shell test asserts every new line and fails when one is altered (mutation observed).
+Dogfooding this change showed that before the sidecar commit `cem-status` is `not-ready` with an
+empty `policyIssues` and `excluded-artifact-mismatch` in `verification.issues`, so its hint names both.
+Amending the implementation commit after the first pass stranded the trace that pass recorded: the
+next pass refused `prechange-query: unsupported-query-trace-state` and `local-outcome: record-failed`
+with `local trace store contains unreachable revision`. Restoring that commit as an ancestor
+(`git reset --soft` onto it, then a new commit) cleared both without touching the trace store, so the
+path now says to add commits and the coordinator names the cause. No supported command removes a
+stranded trace; that recovery gap is reported, not fixed here.
+
+Friction that motivated the change came from seven fresh-agent worker runs that each bound and
+sealed a real change from plain clones of the public repository (PRs #74 to #80): the intents file
+must name specs with exactly one `## Requirements` heading; `DOGFOOD_CITATIONS` is a path; the first
+passes always fail `excluded-artifact-mismatch` until the sidecar is committed; the base carries an
+unsealed 0.6.0-integration CEM whose `baseRevision` is on the private lineage (decision 0331), so
+every check prints `unbound-commits NOT_OBSERVED previous-cem-base-unavailable` and every seal
+removes that path; and OCM aggregates report every requirement `unassessed`.
+
+Each fail-closed class was reproduced in a scratch clone at base 1894b9e: dirty (tracked and
+untracked), stale (commit after the report), unknown (uncited hunk), interrupted (`SIGTERM`, exit
+143, no report), unsupported (`PATH` without `rg`; intent without a Requirements heading), aggregate
+drift after `ocm mark` without a rerun, and both sealed refusals. `ocm mark` after the sidecar commit
+survives a rerun on the same `HEAD` and is dropped by any later commit. A linked worktree was not
+refused. NOT_OBSERVED: `SIGINT` interruption, `ocm link` with a test claim, and the independent
+reviewer leg of `DCW-V0-006` (no reviewer report exists for these runs); the worker runs used Git
+clones, not extracted release archives. The pre-change query ranked
+`docs/specs/analyzer-capability-contract-v0.md` first and omitted both `docs/DOGFOOD.md` and the
+owning spec: a context miss. The required full gate is NOT_RUN by owner policy.
+
+Review of PR #83 returned FIX-FIRST, reproduced by the reviewer and re-reproduced here in a scratch
+clone at base 0ed41f2 (sealed, so no tracked shared sidecar): the first pass lists only
+`cem-cite: citation-plan-not-provided` and `cem-status: not-ready` (`max-unknown-exceeded`) with
+`?? .corvint/change.cem.json`, and the cited rerun lists only `local-outcome: record-index-failed`.
+The OCM refusals and ` M` state documented first occur only while `BASE` tracks an unsealed sidecar,
+so steps 3 and 4 now describe both cases. The worktree hint no longer claims the sidecar is the cause,
+since `record-index-failed` and `unsupported-impact-worktree` also follow any other uncommitted file,
+and `ocm-status-NNN` rows, which printed no `fix:` line, now name the matching `ocm-prepare` row first.
+## 2026-09-23 V1-0023 ESV-V0-005, ESV-V0-008..010, TCP-V0-024 / decision 0364: opt-in evidence summaries with exact drill-down
+
+Ticket V1-0023 adds two opt-in views to the existing `context` verb. It adds no root verb, changes
+no `protocol/**` wire, and makes no `query` change.
+
+- `--summary [--summary-bytes N]` projects the exact default stdout into at most N bytes.
+  - Every non-`results` member is kept verbatim.
+  - Rows are compact, each with a `cv1:TREE:BLOB:RANGE:PATH` handle.
+  - The `summary` member records totals, the full packet's sha256, `evidence_complete: "UNKNOWN"`
+    and a continuation route.
+  - It refuses rather than drop a critical row.
+- `--expand HANDLE` returns only the pinned Git-object bytes and recomputes the blob object ID.
+  - It refuses invalid, stale, missing and ambiguous handles, never substituting current content.
+  - It refuses hostile handles (traversal, absolute path, leading dash, control or non-UTF-8 bytes,
+    oversize input, huge or reversed ranges) before any Git read.
+
+ESV-V0-005 is resolved. The manifest's `currentState.nativeSourceDigests` freezes the sha256 of
+`cmd/corvint/source_handoff.go` and `cmd/corvint/context_summary.go`, and
+`TestSourceViewNativeSourceDigestsAreFrozen` recomputes both. `cmd/corvint/host_adapter.go` is
+excluded (decision 0364).
+
+Measured:
+
+- `TestContextDefaultWireIsTheGolden`: the default stdout equals a golden captured from a binary
+  built at base `1894b9e5` over the same fixture (tree `348e320a`).
+- Budget sweeps: output stays at or under budget, and truncation and critical-row refusal are both
+  observed.
+- `TestContextSummaryAndExpandAreReadOnly`: no `.corvint/` directory and an unchanged
+  `git status --porcelain --ignored` after summary, expansion and refusals.
+- A self-repository sample at base with `--limit 50` went from 31054 bytes to 7865. The summary
+  showed 13 of 50 rows, the 2 critical rows included, and its sha256 matched the full packet.
+  This is a byte measurement only, not a task-cost result.
+
+Labels:
+
+- The matched complete-task trial (AC4) is NOT_OBSERVED. It is preregistered in
+  `benchmarks/evidence-summary-trial-v0.json`: 19 jobs, 5 impact cases excluded, metrics and a
+  decision rule.
+- The views stay experimental and do not satisfy the V1-0023 release delivery claim until that
+  trial runs and the owner accepts it.
+- Full gate NOT_RUN (owner policy).
+- Owner acceptance NOT_PRODUCED.
+## 2026-09-23 V1-0017 decision 0360 / SOP-V0-003 / SOP-V0-009: cross-version lifecycle and hostile matrix closure
+
+Reproduced the known N-1 failure: `script/check-install-lifecycle.sh` with 0.6.0 (build 90, built
+from tag `v0.6.0`) as `CORVINT_LIFECYCLE_BINARY` and 0.7.0 as the upgrade failed `upgrade-b` with
+"packet bytes changed across the upgrade". The only diff was the additive 0.7.0 packet fields
+`coverage.governance_refused` and evidence `trust` (decision 0346), so the 0341 byte rule could never
+pass a wire-changing release. Decision 0360 compares a distinct upgrade with the packet the upgrade
+binary builds from a cold index of a clone at the same commit, and reports `packet=identical|changed`.
+Same-bytes upgrades and rollback, the downgrade path, keep byte identity. Wrapper case 5 stubs a wire
+change (must pass, `packet=changed`) and a nondeterministic packet (must fail `upgrade-b`). PR #84
+review found that an upgrade whose read verb exits 0 with no output passed, because two empty packet
+files compare equal; the step now requires a non-empty packet and an `ok` cold index, and case 5
+adds that stub, which must fail `upgrade-b` with "read verb produced no packet".
+
+Lifecycle on release archives produced from `1894b9e` by `conformance/release-artifact-v0 archive`
+(`Corvint 0.7.0 (build 12)`; `shasum -a 256 -c SHA256SUMS` OK for all five archives). Every cell is
+the step line of the retained report; each run ended `SUMMARY status=PASS`.
+
+| Step | darwin arm64 same | darwin arm64 N-1 | linux arm64 same | linux arm64 N-1 | darwin amd64 (Rosetta) same | darwin amd64 (Rosetta) N-1 | linux amd64 |
+|---|---|---|---|---|---|---|---|
+| install-a | ok | ok (0.6.0 b90) | ok | ok (0.6.0 b90) | ok | ok (0.6.0 b90) | NOT_RUN |
+| first-index | ok | ok | ok | ok | ok | ok | NOT_RUN |
+| upgrade-b | ok same-bytes | ok packet=changed | ok same-bytes | ok packet=changed | ok same-bytes | ok packet=changed | NOT_RUN |
+| rollback-a | ok | ok | ok | ok | ok | ok | NOT_RUN |
+| uninstall | ok | ok | ok | ok | ok | ok | NOT_RUN |
+| backup-restore | ok | ok | ok | ok | ok | ok | NOT_RUN |
+| corrupt-truncate | ok | ok | ok | ok | ok | ok | NOT_RUN |
+| corrupt-overwrite | ok | ok | ok | ok | ok | ok | NOT_RUN |
+
+linux arm64 ran in the local `golang:1.27.1` container (git 2.47.3), not on native hardware; darwin
+amd64 ran under Rosetta 2 on the arm64 host. linux amd64 is NOT_RUN: no amd64 image or host was
+available. The N-1 run from 0.6.0 into the installed 0.7.0 (build 46) also passed on darwin arm64.
+
+Hostile matrix (SOP-V0-009): the `memory` row is a Go-heap bound on one index build over a tracked
+source 64 times `maxSourceBytes`; about 2.5 MB is allocated, and with the size exclusion mutated
+away the test fails at 514 MB. The `case-folds-context-index` row builds two tracked paths that
+differ only by case on a case-insensitive worktree; it fails only when both the dirty-set guard and
+the worktree blob-oid check are removed, so either alone keeps each path on its own blob. `make
+hostile-regressions-check` on darwin arm64: 29 rows PASS, `memory-resident` NOT_COVERED (no
+regression bounds whole-process or git child memory). In the linux arm64 container it passed with
+both case-fold rows NOT_RUN (case-sensitive filesystem).
+
+AC3: `SECURITY.md` already held the 0.x support window and private reporting channel; `docs/SECURITY.md`
+now points to it instead of calling the policy a draft, and on 2026-09-23 the GitHub API reported
+private vulnerability reporting enabled (no live report sent). `docs/RELEASE-NOTES.md` is the
+changelog; the runbook gains the 0700 output parent, the unqualified Windows zip and the upgrade
+report form. The 1.0 support duration stays an owner decision for V1-0021.
+
+Found, not fixed: the build stamp at `origin/main` HEAD is 12 while the published 0.7.0 is build 46,
+because the history reset restarted the first-parent count; build numbers are no longer monotonic
+(PUB-V0-021). NOT_RUN: full gate (owner policy), linux amd64 lifecycle and hostile matrix, native
+linux hardware. No artifact was promoted or published.
+## 2026-09-23 CEM-PILOT-024..027: understand, review and CI-verification recipes (V1-0026)
+
+`examples/cem/recipes/` adds three Bash recipes over one committed `BASE..HEAD` change, composed
+only from existing commands: `understand-change.sh` (`impact --base`, `affected --base`,
+`context`), `review-change.sh` (`cem prepare`, strict `cem status`, a committed-map check,
+`cem report`, `review --base`) and `ci-verify.sh` (the V1-0015 `verify-portable.sh`). A shared
+`bounded.sh` runs each step in its own process group under `RECIPE_TIMEOUT` and kills it on
+recipe exit, `HUP`, `INT` or `TERM`: `TERM`, then `KILL` after a 2-second grace. Understand and review exit 3 on any refusal or incomplete
+evidence and keep every step's output; the CI recipe keeps the verifier's 0..5. No decision was
+needed: no verb, wire format or gate changed. `make cem-recipes-test` is not a gate member.
+
+Measured locally on darwin/arm64 by `script/cem-recipes_test.sh`, 17 fixture cases, all passing:
+
+- against the installed Corvint 0.7.0 build 46 (`CORVINT_BIN=$(command -v corvint)`): 12.7 s
+  and 22.7 s wall in two runs;
+- against a build of this checkout (reports `0.7.0 (build 0)`): 17.1 s and 20.4 s wall
+  in two runs, including the build.
+- The portable verifier is built from the checkout's `interop/cem01-go` in both runs; there is no
+  released `ci`-mode verifier to exercise.
+
+Review fix (PR #81): the first cut sent only `TERM`, so a step ignoring it (`trap "" TERM;
+sleep 8`, `RECIPE_TIMEOUT=1`) ran 9 s. `KILL` now follows a 2-second grace; the same stub ends in
+3 s. The review also led to refusing a non-empty `RECIPE_OUT`, rejecting non-integer
+`CEM_MAX_*` with exit 2 before `cem prepare`, and mapping a verdict-less verifier exit to 2. With
+three new cases (`b-stubborn` asserts `step=impact exit=124` within 6 s, `b-out-reused`,
+`r-bad-cap`; `b-interrupt` now uses the `TERM`-ignoring stub) all 20 cases pass: 14.6 s wall
+against the installed 0.7.0 build 46, 15.0 s against the checkout build.
+
+Author single-sample observation, not a reader measurement: in the fixture the review recipe
+went from its first run to `complete` in two recovery steps (cite the hunk, commit the map); a
+stale map needs one owner decision (`cem prepare --replace`) and new citations.
+
+`NOT_OBSERVED`: time and recovery steps to a first valid receipt, review or CI verification by a
+reader unfamiliar with the recipes (V1-0026 acceptance criterion 4).
+`NOT_RUN`: `make gate` (owner policy); the recipes on a GitHub runner; a pinned fetch from
+`proxy.golang.org`.
+
+## 2026-09-23 V1-0025 LAC-V0-033..036 / decision 0362: console chain pane from hunk to recorded verification
+
+The optional console gains `/chain`. For a sealed change it renders the chain hunk → cited evidence →
+governing requirement → recorded verification at pinned revisions. It reads only the sealed CEM at its
+object id, the untracked OCM maps under `.corvint/`, the local trace
+`.context-corvint/traces/<change>.jsonl`, and Git objects those maps pin. Every edge names the artifact
+and field that justify it (for example `hunks[0].basis[0].evidenceId = evidence[0].id`, or
+`obligations[0].hunkIds[0]` of an OCM map bound by `targetRevision` and `cem.mapSha256`). Cited spans are
+re-read at their `blobOid` and rehashed. An edge the artifacts do not establish renders as a
+`missing`, `stale`, `ambiguous`, `unverified` or `unsupported` gap row with its reason.
+
+Measured: `TestConsoleChainComplete`, `TestConsoleChainGaps` (one subtest per class),
+`TestConsoleChainTextMatchDecoy`, `TestConsoleChainHostileContent` and
+`TestConsoleChainKeyboardNavigation` pass. A deliberate mutation that binds every OCM map regardless of
+digest and revision made the decoy test fail on `href="#req-FIX-V0-003"`, so that test discriminates.
+Against this repository at base `1894b9e` the built console listed all 35 sealed changes. Change
+`f6e68755` rendered its binding and three evidence edges linked, its three requirement edges
+`missing`, and its verification `unverified`, because OCM maps and traces are local to the worktree
+that sealed a change.
+
+NOT_OBSERVED: the U4 operator-time comparison against the CLI with a human (ticket AC4); no timing is
+recorded. NOT_RUN: `make gate` (owner policy) and the companion-release gate. Frontier artifacts are not
+consumed; none exist per change. Launch behaviour is untouched, so foreground-process cleanup is
+unchanged (`TestConsoleHTTPProcessCleanup`, `internal/console/lifecycle_test.go:168`).
+## 2026-09-23 CCF-V1-001..CCF-V1-008, decision 0358: Core compatibility freeze (V1-0007)
+
+Ticket V1-0007 asked for a frozen compatibility boundary for the Core commands without freezing
+companion or research profiles by accident. The new contract `docs/specs/core-compatibility-freeze-v1.md`
+(intent proposed, delivery experimental) takes the Core set from the accepted decision 0332:
+`init`, `adopt`, `index`, `query`, `context`, `impact`, `affected`, `prove`, `cem`, `ocm`, `frontier`
+and `dogfood`'s retained local outcome. A first draft used the ticket's seven-verb list; review
+corrected it to 0332 because project authority outranks the ticket (invariant 3). The contract lists
+the per-mode identifiers, the refusal envelope, exit classes and code families, the admission,
+freshness, omission and abstention members, a breaking-change rule, and the N-1 policy. The N-1
+baseline is 0.7.0; `git diff v0.7.0 1894b9e -- cmd/corvint internal` is empty, so no Core state or
+profile changed before this change. Decision 0358 records the policy. Root help gains a
+`Command maturity:` section (the `commandMaturityHelp` const, concatenated into `rootHelp` after every
+anchored help.go line citation; help.go grows from 1119 to 1140 lines). It lists the twelve Core
+verbs and labels the other 30 `topLevelCommands` verbs Experimental with an indexed owning spec prefix.
+A first draft claimed no verb is hidden; review found that `runContext` dispatches `native-hook`,
+`authority-event` and `qualified-event` before the `topLevelCommands` check. They are now recorded as
+undocumented adapter plumbing outside the freeze and pinned by a source-scan test.
+
+Measured: `cmd/corvint/core_freeze_test.go` passes four tests with 27 subtests (22 Core modes,
+5 refusals). The five added verbs pin `index` (`corvint-index-snapshot/1`, and the `--if-stale` fresh
+receipt without `ok` or `profile`), `cem status`/`verify` (`cem/0.2`), `ocm status`/`verify`
+(`ocm/0.1-experimental`), `frontier --json` (`frontier/0`, exit 1 when open, no `ok` or `mutates`)
+and `dogfood status` (`corvint-local-completion/0`). Negative edits failed the tests as intended: one
+dropped a help label and named an unindexed owner, and one added a fifth literal pre-dispatch verb to
+`runContext`. The first draft's cli-parity-v0 replay reported parity=104 retired=29 with exit 0, and 15
+invocations of the then-seven Core verbs on a scratch fixture were byte-identical under the installed
+0.7.0 build 46 and the candidate. Reviewer-observed, not rerun here: `affected --base`,
+`prove --base` and `context --task` were byte-identical against installed 0.7.0. The authority-start
+query reports `context.mode=query` with `context.intent.id=project-operations`. Owner assignments for
+`eval` (REC-V0), `adapter` (AHI), `record` (LTPM-V0) and `test-validity` (MTV-V0) are judgement calls
+from spec mentions and remain open to owner correction.
+
+NOT_RUN: `make gate` and the exhaustive `go test ./...` (owner policy; focused tests only).
+NOT_RUN: V1-0001 ratification of this contract. NOT_PRODUCED: pinned modes for `cem begin`,
+`prepare`, `cite`, `mark`, `report`, `cover`, `discriminate`, `anchor` and `provenance`; `ocm prepare`,
+`link`, `mark` and `report`; the frontier human rendering and dynamic test mode; `dogfood begin`,
+`verify`, `finish`, `review` and `cancel`; and CCF-V1-005 member lists for the five added verbs.
+NOT_PRODUCED: a byte-level 0.7.0 comparison for the five added verbs.
+## 2026-09-22 V1-0008 IDX-SNAP-V0-022, IDX-SNAP-V0-023, GENESIS-025: init, adopt and index lifecycle qualification
+
+Ticket V1-0008 asked for three things: the two activation doors, the cold-versus-incremental index
+lifecycle, and hostile snapshot states, each qualified with evidence. The three requirements are
+proposed and record outcomes the code at base `1894b9e5c992d69a7cbefa4b305485494e5622c4` already
+produces. No hostile case panicked or ran unbounded, so no behaviour changed. The corpus is this
+repository at that base: 3,819 tracked files, tree `7aa62ddc4c6b1afa9c2cc3d9940d7d6c2632d45f`,
+object format sha1.
+
+Hosts. The Darwin host reports `uname -m` = `arm64` and `uname -sr` = `Darwin 25.6.0`. `sw_vers`
+gives ProductName macOS, ProductVersion 26.6.2, BuildVersion 25G83. It is an Apple M2 Max with 12
+CPUs and 64 GiB, running Apple Git 2.54.0. The Linux run used a `golang:1.27.1` container on that
+host's Docker VM with `--network none`: `uname -m` = `aarch64`, `uname -sr` = `Linux
+6.8.0-117-generic`, Debian GNU/Linux 13, 6 CPUs, git 2.47.3, go1.27.1 linux/arm64. Both
+binaries were built from the base tree.
+
+Activation timing (`GENESIS-025`, AC1). Each door ran 20 times on the corpus from a minimal
+environment: `PATH=/usr/bin:/bin` and a scratch `HOME`. Network was denied on Darwin by
+`sandbox-exec` with `(deny network*)` and on Linux by `--network none`. No model, account or build
+step ran, and every receipt records `model.callCount` 0. p95 is the nearest rank, sample
+`ceil(0.95n)` of the sorted samples, so the 19th of 20.
+
+| Host | Door | min | median | p95 | max (s) |
+|---|---|---|---|---|---|
+| Darwin arm64 | `init` | 0.252 | 0.255 | 0.259 | 0.262 |
+| Darwin arm64 | `adopt` | 0.252 | 0.254 | 0.257 | 0.259 |
+| Linux arm64 | `init` | 0.579 | 0.685 | 0.843 | 0.893 |
+| Linux arm64 | `adopt` | 0.459 | 0.633 | 0.774 | 0.783 |
+
+All 80 runs exited 0 with `ok:true` and a `PARTIAL` receipt. `PARTIAL` comes from six `binary-asset`
+gaps (`GENESIS-024`) out of 3,813 `INCLUDED` and 6 `UNSUPPORTED` entries. The receipts cite the
+revision and tree. The receipt ID was identical on both hosts:
+- `init`: `genesis-inventory:sha256:540e45d3ba2f39742fef72632a36b2606e2dfa994444c802486fde896b87f2ef`
+- `adopt`: `genesis-inventory:sha256:b7d91a68c0bb1919cfc2eedac3ff13126184dd37bcf65a6e0d385a88a8fe2f8c`
+
+Fallback. The default activation budget is 120 s, well under ten minutes.
+`TestActivationFallsBackToABoundedReceiptWhenGitHangs` asserts this. It also uses a Git wrapper that
+hangs after repository open, with a 0.5 s caller deadline. Under that wrapper each door returns
+within about 0.6 s. The receipt is `PARTIAL`, still pins revision and tree, and carries the single
+gap `git-timeout` with zero model calls.
+
+Review repair: the first version of this test used a 0.5 s wall-clock deadline that also had to
+cover the real `rev-parse` calls that open the repository. Under load, independent review saw 57 of
+60 runs fail, with `INVALID` + `invalid-repository`, or `INVALID` + `git-timeout` and no revision.
+The repaired test cancels only after the wrapper records that it has entered its hang branch, and
+the cancelled context reports an expired deadline. Built with `go test -c` and run on the Darwin
+host with 8 `yes > /dev/null` burners at load average 50 to 80:
+- `-test.count=20`, sequential: 20 of 20 pass, twice.
+- 12 parallel copies of `-test.count=5`: 60 of 60 pass.
+The burners were killed afterwards. The lifecycle tests now clear `CORVINT_INDEX_SHARDS` and
+`CORVINT_SNAPSHOT_FORMAT`, so exported opt-in settings cannot move them off the default gob path.
+
+Finding, recorded and not changed: a Git that hangs during repository open yields the `INVALID`
+gap `invalid-repository`, not `git-timeout`. `openRepository` maps a failed layout probe to
+`invalid-repository`. The outcome is bounded but names the wrong cause.
+
+Cold versus incremental (`IDX-SNAP-V0-022`, AC2). `TestColdAndIncrementalSnapshotsAreByteIdentical`
+indexes the target in a fresh clone. It then indexes it again in a clone that first indexed the
+prior commit and moved ahead; that clone must probe not fresh before re-indexing. The test requires
+the two served indexes to be byte-identical under a canonical JSON encoding with the worktree fields
+cleared.
+
+With `CORVINT_LIFECYCLE_CORPUS` set, the corpus subtest used target `1894b9e5`, prior `7e9b1856`.
+It passed three of three runs on Darwin and three of three on Linux arm64. The canonical index was
+87,658,954 bytes, sha256 `76b96397439184b02f7173942d76dfb87d5d7d35183a4d8b5c6bd0044ffdbfa9`, on every
+run on both hosts. The fixture subtest, covering modify, add, delete and rename, runs unconditionally.
+
+Negative result: the gob file itself is not byte-identical. Two `corvint index` writes of tree
+`7aa62ddc` with engine `8084efe883cb0fe3` produced 68,770,546-byte files with sha256 `f3d1a145...`
+and `9ec03e48...`, because gob encodes maps in iteration order. The spec Non-goals already state
+this. A byte-deterministic file encoding therefore stays NOT_PRODUCED behind the
+`deployment-neutral-index-platform-v0.md` format gate.
+
+The default path has no incremental build: a moved repository rebuilds in full. The only
+incremental path is blob shards (`IDX-SNAP-V0-016`, proposed/off), which is NOT_RUN here.
+
+Hostile states (`IDX-SNAP-V0-023`, AC3). `TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes`
+asserts one exact outcome for each state and saw no panic or error return:
+- Unsupported input: the exclusion `source exceeds size bound` for a source over 1,000,000 bytes, an
+  unsupported-suffix count of 1 for a PNG, and a binary body under an admitted suffix that is loaded
+  but not valid text. The snapshot round-trips equal.
+- Corruption: an empty file, a torn header, a torn body, a file one byte short and a garbled header
+  each produce a miss on load, probe and compact event load. Restoring the file serves the original
+  index again.
+- Staleness: produces a miss.
+- Dirty state: the hit remains, `DirtyPaths` holds only the modified path, the committed body is
+  served, and the snapshot directory is unchanged.
+- Rollback (`reset --hard` to a retained prior commit): the hit is identical to the original and the
+  probe reports fresh.
+Focused tests passed on both hosts.
+
+NOT_RUN:
+- Linux amd64, and Linux outside a container VM.
+- `make gate` and the full-gate required by the ticket (owner policy).
+- The blob-shard incremental path.
+- Timing under load, and timing on repositories other than this one.
+- A hang during repository open in the timed runs.
+
+NOT_OBSERVED: a qualified external corpus.
+## 2026-09-22 V1-0013 / CEM-CB-025 / OCM-V0-015 / CF-V0-034: minimum portable proof wire frozen
+
+Ticket V1-0013, decision 0357. The minimum portable proof wire is frozen as of 2026-09-22:
+`cem/0.2` with the N-1 `cem/0.1` reader, `ocm/0.1-experimental`, and `frontier/0` with
+`frontier-error/0`. `cem/0.3` stays experimental and outside the frozen minimum.
+`protocol/cem-0.2/manifest.json` `status` is now `frozen`, and its new manifest SHA-256
+`2ad18195...93cd` is pinned in the packet README and in the native and interop tests.
+`internal/cem/workflow/portable_test.go` now reads every packet `legacyMap` through the current
+reader (`CEM-CB-025`). It asserts acceptance, `cem/0.1`, non-canonical assurance, and the same
+drift and unknowns. The OCM and frontier manifests gain `artifactSha256`, which pins 6 and 32
+files, and `states`, which pin the six hostile states. Their runners refuse byte drift, unlisted
+files and missing files before any case runs. Tests mutate one pinned file and expect the named
+refusal.
+
+A new OCM fixture, `intent-scope-drift`, measured the verifier's real codes. A shifted intent span
+or a stale span digest gives `intent-scope-mismatch`. An absent intent blob or a deleted intent
+path gives `repository-object-unavailable` (per `OCM-V0-012`), not `intent-scope-mismatch`.
+
+Gaps, stated and not vectored: frontier relocated evidence and inherited CEM `evidence-drift` cannot
+be reached through the real producers. `cite` refuses an unstable span, and a moved cited span makes
+the evidence file an unbindable hunk. The frontier deleted state and part of its stable, stale,
+ambiguous and unknown coverage use hand-authored fixtures that the runner skips by capability. OCM and
+frontier have no own-profile N-1, because each is the first frozen version of its wire. Their
+upstream N-1 is `cem/0.1`: OCM reads it, and the frontier refuses it with
+`unsupported-frontier-context`. The V1-0010 daily-loop dependency remains open. The freeze
+promotes no profile.
+
+Moving `CF-V0-034` into `change-frontier-v0.md` shifted two cited line ranges. They were
+re-pointed to the same text in `harness-authority-relation-v0.md` and
+`change-frontier-profile-1.md`.
+
+Verification: 11 affected packages passed `go test`, and `go vet` passed. The `interop/cem01-go`
+tests and vet passed. The focused-docs gate passed. `make gate` (full-gate) and interop-gate were
+NOT_RUN, per owner policy for scoped ticket work.
+## 2026-09-22 V1-0001 PRS-V1-001..PRS-V1-012: draft Corvint 1.0 scope for owner ratification
+
+Ticket V1-0001 drafts `docs/specs/corvint-1.0-product-and-release-v1.md` (`PRS-V1`), labelled
+DRAFT pending owner acceptance. It defines 1.0 Core as the local change-evidence loop (`init`,
+`adopt`, `index`, `query`, `context`, `impact`, `affected`, `prove`), the CEM/OCM/frontier proof
+wire and the dogfood loop; lists companions; proposes darwin/arm64 and linux/amd64 as Core
+platforms, darwin/amd64 and linux/arm64 as FALLBACK and Windows as UNSUPPORTED; classifies every
+top-level verb, `cmd/` binary and integration tree at the base commit; and proposes dispositions
+for V1-0014 (post-1.0, no interoperability claim), V1-0019 (Core blocker, owner-closable), host
+FULL/authority tuples (post-1.0) and `PUB-V0-020`/V1-0004 (companion), each with the
+`public-release-v0.md` amendment it needs. Eleven yes/no owner questions close the draft.
+`public-release-v0.md` gains only a "Proposed v1 amendment" pointer and `docs/PRODUCT.md` only a
+pointer sentence; no `PUB-V0` requirement changes. Owner acceptance: `NOT_PRODUCED` (pending; no
+decision file is created for a draft). The linux/amd64 native lifecycle stays `NOT_RUN`, and the
+0.7.0 N-1 upgrade failure at SOP-V0-003 `upgrade-b` remains an open 1.0 compatibility blocker.
+Verification is the focused-docs gate and the `internal/specindex` tests; no behaviour changed.
+## 2026-09-22 V1-0027 EEP-V0-020/021/022: kit 0.2.0 profile contract and two-transport proof
+
+Re-audit of kit 0.1.0 found three open acceptance gaps. The checker's schema comparison used Go's
+last-value-wins decoding, so a record repeating its top-level `schema` (first `/3`, then `/1`)
+passed a `/1` pin, and unsupported and mismatched profiles shared one reason. The kit's
+two-transport comparison ran only in-process, not through a `corvint impact` binary, and no script
+proved authoring from the kit directory alone. Kit 0.2.0 (`EEP-V0-020`) versions the kit separately
+from provider revisions. It keeps the exact `/0`, `/1`, `/2` window and gives ambiguous (repeated
+member, or pinned origin claimed twice), unsupported and mismatched profiles distinct refusals.
+`TestProviderKitProfileReasons` pins the checker outcome for each of the valid, stale, malformed,
+ambiguous, repository-mismatched and unsupported classes. The standard-library runner (`EEP-V0-021`)
+builds a copied `main.go` offline and runs 9 cases through `impact --provider` and
+`--provider-command`. Each case produced an equal external section apart from `source`, a core
+receipt equal to the no-provider receipt, `mutates` false and its pinned outcome.
+
+Clean-checkout proof (`EEP-V0-022`): `sh examples/evidence-provider/v0/authoring-proof.sh
+LOCAL_CLONE 8bd9cc3d979e39129c728cd1d75b0e433ee964a3 CORVINT` (a local clone) sparse-checked-out
+only the kit directory, built the runner and provider offline and passed all 9 cases. It passed
+against a Corvint built from that commit and against the installed 0.7.0 build 46. A copy authored
+as `authored-docs` revision `1.4.2` passed the same runner. Core `impact` still decodes a repeated
+member as its last value. Changing that is a Core behaviour change outside this slice and is
+reported as a follow-up. Default product unchanged: no file under `cmd/`, no flag, wire or receipt
+changed, and `ReadPinned` has no caller outside the kit checker.
+
+Focused verification: `go test` of the kit packages, `internal/extevidence`, `internal/specindex`
+and `cmd/corvint`, `go vet` of the same, and the focused-docs gate. Full gate and interop gate
+NOT_RUN (owner policy for scoped work). Pre-change dogfood collection NOT_RUN. V1-0013 freeze,
+owner acceptance, independent review and external validation NOT_OBSERVED. The fixtures are
+synthetic.
+## 2026-09-22 CEM-PILOT-020..023 / decision 0356: portable digest-pinned CEM CI verifier (V1-0015)
+
+`interop/cem01-go` gains a `ci` mode. It derives the exact base-to-head patch with the
+`docs/CEM-CI.md` profile and reads `.corvint/change.cem.json` from the head tree. `verify` makes
+every structural and drift decision. The mode writes one fixed-schema `cem-ci-report/0` line. The
+`verify` ABI (CEM-GO-002) is unchanged. `examples/cem/github-actions-portable.yml` and
+`verify-portable.sh` pin the module pseudo-version and the built executable's SHA-256, check the
+digest before execution, and verify under `unshare --net`. `examples/cem/README.md` is the runbook.
+
+Measured locally on darwin/arm64 with Go 1.27.1:
+
+- `TestCIVerdictsAndExits` gives the eight fixture cases their distinct exits: accepted 0, unsafe
+  drift and invalid map 1, map absent and unknown hunk 3, `cem/0.2` 4, base mismatch and absent
+  head 5.
+- Each report is byte-identical across two runs, is one line under 6 MiB, and contains none of the
+  fixture's base or head source lines.
+- `TestCIReportWorstCaseBound` keeps a 4096-item, 512-byte-path report under the bound.
+- `TestCIPortableWorkflowOffline`:
+  - Two fresh-cache `go install -trimpath` runs from a local file proxy produce the same digest.
+  - A stub whose digest mismatches exits 2 and is never executed.
+  - Under `sandbox-exec (deny network*)`, which refused a probe connection to a loopback listener,
+    the script returns the in-process report byte for byte.
+- A linux/amd64 cross-compile from the same file proxy produced the same SHA-256 in two fresh
+  caches.
+- Reviewer-observed, not reproduced by the author: the independent reviewer of PR #75 resolved the
+  pseudo-version from `proxy.golang.org`. Two fresh-cache linux/amd64 cross-compiles gave the same
+  SHA-256, `42a0a316…294b0e` (abbreviated as reported).
+
+Failed evaluation, retained: a reinstall with `GOPROXY=off` fails because `go install
+MODULE@VERSION` looks up deprecation, so it cannot show offline reproducibility.
+
+`NOT_RUN`:
+- a fetch from `proxy.golang.org`;
+- the GitHub-hosted `sudo -E unshare --net -- setpriv` step;
+- the linux `unshare --user --net` branch of the test;
+- equality of a darwin cross-compile with a native linux/amd64 build (inferred only).
+
+`NOT_PRODUCED`: a published pseudo-version and executable digest for the workflow placeholders.
+
+V1-0014 (independent producers and consumers) is an external dependency, not a blocker.
+## 2026-09-22 V1-0002: roadmap reconciled to the task store as the one execution authority
+
+Status audit and repair, not capability promotion. `ROADMAP.md` now opens by naming the Corvint task
+store `.taskman/` as the only live execution status, with its read commands, and declares every
+checkbox, `Status` line and selection in the body history as of `1894b9e`. The body is kept in place
+because specifications cite it by line (`compat-trial-v0.md`, `compat-replay-runner-v0.md`); the
+preamble keeps its seven-line length so those citations still land on the same text. A generated
+disposition table at the end maps all 131 `docs/specs/INDEX.json` entries and all 46 shipped verbs
+(42 `topLevelCommands` plus four dispatcher-only) to implemented / experimental / proposed / deferred /
+superseded / dropped / reading aid, derived from each index `delivery`, `intent` and `supersededBy`,
+plus the non-archived tickets whose touch paths name the spec or the verb's source file. Three broken
+roadmap paths are repaired (`docs/reviews/nextgen-wave1-2026-09-05.md` to decisions 0073/0075/0078,
+`benchmarks/dogfood_measure.py` to `benchmarks/dogfood-measure`, the `workflow-screening-v0` pair).
+Both `docs/plans` files gain a one-line header that supersedes them as execution status only; their
+owner intent is unchanged. `INDEX.json` `implementation` lists drop 20 retired Python/experiment paths
+that no longer exist in the tree; four entries left empty are repointed to the Go packages that cite
+their requirement IDs or dispatch them (`internal/genesis` with `cmd/corvint/init_adopt.go`,
+`internal/contextindex` with `internal/worktreeimpact`, `benchmarks/dogfood-measure`, `internal/tcq`).
+No spec body, intent or delivery value changes. Verified: focused-docs gate, `internal/specindex`,
+`internal/console`, `internal/companionrelease` tests and vet. `make gate` `NOT_RUN` (owner policy).
+Dogfood: bound with intent `docs/specs/corvint-self-development-v0.md`; every dogfood-change step `PRODUCED`
+(20/20 hunks supported), dogfood-check passed and `make dogfood-seal` sealed the CEM. An earlier attempt with
+`docs/specs/README.md` and `docs/SPEC-DRIVEN-DEVELOPMENT.md` was refused `invalid-requirements-section`.
+V1-0001 (scope ratification) remains open, so the dispositions reflect the index, not ratified 1.0 scope.
+
 ## 2026-09-22 AFU-V0-001..AFU-V0-012: experimental web flow understanding
 
 The owner requested application-flow understanding, test-gap mapping and runtime confirmation, then

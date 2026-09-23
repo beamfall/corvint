@@ -3,18 +3,19 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `SOP-V0`
-Intent status: accepted (decision 0341, 2026-09-22)
+Intent status: accepted (decision 0341, 2026-09-22; `SOP-V0-003` and `SOP-V0-009` amended by decision 0360, 2026-09-23)
 Delivery status: implemented
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 7, `../decisions/0341-stable-operations-qualification-2026-09-22.md`,
+`../decisions/0360-cross-version-lifecycle-and-memory-rows-2026-09-23.md`,
 `public-release-v0.md` (`PUB-V0-025`/`PUB-V0-026` install lifecycle and hostile store),
 `release-artifact-integrity-v0.md` (archive layout and checksum manifest), `index-snapshot-v0.md`
 (snapshot miss semantics), `../INSTALL.md`, `../RELEASE-RUNBOOK.md`, `../../SECURITY.md`.
 
 ## Agent digest
 - Claim: Install lifecycle, corrupted-snapshot recovery and a named hostile-regression matrix run locally as release-blocking checks with NOT_COVERED gaps stated.
-- Status: accepted (decision 0341, 2026-09-22) / implemented
-- Exists: `script/check-install-lifecycle.sh` + `_test.sh`, `script/check-hostile-regressions.sh` + `_test.sh`, `docs/RELEASE-RUNBOOK.md`, the support window in `SECURITY.md`, the recovery contract in `docs/INSTALL.md`.
-- Blocked on: `make` targets for the two checks (Makefile is outside this change); native evidence on hosts other than darwin arm64; the `memory` and `case-folds-context-index` categories have no regression.
+- Status: accepted (decision 0341, 2026-09-22; `SOP-V0-003` and `SOP-V0-009` amended by decision 0360, 2026-09-23) / implemented
+- Exists: `script/check-install-lifecycle.sh` + `_test.sh`, `script/check-hostile-regressions.sh` + `_test.sh`, their `make` targets, `docs/RELEASE-RUNBOOK.md`, the support window in `SECURITY.md`, the recovery contract in `docs/INSTALL.md`.
+- Blocked on: linux amd64 lifecycle evidence (NOT_RUN); native linux hardware (linux arm64 ran in a container); darwin amd64 ran only under Rosetta 2; whole-process resident memory (`memory-resident`) has no regression.
 - Read next: Requirements; Acceptance criteria and testing matrix.
 
 ## Human intent and scope
@@ -48,6 +49,21 @@ Measured on 2026-09-22, darwin arm64, Go 1.27.1, at the introducing commit:
   `verification-report.json` (`release-artifact-integrity-v0.md`); the installer refuses a case-fold
   alias of an existing store entry (`internal/releasecandidate/operations.go:180@1161e39d`).
 
+Measured on 2026-09-23 at `1894b9e5` (decision 0360), archives from
+`go run ./conformance/release-artifact-v0 archive` at that commit (stamped `0.7.0 (build 12)`):
+
+- The 0.6.0 (build 90) to 0.7.0 upgrade failed `upgrade-b` under the 0341 rule because 0.7.0 adds
+  `coverage.governance_refused` and an evidence `trust` field (decision 0346) to the packet; the
+  byte-identity rule held only for same-version upgrades. Under the amended `SOP-V0-003` the N-1
+  run passes with `packet=changed` on darwin arm64, linux arm64 (container) and darwin amd64
+  (Rosetta 2); same-bytes archive runs pass on the same three.
+- A build over a tracked source of 64,000,000 bytes allocates about 2.5 MB of Go heap; with the size
+  exclusion disabled it allocates 514 MB, which the `memory` row's 16 MiB bound refuses.
+- Two tracked paths differing only by case fold into one worktree file on darwin APFS; the index
+  pins each to its own blob. Either the Git dirty set or the worktree oid check alone preserves
+  that; the `case-folds-context-index` row fails only when both are removed. On a case-sensitive
+  filesystem the row skips and reports NOT_RUN.
+
 ## Requirements
 
 - `SOP-V0-001`: The install-lifecycle check MUST accept either one release archive whose single root
@@ -57,10 +73,15 @@ Measured on 2026-09-22, darwin arm64, Go 1.27.1, at the introducing commit:
 - `SOP-V0-002`: The check MUST create a committed fixture repository in its own temporary directory,
   run `corvint index` there and require `"ok":true` and exactly one snapshot under
   `.corvint/index`, then capture one read-verb packet whose bytes every later step is compared to.
-- `SOP-V0-003`: An upgrade MUST install into a second store beside the first, run `corvint index
-  --if-stale` and the read verb through the new store, and require byte-identical packet output. The
-  first store MUST remain executable and, run again (rollback), MUST produce the same packet bytes.
-  A run without `CORVINT_LIFECYCLE_UPGRADE_BINARY` MUST report the upgrade as `same-bytes`.
+- `SOP-V0-003`: An upgrade MUST install into a second store beside the first and run `corvint
+  index --if-stale` and the read verb through the new store. A run without
+  `CORVINT_LIFECYCLE_UPGRADE_BINARY` MUST report the upgrade as `same-bytes` and require the first
+  packet's bytes. With it, the upgrade's packet MUST be non-empty, the cold `corvint index` of a
+  clone of the fixture at the same commit MUST report `ok`, the packet MUST be byte-identical to the
+  one the upgrade binary produces from that cold index, and the step MUST report
+  `packet=identical` or `packet=changed` against the first packet, since a newer release may change
+  the packet wire. The first store MUST remain executable and, run again after the upgrade wrote its
+  own snapshot (rollback, the downgrade path), MUST produce the first packet's bytes.
 - `SOP-V0-004`: Uninstall is removal of the store directories. Afterwards the fixture's tracked tree
   MUST be unchanged (`git diff --quiet HEAD` and empty `git status --porcelain`) and `.corvint/index`
   MUST still exist.
@@ -82,9 +103,9 @@ Measured on 2026-09-22, darwin arm64, Go 1.27.1, at the introducing commit:
   `--list` MUST print the matrix and the NOT_COVERED rows without running anything.
 - `SOP-V0-009`: A category with no tracked regression MUST be printed as
   `category=<name> status=NOT_COVERED reason=<text>` in both `--list` and run output, MUST be listed
-  in this spec, and MUST NOT be represented by a proxy test. Current entries: `memory` (no test bounds
-  resident memory) and `case-folds-context-index` (no test covers tracked paths differing only by
-  case in the context index on a case-insensitive worktree).
+  in this spec, and MUST NOT be represented by a proxy test. Current entry: `memory-resident` (no
+  test bounds whole-process resident memory or git child memory; the `memory` row bounds only the Go
+  heap one index build allocates).
 - `SOP-V0-010`: `SECURITY.md` MUST state the private reporting channel, the acknowledgment window,
   the in-scope classes, and the support window: while the version is 0.x only the latest published
   release receives security fixes, and the 1.0 support window is set by the owner at V1-0021.
@@ -114,13 +135,15 @@ tree; neither check reads the network.
 |---|---|
 | `SHA256SUMS` row mismatches or is missing | `step install-a: FAIL`, exit 1, nothing else runs (SOP-V0-001) |
 | Packet bytes differ after upgrade, rollback, restore or corruption | that step FAILs naming the comparison; exit 1 |
+| The upgrade's read verb exits 0 with no packet, or its cold index does not report `ok` | `upgrade-b` FAILs "read verb produced no packet" or "cold index did not report ok"; exit 1 (SOP-V0-003) |
+| A distinct upgrade's packet differs from its own cold-index packet | `upgrade-b` FAILs "packet bytes differ from the upgrade's cold-index packet"; exit 1 (SOP-V0-003) |
 | A read verb rewrote a damaged snapshot | `corrupt-*` FAILs "a read verb rewrote the snapshot" (SOP-V0-006) |
 | Rebuilt snapshot size differs from the original | `corrupt-*` FAILs; a size change is a format change that needs a spec update |
 | Neither `CORVINT_LIFECYCLE_ARCHIVE` nor `CORVINT_LIFECYCLE_BINARY` set, or an argument given | usage, exit 2 |
 | Matrix test skipped by a build tag or `t.Skip` | counted NOT_RUN in its row; a row with no pass is `status=NOT_RUN` and does not fail the run (SOP-V0-007) |
 | Matrix test renamed or deleted | the wrapper test fails naming it; the check itself reports NOT_RUN (SOP-V0-008) |
 | Corrupt data outside `.corvint/index` (tickets, traces, evidence) | out of scope; `docs/INSTALL.md` requires a consistent backup |
-| Host other than darwin arm64 | no native evidence in this change; NOT_RUN, not implied |
+| Host without a recorded run | NOT_RUN, not implied; 2026-09-23 runs are listed under Verified current state |
 
 ## Acceptance criteria and testing matrix
 
@@ -132,7 +155,7 @@ Lifecycle steps are `install-a`, `first-index`, `upgrade-b`, `rollback-a`, `unin
 |---|---|
 | SOP-V0-001 | wrapper case 1 (binary), case 2 (archive root `corvint_test_host`), case 3 (tampered `SHA256SUMS` fails at `install-a`, no `first-index` line, exit 1) |
 | SOP-V0-002 | step `first-index` in cases 1 and 2; snapshot miss/hit semantics `internal/contextindex/snapshot_test.go:47@9ea4ec57` |
-| SOP-V0-003 | case 1 asserts `upgrade-b` ran `(build 2)` and no `same-bytes`; case 2 asserts `same-bytes`; installer coexistence `internal/releasecandidate/install_test.go:16@90e57d5e`, `internal/releasecandidate/operations_test.go:44@5dca69d1` |
+| SOP-V0-003 | case 1 asserts `upgrade-b` ran `(build 2)`, `packet=identical` and no `same-bytes`; case 2 asserts `same-bytes`; case 5 (stubbed wire change passes with `packet=changed`, an unreproducible packet and an empty packet each fail at `upgrade-b` with exit 1); installer coexistence `internal/releasecandidate/install_test.go:16@90e57d5e`, `internal/releasecandidate/operations_test.go:44@5dca69d1` |
 | SOP-V0-004 | step `uninstall` in cases 1 and 2 |
 | SOP-V0-005 | step `backup-restore` in cases 1 and 2; round trip `internal/contextindex/snapshot_test.go:180@4e378161` |
 | SOP-V0-006 | steps `corrupt-truncate` and `corrupt-overwrite`; unit-level miss `internal/contextindex/pack_test.go:206@b2b8420d` |
@@ -174,8 +197,9 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | secret-screening | `internal/trace` | `internal/trace/record_test.go:282@382ada39` |
 | secret-screening | `internal/contextindex` | `internal/contextindex/history_test.go:144@b551779f` |
 | corrupted-derived-state | `internal/contextindex` | `internal/contextindex/pack_test.go:206@b2b8420d`, `internal/contextindex/blob_shards_test.go:84@b82cb217`, `internal/contextindex/termtable_test.go:170@263288af`, `internal/contextindex/analyzer_schema_test.go:93@f88f0dea` |
-| memory | — | NOT_COVERED: no regression bounds resident memory; the input-size bounds under bounded-output are a proxy, not a memory limit |
-| case-folds-context-index | — | NOT_COVERED: no regression covers tracked paths that differ only by case in the context index on a case-insensitive worktree |
+| memory | `internal/contextindex` | `internal/contextindex/hostile_operations_test.go:15@e9500863` |
+| case-folds-context-index | `internal/contextindex` | `internal/contextindex/hostile_operations_test.go:43@4e6c4427` (skips, so NOT_RUN, on a case-sensitive filesystem) |
+| memory-resident | — | NOT_COVERED: no regression bounds whole-process resident memory or git child memory; the memory row bounds the Go heap one index build allocates |
 
 Related installer evidence outside the matrix, because it is not hostile-input: probe failure
 cleanup `internal/releasecandidate/operations_test.go:160@155b3bc9`.
@@ -186,7 +210,7 @@ cleanup `internal/releasecandidate/operations_test.go:160@155b3bc9`.
 |---|---|---|
 | SOP-V0-001 | `install`, `verify_sums`, `install_from_archive` in `script/check-install-lifecycle.sh` | wrapper cases 1–3 |
 | SOP-V0-002 | `make_fixture`, `index`, `read_packet`; `TestSnapshotHitAndMissUseStatusDirtyPaths` | wrapper cases 1–2 |
-| SOP-V0-003 | steps 3–4 of the same script; `TestPUBV0025VersionedInstallCoexistsAndNeverReplaces`, `TestPUBV0025RecoveryLifecycle` | wrapper cases 1–2 |
+| SOP-V0-003 | steps 3–4 of the same script; `TestPUBV0025VersionedInstallCoexistsAndNeverReplaces`, `TestPUBV0025RecoveryLifecycle` | wrapper cases 1, 2 and 5 |
 | SOP-V0-004 | step 5 | wrapper cases 1–2 |
 | SOP-V0-005 | step 6; `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree` | wrapper cases 1–2 |
 | SOP-V0-006 | `corrupt_and_recover`; `TestPackSnapshotRefusesCorruptionTruncationAndOutOfRangeAsAMiss` | wrapper cases 1–2; measured 460-byte non-identity recorded above |
@@ -199,15 +223,18 @@ cleanup `internal/releasecandidate/operations_test.go:160@155b3bc9`.
 
 ## Rollout, rollback, and drift
 
-Both checks are additive scripts with no Go change; rollback is deleting the four scripts and this
-spec's rows. The wrapper tests fail when a matrix test is renamed, so a rename edits the matrix, this
+Both checks are additive scripts; the only Go is test code. Rollback is deleting the four scripts,
+`internal/contextindex/hostile_operations_test.go` and this spec's rows; reverting decision 0360
+alone restores the byte-identity upgrade rule, which fails every release that changes the packet
+wire. The wrapper tests fail when a matrix test is renamed, so a rename edits the matrix, this
 spec's table and the anchor in the same change. A snapshot format change that alters the rebuilt
 size fails `corrupt-*` and must update `SOP-V0-006`. The `make` targets `install-lifecycle-test`,
-`hostile-regressions-check` and `hostile-regressions-test` are proposed, not present, until the
-Makefile owner adds them.
+`hostile-regressions-check` and `hostile-regressions-test` run the checks; none is a `make gate`
+step, so they are release-blocking through runbook step 8.
 
 ## Unresolved
 
-Native runs on linux amd64/arm64 and darwin amd64 are NOT_RUN; the `memory` and
-`case-folds-context-index` categories need new tests before they leave NOT_COVERED; whether a
-rebuilt snapshot should be byte-identical to its first build is a question for `index-snapshot-v0.md`.
+Linux amd64 is NOT_RUN (no amd64 container image on the measuring host), linux arm64 ran only in a
+container and darwin amd64 only under Rosetta 2; `memory-resident` needs a whole-process measure
+before it leaves NOT_COVERED; whether a rebuilt snapshot should be byte-identical to its first build
+is a question for `index-snapshot-v0.md`.

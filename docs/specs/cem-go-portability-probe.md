@@ -60,6 +60,8 @@ authored both this probe and the reference implementation.
 The baseline is the existing raw kit plus Corvint's Python reference attestation. This slice does not
 add a producer, library SDK, package distribution, CEM 0.2 support, report renderer, policy engine,
 custom Git object reader, CI service, database, network service, or external-adoption claim.
+The later `ci` mode is governed by `CEM-PILOT-020`..`023` in `cem-pilot-kit.md` (decision 0356);
+it adds a separate command and leaves the `verify` process ABI unchanged.
 
 ## Failure, rollout, and rollback
 

@@ -114,6 +114,12 @@ func run(dir string, check bool) error {
 			return fmt.Errorf("item %s: recorded ID does not reproduce", it.ID)
 		}
 	}
+	if err := m.ValidateStates(fx, cv.Vectors); err != nil {
+		return err
+	}
+	if err := m.ValidateArtifacts(dir); err != nil {
+		return err
+	}
 	fmt.Println("\nall vectors and fixtures validate")
 	return nil
 }

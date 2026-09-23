@@ -277,6 +277,17 @@ repository workflow labels a result `"assurance":"canonical"` after independentl
 base and target, deriving the patch, and applying target-side artifact binding. CEM 0.1 result
 envelopes remain unchanged and omit this field.
 
+**Frozen minimum proof wire (2026-09-22).** The minimum portable proof wire is frozen as of
+2026-09-22 (decision 0357): `cem/0.2` with its N-1 `cem/0.1` reader, pinned by
+[`../protocol/cem-0.2/manifest.json`](../protocol/cem-0.2/manifest.json) (`CEM-CB-025`);
+`ocm/0.1-experimental`, pinned by `conformance/ocm-v0/` (`OCM-V0-014`, `OCM-V0-015`); and
+`frontier/0` with `frontier-error/0`, pinned by `conformance/frontier-v0/` (`CF-V0-034`). Each
+packet pins its vector files by SHA-256 and pins the stable, relocated, stale, ambiguous, deleted
+and unknown states of this section's drift rules. A frozen vector never changes: a wire change takes
+a new exact `spec` identifier, whose reader must still read the frozen N-1 vectors. `cem/0.3` is not
+part of the frozen minimum and keeps its experimental status. The freeze fixes conformance bytes; it
+does not promote any profile.
+
 ## Minimal integration
 
 The complete producer/verifier surface is deliberately four operations:

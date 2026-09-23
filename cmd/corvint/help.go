@@ -262,6 +262,8 @@ Usage:
   corvint [--root PATH] prove --verify-cem-attestation ENVELOPE --attest-public-key PEM
     [--cem MAP]
   corvint [--root PATH] prove --checkpoint FILE
+  corvint [--root PATH] prove --export-bundle (--task TEXT [...] | --checkpoint FILE)
+  corvint [--root PATH] prove --replay-bundle FILE
   corvint [--root PATH] prove-observe < PROOF
   corvint [--root PATH] witness --base REV [--head REV] [--cem MAP] [--json]
   corvint test-validity [--receipt FILE]
@@ -344,7 +346,7 @@ Global options:
   --version    Print the Corvint version and build number.
   --help       Print this help on stdout and exit 0.
 
-Support boundary:
+` + commandMaturityHelp + `Support boundary:
   This binary is the only Corvint runtime and implements only the slices listed
   above; commands marked Experimental carry no stability promise. init, adopt, query, feature, and impact are qualified only on Darwin and
   Linux. All commands are local-only and make no network or telemetry request.
@@ -753,6 +755,20 @@ PEM: VERIFIED when --cem MAP bytes match, else NOT_RUN (cem-bytes-not-supplied).
 It exits 2 with attest-public-key-unavailable, attest-envelope-unavailable,
 attest-verification-failed, attest-cem-mismatch, or map-unavailable.
 
+Experimental failure bundles (decision 0361):
+  corvint [--root PATH] prove --export-bundle (--task TEXT [...] | --checkpoint FILE)
+  corvint [--root PATH] prove --replay-bundle FILE
+
+--export-bundle prints one historical corvint-failure-bundle/0 JSON document
+to stdout, never a file: the exact arguments, HEAD commit, tree and cited blob
+ids, the engine version and profile, the checkpoint bytes, and the original
+receipt or refusal. It needs a clean worktree and refuses secret-shaped text
+(bundle-secret-detected) and bundles over 8 MiB. --replay-bundle reruns it on
+this checkout and prints a historical corvint-failure-replay/0 report,
+reproduced (exit 0) or diverged (exit 1), or exits 2 with invalid-bundle,
+unsupported-version, tampered, missing-input, incompatible-engine,
+missing-git-object, drift, or mixed-worktree. Neither is a fresh proof.
+
 proof.ledger is the repository's falsification rate: the share of judged
 rows (PASS or FAIL) that failed, over every proof recorded with
 prove-observe, which reads a prove document on stdin and appends only its
@@ -1116,4 +1132,25 @@ advisory affected advice and local refs/heads overlap hints; max-refs is 1..32.
 Missing sources, index data and bounded branch paths remain unknown. No scripts,
 tests or suggestions execute. No index, trace or observation ledger is written.
 CEM, OCM, frontier and mandatory test obligations remain open.
+`
+
+// commandMaturityHelp is the root-help section that names the frozen Core verbs and labels every
+// other dispatched verb Experimental with its owning spec prefix (CCF-V1-008).
+const commandMaturityHelp = `Command maturity:
+  Core (decision 0332, contract CCF-V1 in
+  docs/specs/core-compatibility-freeze-v1.md); only the modes and profiles that
+  contract lists are frozen:
+    init, adopt, index, query, context, impact, affected, prove, cem, ocm,
+    frontier, dogfood
+  Experimental, no stability promise; the owning spec prefix is in parentheses:
+    feature (GPK-V0), eval (REC-V0), lrf (LRF-V0), record (LTPM-V0),
+    migrate-traces (LTPM-V0), harness (AHI), work (WQO-V0), adapter (AHI),
+    dogfood-ocm (OCM-V0), observations (SOL-V0), obligations (EFO-V0),
+    prove-observe (SOL-V0), batch (SBQ-V0), docs (SDD-V0),
+    depsource (DSE-V0), necessity (NEC-V0), surprise (TSS-V0),
+    answerability (RDS-V0), kernel (CKN-V0), lease (SCL-V0), reads (URE-V0),
+    calibrate (OCL-V0), witness (AGW-V0), test-validity (MTV-V0),
+    features (RGV-V0), overview (RGV-V0), review (RGV-V0),
+    migration-ratchet (MER-V0), flows (AFU-V0), skill-export (LTA-V0)
+
 `

@@ -24,12 +24,10 @@ listing=$("$script" --list) || fail "--list failed"
 for name in $(printf '%s\n' "$listing" | sed -n 's/^category=[^ ]* package=[^ ]* tests=//p' | tr ',' '\n'); do
   (cd "$source_root" && git grep -q -E "^func $name\(" -- '*_test.go') || fail "$name is not a tracked test function"
 done
-for category in hostile-repository paths symlinks case-folds bounded-output time interruption-cleanup secret-screening corrupted-derived-state; do
+for category in hostile-repository paths symlinks case-folds case-folds-context-index bounded-output memory time interruption-cleanup secret-screening corrupted-derived-state; do
   printf '%s\n' "$listing" | grep -q "^category=$category package=" || fail "category $category is not listed"
 done
-for category in memory case-folds-context-index; do
-  printf '%s\n' "$listing" | grep -q "^category=$category status=NOT_COVERED reason=." || fail "category $category is not listed as NOT_COVERED"
-done
+printf '%s\n' "$listing" | grep -q "^category=memory-resident status=NOT_COVERED reason=." || fail "category memory-resident is not listed as NOT_COVERED"
 case $listing in
   *"status=PASS"*|*"status=FAIL"*) fail "--list ran something: $listing" ;;
 esac
@@ -80,7 +78,7 @@ printf '%s\n' "$output" | grep '^category=.* package=' | while read -r line; do
   passed=$(printf '%s' "$line" | sed 's/.* pass=\([0-9]*\) .*/\1/')
   test "$tests" = "$passed" || fail "pass count differs from test count: $line"
 done
-printf '%s\n' "$output" | grep -q '^category=memory status=NOT_COVERED' || fail "NOT_COVERED rows missing from a run"
+printf '%s\n' "$output" | grep -q '^category=memory-resident status=NOT_COVERED' || fail "NOT_COVERED rows missing from a run"
 rows=$("$script" --list | grep -c '^category=.* package=')
 test "$(wc -l < "$test_root/go.log" | tr -d ' ')" = "$rows" || fail "go was invoked $(wc -l < "$test_root/go.log") times for $rows rows"
 expected="GOTOOLCHAIN=local cwd=$source_root args=test -count=1 -v -run ^(TestInventoryDoesNotClaimAbsenceOverUnsafePathEntries|TestInventoryDoesNotReadUnsafePathBlobs|TestSummaryOrdersUnsafePathSamplesWithoutPanicking)\$ ./internal/genesis"

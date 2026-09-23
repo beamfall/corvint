@@ -112,6 +112,22 @@ research direction only.
   team memory.
 - `PCCO-V0-014`: Profiles are advisory performance artifacts, never project authority, accepted
   intent, behavioral claims, test evidence, CEM/OCM witnesses, or Frontier-closing relations.
+- `PCCO-V0-015`: (proposed for V1-0012, not accepted) A correctness or cost comparison of the daily
+  change-evidence loop MUST be preregistered before its first corpus observation. The
+  preregistration names the jobs, an immutable corpus of commit IDs with its deterministic
+  derivation rule, the fixed baseline, thresholds, exclusions, invalidation rules, and the SHA-256
+  of the corpus and harness. Its own SHA-256 is the seal, committed before any run. A run refuses
+  when a sealed digest or the corpus re-derivation differs.
+- `PCCO-V0-016`: (proposed for V1-0012, not accepted) Each run MUST emit one result binding the
+  preregistration, corpus, candidate commit, and candidate binary digests, and one
+  `corvint-use-case-evidence/0` sealed-benchmark receipt per job whose outcome is that job's
+  measured PASS or FAIL. Every run file and receipt is kept, including failing ones. A harness
+  change after the first observation is a new run with the deviation recorded.
+- `PCCO-V0-017`: (proposed for V1-0012, not accepted) A cost-reduction claim is retained only when
+  complete task cost is observed for both arms and meets this spec's promotion-gate cost thresholds
+  with zero treatment-only critical misses; otherwise the result reads "measured, no savings
+  claim". Complete task tokens and human failure rate stay `NOT_OBSERVED` without a live
+  model-driven agent or human reviewer and are never estimated from latency or byte counts.
 
 ## Promotion gate
 
@@ -154,3 +170,4 @@ local dogfood and held-out evaluation.
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | `PCCO-V0-001..014` | not started | observation authority, frozen corpus, hostile manifest vectors, three-baseline held-out trial |
+| `PCCO-V0-015..017` (proposed, not accepted) | `benchmarks/daily-loop-v0/harness.py` with the sealed `preregistration.json` and `corpus.json` | run results and receipts under `benchmarks/daily-loop-v0/runs/` and `receipts/`; `docs/BUILD-LOG.md` V1-0012 entry |

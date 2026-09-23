@@ -5,7 +5,7 @@ Date: 2026-09-01
 Requirement prefix: `FPK-V0`
 Intent status: accepted (decision 0052)
 Delivery status: experimental
-Revision status: revision 21 (FPK-V0-033 to FPK-V0-036 add a versioned `cem/v1` in-toto CEM predicate that also binds the base revision and patch, its verifier, a digest-pinned interop consumer with the known deviations from the OpenSSF generation draft, and an optional external Sigstore step; revision 20 FPK-V0-037 to FPK-V0-040 add an explicit `cem anchor` notes-ref mutation for a committed CEM and a read-only `cem provenance` that reads the anchor, a foreign Git AI `refs/notes/ai` note, and `Assisted-by`/`Agent-Logs-Url` trailers as untrusted `repository-history`; revision 19 FPK-V0-032 stamps one trust class on every proof row and refuses a tainted row as a basis; revision 18 FPK-V0-015 and FPK-V0-030 refuse repeated and case-variant JSON member names in a signed envelope and CEM statement; revision 17 FPK-V0-030 refuses a signed CEM claim `CEMStatement` could not have produced; revision 16 restated FPK-V0-021 and FPK-V0-024 rationale against the implemented checkpoint branch)
+Revision status: revision 22 (FPK-V0-041 to FPK-V0-049 add an explicit, bounded, secret-screened `prove --export-bundle` failure-reproduction bundle for query and checkpoint results, a `prove --replay-bundle` that recomputes it on a second checkout or refuses with a named reason, and a `historical` marker that `prove-observe` refuses; revision 21 FPK-V0-033 to FPK-V0-036 add a versioned `cem/v1` in-toto CEM predicate that also binds the base revision and patch, its verifier, a digest-pinned interop consumer with the known deviations from the OpenSSF generation draft, and an optional external Sigstore step; revision 20 FPK-V0-037 to FPK-V0-040 add an explicit `cem anchor` notes-ref mutation for a committed CEM and a read-only `cem provenance` that reads the anchor, a foreign Git AI `refs/notes/ai` note, and `Assisted-by`/`Agent-Logs-Url` trailers as untrusted `repository-history`; revision 19 FPK-V0-032 stamps one trust class on every proof row and refuses a tainted row as a basis; revision 18 FPK-V0-015 and FPK-V0-030 refuse repeated and case-variant JSON member names in a signed envelope and CEM statement; revision 17 FPK-V0-030 refuses a signed CEM claim `CEMStatement` could not have produced; revision 16 restated FPK-V0-021 and FPK-V0-024 rationale against the implemented checkpoint branch)
 Authoritative inputs: `docs/plans/BREAKTHROUGH-BET-2026-09-01.md` (the bet this is slice 1 of),
 `docs/reviews/FABLE-5.1-AUDIT-2026-09-01.md` (F2, F3), `docs/specs/go-production-kernel-migration-v0.md`
 (GPK-V0-002 exact parity of the `query` wire), `conformance/cli-parity-v0` (byte-exact replay of committed
@@ -16,7 +16,7 @@ expectations; its Python oracle was retired by decision 0088), `docs/decisions/0
 ## Agent digest
 - Claim: `corvint prove` embeds the unchanged query packet and attaches a mechanical falsifier and PASS/FAIL/NOT_RUN verdict beside every evidence row.
 - Status: accepted (decision 0052)/experimental
-- Exists: `cmd/corvint/prove.go` and its test files, `internal/liveverify/pyresolve`, `internal/liveverify/jsresolve`, `internal/liveverify/mutate`, `internal/liveverify/pymutate`, `internal/attest`, help topic `prove`; `cmd/corvint/prove_trust.go` (FPK-V0-032 trust class, proposed).
+- Exists: `cmd/corvint/prove.go` and its test files, `internal/liveverify/pyresolve`, `internal/liveverify/jsresolve`, `internal/liveverify/mutate`, `internal/liveverify/pymutate`, `internal/attest`, help topic `prove`; `cmd/corvint/prove_trust.go` (FPK-V0-032 trust class, proposed); `cmd/corvint/prove_bundle.go` (FPK-V0-041 to FPK-V0-049 failure bundles, proposed).
 - Blocked on: the 19-of-20 second-checkout witness replay gate, a falsification rate over time, and the three-arm trial in the bet.
 - Read next: Requirements; Non-goals and authority; Failure modes.
 
@@ -116,7 +116,7 @@ above stands with that substitution.
   answerability (`cmd/corvint/answerability.go:94-95@6278a445`) and surprise (`cmd/corvint/surprise.go:118-119@6278a445`),
   context lookup (`cmd/corvint/context_lookup.go:75-79@9f1de421`) and local completion events (`cmd/corvint/local_completion_event.go:356-360@ea059984`),
   and the experimental host adapter (`cmd/corvint/host_adapter_experimental.go:43-48@b6d4dd7c`). The task-context path instead uses its separate
-  `loadContextSnapshot` seam (`cmd/corvint/taskcontext.go:160-167@73708428`), backed by `LoadContextSnapshotDeferred` and the private loader (`internal/contextindex/observed_build.go:42-49@d916a414`).
+  `loadContextSnapshot` seam (`cmd/corvint/taskcontext.go:230-237@73708428`), backed by `LoadContextSnapshotDeferred` and the private loader (`internal/contextindex/observed_build.go:42-49@d916a414`).
   The `cmd/corvint` seam does not cover `LoadEventSnapshot` or `ProbeSnapshot`, called directly by the harness and index paths (`cmd/corvint/harness_context.go:33-35@44bd361a`, `cmd/corvint/index_snapshot.go:117-118@9a7d60f2`); the harness calls `LoadEventSnapshotDeferred` there too.
   The load-bearing guard scans every non-test Go file in `cmd/corvint`, rejects direct `LoadSnapshot` or `LoadSnapshotDeferred` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`, `LoadEventSnapshotDeferred` and `ProbeSnapshot` in `prove*` files
   (`cmd/corvint/prove_checkpoint_test.go:704-771@0c2b29a4`); the counting test asserts the checkpoint run traverses neither dynamic seam
@@ -530,8 +530,8 @@ above stands with that substitution.
   read instead FAILS, the refusal is that read's own code — `unsupported-prove-history` for the
   status re-read, `unsupported-prove-revision` for the tree re-read (FPK-V0-024) — never
   `unsupported-prove-drift`, which asserts a difference, not a read failure. The closing re-read
-  is `checkpointClosingRead` (`cmd/corvint/prove_checkpoint.go:515-528@9b0dd02e`): it re-reads the dirty
-  set, then re-resolves the HEAD commit and its tree through `checkpointRevision` (`cmd/corvint/prove_checkpoint.go:496-513@84f318b1`).
+  is `checkpointClosingRead` (`cmd/corvint/prove_checkpoint.go:520-533@9b0dd02e`): it re-reads the dirty
+  set, then re-resolves the HEAD commit and its tree through `checkpointRevision` (`cmd/corvint/prove_checkpoint.go:501-518@84f318b1`).
   `compileCEMProof` brackets the tree and dirty set the same way (`cmd/corvint/prove.go:818-846@9d171913`) but not the
   commit. After the closing read, `compileCheckpointProof` also refuses `unsupported-prove-drift`
   when `contextindex.Build` pinned a commit or tree other than the opening read's
@@ -702,7 +702,7 @@ above stands with that substitution.
   entered; (7) the worktree status cannot be read — `unsupported-prove-history`
   (`cmd/corvint/prove.go:507-510@10e13ff1`), likewise decided in `compileProof` before dispatch; (8) the repository has
   no resolvable HEAD tree — `unsupported-prove-revision` (`checkpointRevision`,
-  `cmd/corvint/prove_checkpoint.go:496-513@84f318b1`, refusing at `cmd/corvint/prove_checkpoint.go:506-507@c3ca96ba`), a separate case from (6): `compileProof` itself never calls `proveTreeRevision`
+  `cmd/corvint/prove_checkpoint.go:501-518@84f318b1`, refusing at `cmd/corvint/prove_checkpoint.go:511-512@c3ca96ba`), a separate case from (6): `compileProof` itself never calls `proveTreeRevision`
   before dispatch (the shared closing check that does, `cmd/corvint/prove.go:559@4667fe9f`, sits inside the
   non-checkpoint path only), so the checkpoint compile function MUST first resolve the HEAD commit
   and then its immutable tree, before `readBoundedFile`, to settle this case ahead of the file read; (9) the tree
@@ -713,7 +713,7 @@ above stands with that substitution.
   — `unsupported-prove-tree`, a code this requirement added because no earlier `prove` code named
   a tree-listing failure; the checkpoint compile function performs this bounded, whole-tree `git
   ls-tree -r -t -z --full-tree <tree>` read once (`readCheckpointTree`,
-  `cmd/corvint/prove_checkpoint.go:308-313@8edb003a`, bounded by `checkpointTreeByteBound`, `cmd/corvint/prove_checkpoint.go:24@1dba213a`), immediately after resolving the HEAD tree in case (8)
+  `cmd/corvint/prove_checkpoint.go:313-318@8edb003a`, bounded by `checkpointTreeByteBound`, `cmd/corvint/prove_checkpoint.go:24@1dba213a`), immediately after resolving the HEAD tree in case (8)
   and
   before the checkpoint file is read, so every handle's directory/gitlink/blob classification in
   FPK-V0-021 step (2) is answered from this one map rather than a call per handle; (10) the index
@@ -755,7 +755,7 @@ above stands with that substitution.
   the HEAD commit, its tree, or dirty set having been read again successfully but found to differ from the
   opening read — `unsupported-prove-drift`, decided by the closing re-read FPK-V0-021 requires the
   checkpoint compile function to perform itself (`checkpointClosingRead`,
-  `cmd/corvint/prove_checkpoint.go:515-528@9b0dd02e`), or the index `Build` having pinned a revision other
+  `cmd/corvint/prove_checkpoint.go:520-533@9b0dd02e`), or the index `Build` having pinned a revision other
   than the opening read's (`cmd/corvint/prove.go:634-638@7e436d2a`). A closing re-read that FAILS outright, rather than succeeding and
   differing, is not case (13): it refuses with the code its own kind of read always carries —
   `unsupported-prove-history` for a failing closing status re-read, `unsupported-prove-revision`
@@ -829,8 +829,8 @@ above stands with that substitution.
   (`cmd/corvint/local_completion_event.go:356-360@ea059984`), and the experimental host adapter
   (`cmd/corvint/host_adapter_experimental.go:43-48@b6d4dd7c`). The task-context path does not use
   that seam: it supplies `loadContextSnapshot` to `compileTaskContext`
-  (`cmd/corvint/taskcontext.go:105-107@ccb78c62`), with that variable bound to
-  `contextindex.LoadContextSnapshotDeferred` (`cmd/corvint/taskcontext.go:160-167@73708428`), which
+  (`cmd/corvint/taskcontext.go:151-153@ccb78c62`), with that variable bound to
+  `contextindex.LoadContextSnapshotDeferred` (`cmd/corvint/taskcontext.go:230-237@73708428`), which
   reaches the private `internal/contextindex.loadSnapshot`
   (`internal/contextindex/observed_build.go:42-49@d916a414`).
   `LoadSnapshot` is not the tree's only exported snapshot reader. The harness calls
@@ -1162,6 +1162,117 @@ above stands with that substitution.
   case, the help lines, and these four clauses; anchors already written stay inert on
   `refs/notes/corvint` and are removed with `git update-ref -d refs/notes/corvint`.
 
+- **FPK-V0-041:** (proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint prove
+  --export-bundle` is the only way a failure-reproduction bundle is made; no read command, and no
+  `prove` call without the flag, ever creates one. The flag is admitted only with query mode
+  (`--task TEXT [--limit N] [--budget-bytes N]`) or checkpoint mode (`--checkpoint FILE`); any
+  other mode, a repeated flag, or the flag beside `--replay-bundle` exits 2 `invalid-arguments`.
+  Export needs a clean worktree (no tracked or untracked change outside ignored paths), else exit 2
+  `mixed-worktree`; HEAD must still be the exported commit and tree after the run, else exit 2
+  `unsupported-prove-drift`. The bundle goes to stdout with exit 0, whether the recorded result is a
+  receipt or a refusal. Export writes no file, ledger, index, or Git state; the caller redirects
+  stdout and inspects the document before sharing it.
+
+- **FPK-V0-042:** (proposed 2026-09-23, not accepted; experimental; decision 0361) The bundle is one
+  canonical JSON object with version `corvint-failure-bundle/0`, `historical: true`, `tool: "prove"`,
+  and `bundle_sha256`. It records the exact wrapped arguments after `prove` without `--root`
+  or `--export-bundle` (`request.arguments`) and the mode (`request.mode`). It records `repository`:
+  `object_format`, the HEAD `commit` and `tree`, and `blobs`, every distinct `path`/`blob_hash` pair
+  the receipt cites. It records `engine`: `corvint_version`, `build`, and `prove_profile`. In
+  checkpoint mode it records `inputs.checkpoint_document`, the caller's exact bytes. It records
+  `original`, either `{exit: 0, receipt, receipt_sha256}` or `{exit: 2, error: {code, message}}`.
+  The receipt is the one `prove` prints minus `proof.ledger`, and `receipt_sha256` is the SHA-256
+  of its canonical bytes. The bundle has no member for the self-observation ledger, the local
+  trace store, an index snapshot, the environment, the root path, or a timestamp. A recorded
+  `--checkpoint` argument or refusal message may still name a local path. Replay never reads that
+  path, and it does not compare `error.message`.
+
+- **FPK-V0-043:** (proposed 2026-09-23, not accepted; experimental; decision 0361) Export is
+  bounded and secret-screened. A bundle over 8 MiB exits 2 `bundle-bound-exceeded`. A bundle
+  with any string value that matches `secretscreen.MatchString`, including the task text, a
+  checkpoint byte, a refusal message, or a cited snippet, exits 2 `bundle-secret-detected` and
+  writes nothing. Member names and numbers are wire vocabulary and are not screened. A checkpoint
+  file that is unreadable or over 256 KiB exits 2 `unreadable-checkpoint-document`; one that is not
+  UTF-8 exits 2 `unsupported-bundle-input`. `bundle_sha256` is the SHA-256 of the canonical bundle
+  without that member. It detects an accidental or naive edit and is not a signature: anyone can
+  recompute it.
+
+- **FPK-V0-044:** (proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint [--root
+  PATH] prove --replay-bundle FILE` takes exactly that one flag and FILE, else `invalid-arguments`.
+  It reruns `request.arguments` against this checkout's root through the same `prove` parser and
+  `compileProof`. Checkpoint mode reads the frozen `inputs.checkpoint_document`, never the recorded
+  path. Replay executes no command named in the bundle. It fetches nothing: object reads use the
+  scrubbed Git environment with `GIT_NO_LAZY_FETCH=1`. It starts no process that outlives the call
+  and writes no file, ledger, or learning state.
+
+- **FPK-V0-045:** (proposed 2026-09-23, not accepted; experimental; decision 0361) Replay refuses
+  with exit 2 and no stdout. It checks in this order and reports the first failure:
+  1. `invalid-bundle`: FILE is unreadable, over 8 MiB, or not one canonical JSON object (one
+     trailing LF allowed).
+  2. `unsupported-version`: the version is not `corvint-failure-bundle/0`.
+  3. `tampered`: `bundle_sha256` does not match.
+  4. `invalid-bundle`: the bundle carries an unknown or mistyped member.
+  5. `missing-input`: a required member for the mode is absent. This covers the historical
+     marker, the arguments, the checkpoint bytes, the original receipt or refusal code, and a valid
+     commit, tree, or blob id.
+  6. `tampered`: `receipt_sha256` does not match, or `repository.blobs` is not exactly the sorted
+     set of `path`/`blob_hash` pairs the original receipt cites.
+  7. `incompatible-engine`: `corvint_version` or `prove_profile` differs from this binary. `build`
+     is recorded and never compared.
+  8. `missing-git-object`: the local object store lacks the commit, the tree, or a cited blob, or
+     holds one as another object type.
+  9. `drift`: HEAD's commit or tree is not the bundle's.
+  10. `mixed-worktree`: the checkout is dirty.
+  11. `invalid-bundle`: the arguments name a bundle flag or parse to another mode.
+  12. `drift`: the rerun refuses `unsupported-prove-drift` (the checkout moved during a checkpoint
+      replay) and the original did not.
+
+- **FPK-V0-046:** (proposed 2026-09-23, not accepted; experimental; decision 0361) Replay compares
+  `exit`, `error.code`, and the complete `receipt`, member by member. The exclusions are declared
+  in advance and listed in every report as `excluded`:
+  - `error.message`: it may name checkout-local paths.
+  - `proof.ledger`: local ledger state, never bundled.
+
+  Nothing else is excluded. The query packet's `learning` members describe the local trace store,
+  a non-Git input, so a divergence confined to them names that store, not Git content. The report
+  is canonical JSON with `profile: "corvint-failure-replay/0"`, `mutates: false`, `bundle_sha256`,
+  `mode`, `repository.commit`/`tree`, `excluded`, `differences`, and `outcome`:
+  - `reproduced`, exit 0, when `differences` is empty.
+  - `diverged`, exit 1, otherwise. `differences` lists the first 64 differing member paths in key
+    order.
+
+  The report never embeds the replayed receipt.
+
+- **FPK-V0-047:** (proposed 2026-09-23, not accepted; experimental; decision 0361) Bundles and
+  replay reports are visibly historical: both carry `historical: true`. Neither carries the
+  `falsifiable-packet/0` profile, so neither is a fresh `prove` receipt, CEM, attestation, or
+  verification result.
+
+- **FPK-V0-048:** (proposed 2026-09-23, not accepted; experimental; decision 0361) Existing
+  verification, authority, promotion, and learning paths reject historical documents.
+  `prove-observe` exits 2 `invalid-proof-document` on any document that has a `historical`
+  member, whatever its value, including `null`. It refuses a bundle and a replay report on both the profile and the marker, and it
+  appends no ledger row. No other command reads `prove` stdout. A person who extracts
+  `original.receipt` by hand holds a historical record under the bundle's commit; this contract
+  does not make that copy fresh.
+
+- **FPK-V0-049:** (proposed 2026-09-23, not accepted; experimental; decision 0361) Non-goals:
+  - bundling impact, change, CEM, verify-cem, or `--mutate` results;
+  - replaying on a dirty or different checkout;
+  - signing, uploading, fetching, or sharing bundles;
+  - executing recorded commands;
+  - a daemon;
+  - any learning from bundles.
+
+  Rollback, which removes both paths and leaves `prove` output unchanged; exported bundles become
+  inert files:
+  - delete `cmd/corvint/prove_bundle.go` and its test;
+  - restore `parseProveInvocation`/`runProve` at the `main.go` dispatch;
+  - restore `readCheckpointDocument` in `compileCheckpointProof` and join
+    `decodeCheckpointDocument` back into it;
+  - drop the `historical` condition in `proofCounts`;
+  - remove the help lines, these nine clauses, and decision 0361.
+
 The mutation runner FPK-V0-028 prototypes (`internal/liveverify/mutate`) is shared, since
 decision 0353, with the `cem discriminate` hunk witness governed by `TCQ-V0-055..058` in
 [`test-claim-qualification-v0.md`](test-claim-qualification-v0.md); it is no longer a
@@ -1239,6 +1350,13 @@ replace or remove an anchor, does not adopt the Git AI format as Corvint's own, 
 that a Git AI note or trailer is true, and does not feed any provenance row into `query`, `prove`,
 ranking, learning, or authority in v0. A verified anchor proves which committed bytes a pointer
 names, not that the change they describe is correct.
+
+The FPK-V0-041 to FPK-V0-049 failure bundle is a local reproduction aid, not evidence. The bundle
+does not sign, upload, fetch, or share anything. It does not reproduce a dirty worktree or a
+different commit, and it does not execute a recorded command. Its members are not fed to ranking,
+learning, authority, or promotion. A `reproduced` report says that this binary, at this commit,
+recomputed the recorded result. It does not say that the result was right, and it is not fresh
+verification.
 
 ## Failure modes
 
@@ -1327,6 +1445,18 @@ names, not that the change they describe is correct.
 | `refs/notes/corvint` note forged, unknown member, or pointing at changed bytes | `cem-anchor-note` row `malformed`, `path-mismatch`, `blob-unavailable`, or `digest-mismatch`; never `verified` |
 | `refs/notes/ai` note without a `---` divider or with unparseable metadata | `git-ai-authorship-note` row `malformed`; no foreign text emitted |
 | Foreign note or trailer text over 256 bytes, invalid UTF-8, or with control characters | bounded, replaced, and stripped inside `untrusted`; `truncated: true` |
+| `prove --export-bundle` with impact, change, CEM, verify-cem, a repeated flag, or `--replay-bundle` | exit 2 `invalid-arguments`; no bundle |
+| `prove --export-bundle` on a dirty worktree, or HEAD moves during export | exit 2 `mixed-worktree` or `unsupported-prove-drift`; no bundle |
+| Bundle over 8 MiB, or any string value matching the secret screen | exit 2 `bundle-bound-exceeded` or `bundle-secret-detected`; no bundle |
+| Checkpoint to bundle unreadable, over 256 KiB, or not UTF-8 | exit 2 `unreadable-checkpoint-document` or `unsupported-bundle-input` |
+| Bundle unreadable, non-canonical, over 8 MiB, with unknown members, or with arguments that name a bundle flag or another mode | replay exit 2 `invalid-bundle` |
+| Bundle of another version, or whose `bundle_sha256` or `receipt_sha256` does not match | replay exit 2 `unsupported-version` or `tampered` |
+| Bundle lacking the historical marker, arguments, checkpoint bytes, original result, or valid Git ids | replay exit 2 `missing-input` naming the first absent member |
+| Bundle from another Corvint version or `prove` profile | replay exit 2 `incompatible-engine` |
+| Checkout lacking the bundle's commit, tree, or a cited blob | replay exit 2 `missing-git-object`; nothing is fetched |
+| Checkout at another commit or tree, moved during a replay, or dirty | replay exit 2 `drift` or `mixed-worktree` |
+| Recomputed result differs in `exit`, `error.code`, or the receipt outside `proof.ledger` | replay exit 1, `outcome: "diverged"`, at most 64 `differences` |
+| A bundle, replay report, or any `historical` document given to `prove-observe` | exit 2 `invalid-proof-document`; no ledger row |
 
 ### Further named codes and witness reasons
 
@@ -1389,6 +1519,15 @@ which is the whole of what the row asserts.
 | FPK-V0-038 | experimental prototype: `gitnotes.Provenance`, `anchorRow`, `pointerState` (`internal/gitnotes/provenance.go`) | `TestAnchorWritesAVerifiedPointerAndReadsItBack` (read back `verified`, every ref unchanged by provenance, a forged digest `digest-mismatch`), `TestCEMAnchorAndProvenanceInteropThroughTheCLI` (`mutates: false`, `for-each-ref` unchanged) |
 | FPK-V0-039 | experimental prototype: `aiNoteRow`, `trailerRows`, `boundedText` (`internal/gitnotes/provenance.go`) | `TestProvenanceReadsForeignNotesAndTrailersAsUntrustedHistory` (hand-written `authorship/3.0.0` note and a commit with both trailers: distinct kinds, `repository-history`, derived class never `project-authority`, 256-byte bound, control character stripped, `truncated`, malformed note without foreign text), `TestGitNotesFetchesNothing` (no `net` package in the dependency closure), `TestCEMAnchorAndProvenanceInteropThroughTheCLI` |
 | FPK-V0-040 | experimental prototype: `cemActions` `anchor`/`provenance`, `cemcli.GitNotes`, `runCEMGitNotes` (`cmd/corvint/cem_anchor.go`), `cemHelpActions`, `cemHelp` | `TestAnchorActionsParseLikeTheirSiblings` (required, path, unrecognized, choice-list, and hook-absent invalid-choice messages), `TestCEMAnchorAndProvenanceInteropThroughTheCLI` (end-to-end through `corvint cem`, help lines), `TestCEMHelpSurfaces` |
+| FPK-V0-041 | experimental prototype: `parseProveBundleInvocation`, `withoutExportFlag`, `exportProveBundle`, `bundleCleanWorktree` (`cmd/corvint/prove_bundle.go`), the `main.go` dispatch | `TestProveBundleExportRefusals` (repeated flag, impact mode, export with replay, replay with other arguments, dirty worktree `mixed-worktree`, empty stdout), `TestProveBundleQueryReproducesOnASecondClone` (worktree status unchanged by export) |
+| FPK-V0-042 | experimental prototype: `proveBundle`, `exportBundleInputs`, `bundleRun`, `bundleBlobs`, `sealProveBundle` | `TestProveBundleQueryReproducesOnASecondClone` (arguments, mode, commit, tree, cited blobs, engine, ledger-free original receipt), `TestProveBundleCheckpointUsesFrozenBytes` (bundled checkpoint bytes, refused and admitted originals) |
+| FPK-V0-043 | experimental prototype: `sealProveBundle`, `bundleHasSecret`, `bundleDigest`, `exportBundleInputs` | `TestProveBundleExportRefusals` (secret-shaped task, non-UTF-8 checkpoint), `TestProveBundleSizeBound` |
+| FPK-V0-044 | experimental prototype: `replayProveBundle`, `bundleReplayOptions`, `checkpointDocumentFor`, `decodeCheckpointDocument` (`cmd/corvint/prove_checkpoint.go`), `bundleObjectsPresent` | `TestProveBundleQueryReproducesOnASecondClone` (a plain second clone), `TestProveBundleCheckpointUsesFrozenBytes` (checkpoint file deleted before replay) |
+| FPK-V0-045 | experimental prototype: `readProveBundle`, `bundleComplete`, `bundleReceiptIntact`, `bundleCheckout` | `TestProveBundleReplayRefusalReasons` (not JSON, not canonical, unknown member, bundle flag, another mode, future version, unresealed edit, receipt edit, cited blob moved, blobs emptied, uncited blob added, no arguments, no marker, checkpoint without bytes, other engine, absent commit, absent blob, drift, mixed worktree) |
+| FPK-V0-046 | experimental prototype: `bundleDifferences`, `bundleComparable`, `jsonDifferences`, `bundleExcluded` | `TestProveBundleReportsDivergence` (exit 1, `receipt.state`), `TestProveBundleQueryReproducesOnASecondClone` (`reproduced`, declared exclusions) |
+| FPK-V0-047 | experimental prototype: `sealProveBundle`, `replayProveBundle` report | `TestProveBundleQueryReproducesOnASecondClone` (`historical: true` on bundle and report, report profile `corvint-failure-replay/0`) |
+| FPK-V0-048 | experimental prototype: `proofCounts` (`cmd/corvint/prove_observe.go`) | `TestProveObserveRefusesHistoricalDocuments` (bundle, replay report, and a receipt marked `historical: true` or `historical: null` refused with no ledger row; the unmarked receipt accepted) |
+| FPK-V0-049 | scope and rollback statement | the rollback list in FPK-V0-049; no bundle member feeds ranking, learning, or authority (`prove_bundle.go` imports no learning package) |
 
 ### 2026-09-12 literal marker audit
 

@@ -88,6 +88,12 @@ every owning OCM on the same final target. Run frozen selected checks through th
 `frontier/0` queues together. Keep structural links, actual test results, local satisfaction and
 Frontier authority separate. An open advisory queue is not a command failure or a new Stop rule.
 
+[`examples/cem/recipes/`](../examples/cem/recipes/README.md) packages the same public commands for
+repositories other than Corvint: `review-change.sh` is the dogfood loop's `cem prepare`, strict
+status and report without Corvint's OCM, keyed verification or outcome recording, so it does not
+replace `make dogfood-change` or `make dogfood-check` here. `understand-change.sh` is a bounded
+pre-change orientation over a committed range, and `ci-verify.sh` runs the portable verifier.
+
 Independent review checks whether a material applicable family was missed and whether each claimed
 use has real evidence. Repair the omission or explain its boundary before acknowledgment. Reuse
 strict finish's single explicit outcome; no duplicate learning record. Close measurement after

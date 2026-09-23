@@ -1,0 +1,119 @@
+{
+  "profile": "corvint-daily-loop-preregistration/0",
+  "benchmark": "daily-loop-v0",
+  "ticket": "V1-0012",
+  "requirements": ["PCCO-V0-015", "PCCO-V0-016", "PCCO-V0-017"],
+  "authoredAt": "2026-09-23",
+  "candidateCommit": "1894b9e5c992d69a7cbefa4b305485494e5622c4",
+  "candidateBuild": "harness.py builds ./cmd/corvint with GOTOOLCHAIN=local go build -trimpath from git archive of candidateCommit; no other binary is scored",
+  "targetVersion": "0.7.0",
+  "runsPerMeasurement": 3,
+  "jobs": {
+    "orientation": {
+      "useCaseId": "UC-TASK-ORIENTATION",
+      "question": "Before editing, does the packet show every file a reviewer must see?",
+      "cases": "corpus cases with orientation.eligible true",
+      "task": "oldest non-merge commit subject in parent..branchTip not matching chore: (bind|seal|rebind), conventional prefix stripped",
+      "treatment": "corvint --root WT context --task TASK --limit 20 at the merge's first parent; packet = distinct results[].evidence[].path",
+      "baseline": "plain git grep: task tokens of at least 4 characters minus stopwords, git grep -l -i -F per token at the first parent, rank by distinct matched tokens then path, keep the top 20 non-excluded paths",
+      "critical": "files existing at the first parent that the merge modified or deleted, after path exclusions, plus base evidence paths cited by CEMs the merge introduced",
+      "abstention": "exit status non-zero or ok not true; an abstention scores an empty packet and fails the job"
+    },
+    "consequence": {
+      "useCaseId": "UC-CHANGE-CONSEQUENCE",
+      "question": "After editing, does the loop select every changed Go package for verification?",
+      "cases": "every corpus case runs; only cases with consequence.eligible true are scored",
+      "treatment": "corvint --root WT affected --base FIRST_PARENT at the merge; selected = go: unit IDs. Also recorded, unscored: corvint impact --base FIRST_PARENT --range-profile expanded-256 --limit 20",
+      "baseline": "plain git: changed root-module Go package import paths plus every root-module package whose .go files contain the quoted import path (git grep -l -F)",
+      "critical": "root-module Go packages (import paths) containing a .go file the merge added or modified; nested modules, testdata and _ or . directories excluded",
+      "abstention": "exit status non-zero or ok not true; an abstention scores an empty selection and fails the job"
+    },
+    "completion": {
+      "useCaseId": "UC-EVIDENCE-CARRYING-COMPLETION",
+      "question": "Does the loop refuse to call a change complete when its evidence is missing or stale?",
+      "cemLevel": {
+        "cases": "every sealed CEM a corpus merge introduced, checked out at its bind commit",
+        "positiveControl": "corvint cem status --map .corvint/change.cem.json --expected-base BASE --target BIND --max-unknown K --max-mechanical 0, K = unknown hunks in the unmutated map; runsPerMeasurement runs",
+        "reencodedControl": "M0: the unmutated map re-encoded by the harness and committed on top of BIND must be COMPLETE",
+        "designatedMissingEvidence": {
+          "M1-stale-target": "a commit on top of BIND appends to a changed path; target = that commit",
+          "M2-hunk-removed": "the first supported hunk removed; orphaned evidence pruned; committed",
+          "M3-basis-removed": "the first supported hunk keeps disposition supported with an empty basis; committed",
+          "M4-evidence-digest-staled": "the spanSha256 of the evidence cited by the first supported hunk replaced; committed",
+          "M5-wrong-base": "the unmutated map checked against --expected-base BIND^",
+          "M6-supported-to-unknown": "the first supported hunk marked unknown/no-evidence with the ceiling left at K; committed"
+        },
+        "verdict": "COMPLETE iff exit status 0; any other exit is REFUSED"
+      },
+      "loopLevel": {
+        "base": "candidateCommit",
+        "target": "the commit that adds this preregistration (supplied as --rehearsal-target)",
+        "sequence": "fresh plain clone; make dogfood-change; write citations (one AGENTS.md 26:28 specification row per worklist hunk); make dogfood-change; commit .corvint/change.cem.json; make dogfood-change; make dogfood-check",
+        "inputs": "DOGFOOD_INTENTS_FILE lists the intent below; DOGFOOD_VERIFY_FILE holds python3 -m py_compile benchmarks/daily-loop-v0/harness.py; DOGFOOD_OUTCOME=passed; DOGFOOD_CITATIONS as above",
+        "positiveRuns": "L0 runsPerMeasurement fresh runs",
+        "controls": {"L0c-copy-control": "L0 run 1 copied unchanged", "L3c-reencoded-control": "L0 run 1 copy with the committed map re-encoded"},
+        "designatedMissingEvidence": {
+          "L1-stale-after-bind": "a commit after the bind appends to the first non-excluded file the range added or modified",
+          "L2-cem-removed": "the committed map removed in a later commit",
+          "L3-cem-tampered": "the committed map's first hunk basis emptied in a later commit",
+          "L4-local-outcome-removed": ".git/corvint/local-outcome.json deleted",
+          "L5-verify-missing": "a fresh loop without DOGFOOD_VERIFY_FILE",
+          "L6-citations-missing": "a fresh loop without DOGFOOD_CITATIONS"
+        },
+        "verdict": "COMPLETE iff make dogfood-check exits 0 and prints dogfood-check: PASS"
+      },
+      "baseline": "plain git (git diff --stat and git log over the range) emits no evidence verdict; its latency is recorded and its correctness is NOT_APPLICABLE",
+      "informative": "a CEM mutant is informative only if its positive control and M0 are COMPLETE; L1-L4 only if both loop controls are COMPLETE; L5-L6 only if L0 run 1 is COMPLETE"
+    }
+  },
+  "rehearsal": {"intent": "docs/specs/proof-carrying-context-optimization-v0.md"},
+  "thresholds": {
+    "C1-orientation": "PASS iff zero treatment-only critical misses and zero abstentions over the scored cases",
+    "C2-consequence": "PASS iff zero treatment-only critical misses and zero abstentions over the scored cases",
+    "C3-completion": "PASS iff zero false complete-evidence verdicts over the designated missing-evidence cases and every designated case is informative",
+    "treatmentOnlyCriticalMiss": "a critical path or package the treatment omitted and the fixed baseline included",
+    "costSavings": "a savings claim requires observed complete task cost for both arms with at least 25% lower median and at least 20% lower p75 complete task tokens (the PCCO-V0 promotion gate) and C1-C3 PASS; otherwise the result is 'measured, no savings claim'",
+    "descriptiveOnly": "latency, packet bytes, selected-package counts and invocation counts are reported without a threshold and support no claim; wall-clock latency is recorded with the host CPU count and load averages at start and end because the host is shared"
+  },
+  "notObservedWithoutLiveAgent": {
+    "completeTaskCost": "tokens per solved task need a live model-driven agent; supply --agent-observations JSONL rows {arm, caseId, completeTaskTokens, humanFailure} to record them",
+    "humanFailureRate": "needs a human reviewer outcome per task; recorded through the same JSONL rows"
+  },
+  "retries": "a loop step expected to succeed (post-commit dogfood-change and dogfood-check) that exits non-zero is an unexpected failure; the sequence is fixed and never retried, so a retry count above the documented sequence is structurally zero and reported as such",
+  "exclusions": {
+    "E1": "the root snapshot commit has no first parent to diff against",
+    "E2": "merges whose diff is empty after the path exclusions (task-store-only merges)",
+    "E3": "orientation excludes cases with more than 100 changed files after exclusions (integration merges): no reviewer-sized packet can hold them",
+    "E4": "consequence cases without a changed root-module Go package run but are not scored",
+    "E5": "sealed CEMs whose bind commit is not introduced by a corpus merge (private-lineage binds) are not cases",
+    "E6": "paths under .taskman/ and .corvint/, docs/BUILD-LOG.md and the generated indexes docs/specs/INDEX.json, docs/specs/REQUIREMENTS.tsv, docs/specs/README.md and docs/decisions/README.md are never critical"
+  },
+  "partition": {
+    "orientation": "held-out: no Corvint output on a corpus case was observed before this seal",
+    "consequence": "held-out: no Corvint output on a corpus case was observed before this seal",
+    "completion": "development: cem verify of bind b22c12eb was observed once while the design was explored (ok, valid)"
+  },
+  "preSealObservations": [
+    "context, affected and impact output formats were read on the excluded root snapshot 89223a9 only",
+    "cem verify of the sealed CEM at b22c12eb (valid) during exploration",
+    "harness smoke tests on synthetic non-corpus commits (a probe edit on 89223a9 with a hand-bound CEM, and a probe edit on candidateCommit for the loop rehearsal); they fixed harness defects before this seal and are not results"
+  ],
+  "invalidation": [
+    "the digest of this file, corpus.json or harness.py differs from the sealed value: the run refuses",
+    "corpus.json differs from a fresh derivation over first-parent history from corpus head: the run refuses",
+    "a scored binary not built by the harness from candidateCommit",
+    "changing the corpus, rules or thresholds after the first corpus observation; a changed harness is a new numbered preregistration and the earlier runs stay",
+    "output that differs across runs of one measurement is marked deterministic false and scored on run 1",
+    "any harness fix after the first observation is a new run ID with the deviation recorded; no run file or receipt is deleted",
+    "no Corvint change is made to improve this benchmark's score (no tuning of the candidate)"
+  ],
+  "outputs": {
+    "result": "benchmarks/daily-loop-v0/runs/RUN_ID.json (corvint-daily-loop-result/0)",
+    "receipts": "benchmarks/daily-loop-v0/receipts/RUN_ID/USE_CASE_ID.json in corvint-use-case-evidence/0 sealed-benchmark form; result and attestation outcome are PASS or FAIL per job, subjects are this file, corpus.json and the result",
+    "losingRuns": "every run file and receipt is kept, whatever its outcome"
+  },
+  "sealed": {
+    "corpusSha256": "412058c23a20d0b6eb643ac591180f340b63b53a75c68a93977b7625b554cde2",
+    "harnessSha256": "17b41f50ef41a2fff87625c7a4159de128280fc324136b5f5e863d7fdf32d242"
+  }
+}

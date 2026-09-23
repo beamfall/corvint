@@ -902,12 +902,12 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		if skillExportInvoked(arguments) {
 			return runSkillExport(ctx, arguments, stdout, stderr)
 		}
-		if options, isProve, proveErr := parseProveInvocation(arguments); isProve {
+		if options, isProve, proveErr := parseProveBundleInvocation(arguments); isProve {
 			if proveErr != nil {
 				emitError(stderr, proveErr)
 				return 2
 			}
-			return runProve(ctx, options, stdout, stderr)
+			return runProveBundle(ctx, arguments, options, stdout, stderr)
 		}
 		if root, isIndex, indexErr := parseIndexInvocation(arguments); isIndex {
 			if indexErr != nil {

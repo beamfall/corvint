@@ -106,6 +106,23 @@ branch overlap hints. Replace `FULL_BASE_SHA` with the full ancestor commit imme
 the changes. These commands refuse dirty trees, do not execute suggested next calls, and do not
 close review or test obligations. See the [guidance contract](specs/repository-guidance-v0.md).
 
+For a whole change, [`examples/cem/recipes/`](../examples/cem/recipes/README.md) has three
+experimental Bash recipes: understand a `BASE..HEAD` range (`impact`, `affected`, `context`),
+prepare a change-evidence review (`cem prepare`, `status`, `report`, `review`), and verify a
+committed `cem/0.1` map in CI with the digest-pinned portable verifier. Each is bounded, keeps
+every refusal in its output directory, and exits non-zero rather than reporting success on
+missing, stale or unsupported evidence (`CEM-PILOT-024`..`027` in
+[the pilot kit](specs/cem-pilot-kit.md)).
+
+For a committed change, the daily change-evidence loop binds task context, impact, a CEM, the
+owning-spec OCMs, a frontier, checks, review and the retained outcome in one ordered sequence: see
+the [daily adopter path](DOGFOOD.md#daily-adopter-path). It lists each input's exact format, the
+refusals that are expected before the CEM is committed, and the reason every fail-closed outcome
+prints. Its `make dogfood-change`, `dogfood-check` and `dogfood-seal` coordinators build
+`./cmd/corvint` and run only in a Corvint source checkout; another repository runs the same
+`corvint cem`, `corvint ocm` and `corvint frontier` commands from that page's sections 4 to 6. A
+passing loop is structural closure, not proof that the change is correct.
+
 ## Optional workflow bundle
 
 The planned, separately assembled **macOS arm64** workflow bundle will contain nine native binaries:
@@ -262,6 +279,11 @@ absolute editor/MCP paths. Re-select and pin the editor executable when its iden
 Do not mix companions from different manifests. Roll back by restoring the previous directory,
 VSIX and configured paths; no persisted-state migration is introduced by this alpha.
 
+Support window: for every 0.x version only the latest published release receives security fixes
+(see the [security policy](../SECURITY.md)). The qualified upgrade path is from the previous
+published release; an older version reads a repository after a newer one wrote its snapshot, so
+rollback needs no index cleanup.
+
 An interrupted download or extraction is not an installation: retry into a fresh directory and
 repeat checksum verification before executing anything. For an interrupted test run, wait for
 cleanup, inspect its incomplete/cancelled state, then save again or restart the explicit session.
@@ -315,7 +337,10 @@ snapshot files, when checking a recovery.
 `script/check-install-lifecycle.sh` runs this whole lifecycle in a temporary directory against one
 release archive (`CORVINT_LIFECYCLE_ARCHIVE`) or one binary (`CORVINT_LIFECYCLE_BINARY`): verified
 install, first index and read, upgrade into a second store, rollback, uninstall with `.corvint`
-retained, backup and restore of `.corvint`, and both corruption cases. It prints one `step NAME: ok`
+retained, backup and restore of `.corvint`, and both corruption cases. With
+`CORVINT_LIFECYCLE_UPGRADE_BINARY` set to a different release, the upgrade's packet must be
+non-empty and is compared to the packet that release builds from a cold index and reported `packet=identical` or
+`packet=changed`, since releases may change the packet wire. It prints one `step NAME: ok`
 line per step and a final `SUMMARY status=PASS|FAIL` line; it does not qualify a future release,
 every supported platform, or restoration of arbitrary ticket-store data. See the
 [release runbook](RELEASE-RUNBOOK.md) and [security/support boundaries](SECURITY.md).

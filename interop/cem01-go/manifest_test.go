@@ -83,7 +83,7 @@ func testPortableProfileCompatibility(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if shaHex(raw) != "9389102480c910ddb1366d385702bcf44a72dadbbece9e68bce683420f64983a" {
+	if shaHex(raw) != "2ad18195245b0928a87eed432cadc2159d8de379f58d4e03457d38ff6f1093cd" {
 		t.Fatal("portable manifest digest changed")
 	}
 	var manifest struct {

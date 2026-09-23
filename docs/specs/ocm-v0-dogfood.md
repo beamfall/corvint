@@ -154,8 +154,27 @@ claim, and mutation ordering deltas below.
   hunk and claim references, order and set mismatch, stale CEM digests, target mismatch). A
   producer byte or refusal code that drifts from the frozen data is a wire change and MUST be
   recorded in this spec before the data is refrozen. Accepted 2026-09-22 by decision 0343.
+- `OCM-V0-015`: from 2026-09-22 the frozen `ocm/0.1-experimental` suite MUST pin every file under
+  `conformance/ocm-v0/vectors/` and `conformance/ocm-v0/fixtures/` by SHA-256 in
+  `manifest.json` `artifactSha256` and MUST fail on any byte drift or any unlisted or missing file.
+  Its `states` MUST pin the stable, relocated, stale, ambiguous, deleted and unknown states to
+  existing cases with their exact decoded outcome; the intent scope in particular re-derives
+  exactly from the target blob, so a relocated span or a stale span digest fails
+  `intent-scope-mismatch` and an absent intent blob or path fails `repository-object-unavailable`.
+  Successor rule: a wire change MUST take a new exact `spec` identifier with its own suite; this
+  suite's bytes and outcomes are never edited. The successor's reader MUST read every frozen
+  `ocm/0.1-experimental` valid vector to the same verdict and counts, or refuse it with one
+  stated, deterministic code before any output. Migration rule: a retained map is never rewritten
+  in place; migrating means preparing a new map under the successor profile from Git, and every
+  `unknown` row stays `unknown` until it is linked or marked. This profile is the first frozen OCM
+  profile, so it has no own-profile N-1 reader; its upstream N-1 is the `cem/0.1` binding that
+  `OCM-V0-006` dispatches.
 
 ## Wire profile
+
+Wire freeze: `ocm/0.1-experimental` is frozen as of 2026-09-22 by `conformance/ocm-v0/`
+(`OCM-V0-014`, `OCM-V0-015`, decisions 0343 and 0357). The freeze fixes the conformance bytes; it
+does not change this spec's intent or delivery status.
 
 Frozen requirement-line syntax (inline-code, bold-colon, or bold-period):
 
@@ -437,6 +456,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-012 (Git bound reached while resolving the OCM target keeps its runner code) | `internal/lrfrepo/ocm.go` (`verifyOCMBinding`, `gitBoundReached`) | `internal/lrfrepo/ocm_read_test.go:TestOCMBindingNamesGitBudgetExpiryNotMissingObject` |
 | OCM-V0-013 | `script/dogfood-change.sh`, `script/dogfood-check.sh`, `internal/dogfoodocm`, `cmd/corvint/dogfood_ocm.go` | `internal/dogfoodocm/aggregate_test.go`, `script/dogfood-change_test.sh`, `cmd/corvint/ocm_test.go:TestDogfoodOCMArgumentErrorsAreInvalidArguments` |
 | OCM-V0-014 | `conformance/ocm-v0/` (`universe.go`, `adapter.go`, `vectors.go`, `fixtures.go`, `manifest.go`, `vectors/structural.json`, `fixtures/*/case.json`, `manifest.json`) | `conformance/ocm-v0/structural_test.go:TestStructuralVectorsAgainstRealParser`, `conformance/ocm-v0/structural_test.go:TestValidVectorsAreCanonical`, `conformance/ocm-v0/structural_test.go:TestStructuralVectorsCoverEveryDisposition`, `conformance/ocm-v0/producer_test.go:TestFrozenVectorsMatchTheRealProducer`, `conformance/ocm-v0/fixtures_test.go:TestFixturesAgainstRealVerifier`, `conformance/ocm-v0/fixtures_test.go:TestSuiteDataIsSelfConsistent` |
+| OCM-V0-015 | `conformance/ocm-v0/` (`manifest.go` `ValidateArtifacts`/`validateStates`, `fixtures.go` `intent`/`intentShift` operators, `fixtures/intent-scope-drift/case.json`, `manifest.json` `states`/`artifactSha256`) | `conformance/ocm-v0/fixtures_test.go:TestSuiteDataIsSelfConsistent`, `conformance/ocm-v0/fixtures_test.go:TestArtifactDigestDriftFails`, `conformance/ocm-v0/fixtures_test.go:TestFixturesAgainstRealVerifier` (`intent-scope-drift`); upstream N-1: `cmd/corvint/ocm_test.go:TestOCMLegacyCEMReadCommandsMatchPythonOracle` |
 
 Native selector diagnostic amendment to `OCM-V0-007` (2026-09-08): the owner's Task 2
 follow-up explicitly requests printing the normalized fragment on a miss. A missing `/case:` selector retains

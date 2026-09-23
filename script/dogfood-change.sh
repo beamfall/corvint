@@ -561,15 +561,53 @@ run_corvint cem-status "$evidence/cem-status.json" \
 
 printf 'local-outcome\t%b\n' "$local_outcome_row" >> "$rows"
 
+# Each refusal a first-time adopter hits names its fix (DCW-V0-014,
+# docs/DOGFOOD.md "Daily adopter path").
+fix_hint() {
+  case "$1:$2" in
+    cem-cite:citation-plan-not-provided)
+      printf 'set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json' ;;
+    cem-cite:citation-plan-unavailable)
+      printf 'DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves' ;;
+    cem-cite:invalid-citation-plan)
+      printf 'each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows' ;;
+    ocm-aggregate:missing-intent-scope)
+      printf 'DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths' ;;
+    ocm-prepare-*:invalid-requirements-section)
+      printf 'intent must be a spec that exists at BASE and contains exactly one "## Requirements" heading' ;;
+    ocm-prepare-*:excluded-artifact-mismatch|prechange-impact:unsupported-impact-worktree|local-outcome:record-index-failed)
+      printf 'the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change' ;;
+    ocm-status-*)
+      printf 'fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change' ;;
+    cem-status:not-ready)
+      printf 'read verification.issues and policyIssues in %s: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk' "$evidence/cem-status.json" ;;
+    ocm-aggregate:intent-scope-drift)
+      printf 'fix the ocm-prepare or ocm-status row above; otherwise the intents file changed during the run' ;;
+    local-outcome:outcome-input-not-provided)
+      printf 'set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)' ;;
+  esac
+}
+
 render_report
 if awk -F '\t' '$2 != "PRODUCED" && !($1 == "local-outcome" && $2 == "NOT_PRODUCED" && $3 == "no-source-paths") && !($1 == "prechange-impact" && $2 == "NOT_PRODUCED" && $3 == "unsupported-impact-range") { failed=1 } END { exit failed ? 0 : 1 }' "$rows"; then
   printf 'dogfood-change: FAIL not-complete\n' >&2
-  awk -F '\t' '$2 != "PRODUCED" && !($1 == "local-outcome" && $2 == "NOT_PRODUCED" && $3 == "no-source-paths") && !($1 == "prechange-impact" && $2 == "NOT_PRODUCED" && $3 == "unsupported-impact-range") { printf "  %s: %s\n", $1, $3 }' "$rows" >&2
+  awk -F '\t' '$2 != "PRODUCED" && !($1 == "local-outcome" && $2 == "NOT_PRODUCED" && $3 == "no-source-paths") && !($1 == "prechange-impact" && $2 == "NOT_PRODUCED" && $3 == "unsupported-impact-range") { printf "%s\t%s\n", $1, $3 }' "$rows" |
+    while IFS=$'\t' read -r step reason; do
+      printf '  %s: %s\n' "$step" "$reason"
+      hint=$(fix_hint "$step" "$reason")
+      [[ -z "$hint" ]] || printf '    fix: %s\n' "$hint"
+    done >&2
   # The authority-start refusal is selected by the task wording, not by the
   # change; a malformed store refuses any wording and names no profile.
   if rg -q '^\{"code": "unsupported-query-trace-state", "error": "native Go authority-start query ' \
     "$evidence/prechange-query.stderr"; then
     printf '  prechange-query: DOGFOOD_TASK wording selected the authority-start profile, which refuses a present local trace store; keep this receipt and the task (docs/DOGFOOD.md section 1)\n' >&2
+  fi
+  # Amending or rebasing after a recorded pass strands that trace; query and
+  # the recorder then refuse every later run with this message.
+  if rg -q -e '"error": "local trace store contains unreachable revision: ' \
+    "$evidence/prechange-query.stderr" "$evidence/local-outcome.stderr" 2>/dev/null; then
+    printf '  local trace store: a recorded trace names a commit no longer reachable from HEAD; restore that commit as an ancestor and add new commits instead of amending or rebasing (docs/DOGFOOD.md "Daily adopter path")\n' >&2
   fi
   printf '  full report: %s\n' "$report" >&2
   exit 1

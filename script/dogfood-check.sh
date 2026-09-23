@@ -304,12 +304,19 @@ if [[ -n ${DOGFOOD_EXCEPTION:-} ]]; then
 fi
 if [[ ! -f $report ]]; then
   printf 'dogfood-check: FAIL dogfood-report-missing\n' >&2
+  printf '  fix: run make dogfood-change BASE=%s on this HEAD until it reports complete\n' "$base" >&2
   exit 1
 fi
 report_base=$(sed -n 's/^  "base": "\([0-9a-f]*\)",$/\1/p' "$report")
 report_target=$(sed -n 's/^  "target": "\([0-9a-f]*\)",$/\1/p' "$report")
-if [[ $report_base != "$base" || $report_target != "$target" ]] || ! rg -q '"complete": true' "$report"; then
+if [[ $report_base != "$base" || $report_target != "$target" ]]; then
   printf 'dogfood-check: FAIL dogfood-report-drift\n' >&2
+  printf '  fix: the report binds another BASE or HEAD; rerun make dogfood-change BASE=%s on this HEAD\n' "$base" >&2
+  exit 1
+fi
+if ! rg -q '"complete": true' "$report"; then
+  printf 'dogfood-check: FAIL dogfood-report-drift\n' >&2
+  printf '  fix: the report is not complete; resolve the rows make dogfood-change BASE=%s lists, then rerun it\n' "$base" >&2
   exit 1
 fi
 if [[ $anchor_state == OBSERVED ]]; then
@@ -421,6 +428,7 @@ fi
 if ! cmp -s "$run_tmp/tree-ocm.stdout" "$aggregate_status"; then
   record_dogfood_check true 0 || :
   printf 'dogfood-check: FAIL intent-scope-drift\n' >&2
+  printf '  fix: the OCM maps changed after make dogfood-change; rerun make dogfood-change BASE=%s\n' "$base" >&2
   exit 1
 fi
 bootstrap_unknown=$(count_bootstrap_unknowns)

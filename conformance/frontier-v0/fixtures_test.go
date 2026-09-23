@@ -6,6 +6,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -834,5 +836,55 @@ func TestSynthesizedUniversesAreDeterministic(t *testing.T) {
 		t.Errorf("two builds of the same derived universe produced different documents (%d and %d "+
 			"bytes): the synthesis is reading something other than the case",
 			len(first.Stdout), len(second.Stdout))
+	}
+}
+
+// TestManifestPinsStatesAndArtifacts requires every hostile evidence state to
+// name existing cases or its gap, and every vector and fixture file to match
+// its pinned digest.
+func TestManifestPinsStatesAndArtifacts(t *testing.T) {
+	m, err := LoadManifest(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cv, err := LoadCodecVectors(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := m.ValidateStates(loadFixturesT(t), cv.Vectors); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.ValidateArtifacts("."); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestArtifactDigestDriftFails edits one byte of a frozen vector in a copy of
+// the suite and requires the pinned artifactSha256 check to refuse it.
+func TestArtifactDigestDriftFails(t *testing.T) {
+	m, err := LoadManifest(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	for path := range m.ArtifactSHA256 {
+		raw, err := os.ReadFile(filepath.FromSlash(path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if path == "vectors/codec.json" {
+			raw = append(raw, '\n')
+		}
+		copyPath := filepath.Join(dir, filepath.FromSlash(path))
+		if err := os.MkdirAll(filepath.Dir(copyPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(copyPath, raw, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	err = m.ValidateArtifacts(dir)
+	if err == nil || !strings.Contains(err.Error(), "vectors/codec.json") {
+		t.Fatalf("drifted vector accepted: %v", err)
 	}
 }

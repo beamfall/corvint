@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-07
 Requirement prefix: `LAC-V0`
 Intent status: accepted (decision 0081)
-Delivery status: experimental (S1, S2 ticket verbs, and S3)
+Delivery status: experimental (S1, S2 ticket verbs, S3, and the chain pane)
 Authoritative inputs: `../../AGENTS.md` invariants 4, 7 and 8, `../PRODUCT.md`,
 `local-observability-dashboard-v0.md` (the six evidence axes and the P1 gate this document answers),
 `../plans/AGENT-TASK-MANAGER-2026-09-04.md`, `corvint-taskman` `docs/SPEC.md` at commit `7bc52a2cf8953931764c57c09fd1b55ec9762e96`
@@ -13,9 +13,9 @@ rendered artifact's own owning specification.
 
 ## Agent digest
 - Claim: A local, loopback-only console may present task management, evidence, spec and code without becoming repository, execution, or promotion authority.
-- Status: accepted (decision 0081)/experimental (S1, S2 ticket verbs, and S3)
-- Exists: retained source package `cmd/corvint-console` builds the standalone `corvint-console`, and `internal/console` delivers S1, the ticket half of S2, and S3 — board, ticket detail, spec pane, code pane and delegated mutation over `corvint-tasks` and `git`, plus the Corvint evidence snapshot, the dogfood report, the committed benchmark results and the agent-memory backlogs. The current snapshot executable is `corvint-dashboard-snapshot`; frozen `corvint-dashboard-*` wire/error profiles remain unchanged. The closed release bundle migration is deferred.
-- Blocked on: nothing for S1/S2/S3. U4 — the operator-time measurement against the CLI baseline — still has no instrument.
+- Status: accepted (decision 0081)/experimental (S1, S2 ticket verbs, S3, and the chain pane)
+- Exists: retained source package `cmd/corvint-console` builds the standalone `corvint-console`, and `internal/console` delivers S1, the ticket half of S2, and S3 — board, ticket detail, spec pane, code pane and delegated mutation over `corvint-tasks` and `git`, plus the Corvint evidence snapshot, the dogfood report, the committed benchmark results and the agent-memory backlogs, and the `/chain` pane that walks a sealed change from hunk to cited evidence, governing requirement and recorded verification (LAC-V0-033..036). The current snapshot executable is `corvint-dashboard-snapshot`; frozen `corvint-dashboard-*` wire/error profiles remain unchanged. The closed release bundle migration is deferred.
+- Blocked on: nothing for S1/S2/S3 or the chain pane. U4 — the operator-time measurement against the CLI baseline — still has no instrument.
 - Read next: Human intent and scope; Requirements; Trust boundary, limits, and failure modes.
 
 ## Human intent and scope
@@ -230,12 +230,59 @@ the Agent digest states the current experimental S1/S2/S3 scope.
   that preserves the current page, and the hard-stop notice MUST remain present on refused or failed
   reads.
 
+### Change evidence chain (V1-0025, decision 0362)
+
+- `LAC-V0-033`: The console MUST offer one `/chain` pane that lists the sealed change maps committed
+  under `.corvint/changes/<bind-commit>.cem.json` at the page's commit and, for one selected change,
+  renders the chain changed hunk → cited evidence → governing requirement → recorded verification
+  result. Its only inputs are artifacts the CLI already writes: the sealed CEM read at its object id,
+  the untracked OCM maps `.corvint/change.ocm.json` and `.corvint/change.ocm.NNN.json`, the local
+  trace `.context-corvint/traces/<change>.jsonl`, and Git objects the maps pin by object id. The pane
+  MUST NOT add a provenance store, database, cache across requests, outbound connection, write, or
+  default-core UI, and MUST NOT consume frontier or any other artifact.
+- `LAC-V0-034`: Every edge MUST name the artifact and the field that justify it, and MUST exist only
+  when that field names its target by identifier or digest: hunk → evidence by
+  `hunks[i].basis[j].evidenceId` equal to one `evidence[k].id`; hunk → requirement by
+  `obligations[i].hunkIds[j]` of an OCM map whose `targetRevision` is the change and whose
+  `cem.mapSha256` is the SHA-256 of the sealed map's bytes; requirement → clause by the obligation id's
+  requirement line inside the OCM `intentScope` span, whose bytes MUST match `spanSha256` at `blobOid`;
+  requirement → test claim by `claimIds` equal to one `claims[].id`; change → recorded verification by
+  a trace row whose `revision` is the change. The sealed file name MUST be confirmed by
+  `<change>:.corvint/change.cem.json` naming the same object. A cited span MUST be re-read at its
+  `blobOid` and its bytes MUST match `spanSha256`. No edge may be inferred from position, text,
+  a shared path or proximity. A linked edge is structural: it MUST NOT be presented as semantic
+  support, as a test result, or as a verification result for one requirement; the recorded outcome
+  is the operator's record for the whole revision. Each edge MUST carry the weakest axes of the
+  sources it joins under LAC-V0-010; the untracked OCM and trace files state none (LAC-V0-007).
+- `LAC-V0-035`: An edge the artifacts do not establish MUST render as a gap row with its class and
+  reason, never as a link and never omitted:
+  - `missing`: no bound OCM map, an identifier with no target, or an unreadable object, commit or file;
+  - `stale`: a map naming the change with another digest, a span whose bytes no longer match its
+    digest, an intent scope that no longer defines the obligation, a trace row naming another
+    revision, or a sealed name its bind commit does not confirm;
+  - `ambiguous`: two or more evidence entries, claims, obligations or trace rows answering one
+    identifier or revision, all shown and none chosen;
+  - `unverified`: no recorded verification result names the change;
+  - `unsupported`: a hunk the map marks `unknown` or `mechanical`, an obligation that lists no hunk or
+    claim, an unknown CEM or OCM profile, or a trace row that is not `schema_version` 1.
+- `LAC-V0-036`: The pane MUST be reachable from the primary navigation and operable by keyboard with
+  plain links only (LAC-V0-029's matrix). Change and hunk links MUST carry the page's commit and render
+  nothing when it moved (LAC-V0-030's pin rule). Hunk detail MUST show the hunk's lines read at the
+  change commit (or at `baseRevision` for a deletion) and each cited span's bytes read at its object
+  id. Only a change the listing at the commit named is read; every object id MUST be full lowercase
+  hex before it reaches Git; all artifact text renders inert under LAC-V0-020.
+
 ## Non-goals and simpler baseline
 
 Not in scope, at any stage: a hosted service, a shared or multi-user deployment, authentication,
 accounts, telemetry, background collection, repository upload, an embedded or external database
 service, embeddings, a mobile surface, arbitrary command execution from the page, editing repository
 files through the page, and any surface that keeps its own copy of the queue.
+
+The chain pane (LAC-V0-033..036) is not a verifier: it does not validate a CEM or OCM map (that is
+`corvint cem verify` and `corvint ocm verify`), does not assess entailment, does not run a test, does
+not report a per-requirement verification result, and does not read frontier artifacts, none of
+which exist per change today.
 
 The simpler baseline is the pair of CLIs plus `corvint-dashboard-snapshot`, which already answer every
 question the console will answer. The console must beat that baseline on one measurable axis —
@@ -258,6 +305,9 @@ withdrawn rather than delivered.
 | A subdirectory given as `--repo` renders the enclosing repository | LAC-V0-031 |
 | A committed symlink is followed to a device or a file outside the worktree | LAC-V0-018 |
 | A committed Traceability range expands a bounded spec read into unbounded memory | LAC-V0-030 |
+| A chain edge is inferred from a requirement ID in text, a shared path, or an unbound OCM map | LAC-V0-034, LAC-V0-035 |
+| A structural chain edge is read as semantic support or a passing test | LAC-V0-034 |
+| A chain request reads an unlisted change or passes an unvalidated object id to Git | LAC-V0-036 |
 | The console silently broadens the invariant-7 local boundary | LAC-V0-001, LAC-V0-003, §9 |
 
 The console is never a gate. It cannot produce `PASSED`, `SAFE`, `READY_TO_MERGE`, or a correctness
@@ -295,6 +345,11 @@ measurement outside this package, and the operator-time comparison of U4, which 
 | LAC-V0-030 | a committed fixture whose cited file links to its code page and back at the commit, whose uncited requirement and absent path each render a gap with no link, whose code link pinned to another commit renders no content, and whose over-bound Traceability expansion renders a gap with no link on both pages |
 | LAC-V0-031 | a repository toplevel accepted, and a subdirectory of it and a directory inside no repository each refused |
 | LAC-V0-032 | the roadmap carries a 30-second refresh, a page-preserving pause/resume link and the hard-stop notice on successful and refused reads, while the board carrying mutation forms has no automatic refresh |
+| LAC-V0-033, LAC-V0-034 | a committed sealed change with a bound OCM map and a trace row rendering every edge linked with its artifact and field, the hunk's lines and the cited span bytes (`TestConsoleChainComplete`) |
+| LAC-V0-034 | a decoy: the requirement ID in the changed line and a cited span, an OCM map listing the hunk but bound to another map and revision, and a trace naming the changed path under another revision, each linking nothing (`TestConsoleChainTextMatchDecoy`) |
+| LAC-V0-035 | one fixture per gap class rendering that class and its reason (`TestConsoleChainGaps`) |
+| LAC-V0-036, LAC-V0-020 | the pane current in navigation with plain pinned anchors and no pointer-only affordance, a moved pin and unlisted changes rendering nothing, and markup in the map, OCM and trace text rendering escaped (`TestConsoleChainKeyboardNavigation`, `TestConsoleChainHostileContent`) |
+| U4 on the chain pane | `NOT_OBSERVED`: no operator-time comparison against the CLI with a human was run, and no timing is claimed |
 
 ## Traceability
 
@@ -321,6 +376,7 @@ measurement outside this package, and the operator-time comparison of U4, which 
 | LAC-V0-030 | `internal/console/links.go`, `internal/console/server.go`, `internal/console/views.go` | `TestConsoleRequirementCodeLinks` |
 | LAC-V0-031 | `cmd/corvint-console/main.go`, `internal/console/code.go` (`RequireToplevel`) | `TestConsoleRootMustBeGitToplevel` |
 | LAC-V0-032 | `internal/console/server.go`, `internal/console/render.go`, `internal/console/views.go` | `TestRoadmapSafeAutoRecheck` |
+| LAC-V0-033..036 | `internal/console/chain.go`, `internal/console/server.go`, `internal/console/views.go`, `internal/console/render.go` | `TestConsoleChainComplete`, `TestConsoleChainGaps`, `TestConsoleChainTextMatchDecoy`, `TestConsoleChainHostileContent`, `TestConsoleChainKeyboardNavigation` |
 
 Current executable compatibility is owned by CRB-V0-015. The console accepts explicit `--tasks`
 and the legacy `--atm` fallback with equality/conflict/empty handling before any child starts. Its
@@ -342,6 +398,10 @@ Staged, and gated in this order:
 4. **S3, one console (delivered 2026-09-08).** The Corvint evidence snapshot, the dogfood report, the
    committed benchmark results and the agent-memory backlogs join the same surface under the same
    axes.
+5. **Chain pane (experimental, 2026-09-23, decision 0362).** `/chain` over the sealed change maps,
+   the untracked OCM maps and the local trace (LAC-V0-033..036). Rollback to the existing panes is
+   deleting `internal/console/chain.go`, the `/chain` route and view fields in `server.go`, `chainView`
+   in `views.go` and the navigation link in `render.go`; no artifact, wire or other pane depends on it.
 
 Rollback at every stage is deleting the console binary and its package. Nothing in `corvint` or
 `atm` may come to depend on the console, which is what LAC-V0-001 and LAC-V0-004 exist to guarantee;
@@ -359,6 +419,8 @@ a dependency in that direction is the drift signal that voids this contract.
   import. Corvint must never link `corvint-taskman`; that dependency is the drift signal.
 - U4: **open, and deliberately unclaimed.** The operator-time comparison against the two CLIs has no
   instrument and no control arm, so no baseline-beating claim is made for the delivered stages.
+  The chain pane's operator-time comparison against the CLI with a human is `NOT_OBSERVED` (V1-0025
+  AC4); no timing is recorded or implied.
 
 ## Delivered behaviour (2026-09-07)
 
@@ -443,6 +505,24 @@ are the tool's own outcome shown as itself; neither produces an empty evidence p
 the slowest source the console invokes, so `--timeout` may need raising on a loaded host.
 
 U4 is unchanged: no operator-time instrument exists, so S3 makes no baseline-beating claim either.
+
+## Delivered chain pane (2026-09-23)
+
+`/chain` lists the sealed maps under `.corvint/changes` at the page's commit; selecting one renders its
+change binding, the local artifacts read and whether each is bound, the recorded verification rows,
+every hunk with its cited evidence and governing-requirement edges, and every obligation of a bound OCM
+map with its pinned clause, listed hunks, test claims and the change's recorded verification. A hunk
+link opens its detail: the lines at the change commit and each cited span's bytes at its object id.
+
+Observed against this repository at base `1894b9e`: all 35 sealed changes list, and change
+`f6e68755` renders its binding and its three evidence edges linked while its three requirement edges
+are `missing` and its verification is `unverified`. That is the truthful state of a fresh clone: OCM maps and traces are untracked local
+files, so a change sealed in another worktree has neither here. The dogfood loop's OCM obligations are
+`unknown` until `corvint ocm link` records hunk and claim identifiers, so their requirement edges
+render `unsupported` rather than linked.
+
+Launch behaviour is unchanged: foreground-process cleanup is still `TestConsoleHTTPProcessCleanup`.
+U4 remains open and the chain pane's operator-time comparison is `NOT_OBSERVED`.
 
 ## §8 Proposed qualification matrix
 

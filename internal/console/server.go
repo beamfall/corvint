@@ -90,6 +90,11 @@ type view struct {
 	ListingTitle string
 	ListingNote  string
 	ListingRoute string
+
+	// The chain pane: the sealed changes this commit holds and, for the one
+	// selected, its hunk-to-verification chain (LAC-V0-033).
+	Changes []string
+	Chain   *Chain
 }
 
 // New builds a console bound to one repository. It refuses a non-loopback
@@ -120,6 +125,7 @@ func New(options Options) (*Server, error) {
 	server.mux.HandleFunc("/mutate", server.handleMutate)
 	server.mux.HandleFunc("/evidence", server.handleEvidence)
 	server.mux.HandleFunc("/dogfood", server.handleDogfood)
+	server.mux.HandleFunc("/chain", server.handleChain)
 	server.mux.HandleFunc("/benchmarks", server.handleBenchmarks)
 	server.mux.HandleFunc("/backlogs", server.handleBacklogs)
 	return server, nil
@@ -392,6 +398,33 @@ func (s *Server) handleDogfood(w http.ResponseWriter, r *http.Request) {
 	data := s.newView(ctx, "Dogfood")
 	data.Dogfood = ReadDogfood(s.options.specsRoot())
 	render(w, dogfoodView, data)
+}
+
+// handleChain renders the chain of one sealed change: hunk, cited evidence,
+// governing requirement, recorded verification (LAC-V0-033). Only a change the
+// listing of .corvint/changes at this commit named is read, so the pane cannot
+// be turned into a reader for an arbitrary path or object.
+func (s *Server) handleChain(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	data := s.newView(ctx, "Chain")
+	data.Pin = stalePin(r.URL.Query().Get("at"), data.Revision)
+	if data.Pin != "" || data.Revision.Commit == "" {
+		render(w, chainView, data)
+		return
+	}
+	worktree := Worktree{Root: s.options.specsRoot(), Timeout: s.options.Timeout}
+	data.Listing = worktree.List(ctx, data.Revision.Commit, changesDir)
+	data.Changes = ChangeIDs(data.Listing)
+	change := r.URL.Query().Get("change")
+	if change == "" || !data.Listing.names(changesDir+"/"+change+".cem.json") || !objectIDPattern.MatchString(change) {
+		render(w, chainView, data)
+		return
+	}
+	data.Chain = worktree.ReadChain(ctx, data.Revision.Commit, change)
+	if hunk := r.URL.Query().Get("hunk"); hunk != "" && data.Chain.Err == "" {
+		data.Chain.Detail = worktree.HunkDetail(ctx, data.Chain, hunk)
+	}
+	render(w, chainView, data)
 }
 
 // handleBenchmarks lists the committed benchmark results.

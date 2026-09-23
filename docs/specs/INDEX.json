@@ -1,5 +1,28 @@
 [
   {
+    "path": "docs/specs/core-compatibility-freeze-v1.md",
+    "title": "Core Compatibility Freeze V1",
+    "reqPrefix": "CCF-V1",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.7.0 to 1.0.",
+    "dependsOn": [
+      "docs/specs/affected-plan-v0.md",
+      "docs/specs/diagnostic-repair-contract-v0.md",
+      "docs/specs/falsifiable-packet-v0.md",
+      "docs/specs/genesis-backfill.md",
+      "docs/specs/go-production-kernel-migration-v0.md",
+      "docs/specs/index-snapshot-v0.md",
+      "docs/specs/local-trace-producer-migration-v0.md",
+      "docs/specs/task-context-packet-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint"
+    ]
+  },
+  {
     "path": "docs/specs/application-flow-understanding-v0.md",
     "title": "Application Flow Understanding V0",
     "reqPrefix": "AFU-V0",
@@ -67,7 +90,6 @@
       "cmd/corvint",
       "internal/gokernel",
       "internal/repoenvelope",
-      "src/context_corvint_harness.py",
       "conformance/harness-event-v0"
     ]
   },
@@ -228,9 +250,7 @@
     "implementation": [
       "internal/cem",
       "cmd/corvint",
-      "conformance/cem-0.2",
-      "src/context_corvint_cem.py",
-      "src/context_corvint_cem_workflow.py"
+      "conformance/cem-0.2"
     ]
   },
   {
@@ -293,7 +313,8 @@
     "closableToday": false,
     "implementation": [
       "internal/cem",
-      "experiments/cem-first-run"
+      "interop/cem01-go",
+      "examples/cem"
     ]
   },
   {
@@ -726,6 +747,7 @@
     "closableToday": false,
     "implementation": [
       "cmd/corvint",
+      "examples/evidence-provider/v0",
       "internal/extevidence"
     ]
   },
@@ -877,12 +899,13 @@
     "reqPrefix": "ESV-V0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "An opt-in development consumer expands a selected saved context evidence handle into exact immutable bytes.",
+    "claim": "Opt-in development views bound a context packet and expand one selected digest-pinned evidence handle into exact immutable bytes.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "cmd/corvint/source_handoff.go"
+      "cmd/corvint/source_handoff.go",
+      "cmd/corvint/context_summary.go"
     ]
   },
   {
@@ -932,8 +955,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "src/context_corvint_genesis.py",
-      "src/corvint_cli.py"
+      "internal/genesis",
+      "cmd/corvint/init_adopt.go"
     ]
   },
   {
@@ -1229,7 +1252,7 @@
     "title": "Local Admin Console V0",
     "reqPrefix": "LAC-V0",
     "intent": "accepted (decision 0081)",
-    "delivery": "experimental (S1, S2 ticket verbs, and S3)",
+    "delivery": "experimental (S1, S2 ticket verbs, S3, and the chain pane)",
     "claim": "A local, loopback-only console may present task management, evidence, spec and code without becoming repository, execution, or promotion authority.",
     "dependsOn": [
       "docs/specs/local-observability-dashboard-v0.md",
@@ -1421,8 +1444,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "src/context_corvint_ocm.py",
-      "src/context_corvint_ocm_workflow.py",
       "cmd/corvint/dogfood_ocm.go",
       "internal/dogfoodocm",
       "internal/lrfrepo/ocm.go",
@@ -1430,9 +1451,7 @@
       "script/dogfood-check.sh",
       "script/dogfood-change_test.sh",
       "internal/dogfoodocm/aggregate_test.go",
-      "internal/lrfrepo/ocm_prepare_test.go",
-      "tests/test_context_corvint_ocm.py",
-      "tests/test_context_corvint_ocm_workflow.py"
+      "internal/lrfrepo/ocm_prepare_test.go"
     ]
   },
   {
@@ -1468,7 +1487,9 @@
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [
+      "benchmarks/daily-loop-v0/harness.py"
+    ]
   },
   {
     "path": "docs/specs/proof-preserving-abstraction-v0.md",
@@ -1611,7 +1632,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "tools/release_artifact.py",
       "script/release-checklist",
       "conformance/release-artifact-v0",
       "conformance/release-artifact-v0/archive-verifier",
@@ -1680,10 +1700,8 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "src/context_corvint.py",
-      "src/context_corvint_index.py",
-      "tests/test_context_corvint.py",
-      "tests/test_context_corvint_cache.py"
+      "internal/contextindex",
+      "internal/worktreeimpact"
     ]
   },
   {
@@ -1766,7 +1784,6 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "src/context_corvint_claims.py",
       "internal/semescalate"
     ]
   },
@@ -1947,7 +1964,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "benchmarks/dogfood_measure.py"
+      "benchmarks/dogfood-measure"
     ]
   },
   {
@@ -1965,8 +1982,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "src/context_corvint_test_claim.py",
-      "src/context_corvint_test_claim_junit.py"
+      "internal/tcq"
     ]
   },
   {
@@ -2015,8 +2031,7 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "conformance/use-cases-v0",
-      "tests/test_use_case_conformance.py"
+      "conformance/use-cases-v0"
     ]
   },
   {
@@ -2290,7 +2305,7 @@
     "path": "docs/specs/stable-operations-v0.md",
     "title": "Stable operations V0",
     "reqPrefix": "SOP-V0",
-    "intent": "accepted (decision 0341, 2026-09-22)",
+    "intent": "accepted (decision 0341, 2026-09-22; `SOP-V0-003` and `SOP-V0-009` amended by decision 0360, 2026-09-23)",
     "delivery": "implemented",
     "claim": "Install lifecycle, corrupted-snapshot recovery and a named hostile-regression matrix run locally as release-blocking checks with NOT_COVERED gaps stated.",
     "dependsOn": [
@@ -2305,7 +2320,25 @@
       "script/check-install-lifecycle_test.sh",
       "script/check-hostile-regressions.sh",
       "script/check-hostile-regressions_test.sh",
+      "internal/contextindex/hostile_operations_test.go",
       "docs/RELEASE-RUNBOOK.md"
     ]
+  },
+  {
+    "path": "docs/specs/corvint-1.0-product-and-release-v1.md",
+    "title": "Corvint 1.0 product and release scope V1",
+    "reqPrefix": "PRS-V1",
+    "intent": "proposed (DRAFT pending owner acceptance, V1-0001)",
+    "delivery": "not-started",
+    "claim": "Draft for owner ratification: 1.0 Core is the local change-evidence loop and proof wire; companions, host FULL and independent interop leave the Core path.",
+    "dependsOn": [
+      "docs/specs/public-release-v0.md",
+      "docs/specs/daily-change-evidence-workflow-v0.md",
+      "docs/specs/agent-harness-integration-v0.md",
+      "docs/specs/stable-operations-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

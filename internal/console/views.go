@@ -529,6 +529,131 @@ that passed, and the console does not aggregate these into a verdict: it is neve
 {{end}}
 {{end}}`)
 
+// chainView renders one sealed change as hunk, cited evidence, governing
+// requirement and recorded verification (LAC-V0-033). Every edge row names the
+// artifact and field that justify it; an edge the artifacts do not establish
+// is a gap row with its class and reason, never an inferred link (LAC-V0-034,
+// LAC-V0-035). All artifact text is agent- or tool-written and renders inert.
+var chainView = mustView(`{{define "edge"}}
+<tr{{if .Gap}} class="unknown"{{end}}>
+<td>{{if .Gap}}<b>gap: {{.Gap}}</b>{{else}}linked{{end}}</td>
+<td>{{if .Anchor}}<a href="#{{.Anchor}}"><code>{{.Target}}</code></a>{{else}}<code>{{or_dash .Target}}</code>{{end}}</td>
+<td><code>{{.Artifact}}</code> · <code>{{.Field}}</code></td>
+<td>{{if .Gap}}{{.Reason}}{{else}}{{if .Pin}}pinned <code>{{.Pin}}</code>{{end}}{{if .Detail}}<div>{{.Detail}}</div>{{end}}{{end}}
+{{template "axes" .Axes}}</td>
+</tr>
+{{end}}
+{{define "edges"}}<table>
+<tr><th>state</th><th>target</th><th>justified by (artifact · field)</th><th>pin, detail or gap reason</th></tr>
+{{range .}}{{template "edge" .}}{{end}}
+</table>{{end}}
+{{define "body"}}
+{{if .Pin}}<div class="panel"><div class="unknown">gap: {{.Pin}}</div></div>
+{{else}}
+<div class="panel">
+<h2>Sealed changes</h2>
+<div style="font-size:12px;color:var(--dim);margin-bottom:10px">Each sealed change map committed under
+<code>.corvint/changes</code> at this commit, named by the commit that bound it. A chain links only what
+an artifact field names by identifier or digest: nothing is linked by position, text, shared path or
+proximity. A linked edge is structural. It is never a claim that evidence supports a change semantically
+or that a test passed.</div>
+{{if .Listing}}{{if .Listing.Err}}{{template "refusal" refusalOf "The sealed changes could not be listed" .Listing.Source .Listing.Err}}
+{{else}}{{if .Changes}}<ul>{{range .Changes}}<li><a href="/chain?change={{.}}&amp;at={{$.Revision.Commit}}"{{if $.Chain}}{{if eq . $.Chain.Change}} aria-current="true"{{end}}{{end}}><code>{{.}}</code></a></li>{{end}}</ul>
+{{else}}<div>The tree at this revision holds no sealed change map, so there is no chain to show.</div>{{end}}
+{{if .Listing.Truncated}}<div class="unknown">this listing was truncated; it is PARTIAL</div>{{end}}
+{{template "source" .Listing.Source}}{{end}}{{end}}
+</div>
+{{with .Chain}}
+{{if .Err}}{{template "refusal" refusalOf "This sealed change map cannot be drawn as a chain" .Sealed.Source .Err}}
+{{else}}
+<div class="panel">
+<h2>Change <code>{{.Change}}</code></h2>
+<table>
+<tr><th>sealed map</th><td><code>{{.SealedPath}}</code> at object <code>{{.Sealed.ObjectID}}</code>, commit <code>{{.Commit}}</code></td></tr>
+<tr><th>profile</th><td><code>{{.Profile}}</code></td></tr>
+<tr><th>base revision</th><td><code>{{or_dash .Base}}</code></td></tr>
+<tr><th>hunks</th><td>{{len .Hunks}}</td></tr>
+</table>
+<h3>Change binding</h3>
+{{template "edges" .Binding}}
+{{template "source" .Sealed.Source}}
+</div>
+
+<div class="panel">
+<h2>Local artifacts read</h2>
+<div style="font-size:12px;color:var(--dim);margin-bottom:8px">Untracked files the CLI wrote in this
+worktree. An OCM map is bound only when its <code>targetRevision</code> names this change and its
+<code>cem.mapSha256</code> is the SHA-256 of the sealed map. These files carry no owning verifier, so
+their axes are NOT_STATED.</div>
+<table>
+<tr><th>path</th><th>state</th><th>reason</th></tr>
+{{range .Artifacts}}<tr{{if and (ne .State "bound") (ne .State "read") (ne .State "unrelated")}} class="unknown"{{end}}><td><code>{{.Path}}</code></td><td>{{.State}}</td><td>{{.Reason}}{{template "axes" .Source.Axes}}</td></tr>{{end}}
+</table>
+</div>
+
+<div class="panel">
+<h2>Recorded verification</h2>
+<div style="font-size:12px;color:var(--dim);margin-bottom:8px">A row of the local trace whose
+<code>revision</code> field names this change. It is the outcome an operator recorded for the whole
+revision, not a test result and not a result for any one requirement.</div>
+{{template "edges" .Verification}}
+</div>
+
+<div class="panel">
+<h2>Hunks</h2>
+{{range .Hunks}}
+<h3><a href="/chain?change={{$.Chain.Change}}&amp;hunk={{.ID}}&amp;at={{$.Revision.Commit}}#hunk-detail"><code>{{.Path}}</code> −{{.Old.Start}},{{.Old.Count}} +{{.New.Start}},{{.New.Count}}</a></h3>
+<div style="font-size:12px"><code>{{.ID}}</code> · <code>{{$.Chain.SealedPath}}</code> · <code>{{.Field}}</code> · disposition <code>{{.Disposition}}</code>{{if .Reason}} · reason <code>{{.Reason}}</code>{{end}}</div>
+<h4>Cited evidence</h4>
+{{template "edges" .Evidence}}
+<h4>Governing requirement</h4>
+{{template "edges" .Requirements}}
+{{end}}
+</div>
+
+{{with .Detail}}
+<div class="panel" id="hunk-detail">
+<h2>Hunk detail</h2>
+{{if .Err}}<div class="unknown">gap: {{.Err}}</div>
+{{else}}
+<div style="font-size:12px"><code>{{.Hunk.ID}}</code> · {{.Range}} lines of <code>{{.Hunk.Path}}</code></div>
+{{if .Lines.Err}}<div class="unknown">gap: missing: {{.Lines.Err}}</div>
+{{else}}
+<div style="font-size:12px">at object <code>{{.Lines.ObjectID}}</code>, revision <code>{{.Lines.Revision}}</code></div>
+{{if .Text}}<pre>{{.Text}}</pre>{{else}}<div class="unknown">gap: stale: the map's line range does not lie inside this object</div>{{end}}
+{{template "source" .Lines.Source}}
+{{end}}
+<h3>Cited spans</h3>
+{{range .Spans}}
+<div><code>{{or_dash .Edge.Target}}</code> · <code>{{.Edge.Field}}</code></div>
+{{if .Edge.Gap}}<div class="unknown">gap: {{.Edge.Gap}}: {{.Edge.Reason}}</div>
+{{else}}<div style="font-size:12px">pinned <code>{{.Edge.Pin}}</code></div><pre>{{.Text}}</pre>{{end}}
+{{end}}
+{{end}}
+</div>
+{{end}}
+
+<div class="panel">
+<h2>Requirements</h2>
+{{range .Requirements}}
+<h3{{if .Anchor}} id="{{.Anchor}}"{{end}}><code>{{.ID}}</code> · disposition <code>{{or_dash .Disposition}}</code>{{if .Reason}} · reason <code>{{.Reason}}</code>{{end}}</h3>
+<h4>Clause at the pinned intent scope</h4>
+{{template "edges" .Clause}}
+<h4>Hunks the obligation lists</h4>
+{{template "edges" .Hunks}}
+<h4>Test claims the obligation lists</h4>
+{{template "edges" .Claims}}
+<h4>Recorded verification of the change</h4>
+{{template "edges" .Verification}}
+{{else}}
+<div class="unknown">gap: missing: no OCM map bound to this sealed map lists an obligation, so no requirement is shown.</div>
+{{end}}
+</div>
+{{end}}
+{{end}}
+{{end}}
+{{end}}`)
+
 // listingView renders one committed directory: the benchmark results and the
 // agent-memory backlogs both reach the surface this way. Each entry is named
 // by the immutable object id its bytes come from, and its content is read

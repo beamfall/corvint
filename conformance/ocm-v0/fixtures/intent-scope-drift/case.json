@@ -1,0 +1,88 @@
+{
+  "id": "intent-scope-drift",
+  "obligations": [
+    {
+      "id": "CONF-V0-001",
+      "disposition": "linked"
+    },
+    {
+      "id": "CONF-V0-002",
+      "disposition": "unknown",
+      "reason": "no-test-claim"
+    }
+  ],
+  "note": "The produced map with its pinned intent scope moved, made stale, or pointed at an absent path. OCM re-derives the scope from the target blob and has no relocation tolerance.",
+  "cases": [
+    {
+      "id": "stable",
+      "note": "The unperturbed intent scope re-derives exactly and verifies.",
+      "ops": [],
+      "expect": {
+        "state": "ready-for-review",
+        "linked": 1,
+        "unknown": 1
+      }
+    },
+    {
+      "id": "relocated-span",
+      "note": "The span moves one byte and keeps its digest; the re-derived scope differs.",
+      "ops": [
+        {
+          "intentShift": 1
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "intent-scope-mismatch"
+      }
+    },
+    {
+      "id": "stale-span-digest",
+      "note": "The span digest names other bytes.",
+      "ops": [
+        {
+          "intent": {
+            "field": "spanSha256",
+            "value": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "intent-scope-mismatch"
+      }
+    },
+    {
+      "id": "stale-blob",
+      "note": "The intent blob OID names an object the repository does not hold. An unavailable object emits only repository-object-unavailable (OCM-V0-012).",
+      "ops": [
+        {
+          "intent": {
+            "field": "blobOid",
+            "value": "0000000000000000000000000000000000000000"
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "repository-object-unavailable"
+      }
+    },
+    {
+      "id": "deleted-intent-path",
+      "note": "The intent path does not exist at the target. An unavailable object emits only repository-object-unavailable (OCM-V0-012).",
+      "ops": [
+        {
+          "intent": {
+            "field": "path",
+            "value": "docs/deleted.md"
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "repository-object-unavailable"
+      }
+    }
+  ]
+}

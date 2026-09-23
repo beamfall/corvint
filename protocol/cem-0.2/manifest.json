@@ -1,6 +1,6 @@
 {
   "profile": "cem-portable-vectors/0",
-  "status": "candidate-not-frozen",
+  "status": "frozen",
   "author": "Portable Proof <proof@example.invalid>",
   "timestamp": "2026-01-01T00:00:00Z",
   "baseRevision": "2fe3f277a5f73e3b407b0f542674bce217640141",

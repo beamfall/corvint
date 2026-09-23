@@ -99,6 +99,11 @@ func readCheckpointDocument(filename string) (checkpointDocument, error) {
 	if err != nil {
 		return document, checkpointError("unreadable-checkpoint-document", "cannot read checkpoint document within 256 KiB")
 	}
+	return decodeCheckpointDocument(raw)
+}
+
+func decodeCheckpointDocument(raw []byte) (checkpointDocument, error) {
+	var document checkpointDocument
 	var object map[string]any
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.UseNumber()
