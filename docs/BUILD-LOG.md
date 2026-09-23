@@ -4,6 +4,33 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0192 LCP-V0-010, LCP-V0-013: task mentions anchor prompt context
+
+The native user-prompt event resolved only explicit paths, requirement IDs and source-backed
+identifiers, so a prompt naming `pkg/packet.go:42`, `pkg/packet.go#ParsePacket` or a commit gave
+`explicit-task-anchor-required` or incidental rows. `LCP-V0-013` adds three mention forms to the
+same pure compiler, and `LCP-V0-010` now counts them as explicit anchors. That amends accepted
+intent, so it needs the owner's review on the PR.
+
+A mention is one whitespace field whose path part is path-shaped: it contains `/`, has an
+extension, or is tracked. That keeps `localhost:8080`, `issue#12` and hex-looking English words
+out. A line or range is checked against the bound source's line count and names its start line
+with the existing row schema. `path#name` matches exact declarations in that path only, and a
+dotted name falls back to its terminal part as `qualification-unverified`, because Go method
+symbols carry bare names. A commit resolves only as a prefix of the bound commit. Any other commit
+is `anchor-evidence-unavailable`, because the profile reads no history (`LCP-V0-011`). Resolving
+other commits needs caller-acquired Git facts and is a follow-up.
+
+Evidence: 20 frozen cases in `internal/contextindex/testdata/local-completion/mention-cases.json`,
+identity, dirty, deleted-source and budget tests, and two new UC-TASK-ORIENTATION hostile cases
+through the native prompt entrypoint, whose `hostile-tests` receipt is repinned. The analyzer
+schema moves to `corvint-analyzer/77`.
+
+Deviation from the ticket: acceptance criterion 4 names the frozen daily-loop evaluation. Its
+orientation job scores `corvint context --task`, which this change does not touch, and it builds
+the preregistered candidate commit, so it cannot regress here. Adding mention tasks to its corpus
+would amend the preregistration; that is a follow-up ticket, not part of this change.
+
 ## 2026-09-23 V1-0207 UCV0-006, UCV0-010: corvint-dogfood receipts for the three Core use cases
 
 V1-0011 criterion 3 asks that Corvint and Beamfall dogfood receipts bind real changes and stay

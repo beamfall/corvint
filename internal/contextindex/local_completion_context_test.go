@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -15,7 +16,12 @@ import (
 
 func localPromptFixture(t *testing.T) *Index {
 	t.Helper()
-	root := impactRepositoryWithFiles(t, map[string]string{
+	return localPromptFixtureWith(t, nil)
+}
+
+func localPromptFixtureWith(t *testing.T, extra map[string]string) *Index {
+	t.Helper()
+	files := map[string]string{
 		"go.mod":               "module example.test/prompt\n\ngo 1.27.0\n",
 		"AGENTS.md":            "# Instructions\nPreserve project authority.\n",
 		"docs/specs/packet.md": "# Packet\n\n- PKT-001: Validate packet bytes.\n",
@@ -23,7 +29,9 @@ func localPromptFixture(t *testing.T) *Index {
 		"other/other.go":       "package other\n\nfunc DuplicateName() {}\n",
 		"one/duplicate.go":     "package one\n",
 		"two/duplicate.go":     "package two\n",
-	})
+	}
+	maps.Copy(files, extra)
+	root := impactRepositoryWithFiles(t, files)
 	index, err := Build(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
@@ -305,6 +313,102 @@ func TestDogfoodPromptCancellationDuringCompilation(t *testing.T) {
 		_, err := DogfoodPromptContext(ctx, index, "fix `ParsePacket`", nil, 20, 8000)
 		if err != context.Canceled {
 			t.Fatalf("in-flight cancellation=%v (polls=%d)", err, ctx.calls)
+		}
+	})
+}
+
+func localMentionFixture(t *testing.T) *Index {
+	t.Helper()
+	return localPromptFixtureWith(t, map[string]string{
+		"pkg/methods.go": "package packet\n\ntype Reader struct{}\ntype Writer struct{}\n\nfunc (Reader) Close() {}\nfunc (Writer) Close() {}\n",
+	})
+}
+
+func localPromptRows(packet map[string]any) []string {
+	rows := []string{}
+	for _, row := range mapsFromAny(packet["task_evidence"]) {
+		rows = append(rows, fmt.Sprintf("%s:%d", row["path"], row["line"]))
+	}
+	slices.Sort(rows)
+	return rows
+}
+
+// LCP-V0-013: every mention form and refusal, frozen before the implementation.
+func TestDogfoodPromptMentionAnchors(t *testing.T) {
+	t.Run("LCP-V0-013 mention", func(t *testing.T) {
+		index := localMentionFixture(t)
+		data, err := os.ReadFile("testdata/local-completion/mention-cases.json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var cases []struct {
+			Task, Reason string
+			Rows         []string
+		}
+		if err := json.Unmarshal(data, &cases); err != nil {
+			t.Fatal(err)
+		}
+		for _, test := range cases {
+			t.Run(test.Task, func(t *testing.T) {
+				packet := localPrompt(t, index, test.Task, nil, 20, 8000)
+				resolution := packet["resolution"].(map[string]any)
+				if resolution["reason"] != test.Reason {
+					t.Fatalf("resolution=%v; want %s", resolution, test.Reason)
+				}
+				for _, row := range mapsFromAny(packet["task_evidence"]) {
+					if !localObjectID(row["blob_hash"].(string)) {
+						t.Fatalf("unpinned evidence: %v", row)
+					}
+				}
+				if rows := localPromptRows(packet); !reflect.DeepEqual(rows, test.Rows) {
+					t.Fatalf("rows=%v want=%v", rows, test.Rows)
+				}
+			})
+		}
+	})
+}
+
+func TestDogfoodPromptMentionIdentityAndRefusals(t *testing.T) {
+	t.Run("LCP-V0-013 mention", func(t *testing.T) {
+		index := localMentionFixture(t)
+		packet := localPrompt(t, index, "inspect pkg/packet.go:4-6", nil, 20, 8000)
+		rows := mapsFromAny(packet["task_evidence"])
+		if resolution := packet["resolution"].(map[string]any); resolution["anchors"] != 1 || len(rows) != 1 || rows[0]["relation"] != "explicit-line" || rows[0]["authority"] != "task-text" {
+			t.Fatalf("line mention counted twice or mislabelled: %v", packet)
+		}
+		packet = localPrompt(t, index, "fix pkg/packet.go#ParsePacket", nil, 20, 8000)
+		if rows := mapsFromAny(packet["task_evidence"]); len(rows) != 1 || rows[0]["relation"] != "explicit-identifier" || rows[0]["authority"] != "syntax" {
+			t.Fatalf("symbol mention mislabelled: %v", packet)
+		}
+		for _, commit := range []string{index.CommitRevision, index.CommitRevision[:7], index.CommitRevision[:12]} {
+			if !strings.ContainsAny(commit, "0123456789") || !strings.ContainsAny(commit, "abcdef") {
+				t.Skip("fixture commit lacks a digit or a letter")
+			}
+			packet := localPrompt(t, index, "revert "+commit, nil, 20, 8000)
+			resolution := packet["resolution"].(map[string]any)
+			if resolution["reason"] != "none" || resolution["anchors"] != 1 || len(mapsFromAny(packet["task_evidence"])) != 0 {
+				t.Fatalf("bound commit %s not resolved as a revision anchor: %v", commit, packet)
+			}
+		}
+		index.DirtyPaths = []string{"pkg/packet.go"}
+		packet = localPrompt(t, index, "inspect pkg/packet.go:4", nil, 20, 8000)
+		if packet["resolution"].(map[string]any)["reason"] != "anchor-worktree-changed" {
+			t.Fatal("dirty line mention presented as current")
+		}
+		index = localMentionFixture(t)
+		delete(index.Sources, "pkg/packet.go")
+		packet = localPrompt(t, index, "inspect pkg/packet.go:99", nil, 20, 8000)
+		if packet["resolution"].(map[string]any)["reason"] != "anchor-evidence-unavailable" {
+			t.Fatal("unread line mention reported absent or resolved")
+		}
+		packet = localPrompt(t, index, "inspect pkg/packet.go:4", nil, 1, 8000)
+		if packet["resolution"].(map[string]any)["reason"] != "anchor-evidence-unavailable" {
+			t.Fatal("unread line mention resolved")
+		}
+		index = localMentionFixture(t)
+		packet = localPrompt(t, index, "inspect pkg/packet.go:4", nil, 1, 8000)
+		if packet["resolution"].(map[string]any)["reason"] != "task-evidence-omitted" {
+			t.Fatal("omitted mention evidence resolved")
 		}
 	})
 }

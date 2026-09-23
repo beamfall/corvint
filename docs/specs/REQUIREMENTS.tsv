@@ -1224,6 +1224,7 @@ LCP-V0-009	docs/specs/local-completion-policy-v0.md	155	`corvint dogfood event` 
 LCP-V0-010	docs/specs/local-completion-policy-v0.md	176	New-profile prompt context MUST separate project governance, declared enrollment
 LCP-V0-011	docs/specs/local-completion-policy-v0.md	186	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix
 LCP-V0-012	docs/specs/local-completion-policy-v0.md	199	Private plans, observations and report sets MUST have explicit byte/count limits
+LCP-V0-013	docs/specs/local-completion-policy-v0.md	205	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	1309	Every displayed metric and source-derived value MUST derive through the compiled
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	1313	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	1316	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the
