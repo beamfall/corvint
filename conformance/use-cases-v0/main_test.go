@@ -232,9 +232,18 @@ func testUCV0ProfileMigration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The canonical ledger validates in the repository tree, where its receipts live (decision 0373).
+	tree := validate("../..", "conformance/use-cases-v0/ledger.json")
+	if tree["valid"] != true || tree["useCaseCount"] != 22 || tree["claimCounts"].(map[string]any)["UNPROVEN"] != 22 {
+		t.Fatal(tree)
+	}
 	current := newFixture(t)
 	if err := json.Unmarshal(raw, &current.ledger); err != nil {
 		t.Fatal(err)
+	}
+	for i := len(useCaseIDs); i < len(current.ledger["useCases"].([]any)); i++ {
+		row := current.row(i)
+		row["status"], row["evidence"] = "specified", map[string]any{}
 	}
 	result := current.check()
 	if result["useCaseCount"] != 22 || result["claimCounts"].(map[string]any)["UNPROVEN"] != 22 || result["evidenceCount"] != 0 {

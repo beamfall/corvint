@@ -1,6 +1,7 @@
 # Decision 0367: Identifier graph with an opt-in personalized PageRank context slot
 
-Date: 2026-09-23. Status: proposed (experimental delivery; ticket V1-0083).
+Date: 2026-09-23. Status: accepted as experimental, off by default; not delivered (decision 0373 item 13;
+ticket V1-0083 archived, closing rule unmet).
 
 This decision:
 

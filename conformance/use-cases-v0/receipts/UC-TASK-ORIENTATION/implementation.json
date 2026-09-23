@@ -1,0 +1,27 @@
+{
+  "attestation": {
+    "entrypoints": [
+      "corvint context",
+      "corvint query"
+    ]
+  },
+  "evidenceClass": "implementation",
+  "repositoryRevision": "062b0151b603a5d637cdd0ad0f560edefee921a4",
+  "result": "PASS",
+  "spec": "corvint-use-case-evidence/0",
+  "subjects": [
+    {
+      "path": "cmd/corvint/main.go",
+      "sha256": "fddb4b6a11af8ba6adfa1e8e0761e84bf0e4f5b247386078e7a8540c24357e8f"
+    },
+    {
+      "path": "cmd/corvint/context_lookup.go",
+      "sha256": "1c30b148262570d7e646c447b03b8d6ab87844cd432d40cfec4760a747b78134"
+    },
+    {
+      "path": "cmd/corvint/taskcontext.go",
+      "sha256": "1776626b2f4455f65f64526a75e4882a47e57406afa776df2229fff313abc809"
+    }
+  ],
+  "useCaseId": "UC-TASK-ORIENTATION"
+}

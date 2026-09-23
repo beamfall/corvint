@@ -41,7 +41,9 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   drops complete oldest rows before appending. When an append repairs an externally oversized
   ledger, it MUST read at most half the file cap from the ledger's tail and align at the next row
   boundary exactly as oldest-first truncation does. Appends MUST discard an unterminated trailing row; a retained tail with no newline contributes no previous row, so malformed bytes cannot swallow the new event. The ledger is private local derived state,
-  never input to ranking, learning, evidence, or authority.
+  never input to ranking, evidence, or authority, nor to learning except through the operator-invoked
+  `corvint eval --learn-slot-weights` step, whose output reaches ranking only after the frozen held-out
+  gate admits it (`LTA-V0-009` to `LTA-V0-012`; decision 0368, ratified by decision 0373).
 - `SOL-V0-004`: Rows MAY report support, freshness, degradation codes, uncertainty, omitted and
   critical-missing counts, authoritative-result count, event latency, and file-change touched/ranked
   paths. A mixed-worktree file-change MUST report `MISS_DETECTION_NOT_OBSERVED`, not infer a miss.
