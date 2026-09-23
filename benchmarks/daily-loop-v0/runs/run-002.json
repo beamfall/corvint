@@ -1,0 +1,3380 @@
+{
+  "candidateBinarySha256": "15ec2fb02a52ddeb779d2079c953098a3c25553a6db6e6bbc48f9842c1fc476e",
+  "candidateCommit": "d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe",
+  "candidateVersion": "Corvint 0.7.0 (build 0)",
+  "completion": {
+    "cem": [
+      {
+        "base": "f1b9e349ac564b032e677d548b6be9a40a533c0a",
+        "bind": "055257fa1197b4c2d5c1d056b8f623d778319edc",
+        "commit": "362721cdcf0626c1b0345b69cd9f2fbfc9a32957",
+        "mapSha256": "238b0dc6071ba7e4be32aee2467d422374cdea3c5d2048af10d5d85b4f30c595",
+        "missingEvidence": {
+          "M1-stale-target": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 5471,
+              "stdoutSha256": "9e25e24f7bb5eba6b378f99aa8c08e2855bf17d323c8686ef9a3942746aea73d",
+              "stdoutTail": "2},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":16},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:e1fa4b250aa09e8e4325679a7f79511743a87141c6c398c29c709f0930f22caf\",\"newRange\":{\"count\":7,\"start\":46},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":46},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":17}]}\n",
+              "wallMs": 151
+            },
+            "reasons": [
+              "patch-digest-mismatch"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M2-hunk-removed": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 5287,
+              "stdoutSha256": "fb3ab413a134da2e5a82becbf6ef17610cfa85eaa7326b63fe4d6bb0e3936ed1",
+              "stdoutTail": "2},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":15},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:e1fa4b250aa09e8e4325679a7f79511743a87141c6c398c29c709f0930f22caf\",\"newRange\":{\"count\":7,\"start\":46},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":46},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":16}]}\n",
+              "wallMs": 339
+            },
+            "reasons": [
+              "uncited-hunk"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M3-basis-removed": {
+            "informative": true,
+            "observation": {
+              "exit": 2,
+              "stderrTail": "{\"code\": \"unsupported-without-basis\", \"error\": \"supported hunks require at least one basis\", \"ok\": false}\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "wallMs": 10
+            },
+            "reasons": [
+              "unsupported-without-basis"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M4-evidence-digest-staled": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 5511,
+              "stdoutSha256": "4986bddf27c641d6cec52389029c650f4eef3b9f0eab5e69adb213dbefc6248b",
+              "stdoutTail": "2},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":16},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:e1fa4b250aa09e8e4325679a7f79511743a87141c6c398c29c709f0930f22caf\",\"newRange\":{\"count\":7,\"start\":46},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":46},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":17}]}\n",
+              "wallMs": 354
+            },
+            "reasons": [
+              "fabricated-evidence-id"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M5-wrong-base": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 5503,
+              "stdoutSha256": "dc5fba4c4c69f1edeadff24d34c8c3c94632381e76c706e3e993c2a833290057",
+              "stdoutTail": "2},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":16},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:e1fa4b250aa09e8e4325679a7f79511743a87141c6c398c29c709f0930f22caf\",\"newRange\":{\"count\":7,\"start\":46},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":46},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":17}]}\n",
+              "wallMs": 28
+            },
+            "reasons": [
+              "base-revision-mismatch"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M6-supported-to-unknown": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 7011,
+              "stdoutSha256": "a1708bf31e77ea7e680aefb8e250f480515f6b81c791f029d02ef952731073b0",
+              "stdoutTail": "2},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":16},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:e1fa4b250aa09e8e4325679a7f79511743a87141c6c398c29c709f0930f22caf\",\"newRange\":{\"count\":7,\"start\":46},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":46},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":17}]}\n",
+              "wallMs": 468
+            },
+            "reasons": [
+              "max-unknown-exceeded"
+            ],
+            "verdict": "REFUSED"
+          }
+        },
+        "positiveControl": {
+          "latency": {
+            "maxMs": 440,
+            "medianMs": 439,
+            "runsMs": [
+              440,
+              435,
+              439
+            ]
+          },
+          "runs": [
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 6878,
+              "stdoutSha256": "6679119ccb8b48a16621123e6cc9d91185ee9182f421df0e5d008709a49c50af",
+              "stdoutTail": "2},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":16},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:e1fa4b250aa09e8e4325679a7f79511743a87141c6c398c29c709f0930f22caf\",\"newRange\":{\"count\":7,\"start\":46},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":46},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":17}]}\n",
+              "wallMs": 440
+            },
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 6878,
+              "stdoutSha256": "6679119ccb8b48a16621123e6cc9d91185ee9182f421df0e5d008709a49c50af",
+              "stdoutTail": "2},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":16},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:e1fa4b250aa09e8e4325679a7f79511743a87141c6c398c29c709f0930f22caf\",\"newRange\":{\"count\":7,\"start\":46},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":46},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":17}]}\n",
+              "wallMs": 435
+            },
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 6878,
+              "stdoutSha256": "6679119ccb8b48a16621123e6cc9d91185ee9182f421df0e5d008709a49c50af",
+              "stdoutTail": "2},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":16},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:e1fa4b250aa09e8e4325679a7f79511743a87141c6c398c29c709f0930f22caf\",\"newRange\":{\"count\":7,\"start\":46},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":46},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":17}]}\n",
+              "wallMs": 439
+            }
+          ],
+          "verdict": "COMPLETE"
+        },
+        "reencodedControl": {
+          "byteIdentical": true,
+          "observation": {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 6878,
+            "stdoutSha256": "8e8320c9dbc6390003b5cda032f6faa5d26e607eb74ce6f6dd07324c231a1cb8",
+            "stdoutTail": "2},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":16},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:e1fa4b250aa09e8e4325679a7f79511743a87141c6c398c29c709f0930f22caf\",\"newRange\":{\"count\":7,\"start\":46},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":46},\"path\":\"extensions/vscode/test/executable-process.test.ts\",\"reason\":\"evidence-backed\",\"selector\":17}]}\n",
+            "wallMs": 470
+          },
+          "verdict": "COMPLETE"
+        },
+        "sealedSha256": "238b0dc6071ba7e4be32aee2467d422374cdea3c5d2048af10d5d85b4f30c595",
+        "unknownCeiling": 0
+      },
+      {
+        "base": "0651b5263d092952056ff274f54712af87dd1683",
+        "bind": "2bbf560d53170a37717b23cd1b763c5a337db5f6",
+        "commit": "362721cdcf0626c1b0345b69cd9f2fbfc9a32957",
+        "mapSha256": "7e2d33b53630c7dc1d7988b0e0c76b7ad3a805caf3824cf8e1df8db7164a9a50",
+        "missingEvidence": {
+          "M1-stale-target": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 4242,
+              "stdoutSha256": "ba5e9685f5fb58433f1bfd1b9c20dba3f91bcb871653058eb19fce7484cfc422",
+              "stdoutTail": "nge\":{\"count\":7,\"start\":18},\"path\":\"docs/specs/compat-trial-v0.md\",\"reason\":\"evidence-backed\",\"selector\":12},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:abe35ef14b120a0fd6e4723d0ae7b905e823c0714972406184620609d9ab7f10\",\"newRange\":{\"count\":7,\"start\":78},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":78},\"path\":\"docs/specs/documentation-citation-gate-v0.md\",\"reason\":\"evidence-backed\",\"selector\":13}]}\n",
+              "wallMs": 138
+            },
+            "reasons": [
+              "patch-digest-mismatch"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M2-hunk-removed": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 4055,
+              "stdoutSha256": "0fca8fce71b1a31194d5247173f6634bb9c8e49c52c5a537a617c04148d4b118",
+              "stdoutTail": "nge\":{\"count\":7,\"start\":18},\"path\":\"docs/specs/compat-trial-v0.md\",\"reason\":\"evidence-backed\",\"selector\":11},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:abe35ef14b120a0fd6e4723d0ae7b905e823c0714972406184620609d9ab7f10\",\"newRange\":{\"count\":7,\"start\":78},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":78},\"path\":\"docs/specs/documentation-citation-gate-v0.md\",\"reason\":\"evidence-backed\",\"selector\":12}]}\n",
+              "wallMs": 257
+            },
+            "reasons": [
+              "uncited-hunk"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M3-basis-removed": {
+            "informative": true,
+            "observation": {
+              "exit": 2,
+              "stderrTail": "{\"code\": \"unsupported-without-basis\", \"error\": \"supported hunks require at least one basis\", \"ok\": false}\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "wallMs": 10
+            },
+            "reasons": [
+              "unsupported-without-basis"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M4-evidence-digest-staled": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 4314,
+              "stdoutSha256": "f7f4adcf696631f9a8c7fd9a1bc63aa1e1e75fb1fa98ea8cab95e7998f463799",
+              "stdoutTail": "nge\":{\"count\":7,\"start\":18},\"path\":\"docs/specs/compat-trial-v0.md\",\"reason\":\"evidence-backed\",\"selector\":12},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:abe35ef14b120a0fd6e4723d0ae7b905e823c0714972406184620609d9ab7f10\",\"newRange\":{\"count\":7,\"start\":78},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":78},\"path\":\"docs/specs/documentation-citation-gate-v0.md\",\"reason\":\"evidence-backed\",\"selector\":13}]}\n",
+              "wallMs": 270
+            },
+            "reasons": [
+              "fabricated-evidence-id"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M5-wrong-base": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 4274,
+              "stdoutSha256": "384966ff370584bc699a11aab224ed8938efe680be74fb006757c594563d83c8",
+              "stdoutTail": "nge\":{\"count\":7,\"start\":18},\"path\":\"docs/specs/compat-trial-v0.md\",\"reason\":\"evidence-backed\",\"selector\":12},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:abe35ef14b120a0fd6e4723d0ae7b905e823c0714972406184620609d9ab7f10\",\"newRange\":{\"count\":7,\"start\":78},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":78},\"path\":\"docs/specs/documentation-citation-gate-v0.md\",\"reason\":\"evidence-backed\",\"selector\":13}]}\n",
+              "wallMs": 23
+            },
+            "reasons": [
+              "base-revision-mismatch"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M6-supported-to-unknown": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 5689,
+              "stdoutSha256": "aab514c005373ec6f74891bc8ca6cf1d32ddd42e4a4739099cee438f70415ee5",
+              "stdoutTail": "nge\":{\"count\":7,\"start\":18},\"path\":\"docs/specs/compat-trial-v0.md\",\"reason\":\"evidence-backed\",\"selector\":12},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:abe35ef14b120a0fd6e4723d0ae7b905e823c0714972406184620609d9ab7f10\",\"newRange\":{\"count\":7,\"start\":78},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":78},\"path\":\"docs/specs/documentation-citation-gate-v0.md\",\"reason\":\"evidence-backed\",\"selector\":13}]}\n",
+              "wallMs": 360
+            },
+            "reasons": [
+              "max-unknown-exceeded"
+            ],
+            "verdict": "REFUSED"
+          }
+        },
+        "positiveControl": {
+          "latency": {
+            "maxMs": 356,
+            "medianMs": 354,
+            "runsMs": [
+              354,
+              356,
+              354
+            ]
+          },
+          "runs": [
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 5556,
+              "stdoutSha256": "dc19c7a5083872776018b648d1ceae392cad72c90a40bf15552c663fc46f8788",
+              "stdoutTail": "nge\":{\"count\":7,\"start\":18},\"path\":\"docs/specs/compat-trial-v0.md\",\"reason\":\"evidence-backed\",\"selector\":12},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:abe35ef14b120a0fd6e4723d0ae7b905e823c0714972406184620609d9ab7f10\",\"newRange\":{\"count\":7,\"start\":78},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":78},\"path\":\"docs/specs/documentation-citation-gate-v0.md\",\"reason\":\"evidence-backed\",\"selector\":13}]}\n",
+              "wallMs": 354
+            },
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 5556,
+              "stdoutSha256": "dc19c7a5083872776018b648d1ceae392cad72c90a40bf15552c663fc46f8788",
+              "stdoutTail": "nge\":{\"count\":7,\"start\":18},\"path\":\"docs/specs/compat-trial-v0.md\",\"reason\":\"evidence-backed\",\"selector\":12},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:abe35ef14b120a0fd6e4723d0ae7b905e823c0714972406184620609d9ab7f10\",\"newRange\":{\"count\":7,\"start\":78},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":78},\"path\":\"docs/specs/documentation-citation-gate-v0.md\",\"reason\":\"evidence-backed\",\"selector\":13}]}\n",
+              "wallMs": 356
+            },
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 5556,
+              "stdoutSha256": "dc19c7a5083872776018b648d1ceae392cad72c90a40bf15552c663fc46f8788",
+              "stdoutTail": "nge\":{\"count\":7,\"start\":18},\"path\":\"docs/specs/compat-trial-v0.md\",\"reason\":\"evidence-backed\",\"selector\":12},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:abe35ef14b120a0fd6e4723d0ae7b905e823c0714972406184620609d9ab7f10\",\"newRange\":{\"count\":7,\"start\":78},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":78},\"path\":\"docs/specs/documentation-citation-gate-v0.md\",\"reason\":\"evidence-backed\",\"selector\":13}]}\n",
+              "wallMs": 354
+            }
+          ],
+          "verdict": "COMPLETE"
+        },
+        "reencodedControl": {
+          "byteIdentical": true,
+          "observation": {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 5556,
+            "stdoutSha256": "030c2bdedfd5d722d0c362dc6703bc83622ecb213074f2ba2294acced32ff589",
+            "stdoutTail": "nge\":{\"count\":7,\"start\":18},\"path\":\"docs/specs/compat-trial-v0.md\",\"reason\":\"evidence-backed\",\"selector\":12},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:abe35ef14b120a0fd6e4723d0ae7b905e823c0714972406184620609d9ab7f10\",\"newRange\":{\"count\":7,\"start\":78},\"next\":\"done\",\"oldRange\":{\"count\":7,\"start\":78},\"path\":\"docs/specs/documentation-citation-gate-v0.md\",\"reason\":\"evidence-backed\",\"selector\":13}]}\n",
+            "wallMs": 362
+          },
+          "verdict": "COMPLETE"
+        },
+        "sealedSha256": "7e2d33b53630c7dc1d7988b0e0c76b7ad3a805caf3824cf8e1df8db7164a9a50",
+        "unknownCeiling": 0
+      },
+      {
+        "base": "822888afb435647d14d630c654764dbfa7c003e8",
+        "bind": "2f492ae6e4da92e18a023e630a5bfed90f6e0b2a",
+        "commit": "362721cdcf0626c1b0345b69cd9f2fbfc9a32957",
+        "mapSha256": "5ac0d246937478e7052ae7c4c2269b3a9fd5095efc05a43d7c94bacf8724af76",
+        "missingEvidence": {
+          "M1-stale-target": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 8240,
+              "stdoutSha256": "0327aa237f9b5f1f8d04ede58b0e0be3e74c9beebf5357d21e194c1005d1b006",
+              "stdoutTail": "\":{\"count\":6,\"start\":92},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":26},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:97cfd7ec319fc0f0f7900081ad5edea59661cceed1145e6583f28021717d7d9d\",\"newRange\":{\"count\":7,\"start\":143},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":132},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":27}]}\n",
+              "wallMs": 152
+            },
+            "reasons": [
+              "patch-digest-mismatch"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M2-hunk-removed": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 8029,
+              "stdoutSha256": "753b5d25f60d6403ead778bcb902126685ad9817938f2ba46982afd5d7f0f5ff",
+              "stdoutTail": "\":{\"count\":6,\"start\":92},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":25},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:97cfd7ec319fc0f0f7900081ad5edea59661cceed1145e6583f28021717d7d9d\",\"newRange\":{\"count\":7,\"start\":143},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":132},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":26}]}\n",
+              "wallMs": 329
+            },
+            "reasons": [
+              "uncited-hunk"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M3-basis-removed": {
+            "informative": true,
+            "observation": {
+              "exit": 2,
+              "stderrTail": "{\"code\": \"unsupported-without-basis\", \"error\": \"supported hunks require at least one basis\", \"ok\": false}\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "wallMs": 10
+            },
+            "reasons": [
+              "unsupported-without-basis"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M4-evidence-digest-staled": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 8286,
+              "stdoutSha256": "2865c5c00f0557b6863ca0b8016c440d5727f7ddfca2cc6d476032a844c05e74",
+              "stdoutTail": "\":{\"count\":6,\"start\":92},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":26},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:97cfd7ec319fc0f0f7900081ad5edea59661cceed1145e6583f28021717d7d9d\",\"newRange\":{\"count\":7,\"start\":143},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":132},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":27}]}\n",
+              "wallMs": 334
+            },
+            "reasons": [
+              "fabricated-evidence-id"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M5-wrong-base": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 8272,
+              "stdoutSha256": "67b8ca9263fa308900a46ebb46202e2f392e0dbbe86dca0cb7ac21a3164d66c1",
+              "stdoutTail": "\":{\"count\":6,\"start\":92},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":26},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:97cfd7ec319fc0f0f7900081ad5edea59661cceed1145e6583f28021717d7d9d\",\"newRange\":{\"count\":7,\"start\":143},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":132},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":27}]}\n",
+              "wallMs": 24
+            },
+            "reasons": [
+              "base-revision-mismatch"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M6-supported-to-unknown": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 9992,
+              "stdoutSha256": "cdb357442e0ae466cb1c3f05115ea2f8966dab4b0b7e50de032f4fb5b8034535",
+              "stdoutTail": "\":{\"count\":6,\"start\":92},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":26},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:97cfd7ec319fc0f0f7900081ad5edea59661cceed1145e6583f28021717d7d9d\",\"newRange\":{\"count\":7,\"start\":143},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":132},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":27}]}\n",
+              "wallMs": 457
+            },
+            "reasons": [
+              "max-unknown-exceeded"
+            ],
+            "verdict": "REFUSED"
+          }
+        },
+        "positiveControl": {
+          "latency": {
+            "maxMs": 465,
+            "medianMs": 459,
+            "runsMs": [
+              465,
+              448,
+              459
+            ]
+          },
+          "runs": [
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 9859,
+              "stdoutSha256": "9688672979638e41048cbdd7293dc5b0aac609719b7c7c722c00dd90848b133c",
+              "stdoutTail": "\":{\"count\":6,\"start\":92},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":26},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:97cfd7ec319fc0f0f7900081ad5edea59661cceed1145e6583f28021717d7d9d\",\"newRange\":{\"count\":7,\"start\":143},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":132},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":27}]}\n",
+              "wallMs": 465
+            },
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 9859,
+              "stdoutSha256": "9688672979638e41048cbdd7293dc5b0aac609719b7c7c722c00dd90848b133c",
+              "stdoutTail": "\":{\"count\":6,\"start\":92},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":26},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:97cfd7ec319fc0f0f7900081ad5edea59661cceed1145e6583f28021717d7d9d\",\"newRange\":{\"count\":7,\"start\":143},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":132},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":27}]}\n",
+              "wallMs": 448
+            },
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 9859,
+              "stdoutSha256": "9688672979638e41048cbdd7293dc5b0aac609719b7c7c722c00dd90848b133c",
+              "stdoutTail": "\":{\"count\":6,\"start\":92},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":26},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:97cfd7ec319fc0f0f7900081ad5edea59661cceed1145e6583f28021717d7d9d\",\"newRange\":{\"count\":7,\"start\":143},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":132},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":27}]}\n",
+              "wallMs": 459
+            }
+          ],
+          "verdict": "COMPLETE"
+        },
+        "reencodedControl": {
+          "byteIdentical": true,
+          "observation": {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 9859,
+            "stdoutSha256": "392a167c58f340c5983c5e0af24eeeb9af79a442788c3bdc1bbafa7526dc1126",
+            "stdoutTail": "\":{\"count\":6,\"start\":92},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":26},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:97cfd7ec319fc0f0f7900081ad5edea59661cceed1145e6583f28021717d7d9d\",\"newRange\":{\"count\":7,\"start\":143},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":132},\"path\":\"docs/specs/use-case-conformance-v0.md\",\"reason\":\"evidence-backed\",\"selector\":27}]}\n",
+            "wallMs": 478
+          },
+          "verdict": "COMPLETE"
+        },
+        "sealedSha256": "5ac0d246937478e7052ae7c4c2269b3a9fd5095efc05a43d7c94bacf8724af76",
+        "unknownCeiling": 0
+      },
+      {
+        "base": "dac29206862695094385a20cc79ebcbdce389d91",
+        "bind": "b06ae036cae96a8470cded65122708df4e019637",
+        "commit": "362721cdcf0626c1b0345b69cd9f2fbfc9a32957",
+        "mapSha256": "cbc5b14577f51bd800b1025020303dd50219a0472d85ec21f8ab4eb9e9004a4b",
+        "missingEvidence": {
+          "M1-stale-target": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 2101,
+              "stdoutSha256": "f0de7e84579454ee37a08691f95b02756b29f994e39e5255257404fce33a3f6e",
+              "stdoutTail": ":{\"count\":6,\"start\":96},\"path\":\"docs/specs/daily-change-evidence-workflow-v0.md\",\"reason\":\"evidence-backed\",\"selector\":4},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:3b54424361f96f3c80c4f934d3de20c13d9a3bd75f49c87c588a70f397140be2\",\"newRange\":{\"count\":36,\"start\":23},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":23},\"path\":\"docs/specs/public-release-v0.md\",\"reason\":\"evidence-backed\",\"selector\":5}]}\n",
+              "wallMs": 143
+            },
+            "reasons": [
+              "patch-digest-mismatch"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M2-hunk-removed": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 1907,
+              "stdoutSha256": "a85652ef844a3321f2988fcd9aa316d2c19beae11bcd0e1f62af19ed2a339b6f",
+              "stdoutTail": ":{\"count\":6,\"start\":96},\"path\":\"docs/specs/daily-change-evidence-workflow-v0.md\",\"reason\":\"evidence-backed\",\"selector\":3},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:3b54424361f96f3c80c4f934d3de20c13d9a3bd75f49c87c588a70f397140be2\",\"newRange\":{\"count\":36,\"start\":23},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":23},\"path\":\"docs/specs/public-release-v0.md\",\"reason\":\"evidence-backed\",\"selector\":4}]}\n",
+              "wallMs": 193
+            },
+            "reasons": [
+              "uncited-hunk"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M3-basis-removed": {
+            "informative": true,
+            "observation": {
+              "exit": 2,
+              "stderrTail": "{\"code\": \"unsupported-without-basis\", \"error\": \"supported hunks require at least one basis\", \"ok\": false}\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "wallMs": 10
+            },
+            "reasons": [
+              "unsupported-without-basis"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M4-evidence-digest-staled": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 2173,
+              "stdoutSha256": "d00120a1ddb08eaf9d7d2bf230edc1e66b1e7907112cffa304b652cd101c2ee8",
+              "stdoutTail": ":{\"count\":6,\"start\":96},\"path\":\"docs/specs/daily-change-evidence-workflow-v0.md\",\"reason\":\"evidence-backed\",\"selector\":4},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:3b54424361f96f3c80c4f934d3de20c13d9a3bd75f49c87c588a70f397140be2\",\"newRange\":{\"count\":36,\"start\":23},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":23},\"path\":\"docs/specs/public-release-v0.md\",\"reason\":\"evidence-backed\",\"selector\":5}]}\n",
+              "wallMs": 204
+            },
+            "reasons": [
+              "fabricated-evidence-id"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M5-wrong-base": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 2133,
+              "stdoutSha256": "5bbd8f3cc6acb2ed1202ca2fe7009e335225acefa24180e712cdb216452d2ca3",
+              "stdoutTail": ":{\"count\":6,\"start\":96},\"path\":\"docs/specs/daily-change-evidence-workflow-v0.md\",\"reason\":\"evidence-backed\",\"selector\":4},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:3b54424361f96f3c80c4f934d3de20c13d9a3bd75f49c87c588a70f397140be2\",\"newRange\":{\"count\":36,\"start\":23},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":23},\"path\":\"docs/specs/public-release-v0.md\",\"reason\":\"evidence-backed\",\"selector\":5}]}\n",
+              "wallMs": 26
+            },
+            "reasons": [
+              "base-revision-mismatch"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M6-supported-to-unknown": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 3287,
+              "stdoutSha256": "5085b43b1a1d8bc21cac9eb35d024576af51a1ec6e931735a830075648c66758",
+              "stdoutTail": ":{\"count\":6,\"start\":96},\"path\":\"docs/specs/daily-change-evidence-workflow-v0.md\",\"reason\":\"evidence-backed\",\"selector\":4},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:3b54424361f96f3c80c4f934d3de20c13d9a3bd75f49c87c588a70f397140be2\",\"newRange\":{\"count\":36,\"start\":23},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":23},\"path\":\"docs/specs/public-release-v0.md\",\"reason\":\"evidence-backed\",\"selector\":5}]}\n",
+              "wallMs": 273
+            },
+            "reasons": [
+              "max-unknown-exceeded"
+            ],
+            "verdict": "REFUSED"
+          }
+        },
+        "positiveControl": {
+          "latency": {
+            "maxMs": 330,
+            "medianMs": 302,
+            "runsMs": [
+              330,
+              299,
+              302
+            ]
+          },
+          "runs": [
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 3497,
+              "stdoutSha256": "41958f890fbc493070003b0b4772e0ae45e496b292b7484441aaced82234892e",
+              "stdoutTail": ":{\"count\":6,\"start\":96},\"path\":\"docs/specs/daily-change-evidence-workflow-v0.md\",\"reason\":\"evidence-backed\",\"selector\":4},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:3b54424361f96f3c80c4f934d3de20c13d9a3bd75f49c87c588a70f397140be2\",\"newRange\":{\"count\":36,\"start\":23},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":23},\"path\":\"docs/specs/public-release-v0.md\",\"reason\":\"evidence-backed\",\"selector\":5}]}\n",
+              "wallMs": 330
+            },
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 3497,
+              "stdoutSha256": "41958f890fbc493070003b0b4772e0ae45e496b292b7484441aaced82234892e",
+              "stdoutTail": ":{\"count\":6,\"start\":96},\"path\":\"docs/specs/daily-change-evidence-workflow-v0.md\",\"reason\":\"evidence-backed\",\"selector\":4},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:3b54424361f96f3c80c4f934d3de20c13d9a3bd75f49c87c588a70f397140be2\",\"newRange\":{\"count\":36,\"start\":23},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":23},\"path\":\"docs/specs/public-release-v0.md\",\"reason\":\"evidence-backed\",\"selector\":5}]}\n",
+              "wallMs": 299
+            },
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 3497,
+              "stdoutSha256": "41958f890fbc493070003b0b4772e0ae45e496b292b7484441aaced82234892e",
+              "stdoutTail": ":{\"count\":6,\"start\":96},\"path\":\"docs/specs/daily-change-evidence-workflow-v0.md\",\"reason\":\"evidence-backed\",\"selector\":4},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:3b54424361f96f3c80c4f934d3de20c13d9a3bd75f49c87c588a70f397140be2\",\"newRange\":{\"count\":36,\"start\":23},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":23},\"path\":\"docs/specs/public-release-v0.md\",\"reason\":\"evidence-backed\",\"selector\":5}]}\n",
+              "wallMs": 302
+            }
+          ],
+          "verdict": "COMPLETE"
+        },
+        "reencodedControl": {
+          "byteIdentical": true,
+          "observation": {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 3497,
+            "stdoutSha256": "746e4bca9c8400552198c69b252fde9d703a90392e1f0c34e5c709a95cb1df5f",
+            "stdoutTail": ":{\"count\":6,\"start\":96},\"path\":\"docs/specs/daily-change-evidence-workflow-v0.md\",\"reason\":\"evidence-backed\",\"selector\":4},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:3b54424361f96f3c80c4f934d3de20c13d9a3bd75f49c87c588a70f397140be2\",\"newRange\":{\"count\":36,\"start\":23},\"next\":\"done\",\"oldRange\":{\"count\":6,\"start\":23},\"path\":\"docs/specs/public-release-v0.md\",\"reason\":\"evidence-backed\",\"selector\":5}]}\n",
+            "wallMs": 299
+          },
+          "verdict": "COMPLETE"
+        },
+        "sealedSha256": "cbc5b14577f51bd800b1025020303dd50219a0472d85ec21f8ab4eb9e9004a4b",
+        "unknownCeiling": 0
+      },
+      {
+        "base": "1d4cbaa7bdbd01d24abfc5ddbd5b1efa5013693f",
+        "bind": "b22c12eb1227e4a7d844baa1ee8e166e543af486",
+        "commit": "af247a1d6d6efcfe3cb0348f7cdf34b794943d40",
+        "mapSha256": "a2929498dd40391a377896c9b5e44a5a8c6a001ba89a9c7fae86ac483f11e12a",
+        "missingEvidence": {
+          "M1-stale-target": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 17651,
+              "stdoutSha256": "d4302ef992c0cb3a3bdfc766d0d68d79f3cb10d715fa81cec6bf5fc2f8fd4562",
+              "stdoutTail": "Range\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/lifecycle.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":61},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:89881a84816d55fdb05185cded5a030d1523d7fee76ca99846888d0ad0f2507f\",\"newRange\":{\"count\":51,\"start\":1},\"next\":\"done\",\"oldRange\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/scan.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":62}]}\n",
+              "wallMs": 176
+            },
+            "reasons": [
+              "patch-digest-mismatch"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M2-hunk-removed": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 17455,
+              "stdoutSha256": "66bac496ea3dbf00dfbbe1873b9272e3aaf6a67a5340541594d4f567bb651920",
+              "stdoutTail": "Range\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/lifecycle.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":60},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:89881a84816d55fdb05185cded5a030d1523d7fee76ca99846888d0ad0f2507f\",\"newRange\":{\"count\":51,\"start\":1},\"next\":\"done\",\"oldRange\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/scan.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":61}]}\n",
+              "wallMs": 894
+            },
+            "reasons": [
+              "uncited-hunk"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M3-basis-removed": {
+            "informative": true,
+            "observation": {
+              "exit": 2,
+              "stderrTail": "{\"code\": \"unsupported-without-basis\", \"error\": \"supported hunks require at least one basis\", \"ok\": false}\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "wallMs": 12
+            },
+            "reasons": [
+              "unsupported-without-basis"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M4-evidence-digest-staled": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 17669,
+              "stdoutSha256": "9f6a56de5ef99e67ec7f51b0ea01c68acae211b7c69f395c5c4d4b9d2f16c73d",
+              "stdoutTail": "Range\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/lifecycle.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":61},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:89881a84816d55fdb05185cded5a030d1523d7fee76ca99846888d0ad0f2507f\",\"newRange\":{\"count\":51,\"start\":1},\"next\":\"done\",\"oldRange\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/scan.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":62}]}\n",
+              "wallMs": 1097
+            },
+            "reasons": [
+              "fabricated-evidence-id"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M5-wrong-base": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 17683,
+              "stdoutSha256": "bdf3af0a934de905e0f7e3fff5756799c170938aa1dbfa15c954154cab2faad4",
+              "stdoutTail": "Range\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/lifecycle.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":61},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:89881a84816d55fdb05185cded5a030d1523d7fee76ca99846888d0ad0f2507f\",\"newRange\":{\"count\":51,\"start\":1},\"next\":\"done\",\"oldRange\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/scan.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":62}]}\n",
+              "wallMs": 25
+            },
+            "reasons": [
+              "base-revision-mismatch"
+            ],
+            "verdict": "REFUSED"
+          },
+          "M6-supported-to-unknown": {
+            "informative": true,
+            "observation": {
+              "exit": 1,
+              "stderrTail": "",
+              "stdoutBytes": 18718,
+              "stdoutSha256": "a0831cb837ff93bb95959f1aedad2abafe47061880b3ef4d83c59acb77f1c4b9",
+              "stdoutTail": "Range\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/lifecycle.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":61},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:89881a84816d55fdb05185cded5a030d1523d7fee76ca99846888d0ad0f2507f\",\"newRange\":{\"count\":51,\"start\":1},\"next\":\"done\",\"oldRange\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/scan.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":62}]}\n",
+              "wallMs": 996
+            },
+            "reasons": [
+              "max-unknown-exceeded"
+            ],
+            "verdict": "REFUSED"
+          }
+        },
+        "positiveControl": {
+          "latency": {
+            "maxMs": 1012,
+            "medianMs": 993,
+            "runsMs": [
+              1012,
+              977,
+              993
+            ]
+          },
+          "runs": [
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 18585,
+              "stdoutSha256": "dadcd8d9b4ca8d524e0c514ea04728892726d03d225fa601fa6ce8bd79882617",
+              "stdoutTail": "Range\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/lifecycle.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":61},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:89881a84816d55fdb05185cded5a030d1523d7fee76ca99846888d0ad0f2507f\",\"newRange\":{\"count\":51,\"start\":1},\"next\":\"done\",\"oldRange\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/scan.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":62}]}\n",
+              "wallMs": 1012
+            },
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 18585,
+              "stdoutSha256": "dadcd8d9b4ca8d524e0c514ea04728892726d03d225fa601fa6ce8bd79882617",
+              "stdoutTail": "Range\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/lifecycle.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":61},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:89881a84816d55fdb05185cded5a030d1523d7fee76ca99846888d0ad0f2507f\",\"newRange\":{\"count\":51,\"start\":1},\"next\":\"done\",\"oldRange\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/scan.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":62}]}\n",
+              "wallMs": 977
+            },
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 18585,
+              "stdoutSha256": "dadcd8d9b4ca8d524e0c514ea04728892726d03d225fa601fa6ce8bd79882617",
+              "stdoutTail": "Range\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/lifecycle.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":61},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:89881a84816d55fdb05185cded5a030d1523d7fee76ca99846888d0ad0f2507f\",\"newRange\":{\"count\":51,\"start\":1},\"next\":\"done\",\"oldRange\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/scan.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":62}]}\n",
+              "wallMs": 993
+            }
+          ],
+          "verdict": "COMPLETE"
+        },
+        "reencodedControl": {
+          "byteIdentical": true,
+          "observation": {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 18585,
+            "stdoutSha256": "3a32d43a9fb5b6660965c461e2af0e1509a871ed3d6e927b115710605eec517a",
+            "stdoutTail": "Range\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/lifecycle.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":61},{\"disposition\":\"supported\",\"id\":\"hunk:sha256:89881a84816d55fdb05185cded5a030d1523d7fee76ca99846888d0ad0f2507f\",\"newRange\":{\"count\":51,\"start\":1},\"next\":\"done\",\"oldRange\":{\"count\":0,\"start\":0},\"path\":\"tools/web-flows/test/scan.test.mjs\",\"reason\":\"evidence-backed\",\"selector\":62}]}\n",
+            "wallMs": 964
+          },
+          "verdict": "COMPLETE"
+        },
+        "sealedSha256": "a2929498dd40391a377896c9b5e44a5a8c6a001ba89a9c7fae86ac483f11e12a",
+        "unknownCeiling": 1
+      }
+    ],
+    "loop": {
+      "base": "d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe",
+      "controls": [
+        {
+          "refusal": [],
+          "steps": [
+            {
+              "exit": 0,
+              "stderrTail": "dogfood-check: NOTE unbound-commits count=3 window=a062f730426424c4767eb79ea88d89363c412963..d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe\n  unbound c61dd9e2a2f5e423dde2fcb1f22e3b91ff59ed77\n  unbound 5957c5f4f3509947c5aa383360bd720f617190d9\n  unbound 8eb647a177837ee3441fc12bb701340cb6e761fc\n",
+              "stdoutBytes": 6179,
+              "stdoutSha256": "9cb8afc612cb8f8d0cdcd09da4d3b3cd2ecc66cbbf173d2e1ce83fe8fb883dab",
+              "stdoutTail": "scope\":1,\"selector\":14},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-015\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":15},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-016\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":16},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-017\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":17}]}\ndogfood-check: PASS\n",
+              "step": "dogfood-check",
+              "wallMs": 4504
+            }
+          ],
+          "variant": "loop-L0c-copy-control",
+          "verdict": "COMPLETE"
+        },
+        {
+          "refusal": [],
+          "steps": [
+            {
+              "exit": 0,
+              "stderrTail": "dogfood-check: NOTE unbound-commits count=3 window=a062f730426424c4767eb79ea88d89363c412963..d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe\n  unbound c61dd9e2a2f5e423dde2fcb1f22e3b91ff59ed77\n  unbound 5957c5f4f3509947c5aa383360bd720f617190d9\n  unbound 8eb647a177837ee3441fc12bb701340cb6e761fc\n",
+              "stdoutBytes": 6184,
+              "stdoutSha256": "a5be348e835246c493ea7622f0e2387e1d817b588106e337a8fd77905538a0e1",
+              "stdoutTail": "scope\":1,\"selector\":14},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-015\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":15},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-016\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":16},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-017\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":17}]}\ndogfood-check: PASS\n",
+              "step": "dogfood-check",
+              "wallMs": 4527
+            }
+          ],
+          "variant": "loop-L3c-reencoded-control",
+          "verdict": "COMPLETE"
+        }
+      ],
+      "latency": {
+        "maxMs": 37135,
+        "medianMs": 37121,
+        "runsMs": [
+          37121,
+          37135,
+          36981
+        ]
+      },
+      "missingEvidence": [
+        {
+          "informative": true,
+          "refusal": [
+            "dogfood-check: FAIL dogfood-report-drift"
+          ],
+          "steps": [
+            {
+              "exit": 2,
+              "stderrTail": "d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe\n  unbound c61dd9e2a2f5e423dde2fcb1f22e3b91ff59ed77\n  unbound 5957c5f4f3509947c5aa383360bd720f617190d9\n  unbound 8eb647a177837ee3441fc12bb701340cb6e761fc\ndogfood-check: FAIL dogfood-report-drift\n  fix: the report binds another BASE or HEAD; rerun make dogfood-change BASE=d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe on this HEAD\nmake: *** [dogfood-check] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-check",
+              "wallMs": 851
+            }
+          ],
+          "variant": "loop-L1-stale-after-bind",
+          "verdict": "REFUSED"
+        },
+        {
+          "informative": true,
+          "refusal": [
+            "dogfood-check: FAIL dogfood-report-drift"
+          ],
+          "steps": [
+            {
+              "exit": 2,
+              "stderrTail": "d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe\n  unbound c61dd9e2a2f5e423dde2fcb1f22e3b91ff59ed77\n  unbound 5957c5f4f3509947c5aa383360bd720f617190d9\n  unbound 8eb647a177837ee3441fc12bb701340cb6e761fc\ndogfood-check: FAIL dogfood-report-drift\n  fix: the report binds another BASE or HEAD; rerun make dogfood-change BASE=d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe on this HEAD\nmake: *** [dogfood-check] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-check",
+              "wallMs": 837
+            }
+          ],
+          "variant": "loop-L2-cem-removed",
+          "verdict": "REFUSED"
+        },
+        {
+          "informative": true,
+          "refusal": [
+            "dogfood-check: FAIL dogfood-report-drift"
+          ],
+          "steps": [
+            {
+              "exit": 2,
+              "stderrTail": "d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe\n  unbound c61dd9e2a2f5e423dde2fcb1f22e3b91ff59ed77\n  unbound 5957c5f4f3509947c5aa383360bd720f617190d9\n  unbound 8eb647a177837ee3441fc12bb701340cb6e761fc\ndogfood-check: FAIL dogfood-report-drift\n  fix: the report binds another BASE or HEAD; rerun make dogfood-change BASE=d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe on this HEAD\nmake: *** [dogfood-check] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-check",
+              "wallMs": 846
+            }
+          ],
+          "variant": "loop-L3-cem-tampered",
+          "verdict": "REFUSED"
+        },
+        {
+          "informative": true,
+          "refusal": [
+            "dogfood-check: FAIL local-outcome-evidence-drift"
+          ],
+          "steps": [
+            {
+              "exit": 2,
+              "stderrTail": "dogfood-check: NOTE unbound-commits count=3 window=a062f730426424c4767eb79ea88d89363c412963..d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe\n  unbound c61dd9e2a2f5e423dde2fcb1f22e3b91ff59ed77\n  unbound 5957c5f4f3509947c5aa383360bd720f617190d9\n  unbound 8eb647a177837ee3441fc12bb701340cb6e761fc\ndogfood-check: FAIL local-outcome-evidence-drift\nmake: *** [dogfood-check] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-check",
+              "wallMs": 1053
+            }
+          ],
+          "variant": "loop-L4-local-outcome-removed",
+          "verdict": "REFUSED"
+        },
+        {
+          "failedInvocations": 4,
+          "hunks": 9,
+          "informative": true,
+          "invocations": 4,
+          "omittedInputs": [
+            "DOGFOOD_VERIFY_FILE"
+          ],
+          "refusal": [
+            "dogfood-check: FAIL dogfood-report-drift"
+          ],
+          "steps": [
+            {
+              "exit": 2,
+              "stderrTail": " local-outcome: outcome-input-not-provided\n    fix: set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)\n  full report: /private/tmp/claude-501/-Users-russelllewis-projects-corvint/dd54e7f8-328f-4e5e-ac2a-20e9a455cd73/scratchpad/dl-work2/daily-loop-fzl0w1v6/loop-L5-verify-missing/.corvint/dogfood-report.json\nmake: *** [dogfood-change] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 6882
+            },
+            {
+              "exit": 2,
+              "stderrTail": " local-outcome: outcome-input-not-provided\n    fix: set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)\n  full report: /private/tmp/claude-501/-Users-russelllewis-projects-corvint/dd54e7f8-328f-4e5e-ac2a-20e9a455cd73/scratchpad/dl-work2/daily-loop-fzl0w1v6/loop-L5-verify-missing/.corvint/dogfood-report.json\nmake: *** [dogfood-change] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 5390
+            },
+            {
+              "exit": 2,
+              "stderrTail": " local-outcome: outcome-input-not-provided\n    fix: set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)\n  full report: /private/tmp/claude-501/-Users-russelllewis-projects-corvint/dd54e7f8-328f-4e5e-ac2a-20e9a455cd73/scratchpad/dl-work2/daily-loop-fzl0w1v6/loop-L5-verify-missing/.corvint/dogfood-report.json\nmake: *** [dogfood-change] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 5304
+            },
+            {
+              "exit": 2,
+              "stderrTail": "fceecbc66cf29c375cc16b122e8aa2fe\n  unbound c61dd9e2a2f5e423dde2fcb1f22e3b91ff59ed77\n  unbound 5957c5f4f3509947c5aa383360bd720f617190d9\n  unbound 8eb647a177837ee3441fc12bb701340cb6e761fc\ndogfood-check: FAIL dogfood-report-drift\n  fix: the report is not complete; resolve the rows make dogfood-change BASE=d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe lists, then rerun it\nmake: *** [dogfood-check] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-check",
+              "wallMs": 848
+            }
+          ],
+          "unexpectedFailures": 2,
+          "variant": "loop-L5-verify-missing",
+          "verdict": "REFUSED",
+          "wallMs": 18424
+        },
+        {
+          "failedInvocations": 4,
+          "hunks": 9,
+          "informative": true,
+          "invocations": 4,
+          "omittedInputs": [
+            "DOGFOOD_CITATIONS"
+          ],
+          "refusal": [
+            "dogfood-check: FAIL dogfood-report-drift"
+          ],
+          "steps": [
+            {
+              "exit": 2,
+              "stderrTail": "/corvint/cem-status.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk\n  full report: /private/tmp/claude-501/-Users-russelllewis-projects-corvint/dd54e7f8-328f-4e5e-ac2a-20e9a455cd73/scratchpad/dl-work2/daily-loop-fzl0w1v6/loop-L6-citations-missing/.corvint/dogfood-report.json\nmake: *** [dogfood-change] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 12423
+            },
+            {
+              "exit": 2,
+              "stderrTail": "  local-outcome: record-index-failed\n    fix: the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change\n  full report: /private/tmp/claude-501/-Users-russelllewis-projects-corvint/dd54e7f8-328f-4e5e-ac2a-20e9a455cd73/scratchpad/dl-work2/daily-loop-fzl0w1v6/loop-L6-citations-missing/.corvint/dogfood-report.json\nmake: *** [dogfood-change] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 6016
+            },
+            {
+              "exit": 2,
+              "stderrTail": "/corvint/cem-status.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk\n  full report: /private/tmp/claude-501/-Users-russelllewis-projects-corvint/dd54e7f8-328f-4e5e-ac2a-20e9a455cd73/scratchpad/dl-work2/daily-loop-fzl0w1v6/loop-L6-citations-missing/.corvint/dogfood-report.json\nmake: *** [dogfood-change] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 11095
+            },
+            {
+              "exit": 2,
+              "stderrTail": "fceecbc66cf29c375cc16b122e8aa2fe\n  unbound c61dd9e2a2f5e423dde2fcb1f22e3b91ff59ed77\n  unbound 5957c5f4f3509947c5aa383360bd720f617190d9\n  unbound 8eb647a177837ee3441fc12bb701340cb6e761fc\ndogfood-check: FAIL dogfood-report-drift\n  fix: the report is not complete; resolve the rows make dogfood-change BASE=d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe lists, then rerun it\nmake: *** [dogfood-check] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-check",
+              "wallMs": 839
+            }
+          ],
+          "unexpectedFailures": 2,
+          "variant": "loop-L6-citations-missing",
+          "verdict": "REFUSED",
+          "wallMs": 30373
+        }
+      ],
+      "positiveRuns": [
+        {
+          "failedInvocations": 2,
+          "hunks": 9,
+          "invocations": 4,
+          "omittedInputs": [],
+          "refusal": [],
+          "steps": [
+            {
+              "exit": 2,
+              "stderrTail": "6/loop-L0-1/.git/corvint/cem-status.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk\n  full report: /private/tmp/claude-501/-Users-russelllewis-projects-corvint/dd54e7f8-328f-4e5e-ac2a-20e9a455cd73/scratchpad/dl-work2/daily-loop-fzl0w1v6/loop-L0-1/.corvint/dogfood-report.json\nmake: *** [dogfood-change] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 12908
+            },
+            {
+              "exit": 2,
+              "stderrTail": "IL not-complete\n  local-outcome: record-index-failed\n    fix: the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change\n  full report: /private/tmp/claude-501/-Users-russelllewis-projects-corvint/dd54e7f8-328f-4e5e-ac2a-20e9a455cd73/scratchpad/dl-work2/daily-loop-fzl0w1v6/loop-L0-1/.corvint/dogfood-report.json\nmake: *** [dogfood-change] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 6756
+            },
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 11765
+            },
+            {
+              "exit": 0,
+              "stderrTail": "dogfood-check: NOTE unbound-commits count=3 window=a062f730426424c4767eb79ea88d89363c412963..d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe\n  unbound c61dd9e2a2f5e423dde2fcb1f22e3b91ff59ed77\n  unbound 5957c5f4f3509947c5aa383360bd720f617190d9\n  unbound 8eb647a177837ee3441fc12bb701340cb6e761fc\n",
+              "stdoutBytes": 6167,
+              "stdoutSha256": "57b5bc9555721f5ffa1df9acead2bb742fe5d0fc30a30e163d84fd87b1155fb2",
+              "stdoutTail": "scope\":1,\"selector\":14},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-015\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":15},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-016\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":16},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-017\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":17}]}\ndogfood-check: PASS\n",
+              "step": "dogfood-check",
+              "wallMs": 5692
+            }
+          ],
+          "unexpectedFailures": 0,
+          "variant": "loop-L0-1",
+          "verdict": "COMPLETE",
+          "wallMs": 37121
+        },
+        {
+          "failedInvocations": 1,
+          "hunks": 9,
+          "invocations": 4,
+          "omittedInputs": [],
+          "refusal": [],
+          "steps": [
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 13164
+            },
+            {
+              "exit": 2,
+              "stderrTail": "IL not-complete\n  local-outcome: record-index-failed\n    fix: the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change\n  full report: /private/tmp/claude-501/-Users-russelllewis-projects-corvint/dd54e7f8-328f-4e5e-ac2a-20e9a455cd73/scratchpad/dl-work2/daily-loop-fzl0w1v6/loop-L0-2/.corvint/dogfood-report.json\nmake: *** [dogfood-change] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 6742
+            },
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 11728
+            },
+            {
+              "exit": 0,
+              "stderrTail": "dogfood-check: NOTE unbound-commits count=3 window=a062f730426424c4767eb79ea88d89363c412963..d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe\n  unbound c61dd9e2a2f5e423dde2fcb1f22e3b91ff59ed77\n  unbound 5957c5f4f3509947c5aa383360bd720f617190d9\n  unbound 8eb647a177837ee3441fc12bb701340cb6e761fc\n",
+              "stdoutBytes": 6167,
+              "stdoutSha256": "cf128a4cc290968fbc1ecbf5eeffd7aa3389409e38305c1111850287d7652b2b",
+              "stdoutTail": "scope\":1,\"selector\":14},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-015\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":15},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-016\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":16},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-017\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":17}]}\ndogfood-check: PASS\n",
+              "step": "dogfood-check",
+              "wallMs": 5501
+            }
+          ],
+          "unexpectedFailures": 0,
+          "variant": "loop-L0-2",
+          "verdict": "COMPLETE",
+          "wallMs": 37135
+        },
+        {
+          "failedInvocations": 1,
+          "hunks": 9,
+          "invocations": 4,
+          "omittedInputs": [],
+          "refusal": [],
+          "steps": [
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 13285
+            },
+            {
+              "exit": 2,
+              "stderrTail": "IL not-complete\n  local-outcome: record-index-failed\n    fix: the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change\n  full report: /private/tmp/claude-501/-Users-russelllewis-projects-corvint/dd54e7f8-328f-4e5e-ac2a-20e9a455cd73/scratchpad/dl-work2/daily-loop-fzl0w1v6/loop-L0-3/.corvint/dogfood-report.json\nmake: *** [dogfood-change] Error 1\n",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 6651
+            },
+            {
+              "exit": 0,
+              "stderrTail": "",
+              "stdoutBytes": 0,
+              "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "stdoutTail": "",
+              "step": "dogfood-change",
+              "wallMs": 11700
+            },
+            {
+              "exit": 0,
+              "stderrTail": "dogfood-check: NOTE unbound-commits count=3 window=a062f730426424c4767eb79ea88d89363c412963..d3c8d0f1fceecbc66cf29c375cc16b122e8aa2fe\n  unbound c61dd9e2a2f5e423dde2fcb1f22e3b91ff59ed77\n  unbound 5957c5f4f3509947c5aa383360bd720f617190d9\n  unbound 8eb647a177837ee3441fc12bb701340cb6e761fc\n",
+              "stdoutBytes": 6167,
+              "stdoutSha256": "83d501b67652db2fe55b62062504bd218d9c864a2e24c47727158802e6f1859c",
+              "stdoutTail": "scope\":1,\"selector\":14},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-015\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":15},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-016\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":16},{\"claimIds\":[],\"disposition\":\"unknown\",\"hunkIds\":[],\"id\":\"PCCO-V0-017\",\"reason\":\"unassessed\",\"scope\":1,\"selector\":17}]}\ndogfood-check: PASS\n",
+              "step": "dogfood-check",
+              "wallMs": 5345
+            }
+          ],
+          "unexpectedFailures": 0,
+          "variant": "loop-L0-3",
+          "verdict": "COMPLETE",
+          "wallMs": 36981
+        }
+      ],
+      "positiveVerdicts": [
+        "COMPLETE",
+        "COMPLETE",
+        "COMPLETE",
+        "COMPLETE",
+        "COMPLETE"
+      ],
+      "target": "a64624cf1885253a60273fa0bfc0a0e6d56649c7",
+      "unexpectedFailures": [
+        0,
+        0,
+        0
+      ]
+    },
+    "plainGitBaseline": {
+      "latency": {
+        "maxMs": 23,
+        "medianMs": 23,
+        "runsMs": [
+          23,
+          23,
+          22
+        ]
+      },
+      "procedure": "git diff --stat + git log over the range",
+      "reason": "plain Git emits no evidence verdict, so it cannot give a complete-evidence answer",
+      "verdict": "NOT_APPLICABLE"
+    }
+  },
+  "consequence": [
+    {
+      "baseline": {
+        "latency": {
+          "maxMs": 27,
+          "medianMs": 24,
+          "runsMs": [
+            27,
+            24,
+            23
+          ]
+        },
+        "procedure": "changed-packages-plus-direct-importers",
+        "selectedGoPackages": 0
+      },
+      "commit": "1894b9e5c992d69a7cbefa4b305485494e5622c4",
+      "critical": [],
+      "impactRange": {
+        "argv": [
+          "corvint",
+          "impact",
+          "--base",
+          "7e9b1856e7843ddccc51dd17a5dc335769129e6b",
+          "--range-profile",
+          "expanded-256",
+          "--limit",
+          "20"
+        ],
+        "criticalMissingReported": 0,
+        "latency": {
+          "maxMs": 1137,
+          "medianMs": 1135,
+          "runsMs": [
+            1121,
+            1135,
+            1137
+          ]
+        },
+        "ok": true,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4085,
+            "stdoutSha256": "e1be1b5e4c63fb8e01d2849af7cc66efff57545444dcef85466787799fafadc3",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1121
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4085,
+            "stdoutSha256": "e1be1b5e4c63fb8e01d2849af7cc66efff57545444dcef85466787799fafadc3",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1135
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4085,
+            "stdoutSha256": "e1be1b5e4c63fb8e01d2849af7cc66efff57545444dcef85466787799fafadc3",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1137
+          }
+        ],
+        "uncertainty": [
+          "feature/scenario markers and ADR citations are admitted only from target lines added or replaced by the committed diff",
+          "1 non-Go changed paths are outside the native Go range profile"
+        ]
+      },
+      "score": {
+        "criticalMissesBaseline": [],
+        "criticalMissesTreatment": [],
+        "treatmentOnlyCriticalMisses": []
+      },
+      "scored": false,
+      "treatment": {
+        "abstained": false,
+        "argv": [
+          "corvint",
+          "affected",
+          "--base",
+          "7e9b1856e7843ddccc51dd17a5dc335769129e6b"
+        ],
+        "covered": [],
+        "deterministic": true,
+        "latency": {
+          "maxMs": 1258,
+          "medianMs": 1200,
+          "runsMs": [
+            1258,
+            1200,
+            1168
+          ]
+        },
+        "namedNoSelectableTest": [],
+        "retries": 0,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 74913,
+            "stdoutSha256": "3594b91a365760b69fbcd094242b89a530a7fc3a40d34af17e78f7d9770c3d36",
+            "stdoutTail": "{\"reason\":\"LANGUAGE_FRONTIER\",\"detail\":\"typescript:runtime-flags-unresolved\"},{\"reason\":\"UNOWNED_DIRTY_PATH\",\"detail\":\"docs/RELEASE-NOTES.md\"}]},\"profile\":\"affected-plan/0\",\"provider\":{\"go\":{\"packages\":[],\"state\":\"EMPTY_SELECTION\"}},\"range\":{\"base\":\"7e9b1856e7843ddccc51dd17a5dc335769129e6b\",\"paths\":[\"docs/RELEASE-NOTES.md\"]},\"revision\":\"1894b9e5c992d69a7cbefa4b305485494e5622c4\",\"tool\":\"affected\"}\n",
+            "wallMs": 1258
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 74913,
+            "stdoutSha256": "3594b91a365760b69fbcd094242b89a530a7fc3a40d34af17e78f7d9770c3d36",
+            "stdoutTail": "{\"reason\":\"LANGUAGE_FRONTIER\",\"detail\":\"typescript:runtime-flags-unresolved\"},{\"reason\":\"UNOWNED_DIRTY_PATH\",\"detail\":\"docs/RELEASE-NOTES.md\"}]},\"profile\":\"affected-plan/0\",\"provider\":{\"go\":{\"packages\":[],\"state\":\"EMPTY_SELECTION\"}},\"range\":{\"base\":\"7e9b1856e7843ddccc51dd17a5dc335769129e6b\",\"paths\":[\"docs/RELEASE-NOTES.md\"]},\"revision\":\"1894b9e5c992d69a7cbefa4b305485494e5622c4\",\"tool\":\"affected\"}\n",
+            "wallMs": 1200
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 74913,
+            "stdoutSha256": "3594b91a365760b69fbcd094242b89a530a7fc3a40d34af17e78f7d9770c3d36",
+            "stdoutTail": "{\"reason\":\"LANGUAGE_FRONTIER\",\"detail\":\"typescript:runtime-flags-unresolved\"},{\"reason\":\"UNOWNED_DIRTY_PATH\",\"detail\":\"docs/RELEASE-NOTES.md\"}]},\"profile\":\"affected-plan/0\",\"provider\":{\"go\":{\"packages\":[],\"state\":\"EMPTY_SELECTION\"}},\"range\":{\"base\":\"7e9b1856e7843ddccc51dd17a5dc335769129e6b\",\"paths\":[\"docs/RELEASE-NOTES.md\"]},\"revision\":\"1894b9e5c992d69a7cbefa4b305485494e5622c4\",\"tool\":\"affected\"}\n",
+            "wallMs": 1168
+          }
+        ],
+        "scope": "UNKNOWN",
+        "selected": [],
+        "selectedGoPackages": 0,
+        "unknownCount": 14
+      }
+    },
+    {
+      "baseline": {
+        "latency": {
+          "maxMs": 866,
+          "medianMs": 825,
+          "runsMs": [
+            866,
+            823,
+            825
+          ]
+        },
+        "procedure": "changed-packages-plus-direct-importers",
+        "selectedGoPackages": 89
+      },
+      "commit": "50a964705e934e2d0cebb7d64dc93642adf375ab",
+      "critical": [
+        "github.com/Beamfall/corvint/cmd/corvint",
+        "github.com/Beamfall/corvint/conformance/cli-parity-v0",
+        "github.com/Beamfall/corvint/conformance/ocm-v0",
+        "github.com/Beamfall/corvint/internal/attest",
+        "github.com/Beamfall/corvint/internal/authoritystore",
+        "github.com/Beamfall/corvint/internal/behaviorfalsify",
+        "github.com/Beamfall/corvint/internal/cem/cli",
+        "github.com/Beamfall/corvint/internal/cem/coverprofile",
+        "github.com/Beamfall/corvint/internal/cem/gitauth",
+        "github.com/Beamfall/corvint/internal/cem/verify",
+        "github.com/Beamfall/corvint/internal/cem/wire",
+        "github.com/Beamfall/corvint/internal/cem/workflow",
+        "github.com/Beamfall/corvint/internal/cemdiscriminate",
+        "github.com/Beamfall/corvint/internal/contextindex",
+        "github.com/Beamfall/corvint/internal/doccorpus",
+        "github.com/Beamfall/corvint/internal/extevidence",
+        "github.com/Beamfall/corvint/internal/gitnotes",
+        "github.com/Beamfall/corvint/internal/jstestprovider",
+        "github.com/Beamfall/corvint/internal/liveverify/gorunner",
+        "github.com/Beamfall/corvint/internal/liveverify/mutate",
+        "github.com/Beamfall/corvint/internal/liveverify/session",
+        "github.com/Beamfall/corvint/internal/mcp/server",
+        "github.com/Beamfall/corvint/internal/skillexport",
+        "github.com/Beamfall/corvint/internal/tcq",
+        "github.com/Beamfall/corvint/internal/trace",
+        "github.com/Beamfall/corvint/internal/workqueue",
+        "github.com/Beamfall/corvint/tools/gate-affected-select",
+        "github.com/Beamfall/corvint/tools/gate-ledger"
+      ],
+      "impactRange": {
+        "argv": [
+          "corvint",
+          "impact",
+          "--base",
+          "6dda276406609416573ab6bba1261c93e540d586",
+          "--range-profile",
+          "expanded-256",
+          "--limit",
+          "20"
+        ],
+        "criticalMissingReported": 0,
+        "latency": {
+          "maxMs": 1298,
+          "medianMs": 1294,
+          "runsMs": [
+            1298,
+            1294,
+            1292
+          ]
+        },
+        "ok": null,
+        "runs": [
+          {
+            "exit": 2,
+            "stderrTail": "{\"code\": \"unsupported-impact-range\", \"error\": \"impact range exceeds the 256-path bound\", \"ok\": false}\n",
+            "stdoutBytes": 0,
+            "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stdoutTail": "",
+            "wallMs": 1298
+          },
+          {
+            "exit": 2,
+            "stderrTail": "{\"code\": \"unsupported-impact-range\", \"error\": \"impact range exceeds the 256-path bound\", \"ok\": false}\n",
+            "stdoutBytes": 0,
+            "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stdoutTail": "",
+            "wallMs": 1294
+          },
+          {
+            "exit": 2,
+            "stderrTail": "{\"code\": \"unsupported-impact-range\", \"error\": \"impact range exceeds the 256-path bound\", \"ok\": false}\n",
+            "stdoutBytes": 0,
+            "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "stdoutTail": "",
+            "wallMs": 1292
+          }
+        ],
+        "uncertainty": null
+      },
+      "score": {
+        "criticalMissesBaseline": [],
+        "criticalMissesTreatment": [],
+        "treatmentOnlyCriticalMisses": []
+      },
+      "scored": true,
+      "treatment": {
+        "abstained": false,
+        "argv": [
+          "corvint",
+          "affected",
+          "--base",
+          "6dda276406609416573ab6bba1261c93e540d586"
+        ],
+        "covered": [
+          "github.com/Beamfall/corvint/benchmarks/dogfood-measure",
+          "github.com/Beamfall/corvint/benchmarks/dogfood-workers",
+          "github.com/Beamfall/corvint/benchmarks/runner",
+          "github.com/Beamfall/corvint/benchmarks/selfuse-batch",
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/cmd/corvint-behavior-falsify",
+          "github.com/Beamfall/corvint/cmd/corvint-companion-release",
+          "github.com/Beamfall/corvint/cmd/corvint-corpus-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-dashboard-snapshot",
+          "github.com/Beamfall/corvint/cmd/corvint-docs-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-go-test-provider",
+          "github.com/Beamfall/corvint/cmd/corvint-js-test-provider",
+          "github.com/Beamfall/corvint/cmd/corvint-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-playwright-minimize",
+          "github.com/Beamfall/corvint/cmd/corvint-public-release-check",
+          "github.com/Beamfall/corvint/cmd/corvint-work-queue",
+          "github.com/Beamfall/corvint/conformance/cli-parity-v0",
+          "github.com/Beamfall/corvint/conformance/frontier-v0",
+          "github.com/Beamfall/corvint/conformance/human-documentation-compiler-v0",
+          "github.com/Beamfall/corvint/conformance/ocm-v0",
+          "github.com/Beamfall/corvint/conformance/use-cases-v0",
+          "github.com/Beamfall/corvint/conformance/work-queue-v0",
+          "github.com/Beamfall/corvint/examples/evidence-provider/v0/check",
+          "github.com/Beamfall/corvint/internal/appflows",
+          "github.com/Beamfall/corvint/internal/attest",
+          "github.com/Beamfall/corvint/internal/authoritystore",
+          "github.com/Beamfall/corvint/internal/behaviorfalsify",
+          "github.com/Beamfall/corvint/internal/cem/cli",
+          "github.com/Beamfall/corvint/internal/cem/coverprofile",
+          "github.com/Beamfall/corvint/internal/cem/gitauth",
+          "github.com/Beamfall/corvint/internal/cem/patch",
+          "github.com/Beamfall/corvint/internal/cem/publish",
+          "github.com/Beamfall/corvint/internal/cem/sim",
+          "github.com/Beamfall/corvint/internal/cem/verify",
+          "github.com/Beamfall/corvint/internal/cem/wire",
+          "github.com/Beamfall/corvint/internal/cem/workflow",
+          "github.com/Beamfall/corvint/internal/cemdiscriminate",
+          "github.com/Beamfall/corvint/internal/compactionkernel",
+          "github.com/Beamfall/corvint/internal/companionrelease",
+          "github.com/Beamfall/corvint/internal/contextindex",
+          "github.com/Beamfall/corvint/internal/dashboard/adapters",
+          "github.com/Beamfall/corvint/internal/dashboard/repository",
+          "github.com/Beamfall/corvint/internal/dashboard/roadmap",
+          "github.com/Beamfall/corvint/internal/disagree",
+          "github.com/Beamfall/corvint/internal/doccompiler",
+          "github.com/Beamfall/corvint/internal/doccorpus",
+          "github.com/Beamfall/corvint/internal/docmaintain",
+          "github.com/Beamfall/corvint/internal/docviews",
+          "github.com/Beamfall/corvint/internal/dogfoodocm",
+          "github.com/Beamfall/corvint/internal/evalrepo",
+          "github.com/Beamfall/corvint/internal/extevidence",
+          "github.com/Beamfall/corvint/internal/frontier",
+          "github.com/Beamfall/corvint/internal/frontiernextrepo",
+          "github.com/Beamfall/corvint/internal/frontierrepo",
+          "github.com/Beamfall/corvint/internal/gitnotes",
+          "github.com/Beamfall/corvint/internal/jstestprovider",
+          "github.com/Beamfall/corvint/internal/liveverify/affected",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/dotnet",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/golang",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/kotlin",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/python",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/ruby",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/rust",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/swift",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/typescript",
+          "github.com/Beamfall/corvint/internal/liveverify/gorunner",
+          "github.com/Beamfall/corvint/internal/liveverify/mutate",
+          "github.com/Beamfall/corvint/internal/liveverify/parentverify",
+          "github.com/Beamfall/corvint/internal/liveverify/provider",
+          "github.com/Beamfall/corvint/internal/liveverify/pymutate",
+          "github.com/Beamfall/corvint/internal/liveverify/session",
+          "github.com/Beamfall/corvint/internal/localcompletion",
+          "github.com/Beamfall/corvint/internal/lrf",
+          "github.com/Beamfall/corvint/internal/lrfrepo",
+          "github.com/Beamfall/corvint/internal/mcp/bridge",
+          "github.com/Beamfall/corvint/internal/mcp/corpusbridge",
+          "github.com/Beamfall/corvint/internal/mcp/docsbridge",
+          "github.com/Beamfall/corvint/internal/mcp/server",
+          "github.com/Beamfall/corvint/internal/mcp/testvaliditybridge",
+          "github.com/Beamfall/corvint/internal/necessity",
+          "github.com/Beamfall/corvint/internal/outcomecal",
+          "github.com/Beamfall/corvint/internal/plansnapshot",
+          "github.com/Beamfall/corvint/internal/playwrightminimize",
+          "github.com/Beamfall/corvint/internal/releasecandidate",
+          "github.com/Beamfall/corvint/internal/skillexport",
+          "github.com/Beamfall/corvint/internal/taskman",
+          "github.com/Beamfall/corvint/internal/tcq",
+          "github.com/Beamfall/corvint/internal/testevidence",
+          "github.com/Beamfall/corvint/internal/testvalidity",
+          "github.com/Beamfall/corvint/internal/testvaliditydoc",
+          "github.com/Beamfall/corvint/internal/touchsurprise",
+          "github.com/Beamfall/corvint/internal/trace",
+          "github.com/Beamfall/corvint/internal/tracerecordrepo",
+          "github.com/Beamfall/corvint/internal/witness",
+          "github.com/Beamfall/corvint/internal/witnesscollapse",
+          "github.com/Beamfall/corvint/internal/workqueue",
+          "github.com/Beamfall/corvint/internal/worksource",
+          "github.com/Beamfall/corvint/internal/worktreeimpact",
+          "github.com/Beamfall/corvint/tools/gate-affected-select",
+          "github.com/Beamfall/corvint/tools/gate-ledger"
+        ],
+        "deterministic": true,
+        "latency": {
+          "maxMs": 1273,
+          "medianMs": 1144,
+          "runsMs": [
+            1115,
+            1273,
+            1144
+          ]
+        },
+        "namedNoSelectableTest": [
+          "github.com/Beamfall/corvint/internal/cem/coverprofile",
+          "github.com/Beamfall/corvint/internal/cemdiscriminate"
+        ],
+        "retries": 0,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 153408,
+            "stdoutSha256": "a05197ed14e8fd6f3519c4e3f1490166b1a3564f3aceb848adc3f3bea7d6c6b3",
+            "stdoutTail": "tall-lifecycle_test.sh\",\"script/dogfood-bind-range_test.sh\",\"script/dogfood-change.sh\",\"script/dogfood-change_test.sh\",\"script/dogfood-check.sh\",\"tools/gate-affected-select/main.go\",\"tools/gate-affected-select/main_test.go\",\"tools/gate-affected-select/readers.go\",\"tools/gate-ledger/main.go\",\"tools/gate-ledger/main_test.go\"]},\"revision\":\"50a964705e934e2d0cebb7d64dc93642adf375ab\",\"tool\":\"affected\"}\n",
+            "wallMs": 1115
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 153408,
+            "stdoutSha256": "a05197ed14e8fd6f3519c4e3f1490166b1a3564f3aceb848adc3f3bea7d6c6b3",
+            "stdoutTail": "tall-lifecycle_test.sh\",\"script/dogfood-bind-range_test.sh\",\"script/dogfood-change.sh\",\"script/dogfood-change_test.sh\",\"script/dogfood-check.sh\",\"tools/gate-affected-select/main.go\",\"tools/gate-affected-select/main_test.go\",\"tools/gate-affected-select/readers.go\",\"tools/gate-ledger/main.go\",\"tools/gate-ledger/main_test.go\"]},\"revision\":\"50a964705e934e2d0cebb7d64dc93642adf375ab\",\"tool\":\"affected\"}\n",
+            "wallMs": 1273
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 153408,
+            "stdoutSha256": "a05197ed14e8fd6f3519c4e3f1490166b1a3564f3aceb848adc3f3bea7d6c6b3",
+            "stdoutTail": "tall-lifecycle_test.sh\",\"script/dogfood-bind-range_test.sh\",\"script/dogfood-change.sh\",\"script/dogfood-change_test.sh\",\"script/dogfood-check.sh\",\"tools/gate-affected-select/main.go\",\"tools/gate-affected-select/main_test.go\",\"tools/gate-affected-select/readers.go\",\"tools/gate-ledger/main.go\",\"tools/gate-ledger/main_test.go\"]},\"revision\":\"50a964705e934e2d0cebb7d64dc93642adf375ab\",\"tool\":\"affected\"}\n",
+            "wallMs": 1144
+          }
+        ],
+        "scope": "UNKNOWN",
+        "selected": [
+          "github.com/Beamfall/corvint/benchmarks/dogfood-measure",
+          "github.com/Beamfall/corvint/benchmarks/dogfood-workers",
+          "github.com/Beamfall/corvint/benchmarks/runner",
+          "github.com/Beamfall/corvint/benchmarks/selfuse-batch",
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/cmd/corvint-behavior-falsify",
+          "github.com/Beamfall/corvint/cmd/corvint-companion-release",
+          "github.com/Beamfall/corvint/cmd/corvint-corpus-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-dashboard-snapshot",
+          "github.com/Beamfall/corvint/cmd/corvint-docs-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-go-test-provider",
+          "github.com/Beamfall/corvint/cmd/corvint-js-test-provider",
+          "github.com/Beamfall/corvint/cmd/corvint-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-playwright-minimize",
+          "github.com/Beamfall/corvint/cmd/corvint-public-release-check",
+          "github.com/Beamfall/corvint/cmd/corvint-work-queue",
+          "github.com/Beamfall/corvint/conformance/cli-parity-v0",
+          "github.com/Beamfall/corvint/conformance/frontier-v0",
+          "github.com/Beamfall/corvint/conformance/human-documentation-compiler-v0",
+          "github.com/Beamfall/corvint/conformance/ocm-v0",
+          "github.com/Beamfall/corvint/conformance/use-cases-v0",
+          "github.com/Beamfall/corvint/conformance/work-queue-v0",
+          "github.com/Beamfall/corvint/examples/evidence-provider/v0/check",
+          "github.com/Beamfall/corvint/internal/appflows",
+          "github.com/Beamfall/corvint/internal/attest",
+          "github.com/Beamfall/corvint/internal/authoritystore",
+          "github.com/Beamfall/corvint/internal/behaviorfalsify",
+          "github.com/Beamfall/corvint/internal/cem/cli",
+          "github.com/Beamfall/corvint/internal/cem/gitauth",
+          "github.com/Beamfall/corvint/internal/cem/patch",
+          "github.com/Beamfall/corvint/internal/cem/publish",
+          "github.com/Beamfall/corvint/internal/cem/sim",
+          "github.com/Beamfall/corvint/internal/cem/verify",
+          "github.com/Beamfall/corvint/internal/cem/wire",
+          "github.com/Beamfall/corvint/internal/cem/workflow",
+          "github.com/Beamfall/corvint/internal/compactionkernel",
+          "github.com/Beamfall/corvint/internal/companionrelease",
+          "github.com/Beamfall/corvint/internal/contextindex",
+          "github.com/Beamfall/corvint/internal/dashboard/adapters",
+          "github.com/Beamfall/corvint/internal/dashboard/repository",
+          "github.com/Beamfall/corvint/internal/dashboard/roadmap",
+          "github.com/Beamfall/corvint/internal/disagree",
+          "github.com/Beamfall/corvint/internal/doccompiler",
+          "github.com/Beamfall/corvint/internal/doccorpus",
+          "github.com/Beamfall/corvint/internal/docmaintain",
+          "github.com/Beamfall/corvint/internal/docviews",
+          "github.com/Beamfall/corvint/internal/dogfoodocm",
+          "github.com/Beamfall/corvint/internal/evalrepo",
+          "github.com/Beamfall/corvint/internal/extevidence",
+          "github.com/Beamfall/corvint/internal/frontier",
+          "github.com/Beamfall/corvint/internal/frontiernextrepo",
+          "github.com/Beamfall/corvint/internal/frontierrepo",
+          "github.com/Beamfall/corvint/internal/gitnotes",
+          "github.com/Beamfall/corvint/internal/jstestprovider",
+          "github.com/Beamfall/corvint/internal/liveverify/affected",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/dotnet",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/golang",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/kotlin",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/python",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/ruby",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/rust",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/swift",
+          "github.com/Beamfall/corvint/internal/liveverify/affected/typescript",
+          "github.com/Beamfall/corvint/internal/liveverify/gorunner",
+          "github.com/Beamfall/corvint/internal/liveverify/mutate",
+          "github.com/Beamfall/corvint/internal/liveverify/parentverify",
+          "github.com/Beamfall/corvint/internal/liveverify/provider",
+          "github.com/Beamfall/corvint/internal/liveverify/pymutate",
+          "github.com/Beamfall/corvint/internal/liveverify/session",
+          "github.com/Beamfall/corvint/internal/localcompletion",
+          "github.com/Beamfall/corvint/internal/lrf",
+          "github.com/Beamfall/corvint/internal/lrfrepo",
+          "github.com/Beamfall/corvint/internal/mcp/bridge",
+          "github.com/Beamfall/corvint/internal/mcp/corpusbridge",
+          "github.com/Beamfall/corvint/internal/mcp/docsbridge",
+          "github.com/Beamfall/corvint/internal/mcp/server",
+          "github.com/Beamfall/corvint/internal/mcp/testvaliditybridge",
+          "github.com/Beamfall/corvint/internal/necessity",
+          "github.com/Beamfall/corvint/internal/outcomecal",
+          "github.com/Beamfall/corvint/internal/plansnapshot",
+          "github.com/Beamfall/corvint/internal/playwrightminimize",
+          "github.com/Beamfall/corvint/internal/releasecandidate",
+          "github.com/Beamfall/corvint/internal/skillexport",
+          "github.com/Beamfall/corvint/internal/taskman",
+          "github.com/Beamfall/corvint/internal/tcq",
+          "github.com/Beamfall/corvint/internal/testevidence",
+          "github.com/Beamfall/corvint/internal/testvalidity",
+          "github.com/Beamfall/corvint/internal/testvaliditydoc",
+          "github.com/Beamfall/corvint/internal/touchsurprise",
+          "github.com/Beamfall/corvint/internal/trace",
+          "github.com/Beamfall/corvint/internal/tracerecordrepo",
+          "github.com/Beamfall/corvint/internal/witness",
+          "github.com/Beamfall/corvint/internal/witnesscollapse",
+          "github.com/Beamfall/corvint/internal/workqueue",
+          "github.com/Beamfall/corvint/internal/worksource",
+          "github.com/Beamfall/corvint/internal/worktreeimpact",
+          "github.com/Beamfall/corvint/tools/gate-affected-select",
+          "github.com/Beamfall/corvint/tools/gate-ledger"
+        ],
+        "selectedGoPackages": 98,
+        "unknownCount": 138
+      }
+    },
+    {
+      "baseline": {
+        "latency": {
+          "maxMs": 25,
+          "medianMs": 24,
+          "runsMs": [
+            25,
+            24,
+            24
+          ]
+        },
+        "procedure": "changed-packages-plus-direct-importers",
+        "selectedGoPackages": 0
+      },
+      "commit": "ca929b35557fc9878eb51bbdf755818b4ad215b3",
+      "critical": [],
+      "impactRange": {
+        "argv": [
+          "corvint",
+          "impact",
+          "--base",
+          "362721cdcf0626c1b0345b69cd9f2fbfc9a32957",
+          "--range-profile",
+          "expanded-256",
+          "--limit",
+          "20"
+        ],
+        "criticalMissingReported": 0,
+        "latency": {
+          "maxMs": 1137,
+          "medianMs": 1129,
+          "runsMs": [
+            1129,
+            1128,
+            1137
+          ]
+        },
+        "ok": true,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4073,
+            "stdoutSha256": "b935f3dae98aa42872c7c5163d514ac57830c7369717b080fd86b05fce467879",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1129
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4073,
+            "stdoutSha256": "b935f3dae98aa42872c7c5163d514ac57830c7369717b080fd86b05fce467879",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1128
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4073,
+            "stdoutSha256": "b935f3dae98aa42872c7c5163d514ac57830c7369717b080fd86b05fce467879",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1137
+          }
+        ],
+        "uncertainty": [
+          "feature/scenario markers and ADR citations are admitted only from target lines added or replaced by the committed diff",
+          "1 non-Go changed paths are outside the native Go range profile"
+        ]
+      },
+      "score": {
+        "criticalMissesBaseline": [],
+        "criticalMissesTreatment": [],
+        "treatmentOnlyCriticalMisses": []
+      },
+      "scored": false,
+      "treatment": {
+        "abstained": false,
+        "argv": [
+          "corvint",
+          "affected",
+          "--base",
+          "362721cdcf0626c1b0345b69cd9f2fbfc9a32957"
+        ],
+        "covered": [],
+        "deterministic": true,
+        "latency": {
+          "maxMs": 1142,
+          "medianMs": 1141,
+          "runsMs": [
+            1095,
+            1141,
+            1142
+          ]
+        },
+        "namedNoSelectableTest": [],
+        "retries": 0,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 74090,
+            "stdoutSha256": "a03e99c3316add064f3049c3092f514f471ada1dc3e3cfbab2e5d1f76452f1c5",
+            "stdoutTail": "path-alias-unresolved\"},{\"reason\":\"LANGUAGE_FRONTIER\",\"detail\":\"typescript:runtime-flags-unresolved\"},{\"reason\":\"UNOWNED_DIRTY_PATH\",\"detail\":\"AGENTS.md\"}]},\"profile\":\"affected-plan/0\",\"provider\":{\"go\":{\"packages\":[],\"state\":\"EMPTY_SELECTION\"}},\"range\":{\"base\":\"362721cdcf0626c1b0345b69cd9f2fbfc9a32957\",\"paths\":[\"AGENTS.md\"]},\"revision\":\"ca929b35557fc9878eb51bbdf755818b4ad215b3\",\"tool\":\"affected\"}\n",
+            "wallMs": 1095
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 74090,
+            "stdoutSha256": "a03e99c3316add064f3049c3092f514f471ada1dc3e3cfbab2e5d1f76452f1c5",
+            "stdoutTail": "path-alias-unresolved\"},{\"reason\":\"LANGUAGE_FRONTIER\",\"detail\":\"typescript:runtime-flags-unresolved\"},{\"reason\":\"UNOWNED_DIRTY_PATH\",\"detail\":\"AGENTS.md\"}]},\"profile\":\"affected-plan/0\",\"provider\":{\"go\":{\"packages\":[],\"state\":\"EMPTY_SELECTION\"}},\"range\":{\"base\":\"362721cdcf0626c1b0345b69cd9f2fbfc9a32957\",\"paths\":[\"AGENTS.md\"]},\"revision\":\"ca929b35557fc9878eb51bbdf755818b4ad215b3\",\"tool\":\"affected\"}\n",
+            "wallMs": 1141
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 74090,
+            "stdoutSha256": "a03e99c3316add064f3049c3092f514f471ada1dc3e3cfbab2e5d1f76452f1c5",
+            "stdoutTail": "path-alias-unresolved\"},{\"reason\":\"LANGUAGE_FRONTIER\",\"detail\":\"typescript:runtime-flags-unresolved\"},{\"reason\":\"UNOWNED_DIRTY_PATH\",\"detail\":\"AGENTS.md\"}]},\"profile\":\"affected-plan/0\",\"provider\":{\"go\":{\"packages\":[],\"state\":\"EMPTY_SELECTION\"}},\"range\":{\"base\":\"362721cdcf0626c1b0345b69cd9f2fbfc9a32957\",\"paths\":[\"AGENTS.md\"]},\"revision\":\"ca929b35557fc9878eb51bbdf755818b4ad215b3\",\"tool\":\"affected\"}\n",
+            "wallMs": 1142
+          }
+        ],
+        "scope": "UNKNOWN",
+        "selected": [],
+        "selectedGoPackages": 0,
+        "unknownCount": 14
+      }
+    },
+    {
+      "baseline": {
+        "latency": {
+          "maxMs": 550,
+          "medianMs": 545,
+          "runsMs": [
+            540,
+            550,
+            545
+          ]
+        },
+        "procedure": "changed-packages-plus-direct-importers",
+        "selectedGoPackages": 29
+      },
+      "commit": "362721cdcf0626c1b0345b69cd9f2fbfc9a32957",
+      "critical": [
+        "github.com/Beamfall/corvint/cmd/corvint",
+        "github.com/Beamfall/corvint/cmd/corvint-corpus-mcp",
+        "github.com/Beamfall/corvint/cmd/corvint-docs-mcp",
+        "github.com/Beamfall/corvint/cmd/corvint-mcp",
+        "github.com/Beamfall/corvint/cmd/corvint-test-validity-mcp",
+        "github.com/Beamfall/corvint/conformance/mcp-2026-07-28",
+        "github.com/Beamfall/corvint/conformance/mcp-test-validity-v0",
+        "github.com/Beamfall/corvint/conformance/release-artifact-v0",
+        "github.com/Beamfall/corvint/conformance/use-cases-v0",
+        "github.com/Beamfall/corvint/examples/evidence-provider/v0",
+        "github.com/Beamfall/corvint/examples/evidence-provider/v0/check",
+        "github.com/Beamfall/corvint/integrations/testfixture",
+        "github.com/Beamfall/corvint/internal/authoritystore",
+        "github.com/Beamfall/corvint/internal/cem/workflow",
+        "github.com/Beamfall/corvint/internal/extevidence",
+        "github.com/Beamfall/corvint/internal/mcp/protocol",
+        "github.com/Beamfall/corvint/internal/mcp/server",
+        "github.com/Beamfall/corvint/internal/releasecandidate",
+        "github.com/Beamfall/corvint/tools/gate-ledger"
+      ],
+      "impactRange": {
+        "argv": [
+          "corvint",
+          "impact",
+          "--base",
+          "8869cf289d1ffed663d9413a93b87adc9b657ed9",
+          "--range-profile",
+          "expanded-256",
+          "--limit",
+          "20"
+        ],
+        "criticalMissingReported": 42,
+        "latency": {
+          "maxMs": 1532,
+          "medianMs": 1493,
+          "runsMs": [
+            1493,
+            1532,
+            1491
+          ]
+        },
+        "ok": true,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 27304,
+            "stdoutSha256": "14cd160339bf40998bc8a838703b44cf9d27d0c350c3e5188e1df7e21f05bbee",
+            "stdoutTail": "\"go test ./internal/authoritystore/...\",\"go test ./internal/cem/workflow/...\",\"go test ./internal/extevidence/...\",\"go test ./internal/mcp/protocol/...\",\"go test ./internal/mcp/server/...\",\"go test ./internal/releasecandidate/...\",\"go test ./interop/cem01-go/...\",\"go test ./tools/gate-ledger/...\",\"go test ./tools/local-authority/...\",\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1493
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 27304,
+            "stdoutSha256": "14cd160339bf40998bc8a838703b44cf9d27d0c350c3e5188e1df7e21f05bbee",
+            "stdoutTail": "\"go test ./internal/authoritystore/...\",\"go test ./internal/cem/workflow/...\",\"go test ./internal/extevidence/...\",\"go test ./internal/mcp/protocol/...\",\"go test ./internal/mcp/server/...\",\"go test ./internal/releasecandidate/...\",\"go test ./interop/cem01-go/...\",\"go test ./tools/gate-ledger/...\",\"go test ./tools/local-authority/...\",\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1532
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 27304,
+            "stdoutSha256": "14cd160339bf40998bc8a838703b44cf9d27d0c350c3e5188e1df7e21f05bbee",
+            "stdoutTail": "\"go test ./internal/authoritystore/...\",\"go test ./internal/cem/workflow/...\",\"go test ./internal/extevidence/...\",\"go test ./internal/mcp/protocol/...\",\"go test ./internal/mcp/server/...\",\"go test ./internal/releasecandidate/...\",\"go test ./interop/cem01-go/...\",\"go test ./tools/gate-ledger/...\",\"go test ./tools/local-authority/...\",\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1491
+          }
+        ],
+        "uncertainty": [
+          "feature/scenario markers and ADR citations are admitted only from target lines added or replaced by the committed diff",
+          "114 non-Go changed paths are outside the native Go range profile",
+          "42 ranked impact results are omitted by the result limit"
+        ]
+      },
+      "score": {
+        "criticalMissesBaseline": [],
+        "criticalMissesTreatment": [],
+        "treatmentOnlyCriticalMisses": []
+      },
+      "scored": true,
+      "treatment": {
+        "abstained": false,
+        "argv": [
+          "corvint",
+          "affected",
+          "--base",
+          "8869cf289d1ffed663d9413a93b87adc9b657ed9"
+        ],
+        "covered": [
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/cmd/corvint-companion-release",
+          "github.com/Beamfall/corvint/cmd/corvint-corpus-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-docs-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-public-release-check",
+          "github.com/Beamfall/corvint/cmd/corvint-test-validity-mcp",
+          "github.com/Beamfall/corvint/conformance/frontier-v0",
+          "github.com/Beamfall/corvint/conformance/mcp-2026-07-28",
+          "github.com/Beamfall/corvint/conformance/mcp-test-validity-v0",
+          "github.com/Beamfall/corvint/conformance/release-artifact-v0",
+          "github.com/Beamfall/corvint/conformance/use-cases-v0",
+          "github.com/Beamfall/corvint/examples/evidence-provider/v0",
+          "github.com/Beamfall/corvint/examples/evidence-provider/v0/check",
+          "github.com/Beamfall/corvint/integrations/testfixture",
+          "github.com/Beamfall/corvint/internal/authoritystore",
+          "github.com/Beamfall/corvint/internal/cem/cli",
+          "github.com/Beamfall/corvint/internal/cem/workflow",
+          "github.com/Beamfall/corvint/internal/companionrelease",
+          "github.com/Beamfall/corvint/internal/dogfoodocm",
+          "github.com/Beamfall/corvint/internal/extevidence",
+          "github.com/Beamfall/corvint/internal/frontiernextrepo",
+          "github.com/Beamfall/corvint/internal/frontierrepo",
+          "github.com/Beamfall/corvint/internal/localcompletion",
+          "github.com/Beamfall/corvint/internal/lrfrepo",
+          "github.com/Beamfall/corvint/internal/mcp/protocol",
+          "github.com/Beamfall/corvint/internal/mcp/server",
+          "github.com/Beamfall/corvint/internal/releasecandidate",
+          "github.com/Beamfall/corvint/tools/gate-ledger"
+        ],
+        "deterministic": true,
+        "latency": {
+          "maxMs": 1117,
+          "medianMs": 1108,
+          "runsMs": [
+            1089,
+            1117,
+            1108
+          ]
+        },
+        "namedNoSelectableTest": [
+          "github.com/Beamfall/corvint/cmd/corvint-test-validity-mcp",
+          "github.com/Beamfall/corvint/integrations/testfixture"
+        ],
+        "retries": 0,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 113005,
+            "stdoutSha256": "ee41fb6d33fa77b94eb3d0b1002902d366dd224e9d9d9cf4794218cee6de81e0",
+            "stdoutTail": "\",\"script/seed-planning-store_test.sh\",\"tools/gate-ledger/main.go\",\"tools/gate-ledger/main_test.go\",\"tools/local-authority/README.md\",\"tools/local-authority/main.go\",\"tools/local-authority/pi_release.go\",\"tools/local-authority/pi_release_test.go\",\"tools/local-authority/reader_operator.go\",\"tools/local-authority/release.go\"]},\"revision\":\"362721cdcf0626c1b0345b69cd9f2fbfc9a32957\",\"tool\":\"affected\"}\n",
+            "wallMs": 1089
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 113005,
+            "stdoutSha256": "ee41fb6d33fa77b94eb3d0b1002902d366dd224e9d9d9cf4794218cee6de81e0",
+            "stdoutTail": "\",\"script/seed-planning-store_test.sh\",\"tools/gate-ledger/main.go\",\"tools/gate-ledger/main_test.go\",\"tools/local-authority/README.md\",\"tools/local-authority/main.go\",\"tools/local-authority/pi_release.go\",\"tools/local-authority/pi_release_test.go\",\"tools/local-authority/reader_operator.go\",\"tools/local-authority/release.go\"]},\"revision\":\"362721cdcf0626c1b0345b69cd9f2fbfc9a32957\",\"tool\":\"affected\"}\n",
+            "wallMs": 1117
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 113005,
+            "stdoutSha256": "ee41fb6d33fa77b94eb3d0b1002902d366dd224e9d9d9cf4794218cee6de81e0",
+            "stdoutTail": "\",\"script/seed-planning-store_test.sh\",\"tools/gate-ledger/main.go\",\"tools/gate-ledger/main_test.go\",\"tools/local-authority/README.md\",\"tools/local-authority/main.go\",\"tools/local-authority/pi_release.go\",\"tools/local-authority/pi_release_test.go\",\"tools/local-authority/reader_operator.go\",\"tools/local-authority/release.go\"]},\"revision\":\"362721cdcf0626c1b0345b69cd9f2fbfc9a32957\",\"tool\":\"affected\"}\n",
+            "wallMs": 1108
+          }
+        ],
+        "scope": "UNKNOWN",
+        "selected": [
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/cmd/corvint-companion-release",
+          "github.com/Beamfall/corvint/cmd/corvint-corpus-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-docs-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-mcp",
+          "github.com/Beamfall/corvint/cmd/corvint-public-release-check",
+          "github.com/Beamfall/corvint/conformance/frontier-v0",
+          "github.com/Beamfall/corvint/conformance/mcp-2026-07-28",
+          "github.com/Beamfall/corvint/conformance/mcp-test-validity-v0",
+          "github.com/Beamfall/corvint/conformance/release-artifact-v0",
+          "github.com/Beamfall/corvint/conformance/use-cases-v0",
+          "github.com/Beamfall/corvint/examples/evidence-provider/v0",
+          "github.com/Beamfall/corvint/examples/evidence-provider/v0/check",
+          "github.com/Beamfall/corvint/internal/authoritystore",
+          "github.com/Beamfall/corvint/internal/cem/cli",
+          "github.com/Beamfall/corvint/internal/cem/workflow",
+          "github.com/Beamfall/corvint/internal/companionrelease",
+          "github.com/Beamfall/corvint/internal/dogfoodocm",
+          "github.com/Beamfall/corvint/internal/extevidence",
+          "github.com/Beamfall/corvint/internal/frontiernextrepo",
+          "github.com/Beamfall/corvint/internal/frontierrepo",
+          "github.com/Beamfall/corvint/internal/localcompletion",
+          "github.com/Beamfall/corvint/internal/lrfrepo",
+          "github.com/Beamfall/corvint/internal/mcp/protocol",
+          "github.com/Beamfall/corvint/internal/mcp/server",
+          "github.com/Beamfall/corvint/internal/releasecandidate",
+          "github.com/Beamfall/corvint/tools/gate-ledger"
+        ],
+        "selectedGoPackages": 27,
+        "unknownCount": 111
+      }
+    },
+    {
+      "baseline": {
+        "latency": {
+          "maxMs": 31,
+          "medianMs": 29,
+          "runsMs": [
+            29,
+            31,
+            25
+          ]
+        },
+        "procedure": "changed-packages-plus-direct-importers",
+        "selectedGoPackages": 0
+      },
+      "commit": "8869cf289d1ffed663d9413a93b87adc9b657ed9",
+      "critical": [],
+      "impactRange": {
+        "argv": [
+          "corvint",
+          "impact",
+          "--base",
+          "f5cc4f04f225fb2d447e8e67f6a1595c1270193c",
+          "--range-profile",
+          "expanded-256",
+          "--limit",
+          "20"
+        ],
+        "criticalMissingReported": 0,
+        "latency": {
+          "maxMs": 1163,
+          "medianMs": 1157,
+          "runsMs": [
+            1151,
+            1157,
+            1163
+          ]
+        },
+        "ok": true,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4825,
+            "stdoutSha256": "c02ee51c71bf5fe605ec80c7f92412ca7cb535f3a8e160fd612621b4981d244b",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1151
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4825,
+            "stdoutSha256": "c02ee51c71bf5fe605ec80c7f92412ca7cb535f3a8e160fd612621b4981d244b",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1157
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4825,
+            "stdoutSha256": "c02ee51c71bf5fe605ec80c7f92412ca7cb535f3a8e160fd612621b4981d244b",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1163
+          }
+        ],
+        "uncertainty": [
+          "feature/scenario markers and ADR citations are admitted only from target lines added or replaced by the committed diff",
+          "8 non-Go changed paths are outside the native Go range profile"
+        ]
+      },
+      "score": {
+        "criticalMissesBaseline": [],
+        "criticalMissesTreatment": [],
+        "treatmentOnlyCriticalMisses": []
+      },
+      "scored": false,
+      "treatment": {
+        "abstained": false,
+        "argv": [
+          "corvint",
+          "affected",
+          "--base",
+          "f5cc4f04f225fb2d447e8e67f6a1595c1270193c"
+        ],
+        "covered": [],
+        "deterministic": true,
+        "latency": {
+          "maxMs": 1089,
+          "medianMs": 1059,
+          "runsMs": [
+            1057,
+            1089,
+            1059
+          ]
+        },
+        "namedNoSelectableTest": [],
+        "retries": 0,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 73371,
+            "stdoutSha256": "4de2e1ce3f05b2719475166285cdd6c9a9e97e1ec59fad880834aa591d1ba4f6",
+            "stdoutTail": "\"paths\":[\"integrations/compatibility.json\",\"integrations/opencode/README.md\",\"integrations/opencode/mcp.example.json\",\"integrations/opencode/opencode.example.json\",\"integrations/opencode/package.json\",\"integrations/opencode/skills/corvint/SKILL.md\",\"integrations/opencode/src/index.js\",\"integrations/opencode/src/runtime.js\"]},\"revision\":\"8869cf289d1ffed663d9413a93b87adc9b657ed9\",\"tool\":\"affected\"}\n",
+            "wallMs": 1057
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 73371,
+            "stdoutSha256": "4de2e1ce3f05b2719475166285cdd6c9a9e97e1ec59fad880834aa591d1ba4f6",
+            "stdoutTail": "\"paths\":[\"integrations/compatibility.json\",\"integrations/opencode/README.md\",\"integrations/opencode/mcp.example.json\",\"integrations/opencode/opencode.example.json\",\"integrations/opencode/package.json\",\"integrations/opencode/skills/corvint/SKILL.md\",\"integrations/opencode/src/index.js\",\"integrations/opencode/src/runtime.js\"]},\"revision\":\"8869cf289d1ffed663d9413a93b87adc9b657ed9\",\"tool\":\"affected\"}\n",
+            "wallMs": 1089
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 73371,
+            "stdoutSha256": "4de2e1ce3f05b2719475166285cdd6c9a9e97e1ec59fad880834aa591d1ba4f6",
+            "stdoutTail": "\"paths\":[\"integrations/compatibility.json\",\"integrations/opencode/README.md\",\"integrations/opencode/mcp.example.json\",\"integrations/opencode/opencode.example.json\",\"integrations/opencode/package.json\",\"integrations/opencode/skills/corvint/SKILL.md\",\"integrations/opencode/src/index.js\",\"integrations/opencode/src/runtime.js\"]},\"revision\":\"8869cf289d1ffed663d9413a93b87adc9b657ed9\",\"tool\":\"affected\"}\n",
+            "wallMs": 1059
+          }
+        ],
+        "scope": "UNKNOWN",
+        "selected": [],
+        "selectedGoPackages": 0,
+        "unknownCount": 19
+      }
+    },
+    {
+      "baseline": {
+        "latency": {
+          "maxMs": 107,
+          "medianMs": 107,
+          "runsMs": [
+            107,
+            105,
+            107
+          ]
+        },
+        "procedure": "changed-packages-plus-direct-importers",
+        "selectedGoPackages": 7
+      },
+      "commit": "af247a1d6d6efcfe3cb0348f7cdf34b794943d40",
+      "critical": [
+        "github.com/Beamfall/corvint/cmd/corvint",
+        "github.com/Beamfall/corvint/cmd/corvint-web-flows",
+        "github.com/Beamfall/corvint/internal/appflows"
+      ],
+      "impactRange": {
+        "argv": [
+          "corvint",
+          "impact",
+          "--base",
+          "1d4cbaa7bdbd01d24abfc5ddbd5b1efa5013693f",
+          "--range-profile",
+          "expanded-256",
+          "--limit",
+          "20"
+        ],
+        "criticalMissingReported": 0,
+        "latency": {
+          "maxMs": 1375,
+          "medianMs": 1366,
+          "runsMs": [
+            1358,
+            1366,
+            1375
+          ]
+        },
+        "ok": true,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 9997,
+            "stdoutSha256": "f6270da5d72c89ba703e842948872fd6fdeb100f06c86e3f2a1eee316743c383",
+            "stdoutTail": "onsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"go test ./cmd/corvint-web-flows/...\",\"go test ./cmd/corvint/...\",\"go test ./internal/appflows/...\",\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1358
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 9997,
+            "stdoutSha256": "f6270da5d72c89ba703e842948872fd6fdeb100f06c86e3f2a1eee316743c383",
+            "stdoutTail": "onsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"go test ./cmd/corvint-web-flows/...\",\"go test ./cmd/corvint/...\",\"go test ./internal/appflows/...\",\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1366
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 9997,
+            "stdoutSha256": "f6270da5d72c89ba703e842948872fd6fdeb100f06c86e3f2a1eee316743c383",
+            "stdoutTail": "onsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"go test ./cmd/corvint-web-flows/...\",\"go test ./cmd/corvint/...\",\"go test ./internal/appflows/...\",\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1375
+          }
+        ],
+        "uncertainty": [
+          "feature/scenario markers and ADR citations are admitted only from target lines added or replaced by the committed diff",
+          "43 non-Go changed paths are outside the native Go range profile"
+        ]
+      },
+      "score": {
+        "criticalMissesBaseline": [],
+        "criticalMissesTreatment": [],
+        "treatmentOnlyCriticalMisses": []
+      },
+      "scored": true,
+      "treatment": {
+        "abstained": false,
+        "argv": [
+          "corvint",
+          "affected",
+          "--base",
+          "1d4cbaa7bdbd01d24abfc5ddbd5b1efa5013693f"
+        ],
+        "covered": [
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/cmd/corvint-web-flows",
+          "github.com/Beamfall/corvint/internal/appflows"
+        ],
+        "deterministic": true,
+        "latency": {
+          "maxMs": 1076,
+          "medianMs": 1052,
+          "runsMs": [
+            1032,
+            1076,
+            1052
+          ]
+        },
+        "namedNoSelectableTest": [
+          "github.com/Beamfall/corvint/cmd/corvint-web-flows"
+        ],
+        "retries": 0,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 84094,
+            "stdoutSha256": "7c31b7735cb695fc29de7df15d407c51ca3b76cb31283666b37592660ce1e644",
+            "stdoutTail": "eb-flows/package-lock.json\",\"tools/web-flows/package.json\",\"tools/web-flows/scan.mjs\",\"tools/web-flows/test/e2e.mjs\",\"tools/web-flows/test/fixture/flows.spec.ts\",\"tools/web-flows/test/fixture/index.html\",\"tools/web-flows/test/fixture/server.cjs\",\"tools/web-flows/test/lifecycle.test.mjs\",\"tools/web-flows/test/scan.test.mjs\"]},\"revision\":\"af247a1d6d6efcfe3cb0348f7cdf34b794943d40\",\"tool\":\"affected\"}\n",
+            "wallMs": 1032
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 84094,
+            "stdoutSha256": "7c31b7735cb695fc29de7df15d407c51ca3b76cb31283666b37592660ce1e644",
+            "stdoutTail": "eb-flows/package-lock.json\",\"tools/web-flows/package.json\",\"tools/web-flows/scan.mjs\",\"tools/web-flows/test/e2e.mjs\",\"tools/web-flows/test/fixture/flows.spec.ts\",\"tools/web-flows/test/fixture/index.html\",\"tools/web-flows/test/fixture/server.cjs\",\"tools/web-flows/test/lifecycle.test.mjs\",\"tools/web-flows/test/scan.test.mjs\"]},\"revision\":\"af247a1d6d6efcfe3cb0348f7cdf34b794943d40\",\"tool\":\"affected\"}\n",
+            "wallMs": 1076
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 84094,
+            "stdoutSha256": "7c31b7735cb695fc29de7df15d407c51ca3b76cb31283666b37592660ce1e644",
+            "stdoutTail": "eb-flows/package-lock.json\",\"tools/web-flows/package.json\",\"tools/web-flows/scan.mjs\",\"tools/web-flows/test/e2e.mjs\",\"tools/web-flows/test/fixture/flows.spec.ts\",\"tools/web-flows/test/fixture/index.html\",\"tools/web-flows/test/fixture/server.cjs\",\"tools/web-flows/test/lifecycle.test.mjs\",\"tools/web-flows/test/scan.test.mjs\"]},\"revision\":\"af247a1d6d6efcfe3cb0348f7cdf34b794943d40\",\"tool\":\"affected\"}\n",
+            "wallMs": 1052
+          }
+        ],
+        "scope": "UNKNOWN",
+        "selected": [
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/internal/appflows"
+        ],
+        "selectedGoPackages": 2,
+        "unknownCount": 49
+      }
+    },
+    {
+      "baseline": {
+        "latency": {
+          "maxMs": 28,
+          "medianMs": 25,
+          "runsMs": [
+            28,
+            25,
+            25
+          ]
+        },
+        "procedure": "changed-packages-plus-direct-importers",
+        "selectedGoPackages": 0
+      },
+      "commit": "1d4cbaa7bdbd01d24abfc5ddbd5b1efa5013693f",
+      "critical": [],
+      "impactRange": {
+        "argv": [
+          "corvint",
+          "impact",
+          "--base",
+          "933b43061fe61f9d1bf9cbd48bc4d65e5f060c59",
+          "--range-profile",
+          "expanded-256",
+          "--limit",
+          "20"
+        ],
+        "criticalMissingReported": 0,
+        "latency": {
+          "maxMs": 1276,
+          "medianMs": 1273,
+          "runsMs": [
+            1276,
+            1270,
+            1273
+          ]
+        },
+        "ok": true,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4932,
+            "stdoutSha256": "b1ce3df2101cedfb75e5415d0016c128772d29df77c648195debc4032fa49bb3",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1276
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4932,
+            "stdoutSha256": "b1ce3df2101cedfb75e5415d0016c128772d29df77c648195debc4032fa49bb3",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1270
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4932,
+            "stdoutSha256": "b1ce3df2101cedfb75e5415d0016c128772d29df77c648195debc4032fa49bb3",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1273
+          }
+        ],
+        "uncertainty": [
+          "feature/scenario markers and ADR citations are admitted only from target lines added or replaced by the committed diff",
+          "99 non-Go changed paths are outside the native Go range profile"
+        ]
+      },
+      "score": {
+        "criticalMissesBaseline": [],
+        "criticalMissesTreatment": [],
+        "treatmentOnlyCriticalMisses": []
+      },
+      "scored": false,
+      "treatment": {
+        "abstained": false,
+        "argv": [
+          "corvint",
+          "affected",
+          "--base",
+          "933b43061fe61f9d1bf9cbd48bc4d65e5f060c59"
+        ],
+        "covered": [],
+        "deterministic": true,
+        "latency": {
+          "maxMs": 1070,
+          "medianMs": 1046,
+          "runsMs": [
+            1042,
+            1046,
+            1070
+          ]
+        },
+        "namedNoSelectableTest": [],
+        "retries": 0,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 89228,
+            "stdoutSha256": "382f0207dd143b53eabdd33177062b4c63d117e04bf6dc4a827c4c6376f95365",
+            "stdoutTail": "79.json\",\".taskman/tickets/V1-0080.json\",\".taskman/tickets/V1-0081.json\",\".taskman/tickets/V1-0082.json\",\"AGENTS.md\",\"docs/AGENT-ROUTES.md\",\"docs/agent-memory/bugs.md\",\"docs/agent-memory/fixes.md\",\"docs/agent-memory/ideas.md\",\"docs/agent-memory/optimizations.md\",\"docs/agent-memory/questions.md\",\"docs/agent-memory/tests.md\"]},\"revision\":\"1d4cbaa7bdbd01d24abfc5ddbd5b1efa5013693f\",\"tool\":\"affected\"}\n",
+            "wallMs": 1042
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 89228,
+            "stdoutSha256": "382f0207dd143b53eabdd33177062b4c63d117e04bf6dc4a827c4c6376f95365",
+            "stdoutTail": "79.json\",\".taskman/tickets/V1-0080.json\",\".taskman/tickets/V1-0081.json\",\".taskman/tickets/V1-0082.json\",\"AGENTS.md\",\"docs/AGENT-ROUTES.md\",\"docs/agent-memory/bugs.md\",\"docs/agent-memory/fixes.md\",\"docs/agent-memory/ideas.md\",\"docs/agent-memory/optimizations.md\",\"docs/agent-memory/questions.md\",\"docs/agent-memory/tests.md\"]},\"revision\":\"1d4cbaa7bdbd01d24abfc5ddbd5b1efa5013693f\",\"tool\":\"affected\"}\n",
+            "wallMs": 1046
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 89228,
+            "stdoutSha256": "382f0207dd143b53eabdd33177062b4c63d117e04bf6dc4a827c4c6376f95365",
+            "stdoutTail": "79.json\",\".taskman/tickets/V1-0080.json\",\".taskman/tickets/V1-0081.json\",\".taskman/tickets/V1-0082.json\",\"AGENTS.md\",\"docs/AGENT-ROUTES.md\",\"docs/agent-memory/bugs.md\",\"docs/agent-memory/fixes.md\",\"docs/agent-memory/ideas.md\",\"docs/agent-memory/optimizations.md\",\"docs/agent-memory/questions.md\",\"docs/agent-memory/tests.md\"]},\"revision\":\"1d4cbaa7bdbd01d24abfc5ddbd5b1efa5013693f\",\"tool\":\"affected\"}\n",
+            "wallMs": 1070
+          }
+        ],
+        "scope": "UNKNOWN",
+        "selected": [],
+        "selectedGoPackages": 0,
+        "unknownCount": 112
+      }
+    },
+    {
+      "baseline": {
+        "latency": {
+          "maxMs": 25,
+          "medianMs": 23,
+          "runsMs": [
+            25,
+            23,
+            23
+          ]
+        },
+        "procedure": "changed-packages-plus-direct-importers",
+        "selectedGoPackages": 0
+      },
+      "commit": "933b43061fe61f9d1bf9cbd48bc4d65e5f060c59",
+      "critical": [],
+      "impactRange": {
+        "argv": [
+          "corvint",
+          "impact",
+          "--base",
+          "89223a911d7e4d3e1f372106b0027fb0fdfd9a89",
+          "--range-profile",
+          "expanded-256",
+          "--limit",
+          "20"
+        ],
+        "criticalMissingReported": 0,
+        "latency": {
+          "maxMs": 1202,
+          "medianMs": 1133,
+          "runsMs": [
+            1123,
+            1202,
+            1133
+          ]
+        },
+        "ok": true,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4073,
+            "stdoutSha256": "f3dad3fc3dec142aed0149750cb37ab9966bf07986a971699ea926ca67f9985f",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1123
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4073,
+            "stdoutSha256": "f3dad3fc3dec142aed0149750cb37ab9966bf07986a971699ea926ca67f9985f",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1202
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 4073,
+            "stdoutSha256": "f3dad3fc3dec142aed0149750cb37ab9966bf07986a971699ea926ca67f9985f",
+            "stdoutTail": "eject-keyword-walrus.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-leading-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"},{\"facts\":\"symbols\",\"path\":\"internal/pythonsyntax/testdata/ast-parity/reject-missing-comma.py\",\"reason\":\"PYTHON_SOURCE_UNPARSED\"}]},\"verification\":[\"git diff --check\"]},\"mutates\":false,\"ok\":true,\"tool\":\"impact\"}\n",
+            "wallMs": 1133
+          }
+        ],
+        "uncertainty": [
+          "feature/scenario markers and ADR citations are admitted only from target lines added or replaced by the committed diff",
+          "1 non-Go changed paths are outside the native Go range profile"
+        ]
+      },
+      "score": {
+        "criticalMissesBaseline": [],
+        "criticalMissesTreatment": [],
+        "treatmentOnlyCriticalMisses": []
+      },
+      "scored": false,
+      "treatment": {
+        "abstained": false,
+        "argv": [
+          "corvint",
+          "affected",
+          "--base",
+          "89223a911d7e4d3e1f372106b0027fb0fdfd9a89"
+        ],
+        "covered": [],
+        "deterministic": true,
+        "latency": {
+          "maxMs": 1017,
+          "medianMs": 1015,
+          "runsMs": [
+            1017,
+            1015,
+            1008
+          ]
+        },
+        "namedNoSelectableTest": [],
+        "retries": 0,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 70882,
+            "stdoutSha256": "0d188042ecfed53867be7493a8774408b09c9606544db86a554ab9abfac51bfa",
+            "stdoutTail": "path-alias-unresolved\"},{\"reason\":\"LANGUAGE_FRONTIER\",\"detail\":\"typescript:runtime-flags-unresolved\"},{\"reason\":\"UNOWNED_DIRTY_PATH\",\"detail\":\"README.md\"}]},\"profile\":\"affected-plan/0\",\"provider\":{\"go\":{\"packages\":[],\"state\":\"EMPTY_SELECTION\"}},\"range\":{\"base\":\"89223a911d7e4d3e1f372106b0027fb0fdfd9a89\",\"paths\":[\"README.md\"]},\"revision\":\"933b43061fe61f9d1bf9cbd48bc4d65e5f060c59\",\"tool\":\"affected\"}\n",
+            "wallMs": 1017
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 70882,
+            "stdoutSha256": "0d188042ecfed53867be7493a8774408b09c9606544db86a554ab9abfac51bfa",
+            "stdoutTail": "path-alias-unresolved\"},{\"reason\":\"LANGUAGE_FRONTIER\",\"detail\":\"typescript:runtime-flags-unresolved\"},{\"reason\":\"UNOWNED_DIRTY_PATH\",\"detail\":\"README.md\"}]},\"profile\":\"affected-plan/0\",\"provider\":{\"go\":{\"packages\":[],\"state\":\"EMPTY_SELECTION\"}},\"range\":{\"base\":\"89223a911d7e4d3e1f372106b0027fb0fdfd9a89\",\"paths\":[\"README.md\"]},\"revision\":\"933b43061fe61f9d1bf9cbd48bc4d65e5f060c59\",\"tool\":\"affected\"}\n",
+            "wallMs": 1015
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 70882,
+            "stdoutSha256": "0d188042ecfed53867be7493a8774408b09c9606544db86a554ab9abfac51bfa",
+            "stdoutTail": "path-alias-unresolved\"},{\"reason\":\"LANGUAGE_FRONTIER\",\"detail\":\"typescript:runtime-flags-unresolved\"},{\"reason\":\"UNOWNED_DIRTY_PATH\",\"detail\":\"README.md\"}]},\"profile\":\"affected-plan/0\",\"provider\":{\"go\":{\"packages\":[],\"state\":\"EMPTY_SELECTION\"}},\"range\":{\"base\":\"89223a911d7e4d3e1f372106b0027fb0fdfd9a89\",\"paths\":[\"README.md\"]},\"revision\":\"933b43061fe61f9d1bf9cbd48bc4d65e5f060c59\",\"tool\":\"affected\"}\n",
+            "wallMs": 1008
+          }
+        ],
+        "scope": "UNKNOWN",
+        "selected": [],
+        "selectedGoPackages": 0,
+        "unknownCount": 14
+      }
+    }
+  ],
+  "corpusSha256": "412058c23a20d0b6eb643ac591180f340b63b53a75c68a93977b7625b554cde2",
+  "cost": {
+    "completeTaskCost": "NOT_OBSERVED",
+    "humanFailureRate": "NOT_OBSERVED",
+    "reason": "no live model-driven agent or human reviewer ran this benchmark",
+    "savingsClaim": "measured, no savings claim"
+  },
+  "finishedAt": "2026-09-23T16:20:45Z",
+  "harnessSha256": "4a27e8ef8b753b9c87b4d5d86da77aefe95343bd1dc980f59fdc00aa7d4c6960",
+  "host": {
+    "cpus": 12,
+    "go": "go1.27.1",
+    "loadAverageEnd": [
+      7.13720703125,
+      8.39892578125,
+      7.9697265625
+    ],
+    "loadAverageStart": [
+      11.58544921875,
+      8.85546875,
+      7.8349609375
+    ],
+    "machine": "arm64",
+    "python": "3.9.6",
+    "system": "Darwin"
+  },
+  "orientation": [
+    {
+      "baseline": {
+        "latency": {
+          "maxMs": 340,
+          "medianMs": 336,
+          "runsMs": [
+            340,
+            336,
+            323
+          ]
+        },
+        "packet": [
+          "README.md",
+          "ROADMAP.md",
+          "benchmarks/workflow-screening-v0.md",
+          "docs/decisions/0061-windows-is-a-deferred-target-and-gitattributes-is-repository-wide-2026-09-05.md",
+          "docs/decisions/0086-packet-5-exact-divergence-retry-2026-09-11.md",
+          "docs/decisions/0142-untracked-path-allowance-2026-09-12.md",
+          "docs/specs/falsifiable-packet-v0.md",
+          "docs/specs/go-production-kernel-migration-v0.md",
+          "docs/specs/work-queue-observation-v0.md",
+          "tools/cw-trial/testdata/unseen-beamfall/tasks.json",
+          "benchmarks/README.md",
+          "benchmarks/expert-audit-followup/README.md",
+          "benchmarks/results/agent-retrieval-bench-abstention-development.json",
+          "benchmarks/results/agent-retrieval-bench-abstention.json",
+          "benchmarks/results/arb-v2-lexical-baseline-2026-09-13/code2test.json",
+          "benchmarks/results/arb-v2-lexical-baseline-2026-09-13/edit2ripple.json",
+          "benchmarks/workflow-baseline-v0.md",
+          "cmd/corvint/help.go",
+          "docs/CHANGE-EVIDENCE-MAP.md",
+          "docs/MCP-SERVER.md"
+        ],
+        "packetBytes": 888,
+        "procedure": "lexical-git-grep-top-k",
+        "tokens": [
+          "41f2b68",
+          "build",
+          "commit",
+          "correct",
+          "gated",
+          "notes"
+        ]
+      },
+      "commit": "1894b9e5c992d69a7cbefa4b305485494e5622c4",
+      "critical": [
+        "docs/RELEASE-NOTES.md"
+      ],
+      "score": {
+        "criticalMissesBaseline": [
+          "docs/RELEASE-NOTES.md"
+        ],
+        "criticalMissesTreatment": [],
+        "treatmentOnlyCriticalMisses": []
+      },
+      "task": "correct the 0.7.0 notes to the gated commit 41f2b68 (build 46)",
+      "treatment": {
+        "abstained": false,
+        "argv": [
+          "corvint",
+          "context",
+          "--task",
+          "correct the 0.7.0 notes to the gated commit 41f2b68 (build 46)",
+          "--limit",
+          "20"
+        ],
+        "deterministic": true,
+        "latency": {
+          "maxMs": 984,
+          "medianMs": 946,
+          "runsMs": [
+            946,
+            984,
+            945
+          ]
+        },
+        "packet": [
+          ".agent-evidence/native-taskman/preregistration-notes.json",
+          ".corvint/changes/055257fa1197b4c2d5c1d056b8f623d778319edc.cem.json",
+          ".corvint/changes/77191c8523093c5f00e6381ae5e8e5f0bbcc2169.cem.json",
+          ".taskman/tickets/V1-0088.json",
+          "AGENTS.md",
+          "benchmarks/results/agent-retrieval-bench-abstention-development.json",
+          "benchmarks/results/agent-retrieval-bench-abstention.json",
+          "benchmarks/results/cw-trial-heldout-v1-first-run.json",
+          "conformance/release-artifact-v0/release_notes_platform_claims_test.go",
+          "conformance/vscode-extension-v0/run.mjs",
+          "docs/BUILD-LOG.md",
+          "docs/RELEASE-NOTES.md",
+          "internal/contextindex/index.go",
+          "internal/contextindex/range_impact_test.go",
+          "internal/contextindex/rubysymbols_test.go",
+          "internal/contextindex/taskcontext_test.go",
+          "internal/tracerecordrepo/adapter_test.go",
+          "script/check-sql-native-ratchets_test.sh",
+          "tools/cw-trial/testdata/unseen-beamfall/tasks.json",
+          "tools/cw-trial/testdata/unseen-corvint-v1/tasks.json"
+        ],
+        "retries": 0,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13583,
+            "stdoutSha256": "9d41944c9e978e8d8d9f5689b4be10e20660f662e12f0df166c32f556b69ca12",
+            "stdoutTail": "nce\":\"low\",\"line\":1,\"path\":\"internal/contextindex/index.go\",\"reason\":\"3 distinct task terms, 65 occurrences; rarest `notes` (idf 3.14); bm25 9.94\",\"trust\":\"repository-content\"}],\"id\":\"internal/contextindex/index.go\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"3 task terms match\"}],\"revision\":\"bfba8c3cdd6940f7141677d2e1cccb8fc7432deb\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 946
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13583,
+            "stdoutSha256": "9d41944c9e978e8d8d9f5689b4be10e20660f662e12f0df166c32f556b69ca12",
+            "stdoutTail": "nce\":\"low\",\"line\":1,\"path\":\"internal/contextindex/index.go\",\"reason\":\"3 distinct task terms, 65 occurrences; rarest `notes` (idf 3.14); bm25 9.94\",\"trust\":\"repository-content\"}],\"id\":\"internal/contextindex/index.go\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"3 task terms match\"}],\"revision\":\"bfba8c3cdd6940f7141677d2e1cccb8fc7432deb\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 984
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13583,
+            "stdoutSha256": "9d41944c9e978e8d8d9f5689b4be10e20660f662e12f0df166c32f556b69ca12",
+            "stdoutTail": "nce\":\"low\",\"line\":1,\"path\":\"internal/contextindex/index.go\",\"reason\":\"3 distinct task terms, 65 occurrences; rarest `notes` (idf 3.14); bm25 9.94\",\"trust\":\"repository-content\"}],\"id\":\"internal/contextindex/index.go\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"3 task terms match\"}],\"revision\":\"bfba8c3cdd6940f7141677d2e1cccb8fc7432deb\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 945
+          }
+        ],
+        "state": "READY"
+      }
+    },
+    {
+      "baseline": {
+        "latency": {
+          "maxMs": 366,
+          "medianMs": 365,
+          "runsMs": [
+            366,
+            354,
+            365
+          ]
+        },
+        "packet": [
+          "tools/cw-trial/testdata/unseen-corvint-v2/tasks.json",
+          "CONTRIBUTING.md",
+          "docs/RELEASE-NOTES.md",
+          "docs/specs/compat-replay-runner-v0.md",
+          "docs/specs/compat-trial-v0.md",
+          "docs/specs/confidently-wrong-trial-v0.md",
+          "docs/specs/documentation-corpus-v1.md",
+          "docs/specs/eol-policy-gate-v0.md",
+          "docs/specs/gate-ledger-v0.md",
+          "docs/specs/go-production-kernel-migration-v0.md",
+          "docs/specs/necessity-labels-v0.md",
+          "docs/specs/playwright-external-provider-v0.md",
+          "docs/specs/release-artifact-integrity-v0.md",
+          "docs/specs/source-evidence-axes-v0.md",
+          "docs/specs/task-context-packet-v0.md",
+          "AGENTS.md",
+          "Makefile",
+          "README.md",
+          "ROADMAP.md",
+          "benchmarks/results/cw-trial-unseen-corvint-v2-run-1.json"
+        ],
+        "packetBytes": 643,
+        "procedure": "lexical-git-grep-top-k",
+        "tokens": [
+          "agents",
+          "invariants",
+          "licensing",
+          "lineage",
+          "pointers",
+          "rule",
+          "trim"
+        ]
+      },
+      "commit": "ca929b35557fc9878eb51bbdf755818b4ad215b3",
+      "critical": [
+        "AGENTS.md"
+      ],
+      "score": {
+        "criticalMissesBaseline": [],
+        "criticalMissesTreatment": [],
+        "treatmentOnlyCriticalMisses": []
+      },
+      "task": "trim AGENTS.md invariants and licensing to pointers, add lineage rule",
+      "treatment": {
+        "abstained": false,
+        "argv": [
+          "corvint",
+          "context",
+          "--task",
+          "trim AGENTS.md invariants and licensing to pointers, add lineage rule",
+          "--limit",
+          "20"
+        ],
+        "deterministic": true,
+        "latency": {
+          "maxMs": 958,
+          "medianMs": 951,
+          "runsMs": [
+            951,
+            958,
+            950
+          ]
+        },
+        "packet": [
+          "AGENTS.md",
+          "CONTRIBUTING.md",
+          "LICENSING.md",
+          "PROVENANCE.md",
+          "cmd/corvint/affected.go",
+          "cmd/corvint/affected_test.go",
+          "cmd/corvint/local_completion_event.go",
+          "cmd/corvint/prove_checkpoint_test.go",
+          "docs/decisions/README.md",
+          "internal/analyzernativebridge/parser.go",
+          "internal/contextindex/query.go",
+          "internal/contextindex/ranking_regression_test.go",
+          "internal/contextindex/taskcontext.go",
+          "internal/dashboard/adapters/model_output.go",
+          "internal/doccorpus/behavior_adapter.go",
+          "internal/gitstatus/status.go",
+          "internal/localcompletion/lifecycle.go",
+          "internal/localcompletion/lifecycle_test.go",
+          "internal/releasecandidate/core_archive.go",
+          "tools/cw-trial/testdata/unseen-corvint-v2/tasks.json"
+        ],
+        "retries": 0,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13399,
+            "stdoutSha256": "7dd48df79f3fd0013abb87b65b1749b14ae684a0ebfb1a445ef214d3dbb2bc3a",
+            "stdoutTail": "contextindex/ranking_regression_test.go\",\"reason\":\"5 distinct task terms, 9 occurrences; rarest `agents` (idf 2.42); bm25 11.01\",\"trust\":\"repository-content\"}],\"id\":\"internal/contextindex/ranking_regression_test.go\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"5 task terms match\"}],\"revision\":\"19d951b31f9f53ddf8392607fa1bc443a4bc2bfc\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 951
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13399,
+            "stdoutSha256": "7dd48df79f3fd0013abb87b65b1749b14ae684a0ebfb1a445ef214d3dbb2bc3a",
+            "stdoutTail": "contextindex/ranking_regression_test.go\",\"reason\":\"5 distinct task terms, 9 occurrences; rarest `agents` (idf 2.42); bm25 11.01\",\"trust\":\"repository-content\"}],\"id\":\"internal/contextindex/ranking_regression_test.go\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"5 task terms match\"}],\"revision\":\"19d951b31f9f53ddf8392607fa1bc443a4bc2bfc\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 958
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13399,
+            "stdoutSha256": "7dd48df79f3fd0013abb87b65b1749b14ae684a0ebfb1a445ef214d3dbb2bc3a",
+            "stdoutTail": "contextindex/ranking_regression_test.go\",\"reason\":\"5 distinct task terms, 9 occurrences; rarest `agents` (idf 2.42); bm25 11.01\",\"trust\":\"repository-content\"}],\"id\":\"internal/contextindex/ranking_regression_test.go\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"5 task terms match\"}],\"revision\":\"19d951b31f9f53ddf8392607fa1bc443a4bc2bfc\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 950
+          }
+        ],
+        "state": "READY"
+      }
+    },
+    {
+      "baseline": {
+        "latency": {
+          "maxMs": 154,
+          "medianMs": 152,
+          "runsMs": [
+            154,
+            152,
+            151
+          ]
+        },
+        "packet": [
+          "README.md",
+          "ROADMAP.md",
+          "benchmarks/results/cw-trial-heldout-v1-development-run-8.json",
+          "benchmarks/results/cw-trial-unseen-corvint-v1-four-arms.json",
+          "benchmarks/results/cw-trial-unseen-corvint-v2-run-1.json",
+          "cmd/corvint/help.go",
+          "conformance/divergence-register.md",
+          "docs/EXTENSION-ECOSYSTEM.md",
+          "docs/INSTALL.md",
+          "docs/PRODUCT.md",
+          "docs/RELEASE-NOTES-alpha.md",
+          "docs/specs/applied-intelligence-breakthroughs-v0.md",
+          "docs/specs/corvint-rebrand-v0.md",
+          "integrations/gemini-cli/hooks/corvint-hook.mjs",
+          "integrations/host-adapters.test.mjs",
+          "integrations/opencode/src/runtime.js",
+          "tools/cw-trial/testdata/unseen-corvint-v2/tasks.json",
+          ".agent-evidence/native-taskman/authority-gate-a.md",
+          "AGENTS.md",
+          "benchmarks/results/agent-retrieval-bench-abstention-development.json"
+        ],
+        "packetBytes": 731,
+        "procedure": "lexical-git-grep-top-k",
+        "tokens": [
+          "adapter",
+          "opencode",
+          "update"
+        ]
+      },
+      "commit": "8869cf289d1ffed663d9413a93b87adc9b657ed9",
+      "critical": [
+        "integrations/compatibility.json",
+        "integrations/opencode/README.md",
+        "integrations/opencode/opencode.example.json",
+        "integrations/opencode/package.json",
+        "integrations/opencode/src/index.js",
+        "integrations/opencode/src/runtime.js"
+      ],
+      "score": {
+        "criticalMissesBaseline": [
+          "integrations/compatibility.json",
+          "integrations/opencode/README.md",
+          "integrations/opencode/opencode.example.json",
+          "integrations/opencode/package.json",
+          "integrations/opencode/src/index.js"
+        ],
+        "criticalMissesTreatment": [
+          "integrations/opencode/opencode.example.json"
+        ],
+        "treatmentOnlyCriticalMisses": []
+      },
+      "task": "update the OpenCode adapter to 0.2.6 from v0.6.0",
+      "treatment": {
+        "abstained": false,
+        "argv": [
+          "corvint",
+          "context",
+          "--task",
+          "update the OpenCode adapter to 0.2.6 from v0.6.0",
+          "--limit",
+          "20"
+        ],
+        "deterministic": true,
+        "latency": {
+          "maxMs": 928,
+          "medianMs": 925,
+          "runsMs": [
+            928,
+            925,
+            913
+          ]
+        },
+        "packet": [
+          ".taskman/tickets/V1-0022.json",
+          "AGENTS.md",
+          "benchmarks/results/cw-trial-unseen-corvint-v1-actions-2.json",
+          "benchmarks/results/cw-trial-unseen-corvint-v1-actions.json",
+          "benchmarks/results/cw-trial-unseen-corvint-v1-four-arms.json",
+          "benchmarks/results/cw-trial-unseen-corvint-v1-strict-identifiers.json",
+          "cmd/corvint/host_adapter_javascript_test.go",
+          "conformance/harness-event-v0/common-logical-interaction.json",
+          "conformance/harness-event-v0/host_schema_test.go",
+          "docs/specs/corvint-rebrand-v0.md",
+          "integrations/compatibility.json",
+          "integrations/gemini-cli/hooks/corvint-hook.mjs",
+          "integrations/host-adapters.test.mjs",
+          "integrations/opencode/README.md",
+          "integrations/opencode/package.json",
+          "integrations/opencode/src/index.js",
+          "integrations/opencode/src/prompt-bound.js",
+          "integrations/opencode/src/runtime.js",
+          "internal/doccorpus/behavior_adapter_test.go",
+          "script/check-host-package-versions.sh"
+        ],
+        "retries": 0,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 14062,
+            "stdoutSha256": "ee1926c0006902f0600bcfcd8ae72ef2d3f4daaaf02f7025f9f7f1611bf34a52",
+            "stdoutTail": "1,\"path\":\"script/check-host-package-versions.sh\",\"reason\":\"4 distinct task terms, 16 occurrences; rarest `opencode` (idf 4.29); bm25 13.15\",\"trust\":\"repository-content\"}],\"id\":\"script/check-host-package-versions.sh\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"4 task terms match\"}],\"revision\":\"3ba3acac26345b71be5d9ccd7cc8403351e8bb93\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 928
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 14062,
+            "stdoutSha256": "ee1926c0006902f0600bcfcd8ae72ef2d3f4daaaf02f7025f9f7f1611bf34a52",
+            "stdoutTail": "1,\"path\":\"script/check-host-package-versions.sh\",\"reason\":\"4 distinct task terms, 16 occurrences; rarest `opencode` (idf 4.29); bm25 13.15\",\"trust\":\"repository-content\"}],\"id\":\"script/check-host-package-versions.sh\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"4 task terms match\"}],\"revision\":\"3ba3acac26345b71be5d9ccd7cc8403351e8bb93\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 925
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 14062,
+            "stdoutSha256": "ee1926c0006902f0600bcfcd8ae72ef2d3f4daaaf02f7025f9f7f1611bf34a52",
+            "stdoutTail": "1,\"path\":\"script/check-host-package-versions.sh\",\"reason\":\"4 distinct task terms, 16 occurrences; rarest `opencode` (idf 4.29); bm25 13.15\",\"trust\":\"repository-content\"}],\"id\":\"script/check-host-package-versions.sh\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"4 task terms match\"}],\"revision\":\"3ba3acac26345b71be5d9ccd7cc8403351e8bb93\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 913
+          }
+        ],
+        "state": "READY"
+      }
+    },
+    {
+      "baseline": {
+        "latency": {
+          "maxMs": 322,
+          "medianMs": 315,
+          "runsMs": [
+            315,
+            315,
+            322
+          ]
+        },
+        "packet": [
+          "docs/PRODUCT.md",
+          "benchmarks/results/agent-retrieval-bench-code2test-development.json",
+          "benchmarks/results/agent-retrieval-bench-code2test.json",
+          "benchmarks/results/arb-v2-context-baseline-2026-09-05/code2test.json",
+          "benchmarks/results/arb-v2-lexical-baseline-2026-09-13/code2test.json",
+          "docs/ARCHITECTURE.md",
+          "docs/plans/integrated-product-roadmap-2026-09-12.md",
+          "docs/specs/human-documentation-compiler-v0.md",
+          "script/seed-planning-store-data.json",
+          "tools/cw-trial/testdata/heldout-v1/tasks.jsonl",
+          "tools/cw-trial/testdata/unseen-beamfall-apple/tasks.json",
+          "tools/cw-trial/testdata/unseen-beamfall/tasks.json",
+          ".agent-evidence/native-taskman/executor-dependency-handoff.md",
+          "LICENSE",
+          "README.md",
+          "ROADMAP.md",
+          "benchmarks/results/arb-v2-lexical-baseline-2026-09-13/comment2context.json",
+          "benchmarks/results/cw-trial-heldout-v1-development-run-2.json",
+          "benchmarks/results/cw-trial-heldout-v1-first-run.json",
+          "benchmarks/results/cw-trial-unseen-beamfall-run-1.json"
+        ],
+        "packetBytes": 925,
+        "procedure": "lexical-git-grep-top-k",
+        "tokens": [
+          "application",
+          "flow",
+          "history",
+          "port",
+          "public",
+          "understanding"
+        ]
+      },
+      "commit": "af247a1d6d6efcfe3cb0348f7cdf34b794943d40",
+      "critical": [
+        "AGENTS.md",
+        "cmd/corvint/help.go",
+        "cmd/corvint/main.go",
+        "docs/SELF-DEVELOPMENT.md",
+        "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
+        "docs/specs/falsifiable-packet-v0.md",
+        "docs/specs/index-snapshot-v0.md"
+      ],
+      "score": {
+        "criticalMissesBaseline": [
+          "AGENTS.md",
+          "cmd/corvint/help.go",
+          "cmd/corvint/main.go",
+          "docs/SELF-DEVELOPMENT.md",
+          "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
+          "docs/specs/falsifiable-packet-v0.md",
+          "docs/specs/index-snapshot-v0.md"
+        ],
+        "criticalMissesTreatment": [
+          "cmd/corvint/help.go",
+          "cmd/corvint/main.go",
+          "docs/SELF-DEVELOPMENT.md",
+          "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
+          "docs/specs/falsifiable-packet-v0.md",
+          "docs/specs/index-snapshot-v0.md"
+        ],
+        "treatmentOnlyCriticalMisses": []
+      },
+      "task": "port application flow understanding onto the public history",
+      "treatment": {
+        "abstained": false,
+        "argv": [
+          "corvint",
+          "context",
+          "--task",
+          "port application flow understanding onto the public history",
+          "--limit",
+          "20"
+        ],
+        "deterministic": true,
+        "latency": {
+          "maxMs": 1046,
+          "medianMs": 1039,
+          "runsMs": [
+            1031,
+            1039,
+            1046
+          ]
+        },
+        "packet": [
+          "AGENTS.md",
+          "benchmarks/results/cw-trial-heldout-v1-development-run-2.json",
+          "cmd/corvint-public-release-check/main.go",
+          "docs/decisions/0331-clean-public-history-2026-09-22.md",
+          "docs/specs/INDEX.json",
+          "docs/specs/swift-affected-test-understanding-v0.md",
+          "examples/documentation-corpus/flow-provider.py",
+          "internal/contextindex/history.go",
+          "internal/contextindex/history_test.go",
+          "internal/doccorpus/behavior.go",
+          "internal/jstestprovider/application_attestation.go",
+          "internal/jstestprovider/application_attestation_docker_test.go",
+          "internal/jstestprovider/application_attestation_test.go",
+          "internal/jstestprovider/receipt.go",
+          "internal/jstestprovider/testdata/application-attestation/provider/main.go",
+          "internal/playwrightminimize/live_docker_test.go",
+          "internal/taskman/planner_test.go",
+          "script/public-release-check_test.sh",
+          "tools/cw-trial/testdata/unseen-beamfall-apple/tasks.json",
+          "tools/cw-trial/testdata/unseen-beamfall/tasks.json"
+        ],
+        "retries": 0,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13691,
+            "stdoutSha256": "fd98f2898786674d32f9f4699c2298e9aa39a0dfe353b5866369f908a2642b90",
+            "stdoutTail": "w\",\"line\":1,\"path\":\"internal/jstestprovider/receipt.go\",\"reason\":\"2 distinct task terms, 30 occurrences; rarest `onto` (idf 3.95); bm25 10.59\",\"trust\":\"repository-content\"}],\"id\":\"internal/jstestprovider/receipt.go\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"2 task terms match\"}],\"revision\":\"f501bebed14b85fcb6d4a6336b9bd53f8c439f0e\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 1031
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13691,
+            "stdoutSha256": "fd98f2898786674d32f9f4699c2298e9aa39a0dfe353b5866369f908a2642b90",
+            "stdoutTail": "w\",\"line\":1,\"path\":\"internal/jstestprovider/receipt.go\",\"reason\":\"2 distinct task terms, 30 occurrences; rarest `onto` (idf 3.95); bm25 10.59\",\"trust\":\"repository-content\"}],\"id\":\"internal/jstestprovider/receipt.go\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"2 task terms match\"}],\"revision\":\"f501bebed14b85fcb6d4a6336b9bd53f8c439f0e\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 1039
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13691,
+            "stdoutSha256": "fd98f2898786674d32f9f4699c2298e9aa39a0dfe353b5866369f908a2642b90",
+            "stdoutTail": "w\",\"line\":1,\"path\":\"internal/jstestprovider/receipt.go\",\"reason\":\"2 distinct task terms, 30 occurrences; rarest `onto` (idf 3.95); bm25 10.59\",\"trust\":\"repository-content\"}],\"id\":\"internal/jstestprovider/receipt.go\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"2 task terms match\"}],\"revision\":\"f501bebed14b85fcb6d4a6336b9bd53f8c439f0e\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 1046
+          }
+        ],
+        "state": "READY"
+      }
+    },
+    {
+      "baseline": {
+        "latency": {
+          "maxMs": 311,
+          "medianMs": 306,
+          "runsMs": [
+            306,
+            311,
+            306
+          ]
+        },
+        "packet": [
+          "ROADMAP.md",
+          "docs/decisions/0081-local-admin-console-accepted-2026-09-07.md",
+          "internal/console/views.go",
+          "tools/cw-trial/testdata/unseen-corvint-v2/tasks.json",
+          "AGENTS.md",
+          "benchmarks/results/cw-trial-unseen-beamfall-apple-run-2.json",
+          "benchmarks/results/cw-trial-unseen-beamfall-run-1.json",
+          "benchmarks/results/cw-trial-unseen-corvint-v2-run-1.json",
+          "conformance/divergence-register.md",
+          "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/raw/init-inventory-full.cand.stdout",
+          "conformance/perf-v0/results/corvint-selfdogfood-2026-08-29/raw/init-inventory-full.oracle.stdout",
+          "docs/AGENT-ROUTES.md",
+          "docs/DOGFOOD.md",
+          "docs/RELEASE-NOTES.md",
+          "docs/decisions/0046-work-queue-observation-v0-acceptance-and-clash-wave-amendment-2026-09-04.md",
+          "docs/decisions/0048-four-owner-calls-2026-09-04.md",
+          "docs/decisions/0085-packet-5-retry-preregistration-2026-09-11.md",
+          "docs/decisions/0098-cem-type-changed-target-is-frozen-deleted-2026-09-12.md",
+          "docs/decisions/0105-gate-tooling-specs-stay-proposed-2026-09-12.md",
+          "docs/decisions/0132-freeze-claimless-analyzer-candidates-as-deferred-2026-09-12.md"
+        ],
+        "packetBytes": 1059,
+        "procedure": "lexical-git-grep-top-k",
+        "tokens": [
+          "agent-memory",
+          "backlog",
+          "corvint",
+          "move",
+          "store",
+          "task"
+        ]
+      },
+      "commit": "1d4cbaa7bdbd01d24abfc5ddbd5b1efa5013693f",
+      "critical": [
+        "AGENTS.md",
+        "docs/AGENT-ROUTES.md",
+        "docs/agent-memory/bugs.md",
+        "docs/agent-memory/fixes.md",
+        "docs/agent-memory/ideas.md",
+        "docs/agent-memory/optimizations.md",
+        "docs/agent-memory/questions.md",
+        "docs/agent-memory/tests.md"
+      ],
+      "score": {
+        "criticalMissesBaseline": [
+          "docs/agent-memory/bugs.md",
+          "docs/agent-memory/fixes.md",
+          "docs/agent-memory/ideas.md",
+          "docs/agent-memory/optimizations.md",
+          "docs/agent-memory/questions.md",
+          "docs/agent-memory/tests.md"
+        ],
+        "criticalMissesTreatment": [
+          "docs/agent-memory/bugs.md",
+          "docs/agent-memory/fixes.md",
+          "docs/agent-memory/ideas.md",
+          "docs/agent-memory/optimizations.md",
+          "docs/agent-memory/questions.md",
+          "docs/agent-memory/tests.md"
+        ],
+        "treatmentOnlyCriticalMisses": []
+      },
+      "task": "move the agent-memory backlog into the Corvint task store",
+      "treatment": {
+        "abstained": false,
+        "argv": [
+          "corvint",
+          "context",
+          "--task",
+          "move the agent-memory backlog into the Corvint task store",
+          "--limit",
+          "20"
+        ],
+        "deterministic": true,
+        "latency": {
+          "maxMs": 1023,
+          "medianMs": 1022,
+          "runsMs": [
+            1022,
+            1010,
+            1023
+          ]
+        },
+        "packet": [
+          ".agent-evidence/native-taskman/task-store-source-check.json",
+          "AGENTS.md",
+          "benchmarks/results/cem-reviewer-trial-pilot.json",
+          "benchmarks/results/cw-trial-unseen-beamfall-apple-run-1.json",
+          "benchmarks/results/cw-trial-unseen-beamfall-apple-run-2.json",
+          "conformance/cli-parity-v0/manifest.go",
+          "docs/AGENT-ROUTES.md",
+          "docs/plans/AGENT-TASK-MANAGER-2026-09-04.md",
+          "docs/specs/INDEX.json",
+          "docs/specs/local-admin-console-v0.md",
+          "internal/console/axes.go",
+          "internal/console/console_test.go",
+          "internal/console/server.go",
+          "script/check-line-citations.sh",
+          "script/check-line-citations_test.sh",
+          "script/seed-planning-store-data.json",
+          "tools/cw-trial/testdata/unseen-beamfall-apple/tasks.json",
+          "tools/cw-trial/testdata/unseen-beamfall/tasks.json",
+          "tools/cw-trial/testdata/unseen-corvint-v1/tasks.json",
+          "tools/cw-trial/testdata/unseen-corvint-v2/tasks.json"
+        ],
+        "retries": 0,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13535,
+            "stdoutSha256": "f1355a25aa1cfab1b00017067f89bfc3eb99ead04e73a72dbc3ef6e9f5622658",
+            "stdoutTail": "/results/cem-reviewer-trial-pilot.json\",\"reason\":\"5 distinct task terms, 170 occurrences; rarest `store` (idf 2.41); bm25 15.33\",\"trust\":\"repository-content\"}],\"id\":\"benchmarks/results/cem-reviewer-trial-pilot.json\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"5 task terms match\"}],\"revision\":\"72c49d613a66aec59f0174f7e12a90ab3017ce5e\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 1022
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13535,
+            "stdoutSha256": "f1355a25aa1cfab1b00017067f89bfc3eb99ead04e73a72dbc3ef6e9f5622658",
+            "stdoutTail": "/results/cem-reviewer-trial-pilot.json\",\"reason\":\"5 distinct task terms, 170 occurrences; rarest `store` (idf 2.41); bm25 15.33\",\"trust\":\"repository-content\"}],\"id\":\"benchmarks/results/cem-reviewer-trial-pilot.json\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"5 task terms match\"}],\"revision\":\"72c49d613a66aec59f0174f7e12a90ab3017ce5e\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 1010
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13535,
+            "stdoutSha256": "f1355a25aa1cfab1b00017067f89bfc3eb99ead04e73a72dbc3ef6e9f5622658",
+            "stdoutTail": "/results/cem-reviewer-trial-pilot.json\",\"reason\":\"5 distinct task terms, 170 occurrences; rarest `store` (idf 2.41); bm25 15.33\",\"trust\":\"repository-content\"}],\"id\":\"benchmarks/results/cem-reviewer-trial-pilot.json\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"5 task terms match\"}],\"revision\":\"72c49d613a66aec59f0174f7e12a90ab3017ce5e\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 1023
+          }
+        ],
+        "state": "READY"
+      }
+    },
+    {
+      "baseline": {
+        "latency": {
+          "maxMs": 161,
+          "medianMs": 156,
+          "runsMs": [
+            156,
+            155,
+            161
+          ]
+        },
+        "packet": [
+          "AGENTS.md",
+          "README.md",
+          "ROADMAP.md",
+          "benchmarks/README.md",
+          "benchmarks/results/agent-retrieval-bench-code2test-development.json",
+          "benchmarks/results/agent-retrieval-bench-code2test.json",
+          "benchmarks/results/agent-retrieval-bench-comment2context.json",
+          "benchmarks/results/agent-retrieval-bench-edit2ripple.json",
+          "benchmarks/results/arb-v2-context-baseline-2026-09-05/code2test.json",
+          "benchmarks/results/arb-v2-context-baseline-2026-09-05/comment2context.json",
+          "benchmarks/results/arb-v2-context-baseline-2026-09-05/edit2ripple.json",
+          "benchmarks/results/arb-v2-lexical-baseline-2026-09-13/code2test.json",
+          "benchmarks/results/arb-v2-lexical-baseline-2026-09-13/comment2context.json",
+          "benchmarks/results/arb-v2-lexical-baseline-2026-09-13/edit2ripple.json",
+          "benchmarks/results/arb-v2-lexical-baseline-2026-09-13/trace2code.json",
+          "benchmarks/results/cw-trial-heldout-v1-development-run-2.json",
+          "benchmarks/results/cw-trial-heldout-v1-development-run-3.json",
+          "benchmarks/results/cw-trial-heldout-v1-development-run-4.json",
+          "benchmarks/results/cw-trial-heldout-v1-development-run-5.json",
+          "benchmarks/results/cw-trial-heldout-v1-development-run-6.json"
+        ],
+        "packetBytes": 1105,
+        "procedure": "lexical-git-grep-top-k",
+        "tokens": [
+          "point",
+          "readme",
+          "release"
+        ]
+      },
+      "commit": "933b43061fe61f9d1bf9cbd48bc4d65e5f060c59",
+      "critical": [
+        "README.md"
+      ],
+      "score": {
+        "criticalMissesBaseline": [],
+        "criticalMissesTreatment": [],
+        "treatmentOnlyCriticalMisses": []
+      },
+      "task": "point the README at the 0.6.0 release",
+      "treatment": {
+        "abstained": false,
+        "argv": [
+          "corvint",
+          "context",
+          "--task",
+          "point the README at the 0.6.0 release",
+          "--limit",
+          "20"
+        ],
+        "deterministic": true,
+        "latency": {
+          "maxMs": 1017,
+          "medianMs": 1015,
+          "runsMs": [
+            1017,
+            1015,
+            1000
+          ]
+        },
+        "packet": [
+          ".corvint/changes/77191c8523093c5f00e6381ae5e8e5f0bbcc2169.cem.json",
+          ".corvint/changes/b129c36418f5e9a7ba830ac2f4ea12759aaccdbe.cem.json",
+          ".corvint/changes/f441e96c1717bc47055e4c5fd38bd2eb03e47155.cem.json",
+          "AGENTS.md",
+          "README.md",
+          "benchmarks/README.md",
+          "benchmarks/blind-v4/execa.json",
+          "benchmarks/results/agent-retrieval-bench-abstention-development.json",
+          "benchmarks/results/agent-retrieval-bench-abstention.json",
+          "benchmarks/results/agent-retrieval-bench-code2test-development.json",
+          "benchmarks/results/agent-retrieval-bench-code2test.json",
+          "benchmarks/results/arb-v2-context-baseline-2026-09-05/code2test.json",
+          "benchmarks/results/arb-v2-lexical-baseline-2026-09-13/code2test.json",
+          "benchmarks/results/arb-v2-lexical-baseline-2026-09-13/comment2context.json",
+          "benchmarks/selfuse-batch/main.go",
+          "internal/betarung/admissions.json",
+          "internal/releasecandidate/candidate.go",
+          "script/gate-receipt_test.sh",
+          "tools/cw-trial/testdata/unseen-beamfall-apple/tasks.json",
+          "tools/cw-trial/testdata/unseen-corvint-v2/tasks.json"
+        ],
+        "retries": 0,
+        "runs": [
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13628,
+            "stdoutSha256": "a997e8ef08ca2fa836a5721cb8fbb7a67f0a5cd4253640f7dc4b993ecf834f21",
+            "stdoutTail": "d2eb03e47155.cem.json\",\"reason\":\"2 distinct task terms, 15 occurrences; rarest `readme` (idf 2.64); bm25 7.68\",\"trust\":\"repository-content\"}],\"id\":\".corvint/changes/f441e96c1717bc47055e4c5fd38bd2eb03e47155.cem.json\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"2 task terms match\"}],\"revision\":\"2c9b93360b46a18ff74eab4eac60dbc5439ea46f\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 1017
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13628,
+            "stdoutSha256": "a997e8ef08ca2fa836a5721cb8fbb7a67f0a5cd4253640f7dc4b993ecf834f21",
+            "stdoutTail": "d2eb03e47155.cem.json\",\"reason\":\"2 distinct task terms, 15 occurrences; rarest `readme` (idf 2.64); bm25 7.68\",\"trust\":\"repository-content\"}],\"id\":\".corvint/changes/f441e96c1717bc47055e4c5fd38bd2eb03e47155.cem.json\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"2 task terms match\"}],\"revision\":\"2c9b93360b46a18ff74eab4eac60dbc5439ea46f\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 1015
+          },
+          {
+            "exit": 0,
+            "stderrTail": "",
+            "stdoutBytes": 13628,
+            "stdoutSha256": "a997e8ef08ca2fa836a5721cb8fbb7a67f0a5cd4253640f7dc4b993ecf834f21",
+            "stdoutTail": "d2eb03e47155.cem.json\",\"reason\":\"2 distinct task terms, 15 occurrences; rarest `readme` (idf 2.64); bm25 7.68\",\"trust\":\"repository-content\"}],\"id\":\".corvint/changes/f441e96c1717bc47055e4c5fd38bd2eb03e47155.cem.json\",\"kind\":\"lexical\",\"score\":300,\"summary\":\"2 task terms match\"}],\"revision\":\"2c9b93360b46a18ff74eab4eac60dbc5439ea46f\",\"schema_version\":1,\"state\":\"READY\",\"subject\":null,\"tool\":\"context\"}\n",
+            "wallMs": 1000
+          }
+        ],
+        "state": "READY"
+      }
+    }
+  ],
+  "outcomes": {
+    "completion": {
+      "designatedCases": 36,
+      "falseCompleteVerdicts": 0,
+      "informativeCases": 36,
+      "outcome": "PASS",
+      "positiveControlRefusals": 0
+    },
+    "consequence": {
+      "abstentions": 0,
+      "outcome": "PASS",
+      "scoredCases": 3,
+      "treatmentOnlyCriticalMisses": 0
+    },
+    "orientation": {
+      "abstentions": 0,
+      "outcome": "PASS",
+      "scoredCases": 6,
+      "treatmentOnlyCriticalMisses": 0
+    }
+  },
+  "preregistrationSha256": "ee94b7ca16c3f3a88ffe253483bdeb0d0f21c1a7de710126244dcec34f20dc96",
+  "profile": "corvint-daily-loop-result/0",
+  "rehearsalTarget": "a64624cf1885253a60273fa0bfc0a0e6d56649c7",
+  "runId": "run-002",
+  "runsPerMeasurement": 3,
+  "startedAt": "2026-09-23T16:15:54Z"
+}
