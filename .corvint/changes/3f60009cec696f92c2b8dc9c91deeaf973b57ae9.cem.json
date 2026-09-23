@@ -1,0 +1,90 @@
+{
+  "baseRevision": "a98d770a9f1cef08ecbee6366d11e0093bfd25c3",
+  "evidence": [
+    {
+      "blobOid": "f936eaa727d762c74c3946bbbf4a8143a6819c55",
+      "id": "evidence:sha256:e3eee37790472556df780ce8a1c81e3b3ecd4d703720fb080596668408688c1b",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2853,
+        "start": 2578
+      },
+      "spanSha256": "4b64d86cb3a0f3db641596d837683063e1d06f12aeb1e64a00d7e45ec9d3441b"
+    },
+    {
+      "blobOid": "f936eaa727d762c74c3946bbbf4a8143a6819c55",
+      "id": "evidence:sha256:bc95a31343cde429d1fb9707e022bc09344acb73358e194ee8f0995da1ced9ad",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2577,
+        "start": 2091
+      },
+      "spanSha256": "a5ef358e5716557d5f42d57c7271d3289afdc8ff20143da2026e5fd075f876f4"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:e3eee37790472556df780ce8a1c81e3b3ecd4d703720fb080596668408688c1b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:dbf254233d8404fa3d59f1b1a635e4c8df4e96e951f54e291cc0662c92f685d1",
+      "newRange": {
+        "count": 34,
+        "start": 4
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 4
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bc95a31343cde429d1fb9707e022bc09344acb73358e194ee8f0995da1ced9ad",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:27afe1df2a592549bc31e3d643c67b753247310aa08bcc1da8d194c468a291ce",
+      "newRange": {
+        "count": 20,
+        "start": 198
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 198
+      },
+      "path": "docs/specs/application-flow-understanding-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:bc95a31343cde429d1fb9707e022bc09344acb73358e194ee8f0995da1ced9ad",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cb2a010a6ae94c1088628a2921b52c9fd447c117e6ce8b4a3e7509fd0901799b",
+      "newRange": {
+        "count": 15,
+        "start": 219
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 212
+      },
+      "path": "docs/specs/application-flow-understanding-v0.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "1f89f0b61da9d43c3052c1ebeb5a584f122ee1a0bc4d746096dce7e163cb3d9f",
+  "spec": "cem/0.2"
+}

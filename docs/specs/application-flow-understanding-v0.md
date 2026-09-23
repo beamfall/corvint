@@ -198,19 +198,35 @@ test-run authenticity, OS-wide egress sandbox or measured external-application a
 suite is a regression evaluation, not a blinded accuracy study. Renamed controls/routes are a second
 variant; this does not establish precision/recall across independently authored applications.
 
-| Requirements | Implementation and executable evidence | Remaining boundary |
+| Requirement | Named executable evidence | Remaining boundary or explicit gap |
 | --- | --- | --- |
-| AFU-V0-001–003 | `internal/appflows` capture/report; `TestAFUV0EvidenceSeparation`; `tools/web-flows/test/scan.test.mjs`; fixture candidate journeys and untouched DOM controls | Explicit manifest plus literal tests; no general route/event parser or inferred preconditions |
-| AFU-V0-004–005 | `TestAFUV0InvalidEvidenceDoesNotBecomeCoverage`; scanner unsupported-grammar cases; browser fixture unchecked-save and missing-viewer cases | Static assertion candidates only; independent backend test mapping unsupported; no source-test pass claim |
-| AFU-V0-006–008 | `script/web-flows-gate`: healthy/renamed fixture, cache-hidden persistence and authorization defects, identity mismatch, source drift | Guided actions; visual-only controls unqualified; retries/flakiness not inferred from one observation |
-| AFU-V0-009, AFU-V0-012 | `TestAFUV0CaptureAndRecord`, `TestAFUV0ContradictionsAndDrift`, `cmd/corvint/flows_test.go`; source-only and record browser cases | Explicit caller-owned artifact only; no ranking/training, automatic intent acceptance or attestation |
-| AFU-V0-010–011 | `TestAFUV0DecodeAndAdmission`, `TestAFUV0NoDescendantsOnInterruption`; real Chromium SIGINT/SIGTERM and HTTP/WebSocket sentinel cases | Trusted local code; no hostile process/escaped-daemon qualification; sanitized structural artifacts only |
+| AFU-V0-001 | `TestAFUV0DecodeAndAdmission` (malformed, duplicate-key, unknown-field and oversized input and non-loopback origins refused); `TestFlowsCLIReadPurity` and `TestAFUV0EvidenceSeparation` (`complete:false`, explicit frontier); gate `development-fixture` asserts `report.complete === false` | Explicit manifest only. Budget truncation gaps (`exploration-budget`, `request-budget`, `evidence-budget`) are emitted by `observe.mjs` but no test reaches a budget |
+| AFU-V0-002 | `TestAFUV0CaptureAndRecord` (dirty source and escaping symlink refused); scanner tests "AFU-V0-002: comments and string contents are not runnable tests" and "AFU-V0-004/005: unsupported syntax cannot certify missing assertions" (`inventoryComplete:false`); gate fixture cases assert two `test-inferred` candidates | No general route/navigation/event parser. Gap: no test asserts the emitted `test-syntax-unresolved:<path>` string, or a test file from another framework (no `@playwright/test` import) |
+| AFU-V0-003 | `TestAFUV0EvidenceSeparation` (role stays `caller-declared-unverified`); `TestAFUV0ContradictionsAndDrift` (inferred basis yields `hypothesis-agreement`, never acceptance) | No inferred preconditions or branch conditions |
+| AFU-V0-004 | `TestAFUV0EvidenceSeparation` (`assertion-candidate`, `action-candidate-without-assertion`, no cross-role mapping); `TestAFUV0InvalidEvidenceDoesNotBecomeCoverage`; scanner test "AFU-V0-004: source/test/assertion anchors and input digests" | Static assertion candidates only; no source-test run authenticity; independent backend test mapping unsupported |
+| AFU-V0-005 | `TestAFUV0EvidenceSeparation` (`no-test-in-declared-inventory`; incomplete inventory yields `mapping-unknown`); scanner test "AFU-V0-005: no assertion remains an action candidate"; gate unchecked-save and missing-viewer coverage states | Failed/flaky-run and untested data-variant gaps are not inferred |
+| AFU-V0-006 | `TestAFUV0EvidenceSeparation` (`unexplored-control:` frontier); gate `development-fixture` and `held-back-selectors` (8 controls, `#help` unexercised) | Guided actions only. Gap: the `unaddressable-or-visual-control` gap for visual-only controls has no test |
+| AFU-V0-007 | `TestAFUV0ContradictionsAndDrift` (contradiction, hypothesis agreement, missing postcondition refused); `TestAFUV0InvalidEvidenceDoesNotBecomeCoverage` (forged backend layer refused); gate `persist-broken` and `auth-broken` | Oracles come from the caller manifest; no accepted-oracle authority |
+| AFU-V0-008 | `TestAFUV0ContradictionsAndDrift` (changed tree yields `stale`); `TestAFUV0DecodeAndAdmission` subtest on conflicting route roles; gate `wrong-served-identity` and source-drift `stale` assertions | Retries and flakiness are not inferred from one observation |
+| AFU-V0-009 | `TestAFUV0CaptureAndRecord` (exclusive private write, authority elevation refused); `TestFlowsCLIReadPurity` (read and failed read leave repository bytes unchanged); gate repeated `flows record` refused | Explicit caller-owned artifact only; no ranking or training |
+| AFU-V0-010 | `TestAFUV0NoDescendantsOnInterruption`; `TestAFUV0ContradictionsAndDrift` (failed cleanup yields `inconclusive`); lifecycle tests "AFU-V0-010: repeated signals join delayed browser cleanup" and "AFU-V0-010: interruption waits for pending browser launch"; `TestAFUV0DecodeAndAdmission` (non-loopback origins refused); gate `SIGINT`, `SIGTERM` and `cross-origin-http-and-websocket` (zero sentinel requests, `request-blocked-or-unavailable` and `websocket-blocked` gaps) | Trusted local code, not OS-sandboxed. Gap: the standing `non-http-browser-transports-unqualified` and `escaped-daemon-descendants-unqualified` gaps are emitted by `observe.mjs` but no test asserts them |
+| AFU-V0-011 | `TestAFUV0DecodeAndAdmission` (script action and nonscalar oracle refused); `TestAFUV0InvalidEvidenceDoesNotBecomeCoverage` (raw input value refused); scanner anchor test (input retained only as digest); gate asserts the raw viewer fill value never appears in evidence, and `cross-origin-http-and-websocket` injects page script that cannot widen scope | Sanitized structural artifacts only. Gap: secret-shaped input refusal (`internal/appflows/input.go` `Decode`) has no test |
+| AFU-V0-012 | `TestAFUV0EvidenceSeparation`, `TestAFUV0ContradictionsAndDrift`, `TestFlowsCLIReadPurity`; gate `source-only` case | No attestation or automatic intent acceptance. Gap: the per-flow `next` action and the copy of evidence gaps into the report frontier have no test |
 
 The early real-browser evaluation observed three declared scenarios, eight structural controls and
 two inferred test journeys in each healthy fixture. Both seeded backend defects were detected with
 zero false confirmations in the evaluated cases. Complete-command benefit, general accuracy and
 external-application validation are **NOT_OBSERVED**. Final source/check binding belongs to the keyed
 dogfood reports and CEM, not to this preliminary fixture result.
+
+V1-0100 reran `script/web-flows-gate` on the public-history tree `a98d770` on 2026-09-23: 6/6
+scanner and lifecycle tests passed, all 9 browser cases passed, both seeded backend defects were
+detected and the evaluation reported `falseConfirmations:0`. That count is a literal in
+`tools/web-flows/test/e2e.mjs`; the zero is enforced by the per-case assertions that the defective
+flow is `contradicted` and that no flow is `matched` under a wrong served identity. The repository
+`make gate` was not run for that change and remains a release-attestation item. Flow reports keep
+basis, coverage, runtime and freshness as separate fields (`internal/appflows/types.go` `Flow` and
+`Report`) and carry no combined score; no test asserts the absence of such a field.
 
 The owner authorized implementation on 2026-09-22. This does not accept the proposed technical
 contract or qualify its execution profile. The prototype remains experimental and cannot be
