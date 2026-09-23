@@ -170,7 +170,8 @@ func recipePacket(t *testing.T, index *Index, mode, task string) map[string]any 
 // path: subject-absent/null becomes examined/0; all other bytes are retained.
 // Decision 0146 then adds only the supported verdict's nearest_claims block.
 // Decision 0346 (TCP-V0-023) then adds only the `trust` member on each evidence
-// row and the empty `coverage.governance_refused` array.
+// row and the empty `coverage.governance_refused` array. TCP-V0-047 then adds
+// only the `instruction-routed` entry to `coverage.unexamined`.
 func TestContextRecipeDefaultPathIsByteIdentical(t *testing.T) {
 	t.Run("TCP-V0-018", func(t *testing.T) {
 		packet := recipePacket(t, recipeFixtureIndex(t), "", recipeFixtureTask)

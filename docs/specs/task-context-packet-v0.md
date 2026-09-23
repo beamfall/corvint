@@ -20,7 +20,7 @@ evidence row), `docs/decisions/0369-context-recency-blame-opt-in-2026-09-23.md` 
 - Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
 - Status: proposed/experimental
 - Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/recency.go` and `blame.go` (TCP-V0-035..038 opt-in recency, blame and ownership, experimental); `internal/contextindex/identgraph.go` and `ppr.go` (TCP-V0-030..034 opt-in identifier-graph PageRank slot, `CORVINT_CONTEXT_GRAPH=on`, decision 0367); `internal/contextindex/span_rank.go` and `internal/contextindex/sufficiency.go` (TCP-V0-025..029 opt-in `CORVINT_CONTEXT_SPANS=on` line-budgeted spans and `coverage.sufficiency`, experimental, decision 0366); `cmd/corvint/context_lsp.go` and `internal/lspprovider` (TCP-V0-043..046 opt-in gopls `external` member under `CORVINT_CONTEXT_LSP=gopls`, experimental, decision 0371).
-- Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012, which is implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it.
+- Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012 and of TCP-V0-047 (instruction-routed rows, V1-0186), which are implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go` and `internal/contextindex/taskcontext_routed_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it.
 - Read next: Requirements; Non-goals; Failure modes.
 
 Wave 1: `TCP-V0-018` recipe is retired (0078); identifier terms (`019`) and named-test frames (`020`) failed promotion and remain proposed/off (0076/0077). `021` measures actual cold/hit state and refuses unequal paired results (0075). Decision 0079 repairs complete cold imports and deterministic test evidence.
@@ -116,7 +116,7 @@ it must read, each with the relation that admitted it, without naming the task's
   the relations in `summary` after "; also"; the evidence row stays the admitting relation's
   (decision 0027). Without `--subject` the packet has the retrieval shape: `mentioned`,
   `definition`, `lexical`. (A) The rows reserved by
-  TCP-V0-008 and TCP-V0-009 precede this order and each costs one row of `--limit`, and TCP-V0-010 narrows which
+  TCP-V0-008, TCP-V0-009 and TCP-V0-047 precede this order and each costs one row of `--limit`, and TCP-V0-010 narrows which
   identifiers the `definition` slot may use; the caps, weights and relative slot order above are otherwise unchanged.
 - `TCP-V0-005`: The subject is never a result. It is carried under `subject` with its path and a
   `role` sentence saying it is the subject of the question and not one of its answers; every slot
@@ -130,7 +130,7 @@ it must read, each with the relation that admitted it, without naming the task's
   omitted by the limit. The packet carries no exclusion or unparsed-path samples: nothing in it
   can be mistaken for a result that is not one. (A) TCP-V0-011 adds sample-free `coverage` members; this ban and the two `state` values are
   unchanged. Its `critical` and `critical_missing` are exhaustive over a bounded reserved set (at most one `governing` plus three `spec-mentioned`
-  rows), so they state completely what was reserved and what did not fit rather than sampling a larger unshown population.
+  plus two `instruction-routed` rows), so they state completely what was reserved and what did not fit rather than sampling a larger unshown population.
   Accepted amendment (AT-07, decision 0052): `included_results`, `omitted_results`, `candidates` and
   the top-level `state` are computed before possession suppression and frozen; a new coverage
   member `suppressed_results` carries the count removed by possession; when suppression removes
@@ -168,10 +168,10 @@ it must read, each with the relation that admitted it, without naming the task's
   identifier evidence are unchanged. An identifier is eligible when it is backticked in the task (the existing tests' `Other` and `Split` stay
   eligible on that ground), camelCase, snake_case, or otherwise carries a digit or an underscore. Operationally: an identifier qualifies when backticked in the task or when it
   contains an uppercase letter after its first character, an underscore, or a digit; an unbackticked lowercase-only identifier does not qualify.
-- `TCP-V0-011`: (A) `coverage` gains four members with fixed shapes. `critical` (what TCP-V0-008/009 reserved) and `critical_missing` (reserved
+- `TCP-V0-011`: (A) `coverage` gains four members with fixed shapes. `critical` (what TCP-V0-008/009/047 reserved) and `critical_missing` (reserved
   selectors present at the revision that did not fit) are arrays of `{"relation", "path"}` selectors sorted by relation then path, each exhaustive
   over the bounded reserved set, so neither is a TCP-V0-006 sample. `unexamined` is an array of `{"relation", "state", "withheld"}` in TCP-V0-004's
-  fixed relation order with the two reserved relations first: `governing`, `spec-mentioned`, `pair`, `mentioned`, `definition`, `reverse-import`,
+  fixed relation order with the three reserved relations first: `governing`, `spec-mentioned`, `instruction-routed`, `pair`, `mentioned`, `definition`, `reverse-import`,
   `reference`, `cochange`, `sibling`, `test`, `lexical`, `documentation`; `state` is `examined`, `capped`, `empty-history`, `subject-absent` (the relation needs a
   subject and the retrieval shape has none), `subject-symbols-incomplete` (amended 2026-09-12, invariant 2: `reference` only, when
   `Index.Unparsed` records the subject with facts other than `imports` or `Index.ExtractionNotes` records it, so the slot read a
@@ -325,7 +325,7 @@ it must read, each with the relation that admitted it, without naming the task's
   together, was measured on 2026-09-05 and withdrawn: it abstained on four `v2_trace2code`
   positives whose joining source (`tests/test_options.py` in pallets/click) is over the index's
   source size bound and so has no postings, an index gap rather than an absence. Reserved rows (TCP-V0-008,
-  TCP-V0-009) stay; `state` follows TCP-V0-006 over the rows that remain, so a withheld packet
+  TCP-V0-009, TCP-V0-047) stay; `state` follows TCP-V0-006 over the rows that remain, so a withheld packet
   with no reserved row is `NO_CANDIDATES` and one with a governing row is `READY`; the admitted
   rows stay counted under `coverage.candidates` and `omitted_results`. (d) `coverage.answerability`
   carries `verdict` (`supported`, `not-withheld`, `no-specific-terms`, `relations-answer`, or
@@ -670,8 +670,8 @@ it must read, each with the relation that admitted it, without naming the task's
   symbol, reason, confidence, blob_hash, authority, trust}`: an explicit 1-based inclusive line
   range of one pinned source (`blob_hash` is the source's indexed blob, invariant 1), the reason
   it was chosen, and `trust` derived from `authority` by TCP-V0-023's table. A `core` row comes
-  from a packet result row, in result rank order, skipping the reserved `governing` and
-  `spec-mentioned` rows: first the declarations (`langsymbols.go` symbols) of the task's names
+  from a packet result row, in result rank order, skipping the reserved `governing`,
+  `spec-mentioned` and `instruction-routed` rows: first the declarations (`langsymbols.go` symbols) of the task's names
   the file defines (TCP-V0-010-eligible identifiers by weight, then TCP-V0-016 names), at most
   three per file, authority `syntax`, confidence `high`; else the first line naming the heaviest
   task name as a whole word, widened to its enclosing declaration, `syntax`/`medium`; else the
@@ -757,6 +757,25 @@ it must read, each with the relation that admitted it, without naming the task's
   the gold file appears among `external.path_relations` endpoints is reported as a diagnostic,
   not as a retrieval claim. Letting these relations change `results` needs its own requirement
   and decision 0070's paired ladder.
+- `TCP-V0-047`: When a governing row exists (TCP-V0-008), the governing file's text is split into
+  passages -- runs of non-blank lines, where a Markdown list item opens a new passage -- and a
+  passage routes when it shares at least two distinct task terms (TCP-V0-004's terms, the
+  passage tokenised the same way). Routing passages are ordered by the summed body idf of their
+  shared terms, highest first, then by line. Each backtick-quoted span in a routing passage that
+  is exactly an indexed source path, other than the subject and a path already reserved, is a
+  candidate in that order; the first two are reserved as `instruction-routed` rows after the
+  `spec-mentioned` rows and before every slot row, each costing one row of `--limit`, with the
+  action "Read this file: the governing instructions name it in a passage that shares this task's
+  terms, so the project routes work like this through it.", `authority` `instruction-reference`,
+  `confidence` `medium`, `score` 850, evidence line 1, `summary` "named by the governing
+  instructions for this task", and a `reason` that appends the file, line and shared terms. A
+  candidate the cap turns away is `withheld` and makes `budget_shortage` `slots`; without a
+  governing row the relation is `not-applicable`. A path named only in a passage sharing fewer than
+  two task terms reserves nothing: the row is project-authored routing matched to the task
+  (invariant 3), not a relevance ranking of instruction text. The rows are reserved in every other
+  respect (TCP-V0-003 promotion, TCP-V0-011 `critical`, TCP-V0-016 withdrawal). A frozen
+  `tools/retrieval-bench` `context` run before and after MUST show no recall@20 regression on any
+  subset.
 
 ## Non-goals and authority
 
@@ -1064,3 +1083,4 @@ wire never changed.
 | TCP-V0-044 | `attachLSPEvidence`, `extevidence.InlineSection`, `lspprovider.Expand` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandLiveGopls` |
 | TCP-V0-045 | `attachLSPEvidence`, `lspprovider.Expand` failure reasons | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandDegrades`, `TestExpandEveryQueryFailedIsUnavailable` |
 | TCP-V0-046 | `tools/retrieval-bench` `context` arm, flag unset and `gopls` | V1-0099 entry in `docs/BUILD-LOG.md` (measured off/on reports) |
+| TCP-V0-047 | `instructionRoutedRows`, `routedPassages`, `instructionPassages`, `reservedRelation`, `rowAction`, `coreSpans` | `TestTaskContextRoutesPathsTheGoverningInstructionsNameForTheTask`, `TestTaskContextCapsInstructionRoutedRows`, `TestContextSpansSkipInstructionRoutedRows`; V1-0186 entry in `docs/BUILD-LOG.md` (frozen bench before/after) |

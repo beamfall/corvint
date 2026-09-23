@@ -181,18 +181,24 @@ const (
 	contextDocumentationQuota   = 2
 	// contextSpecMentionCap bounds the reserved spec rows (TCP-V0-009).
 	contextSpecMentionCap = 3
+	// contextRoutedCap bounds the reserved instruction-routed rows, and a
+	// passage of the governing file routes only when it shares at least
+	// contextRoutedMinTerms distinct task terms (TCP-V0-047).
+	contextRoutedCap      = 2
+	contextRoutedMinTerms = 2
 )
 
 // The two reserved relations (TCP-V0-008/009) and the fixed relation order
 // TCP-V0-011's receipt members are sorted in: TCP-V0-004's slot order with the
 // reserved relations first.
 const (
-	governingRelation     = "governing"
-	specMentionedRelation = "spec-mentioned"
+	governingRelation         = "governing"
+	specMentionedRelation     = "spec-mentioned"
+	instructionRoutedRelation = "instruction-routed"
 )
 
 var contextRelationOrder = []string{
-	governingRelation, specMentionedRelation, "pair", "mentioned", "definition",
+	governingRelation, specMentionedRelation, instructionRoutedRelation, "pair", "mentioned", "definition",
 	"reverse-import", "reference", "cochange", "sibling", "test", "lexical", "documentation",
 }
 
@@ -202,6 +208,8 @@ var (
 	contextToken      = regexp.MustCompile(`[A-Za-z0-9]+`)
 	contextCamel      = regexp.MustCompile(`([a-z])([A-Z])`)
 	contextEscape     = regexp.MustCompile(`\\+[ntr"\\]`)
+	contextBackquoted = regexp.MustCompile("`([^`\n]+)`")
+	contextListItem   = regexp.MustCompile(`^[ \t]*(?:[-*+]|[0-9]+\.)[ \t]`)
 	contextJSONKey    = regexp.MustCompile(`"[A-Za-z0-9_]+":`)
 )
 
@@ -1246,11 +1254,12 @@ func orderRelations(relations []string) []string {
 }
 
 func (compiler *taskContextCompiler) reservedRows() []contextRow {
-	rows := make([]contextRow, 0, 1+contextSpecMentionCap)
+	rows := make([]contextRow, 0, 1+contextSpecMentionCap+contextRoutedCap)
 	if row, ok := compiler.governingRow(); ok {
 		rows = append(rows, row)
 	}
-	return append(rows, compiler.specMentionedRows(rows)...)
+	rows = append(rows, compiler.specMentionedRows(rows)...)
+	return append(rows, compiler.instructionRoutedRows(rows)...)
 }
 
 // governingRow reserves the repository's standing instructions (TCP-V0-008).
@@ -1275,6 +1284,118 @@ func (compiler *taskContextCompiler) governingRow() (contextRow, bool) {
 		summary: "this project's standing instructions", reason: "the highest-precedence tracked instruction file",
 		confidence: "high", authority: "project-instructions",
 	}, true
+}
+
+// instructionPassage is one paragraph or list item of the governing file: a
+// run of non-blank lines, where a Markdown list item opens a new passage.
+type instructionPassage struct {
+	line  int
+	lines []string
+}
+
+// routedPassage is a passage that shares enough task terms to route, with the
+// shared terms and their summed idf as its order key.
+type routedPassage struct {
+	instructionPassage
+	shared []string
+	weight float64
+}
+
+func instructionPassages(text string) []instructionPassage {
+	passages := make([]instructionPassage, 0)
+	open := false
+	for index, line := range strings.Split(text, "\n") {
+		blank := strings.TrimSpace(line) == ""
+		if !blank && (!open || contextListItem.MatchString(line)) {
+			passages = append(passages, instructionPassage{line: index + 1})
+		}
+		if !blank {
+			passages[len(passages)-1].lines = append(passages[len(passages)-1].lines, line)
+		}
+		open = !blank
+	}
+	return passages
+}
+
+// instructionRoutedRows reserves the tracked paths the governing instructions
+// name, in backticks, inside a passage that shares at least
+// contextRoutedMinTerms distinct task terms (TCP-V0-047). The project's own
+// routing outranks lexical placement (invariant 3), but only where its words
+// meet the task's, so a path named in an unrelated passage reserves nothing.
+func (compiler *taskContextCompiler) instructionRoutedRows(taken []contextRow) []contextRow {
+	if len(taken) == 0 || taken[0].kind != governingRelation {
+		compiler.relationState[instructionRoutedRelation] = "not-applicable"
+		return nil
+	}
+	governing := taken[0].path
+	compiler.relationState[instructionRoutedRelation] = "examined"
+	text, _ := sourceTextBounded(compiler.index.Sources[governing])
+	seen := map[string]struct{}{}
+	for _, row := range taken {
+		seen[row.path] = struct{}{}
+	}
+	materialised := make([]string, 0)
+	rows := make([]contextRow, 0, contextRoutedCap)
+	for _, passage := range compiler.routedPassages(text) {
+		for offset, line := range passage.lines {
+			for _, match := range contextBackquoted.FindAllStringSubmatch(line, -1) {
+				candidate := match[1]
+				if _, tracked := compiler.index.Sources[candidate]; !tracked {
+					continue
+				}
+				if _, done := seen[candidate]; done || candidate == compiler.subject {
+					continue
+				}
+				seen[candidate] = struct{}{}
+				materialised = append(materialised, candidate)
+				if len(rows) == contextRoutedCap {
+					compiler.slotOmitted = true
+					continue
+				}
+				reason := fmt.Sprintf("named by the governing instructions for this task: %s:%d shares `%s`",
+					governing, passage.line+offset, strings.Join(passage.shared, "`, `"))
+				rows = append(rows, contextRow{
+					kind: instructionRoutedRelation, path: candidate, score: 850, line: 1,
+					summary: "named by the governing instructions for this task", reason: reason,
+					confidence: "medium", authority: "instruction-reference",
+				})
+			}
+		}
+	}
+	compiler.candidates[instructionRoutedRelation] = materialised
+	return rows
+}
+
+// routedPassages keeps the passages that share at least contextRoutedMinTerms
+// distinct task terms, strongest first: summed body idf of the shared terms,
+// then file order.
+func (compiler *taskContextCompiler) routedPassages(text string) []routedPassage {
+	table := compiler.index.vocabulary()
+	corpus := float64(len(table.Paths))
+	task := stringSetOf(compiler.terms)
+	routed := make([]routedPassage, 0)
+	for _, passage := range instructionPassages(text) {
+		shared := make([]string, 0)
+		weight := 0.0
+		for _, term := range taskLexicalTerms(strings.Join(passage.lines, "\n")) {
+			if _, ok := task[term]; !ok {
+				continue
+			}
+			shared = append(shared, term)
+			if low, high, ok := table.Terms.find(term); ok {
+				postings := float64(high - low)
+				weight += math.Log(1 + (corpus-postings+0.5)/(postings+0.5))
+			}
+		}
+		if len(shared) < contextRoutedMinTerms {
+			continue
+		}
+		routed = append(routed, routedPassage{instructionPassage: passage, shared: shared, weight: weight})
+	}
+	sort.SliceStable(routed, func(left, right int) bool {
+		return routed[left].weight > routed[right].weight
+	})
+	return routed
 }
 
 func (compiler *taskContextCompiler) instructionCandidates() []string {
@@ -1826,6 +1947,8 @@ func rowAction(row contextRow) string {
 		return "Read this project's standing instructions before changing anything."
 	case specMentionedRelation:
 		return "Read the requirement clause this task names before changing its behavior."
+	case instructionRoutedRelation:
+		return "Read this file: the governing instructions name it in a passage that shares this task's terms, so the project routes work like this through it."
 	case "pair":
 		if contextIsTest(row.path) {
 			return "Update this test: it is the subject's test counterpart, so a behaviour change in the subject changes what it must assert."
@@ -2388,16 +2511,20 @@ type answerability struct {
 	nearest           []nearestClaim
 }
 
-// reservedOnly keeps the governing and spec-mentioned rows an unsupported
-// conjunction does not withdraw.
+// reservedOnly keeps the governing, spec-mentioned and instruction-routed rows
+// an unsupported conjunction does not withdraw.
 func (compiler *taskContextCompiler) reservedOnly(rows []contextRow) []contextRow {
 	kept := make([]contextRow, 0)
 	for _, row := range rows {
-		if row.kind == governingRelation || row.kind == specMentionedRelation {
+		if reservedRelation(row.kind) {
 			kept = append(kept, row)
 		}
 	}
 	return kept
+}
+
+func reservedRelation(kind string) bool {
+	return kind == governingRelation || kind == specMentionedRelation || kind == instructionRoutedRelation
 }
 
 // withheldClaims are the first slot rows the verdict withholds, as the
@@ -2405,7 +2532,7 @@ func (compiler *taskContextCompiler) reservedOnly(rows []contextRow) []contextRo
 func (compiler *taskContextCompiler) withheldClaims(rows []contextRow) []nearestClaim {
 	claims := make([]nearestClaim, 0, nearestClaimCap)
 	for _, row := range rows {
-		if row.kind == governingRelation || row.kind == specMentionedRelation || len(claims) == nearestClaimCap {
+		if reservedRelation(row.kind) || len(claims) == nearestClaimCap {
 			continue
 		}
 		lacks := make([]string, 0, len(compiler.answerability.terms))
