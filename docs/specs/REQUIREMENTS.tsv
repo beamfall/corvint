@@ -53,6 +53,7 @@ AFP-V0-016	docs/specs/affected-plan-v0.md	287	(accepted by decision 0320) `.gith
 AFP-V0-017	docs/specs/affected-plan-v0.md	295	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
 AFP-V0-018	docs/specs/affected-plan-v0.md	303	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
 AFP-V0-019	docs/specs/affected-plan-v0.md	318	(proposed technical contract implementing owner-requested issue #57)
+AFP-V0-020	docs/specs/affected-plan-v0.md	344	(proposed; ticket V1-0187) A changed Go package (one that owns a changed path)
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
