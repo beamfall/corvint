@@ -538,7 +538,7 @@ it must read, each with the relation that admitted it, without naming the task's
   by rank, then the definer's reverse importers (the TCP-V0-004 `reverse-import` rule), then the
   rest, each tier by path. A call site is a window of two lines either side of the first line in
   that source naming the symbol whose window overlaps no core row. Its reason is "names `S` at
-  line L, the declaration of the core span P:S-E", authority `syntax`, confidence `medium`. A
+  line L; `S` is declared by the core span P:S-E", authority `syntax`, confidence `medium`. A
   call site is a lexical whole-word use, not a resolved call: a same-named symbol in another
   scope is reported as a call site.
 - `TCP-V0-027`: (proposed 2026-09-23, not accepted; experimental; decision 0366) The declared
@@ -550,8 +550,8 @@ it must read, each with the relation that admitted it, without naming the task's
   size-bounded (TCP-V0-014) pinned index sources and the command stays a read command
   (invariant 4); an unindexed, oversized or non-text source yields no span.
 - `TCP-V0-028`: (proposed 2026-09-23, not accepted; experimental; decision 0366) With the flag
-  on, `coverage.sufficiency` is `{verdict, reason, anchors_total, missing_total, anchors,
-  missing}`. The task's anchors are its mentioned tracked paths (kind `path`) and its TCP-V0-016
+  on, `coverage.sufficiency` is `{verdict, scope, reason, anchors_total, missing_total, anchors,
+  missing}`, with `scope` always `task-anchors`. The task's anchors are its mentioned tracked paths (kind `path`) and its TCP-V0-016
   specific names (kind `name`). A path anchor is `satisfied` when a selected span reads that path,
   `insufficient` when the path is indexed but no span reads it, and `unknown` when it is not
   indexed (with the evidence-gap reason). A name anchor is `satisfied` only when a selected span's
@@ -562,7 +562,9 @@ it must read, each with the relation that admitted it, without naming the task's
   else `satisfied`: missing evidence never reads as sufficient (invariant 2). `anchors` and
   `missing` list at most sixteen entries each; the totals always count every anchor, and every
   anchor that is not satisfied is named in `missing`. `satisfied` means the selected lines carry
-  the task's own anchors; it does not mean they answer the task.
+  the task's own anchors; it does not mean they answer the task, and the reason says so: "N of M
+  task anchors carried by the selected lines; not evidence the task is answered" (or, with no
+  anchors, that the task names none).
 - `TCP-V0-029`: (proposed 2026-09-23, not accepted; experimental; decision 0366) The evaluation
   is `tools/retrieval-bench --arms context` over the frozen `v2_*` releases with the flag unset
   and `on`, recording recall@5/10/20 per subset, plus two span metrics scored offline from the

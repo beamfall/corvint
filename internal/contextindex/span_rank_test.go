@@ -114,7 +114,7 @@ func TestContextSpansCoreAndCallSite(t *testing.T) {
 		if call == nil || call.role != "call-site" || call.start > 7 || call.end < 7 || call.overlaps(core) {
 			t.Fatalf("call sites = %#v", calls)
 		}
-		if !strings.Contains(call.reason, "names `RunEngine` at line 7") || !strings.Contains(call.reason, "pkg/core/engine.go:4-6") {
+		if call.reason != "names `RunEngine` at line 7; `RunEngine` is declared by the core span pkg/core/engine.go:4-6" {
 			t.Fatalf("call-site reason = %q", call.reason)
 		}
 	})

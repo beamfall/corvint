@@ -86,8 +86,8 @@ func spanLabel(span contextSpan) string {
 	return fmt.Sprintf("%s:%d-%d", span.path, span.start, span.end)
 }
 
-// setVerdict: no anchor is `unknown`; one insufficient anchor makes the set
-// insufficient; one unknown anchor makes it unknown; only all satisfied is
+// setVerdict: no anchors, or one unknown anchor, makes the set unknown; one
+// insufficient anchor makes the set insufficient; one unknown anchor makes it unknown; only all satisfied is
 // satisfied.
 func setVerdict(anchors []anchorVerdict) string {
 	if len(anchors) == 0 {
@@ -110,7 +110,8 @@ func setReason(anchors []anchorVerdict) string {
 	if len(anchors) == 0 {
 		return "the task names no tracked path and no specific name to check"
 	}
-	return fmt.Sprintf("%d of %d anchors satisfied", len(anchors)-len(missingAnchors(anchors)), len(anchors))
+	return fmt.Sprintf("%d of %d task anchors carried by the selected lines; not evidence the task is answered",
+		len(anchors)-len(missingAnchors(anchors)), len(anchors))
 }
 
 func missingAnchors(anchors []anchorVerdict) []string {
@@ -136,7 +137,7 @@ func (verdict sufficiencyVerdict) packet() map[string]any {
 		listed = append(listed, name)
 	}
 	return map[string]any{
-		"verdict": verdict.verdict, "reason": verdict.reason, "anchors_total": len(verdict.anchors),
+		"verdict": verdict.verdict, "scope": "task-anchors", "reason": verdict.reason, "anchors_total": len(verdict.anchors),
 		"missing_total": len(missing), "anchors": rows, "missing": listed,
 	}
 }

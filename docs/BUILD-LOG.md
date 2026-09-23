@@ -48,6 +48,13 @@ default bytes are test-proven identical), `make gate` (owner policy), and any pa
 evaluation. NOT_PRODUCED: a committed span scorer (the TCP-V0-029 scorer is a scratch script).
 NOT_OBSERVED: any agent consuming span rows in a real task.
 
+Review fixes (PR #99): `coverage.sufficiency` gains `scope: task-anchors` and its reason now reads
+"N of M task anchors carried by the selected lines; not evidence the task is answered", the
+call-site reason reads "names `S` at line L; `S` is declared by the core span P:S-E" (TCP-V0-026/028
+reworded), two stale comments are corrected, and the analyzer digest is repinned with the schema
+still `corvint-analyzer/73`; the frozen-evaluation figures above predate the fix, which changes only
+wording and adds one member.
+
 ## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
 
 V1-0012 measured the daily change-evidence loop as it exists at `origin/main` 1894b9e against a

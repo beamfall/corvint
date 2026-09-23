@@ -294,8 +294,9 @@ func (ranker *spanRanker) nextSymbolLine(path string, line int) (int, bool) {
 	return 0, false
 }
 
-// enclosing is the last declaration starting at or before line whose extent
-// reaches it, else a window of contextSpanLineRadius lines either side.
+// enclosing takes the last declaration starting at or before line; when that
+// declaration's extent falls short of line, or there is none, it falls back to
+// a window of contextSpanLineRadius lines either side.
 func (ranker *spanRanker) enclosing(path string, line, count int) contextSpan {
 	var owner *Symbol
 	for index := range ranker.symbols[path] {
@@ -389,7 +390,7 @@ func (ranker *spanRanker) callSite(core contextSpan, candidate string, cores []c
 		site := contextSpan{
 			role: "call-site", path: candidate, symbol: core.symbol, confidence: "medium", authority: SyntaxAuthority,
 			start: max(line-contextSpanCallRadius, 1), end: min(line+contextSpanCallRadius, len(lines)),
-			reason: fmt.Sprintf("names `%s` at line %d, the declaration of the core span %s:%d-%d", core.symbol, line, core.path, core.start, core.end),
+			reason: fmt.Sprintf("names `%s` at line %d; `%s` is declared by the core span %s:%d-%d", core.symbol, line, core.symbol, core.path, core.start, core.end),
 		}
 		if !coveredBy(cores, site) {
 			return site, true

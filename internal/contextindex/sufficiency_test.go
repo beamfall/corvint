@@ -3,6 +3,7 @@ package contextindex
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -65,6 +66,9 @@ func TestContextSufficiency(t *testing.T) {
 				}
 				if packet["missing_total"] != len(test.missing) || packet["anchors_total"] != len(verdict.anchors) {
 					t.Fatalf("totals = %v / %v", packet["missing_total"], packet["anchors_total"])
+				}
+				if reason := packet["reason"].(string); packet["scope"] != "task-anchors" || len(verdict.anchors) > 0 && !strings.HasSuffix(reason, "task anchors carried by the selected lines; not evidence the task is answered") {
+					t.Fatalf("scope/reason = %v / %q", packet["scope"], reason)
 				}
 			})
 		}
