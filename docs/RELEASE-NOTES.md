@@ -1,5 +1,41 @@
 # Release notes
 
+## 0.7.0 prerelease
+
+`v0.7.0` is the "portable proof and inspectable workflows" step on the decision 0331 public
+history: the first release whose source, build count and tag all live on that lineage. Over the
+reapplied 0.6.0 source it adds a versioned `cem/v1` in-toto predicate that binds base and patch,
+Git-native CEM anchoring through a notes ref and trailer provenance, frozen OCM V0 conformance
+vectors, and four new test-claim qualifiers (patch coverage from a local coverprofile, bounded hunk
+mutation as a `discriminates` witness, environment variants with a same-SHA flake qualifier, and a
+deterministic mechanical-hunk classifier) while the CEM seams stay stdlib-only. Context packets
+preserve repository anchors verbatim in lexical queries and carry a trust class per cited source so
+a tainted row never satisfies a basis. External evidence gains a generated evidence kind, an
+optional provider capabilities declaration, a deleted verification state and
+`affected --provider-command` (issue #64). Admitted learned traces export as SKILL.md skills;
+adapters re-pin across host compaction through PreCompact and PostCompact hooks; the OpenCode
+legacy profile is verified at HEAD. Stable operations, recovery and security are qualified, the
+install-lifecycle and hostile-regression scripts are wired into `make`, hostile case-fold paths and
+read-only verbs are pinned, the work queue admits Corvint's own `decision-0046-v0` mapping, and the
+gate ledger keys resolved packages per package across worktrees, and the Claude Code plugin (0.2.3) and OpenCode package (0.2.7) versions advance with their shipped content. Four chore batches close the
+smaller defects and load-dependent tests recorded in the task store.
+
+The published prerelease is `Corvint 0.7.0 (build 46)`, commit
+`41f2b68934ce0d7b2ee6f0b22e31dab41ddffa25`. The full gate passed at that commit, the archives
+were built twice byte-identically, and the four Darwin/Linux archives are published with
+`SHA256SUMS` and `verification-report.json`; the producer also emits a Windows zip, which is not a
+qualified target. The install lifecycle passed on darwin/arm64 in same-bytes mode and the hostile
+regression matrix passed there; linux/amd64, linux/arm64 and darwin/amd64 lifecycles are `NOT_RUN`.
+A real cross-version lifecycle from the 0.6.0 build-90 binary fails SOP-V0-003's byte comparison
+at `upgrade-b`, because 0.7.0 adds the additive `governance_refused` list and per-evidence `trust`
+field to the context packet; that report and the packet diff are retained with the release. Native performance stays
+`NOT_RUN` (owner-cancelled measurement, GOC-V0-005). The release source was a clean local clone of
+the integration branch at that commit rather than a GitHub clone, because nothing was pushed before
+tagging. Not produced: the task-store `v0-7` readiness criteria remain unmet and the release is not
+marked candidate or promoted; no post-commit CEM binding covers this range; sealed correctness and
+cost benchmarks and genuine Beamfall workflow evidence are absent, so DCW-V0-006 stays unqualified.
+It is unsigned, with publisher identity `NOT_VERIFIED`.
+
 ## 0.6.0 prerelease
 
 `v0.6.0` selects decision 0332’s one-binary local workflow: task orientation, change consequence
