@@ -47,6 +47,24 @@ ranges are `anchor-not-found` first, and `LCP-V0-013` states the ambiguity: the 
 hold the line. Markdown links such as `[a.go:4](a.go#L4)` remain unparsed and report
 `anchor-not-found`.
 
+## 2026-09-23 V1-0189, V1-0208: the policy projection is restored; the checklist gate is not rewired
+
+Correction to the V1-0189 entry below. PR #117 edited `.taskman/policy.json` so the
+`release-checklist` gate would run `script/release-checklist --pre-promotion`. That file is a
+projection of the task-store journal, and corvint-tasks writes `intent/policy.json` only in its
+`init` transaction, so the edit could not be adopted. After the merge every store read and
+mutation refused with `INTENT_DIVERGED` on `intent/policy.json`.
+
+This change restores the projection to the journal's policy bytes, so `receipt audit` reports OK
+again. The script mode from V1-0189 stays on main and its tests still pass. The gate itself still
+runs plain `script/release-checklist`, which cannot exit 0 at any commit, so
+`gate:release-checklist` cannot be attested and every candidate stays `BLOCKED` on it.
+
+V1-0208 records that blocker and needs the owner to choose a route: a policy mutation in
+corvint-tasks, which its own specification already describes as an owner or operator mutation, or a
+recorded decision that changes how this gate is attested. V1-0189 stays open and now depends on
+V1-0208. V1-0209 and V1-0210 are follow-ups filed from V1-0192.
+
 ## 2026-09-23 V1-0203 AFP-V0-008: the Go plugin ignores `testdata`
 
 Finding (V1-0187 review, NIT 3): the Go plugin built units from `testdata/` directories, which the
