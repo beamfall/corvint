@@ -123,7 +123,7 @@ state or profile had changed since that baseline; this change adds only root-hel
   rebuilds (IDX-SNAP-V0-003), so no migration exists or is needed; (b) durable local traces
   (`corvint-local-trace/1`) keep the bounded legacy tree-row reader and the explicit, digest-bound
   `migrate-traces --dry-run` / `--apply --plan-digest` migration (LTPM-V0); (c) in-repository readers
-  of Core profiles, `prove-observe` (`cmd/corvint/prove_observe.go:90@b9e09d8d`), `internal/attest` and
+  of Core profiles, `prove-observe` (`cmd/corvint/prove_observe.go:90@e92cefdb`), `internal/attest` and
   `internal/companionrelease` core smoke, match the current identifier exactly and MUST accept both N
   and N-1 identifiers in the change that bumps one. Because nothing changed since 0.7.0, the current
   N-1 obligation is satisfied by the unchanged identifiers pinned in CCF-V1-002.
