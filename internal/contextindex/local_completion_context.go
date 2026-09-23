@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -8,6 +9,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -138,14 +140,14 @@ func (compiler *localPromptCompiler) addScope(scope []PinnedIntentPointer) {
 // addAnchors recognizes only explicit selectors. It never treats the enrolled
 // scope or the governing row as support for the words of the current task.
 func (compiler *localPromptCompiler) addAnchors() {
-	remaining := compiler.task
 	ids := compiler.context.requirementIDs()
-	paths := compiler.explicitPaths()
+	mentions, remaining := compiler.mentions()
+	paths := compiler.explicitPaths(remaining)
 	for _, token := range append(append([]string{}, ids...), paths...) {
 		remaining = strings.ReplaceAll(remaining, token, " ")
 	}
 	identifiers := localPromptIdentifiers(remaining)
-	if len(ids)+len(paths)+len(identifiers) > localPromptMaxAnchors {
+	if len(ids)+len(mentions)+len(paths)+len(identifiers) > localPromptMaxAnchors {
 		compiler.failBounds()
 		return
 	}
@@ -157,6 +159,12 @@ func (compiler *localPromptCompiler) addAnchors() {
 			}
 			compiler.resolveDefinitions(definitions[id])
 		}
+	}
+	for _, mention := range mentions {
+		if !compiler.ready() {
+			return
+		}
+		compiler.resolveMention(mention)
 	}
 	for _, token := range paths {
 		if !compiler.ready() {
@@ -239,9 +247,9 @@ func (compiler *localPromptCompiler) failBounds() {
 	compiler.err = &Error{Code: "unsupported-dogfood-context-bounds", Message: "explicit anchor context exceeds its bounded candidate profile"}
 }
 
-func (compiler *localPromptCompiler) explicitPaths() []string {
+func (compiler *localPromptCompiler) explicitPaths(task string) []string {
 	found := []string{}
-	for _, field := range strings.FieldsFunc(compiler.task, func(r rune) bool {
+	for _, field := range strings.FieldsFunc(task, func(r rune) bool {
 		return unicode.IsSpace(r) || strings.ContainsRune("`\"'(),:;?!", r)
 	}) {
 		token := strings.TrimRight(strings.TrimPrefix(field, "./"), ".")
@@ -252,12 +260,189 @@ func (compiler *localPromptCompiler) explicitPaths() []string {
 		if path.Ext(token) != "" && !strings.Contains(token, "/") && !trackedPath(compiler.index, token) && compiler.hasSymbol(strings.TrimPrefix(path.Ext(token), ".")) {
 			continue
 		}
-		if strings.Contains(token, "/") || path.Ext(token) != "" || trackedPath(compiler.index, token) {
+		if compiler.pathShaped(token) {
 			found = append(found, token)
 		}
 	}
 	sort.Strings(found)
 	return slices.Compact(found)
+}
+
+func (compiler *localPromptCompiler) pathShaped(token string) bool {
+	return strings.Contains(token, "/") || path.Ext(token) != "" || trackedPath(compiler.index, token)
+}
+
+// A task mention is one whitespace-delimited field naming a line, a line range,
+// a declaration in a path, or a commit (LCP-V0-013). The path part must be
+// path-shaped, so `host:8080` or `issue#12` stays ordinary text.
+type taskMention struct {
+	path, symbol, commit string
+	start, end           int
+}
+
+var localPromptLineMention = regexp.MustCompile(`^([^\s:#]+):([0-9]{1,9})(?:-([0-9]{1,9})|:[0-9]{1,9})?$`)
+var localPromptSymbolMention = regexp.MustCompile(`^([^\s:#]+)#([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)$`)
+var localPromptCommitMention = regexp.MustCompile(`^(?:[0-9a-f]{7,40}|[0-9a-f]{64})$`)
+
+// A mention never ends in punctuation or a symbol other than `_`, which can end
+// an identifier; so `:4-`, `:4…` and `:4**` all end at the line number.
+func trailingMentionRune(r rune) bool {
+	return r != '_' && (unicode.IsPunct(r) || unicode.IsSymbol(r))
+}
+
+// mentions returns the distinct mentions and the task without their fields, so
+// removing a mention never cuts into another word.
+func (compiler *localPromptCompiler) mentions() ([]taskMention, string) {
+	found := []taskMention{}
+	rest := []string{}
+	for _, field := range strings.Fields(compiler.task) {
+		token := strings.TrimRightFunc(strings.TrimLeft(field, "`\"'*([{<"), trailingMentionRune)
+		mention, ok := compiler.mention(strings.TrimPrefix(token, "./"))
+		if !ok {
+			rest = append(rest, field)
+			continue
+		}
+		found = append(found, mention)
+	}
+	slices.SortFunc(found, compareTaskMentions)
+	return slices.Compact(found), strings.Join(rest, " ")
+}
+
+func compareTaskMentions(a, b taskMention) int {
+	return cmp.Or(strings.Compare(a.commit, b.commit), strings.Compare(a.path, b.path),
+		strings.Compare(a.symbol, b.symbol), cmp.Compare(a.start, b.start), cmp.Compare(a.end, b.end))
+}
+
+func (compiler *localPromptCompiler) mention(token string) (taskMention, bool) {
+	if match := localPromptLineMention.FindStringSubmatch(token); match != nil && compiler.pathShaped(match[1]) {
+		start, _ := strconv.Atoi(match[2])
+		end := start
+		if match[3] != "" {
+			end, _ = strconv.Atoi(match[3])
+		}
+		return taskMention{path: match[1], start: start, end: end}, true
+	}
+	if match := localPromptSymbolMention.FindStringSubmatch(token); match != nil && compiler.pathShaped(match[1]) {
+		return taskMention{path: match[1], symbol: match[2]}, true
+	}
+	// A commit needs a digit and a letter so hex-only words stay ordinary text.
+	if localPromptCommitMention.MatchString(token) && strings.ContainsAny(token, "0123456789") && strings.ContainsAny(token, "abcdef") {
+		return taskMention{commit: token}, true
+	}
+	return taskMention{}, false
+}
+
+func (compiler *localPromptCompiler) resolveMention(mention taskMention) {
+	switch {
+	case mention.commit != "":
+		compiler.resolveCommit(mention.commit)
+	case mention.symbol != "":
+		compiler.resolvePathSymbol(mention.path, mention.symbol)
+	default:
+		compiler.resolveLines(mention.path, mention.start, mention.end)
+	}
+}
+
+// Only the bound commit is known without reading history, and it adds no path
+// row; any other commit is evidence this profile cannot read, never not-found.
+func (compiler *localPromptCompiler) resolveCommit(commit string) {
+	compiler.anchors++
+	if !strings.HasPrefix(compiler.index.CommitRevision, commit) {
+		compiler.unread++
+	}
+}
+
+// A line or range must lie inside the bound source. An unreadable source is
+// left to addEvidence, which reports it unavailable rather than out of range.
+func (compiler *localPromptCompiler) resolveLines(token string, start, end int) {
+	candidates := compiler.pathCandidates(token)
+	if !compiler.ready() {
+		return
+	}
+	// A range that no content can satisfy is not-found even on a dirty path.
+	if start < 1 || end < start {
+		compiler.countAnchor(0)
+		return
+	}
+	matches := []string{}
+	for _, candidate := range candidates {
+		text, loaded := sourceTextBounded(compiler.index.Sources[candidate])
+		if !loaded || end <= sourceLineCount(text) {
+			matches = append(matches, candidate)
+		}
+	}
+	compiler.countAnchor(len(matches) + compiler.staleCandidates(candidates, matches))
+	for _, candidate := range matches {
+		compiler.addEvidence("task_evidence", candidate, start, "explicit-line", "task-text")
+	}
+}
+
+func sourceLineCount(text string) int {
+	lines := strings.Count(text, "\n")
+	if text != "" && !strings.HasSuffix(text, "\n") {
+		lines++
+	}
+	return lines
+}
+
+// A declaration is matched by exact name within the named path only. A dotted
+// name that is not itself a symbol falls back to its terminal part, which stays
+// qualification-unverified exactly as a bare qualified identifier does.
+func (compiler *localPromptCompiler) resolvePathSymbol(token, name string) {
+	candidates := compiler.pathCandidates(token)
+	if !compiler.ready() {
+		return
+	}
+	if strings.Contains(name, ".") && !compiler.pathHasSymbol(candidates, name) {
+		name = name[strings.LastIndex(name, ".")+1:]
+		compiler.qualified++
+	}
+	matches := []Symbol{}
+	for _, symbol := range compiler.index.Symbols {
+		if !compiler.ready() {
+			return
+		}
+		if len(matches) >= localPromptMaxCandidates {
+			compiler.failBounds()
+			return
+		}
+		if symbol.Name == name && slices.Contains(candidates, symbol.Path) {
+			matches = append(matches, symbol)
+		}
+	}
+	sort.Slice(matches, func(i, j int) bool {
+		if matches[i].Path != matches[j].Path {
+			return matches[i].Path < matches[j].Path
+		}
+		return matches[i].Line < matches[j].Line
+	})
+	matched := []string{}
+	for _, symbol := range matches {
+		matched = append(matched, symbol.Path)
+	}
+	compiler.countAnchor(len(matches) + compiler.staleCandidates(candidates, matched))
+	for _, symbol := range matches {
+		compiler.addEvidence("task_evidence", symbol.Path, symbol.Line, "explicit-identifier", "syntax")
+	}
+}
+
+// A dirty candidate with no match in its bound blob may hold the anchor in the
+// worktree, so it counts as changed rather than not-found and adds no row.
+func (compiler *localPromptCompiler) staleCandidates(candidates, matched []string) int {
+	stale := 0
+	for _, candidate := range candidates {
+		if slices.Contains(compiler.index.DirtyPaths, candidate) && !slices.Contains(matched, candidate) {
+			stale++
+		}
+	}
+	compiler.dirty += stale
+	return stale
+}
+
+func (compiler *localPromptCompiler) pathHasSymbol(candidates []string, name string) bool {
+	return slices.ContainsFunc(compiler.index.Symbols, func(symbol Symbol) bool {
+		return symbol.Name == name && slices.Contains(candidates, symbol.Path)
+	})
 }
 
 func (compiler *localPromptCompiler) resolveDefinitions(owners []specDefinition) {
@@ -268,28 +453,40 @@ func (compiler *localPromptCompiler) resolveDefinitions(owners []specDefinition)
 }
 
 func (compiler *localPromptCompiler) resolvePath(token string) {
-	matches := []string{}
-	if trackedPath(compiler.index, token) {
-		matches = append(matches, token)
-	} else if !strings.Contains(token, "/") {
-		for candidate := range compiler.context.trackedPaths() {
-			if !compiler.ready() {
-				return
-			}
-			if len(matches) >= localPromptMaxCandidates {
-				compiler.failBounds()
-				return
-			}
-			if path.Base(candidate) == token {
-				matches = append(matches, candidate)
-			}
-		}
+	matches := compiler.pathCandidates(token)
+	if !compiler.ready() {
+		return
 	}
-	sort.Strings(matches)
 	compiler.countAnchor(len(matches))
 	for _, candidate := range matches {
 		compiler.addEvidence("task_evidence", candidate, 1, "explicit-path", "task-text")
 	}
+}
+
+// pathCandidates resolves a tracked path exactly, or a bare file name by its
+// base name across tracked paths; more than one candidate is ambiguous.
+func (compiler *localPromptCompiler) pathCandidates(token string) []string {
+	matches := []string{}
+	if trackedPath(compiler.index, token) {
+		return append(matches, token)
+	}
+	if strings.Contains(token, "/") {
+		return matches
+	}
+	for candidate := range compiler.context.trackedPaths() {
+		if !compiler.ready() {
+			return nil
+		}
+		if len(matches) >= localPromptMaxCandidates {
+			compiler.failBounds()
+			return nil
+		}
+		if path.Base(candidate) == token {
+			matches = append(matches, candidate)
+		}
+	}
+	sort.Strings(matches)
+	return matches
 }
 
 func (compiler *localPromptCompiler) hasSymbol(name string) bool {

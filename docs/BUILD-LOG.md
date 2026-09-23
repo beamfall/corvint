@@ -26,6 +26,67 @@ Evidence: `TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020` removes the con
 scope, and an edit to `core` must not. It fails for all seven non-Go plugins on the base rule and
 passes with the change. `make gate` was not run (owner preference).
 
+## 2026-09-23 V1-0192 LCP-V0-010, LCP-V0-013: task mentions anchor prompt context
+
+The native user-prompt event resolved only explicit paths, requirement IDs and source-backed
+identifiers, so a prompt naming `pkg/packet.go:42`, `pkg/packet.go#ParsePacket` or a commit gave
+`explicit-task-anchor-required` or incidental rows. `LCP-V0-013` adds three mention forms to the
+same pure compiler, and `LCP-V0-010` now counts them as explicit anchors. That amends accepted
+intent, so it needs the owner's review on the PR.
+
+A mention is one whitespace field whose path part is path-shaped: it contains `/`, has an
+extension, or is tracked. That keeps `localhost:8080`, `issue#12` and hex-looking English words
+out. A line or range is checked against the bound source's line count and names its start line
+with the existing row schema. `path#name` matches exact declarations in that path only, and a
+dotted name falls back to its terminal part as `qualification-unverified`, because Go method
+symbols carry bare names. A commit resolves only as a prefix of the bound commit. Any other commit
+is `anchor-evidence-unavailable`, because the profile reads no history (`LCP-V0-011`). Resolving
+other commits needs caller-acquired Git facts and is a follow-up.
+
+Evidence: 20 frozen cases in `internal/contextindex/testdata/local-completion/mention-cases.json`,
+identity, dirty, deleted-source and budget tests, and two new UC-TASK-ORIENTATION hostile cases
+through the native prompt entrypoint, whose `hostile-tests` receipt is repinned. The analyzer
+schema moves to `corvint-analyzer/77`.
+
+Deviation from the ticket: acceptance criterion 4 names the frozen daily-loop evaluation. Its
+orientation job scores `corvint context --task`, which this change does not touch, and it builds
+the preregistered candidate commit, so it cannot regress here. Adding mention tasks to its corpus
+would amend the preregistration; that is a follow-up ticket, not part of this change.
+
+Review repair: an independent review found that trailing `).` and closing brackets were not trimmed
+and fell back to a wrong line, that a line or declaration added to a dirty file was reported as
+`anchor-not-found` rather than `anchor-worktree-changed`, that mention removal cut substrings out of
+unrelated words, that `./path:4` and `path:4` counted as two anchors, and that the commit-prefix test
+could skip its later checks. The parser now trims any trailing run of brackets and punctuation,
+accepts `path:line:column`, removes matched fields whole, and deduplicates by parsed form; a dirty
+candidate without a match in its bound blob counts as worktree-changed. `LCP-V0-013` now states
+these rules and narrows the `host:port` claim: a dotted host is path-shaped. The frozen corpus grows
+to 33 cases and the analyzer digest is repinned. A second review found that trailing `-`, `…` or
+`**` still fell back to line 1, that a zero or inverted range on a dirty path claimed a worktree
+change, and that a dirty base-name candidate beside a clean match made the anchor ambiguous without
+the spec saying so. The trailing trim now covers any punctuation or symbol except `_`, impossible
+ranges are `anchor-not-found` first, and `LCP-V0-013` states the ambiguity: the worktree copy may
+hold the line. Markdown links such as `[a.go:4](a.go#L4)` remain unparsed and report
+`anchor-not-found`.
+
+## 2026-09-23 V1-0189, V1-0208: the policy projection is restored; the checklist gate is not rewired
+
+Correction to the V1-0189 entry below. PR #117 edited `.taskman/policy.json` so the
+`release-checklist` gate would run `script/release-checklist --pre-promotion`. That file is a
+projection of the task-store journal, and corvint-tasks writes `intent/policy.json` only in its
+`init` transaction, so the edit could not be adopted. After the merge every store read and
+mutation refused with `INTENT_DIVERGED` on `intent/policy.json`.
+
+This change restores the projection to the journal's policy bytes, so `receipt audit` reports OK
+again. The script mode from V1-0189 stays on main and its tests still pass. The gate itself still
+runs plain `script/release-checklist`, which cannot exit 0 at any commit, so
+`gate:release-checklist` cannot be attested and every candidate stays `BLOCKED` on it.
+
+V1-0208 records that blocker and needs the owner to choose a route: a policy mutation in
+corvint-tasks, which its own specification already describes as an owner or operator mutation, or a
+recorded decision that changes how this gate is attested. V1-0189 stays open and now depends on
+V1-0208. V1-0209 and V1-0210 are follow-ups filed from V1-0192.
+
 ## 2026-09-23 V1-0203 AFP-V0-008: the Go plugin ignores `testdata`
 
 Finding (V1-0187 review, NIT 3): the Go plugin built units from `testdata/` directories, which the
