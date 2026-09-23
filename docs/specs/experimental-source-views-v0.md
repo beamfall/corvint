@@ -4,16 +4,16 @@ Owner: Russell Lewis
 Drafted: 2026-09-06
 Intent status: proposed
 Delivery status: experimental
-Implementation: `cmd/corvint/source_handoff.go` (`corvint adapter source-view`, `corvint adapter claude-source-handoff`, dispatched from `cmd/corvint/host_adapter.go`)
+Implementation: `cmd/corvint/source_handoff.go` (`corvint adapter source-view`, `corvint adapter claude-source-handoff`, dispatched from `cmd/corvint/host_adapter.go`); `cmd/corvint/context_summary.go` (`corvint context --summary`, `corvint context --expand`, parsed in `cmd/corvint/taskcontext.go`; decision 0364)
 Authoritative inputs: `docs/PRODUCT.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/DOGFOOD.md`.
 The owner requested this private development prototype; this proposal does not accept new intent.
 
 ## Agent digest
-- Claim: An opt-in development consumer expands a selected saved context evidence handle into exact immutable bytes.
-- Status: proposed/experimental; outside PCCO V0; no public command or default hook change.
-- Exists: native Go `adapter source-view` consumer, opt-in `adapter claude-source-handoff` capture and focused synthetic Go tests; the Python consumer and wrapper were deleted 2026-09-11 (`54735d98`).
-- Blocked on: native source digest NOT_PRODUCED (`ESV-V0-005`); matched complete-task evaluation and human acceptance for any promotion.
-- Read next: Interface and bounds; Requirements; Native implementation status; Acceptance and rollback.
+- Claim: Opt-in development views bound a context packet and expand one selected digest-pinned evidence handle into exact immutable bytes.
+- Status: proposed/experimental; outside PCCO V0; default command bytes and default hook unchanged (`context --summary`/`--expand` are opt-in flags).
+- Exists: native Go `adapter source-view` consumer, opt-in `adapter claude-source-handoff` capture, opt-in `context --summary`/`--expand` views (V1-0023) and focused synthetic Go tests; the Python consumer and wrapper were deleted 2026-09-11 (`54735d98`). Native source digests are frozen (`ESV-V0-005`, decision 0364).
+- Blocked on: the preregistered matched complete-task trial `benchmarks/evidence-summary-trial-v0.json` (NOT_OBSERVED, `ESV-V0-010`) and owner acceptance for any promotion. Until both pass the views stay experimental and do not satisfy the V1-0023 release delivery claim.
+- Read next: Interface and bounds; Opt-in evidence summary and handle expansion; Requirements; Native implementation status; Acceptance and rollback.
 
 ## Job and baseline
 
@@ -122,6 +122,109 @@ Use its `consumer` with `--root ROOT --packet PACKET --packet-sha256 PACKET_SHA2
 packet use. A mismatch refuses before any source read and retains decoded metadata/raw fallback.
 No source span is chosen automatically. Consumer revision/blob checks remain authoritative.
 
+## Opt-in evidence summary and handle expansion
+
+V1-0023 adds two opt-in views to the existing `context` verb (decision 0364). No root verb is added.
+Without these flags the command prints exactly the packet it printed at base `1894b9e5`
+(`TCP-V0-024`).
+
+`corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N] --summary [--summary-bytes N]`
+compiles the ordinary packet and then projects its exact default stdout bytes:
+
+- The budget runs from 1024 to 65536 bytes, default 8192, and includes the trailing LF.
+- Every top-level member except `results` is kept verbatim. That covers `coverage` (with
+  `critical`, `critical_missing` and `unexamined`), `request`, `subject` (with its `evidence_gap`),
+  `state`, `revision`, `ok` and `mutates`.
+- Each result becomes one compact row: `index`, `kind`, `id`, `critical`, and from its single
+  evidence row `authority`, `trust`, `confidence`, `reason`, `line`, `blob_hash`, and
+  `evidence_gap` when present. The packet's `action`, `evidence`, `score` and `summary` fields are
+  dropped and listed in `summary.row_fields_omitted`.
+- Rows stay in packet order, so reserved governing and spec-mentioned rows come first. Rows are
+  kept until the next row would exceed the budget.
+- A budget that cannot hold the fixed members plus every row through the last critical row refuses
+  with `summary-budget` and says how many bytes are needed. It never drops a critical row.
+- The `summary` member records:
+  - `view` (`experimental-evidence-summary/0`);
+  - `packet_sha256` and `packet_bytes` of the full default stdout;
+  - `results_total`, `results_shown` and `results_omitted`;
+  - `budget_bytes`;
+  - `evidence_complete: "UNKNOWN"`;
+  - a `continuation` route (rerun without `--summary`; `results[results_shown:]` are the omitted
+    rows, and the rerun's sha256 must equal `packet_sha256`);
+  - the `expand` usage.
+
+Each row whose path is safe and whose packet has a revision and blob carries the handle
+`cv1:TREE:BLOB:RANGE:PATH`. Otherwise the handle is `null`. The handle fields are:
+
+- TREE: the packet's full `revision` tree OID.
+- BLOB: 7 to 64 lower-case hex digits.
+- RANGE: `all`, or `START-END` with one-based inclusive lines of at most nine digits and
+  START ≤ END.
+- PATH: repository-relative, and must pass the source-view safe-path rule.
+
+`corvint [--root PATH] context --expand HANDLE [--max-bytes N]` accepts no other context flag.
+`--max-bytes` runs from 1 to 1048576, default 65536. The command:
+
+1. Parses the handle. It must be UTF-8 and at most 4352 bytes.
+2. Requires the root to be the Git toplevel, and the TREE width to equal the repository's object
+   format width.
+3. Requires HEAD's tree to equal TREE.
+4. Lists TREE at PATH. The entry must be one regular-file blob.
+5. Resolves BLOB against the whole object database with `git rev-parse --disambiguate`. The result
+   must be exactly one object, and it must equal the tree entry's blob.
+6. Reads the blob from Git objects, never from the worktree, and recomputes its object ID.
+7. Cuts the LF-delimited line range and requires the selected bytes to be UTF-8 and within
+   `--max-bytes`.
+8. Rechecks HEAD's tree before printing.
+
+The output is one canonical JSON object with these members:
+
+- `view` (`experimental-evidence-expand/0`);
+- `handle`;
+- `source`: `object_format`, `tree`, `path`, `blob`, `blob_verified: true`, `bytes`, and `sha256`
+  of the whole blob;
+- `selection`: `range`, `complete`, `line_start`, `line_end`, `byte_start`, `byte_end`, `bytes`,
+  `sha256` of the selected bytes, and `text`.
+
+Every refusal exits 2, prints nothing on stdout, and prints one typed error on stderr.
+
+| Code | Condition |
+|---|---|
+| `summary-budget` | `--summary-bytes` outside 1024..65536, or the budget cannot hold every critical row |
+| `summary-shape` | the packet does not decode, is not a `context` packet, already has `summary`, or a result lacks exactly one evidence row |
+| `invalid-handle` | the grammar, hex, width, path or range fails; the range exceeds the blob's lines; the path is not a regular-file blob; or the handle's blob is not the tree's blob at PATH |
+| `stale-handle` | HEAD's tree is not the handle's TREE, before the read or at the recheck |
+| `missing-handle` | TREE has no entry at PATH, or no object has the BLOB identity |
+| `ambiguous-handle` | an abbreviated BLOB names more than one object |
+| `source-digest-mismatch` | the read bytes do not recompute the blob object ID |
+| `unsupported-text` | the selected bytes are not UTF-8 |
+| `expand-budget` | `--max-bytes` is outside 1..1048576, the blob is over 1048576 bytes, or the selection exceeds `--max-bytes` |
+| `repository-root` | the root is not its Git toplevel |
+| `git-failed` | Git cannot read HEAD's tree or resolve the blob identity |
+
+Non-goals:
+
+- No change to the default packet, `query`, `impact`, the adapters, the hook output or any
+  `protocol/**` wire.
+- No summarising of source text, no ranking change, and no automatic expansion.
+- No re-resolution of a stale handle against current content. A stale or ambiguous handle never
+  falls back to HEAD, the worktree or the index.
+- No AHI-004 envelope on the expand output, which matches the plain `context` stdout.
+- No persisted state. Summary and expansion write nothing under the repository or `.corvint/`.
+- No token-cost or task-quality claim before the trial in `ESV-V0-010`.
+
+Failure modes:
+
+- A summary could silently drop a critical row. The view refuses instead (`summary-budget`).
+- A consumer could mistake the summary for complete evidence. `evidence_complete` stays `UNKNOWN`,
+  and the totals and continuation route are always present.
+- A handle could be replayed after HEAD moves. It refuses as `stale-handle`, even when the blob
+  still exists.
+- An abbreviated blob could collide. It refuses as `ambiguous-handle` rather than being resolved
+  through the current tree.
+- A hostile handle could use traversal, an absolute path, a leading dash, control bytes, non-UTF-8
+  text, oversize input or an overflowing range. It refuses as `invalid-handle` before any Git read.
+
 ## Requirements
 
 - `ESV-V0-001`: Bind the bounded canonical packet and exact caller selector to object format,
@@ -150,9 +253,16 @@ No source span is chosen automatically. Consumer revision/blob checks remain aut
   unchanged JSON value, so `view.text` and every hash/byte-count field keep their exact bytes. When the
   emitted JSON contains the envelope terminator, source-view refuses whole with
   `corvint-envelope-terminator-collision` and emits no view or packet metadata.
-- `ESV-V0-005`: Remain opt-in under `experimental-source-view/0`, with no edits to existing public
-  context/query/impact/batch/default command producers. Rollback removes this consumer and its
-  registration without migration. Frozen source digests include the two imported supervisor files.
+- `ESV-V0-005`: Remain opt-in under `experimental-source-view/0`, and leave the bytes of the
+  existing public context/query/impact/batch/default command producers unchanged. The only
+  producer-side additions are the opt-in `context --summary` and `context --expand` flags
+  (`ESV-V0-008`, `ESV-V0-009`). Without those flags the `context` bytes are unchanged, and a golden
+  test captured from the base binary proves it. Rollback removes these consumers and their
+  registration without migration. The source digests of the native producer files
+  (`cmd/corvint/source_handoff.go`, `cmd/corvint/context_summary.go`) are frozen in
+  `benchmarks/selfuse-batch/source-views-manifest.json` `currentState.nativeSourceDigests`. A test
+  fails when either file changes without re-freezing its digest (amended by decision 0364; the two
+  Python supervisor files were deleted in `54735d98`).
 - `ESV-V0-006`: Treat focused synthetic correctness checks as development evidence only. The
   coordinator owns the preregistered matched task, blind R1–R5 quality gate, complete lifecycle
   accounting, one repair maximum, canonical gate and post-commit CEM binding. Unrun evaluations
@@ -166,6 +276,24 @@ No source span is chosen automatically. Consumer revision/blob checks remain aut
   lead digest before source expansion and retain caller-selected spans, byte bounds and raw fallback.
   Keep existing producer/default hook bytes and configuration unchanged. Direct deterministic
   hook-output evidence does not establish host model-visible delivery, adoption or task-cost benefit.
+- `ESV-V0-008`: `context --summary` prints at most `--summary-bytes` bytes (1024..65536,
+  default 8192, LF included) for the exact default packet. It keeps every non-`results` member
+  verbatim, keeps each shown row's identity, authority, trust, freshness (`blob_hash` under the
+  packet `revision`), `evidence_gap` and a `cv1:` handle, and reports `results_total`,
+  `results_shown`, `results_omitted`, the full packet's sha256 and the continuation route. It
+  refuses with `summary-budget` rather than omit any row through the last critical row, and it
+  keeps `evidence_complete` `UNKNOWN`.
+- `ESV-V0-009`: `context --expand HANDLE` returns only the handle's line range, read from Git
+  objects at the pinned tree, with the recomputed blob object ID, whole-blob and selection sha256,
+  and byte and line offsets, within `--max-bytes` (1..1048576). It refuses with `invalid-handle`,
+  `stale-handle`, `missing-handle`, `ambiguous-handle`, `source-digest-mismatch`,
+  `unsupported-text` or `expand-budget`, with nothing on stdout. It never substitutes HEAD,
+  worktree or index content, and it writes no repository or `.corvint/` state.
+- `ESV-V0-010`: The summary and expansion views stay experimental until the matched complete-task
+  trial preregistered in `benchmarks/evidence-summary-trial-v0.json` runs and the owner accepts
+  it. The trial compares current packets against summary plus expansion with model, effort,
+  framing and cache policy fixed. Until then its outcome is NOT_OBSERVED, and no token, cost,
+  latency or quality claim is made. These views do not satisfy the V1-0023 release delivery claim.
 
 ### Source handoff error codes
 
@@ -183,12 +311,14 @@ emitting site and states only the condition checked there.
 
 `54735d98` (2026-09-11) replaced the Python consumer, wrapper and their unittest suites with the
 native commands and `cmd/corvint/source_handoff_test.go`. Decision 0250 closed the other port gaps
-by implementation or amendment. This clause stays open rather than traced:
+by implementation or amendment.
 
-- ESV-V0-005 gap: `benchmarks/selfuse-batch/source-views-manifest.json` freezes digests of the deleted
-  Python bundle at its reviewed baseline. The requirement names only the two deleted supervisor
-  files and does not say which native files a digest covers, so no native source digest is frozen
-  (NOT_PRODUCED).
+The ESV-V0-005 gap is resolved by decision 0364 (V1-0023, 2026-09-23). The manifest's historical
+Python digests stay `STALE_HISTORICAL`. `currentState.nativeSourceDigests` now freezes the sha256 of
+`cmd/corvint/source_handoff.go` and `cmd/corvint/context_summary.go`.
+`TestSourceViewNativeSourceDigestsAreFrozen` recomputes both digests. `cmd/corvint/host_adapter.go`
+is excluded because it also carries unrelated adapter surfaces; the `SourceHandoff` tests cover its
+dispatch.
 
 ## Acceptance and rollback
 
@@ -198,9 +328,12 @@ by implementation or amendment. This clause stays open rather than traced:
 | ESV-V0-002 | `extractSourceView` span selection | `TestHostAdapterSourceViewSafeguards` exact CRLF/UTF-8 requirement block; `TestExtractSourceViewRefusesTextItCannotEmitExactly`; `TestSourceViewEnvelopeEscapesHiddenCharacters`; `TestSourceViewRequirementPrefixGrammar` frontmatter, fence and HTML prefix scan |
 | ESV-V0-003 | `sourceGit` sanitized bounded Git reads through `procgroup.Run` under the 10-second context; pager-disabled raw fallback with its environment | `TestHostAdapterSourceViewSafeguards` view budget; `TestHostAdapterSourceViewPacketAndIdentityRefusals` oversized packet; `TestClaudeSourceHandoffCLI` repository bytes unchanged; `TestSourceViewCancellationTerminatesGitProcessGroup` TERM and descendant reap; `TestSourceViewRawFallbackDisablesPagerWithSanitizedEnvironment`; `TestSourceViewBoundsArgumentBytes`; `TestSourceViewRefusesSymlinkedPacket`; `TestSourceViewRefusesFIFOPacket`; `TestSourceViewStaysWithinGitCommandBudget` |
 | ESV-V0-004 | `runSourceViewAdapter` typed refusal envelope | `TestHostAdapterSourceViewPacketAndIdentityRefusals` unsafe paths without fallback, malformed packets; `TestHostAdapterSourceViewSafeguards` digest mismatch keeps metadata and fallback; `TestSourceViewRefusesEnvelopeTerminatorCollision` |
-| ESV-V0-005 | opt-in `adapter source-view` and `adapter claude-source-handoff` dispatch only | diff scope plus existing producer bytes unchanged; native source digest NOT_PRODUCED |
+| ESV-V0-005 | opt-in `adapter source-view`, `adapter claude-source-handoff` and `context --summary`/`--expand` dispatch only | `TestContextDefaultWireIsTheGolden` default context bytes equal the base-binary golden; `TestSourceViewNativeSourceDigestsAreFrozen` native source digests |
 | ESV-V0-006 | coordinator experiment | NOT_RUN; no whole-task performance claim |
 | ESV-V0-007 | `runClaudeSourceHandoff`/`captureSourceHandoff` explicit captured-packet seam and `executeSourceView` digest check | `TestClaudeSourceHandoffCLI` adapter capture, lead digest and source-view consumption; `TestHostAdapterSourceHandoffPublicationRefusals` in-repository and existing output refusals; plugin script identity amended away (decision 0250) |
+| ESV-V0-008 | `summarizeContextPacket` in `cmd/corvint/context_summary.go` | `TestContextSummaryKeepsIdentityCoverageAndCriticalRows` budget sweep, verbatim members, row identities and handles; `TestContextSummaryTruncationReportsTotalsAndRefusesToDropCriticalRows` totals, continuation and critical-row refusal; `TestContextSummaryAndExpandAreReadOnly` |
+| ESV-V0-009 | `expandContextHandle`/`parseContextHandle` in `cmd/corvint/context_summary.go` | `TestContextExpandReturnsExactPinnedBytes` exact bytes with a dirty worktree; `TestContextExpandRefusesWithoutSubstitutingContent` invalid, hostile, missing, non-UTF-8 and budget cases; `TestContextExpandRefusesAStaleHandleAfterHeadMoves`; `TestContextExpandRefusesAnAmbiguousAbbreviatedBlob`; `TestContextSummaryAndExpandAreReadOnly` no `.corvint/` write |
+| ESV-V0-010 | preregistration `benchmarks/evidence-summary-trial-v0.json` | NOT_OBSERVED; no trial run; no owner acceptance |
 
 Implementation sequence: freeze this spec and independent read-only plan review; implement only
 consumer/tests; focused identity/extraction/refusal/lifecycle checks; fresh independent review;
@@ -211,6 +344,15 @@ retire the intervention; a positive one permits a preregistered repeat, not prod
 Human acceptance, general Markdown parsing, additional selectors and public integration remain out
 of scope. Remove `cmd/corvint/source_handoff.go`, its tests, the two `cmd/corvint/host_adapter.go` dispatch
 entries and their help text to roll back; the caller deletes explicitly captured external packets. There is no default saved consumer state or migration.
+To roll back the V1-0023 views to current packets, do the following. There is no persisted state,
+cache or migration, and saved handles simply stop resolving.
+
+- Delete `cmd/corvint/context_summary.go`, `cmd/corvint/context_summary_test.go` and
+  `cmd/corvint/testdata/context-default-wire.golden`.
+- Remove the view fields, flag cases, `checkContextViewArguments`, the two dispatch branches and
+  the help paragraph from `cmd/corvint/taskcontext.go`, restoring the `--task` required check.
+- Drop `cmd/corvint/context_summary.go` from the manifest's `implementation` and
+  `nativeSourceDigests`.
 
 
 ## Development screen outcome — 2026-09-06

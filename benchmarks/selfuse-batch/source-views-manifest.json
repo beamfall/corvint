@@ -6,7 +6,8 @@
     "reason": "Every sources, tests, handoffTests and argv entry below describes the Python bundle at reviewedBaseline. Commit 54735d98 (2026-09-11) deleted those files and replaced them with native Go commands; the recorded digests and test runs are not re-verifiable against the current tree and were not recomputed.",
     "implementation": [
       "cmd/corvint/source_handoff.go",
-      "cmd/corvint/host_adapter.go"
+      "cmd/corvint/host_adapter.go",
+      "cmd/corvint/context_summary.go"
     ],
     "argv": [
       "corvint",
@@ -36,7 +37,21 @@
       "path": "cmd/corvint/source_handoff_test.go",
       "command": "GOTOOLCHAIN=local go test -count=1 -timeout 30m -run 'SourceView|SourceHandoff' ./cmd/corvint"
     },
-    "nativeSourceDigests": "NOT_PRODUCED",
+    "nativeSourceDigests": {
+      "algorithm": "sha256",
+      "scope": "Source-view producer files. cmd/corvint/host_adapter.go is excluded because it also carries unrelated adapter surfaces; its handoff behaviour stays covered by the SourceHandoff tests.",
+      "verifiedBy": "TestSourceViewNativeSourceDigestsAreFrozen in cmd/corvint/context_summary_test.go",
+      "files": [
+        {
+          "path": "cmd/corvint/context_summary.go",
+          "sha256": "52ef98c8e9551e6cb654eee7902611abbe2727b7c1a28459dd2ab728971f2a14"
+        },
+        {
+          "path": "cmd/corvint/source_handoff.go",
+          "sha256": "e124973ab7a7501a9c1409355e77288af32645236aa64ac68401f2c6a89f6490"
+        }
+      ]
+    },
     "conformanceGaps": "See Native implementation status in docs/specs/experimental-source-views-v0.md"
   },
   "requirements": [

@@ -899,12 +899,13 @@
     "reqPrefix": "ESV-V0",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "An opt-in development consumer expands a selected saved context evidence handle into exact immutable bytes.",
+    "claim": "Opt-in development views bound a context packet and expand one selected digest-pinned evidence handle into exact immutable bytes.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
     "implementation": [
-      "cmd/corvint/source_handoff.go"
+      "cmd/corvint/source_handoff.go",
+      "cmd/corvint/context_summary.go"
     ]
   },
   {

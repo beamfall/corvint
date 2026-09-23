@@ -20,12 +20,21 @@ import (
 type taskContextOptions struct {
 	root, task, subject string
 	limit               int
+	// summary, summaryBytes, expand and maxBytes are the opt-in experimental
+	// consumers (TCP-V0-024, ESV-V0-008/009); absent, the wire is unchanged.
+	summary                 bool
+	summaryBytes, maxBytes  int
+	expand                  string
+	summarySet, limitSet    bool
+	summaryBytesSet, maxSet bool
 }
 
 const taskContextDefaultLimit = 20
 
 // parseTaskContextInvocation recognises `[--root PATH] context --task TEXT
-// [--subject PATH] [--limit N]`; any other shape is not a context invocation.
+// [--subject PATH] [--limit N] [--summary [--summary-bytes N]]` and
+// `[--root PATH] context --expand HANDLE [--max-bytes N]`; any other shape is
+// not a context invocation.
 func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, error) {
 	if _, requested, _ := parseHelpInvocation(arguments); requested {
 		return taskContextOptions{}, false, nil
@@ -34,7 +43,7 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 	if position < 0 || arguments[position] != "context" {
 		return taskContextOptions{}, false, nil
 	}
-	options := taskContextOptions{root: ".", limit: taskContextDefaultLimit}
+	options := taskContextOptions{root: ".", limit: taskContextDefaultLimit, summaryBytes: contextSummaryDefaultBytes, maxBytes: contextExpandDefaultBytes}
 	for index := 0; index < position; index++ {
 		if arguments[index] == "--root" {
 			options.root, index = arguments[index+1], index+1
@@ -45,6 +54,10 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 	taskSet := false
 	rest := arguments[position+1:]
 	for index := 0; index < len(rest); index++ {
+		if rest[index] == "--summary" {
+			options.summary, options.summarySet = true, true
+			continue
+		}
 		flag, value, inline := strings.Cut(rest[index], "=")
 		if !inline {
 			if index+1 >= len(rest) || argparseOptionLike(rest[index+1]) {
@@ -62,13 +75,25 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 			if err != nil {
 				return options, true, argumentError("argument --limit: invalid int value: " + strconv.Quote(value))
 			}
-			options.limit = limit
+			options.limit, options.limitSet = limit, true
+		case "--summary-bytes", "--max-bytes":
+			bytes, err := strconv.Atoi(value)
+			if err != nil {
+				return options, true, argumentError("argument " + flag + ": invalid int value: " + strconv.Quote(value))
+			}
+			if flag == "--max-bytes" {
+				options.maxBytes, options.maxSet = bytes, true
+				continue
+			}
+			options.summaryBytes, options.summaryBytesSet = bytes, true
+		case "--expand":
+			options.expand = value
 		default:
 			return options, true, argumentError("unrecognized arguments: " + rest[index])
 		}
 	}
-	if !taskSet {
-		return options, true, argumentError("the following arguments are required: --task")
+	if err := checkContextViewArguments(options, taskSet); err != nil {
+		return options, true, err
 	}
 	resolved, err := resolveExplicitRoot(options.root)
 	if err != nil {
@@ -78,10 +103,31 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 	return options, true, nil
 }
 
+// checkContextViewArguments refuses mixed or orphaned view flags: --expand
+// stands alone except --max-bytes, and --summary-bytes needs --summary.
+func checkContextViewArguments(options taskContextOptions, taskSet bool) error {
+	if options.expand != "" && (taskSet || options.subject != "" || options.limitSet || options.summarySet || options.summaryBytesSet) {
+		return argumentError("argument --expand: not allowed with --task, --subject, --limit, --summary or --summary-bytes")
+	}
+	if options.expand == "" && options.maxSet {
+		return argumentError("argument --max-bytes: requires --expand")
+	}
+	if options.summaryBytesSet && !options.summarySet {
+		return argumentError("argument --summary-bytes: requires --summary")
+	}
+	if options.expand == "" && !taskSet {
+		return argumentError("the following arguments are required: --task")
+	}
+	return nil
+}
+
 // runTaskContext compiles one packet and prints it. Read-only: the tree's
 // snapshot when `corvint index` wrote one, else one index build over the
 // committed tree; no trace, ledger, or snapshot write on any path.
 func runTaskContext(ctx context.Context, options taskContextOptions, stdout, stderr io.Writer) int {
+	if options.expand != "" {
+		return runContextExpand(ctx, options, stdout, stderr)
+	}
 	// CPUPROFILE (V1-0051): operator env var, off by default, documented in
 	// cpuProfileHelpNote (help.go) and task-context-packet-v0.md's Non-goals
 	// and authority section; it writes a local diagnostic file and does not
@@ -117,6 +163,13 @@ func runTaskContext(ctx context.Context, options taskContextOptions, stdout, std
 	if err != nil {
 		emitError(stderr, err)
 		return 2
+	}
+	if options.summary {
+		encoded, err = summarizeContextPacket(append(encoded, '\n'), options.summaryBytes)
+		if err != nil {
+			emitError(stderr, err)
+			return 2
+		}
 	}
 	if _, err := stdout.Write(append(encoded, '\n')); err != nil {
 		emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write task-context packet"})
@@ -155,6 +208,23 @@ carried under "subject" and never appears among "results": it is the subject
 of the question, not one of its answers. Without --subject the packet has the
 retrieval shape (mentioned, definition, lexical). "state" is READY when at
 least one result exists and NO_CANDIDATES otherwise; --limit defaults to 20.
+
+Experimental opt-in views (experimental-source-views-v0, ESV-V0-008..010);
+without these flags the packet bytes are unchanged:
+
+  corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N]
+    --summary [--summary-bytes N]
+  corvint [--root PATH] context --expand HANDLE [--max-bytes N]
+
+--summary prints the same packet with compact result rows, at most
+--summary-bytes (default 8192, 1024..65536) including the newline. Every other
+member, coverage included, is kept verbatim; a budget that cannot hold every
+critical row refuses. "summary" gives the full packet's sha256, the row totals
+and the continuation route. Each pinned row carries a handle
+cv1:TREE:BLOB:RANGE:PATH (RANGE is all or START-END). --expand prints that
+handle's exact bytes from Git objects with the verified blob identity, at most
+--max-bytes (default 65536, up to 1048576); an invalid, stale, missing or
+ambiguous handle refuses and never substitutes current content.
 `
 
 // loadContextSnapshot is the context verb's snapshot read. On a miss it also
