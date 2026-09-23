@@ -195,7 +195,7 @@ script's evidence depends on that target also running.
 The witness is state under the Git directory that outlives the run, which is why the gate removes
 any pre-existing one before building. It is derived private state, never an input to ranking,
 evidence, or authority, and a removed witness costs nothing a rerun cannot rebuild: the only other
-reader, `script/release-checklist:47-48@74e4657d`, reports `NOT_RUN` when it is absent. That word is the
+reader, `script/release-checklist:74-75@74e4657d`, reports `NOT_RUN` when it is absent. That word is the
 checklist's prescribed status token, not an unexecuted-evidence marker.
 
 Both the gate and the checklist resolve the witness path from `git rev-parse --absolute-git-dir`,
