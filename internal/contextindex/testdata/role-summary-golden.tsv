@@ -5,7 +5,10 @@ go/directive.go	3-5	Package unix wraps the kernel calls.
 go/doc.go	1-2	Package parser reads task text into terms.
 go/generated.go	-
 go/license.go	3-3	Package frob frobnicates values.
+go/misattributed.go	-
 go/none.go	-
+go/quadratic.go	-
+go/trailing.go	-
 java/Client.java	6-8	HTTP client for the registry.
 js/overview.js	4-7	Rule to flag unused variables.
 py/code.py	-

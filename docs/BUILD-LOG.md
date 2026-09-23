@@ -53,6 +53,11 @@ qualification tests (1 failure, then 5 different ones, on a rerun under load). T
 not depend on `internal/contextindex`; this is recorded as pre-existing and load-sensitive, not
 fixed here. `go vet` is clean on all 62, and the focused-docs gate passes. `make gate`:
 NOT_RUN (owner policy).
+Review fix: a `*/` block now attaches only when its opening line starts with `/*` and no other
+comment or trailing-code `*/` lies between, and blocks are read lazily, which removes a
+misattributed role line and a quadratic 64 KiB scan (golden `go/misattributed.go`,
+`go/quadratic.go`, `go/trailing.go`, now bounded under 16 MiB and 100 ms); the frozen evaluation
+above predates the fix and was not rerun (NOT_RUN).
 
 ## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
 

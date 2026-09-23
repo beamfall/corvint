@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"iter"
 	"path"
 	"sort"
 	"strconv"
@@ -46,8 +47,9 @@ type commentBlock struct {
 }
 
 // roleBlockReaders lists, per file suffix, the doc comments a role line may
-// come from, in preference order; a suffix absent here has no role line.
-var roleBlockReaders = map[string]func([]string) []commentBlock{
+// come from, in preference order and lazily, so extraction stops at the first
+// qualifying one; a suffix absent here has no role line.
+var roleBlockReaders = map[string]func([]string) iter.Seq[commentBlock]{
 	".go": goRoleBlocks, ".py": pythonRoleBlocks, ".rs": rustRoleBlocks,
 	".js": docMarkerBlocks, ".jsx": docMarkerBlocks, ".mjs": docMarkerBlocks, ".cjs": docMarkerBlocks,
 	".ts": docMarkerBlocks, ".tsx": docMarkerBlocks, ".java": docMarkerBlocks, ".kt": docMarkerBlocks,
@@ -73,7 +75,7 @@ func extractRoleSummary(name, text string) (roleSummary, bool) {
 		return roleSummary{}, false
 	}
 	scanned := text[:min(len(text), roleSummaryScanBytes)]
-	for _, block := range reader(strings.Split(scanned, "\n")) {
+	for block := range reader(strings.Split(scanned, "\n")) {
 		if line, ok := roleLine(block.lines); ok {
 			return roleSummary{text: line, start: block.start, end: block.end}, true
 		}
@@ -146,25 +148,26 @@ func firstParagraph(lines []string) []string {
 
 // goRoleBlocks: the comment immediately above the package clause, then each
 // comment immediately above a column-0 declaration.
-func goRoleBlocks(lines []string) []commentBlock {
-	blocks := make([]commentBlock, 0)
-	for index, line := range lines {
-		if strings.HasPrefix(line, "package ") {
-			if block, ok := commentAbove(lines, index); ok {
-				blocks = append(blocks, block)
+func goRoleBlocks(lines []string) iter.Seq[commentBlock] {
+	return func(yield func(commentBlock) bool) {
+		for index, line := range lines {
+			if !strings.HasPrefix(line, "package ") {
+				continue
+			}
+			if block, ok := commentAbove(lines, index); ok && !yield(block) {
+				return
 			}
 			break
 		}
-	}
-	for index, line := range lines {
-		if !goDeclaration(line) {
-			continue
+		for index, line := range lines {
+			if !goDeclaration(line) {
+				continue
+			}
+			if block, ok := commentAbove(lines, index); ok && !yield(block) {
+				return
+			}
 		}
-		if block, ok := commentAbove(lines, index); ok {
-			blocks = append(blocks, block)
-		}
 	}
-	return blocks
 }
 
 func goDeclaration(line string) bool {
@@ -183,12 +186,7 @@ func commentAbove(lines []string, index int) (commentBlock, bool) {
 		return commentBlock{}, false
 	}
 	if strings.HasSuffix(strings.TrimSpace(lines[index-1]), "*/") {
-		for start := index - 1; start >= 0; start-- {
-			if strings.HasPrefix(lines[start], "/*") {
-				return markerBlock(lines, start, index-1), true
-			}
-		}
-		return commentBlock{}, false
+		return blockAbove(lines, index-1)
 	}
 	start := index
 	for start > 0 && strings.HasPrefix(lines[start-1], "//") {
@@ -208,6 +206,40 @@ func commentAbove(lines []string, index int) (commentBlock, bool) {
 	return commentBlock{lines: content, start: start + 1, end: index}, true
 }
 
+// blockAbove is the column-0 `/* */` block closed by the `*/` ending
+// lines[end]. That line holds no code before a `/*`, and the backward scan
+// stops, refusing, at any line that closes or opens another comment, so each
+// line is scanned for at most one declaration.
+func blockAbove(lines []string, end int) (commentBlock, bool) {
+	if strings.Contains(lines[end], "/*") {
+		if !oneLineBlock(lines[end]) {
+			return commentBlock{}, false
+		}
+		return markerBlock(lines, end, end), true
+	}
+	for start := end - 1; start >= 0; start-- {
+		line := lines[start]
+		if strings.Contains(line, "*/") {
+			return commentBlock{}, false
+		}
+		if strings.HasPrefix(line, "/*") {
+			return markerBlock(lines, start, end), true
+		}
+		if strings.Contains(line, "/*") {
+			return commentBlock{}, false
+		}
+	}
+	return commentBlock{}, false
+}
+
+// oneLineBlock reports a line that is one column-0 `/* ... */` comment and
+// nothing else.
+func oneLineBlock(line string) bool {
+	body := strings.TrimRight(line, " \t\r")
+	closer := strings.Index(body, "*/")
+	return strings.HasPrefix(body, "/*") && closer >= 2 && closer == len(body)-2
+}
+
 // isGoDirective reports a `//go:build`-shaped line (`//` then
 // `[a-z0-9]+:`) or a `//+build` line, which go/doc leaves out of a doc comment.
 func isGoDirective(body string) bool {
@@ -217,19 +249,19 @@ func isGoDirective(body string) bool {
 
 // pythonRoleBlocks: the module docstring, the first statement after blank
 // lines and `#` comments.
-func pythonRoleBlocks(lines []string) []commentBlock {
-	for index, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
+func pythonRoleBlocks(lines []string) iter.Seq[commentBlock] {
+	return func(yield func(commentBlock) bool) {
+		for index, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+				continue
+			}
+			if block, ok := docstring(lines, index); ok {
+				yield(block)
+			}
+			return
 		}
-		block, ok := docstring(lines, index)
-		if !ok {
-			return nil
-		}
-		return []commentBlock{block}
 	}
-	return nil
 }
 
 // docstring reads a string literal statement starting on lines[index], with
@@ -258,47 +290,51 @@ func docstring(lines []string, index int) (commentBlock, bool) {
 }
 
 // rustRoleBlocks: the first column-0 `//!` run, then the doc-marker blocks.
-func rustRoleBlocks(lines []string) []commentBlock {
-	blocks := make([]commentBlock, 0)
-	for index := 0; index < len(lines); index++ {
-		if !strings.HasPrefix(lines[index], "//!") {
-			continue
+func rustRoleBlocks(lines []string) iter.Seq[commentBlock] {
+	return func(yield func(commentBlock) bool) {
+		for index := 0; index < len(lines); index++ {
+			if !strings.HasPrefix(lines[index], "//!") {
+				continue
+			}
+			start := index
+			content := make([]string, 0)
+			for ; index < len(lines) && strings.HasPrefix(lines[index], "//!"); index++ {
+				content = append(content, strings.TrimPrefix(lines[index], "//!"))
+			}
+			if !yield(commentBlock{lines: content, start: start + 1, end: index}) {
+				return
+			}
+			break
 		}
-		start := index
-		content := make([]string, 0)
-		for ; index < len(lines) && strings.HasPrefix(lines[index], "//!"); index++ {
-			content = append(content, strings.TrimPrefix(lines[index], "//!"))
-		}
-		blocks = append(blocks, commentBlock{lines: content, start: start + 1, end: index})
-		break
+		docMarkerBlocks(lines)(yield)
 	}
-	return append(blocks, docMarkerBlocks(lines)...)
 }
 
 // docMarkerBlocks: every column-0 `/** */` block and `///` run, in file
 // order. The explicit doc marker keeps a plain `/*` licence block out.
-func docMarkerBlocks(lines []string) []commentBlock {
-	blocks := make([]commentBlock, 0)
-	for index := 0; index < len(lines); index++ {
-		line := lines[index]
-		switch {
-		case strings.HasPrefix(line, "/**") && !strings.HasPrefix(line, "/**/"):
-			end, closed := blockEnd(lines, index)
-			if !closed {
-				return blocks
+func docMarkerBlocks(lines []string) iter.Seq[commentBlock] {
+	return func(yield func(commentBlock) bool) {
+		for index := 0; index < len(lines); index++ {
+			line := lines[index]
+			switch {
+			case strings.HasPrefix(line, "/**") && !strings.HasPrefix(line, "/**/"):
+				end, closed := blockEnd(lines, index)
+				if !closed || !yield(markerBlock(lines, index, end)) {
+					return
+				}
+				index = end
+			case strings.HasPrefix(line, "///") && !strings.HasPrefix(line, "////"):
+				start := index
+				content := make([]string, 0)
+				for ; index < len(lines) && strings.HasPrefix(lines[index], "///"); index++ {
+					content = append(content, strings.TrimPrefix(lines[index], "///"))
+				}
+				if !yield(commentBlock{lines: content, start: start + 1, end: index}) {
+					return
+				}
 			}
-			blocks = append(blocks, markerBlock(lines, index, end))
-			index = end
-		case strings.HasPrefix(line, "///") && !strings.HasPrefix(line, "////"):
-			start := index
-			content := make([]string, 0)
-			for ; index < len(lines) && strings.HasPrefix(lines[index], "///"); index++ {
-				content = append(content, strings.TrimPrefix(lines[index], "///"))
-			}
-			blocks = append(blocks, commentBlock{lines: content, start: start + 1, end: index})
 		}
 	}
-	return blocks
 }
 
 // blockEnd is the line holding the `*/` that closes the block comment
