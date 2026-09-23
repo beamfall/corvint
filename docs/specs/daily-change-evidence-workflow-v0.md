@@ -87,6 +87,15 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   uncited hunk leaves `cem-status` `not-ready`, so the check fails `dogfood-report-drift`. A passing
   check or a seal MUST be described as structural closure, never as correctness, test adequacy or a
   passing project gate.
+- `DCW-V0-016`: The `dogfood-check` verifier set and its `outputsAgree` result are author-only
+  evidence: they need the author's private report, local-outcome record and OCM maps, and no
+  committed artifact binds the report's digest, so a reviewer MUST NOT be asked to accept a
+  handed-off report as their own observation. `docs/DOGFOOD.md` step 11 MUST say so and name what
+  the reviewer verifies instead from a fresh clone of the bind commit: the committed CEM with their
+  own binary (`corvint cem verify` and strict `cem status`), the seal as one exact rename, and the
+  report's semantics (section 6). When `HEAD` tracks `.corvint/change.cem.json`, the
+  `dogfood-report-missing` failure MUST also print a `review:` line stating this and naming the
+  `cem verify` command for that base and `HEAD`; its reason code and exit status MUST NOT change.
 
 ## Non-goals and baseline
 
@@ -119,6 +128,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-009..010` | native platform and installed exact-host evidence required | NOT_QUALIFIED |
 | `DCW-V0-011..012` | portfolio, gate and candidate evidence required | NOT_QUALIFIED |
 | `DCW-V0-013..015` | `docs/DOGFOOD.md` "Daily adopter path"; `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed`; scratch reproductions recorded in the V1-0010 build-log entry | implemented; the SIGINT interrupt and reviewer leg NOT_OBSERVED |
+| `DCW-V0-016` | `docs/DOGFOOD.md` step 11; the reviewer case in `script/dogfood-change_test.sh`; the V1-0182 build-log entry | implemented; reviewer-side verifier agreement is out of scope by design |
 
 ## Compatibility and rollback
 

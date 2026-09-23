@@ -134,13 +134,16 @@ missing-`rg` refusal exits 1, `script/dogfood-check.sh:8-10`), and 129, 130
 or 143 on `HUP`, `INT` or `TERM` (`script/dogfood-check.sh:88-90`); `make` reports any non-zero
 recipe exit as 2, which the worked example observed.
 
-**Fresh-clone limitation (V1-0182, open).** The task-store title of ticket V1-0182 states it
+**Fresh-clone limitation (V1-0182, by design).** The task-store title of ticket V1-0182 states it
 verbatim: "dogfood-check: in a fresh clone the check fails `dogfood-report-missing` before any
 verifier runs, so a reviewer cannot reproduce the override-verifier comparison". The worked example
-reproduces it: `script/dogfood-check.sh:305-308` exits 1 with `FAIL dogfood-report-missing` because
+reproduces it: `script/dogfood-check.sh:305-313` exits 1 with `FAIL dogfood-report-missing` because
 `.corvint/dogfood-report.json` is gitignored and only the author's `dogfood-change` writes it. A
 fresh-clone trigger can therefore verify a sealed CEM with `cem verify`, but cannot reproduce the
-author's dogfood-check verifier comparison.
+author's dogfood-check verifier comparison. That comparison is author-only evidence
+(`DCW-V0-016`, `docs/DOGFOOD.md` step 11); on a bind commit the failure now also prints a
+`review:` line naming the `cem verify` command a reviewer runs instead. The worked example below
+pins a commit that predates that line.
 
 The existing pull-request wrapper [`examples/cem/verify-pr.sh`](../examples/cem/verify-pr.sh),
 documented with its own 0/1/2/3 exit table in [CEM in CI](CEM-CI.md), runs `cem verify` from a

@@ -75,7 +75,20 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
 10. Run `make dogfood-seal BASE=$BASE`. Expected: `dogfood-seal: PASS
     sealed=.corvint/changes/<bind-commit>.cem.json` and one rename-only commit.
 11. Hand the branch and reports to an independent reviewer (section 6) and keep the outcome
-    recorded by step 6 (section 7).
+    recorded by step 6 (section 7). The verifier digests and `outputsAgree` in the report's
+    `dogfoodCheck` line are author-only evidence (`DCW-V0-016`): the check also needs the author's
+    private `<git-dir>/corvint/local-outcome.json` and OCM maps, and nothing committed binds the
+    report's digest, so a handed-off report is not the reviewer's own observation. In a fresh clone
+    `make dogfood-check` on the bind commit fails `dogfood-report-missing` and prints a `review:`
+    line naming the command below. From a fresh clone of the bind commit (the seal's parent), the
+    reviewer verifies instead, with their own `corvint`:
+    `corvint cem verify --map .corvint/change.cem.json --expected-base $BASE --target HEAD`
+    (expected `"valid": true`, `"assurance": "canonical"`, exit 0); the same map through
+    `corvint cem status` with `--max-unknown 0 --max-mechanical 0`, expected `ready-for-ci`
+    (raise `--max-unknown` only to the report's `bootstrapUnknown`); that
+    `git diff-tree -r -M --no-commit-id --name-status HEAD SEAL` prints only
+    `R100 .corvint/change.cem.json .corvint/changes/<bind-commit>.cem.json` (tab-separated); and
+    the semantics of the cited hunks and the handed-off reports (section 6).
 
 ### Fail-closed outcomes
 
