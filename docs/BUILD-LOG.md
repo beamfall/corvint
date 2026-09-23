@@ -4,6 +4,64 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0191 MCPV0-016: corvint-mcp pins Git at start; official schema executes
+
+Finding: the MCP 2026-07-28 spec kept two promotion blockers. The shared Git resolver memoised
+`git` per `PATH` and `DEVELOPER_DIR` but resolved it at first use, not at start, and
+`plansnapshot` looked `git` up on `PATH` on every call that carried a planning snapshot. A `git`
+planted earlier on the server's `PATH` after start could therefore run.
+Official-schema execution was `NOT_RUN`, because the no-network suite had no local copy of the
+pinned schema to validate against.
+
+Decision: `gitstatus.Pin` resolves Git once and fixes that absolute path for the process, and
+`Executable` returns it from then on. `plansnapshot` now spawns the resolver's path instead of its
+own lookup. `corvint-mcp` calls `Pin` before building the bridge and exits with status 2 when Git
+does not resolve. The official schema stays unvendored. `PROVENANCE.md`
+states that all source here is owner-authored, and the upstream schema repository is moving from
+MIT to Apache-2.0, so copying it in would need its own rights record. Instead
+`TestServerTrafficMatchesOfficialSchema` runs when `CORVINT_MCP_OFFICIAL_SCHEMA` names a local copy.
+It refuses any digest other than the pinned one. It validates the suite's discovery, tool-list,
+tool-call and error requests and the live server's responses against the schema's `$defs`, and it
+fails on any JSON Schema keyword its checker does not implement. `cases.json` now lists no
+promotion blockers. `internal/gitstatus` is an audited analyzer input, so the analyzer schema moves
+to `corvint-analyzer/78`. The status stays proposed and experimental: official MCP conformance, the
+task-context and `cem report` tools, and owner acceptance remain. This amends proposed MCP spec
+text; the owner's PR review is its human review.
+
+Evidence: `TestGitPlantedOnPathAfterStartNeverRuns` plants a `git` that writes a marker after the
+server starts. It then calls `corvint.status` and `corvint.impact` with a planning snapshot; both
+succeed with no marker written. The test fails with the `Pin` call removed from `corvint-mcp`, and
+again with the old `plansnapshot` lookup restored, so it observes both. A second subtest starts the
+server with no `git` on `PATH` and gets exit status 2 with `corvint-mcp: git unavailable`. An
+independent review found the `plansnapshot` bypass, which this change then closed. The opt-in schema run
+passed on 2026-09-23 against a copy whose SHA-256 matched the pin, with and without `-race`. The
+affected Go packages pass; `TestHostAdapterJavaScriptHarnessInterruption` failed once at host load
+above 100 and passed three times alone. `make gate` was not run (owner preference).
+
+## 2026-09-23 V1-0204 AFP-V0-020: every plugin names a changed unit no test reaches
+
+Finding: AFP-V0-020 named a changed Go package with no tests as `NO_SELECTABLE_TEST`, but the
+other seven plugins silently omitted a changed source unit that no test reached. The plan stayed
+`BOUNDED` with nothing selected for it.
+
+Decision: each plugin defines "no selectable test" through one lookup table in `affected.Select`.
+Go keeps its own-tests rule, because the go tool runs a package's tests only against that package.
+Every other plugin may keep tests in the unit itself, as Rust does, or in units that depend on it.
+A changed unit there has no selectable test when no unit it reaches through the graph, itself
+included, declares a test. The graph computes that set once when it is built, with one walk over
+forward imports from every unit that declares a test, so each changed unit costs one lookup. A
+frontier plan now also names such a unit when the frontier hides the edge from its test. The
+TypeScript, Ruby and .NET frontier tests expect that second unknown. The Playwright plan still
+widens to the full relevant suite only on the shared graph's other unknowns, so it does not yet
+name such a helper and stays `BOUNDED` for it. How it should report one is V1-0211, a follow-up.
+This amends proposed AFP-V0-020 text; the owner's PR review is its human review.
+
+Evidence: `TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020` removes the conformance fixture's
+`solo` tests in every language. An edit to `solo` must give `NO_SELECTABLE_TEST` at `UNKNOWN`
+scope, and an edit to `core` must not. It fails for all seven non-Go plugins on the base rule and
+passes with the change, and it checks that the unknown names the `solo` unit. `make gate` was
+not run (owner preference).
+
 ## 2026-09-23 V1-0192 LCP-V0-010, LCP-V0-013: task mentions anchor prompt context
 
 The native user-prompt event resolved only explicit paths, requirement IDs and source-backed

@@ -16,7 +16,7 @@ official JSON Schema pinned at commit
 - Claim: A local stdio MCP server exposes bounded read-only Corvint receipts, with 2026-07-28 default and explicit 2025-11-25 compatibility.
 - Status: proposed/experimental
 - Exists: `cmd/corvint-mcp`, `internal/mcp`, and independent compiled-process conformance vectors.
-- Blocked on: official-schema execution, official MCP conformance, and promotion evidence remain `NOT_RUN`.
+- Blocked on: official MCP conformance and promotion evidence remain `NOT_RUN`; official-schema execution is opt-in and passed on 2026-09-23 (V1-0191).
 - Read next: User and measurable job; Explicit 2025-11-25 compatibility; Traceability.
 
 ## User and measurable job
@@ -47,15 +47,17 @@ connection does not make any native host tuple `FULL` and does not prove a Corvi
   properties would replace the protocol core rather than reduce it. V0 uses a minimal dependency-
   free Go protocol core derived from inspection of the official schema. The conformance manifest
   pins that schema's URL and observed SHA-256
-  `ef70b61f99b6d2e5e3b46863822eab08dff6a45bedc7a08914e0e5b133f40203`; executable validation
-  against its bytes is `NOT_RUN` because the conformance suite is deliberately no-network and the
-  schema JSON is not vendored in-repo, so no local input exists to validate against that digest.
+  `ef70b61f99b6d2e5e3b46863822eab08dff6a45bedc7a08914e0e5b133f40203`. The schema JSON is not
+  vendored, so the default no-network suite skips official-schema execution. An operator who names
+  a local copy with `CORVINT_MCP_OFFICIAL_SCHEMA` runs `TestServerTrafficMatchesOfficialSchema`,
+  which refuses any other digest and validates the suite's requests and the live server's discovery,
+  tool-list, tool-call and error responses against the schema's `$defs` (V1-0191).
 - The candidate bridge invokes Corvint kernels in process and therefore performs no Corvint executable
-  PATH lookup, shell execution, or user-controlled argv. Its inherited context-index and Go-kernel
-  Git runners currently resolve `git` through PATH on each invocation. Direct argv, sanitized
-  output, and process-group cleanup exist, but post-start Git executable pinning is
-  `NOT_OBSERVED`. This is a release blocker until the parent-owned runners accept one absolute,
-  start-time-pinned Git executable.
+  PATH lookup, shell execution, or user-controlled argv. Its inherited context-index, Go-kernel and
+  planning-snapshot Git runners resolve `git` through one shared resolver. `corvint-mcp` pins that resolver to one
+  absolute Git executable at start and refuses to start when Git does not resolve, so no later PATH
+  change reaches a spawn. Direct argv, sanitized output, and process-group cleanup exist; the
+  compiled-process case `TestGitPlantedOnPathAfterStartNeverRuns` observes the pin (V1-0191).
 
 The repository unit and compiled-process black-box suites passed locally on 2026-08-23 with Go
 1.27.0 using an isolated build cache. The official MCP conformance server runner remains `NOT_RUN`:
@@ -461,8 +463,8 @@ The P0 profile is implemented only when all applicable rows pass on Go 1.27.0:
 Independent conformance MUST drive the compiled `corvint-mcp` process over stdio; in-package tests
 alone do not close the wire contract. Promotion requires the exact official schema to be vendored or
 fetched, verified to its pinned digest, and executed as test input, not merely named in a manifest or
-reinterpreted from an older protocol release. Current conformance records the official URL and
-SHA-256 provenance only; official-schema-driven execution remains `NOT_RUN`.
+reinterpreted from an older protocol release. The schema is fetched by the operator and executed by
+the opt-in `TestServerTrafficMatchesOfficialSchema`; a default no-network run records it `NOT_RUN`.
 
 ## Non-goals and simpler baseline
 
@@ -491,10 +493,10 @@ migrate. Protocol and conformance paths retain their applicable plain Apache-2.0
 
 | Requirements | Implementation | Evidence |
 |---|---|---|
-| `MCPV0-001..006` | `cmd/corvint-mcp`, `internal/mcp/protocol`, `internal/mcp/server` | protocol/discovery/framing/version vectors; `TestDuplicateInFlightIDOmitsID`, `TestIDReusableOnceResponseIsRead`, `TestUnencodableResultIsRequestError`, and `TestLegacyLifecycleMethodsWithoutMetadataAreNotFound` observed; official-schema provenance digest recorded, schema execution `NOT_RUN` |
+| `MCPV0-001..006` | `cmd/corvint-mcp`, `internal/mcp/protocol`, `internal/mcp/server` | protocol/discovery/framing/version vectors; `TestDuplicateInFlightIDOmitsID`, `TestIDReusableOnceResponseIsRead`, `TestUnencodableResultIsRequestError`, and `TestLegacyLifecycleMethodsWithoutMetadataAreNotFound` observed; official-schema digest pinned; opt-in `TestServerTrafficMatchesOfficialSchema` passed on 2026-09-23 |
 | `MCPV0-007..010` | `internal/mcp/bridge` | tool registry, closed-schema, receipt, budget, and abstention tests |
 | `MCPV0-011..015` | `internal/mcp/server` | cancellation race and post-cancel health observed; `TestCancelledProgressNeverTearsFrame`, `TestUnterminatedEOFFlushesAdmittedResponse`, and Unix `TestServeRestoresInheritedDescriptorBlockingMode` observed; Unix-gated compiled-process INT/TERM fake-Git parent-and-child cleanup passed locally; Unix `TestClosedStdoutCancelsInFlightDescendantGroup` (closed stdout mid-call exits 2 and reaps the fake-Git group) observed; truthful emitted progress and non-Unix signal cleanup `NOT_OBSERVED`; pagination/logging/roots negative tests |
-| `MCPV0-016..019` | all MCP implementation paths | local secret/mutation and Unix descendant-cleanup checks observed; fuzz, complete race, non-Unix cleanup, and cross-build evidence remain separate gates |
+| `MCPV0-016..019` | all MCP implementation paths | local secret/mutation and Unix descendant-cleanup checks observed; start-time Git pinning observed by Unix `TestGitPlantedOnPathAfterStartNeverRuns` and `TestPinFixesExecutableAgainstLaterPathChanges`; fuzz, complete race, non-Unix cleanup, and cross-build evidence remain separate gates |
 | `MCPV0-021..023` | all four MCP commands; `internal/mcp/protocol/legacy.go`; `internal/mcp/server/legacy.go` | `TestMCPV0021LegacyFlagAcceptsCapturedInitialize`, `TestMCPV0021ProtocolSelector`, `TestMCPV0022LegacyAdmissionAndReceipt`, `TestMCPV0022LegacyFailedInitializeCannotAdmitTools`, `TestMCPV0022LegacyMetadata`, `TestMCPV0022LegacyCancellationAndProgress`, `TestMCPV0022LegacyCancelledAfterCompletionIsIgnored`, `TestMCPV0022LegacyBlockedInitializeCancels`, both profiles of `TestServeToolsListAndCallRoundTripsDocsDraftAndConsume`, `TestCorpusMCPTransport`, `TestVectorsAndReadOnly` and `TestTerminationSignalsCancelInFlightDescendantGroup`; actual OpenCode discovery and status-call development probes; exact release-artifact qualification separate |
 | all | `conformance/mcp-2026-07-28` | independent compiled-process vectors and retained `NOT_RUN` external result |
 
@@ -504,15 +506,16 @@ health, logging/roots negatives, revision binding, mutation, sanitization, and a
 compiled-process fixture in which INT and TERM each terminated an in-flight fake-Git process and its
 background child with no surviving descendant. It does not prove a notification-cancellation-won
 long-running call, an emitted progress notification, or equivalent cleanup on non-Unix platforms;
-those are `NOT_OBSERVED`. Official schema execution and official MCP conformance are `NOT_RUN` for
-the retained reasons above. Fuzz, complete race, cross-build, and inherited Git-path-pinning
-promotion evidence are not closed by that focused run.
+those are `NOT_OBSERVED`. Official MCP conformance is `NOT_RUN` for the retained reason above.
+On 2026-09-23 the opt-in official-schema run passed against the pinned digest and the start-time Git
+pin was observed (V1-0191). Fuzz, complete race, and cross-build promotion evidence are not closed by
+that focused run.
 
 ## Unresolved decisions and promotion/kill criteria
 
-There are no unresolved P0 wire decisions. Exact Git executable pinning is an implementation
-promotion blocker, not a relaxed wire decision: a build that has not closed it is nonconformant and
-MUST remain experimental. A future resource or dashboard bridge needs its own
+There are no unresolved P0 wire decisions. Exact Git executable pinning was an implementation
+promotion blocker; V1-0191 closed it by pinning at `corvint-mcp` start, and a build without that
+pin is nonconformant and MUST remain experimental. A future resource or dashboard bridge needs its own
 stable source-content-free resource identity and privacy review; a future HTTP profile needs explicit
 authentication, origin, DNS-rebinding, session, CORS, and listener exposure decisions.
 
