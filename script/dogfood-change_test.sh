@@ -122,6 +122,10 @@ if [[ $action == impact ]]; then
     crash) printf '%s\n' 'process failed' >&2; exit 7 ;;
   esac
 fi
+if [[ $action == query && ${DOGFOOD_TEST_QUERY:-} == unreachable-trace ]]; then
+  printf '%s\n' '{"code": "unsupported-query-trace-state", "error": "local trace store contains unreachable revision: 1111111111111111111111111111111111111111", "ok": false}' >&2
+  exit 2
+fi
 if [[ $action == query && ${DOGFOOD_TEST_QUERY:-} == authority-trace-state ]]; then
   printf '%s\n' '{"code": "unsupported-query-trace-state", "error": "native Go authority-start query requires an absent clean-tree local trace store", "ok": false}' >&2
   exit 2
@@ -220,6 +224,10 @@ if [[ $action == cem && $sub == cite && ${DOGFOOD_TEST_CITES:-0} == 1 ]]; then
   exit 0
 fi
 if [[ $action == ocm && $sub == prepare ]]; then
+  if [[ -n ${DOGFOOD_TEST_OCM_PREPARE_CODE:-} ]]; then
+    printf '{"code": "%s", "error": "refused", "ok": false}\n' "$DOGFOOD_TEST_OCM_PREPARE_CODE" >&2
+    exit 2
+  fi
   if [[ ${DOGFOOD_TEST_CITES:-0} == 1 && -z ${DOGFOOD_TEST_ALLOW_STAGE_COLLISION:-} ]]; then
     for stage in "$root"/.corvint/.cem-citations.*.json; do
       if [[ -e $stage || -L $stage ]]; then
@@ -246,6 +254,9 @@ if [[ $action == ocm && $sub == prepare ]]; then
     fi
     shift
   done
+fi
+if [[ $action == ocm && $sub == status && -n ${DOGFOOD_TEST_OCM_STATUS_EXIT:-} ]]; then
+  exit "$DOGFOOD_TEST_OCM_STATUS_EXIT"
 fi
 if [[ $action == dogfood-ocm && $sub == status ]]; then
   if [[ -n ${DOGFOOD_TEST_EXPECTED_INTENTS:-} ]]; then
@@ -531,6 +542,8 @@ phase_jobs="$phase_jobs $!"
   # silently (regression check for the swallowed-reason bug).
   printf '%s\n' "$missing_manifest_output" | rg -q '^dogfood-change: FAIL not-complete$'
   printf '%s\n' "$missing_manifest_output" | rg -q '^  ocm-aggregate: missing-intent-scope$'
+  printf '%s\n' "$missing_manifest_output" | \
+    rg -Fxq '    fix: DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths'
   printf '%s\n' "$missing_manifest_output" | rg -q '^  full report: .*/\.corvint/dogfood-report\.json$'
 
   # An authority-start trace-state refusal names the task wording as its subject.
@@ -545,9 +558,90 @@ phase_jobs="$phase_jobs $!"
   printf '%s\n' "$wording_output" | \
     rg -q '^  prechange-query: DOGFOOD_TASK wording selected the authority-start profile, '
 
+  # Each refusal a first-time adopter hits names its fix (DCW-V0-014).
+  input_status=0
+  input_output=$(DOGFOOD_TEST_OCM_PREPARE_CODE=invalid-requirements-section \
+    CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
+    DOGFOOD_CITATIONS=$'1\tAGENTS.md\t1:1\tspecification' DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
+    DOGFOOD_VERIFY='test gate' script/dogfood-change.sh "$base" 2>&1) || input_status=$?
+  test "$input_status" = 1
+  printf '%s\n' "$input_output" | rg -Fxq -- '  cem-cite: citation-plan-unavailable'
+  printf '%s\n' "$input_output" | \
+    rg -Fxq -- '    fix: DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves'
+  printf '%s\n' "$input_output" | \
+    rg -Fxq -- '    fix: intent must be a spec that exists at BASE and contains exactly one "## Requirements" heading'
+  printf '%s\n' "$input_output" | rg -Fxq -- '  ocm-aggregate: intent-scope-drift'
+  printf '%s\n' "$input_output" | \
+    rg -Fxq -- '    fix: fix the ocm-prepare or ocm-status row above; otherwise the intents file changed during the run'
+  printf '%s\n' "$input_output" | \
+    rg -Fxq -- '    fix: set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)'
+  pending_status=0
+  pending_output=$(DOGFOOD_TEST_OCM_PREPARE_CODE=excluded-artifact-mismatch DOGFOOD_TEST_CEM_UNKNOWNS=1 \
+    DOGFOOD_TEST_OCM_STATUS_EXIT=1 \
+    CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
+    DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
+    DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || pending_status=$?
+  test "$pending_status" = 1
+  printf '%s\n' "$pending_output" | \
+    rg -Fxq -- '    fix: set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json'
+  printf '%s\n' "$pending_output" | rg -Fxq -- '  ocm-prepare-001: excluded-artifact-mismatch'
+  printf '%s\n' "$pending_output" | \
+    rg -Fxq -- '    fix: the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change'
+  printf '%s\n' "$pending_output" | rg -Fxq -- '  ocm-status-001: not-ready'
+  printf '%s\n' "$pending_output" | \
+    rg -Fxq -- '    fix: fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change'
+  printf '%s\n' "$pending_output" | rg -Fxq -- '  cem-status: not-ready'
+  printf '%s\n' "$pending_output" | \
+    rg -q '^    fix: read verification\.issues and policyIssues in .*/cem-status\.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk$'
+  printf '1\tAGENTS.md\n' > "$test_root/malformed-citations.tsv"
+  malformed_status=0
+  malformed_output=$(CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" \
+    DOGFOOD_TASK=test DOGFOOD_CITATIONS="$test_root/malformed-citations.tsv" \
+    DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
+    DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || malformed_status=$?
+  test "$malformed_status" = 1
+  printf '%s\n' "$malformed_output" | \
+    rg -Fxq -- '    fix: each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows'
+  missing_report_status=0
+  rm -f .corvint/dogfood-report.json
+  missing_report_output=$(run_dogfood_check "$base" 2>&1) || missing_report_status=$?
+  test "$missing_report_status" = 1
+  printf '%s\n' "$missing_report_output" | rg -Fxq -- 'dogfood-check: FAIL dogfood-report-missing'
+  printf '%s\n' "$missing_report_output" | \
+    rg -Fxq -- "  fix: run make dogfood-change BASE=$base on this HEAD until it reports complete"
+
+  unreachable_output=$(DOGFOOD_TEST_QUERY=unreachable-trace CORVINT_BIN="$test_root/bin/corvint" \
+    DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
+    DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
+    DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || :
+  printf '%s\n' "$unreachable_output" | rg -Fxq -- '  prechange-query: unsupported-query-trace-state'
+  printf '%s\n' "$unreachable_output" | \
+    rg -q '^  local trace store: a recorded trace names a commit no longer reachable from HEAD; '
+  if printf '%s\n' "$wording_output" | rg -q '^  local trace store:'; then
+    printf 'dogfood-change blamed history for a wording refusal\n' >&2
+    exit 1
+  fi
+
   CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
+  cp .corvint/dogfood-report.json "$test_root/complete-report.json"
+  sed 's/"complete": true/"complete": false/' "$test_root/complete-report.json" > .corvint/dogfood-report.json
+  incomplete_output=$(run_dogfood_check "$base" 2>&1) || :
+  printf '%s\n' "$incomplete_output" | rg -Fxq -- 'dogfood-check: FAIL dogfood-report-drift'
+  printf '%s\n' "$incomplete_output" | \
+    rg -Fxq -- "  fix: the report is not complete; resolve the rows make dogfood-change BASE=$base lists, then rerun it"
+  stale_output=$(run_dogfood_check HEAD~1 2>&1) || :
+  printf '%s\n' "$stale_output" | rg -Fxq -- 'dogfood-check: FAIL dogfood-report-drift'
+  printf '%s\n' "$stale_output" | rg -Fq -- '  fix: the report binds another BASE or HEAD; rerun make dogfood-change BASE='
+  cp "$test_root/complete-report.json" .corvint/dogfood-report.json
+  cp .corvint/change.ocm-status.json "$test_root/ocm-status.json"
+  printf 'drift\n' >> .corvint/change.ocm-status.json
+  aggregate_output=$(run_dogfood_check "$base" 2>&1) || :
+  printf '%s\n' "$aggregate_output" | rg -Fxq -- 'dogfood-check: FAIL intent-scope-drift'
+  printf '%s\n' "$aggregate_output" | \
+    rg -Fxq -- "  fix: the OCM maps changed after make dogfood-change; rerun make dogfood-change BASE=$base"
+  cp "$test_root/ocm-status.json" .corvint/change.ocm-status.json
 
   bootstrap_base=$(git rev-parse HEAD)
   # Literal backticks are requirement syntax, not shell interpolation.

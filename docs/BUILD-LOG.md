@@ -4,6 +4,51 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0010 DCW-V0-013..015: daily change-evidence adopter path
+
+`docs/DOGFOOD.md` now opens with one ordered daily adopter path from the pre-change receipts to the
+seal, with each input's exact format, the expected state after every step and a fail-closed table.
+`dogfood-change` follows each not-complete row caused by an input mistake or by the uncommitted
+sidecar with a `fix:` line; `dogfood-check` adds one to `dogfood-report-missing`,
+`dogfood-report-drift` (separate lines for a report bound to another base or head and for an
+incomplete report) and `intent-scope-drift`. No reason code changed. `docs/INSTALL.md` points to the
+path. The shell test asserts every new line and fails when one is altered (mutation observed).
+Dogfooding this change showed that before the sidecar commit `cem-status` is `not-ready` with an
+empty `policyIssues` and `excluded-artifact-mismatch` in `verification.issues`, so its hint names both.
+Amending the implementation commit after the first pass stranded the trace that pass recorded: the
+next pass refused `prechange-query: unsupported-query-trace-state` and `local-outcome: record-failed`
+with `local trace store contains unreachable revision`. Restoring that commit as an ancestor
+(`git reset --soft` onto it, then a new commit) cleared both without touching the trace store, so the
+path now says to add commits and the coordinator names the cause. No supported command removes a
+stranded trace; that recovery gap is reported, not fixed here.
+
+Friction that motivated the change came from seven fresh-agent worker runs that each bound and
+sealed a real change from plain clones of the public repository (PRs #74 to #80): the intents file
+must name specs with exactly one `## Requirements` heading; `DOGFOOD_CITATIONS` is a path; the first
+passes always fail `excluded-artifact-mismatch` until the sidecar is committed; the base carries an
+unsealed 0.6.0-integration CEM whose `baseRevision` is on the private lineage (decision 0331), so
+every check prints `unbound-commits NOT_OBSERVED previous-cem-base-unavailable` and every seal
+removes that path; and OCM aggregates report every requirement `unassessed`.
+
+Each fail-closed class was reproduced in a scratch clone at base 1894b9e: dirty (tracked and
+untracked), stale (commit after the report), unknown (uncited hunk), interrupted (`SIGTERM`, exit
+143, no report), unsupported (`PATH` without `rg`; intent without a Requirements heading), aggregate
+drift after `ocm mark` without a rerun, and both sealed refusals. `ocm mark` after the sidecar commit
+survives a rerun on the same `HEAD` and is dropped by any later commit. A linked worktree was not
+refused. NOT_OBSERVED: `SIGINT` interruption, `ocm link` with a test claim, and the independent
+reviewer leg of `DCW-V0-006` (no reviewer report exists for these runs); the worker runs used Git
+clones, not extracted release archives. The pre-change query ranked
+`docs/specs/analyzer-capability-contract-v0.md` first and omitted both `docs/DOGFOOD.md` and the
+owning spec: a context miss. The required full gate is NOT_RUN by owner policy.
+
+Review of PR #83 returned FIX-FIRST, reproduced by the reviewer and re-reproduced here in a scratch
+clone at base 0ed41f2 (sealed, so no tracked shared sidecar): the first pass lists only
+`cem-cite: citation-plan-not-provided` and `cem-status: not-ready` (`max-unknown-exceeded`) with
+`?? .corvint/change.cem.json`, and the cited rerun lists only `local-outcome: record-index-failed`.
+The OCM refusals and ` M` state documented first occur only while `BASE` tracks an unsealed sidecar,
+so steps 3 and 4 now describe both cases. The worktree hint no longer claims the sidecar is the cause,
+since `record-index-failed` and `unsupported-impact-worktree` also follow any other uncommitted file,
+and `ocm-status-NNN` rows, which printed no `fix:` line, now name the matching `ocm-prepare` row first.
 ## 2026-09-23 V1-0023 ESV-V0-005, ESV-V0-008..010, TCP-V0-024 / decision 0364: opt-in evidence summaries with exact drill-down
 
 Ticket V1-0023 adds two opt-in views to the existing `context` verb. It adds no root verb, changes

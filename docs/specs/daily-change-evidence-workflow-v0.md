@@ -66,6 +66,27 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   evaluation and release gates. The required full gate, independent review and artifact/installed
   qualification MUST pass before milestone readiness. Evidence from a changed target MUST NOT be
   silently reused. Tagging, pushing, publishing and formal promotion require exact-packet owner approval.
+- `DCW-V0-013`: The daily adopter path MUST be one ordered sequence in `docs/DOGFOOD.md` from the
+  pre-change receipts to the seal. It MUST give every coordinator input's exact format with an
+  example, the expected state after each step including the refusals that are expected before the
+  CEM sidecar is committed, and the reason string each fail-closed class produces. A class that was
+  not reproduced MUST be labelled NOT_OBSERVED, not described.
+- `DCW-V0-014`: A `dogfood-change` not-complete row caused by a malformed or missing input, or by
+  uncommitted worktree changes such as the prepared sidecar (including every `ocm-status-NNN` row),
+  MUST be followed by a `fix:` line naming the correction. The
+  `dogfood-check` failures `dogfood-report-missing`, `dogfood-report-drift` and `intent-scope-drift`
+  MUST each print a `fix:` line; for `dogfood-report-drift` that line MUST distinguish a report bound
+  to another base or target from an incomplete report. A refusal caused by a local trace recorded
+  at a commit that is no longer an ancestor of `HEAD` MUST name that cause. Reason codes MUST NOT
+  change.
+- `DCW-V0-015`: Dirty, stale, interrupted, unsupported and unknown evidence MUST each end the loop
+  without `"complete": true` or `dogfood-check: PASS`: a dirty or untracked worktree refuses
+  `dirty-worktree`; a report older than `HEAD` fails `dogfood-report-drift`; an interrupted run
+  writes no report, so the check fails `dogfood-report-missing` or, with an older report,
+  `dogfood-report-drift`; a host without `rg` refuses `unsupported-environment-missing-rg`; and an
+  uncited hunk leaves `cem-status` `not-ready`, so the check fails `dogfood-report-drift`. A passing
+  check or a seal MUST be described as structural closure, never as correctness, test adequacy or a
+  passing project gate.
 
 ## Non-goals and baseline
 
@@ -97,6 +118,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-007..008` | independently sealed complete-task evaluation required | NOT_RUN |
 | `DCW-V0-009..010` | native platform and installed exact-host evidence required | NOT_QUALIFIED |
 | `DCW-V0-011..012` | portfolio, gate and candidate evidence required | NOT_QUALIFIED |
+| `DCW-V0-013..015` | `docs/DOGFOOD.md` "Daily adopter path"; `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed`; scratch reproductions recorded in the V1-0010 build-log entry | implemented; the SIGINT interrupt and reviewer leg NOT_OBSERVED |
 
 ## Compatibility and rollback
 
