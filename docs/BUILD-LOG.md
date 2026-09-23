@@ -4,6 +4,73 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
+
+V1-0012 measured the daily change-evidence loop as it exists at `origin/main` 1894b9e against a
+fixed plain-Git baseline. `benchmarks/daily-loop-v0/preregistration.json` (sha256
+`73f178f8b1bcaaa57115c2ee9389f3a57fa3d889ee6e8a50035edeec3ae04b9d`) seals the three Core jobs
+(task orientation, change consequence, evidence-carrying completion), the eight-commit first-parent
+corpus (`corpus.json`, sha256 `412058c2…4cde2`, four exclusions under rules E1/E2), the harness
+(`harness.py`, sha256 `17b41f50…2d242`), thresholds C1-C3, exclusions E1-E6 and invalidation rules.
+It was committed in 69b5f4d before any sealed observation. Harness smoke checks ran before the seal,
+on synthetic non-corpus commits only; the preregistration discloses them. PCCO-V0-015..017 are
+proposed, not accepted.
+
+Sealed run-001 (`benchmarks/daily-loop-v0/runs/run-001.json`, sha256
+`70e452d219ade1041dd4a05b8f762f858c44af5bd57627c2813d7389b1c2c29f`) used candidate binary
+`d28312fc…7096e` built from 1894b9e, with three runs per measurement. Its three
+`corvint-use-case-evidence/0` sealed-benchmark receipts are under
+`benchmarks/daily-loop-v0/receipts/run-001/`:
+
+| Receipt | sha256 | Result |
+| --- | --- | --- |
+| `UC-TASK-ORIENTATION.json` | `4bd2a48c3a9d421e0f9e40d9ba47d5de9fe198ee84e9c2e7de25551e12325f98` | FAIL |
+| `UC-CHANGE-CONSEQUENCE.json` | `66513302c06063447419232d7bff8053bba87534b66c26301d4b2babd230a06f` | FAIL |
+| `UC-EVIDENCE-CARRYING-COMPLETION.json` | `64c81ecc5f258420df3d2330d723b07eac0a836f13c27ea253231f8ac8fa136f` | PASS |
+
+All three are kept.
+
+- **Orientation, FAIL (C1).** Six scored cases produced one treatment-only critical miss:
+  `docs/AGENT-ROUTES.md` at 1d4cbaa. The lexical baseline found it and the `context` packet did not.
+  There were zero abstentions.
+- **Consequence, FAIL (C2).** Three scored cases produced five treatment-only critical misses:
+  `internal/cem/coverprofile` and `internal/cemdiscriminate` at 50a9647,
+  `cmd/corvint-test-validity-mcp` and `integrations/testfixture` at 362721c, and
+  `cmd/corvint-web-flows` at af247a1. All five are changed packages with no `_test.go` file.
+  `affected` selects test-bearing units, so it neither selected these packages nor named them as
+  unknown; its overall scope stayed `UNKNOWN`. A post-run re-observation with the byte-identical
+  candidate confirmed the af247a1 plan. The scoring is unchanged, because the sealed critical
+  definition counts every changed root-module package.
+- **Completion, PASS (C3).** 36 designated missing-evidence cases produced 0 false complete
+  verdicts, and every case was informative. The CEM cases were five committed CEMs times six
+  mutants, and every mutant was refused with its intended code (`patch-digest-mismatch`,
+  `uncited-hunk`, `unsupported-without-basis`, `fabricated-evidence-id`, `base-revision-mismatch`,
+  `max-unknown-exceeded`). The six loop variants were all refused:
+  - L1 stale-after-bind, L2 CEM removed, L3 CEM tampered, L5 without `DOGFOOD_VERIFY_FILE`, and
+    L6 without `DOGFOOD_CITATIONS` each gave `dogfood-check: FAIL dogfood-report-drift`.
+  - L4 local outcome removed gave `FAIL local-outcome-evidence-drift`.
+
+  All positive and re-encoded controls were COMPLETE. The plain-Git baseline gives no evidence
+  verdict, so it is `NOT_APPLICABLE` here.
+
+Latency, retries and failures were measured over three runs:
+
+- Every treatment output was deterministic across its three runs, and no command needed a retry.
+- Each complete fresh loop took 4 invocations, 2 of them the documented expected first-pass
+  failures. The rehearsed loop took a median of 54.3 s (34.6 s to 102.5 s).
+- Median `context` time was 2.9 s against 0.5 s for the baseline. Median `affected` time was 2.6 s
+  against 0.05 s. Median `cem status` time was 0.33 s to 1.0 s.
+- Host load averaged 60-67 on 12 CPUs, so latency is descriptive only and no p95 claim is made.
+
+Complete task tokens and human failure rate are `NOT_OBSERVED`, because no live model-driven agent
+or human reviewer ran. The harness accepts them through `--agent-observations`. The result reads
+"measured, no savings claim".
+
+The completion receipt validates against a scratch ledger copy with `conformance/use-cases-v0`
+(`valid: true`). The two FAIL receipts are refused there only as `result-not-pass` and
+`outcome-not-pass`. `conformance/use-cases-v0/ledger.json` is unchanged, since that is V1-0011
+scope. The full gate is `NOT_RUN` by owner policy.
+
 ## 2026-09-22 AFU-V0-001..AFU-V0-012: experimental web flow understanding
 
 The owner requested application-flow understanding, test-gap mapping and runtime confirmation, then
