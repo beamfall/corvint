@@ -88,7 +88,7 @@ func testPortableCanonicalVectors(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw := portableRead(t, filepath.Join(kit, "manifest.json"))
-	if got := fmt.Sprintf("%x", sha256.Sum256(raw)); got != "9389102480c910ddb1366d385702bcf44a72dadbbece9e68bce683420f64983a" {
+	if got := fmt.Sprintf("%x", sha256.Sum256(raw)); got != "2ad18195245b0928a87eed432cadc2159d8de379f58d4e03457d38ff6f1093cd" {
 		t.Fatalf("portable manifest digest changed: %s", got)
 	}
 	var manifest portableManifest
@@ -149,8 +149,47 @@ func testPortableCanonicalVectors(t *testing.T) {
 			if testCase.Name == "stable" {
 				portableAuthorityFailures(t, root, options)
 			}
+			portableLegacyRead(t, root, kit, manifest, testCase)
 		})
 	}
+}
+
+// portableLegacyRead reads the case's N-1 cem/0.1 artifact and explicit patch
+// through the current native reader (CEM-CB-025): the same decision, the same
+// drift records and the same unknowns, without canonical assurance.
+func portableLegacyRead(t *testing.T, root, kit string, manifest portableManifest, testCase portableCase) {
+	t.Helper()
+	t.Run("CEM-CB-025 N-1 cem/0.1 "+testCase.Name, func(t *testing.T) {
+		writeFile(t, root, "legacy.cem01.json", string(portableRead(t, filepath.Join(kit, testCase.LegacyMap))))
+		options := ReadOptions{
+			MapPath: "legacy.cem01.json", ExpectedBase: manifest.BaseRevision, Target: testCase.TargetRevision,
+			PatchGiven: true, PatchPath: filepath.Join(kit, testCase.Patch),
+		}
+		result, err := openSession(t, root).Read(context.Background(), "status", options)
+		if err != nil {
+			t.Fatal(err)
+		}
+		verification := result["verification"].(map[string]any)
+		if verification["valid"] != testCase.Accept || verification["spec"] != wire.Spec01 || verification["assurance"] == "canonical" {
+			t.Fatalf("legacy verification = %#v", verification)
+		}
+		rows := verification["drift"].([]any)
+		for _, row := range rows {
+			delete(row.(map[string]any), "baseBlobOid")
+		}
+		got, _ := json.Marshal(rows)
+		var want any
+		if err := json.Unmarshal(testCase.Drift, &want); err != nil {
+			t.Fatal(err)
+		}
+		canonicalWant, _ := json.Marshal(want)
+		if !bytes.Equal(got, canonicalWant) {
+			t.Fatalf("legacy drift = %s, want %s", got, canonicalWant)
+		}
+		if result["counts"].(map[string]any)["unknown"] != testCase.UnknownHunks {
+			t.Fatalf("legacy unknowns lost: %#v", result["counts"])
+		}
+	})
 }
 
 func portableAuthorityFailures(t *testing.T, root string, valid ReadOptions) {

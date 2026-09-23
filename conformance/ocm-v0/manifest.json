@@ -34,6 +34,7 @@
     "cem-and-target-binding",
     "disposition-witnesses",
     "every-unknown-reason",
+    "intent-scope-drift",
     "obligation-order-and-set"
   ],
   "coverage": [
@@ -88,6 +89,26 @@
     {
       "clause": "OCM-V0-002 / OCM-V0-006: CEM digest and target binding",
       "cases": ["cem-and-target-binding/stale-map-digest", "cem-and-target-binding/stale-patch-digest", "cem-and-target-binding/absent-target-object", "disposition-witnesses/caller-target-successor"]
+    },
+    {
+      "clause": "OCM-V0-015: the pinned intent scope re-derives exactly from the target blob; a relocated span, a stale digest or blob, and an absent path refuse",
+      "cases": ["intent-scope-drift/stable", "intent-scope-drift/relocated-span", "intent-scope-drift/stale-span-digest", "intent-scope-drift/stale-blob", "intent-scope-drift/deleted-intent-path"]
     }
-  ]
+  ],
+  "states": [
+    {"state": "stable", "cases": ["intent-scope-drift/stable", "disposition-witnesses/valid", "valid-linked-and-no-test-claim"]},
+    {"state": "relocated", "cases": ["intent-scope-drift/relocated-span"]},
+    {"state": "stale", "cases": ["intent-scope-drift/stale-span-digest", "intent-scope-drift/stale-blob", "cem-and-target-binding/stale-map-digest", "cem-and-target-binding/stale-patch-digest", "disposition-witnesses/caller-target-successor"]},
+    {"state": "ambiguous", "cases": ["hostile-duplicate-obligation-id", "hostile-duplicate-json-key"]},
+    {"state": "deleted", "cases": ["intent-scope-drift/deleted-intent-path", "cem-and-target-binding/absent-target-object"]},
+    {"state": "unknown", "cases": ["every-unknown-reason/valid", "valid-prepared-all-unassessed", "valid-unknown-insufficient-evidence", "valid-unknown-conflicting-evidence"]}
+  ],
+  "artifactSha256": {
+    "fixtures/cem-and-target-binding/case.json": "0b4d6b2f907636a932d06a39882f524cf886d4ec1369cde5dba786b5e9f1e551",
+    "fixtures/disposition-witnesses/case.json": "248849b98e28a4f45044d3026df8f2061ad0f4070c79fddb1f6324440754db36",
+    "fixtures/every-unknown-reason/case.json": "e2c2e266fa4eaf65bdee6458b0d5da3c57d9712ff65aa76e3e898155f33ddb81",
+    "fixtures/intent-scope-drift/case.json": "7e956eaa5eb3f8efd90eb8845b588de4894aea7994ae5e5d442a2deb52fc687b",
+    "fixtures/obligation-order-and-set/case.json": "65e6904977480cbb3b6b68ac52c1dda7d415d29678eb3b39c6f101c5853a7c86",
+    "vectors/structural.json": "a4c647dfaaa14d13b035a760e03f737851c50379461d30dedc8e9820aebc644d"
+  }
 }

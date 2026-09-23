@@ -16,8 +16,8 @@ not automatically a defect.
 | Path | What it is |
 |---|---|
 | `vectors/structural.json` | 25 byte-level vectors: 5 valid maps and 20 hostile inputs, each with its refusal code |
-| `fixtures/<id>/case.json` | 4 fixtures, 19 cases: one seed universe each, one perturbation per case, exact verifier verdict |
-| `manifest.json` | vector and fixture ledger plus the wire-profile clause each case covers |
+| `fixtures/<id>/case.json` | 5 fixtures, 24 cases: one seed universe each, one perturbation per case, exact verifier verdict |
+| `manifest.json` | vector and fixture ledger, the wire-profile clause each case covers, the six hostile evidence states (`states`) and the SHA-256 of every vector and fixture file (`artifactSha256`) |
 | `universe.go` | the deterministic seed repository (pinned Git identity and dates) and the real producer calls |
 | `adapter.go` | the only seams to the implementation: the structural parser (`mark`) and the full verifier (`status`) |
 | `vectors.go`, `fixtures.go`, `manifest.go` | loaders, self-validation, and the perturbation operators |
@@ -40,7 +40,10 @@ GOTOOLCHAIN=local go run ./conformance/ocm-v0 -check
   reasons appear in the frozen valid maps.
 - `TestFixturesAgainstRealVerifier` builds each fixture's universe, applies each case's
   perturbation, and asserts the real `status` verdict (refusal, state, code, counts).
-- `TestSuiteDataIsSelfConsistent` runs the `-check` validation.
+- `TestSuiteDataIsSelfConsistent` runs the `-check` validation, which also requires every
+  stable/relocated/stale/ambiguous/deleted/unknown state to name existing cases and every file
+  under `vectors/` and `fixtures/` to match its pinned digest (`OCM-V0-015`).
+- `TestArtifactDigestDriftFails` proves a one-byte edit of a frozen vector fails that check.
 
 ## Derivation
 
@@ -49,10 +52,13 @@ Every valid vector is the byte output of the real producers over `universe.go`: 
 change), and one empty successor commit, all under a pinned Git environment so OIDs, hunk IDs,
 claim IDs, and CEM digests are stable across hosts. Hostile vectors are one minimal edit of a
 produced map. Fixture cases are one structural perturbation of a produced map (`set`, `swap`,
-`drop`, `append`, `top`, `cem`), applied through the CEM wire codec so the perturbed map stays
+`drop`, `append`, `top`, `cem`, `intent`, `intentShift`), applied through the CEM wire codec so the perturbed map stays
 canonical and only the intended defect is present.
 
 Two outcomes were confirmed while freezing and are asserted as-is: an extra top-level member is
 refused with `unknown-field` (the wire is a closed object; there is no preservation path), and a
 map binding a full OID the repository does not hold is refused with
 `repository-object-unavailable`, which the spec says takes precedence over `target-mismatch`.
+The `intent-scope-drift` fixture (added 2026-09-22) confirmed that a relocated or stale-digest
+intent span refuses with `intent-scope-mismatch`, while an absent intent blob or path refuses with
+`repository-object-unavailable` (`OCM-V0-012`).

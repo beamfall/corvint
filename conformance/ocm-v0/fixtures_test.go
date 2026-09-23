@@ -4,6 +4,9 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -74,5 +77,35 @@ func assertVerdict(t *testing.T, e Expect, v Verdict) {
 func TestSuiteDataIsSelfConsistent(t *testing.T) {
 	if err := run(".", true); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestArtifactDigestDriftFails edits one byte of a frozen vector in a copy of
+// the suite and requires the pinned artifactSha256 check to refuse it.
+func TestArtifactDigestDriftFails(t *testing.T) {
+	manifest, err := LoadManifest(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	for path := range manifest.ArtifactSHA256 {
+		raw, err := os.ReadFile(filepath.FromSlash(path))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if path == "vectors/structural.json" {
+			raw = append(raw, '\n')
+		}
+		copyPath := filepath.Join(dir, filepath.FromSlash(path))
+		if err := os.MkdirAll(filepath.Dir(copyPath), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(copyPath, raw, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	err = manifest.ValidateArtifacts(dir)
+	if err == nil || !strings.Contains(err.Error(), "vectors/structural.json") {
+		t.Fatalf("drifted vector accepted: %v", err)
 	}
 }

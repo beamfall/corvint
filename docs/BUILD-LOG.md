@@ -4,6 +4,40 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-22 V1-0013 / CEM-CB-025 / OCM-V0-015 / CF-V0-034: minimum portable proof wire frozen
+
+Ticket V1-0013, decision 0356. The minimum portable proof wire is frozen as of 2026-09-22:
+`cem/0.2` with the N-1 `cem/0.1` reader, `ocm/0.1-experimental`, and `frontier/0` with
+`frontier-error/0`. `cem/0.3` stays experimental and outside the frozen minimum.
+`protocol/cem-0.2/manifest.json` `status` is now `frozen`, and its new manifest SHA-256
+`2ad18195...93cd` is pinned in the packet README and in the native and interop tests.
+`internal/cem/workflow/portable_test.go` now reads every packet `legacyMap` through the current
+reader (`CEM-CB-025`). It asserts acceptance, `cem/0.1`, non-canonical assurance, and the same
+drift and unknowns. The OCM and frontier manifests gain `artifactSha256`, which pins 6 and 32
+files, and `states`, which pin the six hostile states. Their runners refuse byte drift, unlisted
+files and missing files before any case runs. Tests mutate one pinned file and expect the named
+refusal.
+
+A new OCM fixture, `intent-scope-drift`, measured the verifier's real codes. A shifted intent span
+or a stale span digest gives `intent-scope-mismatch`. An absent intent blob or a deleted intent
+path gives `repository-object-unavailable` (per `OCM-V0-012`), not `intent-scope-mismatch`.
+
+Gaps, stated and not vectored: frontier relocated evidence and inherited CEM `evidence-drift` cannot
+be reached through the real producers. `cite` refuses an unstable span, and a moved cited span makes
+the evidence file an unbindable hunk. The frontier deleted state and part of its stable, stale,
+ambiguous and unknown coverage use hand-authored fixtures that the runner skips by capability. OCM and
+frontier have no own-profile N-1, because each is the first frozen version of its wire. Their
+upstream N-1 is `cem/0.1`: OCM reads it, and the frontier refuses it with
+`unsupported-frontier-context`. The V1-0010 daily-loop dependency remains open. The freeze
+promotes no profile.
+
+Moving `CF-V0-034` into `change-frontier-v0.md` shifted two cited line ranges. They were
+re-pointed to the same text in `harness-authority-relation-v0.md` and
+`change-frontier-profile-1.md`.
+
+Verification: 11 affected packages passed `go test`, and `go vet` passed. The `interop/cem01-go`
+tests and vet passed. The focused-docs gate passed. `make gate` (full-gate) and interop-gate were
+NOT_RUN, per owner policy for scoped ticket work.
 ## 2026-09-22 V1-0001 PRS-V1-001..PRS-V1-012: draft Corvint 1.0 scope for owner ratification
 
 Ticket V1-0001 drafts `docs/specs/corvint-1.0-product-and-release-v1.md` (`PRS-V1`), labelled

@@ -1,12 +1,15 @@
-# CEM 0.2 candidate portable vectors
+# CEM 0.2 frozen portable vectors
 
-This Apache-2.0 packet supplements the existing CEM contracts. It changes no wire and freezes no
-new minimum profile. V1-0013 still depends on verified daily-loop evidence from V1-0010 and owner
-acceptance. The historical `interop/cem-0.1/manifest.json` and its 32-case external matrix are unchanged.
+This Apache-2.0 packet supplements the existing CEM contracts. It changes no wire. On 2026-09-22
+it became the frozen conformance packet for the `cem/0.2` profile with its N-1 `cem/0.1` reader
+(`CEM-CB-025`, decision 0356): its `status` is `frozen`, and a successor profile adds a new packet
+instead of editing these bytes. The freeze was made before V1-0010 delivered verified daily-loop
+evidence; that dependency remains open. The historical `interop/cem-0.1/manifest.json` and its
+32-case external matrix are unchanged.
 
 `manifest.json` pins 21 raw artifacts, one SHA-1 base and six complete target commits. Each target
 contains `.corvint/change.cem.json` byte-for-byte equal to its declared `map`. The manifest itself
-is SHA-256 `9389102480c910ddb1366d385702bcf44a72dadbbece9e68bce683420f64983a`, pinned separately
+is SHA-256 `2ad18195245b0928a87eed432cadc2159d8de379f58d4e03457d38ff6f1093cd`, pinned separately
 by both test consumers. Expected identities and drift records were calculated from the published
 identity formulas, literal fixture bytes and Git objects, without using a Corvint producer or
 capturing verifier output. Consumers must check the manifest and every artifact before execution.
@@ -44,7 +47,10 @@ assurance. A 0.1 result never inherits independent canonical derivation or targe
 
 The native `TestPortableCanonicalVectors` also requires independent base/target authority, refuses
 an external patch for 0.2, rejects a copied map differing only in whitespace from the committed
-sidecar, and preserves unknown-policy failure. The separate standard-library/Git-only consumer's
+sidecar, and preserves unknown-policy failure. The same test reads every case's `legacyMap` and
+explicit patch through the current native reader and requires the same decision, drift records and
+unknowns, with `cem/0.1` and no canonical assurance (`CEM-CB-025`). The separate
+standard-library/Git-only consumer's
 `TestPortableProfileCompatibility` exercises the same raw packet through its existing process ABI.
 It imports no native parser or verifier.
 

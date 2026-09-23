@@ -415,6 +415,28 @@ the invariant is restated here over authority resolution itself.
   or green conformance suite alone is not product-value evidence. Decision 0012 withdraws the
   superseded historical thresholds; the replacement preregistered third-party-PR replay protocol is
   due at the first release cut, is constructed separately, and remains `NOT_RUN` until then.
+- `CF-V0-034`: from 2026-09-22 `frontier/0` with error profile `frontier-error/0` is frozen by
+  `conformance/frontier-v0/`: `manifest.json` `artifactSha256` MUST pin every file under its
+  `vectors/` and `fixtures/` by SHA-256, and the suite MUST fail on any byte drift or any unlisted
+  or missing file. Its `states` MUST pin the stable, relocated, stale, ambiguous, deleted and
+  unknown states to existing fixture cases or codec vectors, or state the gap where no vector
+  reaches the state. A state whose named case skips at runtime MUST also state that skip as a gap.
+  The frozen gaps are: relocated evidence has no frontier vector; the inherited CEM `evidence-drift`
+  refusal has no frontier vector; and the deleted state has only a case that skips at runtime with
+  capability `obligation-free-universe`, as do one stable, one stale, one ambiguous and one unknown
+  case. The relocated, `evidence-drift` and deleted states are pinned at the CEM layer instead.
+  Successor rule: under `CF-V0-029` a successor profile takes a new identifier
+  and its own suite, and this suite's bytes and expected outcomes are never edited. The successor
+  reader MUST reproduce every frozen `frontier/0` result, or refuse it with one stated,
+  deterministic code and exit 2 before stdout. Migration rule: a `frontier/0` result is derived
+  state and is never rewritten; migrating means recomputing it from the retained CEM and OCM under
+  the successor profile. `frontier/0` is the first frozen frontier profile, so it has no
+  own-profile N-1 reader; its upstream N-1 inputs (`cem/0.1`, or OCM bound to `cem/0.1`) are
+  refused with `unsupported-frontier-context`, exit 2, by the matrix row below. This freezes
+  conformance data only; it is not the promotion evidence `CF-V0-030` requires.
+
+Wire freeze: `frontier/0` and `frontier-error/0` are frozen as of 2026-09-22 (`CF-V0-034`,
+decision 0356).
 
 ### Repository read-only guarantee
 
@@ -521,6 +543,7 @@ None of these deferred decisions may be silently resolved by the V0 implementati
 | `CF-V0-031` (accepted 2026-08-29) | every authority-conferring resolver, Frontier-owned or not | an adversarial case where the change set authors its own accepted governing document and MUST NOT receive `authoritative`/`accepted-contract`, plus the named uncertainty entry. Held by `TestRangeImpactRefusesAuthorityFromSelfAuthoredADR` and `TestRangeImpactWithholdsSelfAuthoredLedgerAuthority` (`internal/contextindex/range_impact_test.go`), `TestImpactWithholdsUnverifiableADRAuthority` (`internal/contextindex/impact_test.go`), and parity case `impact-self-authored-adr` (`conformance/cli-parity-v0`) |
 | `CF-V0-032` (accepted 2026-08-29) | the withheld-authority reporting form on every such resolver | the same cases, asserting confidence `low` with authority exactly `unverified-contract` / `unverified-ledger` and an uncertainty entry derived from the emitted evidence; its exact `impact` wording and leading placement are held by `TestImpactWithholdsUnverifiableADRAuthority` |
 | `CF-V0-033` (accepted 2026-09-12, decision 0162) | `cmd/corvint/frontier.go` and `internal/frontier` | `cmd/corvint`: `TestCLIReadVerbsLeaveTheRepositoryByteIdentical`, subtest "frontier reports an EMPTY frontier through the registered adapters", and `TestRunFrontierUnsupportedRefusalLeavesRepositoryUnchanged` (successful and refused CLI-level repository-byte assertions) |
+| `CF-V0-034` (decision 0356) | `conformance/frontier-v0/` (`manifest.go` `ValidateStates`/`ValidateArtifacts`, `manifest.json` `states`/`artifactSha256`) | `conformance/frontier-v0/fixtures_test.go`: `TestManifestPinsStatesAndArtifacts`, `TestArtifactDigestDriftFails`; N-1 refusal: `TestRunFixturesAgainstImplementation` cases `unsupported-context-upstream-profile/*` |
 | Outcome protocol | preregistered third-party-PR replay, constructed separately at first release cut | explicit `PASS`, `FAIL`, or `NOT_RUN` record; currently `NOT_RUN` |
 
 Before promotion, rollback removes the derived Frontier result and preview wrapper. It preserves CEM,

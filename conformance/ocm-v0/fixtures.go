@@ -47,6 +47,8 @@ type Case struct {
 //	{"append": {row object}}                              append a whole row
 //	{"top": {"field": F, "value": V}}                     set a top-level string member
 //	{"cem": {"field": F, "value": V}}                     set a member of the cem binding
+//	{"intent": {"field": F, "value": V}}                  set a string member of intentScope
+//	{"intentShift": N}                                    move the intentScope span by N bytes
 type Op struct {
 	Set    *SetOp         `json:"set,omitempty"`
 	Swap   []string       `json:"swap,omitempty"`
@@ -54,6 +56,9 @@ type Op struct {
 	Append map[string]any `json:"append,omitempty"`
 	Top    *FieldOp       `json:"top,omitempty"`
 	CEM    *FieldOp       `json:"cem,omitempty"`
+	Intent *FieldOp       `json:"intent,omitempty"`
+	// IntentShift relocates the intent span, keeping its digest.
+	IntentShift int64 `json:"intentShift,omitempty"`
 }
 
 // SetOp names one row field.
@@ -151,7 +156,7 @@ func (e Expect) validate(fixture, id string) error {
 
 func (op Op) validate(fixture, id string) error {
 	shapes := 0
-	for _, present := range []bool{op.Set != nil, len(op.Swap) > 0, op.Drop != "", op.Append != nil, op.Top != nil, op.CEM != nil} {
+	for _, present := range []bool{op.Set != nil, len(op.Swap) > 0, op.Drop != "", op.Append != nil, op.Top != nil, op.CEM != nil, op.Intent != nil, op.IntentShift != 0} {
 		if present {
 			shapes++
 		}
@@ -193,6 +198,10 @@ func (op Op) apply(root wire.Value) error {
 		setMember(root.Obj, op.Top.Field, stringValue(op.Top.Value))
 	case op.CEM != nil:
 		setMember(root.Obj.Values["cem"].Obj, op.CEM.Field, stringValue(op.CEM.Value))
+	case op.Intent != nil:
+		setMember(root.Obj.Values["intentScope"].Obj, op.Intent.Field, stringValue(op.Intent.Value))
+	case op.IntentShift != 0:
+		shiftSpan(root.Obj.Values["intentScope"].Obj.Values["span"].Obj, op.IntentShift)
 	}
 	return nil
 }
@@ -295,6 +304,13 @@ func appendRow(root wire.Value, fields map[string]any) error {
 	}
 	setRows(root, append(rows(root), row))
 	return nil
+}
+
+// shiftSpan moves both span offsets by delta.
+func shiftSpan(span *wire.Object, delta int64) {
+	for _, key := range []string{"start", "end"} {
+		setMember(span, key, wire.Value{Kind: wire.KindInt, Int: span.Values[key].Int + delta})
+	}
 }
 
 func stringValue(text string) wire.Value {

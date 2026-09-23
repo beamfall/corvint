@@ -72,7 +72,7 @@ its finding is that the action is not currently available.
 - `CF-V0`'s own deferred-decision list already sketches the shape: "one process owns the exact
   command launch, target, report bytes, and exit result and passes a non-caller capability directly
   to a new profile. Its wire and portability remain a separate decision"
-  (`docs/specs/change-frontier-v0.md:497-499`).
+  (`docs/specs/change-frontier-v0.md:519-521`).
 - An execution surface exists in the tree and is **not** an authority root:
   `internal/liveverify/{gorunner,provider,gotest,godiscovery,parentverify,affected}` implements a Go
   test runner with canonical receipts and process ownership, under `go-live-test-provider-v0.md`
@@ -198,7 +198,7 @@ event as proof that a merge or test succeeded (`AHI-007`, `:113-114`).
   attributable policy acknowledgement or not at all. A spec that waits forever on a component the
   product boundary forbids is worse than a recorded refusal.
 - One relabelling of caller-reported evidence as attested is an immediate release blocker, on the
-  same footing as `CF-V0`'s existing blocker list (`:449-452`).
+  same footing as `CF-V0`'s existing blocker list (`:471-474`).
 
 ## Simpler baseline and YAGNI cuts
 
@@ -227,7 +227,7 @@ every alternative that keeps the item while adding this relation is machinery wi
 - **Q2. If the answer to Q1 is no, should the test half of the frontier close by attributable policy
   acknowledgement instead?** `CF-V0-005` excludes acknowledgement from `strict-v0` and `CF-V0`'s
   deferred list says acknowledgement waits "because current wires have no authority capable of
-  expressing them" (`:486-487`). An acknowledgement wire is buildable inside the current boundary;
+  expressing them" (`:508-509`). An acknowledgement wire is buildable inside the current boundary;
   an authority root is not. But it changes the product claim from "verified" to "someone signed off",
   and that is an owner call, not an engineering one.
 - **Q3. If the answer to both Q1 and Q2 is no, should `CF-V0-027` be amended to say so?** As written
