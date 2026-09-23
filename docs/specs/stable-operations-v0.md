@@ -13,7 +13,7 @@ Authoritative inputs: `../../AGENTS.md` invariants 4 and 7, `../decisions/0341-s
 
 ## Agent digest
 - Claim: Install lifecycle, corrupted-snapshot recovery and a named hostile-regression matrix run locally as release-blocking checks with NOT_COVERED gaps stated.
-- Status: accepted (decision 0341, 2026-09-22) / implemented
+- Status: accepted (decision 0341, 2026-09-22; `SOP-V0-003` and `SOP-V0-009` amended by decision 0360, 2026-09-23) / implemented
 - Exists: `script/check-install-lifecycle.sh` + `_test.sh`, `script/check-hostile-regressions.sh` + `_test.sh`, their `make` targets, `docs/RELEASE-RUNBOOK.md`, the support window in `SECURITY.md`, the recovery contract in `docs/INSTALL.md`.
 - Blocked on: linux amd64 lifecycle evidence (NOT_RUN); native linux hardware (linux arm64 ran in a container); darwin amd64 ran only under Rosetta 2; whole-process resident memory (`memory-resident`) has no regression.
 - Read next: Requirements; Acceptance criteria and testing matrix.
