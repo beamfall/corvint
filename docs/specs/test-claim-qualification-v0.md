@@ -13,7 +13,7 @@ Authoritative inputs: `docs/specs/ocm-v0-dogfood.md`,
 ## Agent digest
 - Claim: TCQ deterministically qualifies selected OCM test anchors and caller-supplied JUnit matches without proving adequacy or correctness.
 - Status: proposed/implementation-candidate; promotion evidence NOT_RUN
-- Exists: deterministic reference implementation and vectors for selected OCM claim qualification; an optional declared environment variant per observation and a shared same-revision flake rule (`TCQ-V0-048..050`); a per-hunk patch coverage witness from one local coverprofile with a visible reviewer-report downgrade (`TCQ-V0-051..054`).
+- Exists: deterministic reference implementation and vectors for selected OCM claim qualification; an optional declared environment variant per observation and a shared same-revision flake rule (`TCQ-V0-048..050`); a per-hunk patch coverage witness from one local coverprofile with a visible reviewer-report downgrade (`TCQ-V0-051..054`); a bounded per-hunk mutation discrimination witness reusing the `prove --mutate` runner, with survivors as a visible downgrade that never fails the build (`TCQ-V0-055..058`).
 - Blocked on: a WP6 authority root, 60-edge labelled corpus, reporter compatibility, and promotion gates.
 - Read next: Threat model and claim boundary; Requirements; Acceptance and adversarial matrix.
 
@@ -657,6 +657,62 @@ it qualifies a claim without proving adequacy or correctness.
   worklist, and the `status`/`verify` envelopes are unchanged, and a map without test claims
   renders exactly as before.
 
+### Mutation discrimination witness
+
+A coverage witness says a test reached a hunk; a discrimination witness records whether the
+cited tests notice when the hunk is changed. The witness is decision 0353
+(`docs/decisions/0353-hunk-mutation-discriminates-witness-2026-09-22.md`): it reuses the
+`prove --mutate` runner (`internal/liveverify/mutate`: `Open`, `Export.Judge` with `Complete`,
+and the additive `Report.Survivors` export) on the map's changed hunks only, and it qualifies a
+claim without proving adequacy or correctness. A hunk whose mutants all die is discriminated by
+its tests; a surviving mutant is a change the cited tests cannot tell from the original.
+
+- `TCQ-V0-055`: `corvint cem discriminate --map MAP --target REV [--max-hunks N]
+  [--max-mutants N] [--wall-time DURATION] [--output PATH]` runs bounded mutation on at most
+  `--max-hunks` hunks (default 8), at most `--max-mutants` mutants per hunk (default 8), inside
+  one `--wall-time` budget of whole seconds (default `10m`) that covers the export and every run.
+  A non-positive bound, a sub-second or fractional wall time, a missing `--target`, a
+  non-canonical (`cem/0.1`) map, and a `--target` whose canonical patch from the map base does
+  not carry the map's `patchSha256` are refused (`invalid-arguments`, or `patch-digest-mismatch`
+  for the target) and leave the map unchanged with no mutant run. The run is pinned to the
+  resolved `--target` object ID (`treeRevision`) and to `selectionSha256`, the SHA-256 of the
+  sorted unique selected test paths each terminated by a newline; both are derived by Corvint,
+  never operator-supplied.
+- `TCQ-V0-056`: the witness is one optional hunk member `discriminates` admitted only on
+  `cem/0.3`: `{treeRevision, selectionSha256, mutants, killed, survived, survivors:
+  [{operator, line, description}...], bounds: {maxHunks, maxMutants, wallTimeSeconds}, state ∈
+  {discriminates, survived, not-run}, detail}` with closed keys at every level. Counts are
+  non-negative with `killed + survived ≤ mutants` (a mutant that did not compile is neither);
+  `survivors` has exactly `survived` entries, each with a non-empty operator, a `line` inside the
+  hunk's `newRange`, and a 1..512-byte description; bounds are positive; `detail` is at most
+  512 printable bytes. `state` is `discriminates` exactly when `killed ≥ 1` and `survived = 0`,
+  `survived` exactly when `survived ≥ 1`, and `not-run` exactly when `mutants = 0`; any
+  disagreement is `invalid-field`. `cem/0.1` and `cem/0.2` reject the member as `unknown-field`;
+  `discriminate` declares `cem/0.3` on a canonical map the way `cover` does.
+- `TCQ-V0-057`: candidates are, in map order, the hunks whose path is Go source (not a
+  `_test.go` file) and whose basis cites at least one `_test.go` file with the `test-claim`
+  relation; the first `--max-hunks` candidates are selected. A selected hunk is mutated only on
+  its `newRange` lines against each cited test file; a mutant survives only when every cited
+  test lets it live. `discriminate` writes a witness on every hunk of the map: a hunk that is not
+  a candidate, is past the hunk limit, adds no lines, ran out of wall time, or that the runner
+  could not judge (no sandbox, no mutant, budget exceeded, runner failure) carries `state:
+  not-run` with zero counts and a `detail` naming the reason. An absent witness and a `not-run`
+  witness are distinct states, and neither is ever read as discriminated.
+- `TCQ-V0-058`: the reviewer report appends the witness to each `## Test claims` line: a
+  `discriminates` witness adds `discriminates (killed K of M mutants)`, a `not-run` witness adds
+  `mutation not-run (reason)`, and a `survived` witness downgrades the claim with reason
+  `mutants-survived` and lists every surviving mutant as `operator at path:line`. A survived
+  mutant outranks a missing or uncovered coverage witness as the downgrade reason. The downgrade
+  is rendering only: dispositions, counts, the worklist, the exit status, and the
+  `status`/`verify` envelopes are unchanged, so a surviving mutant never fails the build and is
+  never silent.
+
+Measured cost (this host, macOS `sandbox-exec`, `TestDiscriminateRecordsWitnessAndReportDowngrades`
+fixture: one Go module, one selected hunk, 4 mutants, `--max-mutants 6`, `--wall-time 5m`): one
+bounded run took 5.7 s on a quiet host and 30.5–32.8 s while seven other agents were building and
+testing on the same host; the run is dominated by one `go test` per mutant inside the sandbox.
+The refusal path runs no mutant and completes in under a second per refusal.
+
 ## Canonical conditional-state table
 
 Every row below carries `authorityClass: CALLER_REPORTED`.
@@ -694,6 +750,7 @@ at least these genuine-pass/fabricated-fail/no-input classes:
 | environment variant | undeclared variant leaves observation bytes and summary unchanged and reads as unknown; declared variant changes the observation ID and is copied into the summary; bad key grammar, non-string value, and non-object member are `invalid-observation` |
 | flake qualification | divergent current/prior outcomes at one target and variant add `test-flaky` and drop the relation while the current report state stands; same variant, other variant, declared-vs-undeclared, and both-undeclared comparisons; priors with the static combination, at another target, and beyond 16 |
 | coverage witness | `cem/0.3` accepts a covered and an uncovered witness; `cem/0.1` and `cem/0.2` reject the member; disagreeing state, out-of-range, overlapping, adjacent ranges, bad digest, empty or control-character test run, bad mode or state, surplus key; cover of a covered added line, a profile reaching only a context line (uncovered, never absent), ambiguous profile path, malformed profile, empty test run; report shows `tested`, `no-coverage-witness`, `coverage-witness-uncovered` |
+| discrimination witness | `cem/0.3` accepts a discriminates, a survived, and a not-run witness; `cem/0.1` and `cem/0.2` reject the member; state disagreeing with counts, counts exceeding mutants, survivor count disagreeing, survivor line outside `newRange`, empty operator, zero bound, bad state, bad revision or selection digest, control-character detail, surplus key at each level; a strong cited test kills every mutant (`discriminates`), the hunk limit leaves the next hunk `not-run` with its reason, a test asserting nothing lets mutants survive (`survived`, each survivor described) while `status` still succeeds; zero or negative bound, sub-second wall time, missing target, and a target off the map's patch are refused with the map unchanged; report shows `discriminates (killed K of M mutants)`, `mutation not-run (reason)`, and `mutants-survived` with every survivor |
 | wire/cache | duplicate JSON keys, depth before parse, extra/missing fields, reordered rows, tampered IDs/digests, missing each raw cache-verification input, byte-identical fresh-process output |
 | authority/policy | every edge is `CALLER_REPORTED`, signature does not upgrade, default frontier stays open, permissive acknowledgement remains visible and non-closing |
 | privacy/boundary | source/XML/output canaries absent from artifacts and errors; sibling, worktree, alternate object, and denied-object canaries absent |
@@ -719,12 +776,15 @@ Conformance and reporter compatibility are separate gates:
 
 V0 supports Python, Go, strict JUnit, one repository, one expected base, one target, an omitted
 command environment with an optional declared observation variant, bounded prior observations for
-the shared flake rule, one caller-reported relation, and one operator-named Go coverprofile
-ingested as a per-hunk witness (`TCQ-V0-051..054`). It adds no JavaScript/TypeScript
+the shared flake rule, one caller-reported relation, one operator-named Go coverprofile
+ingested as a per-hunk witness (`TCQ-V0-051..054`), and one bounded Go mutation run per map
+through the existing `prove --mutate` runner (`TCQ-V0-055..058`). It adds no JavaScript/TypeScript
 classifier, semantic floor, assertion detector, sibling extraction, retry deduplication within one
-observation, flake history storage or retrieval, coverprofile discovery, test execution, non-Go
-coverage formats, statement- or branch-level coverage thresholds, coverage-driven disposition or
-count changes,
+observation, flake history storage or retrieval, coverprofile discovery, test execution outside the
+sandboxed mutation runner, non-Go coverage formats or mutation operators, a second mutator, new
+mutation operators, mutation of test files or of unchanged lines, mutation-score thresholds,
+statement- or branch-level coverage thresholds, coverage- or mutation-driven disposition, count,
+or exit-status changes,
 path or stream raw-artifact input, artifact persistence, shell execution, daemon, database, network,
 UI, signature, authenticated harness, policy service, or portable promotion claim. WP6 owns any
 harness-controlled/authenticated upgrade after WP4 signal is measured.
@@ -736,7 +796,12 @@ by dropping `Request.PriorObservations`, the `environment` member, and reason 18
 changes because none carries either. `TCQ-V0-051..054` roll back by removing the `cem cover`
 action, the `coverage` hunk member from the `cem/0.3` validator, and the `## Test claims` report
 section; every map written without `cover` is unchanged, and a map that carries a witness fails
-closed as `unknown-field` rather than being read as tested.
+closed as `unknown-field` rather than being read as tested. `TCQ-V0-055..058` roll back by
+removing the `cem discriminate` action, the `discriminates` hunk member from the `cem/0.3`
+validator, and the mutation note from the `## Test claims` lines; `prove --mutate` output is
+unchanged by their presence or removal because the runner's additive `Report.Survivors` field is
+read only by `discriminate`, every map written without `discriminate` is unchanged, and a map
+that carries the member fails closed as `unknown-field` rather than being read as discriminated.
 
 ## Traceability
 
@@ -759,6 +824,10 @@ non-authoritative and slated for separate removal.
 | `TCQ-V0-052` | `internal/cem/wire/map.go` | `TestSpec03CoverageWitness` |
 | `TCQ-V0-053` | `internal/cem/workflow/cover.go`, `internal/cem/workflow/workflow.go` | `TestCoverRecordsCoverageWitnessAndReportDowngrades` |
 | `TCQ-V0-054` | `internal/cem/workflow/read.go` | `TestCoverRecordsCoverageWitnessAndReportDowngrades` |
+| `TCQ-V0-055` | `internal/cem/workflow/discriminate.go`, `internal/cem/cli/cli.go` | `TestDiscriminateRefusesInvalidBoundsAndTarget`, `TestDiscriminateRecordsWitnessAndReportDowngrades` |
+| `TCQ-V0-056` | `internal/cem/wire/discriminate.go`, `internal/cem/wire/map.go` | `TestSpec03DiscriminationWitness` |
+| `TCQ-V0-057` | `internal/cem/workflow/discriminate.go`, `internal/cem/workflow/workflow.go`, `internal/liveverify/mutate/mutate.go` | `TestDiscriminateRecordsWitnessAndReportDowngrades` |
+| `TCQ-V0-058` | `internal/cem/workflow/read.go` | `TestDiscriminateRecordsWitnessAndReportDowngrades` |
 
 The implementation and deterministic reference vectors are delivered as a candidate. The labelled
 corpus, reporter compatibility measurements, independent implementation, and ten-change dogfood

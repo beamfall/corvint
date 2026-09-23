@@ -252,14 +252,19 @@ func sameFile(first, second string) bool {
 // Test-claim qualification outcomes rendered by the reviewer report
 // (TCQ-V0-053). A hunk citing test-claim evidence is `tested` only when its
 // coverage witness covers at least one added line; otherwise the claim is
-// downgraded and the reason names why.
+// downgraded and the reason names why. A survived mutant (TCQ-V0-058) is the
+// strongest reason and outranks a missing or uncovered coverage witness.
 const (
 	claimTested           = "tested"
 	claimNoWitness        = "no-coverage-witness"
 	claimWitnessUncovered = "coverage-witness-uncovered"
+	claimMutantsSurvived  = "mutants-survived"
 )
 
 func testClaimOutcome(hunk wire.Hunk) string {
+	if hunk.Discriminates != nil && hunk.Discriminates.State == wire.DiscriminationSurvived {
+		return claimMutantsSurvived
+	}
 	if hunk.Coverage == nil {
 		return claimNoWitness
 	}
@@ -292,14 +297,35 @@ func renderTestClaims(document *wire.Map) string {
 		}
 		outcome := testClaimOutcome(hunk)
 		if outcome == claimTested {
-			out.WriteString(fmt.Sprintf("- %s `%s`: tested (test run %s, coverprofile `%s`)\n",
-				mdreport.CodeSpan(hunk.Path), hunk.ID, mdreport.CodeSpan(hunk.Coverage.TestRun), hunk.Coverage.ProfileSha256))
+			out.WriteString(fmt.Sprintf("- %s `%s`: tested (test run %s, coverprofile `%s`)%s\n",
+				mdreport.CodeSpan(hunk.Path), hunk.ID, mdreport.CodeSpan(hunk.Coverage.TestRun), hunk.Coverage.ProfileSha256, mutationNote(hunk)))
 			continue
 		}
-		out.WriteString(fmt.Sprintf("- %s `%s`: downgraded from tested; reason `%s`\n",
-			mdreport.CodeSpan(hunk.Path), hunk.ID, outcome))
+		out.WriteString(fmt.Sprintf("- %s `%s`: downgraded from tested; reason `%s`%s\n",
+			mdreport.CodeSpan(hunk.Path), hunk.ID, outcome, mutationNote(hunk)))
 	}
 	return out.String()
+}
+
+// mutationNote appends a hunk's discrimination witness to its test-claim
+// line (TCQ-V0-058): the kill count, every surviving mutant, or why the run
+// did not judge the hunk. A hunk without a witness renders as before.
+func mutationNote(hunk wire.Hunk) string {
+	witness := hunk.Discriminates
+	if witness == nil {
+		return ""
+	}
+	switch witness.State {
+	case wire.DiscriminationDiscriminates:
+		return fmt.Sprintf("; discriminates (killed %d of %d mutants)", witness.Killed, witness.Mutants)
+	case wire.DiscriminationNotRun:
+		return fmt.Sprintf("; mutation not-run (%s)", mdreport.CodeSpan(witness.Detail))
+	}
+	survivors := make([]string, 0, len(witness.Survivors))
+	for _, mutant := range witness.Survivors {
+		survivors = append(survivors, fmt.Sprintf("%s at %s:%d", mutant.Operator, mdreport.CodeSpan(hunk.Path), mutant.Line))
+	}
+	return fmt.Sprintf(" (%d of %d mutants survived: %s)", witness.Survived, witness.Mutants, strings.Join(survivors, "; "))
 }
 
 func renderReportText(document *wire.Map, verification, counts map[string]any, work, policy []any) string {

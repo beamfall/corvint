@@ -832,6 +832,9 @@ Usage:
   corvint [--root PATH] cem status --map MAP [OPTIONS]
   corvint [--root PATH] cem verify --map MAP [OPTIONS]
   corvint [--root PATH] cem report --map MAP [--output REPORT] [OPTIONS]
+  corvint [--root PATH] cem cover --map MAP --coverprofile PATH --test-run ID [--output MAP]
+  corvint [--root PATH] cem discriminate --map MAP --target REV [--max-hunks N]
+    [--max-mutants N] [--wall-time DURATION] [--output MAP]
   corvint [--root PATH] cem anchor --map MAP [--commit REV]
   corvint [--root PATH] cem provenance --commit REV
 
@@ -845,6 +848,15 @@ Actions:
   mark     Record an explicit unknown or byte-verifiable mechanical disposition.
   status   Local completion check; verify is the equivalent machine/CI surface;
            report renders the optional human view. All three verify identically.
+  cover    Record a patch coverage witness on every hunk from one local Go
+           coverprofile named by --test-run; upgrades the map to cem/0.3.
+  discriminate
+           Mutate the map's changed Go hunks (at most --max-hunks hunks and
+           --max-mutants mutants each, within --wall-time; defaults 8, 8, 10m)
+           against the _test.go files their test claims cite, and record a
+           discriminates / survived / not-run witness pinned to --target and
+           the test selection digest. Survivors downgrade the report; the run
+           never fails the build.
   anchor   (experimental) Write a pointer to the map committed at HEAD as the
            refs/notes/corvint note of REV (default HEAD); refuses a dirty,
            untracked, or uncommitted map and never replaces a different note.

@@ -101,6 +101,10 @@ var cemActions = map[string]cemAction{
 		arguments: []string{"--map", "--coverprofile", "--test-run", "--output"},
 		required:  []string{"--map", "--coverprofile", "--test-run"},
 	},
+	"discriminate": {
+		arguments: []string{"--map", "--target", "--max-hunks", "--max-mutants", "--wall-time", "--output"},
+		required:  []string{"--map", "--target"},
+	},
 	"anchor": {
 		arguments: []string{"--map", "--commit"},
 		required:  []string{"--map"},
@@ -110,10 +114,10 @@ var cemActions = map[string]cemAction{
 }
 
 // cemActionOrder is the order the oracle declares its subparsers in, which is
-// the order its invalid-choice message lists them in; cover (TCQ-V0-051) has
-// no oracle counterpart and is listed last; anchor and provenance
-// (FPK-V0-037..040) follow it.
-var cemActionOrder = []string{"begin", "prepare", "cite", "mark", "verify", "status", "report", "cover", "anchor", "provenance"}
+// the order its invalid-choice message lists them in; cover (TCQ-V0-051),
+// discriminate (TCQ-V0-055), anchor and provenance (FPK-V0-037..040) have no
+// oracle counterpart and are listed last.
+var cemActionOrder = []string{"begin", "prepare", "cite", "mark", "verify", "status", "report", "cover", "discriminate", "anchor", "provenance"}
 
 // GitNotes serves anchor and provenance (internal/gitnotes). The binary
 // installs it, so the CEM seams' dependency closure stays the standard library
@@ -409,6 +413,12 @@ func dispatchCEM(ctx context.Context, root string, arguments []string) (map[stri
 		return session.Cover(ctx, workflow.CoverOptions{
 			MapPath: flags.values["--map"], Coverprofile: flags.values["--coverprofile"],
 			TestRun: flags.values["--test-run"], Output: flags.values["--output"],
+		})
+	case "discriminate":
+		return session.Discriminate(ctx, workflow.DiscriminateOptions{
+			MapPath: flags.values["--map"], Target: flags.values["--target"],
+			MaxHunks: flags.values["--max-hunks"], MaxMutants: flags.values["--max-mutants"],
+			WallTime: flags.values["--wall-time"], Output: flags.values["--output"],
 		})
 	case "anchor", "provenance":
 		if GitNotes != nil {

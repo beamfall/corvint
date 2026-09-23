@@ -319,6 +319,7 @@ func (entry *claim) credit(outcome runOutcome, candidate mutant, killingTest str
 	entry.seen++
 	if outcome == runPassed {
 		entry.report.Survived++
+		entry.report.Survivors = append(entry.report.Survivors, survivor(candidate))
 		return
 	}
 	if outcome == runUnbuildable {

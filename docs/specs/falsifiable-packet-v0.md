@@ -1162,6 +1162,12 @@ above stands with that substitution.
   case, the help lines, and these four clauses; anchors already written stay inert on
   `refs/notes/corvint` and are removed with `git update-ref -d refs/notes/corvint`.
 
+The mutation runner FPK-V0-028 prototypes (`internal/liveverify/mutate`) is shared, since
+decision 0353, with the `cem discriminate` hunk witness governed by `TCQ-V0-055..058` in
+[`test-claim-qualification-v0.md`](test-claim-qualification-v0.md); it is no longer a
+prove-only prototype, and its `Report.Survivors` export is additive. FPK-V0-028's own row shape,
+its experimental label, and its 19-of-20 replay acceptance are unchanged and remain `NOT_RUN`.
+
 ## Simpler baseline and why it is insufficient
 
 Re-reading the cited file from the index and comparing hashes would be cheaper, but it would check

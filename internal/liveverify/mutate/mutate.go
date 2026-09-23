@@ -76,6 +76,19 @@ type Report struct {
 	// attribute it to one named test. It is nil for every non-kill and for an
 	// unattributed package failure.
 	Witness *Witness
+	// Survivors lists every mutant that built and passed the tests, in plan
+	// order; it is complete only for a Complete run.
+	Survivors []Survivor
+}
+
+// Survivor is one mutant the tests let live: its operator, the 1-based line
+// of the changed file it was applied at, and its zero-based, end-exclusive
+// byte span in the original changed-file blob.
+type Survivor struct {
+	Operator string
+	Line     int
+	Start    int
+	End      int
 }
 
 // Witness is the replayable part of one killed mutant. Start and End are a
@@ -414,6 +427,7 @@ func judgeMutants(ctx context.Context, configuration settings, space workspace, 
 		}
 		if outcome == runPassed {
 			report.Survived++
+			report.Survivors = append(report.Survivors, survivor(candidate))
 			continue
 		}
 		if outcome == runUnbuildable {
@@ -442,6 +456,10 @@ func firstFailedTest(names []string, outcomes map[string]runOutcome) string {
 		}
 	}
 	return ""
+}
+
+func survivor(candidate mutant) Survivor {
+	return Survivor{Operator: candidate.Operator, Line: candidate.Line, Start: candidate.Start, End: candidate.End}
 }
 
 func mutationWitness(candidate mutant, killingTest string) *Witness {

@@ -95,17 +95,57 @@ const (
 
 var coverageModes = map[string]bool{"set": true, "count": true, "atomic": true}
 
-// Hunk is one mapped patch hunk. Coverage is nil unless a cem/0.3 witness is
-// recorded.
+// DiscriminationWitness is one hunk's optional cem/0.3 mutation witness: whether
+// the tests its test claims cite kill bounded mutants of the hunk's new-side
+// lines on one tree revision (TCQ-V0-056). Survivors describe every mutant
+// that lived; a hunk the run never judged carries State DiscriminationNotRun
+// with zero counts and its Detail, never an omitted witness.
+type DiscriminationWitness struct {
+	TreeRevision    string
+	SelectionSha256 string
+	Mutants         int64
+	Killed          int64
+	Survived        int64
+	Survivors       []SurvivingMutant
+	Bounds          DiscriminationBounds
+	State           string
+	Detail          string
+}
+
+// SurvivingMutant is one mutant the selected tests let live.
+type SurvivingMutant struct {
+	Operator    string
+	Line        int64
+	Description string
+}
+
+// DiscriminationBounds are the caps one discriminate run declared.
+type DiscriminationBounds struct {
+	MaxHunks        int64
+	MaxMutants      int64
+	WallTimeSeconds int64
+}
+
+// Frozen discrimination witness vocabulary.
+const (
+	DiscriminationDiscriminates = "discriminates"
+	DiscriminationSurvived      = "survived"
+	DiscriminationNotRun        = "not-run"
+	MaxDiscriminationTextBytes  = 512
+)
+
+// Hunk is one mapped patch hunk. Coverage and Discriminates are nil unless a
+// cem/0.3 witness is recorded.
 type Hunk struct {
-	ID          string
-	Path        string
-	OldRange    Range
-	NewRange    Range
-	Disposition string
-	Reason      string
-	Basis       []Basis
-	Coverage    *CoverageWitness
+	ID            string
+	Path          string
+	OldRange      Range
+	NewRange      Range
+	Disposition   string
+	Reason        string
+	Basis         []Basis
+	Coverage      *CoverageWitness
+	Discriminates *DiscriminationWitness
 }
 
 // Map is a validated CEM 0.1, 0.2, or 0.3 document.
@@ -299,6 +339,11 @@ func validateHunk(item Value, spec string) (Hunk, error) {
 	if witnessed {
 		keys = append(keys, "coverage")
 	}
+	discriminatesValue, hasDiscriminates := item.Obj.Get("discriminates")
+	discriminated := hasDiscriminates && spec == Spec03
+	if discriminated {
+		keys = append(keys, "discriminates")
+	}
 	if err := requireClosedKeys(item.Obj, keys); err != nil {
 		return Hunk{}, err
 	}
@@ -356,6 +401,13 @@ func validateHunk(item Value, spec string) (Hunk, error) {
 			return Hunk{}, err
 		}
 		hunk.Coverage = &witness
+	}
+	if discriminated {
+		witness, err := validateDiscrimination(discriminatesValue, newRange)
+		if err != nil {
+			return Hunk{}, err
+		}
+		hunk.Discriminates = &witness
 	}
 	return hunk, nil
 }

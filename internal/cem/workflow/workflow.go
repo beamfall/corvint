@@ -241,6 +241,9 @@ func documentHunks(document *wire.Map) []any {
 		if hunk.Coverage != nil {
 			entry["coverage"] = coverageValue(hunk.Coverage)
 		}
+		if hunk.Discriminates != nil {
+			entry["discriminates"] = discriminationValue(hunk.Discriminates)
+		}
 		hunks = append(hunks, entry)
 	}
 	return hunks
@@ -254,6 +257,24 @@ func coverageValue(witness *wire.CoverageWitness) map[string]any {
 	return map[string]any{
 		"covered": covered, "mode": witness.Mode, "profileSha256": witness.ProfileSha256,
 		"state": witness.State, "testRun": witness.TestRun,
+	}
+}
+
+func discriminationValue(witness *wire.DiscriminationWitness) map[string]any {
+	survivors := make([]any, 0, len(witness.Survivors))
+	for _, item := range witness.Survivors {
+		survivors = append(survivors, map[string]any{
+			"description": item.Description, "line": item.Line, "operator": item.Operator,
+		})
+	}
+	return map[string]any{
+		"bounds": map[string]any{
+			"maxHunks": witness.Bounds.MaxHunks, "maxMutants": witness.Bounds.MaxMutants,
+			"wallTimeSeconds": witness.Bounds.WallTimeSeconds,
+		},
+		"detail": witness.Detail, "killed": witness.Killed, "mutants": witness.Mutants,
+		"selectionSha256": witness.SelectionSha256, "state": witness.State,
+		"survived": witness.Survived, "survivors": survivors, "treeRevision": witness.TreeRevision,
 	}
 }
 

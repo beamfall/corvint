@@ -2466,3 +2466,33 @@ NOT MET / UNKNOWN:
   this change's ownership.
 - `nice -n 10` could not be used: the worktree guard refused it, so tests ran un-niced.
 - Full `make gate` was not run, per ticket scope.
+
+## 2026-09-22 hunk-mutation-discriminates-witness: `cem discriminate` records a bounded mutation witness per hunk (V1-0086, decision 0353)
+
+What changed: a new explicit action `corvint cem discriminate --map MAP --target REV
+[--max-hunks N] [--max-mutants N] [--wall-time DURATION] [--output MAP]`
+(`internal/cem/workflow/discriminate.go`, wired in `internal/cem/cli/cli.go` and `cem` help)
+reuses the FPK-V0-028 runner (`internal/liveverify/mutate`: `Open`, `Export.Judge` with
+`Complete`) on the map's changed Go hunks against the `_test.go` files their `test-claim` basis
+cites, and writes the optional closed-key `cem/0.3` hunk member `discriminates`
+(`internal/cem/wire/discriminate.go`) with `state` `discriminates`, `survived`, or `not-run`,
+killed/survived counts, every survivor described, the bounds enforced, the resolved target
+object ID, and the selection digest of the selected test paths. `cem report` appends the witness
+to each `## Test claims` line and downgrades a `survived` hunk with reason `mutants-survived`,
+listing each survivor; status, verify, counts, worklist, and exit status are unchanged. The only
+runner change is additive: `Report.Survivors` (`[]Survivor{Operator, Line, Start, End}`) filled by
+both judge paths; `prove --mutate` reads none of it. `cem` help also gained the `cover` action
+that decision 0347 left out. Specs: TCQ-V0-055..058 with an acceptance row, rollback, and
+traceability; one paragraph appended to the FPK requirements records the shared runner and
+keeps FPK-V0-028's experimental label and 19-of-20 replay gate `NOT_RUN`.
+
+Measured on this host (macOS `sandbox-exec`, workflow test fixture of one Go module, one
+selected hunk, 4 mutants, `--max-mutants 6`, `--wall-time 5m`): one bounded run 5.7 s on a quiet
+host and 30.5–32.8 s while seven other agents were building and testing concurrently; refusals run
+no mutant and complete in under a second. The runner's cost is one sandboxed `go test` per mutant.
+
+UNKNOWN / NOT MET: no end-to-end run against a real repository change was performed, only the
+synthetic fixture; the cost numbers are from one host under two load conditions and are not a
+budget. FPK-V0-028's replay cohort and the TCQ promotion gates remain `NOT_RUN`. The prototype
+label was narrowed, not removed: the TCQ requirements, cost, and rollback now govern the shared
+runner, while FPK-V0-028's own experimental label stays because its acceptance is unmet.

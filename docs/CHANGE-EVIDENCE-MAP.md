@@ -123,6 +123,12 @@ Every parsed hunk MUST appear once, identified by:
   (`TCQ-V0-052`): `{profileSha256, testRun, mode, state, covered}`, where `state` is `covered`
   or `uncovered` and `covered` lists the ascending, non-adjacent added-line ranges inside
   `newRange` that the named coverprofile reached. `cem/0.1` and `cem/0.2` reject the key as
+  `unknown-field`; and
+- `discriminates` (`cem/0.3` only, optional): one mutation discrimination witness written by
+  `cem discriminate` (`TCQ-V0-056`): `{treeRevision, selectionSha256, mutants, killed, survived,
+  survivors, bounds, state, detail}`, where `state` is `discriminates` (every compiled mutant
+  killed), `survived` (each survivor listed as `{operator, line, description}`), or `not-run`
+  (zero counts and a `detail` naming why). `cem/0.1` and `cem/0.2` reject the key as
   `unknown-field`.
 
 The hunk body digest is SHA-256 of the exact diff body bytes after the `@@` header. The hunk ID is
@@ -180,7 +186,12 @@ that the verifier recomputes from the base blob and the patch with the Go standa
 (`TCQ-V0-051..054`, [`specs/test-claim-qualification-v0.md`](specs/test-claim-qualification-v0.md)):
 `cem cover` intersects one operator-named local Go coverprofile with each hunk's added lines and
 records a `covered` or `uncovered` witness on every hunk, and `cem report` downgrades a
-`test-claim` basis whose hunk has no covering witness with a visible reason.
+`test-claim` basis whose hunk has no covering witness with a visible reason. The same profile
+admits the optional per-hunk `discriminates` witness (`TCQ-V0-055..058`): `cem discriminate`
+runs the bounded `prove --mutate` runner on the map's changed Go hunks against the `_test.go`
+files their test claims cite, records `discriminates`, `survived`, or `not-run` on every hunk
+pinned to the target tree and the test selection digest, and `cem report` downgrades a hunk
+with survivors visibly without ever failing the build.
 
 ## Verification and drift
 
@@ -254,7 +265,8 @@ Fresh `corvint cem prepare` runs emit the separate experimental `cem/0.2` profil
 `"excludedPath":".corvint/change.cem.json"` field. `status`, `verify`, and `report` require an
 independent expected base and target, derive the WP1-pinned patch themselves, and reject `--patch`.
 `cem/0.3` keeps that shape and adds only the wider mechanical reason vocabulary and the optional
-hunk `coverage` witness; every canonical rule in this section applies to both profiles.
+hunk `coverage` and `discriminates` witnesses; every canonical rule in this section applies to
+both profiles.
 If the sidecar exists in the target tree, its mode must be `100644` and its raw blob bytes must equal
 the verified input. `prepare` is the preceding candidate phase: it ignores inherited target-side
 sidecar bytes, because committing the generated map creates the final revision. Its returned
@@ -324,6 +336,17 @@ to `cem/0.3`:
 go test -coverprofile=cover.out ./pkg/...
 corvint cem cover --map .corvint/change.cem.json \
   --coverprofile cover.out --test-run 'go test -coverprofile=cover.out ./pkg/...'
+```
+
+Use `discriminate` to ask whether the cited tests notice when a changed hunk is mutated. It
+runs the sandboxed `prove --mutate` runner on at most `--max-hunks` changed Go hunks with at most
+`--max-mutants` mutants each inside one `--wall-time` budget (defaults 8, 8, `10m`), pins the
+run to `--target` and to the digest of the selected test files, and records a witness on every
+hunk; survivors downgrade the report visibly and never fail the build:
+
+```console
+corvint cem discriminate --map .corvint/change.cem.json --target HEAD \
+  --max-hunks 4 --max-mutants 8 --wall-time 5m
 ```
 
 ## Example shape
