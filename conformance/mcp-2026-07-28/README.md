@@ -22,8 +22,9 @@ The runner builds `./cmd/corvint-mcp`, launches it as
 delimited JSON-RPC on stdin/stdout. It verifies:
 
 - exact discovery/version metadata and truthful tools-only capabilities;
-- deterministic, closed tool catalogues for `corvint.query`, `corvint.impact`, and
-  `corvint.status`, with no resources or unimplemented tools;
+- deterministic, closed tool catalogues for `corvint.cem.report`, `corvint.context`,
+  `corvint.impact`, `corvint.query`, and `corvint.status`, with no resources or
+  unimplemented tools;
 - stateless per-request metadata and unsupported-version errors;
 - rejection of removed legacy methods;
 - strict duplicate-key, invalid-UTF-8, malformed-JSON, 1 MiB frame, and depth-64
@@ -63,10 +64,31 @@ progress delivery remains `NOT_OBSERVED` rather than a compatibility claim.
 
 `corvint-mcp` pins one absolute Git executable at start and refuses to start
 when Git does not resolve. `TestGitPlantedOnPathAfterStartNeverRuns` plants a
-`git` earlier on the server's `PATH` after start, calls `corvint.status` and
-`corvint.impact` with a planning snapshot, and observes that it never runs. It
-also observes the refusal to start without Git. This closes the former
+`git` earlier on the server's `PATH` after start, calls `corvint.status`,
+`corvint.impact` with a planning snapshot, and `corvint.cem.report` on a missing
+and a present map, and observes that it never runs. It also observes the refusal
+to start without Git. This closes the former
 `INHERITED_KERNEL_GIT_PATH_NOT_PINNED` blocker.
+
+The proposed `corvint.context` and `corvint.cem.report` tools (`MCPV0-024`,
+`MCPV0-025`) have four cases. The read-only case compares a digest of the whole
+root, `.git` included, before and after both calls, requires the bound
+envelope and receipt, and requires that `.git/corvint/cem-review.md` was never
+written. The rejection case sends malformed task, subject, limit, map, revision
+and ceiling arguments and requires `-32602`. The escape case links the map, and
+separately its parent directory, to a file outside the root. It requires
+`cem-map-unavailable` without the outside path in the result and requires both
+trees to be unchanged. The last case plants a hunk path carrying the envelope
+terminator and requires `corvint-envelope-terminator-collision`, then renders a
+1,500-hunk report and requires `ABSTAINED`/`OUTPUT_BUDGET_EXCEEDED` with a null
+receipt. The official-schema exchanges cover the success, tool-error and
+`-32602` shapes of both tools.
+
+Negative controls, run once on 2026-09-23 and then reverted: without the
+start-time Git pin, `TestGitPlantedOnPathAfterStartNeverRuns` fails because the
+planted Git ran. With the report tool publishing instead of previewing,
+`TestContextAndCEMReportAreBoundReadOnlyAndFramed` fails on the written report.
+Both suites were green again after the controls were reverted.
 
 The 2026-09-06 read-safety cases exercise private-metadata Git status through the real MCP process:
 configured clean/process filters cannot execute, `core.worktree` cannot redirect observations

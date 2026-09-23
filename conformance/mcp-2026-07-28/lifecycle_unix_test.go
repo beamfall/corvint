@@ -182,6 +182,21 @@ func gitPlantedOnPathAfterStartNeverRuns(t *testing.T) {
 	if impact["isError"] == true {
 		t.Fatalf("impact with snapshot after planting git=%s", canonicalJSON(impact))
 	}
+	// The CEM seams spawn Git through their own runner, which is pinned too.
+	head := gitOutput(t, root, "rev-parse", "HEAD")
+	report := successResult(t, client.call(t, 97, "tools/call", map[string]any{
+		"_meta": requestMeta(), "name": "corvint.cem.report", "arguments": map[string]any{"map": "missing.cem.json", "expectedBase": head, "target": head},
+	}))
+	if code := object(t, report["structuredContent"])["code"]; report["isError"] != true || code != "cem-map-unavailable" {
+		t.Fatalf("cem report after planting git=%s", canonicalJSON(report))
+	}
+	writeCEMMap(t, root, "change.cem.json", head, "pkg/value.go", 1)
+	report = successResult(t, client.call(t, 98, "tools/call", map[string]any{
+		"_meta": requestMeta(), "name": "corvint.cem.report", "arguments": map[string]any{"map": "change.cem.json", "expectedBase": head, "target": head},
+	}))
+	if report["isError"] == true {
+		t.Fatalf("cem report after planting git=%s", canonicalJSON(report))
+	}
 	if _, err := os.Stat(marker); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("git planted on PATH after start ran: %v", err)
 	}

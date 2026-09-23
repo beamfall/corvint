@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
@@ -24,7 +25,7 @@ func TestToolsExposeOnlyDeliveredClosedReadSurface(t *testing.T) {
 		t.Fatal(err)
 	}
 	tools := registry.Tools()
-	want := []string{ToolImpact, ToolQuery, ToolStatus}
+	want := []string{ToolCEMReport, ToolContext, ToolImpact, ToolQuery, ToolStatus}
 	got := make([]string, len(tools))
 	for index, tool := range tools {
 		got[index] = tool.Name
@@ -39,9 +40,14 @@ func TestToolsExposeOnlyDeliveredClosedReadSurface(t *testing.T) {
 			t.Fatalf("tool %s annotations = %#v", tool.Name, tool.Annotations)
 		}
 	}
-	querySchema := tools[1].InputSchema["properties"].(map[string]any)["task"].(map[string]any)
+	querySchema := tools[3].InputSchema["properties"].(map[string]any)["task"].(map[string]any)
 	if querySchema["pattern"] != `^[ -~]*[!-~][ -~]*$` {
 		t.Fatalf("query task schema admits runtime-invalid whitespace: %#v", querySchema)
+	}
+	contextTask := tools[1].InputSchema["properties"].(map[string]any)["task"].(map[string]any)
+	cemMap := tools[0].InputSchema["properties"].(map[string]any)["map"].(map[string]any)
+	if contextTask["maxLength"] != 8000 || contextTask["pattern"] != `[^\s\x85]` || cemMap["maxLength"] != 128 {
+		t.Fatalf("schema admits runtime-invalid arguments: task=%#v map=%#v", contextTask, cemMap)
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("tools = %v, want %v", got, want)
@@ -58,7 +64,7 @@ func TestToolsExposeOnlyDeliveredClosedReadSurface(t *testing.T) {
 }
 
 func TestReadToolsRefuseConfiguredFilterWithoutExecutingIt(t *testing.T) {
-	for _, tool := range []string{ToolStatus, ToolImpact, ToolQuery} {
+	for _, tool := range []string{ToolStatus, ToolImpact, ToolQuery, ToolContext, ToolCEMReport} {
 		t.Run(tool, func(t *testing.T) {
 			root := makeRepository(t)
 			marker := filepath.Join(t.TempDir(), "executed")
@@ -73,8 +79,11 @@ func TestReadToolsRefuseConfiguredFilterWithoutExecutingIt(t *testing.T) {
 			if tool == ToolImpact {
 				args = `{"paths":["internal/widget/widget.go"]}`
 			}
-			if tool == ToolQuery {
+			if tool == ToolQuery || tool == ToolContext {
 				args = `{"task":"orient contributor roadmap ticket workflow"}`
+			}
+			if tool == ToolCEMReport {
+				args = cemArguments(t, root)
 			}
 			result, callErr := registry.Call(context.Background(), tool, []byte(args))
 			if _, err := os.Stat(marker); !os.IsNotExist(err) {
@@ -102,13 +111,16 @@ func TestReadToolsRejectEffectiveWorktreeRedirectBeforeAndAfterAdmission(t *test
 			if late {
 				gitOutput(t, root, "config", "core.worktree", outside)
 			}
-			for _, tool := range []string{ToolStatus, ToolImpact, ToolQuery} {
+			for _, tool := range []string{ToolStatus, ToolImpact, ToolQuery, ToolContext, ToolCEMReport} {
 				args := `{}`
 				if tool == ToolImpact {
 					args = `{"paths":["internal/widget/widget.go"]}`
 				}
-				if tool == ToolQuery {
+				if tool == ToolQuery || tool == ToolContext {
 					args = `{"task":"orient contributor roadmap ticket workflow"}`
+				}
+				if tool == ToolCEMReport {
+					args = cemArguments(t, root)
 				}
 				result, callErr := registry.Call(context.Background(), tool, []byte(args))
 				if callErr == nil || callErr.Code != "repository-unavailable" {
@@ -136,6 +148,18 @@ func TestCallRejectsUnknownDuplicateAndHostileArgumentsBeforeRepositoryWork(t *t
 		t.Error("invalid arguments reached query build")
 		return nil, errors.New("unexpected query build")
 	}
+	registry.operations.context = func(context.Context, string, contextInput) (*contextindex.Index, map[string]any, error) {
+		t.Error("invalid arguments reached context compilation")
+		return nil, nil, errors.New("unexpected context compilation")
+	}
+	registry.operations.cemReport = func(context.Context, string, workflow.ReadOptions) (map[string]any, error) {
+		t.Error("invalid arguments reached the CEM read")
+		return nil, errors.New("unexpected CEM read")
+	}
+	oid := strings.Repeat("a", 40)
+	cem := func(mapPath, extra string) string {
+		return `{"map":` + mapPath + `,"expectedBase":"` + oid + `","target":"` + oid + `"` + extra + `}`
+	}
 	tests := []struct {
 		name string
 		tool string
@@ -154,6 +178,30 @@ func TestCallRejectsUnknownDuplicateAndHostileArgumentsBeforeRepositoryWork(t *t
 		{"status unknown", ToolStatus, `{"root":"/tmp"}`},
 		{"status null", ToolStatus, `null`},
 		{"status array", ToolStatus, `[]`},
+		{"context unknown", ToolContext, `{"task":"change widget","root":"/tmp"}`},
+		{"context blank", ToolContext, `{"task":" \t "}`},
+		{"context next line", ToolContext, `{"task":"\u0085"}`},
+		{"context oversized", ToolContext, `{"task":"` + strings.Repeat("x", maxContextTaskBytes+1) + `"}`},
+		{"context limit zero", ToolContext, `{"task":"change widget","limit":0}`},
+		{"context limit high", ToolContext, `{"task":"change widget","limit":51}`},
+		{"context null limit", ToolContext, `{"task":"change widget","limit":null}`},
+		{"context absolute subject", ToolContext, `{"task":"change widget","subject":"/etc/passwd"}`},
+		{"context traversal subject", ToolContext, `{"task":"change widget","subject":"internal/../../x.go"}`},
+		{"context empty segment", ToolContext, `{"task":"change widget","subject":"internal//x.go"}`},
+		{"context backslash", ToolContext, `{"task":"change widget","subject":"internal\\x.go"}`},
+		{"cem traversal", ToolCEMReport, cem(`"../outside.cem.json"`, ``)},
+		{"cem absolute", ToolCEMReport, cem(`"/tmp/change.cem.json"`, ``)},
+		{"cem dot segment", ToolCEMReport, cem(`"a/./change.cem.json"`, ``)},
+		{"cem git dir", ToolCEMReport, cem(`".git/config"`, ``)},
+		{"cem folded git dir", ToolCEMReport, cem(`"sub/.GIT/change.cem.json"`, ``)},
+		{"cem control byte", ToolCEMReport, cem(`"a\u0001.json"`, ``)},
+		{"cem overlong", ToolCEMReport, cem(`"`+strings.Repeat("a", 513)+`"`, ``)},
+		{"cem symbolic base", ToolCEMReport, `{"map":"m.cem.json","expectedBase":"HEAD","target":"` + oid + `"}`},
+		{"cem uppercase target", ToolCEMReport, `{"map":"m.cem.json","expectedBase":"` + oid + `","target":"` + strings.ToUpper(oid) + `"}`},
+		{"cem negative ceiling", ToolCEMReport, cem(`"m.cem.json"`, `,"maxUnknown":-1`)},
+		{"cem patch member", ToolCEMReport, cem(`"m.cem.json"`, `,"patch":"x.patch"`)},
+		{"cem output member", ToolCEMReport, cem(`"m.cem.json"`, `,"output":"r.md"`)},
+		{"cem missing target", ToolCEMReport, `{"map":"m.cem.json","expectedBase":"` + oid + `"}`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -589,4 +637,12 @@ func gitOutput(t *testing.T, root string, arguments ...string) []byte {
 		t.Fatalf("git %v: %v", arguments, err)
 	}
 	return output
+}
+
+// cemArguments names a well-formed map that need not exist: the Git
+// admission refusals must fire before the map is read.
+func cemArguments(t *testing.T, root string) string {
+	t.Helper()
+	head := strings.TrimSpace(string(gitOutput(t, root, "rev-parse", "HEAD")))
+	return `{"map":".corvint/change.cem.json","expectedBase":"` + head + `","target":"` + head + `"}`
 }

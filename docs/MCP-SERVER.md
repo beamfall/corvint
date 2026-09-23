@@ -57,6 +57,8 @@ ignores a legacy `notifications/initialized` notification without responding.
 | `corvint.query` | `{"task":"PRINTABLE ASCII TASK"}` | Authority-start context at the native fixed limit of one; unsupported intent abstains |
 | `corvint.impact` | `{"paths":["relative/file.go"],"limit":10}` | Revision-bound Go impact evidence; `limit` is optional, 1–50 |
 | `corvint.status` | `{}` | Exact commit/tree/object-format/profile/worktree/dirty-count-and-digest binding |
+| `corvint.context` | `{"task":"TASK","subject":"relative/path","limit":20}` | The `corvint context` task-context packet at the bound revision; `subject` and `limit` (1–50) are optional; proposed (`MCPV0-024`) |
+| `corvint.cem.report` | `{"map":"relative/change.cem.json","expectedBase":"FULL_OID","target":"FULL_OID"}` | The `corvint cem report` reviewer report as a preview that writes nothing; optional `maxUnknown`/`maxMechanical`; proposed (`MCPV0-025`) |
 
 Discovery is root-independent and returns `cacheScope: "public"`, `ttlMs: 0`, and fixed server info:
 name `corvint-mcp`, build version, and Corvint description
@@ -66,10 +68,13 @@ returns `cacheScope: "private"`, `ttlMs: 300000`, and no next cursor.
 All input schemas are closed. Query text is 1–2,000 printable ASCII characters. Impact accepts
 1–100 unique normalized repository-relative `.go` paths, each at most 1,024 Unicode scalar values.
 Absolute paths, `.`/`..`/empty segments, non-Go targets, path escapes, extra fields, and invalid
-limits are rejected before repository access.
+limits are rejected before repository access. Context `task` is 1–32,000 bytes and not blank. The CEM
+`map` is a repository-relative path of at most 512 bytes with no `.git` segment; a symlinked map or
+ancestor is refused as `cem-map-unavailable`, so a repository file cannot redirect the read outside
+the bound root. `expectedBase` and `target` must be full object IDs.
 
 Tool names are unique, case-sensitive, 1–128 characters, and use only letters, digits, `_`, `-`,
-or `.`. The three `corvint.*` names follow the official 2026-07-28 grammar.
+or `.`. The five `corvint.*` names follow the official 2026-07-28 grammar.
 
 Successful calls return the complete canonical `corvint-mcp-bridge-result/0` receipt both as one text
 content block and as the identical parsed `structuredContent`. `READY` means the bounded operation

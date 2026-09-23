@@ -37,12 +37,12 @@ func checkWorkflowTools(ctx context.Context, extracted, repo, scratch string, in
 		err = requireMCPDiscovery(mainResponses, 0, inventory.name("corvint-mcp"), "0.1.0-experimental")
 	}
 	if err == nil {
-		err = requireMCPTools(mainResponses, 1, []string{"corvint.impact", "corvint.query", "corvint.status"})
+		err = requireMCPTools(mainResponses, 1, []string{"corvint.cem.report", "corvint.context", "corvint.impact", "corvint.query", "corvint.status"})
 	}
 	if err == nil {
 		err = requireMCPSuccess(mainResponses, 2)
 	}
-	steps = append(steps, step("corvint-mcp-discover-list-status", err, "server/discover, 3 tools, corvint.status"))
+	steps = append(steps, step("corvint-mcp-discover-list-status", err, "server/discover, 5 tools, corvint.status"))
 	if err != nil {
 		return steps, err
 	}

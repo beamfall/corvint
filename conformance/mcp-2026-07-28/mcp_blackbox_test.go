@@ -120,7 +120,8 @@ func TestCaseInventoryIsClosed(t *testing.T) {
 		"cancel-structural", "progress-execution-not-observed", "logging-opt-in", "roots-no-server-call",
 		"clean-eof", "sigint-exit", "sigterm-exit", "no-surviving-descendants",
 		"revision-bound-read-only", "secret-sanitization", "stdout-purity", "git-executable-pinned",
-		"official-schema-traffic",
+		"official-schema-traffic", "context-cem-report-read-only", "context-cem-report-argument-rejection",
+		"cem-map-escape-refusal", "cem-report-envelope-and-budget",
 	}
 	if got.Profile != "corvint-mcp-2026-07-28-conformance/0" || got.ProtocolVersion != protocolVersion ||
 		got.Transport != "stdio" || got.Limits.InputLineBytes != maxLineBytes ||
@@ -274,7 +275,7 @@ func TestToolCatalogueAndResourceOmission(t *testing.T) {
 		t.Fatalf("tool ttlMs=%#v", result["ttlMs"])
 	}
 	tools, ok := result["tools"].([]any)
-	if !ok || len(tools) != 3 {
+	if !ok || len(tools) != 5 {
 		t.Fatalf("tools=%#v", result["tools"])
 	}
 	names := make([]string, 0, len(tools))
@@ -298,7 +299,7 @@ func TestToolCatalogueAndResourceOmission(t *testing.T) {
 			t.Fatalf("tool %s annotations=%s", name, canonicalJSON(annotations))
 		}
 	}
-	if want := []string{"corvint.impact", "corvint.query", "corvint.status"}; !reflect.DeepEqual(names, want) {
+	if want := []string{"corvint.cem.report", "corvint.context", "corvint.impact", "corvint.query", "corvint.status"}; !reflect.DeepEqual(names, want) {
 		t.Fatalf("tool order/names=%v want=%v", names, want)
 	}
 	assertServerInfo(t, result)
@@ -550,13 +551,17 @@ func TestReadToolsRefuseExecutableConfigAndWorktreeRedirects(t *testing.T) {
 			}
 			before := treeDigest(t, root)
 			outsideBefore := treeDigest(t, outside)
-			for id, tool := range []string{"corvint.status", "corvint.impact", "corvint.query"} {
+			head := gitOutput(t, root, "rev-parse", "HEAD")
+			for id, tool := range []string{"corvint.status", "corvint.impact", "corvint.query", "corvint.context", "corvint.cem.report"} {
 				args := map[string]any{}
 				if tool == "corvint.impact" {
 					args["paths"] = []any{"pkg/value.go"}
 				}
-				if tool == "corvint.query" {
+				if tool == "corvint.query" || tool == "corvint.context" {
 					args["task"] = "orient contributor roadmap ticket workflow"
+				}
+				if tool == "corvint.cem.report" {
+					args = map[string]any{"map": ".corvint/change.cem.json", "expectedBase": head, "target": head}
 				}
 				result := successResult(t, client.call(t, id+10, "tools/call", map[string]any{"_meta": requestMeta(), "name": tool, "arguments": args}))
 				if result["isError"] != true || object(t, result["structuredContent"])["code"] != "repository-unavailable" {

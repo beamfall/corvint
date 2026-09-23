@@ -4,6 +4,64 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0191 MCPV0-024, MCPV0-025: task-context and CEM report as read-only MCP tools
+
+Finding: `corvint-mcp` exposed only `corvint.query`, `corvint.impact` and `corvint.status`. An agent
+connected over MCP therefore could not get the task-context packet or the CEM reviewer report
+without shelling out to the CLI. `corvint cem report` also always publishes
+`.git/corvint/cem-review.md`, which a read-only tool must not do. The CEM Git runner looked `git`
+up on `PATH` at every spawn, outside the start-time pin that `MCPV0-016` requires.
+
+Decision: add `corvint.context` and `corvint.cem.report` (proposed `MCPV0-024`, `MCPV0-025`). This
+amends proposed intent and accepts nothing. Both tools reuse the `MCPV0-007` descriptor rules, the
+`MCPV0-008` envelope, terminator-collision refusal and 393,216-byte budget, and a bridge `tool` enum
+widened to five names. Both run in process, with no shell.
+- The context tool builds the CLI packet from an existing snapshot or an in-memory observed index. It
+  never writes a snapshot and skips the gopls attachment.
+- The report tool uses a new `report-preview` workflow action. It renders the CLI report bytes and
+  publishes nothing.
+- The map argument is a closed repository-relative path, with no `.git` segment in any case. A
+  symlinked map or ancestor fails as `cem-map-unavailable`. The map is repository-authored, and
+  following a link would let a tracked file make the server read outside, or inside Git metadata of,
+  the root bound at start.
+- Schemas advertise byte bounds as code points divided by `utf8.UTFMax`. The task pattern excludes
+  U+0085 as well as ECMA `\s`, so every schema-valid argument is runtime-valid.
+- `gitrun.PinBinary` fixes the CEM runner to the Git path `gitstatus.Pin` resolved.
+
+Accepted decision 0103 froze MCP V0 at three tools and names in-place tool additions a silent
+profile broadening. These requirements conflict with it and cannot be accepted until the owner
+supersedes 0103 or moves them to a descendant profile identity. No decision is recorded here.
+
+`mcp-server-unavailable` stays in `integrations/compatibility.json:73` and both adapter manifests.
+`integrations/README.md:43-45` defines `globalDegradations` as the V7 items `ROADMAP.md:611`
+records as not delivered. This spec is still proposed/experimental, and AGENTS.md forbids
+advertising an experimental prototype as delivered. The official Streamable HTTP runner is still
+`NOT_RUN`, and the receipt below covers no host tuple. Removal belongs with owner acceptance, in the
+same change as `integrations/README.md:15` and `ROADMAP.md:611`.
+
+Evidence: all runs used Go 1.27.1 and the official schema with sha256
+`ef70b61f99b6d2e5e3b46863822eab08dff6a45bedc7a08914e0e5b133f40203`, verified before each run.
+- `CORVINT_MCP_OFFICIAL_SCHEMA=… go test -count=1 -timeout 30m -v ./conformance/mcp-2026-07-28`
+  passed: 48 PASS, 0 SKIP, 0 FAIL, and `TestServerTrafficMatchesOfficialSchema` passed. The same run
+  with `-race` also passed with no race reported. `-race` instruments the test process only;
+  `TestMain` builds the server binary without it.
+- The official-schema exchanges now include context success and CEM report success, tool error and
+  `-32602`.
+- New compiled-process cases cover the rest. The whole root, `.git` included, is unchanged, and no
+  `cem-review.md` is written. The receipt is enveloped. Fourteen argument shapes return `-32602`.
+  Symlinked maps are refused without leaking the outside path. A terminator in a hunk path returns
+  the collision error, and a 1,500-hunk report abstains with `OUTPUT_BUDGET_EXCEEDED`. The planted-Git
+  case now also calls `corvint.cem.report`.
+- Negative controls were each reverted. Removing `PinBinary` fails
+  `TestGitPlantedOnPathAfterStartNeverRuns`. Previewing through the publishing `report` action
+  fails `TestContextAndCEMReportAreBoundReadOnlyAndFramed`.
+- In-package tests prove preview Markdown byte-identical to the CLI-published file, and probe drift
+  returns `REPOSITORY_STATE_UNSTABLE`.
+- Follow-ups:
+  - the VS Code extension's `expectedTools()` already lacked `corvint.status` and now lacks two more
+    tools
+  - official conformance, fuzzing, complete race and cross-build evidence remain open
+
 ## 2026-09-23 V1-0191 MCPV0-016: corvint-mcp pins Git at start; official schema executes
 
 Finding: the MCP 2026-07-28 spec kept two promotion blockers. The shared Git resolver memoised

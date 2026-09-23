@@ -26,8 +26,13 @@ type ReadOptions struct {
 	Output       string // report only
 }
 
-// Read runs one of the three verification-consuming commands. The action is
-// "status", "verify", or "report"; rendering is not a second trust path.
+// ActionReportPreview renders the report without publishing it: the
+// read-only MCP projection of `cem report` (MCPV0-025).
+const ActionReportPreview = "report-preview"
+
+// Read runs one of the verification-consuming commands. The action is
+// "status", "verify", "report", or ActionReportPreview; rendering is not a
+// second trust path.
 func (s *Session) Read(ctx context.Context, action string, options ReadOptions) (map[string]any, error) {
 	raw, document, err := s.readMapInput(options.MapPath)
 	if err != nil {
@@ -36,6 +41,11 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 	// Stage 3: profile-forbidden arguments.
 	if wire.Canonical(document.Spec) && options.PatchGiven {
 		return nil, invalidArguments("%s %s does not accept --patch", document.Spec, action)
+	}
+	// A preview takes no patch, so only a map whose patch derives from Git
+	// objects can be previewed; a 0.1 map would read an out-of-band file.
+	if action == ActionReportPreview && !wire.Canonical(document.Spec) {
+		return nil, invalidArguments("%s %s requires a canonical map", document.Spec, action)
 	}
 	// Stage 4: profile-required independent inputs.
 	if wire.Canonical(document.Spec) {
@@ -87,6 +97,14 @@ func (s *Session) Read(ctx context.Context, action string, options ReadOptions) 
 		return result, nil
 	case "report":
 		return s.renderReport(document, verification, counts, work, policy, envelope, options)
+	case ActionReportPreview:
+		result := map[string]any{
+			"ok": valid && len(policy) == 0, "mutates": false, "tool": "cem-report",
+			"markdown": renderReportText(document, verification, counts, work, policy),
+			"counts":   counts, "policyIssues": policy, "verification": verification,
+		}
+		envelope.apply(result, false)
+		return result, nil
 	default:
 		return nil, invalidArguments("unknown CEM command")
 	}

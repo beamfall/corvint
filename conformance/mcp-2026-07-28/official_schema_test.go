@@ -35,7 +35,9 @@ func TestServerTrafficMatchesOfficialSchema(t *testing.T) {
 		t.Fatalf("official schema sha256=%s want %s", got, officialSchemaSHA256)
 	}
 	schema := officialSchema{defs: object(t, object(t, decodeNumbers(t, raw))["$defs"])}
-	client := startServer(t, fixtureRepository(t))
+	root := fixtureRepository(t)
+	base, target := cemFixture(t, root, ".corvint/change.cem.json", "pkg/value.go", 1)
+	client := startServer(t, root)
 	defer client.close(t)
 	exchanges := []struct {
 		requestDef, responseDef, method string
@@ -47,6 +49,10 @@ func TestServerTrafficMatchesOfficialSchema(t *testing.T) {
 		{"CallToolRequest", "CallToolResultResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.query", "arguments": map[string]any{"task": "Identify the active work queue"}}},
 		{"CallToolRequest", "CallToolResultResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.impact", "arguments": map[string]any{"paths": []any{"pkg/value.go"}}}},
 		{"CallToolRequest", "JSONRPCErrorResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.impact", "arguments": map[string]any{"paths": []any{"../escape.go"}}}},
+		{"CallToolRequest", "CallToolResultResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.context", "arguments": map[string]any{"task": "change the fixture Value", "subject": "pkg/value.go"}}},
+		{"CallToolRequest", "CallToolResultResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.cem.report", "arguments": map[string]any{"map": ".corvint/change.cem.json", "expectedBase": base, "target": target}}},
+		{"CallToolRequest", "CallToolResultResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.cem.report", "arguments": map[string]any{"map": "missing.cem.json", "expectedBase": base, "target": target}}},
+		{"CallToolRequest", "JSONRPCErrorResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.cem.report", "arguments": map[string]any{"map": "../escape.cem.json", "expectedBase": base, "target": target}}},
 		{"JSONRPCRequest", "JSONRPCErrorResponse", "corvint/unknown", map[string]any{"_meta": requestMeta()}},
 	}
 	for index, exchange := range exchanges {

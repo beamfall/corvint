@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"sort"
 
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
@@ -47,10 +48,13 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		_, _ = fmt.Fprintln(stdout, serverName+" "+serverVersion)
 		return 0
 	}
-	if _, err := gitstatus.Pin(); err != nil {
+	git, err := gitstatus.Pin()
+	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: git unavailable")
 		return 2
 	}
+	// The CEM seams spawn Git through their own runner; pin it to the same path.
+	gitrun.PinBinary(git)
 	registry, registryErr := bridge.New(root)
 	if registryErr != nil {
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: repository unavailable")
