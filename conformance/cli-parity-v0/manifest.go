@@ -651,16 +651,18 @@ func validKnownDivergence(item parityCase) bool {
 }
 
 // cemActionChoices is the `cem` action list the candidate's invalid-subcommand
-// refusal enumerates: the oracle's seven actions plus `cover`, which
-// `TCQ-V0-051` (decision 0347) adds last.
-const cemActionChoices = "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover'"
+// refusal enumerates: the oracle's seven actions plus `cover` (`TCQ-V0-051`,
+// decision 0347), `discriminate` (`TCQ-V0-055`, decision 0353), `anchor` and
+// `provenance` (`FPK-V0-037`, decision 0355), which the candidate adds last in
+// that order.
+const cemActionChoices = "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover', 'discriminate', 'anchor', 'provenance'"
 
 // oracleCEMActionChoices is the retired oracle's seven-action list.
 const oracleCEMActionChoices = "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report'"
 
 // validCEMActionDivergence pins `DR-0040` to the `cem` invalid-subcommand
 // refusal: both runtimes refuse with exit status 2 and an empty stdout, and the
-// single stderr rewrite replaces the candidate's eight-action list with the
+// single stderr rewrite replaces the candidate's eleven-action list with the
 // oracle's seven.
 func validCEMActionDivergence(item parityCase) bool {
 	divergence := item.KnownDivergence

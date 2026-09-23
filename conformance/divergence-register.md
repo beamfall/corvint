@@ -2823,7 +2823,7 @@ byte-exact cases and names both declarations. `conformance/cli-parity-v0/README.
 known-divergence list was not updated in this change (outside its ownership) and should gain
 `DR-0039` and `DR-0040` bullets.
 
-### DR-0040 — `cem`: the candidate's invalid-subcommand refusal enumerates the `cover` action
+### DR-0040 — `cem`: the candidate's invalid-subcommand refusal enumerates the Go-only actions
 
 - **Status:** CLOSED 2026-09-22 — adjudicated **intentional divergence** (a Go extension) under
   decision 0347 (`docs/decisions/0347-patch-coverage-witness-from-a-local-coverprofile-2026-09-22.md`,
@@ -2832,14 +2832,18 @@ known-divergence list was not updated in this change (outside its ownership) and
   `cli-parity-v0` replay once `DR-0039` was declared: the runner reports the first failing case,
   and `cem-invalid-subcommand` was the next.
 
-**Divergence.** `TCQ-V0-051` adds `corvint cem cover`, listed last in `cemActionOrder`, so the
-candidate's refusal of an unknown action enumerates eight actions where the retired oracle
-enumerated seven. Both runtimes refuse `bogus` with exit status 2, an empty stdout, and the
+**Divergence.** `TCQ-V0-051` adds `corvint cem cover`, `TCQ-V0-055` adds `cem discriminate`, and
+`FPK-V0-037` adds `cem anchor` and `cem provenance` (decisions 0347, 0353, 0355), all listed after
+the oracle's actions in `cemActionOrder`, so the candidate's refusal of an unknown action
+enumerates eleven actions where the retired oracle enumerated seven. (Declared 2026-09-22 with the
+eight-action list of decision 0347 alone; widened the same day when the 0.7.0 integration added the
+other three actions.) Both runtimes refuse `bogus` with exit status 2, an empty stdout, and the
 `invalid-arguments` envelope. Observed bytes on the frozen argv (`cem bogus`):
 
-- candidate (sha256 `bab3d5ea3ee4a509ee83aab022cb41a65328f4a299f413d85af2929f9209520f`):
+- candidate (sha256 `b305186d2844c8ce4954cbbd46776540c030a6113d758ac5e2c2a14163dd7139`):
   `{"code": "invalid-arguments", "error": "argument cem_command: invalid choice: 'bogus' (choose
-  from 'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover')", "ok": false}`
+  from 'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover', 'discriminate',
+  'anchor', 'provenance')", "ok": false}`
 - oracle (frozen `stderrSha256` `2a7db57bf388b00caf69fe67aa0db6d2eae74e1f461d9db50243e2f17aabe749`):
   the same envelope with `(choose from 'begin', 'prepare', 'cite', 'mark', 'verify', 'status',
   'report')`.
@@ -2851,6 +2855,6 @@ reasoning as `DR-0039`: the retired oracle predates the coverage witness, the ca
 `TCQ-V0-051`, and `GOC-V0-002` forbids re-authoring the frozen expectation from the candidate.
 
 **Scope of the repair.** One `knownDivergence` on `cem-invalid-subcommand` with no stdout rewrite
-and one `stderrRewrites` entry (the eight-action list for the seven-action list), validated by
+and one `stderrRewrites` entry (the eleven-action list for the seven-action list), validated by
 `validCEMActionDivergence`, which pins the case to `cem`, register `DR-0040`, clause
 `TCQ-V0-051`, exactly one stderr rewrite, and the exact candidate and oracle byte strings.
