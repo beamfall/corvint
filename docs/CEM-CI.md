@@ -138,6 +138,13 @@ Maps are local-only by default. Blob hashes, paths, and reason codes can identif
 code, so retain them according to the repository's normal access policy and do not pool
 them externally without explicit owner approval.
 
+## Portable digest-pinned verifier
+
+For `cem/0.1` maps, `examples/cem/github-actions-portable.yml` fetches the dependency-free
+`interop/cem01-go` verifier by pseudo-version, checks its SHA-256 before running it, and verifies
+with network access disabled, so no Corvint executable is checked in. See
+[`../examples/cem/README.md`](../examples/cem/README.md) (`CEM-PILOT-020`..`023`).
+
 ## Limits of this first integration
 
 - It verifies a CEM map already produced by a person or agent; it does not generate

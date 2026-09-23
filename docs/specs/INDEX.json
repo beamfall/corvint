@@ -293,7 +293,9 @@
     "closableToday": false,
     "implementation": [
       "internal/cem",
-      "experiments/cem-first-run"
+      "experiments/cem-first-run",
+      "interop/cem01-go",
+      "examples/cem"
     ]
   },
   {

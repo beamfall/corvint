@@ -713,8 +713,17 @@ func (v *verifier) git(args ...string) ([]byte, *cemError) {
 }
 
 func (v *verifier) gitInput(input []byte, args ...string) ([]byte, *cemError) {
+	var stdout bytes.Buffer
+	if err := v.gitTo(&stdout, input, args...); err != nil {
+		return nil, err
+	}
+	return stdout.Bytes(), nil
+}
+
+// gitTo runs one hardened Git command and writes its standard output to stdout.
+func (v *verifier) gitTo(stdout io.Writer, input []byte, args ...string) *cemError {
 	if v.gitOps >= maxGitOps {
-		return nil, invalid("resource")
+		return invalid("resource")
 	}
 	v.gitOps++
 	remaining := 10 * time.Second
@@ -722,7 +731,7 @@ func (v *verifier) gitInput(input []byte, args ...string) ([]byte, *cemError) {
 		remaining = time.Until(deadline)
 	}
 	if remaining <= 0 {
-		return nil, operational("verification-timeout")
+		return operational("verification-timeout")
 	}
 	ctx, cancel := context.WithTimeout(v.ctx, remaining)
 	defer cancel()
@@ -730,15 +739,15 @@ func (v *verifier) gitInput(input []byte, args ...string) ([]byte, *cemError) {
 	cmd := exec.CommandContext(ctx, "git", append(base, args...)...)
 	cmd.Stdin = bytes.NewReader(input)
 	cmd.Env = append(cleanGitEnvironment(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_SYSTEM=/dev/null", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_OPTIONAL_LOCKS=0", "GIT_TERMINAL_PROMPT=0", "GIT_NO_REPLACE_OBJECTS=1", "GIT_NO_LAZY_FETCH=1")
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	var stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = stdout, &stderr
 	if err := cmd.Run(); err != nil {
 		if ctx.Err() != nil {
-			return nil, operational("git-timeout")
+			return operational("git-timeout")
 		}
-		return nil, operational("repository-io")
+		return operational("repository-io")
 	}
-	return stdout.Bytes(), nil
+	return nil
 }
 
 func cleanGitEnvironment() []string {

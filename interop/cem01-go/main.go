@@ -14,6 +14,9 @@ type response struct {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "ci" {
+		writeCIReport(runCI(os.Args[2:]))
+	}
 	r := response{Spec: specVersion, Drift: []driftItem{}}
 	args, err := parseArgs(os.Args[1:])
 	if err != nil {

@@ -1,0 +1,78 @@
+name: Verify Change Evidence Map (portable)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# The verifier needs only repository reads. Do not use pull_request_target,
+# write permissions, secrets, deployments, artifact uploads, or checkout credentials.
+permissions:
+  contents: read
+
+# Runbook: examples/cem/README.md. The verifier is the dependency-free cem01-go
+# module, pinned twice: the pseudo-version names one commit and the Go checksum
+# database checks its module zip; the SHA-256 names the exact built executable,
+# which examples/cem/verify-portable.sh checks before running it. Replace both
+# placeholders with values computed by the runbook.
+env:
+  CEM_VERIFIER_MODULE: github.com/Beamfall/corvint/interop/cem01-go
+  CEM_VERIFIER_VERSION: v0.0.0-YYYYMMDDHHMMSS-REPLACE000000
+  CEM_VERIFIER_SHA256: REPLACE-WITH-THE-64-HEX-SHA-256-FROM-THE-RUNBOOK
+
+jobs:
+  cem:
+    runs-on: ubuntu-latest
+    steps:
+      # Keep the verifier script in a checkout of the protected base, never in a
+      # PR head checkout.
+      - name: Check out trusted base
+        # actions/checkout v4.2.2; keep this full SHA under dependency review.
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          fetch-depth: 1
+          persist-credentials: false
+
+      # This checkout is untrusted input only. Nothing from it is executed.
+      - name: Check out PR head as data
+        # actions/checkout v4.2.2; keep this full SHA under dependency review.
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: head
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Go
+        # actions/setup-go v7.0.0; keep this full SHA under dependency review.
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          cache: false
+          go-version: "1.27.1"
+
+      # The only step with network access. It fetches module source, never an
+      # executable, and builds it with the flags the pinned digest was computed with.
+      - name: Fetch and build the pinned verifier
+        env:
+          CGO_ENABLED: "0"
+          GOTOOLCHAIN: local
+          GOFLAGS: ""
+          GOBIN: ${{ runner.temp }}/cem-bin
+        run: go install -trimpath "$CEM_VERIFIER_MODULE@$CEM_VERIFIER_VERSION"
+
+      # unshare --net gives the verification its own network namespace with no
+      # interfaces but loopback, so any network use fails instead of succeeding
+      # silently; setpriv drops back to the runner user before the script runs.
+      - name: Verify CEM with network disabled
+        env:
+          CEM_REPOSITORY: ${{ github.workspace }}/base
+          CEM_HEAD_REPOSITORY: ${{ github.workspace }}/head
+          CEM_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CEM_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          CEM_MAP_PATH: .corvint/change.cem.json
+          CEM_VERIFIER: ${{ runner.temp }}/cem-bin/cem01-go
+        run: >-
+          sudo -E unshare --net --
+          setpriv --reuid="$(id -u)" --regid="$(id -g)" --init-groups --
+          "$GITHUB_WORKSPACE/base/examples/cem/verify-portable.sh"

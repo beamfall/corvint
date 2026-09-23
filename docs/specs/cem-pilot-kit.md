@@ -150,6 +150,28 @@ within 15 minutes.
   literal path, not that the path was removed; no `type-changed` status or reason member is added
   (decision 0098).
 
+### Portable CI verifier
+
+- `CEM-PILOT-020`: the portable CI example (`examples/cem/github-actions-portable.yml`,
+  `examples/cem/verify-portable.sh`) MUST pin the `interop/cem01-go` verifier by module
+  pseudo-version and executable SHA-256, MUST build it only in a fetch step with `-trimpath` and
+  `CGO_ENABLED=0`, MUST check the executable digest before executing it and exit 2 without executing
+  on a mismatch, and MUST run verification inside a network-denied sandbox. Verification uses no
+  LLM, index, retriever, or network (decision 0356).
+- `CEM-PILOT-021`: `cem01-go ci` MUST write exactly one JSON line with schema `cem-ci-report/0` and
+  the fixed members `schema`, `verdict`, `exit`, `code`, `profile`, `base`, `head`, `mapPath`,
+  `mapSha256`, `patchSha256`, `hunks`, `evidence`, `drift`, and `limits`. The line MUST be
+  byte-deterministic for the same inputs, at most 6 MiB, and MUST hold only digests, paths, spans,
+  counts, and verdicts, never source or diff text. An invalid invocation MUST echo no argument.
+- `CEM-PILOT-022`: `cem01-go ci` MUST derive the patch with the `docs/CEM-CI.md` profile and exit
+  0 `accepted`, 1 `rejected`, 2 `operational`, 3 `missing-evidence` (map absent, or unknown hunks),
+  4 `unsupported-profile` (a map `spec` other than `cem/0.1`), or 5 `repository-mismatch` (a declared
+  commit absent, or map `baseRevision` not the declared base), with the verdict and a bounded
+  `code` in the report. For a structurally valid map, unsafe drift ranks before unknown hunks. The
+  `verify` mode and its adapter ABI (`CEM-GO-002`) are unchanged.
+- `CEM-PILOT-023`: `examples/cem/README.md` MUST give the exact pinned install, digest computation,
+  and invocation, the exit taxonomy, the report members, and the verifier's limits.
+
 ## Non-goals
 
 - proving that cited evidence semantically supports or caused an edit;
@@ -200,6 +222,7 @@ implementation non-authoritative and slated for separate removal.
 | CEM-PILOT-015 | `src/corvint_cli.py` | CLI success, invalid-input, and policy-failure tests |
 | CEM-PILOT-016 | `docs/DOGFOOD.md`, `script/dogfood-change.sh`, `.corvint/change.cem.json` | synchronized self-change report and local outcome trace; caller-selected plans remain bounded local orchestration, with no new CEM wire or interoperability claim |
 | CEM-PILOT-017 | Git environment and `experiments/_bounded_process.py` | hostile-environment, output-ceiling, process-group cleanup, and argv-shape regressions shared by first-run and dogfood measurement tests |
+| CEM-PILOT-020..023 | `interop/cem01-go/ci.go`, `examples/cem/verify-portable.sh`, `examples/cem/github-actions-portable.yml`, `examples/cem/README.md` | `interop/cem01-go/ci_test.go`: `TestCIVerdictsAndExits` (all six verdicts, determinism, bound, and a scan for every fixture source line), `TestCIAcceptedReportShape`, `TestCIInvocationEchoesNothing`, `TestCIReportWorstCaseBound`, and `TestCIPortableWorkflowOffline` (fresh-cache installs from a local module proxy agree on the digest, a mismatched stub is never executed, and the script run under an OS network sandbox that refuses a probe connection returns the in-process report byte for byte). The fetch from `proxy.golang.org` and the GitHub runner `unshare --net` step remain `NOT_RUN` |
 
 ## Traceability
 
@@ -234,3 +257,5 @@ trial misses its value gates, redesign or kill CEM 0.1 rather than expanding it.
   minute requirement once, but a first-use median and external adoption remain `NOT_RUN`;
 - no external independent implementation exists;
 - the real 30-treatment/30-control trial has not run.
+- the portable verifier workflow has not run on a GitHub runner, and no pseudo-version or
+  executable digest of a published revision is recorded yet (`CEM-PILOT-020`).
