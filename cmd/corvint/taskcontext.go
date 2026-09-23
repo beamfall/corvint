@@ -249,6 +249,10 @@ func compileTaskContext(ctx context.Context, options taskContextOptions, load fu
 	if err != nil {
 		return nil, hit, err
 	}
-	packet, err := contextindex.TaskContext(ctx, index, options.task, options.subject, options.limit)
+	admitted, err := contextindex.LoadAdmittedSlotWeights(options.root)
+	if err != nil {
+		return nil, hit, err
+	}
+	packet, err := contextindex.TaskContextWeighted(ctx, index, options.task, options.subject, options.limit, admitted)
 	return packet, hit, err
 }

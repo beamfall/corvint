@@ -1316,14 +1316,18 @@ LRF-V0-013	docs/specs/lexical-relevance-floor-v0.md	204	the profile MUST be an a
 LRF-V0-014	docs/specs/lexical-relevance-floor-v0.md	209	input, deterministic work, and canonical output MUST remain within the exact fro
 LRF-V0-015	docs/specs/lexical-relevance-floor-v0.md	214	every corpus subject, selection, artifact, source-edge, raw-label, adjudication,
 LRF-V0-016	docs/specs/lexical-relevance-floor-v0.md	219	the trusted independent custodian MUST run the frozen implementation over all si
-LTA-V0-001	docs/specs/learned-trace-admission-v0.md	42	`corvint eval` MUST score a baseline arm and a second learned-trace arm over the
-LTA-V0-002	docs/specs/learned-trace-admission-v0.md	52	Before either scored arm runs, the evaluation MUST fail closed when any frozen
-LTA-V0-003	docs/specs/learned-trace-admission-v0.md	56	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp
-LTA-V0-004	docs/specs/learned-trace-admission-v0.md	63	The current writer screen (`internal/secretscreen.Pattern`, consumed by `record`
-LTA-V0-005	docs/specs/learned-trace-admission-v0.md	92	(numbered 2026-09-12 by decision 0093; text unchanged from the accepted
-LTA-V0-006	docs/specs/learned-trace-admission-v0.md	100	`corvint skill-export --out DIR` MUST be the only path that exports learned rule
-LTA-V0-007	docs/specs/learned-trace-admission-v0.md	106	An admitted learned rule is a stored row with outcome `passed` that the reader
-LTA-V0-008	docs/specs/learned-trace-admission-v0.md	113	Each exported skill MUST load under the Agent Skills frontmatter contract that
+LTA-V0-001	docs/specs/learned-trace-admission-v0.md	44	`corvint eval` MUST score a baseline arm and a second learned-trace arm over the
+LTA-V0-002	docs/specs/learned-trace-admission-v0.md	54	Before either scored arm runs, the evaluation MUST fail closed when any frozen
+LTA-V0-003	docs/specs/learned-trace-admission-v0.md	58	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp
+LTA-V0-004	docs/specs/learned-trace-admission-v0.md	65	The current writer screen (`internal/secretscreen.Pattern`, consumed by `record`
+LTA-V0-005	docs/specs/learned-trace-admission-v0.md	94	(numbered 2026-09-12 by decision 0093; text unchanged from the accepted
+LTA-V0-006	docs/specs/learned-trace-admission-v0.md	102	`corvint skill-export --out DIR` MUST be the only path that exports learned rule
+LTA-V0-007	docs/specs/learned-trace-admission-v0.md	108	An admitted learned rule is a stored row with outcome `passed` that the reader
+LTA-V0-008	docs/specs/learned-trace-admission-v0.md	115	Each exported skill MUST load under the Agent Skills frontmatter contract that
+LTA-V0-009	docs/specs/learned-trace-admission-v0.md	120	(proposed, decision 0368) `corvint eval --learn-slot-weights [--goldens FILE]
+LTA-V0-010	docs/specs/learned-trace-admission-v0.md	130	(proposed, decision 0368) Each proposal MUST be scored against the default slot
+LTA-V0-011	docs/specs/learned-trace-admission-v0.md	139	(proposed, decision 0368) Only `--admit` with an `improved` proposal MAY write
+LTA-V0-012	docs/specs/learned-trace-admission-v0.md	147	(proposed, decision 0368) `corvint eval --reset-slot-weights` MUST remove the
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	55	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	59	The Python reader MUST accept canonical rows only when their filename and row na
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	64	Dry-run MUST be read-only and bind its plan digest to the stable current commit/

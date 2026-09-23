@@ -18,6 +18,10 @@ import (
 // results. Every row carries one evidence line naming the relation that
 // admitted it. The packet is read-only and Go-only; no oracle speaks it.
 func TaskContext(ctx context.Context, index *Index, task, subject string, limit int) (map[string]any, error) {
+	return taskContext(ctx, index, task, subject, limit, nil)
+}
+
+func taskContext(ctx context.Context, index *Index, task, subject string, limit int, weights SlotWeights) (map[string]any, error) {
 	if limit < 1 || limit > maxLimit {
 		return nil, &Error{Message: fmt.Sprintf("limit must be an integer from 1 to %d", maxLimit)}
 	}
@@ -39,6 +43,7 @@ func TaskContext(ctx context.Context, index *Index, task, subject string, limit 
 		}
 	}
 	compiler := newTaskContextCompiler(index, task, subject)
+	compiler.slotWeights = weights
 	if subject != "" {
 		compiler.startHistory(ctx)
 	}
@@ -107,6 +112,8 @@ type taskContextCompiler struct {
 	// anchors is TCP-V0-022's verbatim literal field, empty unless
 	// `CORVINT_CONTEXT_ANCHORS=on`.
 	anchors []taskAnchor
+	// slotWeights is an admitted learned trace's relation order (LTA-V0-011).
+	slotWeights SlotWeights
 }
 
 // startHistory reads the co-change history beside the slots that do not need
@@ -241,6 +248,7 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 		rows = compiler.takeSlot(rows, compiler.testRows(compiler.testAnchors(rows, limit)), contextTestCap)
 	}
 	rows = compiler.takeSlot(rows, compiler.lexicalRows(len(rows)), limit)
+	rows = orderBySlotWeight(rows, compiler.slotWeights)
 	rows = compiler.corroborate(rows)
 	rows = compiler.reserve(rows)
 	// `candidates` is the distinct paths the slots admitted (TCP-V0-006); a
