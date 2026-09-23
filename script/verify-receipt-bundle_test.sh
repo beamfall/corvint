@@ -99,5 +99,6 @@ restructure traversal 's|"file":"receipts/gate-receipt.txt"|"file":"receipts/../
 restructure "absent cem" '2s/.*/{"kind":"cem","state":"absent","source":"--map","reason":"not-found"},/'
 restructure "no closing line" '$d'
 restructure crlf 's/$/\r/'
+restructure "50-hex base" "1s/\"base\":\"$base/&aaaaaaaaaa/"
 
 echo "verify-receipt-bundle tests: PASS"

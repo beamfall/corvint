@@ -39,9 +39,6 @@ const (
 	ManifestName    = "manifest.json"
 	MaxReceiptBytes = wire.MaxMapBytes
 
-	CodeOutputRefused  = "bundle-output-refused"
-	CodeMapUncommitted = "bundle-map-uncommitted"
-
 	ReasonNotSupplied   = "not-supplied"
 	ReasonNotFound      = "not-found"
 	ReasonUnreadable    = "unreadable"
@@ -157,7 +154,7 @@ func outputParent(repo *gitauth.Repository, output string) (*os.Root, string, er
 }
 
 func refused(message string) error {
-	return cemcode.New(CodeOutputRefused, "%s", message)
+	return cemcode.New(cemcode.BundleOutputRefused, "%s", message)
 }
 
 // outsideRepository compares the opened parent and each of its ancestors by
@@ -202,6 +199,7 @@ func ancestors(dir string) ([]os.FileInfo, error) {
 // and every linked worktree the common directory records.
 func protectedDirs(repo *gitauth.Repository) []os.FileInfo {
 	paths := append([]string{repo.Root, repo.GitDir, repo.CommonDir}, primaryWorktree(repo.CommonDir)...)
+	paths = append(paths, configuredWorktree(repo.CommonDir)...)
 	paths = append(paths, linkedWorktrees(repo.CommonDir)...)
 	infos := []os.FileInfo{}
 	for _, path := range paths {
@@ -224,6 +222,38 @@ func primaryWorktree(common string) []string {
 	return []string{parent}
 }
 
+// configuredWorktree is core.worktree from the common config: the primary
+// worktree of a repository whose Git directory lives elsewhere. A relative
+// value is relative to the Git directory.
+func configuredWorktree(common string) []string {
+	data, err := readRegular(common, "config")
+	if err != nil {
+		return nil
+	}
+	section := ""
+	dirs := []string{}
+	for _, raw := range strings.Split(string(data), "\n") {
+		line := strings.TrimSpace(raw)
+		if strings.HasPrefix(line, "[") {
+			section = strings.ToLower(strings.Trim(line, "[]"))
+			continue
+		}
+		key, value, found := strings.Cut(line, "=")
+		if !found || section != "core" || !strings.EqualFold(strings.TrimSpace(key), "worktree") {
+			continue
+		}
+		dirs = append(dirs, relativeTo(common, strings.Trim(strings.TrimSpace(value), `"`)))
+	}
+	return dirs
+}
+
+func relativeTo(dir, path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(dir, path)
+}
+
 // linkedWorktrees reads each $COMMON/worktrees/*/gitdir back-pointer, which
 // names a linked worktree's .git file, absolute or relative to itself.
 func linkedWorktrees(common string) []string {
@@ -235,18 +265,16 @@ func linkedWorktrees(common string) []string {
 		if err != nil {
 			continue
 		}
-		marker := strings.TrimSuffix(string(data), "\n")
-		if !filepath.IsAbs(marker) {
-			marker = filepath.Join(admin, entry.Name(), marker)
-		}
+		marker := relativeTo(filepath.Join(admin, entry.Name()), strings.TrimSuffix(string(data), "\n"))
 		dirs = append(dirs, filepath.Dir(marker))
 	}
 	return dirs
 }
 
-// verifiedCEM reads the required CEM and admits it only as `cem verify` would
-// with the caller's independent base and target (CEM-CB-010), and only when
-// the target commits these exact bytes at the sidecar path (RCB-V0-004).
+// verifiedCEM reads the required CEM and admits it only when `cem verify`
+// would report it ok with the caller's independent base and target
+// (CEM-CB-010), so evidence drift is refused, and only when the target commits
+// these exact bytes at the sidecar path (RCB-V0-004).
 func verifiedCEM(ctx context.Context, repo *gitauth.Repository, options Options) (*present, error) {
 	data, err := readRegular(repo.Root, options.MapPath)
 	if err != nil {
@@ -256,10 +284,10 @@ func verifiedCEM(ctx context.Context, repo *gitauth.Repository, options Options)
 	if err != nil {
 		return nil, err
 	}
-	outcome, _, err := verify.Canonical(ctx, repo, document, verify.CanonicalOptions{
+	_, _, err = verify.Canonical(ctx, repo, document, verify.CanonicalOptions{
 		ExpectedBase: options.ExpectedBase, Target: options.Target, RawMapBytes: data,
 	})
-	if err := verdict(outcome, err); err != nil {
+	if err != nil {
 		return nil, err
 	}
 	target, err := repo.Resolve(ctx, options.Target)
@@ -277,15 +305,6 @@ func verifiedCEM(ctx context.Context, repo *gitauth.Repository, options Options)
 	return receipt, nil
 }
 
-// verdict admits exactly what `cem verify` reports valid: success, or evidence
-// drift that still carries its outcome.
-func verdict(outcome *verify.Outcome, err error) error {
-	if cemcode.CodeOf(err) == cemcode.EvidenceDrift && outcome != nil {
-		return nil
-	}
-	return err
-}
-
 // committedAt requires the target to hold the sidecar; canonical verification
 // already refused one whose bytes differ from the map (CEM-CB-009).
 func committedAt(ctx context.Context, repo *gitauth.Repository, target string) error {
@@ -294,7 +313,7 @@ func committedAt(ctx context.Context, repo *gitauth.Repository, target string) e
 		return err
 	}
 	if !exists {
-		return cemcode.New(CodeMapUncommitted, "the target does not commit the map at %s", wire.ExcludedCEMPath)
+		return cemcode.New(cemcode.BundleMapUncommitted, "the target does not commit the map at %s", wire.ExcludedCEMPath)
 	}
 	return nil
 }

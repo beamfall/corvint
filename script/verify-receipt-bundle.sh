@@ -25,7 +25,7 @@ fi
 [ "$(wc -l < "$manifest" | tr -d ' ')" -eq 6 ] && tail -c 1 "$manifest" | od -An -tx1 | grep -q 0a ||
     malformed "is not six LF-terminated lines"
 sed -n 1p "$manifest" |
-    grep -Eqx '\{"profile":"corvint-receipt-bundle/0","base":"[0-9a-f]{40,64}","target":"[0-9a-f]{40,64}","receipts":\[' ||
+    grep -Eqx '\{"profile":"corvint-receipt-bundle/0","base":"([0-9a-f]{40}|[0-9a-f]{64})","target":"([0-9a-f]{40}|[0-9a-f]{64})","receipts":\[' ||
     malformed "does not open with a corvint-receipt-bundle/0 header line"
 [ "$(sed -n 6p "$manifest")" = ']}' ] || malformed "does not end with the closing line"
 

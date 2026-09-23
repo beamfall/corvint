@@ -11,15 +11,20 @@ verb may be added and the CEM defines the change a bundle is keyed by. `witness`
 single-report command and `dogfood` is the mutating lease lifecycle. The bundle holds exact copies
 of the CEM, a saved witness report, `.corvint/dogfood-report.json` and the GOC-V0-010 full-gate
 receipt. The CEM must pass the same canonical verification `cem verify` runs against an explicit
-`--expected-base` and `--target`, and the target must commit it byte for byte
-(`bundle-map-uncommitted` otherwise); the map's own base is never the authority. Every other
+`--expected-base` and `--target`, including its evidence-drift check (`evidence-drift`), and the
+target must commit it byte for byte (`bundle-map-uncommitted` otherwise); the map's own base is
+never the authority. Every other
 receipt binds only by exact full commit IDs, never resolved, and the gate receipt only as the exact
 canonical line naming the target and its tree. Each receipt is listed with its sha256 and every
 `NOT_RUN`, `NOT_PRODUCED` or `not-run` value as an RFC 6901 pointer. A receipt that is missing or
 bound elsewhere is listed as absent with a reason, never synthesized. Gate-ledger records stay
 out, because GL-V0-006 forbids any product-path reader. The output's opened parent and its ancestors must
-match, by file identity, none of the worktree, both Git directories, the primary worktree and every
-linked worktree (`bundle-output-refused`), and all writes go through that opened parent.
+match, by file identity, none of the worktree, both Git directories, the primary worktree, a
+common-config `core.worktree` and every linked worktree (`bundle-output-refused`), and all writes
+go through that opened parent. Known limit: a `--separate-git-dir` primary worktree without
+`core.worktree` is named nowhere in the common directory (Git reports the Git directory as the
+main worktree), so an export from one of its linked worktrees cannot protect it; the opener
+already refuses an export run from that primary worktree.
 `script/verify-receipt-bundle.sh` needs only POSIX tools and a SHA-256 command, and exits 2 on any
 manifest that is not the header, the four receipt lines in order with the CEM present, and `]}`.
 
@@ -53,8 +58,11 @@ It exited 0. An independent review found text-based output checks, an unverified
 sibling worktrees, a lax verifier and missing negative controls; each fix above carries a unit or
 script test that was checked to fail with its guard removed, except the handle-identity check that
 closes the parent swap race, which no deterministic test reaches. DR-0040's candidate cem choice
-list now has twelve actions. `make gate` was not run
-(owner preference).
+list now has twelve actions. A re-review then found four more, each fixed with a control checked to
+fail without its guard: the export admitted a CEM that `cem verify` reports not ok for evidence
+drift (`TestExportRefusesADriftedCEM`); `core.worktree` was not protected; the two refusal codes
+lived outside `internal/cem/cemcode`; and the verifier accepted a 41-63-hex header revision (now
+exactly 40 or 64). `make gate` was not run (owner preference).
 
 ## 2026-09-23 V1-0191 MCPV0-016: corvint-mcp pins Git at start; official schema executes
 

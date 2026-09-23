@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -324,8 +325,8 @@ func TestExportRefusesOutputsItMustNotWrite(t *testing.T) {
 func refuse(t *testing.T, root, name, output string) {
 	t.Helper()
 	_, err := Export(context.Background(), root, Options{MapPath: mapPath, ExpectedBase: "HEAD", Target: "HEAD", Output: output})
-	if cemcode.CodeOf(err) != CodeOutputRefused {
-		t.Fatalf("%s: %v, want %s", name, err, CodeOutputRefused)
+	if cemcode.CodeOf(err) != cemcode.BundleOutputRefused {
+		t.Fatalf("%s: %v, want %s", name, err, cemcode.BundleOutputRefused)
 	}
 }
 
@@ -354,6 +355,11 @@ func TestExportRefusesEveryWorktreeAndGitDirectory(t *testing.T) {
 	fixtureGit(t, bare, "worktree", "add", "-q", linked, "main")
 	refuse(t, linked, "common directory outside the worktree", filepath.Join(bare, "bundle"))
 	refuse(t, linked, "git directory outside the worktree", filepath.Join(bare, "worktrees", "linked", "bundle"))
+
+	// core.worktree names the primary worktree of a Git directory kept elsewhere.
+	primary := t.TempDir()
+	fixtureGit(t, bare, "config", "core.worktree", primary)
+	refuse(t, linked, "core.worktree", filepath.Join(primary, "bundle"))
 
 	first := filepath.Join(t.TempDir(), "first")
 	second := filepath.Join(t.TempDir(), "second")
@@ -388,7 +394,7 @@ func TestExportRequiresAValidMap(t *testing.T) {
 	}{
 		{"symlinked", f.cem, f.base, f.target, "link.cem.json", cemcode.MapUnavailable},
 		{"other base", f.cem, change, f.target, mapPath, cemcode.BaseRevisionMismatch},
-		{"uncommitted", f.cem, f.base, change, mapPath, CodeMapUncommitted},
+		{"uncommitted", f.cem, f.base, change, mapPath, cemcode.BundleMapUncommitted},
 		{"differs from the committed map", edited, f.base, f.target, mapPath, cemcode.ExcludedArtifactMismatch},
 	}
 	if err := os.Symlink(filepath.FromSlash(mapPath), filepath.Join(f.root, "link.cem.json")); err != nil {
@@ -405,6 +411,66 @@ func TestExportRequiresAValidMap(t *testing.T) {
 		if cemcode.CodeOf(err) != c.want {
 			t.Fatalf("%s map: %v, want %s", c.name, err, c.want)
 		}
+	}
+}
+
+// TestExportRefusesADriftedCEM: a CEM whose cited span the change removes
+// is one `cem verify` reports not ok (evidence-drift), so the export refuses it
+// and leaves no bundle (RCB-V0-004). `cem cite` refuses such a span, so the
+// test cites a stable line and then repoints the record at the removed one.
+func TestExportRefusesADriftedCEM(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixtureGit(t, root, "init", "-q", "-b", "main")
+	writeFixture(t, filepath.Join(root, "rule.txt"), "keep\nrule\n")
+	fixtureGit(t, root, "add", ".")
+	fixtureGit(t, root, "commit", "-qm", "base")
+	base := fixtureGit(t, root, "rev-parse", "HEAD")
+	writeFixture(t, filepath.Join(root, "rule.txt"), "keep\nreplaced\n")
+	fixtureGit(t, root, "commit", "-qam", "change")
+	change := fixtureGit(t, root, "rev-parse", "HEAD")
+	session, err := workflow.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.Prepare(context.Background(), workflow.PrepareOptions{Base: base, Target: change}); err != nil {
+		t.Fatal(err)
+	}
+	cite := workflow.CiteOptions{MapPath: mapPath, Hunk: "1", EvidencePath: "rule.txt", Lines: "1:1", Relation: "specification"}
+	if _, err := session.Cite(context.Background(), cite); err != nil {
+		t.Fatal(err)
+	}
+	stable, err := os.ReadFile(filepath.Join(root, mapPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := wire.ParseMap(stable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cited := document.Evidence[0]
+	removed := wire.Span{Start: 5, End: 10}
+	removedSum := sum("rule\n")
+	repointed := regexp.MustCompile(`"end": 5,(\s*)"start": 0\b`).ReplaceAllString(string(stable), `"end": 10,${1}"start": 5`)
+	drifted := strings.NewReplacer(
+		cited.ID, wire.EvidenceIdentity(cited.BlobOid, cited.Path, removed, removedSum),
+		cited.SpanSha256, removedSum,
+	).Replace(repointed)
+	if repointed == string(stable) {
+		t.Fatalf("span not repointed:\n%s", stable)
+	}
+	writeFixture(t, filepath.Join(root, mapPath), drifted)
+	fixtureGit(t, root, "add", mapPath)
+	fixtureGit(t, root, "commit", "-qm", "bind")
+	output := filepath.Join(t.TempDir(), "bundle")
+	_, err = Export(context.Background(), root, Options{MapPath: mapPath, ExpectedBase: base, Target: "HEAD", Output: output})
+	if cemcode.CodeOf(err) != cemcode.EvidenceDrift {
+		t.Fatalf("drifted map: %v, want %s", err, cemcode.EvidenceDrift)
+	}
+	if _, statErr := os.Stat(output); !os.IsNotExist(statErr) {
+		t.Fatalf("a drifted map left a bundle: %v", statErr)
 	}
 }
 

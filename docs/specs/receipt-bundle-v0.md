@@ -83,7 +83,8 @@ The intent stays `proposed` until the owner confirms two departures from ticket 
   - `cem` comes from `--map`. It is required. It must pass the canonical verification `cem verify`
     runs with the same `--expected-base` and `--target`: the resolved expected base equals the
     map's base, the patch derived from B to T matches `patchSha256`, and the inherited checks pass
-    (evidence drift is admitted, as `cem verify` admits it). T must also commit the map at
+    (`cem verify` reports evidence drift as not ok, so drift is refused with `evidence-drift`). T
+    must also commit the map at
     `.corvint/change.cem.json`, and the working-tree map must equal that committed blob byte for
     byte (CEM-CB-009, `excluded-artifact-mismatch`). A map that T does not commit fails with
     `bundle-map-uncommitted`: the export refuses rather than record a difference. A map that is
@@ -110,9 +111,13 @@ The intent stays `proposed` until the owner confirms two departures from ticket 
   must resolve. The resolved parent is opened once as a directory handle (`os.Root`), and that
   handle and each directory above it are compared by file identity, never by path text, with
   every protected directory: the worktree root, the per-worktree Git directory, the common Git
-  directory, the primary worktree (the common directory's parent, when not bare), and each linked
-  worktree that `$COMMON/worktrees/*/gitdir` records. Case variants and volume aliases therefore
-  cannot slip through. A violation fails with `bundle-output-refused` before any receipt is read or
+  directory, the primary worktree (the common directory's parent, when not bare), a `core.worktree`
+  that the common `config` sets, and each linked worktree that `$COMMON/worktrees/*/gitdir`
+  records. Case variants and volume aliases therefore cannot slip through. Known limit: in a
+  `git init --separate-git-dir` layout without `core.worktree`, nothing in the common directory
+  names the primary worktree (Git itself reports the Git directory as the main worktree), so an
+  export run from a linked worktree cannot protect it; an export run from that primary worktree
+  itself is refused earlier, because the repository opener rejects that layout. A violation fails with `bundle-output-refused` before any receipt is read or
   anything is written. This follows from
   invariant 4: `cem report` and `ocm report` write inside the repository, but they are mutating
   actions, so they set no precedent for a read-only command. Every directory and file is created
@@ -124,7 +129,8 @@ The intent stays `proposed` until the owner confirms two departures from ticket 
   the manifest's structure and exits 2 unless the manifest is exactly six LF-terminated lines: the
   header line, the `cem`, `witness`, `dogfood` and `gate-receipt` lines in that order with `cem`
   present, and `]}`. A present line must name its kind's one fixed file, which makes every file
-  name unique and rules out traversal, and carry a 64-hex digest. It then prints
+  name unique and rules out traversal, and carry a 64-hex digest; `base` and `target` must be
+  exactly 40 or 64 lowercase hex characters. It then prints
   `manifest sha256 HEX`, then one line per listed file (`MATCH PATH HEX`, `MISMATCH PATH
   expected=HEX actual=HEX`, or `MISSING PATH`, where a symlink counts as missing), then one `EXTRA
   PATH` line per unlisted non-directory entry, then `PASS` (exit 0) or `FAIL` (exit 1). An absent,
@@ -153,6 +159,7 @@ content. A bundle can disclose repository information and stays wherever the cal
 | `--map` absent, a symlink, oversized, or not a CEM | `map-unavailable` or the parser's code; nothing written |
 | `--expected-base` differs from the map's base, or the patch digest differs | `base-revision-mismatch` or `patch-digest-mismatch`; nothing written |
 | `--target` does not commit the map, or commits different bytes | `bundle-map-uncommitted` or `excluded-artifact-mismatch`; nothing written |
+| Cited evidence is stale, ambiguous, or deleted at `--target` | `evidence-drift`; nothing written |
 | `--expected-base` or `--target` does not resolve to a commit | the resolver's existing code; nothing written |
 | Optional receipt missing, unreadable, foreign, or bound to another revision | listed absent with its reason; the export still succeeds |
 | Disk full or permission error mid-write | `publish-failed`; the created directory is removed |
@@ -165,15 +172,15 @@ content. A bundle can disclose repository information and stays wherever the cal
 - Unit: `internal/receiptbundle` tests cover present and absent receipts, axis pointers with
   `~0`/`~1` escaping, sorted keys and `not-run`, binding by exact full ID (`HEAD` refused), the
   canonical gate line and tree, wrong profiles, oversize and symlinked receipts, a symlinked,
-  uncommitted, edited or wrong-base map, and output refusal by case variant, symlinked parent,
-  Git directory outside the worktree, primary and sibling worktrees, plus cleanup after a failed
-  write. Each was checked to fail when its guard is removed.
+  uncommitted, edited, wrong-base or drifted map, and output refusal by case variant, symlinked
+  parent, Git directory outside the worktree, `core.worktree`, primary and sibling worktrees, plus
+  cleanup after a failed write. Each was checked to fail when its guard is removed.
 - CLI: an export on a canonical `cem/0.2` fixture verifies `PASS` with the manifest digest the
   envelope reported, an in-worktree output is refused, and the read-only-verbs case proves the
   repository tree, `.git` included, is byte-identical after an export.
 - Script: `make receipt-bundle-verify-test` covers match, tampered, missing, symlinked, extra, and
-  unusable manifests, including duplicated, reordered, traversal, absent-cem, unclosed and CRLF
-  manifests.
+  unusable manifests, including duplicated, reordered, traversal, absent-cem, unclosed, CRLF and
+  50-hex-base manifests.
 - Live: the bundle for PR #122's sealed CEM
   (`.corvint/changes/ace0a96bd5ffcfa2af8013e23a1cf3220b46c24f.cem.json`) with its witness report is
   exported and verified. The manifest digest and the verifier output are in `../BUILD-LOG.md`
@@ -186,7 +193,7 @@ content. A bundle can disclose repository information and stays wherever the cal
 | RCB-V0-001 | `TestCEMExportBundleVerifiesOffline`, `TestAnchorActionsParseLikeTheirSiblings`, `TestReadOnlyVerbsWriteNothing` |
 | RCB-V0-002 | `TestExportCopiesBoundReceiptsAndListsTheRestAbsent` |
 | RCB-V0-003 | `TestExportCopiesBoundReceiptsAndListsTheRestAbsent`, `TestExportBindsTheWitnessAndGateReceiptToTheTarget`, `TestNotRunAxesEscapePointersAndSortKeys` |
-| RCB-V0-004 | `TestExportCopiesBoundReceiptsAndListsTheRestAbsent`, `TestExportBindsTheWitnessAndGateReceiptToTheTarget`, `TestExportRequiresAValidMap` |
+| RCB-V0-004 | `TestExportCopiesBoundReceiptsAndListsTheRestAbsent`, `TestExportBindsTheWitnessAndGateReceiptToTheTarget`, `TestExportRequiresAValidMap`, `TestExportRefusesADriftedCEM` |
 | RCB-V0-005 | `TestExportRefusesOutputsItMustNotWrite`, `TestExportRefusesACaseVariantOfTheWorktree`, `TestExportRefusesEveryWorktreeAndGitDirectory`, `TestWriteFailureRemovesTheBundle`, `TestCEMExportBundleVerifiesOffline`, `TestReadOnlyVerbsWriteNothing` |
 | RCB-V0-006 | `script/verify-receipt-bundle_test.sh`, `TestCEMExportBundleVerifiesOffline` |
 | RCB-V0-007 | structural: only `cmd/corvint/cem_export.go` imports `internal/receiptbundle`, and the package imports no network, signing, or ledger code |
