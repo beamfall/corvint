@@ -4,6 +4,90 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0198 DIRTY-CACHE-003: linked worktrees each build and store their own index
+
+Finding: linked worktrees of one repository at one commit do not share the immutable index. Each
+worktree builds the clean base and stores its own copy. The snapshot directory is
+`<root>/.corvint/index` (`internal/contextindex/snapshot.go:30@659a5c23`,
+`internal/contextindex/snapshot.go:142-144@fe5dad2c`). `root` is the `--root` worktree, which
+needs only a `.git` entry, and a linked worktree's `.git` file passes
+(`cmd/corvint/main.go:647@9f517478`). The file name holds object format, tree OID and engine
+digest, but no root (`internal/contextindex/snapshot.go:166-167@74ceb0e3`). The writer and reader
+both use that path (`internal/contextindex/snapshot.go:216@e047a2f4`,
+`internal/contextindex/snapshot.go:612@c5cc88b1`). The Git common dir is never consulted. With no
+snapshot, a query builds the index in memory and persists nothing
+(`cmd/corvint/harness_context.go:67-71@81daa288`).
+
+Measurement: `script/measure-worktree-index-share.sh` created three detached linked worktrees at
+`01b6804` (tree `458fe9c5`) under the scratchpad. It ran the same repository query in each, then
+`index --if-stale`, then the query again. The binary was built from that commit (engine
+`3d50e7ba37f7e749`). Load average was 80.7 at the start and 87.5 at the end, so wall times are
+inflated and only diagnostic. Bytes and build counts are the primary evidence.
+
+| Step (per worktree 1 / 2 / 3) | Result | Seconds |
+|---|---|---|
+| query, no snapshot (first) | full in-memory build, `READY`/`fresh` | 2.33 / 3.49 / 2.26 |
+| query, no snapshot (repeat) | full in-memory build again | 2.33 / 4.66 / 2.91 |
+| `index --if-stale` | `BUILT` in every worktree, 72,803,003 bytes each | 7.67 / 6.05 / 8.47 |
+| query, snapshot hit | `READY`/`fresh` | 1.05 / 1.28 / 1.67 |
+
+In total: three builds and 218,409,009 bytes on disk, all under the worktrees' `.corvint/index/`.
+There were zero `.gob` files in the common Git dir. The three files have the same size but different
+Git blob OIDs. Writing the same tree twice in one worktree also gave different OIDs
+(`fafb2a52`, then `90c2855f`), so the gob snapshot is not byte-deterministic across writes. The
+cause is inferred to be map iteration order and was not confirmed.
+
+Dirty view: in worktree 1 an appended line in `README.md` left `index --if-stale` `fresh`
+(0.17 s, no rebuild). The query returned `READY`/`mixed-worktree` with `mixed_paths` `README.md`
+(1.77 s). Worktree 2's query stayed `fresh` during the edit. Worktree 1 was `fresh` again after
+the restore, and its snapshot OID (`03162da6`) was unchanged. `DIRTY-CACHE-003` holds within
+each worktree: the dirty overlay is per worktree and leaves the clean base untouched.
+
+Repository mutation: `git worktree list` showed only the primary checkout before and after, and
+`git status --short` was the same before and after (only the then-untracked script). The trap
+removed each worktree with `git worktree remove`.
+
+Decision: record the result; change no code. Sharing the clean base across linked worktrees is
+filed as BUG V1-0212 (P2, v0-9), with the numbers above and the atomic-rename requirement.
+
+## 2026-09-23 V1-0205, V1-0206 TCP-V0-047: routing idf floor 2.0, unheld terms and fenced blocks
+
+Cause (V1-0186 follow-up): `instructionRoutedRows` routed any governing passage that shared two task
+terms however common, so ordinary words (`test`, `spec`, `index`, `command`) routed paths for
+unrelated tasks and cost code2test recall@5 and edit2ripple recall@10/@5. A second cause came up
+in review. A task term the body term table does not hold, such as a camelCase compound the table
+splits, got the maximum idf and counted as rare. Paths inside fenced code blocks were also routed
+as if they were prose, and the fence opened and closed on any fence line.
+
+Fix: a shared term counts only when the table holds it and its idf is at least
+`contextRoutedMinIDF` = 2.0, which excludes terms held by more than about 13.5% of sources. A
+passage still needs two such terms. Fenced blocks are skipped, and `nextFence` closes a fence only
+with the same character, at least the opening length and an empty info string, as CommonMark
+requires. A fence indented four or more spaces inside a list item is still not recognized; that is
+a known limit. Analyzer schema moves to `corvint-analyzer/79` (after #123 took 78). New tests:
+`TestTaskContextRoutingClosesFencesAsCommonMark` (other character, shorter fence, info string) and
+`TestTaskContextRoutingSkipsCompoundsTheTableSplits`. The promotion control now asserts that the
+`documentation docs/ROUTES.md` pair is absent. Negative controls: with the floor removed, the held
+check removed, or the fence rules reverted, the matching test fails.
+
+Frozen `tools/retrieval-bench` v2, `--arms context`, all samples, `CORVINT_CONTEXT_*` unset
+(recall@20 / @10 / @5), base d138a58 then floor 1.5 then floor 2.0: code2test 0.5116/0.3994/0.2830,
+then 0.5116/0.3994/0.2877 in both floor arms; comment2context 0.5042/0.3438/0.2562 and trace2code
+0.7937/0.5083/0.4010 unchanged in every arm; edit2ripple 0.6293/0.4928/0.3448, then
+0.6293/0.5101/0.3448, then 0.6293/0.5101/0.3621; the abstention rate is 0.1707 in every arm. Floor
+2.0 recovers the pre-V1-0186 numbers on every subset, and it dominates 1.5, so 2.0 is chosen. The
+bench binaries predate the held-term guard and the fence-close rules. Those two changes only remove
+routed rows, and they were not re-benched. Reports:
+`/private/tmp/claude-501/-Users-russelllewis-projects-corvint/dd54e7f8-328f-4e5e-ac2a-20e9a455cd73/scratchpad/w0186-bench-v205{base,f15,f20}-{code2test,comment2context,trace2code,abstention,edit2ripple}.json`.
+
+Probes against this repository, using seven unrelated tasks (a set reconstructed after the session
+context was compacted, so it is not a frozen fixture). The base binary routes four of the seven,
+and the final binary routes none. The V1-0186 orientation task still routes `docs/AGENT-ROUTES.md`
+and `docs/specs/INDEX.json` through `backlog`, `memory`, `store`. The independent review found a
+MEDIUM issue (unheld compounds took the maximum idf), a LOW issue (the fence toggle), a LOW issue
+(the loose promotion control) and nits; all are fixed here. A stale `taskLexicalTerms` comment
+found in that review is filed as V1-0214.
+
 ## 2026-09-23 V1-0197 RCB-V0-001..007: `cem export` writes a content-addressed receipt bundle
 
 Decision: the export is `corvint cem export`, an action of an existing verb, because no new root
