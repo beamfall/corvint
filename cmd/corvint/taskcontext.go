@@ -260,5 +260,8 @@ func compileTaskContext(ctx context.Context, options taskContextOptions, load fu
 		return nil, hit, err
 	}
 	packet, err := contextindex.TaskContextWeighted(ctx, index, options.task, options.subject, options.limit, admitted)
+	if err == nil {
+		attachLSPEvidence(ctx, index, options.subject, packet, options.limit)
+	}
 	return packet, hit, err
 }

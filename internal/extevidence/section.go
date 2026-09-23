@@ -43,6 +43,27 @@ type provider struct {
 func Section(ctx context.Context, index *contextindex.Index, sources []string, checkouts []Checkout, changedPaths []string, limit int) map[string]any {
 	root := indexRoot(index)
 	providers, repository, bound := loadAll(ctx, root, sources, checkouts)
+	return sectionOf(ctx, root, providers, repository, bound, checkouts, changedPaths, limit)
+}
+
+// InlineSection composes the section from one record a Core-owned in-process
+// provider produced (EEP-V0-023). The bytes take the same decode, freshness
+// and verification as a file, command or MCP record; a nil record is an
+// unavailable provider row carrying reason, so absence stays visible.
+func InlineSection(ctx context.Context, index *contextindex.Index, source string, data []byte, reason string, changedPaths []string, limit int) map[string]any {
+	root := indexRoot(index)
+	entry := provider{source: source, state: StateUnavailable, reason: reason}
+	if data != nil {
+		entry = decodeRecord(ctx, root, entry, data)
+	}
+	providers := []provider{entry}
+	repository := repositoryTree(ctx, root, providers)
+	bound := bindV1(ctx, root, providers, nil)
+	return sectionOf(ctx, root, providers, repository, bound, nil, changedPaths, limit)
+}
+
+// sectionOf builds the section from decoded providers against the changed paths.
+func sectionOf(ctx context.Context, root rootRepository, providers []provider, repository tree, bound *bindings, checkouts []Checkout, changedPaths []string, limit int) map[string]any {
 	changed := make(map[string]struct{}, len(changedPaths))
 	for _, path := range changedPaths {
 		changed[path] = struct{}{}

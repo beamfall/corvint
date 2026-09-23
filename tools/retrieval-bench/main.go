@@ -29,6 +29,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -110,6 +111,7 @@ type sampleReport struct {
 	Given          []string           `json:"given"`
 	QueryChars     int                `json:"query_chars"`
 	QueryTruncated bool               `json:"query_truncated"`
+	AnchorBearing  bool               `json:"anchor_bearing,omitempty"`
 	Arms           map[string]arm     `json:"arms"`
 	Metrics        map[string]metrics `json:"metrics"`
 }
@@ -369,8 +371,8 @@ func readSamples(configuration options) ([]sample, string, map[string]int, error
 		if len(line) > maxSampleBytes {
 			return nil, "", nil, fmt.Errorf("sample on line %d exceeds %d bytes", number+1, maxSampleBytes)
 		}
-		var item sample
-		if err := json.Unmarshal(line, &item); err != nil {
+		item, err := decodeSample(line)
+		if err != nil {
 			return nil, "", nil, fmt.Errorf("sample on line %d: %w", number+1, err)
 		}
 		if item.ID == "" || item.Repo == "" || item.BaseCommit == "" || item.TaskType == "" {
@@ -412,6 +414,10 @@ func readBounded(path string, limit int64) ([]byte, error) {
 // space after every comma and colon. Both arms see it; Corvint sees at most
 // maxQueryChars of it.
 func queryText(item sample) string {
+	if item.TaskType == contextBenchTask {
+		statement, _ := item.Query["problem_statement"].(string)
+		return statement
+	}
 	buffer := &bytes.Buffer{}
 	pythonJSON(buffer, item.Query)
 	return buffer.String()
@@ -800,7 +806,7 @@ func judge(ctx context.Context, configuration options, corvint retriever, contex
 	report := sampleReport{
 		ID: item.ID, TaskType: item.TaskType, Repo: item.Repo, BaseCommit: item.BaseCommit,
 		Stratum: stratum(item), Partition: partition(item.Repo), Gold: goldFiles(item), Given: given,
-		QueryChars: utf8.RuneCountInString(full), QueryTruncated: truncated,
+		QueryChars: utf8.RuneCountInString(full), QueryTruncated: truncated, AnchorBearing: contextindex.TaskHasAnchors(full),
 		Arms: map[string]arm{}, Metrics: map[string]metrics{},
 	}
 	timed := func(name string, produce func() arm) {
@@ -862,6 +868,9 @@ func judge(ctx context.Context, configuration options, corvint retriever, contex
 	})
 	for name, answer := range report.Arms {
 		report.Metrics[name] = score(answer, report.Gold, hardNegatives(item), report.Stratum, configuration.limit)
+		if item.TaskType == contextBenchTask && answer.Error == "" {
+			contextBenchMetrics(report.Metrics[name], answer, item, root, configuration.limit)
+		}
 	}
 	return report
 }
@@ -1429,6 +1438,9 @@ func summarize(reports []sampleReport, limit int) map[string]any {
 			groups["task:"+report.TaskType] = append(groups["task:"+report.TaskType], sampleMetrics)
 			groups["stratum:"+report.Stratum] = append(groups["stratum:"+report.Stratum], sampleMetrics)
 			groups["fold:"+report.Partition] = append(groups["fold:"+report.Partition], sampleMetrics)
+			if report.AnchorBearing {
+				groups["stratum:anchor-bearing"] = append(groups["stratum:anchor-bearing"], sampleMetrics)
+			}
 		}
 		summary := map[string]any{}
 		for group, members := range groups {

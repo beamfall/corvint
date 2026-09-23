@@ -25,7 +25,7 @@ var helpSubcommands = map[string]map[string]bool{
 // helpBooleanFlags are the public command options that take no value, so a --help after one is
 // still help. Every other option is scanned as taking one value (GPK-V0-062).
 var helpBooleanFlags = map[string]bool{
-	"--apply": true, "--attest": true, "--attest-cem": true, "--dry-run": true, "--enable": true,
+	"--apply": true, "--attest": true, "--attest-cem": true, "--attest-cem-v1": true, "--dry-run": true, "--enable": true,
 	"--full-receipt": true, "--if-stale": true, "--json": true, "--mutate": true, "--preview": true,
 	"--replace": true, "--working-tree-untracked": true,
 }
@@ -258,7 +258,7 @@ Usage:
   corvint [--root PATH] prove [--limit N] [--mutate] PATH...
   corvint [--root PATH] prove --base FULL_COMMIT_ID [--limit N] [--mutate]
   corvint [--root PATH] prove --cem MAP [--expected-base REV] [--target REV] [--patch FILE]
-    [--attest | --attest-key PEM] [--attest-cem]
+    [--attest | --attest-key PEM] [--attest-cem | --attest-cem-v1]
   corvint [--root PATH] prove --verify-cem-attestation ENVELOPE --attest-public-key PEM
     [--cem MAP]
   corvint [--root PATH] prove --checkpoint FILE
@@ -668,7 +668,7 @@ Usage:
   corvint [--root PATH] prove [--limit N] [--mutate] PATH...
   corvint [--root PATH] prove --base FULL_COMMIT_ID [--limit N] [--mutate]
   corvint [--root PATH] prove --cem MAP [--expected-base REV] [--target REV] [--patch FILE]
-    [--attest | --attest-key PEM] [--attest-cem]
+    [--attest | --attest-key PEM] [--attest-cem | --attest-cem-v1]
   corvint [--root PATH] prove --verify-cem-attestation ENVELOPE --attest-public-key PEM
     [--cem MAP]
 
@@ -757,10 +757,10 @@ missing or malformed key exits 2 with attest-key-unavailable. Without
 Experimental, not a stable contract: --attest-cem (cem mode) implies --attest
 and prints a second line after the unchanged statement or envelope, a CEM
 statement (predicate https://corvint-context.dev/attestation/cem/0) naming MAP by
-path, sha256, and size, signed with the same key when --attest-key is given.
---verify-cem-attestation ENVELOPE checks such an envelope, or a cem/v1 one also
-binding baseRevision and patchSha256, offline against the Ed25519 PKIX key at
-PEM: VERIFIED when --cem MAP bytes match, else NOT_RUN (cem-bytes-not-supplied).
+path, sha256, and size, signed with the same key when --attest-key is given;
+--attest-cem-v1 prints cem/v1 instead, also binding baseRevision and patchSha256.
+--verify-cem-attestation ENVELOPE checks either offline against the Ed25519 PKIX
+key PEM: VERIFIED if --cem MAP matches, else NOT_RUN (cem-bytes-not-supplied).
 It exits 2 with attest-public-key-unavailable, attest-envelope-unavailable,
 attest-verification-failed, attest-cem-mismatch, or map-unavailable.
 

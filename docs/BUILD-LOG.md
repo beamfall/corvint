@@ -48,7 +48,7 @@ unknowns). `go vet` on them exited 0. `go test -count=1 -timeout 30m` on them pa
 failed 5 under a loaded host. Reruns sorted the failures:
 - `internal/contextindex` `TestAnalyzerSchemaInputs` was caused by this change: the new
   contextindex sources are audited inputs. Fixed by bumping `analyzerSchemaID` to
-  `corvint-analyzer/74` and repinning both audit pins.
+  `corvint-analyzer/74` and repinning both audit pins (moved to `corvint-analyzer/75` when merged with main, which took `/74` for decision 0367).
 - Passed when rerun alone: `cmd/corvint` `TestExperimentalKernelAdapterContext` and
   `TestHostAdapterJavaScriptHosts`, `internal/playwrightminimize`
   `TestPSMLiveResetFailureStillCleansUp`, and `benchmarks/selfuse-batch`
@@ -79,12 +79,522 @@ order; the whole `internal/contextindex` suite passes. (3) The loader refuses an
 or incomplete `evaluation` block (`goldens_sha256`, a 40- or 64-hex `revision`, `baseline` and `arm`
 results); the gate now writes both arm results. The file is operator-owned and the loader checks
 shape, not provenance (`LTA-V0-011`). `context --help` names `learned_slot_weights`, one loader test
-is renamed to `TestLTAV0011...`, and the `/74` analyzer audit digest is repinned for the changed
+is renamed to `TestLTAV0011...`, and the analyzer audit digest (`/75` after the merge with main) is repinned for the changed
 `slot_weights.go` bytes. No extraction or encoding changed. Verified: the focused-docs gate exits 0;
 `go test` of `internal/slotlearn`, `internal/evalrepo` and `internal/contextindex` passes;
 `cmd/corvint -run 'TestLTAV0|TestAnalyzer|TestEval|TestBatch|TestSBQ|TestTaskContext|Help'` passes;
 `go vet` and `gofmt -l` are clean. Still NOT_RUN: `make gate` and the exhaustive `go test ./...`.
 
+## 2026-09-23 V1-0146, V1-0010 AC3: reviewer leg of the daily path from the v0.7.0 archive, recorded outcome
+
+Independent reviewer, fresh clone of PR #102 at seal head `165e2d7` (merge base `d18db3d`), binary
+extracted from the public v0.7.0 `corvint_darwin_arm64.tar.gz` (release and inner SHA256SUMS OK),
+`Corvint 0.7.0 (build 46)`, sha256 `5fdbab207f6d15bd8ef341365642769cb58a11a76d935c37df77776ad0d09bad`,
+first on PATH and exported as `CORVINT_BIN`. The reviewer wrote nothing to the author's checkouts or
+to GitHub. Verdict on the change: MERGE; all five documentation checks exit 0 at the bind commit
+`ec6cfa48`, the old citation fails `line-citations-check` (exit 2) once the file is scanned, and all
+ten repinned citations were read and hold.
+
+What the extracted binary established (DCW-V0-015: structural closure, never correctness).
+`cem report` on the sealed map with `--expected-base d18db3d --target ec6cfa48`: exit 0, 10 of 10
+hunks supported, 0 unknown, 0 mechanical; `cem verify` agrees. `frontier`: exit 1, OPEN, 5 hunks
+with weak lexical support and 20 DCG obligations unassessed, matching the author's step 8 output.
+`ocm report` on a map the reviewer had to rebuild with `ocm prepare` (intent guessed as
+`documentation-citation-gate-v0.md`): 0 of 20 linked. `make dogfood-check` at the seal head:
+`REFUSE sealed-head`, as documented.
+
+What the reviewer leg could not observe. `make dogfood-check BASE=d18db3d` at the bind commit with
+`CORVINT_BIN` set printed `NOTE unbound-commits count=1` and then `FAIL dogfood-report-missing`
+(`script/dogfood-check.sh:305`), whose fix line names the author's `dogfood-change`; the check stops
+before building or running any verifier. Whether the override binary is accepted as a verifier and
+whether `outputsAgree` holds is therefore NOT_OBSERVED from the reviewer side; the author's
+`outputsAgree: true` rests on the PR #102 body and the author's local receipts, not on the tree.
+
+Reviewer-instruction mismatches (each filed as a ticket): DOGFOOD section 6 assumes the author's
+worktree, so at the seal head the CEM path is gone and `--target HEAD` reports
+`patch-digest-mismatch`; OCM maps are gitignored (`.gitignore:9-12`), so the step 11 hand-off carries
+no OCM and the reviewer must guess the intent and run a writing command; section 6 names
+`change.ocm.json` while the loop writes `change.ocm.001.json`; `dogfood-check` in a fresh clone
+always fails on the missing local report, so the independent verifier comparison is not reproducible
+by a reviewer; step 9's expected state omits the `NOTE unbound-commits` form; observations made after
+the bind commit have no place in BUILD-LOG within the same change. Also found:
+`docs/SPEC-TOOLCHAIN-INTEGRATION.md:74` cites only the ID regex at `internal/lrfrepo/ocm.go:37` for
+the full requirement-line grammar (the prefix check is at `ocm.go:581`), and the bare-basename
+citation `change-frontier-v0.md:217` at line 121 is stale.
+
+Outcome. V1-0146 acceptance (one reviewer-leg run recorded with its outcome) is met by this entry.
+V1-0010 AC3 (a fresh agent and a reviewer complete the same real change from extracted public
+artifacts) is met for the change itself and for the reviewer's evidence reads; the reviewer-side
+verifier comparison stays NOT_OBSERVED until `dogfood-check` can run against a handed-off report.
+NOT_RUN by the reviewer: `dogfood-change`, `dogfood-seal`, `make gate`, `ocm link`/`ocm mark`.
+
+## 2026-09-23 V1-0148 DCG-V0-001, V1-0010 AC3, V1-0146: stale DOGFOOD citation fixed via the daily path from the v0.7.0 archive
+
+Fix (V1-0148). `docs/SPEC-TOOLCHAIN-INTEGRATION.md` constraint 1 cited DOGFOOD lines 32-36 (now the
+daily-path steps); the same-commit CEM constraint is DOGFOOD section 2, lines 152-155. The file was
+outside the gate, so the stale citation passed at the base. DCG-V0-001 and `scanned_doc()` now name
+it; outside the legacy allowlist (DCG-V0-018) all ten of its citations need anchors, so each was read
+and pinned: seven had moved and were repointed, one kept its lines with reworded text that still
+holds, one named the deleted `src/context_corvint_ocm.py` and now names the requirement-ID pattern in
+`internal/lrfrepo/ocm.go`, one was unchanged. With the old citation restored the gate fails (anchor
+required); with the fix it passes, as do `line-citations-test` and `spec-requirements-check`.
+Follow-ups, not changed: the file's two bare-basename citations stay unchecked by DCG-V0-001 design,
+and its 2026-08-29 claim that `corvint frontier` is unimplemented is stale prose.
+
+Fresh-agent leg (V1-0010 AC3). Binary from the public v0.7.0 `corvint_darwin_arm64.tar.gz` (release
+and inner SHA256SUMS OK), `Corvint 0.7.0 (build 46)`, sha256
+`5fdbab207f6d15bd8ef341365642769cb58a11a76d935c37df77776ad0d09bad`, equal to the arm64 build A, build B
+and retained digest in the release `verification-report.json` (PASS, revision `41f2b689`). Orientation
+and every pre-bind `dogfood-change` pass ran with it as `CORVINT_BIN`; it was accepted (no private
+build under the Git evidence directory). The bind pass, check and seal follow this commit and are
+recorded in the pull request.
+
+Orientation. `corvint query` (limit 1) returned decision 0136, not the owning spec: a partial miss.
+Path impact on the two files did not surface `documentation-citation-gate-v0.md`: a miss. Range
+impact before any edit (base equal to head) was CLEAN with no results.
+
+Deviations from the DOGFOOD.md expected state. Step 3 matched. Step 4: (a) the first plan got
+`cem-cite: cite-span-not-stable` with no `fix:` line and no row ordinal (DCW-V0-014 promises a `fix:`);
+a row cited DCG-V0-001 lines hunk 7 edits, and citing unchanged lines 76-77 cleared it. (b) After an
+added BUILD-LOG commit the map was re-prepared with 10 hunks, and the 9-row plan was applied by
+ordinal without any row-count refusal: every citation shifted one hunk and one hunk stayed unknown.
+(c) Rerunning with a corrected plan added to, not replaced, those citations, so the untracked map had
+to be deleted. (d) The pass after that deletion started clean and ended exit 0, no output,
+`"complete": true`, `local-outcome` PRODUCED, with `?? .corvint/change.cem.json` still uncommitted,
+instead of the documented `local-outcome: record-index-failed`.
+
+NOT_RUN: `make gate` and the full Go suite (owner policy); step 7 (`ocm link`/`ocm mark`).
+NOT_OBSERVED: the independent reviewer leg from extracted archives (V1-0146), pending on the PR.
+
+## 2026-09-23 V1-0097, decision 0372, CEP-V0-001..CEP-V0-006: external retrieval evaluation and the already-fixed control
+
+V1-0097 (spike) adds the external evaluation slice to `docs/specs/context-evolution-program-v0.md`
+as the separate accepting slice decision 0179 requires (decision 0372); the five hypotheses stay
+prose. Results below are evidence a later promotion may cite, never a promotion (`CEP-V0-006`).
+
+**ContextBench adapter (`CEP-V0-001`..`003`).** `tools/retrieval-bench --samples` now reads
+ContextBench (arXiv 2602.05892; evaluator `EuniAI/ContextBench` at
+`1436c28a8eb95496da4ea69ad458b9f8a8eb7d61`, Apache-2.0) rows exported one JSON object per line.
+Gold paths replicate `_normalize_rel_path` exactly, including Python's `lstrip("./")`, which also
+turns `.github/x.yml` into `github/x.yml`; the adapter keeps that quirk so gold matches the
+upstream scorer. Metrics replicate `metrics/compute.py` `coverage_precision` at file and line
+granularity (coverage = shared/gold, empty gold 1; precision = shared/predicted, empty prediction 1;
+line intervals merge when they overlap or touch). The prediction is the ranking cut at `--limit`,
+and a ranked file predicts all of its lines, so `cb_line_precision` is a whole-file lower bound.
+Symbol and byte-span granularities: NOT_MEASURED (they need tree-sitter definitions and byte
+offsets the packet does not carry). Fixture `tools/retrieval-bench/testdata/contextbench/rows.jsonl`
+(sha256 `9678b04832679f000e2eb5cac3230c5698f34b0f78c1c195cedfb0250af61fbc`, two synthetic rows,
+one chunk-file snapshot). A smoke run of the base `corvint context` arm on that fixture, offline,
+answered READY on both rows (file coverage 1.0 on both; file precision 0.667 and 0.5; line
+precision 0.444 and 0.375); fixture numbers are scoring checks, not evidence.
+Full ContextBench run: NOT_RUN. The rows are downloadable (Hugging Face `Contextbench/ContextBench`,
+`default` 1,136 rows in a 26,102,607-byte Parquet per the dataset API, not downloaded), but the
+dataset ships no repository snapshots: its evaluator clones 66 upstream repositories at their base
+commits, a networked fetch well above the 2 GB bound and outside the offline rule (`CEP-V0-003`).
+
+**Agent Retrieval Bench baseline (`context` arm, base a98d770).** `corvint` and
+`tools/retrieval-bench` built from a98d770 (`GOTOOLCHAIN=local` go1.27.1), `--arms context`,
+`--limit 20` (default), all samples, snapshots from the local `--corpus` chunk files; reports stay
+under the session scratchpad, uncommitted. Metric definitions are the tool's (`tools/retrieval-bench/README.md`
+"Metrics"): per positive sample, `recall@k` = gold files in the top k over gold files, with the
+sample's given files removed from the ranking first; means over positive samples.
+
+| Subset (samples file) | sha256 | n (positive) | errors | recall@5 | recall@10 | recall@20 | hit@20 | abstained |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| `v2_trace2code/trace2code.jsonl` | `9d0ff50155fa4f65c1bbb632abc4f1f11393c50fa7b0a9249e06128b368b6266` | 101 (101) | 0 | 0.4010 | 0.5083 | 0.7937 | 0.8614 | 0.0099 |
+| `v2_edit2ripple/edit2ripple.jsonl` | `31d97ffe815dda8730149880c0159239a986eceb306e5a5df816dfc420717cef` | 58 (58) | 0 | 0.3621 | 0.5101 | 0.6293 | 0.7586 | 0 |
+| `v2_comment2context/comment2context.jsonl` | `543267024f7f06127c50664a3a1b8825d3c213e4b12dbbfabf9a3346902ad796` | 80 (80) | 0 | 0.2562 | 0.3438 | 0.5042 | 0.6500 | 0 |
+| `v2_code2test/code2test.jsonl` | `712b2699d3f963c2f940688ae5248304263c4ecda1b3831b2801c95712a50b85` | 106 (106) | 0 | 0.2877 | 0.3994 | 0.5116 | 0.6038 | 0 |
+
+No sample was skipped as unlabeled in any subset. The code2test run was started separately after
+comment2context (same binaries and flags) because host contention slowed the sequential loop.
+
+**Already-fixed control (`CEP-V0-004`, `CEP-V0-005`; arXiv 2603.25764).** `tools/cw-trial` tasks may
+carry `control: "already-fixed"` with no gold; every valid claim is FALSE, and a `certain` claim or
+a produced corvint packet that does not abstain sets `control_failed`. Fixture
+`tools/cw-trial/testdata/already-fixed` (one synthetic Go task: the reported empty-string panic is
+already handled and tested at the pinned revision). Pilot arm run offline with the base `corvint`
+and two script agents (no model): an abstaining agent scored `control_failed` 0 on `none` and
+`grep` but 1 on `corvint`, because the packet answered READY with `port.go`, `port_test.go`,
+`README.md` (answerability verdict `no-specific-terms`), so `packet_abstained` 0; a certain agent
+scored `control_failed` 1 on all three arms. Current Corvint therefore fails the control: it has no
+"already fixed" signal. Codex/model arm: NOT_RUN (needs a model and the network).
+
+Gaps: ContextBench full run NOT_RUN; symbol/span granularities NOT_MEASURED; model-agent control
+arm NOT_RUN; no held-out control set (the fixture is synthetic, NOT_OBSERVED as held-out evidence).
+
+Review fixes (PR #96): control tasks now stay out of every other arm aggregate and are counted only
+under `already_fixed`; `control_failed` is the agent's `certain` claim alone, shared by every arm,
+with packet abstention recorded apart as `packet_abstained`; ContextBench spans ending past line
+10,000,000 are refused and line numbers stay integers; rescoring both pilot reports with
+`cw-trial score` gives `control_failed` 0 on all arms for the abstaining agent and 1 on all arms for
+the certain one, with the corvint packet `packet_abstained` 0 in both.
+## 2026-09-23 V1-0099 TCP-V0-043..046 EEP-V0-023..026: opt-in gopls definition/reference expansion (decision 0371)
+
+V1-0099 adds an optional, Core-owned local language-server provider (`internal/lspprovider`,
+decision 0371). `CORVINT_CONTEXT_LSP=gopls` is the only enabling value; unset or any other value
+leaves `corvint context` byte-identical to `cmd/corvint/testdata/context-default-wire.golden`
+(`TestContextLSPOffKeepsTheGoldenAndOnDegrades`). When on, one `gopls serve` process per invocation
+runs under `procgroup` with a 20 s wall bound, owned process-group cleanup and a private cache
+directory. It expands at most 3 committed, unmodified Go seeds (the subject plus Go result rows) by
+1-2 hops of `textDocument/definition` and `textDocument/references`, bounded by 64 queries, 32 rows
+and 64 KiB. The result is an `external-evidence-provider/2` record decoded by the shared extevidence
+path into `packet.external` only. Every row names its hop origin and the query digest; its authority
+stays `external-provider`, never project authority. `results` ranking is untouched by construction.
+A missing, failing, timed-out or not-applicable provider yields an `unavailable` provider row with
+a reason, and the rest of the packet is unchanged. Conformance fixture:
+`internal/extevidence/testdata/conformance-path/lsp-gopls.json`.
+
+Frozen retrieval bench (`tools/retrieval-bench`, `--arms context --max-samples 20`, first 20
+samples per subset, candidate binary sha256 `2ef0ffa7c20182a36061d8e6fc847d55f353501e29eb365731efa02a2c270bb3`
+built from this branch, host load 30-390 from parallel workers; reports are scratch, uncommitted):
+
+| Subset | recall@5 | recall@10 | recall@20 | ranked lists identical off/on | provider with ≥1 relation / loaded with 0 relations / not applicable | p50 wall ms off / on |
+| --- | --- | --- | --- | --- | --- | --- |
+| v2_code2test | 0.333 | 0.358 | 0.428 | 20/20 | 7 / 8 / 5 | 3840 / 7636 |
+| v2_comment2context | 0.383 | 0.492 | 0.633 | 20/20 | 3 / 9 / 8 | 2901 / 3751 |
+| v2_trace2code | 0.375 | 0.450 | 0.817 | 20/20 | 8 / 11 / 1 | 874 / 1988 |
+| v2_edit2ripple | 0.358 | 0.488 | 0.592 | 20/20 | 4 / 9 / 7 | 385 / 746 |
+| v2_abstention | no positives (abstained 0.05 both) | | | 20/20 | 0 / 0 / 20 | 769 / 544 |
+
+The applicability column is a recount derived from the existing on-run capture JSONL, not a rerun.
+The first report counted every `loaded` provider row (15/12/19/13). Independent review found that
+`ask` swallowed JSON-RPC query errors, so a run where every query failed still said `loaded`. Real
+gopls v0.22.0 on caddyserver__caddy@aed1af59 answered 39 of 39 queries with `no package metadata
+for file`. 37 of the 59 `loaded` runs had 0 relations: all 13 caddy runs, 23 etcd runs and 1 gin
+run. The captures predate `failed_queries`, so the recount splits on at least one relation rather
+than on at least one successful query. Review fixes (decision 0371 unchanged): `failed_queries` now
+sits beside `queries_issued` (EEP-V0-025, TCP-V0-043). A run whose every issued query failed is an
+`unavailable` row naming the first error (EEP-V0-026, TCP-V0-045). A server whose `serverInfo.name`
+is not `gopls` is refused, and a `PATH` lookup error, including `exec.ErrDot`, is `gopls executable
+not found` (EEP-V0-024). `TestExpandEveryQueryFailedIsUnavailable` covers these with a fake server.
+The bench was not rerun after the fixes; results are unaffected by construction.
+
+Recall is identical off and on in every subset, as designed: the bench scores `results` and the
+provider writes only `external`. The not-applicable count is the observed provider state; gopls
+applies only to Go modules, and non-Go samples report `not applicable: no committed, unmodified Go
+file among the seeds`. The offline capture diagnostic found gold files among external path
+endpoints in 7 (code2test), 2 (comment2context) and 6 (trace2code) samples, but in 0 samples was
+such a gold file absent from `results`. On this slice the expansion added no new gold evidence.
+The on-mode cost is up to about 2x p50 wall and 1.6-3.0 KB of p50 packet bytes. On the
+Corvint repository itself one run stopped at the 15 s soft deadline after 8 queries (hop 2 not
+reached, 25.6 s total context wall). No `gopls serve` process or `corvint-gopls-*` temp directory
+survived the tests or the bench.
+
+NOT_RUN: full-subset bench (bounded to 20 samples per subset); a paired agent trial on the
+external section; other language servers. NOT_OBSERVED: any recall change, or gold newly surfaced
+by the external member. NOT_PRODUCED: owner acceptance and promotion; TCP-V0-043..046 and
+EEP-V0-023..026 stay proposed and experimental.
+## 2026-09-23 V1-0098 TCP-V0-025..029: opt-in line-budgeted span rows and sufficiency check (decision 0366)
+
+V1-0098 adds `CORVINT_CONTEXT_SPANS=on` to `context`: `packet.spans` (core declaration rows
+plus call-site windows under a declared 240-line budget, each with explicit lines and a reason)
+and `coverage.sufficiency` (per task anchor `satisfied|insufficient|unknown`, set `satisfied`
+only when every anchor is, missing anchors named). Code lives in
+`internal/contextindex/span_rank.go` and `sufficiency.go`; `TaskContext` gains one call. With the
+flag unset or any other value the packet equals the recipe golden (`TestContextSpansDefaultBytes`),
+and the flag changes no `results` byte (`TestContextSpansBudgetAndBounds`). No index encoding
+changed: `analyzerSchemaID` stays `corvint-analyzer/73` and only the `TestAnalyzerSchemaInputs`
+digest was repinned for the two new production files, as for earlier consumer-only changes.
+
+Frozen evaluation (TCP-V0-029): `tools/retrieval-bench --arms context --context-packets`, all
+samples of the five `v2_*` releases (no `--max-samples`), flag set empty (off) and `on`, `corvint`
+built from this branch. recall@5/10/20, flag off = flag on in every subset: `v2_trace2code`
+0.401/0.508/0.794 (n=101); `v2_code2test` 0.288/0.399/0.512 (n=106; the flag-off run lost 3 samples
+to the 30-second Git index deadline under host load and read 0.278/0.390/0.502, and the 3 retried
+flag-off rank identically to flag-on); `v2_comment2context` 0.256/0.344/0.504 (n=80);
+`v2_edit2ripple` 0.356/0.504/0.624 (n=58, 3 sample errors in both modes); `v2_abstention` has no
+gold (abstained 0.171 in both modes). Core-span recall against the ±15-line control: trace2code
+0.133 vs 0.077 (7 wins, 4 losses), code2test 0.034 vs 0.007 (7 wins, 2 losses), comment2context
+0.091 vs 0.016 (11 wins, 1 loss); edit2ripple has file-level gold only and is not scorable.
+Sufficiency: trace2code 0 `satisfied` (precision undefined, base rate 0.109); code2test 1 of 41
+`satisfied` fully covered (0.024 vs base rate 0.009); comment2context 1 of 22 `satisfied` fully
+covered (0.045 vs base rate 0.038); abstention 2 `satisfied` on no-gold samples (0.0); edit2ripple 1
+`satisfied`, not scorable against spans (its rows do include the gold file). Losing cases: span
+recall below control on trace2code `05041faae6e19b6882e3074a`, `3bd1eecf0ebcd9c6b334fa92`,
+`7db765ce2d8ea9b3f68029fd`, `9f0d0d1bb836481d62b838aa`, comment2context `3fd987cc42a8a4550add3562`,
+code2test `29168597c41ad9e94b95412c`, `c9059c66a5c31bceb46c9edf`. No sufficiency precision falls
+below its base rate, but `satisfied` also appears on no-gold
+`abstention_candidate__organic_issue__e783b22ef915b1c2fb513b60` and `...__5013784e701897f60233c4dc`
+(generic anchors `TargetClosedError`; `mock`, `patch`). Verdict: the feature stays opt-in (decision
+0366); `satisfied` is not evidence of gold coverage.
+
+The ten runs (plus the 3-sample code2test retry) ran in parallel on a host shared with other workers
+(load average 65 to 371), so latency figures in the reports are not comparable and are not recorded.
+Reports and captures stay in the session scratchpad and are not committed. Verification: `go test`
+of `./internal/contextindex/... ./internal/specindex/` and `-run Context ./cmd/corvint/` pass, `go
+vet` on those packages is clean, and the focused-docs gate passes. NOT_RUN: the other units selected
+by `corvint affected --base a98d770` (61 Go units plus 16 unknowns; the change is flag-gated and the
+default bytes are test-proven identical), `make gate` (owner policy), and any paired or promotion
+evaluation. NOT_PRODUCED: a committed span scorer (the TCP-V0-029 scorer is a scratch script).
+NOT_OBSERVED: any agent consuming span rows in a real task.
+
+Review fixes (PR #99): `coverage.sufficiency` gains `scope: task-anchors` and its reason now reads
+"N of M task anchors carried by the selected lines; not evidence the task is answered", the
+call-site reason reads "names `S` at line L; `S` is declared by the core span P:S-E" (TCP-V0-026/028
+reworded), two stale comments are corrected, and the analyzer digest is repinned with the schema
+still `corvint-analyzer/73`; the frozen-evaluation figures above predate the fix, which changes only
+wording and adds one member.
+## 2026-09-23 V1-0083, decision 0367, TCP-V0-030..034: identifier graph and opt-in personalized PageRank slot
+
+V1-0083 adds a deterministic identifier definition/reference graph to the index and an opt-in
+`graph` slot in `corvint context` that ranks files near the task anchors by personalized PageRank.
+The graph is derived from the indexed Symbols and the Words postings at the indexed revision and
+stored as `TermTable.IdentGraph` (pack section `vocab.identgraph`); `analyzerSchemaID` moves to
+`corvint-analyzer/74` and `TestAnalyzerSchemaInputs` is repinned. Under `CORVINT_CONTEXT_GRAPH=on`
+the slot seeds from the subject and anchored rows, admits at most five low-confidence tail rows
+after every relation row, names the seed and hop path in each reason, and abstains as `no-seed` or
+`graph-bounded`. Unset, the packet is byte-identical to the recipe golden.
+
+Frozen evaluation, `tools/retrieval-bench --arms context --max-samples 30` per subset, flag unset
+versus `on`, same branch binary (reports `V1-0083-{off,on}-<subset>.json` in the session
+scratchpad, not committed). The sample bound is recorded: unbounded runs managed about 0.5 samples
+a minute at host load ~300.
+
+| Subset | recall@5 off/on | recall@10 off/on | recall@20 off/on |
+| --- | --- | --- | --- |
+| code2test | 0.4056 / 0.4056 | 0.5222 / 0.5222 | 0.5856 / 0.5289 |
+| comment2context | 0.3278 / 0.3278 | 0.4222 / 0.4222 | 0.5278 / 0.4389 |
+| edit2ripple | 0.3833 / 0.3833 | 0.4694 / 0.4694 | 0.5667 / 0.5639 |
+| trace2code | 0.4833 / 0.4833 | 0.5833 / 0.5833 | 0.8611 / 0.8278 |
+
+recall@20 regresses on all four subsets (13 losing samples, 2 wins, listed in decision 0367), so
+the ticket's closing rule (improve recall@20 on code2test, comment2context and edit2ripple) is not
+met and the slot stays opt-in. The losses are gold files held by lexical tail rows that graph
+rows displaced.
+
+Verification: `corvint affected --base a98d770` (62 packages selected; the exhaustive gate is
+NOT_RUN per owner policy); `go test` of `./internal/contextindex/...` and `./internal/specindex/`
+passed; `go vet` of those and `./cmd/corvint` passed; `go test -run 'Context|Index|Snapshot|Pack'
+./cmd/corvint` failed only `TestExperimentalKernelAdapterContext`, a 250 ms deadline test that also
+failed once in six runs at BASE under the same load (six of six passed on the branch when
+alternated); focused-docs gate passed. NOT_RUN: full-sample evaluation, the other 57 affected
+packages, the unfiltered `./cmd/corvint` suite. NOT_OBSERVED: any recall@20 gain.
+
+Review fix: a graph past a bound was stored with no name offset, so `check` rejected it and every
+saved bounded index was a silent cache miss; `boundedIdentGraph` now stores one offset, a bounded
+flag other than 0 or 1 fails decode, and `TestIdentGraphBoundedSnapshotReloads` covers write, load
+and `graph-bounded` abstention under both snapshot formats. Default-path cost, measured on this
+repository with the flag unset (3,489 paths, 47,384 arcs, 10,706 names): 836,194 bytes of snapshot
+section, 30-31 ms to build, about 0.2 ms to decode and check (host load 13-35). The Git index
+deadline error no longer names a fixed 30-second limit.
+## 2026-09-23 V1-0084 TCP-V0-022 anchor evaluation: flag off/on over four v2 subsets (decision 0333 kept)
+
+Ticket `V1-0084` acceptance criterion 3, requirement `TCP-V0-022`, decision 0333 (unchanged).
+`tools/retrieval-bench` now marks a sample `anchor_bearing: true` when its full query text carries
+at least one anchor by `contextindex.TaskHasAnchors` (the five classes the context compiler
+extracts under `CORVINT_CONTEXT_ANCHORS=on`, over the decoded JSON string values) and averages
+those samples under `stratum:anchor-bearing`; the field is omitted when false, so reports without
+anchors keep their bytes (`TestAnchorBearingSamplesFormTheirOwnStratum`). The export touches an
+analyzer input file, so the `TestAnalyzerSchemaInputs` source digest is repinned; no extraction or
+encoding change, `analyzerSchemaID` stays `corvint-analyzer/73`.
+
+Run: `--arms context`, k 20, no `--max-samples`, branch binary sha256 `0b53bcd15fdb…`, flag unset
+versus `on` (registration `environment` shows `[]` and `[CORVINT_CONTEXT_ANCHORS=on]`; the child
+inherits the bench's environment). Host load averaged 30 to 350 during the run (parallel workers):
+wall times are not evidence. Recall off -> on, overall and anchor-bearing stratum:
+
+| subset | n (anchor) | r@5 | r@10 | r@20 | anchor r@20 |
+| --- | --- | --- | --- | --- | --- |
+| code2test | 106 (74) | 0.2877 -> 0.2877 | 0.3994 -> 0.3994 | 0.5116 -> 0.5116 | 0.5293 -> 0.5293 |
+| comment2context | 80 (56) | 0.2563 -> 0.2563 | 0.3438 -> 0.3500 | 0.5042 -> 0.5083 | 0.4583 -> 0.4643 |
+| edit2ripple | 58 (57) | 0.3621 -> 0.3621 | 0.5101 -> 0.4871 | 0.6293 -> 0.6394 | 0.6228 -> 0.6330 |
+| trace2code | 101 (100) | 0.4010 -> 0.4109 | 0.5083 -> 0.4934 | 0.7937 -> 0.7591 | 0.7917 -> 0.7567 |
+
+Per-sample wins/losses (r@5, r@10, r@20): code2test 0/0 everywhere (24 rankings reordered, no
+gold moved across a cut); comment2context 0/0, 1/1, 1/0; edit2ripple 0/0, 0/2, 2/0; trace2code
+1/0, 2/3, 2/5. All five trace2code recall@20 losses are `pallets/click` (fold B: r@20 0.6532 ->
+0.5450; fold A 0.8750 -> 0.8828): 08d24e63, 49589b87, 8882930f, 9372208a, e50d9d50. The recall@5
+falsifier (at most 0.01 loss on every fold of code2test and trace2code) passes. Decision: the
+field stays opt-in under decision 0333, because decision 0070's paired ladder is NOT_RUN and
+recall@10 (edit2ripple, trace2code) and recall@20 (trace2code) losses were observed; the stricter
+"no recall@20 loss on any subset" bar was proposed after this run, not governing. Reserved decision
+0373 is unused. `TaskHasAnchors` applies the compiler's 32,000-byte task bound; no sample exceeded
+it (no context-arm length error in any run).
+
+Errors: 2 code2test samples (spring-projects/spring-boot 9c3412df, e8ef6b1c) failed identically in
+both arms with `Git repository index exceeded its 30-second deadline` under host load; they score
+zero in both, so the paired comparison is unaffected, but their flag-on behaviour is NOT_OBSERVED.
+NOT_RUN: bootstrap intervals for the off/on difference (the bench pairs retrieval arms against
+lexical baselines only, not two runs of one arm), decision 0070's paired ladder, and `v2_abstention`
+(outside the four task subsets named by the criterion). Reports stay outside the repository.
+## 2026-09-23 V1-0096 TCP-V0-039..042: opt-in role-line field from doc comments (decision 0370)
+
+Contract: a file's role line is the first sentence of its package, module or top-level doc comment
+(Go, Python, Rust, and `/**`/`///` doc-marker languages), read deterministically from the pinned
+blob, at most 160 bytes, with licence and generator headers refused and 64 KiB scanned
+(`internal/contextindex/rolesummary.go`, golden `testdata/role-summary-golden.tsv`). With
+`CORVINT_CONTEXT_ROLES=on`, the role lines of the 512 highest-scoring lexical sources are a fifth
+lexical field (path-field form, body idf, gain 1.0 frozen before the run). A row that uses one
+carries the reason prefix `role: "LINE" (PATH:START-END) matches ...; `, keeps score 300 and
+authority `vocabulary`, and never precedes a reserved authority row. The line is derived per call,
+never stored: no index, snapshot or pack change, `analyzerSchemaID` stays `corvint-analyzer/73`,
+and only the `TestAnalyzerSchemaInputs` source digest is repinned. With the flag unset, `off` or
+unknown, the recipe golden bytes are unchanged (`TestContextRolesDefaultBytes`).
+
+Frozen evaluation: `tools/retrieval-bench --arms context`, the same branch-built binary, flag
+unset versus `on`, over the full positive strata with no `--max-samples`. Paired means over
+positives:
+
+| Subset | n | recall@5 off/on | recall@10 off/on | recall@20 off/on | W/L @20 |
+| --- | --- | --- | --- | --- | --- |
+| v2_code2test | 106 | 0.2689 / 0.2689 | 0.3805 / 0.3711 | 0.4928 / 0.5022 | 1/0 |
+| v2_comment2context | 80 | 0.2562 / 0.2604 | 0.3438 / 0.3250 | 0.5042 / 0.4938 | 1/4 |
+| v2_edit2ripple | 58 | 0.3563 / 0.3563 | 0.5043 / 0.4813 | 0.6236 / 0.6336 | 2/0 |
+| v2_trace2code | 101 | 0.4010 / 0.4257 | 0.5083 / 0.5033 | 0.7937 / 0.7987 | 1/0 |
+
+Losing cases (sample IDs, on below off): comment2context @20 `41deac7db89b57cead1c85e0`,
+`7d5c2788e4c30bb773cb6643`, `c2af1d6140c0b8b749bd1b77`, `e1280404f66f39671f1939e5`; @10
+`0b514d819e10c606b274e8c0`, `38c2a13af5bdc49dd7d75a2f`, `8e6bf4a9d26a7468cab5a5da`. edit2ripple
+@10 `18a155cebfee9969b166934c`, `262ecc80fa3618111feb4987`. trace2code @10
+`a4218c7e484b796962f32982`, `fa19b2ec3770df1f1285f072`. code2test @10
+`b2bcc7a9cd02595dccde4bb0`. Seven samples failed in both arms: edit2ripple
+`78906550756a325d653e88b9`, `e271598f05638161b8b0fbdc`, `445f0e5cb04c0403b28b2294`, and code2test
+`2177ce0889655fd1979b99c1`, `9c3412dfb452df23d783c5e6`, `d58f6487e6e2721dd5266c21`,
+`e8ef6b1c59b7afde52d0cded`. The error was "Git repository index exceeded its 30-second deadline",
+on a host at load 40 to 300 from parallel workers. They score zero in both arms, so the pairing
+stays symmetric. The losing cases were not inspected (NOT_OBSERVED: the reason text was not read, to keep corpus content out).
+Reports stay in the scratchpad, uncommitted.
+
+Gating: comment2context lost recall@20, so the rule in TCP-V0-042 keeps the field opt-in
+(decision 0370). No bootstrap interval was computed for the on/off difference (NOT_PRODUCED: the
+bench pairs arms, not flag settings).
+
+Gates: `corvint affected` selected 62 Go packages. `go test -count=1 -timeout 30m` passed 60 of
+them. `internal/contextindex` first failed `TestAnalyzerSchemaInputs` on the source digest, which
+was repinned, and then passed. `cmd/corvint-go-test-provider` failed process-lifecycle
+qualification tests (1 failure, then 5 different ones, on a rerun under load). That package does
+not depend on `internal/contextindex`; this is recorded as pre-existing and load-sensitive, not
+fixed here. `go vet` is clean on all 62, and the focused-docs gate passes. `make gate`:
+NOT_RUN (owner policy).
+Review fix: a `*/` block now attaches only when its opening line starts with `/*` and no other
+comment or trailing-code `*/` lies between, and blocks are read lazily, which removes a
+misattributed role line and a quadratic 64 KiB scan (golden `go/misattributed.go`,
+`go/quadratic.go`, `go/trailing.go`, now bounded under 16 MiB and 100 ms); the frozen evaluation
+above predates the fix and was not rerun (NOT_RUN).
+## 2026-09-23 V1-0089 TCP-V0-035..038, decision 0369: opt-in recency, blame and ownership in context
+
+V1-0089 adds three history features to the `context` packet behind `CORVINT_CONTEXT_RECENCY=on`:
+90-day half-life recency, blame last-touch freshness and CODEOWNERS/blame disagreement
+(`internal/contextindex/recency.go`, `blame.go`). All three read only Git objects reachable from
+the indexed commit, are bounded (200-commit window, 10 blamed files, 4 MiB), reorder the lexical
+and `cochange` slots before their cap and the limit (so which candidates they admit can change),
+and name each value or abstention reason in the row reason. A CODEOWNERS owner who matches no
+in-window blame author is reported as `disagrees` or `unverifiable`; it never changes ranking.
+Unset, the packet bytes are unchanged.
+
+Frozen `agent_retrieval_bench` context arm, off vs on, candidate `a3521dd9…cde3f1`, bench binary
+`229abcc7…670ff`, `--limit 20`, `--max-samples 20` per subset (folds A and B, same sample set both arms,
+`samples_sha256` equal):
+
+| Subset | recall@5 off/on | recall@10 off/on | recall@20 off/on |
+| --- | --- | --- | --- |
+| code2test | 0.3333 / 0.3333 | 0.3583 / 0.3583 | 0.4283 / 0.4283 |
+| trace2code | 0.3750 / 0.3750 | 0.4500 / 0.4500 | 0.8167 / 0.8167 |
+| comment2context | 0.3833 / 0.3833 | 0.4917 / 0.4917 | 0.6333 / 0.6333 |
+| edit2ripple | 0.3583 / 0.3583 | 0.4875 / 0.4875 | 0.5917 / 0.5917 |
+| abstention | n/a (0 positives) | n/a | n/a; abstained 0.05 / 0.05 |
+
+Every ranked list is identical on and off (100/100 samples). The features did run: summed packet
+bytes rose 31-40% per subset (row reasons and `coverage.recency`). The equality is structural, not
+evidence of safety: the bench rebuilds each snapshot as one commit, so recency is 1 everywhere and
+every blame line is a root boundary. `corvint eval` against beamfall/core at 6e82abd (7 cases) is
+also identical off and on (recall 1.0, top-5 success 1.0, must-read 11/11, no critical misses,
+abstention 1/1), because eval exercises query, feature and impact and never `context`. On this
+repository at limit 10 the `context` call took 1.27 s off and 1.64 s on.
+
+Decision 0369 keeps the features opt-in: no available corpus can show a gain or a loss, so a
+no-regression reading does not justify default-on. Promotion needs a frozen corpus that keeps
+commit history. The ticket said CODEOWNERS was already parsed; it was not, so `blame.go` adds a
+bounded parser. `TestAnalyzerSchemaInputs` repins only `auditedSHA256` (query-side change;
+schema stays `corvint-analyzer/73`).
+
+NOT_RUN: `make gate` (owner policy); the full-sample bench (host contention, load average above
+60; `--max-samples 20` recorded above); any corpus with real history. Under the same load one
+`cmd/corvint-go-test-provider` test failed on the branch with a post-run authority revalidation
+timeout. It passed on the branch and at base when run side by side, and the package does not import
+`internal/contextindex`.
+
+Review fixes: the spec, decision 0369 and this entry now say the reorder can change which
+candidates a slot admits (`TestContextRecencyCanChangeLexicalMembership`); blame runs only on
+candidates the lexical slot can still admit, so `coverage.recency.ownership` never lists an
+earlier slot's row (`TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit`); `parseBlame`
+skips an all-whitespace header line; and the full window's oldest commit, a blame range
+boundary, is documented as outside the window. The bench readings above predate these fixes.
+## 2026-09-23 V1-0092 cem-v1-emission: `prove --attest-cem-v1` and the checked OpenFab/agentattest alignment
+
+Ticket V1-0092, decision 0365 (amends 0354), FPK-V0-050 and FPK-V0-051 (new), FPK-V0-033,
+FPK-V0-035, and FPK-V0-036 (amended). All are experimental and not advertised. The entry closes the
+two gaps that the `cem-intoto-predicate-v1` entry recorded.
+
+Changed:
+- `prove --cem MAP ... --attest-cem-v1` is a new flag on the existing CEM mode. It prints the
+  unchanged first line, then `CEMStatementV1(MAP, bytes)`, signed under `--attest-key`. The flag
+  takes no value, cannot repeat, and cannot be given with `--attest-cem` (`invalid-arguments`). No
+  root verb is added. `helpBooleanFlags` and the two `prove` usage lines name the flag.
+- The known-deviations table now compares `cem/v1` field by field with fetched sources:
+  ossf/tac issue 628, which links the OpenFab `openfab/generation` v0.1 draft (revision 0.1.3,
+  Open-fab-ai/openfab `f558da05`); agentattest predicate v1 (AuroraAeon/agentattest `a19e7f96`);
+  in-toto/attestation `spec/v1` (`fd2609c1`); and DSSE `envelope.md` (`1d3370f6`).
+- Confirmed aligned: the in-toto Statement v1 layer and the `{name, digest.sha256}` subject shape
+  in both drafts, and the DSSE envelope used by agentattest.
+- Deviations: the OpenFab v0.1 envelope is DSSE-style with no PAE. Member names are snake_case in
+  OpenFab and camelCase in `cem/v1`. agentattest's `repo.baseCommit` corresponds to `cem/v1`'s
+  `base.digest.gitCommit`. OpenFab's `spec_ref` means something other than `cem/v1`'s `spec`. The
+  agent, model, prompt, material, time, acceptance, and approval fields are absent from `cem/v1`.
+- No `cem/v1` byte changed, and no draft field was adopted. The OpenFab draft's own `$id`
+  (`openfab.ai`) disagrees with its stated `predicateType` (`open-fab.ai`).
+
+Measured:
+- A committed map (`.corvint/changes/d517913....cem.json`) was run with the base binary (a98d770)
+  and the branch binary. Five invocations were byte-identical on stdout and stderr: no attest,
+  `--attest`, `--attest --attest-cem`, `--attest-key`, and `--attest-key --attest-cem`. Their
+  sizes were 3917, 4351, 4842, 6049, and 6954 bytes.
+- `--attest-key --attest-cem-v1` gave the same first line. Its second line verified through
+  `prove --verify-cem-attestation` as `cem/v1` `VERIFIED` with `baseRevision` and `patchSha256`.
+  A scratch test (not kept) passed the same envelope to the `interop/cem01-go` reader
+  `readCEMAttestation`, which returned `VERIFIED` with the map and `NOT_RUN` without it.
+- `go list -deps ./cmd/corvint` has 0 packages matching sigstore, rekor, fulcio, cosign, gitsign,
+  or securesystemslib. It has 0 packages outside the standard library and the Corvint module.
+  `go.mod`, `go.sum`, and `interop/cem01-go/go.mod` are unchanged.
+
+NOT_RUN / NOT_PRODUCED:
+- The Sigstore gitsign/cosign/Rekor external step is NOT_RUN. It remains an optional operator step.
+- `make gate` and the exhaustive `go test ./...` are NOT_RUN (owner policy). Verification was
+  `corvint affected`, which selected `cmd/corvint`, plus `internal/attest`, the interop gate, and the
+  focused-docs gate.
+- No independent adopter has read `cem/v1` (V1-0014 is unchanged). Neither draft's own verifier
+  was run against a Corvint envelope, so envelope incompatibility with OpenFab v0.1 is inferred from
+  its documented shape and was NOT_OBSERVED.
+- "agentattest" is ambiguous on GitHub: three repositories carry the name. The in-toto one
+  (AuroraAeon) was compared, and this choice is recorded as an assumption in FPK-V0-051.
+## 2026-09-23 V1-0100 AFU-V0-001..AFU-V0-012: application-flow gate evidence and traceability
+
+The experimental slice already landed through PR #65. This change adds no behaviour; it reruns the
+frozen browser evaluation on base `a98d770` and replaces the grouped traceability rows in
+`docs/specs/application-flow-understanding-v0.md` with one row per requirement, each naming its
+tests or an explicit gap. No new requirement ID or decision was needed.
+
+`script/web-flows-gate` (after `npm ci` in `tools/web-flows`; Node v22.23.2, Playwright 1.63.0,
+Chromium already installed) exited 0: 6/6 scanner and lifecycle tests, 9/9 browser cases
+(`development-fixture`, `held-back-selectors`, `persist-broken`, `auth-broken`,
+`wrong-served-identity`, `cross-origin-http-and-websocket` with 0 sentinel requests, `source-only`,
+`SIGINT` with 5 and `SIGTERM` with 3 retired descendants), `seededDefectsDetected:2`,
+`falseConfirmations:0`. The false-confirmation field is a literal in `tools/web-flows/test/e2e.mjs`;
+the zero rests on the per-case assertions that pass, not on a computed count.
+
+Explicit gaps now recorded instead of implied coverage: no test asserts the emitted
+`test-syntax-unresolved:<path>` gap or a test file from another framework, the standing
+`non-http-browser-transports-unqualified` and `escaped-daemon-descendants-unqualified` gaps, the
+`unaddressable-or-visual-control` gap, budget truncation gaps, secret-shaped input refusal, the
+per-flow `next` action, or the copy of evidence gaps into the report frontier. The absence of a
+combined confidence score is structural (the `Flow` and `Report` types) with no negative test.
+
+`make gate` is NOT_RUN in this change by owner policy and remains a release-attestation item.
+Complete-command benefit, blinded discovery precision/recall and external-application accuracy
+remain NOT_OBSERVED. Profile acceptance and promotion are not performed: the spec stays
+intent proposed / delivery experimental and awaits an explicit owner decision recorded in the spec
+and this log.
 
 ## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
 

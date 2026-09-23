@@ -95,5 +95,6 @@ func contextCompile(subject string) func(*Index) {
 		index.sortUnparsed()
 		index.Vocabulary = index.buildVocabulary()
 		index.Vocabulary.SymbolWindows = index.buildSymbolWindows()
+		index.Vocabulary.IdentGraph = index.buildIdentGraph(index.Vocabulary)
 	}
 }

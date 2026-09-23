@@ -86,7 +86,11 @@ the temporary snapshot copies it makes.
   (from `gold.negative_distractors`). Every sample carries
   `selective_success`: a no-gold sample succeeds by abstaining, a positive one by answering with
   a gold file in the top k. Strata: `positive`, `natural_no_gold` (`metadata.organic`), and
-  `counterfactual_no_gold`, which the bench reports separately. Means are reported over all
+  `counterfactual_no_gold`, which the bench reports separately. A sample whose full query text
+  carries at least one TCP-V0-022 repository anchor (`contextindex.TaskHasAnchors`, the five
+  classes `context` extracts under `CORVINT_CONTEXT_ANCHORS=on`, within its 32,000-byte bound) records `anchor_bearing: true`
+  (absent otherwise, so reports without anchors keep their bytes) and is also averaged under
+  `stratum:anchor-bearing`, whatever the flag's value in the run. Means are reported over all
   samples, per task type, and per stratum (`n` counts the group, `positives` the samples the
   positive-only metrics average over), with 95% Wilson intervals for `hit@k` over positives
   and `selective_success` over everything. Each sample also carries `partition`, its repository's
@@ -178,6 +182,18 @@ where impact errors. Its `state` is the plan's scope; `UNKNOWN` means the select
 (an unowned dirty path, a language frontier) and says nothing about the ranking's quality. Its
 abstentions include changed files no language plugin owns, so compare `hit@k` over the details
 whose `arms.affected.abstained` is false with the same slice of the other arms.
+
+## ContextBench rows (CEP-V0-001..003)
+
+`--samples` also reads ContextBench (arXiv 2602.05892) rows exported one JSON object per line with
+the dataset's columns (`instance_id`, `repo`, `base_commit`, `problem_statement`, `gold_context`);
+the tool reads no Parquet and clones nothing, so each repository must be supplied at its base commit
+with `--snapshot` or `--corpus`. The query is the problem statement verbatim and the gold is the
+distinct files of the gold spans, normalised as ContextBench does. Each arm adds
+`cb_file_coverage`, `cb_file_precision`, `cb_line_coverage` and `cb_line_precision` (ContextBench's
+definitions; a ranked file predicts all of its lines, so line precision is a whole-file lower
+bound). Symbol and span granularities are not measured. `testdata/contextbench` is a synthetic
+fixture.
 
 ## Matched snapshot latency (proposed TCP-V0-021)
 
