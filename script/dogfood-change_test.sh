@@ -1040,6 +1040,16 @@ run_citation_case bootstrap-omitted "$citation_artifacts/nine.tsv" 0 9
 citation_hunks="unknown:docs/specs/new-intent.md ${nine_hunks% }"
 run_citation_case other-omitted "$citation_artifacts/nine.tsv" 1 0
 rg -q '"reason": "citation-plan-map-mismatch"' "$citation_case/report.json"
+# A numeric selector that is not a canonical ordinal is refused before any cite.
+citation_hunks=${nine_hunks% }
+{ printf '01\tdocs/specs/intent-a.md\t1:1\tspecification\n'; tail -n +2 "$citation_artifacts/nine.tsv"; } \
+  > "$citation_artifacts/noncanonical.tsv"
+run_citation_case noncanonical-ordinal "$citation_artifacts/noncanonical.tsv" 1 0
+rg -q '"reason": "citation-plan-map-mismatch"' "$citation_case/report.json"
+# More unknown hunks than one plan can name: a split plan still cites its rows.
+citation_hunks=$(awk 'BEGIN { for (i=1; i<=257; i++) printf "unknown:script/h%d.sh ", i }')
+citation_hunks=${citation_hunks% }
+run_citation_case split-over-row-limit "$citation_artifacts/nine.tsv" 0 9
 ) &
 phase_jobs="$phase_jobs $!"
 

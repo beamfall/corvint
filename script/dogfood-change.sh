@@ -454,7 +454,8 @@ validate_citation_plan() {
 # (DCW-V0-019): no ordinal may exceed the map's hunk count, and every hunk the
 # map still records as unknown must be named by ordinal or full ID unless its
 # path is an intent absent at BASE, the bootstrap hunk an author deliberately
-# leaves uncited. An empty plan stays a no-op. Only a regular map is read, at
+# leaves uncited, or more such hunks remain than one 256-row plan can name.
+# A numeric selector that is not a canonical ordinal is refused here too. An empty plan stays a no-op. Only a regular map is read, at
 # most the native 4 MiB map bound; any other map is left to the cite refusal.
 citation_plan_matches_map() {
   local map="$repo/.corvint/change.cem.json" omissible="$run_tmp/bootstrap-paths" path
@@ -484,13 +485,16 @@ citation_plan_matches_map() {
       hunk[count, key] = value
     }
     END {
-      for (selector in named)
+      for (selector in named) {
+        if (selector ~ /^[+0-9]/ && selector !~ /^[1-9][0-9]*$/) exit 1
         if (selector ~ /^[1-9][0-9]*$/ && selector + 0 > count) exit 1
-      for (i = 1; i <= count; i++) {
-        if (hunk[i, "disposition"] != "unknown") continue
-        if ((i in named) || (hunk[i, "id"] in named) || (hunk[i, "path"] in bootstrap)) continue
-        exit 1
       }
+      for (i = 1; i <= count; i++)
+        if (hunk[i, "disposition"] == "unknown" && !(hunk[i, "path"] in bootstrap)) owed[++owing] = i
+      # More owed hunks than one plan has rows: split plans stay admissible.
+      if (owing > 256) exit 0
+      for (j = 1; j <= owing; j++)
+        if (!((owed[j] in named) || (hunk[owed[j], "id"] in named))) exit 1
     }'
 }
 
@@ -625,7 +629,7 @@ fix_hint() {
     cem-cite:invalid-citation-plan)
       printf 'each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows' ;;
     cem-cite:citation-plan-map-mismatch)
-      printf 'the plan does not match the map prepared for HEAD (a later commit re-prepared it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE' ;;
+      printf 'the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE' ;;
     ocm-aggregate:missing-intent-scope)
       printf 'DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths' ;;
     ocm-prepare-*:invalid-requirements-section)

@@ -26,6 +26,12 @@ reason. In a scratch clone against the real 22-hunk map at base 34e798b, a 1-row
 `citation-plan-map-mismatch` with no cite, and a 22-row plan cited all 22 hunks. `make gate` was
 NOT_RUN.
 
+Review fixes (independent review): with more than 256 unknown hunks, one plan cannot name them all,
+so the unnamed-hunk rule is not applied and split plans on a fresh map stay usable (case
+split-over-row-limit). A numeric selector that is not a canonical ordinal, such as `01`, is now
+refused before any cite (case noncanonical-ordinal); previously `cem cite` refused it only after
+earlier rows had staged. The fix line now names both causes of a mismatch, not only a re-prepared map.
+
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
 
 Finding: nothing stated which Corvint commands are safe as a triggered CI, hook or team-automation

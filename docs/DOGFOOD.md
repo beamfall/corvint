@@ -357,9 +357,11 @@ worklist, so any later commit other than the sidecar commit can change both. Wri
 map prepared for the final implementation commit (a run without `DOGFOOD_CITATIONS` prepares it and
 reports `cem-cite NOT_PRODUCED citation-plan-not-provided`), and rewrite it after any further commit.
 Before any cite the coordinator binds a nonempty plan to the map it just prepared (`DCW-V0-019`): an
-ordinal above the hunk count, or an unknown hunk named by neither ordinal nor ID, refuses the whole
-plan as `citation-plan-map-mismatch`, except the hunk of an intent path absent at `BASE`, which an
-author leaves out deliberately (section 2). A stale full hunk ID refuses `unknown-hunk-id`. A stale
+ordinal above the hunk count, a numeric selector that is not a canonical ordinal, or an unknown hunk
+named by neither ordinal nor ID, refuses the whole plan as `citation-plan-map-mismatch`, except the
+hunk of an intent path absent at `BASE`, which an author leaves out deliberately (section 2). While
+more than 256 unknown hunks remain, one plan cannot name them all, so the unnamed-hunk rule is not
+applied and split plans on a fresh map stay usable. A stale full hunk ID refuses `unknown-hunk-id`. A stale
 ordinal plan that still names every hunk is not detectable this way and names a different hunk, so
 use full hunk IDs when a later commit may reorder hunks. Rows end in LF; other control bytes are invalid. The local coordinator freezes
 and validates the whole file before citing, with independent limits of 4 MiB and 256 rows. An empty
