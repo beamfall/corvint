@@ -468,12 +468,13 @@ it must read, each with the relation that admitted it, without naming the task's
   score 300 and authority `vocabulary`, its reason is prefixed `anchor: ` + "`literal` xN" +
   ` verbatim; `, and it can never precede a reserved TCP-V0-008/TCP-V0-009 row. No index,
   snapshot or pack change; an unset or other value preserves the existing packet bytes.
-  Falsifier (not yet run: the frozen `agent_retrieval_bench` corpus is not on the build host):
-  a registered `tools/retrieval-bench` run on `v2_code2test` and `v2_trace2code` with the flag
-  unset and `on` must lose at most 0.01 recall@5 on every fold and must report the
-  anchor-bearing samples as their own subset; promotion additionally requires decision 0070's
-  paired ladder. Rollback: unset the flag or remove the anchor field; the default wire never
-  changed.
+  Falsifier: a registered `tools/retrieval-bench` run on `v2_code2test` and `v2_trace2code` with
+  the flag unset and `on` must lose at most 0.01 recall@5 on every fold and must report the
+  anchor-bearing samples as their own subset (`stratum:anchor-bearing`); a default-on promotion
+  additionally needs no recall@20 loss on any of the four v2 subsets and decision 0070's paired
+  ladder. The 2026-09-23 run (V1-0084, `docs/BUILD-LOG.md`) passed the recall@5 falsifier and
+  failed the promotion bar (`v2_trace2code` recall@20 0.7937 to 0.7591), so the field stays
+  opt-in. Rollback: unset the flag or remove the anchor field; the default wire never changed.
 
 - `TCP-V0-023`: (proposed 2026-09-22, not accepted; experimental; decision 0346) Every
   `results[].evidence[]` row carries exactly one `trust` member, a string from the closed set
@@ -625,7 +626,10 @@ byte-identical run).
 its 2a76e40 golden and one ordering fixture per mechanism).
 `internal/contextindex/context_anchors_test.go` (TCP-V0-022, proposed: one table row per anchor
 class carried verbatim and not by its split tokens, the extraction bounds and whole-anchor rule,
-the `anchor:` reason behind the governing row, default bytes unchanged).
+the `anchor:` reason behind the governing row, default bytes unchanged);
+`tools/retrieval-bench/main_test.go` `TestAnchorBearingSamplesFormTheirOwnStratum` (the bench's
+`anchor_bearing` flag and `stratum:anchor-bearing` mean) and the flag-off/flag-on run over the
+four v2 subsets recorded in `docs/BUILD-LOG.md` (2026-09-23, V1-0084).
 `internal/contextindex/trust_test.go` (TCP-V0-023, proposed: the table is closed and
 deterministic and an unlisted label is `tool-output`; every packet row carries one class equal to
 its label's and the governing row is `project-authority`; a tainted reserved row satisfies neither

@@ -342,6 +342,44 @@ func TestJudgeContextUsesTheFullBenchQueryText(t *testing.T) {
 	}
 }
 
+// TestAnchorBearingSamplesFormTheirOwnStratum: a sample whose query values
+// carry a TCP-V0-022 anchor is flagged and summarized under
+// stratum:anchor-bearing; JSON keys never make a sample anchor-bearing, and an
+// unflagged sample's detail bytes carry no anchor field.
+func TestAnchorBearingSamplesFormTheirOwnStratum(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	contextPacket := retriever(func(ctx context.Context, corvintGo, gotRoot, task string, limit int) (arm, error) {
+		return arm{Ranked: []string{"result.go"}, State: "READY"}, nil
+	})
+	judged := func(query map[string]any) sampleReport {
+		item := sample{Query: query, Gold: map[string]any{"files": []any{"result.go"}}}
+		return judge(context.Background(), options{limit: 5, arms: map[string]bool{"context": true}}, fakeCorvint(nil), contextPacket, fakeImpact(nil), fakeAffected(nil), item, root)
+	}
+	anchored := judged(map[string]any{"detail": `panic: "connection refused" at server.go:42`})
+	plain := judged(map[string]any{"log.level.key": "plain words only"})
+	if !anchored.AnchorBearing || plain.AnchorBearing {
+		t.Fatalf("anchor_bearing = %v, %v; want true, false", anchored.AnchorBearing, plain.AnchorBearing)
+	}
+	encoded, err := json.Marshal(plain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), "anchor_bearing") {
+		t.Fatalf("unflagged detail carries the anchor field: %s", encoded)
+	}
+	summary := summarize([]sampleReport{anchored, plain}, 5)["context"].(map[string]any)
+	stratum, ok := summary["stratum:anchor-bearing"].(map[string]any)
+	if !ok || stratum["n"] != 1 || summary["all"].(map[string]any)["n"] != 2 {
+		t.Fatalf("summary = %+v", summary)
+	}
+	if _, ok := summarize([]sampleReport{plain}, 5)["context"].(map[string]any)["stratum:anchor-bearing"]; ok {
+		t.Fatal("a run without anchor-bearing samples reports the stratum")
+	}
+}
+
 // TestParsePacketRanksEachResultOncePerPath and reads abstention from state.
 func TestParsePacketRanksEachResultOncePerPath(t *testing.T) {
 	packet := `{"context":{"state":"READY","results":[{"evidence":[{"path":"a.go"},{"path":"z.md"}]},{"evidence":[{"path":"a.go"}]},{"evidence":[]},{"evidence":[{"path":"b.go"}]}]}}`

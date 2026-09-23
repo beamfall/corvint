@@ -4,6 +4,44 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0084 TCP-V0-022 anchor evaluation: flag off/on over four v2 subsets (decision 0333 kept)
+
+Ticket `V1-0084` acceptance criterion 3, requirement `TCP-V0-022`, decision 0333 (unchanged).
+`tools/retrieval-bench` now marks a sample `anchor_bearing: true` when its full query text carries
+at least one anchor by `contextindex.TaskHasAnchors` (the five classes the context compiler
+extracts under `CORVINT_CONTEXT_ANCHORS=on`, over the decoded JSON string values) and averages
+those samples under `stratum:anchor-bearing`; the field is omitted when false, so reports without
+anchors keep their bytes (`TestAnchorBearingSamplesFormTheirOwnStratum`). The export touches an
+analyzer input file, so the `TestAnalyzerSchemaInputs` source digest is repinned; no extraction or
+encoding change, `analyzerSchemaID` stays `corvint-analyzer/73`.
+
+Run: `--arms context`, k 20, no `--max-samples`, branch binary sha256 `0b53bcd15fdb…`, flag unset
+versus `on` (registration `environment` shows `[]` and `[CORVINT_CONTEXT_ANCHORS=on]`; the child
+inherits the bench's environment). Host load averaged 30 to 350 during the run (parallel workers):
+wall times are not evidence. Recall off -> on, overall and anchor-bearing stratum:
+
+| subset | n (anchor) | r@5 | r@10 | r@20 | anchor r@20 |
+| --- | --- | --- | --- | --- | --- |
+| code2test | 106 (74) | 0.2877 -> 0.2877 | 0.3994 -> 0.3994 | 0.5116 -> 0.5116 | 0.5293 -> 0.5293 |
+| comment2context | 80 (56) | 0.2563 -> 0.2563 | 0.3438 -> 0.3500 | 0.5042 -> 0.5083 | 0.4583 -> 0.4643 |
+| edit2ripple | 58 (57) | 0.3621 -> 0.3621 | 0.5101 -> 0.4871 | 0.6293 -> 0.6394 | 0.6228 -> 0.6330 |
+| trace2code | 101 (100) | 0.4010 -> 0.4109 | 0.5083 -> 0.4934 | 0.7937 -> 0.7591 | 0.7917 -> 0.7567 |
+
+Per-sample wins/losses (r@5, r@10, r@20): code2test 0/0 everywhere (24 rankings reordered, no
+gold moved across a cut); comment2context 0/0, 1/1, 1/0; edit2ripple 0/0, 0/2, 2/0; trace2code
+1/0, 2/3, 2/5. All five trace2code recall@20 losses are `pallets/click` (fold B: r@20 0.6532 ->
+0.5450; fold A 0.8750 -> 0.8828): 08d24e63, 49589b87, 8882930f, 9372208a, e50d9d50. The recall@5
+falsifier (at most 0.01 loss on every fold of code2test and trace2code) passes; the promotion bar
+(no recall@20 loss on any subset) fails on trace2code, and recall@10 drops on edit2ripple and
+trace2code. Decision: the field stays opt-in under decision 0333; reserved decision 0373 is unused.
+
+Errors: 2 code2test samples (spring-projects/spring-boot 9c3412df, e8ef6b1c) failed identically in
+both arms with `Git repository index exceeded its 30-second deadline` under host load; they score
+zero in both, so the paired comparison is unaffected, but their flag-on behaviour is NOT_OBSERVED.
+NOT_RUN: bootstrap intervals for the off/on difference (the bench pairs retrieval arms against
+lexical baselines only, not two runs of one arm), decision 0070's paired ladder, and `v2_abstention`
+(outside the four task subsets named by the criterion). Reports stay outside the repository.
+
 ## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
 
 V1-0012 measured the daily change-evidence loop as it exists at `origin/main` 1894b9e against a
