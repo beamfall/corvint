@@ -52,9 +52,10 @@ decision's code; nothing persistent needs cleanup beyond an optional reset.
 ## Evidence
 
 First run on this repository, recorded in `docs/BUILD-LOG.md` under V1-0088: the real ledger gives
-no negative labels, and a labelled synthetic ledger is refused as not distinguished. This repository's
-frozen golden has no path-bearing selector in its held-out `query` rows, so it cannot yet admit any
-proposal. A useful admission needs a golden with such rows.
+no negative labels, and a labelled synthetic ledger is refused as not distinguished. The frozen golden
+describes the Atlas fixture: its held-out `query` rows carry no path-bearing selector that names a path
+in this repository, so it cannot yet admit any proposal. A useful admission needs a golden whose
+held-out `symbol:`/`file:` rows name this repository's paths.
 
 ## Rollback
 
