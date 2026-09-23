@@ -54,7 +54,9 @@ the standalone verbs' own receipts at one snapshot with fewer process launches a
   `standaloneQueryContext` does (`project-operations` through `QueryAuthorityStartBudget`, the
   repository and agent-tooling intents through the repository path, whose read-only
   `tracerecordrepo.Read` therefore runs once per query operation); `context` through
-  `contextindex.TaskContext`; `impact` through `contextindex.Impact`. Reading `impact` from the
+  `contextindex.TaskContextWeighted` under the same admitted slot-weight file the standalone verb
+  loads (`LoadAdmittedSlotWeights`, `LTA-V0-011`; absent, it is `contextindex.TaskContext`
+  exactly); `impact` through `contextindex.Impact`. Reading `impact` from the
   snapshot (the standalone verb rebuilt when this was written; standalone path `impact` now reads it
   too under `IDX-SNAP-V0-019`) is admitted experimentally and holds parity:
   `Impact` reads only tables the snapshot carries, skipping a build's re-observation retry — the
@@ -353,7 +355,7 @@ too (2026-09-13 amendment: `context`'s own stdout-write failure was a bare, unco
 |---|---|---|
 | SBQ-V0-001 | `cmd/corvint/batch.go` `parseBatchRequest` | `TestBatchRefusesMalformedRequestsBeforeReading` |
 | SBQ-V0-002 | `runBatch` snapshot load | `TestBatchRefusesWithoutSnapshot` (also asserts no `.corvint/self-observations.jsonl` write) |
-| SBQ-V0-003 | `runBatchOperation`; `standaloneQueryContext`, `authorityStartQueryContext` and `repositoryQueryContext` take an optional loaded index through `preloadedIndex` | `TestBatchMatchesStandaloneVerbsAtOneSnapshot` (byte-equal `context` members against `query` in both intents, `context`, `impact`) |
+| SBQ-V0-003 | `runBatchOperation`; `standaloneQueryContext`, `authorityStartQueryContext` and `repositoryQueryContext` take an optional loaded index through `preloadedIndex` | `TestBatchMatchesStandaloneVerbsAtOneSnapshot` (byte-equal `context` members against `query` in both intents, `context`, `impact`), `TestBatchContextAppliesAdmittedSlotWeights` (byte-equal weighted `context` under an admitted slot-weight file) |
 | SBQ-V0-004 | `batchReceipt` | `TestBatchContinuesPastAFailingOperation` |
 | SBQ-V0-005 | no write path in `batch.go` | `TestBatchWritesNothing` (`.corvint/` and `git status` unchanged) |
 | SBQ-V0-006 | request bounds; per-verb bounds reused | covered by `TestBatchRefusesMalformedRequestsBeforeReading` and the per-verb tests it delegates to |

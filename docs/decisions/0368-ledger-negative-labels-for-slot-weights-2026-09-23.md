@@ -28,15 +28,17 @@ delivery experimental until the owner rules.
    their existing bounded readers. `context` and `query` never open them, and `internal/contextindex`
    does not depend on either ledger package or on `internal/slotlearn` (tested).
 2. Labels are distinct unplanned-read paths and `OBSERVED` miss paths, capped at 256. Planned re-reads
-   are counted, not labelled. A closed table maps each label to `test`, `lexical` or `definition`;
-   at most four proposals raise the most-labelled slots by 1 and then 2 within -2..2.
+   are counted, not labelled. A closed table maps each label to `test`, `documentation`, `lexical`
+   or `definition`; at most four proposals raise the most-labelled slots by 1 and then 2 within -2..2.
 3. The frozen held-out split of the retrieval golden decides admission. The gate scores held-out
    `query` rows through the `context` packet and reports both arms and each delta. It admits a
    proposal only when at least two more cases improve than regress and critical misses do not rise,
    and only with `--admit`. Otherwise it refuses and writes nothing.
 4. The admitted trace is `.context-corvint/slot-weights.json` (gitignored, at most 4,096 bytes). It
    reorders admitted rows stably before corroboration and truncation, and the packet discloses its
-   digest. A bad file fails `context` closed and names the rollback.
+   digest; `batch`'s `context` operation applies it identically. The file is operator-owned: the
+   loader checks its shape, including the gate's evaluation block, not its provenance. A bad file
+   fails `context` closed and names the rollback.
 5. `corvint eval --reset-slot-weights` is the one-command rollback to the default order.
 
 ## Proposed amendment (owner ratification required)

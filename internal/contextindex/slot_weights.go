@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 )
@@ -29,7 +30,12 @@ const (
 
 // LearnableSlots is TCP-V0-004's slot order without the reserved relations:
 // the closed set a learned weight may reorder.
-var LearnableSlots = []string{"pair", "mentioned", "definition", "reverse-import", "reference", "cochange", "sibling", "test", "lexical"}
+var LearnableSlots = []string{"pair", "mentioned", "definition", "reverse-import", "reference", "cochange", "sibling", "test", "lexical", "documentation"}
+
+var (
+	slotGoldensDigest = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+	slotRevision      = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
+)
 
 // SlotWeights maps a learnable relation to an integer in
 // [SlotWeightMin, SlotWeightMax]; an absent relation weighs zero.
@@ -49,6 +55,45 @@ type SlotWeightsFile struct {
 	Evaluation    json.RawMessage `json:"evaluation"`
 }
 
+// slotWeightsEvaluation is the part of the gate's evaluation block the loader
+// checks (LTA-V0-011). It checks shape only, not provenance: the file is
+// operator-owned, and a hand-written block of the right shape is accepted.
+type slotWeightsEvaluation struct {
+	GoldensSHA256 string          `json:"goldens_sha256"`
+	Revision      string          `json:"revision"`
+	Baseline      *slotArmSummary `json:"baseline"`
+	Arm           *slotArmSummary `json:"arm"`
+}
+
+type slotArmSummary struct {
+	CriticalMisses  *int `json:"critical_misses"`
+	MustIncludeHits *int `json:"must_include_hits"`
+	Top5Hits        *int `json:"top5_hits"`
+}
+
+func (arm *slotArmSummary) complete() bool {
+	return arm != nil && arm.CriticalMisses != nil && arm.MustIncludeHits != nil && arm.Top5Hits != nil
+}
+
+// validateSlotWeightsEvaluation refuses an absent or non-object evaluation
+// block, a malformed goldens digest or revision, or a missing arm result.
+func validateSlotWeightsEvaluation(raw json.RawMessage) error {
+	var evaluation slotWeightsEvaluation
+	if err := json.Unmarshal(raw, &evaluation); err != nil || !bytes.HasPrefix(bytes.TrimSpace(raw), []byte("{")) {
+		return fmt.Errorf("evaluation must be the gate's evaluation object")
+	}
+	if !slotGoldensDigest.MatchString(evaluation.GoldensSHA256) {
+		return fmt.Errorf("evaluation.goldens_sha256 must be sha256: and 64 lowercase hex digits")
+	}
+	if !slotRevision.MatchString(evaluation.Revision) {
+		return fmt.Errorf("evaluation.revision must be 40 or 64 lowercase hex digits")
+	}
+	if !evaluation.Baseline.complete() || !evaluation.Arm.complete() {
+		return fmt.Errorf("evaluation must carry both baseline and arm results")
+	}
+	return nil
+}
+
 // ValidateSlotWeights refuses an unknown relation or an out-of-range weight.
 func ValidateSlotWeights(weights SlotWeights) error {
 	for relation, weight := range weights {
@@ -63,8 +108,8 @@ func ValidateSlotWeights(weights SlotWeights) error {
 }
 
 // LoadAdmittedSlotWeights reads the admitted trace under root. An absent file
-// is nil with no error (the default order); a symlink, oversized, malformed
-// or out-of-range file fails closed with the rollback command named.
+// is nil with no error (the default order); a symlink, oversized, malformed,
+// unevaluated or out-of-range file fails closed with the rollback command named.
 func LoadAdmittedSlotWeights(root string) (*AdmittedSlotWeights, error) {
 	path := filepath.Join(root, filepath.FromSlash(SlotWeightsPath))
 	info, err := os.Lstat(path)
@@ -107,6 +152,9 @@ func DecodeSlotWeightsFile(raw []byte) (SlotWeightsFile, error) {
 	}
 	if decoded.SchemaVersion != slotWeightsSchema {
 		return SlotWeightsFile{}, fmt.Errorf("schemaVersion must be %d", slotWeightsSchema)
+	}
+	if err := validateSlotWeightsEvaluation(decoded.Evaluation); err != nil {
+		return SlotWeightsFile{}, err
 	}
 	return decoded, ValidateSlotWeights(decoded.Weights)
 }

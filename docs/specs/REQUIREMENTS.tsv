@@ -1325,9 +1325,9 @@ LTA-V0-006	docs/specs/learned-trace-admission-v0.md	102	`corvint skill-export --
 LTA-V0-007	docs/specs/learned-trace-admission-v0.md	108	An admitted learned rule is a stored row with outcome `passed` that the reader
 LTA-V0-008	docs/specs/learned-trace-admission-v0.md	115	Each exported skill MUST load under the Agent Skills frontmatter contract that
 LTA-V0-009	docs/specs/learned-trace-admission-v0.md	120	(proposed, decision 0368) `corvint eval --learn-slot-weights [--goldens FILE]
-LTA-V0-010	docs/specs/learned-trace-admission-v0.md	130	(proposed, decision 0368) Each proposal MUST be scored against the default slot
-LTA-V0-011	docs/specs/learned-trace-admission-v0.md	139	(proposed, decision 0368) Only `--admit` with an `improved` proposal MAY write
-LTA-V0-012	docs/specs/learned-trace-admission-v0.md	147	(proposed, decision 0368) `corvint eval --reset-slot-weights` MUST remove the
+LTA-V0-010	docs/specs/learned-trace-admission-v0.md	131	(proposed, decision 0368) Each proposal MUST be scored against the default slot
+LTA-V0-011	docs/specs/learned-trace-admission-v0.md	140	(proposed, decision 0368) Only `--admit` with an `improved` proposal MAY write
+LTA-V0-012	docs/specs/learned-trace-admission-v0.md	155	(proposed, decision 0368) `corvint eval --reset-slot-weights` MUST remove the
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	55	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	59	The Python reader MUST accept canonical rows only when their filename and row na
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	64	Dry-run MUST be read-only and bind its plan digest to the stable current commit/
@@ -1719,13 +1719,13 @@ SATS-V0-012	docs/specs/swift-affected-test-understanding-v0.md	106	The adapter M
 SBQ-V0-001	docs/specs/snapshot-batch-v0.md	34	`corvint [--root PATH] batch` MUST read one canonical JSON request object from
 SBQ-V0-002	docs/specs/snapshot-batch-v0.md	43	The verb MUST load the current snapshot exactly once through
 SBQ-V0-003	docs/specs/snapshot-batch-v0.md	51	Each operation MUST run the standalone verb's own code path over the loaded
-SBQ-V0-004	docs/specs/snapshot-batch-v0.md	64	Stdout MUST be one canonical JSON line with exactly the members `ok=true`,
-SBQ-V0-005	docs/specs/snapshot-batch-v0.md	78	The verb MUST be read-only: no index, trace, cache or ledger write on any path.
-SBQ-V0-006	docs/specs/snapshot-batch-v0.md	82	Work is bounded by `SBQ-V0-001`'s request bounds and each verb's own (`limit`
-SBQ-V0-007	docs/specs/snapshot-batch-v0.md	89	(AT-07 accepted contract; delivery requires verification) (a) An operation MAY c
-SBQ-V0-008	docs/specs/snapshot-batch-v0.md	102	(AT-07 accepted contract; delivery requires verification) At the one loaded snap
-SBQ-V0-009	docs/specs/snapshot-batch-v0.md	129	(AT-07 accepted contract; delivery requires verification) Suppression runs in `c
-SBQ-V0-010	docs/specs/snapshot-batch-v0.md	157	(AT-07 accepted contract; delivery requires verification) (a) Semantic key and w
+SBQ-V0-004	docs/specs/snapshot-batch-v0.md	66	Stdout MUST be one canonical JSON line with exactly the members `ok=true`,
+SBQ-V0-005	docs/specs/snapshot-batch-v0.md	80	The verb MUST be read-only: no index, trace, cache or ledger write on any path.
+SBQ-V0-006	docs/specs/snapshot-batch-v0.md	84	Work is bounded by `SBQ-V0-001`'s request bounds and each verb's own (`limit`
+SBQ-V0-007	docs/specs/snapshot-batch-v0.md	91	(AT-07 accepted contract; delivery requires verification) (a) An operation MAY c
+SBQ-V0-008	docs/specs/snapshot-batch-v0.md	104	(AT-07 accepted contract; delivery requires verification) At the one loaded snap
+SBQ-V0-009	docs/specs/snapshot-batch-v0.md	131	(AT-07 accepted contract; delivery requires verification) Suppression runs in `c
+SBQ-V0-010	docs/specs/snapshot-batch-v0.md	159	(AT-07 accepted contract; delivery requires verification) (a) Semantic key and w
 SCL-V0-001	docs/specs/scope-lease-v0.md	75	`corvint [--root PATH] lease acquire` MUST write exactly one canonical JSON leas
 SCL-V0-002	docs/specs/scope-lease-v0.md	87	Overlap MUST follow the conservative rule above: literal equality, glob-free-pre
 SCL-V0-003	docs/specs/scope-lease-v0.md	95	An acquisition overlapping any live lease MUST fail with a non-zero exit and a J

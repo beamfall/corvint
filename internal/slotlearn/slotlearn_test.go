@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -29,11 +30,15 @@ func unplannedRow(path string, planned bool) string {
 func TestLTAV0009ServingSlotTable(t *testing.T) {
 	for path, want := range map[string]string{
 		"cache/demux_test.go": "test", "tests/test_x.py": "test", "web/a.spec.ts": "test", "src/test/A.java": "test",
-		"README.md": "lexical", "docs/guide.html": "lexical", "notes.txt": "lexical",
+		"README.md": "documentation", "docs/guide.rst": "documentation", "notes.txt": "documentation",
+		"site/page.mdx": "documentation", "docs/guide.html": "lexical",
 		"cache/demux.go": "definition", "web/app.ts": "definition",
 	} {
 		if got := ServingSlot(path); got != want {
 			t.Fatalf("%s = %s, want %s", path, got, want)
+		}
+		if !slices.Contains(contextindex.LearnableSlots, want) {
+			t.Fatalf("%s serves %s, which no learned weight may reorder", path, want)
 		}
 	}
 }
@@ -91,7 +96,11 @@ func TestLTAV0012AdmittedTraceRoundTripsAndResetRestoresDefault(t *testing.T) {
 	if removed, err := Reset(root); removed || err != nil {
 		t.Fatalf("reset of absent trace = %v, %v", removed, err)
 	}
-	if err := writeAdmitted(root, contextindex.SlotWeights{"test": 2}, map[string]any{"heldout_cases": 2}); err != nil {
+	if err := writeAdmitted(root, contextindex.SlotWeights{"test": 2}, map[string]any{
+		"goldens_sha256": "sha256:" + strings.Repeat("a", 64), "revision": strings.Repeat("b", 40), "heldout_cases": 2,
+		"baseline": map[string]any{"critical_misses": 0, "must_include_hits": 1, "top5_hits": 1},
+		"arm":      map[string]any{"critical_misses": 0, "must_include_hits": 2, "top5_hits": 2},
+	}); err != nil {
 		t.Fatal(err)
 	}
 	admitted, err := contextindex.LoadAdmittedSlotWeights(root)

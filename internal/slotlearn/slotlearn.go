@@ -80,7 +80,8 @@ func ReadLabels(root string) (Labels, error) {
 }
 
 // ServingSlot is the closed table from a missed path to the slot that serves
-// that kind of path: tests, prose, or a code definition.
+// that kind of path: tests, prose (the packet's `documentation` relation,
+// by the same suffixes), other docs/ files (lexical), or a code definition.
 func ServingSlot(path string) string {
 	lower := strings.ToLower(filepath.ToSlash(path))
 	base := lower[strings.LastIndex(lower, "/")+1:]
@@ -89,8 +90,10 @@ func ServingSlot(path string) string {
 		strings.Contains(base, ".test."), strings.Contains(base, ".spec."),
 		strings.Contains("/"+lower, "/test/"), strings.Contains("/"+lower, "/tests/"):
 		return "test"
-	case strings.HasSuffix(base, ".md"), strings.HasSuffix(base, ".rst"), strings.HasSuffix(base, ".txt"),
-		strings.HasPrefix(lower, "docs/"):
+	case strings.HasSuffix(base, ".md"), strings.HasSuffix(base, ".mdx"), strings.HasSuffix(base, ".rst"),
+		strings.HasSuffix(base, ".txt"):
+		return "documentation"
+	case strings.HasPrefix(lower, "docs/"):
 		return "lexical"
 	}
 	return "definition"
@@ -147,7 +150,8 @@ func Learn(ctx context.Context, root, goldenPath string, admit bool) (map[string
 	chosen := report["proposals"].([]any)[best].(map[string]any)
 	evaluation := map[string]any{
 		"goldens_sha256": report["goldens_sha256"], "revision": report["revision"],
-		"heldout_cases": report["heldout_cases"], "delta": chosen["delta"],
+		"heldout_cases": report["heldout_cases"], "baseline": report["baseline"], "arm": chosen["arm"],
+		"delta": chosen["delta"],
 	}
 	if err := writeAdmitted(root, proposals[best], evaluation); err != nil {
 		return nil, false, err

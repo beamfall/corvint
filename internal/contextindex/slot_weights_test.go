@@ -56,7 +56,7 @@ func TestLTAV0011WeightedPacketDisclosesTheTraceAndNilIsTaskContext(t *testing.T
 	}
 }
 
-func TestLTAV0012AdmittedSlotWeightsLoaderFailsClosed(t *testing.T) {
+func TestLTAV0011AdmittedSlotWeightsLoaderFailsClosed(t *testing.T) {
 	write := func(t *testing.T, content string) string {
 		t.Helper()
 		root := t.TempDir()
@@ -72,16 +72,26 @@ func TestLTAV0012AdmittedSlotWeightsLoaderFailsClosed(t *testing.T) {
 	if admitted, err := LoadAdmittedSlotWeights(t.TempDir()); admitted != nil || err != nil {
 		t.Fatalf("absent file = %v, %v", admitted, err)
 	}
-	admitted, err := LoadAdmittedSlotWeights(write(t, `{"schemaVersion":1,"weights":{"test":2},"evaluation":{}}`))
+	evaluation := `{"goldens_sha256":"sha256:` + strings.Repeat("a", 64) + `","revision":"` + strings.Repeat("b", 40) +
+		`","heldout_cases":2,"baseline":{"critical_misses":0,"must_include_hits":1,"top5_hits":1},` +
+		`"arm":{"critical_misses":0,"must_include_hits":2,"top5_hits":2}}`
+	admitted, err := LoadAdmittedSlotWeights(write(t, `{"schemaVersion":1,"weights":{"test":2},"evaluation":`+evaluation+`}`))
 	if err != nil || admitted.Weights["test"] != 2 || !strings.HasPrefix(admitted.SHA256, "sha256:") {
 		t.Fatalf("valid file = %v, %v", admitted, err)
 	}
 	refused := map[string]string{
-		"out of range":     `{"schemaVersion":1,"weights":{"test":3},"evaluation":{}}`,
-		"unknown relation": `{"schemaVersion":1,"weights":{"frame":1},"evaluation":{}}`,
-		"unknown field":    `{"schemaVersion":1,"weights":{},"evaluation":{},"extra":1}`,
-		"schema":           `{"schemaVersion":2,"weights":{},"evaluation":{}}`,
-		"oversize":         `{"schemaVersion":1,"weights":{},"evaluation":"` + strings.Repeat("x", maxSlotWeightsBytes) + `"}`,
+		"out of range":       `{"schemaVersion":1,"weights":{"test":3},"evaluation":` + evaluation + `}`,
+		"unknown relation":   `{"schemaVersion":1,"weights":{"frame":1},"evaluation":` + evaluation + `}`,
+		"unknown field":      `{"schemaVersion":1,"weights":{},"evaluation":` + evaluation + `,"extra":1}`,
+		"schema":             `{"schemaVersion":2,"weights":{},"evaluation":` + evaluation + `}`,
+		"oversize":           `{"schemaVersion":1,"weights":{},"evaluation":"` + strings.Repeat("x", maxSlotWeightsBytes) + `"}`,
+		"absent evaluation":  `{"schemaVersion":1,"weights":{"test":2}}`,
+		"string evaluation":  `{"schemaVersion":1,"weights":{"test":2},"evaluation":"anything"}`,
+		"empty evaluation":   `{"schemaVersion":1,"weights":{"test":2},"evaluation":{}}`,
+		"null evaluation":    `{"schemaVersion":1,"weights":{"test":2},"evaluation":null}`,
+		"bad goldens digest": `{"schemaVersion":1,"weights":{"test":2},"evaluation":` + strings.Replace(evaluation, "sha256:a", "sha256:A", 1) + `}`,
+		"bad revision":       `{"schemaVersion":1,"weights":{"test":2},"evaluation":` + strings.Replace(evaluation, `"bbbb`, `"bbb`, 1) + `}`,
+		"missing arm":        `{"schemaVersion":1,"weights":{"test":2},"evaluation":` + strings.Replace(evaluation, `"arm":`, `"arms":`, 1) + `}`,
 	}
 	for name, content := range refused {
 		if _, err := LoadAdmittedSlotWeights(write(t, content)); err == nil || !strings.Contains(err.Error(), "corvint eval --reset-slot-weights") {
@@ -90,7 +100,7 @@ func TestLTAV0012AdmittedSlotWeightsLoaderFailsClosed(t *testing.T) {
 	}
 	root := t.TempDir()
 	target := filepath.Join(root, "elsewhere.json")
-	if err := os.WriteFile(target, []byte(`{"schemaVersion":1,"weights":{},"evaluation":{}}`), 0o644); err != nil {
+	if err := os.WriteFile(target, []byte(`{"schemaVersion":1,"weights":{},"evaluation":`+evaluation+`}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	link := filepath.Join(root, filepath.FromSlash(SlotWeightsPath))

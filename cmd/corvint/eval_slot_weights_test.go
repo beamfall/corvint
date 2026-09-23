@@ -143,17 +143,28 @@ func TestLTAV0012ResetRestoresTheDefaultPacket(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(`{"schemaVersion":1,"weights":{"test":2},"evaluation":{}}`), 0o644); err != nil {
+	evaluation := `{"goldens_sha256":"sha256:` + strings.Repeat("a", 64) + `","revision":"` + strings.Repeat("b", 40) +
+		`","heldout_cases":2,"baseline":{"critical_misses":0,"must_include_hits":1,"top5_hits":1},` +
+		`"arm":{"critical_misses":0,"must_include_hits":2,"top5_hits":2}}`
+	if err := os.WriteFile(path, []byte(`{"schemaVersion":1,"weights":{"test":2},"evaluation":`+evaluation+`}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, weighted, _ := slotWeightsRun(t, root, command...); weighted == baseline || !strings.Contains(weighted, "learned_slot_weights") {
 		t.Fatalf("admitted trace not applied:\n%s", weighted)
 	}
-	if err := os.WriteFile(path, []byte(`{"schemaVersion":1,"weights":{"test":9},"evaluation":{}}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if code, _, stderr := slotWeightsRun(t, root, command...); code != 2 || !strings.Contains(stderr, "corvint eval --reset-slot-weights") {
-		t.Fatalf("malformed trace: exit %d: %s", code, stderr)
+	// A hand-written file without the gate's evaluation block is refused, not
+	// applied (LTA-V0-011); so is an out-of-range weight.
+	for _, content := range []string{
+		`{"schemaVersion":1,"weights":{"test":2},"evaluation":"anything"}`,
+		`{"schemaVersion":1,"weights":{"test":2}}`,
+		`{"schemaVersion":1,"weights":{"test":9},"evaluation":` + evaluation + `}`,
+	} {
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if code, stdout, stderr := slotWeightsRun(t, root, command...); code != 2 || stdout != "" || !strings.Contains(stderr, "corvint eval --reset-slot-weights") {
+			t.Fatalf("malformed trace %s: exit %d: %s%s", content, code, stdout, stderr)
+		}
 	}
 	code, stdout, stderr := slotWeightsRun(t, root, "eval", "--reset-slot-weights")
 	if code != 0 || !strings.Contains(stdout, `"removed":true`) {

@@ -68,6 +68,23 @@ After the bump:
 NOT_RUN: `make gate` (owner policy); the exhaustive `go test ./...`; independent review; a frozen
 external retrieval benchmark (not requested). NOT_OBSERVED: any admitted trace on real labels.
 
+Review fixes (independent review of PR #92, three confirmed defects). (1) `batch`'s `context`
+operation now loads the admitted file and calls `TaskContextWeighted`, so it stays byte-equal to
+standalone `context` under weights (`SBQ-V0-003`, `TestBatchContextAppliesAdmittedSlotWeights`, which
+fails without the fix); `necessity`, `disagree` and `touchsurprise` stay unweighted, now stated in
+`LTA-V0-011`. (2) Prose labels (`.md`, `.mdx`, `.rst`, `.txt`) map to `documentation`, the kind the
+packet emits for them, and `documentation` joins the learnable slots; other `docs/` paths stay
+`lexical` (`LTA-V0-009`). Default packets are unchanged because an empty weight map is the identity
+order; the whole `internal/contextindex` suite passes. (3) The loader refuses an absent, non-object
+or incomplete `evaluation` block (`goldens_sha256`, a 40- or 64-hex `revision`, `baseline` and `arm`
+results); the gate now writes both arm results. The file is operator-owned and the loader checks
+shape, not provenance (`LTA-V0-011`). `context --help` names `learned_slot_weights`, one loader test
+is renamed to `TestLTAV0011...`, and the `/74` analyzer audit digest is repinned for the changed
+`slot_weights.go` bytes. No extraction or encoding changed. Verified: the focused-docs gate exits 0;
+`go test` of `internal/slotlearn`, `internal/evalrepo` and `internal/contextindex` passes;
+`cmd/corvint -run 'TestLTAV0|TestAnalyzer|TestEval|TestBatch|TestSBQ|TestTaskContext|Help'` passes;
+`go vet` and `gofmt -l` are clean. Still NOT_RUN: `make gate` and the exhaustive `go test ./...`.
+
 
 ## 2026-09-23 V1-0012 PCCO-V0-015..017: sealed daily-loop correctness and cost measurement
 

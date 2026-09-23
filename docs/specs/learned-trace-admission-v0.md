@@ -123,8 +123,9 @@ screens shared the assignment-pattern vocabulary, which did not include `credent
   (128 KiB per ledger, 2 KiB per row). Its negative labels are the distinct paths of unplanned reads
   and of `OBSERVED` file-change misses, sorted and capped at 256; a planned re-read is counted and
   disclosed but is not a label, because the packet already carried that path. Each label maps
-  through a closed table to its serving slot (`test` for test-shaped paths, `lexical` for prose,
-  otherwise `definition`), and at most four proposals raise the most-labelled slots by 1 and then
+  through a closed table to its serving slot (`test` for test-shaped paths; `documentation` for
+  `.md`, `.mdx`, `.rst` and `.txt` files, the suffixes the packet emits as `documentation` rows;
+  `lexical` for any other `docs/` path; otherwise `definition`), and at most four proposals raise the most-labelled slots by 1 and then
   2. `context` and `query` MUST NOT open either ledger or depend on the learning package: their
   bytes are identical with the ledgers present, absent or populated.
 - `LTA-V0-010`: (proposed, decision 0368) Each proposal MUST be scored against the default slot
@@ -137,13 +138,20 @@ screens shared the assignment-pattern vocabulary, which did not include `credent
   With no labels, or no `improved` proposal, the step MUST refuse admission, write nothing and say
   why. It MUST fail when the repository revision changes during scoring.
 - `LTA-V0-011`: (proposed, decision 0368) Only `--admit` with an `improved` proposal MAY write
-  `.context-corvint/slot-weights.json` (schema 1: `weights` over the nine learnable slot relations,
+  `.context-corvint/slot-weights.json` (schema 1: `weights` over the ten learnable slot relations,
   each an integer in -2..2, plus the gate's evaluation block), atomically and at most 4,096 bytes.
-  When that file exists, `context` MUST stably move rows of higher-weighted relations ahead after
+  The file is operator-owned local state: the loader checks its shape, not its provenance, so the
+  `evaluation` block MUST be an object carrying `goldens_sha256` (`sha256:` and 64 lowercase hex),
+  `revision` (40 or 64 lowercase hex) and both arm results, `baseline` and `arm`, each with integer
+  `critical_misses`, `must_include_hits` and `top5_hits`, as the gate writes them; a hand-written
+  block of that shape is accepted. When that file exists, `context` and `batch`'s `context`
+  operation (`SBQ-V0-003`) MUST stably move rows of higher-weighted relations ahead after
   slot admission and before corroboration and truncation, and MUST disclose the file's path,
   `sha256:` and weights as `learned_slot_weights`. Without the file the packet MUST be byte-identical
-  to the default order. A symlinked, oversized, malformed, unknown-relation or out-of-range file
-  MUST fail `context` closed with a message naming the rollback command, never fall back silently.
+  to the default order. A symlinked, oversized, malformed, unknown-relation or out-of-range file, or
+  one whose `evaluation` block is absent or lacks that shape, MUST fail `context` closed with a
+  message naming the rollback command, never fall back silently. `necessity`, `disagree` and
+  `touchsurprise` compile the unweighted `contextindex.TaskContext` packet and do not read the file.
 - `LTA-V0-012`: (proposed, decision 0368) `corvint eval --reset-slot-weights` MUST remove the
   admitted file, report whether it removed one, succeed when none exists, and return `context` to
   its default bytes. It takes no other argument.
@@ -240,7 +248,7 @@ is weighted; that mismatch is why the gate, not the labels, decides admission.
 | `LTA-V0-008` | a loader-shaped parser reads the frontmatter, finds `name` equal to the directory within the 64-character `[a-z0-9-]` bound and a one-line `description` within 1,024 characters with control characters folded, and reloads the digest from the body |
 | `LTA-V0-009` | populated ledgers leave `context` and `query` bytes unchanged; `contextindex` does not depend on either ledger package or `slotlearn`; labels cap at 256 with planned re-reads excluded; proposals are at most four, deterministic and in range |
 | `LTA-V0-010` | a held-out golden with no improvement reports both arms and the delta, refuses admission and writes no file; no labels refuses before scoring; classification thresholds are unit-tested |
-| `LTA-V0-011` | nil weights leave the packet unchanged; weights reorder stably and disclose the trace; the loader refuses symlinked, oversized, malformed, unknown-relation and out-of-range files naming the rollback |
+| `LTA-V0-011` | nil weights leave the packet unchanged; weights reorder stably and disclose the trace; the loader refuses symlinked, oversized, malformed, unknown-relation, out-of-range and unevaluated files naming the rollback; `batch` `context` equals the weighted standalone packet |
 | `LTA-V0-012` | `eval --reset-slot-weights` removes the admitted file and the next `context` output equals the default bytes, including after a malformed file |
 | writer/stored-reader screen compatibility | one shared fixture corpus proves the four baseline patterns agree; new assignment-key and quoted-property cases reject in both writers while Go/Python stored-v1 validation and both dashboard readers retain their previous result; benign quoted properties remain admissible, Git-history screening uses the current detector, and ledger output redacts the synthetic value |
 
@@ -272,7 +280,7 @@ repaired by silently changing the oracle after evaluation.
 | `LTA-V0-008` | `internal/skillexport` | `TestHostRoundTripLoadsExportedSkill_LTA008` |
 | `LTA-V0-009` | `internal/slotlearn`, `cmd/corvint/eval_slot_weights.go` | `TestLTAV0009LedgersNeverChangeContextOrQueryOutput`, `TestLTAV0009LiveContextPathCannotReachTheLedgers`, `TestLTAV0009LabelsAreBoundedAndPlannedReadsAreNotLabels`, `TestLTAV0009ProposalsAreBoundedDeterministicAndInRange`, `TestLTAV0009ServingSlotTable` |
 | `LTA-V0-010` | `internal/evalrepo/slot_weights.go`, `internal/slotlearn` | `TestLTAV0010GateReportsTheDeltaAndRefusesWithoutImprovement`, `TestLTAV0010NoLabelsRefusesWithoutEvaluating`, `TestLTAV0010SlotDeltaClassification`, `TestLTAV0010SelectorPathsKeepOnlyPathBearingSelectors` |
-| `LTA-V0-011` | `internal/contextindex/slot_weights.go`, `internal/contextindex/taskcontext.go`, `cmd/corvint/taskcontext.go` | `TestLTAV0011SlotWeightOrderIsIdentityByDefaultAndStable`, `TestLTAV0011WeightedPacketDisclosesTheTraceAndNilIsTaskContext`, `TestLTAV0012AdmittedSlotWeightsLoaderFailsClosed` |
+| `LTA-V0-011` | `internal/contextindex/slot_weights.go`, `internal/contextindex/taskcontext.go`, `cmd/corvint/taskcontext.go` | `TestLTAV0011SlotWeightOrderIsIdentityByDefaultAndStable`, `TestLTAV0011WeightedPacketDisclosesTheTraceAndNilIsTaskContext`, `TestLTAV0011AdmittedSlotWeightsLoaderFailsClosed`, `TestBatchContextAppliesAdmittedSlotWeights` |
 | `LTA-V0-012` | `internal/slotlearn`, `cmd/corvint/eval_slot_weights.go` | `TestLTAV0012ResetRestoresTheDefaultPacket`, `TestLTAV0012AdmittedTraceRoundTripsAndResetRestoresDefault` |
 | writer/stored-reader screen compatibility | `internal/secretscreen`, `internal/trace`, `src/context_corvint_trace.py`, `internal/dashboard/adapters/trace.go`, `conformance/dashboard-snapshot-v0/trace_corpus.go` | `TestSecretPatternParityCorpus`, `TestQuotedCredentialsRejectNewRecordsButRetainStoredV1`, `TestSecretPatternMatchesHistorySecretShapes`, `TestAppendRedactsQuotedCredentialPath`, `TestScreenConsumesWholeQuotedAssignmentValue`, `TestScreenRedactsAWSSecretAdjacentToItsKeyID`, Python `SecretPatternParityTest` and `CorvintLearningTest.test_trace_inputs_fail_closed`; stored-v1 compatibility and intentional-asymmetry tests |
 
