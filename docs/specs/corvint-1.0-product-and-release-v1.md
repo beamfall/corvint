@@ -24,7 +24,7 @@ scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 The owner asked for a 1.0 whose stability promise covers one thing that works end to end on the
 owner's own machines: the local change-evidence loop. Earlier release scope (`public-release-v0.md`)
 bundled optional companions, formal host authority and editor qualification into the release
-path. Decision 0332 already cut those from the 0.6 milestone only. This draft proposes making that
+path. Decision 0332 already cut those from the 0.6 milestone only. Decision 0373 makes that
 cut permanent for 1.0, names every shipped surface's classification, and turns the gates that
 need third parties into explicit owner choices rather than silent blockers.
 
@@ -88,8 +88,8 @@ in `integrations/compatibility.json` is FALLBACK today. Proposed 1.0 host scope:
 | Host tuple | Proposed 1.0 label | Reason |
 |---|---|---|
 | Plain CLI on a Core platform | Core | The loop is fully usable from a shell with no host adapter. |
-| Codex CLI via the Codex plugin (`corvint adapter codex`), exact version | Core row at FALLBACK (owner question 5) | Decision 0332 precedent: local Codex use qualified on an exact version without FULL authority. |
-| Claude Code via the Claude Code plugin (`corvint adapter claude-code`), exact version | Core row at FALLBACK (owner question 5) | Same precedent; installed lifecycle already ran on Claude Code 2.1.267. |
+| Codex CLI via the Codex plugin (`corvint adapter codex`), exact version | Core row at FALLBACK (decision 0373, question 5: yes) | Decision 0332 precedent: local Codex use qualified on an exact version without FULL authority. |
+| Claude Code via the Claude Code plugin (`corvint adapter claude-code`), exact version | Core row at FALLBACK (decision 0373, question 5: yes) | Same precedent; installed lifecycle already ran on Claude Code 2.1.267. |
 | Gemini CLI, OpenCode, Pi | Companion, FALLBACK | No retained installed-loop evidence that Core could own. |
 | Codex Desktop, protected Pi, `/Library/CorvintAuthority` hook trees | post-1.0 | Need formal FULL authority the host API does not currently supply to Core. |
 | VS Code extension | deferred | `vscode-extension-v0.md` is deferred. |
@@ -146,8 +146,8 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 
 ## Externally dependent gates
 
-Each gate below needs something the owner cannot produce alone today. For each, this draft
-proposes a disposition and states the amendment it requires. The owner may choose differently.
+Each gate below needs something the owner cannot produce alone today. For each, the disposition
+accepted by decision 0373 and the amendment it requires are stated.
 
 ### V1-0014: independent proof producers and consumers
 
@@ -180,7 +180,7 @@ proposes a disposition and states the amendment it requires. The owner may choos
   Gemini CLI and Pi "still require exact runtime FULL/authority evidence" and that missing
   "required exact runtime FULL" evidence blocks release. V1-0005 and V1-0016 carry this.
 - Proposed disposition: move formal FULL and protected authority to post-1.0 (or to a companion
-  host profile). Core claims the plain CLI and, if owner question 5 is yes, installed Codex CLI and
+  host profile). Core claims the plain CLI and (question 5: yes) installed Codex CLI and
   Claude Code at FALLBACK on exact versions. Tuples whose host API cannot supply authority stay
   FALLBACK or UNSUPPORTED and do not block Core.
 - Amendment required: in `public-release-v0.md`, extend the 0.6 local-workflow scope sentence
@@ -289,7 +289,7 @@ and the untouched repository (question 8) are still unnamed. The questions stay 
   `README.md` row and regenerated `REQUIREMENTS.tsv`.
 - Classification completeness: every top-level `corvint` verb, `cmd/` binary, `integrations/` tree and
   `extensions/` tree present at the base commit appears in the classification table. Checked by
-  review for this draft; a mechanical check is a follow-up for V1-0002 or V1-0007.
+  review at acceptance; a mechanical check is a follow-up for V1-0002 or V1-0007.
 
 ## Traceability
 
@@ -312,4 +312,5 @@ and the untouched repository (question 8) are still unnamed. The questions stay 
 
 Delete this file, its `INDEX.json` entry and its `README.md` row, regenerate `REQUIREMENTS.tsv`,
 and remove the "1.0 Core scope amendment" section in `public-release-v0.md` and the pointer sentence
-in `../PRODUCT.md`. No code, ticket, decision or evidence depends on this draft.
+in `../PRODUCT.md`. Decision 0373 and ticket V1-0001 depend on this spec; that decision's rollback
+section governs reverting the acceptance.

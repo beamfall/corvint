@@ -151,6 +151,11 @@ Ratified by `docs/decisions/0099-experimental-adapter-call-sites-2026-09-12.md` 
 > marker `.corvint/unplanned-reads.enabled` exists; like the self-observation ledger it is bounded,
 > local, derived state and never an input to ranking, learning, evidence, or authority.
 
+Decision 0373 (item 12, ratifying decision 0368) replaced the final clause of that sentence in
+`AGENTS.md` invariant 4 with the current wording: never an input to ranking, evidence or authority,
+nor to learning except through the operator-invoked `corvint eval --learn-slot-weights` step gated
+by `LTA-V0-009` to `LTA-V0-012`. The non-goals above carry the same clause.
+
 ## Failure modes
 
 | Failure | Required response | Recovery |

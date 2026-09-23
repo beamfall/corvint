@@ -5,7 +5,7 @@ Date: 2026-09-12
 Requirement prefix: `PUB-V0`  
 Intent status: accepted owner scope; implementation details proposed  
 Delivery status: not qualified  
-Amendments: decision 0167 (build from the staged export; retained bundle archive) amends `PUB-V0-013..015`; decision 0314 adds `PUB-V0-021` (build number); issue 44 adds `PUB-V0-022..026` (closed qualified release candidate); decision 0327 selected `v0.5.0a1`; decision 0328 selected `v0.5.0a2` with the existing unsigned prerelease/no-promotion boundaries and the issue #49 Playwright regression; decision 0329 selects `v0.5.0a3` for the integrated issue #53–#57 rerelease with the same boundaries.
+Amendments: decision 0167 (build from the staged export; retained bundle archive) amends `PUB-V0-013..015`; decision 0314 adds `PUB-V0-021` (build number); issue 44 adds `PUB-V0-022..026` (closed qualified release candidate); decision 0327 selected `v0.5.0a1`; decision 0328 selected `v0.5.0a2` with the existing unsigned prerelease/no-promotion boundaries and the issue #49 Playwright regression; decision 0329 selects `v0.5.0a3` for the integrated issue #53–#57 rerelease with the same boundaries; decision 0373 adds the "1.0 Core scope amendment" section (owner answers of 2026-09-23).
 
 ## Agent digest
 - Claim: A public alpha ships the Go CLI, MCP docs, agent/editor unit and E2E test tracking, and an optional dashboard and task manager with a roadmap.
@@ -60,7 +60,7 @@ Decision 0373 accepts [`corvint-1.0-product-and-release-v1.md`](corvint-1.0-prod
 `PUB-V0` requirement text changes, historical evidence keeps its meaning, and nothing here
 qualifies or promotes anything.
 
-- The 0.6 local-workflow scope below extends to the 1.0 Core candidate: it supersedes conflicting
+- The 0.6 local-workflow scope above extends to the 1.0 Core candidate: it supersedes conflicting
   prerequisites that require optional companions or formal FULL host authority before Core
   qualification.
 - The 1.0 Core candidate additionally requires the three Core jobs on one owner-selected untouched

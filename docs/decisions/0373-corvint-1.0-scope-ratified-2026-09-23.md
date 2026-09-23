@@ -3,7 +3,9 @@
 Date: 2026-09-23. Status: accepted (owner answers of 2026-09-23; ticket V1-0001). Authority: the
 repository owner answered the eleven questions in `docs/specs/corvint-1.0-product-and-release-v1.md`
 ("Decisions the owner must make") with "yes to all", delegated the five open 0.7 dispositions below
-to the coordinator with an expert check, and authorized one full-gate run at a candidate head.
+to the coordinator with an expert check, answered the 0.7.0 upgrade question (item 17) and
+authorized one full-gate run at a candidate head. Independent review of the first commit
+(FIX-FIRST, twelve findings) is applied in the same change and recorded in `docs/BUILD-LOG.md`.
 
 ## Owner answers (all yes)
 
@@ -48,9 +50,13 @@ V1-0018 follow-up.
 15. V1-0100 (application flows) is complete as delivered-experimental on the merged slice
     (57765fb, 70f531b): `AFU-V0` is traced, the browser gate ran on base a98d770, the dogfood
     binding is sealed (3f60009, 2a14291), and `make gate` against the merged commit is `NOT_RUN`
-    under the owner's focused-verification policy. Profile acceptance is `NOT_PRODUCED`; the
-    capability stays experimental under ticket criterion 6, v0-7 criterion 8 and the 1.0
-    classification table.
+    under the owner's focused-verification policy. Its first ticket criterion asked for the full
+    gate, browser gate and dogfood binding recorded against the merged commit; it is amended to
+    record the browser gate on base a98d770, the sealed binding, and the full gate as `NOT_RUN`
+    until the candidate-head run, so the COMPLETED status no longer contradicts the criterion.
+    Profile acceptance is `NOT_PRODUCED`; the capability stays experimental under its last ticket
+    criterion (acceptance only by explicit owner decision), the v0-7 application-flow criterion
+    and the 1.0 classification table.
 16. V1-0011 (the three Core ledger rows) cannot reach `VERIFIED`. The sealed run-001 receipts
     record `FAIL` for `UC-TASK-ORIENTATION` (one treatment-only critical miss) and
     `UC-CHANGE-CONSEQUENCE` (five treatment-only critical misses, all changed packages without
@@ -58,6 +64,12 @@ V1-0018 follow-up.
     move to `experimental` with contract and implementation receipts; every claim stays
     `UNPROVEN`. The ticket stays open on those three gaps, which block v0-6 until a new sealed run
     passes and Beamfall dogfood is retained.
+17. Owner answer 19 (the 0.7.0 N-1 upgrade question asked with the scope questions): the 0.6.0 to
+    0.7.0 `upgrade-b` failure under the decision 0341 byte-identity rule is fixed in 0.8, not
+    documented as a 0.7 limitation. Ticket V1-0190 and a v0-8 acceptance criterion carry the 0.7.0
+    to 0.8.0 qualification. Ticket V1-0189 was filed alongside: `script/release-checklist` exits
+    non-zero before promotion for every candidate, so readiness attestation must record that
+    structural exit.
 
 ## Effects
 
@@ -72,9 +84,18 @@ V1-0018 follow-up.
   receipts under `conformance/use-cases-v0/receipts/`.
 - Task store (`.taskman/`): V1-0001 completed; V1-0019 kind MANUAL with the owner-closable
   criterion; V1-0021 and the v1-0 criterion drop "independent interoperability passes"; V1-0015
-  keeps its moot V1-0014 dependency (COMPLETED tickets refuse `set-dependencies`); v0-7 drops V1-0014, V1-0083 and V1-0023 and rewords criteria 1 and
-  7; v0-8 gains V1-0023 and V1-0154; V1-0083 archived; V1-0100 completed; follow-up tickets filed
-  for the 0367 follow-ups and the V1-0011 gaps.
+  keeps its moot V1-0014 dependency (COMPLETED tickets refuse `set-dependencies`); V1-0014 leaves
+  v0-7 and takes the milestone label `post-1-0` (the store refuses an empty milestone); v0-7 drops
+  V1-0014, V1-0083 and V1-0023 and rewords three criteria: the proof-wire criterion ("versioned and
+  usable from a digest-pinned CI verifier through its canonical vectors and the in-repo second
+  consumer; no independent interoperability claim"), the summaries criterion ("experimental and
+  opt-in ... trial deferred to 0.8") and the state-of-the-art criterion ("items that fail their
+  frozen evaluation ... are archived as not delivered"); v0-8 gains V1-0023, V1-0154 and V1-0190
+  and two criteria (the matched trial before default promotion; the 0.7.0 to 0.8.0 `upgrade-b`
+  pass); V1-0083 archived; V1-0100 completed with its first criterion amended (item 15); follow-up
+  tickets V1-0184 to V1-0190 filed for the V1-0011 gaps (V1-0184, V1-0186, V1-0187, V1-0188), the
+  0367 follow-ups (V1-0185), the release-checklist exit (V1-0189) and the upgrade qualification
+  (V1-0190).
 
 ## Rollback
 

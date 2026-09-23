@@ -10,9 +10,10 @@ Corvint is a local-first, proof-carrying context compiler for software agents.
 4. Read commands do not mutate repository or trace state. The only exceptions are two bounded,
    private, local ledgers under `.corvint/` (`self-observations.jsonl`, and `unplanned-reads.jsonl`
    while the operator marker `.corvint/unplanned-reads.enabled` exists). Their writers are defined by
-   `SOL-V0-001`, `SOL-V0-007` and `SOL-V0-010`; neither is ever an input to ranking, evidence, or authority, nor to learning except through the
-   operator-invoked `corvint eval --learn-slot-weights` step, whose output reaches ranking only after
-   the frozen held-out gate admits it (`LTA-V0-009` to `LTA-V0-012`).
+   `SOL-V0-001`, `SOL-V0-007` and `SOL-V0-010`; neither is ever an input to ranking, evidence, or
+   authority, nor to learning except through the operator-invoked
+   `corvint eval --learn-slot-weights` step, whose output reaches ranking only after the frozen
+   held-out gate admits it (`LTA-V0-009` to `LTA-V0-012`).
 5. Learning is explicit, local, bounded, secret-screened, and evaluation-gated.
 6. Corvint integrates with existing specs and agents; it does not require a new spec language.
 7. The default local product remains one native-Go binary with no account, network dependency,
