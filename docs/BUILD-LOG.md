@@ -4,6 +4,35 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0010 DCW-V0-013..015: daily change-evidence adopter path
+
+`docs/DOGFOOD.md` now opens with one ordered daily adopter path from the pre-change receipts to the
+seal, with each input's exact format, the expected state after every step and a fail-closed table.
+`dogfood-change` follows each not-complete row caused by an input mistake or by the uncommitted
+sidecar with a `fix:` line; `dogfood-check` adds one to `dogfood-report-missing`,
+`dogfood-report-drift` (separate lines for a report bound to another base or head and for an
+incomplete report) and `intent-scope-drift`. No reason code changed. `docs/INSTALL.md` points to the
+path. The shell test asserts every new line and fails when one is altered (mutation observed).
+
+Friction that motivated the change came from seven fresh-agent worker runs that each bound and
+sealed a real change from plain clones of the public repository (PRs #74 to #80): the intents file
+must name specs with exactly one `## Requirements` heading; `DOGFOOD_CITATIONS` is a path; the first
+passes always fail `excluded-artifact-mismatch` until the sidecar is committed; the base carries an
+unsealed 0.6.0-integration CEM whose `baseRevision` is on the private lineage (decision 0331), so
+every check prints `unbound-commits NOT_OBSERVED previous-cem-base-unavailable` and every seal
+removes that path; and OCM aggregates report every requirement `unassessed`.
+
+Each fail-closed class was reproduced in a scratch clone at base 1894b9e: dirty (tracked and
+untracked), stale (commit after the report), unknown (uncited hunk), interrupted (`SIGTERM`, exit
+143, no report), unsupported (`PATH` without `rg`; intent without a Requirements heading), aggregate
+drift after `ocm mark` without a rerun, and both sealed refusals. `ocm mark` after the sidecar commit
+survives a rerun on the same `HEAD` and is dropped by any later commit. A linked worktree was not
+refused. NOT_OBSERVED: `SIGINT` interruption, `ocm link` with a test claim, and the independent
+reviewer leg of `DCW-V0-006` (no reviewer report exists for these runs); the worker runs used Git
+clones, not extracted release archives. The pre-change query ranked
+`docs/specs/analyzer-capability-contract-v0.md` first and omitted both `docs/DOGFOOD.md` and the
+owning spec: a context miss. The required full gate is NOT_RUN by owner policy.
+
 ## 2026-09-22 AFU-V0-001..AFU-V0-012: experimental web flow understanding
 
 The owner requested application-flow understanding, test-gap mapping and runtime confirmation, then

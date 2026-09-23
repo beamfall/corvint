@@ -106,6 +106,15 @@ branch overlap hints. Replace `FULL_BASE_SHA` with the full ancestor commit imme
 the changes. These commands refuse dirty trees, do not execute suggested next calls, and do not
 close review or test obligations. See the [guidance contract](specs/repository-guidance-v0.md).
 
+For a committed change, the daily change-evidence loop binds task context, impact, a CEM, the
+owning-spec OCMs, a frontier, checks, review and the retained outcome in one ordered sequence: see
+the [daily adopter path](DOGFOOD.md#daily-adopter-path). It lists each input's exact format, the
+refusals that are expected before the CEM is committed, and the reason every fail-closed outcome
+prints. Its `make dogfood-change`, `dogfood-check` and `dogfood-seal` coordinators build
+`./cmd/corvint` and run only in a Corvint source checkout; another repository runs the same
+`corvint cem`, `corvint ocm` and `corvint frontier` commands from that page's sections 4 to 6. A
+passing loop is structural closure, not proof that the change is correct.
+
 ## Optional workflow bundle
 
 The planned, separately assembled **macOS arm64** workflow bundle will contain nine native binaries:

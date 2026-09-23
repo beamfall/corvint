@@ -528,6 +528,9 @@ DCW-V0-009	docs/specs/daily-change-evidence-workflow-v0.md	54	Core command/profi
 DCW-V0-010	docs/specs/daily-change-evidence-workflow-v0.md	58	Codex and Claude MUST resolve the intended installed binary and current plugin
 DCW-V0-011	docs/specs/daily-change-evidence-workflow-v0.md	62	Console, Tasks, MCP, editor, providers, automatic docs and protected authority M
 DCW-V0-012	docs/specs/daily-change-evidence-workflow-v0.md	65	Final version/build, source and proof maps MUST freeze before exact-candidate
+DCW-V0-013	docs/specs/daily-change-evidence-workflow-v0.md	69	The daily adopter path MUST be one ordered sequence in `docs/DOGFOOD.md` from th
+DCW-V0-014	docs/specs/daily-change-evidence-workflow-v0.md	74	A `dogfood-change` not-complete row caused by a malformed or missing input, or b
+DCW-V0-015	docs/specs/daily-change-evidence-workflow-v0.md	79	Dirty, stale, interrupted, unsupported and unknown evidence MUST each end the lo
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map

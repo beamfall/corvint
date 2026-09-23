@@ -561,10 +561,40 @@ run_corvint cem-status "$evidence/cem-status.json" \
 
 printf 'local-outcome\t%b\n' "$local_outcome_row" >> "$rows"
 
+# Each refusal a first-time adopter hits names its fix (DCW-V0-014,
+# docs/DOGFOOD.md "Daily adopter path").
+fix_hint() {
+  case "$1:$2" in
+    cem-cite:citation-plan-not-provided)
+      printf 'set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json' ;;
+    cem-cite:citation-plan-unavailable)
+      printf 'DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves' ;;
+    cem-cite:invalid-citation-plan)
+      printf 'each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows' ;;
+    ocm-aggregate:missing-intent-scope)
+      printf 'DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths' ;;
+    ocm-prepare-*:invalid-requirements-section)
+      printf 'intent must be a spec that exists at BASE and contains exactly one "## Requirements" heading' ;;
+    ocm-prepare-*:excluded-artifact-mismatch|prechange-impact:unsupported-impact-worktree|local-outcome:record-index-failed)
+      printf 'expected while the prepared .corvint/change.cem.json is uncommitted; commit it, then rerun make dogfood-change' ;;
+    cem-status:not-ready)
+      printf 'read policyIssues in %s; a hunk stays unknown until DOGFOOD_CITATIONS cites it' "$evidence/cem-status.json" ;;
+    ocm-aggregate:intent-scope-drift)
+      printf 'fix the ocm-prepare or ocm-status row above; otherwise the intents file changed during the run' ;;
+    local-outcome:outcome-input-not-provided)
+      printf 'set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)' ;;
+  esac
+}
+
 render_report
 if awk -F '\t' '$2 != "PRODUCED" && !($1 == "local-outcome" && $2 == "NOT_PRODUCED" && $3 == "no-source-paths") && !($1 == "prechange-impact" && $2 == "NOT_PRODUCED" && $3 == "unsupported-impact-range") { failed=1 } END { exit failed ? 0 : 1 }' "$rows"; then
   printf 'dogfood-change: FAIL not-complete\n' >&2
-  awk -F '\t' '$2 != "PRODUCED" && !($1 == "local-outcome" && $2 == "NOT_PRODUCED" && $3 == "no-source-paths") && !($1 == "prechange-impact" && $2 == "NOT_PRODUCED" && $3 == "unsupported-impact-range") { printf "  %s: %s\n", $1, $3 }' "$rows" >&2
+  awk -F '\t' '$2 != "PRODUCED" && !($1 == "local-outcome" && $2 == "NOT_PRODUCED" && $3 == "no-source-paths") && !($1 == "prechange-impact" && $2 == "NOT_PRODUCED" && $3 == "unsupported-impact-range") { printf "%s\t%s\n", $1, $3 }' "$rows" |
+    while IFS=$'\t' read -r step reason; do
+      printf '  %s: %s\n' "$step" "$reason"
+      hint=$(fix_hint "$step" "$reason")
+      [[ -z "$hint" ]] || printf '    fix: %s\n' "$hint"
+    done >&2
   # The authority-start refusal is selected by the task wording, not by the
   # change; a malformed store refuses any wording and names no profile.
   if rg -q '^\{"code": "unsupported-query-trace-state", "error": "native Go authority-start query ' \

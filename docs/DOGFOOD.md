@@ -4,6 +4,88 @@ Corvint development uses Corvint as its first context and change-evidence system
 path. The repository must exercise the same local CLI, wire format, limits, failure states, and
 documentation contract expected of another project.
 
+## Daily adopter path
+
+This is the one ordered path from a change to a sealed CEM (`DCW-V0-013`). It joins task context,
+impact, CEM, OCM, frontier, checks, independent review and the retained outcome. Sections 1 to 7 below
+remain the normative detail for each step. A complete report, a passing check and a seal establish
+structural closure only: the evidence is bound to immutable revisions and is internally consistent.
+They do not establish that the change is correct, that its tests are adequate, or that the project
+gate ran (`DCW-V0-015`).
+
+### Inputs
+
+| Input | Exact format | Example |
+|---|---|---|
+| `BASE` | Full 40-hex commit before the change's first commit; never `HEAD` | `BASE=$(git rev-parse origin/main)` taken when branching |
+| `DOGFOOD_TASK` | One sentence describing the change, not project-operations wording (section 1) | `Deliver the documented daily change-evidence adopter path.` |
+| `DOGFOOD_INTENTS_FILE` | Path to a file of 1 to 16 repository-relative spec paths, sorted, LF-terminated, no absolute path and no `.` or `..` segment. Each spec exists at `BASE` and has exactly one `## Requirements` heading (`rg -c '^## Requirements' SPEC` prints 1); a spec created in this change cannot be an intent (section 2) | file content `docs/specs/daily-change-evidence-workflow-v0.md` |
+| `DOGFOOD_CITATIONS` | Path to a TSV file, not the rows. One `ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION` row per CEM hunk in `hunks` order, ordinals from 1, LF-terminated, at most 256 rows; the span must exist at `BASE` | row `1	AGENTS.md	26:28	specification` |
+| `DOGFOOD_VERIFY_FILE` | Path to a file with one shell-free verification command per line, each at most 512 characters; `DOGFOOD_VERIFY` takes the same lines inline (section 7) | line `go test ./internal/lrfrepo` |
+| `DOGFOOD_OUTCOME` | `passed`, `failed` or `blocked` | `passed` |
+
+Every `dogfood-change` refusal caused by one of these inputs prints the step and reason, then a
+`fix:` line naming the correction (`DCW-V0-014`).
+
+### Steps and expected state
+
+1. Orient before editing: retain `corvint query` and `corvint impact` receipts (section 1). A miss
+   or abstention is recorded in `docs/BUILD-LOG.md`, not repaired by rewording the task.
+2. Bind intent, implement, run the focused checks and commit (sections 2 and 3). Only ignored paths
+   may remain modified.
+3. Export every input except `DOGFOOD_CITATIONS`, then run `make dogfood-change BASE=$BASE`. Expected:
+   `dogfood-change: FAIL not-complete` listing `cem-cite: citation-plan-not-provided`,
+   `ocm-prepare-001: excluded-artifact-mismatch`, `ocm-status-001: exit-2`,
+   `ocm-aggregate: intent-scope-drift` and `cem-status: not-ready`, and `git status` shows
+   ` M .corvint/change.cem.json`. OCM refuses until the prepared CEM is committed. When `BASE`
+   still carries an earlier unsealed `.corvint/change.cem.json`, this pass replaces it (the
+   `CEM-PILOT-018` mismatch line triggers `--replace`), and the final seal removes the shared path.
+4. Write the citation plan from the prepared map. The hunk count is
+   `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
+   Export `DOGFOOD_CITATIONS` and rerun `make dogfood-change BASE=$BASE`. `cem-cite` is now produced;
+   the modified sidecar additionally makes `prechange-impact: unsupported-impact-worktree` and
+   `local-outcome: record-index-failed` appear. Every refusal in steps 3 and 4 prints the same
+   `fix:` line: it is expected until the sidecar is committed.
+5. Commit the sidecar: `git add .corvint/change.cem.json && git commit -m "chore: bind change evidence"`.
+6. Run `make dogfood-change BASE=$BASE` again. Expected: no output, exit 0, and
+   `.corvint/dogfood-report.json` contains `"complete": true`. An uncited hunk instead leaves
+   `cem-status: not-ready` (policy issue `max-unknown-exceeded`).
+7. Optionally record requirement evidence: `corvint ocm link` or `corvint ocm mark` on
+   `.corvint/change.ocm.NNN.json` (section 5), then rerun step 6 on the same `HEAD` so the aggregate
+   includes it. Any later commit regenerates the maps with `--replace` and drops those records.
+   Without them every requirement stays `unassessed`, which means "not assessed by this change".
+8. Inspect what a reviewer sees: `corvint cem report` and `corvint ocm report` (section 6), and
+   `corvint frontier --cem .corvint/change.cem.json --ocm .corvint/change.ocm.001.json
+   --expected-base $BASE --target HEAD`, whose exit 1 is a valid open frontier.
+9. Run `make dogfood-check BASE=$BASE`. Expected: CEM and OCM status JSON, then
+   `dogfood-check: PASS`. A base whose committed CEM names a base outside its history also prints
+   `dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable`; the note never
+   changes the verdict.
+10. Run `make dogfood-seal BASE=$BASE`. Expected: `dogfood-seal: PASS
+    sealed=.corvint/changes/<bind-commit>.cem.json` and one rename-only commit.
+11. Hand the branch and reports to an independent reviewer (section 6) and keep the outcome
+    recorded by step 6 (section 7).
+
+### Fail-closed outcomes
+
+Each class below was reproduced in a scratch clone for V1-0010 unless marked NOT_OBSERVED. None
+produces `"complete": true` or `dogfood-check: PASS`.
+
+| Class | Trigger | `dogfood-change` | `dogfood-check` |
+|---|---|---|---|
+| Dirty | modified tracked or untracked file after the change | runs; the recorder reports `local-outcome: record-index-failed` | `REFUSE dirty-worktree` (exit 2) with the required-order line |
+| Stale | commit after the last `dogfood-change` | the rerun returns to step 3 until the sidecar is recommitted | `FAIL dogfood-report-drift`, `fix:` names another base or head |
+| Unknown | hunk not cited by `DOGFOOD_CITATIONS` | `cem-status: not-ready` | `FAIL dogfood-report-drift`, `fix:` names an incomplete report |
+| Interrupted | `SIGTERM` during a run | exit 143, no report written, no citation stage left, sidecar unchanged | `FAIL dogfood-report-missing`, or `dogfood-report-drift` when an older report exists |
+| Interrupted | `SIGINT` (Ctrl-C) | NOT_OBSERVED | NOT_OBSERVED |
+| Unsupported | host without `rg` | `REFUSE unsupported-environment-missing-rg` | `REFUSE unsupported-environment-missing-rg` |
+| Unsupported | intent without exactly one `## Requirements` heading | `ocm-prepare-001: invalid-requirements-section`, `ocm-aggregate: intent-scope-drift` | NOT_OBSERVED |
+| Drift | OCM map marked or linked without a rerun | not applicable | `FAIL intent-scope-drift`, `fix:` reruns `dogfood-change` |
+| Sealed | check on the seal commit, or a change containing a seal | `REFUSE sealed-cem-in-change` | `REFUSE sealed-head` |
+
+Test-claim linkage through `corvint ocm link` is NOT_OBSERVED in this path: it needs a Go test that
+names the requirement ID, and the V1-0010 run exercised only `ocm mark`.
+
 ## Required loop for substantive changes
 
 Before the first context call, start a private measurement receipt for the task. The harness records
