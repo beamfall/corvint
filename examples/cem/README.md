@@ -43,7 +43,9 @@ Copy `github-actions-portable.yml` to `.github/workflows/` and `verify-portable.
 
 1. checks out the base as trusted code and the PR head as data only;
 2. runs `go install -trimpath "$CEM_VERIFIER_MODULE@$CEM_VERIFIER_VERSION"` with
-   `CGO_ENABLED=0`, the only step with network access;
+   `CGO_ENABLED=0`, the only step with network access. To resolve the nested module path,
+   `go install` also downloads the root `github.com/Beamfall/corvint` module zip. Both zips are
+   source only and checked against the Go checksum database;
 3. runs the script inside `sudo -E unshare --net -- setpriv ...`, a network namespace with no
    usable interface, as the runner user.
 
@@ -76,6 +78,18 @@ cem01-go ci --repository <base checkout> --base <base sha> --head <head sha> \
 | 5 | `repository-mismatch` | A declared commit is not in the repository, or the map's `baseRevision` is not the declared base. |
 
 A structurally valid map ranks unsafe drift (1) before unknown hunks (3).
+
+The ticket's terms map to exits and report `code` values as follows:
+
+| Term | Exit | `code` |
+| --- | --- | --- |
+| verified | 0 | `accepted` |
+| unverified | 3 | `map-absent` or `unknown-hunks` |
+| stale | 1 | `unsafe-drift`: the map is structurally valid, but cited evidence is `stale`, `ambiguous`, or `deleted` in the head tree (see `drift`) |
+| structural failure | 1 | any other code, such as `patch-digest` or `map-entry`: the map or the patch itself is invalid |
+| unsupported | 4 | `unsupported-profile` |
+| error | 2 | `invocation` or an I/O code; also the script's pre-run exit with no report |
+| error (repository mismatch) | 5 | `base-unavailable`, `head-unavailable`, or `base-revision-mismatch` |
 
 The report is one line of JSON with the schema `cem-ci-report/0` and exactly these members:
 `schema`, `verdict`, `exit`, `code`, `profile`, `base`, `head`, `mapPath`, `mapSha256`,

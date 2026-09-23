@@ -10,7 +10,7 @@ onboarding, security, and wire-contract reviews recorded in `docs/BUILD-LOG.md`
 ## Agent digest
 - Claim: The CEM pilot kit freezes a safe first-run, reviewer-report, and outcome-trial contract for experimental CEM 0.1 use.
 - Status: accepted/experimental
-- Exists: `internal/cem`, reviewer reporting, `experiments/cem-first-run`, and frozen contracts.
+- Exists: `internal/cem`, reviewer reporting, `experiments/cem-first-run`, frozen contracts, and the proposed portable `interop/cem01-go ci` verifier (CEM-PILOT-020..023).
 - Blocked on: independent external outcome evidence.
 - Read next: `cem-external-interop-v0.md` and `cem-0.2-canonical-binding.md`.
 
@@ -152,25 +152,28 @@ within 15 minutes.
 
 ### Portable CI verifier
 
-- `CEM-PILOT-020`: the portable CI example (`examples/cem/github-actions-portable.yml`,
-  `examples/cem/verify-portable.sh`) MUST pin the `interop/cem01-go` verifier by module
-  pseudo-version and executable SHA-256, MUST build it only in a fetch step with `-trimpath` and
-  `CGO_ENABLED=0`, MUST check the executable digest before executing it and exit 2 without executing
-  on a mismatch, and MUST run verification inside a network-denied sandbox. Verification uses no
-  LLM, index, retriever, or network (decision 0356).
-- `CEM-PILOT-021`: `cem01-go ci` MUST write exactly one JSON line with schema `cem-ci-report/0` and
-  the fixed members `schema`, `verdict`, `exit`, `code`, `profile`, `base`, `head`, `mapPath`,
-  `mapSha256`, `patchSha256`, `hunks`, `evidence`, `drift`, and `limits`. The line MUST be
-  byte-deterministic for the same inputs, at most 6 MiB, and MUST hold only digests, paths, spans,
-  counts, and verdicts, never source or diff text. An invalid invocation MUST echo no argument.
-- `CEM-PILOT-022`: `cem01-go ci` MUST derive the patch with the `docs/CEM-CI.md` profile and exit
-  0 `accepted`, 1 `rejected`, 2 `operational`, 3 `missing-evidence` (map absent, or unknown hunks),
-  4 `unsupported-profile` (a map `spec` other than `cem/0.1`), or 5 `repository-mismatch` (a declared
-  commit absent, or map `baseRevision` not the declared base), with the verdict and a bounded
-  `code` in the report. For a structurally valid map, unsafe drift ranks before unknown hunks. The
-  `verify` mode and its adapter ABI (`CEM-GO-002`) are unchanged.
-- `CEM-PILOT-023`: `examples/cem/README.md` MUST give the exact pinned install, digest computation,
-  and invocation, the exit taxonomy, the report members, and the verifier's limits.
+- `CEM-PILOT-020`: (proposed; accepted with decision 0356) the portable CI example
+  (`examples/cem/github-actions-portable.yml`, `examples/cem/verify-portable.sh`) MUST pin the
+  `interop/cem01-go` verifier by module pseudo-version and executable SHA-256, MUST build it only in
+  a fetch step with `-trimpath` and `CGO_ENABLED=0`, MUST check the executable digest before
+  executing it and exit 2 without executing on a mismatch, and MUST run verification inside a
+  network-denied sandbox. Verification uses no LLM, index, retriever, or network (decision 0356).
+- `CEM-PILOT-021`: (proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSON
+  line with schema `cem-ci-report/0` and the fixed members `schema`, `verdict`, `exit`, `code`,
+  `profile`, `base`, `head`, `mapPath`, `mapSha256`, `patchSha256`, `hunks`, `evidence`, `drift`,
+  and `limits`. The line MUST be byte-deterministic for the same inputs, at most 6 MiB, and MUST
+  hold only digests, paths, spans, counts, and verdicts, never source or diff text. An invalid
+  invocation MUST echo no argument.
+- `CEM-PILOT-022`: (proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
+  the `docs/CEM-CI.md` profile and exit 0 `accepted`, 1 `rejected`, 2 `operational`, 3
+  `missing-evidence` (map absent, or unknown hunks), 4 `unsupported-profile` (a map `spec` other
+  than `cem/0.1`), or 5 `repository-mismatch` (a declared commit absent, or map `baseRevision` not
+  the declared base), with the verdict and a bounded `code` in the report. For a structurally valid
+  map, unsafe drift ranks before unknown hunks. The `verify` mode and its adapter ABI (`CEM-GO-002`)
+  are unchanged.
+- `CEM-PILOT-023`: (proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
+  exact pinned install, digest computation, and invocation, the exit taxonomy, the report members,
+  and the verifier's limits.
 
 ## Non-goals
 

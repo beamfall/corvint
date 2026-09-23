@@ -28,6 +28,9 @@ Measured locally on darwin/arm64 with Go 1.27.1:
     the script returns the in-process report byte for byte.
 - A linux/amd64 cross-compile from the same file proxy produced the same SHA-256 in two fresh
   caches.
+- Reviewer-observed, not reproduced by the author: the independent reviewer of PR #75 resolved the
+  pseudo-version from `proxy.golang.org`. Two fresh-cache linux/amd64 cross-compiles gave the same
+  SHA-256, `42a0a316…294b0e` (abbreviated as reported).
 
 Failed evaluation, retained: a reinstall with `GOPROXY=off` fails because `go install
 MODULE@VERSION` looks up deprecation, so it cannot show offline reproducibility.
