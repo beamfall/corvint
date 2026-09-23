@@ -13,7 +13,10 @@ from tag `v0.6.0`) as `CORVINT_LIFECYCLE_BINARY` and 0.7.0 as the upgrade failed
 pass a wire-changing release. Decision 0360 compares a distinct upgrade with the packet the upgrade
 binary builds from a cold index of a clone at the same commit, and reports `packet=identical|changed`.
 Same-bytes upgrades and rollback, the downgrade path, keep byte identity. Wrapper case 5 stubs a wire
-change (must pass, `packet=changed`) and a nondeterministic packet (must fail `upgrade-b`).
+change (must pass, `packet=changed`) and a nondeterministic packet (must fail `upgrade-b`). PR #84
+review found that an upgrade whose read verb exits 0 with no output passed, because two empty packet
+files compare equal; the step now requires a non-empty packet and an `ok` cold index, and case 5
+adds that stub, which must fail `upgrade-b` with "read verb produced no packet".
 
 Lifecycle on release archives produced from `1894b9e` by `conformance/release-artifact-v0 archive`
 (`Corvint 0.7.0 (build 12)`; `shasum -a 256 -c SHA256SUMS` OK for all five archives). Every cell is

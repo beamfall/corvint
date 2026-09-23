@@ -20,6 +20,8 @@ Decision 0341 also left `memory` and `case-folds-context-index` NOT_COVERED.
 
 1. A distinct upgrade (`CORVINT_LIFECYCLE_UPGRADE_BINARY` set) is compared to the packet the upgrade
    binary itself builds from a cold `corvint index` of a clone of the fixture at the same commit.
+   The upgrade's packet must be non-empty and the cold index must report `ok`, so two empty packets
+   never compare equal.
    This still catches an upgrade that misreads the previous release's retained `.corvint` state. The
    step reports `packet=identical` or `packet=changed` against the first packet so a wire change
    stays visible. A same-bytes upgrade keeps the byte-identity rule. Rollback, which is also the

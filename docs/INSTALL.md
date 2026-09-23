@@ -321,8 +321,8 @@ snapshot files, when checking a recovery.
 release archive (`CORVINT_LIFECYCLE_ARCHIVE`) or one binary (`CORVINT_LIFECYCLE_BINARY`): verified
 install, first index and read, upgrade into a second store, rollback, uninstall with `.corvint`
 retained, backup and restore of `.corvint`, and both corruption cases. With
-`CORVINT_LIFECYCLE_UPGRADE_BINARY` set to a different release, the upgrade's packet is compared to
-the packet that release builds from a cold index and reported `packet=identical` or
+`CORVINT_LIFECYCLE_UPGRADE_BINARY` set to a different release, the upgrade's packet must be
+non-empty and is compared to the packet that release builds from a cold index and reported `packet=identical` or
 `packet=changed`, since releases may change the packet wire. It prints one `step NAME: ok`
 line per step and a final `SUMMARY status=PASS|FAIL` line; it does not qualify a future release,
 every supported platform, or restoration of arbitrary ticket-store data. See the

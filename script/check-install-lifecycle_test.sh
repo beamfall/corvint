@@ -91,7 +91,7 @@ CORVINT_LIFECYCLE_BINARY="$test_root/corvint-1" "$script" extra >/dev/null 2>&1 
 test "$status" -eq 2 || fail "an extra argument exited $status, not 2"
 
 # 5. A cross-version upgrade whose packet wire changes passes against its own cold-index packet
-#    and reports packet=changed; one whose packet is not reproducible fails at upgrade-b.
+#    and reports packet=changed; one whose packet is not reproducible, or empty, fails at upgrade-b.
 stub_upgrade() {
   printf '#!/bin/sh\ncase " $* " in\n  *" context "*) "%s" "$@" | sed %s ;;\n  *) exec "%s" "$@" ;;\nesac\n' \
     "$test_root/corvint-2" "$2" "$test_root/corvint-2" > "$1"
@@ -110,6 +110,14 @@ test "$status" -eq 1 || fail "an unreproducible upgrade packet exited $status, n
 case $output in
   *"step upgrade-b: FAIL packet bytes differ from the upgrade's cold-index packet"*"SUMMARY status=FAIL step=upgrade-b"*) ;;
   *) fail "an unreproducible upgrade packet was not refused at upgrade-b: $output" ;;
+esac
+stub_upgrade "$test_root/corvint-empty" '"d"'
+status=0
+output=$(CORVINT_LIFECYCLE_BINARY="$test_root/corvint-1" CORVINT_LIFECYCLE_UPGRADE_BINARY="$test_root/corvint-empty" "$script" 2>&1) || status=$?
+test "$status" -eq 1 || fail "an upgrade that reads no packet exited $status, not 1"
+case $output in
+  *"step upgrade-b: FAIL read verb produced no packet"*"SUMMARY status=FAIL step=upgrade-b"*) ;;
+  *) fail "an upgrade that reads no packet was not refused at upgrade-b: $output" ;;
 esac
 
 echo "check-install-lifecycle_test.sh: ok"

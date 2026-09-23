@@ -171,9 +171,11 @@ install "$store/b" "$upgrade_source" || fail upgrade-b "install or checksum veri
 version_b=$(cat "$store/b/version.txt")
 index "$store/b" if-stale "$work/index-b.json" || fail upgrade-b "corvint index --if-stale failed"
 read_packet "$store/b" "$work/packet-b.json" || fail upgrade-b "read verb failed"
+test -s "$work/packet-b.json" || fail upgrade-b "read verb produced no packet"
 if test -n "$upgrade"; then
   git clone -q "$fixture" "$work/fixture-cold" || fail upgrade-b "cold fixture clone failed"
   "$store/b/corvint" --root "$work/fixture-cold" index > "$work/index-cold.json" || fail upgrade-b "cold corvint index failed"
+  test "$(json_field "$work/index-cold.json" ok)" = true || fail upgrade-b "cold index did not report ok"
   read_packet "$store/b" "$work/packet-cold.json" "$work/fixture-cold" || fail upgrade-b "cold read verb failed"
   cmp -s "$work/packet-cold.json" "$work/packet-b.json" || fail upgrade-b "packet bytes differ from the upgrade's cold-index packet"
   packet=identical

@@ -76,8 +76,9 @@ Measured on 2026-09-23 at `1894b9e5` (decision 0360), archives from
 - `SOP-V0-003`: An upgrade MUST install into a second store beside the first and run `corvint
   index --if-stale` and the read verb through the new store. A run without
   `CORVINT_LIFECYCLE_UPGRADE_BINARY` MUST report the upgrade as `same-bytes` and require the first
-  packet's bytes. With it, the packet MUST be byte-identical to the one the upgrade binary produces
-  from a cold `corvint index` of a clone of the fixture at the same commit, and the step MUST report
+  packet's bytes. With it, the upgrade's packet MUST be non-empty, the cold `corvint index` of a
+  clone of the fixture at the same commit MUST report `ok`, the packet MUST be byte-identical to the
+  one the upgrade binary produces from that cold index, and the step MUST report
   `packet=identical` or `packet=changed` against the first packet, since a newer release may change
   the packet wire. The first store MUST remain executable and, run again after the upgrade wrote its
   own snapshot (rollback, the downgrade path), MUST produce the first packet's bytes.
@@ -134,6 +135,7 @@ tree; neither check reads the network.
 |---|---|
 | `SHA256SUMS` row mismatches or is missing | `step install-a: FAIL`, exit 1, nothing else runs (SOP-V0-001) |
 | Packet bytes differ after upgrade, rollback, restore or corruption | that step FAILs naming the comparison; exit 1 |
+| The upgrade's read verb exits 0 with no packet, or its cold index does not report `ok` | `upgrade-b` FAILs "read verb produced no packet" or "cold index did not report ok"; exit 1 (SOP-V0-003) |
 | A distinct upgrade's packet differs from its own cold-index packet | `upgrade-b` FAILs "packet bytes differ from the upgrade's cold-index packet"; exit 1 (SOP-V0-003) |
 | A read verb rewrote a damaged snapshot | `corrupt-*` FAILs "a read verb rewrote the snapshot" (SOP-V0-006) |
 | Rebuilt snapshot size differs from the original | `corrupt-*` FAILs; a size change is a format change that needs a spec update |
@@ -153,7 +155,7 @@ Lifecycle steps are `install-a`, `first-index`, `upgrade-b`, `rollback-a`, `unin
 |---|---|
 | SOP-V0-001 | wrapper case 1 (binary), case 2 (archive root `corvint_test_host`), case 3 (tampered `SHA256SUMS` fails at `install-a`, no `first-index` line, exit 1) |
 | SOP-V0-002 | step `first-index` in cases 1 and 2; snapshot miss/hit semantics `internal/contextindex/snapshot_test.go:47@9ea4ec57` |
-| SOP-V0-003 | case 1 asserts `upgrade-b` ran `(build 2)`, `packet=identical` and no `same-bytes`; case 2 asserts `same-bytes`; case 5 (stubbed wire change passes with `packet=changed`, an unreproducible packet fails at `upgrade-b` with exit 1); installer coexistence `internal/releasecandidate/install_test.go:16@90e57d5e`, `internal/releasecandidate/operations_test.go:44@5dca69d1` |
+| SOP-V0-003 | case 1 asserts `upgrade-b` ran `(build 2)`, `packet=identical` and no `same-bytes`; case 2 asserts `same-bytes`; case 5 (stubbed wire change passes with `packet=changed`, an unreproducible packet and an empty packet each fail at `upgrade-b` with exit 1); installer coexistence `internal/releasecandidate/install_test.go:16@90e57d5e`, `internal/releasecandidate/operations_test.go:44@5dca69d1` |
 | SOP-V0-004 | step `uninstall` in cases 1 and 2 |
 | SOP-V0-005 | step `backup-restore` in cases 1 and 2; round trip `internal/contextindex/snapshot_test.go:180@4e378161` |
 | SOP-V0-006 | steps `corrupt-truncate` and `corrupt-overwrite`; unit-level miss `internal/contextindex/pack_test.go:206@b2b8420d` |
