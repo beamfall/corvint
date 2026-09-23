@@ -167,6 +167,31 @@ func TestSelectTraversesUntestedUnitsWithoutSelectingThem(t *testing.T) {
 			t.Fatal("a unit with no tests received an exclusion certificate")
 		}
 	}
+	if plan.Scope != ScopeBounded || len(plan.Unknown) != 0 {
+		t.Fatalf("a non-Go untested unit must not widen scope (AFP-V0-020 is Go-only): scope=%s unknown=%v", plan.Scope, plan.Unknown)
+	}
+}
+
+// AFP-V0-020: a reached Go package with no tests is named as unknown scope,
+// never omitted; an unreached one raises nothing.
+func TestSelectNamesReachedUntestedGoPackageAsUnknownScope(t *testing.T) {
+	language := fake{name: "go", units: []Unit{
+		{ID: "go:core", Sources: []string{"core/core.go"}, Tests: []string{"core/core_test.go"}},
+		{ID: "go:idle", Sources: []string{"idle/idle.go"}},
+		{ID: "go:untested", Sources: []string{"untested/untested.go"}, Imports: []string{"go:core"}},
+	}}
+	graph, err := Build(t.TempDir(), language)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := Select(graph, []string{"core/core.go"})
+	want := Unknown{Reason: UnknownNoSelectableTest, Detail: "go:untested"}
+	if plan.Scope != ScopeUnknown || len(plan.Unknown) != 1 || plan.Unknown[0] != want {
+		t.Fatalf("scope=%s unknown=%v want %v", plan.Scope, plan.Unknown, want)
+	}
+	if got := plan.SelectedTests(); len(got) != 1 || got[0] != "core/core_test.go" {
+		t.Fatalf("selected=%v", got)
+	}
 }
 
 func TestSelectGivesTheShortestWitnessChain(t *testing.T) {
