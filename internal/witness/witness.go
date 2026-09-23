@@ -183,16 +183,24 @@ type Report struct {
 	PacketCoverage []PacketCoverage `json:"packetCoverage"`
 }
 
-// PacketCoverage copies one compiled packet's coverage block under the
-// packet's own field names (AGW-V0-003).
+// PacketCoverage names one compiled packet (AGW-V0-003). A PRODUCED entry
+// carries the packet's coverage fields; a NOT_PRODUCED entry carries a reason
+// and no numbers, because its receipt had no readable coverage block.
 type PacketCoverage struct {
-	Stage           string `json:"stage"`
-	Path            string `json:"path,omitempty"`
-	PacketBytes     int    `json:"packet_bytes"`
-	BudgetBytes     *int   `json:"budget_bytes"`
-	WithinBudget    bool   `json:"within_budget"`
-	IncludedResults int    `json:"included_results"`
-	OmittedResults  int    `json:"omitted_results"`
+	Stage  string `json:"stage"`
+	Path   string `json:"path,omitempty"`
+	Status string `json:"status"`
+	Reason string `json:"reason,omitempty"`
+	*PacketCounts
+}
+
+// PacketCounts copies a packet's coverage fields under the packet's own names.
+type PacketCounts struct {
+	PacketBytes     int  `json:"packet_bytes"`
+	BudgetBytes     *int `json:"budget_bytes"`
+	WithinBudget    bool `json:"within_budget"`
+	IncludedResults int  `json:"included_results"`
+	OmittedResults  int  `json:"omitted_results"`
 }
 
 // change is one raw entry of the admitted universe.
@@ -327,18 +335,34 @@ func admit(ctx context.Context, index *contextindex.Index, base string) stage {
 }
 
 // packetCoverage projects one compiled receipt's coverage block. The engine
-// builds that block with native Go values, so the projection is exact.
+// builds that block with native Go values; an absent block or a value of any
+// other type is reported unreadable rather than read as zero.
 func packetCoverage(stageName, changedPath string, receipt map[string]any) PacketCoverage {
 	coverageMap, _ := receipt["coverage"].(map[string]any)
-	packet := PacketCoverage{Stage: stageName, Path: changedPath}
-	packet.PacketBytes, _ = coverageMap["packet_bytes"].(int)
-	packet.WithinBudget, _ = coverageMap["within_budget"].(bool)
-	packet.IncludedResults, _ = coverageMap["included_results"].(int)
-	packet.OmittedResults, _ = coverageMap["omitted_results"].(int)
-	if budget, bounded := coverageMap["budget_bytes"].(int); bounded {
-		packet.BudgetBytes = &budget
+	packetBytes, bytesTyped := coverageMap["packet_bytes"].(int)
+	within, withinTyped := coverageMap["within_budget"].(bool)
+	included, includedTyped := coverageMap["included_results"].(int)
+	omitted, omittedTyped := coverageMap["omitted_results"].(int)
+	budget, budgetTyped := budgetOf(coverageMap["budget_bytes"])
+	packet := PacketCoverage{Stage: stageName, Path: changedPath, Status: "NOT_PRODUCED", Reason: "packet-coverage-unreadable"}
+	if !(bytesTyped && withinTyped && includedTyped && omittedTyped && budgetTyped) {
+		return packet
 	}
+	packet.Status, packet.Reason = "PRODUCED", ""
+	packet.PacketCounts = &PacketCounts{PacketBytes: packetBytes, BudgetBytes: budget,
+		WithinBudget: within, IncludedResults: included, OmittedResults: omitted}
 	return packet
+}
+
+// budgetOf reads budget_bytes, which is null for an unbounded packet.
+func budgetOf(value any) (*int, bool) {
+	switch typed := value.(type) {
+	case nil:
+		return nil, true
+	case int:
+		return &typed, true
+	}
+	return nil, false
 }
 
 // reverseClosure runs the existing reverse-dependency engine over the admitted

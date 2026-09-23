@@ -111,13 +111,28 @@ func renderPackets(builder *strings.Builder, report *Report) {
 		return
 	}
 	for _, item := range report.PacketCoverage {
-		fmt.Fprintf(builder, "  %-9s packet_bytes=%d budget_bytes=%s within_budget=%t included_results=%d omitted_results=%d",
-			item.Stage, item.PacketBytes, budgetText(item.BudgetBytes), item.WithinBudget, item.IncludedResults, item.OmittedResults)
+		fmt.Fprintf(builder, "  %-9s %s", item.Stage, packetText(item))
 		if item.Path != "" {
 			fmt.Fprintf(builder, " path=%s", item.Path)
 		}
 		builder.WriteString("\n")
 	}
+}
+
+// packetText renders one entry's numbers, or its status and reason when the
+// receipt had no readable coverage. A packet filled to the ranking ceiling is
+// marked: its omitted_results reads zero however much the engine discarded,
+// and the closure verdict names the truncation.
+func packetText(item PacketCoverage) string {
+	if item.PacketCounts == nil {
+		return item.Status + " " + item.Reason
+	}
+	text := fmt.Sprintf("packet_bytes=%d budget_bytes=%s within_budget=%t included_results=%d omitted_results=%d",
+		item.PacketBytes, budgetText(item.BudgetBytes), item.WithinBudget, item.IncludedResults, item.OmittedResults)
+	if item.IncludedResults >= impactLimit {
+		text += " at-ranking-ceiling"
+	}
+	return text
 }
 
 func budgetText(budget *int) string {

@@ -51,12 +51,17 @@ report, which is a distinct package with its own CLI verb.
 - `AGW-V0-003`: (proposed 2026-09-23, V1-0200, not accepted) the report MUST carry
   `packetCoverage`, one entry per context packet `Compile` compiled, in compile order: the
   `admission` packet from `contextindex.RangeImpact`, then one `closure` packet per admitted path
-  from `contextindex.Impact` (naming that `path`). Each entry copies the packet's own
-  `coverage.packet_bytes`, `budget_bytes`, `within_budget`, `included_results` and
-  `omitted_results` under those names. A refused stage compiled no packet and contributes no entry,
-  so the list is empty, never absent, when nothing was compiled. The text rendering adds a `PACKETS`
-  section with the same numbers. The field is additive: `corvint-witness/0` keeps its profile and
-  every existing member.
+  from `contextindex.Impact` (naming that `path`). An entry with `status` `PRODUCED` copies the
+  packet's own `coverage.packet_bytes`, `budget_bytes`, `within_budget`, `included_results` and
+  `omitted_results` under those names. When the coverage block is absent or any of those values has
+  the wrong type, the entry has `status` `NOT_PRODUCED`, `reason` `packet-coverage-unreadable` and
+  no numbers, never zeros. A refused stage compiled no packet and contributes no entry, so the list
+  is empty, never absent, when nothing was compiled. A closure packet's `omitted_results` does not
+  reflect truncation at the ranking ceiling, because the engine truncates before it counts; that
+  truncation is reported by `range.closure` `TRUNCATED`, its `closureDetail` and the
+  `WITNESS-P6-INCOMPLETE-REVERSE-DEPENDENCY-CLOSURE` precondition, and the text rendering marks such a packet
+  `at-ranking-ceiling`. The text rendering adds a `PACKETS` section with the same numbers. The field
+  is additive: `corvint-witness/0` keeps its profile and every existing member.
 
 ## Non-goals
 
@@ -70,7 +75,7 @@ verb to `GPK-V0-007`'s parity-compared vocabulary.
 | Requirement | Planned implementation surface | Required evidence |
 |---|---|---|
 | `AGW-V0-002` (decision 0290) | `internal/witness` bounded Git runner | `TestBaseTreeIgnoresGraftedAncestry` |
-| `AGW-V0-003` (proposed) | `internal/witness` `packetCoverage`, `Report.PacketCoverage`, `renderPackets` | `TestPacketCoverageEqualsEveryCompiledReceipt` |
+| `AGW-V0-003` (proposed) | `internal/witness` `packetCoverage`, `Report.PacketCoverage`, `renderPackets` | `TestPacketCoverageEqualsEveryCompiledReceipt`, `TestPacketCoverageRefusesAnUnreadableBlock`, `TestPacketCoverageOfARefusedAdmissionIsEmptyNotNull` |
 | `AGW-V0-001` (accepted 2026-09-12, decision 0163) | `cmd/corvint/witness.go` and `internal/witness` | `cmd/corvint`: `TestCLIReadVerbsLeaveTheRepositoryByteIdentical`, subtest "witness refuses an unknown base without reading further" (CLI-level repository-byte assertion); pre-index refusals: `TestParseWitnessOptionsNamesAnUnknownOptionBeforeItsValue`, `TestParseWitnessInvocationRefusesARootThatIsNotARepository` |
 
 Rollback of AGW-V0-002 removes the graft-isolation runner change and its clause; the read-only

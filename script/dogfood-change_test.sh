@@ -134,11 +134,11 @@ if [[ $action == query && ${DOGFOOD_TEST_QUERY:-} == authority-trace-state ]]; t
   exit 2
 fi
 if [[ $action == query && ${DOGFOOD_TEST_QUERY:-} == duplicate-coverage ]]; then
-  printf '%s\n' '{"a":{"packet_bytes":1},"context":{"coverage":{"budget_bytes":null,"included_results":1,"omitted_results":0,"packet_bytes":3820,"within_budget":true}}}'
+  printf '%s\n' '{"a":{"packet_bytes":"x"},"context":{"coverage":{"budget_bytes":null,"included_results":1,"omitted_results":0,"packet_bytes":3820,"within_budget":true}}}'
   exit 0
 fi
 if [[ $action == query ]]; then
-  printf '%s\n' '{"context":{"coverage":{"budget_bytes":null,"included_results":1,"omitted_results":0,"packet_bytes":3820,"within_budget":true,"uncertainty":["\"packet_bytes\":9"]}},"ok":true}'
+  printf '%s\n' '{"context":{"coverage":{"budget_bytes":null,"included_results":1,"omitted_results":0,"packet_bytes":3820,"within_budget":true,"notes":{"see \"packet_bytes":9}}},"ok":true}'
 fi
 if [[ $action == cem && $sub == status ]]; then
   maximum=0
@@ -445,9 +445,13 @@ set -m
 phase_jobs="$phase_jobs $!"
 (
   cd "$test_root/repo"
-  CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
+  # A user ripgrep config that numbers and colours matches must not reach the report.
+  printf '%s\n' --line-number --color=always > "$test_root/ripgreprc"
+  RIPGREP_CONFIG_PATH="$test_root/ripgreprc" \
+    CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
+  jq -e . .corvint/dogfood-report.json >/dev/null
   rg -q '"complete": true' .corvint/dogfood-report.json
   rg -q '"id":"TEST-A-001"' .corvint/dogfood-report.json
   rg -q '"id":"TEST-B-001"' .corvint/dogfood-report.json

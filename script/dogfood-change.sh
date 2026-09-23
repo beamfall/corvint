@@ -273,8 +273,8 @@ packet_coverage_entry() {
       budget_bytes) pattern='null|0|[1-9][0-9]*' ;;
       *) pattern='0|[1-9][0-9]*' ;;
     esac
-    occurrences=$(rg -o "[{,]\"$key\":" "$output" 2>/dev/null | wc -l)
-    matches=$(rg -o "[{,]\"$key\":(${pattern})[,}]" "$output" 2>/dev/null)
+    occurrences=$(rg --no-config -N --no-filename --color=never -o "[{,]\"$key\":" "$output" 2>/dev/null | wc -l)
+    matches=$(rg --no-config -N --no-filename --color=never -o "[{,]\"$key\":(${pattern})[,}]" "$output" 2>/dev/null)
     if (( occurrences != 1 )) || [[ $matches == *$'\n'* || -z $matches ]]; then
       printf '{"step": "%s", "status": "NOT_PRODUCED", "reason": "packet-coverage-unreadable"}' "$step"
       return
