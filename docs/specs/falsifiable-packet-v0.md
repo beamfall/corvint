@@ -5,7 +5,7 @@ Date: 2026-09-01
 Requirement prefix: `FPK-V0`
 Intent status: accepted (decision 0052)
 Delivery status: experimental
-Revision status: revision 22 (FPK-V0-041 to FPK-V0-049 add an explicit, bounded, secret-screened `prove --export-bundle` failure-reproduction bundle for query and checkpoint results, a `prove --replay-bundle` that recomputes it on a second checkout or refuses with a named reason, and a `historical` marker that `prove-observe` refuses; revision 21 FPK-V0-033 to FPK-V0-036 add a versioned `cem/v1` in-toto CEM predicate that also binds the base revision and patch, its verifier, a digest-pinned interop consumer with the known deviations from the OpenSSF generation draft, and an optional external Sigstore step; revision 20 FPK-V0-037 to FPK-V0-040 add an explicit `cem anchor` notes-ref mutation for a committed CEM and a read-only `cem provenance` that reads the anchor, a foreign Git AI `refs/notes/ai` note, and `Assisted-by`/`Agent-Logs-Url` trailers as untrusted `repository-history`; revision 19 FPK-V0-032 stamps one trust class on every proof row and refuses a tainted row as a basis; revision 18 FPK-V0-015 and FPK-V0-030 refuse repeated and case-variant JSON member names in a signed envelope and CEM statement; revision 17 FPK-V0-030 refuses a signed CEM claim `CEMStatement` could not have produced; revision 16 restated FPK-V0-021 and FPK-V0-024 rationale against the implemented checkpoint branch)
+Revision status: revision 23 (FPK-V0-050 adds `prove --cem ... --attest-cem-v1`, the only command that emits the `cem/v1` predicate, and FPK-V0-051 replaces the UNCONFIRMED field-name alignment with a comparison against the fetched OpenFab `openfab/generation` v0.1 draft and agentattest predicate v1, adopting none of their fields; revision 22 FPK-V0-041 to FPK-V0-049 add an explicit, bounded, secret-screened `prove --export-bundle` failure-reproduction bundle for query and checkpoint results, a `prove --replay-bundle` that recomputes it on a second checkout or refuses with a named reason, and a `historical` marker that `prove-observe` refuses; revision 21 FPK-V0-033 to FPK-V0-036 add a versioned `cem/v1` in-toto CEM predicate that also binds the base revision and patch, its verifier, a digest-pinned interop consumer with the known deviations from the OpenSSF generation draft, and an optional external Sigstore step; revision 20 FPK-V0-037 to FPK-V0-040 add an explicit `cem anchor` notes-ref mutation for a committed CEM and a read-only `cem provenance` that reads the anchor, a foreign Git AI `refs/notes/ai` note, and `Assisted-by`/`Agent-Logs-Url` trailers as untrusted `repository-history`; revision 19 FPK-V0-032 stamps one trust class on every proof row and refuses a tainted row as a basis; revision 18 FPK-V0-015 and FPK-V0-030 refuse repeated and case-variant JSON member names in a signed envelope and CEM statement; revision 17 FPK-V0-030 refuses a signed CEM claim `CEMStatement` could not have produced; revision 16 restated FPK-V0-021 and FPK-V0-024 rationale against the implemented checkpoint branch)
 Authoritative inputs: `docs/plans/BREAKTHROUGH-BET-2026-09-01.md` (the bet this is slice 1 of),
 `docs/reviews/FABLE-5.1-AUDIT-2026-09-01.md` (F2, F3), `docs/specs/go-production-kernel-migration-v0.md`
 (GPK-V0-002 exact parity of the `query` wire), `conformance/cli-parity-v0` (byte-exact replay of committed
@@ -543,7 +543,7 @@ above stands with that substitution.
   `internal/contextindex/index.go:209@1e49fe84`, `internal/contextindex/index.go:477-479@02852e4a`); a mismatch is refused under FPK-V0-024 as
   `object-format-mismatch`. This is decided after `Build`, not before every `cat-file` call in the
   run: `Build` itself reads blobs through `cat-file --batch` while pinning sources
-  (`internal/contextindex/git.go:512-522@875d1117`, `internal/contextindex/index.go:457-459@16cf1c1f`, `internal/contextindex/index.go:1411-1413@b9840036`), so `Index.ObjectFormat`
+  (`internal/contextindex/git.go:512-522@875d1117`, `internal/contextindex/index.go:457-459@16cf1c1f`, `internal/contextindex/index.go:1412-1414@b9840036`), so `Index.ObjectFormat`
   is not known until that call has already made its own `cat-file` calls. It is the unframable
   class one level up: as an LF-bearing path cannot
   be framed for Git at all, a document whose `blob_hash` values were computed under another object
@@ -748,7 +748,7 @@ above stands with that substitution.
   blobs
   through `git cat-file --batch` while pinning sources (`fetchBlobs`,
   `internal/contextindex/git.go:512-522@875d1117`,
-  called from `pinCandidates`/`readResidualBlobs`, `internal/contextindex/index.go:457-459@16cf1c1f`, `internal/contextindex/index.go:1411-1413@b9840036`), so `Build` (case
+  called from `pinCandidates`/`readResidualBlobs`, `internal/contextindex/index.go:457-459@16cf1c1f`, `internal/contextindex/index.go:1412-1414@b9840036`), so `Build` (case
   10) necessarily runs, and necessarily calls `cat-file`, before `Index.ObjectFormat` is even known
   to compare; (12) the `cat-file --batch` stream fails or passes its 64 MiB
   bound — `unsupported-prove-history` (`cmd/corvint/prove.go:1783-1791@0f63fb8a`); (13) the read bracket drifts,
@@ -1056,11 +1056,12 @@ above stands with that substitution.
   `{"digest":{"sha256":HEX},"name":NAME}` and whose `predicate` is
   `{"base":{"digest":{"gitCommit":OID}},"cem":SUBJECT,"patch":{"digest":{"sha256":PATCH}},"size":BYTES,"spec":SPEC}`,
   where OID is the map's `baseRevision`, PATCH its `patchSha256`, and `cem` equals the subject. The
-  descriptors and digest keys are in-toto ResourceDescriptor and DigestSet names; only the
-  predicate's own members `base`, `cem`, `patch`, `size`, and `spec` are Corvint's. A later change to
-  that shape takes a new URI. `CEMStatement`, `VerifyCEM`, the `cem/0` bytes, and every command's
-  emitted output are unchanged: FPK-V0-031 still emits `cem/0`, and in v0 the library is the only
-  `cem/v1` producer. Rollback: delete `internal/attest/cem_v1.go`, its test, FPK-V0-034 to
+  descriptors and digest keys are in-toto ResourceDescriptor and DigestSet names (checked against
+  the fetched in-toto specification under FPK-V0-051); only the predicate's own members `base`,
+  `cem`, `patch`, `size`, and `spec` are Corvint's. A later change to that shape takes a new URI.
+  `CEMStatement`, `VerifyCEM`, the `cem/0` bytes, and the output of every invocation that existed
+  before FPK-V0-050 are unchanged: FPK-V0-031 `--attest-cem` still emits `cem/0`, and FPK-V0-050
+  `--attest-cem-v1` is the only command that emits `cem/v1`. Rollback: delete `internal/attest/cem_v1.go`, its test, FPK-V0-034 to
   FPK-V0-036, and this clause; `cem/0` is untouched.
 - **FPK-V0-034:** (experimental prototype, not advertised; proposed 2026-09-22, decision 0354)
   `internal/attest.VerifyCEMPredicate(envelope, publicKey, cem)` MUST pass `Verify`, read
@@ -1099,9 +1100,8 @@ above stands with that substitution.
   `283792cd974edb5112edfe9e23df7f4b155148310850c1001ae6c9cd9c976b38`, so a change to Corvint's
   emission fails both. Disclosure: the same author wrote this reader after reading
   `internal/attest`; it is a second-module, standard-library reader, not an independent adopter, and
-  V1-0014 is unchanged. Field names are aligned only where the in-toto names are known; the
-  deviations from the OpenSSF generation-attestation draft (ossf/tac issue 628) and agentattest are
-  the known-deviations table under Non-goals. Rollback: delete `interop/cem01-go/intoto.go`, its
+  V1-0014 is unchanged. The field-name comparison with the OpenSSF generation-attestation draft
+  (ossf/tac issue 628) and agentattest is the FPK-V0-051 table under Non-goals. Rollback: delete `interop/cem01-go/intoto.go`, its
   test, and this clause.
 - **FPK-V0-036:** (experimental; proposed 2026-09-22, decision 0354) Transparency-log and keyless
   signing MUST stay an optional operator step outside the binary. Intent: a Rekor entry or a
@@ -1115,7 +1115,44 @@ above stands with that substitution.
   because they were not verified offline. Corvint's verifiers do not read Rekor entries or Fulcio
   certificates and give no verdict on them; the Ed25519 check of FPK-V0-034 and FPK-V0-035 is the
   only verification Corvint performs. Running that external path is `NOT_RUN` in this revision.
-  Rollback: delete this clause.
+  FPK-V0-050 keeps this boundary: `go list -deps ./cmd/corvint` names no Sigstore, Rekor, Fulcio,
+  cosign, gitsign, or securesystemslib package and no package outside the standard library and
+  the Corvint module. Rollback: delete this clause.
+- **FPK-V0-050:** (experimental prototype, not advertised; proposed 2026-09-23, decision 0365) In
+  CEM mode `--attest-cem-v1` MUST emit the FPK-V0-033 `cem/v1` statement where `--attest-cem`
+  emits `cem/0`. Intent: a consumer can obtain a `cem/v1` envelope from the product, not only from
+  the library, without a new verb and without changing any existing output. Grammar:
+  `--attest-cem-v1` takes no value, may not repeat, implies `--attest`, and may not be given with
+  `--attest-cem`; each of these, and the flag outside CEM mode, is `invalid-arguments`. Output: two
+  lines, each ending in a newline. The first is byte-identical to the first line of the same
+  invocation with `--attest-cem`, which FPK-V0-031 pins to the output without either flag. The
+  second is `CEMStatementV1(MAP, bytes)`, with MAP and bytes as in FPK-V0-031, unsigned under
+  `--attest` and signed by the same `--attest-key`, read once, otherwise. A statement that cannot be
+  built is `attest-failed`. `--verify-cem-attestation` reads the envelope unchanged through
+  FPK-V0-034, and the FPK-V0-035 reader verifies it. Every invocation without `--attest-cem-v1`
+  keeps the revision 22 bytes. Rollback: delete `--attest-cem-v1` from `parseProveCEMArguments`
+  and `helpBooleanFlags`, the `attestCEMV1` option, `cemAttestation.v1`, `attestFlagRefusal`,
+  `cemAttestation.statement`, the help sentence, the two FPK-V0-050 tests, and this clause. The `cem/0` emission
+  is unchanged either way.
+- **FPK-V0-051:** (experimental; proposed 2026-09-23, decision 0365) Each field-name alignment the
+  spec claims for `cem/v1` MUST cite a source that was fetched and pinned to a revision, and MUST
+  NOT rest on a recalled or guessed name. Intent: decision 0354 recorded every draft name as
+  UNCONFIRMED because that work had no network. The sources compared on 2026-09-23 are listed
+  below. ossf/tac issue 628 (open, opened 2026-06-30) proposes an AI-authorship predicate and links
+  the OpenFab draft; the issue defines no fields of its own. The OpenFab draft is
+  `docs/generation-predicate-v0.1.md` (v0.1, revision 0.1.3) and
+  `schemas/openfab-generation.predicate.json` at Open-fab-ai/openfab `f558da05`. agentattest is
+  `schemas/agent-provenance-v1.schema.json`, `internal/statement/statement.go`, and
+  `internal/signing/signing.go` at AuroraAeon/agentattest `a19e7f96`. Two other GitHub
+  repositories are also named agentattest; this one was chosen because it is the only one that
+  emits an in-toto predicate. The in-toto Statement, ResourceDescriptor, and DigestSet are
+  `spec/v1` at in-toto/attestation `fd2609c1`, and DSSE is `envelope.md` at
+  secure-systems-lab/dsse `1d3370f6`. The comparison table under Non-goals is the record. This
+  revision changes no `cem/v1` byte and adopts no draft field, for three reasons. Neither draft is
+  an accepted OpenSSF or in-toto predicate. Both describe a generation run (agent, model, prompt,
+  times, approvals) that Corvint does not observe. A rename would change the pinned FPK-V0-035
+  fixture. Adopting a draft field later takes a new `predicateType` URI (FPK-V0-033). Rollback:
+  restore the revision 22 UNCONFIRMED table and delete this clause. No code changes either way.
 
 - **FPK-V0-037:** (proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
   anchor --map MAP [--commit REV]` is an explicit mutation and the only writer of the Git notes
@@ -1330,21 +1367,28 @@ member (GPK-V0-002), and an `external` section row (`internal/extevidence`) is o
 `proof.rows` in v0.
 
 The FPK-V0-033 `cem/v1` predicate is not an OpenSSF generation attestation. It binds a map to its
-bytes, base revision, and patch; it names no generator, agent, model, prompt, context input,
-invocation, or time. The field-name alignment below was made without network access: names marked
-UNCONFIRMED could not be read from the draft or from any repository record, and none was guessed.
+bytes, base revision, and patch. It names no generator, agent, model, prompt, context input,
+invocation, time, or approval. The FPK-V0-051 comparison below was made on 2026-09-23 against the
+fetched sources FPK-V0-051 pins ("OpenFab" is the `openfab/generation` v0.1 draft that ossf/tac
+issue 628 links; "agentattest" is predicate v1). Adopting any draft field later takes a new URI.
 
-| Draft or standard concept | `cem/v1` | Status |
-|---|---|---|
-| in-toto Statement v1 `_type`, `subject`, `predicateType`, `predicate` | same names | aligned (in-toto Attestation Framework v1, as FPK-V0-015 already emits) |
-| in-toto ResourceDescriptor `name`, `digest`; DigestSet `sha256`, `gitCommit` | `subject`, `predicate.cem`, `predicate.base`, `predicate.patch` | aligned from recalled in-toto v1 text, not re-fetched |
-| DSSE `payload`, `payloadType`, `signatures[].keyid`, `signatures[].sig` | same | aligned; Corvint requires `keyid`, which DSSE leaves optional |
-| openfab/generation `predicateType` URI | Corvint's own `https://corvint-context.dev/attestation/cem/v1` | UNCONFIRMED deviation |
-| generator, agent, or model identity | absent | UNCONFIRMED name; Corvint does not know which agent wrote the change |
-| prompt, context, or input materials | absent | UNCONFIRMED name; the context packet is not bound in v0 |
-| generation start and end times | absent | UNCONFIRMED name; a timestamp would break byte-reproducible emission |
-| generated output reference | `predicate.patch` (the map's `patchSha256`) and `predicate.base` | UNCONFIRMED name; nearest Corvint equivalent |
-| agentattest field names | none adopted | UNCONFIRMED; no repository record |
+| Concept | OpenFab v0.1 | agentattest v1 | `cem/v1` | Status |
+|---|---|---|---|---|
+| Statement layer | in-toto Statement v1 `_type`, `subject`, `predicateType`, `predicate` | same | same | aligned with both (confirmed) |
+| Subject | `[{"name","digest":{"sha256"}}]` | `[{"name","digest"}]` | one ResourceDescriptor `name`, `digest.sha256` naming the map | aligned shape (confirmed); the subject is the map, not the generated files |
+| Envelope | DSSE-style, not DSSE: `payload_type`, `payload_sha256`, `statement` in clear, signatures over canonical statement bytes with no PAE, `signatures[].keyid` a `did:key`, extra `algo` and `role`; the draft says v0.2 intends standard DSSE | DSSE (`application/vnd.in-toto+json`, PAE) via go-securesystemslib, Sigstore/Fulcio certificate identities | DSSE `payload`, `payloadType`, `signatures[].keyid`, `signatures[].sig`, PAE, Ed25519 raw key, `keyid` the sha256 of the raw public key | aligned with agentattest and DSSE `envelope.md`; deviation from OpenFab v0.1: by the documented shapes, a DSSE reader finds no `payload` in an OpenFab envelope and an OpenFab reader finds no `statement` in a DSSE one |
+| `predicateType` | `https://open-fab.ai/attestation/generation/v0.1` (its JSON schema's `$id` says `https://openfab.ai/...`, an inconsistency inside the draft) | `https://agentattest.dev/predicate/v1` | `https://corvint-context.dev/attestation/cem/v1` | deviation by design: a different predicate about a different subject |
+| Member-name case | snake_case (`spec_ref`, `prompt_sha256`, `acceptance_passed`) | camelCase (`baseCommit`, `startedAt`) | camelCase in-toto names (`gitCommit`) | matches agentattest and in-toto; deviates from OpenFab |
+| Base revision | none | `repo.baseCommit` (40 or 64 hex), `repo.headCommit` | `base.digest.gitCommit` (in-toto DigestSet key) | concept aligned with agentattest, name deviates; `cem/v1` keeps the in-toto ResourceDescriptor form |
+| Changed content | `generated[]` `{path, lines, sha256, author}` per file or range | `changes` `{filesChanged, insertions, deletions}` counts | `patch.digest.sha256` over the whole patch; per-hunk spans stay in the map | deviation: no per-file attribution in the predicate and no ai/human `author` |
+| Specification reference | `spec_ref`, the product spec the artifact fulfils (`id#vN`) | none | `spec`, the CEM wire spec of the map (for example `cem/0.2`) | not aligned: same word, different meaning |
+| Generator, agent, model | `builder{id,base}`, `agent{did,base,model,id?,tools?}` | `agent{name,version,invocationKind,declaredIdentity?}`, `model{provider,modelId,...}` | absent | deviation by design: Corvint does not know which agent wrote the change |
+| Prompt and context inputs | `prompt_sha256`, `params`, `materials[]{uri,sha256?}` | `materials[]{type,uri,digest}` | absent | deviation: the context packet is not bound in v0 |
+| Times | `timestamp` | `timestamps{startedAt,finishedAt}` | absent | deviation: a time would break byte-reproducible emission |
+| Acceptance or verification | `acceptance_passed`, `acceptance[]{id,check,must_pass,passed}` | `verificationLevel`, `evidence[]` | absent from the predicate; the FPK-V0-015 proof statement on line 1 carries the verdicts | deviation: the proof is a separate statement |
+| Human approval | `signoffs[]{did,name,timestamp}` | `humanApproval` (required) | absent | deviation |
+| Map size | none | none | `size` | Corvint-only member |
+
 The FPK-V0-037 to FPK-V0-040 notes surface does not push, fetch, or merge notes refs, does not
 replace or remove an anchor, does not adopt the Git AI format as Corvint's own, does not verify
 that a Git AI note or trailer is true, and does not feed any provenance row into `query`, `prove`,
@@ -1400,6 +1444,7 @@ verification.
 | (FPK-V0-030) Supplied CEM bytes differ from the signed sha256 or size | `VerifyCEM` error; no claim returned |
 | (FPK-V0-030) No CEM bytes supplied | signed claim returned with status `NOT_RUN`, reason `cem-bytes-not-supplied` |
 | (FPK-V0-031) `--attest-cem=VALUE`, repeated, or outside CEM mode; verify mode missing, empty, repeated, or unknown flag | exit 2, `invalid-arguments` |
+| (FPK-V0-050) `--attest-cem-v1=VALUE`, repeated, given with `--attest-cem`, or outside CEM mode | exit 2, `invalid-arguments`, nothing on stdout |
 | (FPK-V0-031) Verify public key missing, over 16 KiB, not one PKIX PEM block, or not Ed25519 | exit 2, `attest-public-key-unavailable` |
 | (FPK-V0-031) Verify envelope unreadable, non-regular, changed while opening, or over 8 MiB | exit 2, `attest-envelope-unavailable` |
 | (FPK-V0-031) Envelope fails any `VerifyCEM` check other than the byte comparison | exit 2, `attest-verification-failed` |
@@ -1514,7 +1559,9 @@ which is the whole of what the row asserts.
 | FPK-V0-033 | experimental prototype: `CEMPredicateTypeV1`, `CEMStatementV1` (`internal/attest/cem_v1.go`) | `TestCEMV1StatementBindsBaseAndPatchAndVerifies` (exact canonical statement rebuilt from the map's independently parsed `baseRevision` and `patchSha256`; `VerifyCEM` refuses `cem/v1`), and the unchanged `cem/0` tests `TestCEMAttestationRoundTripsThroughTheExistingEnvelope` and `TestProveCEMAttestOutputIsUnchangedWithoutAttestCEM` |
 | FPK-V0-034 | experimental prototype: `VerifyCEMPredicate`, `cemClaimParsers`, `parseCEMStatementV1`, `checkCEMV1Map`, `checkCEMBytes`, `checkCEMClaim` (`internal/attest`); `verifyCEMAttestation`, `cemAttestationClaim.BaseRevision`, `cemAttestationClaim.PatchSHA256` (`cmd/corvint/prove_attest_cem.go`) | `TestCEMV1StatementBindsBaseAndPatchAndVerifies` (`VERIFIED` and `NOT_RUN` claims; a `cem/0` envelope yields the `VerifyCEM` claim), `TestCEMV1RefusesAClaimItCouldNotHaveProduced` (13 signed edits refused, none as a byte mismatch), `TestProveCEMAttestationVerifiesAV1Predicate` (CLI `VERIFIED` and `NOT_RUN` with `predicateType`, `baseRevision`, `patchSha256`; a `cem/0` receipt carries neither member), `TestProveCEMAttestationRoundTripsThroughTheCLI` |
 | FPK-V0-035 | experimental prototype: `readCEMAttestation`, `intotoVerifyEnvelope`, `intotoCEMClaim`, `intotoCheckMap` (`interop/cem01-go/intoto.go`) | `TestIntotoReadsTheDigestPinnedCorvintCEMAttestation` (pinned envelope digest; `VERIFIED` and `NOT_RUN` with the claim derived from the map), `TestIntotoRefusesWhatTheSignerDidNotAttest` (changed map, other key, changed payload, extra, repeated, and case-variant members, `cem/0` type, subject name), `TestCEMV1FixtureEnvelopeIsDigestPinned` (Corvint emits the same digest) |
-| FPK-V0-036 | no code: documentation only | measured: `git diff --stat` of `go.mod`, `go.sum`, and `interop/cem01-go/go.mod` against the base is empty; the new files import no `net/*`, `os/exec`, or `crypto/tls` package (`internal/attest` already reaches `net` and `net/url` through `crypto/x509` at the base); the external Sigstore path is `NOT_RUN` |
+| FPK-V0-036 | no code: documentation only | measured: `git diff --stat` of `go.mod`, `go.sum`, and `interop/cem01-go/go.mod` against the base is empty; the new files import no `net/*`, `os/exec`, or `crypto/tls` package (`internal/attest` already reaches `net` and `net/url` through `crypto/x509` at the base); the external Sigstore path is `NOT_RUN`; revision 23: `go list -deps ./cmd/corvint` has 0 Sigstore, Rekor, Fulcio, cosign, gitsign, or securesystemslib packages and 0 packages outside the standard library and the Corvint module |
+| FPK-V0-050 | experimental prototype: `parseProveCEMArguments` (`--attest-cem-v1`), `proveOptions.attestCEMV1`, `attestFlagRefusal`, `cemAttestation.v1`, `cemAttestation.statement`, `cemAttestationInput`, `attestProof` (`cmd/corvint`), `helpBooleanFlags` | `TestProveCEMAttestCEMV1EmitsTheV1Predicate` (first line equal to the `--attest-cem` first line, unsigned second line equal to `CEMStatementV1`, signed second line `VERIFIED` as `cem/v1` with `baseRevision` and `patchSha256`), `TestProveCEMAttestCEMV1RefusesInvalidArguments` (value, repeat, with `--attest-cem`, outside CEM mode); `TestProveCEMAttestOutputIsUnchangedWithoutAttestCEM` still passes |
+| FPK-V0-051 | no code: documentation only | the comparison table under Non-goals, each source pinned to the revision fetched on 2026-09-23; `TestIntotoReadsTheDigestPinnedCorvintCEMAttestation` still pins the unchanged fixture sha256 |
 | FPK-V0-037 | experimental prototype: `gitnotes.Anchor`, `requireCleanMap`, `committedPointer`, `writeNote` (`internal/gitnotes/anchor.go`) | `TestAnchorWritesAVerifiedPointerAndReadsItBack` (stored note equals the pointer with an independently computed SHA-256, receipt `mutates: true`, re-anchor `written: false`), `TestAnchorRefusesAnUncommittedDirtyOrMissingMap` (untracked, modified, staged, absent, loose blob deleted, and different-note cases each refused by code with the notes ref unmoved) |
 | FPK-V0-038 | experimental prototype: `gitnotes.Provenance`, `anchorRow`, `pointerState` (`internal/gitnotes/provenance.go`) | `TestAnchorWritesAVerifiedPointerAndReadsItBack` (read back `verified`, every ref unchanged by provenance, a forged digest `digest-mismatch`), `TestCEMAnchorAndProvenanceInteropThroughTheCLI` (`mutates: false`, `for-each-ref` unchanged) |
 | FPK-V0-039 | experimental prototype: `aiNoteRow`, `trailerRows`, `boundedText` (`internal/gitnotes/provenance.go`) | `TestProvenanceReadsForeignNotesAndTrailersAsUntrustedHistory` (hand-written `authorship/3.0.0` note and a commit with both trailers: distinct kinds, `repository-history`, derived class never `project-authority`, 256-byte bound, control character stripped, `truncated`, malformed note without foreign text), `TestGitNotesFetchesNothing` (no `net` package in the dependency closure), `TestCEMAnchorAndProvenanceInteropThroughTheCLI` |

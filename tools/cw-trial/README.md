@@ -72,6 +72,13 @@ map one field to one field. A `pilot` partition can never count as held-out. A h
 frozen before its author sees any Corvint output (`benchmarks/README.md`); the tool records only
 the manifest digest.
 
+A task may carry `"control": "already-fixed"` and no gold (CEP-V0-004/005): its issue is already
+resolved at the pinned revision, so every valid claim is `FALSE` and a `certain` claim sets
+`control_failed` on any arm. Whether a produced corvint packet abstained is recorded apart as
+`packet_abstained`. Controls stay out of the arm's other aggregates and are counted only in its
+`already_fixed` block. `testdata/already-fixed` holds a synthetic fixture (never held-out
+evidence).
+
 `cw-trial generate --repo DIR --name OWNER/NAME --since DATE --output DIR [--limit N]
 [--min-files N] [--max-files N]` builds an `unseen` change-task set from a local Git history
 without any download (CWT-V0-012): each qualifying non-merge commit after the date becomes one

@@ -14,12 +14,12 @@ consumer), `docs/decisions/0065-documentation-is-searchable-evidence-with-its-ow
 (documentation admission and placement), `docs/decisions/0067-test-code-linking-in-the-context-packet-2026-09-05.md`
 (the `test` relation), `docs/specs/go-production-kernel-migration-v0.md` (the `impact` reverse-import rules this
 packet reuses), `docs/decisions/0346-packet-trust-class-2026-09-22.md` (the `trust` class on every
-evidence row), `AGENTS.md` invariants 1, 2, 3, 4, and 8.
+evidence row), `docs/decisions/0369-context-recency-blame-opt-in-2026-09-23.md` (opt-in recency), `AGENTS.md` invariants 1, 2, 3, 4, and 8.
 
 ## Agent digest
 - Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
 - Status: proposed/experimental
-- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`).
+- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/recency.go` and `blame.go` (TCP-V0-035..038 opt-in recency, blame and ownership, experimental); `internal/contextindex/identgraph.go` and `ppr.go` (TCP-V0-030..034 opt-in identifier-graph PageRank slot, `CORVINT_CONTEXT_GRAPH=on`, decision 0367); `internal/contextindex/span_rank.go` and `internal/contextindex/sufficiency.go` (TCP-V0-025..029 opt-in `CORVINT_CONTEXT_SPANS=on` line-budgeted spans and `coverage.sufficiency`, experimental, decision 0366); `cmd/corvint/context_lsp.go` and `internal/lspprovider` (TCP-V0-043..046 opt-in gopls `external` member under `CORVINT_CONTEXT_LSP=gopls`, experimental, decision 0371).
 - Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012, which is implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it.
 - Read next: Requirements; Non-goals; Failure modes.
 
@@ -468,12 +468,14 @@ it must read, each with the relation that admitted it, without naming the task's
   score 300 and authority `vocabulary`, its reason is prefixed `anchor: ` + "`literal` xN" +
   ` verbatim; `, and it can never precede a reserved TCP-V0-008/TCP-V0-009 row. No index,
   snapshot or pack change; an unset or other value preserves the existing packet bytes.
-  Falsifier (not yet run: the frozen `agent_retrieval_bench` corpus is not on the build host):
-  a registered `tools/retrieval-bench` run on `v2_code2test` and `v2_trace2code` with the flag
-  unset and `on` must lose at most 0.01 recall@5 on every fold and must report the
-  anchor-bearing samples as their own subset; promotion additionally requires decision 0070's
-  paired ladder. Rollback: unset the flag or remove the anchor field; the default wire never
-  changed.
+  Falsifier: a registered `tools/retrieval-bench` run on `v2_code2test` and `v2_trace2code` with
+  the flag unset and `on` must lose at most 0.01 recall@5 on every fold and must report the
+  anchor-bearing samples as their own subset (`stratum:anchor-bearing`); promotion additionally
+  requires decision 0070's paired ladder. The 2026-09-23 run (V1-0084, `docs/BUILD-LOG.md`) passed
+  the recall@5 falsifier; the field stays opt-in because the 0070 ladder is NOT_RUN and recall@10
+  and recall@20 losses were observed (`v2_trace2code` recall@20 0.7937 to 0.7591). A stricter bar,
+  no recall@20 loss on any of the four v2 subsets, was proposed after that run and is not yet the
+  governing rule. Rollback: unset the flag or remove the anchor field; the default wire never changed.
 
 - `TCP-V0-023`: (proposed 2026-09-22, not accepted; experimental; decision 0346) Every
   `results[].evidence[]` row carries exactly one `trust` member, a string from the closed set
@@ -511,6 +513,250 @@ it must read, each with the relation that admitted it, without naming the task's
   errors. When neither `--summary` nor `--expand` is given, the command prints exactly the bytes
   of TCP-V0-001..023: the packet, its members and its ranking are unchanged. Both views are read
   commands: they write no repository, index, snapshot, trace or `.corvint/` state.
+- `TCP-V0-039`: (proposed 2026-09-23, not accepted; experimental; decision 0370) A file's role
+  line is derived only from its own doc comments in the pinned blob at the indexed revision, by a
+  fixed per-suffix rule, and is never generated. The candidate comments, in order: Go (`.go`), the
+  column-0 `//` run or `/* */` block ending on the line above the `package` clause, then the same
+  above each column-0 `func`, `type`, `var` or `const` line, with `//word:` and `//+build`
+  directive lines left out; Python (`.py`), the module docstring (the first statement after blank
+  and `#` lines, a string literal with an optional `r`/`u` prefix); Rust (`.rs`), the first
+  column-0 `//!` run, then the doc-marker comments; the doc-marker suffixes (`.js`, `.jsx`,
+  `.mjs`, `.cjs`, `.ts`, `.tsx`, `.java`, `.kt`, `.scala`, `.swift`, `.cs`, `.c`, `.h`, `.cc`,
+  `.cpp`, `.hpp`, `.php`, `.dart`), every column-0 `/** */` block and `///` run in file order.
+  Any other suffix has no role line. The line is the first candidate whose first paragraph (from
+  the first non-empty content line to an empty line, a `@tag` line or a code fence; Markdown
+  heading lines skipped; `@file`/`@fileoverview` keep their text) carries none of `copyright`,
+  `spdx-license-identifier`, `licensed under`, `code generated`, `do not edit` (case-insensitive)
+  and yields a first sentence (cut after the first `. `), whitespace collapsed, control characters
+  dropped, cut to at most 160 bytes on a rune boundary, that holds an ASCII word run of three
+  bytes. Only the first 64 KiB of a blob is read. The line carries the 1-based line range of its
+  comment. The same blob yields the same bytes on every run.
+- `TCP-V0-040`: (proposed 2026-09-23, not accepted; experimental; decision 0370) With
+  `CORVINT_CONTEXT_ROLES=on`, the role line is a fifth lexical field. After the body, path,
+  identifier and anchor (TCP-V0-022) fields are credited, the at most 512 sources with the highest
+  lexical score (ties by source id) are read within TCP-V0-014's size bound; for each whose role
+  line exists, every task term the line carries, tokenised as the body `Terms` table tokenises a
+  source, is credited once with its body idf times 1.0, the path field's form, before the lexical
+  order is taken. The credit lives inside the lexical slot: the row keeps kind `lexical`, score 300
+  and authority `vocabulary`, and never precedes a reserved TCP-V0-008/TCP-V0-009 row. No index,
+  snapshot or pack change (the analyzer schema is unchanged). Unset or any other value preserves
+  the existing packet bytes.
+- `TCP-V0-041`: (proposed 2026-09-23, not accepted; experimental; decision 0370) A row the role
+  field credited names its source comment: its reason starts with `role: `, the Go-quoted line,
+  the comment's range as `(PATH:START-END)` with 1-based lines, ` matches `, the matched terms
+  sorted, each backquoted and joined by `, `, and `; `. A row the field did not credit carries no
+  `role:` prefix.
+- `TCP-V0-042`: (proposed 2026-09-23, not accepted; experimental; decision 0370) The field stays
+  opt-in unless a frozen `tools/retrieval-bench --arms context` run over `v2_code2test`,
+  `v2_comment2context`, `v2_edit2ripple` and `v2_trace2code`, with the flag unset and `on` and the
+  same binary, shows no recall@20 loss on any of the four; recall@5/10/20 and the losing cases are
+  recorded in `docs/BUILD-LOG.md`. The 2026-09-23 run (V1-0096) lost recall@20 on
+  `v2_comment2context` (0.5042 to 0.4938, four samples), so the field stays opt-in.
+
+- `TCP-V0-035`: (proposed 2026-09-23, not accepted; experimental; decision 0369) With
+  `CORVINT_CONTEXT_RECENCY=on`, the packet reads, from Git history reachable from the indexed
+  commit only (never the worktree, the clock or any other state), the committer time of each
+  commit in the `cochange` slot's window (the newest 200 non-merge commits, TCP-V0-004's
+  `readCoChangeHistory` bound, shallow boundary commits dropped) and each path's newest commit in
+  that window. A path's recency is `0.5^(age/90 days)`, where age is the indexed commit's committer
+  time minus the path's newest window commit's (a later-dated commit weighs 1). The lexical fill is
+  reordered by BM25 x (1 + 0.25 recency + 0.25 blame freshness, TCP-V0-036), code rows among the
+  positions code rows already hold and documentation rows among theirs, so TCP-V0-013's placement
+  and every other slot's order are kept. The `cochange` slot is reordered by its recency-weighted
+  count: each co-change commit it counted weighs its own decay. Every lexical row's reason gains
+  `; recency R (last commit D days before the indexed commit, 90-day half-life); <blame reason>;
+  rank bm25 x F`, and every `cochange` row's reason gains `; recency-weighted W (90-day
+  half-life)`, so each contributing feature is named. Both slots are reordered before their cap and
+  the limit apply, so which candidates the lexical and `cochange` slots admit can change: a recent
+  candidate below the cut can displace an older one. No admitted row's score, kind or authority
+  changes, and the reserved and syntax slots are untouched. An unset or other value preserves the
+  existing packet bytes (the recipe golden).
+- `TCP-V0-036`: (proposed 2026-09-23, not accepted; experimental; decision 0369) The blame
+  feature runs `git blame --porcelain` at the indexed commit on at most the first 10 lexical
+  candidates in BM25 order that the slot can still admit (not the subject, not a path an earlier
+  slot chose), limited to the window (`OLDEST..COMMIT` when the window holds 200 commits) and to 4
+  MiB of output. A line whose last change is a boundary commit (older than the window, a root
+  commit, or the full window's oldest commit, which Git marks as the range boundary) is outside
+  the window; freshness is the sum of the in-window lines'
+  decay over all lines. Beyond any bound the feature abstains and says so in the row reason:
+  `blame abstained (beyond the 10-file blame bound)`, `blame abstained (blame-unreadable)`, or the
+  history state. Recency abstains the same way: `recency abstained (no commit in the N-commit
+  window)` for a path the window never touched, `recency abstained (STATE)` when the history could
+  not be read (`no-indexed-commit`, `history-unreadable`). An abstaining feature contributes 0 to
+  the factor; it is never estimated.
+- `TCP-V0-037`: (proposed 2026-09-23, not accepted; experimental; decision 0369) The first tracked
+  file among `.github/CODEOWNERS`, `CODEOWNERS`, `docs/CODEOWNERS` at the indexed commit (256 KiB
+  bound) is read with GitHub's pattern rules: the last matching rule owns a path; `*`, `?` and
+  `**` as in gitignore; a leading or inner slash anchors the pattern; negations and bracket
+  ranges are not CODEOWNERS syntax and their lines are skipped. For each blamed row whose owning
+  rule names owners and whose in-window lines have authors, the owners are compared with those
+  authors' emails: an email owner exactly, a `@user` owner only against a GitHub noreply address,
+  a `@org/team` owner never. An owner matching any author agrees and reports nothing. Otherwise the
+  row is a disagreement, reported and never resolved: state `disagrees` when every owner is an
+  email, `unverifiable` when a handle or team could not be compared. The row reason gains
+  `; ownership STATE: CODEOWNERS names OWNERS, blame names AUTHOR`, and the entry is listed in
+  `coverage.recency.ownership` (TCP-V0-038). Neither side changes any row's order, authority or
+  admission: ownership is uncertainty, not a ranking input.
+- `TCP-V0-038`: (proposed 2026-09-23, not accepted; experimental; decision 0369) With the flag on,
+  `coverage` gains one `recency` member: `{state, half_life_days, window_commits, window_full,
+  blame_cap, blamed, codeowners, ownership}`, where `codeowners` is the file read or null and
+  `ownership` lists, in packet order, `{path, state, rule, rule_line, codeowners, blame_author,
+  blame_author_lines, reason}` for each TCP-V0-037 disagreement among the packet's rows. The
+  member is absent when the flag is unset. Promotion to default requires the frozen
+  `tools/retrieval-bench` `context` arm to lose no recall@20 on any subset with the flag on, on a
+  corpus whose snapshots carry history; the frozen releases rebuild each snapshot as one commit,
+  where every recency is 1 and every blame line is a root boundary, so they can show no
+  regression but cannot show a gain. `corvint eval` does not exercise `context`. The flag
+  therefore stays opt-in (decision 0369). Rollback: unset the flag, or delete the feature; the
+  default wire never changed.
+
+- `TCP-V0-030`: (proposed 2026-09-23, not accepted; experimental; decision 0367) The full
+  compile derives an identifier graph from the Git content at the indexed revision and stores
+  it beside the term table, as the `IdentGraph` member of the gob and sectioned snapshots and
+  the `vocab.identgraph` pack section; the change bumps `analyzerSchemaID` to
+  `corvint-analyzer/74`. Its nodes are the term table's source ids. An eligible name is an
+  indexed symbol name of 4 to 128 ASCII identifier bytes (the `langsymbols.go` identifier
+  classes) that is not lowercase letters only, defined by at most five sources and present as a
+  whole word (the `Words` postings) in at most fifty. For each eligible name, every naming
+  source other than a definer is joined to each definer. An edge is symmetric; its weight is the
+  number of eligible names joining the pair, and its label is the rarest of them (fewest naming
+  sources, then name order) with its direction: the source names it, or the source defines it.
+  Every value is an integer and names are visited in sorted order, so the encoding is
+  byte-deterministic and independent of symbol order. A decoded graph whose arrays, offsets,
+  labels or node count do not fit its term table is a load miss, never a panic.
+- `TCP-V0-031`: (proposed 2026-09-23, not accepted; experimental; decision 0367) With
+  `CORVINT_CONTEXT_GRAPH=on`, a `graph` slot runs after every other slot, corroboration and the
+  reserved rows. Its seeds are the task anchors: the subject, then the paths of the `mentioned`,
+  `pair`, `definition`, `reverse-import` and `reference` rows in packet order, deduplicated and
+  capped at sixteen. It ranks the non-seed sources within three hops of a seed by personalized
+  PageRank with restart 0.15, uniform over the seeds, by forward push to residual 1e-5 per unit
+  of weighted degree in a fixed FIFO order; ties go to the path. It admits at most five rows,
+  never the subject, a reserved row, a relation row, or a lexical or documentation row placed
+  before the last five positions under the limit; a lexical or documentation row from there on
+  that the graph also ranks is replaced by its graph row. The rows go to the last positions
+  under the limit that follow every relation row, so they displace only lexical and
+  documentation tail rows and never outrank a relation, a reserved row, or the TCP-V0-002
+  limit. A row has kind `graph`, score 250, confidence `low` and authority `syntax`, and
+  registers no corroboration. `coverage.unexamined` gains a `graph` relation, last.
+- `TCP-V0-032`: (proposed 2026-09-23, not accepted; experimental; decision 0367) A `graph`
+  row's reason names the seed and every hop from it:
+  ``graph from seed `SEED` (ANCHOR): HOP; HOP`` where ANCHOR is `subject` or the seed row's
+  kind, and each HOP is either ``` `A` defines `NAME`, which `B` names``` or
+  ``` `A` names `NAME`, which `B` defines```, over the shortest path breadth-first from the seeds
+  in seed order and CSR order. The evidence line is the definition line of the last hop's name
+  when the row defines it, else line 1. The action states that a graph hop is a ranking, not a
+  relation. `graph` rows do not count as TCP-V0-016 relations, so they never rescue an
+  unsupported conjunction, and the verdict withholds them with the other slot rows.
+- `TCP-V0-033`: (proposed 2026-09-23, not accepted; experimental; decision 0367) The graph is
+  bounded: a tree of more than 2^20 sources, or a build passing 2^21 directed arcs, stores a
+  `Bounded` graph with no edges, and the walk stops at 200,000 pushes. Beyond a bound, or with no
+  seed the graph carries, the slot abstains: it admits no row and its `unexamined` state is
+  `graph-bounded` or `no-seed`, never a partial ranking.
+- `TCP-V0-034`: (proposed 2026-09-23, not accepted; experimental; decision 0367) The slot is an
+  explicit opt-in. An unset, `off` or any other value of `CORVINT_CONTEXT_GRAPH` never consults
+  the graph, and the packet is byte-identical to the one before TCP-V0-030 (the recipe golden),
+  with no `graph` relation in `coverage`. On or off, `context` stays read-only (TCP-V0-001),
+  keeps its limit and result bounds, and keeps TCP-V0-016's abstention. Falsifier and gating:
+  the frozen `tools/retrieval-bench` `context` arm on all four positive subsets with the flag
+  unset and `on`; decision 0367 records the numbers and keeps the opt-in unless recall@20 does
+  not regress on any subset. Rollback: unset the flag; to remove the slot, delete `ppr.go`,
+  `identgraph.go`, their tests and hooks, and bump `analyzerSchemaID`.
+
+### Line-budgeted spans and evidence-set sufficiency (proposed 2026-09-23, decision 0366)
+
+- `TCP-V0-025`: (proposed 2026-09-23, not accepted; experimental; decision 0366) With
+  `CORVINT_CONTEXT_SPANS=on`, the packet gains one top-level `spans` member,
+  `{line_budget, lines_used, omitted, rows}`. Each row is `{role, path, start_line, end_line,
+  symbol, reason, confidence, blob_hash, authority, trust}`: an explicit 1-based inclusive line
+  range of one pinned source (`blob_hash` is the source's indexed blob, invariant 1), the reason
+  it was chosen, and `trust` derived from `authority` by TCP-V0-023's table. A `core` row comes
+  from a packet result row, in result rank order, skipping the reserved `governing` and
+  `spec-mentioned` rows: first the declarations (`langsymbols.go` symbols) of the task's names
+  the file defines (TCP-V0-010-eligible identifiers by weight, then TCP-V0-016 names), at most
+  three per file, authority `syntax`, confidence `high`; else the first line naming the heaviest
+  task name as a whole word, widened to its enclosing declaration, `syntax`/`medium`; else the
+  earliest line carrying the most distinct task lexical terms, widened the same way,
+  `vocabulary`/`low`. A declaration ends at the grammar's end line when one is recorded, else the
+  line before the file's next symbol, else the file's end, with trailing blank lines trimmed; a
+  line with no enclosing declaration takes five lines either side. At most eight core rows.
+  An unset flag or any other value (`off`, `ON`, `unknown`) leaves the packet byte-identical to
+  the TCP-V0-001..024 packet: no `spans` member and no `coverage.sufficiency`.
+- `TCP-V0-026`: (proposed 2026-09-23, not accepted; experimental; decision 0366) After the core
+  rows, each core row whose symbol has at least four bytes yields at most two `call-site` rows:
+  the sources carrying the symbol as a whole identifier in the `Words` postings (none when more
+  than `contextMaxDefiners`+1 sources carry it, the definer included), ordered packet result rows
+  by rank, then the definer's reverse importers (the TCP-V0-004 `reverse-import` rule), then the
+  rest, each tier by path. A call site is a window of two lines either side of the first line in
+  that source naming the symbol whose window overlaps no core row. Its reason is "names `S` at
+  line L; `S` is declared by the core span P:S-E", authority `syntax`, confidence `medium`. A
+  call site is a lexical whole-word use, not a resolved call: a same-named symbol in another
+  scope is reported as a call site.
+- `TCP-V0-027`: (proposed 2026-09-23, not accepted; experimental; decision 0366) The declared
+  line budget is 240 lines. Core rows, then call-site rows, are taken in order; a candidate that
+  overlaps an already selected row is dropped silently, one that would take `lines_used` past
+  `line_budget` is counted in `omitted` and skipped, and no row exceeds 80 lines. The flag changes
+  no other packet byte: `results`, their order, `coverage.included_results`, the existing byte and
+  result bounds and every other member are those of the flag-off packet. Spans read only
+  size-bounded (TCP-V0-014) pinned index sources and the command stays a read command
+  (invariant 4); an unindexed, oversized or non-text source yields no span.
+- `TCP-V0-028`: (proposed 2026-09-23, not accepted; experimental; decision 0366) With the flag
+  on, `coverage.sufficiency` is `{verdict, scope, reason, anchors_total, missing_total, anchors,
+  missing}`, with `scope` always `task-anchors`. The task's anchors are its mentioned tracked paths (kind `path`) and its TCP-V0-016
+  specific names (kind `name`). A path anchor is `satisfied` when a selected span reads that path,
+  `insufficient` when the path is indexed but no span reads it, and `unknown` when it is not
+  indexed (with the evidence-gap reason). A name anchor is `satisfied` only when a selected span's
+  own lines, re-read from the pinned source with the range bounds-checked, carry the name as a
+  whole word, or the span's path carries it; `insufficient` when an indexed source or tracked
+  path names it but no span carries it; `unknown` when nothing indexed names it. The verdict is
+  `unknown` with no anchors, `insufficient` if any anchor is, else `unknown` if any anchor is,
+  else `satisfied`: missing evidence never reads as sufficient (invariant 2). `anchors` and
+  `missing` list at most sixteen entries each; the totals always count every anchor, and every
+  anchor that is not satisfied is named in `missing`. `satisfied` means the selected lines carry
+  the task's own anchors; it does not mean they answer the task, and the reason says so: "N of M
+  task anchors carried by the selected lines; not evidence the task is answered" (or, with no
+  anchors, that the task names none).
+- `TCP-V0-029`: (proposed 2026-09-23, not accepted; experimental; decision 0366) The evaluation
+  is `tools/retrieval-bench --arms context` over the frozen `v2_*` releases with the flag unset
+  and `on`, recording recall@5/10/20 per subset, plus two span metrics scored offline from the
+  `--context-packets` capture against each sample's `gold_spans` (a gold span is `{path,
+  start_line, end_line}`; a row covers it when the paths are equal and the ranges share a line):
+  - core-span recall: per positive sample with gold spans, the fraction of its gold spans that
+    some emitted span row covers, averaged over the subset's samples (a sample with no packet
+    scores 0);
+  - sufficiency precision: among samples whose verdict is `satisfied`, the fraction whose rows
+    cover every gold span (a `satisfied` verdict on a no-gold `v2_abstention` sample counts as
+    incorrect), reported with the number of `satisfied` samples.
+  The control is the flag-off packet read as a ±15-line window around each result's first
+  evidence line, in rank order, under the same 240-line budget. Falsifier: any subset's
+  recall@20 differing between flag off and on refutes TCP-V0-027; core-span recall below the
+  control on a subset, or sufficiency precision below the subset's base rate of fully covered
+  samples, is a losing case to record, and blocks promotion to default-on.
+
+- `TCP-V0-043`: (proposed 2026-09-23, not accepted; experimental; decision 0371) With
+  `CORVINT_CONTEXT_LSP=gopls`, a `--task` packet gains one `external` member: the section of
+  `EEP-V0-023` built from one in-process gopls expansion (`EEP-V0-024`, `EEP-V0-025`), plus a
+  `query` member naming the provider, the query digest, the seeds, the bounds, `queries_issued`,
+  `failed_queries`, `stopped` (empty, `query-budget` or `soft-deadline`), `outside_repository` and `omitted_rows`.
+  Unset, or any other value, prints exactly the bytes of `TCP-V0-001..024`. No flag, verb or
+  help text is added.
+- `TCP-V0-044`: The `external` member is separate evidence, never a ranking input: `results`,
+  their order, `coverage`, `state` and every other member are byte-for-byte those of the same
+  invocation without the flag. The seeds are the subject, then the packet's `.go` result paths in
+  order (at most three, `EEP-V0-025`). Path relations are anchored on the seeds and the hop-one
+  files a relation starts from, each one names its hop origin in `relation.reference`, and the
+  section's list limit is the packet's `--limit`.
+- `TCP-V0-045`: When gopls is absent, the task names no usable Go seed, the session fails or
+  times out, or every issued query failed, the packet is the unchanged packet plus an `external` member whose one provider row
+  is `unavailable` with the `EEP-V0-026` reason, and the exit code is 0. That row is the packet's
+  visible coverage entry for the missing expansion; no partial relation is kept.
+- `TCP-V0-046`: The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
+  of the `context` arm with the flag unset and with it set to `gopls`, on the same corpus and
+  sample bound, MUST show identical recall@5/10/20 on every subset, since `TCP-V0-044` keeps
+  `results` fixed, and MUST record the latency cost. gopls applies only to Go-module samples, so
+  every other subset is recorded as not applicable, never as a gain or a loss. The rate at which
+  the gold file appears among `external.path_relations` endpoints is reported as a diagnostic,
+  not as a retrieval claim. Letting these relations change `results` needs its own requirement
+  and decision 0070's paired ladder.
 
 ## Non-goals and authority
 
@@ -539,14 +785,36 @@ labels `syntax` is `repository-content` by label. Stamping `trust` on the `query
 wires (held byte-exact by GPK-V0-002 and `conformance/cli-parity-v0`) and on the `external`
 section's rows is not this slice's to do.
 
+The role line (TCP-V0-039..042) adds no packet member, relation, index table or model: the role line is read from
+the blob, never summarised by a model or stored, and a file without a qualifying doc comment has
+none. Non-code suffixes, Ruby, shell and non-column-0 comments are out of scope, as is a role line
+for a source outside the 512 highest-scoring lexical candidates.
+
 TCP-V0-024 adds no packet member, ranking input or row. The summary is a projection of the exact
 default bytes, and expansion reads Git objects at the handle's pinned tree. Neither view changes
 `query`, `impact` or any `protocol/**` wire, and neither adds a root verb.
+
+The span amendment (TCP-V0-025..028) adds no index encoding, snapshot field, ranking input or result
+row: spans are chosen after the result rows are final and read only what the index already holds.
+They do not resolve calls (a call site is a whole-word use), do not choose results by span, and do
+not make `satisfied` a claim that the task is answered. Default-on, spans on the `query`/`impact`
+wires, and a caller-chosen line budget are not this slice's to do.
+The graph slot (TCP-V0-030..034) adds no language server, call graph, import resolution or
+embedding: an edge is a whole-word name match against an indexed definition, so a name shared by
+unrelated code joins them and a reference through an alias or a qualified import path that splits
+the name does not. The graph ranks; it is never a relation, never corroboration, and never evidence
+that a file is affected. Using it as a default slot, tuning its cap or restart, or seeding it from
+lexical rows is decision 0367's to reopen with a new evaluation, not this slice's.
 
 Operational note (V1-0051): `corvint context` and the generic harness-event dispatch it shares
 (`cmd/corvint/taskcontext.go`, `cmd/corvint/main.go`) write a local pprof CPU profile when the
 operator sets `CPUPROFILE=PATH` in the process environment. It is off by default, diagnostic only,
 and does not widen what either read-only path reads, returns, or mutates (AGENTS.md invariant 4).
+
+The recency features (TCP-V0-035..038) add no index, snapshot or pack change, no clock read and
+no new root verb. They do not make recency a relation (a recent file is not admitted for being recent), do not rerank
+the syntax or reserved slots, and do not resolve ownership: mapping GitHub handles or teams to
+commit emails needs the host's account data, which this local packet does not read.
 
 ## Failure modes
 
@@ -596,10 +864,47 @@ and does not widen what either read-only path reads, returns, or mutates (AGENTS
   `coverage.governance_refused` names its relation, path and class; the row itself stays in
   `results`. An unlisted label is refused the same way as `tool-output`; the packet does not say
   the label is unknown, so a new generator label must be added to the table to be trusted.
+- (TCP-V0-039..041) A file whose doc comment is absent, a licence or generator header, past the
+  64 KiB scan bound, or not column 0 has no role line, and a source outside the 512 highest
+  lexical candidates is not read for one; the packet does not say so, so a row without a `role:`
+  prefix is not evidence that the file states no role (invariant 2). A first sentence ending in an
+  abbreviation (`e.g. `) is cut early; a stale or wrong doc comment is credited as written, which
+  is why the credit stays inside the lexical slot and below every reserved authority row.
+- (TCP-V0-030..034) A common name joins unrelated files: the five-definer and fifty-reference
+  bounds and the prose-shaped-name rule drop it, and the rest are low-confidence rows whose
+  reason names the joining name. A task whose anchors the graph does not carry, or a graph past
+  its bound, admits no `graph` row and says `no-seed` or `graph-bounded`; the packet is then the
+  flag-off packet plus that receipt. A damaged `vocab.identgraph` section fails the load.
 - (TCP-V0-024) A view flag could leak into the default path and change its bytes.
   `TestContextDefaultWireIsTheGolden` compares the default stdout with bytes captured from the base
   binary (`1894b9e5`), and mixed or orphaned view flags are argument errors
   (`TestParseContextViewArguments`).
+- (TCP-V0-025) The flag could leak into the default path. `TestContextSpansDefaultBytes` holds
+  the recipe golden for unset, `off`, `ON` and `unknown`.
+- (TCP-V0-025, TCP-V0-026) A declaration without a recorded end line is bounded by the next
+  symbol, so a span can include trailing comments or stop early in a file whose grammar records
+  no nested symbols; a call site can be a same-named use in another scope, or a comment. Rows say
+  which rule chose them (`reason`, `confidence`, `authority`), not that they are correct.
+- (TCP-V0-027) A long definition is clipped at 80 lines and a span that would overrun the budget
+  is dropped and counted in `omitted`, so the selected lines can miss the part that matters; the
+  row's range says exactly what was selected.
+- (TCP-V0-028) An anchor that is present only in an unindexed file, or that the change will add,
+  is `unknown`, and a name the task quotes loosely may never match; the verdict is then `unknown`
+  or `insufficient`, never `satisfied`. A path anchor is satisfied by any span on that path, even
+  one that misses the relevant lines.
+- (TCP-V0-035..038) A rebased or squashed history dates lines by the rewrite, so recency and
+  blame read the rewrite as recent; a snapshot history (one commit) makes every recency 1 and
+  every blame 0, so the flag reorders nothing. Both are reported, not corrected: the row reason
+  carries the ages and line counts. A path renamed within the window has its recency from the new
+  name only (`--no-renames`). A CODEOWNERS file over 256 KiB or unreadable reads as none
+  (`codeowners` null), so no disagreement is reported; absence of an ownership entry is not
+  evidence of agreement (invariant 2).
+- (TCP-V0-043..045) The LSP flag could leak into the default path or reorder results. The same
+  golden holds for every value but `gopls`, and with `gopls` and a failing server the packet minus
+  `external` equals the golden (`TestContextLSPOffKeepsTheGoldenAndOnDegrades`). A gopls that
+  analyzes a modified working tree could cite bytes the index never pinned; such files are omitted
+  and counted (`TestExpandLiveGopls`). A hung gopls is killed with its process group at the 20 s
+  wall time and reported `unavailable`.
 
 ## Acceptance evidence
 
@@ -625,7 +930,10 @@ byte-identical run).
 its 2a76e40 golden and one ordering fixture per mechanism).
 `internal/contextindex/context_anchors_test.go` (TCP-V0-022, proposed: one table row per anchor
 class carried verbatim and not by its split tokens, the extraction bounds and whole-anchor rule,
-the `anchor:` reason behind the governing row, default bytes unchanged).
+the `anchor:` reason behind the governing row, default bytes unchanged);
+`tools/retrieval-bench/main_test.go` `TestAnchorBearingSamplesFormTheirOwnStratum` (the bench's
+`anchor_bearing` flag and `stratum:anchor-bearing` mean) and the flag-off/flag-on run over the
+four v2 subsets recorded in `docs/BUILD-LOG.md` (2026-09-23, V1-0084).
 `internal/contextindex/trust_test.go` (TCP-V0-023, proposed: the table is closed and
 deterministic and an unlisted label is `tool-output`; every packet row carries one class equal to
 its label's and the governing row is `project-authority`; a tainted reserved row satisfies neither
@@ -633,9 +941,44 @@ its label's and the governing row is `project-authority`; a tainted reserved row
 today's wire to the wire minus `trust`); the recipe golden of
 `internal/contextindex/ranking_regression_test.go` re-captured with only the `trust` member and
 the empty `governance_refused` array added.
+`internal/contextindex/rolesummary_test.go` (TCP-V0-039..041, proposed: two extractions equal
+and match `testdata/role-summary-golden.tsv` over one fixture per rule; the length, scan and
+candidate bounds; the `role:` reason with its comment range behind the governing row; default
+bytes equal the recipe golden with the flag unset, `off` or unknown); TCP-V0-042's frozen
+bench figures in `docs/BUILD-LOG.md`.
 `cmd/corvint/context_summary_test.go` (TCP-V0-024, experimental: default bytes equal the
 base-binary golden `cmd/corvint/testdata/context-default-wire.golden`; flag mixing refused; the
 summary and expansion evidence listed under ESV-V0-008..009).
+`internal/contextindex/span_rank_test.go` (TCP-V0-025..027, experimental: default bytes equal the
+recipe golden for every non-`on` flag value; the named definition is a core row with its explicit
+range, reason, authority and blob; a caller outside the core yields a call-site row naming the core
+range; rows stay under the budget and the per-row cap, a 3-line budget omits, the flag-on packet
+minus `spans` and `coverage.sufficiency` equals the flag-off packet, and the fixture repository is
+unchanged) and `internal/contextindex/sufficiency_test.go` (TCP-V0-028, table-driven: carried,
+absent, forged, out-of-range, inverted and other-path spans, an unindexed name, no anchors,
+satisfied plus unknown, and a tracked but unindexed path; a satisfied set never holds a
+non-satisfied anchor and every missing anchor is named). TCP-V0-029's measured on/off reading is
+the V1-0098 entry in `docs/BUILD-LOG.md`.
+`internal/contextindex/recency_test.go` and `internal/contextindex/blame_test.go` (TCP-V0-035..038,
+proposed: default bytes equal the recipe golden for unset, `off` and other values; an equal-BM25
+recent source leads with the flag and both rows name recency, blame and the factor; recent
+co-changes outrank older, more frequent ones; the blame bound and every abstention reason; the
+porcelain parse and the window's oldest commit; GitHub pattern semantics; a `disagrees`, an
+`unverifiable` and an agreeing owner; the `coverage.recency` member and a no-commit abstention).
+The frozen bench and `corvint eval` readings, off and on, are in `docs/BUILD-LOG.md` (V1-0089).
+
+`internal/contextindex/identgraph_test.go` and `internal/contextindex/ppr_test.go`
+(TCP-V0-030..034, proposed: the fixture's two-hop chain, direction labels and a node without
+edges; symbol-order independence and the round trip; damaged encodings refused; the node and
+definer bounds; the ranked rows after every relation row within the limit; the exact hop
+reason; `no-seed`, `graph-bounded` and a walk past its push bound abstaining; TCP-V0-016
+abstention unchanged; the recipe golden unchanged for an unset, `off` and unknown flag);
+`TestPackSnapshotDecodesEverySectionToTheGobValues` (the pack section decodes to the gob value);
+decision 0367 (the frozen evaluation with the flag unset and `on`).
+`cmd/corvint/context_lsp_test.go` (TCP-V0-043..045, experimental: every value but `gopls` keeps the
+golden bytes; a failing gopls adds only an unavailable `external` row), `internal/lspprovider`
+tests and `internal/extevidence/lsp_test.go` (EEP-V0-023..026), and the TCP-V0-046 frozen bench
+off/on reports recorded in `docs/BUILD-LOG.md` under V1-0099.
 
 ## Rollback
 
@@ -650,10 +993,26 @@ TCP-V0-022 rolls back alone: delete `internal/contextindex/context_anchors.go` a
 TCP-V0-023 rolls back alone: delete `internal/contextindex/trust.go` and its test, the `trust`
 stamp in `packet` and the `governance_refused` member, point `governance` and `criticalSelectors`
 back at `compiler.reserved`, and re-capture the recipe golden.
+The role line (TCP-V0-039..042) rolls back alone: unset `CORVINT_CONTEXT_ROLES`, or delete
+`internal/contextindex/rolesummary.go`, its test and golden, and the `roles` field, the role
+credit loop and the `role` reason prefix in `taskcontext.go`; the default wire never changed.
 TCP-V0-024 rolls back alone to current packets. Follow the V1-0023 rollback in
 `experimental-source-views-v0` (Acceptance and rollback): delete `cmd/corvint/context_summary.go`,
 its test and golden, and the view flags, check and help paragraph in `cmd/corvint/taskcontext.go`.
 The default wire never changed.
+The span amendment (TCP-V0-025..029) rolls back alone: unset `CORVINT_CONTEXT_SPANS`, or delete
+`internal/contextindex/span_rank.go`, `internal/contextindex/sufficiency.go`, their tests, and the
+`attachSpans` call in `TaskContext`. The default wire never changed and no state persists.
+The recency features (TCP-V0-035..038) roll back alone: delete `internal/contextindex/recency.go`,
+`internal/contextindex/blame.go` and their tests, the `recency` field and its four hook lines in
+`internal/contextindex/taskcontext.go`; the default wire never changed.
+The graph slot (TCP-V0-030..034) rolls back alone: unset `CORVINT_CONTEXT_GRAPH`; to remove the
+slot, delete `internal/contextindex/identgraph.go`, `ppr.go` and their tests, the `IdentGraph`
+member, the `vocab.identgraph` section and the compile, `compile` and `rowAction` hooks, and bump
+`analyzerSchemaID`. The default wire never changed.
+The LSP member (TCP-V0-043..046) rolls back alone with EEP-V0-023..026: delete `cmd/corvint/context_lsp.go`, its
+test, `internal/lspprovider`, and the `attachLSPEvidence` call in `compileTaskContext`; the default
+wire never changed.
 
 ## Traceability
 
@@ -682,4 +1041,26 @@ The default wire never changed.
 | TCP-V0-020 | `frameRelationRows`, `namedTestFrames`, `frameCandidates`, `creditFrameIdentifiers` | `TestFrameRelationSignals`, `TestFrameRelationOrderingAndCoverage`, `TestFrameRelationScopeAndDeterminism` |
 | TCP-V0-022 | `configureContextAnchors`, `taskAnchors`, `anchorCandidates`, `countAnchor`, `anchorOccurrences`, `anchorReason`, `lexicalHits`, `queryTermGain` | `TestContextAnchorClassesMatchVerbatim`, `TestContextAnchorsExtractionBounds`, `TestContextAnchorsExplainAndNeverOutrankAuthority`, `TestContextAnchorsDefaultBytes` |
 | TCP-V0-023 | `trustByAuthority`, `TrustClass`, `TrustTainted`, `governanceRows`, `governanceRefused` (`internal/contextindex/trust.go`); the `trust` stamp in `taskContextCompiler.packet` | `TestTrustClassIsClosedAndDeterministic`, `TestTaskContextRowsCarryOneTrustClass`, `TestTaskContextGovernanceRefusesATaintedReservedRow`, `TestTaskContextWireIsAdditiveForAnOldConsumer`, `TestContextRecipeDefaultPathIsByteIdentical` (re-captured golden) |
+| TCP-V0-030 | `buildIdentGraph`, `identGraphDefiners`, `identGraphName`, `mergeIdentGraphArcs`, `identGraph.check`, `MarshalBinary`/`UnmarshalBinary` (`internal/contextindex/identgraph.go`); the `IdentGraph` member, `packSectionGraph` and the compile hooks | `TestIdentGraphIsDerivedDeterministicallyFromTheIndex`, `TestIdentGraphRefusesDamagedEncodings`, `TestIdentGraphNameEligibility`, `TestPackSnapshotDecodesEverySectionToTheGobValues`, `TestAnalyzerSchemaInputs` |
+| TCP-V0-031 | `placeGraphRows`, `graphFloor`, `graphHeld`, `takeGraph`, `graphCandidates`, `graphSeeds`, `personalizedPageRank`, `rankGraphNodes` (`internal/contextindex/ppr.go`) | `TestContextGraphSlotRanksFromTheTaskAnchors` |
+| TCP-V0-032 | `graphHops`, `graphRow`, `graphLine`, `graphAction` | `TestContextGraphSlotRanksFromTheTaskAnchors` |
+| TCP-V0-033 | the `identGraphMaxNodes`/`identGraphMaxArcs` bounds and `boundedIdentGraph` in `buildIdentGraph`, the push bound in `personalizedPageRank`, the abstention states in `placeGraphRows` | `TestIdentGraphBounds`, `TestIdentGraphBoundedSnapshotReloads`, `TestContextGraphSlotAbstains` |
+| TCP-V0-034 | `configureContextGraph`, `contextRelations` | `TestContextGraphDefaultBytes`, `TestContextGraphSlotRanksFromTheTaskAnchors`, `TestContextGraphSlotAbstains` |
+| TCP-V0-039 | `extractRoleSummary`, `roleLine`, `firstParagraph`, `goRoleBlocks`, `commentAbove`, `pythonRoleBlocks`, `docstring`, `rustRoleBlocks`, `docMarkerBlocks`, `markerBlock` | `TestRoleSummaryExtractionIsCommentOnlyAndReproducible`, `TestRoleSummaryBounds` |
+| TCP-V0-040 | `configureContextRoles`, `roleHits`, `roleCandidates`, `roleTerms`, `lexicalHits` | `TestContextRolesExplainAndNeverOutrankAuthority`, `TestContextRolesDefaultBytes` |
+| TCP-V0-041 | `roleReason`, `lexicalRows` | `TestContextRolesExplainAndNeverOutrankAuthority` |
+| TCP-V0-042 | `tools/retrieval-bench` (unchanged); decision 0370 | frozen bench figures in `docs/BUILD-LOG.md` |
 | TCP-V0-024 | `parseTaskContextInvocation`, `checkContextViewArguments`, `runTaskContext` (view dispatch); `summarizeContextPacket`, `runContextExpand` (`cmd/corvint/context_summary.go`) | `TestContextDefaultWireIsTheGolden`, `TestParseContextViewArguments`, `TestContextSummaryAndExpandAreReadOnly` |
+| TCP-V0-025 | `contextSpansEnabled`, `attachSpans`, `newSpanRanker`, `coreSpans`, `rowSpans`, `definitionSpans`, `namedLineSpan`, `termLineSpan`, `extent`, `enclosing`, `spanRanker.packet` (`internal/contextindex/span_rank.go`) | `TestContextSpansDefaultBytes`, `TestContextSpansCoreAndCallSite` |
+| TCP-V0-026 | `callSites`, `coreCallSites`, `orderCallers`, `callerKey`, `callSite` | `TestContextSpansCoreAndCallSite` |
+| TCP-V0-027 | `spanRanker.rank`, `coveredBy`, `spanRanker.lines`, `extent` (80-line clip) | `TestContextSpansBudgetAndBounds` |
+| TCP-V0-028 | `sufficiency`, `pathAnchor`, `nameAnchor`, `spanCarries`, `setVerdict`, `sufficiencyVerdict.packet` (`internal/contextindex/sufficiency.go`) | `TestContextSufficiency` |
+| TCP-V0-029 | `tools/retrieval-bench --arms context --context-packets` with the flag unset and `on`; the offline span scorer is a scratch script, not committed | measured reading in `docs/BUILD-LOG.md` (V1-0098) |
+| TCP-V0-035 | `startContextRecency`, `contextRecency.read`, `parse`, `decay`, `weight`, `reason`, `recencyLexical`, `reorderKind`, `recencyCochange` (`internal/contextindex/recency.go`) | `TestContextRecencyDefaultBytes`, `TestContextRecencyRanksRecentLexicalRowsAndNamesFeatures`, `TestContextRecencyCanChangeLexicalMembership`, `TestContextRecencyWeightsCochangeByAge` |
+| TCP-V0-036 | `blameHead`, `blamePath`, `parseBlame`, `touch`, `blameReason` (`internal/contextindex/blame.go`), `unchosen` (`recency.go`) | `TestContextRecencyBoundsBlameAndAbstains`, `TestContextRecencyWindowIsTheCochangeWindow`, `TestParseBlamePorcelainCountsLinesPerCommit` |
+| TCP-V0-037 | `codeOwners`, `parseCodeOwners`, `codeOwnersPattern`, `owning`, `checkOwners`, `ownerMatchesAny`, `ownership` | `TestCodeOwnersPatternFollowsGitHubSyntax`, `TestContextRecencyReportsCodeOwnersBlameDisagreement`, `TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit` |
+| TCP-V0-038 | `recencyCoverage` | `TestContextRecencyCoverageMember` |
+| TCP-V0-043 | `attachLSPEvidence`, `lspSeeds`, `committedText` (`cmd/corvint/context_lsp.go`); `compileTaskContext` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestContextDefaultWireIsTheGolden` |
+| TCP-V0-044 | `attachLSPEvidence`, `extevidence.InlineSection`, `lspprovider.Expand` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandLiveGopls` |
+| TCP-V0-045 | `attachLSPEvidence`, `lspprovider.Expand` failure reasons | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandDegrades`, `TestExpandEveryQueryFailedIsUnavailable` |
+| TCP-V0-046 | `tools/retrieval-bench` `context` arm, flag unset and `gopls` | V1-0099 entry in `docs/BUILD-LOG.md` (measured off/on reports) |

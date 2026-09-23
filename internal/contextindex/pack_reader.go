@@ -747,6 +747,12 @@ func (reader *packReader) fullTables(index *Index, vocabulary bool) error {
 	if err := table.SymbolWindows.check(len(index.Symbols)); err != nil {
 		return err
 	}
+	if table.IdentGraph, err = decodePackGob[*identGraph](reader.sections[packSectionGraph]); err != nil {
+		return err
+	}
+	if err := table.IdentGraph.check(len(table.Paths)); err != nil {
+		return err
+	}
 	index.Vocabulary = table
 	return nil
 }

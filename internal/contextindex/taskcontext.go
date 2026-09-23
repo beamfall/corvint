@@ -39,6 +39,7 @@ func TaskContext(ctx context.Context, index *Index, task, subject string, limit 
 		}
 	}
 	compiler := newTaskContextCompiler(index, task, subject)
+	compiler.recency = startContextRecency(ctx, index)
 	if subject != "" {
 		compiler.startHistory(ctx)
 	}
@@ -53,6 +54,7 @@ func TaskContext(ctx context.Context, index *Index, task, subject string, limit 
 		rows = compiler.reservedOnly(rows)
 	}
 	packet := compiler.packet(rows, limit)
+	compiler.attachSpans(packet, rows)
 	if err := index.SnapshotRefusal(); err != nil {
 		return nil, err
 	}
@@ -107,6 +109,14 @@ type taskContextCompiler struct {
 	// anchors is TCP-V0-022's verbatim literal field, empty unless
 	// `CORVINT_CONTEXT_ANCHORS=on`.
 	anchors []taskAnchor
+	// recency is TCP-V0-035..038's history reading, nil unless
+	// `CORVINT_CONTEXT_RECENCY=on`.
+	recency *contextRecency
+	// roles is TCP-V0-040's role-line field, off unless
+	// `CORVINT_CONTEXT_ROLES=on`.
+	roles bool
+	// graphRanking is TCP-V0-034's opt-in, set by `CORVINT_CONTEXT_GRAPH=on`.
+	graphRanking bool
 }
 
 // startHistory reads the co-change history beside the slots that do not need
@@ -189,7 +199,7 @@ var (
 )
 
 func newTaskContextCompiler(index *Index, task, subject string) *taskContextCompiler {
-	return configureContextAnchors(configureContextTerms(&taskContextCompiler{
+	return configureContextGraph(configureContextRoles(configureContextAnchors(configureContextTerms(&taskContextCompiler{
 		index:         index,
 		task:          task,
 		subject:       subject,
@@ -200,7 +210,7 @@ func newTaskContextCompiler(index *Index, task, subject string) *taskContextComp
 		candidates:    map[string][]string{},
 		relationState: map[string]string{},
 		promoted:      map[string]string{},
-	}))
+	}))))
 }
 
 // compile runs the slots in evidence order and fills the remainder lexically.
@@ -233,16 +243,17 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 		if len(compiler.history) == 0 {
 			compiler.markState("empty-history", "cochange")
 		}
-		rows = compiler.takeSlot(rows, compiler.cochangeRows(), contextCochangeCap)
+		rows = compiler.takeSlot(rows, compiler.recencyCochange(compiler.cochangeRows()), contextCochangeCap)
 		rows = compiler.takeSlot(rows, compiler.siblingRows(), contextSiblingCap)
 	}
 	if compiler.subject == "" && !frameActive {
 		compiler.markRan("test")
 		rows = compiler.takeSlot(rows, compiler.testRows(compiler.testAnchors(rows, limit)), contextTestCap)
 	}
-	rows = compiler.takeSlot(rows, compiler.lexicalRows(len(rows)), limit)
+	rows = compiler.takeSlot(rows, compiler.recencyLexical(compiler.lexicalRows(len(rows))), limit)
 	rows = compiler.corroborate(rows)
 	rows = compiler.reserve(rows)
+	rows = compiler.placeGraphRows(rows, limit)
 	// `candidates` is the distinct paths the slots admitted (TCP-V0-006); a
 	// row a slot cap held back is `withheld`, not a candidate.
 	compiler.admitted = len(rows)
@@ -945,6 +956,7 @@ type lexicalHit struct {
 	rarest                string
 	documentation         bool
 	anchors               []anchorHit
+	role                  *roleHit
 }
 
 // lexicalHits is the scored posting walk, run once per compile: the test slot
@@ -1036,6 +1048,18 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 			credit(3, source, anchor.literal, idf, idf*tf*(k1+1)/(tf+norm))
 		}
 	}
+	// TCP-V0-040: a role line is a fifth field over the highest-scoring
+	// sources, credited as a path term is: tf 1, no length normalisation.
+	roles := map[uint32]*roleHit{}
+	for _, role := range compiler.roleHits(table, scores) {
+		for _, term := range role.terms {
+			if low, high, ok := table.Terms.find(term); ok {
+				idf := idfOf(high - low)
+				credit(1, role.source, term, idf, idf*roleGain)
+			}
+		}
+		roles[role.source] = &role
+	}
 	hits := make([]lexicalHit, 0)
 	for source, count := range distinct {
 		if count > 0 {
@@ -1043,6 +1067,7 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 				path: table.Paths[source], source: uint32(source), distinct: count, occurrences: occurrences[source],
 				score: scores[source], rarestIDF: rarestIDF[source], rarest: rarest[source],
 				documentation: isDocumentationSuffix(table.Paths[source]), anchors: anchorHits[uint32(source)],
+				role: roles[uint32(source)],
 			})
 		}
 	}
@@ -1087,6 +1112,9 @@ func (compiler *taskContextCompiler) lexicalRows(taken int) []contextRow {
 			item.distinct, item.occurrences, item.rarest, item.rarestIDF, item.score)
 		if len(item.anchors) > 0 {
 			reason = anchorReason(item.anchors) + reason
+		}
+		if item.role != nil {
+			reason = roleReason(item.role) + reason
 		}
 		if item.documentation {
 			kind = "documentation"
@@ -1534,8 +1562,8 @@ func (compiler *taskContextCompiler) governance() string {
 // looked and how many candidates its generator held back (TCP-V0-011). It is
 // measured from what the generators already produced and widens nothing.
 func (compiler *taskContextCompiler) unexamined() []any {
-	report := make([]any, 0, len(contextRelationOrder))
-	for _, relation := range contextRelationOrder {
+	report := make([]any, 0, len(contextRelationOrder)+1)
+	for _, relation := range compiler.contextRelations() {
 		state := compiler.relationState[relation]
 		if state == "" {
 			state = "not-applicable"
@@ -1765,7 +1793,7 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 			subject.(map[string]any)["evidence_gap"] = compiler.subjectEvidenceGap()
 		}
 	}
-	return map[string]any{
+	packet := map[string]any{
 		"tool": "context", "ok": true, "mutates": false, "schema_version": 1,
 		"revision": compiler.index.Revision, "state": state, "subject": subject,
 		"request": map[string]any{"limit": limit, "task_chars": len(compiler.task)},
@@ -1778,6 +1806,8 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 		},
 		"results": results,
 	}
+	compiler.recencyCoverage(packet["coverage"].(map[string]any), rows)
+	return packet
 }
 
 // rowAction says what to do with the file for this task, one sentence per
@@ -1811,6 +1841,8 @@ func rowAction(row contextRow) string {
 			return "Update this test: it " + row.reason + ", so a behaviour change in that file changes what it must assert."
 		}
 		return "Read this source: it " + row.reason + ", so the admitted test exercises what is defined here."
+	case contextGraphRelation:
+		return graphAction(row)
 	default:
 		return "Read this file only if the task terms it matches (" + row.reason + ") are load-bearing; a term match is not a relation."
 	}

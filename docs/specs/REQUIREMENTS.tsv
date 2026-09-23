@@ -322,6 +322,12 @@ CEM-SM-007	docs/specs/cem-0.3-structural-mechanical.md	57	`rename` MUST hold onl
 CEM-SM-008	docs/specs/cem-0.3-structural-mechanical.md	62	`move` MUST hold only when tokens outside top-level declarations are unchanged,
 CEM-SM-009	docs/specs/cem-0.3-structural-mechanical.md	65	`import-reorder` MUST hold only when the ordered import specs differ, their
 CEM-SM-010	docs/specs/cem-0.3-structural-mechanical.md	68	`formatter-only` MUST hold only when `go/format` renders the base and the image
+CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench
+CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,
+CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and
+CEP-V0-004	docs/specs/context-evolution-program-v0.md	214	Already-fixed control. A `tools/cw-trial` task MAY carry `control:
+CEP-V0-005	docs/specs/context-evolution-program-v0.md	218	Control scoring. On an already-fixed control each arm record MUST carry
+CEP-V0-006	docs/specs/context-evolution-program-v0.md	228	Evidence, not promotion. Results of this slice are measured evidence that a late
 CF-V0-001	docs/specs/change-frontier-v0.md	84	one invocation MUST accept exactly one verified `cem/0.2` artifact under its can
 CF-V0-002	docs/specs/change-frontier-v0.md	89	the implementation MUST pass the same bounded immutable CEM and OCM byte copies
 CF-V0-003	docs/specs/change-frontier-v0.md	93	optional dynamic test input is exactly the all-or-none tuple `(canonical command
@@ -736,6 +742,10 @@ EEP-V0-019	docs/specs/external-evidence-provider-v0.md	146	A `generated` relatio
 EEP-V0-020	docs/specs/external-evidence-provider-v0.md	154	The kit declares its own version, currently `0.2.0` (kit README title and the
 EEP-V0-021	docs/specs/external-evidence-provider-v0.md	166	The kit MUST carry a standard-library Go conformance runner that builds the
 EEP-V0-022	docs/specs/external-evidence-provider-v0.md	174	The kit MUST carry a clean-checkout authoring proof script that checks out only
+EEP-V0-023	docs/specs/external-evidence-provider-v0.md	181	A Core-owned local provider MAY produce one `external-evidence-provider/2` recor
+EEP-V0-024	docs/specs/external-evidence-provider-v0.md	189	Each invocation owns one `gopls serve` process: the executable found on `PATH`,
+EEP-V0-025	docs/specs/external-evidence-provider-v0.md	204	The expansion is at most two hops. Seeds are at most three `.go` paths whose
+EEP-V0-026	docs/specs/external-evidence-provider-v0.md	218	An absent or failing provider yields no record and no partial rows: the section
 EEP-V1-001	docs/specs/external-evidence-provider-v1.md	54	A record whose top-level `schema` is `external-evidence-provider/1` MUST decode
 EEP-V1-002	docs/specs/external-evidence-provider-v1.md	60	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with
 EEP-V1-003	docs/specs/external-evidence-provider-v1.md	66	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin
@@ -853,22 +863,24 @@ FPK-V0-030	docs/specs/falsifiable-packet-v0.md	968	(experimental prototype, not 
 FPK-V0-031	docs/specs/falsifiable-packet-v0.md	994	(experimental prototype, not advertised; help labels it experimental) The CLI
 FPK-V0-032	docs/specs/falsifiable-packet-v0.md	1032	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
 FPK-V0-033	docs/specs/falsifiable-packet-v0.md	1048	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) The
-FPK-V0-034	docs/specs/falsifiable-packet-v0.md	1065	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354)
-FPK-V0-035	docs/specs/falsifiable-packet-v0.md	1084	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) A
+FPK-V0-034	docs/specs/falsifiable-packet-v0.md	1066	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354)
+FPK-V0-035	docs/specs/falsifiable-packet-v0.md	1085	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) A
 FPK-V0-036	docs/specs/falsifiable-packet-v0.md	1106	(experimental; proposed 2026-09-22, decision 0354) Transparency-log and keyless
-FPK-V0-037	docs/specs/falsifiable-packet-v0.md	1120	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
-FPK-V0-038	docs/specs/falsifiable-packet-v0.md	1134	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
-FPK-V0-039	docs/specs/falsifiable-packet-v0.md	1142	(proposed 2026-09-22, not accepted; experimental; decision 0355) The same
-FPK-V0-040	docs/specs/falsifiable-packet-v0.md	1155	(proposed 2026-09-22, not accepted; experimental; decision 0355) `anchor` and
-FPK-V0-041	docs/specs/falsifiable-packet-v0.md	1165	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint prove
-FPK-V0-042	docs/specs/falsifiable-packet-v0.md	1176	(proposed 2026-09-23, not accepted; experimental; decision 0361) The bundle is o
-FPK-V0-043	docs/specs/falsifiable-packet-v0.md	1190	(proposed 2026-09-23, not accepted; experimental; decision 0361) Export is
-FPK-V0-044	docs/specs/falsifiable-packet-v0.md	1200	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint [--roo
-FPK-V0-045	docs/specs/falsifiable-packet-v0.md	1208	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay refuses
-FPK-V0-046	docs/specs/falsifiable-packet-v0.md	1230	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay compares
-FPK-V0-047	docs/specs/falsifiable-packet-v0.md	1246	(proposed 2026-09-23, not accepted; experimental; decision 0361) Bundles and
-FPK-V0-048	docs/specs/falsifiable-packet-v0.md	1251	(proposed 2026-09-23, not accepted; experimental; decision 0361) Existing
-FPK-V0-049	docs/specs/falsifiable-packet-v0.md	1259	(proposed 2026-09-23, not accepted; experimental; decision 0361) Non-goals:
+FPK-V0-037	docs/specs/falsifiable-packet-v0.md	1157	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
+FPK-V0-038	docs/specs/falsifiable-packet-v0.md	1171	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
+FPK-V0-039	docs/specs/falsifiable-packet-v0.md	1179	(proposed 2026-09-22, not accepted; experimental; decision 0355) The same
+FPK-V0-040	docs/specs/falsifiable-packet-v0.md	1192	(proposed 2026-09-22, not accepted; experimental; decision 0355) `anchor` and
+FPK-V0-041	docs/specs/falsifiable-packet-v0.md	1202	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint prove
+FPK-V0-042	docs/specs/falsifiable-packet-v0.md	1213	(proposed 2026-09-23, not accepted; experimental; decision 0361) The bundle is o
+FPK-V0-043	docs/specs/falsifiable-packet-v0.md	1227	(proposed 2026-09-23, not accepted; experimental; decision 0361) Export is
+FPK-V0-044	docs/specs/falsifiable-packet-v0.md	1237	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint [--roo
+FPK-V0-045	docs/specs/falsifiable-packet-v0.md	1245	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay refuses
+FPK-V0-046	docs/specs/falsifiable-packet-v0.md	1267	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay compares
+FPK-V0-047	docs/specs/falsifiable-packet-v0.md	1283	(proposed 2026-09-23, not accepted; experimental; decision 0361) Bundles and
+FPK-V0-048	docs/specs/falsifiable-packet-v0.md	1288	(proposed 2026-09-23, not accepted; experimental; decision 0361) Existing
+FPK-V0-049	docs/specs/falsifiable-packet-v0.md	1296	(proposed 2026-09-23, not accepted; experimental; decision 0361) Non-goals:
+FPK-V0-050	docs/specs/falsifiable-packet-v0.md	1121	(experimental prototype, not advertised; proposed 2026-09-23, decision 0365) In
+FPK-V0-051	docs/specs/falsifiable-packet-v0.md	1137	(experimental; proposed 2026-09-23, decision 0365) Each field-name alignment the
 GAG-V0-001	docs/specs/go-archive-gate-v0.md	131	The gate MUST create one private parent directory under `${TMPDIR:-/tmp}` with a
 GAG-V0-002	docs/specs/go-archive-gate-v0.md	135	The gate MUST export `HOME`, `TMPDIR`, `GOTMPDIR`, and `GOCACHE` to those privat
 GAG-V0-003	docs/specs/go-archive-gate-v0.md	139	The gate MUST pin the toolchain to the locally installed one rather than allowin
@@ -1868,8 +1880,30 @@ TCP-V0-019	docs/specs/task-context-packet-v0.md	370	(proposed 2026-09-05, not ac
 TCP-V0-020	docs/specs/task-context-packet-v0.md	425	(proposed 2026-09-05, not accepted; experimental) Under
 TCP-V0-021	docs/specs/task-context-packet-v0.md	399	`tools/retrieval-bench --snapshot-latency` MUST materialize a private copy once
 TCP-V0-022	docs/specs/task-context-packet-v0.md	453	(proposed 2026-09-22, not accepted; experimental; decision 0333) With
-TCP-V0-023	docs/specs/task-context-packet-v0.md	478	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
-TCP-V0-024	docs/specs/task-context-packet-v0.md	504	(proposed 2026-09-23, not accepted; experimental; decision 0364) This amends the
+TCP-V0-023	docs/specs/task-context-packet-v0.md	480	(proposed 2026-09-22, not accepted; experimental; decision 0346) Every
+TCP-V0-024	docs/specs/task-context-packet-v0.md	506	(proposed 2026-09-23, not accepted; experimental; decision 0364) This amends the
+TCP-V0-025	docs/specs/task-context-packet-v0.md	667	(proposed 2026-09-23, not accepted; experimental; decision 0366) With
+TCP-V0-026	docs/specs/task-context-packet-v0.md	684	(proposed 2026-09-23, not accepted; experimental; decision 0366) After the core
+TCP-V0-027	docs/specs/task-context-packet-v0.md	694	(proposed 2026-09-23, not accepted; experimental; decision 0366) The declared
+TCP-V0-028	docs/specs/task-context-packet-v0.md	702	(proposed 2026-09-23, not accepted; experimental; decision 0366) With the flag
+TCP-V0-029	docs/specs/task-context-packet-v0.md	718	(proposed 2026-09-23, not accepted; experimental; decision 0366) The evaluation
+TCP-V0-030	docs/specs/task-context-packet-v0.md	613	(proposed 2026-09-23, not accepted; experimental; decision 0367) The full
+TCP-V0-031	docs/specs/task-context-packet-v0.md	627	(proposed 2026-09-23, not accepted; experimental; decision 0367) With
+TCP-V0-032	docs/specs/task-context-packet-v0.md	641	(proposed 2026-09-23, not accepted; experimental; decision 0367) A `graph`
+TCP-V0-033	docs/specs/task-context-packet-v0.md	650	(proposed 2026-09-23, not accepted; experimental; decision 0367) The graph is
+TCP-V0-034	docs/specs/task-context-packet-v0.md	655	(proposed 2026-09-23, not accepted; experimental; decision 0367) The slot is an
+TCP-V0-035	docs/specs/task-context-packet-v0.md	556	(proposed 2026-09-23, not accepted; experimental; decision 0369) With
+TCP-V0-036	docs/specs/task-context-packet-v0.md	574	(proposed 2026-09-23, not accepted; experimental; decision 0369) The blame
+TCP-V0-037	docs/specs/task-context-packet-v0.md	587	(proposed 2026-09-23, not accepted; experimental; decision 0369) The first track
+TCP-V0-038	docs/specs/task-context-packet-v0.md	600	(proposed 2026-09-23, not accepted; experimental; decision 0369) With the flag o
+TCP-V0-039	docs/specs/task-context-packet-v0.md	516	(proposed 2026-09-23, not accepted; experimental; decision 0370) A file's role
+TCP-V0-040	docs/specs/task-context-packet-v0.md	534	(proposed 2026-09-23, not accepted; experimental; decision 0370) With
+TCP-V0-041	docs/specs/task-context-packet-v0.md	544	(proposed 2026-09-23, not accepted; experimental; decision 0370) A row the role
+TCP-V0-042	docs/specs/task-context-packet-v0.md	549	(proposed 2026-09-23, not accepted; experimental; decision 0370) The field stays
+TCP-V0-043	docs/specs/task-context-packet-v0.md	735	(proposed 2026-09-23, not accepted; experimental; decision 0371) With
+TCP-V0-044	docs/specs/task-context-packet-v0.md	742	The `external` member is separate evidence, never a ranking input: `results`,
+TCP-V0-045	docs/specs/task-context-packet-v0.md	748	When gopls is absent, the task names no usable Go seed, the session fails or
+TCP-V0-046	docs/specs/task-context-packet-v0.md	752	The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul
