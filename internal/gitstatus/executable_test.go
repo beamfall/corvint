@@ -42,7 +42,7 @@ func TestExecutableResolvesAppleShimToRealGit(t *testing.T) {
 }
 
 func TestPinFixesExecutableAgainstLaterPathChanges(t *testing.T) {
-	t.Cleanup(func() { executableCache.pinned = "" })
+	t.Cleanup(unpin)
 	first, second := t.TempDir(), t.TempDir()
 	for _, directory := range []string{first, second} {
 		if err := os.WriteFile(filepath.Join(directory, "git"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
@@ -61,9 +61,15 @@ func TestPinFixesExecutableAgainstLaterPathChanges(t *testing.T) {
 }
 
 func TestPinRefusesUnresolvedGit(t *testing.T) {
-	t.Cleanup(func() { executableCache.pinned = "" })
+	t.Cleanup(unpin)
 	t.Setenv("PATH", filepath.Join(t.TempDir(), "missing"))
 	if pinned, err := Pin(); err == nil {
 		t.Fatalf("Pin() = %q, want refusal", pinned)
 	}
+}
+
+func unpin() {
+	executableCache.Lock()
+	defer executableCache.Unlock()
+	executableCache.pinned = ""
 }

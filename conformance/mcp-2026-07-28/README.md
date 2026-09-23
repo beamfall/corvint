@@ -63,8 +63,10 @@ progress delivery remains `NOT_OBSERVED` rather than a compatibility claim.
 
 `corvint-mcp` pins one absolute Git executable at start and refuses to start
 when Git does not resolve. `TestGitPlantedOnPathAfterStartNeverRuns` plants a
-`git` earlier on the server's `PATH` after start and observes that it never
-runs, which closes the former `INHERITED_KERNEL_GIT_PATH_NOT_PINNED` blocker.
+`git` earlier on the server's `PATH` after start, calls `corvint.status` and
+`corvint.impact` with a planning snapshot, and observes that it never runs. It
+also observes the refusal to start without Git. This closes the former
+`INHERITED_KERNEL_GIT_PATH_NOT_PINNED` blocker.
 
 The 2026-09-06 read-safety cases exercise private-metadata Git status through the real MCP process:
 configured clean/process filters cannot execute, `core.worktree` cannot redirect observations

@@ -6,29 +6,37 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
 ## 2026-09-23 V1-0191 MCPV0-016: corvint-mcp pins Git at start; official schema executes
 
-Finding: the MCP 2026-07-28 spec kept two promotion blockers. Every Git spawn resolved `git`
-through `PATH` again, so a `git` planted earlier on the server's `PATH` after start would run.
+Finding: the MCP 2026-07-28 spec kept two promotion blockers. The shared Git resolver memoised
+`git` per `PATH` and `DEVELOPER_DIR` but resolved it at first use, not at start, and
+`plansnapshot` looked `git` up on `PATH` on every call that carried a planning snapshot. A `git`
+planted earlier on the server's `PATH` after start could therefore run.
 Official-schema execution was `NOT_RUN`, because the no-network suite had no local copy of the
 pinned schema to validate against.
 
 Decision: `gitstatus.Pin` resolves Git once and fixes that absolute path for the process, and
-`Executable` returns it from then on. `corvint-mcp` calls it before building the bridge and exits
-with status 2 when Git does not resolve. The official schema stays unvendored. `PROVENANCE.md`
+`Executable` returns it from then on. `plansnapshot` now spawns the resolver's path instead of its
+own lookup. `corvint-mcp` calls `Pin` before building the bridge and exits with status 2 when Git
+does not resolve. The official schema stays unvendored. `PROVENANCE.md`
 states that all source here is owner-authored, and the upstream schema repository is moving from
 MIT to Apache-2.0, so copying it in would need its own rights record. Instead
 `TestServerTrafficMatchesOfficialSchema` runs when `CORVINT_MCP_OFFICIAL_SCHEMA` names a local copy.
 It refuses any digest other than the pinned one. It validates the suite's discovery, tool-list,
 tool-call and error requests and the live server's responses against the schema's `$defs`, and it
 fails on any JSON Schema keyword its checker does not implement. `cases.json` now lists no
-promotion blockers. The status stays proposed and experimental: official MCP conformance, the
+promotion blockers. `internal/gitstatus` is an audited analyzer input, so the analyzer schema moves
+to `corvint-analyzer/78`. The status stays proposed and experimental: official MCP conformance, the
 task-context and `cem report` tools, and owner acceptance remain. This amends proposed MCP spec
 text; the owner's PR review is its human review.
 
 Evidence: `TestGitPlantedOnPathAfterStartNeverRuns` plants a `git` that writes a marker after the
-server starts, then calls `corvint.status`, which succeeds with no marker written. With the `Pin`
-call removed from `corvint-mcp` the same test fails, so it observes the pin. The opt-in schema run
-passed on 2026-09-23 against a copy whose SHA-256 matched the pin, with and without `-race`. `make
-gate` was not run (owner preference).
+server starts. It then calls `corvint.status` and `corvint.impact` with a planning snapshot; both
+succeed with no marker written. The test fails with the `Pin` call removed from `corvint-mcp`, and
+again with the old `plansnapshot` lookup restored, so it observes both. A second subtest starts the
+server with no `git` on `PATH` and gets exit status 2 with `corvint-mcp: git unavailable`. An
+independent review found the `plansnapshot` bypass, which this change then closed. The opt-in schema run
+passed on 2026-09-23 against a copy whose SHA-256 matched the pin, with and without `-race`. The
+affected Go packages pass; `TestHostAdapterJavaScriptHarnessInterruption` failed once at host load
+above 100 and passed three times alone. `make gate` was not run (owner preference).
 
 ## 2026-09-23 V1-0192 LCP-V0-010, LCP-V0-013: task mentions anchor prompt context
 

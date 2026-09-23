@@ -53,8 +53,8 @@ connection does not make any native host tuple `FULL` and does not prove a Corvi
   which refuses any other digest and validates the suite's requests and the live server's discovery,
   tool-list, tool-call and error responses against the schema's `$defs` (V1-0191).
 - The candidate bridge invokes Corvint kernels in process and therefore performs no Corvint executable
-  PATH lookup, shell execution, or user-controlled argv. Its inherited context-index and Go-kernel
-  Git runners resolve `git` through one shared resolver. `corvint-mcp` pins that resolver to one
+  PATH lookup, shell execution, or user-controlled argv. Its inherited context-index, Go-kernel and
+  planning-snapshot Git runners resolve `git` through one shared resolver. `corvint-mcp` pins that resolver to one
   absolute Git executable at start and refuses to start when Git does not resolve, so no later PATH
   change reaches a spawn. Direct argv, sanitized output, and process-group cleanup exist; the
   compiled-process case `TestGitPlantedOnPathAfterStartNeverRuns` observes the pin (V1-0191).
