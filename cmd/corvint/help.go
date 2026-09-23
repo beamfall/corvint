@@ -11,6 +11,7 @@ const authorityStartPrompt = "Identify the active work queue, required workflow 
 var cemHelpActions = map[string]bool{
 	"begin": true, "prepare": true, "cite": true, "mark": true,
 	"status": true, "verify": true, "report": true,
+	"anchor": true, "provenance": true,
 }
 
 // helpSubcommands are the retired oracle's nested argparse choices (GPK-V0-062): a token after the
@@ -831,6 +832,8 @@ Usage:
   corvint [--root PATH] cem status --map MAP [OPTIONS]
   corvint [--root PATH] cem verify --map MAP [OPTIONS]
   corvint [--root PATH] cem report --map MAP [--output REPORT] [OPTIONS]
+  corvint [--root PATH] cem anchor --map MAP [--commit REV]
+  corvint [--root PATH] cem provenance --commit REV
 
 Actions:
   begin    Build a cem/0.1 candidate from exact out-of-band patch bytes.
@@ -842,6 +845,12 @@ Actions:
   mark     Record an explicit unknown or byte-verifiable mechanical disposition.
   status   Local completion check; verify is the equivalent machine/CI surface;
            report renders the optional human view. All three verify identically.
+  anchor   (experimental) Write a pointer to the map committed at HEAD as the
+           refs/notes/corvint note of REV (default HEAD); refuses a dirty,
+           untracked, or uncommitted map and never replaces a different note.
+  provenance  (experimental, read-only) Report REV's Corvint anchor, Git AI
+           refs/notes/ai note, and Assisted-by/Agent-Logs-Url trailers as
+           untrusted repository-history rows; no URL is fetched.
 
 Verification options:
   --expected-base REV  Independent expected base. Required for cem/0.2.

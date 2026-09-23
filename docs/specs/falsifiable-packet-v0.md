@@ -5,7 +5,7 @@ Date: 2026-09-01
 Requirement prefix: `FPK-V0`
 Intent status: accepted (decision 0052)
 Delivery status: experimental
-Revision status: revision 20 (FPK-V0-033 to FPK-V0-036 add a versioned `cem/v1` in-toto CEM predicate that also binds the base revision and patch, its verifier, a digest-pinned interop consumer with the known deviations from the OpenSSF generation draft, and an optional external Sigstore step; revision 19 FPK-V0-032 stamps one trust class on every proof row and refuses a tainted row as a basis; revision 18 FPK-V0-015 and FPK-V0-030 refuse repeated and case-variant JSON member names in a signed envelope and CEM statement; revision 17 FPK-V0-030 refuses a signed CEM claim `CEMStatement` could not have produced; revision 16 restated FPK-V0-021 and FPK-V0-024 rationale against the implemented checkpoint branch)
+Revision status: revision 21 (FPK-V0-033 to FPK-V0-036 add a versioned `cem/v1` in-toto CEM predicate that also binds the base revision and patch, its verifier, a digest-pinned interop consumer with the known deviations from the OpenSSF generation draft, and an optional external Sigstore step; revision 20 FPK-V0-037 to FPK-V0-040 add an explicit `cem anchor` notes-ref mutation for a committed CEM and a read-only `cem provenance` that reads the anchor, a foreign Git AI `refs/notes/ai` note, and `Assisted-by`/`Agent-Logs-Url` trailers as untrusted `repository-history`; revision 19 FPK-V0-032 stamps one trust class on every proof row and refuses a tainted row as a basis; revision 18 FPK-V0-015 and FPK-V0-030 refuse repeated and case-variant JSON member names in a signed envelope and CEM statement; revision 17 FPK-V0-030 refuses a signed CEM claim `CEMStatement` could not have produced; revision 16 restated FPK-V0-021 and FPK-V0-024 rationale against the implemented checkpoint branch)
 Authoritative inputs: `docs/plans/BREAKTHROUGH-BET-2026-09-01.md` (the bet this is slice 1 of),
 `docs/reviews/FABLE-5.1-AUDIT-2026-09-01.md` (F2, F3), `docs/specs/go-production-kernel-migration-v0.md`
 (GPK-V0-002 exact parity of the `query` wire), `conformance/cli-parity-v0` (byte-exact replay of committed
@@ -1117,6 +1117,51 @@ above stands with that substitution.
   only verification Corvint performs. Running that external path is `NOT_RUN` in this revision.
   Rollback: delete this clause.
 
+- **FPK-V0-037:** (proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
+  anchor --map MAP [--commit REV]` is an explicit mutation and the only writer of the Git notes
+  ref `refs/notes/corvint`; no read command writes any notes ref. It MUST refuse, without moving
+  any ref, a map that is untracked or absent from HEAD (`anchor-map-uncommitted`), a map whose
+  worktree or index bytes differ from HEAD (`anchor-map-dirty`), and a map blob that is not in
+  the object database (`anchor-blob-unavailable`). Otherwise it reads the HEAD blob of MAP
+  (at most 4 MiB, `wire.ParseMap` valid) and attaches to REV (default `HEAD`) one note whose
+  bytes are the JSON pointer `{"schema":"corvint-cem-anchor/0","cem_commit","map_path",
+  "map_blob","map_sha256","map_spec"}`, the digest being the SHA-256 of the committed blob. The
+  note is committed under the fixed identity `Corvint <corvint@localhost.invalid>`. An identical
+  existing note is `written: false`; a different existing note is refused
+  (`anchor-note-conflict`) and never replaced. The receipt carries `mutates: true`, `ref`,
+  `commit`, `written`, `pointer`, and `verification`, the FPK-V0-038 state of the note read back.
+
+- **FPK-V0-038:** (proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
+  provenance --commit REV` is read-only (`mutates: false`) and MUST NOT move any ref. For a
+  `refs/notes/corvint` note on REV it emits one `cem-anchor-note` row whose `state` is
+  `malformed` (not exactly one pointer object of the FPK-V0-037 shape, no unknown member),
+  `path-mismatch` (`cem_commit:map_path` does not name `map_blob`), `blob-unavailable`,
+  `digest-mismatch`, or `verified`; a verified pointer is a digest of a committed map, never a
+  claim about the map's content.
+
+- **FPK-V0-039:** (proposed 2026-09-22, not accepted; experimental; decision 0355) The same
+  command reads a Git AI `authorship/3.0.0` note on `refs/notes/ai` as one
+  `git-ai-authorship-note` row, and each `Assisted-by` and `Agent-Logs-Url` commit trailer (key
+  matched case-insensitively, unfolded) as one `assisted-by-trailer` or `agent-logs-url-trailer`
+  row. Every FPK-V0-038 and FPK-V0-039 row carries `trust: repository-history` and `authority:
+  git-history` and MUST NEVER be read as `project-authority`; the `trust` enum is not extended.
+  Foreign text travels only inside an `untrusted` member, each string bounded to 256 bytes on a
+  rune boundary with invalid UTF-8 replaced and control characters dropped, each list capped at
+  64 entries, with `truncated` set when any bound applied; a foreign note whose divider or JSON
+  metadata does not parse is `malformed` and carries no foreign text. `messages_url` and
+  `Agent-Logs-Url` values are opaque text: no URL is fetched and `internal/gitnotes` imports no
+  network package (invariant 7).
+
+- **FPK-V0-040:** (proposed 2026-09-22, not accepted; experimental; decision 0355) `anchor` and
+  `provenance` pass the same argparse stages and messages as the other `cem` actions, are listed
+  after them, and reach `internal/gitnotes` only through the `cemcli.GitNotes` hook installed by
+  the binary, so the CEM seams keep their dependency closure; with the hook absent both are an
+  invalid choice. Both are labelled experimental in `cem --help`. Rollback: delete
+  `internal/gitnotes/`, `cmd/corvint/cem_anchor.go` and its test,
+  `internal/cem/cli/anchor_test.go`, the two `cemActions` entries, the hook and its dispatch
+  case, the help lines, and these four clauses; anchors already written stay inert on
+  `refs/notes/corvint` and are removed with `git update-ref -d refs/notes/corvint`.
+
 ## Simpler baseline and why it is insufficient
 
 Re-reading the cited file from the index and comparing hashes would be cheaper, but it would check
@@ -1183,6 +1228,11 @@ UNCONFIRMED could not be read from the draft or from any repository record, and 
 | generation start and end times | absent | UNCONFIRMED name; a timestamp would break byte-reproducible emission |
 | generated output reference | `predicate.patch` (the map's `patchSha256`) and `predicate.base` | UNCONFIRMED name; nearest Corvint equivalent |
 | agentattest field names | none adopted | UNCONFIRMED; no repository record |
+The FPK-V0-037 to FPK-V0-040 notes surface does not push, fetch, or merge notes refs, does not
+replace or remove an anchor, does not adopt the Git AI format as Corvint's own, does not verify
+that a Git AI note or trailer is true, and does not feed any provenance row into `query`, `prove`,
+ranking, learning, or authority in v0. A verified anchor proves which committed bytes a pointer
+names, not that the change they describe is correct.
 
 ## Failure modes
 
@@ -1265,6 +1315,12 @@ UNCONFIRMED could not be read from the draft or from any repository record, and 
 | (FPK-V0-034) `cem/v1` `--cem` bytes match the signed digest and size but are not a CEM or carry another `baseRevision`, `patchSha256`, or `spec` | refused, never as a byte mismatch; CLI exit 2, `attest-verification-failed` |
 | (FPK-V0-034) `cem/v1` verify without `--cem` | exit 0, `status: NOT_RUN`, signed `baseRevision` and `patchSha256` reported |
 | (FPK-V0-035) Interop reader given an extra, repeated, or case-variant envelope or statement member, another key, a changed payload, another `predicateType`, a subject unequal to `cem`, or changed map bytes | error, no claim |
+| `cem anchor` map untracked, absent from HEAD, or staged/modified | exit 2 `anchor-map-uncommitted` or `anchor-map-dirty`; no ref moves |
+| `cem anchor` map blob missing from the object database | exit 2 `anchor-blob-unavailable`; no ref moves |
+| `cem anchor` target already carries a different `refs/notes/corvint` note | exit 2 `anchor-note-conflict` with a guided hint; the note is never replaced |
+| `refs/notes/corvint` note forged, unknown member, or pointing at changed bytes | `cem-anchor-note` row `malformed`, `path-mismatch`, `blob-unavailable`, or `digest-mismatch`; never `verified` |
+| `refs/notes/ai` note without a `---` divider or with unparseable metadata | `git-ai-authorship-note` row `malformed`; no foreign text emitted |
+| Foreign note or trailer text over 256 bytes, invalid UTF-8, or with control characters | bounded, replaced, and stripped inside `untrusted`; `truncated: true` |
 
 ### Further named codes and witness reasons
 
@@ -1323,6 +1379,10 @@ which is the whole of what the row asserts.
 | FPK-V0-034 | experimental prototype: `VerifyCEMPredicate`, `cemClaimParsers`, `parseCEMStatementV1`, `checkCEMV1Map`, `checkCEMBytes`, `checkCEMClaim` (`internal/attest`); `verifyCEMAttestation`, `cemAttestationClaim.BaseRevision`, `cemAttestationClaim.PatchSHA256` (`cmd/corvint/prove_attest_cem.go`) | `TestCEMV1StatementBindsBaseAndPatchAndVerifies` (`VERIFIED` and `NOT_RUN` claims; a `cem/0` envelope yields the `VerifyCEM` claim), `TestCEMV1RefusesAClaimItCouldNotHaveProduced` (13 signed edits refused, none as a byte mismatch), `TestProveCEMAttestationVerifiesAV1Predicate` (CLI `VERIFIED` and `NOT_RUN` with `predicateType`, `baseRevision`, `patchSha256`; a `cem/0` receipt carries neither member), `TestProveCEMAttestationRoundTripsThroughTheCLI` |
 | FPK-V0-035 | experimental prototype: `readCEMAttestation`, `intotoVerifyEnvelope`, `intotoCEMClaim`, `intotoCheckMap` (`interop/cem01-go/intoto.go`) | `TestIntotoReadsTheDigestPinnedCorvintCEMAttestation` (pinned envelope digest; `VERIFIED` and `NOT_RUN` with the claim derived from the map), `TestIntotoRefusesWhatTheSignerDidNotAttest` (changed map, other key, changed payload, extra, repeated, and case-variant members, `cem/0` type, subject name), `TestCEMV1FixtureEnvelopeIsDigestPinned` (Corvint emits the same digest) |
 | FPK-V0-036 | no code: documentation only | measured: `git diff --stat` of `go.mod`, `go.sum`, and `interop/cem01-go/go.mod` against the base is empty; the new files import no `net/*`, `os/exec`, or `crypto/tls` package (`internal/attest` already reaches `net` and `net/url` through `crypto/x509` at the base); the external Sigstore path is `NOT_RUN` |
+| FPK-V0-037 | experimental prototype: `gitnotes.Anchor`, `requireCleanMap`, `committedPointer`, `writeNote` (`internal/gitnotes/anchor.go`) | `TestAnchorWritesAVerifiedPointerAndReadsItBack` (stored note equals the pointer with an independently computed SHA-256, receipt `mutates: true`, re-anchor `written: false`), `TestAnchorRefusesAnUncommittedDirtyOrMissingMap` (untracked, modified, staged, absent, loose blob deleted, and different-note cases each refused by code with the notes ref unmoved) |
+| FPK-V0-038 | experimental prototype: `gitnotes.Provenance`, `anchorRow`, `pointerState` (`internal/gitnotes/provenance.go`) | `TestAnchorWritesAVerifiedPointerAndReadsItBack` (read back `verified`, every ref unchanged by provenance, a forged digest `digest-mismatch`), `TestCEMAnchorAndProvenanceInteropThroughTheCLI` (`mutates: false`, `for-each-ref` unchanged) |
+| FPK-V0-039 | experimental prototype: `aiNoteRow`, `trailerRows`, `boundedText` (`internal/gitnotes/provenance.go`) | `TestProvenanceReadsForeignNotesAndTrailersAsUntrustedHistory` (hand-written `authorship/3.0.0` note and a commit with both trailers: distinct kinds, `repository-history`, derived class never `project-authority`, 256-byte bound, control character stripped, `truncated`, malformed note without foreign text), `TestGitNotesFetchesNothing` (no `net` package in the dependency closure), `TestCEMAnchorAndProvenanceInteropThroughTheCLI` |
+| FPK-V0-040 | experimental prototype: `cemActions` `anchor`/`provenance`, `cemcli.GitNotes`, `runCEMGitNotes` (`cmd/corvint/cem_anchor.go`), `cemHelpActions`, `cemHelp` | `TestAnchorActionsParseLikeTheirSiblings` (required, path, unrecognized, choice-list, and hook-absent invalid-choice messages), `TestCEMAnchorAndProvenanceInteropThroughTheCLI` (end-to-end through `corvint cem`, help lines), `TestCEMHelpSurfaces` |
 
 ### 2026-09-12 literal marker audit
 

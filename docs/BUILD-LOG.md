@@ -2424,3 +2424,45 @@ UNKNOWN / NOT MET:
 - The Sigstore gitsign/cosign/Rekor path is documented as an operator step and was NOT_RUN.
 - Commands ran without the brief's `nice -n 10` prefix, and the interop gate ran as
   `go -C interop/cem01-go`, because the worktree-isolation hook refuses compound commands.
+## 2026-09-22 git-native-cem-anchoring: `cem anchor` notes-ref pointer and read-only `cem provenance` (V1-0093)
+
+Changed (decision 0355, FPK-V0-037 to FPK-V0-040, all experimental):
+- `cem anchor --map MAP [--commit REV]` is an explicit mutation (`mutates: true`). It writes a
+  `corvint-cem-anchor/0` JSON pointer (commit, path, blob, SHA-256, spec) for the map committed
+  at HEAD to `refs/notes/corvint` on REV, under a fixed committer identity.
+- It refuses an untracked, absent, staged, or modified map, a blob missing from the object
+  database, and a different existing note. Every refusal leaves the notes ref unmoved.
+- `cem provenance --commit REV` is read-only. It verifies the anchor by digest, and reads a
+  foreign Git AI `authorship/3.0.0` note on `refs/notes/ai` and the `Assisted-by` and
+  `Agent-Logs-Url` trailers.
+- Every row it emits carries `trust: repository-history` and `authority: git-history`, with a
+  distinct `kind` per source. Foreign text sits only in a bounded `untrusted` member.
+- The trust enum, `trust.go`, and `prove_trust.go` are untouched.
+- `internal/gitnotes` is reached from `internal/cem/cli` only through the `cemcli.GitNotes` hook
+  set in `cmd/corvint`.
+- Two FRONTIER brief citations into `cmd/corvint/help.go` were repinned (785-792, 880). Their
+  content is unchanged.
+
+Measured:
+- `internal/gitnotes`: 4 tests pass (7.0s), including 6 refusal subtests.
+- `internal/cem/cli` and `internal/specindex` pass.
+- `cmd/corvint -run` over `TestCEMAnchorAndProvenanceInteropThroughTheCLI`, `TestCEMHelpSurfaces`,
+  and `TestCEMErrorPrecedence` passes.
+- The `go list -deps` closure of `internal/gitnotes` holds no `net` package.
+- Bounds: 256 bytes per foreign string, 64 entries per list, 1 MiB per note, 4 MiB per map.
+
+NOT MET / UNKNOWN:
+- `TestCEMSeamsDependOnlyOnStdlibAndGit` fails on `internal/liveverify/gorunner`. The import is
+  in `internal/cem/workflow/cover.go` (a43c652, V1-0085), which this change leaves untouched, and
+  `cli.go` gains no import. So the failure is inferred to be pre-existing at d2aa0c8; it was not
+  rerun at base.
+- The fixtures are Go tests in `internal/gitnotes` and `cmd/corvint`, not `interop/cem01-go`.
+  That module is an independent Apache-2.0 CEM 0.1 verifier and the pointer is not CEM wire.
+- The Git AI format was checked against its published v3.0.0 spec only. No note produced by the
+  real Git AI tool was read.
+- No provenance row feeds `query`, `prove`, ranking, or authority.
+- Notes are not pushed or fetched.
+- The root `--help` mutation-boundary paragraph does not yet name `cem anchor`; it was outside
+  this change's ownership.
+- `nice -n 10` could not be used: the worktree guard refused it, so tests ran un-niced.
+- Full `make gate` was not run, per ticket scope.
