@@ -11,11 +11,15 @@ core forwards `CORVINT_NODE_SHA256`, `CORVINT_NPM_SHA256`, `CORVINT_GO_AUTHORITY
 as the four core flags, editor refuses them, and empty or unknown selection exits 2 before effects.
 
 Attempt 1 at commit `4b9957ed` (bundle/2 `07d5245b...f04a6`) completed offline-dependencies, providers,
-provider-interruption and docs, then failed planning: b228c33 (V1-0002) added a two-line superseded header
-to `docs/plans/integrated-product-roadmap-2026-09-12.md` (now `d3b7a8d0...`) while
-`script/seed-planning-store-data.json` still pinned `22298b8d...`, so `seed-planning-store.sh` refused.
-Console was NOT_RUN and no result file was produced. The eleven IPR sections are unchanged, so commit
-`72a16ef1` repins the digest; `seed-planning-store_test.sh` passes against the bundle `corvint-tasks`.
+provider-interruption and docs, then failed planning: `script/seed-planning-store-data.json` pinned
+`22298b8d...`, a digest no committed version of `docs/plans/integrated-product-roadmap-2026-09-12.md`
+ever had. The pin was set in 405d63d (the 0.6.0 integration) while that commit rewrote the roadmap's
+Outcome paragraph and next-action heading (file digest `cd658a3e...`), so the seed step had been broken
+since 405d63d; b228c33 (V1-0002) later added only the two-line superseded header (now `d3b7a8d0...`).
+`seed-planning-store.sh` refused, console was NOT_RUN and no result file was produced. The eleven IPR
+sections are unchanged across both commits, so commit `72a16ef1` repins the digest (its message names
+b228c33 alone; the review of PR #104 corrected the provenance); `seed-planning-store_test.sh` passes
+against the bundle `corvint-tasks`.
 
 Attempt 2 at commit `72a16ef1016a9ed4b8f9481e05fe09ea9857a202`, tree `d6e93e58d5a9f648656af0d4259992bde56f4d87`,
 bundle/2 `d84773d58848ffaaecd7c7d4a7b2ec75616aaea117a959657464baa470085bc8` (Tasks `e6b9d76`): `status: PASS`,
