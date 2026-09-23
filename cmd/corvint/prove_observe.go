@@ -87,7 +87,7 @@ func readProofDocument(ctx context.Context, stdin io.Reader) (map[string]any, er
 // cannot claim verdicts it does not carry, and every falsifier and verdict
 // must be one `prove` emits.
 func proofCounts(document map[string]any) (map[string]map[string]int, error) {
-	if stringAt(document, "tool") != "prove" || stringAt(document, "profile") != proveProfile || document["historical"] != nil {
+	if stringAt(document, "tool") != "prove" || stringAt(document, "profile") != proveProfile || historicalDocument(document) {
 		return nil, proofDocumentProfileRefusal()
 	}
 	proof, _ := document["proof"].(map[string]any)

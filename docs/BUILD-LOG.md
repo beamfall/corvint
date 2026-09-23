@@ -51,7 +51,18 @@ scratch directory outside the repository.
   - `corvint-ac5 prove-observe` given the bundle and given the replay report each exited 2
     `invalid-proof-document`, and no `.corvint/self-observations.jsonl` was created.
 
-Focused hostile-input tests are in `cmd/corvint/prove_bundle_test.go`. They cover 16 replay
+Independent review of PR #86 returned FIX-FIRST with two defects, both fixed in a follow-up
+commit:
+- Replay checked only that `repository.blobs` ids were well-formed and present. A resealed
+  bundle with a cited blob moved to another path, with `blobs: []`, or with an extra
+  `../../etc/passwd` entry still reported `reproduced`. Replay now refuses `tampered` unless the
+  blob list equals the set the original receipt cites.
+- `prove-observe` accepted `"historical": null`. It now refuses any document with the member,
+  whatever its value.
+
+The new test cases fail without the fixes and pass with them.
+
+Focused hostile-input tests are in `cmd/corvint/prove_bundle_test.go`. They cover 19 replay
 refusal cases, including drift and mixed worktree, plus divergence, export refusals, the size
 bound, and the `prove-observe` historical refusal.
 

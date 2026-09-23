@@ -189,6 +189,15 @@ func TestProveBundleReplayRefusalReasons(t *testing.T) {
 		{"receipt edited under a resealed bundle", edited(func(b map[string]any) {
 			b["original"].(map[string]any)["receipt"].(map[string]any)["state"] = "PROVEN"
 		}), "tampered"},
+		{"cited blob moved to another path", edited(func(b map[string]any) {
+			b["repository"].(map[string]any)["blobs"].([]any)[0].(map[string]any)["path"] = "elsewhere.go"
+		}), "tampered"},
+		{"cited blobs emptied", edited(func(b map[string]any) { b["repository"].(map[string]any)["blobs"] = []any{} }), "tampered"},
+		{"uncited blob added", edited(func(b map[string]any) {
+			repository := b["repository"].(map[string]any)
+			oid := repository["blobs"].([]any)[0].(map[string]any)["oid"]
+			repository["blobs"] = append(repository["blobs"].([]any), map[string]any{"oid": oid, "path": "../../etc/passwd"})
+		}), "tampered"},
 		{"no arguments", edited(func(b map[string]any) { delete(b["request"].(map[string]any), "arguments") }), "missing-input"},
 		{"no historical marker", edited(func(b map[string]any) { delete(b, "historical") }), "missing-input"},
 		{"checkpoint without bytes", edited(func(b map[string]any) {
@@ -197,8 +206,21 @@ func TestProveBundleReplayRefusalReasons(t *testing.T) {
 		{"other engine", edited(func(b map[string]any) { b["engine"].(map[string]any)["corvint_version"] = "0.0.1" }), "incompatible-engine"},
 		{"absent commit", edited(func(b map[string]any) { b["repository"].(map[string]any)["commit"] = strings.Repeat("1", 40) }), "missing-git-object"},
 		{"absent blob", edited(func(b map[string]any) {
-			repository := b["repository"].(map[string]any)
-			repository["blobs"] = append(repository["blobs"].([]any), map[string]any{"oid": strings.Repeat("2", 40), "path": "gone.go"})
+			original := b["original"].(map[string]any)
+			oid := b["repository"].(map[string]any)["blobs"].([]any)[0].(map[string]any)["oid"].(string)
+			raw := strings.ReplaceAll(string(mustJSON(t, original["receipt"])), oid, strings.Repeat("2", 40))
+			receipt, err := decodeJSONObject([]byte(raw))
+			if err != nil {
+				t.Fatal(err)
+			}
+			encoded, _ := normalizedCanonical(t, receipt)
+			digest := sha256.Sum256(encoded)
+			original["receipt"], original["receipt_sha256"] = receipt, hex.EncodeToString(digest[:])
+			blobs := []any{}
+			for _, blob := range bundleBlobs(receipt) {
+				blobs = append(blobs, map[string]any{"oid": blob.OID, "path": blob.Path})
+			}
+			b["repository"].(map[string]any)["blobs"] = blobs
 		}), "missing-git-object"},
 	}
 	for _, tc := range cases {
@@ -311,7 +333,8 @@ func TestProveObserveRefusesHistoricalDocuments(t *testing.T) {
 		t.Fatal(err)
 	}
 	marked := withMember(receipt, "historical", true)
-	for name, document := range map[string]map[string]any{"bundle": bundle, "report": report, "marked receipt": marked} {
+	nullMarked := withMember(receipt, "historical", nil)
+	for name, document := range map[string]map[string]any{"bundle": bundle, "report": report, "marked receipt": marked, "null-marked receipt": nullMarked} {
 		if stderr, code := observeProof(t, root, string(mustJSON(t, document))); code != 2 || !strings.Contains(stderr, "invalid-proof-document") {
 			t.Fatalf("%s: exit %d %s", name, code, stderr)
 		}

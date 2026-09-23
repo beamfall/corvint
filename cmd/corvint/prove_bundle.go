@@ -475,6 +475,13 @@ func replayProveBundle(ctx context.Context, root, filename string) ([]byte, int,
 	return encoded, exit, nil
 }
 
+// historicalDocument reports whether a document has a historical member at
+// all, whatever its value (FPK-V0-048).
+func historicalDocument(document map[string]any) bool {
+	_, marked := document["historical"]
+	return marked
+}
+
 func sameErrorCode(result bundleResult, code string) bool {
 	return result.Error != nil && result.Error.Code == code
 }
@@ -512,6 +519,9 @@ func readProveBundle(filename string) (proveBundle, error) {
 	}
 	if err := bundleReceiptIntact(bundle.Original); err != nil {
 		return bundle, err
+	}
+	if !slices.Equal(bundle.Repository.Blobs, bundleBlobs(bundle.Original.Receipt)) {
+		return bundle, bundleRefusal("tampered", "repository.blobs does not match the blobs the original receipt cites")
 	}
 	if bundle.Engine.CorvintVersion != version || bundle.Engine.ProveProfile != proveProfile {
 		return bundle, bundleRefusal("incompatible-engine", "bundle was produced by Corvint "+bundle.Engine.CorvintVersion+" "+bundle.Engine.ProveProfile+"; this is Corvint "+version+" "+proveProfile)

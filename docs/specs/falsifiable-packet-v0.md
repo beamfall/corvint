@@ -1215,7 +1215,8 @@ above stands with that substitution.
   5. `missing-input`: a required member for the mode is absent. This covers the historical
      marker, the arguments, the checkpoint bytes, the original receipt or refusal code, and a valid
      commit, tree, or blob id.
-  6. `tampered`: `receipt_sha256` does not match.
+  6. `tampered`: `receipt_sha256` does not match, or `repository.blobs` is not exactly the sorted
+     set of `path`/`blob_hash` pairs the original receipt cites.
   7. `incompatible-engine`: `corvint_version` or `prove_profile` differs from this binary. `build`
      is recorded and never compared.
   8. `missing-git-object`: the local object store lacks the commit, the tree, or a cited blob, or
@@ -1250,7 +1251,7 @@ above stands with that substitution.
 - **FPK-V0-048:** (proposed 2026-09-23, not accepted; experimental; decision 0361) Existing
   verification, authority, promotion, and learning paths reject historical documents.
   `prove-observe` exits 2 `invalid-proof-document` on any document that has a `historical`
-  member. It refuses a bundle and a replay report on both the profile and the marker, and it
+  member, whatever its value, including `null`. It refuses a bundle and a replay report on both the profile and the marker, and it
   appends no ledger row. No other command reads `prove` stdout. A person who extracts
   `original.receipt` by hand holds a historical record under the bundle's commit; this contract
   does not make that copy fresh.
@@ -1522,10 +1523,10 @@ which is the whole of what the row asserts.
 | FPK-V0-042 | experimental prototype: `proveBundle`, `exportBundleInputs`, `bundleRun`, `bundleBlobs`, `sealProveBundle` | `TestProveBundleQueryReproducesOnASecondClone` (arguments, mode, commit, tree, cited blobs, engine, ledger-free original receipt), `TestProveBundleCheckpointUsesFrozenBytes` (bundled checkpoint bytes, refused and admitted originals) |
 | FPK-V0-043 | experimental prototype: `sealProveBundle`, `bundleHasSecret`, `bundleDigest`, `exportBundleInputs` | `TestProveBundleExportRefusals` (secret-shaped task, non-UTF-8 checkpoint), `TestProveBundleSizeBound` |
 | FPK-V0-044 | experimental prototype: `replayProveBundle`, `bundleReplayOptions`, `checkpointDocumentFor`, `decodeCheckpointDocument` (`cmd/corvint/prove_checkpoint.go`), `bundleObjectsPresent` | `TestProveBundleQueryReproducesOnASecondClone` (a plain second clone), `TestProveBundleCheckpointUsesFrozenBytes` (checkpoint file deleted before replay) |
-| FPK-V0-045 | experimental prototype: `readProveBundle`, `bundleComplete`, `bundleReceiptIntact`, `bundleCheckout` | `TestProveBundleReplayRefusalReasons` (not JSON, not canonical, unknown member, bundle flag, another mode, future version, unresealed edit, receipt edit, no arguments, no marker, checkpoint without bytes, other engine, absent commit, absent blob, drift, mixed worktree) |
+| FPK-V0-045 | experimental prototype: `readProveBundle`, `bundleComplete`, `bundleReceiptIntact`, `bundleCheckout` | `TestProveBundleReplayRefusalReasons` (not JSON, not canonical, unknown member, bundle flag, another mode, future version, unresealed edit, receipt edit, cited blob moved, blobs emptied, uncited blob added, no arguments, no marker, checkpoint without bytes, other engine, absent commit, absent blob, drift, mixed worktree) |
 | FPK-V0-046 | experimental prototype: `bundleDifferences`, `bundleComparable`, `jsonDifferences`, `bundleExcluded` | `TestProveBundleReportsDivergence` (exit 1, `receipt.state`), `TestProveBundleQueryReproducesOnASecondClone` (`reproduced`, declared exclusions) |
 | FPK-V0-047 | experimental prototype: `sealProveBundle`, `replayProveBundle` report | `TestProveBundleQueryReproducesOnASecondClone` (`historical: true` on bundle and report, report profile `corvint-failure-replay/0`) |
-| FPK-V0-048 | experimental prototype: `proofCounts` (`cmd/corvint/prove_observe.go`) | `TestProveObserveRefusesHistoricalDocuments` (bundle, replay report, and a historical-marked receipt refused with no ledger row; the unmarked receipt accepted) |
+| FPK-V0-048 | experimental prototype: `proofCounts` (`cmd/corvint/prove_observe.go`) | `TestProveObserveRefusesHistoricalDocuments` (bundle, replay report, and a receipt marked `historical: true` or `historical: null` refused with no ledger row; the unmarked receipt accepted) |
 | FPK-V0-049 | scope and rollback statement | the rollback list in FPK-V0-049; no bundle member feeds ranking, learning, or authority (`prove_bundle.go` imports no learning package) |
 
 ### 2026-09-12 literal marker audit
