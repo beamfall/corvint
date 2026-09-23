@@ -1,0 +1,410 @@
+{
+  "baseRevision": "34e798ba3fa59a2fe1781a24d32996dca8041685",
+  "evidence": [
+    {
+      "blobOid": "59e4969e61dc9c7dee0a6c20a5e82ebd623435ac",
+      "id": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2774,
+        "start": 2288
+      },
+      "spanSha256": "a5ef358e5716557d5f42d57c7271d3289afdc8ff20143da2026e5fd075f876f4"
+    },
+    {
+      "blobOid": "59e4969e61dc9c7dee0a6c20a5e82ebd623435ac",
+      "id": "evidence:sha256:a55888cd69274c2b05d202f039ad67af916fb0c9a8e6467ff86636e76a243209",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3051,
+        "start": 2775
+      },
+      "spanSha256": "031637fafb746f861947cb8ec05b28dd64d5d45ceaf1126a2adbbc1ebbf69150"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7d98c9a328f51a884934f456298591b91c74e511ce6cf81101f03de01deb5825",
+      "newRange": {
+        "count": 7,
+        "start": 18
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 18
+      },
+      "path": "Makefile",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2c8ef838fd8195cb252edae75ceb2d082d41b422faefefc3e37fc734dc64779f",
+      "newRange": {
+        "count": 7,
+        "start": 38
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 38
+      },
+      "path": "Makefile",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cfd8c21f163ac5595d49d63b904ad90a59762e4f89069a99f6b675b057ee0b84",
+      "newRange": {
+        "count": 11,
+        "start": 204
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 204
+      },
+      "path": "Makefile",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a55888cd69274c2b05d202f039ad67af916fb0c9a8e6467ff86636e76a243209",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b3c461638712ff97972427d178cf0b9ecc526548bea272aadab1fd608581c1fc",
+      "newRange": {
+        "count": 38,
+        "start": 4
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 4
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c10689ea076eed382b412d1b6c976503c143ad3c38f8d0cbc44e0e63ea853895",
+      "newRange": {
+        "count": 7,
+        "start": 149
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 149
+      },
+      "path": "docs/specs/go-only-cutover-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:01eac3216c2b0cf53b50759a3da622e5e689d0b21289e2640b0db3bdff5d16e5",
+      "newRange": {
+        "count": 5,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 5,
+        "start": 1
+      },
+      "path": "integrations/pi-protected/build.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6762843faad4408820f96f71cfa7c297f30937f55ad15d20b98a1109e90cac6d",
+      "newRange": {
+        "count": 8,
+        "start": 29
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 29
+      },
+      "path": "integrations/pi-protected/build.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a3f37001f3344eb9750283604d02f32196c079f745956eb67bcb8e4dfe0ef500",
+      "newRange": {
+        "count": 7,
+        "start": 8
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 8
+      },
+      "path": "integrations/pi-protected/runtime.test.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d5f9eca7644b9b36591f4e966d85a9a097eeb40db199c565e398e674db889554",
+      "newRange": {
+        "count": 9,
+        "start": 93
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 93
+      },
+      "path": "integrations/pi-protected/runtime.test.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4f6a743da717c9e15914f678d0b034d2a3c28a4de2f6e05e1881277c1c36a32b",
+      "newRange": {
+        "count": 8,
+        "start": 44
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 44
+      },
+      "path": "integrations/pi-protected/startup.test.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3fce8f96a19da9f3c11b531deb4b1a15ae7f8101cf154e6c7c46a489fb3283e4",
+      "newRange": {
+        "count": 0,
+        "start": 0
+      },
+      "oldRange": {
+        "count": 125,
+        "start": 1
+      },
+      "path": "integrations/pi-protected/tui-fixture.py",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ca49631bff3fdec08f84fe0c80432add4cf4a05f34ec87a108c15da74f8231c4",
+      "newRange": {
+        "count": 13,
+        "start": 82
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 82
+      },
+      "path": "integrations/pi/host.test.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6ca78a19cf899dde5805ff4a90031db07ed4b8fd3df8786bab02b080cb2e4547",
+      "newRange": {
+        "count": 7,
+        "start": 165
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 158
+      },
+      "path": "integrations/pi/host.test.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:459939f164d8615c0eaf8b980903593612e361726a3c94c81f67cdf083f109ad",
+      "newRange": {
+        "count": 11,
+        "start": 242
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 235
+      },
+      "path": "integrations/pi/host.test.mjs",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e668168a78ddc064363a79e0c3fa7f973a28e11ff5ed3c4b3e6d0577d436f48f",
+      "newRange": {
+        "count": 0,
+        "start": 0
+      },
+      "oldRange": {
+        "count": 94,
+        "start": 1
+      },
+      "path": "integrations/pi/tui-fixture.py",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:29b25815162a11c96e76e74418715199dbaa933276f22689f4ed722100945c24",
+      "newRange": {
+        "count": 74,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 52,
+        "start": 1
+      },
+      "path": "script/no-python-runtime-dependency_test.sh",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e1d2c42dc5c42cd2d0432f128e568d837659e205235c148a4ed19a4cacc0e520",
+      "newRange": {
+        "count": 305,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "tools/pi-tui-fixture/main.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:131d19e65b6f37a4a4553fbb1a6d7ea0fa105abbf18ed11e1e3cac089a604f18",
+      "newRange": {
+        "count": 22,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "tools/pi-tui-fixture/pty_darwin.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:41d37556f5d6e4e87122baa8100189efeebec030f425cbf0e54132132e406059",
+      "newRange": {
+        "count": 20,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "tools/pi-tui-fixture/pty_linux.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "c3fc71ee06e8ffeadc28cc75baa30004e3df61402fc199ab5ef46407e686a6e2",
+  "spec": "cem/0.2"
+}
