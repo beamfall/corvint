@@ -28,6 +28,10 @@ type TermTable struct {
 	// The full compile builds it for the snapshot; an index compiled for one
 	// query leaves it empty and scans the windows instead.
 	SymbolWindows windowPostings
+	// IdentGraph is the identifier definition/reference graph over Paths
+	// (identgraph.go, TCP-V0-030), built with SymbolWindows by the full
+	// compile.
+	IdentGraph *identGraph
 
 	// lengths and averageLength are each source's body token count and their
 	// mean, derived once from the counted postings for BM25 length
@@ -201,7 +205,7 @@ func (table *TermTable) check() error {
 			return err
 		}
 	}
-	return nil
+	return table.IdentGraph.check(len(table.Paths))
 }
 
 // sourceID returns a path's position in Paths, or false for a path the table

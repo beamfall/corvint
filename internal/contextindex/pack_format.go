@@ -55,6 +55,7 @@ const (
 	packSectionPathTerms = "vocab.pathterms"
 	packSectionWindows   = "vocab.symbolwindows"
 	packSectionCochange  = "cochange"
+	packSectionGraph     = "vocab.identgraph"
 )
 
 // packFullSections is every section; a deferred load names the same sections
@@ -62,7 +63,7 @@ const (
 var packFullSections = []string{packSectionIdentity, packSectionStrings, packSectionSources, packSectionBodies,
 	sectionExclusions, sectionFeatures, sectionScenarios, sectionDocuments, sectionMarkers, packSectionSymbols,
 	sectionImports, sectionUnparsed, sectionNotes, packSectionTracked, packSectionSkipped, packSectionPaths,
-	packSectionTerms, packSectionWords, packSectionPathTerms, packSectionWindows, packSectionCochange}
+	packSectionTerms, packSectionWords, packSectionPathTerms, packSectionWindows, packSectionCochange, packSectionGraph}
 
 var packSectionsByLoad = map[snapshotLoad][]string{
 	loadCompact: {packSectionIdentity},
@@ -296,6 +297,7 @@ func packSectionWriters(index *Index, history []historyEntry) []sectionWriter {
 		termTableSection(packSectionPathTerms, vocabulary.PathTerms),
 		gobSection(packSectionWindows, vocabulary.SymbolWindows),
 		cochangeSection(history, table),
+		gobSection(packSectionGraph, vocabulary.IdentGraph),
 	}
 	return append(writers, sectionWriter{packSectionStrings, table.write})
 }

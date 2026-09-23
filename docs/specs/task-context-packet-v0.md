@@ -19,7 +19,7 @@ evidence row), `AGENTS.md` invariants 1, 2, 3, 4, and 8.
 ## Agent digest
 - Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
 - Status: proposed/experimental
-- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`).
+- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/identgraph.go` and `ppr.go` (TCP-V0-030..034 opt-in identifier-graph PageRank slot, `CORVINT_CONTEXT_GRAPH=on`, decision 0367).
 - Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012, which is implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it.
 - Read next: Requirements; Non-goals; Failure modes.
 
@@ -512,6 +512,58 @@ it must read, each with the relation that admitted it, without naming the task's
   of TCP-V0-001..023: the packet, its members and its ranking are unchanged. Both views are read
   commands: they write no repository, index, snapshot, trace or `.corvint/` state.
 
+- `TCP-V0-030`: (proposed 2026-09-23, not accepted; experimental; decision 0367) The full
+  compile derives an identifier graph from the Git content at the indexed revision and stores
+  it beside the term table, as the `IdentGraph` member of the gob and sectioned snapshots and
+  the `vocab.identgraph` pack section; the change bumps `analyzerSchemaID` to
+  `corvint-analyzer/74`. Its nodes are the term table's source ids. An eligible name is an
+  indexed symbol name of 4 to 128 ASCII identifier bytes (the `langsymbols.go` identifier
+  classes) that is not lowercase letters only, defined by at most five sources and present as a
+  whole word (the `Words` postings) in at most fifty. For each eligible name, every naming
+  source other than a definer is joined to each definer. An edge is symmetric; its weight is the
+  number of eligible names joining the pair, and its label is the rarest of them (fewest naming
+  sources, then name order) with its direction: the source names it, or the source defines it.
+  Every value is an integer and names are visited in sorted order, so the encoding is
+  byte-deterministic and independent of symbol order. A decoded graph whose arrays, offsets,
+  labels or node count do not fit its term table is a load miss, never a panic.
+- `TCP-V0-031`: (proposed 2026-09-23, not accepted; experimental; decision 0367) With
+  `CORVINT_CONTEXT_GRAPH=on`, a `graph` slot runs after every other slot, corroboration and the
+  reserved rows. Its seeds are the task anchors: the subject, then the paths of the `mentioned`,
+  `pair`, `definition`, `reverse-import` and `reference` rows in packet order, deduplicated and
+  capped at sixteen. It ranks the non-seed sources within three hops of a seed by personalized
+  PageRank with restart 0.15, uniform over the seeds, by forward push to residual 1e-5 per unit
+  of weighted degree in a fixed FIFO order; ties go to the path. It admits at most five rows,
+  never the subject, a reserved row, a relation row, or a lexical or documentation row placed
+  before the last five positions under the limit; a lexical or documentation row from there on
+  that the graph also ranks is replaced by its graph row. The rows go to the last positions
+  under the limit that follow every relation row, so they displace only lexical and
+  documentation tail rows and never outrank a relation, a reserved row, or the TCP-V0-002
+  limit. A row has kind `graph`, score 250, confidence `low` and authority `syntax`, and
+  registers no corroboration. `coverage.unexamined` gains a `graph` relation, last.
+- `TCP-V0-032`: (proposed 2026-09-23, not accepted; experimental; decision 0367) A `graph`
+  row's reason names the seed and every hop from it:
+  ``graph from seed `SEED` (ANCHOR): HOP; HOP`` where ANCHOR is `subject` or the seed row's
+  kind, and each HOP is either ``` `A` defines `NAME`, which `B` names``` or
+  ``` `A` names `NAME`, which `B` defines```, over the shortest path breadth-first from the seeds
+  in seed order and CSR order. The evidence line is the definition line of the last hop's name
+  when the row defines it, else line 1. The action states that a graph hop is a ranking, not a
+  relation. `graph` rows do not count as TCP-V0-016 relations, so they never rescue an
+  unsupported conjunction, and the verdict withholds them with the other slot rows.
+- `TCP-V0-033`: (proposed 2026-09-23, not accepted; experimental; decision 0367) The graph is
+  bounded: a tree of more than 2^20 sources, or a build passing 2^21 directed arcs, stores a
+  `Bounded` graph with no edges, and the walk stops at 200,000 pushes. Beyond a bound, or with no
+  seed the graph carries, the slot abstains: it admits no row and its `unexamined` state is
+  `graph-bounded` or `no-seed`, never a partial ranking.
+- `TCP-V0-034`: (proposed 2026-09-23, not accepted; experimental; decision 0367) The slot is an
+  explicit opt-in. An unset, `off` or any other value of `CORVINT_CONTEXT_GRAPH` never consults
+  the graph, and the packet is byte-identical to the one before TCP-V0-030 (the recipe golden),
+  with no `graph` relation in `coverage`. On or off, `context` stays read-only (TCP-V0-001),
+  keeps its limit and result bounds, and keeps TCP-V0-016's abstention. Falsifier and gating:
+  the frozen `tools/retrieval-bench` `context` arm on all four positive subsets with the flag
+  unset and `on`; decision 0367 records the numbers and keeps the opt-in unless recall@20 does
+  not regress on any subset. Rollback: unset the flag; to remove the slot, delete `ppr.go`,
+  `identgraph.go`, their tests and hooks, and bump `analyzerSchemaID`.
+
 ## Non-goals and authority
 
 Forward imports of the subject, cross-directory definition-to-reference edges, and re-export
@@ -542,6 +594,13 @@ section's rows is not this slice's to do.
 TCP-V0-024 adds no packet member, ranking input or row. The summary is a projection of the exact
 default bytes, and expansion reads Git objects at the handle's pinned tree. Neither view changes
 `query`, `impact` or any `protocol/**` wire, and neither adds a root verb.
+
+The graph slot (TCP-V0-030..034) adds no language server, call graph, import resolution or
+embedding: an edge is a whole-word name match against an indexed definition, so a name shared by
+unrelated code joins them and a reference through an alias or a qualified import path that splits
+the name does not. The graph ranks; it is never a relation, never corroboration, and never evidence
+that a file is affected. Using it as a default slot, tuning its cap or restart, or seeding it from
+lexical rows is decision 0367's to reopen with a new evaluation, not this slice's.
 
 Operational note (V1-0051): `corvint context` and the generic harness-event dispatch it shares
 (`cmd/corvint/taskcontext.go`, `cmd/corvint/main.go`) write a local pprof CPU profile when the
@@ -596,6 +655,11 @@ and does not widen what either read-only path reads, returns, or mutates (AGENTS
   `coverage.governance_refused` names its relation, path and class; the row itself stays in
   `results`. An unlisted label is refused the same way as `tool-output`; the packet does not say
   the label is unknown, so a new generator label must be added to the table to be trusted.
+- (TCP-V0-030..034) A common name joins unrelated files: the five-definer and fifty-reference
+  bounds and the prose-shaped-name rule drop it, and the rest are low-confidence rows whose
+  reason names the joining name. A task whose anchors the graph does not carry, or a graph past
+  its bound, admits no `graph` row and says `no-seed` or `graph-bounded`; the packet is then the
+  flag-off packet plus that receipt. A damaged `vocab.identgraph` section fails the load.
 - (TCP-V0-024) A view flag could leak into the default path and change its bytes.
   `TestContextDefaultWireIsTheGolden` compares the default stdout with bytes captured from the base
   binary (`1894b9e5`), and mixed or orphaned view flags are argument errors
@@ -637,6 +701,15 @@ the empty `governance_refused` array added.
 base-binary golden `cmd/corvint/testdata/context-default-wire.golden`; flag mixing refused; the
 summary and expansion evidence listed under ESV-V0-008..009).
 
+`internal/contextindex/identgraph_test.go` and `internal/contextindex/ppr_test.go`
+(TCP-V0-030..034, proposed: the fixture's two-hop chain, direction labels and a node without
+edges; symbol-order independence and the round trip; damaged encodings refused; the node and
+definer bounds; the ranked rows after every relation row within the limit; the exact hop
+reason; `no-seed`, `graph-bounded` and a walk past its push bound abstaining; TCP-V0-016
+abstention unchanged; the recipe golden unchanged for an unset, `off` and unknown flag);
+`TestPackSnapshotDecodesEverySectionToTheGobValues` (the pack section decodes to the gob value);
+decision 0367 (the frozen evaluation with the flag unset and `on`).
+
 ## Rollback
 
 Delete the two source files, their tests, the help topic, and the dispatch line in
@@ -654,6 +727,10 @@ TCP-V0-024 rolls back alone to current packets. Follow the V1-0023 rollback in
 `experimental-source-views-v0` (Acceptance and rollback): delete `cmd/corvint/context_summary.go`,
 its test and golden, and the view flags, check and help paragraph in `cmd/corvint/taskcontext.go`.
 The default wire never changed.
+The graph slot (TCP-V0-030..034) rolls back alone: unset `CORVINT_CONTEXT_GRAPH`; to remove the
+slot, delete `internal/contextindex/identgraph.go`, `ppr.go` and their tests, the `IdentGraph`
+member, the `vocab.identgraph` section and the compile, `compile` and `rowAction` hooks, and bump
+`analyzerSchemaID`. The default wire never changed.
 
 ## Traceability
 
@@ -682,4 +759,9 @@ The default wire never changed.
 | TCP-V0-020 | `frameRelationRows`, `namedTestFrames`, `frameCandidates`, `creditFrameIdentifiers` | `TestFrameRelationSignals`, `TestFrameRelationOrderingAndCoverage`, `TestFrameRelationScopeAndDeterminism` |
 | TCP-V0-022 | `configureContextAnchors`, `taskAnchors`, `anchorCandidates`, `countAnchor`, `anchorOccurrences`, `anchorReason`, `lexicalHits`, `queryTermGain` | `TestContextAnchorClassesMatchVerbatim`, `TestContextAnchorsExtractionBounds`, `TestContextAnchorsExplainAndNeverOutrankAuthority`, `TestContextAnchorsDefaultBytes` |
 | TCP-V0-023 | `trustByAuthority`, `TrustClass`, `TrustTainted`, `governanceRows`, `governanceRefused` (`internal/contextindex/trust.go`); the `trust` stamp in `taskContextCompiler.packet` | `TestTrustClassIsClosedAndDeterministic`, `TestTaskContextRowsCarryOneTrustClass`, `TestTaskContextGovernanceRefusesATaintedReservedRow`, `TestTaskContextWireIsAdditiveForAnOldConsumer`, `TestContextRecipeDefaultPathIsByteIdentical` (re-captured golden) |
+| TCP-V0-030 | `buildIdentGraph`, `identGraphDefiners`, `identGraphName`, `mergeIdentGraphArcs`, `identGraph.check`, `MarshalBinary`/`UnmarshalBinary` (`internal/contextindex/identgraph.go`); the `IdentGraph` member, `packSectionGraph` and the compile hooks | `TestIdentGraphIsDerivedDeterministicallyFromTheIndex`, `TestIdentGraphRefusesDamagedEncodings`, `TestIdentGraphNameEligibility`, `TestPackSnapshotDecodesEverySectionToTheGobValues`, `TestAnalyzerSchemaInputs` |
+| TCP-V0-031 | `placeGraphRows`, `graphFloor`, `graphHeld`, `takeGraph`, `graphCandidates`, `graphSeeds`, `personalizedPageRank`, `rankGraphNodes` (`internal/contextindex/ppr.go`) | `TestContextGraphSlotRanksFromTheTaskAnchors` |
+| TCP-V0-032 | `graphHops`, `graphRow`, `graphLine`, `graphAction` | `TestContextGraphSlotRanksFromTheTaskAnchors` |
+| TCP-V0-033 | the `identGraphMaxNodes`/`identGraphMaxArcs` bounds in `buildIdentGraph`, the push bound in `personalizedPageRank`, the abstention states in `placeGraphRows` | `TestIdentGraphBounds`, `TestContextGraphSlotAbstains` |
+| TCP-V0-034 | `configureContextGraph`, `contextRelations` | `TestContextGraphDefaultBytes`, `TestContextGraphSlotRanksFromTheTaskAnchors`, `TestContextGraphSlotAbstains` |
 | TCP-V0-024 | `parseTaskContextInvocation`, `checkContextViewArguments`, `runTaskContext` (view dispatch); `summarizeContextPacket`, `runContextExpand` (`cmd/corvint/context_summary.go`) | `TestContextDefaultWireIsTheGolden`, `TestParseContextViewArguments`, `TestContextSummaryAndExpandAreReadOnly` |
