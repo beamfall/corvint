@@ -60,7 +60,7 @@ type identGraphArc struct {
 func (index *Index) buildIdentGraph(table *TermTable) *identGraph {
 	nodes := len(table.Paths)
 	if nodes > identGraphMaxNodes {
-		return &identGraph{Nodes: uint32(nodes), Bounded: true, Offsets: make([]uint32, 1)}
+		return boundedIdentGraph(uint32(nodes), 1)
 	}
 	definers := identGraphDefiners(index.Symbols, table)
 	candidates := make([]string, 0, len(definers))
@@ -89,13 +89,19 @@ func (index *Index) buildIdentGraph(table *TermTable) *identGraph {
 			}
 		}
 		if len(arcs) > identGraphMaxArcs {
-			return &identGraph{Nodes: uint32(nodes), Bounded: true, Offsets: make([]uint32, nodes+1)}
+			return boundedIdentGraph(uint32(nodes), nodes+1)
 		}
 		if len(arcs) > before {
 			names = append(names, name)
 		}
 	}
 	return mergeIdentGraphArcs(uint32(nodes), arcs, names)
+}
+
+// boundedIdentGraph is the edgeless graph a tree past a bound stores. It
+// carries one name offset so it passes check and a saved index still loads.
+func boundedIdentGraph(nodes uint32, offsets int) *identGraph {
+	return &identGraph{Nodes: nodes, Bounded: true, Offsets: make([]uint32, offsets), NameOffsets: []uint32{0}}
 }
 
 // identGraphDefiners maps each eligible defined name to its ascending,
@@ -280,6 +286,9 @@ func (graph *identGraph) UnmarshalBinary(data []byte) error {
 	header := make([]uint64, headerWords)
 	for position := range header {
 		header[position] = uint64(binary.LittleEndian.Uint32(data[4*position:]))
+	}
+	if header[1] > 1 {
+		return errors.New("identifier graph bounded flag is not 0 or 1")
 	}
 	offset := uint64(4 * headerWords)
 	decoded := identGraph{Nodes: uint32(header[0]), Bounded: header[1] == 1}

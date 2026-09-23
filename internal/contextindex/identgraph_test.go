@@ -133,6 +133,40 @@ func TestIdentGraphBounds(t *testing.T) {
 	})
 }
 
+// A saved index whose graph passed a bound still loads, in the gob and pack
+// formats, and the loaded graph makes the slot abstain as graph-bounded.
+func TestIdentGraphBoundedSnapshotReloads(t *testing.T) {
+	t.Run("TCP-V0-033", func(t *testing.T) {
+		index := identGraphFixture(t)
+		nodes := len(index.Vocabulary.Paths)
+		for _, format := range []string{"", "pack"} {
+			for _, offsets := range []int{1, nodes + 1} {
+				t.Setenv("CORVINT_SNAPSHOT_FORMAT", format)
+				index.Vocabulary.IdentGraph = boundedIdentGraph(uint32(nodes), offsets)
+				if _, err := WriteSnapshot(index); err != nil {
+					t.Fatal(err)
+				}
+				loaded, hit, err := LoadSnapshot(context.Background(), index.Root)
+				if err != nil || !hit || !loaded.Vocabulary.IdentGraph.Bounded {
+					t.Fatalf("format %q offsets %d: hit=%v err=%v", format, offsets, hit, err)
+				}
+				t.Setenv("CORVINT_CONTEXT_GRAPH", "on")
+				packet, err := TaskContext(context.Background(), loaded, graphFixtureTask, "", 20)
+				if err != nil || graphUnexamined(packet)["state"] != "graph-bounded" {
+					t.Fatalf("format %q offsets %d: err=%v receipt %v", format, offsets, err, graphUnexamined(packet))
+				}
+				t.Setenv("CORVINT_CONTEXT_GRAPH", "")
+			}
+		}
+		var decoded identGraph
+		encoding, _ := boundedIdentGraph(1, 2).MarshalBinary()
+		encoding[4] = 2
+		if decoded.UnmarshalBinary(encoding) == nil {
+			t.Fatal("a bounded flag other than 0 or 1 decoded")
+		}
+	})
+}
+
 func TestIdentGraphNameEligibility(t *testing.T) {
 	t.Run("TCP-V0-030", func(t *testing.T) {
 		for name, want := range map[string]bool{
