@@ -178,6 +178,21 @@ type Report struct {
 	Sources       []Source       `json:"sources"`
 	Preconditions []Precondition `json:"preconditions"`
 	Obligations   []Obligation   `json:"obligations"`
+	// PacketCoverage names the cost of every packet the report compiled, in
+	// compile order. A stage that compiled no packet contributes no entry.
+	PacketCoverage []PacketCoverage `json:"packetCoverage"`
+}
+
+// PacketCoverage copies one compiled packet's coverage block under the
+// packet's own field names (AGW-V0-003).
+type PacketCoverage struct {
+	Stage           string `json:"stage"`
+	Path            string `json:"path,omitempty"`
+	PacketBytes     int    `json:"packet_bytes"`
+	BudgetBytes     *int   `json:"budget_bytes"`
+	WithinBudget    bool   `json:"within_budget"`
+	IncludedResults int    `json:"included_results"`
+	OmittedResults  int    `json:"omitted_results"`
 }
 
 // change is one raw entry of the admitted universe.
@@ -230,9 +245,10 @@ func Compile(ctx context.Context, index *contextindex.Index, options Options) (*
 			Closure:         closure.status,
 			ClosureDetail:   closure.detail,
 		},
-		Authorities: authorities,
-		Sources:     []Source{source},
-		Obligations: obligations,
+		Authorities:    authorities,
+		Sources:        []Source{source},
+		Obligations:    obligations,
+		PacketCoverage: append(admission.packets, closure.packets...),
 	}
 	report.Summary = summarize(obligations)
 	report.Preconditions = preconditions(report)
@@ -287,6 +303,7 @@ type stage struct {
 	detail    string
 	paths     []string
 	receipts  []map[string]any
+	packets   []PacketCoverage
 	refused   map[string]string
 	truncated []string
 }
@@ -296,7 +313,7 @@ type stage struct {
 func admit(ctx context.Context, index *contextindex.Index, base string) stage {
 	receipt, err := contextindex.RangeImpact(ctx, index, base, impactLimit)
 	if err != nil {
-		return stage{status: "REFUSED", detail: err.Error(), refused: map[string]string{}}
+		return stage{status: "REFUSED", detail: err.Error(), packets: []PacketCoverage{}, refused: map[string]string{}}
 	}
 	admitted := make([]string, 0)
 	for _, item := range results(receipt) {
@@ -305,7 +322,23 @@ func admit(ctx context.Context, index *contextindex.Index, base string) stage {
 		}
 	}
 	sort.Strings(admitted)
-	return stage{status: "COMPUTED", paths: admitted, receipts: []map[string]any{receipt}, refused: map[string]string{}}
+	packets := []PacketCoverage{packetCoverage("admission", "", receipt)}
+	return stage{status: "COMPUTED", paths: admitted, receipts: []map[string]any{receipt}, packets: packets, refused: map[string]string{}}
+}
+
+// packetCoverage projects one compiled receipt's coverage block. The engine
+// builds that block with native Go values, so the projection is exact.
+func packetCoverage(stageName, changedPath string, receipt map[string]any) PacketCoverage {
+	coverageMap, _ := receipt["coverage"].(map[string]any)
+	packet := PacketCoverage{Stage: stageName, Path: changedPath}
+	packet.PacketBytes, _ = coverageMap["packet_bytes"].(int)
+	packet.WithinBudget, _ = coverageMap["within_budget"].(bool)
+	packet.IncludedResults, _ = coverageMap["included_results"].(int)
+	packet.OmittedResults, _ = coverageMap["omitted_results"].(int)
+	if budget, bounded := coverageMap["budget_bytes"].(int); bounded {
+		packet.BudgetBytes = &budget
+	}
+	return packet
 }
 
 // reverseClosure runs the existing reverse-dependency engine over the admitted
@@ -319,7 +352,7 @@ func admit(ctx context.Context, index *contextindex.Index, base string) stage {
 // crowded path from silently discarding another path's dependents, and names
 // every path that reached the ceiling on its own.
 func reverseClosure(index *contextindex.Index, admitted []string) stage {
-	result := stage{status: "COMPUTED", paths: admitted, refused: map[string]string{}, truncated: []string{}}
+	result := stage{status: "COMPUTED", paths: admitted, packets: []PacketCoverage{}, refused: map[string]string{}, truncated: []string{}}
 	if len(admitted) == 0 {
 		result.status = "EMPTY"
 		result.detail = "the admission stage admitted no path, so no reverse-dependency closure was opened"
@@ -335,6 +368,7 @@ func reverseClosure(index *contextindex.Index, admitted []string) stage {
 			result.truncated = append(result.truncated, changedPath)
 		}
 		result.receipts = append(result.receipts, receipt)
+		result.packets = append(result.packets, packetCoverage("closure", changedPath, receipt))
 	}
 	switch {
 	case len(result.refused) == len(admitted):

@@ -220,6 +220,12 @@ evidence directory and runs that binary. Every step publishes its stdout as
 `<git-dir>/corvint/<step>.json` and its stderr as `<git-dir>/corvint/<step>.stderr`, so the refusal
 envelope behind a reported reason is readable beside that step's output. The run clears
 unpublished `*.stderr` from that directory at start, so no envelope there survives an earlier run.
+The report's `packetCoverage` line (`DCW-V0-016`) states the cost of the two context packets the
+run compiled: for `prechange-query` and `prechange-impact` in that order, the packet's own
+`packet_bytes`, `budget_bytes`, `within_budget`, `included_results` and `omitted_results`, or
+`NOT_PRODUCED` with `packet-not-compiled` (the step compiled none, including the
+`unsupported-impact-range` abstention) or `packet-coverage-unreadable`. It never changes
+`complete`, and reports written before it existed omit it.
 `dogfood-check` independently builds one verifier from the current clean tree and one from a
 private `git archive BASE_SHA`, runs both OCM and CEM status with
 identical inputs and effective policy, and requires byte-identical stdout, stderr, and exit status.

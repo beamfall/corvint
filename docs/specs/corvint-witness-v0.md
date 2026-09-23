@@ -46,9 +46,22 @@ report, which is a distinct package with its own CLI verb.
   graft MUST NOT invent an admitted ancestor or hide a real available ancestor. Graft deprecation
   advice is disabled explicitly; operation/output limits and read-only behavior remain unchanged.
 
+### Packet cost
+
+- `AGW-V0-003`: (proposed 2026-09-23, V1-0200, not accepted) the report MUST carry
+  `packetCoverage`, one entry per context packet `Compile` compiled, in compile order: the
+  `admission` packet from `contextindex.RangeImpact`, then one `closure` packet per admitted path
+  from `contextindex.Impact` (naming that `path`). Each entry copies the packet's own
+  `coverage.packet_bytes`, `budget_bytes`, `within_budget`, `included_results` and
+  `omitted_results` under those names. A refused stage compiled no packet and contributes no entry,
+  so the list is empty, never absent, when nothing was compiled. The text rendering adds a `PACKETS`
+  section with the same numbers. The field is additive: `corvint-witness/0` keeps its profile and
+  every existing member.
+
 ## Non-goals
 
-This spec states the CLI report's read-only guarantee and immutable-parent ancestry boundary. It does not define, restate, or amend
+This spec states the CLI report's read-only guarantee, immutable-parent ancestry boundary and
+per-packet cost projection. It does not define, restate, or amend
 the `ocm-change-witnessed-v0` closure semantics `change-witness-relation-v0.md` owns, and it adds no
 verb to `GPK-V0-007`'s parity-compared vocabulary.
 
@@ -57,7 +70,9 @@ verb to `GPK-V0-007`'s parity-compared vocabulary.
 | Requirement | Planned implementation surface | Required evidence |
 |---|---|---|
 | `AGW-V0-002` (decision 0290) | `internal/witness` bounded Git runner | `TestBaseTreeIgnoresGraftedAncestry` |
+| `AGW-V0-003` (proposed) | `internal/witness` `packetCoverage`, `Report.PacketCoverage`, `renderPackets` | `TestPacketCoverageEqualsEveryCompiledReceipt` |
 | `AGW-V0-001` (accepted 2026-09-12, decision 0163) | `cmd/corvint/witness.go` and `internal/witness` | `cmd/corvint`: `TestCLIReadVerbsLeaveTheRepositoryByteIdentical`, subtest "witness refuses an unknown base without reading further" (CLI-level repository-byte assertion); pre-index refusals: `TestParseWitnessOptionsNamesAnUnknownOptionBeforeItsValue`, `TestParseWitnessInvocationRefusesARootThatIsNotARepository` |
 
 Rollback of AGW-V0-002 removes the graft-isolation runner change and its clause; the read-only
-AGW-V0-001 guarantee remains. Retiring the report removes both requirements and this document.
+AGW-V0-001 guarantee remains. Rollback of AGW-V0-003 removes the `packetCoverage` member and the
+`PACKETS` section; readers never required them. Retiring the report removes both requirements and this document.

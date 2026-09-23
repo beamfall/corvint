@@ -256,6 +256,35 @@ run_cem_prepare() {
   run_corvint cem-prepare "$output" cem prepare --base "$base" --target "$target" --replace
 }
 
+# packet_coverage_entry copies one step's packet coverage fields under the
+# packet's own names (DCW-V0-016). A step that compiled no packet, or whose
+# output does not carry exactly one well-formed occurrence of each field, is
+# reported NOT_PRODUCED rather than given numbers it did not produce.
+packet_coverage_entry() {
+  local step=$1 output=$2 status key pattern occurrences matches fields=
+  status=$(awk -F '\t' -v step="$step" '$1 == step { print $2 }' "$rows")
+  if [[ $status != PRODUCED ]]; then
+    printf '{"step": "%s", "status": "NOT_PRODUCED", "reason": "packet-not-compiled"}' "$step"
+    return
+  fi
+  for key in packet_bytes budget_bytes within_budget included_results omitted_results; do
+    case $key in
+      within_budget) pattern='true|false' ;;
+      budget_bytes) pattern='null|0|[1-9][0-9]*' ;;
+      *) pattern='0|[1-9][0-9]*' ;;
+    esac
+    occurrences=$(rg -o "[{,]\"$key\":" "$output" 2>/dev/null | wc -l)
+    matches=$(rg -o "[{,]\"$key\":(${pattern})[,}]" "$output" 2>/dev/null)
+    if (( occurrences != 1 )) || [[ $matches == *$'\n'* || -z $matches ]]; then
+      printf '{"step": "%s", "status": "NOT_PRODUCED", "reason": "packet-coverage-unreadable"}' "$step"
+      return
+    fi
+    matches=${matches#*:}
+    fields+=", \"$key\": ${matches%?}"
+  done
+  printf '{"step": "%s", "status": "PRODUCED"%s}' "$step" "$fields"
+}
+
 render_report() {
   local complete
   complete=$(awk -F '\t' '$2 != "PRODUCED" && !($1 == "local-outcome" && $2 == "NOT_PRODUCED" && $3 == "no-source-paths") && !($1 == "prechange-impact" && $2 == "NOT_PRODUCED" && $3 == "unsupported-impact-range") { failed=1 } END { print failed ? "false" : "true" }' "$rows")
@@ -301,6 +330,9 @@ render_report() {
       printf '  ,"anchor": {"state": "NOT_OBSERVED", "mergeBase": null}\n'
     fi
     printf '  ,"dogfoodPolicy": {"bootstrapUnknown": %d, "maximumUnknownAfterBootstrap": 0}\n' "$bootstrap_unknown"
+    printf '  ,"packetCoverage": [%s, %s]\n' \
+      "$(packet_coverage_entry prechange-query "$evidence/prechange-query.json")" \
+      "$(packet_coverage_entry prechange-impact "$evidence/prechange-impact.json")"
     printf '  ,"dogfoodCheck": null\n'
     printf '}\n'
   } > "$report"

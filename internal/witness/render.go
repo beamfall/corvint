@@ -16,6 +16,7 @@ func Render(report *Report) string {
 	renderSources(builder, report)
 	renderPreconditions(builder, report)
 	renderObligations(builder, report)
+	renderPackets(builder, report)
 	return builder.String()
 }
 
@@ -101,6 +102,29 @@ func renderObligations(builder *strings.Builder, report *Report) {
 				candidate.Authority, candidate.Closing, candidate.EvidencePath)
 		}
 	}
+}
+
+func renderPackets(builder *strings.Builder, report *Report) {
+	builder.WriteString("\nPACKETS\n")
+	if len(report.PacketCoverage) == 0 {
+		builder.WriteString("  (none: no packet was compiled)\n")
+		return
+	}
+	for _, item := range report.PacketCoverage {
+		fmt.Fprintf(builder, "  %-9s packet_bytes=%d budget_bytes=%s within_budget=%t included_results=%d omitted_results=%d",
+			item.Stage, item.PacketBytes, budgetText(item.BudgetBytes), item.WithinBudget, item.IncludedResults, item.OmittedResults)
+		if item.Path != "" {
+			fmt.Fprintf(builder, " path=%s", item.Path)
+		}
+		builder.WriteString("\n")
+	}
+}
+
+func budgetText(budget *int) string {
+	if budget == nil {
+		return "null"
+	}
+	return fmt.Sprint(*budget)
 }
 
 // shortIdentity abbreviates a content-addressed identity so two citations that
