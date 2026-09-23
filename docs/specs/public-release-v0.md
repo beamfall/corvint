@@ -5,7 +5,7 @@ Date: 2026-09-12
 Requirement prefix: `PUB-V0`  
 Intent status: accepted owner scope; implementation details proposed  
 Delivery status: not qualified  
-Amendments: decision 0167 (build from the staged export; retained bundle archive) amends `PUB-V0-013..015`; decision 0314 adds `PUB-V0-021` (build number); issue 44 adds `PUB-V0-022..026` (closed qualified release candidate); decision 0327 selected `v0.5.0a1`; decision 0328 selected `v0.5.0a2` with the existing unsigned prerelease/no-promotion boundaries and the issue #49 Playwright regression; decision 0329 selects `v0.5.0a3` for the integrated issue #53–#57 rerelease with the same boundaries.
+Amendments: decision 0167 (build from the staged export; retained bundle archive) amends `PUB-V0-013..015`; decision 0314 adds `PUB-V0-021` (build number); issue 44 adds `PUB-V0-022..026` (closed qualified release candidate); decision 0327 selected `v0.5.0a1`; decision 0328 selected `v0.5.0a2` with the existing unsigned prerelease/no-promotion boundaries and the issue #49 Playwright regression; decision 0329 selects `v0.5.0a3` for the integrated issue #53–#57 rerelease with the same boundaries; decision 0373 adds the "1.0 Core scope amendment" section (owner answers of 2026-09-23).
 
 ## Agent digest
 - Claim: A public alpha ships the Go CLI, MCP docs, agent/editor unit and E2E test tracking, and an optional dashboard and task manager with a roadmap.
@@ -53,12 +53,30 @@ Only an owner-accepted `E` packet may qualify explicitly named `T`; it cannot si
 rewrite `T`'s archived claims. Exact-packet owner approval remains required before
 promotion or publication. This scope remains `NOT_QUALIFIED`.
 
-## Proposed v1 amendment
+## 1.0 Core scope amendment (decision 0373, 2026-09-23)
 
-A DRAFT pending owner acceptance, [`corvint-1.0-product-and-release-v1.md`](corvint-1.0-product-and-release-v1.md)
-(`PRS-V1`, ticket V1-0001), proposes how this spec would be amended prospectively for the 1.0 Core
-candidate: Core platforms, companion and host dispositions, and the externally dependent gates. It
-changes no requirement here and has no authority until a numbered decision records acceptance.
+Decision 0373 accepts [`corvint-1.0-product-and-release-v1.md`](corvint-1.0-product-and-release-v1.md)
+(`PRS-V1`, ticket V1-0001) and amends this spec prospectively for the 1.0 Core candidate. No
+`PUB-V0` requirement text changes, historical evidence keeps its meaning, and nothing here
+qualifies or promotes anything.
+
+- The 0.6 local-workflow scope above extends to the 1.0 Core candidate: it supersedes conflicting
+  prerequisites that require optional companions or formal FULL host authority before Core
+  qualification.
+- The 1.0 Core candidate additionally requires the three Core jobs on one owner-selected untouched
+  public repository with cases frozen before execution (V1-0019, `PRS-V1-008`).
+- The 2026-09-16 clause "still require exact runtime FULL/authority evidence" binds only a
+  companion host profile, not the Core release. Installed Codex CLI and Claude Code local use are
+  Core host rows at FALLBACK on exact versions (`PRS-V1-006`); tuples whose host API cannot supply
+  authority stay FALLBACK or UNSUPPORTED and do not block Core.
+- `PUB-V0-004`, `-005`, `-006`, `-009`, `-010`, `-020`, the companion input of `PUB-V0-022` and the
+  2026-09-16 clause "missing core installed ... evidence blocks release" bind only the companion
+  profile (`PRS-V1-009`). Core installed qualification is the native archive lifecycle of
+  `stable-operations-v0.md` plus the three Core jobs on the exact installed bytes. The combined
+  manifest reader and installer do not admit a Core-only packet yet; until that V1-0007 or V1-0018
+  follow-up exists no Core candidate can be produced.
+- Corvint 1.0 makes no interoperability claim for CEM, OCM or frontier (`PRS-V1-007`); V1-0014 is
+  post-1.0 and `make interop-gate` with the canonical vectors remains the Core check.
 
 ## Human intent
 

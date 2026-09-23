@@ -111,7 +111,8 @@ Unplanned reads (experimental, URE-V0 proposed), JSON:
 
 The digest reports how many tool reads opened a project file the delivered
 packet did not already carry. The ledger is private local derived state and is
-never an input to ranking, learning, evidence, or authority.
+never an input to ranking, evidence, or authority; only the operator-invoked
+corvint eval --learn-slot-weights step may read it as labels (decision 0368).
 
 enable and disable are the only mutations in this verb: they create and remove
 the opt-in marker .corvint/unplanned-reads.enabled. Without that marker nothing

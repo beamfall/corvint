@@ -129,8 +129,12 @@ by legitimate exploration that no packet could have anticipated.
 ## Non-goals and authority
 
 This ledger is private derived state. It is never an input to ranking, retrieval, evidence
-selection, learning, authority, or any receipt; no Corvint result changes because it exists, is
-absent, is corrupt, or is deleted. It stores no file contents, no command text, no task prose, and
+selection, authority, or any receipt, nor to learning except through the operator-invoked
+`corvint eval --learn-slot-weights` step, whose output reaches ranking only after the frozen held-out
+gate admits it (`LTA-V0-009` to `LTA-V0-012`; decision 0368, ratified by decision 0373). No `context`
+or `query` result changes because the ledger exists, is absent, is corrupt, or is deleted; only an
+admitted slot-weights file, written by that step, changes a `context` packet, and it discloses its
+digest. It stores no file contents, no command text, no task prose, and
 no packet path list — only a digest naming the packet. It is not telemetry: nothing leaves the
 worktree. It does not block, delay, or fail any tool call, and it makes no claim that an unplanned
 read was a mistake; it counts, and a human reads the count.
@@ -146,6 +150,11 @@ Ratified by `docs/decisions/0099-experimental-adapter-call-sites-2026-09-12.md` 
 > A second private ledger `.corvint/unplanned-reads.jsonl` is written only while the operator-created
 > marker `.corvint/unplanned-reads.enabled` exists; like the self-observation ledger it is bounded,
 > local, derived state and never an input to ranking, learning, evidence, or authority.
+
+Decision 0373 (item 12, ratifying decision 0368) replaced the final clause of that sentence in
+`AGENTS.md` invariant 4 with the current wording: never an input to ranking, evidence or authority,
+nor to learning except through the operator-invoked `corvint eval --learn-slot-weights` step gated
+by `LTA-V0-009` to `LTA-V0-012`. The non-goals above carry the same clause.
 
 ## Failure modes
 
