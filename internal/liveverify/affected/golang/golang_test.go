@@ -209,6 +209,17 @@ func TestWorkspaceModuleBelowTestdataIsObserved_AFPV0008(t *testing.T) {
 	if len(result.Units) != 1 || result.Units[0].ID != "go:example.test/ws" {
 		t.Fatalf("units=%+v", result.Units)
 	}
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Owns is repository-relative: an unindexed file of this module is disowned,
+	// which labels it UNOWNED_DIRTY_PATH but still widens the plan to UNKNOWN.
+	deleted := affected.Select(graph, []string{"testdata/ws/gone.go"})
+	want := []affected.Unknown{{Reason: affected.UnknownUnownedDirtyPath, Detail: "testdata/ws/gone.go"}}
+	if fmt.Sprint(deleted.Unknown) != fmt.Sprint(want) || deleted.Scope != affected.ScopeUnknown {
+		t.Fatalf("deleted workspace file scope=%s unknown=%v", deleted.Scope, deleted.Unknown)
+	}
 }
 
 func writeFiles(t *testing.T, root string, files map[string]string) {

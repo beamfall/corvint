@@ -69,7 +69,9 @@ func (Language) Name() string { return "go" }
 
 // Owns reports whether a path is Go source text. A file below a testdata
 // directory is fixture data, which the go tool never builds, so a change to it
-// is an unowned data path rather than a package source.
+// is an unowned data path rather than a package source. Owns sees only the
+// repository-relative path, so it also disowns an unindexed file of a workspace
+// module that lies below testdata; the plan is UNKNOWN either way.
 func (Language) Owns(relative string) bool {
 	return strings.HasSuffix(relative, ".go") && !inTestdata(relative)
 }

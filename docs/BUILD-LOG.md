@@ -29,6 +29,13 @@ before and after; the only graph difference is one fixture unit
 (`internal/liveverify/gotest/testdata/livefixture`) gone from `plan.excluded`. The Go packages the
 affected plan selected for this change pass. `make gate` was not run (owner preference).
 
+Review repair: an independent review found that `Owns`, which sees only the repository-relative
+path, also disowns an unindexed file of such a workspace module. A deleted or added file there is
+labelled `UNOWNED_DIRTY_PATH` instead of `UNINDEXED_SOURCE_PATH`, and the module's unit is then
+excluded as `NO_DEPENDENCY_PATH_TO_DIRTY_UNIT`. The plan stays `UNKNOWN`, so no selection is
+narrowed. The spec now states the limit and the workspace test asserts it; module-aware ownership
+was set aside as a larger change than this rare layout warrants.
+
 ## 2026-09-23 V1-0207 UCV0-006, UCV0-010: corvint-dogfood receipts for the three Core use cases
 
 V1-0011 criterion 3 asks that Corvint and Beamfall dogfood receipts bind real changes and stay

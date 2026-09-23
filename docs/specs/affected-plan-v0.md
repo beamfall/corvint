@@ -90,7 +90,10 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   it, a `go.mod` there is not a nested-module frontier, and the plugin does not own a `.go` path
   with a `testdata` component. A changed fixture file is therefore `UNOWNED_DIRTY_PATH`, never an
   untested package under AFP-V0-020, and the package that holds the `testdata` directory is traced
-  from its own files as before (V1-0203). The toolchain is never executed.
+  from its own files as before (V1-0203). `Owns` sees only the repository-relative path, so an
+  unindexed `.go` path of a workspace module whose root lies below `testdata` is also
+  `UNOWNED_DIRTY_PATH` rather than `UNINDEXED_SOURCE_PATH`; the plan is `UNKNOWN` either way. The
+  toolchain is never executed.
 - **AFP-V0-009:** (accepted 2026-09-04 by decision 0052) The receipt MUST carry an `advice` member with exactly the
   members `status="PLAN_ONLY"`, `checks`, `unknown`, and `note`, plus `test_selection` only when
   `--provider` is given (ETS-V0-002, `docs/specs/external-test-selection-v0.md`). Each `checks` entry has exactly
