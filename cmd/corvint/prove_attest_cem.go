@@ -15,11 +15,11 @@ import (
 // matches the prove-observe stdin bound (FPK-V0-031, experimental).
 const maxAttestationEnvelopeBytes = 8 << 20
 
-// cemAttestation names the map bytes the CEM verifier read, for the second
-// statement `--attest-cem` emits.
+// cemAttestation is the second statement's map bytes; v1 is --attest-cem-v1.
 type cemAttestation struct {
 	name  string
 	bytes []byte
+	v1    bool
 }
 
 // cemAttestationInput returns the CEM statement input when --attest-cem was
@@ -28,7 +28,7 @@ func cemAttestationInput(prove proveOptions, mapBytes []byte) *cemAttestation {
 	if !prove.attestCEM {
 		return nil
 	}
-	return &cemAttestation{name: filepath.ToSlash(prove.mapPath), bytes: mapBytes}
+	return &cemAttestation{name: filepath.ToSlash(prove.mapPath), bytes: mapBytes, v1: prove.attestCEMV1}
 }
 
 // proveVerifiesCEMAttestation reports whether --verify-cem-attestation appears
@@ -193,4 +193,29 @@ func readCEMMapBytes(root, mapPath string) ([]byte, error) {
 		return nil, cemMapReadRefusal(mapPath)
 	}
 	return data, nil
+}
+
+// attestCEMConflicts pairs the two CEM predicate flags, which exclude each
+// other (FPK-V0-050).
+var attestCEMConflicts = map[string]string{"--attest-cem": "--attest-cem-v1", "--attest-cem-v1": "--attest-cem"}
+
+// attestFlagRefusal refuses a repeated boolean attestation flag, and either CEM
+// predicate flag once the other was seen.
+func attestFlagRefusal(seen map[string]bool, name string) error {
+	if seen[name] {
+		return argumentError("argument " + name + ": may not be repeated")
+	}
+	if other := attestCEMConflicts[name]; seen[other] {
+		return argumentError("argument " + name + ": not allowed with argument " + other)
+	}
+	return nil
+}
+
+// statement builds the CEM statement: `cem/v1` under --attest-cem-v1
+// (FPK-V0-050), and the FPK-V0-031 `cem/0` otherwise.
+func (cem *cemAttestation) statement() ([]byte, error) {
+	if cem.v1 {
+		return attest.CEMStatementV1(cem.name, cem.bytes)
+	}
+	return attest.CEMStatement(cem.name, cem.bytes)
 }
