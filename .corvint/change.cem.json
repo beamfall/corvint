@@ -139,6 +139,30 @@
         {
           "evidenceId": "evidence:sha256:88d9cb83518f22854c652a3ba232154bfd0882e126f8662a9efc07b4e56fff28",
           "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:bc95a31343cde429d1fb9707e022bc09344acb73358e194ee8f0995da1ced9ad",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4534db7a04b806dc126e1c6fe81e9df8c10a9cf2bf7799d0462ef7cafdb5a2b2",
+      "newRange": {
+        "count": 32,
+        "start": 1517
+      },
+      "oldRange": {
+        "count": 32,
+        "start": 1505
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:88d9cb83518f22854c652a3ba232154bfd0882e126f8662a9efc07b4e56fff28",
+          "relation": "specification"
         }
       ],
       "disposition": "supported",
@@ -175,6 +199,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "789a5eb1419eb112dd0e7aeb4c17c8857c81875a7ae9f8d1a1e9d82de423db1d",
+  "patchSha256": "7b972d43b09c812db0c603b590dd2adb4f14e249fc0eb44c2565fac22dbccb1c",
   "spec": "cem/0.2"
 }
