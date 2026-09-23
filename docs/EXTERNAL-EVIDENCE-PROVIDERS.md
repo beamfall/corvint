@@ -27,6 +27,11 @@ and EEP-V2 (path relation) fixtures, and
 test selection. Reading a fixture next to the requirement it exercises is the fastest way to see a
 rule in its concrete form.
 
+To write a provider rather than a file by hand, start from the experimental authoring kit in
+`examples/evidence-provider/v0/README.md`: a copyable standard-library Go provider, an exact-pin
+checker, and a conformance runner that compares both local transports (`EEP-V0-016` through
+`EEP-V0-022`).
+
 ## Record format
 
 A record is one JSON document. `schema` selects the version: `external-evidence-provider/0`

@@ -182,3 +182,54 @@ func TestProviderKitFixtureConformance(t *testing.T) {
 		transportConformance(t, func(file string) string { return providerCommand(t, "serve", file) })
 	})
 }
+
+// Each labelled fixture class has one pinned kit-consumer outcome; "" accepts.
+// Core's own outcomes for the same classes stay with their existing witnesses.
+func TestProviderKitProfileReasons(t *testing.T) {
+	t.Run("EEP-V0-020 distinct profile reasons", func(t *testing.T) {
+		p := newPair(t)
+		v0 := fixture(t, p.app.head)
+		record, _ := Decode(v0)
+		pin := Pin{Schema: Schema, ProviderID: record.Provider.ID, ProviderRevision: record.Provider.Revision, RepositoryRevision: p.app.head}
+		v1 := conformance(t, "two-repository.json", p.values())
+		decoded, _ := Decode1(v1)
+		pin1 := Pin{Schema: Schema1, ProviderID: decoded.Provider.ID, ProviderRevision: decoded.Provider.Revision, RepositoryRevision: p.app.head, RepositoryID: "application", Origin: p.app.first}
+		atAncestor := pin
+		atAncestor.RepositoryRevision = p.app.first
+		mismatched := pin1
+		mismatched.Origin = p.e2e.first
+		repeatedID := bytes.Replace(v0, []byte(`"id": "mockdocs"`), []byte(`"id": "mockdocs", "id": "other"`), 1)
+		deep := []byte(strings.Repeat("[", maxPinnedDepth+2) + strings.Repeat("]", maxPinnedDepth+2))
+		for _, c := range []struct {
+			name string
+			data []byte
+			pin  Pin
+			want string
+		}{
+			{"valid /0", v0, pin, ""},
+			{"valid /1", v1, pin1, ""},
+			{"stale pinned at head", fixture(t, p.app.first), pin, "repository revision differs from pin"},
+			{"stale pinned at its ancestor", fixture(t, p.app.first), atAncestor, ""},
+			{"malformed", []byte(`{"schema":`), pin, "record is not a strict JSON document: unexpected EOF"},
+			{"too deep", deep, pin, "record is not a strict JSON document: nesting exceeds 32"},
+			{"ambiguous profile", append([]byte(`{"schema":"external-evidence-provider/3",`), v0[1:]...), pin, "ambiguous record profile: repeated schema member"},
+			{"ambiguous identity", repeatedID, pin, `ambiguous record: repeated member "provider.id"`},
+			{"ambiguous repository", conformance(t, "ambiguous.json", p.values()), pin1, "ambiguous pinned repository origin"},
+			{"repository mismatch", v1, mismatched, "repository origin differs from pin"},
+			{"unsupported profile", mutate(t, v0, func(r map[string]any) { r["schema"] = "external-evidence-provider/3" }), pin, "unsupported record profile"},
+			{"absent profile", mutate(t, v0, func(r map[string]any) { delete(r, "schema") }), pin, "unsupported record profile"},
+			{"other supported profile", v1, Pin{Schema: Schema, ProviderID: pin1.ProviderID, ProviderRevision: pin1.ProviderRevision, RepositoryRevision: p.app.head}, "record schema differs from pin"},
+		} {
+			t.Run(c.name, func(t *testing.T) {
+				file := writeRecord(t, t.TempDir(), "record.json", c.data)
+				got, err := ReadPinned(t.Context(), p.app.root, file, c.pin)
+				if c.want == "" && (err != nil || !bytes.Equal(got, c.data)) {
+					t.Fatalf("want accepted: %v", err)
+				}
+				if c.want != "" && (err == nil || err.Error() != c.want || got != nil) {
+					t.Fatalf("want %q with no bytes, got %v", c.want, err)
+				}
+			})
+		}
+	})
+}

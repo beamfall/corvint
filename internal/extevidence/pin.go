@@ -1,10 +1,13 @@
 package extevidence
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -63,8 +66,8 @@ func (pin Pin) validate() error {
 }
 
 func (pin Pin) check(data []byte) error {
-	if declaredSchema(data) != pin.Schema {
-		return errors.New("record schema differs from pin")
+	if err := profileReason(data, pin.Schema); err != nil {
+		return err
 	}
 	if pin.Schema == Schema {
 		record, err := Decode(data)
@@ -77,6 +80,15 @@ func (pin Pin) check(data []byte) error {
 	if err != nil {
 		return err
 	}
+	claims := 0
+	for _, repository := range record.Repositories {
+		if repository.Origin == pin.Origin {
+			claims++
+		}
+	}
+	if claims > 1 {
+		return errors.New("ambiguous pinned repository origin")
+	}
 	for _, repository := range record.Repositories {
 		if repository.ID == pin.RepositoryID {
 			if repository.Origin != pin.Origin {
@@ -86,6 +98,74 @@ func (pin Pin) check(data []byte) error {
 		}
 	}
 	return errors.New("pinned repository absent")
+}
+
+// maxPinnedDepth exceeds every legal record nesting; deeper input is refused
+// before the member walk rather than recursed into.
+const maxPinnedDepth = 32
+
+// profileReason gives an ambiguous, unsupported and mismatched record profile
+// distinct reasons (EEP-V0-020). A repeated member is ambiguous because Go's
+// decoder would silently keep its last value.
+func profileReason(data []byte, pinned string) error {
+	repeated, err := repeatedMember(json.NewDecoder(bytes.NewReader(data)), "", 0)
+	if err == io.EOF {
+		err = io.ErrUnexpectedEOF
+	}
+	if err != nil {
+		return fmt.Errorf("record is not a strict JSON document: %s", trimJSONError(err))
+	}
+	if repeated == "schema" {
+		return errors.New("ambiguous record profile: repeated schema member")
+	}
+	if repeated != "" {
+		return fmt.Errorf("ambiguous record: repeated member %q", repeated)
+	}
+	declared := declaredSchema(data)
+	if declared != Schema && declared != Schema1 && declared != Schema2 {
+		return errors.New("unsupported record profile")
+	}
+	if declared != pinned {
+		return errors.New("record schema differs from pin")
+	}
+	return nil
+}
+
+// repeatedMember returns the dotted path of the first member name repeated
+// within one object of the next JSON value, or "" when every name is unique.
+func repeatedMember(decoder *json.Decoder, prefix string, depth int) (string, error) {
+	if depth > maxPinnedDepth {
+		return "", fmt.Errorf("nesting exceeds %d", maxPinnedDepth)
+	}
+	token, err := decoder.Token()
+	if err != nil {
+		return "", err
+	}
+	delim, container := token.(json.Delim)
+	if !container {
+		return "", nil
+	}
+	seen := map[string]bool{}
+	for decoder.More() {
+		child := prefix
+		if delim == '{' {
+			key, err := decoder.Token()
+			if err != nil {
+				return "", err
+			}
+			child = prefix + key.(string)
+			if seen[child] {
+				return child, nil
+			}
+			seen[child] = true
+			child += "."
+		}
+		if found, err := repeatedMember(decoder, child, depth+1); found != "" || err != nil {
+			return found, err
+		}
+	}
+	_, err = decoder.Token()
+	return "", err
 }
 
 func (pin Pin) checkIdentity(identity Identity, revision string) error {

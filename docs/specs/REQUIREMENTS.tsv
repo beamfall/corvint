@@ -712,6 +712,9 @@ EEP-V0-016	docs/specs/external-evidence-provider-v0.md	131	The experimental vers
 EEP-V0-017	docs/specs/external-evidence-provider-v0.md	135	The kit consumer MUST strictly decode bounded regular-file or contained-command
 EEP-V0-018	docs/specs/external-evidence-provider-v0.md	141	Kit conformance MUST reuse valid, stale, malformed, ambiguous,
 EEP-V0-019	docs/specs/external-evidence-provider-v0.md	146	A `generated` relation composes exactly as the other admitted kinds, and every
+EEP-V0-020	docs/specs/external-evidence-provider-v0.md	154	The kit declares its own version, currently `0.2.0` (kit README title and the
+EEP-V0-021	docs/specs/external-evidence-provider-v0.md	165	The kit MUST carry a standard-library Go conformance runner that builds the
+EEP-V0-022	docs/specs/external-evidence-provider-v0.md	173	The kit MUST carry a clean-checkout authoring proof script that checks out only
 EEP-V1-001	docs/specs/external-evidence-provider-v1.md	54	A record whose top-level `schema` is `external-evidence-provider/1` MUST decode
 EEP-V1-002	docs/specs/external-evidence-provider-v1.md	60	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with
 EEP-V1-003	docs/specs/external-evidence-provider-v1.md	66	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin
