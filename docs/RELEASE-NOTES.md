@@ -20,8 +20,8 @@ read-only verbs are pinned, the work queue admits Corvint's own `decision-0046-v
 gate ledger keys resolved packages per package across worktrees, and the Claude Code plugin (0.2.3) and OpenCode package (0.2.7) versions advance with their shipped content. Four chore batches close the
 smaller defects and load-dependent tests recorded in the task store.
 
-The published prerelease is `Corvint 0.7.0 (build 43)`, commit
-`0d8654844ef804fb7fc22cc8aca75ff3ef1083b0`. The full gate passed at that commit, the archives
+The published prerelease is `Corvint 0.7.0 (build 46)`, commit
+`41f2b68934ce0d7b2ee6f0b22e31dab41ddffa25`. The full gate passed at that commit, the archives
 were built twice byte-identically, and the four Darwin/Linux archives are published with
 `SHA256SUMS` and `verification-report.json`; the producer also emits a Windows zip, which is not a
 qualified target. The install lifecycle passed on darwin/arm64 in same-bytes mode and the hostile
