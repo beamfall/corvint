@@ -7,6 +7,9 @@ Two ways to check a checked-in Change Evidence Map (CEM) on a pull request:
 | `github-actions.yml` + `verify-pr.sh` | a reviewed `corvint` executable the adopter checks in | `cem/0.2` |
 | `github-actions-portable.yml` + `verify-portable.sh` | the dependency-free `interop/cem01-go` module, digest-pinned | `cem/0.1` |
 
+[`recipes/`](recipes/README.md) composes these with `corvint impact`, `affected`, `context` and
+`cem` into three tested understand, review and CI-verification recipes.
+
 This runbook covers the portable verifier (`CEM-PILOT-020`..`023` in
 `docs/specs/cem-pilot-kit.md`). It uses no LLM, no index, no retriever, and no network after
 the fetch step. It reads the base and PR-head commits as Git data, derives the exact patch with

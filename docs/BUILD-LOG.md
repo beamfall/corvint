@@ -4,6 +4,43 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 CEM-PILOT-024..027: understand, review and CI-verification recipes (V1-0026)
+
+`examples/cem/recipes/` adds three Bash recipes over one committed `BASE..HEAD` change, composed
+only from existing commands: `understand-change.sh` (`impact --base`, `affected --base`,
+`context`), `review-change.sh` (`cem prepare`, strict `cem status`, a committed-map check,
+`cem report`, `review --base`) and `ci-verify.sh` (the V1-0015 `verify-portable.sh`). A shared
+`bounded.sh` runs each step in its own process group under `RECIPE_TIMEOUT` and kills it on
+recipe exit, `HUP`, `INT` or `TERM`: `TERM`, then `KILL` after a 2-second grace. Understand and review exit 3 on any refusal or incomplete
+evidence and keep every step's output; the CI recipe keeps the verifier's 0..5. No decision was
+needed: no verb, wire format or gate changed. `make cem-recipes-test` is not a gate member.
+
+Measured locally on darwin/arm64 by `script/cem-recipes_test.sh`, 17 fixture cases, all passing:
+
+- against the installed Corvint 0.7.0 build 46 (`CORVINT_BIN=$(command -v corvint)`): 12.7 s
+  and 22.7 s wall in two runs;
+- against a build of this checkout (reports `0.7.0 (build 0)`): 17.1 s and 20.4 s wall
+  in two runs, including the build.
+- The portable verifier is built from the checkout's `interop/cem01-go` in both runs; there is no
+  released `ci`-mode verifier to exercise.
+
+Review fix (PR #81): the first cut sent only `TERM`, so a step ignoring it (`trap "" TERM;
+sleep 8`, `RECIPE_TIMEOUT=1`) ran 9 s. `KILL` now follows a 2-second grace; the same stub ends in
+3 s. The review also led to refusing a non-empty `RECIPE_OUT`, rejecting non-integer
+`CEM_MAX_*` with exit 2 before `cem prepare`, and mapping a verdict-less verifier exit to 2. With
+three new cases (`b-stubborn` asserts `step=impact exit=124` within 6 s, `b-out-reused`,
+`r-bad-cap`; `b-interrupt` now uses the `TERM`-ignoring stub) all 20 cases pass: 14.6 s wall
+against the installed 0.7.0 build 46, 15.0 s against the checkout build.
+
+Author single-sample observation, not a reader measurement: in the fixture the review recipe
+went from its first run to `complete` in two recovery steps (cite the hunk, commit the map); a
+stale map needs one owner decision (`cem prepare --replace`) and new citations.
+
+`NOT_OBSERVED`: time and recovery steps to a first valid receipt, review or CI verification by a
+reader unfamiliar with the recipes (V1-0026 acceptance criterion 4).
+`NOT_RUN`: `make gate` (owner policy); the recipes on a GitHub runner; a pinned fetch from
+`proxy.golang.org`.
+
 ## 2026-09-23 V1-0025 LAC-V0-033..036 / decision 0362: console chain pane from hunk to recorded verification
 
 The optional console gains `/chain`. For a sealed change it renders the chain hunk → cited evidence →
