@@ -4,6 +4,31 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0199 SESSION-V0-017..019: a dogfood handoff receipt re-resolves or reports drift
+
+Finding: a handed-off enrollment kept its session key and root (LCP-V0-003), but nothing named the
+context the sender compiled. A receiving session re-derived its dogfood prompt packet and could see
+different evidence after a commit without any signal.
+
+Decision: add the read-only `corvint dogfood handoff` subverb under the existing `dogfood` verb, not
+a new root verb and not a change to the frozen `dogfood status` output, so status stays cheap. The
+emitted receipt names the key, root, bound revision, enrollment, sorted anchor tokens each with a
+per-anchor evidence digest, the SHA-256 and bytes of the unchanged `corvint-dogfood-prompt/0`
+packet, and the degradation list. It carries `authority: none` and is repeated inside the untrusted
+data envelope. With `--receipt`, the receiver recompiles and either returns the byte-identical packet
+(exit 0) or reports ordered root, revision, enrollment, anchor and packet drift and withholds the
+recompiled packet (exit 1). The slice is recorded as SESSION-V0-017..019 in the otherwise deferred
+session-context-dividend spec. SESSION-V0-001..016 stay deferred. CCF-V1-002 lists `handoff` as an
+unpinned dogfood mode.
+
+Evidence: `TestDogfoodHandoffReceiptReresolvesSamePacket` (same revision re-resolves the same
+digest and bytes, and neither step changes private state) and
+`TestDogfoodHandoffReportsRevisionAndAnchorDrift` (a commit that moves the anchored requirement line
+reports revision drift and drift for that anchor only; a foreign key, a malformed receipt and
+exclusive options fail closed). `go test ./cmd/corvint`, `go vet ./cmd/corvint` and the spec
+index, requirement, traceability, decision-number and line-citation checks pass. The post-commit
+CEM bind, check and seal loop was not run for this change.
+
 ## 2026-09-23 V1-0204 AFP-V0-020: every plugin names a changed unit no test reaches
 
 Finding: AFP-V0-020 named a changed Go package with no tests as `NO_SELECTABLE_TEST`, but the

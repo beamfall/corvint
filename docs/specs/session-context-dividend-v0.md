@@ -3,15 +3,15 @@
 Owner: Russell Lewis
 Frozen: 2026-08-22
 Intent status: proposed
-Delivery status: deferred
+Delivery status: partial (handoff-receipt slice SESSION-V0-017..019 experimental; SESSION-V0-001..016 deferred)
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/DOGFOOD.md`, `docs/specs/technical-brain-dogfood.md`
 
 ## Agent digest
 - Claim: Exact-key local session receipts may reuse still-valid evidence without treating outcomes or producer metrics as truth.
-- Status: proposed/deferred
-- Exists: a contract for exact-key local session receipts and bounded evidence reuse.
-- Blocked on: Genesis authority, access-context identity, CEM/OCM binding, implementation, and outcome trials.
+- Status: proposed/partial (handoff-receipt slice SESSION-V0-017..019 experimental; SESSION-V0-001..016 deferred)
+- Exists: the contract; the read-only `corvint dogfood handoff` receipt and re-resolution (SESSION-V0-017..019, ticket V1-0199).
+- Blocked on: Genesis authority, access-context identity, CEM/OCM binding, SESSION-V0-001..016 implementation, and outcome trials.
 - Read next: Verified current state; Requirements; Traceability.
 
 ## User and measurable job
@@ -30,6 +30,11 @@ Status: deferred after the independent 2026-08-22 technical-brain review. Corvin
 the CEM/OCM proof boundary and validates the Unknown Frontier on historical changes. This contract
 remains design history and MUST NOT drive implementation until that flagship clears its outcome
 gate.
+
+The one exception is the handoff-receipt slice requested by owner ticket V1-0199 (2026-09-23):
+`SESSION-V0-017..019` below, delivered experimentally as a read-only subverb of the existing
+`dogfood` verb. It adds no `corvint session` verb, private session store, delta, capsule reuse, or
+token-saving claim; `SESSION-V0-001..016` stay deferred and unimplemented.
 
 ## Verified current state
 
@@ -154,6 +159,48 @@ and `close` mutate private session state.
   record unavailable fields as `NOT_OBSERVED`, retain any manual broad search as a product miss, and
   make no token-saving claim until a preregistered equal-tool paired baseline exists.
 
+## Handoff receipt slice (V1-0199)
+
+A handed-off enrollment keeps its original session key and root (`LCP-V0-003`), but without a
+receipt the receiving session re-derives its context and may silently see different evidence. This
+slice names what the receiver must re-resolve and makes any difference explicit. It reuses the
+`corvint-dogfood-prompt/0` packet compiler (`LCP-V0-010/011`) unchanged.
+
+- `SESSION-V0-017`: `corvint dogfood handoff --session-key KEY [--anchors TEXT]` MUST be read-only
+  (`mutates=false`; no repository, enrollment, trace, ledger or index-snapshot write) and emit one
+  `corvint-dogfood-handoff/0` receipt naming the session key, resolved root, bound revision (commit,
+  tree, worktree state and dirty-path digest), enrollment lifecycle, base and plan digest, the
+  sorted unique task anchors each with the SHA-256 of its own single-anchor resolution and task
+  evidence, the SHA-256 and byte count of the LF-terminated canonical `corvint-dogfood-prompt/0`
+  packet compiled from those anchors and the enrolled scope at budget 8000 and limit 10, and a
+  sorted degradation list: always `frontier-authority-unavailable`, plus `enrollment-<lifecycle>`
+  when the enrollment is neither active nor satisfied, `uncommitted-work` for a dirty worktree, and
+  the packet resolution reason when it is not `none`. Anchors are whitespace-delimited tokens only,
+  at most 32, each at most 512 bytes with no control characters; no other task text is retained.
+- `SESSION-V0-018`: The receipt MUST carry `authority: none` and be emitted a second time framed by
+  the untrusted repository-data envelope (`internal/repoenvelope`). It grants no authority,
+  satisfies no local completion condition, and its digests are identity, not authenticity: a
+  same-UID rewrite yields a different, equally untrusted receipt. A receiver MUST require its
+  explicit session key to equal the receipt key (`handoff-session-key-mismatch`) and refuse unknown
+  members, trailing data, a non-`none` authority, noncanonical anchors, malformed digests, or a
+  foreign budget or limit as `invalid-handoff-receipt`.
+- `SESSION-V0-019`: `corvint dogfood handoff --session-key KEY --receipt FILE` MUST be read-only,
+  read that emitted document, and recompile the packet from its anchors and the current enrollment.
+  When root, revision, enrollment, every anchor digest and the packet digest and bytes all match,
+  it exits 0 with state `reresolved` and returns the byte-identical packet. Otherwise it exits 1
+  with state `drifted`, lists each differing member in the fixed order root, revision, enrollment,
+  anchor (by name), packet with both receipt and current values, and withholds the recompiled
+  packet instead of silently substituting it.
+
+Failure modes: a repository or snapshot change during the read fails
+`dogfood-handoff-repository-drift` or `dogfood-handoff-context-drift`; an unreadable receipt fails
+`handoff-receipt-unavailable`; malformed anchors fail `invalid-handoff-anchors`; `--anchors` with
+`--receipt` fails `invalid-local-completion-option`; packet compiler refusals keep their
+`LCP-V0-011` codes. Non-goals: persistence of receipts, transfer between repositories or access
+contexts, automatic handoff by a host adapter, and any reuse decision. Rollback: remove the
+`handoff` subverb (`cmd/corvint/dogfood_handoff.go` and its dispatch); it wrote no state, so nothing
+else changes.
+
 ## Event shapes
 
 The externally submitted event is one strict object. The writer adds session, sequence, previous
@@ -234,7 +281,8 @@ of otherwise eligible repeated tasks miss reuse only because keys differ.
 ## Non-goals and rollback
 
 V0 does not include free-form memory, prompt/terminal interception, automatic activity collection,
-background hooks, checkpoint/handoff/merge/revert deltas, signatures, encryption, linked-worktree
+background hooks, checkpoint/handoff/merge/revert deltas (the read-only receipt of
+`SESSION-V0-017..019` is not a delta), signatures, encryption, linked-worktree
 support, a daemon, database, service, upload, team synchronization, semantic task matching,
 documentation generation, durable claim updates, Jira/Confluence ingestion, IDE integration, or
 automatic editing. Delete the private session directory and remove the four CLI commands to roll
@@ -244,4 +292,7 @@ back; repository source, accepted intent, and existing traces remain unchanged.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| SESSION-V0-001..016 | not started | implementation, hostile fixtures, dogfood receipt, and paired outcome trial pending |
+| SESSION-V0-001..016 | not started (deferred) | implementation, hostile fixtures, dogfood receipt, and paired outcome trial pending |
+| SESSION-V0-017 | `cmd/corvint/dogfood_handoff.go` | `TestDogfoodHandoffReceiptReresolvesSamePacket` |
+| SESSION-V0-018 | `cmd/corvint/dogfood_handoff.go` | `TestDogfoodHandoffReceiptReresolvesSamePacket`; `TestDogfoodHandoffReportsRevisionAndAnchorDrift` |
+| SESSION-V0-019 | `cmd/corvint/dogfood_handoff.go` | `TestDogfoodHandoffReceiptReresolvesSamePacket`; `TestDogfoodHandoffReportsRevisionAndAnchorDrift` |
