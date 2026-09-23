@@ -4,6 +4,46 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-22 CEM-PILOT-020..023 / decision 0356: portable digest-pinned CEM CI verifier (V1-0015)
+
+`interop/cem01-go` gains a `ci` mode. It derives the exact base-to-head patch with the
+`docs/CEM-CI.md` profile and reads `.corvint/change.cem.json` from the head tree. `verify` makes
+every structural and drift decision. The mode writes one fixed-schema `cem-ci-report/0` line. The
+`verify` ABI (CEM-GO-002) is unchanged. `examples/cem/github-actions-portable.yml` and
+`verify-portable.sh` pin the module pseudo-version and the built executable's SHA-256, check the
+digest before execution, and verify under `unshare --net`. `examples/cem/README.md` is the runbook.
+
+Measured locally on darwin/arm64 with Go 1.27.1:
+
+- `TestCIVerdictsAndExits` gives the eight fixture cases their distinct exits: accepted 0, unsafe
+  drift and invalid map 1, map absent and unknown hunk 3, `cem/0.2` 4, base mismatch and absent
+  head 5.
+- Each report is byte-identical across two runs, is one line under 6 MiB, and contains none of the
+  fixture's base or head source lines.
+- `TestCIReportWorstCaseBound` keeps a 4096-item, 512-byte-path report under the bound.
+- `TestCIPortableWorkflowOffline`:
+  - Two fresh-cache `go install -trimpath` runs from a local file proxy produce the same digest.
+  - A stub whose digest mismatches exits 2 and is never executed.
+  - Under `sandbox-exec (deny network*)`, which refused a probe connection to a loopback listener,
+    the script returns the in-process report byte for byte.
+- A linux/amd64 cross-compile from the same file proxy produced the same SHA-256 in two fresh
+  caches.
+- Reviewer-observed, not reproduced by the author: the independent reviewer of PR #75 resolved the
+  pseudo-version from `proxy.golang.org`. Two fresh-cache linux/amd64 cross-compiles gave the same
+  SHA-256, `42a0a316…294b0e` (abbreviated as reported).
+
+Failed evaluation, retained: a reinstall with `GOPROXY=off` fails because `go install
+MODULE@VERSION` looks up deprecation, so it cannot show offline reproducibility.
+
+`NOT_RUN`:
+- a fetch from `proxy.golang.org`;
+- the GitHub-hosted `sudo -E unshare --net -- setpriv` step;
+- the linux `unshare --user --net` branch of the test;
+- equality of a darwin cross-compile with a native linux/amd64 build (inferred only).
+
+`NOT_PRODUCED`: a published pseudo-version and executable digest for the workflow placeholders.
+
+V1-0014 (independent producers and consumers) is an external dependency, not a blocker.
 ## 2026-09-22 V1-0002: roadmap reconciled to the task store as the one execution authority
 
 Status audit and repair, not capability promotion. `ROADMAP.md` now opens by naming the Corvint task

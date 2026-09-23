@@ -295,6 +295,10 @@ CEM-PILOT-016	docs/specs/cem-pilot-kit.md	132	Corvint repository changes MUST us
 CEM-PILOT-017	docs/specs/cem-pilot-kit.md	135	every Git subprocess MUST ignore ambient repository/config redirection. Patch
 CEM-PILOT-018	docs/specs/cem-pilot-kit.md	138	when prepare refuses an existing map under `CEM-PILOT-002`, the untyped
 CEM-PILOT-019	docs/specs/cem-pilot-kit.md	145	`cem verify` same-path drift MUST use only the five frozen statuses. A target en
+CEM-PILOT-020	docs/specs/cem-pilot-kit.md	155	(proposed; accepted with decision 0356) the portable CI example
+CEM-PILOT-021	docs/specs/cem-pilot-kit.md	161	(proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSO
+CEM-PILOT-022	docs/specs/cem-pilot-kit.md	167	(proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
+CEM-PILOT-023	docs/specs/cem-pilot-kit.md	174	(proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
 CEM-SM-001	docs/specs/cem-0.3-structural-mechanical.md	41	`cem/0.3` MUST be the `cem/0.2` wire shape plus the four structural reasons.
 CEM-SM-002	docs/specs/cem-0.3-structural-mechanical.md	44	The verifier MUST prove a structural reason from the base blob at `baseRevision`
 CEM-SM-003	docs/specs/cem-0.3-structural-mechanical.md	48	For `rename`, `import-reorder`, and `formatter-only` the image MUST be the hunk

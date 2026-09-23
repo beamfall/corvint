@@ -43,6 +43,15 @@ Exit 0 means accepted, exit 1 means invalid or unsafe drift, and exit 2 means in
 operational failure. Standard output is exactly one JSON protocol object; standard error is empty.
 Verification proves structural integrity and drift status, never semantic support or correctness.
 
+`ci` is the portable CI verifier (`CEM-PILOT-020`..`023`): it derives the patch from two declared
+commits, reads the map from the head tree, and prints one `cem-ci-report/0` line with exit 0 to 5.
+It leaves `verify` unchanged. The pinned, network-denied runbook is `examples/cem/README.md`.
+
+```console
+$ go run . ci --repository /absolute/repository --base BASE_OID --head HEAD_OID \
+    --map .corvint/change.cem.json
+```
+
 The implementation was produced from `interop/cem-0.1/ADAPTER.md`, `ALGORITHMS.md`,
 `manifest.json`, and the digest-pinned public fixtures. The builder did not read `src/**`,
 `tests/**`, Python source, or repository history. A separate adversarial reviewer initially found
