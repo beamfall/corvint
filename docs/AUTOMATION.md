@@ -64,6 +64,14 @@ base must be a full 40-hex commit id that is present in the clone, so a shallow 
 fetch enough history to contain it (`cmd/corvint/help.go:627`). On an argument or input refusal each
 prints one JSON object with `"ok": false` to stderr and exits 2.
 
+Scope: the table lists the steps that answer a question about one change against a fixed base,
+which is what a CI job, git hook or team automation asks. Other verbs that help also describes as
+read-only (`init`, `adopt`, `query`, `docs`, `harness`, `lrf` at `cmd/corvint/help.go:354`, and the
+experimental `batch`, `depsource`, `necessity`, `surprise`, `answerability`, `kernel` and `reads`
+at `cmd/corvint/help.go:312-328`) are not classified here. They need a per-session task, packet or
+request as input, or they are experimental without a stability promise. This page makes no claim
+about their safety as a triggered step.
+
 | Step | Class | Exit codes | Output profile (stdout) | Required inputs | 1.0 label |
 |---|---|---|---|---|---|
 | `corvint affected --base BASE` | `R0` | 0 plan written; 2 refusal or error | `affected-plan/0`, one canonical JSON line, `"mutates": false` | full `BASE`; a checkout whose `HEAD` is the change head | Core |
@@ -87,7 +95,8 @@ Where each row was verified:
   (`cmd/corvint/index_snapshot.go:79-84`); the fresh-clone run wrote no `.corvint/index`.
 - `impact --base`: profile `internal/contextindex/range_impact.go:24`; exits and ledger calls
   `cmd/corvint/main.go:1051-1056` and `cmd/corvint/main.go:1077-1136`; envelope
-  `cmd/corvint/main.go:1261`; range capacity from `corvint impact --help`.
+  `cmd/corvint/main.go:1261`; range capacity from `corvint impact --help`. With no snapshot it builds
+  the index in memory (`cmd/corvint/main.go:1080`) and writes no `.corvint/index`.
 - 1.0 labels: `docs/specs/corvint-1.0-product-and-release-v1.md` classification table.
 - Every exit code in the table was also observed: 0 in the worked example, 1 from `cem verify`
   with `--target` set to the base, 2 from `affected`, `witness` and `impact` given a short base and
