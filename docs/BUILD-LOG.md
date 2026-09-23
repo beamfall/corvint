@@ -18,8 +18,12 @@ replacement sequence. It keeps the same witness, the SIGTERM-then-SIGKILL group 
 replica, because `TIOCSWINSZ` on the master returns `ENOTTY` before the replica is open. The
 descendant fixtures are now `/bin/sh` with `trap '' TERM`, and `build.mjs` extracts the Node binary
 with `/usr/bin/tar --strip-components 2`, then refuses a member that is not a regular file. The
-check is gate step `no-python-runtime-dependency-test`. It now allows its own name, because the
-Makefile must spell that name, and a new self-test case covers the allowance. The GOC-V0-008
+check is gate step `no-python-runtime-dependency-test`. It now masks its own name, because the
+Makefile must spell that name. Independent review found the old line-level allow-list let any line or
+path containing an allowed name hide a real invocation (a checkout directory named after the check,
+or `python3` appended to a `check-analyzer-python-*` script); the check now drops only
+`CORVINT_TEST_EXTERNAL_PYTEST` opt-in lines, masks the two allowed names, matches again on
+repository-relative paths, and a self-test case proves an allowed name cannot hide `python3`. The GOC-V0-008
 traceability row names the wiring. The gate-ledger `scopes` entry for the step is left as a
 follow-up (GL-V0-003: the step runs unrecorded).
 
