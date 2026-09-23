@@ -8,9 +8,12 @@ decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
 Criterion 1 of V1-0188. One table-driven, entrypoint-level hostile test file per Core use case,
 with subtests named `<category>/<class>/<case>` so the UCV0-006 categories `negative`, `hostile`
-and `abstention` are visible per use case. The tests were committed first (`5eddd496`). The three
-`hostile-tests` receipts pin `repositoryRevision` 5eddd496edf240997ed6af58501a31bf9cdfa320 and the
-`shasum -a 256` of their test file, and each attests `cases` `["abstention","hostile","negative"]`.
+and `abstention` are visible per use case. The tests were committed first (`5eddd496`). Each
+`hostile-tests` receipt pins a `repositoryRevision` and the `shasum -a 256` of its test file at that
+revision, and each attests `cases` `["abstention","hostile","negative"]`. After independent review,
+UC-TASK-ORIENTATION and UC-CHANGE-CONSEQUENCE pin 1c6451f4aab403bbc59d8ba2bbb2416f9d57638e;
+UC-EVIDENCE-CARRYING-COMPLETION keeps 5eddd496edf240997ed6af58501a31bf9cdfa320, because its test file
+did not change.
 The ledger rows gain a `hostile-tests` evidence entry and stay `experimental` with claim `UNPROVEN`.
 The `go run ./conformance/use-cases-v0` validator reports `valid: true` with 9 evidence references.
 No product code changed.
@@ -50,7 +53,8 @@ UC-CHANGE-CONSEQUENCE (`corvint affected`), in
 `conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/hostile-tests.json`:
 
 - Stale index is hostile:
-  - A stale `.corvint/index` snapshot leaves the plan byte-identical.
+  - A stale `.corvint/index` snapshot leaves the plan byte-identical. `corvint affected` never reads
+    the snapshot, so this case documents that independence rather than a refusal.
   - A provider record pinned to a superseded revision gives `full-relevant-suite-required` with
     `stale-provider-revision`.
 - Dirty worktree:
@@ -74,7 +78,9 @@ UC-CHANGE-CONSEQUENCE (`corvint affected`), in
   - Hostile: a record naming `../outside_test.go` gives `unresolved-endpoint`.
   - Hostile: an untracked file symlink gives `UNKNOWN` with `UNINDEXED_SOURCE_PATH`.
   - Hostile: an untracked directory symlink gives `UNKNOWN` with `UNOWNED_DIRTY_PATH`.
-  - Hostile: a committed symlink to an outside directory is not walked.
+  - Hostile: a committed symlink to an outside directory is not walked. The outside directory holds
+    `extdir_test.go`, so a walked directory would enter the plan: replacing the symlink with a real
+    directory holding the same files makes the case fail with `go:example.com/g/extdir` excluded.
   - Abstention: an uncommitted `git mv` gives `UNKNOWN`. The move destination appears in no plan
     list; that is part of the V1-0187 defect and is not asserted here.
 - Skipped (defect, not fixed here): `hostile/dirty-worktree/dirty package without tests is named`.
@@ -113,6 +119,20 @@ UC-EVIDENCE-CARRYING-COMPLETION (`corvint cem`, `corvint dogfood`), in
 
 Spec: the `use-case-conformance-v0.md` status paragraph now records the `hostile-tests` receipts. No
 requirement was added or renumbered; `REQUIREMENTS.tsv` was regenerated for the line shift.
+
+Verification was focused, per the owner's policy for scoped work; `make gate` is NOT_RUN. Results
+after the review fixes:
+
+- `go test -count=1 -run 'Hostile|UseCase' ./cmd/corvint/`: exit 0, 46 use-case subtests pass and 1
+  is skipped.
+- `go test -count=1 -timeout 30m ./cmd/corvint/ ./conformance/use-cases-v0/` (before the review):
+  exit 0.
+- `go vet ./cmd/corvint/ ./conformance/use-cases-v0/`: exit 0. `gofmt -l cmd conformance`: no files.
+- `go run ./conformance/use-cases-v0`: exit 0, `valid: true`, `useCaseCount` 22, `evidenceCount` 9,
+  `experimental` 3, `specified` 19, `verified` 0, `UNPROVEN` 22.
+- `go test -count=1 ./conformance/use-cases-v0/ ./internal/specindex/`: exit 0.
+- `make spec-requirements-check requirement-definitions-check traceability-tests-check
+  decision-numbers-check line-citations-check`: exit 0.
 
 Criterion 2 of V1-0188 is NOT_RUN. The three rows stay `experimental` and `UNPROVEN`, with no
 `corvint-dogfood` or `beamfall-dogfood` receipt. The branch is stacked on
