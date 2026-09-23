@@ -119,3 +119,26 @@ func TestTaskContextCapsInstructionRoutedRows(t *testing.T) {
 		t.Fatalf("budget_shortage = %v, want slots", coverage["budget_shortage"])
 	}
 }
+
+// TestContextSpansSkipInstructionRoutedRows is TCP-V0-047's "reserved in every
+// other respect" under TCP-V0-025: a routed row, like the governing row, takes
+// no core span even when its text carries the task's terms.
+func TestContextSpansSkipInstructionRoutedRows(t *testing.T) {
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":         "module example.test/routed\n\ngo 1.27.0\n",
+		"AGENTS.md":      "# Rules\n\n- Backlog ledger questions: follow `docs/ROUTES.md`.\n",
+		"docs/ROUTES.md": "# Routes\n\nMove the backlog ledger into the store here.\n",
+	})
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packet := spanPacket(t, index, "on", "move the backlog ledger into the store")
+	if pairs := contextPairs(t, packet); !slices.Contains(pairs, "instruction-routed docs/ROUTES.md") {
+		t.Fatalf("rows = %v, want the routed row", pairs)
+	}
+	_, rows := spanRowsOf(t, packet)
+	if core := findSpan(rows, "core", "docs/ROUTES.md"); core != nil {
+		t.Fatalf("routed row took a core span: %#v", core)
+	}
+}

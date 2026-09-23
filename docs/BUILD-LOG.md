@@ -28,7 +28,15 @@ Frozen `tools/retrieval-bench` v2, `--arms context`, all samples, `CORVINT_CONTE
 comment2context 0.5042/0.3438/0.2562 unchanged; trace2code 0.7937/0.5083/0.4010 unchanged;
 edit2ripple 0.6293/0.5101/0.3621 then 0.6293/0.4928/0.3448; abstention rate 0.1707 unchanged. Ten of
 427 packets changed (transformers, eslint, caddy); no sample lost recall@20, one edit2ripple sample
-lost recall@10. Criterion 2, the sealed daily-loop re-run: NOT_RUN (not this ticket's step).
+lost recall@10. Accepted cost: code2test recall@5 0.2877 to 0.2830, edit2ripple recall@10 0.5101 to
+0.4928 and recall@5 0.3621 to 0.3448; recall@20 is flat on every subset, which is the ticket's
+closing rule. The likely cause is that the passage match has no idf floor (any two shared task
+terms route, however common), filed as a follow-up. Retained reports (with their
+`.registration.json` sidecars):
+`/private/tmp/claude-501/-Users-russelllewis-projects-corvint/dd54e7f8-328f-4e5e-ac2a-20e9a455cd73/scratchpad/w0186-bench-reports/w0186-bench-{base,fix}-{code2test,comment2context,trace2code,abstention,edit2ripple}.json`.
+Review follow-up: `coreSpans` (TCP-V0-025) now skips `instruction-routed` rows like the other
+reserved rows (`TestContextSpansSkipInstructionRoutedRows`). Criterion 2, the sealed daily-loop
+re-run: NOT_RUN (not this ticket's step).
 
 ## 2026-09-23 V1-0004 PUB-V0-016, PUB-V0-020: core wrapper mode and first PASS retained core run
 
