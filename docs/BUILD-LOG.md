@@ -4,6 +4,38 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 v0-5 candidate recaptured at 5957c5f with the one authorized candidate-head gate run; V1-0202 to V1-0206 filed
+
+The owner authorized one `make gate` run at a candidate head (decision 0373, answer C). It ran in a
+clean clone at c25f8a0ae009c97ad500adafb3cb2f33e160f2c5 (the PR #107 merge). The task store at that
+commit lacks the PR #109 mutations, so `release candidate` could not bind it; the candidate is bound
+at 5957c5f4f3509947c5aa383360bd720f617190d9 instead, whose tree is byte-identical to c25f8a0 outside
+`.taskman/` (`git diff --stat c25f8a0 5957c5f -- . ':!.taskman'` is empty; `.taskman/policy.json` is
+identical, `.taskman/queue.json` differs by one line). The only gate step known to read the store is
+the companion-release smoke fixture, which takes the queue and policy projections. The previous v0-5
+candidate at e0d80d2 was reported stale (`candidate-source-or-policy`) and is superseded; its six
+attestations stay in the journal. Store revision 9 to 16.
+
+| Gate | Result | Exit | Evidence (sha256 of the log) |
+|---|---|---|---|
+| `full-gate` | PASS | `make gate` 0, 228 packages ok | 34dd93e50196dfbc94a238464e11bcf9fcdb7540fc4d9ec779b77f1a477bbceb |
+| `interop-gate` | PASS | `make interop-gate` 0 | 070759c2e77a7fb2cba49f169c0db23c71dfe5186c67ccee819bc112e95b349a |
+| `focused-docs` | PASS | five docs checks 0 | bc400ee07cb6c032d5a989fcfc195b9b77c043c8d77af0d588db09c9946a8cb2 |
+| `companion-release` | PASS | `make companion-release-gate` 0; browser/UI qualification not claimed | 61e8ed83cfe415b3b12784d4ccd68fe016097b70cb180dbaa016f93390831247 |
+| `public-release` | FAIL | `make public-release-check` 2: `CORVINT_RELEASE_BUNDLE_DIR` unset; the core bundle inputs are unrecoverable | f17ac2ac07ae195a6cd830e935d276a191d622bca7147cd8b8e0bc0d8e3936e1 |
+| `release-checklist` | FAIL | `script/release-checklist` 1: `tag` FAIL (`ARTIFACT-RDY-V0-003`, the V1-0189 structural pre-promotion exit); `publication`, `promotion` and `native-performance` NOT_RUN | b909e64c1786af2c436bac2f5a3a392353d530107152268ae647adffc3a0636a |
+
+The logs are retained outside the checkout at `~/projects/corvint-release-evidence/v0-5-5957c5f/`.
+`release readiness v0-5` is `BLOCKED` on `gate:public-release` and `gate:release-checklist`;
+`nativeGateExecution` is `NOT_RUN`. Promotion is an owner action and is not claimed. A v0-6 candidate
+was attempted and refused (`predecessor not promoted`), which is the expected chain order.
+
+Follow-up tickets filed from the V1-0186 and V1-0187 reviews: V1-0202 (v0-6, P1: the daily-loop
+harness must score `plan.unknown` `NO_SELECTABLE_TEST` entries before the V1-0187 criterion 2 re-run),
+V1-0203 (`testdata/` directories indexed as Go units), V1-0204 (changed untested non-Go units still
+omitted silently), V1-0205 (idf floor for `instruction-routed` matching, re-measure the recall@5 and
+recall@10 dips), V1-0206 (untested TCP-V0-047 cases and the fenced-code-block path question).
+
 ## 2026-09-23 V1-0186 TCP-V0-047: governing instructions route task orientation
 
 Cause (daily-loop run-001 UC-TASK-ORIENTATION critical miss): for "move the agent-memory backlog into
