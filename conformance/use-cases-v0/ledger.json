@@ -197,7 +197,7 @@
         },
         "hostile-tests": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/hostile-tests.json",
-          "sha256": "a61ec12255bb0affba24df5a65f4f7593b4568b759a03c65219484399806586d"
+          "sha256": "ce42c53f66006611fb9494487d291af6012e18b33109e922b74c40b3584ba765"
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/implementation.json",
