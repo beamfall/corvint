@@ -1251,7 +1251,7 @@
     "title": "Local Admin Console V0",
     "reqPrefix": "LAC-V0",
     "intent": "accepted (decision 0081)",
-    "delivery": "experimental (S1, S2 ticket verbs, and S3)",
+    "delivery": "experimental (S1, S2 ticket verbs, S3, and the chain pane)",
     "claim": "A local, loopback-only console may present task management, evidence, spec and code without becoming repository, execution, or promotion authority.",
     "dependsOn": [
       "docs/specs/local-observability-dashboard-v0.md",
