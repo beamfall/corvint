@@ -63,12 +63,15 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `.corvint/dogfood-report.json` contains `"complete": true`. An uncited hunk instead leaves
    `cem-status: not-ready` (policy issue `max-unknown-exceeded`).
 7. Optionally link requirement evidence: rerun step 6 with `DOGFOOD_OCM_LINKS` naming the author's
-   link plan. After each map is prepared, every row for that intent runs through `corvint ocm link`
-   and reports `ocm-link-NNN`; a refusal leaves that requirement unlinked and prints a `fix:` line
-   (`DCW-V0-018`). Keep the plan exported on every later pass, because each new `HEAD` regenerates
-   the maps with `--replace`. Nothing is linked without a row, and every unlinked requirement stays
-   `unassessed`, which means "not assessed by this change". `corvint ocm mark` (section 5) is
-   still manual and is dropped by the next commit.
+   link plan, kept outside the repository. After each map is prepared, every row for that intent runs
+   through `corvint ocm link` and reports `ocm-link-NNN`, where NNN is the plan row; a refused row
+   leaves that requirement unlinked, prints a `fix:` line, and later rows still run (`DCW-V0-018`).
+   A supplied plan that is missing, malformed or empty, or that has a refused row, blocks
+   `"complete": true`. The report records the plan's `ocmLinkPlan` sha256 and row count. Export the
+   same plan on every later pass, including the post-commit clean rerun (section 4), because each
+   new `HEAD` regenerates the maps with `--replace`. Nothing is linked without a row, and every
+   unlinked requirement stays `unassessed`, which means "not assessed by this change".
+   `corvint ocm mark` (section 5) is still manual and is dropped by the next commit.
 8. Inspect what a reviewer sees: `corvint cem report` and `corvint ocm report` (section 6), and
    `corvint frontier --cem .corvint/change.cem.json --ocm .corvint/change.ocm.001.json
    --expected-base $BASE --target HEAD`, whose exit 1 is a valid open frontier.

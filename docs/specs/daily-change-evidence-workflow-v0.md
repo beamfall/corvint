@@ -91,9 +91,11 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   author-written `DOGFOOD_OCM_LINKS` plan, applied through the verified `corvint ocm link` after that
   intent's map is prepared on every pass. It MUST NOT infer a link from names, paths or history.
   Without the input it MUST run no link and report no link row, so every requirement stays
-  `unassessed`. A missing or malformed plan MUST report `ocm-links` NOT_PRODUCED, and a refused
-  link MUST report `ocm-link-NNN` NOT_PRODUCED with the refusal code, each followed by a `fix:`
-  line; neither refusal withholds the OCM aggregate.
+  `unassessed`. A supplied plan that is missing, malformed or empty MUST report `ocm-links`
+  NOT_PRODUCED; otherwise the report MUST record the plan's sha256 and row count. Every row for a
+  prepared map MUST be attempted and reported as `ocm-link-NNN`, NNN being its plan row, and a
+  refused row MUST be NOT_PRODUCED with the refusal code. Each NOT_PRODUCED row MUST be followed by
+  a `fix:` line and MUST block `"complete": true`; none withholds the OCM aggregate.
 
 ## Non-goals and baseline
 
@@ -126,7 +128,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-009..010` | native platform and installed exact-host evidence required | NOT_QUALIFIED |
 | `DCW-V0-011..012` | portfolio, gate and candidate evidence required | NOT_QUALIFIED |
 | `DCW-V0-013..015` | `docs/DOGFOOD.md` "Daily adopter path"; `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed`; scratch reproductions recorded in the V1-0010 build-log entry | implemented; the SIGINT interrupt and reviewer leg NOT_OBSERVED |
-| `DCW-V0-018` | `script/dogfood-change_test.sh` link phase; the replay of the sealed LAC-V0-032 change recorded in the V1-0142 build-log entry | implemented; a link on a change delivered through this loop NOT_OBSERVED |
+| `DCW-V0-018` | `script/dogfood-change_test.sh` link phase: no plan, exact argv and order, plan digest, partial refusal across rows and intents, and unlisted-intent, CRLF, field-count, empty-item, over-256-row, empty and absent plans; the replay of the sealed LAC-V0-032 change recorded in the V1-0142 build-log entry | implemented; a link on a change delivered through this loop NOT_OBSERVED |
 
 ## Compatibility and rollback
 
@@ -135,6 +137,8 @@ current alpha candidate/installer requires companions and alpha version tokens; 
 packaging needs an explicit compatible contract before release. This spec does not change that
 wire by implication. If any gate fails, preserve its evidence and keep the affected jobs UNPROVEN.
 Retain the previous working installed binary and public release. Do not rewrite historical receipts.
+Roll back `DCW-V0-018` by unsetting `DOGFOOD_OCM_LINKS`: no link runs and every requirement
+returns to `unassessed` on the next pass.
 Any runtime behavior, test, selected check, fixture, owning normative requirement or
 `T` proof-map change requires a new candidate and invalidates affected evidence.
 Preserve failed and incomplete `T` and `E` records; neither local PATH activation nor

@@ -49,6 +49,8 @@ anchor_state=NOT_OBSERVED
 anchor_merge_base=
 bootstrap_unknown=0
 ocm_links_ready=0
+ocm_link_plan_sha256=
+ocm_link_plan_rows=
 
 resolve_anchor() {
   local configured merges config_result
@@ -302,6 +304,11 @@ render_report() {
     else
       printf '  ,"anchor": {"state": "NOT_OBSERVED", "mergeBase": null}\n'
     fi
+    if [[ -n $ocm_link_plan_sha256 ]]; then
+      printf '  ,"ocmLinkPlan": {"sha256": "sha256:%s", "rows": %d}\n' "$ocm_link_plan_sha256" "$ocm_link_plan_rows"
+    else
+      printf '  ,"ocmLinkPlan": null\n'
+    fi
     printf '  ,"dogfoodPolicy": {"bootstrapUnknown": %d, "maximumUnknownAfterBootstrap": 0}\n' "$bootstrap_unknown"
     printf '  ,"dogfoodCheck": null\n'
     printf '}\n'
@@ -393,8 +400,8 @@ run_ocm_prepare() {
     --intent "$path" --expected-base "$base" --target "$target" --replace
 }
 
-# load_ocm_link_plan freezes the optional DOGFOOD_OCM_LINKS plan (DCW-V0-018).
-# Without it no obligation is linked and no row is reported.
+# load_ocm_link_plan freezes the optional DOGFOOD_OCM_LINKS plan and records its
+# digest and row count (DCW-V0-018). Without it no obligation is linked and no row is reported.
 load_ocm_link_plan() {
   local snapshot="$run_tmp/ocm-links.snapshot" size last controls
   ocm_links_ready=0
@@ -408,15 +415,22 @@ load_ocm_link_plan() {
     return 0
   fi
   size=$(wc -c < "$snapshot")
+  if [[ $size -eq 0 ]]; then
+    append_step ocm-links NOT_PRODUCED empty-ocm-link-plan
+    return 0
+  fi
   last=$(tail -c 1 "$snapshot" | od -An -t x1 | tr -d '[:space:]')
   controls=$(tr -d '\11\12\40-\176\200-\377' < "$snapshot" | wc -c)
-  if [[ $size -gt 4194304 || $(wc -l < "$snapshot") -gt 256 || ( $size -gt 0 && $last != 0a ) || $controls -ne 0 ]] ||
+  if [[ $size -gt 4194304 || $(wc -l < "$snapshot") -gt 256 || $last != 0a || $controls -ne 0 ]] ||
     ! awk -F '\t' 'NR == FNR { scope[$0] = 1; next }
-      NF != 5 || $2 == "" || $3 == "" || $4 == "" || $5 == "" || !($1 in scope) { exit 1 }' \
+      NF != 5 || $2 == "" || $4 == "" || $3 ~ /(^|,)(,|$)/ || $5 ~ /(^|,)(,|$)/ || !($1 in scope) { exit 1 }' \
       "$run_tmp/intents.snapshot" "$snapshot"; then
     append_step ocm-links NOT_PRODUCED invalid-ocm-link-plan
     return 0
   fi
+  ocm_link_plan_sha256=$(shasum -a 256 "$snapshot" | awk '{print $1}')
+  ocm_link_plan_rows=$(wc -l < "$snapshot" | tr -d '[:space:]')
+  append_step ocm-links PRODUCED none
   ocm_links_ready=1
 }
 
@@ -430,29 +444,31 @@ append_link_list() {
 }
 
 # run_ocm_links applies each author row naming this scope through the verified
-# `ocm link`; a link is never inferred, and the first refusal is reported.
+# `ocm link`; a link is never inferred, and each row reports ocm-link-<plan row>.
 run_ocm_links() {
-  local step=$1 map=$2 path=$3 intent obligation hunks test_path claims count=0 return_code
-  local output="$evidence/$step.jsonl" error_file="$evidence/$step.stderr" link_args
-  (umask 077; : > "$output")
+  local map=$1 path=$2 intent obligation hunks test_path claims row=0 return_code
+  local step output error_file link_args
   while IFS=$'\t' read -r intent obligation hunks test_path claims; do
+    row=$((row + 1))
     [[ $intent == "$path" ]] || continue
-    count=$((count + 1))
+    step=$(printf 'ocm-link-%03d' "$row")
+    output="$evidence/$step.json"
+    error_file="$evidence/$step.stderr"
     link_args=(ocm link --map "$map" --cem .corvint/change.cem.json --obligation "$obligation"
       --test-path "$test_path" --expected-base "$base" --target "$target")
     append_link_list --hunk "$hunks"
     append_link_list --claim "$claims"
-    "$corvint_bin" --root "$repo" "${link_args[@]}" >> "$output" 2> "$error_file" &
+    "$corvint_bin" --root "$repo" "${link_args[@]}" > "$output" 2> "$error_file" &
     child_pid=$!
     wait "$child_pid"
     return_code=$?
     child_pid=
-    if [[ $return_code -ne 0 ]]; then
+    if [[ $return_code -eq 0 ]]; then
+      append_step "$step" PRODUCED none
+    else
       append_step "$step" NOT_PRODUCED "$(failure_reason "$error_file" "$return_code")"
-      return 0
     fi
   done < "$run_tmp/ocm-links.snapshot"
-  [[ $count -eq 0 ]] || append_step "$step" PRODUCED none
 }
 
 run_ocm_scopes() {
@@ -463,7 +479,7 @@ run_ocm_scopes() {
     map=$(printf '.corvint/change.ocm.%03d.json' "$ordinal")
     if run_ocm_prepare "ocm-prepare-$(printf '%03d' "$ordinal")" "$evidence/ocm-prepare-$(printf '%03d' "$ordinal").json" \
       "$map" "$path"; then
-      [[ $ocm_links_ready == 0 ]] || run_ocm_links "ocm-link-$(printf '%03d' "$ordinal")" "$map" "$path"
+      [[ $ocm_links_ready == 0 ]] || run_ocm_links "$map" "$path"
     else
       failed=true
     fi
@@ -652,6 +668,8 @@ fix_hint() {
       printf 'read verification.issues and policyIssues in %s: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk' "$evidence/cem-status.json" ;;
     ocm-links:ocm-link-plan-unavailable)
       printf 'DOGFOOD_OCM_LINKS must be the path of a TSV file of INTENT<TAB>REQUIREMENT<TAB>HUNKS<TAB>TEST_PATH<TAB>CLAIMS rows, not the rows themselves' ;;
+    ocm-links:empty-ocm-link-plan)
+      printf 'DOGFOOD_OCM_LINKS names an empty file; add at least one row, or unset DOGFOOD_OCM_LINKS so every requirement stays unassessed' ;;
     ocm-links:invalid-ocm-link-plan)
       printf 'each DOGFOOD_OCM_LINKS row is INTENT<TAB>REQUIREMENT<TAB>HUNK[,HUNK...]<TAB>TEST_PATH<TAB>CLAIM[,CLAIM...], LF-terminated, at most 256 rows, and INTENT is listed in DOGFOOD_INTENTS_FILE' ;;
     ocm-link-*)

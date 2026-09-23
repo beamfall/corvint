@@ -12,16 +12,21 @@ Finding: `dogfood-change` regenerates every OCM map with `--replace` on each pas
 
 Decision: an optional `DOGFOOD_OCM_LINKS` TSV plan names, per intent, the requirement, the cited CEM
 hunks, the test path and the test claims. After each map is prepared on every pass, each row runs
-through the verified `corvint ocm link` and reports `ocm-link-NNN`. Nothing is inferred: without the
-plan no link runs and no row is reported. A missing or malformed plan (`ocm-links`) or a refused link
-is NOT_PRODUCED with a `fix:` line, and the OCM aggregate is still produced. No new verb or wire
-change; OCM-V0-013 already limits map changes to verified link and mark.
+through the verified `corvint ocm link` and reports `ocm-link-NNN`, numbered by plan row; a refused
+row does not stop later rows. Nothing is inferred: without the plan no link runs and no row is
+reported. A missing, malformed or empty plan (`ocm-links`) or a refused row is NOT_PRODUCED with a
+`fix:` line and blocks completion; the OCM aggregate is still produced. The report records the plan
+as `ocmLinkPlan` (sha256 and row count) because the plan and the maps stay local, so a reviewer
+reproduces coverage only by rerunning with the same plan. No new verb; OCM-V0-013 already limits
+map changes to verified link and mark.
 
-Evidence: `script/dogfood-change_test.sh` covers no plan (no link call), a two-hunk two-claim row
-with exact argv and prepare-link-status order, a refused link, an unlisted intent and a missing
-plan. Removing the claim arguments fails the test. Replaying sealed 75039ff (base af6fd52,
-LAC-V0-032) through the patched script with a one-row plan produced `ocm-link-001` and 1 of 32
-linked. A link on a change delivered through this loop is NOT_OBSERVED; `make gate` was not run.
+Evidence: `script/dogfood-change_test.sh` covers no plan, exact argv and prepare-link-status order,
+the plan digest, refusals of rows 2 and 4 across two intents with rows 3 and 4 still run, and
+unlisted-intent, CRLF, field-count, empty-item (`1,,2`, refused by validation), over-256-row, empty
+and absent plans. Restoring stop-at-first-refusal or dropping the empty-item check fails the test.
+Replaying sealed 75039ff (base af6fd52, LAC-V0-032) through the patched script with a one-row plan
+produced `ocm-link-001`, 1 of 32 linked and `ocmLinkPlan` matching the plan's sha256. A link on a change delivered through this
+loop is NOT_OBSERVED; `make gate` was not run.
 
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
 
