@@ -717,8 +717,8 @@ EEP-V0-017	docs/specs/external-evidence-provider-v0.md	135	The kit consumer MUST
 EEP-V0-018	docs/specs/external-evidence-provider-v0.md	141	Kit conformance MUST reuse valid, stale, malformed, ambiguous,
 EEP-V0-019	docs/specs/external-evidence-provider-v0.md	146	A `generated` relation composes exactly as the other admitted kinds, and every
 EEP-V0-020	docs/specs/external-evidence-provider-v0.md	154	The kit declares its own version, currently `0.2.0` (kit README title and the
-EEP-V0-021	docs/specs/external-evidence-provider-v0.md	165	The kit MUST carry a standard-library Go conformance runner that builds the
-EEP-V0-022	docs/specs/external-evidence-provider-v0.md	173	The kit MUST carry a clean-checkout authoring proof script that checks out only
+EEP-V0-021	docs/specs/external-evidence-provider-v0.md	166	The kit MUST carry a standard-library Go conformance runner that builds the
+EEP-V0-022	docs/specs/external-evidence-provider-v0.md	174	The kit MUST carry a clean-checkout authoring proof script that checks out only
 EEP-V1-001	docs/specs/external-evidence-provider-v1.md	54	A record whose top-level `schema` is `external-evidence-provider/1` MUST decode
 EEP-V1-002	docs/specs/external-evidence-provider-v1.md	60	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with
 EEP-V1-003	docs/specs/external-evidence-provider-v1.md	66	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin
@@ -1472,18 +1472,18 @@ PPI-V0-006	docs/specs/protected-pi-runtime-v0.md	42	Reuse protected computation 
 PPI-V0-007	docs/specs/protected-pi-runtime-v0.md	43	Independent runtime admission MUST bind full image SHA256, live mapped CDHash, C
 PPI-V0-008	docs/specs/protected-pi-runtime-v0.md	44	FULL requires independently completed exact-image TUI and RPC qualification: all
 PPI-V0-009	docs/specs/protected-pi-runtime-v0.md	45	Rollback removes/revokes only the optional Pi campaign/admission/runtime and res
-PRS-V1-001	docs/specs/corvint-1.0-product-and-release-v1.md	205	Corvint 1.0 Core MUST be exactly the surfaces labelled Core in this spec: the lo
-PRS-V1-002	docs/specs/corvint-1.0-product-and-release-v1.md	208	Only Core surfaces carry the 1.0 stability promise (frozen contracts, N-1 reader
-PRS-V1-003	docs/specs/corvint-1.0-product-and-release-v1.md	211	Every gate on the Core critical path to 1.0 MUST be closable by the owner withou
-PRS-V1-004	docs/specs/corvint-1.0-product-and-release-v1.md	213	Core platforms MUST be darwin/arm64 and linux/amd64 native binaries. A Core
-PRS-V1-005	docs/specs/corvint-1.0-product-and-release-v1.md	216	A Core release candidate MUST NOT require companion input. Companions keep their
-PRS-V1-006	docs/specs/corvint-1.0-product-and-release-v1.md	218	Core host scope MUST be the plain CLI, plus the exact-version Codex CLI and Clau
-PRS-V1-007	docs/specs/corvint-1.0-product-and-release-v1.md	221	Corvint 1.0 MUST NOT claim CEM, OCM or frontier interoperability unless V1-0014
-PRS-V1-008	docs/specs/corvint-1.0-product-and-release-v1.md	223	The 1.0 Core candidate MUST pass the three Core jobs on Corvint, Beamfall and on
-PRS-V1-009	docs/specs/corvint-1.0-product-and-release-v1.md	225	Core installed qualification MUST be the native archive lifecycle of
-PRS-V1-010	docs/specs/corvint-1.0-product-and-release-v1.md	228	Any new shipped verb, binary or integration tree MUST be added to the
-PRS-V1-011	docs/specs/corvint-1.0-product-and-release-v1.md	230	This spec amends `public-release-v0.md` prospectively for the 1.0 Core candidate
-PRS-V1-012	docs/specs/corvint-1.0-product-and-release-v1.md	232	This spec has no authority until a numbered decision records the owner's
+PRS-V1-001	docs/specs/corvint-1.0-product-and-release-v1.md	206	Corvint 1.0 Core MUST be exactly the surfaces labelled Core in this spec: the lo
+PRS-V1-002	docs/specs/corvint-1.0-product-and-release-v1.md	209	Only Core surfaces carry the 1.0 stability promise (frozen contracts, N-1 reader
+PRS-V1-003	docs/specs/corvint-1.0-product-and-release-v1.md	212	Every gate on the Core critical path to 1.0 MUST be closable by the owner withou
+PRS-V1-004	docs/specs/corvint-1.0-product-and-release-v1.md	214	Core platforms MUST be darwin/arm64 and linux/amd64 native binaries. A Core
+PRS-V1-005	docs/specs/corvint-1.0-product-and-release-v1.md	217	A Core release candidate MUST NOT require companion input. Companions keep their
+PRS-V1-006	docs/specs/corvint-1.0-product-and-release-v1.md	219	Core host scope MUST be the plain CLI, plus the exact-version Codex CLI and Clau
+PRS-V1-007	docs/specs/corvint-1.0-product-and-release-v1.md	222	Corvint 1.0 MUST NOT claim CEM, OCM or frontier interoperability unless V1-0014
+PRS-V1-008	docs/specs/corvint-1.0-product-and-release-v1.md	224	The 1.0 Core candidate MUST pass the three Core jobs on Corvint, Beamfall and on
+PRS-V1-009	docs/specs/corvint-1.0-product-and-release-v1.md	226	Core installed qualification MUST be the native archive lifecycle of
+PRS-V1-010	docs/specs/corvint-1.0-product-and-release-v1.md	229	Any new shipped verb, binary or integration tree MUST be added to the
+PRS-V1-011	docs/specs/corvint-1.0-product-and-release-v1.md	231	This spec amends `public-release-v0.md` prospectively for the 1.0 Core candidate
+PRS-V1-012	docs/specs/corvint-1.0-product-and-release-v1.md	233	This spec has no authority until a numbered decision records the owner's
 PSL-V0-001	docs/specs/pulse-snapshot-lease-v0.md	199	The coordinator MUST be one client-owned local Go process over stdio, one serial
 PSL-V0-002	docs/specs/pulse-snapshot-lease-v0.md	202	Requests and responses MUST use `corvint-pulse-snapshot/0`, strict bounded canon
 PSL-V0-003	docs/specs/pulse-snapshot-lease-v0.md	204	Initialization MUST create a fresh unpredictable session ID. Restart, disconnect
