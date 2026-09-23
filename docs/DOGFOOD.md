@@ -83,9 +83,11 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
     line naming the command below. From a fresh clone of the bind commit (the seal's parent), the
     reviewer verifies instead, with their own `corvint`:
     `corvint cem verify --map .corvint/change.cem.json --expected-base $BASE --target HEAD`
-    (expected `"valid": true`, `"assurance": "canonical"`, exit 0); the same map through
+    (expected `"valid":true`, `"assurance":"canonical"`, exit 0); the same map through
     `corvint cem status` with `--max-unknown 0 --max-mechanical 0`, expected `ready-for-ci`
-    (raise `--max-unknown` only to the report's `bootstrapUnknown`); that
+    (raise `--max-unknown` only to the count of the map's `"disposition": "unknown"` hunks whose
+    `path` is absent at `$BASE` per `git cat-file -e $BASE:<path>`, never to a number taken from
+    the handed-off report); that
     `git diff-tree -r -M --no-commit-id --name-status HEAD SEAL` prints only
     `R100 .corvint/change.cem.json .corvint/changes/<bind-commit>.cem.json` (tab-separated); and
     the semantics of the cited hunks and the handed-off reports (section 6).

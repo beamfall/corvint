@@ -759,7 +759,7 @@ reviewer_status=0
 reviewer=$(cd "$sealed_repo" && script/dogfood-check.sh "$sealed_b0" 2>&1) || reviewer_status=$?
 test "$reviewer_status" = 1
 printf '%s\n' "$reviewer" | rg -Fxq -- 'dogfood-check: FAIL dogfood-report-missing'
-printf '%s\n' "$reviewer" | rg -Fxq -- "  review: verifier agreement is author-only evidence (docs/DOGFOOD.md step 11); verify the bound CEM instead: corvint cem verify --map .corvint/change.cem.json --expected-base $sealed_b0 --target $sealed_s1"
+printf '%s\n' "$reviewer" | rg -Fxq -- "  review: a reviewer without the author report: verifier agreement is author-only evidence (docs/DOGFOOD.md step 11); verify the bound CEM instead: corvint cem verify --map .corvint/change.cem.json --expected-base $sealed_b0 --target $sealed_s1"
 git -C "$sealed_repo" checkout -q main
 sealed_c1=$(sealed_commit c1)
 sealed_c2=$(sealed_commit c2)

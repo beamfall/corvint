@@ -307,7 +307,7 @@ if [[ ! -f $report ]]; then
   printf '  fix: run make dogfood-change BASE=%s on this HEAD until it reports complete\n' "$base" >&2
   # A reviewer's clone of a bind commit never has the author's private report (DCW-V0-017).
   if git -C "$repo" cat-file -e "$target:.corvint/change.cem.json" 2>/dev/null; then
-    printf '  review: verifier agreement is author-only evidence (docs/DOGFOOD.md step 11); verify the bound CEM instead: corvint cem verify --map .corvint/change.cem.json --expected-base %s --target %s\n' "$base" "$target" >&2
+    printf '  review: a reviewer without the author report: verifier agreement is author-only evidence (docs/DOGFOOD.md step 11); verify the bound CEM instead: corvint cem verify --map .corvint/change.cem.json --expected-base %s --target %s\n' "$base" "$target" >&2
   fi
   exit 1
 fi
