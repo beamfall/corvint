@@ -12,7 +12,8 @@ sources, the companion and Tasks roles, a verified companion bundle and PASS dar
 rows, so `PRS-V1-005` (no companion input) had no reader or installer path.
 
 Decision: a second closed manifest profile, `corvint-core-release-candidate/0`, selects a Core-only
-inventory (sources `[corvint]`, no companion or Tasks roles). All Core checks are unchanged. The
+inventory (sources `[corvint]`, no companion or Tasks roles, each single-file role bound to its
+assembler path). All Core checks are unchanged. The
 receipt keeps its 28 rows: `core-archive` PASS and every other row `NOT_RUN`, with
 `companion-bundle` evidence `companion not present`. Any other status is refused. The combined
 profile is unchanged. Contract: `public-release-v0.md`, "Core-only candidate reader and installer".

@@ -89,6 +89,9 @@ changes the reader's fail-closed checks.
 - `MANIFEST.json` keeps the same closed fields. `sources` is exactly `[corvint]`. The closed role set
   is four `core-archive`, one each of `core-gate-checksums`, `core-gate-report`, `corvint-source`,
   `qualification-receipt` and `release-notes`. No companion or Corvint Tasks role is admitted.
+  Each single-file role is bound to the path the assembler writes (`evidence/core-SHA256SUMS`,
+  `evidence/core-verification-report.json`, `source/corvint-src.tar.gz`, `QUALIFICATION.json`,
+  `README.md`); a role on any other path is refused.
 - Every Core check of the combined profile still applies: the `SHA256SUMS` and asset inventories
   are closed and digest/size exact, the core gate report is an exact PASS reproducibility report
   bound to the manifest commit/tree/toolchain, every listed core archive matches both the gate

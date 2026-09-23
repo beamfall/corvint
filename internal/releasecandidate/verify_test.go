@@ -106,7 +106,7 @@ func testPRSV1005CoreOnlyCandidateVerifiesAndInstalls(t *testing.T) {
 	}
 	t.Cleanup(func() { loadCompanionEvidence = previousCompanion })
 
-	directory := coreOnlyCandidateFixture(t, versionOutput, strings.Repeat("a", 40), strings.Repeat("b", 40), coreBinary, coreArchive)
+	directory := coreOnlyCandidateFixture(t, versionOutput, strings.Repeat("a", 40), strings.Repeat("b", 40), coreBinary, coreArchive, nil)
 	verified, err := VerifyContext(t.Context(), directory)
 	if err != nil {
 		t.Fatalf("Core-only candidate refused: %v", err)
@@ -132,6 +132,93 @@ func testPRSV1005CoreOnlyCandidateVerifiesAndInstalls(t *testing.T) {
 	}
 	if _, err := VerifyContext(t.Context(), directory); err == nil || !strings.Contains(err.Error(), "checksum mismatch") {
 		t.Fatalf("Core-only candidate with a drifted core archive accepted: %v", err)
+	}
+}
+
+func TestPRSV1005CoreOnlyCandidateRefusals(t *testing.T) {
+	t.Run("PRS-V1-005 Core-only candidate refuses companion and inventory drift", testPRSV1005CoreOnlyCandidateRefusals)
+}
+
+func testPRSV1005CoreOnlyCandidateRefusals(t *testing.T) {
+	previousCore := verifyCoreBinary
+	verifyCoreBinary = func(_ []byte, target coreTarget) ([]byte, error) {
+		return []byte("binary-" + target.GOOS + "-" + target.GOARCH), nil
+	}
+	t.Cleanup(func() { verifyCoreBinary = previousCore })
+	previousCompanion := loadCompanionEvidence
+	loadCompanionEvidence = func(string) (*candidateCompanionEvidence, error) {
+		t.Fatal("refused candidate consulted companion evidence")
+		return nil, nil
+	}
+	t.Cleanup(func() { loadCompanionEvidence = previousCompanion })
+	commit, tree := strings.Repeat("a", 40), strings.Repeat("b", 40)
+	coreBinary := func(target coreTarget) []byte { return []byte("binary-" + target.GOOS + "-" + target.GOARCH) }
+	coreArchive := func(target coreTarget) []byte { return []byte("archive-" + target.ArchiveName) }
+	tasks := SourceIdentity{Name: "corvint-tasks", Commit: strings.Repeat("c", 40), Tree: strings.Repeat("d", 40)}
+	type mutation = func(files map[string][]byte, roles map[string]string, manifest *Manifest, qualification *Qualification)
+	move := func(from, to, role string) mutation {
+		return func(files map[string][]byte, roles map[string]string, _ *Manifest, _ *Qualification) {
+			files[to], roles[to] = files[from], role
+			delete(files, from)
+			delete(roles, from)
+		}
+	}
+	for _, test := range []struct {
+		name, want string
+		directory  func() string
+	}{
+		{"combined profile on Core inventory", "manifest identity is invalid", func() string {
+			return coreOnlyCandidateFixture(t, "Corvint 0.5.0a1 (build 9)", commit, tree, coreBinary, coreArchive, func(_ map[string][]byte, _ map[string]string, manifest *Manifest, _ *Qualification) {
+				manifest.Profile = manifestProfile
+			})
+		}},
+		{"Core profile on combined inventory", "manifest identity is invalid", func() string {
+			directory := closedCandidateFixture(t, "Corvint 0.5.0a1 (build 9)", commit, tree, tasks, []byte("corvint source\n"), []byte("tasks source\n"), coreBinary)
+			resealCandidateProfile(t, directory, coreManifestProfile)
+			return directory
+		}},
+		{"Core profile with two sources", "manifest identity is invalid", func() string {
+			return coreOnlyCandidateFixture(t, "Corvint 0.5.0a1 (build 9)", commit, tree, coreBinary, coreArchive, func(_ map[string][]byte, _ map[string]string, manifest *Manifest, _ *Qualification) {
+				manifest.Sources = append(manifest.Sources, tasks)
+			})
+		}},
+		{"Core profile listing a companion archive", "role companion-archive is not admitted", func() string {
+			return coreOnlyCandidateFixture(t, "Corvint 0.5.0a1 (build 9)", commit, tree, coreBinary, coreArchive, func(files map[string][]byte, roles map[string]string, _ *Manifest, _ *Qualification) {
+				files["companion/corvint-companion.tar.gz"], roles["companion/corvint-companion.tar.gz"] = []byte("companion archive\n"), "companion-archive"
+			})
+		}},
+		{"Corvint source on a Tasks archive path", "role corvint-source is not at source/corvint-src.tar.gz", func() string {
+			return coreOnlyCandidateFixture(t, "Corvint 0.5.0a1 (build 9)", commit, tree, coreBinary, coreArchive, move("source/corvint-src.tar.gz", "companion/corvint-tasks_darwin_arm64.tar.gz", "corvint-source"))
+		}},
+		{"release notes on a companion smoke path", "role release-notes is not at README.md", func() string {
+			return coreOnlyCandidateFixture(t, "Corvint 0.5.0a1 (build 9)", commit, tree, coreBinary, coreArchive, move("README.md", "evidence/corvint-companion.smoke.json", "release-notes"))
+		}},
+		{"companion row with other NOT_RUN evidence", "invalid qualification row darwin/amd64/companion-bundle", func() string {
+			return coreOnlyCandidateFixture(t, "Corvint 0.5.0a1 (build 9)", commit, tree, coreBinary, coreArchive, func(_ map[string][]byte, _ map[string]string, _ *Manifest, qualification *Qualification) {
+				qualification.Rows[1].Evidence = "companion target unavailable"
+			})
+		}},
+		{"missing qualification row", "qualification profile or row count is invalid", func() string {
+			return coreOnlyCandidateFixture(t, "Corvint 0.5.0a1 (build 9)", commit, tree, coreBinary, coreArchive, func(_ map[string][]byte, _ map[string]string, _ *Manifest, qualification *Qualification) {
+				qualification.Rows = qualification.Rows[:len(qualification.Rows)-1]
+			})
+		}},
+		{"duplicate qualification row", "invalid qualification row darwin/amd64/core-archive", func() string {
+			return coreOnlyCandidateFixture(t, "Corvint 0.5.0a1 (build 9)", commit, tree, coreBinary, coreArchive, func(_ map[string][]byte, _ map[string]string, _ *Manifest, qualification *Qualification) {
+				qualification.Rows[len(qualification.Rows)-1] = qualification.Rows[0]
+			})
+		}},
+		{"bogus qualification status", "invalid qualification row darwin/amd64/version-identity", func() string {
+			return coreOnlyCandidateFixture(t, "Corvint 0.5.0a1 (build 9)", commit, tree, coreBinary, coreArchive, func(_ map[string][]byte, _ map[string]string, _ *Manifest, qualification *Qualification) {
+				qualification.Rows[2].Status = "SKIPPED"
+			})
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := VerifyContext(t.Context(), test.directory()); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("expected refusal containing %q, got %v", test.want, err)
+			}
+		})
 	}
 }
 
@@ -361,7 +448,7 @@ func addCoreCandidateFixture(t *testing.T, add func(name, role string, raw []byt
 	add("evidence/core-verification-report.json", "core-gate-report", reportRaw)
 }
 
-func coreOnlyCandidateFixture(t *testing.T, versionOutput, corvintCommit, corvintTree string, coreBinary, coreArchive func(coreTarget) []byte) string {
+func coreOnlyCandidateFixture(t *testing.T, versionOutput, corvintCommit, corvintTree string, coreBinary, coreArchive func(coreTarget) []byte, mutate func(files map[string][]byte, roles map[string]string, manifest *Manifest, qualification *Qualification)) string {
 	t.Helper()
 	files, roles := map[string][]byte{}, map[string]string{}
 	add := func(name, role string, raw []byte) {
@@ -369,6 +456,7 @@ func coreOnlyCandidateFixture(t *testing.T, versionOutput, corvintCommit, corvin
 	}
 	addCoreCandidateFixture(t, add, corvintCommit, corvintTree, coreBinary, coreArchive)
 	add("source/corvint-src.tar.gz", "corvint-source", []byte("corvint source\n"))
+	add("README.md", "release-notes", []byte(candidateReadme("0.5.0a1")))
 	qualification := Qualification{Profile: qualificationProfile}
 	workflows := []string{"core-archive", "companion-bundle", "version-identity", "affected-selection", "playwright-external-discovery", "documentation-corpus-discovery", "work-queue-observation"}
 	for _, platform := range []string{"darwin/amd64", "darwin/arm64", "linux/amd64", "linux/arm64"} {
@@ -380,16 +468,19 @@ func coreOnlyCandidateFixture(t *testing.T, versionOutput, corvintCommit, corvin
 			qualification.Rows = append(qualification.Rows, QualificationRow{Platform: platform, Workflow: workflow, Status: status, Evidence: evidence})
 		}
 	}
+	manifest := Manifest{
+		Profile: coreManifestProfile, Version: "0.5.0a1", BuildNumber: "9", CorvintVersion: versionOutput, GoVersion: "go1.27.1", GitVersion: "git version fixture",
+		Sources: []SourceIdentity{{Name: "corvint", Commit: corvintCommit, Tree: corvintTree}},
+	}
+	if mutate != nil {
+		mutate(files, roles, &manifest, &qualification)
+	}
 	qualificationRaw, err := canonicalJSON(qualification)
 	if err != nil {
 		t.Fatal(err)
 	}
 	add("QUALIFICATION.json", "qualification-receipt", qualificationRaw)
-	add("README.md", "release-notes", []byte(candidateReadme("0.5.0a1")))
-	manifest := Manifest{
-		Profile: coreManifestProfile, Version: "0.5.0a1", BuildNumber: "9", CorvintVersion: versionOutput, GoVersion: "go1.27.1", GitVersion: "git version fixture",
-		Sources: []SourceIdentity{{Name: "corvint", Commit: corvintCommit, Tree: corvintTree}}, Assets: assetsFor(files, roles),
-	}
+	manifest.Assets = assetsFor(files, roles)
 	manifestRaw, err := canonicalJSON(manifest)
 	if err != nil {
 		t.Fatal(err)
@@ -401,4 +492,27 @@ func coreOnlyCandidateFixture(t *testing.T, versionOutput, corvintCommit, corvin
 		t.Fatal(err)
 	}
 	return directory
+}
+
+// resealCandidateProfile rewrites only the manifest profile and reseals the
+// candidate checksums, so the profile check alone decides admission.
+func resealCandidateProfile(t *testing.T, directory, profile string) {
+	t.Helper()
+	files, _, err := readCandidateFiles(t.Context(), directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest Manifest
+	if err := decodeClosed(files["MANIFEST.json"], &manifest); err != nil {
+		t.Fatal(err)
+	}
+	manifest.Profile = profile
+	if files["MANIFEST.json"], err = canonicalJSON(manifest); err != nil {
+		t.Fatal(err)
+	}
+	delete(files, "SHA256SUMS")
+	files["SHA256SUMS"] = renderChecksums(files)
+	if err := writeCandidate(directory, files); err != nil {
+		t.Fatal(err)
+	}
 }

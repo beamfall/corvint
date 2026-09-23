@@ -28,10 +28,12 @@ var verifyForInstall = VerifyContext
 
 // candidateProfile is one admitted manifest profile's closed source and role
 // inventory. The Core-only profile has no companion or Tasks input
-// (PRS-V1-005): its companion rows stay NOT_RUN as "companion not present".
+// (PRS-V1-005): its companion rows stay NOT_RUN as "companion not present",
+// and each single-file role is bound to the path Assemble writes for it.
 type candidateProfile struct {
 	sources   []string
 	roles     map[string]int
+	paths     map[string]string
 	companion bool
 }
 
@@ -43,6 +45,7 @@ var candidateProfiles = map[string]candidateProfile{
 	coreManifestProfile: {
 		sources: []string{"corvint"},
 		roles:   map[string]int{"core-archive": 4, "core-gate-checksums": 1, "core-gate-report": 1, "corvint-source": 1, "qualification-receipt": 1, "release-notes": 1},
+		paths:   map[string]string{"core-gate-checksums": "evidence/core-SHA256SUMS", "core-gate-report": "evidence/core-verification-report.json", "corvint-source": "source/corvint-src.tar.gz", "qualification-receipt": "QUALIFICATION.json", "release-notes": "README.md"},
 	},
 }
 
@@ -193,6 +196,9 @@ func validateCandidateEvidence(ctx context.Context, files map[string][]byte, man
 	for _, asset := range assets {
 		if _, admitted := wantRoles[asset.Role]; !admitted {
 			return fmt.Errorf("candidate asset role %s is not admitted", asset.Role)
+		}
+		if path, bound := profile.paths[asset.Role]; bound && asset.Path != path {
+			return fmt.Errorf("candidate asset role %s is not at %s", asset.Role, path)
 		}
 		roleCounts[asset.Role]++
 	}
