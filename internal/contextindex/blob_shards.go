@@ -162,7 +162,7 @@ func shardEvidence(ctx context.Context, root string, observation repositoryObser
 }
 
 func readBlobFacts(root, format, engineID string, entries []treeEntry) (map[string]*blobFacts, error) {
-	base, directory := snapshotLocation(root)
+	store := locateSnapshotStore(root)
 	results := make([]*blobFacts, len(entries))
 	failures := make([]error, len(entries))
 	workers := min(4, runtime.NumCPU(), max(1, len(entries)))
@@ -173,7 +173,7 @@ func readBlobFacts(root, format, engineID string, entries []treeEntry) (map[stri
 		go func(worker int) {
 			defer pending.Done()
 			for i := worker; i < len(entries); i += workers {
-				results[i], failures[i] = readBlobFact(base, directory, format, engineID, entries[i], &budget)
+				results[i], failures[i] = readBlobFact(store.base, store.directory, format, engineID, entries[i], &budget)
 			}
 		}(worker)
 	}
@@ -191,7 +191,7 @@ func readBlobFacts(root, format, engineID string, entries []treeEntry) (map[stri
 }
 
 // readBlobFact reads one fact under the store directory; base anchors the
-// no-follow walk (snapshotLocation).
+// no-follow walk (snapshotStore).
 func readBlobFact(base, directory, format, engineID string, entry treeEntry, budget *blobReadBudget) (*blobFacts, error) {
 	target := blobShardPath(directory, format, engineID, entry.oid, entry.path)
 	if err := shardRegularPath(base, target); err != nil {
@@ -320,8 +320,8 @@ func (chunk *compiledSources) collectBlobFact(fact *blobFacts, imports importPol
 // writeBlobShards is called only by WriteSnapshot, after store ignores exist.
 // Publication is a synced temporary followed by rename. Existing valid facts
 // are immutable; corrupt facts are replaceable only by this explicit writer.
-func writeBlobShards(index *Index, engineID string) error {
-	base, directory := snapshotLocation(index.Root)
+func writeBlobShards(index *Index, store snapshotStore, engineID string) error {
+	base, directory := store.base, store.directory
 	paths := blobSourcePaths(index.Sources)
 	tokeniser := newTokeniser()
 	for _, path := range paths {

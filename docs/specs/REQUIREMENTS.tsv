@@ -1141,24 +1141,24 @@ IDX-SNAP-V0-002	docs/specs/index-snapshot-v0.md	57	`context` reads the repositor
 IDX-SNAP-V0-003	docs/specs/index-snapshot-v0.md	65	any mismatch (no file, a different tree, a different engine, a different
 IDX-SNAP-V0-004	docs/specs/index-snapshot-v0.md	72	a dirty worktree reads the same snapshot; only `DirtyPaths` and
 IDX-SNAP-V0-005	docs/specs/index-snapshot-v0.md	78	`index` is the only verb that writes under `.corvint/index/`; `context` and ever
-IDX-SNAP-V0-006	docs/specs/index-snapshot-v0.md	95	a hit and a miss produce byte-identical `context` output for the same
-IDX-SNAP-V0-007	docs/specs/index-snapshot-v0.md	97	`index` keeps the newest eight snapshot files in the directory and removes
-IDX-SNAP-V0-008	docs/specs/index-snapshot-v0.md	101	the two per-prompt query verbs read the snapshot on the same terms as
-IDX-SNAP-V0-009	docs/specs/index-snapshot-v0.md	122	a repository with no `.corvint/index/` directory is a miss without a Git
-IDX-SNAP-V0-010	docs/specs/index-snapshot-v0.md	125	the two index-building harness events read the snapshot on the same terms as IDX
-IDX-SNAP-V0-011	docs/specs/index-snapshot-v0.md	126	`corvint [--root PATH] index --if-stale` reads the header of the file
-IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	135	the Claude Code plugin's lifecycle hooks do not automatically invoke a
-IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	146	During committed-source pinning, a blob whose bytes begin with
-IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	173	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
-IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	214	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
-IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	288	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
-IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	326	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
-IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	151	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
-IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	357	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
-IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	375	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
-IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	402	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
-IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	430	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
-IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	444	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
+IDX-SNAP-V0-006	docs/specs/index-snapshot-v0.md	96	a hit and a miss produce byte-identical `context` output for the same
+IDX-SNAP-V0-007	docs/specs/index-snapshot-v0.md	98	`index` keeps the newest eight snapshot files in the directory and removes
+IDX-SNAP-V0-008	docs/specs/index-snapshot-v0.md	102	the two per-prompt query verbs read the snapshot on the same terms as
+IDX-SNAP-V0-009	docs/specs/index-snapshot-v0.md	123	a repository with no `.corvint/index/` directory is a miss without a Git
+IDX-SNAP-V0-010	docs/specs/index-snapshot-v0.md	126	the two index-building harness events read the snapshot on the same terms as IDX
+IDX-SNAP-V0-011	docs/specs/index-snapshot-v0.md	127	`corvint [--root PATH] index --if-stale` reads the header of the file
+IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	136	the Claude Code plugin's lifecycle hooks do not automatically invoke a
+IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	147	During committed-source pinning, a blob whose bytes begin with
+IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	174	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
+IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	215	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
+IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	289	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
+IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	327	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
+IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	152	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
+IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	358	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
+IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	376	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
+IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	403	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
+IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	431	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
+IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	445	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
 KA-V0-001	docs/specs/kotlin-android-candidate-v0.md	28	The command and its package remain isolated, unregistered, and unreachable from
 KA-V0-002	docs/specs/kotlin-android-candidate-v0.md	30	A request is one UTF-8, canonical-JSON object followed by one LF. It has the clo
 KA-V0-003	docs/specs/kotlin-android-candidate-v0.md	34	The target is exactly Android/arm64/none. The twelve input rows below occur once

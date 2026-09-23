@@ -17,8 +17,8 @@ import (
 // discovered, not an enumerated filename allowlist. Review new imports too.
 func TestAnalyzerSchemaInputs(t *testing.T) {
 	t.Run("IDX-SNAP-V0-017", func(t *testing.T) {
-		const auditedSchema = "corvint-analyzer/79"
-		const auditedSHA256 = "f685eb8859b0a58584512f060f70140d8045de41d17f70a4a946996696e13ec7"
+		const auditedSchema = "corvint-analyzer/80"
+		const auditedSHA256 = "5c0ce346d8d9503e87a443f4a1c594b360ed6b8e914b5f35329229e1cc7ce787"
 		root := filepath.Join("..", "..")
 		paths := []string{"go.mod"}
 		if _, err := os.Stat(filepath.Join(root, "go.sum")); err == nil {
@@ -66,7 +66,7 @@ func TestAnalyzerPackEngineIgnoresExecutableIdentity(t *testing.T) {
 			t.Fatal("pack path does not carry analyzer engine")
 		}
 		// The same pack must answer a reader with no executable-key gob.
-		loaded, err := readSnapshotIndex(index.Root, fixtureIdentity(index), "rebuilt-executable", loadFull)
+		loaded, err := readSnapshotIndex(SnapshotDirectory(index.Root), fixtureIdentity(index), "rebuilt-executable", loadFull)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -81,7 +81,7 @@ func TestAnalyzerPackEngineIgnoresExecutableIdentity(t *testing.T) {
 			t.Fatal("changed analyzer accepted old facts")
 		}
 		t.Setenv(snapshotFormatEnv, "")
-		if _, err := readSnapshotIndex(index.Root, fixtureIdentity(index), "rebuilt-executable", loadFull); err == nil {
+		if _, err := readSnapshotIndex(SnapshotDirectory(index.Root), fixtureIdentity(index), "rebuilt-executable", loadFull); err == nil {
 			t.Fatal("default gob accepted a different executable")
 		}
 	})

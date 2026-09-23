@@ -84,20 +84,29 @@ snapshot the worktree, or claim that revision-only context is complete.
   `corvint/index/` under the repository's Git common directory, so every linked worktree and the
   main worktree share one clean base per (object format, tree OID, engine digest); for this store
   that key refines `DIRTY-CACHE-002`'s repository root. The common directory MUST be resolved from
-  the `.git` marker and `commondir` pointer with the bounded no-follow reads Git status uses and no
-  Git process, so an absent store stays a spawn-free miss (`IDX-SNAP-V0-009`); when it cannot be
-  resolved (a symlinked `.git`, a root that is not the worktree top level) the store is the
-  worktree's own `.corvint/index/`. Only the clean base is shared: dirty paths and status digest are
+  the `.git` marker and `commondir` pointer the way Git status does and with no Git process, so an
+  absent store stays a spawn-free miss (`IDX-SNAP-V0-009`); the resolution refuses a `.git` marker
+  that is a symlink and reads each pointer file with a bounded no-follow open, but follows symlinks
+  when it resolves the gitdir and commondir paths those pointers name. When the common directory
+  cannot be resolved (a symlinked `.git`, a root that is not the worktree top level) the store is
+  the worktree's own `.corvint/index/`. Only the clean base is shared: dirty paths and status digest are
   applied per worktree at load and never written (`DIRTY-CACHE-003`, `DIRTY-CACHE-004`). There is
   no lock: each concurrent `index` writer publishes a complete, synced temporary file by atomic
   rename onto its key, the last rename wins, and a reader keeps the complete file it opened, since
   snapshot bytes for one key need not be identical across builds. The writer MUST refuse a worktree
   `.corvint`, a store parent `corvint`, or a store `corvint/index` that exists as a symlink or other
-  non-directory (`IDX-SNAP-V0-005`), and the eight-entry bound (`DIRTY-CACHE-007`) applies to the
-  shared store as a whole. An existing worktree `.corvint/index/` is neither read nor deleted: its
-  snapshots carry an older engine digest and cannot match, so the first `index` rebuilds into the
-  shared store and the user may remove the old directory. Rollback: restore the worktree-joined
-  store path; the shared directory is disposable derived state.
+  non-directory (`IDX-SNAP-V0-005`). The `DIRTY-CACHE-007` entry bound for the shared store is eight
+  per worktree, 8 x (1 + the number of entries under `<common>/worktrees/`), capped at 64, because
+  one shared eight-entry bound would let worktrees on different trees evict each other's snapshot
+  on every write; the worktree fallback store keeps eight. Only the fallback store writes a
+  `.gitignore`, since Git never tracks the common directory. The store is created 0755 with 0600
+  files, so when several OS users share one common directory (`core.sharedRepository`) a second
+  user's `index` fails and their reads miss. A repository whose common directory resolves no longer
+  reads or deletes a `.corvint/index/` left in its worktree by an earlier release: those snapshots
+  carry an older engine digest and cannot match, so the first `index` rebuilds into the shared store
+  and the user may remove the old directory. In fallback mode `.corvint/index/` is the store, read
+  and evicted as before. Rollback: restore the worktree-joined store path; the shared directory is
+  disposable derived state.
 
 ## Trust, failures, and compatibility
 
@@ -146,4 +155,4 @@ Go receipt and its query, impact, prove, and harness regressions.
 | `DIRTY-CACHE-010` | code and contract review | diff and independent review |
 | `DIRTY-CACHE-011` | candidate: `src/context_corvint_index.py` | SHA-1/SHA-256 clean/dirty cold, memory, disk, corruption, receipt-identity, and unsupported-format regressions |
 | `DIRTY-CACHE-012` | candidate: `internal/worktreeimpact/compiler.go` | `TestWorktreeImpactFreshnessScopeIsDistinctFromDirtyCacheReuse` |
-| `DIRTY-CACHE-013` | `internal/contextindex/snapshot.go`, `internal/gitstatus/status.go` | `TestLinkedWorktreesShareOneCleanSnapshot`, `TestConcurrentWorktreeWritersPublishCompleteSnapshotsByRename`, `TestSharedSnapshotStoreKeepsTheEntryBoundAcrossWorktrees`, `TestSnapshotStoreFallsBackToTheWorktreeWhenTheCommonDirectoryIsUnresolved`, `TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory`, `TestSnapshotReadersMissThroughCommittedSymlinkedSnapshotDirectory` |
+| `DIRTY-CACHE-013` | `internal/contextindex/snapshot.go`, `internal/gitstatus/status.go` | `TestLinkedWorktreesShareOneCleanSnapshot`, `TestConcurrentWorktreeWritersPublishCompleteSnapshotsByRename`, `TestSharedSnapshotStoreKeepsTheEntryBoundAcrossWorktrees`, `TestSnapshotStoreBoundScalesByWorktreeUpToTheCap`, `TestWriteSnapshotDoesNotRewriteMatchingGitIgnore`, `TestSnapshotStoreFallsBackToTheWorktreeWhenTheCommonDirectoryIsUnresolved`, `TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory`, `TestSnapshotReadersMissThroughCommittedSymlinkedSnapshotDirectory` |

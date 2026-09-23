@@ -223,6 +223,5 @@ func TestBlobShardRefusesForgedUnboundedFacts(t *testing.T) {
 
 // snapshotBase is the directory that anchors the store's no-follow walks.
 func snapshotBase(root string) string {
-	base, _ := snapshotLocation(root)
-	return base
+	return locateSnapshotStore(root).base
 }

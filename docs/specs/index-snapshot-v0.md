@@ -76,8 +76,9 @@ what any packet says.
   or another clean filter is read from the blob but is not added to `DirtyPaths`; the status
   snapshot is the dirty authority.
 - `IDX-SNAP-V0-005`: `index` is the only verb that writes under `.corvint/index/`; `context` and every
-  other read verb never create, touch, or delete a file there (invariant 4). The directory ignores
-  itself through a `.gitignore` it contains, so a repository with no rule for it stays clean.
+  other read verb never create, touch, or delete a file there (invariant 4). The worktree fallback
+  store ignores itself through a `.gitignore` it contains, so a repository with no rule for it stays
+  clean; the shared store under the Git common directory is never tracked and has no such file.
   `index` writes that file only when it is absent or different, using temporary-file publication
   by rename rather than exposing a truncate-then-write interval to concurrent status readers. On its
   first write, `index` also creates `.corvint/.gitignore` only when that file is absent. The narrow

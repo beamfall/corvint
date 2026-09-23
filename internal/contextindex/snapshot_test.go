@@ -71,7 +71,7 @@ func TestProbeSnapshotReadsOnlyTheMatchingHeader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := snapshotPath(index.Root, index.ObjectFormat, index.Revision, engineID)
+	path := snapshotPath(SnapshotDirectory(index.Root), index.ObjectFormat, index.Revision, engineID)
 	probe, fresh, err := ProbeSnapshot(context.Background(), index.Root)
 	if err != nil || !fresh {
 		t.Fatalf("IDX-SNAP-V0-011: fresh=%v err=%v", fresh, err)
@@ -118,7 +118,7 @@ func TestSnapshotLoadJoinsAnEngineDigestThatFinishesLast(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Path != snapshotPath(root, index.ObjectFormat, index.Revision, engine()) {
+	if receipt.Path != snapshotPath(SnapshotDirectory(root), index.ObjectFormat, index.Revision, engine()) {
 		t.Fatalf("the written snapshot is not the one the engine digest names: %q", receipt.Path)
 	}
 	entered, release := make(chan struct{}), make(chan struct{})
@@ -298,12 +298,14 @@ exec %s "$@"
 	}
 }
 
+// Only the worktree fallback store writes an ignore file (DIRTY-CACHE-013).
 func TestWriteSnapshotDoesNotRewriteMatchingGitIgnore(t *testing.T) {
 	index := taskContextFixture(t)
+	unlinkCommonDirectory(t, index.Root)
 	if _, err := WriteSnapshot(index); err != nil {
 		t.Fatal(err)
 	}
-	ignore := filepath.Join(SnapshotDirectory(index.Root), ".gitignore")
+	ignore := filepath.Join(index.Root, ".corvint", "index", ".gitignore")
 	unchanged := time.Unix(946_684_800, 0)
 	if err := os.Chtimes(ignore, unchanged, unchanged); err != nil {
 		t.Fatal(err)
@@ -419,7 +421,7 @@ func TestEvictSnapshotsKeepsNewestEightIncludingCurrent(t *testing.T) {
 		}
 	}
 	current := paths[len(paths)-1]
-	if evicted := evictSnapshots(directory, current); evicted != 2 {
+	if evicted := evictSnapshots(directory, current, snapshotKeep); evicted != 2 {
 		t.Fatalf("IDX-SNAP-V0-007: evicted %d snapshots, want 2", evicted)
 	}
 	entries, err := os.ReadDir(directory)
@@ -473,7 +475,7 @@ func TestEvictSnapshotsRemovesStaleTemporaries(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if evicted := evictSnapshotsAt(directory, "", now); evicted != 0 {
+		if evicted := evictSnapshotsAt(directory, "", snapshotKeep, now); evicted != 0 {
 			t.Fatalf("reported %d published snapshots evicted, want zero", evicted)
 		}
 		if _, err := os.Stat(stale.Name()); !os.IsNotExist(err) {
@@ -743,30 +745,69 @@ func TestConcurrentWorktreeWritersPublishCompleteSnapshotsByRename(t *testing.T)
 	for _, entry := range entries {
 		names = append(names, entry.Name())
 	}
-	if len(names) != 2 || names[0] != ".gitignore" || !strings.HasSuffix(names[1], ".gob") {
+	if len(names) != 1 || !strings.HasSuffix(names[0], ".gob") {
 		t.Fatalf("DIRTY-CACHE-013: shared store after racing writers = %v", names)
 	}
 }
 
-// Eviction keeps its eight-entry bound over the shared store, counting the
-// snapshots every worktree wrote (DIRTY-CACHE-007).
+// Eviction over the shared store keeps eight entries per worktree: the main
+// worktree and two linked ones keep 24, counting the snapshots every worktree
+// wrote, and the current snapshot survives (DIRTY-CACHE-007, DIRTY-CACHE-013).
 func TestSharedSnapshotStoreKeepsTheEntryBoundAcrossWorktrees(t *testing.T) {
-	roots := linkedWorktrees(t)[:2]
-	for round := 0; round <= snapshotKeep; round++ {
-		root := roots[round%2]
-		writeTestFile(t, root, "pkg/pkg.go", fmt.Sprintf("package pkg\n\nfunc Run() int { return %d }\n", round))
-		testGit(t, root, "commit", "-qam", fmt.Sprintf("round %d", round))
-		index, err := BuildForSnapshot(context.Background(), root)
-		if err != nil {
+	roots := linkedWorktrees(t)
+	directory := SnapshotDirectory(roots[0])
+	if err := os.MkdirAll(directory, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for position := range 30 {
+		stale := filepath.Join(directory, fmt.Sprintf("sha1-stale%02d-engine.gob", position))
+		if err := os.WriteFile(stale, nil, 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := WriteSnapshot(index); err != nil {
+		when := time.Unix(int64(position), 0)
+		if err := os.Chtimes(stale, when, when); err != nil {
 			t.Fatal(err)
 		}
 	}
-	snapshots, err := filepath.Glob(filepath.Join(SnapshotDirectory(roots[0]), "*.gob"))
-	if err != nil || len(snapshots) != snapshotKeep {
-		t.Fatalf("DIRTY-CACHE-007: shared store holds %d snapshots, want %d (err=%v)", len(snapshots), snapshotKeep, err)
+	index, err := BuildForSnapshot(context.Background(), roots[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := WriteSnapshot(index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshots, err := filepath.Glob(filepath.Join(directory, "*.gob"))
+	if err != nil || len(snapshots) != 3*snapshotKeep {
+		t.Fatalf("DIRTY-CACHE-013: shared store holds %d snapshots, want %d (err=%v)", len(snapshots), 3*snapshotKeep, err)
+	}
+	if _, err := os.Stat(receipt.Path); err != nil {
+		t.Fatalf("DIRTY-CACHE-007: current snapshot evicted: %v", err)
+	}
+}
+
+// The shared bound is eight per worktree up to snapshotKeepCap; the fallback
+// store keeps eight whatever sits beside it (DIRTY-CACHE-013).
+func TestSnapshotStoreBoundScalesByWorktreeUpToTheCap(t *testing.T) {
+	base := t.TempDir()
+	shared := snapshotStore{base: base, directory: filepath.Join(base, "corvint", "index"), shared: true}
+	fallback := snapshotStore{base: base, directory: filepath.Join(base, ".corvint", "index")}
+	for count, want := range map[int]int{0: snapshotKeep, 2: 3 * snapshotKeep, 7: snapshotKeepCap, 12: snapshotKeepCap} {
+		worktrees := filepath.Join(base, "worktrees")
+		if err := os.RemoveAll(worktrees); err != nil {
+			t.Fatal(err)
+		}
+		for entry := range count {
+			if err := os.MkdirAll(filepath.Join(worktrees, strconv.Itoa(entry)), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := shared.bound(); got != want {
+			t.Errorf("DIRTY-CACHE-013: %d linked worktrees bound %d, want %d", count, got, want)
+		}
+		if got := fallback.bound(); got != snapshotKeep {
+			t.Errorf("DIRTY-CACHE-013: fallback bound %d beside %d worktrees, want %d", got, count, snapshotKeep)
+		}
 	}
 }
 
@@ -780,15 +821,22 @@ func TestSnapshotStoreFallsBackToTheWorktreeWhenTheCommonDirectoryIsUnresolved(t
 	if SnapshotDirectory(root) != filepath.Join(mustEvalSymlinks(t, root), ".git", "corvint", "index") {
 		t.Fatalf("DIRTY-CACHE-013: plain clone store = %s", SnapshotDirectory(root))
 	}
+	unlinkCommonDirectory(t, root)
+	if SnapshotDirectory(root) != filepath.Join(root, ".corvint", "index") {
+		t.Fatalf("DIRTY-CACHE-013: fallback store = %s", SnapshotDirectory(root))
+	}
+}
+
+// unlinkCommonDirectory replaces root's `.git` with a symlink to it, which
+// CommonDirectory refuses, so the store falls back to the worktree.
+func unlinkCommonDirectory(t *testing.T, root string) {
+	t.Helper()
 	moved := filepath.Join(t.TempDir(), "git")
 	if err := os.Rename(filepath.Join(root, ".git"), moved); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(moved, filepath.Join(root, ".git")); err != nil {
 		t.Fatal(err)
-	}
-	if SnapshotDirectory(root) != filepath.Join(root, ".corvint", "index") {
-		t.Fatalf("DIRTY-CACHE-013: fallback store = %s", SnapshotDirectory(root))
 	}
 }
 

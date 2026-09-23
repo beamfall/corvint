@@ -179,7 +179,7 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | paths | `internal/companionrelease` | `internal/companionrelease/companionrelease_test.go:620@5ef76c7b` |
 | paths | `internal/trace` | `internal/trace/migration_test.go:80@77e27ccc` |
 | paths | `internal/doccompiler` | `internal/doccompiler/compiler_test.go:211@b9d5a61d` |
-| symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:163@6bb9aead`, `internal/contextindex/index_test.go:403@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:508@22f1c7f2`, `internal/contextindex/snapshot_test.go:557@ee7924d9` |
+| symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:163@6bb9aead`, `internal/contextindex/index_test.go:403@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:510@22f1c7f2`, `internal/contextindex/snapshot_test.go:559@ee7924d9` |
 | symlinks | `internal/trace` | `internal/trace/store_test.go:222@ee958993`, `internal/trace/store_test.go:937@69176005` |
 | symlinks | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:105@141529a4` |
 | symlinks | `internal/worktreeimpact` | `internal/worktreeimpact/hostile_unix_test.go:12@0eab7357` |

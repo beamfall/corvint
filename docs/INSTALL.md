@@ -316,8 +316,10 @@ is no alternate restore archive format or automatic downgrade migration.
 
 The index snapshot store is `corvint/index` under the Git common directory (`.git/corvint/index` in
 a plain clone), shared by every linked worktree; a worktree whose common directory cannot be
-resolved keeps `.corvint/index`. An older `.corvint/index` left by a previous release is no longer
-read and may be deleted by hand.
+resolved keeps `.corvint/index` as its store. Where the common directory resolves, an older
+`.corvint/index` left by a previous release is no longer read and may be deleted by hand. The store
+is created 0755 with 0600 files, so when several OS users share one common directory
+(`core.sharedRepository`), a second user's `corvint index` fails and their reads miss.
 
 For a damaged derived index, retain the failing receipt and a backup of the snapshot store, then run
 `corvint index --if-stale` explicitly. A symlinked index path is refused: review it before any manual

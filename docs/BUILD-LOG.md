@@ -30,6 +30,12 @@ dirty view (`mixed=README.md`) private to the edited worktree. Focused tests:
 `TestSharedSnapshotStoreKeepsTheEntryBoundAcrossWorktrees`,
 `TestSnapshotStoreFallsBackToTheWorktreeWhenTheCommonDirectoryIsUnresolved`.
 
+Review fixes: the install-lifecycle script now takes the store from the index receipt's `path`, so
+the 0.7.0 N-1 run passes; the shared store's bound is 8 x (1 + linked worktrees), capped at 64,
+with the fallback kept at 8; each operation resolves the store once; only the fallback store writes
+a `.gitignore`; the analyzer schema moves to `corvint-analyzer/80`; and the spec and docs now state
+the fallback, symlink-following, and `core.sharedRepository` behaviour exactly.
+
 Owner review: `DIRTY-CACHE-013` is new; `IDX-SNAP-V0-001`/`005` (accepted, decision 0049) and
 `SOP-V0-002`/`004`/`005` (accepted, decision 0341) are amended for the store location.
 Rollback: revert this change; the shared directory is disposable derived state.

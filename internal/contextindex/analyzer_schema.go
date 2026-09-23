@@ -13,7 +13,7 @@ import (
 // Bump it after reviewing any change to the inputs pinned by
 // TestAnalyzerSchemaInputs. The audit digest is a maintenance guard, not the
 // runtime key: an unrelated executable rebuild must keep using the same pack.
-const analyzerSchemaID = "corvint-analyzer/79"
+const analyzerSchemaID = "corvint-analyzer/80"
 
 // AnalyzerSchemaID is shared by experimental immutable stores of analyzer facts.
 func AnalyzerSchemaID() string { return analyzerSchemaID }
@@ -28,9 +28,9 @@ func analyzerEngine() string {
 // probeAnalyzerPack reads the pack the way a full load does: a compact read
 // verifies only the identity section, so a corrupt body every loader refuses
 // would probe fresh and `index --if-stale` would never rewrite it.
-func probeAnalyzerPack(root string, identity repositoryIdentity) (SnapshotProbe, bool, error) {
+func probeAnalyzerPack(directory string, identity repositoryIdentity) (SnapshotProbe, bool, error) {
 	engineID := analyzerEngine()
-	path := packPath(root, identity.objectFormat, identity.treeRevision, engineID)
+	path := packPath(directory, identity.objectFormat, identity.treeRevision, engineID)
 	index, err := readPackSnapshot(path, identity, engineID, loadFull)
 	if err != nil {
 		return SnapshotProbe{}, false, nil
@@ -41,8 +41,9 @@ func probeAnalyzerPack(root string, identity repositoryIdentity) (SnapshotProbe,
 
 // Analyzer-key packs have a different stem from the executable-key gob.
 // Bound their own inventory, including packs from older schema versions, and
-// reserve one of the eight slots for the current pack even if its clock is old.
-func evictAnalyzerPacks(directory, keep string) int {
+// reserve one of the store's bound slots for the current pack even if its
+// clock is old.
+func evictAnalyzerPacks(directory, keep string, bound int) int {
 	entries, err := os.ReadDir(directory)
 	if err != nil {
 		return 0
@@ -52,7 +53,7 @@ func evictAnalyzerPacks(directory, keep string) int {
 		when int64
 	}
 	packs := make([]agedPack, 0, len(entries))
-	remaining := snapshotKeep
+	remaining := bound
 	for _, entry := range entries {
 		if filepath.Ext(entry.Name()) != packExtension {
 			continue

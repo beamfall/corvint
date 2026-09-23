@@ -30,6 +30,8 @@ import (
 const (
 	snapshotFormat = "corvint-index-snapshot/1"
 	snapshotKeep   = 8
+	// snapshotKeepCap caps the shared store's scaled entry bound.
+	snapshotKeepCap = 64
 	// sharedSnapshotSubpath is the store under the Git common directory;
 	// snapshotSubpath is the per-worktree fallback for a root whose common
 	// directory does not resolve from its `.git` metadata.
@@ -150,19 +152,37 @@ func LoadedEngineID() string { return engine() }
 // worktree's own `.corvint/index` when the common directory cannot be resolved
 // from `.git` metadata without a Git process (DIRTY-CACHE-013).
 func SnapshotDirectory(root string) string {
-	_, directory := snapshotLocation(root)
-	return directory
+	return locateSnapshotStore(root).directory
 }
 
-// snapshotLocation returns the directory that anchors the store's no-follow
-// walks (the Git common directory, or root on the fallback) and the store
-// directory beneath it.
-func snapshotLocation(root string) (string, string) {
+// snapshotStore is one resolution of a root's store. An operation resolves it
+// once and passes it down, so its symlink checks and its opens name the same
+// directory. base anchors the store's no-follow walks: the Git common
+// directory, or root on the fallback, where shared is false.
+type snapshotStore struct {
+	base, directory string
+	shared          bool
+}
+
+func locateSnapshotStore(root string) snapshotStore {
 	common, err := gitstatus.CommonDirectory(root)
 	if err != nil {
-		return root, filepath.Join(root, filepath.FromSlash(snapshotSubpath))
+		return snapshotStore{base: root, directory: filepath.Join(root, filepath.FromSlash(snapshotSubpath))}
 	}
-	return common, filepath.Join(common, filepath.FromSlash(sharedSnapshotSubpath))
+	return snapshotStore{base: common, directory: filepath.Join(common, filepath.FromSlash(sharedSnapshotSubpath)), shared: true}
+}
+
+// bound is the store's entry bound (DIRTY-CACHE-007). A shared store serves
+// every linked worktree, so it keeps snapshotKeep per worktree -- the main one
+// plus each entry under `<common>/worktrees/` -- up to snapshotKeepCap; eight
+// in all would let worktrees on different trees evict each other's snapshot on
+// every write. The per-worktree fallback keeps snapshotKeep (DIRTY-CACHE-013).
+func (store snapshotStore) bound() int {
+	if !store.shared {
+		return snapshotKeep
+	}
+	worktrees, _ := os.ReadDir(filepath.Join(store.base, "worktrees"))
+	return min(snapshotKeep*(1+len(worktrees)), snapshotKeepCap)
 }
 
 // refuseLinkedSnapshotDirectory rejects a worktree `.corvint`, or either
@@ -170,8 +190,7 @@ func snapshotLocation(root string) (string, string) {
 // directory. A repository can commit `.corvint` as a symlink, and following it,
 // or a linked store component, would write and evict outside the store
 // (IDX-SNAP-V0-005). A component that does not exist yet is fine.
-func refuseLinkedSnapshotDirectory(root string) error {
-	_, directory := snapshotLocation(root)
+func refuseLinkedSnapshotDirectory(root, directory string) error {
 	for _, component := range []string{filepath.Join(root, ".corvint"), filepath.Dir(directory), directory} {
 		info, err := os.Lstat(component)
 		if errors.Is(err, os.ErrNotExist) {
@@ -187,8 +206,8 @@ func refuseLinkedSnapshotDirectory(root string) error {
 	return nil
 }
 
-func snapshotPath(root, objectFormat, tree, engineID string) string {
-	return filepath.Join(SnapshotDirectory(root), objectFormat+"-"+tree+"-"+engineID+".gob")
+func snapshotPath(directory, objectFormat, tree, engineID string) string {
+	return filepath.Join(directory, objectFormat+"-"+tree+"-"+engineID+".gob")
 }
 
 // firstError reports the encode failure over the close failure when both
@@ -213,7 +232,7 @@ func syncAndClose(file *os.File) error {
 }
 
 // WriteSnapshot persists index for its tree, atomically, and keeps the
-// directory to the newest snapshotKeep files (DIRTY-CACHE-007's entry bound).
+// directory to the store's entry bound (DIRTY-CACHE-007, snapshotStore.bound).
 // Writers from several worktrees take no lock: each publishes a complete,
 // synced file by rename onto the same key, the last rename wins, and a reader
 // holds whichever complete file it opened (DIRTY-CACHE-013).
@@ -222,9 +241,10 @@ func WriteSnapshot(index *Index) (SnapshotReceipt, error) {
 	if engineID == "" {
 		return SnapshotReceipt{}, &Error{Message: "index snapshot disabled: the running binary cannot be digested"}
 	}
-	directory := SnapshotDirectory(index.Root)
+	store := locateSnapshotStore(index.Root)
+	directory := store.directory
 	corvintDirectory := filepath.Join(index.Root, ".corvint")
-	if err := refuseLinkedSnapshotDirectory(index.Root); err != nil {
+	if err := refuseLinkedSnapshotDirectory(index.Root, directory); err != nil {
 		return SnapshotReceipt{}, err
 	}
 	if err := os.MkdirAll(directory, 0o755); err != nil {
@@ -233,18 +253,22 @@ func WriteSnapshot(index *Index) (SnapshotReceipt, error) {
 	if err := os.MkdirAll(corvintDirectory, 0o755); err != nil {
 		return SnapshotReceipt{}, err
 	}
-	if err := refuseLinkedSnapshotDirectory(index.Root); err != nil {
+	if err := refuseLinkedSnapshotDirectory(index.Root, directory); err != nil {
 		return SnapshotReceipt{}, err
 	}
 	if err := writeCorvintIgnore(corvintDirectory); err != nil {
 		return SnapshotReceipt{}, err
 	}
-	// The directory ignores itself, so a repository with no rule for it stays
-	// clean in `git status` and a snapshot never becomes a dirty path.
-	if err := writeSnapshotGitIgnore(directory); err != nil {
-		return SnapshotReceipt{}, err
+	// The worktree fallback store ignores itself, so a repository with no rule
+	// for it stays clean in `git status` and a snapshot never becomes a dirty
+	// path. Git never tracks the shared store under the common directory, so
+	// it gets no ignore file.
+	if !store.shared {
+		if err := writeSnapshotGitIgnore(directory); err != nil {
+			return SnapshotReceipt{}, err
+		}
 	}
-	target := snapshotPath(index.Root, index.ObjectFormat, index.Revision, engineID)
+	target := snapshotPath(directory, index.ObjectFormat, index.Revision, engineID)
 	temporary, err := os.CreateTemp(directory, "snapshot-*.tmp")
 	if err != nil {
 		return SnapshotReceipt{}, err
@@ -263,7 +287,7 @@ func WriteSnapshot(index *Index) (SnapshotReceipt, error) {
 		Sources: len(index.Sources), Symbols: len(index.Symbols),
 	}
 	if sectionedEnabled() {
-		sectionedTarget := sectionedPath(index.Root, index.ObjectFormat, index.Revision, engineID)
+		sectionedTarget := sectionedPath(directory, index.ObjectFormat, index.Revision, engineID)
 		sectionedBytes, err := writeSectionedSnapshot(directory, sectionedTarget, index, engineID)
 		if err != nil {
 			return SnapshotReceipt{}, err
@@ -272,7 +296,7 @@ func WriteSnapshot(index *Index) (SnapshotReceipt, error) {
 	}
 	if packEnabled() {
 		packEngineID := analyzerEngine()
-		packTarget := packPath(index.Root, index.ObjectFormat, index.Revision, packEngineID)
+		packTarget := packPath(directory, index.ObjectFormat, index.Revision, packEngineID)
 		packBytes, err := writePackSnapshot(directory, packTarget, index, packEngineID)
 		if err != nil {
 			return SnapshotReceipt{}, err
@@ -280,13 +304,14 @@ func WriteSnapshot(index *Index) (SnapshotReceipt, error) {
 		receipt.PackPath, receipt.PackBytes = packTarget, packBytes
 	}
 	if blobShardsEnabled() {
-		if err := writeBlobShards(index, analyzerEngine()); err != nil {
+		if err := writeBlobShards(index, store, analyzerEngine()); err != nil {
 			return SnapshotReceipt{}, err
 		}
 	}
-	receipt.Evicted = evictSnapshots(directory, target)
+	bound := store.bound()
+	receipt.Evicted = evictSnapshots(directory, target, bound)
 	if packEnabled() {
-		receipt.Evicted += evictAnalyzerPacks(directory, receipt.PackPath)
+		receipt.Evicted += evictAnalyzerPacks(directory, receipt.PackPath, bound)
 	}
 	return receipt, nil
 }
@@ -398,12 +423,12 @@ func encodeSnapshot(file *os.File, index *Index, engineID string) (int64, error)
 }
 
 // evictSnapshots removes stale writer temporaries and the oldest published
-// files beyond snapshotKeep, never the snapshot just written.
-func evictSnapshots(directory, keep string) int {
-	return evictSnapshotsAt(directory, keep, time.Now())
+// files beyond bound, never the snapshot just written.
+func evictSnapshots(directory, keep string, bound int) int {
+	return evictSnapshotsAt(directory, keep, bound, time.Now())
 }
 
-func evictSnapshotsAt(directory, keep string, now time.Time) int {
+func evictSnapshotsAt(directory, keep string, bound int, now time.Time) int {
 	entries, err := os.ReadDir(directory)
 	if err != nil {
 		return 0
@@ -433,7 +458,7 @@ func evictSnapshotsAt(directory, keep string, now time.Time) int {
 	sort.Slice(files, func(left, right int) bool { return files[left].when > files[right].when })
 	evicted := 0
 	for position, file := range files {
-		if position < snapshotKeep || file.path == keep {
+		if position < bound || file.path == keep {
 			continue
 		}
 		if os.Remove(file.path) == nil {
@@ -498,13 +523,17 @@ func ProbeSnapshot(ctx context.Context, root string) (SnapshotProbe, bool, error
 	if err != nil {
 		return SnapshotProbe{}, false, err
 	}
-	if engineID == "" || !snapshotDirectoryPresent(root) {
+	if engineID == "" {
+		return SnapshotProbe{}, false, nil
+	}
+	directory, present := snapshotDirectoryPresent(root)
+	if !present {
 		return SnapshotProbe{}, false, nil
 	}
 	if packEnabled() {
-		return probeAnalyzerPack(root, identity)
+		return probeAnalyzerPack(directory, identity)
 	}
-	path := snapshotPath(root, identity.objectFormat, identity.treeRevision, engineID)
+	path := snapshotPath(directory, identity.objectFormat, identity.treeRevision, engineID)
 	file, err := os.Open(path)
 	if err != nil {
 		return SnapshotProbe{}, false, nil
@@ -516,7 +545,7 @@ func ProbeSnapshot(ctx context.Context, root string) (SnapshotProbe, bool, error
 		return SnapshotProbe{}, false, nil
 	}
 	if sectionedEnabled() {
-		if _, err := readSectionedSnapshot(sectionedPath(root, identity.objectFormat, identity.treeRevision, engineID), identity, engineID, loadCompact); err != nil {
+		if _, err := readSectionedSnapshot(sectionedPath(directory, identity.objectFormat, identity.treeRevision, engineID), identity, engineID, loadCompact); err != nil {
 			return SnapshotProbe{}, false, nil
 		}
 	}
@@ -552,7 +581,8 @@ func loadSnapshot(ctx context.Context, root string, load snapshotLoad, closing .
 	// A repository that has never run `index` has no directory, and asking Git
 	// for the tree OID that names the file would cost that repository two
 	// process spawns per read to learn nothing. The stat is the miss.
-	if !snapshotDirectoryPresent(root) {
+	directory, present := snapshotDirectoryPresent(root)
+	if !present {
 		return nil, false, nil, nil
 	}
 	var engineID string
@@ -585,7 +615,7 @@ func loadSnapshot(ctx context.Context, root string, load snapshotLoad, closing .
 	// potential hit is returned only after status joins and identity is stable.
 	identity := observation.identity
 	compact := load.tables() == loadCompact
-	index, err := readSnapshotIndex(root, identity, engineID, load)
+	index, err := readSnapshotIndex(directory, identity, engineID, load)
 	<-statusReady
 	if observation.statusErr != nil {
 		return nil, false, nil, observation.statusErr
@@ -605,7 +635,7 @@ func loadSnapshot(ctx context.Context, root string, load snapshotLoad, closing .
 		}
 	}
 	if compact && len(observation.dirty) != 0 {
-		index, err = readSnapshotIndex(root, identity, engineID, loadEvent|load&loadDeferredBodies)
+		index, err = readSnapshotIndex(directory, identity, engineID, loadEvent|load&loadDeferredBodies)
 		if err != nil {
 			return nil, false, nil, nil
 		}
@@ -625,22 +655,22 @@ func loadSnapshot(ctx context.Context, root string, load snapshotLoad, closing .
 // sectioned opt-in it reads that file first and falls back to the gob
 // snapshot when the file is absent or refused, so the accepted format
 // always answers.
-func readSnapshotIndex(root string, identity repositoryIdentity, engineID string, load snapshotLoad) (*Index, error) {
+func readSnapshotIndex(directory string, identity repositoryIdentity, engineID string, load snapshotLoad) (*Index, error) {
 	if packEnabled() {
 		packEngineID := analyzerEngine()
-		index, err := readPackSnapshot(packPath(root, identity.objectFormat, identity.treeRevision, packEngineID), identity, packEngineID, load)
+		index, err := readPackSnapshot(packPath(directory, identity.objectFormat, identity.treeRevision, packEngineID), identity, packEngineID, load)
 		if err == nil {
 			return index, nil
 		}
 	}
 	load = load.tables()
 	if sectionedEnabled() {
-		index, err := readSectionedSnapshot(sectionedPath(root, identity.objectFormat, identity.treeRevision, engineID), identity, engineID, load)
+		index, err := readSectionedSnapshot(sectionedPath(directory, identity.objectFormat, identity.treeRevision, engineID), identity, engineID, load)
 		if err == nil {
 			return index, nil
 		}
 	}
-	file, err := os.Open(snapshotPath(root, identity.objectFormat, identity.treeRevision, engineID))
+	file, err := os.Open(snapshotPath(directory, identity.objectFormat, identity.treeRevision, engineID))
 	if err != nil {
 		return nil, err
 	}
@@ -698,7 +728,8 @@ func decodeCompactEventSnapshot(file *os.File, identity repositoryIdentity, engi
 // applies (IDX-SNAP-V0-010). Everything else -- the stat miss, the engine check, the header
 // check, the compact and dirty decode choice -- is loadSnapshot's.
 func LoadEventSnapshotObserved(root string, compact bool, observation Observation) (*Index, bool, error) {
-	if !snapshotDirectoryPresent(root) {
+	directory, present := snapshotDirectoryPresent(root)
+	if !present {
 		return nil, false, nil
 	}
 	engineID := engine()
@@ -710,7 +741,7 @@ func LoadEventSnapshotObserved(root string, compact bool, observation Observatio
 	if compact && len(observation.DirtyPaths) == 0 {
 		decode = decodeCompactEventSnapshot
 	}
-	file, err := os.Open(snapshotPath(root, identity.objectFormat, identity.treeRevision, engineID))
+	file, err := os.Open(snapshotPath(directory, identity.objectFormat, identity.treeRevision, engineID))
 	if err != nil {
 		return nil, false, nil
 	}
@@ -750,11 +781,13 @@ func decodeSnapshotHeader(decoder *gob.Decoder, identity repositoryIdentity, eng
 // real directory under a real parent, with no linked worktree `.corvint`.
 // Readers refuse what the writer refuses: a symlink would otherwise serve a
 // snapshot from outside the store, so a linked component is the IDX-SNAP-V0-003
-// miss, as absence is.
-func snapshotDirectoryPresent(root string) bool {
-	if refuseLinkedSnapshotDirectory(root) != nil {
-		return false
+// miss, as absence is. It returns the store directory it checked, which the
+// reader then opens, so both use one resolution.
+func snapshotDirectoryPresent(root string) (string, bool) {
+	directory := locateSnapshotStore(root).directory
+	if refuseLinkedSnapshotDirectory(root, directory) != nil {
+		return "", false
 	}
-	_, err := os.Stat(SnapshotDirectory(root))
-	return err == nil
+	_, err := os.Stat(directory)
+	return directory, err == nil
 }
