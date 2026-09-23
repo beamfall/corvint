@@ -14,12 +14,12 @@ consumer), `docs/decisions/0065-documentation-is-searchable-evidence-with-its-ow
 (documentation admission and placement), `docs/decisions/0067-test-code-linking-in-the-context-packet-2026-09-05.md`
 (the `test` relation), `docs/specs/go-production-kernel-migration-v0.md` (the `impact` reverse-import rules this
 packet reuses), `docs/decisions/0346-packet-trust-class-2026-09-22.md` (the `trust` class on every
-evidence row), `AGENTS.md` invariants 1, 2, 3, 4, and 8.
+evidence row), `docs/decisions/0369-context-recency-blame-opt-in-2026-09-23.md` (opt-in recency), `AGENTS.md` invariants 1, 2, 3, 4, and 8.
 
 ## Agent digest
 - Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
 - Status: proposed/experimental
-- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`).
+- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/recency.go` and `blame.go` (TCP-V0-035..038 opt-in recency, blame and ownership, experimental).
 - Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012, which is implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it.
 - Read next: Requirements; Non-goals; Failure modes.
 
@@ -512,6 +512,63 @@ it must read, each with the relation that admitted it, without naming the task's
   of TCP-V0-001..023: the packet, its members and its ranking are unchanged. Both views are read
   commands: they write no repository, index, snapshot, trace or `.corvint/` state.
 
+- `TCP-V0-035`: (proposed 2026-09-23, not accepted; experimental; decision 0369) With
+  `CORVINT_CONTEXT_RECENCY=on`, the packet reads, from Git history reachable from the indexed
+  commit only (never the worktree, the clock or any other state), the committer time of each
+  commit in the `cochange` slot's window (the newest 200 non-merge commits, TCP-V0-004's
+  `readCoChangeHistory` bound, shallow boundary commits dropped) and each path's newest commit in
+  that window. A path's recency is `0.5^(age/90 days)`, where age is the indexed commit's committer
+  time minus the path's newest window commit's (a later-dated commit weighs 1). The lexical fill is
+  reordered by BM25 x (1 + 0.25 recency + 0.25 blame freshness, TCP-V0-036), code rows among the
+  positions code rows already hold and documentation rows among theirs, so TCP-V0-013's placement
+  and every other slot's order are kept. The `cochange` slot is reordered by its recency-weighted
+  count: each co-change commit it counted weighs its own decay. Every lexical row's reason gains
+  `; recency R (last commit D days before the indexed commit, 90-day half-life); <blame reason>;
+  rank bm25 x F`, and every `cochange` row's reason gains `; recency-weighted W (90-day
+  half-life)`, so each contributing feature is named. Both slots are reordered before their cap and
+  the limit apply, so which candidates the lexical and `cochange` slots admit can change: a recent
+  candidate below the cut can displace an older one. No admitted row's score, kind or authority
+  changes, and the reserved and syntax slots are untouched. An unset or other value preserves the
+  existing packet bytes (the recipe golden).
+- `TCP-V0-036`: (proposed 2026-09-23, not accepted; experimental; decision 0369) The blame
+  feature runs `git blame --porcelain` at the indexed commit on at most the first 10 lexical
+  candidates in BM25 order that the slot can still admit (not the subject, not a path an earlier
+  slot chose), limited to the window (`OLDEST..COMMIT` when the window holds 200 commits) and to 4
+  MiB of output. A line whose last change is a boundary commit (older than the window, a root
+  commit, or the full window's oldest commit, which Git marks as the range boundary) is outside
+  the window; freshness is the sum of the in-window lines'
+  decay over all lines. Beyond any bound the feature abstains and says so in the row reason:
+  `blame abstained (beyond the 10-file blame bound)`, `blame abstained (blame-unreadable)`, or the
+  history state. Recency abstains the same way: `recency abstained (no commit in the N-commit
+  window)` for a path the window never touched, `recency abstained (STATE)` when the history could
+  not be read (`no-indexed-commit`, `history-unreadable`). An abstaining feature contributes 0 to
+  the factor; it is never estimated.
+- `TCP-V0-037`: (proposed 2026-09-23, not accepted; experimental; decision 0369) The first tracked
+  file among `.github/CODEOWNERS`, `CODEOWNERS`, `docs/CODEOWNERS` at the indexed commit (256 KiB
+  bound) is read with GitHub's pattern rules: the last matching rule owns a path; `*`, `?` and
+  `**` as in gitignore; a leading or inner slash anchors the pattern; negations and bracket
+  ranges are not CODEOWNERS syntax and their lines are skipped. For each blamed row whose owning
+  rule names owners and whose in-window lines have authors, the owners are compared with those
+  authors' emails: an email owner exactly, a `@user` owner only against a GitHub noreply address,
+  a `@org/team` owner never. An owner matching any author agrees and reports nothing. Otherwise the
+  row is a disagreement, reported and never resolved: state `disagrees` when every owner is an
+  email, `unverifiable` when a handle or team could not be compared. The row reason gains
+  `; ownership STATE: CODEOWNERS names OWNERS, blame names AUTHOR`, and the entry is listed in
+  `coverage.recency.ownership` (TCP-V0-038). Neither side changes any row's order, authority or
+  admission: ownership is uncertainty, not a ranking input.
+- `TCP-V0-038`: (proposed 2026-09-23, not accepted; experimental; decision 0369) With the flag on,
+  `coverage` gains one `recency` member: `{state, half_life_days, window_commits, window_full,
+  blame_cap, blamed, codeowners, ownership}`, where `codeowners` is the file read or null and
+  `ownership` lists, in packet order, `{path, state, rule, rule_line, codeowners, blame_author,
+  blame_author_lines, reason}` for each TCP-V0-037 disagreement among the packet's rows. The
+  member is absent when the flag is unset. Promotion to default requires the frozen
+  `tools/retrieval-bench` `context` arm to lose no recall@20 on any subset with the flag on, on a
+  corpus whose snapshots carry history; the frozen releases rebuild each snapshot as one commit,
+  where every recency is 1 and every blame line is a root boundary, so they can show no
+  regression but cannot show a gain. `corvint eval` does not exercise `context`. The flag
+  therefore stays opt-in (decision 0369). Rollback: unset the flag, or delete the feature; the
+  default wire never changed.
+
 ## Non-goals and authority
 
 Forward imports of the subject, cross-directory definition-to-reference edges, and re-export
@@ -547,6 +604,11 @@ Operational note (V1-0051): `corvint context` and the generic harness-event disp
 (`cmd/corvint/taskcontext.go`, `cmd/corvint/main.go`) write a local pprof CPU profile when the
 operator sets `CPUPROFILE=PATH` in the process environment. It is off by default, diagnostic only,
 and does not widen what either read-only path reads, returns, or mutates (AGENTS.md invariant 4).
+
+The recency features (TCP-V0-035..038) add no index, snapshot or pack change, no clock read and
+no new root verb. They do not make recency a relation (a recent file is not admitted for being recent), do not rerank
+the syntax or reserved slots, and do not resolve ownership: mapping GitHub handles or teams to
+commit emails needs the host's account data, which this local packet does not read.
 
 ## Failure modes
 
@@ -600,6 +662,13 @@ and does not widen what either read-only path reads, returns, or mutates (AGENTS
   `TestContextDefaultWireIsTheGolden` compares the default stdout with bytes captured from the base
   binary (`1894b9e5`), and mixed or orphaned view flags are argument errors
   (`TestParseContextViewArguments`).
+- (TCP-V0-035..038) A rebased or squashed history dates lines by the rewrite, so recency and
+  blame read the rewrite as recent; a snapshot history (one commit) makes every recency 1 and
+  every blame 0, so the flag reorders nothing. Both are reported, not corrected: the row reason
+  carries the ages and line counts. A path renamed within the window has its recency from the new
+  name only (`--no-renames`). A CODEOWNERS file over 256 KiB or unreadable reads as none
+  (`codeowners` null), so no disagreement is reported; absence of an ownership entry is not
+  evidence of agreement (invariant 2).
 
 ## Acceptance evidence
 
@@ -636,6 +705,13 @@ the empty `governance_refused` array added.
 `cmd/corvint/context_summary_test.go` (TCP-V0-024, experimental: default bytes equal the
 base-binary golden `cmd/corvint/testdata/context-default-wire.golden`; flag mixing refused; the
 summary and expansion evidence listed under ESV-V0-008..009).
+`internal/contextindex/recency_test.go` and `internal/contextindex/blame_test.go` (TCP-V0-035..038,
+proposed: default bytes equal the recipe golden for unset, `off` and other values; an equal-BM25
+recent source leads with the flag and both rows name recency, blame and the factor; recent
+co-changes outrank older, more frequent ones; the blame bound and every abstention reason; the
+porcelain parse and the window's oldest commit; GitHub pattern semantics; a `disagrees`, an
+`unverifiable` and an agreeing owner; the `coverage.recency` member and a no-commit abstention).
+The frozen bench and `corvint eval` readings, off and on, are in `docs/BUILD-LOG.md` (V1-0089).
 
 ## Rollback
 
@@ -654,6 +730,9 @@ TCP-V0-024 rolls back alone to current packets. Follow the V1-0023 rollback in
 `experimental-source-views-v0` (Acceptance and rollback): delete `cmd/corvint/context_summary.go`,
 its test and golden, and the view flags, check and help paragraph in `cmd/corvint/taskcontext.go`.
 The default wire never changed.
+The recency features (TCP-V0-035..038) roll back alone: delete `internal/contextindex/recency.go`,
+`internal/contextindex/blame.go` and their tests, the `recency` field and its four hook lines in
+`internal/contextindex/taskcontext.go`; the default wire never changed.
 
 ## Traceability
 
@@ -683,3 +762,7 @@ The default wire never changed.
 | TCP-V0-022 | `configureContextAnchors`, `taskAnchors`, `anchorCandidates`, `countAnchor`, `anchorOccurrences`, `anchorReason`, `lexicalHits`, `queryTermGain` | `TestContextAnchorClassesMatchVerbatim`, `TestContextAnchorsExtractionBounds`, `TestContextAnchorsExplainAndNeverOutrankAuthority`, `TestContextAnchorsDefaultBytes` |
 | TCP-V0-023 | `trustByAuthority`, `TrustClass`, `TrustTainted`, `governanceRows`, `governanceRefused` (`internal/contextindex/trust.go`); the `trust` stamp in `taskContextCompiler.packet` | `TestTrustClassIsClosedAndDeterministic`, `TestTaskContextRowsCarryOneTrustClass`, `TestTaskContextGovernanceRefusesATaintedReservedRow`, `TestTaskContextWireIsAdditiveForAnOldConsumer`, `TestContextRecipeDefaultPathIsByteIdentical` (re-captured golden) |
 | TCP-V0-024 | `parseTaskContextInvocation`, `checkContextViewArguments`, `runTaskContext` (view dispatch); `summarizeContextPacket`, `runContextExpand` (`cmd/corvint/context_summary.go`) | `TestContextDefaultWireIsTheGolden`, `TestParseContextViewArguments`, `TestContextSummaryAndExpandAreReadOnly` |
+| TCP-V0-035 | `startContextRecency`, `contextRecency.read`, `parse`, `decay`, `weight`, `reason`, `recencyLexical`, `reorderKind`, `recencyCochange` (`internal/contextindex/recency.go`) | `TestContextRecencyDefaultBytes`, `TestContextRecencyRanksRecentLexicalRowsAndNamesFeatures`, `TestContextRecencyCanChangeLexicalMembership`, `TestContextRecencyWeightsCochangeByAge` |
+| TCP-V0-036 | `blameHead`, `blamePath`, `parseBlame`, `touch`, `blameReason` (`internal/contextindex/blame.go`), `unchosen` (`recency.go`) | `TestContextRecencyBoundsBlameAndAbstains`, `TestContextRecencyWindowIsTheCochangeWindow`, `TestParseBlamePorcelainCountsLinesPerCommit` |
+| TCP-V0-037 | `codeOwners`, `parseCodeOwners`, `codeOwnersPattern`, `owning`, `checkOwners`, `ownerMatchesAny`, `ownership` | `TestCodeOwnersPatternFollowsGitHubSyntax`, `TestContextRecencyReportsCodeOwnersBlameDisagreement`, `TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit` |
+| TCP-V0-038 | `recencyCoverage` | `TestContextRecencyCoverageMember` |
