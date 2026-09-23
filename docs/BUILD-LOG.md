@@ -4,6 +4,49 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0146, V1-0010 AC3: reviewer leg of the daily path from the v0.7.0 archive, recorded outcome
+
+Independent reviewer, fresh clone of PR #102 at seal head `165e2d7` (merge base `d18db3d`), binary
+extracted from the public v0.7.0 `corvint_darwin_arm64.tar.gz` (release and inner SHA256SUMS OK),
+`Corvint 0.7.0 (build 46)`, sha256 `5fdbab207f6d15bd8ef341365642769cb58a11a76d935c37df77776ad0d09bad`,
+first on PATH and exported as `CORVINT_BIN`. The reviewer wrote nothing to the author's checkouts or
+to GitHub. Verdict on the change: MERGE; all five documentation checks exit 0 at the bind commit
+`ec6cfa48`, the old citation fails `line-citations-check` (exit 2) once the file is scanned, and all
+ten repinned citations were read and hold.
+
+What the extracted binary established (DCW-V0-015: structural closure, never correctness).
+`cem report` on the sealed map with `--expected-base d18db3d --target ec6cfa48`: exit 0, 10 of 10
+hunks supported, 0 unknown, 0 mechanical; `cem verify` agrees. `frontier`: exit 1, OPEN, 5 hunks
+with weak lexical support and 20 DCG obligations unassessed, matching the author's step 8 output.
+`ocm report` on a map the reviewer had to rebuild with `ocm prepare` (intent guessed as
+`documentation-citation-gate-v0.md`): 0 of 20 linked. `make dogfood-check` at the seal head:
+`REFUSE sealed-head`, as documented.
+
+What the reviewer leg could not observe. `make dogfood-check BASE=d18db3d` at the bind commit with
+`CORVINT_BIN` set printed `NOTE unbound-commits count=1` and then `FAIL dogfood-report-missing`
+(`script/dogfood-check.sh:305`), whose fix line names the author's `dogfood-change`; the check stops
+before building or running any verifier. Whether the override binary is accepted as a verifier and
+whether `outputsAgree` holds is therefore NOT_OBSERVED from the reviewer side; the author's
+`outputsAgree: true` rests on the PR #102 body and the author's local receipts, not on the tree.
+
+Reviewer-instruction mismatches (each filed as a ticket): DOGFOOD section 6 assumes the author's
+worktree, so at the seal head the CEM path is gone and `--target HEAD` reports
+`patch-digest-mismatch`; OCM maps are gitignored (`.gitignore:9-12`), so the step 11 hand-off carries
+no OCM and the reviewer must guess the intent and run a writing command; section 6 names
+`change.ocm.json` while the loop writes `change.ocm.001.json`; `dogfood-check` in a fresh clone
+always fails on the missing local report, so the independent verifier comparison is not reproducible
+by a reviewer; step 9's expected state omits the `NOTE unbound-commits` form; observations made after
+the bind commit have no place in BUILD-LOG within the same change. Also found:
+`docs/SPEC-TOOLCHAIN-INTEGRATION.md:74` cites only the ID regex at `internal/lrfrepo/ocm.go:37` for
+the full requirement-line grammar (the prefix check is at `ocm.go:581`), and the bare-basename
+citation `change-frontier-v0.md:217` at line 121 is stale.
+
+Outcome. V1-0146 acceptance (one reviewer-leg run recorded with its outcome) is met by this entry.
+V1-0010 AC3 (a fresh agent and a reviewer complete the same real change from extracted public
+artifacts) is met for the change itself and for the reviewer's evidence reads; the reviewer-side
+verifier comparison stays NOT_OBSERVED until `dogfood-check` can run against a handed-off report.
+NOT_RUN by the reviewer: `dogfood-change`, `dogfood-seal`, `make gate`, `ocm link`/`ocm mark`.
+
 ## 2026-09-23 V1-0148 DCG-V0-001, V1-0010 AC3, V1-0146: stale DOGFOOD citation fixed via the daily path from the v0.7.0 archive
 
 Fix (V1-0148). `docs/SPEC-TOOLCHAIN-INTEGRATION.md` constraint 1 cited DOGFOOD lines 32-36 (now the
