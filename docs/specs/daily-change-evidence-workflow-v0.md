@@ -87,6 +87,15 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   uncited hunk leaves `cem-status` `not-ready`, so the check fails `dogfood-report-drift`. A passing
   check or a seal MUST be described as structural closure, never as correctness, test adequacy or a
   passing project gate.
+- `DCW-V0-016`: Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan to
+  the map prepared in the same run and refuse the whole plan as `cem-cite`
+  `citation-plan-map-mismatch`, citing nothing, when a row names an ordinal above the map's hunk
+  count or a hunk the map records as `unknown` is named by neither ordinal nor full hunk ID. The one
+  permitted omission is a hunk whose path is an intent path absent at BASE (the bootstrap unknown of
+  `docs/DOGFOOD.md` section 2). The plan format does not change: its first field already accepts a
+  full hunk ID, which is derived from the hunk's content, and `cem cite` refuses an ID the map lacks
+  as `unknown-hunk-id`. An empty plan remains a zero-citation no-op, and a hunk already cited or
+  marked in a resumed map needs no row.
 
 ## Non-goals and baseline
 
@@ -119,6 +128,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-009..010` | native platform and installed exact-host evidence required | NOT_QUALIFIED |
 | `DCW-V0-011..012` | portfolio, gate and candidate evidence required | NOT_QUALIFIED |
 | `DCW-V0-013..015` | `docs/DOGFOOD.md` "Daily adopter path"; `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed`; scratch reproductions recorded in the V1-0010 build-log entry | implemented; the SIGINT interrupt and reviewer leg NOT_OBSERVED |
+| `DCW-V0-016` | `script/dogfood-change.sh` `citation_plan_matches_map`; `script/dogfood-change_test.sh` cases `stale-nine-of-ten`, `stale-ten-of-nine`, `bootstrap-omitted` and `other-omitted`; `TestDogfoodReasonAdmitsCitationPlanMapMismatch` | implemented; observed live on a 22-hunk map at base 34e798b: a 1-row plan refused, a 22-row plan cited all 22 |
 
 ## Compatibility and rollback
 

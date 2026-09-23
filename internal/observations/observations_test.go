@@ -809,6 +809,15 @@ func TestDogfoodReasonAdmitsEveryRegisteredCEMCode(t *testing.T) {
 	}
 }
 
+// TestDogfoodReasonAdmitsCitationPlanMapMismatch: the coordinator's refusal of a
+// plan written for another prepared map is observable (DCW-V0-016, V1-0173).
+func TestDogfoodReasonAdmitsCitationPlanMapMismatch(t *testing.T) {
+	row := Event{Kind: "dogfood-step", Step: "cem-cite", Status: "NOT_PRODUCED", Reason: "citation-plan-map-mismatch"}
+	if err := validateWriterContract(row); err != nil {
+		t.Fatalf("citation-plan-map-mismatch refused as a dogfood reason: %v", err)
+	}
+}
+
 // SOL-V0-010: an adapter-degradation row carries only host, event, closed codes, an
 // hour window and the Corvint version; content fields and unadmitted codes are refused.
 func TestAdapterDegradationRowCarriesNoContentFields(t *testing.T) {
