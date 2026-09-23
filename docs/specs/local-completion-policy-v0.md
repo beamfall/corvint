@@ -194,7 +194,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   output becomes one fixed degradation, never a truncated path, key, packet or resealed receipt.
   A budget that cannot retain the mandatory fields fails `unsupported-dogfood-context-budget`, and
   explicit-anchor context over its bounded candidate profile fails `unsupported-dogfood-context-bounds`
-  (`internal/contextindex/local_completion_context.go:250,593`); the native event reports either as
+  (`internal/contextindex/local_completion_context.go:247,616`); the native event reports either as
   the fixed `dogfood-event-unavailable` (`cmd/corvint/local_completion_event.go:135`).
 - `LCP-V0-012`: Private plans, observations and report sets MUST have explicit byte/count limits,
   strict schema/duplicate-field/path validation, atomic publication and bounded ownership. No daemon,
@@ -203,10 +203,13 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   silently overwrite an active owner. Two-session contention and same-owner interleaving must
   prove shared legacy artifacts cannot be acknowledged or published under the wrong owner. Errors preserve prior valid state.
 - `LCP-V0-013`: Prompt context MUST accept a task mention as an explicit anchor. A mention is one
-  whitespace-delimited field, after trimming enclosing quotes, backticks and brackets and trailing
-  punctuation, whose path part is path-shaped (it contains `/`, has an extension, or is tracked),
-  so `host:8080` and `issue#12` stay ordinary text. Each form has one resolution rule:
-  (1) `path:line` and `path:line-line` resolve the path exactly, or a bare file name by base name,
+  whitespace-delimited field, after trimming leading quotes, backticks and brackets and any run of
+  trailing quotes, backticks, brackets and punctuation, whose path part is path-shaped (it contains
+  `/`, has an extension, or is tracked). So `localhost:8080` and `issue#12` stay ordinary text, while
+  a dotted host such as `example.com:443` is path-shaped and is `anchor-not-found`. A matched field
+  is removed whole from the text left for path and identifier anchors, and mentions are
+  deduplicated by their parsed form. Each form has one resolution rule:
+  (1) `path:line`, `path:line-line` and `path:line:column` (which names the line) resolve the path exactly, or a bare file name by base name,
   and require `1 <= start <= end <=` the bound source's line count. The row names the start line
   with relation `explicit-line` and authority `task-text`; the row schema is unchanged. A line
   outside the source is `anchor-not-found`, more than one in-range candidate is `ambiguous-anchor`,
@@ -218,8 +221,10 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   letter. Only a prefix of the bound commit resolves, as a revision anchor with no path row; any
   other commit is `anchor-evidence-unavailable`, because this profile reads no history (`LCP-V0-011`).
   (4) A requirement ID keeps its existing definition rule. Every row is pinned to its bound blob, a
-  dirty path stays `anchor-worktree-changed`, mentions count toward the 32-anchor bound, and no
-  mention is resolved lexically, by pronoun, or from a transcript.
+  dirty path stays `anchor-worktree-changed`, and a dirty candidate with no match in its bound blob
+  (a line or declaration added in the worktree) is also `anchor-worktree-changed` with no row.
+  Mentions count toward the 32-anchor bound, and no mention is resolved lexically, by pronoun, or
+  from a transcript.
 
 ## Non-goals and simpler baseline
 
@@ -347,10 +352,10 @@ Each row cites the first emitting site and states only the condition checked the
 
 | Code | First emitting site | Condition at the cited site |
 |---|---|---|
-| `ambiguous-anchor` | `internal/contextindex/local_completion_context.go:550@0e96865e` | the resolution `reason` when no earlier case applies and an anchor matched more than one candidate |
-| `anchor-evidence-unavailable` | `internal/contextindex/local_completion_context.go:546@b7524c52` | the resolution `reason` when anchors exist and a task-evidence candidate was unreadable or requirement definitions were capped |
-| `anchor-not-found` | `internal/contextindex/local_completion_context.go:548@07c6c8fe` | the resolution `reason` when no earlier case applies and an anchor matched no candidate |
-| `anchor-worktree-changed` | `internal/contextindex/local_completion_context.go:552@37e9b097` | the resolution `reason` when no earlier case applies and a task-evidence path is among the index's dirty paths |
+| `ambiguous-anchor` | `internal/contextindex/local_completion_context.go:573@0e96865e` | the resolution `reason` when no earlier case applies and an anchor matched more than one candidate |
+| `anchor-evidence-unavailable` | `internal/contextindex/local_completion_context.go:569@b7524c52` | the resolution `reason` when anchors exist and a task-evidence candidate was unreadable or requirement definitions were capped |
+| `anchor-not-found` | `internal/contextindex/local_completion_context.go:571@07c6c8fe` | the resolution `reason` when no earlier case applies and an anchor matched no candidate |
+| `anchor-worktree-changed` | `internal/contextindex/local_completion_context.go:575@37e9b097` | the resolution `reason` when no earlier case applies and a task-evidence path is among the index's dirty paths |
 | `local-policy-continuation-limit` | `cmd/corvint/local_completion_event.go:340@50f727f3` | a `stop` event that would block has `stopHookActive` true; decision `release` |
 | `local-policy-incomplete` | `cmd/corvint/local_completion_event.go:338@3862af35` | a `stop` event whose lifecycle is `active`, or `satisfied` without the evaluation satisfied; decision `block` |
 

@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -139,12 +140,8 @@ func (compiler *localPromptCompiler) addScope(scope []PinnedIntentPointer) {
 // addAnchors recognizes only explicit selectors. It never treats the enrolled
 // scope or the governing row as support for the words of the current task.
 func (compiler *localPromptCompiler) addAnchors() {
-	remaining := compiler.task
 	ids := compiler.context.requirementIDs()
-	mentions := compiler.mentions()
-	for _, mention := range mentions {
-		remaining = strings.ReplaceAll(remaining, mention.token, " ")
-	}
+	mentions, remaining := compiler.mentions()
 	paths := compiler.explicitPaths(remaining)
 	for _, token := range append(append([]string{}, ids...), paths...) {
 		remaining = strings.ReplaceAll(remaining, token, " ")
@@ -279,26 +276,35 @@ func (compiler *localPromptCompiler) pathShaped(token string) bool {
 // a declaration in a path, or a commit (LCP-V0-013). The path part must be
 // path-shaped, so `host:8080` or `issue#12` stays ordinary text.
 type taskMention struct {
-	token, path, symbol, commit string
-	start, end                  int
+	path, symbol, commit string
+	start, end           int
 }
 
-var localPromptLineMention = regexp.MustCompile(`^([^\s:#]+):([0-9]{1,9})(?:-([0-9]{1,9}))?$`)
+var localPromptLineMention = regexp.MustCompile(`^([^\s:#]+):([0-9]{1,9})(?:-([0-9]{1,9})|:[0-9]{1,9})?$`)
 var localPromptSymbolMention = regexp.MustCompile(`^([^\s:#]+)#([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)$`)
 var localPromptCommitMention = regexp.MustCompile(`^(?:[0-9a-f]{7,40}|[0-9a-f]{64})$`)
 
-func (compiler *localPromptCompiler) mentions() []taskMention {
+// mentions returns the distinct mentions and the task without their fields, so
+// removing a mention never cuts into another word.
+func (compiler *localPromptCompiler) mentions() ([]taskMention, string) {
 	found := []taskMention{}
+	rest := []string{}
 	for _, field := range strings.Fields(compiler.task) {
-		token := strings.TrimRight(strings.Trim(field, "`\"'(),;?!"), ".")
+		token := strings.TrimRight(strings.TrimLeft(field, "`\"'([{<"), "`\"'()[]{}<>,;:?!.")
 		mention, ok := compiler.mention(strings.TrimPrefix(token, "./"))
-		if ok {
-			mention.token = token
-			found = append(found, mention)
+		if !ok {
+			rest = append(rest, field)
+			continue
 		}
+		found = append(found, mention)
 	}
-	sort.Slice(found, func(i, j int) bool { return found[i].token < found[j].token })
-	return slices.CompactFunc(found, func(a, b taskMention) bool { return a.token == b.token })
+	slices.SortFunc(found, compareTaskMentions)
+	return slices.Compact(found), strings.Join(rest, " ")
+}
+
+func compareTaskMentions(a, b taskMention) int {
+	return cmp.Or(strings.Compare(a.commit, b.commit), strings.Compare(a.path, b.path),
+		strings.Compare(a.symbol, b.symbol), cmp.Compare(a.start, b.start), cmp.Compare(a.end, b.end))
 }
 
 func (compiler *localPromptCompiler) mention(token string) (taskMention, bool) {
@@ -354,7 +360,7 @@ func (compiler *localPromptCompiler) resolveLines(token string, start, end int) 
 			matches = append(matches, candidate)
 		}
 	}
-	compiler.countAnchor(len(matches))
+	compiler.countAnchor(len(matches) + compiler.staleCandidates(candidates, matches))
 	for _, candidate := range matches {
 		compiler.addEvidence("task_evidence", candidate, start, "explicit-line", "task-text")
 	}
@@ -399,10 +405,27 @@ func (compiler *localPromptCompiler) resolvePathSymbol(token, name string) {
 		}
 		return matches[i].Line < matches[j].Line
 	})
-	compiler.countAnchor(len(matches))
+	matched := []string{}
+	for _, symbol := range matches {
+		matched = append(matched, symbol.Path)
+	}
+	compiler.countAnchor(len(matches) + compiler.staleCandidates(candidates, matched))
 	for _, symbol := range matches {
 		compiler.addEvidence("task_evidence", symbol.Path, symbol.Line, "explicit-identifier", "syntax")
 	}
+}
+
+// A dirty candidate with no match in its bound blob may hold the anchor in the
+// worktree, so it counts as changed rather than not-found and adds no row.
+func (compiler *localPromptCompiler) staleCandidates(candidates, matched []string) int {
+	stale := 0
+	for _, candidate := range candidates {
+		if slices.Contains(compiler.index.DirtyPaths, candidate) && !slices.Contains(matched, candidate) {
+			stale++
+		}
+	}
+	compiler.dirty += stale
+	return stale
 }
 
 func (compiler *localPromptCompiler) pathHasSymbol(candidates []string, name string) bool {

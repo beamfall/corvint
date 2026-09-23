@@ -31,6 +31,16 @@ orientation job scores `corvint context --task`, which this change does not touc
 the preregistered candidate commit, so it cannot regress here. Adding mention tasks to its corpus
 would amend the preregistration; that is a follow-up ticket, not part of this change.
 
+Review repair: an independent review found that trailing `).` and closing brackets were not trimmed
+and fell back to a wrong line, that a line or declaration added to a dirty file was reported as
+`anchor-not-found` rather than `anchor-worktree-changed`, that mention removal cut substrings out of
+unrelated words, that `./path:4` and `path:4` counted as two anchors, and that the commit-prefix test
+could skip its later checks. The parser now trims any trailing run of brackets and punctuation,
+accepts `path:line:column`, removes matched fields whole, and deduplicates by parsed form; a dirty
+candidate without a match in its bound blob counts as worktree-changed. `LCP-V0-013` now states
+these rules and narrows the `host:port` claim: a dotted host is path-shaped. The frozen corpus grows
+to 30 cases and the analyzer digest is repinned.
+
 ## 2026-09-23 V1-0207 UCV0-006, UCV0-010: corvint-dogfood receipts for the three Core use cases
 
 V1-0011 criterion 3 asks that Corvint and Beamfall dogfood receipts bind real changes and stay

@@ -320,7 +320,11 @@ func TestDogfoodPromptCancellationDuringCompilation(t *testing.T) {
 func localMentionFixture(t *testing.T) *Index {
 	t.Helper()
 	return localPromptFixtureWith(t, map[string]string{
-		"pkg/methods.go": "package packet\n\ntype Reader struct{}\ntype Writer struct{}\n\nfunc (Reader) Close() {}\nfunc (Writer) Close() {}\n",
+		"pkg/methods.go":  "package packet\n\ntype Reader struct{}\ntype Writer struct{}\n\nfunc (Reader) Close() {}\nfunc (Writer) Close() {}\n",
+		"one/sized.go":    "package one\n\nfunc Sized() {}\n",
+		"two/sized.go":    "package two\n",
+		"one/abc1234x.go": "package one\n",
+		".env":            "TOKEN=canary\n",
 	})
 }
 
@@ -380,20 +384,34 @@ func TestDogfoodPromptMentionIdentityAndRefusals(t *testing.T) {
 		if rows := mapsFromAny(packet["task_evidence"]); len(rows) != 1 || rows[0]["relation"] != "explicit-identifier" || rows[0]["authority"] != "syntax" {
 			t.Fatalf("symbol mention mislabelled: %v", packet)
 		}
-		for _, commit := range []string{index.CommitRevision, index.CommitRevision[:7], index.CommitRevision[:12]} {
-			if !strings.ContainsAny(commit, "0123456789") || !strings.ContainsAny(commit, "abcdef") {
-				t.Skip("fixture commit lacks a digit or a letter")
-			}
+		// The shortest accepted prefix must hold a digit and a letter.
+		short := 7
+		for short < len(index.CommitRevision) && !(strings.ContainsAny(index.CommitRevision[:short], "0123456789") && strings.ContainsAny(index.CommitRevision[:short], "abcdef")) {
+			short++
+		}
+		for _, commit := range []string{index.CommitRevision, index.CommitRevision[:short], index.CommitRevision[:max(short, 12)]} {
 			packet := localPrompt(t, index, "revert "+commit, nil, 20, 8000)
 			resolution := packet["resolution"].(map[string]any)
 			if resolution["reason"] != "none" || resolution["anchors"] != 1 || len(mapsFromAny(packet["task_evidence"])) != 0 {
 				t.Fatalf("bound commit %s not resolved as a revision anchor: %v", commit, packet)
 			}
 		}
+		packet = localPrompt(t, index, "inspect ./pkg/packet.go:4 and pkg/packet.go:4", nil, 20, 8000)
+		if packet["resolution"].(map[string]any)["anchors"] != 1 {
+			t.Fatalf("one mention in two spellings counted twice: %v", packet["resolution"])
+		}
 		index.DirtyPaths = []string{"pkg/packet.go"}
 		packet = localPrompt(t, index, "inspect pkg/packet.go:4", nil, 20, 8000)
 		if packet["resolution"].(map[string]any)["reason"] != "anchor-worktree-changed" {
 			t.Fatal("dirty line mention presented as current")
+		}
+		// Lines or declarations added in the worktree are absent from the bound
+		// blob; a dirty path reports that change, never anchor-not-found.
+		for _, task := range []string{"inspect pkg/packet.go:50", "fix pkg/packet.go#NewFunc"} {
+			packet = localPrompt(t, index, task, nil, 20, 8000)
+			if packet["resolution"].(map[string]any)["reason"] != "anchor-worktree-changed" || len(mapsFromAny(packet["task_evidence"])) != 0 {
+				t.Fatalf("%s on a dirty path: %v", task, packet)
+			}
 		}
 		index = localMentionFixture(t)
 		delete(index.Sources, "pkg/packet.go")
