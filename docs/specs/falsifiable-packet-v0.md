@@ -1184,7 +1184,8 @@ above stands with that substitution.
   The receipt is the one `prove` prints minus `proof.ledger`, and `receipt_sha256` is the SHA-256
   of its canonical bytes. The bundle has no member for the self-observation ledger, the local
   trace store, an index snapshot, the environment, the root path, or a timestamp. A recorded
-  refusal message may still name a local path; `error.message` is not compared on replay.
+  `--checkpoint` argument or refusal message may still name a local path. Replay never reads that
+  path, and it does not compare `error.message`.
 
 - **FPK-V0-043:** (proposed 2026-09-23, not accepted; experimental; decision 0361) Export is
   bounded and secret-screened. A bundle over 8 MiB exits 2 `bundle-bound-exceeded`. A bundle
