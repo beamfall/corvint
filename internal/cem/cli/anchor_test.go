@@ -25,9 +25,9 @@ func TestAnchorActionsParseLikeTheirSiblings(t *testing.T) {
 		{[]string{"bogus"}, "'report', 'cover', 'discriminate', 'anchor', 'provenance', 'export')"},
 		{[]string{"anchor", "--map", "m.json"}, "argument cem_command: invalid choice: 'anchor'"},
 		{[]string{"provenance", "--commit", "HEAD"}, "argument cem_command: invalid choice: 'provenance'"},
-		{[]string{"export"}, "the following arguments are required: --map, --target, --output"},
-		{[]string{"export", "--map", "/abs.json", "--target", "HEAD", "--output", "/o"}, "argument --map: path must be repository-relative"},
-		{[]string{"export", "--map", "m.json", "--target", "HEAD", "--output", "/o"}, "argument cem_command: invalid choice: 'export'"},
+		{[]string{"export"}, "the following arguments are required: --map, --expected-base, --target, --output"},
+		{[]string{"export", "--map", "/abs.json", "--expected-base", "HEAD", "--target", "HEAD", "--output", "/o"}, "argument --map: path must be repository-relative"},
+		{[]string{"export", "--map", "m.json", "--expected-base", "HEAD", "--target", "HEAD", "--output", "/o"}, "argument cem_command: invalid choice: 'export'"},
 	}
 	if GitNotes != nil || Export != nil {
 		t.Fatal("GitNotes and Export must be uninstalled in this package's tests")

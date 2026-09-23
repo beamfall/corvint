@@ -20,6 +20,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -27,6 +29,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
@@ -36,7 +39,8 @@ const (
 	ManifestName    = "manifest.json"
 	MaxReceiptBytes = wire.MaxMapBytes
 
-	CodeOutputRefused = "bundle-output-refused"
+	CodeOutputRefused  = "bundle-output-refused"
+	CodeMapUncommitted = "bundle-map-uncommitted"
 
 	ReasonNotSupplied   = "not-supplied"
 	ReasonNotFound      = "not-found"
@@ -45,7 +49,6 @@ const (
 
 	dogfoodSource = ".corvint/dogfood-report.json"
 	gateSource    = "$GIT_DIR/corvint/release-gate-receipt"
-	gatePrefix    = "corvint-gate-receipt/0"
 )
 
 // axisValues are the string values that mark an axis a receipt did not run
@@ -54,10 +57,11 @@ var axisValues = map[string]bool{"NOT_RUN": true, "NOT_PRODUCED": true, wire.Dis
 
 // Options names the one change to export and where to put it.
 type Options struct {
-	MapPath string // repository-relative CEM path
-	Target  string // the revision the CEM is bound to
-	Output  string // absolute path of a directory that must not exist
-	Witness string // optional saved `corvint witness --json` report
+	MapPath      string // repository-relative CEM path
+	ExpectedBase string // independent base the map must name (CEM-CB-010)
+	Target       string // the commit whose canonical patch the map binds
+	Output       string // absolute path of a directory that must not exist
+	Witness      string // optional saved `corvint witness --json` report
 }
 
 // Axis is one NOT_RUN or NOT_PRODUCED value inside a receipt.
@@ -89,7 +93,12 @@ type exporter struct {
 	repo   *gitauth.Repository
 	base   string
 	target string
+	tree   string
 }
+
+// gateLine is the one canonical GOC-V0-010 receipt line, matched exactly as
+// script/release-checklist reads it: no other bytes, one final LF.
+var gateLine = regexp.MustCompile(`\Acorvint-gate-receipt/0 ([0-9a-f]{40}|[0-9a-f]{64}) ([0-9a-f]{40}|[0-9a-f]{64}) [0-9a-f]{64}\n\z`)
 
 // Export writes the bundle and returns the command envelope.
 func Export(ctx context.Context, root string, options Options) (map[string]any, error) {
@@ -97,81 +106,200 @@ func Export(ctx context.Context, root string, options Options) (map[string]any, 
 	if err != nil {
 		return nil, err
 	}
-	output, err := outputPath(repo, options.Output)
+	parent, name, err := outputParent(repo, options.Output)
 	if err != nil {
 		return nil, err
 	}
-	cem, base, err := readCEM(repo, options.MapPath)
+	defer parent.Close()
+	cem, err := verifiedCEM(ctx, repo, options)
 	if err != nil {
 		return nil, err
 	}
-	resolvedBase, err := repo.Resolve(ctx, base)
+	tree, err := repo.CommitTree(ctx, cem.Target)
 	if err != nil {
+		return nil, err
+	}
+	e := &exporter{repo: repo, base: cem.Base, target: cem.Target, tree: tree}
+	receipts := []any{cem, e.witness(options.Witness), e.dogfood(), e.gate()}
+	manifest := e.manifest(receipts)
+	if err := write(parent, name, receipts, manifest); err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"ok": true, "mutates": false, "tool": "cem-export", "bundle": filepath.Join(parent.Name(), name),
+		"manifestSha256": digest(manifest), "receipts": receipts,
+	}, nil
+}
+
+// outputParent refuses a relative, existing, or in-repository output
+// (RCB-V0-005) and returns its opened parent and its name, so every later
+// write goes through the directory that was checked.
+func outputParent(repo *gitauth.Repository, output string) (*os.Root, string, error) {
+	if !filepath.IsAbs(output) {
+		return nil, "", refused("--output must be an absolute path")
+	}
+	if _, err := os.Lstat(output); !errors.Is(err, os.ErrNotExist) {
+		return nil, "", refused("--output must name a path that does not exist")
+	}
+	parentPath, err := filepath.EvalSymlinks(filepath.Dir(output))
+	if err != nil {
+		return nil, "", refused("--output parent directory does not resolve")
+	}
+	parent, err := os.OpenRoot(parentPath)
+	if err != nil {
+		return nil, "", refused("--output parent directory cannot be opened")
+	}
+	if err := outsideRepository(repo, parent, parentPath); err != nil {
+		parent.Close()
+		return nil, "", err
+	}
+	return parent, filepath.Base(output), nil
+}
+
+func refused(message string) error {
+	return cemcode.New(CodeOutputRefused, "%s", message)
+}
+
+// outsideRepository compares the opened parent and each of its ancestors by
+// file identity, never by path text, with every protected directory: case
+// variants and volume aliases name the same file.
+func outsideRepository(repo *gitauth.Repository, parent *os.Root, parentPath string) error {
+	opened, err := parent.Stat(".")
+	if err != nil {
+		return refused("--output parent directory cannot be examined")
+	}
+	chain, err := ancestors(parentPath)
+	if err != nil || !os.SameFile(opened, chain[0]) {
+		return refused("--output parent directory cannot be examined")
+	}
+	protected := protectedDirs(repo)
+	for _, dir := range chain {
+		if slices.ContainsFunc(protected, func(owned os.FileInfo) bool { return os.SameFile(dir, owned) }) {
+			return refused("--output must lie outside every worktree and Git directory")
+		}
+	}
+	return nil
+}
+
+// ancestors stats dir and every directory above it.
+func ancestors(dir string) ([]os.FileInfo, error) {
+	chain := []os.FileInfo{}
+	for {
+		info, err := os.Stat(dir)
+		if err != nil {
+			return nil, err
+		}
+		chain = append(chain, info)
+		up := filepath.Dir(dir)
+		if up == dir {
+			return chain, nil
+		}
+		dir = up
+	}
+}
+
+// protectedDirs are this worktree, its Git directories, the primary worktree,
+// and every linked worktree the common directory records.
+func protectedDirs(repo *gitauth.Repository) []os.FileInfo {
+	paths := append([]string{repo.Root, repo.GitDir, repo.CommonDir}, primaryWorktree(repo.CommonDir)...)
+	paths = append(paths, linkedWorktrees(repo.CommonDir)...)
+	infos := []os.FileInfo{}
+	for _, path := range paths {
+		if info, err := os.Stat(path); err == nil {
+			infos = append(infos, info)
+		}
+	}
+	return infos
+}
+
+// primaryWorktree is the common directory's parent when that parent's .git
+// is the common directory itself; a bare common directory has none.
+func primaryWorktree(common string) []string {
+	parent := filepath.Dir(common)
+	marker, markerErr := os.Stat(filepath.Join(parent, ".git"))
+	own, ownErr := os.Stat(common)
+	if markerErr != nil || ownErr != nil || !os.SameFile(marker, own) {
+		return nil
+	}
+	return []string{parent}
+}
+
+// linkedWorktrees reads each $COMMON/worktrees/*/gitdir back-pointer, which
+// names a linked worktree's .git file, absolute or relative to itself.
+func linkedWorktrees(common string) []string {
+	admin := filepath.Join(common, "worktrees")
+	entries, _ := os.ReadDir(admin)
+	dirs := []string{}
+	for _, entry := range entries {
+		data, err := readRegular(filepath.Join(admin, entry.Name()), "gitdir")
+		if err != nil {
+			continue
+		}
+		marker := strings.TrimSuffix(string(data), "\n")
+		if !filepath.IsAbs(marker) {
+			marker = filepath.Join(admin, entry.Name(), marker)
+		}
+		dirs = append(dirs, filepath.Dir(marker))
+	}
+	return dirs
+}
+
+// verifiedCEM reads the required CEM and admits it only as `cem verify` would
+// with the caller's independent base and target (CEM-CB-010), and only when
+// the target commits these exact bytes at the sidecar path (RCB-V0-004).
+func verifiedCEM(ctx context.Context, repo *gitauth.Repository, options Options) (*present, error) {
+	data, err := readRegular(repo.Root, options.MapPath)
+	if err != nil {
+		return nil, cemcode.New(cemcode.MapUnavailable, "map %s is not a readable regular file", options.MapPath)
+	}
+	document, err := wire.ParseMap(data)
+	if err != nil {
+		return nil, err
+	}
+	outcome, _, err := verify.Canonical(ctx, repo, document, verify.CanonicalOptions{
+		ExpectedBase: options.ExpectedBase, Target: options.Target, RawMapBytes: data,
+	})
+	if err := verdict(outcome, err); err != nil {
 		return nil, err
 	}
 	target, err := repo.Resolve(ctx, options.Target)
 	if err != nil {
 		return nil, err
 	}
-	e := &exporter{repo: repo, base: resolvedBase, target: target}
-	cem.Base, cem.Target = resolvedBase, target
-	receipts := []any{cem, e.witness(ctx, options.Witness), e.dogfood(ctx), e.gate(ctx)}
-	manifest := e.manifest(receipts)
-	if err := write(output, receipts, manifest); err != nil {
+	if err := committedAt(ctx, repo, target); err != nil {
 		return nil, err
 	}
-	return map[string]any{
-		"ok": true, "mutates": false, "tool": "cem-export", "bundle": output,
-		"manifestSha256": digest(manifest), "receipts": receipts,
-	}, nil
-}
-
-// outputPath refuses a relative, existing, or in-repository output
-// (RCB-V0-005) and returns it with its parent's symlinks resolved.
-func outputPath(repo *gitauth.Repository, output string) (string, error) {
-	if !filepath.IsAbs(output) {
-		return "", cemcode.New(CodeOutputRefused, "--output must be an absolute path")
-	}
-	if _, err := os.Lstat(output); !errors.Is(err, os.ErrNotExist) {
-		return "", cemcode.New(CodeOutputRefused, "--output must name a path that does not exist")
-	}
-	parent, err := filepath.EvalSymlinks(filepath.Dir(output))
+	receipt, err := newPresent("cem", "receipts/cem.json", options.MapPath, data)
 	if err != nil {
-		return "", cemcode.New(CodeOutputRefused, "--output parent directory does not resolve")
+		return nil, err
 	}
-	resolved := filepath.Join(parent, filepath.Base(output))
-	for _, owned := range []string{repo.Root, repo.GitDir, repo.CommonDir} {
-		if within(resolved, owned) {
-			return "", cemcode.New(CodeOutputRefused, "--output must lie outside the worktree and Git directories")
-		}
-	}
-	return resolved, nil
+	receipt.Base, receipt.Target = document.BaseRevision, target
+	return receipt, nil
 }
 
-func within(path, dir string) bool {
-	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
-		dir = resolved
+// verdict admits exactly what `cem verify` reports valid: success, or evidence
+// drift that still carries its outcome.
+func verdict(outcome *verify.Outcome, err error) error {
+	if cemcode.CodeOf(err) == cemcode.EvidenceDrift && outcome != nil {
+		return nil
 	}
-	relative, err := filepath.Rel(dir, path)
-	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
+	return err
 }
 
-// readCEM reads the required CEM receipt; a map that is absent or invalid is
-// an error, never an absent receipt (RCB-V0-004).
-func readCEM(repo *gitauth.Repository, mapPath string) (*present, string, error) {
-	data, err := readRegular(repo.Root, mapPath)
+// committedAt requires the target to hold the sidecar; canonical verification
+// already refused one whose bytes differ from the map (CEM-CB-009).
+func committedAt(ctx context.Context, repo *gitauth.Repository, target string) error {
+	_, exists, err := repo.LookupTreeEntry(ctx, target, wire.ExcludedCEMPath)
 	if err != nil {
-		return nil, "", cemcode.New(cemcode.MapUnavailable, "map %s is not a readable regular file", mapPath)
+		return err
 	}
-	parsed, err := wire.ParseMap(data)
-	if err != nil {
-		return nil, "", err
+	if !exists {
+		return cemcode.New(CodeMapUncommitted, "the target does not commit the map at %s", wire.ExcludedCEMPath)
 	}
-	receipt, err := newPresent("cem", "receipts/cem.json", mapPath, data)
-	return receipt, parsed.BaseRevision, err
+	return nil
 }
 
-func (e *exporter) witness(ctx context.Context, path string) any {
+func (e *exporter) witness(path string) any {
 	const kind, source = "witness", "--witness"
 	if path == "" {
 		return absent{kind, "absent", source, ReasonNotSupplied}
@@ -191,13 +319,13 @@ func (e *exporter) witness(ctx context.Context, path string) any {
 	if reason == "" && report.Profile != "corvint-witness/0" {
 		reason = ReasonUnreadable
 	}
-	if reason == "" && !(e.binds(ctx, report.Range.Base, e.base) && e.binds(ctx, report.Range.Head, e.target)) {
+	if reason == "" && !(report.Range.Base == e.base && report.Range.Head == e.target) {
 		reason = ReasonOtherRevision
 	}
 	return e.finish(kind, "receipts/witness.json", source, e.base, data, reason)
 }
 
-func (e *exporter) dogfood(ctx context.Context) any {
+func (e *exporter) dogfood() any {
 	const kind = "dogfood"
 	var report struct {
 		Profile string `json:"profile"`
@@ -208,32 +336,26 @@ func (e *exporter) dogfood(ctx context.Context) any {
 	if reason == "" && report.Profile != "corvint-dogfood-change/0" {
 		reason = ReasonUnreadable
 	}
-	if reason == "" && !(e.binds(ctx, report.Base, e.base) && e.binds(ctx, report.Target, e.target)) {
+	if reason == "" && !(report.Base == e.base && report.Target == e.target) {
 		reason = ReasonOtherRevision
 	}
 	return e.finish(kind, "receipts/dogfood-report.json", dogfoodSource, e.base, data, reason)
 }
 
-// gate reads the GOC-V0-010 full-gate receipt, which binds a commit but no
-// base, so its entry carries no base.
-func (e *exporter) gate(ctx context.Context) any {
+// gate reads the GOC-V0-010 full-gate receipt, which binds a commit and its
+// tree but no base, so its entry carries no base.
+func (e *exporter) gate() any {
 	const kind = "gate-receipt"
 	data, err := readRegular(filepath.Join(e.repo.GitDir, "corvint"), "release-gate-receipt")
 	reason := readReason(err)
-	fields := strings.Fields(string(data))
-	if reason == "" && (len(fields) != 4 || fields[0] != gatePrefix) {
+	if reason == "" && !gateLine.Match(data) {
 		reason = ReasonUnreadable
 	}
-	if reason == "" && !e.binds(ctx, fields[1], e.target) {
+	fields := strings.Fields(string(data))
+	if reason == "" && !(fields[1] == e.target && fields[2] == e.tree) {
 		reason = ReasonOtherRevision
 	}
 	return e.finish(kind, "receipts/gate-receipt.txt", gateSource, "", data, reason)
-}
-
-// binds reports whether revision names the commit want.
-func (e *exporter) binds(ctx context.Context, revision, want string) bool {
-	resolved, err := e.repo.Resolve(ctx, revision)
-	return err == nil && resolved == want
 }
 
 func (e *exporter) finish(kind, file, source, base string, data []byte, reason string) any {
@@ -369,32 +491,33 @@ func (e *exporter) manifest(receipts []any) []byte {
 	return []byte(opening + "\n" + strings.Join(lines, ",\n") + "\n]}\n")
 }
 
-// write creates the bundle directory and every file exclusively; a failed
-// write removes only the directory it created (RCB-V0-005).
-func write(output string, receipts []any, manifest []byte) (err error) {
-	if err := os.Mkdir(output, 0o700); err != nil {
+// write creates the bundle directory and every file exclusively through the
+// opened parent; a failed write removes only the directory it created
+// (RCB-V0-005).
+func write(parent *os.Root, name string, receipts []any, manifest []byte) (err error) {
+	if err := parent.Mkdir(name, 0o700); err != nil {
 		return cemcode.New(cemcode.PublishFailed, "bundle directory cannot be created")
 	}
 	defer func() {
 		if err != nil {
-			os.RemoveAll(output)
+			parent.RemoveAll(name)
 		}
 	}()
-	if err := os.Mkdir(filepath.Join(output, "receipts"), 0o700); err != nil {
+	if err := parent.Mkdir(filepath.Join(name, "receipts"), 0o700); err != nil {
 		return cemcode.New(cemcode.PublishFailed, "bundle receipts directory cannot be created")
 	}
 	for _, receipt := range receipts {
 		if held, ok := receipt.(*present); ok {
-			if err := writeFile(filepath.Join(output, held.File), held.data); err != nil {
+			if err := writeFile(parent, filepath.Join(name, filepath.FromSlash(held.File)), held.data); err != nil {
 				return err
 			}
 		}
 	}
-	return writeFile(filepath.Join(output, ManifestName), manifest)
+	return writeFile(parent, filepath.Join(name, ManifestName), manifest)
 }
 
-func writeFile(path string, data []byte) error {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+func writeFile(parent *os.Root, path string, data []byte) error {
+	file, err := parent.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return cemcode.New(cemcode.PublishFailed, "bundle file cannot be created")
 	}

@@ -13,7 +13,7 @@ func init() { cemcli.Export = runCEMExport }
 
 func runCEMExport(ctx context.Context, root string, values map[string]string) (map[string]any, error) {
 	return receiptbundle.Export(ctx, root, receiptbundle.Options{
-		MapPath: values["--map"], Target: values["--target"],
+		MapPath: values["--map"], ExpectedBase: values["--expected-base"], Target: values["--target"],
 		Output: values["--output"], Witness: values["--witness"],
 	})
 }

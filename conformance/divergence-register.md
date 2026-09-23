@@ -2834,11 +2834,12 @@ known-divergence list was not updated in this change (outside its ownership) and
 
 **Divergence.** `TCQ-V0-051` adds `corvint cem cover`, `TCQ-V0-055` adds `cem discriminate`, and
 `FPK-V0-037` adds `cem anchor` and `cem provenance` (decisions 0347, 0353, 0355), and `RCB-V0-001`
-adds `cem export`, all listed after the oracle's actions in `cemActionOrder`, so the candidate's
-refusal of an unknown action enumerates twelve actions where the retired oracle enumerated seven.
-(Declared 2026-09-22 with the eight-action list of decision 0347 alone; widened the same day when
-the 0.7.0 integration added three more actions, and on 2026-09-23 for `cem export`.) Both runtimes refuse `bogus` with exit status 2, an empty stdout, and the
-`invalid-arguments` envelope. Observed bytes on the frozen argv (`cem bogus`):
+adds `cem export` (`docs/specs/receipt-bundle-v0.md`), all listed after the oracle's actions in
+`cemActionOrder`, so the candidate's refusal of an unknown action enumerates twelve actions where
+the retired oracle enumerated seven. (Declared 2026-09-22 with the eight-action list of decision
+0347 alone; widened the same day when the 0.7.0 integration added three more actions, and on
+2026-09-23 for `cem export` under `RCB-V0-001` in `docs/specs/receipt-bundle-v0.md`.) Both runtimes
+refuse `bogus` with exit status 2, an empty stdout, and the `invalid-arguments` envelope. Observed bytes on the frozen argv (`cem bogus`):
 
 - candidate (sha256 `ea0102e20cd4ddc4a1cc39a9a87d2f65d365f22e29ce4a80b2405bb6e23b46e3`):
   `{"code": "invalid-arguments", "error": "argument cem_command: invalid choice: 'bogus' (choose

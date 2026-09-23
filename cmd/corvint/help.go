@@ -863,7 +863,8 @@ Usage:
     [--max-mutants N] [--wall-time DURATION] [--output MAP]
   corvint [--root PATH] cem anchor --map MAP [--commit REV]
   corvint [--root PATH] cem provenance --commit REV
-  corvint [--root PATH] cem export --map MAP --target REV --output DIR [--witness REPORT]
+  corvint [--root PATH] cem export --map MAP --expected-base REV --target REV
+    --output DIR [--witness REPORT]
 
 Actions:
   begin    Build a cem/0.1 candidate from exact out-of-band patch bytes.
@@ -890,12 +891,14 @@ Actions:
   provenance  (experimental, read-only) Report REV's Corvint anchor, Git AI
            refs/notes/ai note, and Assisted-by/Agent-Logs-Url trailers as
            untrusted repository-history rows; no URL is fetched.
-  export   (read-only) Copy the map, the saved --witness JSON report, the
-           dogfood report and the full-gate receipt bound to REV into the new
-           absolute directory DIR outside the worktree, with a manifest of
-           each receipt's sha256 and NOT_RUN/NOT_PRODUCED axes. A receipt that
-           is missing or binds another revision is listed as absent. Check it
-           offline with script/verify-receipt-bundle.sh DIR.
+  export   (read-only) Verify the map as cem verify does and require the
+           target to commit it, then copy it, the saved --witness JSON report,
+           the dogfood report and the full-gate receipt bound to the same base
+           and target into the new absolute directory DIR outside every
+           worktree, with a manifest of each receipt's sha256 and
+           NOT_RUN/NOT_PRODUCED axes. A receipt that is missing or binds
+           another revision is listed as absent. Check it offline with
+           script/verify-receipt-bundle.sh DIR.
 
 Verification options:
   --expected-base REV  Independent expected base. Required for cem/0.2.

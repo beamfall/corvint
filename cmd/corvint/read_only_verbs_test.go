@@ -204,10 +204,11 @@ func TestReadOnlyVerbsWriteNothing(t *testing.T) {
 			name: "cem export writes only the bundle outside the worktree",
 			setup: func(t *testing.T) (string, func() int) {
 				fixture := newLRFFixture(t, wire.Spec02)
+				bind := commitExportMap(t, fixture)
 				output := filepath.Join(t.TempDir(), "bundle")
 				return fixture.root, func() int {
 					code, _, _ := runCLI(t, "--root", fixture.root, "cem", "export", "--map", fixture.mapPath,
-						"--target", fixture.target, "--output", output)
+						"--expected-base", fixture.base, "--target", bind, "--output", output)
 					return code
 				}
 			},

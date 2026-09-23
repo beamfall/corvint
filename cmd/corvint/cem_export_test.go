@@ -16,9 +16,10 @@ import (
 func TestCEMExportBundleVerifiesOffline(t *testing.T) {
 	t.Parallel()
 	fixture := newLRFFixture(t, wire.Spec02)
+	bind := commitExportMap(t, fixture)
 	bundle := filepath.Join(t.TempDir(), "bundle")
 	code, out, stderr := runCLI(t, "--root", fixture.root, "cem", "export", "--map", fixture.mapPath,
-		"--target", fixture.target, "--output", bundle)
+		"--expected-base", fixture.base, "--target", bind, "--output", bundle)
 	if code != 0 {
 		t.Fatalf("export exited %d: %s", code, stderr)
 	}
@@ -41,8 +42,17 @@ func TestCEMExportBundleVerifiesOffline(t *testing.T) {
 	}
 
 	code, _, stderr = runCLI(t, "--root", fixture.root, "cem", "export", "--map", fixture.mapPath,
-		"--target", fixture.target, "--output", filepath.Join(fixture.root, "bundle"))
+		"--expected-base", fixture.base, "--target", bind, "--output", filepath.Join(fixture.root, "bundle"))
 	if code != 2 || !strings.Contains(stderr, `"code": "bundle-output-refused"`) {
 		t.Fatalf("in-worktree output: %d %s", code, stderr)
 	}
+}
+
+// commitExportMap commits the fixture's CEM sidecar and returns the bind
+// commit, which RCB-V0-001 requires as the export target.
+func commitExportMap(t *testing.T, fixture lrfFixture) string {
+	t.Helper()
+	cemGit(t, fixture.root, "add", fixture.mapPath)
+	cemGit(t, fixture.root, "commit", "-qm", "bind")
+	return cemGit(t, fixture.root, "rev-parse", "HEAD")
 }

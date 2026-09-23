@@ -1658,13 +1658,13 @@ RBD-V0-004	docs/specs/retrieval-bench-diagnostics-v0.md	38	Each invocation MUST 
 RBD-V0-005	docs/specs/retrieval-bench-diagnostics-v0.md	43	Capture MUST bound the entire encoded file including footer to 64 MiB, header to
 RBD-V0-006	docs/specs/retrieval-bench-diagnostics-v0.md	47	Capture disk writes MUST occur after timed retrieval calls, including error path
 RBD-V0-007	docs/specs/retrieval-bench-diagnostics-v0.md	50	Only after existing identity verification may capture emit its terminal footer,
-RCB-V0-001	docs/specs/receipt-bundle-v0.md	46	`corvint [--root PATH] cem export --map MAP --target REV --output DIR
-RCB-V0-002	docs/specs/receipt-bundle-v0.md	53	The bundle is the directory DIR holding `manifest.json` and `receipts/` with one
-RCB-V0-003	docs/specs/receipt-bundle-v0.md	64	`notRunOrNotProduced` is always an array. For a JSON receipt it lists every stri
-RCB-V0-004	docs/specs/receipt-bundle-v0.md	69	Inclusion rules. Every receipt is read without following a final symlink, must b
-RCB-V0-005	docs/specs/receipt-bundle-v0.md	86	The export writes only DIR. DIR must be absolute and must not exist, and its par
-RCB-V0-006	docs/specs/receipt-bundle-v0.md	94	`script/verify-receipt-bundle.sh DIR` needs only `sh`, `sed`, `awk`, `find`, `so
-RCB-V0-007	docs/specs/receipt-bundle-v0.md	101	A bundle grants nothing. The export signs nothing, publishes nothing, contacts n
+RCB-V0-001	docs/specs/receipt-bundle-v0.md	56	`corvint [--root PATH] cem export --map MAP --expected-base REV --target REV
+RCB-V0-002	docs/specs/receipt-bundle-v0.md	64	The bundle is the directory DIR holding `manifest.json` and `receipts/` with one
+RCB-V0-003	docs/specs/receipt-bundle-v0.md	76	`notRunOrNotProduced` is always an array. For a JSON receipt it lists every stri
+RCB-V0-004	docs/specs/receipt-bundle-v0.md	81	Inclusion rules. Every receipt is read without following a final symlink, must b
+RCB-V0-005	docs/specs/receipt-bundle-v0.md	109	The export writes only DIR. DIR must be absolute and must not exist, and its par
+RCB-V0-006	docs/specs/receipt-bundle-v0.md	122	`script/verify-receipt-bundle.sh DIR` needs only `sh`, `sed`, `awk`, `find`, `so
+RCB-V0-007	docs/specs/receipt-bundle-v0.md	132	A bundle grants nothing. The export signs nothing, publishes nothing, contacts n
 RDG-V0-001	docs/specs/requirement-definition-gate-v0.md	57	The gate MUST read every non-blank row of `docs/specs/REQUIREMENTS.tsv`, take th
 RDG-V0-002	docs/specs/requirement-definition-gate-v0.md	62	The gate MUST exempt every id starting with `CEM-CB-` from RDG-V0-003, because
 RDG-V0-003	docs/specs/requirement-definition-gate-v0.md	65	The gate MUST fail when a checked id (per RDG-V0-001, after the RDG-V0-002 exemp

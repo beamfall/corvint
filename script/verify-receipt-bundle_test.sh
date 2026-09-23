@@ -15,20 +15,35 @@ trap 'exit 143' TERM
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum < "$1"; else shasum -a 256 < "$1"; fi | awk '{print $1}'; }
 
-# bundle NAME writes a two-receipt bundle and prints its directory.
+base=$(printf 'a%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40)
+target=$(printf '%s' "$base" | tr a b)
+
+# bundle NAME writes a bundle with a present cem and gate receipt and prints its directory.
 bundle() {
     dir="$test_root/$1"
     mkdir -p "$dir/receipts"
     printf '{"spec":"cem/0.2"}\n' > "$dir/receipts/cem.json"
     printf 'corvint-gate-receipt/0 a b c\n' > "$dir/receipts/gate-receipt.txt"
     {
-        printf '{"profile":"corvint-receipt-bundle/0","base":"a","target":"b","receipts":[\n'
+        printf '{"profile":"corvint-receipt-bundle/0","base":"%s","target":"%s","receipts":[\n' "$base" "$target"
         printf '{"kind":"cem","state":"present","file":"receipts/cem.json","sha256":"%s","source":"x","base":"a","target":"b","notRunOrNotProduced":[]},\n' "$(sha "$dir/receipts/cem.json")"
         printf '{"kind":"witness","state":"absent","source":"--witness","reason":"not-supplied"},\n'
+        printf '{"kind":"dogfood","state":"absent","source":".corvint/dogfood-report.json","reason":"not-found"},\n'
         printf '{"kind":"gate-receipt","state":"present","file":"receipts/gate-receipt.txt","sha256":"%s","source":"y","target":"b","notRunOrNotProduced":[]}\n' "$(sha "$dir/receipts/gate-receipt.txt")"
         printf ']}\n'
     } > "$dir/manifest.json"
     printf '%s\n' "$dir"
+}
+
+# restructure NAME SED_SCRIPT writes a bundle whose manifest SED_SCRIPT rewrites and checks that the
+# verifier refuses it as unusable.
+restructure() {
+    dir=$(bundle "$1")
+    sed "$2" "$dir/manifest.json" > "$dir/rewritten"
+    mv "$dir/rewritten" "$dir/manifest.json"
+    code=0
+    sh "$verify" "$dir" >/dev/null 2>&1 || code=$?
+    [ "$code" -eq 2 ] || fail "$1: exit $code, want 2"
 }
 
 # run DIR WANT_EXIT runs the verifier and prints its output.
@@ -76,5 +91,13 @@ mkdir -p "$unusable"
 printf '{"profile":"other/0"}\n' > "$unusable/manifest.json"
 run "$unusable" 2 >/dev/null 2>&1 || fail "a foreign manifest is unusable"
 run "$test_root/absent" 2 >/dev/null 2>&1 || fail "an absent manifest is unusable"
+
+zero=0000000000000000000000000000000000000000000000000000000000000000
+restructure duplicated "3s/.*/{\"kind\":\"cem\",\"state\":\"present\",\"file\":\"receipts\/cem.json\",\"sha256\":\"$zero\",\"source\":\"x\"},/"
+restructure reordered '3{h;d;};4{G;s/},\n\(.*\),$/},\n\1,/;}'
+restructure traversal 's|"file":"receipts/gate-receipt.txt"|"file":"receipts/../../outside.txt"|'
+restructure "absent cem" '2s/.*/{"kind":"cem","state":"absent","source":"--map","reason":"not-found"},/'
+restructure "no closing line" '$d'
+restructure crlf 's/$/\r/'
 
 echo "verify-receipt-bundle tests: PASS"

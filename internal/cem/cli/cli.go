@@ -112,8 +112,8 @@ var cemActions = map[string]cemAction{
 	},
 	"provenance": {arguments: []string{"--commit"}, required: []string{"--commit"}},
 	"export": {
-		arguments: []string{"--map", "--target", "--output", "--witness"},
-		required:  []string{"--map", "--target", "--output"},
+		arguments: []string{"--map", "--expected-base", "--target", "--output", "--witness"},
+		required:  []string{"--map", "--expected-base", "--target", "--output"},
 		paths:     []string{"--map"},
 	},
 }
