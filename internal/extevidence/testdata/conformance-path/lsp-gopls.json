@@ -1,0 +1,57 @@
+{
+  "schema": "external-evidence-provider/2",
+  "provider": {
+    "id": "gopls",
+    "revision": "v0.22.0"
+  },
+  "repositories": [
+    {
+      "id": "root",
+      "origin": "{{APP_ORIGIN}}",
+      "revision": "{{APP_REVISION}}"
+    }
+  ],
+  "entities": [],
+  "relations": [
+    {
+      "from": {
+        "repository": "root",
+        "path": "pkg/main.go",
+        "blob": "{{MAIN_BLOB}}"
+      },
+      "to": {
+        "repository": "root",
+        "path": "pkg/main_test.go",
+        "blob": "{{TEST_BLOB}}"
+      },
+      "type": "gopls:referenced-by",
+      "evidence": "inferred",
+      "rule": "gopls textDocument/references at pkg/main.go:3:6 on Run",
+      "reference": "query sha256:0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0; hop 1 from seed pkg/main.go"
+    },
+    {
+      "from": {
+        "repository": "root",
+        "path": "pkg/main_test.go",
+        "blob": "{{TEST_BLOB}}"
+      },
+      "to": {
+        "repository": "root",
+        "path": "pkg/main.go",
+        "blob": "{{MAIN_BLOB}}"
+      },
+      "type": "gopls:uses-definition",
+      "evidence": "inferred",
+      "rule": "gopls textDocument/definition at pkg/main_test.go:5:2 on Run",
+      "reference": "query sha256:0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0; hop 2 from seed pkg/main.go via pkg/main_test.go"
+    }
+  ],
+  "capabilities": {
+    "schemas": [
+      "external-evidence-provider/2"
+    ],
+    "evidence_kinds": [
+      "inferred"
+    ]
+  }
+}

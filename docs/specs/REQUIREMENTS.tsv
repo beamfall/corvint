@@ -736,6 +736,10 @@ EEP-V0-019	docs/specs/external-evidence-provider-v0.md	146	A `generated` relatio
 EEP-V0-020	docs/specs/external-evidence-provider-v0.md	154	The kit declares its own version, currently `0.2.0` (kit README title and the
 EEP-V0-021	docs/specs/external-evidence-provider-v0.md	166	The kit MUST carry a standard-library Go conformance runner that builds the
 EEP-V0-022	docs/specs/external-evidence-provider-v0.md	174	The kit MUST carry a clean-checkout authoring proof script that checks out only
+EEP-V0-023	docs/specs/external-evidence-provider-v0.md	181	A Core-owned local provider MAY produce one `external-evidence-provider/2` recor
+EEP-V0-024	docs/specs/external-evidence-provider-v0.md	189	Each invocation owns one `gopls serve` process: the executable found on `PATH`,
+EEP-V0-025	docs/specs/external-evidence-provider-v0.md	204	The expansion is at most two hops. Seeds are at most three `.go` paths whose
+EEP-V0-026	docs/specs/external-evidence-provider-v0.md	218	An absent or failing provider yields no record and no partial rows: the section
 EEP-V1-001	docs/specs/external-evidence-provider-v1.md	54	A record whose top-level `schema` is `external-evidence-provider/1` MUST decode
 EEP-V1-002	docs/specs/external-evidence-provider-v1.md	60	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with
 EEP-V1-003	docs/specs/external-evidence-provider-v1.md	66	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin
@@ -1890,6 +1894,10 @@ TCP-V0-039	docs/specs/task-context-packet-v0.md	516	(proposed 2026-09-23, not ac
 TCP-V0-040	docs/specs/task-context-packet-v0.md	534	(proposed 2026-09-23, not accepted; experimental; decision 0370) With
 TCP-V0-041	docs/specs/task-context-packet-v0.md	544	(proposed 2026-09-23, not accepted; experimental; decision 0370) A row the role
 TCP-V0-042	docs/specs/task-context-packet-v0.md	549	(proposed 2026-09-23, not accepted; experimental; decision 0370) The field stays
+TCP-V0-043	docs/specs/task-context-packet-v0.md	735	(proposed 2026-09-23, not accepted; experimental; decision 0371) With
+TCP-V0-044	docs/specs/task-context-packet-v0.md	742	The `external` member is separate evidence, never a ranking input: `results`,
+TCP-V0-045	docs/specs/task-context-packet-v0.md	748	When gopls is absent, the task names no usable Go seed, the session fails or
+TCP-V0-046	docs/specs/task-context-packet-v0.md	752	The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul

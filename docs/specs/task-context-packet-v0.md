@@ -19,7 +19,7 @@ evidence row), `docs/decisions/0369-context-recency-blame-opt-in-2026-09-23.md` 
 ## Agent digest
 - Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
 - Status: proposed/experimental
-- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/recency.go` and `blame.go` (TCP-V0-035..038 opt-in recency, blame and ownership, experimental); `internal/contextindex/identgraph.go` and `ppr.go` (TCP-V0-030..034 opt-in identifier-graph PageRank slot, `CORVINT_CONTEXT_GRAPH=on`, decision 0367); `internal/contextindex/span_rank.go` and `internal/contextindex/sufficiency.go` (TCP-V0-025..029 opt-in `CORVINT_CONTEXT_SPANS=on` line-budgeted spans and `coverage.sufficiency`, experimental, decision 0366).
+- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/recency.go` and `blame.go` (TCP-V0-035..038 opt-in recency, blame and ownership, experimental); `internal/contextindex/identgraph.go` and `ppr.go` (TCP-V0-030..034 opt-in identifier-graph PageRank slot, `CORVINT_CONTEXT_GRAPH=on`, decision 0367); `internal/contextindex/span_rank.go` and `internal/contextindex/sufficiency.go` (TCP-V0-025..029 opt-in `CORVINT_CONTEXT_SPANS=on` line-budgeted spans and `coverage.sufficiency`, experimental, decision 0366); `cmd/corvint/context_lsp.go` and `internal/lspprovider` (TCP-V0-043..046 opt-in gopls `external` member under `CORVINT_CONTEXT_LSP=gopls`, experimental, decision 0371).
 - Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012, which is implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it.
 - Read next: Requirements; Non-goals; Failure modes.
 
@@ -732,6 +732,32 @@ it must read, each with the relation that admitted it, without naming the task's
   control on a subset, or sufficiency precision below the subset's base rate of fully covered
   samples, is a losing case to record, and blocks promotion to default-on.
 
+- `TCP-V0-043`: (proposed 2026-09-23, not accepted; experimental; decision 0371) With
+  `CORVINT_CONTEXT_LSP=gopls`, a `--task` packet gains one `external` member: the section of
+  `EEP-V0-023` built from one in-process gopls expansion (`EEP-V0-024`, `EEP-V0-025`), plus a
+  `query` member naming the provider, the query digest, the seeds, the bounds, `queries_issued`,
+  `failed_queries`, `stopped` (empty, `query-budget` or `soft-deadline`), `outside_repository` and `omitted_rows`.
+  Unset, or any other value, prints exactly the bytes of `TCP-V0-001..024`. No flag, verb or
+  help text is added.
+- `TCP-V0-044`: The `external` member is separate evidence, never a ranking input: `results`,
+  their order, `coverage`, `state` and every other member are byte-for-byte those of the same
+  invocation without the flag. The seeds are the subject, then the packet's `.go` result paths in
+  order (at most three, `EEP-V0-025`). Path relations are anchored on the seeds and the hop-one
+  files a relation starts from, each one names its hop origin in `relation.reference`, and the
+  section's list limit is the packet's `--limit`.
+- `TCP-V0-045`: When gopls is absent, the task names no usable Go seed, the session fails or
+  times out, or every issued query failed, the packet is the unchanged packet plus an `external` member whose one provider row
+  is `unavailable` with the `EEP-V0-026` reason, and the exit code is 0. That row is the packet's
+  visible coverage entry for the missing expansion; no partial relation is kept.
+- `TCP-V0-046`: The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
+  of the `context` arm with the flag unset and with it set to `gopls`, on the same corpus and
+  sample bound, MUST show identical recall@5/10/20 on every subset, since `TCP-V0-044` keeps
+  `results` fixed, and MUST record the latency cost. gopls applies only to Go-module samples, so
+  every other subset is recorded as not applicable, never as a gain or a loss. The rate at which
+  the gold file appears among `external.path_relations` endpoints is reported as a diagnostic,
+  not as a retrieval claim. Letting these relations change `results` needs its own requirement
+  and decision 0070's paired ladder.
+
 ## Non-goals and authority
 
 Forward imports of the subject, cross-directory definition-to-reference edges, and re-export
@@ -873,6 +899,12 @@ commit emails needs the host's account data, which this local packet does not re
   name only (`--no-renames`). A CODEOWNERS file over 256 KiB or unreadable reads as none
   (`codeowners` null), so no disagreement is reported; absence of an ownership entry is not
   evidence of agreement (invariant 2).
+- (TCP-V0-043..045) The LSP flag could leak into the default path or reorder results. The same
+  golden holds for every value but `gopls`, and with `gopls` and a failing server the packet minus
+  `external` equals the golden (`TestContextLSPOffKeepsTheGoldenAndOnDegrades`). A gopls that
+  analyzes a modified working tree could cite bytes the index never pinned; such files are omitted
+  and counted (`TestExpandLiveGopls`). A hung gopls is killed with its process group at the 20 s
+  wall time and reported `unavailable`.
 
 ## Acceptance evidence
 
@@ -943,6 +975,10 @@ reason; `no-seed`, `graph-bounded` and a walk past its push bound abstaining; TC
 abstention unchanged; the recipe golden unchanged for an unset, `off` and unknown flag);
 `TestPackSnapshotDecodesEverySectionToTheGobValues` (the pack section decodes to the gob value);
 decision 0367 (the frozen evaluation with the flag unset and `on`).
+`cmd/corvint/context_lsp_test.go` (TCP-V0-043..045, experimental: every value but `gopls` keeps the
+golden bytes; a failing gopls adds only an unavailable `external` row), `internal/lspprovider`
+tests and `internal/extevidence/lsp_test.go` (EEP-V0-023..026), and the TCP-V0-046 frozen bench
+off/on reports recorded in `docs/BUILD-LOG.md` under V1-0099.
 
 ## Rollback
 
@@ -974,6 +1010,9 @@ The graph slot (TCP-V0-030..034) rolls back alone: unset `CORVINT_CONTEXT_GRAPH`
 slot, delete `internal/contextindex/identgraph.go`, `ppr.go` and their tests, the `IdentGraph`
 member, the `vocab.identgraph` section and the compile, `compile` and `rowAction` hooks, and bump
 `analyzerSchemaID`. The default wire never changed.
+The LSP member (TCP-V0-043..046) rolls back alone with EEP-V0-023..026: delete `cmd/corvint/context_lsp.go`, its
+test, `internal/lspprovider`, and the `attachLSPEvidence` call in `compileTaskContext`; the default
+wire never changed.
 
 ## Traceability
 
@@ -1021,3 +1060,7 @@ member, the `vocab.identgraph` section and the compile, `compile` and `rowAction
 | TCP-V0-036 | `blameHead`, `blamePath`, `parseBlame`, `touch`, `blameReason` (`internal/contextindex/blame.go`), `unchosen` (`recency.go`) | `TestContextRecencyBoundsBlameAndAbstains`, `TestContextRecencyWindowIsTheCochangeWindow`, `TestParseBlamePorcelainCountsLinesPerCommit` |
 | TCP-V0-037 | `codeOwners`, `parseCodeOwners`, `codeOwnersPattern`, `owning`, `checkOwners`, `ownerMatchesAny`, `ownership` | `TestCodeOwnersPatternFollowsGitHubSyntax`, `TestContextRecencyReportsCodeOwnersBlameDisagreement`, `TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit` |
 | TCP-V0-038 | `recencyCoverage` | `TestContextRecencyCoverageMember` |
+| TCP-V0-043 | `attachLSPEvidence`, `lspSeeds`, `committedText` (`cmd/corvint/context_lsp.go`); `compileTaskContext` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestContextDefaultWireIsTheGolden` |
+| TCP-V0-044 | `attachLSPEvidence`, `extevidence.InlineSection`, `lspprovider.Expand` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandLiveGopls` |
+| TCP-V0-045 | `attachLSPEvidence`, `lspprovider.Expand` failure reasons | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandDegrades`, `TestExpandEveryQueryFailedIsUnavailable` |
+| TCP-V0-046 | `tools/retrieval-bench` `context` arm, flag unset and `gopls` | V1-0099 entry in `docs/BUILD-LOG.md` (measured off/on reports) |

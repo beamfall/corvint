@@ -4,6 +4,62 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0099 TCP-V0-043..046 EEP-V0-023..026: opt-in gopls definition/reference expansion (decision 0371)
+
+V1-0099 adds an optional, Core-owned local language-server provider (`internal/lspprovider`,
+decision 0371). `CORVINT_CONTEXT_LSP=gopls` is the only enabling value; unset or any other value
+leaves `corvint context` byte-identical to `cmd/corvint/testdata/context-default-wire.golden`
+(`TestContextLSPOffKeepsTheGoldenAndOnDegrades`). When on, one `gopls serve` process per invocation
+runs under `procgroup` with a 20 s wall bound, owned process-group cleanup and a private cache
+directory. It expands at most 3 committed, unmodified Go seeds (the subject plus Go result rows) by
+1-2 hops of `textDocument/definition` and `textDocument/references`, bounded by 64 queries, 32 rows
+and 64 KiB. The result is an `external-evidence-provider/2` record decoded by the shared extevidence
+path into `packet.external` only. Every row names its hop origin and the query digest; its authority
+stays `external-provider`, never project authority. `results` ranking is untouched by construction.
+A missing, failing, timed-out or not-applicable provider yields an `unavailable` provider row with
+a reason, and the rest of the packet is unchanged. Conformance fixture:
+`internal/extevidence/testdata/conformance-path/lsp-gopls.json`.
+
+Frozen retrieval bench (`tools/retrieval-bench`, `--arms context --max-samples 20`, first 20
+samples per subset, candidate binary sha256 `2ef0ffa7c20182a36061d8e6fc847d55f353501e29eb365731efa02a2c270bb3`
+built from this branch, host load 30-390 from parallel workers; reports are scratch, uncommitted):
+
+| Subset | recall@5 | recall@10 | recall@20 | ranked lists identical off/on | provider with ≥1 relation / loaded with 0 relations / not applicable | p50 wall ms off / on |
+| --- | --- | --- | --- | --- | --- | --- |
+| v2_code2test | 0.333 | 0.358 | 0.428 | 20/20 | 7 / 8 / 5 | 3840 / 7636 |
+| v2_comment2context | 0.383 | 0.492 | 0.633 | 20/20 | 3 / 9 / 8 | 2901 / 3751 |
+| v2_trace2code | 0.375 | 0.450 | 0.817 | 20/20 | 8 / 11 / 1 | 874 / 1988 |
+| v2_edit2ripple | 0.358 | 0.488 | 0.592 | 20/20 | 4 / 9 / 7 | 385 / 746 |
+| v2_abstention | no positives (abstained 0.05 both) | | | 20/20 | 0 / 0 / 20 | 769 / 544 |
+
+The applicability column is a recount derived from the existing on-run capture JSONL, not a rerun.
+The first report counted every `loaded` provider row (15/12/19/13). Independent review found that
+`ask` swallowed JSON-RPC query errors, so a run where every query failed still said `loaded`. Real
+gopls v0.22.0 on caddyserver__caddy@aed1af59 answered 39 of 39 queries with `no package metadata
+for file`. 37 of the 59 `loaded` runs had 0 relations: all 13 caddy runs, 23 etcd runs and 1 gin
+run. The captures predate `failed_queries`, so the recount splits on at least one relation rather
+than on at least one successful query. Review fixes (decision 0371 unchanged): `failed_queries` now
+sits beside `queries_issued` (EEP-V0-025, TCP-V0-043). A run whose every issued query failed is an
+`unavailable` row naming the first error (EEP-V0-026, TCP-V0-045). A server whose `serverInfo.name`
+is not `gopls` is refused, and a `PATH` lookup error, including `exec.ErrDot`, is `gopls executable
+not found` (EEP-V0-024). `TestExpandEveryQueryFailedIsUnavailable` covers these with a fake server.
+The bench was not rerun after the fixes; results are unaffected by construction.
+
+Recall is identical off and on in every subset, as designed: the bench scores `results` and the
+provider writes only `external`. The not-applicable count is the observed provider state; gopls
+applies only to Go modules, and non-Go samples report `not applicable: no committed, unmodified Go
+file among the seeds`. The offline capture diagnostic found gold files among external path
+endpoints in 7 (code2test), 2 (comment2context) and 6 (trace2code) samples, but in 0 samples was
+such a gold file absent from `results`. On this slice the expansion added no new gold evidence.
+The on-mode cost is up to about 2x p50 wall and 1.6-3.0 KB of p50 packet bytes. On the
+Corvint repository itself one run stopped at the 15 s soft deadline after 8 queries (hop 2 not
+reached, 25.6 s total context wall). No `gopls serve` process or `corvint-gopls-*` temp directory
+survived the tests or the bench.
+
+NOT_RUN: full-subset bench (bounded to 20 samples per subset); a paired agent trial on the
+external section; other language servers. NOT_OBSERVED: any recall change, or gold newly surfaced
+by the external member. NOT_PRODUCED: owner acceptance and promotion; TCP-V0-043..046 and
+EEP-V0-023..026 stay proposed and experimental.
 ## 2026-09-23 V1-0098 TCP-V0-025..029: opt-in line-budgeted span rows and sufficiency check (decision 0366)
 
 V1-0098 adds `CORVINT_CONTEXT_SPANS=on` to `context`: `packet.spans` (core declaration rows
