@@ -126,7 +126,7 @@ export async function pinExecutable(
   });
   const versionOutput = new TextDecoder("utf-8", { fatal: true }).decode(result.stdout);
   const matched = VERSION_PATTERNS[expectedKind].exec(versionOutput);
-  if (matched?.[1] === undefined || matched[1].length > 64 || matched[1] !== "0.7.0" || result.stderr.byteLength !== 0) {
+  if (matched?.[1] === undefined || matched[1].length > 64 || matched[1] !== "0.8.0" || result.stderr.byteLength !== 0) {
     throw new Error(`CLI_INCOMPATIBLE: version probe did not match the ${expectedKind} identity`);
   }
   const after = await fingerprint(candidatePath, expectedKind);
