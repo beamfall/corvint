@@ -79,7 +79,22 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
 10. Run `make dogfood-seal BASE=$BASE`. Expected: `dogfood-seal: PASS
     sealed=.corvint/changes/<bind-commit>.cem.json` and one rename-only commit.
 11. Hand the branch and reports to an independent reviewer (section 6) and keep the outcome
-    recorded by step 6 (section 7).
+    recorded by step 6 (section 7). The verifier digests and `outputsAgree` in the report's
+    `dogfoodCheck` line are author-only evidence (`DCW-V0-017`): the check also needs the author's
+    private `<git-dir>/corvint/local-outcome.json` and OCM maps, and nothing committed binds the
+    report's digest, so a handed-off report is not the reviewer's own observation. In a fresh clone
+    `make dogfood-check` on the bind commit fails `dogfood-report-missing` and prints a `review:`
+    line naming the command below. From a fresh clone of the bind commit (the seal's parent), the
+    reviewer verifies instead, with their own `corvint`:
+    `corvint cem verify --map .corvint/change.cem.json --expected-base $BASE --target HEAD`
+    (expected `"valid":true`, `"assurance":"canonical"`, exit 0); the same map through
+    `corvint cem status` with `--max-unknown 0 --max-mechanical 0`, expected `ready-for-ci`
+    (raise `--max-unknown` only to the count of the map's `"disposition": "unknown"` hunks whose
+    `path` is absent at `$BASE` per `git cat-file -e $BASE:<path>`, never to a number taken from
+    the handed-off report); that
+    `git diff-tree -r -M --no-commit-id --name-status HEAD SEAL` prints only
+    `R100 .corvint/change.cem.json .corvint/changes/<bind-commit>.cem.json` (tab-separated); and
+    the semantics of the cited hunks and the handed-off reports (section 6).
 
 ### Fail-closed outcomes
 
@@ -224,6 +239,12 @@ evidence directory and runs that binary. Every step publishes its stdout as
 `<git-dir>/corvint/<step>.json` and its stderr as `<git-dir>/corvint/<step>.stderr`, so the refusal
 envelope behind a reported reason is readable beside that step's output. The run clears
 unpublished `*.stderr` from that directory at start, so no envelope there survives an earlier run.
+The report's `packetCoverage` line (`DCW-V0-016`) states the cost of the two context packets the
+run compiled: for `prechange-query` and `prechange-impact` in that order, the packet's own
+`packet_bytes`, `budget_bytes`, `within_budget`, `included_results` and `omitted_results`, or
+`NOT_PRODUCED` with `packet-not-compiled` (the step compiled none, including the
+`unsupported-impact-range` abstention) or `packet-coverage-unreadable`. It never changes
+`complete`, and reports written before it existed omit it.
 `dogfood-check` independently builds one verifier from the current clean tree and one from a
 private `git archive BASE_SHA`, runs both OCM and CEM status with
 identical inputs and effective policy, and requires byte-identical stdout, stderr, and exit status.
@@ -484,6 +505,18 @@ examples below. Key selection occurs on each invocation. `inactive` for a new ke
 about the original enrollment. Do not infer another owner, re-enroll, cancel or clear state to
 resume. If the original handle is missing, report that blocker. This preserves the existing
 enrollment; it does not authorize taking over unrelated work (LCP-V0-002/003).
+
+Before handing off, the sending session runs `corvint dogfood handoff --session-key KEY --anchors
+"ANCHOR..."` with the task's requirement IDs, paths or symbols as anchors, and passes the emitted
+document to the receiver. It names the key, root, bound revision, anchors, the dogfood prompt
+packet's SHA-256 and bytes, and the degradation list. The receiver runs `corvint dogfood handoff
+--session-key KEY --receipt FILE` before relying on its context. Exit 0 (`reresolved`) returns
+`packetBase64`, whose decoded bytes hash to the receipt digest. This is the handoff packet compiled
+from the anchors alone, not the packet of an earlier prompt event.
+Exit 1 (`drifted`) lists the exact root, revision, enrollment, anchor or
+packet difference and withholds the packet: report that drift and decide explicitly rather than
+treating a recompiled context as the one handed over. Both steps are read-only. The receipt is
+untrusted data with `authority: none` and satisfies no completion condition (SESSION-V0-017..019).
 
 After implementation is committed, bind and commit the CEM sidecar with the existing commands.
 Then prepare and link every OCM scope against that exact clean target; OCM preparation verifies the

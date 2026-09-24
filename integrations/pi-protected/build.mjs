@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import {readFileSync,writeFileSync,mkdirSync,copyFileSync,chmodSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,copyFileSync,chmodSync,lstatSync} from 'node:fs';
 import {dirname,join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
@@ -29,7 +29,8 @@ async function main(){
  await checked('go',['build','-trimpath','-o',join(release,'corvint'),'./cmd/corvint'],{cwd:root,env:{...process.env,GOTOOLCHAIN:'local',GOCACHE:process.env.CORVINT_GOCACHE??'/tmp/corvint-go-build-cache'},timeout:180000});
  const consumerSHA256=digest(readFileSync(join(release,'corvint')));
  const node=join(out,'node');
- await checked('/usr/bin/python3',['-c',`import tarfile,sys\nwith tarfile.open(sys.argv[1]) as t:\n m=t.getmember('node-v${nodeVersion}-darwin-arm64/bin/node')\n assert m.isfile()\n with open(sys.argv[2],'wb') as f:f.write(t.extractfile(m).read())`,archive,node]);
+ await checked('/usr/bin/tar',['-xf',archive,'-C',out,'--strip-components','2',`node-v${nodeVersion}-darwin-arm64/bin/node`]);
+ if(!lstatSync(node).isFile())throw Error('pinned-node-archive-member-not-file');
  chmodSync(node,0o755);
  const photon=join(sdk,'node_modules/@silvia-odwyer/photon-node');
  const wasm=readFileSync(join(photon,'photon_rs_bg.wasm')).toString('base64');

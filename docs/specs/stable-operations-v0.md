@@ -71,8 +71,9 @@ Measured on 2026-09-23 at `1894b9e5` (decision 0360), archives from
   `SHA256SUMS` row against the installed bytes and run `corvint --version` before any other step. A
   mismatch MUST fail the run at `install-a` with exit 1 before any index or read command executes.
 - `SOP-V0-002`: The check MUST create a committed fixture repository in its own temporary directory,
-  run `corvint index` there and require `"ok":true` and exactly one snapshot under
-  `.corvint/index`, then capture one read-verb packet whose bytes every later step is compared to.
+  run `corvint index` there and require `"ok":true` and exactly one snapshot in its snapshot store
+  (`.git/corvint/index` for the plain-clone fixture, `DIRTY-CACHE-013`), then capture one read-verb
+  packet whose bytes every later step is compared to.
 - `SOP-V0-003`: An upgrade MUST install into a second store beside the first and run `corvint
   index --if-stale` and the read verb through the new store. A run without
   `CORVINT_LIFECYCLE_UPGRADE_BINARY` MUST report the upgrade as `same-bytes` and require the first
@@ -83,11 +84,11 @@ Measured on 2026-09-23 at `1894b9e5` (decision 0360), archives from
   the packet wire. The first store MUST remain executable and, run again after the upgrade wrote its
   own snapshot (rollback, the downgrade path), MUST produce the first packet's bytes.
 - `SOP-V0-004`: Uninstall is removal of the store directories. Afterwards the fixture's tracked tree
-  MUST be unchanged (`git diff --quiet HEAD` and empty `git status --porcelain`) and `.corvint/index`
-  MUST still exist.
-- `SOP-V0-005`: A backup is an archive of `.corvint` taken while no Corvint writer runs. After the
-  directory is removed and the archive restored, `corvint index --if-stale` MUST report `fresh` and
-  the read verb MUST reproduce the same packet bytes.
+  MUST be unchanged (`git diff --quiet HEAD` and empty `git status --porcelain`) and `.corvint`
+  and the snapshot store MUST still exist.
+- `SOP-V0-005`: A backup is an archive of `.corvint` and the snapshot store taken while no Corvint
+  writer runs. After both are removed and the archive restored, `corvint index --if-stale` MUST
+  report `fresh` and the read verb MUST reproduce the same packet bytes.
 - `SOP-V0-006`: With the snapshot truncated to zero bytes, and separately with bytes overwritten
   inside it, a read verb MUST exit 0, reproduce the same packet bytes and leave the damaged file's
   size unchanged (invariant 4: reads do not repair); `corvint index --if-stale` MUST report
@@ -178,7 +179,7 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | paths | `internal/companionrelease` | `internal/companionrelease/companionrelease_test.go:620@5ef76c7b` |
 | paths | `internal/trace` | `internal/trace/migration_test.go:80@77e27ccc` |
 | paths | `internal/doccompiler` | `internal/doccompiler/compiler_test.go:211@b9d5a61d` |
-| symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:163@6bb9aead`, `internal/contextindex/index_test.go:403@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:494@22f1c7f2`, `internal/contextindex/snapshot_test.go:541@ee7924d9` |
+| symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:163@6bb9aead`, `internal/contextindex/index_test.go:403@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:510@22f1c7f2`, `internal/contextindex/snapshot_test.go:559@ee7924d9` |
 | symlinks | `internal/trace` | `internal/trace/store_test.go:222@ee958993`, `internal/trace/store_test.go:937@69176005` |
 | symlinks | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:105@141529a4` |
 | symlinks | `internal/worktreeimpact` | `internal/worktreeimpact/hostile_unix_test.go:12@0eab7357` |

@@ -233,7 +233,7 @@ func TestRBDV0003ColdHitDescriptors(t *testing.T) {
 }
 
 func testRBDV0003ColdHitDescriptors(t *testing.T) {
-	body := "if [ \"$3\" = index ]; then mkdir -p \"$2/.corvint/index\"; printf '*\\n' > \"$2/.corvint/.gitignore\"; exit; fi\nif [ -d \"$2/.corvint/index\" ]; then echo 'corvint-bench-snapshot: hit=true' >&2; else echo 'corvint-bench-snapshot: hit=false' >&2; fi\n" + packetScript(capturePacket)
+	body := "if [ \"$3\" = index ]; then mkdir -p \"$2/.corvint\" \"$2/.git/corvint/index\"; printf '*\\n' > \"$2/.corvint/.gitignore\"; exit; fi\nif [ -d \"$2/.git/corvint/index\" ]; then echo 'corvint-bench-snapshot: hit=true' >&2; else echo 'corvint-bench-snapshot: hit=false' >&2; fi\n" + packetScript(capturePacket)
 	configuration := captureFixture(t, body)
 	configuration.snapshotLatency = true
 	configuration.maxSamples = 2

@@ -36,8 +36,11 @@ what any packet says.
 
 - `IDX-SNAP-V0-001`: `corvint [--root PATH] index` builds the index of the committed tree exactly as
   `context` would and writes it under `.corvint/index/` as
-  `<object-format>-<tree-oid>-<engine>.gob`, where `engine` is the first sixteen hex digits of the
-  SHA-256 of the running executable. The file holds a header (format `corvint-index-snapshot/1`,
+  `<object-format>-<tree-oid>-<engine>.gob`. Location amendment 2026-09-23 (V1-0212, pending owner
+  review): the store is `corvint/index/` under the Git common directory, shared by linked worktrees,
+  and `.corvint/index/` only when that directory cannot be resolved (`DIRTY-CACHE-013`); every
+  mention of `.corvint/index/` in this spec names that store. Here `engine` is the first sixteen
+  hex digits of the SHA-256 of the running executable. The file holds a header (format `corvint-index-snapshot/1`,
   object format, tree OID, engine) and the index with `Root`, `DirtyPaths`, and `StatusSHA256`
   cleared. The write is atomic (temporary file then rename). The receipt is one canonical JSON
   line with `mutates:true`, `path`, `bytes`, `tree`, `commit`, `engine`, `sources`, `symbols`,
@@ -73,8 +76,9 @@ what any packet says.
   or another clean filter is read from the blob but is not added to `DirtyPaths`; the status
   snapshot is the dirty authority.
 - `IDX-SNAP-V0-005`: `index` is the only verb that writes under `.corvint/index/`; `context` and every
-  other read verb never create, touch, or delete a file there (invariant 4). The directory ignores
-  itself through a `.gitignore` it contains, so a repository with no rule for it stays clean.
+  other read verb never create, touch, or delete a file there (invariant 4). The worktree fallback
+  store ignores itself through a `.gitignore` it contains, so a repository with no rule for it stays
+  clean; the shared store under the Git common directory is never tracked and has no such file.
   `index` writes that file only when it is absent or different, using temporary-file publication
   by rename rather than exposing a truncate-then-write interval to concurrent status readers. On its
   first write, `index` also creates `.corvint/.gitignore` only when that file is absent. The narrow
@@ -83,7 +87,8 @@ what any packet says.
   parent ignore file. This mutating bootstrap lets SOL-V0 attempt its ledger append without making a
   fresh repository dirty; no read verb may create the rule. Repository content is untrusted, so
   before and after creating the directory `index` refuses, with no write or eviction, when `.corvint`
-  or `.corvint/index` exists as a symlink or any other non-directory (security amendment 2026-09-13).
+  or `.corvint/index` exists as a symlink or any other non-directory (security amendment 2026-09-13),
+  and in the shared store likewise when the common directory's `corvint` or `corvint/index` does.
   Every snapshot reader (`LoadSnapshot`, the event and context loaders, `LoadEventSnapshotObserved`,
   and the `IDX-SNAP-V0-011` probe) refuses the same shapes: a `.corvint` or `.corvint/index` that is a
   symlink or non-directory is the `IDX-SNAP-V0-003` miss, never a read of the bytes it points at

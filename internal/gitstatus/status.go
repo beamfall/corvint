@@ -363,6 +363,27 @@ func safeConfig(raw []byte, root, gitdir string) bool {
 	return true
 }
 
+// CommonDirectory resolves root's Git common directory from the `.git` marker
+// and `commondir` pointer the way Status does, and spawns no Git process. It
+// refuses a `.git` marker that is a symlink and reads each pointer file with a
+// bounded no-follow open, but it follows symlinks when it resolves the gitdir
+// and commondir paths those pointers name. A plain clone's common directory
+// is its `.git`.
+func CommonDirectory(root string) (string, error) {
+	root, err := filepath.Abs(root)
+	if err != nil {
+		return "", errUnsafe
+	}
+	root, err = filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", errUnsafe
+	}
+	reader := metadataReader{}
+	defer reader.Close()
+	_, common, _, err := directories(root, &reader)
+	return common, err
+}
+
 func directories(root string, reader *metadataReader) (string, string, []capturedFile, error) {
 	gitdir := filepath.Join(root, ".git")
 	info, err := os.Lstat(gitdir)

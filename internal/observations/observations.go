@@ -133,7 +133,8 @@ var admittedProofVerdicts = map[string]bool{"FAIL": true, "NOT_RUN": true, "PASS
 
 var admittedDogfoodErrorCodes = codeSet(
 	"ambiguous-claim-selector", "base-mismatch", "base-revision-mismatch", "binary-patch",
-	"bootstrap-intent-not-unknown", "cem-map-digest-mismatch", "cem-patch-digest-mismatch",
+	"bootstrap-intent-not-unknown", "bundle-map-uncommitted", "bundle-output-refused",
+	"cem-map-digest-mismatch", "cem-patch-digest-mismatch",
 	"changed-path-acquisition-failed", "cite-span-not-stable", "claim-conflict", "claim-not-reextractable",
 	"claim-obligation-mismatch", "claim-selector-out-of-range", "diff-metadata-mismatch",
 	"duplicate-claim", "duplicate-claim-reference", "duplicate-hunk-reference", "duplicate-key",
