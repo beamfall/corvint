@@ -20,7 +20,7 @@ gate ran (`DCW-V0-015`).
 | `BASE` | Full 40-hex commit before the change's first commit; never `HEAD` | `BASE=$(git rev-parse origin/main)` taken when branching |
 | `DOGFOOD_TASK` | One sentence describing the change, not project-operations wording (section 1) | `Deliver the documented daily change-evidence adopter path.` |
 | `DOGFOOD_INTENTS_FILE` | Path to a file of 1 to 16 repository-relative spec paths, sorted, LF-terminated, no absolute path and no `.` or `..` segment. Each spec exists at `BASE` and has exactly one `## Requirements` heading (`rg -c '^## Requirements' SPEC` prints 1); a spec created in this change cannot be an intent (section 2) | file content `docs/specs/daily-change-evidence-workflow-v0.md` |
-| `DOGFOOD_CITATIONS` | Path to a TSV file, not the rows. One `ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION` row per CEM hunk in `hunks` order, ordinals from 1, LF-terminated, at most 256 rows; the span must exist at `BASE` | row `1	AGENTS.md	26:28	specification` |
+| `DOGFOOD_CITATIONS` | Path to a TSV file, not the rows. One `ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION` row per CEM hunk in `hunks` order, ordinals from 1, LF-terminated, at most 256 rows; the span must exist at `BASE`. Only the hunk of an intent spec absent at `BASE` may be left out; leaving out any other unknown hunk, or an ordinal above the hunk count, refuses the whole plan (`DCW-V0-019`) | row `1	AGENTS.md	26:28	specification` |
 | `DOGFOOD_VERIFY_FILE` | Path to a file with one shell-free verification command per line, each at most 512 characters; `DOGFOOD_VERIFY` takes the same lines inline (section 7) | line `go test ./internal/lrfrepo` |
 | `DOGFOOD_OUTCOME` | `passed`, `failed` or `blocked` | `passed` |
 
@@ -47,6 +47,9 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `verification.issues` code, not a policy issue). The final seal removes the shared path.
 4. Write the citation plan from the prepared map. The hunk count is
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
+   A plan written for an earlier map, such as nine rows kept after a later commit added a tenth
+   hunk, refuses `cem-cite: citation-plan-map-mismatch` and cites nothing; rewrite it from the
+   current map.
    Export `DOGFOOD_CITATIONS` and rerun `make dogfood-change BASE=$BASE`. `cem-cite` and, for an
    untracked sidecar, `cem-status` are now produced; the only remaining row is
    `local-outcome: record-index-failed`. A modified tracked sidecar additionally keeps the OCM and
@@ -60,7 +63,8 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `local-outcome: record-failed`, both reading `local trace store contains unreachable revision`).
 6. Run `make dogfood-change BASE=$BASE` again. Expected: no output, exit 0, and
    `.corvint/dogfood-report.json` contains `"complete": true`. An uncited hunk instead leaves
-   `cem-status: not-ready` (policy issue `max-unknown-exceeded`).
+   `cem-status: not-ready` (policy issue `max-unknown-exceeded`), preceded by
+   `cem-cite: citation-plan-map-mismatch` when the plan is nonempty.
 7. Optionally record requirement evidence: `corvint ocm link` or `corvint ocm mark` on
    `.corvint/change.ocm.NNN.json` (section 5), then rerun step 6 on the same `HEAD` so the aggregate
    includes it. Any later commit regenerates the maps with `--replace` and drops those records.
@@ -101,7 +105,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 |---|---|---|---|
 | Dirty | modified tracked or untracked file after the change | runs; the recorder reports `local-outcome: record-index-failed` | `REFUSE dirty-worktree` (exit 2) with the required-order line |
 | Stale | commit after the last `dogfood-change` | the rerun returns to step 3 until the sidecar is recommitted | `FAIL dogfood-report-drift`, `fix:` names another base or head |
-| Unknown | hunk not cited by `DOGFOOD_CITATIONS` | `cem-status: not-ready` | `FAIL dogfood-report-drift`, `fix:` names an incomplete report |
+| Unknown | hunk not cited by `DOGFOOD_CITATIONS` | `cem-status: not-ready`; a nonempty plan also refuses `cem-cite: citation-plan-map-mismatch` | `FAIL dogfood-report-drift`, `fix:` names an incomplete report |
 | Interrupted | `SIGTERM` during a run | exit 143, no report written, no citation stage left, sidecar unchanged | `FAIL dogfood-report-missing`, or `dogfood-report-drift` when an older report exists |
 | Interrupted | `SIGINT` (Ctrl-C) | NOT_OBSERVED | NOT_OBSERVED |
 | Unsupported | host without `rg` | `REFUSE unsupported-environment-missing-rg` | `REFUSE unsupported-environment-missing-rg` |
@@ -372,8 +376,15 @@ the producer's `cite-span-not-stable` precheck. A hunk ID is derived from that h
 ranges (`internal/cem/wire/canonical.go:68-79`), and an ordinal is its position in the canonical
 worklist, so any later commit other than the sidecar commit can change both. Write the plan from the
 map prepared for the final implementation commit (a run without `DOGFOOD_CITATIONS` prepares it and
-reports `cem-cite NOT_PRODUCED citation-plan-not-provided`), and rewrite it after any further commit;
-a row written against an earlier map refuses `unknown-hunk-id` or names a different hunk. Rows end in LF; other control bytes are invalid. The local coordinator freezes
+reports `cem-cite NOT_PRODUCED citation-plan-not-provided`), and rewrite it after any further commit.
+Before any cite the coordinator binds a nonempty plan to the map it just prepared (`DCW-V0-019`): an
+ordinal above the hunk count, a numeric selector that is not a canonical ordinal, or an unknown hunk
+named by neither ordinal nor ID, refuses the whole plan as `citation-plan-map-mismatch`, except the
+hunk of an intent path absent at `BASE`, which an author leaves out deliberately (section 2). While
+more than 256 unknown hunks remain, one plan cannot name them all, so the unnamed-hunk rule is not
+applied and split plans on a fresh map stay usable. A stale full hunk ID refuses `unknown-hunk-id`. A stale
+ordinal plan that still names every hunk is not detectable this way and names a different hunk, so
+use full hunk IDs when a later commit may reorder hunks. Rows end in LF; other control bytes are invalid. The local coordinator freezes
 and validates the whole file before citing, with independent limits of 4 MiB and 256 rows. An empty
 file is a zero-citation no-op; normal CEM status still checks the map's completeness. Larger jobs
 require separate explicit bounded plans, without automatic splitting or invented citations.

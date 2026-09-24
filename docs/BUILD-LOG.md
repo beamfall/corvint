@@ -356,6 +356,34 @@ Evidence: the same reviewer clone now prints the `review:` line, and the named c
 `script/dogfood-change_test.sh` adds a bind-commit reviewer case and a no-sidecar absence case;
 forcing the line unconditionally fails the test. `make gate` was not run (owner preference).
 
+## 2026-09-23 V1-0173 DCW-V0-019: a citation plan must match the map prepared in the same run
+
+Finding: `dogfood-change` applied a stale 9-row `DOGFOOD_CITATIONS` plan by ordinal to a map a later
+commit had re-prepared with 10 hunks; nothing refused it, and the tenth hunk stayed unknown.
+
+Decision: before any `cem cite`, the coordinator binds a nonempty plan to the prepared map. No
+ordinal may exceed the hunk count, and every hunk the map still records as `unknown` must be named
+by ordinal or full hunk ID. The one exception is the hunk of an intent spec absent at BASE, which an
+author leaves uncited on purpose (decision 0055). A mismatch refuses `cem-cite` with
+`citation-plan-map-mismatch`, cites nothing, and prints a `fix:` line. A plain row-count equality
+was set aside because it would refuse that bootstrap omission, repeated rows (several bases for one
+hunk), and split plans on a resumed map. The plan format is unchanged, because the first field
+already accepts content-derived full hunk IDs and a stale ID already refuses `unknown-hunk-id`. The
+remaining gap: a stale ordinal plan whose ordinals still cover every hunk, such as one after a
+reorder, cannot be detected. DOGFOOD.md recommends full IDs when a later commit may reorder hunks.
+
+Evidence: `script/dogfood-change_test.sh` covers four cases: stale-nine-of-ten, stale-ten-of-nine,
+bootstrap-omitted and other-omitted. `TestDogfoodReasonAdmitsCitationPlanMapMismatch` covers the new
+reason. In a scratch clone against the real 22-hunk map at base 34e798b, a 1-row plan refused
+`citation-plan-map-mismatch` with no cite, and a 22-row plan cited all 22 hunks. `make gate` was
+NOT_RUN.
+
+Review fixes (independent review): with more than 256 unknown hunks, one plan cannot name them all,
+so the unnamed-hunk rule is not applied and split plans on a fresh map stay usable (case
+split-over-row-limit). A numeric selector that is not a canonical ordinal, such as `01`, is now
+refused before any cite (case noncanonical-ordinal); previously `cem cite` refused it only after
+earlier rows had staged. The fix line now names both causes of a mismatch, not only a re-prepared map.
+
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
 
 Finding: nothing stated which Corvint commands are safe as a triggered CI, hook or team-automation

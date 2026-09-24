@@ -166,7 +166,21 @@ if [[ $action == cem && $sub == prepare ]]; then
     printf '{"error": "cannot read CEM map: the existing map records a different base or patch; pass --replace to regenerate", "ok": false}\n' >&2
     exit 2
   fi
-  printf '{}\n' > "$root/.corvint/change.cem.json"
+  # The canonical map layout the plan check reads. By default hunk 1 is unknown and hunk 2
+  # already supported, so a one-row plan names every unknown hunk; DOGFOOD_TEST_CEM_HUNKS
+  # lists DISPOSITION:PATH entries instead.
+  separator=
+  ordinal=0
+  {
+    printf '{\n  "hunks": [\n'
+    for entry in ${DOGFOOD_TEST_CEM_HUNKS:-unknown:script/source.sh supported:docs/specs/intent-b.md}; do
+      ordinal=$((ordinal + 1))
+      printf '%s    {\n      "disposition": "%s",\n      "id": "hunk:test:%d",\n      "path": "%s"\n    }' \
+        "$separator" "${entry%%:*}" "$ordinal" "${entry#*:}"
+      separator=$',\n'
+    done
+    printf '\n  ]\n}\n'
+  } > "$root/.corvint/change.cem.json"
   if [[ -n ${DOGFOOD_TEST_UNSAFE_MAP:-} ]]; then
     rm "$root/.corvint/change.cem.json"
     ln -s "$DOGFOOD_TEST_UNSAFE_MAP" "$root/.corvint/change.cem.json"
@@ -219,7 +233,7 @@ if [[ $action == cem && $sub == cite && ${DOGFOOD_TEST_CITES:-0} == 1 ]]; then
   fi
   current=$(cat "$root/$map")
   items=
-  if [[ $current != '{}' ]]; then
+  if [[ $current == '{"cites":['* ]]; then
     items=${current#'{"cites":['}
     items=${items%']}'}
   fi
@@ -852,7 +866,8 @@ printf '%s\n' "$result"
 EOF_COLLISION
 chmod +x "$test_root/collision-bin/mktemp"
 printf 'outside sentinel\n' > "$citation_artifacts/sentinel"
-printf '{}\n' > "$citation_artifacts/prepared.json"
+DOGFOOD_TEST_LOG=/dev/null "$test_root/bin/corvint" --root "$citation_artifacts/prepared-root" cem prepare
+cp "$citation_artifacts/prepared-root/.corvint/change.cem.json" "$citation_artifacts/prepared.json"
 printf '1\tdocs/specs/intent-a.md\t1:1\tspecification\n' > "$citation_artifacts/one.tsv"
 printf '2\tdocs/specs/intent-b.md\t1:1\tspecification\n' > "$citation_artifacts/second.tsv"
 cat "$citation_artifacts/one.tsv" "$citation_artifacts/second.tsv" > "$citation_artifacts/multi.tsv"
@@ -886,7 +901,8 @@ run_citation_case() {
     DOGFOOD_TEST_CITE_PAUSE="${citation_pause:-}" DOGFOOD_TEST_PID_FILE="$citation_case/child.pid"
     DOGFOOD_TEST_CITES=1 DOGFOOD_TEST_CITE_LOG="$citation_case/cites.tsv"
     DOGFOOD_TEST_LOG="$citation_case/corvint.log" CORVINT_BIN="$test_root/bin/corvint"
-    DOGFOOD_CITATIONS="$plan" DOGFOOD_INTENTS_FILE="$test_root/intents.txt"
+    DOGFOOD_TEST_CEM_HUNKS="${citation_hunks:-}"
+    DOGFOOD_CITATIONS="$plan" DOGFOOD_INTENTS_FILE="${citation_intents:-$test_root/intents.txt}"
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed)
   citation_status=0
   if [[ -n ${citation_pause:-} ]]; then
@@ -1020,6 +1036,47 @@ cmp "$citation_artifacts/one/final.json" "$citation_case/final.json"
 { printf 'x'; cat "$citation_artifacts/4mib.tsv"; } > "$citation_artifacts/over-4mib.tsv"
 run_citation_case over-byte-bound "$citation_artifacts/over-4mib.tsv" 1 0
 cmp "$citation_artifacts/prepared.json" "$citation_case/final.json"
+) &
+phase_jobs="$phase_jobs $!"
+
+# V1-0173 / DCW-V0-019: a plan binds to the map prepared in this run before any cite.
+(
+use_citation_clone citation-map-repo
+awk 'BEGIN { for (i=1; i<=9; i++) print i "\tdocs/specs/intent-a.md\t1:1\tspecification" }' \
+  > "$citation_artifacts/nine.tsv"
+nine_hunks=$(awk 'BEGIN { for (i=1; i<=9; i++) printf "unknown:script/h%d.sh ", i }')
+# A nine-row plan written before a later commit added a tenth hunk is refused whole.
+citation_hunks="${nine_hunks}unknown:script/h10.sh"
+run_citation_case stale-nine-of-ten "$citation_artifacts/nine.tsv" 1 0
+rg -q '"name": "cem-cite", "status": "NOT_PRODUCED", "reason": "citation-plan-map-mismatch"' "$citation_case/report.json"
+rg -Fxq '  cem-cite: citation-plan-map-mismatch' "$citation_case/stderr"
+rg -Fq '    fix: the plan does not match the map prepared for HEAD' "$citation_case/stderr"
+# So is a plan naming an ordinal past the map's hunk count.
+citation_hunks=${nine_hunks% }
+{ cat "$citation_artifacts/nine.tsv"; printf '10\tdocs/specs/intent-a.md\t1:1\tspecification\n'; } \
+  > "$citation_artifacts/ten.tsv"
+run_citation_case stale-ten-of-nine "$citation_artifacts/ten.tsv" 1 0
+rg -q '"reason": "citation-plan-map-mismatch"' "$citation_case/report.json"
+# The same nine rows may deliberately leave out the hunk of an intent spec absent at BASE.
+printf '%s\n' docs/specs/intent-a.md docs/specs/new-intent.md > "$citation_artifacts/bootstrap-intents.txt"
+export DOGFOOD_TEST_EXPECTED_INTENTS="$citation_artifacts/bootstrap-intents.txt"
+citation_intents=$DOGFOOD_TEST_EXPECTED_INTENTS
+citation_hunks="${nine_hunks}unknown:docs/specs/new-intent.md"
+run_citation_case bootstrap-omitted "$citation_artifacts/nine.tsv" 0 9
+# Only that hunk: leaving out any other unknown hunk is still refused.
+citation_hunks="unknown:docs/specs/new-intent.md ${nine_hunks% }"
+run_citation_case other-omitted "$citation_artifacts/nine.tsv" 1 0
+rg -q '"reason": "citation-plan-map-mismatch"' "$citation_case/report.json"
+# A numeric selector that is not a canonical ordinal is refused before any cite.
+citation_hunks=${nine_hunks% }
+{ printf '01\tdocs/specs/intent-a.md\t1:1\tspecification\n'; tail -n +2 "$citation_artifacts/nine.tsv"; } \
+  > "$citation_artifacts/noncanonical.tsv"
+run_citation_case noncanonical-ordinal "$citation_artifacts/noncanonical.tsv" 1 0
+rg -q '"reason": "citation-plan-map-mismatch"' "$citation_case/report.json"
+# More unknown hunks than one plan can name: a split plan still cites its rows.
+citation_hunks=$(awk 'BEGIN { for (i=1; i<=257; i++) printf "unknown:script/h%d.sh ", i }')
+citation_hunks=${citation_hunks% }
+run_citation_case split-over-row-limit "$citation_artifacts/nine.tsv" 0 9
 ) &
 phase_jobs="$phase_jobs $!"
 

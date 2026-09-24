@@ -107,6 +107,16 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   report's semantics (section 6). When `HEAD` tracks `.corvint/change.cem.json`, the
   `dogfood-report-missing` failure MUST also print a `review:` line stating this and naming the
   `cem verify` command for that base and `HEAD`; its reason code and exit status MUST NOT change.
+- `DCW-V0-019`: Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan to
+  the map prepared in the same run and refuse the whole plan as `cem-cite`
+  `citation-plan-map-mismatch`, citing nothing, when a row names an ordinal above the map's hunk
+  count, a numeric selector is not a canonical ordinal, or a hunk the map records as `unknown` is
+  named by neither ordinal nor full hunk ID. The permitted omissions are a hunk whose path is an
+  intent path absent at BASE (the bootstrap unknown of `docs/DOGFOOD.md` section 2), and any unknown
+  hunk while more of them remain than one 256-row plan can name, so split plans stay usable. The plan format does not change: its first field already accepts a
+  full hunk ID, which is derived from the hunk's content, and `cem cite` refuses an ID the map lacks
+  as `unknown-hunk-id`. An empty plan remains a zero-citation no-op, and a hunk already cited or
+  marked in a resumed map needs no row.
 
 ## Non-goals and baseline
 
@@ -141,6 +151,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-016` (proposed) | `script/dogfood-change.sh` `packet_coverage_entry`; `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed`; reader: `TestConsoleDogfoodPacketCoverage`; real run recorded in the V1-0200 build-log entry | implemented; not accepted |
 | `DCW-V0-013..015` | `docs/DOGFOOD.md` "Daily adopter path"; `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed`; scratch reproductions recorded in the V1-0010 build-log entry | implemented; the SIGINT interrupt and reviewer leg NOT_OBSERVED |
 | `DCW-V0-017` | `docs/DOGFOOD.md` step 11; the reviewer case in `script/dogfood-change_test.sh`; the V1-0182 build-log entry | implemented; reviewer-side verifier agreement is out of scope by design |
+| `DCW-V0-019` | `script/dogfood-change.sh` `citation_plan_matches_map`; `script/dogfood-change_test.sh` cases `stale-nine-of-ten`, `stale-ten-of-nine`, `bootstrap-omitted`, `other-omitted`, `noncanonical-ordinal` and `split-over-row-limit`; `TestDogfoodReasonAdmitsCitationPlanMapMismatch` | implemented; observed live on a 22-hunk map at base 34e798b: a 1-row plan refused, a 22-row plan cited all 22 |
 
 ## Compatibility and rollback
 
