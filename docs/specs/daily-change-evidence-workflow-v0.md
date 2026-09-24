@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); evaluation protocol awaits separate freeze
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); evaluation protocol awaits separate freeze
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); evaluation protocol awaits separate freeze; experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); evaluation protocol awaits separate freeze; experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -83,10 +83,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   without `"complete": true` or `dogfood-check: PASS`: a dirty or untracked worktree refuses
   `dirty-worktree`; a report older than `HEAD` fails `dogfood-report-drift`; an interrupted run
   writes no report, so the check fails `dogfood-report-missing` or, with an older report,
-  `dogfood-report-drift`; a host without `rg` refuses `unsupported-environment-missing-rg`; and an
-  uncited hunk leaves `cem-status` `not-ready`, so the check fails `dogfood-report-drift`. A passing
-  check or a seal MUST be described as structural closure, never as correctness, test adequacy or a
-  passing project gate.
+  `dogfood-report-drift`; and an uncited hunk leaves `cem-status` `not-ready`, so the check fails
+  `dogfood-report-drift`. A passing check or a seal MUST be described as structural closure, never
+  as correctness, test adequacy or a passing project gate.
 - `DCW-V0-016`: (proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
   report that `dogfood-change` writes, and `corvint dogfood finish` reads, MUST carry one
   `packetCoverage` line listing the `prechange-query` and `prechange-impact` steps in that order.
@@ -126,6 +125,35 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   full hunk ID, which is derived from the hunk's content, and `cem cite` refuses an ID the map lacks
   as `unknown-hunk-id`. An empty plan remains a zero-citation no-op, and a hunk already cited or
   marked in a resumed map needs no row.
+- `DCW-V0-020`: (V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run as
+  the subverbs `corvint dogfood change BASE`, `corvint dogfood check BASE` and `corvint dogfood seal
+  BASE` of the existing Core verb, implemented in Go inside the binary, with no new root verb. They
+  read the same `DOGFOOD_*` inputs and write the same stdout, stderr, report, receipts, CEM and exit
+  statuses as the former scripts, including 129, 130 and 143 for a hang-up, interrupt or
+  termination, and depend on no shell, `rg`, `python3` or `jq`. A subverb MUST NOT build,
+  resolve on `PATH`, or version-check an executable, and MUST NOT read `CORVINT_BIN` or `VERSION`.
+  Every step and verifier role is the running executable unless `--corvint-bin` (change) or
+  `--base-verifier`, `--tree-verifier` and `--override-verifier` (check, seal) names another. A
+  named verifier that cannot be read refuses `verifier-unavailable`; a missing or extra positional
+  argument refuses `dogfood-base-required`, and an unresolvable running executable refuses
+  `dogfood-executable-unavailable`. `dogfood seal` runs the check, then makes the same single
+  rename commit as `script/dogfood-seal.sh`.
+- `DCW-V0-021`: The subverbs MUST run at the worktree top level: the root is `--root` or the working
+  directory, and a root with a nonempty `git rev-parse --show-prefix` refuses
+  `not-repository-root` with exit 2, before any write.
+- `DCW-V0-022`: Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-change.sh`
+  and `script/dogfood-check.sh` keep the `VERSION` read, the `CORVINT_BIN` version match and the
+  current-tree (and, for the check, base-tree) builds with their refusal strings, then exec the
+  subverb with the executables they built or selected. `script/dogfood-seal.sh` stays the script
+  that runs `script/dogfood-check.sh` and seals. The make targets and their `DOGFOOD_*` inputs are
+  unchanged. Because the wrappers build before the subverb runs, a refusal the subverb makes now
+  follows the builds.
+- `DCW-V0-023`: `docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for any
+  Git repository and the ignore entries it needs: the private `.corvint` outputs
+  (`dogfood-report.json`, `change.ocm-intents`, `change.ocm-status.json`, `change.ocm.*.json`,
+  `self-observations.jsonl`) and the local trace store `.context-corvint/`. Without them the
+  worktree is dirty or the recorder refuses `repository-identity-changed`; the subverbs do not
+  write ignore rules.
 
 ## Non-goals and baseline
 
@@ -133,6 +161,8 @@ This slice creates no daemon, dispatcher, general autonomous authority, new lang
 universal proof of correctness or automatic host promotion. Existing native commands are the
 baseline; add runtime machinery only for an observed missing behavior. Keep original evidence and
 human authority instead of converting a version label or synthetic packet into product proof.
+The daily subverbs do not install, build or upgrade Corvint, pin a version for a foreign
+repository, edit its ignore rules, or change any report, receipt or CEM format.
 
 ## Acceptance and evidence
 
@@ -157,11 +187,13 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-007..008` | independently sealed complete-task evaluation required | NOT_RUN |
 | `DCW-V0-009..010` | native platform and installed exact-host evidence required | NOT_QUALIFIED |
 | `DCW-V0-011..012` | portfolio, gate and candidate evidence required | NOT_QUALIFIED |
-| `DCW-V0-016` (proposed) | `script/dogfood-change.sh` `packet_coverage_entry`; `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed`; reader: `TestConsoleDogfoodPacketCoverage`; real run recorded in the V1-0200 build-log entry | implemented; not accepted |
+| `DCW-V0-016` (proposed) | `internal/dogfoodflow/change.go` `packetCoverage` (formerly `script/dogfood-change.sh` `packet_coverage_entry`); `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed`; reader: `TestConsoleDogfoodPacketCoverage`; real run recorded in the V1-0200 build-log entry | implemented; not accepted |
 | `DCW-V0-013..015` | `docs/DOGFOOD.md` "Daily adopter path"; `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed`; scratch reproductions recorded in the V1-0010 build-log entry | implemented; the SIGINT interrupt and reviewer leg NOT_OBSERVED |
 | `DCW-V0-017` | `docs/DOGFOOD.md` step 11; the reviewer case in `script/dogfood-change_test.sh`; the V1-0182 build-log entry | implemented; reviewer-side verifier agreement is out of scope by design |
 | `DCW-V0-018` | `script/dogfood-change_test.sh` link phase: no plan, exact argv and order, plan digest, partial refusal across rows and intents, and unlisted-intent, CRLF, field-count, empty-item, over-256-row, empty and absent plans; the replay of the sealed LAC-V0-032 change recorded in the V1-0142 build-log entry | implemented; a link on a change delivered through this loop NOT_OBSERVED |
-| `DCW-V0-019` | `script/dogfood-change.sh` `citation_plan_matches_map`; `script/dogfood-change_test.sh` cases `stale-nine-of-ten`, `stale-ten-of-nine`, `bootstrap-omitted`, `other-omitted`, `noncanonical-ordinal` and `split-over-row-limit`; `TestDogfoodReasonAdmitsCitationPlanMapMismatch` | implemented; observed live on a 22-hunk map at base 34e798b: a 1-row plan refused, a 22-row plan cited all 22 |
+| `DCW-V0-019` | `internal/dogfoodflow/change.go` `citationPlanMatchesMap` (formerly `script/dogfood-change.sh` `citation_plan_matches_map`); `script/dogfood-change_test.sh` cases `stale-nine-of-ten`, `stale-ten-of-nine`, `bootstrap-omitted`, `other-omitted`, `noncanonical-ordinal` and `split-over-row-limit`; `TestDogfoodReasonAdmitsCitationPlanMapMismatch` | implemented; observed live on a 22-hunk map at base 34e798b: a 1-row plan refused, a 22-row plan cited all 22 |
+| `DCW-V0-020..021`, `DCW-V0-023` | `internal/dogfoodflow`; `cmd/corvint/dogfood_flow.go`; `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` (built binary only, in a Go repository with no `script/`, `VERSION` or `cmd/corvint`, with `PATH` resolving `corvint` to a failing impostor and `CORVINT_BIN` naming a missing file: change, bind, change, check, nested-root refusal, seal) | implemented; foreign-repository portability shown by that fixture only; a real non-Corvint repository NOT_OBSERVED |
+| `DCW-V0-022` | `script/dogfood-change_test.sh` (through the wrappers over a built driver) and `script/dogfood-bind-range_test.sh`, run in Corvint's tree | implemented; in-tree evidence only |
 
 ## Compatibility and rollback
 
@@ -173,6 +205,9 @@ wire by implication. If any gate fails, preserve its evidence and keep the affec
 Retain the previous working installed binary and public release. Do not rewrite historical receipts.
 Roll back `DCW-V0-018` by unsetting `DOGFOOD_OCM_LINKS`: no link runs and every requirement
 returns to `unassessed` on the next pass.
+Roll back `DCW-V0-020..023` by restoring `script/dogfood-change.sh` and `script/dogfood-check.sh`
+from `e667812`; the make targets, inputs and artifacts are the same on both sides, so evidence
+from either side stays readable. The subverbs may remain unused.
 Any runtime behavior, test, selected check, fixture, owning normative requirement or
 `T` proof-map change requires a new candidate and invalidates affected evidence.
 Preserve failed and incomplete `T` and `E` records; neither local PATH activation nor

@@ -13,6 +13,30 @@ structural closure only: the evidence is bound to immutable revisions and is int
 They do not establish that the change is correct, that its tests are adequate, or that the project
 gate ran (`DCW-V0-015`).
 
+### Commands
+
+In any Git repository, run the steps from the installed binary at the worktree top level:
+`corvint dogfood change $BASE`, `corvint dogfood check $BASE` and `corvint dogfood seal $BASE`
+(`DCW-V0-020`). They read the inputs below from the environment, need no script, `VERSION`, Go
+toolchain or `rg`, and use the running binary for every step and verifier. A subdirectory refuses
+`not-repository-root` (`DCW-V0-021`). Before the first pass, ignore the private outputs and the
+local trace store (`DCW-V0-023`); without them the worktree is dirty or the recorder refuses
+`repository-identity-changed`. The entries, in `.gitignore` or `.git/info/exclude`, are:
+
+```text
+.corvint/dogfood-report.json
+.corvint/change.ocm-intents
+.corvint/change.ocm-status.json
+.corvint/change.ocm.*.json
+.corvint/self-observations.jsonl
+.context-corvint/
+```
+
+In Corvint's own tree the `make dogfood-change`, `make dogfood-check` and `make dogfood-seal` targets
+used below wrap the same subverbs: they also require `VERSION` to match `CORVINT_BIN` and build
+the current (and, for the check, base) tree first (`DCW-V0-022`). Elsewhere, read each
+`make dogfood-X BASE=$BASE` below as `corvint dogfood X $BASE`.
+
 ### Inputs
 
 | Input | Exact format | Example |
@@ -115,7 +139,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Unknown | hunk not cited by `DOGFOOD_CITATIONS` | `cem-status: not-ready`; a nonempty plan also refuses `cem-cite: citation-plan-map-mismatch` | `FAIL dogfood-report-drift`, `fix:` names an incomplete report |
 | Interrupted | `SIGTERM` during a run | exit 143, no report written, no citation stage left, sidecar unchanged | `FAIL dogfood-report-missing`, or `dogfood-report-drift` when an older report exists |
 | Interrupted | `SIGINT` (Ctrl-C) | NOT_OBSERVED | NOT_OBSERVED |
-| Unsupported | host without `rg` | `REFUSE unsupported-environment-missing-rg` | `REFUSE unsupported-environment-missing-rg` |
+| Unsupported | run from a subdirectory of the worktree (reproduced for V1-0236) | `REFUSE not-repository-root` (exit 2) | `REFUSE not-repository-root` (exit 2) |
 | Unsupported | intent without exactly one `## Requirements` heading | `ocm-prepare-001: invalid-requirements-section`, `ocm-aggregate: intent-scope-drift` | NOT_OBSERVED |
 | Drift | OCM map marked or linked without a rerun | not applicable | `FAIL intent-scope-drift`, `fix:` reruns `dogfood-change` |
 | Rewritten | amend or rebase after a recorded pass | `prechange-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor clears it | not reached |

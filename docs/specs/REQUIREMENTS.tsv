@@ -558,10 +558,14 @@ DCW-V0-012	docs/specs/daily-change-evidence-workflow-v0.md	65	Final version/buil
 DCW-V0-013	docs/specs/daily-change-evidence-workflow-v0.md	69	The daily adopter path MUST be one ordered sequence in `docs/DOGFOOD.md` from th
 DCW-V0-014	docs/specs/daily-change-evidence-workflow-v0.md	74	A `dogfood-change` not-complete row caused by a malformed or missing input, or b
 DCW-V0-015	docs/specs/daily-change-evidence-workflow-v0.md	82	Dirty, stale, interrupted, unsupported and unknown evidence MUST each end the lo
-DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	90	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
-DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	101	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
-DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	110	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
-DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	119	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
+DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	89	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
+DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	100	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
+DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	109	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
+DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	118	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
+DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	128	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
+DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	141	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
+DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	144	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
+DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	151	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
@@ -1232,7 +1236,7 @@ LCP-V0-001	docs/specs/local-completion-policy-v0.md	40	The local policy MUST rem
 LCP-V0-002	docs/specs/local-completion-policy-v0.md	44	Enrollment MUST be explicit through `corvint dogfood begin`. One bounded plan pi
 LCP-V0-003	docs/specs/local-completion-policy-v0.md	80	`status` and automatic event evaluation MUST be read-only. They derive unmet
 LCP-V0-004	docs/specs/local-completion-policy-v0.md	93	`verify` MUST execute only an explicitly selected plan check, as argv without sh
-LCP-V0-005	docs/specs/local-completion-policy-v0.md	102	`finish` MUST reuse the public CEM/OCM and repository dogfood workflow. It MUST
+LCP-V0-005	docs/specs/local-completion-policy-v0.md	102	`finish` MUST reuse the public CEM/OCM and daily dogfood workflow (`LCP-V0-014`)
 LCP-V0-006	docs/specs/local-completion-policy-v0.md	123	Once maps are ready, `finish` MUST generate the CEM reviewer report and every sc
 LCP-V0-007	docs/specs/local-completion-policy-v0.md	131	Terminal success MUST require all selected checks to pass, current report inspec
 LCP-V0-008	docs/specs/local-completion-policy-v0.md	142	Codex and Claude Code Stop MAY request one bounded remediation continuation for
@@ -1241,6 +1245,8 @@ LCP-V0-010	docs/specs/local-completion-policy-v0.md	176	New-profile prompt conte
 LCP-V0-011	docs/specs/local-completion-policy-v0.md	186	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix
 LCP-V0-012	docs/specs/local-completion-policy-v0.md	199	Private plans, observations and report sets MUST have explicit byte/count limits
 LCP-V0-013	docs/specs/local-completion-policy-v0.md	205	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
+LCP-V0-014	docs/specs/local-completion-policy-v0.md	230	`finish` MUST run the daily change (coordination) and the final strict check in
+LCP-V0-015	docs/specs/local-completion-policy-v0.md	238	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	1309	Every displayed metric and source-derived value MUST derive through the compiled
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	1313	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	1316	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the
