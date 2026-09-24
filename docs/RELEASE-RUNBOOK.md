@@ -102,7 +102,18 @@ output directories outside the checkout; the reproducibility script refuses one 
    git add docs/RELEASE-NOTES.md && git commit -m "docs: release notes for X.Y.Z"
    ```
 
-10. Tag and publish (owner action). The tag points at the notes commit; the archives, `SHA256SUMS`,
+10. Tag and publish (owner action). Merge first, then tag: before tagging, verify `FULL_COMMIT` is
+    on `origin/main`'s first-parent chain, so its stamped build number (step 9) matches what a fresh
+    clone of `origin/main` reproduces and cannot collide with a later, unrelated `origin/main` commit
+    at the same first-parent count (decision 0375, `PUB-V0-021`).
+
+    ```sh
+    git fetch origin
+    git merge-base --is-ancestor FULL_COMMIT origin/main
+    git rev-list --first-parent origin/main | grep -qx FULL_COMMIT
+    ```
+
+    The tag points at the notes commit; the archives, `SHA256SUMS`,
     `verification-report.json`, the reproducibility `report.json`, the lifecycle reports and the
     hostile-regression report are the release evidence. Pushing the tag and uploading assets are
     outward actions that need the owner's explicit go.

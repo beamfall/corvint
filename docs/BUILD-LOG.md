@@ -4,6 +4,50 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 decision 0375 PUB-V0-021: build number is provenance, not order (V1-0149)
+
+Ticket V1-0149 asked the owner to decide whether build numbers should restart from the public
+lineage or carry an offset, after decision 0331 restarted `origin/main`'s first-parent commit
+count and `origin/main` HEAD stamped build 12 while the already-published `0.7.0` prerelease is
+`Corvint 0.7.0 (build 46)` (`docs/BUILD-LOG.md:2031@231c2812`, the "V1-0017 decision 0360 /
+SOP-V0-003 / SOP-V0-009" entry above, 2026-09-23). A release-engineering expert review the owner
+requested (2026-09-24) verified every citing consumer checks the build number for shape or exact
+equality, never order (`conformance/release-artifact-v0/smoke.go:26@1bcee6df`,
+`internal/releasecandidate/install.go:109@0a2f615a`,
+`internal/releasecandidate/candidate.go:187@ffe1e5e9`,
+`extensions/vscode/src/executable.ts:13@29803a42`,
+`cmd/corvint/work_executable_binding.go:73@d5b9289a`,
+`internal/companionrelease/core_smoke.go:52@d62aa33e`, `script/dogfood-check.sh:107@c47ed46e`),
+that `docs/specs/vscode-extension-v0.md:164@2ced530d` already states the build number is not part
+of the pin, that `SOP-V0-003` (`docs/specs/stable-operations-v0.md:77-85@feb4322f`) compares
+upgrade/cold-index packet bytes rather than build numbers, and that a real N-1 lifecycle upgrade
+from `0.6.0 (build 90)` into the installed `0.7.0 (build 46)` passed
+(`docs/BUILD-LOG.md:2014@b85d8a61`) despite the published build number going down
+(`docs/RELEASE-NOTES.md:23,46@1528a86b`). The review also found a second, independent defect: the
+0.7.0 release commit `41f2b68934ce0d7b2ee6f0b22e31dab41ddffa25` was never on `origin/main`'s
+first-parent chain (`docs/RELEASE-NOTES.md:32-33@6a77dbd2` records the release source was a local
+clone rather than a pushed-and-merged commit), so the commit that actually sits at first-parent
+position 46 on `origin/main`, `e9a6e5456cfb0e7dbc72482fc3c43688c4f1372a`, is unrelated and would
+stamp the same `Corvint 0.7.0 (build 46)` banner if built today.
+
+Decision (`docs/decisions/0375-build-number-is-provenance-not-order-2026-09-24.md`, amends decision
+0314 and `PUB-V0-021`): no build-number offset. `PUB-V0-021` in `docs/specs/public-release-v0.md`
+now states the build number is monotonic only along `origin/main`'s first-parent chain since
+decision 0331, is neither an ordering nor an identity key (`VERSION` orders releases; commit plus
+executable digest identify a build), and a release artifact MUST be built from a commit on that
+first-parent chain. `docs/RELEASE-RUNBOOK.md` step 10 gains a pre-tag check
+(`git merge-base --is-ancestor` and `git rev-list --first-parent origin/main`) so a future release
+cannot repeat the `41f2b68`/`e9a6e54` collision; `script/release-checklist` is unchanged.
+`docs/specs/REQUIREMENTS.tsv` is regenerated (only `PUB-V0-022..026` line numbers shift, no ID
+added or removed) and `docs/decisions/README.md` gains the 0375 index row.
+
+Gates: `make -s spec-requirements-check requirement-definitions-check traceability-tests-check
+line-citations-check error-code-ownership-check` all passed (0 traceability tests planned, as
+before this change). This is a docs-only change; no Go source, wire format, or test was touched, so
+`go test`/`go vet` were not run for this change beyond confirming the toolchain
+(`GOTOOLCHAIN=local go env GOVERSION` = `go1.27.1`). `make gate` was NOT_RUN, per the owner's
+standing preference for scoped issue work.
+
 ## 2026-09-23 V1-0198 DIRTY-CACHE-003: linked worktrees each build and store their own index
 
 Finding: linked worktrees of one repository at one commit do not share the immutable index. Each
