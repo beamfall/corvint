@@ -1,5 +1,45 @@
 # Release notes
 
+## 0.8.0 prerelease
+
+`v0.8.0` is the "dependable integrations and operations" step. It freezes the Core command, wire
+and migration contracts and the minimum portable proof wire, and ratifies Core and companion scope
+(decision 0373). `prove` emits the `cem/v1` predicate; a digest-pinned CI verifier checks a CEM
+offline, and a content-addressed receipt bundle carries its own offline verifier. Failure
+reproductions export as bounded replayable bundles, and a citation plan that does not match the
+prepared map is refused. Context gains opt-in ranking inputs: an identifier graph with personalized
+PageRank, doc-comment role lines, recency, blame and ownership, gopls definition/reference expansion
+as external evidence, line-budgeted span rows, and compact evidence summaries with exact drill-down.
+Task mentions now anchor prompt context, governing-instruction paths reach task orientation, and
+routing floors idf at 2.0. `corvint affected` names changed Go packages without tests as unknown
+scope, reports changed units with no selectable test, treats `testdata` as fixture data and selects
+the packages that name a changed path. The daily change-evidence adopter path ships with workflow
+recipes, a console pane from changed hunk to recorded verification, a read-only handoff receipt that
+re-resolves or reports drift, and packet coverage in dogfood and witness receipts. `corvint-mcp` pins
+Git at start and executes the official schema; an opt-in `--tool-profile task-review` adds
+`corvint.context` and `corvint.cem.report` while the default stays at three tools (decision 0374).
+Linked worktrees share the clean index snapshot. The evidence-provider authoring kit is versioned
+with two-transport conformance, and the release checklist has a `--pre-promotion` mode and accepts a
+Core-only candidate. The build number is provenance, not order (decision 0375). DCW-V0-018/019,
+AFP-V0-021 and the receipt-bundle intent are owner-accepted (decision 0376).
+
+The published prerelease is `Corvint 0.8.0 (build 65)`, commit
+`31d68b4adeb434bad5002be9ec534e932f4d5b7e`, built from a clean GitHub clone of `origin/main` at that
+commit, which is on its first-parent chain. The full gate passed at that commit and
+`script/release-checklist --pre-promotion` reports `native-runtime`, `go-archive` and `full-gate`
+PASS. The archives were built twice byte-identically (5 of 5), `SHA256SUMS` verified independently,
+and the four Darwin/Linux archives are published with `SHA256SUMS` and `verification-report.json`; the
+Windows zip is emitted but not a qualified target. The install lifecycle passed in same-bytes mode
+and as the N-1 upgrade from 0.7.0 (build 46), with `upgrade-b` reporting `packet=changed` under the
+amended SOP-V0-003, on darwin arm64, darwin amd64 (Rosetta 2) and linux arm64 (the local
+`golang:1.27.1` container, not native hardware); linux amd64 is `NOT_RUN`, as no amd64 host or image
+was available. The hostile regression matrix passed on darwin arm64, with `memory-resident`
+`NOT_COVERED`. Native performance stays `NOT_RUN` (owner-cancelled, GOC-V0-005), and the optional
+companion and installed-qualification gates were not run. Not produced: the task-store `v0-8`
+release is not marked candidate or promoted, because its predecessors `v0-5` to `v0-7` were never
+promoted; no post-commit CEM binding covers this range. It is unsigned, with publisher identity
+`NOT_VERIFIED`.
+
 ## 0.7.0 prerelease
 
 `v0.7.0` is the "portable proof and inspectable workflows" step on the decision 0331 public
