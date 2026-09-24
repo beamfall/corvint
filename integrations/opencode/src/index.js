@@ -8,6 +8,7 @@ import {
   explicitVerification,
   hashSessionId,
   hashTask,
+  insideGitRepository,
   normalizeRepositoryPath,
   suppliedEvidenceHandles,
 } from "./runtime.js"
@@ -35,6 +36,9 @@ function betaEnabled(options, environment) {
 export const CorvintPlugin = async (host, options = {}) => {
   const environment = options.environment ?? process.env
   const root = host.worktree || host.directory
+  // OpenCode opens a directory outside Git as its global project with worktree "/", which Corvint
+  // refuses as a root on every hook. Outside a repository the plugin registers nothing (decision 0378).
+  if (!insideGitRepository(host.directory)) return {}
   const runCorvint = createCorvintRunner({ ...options, environment })
   const sessions = new Map()
   const startupContexts = new Map()

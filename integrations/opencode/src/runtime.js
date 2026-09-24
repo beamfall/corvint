@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto"
 import { spawn } from "node:child_process"
+import { realpathSync, statSync } from "node:fs"
 import path from "node:path"
 import { overQueryBound, trimSpace } from "./prompt-bound.js"
 
@@ -68,6 +69,26 @@ function boundedToken(value, fallback = "unknown") {
     return fallback
   }
   return value
+}
+
+// Decision 0178: only a confirmed absence of .git at every level is outside a repository; an
+// unreadable level counts as inside, so its failure keeps its fault notice.
+export function insideGitRepository(directory) {
+  let current
+  try {
+    current = realpathSync(directory)
+  } catch {
+    current = path.resolve(directory)
+  }
+  for (; ; current = path.dirname(current)) {
+    try {
+      statSync(path.join(current, ".git"))
+      return true
+    } catch (error) {
+      if (error?.code !== "ENOENT") return true
+    }
+    if (path.dirname(current) === current) return false
+  }
 }
 
 function childEnvironment(source) {
