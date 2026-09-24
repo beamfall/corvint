@@ -142,10 +142,27 @@ case $version in
     fi
     if [ -z "$tag_commit" ]; then
       emit NOT_RUN tag ARTIFACT-RDY-V0-003 "expected release tag is absent"
-    elif [ "$tag_commit" = "$head" ]; then
-      emit PASS tag ARTIFACT-RDY-V0-003 "expected release tag points at HEAD"
     else
-      emit FAIL tag ARTIFACT-RDY-V0-003 "expected release tag points at another revision"
+      # Decision 0380: the tag names the release-notes commit, whose only parent is the gated HEAD
+      # and whose only changes are documentation Markdown including docs/RELEASE-NOTES.md.
+      tag_parents=$(git -C "$root" rev-list --parents -n 1 "$tag_commit") || {
+        echo "release-checklist: git rev-list failed for $expected_tag" >&2
+        exit 2
+      }
+      tag_paths=$(git -C "$root" diff --name-only --no-renames "$head" "$tag_commit") || {
+        echo "release-checklist: git diff failed for $expected_tag" >&2
+        exit 2
+      }
+      tag_non_docs=$(printf '%s\n' "$tag_paths" | grep -v -e '^docs/.*\.md$' -e '^$' || true)
+      if [ "$tag_parents" != "$tag_commit $head" ]; then
+        emit FAIL tag ARTIFACT-RDY-V0-003 "expected release tag is not a single-parent child of HEAD"
+      elif ! printf '%s\n' "$tag_paths" | grep -qx 'docs/RELEASE-NOTES.md'; then
+        emit FAIL tag ARTIFACT-RDY-V0-003 "expected release tag commit does not change docs/RELEASE-NOTES.md"
+      elif [ -n "$tag_non_docs" ]; then
+        emit FAIL tag ARTIFACT-RDY-V0-003 "expected release tag commit changes a path outside docs Markdown"
+      else
+        emit PASS tag ARTIFACT-RDY-V0-003 "expected release tag is the notes commit on HEAD"
+      fi
     fi
     ;;
 esac

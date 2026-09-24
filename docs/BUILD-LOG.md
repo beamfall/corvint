@@ -4,6 +4,19 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 V1-0223 ARTIFACT-RDY-V0-003 / decision 0380 (accepted): release tag names the notes commit
+
+`script/release-checklist` passed its tag row only when the release tag pointed at the gated HEAD,
+while `RELEASE-RUNBOOK.md` step 10 tags the release-notes commit, so the 0.8.0 pre-promotion run
+failed the row. Decision 0380 makes the notes commit the one tag target. Its only parent
+must be HEAD, and it must change `docs/RELEASE-NOTES.md` and only Markdown under `docs/`, which no
+`//go:embed` directive reaches. `script/release-checklist_test.sh` covers a tag on HEAD (FAIL), a
+valid notes commit (PASS), a notes commit without the notes file, one with a non-docs path and a
+tag one commit further on (each FAIL with its own reason). With the new script, the checklist run
+from `41f2b68` reports `PASS tag` for `v0.7.0`, and run from `31d68b4` it reports `PASS tag` for
+`v0.8.0`; neither tag moved. The owner accepted decision 0380 on 2026-09-24; it was drafted as
+0379 until the OpenCode decision took that number. Full gate NOT_RUN (owner policy).
+
 ## 2026-09-24 TCP-V0-048, decisions 0375/0377/0378: requirement-definitions and line-citations checks repaired on main
 
 `origin/main` at `e667812` failed `requirement-definitions-check` and `line-citations-check` with no
