@@ -180,6 +180,42 @@ NOT_RUN: `pi-protected-build` and the built-binary protected tests (PPI-V0-001/0
 startup injection), because the pinned SDK and Node archive are not installed. Linux PTY execution
 was not run; linux and windows `go vet` pass. `make gate` was not run (owner preference).
 
+## 2026-09-23 V1-0212 DIRTY-CACHE-013: linked worktrees share one clean index snapshot
+
+Finding: the snapshot store was joined to the worktree root, so each linked worktree at one commit
+built and stored its own full clean snapshot (V1-0198 measurement: 3 builds, 3 x 72.8 MB).
+
+Decision: the store is `corvint/index/` under the Git common directory, keyed as before by
+(object format, tree OID, engine). `gitstatus.CommonDirectory` resolves it with the bounded no-follow
+`.git`/`commondir` reads status already makes and spawns no Git process, so `IDX-SNAP-V0-009`
+holds. Dirty paths stay per worktree and in memory (`DIRTY-CACHE-003`/`004` unchanged). One-writer
+rule: no lock; each `index` publishes a synced temporary file by rename, the last rename wins, and a
+reader keeps the complete file it opened. Symlink refusal covers the worktree `.corvint` and both
+store components; the eight-entry eviction bound applies to the shared store. An unresolvable common
+directory falls back to the worktree's `.corvint/index/`. An existing worktree `.corvint/index/` is
+neither read nor deleted: its engine digest cannot match a binary with this change. `internal/gitstatus`
+and `internal/contextindex` are audited analyzer inputs, so the analyzer schema moves to
+`corvint-analyzer/79`; the pack facts are unchanged. The edited task-orientation hostile test is
+repinned in `UC-TASK-ORIENTATION/hostile-tests.json` by a follow-up commit, as in V1-0192.
+
+Evidence: PR #125's `measure-worktree-index-share.sh`, run unmodified apart from its repository
+path against this branch's binary, reported 1 BUILT and 2 fresh reuses across three linked
+worktrees, 0 worktree snapshot bytes, one 72,890,863-byte `.gob` under the common directory, and a
+dirty view (`mixed=README.md`) private to the edited worktree. Focused tests:
+`TestLinkedWorktreesShareOneCleanSnapshot`, `TestConcurrentWorktreeWritersPublishCompleteSnapshotsByRename`,
+`TestSharedSnapshotStoreKeepsTheEntryBoundAcrossWorktrees`,
+`TestSnapshotStoreFallsBackToTheWorktreeWhenTheCommonDirectoryIsUnresolved`.
+
+Review fixes: the install-lifecycle script now takes the store from the index receipt's `path`, so
+the 0.7.0 N-1 run passes; the shared store's bound is 8 x (1 + linked worktrees), capped at 64,
+with the fallback kept at 8; each operation resolves the store once; only the fallback store writes
+a `.gitignore`; the analyzer schema moves to `corvint-analyzer/80`; and the spec and docs now state
+the fallback, symlink-following, and `core.sharedRepository` behaviour exactly.
+
+Owner review: `DIRTY-CACHE-013` is new; `IDX-SNAP-V0-001`/`005` (accepted, decision 0049) and
+`SOP-V0-002`/`004`/`005` (accepted, decision 0341) are amended for the store location.
+Rollback: revert this change; the shared directory is disposable derived state.
+
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
 
 Finding: nothing stated which Corvint commands are safe as a triggered CI, hook or team-automation

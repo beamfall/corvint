@@ -14,7 +14,7 @@ func TestBlobShardRefusesFIFOWithoutBlocking(t *testing.T) {
 	built := taskContextFixture(t)
 	source := built.Sources["cache/demux.go"]
 	entry := treeEntry{source.Path, source.BlobHash, source.Mode, len(source.Data)}
-	target := blobShardPath(built.Root, built.ObjectFormat, analyzerEngine(), source.BlobHash, source.Path)
+	target := blobShardPath(SnapshotDirectory(built.Root), built.ObjectFormat, analyzerEngine(), source.BlobHash, source.Path)
 	t.Setenv("CORVINT_INDEX_SHARDS", "1")
 	if _, err := WriteSnapshot(built); err != nil {
 		t.Fatal(err)
@@ -27,7 +27,7 @@ func TestBlobShardRefusesFIFOWithoutBlocking(t *testing.T) {
 	}
 	result := make(chan error, 1)
 	go func() {
-		_, err := readBlobFact(built.Root, built.ObjectFormat, analyzerEngine(), entry, nil)
+		_, err := readBlobFact(snapshotBase(built.Root), SnapshotDirectory(built.Root), built.ObjectFormat, analyzerEngine(), entry, nil)
 		result <- err
 	}()
 	select {

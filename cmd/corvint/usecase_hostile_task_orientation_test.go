@@ -71,7 +71,9 @@ func TestUseCaseHostileTaskOrientation(t *testing.T) {
 			}
 			for _, entry := range entries {
 				if strings.HasSuffix(entry.Name(), ".gob") {
-					cemWrite(t, root, ".corvint/index/"+entry.Name(), "not a gob snapshot")
+					if err := os.WriteFile(filepath.Join(contextindex.SnapshotDirectory(root), entry.Name()), []byte("not a gob snapshot"), 0o644); err != nil {
+						t.Fatal(err)
+					}
 				}
 			}
 			assertSnapshotIsAMiss(t, root, orientationTask, "context", "query")
@@ -85,13 +87,9 @@ func TestUseCaseHostileTaskOrientation(t *testing.T) {
 			if err := os.Symlink(elsewhere, contextindex.SnapshotDirectory(root)); err != nil {
 				t.Fatal(err)
 			}
-			// Git sees the symlink as an untracked path, so query honestly
-			// labels it mixed-worktree; context is the byte-identical miss.
-			freshness := orientationQuery(t, root, orientationTask)["freshness"].(map[string]any)
-			if paths, _ := freshness["mixed_paths"].([]any); freshness["state"] != "mixed-worktree" || len(paths) != 1 || paths[0] != ".corvint/index" {
-				t.Fatalf("query does not label the symlinked snapshot: %v", freshness)
-			}
-			assertSnapshotIsAMiss(t, root, orientationTask, "context")
+			// The store lives under the Git common directory, so the link is
+			// not a worktree path; both verbs are the byte-identical miss.
+			assertSnapshotIsAMiss(t, root, orientationTask, "context", "query")
 		}},
 		{"hostile", "dirty-worktree", "context answers from the committed tree only", func(t *testing.T, root string) {
 			appendFile(t, filepath.Join(root, "cache", "demux.go"), "\nfunc Extra() string { return \"\" }\n")

@@ -71,7 +71,7 @@ func TestProbeSnapshotReadsOnlyTheMatchingHeader(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := snapshotPath(index.Root, index.ObjectFormat, index.Revision, engineID)
+	path := snapshotPath(SnapshotDirectory(index.Root), index.ObjectFormat, index.Revision, engineID)
 	probe, fresh, err := ProbeSnapshot(context.Background(), index.Root)
 	if err != nil || !fresh {
 		t.Fatalf("IDX-SNAP-V0-011: fresh=%v err=%v", fresh, err)
@@ -118,7 +118,7 @@ func TestSnapshotLoadJoinsAnEngineDigestThatFinishesLast(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if receipt.Path != snapshotPath(root, index.ObjectFormat, index.Revision, engine()) {
+	if receipt.Path != snapshotPath(SnapshotDirectory(root), index.ObjectFormat, index.Revision, engine()) {
 		t.Fatalf("the written snapshot is not the one the engine digest names: %q", receipt.Path)
 	}
 	entered, release := make(chan struct{}), make(chan struct{})
@@ -298,12 +298,14 @@ exec %s "$@"
 	}
 }
 
+// Only the worktree fallback store writes an ignore file (DIRTY-CACHE-013).
 func TestWriteSnapshotDoesNotRewriteMatchingGitIgnore(t *testing.T) {
 	index := taskContextFixture(t)
+	unlinkCommonDirectory(t, index.Root)
 	if _, err := WriteSnapshot(index); err != nil {
 		t.Fatal(err)
 	}
-	ignore := filepath.Join(SnapshotDirectory(index.Root), ".gitignore")
+	ignore := filepath.Join(index.Root, ".corvint", "index", ".gitignore")
 	unchanged := time.Unix(946_684_800, 0)
 	if err := os.Chtimes(ignore, unchanged, unchanged); err != nil {
 		t.Fatal(err)
@@ -419,7 +421,7 @@ func TestEvictSnapshotsKeepsNewestEightIncludingCurrent(t *testing.T) {
 		}
 	}
 	current := paths[len(paths)-1]
-	if evicted := evictSnapshots(directory, current); evicted != 2 {
+	if evicted := evictSnapshots(directory, current, snapshotKeep); evicted != 2 {
 		t.Fatalf("IDX-SNAP-V0-007: evicted %d snapshots, want 2", evicted)
 	}
 	entries, err := os.ReadDir(directory)
@@ -473,7 +475,7 @@ func TestEvictSnapshotsRemovesStaleTemporaries(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if evicted := evictSnapshotsAt(directory, "", now); evicted != 0 {
+		if evicted := evictSnapshotsAt(directory, "", snapshotKeep, now); evicted != 0 {
 			t.Fatalf("reported %d published snapshots evicted, want zero", evicted)
 		}
 		if _, err := os.Stat(stale.Name()); !os.IsNotExist(err) {
@@ -488,12 +490,26 @@ func TestEvictSnapshotsRemovesStaleTemporaries(t *testing.T) {
 	})
 }
 
-// A repository can commit .corvint or .corvint/index as a symlink. Following it
-// would repair a .gitignore, publish snapshots and evict files outside the
-// worktree, so index refuses before writing anything (IDX-SNAP-V0-005).
+// linkedSnapshotComponents are the directories index writes through: the
+// worktree's committed `.corvint`, and the two store components under the Git
+// common directory, which a commit cannot reach but local state can link.
+var linkedSnapshotComponents = []struct {
+	name      string
+	committed bool
+	path      func(root string) string
+}{
+	{".corvint", true, func(root string) string { return filepath.Join(root, ".corvint") }},
+	{"common/corvint", false, func(root string) string { return filepath.Dir(SnapshotDirectory(root)) }},
+	{"common/corvint/index", false, SnapshotDirectory},
+}
+
+// A repository can commit .corvint as a symlink, and a store component can be
+// linked locally. Following either would repair a .gitignore, publish snapshots
+// and evict files outside the store, so index refuses before writing anything
+// (IDX-SNAP-V0-005).
 func TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory(t *testing.T) {
-	for _, link := range []string{".corvint", ".corvint/index"} {
-		t.Run(link, func(t *testing.T) {
+	for _, component := range linkedSnapshotComponents {
+		t.Run(component.name, func(t *testing.T) {
 			root := impactRepositoryWithFiles(t, map[string]string{
 				"go.mod":     "module example.test/symlinked\n\ngo 1.27.0\n",
 				"pkg/pkg.go": "package pkg\n\nfunc Run() {}\n",
@@ -504,15 +520,17 @@ func TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			linkPath := filepath.Join(root, filepath.FromSlash(link))
+			linkPath := component.path(root)
 			if err := os.MkdirAll(filepath.Dir(linkPath), 0o755); err != nil {
 				t.Fatal(err)
 			}
 			if err := os.Symlink(outside, linkPath); err != nil {
 				t.Fatal(err)
 			}
-			testGit(t, root, "add", ".")
-			testGit(t, root, "commit", "-qm", "symlinked snapshot directory")
+			if component.committed {
+				testGit(t, root, "add", ".")
+				testGit(t, root, "commit", "-qm", "symlinked snapshot directory")
+			}
 			index, err := BuildForSnapshot(context.Background(), root)
 			if err != nil {
 				t.Fatal(err)
@@ -534,36 +552,35 @@ func TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory(t *testing.T) {
 	}
 }
 
-// The read side refuses what the writer refuses: a committed symlink can point
-// .corvint or .corvint/index at a directory outside the worktree that holds a
-// snapshot named for this tree, and every loader must miss on it rather than
-// serve those outside bytes (IDX-SNAP-V0-005).
+// The read side refuses what the writer refuses: a symlink can point .corvint
+// or a store component at a directory outside the store that holds a snapshot
+// named for this tree, and every loader must miss on it rather than serve those
+// outside bytes (IDX-SNAP-V0-005).
 func TestSnapshotReadersMissThroughCommittedSymlinkedSnapshotDirectory(t *testing.T) {
-	for _, link := range []string{".corvint", ".corvint/index"} {
-		t.Run(link, func(t *testing.T) {
+	for _, component := range linkedSnapshotComponents {
+		t.Run(component.name, func(t *testing.T) {
 			root := impactRepositoryWithFiles(t, map[string]string{
 				"go.mod":     "module example.test/symlinkedread\n\ngo 1.27.0\n",
 				"pkg/pkg.go": "package pkg\n\nfunc Run() {}\n",
 			})
 			outside := filepath.Join(t.TempDir(), "outside")
-			linkPath := filepath.Join(root, filepath.FromSlash(link))
-			if err := os.MkdirAll(filepath.Dir(linkPath), 0o755); err != nil {
-				t.Fatal(err)
+			linkPath := component.path(root)
+			if component.committed {
+				if err := os.Symlink(outside, linkPath); err != nil {
+					t.Fatal(err)
+				}
+				testGit(t, root, "add", ".")
+				testGit(t, root, "commit", "-qm", "symlinked snapshot directory")
+				if err := os.Remove(linkPath); err != nil {
+					t.Fatal(err)
+				}
 			}
-			if err := os.Symlink(outside, linkPath); err != nil {
-				t.Fatal(err)
-			}
-			testGit(t, root, "add", ".")
-			testGit(t, root, "commit", "-qm", "symlinked snapshot directory")
 			index, err := BuildForSnapshot(context.Background(), root)
 			if err != nil {
 				t.Fatal(err)
 			}
 			// Publish this tree's snapshot into a real directory, then move it
-			// outside and restore the committed link over it.
-			if err := os.Remove(linkPath); err != nil {
-				t.Fatal(err)
-			}
+			// outside and put the link over it.
 			if _, err := WriteSnapshot(index); err != nil {
 				t.Fatal(err)
 			}
@@ -588,4 +605,246 @@ func TestSnapshotReadersMissThroughCommittedSymlinkedSnapshotDirectory(t *testin
 			}
 		})
 	}
+}
+
+// linkedWorktrees returns a repository and two detached linked worktrees at its
+// HEAD, all sharing one Git common directory.
+func linkedWorktrees(t *testing.T) []string {
+	t.Helper()
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":     "module example.test/shared\n\ngo 1.27.0\n",
+		"pkg/pkg.go": "package pkg\n\nfunc Run() {}\n",
+	})
+	roots := []string{root}
+	for _, name := range []string{"second", "third"} {
+		worktree := filepath.Join(t.TempDir(), name)
+		testGit(t, root, "worktree", "add", "-q", "--detach", worktree, "HEAD")
+		roots = append(roots, worktree)
+	}
+	return roots
+}
+
+// Three linked worktrees at one commit build the clean snapshot once and reuse
+// it twice: one copy lives under the Git common directory, none in a worktree,
+// and each worktree's dirty view stays its own (DIRTY-CACHE-013,
+// DIRTY-CACHE-003).
+func TestLinkedWorktreesShareOneCleanSnapshot(t *testing.T) {
+	roots := linkedWorktrees(t)
+	common := mustEvalSymlinks(t, testGit(t, roots[1], "rev-parse", "--path-format=absolute", "--git-common-dir"))
+	directory := SnapshotDirectory(roots[0])
+	if directory != filepath.Join(common, "corvint", "index") {
+		t.Fatalf("DIRTY-CACHE-013: snapshot directory %s is not under the common directory %s", directory, common)
+	}
+	built, fresh := 0, 0
+	for _, root := range roots {
+		if SnapshotDirectory(root) != directory {
+			t.Fatalf("DIRTY-CACHE-013: %s resolves its own store %s", root, SnapshotDirectory(root))
+		}
+		if _, hit, err := ProbeSnapshot(context.Background(), root); err != nil {
+			t.Fatal(err)
+		} else if hit {
+			fresh++
+			continue
+		}
+		index, err := BuildForSnapshot(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := WriteSnapshot(index); err != nil {
+			t.Fatal(err)
+		}
+		built++
+	}
+	if built != 1 || fresh != 2 {
+		t.Fatalf("DIRTY-CACHE-013: built=%d fresh=%d, want 1 and 2", built, fresh)
+	}
+	snapshots, err := filepath.Glob(filepath.Join(directory, "*.gob"))
+	if err != nil || len(snapshots) != 1 {
+		t.Fatalf("DIRTY-CACHE-013: shared snapshots=%v err=%v", snapshots, err)
+	}
+	for _, root := range roots {
+		if _, err := os.Stat(filepath.Join(root, ".corvint", "index")); !os.IsNotExist(err) {
+			t.Fatalf("DIRTY-CACHE-013: %s holds a per-worktree store: %v", root, err)
+		}
+	}
+	before, err := os.ReadFile(snapshots[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, roots[1], "pkg/pkg.go", "package pkg\n\nfunc Run() {}\n\nfunc Extra() {}\n")
+	for position, root := range roots {
+		loaded, hit, err := LoadSnapshot(context.Background(), root)
+		if err != nil || !hit {
+			t.Fatalf("%s: hit=%v err=%v", root, hit, err)
+		}
+		want := []string{}
+		if position == 1 {
+			want = []string{"pkg/pkg.go"}
+		}
+		if loaded.Root != root || !reflect.DeepEqual(append([]string{}, loaded.DirtyPaths...), want) {
+			t.Fatalf("DIRTY-CACHE-003: %s root=%s dirty=%v, want %v", root, loaded.Root, loaded.DirtyPaths, want)
+		}
+	}
+	if after, err := os.ReadFile(snapshots[0]); err != nil || !bytes.Equal(after, before) {
+		t.Fatalf("IDX-SNAP-V0-005: a dirty read changed the shared clean base: err=%v", err)
+	}
+}
+
+// Writers in different worktrees race onto one key with no lock. Their bytes
+// differ across builds, so each publishes by rename, and every concurrent read
+// decodes one complete file, never a mix (DIRTY-CACHE-013).
+func TestConcurrentWorktreeWritersPublishCompleteSnapshotsByRename(t *testing.T) {
+	roots := linkedWorktrees(t)
+	indexes := make([]*Index, len(roots))
+	for position, root := range roots {
+		index, err := BuildForSnapshot(context.Background(), root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		indexes[position] = index
+	}
+	if _, err := WriteSnapshot(indexes[0]); err != nil {
+		t.Fatal(err)
+	}
+	failures := make(chan error, 64)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for round := 0; round < 8; round++ {
+			for _, root := range roots {
+				if _, hit, err := LoadSnapshot(context.Background(), root); err != nil || !hit {
+					failures <- fmt.Errorf("%s: hit=%v err=%v", root, hit, err)
+				}
+			}
+		}
+	}()
+	writers := make(chan error, len(indexes)*4)
+	for round := 0; round < 4; round++ {
+		for _, index := range indexes {
+			go func() {
+				_, err := WriteSnapshot(index)
+				writers <- err
+			}()
+		}
+	}
+	for range len(indexes) * 4 {
+		if err := <-writers; err != nil {
+			t.Fatal(err)
+		}
+	}
+	<-done
+	close(failures)
+	for err := range failures {
+		t.Errorf("DIRTY-CACHE-013: concurrent read missed: %v", err)
+	}
+	entries, err := os.ReadDir(SnapshotDirectory(roots[0]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, entry := range entries {
+		names = append(names, entry.Name())
+	}
+	if len(names) != 1 || !strings.HasSuffix(names[0], ".gob") {
+		t.Fatalf("DIRTY-CACHE-013: shared store after racing writers = %v", names)
+	}
+}
+
+// Eviction over the shared store keeps eight entries per worktree: the main
+// worktree and two linked ones keep 24, counting the snapshots every worktree
+// wrote, and the current snapshot survives (DIRTY-CACHE-007, DIRTY-CACHE-013).
+func TestSharedSnapshotStoreKeepsTheEntryBoundAcrossWorktrees(t *testing.T) {
+	roots := linkedWorktrees(t)
+	directory := SnapshotDirectory(roots[0])
+	if err := os.MkdirAll(directory, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for position := range 30 {
+		stale := filepath.Join(directory, fmt.Sprintf("sha1-stale%02d-engine.gob", position))
+		if err := os.WriteFile(stale, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		when := time.Unix(int64(position), 0)
+		if err := os.Chtimes(stale, when, when); err != nil {
+			t.Fatal(err)
+		}
+	}
+	index, err := BuildForSnapshot(context.Background(), roots[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := WriteSnapshot(index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshots, err := filepath.Glob(filepath.Join(directory, "*.gob"))
+	if err != nil || len(snapshots) != 3*snapshotKeep {
+		t.Fatalf("DIRTY-CACHE-013: shared store holds %d snapshots, want %d (err=%v)", len(snapshots), 3*snapshotKeep, err)
+	}
+	if _, err := os.Stat(receipt.Path); err != nil {
+		t.Fatalf("DIRTY-CACHE-007: current snapshot evicted: %v", err)
+	}
+}
+
+// The shared bound is eight per worktree up to snapshotKeepCap; the fallback
+// store keeps eight whatever sits beside it (DIRTY-CACHE-013).
+func TestSnapshotStoreBoundScalesByWorktreeUpToTheCap(t *testing.T) {
+	base := t.TempDir()
+	shared := snapshotStore{base: base, directory: filepath.Join(base, "corvint", "index"), shared: true}
+	fallback := snapshotStore{base: base, directory: filepath.Join(base, ".corvint", "index")}
+	for count, want := range map[int]int{0: snapshotKeep, 2: 3 * snapshotKeep, 7: snapshotKeepCap, 12: snapshotKeepCap} {
+		worktrees := filepath.Join(base, "worktrees")
+		if err := os.RemoveAll(worktrees); err != nil {
+			t.Fatal(err)
+		}
+		for entry := range count {
+			if err := os.MkdirAll(filepath.Join(worktrees, strconv.Itoa(entry)), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if got := shared.bound(); got != want {
+			t.Errorf("DIRTY-CACHE-013: %d linked worktrees bound %d, want %d", count, got, want)
+		}
+		if got := fallback.bound(); got != snapshotKeep {
+			t.Errorf("DIRTY-CACHE-013: fallback bound %d beside %d worktrees, want %d", got, count, snapshotKeep)
+		}
+	}
+}
+
+// A root whose common directory does not resolve from `.git` metadata (here a
+// symlinked `.git`) keeps the per-worktree `.corvint/index` store.
+func TestSnapshotStoreFallsBackToTheWorktreeWhenTheCommonDirectoryIsUnresolved(t *testing.T) {
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":     "module example.test/fallback\n\ngo 1.27.0\n",
+		"pkg/pkg.go": "package pkg\n\nfunc Run() {}\n",
+	})
+	if SnapshotDirectory(root) != filepath.Join(mustEvalSymlinks(t, root), ".git", "corvint", "index") {
+		t.Fatalf("DIRTY-CACHE-013: plain clone store = %s", SnapshotDirectory(root))
+	}
+	unlinkCommonDirectory(t, root)
+	if SnapshotDirectory(root) != filepath.Join(root, ".corvint", "index") {
+		t.Fatalf("DIRTY-CACHE-013: fallback store = %s", SnapshotDirectory(root))
+	}
+}
+
+// unlinkCommonDirectory replaces root's `.git` with a symlink to it, which
+// CommonDirectory refuses, so the store falls back to the worktree.
+func unlinkCommonDirectory(t *testing.T, root string) {
+	t.Helper()
+	moved := filepath.Join(t.TempDir(), "git")
+	if err := os.Rename(filepath.Join(root, ".git"), moved); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(moved, filepath.Join(root, ".git")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mustEvalSymlinks(t *testing.T, path string) string {
+	t.Helper()
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resolved
 }

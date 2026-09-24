@@ -307,7 +307,7 @@ Commands:
                  every evidence row; never writes.
   prove-observe  Record one prove document's verdict counts in the local
                  self-observation ledger; the only thing it writes.
-  index          Write the committed tree's index snapshot under .corvint/index/
+  index          Write the committed tree's index snapshot to .git/corvint/index/
                  for context to read; the only verb that writes there.
   batch          Answer several independent query, context, and impact requests
                  from one loaded index snapshot; never writes.
