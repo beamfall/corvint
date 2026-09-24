@@ -4,6 +4,15 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 Decision 0376: owner acceptance of DCW-V0-018/019, AFP-V0-021 and RCB-V0 intent
+
+The owner approved a listed set of pending acceptances ("approved to all", 2026-09-24). Decision
+0376 records the specification part: `DCW-V0-018` and `DCW-V0-019` (tickets V1-0142, V1-0173),
+`AFP-V0-021` (V1-0126), and the receipt bundle V0 intent with both V1-0197 ticket deviations
+confirmed (full-gate receipt instead of the gate ledger; directory only, no archive). `DCW-V0-016`
+was not in the approved list and stays proposed. Delivery status stays experimental in every
+spec; acceptance of intent is not qualification or promotion.
+
 ## 2026-09-24 V1-0191 MCPV0-024..026, decision 0374: task-review tools move to an opt-in descendant profile
 
 Finding: the first V1-0191 candidate added `corvint.context` and `corvint.cem.report` to the default
