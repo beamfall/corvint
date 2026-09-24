@@ -112,6 +112,20 @@ canary, leaves a child process after interruption, or creates treatment-only cri
 misses. Do not add worktree overlays unless a separately accepted contract defines explicit consent,
 snapshot identity, secret handling, and independent outcome gates.
 
+Measured evidence, linked worktrees (V1-0198, 2026-09-23, `docs/BUILD-LOG.md`): the native Go
+snapshot lives in each worktree's own `.corvint/index/`. That path is
+`internal/contextindex/snapshot.go:142-144@fe5dad2c` under the `--root` worktree, and its file
+name is `internal/contextindex/snapshot.go:166-167@74ceb0e3`. The "repository root" in
+`DIRTY-CACHE-002`'s key is therefore the worktree root. `script/measure-worktree-index-share.sh`
+created three linked worktrees at one commit, and each built and stored its own clean base: three
+`index --if-stale` builds, 72,803,003 bytes each, and no snapshot in the Git common dir. A query
+with no snapshot rebuilt in memory on every run. The host load average was about 80, so wall times
+are diagnostic only. The dirty view did behave as `DIRTY-CACHE-003` requires within each
+worktree. A tracked edit gave that worktree's query `mixed-worktree` without a rebuild. The
+snapshot bytes did not change, a sibling worktree's query stayed `fresh`, and the edited worktree
+returned to `fresh` after the restore. Sharing one clean base across linked worktrees is not
+delivered; BUG V1-0212 tracks it.
+
 ## Traceability
 
 The Python citations below remain candidate behavior only; decision 0012 R0
