@@ -60,9 +60,11 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    may remain modified.
 3. Export every input except `DOGFOOD_CITATIONS`, then run `make dogfood-change BASE=$BASE`. Expected
    when `BASE` carries no shared `.corvint/change.cem.json` (the normal case once a seal has moved it):
-   `dogfood-change: FAIL not-complete` listing only `cem-cite: citation-plan-not-provided` and
-   `cem-status: not-ready` (policy issue `max-unknown-exceeded`, because no hunk is cited yet); every
-   OCM row and `local-outcome` are produced, and `git status` shows `?? .corvint/change.cem.json`.
+   `dogfood-change: FAIL not-complete` listing only `cem-cite: citation-plan-not-provided`,
+   `cem-status: not-ready` (policy issue `max-unknown-exceeded`, because no hunk is cited yet) and
+   `local-outcome: record-index-failed`; every OCM row is produced, and `git status` shows
+   `?? .corvint/change.cem.json`. The recorder runs last, so it sees the sidecar this pass prepared
+   and refuses every pass whose sidecar is untracked or modified (`DCW-V0-015`).
    When `BASE` still tracks an earlier unsealed `.corvint/change.cem.json`, this pass replaces it (the
    `CEM-PILOT-018` mismatch line triggers `--replace`), `git status` shows ` M .corvint/change.cem.json`,
    and the modified tracked sidecar adds `ocm-prepare-001: excluded-artifact-mismatch`,
@@ -74,7 +76,12 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
    A plan written for an earlier map, such as nine rows kept after a later commit added a tenth
    hunk, refuses `cem-cite: citation-plan-map-mismatch` and cites nothing; rewrite it from the
-   current map.
+   current map. Citations add to the map and never replace it: `cem prepare` resumes a map whose
+   base and patch still match, keeping every earlier citation, and `cem cite` has no removal. To
+   correct a plan that was already cited, delete `.corvint/change.cem.json` and rerun, so prepare
+   writes a fresh map and only the corrected plan is cited. A pass that cites onto an already cited
+   map prints `cem-cite: the plan was added to citations the map already carried` with this
+   instruction (`DCW-V0-019`).
    Export `DOGFOOD_CITATIONS` and rerun `make dogfood-change BASE=$BASE`. `cem-cite` and, for an
    untracked sidecar, `cem-status` are now produced; the only remaining row is
    `local-outcome: record-index-failed`. A modified tracked sidecar additionally keeps the OCM and
@@ -102,7 +109,9 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `corvint ocm mark` (section 5) is still manual and is dropped by the next commit.
 8. Inspect what a reviewer sees: `corvint cem report` and `corvint ocm report` (section 6), and
    `corvint frontier --cem .corvint/change.cem.json --ocm .corvint/change.ocm.001.json
-   --expected-base $BASE --target HEAD`, whose exit 1 is a valid open frontier.
+   --expected-base $BASE --target HEAD`, whose exit 1 is a valid open frontier. These paths and
+   `--target HEAD` hold only before step 10; after the seal, `cem report` takes section 6's sealed
+   form (`.corvint/changes/<bind-sha>.cem.json` and `--target <bind-sha>`).
 9. Run `make dogfood-check BASE=$BASE`. Expected: CEM and OCM status JSON, then
    `dogfood-check: PASS`. A base whose committed CEM names a base outside its history also prints
    `dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable`; the note never
@@ -259,7 +268,7 @@ modified; the OCM maps and the report are ignored paths and do not make the work
 The first `dogfood-change` prepares and cites the tracked CEM. That CEM must itself be committed
 before strict status can accept it; the `cem/0.2` profile self-excludes the sidecar from its mapped
 patch so the commit does not create a recursive self-citation. The second `dogfood-change` resolves
-the new `HEAD`; prepare resumes and cite is idempotent, so the worktree stays clean while the report is
+the new `HEAD`; prepare resumes and re-citing the same plan is idempotent, so the worktree stays clean while the report is
 regenerated with `"complete": true`. `dogfood-change` reruns prepare with `--replace` only when
 prepare refused the existing map with the exact `CEM-PILOT-018` base-or-patch mismatch line; every
 other prepare failure, including a transient `git-timeout`, is reported as `cem-prepare`
@@ -482,9 +491,22 @@ mapped patch. Structural closure remains distinct from whether the project gate 
 
 ### 6. Review what another reviewer sees
 
+A reviewer receives the sealed branch. At the seal head the seal has moved the map to
+`.corvint/changes/<bind-sha>.cem.json`, where `<bind-sha>` is the bind commit, the seal's parent
+(`git rev-parse HEAD^`, also the name `dogfood-seal: PASS sealed=` prints). The map binds that
+commit, so the report targets it, not `HEAD`:
+
 ```console
-$ corvint cem report --map .corvint/change.cem.json \
-    --expected-base BASE_SHA --target HEAD --max-unknown 0 --max-mechanical 0
+$ corvint cem report --map .corvint/changes/BIND_SHA.cem.json \
+    --expected-base BASE_SHA --target BIND_SHA --max-unknown 0 --max-mechanical 0
+```
+
+Before the seal, at the bind commit, the author runs the same report with
+`--map .corvint/change.cem.json --target HEAD`. At the seal head that path no longer exists, and
+`--target HEAD` names the seal commit, so both forms fail there. The OCM maps are ignored local
+files, so only the author can report them, before the seal:
+
+```console
 $ corvint ocm report --map .corvint/change.ocm.json \
     --cem .corvint/change.cem.json --expected-base "$corvint_base_sha" \
     --target "$corvint_target_sha"

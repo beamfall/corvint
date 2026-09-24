@@ -38,6 +38,7 @@ type change struct {
 	citationStage        string
 	citationStageOwned   bool
 	citationCount        int
+	citedOver            bool
 	intentPublishTmp     string
 	localOutcomeSHA      string
 	contextAbstentionSHA string
@@ -100,9 +101,6 @@ func (c *change) run() int {
 	}
 	c.runStep("prechange-query", c.evidence+"/prechange-query.json", "query", "--task", task, "--limit", "1")
 	c.prechangeImpact()
-	// The recorder refuses a dirty tree and cem-prepare rewrites the tracked CEM,
-	// so the outcome is classified first and its row is reported in step order.
-	outcome := c.localOutcome(task)
 	c.prepare("cem-prepare", c.evidence+"/cem-prepare.json", func(status int, stderr []byte, reason string) bool {
 		return status == 2 && chomp(string(stderr)) == outdatedCEMMap
 	}, "cem", "prepare", "--base", c.base, "--target", c.target)
@@ -121,7 +119,10 @@ func (c *change) run() int {
 	}
 	c.runStep("cem-status", c.evidence+"/cem-status.json", "cem", "status", "--map", ".corvint/change.cem.json",
 		"--expected-base", c.base, "--target", c.target, "--max-unknown", strconv.Itoa(c.bootstrapUnknown), "--max-mechanical", "0")
-	c.rows = append(c.rows, outcome)
+	// The recorder refuses a dirty tree, so it runs last and sees the sidecar
+	// this pass prepared and cited: an untracked or modified sidecar reports
+	// record-index-failed and the pass is never complete (DCW-V0-015).
+	c.rows = append(c.rows, c.localOutcome(task))
 	c.renderReport()
 	return c.reportFailures()
 }
@@ -362,12 +363,30 @@ func (c *change) citeStep() {
 	case c.citationCount > 1 && exists(c.path(c.citationStage)):
 		status, reason = "NOT_PRODUCED", "citation-stage-exists"
 	default:
+		cited := citedHunks(c.path(".corvint/change.cem.json"))
 		status, reason = c.cite(plan, citeOutput)
+		c.citedOver = cited > 0 && status == "PRODUCED"
 	}
 	if c.cleanupCitationStage() != nil {
 		status, reason = "NOT_PRODUCED", "citation-stage-cleanup-failed"
 	}
 	c.addStep("cem-cite", status, reason)
+}
+
+// citedHunks counts the hunks of a map that no longer carry the prepared
+// "unknown" disposition, which cem prepare keeps when it resumes the map.
+func citedHunks(mapPath string) int {
+	data, err := readPrefix(mapPath, maxPlanBytes)
+	if err != nil {
+		return 0
+	}
+	cited := 0
+	for _, hunk := range mapHunks(data) {
+		if hunk["disposition"] != "unknown" {
+			cited++
+		}
+	}
+	return cited
 }
 
 func (c *change) cite(plan []byte, citeOutput string) (string, string) {
@@ -838,6 +857,11 @@ func (c *change) reportFailures() int {
 		if hint := c.fixHint(row); hint != "" {
 			c.say("    fix: %s\n", hint)
 		}
+	}
+	// cem cite only adds evidence and prepare resumes a matching map, so a
+	// corrected plan joins the earlier plan's citations (DCW-V0-019).
+	if c.citedOver {
+		c.say("  cem-cite: the plan was added to citations the map already carried and never replaces them; to correct an earlier plan, delete .corvint/change.cem.json and rerun make dogfood-change (docs/DOGFOOD.md step 4)\n")
 	}
 	query := readFile(c.evidence + "/prechange-query.stderr")
 	// The authority-start refusal is selected by the task wording, not by the

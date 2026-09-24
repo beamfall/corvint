@@ -76,7 +76,7 @@ is unavoidable in both cases.
 
 ## The three constraints any integration must respect
 
-1. **CEM 0.1 cannot cite evidence introduced in the same commit** (`docs/DOGFOOD.md:203-206@2d724bbb`). A flow
+1. **CEM 0.1 cannot cite evidence introduced in the same commit** (`docs/DOGFOOD.md:212-215@2d724bbb`). A flow
    where the agent writes the spec and the code together needs a two-commit shape or an explicit
    bootstrap-unknown. This is a hard ordering constraint, not a preference.
 2. **Intent identity is a byte span, and specs get edited.** `ocmIntent` pins
