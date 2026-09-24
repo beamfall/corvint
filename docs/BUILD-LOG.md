@@ -4,12 +4,21 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 Decision 0376: owner acceptance of DCW-V0-018/019, AFP-V0-021 and RCB-V0 intent
+
+The owner approved a listed set of pending acceptances ("approved to all", 2026-09-24). Decision
+0376 records the specification part: `DCW-V0-018` and `DCW-V0-019` (tickets V1-0142, V1-0173),
+`AFP-V0-021` (V1-0126), and the receipt bundle V0 intent with both V1-0197 ticket deviations
+confirmed (full-gate receipt instead of the gate ledger; directory only, no archive). `DCW-V0-016`
+was not in the approved list and stays proposed. Delivery status stays experimental in every
+spec; acceptance of intent is not qualification or promotion.
+
 ## 2026-09-24 decision 0375 PUB-V0-021: build number is provenance, not order (V1-0149)
 
 Ticket V1-0149 asked the owner to decide whether build numbers should restart from the public
 lineage or carry an offset, after decision 0331 restarted `origin/main`'s first-parent commit
 count and `origin/main` HEAD stamped build 12 while the already-published `0.7.0` prerelease is
-`Corvint 0.7.0 (build 46)` (`docs/BUILD-LOG.md:2031@231c2812`, the "V1-0017 decision 0360 /
+`Corvint 0.7.0 (build 46)` (`docs/BUILD-LOG.md:2040@231c2812`, the "V1-0017 decision 0360 /
 SOP-V0-003 / SOP-V0-009" entry above, 2026-09-23). A release-engineering expert review the owner
 requested (2026-09-24) verified every citing consumer checks the build number for shape or exact
 equality, never order (`conformance/release-artifact-v0/smoke.go:26@1bcee6df`,
@@ -22,7 +31,7 @@ that `docs/specs/vscode-extension-v0.md:164@2ced530d` already states the build n
 of the pin, that `SOP-V0-003` (`docs/specs/stable-operations-v0.md:77-85@feb4322f`) compares
 upgrade/cold-index packet bytes rather than build numbers, and that a real N-1 lifecycle upgrade
 from `0.6.0 (build 90)` into the installed `0.7.0 (build 46)` passed
-(`docs/BUILD-LOG.md:2014@b85d8a61`) despite the published build number going down
+(`docs/BUILD-LOG.md:2023@b85d8a61`) despite the published build number going down
 (`docs/RELEASE-NOTES.md:23,46@1528a86b`). The review also found a second, independent defect: the
 0.7.0 release commit `41f2b68934ce0d7b2ee6f0b22e31dab41ddffa25` was never on `origin/main`'s
 first-parent chain (`docs/RELEASE-NOTES.md:32-33@6a77dbd2` records the release source was a local

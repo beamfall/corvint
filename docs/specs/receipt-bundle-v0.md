@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-23
 Requirement prefix: `RCB-V0`
-Intent status: proposed (ticket V1-0197; two ticket deviations await owner confirmation)
+Intent status: accepted (decision 0376; ticket V1-0197 with two owner-confirmed deviations)
 Delivery status: experimental
 Authoritative inputs: `../../AGENTS.md` invariants 1, 2, 4 and 7, ticket V1-0197 (filed from the
 owner's review of external agent-governance tooling, accepted for 1.0), `cem-0.2-canonical-binding.md`
@@ -14,10 +14,10 @@ reader this slice sits beside.
 
 ## Agent digest
 - Claim: `corvint cem export` copies one change's CEM, witness, dogfood and gate receipts into a new directory whose manifest an offline script verifies.
-- Status: proposed (ticket V1-0197; two ticket deviations await owner confirmation) / experimental
+- Status: accepted (decision 0376; ticket V1-0197 with two owner-confirmed deviations) / experimental
 - Exists: `internal/receiptbundle`, `cmd/corvint/cem_export.go`, `script/verify-receipt-bundle.sh` and its `_test.sh` (`make receipt-bundle-verify-test`), the `cem export` read-only case.
-- Blocked on: owner confirmation of the two ticket deviations. Signing, publication, archives and governance adapters are non-goals.
-- Read next: Ticket deviations; RCB-V0-002 (manifest), RCB-V0-004 (inclusion) and RCB-V0-005 (output); Failure modes.
+- Blocked on: nothing for intent; the owner confirmed both ticket deviations (decision 0376). Signing, publication, archives and governance adapters are non-goals.
+- Read next: Ticket deviations (owner-confirmed); RCB-V0-002 (manifest), RCB-V0-004 (inclusion) and RCB-V0-005 (output); Failure modes.
 
 ## Human intent and scope
 
@@ -41,9 +41,9 @@ base revision and the target it is bound to. `cem` already carries read-only act
 compiles one report and its spec scopes it to that report. `dogfood` was rejected because it is
 the session-keyed, mutating completion-lease lifecycle.
 
-## Ticket deviations for owner confirmation
+## Ticket deviations (owner-confirmed)
 
-The intent stays `proposed` until the owner confirms two departures from ticket V1-0197:
+The owner confirmed two departures from ticket V1-0197 on 2026-09-24 (decision 0376):
 
 1. The ticket asks for the "gate ledger". The bundle carries the GOC-V0-010 full-gate receipt
    instead, because GL-V0-006 forbids any product path from reading gate-ledger records.

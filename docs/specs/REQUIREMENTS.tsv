@@ -54,7 +54,7 @@ AFP-V0-017	docs/specs/affected-plan-v0.md	303	(accepted by decision 0320) `.gith
 AFP-V0-018	docs/specs/affected-plan-v0.md	311	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
 AFP-V0-019	docs/specs/affected-plan-v0.md	326	(proposed technical contract implementing owner-requested issue #57)
 AFP-V0-020	docs/specs/affected-plan-v0.md	352	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
-AFP-V0-021	docs/specs/affected-plan-v0.md	363	(proposed; ticket V1-0126) Every dirty path, as in rule (c) whether or not a
+AFP-V0-021	docs/specs/affected-plan-v0.md	363	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -1589,7 +1589,7 @@ PSM-V0-010	docs/specs/playwright-suite-interaction-minimizer-v0.md	70	Every tria
 PSM-V0-011	docs/specs/playwright-suite-interaction-minimizer-v0.md	72	Missing or invalid runner qualification (#39), stability identity (#42), or
 PSM-V0-012	docs/specs/playwright-suite-interaction-minimizer-v0.md	75	Synthetic qualification MUST cover a true predecessor leak, a load-only failure,
 PSM-V0-013	docs/specs/playwright-suite-interaction-minimizer-v0.md	78	The closed `corvint-playwright-suite-interaction-live/0` CLI MUST require
-PUB-V0-001	docs/specs/public-release-v0.md	128	The current version tuple MUST move together to `0.7.0`, including native
+PUB-V0-001	docs/specs/public-release-v0.md	128	The current version tuple MUST move together to `0.8.0`, including native
 PUB-V0-002	docs/specs/public-release-v0.md	131	The existing native CLI archive gate MUST remain independent. An optional
 PUB-V0-003	docs/specs/public-release-v0.md	138	Companion build output MUST be outside the source checkouts, include exact
 PUB-V0-004	docs/specs/public-release-v0.md	153	The first companion target is macOS arm64. Qualification MUST exercise the
