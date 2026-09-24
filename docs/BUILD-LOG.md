@@ -4,6 +4,61 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 V1-0016 HLQ-V1-001..008 / PRS-V1-006: host lifecycle qualification on 0.8.0
+
+New contract `host-lifecycle-qualification-v1.md` and runner `conformance/host-lifecycle-v1`. The
+runner runs nine cases for each Core host tuple, in a private workspace whose `HOME`,
+`CLAUDE_CONFIG_DIR` and `CODEX_HOME` are fresh. Plugin install, disable and uninstall go through
+each host's own `plugin` commands. The hook cases run the command registered in the installed
+`hooks/hooks.json` with host-shaped payloads.
+
+All three decision 0373 Core host tuples passed 9/9 on darwin/arm64. The tuples were plain CLI,
+Codex CLI 0.153.2 with adapter 0.2.2, and Claude Code 2.1.267 with adapter 0.2.3. The current
+binary is from the published v0.8.0 archive (sha256 `95ae7446…a710e`) and the N-1 binary from the
+published v0.7.0 archive (sha256 `5fdbab20…b0bad`). Support stays FALLBACK.
+
+Findings while building the runner:
+
+- `exec.Command` resolves a bare name against the parent `PATH`, not `Cmd.Env`. The first draft
+  therefore ran the operator's `corvint` in every case: its upgrade case reported 0.8.0 on both
+  sides, and its uninstall case still found a binary. The runner now resolves names against the
+  private `PATH` (`HLQ-V1-003`).
+- `corvint help` and a Core refusal envelope are written to stderr.
+- Claude Code 2.1.267 does not delete an uninstalled plugin version. It marks the cache directory
+  with `.orphaned_at` and removes it later. The uninstall predicate accepts that marker and checks
+  every other file under the private `HOME` for Corvint residue.
+- An isolated Codex home has no hook trust and Codex has no plugin disable verb. Both are recorded
+  as known gaps.
+
+Supplementary live runs: Codex injected the envelope at SessionStart and UserPromptSubmit in a real
+session. Claude Code reported both hook responses, but its model call failed on an expired OAuth
+session. linux tuples `NOT_RUN`. Full gate NOT_RUN (owner policy).
+
+An independent review returned CONCERNS, and each finding was fixed in the runner or narrowed in the
+contract before the rerun:
+
+- The upgrade case claimed the current binary reads the N-1 index. A snapshot is keyed by the
+  binary that wrote it, so the current binary never reads it. The case now requires
+  `index --if-stale` to rebuild rather than report `state=fresh`.
+- The tuple identity is now enforced: an unreadable host, adapter or corvint version, a failed
+  fixture setup, a dirty `--source` (for a plugin host, also an ignored file in the package
+  directory), or an operator `corvint` beside the host or Git exits 2 before any case runs. The
+  report names the source revision.
+- The worktree is checked after the change case and the plugin frontier case as well as at
+  uninstall. The plain CLI frontier case works in a clone. The residue
+  scan covers the whole private `HOME` and reads every file.
+- Each hook event must register exactly one command. The enabled, disabled and version checks read
+  the plugin's own listing row.
+- The Codex Stop hook now receives `CODEX_THREAD_ID`, which differs from the payload session id.
+- A setup error, SIGINT or SIGTERM removes the workspace. A signal does not wait for a running
+  host child.
+- `HLQ-V1-006` now names what is checked: enveloped context receipts, `git status --porcelain`, and
+  the Git directory not compared.
+
+The rerun used plugin sources from a clean `e667812` checkout. The packages are unchanged since
+`df66aba4`. All three tuples passed 9/9 again. A second review's findings were fixed or narrowed
+the same way before the final run.
+
 ## 2026-09-24 V1-0223 ARTIFACT-RDY-V0-003 / decision 0380 (accepted): release tag names the notes commit
 
 `script/release-checklist` passed its tag row only when the release tag pointed at the gated HEAD,
