@@ -35,6 +35,14 @@ The `AHI-010` test in [`host-adapters.test.mjs`](host-adapters.test.mjs), run by
 status to the matching shipped declaration, so the two sides cannot drift apart unnoticed. It also
 requires the adapter version to equal the package's manifest version (decision 0244).
 
+Three row fields hold facts learned after a package build, so only the matrix carries them; a
+shipped declaration cannot record a test of its own build without a version bump that changes the
+tuple. `tier` is `core` for the two exact Core host rows of decision 0373 and `companion` for the
+rest. `lifecycleConformance` is the last `host-lifecycle-qualification-v1` result for that exact
+tuple, with its retained report, or `NOT_RUN`. `fullSupport: external-dependent` marks that FULL
+needs authority or identity the host API does not supply (decision 0373 item 6), so it cannot block
+Core. No row's result carries over to another host version, adapter version or OS.
+
 The matrix names two different things "degradation", and they are not one vocabulary:
 
 - **`receiptDegradationPolicy.recognised`** is the runtime wire vocabulary — codes Corvint Core emits

@@ -4,6 +4,23 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 V1-0005 AHI-010: host matrix names exact tuples, tiers and conformance (decision 0381 item 3)
+
+`integrations/compatibility.json` now names what decision 0381 item 3 asks for. The Codex CLI and
+Claude Code rows are `tier: core` on darwin-arm64 at Codex 0.153.2 with adapter 0.2.2 and Claude
+Code 2.1.267 with adapter 0.2.3, each with the 0.8.1 `host-lifecycle-qualification-v1` PASS report.
+The Codex row previously named 0.149.0 static manifest evidence and the Claude Code row adapter
+0.1.4 static evidence. Gemini CLI, OpenCode and Pi are `tier: companion` with `lifecycleConformance`
+`NOT_RUN`. Every row stays FALLBACK and carries `fullSupport: external-dependent`, because FULL needs
+authority or identity the host API does not supply (decision 0373 item 6).
+
+The global degradation `black-box-install-session-uninstall-conformance-not-run` is removed: it no
+longer holds for every host, and each row's `lifecycleConformance` now says which tuples ran.
+
+The shipped per-package declarations are unchanged. They still describe static validation, because
+recording a test of a package build inside that package needs a version bump, which changes the
+tuple the test ran against. `AHI-010` and `integrations/README.md` name the new row fields.
+
 ## 2026-09-24 V1-0016 HLQ-V1-008: host lifecycle rerun on 0.8.1 with retained reports
 
 The three decision 0373 Core tuples passed 9/9 on darwin/arm64 against the 0.8.1 release build
