@@ -62,6 +62,11 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 mkdir -p "$test_root/repo/script" "$test_root/repo/docs/specs" "$test_root/bin"
+# The scripts are wrappers over `corvint dogfood change|check` (DCW-V0-020); every fake binary
+# hands that subverb to this real driver, which runs the flow with the fake as its steps.
+(cd "$source_root" && GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local \
+  go build -o "$test_root/driver" ./cmd/corvint)
+export DOGFOOD_TEST_DRIVER="$test_root/driver"
 cp "$source_root/script/dogfood-change.sh" "$source_root/script/dogfood-check.sh" "$test_root/repo/script/"
 cp "$source_root/.gitignore" "$test_root/repo/"
 printf '%s\n' '0.4.0a4' > "$test_root/repo/VERSION"
@@ -78,11 +83,11 @@ git -C "$test_root/repo" init -q -b main
 git -C "$test_root/repo" -c user.name=t -c user.email=t@example.invalid add .
 git -C "$test_root/repo" -c user.name=t -c user.email=t@example.invalid commit -qm base
 base=$(git -C "$test_root/repo" rev-parse HEAD)
-clean_no_change_output=$(cd "$test_root/repo" && script/dogfood-check.sh "$base")
+clean_no_change_output=$(cd "$test_root/repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$base")
 test "$clean_no_change_output" = 'dogfood-check: PASS no-change-clean-worktree'
 printf 'changed\n' > "$test_root/repo/script/source.sh"
 uncommitted_check_status=0
-uncommitted_check_output=$(cd "$test_root/repo" && script/dogfood-check.sh "$base" 2>&1) || \
+uncommitted_check_output=$(cd "$test_root/repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$base" 2>&1) || \
   uncommitted_check_status=$?
 test "$uncommitted_check_status" = 2
 printf '%s\n' "$uncommitted_check_output" | \
@@ -98,6 +103,7 @@ if [[ ${1:-} == --version ]]; then
   printf 'Corvint 0.4.0a4 (build 12)\n'
   exit 0
 fi
+[[ ${1:-} != dogfood ]] || exec "$DOGFOOD_TEST_DRIVER" "$@"
 root=$2
 action=$3
 sub=${4:-}
@@ -156,6 +162,23 @@ if [[ $action == cem && $sub == status ]]; then
   exit 0
 fi
 if [[ $action == cem && $sub == prepare ]]; then
+  # The flow names its citation stage after its private run directory; plant the
+  # collision once that directory exists and before the first cite.
+  if [[ -n ${DOGFOOD_TEST_COLLISION:-} ]]; then
+    for run in "$(git -C "$root" rev-parse --absolute-git-dir)"/corvint/dogfood-change.*; do
+      path="$root/.corvint/.cem-citations.${run##*/}.json"
+      [[ ! -e $path && ! -L $path ]] || continue
+      case "$DOGFOOD_TEST_COLLISION" in
+        file) printf 'existing stage\n' > "$path" ;;
+        directory) mkdir "$path" ;;
+        fifo) mkfifo "$path" ;;
+        symlink) ln -s "$DOGFOOD_TEST_SENTINEL" "$path" ;;
+        dangling) ln -s "$DOGFOOD_TEST_SENTINEL.missing" "$path" ;;
+        *) exit 99 ;;
+      esac
+      printf '%s\n' "$path" > "$DOGFOOD_TEST_COLLISION_RECORD"
+    done
+  fi
   if [[ -n ${DOGFOOD_TEST_CEM_PREPARE_CODE:-} && $* != *--replace* ]]; then
     printf '{"code": "%s", "error": "transient", "ok": false}\n' "$DOGFOOD_TEST_CEM_PREPARE_CODE" >&2
     exit 2
@@ -454,11 +477,11 @@ set -m
   empty_anchor_output=$("${default_env[@]}" script/dogfood-check.sh "$base" 2>&1) || empty_anchor_status=$?
   test "$empty_anchor_status" = 2
   test "$empty_anchor_output" = 'dogfood-check: REFUSE anchor-ref-unavailable'
-  test "$(rg -c '^build -o .*/corvint/corvint (-trimpath )?./cmd/corvint$' "$test_root/default-go.log")" = 15
+  test "$(rg -c '^build -o .*/corvint/corvint (-trimpath )?./cmd/corvint$' "$test_root/default-go.log")" = 19
   # dogfood-check builds the base verifier inside a random private extraction directory; without
   # -trimpath that absolute path is embedded and baseVerifierSha256 changes on every run.
-  test "$(rg -c '^build -o .*/corvint/corvint(-base)? -trimpath ./cmd/corvint$' "$test_root/default-go.log")" = 6
-  test "$(rg -c '^build -o .*/corvint/corvint-base ' "$test_root/default-go.log")" = 3
+  test "$(rg -c '^build -o .*/corvint/corvint(-base)? -trimpath ./cmd/corvint$' "$test_root/default-go.log")" = 14
+  test "$(rg -c '^build -o .*/corvint/corvint-base ' "$test_root/default-go.log")" = 7
 ) &
 phase_jobs="$phase_jobs $!"
 (
@@ -483,8 +506,8 @@ phase_jobs="$phase_jobs $!"
   test "$(rg -c ' ocm status ' "$test_root/corvint.log")" = 2
   test "$(rg -c ' dogfood-observe ' "$test_root/corvint.log")" = "$(rg -c '"name":' .corvint/dogfood-report.json)"
   dirty_check_status=0
-  dirty_check_output=$(CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" \
-    script/dogfood-check.sh "$base" 2>&1) || dirty_check_status=$?
+  # The wrapper builds its verifiers before the flow refuses the dirty tree.
+  dirty_check_output=$(run_dogfood_check "$base" 2>&1) || dirty_check_status=$?
   test "$dirty_check_status" = 2
   printf '%s\n' "$dirty_check_output" | rg -q '^dogfood-check: REFUSE dirty-worktree$'
   git -c user.name=t -c user.email=t@example.invalid add .corvint/change.cem.json
@@ -519,7 +542,7 @@ phase_jobs="$phase_jobs $!"
   wrong_output=$(CORVINT_BIN="$test_root/bin/wrong-corvint" run_dogfood_check "$base" 2>&1) || \
     wrong_status=$?
   test "$wrong_status" = 2
-  test "$wrong_output" = $'dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable\ndogfood-check: REFUSE corvint-version-mismatch expected=0.4.0a4'
+  test "$wrong_output" = 'dogfood-check: REFUSE corvint-version-mismatch expected=0.4.0a4'
 
   no_source_base=$(git rev-parse HEAD)
   printf '\nsecond-local-only\n' >> .gitignore
@@ -812,7 +835,6 @@ phase_jobs="$phase_jobs $!"
 (
 unbound_repo="$test_root/unbound-repo"
 mkdir -p "$unbound_repo/script" "$unbound_repo/.corvint"
-cp "$source_root/script/dogfood-check.sh" "$unbound_repo/script/"
 unbound_commit() {
   printf '%s\n' "$1" >> "$unbound_repo/work.txt"
   git -C "$unbound_repo" -c user.name=t -c user.email=t@example.invalid add -A
@@ -826,19 +848,18 @@ unbound_s1=$(unbound_commit s1)
 unbound_c1=$(unbound_commit c1)
 unbound_c2=$(unbound_commit c2)
 unbound_commit c3 >/dev/null
-unbound_gap=$(cd "$unbound_repo" && script/dogfood-check.sh "$unbound_c2" 2>&1) || :
+unbound_gap=$(cd "$unbound_repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$unbound_c2" 2>&1) || :
 printf '%s\n' "$unbound_gap" | rg -q "^dogfood-check: NOTE unbound-commits count=2 window=$unbound_b0\\.\\.$unbound_c2\$"
 test "$(printf '%s\n' "$unbound_gap" | rg '^  unbound ')" = "$(printf '  unbound %s\n' "$unbound_c2" "$unbound_c1")"
-unbound_none=$(cd "$unbound_repo" && script/dogfood-check.sh "$unbound_s1" 2>&1) || :
+unbound_none=$(cd "$unbound_repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$unbound_s1" 2>&1) || :
 if printf '%s\n' "$unbound_none" | rg -q 'unbound'; then exit 1; fi
-unbound_absent=$(cd "$unbound_repo" && script/dogfood-check.sh "$unbound_b0" 2>&1) || :
+unbound_absent=$(cd "$unbound_repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$unbound_b0" 2>&1) || :
 printf '%s\n' "$unbound_absent" | rg -q '^dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-absent$'
 
 # DOGFOOD-013/014: a seal commit is covered by its bind commit, a sealed HEAD is
 # refused, and the newest seal names the previous binding when BASE has no CEM.
 sealed_repo="$test_root/sealed-repo"
 mkdir -p "$sealed_repo/script" "$sealed_repo/.corvint"
-cp "$source_root/script/dogfood-check.sh" "$source_root/script/dogfood-seal.sh" "$sealed_repo/script/"
 sealed_commit() {
   printf '%s\n' "$1" >> "$sealed_repo/work.txt"
   git -C "$sealed_repo" -c user.name=t -c user.email=t@example.invalid add -A
@@ -854,13 +875,13 @@ git -C "$sealed_repo" mv .corvint/change.cem.json ".corvint/changes/$sealed_s1.c
 git -C "$sealed_repo" -c user.name=t -c user.email=t@example.invalid commit -qm seal
 sealed_z1=$(git -C "$sealed_repo" rev-parse HEAD)
 sealed_head_status=0
-sealed_head=$(cd "$sealed_repo" && script/dogfood-check.sh "$sealed_b0" 2>&1) || sealed_head_status=$?
+sealed_head=$(cd "$sealed_repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$sealed_b0" 2>&1) || sealed_head_status=$?
 test "$sealed_head_status" = 2
 printf '%s\n' "$sealed_head" | rg -q '^dogfood-check: REFUSE sealed-head$'
 # DCW-V0-017: a reviewer's clone of the bind commit has no report and is told what to verify.
 git -C "$sealed_repo" checkout -q --detach "$sealed_s1"
 reviewer_status=0
-reviewer=$(cd "$sealed_repo" && script/dogfood-check.sh "$sealed_b0" 2>&1) || reviewer_status=$?
+reviewer=$(cd "$sealed_repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$sealed_b0" 2>&1) || reviewer_status=$?
 test "$reviewer_status" = 1
 printf '%s\n' "$reviewer" | rg -Fxq -- 'dogfood-check: FAIL dogfood-report-missing'
 printf '%s\n' "$reviewer" | rg -Fxq -- "  review: a reviewer without the author report: verifier agreement is author-only evidence (docs/DOGFOOD.md step 11); verify the bound CEM instead: corvint cem verify --map .corvint/change.cem.json --expected-base $sealed_b0 --target $sealed_s1"
@@ -868,11 +889,11 @@ git -C "$sealed_repo" checkout -q main
 sealed_c1=$(sealed_commit c1)
 sealed_c2=$(sealed_commit c2)
 sealed_commit c3 >/dev/null
-sealed_gap=$(cd "$sealed_repo" && script/dogfood-check.sh "$sealed_c2" 2>&1) || :
+sealed_gap=$(cd "$sealed_repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$sealed_c2" 2>&1) || :
 printf '%s\n' "$sealed_gap" | rg -q "^dogfood-check: NOTE unbound-commits count=2 window=$sealed_b0\\.\\.$sealed_c2\$"
 test "$(printf '%s\n' "$sealed_gap" | rg '^  unbound ')" = "$(printf '  unbound %s\n' "$sealed_c2" "$sealed_c1")"
 if printf '%s\n' "$sealed_gap" | rg -q '^  review:'; then exit 1; fi
-sealed_none=$(cd "$sealed_repo" && script/dogfood-check.sh "$sealed_z1" 2>&1) || :
+sealed_none=$(cd "$sealed_repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$sealed_z1" 2>&1) || :
 if printf '%s\n' "$sealed_none" | rg -q 'unbound'; then exit 1; fi
 # A rename of a bound CEM to any other name is not a seal and is not covered.
 printf '{\n  "baseRevision": "%s",\n  "spec": "cem/0.2"\n}\n' "$sealed_c2" > "$sealed_repo/.corvint/change.cem.json"
@@ -881,7 +902,7 @@ git -C "$sealed_repo" mv .corvint/change.cem.json .corvint/changes/other.cem.jso
 git -C "$sealed_repo" -c user.name=t -c user.email=t@example.invalid commit -qm misnamed
 sealed_c4=$(sealed_commit c4)
 sealed_commit c5 >/dev/null
-sealed_other=$(cd "$sealed_repo" && script/dogfood-check.sh "$sealed_c4" 2>&1) || :
+sealed_other=$(cd "$sealed_repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$sealed_c4" 2>&1) || :
 printf '%s\n' "$sealed_other" | rg -q '^dogfood-check: NOTE unbound-commits NOT_OBSERVED window-cem-base-unavailable$'
 
 # dogfood-seal commits only after the check passes, as one exact rename.
@@ -916,27 +937,7 @@ citation_repo="$test_root/citation-repo"
 git clone -q "$test_root/repo" "$citation_repo"
 citation_evidence=$(git -C "$citation_repo" rev-parse --absolute-git-dir)/corvint
 citation_artifacts=${DOGFOOD_TEST_ARTIFACTS:-$test_root/citation-artifacts}
-mkdir -p "$citation_artifacts" "$test_root/collision-bin"
-real_mktemp=$(command -v mktemp)
-cat > "$test_root/collision-bin/mktemp" <<'EOF_COLLISION'
-#!/usr/bin/env bash
-set -eu
-result=$("$DOGFOOD_TEST_REAL_MKTEMP" "$@")
-if [[ -n ${DOGFOOD_TEST_COLLISION:-} && $* == *dogfood-change.XXXXXX* ]]; then
-  path="$DOGFOOD_TEST_COLLISION_ROOT/.corvint/.cem-citations.${result##*/}.json"
-  case "$DOGFOOD_TEST_COLLISION" in
-    file) printf 'existing stage\n' > "$path" ;;
-    directory) mkdir "$path" ;;
-    fifo) mkfifo "$path" ;;
-    symlink) ln -s "$DOGFOOD_TEST_SENTINEL" "$path" ;;
-    dangling) ln -s "$DOGFOOD_TEST_SENTINEL.missing" "$path" ;;
-    *) exit 99 ;;
-  esac
-  printf '%s\n' "$path" > "$DOGFOOD_TEST_COLLISION_RECORD"
-fi
-printf '%s\n' "$result"
-EOF_COLLISION
-chmod +x "$test_root/collision-bin/mktemp"
+mkdir -p "$citation_artifacts"
 printf 'outside sentinel\n' > "$citation_artifacts/sentinel"
 DOGFOOD_TEST_LOG=/dev/null "$test_root/bin/corvint" --root "$citation_artifacts/prepared-root" cem prepare
 cp "$citation_artifacts/prepared-root/.corvint/change.cem.json" "$citation_artifacts/prepared.json"
@@ -963,8 +964,7 @@ run_citation_case() {
   git -C "$citation_repo" checkout -- .corvint/change.cem.json
   rm -f "$citation_repo/.corvint/dogfood-report.json"
   : > "$citation_case/cites.tsv"
-  citation_env=(env PATH="$test_root/collision-bin:$PATH" DOGFOOD_TEST_REAL_MKTEMP="$real_mktemp"
-    DOGFOOD_TEST_COLLISION="${citation_collision:-}" DOGFOOD_TEST_COLLISION_ROOT="$citation_repo"
+  citation_env=(env DOGFOOD_TEST_COLLISION="${citation_collision:-}"
     DOGFOOD_TEST_ALLOW_STAGE_COLLISION="${citation_collision:-}"
     DOGFOOD_TEST_COLLISION_RECORD="$citation_case/collision-path"
     DOGFOOD_TEST_SENTINEL="$citation_artifacts/sentinel"

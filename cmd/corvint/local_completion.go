@@ -49,6 +49,9 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 	if len(args) > 0 && args[0] == "event" {
 		return runLocalCompletionEvent(ctx, root, args[1:], stdin, stdout, stderr)
 	}
+	if len(args) > 0 && dogfoodFlowOptions[args[0]] != nil {
+		return runDogfoodFlow(ctx, root, args, stdout, stderr)
+	}
 	if len(args) == 0 {
 		return emitLocalCompletionFailure(stderr, "local-completion-action-required")
 	}
@@ -164,7 +167,9 @@ func localCompletionPublicCommand(ctx context.Context, root string, args []strin
 	case "ocm":
 		return runOCM(ctx, root, args[1:], stdout, stderr)
 	}
-	return 2
+	// The in-process dogfood flow runs every other public step as this binary
+	// would (LCP-V0-014).
+	return runContext(ctx, append([]string{"--root", root}, args...), strings.NewReader(""), stdout, stderr)
 }
 
 func emitLocalCompletionFailure(stderr io.Writer, code string) int {

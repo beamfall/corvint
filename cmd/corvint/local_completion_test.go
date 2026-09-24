@@ -12,9 +12,10 @@ import (
 	"github.com/Beamfall/corvint/internal/localcompletion"
 )
 
-// This fixture compiles the actual native verifier from two real Git trees and
-// runs the repository's actual coordinator/checker scripts. No fake gate or
-// verifier result supplies its positive completion verdict.
+// This fixture runs the actual in-process coordinator and checker (LCP-V0-014)
+// over a real Git tree that still carries the verifier source and the former
+// scripts, which finish must no longer read. No fake gate or verifier result
+// supplies its positive completion verdict.
 func localCompletionRepo(t *testing.T) (string, string) {
 	t.Helper()
 	root, err := filepath.EvalSymlinks(t.TempDir())

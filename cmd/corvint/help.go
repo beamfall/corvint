@@ -230,6 +230,7 @@ Usage:
   corvint [--root PATH] harness event OPTIONS
   corvint adapter COMMAND [OPTIONS]
   corvint [--root PATH] dogfood COMMAND OPTIONS
+  corvint [--root PATH] dogfood (change | check | seal) BASE
   corvint [--root PATH] dogfood-ocm status --expected-base REV --target REV
   corvint [--root PATH] cem ACTION OPTIONS
   corvint [--root PATH] ocm (status | verify | report) OPTIONS
@@ -282,7 +283,8 @@ Commands:
   impact         Compile path, untracked-file, or committed-range impact evidence.
   harness event  Compile one supported agent-harness lifecycle event.
   adapter        Run one bounded native host adapter.
-  dogfood        Enroll and complete an explicit local evidence workflow.
+  dogfood        Enroll and complete an explicit local evidence workflow, or run
+                 the daily change, check and seal from this binary.
   dogfood-ocm    Verify the private ordered set of dogfood OCM maps.
   cem            Change Evidence Map producer/verifier: begin, prepare, cite,
                  mark, status, verify, report, and export.
@@ -1120,6 +1122,11 @@ Usage:
   corvint [--root PATH] dogfood cancel [--session-key HASH]
   corvint [--root PATH] dogfood handoff [--anchors "ANCHOR..."] [--session-key HASH]
   corvint [--root PATH] dogfood handoff --receipt FILE [--session-key HASH]
+  corvint [--root PATH] dogfood change [--corvint-bin PATH] BASE
+  corvint [--root PATH] dogfood check [--base-verifier PATH] [--tree-verifier PATH]
+    [--override-verifier PATH] BASE
+  corvint [--root PATH] dogfood seal [--base-verifier PATH] [--tree-verifier PATH]
+    [--override-verifier PATH] BASE
 
 A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
 and optional allowCemSidecarOnlyReuse (false by default). Session keys are 64 hex
@@ -1141,6 +1148,17 @@ degradations. With --receipt FILE (that emitted document) it re-resolves the sam
 packet and prints its exact bytes as packetBase64, or exits 1 reporting the exact
 root, revision, enrollment, anchor and packet drift and withholds the recompiled
 packet. The receipt grants no authority.
+
+change, check and seal run the daily path of docs/DOGFOOD.md in the current Git
+repository, which needs no Corvint script, VERSION file or source tree. change
+writes the private evidence under the Git directory and .corvint/change.cem.json
+and .corvint/dogfood-report.json; check verifies the committed binding; seal
+checks, then commits the CEM rename to .corvint/changes/COMMIT.cem.json. Steps and
+verifiers run as this executable unless an option names another one; this binary
+never builds or version-checks one. DOGFOOD_TASK, DOGFOOD_VERIFY,
+DOGFOOD_VERIFY_FILE, DOGFOOD_OUTCOME, DOGFOOD_INTENTS_FILE, DOGFOOD_CITATIONS,
+DOGFOOD_OCM_LINKS and DOGFOOD_EXCEPTION keep their script meanings. The root, the
+current directory unless --root names one, must be the worktree top level.
 `
 
 // rootPreambleValue reports whether arguments[index] may be consumed as the value of a bare `--root`
