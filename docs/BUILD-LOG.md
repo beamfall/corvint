@@ -4,6 +4,34 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 TCP-V0-048, decisions 0375/0377/0378: requirement-definitions and line-citations checks repaired on main
+
+`origin/main` at `e667812` failed `requirement-definitions-check` and `line-citations-check` with no
+change in flight.
+
+`TCP-V0-048` was not defined twice. Its one clause is the numbered requirement at
+`task-context-packet-v0.md` line 792, added with `TCP-V0-049` and `TCP-V0-050` by `b705bf3`
+(V1-0219, decision 0377), and `REQUIREMENTS.tsv` already pointed there. The same commit began an
+acceptance-evidence paragraph with `TCP-V0-048..050 (proposed`, and the checker's definition pattern
+(an ID at line start followed by `:` or `.`) reads `TCP-V0-048.` as a second clause. The paragraph
+now opens `Proposed TCP-V0-048..050`; no ID changed.
+
+Five citations in decisions 0375, 0377 and 0378 did not resolve. Each was reread before repinning:
+
+- 0375's two `docs/BUILD-LOG.md` citations: both cited lines are unchanged in the "V1-0017 decision
+  0360" entry and moved down with later prepends, so the anchors stay and the line numbers move.
+- 0375's `stable-operations-v0.md:77-85`: `SOP-V0-003` is byte-identical at 84-92 after V1-0190
+  inserted the current N-1 evidence paragraph above it, so the anchor `@feb4322f` stays.
+- 0377's `taskcontext.go:237-283` is still the whole `compile` function; it gains `@fc3cbfcb`.
+- 0378 cited `packages/opencode/src/project/project.ts:217` in `sst/opencode`, a file this
+  repository does not track, so no content anchor can resolve. Line 217 at OpenCode tag `v1.18.31`
+  (commit `014614d35b39`, the installed version this log records for the OpenCode MCP check) sets
+  `worktree` to `/` for a global project with no VCS. The decision now names that tag and commit in
+  prose instead of a `path:line` token.
+
+Gates: `make requirement-definitions-check line-citations-check spec-requirements-check` and
+`GOTOOLCHAIN=local go test ./internal/specindex/` passed. `make gate` NOT_RUN by owner instruction.
+
 ## 2026-09-24 V1-0190 SOP-V0-003 / PRS-V1-002: 0.7.0 to 0.8.0 N-1 upgrade qualification
 
 `script/check-install-lifecycle.sh` at `3cd62ca9`, with `CORVINT_LIFECYCLE_ARCHIVE` set to the
