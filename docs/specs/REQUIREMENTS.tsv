@@ -1589,32 +1589,32 @@ PSM-V0-010	docs/specs/playwright-suite-interaction-minimizer-v0.md	70	Every tria
 PSM-V0-011	docs/specs/playwright-suite-interaction-minimizer-v0.md	72	Missing or invalid runner qualification (#39), stability identity (#42), or
 PSM-V0-012	docs/specs/playwright-suite-interaction-minimizer-v0.md	75	Synthetic qualification MUST cover a true predecessor leak, a load-only failure,
 PSM-V0-013	docs/specs/playwright-suite-interaction-minimizer-v0.md	78	The closed `corvint-playwright-suite-interaction-live/0` CLI MUST require
-PUB-V0-001	docs/specs/public-release-v0.md	98	The current version tuple MUST move together to `0.7.0`, including native
-PUB-V0-002	docs/specs/public-release-v0.md	101	The existing native CLI archive gate MUST remain independent. An optional
-PUB-V0-003	docs/specs/public-release-v0.md	108	Companion build output MUST be outside the source checkouts, include exact
-PUB-V0-004	docs/specs/public-release-v0.md	123	The first companion target is macOS arm64. Qualification MUST exercise the
-PUB-V0-005	docs/specs/public-release-v0.md	127	Every console mutation and external command MUST meet the browser-origin,
-PUB-V0-006	docs/specs/public-release-v0.md	130	Live test support MUST automatically track supported unit and E2E execution
-PUB-V0-007	docs/specs/public-release-v0.md	135	Release notes MUST identify experimental features, qualified platforms,
-PUB-V0-008	docs/specs/public-release-v0.md	138	Final source, CEM and OCM MUST be frozen before canonical gates and exact-target
-PUB-V0-009	docs/specs/public-release-v0.md	141	Automatic documentation MUST maintain a useful source-bound human page on
-PUB-V0-010	docs/specs/public-release-v0.md	145	Task manager MUST expose a roadmap of its existing tickets with milestones,
-PUB-V0-011	docs/specs/public-release-v0.md	151	`cmd/corvint-companion-release` (package `internal/companionrelease`) MUST imple
-PUB-V0-012	docs/specs/public-release-v0.md	170	Source used for the bundle's source archives MUST be read twice by independent
-PUB-V0-013	docs/specs/public-release-v0.md	181	Each of the nine bundled binaries (`corvint`, `corvint-console`,
-PUB-V0-014	docs/specs/public-release-v0.md	200	Each component's source archive and the assembled bundle archive MUST each be
-PUB-V0-015	docs/specs/public-release-v0.md	217	An installed smoke test MUST run against the exact extracted bundle bytes before
-PUB-V0-016	docs/specs/public-release-v0.md	246	The interactive alpha qualification MUST freeze fixture source, dependencies,
-PUB-V0-017	docs/specs/public-release-v0.md	268	First-use guidance MUST provide the experimental `features`, `overview` and
-PUB-V0-018	docs/specs/public-release-v0.md	272	PR test selection MUST execute only the supported, independently qualified Go
-PUB-V0-019	docs/specs/public-release-v0.md	278	The shipped witness CLI and release-publication receipt reader MUST ignore Git g
-PUB-V0-020	docs/specs/public-release-v0.md	283	Core installed qualification for companion profile `/2` MUST freeze fixture
-PUB-V0-021	docs/specs/public-release-v0.md	308	Every new Corvint version created on main MUST carry a new build number (owner
-PUB-V0-022	docs/specs/public-release-v0.md	315	A versioned release candidate MUST be assembled only from the closed seven-file
-PUB-V0-023	docs/specs/public-release-v0.md	321	The candidate MUST carry a closed machine-readable manifest with the exact versi
-PUB-V0-024	docs/specs/public-release-v0.md	330	The retained qualification receipt MUST use only `PASS`, `FAIL` and `NOT_RUN`, w
-PUB-V0-025	docs/specs/public-release-v0.md	336	The candidate installer MUST reverify the closed candidate, select only the exac
-PUB-V0-026	docs/specs/public-release-v0.md	350	Candidate assembly or installation MUST fail without retained output when any co
+PUB-V0-001	docs/specs/public-release-v0.md	128	The current version tuple MUST move together to `0.7.0`, including native
+PUB-V0-002	docs/specs/public-release-v0.md	131	The existing native CLI archive gate MUST remain independent. An optional
+PUB-V0-003	docs/specs/public-release-v0.md	138	Companion build output MUST be outside the source checkouts, include exact
+PUB-V0-004	docs/specs/public-release-v0.md	153	The first companion target is macOS arm64. Qualification MUST exercise the
+PUB-V0-005	docs/specs/public-release-v0.md	157	Every console mutation and external command MUST meet the browser-origin,
+PUB-V0-006	docs/specs/public-release-v0.md	160	Live test support MUST automatically track supported unit and E2E execution
+PUB-V0-007	docs/specs/public-release-v0.md	165	Release notes MUST identify experimental features, qualified platforms,
+PUB-V0-008	docs/specs/public-release-v0.md	168	Final source, CEM and OCM MUST be frozen before canonical gates and exact-target
+PUB-V0-009	docs/specs/public-release-v0.md	171	Automatic documentation MUST maintain a useful source-bound human page on
+PUB-V0-010	docs/specs/public-release-v0.md	175	Task manager MUST expose a roadmap of its existing tickets with milestones,
+PUB-V0-011	docs/specs/public-release-v0.md	181	`cmd/corvint-companion-release` (package `internal/companionrelease`) MUST imple
+PUB-V0-012	docs/specs/public-release-v0.md	200	Source used for the bundle's source archives MUST be read twice by independent
+PUB-V0-013	docs/specs/public-release-v0.md	211	Each of the nine bundled binaries (`corvint`, `corvint-console`,
+PUB-V0-014	docs/specs/public-release-v0.md	230	Each component's source archive and the assembled bundle archive MUST each be
+PUB-V0-015	docs/specs/public-release-v0.md	247	An installed smoke test MUST run against the exact extracted bundle bytes before
+PUB-V0-016	docs/specs/public-release-v0.md	276	The interactive alpha qualification MUST freeze fixture source, dependencies,
+PUB-V0-017	docs/specs/public-release-v0.md	298	First-use guidance MUST provide the experimental `features`, `overview` and
+PUB-V0-018	docs/specs/public-release-v0.md	302	PR test selection MUST execute only the supported, independently qualified Go
+PUB-V0-019	docs/specs/public-release-v0.md	308	The shipped witness CLI and release-publication receipt reader MUST ignore Git g
+PUB-V0-020	docs/specs/public-release-v0.md	313	Core installed qualification for companion profile `/2` MUST freeze fixture
+PUB-V0-021	docs/specs/public-release-v0.md	338	Every new Corvint version created on main MUST carry a new build number (owner
+PUB-V0-022	docs/specs/public-release-v0.md	345	A versioned release candidate MUST be assembled only from the closed seven-file
+PUB-V0-023	docs/specs/public-release-v0.md	351	The candidate MUST carry a closed machine-readable manifest with the exact versi
+PUB-V0-024	docs/specs/public-release-v0.md	360	The retained qualification receipt MUST use only `PASS`, `FAIL` and `NOT_RUN`, w
+PUB-V0-025	docs/specs/public-release-v0.md	366	The candidate installer MUST reverify the closed candidate, select only the exac
+PUB-V0-026	docs/specs/public-release-v0.md	380	Candidate assembly or installation MUST fail without retained output when any co
 PWP-V0-001	docs/specs/playwright-external-provider-v0.md	23	External mode requires readiness URL and declared app identity, rejects server c
 PWP-V0-002	docs/specs/playwright-external-provider-v0.md	24	A controlled config imports the original, disables webServer and selects the pro
 PWP-V0-003	docs/specs/playwright-external-provider-v0.md	25	Each outcome identifies source location, full title, project name, resolved brow

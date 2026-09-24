@@ -35,8 +35,9 @@ Darwin/Linux, full, artifact, installed-host and sealed workflow gates, includin
 six evidence classes. `PUB-V0-025..026` retain immutable version/platform candidate
 storage, refusal to replace an existing path, and fail-closed verification. Operator-
 approved local PATH activation is a separate selection of an installed binary; it
-does not replace or mutate retained candidate artifacts. The existing combined alpha
-manifest reader and installer are unchanged and do not admit a Core-only packet.
+does not replace or mutate retained candidate artifacts. The candidate reader and
+installer also admit the separate Core-only profile below (V1-0125); the combined alpha
+profile is unchanged.
 
 Freeze product candidate `T` before judged runs: its version/build, commit/tree,
 binary, source archive and proof maps identify the exact tested product. Later
@@ -72,11 +73,40 @@ qualifies or promotes anything.
 - `PUB-V0-004`, `-005`, `-006`, `-009`, `-010`, `-020`, the companion input of `PUB-V0-022` and the
   2026-09-16 clause "missing core installed ... evidence blocks release" bind only the companion
   profile (`PRS-V1-009`). Core installed qualification is the native archive lifecycle of
-  `stable-operations-v0.md` plus the three Core jobs on the exact installed bytes. The combined
-  manifest reader and installer do not admit a Core-only packet yet; until that V1-0007 or V1-0018
-  follow-up exists no Core candidate can be produced.
+  `stable-operations-v0.md` plus the three Core jobs on the exact installed bytes. The candidate
+  reader and installer admit a Core-only packet (V1-0125, next section), but the assembler still
+  requires companion input, so no Core candidate can be produced until that follow-up exists.
 - Corvint 1.0 makes no interoperability claim for CEM, OCM or frontier (`PRS-V1-007`); V1-0014 is
   post-1.0 and `make interop-gate` with the canonical vectors remains the Core check.
+
+## Core-only candidate reader and installer (V1-0125)
+
+Under `PRS-V1-005`, `internal/releasecandidate` admits a second closed manifest profile,
+`corvint-core-release-candidate/0`, beside the unchanged combined
+`corvint-qualified-release-candidate/0`. The profile selects a closed inventory; nothing else
+changes the reader's fail-closed checks.
+
+- `MANIFEST.json` keeps the same closed fields. `sources` is exactly `[corvint]`. The closed role set
+  is four `core-archive`, one each of `core-gate-checksums`, `core-gate-report`, `corvint-source`,
+  `qualification-receipt` and `release-notes`. No companion or Corvint Tasks role is admitted.
+  Each single-file role is bound to the path the assembler writes (`evidence/core-SHA256SUMS`,
+  `evidence/core-verification-report.json`, `source/corvint-src.tar.gz`, `QUALIFICATION.json`,
+  `README.md`); a role on any other path is refused.
+- Every Core check of the combined profile still applies: the `SHA256SUMS` and asset inventories
+  are closed and digest/size exact, the core gate report is an exact PASS reproducibility report
+  bound to the manifest commit/tree/toolchain, every listed core archive matches both the gate
+  checksums and the report, and the exact host binary passes the isolated `--version` probe. The
+  `PUB-V0-023` enumeration bounds are unchanged.
+- `QUALIFICATION.json` keeps `corvint-release-qualification/0` and its 28 rows. `core-archive` is
+  PASS on all four platforms and every other row is `NOT_RUN`. Every `companion-bundle` row carries
+  the evidence text `companion not present`. The reader refuses any other status, so an absent
+  companion is never reported or treated as verified.
+- `InstallCore` is unchanged: it installs the host core archive only after that verification.
+- Limits: the Core-only `source/corvint-src.tar.gz` is bound by digest only. The combined profile
+  binds it to the companion verifier's commit/tree, and no Core-only equivalent exists yet. Legal
+  provenance and installed-workflow evidence are not carried. The alpha version token and the
+  `corvint-release-candidate` assembler, which still requires companion input, are unchanged.
+  A Core-only assembler remains a follow-up.
 
 ## Human intent
 
