@@ -60,9 +60,11 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    may remain modified.
 3. Export every input except `DOGFOOD_CITATIONS`, then run `make dogfood-change BASE=$BASE`. Expected
    when `BASE` carries no shared `.corvint/change.cem.json` (the normal case once a seal has moved it):
-   `dogfood-change: FAIL not-complete` listing only `cem-cite: citation-plan-not-provided` and
-   `cem-status: not-ready` (policy issue `max-unknown-exceeded`, because no hunk is cited yet); every
-   OCM row and `local-outcome` are produced, and `git status` shows `?? .corvint/change.cem.json`.
+   `dogfood-change: FAIL not-complete` listing only `cem-cite: citation-plan-not-provided`,
+   `cem-status: not-ready` (policy issue `max-unknown-exceeded`, because no hunk is cited yet) and
+   `local-outcome: record-index-failed`; every OCM row is produced, and `git status` shows
+   `?? .corvint/change.cem.json`. The recorder runs last, so it sees the sidecar this pass prepared
+   and refuses every pass whose sidecar is untracked or modified (`DCW-V0-015`).
    When `BASE` still tracks an earlier unsealed `.corvint/change.cem.json`, this pass replaces it (the
    `CEM-PILOT-018` mismatch line triggers `--replace`), `git status` shows ` M .corvint/change.cem.json`,
    and the modified tracked sidecar adds `ocm-prepare-001: excluded-artifact-mismatch`,

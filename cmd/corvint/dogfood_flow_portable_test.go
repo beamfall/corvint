@@ -108,15 +108,20 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 		t.Fatal(err)
 	}
 	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
-	// The first pass prepares the sidecar; whether it is already complete is
-	// the recorder's concern (docs/DOGFOOD.md, Daily adopter path step 4).
-	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code > 1 {
-		t.Fatalf("first change exit=%d stderr=%s", code, stderr)
+	// DCW-V0-015: the first pass prepares and cites an untracked sidecar with
+	// every input supplied, and the real recorder, which runs last, refuses it.
+	code, stdout, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
+	report, _ := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
+	if code != 1 || !strings.Contains(stderr, "\n  local-outcome: record-index-failed\n") || !strings.Contains(string(report), `"complete": false`) {
+		t.Fatalf("untracked sidecar exit=%d stderr=%s report=%s", code, stderr, report)
+	}
+	if status := cemGit(t, root, "status", "--porcelain", "--untracked-files=all"); status != "?? .corvint/change.cem.json" {
+		t.Fatalf("first pass status %q", status)
 	}
 	cemGit(t, root, "add", ".corvint/change.cem.json")
 	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
 	bind := cemGit(t, root, "rev-parse", "HEAD")
-	code, stdout, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
+	code, stdout, stderr = run.exec(t, root, inputs, "dogfood", "change", base)
 	if code != 0 || stdout != "" || stderr != "" {
 		t.Fatalf("change exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}

@@ -100,9 +100,6 @@ func (c *change) run() int {
 	}
 	c.runStep("prechange-query", c.evidence+"/prechange-query.json", "query", "--task", task, "--limit", "1")
 	c.prechangeImpact()
-	// The recorder refuses a dirty tree and cem-prepare rewrites the tracked CEM,
-	// so the outcome is classified first and its row is reported in step order.
-	outcome := c.localOutcome(task)
 	c.prepare("cem-prepare", c.evidence+"/cem-prepare.json", func(status int, stderr []byte, reason string) bool {
 		return status == 2 && chomp(string(stderr)) == outdatedCEMMap
 	}, "cem", "prepare", "--base", c.base, "--target", c.target)
@@ -121,7 +118,10 @@ func (c *change) run() int {
 	}
 	c.runStep("cem-status", c.evidence+"/cem-status.json", "cem", "status", "--map", ".corvint/change.cem.json",
 		"--expected-base", c.base, "--target", c.target, "--max-unknown", strconv.Itoa(c.bootstrapUnknown), "--max-mechanical", "0")
-	c.rows = append(c.rows, outcome)
+	// The recorder refuses a dirty tree, so it runs last and sees the sidecar
+	// this pass prepared and cited: an untracked or modified sidecar reports
+	// record-index-failed and the pass is never complete (DCW-V0-015).
+	c.rows = append(c.rows, c.localOutcome(task))
 	c.renderReport()
 	return c.reportFailures()
 }
