@@ -143,6 +143,48 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	}
 }
 
+// DCW-V0-019: cem cite only adds evidence, so a corrected plan joins the resumed
+// map's earlier citations; the pass names the delete-and-rerun step, which
+// leaves only the corrected plan's citation.
+func TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	inputsDir := t.TempDir()
+	citations := filepath.Join(inputsDir, "citations.tsv")
+	intents := filepath.Join(inputsDir, "intents")
+	if err := os.WriteFile(intents, []byte("intent.md\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
+	const note = "\n  cem-cite: the plan was added to citations the map already carried and never replaces them; to correct an earlier plan, delete .corvint/change.cem.json and rerun make dogfood-change (docs/DOGFOOD.md step 4)\n"
+	pass := func(plan string) (string, int) {
+		t.Helper()
+		if err := os.WriteFile(citations, []byte(plan), 0644); err != nil {
+			t.Fatal(err)
+		}
+		code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
+		var cem struct{ Evidence []any }
+		data, _ := os.ReadFile(filepath.Join(root, ".corvint/change.cem.json"))
+		if err := json.Unmarshal(data, &cem); err != nil || code != 1 {
+			t.Fatalf("pass exit=%d stderr=%s %v", code, stderr, err)
+		}
+		return stderr, len(cem.Evidence)
+	}
+	if stderr, evidence := pass("1\tintent.md\t1:5\tspecification\n"); strings.Contains(stderr, note) || evidence != 1 {
+		t.Fatalf("first plan evidence=%d stderr=%s", evidence, stderr)
+	}
+	if stderr, evidence := pass("1\tintent.md\t1:3\tspecification\n"); !strings.Contains(stderr, note) || evidence != 2 {
+		t.Fatalf("corrected plan evidence=%d stderr=%s", evidence, stderr)
+	}
+	if err := os.Remove(filepath.Join(root, ".corvint/change.cem.json")); err != nil {
+		t.Fatal(err)
+	}
+	if stderr, evidence := pass("1\tintent.md\t1:3\tspecification\n"); strings.Contains(stderr, note) || evidence != 1 {
+		t.Fatalf("after delete evidence=%d stderr=%s", evidence, stderr)
+	}
+}
+
 // LCP-V0-014: finish runs the change and the final check in-process from the
 // installed binary, ignoring CORVINT_BIN and the DOGFOOD_* inputs.
 func TestDogfoodFinishRunsFromBinaryInForeignRepository(t *testing.T) {

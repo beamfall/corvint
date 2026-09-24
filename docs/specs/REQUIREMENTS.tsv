@@ -562,10 +562,10 @@ DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	91	(proposed 2026-09-
 DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	102	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
 DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	111	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
 DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	120	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
-DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	130	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
-DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	143	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
-DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	146	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
-DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	158	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
+DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	133	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
+DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	146	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
+DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	149	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
+DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	161	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map

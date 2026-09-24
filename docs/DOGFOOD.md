@@ -76,7 +76,12 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
    A plan written for an earlier map, such as nine rows kept after a later commit added a tenth
    hunk, refuses `cem-cite: citation-plan-map-mismatch` and cites nothing; rewrite it from the
-   current map.
+   current map. Citations add to the map and never replace it: `cem prepare` resumes a map whose
+   base and patch still match, keeping every earlier citation, and `cem cite` has no removal. To
+   correct a plan that was already cited, delete `.corvint/change.cem.json` and rerun, so prepare
+   writes a fresh map and only the corrected plan is cited. A pass that cites onto an already cited
+   map prints `cem-cite: the plan was added to citations the map already carried` with this
+   instruction (`DCW-V0-019`).
    Export `DOGFOOD_CITATIONS` and rerun `make dogfood-change BASE=$BASE`. `cem-cite` and, for an
    untracked sidecar, `cem-status` are now produced; the only remaining row is
    `local-outcome: record-index-failed`. A modified tracked sidecar additionally keeps the OCM and
@@ -261,7 +266,7 @@ modified; the OCM maps and the report are ignored paths and do not make the work
 The first `dogfood-change` prepares and cites the tracked CEM. That CEM must itself be committed
 before strict status can accept it; the `cem/0.2` profile self-excludes the sidecar from its mapped
 patch so the commit does not create a recursive self-citation. The second `dogfood-change` resolves
-the new `HEAD`; prepare resumes and cite is idempotent, so the worktree stays clean while the report is
+the new `HEAD`; prepare resumes and re-citing the same plan is idempotent, so the worktree stays clean while the report is
 regenerated with `"complete": true`. `dogfood-change` reruns prepare with `--replace` only when
 prepare refused the existing map with the exact `CEM-PILOT-018` base-or-patch mismatch line; every
 other prepare failure, including a transient `git-timeout`, is reported as `cem-prepare`
