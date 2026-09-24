@@ -109,7 +109,9 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `corvint ocm mark` (section 5) is still manual and is dropped by the next commit.
 8. Inspect what a reviewer sees: `corvint cem report` and `corvint ocm report` (section 6), and
    `corvint frontier --cem .corvint/change.cem.json --ocm .corvint/change.ocm.001.json
-   --expected-base $BASE --target HEAD`, whose exit 1 is a valid open frontier.
+   --expected-base $BASE --target HEAD`, whose exit 1 is a valid open frontier. These paths and
+   `--target HEAD` hold only before step 10; after the seal, `cem report` takes section 6's sealed
+   form (`.corvint/changes/<bind-sha>.cem.json` and `--target <bind-sha>`).
 9. Run `make dogfood-check BASE=$BASE`. Expected: CEM and OCM status JSON, then
    `dogfood-check: PASS`. A base whose committed CEM names a base outside its history also prints
    `dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable`; the note never
@@ -489,9 +491,22 @@ mapped patch. Structural closure remains distinct from whether the project gate 
 
 ### 6. Review what another reviewer sees
 
+A reviewer receives the sealed branch. At the seal head the seal has moved the map to
+`.corvint/changes/<bind-sha>.cem.json`, where `<bind-sha>` is the bind commit, the seal's parent
+(`git rev-parse HEAD^`, also the name `dogfood-seal: PASS sealed=` prints). The map binds that
+commit, so the report targets it, not `HEAD`:
+
 ```console
-$ corvint cem report --map .corvint/change.cem.json \
-    --expected-base BASE_SHA --target HEAD --max-unknown 0 --max-mechanical 0
+$ corvint cem report --map .corvint/changes/BIND_SHA.cem.json \
+    --expected-base BASE_SHA --target BIND_SHA --max-unknown 0 --max-mechanical 0
+```
+
+Before the seal, at the bind commit, the author runs the same report with
+`--map .corvint/change.cem.json --target HEAD`. At the seal head that path no longer exists, and
+`--target HEAD` names the seal commit, so both forms fail there. The OCM maps are ignored local
+files, so only the author can report them, before the seal:
+
+```console
 $ corvint ocm report --map .corvint/change.ocm.json \
     --cem .corvint/change.cem.json --expected-base "$corvint_base_sha" \
     --target "$corvint_target_sha"
