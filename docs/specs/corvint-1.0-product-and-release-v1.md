@@ -297,6 +297,7 @@ and the untouched repository (question 8) are still unnamed. The questions stay 
 |---|---|---|
 | `PRS-V1-001..012` | Decision 0373 | PRODUCED (2026-09-23) |
 | `PRS-V1-010` | Review of this table against the base commit's verbs, binaries and trees | review only |
+| `PRS-V1-002` | N-1 upgrade: 0.7.0 archive to 0.8.0 `upgrade-b` and `rollback-a` under `SOP-V0-003` (`stable-operations-v0.md`, V1-0190) | PASS on darwin/arm64, darwin/amd64 (Rosetta 2), linux/arm64 (container); linux/amd64 emulated only |
 | `PRS-V1-004` | Native install lifecycle on each Core platform | darwin/arm64 retained for 0.7.0; linux/amd64 `NOT_RUN` |
 | `PRS-V1-007` | V1-0014 | `NOT_RUN` |
 | `PRS-V1-008` | V1-0019 | `NOT_RUN` |

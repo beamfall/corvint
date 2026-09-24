@@ -52,17 +52,24 @@ Measured on 2026-09-22, darwin arm64, Go 1.27.1, at the introducing commit:
 Measured on 2026-09-23 at `1894b9e5` (decision 0360), archives from
 `go run ./conformance/release-artifact-v0 archive` at that commit (stamped `0.7.0 (build 12)`):
 
-- The 0.6.0 (build 90) to 0.7.0 upgrade failed `upgrade-b` under the 0341 rule because 0.7.0 adds
-  `coverage.governance_refused` and an evidence `trust` field (decision 0346) to the packet; the
-  byte-identity rule held only for same-version upgrades. Under the amended `SOP-V0-003` the N-1
-  run passes with `packet=changed` on darwin arm64, linux arm64 (container) and darwin amd64
-  (Rosetta 2); same-bytes archive runs pass on the same three.
+- Closed historical finding: the 0.6.0 (build 90) to 0.7.0 upgrade failed `upgrade-b` under the
+  0341 rule because 0.7.0 adds `coverage.governance_refused` and an evidence `trust` field (decision
+  0346) to the packet; the byte-identity rule held only for same-version upgrades. Under the amended
+  `SOP-V0-003` the N-1 run passes with `packet=changed` on darwin arm64, linux arm64 (container) and
+  darwin amd64 (Rosetta 2); same-bytes archive runs pass on the same three.
 - A build over a tracked source of 64,000,000 bytes allocates about 2.5 MB of Go heap; with the size
   exclusion disabled it allocates 514 MB, which the `memory` row's 16 MiB bound refuses.
 - Two tracked paths differing only by case fold into one worktree file on darwin APFS; the index
   pins each to its own blob. Either the Git dirty set or the worktree oid check alone preserves
   that; the `case-folds-context-index` row fails only when both are removed. On a case-sensitive
   filesystem the row skips and reports NOT_RUN.
+
+Current N-1 evidence, measured on 2026-09-24 (V1-0190) with the script at `3cd62ca9`: the published
+0.7.0 (build 46) archive installed as store A and the published 0.8.0 (build 65) `corvint` as the
+upgrade. Every run ends `SUMMARY status=PASS` with `upgrade-b` `packet=changed` and `rollback-a`
+byte-identical to the first packet, on darwin arm64 (native), darwin amd64 (Rosetta 2), linux arm64
+(`golang:1.27.1` container) and linux amd64 (the same image under QEMU emulation, not native
+hardware). Archive digests are in `../BUILD-LOG.md` (2026-09-24 V1-0190).
 
 ## Requirements
 
