@@ -14,6 +14,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
 const (
@@ -304,7 +306,7 @@ func runBM25(index *corpusIndex, queryTerms, given []string, limit int) arm {
 	return arm{Ranked: ranked, Abstained: len(ranked) == 0, TopScore: top}
 }
 
-// statIndex is the cache-state observation: the copy's `.corvint/index`.
+// statIndex is the cache-state observation: the copy's snapshot store.
 func statIndex(root string) (os.FileInfo, error) {
-	return os.Stat(filepath.Join(root, ".corvint", "index"))
+	return os.Stat(contextindex.SnapshotDirectory(root))
 }

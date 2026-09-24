@@ -194,3 +194,9 @@ const (
 	PublishFailed                   = "publish-failed"                    // transactional output publication failed
 	MapLocked                       = "map-locked"                        // update-lock wait expired behind another map update
 )
+
+// Receipt-bundle export refusals (docs/specs/receipt-bundle-v0.md).
+const (
+	BundleOutputRefused  = "bundle-output-refused"  // RCB-V0-005: output relative, existing, or inside a worktree or Git directory
+	BundleMapUncommitted = "bundle-map-uncommitted" // RCB-V0-004: the target does not commit the map
+)

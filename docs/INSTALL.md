@@ -314,7 +314,14 @@ candidate into a fresh canonical store. The installer deliberately refuses even 
 destination. Restoring a candidate backup uses that same installation path and verification; there
 is no alternate restore archive format or automatic downgrade migration.
 
-For a damaged derived index, retain the failing receipt and a backup of `.corvint/index`, then run
+The index snapshot store is `corvint/index` under the Git common directory (`.git/corvint/index` in
+a plain clone), shared by every linked worktree; a worktree whose common directory cannot be
+resolved keeps `.corvint/index` as its store. Where the common directory resolves, an older
+`.corvint/index` left by a previous release is no longer read and may be deleted by hand. The store
+is created 0755 with 0600 files, so when several OS users share one common directory
+(`core.sharedRepository`), a second user's `corvint index` fails and their reads miss.
+
+For a damaged derived index, retain the failing receipt and a backup of the snapshot store, then run
 `corvint index --if-stale` explicitly. A symlinked index path is refused: review it before any manual
 quarantine. Do not delete all of `.corvint` to rebuild an index. Corrupt ticket/trace/evidence state
 requires restoring a consistent backup with matching tools; index rebuilding cannot repair it.
@@ -328,7 +335,7 @@ candidate or another version as part of staging cleanup.
 
 What a damaged snapshot does, measured (`SOP-V0-006` in
 [Stable operations V0](specs/stable-operations-v0.md)): a read verb such as `corvint context`
-treats a truncated or byte-corrupted `.corvint/index/*.gob` as a miss, rebuilds in memory, exits 0
+treats a truncated or byte-corrupted snapshot `*.gob` as a miss, rebuilds in memory, exits 0
 with the same packet bytes, and never rewrites the file; `corvint index --if-stale` reports
 `mutates: true`, writes a fresh snapshot of the same size, and the next `--if-stale` reports
 `fresh`. The rebuilt snapshot is not byte-identical to the original, so compare packets, not
@@ -337,7 +344,7 @@ snapshot files, when checking a recovery.
 `script/check-install-lifecycle.sh` runs this whole lifecycle in a temporary directory against one
 release archive (`CORVINT_LIFECYCLE_ARCHIVE`) or one binary (`CORVINT_LIFECYCLE_BINARY`): verified
 install, first index and read, upgrade into a second store, rollback, uninstall with `.corvint`
-retained, backup and restore of `.corvint`, and both corruption cases. With
+and the snapshot store retained, backup and restore of both, and both corruption cases. With
 `CORVINT_LIFECYCLE_UPGRADE_BINARY` set to a different release, the upgrade's packet must be
 non-empty and is compared to the packet that release builds from a cold index and reported `packet=identical` or
 `packet=changed`, since releases may change the packet wire. It prints one `step NAME: ok`

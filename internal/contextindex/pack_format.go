@@ -75,8 +75,8 @@ var packSectionsByLoad = map[snapshotLoad][]string{
 
 func packEnabled() bool { return runtimeenv.Value("SNAPSHOT_FORMAT") == packFormatValue }
 
-func packPath(root, objectFormat, tree, engineID string) string {
-	return strings.TrimSuffix(snapshotPath(root, objectFormat, tree, engineID), ".gob") + packExtension
+func packPath(directory, objectFormat, tree, engineID string) string {
+	return strings.TrimSuffix(snapshotPath(directory, objectFormat, tree, engineID), ".gob") + packExtension
 }
 
 type packSectionEntry struct {

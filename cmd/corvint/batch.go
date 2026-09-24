@@ -646,7 +646,7 @@ invalid-arguments before the repository is read. An argument the standalone
 verb refuses at its own parse (a missing task, an out-of-range budget_bytes)
 is instead that one operation's invalid-arguments error.
 
-The snapshot ".corvint/index/" holds is loaded once and every operation answers
+The snapshot "corvint index" wrote is loaded once and every operation answers
 from it, so each receipt is the standalone verb's own "context" member at that
 one identity. Unlike "context", a missing or stale snapshot is refused with
 unsupported-batch-snapshot rather than rebuilt: run "corvint index" first, or

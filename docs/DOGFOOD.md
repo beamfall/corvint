@@ -235,6 +235,12 @@ evidence directory and runs that binary. Every step publishes its stdout as
 `<git-dir>/corvint/<step>.json` and its stderr as `<git-dir>/corvint/<step>.stderr`, so the refusal
 envelope behind a reported reason is readable beside that step's output. The run clears
 unpublished `*.stderr` from that directory at start, so no envelope there survives an earlier run.
+The report's `packetCoverage` line (`DCW-V0-016`) states the cost of the two context packets the
+run compiled: for `prechange-query` and `prechange-impact` in that order, the packet's own
+`packet_bytes`, `budget_bytes`, `within_budget`, `included_results` and `omitted_results`, or
+`NOT_PRODUCED` with `packet-not-compiled` (the step compiled none, including the
+`unsupported-impact-range` abstention) or `packet-coverage-unreadable`. It never changes
+`complete`, and reports written before it existed omit it.
 `dogfood-check` independently builds one verifier from the current clean tree and one from a
 private `git archive BASE_SHA`, runs both OCM and CEM status with
 identical inputs and effective policy, and requires byte-identical stdout, stderr, and exit status.
@@ -488,6 +494,18 @@ examples below. Key selection occurs on each invocation. `inactive` for a new ke
 about the original enrollment. Do not infer another owner, re-enroll, cancel or clear state to
 resume. If the original handle is missing, report that blocker. This preserves the existing
 enrollment; it does not authorize taking over unrelated work (LCP-V0-002/003).
+
+Before handing off, the sending session runs `corvint dogfood handoff --session-key KEY --anchors
+"ANCHOR..."` with the task's requirement IDs, paths or symbols as anchors, and passes the emitted
+document to the receiver. It names the key, root, bound revision, anchors, the dogfood prompt
+packet's SHA-256 and bytes, and the degradation list. The receiver runs `corvint dogfood handoff
+--session-key KEY --receipt FILE` before relying on its context. Exit 0 (`reresolved`) returns
+`packetBase64`, whose decoded bytes hash to the receipt digest. This is the handoff packet compiled
+from the anchors alone, not the packet of an earlier prompt event.
+Exit 1 (`drifted`) lists the exact root, revision, enrollment, anchor or
+packet difference and withholds the packet: report that drift and decide explicitly rather than
+treating a recompiled context as the one handed over. Both steps are read-only. The receipt is
+untrusted data with `authority: none` and satisfies no completion condition (SESSION-V0-017..019).
 
 After implementation is committed, bind and commit the CEM sidecar with the existing commands.
 Then prepare and link every OCM scope against that exact clean target; OCM preparation verifies the

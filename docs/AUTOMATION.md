@@ -92,11 +92,11 @@ Where each row was verified:
 - `witness`: profile `internal/witness/witness.go:27`; exits `cmd/corvint/witness.go:105-138`;
   recorder `cmd/corvint/main.go:1009`; help "does not mutate repository or trace state"
   (`cmd/corvint/help.go:393-394`). It builds the index in memory when no snapshot exists
-  (`cmd/corvint/index_snapshot.go:79-84`); the fresh-clone run wrote no `.corvint/index`.
+  (`cmd/corvint/index_snapshot.go:79-84`); the fresh-clone run wrote no snapshot store (`.git/corvint/index`).
 - `impact --base`: profile `internal/contextindex/range_impact.go:24`; exits and ledger calls
   `cmd/corvint/main.go:1051-1056` and `cmd/corvint/main.go:1077-1136`; envelope
   `cmd/corvint/main.go:1261`; range capacity from `corvint impact --help`. With no snapshot it builds
-  the index in memory (`cmd/corvint/main.go:1080`) and writes no `.corvint/index`.
+  the index in memory (`cmd/corvint/main.go:1080`) and writes no snapshot store (`.git/corvint/index`).
 - 1.0 labels: `docs/specs/corvint-1.0-product-and-release-v1.md` classification table.
 - Every exit code in the table was also observed: 0 in the worked example, 1 from `cem verify`
   with `--target` set to the base, 2 from `affected`, `witness` and `impact` given a short base and

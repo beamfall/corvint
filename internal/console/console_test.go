@@ -656,6 +656,65 @@ func TestConsoleDogfoodPane(t *testing.T) {
 	})
 }
 
+// TestConsoleDogfoodPacketCoverage pins the DCW-V0-016 reader contract: a
+// report carrying packetCoverage shows each packet's numbers, and a report
+// written before the field existed still reads and says it was not reported.
+func TestConsoleDogfoodPacketCoverage(t *testing.T) {
+	writeReport := func(t *testing.T, raw []byte) string {
+		t.Helper()
+		root := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, dogfoodReportPath), raw, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return root
+	}
+	t.Run("DCW-V0-016 an older report without the block still reads", func(t *testing.T) {
+		historical := filepath.Join(repoRoot(t), "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/corvint-dogfood/dogfood-report.json")
+		raw, err := os.ReadFile(historical)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(raw), "packetCoverage") {
+			t.Fatal("the historical fixture is expected to predate packetCoverage")
+		}
+		root := writeReport(t, raw)
+		report := ReadDogfood(root)
+		if report.Err != "" || report.PacketCoverage != nil {
+			t.Fatalf("older report: err=%q packetCoverage=%v", report.Err, report.PacketCoverage)
+		}
+		server, err := New(Options{Addr: "127.0.0.1:0", Repo: root, Binary: "atm"})
+		if err != nil {
+			t.Fatalf("new: %v", err)
+		}
+		if body := get(t, server, "/dogfood"); !strings.Contains(body, "this report predates packet coverage") {
+			t.Error("an older report did not say packet coverage was not reported")
+		}
+	})
+	t.Run("DCW-V0-016 each packet's coverage fields are shown", func(t *testing.T) {
+		report := `{"profile":"corvint-dogfood-change/0","base":"aaa","target":"bbb","complete":true,"steps":[],
+"packetCoverage":[{"step":"prechange-query","status":"PRODUCED","packet_bytes":3820,"budget_bytes":null,"within_budget":true,"included_results":1,"omitted_results":0},
+{"step":"prechange-impact","status":"NOT_PRODUCED","reason":"packet-not-compiled"}]}`
+		root := writeReport(t, []byte(report))
+		read := ReadDogfood(root)
+		if read.Err != "" || len(read.PacketCoverage) != 2 || read.PacketCoverage[0].PacketBytes != 3820 || read.PacketCoverage[0].BudgetBytes != nil {
+			t.Fatalf("packet coverage read as err=%q %+v", read.Err, read.PacketCoverage)
+		}
+		server, err := New(Options{Addr: "127.0.0.1:0", Repo: root, Binary: "atm"})
+		if err != nil {
+			t.Fatalf("new: %v", err)
+		}
+		body := get(t, server, "/dogfood")
+		for _, want := range []string{"<td>3820</td><td>null</td><td>true</td><td>1</td><td>0</td>", "packet-not-compiled"} {
+			if !strings.Contains(body, want) {
+				t.Errorf("the packet coverage panel is missing %q", want)
+			}
+		}
+	})
+}
+
 // TestConsoleListingPanes covers the S3 benchmark and backlog surfaces: each
 // entry is named by the object id its bytes come from, a path the listing did
 // not name is not readable, and backlog text renders inert.

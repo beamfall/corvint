@@ -31,6 +31,23 @@ type DogfoodStep struct {
 // Produced reports whether this step produced its artifact.
 func (s DogfoodStep) Produced() bool { return s.Status == "PRODUCED" }
 
+// DogfoodPacket is one packet-compiling step's coverage entry, under the
+// packet's own field names (DCW-V0-016). A NOT_PRODUCED entry carries a
+// reason and no numbers.
+type DogfoodPacket struct {
+	Step            string `json:"step"`
+	Status          string `json:"status"`
+	Reason          string `json:"reason"`
+	PacketBytes     int    `json:"packet_bytes"`
+	BudgetBytes     *int   `json:"budget_bytes"`
+	WithinBudget    bool   `json:"within_budget"`
+	IncludedResults int    `json:"included_results"`
+	OmittedResults  int    `json:"omitted_results"`
+}
+
+// Produced reports whether this step compiled a packet.
+func (p DogfoodPacket) Produced() bool { return p.Status == "PRODUCED" }
+
 // Dogfood is the rendered dogfood pane.
 type Dogfood struct {
 	Profile   string        `json:"profile"`
@@ -45,6 +62,8 @@ type Dogfood struct {
 		MergeBase *string `json:"mergeBase"`
 	} `json:"anchor"`
 	Check any `json:"dogfoodCheck"`
+	// PacketCoverage is absent from reports written before DCW-V0-016.
+	PacketCoverage []DogfoodPacket `json:"packetCoverage"`
 
 	// Path, ModifiedAt and Source describe where the report was read from.
 	// Absent is what distinguishes "no loop has run here" from "the loop ran

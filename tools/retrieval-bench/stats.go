@@ -107,7 +107,7 @@ func needsCorvint(selected map[string]bool) bool {
 }
 
 // cacheState observes the copy before a Corvint verb runs: an existing
-// `.corvint/index` is the primed shared topology, its absence the cold one.
+// snapshot store is the primed shared topology, its absence the cold one.
 // The label describes what the harness provided, never an inferred hit.
 func cacheState(root string) string {
 	if _, err := statIndex(root); err == nil {

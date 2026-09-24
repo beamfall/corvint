@@ -87,6 +87,17 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   uncited hunk leaves `cem-status` `not-ready`, so the check fails `dogfood-report-drift`. A passing
   check or a seal MUST be described as structural closure, never as correctness, test adequacy or a
   passing project gate.
+- `DCW-V0-016`: (proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
+  report that `dogfood-change` writes, and `corvint dogfood finish` reads, MUST carry one
+  `packetCoverage` line listing the `prechange-query` and `prechange-impact` steps in that order.
+  A step that produced its packet copies the packet's `coverage.packet_bytes`, `budget_bytes`,
+  `within_budget`, `included_results` and `omitted_results` under those names with
+  `"status": "PRODUCED"`. A step that compiled no packet is `"status": "NOT_PRODUCED"` with reason
+  `packet-not-compiled`, and output without exactly one well-formed occurrence of each field is
+  `NOT_PRODUCED` with reason `packet-coverage-unreadable`; neither carries numbers. The line does
+  not change `complete` or any step row. `corvint dogfood begin` compiles no packet and records no
+  coverage. The member is additive: the profile stays `/0`, and every reader MUST accept a report
+  written before it existed.
 - `DCW-V0-017`: The `dogfood-check` verifier set and its `outputsAgree` result are author-only
   evidence: they need the author's private report, local-outcome record and OCM maps, and no
   committed artifact binds the report's digest, so a reviewer MUST NOT be asked to accept a
@@ -127,6 +138,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-007..008` | independently sealed complete-task evaluation required | NOT_RUN |
 | `DCW-V0-009..010` | native platform and installed exact-host evidence required | NOT_QUALIFIED |
 | `DCW-V0-011..012` | portfolio, gate and candidate evidence required | NOT_QUALIFIED |
+| `DCW-V0-016` (proposed) | `script/dogfood-change.sh` `packet_coverage_entry`; `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed`; reader: `TestConsoleDogfoodPacketCoverage`; real run recorded in the V1-0200 build-log entry | implemented; not accepted |
 | `DCW-V0-013..015` | `docs/DOGFOOD.md` "Daily adopter path"; `script/dogfood-change_test.sh` run by `TestGoOnlyContextAbstentionRemainsClosed`; scratch reproductions recorded in the V1-0010 build-log entry | implemented; the SIGINT interrupt and reviewer leg NOT_OBSERVED |
 | `DCW-V0-017` | `docs/DOGFOOD.md` step 11; the reviewer case in `script/dogfood-change_test.sh`; the V1-0182 build-log entry | implemented; reviewer-side verifier agreement is out of scope by design |
 

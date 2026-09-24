@@ -234,6 +234,51 @@ func TestAffectedUnownedDirtyPathIsUnknownScope(t *testing.T) {
 	}
 }
 
+// AFP-V0-021: a changed document selects the package whose test names it by
+// literal, as PATH_LITERAL_READER, and stays UNOWNED_DIRTY_PATH; a document
+// no literal names selects nothing and stays unknown too.
+func TestAffectedDocumentSelectsThePackageThatNamesIt(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	for relative, body := range map[string]string{
+		"core/guide_test.go": "package core\n\nconst guide = \"docs/guide.md\"\n",
+		"docs/guide.md":      "guide\n",
+	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, relative)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, relative), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "document reader")
+	for _, relative := range []string{"docs/guide.md", "docs/unread.md"} {
+		if err := os.WriteFile(filepath.Join(root, relative), []byte("edited\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	receipt, first, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	plan := receipt["plan"].(map[string]any)
+	selected := fmt.Sprint(plan["selected"])
+	if want := "[map[tests:[core/core_test.go core/guide_test.go] unitId:go:example.com/fixture/core witness:map[dirtyPath:docs/guide.md kind:PATH_LITERAL_READER via:[go:example.com/fixture/core]]]]"; selected != want {
+		t.Fatalf("selected=%s\nwant    %s", selected, want)
+	}
+	unknown := fmt.Sprint(plan["unknown"])
+	if plan["scope"] != "UNKNOWN" || !strings.Contains(unknown, "map[detail:docs/guide.md reason:UNOWNED_DIRTY_PATH] map[detail:docs/unread.md reason:UNOWNED_DIRTY_PATH]") {
+		t.Fatalf("both documents must stay unknown: scope=%v unknown=%s", plan["scope"], unknown)
+	}
+	if packages := fmt.Sprint(receipt["provider"]); !strings.Contains(packages, "packages:[example.com/fixture/core] state:RUNNABLE") {
+		t.Fatalf("provider=%s", packages)
+	}
+	if _, second, _, _ := runAffectedCLI(t, root); !bytes.Equal(first, second) {
+		t.Fatalf("plan is not byte-identical across runs:\n%s\n%s", first, second)
+	}
+}
+
 // AFP-V0-020: an edited Go package with no _test.go file is named in
 // plan.unknown and leaves scope UNKNOWN instead of being omitted.
 func TestAffectedUntestedGoPackageIsUnknownScope(t *testing.T) {

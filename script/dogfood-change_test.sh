@@ -109,7 +109,10 @@ if [[ $action == dogfood-observe ]]; then
 fi
 if [[ $action == impact ]]; then
   case ${DOGFOOD_TEST_IMPACT:-produced} in
-    produced) printf 'current impact stderr\n' >&2 ;;
+    produced)
+      printf '%s\n' '{"context":{"coverage":{"budget_bytes":4096,"critical":[{"id":"x","kind":"path"}],"included_results":20,"omitted_results":3,"packet_bytes":4001,"within_budget":true}},"ok":true}'
+      printf 'current impact stderr\n' >&2
+      ;;
     unsupported)
       printf '%s\n' '{"code": "unsupported-impact-range", "error": "impact range exceeds the 256-path bound", "ok": false}' >&2
       exit 2
@@ -129,6 +132,13 @@ fi
 if [[ $action == query && ${DOGFOOD_TEST_QUERY:-} == authority-trace-state ]]; then
   printf '%s\n' '{"code": "unsupported-query-trace-state", "error": "native Go authority-start query requires an absent clean-tree local trace store", "ok": false}' >&2
   exit 2
+fi
+if [[ $action == query && ${DOGFOOD_TEST_QUERY:-} == duplicate-coverage ]]; then
+  printf '%s\n' '{"a":{"packet_bytes":"x"},"context":{"coverage":{"budget_bytes":null,"included_results":1,"omitted_results":0,"packet_bytes":3820,"within_budget":true}}}'
+  exit 0
+fi
+if [[ $action == query ]]; then
+  printf '%s\n' '{"context":{"coverage":{"budget_bytes":null,"included_results":1,"omitted_results":0,"packet_bytes":3820,"within_budget":true,"notes":{"see \"packet_bytes":9}}},"ok":true}'
 fi
 if [[ $action == cem && $sub == status ]]; then
   maximum=0
@@ -381,6 +391,7 @@ set -m
     DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
     DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
   rg -q '"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-range"' .corvint/dogfood-report.json
+  rg -Fq '{"step": "prechange-impact", "status": "NOT_PRODUCED", "reason": "packet-not-compiled"}]' .corvint/dogfood-report.json
   rg -q '^  ,"contextAbstentionEvidenceSha256": "sha256:[0-9a-f]{64}"$' .corvint/dogfood-report.json
   DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" script/dogfood-check.sh "$base"
   cp "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.stderr" "$test_root/prechange-impact.stderr"
@@ -398,9 +409,10 @@ set -m
     rg -q '"complete": false' .corvint/dogfood-report.json
     rg -q '"name": "prechange-impact", "status": "NOT_PRODUCED"' .corvint/dogfood-report.json
   done
-  DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" DOGFOOD_CITATIONS="$test_root/citations.tsv" \
-    DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
-    DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
+  DOGFOOD_TEST_IMPACT=unsupported DOGFOOD_TEST_QUERY=duplicate-coverage "${default_env[@]}" \
+    DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
+    DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
+  rg -Fq '"packetCoverage": [{"step": "prechange-query", "status": "NOT_PRODUCED", "reason": "packet-coverage-unreadable"}' .corvint/dogfood-report.json
   printf 'trailing-junk' >> "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.argv"
   argv_drift_status=0
   DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" script/dogfood-check.sh "$base" >/dev/null 2>&1 || argv_drift_status=$?
@@ -433,15 +445,21 @@ set -m
 phase_jobs="$phase_jobs $!"
 (
   cd "$test_root/repo"
-  CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
+  # A user ripgrep config that numbers and colours matches must not reach the report.
+  printf '%s\n' --line-number --color=always > "$test_root/ripgreprc"
+  RIPGREP_CONFIG_PATH="$test_root/ripgreprc" \
+    CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
+  jq -e . .corvint/dogfood-report.json >/dev/null
   rg -q '"complete": true' .corvint/dogfood-report.json
   rg -q '"id":"TEST-A-001"' .corvint/dogfood-report.json
   rg -q '"id":"TEST-B-001"' .corvint/dogfood-report.json
   test "$(git status --short)" = " M .corvint/change.cem.json"
   test "$(rg -c ' cem prepare .* --replace$' "$test_root/corvint.log")" = 1
   rg -q '"name": "cem-prepare", "status": "PRODUCED", "reason": "none"' .corvint/dogfood-report.json
+  # DCW-V0-016: each compiled packet's coverage fields, copied under the packet's names.
+  rg -Fxq '  ,"packetCoverage": [{"step": "prechange-query", "status": "PRODUCED", "packet_bytes": 3820, "budget_bytes": null, "within_budget": true, "included_results": 1, "omitted_results": 0}, {"step": "prechange-impact", "status": "PRODUCED", "packet_bytes": 4001, "budget_bytes": 4096, "within_budget": true, "included_results": 20, "omitted_results": 3}]' .corvint/dogfood-report.json
   test "$(cat "$evidence/prechange-impact.stderr")" = 'current impact stderr'
   test "$(rg -c ' ocm prepare ' "$test_root/corvint.log")" = 2
   test "$(rg -c ' ocm status ' "$test_root/corvint.log")" = 2
