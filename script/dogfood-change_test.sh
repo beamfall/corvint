@@ -771,12 +771,21 @@ sealed_head_status=0
 sealed_head=$(cd "$sealed_repo" && script/dogfood-check.sh "$sealed_b0" 2>&1) || sealed_head_status=$?
 test "$sealed_head_status" = 2
 printf '%s\n' "$sealed_head" | rg -q '^dogfood-check: REFUSE sealed-head$'
+# DCW-V0-017: a reviewer's clone of the bind commit has no report and is told what to verify.
+git -C "$sealed_repo" checkout -q --detach "$sealed_s1"
+reviewer_status=0
+reviewer=$(cd "$sealed_repo" && script/dogfood-check.sh "$sealed_b0" 2>&1) || reviewer_status=$?
+test "$reviewer_status" = 1
+printf '%s\n' "$reviewer" | rg -Fxq -- 'dogfood-check: FAIL dogfood-report-missing'
+printf '%s\n' "$reviewer" | rg -Fxq -- "  review: a reviewer without the author report: verifier agreement is author-only evidence (docs/DOGFOOD.md step 11); verify the bound CEM instead: corvint cem verify --map .corvint/change.cem.json --expected-base $sealed_b0 --target $sealed_s1"
+git -C "$sealed_repo" checkout -q main
 sealed_c1=$(sealed_commit c1)
 sealed_c2=$(sealed_commit c2)
 sealed_commit c3 >/dev/null
 sealed_gap=$(cd "$sealed_repo" && script/dogfood-check.sh "$sealed_c2" 2>&1) || :
 printf '%s\n' "$sealed_gap" | rg -q "^dogfood-check: NOTE unbound-commits count=2 window=$sealed_b0\\.\\.$sealed_c2\$"
 test "$(printf '%s\n' "$sealed_gap" | rg '^  unbound ')" = "$(printf '  unbound %s\n' "$sealed_c2" "$sealed_c1")"
+if printf '%s\n' "$sealed_gap" | rg -q '^  review:'; then exit 1; fi
 sealed_none=$(cd "$sealed_repo" && script/dogfood-check.sh "$sealed_z1" 2>&1) || :
 if printf '%s\n' "$sealed_none" | rg -q 'unbound'; then exit 1; fi
 # A rename of a bound CEM to any other name is not a seal and is not covered.

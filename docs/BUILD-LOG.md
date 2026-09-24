@@ -333,6 +333,29 @@ Real run, on 2026-09-23, of the committed branch head 8729b92 against base d138a
   packet was 8781 bytes. The closure packets ranged from 3335 bytes (`internal/witness/witness_test.go`)
   to 14469 bytes (`internal/console/views.go`). All were unbudgeted and within budget.
 
+## 2026-09-23 V1-0182 DCW-V0-017: dogfood-check verifier agreement is author-only evidence
+
+Finding: in a fresh clone of the V1-0213 bind commit `5397b08` (base `34e798b`), `make dogfood-check`
+with `CORVINT_BIN` set fails `dogfood-report-missing` and names only the author's `dogfood-change`.
+Copying the author's report into the clone moves the failure to `local-outcome-evidence-drift`: the
+check also needs the author's private `<git-dir>/corvint/local-outcome.json`, OCM maps, intent
+snapshot and abstention evidence, and no committed artifact binds the report's digest.
+
+Decision: option (b) of the ticket. A `DOGFOOD_REPORT` input would have to trust an unauthenticated
+report plus further private files, or rerun the author's coordinator, so reviewer-side
+`outputsAgree` is not offered. `DCW-V0-017` (new requirement in an accepted spec, owner review) and
+`docs/DOGFOOD.md` step 11 state that the verifier set and `outputsAgree` are author-only and name
+what the reviewer verifies instead: `cem verify` and strict `cem status` on the committed CEM with
+their own binary, the seal as one exact rename, and the report's semantics. When `HEAD` tracks
+`.corvint/change.cem.json`, `dogfood-report-missing` also prints a `review:` line with that
+`cem verify` command; reason code and exit status are unchanged. `docs/AUTOMATION.md` cites the
+new line range.
+
+Evidence: the same reviewer clone now prints the `review:` line, and the named command exits 0
+(`valid`, `canonical`); strict `cem status` reports `ready-for-ci`, 19 of 19 hunks supported.
+`script/dogfood-change_test.sh` adds a bind-commit reviewer case and a no-sidecar absence case;
+forcing the line unconditionally fails the test. `make gate` was not run (owner preference).
+
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
 
 Finding: nothing stated which Corvint commands are safe as a triggered CI, hook or team-automation
