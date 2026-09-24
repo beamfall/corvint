@@ -699,6 +699,7 @@ EAF-V0-007	docs/specs/expert-audit-followup-v0.md	56	Native Corvint and its sele
 EAF-V0-008	docs/specs/expert-audit-followup-v0.md	84	The opt-in finite-policy development check MUST bind its independently frozen
 EAF-V0-009	docs/specs/expert-audit-followup-v0.md	90	The opt-in scope development check MUST retain the frozen candidate algorithm
 EAF-V0-010	docs/specs/expert-audit-followup-v0.md	97	Malformed quoted-value redaction boundary. When a credential-vocabulary quoted k
+EAF-V0-011	docs/specs/expert-audit-followup-v0.md	108	An `EAF-V0-007` refusal of unsafe or unsupported metadata MUST name its specific
 ECO-V0-001	docs/specs/error-code-ownership-gate-v0.md	42	An emitted code is a string literal matching `[a-z][a-z0-9]*(-[a-z0-9]+)+` in a
 ECO-V0-002	docs/specs/error-code-ownership-gate-v0.md	54	A code is owned when any tracked `docs/specs/*.md` file (direct children only)
 ECO-V0-003	docs/specs/error-code-ownership-gate-v0.md	56	`script/error-code-ownership.allowlist` MUST hold, one per line, sorted under th

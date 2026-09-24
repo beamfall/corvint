@@ -69,7 +69,7 @@ func TestStandaloneReadsRefuseGitFiltersWithoutMutation(t *testing.T) {
 						if test.args[0] == "harness" {
 							wantCode = "" // Existing harness domain errors omit a code.
 						}
-						wantError := failure.Error == "Git status cannot safely observe repository metadata"
+						wantError := failure.Error == "Git status cannot safely observe repository metadata: repository config sets filter.hostile."+driver
 						if test.args[0] == "affected" {
 							wantCode = "unsupported-affected-status"
 							wantError = strings.Contains(failure.Error, "affected: worktree status is unavailable")
@@ -114,6 +114,45 @@ func TestStandaloneReadsRefuseGitFiltersWithoutMutation(t *testing.T) {
 							t.Fatal("activation mutated repository bytes")
 						}
 					})
+				}
+			})
+		}
+	})
+}
+
+func TestStandaloneReadNamesUnsupportedRepositoryFeature(t *testing.T) {
+	t.Parallel()
+	t.Run("EAF-V0-011", func(t *testing.T) {
+		for _, test := range []struct{ name, reason string }{
+			{"gitlink", "index records a submodule (gitlink)"},
+			{"include", "repository config uses an include directive (include.*)"},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				root := taskContextRepository(t)
+				secret := filepath.Join(t.TempDir(), "credential-value")
+				arguments := []string{"config", "include.path", secret}
+				if test.name == "gitlink" {
+					oid, err := exec.Command("git", "-C", root, "rev-parse", "HEAD").Output()
+					if err != nil {
+						t.Fatal(err)
+					}
+					arguments = []string{"update-index", "--add", "--cacheinfo", "160000," + strings.TrimSpace(string(oid)) + ",child"}
+				}
+				if data, err := exec.Command("git", append([]string{"-C", root}, arguments...)...).CombinedOutput(); err != nil {
+					t.Fatalf("configure %s: %v %s", test.name, err, data)
+				}
+				var stdout, stderr bytes.Buffer
+				code := runContext(context.Background(), []string{"--root", root, "context", "--task", "find Split", "--limit", "1"}, strings.NewReader(""), &stdout, &stderr)
+				var failure struct {
+					Code  string `json:"code"`
+					Error string `json:"error"`
+				}
+				if err := json.Unmarshal(stderr.Bytes(), &failure); err != nil {
+					t.Fatalf("non-JSON refusal: %d %q %q", code, stdout.String(), stderr.String())
+				}
+				want := "Git status cannot safely observe repository metadata: " + test.reason
+				if code != 2 || failure.Code != "repository-probe-failed" || failure.Error != want || strings.Contains(stderr.String(), "credential-value") {
+					t.Fatalf("refusal did not name its feature: %d %q", code, stderr.String())
 				}
 			})
 		}

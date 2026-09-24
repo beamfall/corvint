@@ -105,6 +105,15 @@ execution claim, Frontier closure rule or mandatory service is introduced here.
   conservative failure (invariant 2). Persisted observation fields MUST carry the redacted form.
   Stored-v1 validation MUST NOT change: the v1 matcher does not recognize quoted values, so
   existing rows carrying such text remain accepted.
+- `EAF-V0-011`: An `EAF-V0-007` refusal of unsafe or unsupported metadata MUST name its specific
+  cause: the ordinary kernels report `repository-probe-failed` with the message
+  `Git status cannot safely observe repository metadata: <reason>`. The reason names the refused
+  feature, the config key (for example `filter.lfs.process`, `core.attributesFile`,
+  `include.*`/`includeIf.*`), the metadata file or directory relative to its Git directory, or the
+  applicable byte limit. It MUST NOT carry a config value, file content, or a path outside the
+  repository; the one value it may name is the closed `extensions.refStorage=reftable`. What is
+  refused does not change, and Git's own metadata-probe failures keep their existing shape. The MCP
+  tool-error object stays closed under `MCPV0` and still carries only its sanitized code.
 
 ## Verified starting state
 
@@ -156,6 +165,7 @@ savings. A failing development experiment is visible evidence, never a default-g
 | EAF-V0-006 | opt-in `TestUncertaintyPaddingDevelopmentScreen`; invocation and retained failure in the experiment protocol |
 | EAF-V0-008 | opt-in `TestFinitePolicyDevelopmentScreen`; frozen `finite-policy.json`, full finite-domain enumeration and malformed-oracle controls |
 | EAF-V0-009 | opt-in scope development check in `internal/lrfrepo/scope_development_test.go`; independently supplied labels, immutable source checks and explicit unsupported outcomes |
+| EAF-V0-011 | `internal/gitstatus` refusal reasons; `TestStatusRefusesUnsupportedMetadataBeforeLiveStatus`, `TestStandaloneReadNamesUnsupportedRepositoryFeature`, `TestStandaloneReadsRefuseGitFiltersWithoutMutation` |
 | EAF-V0-010 | `internal/secretscreen`, `internal/observations`; `TestUnterminatedQuotedValueRedactsThroughEOF`, `TestAppendRedactsUnterminatedQuotedCredentialPath`, `internal/secretscreen/testdata/parity.json` unterminated cases |
 
 Run focused regressions, the canonical gate, fresh independent review, and post-commit CEM/OCM

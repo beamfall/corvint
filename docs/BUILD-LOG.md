@@ -4,6 +4,26 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 Issue #156 EAF-V0-011: isolated Git status refusals name their cause
+
+A 0.8.0 user reported `repository-probe-failed` / "Git status cannot safely observe repository
+metadata" on a clean checkout that plain `git status` reads, and `corvint.status` returning
+`repository-unavailable`. `internal/gitstatus` returned one undifferentiated `errUnsafe` from about
+thirty sites, and both ordinary kernels replaced it with the fixed sentence, so the refused feature
+could not be identified without access to the machine.
+
+Each site now returns a reason that still satisfies `errors.Is(err, errUnsafe)`, and
+`gitstatus.RefusalMessage` appends it: for example `index records a submodule (gitlink)`,
+`repository config sets filter.lfs.process`, `repository config uses an include directive (include.*)`,
+`metadata file packed-refs exceeds 32 MiB`, `metadata file info/exclude is a FIFO`. A reason names
+a feature, config key, Git-relative metadata name or byte limit, never a config value, content or
+outside path. What is refused is unchanged. A split index still fails first inside Git's own
+`ls-files` probe (the private copy omits the shared index), so it keeps its existing
+`MetadataProbeError` shape. The MCP tool-error object is closed under `MCPV0` ("never underlying
+Git, repository, or process text"), so `corvint.status` still reports only `repository-unavailable`;
+the CLI message is the diagnostic path. Touching `internal/gitstatus` moves the analyzer identity to
+`corvint-analyzer/81`.
+
 ## 2026-09-24 TCP-V0-048, decisions 0375/0377/0378: requirement-definitions and line-citations checks repaired on main
 
 `origin/main` at `e667812` failed `requirement-definitions-check` and `line-citations-check` with no

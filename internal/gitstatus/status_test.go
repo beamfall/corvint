@@ -110,7 +110,31 @@ func TestPrivateStatusAcceptsCRLFWorktreePointers(t *testing.T) {
 }
 
 func TestStatusRefusesUnsupportedMetadataBeforeLiveStatus(t *testing.T) {
-	for _, kind := range []string{"clean", "process", "include", "includeIf", "worktree", "attributes", "bare", "split-index", "gitlink", "config-symlink", "index-symlink", "objects-symlink", "refs-symlink", "git-symlink", "config-internal-symlink", "reftable", "gitdir-pointer-crlf", "commondir-crlf", "snapshot-budget", "temp-in-repo"} {
+	// EAF-V0-011: each refusal names its feature, key or Git-relative file.
+	reasons := map[string]string{
+		"clean":                   "repository config sets filter.hostile.clean",
+		"process":                 "repository config sets filter.hostile.process",
+		"include":                 "repository config uses an include directive (include.*)",
+		"includeIf":               "repository config uses a conditional include (includeIf.*)",
+		"worktree":                "repository config sets core.worktree to a directory other than the checkout",
+		"attributes":              "repository config sets core.attributesFile",
+		"bare":                    "repository config sets core.bare",
+		"gitlink":                 "index records a submodule (gitlink)",
+		"config-symlink":          "metadata file config is a symlink",
+		"index-symlink":           "metadata file index is a symlink",
+		"objects-symlink":         "metadata directory objects is missing or not a plain directory",
+		"refs-symlink":            "metadata directory refs is missing or not a plain directory",
+		"git-symlink":             ".git is a symlink",
+		"config-internal-symlink": "metadata file config is a symlink",
+		"reftable":                "repository config sets extensions.refStorage=reftable, which is not supported",
+		"gitdir-pointer-crlf":     ".git gitdir: pointer is empty or contains line breaks or NUL",
+		"commondir-crlf":          "commondir is empty or contains line breaks or NUL",
+		"snapshot-budget":         "metadata file info/exclude exceeds the remaining 64 MiB metadata snapshot budget",
+		"oversized-packed-refs":   "metadata file packed-refs exceeds 32 MiB",
+		"exclude-fifo":            "metadata file info/exclude is a FIFO",
+		"temp-in-repo":            "scratch directory (TMPDIR) is inside the repository or its Git directory",
+	}
+	for _, kind := range []string{"clean", "process", "include", "includeIf", "worktree", "attributes", "bare", "split-index", "gitlink", "config-symlink", "index-symlink", "objects-symlink", "refs-symlink", "git-symlink", "config-internal-symlink", "reftable", "gitdir-pointer-crlf", "commondir-crlf", "snapshot-budget", "oversized-packed-refs", "exclude-fifo", "temp-in-repo"} {
 		t.Run(kind, func(t *testing.T) {
 			var initArgs []string
 			if kind == "reftable" {
@@ -201,6 +225,22 @@ func TestStatusRefusesUnsupportedMetadataBeforeLiveStatus(t *testing.T) {
 				if err := os.Truncate(filepath.Join(root, ".git", "info", "exclude"), 20<<20); err != nil {
 					t.Fatal(err)
 				}
+			case "oversized-packed-refs":
+				path := filepath.Join(root, ".git", "packed-refs")
+				if err := os.WriteFile(path, nil, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Truncate(path, metadataLimit+1); err != nil {
+					t.Fatal(err)
+				}
+			case "exclude-fifo":
+				path := filepath.Join(root, ".git", "info", "exclude")
+				if err := os.Remove(path); err != nil {
+					t.Fatal(err)
+				}
+				if err := syscall.Mkfifo(path, 0o600); err != nil {
+					t.Fatal(err)
+				}
 			case "temp-in-repo":
 				t.Setenv("TMPDIR", root)
 			}
@@ -213,11 +253,28 @@ func TestStatusRefusesUnsupportedMetadataBeforeLiveStatus(t *testing.T) {
 				}
 				return testRun(ctx, dir, limit, args...)
 			}
-			if _, err := Status(context.Background(), root, metadataLimit, run, "status", "--porcelain=v1", "-z"); err == nil {
+			_, err := Status(context.Background(), root, metadataLimit, run, "status", "--porcelain=v1", "-z")
+			if err == nil {
 				t.Fatal("unsafe repository accepted")
 			}
 			if called {
 				t.Fatal("unsafe metadata reached status")
+			}
+			var probe *MetadataProbeError
+			if kind == "split-index" {
+				// The private copy omits the shared index, so Git's own index
+				// probe fails first and keeps its MetadataProbeError shape.
+				if !errors.As(err, &probe) {
+					t.Fatalf("split index lost its probe failure: %v", err)
+				}
+				return
+			}
+			message := RefusalMessage(err)
+			if !errors.Is(err, errUnsafe) || message != "Git status cannot safely observe repository metadata: "+reasons[kind] {
+				t.Fatalf("refusal lost its specific reason: %v", err)
+			}
+			if strings.Contains(message, root) || strings.Contains(message, "exit 42") || strings.Contains(message, os.TempDir()) {
+				t.Fatalf("refusal leaked a config value or outside path: %s", message)
 			}
 		})
 	}
@@ -435,14 +492,14 @@ func TestConfigParserRejectsAmbiguousMultilineAndControlRecords(t *testing.T) {
 		"filter.hidden.clean\ntouch marker\x00",
 		"user.name\x7f\nvalue\x00",
 	} {
-		if safeConfig([]byte(raw), "/repo", "/repo/.git") {
+		if unsafeConfig([]byte(raw), "/repo", "/repo/.git") == "" {
 			t.Fatalf("accepted unsafe config record %q", raw)
 		}
 	}
-	if !safeConfig([]byte("user.name\nFirst\tLast\x00"), "/repo", "/repo/.git") {
+	if unsafeConfig([]byte("user.name\nFirst\tLast\x00"), "/repo", "/repo/.git") != "" {
 		t.Fatal("inert tabbed config value refused")
 	}
-	if !safeConfig([]byte("filter.hostile.clean\n\x00"), "/repo", "/repo/.git") {
+	if unsafeConfig([]byte("filter.hostile.clean\n\x00"), "/repo", "/repo/.git") != "" {
 		t.Fatal("empty filter driver value refused")
 	}
 }
