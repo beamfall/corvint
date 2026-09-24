@@ -17,6 +17,9 @@ import { promptQuery, trimSpace } from "./prompt-bound.js"
 
 const MAX_TRACKED_PATHS = 256
 const MAX_SESSIONS = 128
+// AHI-022: best-effort file-change impact that does not apply to this path or repository is
+// expected, not a fault the user can act on (decision 0379).
+const EXPECTED_FILE_CHANGE_REFUSALS = new Set(["unsupported-impact-path-suffix", "unsupported-impact-repository"])
 
 function eventSessionId(event) {
   const properties = event?.properties
@@ -83,7 +86,7 @@ export const CorvintPlugin = async (host, options = {}) => {
     }
     if (!response.ok) {
       const code = response.code ?? "corvint-degraded"
-      if (request.event === "file-change" && code === "unsupported-impact-path-suffix") {
+      if (request.event === "file-change" && EXPECTED_FILE_CHANGE_REFUSALS.has(code)) {
         record(code, request.event)
       } else {
         report(code, request.event, undefined, response.deadlineMs)

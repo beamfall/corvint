@@ -362,7 +362,7 @@ turning observation into execution.
   legacy Python engine, wheel entry point, or wheel release job; it is not a built witness either.
 - `ARTIFACT-RDY-V0-003`: a tag row reports only an exact release tag already pointing at the
   release-notes commit on the candidate revision: a commit whose only parent is HEAD and which
-  changes `docs/RELEASE-NOTES.md` and no path other than Markdown under `docs/` (decision 0379).
+  changes `docs/RELEASE-NOTES.md` and no path other than Markdown under `docs/` (decision 0380).
   The tag is resolved under `refs/tags/` only: a branch or other ref spelled
   like it is not a tag. It never creates, moves, signs, or deletes a tag; no exact tag is `NOT_RUN`.
   Per `ARTIFACT-RDY-V0-001`, only the ordinary "the ref does not resolve" outcome of the tag read is

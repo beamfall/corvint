@@ -4,18 +4,18 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
-## 2026-09-24 V1-0223 ARTIFACT-RDY-V0-003 / decision 0379 (proposed): release tag names the notes commit
+## 2026-09-24 V1-0223 ARTIFACT-RDY-V0-003 / decision 0380 (accepted): release tag names the notes commit
 
 `script/release-checklist` passed its tag row only when the release tag pointed at the gated HEAD,
 while `RELEASE-RUNBOOK.md` step 10 tags the release-notes commit, so the 0.8.0 pre-promotion run
-failed the row. Proposed decision 0379 makes the notes commit the one tag target. Its only parent
+failed the row. Decision 0380 makes the notes commit the one tag target. Its only parent
 must be HEAD, and it must change `docs/RELEASE-NOTES.md` and only Markdown under `docs/`, which no
 `//go:embed` directive reaches. `script/release-checklist_test.sh` covers a tag on HEAD (FAIL), a
 valid notes commit (PASS), a notes commit without the notes file, one with a non-docs path and a
 tag one commit further on (each FAIL with its own reason). With the new script, the checklist run
 from `41f2b68` reports `PASS tag` for `v0.7.0`, and run from `31d68b4` it reports `PASS tag` for
-`v0.8.0`; neither tag moved. Owner acceptance of decision 0379 is NOT_PRODUCED; full gate NOT_RUN
-(owner policy).
+`v0.8.0`; neither tag moved. The owner accepted decision 0380 on 2026-09-24; it was drafted as
+0379 until the OpenCode decision took that number. Full gate NOT_RUN (owner policy).
 
 ## 2026-09-24 V1-0190 SOP-V0-003 / PRS-V1-002: 0.7.0 to 0.8.0 N-1 upgrade qualification
 
@@ -5146,3 +5146,23 @@ Gates: `gofmt -l` over every Go package directory printed nothing; `GOTOOLCHAIN=
 ./tools/gate-affected-select/... ./internal/specindex/` (55.7 s / 0.8 s / 0.7 s); and `make
 spec-requirements-check requirement-definitions-check traceability-tests-check
 decision-numbers-check` all passed. Full `make gate` was not run, per batch scope.
+
+## 2026-09-24 opencode-terminal-notices: decision 0379, AHI-022
+
+- The `invalid-arguments` FALLBACK notice reproduced live on OpenCode 1.18.31. OpenCode opens a
+  directory outside Git with worktree `/`, and the real binary refuses that root. Decision 0378
+  (upstream) fixed the plugin. With this adapter, a live `opencode serve` in a non-repository
+  directory and in a repository both printed no `[corvint/opencode]` line.
+- No test caught it because every OpenCode test ran the permissive `integrations/testfixture`.
+  `TestHostAdapterJavaScriptHosts` now also builds `./cmd/corvint`. A new lifecycle test covers
+  every stable hook and both tools against that build.
+- The audit found a second terminal notice: `unsupported-impact-repository` on `file-change`,
+  triggered by a `.go` edit in a repository without `go.mod`. It is now expected and goes to
+  OpenCode's log.
+- Mutation checks:
+  - Removing either fix fails the new tests.
+  - Removing the 0378 guard fails both the 0378 test and the new lifecycle test.
+- Follow-ups, not changed here:
+  - A repository with no commit fails every hook with `corvint-command-failed`.
+  - `runtime.js` still sends `adapterVersion` 0.1.0.
+  - The 2 s automatic ceiling can still produce a disclosed `timeout` notice under load.

@@ -1,6 +1,6 @@
-# Decision 0379: the release tag names the notes commit on the gated revision
+# Decision 0380: the release tag names the notes commit on the gated revision
 
-Date: 2026-09-24. Status: proposed; owner acceptance NOT_PRODUCED. Ticket V1-0223. Amends
+Date: 2026-09-24. Status: accepted (owner answer 2026-09-24). Ticket V1-0223. Amends
 `ARTIFACT-RDY-V0-003` in `docs/specs/release-artifact-integrity-v0.md` and steps 9 and 10 of
 `docs/RELEASE-RUNBOOK.md`.
 

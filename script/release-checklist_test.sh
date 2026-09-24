@@ -183,7 +183,7 @@ checklist
 test "$(row tag)" = NOT_RUN
 git -C "$repository" branch -q -D v0.5.0a1
 
-# Decision 0379: the tag names the notes commit whose only parent is the gated HEAD and whose only
+# Decision 0380: the tag names the notes commit whose only parent is the gated HEAD and whose only
 # changes are docs Markdown including docs/RELEASE-NOTES.md. A tag on HEAD itself is not that shape.
 git -C "$repository" tag v0.5.0a1
 checklist

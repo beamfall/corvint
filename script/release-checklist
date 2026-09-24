@@ -143,7 +143,7 @@ case $version in
     if [ -z "$tag_commit" ]; then
       emit NOT_RUN tag ARTIFACT-RDY-V0-003 "expected release tag is absent"
     else
-      # Decision 0379: the tag names the release-notes commit, whose only parent is the gated HEAD
+      # Decision 0380: the tag names the release-notes commit, whose only parent is the gated HEAD
       # and whose only changes are documentation Markdown including docs/RELEASE-NOTES.md.
       tag_parents=$(git -C "$root" rev-list --parents -n 1 "$tag_commit") || {
         echo "release-checklist: git rev-list failed for $expected_tag" >&2

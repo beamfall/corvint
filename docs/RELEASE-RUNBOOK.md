@@ -96,7 +96,7 @@ output directories outside the checkout; the reproducibility script refuses one 
    `git rev-list --count --first-parent FULL_COMMIT`. If `VERSION` and `const version` in
    `cmd/corvint/main.go` change, that is a separate earlier commit that steps 1–8 already ran on;
    the notes commit is the only commit after the gate, its only parent is `FULL_COMMIT`, and it
-   changes only Markdown under `docs/` (decision 0379).
+   changes only Markdown under `docs/` (decision 0380).
 
    ```sh
    git rev-list --count --first-parent FULL_COMMIT
