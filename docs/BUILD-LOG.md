@@ -4,6 +4,19 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 V1-0016 HLQ-V1-008: host lifecycle rerun on 0.8.1 with retained reports
+
+The three decision 0373 Core tuples passed 9/9 on darwin/arm64 against the 0.8.1 release build
+(`Corvint 0.8.1 (build 82)`, source `1281e26`), with the published 0.8.0 binary as N-1. The tuples
+are unchanged: plain CLI, Codex CLI 0.153.2 with adapter 0.2.2, and Claude Code 2.1.267 with adapter
+0.2.3. The runner reports are retained under
+`conformance/host-lifecycle-v1/results/0.8.1-darwin-arm64/` and their sha256s are in the spec's
+Results section, as `HLQ-V1-008` requires. This supersedes the 0.8.0 results, which had no retained
+report.
+
+Linux tuples, other host versions, the companion adapters, and live model-session cases stay
+`NOT_RUN`; support stays FALLBACK. The result is stale at the next release.
+
 ## 2026-09-24 0.8.1 version tuple and DCW code vocabulary (decision 0381 item 11)
 
 The version tuple moves to 0.8.1 for the pre-release decision 0381 item 11 approved. Release prep

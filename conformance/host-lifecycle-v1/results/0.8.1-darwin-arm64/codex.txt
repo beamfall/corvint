@@ -1,0 +1,11 @@
+host-lifecycle-v1	host=codex	surface=plugin	hostVersion=0.153.2	adapterVersion=0.2.2	os=darwin/arm64	corvint=Corvint 0.8.1 (build 82)	source=1281e2695ee87ff29009a97f913a0e6f0d0f530d
+case	install	PASS	corvint@corvint-source 0.2.2 installed by the host package manager; 9 files byte-equal to source
+case	discovery	PASS	host reports it enabled; hooks SessionEnd,SessionStart,Stop,UserPromptSubmit and 1 skill
+case	context	PASS	SessionStart: enveloped corvint-dogfood-event/0 receipt, support=FALLBACK, pinned to HEAD
+case	expansion	PASS	UserPromptSubmit naming add.go returns task evidence at its HEAD blob
+case	change	PASS	next prompt receipt reports 1 dirty path, state mixed; fixture unchanged afterwards
+case	frontier	PASS	unenrolled Stop releases; enrolled incomplete Stop blocks once naming unavailable Frontier authority; recursive Stop releases; fixture unchanged afterwards
+case	degradation	PASS	malformed hook input: exit 0 with visible malformed-hook-json degradation; coding continues
+case	upgrade	PASS	hooks serve context under Corvint 0.8.0 (build 65) and after replacement by Corvint 0.8.1 (build 82); host reinstall keeps the package byte-equal
+case	uninstall	PASS	host remove corvint@corvint-source, marketplace remove succeed; installed plugin root removed; no other corvint state in the private HOME; fixture unchanged
+SUMMARY	status=PASS	passed=9	failed=0	notRun=0
