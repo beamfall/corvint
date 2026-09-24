@@ -41,12 +41,18 @@ func testHostAdapterJavaScriptHosts(t *testing.T) {
 	if build.Err != nil || build.ExitStatus != 0 {
 		t.Fatalf("native adapter fixture: %v exit=%d\n%s\n%s", build.Err, build.ExitStatus, build.Stdout, build.Stderr)
 	}
+	// AHI-022: the real binary pins the refusals the permissive fixture cannot, such as a non-repository root.
+	realBinary := filepath.Join(t.TempDir(), "corvint")
+	build = procgroup.Run(ctx, procgroup.Spec{Argv: []string{goTool, "build", "-o", realBinary, "./cmd/corvint"}, Dir: root, Env: testEnvironment("GOTOOLCHAIN=local"), Timeout: 30 * time.Minute, OutputLimit: 1 << 20}) // hang detector, not a budget (decision 0082)
+	if build.Err != nil || build.ExitStatus != 0 {
+		t.Fatalf("real corvint binary: %v exit=%d\n%s\n%s", build.Err, build.ExitStatus, build.Stdout, build.Stderr)
+	}
 	args := []string{node, "--test"}
 	if os.Getenv("CORVINT_TEST_HOST_INTERRUPT_WITNESS") != "" {
 		args = append(args, "--test-name-pattern=opencode interruption")
 	}
 	args = append(args, path)
-	result := procgroup.Run(ctx, procgroup.Spec{Argv: args, Dir: filepath.Dir(path), Env: testEnvironment("GOTOOLCHAIN=local", "CORVINT_TEST_NATIVE_FIXTURE="+fixture), Timeout: 30 * time.Minute, OutputLimit: 1 << 20}) // hang detector, not a budget (decision 0082)
+	result := procgroup.Run(ctx, procgroup.Spec{Argv: args, Dir: filepath.Dir(path), Env: testEnvironment("GOTOOLCHAIN=local", "CORVINT_TEST_NATIVE_FIXTURE="+fixture, "CORVINT_TEST_REAL_BINARY="+realBinary), Timeout: 30 * time.Minute, OutputLimit: 1 << 20}) // hang detector, not a budget (decision 0082)
 	if result.Err != nil || result.ExitStatus != 0 {
 		t.Fatalf("host adapters: %v exit=%d\n%s\n%s", result.Err, result.ExitStatus, result.Stdout, result.Stderr)
 	}

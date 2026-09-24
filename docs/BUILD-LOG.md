@@ -59,6 +59,34 @@ The rerun used plugin sources from a clean `e667812` checkout. The packages are 
 `df66aba4`. All three tuples passed 9/9 again. A second review's findings were fixed or narrowed
 the same way before the final run.
 
+## 2026-09-24 TCP-V0-048, decisions 0375/0377/0378: requirement-definitions and line-citations checks repaired on main
+
+`origin/main` at `e667812` failed `requirement-definitions-check` and `line-citations-check` with no
+change in flight.
+
+`TCP-V0-048` was not defined twice. Its one clause is the numbered requirement at
+`task-context-packet-v0.md` line 792, added with `TCP-V0-049` and `TCP-V0-050` by `b705bf3`
+(V1-0219, decision 0377), and `REQUIREMENTS.tsv` already pointed there. The same commit began an
+acceptance-evidence paragraph with `TCP-V0-048..050 (proposed`, and the checker's definition pattern
+(an ID at line start followed by `:` or `.`) reads `TCP-V0-048.` as a second clause. The paragraph
+now opens `Proposed TCP-V0-048..050`; no ID changed.
+
+Five citations in decisions 0375, 0377 and 0378 did not resolve. Each was reread before repinning:
+
+- 0375's two `docs/BUILD-LOG.md` citations: both cited lines are unchanged in the "V1-0017 decision
+  0360" entry and moved down with later prepends, so the anchors stay and the line numbers move.
+- 0375's `stable-operations-v0.md:77-85`: `SOP-V0-003` is byte-identical at 84-92 after V1-0190
+  inserted the current N-1 evidence paragraph above it, so the anchor `@feb4322f` stays.
+- 0377's `taskcontext.go:237-283` is still the whole `compile` function; it gains `@fc3cbfcb`.
+- 0378 cited `packages/opencode/src/project/project.ts:217` in `sst/opencode`, a file this
+  repository does not track, so no content anchor can resolve. Line 217 at OpenCode tag `v1.18.31`
+  (commit `014614d35b39`, the installed version this log records for the OpenCode MCP check) sets
+  `worktree` to `/` for a global project with no VCS. The decision now names that tag and commit in
+  prose instead of a `path:line` token.
+
+Gates: `make requirement-definitions-check line-citations-check spec-requirements-check` and
+`GOTOOLCHAIN=local go test ./internal/specindex/` passed. `make gate` NOT_RUN by owner instruction.
+
 ## 2026-09-24 V1-0190 SOP-V0-003 / PRS-V1-002: 0.7.0 to 0.8.0 N-1 upgrade qualification
 
 `script/check-install-lifecycle.sh` at `3cd62ca9`, with `CORVINT_LIFECYCLE_ARCHIVE` set to the
@@ -5188,3 +5216,23 @@ Gates: `gofmt -l` over every Go package directory printed nothing; `GOTOOLCHAIN=
 ./tools/gate-affected-select/... ./internal/specindex/` (55.7 s / 0.8 s / 0.7 s); and `make
 spec-requirements-check requirement-definitions-check traceability-tests-check
 decision-numbers-check` all passed. Full `make gate` was not run, per batch scope.
+
+## 2026-09-24 opencode-terminal-notices: decision 0379, AHI-022
+
+- The `invalid-arguments` FALLBACK notice reproduced live on OpenCode 1.18.31. OpenCode opens a
+  directory outside Git with worktree `/`, and the real binary refuses that root. Decision 0378
+  (upstream) fixed the plugin. With this adapter, a live `opencode serve` in a non-repository
+  directory and in a repository both printed no `[corvint/opencode]` line.
+- No test caught it because every OpenCode test ran the permissive `integrations/testfixture`.
+  `TestHostAdapterJavaScriptHosts` now also builds `./cmd/corvint`. A new lifecycle test covers
+  every stable hook and both tools against that build.
+- The audit found a second terminal notice: `unsupported-impact-repository` on `file-change`,
+  triggered by a `.go` edit in a repository without `go.mod`. It is now expected and goes to
+  OpenCode's log.
+- Mutation checks:
+  - Removing either fix fails the new tests.
+  - Removing the 0378 guard fails both the 0378 test and the new lifecycle test.
+- Follow-ups, not changed here:
+  - A repository with no commit fails every hook with `corvint-command-failed`.
+  - `runtime.js` still sends `adapterVersion` 0.1.0.
+  - The 2 s automatic ceiling can still produce a disclosed `timeout` notice under load.

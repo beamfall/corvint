@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync, cpSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import test, { after } from 'node:test'
-import { createCorvintRunner, hashSessionId, boundedTask, normalizeRepositoryPath, RECOGNISED_DEGRADATIONS } from './opencode/src/runtime.js'
+import { createCorvintRunner, hashSessionId, boundedTask, insideGitRepository, normalizeRepositoryPath, RECOGNISED_DEGRADATIONS } from './opencode/src/runtime.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const hook = join(here, 'gemini-cli/hooks/corvint-hook.mjs')
@@ -284,6 +284,52 @@ test('AHI-022 decision 0378 OpenCode outside a Git repository registers and invo
  const inside=await CorvintPlugin({directory:f.root,worktree:f.root},{corvintBinary:f.binary,hostVersion:'unknown',...OPEN_TIMEOUTS})
  await inside['tool.execute.after']({sessionID:'session-a'},{metadata:{}})
  assert.deepEqual(f.captured().map(row=>row.argv.slice(0,2)),[['--root',f.root]])
+})
+test('AHI-022 decision 0378 OpenCode repository detection follows subdirectories, symlinks and linked worktrees',t=>{
+ const dir=mkdtempSync(join(tmpdir(),'corvint-opencode-git-'));t.after(()=>rmSync(dir,{recursive:true,force:true}))
+ const repo=join(dir,'repo'),outside=join(dir,'outside');mkdirSync(join(repo,'src/deep'),{recursive:true});mkdirSync(outside)
+ execFileSync('git',['init','-q',repo])
+ assert.equal(insideGitRepository(join(repo,'src/deep')),true)
+ symlinkSync(join(repo,'src'),join(outside,'link'));assert.equal(insideGitRepository(join(outside,'link')),true)
+ const linked=join(dir,'linked');mkdirSync(linked);writeFileSync(join(linked,'.git'),`gitdir: ${join(repo,'.git')}\n`);assert.equal(insideGitRepository(linked),true)
+ assert.equal(insideGitRepository(outside),false)
+})
+test('AHI-022 decision 0379 OpenCode lifecycle against the real binary writes nothing to the terminal',async t=>{
+ const binary=process.env.CORVINT_TEST_REAL_BINARY
+ assert.ok(binary&&existsSync(binary),'Run through TestHostAdapterJavaScriptHosts with the real corvint binary')
+ const dir=mkdtempSync(join(tmpdir(),'corvint-opencode-real-'));t.after(()=>rmSync(dir,{recursive:true,force:true}))
+ const repo=join(dir,'repo'),outside=join(dir,'outside');mkdirSync(join(repo,'src'),{recursive:true});mkdirSync(outside)
+ writeFileSync(join(repo,'README.md'),'# fixture\n');writeFileSync(join(repo,'src/parse.go'),'package src\n');writeFileSync(join(repo,'app.ts'),'export const a = 1\n')
+ const git=(...args)=>execFileSync('git',['-C',repo,'-c','user.name=fixture','-c','user.email=fixture@example.invalid','-c','commit.gpgsign=false',...args])
+ git('init','-q');git('add','.');git('commit','-qm','fixture')
+ // The root cause of the terminal notice: the real binary refuses a non-repository root.
+ const refused=await createCorvintRunner({corvintBinary:binary,hostVersion:'unknown',...OPEN_TIMEOUTS})({root:outside,event:'session-start',input:{}})
+ assert.equal(refused.ok,false);assert.equal(refused.code,'invalid-arguments')
+ const pkg=join(dir,'plugin');cpSync(join(here,'opencode'),pkg,{recursive:true})
+ const dependency=join(pkg,'node_modules/@opencode-ai/plugin');mkdirSync(dependency,{recursive:true})
+ writeFileSync(join(dependency,'package.json'),JSON.stringify({name:'@opencode-ai/plugin',type:'module',exports:'./index.js'}))
+ writeFileSync(join(dependency,'index.js'),`export function tool(v){return v};tool.schema={array:v=>({v}),enum:v=>({v}),object:v=>({v}),string:()=>({})}`)
+ const {CorvintPlugin}=await import(pathToFileURL(join(pkg,'src/index.js')))
+ const warnings=[],warn=console.warn;console.warn=v=>warnings.push(v);t.after(()=>{console.warn=warn})
+ const logged=[],client={app:{log:async request=>{logged.push(request)}}},settle=()=>new Promise(setImmediate)
+ const options={corvintBinary:binary,hostVersion:'unknown',...OPEN_TIMEOUTS}
+ assert.deepEqual(await CorvintPlugin({directory:outside,worktree:'/',client},options),{})
+ const plugin=await CorvintPlugin({directory:repo,worktree:repo,client},options)
+ const context={sessionID:'session-a',abort:new AbortController().signal},verification=[{commandSha256:'b'.repeat(64),status:'passed'}]
+ await plugin.event({event:{type:'session.created',properties:{info:{id:'session-a'}}}})
+ for(const file of ['README.md','src/parse.go','app.ts'])await plugin.event({event:{type:'file.edited',properties:{file:join(repo,file),sessionID:'session-a'}}})
+ await plugin['tool.execute.after']({tool:'edit',sessionID:'session-a',callID:'call-a'},{metadata:{corvint:{changedPaths:['app.ts'],verification}}})
+ const answered=await plugin.tool.corvint_context.execute({task:'explain app.ts'},context)
+ const recorded=await plugin.tool.corvint_record_outcome.execute({task:'explain app.ts',changedPaths:['app.ts'],verification,outcome:'passed'},context)
+ await plugin.event({event:{type:'session.idle',properties:{sessionID:'session-a'}}})
+ await plugin.event({event:{type:'session.deleted',properties:{info:{id:'session-a'}}}})
+ await plugin.dispose();await settle()
+ const codes=row=>JSON.parse(row.slice('[corvint/opencode] '.length)).code.split(',')
+ // A deadline is a disclosed bound under host load (AHI-012), not a fault this test pins.
+ assert.deepEqual(warnings.filter(row=>codes(row).some(code=>code!=='timeout')),[])
+ const expected=new Set([...RECOGNISED_DEGRADATIONS,'unsupported-impact-path-suffix','unsupported-impact-repository','stop-recursion-protected'])
+ assert.deepEqual(logged.flatMap(row=>codes(row.body.message)).filter(code=>!expected.has(code)),[])
+ assert.ok(!JSON.stringify({answered,recorded}).includes('invalid-arguments'))
 })
 test('CRB-V0-010 CRB-V0-011 OpenCode loaded plugin keeps exact aliases, option precedence, session isolation, payload bounds and repeat-stop suppression',async t=>{
  const f=fixture(t), pkg=join(f.dir,'plugin');cpSync(join(here,'opencode'),pkg,{recursive:true})
