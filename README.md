@@ -320,7 +320,7 @@ Three stdio MCP servers, each bound to one repository root, each read-only:
 
 | Server | Tools |
 |---|---|
-| `corvint-mcp` | `corvint.query`, `corvint.impact` and `corvint.status`: the same bounded context, Go impact and repository-status receipts as the CLI |
+| `corvint-mcp` | `corvint.query`, `corvint.impact` and `corvint.status`: the same bounded context, Go impact and repository-status receipts as the CLI; with `--tool-profile task-review`, `corvint.context` and `corvint.cem.report` also return the task-context packet and a non-publishing CEM report preview |
 | `corvint-docs-mcp` | `corvint.docs_draft` writes source-pinned documentation from owner prose and indexed Go declarations; `corvint.docs_consume` rechecks a draft's exact bytes against source |
 | `corvint-corpus-mcp` | Experimental [revision-pinned documentation corpus](docs/DOCUMENTATION-CORPUS.md); capability-gated read tools over one explicitly supplied local artifact |
 | `corvint-test-validity-mcp` | Discovery and projection of retained test evidence in one five-axis shape |

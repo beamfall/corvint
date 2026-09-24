@@ -22,6 +22,28 @@ const (
 )
 
 func TestServerTrafficMatchesOfficialSchema(t *testing.T) {
+	schema := loadOfficialSchema(t)
+	client := startServer(t, fixtureRepository(t))
+	defer client.close(t)
+	checkOfficialExchanges(t, schema, client, 300, []schemaExchange{
+		{"DiscoverRequest", "DiscoverResultResponse", "server/discover", map[string]any{"_meta": requestMeta()}},
+		{"ListToolsRequest", "ListToolsResultResponse", "tools/list", map[string]any{"_meta": requestMeta()}},
+		{"CallToolRequest", "CallToolResultResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.status", "arguments": map[string]any{}}},
+		{"CallToolRequest", "CallToolResultResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.query", "arguments": map[string]any{"task": "Identify the active work queue"}}},
+		{"CallToolRequest", "CallToolResultResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.impact", "arguments": map[string]any{"paths": []any{"pkg/value.go"}}}},
+		{"CallToolRequest", "JSONRPCErrorResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.impact", "arguments": map[string]any{"paths": []any{"../escape.go"}}}},
+		{"JSONRPCRequest", "JSONRPCErrorResponse", "corvint/unknown", map[string]any{"_meta": requestMeta()}},
+	})
+	forged := map[string]any{"jsonrpc": "1.0", "id": json.Number("1"), "result": map[string]any{}}
+	if schema.check(map[string]any{"$ref": "#/$defs/DiscoverResultResponse"}, forged, "forged") == nil {
+		t.Fatal("official-schema checker accepted a forged response")
+	}
+}
+
+// loadOfficialSchema skips unless officialSchemaEnv names a local copy whose
+// digest matches the pin.
+func loadOfficialSchema(t *testing.T) officialSchema {
+	t.Helper()
 	path := os.Getenv(officialSchemaEnv)
 	if path == "" {
 		t.Skip(officialSchemaEnv + " unset: official-schema validation NOT_RUN")
@@ -34,23 +56,20 @@ func TestServerTrafficMatchesOfficialSchema(t *testing.T) {
 	if got := hex.EncodeToString(digest[:]); got != officialSchemaSHA256 {
 		t.Fatalf("official schema sha256=%s want %s", got, officialSchemaSHA256)
 	}
-	schema := officialSchema{defs: object(t, object(t, decodeNumbers(t, raw))["$defs"])}
-	client := startServer(t, fixtureRepository(t))
-	defer client.close(t)
-	exchanges := []struct {
-		requestDef, responseDef, method string
-		params                          map[string]any
-	}{
-		{"DiscoverRequest", "DiscoverResultResponse", "server/discover", map[string]any{"_meta": requestMeta()}},
-		{"ListToolsRequest", "ListToolsResultResponse", "tools/list", map[string]any{"_meta": requestMeta()}},
-		{"CallToolRequest", "CallToolResultResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.status", "arguments": map[string]any{}}},
-		{"CallToolRequest", "CallToolResultResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.query", "arguments": map[string]any{"task": "Identify the active work queue"}}},
-		{"CallToolRequest", "CallToolResultResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.impact", "arguments": map[string]any{"paths": []any{"pkg/value.go"}}}},
-		{"CallToolRequest", "JSONRPCErrorResponse", "tools/call", map[string]any{"_meta": requestMeta(), "name": "corvint.impact", "arguments": map[string]any{"paths": []any{"../escape.go"}}}},
-		{"JSONRPCRequest", "JSONRPCErrorResponse", "corvint/unknown", map[string]any{"_meta": requestMeta()}},
-	}
+	return officialSchema{defs: object(t, object(t, decodeNumbers(t, raw))["$defs"])}
+}
+
+type schemaExchange struct {
+	requestDef, responseDef, method string
+	params                          map[string]any
+}
+
+// checkOfficialExchanges sends each exchange and checks both the request and
+// the live response against the named official definitions.
+func checkOfficialExchanges(t *testing.T, schema officialSchema, client *stdioClient, firstID int, exchanges []schemaExchange) {
+	t.Helper()
 	for index, exchange := range exchanges {
-		id := 300 + index
+		id := firstID + index
 		sent := decodeNumbers(t, mustJSON(t, request(id, exchange.method, exchange.params)))
 		if err := schema.check(map[string]any{"$ref": "#/$defs/" + exchange.requestDef}, sent, exchange.requestDef); err != nil {
 			t.Fatalf("request %d does not match %s: %v", id, exchange.requestDef, err)
@@ -59,10 +78,6 @@ func TestServerTrafficMatchesOfficialSchema(t *testing.T) {
 		if err := schema.check(map[string]any{"$ref": "#/$defs/" + exchange.responseDef}, response, exchange.responseDef); err != nil {
 			t.Fatalf("response %d does not match %s: %v\n%s", id, exchange.responseDef, err, canonicalJSON(response))
 		}
-	}
-	forged := map[string]any{"jsonrpc": "1.0", "id": json.Number("1"), "result": map[string]any{}}
-	if schema.check(map[string]any{"$ref": "#/$defs/DiscoverResultResponse"}, forged, "forged") == nil {
-		t.Fatal("official-schema checker accepted a forged response")
 	}
 }
 

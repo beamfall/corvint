@@ -22,6 +22,7 @@ import (
 	"io"
 	"os/exec"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
@@ -50,9 +51,25 @@ func NewBudget(ops int, total time.Duration) *Budget {
 // NewDefaultBudget returns the frozen 1,024-operation, 30-minute budget.
 func NewDefaultBudget() *Budget { return NewBudget(DefaultOperations, DefaultTotalBudget) }
 
+// pinnedBinary is the absolute Git executable a long-lived host fixed at
+// start; nil leaves each spawn to look up "git" on PATH.
+var pinnedBinary atomic.Pointer[string]
+
+// PinBinary makes every later spawn with an empty Options.Binary run path, so
+// a Git placed on PATH after a host started never runs (MCPV0-016). The
+// caller passes an absolute path it already resolved; the CLI never pins.
+func PinBinary(path string) { pinnedBinary.Store(&path) }
+
+func defaultBinary() string {
+	if pinned := pinnedBinary.Load(); pinned != nil {
+		return *pinned
+	}
+	return "git"
+}
+
 // Options configure one bounded Git invocation.
 type Options struct {
-	Binary      string // test seam; empty means "git"
+	Binary      string // test seam; empty means the pinned Git, else "git"
 	Dir         string
 	Env         []string // complete child environment; nil means empty
 	Stdin       []byte
@@ -184,7 +201,7 @@ func RunReserved(ctx context.Context, perOp time.Duration, options Options, args
 func runReservedStream(ctx context.Context, perOp time.Duration, options Options, consumer io.Writer, args ...string) ([]byte, error) {
 	binary := options.Binary
 	if binary == "" {
-		binary = "git"
+		binary = defaultBinary()
 	}
 	command := exec.Command(binary, args...)
 	command.Dir = options.Dir

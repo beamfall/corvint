@@ -7,8 +7,10 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"slices"
 	"sort"
 
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
@@ -20,6 +22,10 @@ const (
 	serverName    = "corvint-mcp"
 	serverVersion = "0.1.0-experimental"
 	toolError     = "corvint-mcp-tool-error/0"
+
+	// toolProfileTaskReview is the only value of the closed --tool-profile
+	// selector (MCPV0-026, decision 0374).
+	toolProfileTaskReview = "task-review"
 
 	// untrustedDataPrefix and untrustedDataSuffix are the internal/repoenvelope
 	// envelope the host adapters apply to repository-authored free text.
@@ -38,8 +44,9 @@ func main() {
 
 func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	arguments, protocolVersion, protocolOK := protocol.ExtractVersionArgument(arguments)
+	arguments, taskReview, profileOK := extractToolProfile(arguments)
 	root, versionOnly, ok := parseArguments(arguments)
-	if !ok || !protocolOK {
+	if !ok || !protocolOK || !profileOK {
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: invalid arguments")
 		return 2
 	}
@@ -47,11 +54,18 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		_, _ = fmt.Fprintln(stdout, serverName+" "+serverVersion)
 		return 0
 	}
-	if _, err := gitstatus.Pin(); err != nil {
+	git, err := gitstatus.Pin()
+	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: git unavailable")
 		return 2
 	}
-	registry, registryErr := bridge.New(root)
+	// The CEM seams spawn Git through their own runner; pin it to the same path.
+	gitrun.PinBinary(git)
+	newRegistry := bridge.New
+	if taskReview {
+		newRegistry = bridge.NewTaskReview
+	}
+	registry, registryErr := newRegistry(root)
 	if registryErr != nil {
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: repository unavailable")
 		return 2
@@ -73,6 +87,28 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		return 2
 	}
 	return 0
+}
+
+// extractToolProfile removes the optional, closed descendant-profile selector
+// (MCPV0-026). A missing, duplicate, or unknown value, or the selector beside
+// --version, fails before repository startup; omission keeps the V0 tools.
+func extractToolProfile(arguments []string) (remaining []string, taskReview bool, ok bool) {
+	remaining = make([]string, 0, len(arguments))
+	for index := 0; index < len(arguments); index++ {
+		if arguments[index] != "--tool-profile" {
+			remaining = append(remaining, arguments[index])
+			continue
+		}
+		if taskReview || index+1 == len(arguments) || arguments[index+1] != toolProfileTaskReview {
+			return nil, false, false
+		}
+		taskReview = true
+		index++
+	}
+	if taskReview && slices.Contains(remaining, "--version") {
+		return nil, false, false
+	}
+	return remaining, taskReview, true
 }
 
 func parseArguments(arguments []string) (root string, versionOnly bool, ok bool) {

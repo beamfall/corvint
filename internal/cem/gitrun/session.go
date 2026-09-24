@@ -90,7 +90,7 @@ func (s *Session) Read(ctx context.Context, perOp time.Duration, options Options
 func (s *Session) start(options Options, args []string) bool {
 	binary := options.Binary
 	if binary == "" {
-		binary = "git"
+		binary = defaultBinary()
 	}
 	env := options.Env
 	if env == nil {

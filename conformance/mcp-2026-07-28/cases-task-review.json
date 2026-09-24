@@ -1,0 +1,31 @@
+{
+  "profile": "corvint-mcp-2026-07-28-conformance/1",
+  "parentProfile": "corvint-mcp-2026-07-28-conformance/0",
+  "selector": ["--tool-profile", "task-review"],
+  "protocolVersions": ["2026-07-28", "2025-11-25"],
+  "tools": [
+    "corvint.cem.report",
+    "corvint.context",
+    "corvint.impact",
+    "corvint.query",
+    "corvint.status"
+  ],
+  "officialSchema": {
+    "observedSha256": "ef70b61f99b6d2e5e3b46863822eab08dff6a45bedc7a08914e0e5b133f40203",
+    "validationStatus": "OPT_IN",
+    "validationReason": "TestTaskReviewTrafficMatchesOfficialSchema validates live task-review traffic against the same pinned local copy named by CORVINT_MCP_OFFICIAL_SCHEMA; the default no-network run skips it"
+  },
+  "cases": [
+    "selector-closed",
+    "default-profile-unchanged",
+    "task-review-tool-catalogue",
+    "legacy-protocol-task-review",
+    "context-cem-report-read-only",
+    "context-cem-report-argument-rejection",
+    "cem-map-escape-refusal",
+    "cem-report-envelope-and-budget",
+    "repository-filter-no-execution",
+    "git-executable-pinned",
+    "official-schema-traffic"
+  ]
+}
