@@ -20,7 +20,7 @@ func TestWorkQueueSpecEnumeratesEveryObligation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := make([]string, 50)
+	want := make([]string, 51)
 	for i := range want {
 		want[i] = fmt.Sprintf("WQO-V0-%03d", i+1)
 	}

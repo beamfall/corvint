@@ -287,7 +287,7 @@ func TestTimeoutNormalExitAndCancellationReapDescendants(t *testing.T) {
 		go func() { _, err := runProcess(ctx, helperArgs("descendant", pid), root, t.TempDir(), 30); done <- err }()
 		deadline := time.Now().Add(5 * time.Second)
 		for {
-			if _, err := os.Stat(pid); err == nil {
+			if raw, err := os.ReadFile(pid); err == nil && len(raw) > 0 {
 				break
 			}
 			if time.Now().After(deadline) {
