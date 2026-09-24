@@ -595,7 +595,8 @@ or adapter protocol. They change no wire profile.
 - `WQO-V0-049`: The initialization executable is one canonical absolute executable regular file
   outside the adopting repository/worktree. `work init` and `work rebind` resolve the operator-given
   absolute path through symlinks exactly once, report the resolved target on stderr when it differs,
-  and bind that target; every check below applies to the resolved target, which therefore has no
+  and bind that target; the given path itself must also lie outside the repository, so a
+  repository-committed link cannot choose the target. Every check below applies to the resolved target, which therefore has no
   symlink component in the path, its parents or the file itself. Non-sticky group/world-writable
   parents, group/world-writable executable bytes, missing paths, relative paths and repository-controlled paths fail before init writes. Init records
   the exact path, SHA-256, `Corvint VERSION (build BUILD)` output and Go module/VCS source identity in
@@ -629,11 +630,13 @@ or adapter protocol. They change no wire profile.
   partially committed worktree; an unqualified adapter binding or changed bound executable (review,
   `work rebind`, commit); a policy change during the invocation; a named unsupported repository
   feature refused by the work source or the isolated Git status probe (a closed configuration key
-  such as `include.path` or a filter key whose driver name is bounded as in `EAF-V0-011`, a split index, a submodule, a graft, replacement refs, or a shallow or
-  non-top-level root); or otherwise unqualified Git source facts. REASON never echoes file
-  contents, Git output, or other repository-controlled bytes. A
-  successful `work init` writes one stderr line telling the operator to review and commit the three
-  files, which observation requires. Stdout and `work-command-result/0` are unchanged.
+  such as `include.path` or a filter key whose driver name is bounded as in `EAF-V0-011`, a split
+  index, a submodule, a graft, replacement refs, or a shallow or non-top-level root); or otherwise
+  unqualified Git source facts. REASON never echoes file contents, Git output, or other
+  repository-controlled bytes. A successful `work init` writes one stderr line telling the operator
+  to review and commit the three files, which observation requires, after the `WQO-V0-049`
+  resolved-target line when the executable path resolved through a symlink. Stdout and
+  `work-command-result/0` are unchanged.
 
 Explicit unknowns for an adopted repository:
 

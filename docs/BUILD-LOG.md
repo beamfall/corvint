@@ -5244,3 +5244,8 @@ the CLI message is the diagnostic path. Touching `internal/gitstatus` moves the 
   `work rebind`, as it already did for any byte change.
 - Tests: `TestWorkInitBindsResolvedSymlinkTargetWQOV0049`; `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`
   now covers links to a missing, an unsafe-parent, and a repository-local executable.
+- Review repair: the given path must also lie outside the repository before it is resolved, so a
+  link committed in the repository cannot choose the bound target even when that target is a safe
+  external file. The refusal table now asserts each specific reason. The positive test also
+  retargets the link after commit (observation still passes against the bound target) and runs
+  `work rebind` through the link, which reports and binds the new target.

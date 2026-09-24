@@ -86,6 +86,15 @@ func workBindExecutable(ctx context.Context, path string, protectedRoots []strin
 	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
 		return workCorvintExecutableBinding{}, nil, errors.New("path must be canonical and absolute")
 	}
+	linkDirectory, err := filepath.EvalSymlinks(filepath.Dir(path))
+	if err != nil {
+		return workCorvintExecutableBinding{}, nil, errors.New("path cannot be resolved to an existing file")
+	}
+	for _, root := range protectedRoots {
+		if workPathWithin(filepath.Join(linkDirectory, filepath.Base(path)), root) {
+			return workCorvintExecutableBinding{}, nil, errors.New("path is repository-controlled")
+		}
+	}
 	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		return workCorvintExecutableBinding{}, nil, errors.New("path cannot be resolved to an existing file")

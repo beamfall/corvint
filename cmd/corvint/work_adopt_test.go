@@ -299,44 +299,47 @@ func TestWorkInitRejectsUnqualifiedExecutableWQOV0049(t *testing.T) {
 	if err := os.Chmod(filepath.Dir(unsafe), 0777); err != nil {
 		t.Fatal(err)
 	}
+	link := func(target, path string) string {
+		if err := os.Symlink(target, path); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	repositoryLocal := func(root string) string {
+		path := filepath.Join(root, "bin", "corvint")
+		workCopyExecutable(t, binary, path)
+		return path
+	}
 	for _, test := range []struct {
-		name string
-		path func(string) string
+		name, reason string
+		path         func(string) string
 	}{
-		{"relative", func(string) string { return "corvint" }},
-		{"missing", func(string) string { return filepath.Join(fixtureRoot, "missing") }},
-		{"symlink-to-unsafe-parent", func(string) string {
-			link := filepath.Join(fixtureRoot, "linked-unsafe")
-			_ = os.Symlink(unsafe, link)
-			return link
+		{"relative", "path must be canonical and absolute", func(string) string { return "corvint" }},
+		{"missing", "path cannot be resolved", func(string) string { return filepath.Join(fixtureRoot, "missing") }},
+		{"symlink-to-unsafe-parent", "path has an unsafe parent component", func(string) string {
+			return link(unsafe, filepath.Join(fixtureRoot, "linked-unsafe"))
 		}},
-		{"symlink-to-missing", func(string) string {
-			link := filepath.Join(fixtureRoot, "linked-missing")
-			_ = os.Symlink(filepath.Join(fixtureRoot, "missing"), link)
-			return link
+		{"symlink-to-missing", "path cannot be resolved", func(string) string {
+			return link(filepath.Join(fixtureRoot, "missing"), filepath.Join(fixtureRoot, "linked-missing"))
 		}},
-		{"symlink-to-repository-local", func(root string) string {
-			path := filepath.Join(root, "bin", "corvint")
-			workCopyExecutable(t, binary, path)
-			link := filepath.Join(t.TempDir(), "corvint")
-			if err := os.Symlink(path, link); err != nil {
+		{"symlink-to-repository-local", "path is repository-controlled", func(root string) string {
+			return link(repositoryLocal(root), filepath.Join(t.TempDir(), "corvint"))
+		}},
+		{"repository-link-to-external", "path is repository-controlled", func(root string) string {
+			if err := os.MkdirAll(filepath.Join(root, "tools"), 0o755); err != nil {
 				t.Fatal(err)
 			}
-			return link
+			return link(binary, filepath.Join(root, "tools", "corvint"))
 		}},
-		{"unsafe-parent", func(string) string { return unsafe }},
-		{"repository-local", func(root string) string {
-			path := filepath.Join(root, "bin", "corvint")
-			workCopyExecutable(t, binary, path)
-			return path
-		}},
+		{"unsafe-parent", "path has an unsafe parent component", func(string) string { return unsafe }},
+		{"repository-local", "path is repository-controlled", repositoryLocal},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			root := materializationFixture(t)
 			var stdout, stderr bytes.Buffer
 			exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", test.path(root)}, strings.NewReader(""), &stdout, &stderr)
-			if exit != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "executable is unqualified") {
-				t.Fatalf("exit=%d stdout=%q stderr=%q", exit, &stdout, &stderr)
+			if exit != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "executable is unqualified: "+test.reason) {
+				t.Fatalf("exit=%d stdout=%q stderr=%q, want reason %q", exit, &stdout, &stderr, test.reason)
 			}
 			if _, err := os.Lstat(filepath.Join(root, ".corvint")); !errors.Is(err, os.ErrNotExist) {
 				t.Fatalf("refused init wrote .corvint: %v", err)
@@ -378,6 +381,27 @@ func TestWorkInitBindsResolvedSymlinkTargetWQOV0049(t *testing.T) {
 	stderr.Reset()
 	if exit := run([]string{"--root", root, "work", "observe"}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
 		t.Fatalf("observe exit=%d stderr=%q", exit, &stderr)
+	}
+	upgraded := filepath.Join(linkDirectory, "upgraded", "corvint")
+	workCopyExecutable(t, binary, upgraded)
+	if err := os.Remove(linked); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(upgraded, linked); err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if exit := run([]string{"--root", root, "work", "observe"}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+		t.Fatalf("observe after retargeting the link exit=%d stderr=%q", exit, &stderr)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if exit := run([]string{"--root", root, "work", "rebind", "--corvint-executable", linked}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+		t.Fatalf("rebind exit=%d stderr=%q", exit, &stderr)
+	}
+	if want := "corvint work rebind: " + linked + " resolves through a symlink; bound its target " + upgraded; !strings.HasPrefix(stderr.String(), want) {
+		t.Fatalf("rebind stderr %q lacks %q", &stderr, want)
 	}
 }
 
