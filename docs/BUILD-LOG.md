@@ -5230,3 +5230,17 @@ the CLI message is the diagnostic path. Touching `internal/gitstatus` moves the 
   probe with its raw subsection, including C1 control bytes. A filter driver name now appears only
   when it is 1 to 32 characters of `[a-z0-9_-]`, otherwise `*` (EAF-V0-011, WQO-V0-051). The work
   test now covers the probe route and the exact dirty-worktree reason.
+
+## 2026-09-24 work-executable-symlink: WQO-V0-049, issue #157 follow-up
+
+- The reporter installs Corvint as a symlink in `~/.local/bin`; `work init --corvint-executable`
+  refused it ("path and parent components must not be symlinks"). Owner decision in this change:
+  `work init` and `work rebind` resolve the given absolute path through symlinks once, bind the real
+  target, and say so on stderr. Every existing check (canonical absolute, no symlink component,
+  safe parents, not group/world-writable, outside the repository) applies to the resolved target, so
+  a link into the repository or to an unsafe file is still refused. Observation is unchanged: it
+  reopens the recorded target without following links and rederives the digest.
+- An upgrade that retargets the link leaves the old target bound; observation then refuses until
+  `work rebind`, as it already did for any byte change.
+- Tests: `TestWorkInitBindsResolvedSymlinkTargetWQOV0049`; `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`
+  now covers links to a missing, an unsafe-parent, and a repository-local executable.

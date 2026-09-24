@@ -79,8 +79,18 @@ func workParseBoundAdapter(raw []byte) (workCorvintExecutableBinding, error) {
 	return binding, nil
 }
 
+// workBindExecutable resolves a symlinked operator path once, at init or rebind,
+// and binds the real target, which must pass every check on its own. Observation
+// reopens only the recorded target without following links (WQO-V0-049).
 func workBindExecutable(ctx context.Context, path string, protectedRoots []string) (workCorvintExecutableBinding, *workExecutable, error) {
-	object, source, err := workOpenBoundExecutable(path, protectedRoots)
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path {
+		return workCorvintExecutableBinding{}, nil, errors.New("path must be canonical and absolute")
+	}
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return workCorvintExecutableBinding{}, nil, errors.New("path cannot be resolved to an existing file")
+	}
+	object, source, err := workOpenBoundExecutable(resolved, protectedRoots)
 	if err != nil {
 		return workCorvintExecutableBinding{}, nil, err
 	}
@@ -93,7 +103,7 @@ func workBindExecutable(ctx context.Context, path string, protectedRoots []strin
 		object.close()
 		return workCorvintExecutableBinding{}, nil, err
 	}
-	binding := workCorvintExecutableBinding{Path: path, SHA256: object.digest, Version: version, Source: source}
+	binding := workCorvintExecutableBinding{Path: resolved, SHA256: object.digest, Version: version, Source: source}
 	return binding, object, nil
 }
 

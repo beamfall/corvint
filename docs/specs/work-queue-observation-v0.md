@@ -593,9 +593,11 @@ or adapter protocol. They change no wire profile.
   (WQO-V0-045).
 
 - `WQO-V0-049`: The initialization executable is one canonical absolute executable regular file
-  outside the adopting repository/worktree. The path, every parent and the file itself MUST have no
-  symlink component; non-sticky group/world-writable parents, group/world-writable executable bytes,
-  missing paths, relative paths and repository-controlled paths fail before init writes. Init records
+  outside the adopting repository/worktree. `work init` and `work rebind` resolve the operator-given
+  absolute path through symlinks exactly once, report the resolved target on stderr when it differs,
+  and bind that target; every check below applies to the resolved target, which therefore has no
+  symlink component in the path, its parents or the file itself. Non-sticky group/world-writable
+  parents, group/world-writable executable bytes, missing paths, relative paths and repository-controlled paths fail before init writes. Init records
   the exact path, SHA-256, `Corvint VERSION (build BUILD)` output and Go module/VCS source identity in
   the generated reviewed adapter. A reproducible `-buildvcs=false` release records its explicit
   absence of VCS settings while retaining package, module/version and Go toolchain identity; it is
@@ -776,7 +778,7 @@ repository's existing roadmap files; a repository with another queue writes its 
 | Retired competing command | WQO-V0-045 | `cmd/corvint/main.go`, `cmd/corvint/help.go`, `TestLanePlanRetired` |
 | Store scope by mapping reproduction | WQO-V0-046 | `cmd/corvint/work.go` `workMappingReproduced`, `TestWorkMappingReproduced`, `TestWorkMappingReproducedSelfDogfood`, `TestWorkAdoptedRepositoryWorklist` |
 | Repository adoption | WQO-V0-047..048 | `cmd/corvint/work_adopt.go`, `internal/worklistadapter`, `TestWorkAdoptedRepositoryWorklist`, `TestWorkMappingReproduced` |
-| Bound adoption executable | WQO-V0-049..050 | `cmd/corvint/work_executable_binding.go`, `TestWorkInitBindsExplicitExecutableWQOV0049`, `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`, `TestWorkExecutableMissingAndSymlinkSwapWQOV0049`, `TestWorkExecutableChangeRequiresReviewedRebindWQOV0050` |
+| Bound adoption executable | WQO-V0-049..050 | `cmd/corvint/work_executable_binding.go`, `TestWorkInitBindsExplicitExecutableWQOV0049`, `TestWorkInitBindsResolvedSymlinkTargetWQOV0049`, `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`, `TestWorkExecutableMissingAndSymlinkSwapWQOV0049`, `TestWorkExecutableChangeRequiresReviewedRebindWQOV0050` |
 | Source refusal reason | WQO-V0-051 | `cmd/corvint/work.go` `workSourceReasons`, `internal/worksource/source.go` `RefusalReason`, `cmd/corvint/work_adopt.go`, `TestWorkSourceUnqualifiedNamesReasonWQOV0051` |
 
 Decision 0046 accepted this contract and assigned the Corvint self-dogfood authority IDs

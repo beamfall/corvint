@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -285,16 +286,12 @@ func testWorkInitBindsExplicitExecutable(t *testing.T) {
 	})
 }
 
-// WQO-V0-049: relative, missing, linked, unsafe-parent and repository-owned
-// executables are refused before initialization writes anything.
+// WQO-V0-049: relative, missing, unsafe-parent and repository-owned executables,
+// reached directly or through a symlink, are refused before init writes anything.
 func TestWorkInitRejectsUnqualifiedExecutableWQOV0049(t *testing.T) {
 	binary := workBoundCorvint(t)
 	fixtureRoot, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
-		t.Fatal(err)
-	}
-	linked := filepath.Join(fixtureRoot, "linked-corvint")
-	if err := os.Symlink(binary, linked); err != nil {
 		t.Fatal(err)
 	}
 	unsafe := filepath.Join(fixtureRoot, "unsafe", "corvint")
@@ -308,7 +305,25 @@ func TestWorkInitRejectsUnqualifiedExecutableWQOV0049(t *testing.T) {
 	}{
 		{"relative", func(string) string { return "corvint" }},
 		{"missing", func(string) string { return filepath.Join(fixtureRoot, "missing") }},
-		{"symlink", func(string) string { return linked }},
+		{"symlink-to-unsafe-parent", func(string) string {
+			link := filepath.Join(fixtureRoot, "linked-unsafe")
+			_ = os.Symlink(unsafe, link)
+			return link
+		}},
+		{"symlink-to-missing", func(string) string {
+			link := filepath.Join(fixtureRoot, "linked-missing")
+			_ = os.Symlink(filepath.Join(fixtureRoot, "missing"), link)
+			return link
+		}},
+		{"symlink-to-repository-local", func(root string) string {
+			path := filepath.Join(root, "bin", "corvint")
+			workCopyExecutable(t, binary, path)
+			link := filepath.Join(t.TempDir(), "corvint")
+			if err := os.Symlink(path, link); err != nil {
+				t.Fatal(err)
+			}
+			return link
+		}},
 		{"unsafe-parent", func(string) string { return unsafe }},
 		{"repository-local", func(root string) string {
 			path := filepath.Join(root, "bin", "corvint")
@@ -327,6 +342,42 @@ func TestWorkInitRejectsUnqualifiedExecutableWQOV0049(t *testing.T) {
 				t.Fatalf("refused init wrote .corvint: %v", err)
 			}
 		})
+	}
+}
+
+// WQO-V0-049: a symlinked --corvint-executable (an installer link in ~/.local/bin)
+// binds its resolved target, says so, and observation then qualifies.
+func TestWorkInitBindsResolvedSymlinkTargetWQOV0049(t *testing.T) {
+	binary := workBoundCorvint(t)
+	linkDirectory, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	linked := filepath.Join(linkDirectory, "corvint")
+	if err := os.Symlink(binary, linked); err != nil {
+		t.Fatal(err)
+	}
+	root := materializationFixture(t)
+	var stdout, stderr bytes.Buffer
+	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", linked}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+		t.Fatalf("init exit=%d stderr=%s", exit, &stderr)
+	}
+	if want := "corvint work init: " + linked + " resolves through a symlink; bound its target " + binary; !strings.HasPrefix(stderr.String(), want) {
+		t.Fatalf("init stderr %q lacks %q", &stderr, want)
+	}
+	adapter, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(workAdapterPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(adapter, []byte(strconv.Quote(binary))) || bytes.Contains(adapter, []byte(linked)) {
+		t.Fatalf("adapter does not bind only the resolved target:\n%s", adapter)
+	}
+	materializationGit(t, root, "add", ".corvint")
+	materializationGit(t, root, "commit", "-qm", "adopt work queue")
+	stdout.Reset()
+	stderr.Reset()
+	if exit := run([]string{"--root", root, "work", "observe"}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+		t.Fatalf("observe exit=%d stderr=%q", exit, &stderr)
 	}
 }
 
