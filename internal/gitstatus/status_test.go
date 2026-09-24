@@ -363,6 +363,64 @@ func TestPinnedMetadataReaderDetectsParentReplacement(t *testing.T) {
 	}
 }
 
+// A parent the caller can search but not read (mode 0711 owned by someone
+// else, 0311 here) is how Git itself sees many home and shared directories, so
+// status reads through it (EAF-V0-012). Replacing that parent is still refused
+// even when the repository inside it moves along unchanged, so only the
+// parent's own pinned identity can catch it.
+func TestStatusReadsThroughSearchOnlyParent(t *testing.T) {
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	parent := filepath.Join(base, "search-only")
+	swap := filepath.Join(base, "swap")
+	original := filepath.Join(base, "original")
+	for _, dir := range []string{parent, swap} {
+		if err := os.Mkdir(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root := filepath.Join(parent, "repo")
+	gitTest(t, base, "init", "-q", root)
+	writeTest(t, filepath.Join(root, "value.go"), "package value\n")
+	gitTest(t, root, "add", "value.go")
+	gitTest(t, root, "-c", "user.email=test@example.invalid", "-c", "user.name=Test", "commit", "-qm", "fixture")
+	if err := os.Chmod(parent, 0o311); err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{parent, original} {
+		t.Cleanup(func() { os.Chmod(dir, 0o755) })
+	}
+	if file, err := os.Open(parent); err == nil {
+		file.Close()
+		t.Skip("directory read permission is not enforced for this user")
+	}
+	args := []string{"status", "--porcelain=v1", "-z", "--untracked-files=all"}
+	want := gitTest(t, root, args...)
+	got, err := Status(context.Background(), root, metadataLimit, testRun, args...)
+	if err != nil || !bytes.Equal(got, want) {
+		t.Fatalf("status=%q want=%q error=%v", got, want, err)
+	}
+	run := func(ctx context.Context, dir string, limit int, args ...string) ([]byte, error) {
+		for _, arg := range args {
+			if arg != "status" {
+				continue
+			}
+			for _, move := range [][2]string{{root, filepath.Join(swap, "repo")}, {parent, original}, {swap, parent}} {
+				if err := os.Rename(move[0], move[1]); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		return testRun(ctx, dir, limit, args...)
+	}
+	_, err = Status(context.Background(), root, metadataLimit, run, args...)
+	if !errors.Is(err, errUnsafe) || !strings.Contains(err.Error(), "replaced") {
+		t.Fatalf("search-only parent replacement: %v", err)
+	}
+}
+
 func TestPrivateMetadataIsRemovedAfterCancellation(t *testing.T) {
 	root := fixture(t)
 	ctx, cancel := context.WithCancel(context.Background())

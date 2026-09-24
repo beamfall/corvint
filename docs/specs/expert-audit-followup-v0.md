@@ -115,6 +115,15 @@ execution claim, Frontier closure rule or mandatory service is introduced here.
   repository; the one value it may name is the closed `extensions.refStorage=reftable`. What is
   refused does not change, and Git's own metadata-probe failures keep their existing shape. The MCP
   tool-error object stays closed under `MCPV0` and still carries only its sanitized code.
+- `EAF-V0-012`: An ancestor directory of the repository or Git directory that the caller can
+  search but not read (for example mode `0711` owned by another user), which plain `git status`
+  traverses, MUST NOT by itself refuse isolated status. Such a directory has no open handle: the
+  reader pins it by its `Lstat` identity, requires a real directory (a symlink is still refused),
+  and opens its child by absolute path without following the final component. The status brackets
+  MUST re-check every pinned identity, so a replaced search-only ancestor, or a child that no longer
+  resolves to the handle that was read, is refused as a replaced metadata directory. This matches
+  what Git's own path-based reads observe; a replacement undone entirely between the brackets is
+  invisible to both. A metadata file's own directory still needs read access.
 
 ## Verified starting state
 
@@ -167,6 +176,7 @@ savings. A failing development experiment is visible evidence, never a default-g
 | EAF-V0-008 | opt-in `TestFinitePolicyDevelopmentScreen`; frozen `finite-policy.json`, full finite-domain enumeration and malformed-oracle controls |
 | EAF-V0-009 | opt-in scope development check in `internal/lrfrepo/scope_development_test.go`; independently supplied labels, immutable source checks and explicit unsupported outcomes |
 | EAF-V0-011 | `internal/gitstatus` refusal reasons; `TestStatusRefusesUnsupportedMetadataBeforeLiveStatus`, `TestStandaloneReadNamesUnsupportedRepositoryFeature`, `TestStandaloneReadsRefuseGitFiltersWithoutMutation` |
+| EAF-V0-012 | `internal/gitstatus/read_posix.go` search-only ancestor pinning; `TestStatusReadsThroughSearchOnlyParent` |
 | EAF-V0-010 | `internal/secretscreen`, `internal/observations`; `TestUnterminatedQuotedValueRedactsThroughEOF`, `TestAppendRedactsUnterminatedQuotedCredentialPath`, `internal/secretscreen/testdata/parity.json` unterminated cases |
 
 Run focused regressions, the canonical gate, fresh independent review, and post-commit CEM/OCM

@@ -25,48 +25,101 @@ type pinnedDirectory struct {
 // metadata reads. Each ancestor is opened without following symlinks. Live path
 // identities are checked at both status brackets, so a replaced parent cannot
 // hide a configuration change behind a still-open directory handle.
+//
+// An ancestor that can be searched but not read (mode 0711, EAF-V0-012) has no
+// handle: it is pinned by its Lstat identity alone, and its child is opened by
+// absolute path. The same bracket checks then refuse a replaced ancestor or a
+// child that no longer resolves to the handle that was read.
 type metadataReader struct {
 	directories map[string]pinnedDirectory
 }
 
 func (reader *metadataReader) Close() {
 	for _, directory := range reader.directories {
-		directory.root.Close()
+		if directory.root != nil {
+			directory.root.Close()
+		}
 	}
 }
 
 func (reader *metadataReader) directory(path string) (*os.Root, error) {
+	held, err := reader.pin(path)
+	if err != nil {
+		return nil, err
+	}
+	if held.root == nil {
+		return nil, errUnreadable
+	}
+	return held.root, nil
+}
+
+func (reader *metadataReader) pin(path string) (pinnedDirectory, error) {
 	if held, ok := reader.directories[path]; ok {
-		return held.root, nil
+		return held, nil
 	}
 	if reader.directories == nil {
 		reader.directories = make(map[string]pinnedDirectory)
 	}
-	var file *os.File
-	var err error
-	if path == string(filepath.Separator) {
-		file, err = os.Open(path)
-	} else {
-		parent, parentErr := reader.directory(filepath.Dir(path))
-		if parentErr != nil {
-			return nil, parentErr
+	var parent pinnedDirectory
+	if path != string(filepath.Separator) {
+		var err error
+		if parent, err = reader.pin(filepath.Dir(path)); err != nil {
+			return pinnedDirectory{}, err
 		}
-		file, err = parent.OpenFile(filepath.Base(path), os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW|syscall.O_CLOEXEC, 0)
+	}
+	file, err := openDirectory(parent, path)
+	if os.IsPermission(err) {
+		return reader.pinSearchOnly(parent, path)
 	}
 	if err != nil {
-		return nil, err
+		return pinnedDirectory{}, err
 	}
 	defer file.Close()
 	info, err := file.Stat()
 	if err != nil {
-		return nil, err
+		return pinnedDirectory{}, err
 	}
 	root, err := os.OpenRoot("/dev/fd/" + strconv.FormatUint(uint64(file.Fd()), 10))
 	if err != nil {
-		return nil, err
+		return pinnedDirectory{}, err
 	}
-	reader.directories[path] = pinnedDirectory{root: root, info: info}
-	return root, nil
+	held := pinnedDirectory{root: root, info: info}
+	reader.directories[path] = held
+	return held, nil
+}
+
+func openDirectory(parent pinnedDirectory, path string) (*os.File, error) {
+	const flags = os.O_RDONLY | syscall.O_DIRECTORY | syscall.O_NOFOLLOW | syscall.O_CLOEXEC
+	if path == string(filepath.Separator) {
+		return os.Open(path)
+	}
+	if parent.root == nil {
+		return os.OpenFile(path, flags, 0)
+	}
+	return parent.root.OpenFile(filepath.Base(path), flags, 0)
+}
+
+// pinSearchOnly records a directory that cannot be read, so cannot be held
+// open, by the identity its path names now, looked up through the parent
+// handle when there is one. It must be a real directory: a symlink is refused
+// exactly as the no-follow open would refuse it.
+func (reader *metadataReader) pinSearchOnly(parent pinnedDirectory, path string) (pinnedDirectory, error) {
+	lstat := os.Lstat
+	name := path
+	if parent.root != nil {
+		lstat = parent.root.Lstat
+		name = filepath.Base(path)
+	}
+	info, err := lstat(name)
+	if err != nil {
+		return pinnedDirectory{}, err
+	}
+	if !info.IsDir() {
+		return pinnedDirectory{}, unsupported(irregular(info.Mode()))
+	}
+	held := pinnedDirectory{info: info}
+	reader.directories[path] = held
+	return held, nil
 }
 
 func (reader *metadataReader) unchangedDirectories() error {
