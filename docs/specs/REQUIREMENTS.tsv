@@ -1931,6 +1931,9 @@ TCP-V0-044	docs/specs/task-context-packet-v0.md	742	The `external` member is sep
 TCP-V0-045	docs/specs/task-context-packet-v0.md	748	When gopls is absent, the task names no usable Go seed, the session fails or
 TCP-V0-046	docs/specs/task-context-packet-v0.md	752	The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
 TCP-V0-047	docs/specs/task-context-packet-v0.md	760	When a governing row exists (TCP-V0-008), the governing file's text is split int
+TCP-V0-048	docs/specs/task-context-packet-v0.md	792	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With
+TCP-V0-049	docs/specs/task-context-packet-v0.md	804	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With the
+TCP-V0-050	docs/specs/task-context-packet-v0.md	815	(proposed 2026-09-24, not accepted; not implemented; decision 0377) Two readings
 TCQ-V0-001	docs/specs/test-claim-qualification-v0.md	92	TCQ MUST accept exactly one canonical `ocm/0.1-experimental` artifact and its
 TCQ-V0-002	docs/specs/test-claim-qualification-v0.md	100	legacy `cem/0.1` is not a TCQ input. It MUST fail operationally as
 TCQ-V0-003	docs/specs/test-claim-qualification-v0.md	103	TCQ MUST emit exactly one claim result for each selected claim edge and no resul
