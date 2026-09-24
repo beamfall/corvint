@@ -11,6 +11,25 @@ The owner approved the two open items of decision 0381 on 2026-09-24. The intent
 each tuple's raw runner report and its sha256 under `conformance/host-lifecycle-v1/results/`, so the
 0.8.0 Results rows (transcribed, no retained report) go stale at the next release. 0.8.1 publication
 is approved as a pre-release under v0-8.
+## 2026-09-24 V1-0175 / V1-0174 / V1-0180 DCW-V0-015, DCW-V0-019: truthful daily pass, cite correction, sealed review
+
+V1-0175: `dogfood-change` classified the local outcome before `cem-prepare`, so the recorder saw
+the tree clean and a first pass with every input reported `"complete": true` while the prepared
+`.corvint/change.cem.json` was untracked. `script/dogfood-change.sh` had the same order, and its test
+recorder ignored untracked files, so the check never existed. The recorder now runs last; an
+untracked or modified sidecar reports `local-outcome: record-index-failed` (DCW-V0-015). The
+built-binary test `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` fails on the old order.
+
+V1-0174: reachable through `dogfood change`, because `cem prepare` resumes a matching map with its
+citations and `cem cite` only adds evidence. Replace semantics would need a new CEM CLI removal
+primitive, so the documented route was taken: DOGFOOD.md step 4 says to delete the map before
+re-citing, and a pass that cites onto an already cited map prints that line (DCW-V0-019). The
+built binary showed the union (two evidence records after a corrected plan) and the fix (one after
+the delete).
+
+V1-0180: DOGFOOD.md section 6 now gives the sealed form. In a clone at seal 3ad6287 with bind
+28a8dfa375f1f47c3ce7086998db7fcc12b30d0f, that form's `cem report` exited 0 (91/91 supported). The
+old `.corvint/change.cem.json` form exited 2, and the sealed map with `--target HEAD` exited 1.
 
 ## 2026-09-24 Decision 0381: path choices from 0.9 to 1.0 (V1-0235)
 

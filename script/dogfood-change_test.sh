@@ -327,9 +327,9 @@ if [[ $action == dogfood-ocm && $sub == status ]]; then
   exit 0
 fi
 if [[ $action == dogfood-record ]]; then
-  # The real recorder refuses a dirty tree; cem-prepare rewrites the tracked
-  # CEM, so the script must record before it prepares.
-  if [[ -n $(git -C "$root" status --short --untracked-files=no) ]]; then
+  # Like the real recorder, refuse a modified or untracked path; the flow
+  # records last, so a pass whose sidecar is uncommitted is never complete.
+  if [[ -n $(git -C "$root" status --short --untracked-files=all) ]]; then
     printf '%s\n' '{"code":"record-index-failed","error":"trace recording requires a clean Git tree","ok":false}' >&2
     exit 2
   fi
@@ -416,9 +416,11 @@ set -m
   cd "$test_root/default-repo"
   default_env=(env PATH="$test_root/go-bin:$PATH" DOGFOOD_TEST_FAKE_CORVINT="$test_root/bin/corvint"
     DOGFOOD_TEST_GO_LOG="$test_root/default-go.log" DOGFOOD_TEST_LOG="$test_root/default-corvint.log")
+  first_status=0
   "${default_env[@]}" DOGFOOD_CITATIONS="$test_root/citations.tsv" \
     DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
-    DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
+    DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>/dev/null || first_status=$?
+  test "$first_status" = 1
   built_corvint=$(git rev-parse --absolute-git-dir)/corvint/corvint
   test -x "$built_corvint"
   git -c user.name=t -c user.email=t@example.invalid add .corvint/change.cem.json
@@ -488,12 +490,16 @@ phase_jobs="$phase_jobs $!"
   cd "$test_root/repo"
   # A user ripgrep config that numbers and colours matches must not reach the report.
   printf '%s\n' --line-number --color=always > "$test_root/ripgreprc"
-  RIPGREP_CONFIG_PATH="$test_root/ripgreprc" \
+  # DCW-V0-015: every input is supplied, yet the prepared sidecar is uncommitted.
+  sidecar_status=0
+  sidecar_output=$(RIPGREP_CONFIG_PATH="$test_root/ripgreprc" \
     CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
-    DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
+    DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || sidecar_status=$?
+  test "$sidecar_status" = 1
+  printf '%s\n' "$sidecar_output" | rg -Fxq '  local-outcome: record-index-failed'
   jq -e . .corvint/dogfood-report.json >/dev/null
-  rg -q '"complete": true' .corvint/dogfood-report.json
+  rg -q '"complete": false' .corvint/dogfood-report.json
   rg -q '"id":"TEST-A-001"' .corvint/dogfood-report.json
   rg -q '"id":"TEST-B-001"' .corvint/dogfood-report.json
   test "$(git status --short)" = " M .corvint/change.cem.json"
@@ -744,7 +750,8 @@ printf 'file gate\n\ngo vet ./...\n' > "$test_root/verify.txt"
   verify_env=(env CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/verify-corvint.log"
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt"
     DOGFOOD_OUTCOME=passed)
-  "${verify_env[@]}" DOGFOOD_VERIFY=$'test gate\n\nsecond check' script/dogfood-change.sh "$base"
+  # The recorder logs its argv, then refuses the uncommitted sidecar of this first pass.
+  "${verify_env[@]}" DOGFOOD_VERIFY=$'test gate\n\nsecond check' script/dogfood-change.sh "$base" 2>/dev/null || :
   rg -qF -- '--verify test gate --verify second check --outcome passed' "$test_root/verify-corvint.log"
   git diff --quiet HEAD -- .corvint/change.cem.json || {
     git -c user.name=t -c user.email=t@example.invalid commit -qm cem .corvint/change.cem.json
@@ -1017,12 +1024,18 @@ run_citation_case() {
   if [[ -z ${citation_collision:-} ]]; then assert_no_citation_stage; fi
 }
 
+# DCW-V0-015: a plan cited onto the prepared map leaves the sidecar uncommitted, so
+# cem-cite is produced while the recorder, which runs last, keeps the pass incomplete.
+assert_cited_uncommitted() {
+  rg -q '"name": "cem-cite", "status": "PRODUCED", "reason": "none"' "$citation_case/report.json"
+  rg -Fxq '  local-outcome: record-index-failed' "$citation_case/stderr"
+}
+
 # A background case group runs in its own clone of the state the serial cases start from.
 use_citation_clone() {
   citation_repo="$test_root/$1"
   git clone -q "$test_root/repo" "$citation_repo"
   citation_evidence=$(git -C "$citation_repo" rev-parse --absolute-git-dir)/corvint
-  cp "$citation_artifacts/direct-expected.json" "$citation_repo/.corvint/direct.cem.json"
 }
 
 # Freeze independent direct-call fake bytes before exercising coordinator output.
@@ -1034,8 +1047,11 @@ while IFS=$'\t' read -r hunk path lines relation; do
     --evidence-path "$path" --lines "$lines" --relation "$relation" >> "$citation_artifacts/direct-stdout"
 done < "$citation_artifacts/multi.tsv"
 cp "$citation_repo/.corvint/direct.cem.json" "$citation_artifacts/direct-expected.json"
+# An untracked map would dirty the tree the recorder refuses (DCW-V0-015).
+rm -f "$citation_repo/.corvint/direct.cem.json"
 
-run_citation_case one "$citation_artifacts/one.tsv" 0 1
+run_citation_case one "$citation_artifacts/one.tsv" 1 1
+assert_cited_uncommitted
 rg -q '^\.corvint/change.cem.json\t\.corvint/change.cem.json\t' "$citation_case/cites.tsv"
 run_citation_case empty "$citation_artifacts/empty.tsv" 0 0
 cmp "$citation_artifacts/prepared.json" "$citation_case/final.json"
@@ -1072,20 +1088,24 @@ done
 ) &
 phase_jobs="$phase_jobs $!"
 
-run_citation_case corrected "$citation_artifacts/multi.tsv" 0 2
+run_citation_case corrected "$citation_artifacts/multi.tsv" 1 2
+assert_cited_uncommitted
 cmp "$citation_artifacts/direct-expected.json" "$citation_case/final.json"
 awk -F '\t' 'NR == 1 { if ($1 != ".corvint/change.cem.json" || $2 == $1) exit 1; stage=$2 }
   NR == 2 { if ($1 != stage || $2 != ".corvint/change.cem.json") exit 1 }' "$citation_case/cites.tsv"
-run_citation_case reapplied "$citation_artifacts/multi.tsv" 0 2
+run_citation_case reapplied "$citation_artifacts/multi.tsv" 1 2
+assert_cited_uncommitted
 cmp "$citation_artifacts/direct-expected.json" "$citation_case/final.json"
-run_citation_case duplicate "$citation_artifacts/duplicate.tsv" 0 3
+run_citation_case duplicate "$citation_artifacts/duplicate.tsv" 1 3
+assert_cited_uncommitted
 cmp "$citation_artifacts/direct-expected.json" "$citation_case/final.json"
 awk -F '\t' 'NR == 1 { stage=$2 } NR == 2 { if ($1 != stage || $2 != stage) exit 1 }
   NR == 3 { if ($1 != stage || $2 != ".corvint/change.cem.json") exit 1 }' "$citation_case/cites.tsv"
 
 cp "$citation_artifacts/multi.tsv" "$citation_artifacts/mutable.tsv"
 citation_mutate_plan="$citation_artifacts/mutable.tsv"
-run_citation_case frozen-plan "$citation_mutate_plan" 0 2
+run_citation_case frozen-plan "$citation_mutate_plan" 1 2
+assert_cited_uncommitted
 citation_mutate_plan=
 cmp "$citation_artifacts/direct-expected.json" "$citation_case/final.json"
 test "$(cat "$citation_artifacts/mutable.tsv")" = malformed
@@ -1093,7 +1113,8 @@ test "$(cat "$citation_artifacts/mutable.tsv")" = malformed
 (
 use_citation_clone citation-bound-repo
 awk 'BEGIN { for (i=0; i<256; i++) print "1\tdocs/specs/intent-a.md\t1:1\tspecification" }' > "$citation_artifacts/256.tsv"
-run_citation_case at-row-bound "$citation_artifacts/256.tsv" 0 256
+run_citation_case at-row-bound "$citation_artifacts/256.tsv" 1 256
+assert_cited_uncommitted
 cmp "$citation_artifacts/one/final.json" "$citation_case/final.json"
 cat "$citation_artifacts/256.tsv" "$citation_artifacts/one.tsv" > "$citation_artifacts/257.tsv"
 run_citation_case over-row-bound "$citation_artifacts/257.tsv" 1 0
@@ -1103,7 +1124,8 @@ awk 'BEGIN { prefix="1\t"; suffix="\t1:1\tspecification\n";
   n=16384-length(prefix)-length(suffix); path=""; while (length(path) < n) path=path "x";
   for (i=0; i<256; i++) printf "%s%s%s",prefix,path,suffix }' > "$citation_artifacts/4mib.tsv"
 test "$(wc -c < "$citation_artifacts/4mib.tsv" | tr -d '[:space:]')" = 4194304
-run_citation_case at-byte-bound "$citation_artifacts/4mib.tsv" 0 256
+run_citation_case at-byte-bound "$citation_artifacts/4mib.tsv" 1 256
+assert_cited_uncommitted
 cmp "$citation_artifacts/one/final.json" "$citation_case/final.json"
 { printf 'x'; cat "$citation_artifacts/4mib.tsv"; } > "$citation_artifacts/over-4mib.tsv"
 run_citation_case over-byte-bound "$citation_artifacts/over-4mib.tsv" 1 0
@@ -1134,7 +1156,8 @@ printf '%s\n' docs/specs/intent-a.md docs/specs/new-intent.md > "$citation_artif
 export DOGFOOD_TEST_EXPECTED_INTENTS="$citation_artifacts/bootstrap-intents.txt"
 citation_intents=$DOGFOOD_TEST_EXPECTED_INTENTS
 citation_hunks="${nine_hunks}unknown:docs/specs/new-intent.md"
-run_citation_case bootstrap-omitted "$citation_artifacts/nine.tsv" 0 9
+run_citation_case bootstrap-omitted "$citation_artifacts/nine.tsv" 1 9
+assert_cited_uncommitted
 # Only that hunk: leaving out any other unknown hunk is still refused.
 citation_hunks="unknown:docs/specs/new-intent.md ${nine_hunks% }"
 run_citation_case other-omitted "$citation_artifacts/nine.tsv" 1 0
@@ -1148,7 +1171,8 @@ rg -q '"reason": "citation-plan-map-mismatch"' "$citation_case/report.json"
 # More unknown hunks than one plan can name: a split plan still cites its rows.
 citation_hunks=$(awk 'BEGIN { for (i=1; i<=257; i++) printf "unknown:script/h%d.sh ", i }')
 citation_hunks=${citation_hunks% }
-run_citation_case split-over-row-limit "$citation_artifacts/nine.tsv" 0 9
+run_citation_case split-over-row-limit "$citation_artifacts/nine.tsv" 1 9
+assert_cited_uncommitted
 ) &
 phase_jobs="$phase_jobs $!"
 
