@@ -20,7 +20,7 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("corvint-release-candidate", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	core := flags.String("core-dir", "", "verified core archive-gate directory")
-	companion := flags.String("companion-dir", "", "verified companion retained directory")
+	companion := flags.String("companion-dir", "", "verified companion retained directory (omit for a Core-only candidate)")
 	source := flags.String("source-root", "", "Corvint Git checkout containing the exact built commit")
 	scratch := flags.String("scratch", "", "private scratch directory")
 	output := flags.String("output-parent", "", "parent for the fresh versioned candidate")
@@ -28,8 +28,8 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	if err := flags.Parse(arguments); err != nil {
 		return 2
 	}
-	if flags.NArg() != 0 || *core == "" || *companion == "" || *source == "" || *scratch == "" || *output == "" || *version == "" {
-		fmt.Fprintln(stderr, "corvint-release-candidate: -core-dir, -companion-dir, -source-root, -scratch, -output-parent, and -version are required; positional arguments are forbidden")
+	if flags.NArg() != 0 || *core == "" || *source == "" || *scratch == "" || *output == "" || *version == "" {
+		fmt.Fprintln(stderr, "corvint-release-candidate: -core-dir, -source-root, -scratch, -output-parent, and -version are required; positional arguments are forbidden")
 		return 2
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -39,6 +39,6 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "corvint-release-candidate:", err)
 		return 1
 	}
-	fmt.Fprintf(stdout, "candidate: %s\nversion: %s\ncommit: %s\ntree: %s\npublication: NOT_RUN\n", result.Directory, result.Manifest.CorvintVersion, result.Manifest.Sources[0].Commit, result.Manifest.Sources[0].Tree)
+	fmt.Fprintf(stdout, "candidate: %s\nprofile: %s\nversion: %s\ncommit: %s\ntree: %s\npublication: NOT_RUN\n", result.Directory, result.Manifest.Profile, result.Manifest.CorvintVersion, result.Manifest.Sources[0].Commit, result.Manifest.Sources[0].Tree)
 	return 0
 }
