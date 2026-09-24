@@ -1,47 +1,70 @@
 {
   "profile": "corvint-harness-matrix/0",
   "adapterProtocol": "corvint-harness-event/0",
-  "generatedAt": "2026-08-23",
+  "generatedAt": "2026-09-24",
   "entries": [
     {
       "adapterVersion": "0.2.3",
       "documentedAgainstHostVersion": "2.1.238",
+      "fullSupport": "external-dependent",
       "host": "claude-code",
       "hostVersion": "2.1.267",
-      "hostVersionEvidence": "native-static-validator-only",
-      "hostVersionEvidenceAdapterVersion": "0.1.4",
-      "operatingSystem": "macOS",
+      "hostVersionEvidence": "installed-host-lifecycle",
+      "hostVersionEvidenceAdapterVersion": "0.2.3",
+      "lifecycleConformance": {
+        "corvint": "0.8.1",
+        "profile": "host-lifecycle-qualification-v1",
+        "report": "conformance/host-lifecycle-v1/results/0.8.1-darwin-arm64/claude-code.txt",
+        "result": "PASS"
+      },
+      "operatingSystem": "darwin-arm64",
       "surface": "plugin",
       "status": "FALLBACK",
-      "validation": "native-static-plus-adapter-fixtures"
+      "tier": "core",
+      "validation": "installed-lifecycle-plus-adapter-fixtures"
     },
     {
       "adapterVersion": "0.2.2",
       "documentedAgainstHostVersion": "0.149.0",
+      "fullSupport": "external-dependent",
       "host": "codex",
-      "hostVersion": "0.149.0",
-      "hostVersionEvidence": "native-manifest-validator-only",
-      "hostVersionEvidenceAdapterVersion": "unknown",
-      "operatingSystem": "macOS",
+      "hostVersion": "0.153.2",
+      "hostVersionEvidence": "installed-host-lifecycle",
+      "hostVersionEvidenceAdapterVersion": "0.2.2",
+      "lifecycleConformance": {
+        "corvint": "0.8.1",
+        "profile": "host-lifecycle-qualification-v1",
+        "report": "conformance/host-lifecycle-v1/results/0.8.1-darwin-arm64/codex.txt",
+        "result": "PASS"
+      },
+      "operatingSystem": "darwin-arm64",
       "surface": "plugin",
       "status": "FALLBACK",
-      "validation": "native-manifest-plus-adapter-fixtures"
+      "tier": "core",
+      "validation": "installed-lifecycle-plus-adapter-fixtures"
     },
     {
       "adapterVersion": "0.2.4",
       "documentedAgainstHostVersion": "0.55.1",
+      "fullSupport": "external-dependent",
       "host": "gemini-cli",
       "hostVersion": "0.54.0",
       "hostVersionEvidence": "native-static-validator-only",
       "hostVersionEvidenceAdapterVersion": "0.1.0",
+      "lifecycleConformance": {
+        "profile": "host-lifecycle-qualification-v1",
+        "result": "NOT_RUN"
+      },
       "operatingSystem": "macOS",
       "surface": "extension",
       "status": "FALLBACK",
+      "tier": "companion",
       "validation": "native-static-plus-adapter-fixtures"
     },
     {
       "adapterVersion": "0.2.8",
       "documentedAgainstHostVersion": "1.18.21",
+      "fullSupport": "external-dependent",
       "host": "opencode",
       "hostVersion": "1.18.20",
       "hostVersionEvidence": "local-binary-observed; plugin-not-installed",
@@ -49,29 +72,39 @@
         "name": "node",
         "versionRange": ">=20"
       },
+      "lifecycleConformance": {
+        "profile": "host-lifecycle-qualification-v1",
+        "result": "NOT_RUN"
+      },
       "operatingSystem": "darwin-linux",
       "surface": "plugin",
       "status": "FALLBACK",
+      "tier": "companion",
       "validation": "adapter-fixtures-only"
     },
     {
       "adapterVersion": "0.2.0",
       "documentedAgainstHostVersion": "0.85.1",
+      "fullSupport": "external-dependent",
       "host": "pi",
       "hostVersion": "0.85.1",
       "hostVersionEvidence": "offline-native-package-tools-tui-rpc-and-cleanup",
       "hostVersionEvidenceAdapterVersion": "0.2.0",
+      "lifecycleConformance": {
+        "profile": "host-lifecycle-qualification-v1",
+        "result": "NOT_RUN"
+      },
       "operatingSystem": "darwin-arm64",
       "surface": "extension",
       "status": "FALLBACK",
+      "tier": "companion",
       "validation": "native-offline-fixtures; protected-qualification-not-run"
     }
   ],
   "globalDegradations": [
     "accepted-frontier-authority-unavailable",
     "exact-expansion-command-unavailable",
-    "mcp-server-unavailable",
-    "black-box-install-session-uninstall-conformance-not-run"
+    "mcp-server-unavailable"
   ],
   "receiptDegradationPolicy": {
     "match": "subset-of-recognised",
