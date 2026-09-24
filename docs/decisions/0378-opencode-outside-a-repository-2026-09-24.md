@@ -10,8 +10,8 @@ Decision 0178 made a hook outside any Git repository an expected absence for Cla
 and Gemini CLI. It left OpenCode unchanged on the premise that the plugin "runs in-process inside a
 project and emits no fault notice for this case". That premise is false. OpenCode opens a
 directory with no VCS as its global project and reports `worktree` `/`
-(`packages/opencode/src/project/project.ts:217` in `sst/opencode`). The plugin passes
-`host.worktree || host.directory` as `--root`, so every hook runs
+(`packages/opencode/src/project/project.ts` line 217 in `sst/opencode` tag `v1.18.31`, commit
+`014614d35b39`). The plugin passes `host.worktree || host.directory` as `--root`, so every hook runs
 `corvint --root / harness event ...`. Corvint refuses a root without a `.git` entry with
 `invalid-arguments` (`notRepositoryRootRefusal`, `cmd/corvint/diagnostic_refusals.go`), in 0.7.0
 and 0.8.0 alike. The plugin then prints `[corvint/opencode] {"code":"invalid-arguments",...}`

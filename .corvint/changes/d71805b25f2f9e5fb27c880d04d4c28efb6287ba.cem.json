@@ -1,0 +1,170 @@
+{
+  "baseRevision": "e667812381ab4d5c860dde753e0a7580ec3c975d",
+  "evidence": [
+    {
+      "blobOid": "59e4969e61dc9c7dee0a6c20a5e82ebd623435ac",
+      "id": "evidence:sha256:49e82469b7f2329575f5fbab3b3a5294af7c3b32a6f92fdf2409b5eea6fb7de7",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2969,
+        "start": 2775
+      },
+      "spanSha256": "f38b99e0ea33bc41b2fa83b7fd6a97be51325799a11b58b3d31969e4b8b32897"
+    },
+    {
+      "blobOid": "c61cdd391c1c44fa2646e4c5661162b4d3613748",
+      "id": "evidence:sha256:c5dea82e90fc3278709c4a4cdb993fa100c190f01901eb22438613b734a155ef",
+      "path": "script/check-line-citations.sh",
+      "span": {
+        "end": 4763,
+        "start": 3865
+      },
+      "spanSha256": "fdf7022546dd0baaa20b3e521ef188d953dac2560a220c5d8f33e14b4c64d2c5"
+    },
+    {
+      "blobOid": "c61cdd391c1c44fa2646e4c5661162b4d3613748",
+      "id": "evidence:sha256:de7450bbcdaf4f3e58c11a5636f8e1a3ca0035234a18adaadeba5b4febdfb9cf",
+      "path": "script/check-line-citations.sh",
+      "span": {
+        "end": 1868,
+        "start": 874
+      },
+      "spanSha256": "7111d175785f53e221e920b2315cfda5fffd3c21fa73d331c7956d8fe7222bca"
+    },
+    {
+      "blobOid": "931355f38699cde25f16fc83f9f5f734db284bd9",
+      "id": "evidence:sha256:dcb2a30414b22708f8b993f41e0087562cb8db9f203ec8d50c091d85174e692a",
+      "path": "script/check-requirement-definitions.sh",
+      "span": {
+        "end": 4052,
+        "start": 3620
+      },
+      "spanSha256": "e5b858ef42f46a913d29a7b36f012351b01ae61e1a173787f6b538b24016599a"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:49e82469b7f2329575f5fbab3b3a5294af7c3b32a6f92fdf2409b5eea6fb7de7",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:dfcd481d39d5caac7879b6bfdab1c0fa8104f88c4e494b98b406820bef9bc530",
+      "newRange": {
+        "count": 34,
+        "start": 4
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 4
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:c5dea82e90fc3278709c4a4cdb993fa100c190f01901eb22438613b734a155ef",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c939249beb0f020c47f5a3be2b8c9ab809a26118ddf424688394081a6aade9b3",
+      "newRange": {
+        "count": 7,
+        "start": 10
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 10
+      },
+      "path": "docs/decisions/0375-build-number-is-provenance-not-order-2026-09-24.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:de7450bbcdaf4f3e58c11a5636f8e1a3ca0035234a18adaadeba5b4febdfb9cf",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5e1e47bac21c8b1bdbf50dd82daed6dbbdc4ac08136f3e0d89636a3f3fe07729",
+      "newRange": {
+        "count": 10,
+        "start": 34
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 34
+      },
+      "path": "docs/decisions/0375-build-number-is-provenance-not-order-2026-09-24.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:de7450bbcdaf4f3e58c11a5636f8e1a3ca0035234a18adaadeba5b4febdfb9cf",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1a9ddb364ce5ee474d7d33dfba7bd895a5bd8e543798c32f78c395cd61d73c36",
+      "newRange": {
+        "count": 7,
+        "start": 11
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 11
+      },
+      "path": "docs/decisions/0377-context-rank-fusion-trial-2026-09-24.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:de7450bbcdaf4f3e58c11a5636f8e1a3ca0035234a18adaadeba5b4febdfb9cf",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:698e8baa596d70ac822afe4c5c00eb5fe334c1f296aa3c400c2a0543d9bdb9dd",
+      "newRange": {
+        "count": 8,
+        "start": 10
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 10
+      },
+      "path": "docs/decisions/0378-opencode-outside-a-repository-2026-09-24.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:dcb2a30414b22708f8b993f41e0087562cb8db9f203ec8d50c091d85174e692a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:02318a56e7c570a8083088efc4a006157dfa2af430408086b9d6017df93eb30c",
+      "newRange": {
+        "count": 7,
+        "start": 1046
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1046
+      },
+      "path": "docs/specs/task-context-packet-v0.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "f1665b8462c474144c18b53d4944c63e3a0330558652fd85d077ff29a146bfb6",
+  "spec": "cem/0.2"
+}

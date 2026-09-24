@@ -1046,7 +1046,7 @@ co-changes outrank older, more frequent ones; the blame bound and every abstenti
 porcelain parse and the window's oldest commit; GitHub pattern semantics; a `disagrees`, an
 `unverifiable` and an agreeing owner; the `coverage.recency` member and a no-commit abstention).
 The frozen bench and `corvint eval` readings, off and on, are in `docs/BUILD-LOG.md` (V1-0089).
-TCP-V0-048..050 (proposed, not implemented) will be evidenced by `internal/contextindex` tests: the
+Proposed TCP-V0-048..050 (not implemented) will be evidenced by `internal/contextindex` tests: the
 recipe golden is kept for unset, `off` and other values; a fixture in which a single-relation row
 at a better rank overtakes one at a worse rank; unchanged admission and the `; rrf` reason. Both
 readings, off and on, go in `docs/BUILD-LOG.md` under V1-0219.
