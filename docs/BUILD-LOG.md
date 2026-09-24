@@ -4,6 +4,410 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-23 V1-0198 DIRTY-CACHE-003: linked worktrees each build and store their own index
+
+Finding: linked worktrees of one repository at one commit do not share the immutable index. Each
+worktree builds the clean base and stores its own copy. The snapshot directory is
+`<root>/.corvint/index` (`internal/contextindex/snapshot.go:30@659a5c23`,
+`internal/contextindex/snapshot.go:142-144@fe5dad2c`). `root` is the `--root` worktree, which
+needs only a `.git` entry, and a linked worktree's `.git` file passes
+(`cmd/corvint/main.go:647@9f517478`). The file name holds object format, tree OID and engine
+digest, but no root (`internal/contextindex/snapshot.go:166-167@74ceb0e3`). The writer and reader
+both use that path (`internal/contextindex/snapshot.go:216@e047a2f4`,
+`internal/contextindex/snapshot.go:612@c5cc88b1`). The Git common dir is never consulted. With no
+snapshot, a query builds the index in memory and persists nothing
+(`cmd/corvint/harness_context.go:67-71@81daa288`).
+
+Measurement: `script/measure-worktree-index-share.sh` created three detached linked worktrees at
+`01b6804` (tree `458fe9c5`) under the scratchpad. It ran the same repository query in each, then
+`index --if-stale`, then the query again. The binary was built from that commit (engine
+`3d50e7ba37f7e749`). Load average was 80.7 at the start and 87.5 at the end, so wall times are
+inflated and only diagnostic. Bytes and build counts are the primary evidence.
+
+| Step (per worktree 1 / 2 / 3) | Result | Seconds |
+|---|---|---|
+| query, no snapshot (first) | full in-memory build, `READY`/`fresh` | 2.33 / 3.49 / 2.26 |
+| query, no snapshot (repeat) | full in-memory build again | 2.33 / 4.66 / 2.91 |
+| `index --if-stale` | `BUILT` in every worktree, 72,803,003 bytes each | 7.67 / 6.05 / 8.47 |
+| query, snapshot hit | `READY`/`fresh` | 1.05 / 1.28 / 1.67 |
+
+In total: three builds and 218,409,009 bytes on disk, all under the worktrees' `.corvint/index/`.
+There were zero `.gob` files in the common Git dir. The three files have the same size but different
+Git blob OIDs. Writing the same tree twice in one worktree also gave different OIDs
+(`fafb2a52`, then `90c2855f`), so the gob snapshot is not byte-deterministic across writes. The
+cause is inferred to be map iteration order and was not confirmed.
+
+Dirty view: in worktree 1 an appended line in `README.md` left `index --if-stale` `fresh`
+(0.17 s, no rebuild). The query returned `READY`/`mixed-worktree` with `mixed_paths` `README.md`
+(1.77 s). Worktree 2's query stayed `fresh` during the edit. Worktree 1 was `fresh` again after
+the restore, and its snapshot OID (`03162da6`) was unchanged. `DIRTY-CACHE-003` holds within
+each worktree: the dirty overlay is per worktree and leaves the clean base untouched.
+
+Repository mutation: `git worktree list` showed only the primary checkout before and after, and
+`git status --short` was the same before and after (only the then-untracked script). The trap
+removed each worktree with `git worktree remove`.
+
+Decision: record the result; change no code. Sharing the clean base across linked worktrees is
+filed as BUG V1-0212 (P2, v0-9), with the numbers above and the atomic-rename requirement.
+
+## 2026-09-23 V1-0205, V1-0206 TCP-V0-047: routing idf floor 2.0, unheld terms and fenced blocks
+
+Cause (V1-0186 follow-up): `instructionRoutedRows` routed any governing passage that shared two task
+terms however common, so ordinary words (`test`, `spec`, `index`, `command`) routed paths for
+unrelated tasks and cost code2test recall@5 and edit2ripple recall@10/@5. A second cause came up
+in review. A task term the body term table does not hold, such as a camelCase compound the table
+splits, got the maximum idf and counted as rare. Paths inside fenced code blocks were also routed
+as if they were prose, and the fence opened and closed on any fence line.
+
+Fix: a shared term counts only when the table holds it and its idf is at least
+`contextRoutedMinIDF` = 2.0, which excludes terms held by more than about 13.5% of sources. A
+passage still needs two such terms. Fenced blocks are skipped, and `nextFence` closes a fence only
+with the same character, at least the opening length and an empty info string, as CommonMark
+requires. A fence indented four or more spaces inside a list item is still not recognized; that is
+a known limit. Analyzer schema moves to `corvint-analyzer/79` (after #123 took 78). New tests:
+`TestTaskContextRoutingClosesFencesAsCommonMark` (other character, shorter fence, info string) and
+`TestTaskContextRoutingSkipsCompoundsTheTableSplits`. The promotion control now asserts that the
+`documentation docs/ROUTES.md` pair is absent. Negative controls: with the floor removed, the held
+check removed, or the fence rules reverted, the matching test fails.
+
+Frozen `tools/retrieval-bench` v2, `--arms context`, all samples, `CORVINT_CONTEXT_*` unset
+(recall@20 / @10 / @5), base d138a58 then floor 1.5 then floor 2.0: code2test 0.5116/0.3994/0.2830,
+then 0.5116/0.3994/0.2877 in both floor arms; comment2context 0.5042/0.3438/0.2562 and trace2code
+0.7937/0.5083/0.4010 unchanged in every arm; edit2ripple 0.6293/0.4928/0.3448, then
+0.6293/0.5101/0.3448, then 0.6293/0.5101/0.3621; the abstention rate is 0.1707 in every arm. Floor
+2.0 recovers the pre-V1-0186 numbers on every subset, and it dominates 1.5, so 2.0 is chosen. The
+bench binaries predate the held-term guard and the fence-close rules. Those two changes only remove
+routed rows, and they were not re-benched. Reports:
+`/private/tmp/claude-501/-Users-russelllewis-projects-corvint/dd54e7f8-328f-4e5e-ac2a-20e9a455cd73/scratchpad/w0186-bench-v205{base,f15,f20}-{code2test,comment2context,trace2code,abstention,edit2ripple}.json`.
+
+Probes against this repository, using seven unrelated tasks (a set reconstructed after the session
+context was compacted, so it is not a frozen fixture). The base binary routes four of the seven,
+and the final binary routes none. The V1-0186 orientation task still routes `docs/AGENT-ROUTES.md`
+and `docs/specs/INDEX.json` through `backlog`, `memory`, `store`. The independent review found a
+MEDIUM issue (unheld compounds took the maximum idf), a LOW issue (the fence toggle), a LOW issue
+(the loose promotion control) and nits; all are fixed here. A stale `taskLexicalTerms` comment
+found in that review is filed as V1-0214.
+
+## 2026-09-23 V1-0197 RCB-V0-001..007: `cem export` writes a content-addressed receipt bundle
+
+Decision: the export is `corvint cem export`, an action of an existing verb, because no new root
+verb may be added and the CEM defines the change a bundle is keyed by. `witness` is a
+single-report command and `dogfood` is the mutating lease lifecycle. The bundle holds exact copies
+of the CEM, a saved witness report, `.corvint/dogfood-report.json` and the GOC-V0-010 full-gate
+receipt. The CEM must pass the same canonical verification `cem verify` runs against an explicit
+`--expected-base` and `--target`, including its evidence-drift check (`evidence-drift`), and the
+target must commit it byte for byte (`bundle-map-uncommitted` otherwise); the map's own base is
+never the authority. Every other
+receipt binds only by exact full commit IDs, never resolved, and the gate receipt only as the exact
+canonical line naming the target and its tree. Each receipt is listed with its sha256 and every
+`NOT_RUN`, `NOT_PRODUCED` or `not-run` value as an RFC 6901 pointer. A receipt that is missing or
+bound elsewhere is listed as absent with a reason, never synthesized. Gate-ledger records stay
+out, because GL-V0-006 forbids any product-path reader. The output's opened parent and its ancestors must
+match, by file identity, none of the worktree, both Git directories, the primary worktree, a
+common-config `core.worktree` and every linked worktree (`bundle-output-refused`), and all writes
+go through that opened parent. Known limit: a `--separate-git-dir` primary worktree without
+`core.worktree` is named nowhere in the common directory (Git reports the Git directory as the
+main worktree), so an export from one of its linked worktrees cannot protect it; the opener
+already refuses an export run from that primary worktree.
+`script/verify-receipt-bundle.sh` needs only POSIX tools and a SHA-256 command, and exits 2 on any
+manifest that is not the header, the four receipt lines in order with the CEM present, and `]}`.
+
+Deviations from the ticket, pending owner confirmation, so the spec's intent is `proposed`: the
+GOC-V0-010 full-gate receipt replaces the ticket's "gate ledger" (GL-V0-006 forbids a product-path
+reader), and the ticket's "or archive" option is dropped.
+
+Evidence: PR #122's sealed CEM, with the witness report compiled in a plain clone checked out at
+ace0a96 (`corvint witness --base a6a6b8b6 --head ace0a96 --cem .corvint/change.cem.json --json`,
+byte-identical CEM), exported from a clone of this branch, after the review fixes, with
+`corvint cem export --map .corvint/changes/ace0a96bd5ffcfa2af8013e23a1cf3220b46c24f.cem.json
+--expected-base a6a6b8b66c44c486fc86daddfab3fd2d931a31dc
+--target ace0a96bd5ffcfa2af8013e23a1cf3220b46c24f --output $OUT --witness $WITNESS`. Target
+ace0a96 commits the byte-identical map at `.corvint/change.cem.json`, so the canonical check and
+the committed-map check pass. The manifest bytes equal the pre-review export's. The manifest
+sha256 is `65d16c73974d8b09f1882fe38617592cc201ffbfebb920ac134f4a9c110564da`. The CEM is present
+(sha256 `b9c6f94b…c052`, no axes). The witness is present (sha256 `85f5f431…39dc`) with nine
+`NOT_RUN` axes at `/obligations/0..8/verdict`. The dogfood report and gate receipt are absent
+`not-found`: that clone has neither `.corvint/dogfood-report.json` nor `$GIT_DIR/corvint`, and the
+primary checkout was out of bounds for the worker. The verifier, run as
+`env -i PATH=/usr/bin:/bin sh script/verify-receipt-bundle.sh $OUT` from `/`, printed:
+
+```
+manifest sha256 65d16c73974d8b09f1882fe38617592cc201ffbfebb920ac134f4a9c110564da
+MATCH receipts/cem.json b9c6f94bd4c103cdedc6ffe2b9727e8b760aedcd4654ea501da6311a3e53c052
+MATCH receipts/witness.json 85f5f4318a9b8ac97bbd5c627e58eb649bdc801a5e256dd41ed8c22031a639dc
+PASS
+```
+
+It exited 0. An independent review found text-based output checks, an unverified CEM, unexamined
+sibling worktrees, a lax verifier and missing negative controls; each fix above carries a unit or
+script test that was checked to fail with its guard removed, except the handle-identity check that
+closes the parent swap race, which no deterministic test reaches. DR-0040's candidate cem choice
+list now has twelve actions. A re-review then found four more, each fixed with a control checked to
+fail without its guard: the export admitted a CEM that `cem verify` reports not ok for evidence
+drift (`TestExportRefusesADriftedCEM`); `core.worktree` was not protected; the two refusal codes
+lived outside `internal/cem/cemcode`; and the verifier accepted a 41-63-hex header revision (now
+exactly 40 or 64). `make gate` was not run (owner preference).
+
+## 2026-09-23 V1-0213 GOC-V0-008: the Pi tests invoke no Python and the no-Python check gates
+
+Finding: `script/no-python-runtime-dependency_test.sh`, the GOC-V0-008 falsifying assertion, failed
+on main with six hits in `integrations/pi` and `integrations/pi-protected`. The TUI tests drove a
+PTY with `tui-fixture.py`, two cleanup tests forked a TERM-ignoring descendant with `python3`, and
+`build.mjs` extracted the pinned Node binary with Python's `tarfile`. No gate ran the check.
+
+Decision: `tools/pi-tui-fixture` is a stdlib-only Go PTY driver for darwin and linux. It ports both
+Python drivers: the default one-prompt script and `-protected` for the reload and session
+replacement sequence. It keeps the same witness, the SIGTERM-then-SIGKILL group cleanup, the
+`128+signal` exit code, and the output and time bounds. On darwin the window size is set on the
+replica, because `TIOCSWINSZ` on the master returns `ENOTTY` before the replica is open. The
+descendant fixtures are now `/bin/sh` with `trap '' TERM`, and `build.mjs` extracts the Node binary
+with `/usr/bin/tar --strip-components 2`, then refuses a member that is not a regular file. The
+check is gate step `no-python-runtime-dependency-test`. It now masks its own name, because the
+Makefile must spell that name. Independent review found the old line-level allow-list let any line or
+path containing an allowed name hide a real invocation (a checkout directory named after the check,
+or `python3` appended to a `check-analyzer-python-*` script); the check now drops only
+`CORVINT_TEST_EXTERNAL_PYTEST` opt-in lines, masks the two allowed names, matches again on
+repository-relative paths, and a self-test case proves an allowed name cannot hide `python3`. The GOC-V0-008
+traceability row names the wiring. The gate-ledger `scopes` entry for the step is left as a
+follow-up (GL-V0-003: the step runs unrecorded).
+
+Evidence: the check exits 0 (exit 1 on the base). `node --test integrations/pi/host.test.mjs`
+passes 4 of 4 against Pi 0.85.1 on macOS arm64. With the SIGKILL escalation removed, AHI-025 fails,
+so the new fixture still detects a leaked process. PPI-V0-004 (startup) and PPI-V0-003 pass. A
+scripted `/bin/sh` TUI stand-in drove `-protected` through every phase. The extraction command was
+checked on synthetic `.tar.gz` and `.tar.xz` archives, including a symlink member.
+NOT_RUN: `pi-protected-build` and the built-binary protected tests (PPI-V0-001/002 runtime and
+startup injection), because the pinned SDK and Node archive are not installed. Linux PTY execution
+was not run; linux and windows `go vet` pass. `make gate` was not run (owner preference).
+
+## 2026-09-23 V1-0212 DIRTY-CACHE-013: linked worktrees share one clean index snapshot
+
+Finding: the snapshot store was joined to the worktree root, so each linked worktree at one commit
+built and stored its own full clean snapshot (V1-0198 measurement: 3 builds, 3 x 72.8 MB).
+
+Decision: the store is `corvint/index/` under the Git common directory, keyed as before by
+(object format, tree OID, engine). `gitstatus.CommonDirectory` resolves it with the bounded no-follow
+`.git`/`commondir` reads status already makes and spawns no Git process, so `IDX-SNAP-V0-009`
+holds. Dirty paths stay per worktree and in memory (`DIRTY-CACHE-003`/`004` unchanged). One-writer
+rule: no lock; each `index` publishes a synced temporary file by rename, the last rename wins, and a
+reader keeps the complete file it opened. Symlink refusal covers the worktree `.corvint` and both
+store components; the eight-entry eviction bound applies to the shared store. An unresolvable common
+directory falls back to the worktree's `.corvint/index/`. An existing worktree `.corvint/index/` is
+neither read nor deleted: its engine digest cannot match a binary with this change. `internal/gitstatus`
+and `internal/contextindex` are audited analyzer inputs, so the analyzer schema moves to
+`corvint-analyzer/79`; the pack facts are unchanged. The edited task-orientation hostile test is
+repinned in `UC-TASK-ORIENTATION/hostile-tests.json` by a follow-up commit, as in V1-0192.
+
+Evidence: PR #125's `measure-worktree-index-share.sh`, run unmodified apart from its repository
+path against this branch's binary, reported 1 BUILT and 2 fresh reuses across three linked
+worktrees, 0 worktree snapshot bytes, one 72,890,863-byte `.gob` under the common directory, and a
+dirty view (`mixed=README.md`) private to the edited worktree. Focused tests:
+`TestLinkedWorktreesShareOneCleanSnapshot`, `TestConcurrentWorktreeWritersPublishCompleteSnapshotsByRename`,
+`TestSharedSnapshotStoreKeepsTheEntryBoundAcrossWorktrees`,
+`TestSnapshotStoreFallsBackToTheWorktreeWhenTheCommonDirectoryIsUnresolved`.
+
+Review fixes: the install-lifecycle script now takes the store from the index receipt's `path`, so
+the 0.7.0 N-1 run passes; the shared store's bound is 8 x (1 + linked worktrees), capped at 64,
+with the fallback kept at 8; each operation resolves the store once; only the fallback store writes
+a `.gitignore`; the analyzer schema moves to `corvint-analyzer/80`; and the spec and docs now state
+the fallback, symlink-following, and `core.sharedRepository` behaviour exactly.
+
+Owner review: `DIRTY-CACHE-013` is new; `IDX-SNAP-V0-001`/`005` (accepted, decision 0049) and
+`SOP-V0-002`/`004`/`005` (accepted, decision 0341) are amended for the store location.
+Rollback: revert this change; the shared directory is disposable derived state.
+
+## 2026-09-23 V1-0126 AFP-V0-021: a dirty path selects the packages that name it
+
+Finding: `corvint affected` selected nothing for a docs-only change. On 34e798b a one-line append to
+`docs/RELEASE-NOTES.md` gave zero selections and `EMPTY_SELECTION`, although
+`conformance/release-artifact-v0` reads that file by literal and the fast tier's AFP-V0-012 rule (c)
+already names such readers.
+
+Decision: the Go plugin records each package's path tokens with the rule (c) lexicon, and
+`affected.Select` adds every unit whose tokens name an unowned dirty path, witnessed
+`PATH_LITERAL_READER`, without traversing its dependents. The path keeps `UNOWNED_DIRTY_PATH`, so
+the scope stays `UNKNOWN`. The gate tool reports 129 packages whose reads no literal bounds (rule
+(d)), and this plan does not model them. The naming relation is mirrored, not shared:
+`tools/gate-affected-select` is a stdlib-only `package main` built by the trusted PR driver.
+
+Evidence: the same probe now selects 26 packages, `RUNNABLE`, still `UNKNOWN`. That set equals the
+gate's rule (c) readers of the path plus those among its unresolved packages. Graph build CPU rose
+from about 2.3 s to 4.3 s user time on this repository. The CEM sidecar narrowing is not mirrored.
+The doc checks and the selected packages pass; `make gate` was not run (owner preference).
+
+Review follow-up: the gate applies rule (c) to every dirty path, so the plan now does too. An
+appended `extensions/vscode/src/executable.ts`, owned by the TypeScript plugin, had selected only
+TypeScript tests; it now also selects `conformance/release-artifact-v0`, which names it. The token
+bound became a per-package mark reported as `go:path-token-bound:<unit>` only in a plan that
+attempts a match, instead of a graph frontier that would widen every plan; no package in this
+repository reaches it. A lex error under a `testdata` or `_`-prefixed directory no longer raises
+`go:unparsed-source`.
+
+## 2026-09-23 V1-0199 SESSION-V0-017..019: a dogfood handoff receipt re-resolves or reports drift
+
+Finding: a handed-off enrollment kept its session key and root (LCP-V0-003), but nothing named the
+context the sender compiled. A receiving session re-derived its dogfood prompt packet and could see
+different evidence after a commit without any signal.
+
+Decision: add the read-only `corvint dogfood handoff` subverb under the existing `dogfood` verb, not
+a new root verb and not a change to the frozen `dogfood status` output, so status stays cheap. The
+emitted receipt names the key, root, bound revision, enrollment, sorted anchor tokens each with a
+per-anchor evidence digest, the SHA-256 and bytes of the unchanged `corvint-dogfood-prompt/0`
+packet, and the degradation list. It carries `authority: none` and is repeated inside the untrusted
+data envelope. With `--receipt`, the receiver recompiles and either returns the byte-identical packet
+(exit 0) or reports ordered root, revision, enrollment, anchor and packet drift and withholds the
+recompiled packet (exit 1). The slice is recorded as SESSION-V0-017..019 in the otherwise deferred
+session-context-dividend spec. SESSION-V0-001..016 stay deferred. CCF-V1-002 lists `handoff` as an
+unpinned dogfood mode.
+
+Evidence: `TestDogfoodHandoffReceiptReresolvesSamePacket` (same revision re-resolves the same
+digest and bytes, and neither step changes private state) and
+`TestDogfoodHandoffReportsRevisionAndAnchorDrift` (a commit that moves the anchored requirement line
+reports revision drift and drift for that anchor only; a foreign key, a malformed receipt and
+exclusive options fail closed). `go test ./cmd/corvint`, `go vet ./cmd/corvint` and the spec
+index, requirement, traceability, decision-number and line-citation checks pass. The post-commit
+CEM bind, check and seal loop was not run for this change.
+
+Review repair (independent review, same day): receipt fields are untrusted, so the receiver now
+accepts only a document whose bytes equal what `emit` produces for its decoded value (this rejects
+duplicate, case-folded, unknown and reordered members, reformatting and trailing data; it is
+stricter than the unexported `strictJSON`/`wire.Parse` path, which a mutation check showed added
+nothing) and whose every field has its emitted shape: clean absolute root of at most 4096 bytes,
+lowercase-hex or empty revisions and plan digest, closed worktree and lifecycle enums, the constant
+packet profile and bytes in 1..budget. Drift rows echo only validated values. Stdout escapes
+non-ASCII, so exit 0 now returns `packetBase64` with exactly the digested bytes rather than claiming
+byte identity for escaped JSON; the test hashes the decoded bytes of a non-ASCII fixture. Consume
+reports current degradations, roots compare as symlink-resolved Git toplevels, and the spec now
+says the receipt re-resolves the handoff packet (budget 8000, anchor-only task text), not an earlier
+prompt-event packet. The session-context-dividend MUST NOT sentence now carries the V1-0199
+exception itself (owner review pending). Added evidence:
+`TestDogfoodHandoffReportsEnrollmentDriftAndDegradations`,
+`TestDogfoodHandoffRefusesMalformedReceiptsAndAnchors`, `TestDogfoodHandoffRefusesUnstableRepository`
+(through a probe seam) and the unix-only `TestDogfoodHandoffReceiptUnavailable` (symlink, FIFO,
+oversized, missing), plus a no-write assertion on the drift path.
+
+## 2026-09-23 V1-0200 AGW-V0-003, DCW-V0-016: receipts name each compiled packet's cost
+
+Finding: the dogfood report and the witness report compiled context packets but did not record what
+they cost. Each packet carries a coverage block, but only the raw step output under
+`<git-dir>/corvint/` kept it, and the witness report kept none, so context cost could not be traced
+to a change.
+
+Decision: both reports gain one additive member, `packetCoverage`. Each entry copies the packet's
+`packet_bytes`, `budget_bytes`, `within_budget`, `included_results` and `omitted_results` under
+those names. Neither profile changes: `corvint-dogfood-change/0` and `corvint-witness/0`.
+- `dogfood-change` writes one line after `dogfoodPolicy`, with an entry for `prechange-query` and one
+  for `prechange-impact`. A step that compiled no packet is `NOT_PRODUCED` with
+  `packet-not-compiled`. Output without exactly one well-formed occurrence of each field is
+  `NOT_PRODUCED` with `packet-coverage-unreadable`. The line never changes `complete`.
+- `corvint dogfood begin` compiles no packet, so it records no coverage.
+- `dogfood finish` reads the report with a strict parser followed by a struct decode, which ignores
+  unknown members, so finish needed no change.
+- Witness lists the `admission` packet, then one `closure` packet for each admitted path, and adds a
+  `PACKETS` text section. A refused stage adds no entry.
+- The console dogfood pane shows the numbers. For a report written before the member existed, it
+  shows "not reported". Historical receipts are not rewritten.
+- Both requirements are proposed additions to specs whose intent is accepted, and they await owner
+  review.
+
+Evidence:
+- `TestPacketCoverageEqualsEveryCompiledReceipt` compares the witness JSON with the receipts that
+  `RangeImpact` and `Impact` return. It fails when `Compile` leaves the member empty.
+- `script/dogfood-change_test.sh`, run by `TestGoOnlyContextAbstentionRemainsClosed`, checks three
+  things: the exact line, `packet-not-compiled` on the impact abstention, and
+  `packet-coverage-unreadable` on a duplicated key. It exits 1 when the line is removed.
+- `TestConsoleDogfoodPacketCoverage` reads the sealed historical fixture without error.
+- A scratch test, not kept, parsed the real report below with finish's strict `wire.Parse` and
+  passed.
+
+Real run, on 2026-09-23, of the committed branch head 8729b92 against base d138a58:
+- Setup: a binary built from the branch into scratch ran `dogfood-change` in a throwaway clone,
+  because the run writes the tracked CEM and the local trace.
+- The report recorded `prechange-query` with `packet_bytes` 6314, `budget_bytes` null,
+  `within_budget` true, 1 included and 4 omitted.
+- It recorded `prechange-impact` with `packet_bytes` 8831, null budget, within budget, 6 included
+  and 0 omitted.
+- Both sets of numbers match the step outputs field for field. The run was deliberately not
+  complete: no citation, intent or outcome inputs were given.
+- `corvint witness --json` on the same range listed 7 packets totalling 60977 bytes. The admission
+  packet was 8781 bytes. The closure packets ranged from 3335 bytes (`internal/witness/witness_test.go`)
+  to 14469 bytes (`internal/console/views.go`). All were unbudgeted and within budget.
+
+## 2026-09-23 V1-0182 DCW-V0-017: dogfood-check verifier agreement is author-only evidence
+
+Finding: in a fresh clone of the V1-0213 bind commit `5397b08` (base `34e798b`), `make dogfood-check`
+with `CORVINT_BIN` set fails `dogfood-report-missing` and names only the author's `dogfood-change`.
+Copying the author's report into the clone moves the failure to `local-outcome-evidence-drift`: the
+check also needs the author's private `<git-dir>/corvint/local-outcome.json`, OCM maps, intent
+snapshot and abstention evidence, and no committed artifact binds the report's digest.
+
+Decision: option (b) of the ticket. A `DOGFOOD_REPORT` input would have to trust an unauthenticated
+report plus further private files, or rerun the author's coordinator, so reviewer-side
+`outputsAgree` is not offered. `DCW-V0-017` (new requirement in an accepted spec, owner review) and
+`docs/DOGFOOD.md` step 11 state that the verifier set and `outputsAgree` are author-only and name
+what the reviewer verifies instead: `cem verify` and strict `cem status` on the committed CEM with
+their own binary, the seal as one exact rename, and the report's semantics. When `HEAD` tracks
+`.corvint/change.cem.json`, `dogfood-report-missing` also prints a `review:` line with that
+`cem verify` command; reason code and exit status are unchanged. `docs/AUTOMATION.md` cites the
+new line range.
+
+Evidence: the same reviewer clone now prints the `review:` line, and the named command exits 0
+(`valid`, `canonical`); strict `cem status` reports `ready-for-ci`, 19 of 19 hunks supported.
+`script/dogfood-change_test.sh` adds a bind-commit reviewer case and a no-sidecar absence case;
+forcing the line unconditionally fails the test. `make gate` was not run (owner preference).
+
+## 2026-09-23 V1-0173 DCW-V0-019: a citation plan must match the map prepared in the same run
+
+Finding: `dogfood-change` applied a stale 9-row `DOGFOOD_CITATIONS` plan by ordinal to a map a later
+commit had re-prepared with 10 hunks; nothing refused it, and the tenth hunk stayed unknown.
+
+Decision: before any `cem cite`, the coordinator binds a nonempty plan to the prepared map. No
+ordinal may exceed the hunk count, and every hunk the map still records as `unknown` must be named
+by ordinal or full hunk ID. The one exception is the hunk of an intent spec absent at BASE, which an
+author leaves uncited on purpose (decision 0055). A mismatch refuses `cem-cite` with
+`citation-plan-map-mismatch`, cites nothing, and prints a `fix:` line. A plain row-count equality
+was set aside because it would refuse that bootstrap omission, repeated rows (several bases for one
+hunk), and split plans on a resumed map. The plan format is unchanged, because the first field
+already accepts content-derived full hunk IDs and a stale ID already refuses `unknown-hunk-id`. The
+remaining gap: a stale ordinal plan whose ordinals still cover every hunk, such as one after a
+reorder, cannot be detected. DOGFOOD.md recommends full IDs when a later commit may reorder hunks.
+
+Evidence: `script/dogfood-change_test.sh` covers four cases: stale-nine-of-ten, stale-ten-of-nine,
+bootstrap-omitted and other-omitted. `TestDogfoodReasonAdmitsCitationPlanMapMismatch` covers the new
+reason. In a scratch clone against the real 22-hunk map at base 34e798b, a 1-row plan refused
+`citation-plan-map-mismatch` with no cite, and a 22-row plan cited all 22 hunks. `make gate` was
+NOT_RUN.
+
+Review fixes (independent review): with more than 256 unknown hunks, one plan cannot name them all,
+so the unnamed-hunk rule is not applied and split plans on a fresh map stay usable (case
+split-over-row-limit). A numeric selector that is not a canonical ordinal, such as `01`, is now
+refused before any cite (case noncanonical-ordinal); previously `cem cite` refused it only after
+earlier rows had staged. The fix line now names both causes of a mismatch, not only a re-prepared map.
+
+## 2026-09-23 V1-0142 DCW-V0-018: the dogfood loop links OCM obligations from an explicit author plan
+
+Finding: `dogfood-change` regenerates every OCM map with `--replace` on each pass and never runs
+`ocm link`, so each sealed change reported every requirement `unassessed`. Replaying sealed V1-0196
+(base 01b6804, bind 3500aba) gave 0 of 12 linked. Links added by hand were dropped by the next commit.
+
+Decision: an optional `DOGFOOD_OCM_LINKS` TSV plan names, per intent, the requirement, the cited CEM
+hunks, the test path and the test claims. After each map is prepared on every pass, each row runs
+through the verified `corvint ocm link` and reports `ocm-link-NNN`, numbered by plan row; a refused
+row does not stop later rows. Nothing is inferred: without the plan no link runs and no row is
+reported. A missing, malformed or empty plan (`ocm-links`) or a refused row is NOT_PRODUCED with a
+`fix:` line and blocks completion; the OCM aggregate is still produced. The report records the plan
+as `ocmLinkPlan` (sha256 and row count) because the plan and the maps stay local, so a reviewer
+reproduces coverage only by rerunning with the same plan. No new verb; OCM-V0-013 already limits
+map changes to verified link and mark.
+
+Evidence: `script/dogfood-change_test.sh` covers no plan, exact argv and prepare-link-status order,
+the plan digest, refusals of rows 2 and 4 across two intents with rows 3 and 4 still run, and
+unlisted-intent, CRLF, field-count, empty-item (`1,,2`, refused by validation), over-256-row, empty
+and absent plans. Restoring stop-at-first-refusal or dropping the empty-item check fails the test.
+Replaying sealed 75039ff (base af6fd52, LAC-V0-032) through the patched script with a one-row plan
+produced `ocm-link-001`, 1 of 32 linked and `ocmLinkPlan` matching the plan's sha256. A link on a change delivered through this
+loop is NOT_OBSERVED; `make gate` was not run.
+
 ## 2026-09-23 V1-0125 PRS-V1-005: Core-only candidate reader and installer
 
 Finding: `releasecandidate.VerifyContext`, and through it `InstallCore`, refused a candidate that

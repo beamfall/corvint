@@ -92,11 +92,11 @@ Where each row was verified:
 - `witness`: profile `internal/witness/witness.go:27`; exits `cmd/corvint/witness.go:105-138`;
   recorder `cmd/corvint/main.go:1009`; help "does not mutate repository or trace state"
   (`cmd/corvint/help.go:393-394`). It builds the index in memory when no snapshot exists
-  (`cmd/corvint/index_snapshot.go:79-84`); the fresh-clone run wrote no `.corvint/index`.
+  (`cmd/corvint/index_snapshot.go:79-84`); the fresh-clone run wrote no snapshot store (`.git/corvint/index`).
 - `impact --base`: profile `internal/contextindex/range_impact.go:24`; exits and ledger calls
   `cmd/corvint/main.go:1051-1056` and `cmd/corvint/main.go:1077-1136`; envelope
   `cmd/corvint/main.go:1261`; range capacity from `corvint impact --help`. With no snapshot it builds
-  the index in memory (`cmd/corvint/main.go:1080`) and writes no `.corvint/index`.
+  the index in memory (`cmd/corvint/main.go:1080`) and writes no snapshot store (`.git/corvint/index`).
 - 1.0 labels: `docs/specs/corvint-1.0-product-and-release-v1.md` classification table.
 - Every exit code in the table was also observed: 0 in the worked example, 1 from `cem verify`
   with `--target` set to the base, 2 from `affected`, `witness` and `impact` given a short base and
@@ -134,13 +134,16 @@ missing-`rg` refusal exits 1, `script/dogfood-check.sh:8-10`), and 129, 130
 or 143 on `HUP`, `INT` or `TERM` (`script/dogfood-check.sh:88-90`); `make` reports any non-zero
 recipe exit as 2, which the worked example observed.
 
-**Fresh-clone limitation (V1-0182, open).** The task-store title of ticket V1-0182 states it
+**Fresh-clone limitation (V1-0182, by design).** The task-store title of ticket V1-0182 states it
 verbatim: "dogfood-check: in a fresh clone the check fails `dogfood-report-missing` before any
 verifier runs, so a reviewer cannot reproduce the override-verifier comparison". The worked example
-reproduces it: `script/dogfood-check.sh:305-308` exits 1 with `FAIL dogfood-report-missing` because
+reproduces it: `script/dogfood-check.sh:305-313` exits 1 with `FAIL dogfood-report-missing` because
 `.corvint/dogfood-report.json` is gitignored and only the author's `dogfood-change` writes it. A
 fresh-clone trigger can therefore verify a sealed CEM with `cem verify`, but cannot reproduce the
-author's dogfood-check verifier comparison.
+author's dogfood-check verifier comparison. That comparison is author-only evidence
+(`DCW-V0-017`, `docs/DOGFOOD.md` step 11); on a bind commit the failure now also prints a
+`review:` line naming the `cem verify` command a reviewer runs instead. The worked example below
+pins a commit that predates that line.
 
 The existing pull-request wrapper [`examples/cem/verify-pr.sh`](../examples/cem/verify-pr.sh),
 documented with its own 0/1/2/3 exit table in [CEM in CI](CEM-CI.md), runs `cem verify` from a

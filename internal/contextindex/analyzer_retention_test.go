@@ -62,7 +62,7 @@ func TestAnalyzerPackEvictionReservesCurrentAndLeavesOtherFormats(t *testing.T) 
 				t.Fatal(err)
 			}
 		}
-		if removed := evictAnalyzerPacks(directory, current); removed != 4 {
+		if removed := evictAnalyzerPacks(directory, current, snapshotKeep); removed != 4 {
 			t.Fatalf("evicted %d, want 4", removed)
 		}
 		packs, err := filepath.Glob(filepath.Join(directory, "*.aip"))

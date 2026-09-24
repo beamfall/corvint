@@ -3,6 +3,7 @@
 # Local outcome recording needs DOGFOOD_OUTCOME plus one verification source:
 # DOGFOOD_VERIFY holds one recorder command per line (blank lines skipped), or
 # DOGFOOD_VERIFY_FILE names a file of the same shape and takes precedence.
+# DOGFOOD_OCM_LINKS optionally names the author's explicit OCM link plan.
 set -uo pipefail
 export LC_ALL=C
 
@@ -47,6 +48,9 @@ context_abstention_evidence_sha256=
 anchor_state=NOT_OBSERVED
 anchor_merge_base=
 bootstrap_unknown=0
+ocm_links_ready=0
+ocm_link_plan_sha256=
+ocm_link_plan_rows=
 
 resolve_anchor() {
   local configured merges config_result
@@ -256,6 +260,35 @@ run_cem_prepare() {
   run_corvint cem-prepare "$output" cem prepare --base "$base" --target "$target" --replace
 }
 
+# packet_coverage_entry copies one step's packet coverage fields under the
+# packet's own names (DCW-V0-016). A step that compiled no packet, or whose
+# output does not carry exactly one well-formed occurrence of each field, is
+# reported NOT_PRODUCED rather than given numbers it did not produce.
+packet_coverage_entry() {
+  local step=$1 output=$2 status key pattern occurrences matches fields=
+  status=$(awk -F '\t' -v step="$step" '$1 == step { print $2 }' "$rows")
+  if [[ $status != PRODUCED ]]; then
+    printf '{"step": "%s", "status": "NOT_PRODUCED", "reason": "packet-not-compiled"}' "$step"
+    return
+  fi
+  for key in packet_bytes budget_bytes within_budget included_results omitted_results; do
+    case $key in
+      within_budget) pattern='true|false' ;;
+      budget_bytes) pattern='null|0|[1-9][0-9]*' ;;
+      *) pattern='0|[1-9][0-9]*' ;;
+    esac
+    occurrences=$(rg --no-config -N --no-filename --color=never -o "[{,]\"$key\":" "$output" 2>/dev/null | wc -l)
+    matches=$(rg --no-config -N --no-filename --color=never -o "[{,]\"$key\":(${pattern})[,}]" "$output" 2>/dev/null)
+    if (( occurrences != 1 )) || [[ $matches == *$'\n'* || -z $matches ]]; then
+      printf '{"step": "%s", "status": "NOT_PRODUCED", "reason": "packet-coverage-unreadable"}' "$step"
+      return
+    fi
+    matches=${matches#*:}
+    fields+=", \"$key\": ${matches%?}"
+  done
+  printf '{"step": "%s", "status": "PRODUCED"%s}' "$step" "$fields"
+}
+
 render_report() {
   local complete
   complete=$(awk -F '\t' '$2 != "PRODUCED" && !($1 == "local-outcome" && $2 == "NOT_PRODUCED" && $3 == "no-source-paths") && !($1 == "prechange-impact" && $2 == "NOT_PRODUCED" && $3 == "unsupported-impact-range") { failed=1 } END { print failed ? "false" : "true" }' "$rows")
@@ -300,7 +333,15 @@ render_report() {
     else
       printf '  ,"anchor": {"state": "NOT_OBSERVED", "mergeBase": null}\n'
     fi
+    if [[ -n $ocm_link_plan_sha256 ]]; then
+      printf '  ,"ocmLinkPlan": {"sha256": "sha256:%s", "rows": %d}\n' "$ocm_link_plan_sha256" "$ocm_link_plan_rows"
+    else
+      printf '  ,"ocmLinkPlan": null\n'
+    fi
     printf '  ,"dogfoodPolicy": {"bootstrapUnknown": %d, "maximumUnknownAfterBootstrap": 0}\n' "$bootstrap_unknown"
+    printf '  ,"packetCoverage": [%s, %s]\n' \
+      "$(packet_coverage_entry prechange-query "$evidence/prechange-query.json")" \
+      "$(packet_coverage_entry prechange-impact "$evidence/prechange-impact.json")"
     printf '  ,"dogfoodCheck": null\n'
     printf '}\n'
   } > "$report"
@@ -391,13 +432,89 @@ run_ocm_prepare() {
     --intent "$path" --expected-base "$base" --target "$target" --replace
 }
 
+# load_ocm_link_plan freezes the optional DOGFOOD_OCM_LINKS plan and records its
+# digest and row count (DCW-V0-018). Without it no obligation is linked and no row is reported.
+load_ocm_link_plan() {
+  local snapshot="$run_tmp/ocm-links.snapshot" size last controls
+  ocm_links_ready=0
+  [[ -n ${DOGFOOD_OCM_LINKS:-} ]] || return 0
+  if [[ ! -f $DOGFOOD_OCM_LINKS ]]; then
+    append_step ocm-links NOT_PRODUCED ocm-link-plan-unavailable
+    return 0
+  fi
+  if ! (umask 077; head -c 4194305 "$DOGFOOD_OCM_LINKS" > "$snapshot"); then
+    append_step ocm-links NOT_PRODUCED invalid-ocm-link-plan
+    return 0
+  fi
+  size=$(wc -c < "$snapshot")
+  if [[ $size -eq 0 ]]; then
+    append_step ocm-links NOT_PRODUCED empty-ocm-link-plan
+    return 0
+  fi
+  last=$(tail -c 1 "$snapshot" | od -An -t x1 | tr -d '[:space:]')
+  controls=$(tr -d '\11\12\40-\176\200-\377' < "$snapshot" | wc -c)
+  if [[ $size -gt 4194304 || $(wc -l < "$snapshot") -gt 256 || $last != 0a || $controls -ne 0 ]] ||
+    ! awk -F '\t' 'NR == FNR { scope[$0] = 1; next }
+      NF != 5 || $2 == "" || $4 == "" || $3 ~ /(^|,)(,|$)/ || $5 ~ /(^|,)(,|$)/ || !($1 in scope) { exit 1 }' \
+      "$run_tmp/intents.snapshot" "$snapshot"; then
+    append_step ocm-links NOT_PRODUCED invalid-ocm-link-plan
+    return 0
+  fi
+  ocm_link_plan_sha256=$(shasum -a 256 "$snapshot" | awk '{print $1}')
+  ocm_link_plan_rows=$(wc -l < "$snapshot" | tr -d '[:space:]')
+  append_step ocm-links PRODUCED none
+  ocm_links_ready=1
+}
+
+# append_link_list adds one FLAG per comma-separated item to the caller's link_args.
+append_link_list() {
+  local flag=$1 rest=$2,
+  while [[ -n $rest ]]; do
+    link_args+=("$flag" "${rest%%,*}")
+    rest=${rest#*,}
+  done
+}
+
+# run_ocm_links applies each author row naming this scope through the verified
+# `ocm link`; a link is never inferred, and each row reports ocm-link-<plan row>.
+run_ocm_links() {
+  local map=$1 path=$2 intent obligation hunks test_path claims row=0 return_code
+  local step output error_file link_args
+  while IFS=$'\t' read -r intent obligation hunks test_path claims; do
+    row=$((row + 1))
+    [[ $intent == "$path" ]] || continue
+    step=$(printf 'ocm-link-%03d' "$row")
+    output="$evidence/$step.json"
+    error_file="$evidence/$step.stderr"
+    link_args=(ocm link --map "$map" --cem .corvint/change.cem.json --obligation "$obligation"
+      --test-path "$test_path" --expected-base "$base" --target "$target")
+    append_link_list --hunk "$hunks"
+    append_link_list --claim "$claims"
+    "$corvint_bin" --root "$repo" "${link_args[@]}" > "$output" 2> "$error_file" &
+    child_pid=$!
+    wait "$child_pid"
+    return_code=$?
+    child_pid=
+    if [[ $return_code -eq 0 ]]; then
+      append_step "$step" PRODUCED none
+    else
+      append_step "$step" NOT_PRODUCED "$(failure_reason "$error_file" "$return_code")"
+    fi
+  done < "$run_tmp/ocm-links.snapshot"
+}
+
 run_ocm_scopes() {
   local path ordinal=0 map failed=false
+  load_ocm_link_plan
   while IFS= read -r path; do
     ordinal=$((ordinal + 1))
     map=$(printf '.corvint/change.ocm.%03d.json' "$ordinal")
-    run_ocm_prepare "ocm-prepare-$(printf '%03d' "$ordinal")" "$evidence/ocm-prepare-$(printf '%03d' "$ordinal").json" \
-      "$map" "$path" || failed=true
+    if run_ocm_prepare "ocm-prepare-$(printf '%03d' "$ordinal")" "$evidence/ocm-prepare-$(printf '%03d' "$ordinal").json" \
+      "$map" "$path"; then
+      [[ $ocm_links_ready == 0 ]] || run_ocm_links "$map" "$path"
+    else
+      failed=true
+    fi
     run_corvint "ocm-status-$(printf '%03d' "$ordinal")" "$evidence/ocm-status-$(printf '%03d' "$ordinal").json" \
       ocm status --map "$map" --cem .corvint/change.cem.json \
       --expected-base "$base" --target "$target" || failed=true
@@ -450,6 +567,54 @@ validate_citation_plan() {
   awk -F '\t' 'NF != 4 || $1 == "" || $2 == "" || $3 == "" || $4 == "" { exit 1 }' "$snapshot"
 }
 
+# citation_plan_matches_map binds a plan to the map prepared in this run
+# (DCW-V0-019): no ordinal may exceed the map's hunk count, and every hunk the
+# map still records as unknown must be named by ordinal or full ID unless its
+# path is an intent absent at BASE, the bootstrap hunk an author deliberately
+# leaves uncited, or more such hunks remain than one 256-row plan can name.
+# A numeric selector that is not a canonical ordinal is refused here too. An empty plan stays a no-op. Only a regular map is read, at
+# most the native 4 MiB map bound; any other map is left to the cite refusal.
+citation_plan_matches_map() {
+  local map="$repo/.corvint/change.cem.json" omissible="$run_tmp/bootstrap-paths" path
+  [[ -s $run_tmp/citations.snapshot ]] || return 0
+  [[ -f $map && ! -L $map ]] || return 0
+  : > "$omissible"
+  if [[ $intent_manifest_valid == true ]]; then
+    while IFS= read -r path; do
+      git -C "$repo" cat-file -e "$base:$path" 2>/dev/null || printf '%s\n' "$path" >> "$omissible"
+    done < "$run_tmp/intents.snapshot"
+  fi
+  # The map is the canonical indent-2 encoding, so each hunk opens on a
+  # four-space "{" line inside "hunks" and its scalar keys sit at six spaces.
+  head -c 4194304 "$map" | awk -v omissible="$omissible" -v plan="$run_tmp/citations.snapshot" '
+    BEGIN {
+      while ((getline line < omissible) > 0) bootstrap[line] = 1
+      while ((getline line < plan) > 0) { split(line, field, "\t"); named[field[1]] = 1 }
+    }
+    $0 == "  \"hunks\": [" { inside = 1; next }
+    /^  \]/ { inside = 0 }
+    !inside { next }
+    $0 == "    {" { count++; next }
+    match($0, /^      "(disposition|id|path)": "/) {
+      key = substr($0, 8, RLENGTH - 11)
+      value = substr($0, RLENGTH + 1)
+      sub(/",?$/, "", value)
+      hunk[count, key] = value
+    }
+    END {
+      for (selector in named) {
+        if (selector ~ /^[+0-9]/ && selector !~ /^[1-9][0-9]*$/) exit 1
+        if (selector ~ /^[1-9][0-9]*$/ && selector + 0 > count) exit 1
+      }
+      for (i = 1; i <= count; i++)
+        if (hunk[i, "disposition"] == "unknown" && !(hunk[i, "path"] in bootstrap)) owed[++owing] = i
+      # More owed hunks than one plan has rows: split plans stay admissible.
+      if (owing > 256) exit 0
+      for (j = 1; j <= owing; j++)
+        if (!((owed[j] in named) || (hunk[owed[j], "id"] in named))) exit 1
+    }'
+}
+
 resolve_anchor
 sealed_in_change=$(git -C "$repo" diff --name-only "$base" "$target" -- .corvint/changes) || exit 2
 if [[ -n $sealed_in_change ]]; then
@@ -484,6 +649,12 @@ else
 fi
 run_cem_prepare "$evidence/cem-prepare.json" || :
 
+# The manifest is frozen before citation so the plan check knows which
+# base-absent intent hunks an author may deliberately leave uncited.
+intent_manifest_valid=false
+if validate_intent_manifest; then
+  intent_manifest_valid=true
+fi
 if [[ ! -f $repo/.corvint/change.cem.json ]]; then
   append_step cem-cite NOT_PRODUCED cem-map-not-produced
 elif [[ -z ${DOGFOOD_CITATIONS:-} ]]; then
@@ -499,6 +670,9 @@ else
   if ! validate_citation_plan; then
     cite_status=NOT_PRODUCED
     cite_reason=invalid-citation-plan
+  elif ! citation_plan_matches_map; then
+    cite_status=NOT_PRODUCED
+    cite_reason=citation-plan-map-mismatch
   elif [[ $citation_count -gt 1 && ( -e $repo/$citation_stage || -L $repo/$citation_stage ) ]]; then
     cite_status=NOT_PRODUCED
     cite_reason=citation-stage-exists
@@ -545,7 +719,7 @@ else
 fi
 
 : > "$aggregate_status"
-if ! validate_intent_manifest; then
+if [[ $intent_manifest_valid == false ]]; then
   append_step ocm-aggregate NOT_PRODUCED missing-intent-scope
 elif run_ocm_scopes; then
   if finish_ocm_aggregate; then
@@ -571,6 +745,8 @@ fix_hint() {
       printf 'DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves' ;;
     cem-cite:invalid-citation-plan)
       printf 'each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows' ;;
+    cem-cite:citation-plan-map-mismatch)
+      printf 'the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE' ;;
     ocm-aggregate:missing-intent-scope)
       printf 'DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths' ;;
     ocm-prepare-*:invalid-requirements-section)
@@ -581,6 +757,14 @@ fix_hint() {
       printf 'fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change' ;;
     cem-status:not-ready)
       printf 'read verification.issues and policyIssues in %s: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk' "$evidence/cem-status.json" ;;
+    ocm-links:ocm-link-plan-unavailable)
+      printf 'DOGFOOD_OCM_LINKS must be the path of a TSV file of INTENT<TAB>REQUIREMENT<TAB>HUNKS<TAB>TEST_PATH<TAB>CLAIMS rows, not the rows themselves' ;;
+    ocm-links:empty-ocm-link-plan)
+      printf 'DOGFOOD_OCM_LINKS names an empty file; add at least one row, or unset DOGFOOD_OCM_LINKS so every requirement stays unassessed' ;;
+    ocm-links:invalid-ocm-link-plan)
+      printf 'each DOGFOOD_OCM_LINKS row is INTENT<TAB>REQUIREMENT<TAB>HUNK[,HUNK...]<TAB>TEST_PATH<TAB>CLAIM[,CLAIM...], LF-terminated, at most 256 rows, and INTENT is listed in DOGFOOD_INTENTS_FILE' ;;
+    ocm-link-*)
+      printf 'read %s/%s.stderr: each linked hunk must be cited in the committed sidecar, and each claim a test case or t.Run name at HEAD containing the exact requirement ID; otherwise delete the DOGFOOD_OCM_LINKS row so the requirement stays unassessed' "$evidence" "$1" ;;
     ocm-aggregate:intent-scope-drift)
       printf 'fix the ocm-prepare or ocm-status row above; otherwise the intents file changed during the run' ;;
     local-outcome:outcome-input-not-provided)

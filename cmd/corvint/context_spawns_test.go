@@ -17,7 +17,7 @@ import (
 )
 
 // TestContextMissSpawnsTheObservationPairOnce counts the Git processes a
-// snapshot miss costs once `.corvint/index/` exists: the loader's identity and
+// snapshot miss costs once the snapshot store exists: the loader's identity and
 // status pair opens the build's stability window instead of being spawned
 // again, so the pair appears twice in total (opening and closing), not three
 // times. The dirty path makes the residual cat-file batch part of the count.
