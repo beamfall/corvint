@@ -5,7 +5,7 @@ Date: 2026-09-12
 Requirement prefix: `PUB-V0`  
 Intent status: accepted owner scope; implementation details proposed  
 Delivery status: not qualified  
-Amendments: decision 0167 (build from the staged export; retained bundle archive) amends `PUB-V0-013..015`; decision 0314 adds `PUB-V0-021` (build number); issue 44 adds `PUB-V0-022..026` (closed qualified release candidate); decision 0327 selected `v0.5.0a1`; decision 0328 selected `v0.5.0a2` with the existing unsigned prerelease/no-promotion boundaries and the issue #49 Playwright regression; decision 0329 selects `v0.5.0a3` for the integrated issue #53–#57 rerelease with the same boundaries; decision 0373 adds the "1.0 Core scope amendment" section (owner answers of 2026-09-23).
+Amendments: decision 0167 (build from the staged export; retained bundle archive) amends `PUB-V0-013..015`; decision 0314 adds `PUB-V0-021` (build number); issue 44 adds `PUB-V0-022..026` (closed qualified release candidate); decision 0327 selected `v0.5.0a1`; decision 0328 selected `v0.5.0a2` with the existing unsigned prerelease/no-promotion boundaries and the issue #49 Playwright regression; decision 0329 selects `v0.5.0a3` for the integrated issue #53–#57 rerelease with the same boundaries; decision 0373 adds the "1.0 Core scope amendment" section (owner answers of 2026-09-23); decision 0375 amends `PUB-V0-021` (the build number is provenance, not an ordering or identity key, and is monotonic only along `origin/main`'s first-parent chain since decision 0331).
 
 ## Agent digest
 - Claim: A public alpha ships the Go CLI, MCP docs, agent/editor unit and E2E test tracking, and an optional dashboard and task manager with a roadmap.
@@ -342,6 +342,14 @@ The result binds the archive SHA-256 and frozen Corvint commit/tree. Existing ou
   `corvint --version` prints `Corvint <VERSION> (build N)`; an unstamped `go build` reports build
   `0`. The release smoke MUST require the exact stamped number, and the VS Code version probe and
   the dogfood coordinators MUST require the `(build N)` suffix while keeping `VERSION` as the pin.
+  The build number is monotonic only along `origin/main`'s first-parent chain, and only since
+  decision 0331 restarted that chain's count; it is neither an ordering key nor an identity key
+  (decision 0375). `VERSION` orders releases; the released commit plus the installed executable
+  digest identify a build. No consumer MAY compare build numbers across releases to order or
+  authenticate them; every existing consumer instead checks the stamped number against an exact
+  expected value or the `(build N)` shape. A release artifact MUST be built from a commit that is on
+  `origin/main`'s first-parent chain at release time, so its stamped number matches what a fresh
+  clone of `origin/main` reproduces.
 - `PUB-V0-022`: A versioned release candidate MUST be assembled only from the closed seven-file
   core archive-gate output and the closed three-file companion retained output. Its verifier MUST
   require PASS core reproducibility evidence, exact archive checksums, a passing companion retained
