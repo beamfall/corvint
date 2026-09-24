@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -83,7 +84,7 @@ func TestObserveWorkUsesOnlyTargetMaterialization(t *testing.T) {
 }
 
 func testObserveWorkUsesOnlyTargetMaterialization(t *testing.T, root, marker string) {
-	capture, code := observeWork(context.Background(), root)
+	capture, code := observeWork(context.Background(), root, io.Discard)
 	if code != "" {
 		t.Fatalf("observe: %s", code)
 	}
@@ -122,7 +123,7 @@ func TestObserveWorkMutationDiagnostics(t *testing.T) {
 		root := workProductionFixture(t)
 		cemWrite(t, root, "victim", "before")
 		workFixtureScriptPrefix(t, root, "printf changed > '"+filepath.Join(root, "victim")+"'")
-		capture, code := observeWork(context.Background(), root)
+		capture, code := observeWork(context.Background(), root, io.Discard)
 		if code != "" {
 			t.Fatalf("diagnostic observation lost: %s", code)
 		}
@@ -182,7 +183,7 @@ func TestObserveWorkFreshnessRetainsMutation(t *testing.T) {
 	cemWrite(t, root, ".gitignore", "ignored-queue\n")
 	workFixtureScriptPrefix(t, root, "printf changed > '"+filepath.Join(root, "ignored-queue")+"'")
 	cemWrite(t, root, "ignored-queue", "before")
-	capture, code := observeWork(context.Background(), root)
+	capture, code := observeWork(context.Background(), root, io.Discard)
 	if code != "" {
 		t.Fatal(code)
 	}
@@ -190,7 +191,7 @@ func TestObserveWorkFreshnessRetainsMutation(t *testing.T) {
 	if capture.observation.MutationState != "CHANGED" {
 		t.Fatal("initial mutation not detected")
 	}
-	if drift, code := workFreshAtReturn(context.Background(), root, capture); drift || code != "" {
+	if drift, code := workFreshAtReturn(context.Background(), root, capture, io.Discard); drift || code != "" {
 		t.Fatalf("equal pinned checkpoint became stale or failed: %v %s", drift, code)
 	}
 	if capture.observation.MutationState != "CHANGED" || capture.observation.State != workqueue.StateUnknown {
@@ -253,7 +254,7 @@ func TestWorkSourceRefusalNeverLaunchesAdapter(t *testing.T) {
 				materializationGit(t, root, "add", ".")
 				materializationGit(t, root, "commit", "-qm", "sentinel adapter")
 				tc.change(t, root)
-				capture, code := observeWork(context.Background(), root)
+				capture, code := observeWork(context.Background(), root, io.Discard)
 				if capture != nil {
 					capture.Close()
 				}
