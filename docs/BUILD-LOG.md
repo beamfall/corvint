@@ -4,6 +4,36 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 V1-0016 HLQ-V1-001..008 / PRS-V1-006: host lifecycle qualification on 0.8.0
+
+New contract `host-lifecycle-qualification-v1.md` and runner `conformance/host-lifecycle-v1`. The
+runner runs nine cases for each Core host tuple, in a private workspace whose `HOME`,
+`CLAUDE_CONFIG_DIR` and `CODEX_HOME` are fresh. Plugin install, disable and uninstall go through
+each host's own `plugin` commands. The hook cases run the command registered in the installed
+`hooks/hooks.json` with host-shaped payloads.
+
+All three decision 0373 Core host tuples passed 9/9 on darwin/arm64. The tuples were plain CLI,
+Codex CLI 0.153.2 with adapter 0.2.2, and Claude Code 2.1.267 with adapter 0.2.3. The current
+binary is from the published v0.8.0 archive (sha256 `95ae7446…a710e`) and the N-1 binary from the
+published v0.7.0 archive (sha256 `5fdbab20…b0bad`). Support stays FALLBACK.
+
+Findings while building the runner:
+
+- `exec.Command` resolves a bare name against the parent `PATH`, not `Cmd.Env`. The first draft
+  therefore ran the operator's `corvint` in every case: its upgrade case reported 0.8.0 on both
+  sides, and its uninstall case still found a binary. The runner now resolves names against the
+  private `PATH` (`HLQ-V1-003`).
+- `corvint help` and a Core refusal envelope are written to stderr.
+- Claude Code 2.1.267 does not delete an uninstalled plugin version. It marks the cache directory
+  with `.orphaned_at` and removes it later. The uninstall predicate accepts that marker and checks
+  every other host-home file for Corvint residue.
+- An isolated Codex home has no hook trust and Codex has no plugin disable verb. Both are recorded
+  as known gaps.
+
+Supplementary live runs: Codex injected the envelope at SessionStart and UserPromptSubmit in a real
+session. Claude Code reported both hook responses, but its model call failed on an expired OAuth
+session. linux tuples `NOT_RUN`. Full gate NOT_RUN (owner policy).
+
 ## 2026-09-24 V1-0190 SOP-V0-003 / PRS-V1-002: 0.7.0 to 0.8.0 N-1 upgrade qualification
 
 `script/check-install-lifecycle.sh` at `3cd62ca9`, with `CORVINT_LIFECYCLE_ARCHIVE` set to the
