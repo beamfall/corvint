@@ -90,9 +90,10 @@ Stable `session.created`, `session.idle`, `session.deleted`, and `file.edited` e
 `tool.execute.after` are translated to `corvint harness event`. Raw session IDs are hashed; raw
 prompts, transcripts, tool arguments, tool output, and environment maps are never sent. The
 adapter serializes `file.edited` subprocesses and coalesces duplicate paths for one session so an
-editor burst cannot overlap Corvint invocations. An `unsupported-impact-path-suffix` refusal from
-that best-effort event keeps its structured code in OpenCode's log instead of becoming a terminal
-warning. The
+editor burst cannot overlap Corvint invocations. An `unsupported-impact-path-suffix` or
+`unsupported-impact-repository` refusal from that best-effort event keeps its structured code in
+OpenCode's log instead of becoming a terminal warning. Opened in a directory outside any Git
+repository, the plugin registers no hooks or tools and runs no Corvint command (decision 0378). The
 `corvint_context` tool is the only prompt-bearing path and requires an explicit task. A task over the
 2,000-character/16,384-byte bound is served by its disclosed anchor query (`AHI-016`) or refused as
 `prompt-over-query-bound`, never truncated. Only the `metadata.corvint` namespace can contribute evidence handles or verification observations.

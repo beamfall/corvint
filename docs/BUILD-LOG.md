@@ -5133,3 +5133,23 @@ Gates: `gofmt -l` over every Go package directory printed nothing; `GOTOOLCHAIN=
 ./tools/gate-affected-select/... ./internal/specindex/` (55.7 s / 0.8 s / 0.7 s); and `make
 spec-requirements-check requirement-definitions-check traceability-tests-check
 decision-numbers-check` all passed. Full `make gate` was not run, per batch scope.
+
+## 2026-09-24 opencode-terminal-notices: decision 0379, AHI-022
+
+- The `invalid-arguments` FALLBACK notice reproduced live on OpenCode 1.18.31. OpenCode opens a
+  directory outside Git with worktree `/`, and the real binary refuses that root. Decision 0378
+  (upstream) fixed the plugin. With this adapter, a live `opencode serve` in a non-repository
+  directory and in a repository both printed no `[corvint/opencode]` line.
+- No test caught it because every OpenCode test ran the permissive `integrations/testfixture`.
+  `TestHostAdapterJavaScriptHosts` now also builds `./cmd/corvint`. A new lifecycle test covers
+  every stable hook and both tools against that build.
+- The audit found a second terminal notice: `unsupported-impact-repository` on `file-change`,
+  triggered by a `.go` edit in a repository without `go.mod`. It is now expected and goes to
+  OpenCode's log.
+- Mutation checks:
+  - Removing either fix fails the new tests.
+  - Removing the 0378 guard fails both the 0378 test and the new lifecycle test.
+- Follow-ups, not changed here:
+  - A repository with no commit fails every hook with `corvint-command-failed`.
+  - `runtime.js` still sends `adapterVersion` 0.1.0.
+  - The 2 s automatic ceiling can still produce a disclosed `timeout` notice under load.
