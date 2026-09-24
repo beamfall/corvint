@@ -105,17 +105,17 @@ ARTIFACT-GO-V0-004	docs/specs/release-artifact-integrity-v0.md	156	archive metad
 ARTIFACT-GO-V0-005	docs/specs/release-artifact-integrity-v0.md	162	every target binary MUST be built twice with separate cold caches, and each
 ARTIFACT-GO-V0-006	docs/specs/release-artifact-integrity-v0.md	166	verification MUST be offline and independent of the assembler. From archive
 ARTIFACT-GO-V0-007	docs/specs/release-artifact-integrity-v0.md	171	all build and candidate output stays outside the repository. Only after every
-ARTIFACT-GO-V0-008	docs/specs/release-artifact-integrity-v0.md	283	Archive checksums prove integrity only. This profile creates no signature,
-ARTIFACT-GO-V0-009	docs/specs/release-artifact-integrity-v0.md	289	The untracked-path allowance of decision 0142 MUST NOT apply to the loose
-ARTIFACT-RDY-V0-001	docs/specs/release-artifact-integrity-v0.md	328	`script/release-checklist` MUST be deterministic and read-only. It prints
-ARTIFACT-RDY-V0-002	docs/specs/release-artifact-integrity-v0.md	351	native-runtime is owned by `GOC-V0-001`; native-performance is owned by
-ARTIFACT-RDY-V0-003	docs/specs/release-artifact-integrity-v0.md	359	a tag row reports only an exact release tag already pointing at the
-ARTIFACT-RDY-V0-004	docs/specs/release-artifact-integrity-v0.md	365	publication is `PASS` only with a repository-owner-approved receipt that
-ARTIFACT-RDY-V0-005	docs/specs/release-artifact-integrity-v0.md	369	promotion is `PASS` only with a repository-owner acceptance record naming
-ARTIFACT-RDY-V0-006	docs/specs/release-artifact-integrity-v0.md	381	the receipt is the blob at `docs/releases/<tag>/publication-receipt.json`
-ARTIFACT-RDY-V0-007	docs/specs/release-artifact-integrity-v0.md	393	the release revision is the receipt's `revision`, not `HEAD`. `PASS`
-ARTIFACT-RDY-V0-008	docs/specs/release-artifact-integrity-v0.md	401	every attached digest MUST be witnessed locally by the private archive
-ARTIFACT-RDY-V0-009	docs/specs/release-artifact-integrity-v0.md	410	the reader is read-only and offline. It invokes only local `git`, with the
+ARTIFACT-GO-V0-008	docs/specs/release-artifact-integrity-v0.md	287	Archive checksums prove integrity only. This profile creates no signature,
+ARTIFACT-GO-V0-009	docs/specs/release-artifact-integrity-v0.md	293	The untracked-path allowance of decision 0142 MUST NOT apply to the loose
+ARTIFACT-RDY-V0-001	docs/specs/release-artifact-integrity-v0.md	332	`script/release-checklist` MUST be deterministic and read-only. It prints
+ARTIFACT-RDY-V0-002	docs/specs/release-artifact-integrity-v0.md	355	native-runtime is owned by `GOC-V0-001`; native-performance is owned by
+ARTIFACT-RDY-V0-003	docs/specs/release-artifact-integrity-v0.md	363	a tag row reports only an exact release tag already pointing at the
+ARTIFACT-RDY-V0-004	docs/specs/release-artifact-integrity-v0.md	369	publication is `PASS` only with a repository-owner-approved receipt that
+ARTIFACT-RDY-V0-005	docs/specs/release-artifact-integrity-v0.md	373	promotion is `PASS` only with a repository-owner acceptance record naming
+ARTIFACT-RDY-V0-006	docs/specs/release-artifact-integrity-v0.md	385	the receipt is the blob at `docs/releases/<tag>/publication-receipt.json`
+ARTIFACT-RDY-V0-007	docs/specs/release-artifact-integrity-v0.md	397	the release revision is the receipt's `revision`, not `HEAD`. `PASS`
+ARTIFACT-RDY-V0-008	docs/specs/release-artifact-integrity-v0.md	405	every attached digest MUST be witnessed locally by the private archive
+ARTIFACT-RDY-V0-009	docs/specs/release-artifact-integrity-v0.md	414	the reader is read-only and offline. It invokes only local `git`, with the
 ARTIFACT-V0-001	docs/specs/release-artifact-integrity-v0.md	42	(superseded 2026-09-12 by decision 0088; obligation now carried by
 ARTIFACT-V0-002	docs/specs/release-artifact-integrity-v0.md	52	(superseded 2026-09-12 by decision 0088; obligation now carried by
 ARTIFACT-V0-003	docs/specs/release-artifact-integrity-v0.md	65	(superseded 2026-09-12 by decision 0088; obligation now carried by
@@ -1659,6 +1659,13 @@ RBD-V0-004	docs/specs/retrieval-bench-diagnostics-v0.md	38	Each invocation MUST 
 RBD-V0-005	docs/specs/retrieval-bench-diagnostics-v0.md	43	Capture MUST bound the entire encoded file including footer to 64 MiB, header to
 RBD-V0-006	docs/specs/retrieval-bench-diagnostics-v0.md	47	Capture disk writes MUST occur after timed retrieval calls, including error path
 RBD-V0-007	docs/specs/retrieval-bench-diagnostics-v0.md	50	Only after existing identity verification may capture emit its terminal footer,
+RCB-V0-001	docs/specs/receipt-bundle-v0.md	56	`corvint [--root PATH] cem export --map MAP --expected-base REV --target REV
+RCB-V0-002	docs/specs/receipt-bundle-v0.md	64	The bundle is the directory DIR holding `manifest.json` and `receipts/` with one
+RCB-V0-003	docs/specs/receipt-bundle-v0.md	76	`notRunOrNotProduced` is always an array. For a JSON receipt it lists every stri
+RCB-V0-004	docs/specs/receipt-bundle-v0.md	81	Inclusion rules. Every receipt is read without following a final symlink, must b
+RCB-V0-005	docs/specs/receipt-bundle-v0.md	110	The export writes only DIR. DIR must be absolute and must not exist, and its par
+RCB-V0-006	docs/specs/receipt-bundle-v0.md	127	`script/verify-receipt-bundle.sh DIR` needs only `sh`, `sed`, `awk`, `find`, `so
+RCB-V0-007	docs/specs/receipt-bundle-v0.md	138	A bundle grants nothing. The export signs nothing, publishes nothing, contacts n
 RDG-V0-001	docs/specs/requirement-definition-gate-v0.md	57	The gate MUST read every non-blank row of `docs/specs/REQUIREMENTS.tsv`, take th
 RDG-V0-002	docs/specs/requirement-definition-gate-v0.md	62	The gate MUST exempt every id starting with `CEM-CB-` from RDG-V0-003, because
 RDG-V0-003	docs/specs/requirement-definition-gate-v0.md	65	The gate MUST fail when a checked id (per RDG-V0-001, after the RDG-V0-002 exemp

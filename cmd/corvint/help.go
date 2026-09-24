@@ -11,7 +11,7 @@ const authorityStartPrompt = "Identify the active work queue, required workflow 
 var cemHelpActions = map[string]bool{
 	"begin": true, "prepare": true, "cite": true, "mark": true,
 	"status": true, "verify": true, "report": true,
-	"anchor": true, "provenance": true,
+	"anchor": true, "provenance": true, "export": true,
 }
 
 // helpSubcommands are the retired oracle's nested argparse choices (GPK-V0-062): a token after the
@@ -285,7 +285,7 @@ Commands:
   dogfood        Enroll and complete an explicit local evidence workflow.
   dogfood-ocm    Verify the private ordered set of dogfood OCM maps.
   cem            Change Evidence Map producer/verifier: begin, prepare, cite,
-                 mark, status, verify, and report.
+                 mark, status, verify, report, and export.
   ocm            Obligation Closure Map producer/verifier: prepare, link, mark,
                  status, verify, and report.
   lrf            Verify repository authority and apply the lexical relevance floor.
@@ -361,7 +361,8 @@ Global options:
   also reads without mutating; --apply rewrites the local trace store. cem begin, prepare, cite,
   and mark write local CEM artifacts (the map and the patch cache), and cem
   report writes the local review report. ocm prepare, link, and mark write local OCM maps, and ocm
-  report writes the local OCM review report; no other files are touched.
+  report writes the local OCM review report. cem export writes only the new receipt-bundle
+  directory it is given outside the worktree; no other files are touched.
 `
 
 const adapterHelp = `Run one bounded native host adapter.
@@ -862,6 +863,8 @@ Usage:
     [--max-mutants N] [--wall-time DURATION] [--output MAP]
   corvint [--root PATH] cem anchor --map MAP [--commit REV]
   corvint [--root PATH] cem provenance --commit REV
+  corvint [--root PATH] cem export --map MAP --expected-base REV --target REV
+    --output DIR [--witness REPORT]
 
 Actions:
   begin    Build a cem/0.1 candidate from exact out-of-band patch bytes.
@@ -888,6 +891,14 @@ Actions:
   provenance  (experimental, read-only) Report REV's Corvint anchor, Git AI
            refs/notes/ai note, and Assisted-by/Agent-Logs-Url trailers as
            untrusted repository-history rows; no URL is fetched.
+  export   (read-only) Verify the map as cem verify does and require the
+           target to commit it, then copy it, the saved --witness JSON report,
+           the dogfood report and the full-gate receipt bound to the same base
+           and target into the new absolute directory DIR outside every
+           worktree, with a manifest of each receipt's sha256 and
+           NOT_RUN/NOT_PRODUCED axes. A receipt that is missing or binds
+           another revision is listed as absent. Check it offline with
+           script/verify-receipt-bundle.sh DIR.
 
 Verification options:
   --expected-base REV  Independent expected base. Required for cem/0.2.

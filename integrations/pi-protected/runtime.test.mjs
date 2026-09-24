@@ -8,7 +8,7 @@ import {dirname,join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {run,ownNativeGroup} from './process.mjs';
 import {readSettings,guardAuth,guardedAuthBackend,createCredentials,parseArguments} from './settings.mjs';
-const here=dirname(fileURLToPath(import.meta.url));
+const here=dirname(fileURLToPath(import.meta.url)),root=resolve(here,'../..');
 const binary=join(here,'build/release/pi-protected');
 
 test('PPI-V0-003 configuration rejects executable resources and shell credentials',async()=>{
@@ -93,7 +93,9 @@ test('PPI-V0-001 PPI-V0-002 native RPC uses embedded SDK with hostile global res
  assert.equal(existsSync(marker),false);
  const witness=join(scratch,'tui-pgid'),releaseWitness=ownNativeGroup(witness);
  try {
-  const tui=await run('/usr/bin/python3',[join(here,'tui-fixture.py'),'/usr/bin/sandbox-exec','-p',profile,binary,'--mode','tui','--data-dir',dataDir],{cwd:repo,env:{...env,CORVINT_PI_PTY_WITNESS:witness,CORVINT_PI_TUI_FIRST:'3'}});
+  const fixture=join(scratch,'pi-tui-fixture');
+  const built=await run('go',['build','-o',fixture,'./tools/pi-tui-fixture'],{cwd:root,env:{...process.env,GOTOOLCHAIN:'local'}});assert.equal(built.code,0,built.stderr);
+  const tui=await run(fixture,['-protected','/usr/bin/sandbox-exec','-p',profile,binary,'--mode','tui','--data-dir',dataDir],{cwd:repo,env:{...env,CORVINT_PI_PTY_WITNESS:witness,CORVINT_PI_TUI_FIRST:'3'}});
   assert.equal(tui.code,0,tui.stderr);assert.match(tui.stdout,/clean shutdown passed/);
  }finally{releaseWitness()}
  assert.equal(requests.length,5);

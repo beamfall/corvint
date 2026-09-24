@@ -82,6 +82,13 @@ export default function(pi) {
  });
 }`;
 
+async function tuiFixture(scratch) {
+ const binary=join(scratch,'pi-tui-fixture');
+ const build=await run('go',['build','-o',binary,'./tools/pi-tui-fixture'],{cwd:root,env:{...process.env,GOTOOLCHAIN:'local'}});
+ assert.equal(build.code,0,build.stderr);
+ return binary;
+}
+
 test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t=>{
  assert.notEqual(process.platform,'win32','Pi adapter requires POSIX group cleanup');
  const scratch=mkdtempSync(join(tmpdir(),'corvint-pi-host-'));
@@ -158,7 +165,7 @@ test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t
  const tuiFlags=flags.filter(flag=>flag!=='-p'&&flag!=='--mode'&&flag!=='json');
  nativeGroups.add(tuiWitness);
  t.after(()=>nativeGroups.delete(tuiWitness));
- const tui=await run('python3',[join(here,'tui-fixture.py'),process.env.PI_BIN??'pi',...tuiFlags],{cwd:repo,env:{...env,TERM:'xterm-256color',CORVINT_PI_CAPTURE:tuiCapture,CORVINT_PI_PTY_WITNESS:tuiWitness}});
+ const tui=await run(await tuiFixture(scratch),[process.env.PI_BIN??'pi',...tuiFlags],{cwd:repo,env:{...env,TERM:'xterm-256color',CORVINT_PI_CAPTURE:tuiCapture,CORVINT_PI_PTY_WITNESS:tuiWitness}});
  assert.equal(tui.code,0,tui.stderr);
  assert.match(tui.stdout,/Native Pi TUI prompt and clean shutdown passed/);
  const tuiContext=JSON.parse(readFileSync(tuiCapture,'utf8').trim().split('\n')[0]);
@@ -235,11 +242,11 @@ test('AHI-024 interrupting the host check reaps its separately detached native g
 
 test('AHI-025 native TUI fixture interruption reaps its PTY process group',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
  const scratch=mkdtempSync(join(tmpdir(),'pi-pty-cancel-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
- const witness=join(scratch,'group'),descendant=join(scratch,'descendant'),fake=join(scratch,'fake.py');
- writeFileSync(fake,`import os,signal,time\nsignal.signal(signal.SIGTERM,signal.SIG_IGN)\npid=os.fork()\nif pid==0:\n open(${JSON.stringify(descendant)},'w').write(str(os.getpid()))\n while True: time.sleep(1)\nwhile True: time.sleep(1)\n`);
+ const witness=join(scratch,'group'),descendant=join(scratch,'descendant'),fake=join(scratch,'fake.sh');
+ writeFileSync(fake,`trap '' TERM\nsleep 86400 &\necho $! > ${JSON.stringify(descendant+'.tmp')}\nmv ${JSON.stringify(descendant+'.tmp')} ${JSON.stringify(descendant)}\nwait\n`);
  nativeGroups.add(witness);t.after(()=>nativeGroups.delete(witness));
  let spawned;const ready=new Promise(r=>{spawned=r});
- const work=run('python3',[join(here,'tui-fixture.py'),'python3',fake],{env:{...process.env,CORVINT_PI_PTY_WITNESS:witness},onSpawn:spawned});
+ const work=run(await tuiFixture(scratch),['/bin/sh',fake],{env:{...process.env,CORVINT_PI_PTY_WITNESS:witness},onSpawn:spawned});
  const child=await ready;
  for(let i=0;i<300&&!existsSync(descendant);i++)await new Promise(r=>setTimeout(r,10));
  assert.ok(existsSync(descendant));const pid=Number(readFileSync(descendant,'utf8'));

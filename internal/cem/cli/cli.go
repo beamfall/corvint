@@ -111,18 +111,27 @@ var cemActions = map[string]cemAction{
 		paths:     []string{"--map"},
 	},
 	"provenance": {arguments: []string{"--commit"}, required: []string{"--commit"}},
+	"export": {
+		arguments: []string{"--map", "--expected-base", "--target", "--output", "--witness"},
+		required:  []string{"--map", "--expected-base", "--target", "--output"},
+		paths:     []string{"--map"},
+	},
 }
 
 // cemActionOrder is the order the oracle declares its subparsers in, which is
 // the order its invalid-choice message lists them in; cover (TCQ-V0-051),
-// discriminate (TCQ-V0-055), anchor and provenance (FPK-V0-037..040) have no
-// oracle counterpart and are listed last.
-var cemActionOrder = []string{"begin", "prepare", "cite", "mark", "verify", "status", "report", "cover", "discriminate", "anchor", "provenance"}
+// discriminate (TCQ-V0-055), anchor and provenance (FPK-V0-037..040), and
+// export (RCB-V0-001) have no oracle counterpart and are listed last.
+var cemActionOrder = []string{"begin", "prepare", "cite", "mark", "verify", "status", "report", "cover", "discriminate", "anchor", "provenance", "export"}
 
 // GitNotes serves anchor and provenance (internal/gitnotes). The binary
 // installs it, so the CEM seams' dependency closure stays the standard library
 // and internal/cem; an uninstalled handler is an invalid choice.
 var GitNotes func(ctx context.Context, root, action string, values map[string]string) (map[string]any, error)
+
+// Export serves export (internal/receiptbundle), installed by the binary for
+// the same reason as GitNotes.
+var Export func(ctx context.Context, root string, values map[string]string) (map[string]any, error)
 
 func quotedChoices(values []string) string {
 	quoted := make([]string, 0, len(values))
@@ -423,6 +432,10 @@ func dispatchCEM(ctx context.Context, root string, arguments []string) (map[stri
 	case "anchor", "provenance":
 		if GitNotes != nil {
 			return GitNotes(ctx, root, action, flags.values)
+		}
+	case "export":
+		if Export != nil {
+			return Export(ctx, root, flags.values)
 		}
 	case "status", "verify", "report":
 		maxUnknown, err := flags.limit("--max-unknown")
