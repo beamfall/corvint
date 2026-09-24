@@ -286,6 +286,53 @@ exception itself (owner review pending). Added evidence:
 (through a probe seam) and the unix-only `TestDogfoodHandoffReceiptUnavailable` (symlink, FIFO,
 oversized, missing), plus a no-write assertion on the drift path.
 
+## 2026-09-23 V1-0200 AGW-V0-003, DCW-V0-016: receipts name each compiled packet's cost
+
+Finding: the dogfood report and the witness report compiled context packets but did not record what
+they cost. Each packet carries a coverage block, but only the raw step output under
+`<git-dir>/corvint/` kept it, and the witness report kept none, so context cost could not be traced
+to a change.
+
+Decision: both reports gain one additive member, `packetCoverage`. Each entry copies the packet's
+`packet_bytes`, `budget_bytes`, `within_budget`, `included_results` and `omitted_results` under
+those names. Neither profile changes: `corvint-dogfood-change/0` and `corvint-witness/0`.
+- `dogfood-change` writes one line after `dogfoodPolicy`, with an entry for `prechange-query` and one
+  for `prechange-impact`. A step that compiled no packet is `NOT_PRODUCED` with
+  `packet-not-compiled`. Output without exactly one well-formed occurrence of each field is
+  `NOT_PRODUCED` with `packet-coverage-unreadable`. The line never changes `complete`.
+- `corvint dogfood begin` compiles no packet, so it records no coverage.
+- `dogfood finish` reads the report with a strict parser followed by a struct decode, which ignores
+  unknown members, so finish needed no change.
+- Witness lists the `admission` packet, then one `closure` packet for each admitted path, and adds a
+  `PACKETS` text section. A refused stage adds no entry.
+- The console dogfood pane shows the numbers. For a report written before the member existed, it
+  shows "not reported". Historical receipts are not rewritten.
+- Both requirements are proposed additions to specs whose intent is accepted, and they await owner
+  review.
+
+Evidence:
+- `TestPacketCoverageEqualsEveryCompiledReceipt` compares the witness JSON with the receipts that
+  `RangeImpact` and `Impact` return. It fails when `Compile` leaves the member empty.
+- `script/dogfood-change_test.sh`, run by `TestGoOnlyContextAbstentionRemainsClosed`, checks three
+  things: the exact line, `packet-not-compiled` on the impact abstention, and
+  `packet-coverage-unreadable` on a duplicated key. It exits 1 when the line is removed.
+- `TestConsoleDogfoodPacketCoverage` reads the sealed historical fixture without error.
+- A scratch test, not kept, parsed the real report below with finish's strict `wire.Parse` and
+  passed.
+
+Real run, on 2026-09-23, of the committed branch head 8729b92 against base d138a58:
+- Setup: a binary built from the branch into scratch ran `dogfood-change` in a throwaway clone,
+  because the run writes the tracked CEM and the local trace.
+- The report recorded `prechange-query` with `packet_bytes` 6314, `budget_bytes` null,
+  `within_budget` true, 1 included and 4 omitted.
+- It recorded `prechange-impact` with `packet_bytes` 8831, null budget, within budget, 6 included
+  and 0 omitted.
+- Both sets of numbers match the step outputs field for field. The run was deliberately not
+  complete: no citation, intent or outcome inputs were given.
+- `corvint witness --json` on the same range listed 7 packets totalling 60977 bytes. The admission
+  packet was 8781 bytes. The closure packets ranged from 3335 bytes (`internal/witness/witness_test.go`)
+  to 14469 bytes (`internal/console/views.go`). All were unbudgeted and within budget.
+
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
 
 Finding: nothing stated which Corvint commands are safe as a triggered CI, hook or team-automation

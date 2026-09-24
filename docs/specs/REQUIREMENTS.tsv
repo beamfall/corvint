@@ -69,6 +69,7 @@ AFU-V0-011	docs/specs/application-flow-understanding-v0.md	106	Source, UI text a
 AFU-V0-012	docs/specs/application-flow-understanding-v0.md	110	Explain each flow and gap through source/assertion/run evidence, expose contradi
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
+AGW-V0-003	docs/specs/corvint-witness-v0.md	51	(proposed 2026-09-23, V1-0200, not accepted) the report MUST carry
 AHI-001	docs/specs/agent-harness-integration-v0.md	76	Every adapter MUST consume and produce the transport-neutral Corvint request, re
 AHI-002	docs/specs/agent-harness-integration-v0.md	78	Installation, discovery, upgrade, disable, and uninstall MUST be documented and
 AHI-003	docs/specs/agent-harness-integration-v0.md	80	On session/task start, the adapter MUST resolve repository identity, exact Git
@@ -557,6 +558,7 @@ DCW-V0-012	docs/specs/daily-change-evidence-workflow-v0.md	65	Final version/buil
 DCW-V0-013	docs/specs/daily-change-evidence-workflow-v0.md	69	The daily adopter path MUST be one ordered sequence in `docs/DOGFOOD.md` from th
 DCW-V0-014	docs/specs/daily-change-evidence-workflow-v0.md	74	A `dogfood-change` not-complete row caused by a malformed or missing input, or b
 DCW-V0-015	docs/specs/daily-change-evidence-workflow-v0.md	82	Dirty, stale, interrupted, unsupported and unknown evidence MUST each end the lo
+DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	90	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map

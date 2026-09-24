@@ -526,6 +526,20 @@ Every NOT_PRODUCED reason is shown as the loop wrote it. A step that did not pro
 that passed, and the console does not aggregate these into a verdict: it is never a gate.</div>
 {{else}}<div>The report lists no step, which is the report's content and not a completed loop.</div>{{end}}
 </div>
+
+<div class="panel">
+<h2>Packet coverage</h2>
+{{if .Dogfood.PacketCoverage}}
+<table>
+<tr><th>step</th><th>packet_bytes</th><th>budget_bytes</th><th>within_budget</th><th>included_results</th><th>omitted_results</th></tr>
+{{range .Dogfood.PacketCoverage}}
+<tr class="metric"><th style="width:auto">{{.Step}}</th>
+{{if .Produced}}<td>{{.PacketBytes}}</td><td>{{if .BudgetBytes}}{{.BudgetBytes}}{{else}}null{{end}}</td><td>{{.WithinBudget}}</td><td>{{.IncludedResults}}</td><td>{{.OmittedResults}}</td>
+{{else}}<td colspan="5"><span class="unknown">{{.Status}}</span> {{or_dash .Reason}}</td>{{end}}</tr>
+{{end}}
+</table>
+{{else}}<div>Not reported: this report predates packet coverage.</div>{{end}}
+</div>
 {{end}}
 {{end}}`)
 
