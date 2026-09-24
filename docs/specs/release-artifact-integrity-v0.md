@@ -194,6 +194,10 @@ This slice records but does not independently adjudicate the owner's license and
 decision. It does not publish, upload, sign, attest, create an SBOM, promise cross-platform
 reproducibility, or create a custom package-manifest protocol. It adds no runtime dependencies.
 
+A per-change audit bundle, which copies a change's CEM, witness, dogfood report and full-gate
+receipt with a digest manifest, is `receipt-bundle-v0.md` (`RCB-V0`). It is not a release artifact
+or a publication receipt, and nothing in this slice reads it.
+
 ## Trust boundary and limits
 
 The checker protects against ambient Git redirection, replacement refs, attributes-based export

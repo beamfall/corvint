@@ -88,6 +88,66 @@ MEDIUM issue (unheld compounds took the maximum idf), a LOW issue (the fence tog
 (the loose promotion control) and nits; all are fixed here. A stale `taskLexicalTerms` comment
 found in that review is filed as V1-0214.
 
+## 2026-09-23 V1-0197 RCB-V0-001..007: `cem export` writes a content-addressed receipt bundle
+
+Decision: the export is `corvint cem export`, an action of an existing verb, because no new root
+verb may be added and the CEM defines the change a bundle is keyed by. `witness` is a
+single-report command and `dogfood` is the mutating lease lifecycle. The bundle holds exact copies
+of the CEM, a saved witness report, `.corvint/dogfood-report.json` and the GOC-V0-010 full-gate
+receipt. The CEM must pass the same canonical verification `cem verify` runs against an explicit
+`--expected-base` and `--target`, including its evidence-drift check (`evidence-drift`), and the
+target must commit it byte for byte (`bundle-map-uncommitted` otherwise); the map's own base is
+never the authority. Every other
+receipt binds only by exact full commit IDs, never resolved, and the gate receipt only as the exact
+canonical line naming the target and its tree. Each receipt is listed with its sha256 and every
+`NOT_RUN`, `NOT_PRODUCED` or `not-run` value as an RFC 6901 pointer. A receipt that is missing or
+bound elsewhere is listed as absent with a reason, never synthesized. Gate-ledger records stay
+out, because GL-V0-006 forbids any product-path reader. The output's opened parent and its ancestors must
+match, by file identity, none of the worktree, both Git directories, the primary worktree, a
+common-config `core.worktree` and every linked worktree (`bundle-output-refused`), and all writes
+go through that opened parent. Known limit: a `--separate-git-dir` primary worktree without
+`core.worktree` is named nowhere in the common directory (Git reports the Git directory as the
+main worktree), so an export from one of its linked worktrees cannot protect it; the opener
+already refuses an export run from that primary worktree.
+`script/verify-receipt-bundle.sh` needs only POSIX tools and a SHA-256 command, and exits 2 on any
+manifest that is not the header, the four receipt lines in order with the CEM present, and `]}`.
+
+Deviations from the ticket, pending owner confirmation, so the spec's intent is `proposed`: the
+GOC-V0-010 full-gate receipt replaces the ticket's "gate ledger" (GL-V0-006 forbids a product-path
+reader), and the ticket's "or archive" option is dropped.
+
+Evidence: PR #122's sealed CEM, with the witness report compiled in a plain clone checked out at
+ace0a96 (`corvint witness --base a6a6b8b6 --head ace0a96 --cem .corvint/change.cem.json --json`,
+byte-identical CEM), exported from a clone of this branch, after the review fixes, with
+`corvint cem export --map .corvint/changes/ace0a96bd5ffcfa2af8013e23a1cf3220b46c24f.cem.json
+--expected-base a6a6b8b66c44c486fc86daddfab3fd2d931a31dc
+--target ace0a96bd5ffcfa2af8013e23a1cf3220b46c24f --output $OUT --witness $WITNESS`. Target
+ace0a96 commits the byte-identical map at `.corvint/change.cem.json`, so the canonical check and
+the committed-map check pass. The manifest bytes equal the pre-review export's. The manifest
+sha256 is `65d16c73974d8b09f1882fe38617592cc201ffbfebb920ac134f4a9c110564da`. The CEM is present
+(sha256 `b9c6f94b…c052`, no axes). The witness is present (sha256 `85f5f431…39dc`) with nine
+`NOT_RUN` axes at `/obligations/0..8/verdict`. The dogfood report and gate receipt are absent
+`not-found`: that clone has neither `.corvint/dogfood-report.json` nor `$GIT_DIR/corvint`, and the
+primary checkout was out of bounds for the worker. The verifier, run as
+`env -i PATH=/usr/bin:/bin sh script/verify-receipt-bundle.sh $OUT` from `/`, printed:
+
+```
+manifest sha256 65d16c73974d8b09f1882fe38617592cc201ffbfebb920ac134f4a9c110564da
+MATCH receipts/cem.json b9c6f94bd4c103cdedc6ffe2b9727e8b760aedcd4654ea501da6311a3e53c052
+MATCH receipts/witness.json 85f5f4318a9b8ac97bbd5c627e58eb649bdc801a5e256dd41ed8c22031a639dc
+PASS
+```
+
+It exited 0. An independent review found text-based output checks, an unverified CEM, unexamined
+sibling worktrees, a lax verifier and missing negative controls; each fix above carries a unit or
+script test that was checked to fail with its guard removed, except the handle-identity check that
+closes the parent swap race, which no deterministic test reaches. DR-0040's candidate cem choice
+list now has twelve actions. A re-review then found four more, each fixed with a control checked to
+fail without its guard: the export admitted a CEM that `cem verify` reports not ok for evidence
+drift (`TestExportRefusesADriftedCEM`); `core.worktree` was not protected; the two refusal codes
+lived outside `internal/cem/cemcode`; and the verifier accepted a 41-63-hex header revision (now
+exactly 40 or 64). `make gate` was not run (owner preference).
+
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
 
 Finding: nothing stated which Corvint commands are safe as a triggered CI, hook or team-automation
