@@ -17,7 +17,7 @@ matrix and promotion requirements are frozen in
 - A trusted, file-backed workspace on macOS or Linux. Windows execution is unsupported in V0.
 - One separately installed Corvint engine in the workspace extension host:
   - `cli` transport: an absolute `corvint` or `corvint` path,
-    with the exact V0-admitted version token `0.8.0` plus unchanged executable digest/identity
+    with the exact V0-admitted version token `0.8.1` plus unchanged executable digest/identity
     (the token alone is not capability proof); or
   - `mcp-stdio` transport: an absolute `corvint-mcp` path implementing the experimental
     `docs/specs/mcp-server-2026-07-28-v0.md` contract.

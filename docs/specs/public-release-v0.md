@@ -125,7 +125,7 @@ The proposed delivery sequence and acceptance criteria are in
 
 ## Requirements
 
-- `PUB-V0-001`: The current version tuple MUST move together to `0.8.0`, including native
+- `PUB-V0-001`: The current version tuple MUST move together to `0.8.1`, including native
   version output, archive smoke expectations, VS Code exact admission and live fixtures.
   Historical benchmark and release evidence MUST retain its original version identities.
 - `PUB-V0-002`: The existing native CLI archive gate MUST remain independent. An optional
