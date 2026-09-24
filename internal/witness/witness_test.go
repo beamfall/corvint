@@ -2,9 +2,12 @@ package witness
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -520,4 +523,175 @@ func TestBaseTreeIgnoresGraftedAncestry(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestPacketCoverageEqualsEveryCompiledReceipt pins AGW-V0-003: the report
+// carries one coverage entry per packet it compiled, each equal to that
+// packet's own coverage block under the packet's field names.
+func TestPacketCoverageEqualsEveryCompiledReceipt(t *testing.T) {
+	index, base := packetFixture(t, "example.test/fixture")
+	report, err := Compile(context.Background(), index, Options{Base: base})
+	if err != nil {
+		t.Fatal(err)
+	}
+	admission, err := contextindex.RangeImpact(context.Background(), index, base, impactLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	closure, err := contextindex.Impact(index, []string{"a/a.go"}, impactLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []map[string]any{coverageOf("admission", "", admission), coverageOf("closure", "a/a.go", closure)}
+	if got := decodedPacketCoverage(t, report); !reflect.DeepEqual(got, want) {
+		t.Fatalf("packetCoverage = %v, want %v", got, want)
+	}
+	rendered := Render(report)
+	line := fmt.Sprintf("closure   packet_bytes=%v budget_bytes=null within_budget=true", want[1]["packet_bytes"])
+	if !strings.Contains(rendered, "\nPACKETS\n") || !strings.Contains(rendered, line) {
+		t.Fatalf("rendered report lacks the closure packet line %q\n%s", line, rendered)
+	}
+}
+
+// A refused admission compiles no packet, so the list is empty and still
+// present: a reader must never have to tell null from "none compiled".
+func TestPacketCoverageOfARefusedAdmissionIsEmptyNotNull(t *testing.T) {
+	index, base := packetFixture(t, "fixture")
+	report, err := Compile(context.Background(), index, Options{Base: base})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Range.Admission != "REFUSED" {
+		t.Fatalf("fixture admission = %s, want REFUSED", report.Range.Admission)
+	}
+	encoded, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), `"packetCoverage":[]`) {
+		t.Fatalf("a refused admission must encode packetCoverage as []: %s", encoded)
+	}
+	if !strings.Contains(Render(report), "PACKETS\n  (none: no packet was compiled)") {
+		t.Error("the rendered report does not name that no packet was compiled")
+	}
+}
+
+// A receipt without a readable coverage block is reported unreadable and
+// carries no numbers, never zeros read from a missing or mistyped value.
+func TestPacketCoverageRefusesAnUnreadableBlock(t *testing.T) {
+	complete := map[string]any{"packet_bytes": 10, "budget_bytes": nil, "within_budget": true, "included_results": 1, "omitted_results": 0}
+	for name, receipt := range map[string]map[string]any{
+		"absent":             {},
+		"mistyped bytes":     {"coverage": withValue(complete, "packet_bytes", "10")},
+		"mistyped budget":    {"coverage": withValue(complete, "budget_bytes", "none")},
+		"missing within":     {"coverage": withValue(complete, "within_budget", nil)},
+		"mistyped omitted":   {"coverage": withValue(complete, "omitted_results", 0.0)},
+		"not a coverage map": {"coverage": "x"},
+	} {
+		encoded, err := json.Marshal(packetCoverage("closure", "a.go", receipt))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(encoded) != `{"stage":"closure","path":"a.go","status":"NOT_PRODUCED","reason":"packet-coverage-unreadable"}` {
+			t.Errorf("%s: %s", name, encoded)
+		}
+	}
+	encoded, _ := json.Marshal(packetCoverage("admission", "", map[string]any{"coverage": complete}))
+	if string(encoded) != `{"stage":"admission","status":"PRODUCED","packet_bytes":10,"budget_bytes":null,"within_budget":true,"included_results":1,"omitted_results":0}` {
+		t.Errorf("a readable block: %s", encoded)
+	}
+	if text := packetText(packetCoverage("closure", "a.go", map[string]any{})); text != "NOT_PRODUCED packet-coverage-unreadable" {
+		t.Errorf("an unreadable entry renders %q", text)
+	}
+	if text := packetText(packetCoverage("closure", "a.go", map[string]any{"coverage": withValue(complete, "included_results", impactLimit)})); !strings.HasSuffix(text, " at-ranking-ceiling") {
+		t.Errorf("a packet at the ranking ceiling renders %q without the marker", text)
+	}
+}
+
+func withValue(source map[string]any, key string, value any) map[string]any {
+	copied := map[string]any{}
+	for name, item := range source {
+		copied[name] = item
+	}
+	copied[key] = value
+	return copied
+}
+
+// packetFixture commits a two-package module and a change to a/a.go. A module
+// path without a slash makes the committed-range engine refuse admission.
+func packetFixture(t *testing.T, module string) (*contextindex.Index, string) {
+	t.Helper()
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := initTestRepo(t, git)
+	fixtureGit := func(args ...string) string {
+		t.Helper()
+		command := exec.Command(git, append([]string{"-c", "user.name=Fixture", "-c", "user.email=fixture@example.test"}, args...)...)
+		command.Dir, command.Env = root, gitEnvironment()
+		raw, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("fixture git %v: %v: %s", args, err, raw)
+		}
+		return strings.TrimSpace(string(raw))
+	}
+	files := map[string]string{
+		"go.mod":    "module " + module + "\n\ngo 1.22\n",
+		"a/a.go":    "package a\n\n// A is used by b.\nfunc A() int { return 1 }\n",
+		"b/b.go":    "package b\n\nimport \"" + module + "/a\"\n\n// B calls A.\nfunc B() int { return a.A() }\n",
+		"README.md": "fixture\n",
+	}
+	for name, body := range files {
+		if err := os.MkdirAll(filepath.Join(root, filepath.Dir(name)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fixtureGit("add", ".")
+	fixtureGit("commit", "--quiet", "-m", "base")
+	base := fixtureGit("rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "a/a.go"), []byte("package a\n\n// A is used by b.\nfunc A() int { return 2 }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	fixtureGit("commit", "--quiet", "-am", "change")
+	index, err := contextindex.Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return index, base
+}
+
+func decodedPacketCoverage(t *testing.T, report *Report) []map[string]any {
+	t.Helper()
+	encoded, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded struct {
+		PacketCoverage []map[string]any `json:"packetCoverage"`
+	}
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	return decoded.PacketCoverage
+}
+
+// coverageOf is the expected projection, decoded through JSON the way a
+// receipt reader sees it.
+func coverageOf(stageName, changedPath string, receipt map[string]any) map[string]any {
+	coverageMap := receipt["coverage"].(map[string]any)
+	projected := map[string]any{"stage": stageName, "status": "PRODUCED"}
+	if changedPath != "" {
+		projected["path"] = changedPath
+	}
+	for _, key := range []string{"packet_bytes", "budget_bytes", "within_budget", "included_results", "omitted_results"} {
+		projected[key] = coverageMap[key]
+	}
+	raw, _ := json.Marshal(projected)
+	decoded := map[string]any{}
+	_ = json.Unmarshal(raw, &decoded)
+	return decoded
 }

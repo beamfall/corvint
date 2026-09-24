@@ -87,8 +87,8 @@ var sectionsByLoad = map[snapshotLoad][]string{
 
 func sectionedEnabled() bool { return runtimeenv.Value("SNAPSHOT_FORMAT") == snapshotFormatValue }
 
-func sectionedPath(root, objectFormat, tree, engineID string) string {
-	return strings.TrimSuffix(snapshotPath(root, objectFormat, tree, engineID), ".gob") + sectionedExtension
+func sectionedPath(directory, objectFormat, tree, engineID string) string {
+	return strings.TrimSuffix(snapshotPath(directory, objectFormat, tree, engineID), ".gob") + sectionedExtension
 }
 
 type sectionEntry struct {

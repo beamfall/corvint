@@ -11,7 +11,7 @@ const authorityStartPrompt = "Identify the active work queue, required workflow 
 var cemHelpActions = map[string]bool{
 	"begin": true, "prepare": true, "cite": true, "mark": true,
 	"status": true, "verify": true, "report": true,
-	"anchor": true, "provenance": true,
+	"anchor": true, "provenance": true, "export": true,
 }
 
 // helpSubcommands are the retired oracle's nested argparse choices (GPK-V0-062): a token after the
@@ -285,7 +285,7 @@ Commands:
   dogfood        Enroll and complete an explicit local evidence workflow.
   dogfood-ocm    Verify the private ordered set of dogfood OCM maps.
   cem            Change Evidence Map producer/verifier: begin, prepare, cite,
-                 mark, status, verify, and report.
+                 mark, status, verify, report, and export.
   ocm            Obligation Closure Map producer/verifier: prepare, link, mark,
                  status, verify, and report.
   lrf            Verify repository authority and apply the lexical relevance floor.
@@ -307,7 +307,7 @@ Commands:
                  every evidence row; never writes.
   prove-observe  Record one prove document's verdict counts in the local
                  self-observation ledger; the only thing it writes.
-  index          Write the committed tree's index snapshot under .corvint/index/
+  index          Write the committed tree's index snapshot to .git/corvint/index/
                  for context to read; the only verb that writes there.
   batch          Answer several independent query, context, and impact requests
                  from one loaded index snapshot; never writes.
@@ -361,7 +361,8 @@ Global options:
   also reads without mutating; --apply rewrites the local trace store. cem begin, prepare, cite,
   and mark write local CEM artifacts (the map and the patch cache), and cem
   report writes the local review report. ocm prepare, link, and mark write local OCM maps, and ocm
-  report writes the local OCM review report; no other files are touched.
+  report writes the local OCM review report. cem export writes only the new receipt-bundle
+  directory it is given outside the worktree; no other files are touched.
 `
 
 const adapterHelp = `Run one bounded native host adapter.
@@ -862,6 +863,8 @@ Usage:
     [--max-mutants N] [--wall-time DURATION] [--output MAP]
   corvint [--root PATH] cem anchor --map MAP [--commit REV]
   corvint [--root PATH] cem provenance --commit REV
+  corvint [--root PATH] cem export --map MAP --expected-base REV --target REV
+    --output DIR [--witness REPORT]
 
 Actions:
   begin    Build a cem/0.1 candidate from exact out-of-band patch bytes.
@@ -888,6 +891,14 @@ Actions:
   provenance  (experimental, read-only) Report REV's Corvint anchor, Git AI
            refs/notes/ai note, and Assisted-by/Agent-Logs-Url trailers as
            untrusted repository-history rows; no URL is fetched.
+  export   (read-only) Verify the map as cem verify does and require the
+           target to commit it, then copy it, the saved --witness JSON report,
+           the dogfood report and the full-gate receipt bound to the same base
+           and target into the new absolute directory DIR outside every
+           worktree, with a manifest of each receipt's sha256 and
+           NOT_RUN/NOT_PRODUCED axes. A receipt that is missing or binds
+           another revision is listed as absent. Check it offline with
+           script/verify-receipt-bundle.sh DIR.
 
 Verification options:
   --expected-base REV  Independent expected base. Required for cem/0.2.
@@ -1105,6 +1116,8 @@ Usage:
   corvint [--root PATH] dogfood finish [--session-key HASH]
   corvint [--root PATH] dogfood review --report-set DIGEST [--session-key HASH]
   corvint [--root PATH] dogfood cancel [--session-key HASH]
+  corvint [--root PATH] dogfood handoff [--anchors "ANCHOR..."] [--session-key HASH]
+  corvint [--root PATH] dogfood handoff --receipt FILE [--session-key HASH]
 
 A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
 and optional allowCemSidecarOnlyReuse (false by default). Session keys are 64 hex
@@ -1119,6 +1132,13 @@ runs the strict dogfood check and records satisfaction only on success.
 Status is read-only. Missing evidence remains incomplete. Cancellation is explicit
 non-success. Local satisfaction is caller-owned workflow evidence, never execution
 attestation or Frontier closure. Native event is a separate bounded adapter profile.
+
+handoff is read-only. Without --receipt it emits a receipt naming the session key,
+root, bound revision, sorted task anchors, prompt packet sha256 and bytes, and
+degradations. With --receipt FILE (that emitted document) it re-resolves the same
+packet and prints its exact bytes as packetBase64, or exits 1 reporting the exact
+root, revision, enrollment, anchor and packet drift and withholds the recompiled
+packet. The receipt grants no authority.
 `
 
 // rootPreambleValue reports whether arguments[index] may be consumed as the value of a bare `--root`

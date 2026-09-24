@@ -16,6 +16,7 @@ func Render(report *Report) string {
 	renderSources(builder, report)
 	renderPreconditions(builder, report)
 	renderObligations(builder, report)
+	renderPackets(builder, report)
 	return builder.String()
 }
 
@@ -101,6 +102,44 @@ func renderObligations(builder *strings.Builder, report *Report) {
 				candidate.Authority, candidate.Closing, candidate.EvidencePath)
 		}
 	}
+}
+
+func renderPackets(builder *strings.Builder, report *Report) {
+	builder.WriteString("\nPACKETS\n")
+	if len(report.PacketCoverage) == 0 {
+		builder.WriteString("  (none: no packet was compiled)\n")
+		return
+	}
+	for _, item := range report.PacketCoverage {
+		fmt.Fprintf(builder, "  %-9s %s", item.Stage, packetText(item))
+		if item.Path != "" {
+			fmt.Fprintf(builder, " path=%s", item.Path)
+		}
+		builder.WriteString("\n")
+	}
+}
+
+// packetText renders one entry's numbers, or its status and reason when the
+// receipt had no readable coverage. A packet filled to the ranking ceiling is
+// marked: its omitted_results reads zero however much the engine discarded,
+// and the closure verdict names the truncation.
+func packetText(item PacketCoverage) string {
+	if item.PacketCounts == nil {
+		return item.Status + " " + item.Reason
+	}
+	text := fmt.Sprintf("packet_bytes=%d budget_bytes=%s within_budget=%t included_results=%d omitted_results=%d",
+		item.PacketBytes, budgetText(item.BudgetBytes), item.WithinBudget, item.IncludedResults, item.OmittedResults)
+	if item.IncludedResults >= impactLimit {
+		text += " at-ranking-ceiling"
+	}
+	return text
+}
+
+func budgetText(budget *int) string {
+	if budget == nil {
+		return "null"
+	}
+	return fmt.Sprint(*budget)
 }
 
 // shortIdentity abbreviates a content-addressed identity so two citations that
