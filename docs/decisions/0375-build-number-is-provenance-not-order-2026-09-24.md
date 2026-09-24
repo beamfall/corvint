@@ -10,7 +10,7 @@ Decision 0331 (clean public history with a private archive) restarted `origin/ma
 commit count at 1. `PUB-V0-021` stamps the build number from that count, so the restart broke the
 assumption that a later build always carries a larger number: `origin/main` HEAD stamped build 12
 while the already-published `0.7.0` prerelease is `Corvint 0.7.0 (build 46)`
-(`docs/BUILD-LOG.md:2251@231c2812`, "V1-0017 decision 0360 / SOP-V0-003 / SOP-V0-009" entry, 2026-09-23).
+(`docs/BUILD-LOG.md:2311@231c2812`, "V1-0017 decision 0360 / SOP-V0-003 / SOP-V0-009" entry, 2026-09-23).
 Ticket V1-0149 asked the owner to decide whether build numbers should restart from the public
 lineage or carry an offset.
 
@@ -32,12 +32,12 @@ shape or exact equality, never order:
 require an exact expected banner; `internal/releasecandidate/install.go:109@0a2f615a` and
 `cmd/corvint/work_executable_binding.go:73@d5b9289a` check the manifest/generated-binding shape;
 `extensions/vscode/src/executable.ts:13@29803a42` and `internal/companionrelease/core_smoke.go:52@d62aa33e` match a
-`(build N)` regex/prefix with no comparison across builds; `script/dogfood-check.sh:107@c47ed46e` matches the
+`(build N)` regex/prefix with no comparison across builds; `script/dogfood-check.sh:27@a5af256a` matches the
 expected version's exact banner. `docs/specs/vscode-extension-v0.md:164@2ced530d` already states "the build
 number is not part of the pin." `SOP-V0-003` (`docs/specs/stable-operations-v0.md:84-92@feb4322f`, amended by
 decision 0360) compares upgrade/cold-index packet bytes, never build numbers, and a real N-1
 lifecycle upgrade from `0.6.0 (build 90)` into the installed `0.7.0 (build 46)` passed
-(`docs/BUILD-LOG.md:2234@b85d8a61`) even though the published build numbers went down (0.6.0 build 90, 0.7.0
+(`docs/BUILD-LOG.md:2294@b85d8a61`) even though the published build numbers went down (0.6.0 build 90, 0.7.0
 build 46, `docs/RELEASE-NOTES.md:63,86@1528a86b`). `origin/main`'s current first-parent count already exceeds
 46, so the two published builds are not even the closest collision risk going forward.
 

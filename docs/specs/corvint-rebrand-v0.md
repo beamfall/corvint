@@ -179,7 +179,7 @@ compatibility identities.
 | CRB-V0-013 | `extensions/vscode`, `conformance/vscode-extension-v0` | native executable/MCP/config fixtures, extension check, package listing, conformance runner; installed host remains `NOT_RUN` |
 | CRB-V0-014 | `assets/brand/corvint-{lockup,mark}-{light,dark,universal}.{svg,png}`, root `README.md`, and `extensions/vscode/media/corvint.svg` | SVG parse and reference checks, matching geometry across variants, PNG format/dimensions, README theme selection, and independent visual review; PNG binary patches remain unsupported by native CEM |
 | CRB-V0-015 | `cmd/corvint-console`, `cmd/corvint-dashboard-snapshot`, `internal/console` | focused compatibility/default tests and the isolated standalone console proof |
-| CRB-V0-018 | `internal/runtimeenv`, `cmd/corvint`, `internal/contextindex`, `internal/localcompletion`, dogfood helpers and CEM example | `TestResolveNamespace`, `TestRuntimeEnvironmentCurrentSnapshotSettings`, `TestRuntimeEnvironmentStripsExecutableOverrides`, and `script/runtime-environment_test.sh` |
+| CRB-V0-018 | `internal/runtimeenv`, `cmd/corvint`, `internal/contextindex`, `internal/localcompletion`, dogfood helpers and CEM example | `TestResolveNamespace`, `TestRuntimeEnvironmentCurrentSnapshotSettings`, `TestDogfoodFinishRunsFromBinaryInForeignRepository`, and `script/runtime-environment_test.sh` |
 | CRB-V0-016 | three retained MCP command packages, two retained live-provider command packages, and `extensions/vscode/src/mcp.ts` | isolated five-binary handshake proof, MCP conformance, provider regressions, and current/unknown/drift client fixtures |
 
 ## Unresolved decisions and promotion gate

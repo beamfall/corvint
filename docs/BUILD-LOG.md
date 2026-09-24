@@ -4,6 +4,66 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 V1-0236 DCW-V0-020..023 / LCP-V0-014..015: daily change/check/seal run from the installed binary
+
+Owner decision (2026-09-24): the daily path runs as subverbs of the existing Core verb,
+`corvint dogfood change|check|seal BASE`, with no new root verb. The logic that lived in
+`script/dogfood-change.sh` and `script/dogfood-check.sh` is now in `internal/dogfoodflow`. The Go
+subverbs do not build, resolve or version-check a binary: the running executable is the default for
+every role, and `--corvint-bin` or the verifier flags override it. The two scripts are now thin
+wrappers. They keep the Corvint-only steps (reading VERSION, matching the version, building the
+change binary and the verifiers), so the make targets and the `DOGFOOD_*` inputs are unchanged.
+`script/dogfood-seal.sh` remains a script. `dogfood finish` runs the change and the final check
+in-process through the same package. It no longer runs repository scripts, reads VERSION, builds,
+resolves `corvint` on PATH (Git is still found on PATH), or reads `CORVINT_BIN` or `DOGFOOD_*`
+(`LCP-V0-014`). The check-guard now also recognizes the
+`dogfood check` and `dogfood seal` argv (`LCP-V0-015`).
+
+Behaviour changes, all recorded in the two specs:
+- The wrappers build before any Go refusal. A fresh-clone check therefore writes the verifier
+  builds before it reports `dogfood-report-missing`, and a check refusal now costs two builds.
+- The `rg` prerequisite is gone.
+- New refusals: `not-repository-root`, which comes before any write (reproduced for both change and
+  check from a subdirectory), `verifier-unavailable`, `dogfood-base-required` and
+  `dogfood-executable-unavailable`.
+- finish loses the script's process-group cleanup of descendants. It now has a 10-minute context
+  deadline instead, which kills a running Git or step child and is checked between steps; an
+  in-process step is not pre-empted.
+- finish runs both verifier roles on the running binary, so its base and tree digests are equal
+  and show self-consistency only. The independent base build stays with `make dogfood-check`.
+
+Independent review (Opus) repairs before binding:
+- The change wrapper runs the whole flow in a set `CORVINT_BIN`. With VERSION 0.8.0, installed
+  `Corvint 0.8.0 (build 65)` matches the version but has no `dogfood change` and refuses
+  `invalid-local-completion-action`. Kept, since running the path from the selected binary is the
+  point of V1-0236 and the script tests pin it; the skew window closes when VERSION moves to 0.9.0.
+  Now stated in `DCW-V0-022`.
+- The wrapper's move to the repository root re-based relative `DOGFOOD_*` file paths; it now makes
+  them absolute first.
+- Git subprocesses now run under the flow context, so the deadline and a signal kill them.
+- The check report is staged in the Git directory and renamed, not truncated in place.
+- The recorded impact argv's root is compared after resolving symlinks, as the scripts'
+  `cd && pwd` did (`/tmp` against `/private/tmp`).
+- `LCP-V0-015` gained a test; the `DCW-V0-020` trace row now states which parity is tested.
+- Not repaired, inferred only: a SIGINT that kills a step child before the notifier cancels the
+  context can record that step as `exit-130` and continue to the next checkpoint.
+
+Finding: a foreign repository must ignore `.context-corvint/` as well as the `.corvint` private
+outputs. Otherwise the recorder refuses `repository-identity-changed`. This was pre-existing:
+installed `Corvint 0.8.0 (build 65)` behaves the same. `docs/DOGFOOD.md` now lists the entries.
+
+Evidence:
+- In-tree only: `script/dogfood-change_test.sh` and `script/dogfood-bind-range_test.sh`.
+- Foreign-repository portability: `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` and
+  `TestDogfoodFinishRunsFromBinaryInForeignRepository`. Each builds the binary, runs it in a
+  fixture repository with no `script/`, VERSION or Corvint source, puts a failing `corvint` impostor
+  first on PATH, and points `CORVINT_BIN` at a missing file.
+- NOT_OBSERVED: no real non-Corvint repository.
+- `internal/localcompletion/runtime_environment_test.go` tested the environment finish gave the
+  scripts; finish no longer runs them, so it is deleted and the `CRB-V0-018` trace row cites
+  `TestDogfoodFinishRunsFromBinaryInForeignRepository`, which points `CORVINT_BIN` at a missing file.
+- Full gate NOT_RUN (owner policy).
+
 ## 2026-09-24 V1-0016 HLQ-V1-001..008 / PRS-V1-006: host lifecycle qualification on 0.8.0
 
 New contract `host-lifecycle-qualification-v1.md` and runner `conformance/host-lifecycle-v1`. The

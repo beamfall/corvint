@@ -126,18 +126,18 @@ headroom, and it is a hang detector, not a budget.
 | Command | Why it is excluded | Source |
 |---|---|---|
 | `corvint cem report` | Writes the review report, by default to `$GIT_DIR/corvint/cem-review.md`, and returns `"mutates": true`. | `internal/cem/workflow/workflow.go:29`, `internal/cem/workflow/read.go:205-237` |
-| `make dogfood-check BASE=...` | Once its preconditions pass it rewrites `.corvint/dogfood-report.json`, builds verifier binaries into `$GIT_DIR/corvint/`, and uses `/tmp/corvint-go-build-cache`. It is an authoring-time step, not a gate prerequisite, because it needs untracked `.corvint/` artifacts a clean checkout never has. In a fresh clone it fails before any of those writes (below). | `script/dogfood-check.sh:113-135`, `script/dogfood-check.sh:165-178`, `Makefile:35-38` |
+| `make dogfood-check BASE=...` | Once its preconditions pass it rewrites `.corvint/dogfood-report.json`, builds verifier binaries into `$GIT_DIR/corvint/`, and uses `/tmp/corvint-go-build-cache`. It is an authoring-time step, not a gate prerequisite, because it needs untracked `.corvint/` artifacts a clean checkout never has. Its wrapper builds the verifiers first; in a fresh clone the check then fails before the report rewrite (below). | `script/dogfood-check.sh:36-49`, `internal/dogfoodflow/check.go:358-381`, `Makefile:35-38` |
 | `make dogfood-change`, `make dogfood-seal`, `corvint index`, `cem begin`, `prepare`, `cite`, `mark`, `cover`, `discriminate`, `anchor` | Write the dogfood report, a commit, the index snapshot, CEM maps, the patch cache or a Git note by design. | `script/dogfood-change.sh:27`, `script/dogfood-seal.sh:17-20`, `SOP-V0-002` for `index`, `cmd/corvint/help.go:361-363` and `corvint cem --help` |
 
-`script/dogfood-check.sh` exits 0 on `PASS`, 1 on `FAIL`, 2 on `REFUSE` or a Git error (the
-missing-`rg` refusal exits 1, `script/dogfood-check.sh:8-10`), and 129, 130
-or 143 on `HUP`, `INT` or `TERM` (`script/dogfood-check.sh:88-90`); `make` reports any non-zero
+`corvint dogfood check`, and so `script/dogfood-check.sh`, exits 0 on `PASS`, 1 on `FAIL`, 2 on
+`REFUSE` or a Git error, and 129, 130 or 143 on `HUP`, `INT` or `TERM`
+(`cmd/corvint/signals_unix.go:17`); `make` reports any non-zero
 recipe exit as 2, which the worked example observed.
 
 **Fresh-clone limitation (V1-0182, by design).** The task-store title of ticket V1-0182 states it
 verbatim: "dogfood-check: in a fresh clone the check fails `dogfood-report-missing` before any
 verifier runs, so a reviewer cannot reproduce the override-verifier comparison". The worked example
-reproduces it: `script/dogfood-check.sh:305-313` exits 1 with `FAIL dogfood-report-missing` because
+reproduces it: `internal/dogfoodflow/check.go:171-178` exits 1 with `FAIL dogfood-report-missing` because
 `.corvint/dogfood-report.json` is gitignored and only the author's `dogfood-change` writes it. A
 fresh-clone trigger can therefore verify a sealed CEM with `cem verify`, but cannot reproduce the
 author's dogfood-check verifier comparison. That comparison is author-only evidence
