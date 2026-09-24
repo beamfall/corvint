@@ -95,6 +95,13 @@ func TestReadHooks(t *testing.T) {
 	if _, err := readHooks(several, true); err == nil {
 		t.Fatal("an event with two commands was accepted")
 	}
+	later := filepath.Join(directory, "later.json")
+	if err := os.WriteFile(later, []byte(`{"hooks":{"Stop":[{"matcher":"x","hooks":[]},{"hooks":[{"type":"command","command":"corvint adapter codex"}]}]}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if hooks, err := readHooks(later, true); err != nil || strings.Join(hooks["Stop"], " ") != "corvint adapter codex" {
+		t.Fatalf("command in a later group: %v %v", hooks, err)
+	}
 }
 
 func TestSessionKeyPattern(t *testing.T) {

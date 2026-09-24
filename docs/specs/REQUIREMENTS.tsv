@@ -1143,13 +1143,13 @@ HDCV0-CAP-012	docs/specs/human-documentation-compiler-v0.md	529	A successful out
 HDCV0-CAP-013	docs/specs/human-documentation-compiler-v0.md	545	Canonical JSON retains `HDCV0-041`. A raw artifact digest is
 HDCV0-CAP-014	docs/specs/human-documentation-compiler-v0.md	557	The implementation core, broker, cleanup-only mode, runner, cgroup observer, and
 HLQ-V1-001	docs/specs/host-lifecycle-qualification-v1.md	36	A tuple MUST be named by its surface (`native` or `plugin`), the host executable
-HLQ-V1-002	docs/specs/host-lifecycle-qualification-v1.md	41	The runner MUST execute the nine cases in this order, report each as `PASS`,
-HLQ-V1-003	docs/specs/host-lifecycle-qualification-v1.md	56	Each run MUST happen in a fresh private workspace: `HOME`, `CLAUDE_CONFIG_DIR`
-HLQ-V1-004	docs/specs/host-lifecycle-qualification-v1.md	61	Plugin hook cases MUST run the command each hook event registers in the package
-HLQ-V1-005	docs/specs/host-lifecycle-qualification-v1.md	66	A passing run MUST NOT raise a tuple above FALLBACK or grant it protected
-HLQ-V1-006	docs/specs/host-lifecycle-qualification-v1.md	70	Adapters MUST retain no independent knowledge store. A run shows this when every
-HLQ-V1-007	docs/specs/host-lifecycle-qualification-v1.md	74	The runner MUST print one header line, then one `case` line for each case, then
-HLQ-V1-008	docs/specs/host-lifecycle-qualification-v1.md	77	A result MUST be recorded here with the digests of both binaries and the source
+HLQ-V1-002	docs/specs/host-lifecycle-qualification-v1.md	44	The runner MUST execute the nine cases in this order, report each as `PASS`,
+HLQ-V1-003	docs/specs/host-lifecycle-qualification-v1.md	59	Each run MUST happen in a fresh private workspace: `HOME`, `CLAUDE_CONFIG_DIR`
+HLQ-V1-004	docs/specs/host-lifecycle-qualification-v1.md	69	Plugin hook cases MUST run the command each hook event registers in the package
+HLQ-V1-005	docs/specs/host-lifecycle-qualification-v1.md	74	A passing run MUST NOT raise a tuple above FALLBACK or grant it protected
+HLQ-V1-006	docs/specs/host-lifecycle-qualification-v1.md	78	Adapters MUST retain no independent knowledge store. A run shows this when every
+HLQ-V1-007	docs/specs/host-lifecycle-qualification-v1.md	86	The runner MUST print one header line, then one `case` line for each case, then
+HLQ-V1-008	docs/specs/host-lifecycle-qualification-v1.md	89	A result MUST be recorded here with the digests of both binaries and the source
 IDX-SNAP-V0-001	docs/specs/index-snapshot-v0.md	37	`corvint [--root PATH] index` builds the index of the committed tree exactly as
 IDX-SNAP-V0-002	docs/specs/index-snapshot-v0.md	57	`context` reads the repository's identity and status as a build's opening
 IDX-SNAP-V0-003	docs/specs/index-snapshot-v0.md	65	any mismatch (no file, a different tree, a different engine, a different

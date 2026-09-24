@@ -62,8 +62,10 @@ behaviour inside a live model session.
   against that private `PATH`, never the runner's own. The runner MUST NOT read or write the
   operator's host homes, credentials or settings. It MUST exit 2 when a directory on that `PATH`
   other than the private one holds a `corvint`, because that binary would resolve once the private
-  one is removed. It MUST remove the workspace when it exits, including after a setup error or an
-  interrupt.
+  one is removed. It MUST remove the workspace when it exits, including after a setup error. On
+  SIGINT or SIGTERM it removes the workspace and exits 2 without waiting for a running host child.
+  A plugin host's package directory under `--source` MUST hold no untracked or ignored file,
+  because the host copies those too.
 - **HLQ-V1-004:** Plugin hook cases MUST run the command each hook event registers in the package
   the host installed, read from the installed `hooks/hooks.json`, with a host-shaped JSON payload on
   stdin. This tests the installed adapter at the host's hook boundary. It does not test the host's
@@ -76,9 +78,10 @@ behaviour inside a live model session.
 - **HLQ-V1-006:** Adapters MUST retain no independent knowledge store. A run shows this when every
   enveloped context receipt reports `mutates=false`, the uninstall case finds no Corvint state in
   the private `HOME` outside the host-retired package root, and `git status --porcelain` reports
-  the fixture worktree unchanged after the change, frontier and uninstall cases. Ignored paths and
-  the Git directory are not compared: Corvint keeps its derived index snapshot and its local
-  completion state under `<git-dir>/corvint/`. PostToolUse and Stop outputs are
+  the fixture worktree unchanged after the change, plugin frontier and uninstall cases. The plain
+  CLI frontier case works in a clone and leaves the fixture untouched. The Git directory is not
+  compared: Corvint keeps its derived index snapshot under the common Git directory and its local
+  completion state under the worktree's Git directory, both in `corvint/`. PostToolUse and Stop outputs are
   checked for their own predicates, not for a `mutates` field.
 - **HLQ-V1-007:** The runner MUST print one header line, then one `case` line for each case, then a
   `SUMMARY` line with the counts. Fields are tab-separated. It exits 0 only when all nine cases pass,

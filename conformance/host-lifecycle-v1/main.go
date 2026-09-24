@@ -196,9 +196,11 @@ func newRunner(host, current, base, source string) (r *runner, err error) {
 			os.RemoveAll(work)
 		}
 	}()
-	if work, err = filepath.EvalSymlinks(work); err != nil {
+	resolved, err := filepath.EvalSymlinks(work)
+	if err != nil {
 		return nil, err
 	}
+	work = resolved
 	r = &runner{host: host, profile: profiles[host], source: source, current: current, base: base, work: work,
 		bin: filepath.Join(work, "bin"), home: filepath.Join(work, "home"), fixture: filepath.Join(work, "fixture")}
 	for _, directory := range []string{r.bin, r.home} {
@@ -241,6 +243,16 @@ func newRunner(host, current, base, source string) (r *runner, err error) {
 	if strings.TrimSpace(status) != "" {
 		return nil, fmt.Errorf("--source %s is not clean: %s", source, firstLine(status))
 	}
+	// The host copies ignored files too, so the package directory must hold none.
+	if host != "cli" {
+		ignored, err := r.ok(source, "git", "status", "--porcelain", "--ignored", "--", r.marketplaceSource())
+		if err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(ignored) != "" {
+			return nil, fmt.Errorf("%s holds untracked or ignored files: %s", r.marketplaceSource(), firstLine(ignored))
+		}
+	}
 	if r.sourceRevision, err = r.ok(source, "git", "rev-parse", "HEAD"); err != nil {
 		return nil, err
 	}
@@ -258,7 +270,7 @@ func (r *runner) prepare() error {
 	r.corvintVersion = version
 	if r.host == "cli" {
 		r.hostVersion, r.adapterVersion = "none", "none"
-		return nil
+		return r.makeFixture()
 	}
 	output, err := r.ok(r.work, r.hostExecutable, "--version")
 	if err != nil {
@@ -418,7 +430,7 @@ func (r *runner) runCLI() {
 		if !strings.HasPrefix(version, "Corvint ") {
 			return "", fmt.Errorf("unexpected version line %q", version)
 		}
-		return version, r.makeFixture()
+		return version, nil
 	})
 	r.step("discovery", func() (string, error) {
 		stdout, stderr, code, err := r.exec(r.work, nil, nil, "corvint", "help")
@@ -473,7 +485,7 @@ func (r *runner) runCLI() {
 		}
 		return "impact on the edited add.go: tool=impact mode=impact", nil
 	}))
-	r.step("frontier", r.unchanged(r.cliFrontier))
+	r.step("frontier", r.cliFrontier)
 	r.step("degradation", func() (string, error) {
 		outside := filepath.Join(r.work, "not-a-repository")
 		if err := os.MkdirAll(outside, 0o755); err != nil {
@@ -1022,14 +1034,17 @@ func readHooks(path string, shellCommand bool) (map[string][]string, error) {
 	}
 	hooks := map[string][]string{}
 	for event, groups := range document.Hooks {
-		count := 0
+		var commands []struct {
+			Command string   `json:"command"`
+			Args    []string `json:"args"`
+		}
 		for _, group := range groups {
-			count += len(group.Hooks)
+			commands = append(commands, group.Hooks...)
 		}
-		if count != 1 {
-			return nil, fmt.Errorf("%s registers %d commands, not one", event, count)
+		if len(commands) != 1 {
+			return nil, fmt.Errorf("%s registers %d commands, not one", event, len(commands))
 		}
-		command := groups[0].Hooks[0]
+		command := commands[0]
 		argv := append([]string{command.Command}, command.Args...)
 		if shellCommand {
 			argv = strings.Fields(command.Command)

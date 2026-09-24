@@ -41,19 +41,23 @@ contract before the rerun:
   binary that wrote it, so the current binary never reads it. The case now requires
   `index --if-stale` to rebuild rather than report `state=fresh`.
 - The tuple identity is now enforced: an unreadable host, adapter or corvint version, a failed
-  fixture setup, a dirty `--source`, or an operator `corvint` beside the host or Git exits 2 before
-  any case runs. The report names the source revision.
-- The worktree is checked after the change and frontier cases as well as at uninstall. The residue
+  fixture setup, a dirty `--source` (for a plugin host, also an ignored file in the package
+  directory), or an operator `corvint` beside the host or Git exits 2 before any case runs. The
+  report names the source revision.
+- The worktree is checked after the change case and the plugin frontier case as well as at
+  uninstall. The plain CLI frontier case works in a clone. The residue
   scan covers the whole private `HOME` and reads every file.
 - Each hook event must register exactly one command. The enabled, disabled and version checks read
   the plugin's own listing row.
 - The Codex Stop hook now receives `CODEX_THREAD_ID`, which differs from the payload session id.
-- A setup error or an interrupt removes the workspace.
+- A setup error, SIGINT or SIGTERM removes the workspace. A signal does not wait for a running
+  host child.
 - `HLQ-V1-006` now names what is checked: enveloped context receipts, `git status --porcelain`, and
-  `<git-dir>/corvint/` excluded.
+  the Git directory not compared.
 
 The rerun used plugin sources from a clean `e667812` checkout. The packages are unchanged since
-`df66aba4`. All three tuples passed 9/9 again.
+`df66aba4`. All three tuples passed 9/9 again. A second review's findings were fixed or narrowed
+the same way before the final run.
 
 ## 2026-09-24 V1-0190 SOP-V0-003 / PRS-V1-002: 0.7.0 to 0.8.0 N-1 upgrade qualification
 
