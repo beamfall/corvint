@@ -19,9 +19,9 @@ already delivered by #117 and #146. The owner applied the store changes on 2026-
 - V1-0005 and V1-0016 moved to v0-9.
 - Release chain: v0-7 now follows v0-5, and v0-9 follows v0-6 and v0-8.
 
-Finding: `release readiness` for v0-8 listed only a missing candidate while six scoped tickets were
-OPEN, and v0-9 does the same with V1-0005 and V1-0016 OPEN. Until readiness counts open tickets,
-each promotion checks scope by hand. HLQ-V1 acceptance (item 1) and 0.8.1 publication (item 11)
+Finding: readiness stops at the missing candidate; `release candidate` binds ticket digests without
+checking status, and promotion needs each bound ticket COMPLETED and unchanged: close scope first.
+HLQ-V1 acceptance (item 1) and 0.8.1 publication (item 11)
 remain proposed pending the owner.
 ## 2026-09-24 V1-0236 DCW-V0-020..023 / LCP-V0-014..015: daily change/check/seal run from the installed binary
 
