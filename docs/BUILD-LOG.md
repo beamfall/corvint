@@ -5201,3 +5201,21 @@ decision-numbers-check` all passed. Full `make gate` was not run, per batch scop
   - A repository with no commit fails every hook with `corvint-command-failed`.
   - `runtime.js` still sends `adapterVersion` 0.1.0.
   - The 2 s automatic ceiling can still produce a disclosed `timeout` notice under load.
+
+## 2026-09-24 work-source-refusal-reason: WQO-V0-051, issue #157
+
+- Issue #157: `work observe` returned `ERROR/SOURCE_UNQUALIFIED` with no reason. The reported
+  `work init` failure did not reproduce on 0.8.0: init succeeds, and observe refuses until the
+  three adoption files are committed. That refusal is intended (WQO-V0-047), but nothing said so.
+- Every `SOURCE_UNQUALIFIED` from `work observe` or `work propose-wave` now writes one stderr line
+  with a fixed reason and next step: uncommitted policy, worklist, or adapter; invalid committed
+  policy; dirty or partially committed worktree; unqualified adapter binding or changed bound
+  executable; policy change during the invocation; or other Git source facts. Reasons are fixed
+  text and never echo file contents or Git output. The `work-command-result/0` stdout is
+  byte-identical.
+- A successful `work init` writes one stderr line saying to review and commit the three files.
+  `corvint help work` says observe and propose-wave need them committed.
+- `internal/worksource` exports `ErrWorktreeNotClean` and `ErrIndexDiffers` so the caller can name
+  those refusals. Their messages are unchanged.
+- Test: `TestWorkSourceUnqualifiedNamesReasonWQOV0051`. The demo on a fresh repository showed the
+  missing-policy, dirty-worktree, and changed-executable reasons, and empty stderr once committed.

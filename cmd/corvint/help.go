@@ -432,7 +432,9 @@ Usage:
 
 observe and propose-wave print one work-command-result/0 document on stdout.
 Neither claims, leases, dispatches, edits, or closes work; a proposal authorizes
-nothing. Malformed command input yields state ERROR with MALFORMED_INPUT.
+nothing. Malformed command input yields state ERROR with MALFORMED_INPUT. Both
+need the three adoption files below committed in a clean worktree; otherwise they
+yield SOURCE_UNQUALIFIED and stderr names the reason.
 
 init writes .corvint/work-queue-policy.json, .corvint/worklist.json and the
 executable .corvint/work-queue-adapter for the operator to review and commit; it

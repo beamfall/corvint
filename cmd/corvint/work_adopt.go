@@ -156,6 +156,7 @@ func runWorkInit(ctx context.Context, root string, arguments []string, stdout, s
 	for _, file := range files {
 		fmt.Fprintln(stdout, file.path)
 	}
+	fmt.Fprintln(stderr, "corvint work init: review and commit these three files; work observe and propose-wave return SOURCE_UNQUALIFIED until they are committed")
 	return 0
 }
 

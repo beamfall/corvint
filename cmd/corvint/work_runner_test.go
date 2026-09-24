@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -298,13 +299,13 @@ func TestWorkRunnerTerminalCommandMapping(t *testing.T) {
 	t.Parallel()
 	t.Run("WQO-V0-015", func(t *testing.T) {
 		runner := &workAdapterRunner{}
-		if runner.commandError(context.DeadlineExceeded) != "INPUT_LIMIT" {
+		if runner.commandError(context.DeadlineExceeded, io.Discard) != "INPUT_LIMIT" {
 			t.Fatal("wall-time bound mapping")
 		}
-		if runner.commandError(context.Canceled) != "CANCELLED" {
+		if runner.commandError(context.Canceled, io.Discard) != "CANCELLED" {
 			t.Fatal("caller cancellation mapping")
 		}
-		if runner.commandError(fmt.Errorf("%w: changed", errWorkBoundExecutableUnqualified)) != "SOURCE_UNQUALIFIED" {
+		if runner.commandError(fmt.Errorf("%w: changed", errWorkBoundExecutableUnqualified), io.Discard) != "SOURCE_UNQUALIFIED" {
 			t.Fatal("bound executable drift mapping")
 		}
 	})

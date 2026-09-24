@@ -449,6 +449,47 @@ func TestWorkMissingAdoptionWorklistIsSourceUnqualified(t *testing.T) {
 	workAssertFinalError(t, stdout.Bytes(), exit, "SOURCE_UNQUALIFIED")
 }
 
+// WQO-V0-051: every SOURCE_UNQUALIFIED refusal names its reason on one stderr
+// line while stdout keeps the closed canonical result; init says to commit.
+func TestWorkSourceUnqualifiedNamesReasonWQOV0051(t *testing.T) {
+	t.Run("WQO-V0-051 source refusal reason", testWorkSourceUnqualifiedNamesReason)
+}
+
+func testWorkSourceUnqualifiedNamesReason(t *testing.T) {
+	t.Parallel()
+	workCaptureSlot(t)
+	root := materializationFixture(t)
+	observe := func(want string) {
+		t.Helper()
+		var stdout, stderr bytes.Buffer
+		exit := run([]string{"--root", root, "work", "observe"}, strings.NewReader(""), &stdout, &stderr)
+		workAssertFinalError(t, stdout.Bytes(), exit, "SOURCE_UNQUALIFIED")
+		line := stderr.String()
+		if strings.Count(line, "\n") != 1 || !strings.HasPrefix(line, "corvint work: SOURCE_UNQUALIFIED: ") || !strings.Contains(line, want) {
+			t.Fatalf("stderr %q does not name %q on one line", line, want)
+		}
+	}
+	observe(".corvint/work-queue-policy.json is not committed at HEAD")
+	var stdout, stderr bytes.Buffer
+	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", workBoundCorvint(t)}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+		t.Fatalf("init exit=%d stderr=%s", exit, &stderr)
+	}
+	if got := stdout.String(); got != ".corvint/work-queue-policy.json\n.corvint/worklist.json\n.corvint/work-queue-adapter\n" {
+		t.Fatalf("init stdout changed: %q", got)
+	}
+	if got := stderr.String(); got != "corvint work init: review and commit these three files; work observe and propose-wave return SOURCE_UNQUALIFIED until they are committed\n" {
+		t.Fatalf("init stderr: %q", got)
+	}
+	observe("not committed")
+	materializationGit(t, root, "add", ".corvint")
+	materializationGit(t, root, "commit", "-qm", "adopt work queue")
+	stdout.Reset()
+	stderr.Reset()
+	if exit := run([]string{"--root", root, "work", "observe"}, strings.NewReader(""), &stdout, &stderr); exit != 0 || stderr.Len() != 0 {
+		t.Fatalf("committed observe exit=%d stderr=%q", exit, &stderr)
+	}
+}
+
 func TestWorkInitRollsBackCreatedFiles(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()

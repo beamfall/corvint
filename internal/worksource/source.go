@@ -25,6 +25,13 @@ const maxEntries = 100000
 const maxBytes = 256 << 20
 const maxFileBytes = 32 << 20
 
+// ErrWorktreeNotClean and ErrIndexDiffers let callers name the two ordinary
+// uncommitted-state refusals to an operator (WQO-V0-051).
+var (
+	ErrWorktreeNotClean = errors.New("worktree is not clean")
+	ErrIndexDiffers     = errors.New("index differs from pinned tree")
+)
+
 // Entry contains the verified raw worktree bytes of a pinned tree blob.
 type Entry struct {
 	Path, Mode, BlobOID string
@@ -112,7 +119,7 @@ func (source *Source) acquire(ctx context.Context, root string) error {
 		return err
 	}
 	if !bytes.Equal(index, canonicalIndex(source.Entries)) {
-		return errors.New("index differs from pinned tree")
+		return ErrIndexDiffers
 	}
 	if err := source.readEntries(ctx, source.Root, true); err != nil {
 		return err
@@ -212,7 +219,7 @@ func (source *Source) indexState(ctx context.Context) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 	if len(status) != 0 {
-		return nil, nil, errors.New("worktree is not clean")
+		return nil, nil, ErrWorktreeNotClean
 	}
 	flags, err := source.Git(ctx, 32<<20, "ls-files", "-v", "-z")
 	if err != nil {
