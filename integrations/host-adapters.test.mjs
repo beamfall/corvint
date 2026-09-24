@@ -273,6 +273,18 @@ test('Gemini malformed, oversize, version skew input fails before child',async t
  assert.equal(f.captured().length,0)
 })
 
+test('AHI-022 decision 0378 OpenCode outside a Git repository registers and invokes nothing',async t=>{
+ const f=fixture(t), pkg=join(f.dir,'plugin');cpSync(join(here,'opencode'),pkg,{recursive:true})
+ const dependency=join(pkg,'node_modules/@opencode-ai/plugin');mkdirSync(dependency,{recursive:true})
+ writeFileSync(join(dependency,'package.json'),JSON.stringify({name:'@opencode-ai/plugin',type:'module',exports:'./index.js'}))
+ writeFileSync(join(dependency,'index.js'),`export function tool(v){return v};tool.schema={array:v=>({v}),enum:v=>({v}),object:v=>({v}),string:()=>({})}`)
+ const {CorvintPlugin}=await import(pathToFileURL(join(pkg,'src/index.js')))
+ const outside=await CorvintPlugin({directory:f.dir,worktree:'/'},{corvintBinary:f.binary,hostVersion:'unknown',...OPEN_TIMEOUTS})
+ assert.deepEqual(outside,{})
+ const inside=await CorvintPlugin({directory:f.root,worktree:f.root},{corvintBinary:f.binary,hostVersion:'unknown',...OPEN_TIMEOUTS})
+ await inside['tool.execute.after']({sessionID:'session-a'},{metadata:{}})
+ assert.deepEqual(f.captured().map(row=>row.argv.slice(0,2)),[['--root',f.root]])
+})
 test('CRB-V0-010 CRB-V0-011 OpenCode loaded plugin keeps exact aliases, option precedence, session isolation, payload bounds and repeat-stop suppression',async t=>{
  const f=fixture(t), pkg=join(f.dir,'plugin');cpSync(join(here,'opencode'),pkg,{recursive:true})
  const dependency=join(pkg,'node_modules/@opencode-ai/plugin');mkdirSync(dependency,{recursive:true})
