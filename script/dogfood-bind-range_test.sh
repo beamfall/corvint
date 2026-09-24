@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # DOGFOOD-011 (DOGFOOD-BIND-001 to -007) and DOGFOOD-012 regressions for
-# script/dogfood-bind-range.sh and the retroactive-bound note in script/dogfood-check.sh,
+# script/dogfood-bind-range.sh and the retroactive-bound note of `corvint dogfood check`,
 # on a fake corvint.
 set -euo pipefail
 
@@ -17,7 +17,9 @@ test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-dogfood-bind-range-test.XXXXXX")
 trap 'rm -rf "$test_root"' EXIT
 repo="$test_root/repo"
 mkdir -p "$repo/script" "$test_root/bin"
-cp "$source_root/script/dogfood-bind-range.sh" "$source_root/script/dogfood-check.sh" "$repo/script/"
+cp "$source_root/script/dogfood-bind-range.sh" "$repo/script/"
+# The check notes come from the binary itself (DCW-V0-020); the fixture has no cmd/corvint to build.
+(cd "$source_root" && GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local go build -o "$test_root/driver" ./cmd/corvint)
 printf '0.4.0a4\n' > "$repo/VERSION"
 printf 'one\ntwo\n' > "$repo/doc.md"
 
@@ -94,7 +96,7 @@ test "$status" = 2
 test "$output" = 'dogfood-bind-range: REFUSE target-not-landed'
 
 # DOGFOOD-012: before a retroactive binding the gap is reported as unbound.
-before=$(cd "$repo" && script/dogfood-check.sh "$g2" 2>&1) || :
+before=$(cd "$repo" && "$test_root/driver" dogfood check "$g2" 2>&1) || :
 printf '%s\n' "$before" | rg -q "^dogfood-check: NOTE unbound-commits count=2 window=$b0\\.\\.$g2\$"
 if printf '%s\n' "$before" | rg -q retroactive; then exit 1; fi
 
@@ -169,7 +171,7 @@ printf '%s\n' "$output" | rg -q "^dogfood-bind-range: NOTE cem-mark NOT_PRODUCED
 git -C "$repo" -c user.name=t -c user.email=t@example.invalid merge -q --no-ff -s ours -m bind "$binding"
 merge=$(git -C "$repo" rev-parse HEAD)
 work c4 >/dev/null
-after=$(cd "$repo" && script/dogfood-check.sh "$merge" 2>&1) || :
+after=$(cd "$repo" && "$test_root/driver" dogfood check "$merge" 2>&1) || :
 printf '%s\n' "$after" | rg -q "^dogfood-check: NOTE unbound-commits count=1 window=$b0\\.\\.$merge\$"
 test "$(printf '%s\n' "$after" | rg '^  unbound ')" = "  unbound $c3"
 printf '%s\n' "$after" | rg -q "^dogfood-check: NOTE retroactive-bound-commits count=3 window=$b0\\.\\.$merge\$"

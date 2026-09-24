@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/dogfoodflow"
 	"github.com/Beamfall/corvint/internal/dogfoodocm"
 	"github.com/Beamfall/corvint/internal/lrfrepo"
-	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
@@ -84,13 +84,15 @@ func Finish(ctx context.Context, root, key string, command PublicCommand) (Evalu
 	if saved.Review != saved.ReportSet.Digest {
 		return repo.evaluate(ctx, saved)
 	}
-	if err = repo.coordinate(ctx, saved, snap); err != nil {
+	if err = repo.coordinate(ctx, saved, snap, command); err != nil {
 		return Evaluation{}, err
 	}
 	if err = repo.revalidate(ctx, saved, snap); err != nil {
 		return Evaluation{}, err
 	}
-	checked := repo.runScript(ctx, "dogfood-check.sh", saved.Plan.Base, nil)
+	checked := repo.runFlow(ctx, command, func(ctx context.Context, steps dogfoodflow.Runner, stdout, stderr io.Writer) (int, error) {
+		return dogfoodflow.Check(ctx, dogfoodflow.CheckOptions{Root: repo.auth.Root, Base: saved.Plan.Base, BaseVerifier: steps, TreeVerifier: steps}, stdout, stderr)
+	})
 	if err = repo.saveProcess("final-check", checked); err != nil {
 		return Evaluation{}, err
 	}
@@ -107,7 +109,7 @@ func Finish(ctx context.Context, root, key string, command PublicCommand) (Evalu
 	if err = repo.checkCoordinator(saved, snap, true); err != nil {
 		return Evaluation{}, err
 	}
-	saved.Terminal = &terminal{ReportSet: saved.ReportSet.Digest, CheckExit: checked.ExitStatus, Artifacts: artifacts}
+	saved.Terminal = &terminal{ReportSet: saved.ReportSet.Digest, CheckExit: checked.code, Artifacts: artifacts}
 	saved.Lifecycle = "satisfied"
 	if err = repo.save(saved); err != nil {
 		return Evaluation{}, err
@@ -176,7 +178,7 @@ func (repo *repository) prepareBindings(ctx context.Context, saved *state, snap 
 }
 
 func (repo *repository) public(ctx context.Context, command PublicCommand, args []string) (map[string]any, error) {
-	var stdout, stderr boundedBuffer
+	stdout, stderr := boundedBuffer{limit: maxArtifactBytes}, boundedBuffer{limit: maxArtifactBytes}
 	code := command(ctx, repo.auth.Root, args, &stdout, &stderr)
 	if stdout.overflow || stderr.overflow {
 		return nil, errors.New("public-command-output-bound")
@@ -227,6 +229,7 @@ func appendEvidence(evaluation *Evaluation, tool, mapPath string, result map[str
 
 type boundedBuffer struct {
 	bytes.Buffer
+	limit    int
 	overflow bool
 }
 
@@ -235,7 +238,7 @@ func (buffer *boundedBuffer) WriteString(value string) (int, error) {
 }
 
 func (buffer *boundedBuffer) Write(data []byte) (int, error) {
-	if buffer.Len()+len(data) > maxArtifactBytes {
+	if buffer.Len()+len(data) > buffer.limit {
 		buffer.overflow = true
 		return 0, errors.New("output-bound-exceeded")
 	}
@@ -341,7 +344,7 @@ func (repo *repository) revalidate(ctx context.Context, saved *state, before sna
 	return nil
 }
 
-func (repo *repository) coordinate(ctx context.Context, saved *state, snap snapshot) error {
+func (repo *repository) coordinate(ctx context.Context, saved *state, snap snapshot, command PublicCommand) error {
 	if len(saved.Coordination) > 0 && repo.artifactsCurrent(saved.Coordination) && repo.checkCoordinator(saved, snap, false) == nil {
 		return nil
 	}
@@ -356,8 +359,11 @@ func (repo *repository) coordinate(ctx context.Context, saved *state, snap snaps
 	if err := writeFile(citations, []byte{}); err != nil {
 		return err
 	}
-	env := []string{"DOGFOOD_TASK=Local completion " + saved.PlanDigest, "DOGFOOD_VERIFY=" + displayChecks(saved.Plan), "DOGFOOD_OUTCOME=passed", "DOGFOOD_INTENTS_FILE=" + intents, "DOGFOOD_CITATIONS=" + citations}
-	result := repo.runScript(ctx, "dogfood-change.sh", saved.Plan.Base, env)
+	options := dogfoodflow.ChangeOptions{Root: repo.auth.Root, Base: saved.Plan.Base, Task: "Local completion " + saved.PlanDigest, Verify: displayChecks(saved.Plan), Outcome: "passed", IntentsFile: intents, Citations: citations}
+	result := repo.runFlow(ctx, command, func(ctx context.Context, steps dogfoodflow.Runner, _, stderr io.Writer) (int, error) {
+		options.Steps = steps
+		return dogfoodflow.Change(ctx, options, stderr)
+	})
 	if err := repo.saveProcess("coordination-time", result); err != nil {
 		return err
 	}
@@ -384,33 +390,40 @@ func (repo *repository) coordinate(ctx context.Context, saved *state, snap snaps
 	return repo.save(saved)
 }
 
-func (repo *repository) runScript(ctx context.Context, name, base string, extra []string) procgroup.Observation {
-	env := []string{}
-	for _, entry := range os.Environ() {
-		if strings.HasPrefix(entry, "DOGFOOD_") || strings.HasPrefix(entry, "CORVINT_BIN=") {
-			continue
-		}
-		env = append(env, entry)
-	}
-	env = append(env, extra...)
-	bash, err := resolveExecutable("bash")
-	if err != nil {
-		return procgroup.Observation{Err: err, ExitStatus: -1}
-	}
-	return procgroup.Run(ctx, procgroup.Spec{Argv: []string{bash, filepath.Join(repo.auth.Root, "script", name), base}, Dir: repo.auth.Root, Env: env, Timeout: 10 * time.Minute, OutputLimit: maxLogBytes, StderrLimit: maxLogBytes})
+// flowResult is one bounded in-process run of the daily dogfood flow.
+type flowResult struct {
+	code           int
+	err            error
+	stdout, stderr []byte
+	overflow       bool
 }
 
-func processPassed(result procgroup.Observation) bool {
-	return result.Err == nil && result.ExitObserved && result.ExitStatus == 0 && result.WaitCompleted && result.PipesDrained && result.OwnedProcessGroupCleanup && !result.TimedOut && !result.Cancelled && !result.OutputOverflow
+// runFlow runs the daily change or check inside this binary with the caller's
+// public command for every step (LCP-V0-014): no repository script, VERSION or
+// source build, and no DOGFOOD_* or CORVINT_BIN environment reaches it.
+func (repo *repository) runFlow(ctx context.Context, command PublicCommand, run func(context.Context, dogfoodflow.Runner, io.Writer, io.Writer) (int, error)) flowResult {
+	self, err := os.Executable()
+	if err != nil {
+		return flowResult{err: err}
+	}
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	defer cancel()
+	stdout, stderr := boundedBuffer{limit: maxLogBytes}, boundedBuffer{limit: maxLogBytes}
+	code, err := run(ctx, dogfoodflow.Runner{Path: self, Run: dogfoodflow.Command(command)}, &stdout, &stderr)
+	return flowResult{code: code, err: err, stdout: stdout.Bytes(), stderr: stderr.Bytes(), overflow: stdout.overflow || stderr.overflow}
 }
-func (repo *repository) saveProcess(prefix string, result procgroup.Observation) error {
-	if secretscreen.MatchString(string(result.Stdout)) || secretscreen.MatchString(string(result.Stderr)) {
+
+func processPassed(result flowResult) bool {
+	return result.err == nil && result.code == 0 && !result.overflow
+}
+func (repo *repository) saveProcess(prefix string, result flowResult) error {
+	if secretscreen.MatchString(string(result.stdout)) || secretscreen.MatchString(string(result.stderr)) {
 		return errors.New("log-secret-screened")
 	}
-	if err := writeFile(repo.local(prefix+".stdout"), result.Stdout); err != nil {
+	if err := writeFile(repo.local(prefix+".stdout"), result.stdout); err != nil {
 		return err
 	}
-	return writeFile(repo.local(prefix+".stderr"), result.Stderr)
+	return writeFile(repo.local(prefix+".stderr"), result.stderr)
 }
 
 func (repo *repository) terminalArtifacts() ([]artifact, error) {

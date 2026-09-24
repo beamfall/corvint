@@ -171,8 +171,8 @@ func validatePlan(plan Plan) error {
 				return errors.New("secret-shaped-plan")
 			}
 		}
-		for _, arg := range check.Argv {
-			if arg == "dogfood-check" || strings.HasSuffix(arg, "/dogfood-check.sh") {
+		for index, arg := range check.Argv {
+			if arg == "dogfood-check" || strings.HasSuffix(arg, "/dogfood-check.sh") || runsDogfoodCheck(check.Argv[index:]) {
 				return errors.New("final-check-not-prerequisite")
 			}
 		}
@@ -539,4 +539,10 @@ func artifactsCurrent(items []artifact) bool {
 		}
 	}
 	return true
+}
+
+// runsDogfoodCheck reports `dogfood check` or `dogfood seal`, which run the
+// final check itself (LCP-V0-015).
+func runsDogfoodCheck(args []string) bool {
+	return len(args) > 1 && args[0] == "dogfood" && (args[1] == "check" || args[1] == "seal")
 }
