@@ -139,7 +139,7 @@ func (f *flow) say(format string, values ...any) {
 // status; its stderr reaches the caller unless quiet.
 func (f *flow) git(quiet bool, args ...string) (string, int) {
 	var stdout bytes.Buffer
-	command := exec.Command("git", append([]string{"-C", f.root}, args...)...)
+	command := exec.CommandContext(f.ctx, "git", append([]string{"-C", f.root}, args...)...)
 	command.Env = append(os.Environ(), "LC_ALL=C")
 	command.Stdout = &stdout
 	if !quiet {

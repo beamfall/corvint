@@ -229,12 +229,17 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   or from a transcript.
 - `LCP-V0-014`: `finish` MUST run the daily change (coordination) and the final strict check in the
   running binary, through the Go implementation behind `dogfood change` and `dogfood check`
-  (`DCW-V0-020`), with that binary as every verifier role. It MUST NOT run a repository script,
+  (`DCW-V0-020`), with that binary as every verifier role. Its base and tree verifier digests are
+  therefore equal, and their agreement shows only that one binary is self-consistent, not that the
+  change left the checker's verdict unchanged; that independent base build stays with
+  `make dogfood-check` (`DCW-V0-022`). It MUST NOT run a repository script,
   read `VERSION`, build `cmd/corvint`, resolve `corvint` on `PATH`, or read `CORVINT_BIN` or any
   `DOGFOOD_*` variable; its coordinator inputs are the fixed values in `LCP-V0-005`. So it works in
   any Git repository whose worktree ignores the daily path's private outputs. Each run keeps the
   former bounds: a 10-minute deadline and `maxLogBytes` per stream, where overflow, cancellation
-  or a nonzero exit fails the run. Logs are secret-screened before they are retained.
+  or a nonzero exit fails the run. The deadline kills a running Git or step child process and is
+  checked between steps; an in-process step is not pre-empted, and descendants of a killed child
+  are not reaped as a group. Logs are secret-screened before they are retained.
 - `LCP-V0-015`: A selected check MUST NOT run the final check itself. Besides the `dogfood-check`
   names, an argv containing the adjacent pair `dogfood check` or `dogfood seal` is refused as
   `final-check-not-prerequisite`.
@@ -406,7 +411,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-012 | `TestLocalStateBoundsAndContention`; `TestVerificationCancellationCleansDescendant`; `TestDogfoodPromptBoundsAndCancellation` |
 | LCP-V0-013 | `TestDogfoodPromptMentionAnchors` (frozen `mention-cases.json`); `TestDogfoodPromptMentionIdentityAndRefusals`; `TestUseCaseHostileTaskOrientation` prompt-mention cases |
 | LCP-V0-014 | `TestDogfoodFinishRunsFromBinaryInForeignRepository` (built binary, non-Corvint repository with no `script/`, `VERSION` or `cmd/corvint`, poisoned `DOGFOOD_*`, `CORVINT_BIN` and `PATH`); `TestLocalCompletionRealEvidenceWorkflow` (in-tree) |
-| LCP-V0-015 | `storage.go` `runsDogfoodCheck` guard; `final-check-not-prerequisite` refusal row |
+| LCP-V0-015 | `storage.go` `runsDogfoodCheck` guard; `final-check-not-prerequisite` refusal row; `TestValidatePlanRefusesFinalCheckInAnyForm` (script name, make target, `dogfood check` and `dogfood seal` refused; `dogfood change` and a non-adjacent pair admitted) |
 
 ## Rollout, rollback and remaining gates
 

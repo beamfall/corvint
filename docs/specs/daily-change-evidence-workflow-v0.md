@@ -144,7 +144,12 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
 - `DCW-V0-022`: Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-change.sh`
   and `script/dogfood-check.sh` keep the `VERSION` read, the `CORVINT_BIN` version match and the
   current-tree (and, for the check, base-tree) builds with their refusal strings, then exec the
-  subverb with the executables they built or selected. `script/dogfood-seal.sh` stays the script
+  subverb with the executables they built or selected, so a set `CORVINT_BIN` runs the whole flow and
+  must carry `dogfood change`; a same-`VERSION` build without it (installed `Corvint 0.8.0 (build
+  65)` while `VERSION` is 0.8.0) refuses `invalid-local-completion-action`. The change wrapper makes
+  a relative `DOGFOOD_INTENTS_FILE`, `DOGFOOD_CITATIONS`, `DOGFOOD_VERIFY_FILE` or
+  `DOGFOOD_OCM_LINKS` absolute against the caller's working directory before it moves to the
+  repository root. `script/dogfood-seal.sh` stays the script
   that runs `script/dogfood-check.sh` and seals. The make targets and their `DOGFOOD_*` inputs are
   unchanged. Because the wrappers build before the subverb runs, a refusal the subverb makes now
   follows the builds.
@@ -192,7 +197,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-017` | `docs/DOGFOOD.md` step 11; the reviewer case in `script/dogfood-change_test.sh`; the V1-0182 build-log entry | implemented; reviewer-side verifier agreement is out of scope by design |
 | `DCW-V0-018` | `script/dogfood-change_test.sh` link phase: no plan, exact argv and order, plan digest, partial refusal across rows and intents, and unlisted-intent, CRLF, field-count, empty-item, over-256-row, empty and absent plans; the replay of the sealed LAC-V0-032 change recorded in the V1-0142 build-log entry | implemented; a link on a change delivered through this loop NOT_OBSERVED |
 | `DCW-V0-019` | `internal/dogfoodflow/change.go` `citationPlanMatchesMap` (formerly `script/dogfood-change.sh` `citation_plan_matches_map`); `script/dogfood-change_test.sh` cases `stale-nine-of-ten`, `stale-ten-of-nine`, `bootstrap-omitted`, `other-omitted`, `noncanonical-ordinal` and `split-over-row-limit`; `TestDogfoodReasonAdmitsCitationPlanMapMismatch` | implemented; observed live on a 22-hunk map at base 34e798b: a 1-row plan refused, a 22-row plan cited all 22 |
-| `DCW-V0-020..021`, `DCW-V0-023` | `internal/dogfoodflow`; `cmd/corvint/dogfood_flow.go`; `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` (built binary only, in a Go repository with no `script/`, `VERSION` or `cmd/corvint`, with `PATH` resolving `corvint` to a failing impostor and `CORVINT_BIN` naming a missing file: change, bind, change, check, nested-root refusal, seal) | implemented; foreign-repository portability shown by that fixture only; a real non-Corvint repository NOT_OBSERVED |
+| `DCW-V0-020..021`, `DCW-V0-023` | `internal/dogfoodflow`; `cmd/corvint/dogfood_flow.go`; `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` (built binary only, in a Go repository with no `script/`, `VERSION` or `cmd/corvint`, with `PATH` resolving `corvint` to a failing impostor and `CORVINT_BIN` naming a missing file: change, bind, change, check, nested-root refusal, seal) | implemented; foreign-repository portability shown by that fixture only; a real non-Corvint repository NOT_OBSERVED; output parity with the former scripts is shown only for the strings and statuses `script/dogfood-change_test.sh` and `script/dogfood-bind-range_test.sh` assert, and exits 129, 130 and 143 are NOT_OBSERVED by a test |
 | `DCW-V0-022` | `script/dogfood-change_test.sh` (through the wrappers over a built driver) and `script/dogfood-bind-range_test.sh`, run in Corvint's tree | implemented; in-tree evidence only |
 
 ## Compatibility and rollback

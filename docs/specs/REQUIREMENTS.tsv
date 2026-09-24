@@ -565,7 +565,7 @@ DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	118	Before any cite, 
 DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	128	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
 DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	141	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
 DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	144	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
-DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	151	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
+DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	156	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
@@ -1246,7 +1246,7 @@ LCP-V0-011	docs/specs/local-completion-policy-v0.md	186	Prompt context MUST proj
 LCP-V0-012	docs/specs/local-completion-policy-v0.md	199	Private plans, observations and report sets MUST have explicit byte/count limits
 LCP-V0-013	docs/specs/local-completion-policy-v0.md	205	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
 LCP-V0-014	docs/specs/local-completion-policy-v0.md	230	`finish` MUST run the daily change (coordination) and the final strict check in
-LCP-V0-015	docs/specs/local-completion-policy-v0.md	238	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
+LCP-V0-015	docs/specs/local-completion-policy-v0.md	243	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	1309	Every displayed metric and source-derived value MUST derive through the compiled
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	1313	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	1316	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the

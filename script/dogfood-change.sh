@@ -39,10 +39,14 @@ else
     exit 2
   fi
 fi
-# The flow's root is the working directory, so run it from the repository; a
-# relative executable path keeps meaning the one resolved here.
+# The flow's root is the working directory, so run it from the repository;
+# relative executable and input paths keep meaning the ones the caller named.
 if [[ $PWD != "$repo" ]]; then
   [[ $corvint_bin != */* || $corvint_bin == /* ]] || corvint_bin="$PWD/$corvint_bin"
+  for name in DOGFOOD_INTENTS_FILE DOGFOOD_CITATIONS DOGFOOD_VERIFY_FILE DOGFOOD_OCM_LINKS; do
+    value=${!name-}
+    [[ -z $value || $value == /* ]] || export "$name=$PWD/$value"
+  done
   cd "$repo" || exit 2
 fi
 exec "$corvint_bin" dogfood change --corvint-bin "$corvint_bin" "$base_arg"

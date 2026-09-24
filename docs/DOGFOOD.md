@@ -284,7 +284,9 @@ Disagreement fails `verifier-disagreement`. The report records both binary SHA-2
 agreement result. Both verifiers build with `-trimpath`, so a digest depends on the source and
 toolchain rather than on the private extraction directory. An explicit `CORVINT_BIN` override is accepted only when its `--version` output
 is `Corvint VERSION (build N)` with `VERSION` matched exactly (decision 0314); during final checking it is an additional verifier that must agree
-and whose digest is also recorded.
+and whose digest is also recorded. `corvint dogfood finish` runs its final check in-process with the
+running binary in both verifier roles, so its two digests are equal and prove no base independence
+(`LCP-V0-014`).
 
 Because `.corvint/change.cem.json` is one tracked path and each change's base is the commit before
 its first commit, interleaved sessions can leave committed work that no CEM binds. For a clean

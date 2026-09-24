@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -88,7 +89,7 @@ func (c *check) seal() int {
 
 // gitPassthrough runs one Git command whose output reaches the caller.
 func (c *check) gitPassthrough(args ...string) int {
-	command := exec.Command("git", append([]string{"-C", c.root}, args...)...)
+	command := exec.CommandContext(c.ctx, "git", append([]string{"-C", c.root}, args...)...)
 	command.Env = append(os.Environ(), "LC_ALL=C")
 	command.Stdout, command.Stderr = c.stdout, c.stderr
 	status := exitStatus(command.Run())
@@ -239,7 +240,22 @@ func (c *check) argvRecorded(data []byte) bool {
 	}
 	argv := strings.Split(string(data[:len(data)-1]), "\x00")
 	expected := []string{"--root", c.root, "impact", "--base", c.base, "--range-profile", "expanded-256", "--limit", "20"}
-	return len(argv) == 10 && argv[0] != "" && strings.Join(argv[1:], "\x00") == strings.Join(expected, "\x00")
+	if len(argv) != 10 || argv[0] == "" || !sameDirectory(argv[2], c.root) {
+		return false
+	}
+	argv[2] = c.root
+	return strings.Join(argv[1:], "\x00") == strings.Join(expected, "\x00")
+}
+
+// sameDirectory admits two spellings of one directory, such as /tmp and
+// /private/tmp, as the scripts' `cd && pwd` normalization did.
+func sameDirectory(left, right string) bool {
+	if left == right {
+		return true
+	}
+	leftResolved, leftErr := filepath.EvalSymlinks(left)
+	rightResolved, rightErr := filepath.EvalSymlinks(right)
+	return leftErr == nil && rightErr == nil && leftResolved == rightResolved
 }
 
 // resolveVerifiers records each verifier executable's identity.
@@ -377,7 +393,13 @@ func (c *check) record(agreed bool, bootstrap int) error {
 	if replaced != 1 {
 		return fmt.Errorf("report has %d dogfoodCheck lines", replaced)
 	}
-	return os.WriteFile(c.report, []byte(strings.Join(lines, "\n")+"\n"), 0o666)
+	// Stage in the Git directory and rename, so an interrupted write never
+	// leaves a truncated report or an unignored file in the worktree.
+	staged := filepath.Join(c.gitDir, "corvint-dogfood-report.json.tmp")
+	if err := os.WriteFile(staged, []byte(strings.Join(lines, "\n")+"\n"), 0o666); err != nil {
+		return err
+	}
+	return os.Rename(staged, c.report)
 }
 
 func (c *check) unboundNotObserved(reason string) {

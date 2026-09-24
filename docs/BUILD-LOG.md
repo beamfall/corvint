@@ -14,8 +14,9 @@ every role, and `--corvint-bin` or the verifier flags override it. The two scrip
 wrappers. They keep the Corvint-only steps (reading VERSION, matching the version, building the
 change binary and the verifiers), so the make targets and the `DOGFOOD_*` inputs are unchanged.
 `script/dogfood-seal.sh` remains a script. `dogfood finish` runs the change and the final check
-in-process through the same package. It no longer runs repository scripts, VERSION, a build, PATH,
-`CORVINT_BIN` or `DOGFOOD_*` (`LCP-V0-014`). The check-guard now also recognizes the
+in-process through the same package. It no longer runs repository scripts, reads VERSION, builds,
+resolves `corvint` on PATH (Git is still found on PATH), or reads `CORVINT_BIN` or `DOGFOOD_*`
+(`LCP-V0-014`). The check-guard now also recognizes the
 `dogfood check` and `dogfood seal` argv (`LCP-V0-015`).
 
 Behaviour changes, all recorded in the two specs:
@@ -26,7 +27,26 @@ Behaviour changes, all recorded in the two specs:
   check from a subdirectory), `verifier-unavailable`, `dogfood-base-required` and
   `dogfood-executable-unavailable`.
 - finish loses the script's process-group cleanup of descendants. It now has a 10-minute context
-  deadline instead.
+  deadline instead, which kills a running Git or step child and is checked between steps; an
+  in-process step is not pre-empted.
+- finish runs both verifier roles on the running binary, so its base and tree digests are equal
+  and show self-consistency only. The independent base build stays with `make dogfood-check`.
+
+Independent review (Opus) repairs before binding:
+- The change wrapper runs the whole flow in a set `CORVINT_BIN`. With VERSION 0.8.0, installed
+  `Corvint 0.8.0 (build 65)` matches the version but has no `dogfood change` and refuses
+  `invalid-local-completion-action`. Kept, since running the path from the selected binary is the
+  point of V1-0236 and the script tests pin it; the skew window closes when VERSION moves to 0.9.0.
+  Now stated in `DCW-V0-022`.
+- The wrapper's move to the repository root re-based relative `DOGFOOD_*` file paths; it now makes
+  them absolute first.
+- Git subprocesses now run under the flow context, so the deadline and a signal kill them.
+- The check report is staged in the Git directory and renamed, not truncated in place.
+- The recorded impact argv's root is compared after resolving symlinks, as the scripts'
+  `cd && pwd` did (`/tmp` against `/private/tmp`).
+- `LCP-V0-015` gained a test; the `DCW-V0-020` trace row now states which parity is tested.
+- Not repaired, inferred only: a SIGINT that kills a step child before the notifier cancels the
+  context can record that step as `exit-130` and continue to the next checkpoint.
 
 Finding: a foreign repository must ignore `.context-corvint/` as well as the `.corvint` private
 outputs. Otherwise the recorder refuses `repository-identity-changed`. This was pre-existing:
