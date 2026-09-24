@@ -128,14 +128,23 @@ var (
 // fixed refusal sentence plus the specific reason when one is known.
 func RefusalMessage(err error) string {
 	const message = "Git status cannot safely observe repository metadata"
-	var refused *refusal
-	if errors.As(err, &refused) {
-		return message + ": " + refused.reason
-	}
-	if errors.Is(err, errDrift) {
-		return message + ": repository metadata changed during observation"
+	if reason, known := RefusalReason(err); known {
+		return message + ": " + reason
 	}
 	return message
+}
+
+// RefusalReason is the specific reason behind a failed isolated status, when
+// one is known. It is fixed text that never carries repository bytes.
+func RefusalReason(err error) (string, bool) {
+	var refused *refusal
+	if errors.As(err, &refused) {
+		return refused.reason, true
+	}
+	if errors.Is(err, errDrift) {
+		return "repository metadata changed during observation", true
+	}
+	return "", false
 }
 
 // MetadataProbeError identifies failure while Git validates a private metadata

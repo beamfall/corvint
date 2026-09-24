@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/worklistadapter"
 	"github.com/Beamfall/corvint/internal/workqueue"
 	"github.com/Beamfall/corvint/internal/worksource"
@@ -454,6 +455,12 @@ func workSourceReason(err error) string {
 		if errors.Is(err, known.err) {
 			return known.reason
 		}
+	}
+	if reason, known := worksource.RefusalReason(err); known {
+		return "the repository is unsupported: " + reason
+	}
+	if reason, known := gitstatus.RefusalReason(err); known {
+		return "Git status refused the repository: " + reason
 	}
 	return "Git source facts are unqualified: --root must be the top of a clean, non-shallow, ordinary Git worktree with no unsupported configuration, replacement, graft, or escaping symlink"
 }

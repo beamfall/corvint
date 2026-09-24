@@ -625,8 +625,11 @@ or adapter protocol. They change no wire profile.
   qualification and the operator's next step: an uncommitted policy, worklist, or adapter (run
   `work init` if unadopted, then commit the three files); an invalid committed policy; a dirty or
   partially committed worktree; an unqualified adapter binding or changed bound executable (review,
-  `work rebind`, commit); a policy change during the invocation; or otherwise unqualified Git source
-  facts. REASON never echoes file contents, Git output, or other repository-controlled bytes. A
+  `work rebind`, commit); a policy change during the invocation; a named unsupported repository
+  feature refused by the work source or the isolated Git status probe (a closed configuration key
+  such as `include.path`, a split index, a submodule, a graft, replacement refs, or a shallow or
+  non-top-level root); or otherwise unqualified Git source facts. REASON never echoes file
+  contents, Git output, or other repository-controlled bytes. A
   successful `work init` writes one stderr line telling the operator to review and commit the three
   files, which observation requires. Stdout and `work-command-result/0` are unchanged.
 
@@ -774,7 +777,7 @@ repository's existing roadmap files; a repository with another queue writes its 
 | Store scope by mapping reproduction | WQO-V0-046 | `cmd/corvint/work.go` `workMappingReproduced`, `TestWorkMappingReproduced`, `TestWorkMappingReproducedSelfDogfood`, `TestWorkAdoptedRepositoryWorklist` |
 | Repository adoption | WQO-V0-047..048 | `cmd/corvint/work_adopt.go`, `internal/worklistadapter`, `TestWorkAdoptedRepositoryWorklist`, `TestWorkMappingReproduced` |
 | Bound adoption executable | WQO-V0-049..050 | `cmd/corvint/work_executable_binding.go`, `TestWorkInitBindsExplicitExecutableWQOV0049`, `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`, `TestWorkExecutableMissingAndSymlinkSwapWQOV0049`, `TestWorkExecutableChangeRequiresReviewedRebindWQOV0050` |
-| Source refusal reason | WQO-V0-051 | `cmd/corvint/work.go` `workSourceReasons`, `cmd/corvint/work_adopt.go`, `TestWorkSourceUnqualifiedNamesReasonWQOV0051` |
+| Source refusal reason | WQO-V0-051 | `cmd/corvint/work.go` `workSourceReasons`, `internal/worksource/source.go` `RefusalReason`, `cmd/corvint/work_adopt.go`, `TestWorkSourceUnqualifiedNamesReasonWQOV0051` |
 
 Decision 0046 accepted this contract and assigned the Corvint self-dogfood authority IDs
 (`repo:corvint`, `queue:corvint:worklist`, `scope:corvint:worklist`, `access:corvint:local`); the core

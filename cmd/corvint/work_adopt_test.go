@@ -488,6 +488,8 @@ func testWorkSourceUnqualifiedNamesReason(t *testing.T) {
 	if exit := run([]string{"--root", root, "work", "observe"}, strings.NewReader(""), &stdout, &stderr); exit != 0 || stderr.Len() != 0 {
 		t.Fatalf("committed observe exit=%d stderr=%q", exit, &stderr)
 	}
+	materializationGit(t, root, "config", "include.path", "unused")
+	observe("the repository is unsupported: repository config uses an include directive")
 }
 
 func TestWorkInitRollsBackCreatedFiles(t *testing.T) {
