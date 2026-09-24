@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -220,6 +221,100 @@ func testPRSV1005CoreOnlyCandidateRefusals(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPRSV1005CoreOnlyAssemblyNeedsNoCompanion(t *testing.T) {
+	t.Run("PRS-V1-005 Core-only candidate assembles with no companion input", testPRSV1005CoreOnlyAssemblyNeedsNoCompanion)
+}
+
+func testPRSV1005CoreOnlyAssemblyNeedsNoCompanion(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("host probe fixture requires a POSIX shell")
+	}
+	source := canonicalTemp(t)
+	gitFixture := func(arguments ...string) string {
+		command := exec.Command("git", append([]string{"-C", source}, arguments...)...)
+		command.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1", "GIT_AUTHOR_NAME=fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid", "GIT_COMMITTER_NAME=fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid")
+		out, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v %s", arguments, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	gitFixture("init", "-q")
+	if err := os.WriteFile(filepath.Join(source, "VERSION"), []byte("0.5.0a1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	gitFixture("add", "VERSION")
+	gitFixture("commit", "-q", "-m", "fixture")
+	commit, tree := gitFixture("rev-parse", "HEAD"), gitFixture("rev-parse", "HEAD^{tree}")
+
+	versionOutput := "Corvint 0.5.0a1 (build 1)"
+	coreBinary := func(target coreTarget) []byte {
+		if target.GOOS == runtime.GOOS && target.GOARCH == runtime.GOARCH {
+			return []byte("#!/bin/sh\nprintf '%s\\n' '" + versionOutput + "'\n")
+		}
+		return []byte("binary-" + target.GOOS + "-" + target.GOARCH)
+	}
+	previousCore := verifyCoreBinary
+	verifyCoreBinary = func(_ []byte, target coreTarget) ([]byte, error) { return coreBinary(target), nil }
+	t.Cleanup(func() { verifyCoreBinary = previousCore })
+	previousCompanion := loadCompanionEvidence
+	loadCompanionEvidence = func(string) (*candidateCompanionEvidence, error) {
+		t.Fatal("Core-only assembly consulted companion evidence")
+		return nil, nil
+	}
+	t.Cleanup(func() { loadCompanionEvidence = previousCompanion })
+
+	output := filepath.Join(canonicalTemp(t), "candidates")
+	drifted := Options{CoreDirectory: coreGateFixture(t, strings.Repeat("a", 40), tree, coreBinary), SourceRoot: source, Scratch: canonicalTemp(t), OutputParent: output, Version: "0.5.0a1"}
+	if _, err := Assemble(t.Context(), drifted); err == nil || !strings.Contains(err.Error(), "identities disagree") {
+		t.Fatalf("core report for another commit accepted: %v", err)
+	}
+	if entries, err := os.ReadDir(output); err == nil && len(entries) != 0 {
+		t.Fatalf("refused Core-only assembly retained output: %v", entries)
+	}
+
+	result, err := Assemble(t.Context(), Options{CoreDirectory: coreGateFixture(t, commit, tree, coreBinary), SourceRoot: source, Scratch: canonicalTemp(t), OutputParent: output, Version: "0.5.0a1"})
+	if err != nil {
+		t.Fatalf("Core-only assembly refused: %v", err)
+	}
+	if result.Directory != filepath.Join(output, "corvint-v0.5.0a1-core") || result.Manifest.Profile != coreManifestProfile || result.Manifest.CorvintVersion != versionOutput {
+		t.Fatalf("unexpected Core-only result: %s %#v", result.Directory, result.Manifest)
+	}
+	if len(result.Manifest.Sources) != 1 || result.Manifest.Sources[0] != (SourceIdentity{Name: "corvint", Commit: commit, Tree: tree}) {
+		t.Fatalf("Core-only sources: %#v", result.Manifest.Sources)
+	}
+	verified, err := VerifyContext(t.Context(), result.Directory)
+	if err != nil {
+		t.Fatalf("retained Core-only candidate refused: %v", err)
+	}
+	for _, asset := range verified.Manifest.Assets {
+		if strings.HasPrefix(asset.Role, "companion") || strings.Contains(asset.Role, "tasks") {
+			t.Fatalf("Core-only candidate carries companion asset %s (%s)", asset.Path, asset.Role)
+		}
+	}
+}
+
+// coreGateFixture writes a closed core archive-gate directory whose report
+// binds the given commit and tree.
+func coreGateFixture(t *testing.T, commit, tree string, coreBinary func(coreTarget) []byte) string {
+	t.Helper()
+	directory := t.TempDir()
+	coreArchive := func(target coreTarget) []byte { return []byte("archive-" + target.ArchiveName) }
+	gateNames := map[string]string{"evidence/core-SHA256SUMS": "SHA256SUMS", "evidence/core-verification-report.json": "verification-report.json"}
+	write := func(name, _ string, raw []byte) {
+		gateName, renamed := gateNames[name]
+		if !renamed {
+			gateName = filepath.Base(name)
+		}
+		if err := os.WriteFile(filepath.Join(directory, gateName), raw, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	addCoreCandidateFixture(t, write, commit, tree, coreBinary, coreArchive)
+	write("corvint_windows_amd64.zip", "", coreArchive(coreTarget{ArchiveName: "corvint_windows_amd64.zip"}))
+	return directory
 }
 
 func TestPUBV0022VerifyCoreRequiresClosedReproducibleChecksummedSet(t *testing.T) {

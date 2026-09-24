@@ -74,8 +74,8 @@ qualifies or promotes anything.
   2026-09-16 clause "missing core installed ... evidence blocks release" bind only the companion
   profile (`PRS-V1-009`). Core installed qualification is the native archive lifecycle of
   `stable-operations-v0.md` plus the three Core jobs on the exact installed bytes. The candidate
-  reader and installer admit a Core-only packet (V1-0125, next section), but the assembler still
-  requires companion input, so no Core candidate can be produced until that follow-up exists.
+  reader and installer admit a Core-only packet (V1-0125, next section), and the assembler produces
+  one without companion input (V1-0229).
 - Corvint 1.0 makes no interoperability claim for CEM, OCM or frontier (`PRS-V1-007`); V1-0014 is
   post-1.0 and `make interop-gate` with the canonical vectors remains the Core check.
 
@@ -102,11 +102,17 @@ changes the reader's fail-closed checks.
   the evidence text `companion not present`. The reader refuses any other status, so an absent
   companion is never reported or treated as verified.
 - `InstallCore` is unchanged: it installs the host core archive only after that verification.
-- Limits: the Core-only `source/corvint-src.tar.gz` is bound by digest only. The combined profile
-  binds it to the companion verifier's commit/tree, and no Core-only equivalent exists yet. Legal
-  provenance and installed-workflow evidence are not carried. The alpha version token and the
-  `corvint-release-candidate` assembler, which still requires companion input, are unchanged.
-  A Core-only assembler remains a follow-up.
+- Assembly (V1-0229): `corvint-release-candidate` without `-companion-dir` writes this profile to
+  `corvint-v<version>-core`. It takes no companion, Tasks or npm input. It exports the clean
+  `-source-root` HEAD with the companion bundle's verified reader and deterministic source archive
+  (`companionrelease.CoreSourceArchive`), refuses unless that commit and tree equal the core gate
+  report's, derives the build number from the source root, and retains nothing until the staged
+  candidate passes the reader above, including the exact host `--version` probe. With
+  `-companion-dir` the combined profile and every companion check are unchanged, and
+  `corvint-companion-release` still requires `-tasks-root`.
+- Limits: the reader binds the Core-only `source/corvint-src.tar.gz` by digest only; the commit/tree
+  binding is an assembler check. Legal provenance and installed-workflow evidence are not carried.
+  The alpha version token is unchanged, so a non-alpha version such as `1.0.0` is still refused.
 
 ## Human intent
 

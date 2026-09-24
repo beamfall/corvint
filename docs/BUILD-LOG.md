@@ -4,6 +4,71 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 V1-0175 / V1-0174 / V1-0180 DCW-V0-015, DCW-V0-019: truthful daily pass, cite correction, sealed review
+
+V1-0175: `dogfood-change` classified the local outcome before `cem-prepare`, so the recorder saw
+the tree clean and a first pass with every input reported `"complete": true` while the prepared
+`.corvint/change.cem.json` was untracked. `script/dogfood-change.sh` had the same order, and its test
+recorder ignored untracked files, so the check never existed. The recorder now runs last; an
+untracked or modified sidecar reports `local-outcome: record-index-failed` (DCW-V0-015). The
+built-binary test `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` fails on the old order.
+
+V1-0174: reachable through `dogfood change`, because `cem prepare` resumes a matching map with its
+citations and `cem cite` only adds evidence. Replace semantics would need a new CEM CLI removal
+primitive, so the documented route was taken: DOGFOOD.md step 4 says to delete the map before
+re-citing, and a pass that cites onto an already cited map prints that line (DCW-V0-019). The
+built binary showed the union (two evidence records after a corrected plan) and the fix (one after
+the delete).
+
+V1-0180: DOGFOOD.md section 6 now gives the sealed form. In a clone at seal 3ad6287 with bind
+28a8dfa375f1f47c3ce7086998db7fcc12b30d0f, that form's `cem report` exited 0 (91/91 supported). The
+old `.corvint/change.cem.json` form exited 2, and the sealed map with `--target HEAD` exited 1.
+
+## 2026-09-24 Decision 0381: path choices from 0.9 to 1.0 (V1-0235)
+
+Two independent read-only reviews, an evidence-ledger audit and a product-strategy review, decided
+the open 1.0 questions. Where they disagreed, the one with direct evidence won: the store refuses to
+close V1-0016 (unsatisfied dependency, missing approval, `full-gate` NOT_RUN), and V1-0189 was
+already delivered by #117 and #146. The owner applied the store changes on 2026-09-24 (25 mutations,
+`receipt audit` CONSISTENT, head seq 469):
+
+- Six features deferred past 1.0 at P2 and dropped from v0-8: V1-0023, V1-0154, V1-0191, V1-0195,
+  V1-0201, V1-0205.
+- V1-0174, V1-0175, V1-0180 and V1-0229 raised to P1.
+- V1-0173, V1-0188 (trimmed to criterion 1) and V1-0189 completed manually.
+- V1-0005 and V1-0016 moved to v0-9.
+- Release chain: v0-7 now follows v0-5, and v0-9 follows v0-6 and v0-8.
+
+Finding: readiness stops at the missing candidate; `release candidate` binds ticket digests without
+checking status, and promotion needs each bound ticket COMPLETED and unchanged: close scope first.
+HLQ-V1 acceptance (item 1) and 0.8.1 publication (item 11)
+remain proposed pending the owner.
+## 2026-09-24 V1-0229 PRS-V1-005: Core-only candidate assembler
+
+Finding: the reader and installer have admitted `corvint-core-release-candidate/0` since V1-0125,
+but nothing could produce it. `corvint-release-candidate` refused an empty `-companion-dir`, and
+`releasecandidate.Assemble` loaded companion evidence unconditionally. The ticket cited
+`corvint-companion-release`'s `-tasks-root` check. That check is correct for the companion bundle
+and is unchanged.
+
+Decision: omitting `-companion-dir` assembles `corvint-v<version>-core`. The core gate is verified
+exactly as before. The source archive comes from the clean `-source-root` HEAD through the
+companion bundle's own export and deterministic tar.gz (`companionrelease.CoreSourceArchive`).
+Assembly refuses unless that commit and tree equal the core gate report's. `QUALIFICATION.json`
+marks core-archive PASS and every other row `NOT_RUN` with `companion not present`. The staged
+candidate must pass `VerifyContext`, including the host `--version` probe, before a no-replace
+promotion. The companion path, its inputs and its checks are unchanged. No new root verb.
+
+Evidence: `TestPRSV1005CoreOnlyAssemblyNeedsNoCompanion` covers a mismatched core revision refused
+with nothing retained, then a valid Core-only assembly that verifies with no companion or Tasks
+role. Real run on darwin/arm64 against a scratch commit `e921b0c` that set the alpha version
+0.8.1a1: the archive gate passed (5 targets), `corvint-release-candidate` with no companion or
+Tasks input exited 0 with profile `corvint-core-release-candidate/0`, build 76, and
+`corvint-release-install` installed it and printed `Corvint 0.8.1a1 (build 76)`.
+
+Limits: the version token is still alpha-only, so `1.0.0` is refused. The reader binds the Core-only
+source archive by digest only; the commit/tree binding is an assembler check. Linux assembly and
+the full gate are `NOT_RUN`.
 ## 2026-09-24 V1-0236 DCW-V0-020..023 / LCP-V0-014..015: daily change/check/seal run from the installed binary
 
 Owner decision (2026-09-24): the daily path runs as subverbs of the existing Core verb,
