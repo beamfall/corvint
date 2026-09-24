@@ -4,6 +4,13 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 Decision 0381 items 1 and 11: HLQ-V1 intent accepted, 0.8.1 approved
+
+The owner approved the two open items of decision 0381 on 2026-09-24. The intent of
+`host-lifecycle-qualification-v1` is accepted; delivery stays experimental. `HLQ-V1-008` requires
+each tuple's raw runner report and its sha256 under `conformance/host-lifecycle-v1/results/`, so the
+0.8.0 Results rows (transcribed, no retained report) go stale at the next release. 0.8.1 publication
+is approved as a pre-release under v0-8.
 ## 2026-09-24 V1-0175 / V1-0174 / V1-0180 DCW-V0-015, DCW-V0-019: truthful daily pass, cite correction, sealed review
 
 V1-0175: `dogfood-change` classified the local outcome before `cem-prepare`, so the recorder saw

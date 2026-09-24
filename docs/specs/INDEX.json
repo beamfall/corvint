@@ -2378,7 +2378,7 @@
     "path": "docs/specs/host-lifecycle-qualification-v1.md",
     "title": "Host Lifecycle Qualification V1",
     "reqPrefix": "HLQ-V1",
-    "intent": "proposed",
+    "intent": "accepted",
     "delivery": "experimental",
     "claim": "Each Core host tuple passes nine lifecycle cases on exact versions in isolated host homes, and a result binds only the tuple that produced it.",
     "dependsOn": [
