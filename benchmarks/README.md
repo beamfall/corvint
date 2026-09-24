@@ -244,7 +244,7 @@ recall@5 and 0.06–0.10 at recall@20 per task; a 0.05 gain is not resolvable on
 Registration: before a first run record the samples file SHA-256, the `corvint` SHA-256, the fold
 map SHA-256, the arms, and the date; the report's `registration` section carries the first four so
 a rerun after a code change is recognisable as a new registration. Per-arm wall time follows the
-cache-state vocabulary above: `COLD_UNIQUE` is observed (no `.corvint/index` in the copy before the
-call), `PRIMED_SHARED` when one exists, nearest-rank p50/p95/max and MAD, `NOT_RUN` below 30
+cache-state vocabulary above: `COLD_UNIQUE` is observed (no snapshot store, `.git/corvint/index` in a
+plain clone, in the copy before the call), `PRIMED_SHARED` when one exists, nearest-rank p50/p95/max and MAD, `NOT_RUN` below 30
 samples, never a mean. "Faster than ripgrep" may only be claimed from primed cells whose p95 ratio
 is below one on every repository-size bucket; the cold cell is the amortised cost, never the headline.

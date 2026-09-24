@@ -111,7 +111,7 @@ func overSnapshot[T any](deferred, eager func() *contextindex.Index, build func(
 }
 
 // runIndex builds the index of the committed tree and writes its snapshot
-// (index-snapshot-v0). It is the one verb that writes under `.corvint/index/`;
+// (index-snapshot-v0). It is the one verb that writes the snapshot store;
 // the packet verbs only read what it wrote.
 func runIndex(ctx context.Context, invocation indexInvocation, stdout, stderr io.Writer) int {
 	if invocation.ifStale {
@@ -172,10 +172,11 @@ const indexHelp = `Write the index snapshot of the committed tree for the packet
 Usage:
   corvint [--root PATH] index [--if-stale]
 
-Writes .corvint/index/<object-format>-<tree>-<engine>.gob (index-snapshot-v0,
-experimental): the compiled index of HEAD's tree, keyed by the tree id and by
-a digest of this binary, so a changed tree or a rebuilt Corvint never reads it.
-The newest eight snapshots are kept. This is the only verb that writes there;
+Writes corvint/index/<object-format>-<tree>-<engine>.gob under the Git common
+directory, shared by every linked worktree (index-snapshot-v0, experimental):
+the compiled index of HEAD's tree, keyed by the tree id and by a digest of this
+binary, so a changed tree or a rebuilt Corvint never reads it. The newest eight
+snapshots are kept. This is the only verb that writes there;
 "context" reads a matching snapshot in place of rebuilding the index and
 applies the worktree's dirty paths from git status, and falls back to a full
 build when none matches. A snapshot changes no packet byte: hit and miss

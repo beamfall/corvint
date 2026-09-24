@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
 func TestSnapshotLatencyReusesCopiesAndRegistersBeforeRetrieval(t *testing.T) {
@@ -21,7 +23,7 @@ func testSnapshotLatencyReusesCopiesAndRegistersBeforeRetrieval(t *testing.T) {
 	configuration.arms = map[string]bool{"context": true}
 	configuration.snapshotLatency = true
 	configuration.registrationPath = filepath.Join(t.TempDir(), "registration.json")
-	script := "#!/bin/sh\nif [ \"$1\" = --version ]; then echo test; exit; fi\nmkdir -p \"$2/.corvint/index\"\nprintf '*\\n' > \"$2/.corvint/.gitignore\"\n"
+	script := "#!/bin/sh\nif [ \"$1\" = --version ]; then echo test; exit; fi\nmkdir -p \"$2/.corvint\" \"$2/.git/corvint/index\"\nprintf '*\\n' > \"$2/.corvint/.gitignore\"\n"
 	if err := os.WriteFile(configuration.corvintGo, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +39,7 @@ func testSnapshotLatencyReusesCopiesAndRegistersBeforeRetrieval(t *testing.T) {
 			t.Fatal(err)
 		}
 		state := "OBSERVED_MISS"
-		if _, err := os.Stat(filepath.Join(root, ".corvint", "index")); err == nil {
+		if _, err := os.Stat(contextindex.SnapshotDirectory(root)); err == nil {
 			state = "OBSERVED_HIT"
 		}
 		return arm{Ranked: []string{"tests/help_test.rs"}, State: "READY", CacheState: state}, nil
