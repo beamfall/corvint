@@ -279,6 +279,10 @@ if [[ $action == ocm && $sub == prepare ]]; then
     shift
   done
 fi
+if [[ $action == ocm && $sub == link && " $* " =~ " --obligation "(${DOGFOOD_TEST_OCM_LINK_REFUSE:-^})" " ]]; then
+  printf '{"code": "claim-obligation-mismatch", "error": "refused", "ok": false}\n' >&2
+  exit 2
+fi
 if [[ $action == ocm && $sub == status && -n ${DOGFOOD_TEST_OCM_STATUS_EXIT:-} ]]; then
   exit "$DOGFOOD_TEST_OCM_STATUS_EXIT"
 fi
@@ -732,6 +736,74 @@ printf 'file gate\n\ngo vet ./...\n' > "$test_root/verify.txt"
   rm -f .corvint/dogfood-report.json
   "${verify_env[@]}" DOGFOOD_VERIFY=$'\n \t\n' script/dogfood-change.sh "$base" || :
   rg -q '"name": "local-outcome", "status": "NOT_PRODUCED", "reason": "outcome-input-not-provided"' .corvint/dogfood-report.json
+) &
+phase_jobs="$phase_jobs $!"
+
+# DOGFOOD_OCM_LINKS applies only the author's explicit rows through ocm link, after each scope's
+# prepare and before its status; each row is its own step and refusals name a fix (DCW-V0-018).
+links_repo="$test_root/links-repo"
+git clone -q "$test_root/repo" "$links_repo"
+: > "$test_root/links-corvint.log"
+printf 'docs/specs/intent-a.md\tTEST-A-001\t1,2\tscript/a_test.go\ttest:TestA/case:test-a,test:TestB\n' > "$test_root/links.tsv"
+printf 'docs/specs/intent-a.md\tTEST-A-%s\t1\tscript/a_test.go\ttest:TestA\n' 001 002 003 > "$test_root/links-partial.tsv"
+printf 'docs/specs/intent-b.md\tTEST-B-001\t1\tscript/b_test.go\ttest:TestB\n' >> "$test_root/links-partial.tsv"
+mkdir "$test_root/links-invalid"
+printf 'docs/specs/intent-c.md\tTEST-C-001\t1\tscript/a_test.go\ttest:TestA\n' > "$test_root/links-invalid/unlisted.tsv"
+printf 'docs/specs/intent-a.md\tTEST-A-001\t1\tscript/a_test.go\ttest:TestA\r\n' > "$test_root/links-invalid/crlf.tsv"
+printf 'docs/specs/intent-a.md\tTEST-A-001\t1\tscript/a_test.go\n' > "$test_root/links-invalid/fields.tsv"
+printf 'docs/specs/intent-a.md\tTEST-A-001\t1,,2\tscript/a_test.go\ttest:TestA\n' > "$test_root/links-invalid/empty-item.tsv"
+for _ in $(seq 257); do cat "$test_root/links-invalid/unlisted.tsv"; done |
+  sed 's/intent-c/intent-a/' > "$test_root/links-invalid/rows.tsv"
+: > "$test_root/links-empty.tsv"
+(
+  cd "$links_repo"
+  links_env=(env CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/links-corvint.log"
+    DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt"
+    DOGFOOD_OUTCOME=passed DOGFOOD_VERIFY='test gate')
+  "${links_env[@]}" script/dogfood-change.sh "$base" 2>/dev/null || :
+  if rg -q ' ocm link ' "$test_root/links-corvint.log"; then exit 1; fi
+  rg -qF '  ,"ocmLinkPlan": null' .corvint/dogfood-report.json
+  git diff --quiet HEAD -- .corvint/change.cem.json || {
+    git -c user.name=t -c user.email=t@example.invalid commit -qm cem .corvint/change.cem.json
+  }
+  "${links_env[@]}" DOGFOOD_OCM_LINKS="$test_root/links.tsv" script/dogfood-change.sh "$base"
+  rg -q '"complete": true' .corvint/dogfood-report.json
+  rg -qF "  ,\"ocmLinkPlan\": {\"sha256\": \"sha256:$(shasum -a 256 "$test_root/links.tsv" | awk '{print $1}')\", \"rows\": 1}" \
+    .corvint/dogfood-report.json
+  test "$(rg -c ' ocm link ' "$test_root/links-corvint.log")" = 1
+  rg -qF -- "ocm link --map .corvint/change.ocm.001.json --cem .corvint/change.cem.json --obligation TEST-A-001 --test-path script/a_test.go --expected-base $base --target $(git rev-parse HEAD) --hunk 1 --hunk 2 --claim test:TestA/case:test-a --claim test:TestB" "$test_root/links-corvint.log"
+  awk '/ ocm prepare .*ocm[.]001/ { p = NR } / ocm link / { l = NR } / ocm status --map .corvint\/change.ocm.001/ { s = NR }
+    END { exit !(p < l && l < s) }' "$test_root/links-corvint.log"
+  rg -q '"name": "ocm-link-001", "status": "PRODUCED", "reason": "none"' .corvint/dogfood-report.json
+  if rg -q '"name": "ocm-link-002"' .corvint/dogfood-report.json; then exit 1; fi
+  # Refused rows 2 and 4 do not stop rows 3 and 4; row 4 links through the second intent's map.
+  : > "$test_root/links-corvint.log"
+  links_output=$(DOGFOOD_TEST_OCM_LINK_REFUSE='TEST-A-002|TEST-B-001' "${links_env[@]}" \
+    DOGFOOD_OCM_LINKS="$test_root/links-partial.tsv" script/dogfood-change.sh "$base" 2>&1) && exit 1
+  test "$(rg -c ' ocm link ' "$test_root/links-corvint.log")" = 4
+  rg -q ' ocm link --map .corvint/change.ocm.002.json .* --obligation TEST-B-001 ' "$test_root/links-corvint.log"
+  for row in 001:PRODUCED:none 002:NOT_PRODUCED:claim-obligation-mismatch 003:PRODUCED:none \
+    004:NOT_PRODUCED:claim-obligation-mismatch; do
+    IFS=: read -r number status reason <<< "$row"
+    rg -qF "\"name\": \"ocm-link-$number\", \"status\": \"$status\", \"reason\": \"$reason\"" .corvint/dogfood-report.json
+  done
+  rg -q '"name": "ocm-aggregate", "status": "PRODUCED"' .corvint/dogfood-report.json
+  printf '%s\n' "$links_output" | rg -q '^  ocm-link-004: claim-obligation-mismatch$'
+  test "$(printf '%s\n' "$links_output" | rg -c '^    fix: read .*/ocm-link-00[24][.]stderr: ')" = 2
+  # Validation rejects each malformed plan (the empty list item included) before any link.
+  for plan in "$test_root"/links-invalid/*.tsv; do
+    links_output=$("${links_env[@]}" DOGFOOD_OCM_LINKS="$plan" script/dogfood-change.sh "$base" 2>&1) && exit 1
+    printf '%s\n' "$links_output" | rg -q '^  ocm-links: invalid-ocm-link-plan$'
+  done
+  links_output=$("${links_env[@]}" DOGFOOD_OCM_LINKS="$test_root/links-empty.tsv" \
+    script/dogfood-change.sh "$base" 2>&1) && exit 1
+  printf '%s\n' "$links_output" | rg -q '^  ocm-links: empty-ocm-link-plan$'
+  printf '%s\n' "$links_output" | rg -q '^    fix: DOGFOOD_OCM_LINKS names an empty file'
+  test "$(rg -c ' ocm link ' "$test_root/links-corvint.log")" = 4
+  links_output=$("${links_env[@]}" DOGFOOD_OCM_LINKS="$test_root/links-absent.tsv" \
+    script/dogfood-change.sh "$base" 2>&1) && exit 1
+  printf '%s\n' "$links_output" | rg -q '^  ocm-links: ocm-link-plan-unavailable$'
+  printf '%s\n' "$links_output" | rg -q '^    fix: DOGFOOD_OCM_LINKS must be the path of a TSV file'
 ) &
 phase_jobs="$phase_jobs $!"
 

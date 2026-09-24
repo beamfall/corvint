@@ -384,6 +384,30 @@ split-over-row-limit). A numeric selector that is not a canonical ordinal, such 
 refused before any cite (case noncanonical-ordinal); previously `cem cite` refused it only after
 earlier rows had staged. The fix line now names both causes of a mismatch, not only a re-prepared map.
 
+## 2026-09-23 V1-0142 DCW-V0-018: the dogfood loop links OCM obligations from an explicit author plan
+
+Finding: `dogfood-change` regenerates every OCM map with `--replace` on each pass and never runs
+`ocm link`, so each sealed change reported every requirement `unassessed`. Replaying sealed V1-0196
+(base 01b6804, bind 3500aba) gave 0 of 12 linked. Links added by hand were dropped by the next commit.
+
+Decision: an optional `DOGFOOD_OCM_LINKS` TSV plan names, per intent, the requirement, the cited CEM
+hunks, the test path and the test claims. After each map is prepared on every pass, each row runs
+through the verified `corvint ocm link` and reports `ocm-link-NNN`, numbered by plan row; a refused
+row does not stop later rows. Nothing is inferred: without the plan no link runs and no row is
+reported. A missing, malformed or empty plan (`ocm-links`) or a refused row is NOT_PRODUCED with a
+`fix:` line and blocks completion; the OCM aggregate is still produced. The report records the plan
+as `ocmLinkPlan` (sha256 and row count) because the plan and the maps stay local, so a reviewer
+reproduces coverage only by rerunning with the same plan. No new verb; OCM-V0-013 already limits
+map changes to verified link and mark.
+
+Evidence: `script/dogfood-change_test.sh` covers no plan, exact argv and prepare-link-status order,
+the plan digest, refusals of rows 2 and 4 across two intents with rows 3 and 4 still run, and
+unlisted-intent, CRLF, field-count, empty-item (`1,,2`, refused by validation), over-256-row, empty
+and absent plans. Restoring stop-at-first-refusal or dropping the empty-item check fails the test.
+Replaying sealed 75039ff (base af6fd52, LAC-V0-032) through the patched script with a one-row plan
+produced `ocm-link-001`, 1 of 32 linked and `ocmLinkPlan` matching the plan's sha256. A link on a change delivered through this
+loop is NOT_OBSERVED; `make gate` was not run.
+
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
 
 Finding: nothing stated which Corvint commands are safe as a triggered CI, hook or team-automation
