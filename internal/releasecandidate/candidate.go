@@ -17,6 +17,7 @@ import (
 
 const (
 	manifestProfile      = "corvint-qualified-release-candidate/0"
+	coreManifestProfile  = "corvint-core-release-candidate/0"
 	qualificationProfile = "corvint-release-qualification/0"
 )
 

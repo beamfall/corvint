@@ -54,6 +54,7 @@ AFP-V0-017	docs/specs/affected-plan-v0.md	303	(accepted by decision 0320) `.gith
 AFP-V0-018	docs/specs/affected-plan-v0.md	311	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
 AFP-V0-019	docs/specs/affected-plan-v0.md	326	(proposed technical contract implementing owner-requested issue #57)
 AFP-V0-020	docs/specs/affected-plan-v0.md	352	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
+AFP-V0-021	docs/specs/affected-plan-v0.md	363	(proposed; ticket V1-0126) Every dirty path, as in rule (c) whether or not a
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -68,6 +69,7 @@ AFU-V0-011	docs/specs/application-flow-understanding-v0.md	106	Source, UI text a
 AFU-V0-012	docs/specs/application-flow-understanding-v0.md	110	Explain each flow and gap through source/assertion/run evidence, expose contradi
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
+AGW-V0-003	docs/specs/corvint-witness-v0.md	51	(proposed 2026-09-23, V1-0200, not accepted) the report MUST carry
 AHI-001	docs/specs/agent-harness-integration-v0.md	76	Every adapter MUST consume and produce the transport-neutral Corvint request, re
 AHI-002	docs/specs/agent-harness-integration-v0.md	78	Installation, discovery, upgrade, disable, and uninstall MUST be documented and
 AHI-003	docs/specs/agent-harness-integration-v0.md	80	On session/task start, the adapter MUST resolve repository identity, exact Git
@@ -105,17 +107,17 @@ ARTIFACT-GO-V0-004	docs/specs/release-artifact-integrity-v0.md	156	archive metad
 ARTIFACT-GO-V0-005	docs/specs/release-artifact-integrity-v0.md	162	every target binary MUST be built twice with separate cold caches, and each
 ARTIFACT-GO-V0-006	docs/specs/release-artifact-integrity-v0.md	166	verification MUST be offline and independent of the assembler. From archive
 ARTIFACT-GO-V0-007	docs/specs/release-artifact-integrity-v0.md	171	all build and candidate output stays outside the repository. Only after every
-ARTIFACT-GO-V0-008	docs/specs/release-artifact-integrity-v0.md	283	Archive checksums prove integrity only. This profile creates no signature,
-ARTIFACT-GO-V0-009	docs/specs/release-artifact-integrity-v0.md	289	The untracked-path allowance of decision 0142 MUST NOT apply to the loose
-ARTIFACT-RDY-V0-001	docs/specs/release-artifact-integrity-v0.md	328	`script/release-checklist` MUST be deterministic and read-only. It prints
-ARTIFACT-RDY-V0-002	docs/specs/release-artifact-integrity-v0.md	351	native-runtime is owned by `GOC-V0-001`; native-performance is owned by
-ARTIFACT-RDY-V0-003	docs/specs/release-artifact-integrity-v0.md	359	a tag row reports only an exact release tag already pointing at the
-ARTIFACT-RDY-V0-004	docs/specs/release-artifact-integrity-v0.md	365	publication is `PASS` only with a repository-owner-approved receipt that
-ARTIFACT-RDY-V0-005	docs/specs/release-artifact-integrity-v0.md	369	promotion is `PASS` only with a repository-owner acceptance record naming
-ARTIFACT-RDY-V0-006	docs/specs/release-artifact-integrity-v0.md	381	the receipt is the blob at `docs/releases/<tag>/publication-receipt.json`
-ARTIFACT-RDY-V0-007	docs/specs/release-artifact-integrity-v0.md	393	the release revision is the receipt's `revision`, not `HEAD`. `PASS`
-ARTIFACT-RDY-V0-008	docs/specs/release-artifact-integrity-v0.md	401	every attached digest MUST be witnessed locally by the private archive
-ARTIFACT-RDY-V0-009	docs/specs/release-artifact-integrity-v0.md	410	the reader is read-only and offline. It invokes only local `git`, with the
+ARTIFACT-GO-V0-008	docs/specs/release-artifact-integrity-v0.md	287	Archive checksums prove integrity only. This profile creates no signature,
+ARTIFACT-GO-V0-009	docs/specs/release-artifact-integrity-v0.md	293	The untracked-path allowance of decision 0142 MUST NOT apply to the loose
+ARTIFACT-RDY-V0-001	docs/specs/release-artifact-integrity-v0.md	332	`script/release-checklist` MUST be deterministic and read-only. It prints
+ARTIFACT-RDY-V0-002	docs/specs/release-artifact-integrity-v0.md	355	native-runtime is owned by `GOC-V0-001`; native-performance is owned by
+ARTIFACT-RDY-V0-003	docs/specs/release-artifact-integrity-v0.md	363	a tag row reports only an exact release tag already pointing at the
+ARTIFACT-RDY-V0-004	docs/specs/release-artifact-integrity-v0.md	369	publication is `PASS` only with a repository-owner-approved receipt that
+ARTIFACT-RDY-V0-005	docs/specs/release-artifact-integrity-v0.md	373	promotion is `PASS` only with a repository-owner acceptance record naming
+ARTIFACT-RDY-V0-006	docs/specs/release-artifact-integrity-v0.md	385	the receipt is the blob at `docs/releases/<tag>/publication-receipt.json`
+ARTIFACT-RDY-V0-007	docs/specs/release-artifact-integrity-v0.md	397	the release revision is the receipt's `revision`, not `HEAD`. `PASS`
+ARTIFACT-RDY-V0-008	docs/specs/release-artifact-integrity-v0.md	405	every attached digest MUST be witnessed locally by the private archive
+ARTIFACT-RDY-V0-009	docs/specs/release-artifact-integrity-v0.md	414	the reader is read-only and offline. It invokes only local `git`, with the
 ARTIFACT-V0-001	docs/specs/release-artifact-integrity-v0.md	42	(superseded 2026-09-12 by decision 0088; obligation now carried by
 ARTIFACT-V0-002	docs/specs/release-artifact-integrity-v0.md	52	(superseded 2026-09-12 by decision 0088; obligation now carried by
 ARTIFACT-V0-003	docs/specs/release-artifact-integrity-v0.md	65	(superseded 2026-09-12 by decision 0088; obligation now carried by
@@ -556,6 +558,10 @@ DCW-V0-012	docs/specs/daily-change-evidence-workflow-v0.md	65	Final version/buil
 DCW-V0-013	docs/specs/daily-change-evidence-workflow-v0.md	69	The daily adopter path MUST be one ordered sequence in `docs/DOGFOOD.md` from th
 DCW-V0-014	docs/specs/daily-change-evidence-workflow-v0.md	74	A `dogfood-change` not-complete row caused by a malformed or missing input, or b
 DCW-V0-015	docs/specs/daily-change-evidence-workflow-v0.md	82	Dirty, stale, interrupted, unsupported and unknown evidence MUST each end the lo
+DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	90	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
+DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	101	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
+DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	110	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
+DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	119	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
@@ -568,6 +574,7 @@ DIRTY-CACHE-009	docs/specs/revision-cache-dirty-worktree-v0.md	60	a 30-sample do
 DIRTY-CACHE-010	docs/specs/revision-cache-dirty-worktree-v0.md	63	the implementation MUST add no overlay, session, background process, database,
 DIRTY-CACHE-011	docs/specs/revision-cache-dirty-worktree-v0.md	69	each index build MUST resolve the repository storage object format and exact
 DIRTY-CACHE-012	docs/specs/revision-cache-dirty-worktree-v0.md	76	the separate `working-tree-untracked` impact authority profile (`GPK-V0-029`)
+DIRTY-CACHE-013	docs/specs/revision-cache-dirty-worktree-v0.md	83	the native disk snapshot store (`index-snapshot-v0`) MUST live at
 DNAS-V0-001	docs/specs/dotnet-affected-selection-v0.md	35	`Name` MUST be `dotnet`; `Owns` MUST accept `.cs` case-insensitively and MUST NO
 DNAS-V0-002	docs/specs/dotnet-affected-selection-v0.md	37	Framework discovery MUST require both project evidence and matching source
 DNAS-V0-003	docs/specs/dotnet-affected-selection-v0.md	41	One statically addressable test unit MUST own one `.cs` file and have identity
@@ -1136,28 +1143,28 @@ HDCV0-CAP-012	docs/specs/human-documentation-compiler-v0.md	529	A successful out
 HDCV0-CAP-013	docs/specs/human-documentation-compiler-v0.md	545	Canonical JSON retains `HDCV0-041`. A raw artifact digest is
 HDCV0-CAP-014	docs/specs/human-documentation-compiler-v0.md	557	The implementation core, broker, cleanup-only mode, runner, cgroup observer, and
 IDX-SNAP-V0-001	docs/specs/index-snapshot-v0.md	37	`corvint [--root PATH] index` builds the index of the committed tree exactly as
-IDX-SNAP-V0-002	docs/specs/index-snapshot-v0.md	54	`context` reads the repository's identity and status as a build's opening
-IDX-SNAP-V0-003	docs/specs/index-snapshot-v0.md	62	any mismatch (no file, a different tree, a different engine, a different
-IDX-SNAP-V0-004	docs/specs/index-snapshot-v0.md	69	a dirty worktree reads the same snapshot; only `DirtyPaths` and
-IDX-SNAP-V0-005	docs/specs/index-snapshot-v0.md	75	`index` is the only verb that writes under `.corvint/index/`; `context` and ever
-IDX-SNAP-V0-006	docs/specs/index-snapshot-v0.md	91	a hit and a miss produce byte-identical `context` output for the same
-IDX-SNAP-V0-007	docs/specs/index-snapshot-v0.md	93	`index` keeps the newest eight snapshot files in the directory and removes
-IDX-SNAP-V0-008	docs/specs/index-snapshot-v0.md	97	the two per-prompt query verbs read the snapshot on the same terms as
-IDX-SNAP-V0-009	docs/specs/index-snapshot-v0.md	118	a repository with no `.corvint/index/` directory is a miss without a Git
-IDX-SNAP-V0-010	docs/specs/index-snapshot-v0.md	121	the two index-building harness events read the snapshot on the same terms as IDX
-IDX-SNAP-V0-011	docs/specs/index-snapshot-v0.md	122	`corvint [--root PATH] index --if-stale` reads the header of the file
-IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	131	the Claude Code plugin's lifecycle hooks do not automatically invoke a
-IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	142	During committed-source pinning, a blob whose bytes begin with
-IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	169	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
-IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	210	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
-IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	284	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
-IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	322	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
-IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	147	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
-IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	353	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
-IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	371	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
-IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	398	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
-IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	426	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
-IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	440	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
+IDX-SNAP-V0-002	docs/specs/index-snapshot-v0.md	57	`context` reads the repository's identity and status as a build's opening
+IDX-SNAP-V0-003	docs/specs/index-snapshot-v0.md	65	any mismatch (no file, a different tree, a different engine, a different
+IDX-SNAP-V0-004	docs/specs/index-snapshot-v0.md	72	a dirty worktree reads the same snapshot; only `DirtyPaths` and
+IDX-SNAP-V0-005	docs/specs/index-snapshot-v0.md	78	`index` is the only verb that writes under `.corvint/index/`; `context` and ever
+IDX-SNAP-V0-006	docs/specs/index-snapshot-v0.md	96	a hit and a miss produce byte-identical `context` output for the same
+IDX-SNAP-V0-007	docs/specs/index-snapshot-v0.md	98	`index` keeps the newest eight snapshot files in the directory and removes
+IDX-SNAP-V0-008	docs/specs/index-snapshot-v0.md	102	the two per-prompt query verbs read the snapshot on the same terms as
+IDX-SNAP-V0-009	docs/specs/index-snapshot-v0.md	123	a repository with no `.corvint/index/` directory is a miss without a Git
+IDX-SNAP-V0-010	docs/specs/index-snapshot-v0.md	126	the two index-building harness events read the snapshot on the same terms as IDX
+IDX-SNAP-V0-011	docs/specs/index-snapshot-v0.md	127	`corvint [--root PATH] index --if-stale` reads the header of the file
+IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	136	the Claude Code plugin's lifecycle hooks do not automatically invoke a
+IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	147	During committed-source pinning, a blob whose bytes begin with
+IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	174	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
+IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	215	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
+IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	289	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
+IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	327	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
+IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	152	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
+IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	358	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
+IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	376	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
+IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	403	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
+IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	431	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
+IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	445	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
 KA-V0-001	docs/specs/kotlin-android-candidate-v0.md	28	The command and its package remain isolated, unregistered, and unreachable from
 KA-V0-002	docs/specs/kotlin-android-candidate-v0.md	30	A request is one UTF-8, canonical-JSON object followed by one LF. It has the clo
 KA-V0-003	docs/specs/kotlin-android-candidate-v0.md	34	The target is exactly Android/arm64/none. The twelve input rows below occur once
@@ -1584,32 +1591,32 @@ PSM-V0-010	docs/specs/playwright-suite-interaction-minimizer-v0.md	70	Every tria
 PSM-V0-011	docs/specs/playwright-suite-interaction-minimizer-v0.md	72	Missing or invalid runner qualification (#39), stability identity (#42), or
 PSM-V0-012	docs/specs/playwright-suite-interaction-minimizer-v0.md	75	Synthetic qualification MUST cover a true predecessor leak, a load-only failure,
 PSM-V0-013	docs/specs/playwright-suite-interaction-minimizer-v0.md	78	The closed `corvint-playwright-suite-interaction-live/0` CLI MUST require
-PUB-V0-001	docs/specs/public-release-v0.md	98	The current version tuple MUST move together to `0.7.0`, including native
-PUB-V0-002	docs/specs/public-release-v0.md	101	The existing native CLI archive gate MUST remain independent. An optional
-PUB-V0-003	docs/specs/public-release-v0.md	108	Companion build output MUST be outside the source checkouts, include exact
-PUB-V0-004	docs/specs/public-release-v0.md	123	The first companion target is macOS arm64. Qualification MUST exercise the
-PUB-V0-005	docs/specs/public-release-v0.md	127	Every console mutation and external command MUST meet the browser-origin,
-PUB-V0-006	docs/specs/public-release-v0.md	130	Live test support MUST automatically track supported unit and E2E execution
-PUB-V0-007	docs/specs/public-release-v0.md	135	Release notes MUST identify experimental features, qualified platforms,
-PUB-V0-008	docs/specs/public-release-v0.md	138	Final source, CEM and OCM MUST be frozen before canonical gates and exact-target
-PUB-V0-009	docs/specs/public-release-v0.md	141	Automatic documentation MUST maintain a useful source-bound human page on
-PUB-V0-010	docs/specs/public-release-v0.md	145	Task manager MUST expose a roadmap of its existing tickets with milestones,
-PUB-V0-011	docs/specs/public-release-v0.md	151	`cmd/corvint-companion-release` (package `internal/companionrelease`) MUST imple
-PUB-V0-012	docs/specs/public-release-v0.md	170	Source used for the bundle's source archives MUST be read twice by independent
-PUB-V0-013	docs/specs/public-release-v0.md	181	Each of the nine bundled binaries (`corvint`, `corvint-console`,
-PUB-V0-014	docs/specs/public-release-v0.md	200	Each component's source archive and the assembled bundle archive MUST each be
-PUB-V0-015	docs/specs/public-release-v0.md	217	An installed smoke test MUST run against the exact extracted bundle bytes before
-PUB-V0-016	docs/specs/public-release-v0.md	246	The interactive alpha qualification MUST freeze fixture source, dependencies,
-PUB-V0-017	docs/specs/public-release-v0.md	268	First-use guidance MUST provide the experimental `features`, `overview` and
-PUB-V0-018	docs/specs/public-release-v0.md	272	PR test selection MUST execute only the supported, independently qualified Go
-PUB-V0-019	docs/specs/public-release-v0.md	278	The shipped witness CLI and release-publication receipt reader MUST ignore Git g
-PUB-V0-020	docs/specs/public-release-v0.md	283	Core installed qualification for companion profile `/2` MUST freeze fixture
-PUB-V0-021	docs/specs/public-release-v0.md	308	Every new Corvint version created on main MUST carry a new build number (owner
-PUB-V0-022	docs/specs/public-release-v0.md	315	A versioned release candidate MUST be assembled only from the closed seven-file
-PUB-V0-023	docs/specs/public-release-v0.md	321	The candidate MUST carry a closed machine-readable manifest with the exact versi
-PUB-V0-024	docs/specs/public-release-v0.md	330	The retained qualification receipt MUST use only `PASS`, `FAIL` and `NOT_RUN`, w
-PUB-V0-025	docs/specs/public-release-v0.md	336	The candidate installer MUST reverify the closed candidate, select only the exac
-PUB-V0-026	docs/specs/public-release-v0.md	350	Candidate assembly or installation MUST fail without retained output when any co
+PUB-V0-001	docs/specs/public-release-v0.md	128	The current version tuple MUST move together to `0.7.0`, including native
+PUB-V0-002	docs/specs/public-release-v0.md	131	The existing native CLI archive gate MUST remain independent. An optional
+PUB-V0-003	docs/specs/public-release-v0.md	138	Companion build output MUST be outside the source checkouts, include exact
+PUB-V0-004	docs/specs/public-release-v0.md	153	The first companion target is macOS arm64. Qualification MUST exercise the
+PUB-V0-005	docs/specs/public-release-v0.md	157	Every console mutation and external command MUST meet the browser-origin,
+PUB-V0-006	docs/specs/public-release-v0.md	160	Live test support MUST automatically track supported unit and E2E execution
+PUB-V0-007	docs/specs/public-release-v0.md	165	Release notes MUST identify experimental features, qualified platforms,
+PUB-V0-008	docs/specs/public-release-v0.md	168	Final source, CEM and OCM MUST be frozen before canonical gates and exact-target
+PUB-V0-009	docs/specs/public-release-v0.md	171	Automatic documentation MUST maintain a useful source-bound human page on
+PUB-V0-010	docs/specs/public-release-v0.md	175	Task manager MUST expose a roadmap of its existing tickets with milestones,
+PUB-V0-011	docs/specs/public-release-v0.md	181	`cmd/corvint-companion-release` (package `internal/companionrelease`) MUST imple
+PUB-V0-012	docs/specs/public-release-v0.md	200	Source used for the bundle's source archives MUST be read twice by independent
+PUB-V0-013	docs/specs/public-release-v0.md	211	Each of the nine bundled binaries (`corvint`, `corvint-console`,
+PUB-V0-014	docs/specs/public-release-v0.md	230	Each component's source archive and the assembled bundle archive MUST each be
+PUB-V0-015	docs/specs/public-release-v0.md	247	An installed smoke test MUST run against the exact extracted bundle bytes before
+PUB-V0-016	docs/specs/public-release-v0.md	276	The interactive alpha qualification MUST freeze fixture source, dependencies,
+PUB-V0-017	docs/specs/public-release-v0.md	298	First-use guidance MUST provide the experimental `features`, `overview` and
+PUB-V0-018	docs/specs/public-release-v0.md	302	PR test selection MUST execute only the supported, independently qualified Go
+PUB-V0-019	docs/specs/public-release-v0.md	308	The shipped witness CLI and release-publication receipt reader MUST ignore Git g
+PUB-V0-020	docs/specs/public-release-v0.md	313	Core installed qualification for companion profile `/2` MUST freeze fixture
+PUB-V0-021	docs/specs/public-release-v0.md	338	Every new Corvint version created on main MUST carry a new build number (owner
+PUB-V0-022	docs/specs/public-release-v0.md	345	A versioned release candidate MUST be assembled only from the closed seven-file
+PUB-V0-023	docs/specs/public-release-v0.md	351	The candidate MUST carry a closed machine-readable manifest with the exact versi
+PUB-V0-024	docs/specs/public-release-v0.md	360	The retained qualification receipt MUST use only `PASS`, `FAIL` and `NOT_RUN`, w
+PUB-V0-025	docs/specs/public-release-v0.md	366	The candidate installer MUST reverify the closed candidate, select only the exac
+PUB-V0-026	docs/specs/public-release-v0.md	380	Candidate assembly or installation MUST fail without retained output when any co
 PWP-V0-001	docs/specs/playwright-external-provider-v0.md	23	External mode requires readiness URL and declared app identity, rejects server c
 PWP-V0-002	docs/specs/playwright-external-provider-v0.md	24	A controlled config imports the original, disables webServer and selects the pro
 PWP-V0-003	docs/specs/playwright-external-provider-v0.md	25	Each outcome identifies source location, full title, project name, resolved brow
@@ -1660,6 +1667,13 @@ RBD-V0-004	docs/specs/retrieval-bench-diagnostics-v0.md	38	Each invocation MUST 
 RBD-V0-005	docs/specs/retrieval-bench-diagnostics-v0.md	43	Capture MUST bound the entire encoded file including footer to 64 MiB, header to
 RBD-V0-006	docs/specs/retrieval-bench-diagnostics-v0.md	47	Capture disk writes MUST occur after timed retrieval calls, including error path
 RBD-V0-007	docs/specs/retrieval-bench-diagnostics-v0.md	50	Only after existing identity verification may capture emit its terminal footer,
+RCB-V0-001	docs/specs/receipt-bundle-v0.md	56	`corvint [--root PATH] cem export --map MAP --expected-base REV --target REV
+RCB-V0-002	docs/specs/receipt-bundle-v0.md	64	The bundle is the directory DIR holding `manifest.json` and `receipts/` with one
+RCB-V0-003	docs/specs/receipt-bundle-v0.md	76	`notRunOrNotProduced` is always an array. For a JSON receipt it lists every stri
+RCB-V0-004	docs/specs/receipt-bundle-v0.md	81	Inclusion rules. Every receipt is read without following a final symlink, must b
+RCB-V0-005	docs/specs/receipt-bundle-v0.md	110	The export writes only DIR. DIR must be absolute and must not exist, and its par
+RCB-V0-006	docs/specs/receipt-bundle-v0.md	127	`script/verify-receipt-bundle.sh DIR` needs only `sh`, `sed`, `awk`, `find`, `so
+RCB-V0-007	docs/specs/receipt-bundle-v0.md	138	A bundle grants nothing. The export signs nothing, publishes nothing, contacts n
 RDG-V0-001	docs/specs/requirement-definition-gate-v0.md	57	The gate MUST read every non-blank row of `docs/specs/REQUIREMENTS.tsv`, take th
 RDG-V0-002	docs/specs/requirement-definition-gate-v0.md	62	The gate MUST exempt every id starting with `CEM-CB-` from RDG-V0-003, because
 RDG-V0-003	docs/specs/requirement-definition-gate-v0.md	65	The gate MUST fail when a checked id (per RDG-V0-001, after the RDG-V0-002 exemp
@@ -1799,22 +1813,25 @@ SEG-018	docs/specs/semantic-escalation-gate-v0.md	128	The experimental gate MAY 
 SEG-019	docs/specs/semantic-escalation-gate-v0.md	137	A typed-choice response MUST contain exactly one complete object with exact-case
 SEG-020	docs/specs/semantic-escalation-gate-v0.md	143	A typed-choice provider MUST NOT author an evidence handle, excerpt, authority,
 SEG-021	docs/specs/semantic-escalation-gate-v0.md	147	Typed-choice eligibility MUST require its exact response schema and MUST NOT cha
-SESSION-V0-001	docs/specs/session-context-dividend-v0.md	64	`session begin` MUST pin the full `HEAD` commit and tree, task-key, SHA-256 and
-SESSION-V0-002	docs/specs/session-context-dividend-v0.md	71	V0 MUST store receipts and deltas only beneath the actual `.git/corvint/sessions
-SESSION-V0-003	docs/specs/session-context-dividend-v0.md	76	a receipt MUST be canonical UTF-8 JSON Lines with one terminal LF per event.
-SESSION-V0-004	docs/specs/session-context-dividend-v0.md	83	the state machine MUST contain exactly one generated `begin`, zero or more
-SESSION-V0-005	docs/specs/session-context-dividend-v0.md	87	event input MUST use exact per-type fields and enumerations with no extension
-SESSION-V0-006	docs/specs/session-context-dividend-v0.md	93	an `evidence` observation MUST accept a tracked repository-relative path plus a
-SESSION-V0-007	docs/specs/session-context-dividend-v0.md	97	`opened`, `broad-search`, and `change` observations MUST be typed counters or
-SESSION-V0-008	docs/specs/session-context-dividend-v0.md	105	the receipt MUST accept exactly one terminal observation for each external
-SESSION-V0-009	docs/specs/session-context-dividend-v0.md	115	`session close` MUST require a full target commit, preserve outcome
-SESSION-V0-010	docs/specs/session-context-dividend-v0.md	120	`session verify` MUST be read-only and independently reject a malformed receipt
-SESSION-V0-011	docs/specs/session-context-dividend-v0.md	126	every V0 delta MUST be same-repository `LOCAL_ONLY` and non-composable because
-SESSION-V0-012	docs/specs/session-context-dividend-v0.md	131	a later `session begin` MAY reuse only a structurally verified, exact task-key
-SESSION-V0-013	docs/specs/session-context-dividend-v0.md	141	failed, blocked, reverted, conflicting, stale, ambiguous, deleted, malformed,
-SESSION-V0-014	docs/specs/session-context-dividend-v0.md	145	V0 MUST bound an event to 16 KiB, a receipt or delta to 4 MiB, a session to 1,00
-SESSION-V0-015	docs/specs/session-context-dividend-v0.md	149	existing `query`, `impact`, `feature`, `eval`, and `session verify` reads MUST N
-SESSION-V0-016	docs/specs/session-context-dividend-v0.md	153	Corvint MUST dogfood the public lifecycle on the next substantive Corvint change
+SESSION-V0-001	docs/specs/session-context-dividend-v0.md	67	`session begin` MUST pin the full `HEAD` commit and tree, task-key, SHA-256 and
+SESSION-V0-002	docs/specs/session-context-dividend-v0.md	74	V0 MUST store receipts and deltas only beneath the actual `.git/corvint/sessions
+SESSION-V0-003	docs/specs/session-context-dividend-v0.md	79	a receipt MUST be canonical UTF-8 JSON Lines with one terminal LF per event.
+SESSION-V0-004	docs/specs/session-context-dividend-v0.md	86	the state machine MUST contain exactly one generated `begin`, zero or more
+SESSION-V0-005	docs/specs/session-context-dividend-v0.md	90	event input MUST use exact per-type fields and enumerations with no extension
+SESSION-V0-006	docs/specs/session-context-dividend-v0.md	96	an `evidence` observation MUST accept a tracked repository-relative path plus a
+SESSION-V0-007	docs/specs/session-context-dividend-v0.md	100	`opened`, `broad-search`, and `change` observations MUST be typed counters or
+SESSION-V0-008	docs/specs/session-context-dividend-v0.md	108	the receipt MUST accept exactly one terminal observation for each external
+SESSION-V0-009	docs/specs/session-context-dividend-v0.md	118	`session close` MUST require a full target commit, preserve outcome
+SESSION-V0-010	docs/specs/session-context-dividend-v0.md	123	`session verify` MUST be read-only and independently reject a malformed receipt
+SESSION-V0-011	docs/specs/session-context-dividend-v0.md	129	every V0 delta MUST be same-repository `LOCAL_ONLY` and non-composable because
+SESSION-V0-012	docs/specs/session-context-dividend-v0.md	134	a later `session begin` MAY reuse only a structurally verified, exact task-key
+SESSION-V0-013	docs/specs/session-context-dividend-v0.md	144	failed, blocked, reverted, conflicting, stale, ambiguous, deleted, malformed,
+SESSION-V0-014	docs/specs/session-context-dividend-v0.md	148	V0 MUST bound an event to 16 KiB, a receipt or delta to 4 MiB, a session to 1,00
+SESSION-V0-015	docs/specs/session-context-dividend-v0.md	152	existing `query`, `impact`, `feature`, `eval`, and `session verify` reads MUST N
+SESSION-V0-016	docs/specs/session-context-dividend-v0.md	156	Corvint MUST dogfood the public lifecycle on the next substantive Corvint change
+SESSION-V0-017	docs/specs/session-context-dividend-v0.md	170	`corvint dogfood handoff [--session-key KEY] [--anchors TEXT]` MUST be read-only
+SESSION-V0-018	docs/specs/session-context-dividend-v0.md	183	The receipt MUST carry `authority: none` and be emitted a second time framed by
+SESSION-V0-019	docs/specs/session-context-dividend-v0.md	198	`corvint dogfood handoff [--session-key KEY] --receipt FILE` MUST be read-only,
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	26	accept only exact finite language/version/toolchain/stage tuples, never a neares
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	35	use the experimental `shader` family extension: a request has the fixed transpor
 SHA-V0-003	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	41	facts carry an inclusive/exclusive byte span (zero-based bytes, one-based byte c
@@ -1848,16 +1865,16 @@ SOL-V0-009	docs/specs/self-observation-ledger-v0.md	103	`corvint prove-observe` 
 SOL-V0-010	docs/specs/self-observation-ledger-v0.md	110	The `codex` and `claude-code` host adapters (`corvint adapter`) MUST attempt one
 SOP-V0-001	docs/specs/stable-operations-v0.md	69	The install-lifecycle check MUST accept either one release archive whose single
 SOP-V0-002	docs/specs/stable-operations-v0.md	73	The check MUST create a committed fixture repository in its own temporary direct
-SOP-V0-003	docs/specs/stable-operations-v0.md	76	An upgrade MUST install into a second store beside the first and run `corvint
-SOP-V0-004	docs/specs/stable-operations-v0.md	85	Uninstall is removal of the store directories. Afterwards the fixture's tracked
-SOP-V0-005	docs/specs/stable-operations-v0.md	88	A backup is an archive of `.corvint` taken while no Corvint writer runs. After t
-SOP-V0-006	docs/specs/stable-operations-v0.md	91	With the snapshot truncated to zero bytes, and separately with bytes overwritten
-SOP-V0-007	docs/specs/stable-operations-v0.md	96	The hostile-regression check MUST hold a matrix of `category`, Go package and te
-SOP-V0-008	docs/specs/stable-operations-v0.md	101	Every test function the matrix names MUST be defined in a tracked `_test.go` fil
-SOP-V0-009	docs/specs/stable-operations-v0.md	104	A category with no tracked regression MUST be printed as
-SOP-V0-010	docs/specs/stable-operations-v0.md	109	`SECURITY.md` MUST state the private reporting channel, the acknowledgment windo
-SOP-V0-011	docs/specs/stable-operations-v0.md	112	`docs/RELEASE-NOTES.md` is the changelog. Each published release MUST have an en
-SOP-V0-012	docs/specs/stable-operations-v0.md	115	`docs/RELEASE-RUNBOOK.md` MUST be an ordered list of exact commands from a clean
+SOP-V0-003	docs/specs/stable-operations-v0.md	77	An upgrade MUST install into a second store beside the first and run `corvint
+SOP-V0-004	docs/specs/stable-operations-v0.md	86	Uninstall is removal of the store directories. Afterwards the fixture's tracked
+SOP-V0-005	docs/specs/stable-operations-v0.md	89	A backup is an archive of `.corvint` and the snapshot store taken while no Corvi
+SOP-V0-006	docs/specs/stable-operations-v0.md	92	With the snapshot truncated to zero bytes, and separately with bytes overwritten
+SOP-V0-007	docs/specs/stable-operations-v0.md	97	The hostile-regression check MUST hold a matrix of `category`, Go package and te
+SOP-V0-008	docs/specs/stable-operations-v0.md	102	Every test function the matrix names MUST be defined in a tracked `_test.go` fil
+SOP-V0-009	docs/specs/stable-operations-v0.md	105	A category with no tracked regression MUST be printed as
+SOP-V0-010	docs/specs/stable-operations-v0.md	110	`SECURITY.md` MUST state the private reporting channel, the acknowledgment windo
+SOP-V0-011	docs/specs/stable-operations-v0.md	113	`docs/RELEASE-NOTES.md` is the changelog. Each published release MUST have an en
+SOP-V0-012	docs/specs/stable-operations-v0.md	116	`docs/RELEASE-RUNBOOK.md` MUST be an ordered list of exact commands from a clean
 SRG-V0-001	docs/specs/spec-requirement-index-generator-v0.md	71	The generator MUST derive its input set from the paths Git reports as tracked
 SRG-V0-002	docs/specs/spec-requirement-index-generator-v0.md	75	The generator MUST recognise a requirement id as a token matching an uppercase
 SRG-V0-003	docs/specs/spec-requirement-index-generator-v0.md	79	The generator MUST classify each occurrence of an id into exactly one of three

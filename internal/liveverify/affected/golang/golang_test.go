@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -219,6 +220,103 @@ func TestWorkspaceModuleBelowTestdataIsObserved_AFPV0008(t *testing.T) {
 	want := []affected.Unknown{{Reason: affected.UnknownUnownedDirtyPath, Detail: "testdata/ws/gone.go"}}
 	if fmt.Sprint(deleted.Unknown) != fmt.Sprint(want) || deleted.Scope != affected.ScopeUnknown {
 		t.Fatalf("deleted workspace file scope=%s unknown=%v", deleted.Scope, deleted.Unknown)
+	}
+}
+
+// AFP-V0-021: a dirty path no plugin owns selects the package whose own files
+// name it by literal, witnessed as PATH_LITERAL_READER, and stays unknown. An
+// import path is an edge, never a token; a dependent of the reader and a path
+// no literal names select nothing.
+func TestPathLiteralSelectsItsReaderPackage_AFPV0021(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":            "module example.test/m\n",
+		"docs/guide.md":     "guide\n",
+		"pkg/pkg.go":        "package pkg\n\nimport _ \"example.test/m/other\"\n",
+		"pkg/pkg_test.go":   "package pkg\n\nconst guide, data = \"../docs/guide.md\", \"example.test/m/data/%s.json\"\n",
+		"pkg/block.go":      "package pkg\n\nimport (\n\t_ \"example.test/m/other\"\n\t_ \"strings\"\n)\n\nvar asset = \"assets/logo.svg\"\n",
+		"pkg/bare.go":       "package pkg\n\nvar table = \"tables/rows.txt\"\n",
+		"other/other.go":    "package other\n",
+		"user/user.go":      "package user\n\nimport _ \"example.test/m/pkg\"\n",
+		"user/user_test.go": "package user\n",
+	})
+	result, err := golang.New().Units(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, unit := range result.Units {
+		if unit.ID != "go:example.test/m/pkg" {
+			continue
+		}
+		found = true
+		if fmt.Sprint(unit.PathTokens) != "[../docs/guide.md .json /data/ assets/logo.svg tables/rows.txt]" {
+			t.Fatalf("pkg path tokens=%q", unit.PathTokens)
+		}
+	}
+	if !found {
+		t.Fatalf("no pkg unit in %v", result.Units)
+	}
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	named := affected.Select(graph, []string{"docs/guide.md"})
+	want := []affected.Selection{{UnitID: "go:example.test/m/pkg", Tests: []string{"pkg/pkg_test.go"}, Witness: affected.Witness{Kind: affected.WitnessPathLiteralReader, DirtyPath: "docs/guide.md", Via: []string{"go:example.test/m/pkg"}}}}
+	unknown := []affected.Unknown{{Reason: affected.UnknownUnownedDirtyPath, Detail: "docs/guide.md"}}
+	if fmt.Sprint(named.Selected) != fmt.Sprint(want) || fmt.Sprint(named.Unknown) != fmt.Sprint(unknown) || named.Scope != affected.ScopeUnknown {
+		t.Fatalf("named path selected=%v unknown=%v scope=%s", named.Selected, named.Unknown, named.Scope)
+	}
+	if reader := affected.Select(graph, []string{"data/x.json"}); len(reader.Selected) != 1 {
+		t.Fatalf("a module-anchored literal must name its path: %v", reader.Selected)
+	}
+	unnamed := affected.Select(graph, []string{"other/notes.md"})
+	if len(unnamed.Selected) != 0 || fmt.Sprint(unnamed.Unknown) != "[{UNOWNED_DIRTY_PATH other/notes.md}]" {
+		t.Fatalf("unnamed path selected=%v unknown=%v", unnamed.Selected, unnamed.Unknown)
+	}
+}
+
+// AFP-V0-021: a package over the token bound keeps no tokens and is unknown in
+// a plan that matched a dirty path, rather than widening every plan.
+func TestPathTokenBoundNamesThePackage(t *testing.T) {
+	golang.SetMaxPathTokens(t, 2)
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":            "module example.test/m\n",
+		"big/big.go":        "package big\n\nvar a, b, c = \"a.txt\", \"b.txt\", \"c.txt\"\n",
+		"big/big_test.go":   "package big\n",
+		"core/core.go":      "package core\n",
+		"core/core_test.go": "package core\n",
+	})
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if clean := affected.Select(graph, nil); len(clean.Unknown) != 0 {
+		t.Fatalf("clean plan unknown=%v", clean.Unknown)
+	}
+	plan := affected.Select(graph, []string{"core/core.go"})
+	want := "[{LANGUAGE_FRONTIER go:path-token-bound:go:example.test/m/big}]"
+	if fmt.Sprint(plan.Unknown) != want || plan.Scope != affected.ScopeUnknown {
+		t.Fatalf("unknown=%v scope=%s", plan.Unknown, plan.Scope)
+	}
+}
+
+// AFP-V0-021: a Go file that does not lex raises go:unparsed-source, except
+// under a directory the go tool ignores.
+func TestUnlexableSourceIsAFrontierOutsideIgnoredDirectories(t *testing.T) {
+	unlexable := "package p\n\nvar s = \"unterminated\n"
+	cases := map[string]bool{"_scratch/p.go": false, "fixtures/testdata/p.go": false, "p/p.go": true}
+	for file, raised := range cases {
+		root := t.TempDir()
+		writeFiles(t, root, map[string]string{"go.mod": "module example.test/m\n", file: unlexable})
+		result, err := golang.New().Units(root)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.Contains(fmt.Sprint(result.Frontier), golang.FrontierUnparsedSource); got != raised {
+			t.Fatalf("%s frontier=%v want raised=%v", file, result.Frontier, raised)
+		}
 	}
 }
 

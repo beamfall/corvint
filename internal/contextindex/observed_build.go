@@ -10,7 +10,7 @@ import (
 // window on it. IDX-SNAP-V0-002 already says the loader reads the repository
 // exactly as a build's opening observation does; before this the miss threw
 // that pair away and spawned it again, two of the eight Git processes a miss
-// with `.corvint/index/` present cost.
+// with the snapshot store present cost.
 type LoaderObservation struct{ observed repositoryObservation }
 
 var errNoEngine = errors.New("engine identity unavailable")

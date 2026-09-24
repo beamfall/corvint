@@ -133,7 +133,8 @@ var admittedProofVerdicts = map[string]bool{"FAIL": true, "NOT_RUN": true, "PASS
 
 var admittedDogfoodErrorCodes = codeSet(
 	"ambiguous-claim-selector", "base-mismatch", "base-revision-mismatch", "binary-patch",
-	"bootstrap-intent-not-unknown", "cem-map-digest-mismatch", "cem-patch-digest-mismatch",
+	"bootstrap-intent-not-unknown", "bundle-map-uncommitted", "bundle-output-refused",
+	"cem-map-digest-mismatch", "cem-patch-digest-mismatch",
 	"changed-path-acquisition-failed", "cite-span-not-stable", "claim-conflict", "claim-not-reextractable",
 	"claim-obligation-mismatch", "claim-selector-out-of-range", "diff-metadata-mismatch",
 	"duplicate-claim", "duplicate-claim-reference", "duplicate-hunk-reference", "duplicate-key",
@@ -550,9 +551,10 @@ func validDogfoodReason(value string) bool {
 		return false
 	}
 	switch value {
-	case "cem-map-not-produced", "citation-plan-not-provided", "citation-plan-unavailable",
-		"intent-scope-drift", "invalid-citation-plan", "invalid-record-admission-output",
-		"missing-intent-scope", "no-source-paths", "none", "not-ready", "outcome-input-not-provided":
+	case "cem-map-not-produced", "citation-plan-map-mismatch", "citation-plan-not-provided",
+		"citation-plan-unavailable", "intent-scope-drift", "invalid-citation-plan",
+		"invalid-record-admission-output", "missing-intent-scope", "no-source-paths", "none",
+		"not-ready", "outcome-input-not-provided":
 		return true
 	}
 	if admittedDogfoodErrorCodes[value] || admittedUnsupportedCodes[value] {

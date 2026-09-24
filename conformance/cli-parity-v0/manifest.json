@@ -1102,11 +1102,11 @@
         "rewrites": [],
         "stderrRewrites": [
           {
-            "candidate": "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover', 'discriminate', 'anchor', 'provenance'",
+            "candidate": "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover', 'discriminate', 'anchor', 'provenance', 'export'",
             "oracle": "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report'"
           }
         ],
-        "reason": "DR-0040 / TCQ-V0-051 (decision 0347): the candidate exposes cem cover, discriminate, anchor and provenance (TCQ-V0-051, TCQ-V0-055, FPK-V0-037; decisions 0347, 0353, 0355), so its invalid-subcommand refusal enumerates eleven actions where the retired oracle enumerated seven. Both refuse 'bogus' with exit status 2, an empty stdout and an otherwise identical refusal; only the action list differs. Intentional Go extension adjudicated under GPK-V0-033; the frozen expectation is kept unchanged."
+        "reason": "DR-0040 / TCQ-V0-051 (decision 0347): the candidate exposes cem cover, discriminate, anchor, provenance and export (TCQ-V0-051, TCQ-V0-055, FPK-V0-037, RCB-V0-001; decisions 0347, 0353, 0355), so its invalid-subcommand refusal enumerates twelve actions where the retired oracle enumerated seven. Both refuse 'bogus' with exit status 2, an empty stdout and an otherwise identical refusal; only the action list differs. Intentional Go extension adjudicated under GPK-V0-033; the frozen expectation is kept unchanged."
       },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",

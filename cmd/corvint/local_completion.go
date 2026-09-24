@@ -60,6 +60,9 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 	if err != nil {
 		return emitLocalCompletionFailure(stderr, err.Error())
 	}
+	if args[0] == "handoff" {
+		return runDogfoodHandoff(ctx, root, key, flags, stdout, stderr)
+	}
 	var result localcompletion.Evaluation
 	switch args[0] {
 	case "begin":
@@ -113,6 +116,8 @@ func localCompletionFlags(args []string) (map[string]string, error) {
 	case "review":
 		required = "--report-set"
 	case "status", "finish", "cancel":
+	case "handoff":
+		allowed["--anchors"], allowed["--receipt"] = true, true
 	default:
 		return nil, errors.New("invalid-local-completion-action")
 	}
@@ -142,6 +147,9 @@ func localCompletionFlags(args []string) (map[string]string, error) {
 	}
 	if required != "" && flags[required] == "" {
 		return nil, errors.New("local-completion-option-required")
+	}
+	if flags["--anchors"] != "" && flags["--receipt"] != "" {
+		return nil, errors.New("invalid-local-completion-option")
 	}
 	return flags, nil
 }

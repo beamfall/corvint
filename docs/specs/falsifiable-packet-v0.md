@@ -439,7 +439,7 @@ above stands with that substitution.
   canonical-JSON encoding of the sorted dirty path list `affected.DirtyPaths` returns
   (`internal/liveverify/affected/dirty.go:46@abebde5b` is the entry point; the deduplication and sort happen
   in `DecodeStatus` at `internal/liveverify/affected/dirty.go:195@a543bfa1` via `NormalizePaths`,
-  `internal/liveverify/affected/select.go:344-357@eadff8fe`), by the same construction
+  `internal/liveverify/affected/select.go:351-364@eadff8fe`), by the same construction
   `internal/gokernel/repository.go:397-398@425ed3ff` and `internal/gokernel/repository.go:408@54fe2926` already take — cited as a construction
   precedent only, since that digest's input is gokernel's own status list, whereas this digest's
   input is the `affected.DirtyPaths` list the run already reads (`cmd/corvint/prove.go:507-509@6b81d3a5`). It hashes
@@ -838,8 +838,8 @@ above stands with that substitution.
   index path calls `contextindex.ProbeSnapshot` directly
   (`cmd/corvint/index_snapshot.go:117-118@9a7d60f2`); none passes through the `cmd/corvint`
   `loadSnapshot` variables. Internally, `LoadEventSnapshot` reaches the private `loadSnapshot`
-  (`internal/contextindex/snapshot.go:497-520@cd5ffb8c`), while `ProbeSnapshot` opens and validates
-  the snapshot itself (`internal/contextindex/snapshot.go:456-495@47a72200`). A checkpoint compile
+  (`internal/contextindex/snapshot.go:557-580@cd5ffb8c`), while `ProbeSnapshot` opens and validates
+  the snapshot itself (`internal/contextindex/snapshot.go:512-555@7875d1d5`). A checkpoint compile
   function written to call either would therefore register zero calls on the dynamic seam. The
   load-bearing source guard scans every non-test Go file in `cmd/corvint`, rejects direct
   `LoadSnapshot` or `LoadSnapshotDeferred` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`,

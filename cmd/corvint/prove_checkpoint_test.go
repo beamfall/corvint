@@ -685,7 +685,7 @@ func TestCheckpointReadsNoIndexSnapshotAndRetainsNothing(t *testing.T) {
 			t.Fatalf("retained state under %s", tree)
 		}
 	}
-	if err := os.RemoveAll(filepath.Join(root, ".corvint", "index")); err != nil {
+	if err := os.RemoveAll(contextindex.SnapshotDirectory(root)); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(root, ".corvint", "self-observations.jsonl"), []byte("changed ignored ledger\n"), 0o600); err != nil {
