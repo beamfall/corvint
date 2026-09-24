@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-24
 Requirement prefix: `HLQ-V1`
-Intent status: proposed
+Intent status: accepted
 Delivery status: experimental
 Authoritative inputs: ticket V1-0016, `agent-harness-integration-v0.md` (`AHI-002`, `AHI-003`,
 `AHI-004`, `AHI-006`, `AHI-007`, `AHI-009`, `AHI-010`), `core-compatibility-freeze-v1.md`
@@ -12,9 +12,9 @@ decision 0373 (items 5 and 6), and `AGENTS.md` invariants 2, 4 and 7.
 
 ## Agent digest
 - Claim: Each Core host tuple passes nine lifecycle cases on exact versions in isolated host homes, and a result binds only the tuple that produced it.
-- Status: proposed intent, experimental delivery; the host scope it qualifies is accepted in decision 0373
+- Status: accepted intent (decision 0381 item 1), experimental delivery; the host scope it qualifies is accepted in decision 0373
 - Exists: this contract and `conformance/host-lifecycle-v1`; all three tuples PASS on darwin/arm64 with corvint 0.8.0 (see Results)
-- Blocked on: owner acceptance of this contract; linux tuples and live model-session cases are NOT_RUN
+- Blocked on: a run on the next release with its reports retained (`HLQ-V1-008`); linux tuples and live model-session cases are NOT_RUN
 - Read next: Requirements; Results; Known gaps
 
 ## Intent and scope
@@ -87,8 +87,10 @@ behaviour inside a live model session.
   `SUMMARY` line with the counts. Fields are tab-separated. It exits 0 only when all nine cases pass,
   1 otherwise, and 2 on a usage or setup error.
 - **HLQ-V1-008:** A result MUST be recorded here with the digests of both binaries and the source
-  revision. It becomes stale when the host version, the adapter version, or the corvint release
-  changes, and the affected tuple needs a new run.
+  revision. Each tuple's raw `--report` file MUST be kept under
+  `conformance/host-lifecycle-v1/results/`, and its sha256 recorded with the result, so the verdict
+  can be re-derived from the repository. A result becomes stale when the host version, the adapter
+  version, or the corvint release changes, and the affected tuple needs a new run.
 
 ## Runner
 
@@ -115,6 +117,9 @@ The N-1 binary is the `corvint` from the published v0.7.0 archive, sha256
 | plain CLI, native | none | none | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | Codex CLI, plugin | 0.153.2 | 0.2.2 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | Claude Code, plugin | 2.1.267 | 0.2.3 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+
+These 0.8.0 results were transcribed before `HLQ-V1-008` required retained reports, so no runner
+report backs them. They become stale at the next corvint release.
 
 Every other tuple is `NOT_RUN`. This includes linux/amd64 and linux/arm64, other host versions, and
 the Gemini CLI, OpenCode and Pi adapters.
@@ -148,7 +153,7 @@ Supplementary live observations, not part of the nine cases:
 | HLQ-V1-002 | Results table; `TestEnvelopedReceipt`, `TestMissingCoreVerbs`, `TestListed`, `TestRowIsScopedToSelector`, `TestSessionKeyPattern` |
 | HLQ-V1-003 | the runner's private environment and `lookPath`; the uninstall case reporting the removed binary unresolvable |
 | HLQ-V1-004 | `TestReadHooks`; the discovery case |
-| HLQ-V1-005, HLQ-V1-008 | Results; support stays FALLBACK in both `compatibility.json` files |
+| HLQ-V1-005, HLQ-V1-008 | Results and the reports under `conformance/host-lifecycle-v1/results/`; support stays FALLBACK in both `compatibility.json` files |
 | HLQ-V1-006 | the context, change, frontier and uninstall cases |
 
 ## Rollback
