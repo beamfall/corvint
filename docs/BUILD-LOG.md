@@ -5457,3 +5457,17 @@ the CLI message is the diagnostic path. Touching `internal/gitstatus` moves the 
   external file. The refusal table now asserts each specific reason. The positive test also
   retargets the link after commit (observation still passes against the bound target) and runs
   `work rebind` through the link, which reports and binds the new target.
+
+## 2026-09-24 core-promotion-gates: decision 0382, companion smoke tool list
+
+- Finding: task-store policy version 2 required the `public-release` gate for every release, but
+  `make public-release-check` qualifies an installed companion bundle only and has no Core-only
+  input, so no Core release could be promoted (v0-5 recorded it `FAIL`). Decision 0382 makes that
+  gate optional in policy version 3 (`PRS-V1-005`); the other five gates stay required.
+- Finding: `make companion-release-gate` failed at the 0.8.1 release commit `1281e26`. Its installed
+  smoke required five `corvint-mcp` tools, but decision 0374 (`caf742b`) had returned the default
+  profile to `corvint.query`, `corvint.impact` and `corvint.status`. `make gate` does not run the
+  companion gate and the 0.8.0 and 0.8.1 releases did not run it, so the drift went unseen. Fix: the
+  smoke requires the three default tools. The gate passed in a clean clone at `222b51d`.
+- The v0-5, v0-7 and v0-8 promotions move from `1281e26` to this change's merge commit; the gates run
+  there, with `release-checklist` before the `v0.8.1` tag exists.
