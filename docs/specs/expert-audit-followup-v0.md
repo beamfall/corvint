@@ -110,7 +110,8 @@ execution claim, Frontier closure rule or mandatory service is introduced here.
   `Git status cannot safely observe repository metadata: <reason>`. The reason names the refused
   feature, the config key (for example `filter.lfs.process`, `core.attributesFile`,
   `include.*`/`includeIf.*`), the metadata file or directory relative to its Git directory, or the
-  applicable byte limit. It MUST NOT carry a config value, file content, or a path outside the
+  applicable byte limit. A filter driver name appears only when it is 1 to 32 characters of
+  `[a-z0-9_-]`; any other name is shown as `*`. It MUST NOT carry a config value, file content, or a path outside the
   repository; the one value it may name is the closed `extensions.refStorage=reftable`. What is
   refused does not change, and Git's own metadata-probe failures keep their existing shape. The MCP
   tool-error object stays closed under `MCPV0` and still carries only its sanitized code.

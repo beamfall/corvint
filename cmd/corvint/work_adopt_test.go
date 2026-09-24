@@ -465,8 +465,8 @@ func testWorkSourceUnqualifiedNamesReason(t *testing.T) {
 		exit := run([]string{"--root", root, "work", "observe"}, strings.NewReader(""), &stdout, &stderr)
 		workAssertFinalError(t, stdout.Bytes(), exit, "SOURCE_UNQUALIFIED")
 		line := stderr.String()
-		if strings.Count(line, "\n") != 1 || !strings.HasPrefix(line, "corvint work: SOURCE_UNQUALIFIED: ") || !strings.Contains(line, want) {
-			t.Fatalf("stderr %q does not name %q on one line", line, want)
+		if strings.Count(line, "\n") != 1 || !strings.HasPrefix(line, "corvint work: SOURCE_UNQUALIFIED: ") || !strings.Contains(line, want) || strings.ContainsRune(line, '\u009b') {
+			t.Fatalf("stderr %q does not name %q on one plain line", line, want)
 		}
 	}
 	observe(".corvint/work-queue-policy.json is not committed at HEAD")
@@ -480,7 +480,7 @@ func testWorkSourceUnqualifiedNamesReason(t *testing.T) {
 	if got := stderr.String(); got != "corvint work init: review and commit these three files; work observe and propose-wave return SOURCE_UNQUALIFIED until they are committed\n" {
 		t.Fatalf("init stderr: %q", got)
 	}
-	observe("not committed")
+	observe("the worktree is dirty")
 	materializationGit(t, root, "add", ".corvint")
 	materializationGit(t, root, "commit", "-qm", "adopt work queue")
 	stdout.Reset()
@@ -490,6 +490,14 @@ func testWorkSourceUnqualifiedNamesReason(t *testing.T) {
 	}
 	materializationGit(t, root, "config", "include.path", "unused")
 	observe("the repository is unsupported: repository config uses an include directive")
+	materializationGit(t, root, "config", "--unset", "include.path")
+	worktreeConfig := filepath.Join(root, ".git", "config.worktree")
+	for driver, want := range map[string]string{"lfs": "filter.lfs.clean", "leak-\u009b31m": "filter.*.clean"} {
+		if err := os.WriteFile(worktreeConfig, []byte("[filter \""+driver+"\"]\n\tclean = x\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		observe("Git status refused the repository: repository config.worktree sets " + want)
+	}
 }
 
 func TestWorkInitRollsBackCreatedFiles(t *testing.T) {

@@ -5226,3 +5226,7 @@ the CLI message is the diagnostic path. Touching `internal/gitstatus` moves the 
   repository config uses an include directive (include.* or includeIf.*)`. Filter-driver refusals say
   `filter.*` rather than naming the driver, because WQO-V0-051 forbids repository-controlled bytes.
   Probe refusals reach `work` as `Git status refused the repository: REASON`.
+- Independent review repair: a filter key in `.git/config.worktree` reached `work` stderr through the
+  probe with its raw subsection, including C1 control bytes. A filter driver name now appears only
+  when it is 1 to 32 characters of `[a-z0-9_-]`, otherwise `*` (EAF-V0-011, WQO-V0-051). The work
+  test now covers the probe route and the exact dirty-worktree reason.

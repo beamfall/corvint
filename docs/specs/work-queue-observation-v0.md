@@ -627,7 +627,7 @@ or adapter protocol. They change no wire profile.
   partially committed worktree; an unqualified adapter binding or changed bound executable (review,
   `work rebind`, commit); a policy change during the invocation; a named unsupported repository
   feature refused by the work source or the isolated Git status probe (a closed configuration key
-  such as `include.path`, a split index, a submodule, a graft, replacement refs, or a shallow or
+  such as `include.path` or a filter key whose driver name is bounded as in `EAF-V0-011`, a split index, a submodule, a graft, replacement refs, or a shallow or
   non-top-level root); or otherwise unqualified Git source facts. REASON never echoes file
   contents, Git output, or other repository-controlled bytes. A
   successful `work init` writes one stderr line telling the operator to review and commit the three

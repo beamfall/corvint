@@ -650,3 +650,17 @@ func TestPrivateStatusRejectsIndexTimestampDrift(t *testing.T) {
 		t.Fatal("changed index racy-clean boundary admitted")
 	}
 }
+
+func TestFilterKeyBoundsDriverName(t *testing.T) {
+	for key, want := range map[string]string{
+		"filter.lfs.process":                           "filter.lfs.process",
+		"filter.a.b.clean":                             "filter.*.clean",
+		"filter.clean":                                 "filter.*.clean",
+		"filter.leak-\u009b31msecret.clean":            "filter.*.clean",
+		"filter." + strings.Repeat("x", 33) + ".clean": "filter.*.clean",
+	} {
+		if got := filterKey(key); got != want {
+			t.Errorf("filterKey(%q) = %q, want %q", key, got, want)
+		}
+	}
+}

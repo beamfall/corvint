@@ -135,7 +135,8 @@ func RefusalMessage(err error) string {
 }
 
 // RefusalReason is the specific reason behind a failed isolated status, when
-// one is known. It is fixed text that never carries repository bytes.
+// one is known. It is fixed text plus at most a closed config key, a Git
+// metadata name, or a filter driver name bounded by plainToken.
 func RefusalReason(err error) (string, bool) {
 	var refused *refusal
 	if errors.As(err, &refused) {
@@ -364,6 +365,30 @@ func validateIndex(ctx context.Context, temp string, prefix []string, run Runner
 	return nil
 }
 
+// filterKey renders a filter.NAME.VARIABLE key for a refusal reason. The driver
+// NAME is a free-form subsection, so it appears only when it is a short plain
+// token; anything else becomes "*" so no control or oversized bytes escape.
+func filterKey(key string) string {
+	last := strings.LastIndex(key, ".")
+	name := strings.TrimPrefix(key[:last], "filter.")
+	if name == key[:last] || !plainToken(name) {
+		name = "*"
+	}
+	return "filter." + name + key[last:]
+}
+
+func plainToken(text string) bool {
+	if text == "" || len(text) > 32 {
+		return false
+	}
+	for _, character := range text {
+		if !(character >= 'a' && character <= 'z' || character >= '0' && character <= '9' || character == '-' || character == '_') {
+			return false
+		}
+	}
+	return true
+}
+
 // unsafeConfig returns why a parsed config listing is refused, or "" when it
 // is safe. The reason names the key, never its value.
 func unsafeConfig(raw []byte, root, gitdir string) string {
@@ -388,7 +413,7 @@ func unsafeConfig(raw []byte, root, gitdir string) string {
 			return "uses a conditional include (includeIf.*)"
 		}
 		if strings.HasPrefix(key, "filter.") && (strings.HasSuffix(key, ".clean") || strings.HasSuffix(key, ".process")) && value != "" {
-			return "sets " + key
+			return "sets " + filterKey(key)
 		}
 		switch key {
 		case "core.attributesfile":
