@@ -63,10 +63,6 @@
     "secret-sanitization",
     "stdout-purity",
     "git-executable-pinned",
-    "official-schema-traffic",
-    "context-cem-report-read-only",
-    "context-cem-report-argument-rejection",
-    "cem-map-escape-refusal",
-    "cem-report-envelope-and-budget"
+    "official-schema-traffic"
   ]
 }

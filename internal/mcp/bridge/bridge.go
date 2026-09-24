@@ -32,7 +32,8 @@ const (
 	ToolImpact = "corvint.impact"
 	ToolStatus = "corvint.status"
 	// ToolContext and ToolCEMReport project `corvint context` and `corvint cem
-	// report` (MCPV0-024, MCPV0-025).
+	// report` (MCPV0-024, MCPV0-025). Only the opt-in task-review descendant
+	// profile advertises them (MCPV0-026, decision 0374).
 	ToolContext   = "corvint.context"
 	ToolCEMReport = "corvint.cem.report"
 
@@ -199,14 +200,20 @@ type Error struct{ Code string }
 
 func (failure *Error) Error() string { return failure.Code }
 
+// taskReviewTools exist only in the task-review descendant profile; the
+// default V0 registry neither advertises nor dispatches them (decision 0103).
+var taskReviewTools = map[string]bool{ToolContext: true, ToolCEMReport: true}
+
 // Registry binds every call to one canonical local repository root.
 type Registry struct {
 	root         string
 	rootIdentity os.FileInfo
 	gitIdentity  os.FileInfo
 	operations   repositoryOperations
+	taskReview   bool
 }
 
+// New binds the default V0 registry: exactly query, impact, and status.
 func New(root string) (*Registry, *Error) {
 	if !validRoot(root) {
 		return nil, failure("invalid-root")
@@ -226,12 +233,39 @@ func New(root string) (*Registry, *Error) {
 	return &Registry{root: resolved, rootIdentity: rootIdentity, gitIdentity: gitMarker, operations: productionRepositoryOperations()}, nil
 }
 
-// Tools is the exact delivered surface. Standalone evidence and dashboard
-// snapshot tools are omitted; query and impact receipts carry their evidence.
+// NewTaskReview binds the opt-in task-review descendant profile, which adds
+// the context and CEM report tools to the V0 three (MCPV0-026).
+func NewTaskReview(root string) (*Registry, *Error) {
+	registry, err := New(root)
+	if err != nil {
+		return nil, err
+	}
+	registry.taskReview = true
+	return registry, nil
+}
+
+func (registry *Registry) advertises(name string) bool {
+	return registry.taskReview || !taskReviewTools[name]
+}
+
+// Tools is the exact delivered surface of the registry's profile. Standalone
+// evidence and dashboard snapshot tools are omitted; query and impact receipts
+// carry their evidence.
 func (registry *Registry) Tools() []ToolDescriptor {
 	if registry == nil {
 		return nil
 	}
+	all := registry.allTools()
+	advertised := make([]ToolDescriptor, 0, len(all))
+	for _, tool := range all {
+		if registry.advertises(tool.Name) {
+			advertised = append(advertised, tool)
+		}
+	}
+	return advertised
+}
+
+func (registry *Registry) allTools() []ToolDescriptor {
 	// Byte bounds are advertised as code-point bounds divided by UTFMax, and
 	// the task pattern excludes U+0085 (Go trims it, ECMA \s does not), so
 	// every schema-valid argument is also runtime-valid.
@@ -309,6 +343,9 @@ func (registry *Registry) Call(ctx context.Context, name string, arguments []byt
 	}
 	if len(arguments) == 0 || len(arguments) > maxArgumentSize || !utf8.Valid(arguments) {
 		return Result{}, failure("invalid-arguments")
+	}
+	if !registry.advertises(name) {
+		return Result{}, failure("unsupported-tool")
 	}
 	ctx = gitstatus.WithIsolation(ctx)
 	var result Result

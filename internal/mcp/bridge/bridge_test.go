@@ -20,25 +20,28 @@ import (
 )
 
 func TestToolsExposeOnlyDeliveredClosedReadSurface(t *testing.T) {
-	registry, err := New(makeRepository(t))
+	root := makeRepository(t)
+	registry, err := New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := toolNames(t, registry.Tools()); !reflect.DeepEqual(got, []string{ToolImpact, ToolQuery, ToolStatus}) {
+		t.Fatalf("default V0 tools = %v, want exactly query, impact and status", got)
+	}
+	// MCPV0-026: the default registry neither advertises nor dispatches the
+	// task-review tools; a call fails exactly like any other unknown tool.
+	for _, omitted := range []string{"corvint.evidence", "corvint.dashboard-snapshot", ToolContext, ToolCEMReport} {
+		if _, callErr := registry.Call(context.Background(), omitted, []byte(`{}`)); callErr == nil || callErr.Code != "unsupported-tool" {
+			t.Fatalf("omitted tool %q error = %#v", omitted, callErr)
+		}
+	}
+	registry, err = NewTaskReview(root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tools := registry.Tools()
-	want := []string{ToolCEMReport, ToolContext, ToolImpact, ToolQuery, ToolStatus}
-	got := make([]string, len(tools))
-	for index, tool := range tools {
-		got[index] = tool.Name
-		if tool.InputSchema["type"] != "object" || tool.InputSchema["additionalProperties"] != false {
-			t.Fatalf("tool %s schema is not closed: %#v", tool.Name, tool.InputSchema)
-		}
-		if tool.InputSchema["$schema"] != "https://json-schema.org/draft/2020-12/schema" {
-			t.Fatalf("tool %s schema dialect = %#v", tool.Name, tool.InputSchema["$schema"])
-		}
-		if !tool.Annotations.ReadOnlyHint || tool.Annotations.DestructiveHint ||
-			!tool.Annotations.IdempotentHint || tool.Annotations.OpenWorldHint {
-			t.Fatalf("tool %s annotations = %#v", tool.Name, tool.Annotations)
-		}
+	if got := toolNames(t, tools); !reflect.DeepEqual(got, []string{ToolCEMReport, ToolContext, ToolImpact, ToolQuery, ToolStatus}) {
+		t.Fatalf("task-review tools = %v", got)
 	}
 	querySchema := tools[3].InputSchema["properties"].(map[string]any)["task"].(map[string]any)
 	if querySchema["pattern"] != `^[ -~]*[!-~][ -~]*$` {
@@ -48,9 +51,6 @@ func TestToolsExposeOnlyDeliveredClosedReadSurface(t *testing.T) {
 	cemMap := tools[0].InputSchema["properties"].(map[string]any)["map"].(map[string]any)
 	if contextTask["maxLength"] != 8000 || contextTask["pattern"] != `[^\s\x85]` || cemMap["maxLength"] != 128 {
 		t.Fatalf("schema admits runtime-invalid arguments: task=%#v map=%#v", contextTask, cemMap)
-	}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("tools = %v, want %v", got, want)
 	}
 	tools[0].InputSchema["type"] = "array"
 	if registry.Tools()[0].InputSchema["type"] != "object" {
@@ -63,6 +63,27 @@ func TestToolsExposeOnlyDeliveredClosedReadSurface(t *testing.T) {
 	}
 }
 
+// toolNames returns the advertised names after checking each descriptor is
+// closed, 2020-12, and read-only.
+func toolNames(t *testing.T, tools []ToolDescriptor) []string {
+	t.Helper()
+	names := make([]string, len(tools))
+	for index, tool := range tools {
+		names[index] = tool.Name
+		if tool.InputSchema["type"] != "object" || tool.InputSchema["additionalProperties"] != false {
+			t.Fatalf("tool %s schema is not closed: %#v", tool.Name, tool.InputSchema)
+		}
+		if tool.InputSchema["$schema"] != "https://json-schema.org/draft/2020-12/schema" {
+			t.Fatalf("tool %s schema dialect = %#v", tool.Name, tool.InputSchema["$schema"])
+		}
+		if !tool.Annotations.ReadOnlyHint || tool.Annotations.DestructiveHint ||
+			!tool.Annotations.IdempotentHint || tool.Annotations.OpenWorldHint {
+			t.Fatalf("tool %s annotations = %#v", tool.Name, tool.Annotations)
+		}
+	}
+	return names
+}
+
 func TestReadToolsRefuseConfiguredFilterWithoutExecutingIt(t *testing.T) {
 	for _, tool := range []string{ToolStatus, ToolImpact, ToolQuery, ToolContext, ToolCEMReport} {
 		t.Run(tool, func(t *testing.T) {
@@ -71,7 +92,7 @@ func TestReadToolsRefuseConfiguredFilterWithoutExecutingIt(t *testing.T) {
 			writeFile(t, filepath.Join(root, ".gitattributes"), "*.go filter=hostile\n")
 			gitOutput(t, root, "config", "filter.hostile.clean", "touch '"+marker+"'; cat")
 			writeFile(t, filepath.Join(root, "internal", "widget", "widget.go"), "package pkg\nconst Value = 99\n")
-			registry, err := New(root)
+			registry, err := NewTaskReview(root)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -104,7 +125,7 @@ func TestReadToolsRejectEffectiveWorktreeRedirectBeforeAndAfterAdmission(t *test
 			if !late {
 				gitOutput(t, root, "config", "core.worktree", outside)
 			}
-			registry, err := New(root)
+			registry, err := NewTaskReview(root)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -132,7 +153,7 @@ func TestReadToolsRejectEffectiveWorktreeRedirectBeforeAndAfterAdmission(t *test
 }
 
 func TestCallRejectsUnknownDuplicateAndHostileArgumentsBeforeRepositoryWork(t *testing.T) {
-	registry, err := New(makeRepository(t))
+	registry, err := NewTaskReview(makeRepository(t))
 	if err != nil {
 		t.Fatal(err)
 	}

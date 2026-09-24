@@ -1367,7 +1367,7 @@ MCPV0-004	docs/specs/mcp-server-2026-07-28-v0.md	131	A valid request has exactly
 MCPV0-005	docs/specs/mcp-server-2026-07-28-v0.md	146	The only supported protocol version is exactly `2026-07-28`. Every request, incl
 MCPV0-006	docs/specs/mcp-server-2026-07-28-v0.md	165	`server/discover` MUST return only the implemented surface:
 MCPV0-007	docs/specs/mcp-server-2026-07-28-v0.md	196	`tools/list` is paginated even when one page currently contains all tools. Its c
-MCPV0-008	docs/specs/mcp-server-2026-07-28-v0.md	205	V0 advertises exactly these tools, subject to the implementation schemas frozen
+MCPV0-008	docs/specs/mcp-server-2026-07-28-v0.md	205	V0 advertises exactly these three tools, subject to the implementation schemas f
 MCPV0-009	docs/specs/mcp-server-2026-07-28-v0.md	273	Query `task` contains 1 through 2,000 printable ASCII characters and has no `lim
 MCPV0-010	docs/specs/mcp-server-2026-07-28-v0.md	280	`corvint.status` reports only the exact repository binding already defined by th
 MCPV0-011	docs/specs/mcp-server-2026-07-28-v0.md	290	The dispatcher MUST continue reading frames while a tool request runs. A valid
@@ -1383,8 +1383,9 @@ MCPV0-020	docs/specs/mcp-server-2026-07-28-v0.md	355	`corvint.query` and `corvin
 MCPV0-021	docs/specs/mcp-server-2026-07-28-v0.md	382	All four existing MCP commands MUST accept at most one
 MCPV0-022	docs/specs/mcp-server-2026-07-28-v0.md	388	A legacy connection MUST initialize independently for each Serve invocation. It
 MCPV0-023	docs/specs/mcp-server-2026-07-28-v0.md	404	Legacy calls MUST reuse each existing command's closed tool registry and native
-MCPV0-024	docs/specs/mcp-server-2026-07-28-v0.md	449	`corvint.context` MUST compile the same packet as `corvint context` in process,
-MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	461	`corvint.cem.report` MUST render the `corvint cem report` Markdown, counts, poli
+MCPV0-024	docs/specs/mcp-server-2026-07-28-v0.md	466	`corvint.context` MUST compile the same packet as `corvint context` in process,
+MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	478	`corvint.cem.report` MUST render the `corvint cem report` Markdown, counts, poli
+MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	451	`corvint-mcp` MUST accept at most one `--tool-profile task-review` selector, fol
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	33	The profile MUST bind baseline and candidate repository IDs, immutable commit an
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	37	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	41	The receipt MUST expose raw baseline and candidate totals by kind and state, the

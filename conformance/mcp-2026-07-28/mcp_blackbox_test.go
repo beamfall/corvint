@@ -120,8 +120,7 @@ func TestCaseInventoryIsClosed(t *testing.T) {
 		"cancel-structural", "progress-execution-not-observed", "logging-opt-in", "roots-no-server-call",
 		"clean-eof", "sigint-exit", "sigterm-exit", "no-surviving-descendants",
 		"revision-bound-read-only", "secret-sanitization", "stdout-purity", "git-executable-pinned",
-		"official-schema-traffic", "context-cem-report-read-only", "context-cem-report-argument-rejection",
-		"cem-map-escape-refusal", "cem-report-envelope-and-budget",
+		"official-schema-traffic",
 	}
 	if got.Profile != "corvint-mcp-2026-07-28-conformance/0" || got.ProtocolVersion != protocolVersion ||
 		got.Transport != "stdio" || got.Limits.InputLineBytes != maxLineBytes ||
@@ -275,7 +274,7 @@ func TestToolCatalogueAndResourceOmission(t *testing.T) {
 		t.Fatalf("tool ttlMs=%#v", result["ttlMs"])
 	}
 	tools, ok := result["tools"].([]any)
-	if !ok || len(tools) != 5 {
+	if !ok || len(tools) != 3 {
 		t.Fatalf("tools=%#v", result["tools"])
 	}
 	names := make([]string, 0, len(tools))
@@ -299,7 +298,7 @@ func TestToolCatalogueAndResourceOmission(t *testing.T) {
 			t.Fatalf("tool %s annotations=%s", name, canonicalJSON(annotations))
 		}
 	}
-	if want := []string{"corvint.cem.report", "corvint.context", "corvint.impact", "corvint.query", "corvint.status"}; !reflect.DeepEqual(names, want) {
+	if want := []string{"corvint.impact", "corvint.query", "corvint.status"}; !reflect.DeepEqual(names, want) {
 		t.Fatalf("tool order/names=%v want=%v", names, want)
 	}
 	assertServerInfo(t, result)
@@ -523,6 +522,13 @@ func TestImpactLimitMatchesAdvertisedIntegerSchema(t *testing.T) {
 }
 
 func TestReadToolsRefuseExecutableConfigAndWorktreeRedirects(t *testing.T) {
+	readToolsRefuseExecutableConfigAndWorktreeRedirects(t, nil, []string{"corvint.status", "corvint.impact", "corvint.query"})
+}
+
+// readToolsRefuseExecutableConfigAndWorktreeRedirects starts the server with
+// serverArguments and requires every named tool to refuse a repository whose
+// Git configuration would execute a filter or redirect the worktree.
+func readToolsRefuseExecutableConfigAndWorktreeRedirects(t *testing.T, serverArguments, tools []string) {
 	for _, kind := range []string{"clean", "process", "worktree-before", "worktree-after", "worktree-config"} {
 		t.Run(kind, func(t *testing.T) {
 			root := fixtureRepository(t)
@@ -543,7 +549,7 @@ func TestReadToolsRefuseExecutableConfigAndWorktreeRedirects(t *testing.T) {
 				gitRun(t, root, "config", "extensions.worktreeConfig", "true")
 				gitRun(t, root, "config", "--worktree", "core.worktree", outside)
 			}
-			client := startServer(t, root)
+			client := startServerWithArguments(t, root, serverArguments)
 			defer client.close(t)
 			if kind == "worktree-after" {
 				successResult(t, client.call(t, 1, "tools/list", map[string]any{"_meta": requestMeta()}))
@@ -551,18 +557,8 @@ func TestReadToolsRefuseExecutableConfigAndWorktreeRedirects(t *testing.T) {
 			}
 			before := treeDigest(t, root)
 			outsideBefore := treeDigest(t, outside)
-			head := gitOutput(t, root, "rev-parse", "HEAD")
-			for id, tool := range []string{"corvint.status", "corvint.impact", "corvint.query", "corvint.context", "corvint.cem.report"} {
-				args := map[string]any{}
-				if tool == "corvint.impact" {
-					args["paths"] = []any{"pkg/value.go"}
-				}
-				if tool == "corvint.query" || tool == "corvint.context" {
-					args["task"] = "orient contributor roadmap ticket workflow"
-				}
-				if tool == "corvint.cem.report" {
-					args = map[string]any{"map": ".corvint/change.cem.json", "expectedBase": head, "target": head}
-				}
+			for id, tool := range tools {
+				args := readToolArguments(t, root, tool)
 				result := successResult(t, client.call(t, id+10, "tools/call", map[string]any{"_meta": requestMeta(), "name": tool, "arguments": args}))
 				if result["isError"] != true || object(t, result["structuredContent"])["code"] != "repository-unavailable" {
 					t.Fatalf("unsafe read result=%s", canonicalJSON(result))
@@ -579,6 +575,21 @@ func TestReadToolsRefuseExecutableConfigAndWorktreeRedirects(t *testing.T) {
 			}
 		})
 	}
+}
+
+// readToolArguments is one valid argument object for each read tool.
+func readToolArguments(t *testing.T, root, tool string) map[string]any {
+	t.Helper()
+	switch tool {
+	case "corvint.impact":
+		return map[string]any{"paths": []any{"pkg/value.go"}}
+	case "corvint.query", "corvint.context":
+		return map[string]any{"task": "orient contributor roadmap ticket workflow"}
+	case "corvint.cem.report":
+		head := gitOutput(t, root, "rev-parse", "HEAD")
+		return map[string]any{"map": ".corvint/change.cem.json", "expectedBase": head, "target": head}
+	}
+	return map[string]any{}
 }
 
 func TestReadOnlyCallsBindRevisionAndDoNotLeak(t *testing.T) {

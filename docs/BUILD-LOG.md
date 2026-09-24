@@ -4,6 +4,38 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 V1-0191 MCPV0-024..026, decision 0374: task-review tools move to an opt-in descendant profile
+
+Finding: the first V1-0191 candidate added `corvint.context` and `corvint.cem.report` to the default
+MCP 2026-07-28 V0 tool list and to conformance profile `/0`. Decision 0103 froze that list at three
+tools and requires new tools to use a descendant profile. `extensions/vscode/src/mcp.ts` spawns
+`corvint-mcp --root ROOT` and rejects any tool list other than the three V0 descriptors, so the
+five-tool default would also have broken a shipped client.
+
+Decision 0374 (a wire-contract expert decision made at the owner's request; it does not supersede
+0103):
+- The default stays at exactly three tools (`MCPV0-008`), and profile `/0` keeps its meaning.
+- `--tool-profile task-review` is a closed argv selector (`MCPV0-026`) that follows the
+  `MCPV0-021` rules. It additionally advertises the two tools, and it composes with
+  `--protocol-version 2025-11-25`.
+- An unadvertised tool fails as `unsupported-tool` (`-32602`).
+- Profile `/1` (`cases-task-review.json`) carries the selector and the two tools' cases.
+
+Evidence (Go 1.27.1):
+- Test runs:
+  - `cmd/corvint-mcp`, `internal/mcp/...` and `internal/cem/...` pass.
+  - `conformance/mcp-2026-07-28` passes with `CORVINT_MCP_OFFICIAL_SCHEMA` set, including
+    `TestServerTrafficMatchesOfficialSchema` (profile `/0`) and
+    `TestTaskReviewTrafficMatchesOfficialSchema` (profile `/1`).
+- Negative control, reverted: with `Registry.advertises` returning true for every tool, the
+  following fail.
+  - `TestToolCatalogueAndResourceOmission`
+  - `TestTaskReviewDefaultProfileUnchanged`
+  - `TestTaskReviewLegacyProtocol`
+- Not run:
+  - Official Streamable HTTP conformance, fuzzing, full race and cross-build evidence.
+  - `make gate` (owner preference).
+
 ## 2026-09-23 V1-0198 DIRTY-CACHE-003: linked worktrees each build and store their own index
 
 Finding: linked worktrees of one repository at one commit do not share the immutable index. Each
@@ -435,8 +467,8 @@ without shelling out to the CLI. `corvint cem report` also always publishes
 `.git/corvint/cem-review.md`, which a read-only tool must not do. The CEM Git runner looked `git`
 up on `PATH` at every spawn, outside the start-time pin that `MCPV0-016` requires.
 
-Decision: add `corvint.context` and `corvint.cem.report` (proposed `MCPV0-024`, `MCPV0-025`). This
-amends proposed intent and accepts nothing. Both tools reuse the `MCPV0-007` descriptor rules, the
+Decision: add `corvint.context` and `corvint.cem.report` (`MCPV0-024`, `MCPV0-025`). Decision 0374
+(entry above) later moved them behind an opt-in selector. Both tools reuse the `MCPV0-007` descriptor rules, the
 `MCPV0-008` envelope, terminator-collision refusal and 393,216-byte budget, and a bridge `tool` enum
 widened to five names. Both run in process, with no shell.
 - The context tool builds the CLI packet from an existing snapshot or an in-memory observed index. It
@@ -452,8 +484,8 @@ widened to five names. Both run in process, with no shell.
 - `gitrun.PinBinary` fixes the CEM runner to the Git path `gitstatus.Pin` resolved.
 
 Accepted decision 0103 froze MCP V0 at three tools and names in-place tool additions a silent
-profile broadening. These requirements conflict with it and cannot be accepted until the owner
-supersedes 0103 or moves them to a descendant profile identity. No decision is recorded here.
+profile broadening. This first candidate conflicted with it; decision 0374 resolves that with a
+descendant profile.
 
 `mcp-server-unavailable` stays in `integrations/compatibility.json:73` and both adapter manifests.
 `integrations/README.md:43-45` defines `globalDegradations` as the V7 items `ROADMAP.md:611`
@@ -481,8 +513,8 @@ Evidence: all runs used Go 1.27.1 and the official schema with sha256
 - In-package tests prove preview Markdown byte-identical to the CLI-published file, and probe drift
   returns `REPOSITORY_STATE_UNSTABLE`.
 - Follow-ups:
-  - the VS Code extension's `expectedTools()` already lacked `corvint.status` and now lacks two more
-    tools
+  - (corrected 2026-09-24) the VS Code extension's `expectedTools()` lists exactly the three V0
+    tools, so this candidate's five-tool default would have failed it with `toolset-mismatch`
   - official conformance, fuzzing, complete race and cross-build evidence remain open
 
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)

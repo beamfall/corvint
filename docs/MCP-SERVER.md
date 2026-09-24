@@ -57,8 +57,26 @@ ignores a legacy `notifications/initialized` notification without responding.
 | `corvint.query` | `{"task":"PRINTABLE ASCII TASK"}` | Authority-start context at the native fixed limit of one; unsupported intent abstains |
 | `corvint.impact` | `{"paths":["relative/file.go"],"limit":10}` | Revision-bound Go impact evidence; `limit` is optional, 1–50 |
 | `corvint.status` | `{}` | Exact commit/tree/object-format/profile/worktree/dirty-count-and-digest binding |
-| `corvint.context` | `{"task":"TASK","subject":"relative/path","limit":20}` | The `corvint context` task-context packet at the bound revision; `subject` and `limit` (1–50) are optional; proposed (`MCPV0-024`) |
-| `corvint.cem.report` | `{"map":"relative/change.cem.json","expectedBase":"FULL_OID","target":"FULL_OID"}` | The `corvint cem report` reviewer report as a preview that writes nothing; optional `maxUnknown`/`maxMechanical`; proposed (`MCPV0-025`) |
+
+### Task-review profile (opt-in)
+
+Starting the server with one extra closed selector adds two review tools (`MCPV0-024..026`,
+decision 0374):
+
+```console
+$ /absolute/path/to/corvint-mcp --root /absolute/path/to/repository --tool-profile task-review
+```
+
+| Tool | Arguments | Meaning |
+|---|---|---|
+| `corvint.context` | `{"task":"TASK","subject":"relative/path","limit":20}` | The `corvint context` task-context packet at the bound revision; `subject` and `limit` (1–50) are optional |
+| `corvint.cem.report` | `{"map":"relative/change.cem.json","expectedBase":"FULL_OID","target":"FULL_OID"}` | The `corvint cem report` reviewer report as a preview that writes nothing; optional `maxUnknown`/`maxMechanical` |
+
+The only accepted value is `task-review`, given once, as two separate arguments. Any other value,
+a repeated selector, `--tool-profile=task-review`, or the selector with `--version` exits 2 before
+the repository is opened. Without the selector the server lists exactly the three tools above, and
+a call to `corvint.context` or `corvint.cem.report` fails as an unknown tool (`-32602`). The
+selector composes with `--protocol-version 2025-11-25`, in either order.
 
 Discovery is root-independent and returns `cacheScope: "public"`, `ttlMs: 0`, and fixed server info:
 name `corvint-mcp`, build version, and Corvint description
@@ -74,7 +92,7 @@ ancestor is refused as `cem-map-unavailable`, so a repository file cannot redire
 the bound root. `expectedBase` and `target` must be full object IDs.
 
 Tool names are unique, case-sensitive, 1–128 characters, and use only letters, digits, `_`, `-`,
-or `.`. The five `corvint.*` names follow the official 2026-07-28 grammar.
+or `.`. All `corvint.*` names, in both profiles, follow the official 2026-07-28 grammar.
 
 Successful calls return the complete canonical `corvint-mcp-bridge-result/0` receipt both as one text
 content block and as the identical parsed `structuredContent`. `READY` means the bounded operation
