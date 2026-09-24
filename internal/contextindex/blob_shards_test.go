@@ -88,7 +88,7 @@ func TestBlobShardCorruptionRefusesAccelerationAndReadFallsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	source := built.Sources["cache/demux.go"]
-	target := blobShardPath(built.Root, built.ObjectFormat, analyzerEngine(), source.BlobHash, source.Path)
+	target := blobShardPath(SnapshotDirectory(built.Root), built.ObjectFormat, analyzerEngine(), source.BlobHash, source.Path)
 	original, err := os.ReadFile(target)
 	if err != nil {
 		t.Fatal(err)
@@ -180,7 +180,7 @@ func TestBlobShardAggregateReadBudgetRefusesAcceleration(t *testing.T) {
 	entry := treeEntry{source.Path, source.BlobHash, source.Mode, len(source.Data)}
 	var used blobReadBudget
 	used.bytes.Store(maxBlobShardReadBytes)
-	if _, err := readBlobFact(built.Root, built.ObjectFormat, analyzerEngine(), entry, &used); err == nil {
+	if _, err := readBlobFact(snapshotBase(built.Root), SnapshotDirectory(built.Root), built.ObjectFormat, analyzerEngine(), entry, &used); err == nil {
 		t.Fatal("aggregate byte bound ignored")
 	}
 }
@@ -193,7 +193,7 @@ func TestBlobShardRefusesForgedUnboundedFacts(t *testing.T) {
 	}
 	source := built.Sources["cache/demux.go"]
 	entry := treeEntry{source.Path, source.BlobHash, source.Mode, len(source.Data)}
-	target := blobShardPath(built.Root, built.ObjectFormat, analyzerEngine(), source.BlobHash, source.Path)
+	target := blobShardPath(SnapshotDirectory(built.Root), built.ObjectFormat, analyzerEngine(), source.BlobHash, source.Path)
 	for label, payload := range map[string][]byte{
 		"depth":  []byte(strings.Repeat("[", 33) + strings.Repeat("]", 33)),
 		"tokens": []byte("[" + strings.Repeat("0,", maxBlobShardTokens) + "0]"),
@@ -203,7 +203,7 @@ func TestBlobShardRefusesForgedUnboundedFacts(t *testing.T) {
 			if err := os.WriteFile(target, append(digest[:], payload...), 0o644); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := readBlobFact(built.Root, built.ObjectFormat, analyzerEngine(), entry, nil); err == nil {
+			if _, err := readBlobFact(snapshotBase(built.Root), SnapshotDirectory(built.Root), built.ObjectFormat, analyzerEngine(), entry, nil); err == nil {
 				t.Fatal("forged facts accepted")
 			}
 		})
@@ -216,7 +216,12 @@ func TestBlobShardRefusesForgedUnboundedFacts(t *testing.T) {
 		t.Fatal(err)
 	}
 	file.Close()
-	if _, err := readBlobFact(built.Root, built.ObjectFormat, analyzerEngine(), entry, nil); err == nil {
+	if _, err := readBlobFact(snapshotBase(built.Root), SnapshotDirectory(built.Root), built.ObjectFormat, analyzerEngine(), entry, nil); err == nil {
 		t.Fatal("oversized shard accepted")
 	}
+}
+
+// snapshotBase is the directory that anchors the store's no-follow walks.
+func snapshotBase(root string) string {
+	return locateSnapshotStore(root).base
 }

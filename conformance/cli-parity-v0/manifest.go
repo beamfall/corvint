@@ -653,9 +653,9 @@ func validKnownDivergence(item parityCase) bool {
 // cemActionChoices is the `cem` action list the candidate's invalid-subcommand
 // refusal enumerates: the oracle's seven actions plus `cover` (`TCQ-V0-051`,
 // decision 0347), `discriminate` (`TCQ-V0-055`, decision 0353), `anchor` and
-// `provenance` (`FPK-V0-037`, decision 0355), which the candidate adds last in
-// that order.
-const cemActionChoices = "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover', 'discriminate', 'anchor', 'provenance'"
+// `provenance` (`FPK-V0-037`, decision 0355), and `export` (`RCB-V0-001`),
+// which the candidate adds last in that order.
+const cemActionChoices = "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report', 'cover', 'discriminate', 'anchor', 'provenance', 'export'"
 
 // oracleCEMActionChoices is the retired oracle's seven-action list.
 const oracleCEMActionChoices = "'begin', 'prepare', 'cite', 'mark', 'verify', 'status', 'report'"

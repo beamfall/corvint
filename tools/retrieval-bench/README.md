@@ -108,7 +108,8 @@ the temporary snapshot copies it makes.
 - **Latency** (`latency`): every arm records its wall time per sample (`wall_ms`); the section
   reports, per arm and per cache-state label, nearest-rank p50 and p95, the maximum, and the
   median absolute deviation, never a mean, and `NOT_RUN` below 30 samples. The label is observed,
-  not inferred: before each Corvint verb the harness checks the copy for `.corvint/index` and records
+  not inferred: before each Corvint verb the harness checks the copy for its snapshot store
+  (`.git/corvint/index` in a plain clone, `contextindex.SnapshotDirectory`) and records
   `COLD_UNIQUE` when absent (no prime; every call rebuilds from the tree) or `PRIMED_SHARED` when
   present; the lexical arms are `NOT_APPLICABLE`, and reports written before this field are
   `UNRECORDED`. Tree copies are shared across a snapshot's samples, so the operating-system page

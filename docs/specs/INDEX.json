@@ -983,6 +983,30 @@
     ]
   },
   {
+    "path": "docs/specs/receipt-bundle-v0.md",
+    "title": "Receipt bundle V0",
+    "reqPrefix": "RCB-V0",
+    "intent": "proposed (ticket V1-0197; two ticket deviations await owner confirmation)",
+    "delivery": "experimental",
+    "claim": "`corvint cem export` copies one change's CEM, witness, dogfood and gate receipts into a new directory whose manifest an offline script verifies.",
+    "dependsOn": [
+      "docs/specs/cem-0.2-canonical-binding.md",
+      "docs/specs/go-only-cutover-v0.md",
+      "docs/specs/corvint-witness-v0.md",
+      "docs/specs/release-artifact-integrity-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/receiptbundle/receiptbundle.go",
+      "internal/receiptbundle/receiptbundle_test.go",
+      "cmd/corvint/cem_export.go",
+      "cmd/corvint/cem_export_test.go",
+      "script/verify-receipt-bundle.sh",
+      "script/verify-receipt-bundle_test.sh"
+    ]
+  },
+  {
     "path": "docs/specs/go-format-gate-v0.md",
     "title": "Go format gate V0",
     "reqPrefix": "GFG-V0",
