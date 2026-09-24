@@ -160,6 +160,46 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   worktree is dirty or the recorder refuses `repository-identity-changed`; the subverbs do not
   write ignore rules.
 
+## Code vocabulary
+
+The daily subverbs (`DCW-V0-020`) emit these codes. A change-step code marks that step
+`NOT_PRODUCED`; a check code fails `dogfood check`; a window code is reported `NOT_OBSERVED`.
+
+Base anchoring, refused by every subverb:
+
+- `anchor-ref-unavailable`: the configured anchor ref, or its merge base with `HEAD`, cannot be read.
+- `multiple-anchor-refs`: more than one anchor ref is configured.
+- `anchor-merge-base-ambiguous`: `HEAD` and the anchor ref have no single merge base.
+- `base-not-anchored`: `BASE` is not that merge base.
+
+`dogfood change` steps:
+
+- `context-abstention-evidence-failed`, `context-abstention-invalid`: the pre-change `impact`
+  abstention did not run, or did not refuse with exactly `unsupported-impact-range`.
+- `citation-plan-not-provided`, `citation-plan-unavailable`, `invalid-citation-plan`: no citation
+  plan was given, its path is not a regular file, or its rows are malformed.
+- `citation-stage-exists`, `citation-stage-cleanup-failed`: a staged citation file from an earlier
+  pass is still present, or could not be removed.
+- `cem-map-not-produced`: `cem cite` left no `.corvint/change.cem.json`.
+- `ocm-link-plan-unavailable`, `empty-ocm-link-plan`, `invalid-ocm-link-plan`: the
+  `DOGFOOD_OCM_LINKS` plan is missing, empty, or malformed or over 256 rows.
+
+`dogfood check`:
+
+- `cem-map-missing`: `.corvint/change.cem.json` is not present to check.
+- `cem-policy`, `ocm-policy`: the CEM or OCM policy check exited non-zero; `ocm-policy` is used
+  when the OCM check names no code of its own.
+- `context-abstention-evidence-drift`: the report's abstention row, the retained artifact and its
+  recorded digest disagree.
+- `dogfood-report-write`: the report could not be written.
+- `previous-cem-absent`, `previous-cem-base-unavailable`, `window-unavailable`,
+  `window-exceeds-256-commits`, `window-cem-base-unavailable`: the window of commits since the
+  previous CEM cannot be observed.
+
+`dogfood seal`:
+
+- `nothing-to-seal`: the bind commit at `HEAD` does not track `.corvint/change.cem.json`.
+
 ## Non-goals and baseline
 
 This slice creates no daemon, dispatcher, general autonomous authority, new language rewrite,
