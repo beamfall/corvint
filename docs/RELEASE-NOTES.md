@@ -1,5 +1,43 @@
 # Release notes
 
+## 0.8.1 prerelease
+
+`v0.8.1` makes the daily change-evidence path run from the installed binary. `corvint dogfood
+change`, `check` and `seal` now work in any repository outside Corvint's own tree (V1-0236); an
+installed 0.8.0 refused `dogfood change`. A first pass whose CEM sidecar is still untracked reports
+`local-outcome: record-index-failed` instead of `complete: true` (V1-0175). Re-citing onto an
+already cited map prints the delete-and-rerun step (V1-0174). The reviewer command in DOGFOOD.md
+section 6 names the sealed map and the bind commit (V1-0180). The daily subverbs' refusal and step
+codes are owned by `daily-change-evidence-workflow-v0` (`DCW-V0-020`). A Core-only release candidate
+assembles without companion input (V1-0229, `PRS-V1-005`). `corvint work` and `gitstatus` name their
+refusal reasons and bind a symlinked `--corvint-executable` (#156, #157). The OpenCode adapter
+registers nothing outside a Git repository and keeps expected file-change refusals off the terminal
+(decision 0378). The release checklist's tag row accepts the notes commit on the gated HEAD
+(V1-0223). A `host-lifecycle-qualification-v1` runner checks exact host tuples, and its intent
+is accepted with retained runner reports required (decision 0381); its first results, for 0.8.0,
+predate that rule and are stale for 0.8.1, so V1-0016 stays open. The 0.7.0 to
+0.8.0 N-1 upgrade is qualified (V1-0190), and opt-in reciprocal rank fusion is specified (V1-0219).
+Two test fixes restore main's `go-product` CI (#166).
+
+The published prerelease is `Corvint 0.8.1 (build 82)`, commit
+`1281e2695ee87ff29009a97f913a0e6f0d0f530d`, built from a clean GitHub clone of `origin/main` at that
+commit, which is on its first-parent chain. The full gate passed at that commit and
+`script/release-checklist --pre-promotion` reports `native-runtime`, `go-archive` and `full-gate`
+PASS. The first gate attempt, at `2a8d1ec` (build 81), failed on a cancellation race in the
+`dogfood-measure` test and then on a stale work-queue obligation count in `internal/lrfrepo`; #166
+fixed both, and the release moved to its merge. The archives were built twice byte-identically
+(5 of 5), `SHA256SUMS` verified independently, and the four Darwin/Linux archives are published with
+`SHA256SUMS` and `verification-report.json`; the Windows zip is emitted but not a qualified target.
+The install lifecycle passed in same-bytes mode and as the N-1 upgrade from 0.8.0 (build 65) on
+darwin arm64, darwin amd64 (Rosetta 2) and linux arm64 (the local `golang:1.27.1` container, not
+native hardware); linux amd64 is `NOT_RUN`, as no amd64 host or image was available. The hostile
+regression matrix passed on darwin arm64, with `memory-resident` `NOT_COVERED`. Native performance
+stays `NOT_RUN` (owner-cancelled, GOC-V0-005), and the optional companion and
+installed-qualification gates were not run. Not produced: no task-store release is promoted at
+publication; no post-commit CEM binding covers this range. It is unsigned, with publisher identity
+`NOT_VERIFIED`.
+
+
 ## 0.8.0 prerelease
 
 `v0.8.0` is the "dependable integrations and operations" step. It freezes the Core command, wire
