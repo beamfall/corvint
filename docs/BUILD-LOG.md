@@ -4,6 +4,14 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 0.8.1 version tuple and DCW code vocabulary (decision 0381 item 11)
+
+The version tuple moves to 0.8.1 for the pre-release decision 0381 item 11 approved. Release prep
+found `make error-code-ownership-check` failing on main: #160 added 26 `dogfood change/check/seal`
+refusal and step codes that no spec named. The new "Code vocabulary" section of
+`daily-change-evidence-workflow-v0` owns them (`DCW-V0-020`). CI runs neither that check nor the
+other doc checks, so the gap reached main unobserved; a follow-up ticket covers it.
+
 ## 2026-09-24 Decision 0381 items 1 and 11: HLQ-V1 intent accepted, 0.8.1 approved
 
 The owner approved the two open items of decision 0381 on 2026-09-24. The intent of
