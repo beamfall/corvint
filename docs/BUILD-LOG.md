@@ -4,6 +4,31 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 V1-0190 SOP-V0-003 / PRS-V1-002: 0.7.0 to 0.8.0 N-1 upgrade qualification
+
+`script/check-install-lifecycle.sh` at `3cd62ca9`, with `CORVINT_LIFECYCLE_ARCHIVE` set to the
+published 0.7.0 archive for the tuple and `CORVINT_LIFECYCLE_UPGRADE_BINARY` set to the `corvint`
+from the published 0.8.0 archive for the same tuple. Both releases were downloaded with
+`gh release download` and `shasum -a 256 -c SHA256SUMS` passed for all eight archives.
+
+| Tuple | 0.7.0 archive sha256 | 0.8.0 archive sha256 | Run |
+|---|---|---|---|
+| darwin arm64 | `230b68d8c03806732d84afc041ee4622b6d9c1ba37acd06f112b3ba07bb18282` | `2174898d52f906e61de643b0c10e5d528eaea6aca34ede445b57ccc44b38a8c2` | native host |
+| darwin amd64 | `549fed9b7c201f0601c683b777a7b3ce29e06b7afe88bf118b5e89760eec1dcf` | `4d6cab6981525c4d4e90a76ca08712159dbed475cfb5a80db96bac3833d15d6f` | Rosetta 2 on the arm64 host |
+| linux arm64 | `a03f04442ec7ffc3af408a73457ab68a7ffb9b33f0d5b8d13475534d3ace3981` | `69d6fe01139519e4ce4ba5ab67cc47ab6cc70f394a4bad5be478908f235d9f22` | `golang:1.27.1` container, git 2.47.3 |
+| linux amd64 | `03d4712ef30f6487293f93b4cda52428721ceafd30dcf3e8090a37e4073328f7` | `9325237ea860903b86bc293fbda5269cec38b1913b283caac85397a3f40006af` | `golang:1.27.1` linux/amd64 image under QEMU emulation |
+
+Every run reported `install-a` `Corvint 0.7.0 (build 46)`, `upgrade-b` `Corvint 0.8.0 (build 65)
+packet=changed`, `rollback-a ok` (the 0.7.0 packet after the upgrade is byte-identical to the first
+packet), `uninstall`, `backup-restore`, `corrupt-truncate` and `corrupt-overwrite` `ok`, and
+`SUMMARY status=PASS`. The four step reports are retained outside the repository.
+
+The 0.6.0 to 0.7.0 `upgrade-b` failure under the decision 0341 rule is now recorded in
+`stable-operations-v0.md` as a closed historical finding, and this run as the current N-1 evidence;
+the 1.0 spec traces `PRS-V1-002` to it. V1-0016 has not yet fixed the supported tuple list, so all
+four tuples were run. linux amd64 ran emulated, not on native hardware, so it is not native Core
+platform evidence for `PRS-V1-004`. Full gate NOT_RUN (owner policy).
+
 ## 2026-09-24 Decision 0376: owner acceptance of DCW-V0-018/019, AFP-V0-021 and RCB-V0 intent
 
 The owner approved a listed set of pending acceptances ("approved to all", 2026-09-24). Decision
