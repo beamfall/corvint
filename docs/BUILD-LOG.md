@@ -4,6 +4,25 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-24 Decision 0381: path choices from 0.9 to 1.0 (V1-0235)
+
+Two independent read-only reviews, an evidence-ledger audit and a product-strategy review, decided
+the open 1.0 questions. Where they disagreed, the one with direct evidence won: the store refuses to
+close V1-0016 (unsatisfied dependency, missing approval, `full-gate` NOT_RUN), and V1-0189 was
+already delivered by #117 and #146. The owner applied the store changes on 2026-09-24 (25 mutations,
+`receipt audit` CONSISTENT, head seq 469):
+
+- Six features deferred past 1.0 at P2 and dropped from v0-8: V1-0023, V1-0154, V1-0191, V1-0195,
+  V1-0201, V1-0205.
+- V1-0174, V1-0175, V1-0180 and V1-0229 raised to P1.
+- V1-0173, V1-0188 (trimmed to criterion 1) and V1-0189 completed manually.
+- V1-0005 and V1-0016 moved to v0-9.
+- Release chain: v0-7 now follows v0-5, and v0-9 follows v0-6 and v0-8.
+
+Finding: readiness stops at the missing candidate; `release candidate` binds ticket digests without
+checking status, and promotion needs each bound ticket COMPLETED and unchanged: close scope first.
+HLQ-V1 acceptance (item 1) and 0.8.1 publication (item 11)
+remain proposed pending the owner.
 ## 2026-09-24 V1-0229 PRS-V1-005: Core-only candidate assembler
 
 Finding: the reader and installer have admitted `corvint-core-release-candidate/0` since V1-0125,
