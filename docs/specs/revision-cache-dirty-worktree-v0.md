@@ -139,19 +139,20 @@ canary, leaves a child process after interruption, or creates treatment-only cri
 misses. Do not add worktree overlays unless a separately accepted contract defines explicit consent,
 snapshot identity, secret handling, and independent outcome gates.
 
-Measured evidence, linked worktrees (V1-0198, 2026-09-23, `docs/BUILD-LOG.md`): the native Go
-snapshot lives in each worktree's own `.corvint/index/`. That path is
-`internal/contextindex/snapshot.go:142-144@fe5dad2c` under the `--root` worktree, and its file
-name is `internal/contextindex/snapshot.go:166-167@74ceb0e3`. The "repository root" in
-`DIRTY-CACHE-002`'s key is therefore the worktree root. `script/measure-worktree-index-share.sh`
+Measured evidence, linked worktrees (V1-0198, 2026-09-23, `docs/BUILD-LOG.md`, before V1-0212):
+the native Go snapshot then lived in each worktree's own `.corvint/index/`, so the "repository
+root" in `DIRTY-CACHE-002`'s key was the worktree root. `script/measure-worktree-index-share.sh`
 created three linked worktrees at one commit, and each built and stored its own clean base: three
 `index --if-stale` builds, 72,803,003 bytes each, and no snapshot in the Git common dir. A query
 with no snapshot rebuilt in memory on every run. The host load average was about 80, so wall times
 are diagnostic only. The dirty view did behave as `DIRTY-CACHE-003` requires within each
 worktree. A tracked edit gave that worktree's query `mixed-worktree` without a rebuild. The
 snapshot bytes did not change, a sibling worktree's query stayed `fresh`, and the edited worktree
-returned to `fresh` after the restore. Sharing one clean base across linked worktrees is not
-delivered; BUG V1-0212 tracks it.
+returned to `fresh` after the restore. V1-0212 (`DIRTY-CACHE-013`) since shares one clean base:
+the store is `corvint/index` under the Git common directory, or the worktree's own
+`.corvint/index` when that directory cannot be resolved
+(`internal/contextindex/snapshot.go:167-172@e10b4d1c`), and each snapshot's file name is
+`internal/contextindex/snapshot.go:209-210@cd3a98c5`.
 
 ## Traceability
 
