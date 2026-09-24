@@ -55,9 +55,11 @@ say otherwise.
 ### Qualified local candidate and versioned install
 
 `corvint-release-candidate` closes the verified core and companion outputs into
-`corvint-v<version>-qualified`. Verify its top-level `SHA256SUMS`, then read `MANIFEST.json` and
-`QUALIFICATION.json`; `NOT_RUN` is never a platform pass. The candidate is local evidence, not a
-tag, signature, upload, publication or promotion.
+`corvint-v<version>-qualified`. Omit `-companion-dir` to close only the core gate output and the
+source root's Corvint source into a Core-only `corvint-v<version>-core` candidate. Verify its
+top-level `SHA256SUMS`, then read `MANIFEST.json` and `QUALIFICATION.json`; `NOT_RUN` is never a
+platform pass. The candidate is local evidence, not a tag, signature, upload, publication or
+promotion.
 
 ```sh
 go run ./cmd/corvint-release-candidate \
