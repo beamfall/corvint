@@ -172,7 +172,7 @@
       "evidence": {
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/contract.json",
-          "sha256": "11e5432d77f85cea386f096c88e30fe4528a5250e536684b0c1cccb89b993cb0"
+          "sha256": "a8252a08c3dde518d78e0f21fa906322e20f2397404b3256a3eaa8ca8444f7d8"
         },
         "corvint-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/corvint-dogfood.json",
@@ -201,7 +201,7 @@
       "evidence": {
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/contract.json",
-          "sha256": "d7a6006803d70e6532a1248b91163d30cde167e4d586a96c7cc298742dcc5e02"
+          "sha256": "e972fa00acc18f833cab526bc1e388d7809d866c4cd415a6d9f4ef52f907e0be"
         },
         "corvint-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/corvint-dogfood.json",
@@ -230,7 +230,7 @@
       "evidence": {
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/contract.json",
-          "sha256": "3870726aba7c73ab29f4be265752dd60293a5b4a1dc0f73fc34f840351f0e1ea"
+          "sha256": "0e5a49b88f036411d22ac9cee7bbd60977e5d10ed073b8942ec181b550d18d05"
         },
         "corvint-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/corvint-dogfood.json",
@@ -242,7 +242,7 @@
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/implementation.json",
-          "sha256": "16aaad37fa659103e41b1a20f839926c8233f0eb84b62a4916e9b8688baee706"
+          "sha256": "d5a09b471b063262ee77deb8cae69682df92273209ebb4cc50b80c3822c1f2e3"
         },
         "sealed-benchmark": {
           "path": "benchmarks/daily-loop-v0/receipts/run-002/UC-EVIDENCE-CARRYING-COMPLETION.json",
