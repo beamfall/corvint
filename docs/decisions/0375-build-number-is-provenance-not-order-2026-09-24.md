@@ -17,7 +17,7 @@ lineage or carry an offset.
 A second, independent defect surfaced during this review: `0.7.0`'s released commit
 `41f2b68934ce0d7b2ee6f0b22e31dab41ddffa25` is not on `origin/main`'s first-parent chain at all
 (`git rev-list --first-parent --count` finds it 0 times on that chain, though it is a normal
-ancestor). `docs/RELEASE-NOTES.md:72-73@6a77dbd2` records why: "the release source was a clean local clone of
+ancestor). `docs/RELEASE-NOTES.md:110-111@6a77dbd2` records why: "the release source was a clean local clone of
 the integration branch at that commit rather than a GitHub clone, because nothing was pushed before
 tagging." The commit that actually sits at first-parent position 46 on `origin/main` is an unrelated
 merge, `e9a6e5456cfb0e7dbc72482fc3c43688c4f1372a` ("Merge pull request #131 from
@@ -38,7 +38,7 @@ number is not part of the pin." `SOP-V0-003` (`docs/specs/stable-operations-v0.m
 decision 0360) compares upgrade/cold-index packet bytes, never build numbers, and a real N-1
 lifecycle upgrade from `0.6.0 (build 90)` into the installed `0.7.0 (build 46)` passed
 (`docs/BUILD-LOG.md:2374@b85d8a61`) even though the published build numbers went down (0.6.0 build 90, 0.7.0
-build 46, `docs/RELEASE-NOTES.md:63,86@1528a86b`). `origin/main`'s current first-parent count already exceeds
+build 46, `docs/RELEASE-NOTES.md:101,124@1528a86b`). `origin/main`'s current first-parent count already exceeds
 46, so the two published builds are not even the closest collision risk going forward.
 
 ## Decision
