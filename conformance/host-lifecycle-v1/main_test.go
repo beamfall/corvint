@@ -54,6 +54,22 @@ func TestListed(t *testing.T) {
 	}
 }
 
+func TestRowIsScopedToSelector(t *testing.T) {
+	claude := "Installed plugins:\n\n  ❯ other@m\n    Version: 0.2.3\n    Status: ✔ enabled\n  ❯ corvint@corvint\n    Version: 0.2.2\n    Status: ✘ disabled\n"
+	text := row(claude, "corvint@corvint")
+	if !strings.Contains(text, "disabled") || strings.Contains(text, "0.2.3") || strings.Contains(text, "✔ enabled") {
+		t.Errorf("Claude Code row %q", text)
+	}
+	codex := "corvint@corvint-source  installed, disabled  0.2.2  /x\nother@m  installed, enabled  0.2.3  /y\n"
+	text = row(codex, "corvint@corvint-source")
+	if strings.Contains(text, "0.2.3") || strings.Contains(text, " enabled") {
+		t.Errorf("Codex row %q", text)
+	}
+	if row(codex, "absent@m") != "" {
+		t.Error("absent selector has a row")
+	}
+}
+
 func TestReadHooks(t *testing.T) {
 	directory := t.TempDir()
 	argvShape := filepath.Join(directory, "argv.json")
@@ -71,6 +87,13 @@ func TestReadHooks(t *testing.T) {
 	shell, err := readHooks(shellShape, true)
 	if err != nil || strings.Join(shell["Stop"], " ") != "corvint adapter codex" {
 		t.Fatalf("shell shape: %v %v", shell, err)
+	}
+	several := filepath.Join(directory, "several.json")
+	if err := os.WriteFile(several, []byte(`{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"corvint adapter codex"}]},{"hooks":[{"type":"command","command":"other"}]}]}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readHooks(several, true); err == nil {
+		t.Fatal("an event with two commands was accepted")
 	}
 }
 

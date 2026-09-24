@@ -16,11 +16,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -34,6 +36,8 @@ const (
 	envelopeBegin = "BEGIN CORVINT REPOSITORY DATA"
 	envelopeEnd   = "END CORVINT REPOSITORY DATA"
 	sessionID     = "hlq-session"
+	// codexThreadID differs from sessionID so a Codex Stop binds only through the environment.
+	codexThreadID = "hlq-thread"
 	changedSource = "package fx\n\n// Add returns a+b.\nfunc Add(a, b int) int { return b + a }\n"
 )
 
@@ -100,6 +104,8 @@ type runner struct {
 	host           string
 	profile        hostProfile
 	source         string // checkout root holding integrations/
+	sourceRevision string
+	corvintVersion string
 	current, base  string
 	work, bin      string
 	home, hostHome string
@@ -140,6 +146,17 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	defer os.RemoveAll(r.work)
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-signals
+		os.RemoveAll(r.work)
+		os.Exit(2)
+	}()
+	if err := r.prepare(); err != nil {
+		fmt.Fprintln(stderr, "host-lifecycle-v1:", err)
+		return 2
+	}
 	if *host == "cli" {
 		r.runCLI()
 	} else {
@@ -156,8 +173,9 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	return summaryExit(r.results)
 }
 
-func newRunner(host, current, base, source string) (*runner, error) {
-	current, err := filepath.Abs(current)
+// newRunner creates the private workspace (HLQ-V1-003) and removes it again on any setup error.
+func newRunner(host, current, base, source string) (r *runner, err error) {
+	current, err = filepath.Abs(current)
 	if err != nil {
 		return nil, err
 	}
@@ -173,10 +191,15 @@ func newRunner(host, current, base, source string) (*runner, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			os.RemoveAll(work)
+		}
+	}()
 	if work, err = filepath.EvalSymlinks(work); err != nil {
 		return nil, err
 	}
-	r := &runner{host: host, profile: profiles[host], source: source, current: current, base: base, work: work,
+	r = &runner{host: host, profile: profiles[host], source: source, current: current, base: base, work: work,
 		bin: filepath.Join(work, "bin"), home: filepath.Join(work, "home"), fixture: filepath.Join(work, "fixture")}
 	for _, directory := range []string{r.bin, r.home} {
 		if err := os.MkdirAll(directory, 0o755); err != nil {
@@ -199,13 +222,55 @@ func newRunner(host, current, base, source string) (*runner, error) {
 		}
 	}
 	path = append(path, "/usr/bin", "/bin", "/usr/sbin", "/sbin")
+	// A corvint beside the host or Git would resolve once the private one is removed.
+	for _, directory := range path[1:] {
+		if _, err := os.Stat(filepath.Join(directory, "corvint")); err == nil {
+			return nil, fmt.Errorf("%s holds a corvint that the private PATH would resolve", directory)
+		}
+	}
 	r.environment = []string{"PATH=" + strings.Join(path, ":"), "HOME=" + r.home, "TMPDIR=" + work, "LANG=C", "LC_ALL=C",
 		"GIT_CONFIG_NOSYSTEM=1", "GIT_AUTHOR_NAME=Lifecycle", "GIT_AUTHOR_EMAIL=lifecycle@example.invalid",
 		"GIT_COMMITTER_NAME=Lifecycle", "GIT_COMMITTER_EMAIL=lifecycle@example.invalid"}
 	if host != "cli" {
 		r.environment = append(r.environment, r.profile.homeVariable+"="+r.hostHome)
 	}
+	status, err := r.ok(source, "git", "status", "--porcelain")
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(status) != "" {
+		return nil, fmt.Errorf("--source %s is not clean: %s", source, firstLine(status))
+	}
+	if r.sourceRevision, err = r.ok(source, "git", "rev-parse", "HEAD"); err != nil {
+		return nil, err
+	}
+	r.sourceRevision = strings.TrimSpace(r.sourceRevision)
 	return r, nil
+}
+
+// prepare fixes the tuple identity (HLQ-V1-001) and, for a plugin host, the fixture. A failure is
+// a setup error (exit 2), never a case result.
+func (r *runner) prepare() error {
+	version, err := r.versionOf(r.current)
+	if err != nil || !strings.HasPrefix(version, "Corvint ") {
+		return fmt.Errorf("cannot identify %s: %q %v", r.current, firstLine(version), err)
+	}
+	r.corvintVersion = version
+	if r.host == "cli" {
+		r.hostVersion, r.adapterVersion = "none", "none"
+		return nil
+	}
+	output, err := r.ok(r.work, r.hostExecutable, "--version")
+	if err != nil {
+		return err
+	}
+	if r.hostVersion = hostVersion(output); r.hostVersion == "unknown" {
+		return fmt.Errorf("cannot read the %s version from %q", r.profile.executable, firstLine(output))
+	}
+	if r.adapterVersion, err = readManifestVersion(filepath.Join(r.pluginSource(), r.profile.manifest)); err != nil {
+		return err
+	}
+	return r.setupFixture()
 }
 
 // exec runs argv with the private environment in directory and returns stdout, stderr and the
@@ -259,6 +324,20 @@ func (r *runner) step(name string, body func() (string, error)) {
 }
 
 var errNotRun = errors.New("not run")
+
+// unchanged runs a case and then requires the fixture worktree to be unchanged (HLQ-V1-006).
+func (r *runner) unchanged(body func() (string, error)) func() (string, error) {
+	return func() (string, error) {
+		detail, err := body()
+		if err != nil {
+			return detail, err
+		}
+		if err := r.worktreeClean(); err != nil {
+			return "", err
+		}
+		return detail + "; fixture unchanged afterwards", nil
+	}
+}
 
 func (r *runner) installCorvint(source string) (string, error) {
 	data, err := os.ReadFile(source)
@@ -331,8 +410,6 @@ func (r *runner) setupFixture() error {
 // ---- plain CLI tuple ----
 
 func (r *runner) runCLI() {
-	r.adapterVersion = "none"
-	r.hostVersion = "none"
 	r.step("install", func() (string, error) {
 		version, err := r.installCorvint(r.current)
 		if err != nil {
@@ -378,7 +455,7 @@ func (r *runner) runCLI() {
 		}
 		return "query cites add.go at its HEAD blob", nil
 	})
-	r.step("change", func() (string, error) {
+	r.step("change", r.unchanged(func() (string, error) {
 		if err := os.WriteFile(filepath.Join(r.fixture, "add.go"), []byte(changedSource), 0o644); err != nil {
 			return "", err
 		}
@@ -395,8 +472,8 @@ func (r *runner) runCLI() {
 			return "", fmt.Errorf("impact identifiers tool=%v mode=%v", document["tool"], nested["mode"])
 		}
 		return "impact on the edited add.go: tool=impact mode=impact", nil
-	})
-	r.step("frontier", r.cliFrontier)
+	}))
+	r.step("frontier", r.unchanged(r.cliFrontier))
 	r.step("degradation", func() (string, error) {
 		outside := filepath.Join(r.work, "not-a-repository")
 		if err := os.MkdirAll(outside, 0o755); err != nil {
@@ -431,13 +508,18 @@ func (r *runner) runCLI() {
 		if err != nil {
 			return "", err
 		}
-		if _, err := r.ok(r.fixture, "corvint", "index", "--if-stale"); err != nil {
+		// A snapshot is keyed by the binary that wrote it, so the replaced binary must rebuild.
+		probe, err := r.jsonOK(r.fixture, "corvint", "index", "--if-stale")
+		if err != nil {
 			return "", err
+		}
+		if probe["state"] == "fresh" || probe["ok"] != true {
+			return "", fmt.Errorf("index --if-stale after the upgrade reported %v, not a rebuild", probe["state"])
 		}
 		if _, err := r.jsonOK(r.fixture, "corvint", "context", "--task", "Explain add.go"); err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("%s indexed, replaced by %s, index --if-stale and context succeed", from, to), nil
+		return fmt.Sprintf("%s indexed; replaced by %s, index --if-stale rebuilt instead of reusing the N-1 snapshot; context succeeds", from, to), nil
 	})
 	r.step("uninstall", func() (string, error) {
 		if err := os.Remove(filepath.Join(r.bin, "corvint")); err != nil {
@@ -503,21 +585,7 @@ func (r *runner) cliFrontier() (string, error) {
 // ---- plugin host tuples ----
 
 func (r *runner) runPlugin() {
-	version, err := r.ok(r.work, r.hostExecutable, "--version")
-	r.hostVersion = hostVersion(version)
-	if err != nil {
-		r.hostVersion = "unknown"
-	}
-	manifest, err := readManifestVersion(filepath.Join(r.pluginSource(), r.profile.manifest))
-	r.adapterVersion = manifest
-	if err != nil {
-		r.adapterVersion = "unknown"
-	}
-	setupErr := r.setupFixture()
 	r.step("install", func() (string, error) {
-		if setupErr != nil {
-			return "", setupErr
-		}
 		for _, argv := range r.profile.install {
 			if _, err := r.hostCommand(substitute(argv, r.marketplaceSource())...); err != nil {
 				return "", err
@@ -527,7 +595,7 @@ func (r *runner) runPlugin() {
 		if err != nil {
 			return "", err
 		}
-		if !listed(listing, r.profile.selector) || !strings.Contains(listing, r.adapterVersion) {
+		if !listed(listing, r.profile.selector) || !strings.Contains(row(listing, r.profile.selector), r.adapterVersion) {
 			return "", fmt.Errorf("host listing does not show %s at %s", r.profile.selector, r.adapterVersion)
 		}
 		r.pluginRoot = filepath.Join(r.hostHome, r.profile.cacheDirectory, r.adapterVersion)
@@ -565,7 +633,7 @@ func (r *runner) runPlugin() {
 		if err != nil {
 			return "", err
 		}
-		if !strings.Contains(strings.ToLower(listing), "enabled") {
+		if !strings.Contains(strings.ToLower(row(listing, r.profile.selector)), "enabled") {
 			return "", fmt.Errorf("host listing does not report the plugin enabled")
 		}
 		return fmt.Sprintf("host reports it enabled; hooks %s and %d skill", strings.Join(events, ","), len(skills)), nil
@@ -599,8 +667,8 @@ func (r *runner) runPlugin() {
 		}
 		return "UserPromptSubmit naming add.go returns task evidence at its HEAD blob", nil
 	})
-	r.step("change", r.pluginChange)
-	r.step("frontier", r.pluginFrontier)
+	r.step("change", r.unchanged(r.pluginChange))
+	r.step("frontier", r.unchanged(r.pluginFrontier))
 	r.step("degradation", func() (string, error) {
 		output, err := r.hook("SessionStart", []byte("{not json"), nil)
 		if err != nil {
@@ -655,7 +723,7 @@ func (r *runner) runPlugin() {
 				if err != nil {
 					return "", err
 				}
-				if !strings.Contains(strings.ToLower(listing), "disabled") {
+				if !strings.Contains(strings.ToLower(row(listing, r.profile.selector)), "disabled") {
 					return "", fmt.Errorf("host listing does not report the plugin disabled")
 				}
 			}
@@ -676,12 +744,12 @@ func (r *runner) runPlugin() {
 			}
 			retired, removal = r.pluginRoot, "installed plugin root retired by the host with .orphaned_at for deferred host cleanup"
 		}
-		residue, err := corvintResidue(r.hostHome, retired)
+		residue, err := corvintResidue(r.home, retired)
 		if err != nil {
 			return "", err
 		}
 		if len(residue) != 0 {
-			return "", fmt.Errorf("host home retains corvint state: %s", strings.Join(residue, ", "))
+			return "", fmt.Errorf("private HOME retains corvint state: %s", strings.Join(residue, ", "))
 		}
 		if err := r.worktreeClean(); err != nil {
 			return "", err
@@ -690,7 +758,7 @@ func (r *runner) runPlugin() {
 		for _, argv := range r.profile.uninstall {
 			steps = append(steps, strings.Join(argv[1:3], " "))
 		}
-		return "host " + strings.Join(steps, ", ") + " succeed; " + removal + "; no other corvint state in the host home; fixture unchanged", nil
+		return "host " + strings.Join(steps, ", ") + " succeed; " + removal + "; no other corvint state in the private HOME; fixture unchanged", nil
 	})
 }
 
@@ -736,8 +804,12 @@ func (r *runner) pluginFrontier() (string, error) {
 	if r.hooks == nil {
 		return "", fmt.Errorf("discovery did not complete")
 	}
+	key, environment, err := r.sessionKey()
+	if err != nil {
+		return "", err
+	}
 	stop := func(active bool) (map[string]any, error) {
-		output, err := r.hook("Stop", r.payload("Stop", map[string]any{"stop_hook_active": active, "last_assistant_message": "done"}), nil)
+		output, err := r.hook("Stop", r.payload("Stop", map[string]any{"stop_hook_active": active, "last_assistant_message": "done"}), environment)
 		if err != nil {
 			return nil, err
 		}
@@ -761,10 +833,6 @@ func (r *runner) pluginFrontier() (string, error) {
 	plan := filepath.Join(r.work, "plan.json")
 	body := fmt.Sprintf(`{"base":%q,"checks":[{"argv":["true"],"id":"noop","timeoutSeconds":10}],"intents":["add.go"]}`, head)
 	if err := os.WriteFile(plan, []byte(body), 0o600); err != nil {
-		return "", err
-	}
-	key, environment, err := r.sessionKey()
-	if err != nil {
 		return "", err
 	}
 	begin := append([]string{"corvint", "dogfood", "begin", "--plan", plan}, key...)
@@ -792,10 +860,10 @@ func (r *runner) pluginFrontier() (string, error) {
 
 // sessionKey returns the dogfood key arguments and environment that bind an enrollment to the
 // hook session: Claude Code prints its explicit key in SessionStart guidance; Codex hashes the
-// thread id from the environment (docs/DOGFOOD.md).
+// thread id from the environment (docs/DOGFOOD.md), which the Stop hook then receives too.
 func (r *runner) sessionKey() ([]string, []string, error) {
 	if r.host == "codex" {
-		return nil, []string{"CODEX_THREAD_ID=" + sessionID}, nil
+		return nil, []string{"CODEX_THREAD_ID=" + codexThreadID}, nil
 	}
 	_, text, err := r.contextHook("SessionStart", map[string]any{"source": "startup"})
 	if err != nil {
@@ -934,7 +1002,8 @@ func substitute(argv []string, source string) []string {
 	return out
 }
 
-// readHooks maps each registered hook event to the argv its first command runs.
+// readHooks maps each registered hook event to the argv of its one command; an event that
+// registers no command or several is an error.
 func readHooks(path string, shellCommand bool) (map[string][]string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -953,8 +1022,12 @@ func readHooks(path string, shellCommand bool) (map[string][]string, error) {
 	}
 	hooks := map[string][]string{}
 	for event, groups := range document.Hooks {
-		if len(groups) == 0 || len(groups[0].Hooks) == 0 {
-			return nil, fmt.Errorf("%s registers no command", event)
+		count := 0
+		for _, group := range groups {
+			count += len(group.Hooks)
+		}
+		if count != 1 {
+			return nil, fmt.Errorf("%s registers %d commands, not one", event, count)
 		}
 		command := groups[0].Hooks[0]
 		argv := append([]string{command.Command}, command.Args...)
@@ -1020,8 +1093,8 @@ func sameTree(source, installed string) (int, error) {
 	return count, nil
 }
 
-// corvintResidue lists host-home files whose path or content still names corvint, outside the
-// host-retired plugin root when there is one.
+// corvintResidue lists files under home whose path or content still names corvint, outside the
+// host-retired plugin root when there is one. Every file is read, whatever its size.
 func corvintResidue(home, retired string) ([]string, error) {
 	var residue []string
 	err := filepath.WalkDir(home, func(path string, entry os.DirEntry, err error) error {
@@ -1039,10 +1112,6 @@ func corvintResidue(home, retired string) ([]string, error) {
 			residue = append(residue, relative)
 			return nil
 		}
-		info, err := entry.Info()
-		if err != nil || info.Size() > 1<<20 {
-			return err
-		}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
@@ -1055,15 +1124,35 @@ func corvintResidue(home, retired string) ([]string, error) {
 	return residue, err
 }
 
-// listed reports whether a host plugin listing has a row for selector.
+// listed reports whether a host plugin listing has an installed row for selector.
 func listed(listing, selector string) bool {
-	for _, line := range strings.Split(listing, "\n") {
+	text := row(listing, selector)
+	return text != "" && !strings.Contains(text, "not installed")
+}
+
+// row returns selector's row of a host plugin listing: its line and the more deeply indented
+// lines under it, or "" when the listing has no row for selector.
+func row(listing, selector string) string {
+	lines := strings.Split(listing, "\n")
+	for index, line := range lines {
 		fields := strings.Fields(strings.TrimLeft(strings.TrimSpace(line), "❯ "))
-		if len(fields) != 0 && fields[0] == selector && !strings.Contains(line, "not installed") {
-			return true
+		if len(fields) == 0 || fields[0] != selector {
+			continue
 		}
+		block := []string{line}
+		for _, next := range lines[index+1:] {
+			if strings.TrimSpace(next) == "" || indentation(next) <= indentation(line) {
+				break
+			}
+			block = append(block, next)
+		}
+		return strings.Join(block, "\n")
 	}
-	return false
+	return ""
+}
+
+func indentation(line string) int {
+	return len(line) - len(strings.TrimLeft(line, " \t"))
 }
 
 // missingCoreVerbs returns the Core verbs absent from the root help's Core maturity section.
@@ -1111,9 +1200,8 @@ func (r *runner) render() string {
 	if r.host == "cli" {
 		surface = "native"
 	}
-	current, _ := r.versionOf(r.current)
-	fmt.Fprintf(&out, "host-lifecycle-v1\thost=%s\tsurface=%s\thostVersion=%s\tadapterVersion=%s\tos=%s/%s\tcorvint=%s\n",
-		r.host, surface, r.hostVersion, r.adapterVersion, runtime.GOOS, runtime.GOARCH, current)
+	fmt.Fprintf(&out, "host-lifecycle-v1\thost=%s\tsurface=%s\thostVersion=%s\tadapterVersion=%s\tos=%s/%s\tcorvint=%s\tsource=%s\n",
+		r.host, surface, r.hostVersion, r.adapterVersion, runtime.GOOS, runtime.GOARCH, r.corvintVersion, r.sourceRevision)
 	passed, failed, notRun := 0, 0, 0
 	for _, name := range caseOrder {
 		item := result{name, "NOT_RUN", "case did not execute"}

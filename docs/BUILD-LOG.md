@@ -26,13 +26,34 @@ Findings while building the runner:
 - `corvint help` and a Core refusal envelope are written to stderr.
 - Claude Code 2.1.267 does not delete an uninstalled plugin version. It marks the cache directory
   with `.orphaned_at` and removes it later. The uninstall predicate accepts that marker and checks
-  every other host-home file for Corvint residue.
+  every other file under the private `HOME` for Corvint residue.
 - An isolated Codex home has no hook trust and Codex has no plugin disable verb. Both are recorded
   as known gaps.
 
 Supplementary live runs: Codex injected the envelope at SessionStart and UserPromptSubmit in a real
 session. Claude Code reported both hook responses, but its model call failed on an expired OAuth
 session. linux tuples `NOT_RUN`. Full gate NOT_RUN (owner policy).
+
+An independent review returned CONCERNS, and each finding was fixed in the runner or narrowed in the
+contract before the rerun:
+
+- The upgrade case claimed the current binary reads the N-1 index. A snapshot is keyed by the
+  binary that wrote it, so the current binary never reads it. The case now requires
+  `index --if-stale` to rebuild rather than report `state=fresh`.
+- The tuple identity is now enforced: an unreadable host, adapter or corvint version, a failed
+  fixture setup, a dirty `--source`, or an operator `corvint` beside the host or Git exits 2 before
+  any case runs. The report names the source revision.
+- The worktree is checked after the change and frontier cases as well as at uninstall. The residue
+  scan covers the whole private `HOME` and reads every file.
+- Each hook event must register exactly one command. The enabled, disabled and version checks read
+  the plugin's own listing row.
+- The Codex Stop hook now receives `CODEX_THREAD_ID`, which differs from the payload session id.
+- A setup error or an interrupt removes the workspace.
+- `HLQ-V1-006` now names what is checked: enveloped context receipts, `git status --porcelain`, and
+  `<git-dir>/corvint/` excluded.
+
+The rerun used plugin sources from a clean `e667812` checkout. The packages are unchanged since
+`df66aba4`. All three tuples passed 9/9 again.
 
 ## 2026-09-24 V1-0190 SOP-V0-003 / PRS-V1-002: 0.7.0 to 0.8.0 N-1 upgrade qualification
 

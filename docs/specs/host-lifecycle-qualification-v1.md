@@ -35,7 +35,10 @@ behaviour inside a live model session.
 
 - **HLQ-V1-001:** A tuple MUST be named by its surface (`native` or `plugin`), the host executable
   and its exact version, the adapter package version from the installed plugin manifest, the OS and
-  architecture, and the exact `corvint --version` line. A result binds only that tuple. A tuple that
+  architecture, and the exact `corvint --version` line, and its report names the revision of the
+  clean checkout that supplied the plugin package. The runner MUST exit 2 without running any case
+  when it cannot determine one of these, or when `--source` is not clean. A result binds only that
+  tuple. A tuple that
   was not run, or whose run did not pass all nine cases, keeps the support its `compatibility.json`
   declares and MUST NOT inherit another tuple's result.
 - **HLQ-V1-002:** The runner MUST execute the nine cases in this order, report each as `PASS`,
@@ -43,21 +46,24 @@ behaviour inside a live model session.
 
   | Case | Plain CLI predicate | Plugin host predicate | Owning requirement |
   |---|---|---|---|
-  | install | the binary is copied onto a private `PATH` and `--version` prints `Corvint …` | the host's marketplace-add and install commands succeed; the host listing shows the plugin at the manifest version; the installed package is byte-equal to the source package | `AHI-002` |
-  | discovery | root help's Core section lists the twelve `CCF-V1-001` verbs | the host reports the plugin enabled; every registered hook event runs `corvint adapter <host>`; the registered event set is exact; the package has a skill | `AHI-002` |
+  | install | the binary is copied onto a private `PATH` and `--version` prints `Corvint …` | the host's marketplace-add and install commands succeed; the plugin's own row in the host listing shows the manifest version; the installed package is byte-equal to the source package | `AHI-002` |
+  | discovery | root help's Core section lists the twelve `CCF-V1-001` verbs | the plugin's row in the host listing reports it enabled; every registered hook event runs exactly one command, `corvint adapter <host>`; the registered event set is exact; the package has a skill | `AHI-002` |
   | context | `context --task` returns `tool=context`, `schema_version=1` | SessionStart returns a repository-data envelope whose receipt is `ok`, `mutates=false`, profile `corvint-dogfood-event/0`, pinned to the fixture HEAD with a clean worktree | `AHI-003` |
   | expansion | `query --task "Explain add.go"` cites `add.go` at its HEAD blob | UserPromptSubmit naming `add.go` returns task evidence for `add.go` at its HEAD blob | `AHI-004` |
   | change | `impact add.go` on the edited file returns `tool=impact`, `mode=impact` | after an edit, Claude Code's PostToolUse returns a harness receipt, and the next prompt receipt on either host reports one dirty path and a non-clean worktree | `AHI-007` |
-  | frontier | a committed change with an `unknown` CEM hunk and an OCM over one requirement yields `frontier/0` `OPEN` with exit 1 | an unenrolled Stop releases; after `dogfood begin` bound to the hook session, an incomplete Stop blocks once and names the unavailable Frontier authority; the recursive Stop releases | `AHI-006` |
+  | frontier | a committed change with an `unknown` CEM hunk and an OCM over one requirement yields `frontier/0` `OPEN` with exit 1 | an unenrolled Stop releases; after `dogfood begin` bound to the hook session, an incomplete Stop blocks once and names the unavailable Frontier authority; the recursive Stop releases. On Codex the enrollment and every Stop receive `CODEX_THREAD_ID`, which differs from the payload `session_id`, so the Stop binds only through the environment | `AHI-006` |
   | degradation | outside a Git repository `context` exits 2 with `ok=false`, `code=invalid-arguments` and writes nothing | malformed hook JSON exits 0 with a visible `malformed-hook-json` degradation and "coding continues" | `AHI-009` |
-  | upgrade | an index built by the N-1 binary is read by the current binary through `index --if-stale` and `context` | the registered hooks serve valid context under the N-1 binary and after its replacement by the current binary; the host's reinstall keeps the package byte-equal | `AHI-002` |
-  | uninstall | the binary is removed and no longer resolves; the fixture worktree is unchanged | the host's disable (Claude Code: then enable), uninstall and marketplace-remove commands succeed; the host no longer lists the plugin; the installed root is gone or carries the host's own `.orphaned_at` retirement marker; no other host-home file names corvint; the fixture worktree is unchanged | `AHI-002` |
+  | upgrade | after the N-1 binary indexes the fixture and is replaced, the current binary does not reuse its snapshot: `index --if-stale` rebuilds instead of reporting `state=fresh` (a snapshot is keyed by the binary that wrote it), and `context` succeeds | the registered hooks serve valid context under the N-1 binary and after its replacement by the current binary; the host's reinstall keeps the package byte-equal | `AHI-002` |
+  | uninstall | the binary is removed and no longer resolves; the fixture worktree is unchanged | the host's disable (Claude Code: then enable), uninstall and marketplace-remove commands succeed; the host no longer lists the plugin; the installed root is gone or carries the host's own `.orphaned_at` retirement marker; no other file under the private `HOME`, whatever its size, names corvint; the fixture worktree is unchanged | `AHI-002` |
 
 - **HLQ-V1-003:** Each run MUST happen in a fresh private workspace: `HOME`, `CLAUDE_CONFIG_DIR`
   and `CODEX_HOME` point inside it, and `PATH` holds only the private `corvint` directory, the host
   executable's directory, Git's directory and the system directories. Command names MUST resolve
   against that private `PATH`, never the runner's own. The runner MUST NOT read or write the
-  operator's host homes, credentials or settings, and MUST remove the workspace when it exits.
+  operator's host homes, credentials or settings. It MUST exit 2 when a directory on that `PATH`
+  other than the private one holds a `corvint`, because that binary would resolve once the private
+  one is removed. It MUST remove the workspace when it exits, including after a setup error or an
+  interrupt.
 - **HLQ-V1-004:** Plugin hook cases MUST run the command each hook event registers in the package
   the host installed, read from the installed `hooks/hooks.json`, with a host-shaped JSON payload on
   stdin. This tests the installed adapter at the host's hook boundary. It does not test the host's
@@ -68,9 +74,12 @@ behaviour inside a live model session.
   FALLBACK on exact versions. FULL support and protected authority are off the Core path (decision
   0373 item 6).
 - **HLQ-V1-006:** Adapters MUST retain no independent knowledge store. A run shows this when every
-  hook receipt reports `mutates=false`, the uninstall case finds no Corvint state in the host home
-  outside the host-retired package root, and the fixture worktree is unchanged after the change,
-  frontier and uninstall cases.
+  enveloped context receipt reports `mutates=false`, the uninstall case finds no Corvint state in
+  the private `HOME` outside the host-retired package root, and `git status --porcelain` reports
+  the fixture worktree unchanged after the change, frontier and uninstall cases. Ignored paths and
+  the Git directory are not compared: Corvint keeps its derived index snapshot and its local
+  completion state under `<git-dir>/corvint/`. PostToolUse and Stop outputs are
+  checked for their own predicates, not for a `mutates` field.
 - **HLQ-V1-007:** The runner MUST print one header line, then one `case` line for each case, then a
   `SUMMARY` line with the counts. Fields are tab-separated. It exits 0 only when all nine cases pass,
   1 otherwise, and 2 on a usage or setup error.
@@ -90,7 +99,9 @@ GOTOOLCHAIN=local go run ./conformance/host-lifecycle-v1 \
 
 ## Results
 
-Run on 2026-09-24 on darwin/arm64 (Darwin 25.6.0). Plugin sources came from `df66aba4`. The
+Run on 2026-09-24 on darwin/arm64 (Darwin 25.6.0). Plugin sources came from a clean checkout of
+`e667812381ab4d5c860dde753e0a7580ec3c975d`; the Claude Code and Codex packages are unchanged since
+`df66aba4`. The
 current binary is the `corvint` from the published v0.8.0 `corvint_darwin_arm64.tar.gz`, sha256
 `95ae7446dd249c659db3a0571b39e05dee5ba83f113cf061f1a20cd0604a710e` (`Corvint 0.8.0 (build 65)`).
 The N-1 binary is the `corvint` from the published v0.7.0 archive, sha256
@@ -130,8 +141,8 @@ Supplementary live observations, not part of the nine cases:
 
 | Requirement | Evidence |
 |---|---|
-| HLQ-V1-001, HLQ-V1-007 | `conformance/host-lifecycle-v1` header and report lines; `TestSummaryExitRequiresAllNinePass` |
-| HLQ-V1-002 | Results table; `TestEnvelopedReceipt`, `TestMissingCoreVerbs`, `TestListed`, `TestSessionKeyPattern` |
+| HLQ-V1-001, HLQ-V1-007 | `conformance/host-lifecycle-v1` header and report lines, and `prepare`; `TestSummaryExitRequiresAllNinePass`; a dirty `--source` exits 2 |
+| HLQ-V1-002 | Results table; `TestEnvelopedReceipt`, `TestMissingCoreVerbs`, `TestListed`, `TestRowIsScopedToSelector`, `TestSessionKeyPattern` |
 | HLQ-V1-003 | the runner's private environment and `lookPath`; the uninstall case reporting the removed binary unresolvable |
 | HLQ-V1-004 | `TestReadHooks`; the discovery case |
 | HLQ-V1-005, HLQ-V1-008 | Results; support stays FALLBACK in both `compatibility.json` files |
