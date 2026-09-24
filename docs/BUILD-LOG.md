@@ -243,6 +243,49 @@ attempts a match, instead of a graph frontier that would widen every plan; no pa
 repository reaches it. A lex error under a `testdata` or `_`-prefixed directory no longer raises
 `go:unparsed-source`.
 
+## 2026-09-23 V1-0199 SESSION-V0-017..019: a dogfood handoff receipt re-resolves or reports drift
+
+Finding: a handed-off enrollment kept its session key and root (LCP-V0-003), but nothing named the
+context the sender compiled. A receiving session re-derived its dogfood prompt packet and could see
+different evidence after a commit without any signal.
+
+Decision: add the read-only `corvint dogfood handoff` subverb under the existing `dogfood` verb, not
+a new root verb and not a change to the frozen `dogfood status` output, so status stays cheap. The
+emitted receipt names the key, root, bound revision, enrollment, sorted anchor tokens each with a
+per-anchor evidence digest, the SHA-256 and bytes of the unchanged `corvint-dogfood-prompt/0`
+packet, and the degradation list. It carries `authority: none` and is repeated inside the untrusted
+data envelope. With `--receipt`, the receiver recompiles and either returns the byte-identical packet
+(exit 0) or reports ordered root, revision, enrollment, anchor and packet drift and withholds the
+recompiled packet (exit 1). The slice is recorded as SESSION-V0-017..019 in the otherwise deferred
+session-context-dividend spec. SESSION-V0-001..016 stay deferred. CCF-V1-002 lists `handoff` as an
+unpinned dogfood mode.
+
+Evidence: `TestDogfoodHandoffReceiptReresolvesSamePacket` (same revision re-resolves the same
+digest and bytes, and neither step changes private state) and
+`TestDogfoodHandoffReportsRevisionAndAnchorDrift` (a commit that moves the anchored requirement line
+reports revision drift and drift for that anchor only; a foreign key, a malformed receipt and
+exclusive options fail closed). `go test ./cmd/corvint`, `go vet ./cmd/corvint` and the spec
+index, requirement, traceability, decision-number and line-citation checks pass. The post-commit
+CEM bind, check and seal loop was not run for this change.
+
+Review repair (independent review, same day): receipt fields are untrusted, so the receiver now
+accepts only a document whose bytes equal what `emit` produces for its decoded value (this rejects
+duplicate, case-folded, unknown and reordered members, reformatting and trailing data; it is
+stricter than the unexported `strictJSON`/`wire.Parse` path, which a mutation check showed added
+nothing) and whose every field has its emitted shape: clean absolute root of at most 4096 bytes,
+lowercase-hex or empty revisions and plan digest, closed worktree and lifecycle enums, the constant
+packet profile and bytes in 1..budget. Drift rows echo only validated values. Stdout escapes
+non-ASCII, so exit 0 now returns `packetBase64` with exactly the digested bytes rather than claiming
+byte identity for escaped JSON; the test hashes the decoded bytes of a non-ASCII fixture. Consume
+reports current degradations, roots compare as symlink-resolved Git toplevels, and the spec now
+says the receipt re-resolves the handoff packet (budget 8000, anchor-only task text), not an earlier
+prompt-event packet. The session-context-dividend MUST NOT sentence now carries the V1-0199
+exception itself (owner review pending). Added evidence:
+`TestDogfoodHandoffReportsEnrollmentDriftAndDegradations`,
+`TestDogfoodHandoffRefusesMalformedReceiptsAndAnchors`, `TestDogfoodHandoffRefusesUnstableRepository`
+(through a probe seam) and the unix-only `TestDogfoodHandoffReceiptUnavailable` (symlink, FIFO,
+oversized, missing), plus a no-write assertion on the drift path.
+
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
 
 Finding: nothing stated which Corvint commands are safe as a triggered CI, hook or team-automation

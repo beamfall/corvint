@@ -68,9 +68,9 @@ state or profile had changed since that baseline; this change adds only root-hel
   CF-V0); this contract pins only the identifiers above and neither restates nor changes those schemas.
   NOT_PRODUCED: no pinned mode for `cem begin`, `prepare`, `cite`, `mark`, `report`, `cover`,
   `discriminate`, `anchor` and `provenance`; `ocm prepare`, `link`, `mark` and `report`; the frontier
-  human rendering and dynamic test mode; and `dogfood begin`, `verify`, `finish`, `review` and
-  `cancel`. They are Core verbs' modes without a frozen identifier until a later change pins them with
-  a test.
+  human rendering and dynamic test mode; and `dogfood begin`, `verify`, `finish`, `review`,
+  `handoff` and `cancel`. They are Core verbs' modes without a frozen identifier until a later change
+  pins them with a test.
 - **CCF-V1-003:** These modes and profiles MUST stay outside the freeze and MUST NOT be advertised as
   Core compatibility: `impact --provider*`, `--repository` and `--range-profile expanded-256`;
   `affected --snapshot`, `--playwright-config`, `--provider*` and `--selection-profile`; `prove --cem`,

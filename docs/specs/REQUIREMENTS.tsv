@@ -1806,22 +1806,25 @@ SEG-018	docs/specs/semantic-escalation-gate-v0.md	128	The experimental gate MAY 
 SEG-019	docs/specs/semantic-escalation-gate-v0.md	137	A typed-choice response MUST contain exactly one complete object with exact-case
 SEG-020	docs/specs/semantic-escalation-gate-v0.md	143	A typed-choice provider MUST NOT author an evidence handle, excerpt, authority,
 SEG-021	docs/specs/semantic-escalation-gate-v0.md	147	Typed-choice eligibility MUST require its exact response schema and MUST NOT cha
-SESSION-V0-001	docs/specs/session-context-dividend-v0.md	64	`session begin` MUST pin the full `HEAD` commit and tree, task-key, SHA-256 and
-SESSION-V0-002	docs/specs/session-context-dividend-v0.md	71	V0 MUST store receipts and deltas only beneath the actual `.git/corvint/sessions
-SESSION-V0-003	docs/specs/session-context-dividend-v0.md	76	a receipt MUST be canonical UTF-8 JSON Lines with one terminal LF per event.
-SESSION-V0-004	docs/specs/session-context-dividend-v0.md	83	the state machine MUST contain exactly one generated `begin`, zero or more
-SESSION-V0-005	docs/specs/session-context-dividend-v0.md	87	event input MUST use exact per-type fields and enumerations with no extension
-SESSION-V0-006	docs/specs/session-context-dividend-v0.md	93	an `evidence` observation MUST accept a tracked repository-relative path plus a
-SESSION-V0-007	docs/specs/session-context-dividend-v0.md	97	`opened`, `broad-search`, and `change` observations MUST be typed counters or
-SESSION-V0-008	docs/specs/session-context-dividend-v0.md	105	the receipt MUST accept exactly one terminal observation for each external
-SESSION-V0-009	docs/specs/session-context-dividend-v0.md	115	`session close` MUST require a full target commit, preserve outcome
-SESSION-V0-010	docs/specs/session-context-dividend-v0.md	120	`session verify` MUST be read-only and independently reject a malformed receipt
-SESSION-V0-011	docs/specs/session-context-dividend-v0.md	126	every V0 delta MUST be same-repository `LOCAL_ONLY` and non-composable because
-SESSION-V0-012	docs/specs/session-context-dividend-v0.md	131	a later `session begin` MAY reuse only a structurally verified, exact task-key
-SESSION-V0-013	docs/specs/session-context-dividend-v0.md	141	failed, blocked, reverted, conflicting, stale, ambiguous, deleted, malformed,
-SESSION-V0-014	docs/specs/session-context-dividend-v0.md	145	V0 MUST bound an event to 16 KiB, a receipt or delta to 4 MiB, a session to 1,00
-SESSION-V0-015	docs/specs/session-context-dividend-v0.md	149	existing `query`, `impact`, `feature`, `eval`, and `session verify` reads MUST N
-SESSION-V0-016	docs/specs/session-context-dividend-v0.md	153	Corvint MUST dogfood the public lifecycle on the next substantive Corvint change
+SESSION-V0-001	docs/specs/session-context-dividend-v0.md	67	`session begin` MUST pin the full `HEAD` commit and tree, task-key, SHA-256 and
+SESSION-V0-002	docs/specs/session-context-dividend-v0.md	74	V0 MUST store receipts and deltas only beneath the actual `.git/corvint/sessions
+SESSION-V0-003	docs/specs/session-context-dividend-v0.md	79	a receipt MUST be canonical UTF-8 JSON Lines with one terminal LF per event.
+SESSION-V0-004	docs/specs/session-context-dividend-v0.md	86	the state machine MUST contain exactly one generated `begin`, zero or more
+SESSION-V0-005	docs/specs/session-context-dividend-v0.md	90	event input MUST use exact per-type fields and enumerations with no extension
+SESSION-V0-006	docs/specs/session-context-dividend-v0.md	96	an `evidence` observation MUST accept a tracked repository-relative path plus a
+SESSION-V0-007	docs/specs/session-context-dividend-v0.md	100	`opened`, `broad-search`, and `change` observations MUST be typed counters or
+SESSION-V0-008	docs/specs/session-context-dividend-v0.md	108	the receipt MUST accept exactly one terminal observation for each external
+SESSION-V0-009	docs/specs/session-context-dividend-v0.md	118	`session close` MUST require a full target commit, preserve outcome
+SESSION-V0-010	docs/specs/session-context-dividend-v0.md	123	`session verify` MUST be read-only and independently reject a malformed receipt
+SESSION-V0-011	docs/specs/session-context-dividend-v0.md	129	every V0 delta MUST be same-repository `LOCAL_ONLY` and non-composable because
+SESSION-V0-012	docs/specs/session-context-dividend-v0.md	134	a later `session begin` MAY reuse only a structurally verified, exact task-key
+SESSION-V0-013	docs/specs/session-context-dividend-v0.md	144	failed, blocked, reverted, conflicting, stale, ambiguous, deleted, malformed,
+SESSION-V0-014	docs/specs/session-context-dividend-v0.md	148	V0 MUST bound an event to 16 KiB, a receipt or delta to 4 MiB, a session to 1,00
+SESSION-V0-015	docs/specs/session-context-dividend-v0.md	152	existing `query`, `impact`, `feature`, `eval`, and `session verify` reads MUST N
+SESSION-V0-016	docs/specs/session-context-dividend-v0.md	156	Corvint MUST dogfood the public lifecycle on the next substantive Corvint change
+SESSION-V0-017	docs/specs/session-context-dividend-v0.md	170	`corvint dogfood handoff [--session-key KEY] [--anchors TEXT]` MUST be read-only
+SESSION-V0-018	docs/specs/session-context-dividend-v0.md	183	The receipt MUST carry `authority: none` and be emitted a second time framed by
+SESSION-V0-019	docs/specs/session-context-dividend-v0.md	198	`corvint dogfood handoff [--session-key KEY] --receipt FILE` MUST be read-only,
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	26	accept only exact finite language/version/toolchain/stage tuples, never a neares
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	35	use the experimental `shader` family extension: a request has the fixed transpor
 SHA-V0-003	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	41	facts carry an inclusive/exclusive byte span (zero-based bytes, one-based byte c

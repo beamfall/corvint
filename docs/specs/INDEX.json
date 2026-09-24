@@ -1821,14 +1821,16 @@
     "title": "Session Context Dividend V0",
     "reqPrefix": "SESSION-V0",
     "intent": "proposed",
-    "delivery": "deferred",
+    "delivery": "partial (handoff-receipt slice SESSION-V0-017..019 experimental; SESSION-V0-001..016 deferred)",
     "claim": "Exact-key local session receipts may reuse still-valid evidence without treating outcomes or producer metrics as truth.",
     "dependsOn": [
       "docs/specs/technical-brain-dogfood.md"
     ],
     "supersededBy": null,
     "closableToday": false,
-    "implementation": []
+    "implementation": [
+      "cmd/corvint/dogfood_handoff.go"
+    ]
   },
   {
     "path": "docs/specs/shader-glsl-metal-analyzer-candidate-v0.md",

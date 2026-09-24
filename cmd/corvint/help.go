@@ -1116,6 +1116,8 @@ Usage:
   corvint [--root PATH] dogfood finish [--session-key HASH]
   corvint [--root PATH] dogfood review --report-set DIGEST [--session-key HASH]
   corvint [--root PATH] dogfood cancel [--session-key HASH]
+  corvint [--root PATH] dogfood handoff [--anchors "ANCHOR..."] [--session-key HASH]
+  corvint [--root PATH] dogfood handoff --receipt FILE [--session-key HASH]
 
 A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
 and optional allowCemSidecarOnlyReuse (false by default). Session keys are 64 hex
@@ -1130,6 +1132,13 @@ runs the strict dogfood check and records satisfaction only on success.
 Status is read-only. Missing evidence remains incomplete. Cancellation is explicit
 non-success. Local satisfaction is caller-owned workflow evidence, never execution
 attestation or Frontier closure. Native event is a separate bounded adapter profile.
+
+handoff is read-only. Without --receipt it emits a receipt naming the session key,
+root, bound revision, sorted task anchors, prompt packet sha256 and bytes, and
+degradations. With --receipt FILE (that emitted document) it re-resolves the same
+packet and prints its exact bytes as packetBase64, or exits 1 reporting the exact
+root, revision, enrollment, anchor and packet drift and withholds the recompiled
+packet. The receipt grants no authority.
 `
 
 // rootPreambleValue reports whether arguments[index] may be consumed as the value of a bare `--root`
