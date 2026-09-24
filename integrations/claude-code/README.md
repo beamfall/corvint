@@ -77,5 +77,7 @@ packet stays the model-facing rehydration, and it now opens with a disclosure sa
 names and payloads were read from the installed Claude Code 2.1.267; a host without these events
 ignores the registration silently, and no live compaction cycle has been run against them.
 
-The exact tested range and unavailable capabilities are in
-`plugins/corvint/compatibility.json`. Static validation is not black-box conformance.
+The shipped declaration `plugins/corvint/compatibility.json` records the static validation at
+package build; static validation is not black-box conformance. The published matrix
+(`../compatibility.json`) records the later installed-lifecycle PASS for Claude Code `2.1.267` with
+adapter `0.2.3` on darwin-arm64 against Corvint 0.8.1.

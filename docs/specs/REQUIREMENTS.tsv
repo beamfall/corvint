@@ -80,26 +80,26 @@ AHI-007	docs/specs/agent-harness-integration-v0.md	123	Change and merge lifecycl
 AHI-008	docs/specs/agent-harness-integration-v0.md	125	The adapter MUST obey the host's sandbox, approval, secret, environment, telemet
 AHI-009	docs/specs/agent-harness-integration-v0.md	127	Unsupported or changed host capabilities MUST fail closed for evidence capture a
 AHI-010	docs/specs/agent-harness-integration-v0.md	133	Each release MUST publish tested host-version ranges, adapter and protocol versi
-AHI-011	docs/specs/agent-harness-integration-v0.md	146	Native APIs MUST remain behind versioned adapters. Recognised host identifiers M
-AHI-012	docs/specs/agent-harness-integration-v0.md	153	The integration MUST meet a cold query p95 of 500 ms after the Corvint index is
-AHI-013	docs/specs/agent-harness-integration-v0.md	161	Default injected context MUST be smaller than the manual-search baseline at equa
-AHI-014	docs/specs/agent-harness-integration-v0.md	164	Host wrappers MUST NOT send raw session IDs, transcripts, environment maps, tool
-AHI-015	docs/specs/agent-harness-integration-v0.md	173	Adapter packages MUST share the lifecycle command above, and host admission MUST
-AHI-016	docs/specs/agent-harness-integration-v0.md	177	A native wrapper that receives a trimmed user prompt over either task bound MAY
-AHI-017	docs/specs/agent-harness-integration-v0.md	190	A native adapter that runs as a host-killed process MUST derive every Corvint de
-AHI-018	docs/specs/agent-harness-integration-v0.md	208	A test harness that stands in for the host MAY state a longer host kill only thr
-AHI-019	docs/specs/agent-harness-integration-v0.md	215	A Claude Code `post-tool` event whose Edit/Write/NotebookEdit target (the
-AHI-020	docs/specs/agent-harness-integration-v0.md	232	Each host package's own manifest version (`integrations/claude-code/plugins/corv
-AHI-021	docs/specs/agent-harness-integration-v0.md	243	The Claude Code adapter MUST NOT emit a user-visible `systemMessage` for a routi
-AHI-022	docs/specs/agent-harness-integration-v0.md	275	The Gemini CLI and OpenCode adapters MUST apply the `AHI-021` split. A routine
-AHI-023	docs/specs/agent-harness-integration-v0.md	307	An adapter MUST report the host version its host actually provides, and MUST NOT
-AHI-024	docs/specs/agent-harness-integration-v0.md	324	The experimental Pi extension MUST use runtime-provided version `0.85.1`, adapte
-AHI-025	docs/specs/agent-harness-integration-v0.md	391	The owner-requested complete Pi integration MUST expose native model-callable
-AHI-026	docs/specs/agent-harness-integration-v0.md	428	The Claude Code plugin MUST register the compaction hook events the installed ho
-AHI-027	docs/specs/agent-harness-integration-v0.md	438	`pre-compact` MUST emit, as plain stdout the host joins verbatim into the compac
-AHI-028	docs/specs/agent-harness-integration-v0.md	446	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv
-AHI-029	docs/specs/agent-harness-integration-v0.md	457	Neither compaction event writes repository, index, trace, or store state; the on
-AHI-030	docs/specs/agent-harness-integration-v0.md	459	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
+AHI-011	docs/specs/agent-harness-integration-v0.md	150	Native APIs MUST remain behind versioned adapters. Recognised host identifiers M
+AHI-012	docs/specs/agent-harness-integration-v0.md	157	The integration MUST meet a cold query p95 of 500 ms after the Corvint index is
+AHI-013	docs/specs/agent-harness-integration-v0.md	165	Default injected context MUST be smaller than the manual-search baseline at equa
+AHI-014	docs/specs/agent-harness-integration-v0.md	168	Host wrappers MUST NOT send raw session IDs, transcripts, environment maps, tool
+AHI-015	docs/specs/agent-harness-integration-v0.md	177	Adapter packages MUST share the lifecycle command above, and host admission MUST
+AHI-016	docs/specs/agent-harness-integration-v0.md	181	A native wrapper that receives a trimmed user prompt over either task bound MAY
+AHI-017	docs/specs/agent-harness-integration-v0.md	194	A native adapter that runs as a host-killed process MUST derive every Corvint de
+AHI-018	docs/specs/agent-harness-integration-v0.md	212	A test harness that stands in for the host MAY state a longer host kill only thr
+AHI-019	docs/specs/agent-harness-integration-v0.md	219	A Claude Code `post-tool` event whose Edit/Write/NotebookEdit target (the
+AHI-020	docs/specs/agent-harness-integration-v0.md	236	Each host package's own manifest version (`integrations/claude-code/plugins/corv
+AHI-021	docs/specs/agent-harness-integration-v0.md	247	The Claude Code adapter MUST NOT emit a user-visible `systemMessage` for a routi
+AHI-022	docs/specs/agent-harness-integration-v0.md	279	The Gemini CLI and OpenCode adapters MUST apply the `AHI-021` split. A routine
+AHI-023	docs/specs/agent-harness-integration-v0.md	311	An adapter MUST report the host version its host actually provides, and MUST NOT
+AHI-024	docs/specs/agent-harness-integration-v0.md	328	The experimental Pi extension MUST use runtime-provided version `0.85.1`, adapte
+AHI-025	docs/specs/agent-harness-integration-v0.md	395	The owner-requested complete Pi integration MUST expose native model-callable
+AHI-026	docs/specs/agent-harness-integration-v0.md	432	The Claude Code plugin MUST register the compaction hook events the installed ho
+AHI-027	docs/specs/agent-harness-integration-v0.md	442	`pre-compact` MUST emit, as plain stdout the host joins verbatim into the compac
+AHI-028	docs/specs/agent-harness-integration-v0.md	450	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv
+AHI-029	docs/specs/agent-harness-integration-v0.md	461	Neither compaction event writes repository, index, trace, or store state; the on
+AHI-030	docs/specs/agent-harness-integration-v0.md	463	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
