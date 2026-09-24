@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -285,16 +286,12 @@ func testWorkInitBindsExplicitExecutable(t *testing.T) {
 	})
 }
 
-// WQO-V0-049: relative, missing, linked, unsafe-parent and repository-owned
-// executables are refused before initialization writes anything.
+// WQO-V0-049: relative, missing, unsafe-parent and repository-owned executables,
+// reached directly or through a symlink, are refused before init writes anything.
 func TestWorkInitRejectsUnqualifiedExecutableWQOV0049(t *testing.T) {
 	binary := workBoundCorvint(t)
 	fixtureRoot, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
-		t.Fatal(err)
-	}
-	linked := filepath.Join(fixtureRoot, "linked-corvint")
-	if err := os.Symlink(binary, linked); err != nil {
 		t.Fatal(err)
 	}
 	unsafe := filepath.Join(fixtureRoot, "unsafe", "corvint")
@@ -302,31 +299,109 @@ func TestWorkInitRejectsUnqualifiedExecutableWQOV0049(t *testing.T) {
 	if err := os.Chmod(filepath.Dir(unsafe), 0777); err != nil {
 		t.Fatal(err)
 	}
+	link := func(target, path string) string {
+		if err := os.Symlink(target, path); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	repositoryLocal := func(root string) string {
+		path := filepath.Join(root, "bin", "corvint")
+		workCopyExecutable(t, binary, path)
+		return path
+	}
 	for _, test := range []struct {
-		name string
-		path func(string) string
+		name, reason string
+		path         func(string) string
 	}{
-		{"relative", func(string) string { return "corvint" }},
-		{"missing", func(string) string { return filepath.Join(fixtureRoot, "missing") }},
-		{"symlink", func(string) string { return linked }},
-		{"unsafe-parent", func(string) string { return unsafe }},
-		{"repository-local", func(root string) string {
-			path := filepath.Join(root, "bin", "corvint")
-			workCopyExecutable(t, binary, path)
-			return path
+		{"relative", "path must be canonical and absolute", func(string) string { return "corvint" }},
+		{"missing", "path cannot be resolved", func(string) string { return filepath.Join(fixtureRoot, "missing") }},
+		{"symlink-to-unsafe-parent", "path has an unsafe parent component", func(string) string {
+			return link(unsafe, filepath.Join(fixtureRoot, "linked-unsafe"))
 		}},
+		{"symlink-to-missing", "path cannot be resolved", func(string) string {
+			return link(filepath.Join(fixtureRoot, "missing"), filepath.Join(fixtureRoot, "linked-missing"))
+		}},
+		{"symlink-to-repository-local", "path is repository-controlled", func(root string) string {
+			return link(repositoryLocal(root), filepath.Join(t.TempDir(), "corvint"))
+		}},
+		{"repository-link-to-external", "path is repository-controlled", func(root string) string {
+			if err := os.MkdirAll(filepath.Join(root, "tools"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			return link(binary, filepath.Join(root, "tools", "corvint"))
+		}},
+		{"unsafe-parent", "path has an unsafe parent component", func(string) string { return unsafe }},
+		{"repository-local", "path is repository-controlled", repositoryLocal},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			root := materializationFixture(t)
 			var stdout, stderr bytes.Buffer
 			exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", test.path(root)}, strings.NewReader(""), &stdout, &stderr)
-			if exit != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "executable is unqualified") {
-				t.Fatalf("exit=%d stdout=%q stderr=%q", exit, &stdout, &stderr)
+			if exit != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "executable is unqualified: "+test.reason) {
+				t.Fatalf("exit=%d stdout=%q stderr=%q, want reason %q", exit, &stdout, &stderr, test.reason)
 			}
 			if _, err := os.Lstat(filepath.Join(root, ".corvint")); !errors.Is(err, os.ErrNotExist) {
 				t.Fatalf("refused init wrote .corvint: %v", err)
 			}
 		})
+	}
+}
+
+// WQO-V0-049: a symlinked --corvint-executable (an installer link in ~/.local/bin)
+// binds its resolved target, says so, and observation then qualifies.
+func TestWorkInitBindsResolvedSymlinkTargetWQOV0049(t *testing.T) {
+	binary := workBoundCorvint(t)
+	linkDirectory, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	linked := filepath.Join(linkDirectory, "corvint")
+	if err := os.Symlink(binary, linked); err != nil {
+		t.Fatal(err)
+	}
+	root := materializationFixture(t)
+	var stdout, stderr bytes.Buffer
+	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", linked}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+		t.Fatalf("init exit=%d stderr=%s", exit, &stderr)
+	}
+	if want := "corvint work init: " + linked + " resolves through a symlink; bound its target " + binary; !strings.HasPrefix(stderr.String(), want) {
+		t.Fatalf("init stderr %q lacks %q", &stderr, want)
+	}
+	adapter, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(workAdapterPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(adapter, []byte(strconv.Quote(binary))) || bytes.Contains(adapter, []byte(linked)) {
+		t.Fatalf("adapter does not bind only the resolved target:\n%s", adapter)
+	}
+	materializationGit(t, root, "add", ".corvint")
+	materializationGit(t, root, "commit", "-qm", "adopt work queue")
+	stdout.Reset()
+	stderr.Reset()
+	if exit := run([]string{"--root", root, "work", "observe"}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+		t.Fatalf("observe exit=%d stderr=%q", exit, &stderr)
+	}
+	upgraded := filepath.Join(linkDirectory, "upgraded", "corvint")
+	workCopyExecutable(t, binary, upgraded)
+	if err := os.Remove(linked); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(upgraded, linked); err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if exit := run([]string{"--root", root, "work", "observe"}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+		t.Fatalf("observe after retargeting the link exit=%d stderr=%q", exit, &stderr)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if exit := run([]string{"--root", root, "work", "rebind", "--corvint-executable", linked}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+		t.Fatalf("rebind exit=%d stderr=%q", exit, &stderr)
+	}
+	if want := "corvint work rebind: " + linked + " resolves through a symlink; bound its target " + upgraded; !strings.HasPrefix(stderr.String(), want) {
+		t.Fatalf("rebind stderr %q lacks %q", &stderr, want)
 	}
 }
 
@@ -447,6 +522,57 @@ func TestWorkMissingAdoptionWorklistIsSourceUnqualified(t *testing.T) {
 	stderr.Reset()
 	exit := run([]string{"--root", root, "work", "observe"}, strings.NewReader(""), &stdout, &stderr)
 	workAssertFinalError(t, stdout.Bytes(), exit, "SOURCE_UNQUALIFIED")
+}
+
+// WQO-V0-051: every SOURCE_UNQUALIFIED refusal names its reason on one stderr
+// line while stdout keeps the closed canonical result; init says to commit.
+func TestWorkSourceUnqualifiedNamesReasonWQOV0051(t *testing.T) {
+	t.Run("WQO-V0-051 source refusal reason", testWorkSourceUnqualifiedNamesReason)
+}
+
+func testWorkSourceUnqualifiedNamesReason(t *testing.T) {
+	t.Parallel()
+	workCaptureSlot(t)
+	root := materializationFixture(t)
+	observe := func(want string) {
+		t.Helper()
+		var stdout, stderr bytes.Buffer
+		exit := run([]string{"--root", root, "work", "observe"}, strings.NewReader(""), &stdout, &stderr)
+		workAssertFinalError(t, stdout.Bytes(), exit, "SOURCE_UNQUALIFIED")
+		line := stderr.String()
+		if strings.Count(line, "\n") != 1 || !strings.HasPrefix(line, "corvint work: SOURCE_UNQUALIFIED: ") || !strings.Contains(line, want) || strings.ContainsRune(line, '\u009b') {
+			t.Fatalf("stderr %q does not name %q on one plain line", line, want)
+		}
+	}
+	observe(".corvint/work-queue-policy.json is not committed at HEAD")
+	var stdout, stderr bytes.Buffer
+	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", workBoundCorvint(t)}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+		t.Fatalf("init exit=%d stderr=%s", exit, &stderr)
+	}
+	if got := stdout.String(); got != ".corvint/work-queue-policy.json\n.corvint/worklist.json\n.corvint/work-queue-adapter\n" {
+		t.Fatalf("init stdout changed: %q", got)
+	}
+	if got := stderr.String(); got != "corvint work init: review and commit these three files; work observe and propose-wave return SOURCE_UNQUALIFIED until they are committed\n" {
+		t.Fatalf("init stderr: %q", got)
+	}
+	observe("the worktree is dirty")
+	materializationGit(t, root, "add", ".corvint")
+	materializationGit(t, root, "commit", "-qm", "adopt work queue")
+	stdout.Reset()
+	stderr.Reset()
+	if exit := run([]string{"--root", root, "work", "observe"}, strings.NewReader(""), &stdout, &stderr); exit != 0 || stderr.Len() != 0 {
+		t.Fatalf("committed observe exit=%d stderr=%q", exit, &stderr)
+	}
+	materializationGit(t, root, "config", "include.path", "unused")
+	observe("the repository is unsupported: repository config uses an include directive")
+	materializationGit(t, root, "config", "--unset", "include.path")
+	worktreeConfig := filepath.Join(root, ".git", "config.worktree")
+	for driver, want := range map[string]string{"lfs": "filter.lfs.clean", "leak-\u009b31m": "filter.*.clean"} {
+		if err := os.WriteFile(worktreeConfig, []byte("[filter \""+driver+"\"]\n\tclean = x\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		observe("Git status refused the repository: repository config.worktree sets " + want)
+	}
 }
 
 func TestWorkInitRollsBackCreatedFiles(t *testing.T) {

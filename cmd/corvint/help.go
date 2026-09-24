@@ -432,15 +432,17 @@ Usage:
 
 observe and propose-wave print one work-command-result/0 document on stdout.
 Neither claims, leases, dispatches, edits, or closes work; a proposal authorizes
-nothing. Malformed command input yields state ERROR with MALFORMED_INPUT.
+nothing. Malformed command input yields state ERROR with MALFORMED_INPUT. Both
+need the three adoption files below committed in a clean worktree; otherwise they
+yield SOURCE_UNQUALIFIED and stderr names the reason.
 
 init writes .corvint/work-queue-policy.json, .corvint/worklist.json and the
 executable .corvint/work-queue-adapter for the operator to review and commit; it
-refuses when any exists or the explicit Corvint executable is not a safe canonical
-external file. rebind updates only that adapter after path, SHA-256, version/build
-and source identity change; review and commit it. Observation verifies the binding
-and uses no ambient PATH search. adapter prints one document for the qualified
-committed worklist.
+refuses when any exists or the Corvint executable, after resolving symlinks, is
+not a safe canonical external file. rebind updates only that adapter after path,
+SHA-256, version/build and source identity change; review and commit it.
+Observation verifies the binding and uses no ambient PATH search. adapter prints
+one document for the qualified committed worklist.
 `
 
 const proveObserveHelp = `Record one prove document's verdict counts in the local self-observation ledger.

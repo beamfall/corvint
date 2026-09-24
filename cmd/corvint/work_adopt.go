@@ -156,6 +156,8 @@ func runWorkInit(ctx context.Context, root string, arguments []string, stdout, s
 	for _, file := range files {
 		fmt.Fprintln(stdout, file.path)
 	}
+	workReportResolvedExecutable(stderr, "init", options.executable, binding.Path)
+	fmt.Fprintln(stderr, "corvint work init: review and commit these three files; work observe and propose-wave return SOURCE_UNQUALIFIED until they are committed")
 	return 0
 }
 
@@ -239,8 +241,17 @@ func runWorkRebind(ctx context.Context, root string, arguments []string, stdout,
 		fmt.Fprintln(stderr, "corvint work rebind:", err)
 		return 2
 	}
+	workReportResolvedExecutable(stderr, "rebind", executablePath, binding.Path)
 	fmt.Fprintln(stdout, workAdapterPath)
 	return 0
+}
+
+// workReportResolvedExecutable tells the reviewer which real file a symlinked
+// --corvint-executable bound; upgrading that link later needs a rebind.
+func workReportResolvedExecutable(stderr io.Writer, verb, requested, bound string) {
+	if requested != bound {
+		fmt.Fprintf(stderr, "corvint work %s: %s resolves through a symlink; bound its target %s (after an upgrade, run work rebind)\n", verb, requested, bound)
+	}
 }
 
 func parseWorkRebindArguments(arguments []string) (string, error) {

@@ -95,7 +95,8 @@ output directories outside the checkout; the reproducibility script refuses one 
    version, `Corvint X.Y.Z (build N)` and `FULL_COMMIT`, where `N` is
    `git rev-list --count --first-parent FULL_COMMIT`. If `VERSION` and `const version` in
    `cmd/corvint/main.go` change, that is a separate earlier commit that steps 1–8 already ran on;
-   the notes entry is the only edit after the gate.
+   the notes commit is the only commit after the gate, its only parent is `FULL_COMMIT`, and it
+   changes only Markdown under `docs/` (decision 0380).
 
    ```sh
    git rev-list --count --first-parent FULL_COMMIT
@@ -113,7 +114,8 @@ output directories outside the checkout; the reproducibility script refuses one 
     git rev-list --first-parent origin/main | grep -qx FULL_COMMIT
     ```
 
-    The tag points at the notes commit; the archives, `SHA256SUMS`,
+    The tag points at the notes commit. `script/release-checklist --pre-promotion`, run from
+    `FULL_COMMIT`, passes its tag row only for that shape (`ARTIFACT-RDY-V0-003`). The archives, `SHA256SUMS`,
     `verification-report.json`, the reproducibility `report.json`, the lifecycle reports and the
     hostile-regression report are the release evidence. Pushing the tag and uploading assets are
     outward actions that need the owner's explicit go.

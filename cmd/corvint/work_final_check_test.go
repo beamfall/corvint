@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -116,7 +117,7 @@ func workFinalCapture(t *testing.T, script string) (string, *workCapture) {
 	// A parent deadline here would retire the setup capture before the
 	// behaviour under test ever runs, and reports the overrun as INPUT_LIMIT.
 	// Every other observeWork caller passes Background (work_observe_test.go).
-	capture, code := observeWork(context.Background(), root)
+	capture, code := observeWork(context.Background(), root, io.Discard)
 	if code != "" {
 		t.Fatalf("initial capture: %s", code)
 	}
@@ -211,7 +212,7 @@ func TestWorkFinalCheckCaptureBinding(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background()) // go test -timeout is the hang detector (decision 0082)
 				defer cancel()
 				var output bytes.Buffer
-				exit := proposeWork(ctx, root, capture, envelope, 1, &output)
+				exit := proposeWork(ctx, root, capture, envelope, 1, &output, io.Discard)
 				workAssertFinalProposal(t, capture, envelope, output.Bytes(), exit, tc.observation, tc.proposal)
 				if tc.change != "" || (tc.finalMutation && !tc.priorMutation) {
 					if capture.observation.ID == initialID {
@@ -268,7 +269,7 @@ func TestWorkFinalCheckSourceBoundary(t *testing.T) {
 				}
 				envelope, _ := workFinalEnvelope(t)
 				var output bytes.Buffer
-				exit := proposeWork(ctx, root, capture, envelope, 1, &output)
+				exit := proposeWork(ctx, root, capture, envelope, 1, &output, io.Discard)
 				if code != "" {
 					workAssertFinalError(t, output.Bytes(), exit, code)
 				} else {
@@ -336,7 +337,7 @@ wait "$child"
 				}()
 				defer func() { interrupt(); <-watcher }()
 				var output bytes.Buffer
-				exit := proposeWork(ctx, root, capture, envelope, 1, &output)
+				exit := proposeWork(ctx, root, capture, envelope, 1, &output, io.Discard)
 				code := "CANCELLED"
 				if cause == "deadline" {
 					code = "INPUT_LIMIT"
@@ -385,7 +386,7 @@ func TestWorkFinalCheckClosingContext(t *testing.T) {
 				}
 				envelope, _ := workFinalEnvelope(t)
 				var output bytes.Buffer
-				exit := proposeWork(ctx, root, capture, envelope, 1, &output)
+				exit := proposeWork(ctx, root, capture, envelope, 1, &output, io.Discard)
 				code, expected := "CANCELLED", context.Canceled
 				if cause == "deadline" {
 					code, expected = "INPUT_LIMIT", context.DeadlineExceeded

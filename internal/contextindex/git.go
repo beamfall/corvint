@@ -178,7 +178,7 @@ func gitExpecting(ctx context.Context, root string, outputLimit, expected int, s
 				}
 				return nil, err
 			}
-			return nil, &Error{Code: "repository-probe-failed", Message: "Git status cannot safely observe repository metadata"}
+			return nil, &Error{Code: "repository-probe-failed", Message: gitstatus.RefusalMessage(err)}
 		}
 		return result, nil
 	}

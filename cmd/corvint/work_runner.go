@@ -283,9 +283,9 @@ func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimi
 	return finish(err)
 }
 
-func (runner *workAdapterRunner) commandError(err error) string {
+func (runner *workAdapterRunner) commandError(err error, stderr io.Writer) string {
 	if errors.Is(err, errWorkBoundExecutableUnqualified) {
-		return "SOURCE_UNQUALIFIED"
+		return workUnqualified(stderr, workReasonBoundExecutable)
 	}
 	if err.Error() == "limit" || errors.Is(err, context.DeadlineExceeded) {
 		return "INPUT_LIMIT"

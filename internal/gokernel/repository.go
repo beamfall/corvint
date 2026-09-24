@@ -98,7 +98,7 @@ func git(ctx context.Context, root string, outputLimit int, arguments ...string)
 			if errors.As(err, &failure) {
 				return nil, err
 			}
-			return nil, newError("repository-probe-failed", "Git status cannot safely observe repository metadata")
+			return nil, newError("repository-probe-failed", gitstatus.RefusalMessage(err))
 		}
 		return result, nil
 	}

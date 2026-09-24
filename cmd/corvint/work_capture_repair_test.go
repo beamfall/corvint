@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"os/exec"
 	"reflect"
 	"sort"
@@ -182,7 +183,7 @@ func TestWorkSourceCommandExpiryIsInputLimit(t *testing.T) {
 	t.Parallel()
 	t.Run("WQO-V0-015 source expiry mapping", func(t *testing.T) {
 		for _, cause := range []error{context.DeadlineExceeded, exec.ErrWaitDelay} {
-			if got := workSourceCommandError(context.Background(), cause); got != "INPUT_LIMIT" {
+			if got := workSourceCommandError(context.Background(), cause, io.Discard); got != "INPUT_LIMIT" {
 				t.Fatalf("opening source expiry %v = %s", cause, got)
 			}
 			if got := workClosingCommandError(workSource{qualificationError: cause}); got != "INPUT_LIMIT" {

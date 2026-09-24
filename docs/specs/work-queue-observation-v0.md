@@ -593,9 +593,12 @@ or adapter protocol. They change no wire profile.
   (WQO-V0-045).
 
 - `WQO-V0-049`: The initialization executable is one canonical absolute executable regular file
-  outside the adopting repository/worktree. The path, every parent and the file itself MUST have no
-  symlink component; non-sticky group/world-writable parents, group/world-writable executable bytes,
-  missing paths, relative paths and repository-controlled paths fail before init writes. Init records
+  outside the adopting repository/worktree. `work init` and `work rebind` resolve the operator-given
+  absolute path through symlinks exactly once, report the resolved target on stderr when it differs,
+  and bind that target; the given path itself must also lie outside the repository, so a
+  repository-committed link cannot choose the target. Every check below applies to the resolved target, which therefore has no
+  symlink component in the path, its parents or the file itself. Non-sticky group/world-writable
+  parents, group/world-writable executable bytes, missing paths, relative paths and repository-controlled paths fail before init writes. Init records
   the exact path, SHA-256, `Corvint VERSION (build BUILD)` output and Go module/VCS source identity in
   the generated reviewed adapter. A reproducible `-buildvcs=false` release records its explicit
   absence of VCS settings while retaining package, module/version and Go toolchain identity; it is
@@ -618,6 +621,22 @@ or adapter protocol. They change no wire profile.
   only `.corvint/work-queue-adapter`. The operator MUST review and commit that changed adapter before
   observation can succeed. Rebind does not stage, commit, rewrite policy/worklist, or accept the old
   identity after executable bytes, version/build, source identity or path identity changes.
+
+- `WQO-V0-051`: Every `work observe` or `work propose-wave` result with error code
+  `SOURCE_UNQUALIFIED` also writes exactly one stderr line
+  `corvint work: SOURCE_UNQUALIFIED: REASON`, where REASON is fixed text naming the failed
+  qualification and the operator's next step: an uncommitted policy, worklist, or adapter (run
+  `work init` if unadopted, then commit the three files); an invalid committed policy; a dirty or
+  partially committed worktree; an unqualified adapter binding or changed bound executable (review,
+  `work rebind`, commit); a policy change during the invocation; a named unsupported repository
+  feature refused by the work source or the isolated Git status probe (a closed configuration key
+  such as `include.path` or a filter key whose driver name is bounded as in `EAF-V0-011`, a split
+  index, a submodule, a graft, replacement refs, or a shallow or non-top-level root); or otherwise
+  unqualified Git source facts. REASON never echoes file contents, Git output, or other
+  repository-controlled bytes. A successful `work init` writes one stderr line telling the operator
+  to review and commit the three files, which observation requires, after the `WQO-V0-049`
+  resolved-target line when the executable path resolved through a symlink. Stdout and
+  `work-command-result/0` are unchanged.
 
 Explicit unknowns for an adopted repository:
 
@@ -762,7 +781,8 @@ repository's existing roadmap files; a repository with another queue writes its 
 | Retired competing command | WQO-V0-045 | `cmd/corvint/main.go`, `cmd/corvint/help.go`, `TestLanePlanRetired` |
 | Store scope by mapping reproduction | WQO-V0-046 | `cmd/corvint/work.go` `workMappingReproduced`, `TestWorkMappingReproduced`, `TestWorkMappingReproducedSelfDogfood`, `TestWorkAdoptedRepositoryWorklist` |
 | Repository adoption | WQO-V0-047..048 | `cmd/corvint/work_adopt.go`, `internal/worklistadapter`, `TestWorkAdoptedRepositoryWorklist`, `TestWorkMappingReproduced` |
-| Bound adoption executable | WQO-V0-049..050 | `cmd/corvint/work_executable_binding.go`, `TestWorkInitBindsExplicitExecutableWQOV0049`, `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`, `TestWorkExecutableMissingAndSymlinkSwapWQOV0049`, `TestWorkExecutableChangeRequiresReviewedRebindWQOV0050` |
+| Bound adoption executable | WQO-V0-049..050 | `cmd/corvint/work_executable_binding.go`, `TestWorkInitBindsExplicitExecutableWQOV0049`, `TestWorkInitBindsResolvedSymlinkTargetWQOV0049`, `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`, `TestWorkExecutableMissingAndSymlinkSwapWQOV0049`, `TestWorkExecutableChangeRequiresReviewedRebindWQOV0050` |
+| Source refusal reason | WQO-V0-051 | `cmd/corvint/work.go` `workSourceReasons`, `internal/worksource/source.go` `RefusalReason`, `cmd/corvint/work_adopt.go`, `TestWorkSourceUnqualifiedNamesReasonWQOV0051` |
 
 Decision 0046 accepted this contract and assigned the Corvint self-dogfood authority IDs
 (`repo:corvint`, `queue:corvint:worklist`, `scope:corvint:worklist`, `access:corvint:local`); the core

@@ -59,6 +59,19 @@ The rerun used plugin sources from a clean `e667812` checkout. The packages are 
 `df66aba4`. All three tuples passed 9/9 again. A second review's findings were fixed or narrowed
 the same way before the final run.
 
+## 2026-09-24 V1-0223 ARTIFACT-RDY-V0-003 / decision 0380 (accepted): release tag names the notes commit
+
+`script/release-checklist` passed its tag row only when the release tag pointed at the gated HEAD,
+while `RELEASE-RUNBOOK.md` step 10 tags the release-notes commit, so the 0.8.0 pre-promotion run
+failed the row. Decision 0380 makes the notes commit the one tag target. Its only parent
+must be HEAD, and it must change `docs/RELEASE-NOTES.md` and only Markdown under `docs/`, which no
+`//go:embed` directive reaches. `script/release-checklist_test.sh` covers a tag on HEAD (FAIL), a
+valid notes commit (PASS), a notes commit without the notes file, one with a non-docs path and a
+tag one commit further on (each FAIL with its own reason). With the new script, the checklist run
+from `41f2b68` reports `PASS tag` for `v0.7.0`, and run from `31d68b4` it reports `PASS tag` for
+`v0.8.0`; neither tag moved. The owner accepted decision 0380 on 2026-09-24; it was drafted as
+0379 until the OpenCode decision took that number. Full gate NOT_RUN (owner policy).
+
 ## 2026-09-24 TCP-V0-048, decisions 0375/0377/0378: requirement-definitions and line-citations checks repaired on main
 
 `origin/main` at `e667812` failed `requirement-definitions-check` and `line-citations-check` with no
@@ -5236,3 +5249,71 @@ decision-numbers-check` all passed. Full `make gate` was not run, per batch scop
   - A repository with no commit fails every hook with `corvint-command-failed`.
   - `runtime.js` still sends `adapterVersion` 0.1.0.
   - The 2 s automatic ceiling can still produce a disclosed `timeout` notice under load.
+
+## 2026-09-24 work-source-refusal-reason: WQO-V0-051, issue #157
+
+- Issue #157: `work observe` returned `ERROR/SOURCE_UNQUALIFIED` with no reason. The reported
+  `work init` failure did not reproduce on 0.8.0: init succeeds, and observe refuses until the
+  three adoption files are committed. That refusal is intended (WQO-V0-047), but nothing said so.
+- Every `SOURCE_UNQUALIFIED` from `work observe` or `work propose-wave` now writes one stderr line
+  with a fixed reason and next step: uncommitted policy, worklist, or adapter; invalid committed
+  policy; dirty or partially committed worktree; unqualified adapter binding or changed bound
+  executable; policy change during the invocation; or other Git source facts. Reasons are fixed
+  text and never echo file contents or Git output. The `work-command-result/0` stdout is
+  byte-identical.
+- A successful `work init` writes one stderr line saying to review and commit the three files.
+  `corvint help work` says observe and propose-wave need them committed.
+- `internal/worksource` exports `ErrWorktreeNotClean` and `ErrIndexDiffers` so the caller can name
+  those refusals. Their messages are unchanged.
+- Test: `TestWorkSourceUnqualifiedNamesReasonWQOV0051`. The demo on a fresh repository showed the
+  missing-policy, dirty-worktree, and changed-executable reasons, and empty stderr once committed.
+
+## 2026-09-24 Issue #156 EAF-V0-011: isolated Git status refusals name their cause
+
+A 0.8.0 user reported `repository-probe-failed` / "Git status cannot safely observe repository
+metadata" on a clean checkout that plain `git status` reads, and `corvint.status` returning
+`repository-unavailable`. `internal/gitstatus` returned one undifferentiated `errUnsafe` from about
+thirty sites, and both ordinary kernels replaced it with the fixed sentence, so the refused feature
+could not be identified without access to the machine.
+
+Each site now returns a reason that still satisfies `errors.Is(err, errUnsafe)`, and
+`gitstatus.RefusalMessage` appends it: for example `index records a submodule (gitlink)`,
+`repository config sets filter.lfs.process`, `repository config uses an include directive (include.*)`,
+`metadata file packed-refs exceeds 32 MiB`, `metadata file info/exclude is a FIFO`. A reason names
+a feature, config key, Git-relative metadata name or byte limit, never a config value, content or
+outside path. What is refused is unchanged. A split index still fails first inside Git's own
+`ls-files` probe (the private copy omits the shared index), so it keeps its existing
+`MetadataProbeError` shape. The MCP tool-error object is closed under `MCPV0` ("never underlying
+Git, repository, or process text"), so `corvint.status` still reports only `repository-unavailable`;
+the CLI message is the diagnostic path. Touching `internal/gitstatus` moves the analyzer identity to
+`corvint-analyzer/81`.
+
+- Follow-up in the same change: `corvint work` also ran its own stricter refusals in
+  `internal/worksource` before the probe, and those fell to the catch-all reason. They now carry a
+  fixed reason too (`worksource.RefusalReason`), for example `the repository is unsupported:
+  repository config uses an include directive (include.* or includeIf.*)`. Filter-driver refusals say
+  `filter.*` rather than naming the driver, because WQO-V0-051 forbids repository-controlled bytes.
+  Probe refusals reach `work` as `Git status refused the repository: REASON`.
+- Independent review repair: a filter key in `.git/config.worktree` reached `work` stderr through the
+  probe with its raw subsection, including C1 control bytes. A filter driver name now appears only
+  when it is 1 to 32 characters of `[a-z0-9_-]`, otherwise `*` (EAF-V0-011, WQO-V0-051). The work
+  test now covers the probe route and the exact dirty-worktree reason.
+
+## 2026-09-24 work-executable-symlink: WQO-V0-049, issue #157 follow-up
+
+- The reporter installs Corvint as a symlink in `~/.local/bin`; `work init --corvint-executable`
+  refused it ("path and parent components must not be symlinks"). Owner decision in this change:
+  `work init` and `work rebind` resolve the given absolute path through symlinks once, bind the real
+  target, and say so on stderr. Every existing check (canonical absolute, no symlink component,
+  safe parents, not group/world-writable, outside the repository) applies to the resolved target, so
+  a link into the repository or to an unsafe file is still refused. Observation is unchanged: it
+  reopens the recorded target without following links and rederives the digest.
+- An upgrade that retargets the link leaves the old target bound; observation then refuses until
+  `work rebind`, as it already did for any byte change.
+- Tests: `TestWorkInitBindsResolvedSymlinkTargetWQOV0049`; `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`
+  now covers links to a missing, an unsafe-parent, and a repository-local executable.
+- Review repair: the given path must also lie outside the repository before it is resolved, so a
+  link committed in the repository cannot choose the bound target even when that target is a safe
+  external file. The refusal table now asserts each specific reason. The positive test also
+  retargets the link after commit (observation still passes against the bound target) and runs
+  `work rebind` through the link, which reports and binds the new target.

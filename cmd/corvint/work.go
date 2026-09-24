@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/worklistadapter"
 	"github.com/Beamfall/corvint/internal/workqueue"
 	"github.com/Beamfall/corvint/internal/worksource"
@@ -177,7 +179,7 @@ func runWork(ctx context.Context, root string, arguments []string, stdout, stder
 			return emitWorkError(stdout, workCommandError(err))
 		}
 	}
-	capture, commandCode := observeWork(ctx, root)
+	capture, commandCode := observeWork(ctx, root, stderr)
 	if commandCode != "" {
 		return emitWorkError(stdout, commandCode)
 	}
@@ -187,10 +189,10 @@ func runWork(ctx context.Context, root string, arguments []string, stdout, stder
 		workqueue.RefreshCommandResult(result)
 		return writeWorkResult(stdout, result)
 	}
-	return proposeWork(ctx, root, capture, envelope, options.limit, stdout)
+	return proposeWork(ctx, root, capture, envelope, options.limit, stdout, stderr)
 }
 
-func proposeWork(ctx context.Context, root string, capture *workCapture, envelope *workqueue.CapacityEnvelope, limit workqueue.Count, stdout io.Writer) int {
+func proposeWork(ctx context.Context, root string, capture *workCapture, envelope *workqueue.CapacityEnvelope, limit workqueue.Count, stdout, stderr io.Writer) int {
 	capture.snapshot.ObservationID = capture.observation.ID
 	capture.snapshot.QueueSourceID = capture.observation.QueueSourceID
 	capture.snapshot.ObservationState = capture.observation.State
@@ -199,7 +201,7 @@ func proposeWork(ctx context.Context, root string, capture *workCapture, envelop
 	if err != nil {
 		return emitWorkError(stdout, workCommandError(err))
 	}
-	drift, commandCode := workFreshAtReturn(ctx, root, capture)
+	drift, commandCode := workFreshAtReturn(ctx, root, capture, stderr)
 	if commandCode != "" {
 		return emitWorkError(stdout, commandCode)
 	}
@@ -221,7 +223,7 @@ func proposeWork(ctx context.Context, root string, capture *workCapture, envelop
 	return writeWorkResult(stdout, result)
 }
 
-func observeWork(parent context.Context, root string) (*workCapture, string) {
+func observeWork(parent context.Context, root string, stderr io.Writer) (*workCapture, string) {
 	if _, err := worksource.PlatformPath(); err != nil {
 		return nil, "UNSUPPORTED_PLATFORM"
 	}
@@ -229,7 +231,7 @@ func observeWork(parent context.Context, root string) (*workCapture, string) {
 	defer cancel()
 	opening, err := acquireWorkSource(ctx, root)
 	if err != nil {
-		return nil, workSourceCommandError(ctx, err)
+		return nil, workSourceCommandError(ctx, err, stderr)
 	}
 	policy, err := workqueue.ParsePolicy(opening.policyRaw)
 	if err != nil {
@@ -238,12 +240,12 @@ func observeWork(parent context.Context, root string) (*workCapture, string) {
 	}
 	if opening.adapterMode != "100755" {
 		opening.qualified.Close()
-		return nil, "SOURCE_UNQUALIFIED"
+		return nil, workUnqualified(stderr, workReasonAdapterSource)
 	}
 	materialization, err := newWorkMaterialization(ctx, opening.qualified)
 	if err != nil {
 		opening.qualified.Close()
-		return nil, "SOURCE_UNQUALIFIED"
+		return nil, workUnqualified(stderr, "the committed tree could not be materialized in private scratch storage")
 	}
 	capture := &workCapture{opening: opening, materialization: materialization}
 	completed := false
@@ -255,20 +257,20 @@ func observeWork(parent context.Context, root string) (*workCapture, string) {
 	adapterPath := filepath.Join(materialization.target, filepath.FromSlash(policy.AdapterPath))
 	runner, err := newWorkAdapterRunner(ctx, materialization.target, adapterPath, opening, policy)
 	if err != nil {
-		return nil, "SOURCE_UNQUALIFIED"
+		return nil, workUnqualified(stderr, workReasonAdapterBinding)
 	}
 	runner.env = append([]string(nil), materialization.environment...)
 	runner.verifyTarget = materialization.Verify
 	capture.runner = runner
 	if err := runner.qualifyBoundExecutable(); err != nil {
-		return nil, "SOURCE_UNQUALIFIED"
+		return nil, workUnqualified(stderr, workReasonBoundExecutable)
 	}
 	capture.monitoredRoots = []string{opening.qualified.Root, opening.qualified.GitDir, opening.qualified.CommonDir, materialization.target}
 	opening.manifest = workMutationManifest(ctx, capture.monitoredRoots)
 	capture.opening = opening
 	snapshotRaw, snapshotReceipt, err := runner.run("snapshot", policy.Operations.Snapshot, 16<<20)
 	if err != nil {
-		return nil, runner.commandError(err)
+		return nil, runner.commandError(err, stderr)
 	}
 	snapshot, err := workqueue.ParseSnapshot(snapshotRaw)
 	if err != nil {
@@ -276,7 +278,7 @@ func observeWork(parent context.Context, root string) (*workCapture, string) {
 	}
 	detailsRaw, detailsReceipt, err := runner.run("details", policy.Operations.Details, 32<<20)
 	if err != nil {
-		return nil, runner.commandError(err)
+		return nil, runner.commandError(err, stderr)
 	}
 	details, err := workqueue.ParseDetails(detailsRaw)
 	if err != nil {
@@ -285,7 +287,7 @@ func observeWork(parent context.Context, root string) (*workCapture, string) {
 	closure := deriveWorkCollisions(ctx, materialization.target, snapshot, opening.qualified.GitPath, opening.qualified.GitEnvironment)
 	checkpointRaw, verifyReceipt, err := runner.run("verify", policy.Operations.Verify, 64<<10)
 	if err != nil {
-		return nil, runner.commandError(err)
+		return nil, runner.commandError(err, stderr)
 	}
 	checkpoint, err := workqueue.ParseCheckpoint(checkpointRaw)
 	if err != nil {
@@ -337,12 +339,12 @@ func closeWorkSource(ctx context.Context, root string, opening workSource, roots
 
 // Drift requires an observed qualified source/checkpoint change. A failed final
 // operation has no comparison witness and retains its closed command error.
-func workFreshAtReturn(parent context.Context, root string, capture *workCapture) (bool, string) {
+func workFreshAtReturn(parent context.Context, root string, capture *workCapture, stderr io.Writer) (bool, string) {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	source, err := acquireWorkSource(ctx, root)
 	if err != nil {
-		return false, workSourceCommandError(ctx, err)
+		return false, workSourceCommandError(ctx, err, stderr)
 	}
 	defer source.qualified.Close()
 	if source.source != capture.opening.source {
@@ -353,7 +355,7 @@ func workFreshAtReturn(parent context.Context, root string, capture *workCapture
 		return false, workCommandError(err)
 	}
 	if policy.ID != capture.observation.PolicyID {
-		return false, "SOURCE_UNQUALIFIED"
+		return false, workUnqualified(stderr, "the committed policy changed during this invocation; retry")
 	}
 	opening := source
 	opening.manifest = workCloseManifest(capture.opening.manifest, workMutationManifest(ctx, capture.monitoredRoots))
@@ -361,7 +363,7 @@ func workFreshAtReturn(parent context.Context, root string, capture *workCapture
 	capture.runner.ctx = ctx
 	raw, receipt, err := capture.runner.run("verify", policy.Operations.Verify, 64<<10)
 	if err != nil {
-		return false, capture.runner.commandError(err)
+		return false, capture.runner.commandError(err, stderr)
 	}
 	document, err := workqueue.ParseCheckpoint(raw)
 	if err != nil {
@@ -409,13 +411,64 @@ func workMappingReproduced(source *worksource.Source, policy *workqueue.Policy, 
 	return true
 }
 
-func workSourceCommandError(ctx context.Context, err error) string {
+func workSourceCommandError(ctx context.Context, err error, stderr io.Writer) string {
 	if workSourceLimitError(err) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return "INPUT_LIMIT"
 	}
 	if errors.Is(err, context.Canceled) || errors.Is(ctx.Err(), context.Canceled) {
 		return "CANCELLED"
 	}
+	return workUnqualified(stderr, workSourceReason(err))
+}
+
+// WQO-V0-051 operator reasons. Each is fixed text: none echoes file contents,
+// Git output, or other repository-controlled bytes.
+const (
+	workInitHint              = `run "corvint work init --repository NAME --corvint-executable ABSOLUTE_FILE" if this repository is not adopted, commit the three .corvint files, then retry`
+	workReasonAdapterSource   = "the policy's adapter is not committed at HEAD as an executable (100755) file; " + workInitHint
+	workReasonAdapterBinding  = `the committed adapter is not a qualified adapter for its policy, or its bound Corvint executable is missing, moved, or unsafe; review and run "corvint work rebind --corvint-executable ABSOLUTE_FILE", commit the adapter, then retry`
+	workReasonBoundExecutable = `the bound Corvint executable changed or is unsafe; review and run "corvint work rebind --corvint-executable ABSOLUTE_FILE", commit the adapter, then retry`
+)
+
+var (
+	errWorkPolicySource   = errors.New("invalid policy source")
+	errWorkPolicyInvalid  = errors.New("invalid committed policy")
+	errWorkWorklistSource = errors.New("invalid worklist source")
+	errWorkAdapterSource  = errors.New("invalid adapter source")
+)
+
+// workSourceReasons is ordered: the first matching refusal names the reason.
+var workSourceReasons = []struct {
+	err    error
+	reason string
+}{
+	{errWorkPolicySource, workPolicyPath + " is not committed at HEAD as a regular (100644) file; " + workInitHint},
+	{errWorkPolicyInvalid, "the committed " + workPolicyPath + " is not a valid work-queue-policy/0 document"},
+	{errWorkWorklistSource, ".corvint/worklist.json is not committed at HEAD as a regular (100644) file; " + workInitHint},
+	{errWorkAdapterSource, workReasonAdapterSource},
+	{worksource.ErrWorktreeNotClean, "the worktree is dirty: changes or untracked files are not committed (\"corvint work init\" leaves its three files for review and commit); commit or remove them, then retry"},
+	{worksource.ErrIndexDiffers, "the index differs from HEAD (partially committed changes); commit or reset them, then retry"},
+}
+
+func workSourceReason(err error) string {
+	for _, known := range workSourceReasons {
+		if errors.Is(err, known.err) {
+			return known.reason
+		}
+	}
+	if reason, known := worksource.RefusalReason(err); known {
+		return "the repository is unsupported: " + reason
+	}
+	if reason, known := gitstatus.RefusalReason(err); known {
+		return "Git status refused the repository: " + reason
+	}
+	return "Git source facts are unqualified: --root must be the top of a clean, non-shallow, ordinary Git worktree with no unsupported configuration, replacement, graft, or escaping symlink"
+}
+
+// workUnqualified writes the one-line WQO-V0-051 reason for a
+// SOURCE_UNQUALIFIED refusal to stderr and returns that closed stdout code.
+func workUnqualified(stderr io.Writer, reason string) string {
+	fmt.Fprintf(stderr, "corvint work: SOURCE_UNQUALIFIED: %s\n", reason)
 	return "SOURCE_UNQUALIFIED"
 }
 
@@ -579,11 +632,11 @@ func acquireWorkSource(ctx context.Context, root string) (workSource, error) {
 		}
 	}
 	if policyEntry == nil || policyEntry.Mode != "100644" {
-		return result, errors.New("invalid policy source")
+		return result, errWorkPolicySource
 	}
 	policy, err := workqueue.ParsePolicy(policyEntry.Raw)
 	if err != nil {
-		return result, err
+		return result, fmt.Errorf("%w: %w", errWorkPolicyInvalid, err)
 	}
 	if policy.MappingVersion == worklistadapter.RepositoryMapping {
 		worklistPath, _ := worklistadapter.WorklistPath(policy.MappingVersion)
@@ -595,7 +648,7 @@ func acquireWorkSource(ctx context.Context, root string) (workSource, error) {
 			}
 		}
 		if !worklistFound {
-			return result, errors.New("invalid worklist source")
+			return result, errWorkWorklistSource
 		}
 	}
 	for i := range source.Entries {
@@ -604,7 +657,7 @@ func acquireWorkSource(ctx context.Context, root string) (workSource, error) {
 		}
 	}
 	if adapterEntry == nil || adapterEntry.Mode != "100755" {
-		return result, errors.New("invalid adapter source")
+		return result, errWorkAdapterSource
 	}
 	result.source = source.Identity
 	result.policyRaw, result.adapterRaw = policyEntry.Raw, adapterEntry.Raw

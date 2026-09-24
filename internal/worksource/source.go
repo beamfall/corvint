@@ -25,6 +25,30 @@ const maxEntries = 100000
 const maxBytes = 256 << 20
 const maxFileBytes = 32 << 20
 
+// ErrWorktreeNotClean and ErrIndexDiffers let callers name the two ordinary
+// uncommitted-state refusals to an operator (WQO-V0-051).
+var (
+	ErrWorktreeNotClean = errors.New("worktree is not clean")
+	ErrIndexDiffers     = errors.New("index differs from pinned tree")
+)
+
+// refusal is an unsupported-repository refusal whose reason is fixed text or a
+// closed configuration key, never a repository-supplied name or value.
+type refusal struct{ reason string }
+
+func (refused *refusal) Error() string { return "unsupported repository: " + refused.reason }
+
+func unsupported(reason string) error { return &refusal{reason} }
+
+// RefusalReason names why the source refused the repository (WQO-V0-051).
+func RefusalReason(err error) (string, bool) {
+	var refused *refusal
+	if !errors.As(err, &refused) {
+		return "", false
+	}
+	return refused.reason, true
+}
+
 // Entry contains the verified raw worktree bytes of a pinned tree blob.
 type Entry struct {
 	Path, Mode, BlobOID string
@@ -84,7 +108,7 @@ func (source *Source) acquire(ctx context.Context, root string) error {
 		return err
 	}
 	if layout[0] != source.Root || layout[3] != "false" || layout[4] != "false" {
-		return errors.New("unsupported repository layout or shallow history")
+		return unsupported("the root is not the top of an ordinary non-bare worktree, or history is shallow")
 	}
 	source.GitDir, source.CommonDir = layout[1], layout[2]
 	if err := source.unsupportedState(ctx); err != nil {
@@ -112,7 +136,7 @@ func (source *Source) acquire(ctx context.Context, root string) error {
 		return err
 	}
 	if !bytes.Equal(index, canonicalIndex(source.Entries)) {
-		return errors.New("index differs from pinned tree")
+		return ErrIndexDiffers
 	}
 	if err := source.readEntries(ctx, source.Root, true); err != nil {
 		return err
@@ -173,27 +197,27 @@ func (source *Source) unsupportedState(ctx context.Context) error {
 		case "core.sparsecheckout", "core.sparsecheckoutcone", "core.splitindex", "extensions.worktreeconfig":
 			value := strings.SplitN(string(record), "\n", 2)
 			if len(value) != 2 || (value[1] != "false" && value[1] != "0") {
-				return fmt.Errorf("unsupported configuration %s", key)
+				return unsupported("repository config sets " + key)
 			}
 		case "core.worktree", "core.alternaterefscommand":
-			return fmt.Errorf("unsupported configuration %s", key)
+			return unsupported("repository config sets " + key)
 		}
 		if strings.HasPrefix(key, "filter.") {
-			return errors.New("unsupported executable Git filter configuration")
+			return unsupported("repository config sets a filter driver (filter.*)")
 		}
 		if key == "include.path" || strings.HasPrefix(key, "includeif.") {
-			return errors.New("unsupported included Git configuration")
+			return unsupported("repository config uses an include directive (include.* or includeIf.*)")
 		}
 	}
 	for _, root := range []string{source.GitDir, source.CommonDir} {
 		for _, name := range []string{"info/grafts", "info/sparse-checkout", "objects/info/alternates", "objects/info/http-alternates"} {
 			if _, err := os.Lstat(filepath.Join(root, filepath.FromSlash(name))); !os.IsNotExist(err) {
-				return fmt.Errorf("unsupported Git state %s", name)
+				return unsupported("Git metadata contains " + name)
 			}
 		}
 		matches, err := filepath.Glob(filepath.Join(root, "sharedindex.*"))
 		if err != nil || len(matches) != 0 {
-			return errors.New("unsupported split index")
+			return unsupported("index is a split index")
 		}
 	}
 	replacements, err := source.Git(ctx, 1<<20, "for-each-ref", "--format=%(refname)", "refs/replace/")
@@ -201,7 +225,7 @@ func (source *Source) unsupportedState(ctx context.Context) error {
 		return err
 	}
 	if len(replacements) != 0 {
-		return errors.New("unsupported replacement objects")
+		return unsupported("repository has replacement refs (refs/replace/)")
 	}
 	return nil
 }
@@ -212,7 +236,7 @@ func (source *Source) indexState(ctx context.Context) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 	if len(status) != 0 {
-		return nil, nil, errors.New("worktree is not clean")
+		return nil, nil, ErrWorktreeNotClean
 	}
 	flags, err := source.Git(ctx, 32<<20, "ls-files", "-v", "-z")
 	if err != nil {
@@ -223,7 +247,7 @@ func (source *Source) indexState(ctx context.Context) ([]byte, []byte, error) {
 	}
 	for _, record := range bytes.Split(flags, []byte{0}) {
 		if len(record) != 0 && (len(record) < 3 || record[0] != 'H' || record[1] != ' ') {
-			return nil, nil, errors.New("unsupported index flags")
+			return nil, nil, unsupported("index marks entries skip-worktree, assume-unchanged, or otherwise not plain tracked")
 		}
 	}
 	split, err := source.Git(ctx, 8192, "rev-parse", "--shared-index-path")
@@ -231,7 +255,7 @@ func (source *Source) indexState(ctx context.Context) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 	if len(bytes.TrimSpace(split)) != 0 {
-		return nil, nil, errors.New("unsupported split index")
+		return nil, nil, unsupported("index is a split index")
 	}
 	index, err := source.Git(ctx, 32<<20, "ls-files", "--stage", "-z")
 	return status, index, err
