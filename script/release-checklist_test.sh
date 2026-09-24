@@ -183,9 +183,45 @@ checklist
 test "$(row tag)" = NOT_RUN
 git -C "$repository" branch -q -D v0.5.0a1
 
+# Decision 0379: the tag names the notes commit whose only parent is the gated HEAD and whose only
+# changes are docs Markdown including docs/RELEASE-NOTES.md. A tag on HEAD itself is not that shape.
 git -C "$repository" tag v0.5.0a1
 checklist
+test "$(row tag)" = FAIL
+git -C "$repository" tag -d v0.5.0a1 >/dev/null
+gated=$(git -C "$repository" rev-parse HEAD)
+notes_commit() {
+  git -C "$repository" checkout -q --detach "$gated"
+  for path in "$@"; do
+    mkdir -p "$repository/$(dirname "$path")"
+    printf 'notes\n' >> "$repository/$path"
+    git -C "$repository" add "$path"
+  done
+  git -C "$repository" -c user.name=test -c user.email=test@example.invalid commit -qm notes
+  git -C "$repository" tag -f v0.5.0a1 >/dev/null
+  git -C "$repository" checkout -q --detach "$gated"
+}
+notes_commit docs/RELEASE-NOTES.md docs/decisions/0001-note.md
+checklist
 test "$(row tag)" = PASS
+notes_commit docs/decisions/0001-note.md
+checklist
+test "$(row tag)" = FAIL
+test "$(reason tag)" = "expected release tag commit does not change docs/RELEASE-NOTES.md"
+notes_commit docs/RELEASE-NOTES.md change
+checklist
+test "$(row tag)" = FAIL
+test "$(reason tag)" = "expected release tag commit changes a path outside docs Markdown"
+notes_commit docs/RELEASE-NOTES.md
+git -C "$repository" checkout -q --detach v0.5.0a1
+git -C "$repository" -c user.name=test -c user.email=test@example.invalid commit -q --allow-empty -m later
+git -C "$repository" tag -f v0.5.0a1 >/dev/null
+git -C "$repository" checkout -q --detach "$gated"
+checklist
+test "$(row tag)" = FAIL
+test "$(reason tag)" = "expected release tag is not a single-parent child of HEAD"
+notes_commit docs/RELEASE-NOTES.md
+git -C "$repository" checkout -q main
 printf 'next\n' > "$repository/change"
 git -C "$repository" add change
 git -C "$repository" -c user.name=test -c user.email=test@example.invalid commit -qm next

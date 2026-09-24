@@ -112,12 +112,12 @@ ARTIFACT-GO-V0-009	docs/specs/release-artifact-integrity-v0.md	293	The untracked
 ARTIFACT-RDY-V0-001	docs/specs/release-artifact-integrity-v0.md	332	`script/release-checklist` MUST be deterministic and read-only. It prints
 ARTIFACT-RDY-V0-002	docs/specs/release-artifact-integrity-v0.md	355	native-runtime is owned by `GOC-V0-001`; native-performance is owned by
 ARTIFACT-RDY-V0-003	docs/specs/release-artifact-integrity-v0.md	363	a tag row reports only an exact release tag already pointing at the
-ARTIFACT-RDY-V0-004	docs/specs/release-artifact-integrity-v0.md	369	publication is `PASS` only with a repository-owner-approved receipt that
-ARTIFACT-RDY-V0-005	docs/specs/release-artifact-integrity-v0.md	373	promotion is `PASS` only with a repository-owner acceptance record naming
-ARTIFACT-RDY-V0-006	docs/specs/release-artifact-integrity-v0.md	385	the receipt is the blob at `docs/releases/<tag>/publication-receipt.json`
-ARTIFACT-RDY-V0-007	docs/specs/release-artifact-integrity-v0.md	397	the release revision is the receipt's `revision`, not `HEAD`. `PASS`
-ARTIFACT-RDY-V0-008	docs/specs/release-artifact-integrity-v0.md	405	every attached digest MUST be witnessed locally by the private archive
-ARTIFACT-RDY-V0-009	docs/specs/release-artifact-integrity-v0.md	414	the reader is read-only and offline. It invokes only local `git`, with the
+ARTIFACT-RDY-V0-004	docs/specs/release-artifact-integrity-v0.md	371	publication is `PASS` only with a repository-owner-approved receipt that
+ARTIFACT-RDY-V0-005	docs/specs/release-artifact-integrity-v0.md	375	promotion is `PASS` only with a repository-owner acceptance record naming
+ARTIFACT-RDY-V0-006	docs/specs/release-artifact-integrity-v0.md	387	the receipt is the blob at `docs/releases/<tag>/publication-receipt.json`
+ARTIFACT-RDY-V0-007	docs/specs/release-artifact-integrity-v0.md	399	the release revision is the receipt's `revision`, not `HEAD`. `PASS`
+ARTIFACT-RDY-V0-008	docs/specs/release-artifact-integrity-v0.md	407	every attached digest MUST be witnessed locally by the private archive
+ARTIFACT-RDY-V0-009	docs/specs/release-artifact-integrity-v0.md	416	the reader is read-only and offline. It invokes only local `git`, with the
 ARTIFACT-V0-001	docs/specs/release-artifact-integrity-v0.md	42	(superseded 2026-09-12 by decision 0088; obligation now carried by
 ARTIFACT-V0-002	docs/specs/release-artifact-integrity-v0.md	52	(superseded 2026-09-12 by decision 0088; obligation now carried by
 ARTIFACT-V0-003	docs/specs/release-artifact-integrity-v0.md	65	(superseded 2026-09-12 by decision 0088; obligation now carried by
