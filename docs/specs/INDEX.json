@@ -57,7 +57,7 @@
     "path": "docs/specs/affected-plan-v0.md",
     "title": "Affected Plan V0",
     "reqPrefix": "AFP-V0",
-    "intent": "accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320); other AFP-V0 requirements proposed",
+    "intent": "accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320); AFP-V0-021 accepted (decision 0376); other AFP-V0 requirements proposed",
     "delivery": "experimental",
     "claim": "`corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.",
     "dependsOn": [
@@ -986,7 +986,7 @@
     "path": "docs/specs/receipt-bundle-v0.md",
     "title": "Receipt bundle V0",
     "reqPrefix": "RCB-V0",
-    "intent": "proposed (ticket V1-0197; two ticket deviations await owner confirmation)",
+    "intent": "accepted (decision 0376; ticket V1-0197 with two owner-confirmed deviations)",
     "delivery": "experimental",
     "claim": "`corvint cem export` copies one change's CEM, witness, dogfood and gate receipts into a new directory whose manifest an offline script verifies.",
     "dependsOn": [
@@ -1560,7 +1560,7 @@
     "path": "docs/specs/daily-change-evidence-workflow-v0.md",
     "title": "Daily Change-Evidence Workflow V0",
     "reqPrefix": "DCW-V0",
-    "intent": "accepted scope (decision 0332); evaluation protocol awaits separate freeze",
+    "intent": "accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); evaluation protocol awaits separate freeze",
     "delivery": "experimental; milestone NOT_QUALIFIED",
     "claim": "0.6 requires verified task orientation, change consequence and evidence-carrying local completion.",
     "dependsOn": [
