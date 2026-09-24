@@ -2,9 +2,12 @@
 # Install-lifecycle regression for the native Core (SOP-V0-001..006,
 # docs/specs/stable-operations-v0.md). Against one release archive or one built binary, in a
 # private temporary directory, it performs: verified install into store A, first index and read
-# on a fixture repository, upgrade into store B, rollback to A, uninstall with repository and
-# `.corvint` retention, backup and restore of `.corvint`, and corrupted-snapshot recovery. Local
-# evidence only: it never publishes, signs, tags, or writes into the repository it is run from.
+# on a fixture repository, upgrade into store B, rollback to A, uninstall with repository,
+# `.corvint` and snapshot-store retention, backup and restore of both, and corrupted-snapshot
+# recovery. The snapshot store is the directory of the path the first `corvint index` receipt
+# reports: `.git/corvint/index` for a build with DIRTY-CACHE-013, `.corvint/index` for 0.7.0.
+# Local evidence only: it never publishes, signs, tags, or writes into the repository it is run
+# from.
 #
 # Inputs (environment):
 #   CORVINT_LIFECYCLE_ARCHIVE         a release `corvint_<goos>_<goarch>.tar.gz` whose root member
@@ -140,7 +143,6 @@ index() {
 }
 
 json_field() { sed -n "s/.*\"$2\":\([^,}]*\).*/\1/p" "$1" | head -n 1 | tr -d '"'; }
-snapshot_path() { ls "$fixture/.corvint/index"/*.gob; }
 file_size() { wc -c < "$1" | tr -d ' '; }
 
 store="$work/store"
@@ -158,7 +160,11 @@ say "step install-a: ok version=$version_a"
 make_fixture "$fixture" || fail first-index "fixture repository was not created"
 index "$store/a" full "$work/index1.json" || fail first-index "corvint index failed"
 test "$(json_field "$work/index1.json" ok)" = true || fail first-index "index did not report ok"
-snapshot=$(snapshot_path) || fail first-index "no snapshot under .corvint/index"
+snapshot=$(json_field "$work/index1.json" path)
+test -f "$snapshot" || fail first-index "the index receipt names no snapshot file"
+snapshot_dir=$(dirname "$snapshot")
+snapshot_rel=${snapshot_dir#"$fixture"/}
+test "$snapshot_rel" != "$snapshot_dir" || fail first-index "the snapshot is outside the fixture"
 snapshot_size=$(file_size "$snapshot")
 read_packet "$store/a" "$work/packet1.json" || fail first-index "read verb failed"
 test -s "$work/packet1.json" || fail first-index "read verb produced no packet"
@@ -193,17 +199,25 @@ read_packet "$store/a" "$work/packet-a2.json" || fail rollback-a "read verb fail
 cmp -s "$work/packet1.json" "$work/packet-a2.json" || fail rollback-a "packet bytes changed after rollback"
 say "step rollback-a: ok"
 
-# 5. Uninstall both stores: repository files and .corvint survive, the tree is unchanged.
+# 5. Uninstall both stores: repository files, .corvint and the snapshot store survive, the tree is
+#    unchanged.
 rm -rf "$store/b" "$store/a"
 test ! -e "$store/a/corvint" || fail uninstall "store A still present"
-test -d "$fixture/.corvint/index" || fail uninstall ".corvint/index was removed by uninstall"
+test -d "$fixture/.corvint" || fail uninstall ".corvint was removed by uninstall"
+test -d "$snapshot_dir" || fail uninstall "$snapshot_rel was removed by uninstall"
 (cd "$fixture" && git diff --quiet HEAD && test -z "$(git status --porcelain)") || fail uninstall "fixture repository changed"
 say "step uninstall: ok"
 
-# 6. Backup .corvint, remove it, restore it; the restored snapshot is fresh and reads identically.
+# 6. Back up .corvint and the snapshot store, remove both, restore them; the restored snapshot is
+#    fresh and reads identically.
 install "$store/a" "$binary" || fail backup-restore "reinstall failed"
-(cd "$fixture" && tar -czf "$work/corvint-backup.tar.gz" .corvint) || fail backup-restore "backup failed"
-rm -rf "$fixture/.corvint"
+case $snapshot_rel in
+  .corvint/*) backup_paths=.corvint ;;
+  *) backup_paths=".corvint $snapshot_rel" ;;
+esac
+# shellcheck disable=SC2086 # backup_paths is one or two fixed relative paths without spaces
+(cd "$fixture" && tar -czf "$work/corvint-backup.tar.gz" $backup_paths) || fail backup-restore "backup failed"
+rm -rf "$fixture/.corvint" "$snapshot_dir"
 (cd "$fixture" && tar -xzf "$work/corvint-backup.tar.gz") || fail backup-restore "restore failed"
 index "$store/a" if-stale "$work/index-restored.json" || fail backup-restore "corvint index --if-stale failed"
 test "$(json_field "$work/index-restored.json" state)" = fresh || fail backup-restore "restored snapshot was not fresh"

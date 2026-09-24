@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"testing"
 	"time"
@@ -133,8 +134,15 @@ func TestSelectionOnTheLiveDirtyWorktree(t *testing.T) {
 		t.Fatalf("plan is not bound to the graph it was computed from")
 	}
 	// Every selected unit's witness must resolve, on the live worktree, not
-	// only on the fixture.
+	// only on the fixture. A reader witness resolves to a unit whose path
+	// literals name its dirty path (AFP-V0-021).
 	for _, selection := range plan.Selected {
+		if selection.Witness.Kind == affected.WitnessPathLiteralReader {
+			if !slices.Contains(graph.Namers(selection.Witness.DirtyPath), selection.UnitID) {
+				t.Fatalf("%s has an unresolvable witness %+v", selection.UnitID, selection.Witness)
+			}
+			continue
+		}
 		owner, owned := graph.OwnerOf(selection.Witness.DirtyPath)
 		if !owned || owner != selection.Witness.Via[0] {
 			t.Fatalf("%s has an unresolvable witness %+v", selection.UnitID, selection.Witness)

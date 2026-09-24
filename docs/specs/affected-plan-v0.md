@@ -12,7 +12,7 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
 - Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320); other AFP-V0 requirements proposed/experimental
-- Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification.
+- Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification.
 - Blocked on: the LPCV-V0 composer accepting or replacing this wire; the 200-row qualification, which needs 201 first-parent commits on `main` (AFP-V0-017).
 - Read next: Requirements; Non-goals and authority; Failure modes.
 
@@ -360,6 +360,24 @@ and container qualification; full fallback remains available.
   unit: it widens only on the shared graph's other unknowns, so a changed helper that no spec
   reaches leaves it `BOUNDED` with nothing selected for that helper until ticket V1-0211 decides
   how it reports one. Rollback restores the silent skip.
+- `AFP-V0-021`: (proposed; ticket V1-0126) Every dirty path, as in rule (c) whether or not a
+  plugin owns it and including a changed source file, MUST also select every unit not otherwise
+  reached whose own files carry a path token naming it, with witness kind `PATH_LITERAL_READER`
+  and `via` holding that unit alone; the reader is not traversed to its dependents, and a unit
+  already reached keeps its seed or `DEPENDENCY_PATH` witness. Tokens and the naming relation are
+  AFP-V0-012's rule (c) lexicon: string literals outside import declarations, printf verbs
+  removed, runs of `[A-Za-z0-9._~@+/-]`, an import path under the owning module rewritten to a path
+  anchored at that module's directory, matched by component run. The Go plugin records them as
+  the unit's sorted `pathTokens`, which the graph digest covers. A package with more than
+  `affected.MaxPathsPerUnit` distinct tokens keeps none and is marked `pathTokensBounded`; a plan
+  with any dirty path then carries `LANGUAGE_FRONTIER` `go:path-token-bound:<unit id>` for each
+  such unit nothing else reached, and a clean plan carries none. A Go file that does not lex
+  raises `go:unparsed-source`, except under a `testdata` or `_`-prefixed directory, which the go
+  tool never builds. A match adds and removes no unknown entry: an unowned path keeps its
+  `UNOWNED_DIRTY_PATH` entry, so `plan.scope` stays `UNKNOWN`, because a literal index cannot
+  bound a read whose path is built at run time (AFP-V0-012 rule (d)). A reader's witness is the
+  smallest dirty path naming it. The CEM sidecar narrowing of rule (c) is not applied. Rollback
+  removes the reader selections and the bound entries; the paths stay unknown as before.
 
 ## Non-goals and authority
 
@@ -383,7 +401,8 @@ Exhausting an admitted-directory sub-bound instead skips only that subtree and r
 `go:included-directory-walk-bounded` at `UNKNOWN` scope; it is not a graph refusal.
 A dirty path owned by no plugin, or a changed unit (one that owns a changed path) with no
 selectable test in any language (AFP-V0-020): the plan widens to `UNKNOWN` scope rather than
-narrowing. A potentially deleted or renamed-away Go path widens and names that possibility on its package
+narrowing; the packages that name a dirty path by literal are added, never substituted for the
+widening (AFP-V0-021). A potentially deleted or renamed-away Go path widens and names that possibility on its package
 exclusion rather than claiming no dependency path. An unreadable subtree:
 `unsupported-affected-graph`, never a silently smaller graph. Worktree or HEAD changed during
 compilation: `unsupported-affected-drift`. A `--base` that is not a full commit id:
@@ -417,6 +436,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-019 | `internal/plansnapshot`, `compileSnapshotAffected` | `TestSnapshotImmutableBytesAndCleanup`, `TestSnapshotRejectsIncompleteMismatchedAndStale`, `TestSnapshotStrictWire`, `TestSnapshotRejectsLinksAndIgnoresArchiveAttributes`, `TestAffectedSnapshotMatchesCommittedPlanAcrossDirtySources`, `TestAffectedSnapshotPlaywrightPinsConfigAndSource` |
 | AFP-V0-018 | `playwrightAffectedReceipt`, `compilePlaywrightAffected`, and `typescript.SelectPlaywright` | `TestAffectedPlaywrightProfileEmitsProjectDistinctUnits`, `TestAffectedPlaywrightArgumentsFailClosed`, and `internal/liveverify/affected/typescript/playwright_test.go` |
 | AFP-V0-009 | `affectedAdvice`, `compileAffectedAdvice`, `mandatoryAffectedChecks`, `advisoryAffectedChecks`, `shellQuoteJoin` in `cmd/corvint/affected.go` | `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`, `TestAffectedAdviceReportsNoDeclaredGate`, `TestAffectedAdviceKeepsMandatoryGateAndNeverAdvisesExclusions`, `TestAffectedReceiptMembersAreClosedAndByteStable` (tightened to assert `advice`'s raw JSON key order), `TestAffectedAdviceBoundsTheDeclarationRead`, `TestShellQuoteJoinEscapesMetacharacters`, `TestAffectedAdviceTruncatedMandatoryDeclarationSuppressesNoGate`, `TestAffectedAdviceCapsMandatoryChecksAtSixteen`, `TestAffectedAdviceSkipsCommentsInVerifyFence` |
+| AFP-V0-021 | `WitnessPathLiteralReader`, `PathTokenBound`, `Graph.readers`, `Graph.tokenBounds`, `namesPath` in `internal/liveverify/affected` (`select.go`, `readers.go`); `Unit.PathTokens`, `Unit.PathTokensBounded`; `pathTokens`, `importsEnd`, `ignoredByGo`, `maxPathTokens` in `internal/liveverify/affected/golang/golang.go` | `TestPathLiteralSelectsItsReaderPackage_AFPV0021` (a named document selects its reader and stays unknown; single and parenthesized imports are no tokens; a file without imports yields tokens; a dependent and an unnamed path select nothing), `TestOwnedDirtyPathSelectsTheUnitsThatNameIt`, `TestReaderWitnessIsTheSmallestNamingDirtyPath`, `TestReaderReachedByDependencyKeepsItsDependencyWitness`, `TestBoundedPathTokensAreUnknownOnlyWhenAMatchIsAttempted`, `TestPathTokenBoundNamesThePackage`, `TestUnlexableSourceIsAFrontierOutsideIgnoredDirectories`, `TestSelectionOnTheLiveDirtyWorktree` (reader witnesses resolve), `TestAffectedDocumentSelectsThePackageThatNamesIt` (receipt shape, provider packages, byte identity) |
 | AFP-V0-020 | `UnknownNoSelectableTest` in `affected.Select` (`internal/liveverify/affected/select.go`) | `TestSelectNamesChangedUntestedGoPackageAsUnknownScope`, `TestSelectTraversesUntestedUnitsWithoutSelectingThem` (an untested unit the change only reaches stays bounded), `TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020` (every plugin), `TestPlaywrightDiscoveryReconciliation` (an unreached helper keeps the Playwright plan), `TestAffectedUntestedGoPackageIsUnknownScope` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if

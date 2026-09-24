@@ -20,7 +20,7 @@ evidence row), `docs/decisions/0369-context-recency-blame-opt-in-2026-09-23.md` 
 - Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
 - Status: proposed/experimental
 - Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/recency.go` and `blame.go` (TCP-V0-035..038 opt-in recency, blame and ownership, experimental); `internal/contextindex/identgraph.go` and `ppr.go` (TCP-V0-030..034 opt-in identifier-graph PageRank slot, `CORVINT_CONTEXT_GRAPH=on`, decision 0367); `internal/contextindex/span_rank.go` and `internal/contextindex/sufficiency.go` (TCP-V0-025..029 opt-in `CORVINT_CONTEXT_SPANS=on` line-budgeted spans and `coverage.sufficiency`, experimental, decision 0366); `cmd/corvint/context_lsp.go` and `internal/lspprovider` (TCP-V0-043..046 opt-in gopls `external` member under `CORVINT_CONTEXT_LSP=gopls`, experimental, decision 0371).
-- Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012 and of TCP-V0-047 (instruction-routed rows, V1-0186), which are implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go` and `internal/contextindex/taskcontext_routed_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it.
+- Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012 and of TCP-V0-047 (instruction-routed rows, V1-0186; idf floor and fenced-block rule, V1-0205 and V1-0206), which are implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go` and `internal/contextindex/taskcontext_routed_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it.
 - Read next: Requirements; Non-goals; Failure modes.
 
 Wave 1: `TCP-V0-018` recipe is retired (0078); identifier terms (`019`) and named-test frames (`020`) failed promotion and remain proposed/off (0076/0077). `021` measures actual cold/hit state and refuses unequal paired results (0075). Decision 0079 repairs complete cold imports and deterministic test evidence.
@@ -758,20 +758,25 @@ it must read, each with the relation that admitted it, without naming the task's
   not as a retrieval claim. Letting these relations change `results` needs its own requirement
   and decision 0070's paired ladder.
 - `TCP-V0-047`: When a governing row exists (TCP-V0-008), the governing file's text is split into
-  passages -- runs of non-blank lines, where a Markdown list item opens a new passage -- and a
-  passage routes when it shares at least two distinct task terms (TCP-V0-004's terms, the
-  passage tokenised the same way). Routing passages are ordered by the summed body idf of their
-  shared terms, highest first, then by line. Each backtick-quoted span in a routing passage that
+  passages -- runs of non-blank lines, where a Markdown list item opens a new passage. A fenced
+  code block is literal text, not routing prose: its lines, fences included, end a passage and
+  belong to none; a fence closes only with the opening character, at least as long, and no info
+  string, as in CommonMark. A passage routes when it shares at least two distinct task terms (TCP-V0-004's
+  terms, the passage tokenised the same way) whose body idf `ln(1 + (N - n + 0.5) / (n + 0.5))`,
+  over N indexed sources of which n hold the term in their body, is at least 2.0. A term held
+  by more than about 13.5% of sources therefore never counts toward routing, and neither does a term
+  the body term table does not hold (such as a camelCase compound, which that table splits). Routing passages are
+  ordered by the summed body idf of those terms, highest first, then by line. Each backtick-quoted span in a routing passage that
   is exactly an indexed source path, other than the subject and a path already reserved, is a
   candidate in that order; the first two are reserved as `instruction-routed` rows after the
   `spec-mentioned` rows and before every slot row, each costing one row of `--limit`, with the
   action "Read this file: the governing instructions name it in a passage that shares this task's
   terms, so the project routes work like this through it.", `authority` `instruction-reference`,
   `confidence` `medium`, `score` 850, evidence line 1, `summary` "named by the governing
-  instructions for this task", and a `reason` that appends the file, line and shared terms. A
+  instructions for this task", and a `reason` that appends the file, line and the shared terms that count. A
   candidate the cap turns away is `withheld` and makes `budget_shortage` `slots`; without a
   governing row the relation is `not-applicable`. A path named only in a passage sharing fewer than
-  two task terms reserves nothing: the row is project-authored routing matched to the task
+  two such task terms reserves nothing: the row is project-authored routing matched to the task
   (invariant 3), not a relevance ranking of instruction text. The rows are reserved in every other
   respect (TCP-V0-003 promotion, TCP-V0-011 `critical`, TCP-V0-016 withdrawal). A frozen
   `tools/retrieval-bench` `context` run before and after MUST show no recall@20 regression on any
@@ -1083,4 +1088,4 @@ wire never changed.
 | TCP-V0-044 | `attachLSPEvidence`, `extevidence.InlineSection`, `lspprovider.Expand` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandLiveGopls` |
 | TCP-V0-045 | `attachLSPEvidence`, `lspprovider.Expand` failure reasons | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandDegrades`, `TestExpandEveryQueryFailedIsUnavailable` |
 | TCP-V0-046 | `tools/retrieval-bench` `context` arm, flag unset and `gopls` | V1-0099 entry in `docs/BUILD-LOG.md` (measured off/on reports) |
-| TCP-V0-047 | `instructionRoutedRows`, `routedPassages`, `instructionPassages`, `reservedRelation`, `rowAction`, `coreSpans` | `TestTaskContextRoutesPathsTheGoverningInstructionsNameForTheTask`, `TestTaskContextCapsInstructionRoutedRows`, `TestContextSpansSkipInstructionRoutedRows`; V1-0186 entry in `docs/BUILD-LOG.md` (frozen bench before/after) |
+| TCP-V0-047 | `instructionRoutedRows`, `routedPassages`, `instructionPassages`, `nextFence`, `reservedRelation`, `rowAction`, `coreSpans` | `TestTaskContextRoutesPathsTheGoverningInstructionsNameForTheTask`, `TestTaskContextCapsInstructionRoutedRows`, `TestContextSpansSkipInstructionRoutedRows`, `TestTaskContextRoutingIsNotApplicableWithoutAGoverningRow`, `TestTaskContextRoutingSkipsTheSubject`, `TestTaskContextOrdersRoutingPassagesByIDF`, `TestTaskContextRoutingPromotesAnExistingRow`, `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld`, `TestTaskContextRoutingIgnoresCommonTerms`, `TestTaskContextRoutingSkipsFencedCodeBlocks`, `TestTaskContextRoutingClosesFencesAsCommonMark`, `TestTaskContextRoutingSkipsCompoundsTheTableSplits`; V1-0186 and V1-0205 entries in `docs/BUILD-LOG.md` (frozen bench before/after) |
