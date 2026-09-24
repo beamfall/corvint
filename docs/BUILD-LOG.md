@@ -148,6 +148,38 @@ drift (`TestExportRefusesADriftedCEM`); `core.worktree` was not protected; the t
 lived outside `internal/cem/cemcode`; and the verifier accepted a 41-63-hex header revision (now
 exactly 40 or 64). `make gate` was not run (owner preference).
 
+## 2026-09-23 V1-0213 GOC-V0-008: the Pi tests invoke no Python and the no-Python check gates
+
+Finding: `script/no-python-runtime-dependency_test.sh`, the GOC-V0-008 falsifying assertion, failed
+on main with six hits in `integrations/pi` and `integrations/pi-protected`. The TUI tests drove a
+PTY with `tui-fixture.py`, two cleanup tests forked a TERM-ignoring descendant with `python3`, and
+`build.mjs` extracted the pinned Node binary with Python's `tarfile`. No gate ran the check.
+
+Decision: `tools/pi-tui-fixture` is a stdlib-only Go PTY driver for darwin and linux. It ports both
+Python drivers: the default one-prompt script and `-protected` for the reload and session
+replacement sequence. It keeps the same witness, the SIGTERM-then-SIGKILL group cleanup, the
+`128+signal` exit code, and the output and time bounds. On darwin the window size is set on the
+replica, because `TIOCSWINSZ` on the master returns `ENOTTY` before the replica is open. The
+descendant fixtures are now `/bin/sh` with `trap '' TERM`, and `build.mjs` extracts the Node binary
+with `/usr/bin/tar --strip-components 2`, then refuses a member that is not a regular file. The
+check is gate step `no-python-runtime-dependency-test`. It now masks its own name, because the
+Makefile must spell that name. Independent review found the old line-level allow-list let any line or
+path containing an allowed name hide a real invocation (a checkout directory named after the check,
+or `python3` appended to a `check-analyzer-python-*` script); the check now drops only
+`CORVINT_TEST_EXTERNAL_PYTEST` opt-in lines, masks the two allowed names, matches again on
+repository-relative paths, and a self-test case proves an allowed name cannot hide `python3`. The GOC-V0-008
+traceability row names the wiring. The gate-ledger `scopes` entry for the step is left as a
+follow-up (GL-V0-003: the step runs unrecorded).
+
+Evidence: the check exits 0 (exit 1 on the base). `node --test integrations/pi/host.test.mjs`
+passes 4 of 4 against Pi 0.85.1 on macOS arm64. With the SIGKILL escalation removed, AHI-025 fails,
+so the new fixture still detects a leaked process. PPI-V0-004 (startup) and PPI-V0-003 pass. A
+scripted `/bin/sh` TUI stand-in drove `-protected` through every phase. The extraction command was
+checked on synthetic `.tar.gz` and `.tar.xz` archives, including a symlink member.
+NOT_RUN: `pi-protected-build` and the built-binary protected tests (PPI-V0-001/002 runtime and
+startup injection), because the pinned SDK and Node archive are not installed. Linux PTY execution
+was not run; linux and windows `go vet` pass. `make gate` was not run (owner preference).
+
 ## 2026-09-23 V1-0196 triggered-automation contract (docs/AUTOMATION.md)
 
 Finding: nothing stated which Corvint commands are safe as a triggered CI, hook or team-automation
