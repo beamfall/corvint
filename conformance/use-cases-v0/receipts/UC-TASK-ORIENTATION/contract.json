@@ -6,13 +6,13 @@
     ]
   },
   "evidenceClass": "contract",
-  "repositoryRevision": "55857370dc501e92e3aaa3da65e38cd47d250e92",
+  "repositoryRevision": "ca36a6cbc42f57b9b4b667cad3060bd3e19d35d7",
   "result": "PASS",
   "spec": "corvint-use-case-evidence/0",
   "subjects": [
     {
       "path": "docs/specs/daily-change-evidence-workflow-v0.md",
-      "sha256": "c49e1194277b5e5e9c7f2f1a5d6bacee0ec6453987bfd9cccbfd990f0d9986d4"
+      "sha256": "7ab4c0765e8d1caccf651ab24590fa0360991cd8d5f6040db885b63b6e292d19"
     },
     {
       "path": "docs/decisions/0332-verified-local-workflow-scope-2026-09-22.md",
