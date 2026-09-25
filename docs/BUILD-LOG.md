@@ -6161,7 +6161,7 @@ Review repairs (same slice):
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
 
-## 2026-09-25 V1-0286 AHI-031 (proposed, panel blocker B8, not accepted): a stale snapshot is named, with its refresh argv
+## 2026-09-25 V1-0286 AHI-031 (decision 0400, panel blocker B8): a stale snapshot is named, with its refresh argv
 
 Every Claude Code `UserPromptSubmit` after a commit returned the model-only additionalContext
 `Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline; coding continues` (seen

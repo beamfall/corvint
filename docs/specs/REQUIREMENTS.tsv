@@ -140,7 +140,7 @@ AHI-027	docs/specs/agent-harness-integration-v0.md	442	`pre-compact` MUST emit, 
 AHI-028	docs/specs/agent-harness-integration-v0.md	450	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv
 AHI-029	docs/specs/agent-harness-integration-v0.md	461	Neither compaction event writes repository, index, trace, or store state; the on
 AHI-030	docs/specs/agent-harness-integration-v0.md	463	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
-AHI-031	docs/specs/agent-harness-integration-v0.md	467	(proposed 2026-09-25, panel blocker B8, not accepted) When no index snapshot
+AHI-031	docs/specs/agent-harness-integration-v0.md	467	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,

@@ -145,7 +145,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   Timeouts, malformed input and unsupported hosts fail open with explicit failure, not a satisfied
   claim. An automatic event whose deadline expires reports the fixed `dogfood-event-deadline` code
   (or `dogfood-event-index-snapshot-stale` once the read fell back to the in-memory build of a
-  snapshot miss; proposed 2026-09-25 by `AHI-031`, not accepted), never the generic `dogfood-event-unavailable`, even when the expiry first surfaces as a failed
+  snapshot miss; accepted 2026-09-25 with `AHI-031`, decision 0400), never the generic `dogfood-event-unavailable`, even when the expiry first surfaces as a failed
   repository or policy read. That code MUST be returned once the deadline passes, without waiting
   for a read stage that does not observe cancellation (the in-memory index compile of a snapshot
   miss); the abandoned read writes nothing. `dogfood-event-policy-drift` is reserved for an observed
@@ -287,7 +287,7 @@ elsewhere are not repeated.
 | `dogfood-coordination-failed` | `internal/localcompletion/finish.go:371` | the in-process `dogfood change` coordination run did not pass (`LCP-V0-014`) |
 | `dogfood-event-context-drift` | `cmd/corvint/local_completion_event.go:375` | the loaded index commit or tree revision, or the dirty-path digest, differs from the probed repository context |
 | `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go:129` | the event's context deadline expired or was cancelled |
-| `dogfood-event-index-snapshot-stale` | `cmd/corvint/local_completion_event.go:81` | the event's deadline expired after the read found no matching index snapshot and fell back to its in-memory build (`AHI-031`, proposed) |
+| `dogfood-event-index-snapshot-stale` | `cmd/corvint/local_completion_event.go:81` | the event's deadline expired after the read found no matching index snapshot and fell back to its in-memory build (`AHI-031`, decision 0400) |
 | `dogfood-event-input-unavailable` | `cmd/corvint/local_completion_event.go:117` | reading the event input from stdin failed |
 | `dogfood-event-native-budget` | `cmd/corvint/local_completion_event.go:431` | eight prompt-context attempts, each shrinking the budget, never fit the natively escaped response within the byte budget |
 | `dogfood-event-output-too-large` | `cmd/corvint/local_completion_event.go:484` | the canonical response plus a final LF exceeds the byte budget |

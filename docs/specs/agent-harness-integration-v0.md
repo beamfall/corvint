@@ -464,7 +464,7 @@ do not reinterpret this Frontier result.
   names the host version the pin hooks are registered for, that their verdict reaches the user
   only, and that this packet is the model-facing rehydration and, on a host without the compaction
   events, the only one.
-- `AHI-031`: (proposed 2026-09-25, panel blocker B8, not accepted) When no index snapshot
+- `AHI-031`: (accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot
   matches the tree and the automatic `dogfood event` read falls back to its in-memory build
   (`IDX-SNAP-V0-012`), an event whose deadline then expires MUST report
   `dogfood-event-index-snapshot-stale` instead of `dogfood-event-deadline` (`LCP-V0-008`), under
