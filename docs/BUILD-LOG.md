@@ -6160,3 +6160,52 @@ Review repairs (same slice):
   probe wording now names what is compared: `HEAD`, the tree and the dirty-path set.
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
+
+## 2026-09-25 Pre-1.0 docs accuracy batch: V1-0129, V1-0130, V1-0224, V1-0225, V1-0258, V1-0265, V1-0267, V1-0271, V1-0303..0307
+
+- V1-0129: `ROADMAP.md:14` cited a pre-snapshot commit without labelling it as such; the citation
+  now says so.
+- V1-0130: already fixed pre-batch (`4088e22`, an ancestor of this batch's base) — `PORTFOLIO-0.6.md`
+  already lists the `flows` and `skill-export` verbs and the four 0.6-era specs. No change.
+- V1-0224: `docs/MCP-SERVER.md:176` claimed a release-blocker Git-pinning state that current
+  origin/main no longer matches; reworded to the current status.
+- V1-0225: `docs/GLOSSARY.md:77` cited a stale MCP bridge result line; repinned.
+- V1-0258: `docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md:29` cited a stale
+  shared-status line; repinned.
+- V1-0265: `docs/decisions/README.md` was missing rows for 53 tracked decision files (0001-0044,
+  0080, 0083, 0089, 0188, 0288, 0295, 0307, 0308); all 292 tracked decisions are now indexed exactly
+  once. `script/check-decision-numbers.sh` now also refuses a missing or duplicate index row, wired
+  as `decision-numbers-test` in `GATE_STEPS` alongside the existing `decision-numbers-check`.
+  `script/check-decision-numbers_test.sh` (4 cases).
+- V1-0267: `conformance/divergence-register.md:1714,2026` cited two stale
+  `go-production-kernel-migration-v0.md` line numbers; repinned.
+- V1-0271: already fixed pre-batch (`be8a63e`, an ancestor of this batch's base) — `make
+  spec-requirements` (Makefile:134-135) already regenerates `docs/specs/REQUIREMENTS.tsv`, and
+  `spec-requirements-check`'s own failure message (Makefile:138) already names it. No change.
+- V1-0303: `docs/specs/use-case-conformance-v0.md`'s Agent digest still said every job was
+  `UNPROVEN`, contradicting the same file's own "Verified current state" section and decision 0389;
+  digest reworded to match. `README.md:355`'s "independent Go interoperability consumer" claim for
+  `interop/cem01-go` overstated `PRS-V1-007` (same-org, not independent); reworded to "in-repo second
+  consumer". `README.md:364`'s 0.8.1-scoped `UNPROVEN` banner was verified against decision 0389 and
+  left unchanged: it is still correct for the 0.8.1 prerelease it describes.
+- V1-0304: `docs/PRODUCT.md:5,34-39` used retired "change typechecker" / "product breakthrough"
+  framing; reworded to the accepted decision 0373 terminology ("change-evidence verifier" / "how the
+  change-evidence verifier works") and added README.md's proof-scope disclaimer.
+- V1-0305: verified false — `docs/PRODUCT.md:19` already links decision 0373 and the 1.0 spec (no
+  "unlinked 1.0 scope"); no truncated sentence found in `docs/PRODUCT.md:300-343`; gate 1
+  (`docs/PRODUCT.md:344-345`) already scopes its Python bound to the staged migration overlap
+  separately from the native profile; `benchmarks/results/` has no untouched blind run newer than
+  `blind-v3-first-run.json`, so citing it is current, not stale. No change.
+- V1-0306: `docs/PRODUCT.md:74-82` described Jira/Linear/GitHub/GitLab/Bitbucket work-tracking and
+  E2E adapters in present tense; no such adapter code or owning spec exists, and the document's own
+  non-goals section says the thirty-day wedge does not require Jira/E2E ingestion. Moved into the
+  "Committed integration and workflow goals" table (`docs/PRODUCT.md:254`), which is already scoped
+  as commitments rather than current-alpha claims.
+- V1-0307: `docs/PRODUCT.md:140-152`'s competitive framing named SLSA, MCP, and agentdiff but not
+  Cursor's Agent Trace attribution specification; added, plus the attribution-vs-evidence boundary
+  and a conceptual CEM-from-Agent-Trace mapping the finding asked for.
+
+V1-0344 (panel finding D14) is out of scope for this batch by owner instruction; it is deferred to a
+separate change once decision 0398 lands.
+
+NOT_RUN: the exhaustive `make gate`; independent review of this batch.
