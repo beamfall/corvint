@@ -1116,6 +1116,37 @@ func TestReportDefaultsUnderGitDir(t *testing.T) {
 	}
 }
 
+// TestReportAbsoluteOutput (V1-0141): an absolute --output outside the repository is written there;
+// one inside the worktree or the Git directory is refused with invalid-arguments before any write.
+func TestReportAbsoluteOutput(t *testing.T) {
+	root, base, target := makeRepo(t)
+	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(t.TempDir(), "review.md")
+	result, err := openSession(t, root).Read(ctx(), "report", ReadOptions{
+		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: target, Output: outside,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, readErr := os.ReadFile(result["report"].(string))
+	if readErr != nil || !strings.Contains(string(content), "Change Evidence Map review") {
+		t.Fatalf("report %v at %v: %v", result["report"], outside, readErr)
+	}
+	for _, inside := range []string{filepath.Join(root, "review.md"), filepath.Join(root, ".git", "review.md")} {
+		_, err := openSession(t, root).Read(ctx(), "report", ReadOptions{
+			MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: target, Output: inside,
+		})
+		if cemcode.CodeOf(err) != cemcode.InvalidArguments {
+			t.Fatalf("%s: got %v, want invalid-arguments", inside, err)
+		}
+		if _, statErr := os.Lstat(inside); !os.IsNotExist(statErr) {
+			t.Fatalf("%s: refused report was written", inside)
+		}
+	}
+}
+
 // TestStagePrecedenceBeforeRepositoryValidation is CEM-CB-AT-008 for the
 // native build: with the repository boundary broken (a configured alternate),
 // stage-2 map validation, stage-3 profile-forbidden arguments, and stage-4

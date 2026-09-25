@@ -117,6 +117,9 @@ within 15 minutes.
   Platforms without advisory file locks MUST refuse these updates. A `report --output` equal to the
   input map path under case folding, or naming the same existing file as the input map (a
   normalization or locale alias the volume applies), MUST refuse `invalid-arguments` before any write.
+  (proposed 2026-09-25, V1-0141, not accepted) An absolute `report --output` whose existing parent
+  directory lies outside the worktree and its Git directories MUST be published there; one whose
+  parent lies inside them, by file identity, MUST refuse `invalid-arguments` before any write.
 - `CEM-PILOT-014`: a clean local install plus prepare, one disposition update, status, report, and
   verify MUST be demonstrated in under 15 minutes with the synchronized commit recorded. The
   POSIX-only harness MUST first invoke and record a sanitized offline inventory for its trusted
