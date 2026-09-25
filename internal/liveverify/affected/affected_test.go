@@ -1,10 +1,13 @@
 package affected
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -453,6 +456,39 @@ func TestGraphDigestChangesWithEveryObservedInput(t *testing.T) {
 	}
 	if base.Digest() == edged.Digest() {
 		t.Fatal("edges are outside the graph digest")
+	}
+}
+
+// TestGraphDigestIsTheDomainTaggedProjection_V1_0299 pins the digest to the
+// documented derivation (AFP-V0-005): SHA-256 over the domain tag followed by
+// the canonical projection, which names every Unit field and no other.
+func TestGraphDigestIsTheDomainTaggedProjection_V1_0299(t *testing.T) {
+	graph, err := Build(t.TempDir(), chain())
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := graph.Canonical()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(append([]byte("corvint-affected-graph/1\n"), body...))
+	if want := "affected-graph:sha256:" + hex.EncodeToString(sum[:]); graph.Digest() != want {
+		t.Fatalf("digest=%s want=%s", graph.Digest(), want)
+	}
+	for _, member := range []string{`"testImports":`, `"pathTokensBounded":`, `"embeds":`, `"unboundedReads":`, `"locatesRoot":`, `"frontier":`} {
+		if !strings.Contains(string(body), member) {
+			t.Fatalf("projection lacks %s: %s", member, body)
+		}
+	}
+	unitFields := reflect.VisibleFields(reflect.TypeFor[Unit]())
+	projectedFields := reflect.VisibleFields(reflect.TypeFor[digestUnit]())
+	if len(unitFields) != len(projectedFields) {
+		t.Fatalf("Unit has %d fields, the digest projection %d: decide whether the new field governs selection", len(unitFields), len(projectedFields))
+	}
+	for index := range unitFields {
+		if unitFields[index].Name != projectedFields[index].Name {
+			t.Fatalf("field %d: Unit %s, projection %s", index, unitFields[index].Name, projectedFields[index].Name)
+		}
 	}
 }
 

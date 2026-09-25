@@ -80,6 +80,17 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   every plan again.
 - **AFP-V0-005:** For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
   runs; with `--base`, the base commit is part of that fixed input.
+  (proposed, decision 0398; V1-0299) `plan.graphDigest` MUST be `affected-graph:sha256:` followed by
+  the lowercase hex SHA-256 of the domain tag `corvint-affected-graph/1` and one line feed, then the
+  deterministic JSON projection `{"languages","frontier","units"}`: the sorted participating plugin
+  names, the sorted graph frontier, and, in unit-id order, each unit's `id`, `sources`, `tests`,
+  `imports`, `testImports`, `pathTokens`, `pathTokensBounded`, `embeds`, `unboundedReads`,
+  `locatesRoot` and `frontier`, every member always present (`digestBody` and `digestUnit` in
+  `internal/liveverify/affected/graph.go`). The projection is fixed there, not by the internal
+  `Unit` struct, so a new internal field changes the digest only when it is added to the
+  projection, and a unit field left out of it fails the test. The value is an identity, not a
+  CCF-V1-002 identifier: it has changed between releases on identical input (0.7.0 to 0.8.1, and
+  again with this derivation), so a reader compares digests only from one release.
 - **AFP-V0-006:** Failures MUST exit 2 with a typed code on stderr and no partial document:
   `unsupported-affected-revision`, `unsupported-affected-status`, `unsupported-affected-graph`
   (including an unreadable subtree, or an accepted source file whose repository-relative path is no
@@ -489,7 +500,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-002 | `internal/liveverify/affected/dirty.go` | `TestDecodeStatusFailsClosedOnMalformedInput`; `TestAffectedRejectsNonRepositoryAndExtraArguments` |
 | AFP-V0-003 | `affectedReceipt`, `providerGoPackages` | `TestAffectedDirtyGoSourceSelectsDependentsAsProviderPackages` |
 | AFP-V0-004 | `affected.Select` scope and exclusion-reason rules; `goStructure`, `goSourceRule`, `goDataRule`, `WitnessEnclosingPackage` in `internal/liveverify/affected/structure.go`; `Unit.Embeds` and absent in-module import edges (`resolved`, `underModule`) in the Go plugin | `TestAffectedUnownedDirtyPathIsUnknownScope`, `TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340`, `TestUnownedDirtyPathSelectsItsPackageAndImporters_V1_0340` (an embedded asset, a nested fixture, a file directly in a package and a deleted package each select their package or importers; an unrelated package stays excluded); `frontierUnknowns`, `participants`, `claimantsOf`, `PathReader`, `Unit.Frontier` (V1-0289) with `TestFrontierBearsOnlyOnThePlansItTakesPartIn_V1_0289` (another plugin's change, a clean plan and an unreached unit name no frontier; an unowned path and a path-reading plugin take part) and `TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289`; provider wire unchanged (`go-live-test-provider-v0.md` GLTP-V0-006) |
-| AFP-V0-005 | canonical JSON via `gokernel.CanonicalJSON` | byte-identity assertion in the dirty-source test |
+| AFP-V0-005 | canonical JSON via `gokernel.CanonicalJSON`; `graphDigestDomain`, `digestBody`, `digestUnit`, `projectUnit` in `internal/liveverify/affected/graph.go` | byte-identity assertion in the dirty-source test; `TestGraphDigestIsTheDomainTaggedProjection_V1_0299` |
 | AFP-V0-006 | `runAffected` error paths; `affected.ErrWalkUnreadable`; `affected.ErrWalkUnrepresentable` | `TestAffectedRejectsNonRepositoryAndExtraArguments`; `TestAffectedUnreadableSubtreeFailsClosed`; `TestSourceFilesRefusesAnUnrepresentableAcceptedName` |
 | AFP-V0-007 | `Graph.rank`, `Graph.proximity` in `internal/liveverify/affected/select.go` | `TestSelectOrdersByDistanceThenSharedDirectoryThenUnitID` (order and two-run byte identity) |
 | AFP-V0-008 | `SourceFilesIncluding`, `MaxIncludedDirectoryEntries`, `FrontierIncludedDirectoryWalkBounded`, `observeModules`, `workspaceDirectories`, `enclosingModule`, `groupByDirectory`, `inTestdata`, `unitID`, `readModulePath` in `internal/liveverify/affected` | `TestIncludedDirectoryWalkBoundWidensInsteadOfRefusing_AFPV0008`, `TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath`, `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` over `testdata/workspace` (a listed pair, an unlisted `stray`, an entry outside the root), `TestPackagesUnderBuildOutputDirectoryNamesAreSelected`, `TestNoGoRepositoryProducesNoUnitsOrFrontier`, `TestReadModulePathMatchesGoModEdit`, `TestReadModulePathAbstainsOnBOM`, `TestTestdataIsFixtureDataNotAPackage_AFPV0008`, `TestWorkspaceModuleBelowTestdataIsObserved_AFPV0008`, `TestWorkspaceUseOutsideRootIsAFrontier_AFPV0008`, `TestTestOnlyImportSelectsTheTestUserButNotItsImporters`, `TestSourceParsedEdgesCoverEveryEdgeTheToolchainReports` (a non-test toolchain import must be an ordinary edge) |
