@@ -525,6 +525,15 @@ files, so a change sealed in another worktree has neither here. The dogfood loop
 `unknown` until `corvint ocm link` records hunk and claim identifiers, so their requirement edges
 render `unsupported` rather than linked.
 
+Observed 2026-09-25 on the owner's primary checkout (V1-0143): none of its 129 sealed changes has a
+trace row, and its 15 trace files name other revisions. The dogfood loop records a change's trace in
+the clone that binds it (`docs/DOGFOOD.md`), and the untracked trace does not travel with the sealed
+map, so the pane truthfully renders each of those changes `unverified`. A verification edge on real
+history is therefore an operator action: open the pane from the binding clone, which holds the trace,
+before that clone is removed. The pane never fetches, copies or infers a trace, and this document
+does not direct copying traces into another checkout, whose trace store also gates later queries
+(`unsupported-query-trace-state` in `docs/DOGFOOD.md`).
+
 Launch behaviour is unchanged: foreground-process cleanup is still `TestConsoleHTTPProcessCleanup`.
 U4 remains open and the chain pane's operator-time comparison is `NOT_OBSERVED`.
 
