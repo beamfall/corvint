@@ -6178,3 +6178,24 @@ Review repairs (same slice):
   path:N-M` prints the whole replacement token. Agents kept rediscovering all three while
   repinning citations after BUILD-LOG and DOGFOOD.md line shifts.
 - Doc-only change; no behaviour changes.
+## 2026-09-25 V1-0244 and V1-0268: fast PR doc gates and use-case receipt repin
+
+Root cause of the use-case receipt reds (V1-0268), from `git log --first-parent origin/main` and the
+check-runs API: main first went red at the merges of #140, #160, #177 and #186. In all four the PR
+head itself already failed receipt validation (its own branch edited a subject pinned by a receipt
+present in its base), and the PR merged 7 to 13 minutes after its `go-product` run started, before
+that run concluded; each run later ended `failure`. The ruleset requires `go-product`, so these merges
+used the admin pull-request bypass. None was a merge-order race: no red merge had a green head.
+The race is still possible under `strict_required_status_checks_policy: false` (a PR that adds a
+receipt and a PR that edits its subject, each green alone), but it was not observed. V1-0244 is the
+same shape: the documentation GATE_STEPS ran in no CI job at all.
+
+Change: a `doc-gates` job in `.github/workflows/ci.yml` runs the six documentation gate checks,
+`make use-case-receipts-check` (lists every receipt to repin), the repin script's fixture test, and
+`go run ./conformance/use-cases-v0` in a few minutes. `script/repin-use-case-receipts.sh` does the
+repin that 21 commits on main made by hand; its procedure is in
+`conformance/use-cases-v0/README.md`. UCV0-004 is unchanged: the runner still requires exact bytes.
+
+Owner decisions (not changed here): add `doc-gates` to the ruleset's required checks; stop bypassing
+while a required check is pending; and choose `strict_required_status_checks_policy: true` or a
+merge queue (which also needs a `merge_group` trigger in `ci.yml`) to close the race.
