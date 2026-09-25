@@ -126,7 +126,7 @@ Baseline: ordinary Playwright plus its JSON report. Go regressions cover malform
 explicit live qualification uses an installed pinned Playwright/browser runtime. Record exact versions
 and gates in BUILD-LOG. Rollback removes this profile/option; old experimental receipts stay readable
 and retained evidence is not deleted. `/1` is additive and `/0` remains readable. Further wire fields
-require another profile revision. Reporter/config
+require another profile revision, so every profile refuses the unprofiled receipt's `attemptDetails`. Reporter/config
 changes rerun live qualification. Acceptance and passing qualification are both promotion conditions.
 `/2` therefore remains readable and conformance-tested but non-promotable while its live reporter
 matrix is `NOT_RUN`; `/0` and `/1` retain their existing qualification.
@@ -214,12 +214,12 @@ browser-path override. With the bundled path, the exact command is:
 | `application-attestation-provider-required` | The attested profile lacks an absolute config path or provider argv. | `internal/jstestprovider/application_attestation.go:68@2bc06a44` |
 | `application-attestation-provider-unavailable` | The provider executable is unresolved, unreadable, unstaged, or fails bounded execution. | `internal/jstestprovider/application_attestation.go:72@94973cec` |
 | `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:229@ae7d4bc6` |
-| `attested-external-profile-has-declared-identity` | An attested receipt also carries the legacy caller-declared application identity. | `internal/jstestprovider/projection.go:73@d5db6c8b` |
-| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:345@2fb84e28` |
+| `attested-external-profile-has-declared-identity` | An attested receipt also carries the legacy caller-declared application identity. | `internal/jstestprovider/projection.go:76@d5db6c8b` |
+| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:348@2fb84e28` |
 | `file-bound-exceeded` | A bounded attestation input cannot be read within its byte ceiling. | `internal/jstestprovider/application_attestation.go:164@5714ccbf` |
 | `file-replaced` | The opened attestation input is not the file that was inspected before opening. | `internal/jstestprovider/application_attestation.go:160@1bec3465` |
 | `invalid-canonical-input` | Canonical input is empty, oversized, or secret-shaped. | `internal/jstestprovider/application_attestation.go:171@12f8b66b` |
-| `legacy-external-profile-has-attested-fields` | A legacy `/0` receipt carries `/1` attestation fields. | `internal/jstestprovider/projection.go:66@751bcb11` |
+| `legacy-external-profile-has-attested-fields` | A legacy `/0` receipt carries `/1` attestation fields. | `internal/jstestprovider/projection.go:69@751bcb11` |
 | `noncanonical-input` | Parsed input bytes differ from the canonical JSON encoding. | `internal/jstestprovider/application_attestation.go:187@0bb50e72` |
 | `not-regular` | An attestation input path does not resolve to a regular file. | `internal/jstestprovider/application_attestation.go:151@9133b825` |
 | `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:192@0fe9d240` |

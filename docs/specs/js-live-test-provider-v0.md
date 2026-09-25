@@ -117,7 +117,10 @@ A `Receipt` (`internal/jstestprovider/receipt.go`) binds:
   never inferred across an unknown side.
 - `tests[]`: one `TestOutcome` per test, each carrying a fixed `state`, retry count, duration, an
   optional `file:line` anchor, and a failure message. Failure artifacts (trace/screenshot paths)
-  are listed by path, never copied into the receipt.
+  are listed by path, never copied into the receipt. A Playwright outcome also carries
+  `attemptDetails`, every attempt's state, retry, duration, failure message, anchor and artifact
+  paths in run order (AFU-V1-012); each attempt passes the run-evidence hygiene and the product
+  secret screen (AFU-V1-038). A `corvint-playwright-external` profile refuses this member.
 - `infrastructure`: set only when the run itself could not produce a real test observation (runner
   crash, timeout, output overflow, unparseable report, no suites collected). A per-test `failed`
   state is never routed through this field.

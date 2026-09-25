@@ -62,12 +62,8 @@ func reconcilePlaywrightDiscovery(plan PlaywrightPlan, revision string, raw []by
 	sum := sha256.Sum256(raw)
 	summary.InputSHA256 = hex.EncodeToString(sum[:])
 	summary.State = "MALFORMED"
-	var receipt PlaywrightDiscovery
-	if len(raw) > PlaywrightDiscoveryMaxBytes || json.Unmarshal(raw, &receipt, json.RejectUnknownMembers(true)) != nil {
-		return summary
-	}
-	canonical, err := json.Marshal(receipt, json.Deterministic(true))
-	if err != nil || !bytes.Equal(bytes.TrimSuffix(raw, []byte{'\n'}), canonical) || !validPlaywrightDiscovery(receipt) {
+	receipt, ok := decodePlaywrightDiscovery(raw)
+	if !ok {
 		return summary
 	}
 	summary.State = "BINDING_MISMATCH"
@@ -103,6 +99,40 @@ func reconcilePlaywrightDiscovery(plan PlaywrightPlan, revision string, raw []by
 	}
 	summary.State = "MATCHED"
 	return summary
+}
+
+// VerifyPlaywrightDiscovery decodes a canonical receipt and binds it to revision, the config bytes
+// and the observed sources. The state is MISSING, MALFORMED, BINDING_MISMATCH or MATCHED; the
+// receipt's units are returned only when it is MATCHED (AFU-V1-019).
+func VerifyPlaywrightDiscovery(root, configPath, revision string, raw []byte) ([]PlaywrightDiscoveryUnit, string) {
+	if len(raw) == 0 {
+		return nil, "MISSING"
+	}
+	receipt, ok := decodePlaywrightDiscovery(raw)
+	if !ok {
+		return nil, "MALFORMED"
+	}
+	configBytes, err := affected.ReadSource(root, configPath)
+	if err != nil {
+		return nil, "BINDING_MISMATCH"
+	}
+	configSum := sha256.Sum256(configBytes)
+	sourceDigest, err := ObservePlaywrightSources(root, configPath)
+	config := PlaywrightConfigIdentity{Path: configPath, SHA256: hex.EncodeToString(configSum[:])}
+	if err != nil || receipt.Revision != revision || receipt.Config != config || receipt.SourceDigest != sourceDigest {
+		return nil, "BINDING_MISMATCH"
+	}
+	return receipt.Units, "MATCHED"
+}
+
+// decodePlaywrightDiscovery accepts only a bounded, closed, canonically encoded, valid receipt.
+func decodePlaywrightDiscovery(raw []byte) (PlaywrightDiscovery, bool) {
+	var receipt PlaywrightDiscovery
+	if len(raw) > PlaywrightDiscoveryMaxBytes || json.Unmarshal(raw, &receipt, json.RejectUnknownMembers(true)) != nil {
+		return receipt, false
+	}
+	canonical, err := json.Marshal(receipt, json.Deterministic(true))
+	return receipt, err == nil && bytes.Equal(bytes.TrimSuffix(raw, []byte{'\n'}), canonical) && validPlaywrightDiscovery(receipt)
 }
 
 func validPlaywrightDiscovery(receipt PlaywrightDiscovery) bool {
