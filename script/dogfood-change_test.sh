@@ -552,7 +552,7 @@ phase_jobs="$phase_jobs $!"
   git -c user.name=t -c user.email=t@example.invalid commit -qam cited
   replace_count=$(rg -c ' cem prepare .* --replace$' "$test_root/corvint.log")
   transient_status=0
-  DOGFOOD_TEST_CEM_PREPARE_CODE=git-timeout CORVINT_BIN="$test_root/bin/corvint" \
+  DOGFOOD_TEST_CEM_PREPARE_CODE=git-timeout CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_CITATIONS="$test_root/citations.tsv" \
     DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" >/dev/null 2>&1 ||
     transient_status=$?
@@ -560,6 +560,8 @@ phase_jobs="$phase_jobs $!"
   test "$(rg -c ' cem prepare .* --replace$' "$test_root/corvint.log")" = "$replace_count"
   git diff --quiet HEAD -- .corvint/change.cem.json
   rg -q '"name": "cem-prepare", "status": "NOT_PRODUCED", "reason": "git-timeout"' .corvint/dogfood-report.json
+  # V1-0228: the map left by an earlier run is not the plan's map, so nothing is cited.
+  rg -q '"name": "cem-cite", "status": "NOT_PRODUCED", "reason": "cem-map-not-produced"' .corvint/dogfood-report.json
   alternates_status=0
   alternates_output=$(DOGFOOD_TEST_CEM_PREPARE_CODE=unsupported-object-alternates CORVINT_BIN="$test_root/bin/corvint" \
     DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
@@ -1232,6 +1234,14 @@ rg -q '"reason": "citation-plan-map-mismatch"' "$citation_case/report.json"
 citation_hunks=$(awk 'BEGIN { for (i=1; i<=257; i++) printf "unknown:script/h%d.sh ", i }')
 citation_hunks=${citation_hunks% }
 run_citation_case split-over-row-limit "$citation_artifacts/nine.tsv" 1 9
+assert_cited_uncommitted
+# V1-0228: a map path is compared after JSON unescaping, so an escaped base-absent intent path
+# is still the permitted omission.
+printf '%s\n' docs/specs/intent-a.md 'docs/specs/new"intent.md' > "$citation_artifacts/escaped-intents.txt"
+export DOGFOOD_TEST_EXPECTED_INTENTS="$citation_artifacts/escaped-intents.txt"
+citation_intents=$DOGFOOD_TEST_EXPECTED_INTENTS
+citation_hunks="${nine_hunks}unknown:docs/specs/new\\\"intent.md"
+run_citation_case bootstrap-escaped "$citation_artifacts/nine.tsv" 1 9
 assert_cited_uncommitted
 ) &
 phase_jobs="$phase_jobs $!"
