@@ -5883,3 +5883,61 @@ wire field was added. The tests are `TestAFUV1032WaiverKeepsUnrenderedClaim` and
 `TestAFUV1033NonRegularMarkdownSkipped`; both fail without the fix. No golden changed. Follow-ups,
 not fixed here: anchors inside fenced code blocks are still parsed as anchors, and `--page` and
 `--claims` still accept paths under `.git/`.
+
+## 2026-09-25 V1-0255: acceptance fixture (AFU-V1 S8, AFU-V1-039)
+
+`TestAFUV1039AcceptanceFixture` (`cmd/corvint/flows_acceptance_test.go`) runs `flows map`, `gaps`,
+`navigate` and `docs` through the CLI over a committed fixture in
+`cmd/corvint/testdata/flows/acceptance/`. The fixture has four intents: `checkout` is a UI flow and
+`orders-api` is an API flow, and both reach verified. `returns` is declared with no links, which gives
+`unmapped-flow`. `profile` has a source link to a line span that changed after review, which gives
+`stale-link`.
+
+Decisions:
+
+- The fixture sits beside the other flows goldens under `cmd/corvint/testdata/flows/`, not under
+  `conformance/`, because the spec does not name a conformance location for AFU-V1-039.
+- The test builds three commits in a temporary repository. Commit A holds the application, the
+  Playwright specs and the intents. Commit B sets every `reviewed_at` to A. Commit C changes line 4
+  of `app/web/profile.js`, which is inside the reviewed span 3-5. The committed intents hold the
+  placeholder `REVIEW_ANCHOR` because the anchor SHA exists only at test time.
+- Evidence is `playwright-report.json`, ingested with `flows ingest --format playwright-json` at C.
+  All three specs pass, including profile's. `profile` is therefore incomplete only because of the
+  stale link, and verified evidence cannot mask it.
+- `docs` renders the page and sidecar at the repository root without `--docs-root`, because that
+  flag needs a directory that exists at `HEAD`.
+
+The test asserts:
+
+- In map, both flows are `complete` with every variation verified, and the other two are
+  `incomplete`.
+- In gaps, `checkout` and `orders-api` report no codes, `profile` reports exactly
+  `stale-link save-name` and `returns` reports exactly `unmapped-flow`.
+- In navigate, the four statuses match, the checkout `pay` and orders-api `create-order` transitions
+  are `verified`, and `--goal profile` and `--goal returns` each return one `incomplete` flow.
+- In docs, the claim states are `PROVEN`, `PROVEN`, `STALE` and `UNPROVEN`. Only the two `PROVEN`
+  claims appear on the page without a `**STATE:**` marker.
+
+No command lacked a way to express one of these assertions.
+
+Observations, not changed:
+
+- The navigate transition for profile's `save-name` step reads `verified`, and map reports its
+  variation `verified: true`, although the flow is `incomplete`. Verification is per evidence pair,
+  and the stale link shows only in flow status, gaps and the docs claim.
+- The `docs/specs/README.md` row for the spec still says slices S1-S8 are unbuilt. That was stale
+  before this change.
+
+Evidence:
+
+- `GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/appflows/ ./cmd/corvint/ -run 'AFUV1|Flows'`
+  passed.
+- A mutation check moved the post-review edit from `profile.js` to `checkout.js`. The test then failed
+  in map, gaps, navigate, the goal packet and docs. The fixture was restored.
+
+`NOT_RUN`:
+
+- Companion surfaces on Beamfall: this needs a Beamfall checkout and a networked browser E2E run.
+- A real change on `conformance/interactive-alpha/fixture`: this needs a Playwright browser run.
+- A real change on Beamfall: this needs a Beamfall checkout and a networked browser E2E run.
+- The full `./...` suite and `make gate`: both are out of scope for this slice.

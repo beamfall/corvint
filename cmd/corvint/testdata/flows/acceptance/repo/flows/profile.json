@@ -1,0 +1,16 @@
+{
+  "schema": "application-flow-intent/1",
+  "flow_id": "profile",
+  "revision": 1,
+  "kind": "ui",
+  "actor": "shopper",
+  "preconditions": [],
+  "steps": [{"step_id": "save-name", "action": "enter a display name and press Save"}],
+  "outcomes": [{"outcome_id": "saved", "behavior": "the profile shows as saved", "matcher": "toHaveText", "locator": "profile-status", "value": "saved"}],
+  "variations": [{"variation_id": "profile.save", "preconditions": [], "steps": ["save-name"], "observable_facts": [], "outcomes": ["saved"], "projects": ["chromium"]}],
+  "links": [
+    {"from": "save-name", "basis": "declared", "target": {"type": "source", "path": "app/web/profile.js", "start_line": 3, "end_line": 5}, "reviewed_at": "REVIEW_ANCHOR"},
+    {"from": "profile.save", "basis": "declared", "target": {"type": "test", "path": "e2e/profile.spec.ts", "test_key": "profile.spec.ts > saves"}, "reviewed_at": "REVIEW_ANCHOR"},
+    {"from": "saved", "basis": "declared", "target": {"type": "assertion", "path": "e2e/profile.spec.ts", "assertion": "profile-status has text saved"}, "reviewed_at": "REVIEW_ANCHOR"}
+  ]
+}
