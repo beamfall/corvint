@@ -6090,3 +6090,20 @@ Review repairs: an independent review found no blockers. The repairs are:
   `cmd/corvint-mcp` has no `flows` tool profile here, so the row does not claim S1-S8. Delivery
   stays `planned` in the spec header, `INDEX.json` and the README, which the specindex test keeps
   in agreement.
+
+## 2026-09-25 V1-0274, V1-0275: OCM map-keyed table claims and selector normalization
+
+- Found on a Beamfall adopter run (beamfall/core#32): a `map[string]struct{...}` Go table, keyed by
+  case name and run with `t.Run(name, ...)`, yields no case claims, so every `/case:` selector
+  refused `claim-selector-out-of-range` without saying which shapes are supported. Separately, the
+  selector normalization (digit runs dropped, plurals folded) was documented nowhere.
+- V1-0274 option chosen: the refusal names the supported shapes. Extracting map keys would add a Go
+  case anchor to `TCQ-V0-018`, which decision 0029 shows needs owner acceptance and parity changes in
+  the extractor, verifier (`goTableCaseTail`) and `internal/tcq` unit scanner. Every `/case:` miss now
+  appends the `TCQ-V0-018` shapes and "not a map key"; extraction and matching are unchanged.
+  `TestOCMClaimSelectorMiss` covers a map-keyed table. DR-0032's OPEN native stderr difference widens
+  by that suffix and is noted there.
+- V1-0275 option chosen: the exact `selectorFragment` rule, with the adopter's example
+  (`PTR-V0-003 two bound checks versions is tampered` becomes
+  `case:ptr-v0-two-bound-check-version-is-tampered`), is documented as a no-new-rule clarification in
+  `docs/specs/ocm-v0-dogfood.md` Traceability. The normalization itself is unchanged (wire contract).

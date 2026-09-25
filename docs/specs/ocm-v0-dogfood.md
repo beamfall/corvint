@@ -471,6 +471,22 @@ These follow-ups preserve the frozen Python oracle. The new hint changes observa
 DR-0032 records that difference as OPEN, with no discriminating frozen corpus row and no promotion.
 The separate lane L DR-0031 false-anchor promotion hold also remains.
 
+Clarification (2026-09-25, V1-0274/V1-0275, no new rule): every `/case:` miss also appends
+`; supported Go case anchors: name/testName/test_name field or .Run first-argument literal, not a
+map key`, naming the `TCQ-V0-018` shapes. A `map[string]struct{...}` table keyed by case name yields
+no case claim; its test function claim remains, and the hint does not widen extraction
+(`TestOCMClaimSelectorMiss`). The case fragment, also used by JavaScript `test:<fragment>`
+selectors, is normalized unchanged as follows: a word break is inserted before an ASCII upper-case
+letter that follows an ASCII lower-case letter or digit, and at every `_` or `-`; words are the
+maximal `[A-Za-z][A-Za-z0-9]*` runs, so a digit run not preceded by a letter, punctuation, and
+non-ASCII text are dropped; each word is lower-cased, then a word longer than five bytes ending
+`ies` ends `y` instead, else a word longer than four bytes ending in `s` but not `ss` loses that
+`s`; words join with `-`, the result is cut to 96 bytes and trimmed of `-`, and an empty result is
+`unnamed`. For example, `PTR-V0-003 two bound checks versions is tampered` becomes
+`case:ptr-v0-two-bound-check-version-is-tampered`. Two cases of one test whose names differ only in
+dropped or folded text derive one selector, so neither is extracted (the `TCQ-V0-018` ambiguity
+rule).
+
 Delivery remains experimental until the ten-change dogfood and promotion gates above complete.
 
 Rollback removes experimental OCM files and policy only. CEM, specifications, tests, and accepted

@@ -1535,7 +1535,7 @@ OCM-V0-009	docs/specs/ocm-v0-dogfood.md	123	same-change proposed intent MAY be a
 OCM-V0-010	docs/specs/ocm-v0-dogfood.md	134	default solo use MUST allow visible unknown obligations; a repository MAY opt in
 OCM-V0-011	docs/specs/ocm-v0-dogfood.md	136	maps and reports MUST contain no source, diff, prompt, command-output, ticket-bo
 OCM-V0-012	docs/specs/ocm-v0-dogfood.md	138	parsing, Git access, counts, spans, paths, files, and subprocesses MUST be bound
-OCM-V0-013	docs/specs/ocm-v0-dogfood.md	499	one dogfood change MAY declare an ordered set of pinned Markdown intent
+OCM-V0-013	docs/specs/ocm-v0-dogfood.md	515	one dogfood change MAY declare an ordered set of pinned Markdown intent
 OCM-V0-014	docs/specs/ocm-v0-dogfood.md	146	the `ocm/0.1-experimental` wire profile MUST be frozen by the conformance suite
 OCM-V0-015	docs/specs/ocm-v0-dogfood.md	157	from 2026-09-22 the frozen `ocm/0.1-experimental` suite MUST pin every file unde
 OIF-V0-001	docs/specs/ocm-intent-forms-v0.md	54	`corvint ocm prepare` accepts `--intent-form FORM`, where FORM is exactly `requi
