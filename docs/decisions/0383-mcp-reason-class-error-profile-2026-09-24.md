@@ -21,7 +21,9 @@ The decision:
   `worktree-config`, `config-malformed`, `submodule`, `split-index`, `gitdir-pointer`,
   `metadata-unreadable`, `metadata-limit`, `metadata-directory`, `metadata-drift`, `scratch-dir`,
   `root-unresolved`, `unclassified`. A value is set only from a typed class attached where
-  `internal/gitstatus` builds the refusal, never parsed from message text. Any error without a
+  `internal/gitstatus` builds the refusal, or from identity with that package's metadata-drift
+  sentinel (`metadata-drift`, which stays a plain error so the default text is unchanged), never
+  parsed from message text. Any error without a
   class, including every non-status failure, is `unclassified`. Clients MUST read an unknown value
   as `unclassified`. Adding a value needs an amendment to this decision.
 - No free text crosses the boundary. The one repository-controlled part of a CLI reason, the filter

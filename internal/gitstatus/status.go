@@ -177,8 +177,8 @@ func RefusalReason(err error) (string, bool) {
 }
 
 // RefusalClass is the closed class of a failed isolated status (decision
-// 0383). It is read only from the typed refusal, never from message text; any
-// other error is "unclassified".
+// 0383). It is read only from the typed refusal or by identity with errDrift,
+// never from message text; any other error is "unclassified".
 func RefusalClass(err error) string {
 	var refused *refusal
 	if errors.As(err, &refused) {
