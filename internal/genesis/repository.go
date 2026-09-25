@@ -64,6 +64,9 @@ func openRepository(ctx context.Context, root string, limits Limits, revision st
 		outputLimit += oidOutputBytes
 	}
 	raw, err := repo.run(ctx, outputLimit, nil, arguments...)
+	if err == genesisError("git-timeout") {
+		return nil, err
+	}
 	if err != nil && combined {
 		// A failed revision must not hide an invalid repository. Only failure
 		// classification pays this extra probe; successful reads keep the
