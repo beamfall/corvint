@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -53,18 +54,26 @@ func Decode(data []byte, out any) error {
 	return nil
 }
 
+// openInputFile is a test seam for a path swap between Lstat and open.
+var openInputFile = openInput
+
+// ReadFile reads a flow input only when Lstat shows a regular file before it is opened (AFU-V1-036).
 func ReadFile(filename string) ([]byte, error) {
-	f, err := os.Open(filename)
+	before, err := os.Lstat(filename)
+	if err != nil {
+		return nil, errors.New("cannot open flow input")
+	}
+	if !before.Mode().IsRegular() {
+		return nil, errors.New("flow input must be a regular file")
+	}
+	f, err := openInputFile(filename)
 	if err != nil {
 		return nil, errors.New("cannot open flow input")
 	}
 	defer f.Close()
-	st, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if !st.Mode().IsRegular() {
-		return nil, errors.New("flow input must be a regular file")
+	opened, err := f.Stat()
+	if err != nil || !os.SameFile(before, opened) {
+		return nil, errors.New("flow input changed while being read")
 	}
 	b, err := io.ReadAll(io.LimitReader(f, MaxBytes+1))
 	if len(b) > MaxBytes {
@@ -73,6 +82,62 @@ func ReadFile(filename string) ([]byte, error) {
 	return b, err
 }
 
+// WriteConfined exclusively creates filename under root and writes data, following no symlink
+// inside or out of the root (AFU-V1-036).
+func WriteConfined(root, filename string, data []byte) error {
+	rel, err := confinedName(root, filename)
+	if err != nil {
+		return err
+	}
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return errors.New("flow root unavailable")
+	}
+	defer r.Close()
+	if err = realParents(r, rel); err != nil {
+		return err
+	}
+	f, err := r.OpenFile(rel, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		return errors.New("cannot exclusively create flow output")
+	}
+	_, err = f.Write(data)
+	if err == nil {
+		err = f.Sync()
+	}
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		_ = r.Remove(rel)
+	}
+	return err
+}
+
+func confinedName(root, filename string) (string, error) {
+	abs, err := filepath.Abs(filename)
+	if err != nil {
+		return "", errors.New("invalid flow output path")
+	}
+	rel, err := filepath.Rel(root, abs)
+	if err != nil || !safePath(filepath.ToSlash(rel)) {
+		return "", errors.New("flow output must be under the repository root")
+	}
+	return filepath.ToSlash(rel), nil
+}
+
+func realParents(r *os.Root, rel string) error {
+	for dir := path.Dir(rel); dir != "."; dir = path.Dir(dir) {
+		st, err := r.Lstat(dir)
+		if err != nil || !st.IsDir() {
+			return errors.New("flow output parent must be a real directory")
+		}
+	}
+	return nil
+}
+
+// readSource reads a root-confined source only when Lstat shows a regular file before a non-blocking
+// open of the same file, so a FIFO or a swapped path is refused without blocking (AFU-V1-036).
 func readSource(root, relative string) ([]byte, error) {
 	if !safePath(relative) {
 		return nil, errors.New("invalid source path")
@@ -82,17 +147,21 @@ func readSource(root, relative string) ([]byte, error) {
 		return nil, err
 	}
 	defer r.Close()
-	f, err := r.Open(relative)
+	before, err := r.Lstat(relative)
+	if err != nil {
+		return nil, errors.New("source unavailable")
+	}
+	if !before.Mode().IsRegular() {
+		return nil, errors.New("source must be regular")
+	}
+	f, err := openRootInput(r, relative)
 	if err != nil {
 		return nil, errors.New("source unavailable")
 	}
 	defer f.Close()
-	st, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if !st.Mode().IsRegular() {
-		return nil, errors.New("source must be regular")
+	opened, err := f.Stat()
+	if err != nil || !os.SameFile(before, opened) {
+		return nil, errors.New("source changed while being read")
 	}
 	b, err := io.ReadAll(io.LimitReader(f, MaxBytes+1))
 	if len(b) > MaxBytes {
