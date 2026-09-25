@@ -218,7 +218,8 @@ This subsection fixes the S2 wire shape. It adds no requirement and no root verb
   is `done` and every control observed its expected outcome. A Playwright `passed` result is recorded
   as a `failed` attempt, with the reason as its failure, when the test's `expectedStatus` is not
   `passed` (`test.fail()`) or, for its last result, when Playwright marked the test `unexpected`; so
-  such a test is never `passed` or verified.
+  such a test is never `passed` or verified. A `test.fail()` test that fails as expected keeps its
+  `failed` attempt and is classified `failed`, never verified, although Playwright counts it green.
 - Ingest formats are `playwright-json`, `junit-xml` and `go-test-json`; the caller supplies the run
   header the report does not carry. Playwright keeps one attempt per `results[]` entry. JUnit keeps
   each `flakyFailure` or `flakyError` as an earlier failed attempt before a final pass, and each
