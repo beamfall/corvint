@@ -6160,3 +6160,13 @@ Review repairs (same slice):
   probe wording now names what is compared: `HEAD`, the tree and the dirty-path set.
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
+## 2026-09-25 V1-0272: alternates refusal names the adopter rerun
+
+- The `unsupported-object-alternates` fix line ended with `rerun make dogfood-change`, the one
+  dogfood hint V1-0261 missed. It now ends `rerun corvint dogfood change {base}`, like the other
+  adopter hints (`internal/dogfoodflow/change.go`).
+- `docs/DOGFOOD.md` "Commands" now says the loop needs a clone that owns its objects, and gives the
+  repack remediation for a `--reference` or `--shared` clone.
+- Evidence: `TestDogfoodChangeNamesAlternatesRemediation` writes an alternates file into a
+  portable repository and checks the refusal's fix line; `script/dogfood-change_test.sh` checks the
+  new wording through the make wrapper.

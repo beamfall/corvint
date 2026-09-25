@@ -257,6 +257,22 @@ func TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations(t *test
 	}
 }
 
+// V1-0272: a clone that borrows objects through alternates is refused, and the
+// fix line names the repack remediation and the subverb an adopter reruns.
+func TestDogfoodChangeNamesAlternatesRemediation(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	if err := os.WriteFile(filepath.Join(root, ".git/objects/info/alternates"), nil, 0644); err != nil {
+		t.Fatal(err)
+	}
+	fix := "run git repack -a -d, delete .git/objects/info/alternates and .git/objects/info/commit-graphs, run git commit-graph write --reachable, then rerun corvint dogfood change " + base + "\n"
+	code, _, stderr := run.exec(t, root, nil, "dogfood", "change", base)
+	if code == 0 || !strings.Contains(stderr, "unsupported-object-alternates") || !strings.Contains(stderr, fix) {
+		t.Fatalf("alternates exit=%d stderr=%s", code, stderr)
+	}
+}
+
 // impactAbstentionRepo is a repository whose one change native Go impact
 // refuses: a text file with no Go module, or a Go file at the module root.
 func impactAbstentionRepo(t *testing.T, module bool) (string, string) {
