@@ -1264,7 +1264,7 @@ is one name, so one matching code line is one pair and one evidence item for `ki
 
 ## Proposed amendment: repositories owned by another user
 
-- `GPK-V0-067`: (proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global and
+- `GPK-V0-071`: (proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global and
   system configuration (`GPK-V0-009`), so Git's `safe.directory` exception can never be honoured and
   a checkout owned by another user (a bind mount, a container volume, a shared CI workspace) fails
   every Core verb with Git's uncoded `detected dubious ownership` exit 128, whose printed advice
@@ -1282,7 +1282,7 @@ is one name, so one matching code line is one pair and one evidence item for `ki
 
 ## Proposed amendment: non-UTF-8 paths in query history
 
-- `GPK-V0-068`: (proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
+- `GPK-V0-072`: (proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
   refuse the whole repository with `unsupported-query-history` when any commit in the bounded
   history names a path whose Git bytes are not UTF-8 (`parseHistory` in
   `internal/contextindex/history.go`), although decision 0394 made such a path an index exclusion

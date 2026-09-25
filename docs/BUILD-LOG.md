@@ -6188,7 +6188,7 @@ failed before its fix and passes after. Amendments made under decision 0398 are 
   (`TestBlobAdmissionRefusalNamesTotalAndRemedyWithoutALanguage`). The ticket's other proposal,
   degrading to PARTIAL with a typed gap, is not done because it contradicts GPK's "reject rather
   than approximate". It is an owner question.
-- V1-0288 (NEEDS-OWNER; `GPK-V0-067` proposed, not accepted): reproduced with
+- V1-0288 (NEEDS-OWNER; `GPK-V0-071` proposed, not accepted): reproduced with
   `GIT_TEST_ASSUME_DIFFERENT_OWNER=1`. Git exits 128 and advises `--global`, which Corvint
   ignores because it nulls global configuration.
   - Passing `-c safe.directory` would bypass Git's protection against config planted by another
@@ -6206,7 +6206,7 @@ failed before its fix and passes after. Amendments made under decision 0398 are 
   - On Linux (golang:1.27.1 container), `TestProveCEMAttestRefusesAMapPathThatIsNotUTF8` now
     reaches the intended FPK-V0-015 `attest-failed` refusal, not `unsupported-prove-history`.
     Its expectation was updated to match.
-- V1-0313 (NEEDS-OWNER; `GPK-V0-068` proposed, not accepted): proposes that query learning skip a
+- V1-0313 (NEEDS-OWNER; `GPK-V0-072` proposed, not accepted): proposes that query learning skip a
   non-UTF-8 history path, with the oracle refusal registered as a `python-defect`. It would land
   on PR #219's `skipNonUTF8` seam.
 - V1-0167 (FIXED; `EEP-V0-026` wording): the gopls `unavailable` reason drops the repository root
