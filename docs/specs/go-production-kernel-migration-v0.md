@@ -1355,3 +1355,28 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   case, and `src/` is not repaired. Owner decision needed: accept the skip (implemented on the
   `skipNonUTF8` seam that PR #219 adds to `parseHistory`, so it lands after that PR) or keep the
   refusal and close V1-0313. Rollback: pass `false` on the query path, restoring the refusal.
+
+## Proposed amendment: wider symbols lead a standing record packet
+
+- `GPK-V0-073`: (proposed 2026-09-25, not accepted; V1-0266) `GPK-V0-066` leaves a packet that
+  clears the `GPK-V0-039` floor unchanged, so at a limit wide enough to hold a decision that
+  clears it, six single-word feature records that fail it still publish ahead of the confident
+  symbols resting on eight query words, and their tied scores report `NEEDS_WIDENING` for a task
+  the symbols answer. Proposed: a confident symbol whose support width, the number of query
+  words as written that its support rests on (the measure `GPK-V0-039` already holds a packet
+  to), is strictly greater than that of every competitive record and every document in the two
+  document slots is placed ahead of the packet, in the confident selection's own order; the
+  records, documents and feature-implementation symbols keep their class order behind the
+  placed symbols, and a placed symbol the packet already held is not repeated. A symbol wider
+  than none is not placed, so a packet whose records or documents are at least as wide as every
+  confident symbol is unchanged; an empty record and document packet places no symbol, and the
+  confident selection answers as before. The `GPK-V0-039` floor and the `GPK-V0-066`
+  substitution are judged over the packet as compiled without the placed symbols, so a symbol
+  placed ahead of records that answer nothing does not carry them past the floor, and a
+  substituted or withdrawn packet is unchanged. Only a packet that stood on its own is led.
+  The record tie `NEEDS_WIDENING` state applies only where no symbol was placed, because the
+  tied records no longer lead the packet. Every placed symbol is in the `GPK-V0-039` support
+  index; carried-in feature-implementation symbols have no support entry and are never placed.
+  The analyzer schema moves to `corvint-analyzer/86`. Rollback: remove the placement in
+  `evalQuery` and restore `corvint-analyzer/85`, so the records again precede the symbols by
+  class.

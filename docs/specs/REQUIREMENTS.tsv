@@ -1127,6 +1127,7 @@ GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1284	(accepted 2026-0
 GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1303	(proposed 2026-09-25, panel blocker B4, not accepted; V1-0263)
 GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1327	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
 GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1345	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
+GPK-V0-073	docs/specs/go-production-kernel-migration-v0.md	1361	(proposed 2026-09-25, not accepted; V1-0266) `GPK-V0-066` leaves a packet that
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation

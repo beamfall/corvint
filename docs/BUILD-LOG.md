@@ -6934,3 +6934,48 @@ the touched packages; the doc checks; `go run ./conformance/use-cases-v0`, which
 Under host load (load average 170 to 570), `TestSelectionOnTheLiveDirtyWorktree` and
 `TestIncrementalSelectionMeetsTheLiveBudget` exceeded their 100 ms budget. These are timing
 flakes. NOT_RUN: the exhaustive `./...` gate.
+
+## 2026-09-25 V1-0266: wider symbols lead a standing record packet (`GPK-V0-073`, proposed)
+
+The residual left by `GPK-V0-066` (V1-0260 above). The same Beamfall task ("Validate plugin trust
+roots at model loader construction …") at `--limit 10` returned `NEEDS_WIDENING` with five
+one-word `plugin` feature records (score 705, support width 1) ahead of everything and no
+`internal/plugin/trust.go`. Root cause in `internal/contextindex/eval_query.go`: the six feature
+records enter the packet as competitive by score alone, confident symbols are blocked whenever any
+record or document is present, and at `--limit 7` and above the ADR (width 6) clears the packet-max
+`GPK-V0-039` floor, so the sub-floor records publish first and their tied scores set the widening
+state. Support width is the number of query words whose terms intersect a result's support set.
+
+`GPK-V0-073` (proposed 2026-09-25, not accepted; V1-0266): confident symbols whose support width is
+strictly greater than every competitive record and document slot are placed ahead of a record
+packet that stands on its own. The floor and the `GPK-V0-066` substitution are judged over the
+packet as compiled without the placed symbols, so a packet that fails the floor still withdraws or
+substitutes exactly as before. Records, documents and feature-implementation candidates keep their
+class order; a placed symbol is not repeated further down; the record-tie widening state is set
+only when nothing was placed; an empty record packet places nothing. Packets with no strictly wider
+symbol are byte-identical to `corvint-analyzer/85`. The analyzer schema moves to
+`corvint-analyzer/86`. `TestEvalQueryPrecedenceFollowsSupport` reproduces the Beamfall shape (five
+one-word feature records, one ADR, one eight-word symbol) and fails on the base code with
+`NEEDS_WIDENING` and the features first.
+
+Beamfall (base `0d7796be`), base → fix: limits 1 and 3 are identical (`READY`, `PluginTrustRoots`
+first). Limit 10 moves from `NEEDS_WIDENING` (five feature records, then the ADR, `omitted_results`
+7) to `READY` with `PluginTrustRoots`, `RegistryTrustRoot`, `PluginTrustAssessment`,
+`AssessPluginTrust` and `ModelLoader` ahead of the five feature records (`omitted_results` 12).
+
+Frozen evaluations, base → fix:
+- Beamfall goldens (`corvint eval`, 7 cases): every metric unchanged. Byte-weighted precision
+  0.691268, recall 0.9, must_read 9/10, top-5 6/7, critical misses 0/5, abstention 1/1, budget
+  compliance 1.0, packet bytes 58842. No case changed.
+- `tools/retrieval-bench --arms corvint`:
+  - `v2_abstention`: all 82 samples identical (abstained 0.073171).
+  - `v2_comment2context` (40 samples): 12 packets change shape (wider symbols lead, packets grow
+    from 2-4 to 3-12 results); 11 of them score zero before and after. One sample
+    (`db9648de…`, ruff `type_expression.rs`) moves its gold file from rank 3 to rank 1 in a packet
+    that grows from 3 to 9, so mrr@k rises 0.041667 → 0.058333 while precision@k falls
+    0.036905 → 0.031349 and f1@k 0.034167 → 0.026667. hit@k 0.075, recall@k 0.045833 and
+    hard-negative hits 0.3 are unchanged.
+
+Checks: the focused `internal/contextindex` tests and the package, go vet, the six doc checks,
+`go run ./conformance/use-cases-v0` (valid:true), `internal/specindex`. NOT_RUN: the exhaustive
+`./...` gate.

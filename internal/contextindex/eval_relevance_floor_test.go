@@ -2,6 +2,7 @@ package contextindex
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -293,6 +294,60 @@ func TestEvalQueryLimitOmittingCompetingRecordNeedsWidening(t *testing.T) {
 		abstention := packet["abstention"].(map[string]any)
 		if len(results) != tc.wantResultsLen || results[0]["id"] != "access-request-grant" || packet["state"] != tc.state || abstention["reason"] != tc.reason || abstention["active"] != tc.active {
 			t.Fatalf("limit %d: state=%v abstention=%v results=%v, want %s/%s", tc.limit, packet["state"], abstention, results, tc.state, tc.reason)
+		}
+	}
+}
+
+// GPK-V0-073 (proposed). At a limit wide enough to hold a decision that clears
+// the floor, the record packet passes GPK-V0-039, so GPK-V0-066 never
+// substitutes the symbols: on the accepted contract the one-word features
+// precede the wide symbol and their tied scores ask for widening. A symbol
+// wider than every record and document now leads: the symbol resting on three
+// query words, then the records and the decision in their own class order,
+// and the packet is READY. A record at least as wide as every symbol keeps
+// precedence.
+func TestEvalQueryPrecedenceFollowsSupport(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "config", "user.email", "corvint@example.test")
+	testGit(t, root, "config", "user.name", "Corvint Test")
+	writeTestFile(t, root, ".gitignore", ".context-corvint/\n")
+	writeTestFile(t, root, "go.mod", "module example.test/precedence\n\ngo 1.27.0\n")
+	writeTestFile(t, root, "testing/features.yaml", "features:\n"+
+		"  - id: plugin-music\n    area: plugins\n    summary: Music library.\n    adr: []\n    applies: [server]\n    status: shipped\n"+
+		"  - id: plugin-podcasts\n    area: plugins\n    summary: Podcast feeds.\n    adr: []\n    applies: [server]\n    status: shipped\n"+
+		"  - id: plugin-filmtv\n    area: plugins\n    summary: Film and TV.\n    adr: []\n    applies: [server]\n    status: shipped\n")
+	writeTestFile(t, root, "testing/scenarios.yaml", "scenarios: []\n")
+	writeTestFile(t, root, "docs/adr/0170-signed-registry.md", "# Plugin trust registry\n\nStatus: accepted\n\nTrust roots come from the signed registry.\n")
+	writeTestFile(t, root, "internal/plugin/trust.go", "package plugin\n\ntype PluginTrustRoots struct{}\n")
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "seed")
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct {
+		name, query string
+		want        []string
+	}{
+		{"wider symbol leads", "validate plugin trust roots at model loader construction", []string{
+			"internal/plugin/trust.go:PluginTrustRoots", "plugin-filmtv", "plugin-music", "plugin-podcasts", "docs/adr/0170-signed-registry.md",
+		}},
+		{"record at least as wide keeps precedence", "podcast feeds plugin", []string{"plugin-podcasts"}},
+	} {
+		packet, err := EvalQuery(context.Background(), index, tc.query, 10, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results := mapsFromAny(packet["results"])
+		abstention := packet["abstention"].(map[string]any)
+		got := make([]string, 0, len(results))
+		for _, result := range results {
+			got = append(got, stringValue(result["id"]))
+		}
+		if packet["state"] != "READY" || abstention["reason"] != "none" || len(got) < len(tc.want) || !reflect.DeepEqual(got[:len(tc.want)], tc.want) {
+			t.Fatalf("%s: state=%v abstention=%v results=%v, want READY leading with %v", tc.name, packet["state"], abstention, got, tc.want)
 		}
 	}
 }
