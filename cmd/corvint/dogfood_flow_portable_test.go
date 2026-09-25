@@ -118,6 +118,10 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	if status := cemGit(t, root, "status", "--porcelain", "--untracked-files=all"); status != "?? .corvint/change.cem.json" {
 		t.Fatalf("first pass status %q", status)
 	}
+	// V1-0261: the check's fix lines name the subverb an adopter runs.
+	if code, _, stderr = run.exec(t, root, nil, "dogfood", "check", base); code != 2 || !strings.HasSuffix(stderr, "\n  required order: commit the change; corvint dogfood change <sha>; commit .corvint/change.cem.json; corvint dogfood change <sha>; corvint dogfood check <sha>\n") {
+		t.Fatalf("dirty check exit=%d stderr=%s", code, stderr)
+	}
 	cemGit(t, root, "add", ".corvint/change.cem.json")
 	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
 	bind := cemGit(t, root, "rev-parse", "HEAD")
@@ -224,7 +228,8 @@ func TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations(t *test
 		t.Fatal(err)
 	}
 	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
-	const note = "\n  cem-cite: the plan was added to citations the map already carried and never replaces them; to correct an earlier plan, delete .corvint/change.cem.json and rerun make dogfood-change (docs/DOGFOOD.md step 4)\n"
+	// V1-0261: an adopter's fix line names the subverb, not the Corvint make target.
+	note := "\n  cem-cite: the plan was added to citations the map already carried and never replaces them; to correct an earlier plan, delete .corvint/change.cem.json and rerun corvint dogfood change " + base + " (docs/DOGFOOD.md step 4)\n"
 	pass := func(plan string) (string, int) {
 		t.Helper()
 		if err := os.WriteFile(citations, []byte(plan), 0644); err != nil {

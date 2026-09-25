@@ -4,6 +4,18 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-25 V1-0261 DCW-V0-020: adopter fix lines name the `corvint dogfood` subverb
+
+`corvint dogfood change|check` printed `fix:` and `required order:` lines telling the operator to
+rerun `make dogfood-change BASE=...`, a target only Corvint's own tree has; an adopter such as
+Beamfall runs `corvint dogfood change $BASE`. Nothing the subverbs receive says whether a Makefile
+wrapper started them, so every such line now names the subverb form (`corvint dogfood change
+<base>`), which also works in Corvint's tree. Evidence:
+`TestDogfoodDailyPathRunsFromBinaryInForeignRepository` and
+`TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations` assert the adopter wording;
+`script/dogfood-change_test.sh` assertions were updated. Not changed: the console's empty-report hint
+(`internal/console/views.go`) still names the make target.
+
 ## 2026-09-25 V1-0259 OIF-V0-001..011 / decision 0386 (proposed): declared OCM intent forms
 
 `ocm prepare --intent-form adr-decisions|roadmap-acceptance` (experimental) reads ADR

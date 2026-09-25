@@ -672,10 +672,10 @@ phase_jobs="$phase_jobs $!"
     rg -Fxq -- '    fix: set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json'
   printf '%s\n' "$pending_output" | rg -Fxq -- '  ocm-prepare-001: excluded-artifact-mismatch'
   printf '%s\n' "$pending_output" | \
-    rg -Fxq -- '    fix: the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change'
+    rg -Fxq -- "    fix: the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change $base"
   printf '%s\n' "$pending_output" | rg -Fxq -- '  ocm-status-001: not-ready'
   printf '%s\n' "$pending_output" | \
-    rg -Fxq -- '    fix: fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change'
+    rg -Fxq -- "    fix: fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change $base"
   printf '%s\n' "$pending_output" | rg -Fxq -- '  cem-status: not-ready'
   printf '%s\n' "$pending_output" | \
     rg -q '^    fix: read verification\.issues and policyIssues in .*/cem-status\.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk$'
@@ -694,7 +694,7 @@ phase_jobs="$phase_jobs $!"
   test "$missing_report_status" = 1
   printf '%s\n' "$missing_report_output" | rg -Fxq -- 'dogfood-check: FAIL dogfood-report-missing'
   printf '%s\n' "$missing_report_output" | \
-    rg -Fxq -- "  fix: run make dogfood-change BASE=$base on this HEAD until it reports complete"
+    rg -Fxq -- "  fix: run corvint dogfood change $base on this HEAD until it reports complete"
 
   unreachable_output=$(DOGFOOD_TEST_QUERY=unreachable-trace CORVINT_BIN="$test_root/bin/corvint" \
     DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
@@ -716,17 +716,17 @@ phase_jobs="$phase_jobs $!"
   incomplete_output=$(run_dogfood_check "$base" 2>&1) || :
   printf '%s\n' "$incomplete_output" | rg -Fxq -- 'dogfood-check: FAIL dogfood-report-drift'
   printf '%s\n' "$incomplete_output" | \
-    rg -Fxq -- "  fix: the report is not complete; resolve the rows make dogfood-change BASE=$base lists, then rerun it"
+    rg -Fxq -- "  fix: the report is not complete; resolve the rows corvint dogfood change $base lists, then rerun it"
   stale_output=$(run_dogfood_check HEAD~1 2>&1) || :
   printf '%s\n' "$stale_output" | rg -Fxq -- 'dogfood-check: FAIL dogfood-report-drift'
-  printf '%s\n' "$stale_output" | rg -Fq -- '  fix: the report binds another BASE or HEAD; rerun make dogfood-change BASE='
+  printf '%s\n' "$stale_output" | rg -Fq -- '  fix: the report binds another BASE or HEAD; rerun corvint dogfood change '
   cp "$test_root/complete-report.json" .corvint/dogfood-report.json
   cp .corvint/change.ocm-status.json "$test_root/ocm-status.json"
   printf 'drift\n' >> .corvint/change.ocm-status.json
   aggregate_output=$(run_dogfood_check "$base" 2>&1) || :
   printf '%s\n' "$aggregate_output" | rg -Fxq -- 'dogfood-check: FAIL intent-scope-drift'
   printf '%s\n' "$aggregate_output" | \
-    rg -Fxq -- "  fix: the OCM maps changed after make dogfood-change; rerun make dogfood-change BASE=$base"
+    rg -Fxq -- "  fix: the OCM maps changed after corvint dogfood change; rerun corvint dogfood change $base"
   cp "$test_root/ocm-status.json" .corvint/change.ocm-status.json
 
   bootstrap_base=$(git rev-parse HEAD)
