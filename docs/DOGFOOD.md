@@ -73,7 +73,10 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `ocm-status-001: exit-2` (`not-ready` on a later pass) and
    `ocm-aggregate: intent-scope-drift`; `cem-status` then also refuses it
    with `excluded-artifact-mismatch` (in `<git-dir>/corvint/cem-status.json` it is a
-   `verification.issues` code, not a policy issue). The final seal removes the shared path.
+   `verification.issues` code, not a policy issue). The final seal removes the shared path, so
+   `dogfood-seal` refuses `unarchived-base-cem` while no `.corvint/changes/` file keeps the blob
+   `BASE` tracked: archive that earlier CEM in a commit on the base branch and restart the change
+   on that commit (`DCW-V0-027`).
 4. Write the citation plan from the prepared map. The hunk count is
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
    A plan written for an earlier map, such as nine rows kept after a later commit added a tenth
@@ -639,7 +642,8 @@ they do not create execution authority, close a Frontier, or qualify the native 
 - `DOGFOOD-013`: a checked change's CEM leaves the shared tracked path only through `dogfood-seal`,
   which commits after a passing check and only renames `.corvint/change.cem.json` to
   `.corvint/changes/<bind-commit>.cem.json`; a sealed HEAD is refused by final checking and a change
-  that adds a sealed CEM is refused by `dogfood-change`.
+  that adds a sealed CEM is refused by `dogfood-change`. A seal that would drop a CEM `BASE` tracks
+  and no `.corvint/changes/` file keeps is refused `unarchived-base-cem`.
 - `DOGFOOD-014`: final checking counts a seal commit as bound by its parent and, when the base has no
   CEM, takes the previous binding from the parent of the newest seal reachable from the base.
 

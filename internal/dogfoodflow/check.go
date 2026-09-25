@@ -75,6 +75,11 @@ func (c *check) seal() int {
 	if !c.gitSucceeds("cat-file", "-e", bind+":.corvint/change.cem.json") {
 		c.refuse("nothing-to-seal")
 	}
+	if replaced := c.unarchivedBaseCEM(bind); replaced != "" {
+		c.say("%s: REFUSE unarchived-base-cem\n", c.prefix)
+		c.say("  BASE tracks .corvint/change.cem.json (bound at %s) that this change replaced and no .corvint/changes/ file keeps; archive it in a commit on the base branch, then restart this change on that commit\n", replaced)
+		c.exit(2)
+	}
 	sealed := ".corvint/changes/" + bind + ".cem.json"
 	_ = os.MkdirAll(c.root+"/.corvint/changes", 0o777)
 	if c.gitPassthrough("mv", ".corvint/change.cem.json", sealed) != 0 {
@@ -85,6 +90,25 @@ func (c *check) seal() int {
 	}
 	fmt.Fprintf(c.stdout, "dogfood-seal: PASS sealed=%s\n", sealed)
 	return 0
+}
+
+// unarchivedBaseCEM names the commit that bound BASE's tracked CEM when this
+// change replaced it and the bind tree keeps no copy under .corvint/changes/,
+// so sealing would drop it from the tree (V1-0137); otherwise it is empty.
+func (c *check) unarchivedBaseCEM(bind string) string {
+	baseCEM, status := c.git(true, "rev-parse", "--verify", "-q", c.base+":.corvint/change.cem.json")
+	if status != 0 {
+		return ""
+	}
+	baseCEM = chomp(baseCEM)
+	if baseCEM == c.gitValue("rev-parse", bind+":.corvint/change.cem.json") {
+		return ""
+	}
+	archived, _ := c.git(false, "ls-tree", "-r", bind, "--", ".corvint/changes")
+	if strings.Contains(archived, " "+baseCEM+"\t") {
+		return ""
+	}
+	return c.gitValue("log", "-1", "--format=%H", c.base, "--", ".corvint/change.cem.json")
 }
 
 // gitPassthrough runs one Git command whose output reaches the caller.

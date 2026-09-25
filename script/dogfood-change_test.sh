@@ -994,6 +994,19 @@ test "$(git -C "$seal_repo" diff-tree -r -M --no-commit-id --name-status HEAD^ H
 seal_again_status=0
 (cd "$seal_repo" && script/dogfood-seal.sh HEAD 2>/dev/null) || seal_again_status=$?
 test "$seal_again_status" = 2
+# V1-0137: a change that replaced BASE's unsealed CEM does not seal it away.
+printf '{"earlier":true}\n' > "$seal_repo/.corvint/change.cem.json"
+git -C "$seal_repo" add -A
+git -C "$seal_repo" -c user.name=t -c user.email=t@example.invalid commit -qm earlier
+seal_earlier=$(git -C "$seal_repo" rev-parse HEAD)
+printf '{"later":true}\n' > "$seal_repo/.corvint/change.cem.json"
+git -C "$seal_repo" -c user.name=t -c user.email=t@example.invalid commit -qam later
+seal_unarchived_status=0
+seal_unarchived=$(cd "$seal_repo" && script/dogfood-seal.sh "$seal_earlier" 2>&1) || seal_unarchived_status=$?
+test "$seal_unarchived_status" = 2
+printf '%s\n' "$seal_unarchived" | rg -Fxq 'dogfood-seal: REFUSE unarchived-base-cem'
+printf '%s\n' "$seal_unarchived" | rg -Fq "  BASE tracks .corvint/change.cem.json (bound at $seal_earlier)"
+test "$(git -C "$seal_repo" log -1 --format=%s)" = later
 ) &
 phase_jobs="$phase_jobs $!"
 
