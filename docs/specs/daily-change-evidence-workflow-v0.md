@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); evaluation protocol awaits separate freeze
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); evaluation protocol awaits separate freeze
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); evaluation protocol awaits separate freeze; experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); evaluation protocol awaits separate freeze; experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -164,6 +164,24 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `self-observations.jsonl`) and the local trace store `.context-corvint/`. Without them the
   worktree is dirty or the recorder refuses `repository-identity-changed`; the subverbs do not
   write ignore rules.
+- `DCW-V0-024`: (V1-0259, owner decision 2026-09-25) A change that no `## Requirements` spec
+  governs, such as one whose intent lives in ADRs or roadmap tickets, MUST be able to complete the
+  daily path, but only by explicit declaration: a `DOGFOOD_INTENTS_FILE` whose whole content is the
+  one line `#no-intent-declared`. An unset variable, an empty file, or any other content that is
+  not a valid manifest still refuses `ocm-aggregate` `missing-intent-scope`, so an accidentally
+  missing input never passes; a `#` line is never an intent path, so the declaration cannot be
+  read as a manifest. Under the declaration `dogfood change` runs no OCM command, reports
+  `ocm-prepare`, `ocm-status` and `ocm-aggregate` as `NOT_PRODUCED` `no-intent-declared`, writes
+  `"ocmStatus": {"state": "NOT_ASSESSED", "reason": "no-intent-declared"}`, counts no bootstrap
+  unknown and publishes the declaration as `.corvint/change.ocm-intents`. Those rows do not block
+  `"complete": true`. A supplied `DOGFOOD_OCM_LINKS` refuses `ocm-links` `invalid-ocm-link-plan`,
+  because no intent can own a row. `dogfood check` and `seal` MUST accept such a report only when
+  the published declaration and the report's `ocmStatus` line agree, and otherwise fail
+  `dogfood-report-drift`, so a swapped snapshot cannot skip OCM verification. They run no OCM
+  verifier and print `dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared` in place
+  of the OCM status line before `PASS`. Intent linkage is then unassessed, never covered; the CEM
+  citations are the only governing evidence the change carries. A manifest of intent paths behaves
+  as before.
 
 ## Code vocabulary
 
@@ -188,6 +206,9 @@ Base anchoring, refused by every subverb:
 - `cem-map-not-produced`: `cem cite` left no `.corvint/change.cem.json`.
 - `ocm-link-plan-unavailable`, `empty-ocm-link-plan`, `invalid-ocm-link-plan`: the
   `DOGFOOD_OCM_LINKS` plan is missing, empty, or malformed or over 256 rows.
+- `no-intent-declared`: the change declared no intent (`DCW-V0-024`); the `ocm-prepare`,
+  `ocm-status` and `ocm-aggregate` rows carry it and, unlike every other code here, it does not
+  block `"complete": true`.
 
 `dogfood check`:
 
@@ -212,7 +233,8 @@ universal proof of correctness or automatic host promotion. Existing native comm
 baseline; add runtime machinery only for an observed missing behavior. Keep original evidence and
 human authority instead of converting a version label or synthetic packet into product proof.
 The daily subverbs do not install, build or upgrade Corvint, pin a version for a foreign
-repository, edit its ignore rules, or change any report, receipt or CEM format.
+repository, edit its ignore rules, or change any report, receipt or CEM format beyond the
+`DCW-V0-024` no-intent rows and `ocmStatus` value.
 
 ## Acceptance and evidence
 
@@ -244,6 +266,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-019` | `internal/dogfoodflow/change.go` `citationPlanMatchesMap` (formerly `script/dogfood-change.sh` `citation_plan_matches_map`); `script/dogfood-change_test.sh` cases `stale-nine-of-ten`, `stale-ten-of-nine`, `bootstrap-omitted`, `other-omitted`, `noncanonical-ordinal` and `split-over-row-limit`; `TestDogfoodReasonAdmitsCitationPlanMapMismatch`; `TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations` (built binary: a corrected plan joins the earlier citation and prints the delete line; after the delete only the corrected citation remains) | implemented; observed live on a 22-hunk map at base 34e798b: a 1-row plan refused, a 22-row plan cited all 22 |
 | `DCW-V0-020..021`, `DCW-V0-023` | `internal/dogfoodflow`; `cmd/corvint/dogfood_flow.go`; `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` (built binary only, in a Go repository with no `script/`, `VERSION` or `cmd/corvint`, with `PATH` resolving `corvint` to a failing impostor and `CORVINT_BIN` naming a missing file: change, bind, change, check, nested-root refusal, seal) | implemented; foreign-repository portability shown by that fixture only; a real non-Corvint repository NOT_OBSERVED; output parity with the former scripts is shown only for the strings and statuses `script/dogfood-change_test.sh` and `script/dogfood-bind-range_test.sh` assert, and exits 129, 130 and 143 are NOT_OBSERVED by a test |
 | `DCW-V0-022` | `script/dogfood-change_test.sh` (through the wrappers over a built driver) and `script/dogfood-bind-range_test.sh`, run in Corvint's tree | implemented; in-tree evidence only |
+| `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 ## Compatibility and rollback
 
@@ -255,6 +278,9 @@ wire by implication. If any gate fails, preserve its evidence and keep the affec
 Retain the previous working installed binary and public release. Do not rewrite historical receipts.
 Roll back `DCW-V0-018` by unsetting `DOGFOOD_OCM_LINKS`: no link runs and every requirement
 returns to `unassessed` on the next pass.
+Roll back `DCW-V0-024` by reverting its change: the declaration then refuses
+`missing-intent-scope` as any other invalid manifest did, and a report written under it fails
+`dogfood check`, so no no-intent change can pass silently on either side.
 Roll back `DCW-V0-020..023` by restoring `script/dogfood-change.sh` and `script/dogfood-check.sh`
 from `e667812`; the make targets, inputs and artifacts are the same on both sides, so evidence
 from either side stays readable. The subverbs may remain unused.

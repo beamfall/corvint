@@ -4,6 +4,30 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-25 V1-0259 DCW-V0-024: daily path for a repository with no requirements spec
+
+`dogfood change` required 1 to 16 intent specs with one `## Requirements` heading, so a repository
+whose intent lives in ADRs and roadmap tickets (Beamfall) could never reach `"complete": true`,
+against AGENTS.md invariant 6. Route (c), owner-approved: an explicit declaration. The opt-out is a
+`DOGFOOD_INTENTS_FILE` whose whole content is `#no-intent-declared`. Rejected: an unset variable or
+an empty file, because both arise by accident (a forgotten export, a generator that matched nothing)
+and must keep refusing `missing-intent-scope`; a sentinel variable value, because the Corvint wrapper
+absolutizes relative values and any bare word is also a legal path. A `#` line was already refused
+as an intent path by both the manifest check and `dogfood-ocm status`, so no valid manifest changes
+meaning. Under the declaration the three OCM rows report `no-intent-declared` without blocking, the
+report's `ocmStatus` is `NOT_ASSESSED`, and the check runs no OCM verifier, refuses a snapshot that
+disagrees with the report, and prints a `NOTE intent-linkage NOT_ASSESSED` line. Reading ADR or
+roadmap intent forms in OCM is separate work. Pre-change `corvint query` (0.8.1) missed the owning
+spec: its top results were the Go kernel migration spec and decision 0012.
+
+Live run, binary built from this change, in a scratch Go module with no spec and one changed hunk
+(`greet/greet.go`) cited to `README.md`: after the sidecar commit, `dogfood change` exited 0 with
+`complete: true`, rows `ocm-prepare`, `ocm-status` and `ocm-aggregate` `NOT_PRODUCED
+no-intent-declared`, every other row `PRODUCED`, `ocmStatus` `NOT_ASSESSED`, `bootstrapUnknown` 0;
+`dogfood check` printed `NOTE intent-linkage NOT_ASSESSED no-intent-declared` then `PASS`, and
+`dogfood seal` printed `PASS`. A change at the module root first refused `prechange-impact:
+unsupported-impact-path`, an impact-index limit independent of this change.
+
 ## 2026-09-24 0.8.1 version tuple and DCW code vocabulary (decision 0381 item 11)
 
 The version tuple moves to 0.8.1 for the pre-release decision 0381 item 11 approved. Release prep
