@@ -6,7 +6,9 @@ import "strings"
 // (componentRuns, namesPath, matchesAt; AFP-V0-012 rule (c)). The gate tool is
 // a standard-library-only package main that the trusted PR driver builds
 // (AFP-V0-011, AFP-V0-013), so it cannot import this package without widening
-// that trusted build, and this package cannot import a main package.
+// that trusted build, and this package cannot import a main package. One rule
+// is narrower here than rule (c): an unanchored lone component names a file
+// name only (namesPath, V1-0290).
 
 // PathTokenBound names, in a LANGUAGE_FRONTIER detail
 // "<namespace>:path-token-bound:<unit>", a unit whose plugin dropped its path
@@ -96,10 +98,17 @@ func componentRuns(value string) []run {
 }
 
 // namesPath reports whether one of the token's component runs matches
-// consecutive components of the split dirty path.
+// consecutive components of the split dirty path. A lone component of a token
+// that is not anchored at a module root is tried against the file name alone,
+// never a directory component: the `internal/` of `"internal/%03d.go"` would
+// otherwise name every path below any `internal` directory (V1-0290).
 func namesPath(value string, parts []string) bool {
 	for _, candidate := range componentRuns(value) {
-		for offset := 0; offset+len(candidate.components) <= len(parts); offset++ {
+		first := 0
+		if len(candidate.components) == 1 && !strings.HasPrefix(value, "/") {
+			first = len(parts) - 1
+		}
+		for offset := first; offset+len(candidate.components) <= len(parts); offset++ {
 			if candidate.matchesAt(parts[offset:]) {
 				return true
 			}

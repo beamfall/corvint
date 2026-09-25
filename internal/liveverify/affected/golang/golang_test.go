@@ -380,3 +380,35 @@ func TestTestOnlyImportSelectsTheTestUserButNotItsImporters(t *testing.T) {
 	}
 	t.Errorf("excluded = %+v, want top excluded with no dependency path", plan.Excluded)
 }
+
+// V1-0290: an unanchored one-component token names a file, never a directory,
+// so the `internal/` of `"internal/%03d.go"` does not make its package a reader
+// of every path under an `internal` directory. Two-component and file-name
+// tokens still select their real readers.
+func TestDirectoryShapedLiteralNamesNoPath(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                  "module example.test/m\n",
+		"noise/n.go":              "package noise\n\nvar pattern = \"internal/%03d.go\"\n",
+		"noise/n_test.go":         "package noise\n",
+		"joined/j.go":             "package joined\n\nvar rows = \"store/rows.txt\"\n",
+		"joined/j_test.go":        "package joined\n",
+		"named/n.go":              "package named\n\nvar rows, build = \"rows.txt\", \"Makefile\"\n",
+		"named/n_test.go":         "package named\n",
+		"internal/store/s.go":     "package store\n",
+		"internal/store/rows.txt": "rows\n",
+	})
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"Makefile", "internal/store/rows.txt"})
+	selected := make([]string, 0, len(plan.Selected))
+	for _, selection := range plan.Selected {
+		selected = append(selected, selection.UnitID+"<-"+selection.Witness.DirtyPath)
+	}
+	want := "[go:example.test/m/joined<-internal/store/rows.txt go:example.test/m/named<-Makefile]"
+	if got := fmt.Sprint(selected); got != want {
+		t.Fatalf("selected = %s, want %s", got, want)
+	}
+}
