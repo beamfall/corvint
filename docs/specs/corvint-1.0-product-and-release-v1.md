@@ -42,7 +42,10 @@ platforms. It is exactly:
    account, network, hosted service, database service, embeddings or daemon (invariant 7).
 2. The proof wire: the CEM (`cem`), OCM (`ocm`) and change-frontier (`frontier`) profiles frozen
    by V1-0013, with canonical conformance vectors and the in-repo second consumer run by
-   `make interop-gate`.
+   `make interop-gate`. (proposed, decision 0398) That second consumer, `interop/cem01-go`, covers
+   `cem/0.1` only; `cem/0.2`, OCM and frontier are single-implementation at 1.0, held by their
+   canonical vectors alone, and 1.0 claims no second consumer and no interoperability for them
+   (`PRS-V1-007`).
 3. The dogfood loop: `dogfood` (and the internal `dogfood-record` and `dogfood-ocm` verbs it runs)
    producing a retained, explicit local outcome bound to a CEM.
 4. The three Core jobs accepted by decision 0332: `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`
@@ -158,7 +161,8 @@ accepted by decision 0373 and the amendment it requires are stated.
 - Amendment required: none to `PUB-V0` requirements, which do not require independent producers.
   After acceptance, the coordinator amends the task-store v1-0 release criterion and the V1-0021
   acceptance criterion to replace "independent interoperability passes" with "the frozen wire's
-  canonical vectors and in-repo second consumer pass; no interoperability claim". V1-0015, which
+  canonical vectors and in-repo second consumer pass; no interoperability claim" (proposed,
+  decision 0398: that consumer covers `cem/0.1` only, Core item 2). V1-0015, which
   depends on V1-0014, is already COMPLETED; its recorded dependency edge stays and is moot for the
   Core path (the store refuses `set-dependencies` on completed tickets).
 

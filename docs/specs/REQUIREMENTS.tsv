@@ -1612,18 +1612,18 @@ PPI-V0-006	docs/specs/protected-pi-runtime-v0.md	42	Reuse protected computation 
 PPI-V0-007	docs/specs/protected-pi-runtime-v0.md	43	Independent runtime admission MUST bind full image SHA256, live mapped CDHash, C
 PPI-V0-008	docs/specs/protected-pi-runtime-v0.md	44	FULL requires independently completed exact-image TUI and RPC qualification: all
 PPI-V0-009	docs/specs/protected-pi-runtime-v0.md	45	Rollback removes/revokes only the optional Pi campaign/admission/runtime and res
-PRS-V1-001	docs/specs/corvint-1.0-product-and-release-v1.md	207	Corvint 1.0 Core MUST be exactly the surfaces labelled Core in this spec: the lo
-PRS-V1-002	docs/specs/corvint-1.0-product-and-release-v1.md	210	Only Core surfaces carry the 1.0 stability promise (frozen contracts, N-1 reader
-PRS-V1-003	docs/specs/corvint-1.0-product-and-release-v1.md	213	Every gate on the Core critical path to 1.0 MUST be closable by the owner withou
-PRS-V1-004	docs/specs/corvint-1.0-product-and-release-v1.md	215	Core platforms MUST be darwin/arm64 and linux/amd64 native binaries. A Core
-PRS-V1-005	docs/specs/corvint-1.0-product-and-release-v1.md	218	A Core release candidate MUST NOT require companion input. Companions keep their
-PRS-V1-006	docs/specs/corvint-1.0-product-and-release-v1.md	220	Core host scope MUST be the plain CLI, plus the exact-version Codex CLI and Clau
-PRS-V1-007	docs/specs/corvint-1.0-product-and-release-v1.md	223	Corvint 1.0 MUST NOT claim CEM, OCM or frontier interoperability unless V1-0014
-PRS-V1-008	docs/specs/corvint-1.0-product-and-release-v1.md	225	The 1.0 Core candidate MUST pass the three Core jobs on Corvint, Beamfall and on
-PRS-V1-009	docs/specs/corvint-1.0-product-and-release-v1.md	227	Core installed qualification MUST be the native archive lifecycle of
-PRS-V1-010	docs/specs/corvint-1.0-product-and-release-v1.md	230	Any new shipped verb, binary or integration tree MUST be added to the
-PRS-V1-011	docs/specs/corvint-1.0-product-and-release-v1.md	232	This spec amends `public-release-v0.md` prospectively for the 1.0 Core candidate
-PRS-V1-012	docs/specs/corvint-1.0-product-and-release-v1.md	234	This spec has no authority until a numbered decision records the owner's
+PRS-V1-001	docs/specs/corvint-1.0-product-and-release-v1.md	211	Corvint 1.0 Core MUST be exactly the surfaces labelled Core in this spec: the lo
+PRS-V1-002	docs/specs/corvint-1.0-product-and-release-v1.md	214	Only Core surfaces carry the 1.0 stability promise (frozen contracts, N-1 reader
+PRS-V1-003	docs/specs/corvint-1.0-product-and-release-v1.md	217	Every gate on the Core critical path to 1.0 MUST be closable by the owner withou
+PRS-V1-004	docs/specs/corvint-1.0-product-and-release-v1.md	219	Core platforms MUST be darwin/arm64 and linux/amd64 native binaries. A Core
+PRS-V1-005	docs/specs/corvint-1.0-product-and-release-v1.md	222	A Core release candidate MUST NOT require companion input. Companions keep their
+PRS-V1-006	docs/specs/corvint-1.0-product-and-release-v1.md	224	Core host scope MUST be the plain CLI, plus the exact-version Codex CLI and Clau
+PRS-V1-007	docs/specs/corvint-1.0-product-and-release-v1.md	227	Corvint 1.0 MUST NOT claim CEM, OCM or frontier interoperability unless V1-0014
+PRS-V1-008	docs/specs/corvint-1.0-product-and-release-v1.md	229	The 1.0 Core candidate MUST pass the three Core jobs on Corvint, Beamfall and on
+PRS-V1-009	docs/specs/corvint-1.0-product-and-release-v1.md	231	Core installed qualification MUST be the native archive lifecycle of
+PRS-V1-010	docs/specs/corvint-1.0-product-and-release-v1.md	234	Any new shipped verb, binary or integration tree MUST be added to the
+PRS-V1-011	docs/specs/corvint-1.0-product-and-release-v1.md	236	This spec amends `public-release-v0.md` prospectively for the 1.0 Core candidate
+PRS-V1-012	docs/specs/corvint-1.0-product-and-release-v1.md	238	This spec has no authority until a numbered decision records the owner's
 PSL-V0-001	docs/specs/pulse-snapshot-lease-v0.md	199	The coordinator MUST be one client-owned local Go process over stdio, one serial
 PSL-V0-002	docs/specs/pulse-snapshot-lease-v0.md	202	Requests and responses MUST use `corvint-pulse-snapshot/0`, strict bounded canon
 PSL-V0-003	docs/specs/pulse-snapshot-lease-v0.md	204	Initialization MUST create a fresh unpredictable session ID. Restart, disconnect
