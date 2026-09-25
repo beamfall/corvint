@@ -368,9 +368,78 @@ func anchorClaims(docs []docFile, claims []DocClaim) ([]DocClaim, []DocFailure, 
 	return anchored, failures, unanchored
 }
 
+// fencedRanges returns the raw byte ranges covered by Markdown code fences (``` or ~~~), so an
+// anchor written as fenced example text is never parsed as a live claim (AFU-V1-033).
+func fencedRanges(raw []byte) [][2]int {
+	ranges := [][2]int{}
+	open, fenceChar, fenceLen, start := false, byte(0), 0, 0
+	pos := 0
+	for _, line := range bytes.SplitAfter(raw, []byte("\n")) {
+		if len(line) == 0 {
+			continue
+		}
+		ch, n, rest, ok := fenceMarker(line)
+		switch {
+		case !open && ok:
+			open, fenceChar, fenceLen, start = true, ch, n, pos
+		case open && ok && ch == fenceChar && n >= fenceLen && len(rest) == 0:
+			open = false
+			ranges = append(ranges, [2]int{start, pos + len(line)})
+		}
+		pos += len(line)
+	}
+	if open {
+		ranges = append(ranges, [2]int{start, len(raw)})
+	}
+	return ranges
+}
+
+// fenceMarker reports the fence character and run length of a line opening or closing a Markdown
+// code fence: at most 3 leading spaces, then 3 or more identical backticks or tildes. rest is the
+// trailing content after the marker; a closing fence must carry none.
+func fenceMarker(line []byte) (ch byte, n int, rest []byte, ok bool) {
+	indent := len(line) - len(bytes.TrimLeft(line, " "))
+	if indent > 3 {
+		return 0, 0, nil, false
+	}
+	trimmed := bytes.TrimRight(bytes.TrimLeft(line, " "), " \t\r\n")
+	if len(trimmed) < 3 {
+		return 0, 0, nil, false
+	}
+	c := trimmed[0]
+	if c != '`' && c != '~' {
+		return 0, 0, nil, false
+	}
+	i := 0
+	for i < len(trimmed) && trimmed[i] == c {
+		i++
+	}
+	if i < 3 {
+		return 0, 0, nil, false
+	}
+	if c == '`' && bytes.IndexByte(trimmed[i:], '`') >= 0 {
+		return 0, 0, nil, false
+	}
+	return c, i, trimmed[i:], true
+}
+
+// inFencedRange reports whether pos falls inside one of ranges.
+func inFencedRange(ranges [][2]int, pos int) bool {
+	for _, r := range ranges {
+		if pos >= r[0] && pos < r[1] {
+			return true
+		}
+	}
+	return false
+}
+
 func documentAnchors(d docFile, known map[string]DocClaim) ([]DocClaim, []DocFailure) {
 	claims, failures := []DocClaim{}, []DocFailure{}
+	fenced := fencedRanges(d.raw)
 	for _, m := range docAnchor.FindAllSubmatchIndex(d.raw, -1) {
+		if inFencedRange(fenced, m[0]) {
+			continue
+		}
 		line := bytes.Count(d.raw[:m[0]], []byte("\n")) + 1
 		fields := docAnchorFields.FindStringSubmatch(string(d.raw[m[2]:m[3]]))
 		if fields == nil || !flowIDPattern.MatchString(fields[1]) || !memberPattern.MatchString(fields[2]) || !memberPattern.MatchString(fields[3]) {
@@ -619,6 +688,9 @@ func bytesFailure(name string, committed, regenerated []byte) []DocFailure {
 // ReplaceConfined replaces rel under root through a temporary file created exclusively in the same
 // directory and a rename, following no symlink; an existing target must be a regular file (AFU-V1-036).
 func ReplaceConfined(root, rel string, data []byte) error {
+	if gitPath(rel) {
+		return errors.New(gitPathRefused)
+	}
 	if !safePath(rel) || rel == "." {
 		return errors.New("flow output must be a canonical repository-relative path")
 	}

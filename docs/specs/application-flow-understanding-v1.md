@@ -480,7 +480,8 @@ This subsection fixes the S5 wire shape. It adds no requirement and no root verb
   check. An unanchored document never fails `flows docs --check`. The check lists unanchored
   documents by path in one coverage row with its value, denominator (Markdown documents under the
   docs root), revision and limitation (an anchor proves the named outcome, not the surrounding
-  prose). Unanchored text is `UNPROVEN`, never `PROVEN`.
+  prose). Unanchored text is `UNPROVEN`, never `PROVEN`. An anchor comment written inside a fenced
+  code block (a `` ``` `` or `~~~` fence) is example text, not a live claim, and is ignored.
 
 ### Proven-documentation wire contract
 
@@ -535,7 +536,8 @@ paths, and `--page` and `--claims` differ.
 - `AFU-V1-036`: Every write MUST resolve under the repository root without following a symlink.
   `record` and `import` create their files with `O_EXCL`; `docs` rendering replaces a page through a
   confined temporary file in the same directory and a rename. Every input MUST be rejected unless `Lstat` shows a regular file
-  before it is opened.
+  before it is opened. A write path whose first component is `.git`, case-folded, is refused with
+  the named code `git-path-refused`.
 - `AFU-V1-037`: Byte, record, attempt, link and traversal bounds apply before decode and walk. When a
   bound is exceeded, the result is incomplete with a named code, never a truncated success.
 - `AFU-V1-038`: Recorded evidence MUST drop cookies, authorization headers, tokens and request or
@@ -631,7 +633,7 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-032 | `TestAFUV1032DocsCheckDrift` (a lost `PROVEN` and a hand-edited page fail; the check is read-only), `TestAFUV1032WaiverExpiry` (unexpired, expired and malformed waivers), `TestAFUV1032WaiverExpiryBoundary` (expired on its expiry date), `TestAFUV1032WaiverKeepsUnrenderedClaim` (a waived claim that is no longer rendered keeps its committed form) |
 | AFU-V1-033 | `TestAFUV1033AnchoredMarkdown` (a changed unanchored document passes, an unknown anchor fails the check and refuses the render), `TestAFUV1033AnchorParsing`, `TestAFUV1032DocsCheckDrift` (the coverage row and the anchored claim's lost `PROVEN`), `TestAFUV1033NonRegularMarkdownSkipped` (a symlinked `.md` is unanchored, not a failure) |
 | AFU-V1-034..035 | MCP conformance with and without the selector |
-| AFU-V1-036 | `TestAFUV1036DocsReplaceConfined`, `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
+| AFU-V1-036 | `TestAFUV1036DocsReplaceConfined`, `TestAFUV1036DocsGitPathRefused`, `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1RecordGitPathRefused`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
 | AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceBoundsIncomplete`, `TestAFUV1FlowsCLIIngest`, `TestAFUV1ReadRunEvidenceDiscipline` |
 | AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceSecretsDropped`, `TestAFUV1PlaywrightProviderScrubsEveryAttempt` (the provider receipt scrubs every attempt and the last-attempt fields); the screen runs in `EncodeRunEvidence`, the only run-evidence encoding, and `flows ingest` writes only what it encodes (`TestAFUV1FlowsCLIIngest`) |
 | AFU-V1-039 | `TestAFUV1039AcceptanceFixture` over the committed fixture `cmd/corvint/testdata/flows/acceptance` (a synthetic, hand-written Playwright report ingested through `flows ingest`; observed runs are the `NOT_RUN` live qualification items below): the UI flow `checkout` and the API flow `orders-api` are complete with every variation verified in `map`; `returns` reports exactly `unmapped-flow` and `profile` exactly `stale-link` (its evidence verified) in `gaps`; both have flow status `incomplete` (step verification is evidence-only) in `map`, `gaps`, the `navigate` map and each one's `navigate --goal` packet, and `docs` renders them `UNPROVEN` and `STALE` while the two verified flows' claims are `PROVEN` |
