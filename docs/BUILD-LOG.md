@@ -5545,3 +5545,24 @@ checkout on 2026-09-24.
 - V1-0240 to V1-0247 are filed from the 0.8.1 session's findings, including V1-0247 for issue #167.
 - Decision 0384: release `v0-9` keeps its id with version `1-0-0-rc-1` and title `Corvint
   1.0.0-rc.1 release candidate`, and V1-0018 is retitled to match. No 0.9.0 is published.
+
+## 2026-09-24 decision 0385: application flow proof in 1.0 (issue #175, AFU-V1)
+
+The owner asked for "full and researched support" for issue #175 in 1.0, covering E2E test
+selection for a change, website navigation by an agent, and generated documentation proven by the
+same evidence. Six expert reviews informed the design: flow model and interop, test-evidence
+provenance, E2E test-impact selection, agent website navigation, evidence-proven documentation, and
+an adversarial trust reviewer. Their claims about current code were checked against `978b37b`.
+
+The owner chose a split classification. The `affected --selection-profile e2e-safe` value is Core
+and narrows only when every omitted test has an exclusion proof; otherwise it falls back to the full
+relevant suite with a named code. `corvint flows` map, gaps, impact, navigation, proven docs and the
+MCP `flows` profile ship as a qualified companion and cannot block the Core candidate.
+`docs/specs/application-flow-understanding-v1.md` holds `AFU-V1-001..040`, rollout slices S1-S8
+and the kill criterion. The flows row in the 1.0 product spec moves from experimental to companion.
+Nothing is built yet.
+
+The reviews also found two defects in the shipped experimental `flows` command: output paths are not
+confined to the root, and the input file is opened before it is checked, so a FIFO blocks the read.
+Both are fixed in slice S1 (`AFU-V1-036`). A third defect: the Playwright provider keeps only the
+final attempt (`AFU-V1-012`).
