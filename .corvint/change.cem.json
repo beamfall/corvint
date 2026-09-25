@@ -1,0 +1,174 @@
+{
+  "baseRevision": "978b37b20559f62456176775dee7e11185d6c96f",
+  "evidence": [],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:16f1493333f03169e253887958fad073f25d69320fae3822ec72bfc70cf13347",
+      "newRange": {
+        "count": 7,
+        "start": 24
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 24
+      },
+      "path": "cmd/corvint-release-candidate/main.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:e3616e40dc3a0c45f7133637c641591e04f45ecfcbd33ee06e06cd0b22e4a835",
+      "newRange": {
+        "count": 22,
+        "start": 5545
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 5545
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:000403b0487f672e863504fe345acffd62e59e72176cef7a0a215411b5bfef91",
+      "newRange": {
+        "count": 11,
+        "start": 18
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 18
+      },
+      "path": "docs/decisions/0384-1-0-0-rc-1-replaces-0-9-2026-09-24.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:d20e438e968fdb0c17530d8f8b3bf97979c4261680e9209af8c8ca03a254ac99",
+      "newRange": {
+        "count": 32,
+        "start": 1608
+      },
+      "oldRange": {
+        "count": 32,
+        "start": 1608
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:4a0db4fd977e570b95f9f5dde7a063efafe198cb046c0db2dc4350ec623d6f67",
+      "newRange": {
+        "count": 8,
+        "start": 248
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 248
+      },
+      "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:64e5213588c4a6d44ced8678a017a5edf8c8dcb0c707ccada47ba3837acf9271",
+      "newRange": {
+        "count": 7,
+        "start": 5
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 5
+      },
+      "path": "docs/specs/public-release-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:44752d1cfe60b82a858fc420c041cf9ea54dddfe6a6c18fad411343126958353",
+      "newRange": {
+        "count": 8,
+        "start": 112
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 112
+      },
+      "path": "docs/specs/public-release-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:6e9b36925a50d99e9e986a250782dfbaca03af00ae626c25309290f3feb7bdde",
+      "newRange": {
+        "count": 13,
+        "start": 365
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 364
+      },
+      "path": "docs/specs/public-release-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:de06ce5562afa666ace741bd4b7b81f132ce394f640d574ee6a85f0d044aea8e",
+      "newRange": {
+        "count": 7,
+        "start": 674
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 668
+      },
+      "path": "docs/specs/public-release-v0.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:721d85b1af6cc8f6d977461a022aa466e4ea9ca9855f3bfa5f061af6eb62f503",
+      "newRange": {
+        "count": 11,
+        "start": 21
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 21
+      },
+      "path": "internal/releasecandidate/candidate.go",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:78bb85c1063216a3d038ddea25328582efe00c063ef534a265662322e0949193",
+      "newRange": {
+        "count": 129,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/releasecandidate/version_test.go",
+      "reason": "no-evidence"
+    }
+  ],
+  "patchSha256": "7720a65a596a0d5ba4008b0f55a40b13585e4cd3dfaaa9c624f969e881c07af1",
+  "spec": "cem/0.2"
+}
