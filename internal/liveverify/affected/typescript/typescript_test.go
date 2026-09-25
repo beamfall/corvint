@@ -554,3 +554,21 @@ func TestTripleSlashReferencePathIsARelativeEdge(t *testing.T) {
 		}
 	}
 }
+
+// Allocation count rather than wall time: it does not depend on host load, and
+// the quadratic scan copied the whole buffer once per byte, so its count grew
+// with the input while a linear scan allocates a fixed number of times.
+func TestStripCommentsAllocationsDoNotGrowWithInput(t *testing.T) {
+	unit := "const a = /r[/]x/g; // c\nlet b = x / 2 /* k */ + 'q' + \"w\" + `t`;\n"
+	for _, jsx := range []bool{false, true} {
+		body := strings.Repeat(unit, 64<<10/len(unit))
+		allocations := testing.AllocsPerRun(1, func() {
+			if _, err := stripComments(body, jsx); err != nil {
+				t.Fatal(err)
+			}
+		})
+		if allocations > 2 {
+			t.Errorf("jsx=%t: %v allocations for %d bytes, want at most 2", jsx, allocations, len(body))
+		}
+	}
+}
