@@ -1602,7 +1602,7 @@
     "path": "docs/specs/daily-change-evidence-workflow-v0.md",
     "title": "Daily Change-Evidence Workflow V0",
     "reqPrefix": "DCW-V0",
-    "intent": "accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); evaluation protocol awaits separate freeze",
+    "intent": "accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); evaluation protocol awaits separate freeze",
     "delivery": "experimental; milestone NOT_QUALIFIED",
     "claim": "0.6 requires verified task orientation, change consequence and evidence-carrying local completion.",
     "dependsOn": [

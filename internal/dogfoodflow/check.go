@@ -329,24 +329,18 @@ func (c *check) verifyBinding(report []byte) int {
 	if !isRegular(intentSnapshot) || !isRegular(aggregate) {
 		c.fail("missing-intent-scope")
 	}
-	ocm, agreed := c.verifyAll("dogfood-ocm", "status", "--expected-base", c.base, "--target", c.target)
-	if !agreed {
-		_ = c.record(false, 0)
-		c.fail("verifier-disagreement")
+	// The declaration and the report's ocmStatus must agree, so a swapped
+	// snapshot cannot skip OCM verification (DCW-V0-024).
+	noIntent := bytes.Equal(readFile(intentSnapshot), noIntentManifest)
+	if noIntent != hasLine(report, noIntentOCMStatus) {
+		c.fail("dogfood-report-drift")
 	}
-	if ocm.status != 0 {
-		reason, _ := firstCapture(codePattern, ocm.stderr)
-		if reason == "" {
-			reason = "ocm-policy"
-		}
-		_ = c.record(true, 0)
-		c.fail(reason)
+	ocmLine := []byte("dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\n")
+	bootstrap := 0
+	if !noIntent {
+		ocmLine = c.verifyOCM(aggregate)
+		bootstrap = bootstrapUnknowns(&c.flow, readLines(readFile(intentSnapshot)))
 	}
-	if !bytes.Equal(ocm.stdout, readFile(aggregate)) {
-		_ = c.record(true, 0)
-		c.fail("intent-scope-drift", "  fix: the OCM maps changed after make dogfood-change; rerun make dogfood-change BASE="+c.base)
-	}
-	bootstrap := bootstrapUnknowns(&c.flow, readLines(readFile(intentSnapshot)))
 	if !bytes.Contains(report, []byte(`  ,"dogfoodPolicy": {"bootstrapUnknown": `+strconv.Itoa(bootstrap)+`, "maximumUnknownAfterBootstrap": 0}`)) {
 		_ = c.record(true, bootstrap)
 		c.fail("dogfood-report-drift")
@@ -364,9 +358,32 @@ func (c *check) verifyBinding(report []byte) int {
 	if cem.status != 0 {
 		c.fail("cem-policy", missingLines(readFile(c.report))...)
 	}
-	_, _ = c.stdout.Write(firstLine(ocm.stdout))
+	_, _ = c.stdout.Write(ocmLine)
 	fmt.Fprintf(c.stdout, "dogfood-check: PASS\n")
 	return 0
+}
+
+// verifyOCM requires the verifiers to agree on the OCM aggregate the change
+// published and returns its first line.
+func (c *check) verifyOCM(aggregate string) []byte {
+	ocm, agreed := c.verifyAll("dogfood-ocm", "status", "--expected-base", c.base, "--target", c.target)
+	if !agreed {
+		_ = c.record(false, 0)
+		c.fail("verifier-disagreement")
+	}
+	if ocm.status != 0 {
+		reason, _ := firstCapture(codePattern, ocm.stderr)
+		if reason == "" {
+			reason = "ocm-policy"
+		}
+		_ = c.record(true, 0)
+		c.fail(reason)
+	}
+	if !bytes.Equal(ocm.stdout, readFile(aggregate)) {
+		_ = c.record(true, 0)
+		c.fail("intent-scope-drift", "  fix: the OCM maps changed after make dogfood-change; rerun make dogfood-change BASE="+c.base)
+	}
+	return firstLine(ocm.stdout)
 }
 
 // record replaces the report's single dogfoodCheck line with the verifier
