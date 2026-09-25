@@ -66,8 +66,11 @@ Beamfall intent spec these receipts attest against (`docs/plugins/trust-roots.md
 `claude/corvint-dogfood-PTR-tests`, PR beamfall/core#32). Its subject is the retained
 `prechange-query` packet, which is `READY` with no abstention after `GPK-V0-066` (decision 0387),
 plus that commit's sealed CEM. The earlier LCRES-15 query had abstained with zero results
-(ticket V1-0260). All three Core rows now hold one receipt from every evidence class. No row is
-`verified` until ticket V1-0011 promotes them.
+(ticket V1-0260). All three Core rows hold one receipt from every evidence class. Ticket V1-0011 promoted them
+to `verified`/`VERIFIED` together. The other nineteen rows remain `UNPROVEN`. The orientation
+row's Beamfall run used a build that includes `GPK-V0-066`, which the published 0.8.1 archive does not
+contain (0.8.1 abstains on that query, per V1-0260). Under `UCV0-012`, the `VERIFIED` claim
+therefore applies to releases that include decision 0387, not to 0.8.1.
 
 ## Status and claim model
 
