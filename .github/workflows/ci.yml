@@ -13,6 +13,33 @@ permissions:
   contents: read
 
 jobs:
+  doc-gates:
+    # Fast signal (a few minutes) for the checks go-product never runs or reports only after
+    # about an hour: the Makefile's documentation GATE_STEPS (V1-0244) and the use-case receipt
+    # pins (V1-0268). They read the Git index or worktree of this clean checkout; no history.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.1"
+      - name: Documentation gate steps
+        run: make -s spec-requirements-check requirement-definitions-check traceability-tests-check decision-numbers-check line-citations-check error-code-ownership-check
+      - name: Use-case receipt pins (run script/repin-use-case-receipts.sh on failure)
+        run: |
+          make -s use-case-receipts-check use-case-receipts-test
+          go run ./conformance/use-cases-v0
+
   go-product:
     runs-on: ubuntu-24.04
     timeout-minutes: 75
