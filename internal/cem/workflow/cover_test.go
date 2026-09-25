@@ -14,9 +14,18 @@ import (
 
 const whisperTarget = importReorderTarget + "\n// Whisper lower-cases s.\nfunc Whisper(s string) string { return strings.ToLower(s) }\n"
 
+// witnessMap is where a test writes the cem/0.3 map, which never replaces
+// the cem/0.2 input or lands on the Core sidecar path (V1-0335).
+const witnessMap = ".corvint/witness.cem.json"
+
 func readMap(t *testing.T, root string) *wire.Map {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(root, wire.ExcludedCEMPath))
+	return readMapAt(t, root, wire.ExcludedCEMPath)
+}
+
+func readMapAt(t *testing.T, root, relative string) *wire.Map {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(root, relative))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,8 +38,13 @@ func readMap(t *testing.T, root string) *wire.Map {
 
 func reportText(t *testing.T, root, base string) string {
 	t.Helper()
+	return reportTextAt(t, root, base, wire.ExcludedCEMPath)
+}
+
+func reportTextAt(t *testing.T, root, base, mapPath string) string {
+	t.Helper()
 	result, err := openSession(t, root).Read(ctx(), "report", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD",
+		MapPath: mapPath, ExpectedBase: base, Target: "HEAD",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -59,8 +73,6 @@ func TestCoverRecordsCoverageWitnessAndReportDowngrades(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	gitCmd(t, root, "add", wire.ExcludedCEMPath)
-	gitCmd(t, root, "commit", "-qm", "candidate")
 	if text := reportText(t, root, base); !strings.Contains(text, "downgraded from tested; reason `no-coverage-witness`") {
 		t.Fatalf("report without a witness:\n%s", text)
 	}
@@ -68,7 +80,7 @@ func TestCoverRecordsCoverageWitnessAndReportDowngrades(t *testing.T) {
 	covered := "mode: set\nexample.com/m/pkg/a.go:9.41,9.72 1 1\nexample.com/m/pkg/a.go:12.43,12.71 1 1\n"
 	writeFile(t, root, "cover.out", covered)
 	result, err := openSession(t, root).Cover(ctx(), CoverOptions{
-		MapPath: wire.ExcludedCEMPath, Coverprofile: "cover.out", TestRun: "go test ./pkg/...",
+		MapPath: wire.ExcludedCEMPath, Coverprofile: "cover.out", TestRun: "go test ./pkg/...", Output: witnessMap,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -77,38 +89,36 @@ func TestCoverRecordsCoverageWitnessAndReportDowngrades(t *testing.T) {
 	if result["covered"] != 1 || result["uncovered"] != 0 || result["profileSha256"] != hex.EncodeToString(digest[:]) {
 		t.Fatalf("cover envelope = %v", result)
 	}
-	document := readMap(t, root)
+	document := readMapAt(t, root, witnessMap)
 	witness := document.Hunks[0].Coverage
 	if document.Spec != wire.Spec03 || witness == nil || witness.State != wire.CoverageCovered ||
 		witness.TestRun != "go test ./pkg/..." || witness.Mode != "set" || len(witness.Covered) != 1 ||
 		witness.Covered[0] != (wire.Range{Start: 12, Count: 1}) {
 		t.Fatalf("spec %s witness %+v", document.Spec, witness)
 	}
-	gitCmd(t, root, "add", wire.ExcludedCEMPath)
-	gitCmd(t, root, "commit", "-qm", "covered")
 	status, err := openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD",
+		MapPath: witnessMap, ExpectedBase: base, Target: "HEAD",
 	})
 	if err != nil || status["state"] != "ready-for-ci" {
 		t.Fatalf("status after cover: %v %v", err, status)
 	}
-	if text := reportText(t, root, base); !strings.Contains(text, "tested (test run `go test ./pkg/...`, coverprofile `"+hex.EncodeToString(digest[:])+"`)") {
+	if text := reportTextAt(t, root, base, witnessMap); !strings.Contains(text, "tested (test run `go test ./pkg/...`, coverprofile `"+hex.EncodeToString(digest[:])+"`)") {
 		t.Fatalf("report with a covering witness:\n%s", text)
 	}
 
 	// A context line the profile reaches is not coverage of the change.
 	writeFile(t, root, "cover.out", "mode: count\nexample.com/m/pkg/a.go:9.41,9.72 1 7\nexample.com/m/pkg/a.go:12.43,12.71 1 0\n")
 	result, err = openSession(t, root).Cover(ctx(), CoverOptions{
-		MapPath: wire.ExcludedCEMPath, Coverprofile: "cover.out", TestRun: "go test -run TestShout ./pkg/...",
+		MapPath: wire.ExcludedCEMPath, Coverprofile: "cover.out", TestRun: "go test -run TestShout ./pkg/...", Output: witnessMap,
 	})
 	if err != nil || result["covered"] != 0 || result["uncovered"] != 1 {
 		t.Fatalf("uncovered envelope: %v %v", err, result)
 	}
-	witness = readMap(t, root).Hunks[0].Coverage
+	witness = readMapAt(t, root, witnessMap).Hunks[0].Coverage
 	if witness == nil || witness.State != wire.CoverageUncovered || len(witness.Covered) != 0 || witness.Mode != "count" {
 		t.Fatalf("uncovered witness = %+v", witness)
 	}
-	if text := reportText(t, root, base); !strings.Contains(text, "downgraded from tested; reason `coverage-witness-uncovered`") {
+	if text := reportTextAt(t, root, base, witnessMap); !strings.Contains(text, "downgraded from tested; reason `coverage-witness-uncovered`") {
 		t.Fatalf("report with an uncovered witness:\n%s", text)
 	}
 }

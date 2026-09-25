@@ -249,11 +249,11 @@ CATN-V0-015	docs/specs/cross-audience-truth-nondivergence-v0.md	147	The truth-di
 CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	36	The Core command set MUST be exactly `init`, `adopt`, `index`, `query`, `context
 CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	43	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout
 CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	74	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised
-CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	84	A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line bu
-CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	95	The admission, freshness, omission and abstention members MUST keep their names,
-CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	111	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
-CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	119	N-1 and migration policy. Every Core reader MUST accept the documents and state
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	130	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
+CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	87	A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line bu
+CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	98	The admission, freshness, omission and abstention members MUST keep their names,
+CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	114	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
+CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	122	N-1 and migration policy. Every Core reader MUST accept the documents and state
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	133	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa
@@ -361,10 +361,10 @@ CEM-SM-003	docs/specs/cem-0.3-structural-mechanical.md	48	For `rename`, `import-
 CEM-SM-004	docs/specs/cem-0.3-structural-mechanical.md	50	For `move` the image MUST be the whole group applied, because a move is a paired
 CEM-SM-005	docs/specs/cem-0.3-structural-mechanical.md	52	Any parse, scan, or format failure on the base or the image MUST refuse the
 CEM-SM-006	docs/specs/cem-0.3-structural-mechanical.md	54	`mark --disposition mechanical` with a structural reason MUST upgrade a `cem/0.2
-CEM-SM-007	docs/specs/cem-0.3-structural-mechanical.md	57	`rename` MUST hold only when the token streams differ by one identifier pair
-CEM-SM-008	docs/specs/cem-0.3-structural-mechanical.md	62	`move` MUST hold only when tokens outside top-level declarations are unchanged,
-CEM-SM-009	docs/specs/cem-0.3-structural-mechanical.md	65	`import-reorder` MUST hold only when the ordered import specs differ, their
-CEM-SM-010	docs/specs/cem-0.3-structural-mechanical.md	68	`formatter-only` MUST hold only when `go/format` renders the base and the image
+CEM-SM-007	docs/specs/cem-0.3-structural-mechanical.md	63	`rename` MUST hold only when the token streams differ by one identifier pair
+CEM-SM-008	docs/specs/cem-0.3-structural-mechanical.md	68	`move` MUST hold only when tokens outside top-level declarations are unchanged,
+CEM-SM-009	docs/specs/cem-0.3-structural-mechanical.md	71	`import-reorder` MUST hold only when the ordered import specs differ, their
+CEM-SM-010	docs/specs/cem-0.3-structural-mechanical.md	74	`formatter-only` MUST hold only when `go/format` renders the base and the image
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and
@@ -2058,12 +2058,12 @@ TCQ-V0-049	docs/specs/test-claim-qualification-v0.md	600	one shared flake rule a
 TCQ-V0-050	docs/specs/test-claim-qualification-v0.md	607	a caller MAY supply at most 16 prior observations alongside the dynamic tuple.
 TCQ-V0-051	docs/specs/test-claim-qualification-v0.md	630	`corvint cem cover --map MAP --coverprofile PATH --test-run TEXT [--output PATH]
 TCQ-V0-052	docs/specs/test-claim-qualification-v0.md	639	the witness is one optional hunk member `coverage` admitted only on `cem/0.3`:
-TCQ-V0-053	docs/specs/test-claim-qualification-v0.md	647	`cover` writes a witness on every hunk of the map, never on a subset. The covere
-TCQ-V0-054	docs/specs/test-claim-qualification-v0.md	652	the reviewer report (`corvint cem report`) lists every hunk whose basis cites a
-TCQ-V0-055	docs/specs/test-claim-qualification-v0.md	670	`corvint cem discriminate --map MAP --target REV [--max-hunks N]
-TCQ-V0-056	docs/specs/test-claim-qualification-v0.md	681	the witness is one optional hunk member `discriminates` admitted only on
-TCQ-V0-057	docs/specs/test-claim-qualification-v0.md	692	candidates are, in map order, the hunks whose path is Go source (not a
-TCQ-V0-058	docs/specs/test-claim-qualification-v0.md	701	the reviewer report appends the witness to each `## Test claims` line: a
+TCQ-V0-053	docs/specs/test-claim-qualification-v0.md	650	`cover` writes a witness on every hunk of the map, never on a subset. The covere
+TCQ-V0-054	docs/specs/test-claim-qualification-v0.md	655	the reviewer report (`corvint cem report`) lists every hunk whose basis cites a
+TCQ-V0-055	docs/specs/test-claim-qualification-v0.md	673	`corvint cem discriminate --map MAP --target REV [--max-hunks N]
+TCQ-V0-056	docs/specs/test-claim-qualification-v0.md	684	the witness is one optional hunk member `discriminates` admitted only on
+TCQ-V0-057	docs/specs/test-claim-qualification-v0.md	695	candidates are, in map order, the hunks whose path is Go source (not a
+TCQ-V0-058	docs/specs/test-claim-qualification-v0.md	704	the reviewer report appends the witness to each `## Test claims` line: a
 TJAA-V0-001	docs/specs/typescript-javascript-affected-adapter-v0.md	31	`Owns` MUST claim exactly `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs`; it M
 TJAA-V0-002	docs/specs/typescript-javascript-affected-adapter-v0.md	35	A normally file-addressable test MUST be one file unit. Its stable identity MUST
 TJAA-V0-003	docs/specs/typescript-javascript-affected-adapter-v0.md	39	Runner detection MUST use direct runner imports/registrations, recognized config

@@ -1538,11 +1538,11 @@ func markStructural(t *testing.T, root, base, target, reason string) map[string]
 		t.Fatal(err)
 	}
 	if _, err := session.Mark(ctx(), MarkOptions{
-		MapPath: wire.ExcludedCEMPath, Hunk: "1", Disposition: "mechanical", Reason: reason,
+		MapPath: wire.ExcludedCEMPath, Hunk: "1", Disposition: "mechanical", Reason: reason, Output: witnessMap,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	data, err := os.ReadFile(filepath.Join(root, wire.ExcludedCEMPath))
+	data, err := os.ReadFile(filepath.Join(root, witnessMap))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1553,10 +1553,8 @@ func markStructural(t *testing.T, root, base, target, reason string) map[string]
 	if document.Spec != wire.Spec03 {
 		t.Fatalf("spec after structural mark = %q, want %q", document.Spec, wire.Spec03)
 	}
-	gitCmd(t, root, "add", wire.ExcludedCEMPath)
-	gitCmd(t, root, "commit", "-qm", "candidate")
 	result, err := openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD",
+		MapPath: witnessMap, ExpectedBase: base, Target: "HEAD",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1593,6 +1591,59 @@ func TestMarkStructuralReasonWrongClassIsRefused(t *testing.T) {
 	}
 	if code := issues[0].(map[string]any)["code"]; code != cemcode.UnprovenMechanical {
 		t.Fatalf("issue code %v, want %s", code, cemcode.UnprovenMechanical)
+	}
+}
+
+// TestSpec03UpgradeNeverReplacesACoreMap pins V1-0335: structural mark,
+// cover and discriminate never write a cem/0.3 map over their cem/0.2 input or
+// onto the Core sidecar path that frontier and OCM read as cem/0.2, and a
+// refusal leaves the input untouched.
+func TestSpec03UpgradeNeverReplacesACoreMap(t *testing.T) {
+	root, base, target := makeGoRepo(t, importReorderBase, importReorderTarget)
+	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(filepath.Join(root, wire.ExcludedCEMPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, root, "staged.cem.json", string(before))
+	writeFile(t, root, "cover.out", "mode: set\n")
+	structural := func(mapPath, output string) error {
+		_, err := openSession(t, root).Mark(ctx(), MarkOptions{
+			MapPath: mapPath, Hunk: "1", Disposition: "mechanical", Reason: "import-reorder", Output: output,
+		})
+		return err
+	}
+	cover := func(mapPath, output string) error {
+		_, err := openSession(t, root).Cover(ctx(), CoverOptions{
+			MapPath: mapPath, Coverprofile: "cover.out", TestRun: "go test", Output: output,
+		})
+		return err
+	}
+	discriminate := func(mapPath, output string) error {
+		_, err := openSession(t, root).Discriminate(ctx(), DiscriminateOptions{MapPath: mapPath, Target: target, Output: output})
+		return err
+	}
+	cases := map[string]error{
+		"mark-sidecar-in-place":         structural(wire.ExcludedCEMPath, ""),
+		"mark-other-map-in-place":       structural("staged.cem.json", ""),
+		"mark-onto-sidecar":             structural("staged.cem.json", wire.ExcludedCEMPath),
+		"cover-sidecar-in-place":        cover(wire.ExcludedCEMPath, ""),
+		"cover-onto-sidecar":            cover("staged.cem.json", wire.ExcludedCEMPath),
+		"discriminate-sidecar-in-place": discriminate(wire.ExcludedCEMPath, ""),
+		"discriminate-onto-sidecar":     discriminate("staged.cem.json", wire.ExcludedCEMPath),
+	}
+	for name, err := range cases {
+		if cemcode.CodeOf(err) != cemcode.InvalidArguments {
+			t.Errorf("%s: got %v, want invalid-arguments", name, err)
+		}
+	}
+	for _, relative := range []string{wire.ExcludedCEMPath, "staged.cem.json"} {
+		after, err := os.ReadFile(filepath.Join(root, relative))
+		if err != nil || string(after) != string(before) {
+			t.Fatalf("a refused upgrade changed %s: %v", relative, err)
+		}
 	}
 }
 

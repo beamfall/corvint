@@ -80,7 +80,10 @@ state or profile had changed since that baseline; this change adds only root-hel
   `corvint-checkpoint/0` and in-toto statements. Their owning specs govern them. The verbs
   `native-hook`, `authority-event` and `qualified-event` are undocumented adapter plumbing that
   `runContext` dispatches before the `topLevelCommands` check (`cmd/corvint/main.go:790@e2ed60e2`); they
-  are absent from root help and outside the freeze.
+  are absent from root help and outside the freeze. (proposed, decision 0398) The `cem/0.3` profile and the
+  modes that write it, `cem cover`, `cem discriminate` and `cem mark` with a structural reason, are
+  experimental and outside the freeze, not among the Core modes listed under CCF-V1-002; they never
+  write over the Core sidecar `.corvint/change.cem.json` or their `cem/0.2` input (`CEM-SM-006`).
 - **CCF-V1-004:** A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line built by
   `emitError` (`cmd/corvint/main.go:1333@40010ccd`): `code`, `error` and `ok=false`, plus the DRC-V0-006
   diagnostic members `subject`, `evidence`, `supported_fixes` and optional `terminal` where the site was

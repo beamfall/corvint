@@ -54,6 +54,12 @@ and the canonical patch. A reason the consumer cannot reproduce fails verificati
 - `CEM-SM-006`: `mark --disposition mechanical` with a structural reason MUST upgrade a `cem/0.2`
   map to `cem/0.3` and MUST refuse a `cem/0.1` map with `invalid-arguments`. `prepare` keeps
   emitting `cem/0.2`, so maps without structural reasons are byte-identical to before.
+  (proposed, decision 0398) The upgraded map MUST NOT replace its `cem/0.2` input in place and MUST NOT be
+  written to `.corvint/change.cem.json`, the Core sidecar that frontier and OCM read as `cem/0.2`
+  only (`CF-V0-001`); `mark`, `cover` and `discriminate` refuse either with `invalid-arguments`,
+  leave the input unchanged, and need `--output` naming another path. A `cem/0.3` map is therefore
+  an experimental local copy (`CCF-V1-003`): it verifies against a target that commits no sidecar,
+  and a target that commits the `cem/0.2` sidecar fails it with `excluded-artifact-mismatch`.
 - `CEM-SM-007`: `rename` MUST hold only when the token streams differ by one identifier pair
   `from -> to` and comments differ only by whole-word substitution of that pair; both names are
   unexported, `to` does not occur in the base file, `from` is declared in the file, and `from`
@@ -119,7 +125,7 @@ are widened under their own specs.
 | `CEM-SM-003` | `spliceHunk` | `TestStructuralProvenIsolatesHunksExceptMove` |
 | `CEM-SM-004` | `structuralImage` with `sim.ApplyHunks` | `TestStructuralProvenIsolatesHunksExceptMove` |
 | `CEM-SM-005` | `parseBoth`, `formatterOnlyProven` | `TestStructuralRefusesUnprovableInputs` |
-| `CEM-SM-006` | `internal/cem/workflow/commands.go` `Mark` | `TestMarkStructuralReasonUpgradesToSpec03AndVerifies`, `TestMarkStructuralReasonWrongClassIsRefused`, `TestMarkStructuralReasonRefusedOnSpec01` |
+| `CEM-SM-006` | `internal/cem/workflow/commands.go` `Mark`, `checkSpec03Output` | `TestSpec03UpgradeNeverReplacesACoreMap`, `TestMarkStructuralReasonUpgradesToSpec03AndVerifies`, `TestMarkStructuralReasonWrongClassIsRefused`, `TestMarkStructuralReasonRefusedOnSpec01` |
 | `CEM-SM-007` | `renameProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses`, `TestStructuralRefusesUnprovableInputs` |
 | `CEM-SM-008` | `moveProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses`, `TestStructuralRefusesUnprovableInputs` |
 | `CEM-SM-009` | `importReorderProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses` |

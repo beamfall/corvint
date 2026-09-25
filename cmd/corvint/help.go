@@ -895,7 +895,7 @@ Actions:
            report writes $GIT_DIR/corvint/cem-review.md unless --output names
            a repository-relative path or an absolute one outside the repository.
   cover    Record a patch coverage witness on every hunk from one local Go
-           coverprofile named by --test-run; upgrades the map to cem/0.3.
+           coverprofile named by --test-run; writes a cem/0.3 copy to --output.
   discriminate
            Mutate the map's changed Go hunks (at most --max-hunks hunks and
            --max-mutants mutants each, within --wall-time; defaults 8, 8, 10m)
