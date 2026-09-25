@@ -5675,3 +5675,20 @@ Beamfall) stay `NOT_RUN`.
 - V1-0131: `docs/decisions/README.md` loses its stale 0105 and 0232 duplicates and is sorted again.
   The index still lacks rows for about 51 decision files and has no duplicate-row check; neither is
   in this change.
+
+## 2026-09-25 AFU S2 remainder: every Playwright attempt on the receipt (V1-0249)
+
+- `AFU-V1-012`: the unprofiled `corvint-js-test-provider` receipt gains the additive
+  `attemptDetails` member, so a retry no longer erases the earlier attempts' duration, failure,
+  anchor or attachments on the wire. The `corvint-playwright-external` profiles refuse the member on
+  encode and on qualified-reporter decode rather than widening `/0`..`/2`: a profiled wire field
+  needs another profile revision (`docs/specs/playwright-external-provider-v0.md`). The profiled
+  reporter still emits only the last attempt's detail; closing that needs a `/3` profile and live
+  reporter qualification. `TestAFUV1PlaywrightProviderKeepsEveryAttempt`.
+- `AFU-V1-038`: the run-evidence hygiene moves to `internal/runhygiene` (an import cycle kept
+  `internal/jstestprovider` from importing `internal/appflows`). The provider now applies it and the
+  product secret screen to every attempt and to the last-attempt fields, after state classification
+  has read the raw message. `TestAFUV1PlaywrightProviderScrubsEveryAttempt`.
+- Still partial: `AFU-V1-013` (repeated-run aggregation needs the `internal/doccorpus` stability
+  counting exposed for `test-run-evidence/0`) and `AFU-V1-014` (the AFU-V0-010 observer observes
+  flows, not tests, so it has no test key to emit a `LOCALLY_OBSERVED` record for).

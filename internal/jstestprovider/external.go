@@ -278,6 +278,9 @@ func decodeQualifiedReport(data []byte, profile string) (qualifiedReport, *Infra
 	if _, err := decoder.Token(); err != io.EOF {
 		return qualifiedReport{}, externalReportFailure(profile, "report-unparseable", "trailing report data")
 	}
+	if hasAttemptDetails(Receipt{Tests: report.Tests}) {
+		return qualifiedReport{}, externalReportFailure(profile, "report-unparseable", "unknown field \"attemptDetails\"")
+	}
 	return report, nil
 }
 

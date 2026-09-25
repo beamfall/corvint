@@ -14,7 +14,7 @@ decisions 0374 and 0385.
 
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
-- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 015..018, 036 and 037 (unqualified), 012..014 and 038 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; S4 implements AFU-V1-019..024 and the AFU-V1-040 frozen corpus (unsafe-narrowing rate 0 on both bases), with the two live changes `NOT_RUN`; nothing else is implemented or qualified.
+- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 015..018 and 036..038 (unqualified), 012..014 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; S4 implements AFU-V1-019..024 and the AFU-V1-040 frozen corpus (unsafe-narrowing rate 0 on both bases), with the two live changes `NOT_RUN`; nothing else is implemented or qualified.
 - Exists: the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
 - Blocked on: implementation slices S1-S8 (Rollout) and the acceptance evidence below.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Deterministic acceptance.
@@ -53,10 +53,16 @@ At `978b37b`:
   (`internal/extevidence/selection.go:823-836@bae209bb`). It proves nothing about the tests it did
   not select, and says so (`internal/extevidence/selection.go:38@a0a072cd`).
 - The Playwright reader derives `flaky` from every attempt's status
-  (`internal/jstestprovider/playwright.go:169-176@f01509c4`). Since S2 it keeps every attempt's
+  (`internal/jstestprovider/playwright.go:193-200@f01509c4`). Since S2 it keeps every attempt's
   duration, failure message, anchor and attachments in memory
-  (`internal/jstestprovider/playwright.go:129-131@9ab61026`), but the receipt still carries the last
-  attempt's detail only (`internal/jstestprovider/receipt.go:61-67@cbf0055a`).
+  (`internal/jstestprovider/playwright.go:131-133@9ab61026`). The unprofiled receipt carries them
+  as the additive `attemptDetails` member (`internal/jstestprovider/receipt.go:65-68@1afda4df`),
+  scrubbed per attempt by the shared run-evidence hygiene and the product secret screen
+  (`internal/jstestprovider/playwright.go:134-158@17847d1b`). The `corvint-playwright-external`
+  profiles refuse the member on encode and on reporter decode
+  (`internal/jstestprovider/projection.go:63-65@df31a2ae`,
+  `internal/jstestprovider/external.go:281-283@d54a4a23`), because a profiled wire field needs
+  another profile revision; their reporter still emits the last attempt's detail only.
 - The issue-53 adapter reconciles flows, variations, tests and assertions in both directions, and
   never has narrowing authority (`docs/specs/documentation-corpus-v1.md:191-196@cea38e20`). S4
   leaves it so: only `internal/appflows/selection.go` produces an `e2e-safe` omission.
@@ -524,7 +530,7 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-009 | `TestAFUV1InferredExcludedFromReviewed`, `TestAFUV1FlowsQueryGoldens` (inferred links outside the denominator, `inferred-only`, no evidence pair from an inferred test) |
 | AFU-V1-010 | `TestAFUV1ReverseLookupsDerived`, `TestAFUV1ExportLeavesRepositoryByteIdentical`, `TestAFUV1FlowsCLIExportIsReadOnly`, `TestAFUV1FlowsCLIReverseLookups` (a non-canonical `--path` refused), `TestAFUV1FlowsQueriesAreReadOnly` |
 | AFU-V1-011 | `TestAFUV1RunEvidenceClosedSchema`, `TestAFUV1NegativeControlFailed`, `TestAFUV1FlowsCLIPassingControlNeverVerifies` (a control that passed never verifies) |
-| AFU-V1-012 | `TestAFUV1PlaywrightAdapterKeepsEveryAttempt`, `TestAFUV1JUnitAdapterKeepsEveryAttempt`, `TestAFUV1GoTestAdapterKeepsEveryAttempt`, `TestAFUV1PlaywrightProviderKeepsEveryAttempt`; partial: the Playwright provider keeps every attempt in memory (`TestOutcome.AttemptDetails`), but the `corvint-js-test-provider` receipt wire still carries only the last attempt's detail |
+| AFU-V1-012 | `TestAFUV1PlaywrightAdapterKeepsEveryAttempt`, `TestAFUV1JUnitAdapterKeepsEveryAttempt`, `TestAFUV1GoTestAdapterKeepsEveryAttempt`, `TestAFUV1PlaywrightProviderKeepsEveryAttempt` (the unprofiled receipt wire carries `attemptDetails`, and the external profiles refuse it); partial: the `corvint-playwright-external` reporter and profiles still carry only the last attempt's detail, which needs a `/3` profile revision and its live reporter qualification |
 | AFU-V1-013 | `TestAFUV1FailedAttemptThenPassIsFlaky`, `TestAFUV1PlaywrightUnexpectedNeverPassed`, the retry-passed case of each adapter test; partial: per-test classification only, aggregation of repeated runs under the DCP-V1-023 counters and DCP-V1-024 policy needs the `internal/doccorpus` stability counting exposed for `test-run-evidence/0` records |
 | AFU-V1-014 | `TestAFUV1StaticNeverVerified`, `TestAFUV1PlaywrightUnexpectedNeverPassed`; partial: ingest emits `INGESTED` and the schema accepts `LOCALLY_OBSERVED`, but the AFU-V0-010 observer does not yet emit run-evidence records |
 | AFU-V1-015 | `TestAFUV1FlowsQueryGoldens` (`map.golden.json`), `TestAFUV1EvidenceStateOrder` (including mixed pass and fail across current records, and a passed record without cleanup `done`), `TestAFUV1ReadRunEvidenceDiscipline` |
@@ -542,7 +548,7 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-034..035 | MCP conformance with and without the selector |
 | AFU-V1-036 | `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
 | AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceBoundsIncomplete`, `TestAFUV1FlowsCLIIngest`, `TestAFUV1ReadRunEvidenceDiscipline` |
-| AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceSecretsDropped`; the screen runs in `EncodeRunEvidence`, the only run-evidence encoding, and `flows ingest` writes only what it encodes (`TestAFUV1FlowsCLIIngest`) |
+| AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceSecretsDropped`, `TestAFUV1PlaywrightProviderScrubsEveryAttempt` (the provider receipt scrubs every attempt and the last-attempt fields); the screen runs in `EncodeRunEvidence`, the only run-evidence encoding, and `flows ingest` writes only what it encodes (`TestAFUV1FlowsCLIIngest`) |
 | AFU-V1-039 | the committed acceptance fixture |
 | AFU-V1-040 | `TestAFUV1040SelectionCorpusReport`: the frozen corpus `cmd/corvint/testdata/e2e-safe-corpus.json` (20 labelled, fault-injected cases over five tests) and its report `cmd/corvint/testdata/e2e-safe-corpus.report.json`; `coverage` omits 15 with 0 unsafe (reduction 0.15), `reviewed-links` omits 3 with 0 unsafe (reduction 0.03), no basis withdrawn |
 
@@ -558,8 +564,8 @@ Slices, each its own change with tests:
 1. S1 is the intent model, export and import, review anchors, and the two input and output hardening
    fixes (AFU-V1-001..010, 036).
 2. S2 is run evidence and the three adapters (AFU-V1-011..014, 037, 038). It delivered the record,
-   the adapters, the bounds and the hygiene; the AFU-V1-012..014 remainders named in the matrix stay
-   open.
+   the adapters, the bounds and the hygiene, and the unprofiled provider receipt now carries and
+   scrubs every attempt; the AFU-V1-012..014 remainders named in the matrix stay open.
 3. S3 is `map`, `gaps` and `impact`, and the `/2` behavior provider (AFU-V1-006, 015..018).
 4. S4 is the Core `e2e-safe` profile and its corpus (AFU-V1-019..024, 040).
 5. S5 is the navigation map (AFU-V1-025..029).
@@ -583,7 +589,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-015..018 | implemented: `internal/appflows/query.go`, `impact.go`, `runingest.go` (`IngestRunFile`), `cmd/corvint/flows.go` |
 | AFU-V1-025..033 | `internal/appflows`, `cmd/corvint/flows.go` |
 | AFU-V1-006 | partial (see the matrix): `internal/doccorpus/behavior.go` |
-| AFU-V1-011..014 | implemented, 012..014 partial (see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/jstestprovider/playwright.go` |
+| AFU-V1-011..014, 038 | implemented, 012..014 partial (see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
 | AFU-V1-034..035 | `internal/mcp`, `cmd/corvint-mcp` |
 
