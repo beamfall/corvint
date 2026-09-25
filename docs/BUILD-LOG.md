@@ -6090,3 +6090,16 @@ Review repairs: an independent review found no blockers. The repairs are:
   `cmd/corvint-mcp` has no `flows` tool profile here, so the row does not claim S1-S8. Delivery
   stays `planned` in the spec header, `INDEX.json` and the README, which the specindex test keeps
   in agreement.
+
+## 2026-09-25 V1-0273: dogfood OCM aggregate names zero linked requirements (`OCM-V0-016`)
+
+- Friction: the `dogfood-ocm status` aggregate reported 0 of 40 declared requirements linked and
+  still read `ready-for-review`, the same as a fully linked change.
+- Fix: `internal/dogfoodocm` adds `aggregate.findings` with one `no-requirements-linked` finding
+  ("0 of N declared requirements are linked to the change") when `coverage.linked` is 0. The
+  verdict stays `ready-for-review`; a finding, not a new state, keeps `OCM-V0-010`'s visible
+  unknowns allowed and grants no authority. The field is omitted when any requirement is linked, so
+  a linked aggregate's bytes are unchanged and the base and tree verifiers still agree in
+  `dogfood-check`. The `ocm/0.1-experimental` wire and standalone `ocm status` are unchanged.
+- Intent: `OCM-V0-016`, proposed and awaiting owner acceptance.
+  `TestAggregateFindsNoLinkedRequirements` covers zero, some, and all linked.

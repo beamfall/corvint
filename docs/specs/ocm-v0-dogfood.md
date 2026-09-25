@@ -169,6 +169,15 @@ claim, and mutation ordering deltas below.
   `unknown` row stays `unknown` until it is linked or marked. This profile is the first frozen OCM
   profile, so it has no own-profile N-1 reader; its upstream N-1 is the `cem/0.1` binding that
   `OCM-V0-006` dispatches.
+- `OCM-V0-016`: (proposed 2026-09-25, V1-0273, not accepted) when the `OCM-V0-013` dogfood
+  aggregate verifies and none of its declared requirements is `linked` (aggregate
+  `coverage.linked` is 0), its aggregate verdict MUST carry, in `aggregate.findings`, the one
+  reviewer-visible finding `{"code":"no-requirements-linked","message":"0 of N declared requirements
+  are linked to the change"}`, where N is `coverage.total`. The finding reports missing linkage as
+  a visible gap (invariant 2); it leaves `state` `ready-for-review`, grants or removes no authority,
+  and does not tighten `OCM-V0-010`'s default of visible unknowns. When at least one requirement is
+  linked, `aggregate.findings` is absent, so the aggregate bytes of a linked change are unchanged.
+  The `ocm/0.1-experimental` wire and the standalone `ocm status` envelope are unchanged.
 
 ## Wire profile
 
@@ -356,11 +365,11 @@ check, in the order shown.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `invalid-json` | `internal/dogfoodocm/aggregate.go:168` | "verified OCM map could not be decoded" |
-| `invalid-map` | `internal/dogfoodocm/aggregate.go:338` | "<value>: one OCM map failed verification", or the map path followed by the verification cause, when the failed map's first issue carries no code |
-| `map-too-large` | `internal/dogfoodocm/aggregate.go:242` | "aggregate OCM map bytes exceed the limit" (summed map bytes over 1 MiB) |
-| `too-many-claims` | `internal/dogfoodocm/aggregate.go:245` | "aggregate OCM claims exceed the limit" (summed claims over 512) |
-| `too-many-obligations` | `internal/dogfoodocm/aggregate.go:248` | "aggregate OCM obligations exceed the limit" (summed obligations over 256) |
+| `invalid-json` | `internal/dogfoodocm/aggregate.go:175` | "verified OCM map could not be decoded" |
+| `invalid-map` | `internal/dogfoodocm/aggregate.go:356` | "<value>: one OCM map failed verification", or the map path followed by the verification cause, when the failed map's first issue carries no code |
+| `map-too-large` | `internal/dogfoodocm/aggregate.go:249` | "aggregate OCM map bytes exceed the limit" (summed map bytes over 1 MiB) |
+| `too-many-claims` | `internal/dogfoodocm/aggregate.go:252` | "aggregate OCM claims exceed the limit" (summed claims over 512) |
+| `too-many-obligations` | `internal/dogfoodocm/aggregate.go:255` | "aggregate OCM obligations exceed the limit" (summed obligations over 256) |
 
 ## Simpler baseline and non-goals
 
@@ -457,6 +466,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-013 | `script/dogfood-change.sh`, `script/dogfood-check.sh`, `internal/dogfoodocm`, `cmd/corvint/dogfood_ocm.go` | `internal/dogfoodocm/aggregate_test.go`, `script/dogfood-change_test.sh`, `cmd/corvint/ocm_test.go:TestDogfoodOCMArgumentErrorsAreInvalidArguments` |
 | OCM-V0-014 | `conformance/ocm-v0/` (`universe.go`, `adapter.go`, `vectors.go`, `fixtures.go`, `manifest.go`, `vectors/structural.json`, `fixtures/*/case.json`, `manifest.json`) | `conformance/ocm-v0/structural_test.go:TestStructuralVectorsAgainstRealParser`, `conformance/ocm-v0/structural_test.go:TestValidVectorsAreCanonical`, `conformance/ocm-v0/structural_test.go:TestStructuralVectorsCoverEveryDisposition`, `conformance/ocm-v0/producer_test.go:TestFrozenVectorsMatchTheRealProducer`, `conformance/ocm-v0/fixtures_test.go:TestFixturesAgainstRealVerifier`, `conformance/ocm-v0/fixtures_test.go:TestSuiteDataIsSelfConsistent` |
 | OCM-V0-015 | `conformance/ocm-v0/` (`manifest.go` `ValidateArtifacts`/`validateStates`, `fixtures.go` `intent`/`intentShift` operators, `fixtures/intent-scope-drift/case.json`, `manifest.json` `states`/`artifactSha256`) | `conformance/ocm-v0/fixtures_test.go:TestSuiteDataIsSelfConsistent`, `conformance/ocm-v0/fixtures_test.go:TestArtifactDigestDriftFails`, `conformance/ocm-v0/fixtures_test.go:TestFixturesAgainstRealVerifier` (`intent-scope-drift`); upstream N-1: `cmd/corvint/ocm_test.go:TestOCMLegacyCEMReadCommandsMatchPythonOracle` |
+| OCM-V0-016 | `internal/dogfoodocm/aggregate.go` (`linkageFindings`) | `internal/dogfoodocm/aggregate_test.go:TestAggregateFindsNoLinkedRequirements` |
 
 Native selector diagnostic amendment to `OCM-V0-007` (2026-09-08): the owner's Task 2
 follow-up explicitly requests printing the normalized fragment on a miss. A missing `/case:` selector retains
