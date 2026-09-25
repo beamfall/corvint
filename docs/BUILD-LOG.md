@@ -6184,6 +6184,10 @@ Decisions:
   no diagnostic. The unborn-`HEAD` code is `repository-head-unborn`, and its `repository-` prefix
   keeps the MCP bridge mapping to `repository-unavailable`.
 - CCF-V1-007 is untouched. B6 amends it on its own branch.
+- The not-a-root constructors carry one `diagnostic.Refusal` literal per branch, because the
+  DRC-V0-012 gate requires literal evidence lists. With the new contextindex site, the covered-site
+  count moves from 37 to 40. The contextindex change also moves the analyzer schema to
+  `corvint-analyzer/85` (IDX-SNAP-V0-017). Snapshots rebuild once, and extraction is unchanged.
 
 Evidence: `TestCoreRefusalsKeepTheFrozenEnvelope` (now one case per Core verb),
 `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike` and `TestIndexedCoreVerbsCodeAnUnbornHead`.

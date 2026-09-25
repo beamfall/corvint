@@ -18,12 +18,20 @@ func refused(code, message string, refusal diagnostic.Refusal) error {
 	return &diagnostic.Error{Err: &gokernel.Error{Code: code, Message: message}, Refusal: refusal}
 }
 
-// notRepositoryRootRefusal: an explicit --root, normalized to root, holds no .git entry.
+// notRepositoryRootRefusal: an explicit --root, normalized to root, holds no .git entry. Inside a
+// repository the refusal names the top level instead of claiming no repository exists (CCF-V1-004).
 func notRepositoryRootRefusal(operand, root string) error {
-	message, topLevel := notRepositoryRootMessage(root)
-	return refused("invalid-arguments", message, diagnostic.Refusal{
+	topLevel := enclosingRepositoryRoot(root)
+	if topLevel == "" {
+		return refused("invalid-arguments", "not a Git repository: "+root, diagnostic.Refusal{
+			Subject:        diagnostic.Subject{Kind: "value", Value: operand},
+			Evidence:       []diagnostic.Evidence{{Name: "root", Value: root}},
+			SupportedFixes: []string{"cli.use-git-repository-root"},
+		})
+	}
+	return refused("invalid-arguments", "not the repository root; top level is "+topLevel, diagnostic.Refusal{
 		Subject:        diagnostic.Subject{Kind: "value", Value: operand},
-		Evidence:       append([]diagnostic.Evidence{{Name: "root", Value: root}}, topLevel...),
+		Evidence:       []diagnostic.Evidence{{Name: "root", Value: root}, {Name: "top_level", Value: topLevel}},
 		SupportedFixes: []string{"cli.use-git-repository-root"},
 	})
 }
@@ -31,25 +39,22 @@ func notRepositoryRootRefusal(operand, root string) error {
 // notQueryRepositoryRootRefusal: the query adapter holds only the absolute --root it normalized
 // before argument validation, so that form is the refused spelling.
 func notQueryRepositoryRootRefusal(root string) error {
-	message, topLevel := notRepositoryRootMessage(root)
-	return refused("invalid-arguments", message, diagnostic.Refusal{
+	topLevel := enclosingRepositoryRoot(root)
+	if topLevel == "" {
+		return refused("invalid-arguments", "not a Git repository: "+root, diagnostic.Refusal{
+			Subject:        diagnostic.Subject{Kind: "value", Value: root},
+			SupportedFixes: []string{"cli.use-git-repository-root"},
+		})
+	}
+	return refused("invalid-arguments", "not the repository root; top level is "+topLevel, diagnostic.Refusal{
 		Subject:        diagnostic.Subject{Kind: "value", Value: root},
-		Evidence:       topLevel,
+		Evidence:       []diagnostic.Evidence{{Name: "top_level", Value: topLevel}},
 		SupportedFixes: []string{"cli.use-git-repository-root"},
 	})
 }
 
-// notRepositoryRootMessage names the enclosing repository's top level when root is a directory
-// inside one, instead of claiming root is in no repository (CCF-V1-004). The top level is the
-// nearest ancestor holding a .git entry; no Git process runs on this refusal path.
-func notRepositoryRootMessage(root string) (string, []diagnostic.Evidence) {
-	topLevel := enclosingRepositoryRoot(root)
-	if topLevel == "" {
-		return "not a Git repository: " + root, nil
-	}
-	return "not the repository root; top level is " + topLevel, []diagnostic.Evidence{{Name: "top_level", Value: topLevel}}
-}
-
+// enclosingRepositoryRoot is the nearest ancestor of root holding a .git entry, or "" when there is
+// none; no Git process runs on this refusal path.
 func enclosingRepositoryRoot(root string) string {
 	for parent := filepath.Dir(root); parent != root; root, parent = parent, filepath.Dir(parent) {
 		if _, err := os.Stat(filepath.Join(parent, ".git")); err == nil {
