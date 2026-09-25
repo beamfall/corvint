@@ -5,6 +5,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/projectprofile"
@@ -16,6 +17,7 @@ type rankedResult struct {
 	result                map[string]any
 	testConvention        bool
 	broadModuleRootImport bool
+	caller                bool
 }
 
 func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
@@ -147,9 +149,13 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 					"evidence": testEvidence,
 				}})
 			}
+			changedKeys := make(map[string]struct{}, len(related))
+			for key := range related {
+				changedKeys[key] = struct{}{}
+			}
 			for key, markers := range index.Markers {
 				for _, marker := range markers {
-					if isTestPath(marker.Path) && path.Dir(marker.Path) == parent {
+					if isTestPath(marker.Path) && path.Dir(marker.Path) == parent && markerCredited(marker.Path, key, stem+"_test.go", changedKeys, testReferences) {
 						packageMarkers[marker.Path] = append(packageMarkers[marker.Path], markerRelation{key, marker})
 						related[key] = struct{}{}
 					}
@@ -182,6 +188,7 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 			}})
 		}
 		if !isTestPath(changedPath) {
+			exported := exportedGoNames(index, changedPath)
 			for _, importer := range reverseImporters(index, changedPath) {
 				importerMarkers := markerKeysForPath(index, importer.path)
 				if isTestPath(importer.path) && countKind(importerMarkers, "feature") <= 1 && countKind(importerMarkers, "scenario") <= 1 {
@@ -199,7 +206,8 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 				}
 				importerSource := index.Sources[importer.path]
 				ranked = append(ranked, rankedResult{score: score, order: 1, key: importer.path,
-					broadModuleRootImport: broadModuleRootImporter(index, changedPath, importer), result: map[string]any{
+					broadModuleRootImport: broadModuleRootImporter(index, changedPath, importer),
+					caller:                score == 700 && namesAny(importerSource, exported), result: map[string]any{
 						"kind": "reverse-import", "id": importer.path, "score": score,
 						"summary": "directly imports package/module containing " + changedPath,
 						"evidence": []any{evidence(importer.path, line, importerSource.BlobHash,
@@ -243,8 +251,10 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 	ranked = reserveTestConventionTail(ranked)
 	deduplicated := make([]map[string]any, 0, len(ranked))
 	seen := make(map[string]map[string]any)
+	callers := make(map[string]bool)
 	for _, item := range ranked {
 		key := fmt.Sprintf("%s:%s", item.result["kind"], item.result["id"])
+		callers[key] = callers[key] || item.caller
 		if existing, ok := seen[key]; ok {
 			mergeEvidence(existing, item.result)
 			continue
@@ -252,6 +262,7 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 		seen[key] = item.result
 		deduplicated = append(deduplicated, item.result)
 	}
+	deduplicated = reserveCallerRows(deduplicated, callers, limit)
 	return receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, deduplicated, limit, "")
 }
 
@@ -291,6 +302,78 @@ func reserveTestConventionTail(ranked []rankedResult) []rankedResult {
 	result = append(result, remainder[:lastTest+1]...)
 	result = append(result, broad...)
 	return append(result, remainder[lastTest+1:]...)
+}
+
+// reserveCallerRows keeps limit/10 rows inside the limit for cross-package
+// callers: non-test reverse importers whose code names an exported
+// declaration of a changed Go file (GPK-V0-068). Callers already inside the
+// limit count toward the quota; a moved caller displaces the lowest included
+// rows, never a requested path row. Scores are unchanged.
+func reserveCallerRows(results []map[string]any, callers map[string]bool, limit int) []map[string]any {
+	quota := limit / 10
+	if len(results) <= limit || quota == 0 {
+		return results
+	}
+	for _, result := range results[:limit] {
+		if callers[fmt.Sprintf("%s:%s", result["kind"], result["id"])] {
+			quota--
+		}
+	}
+	paths := 0
+	for paths < limit && results[paths]["kind"] == "path" {
+		paths++
+	}
+	quota = min(quota, limit-paths)
+	moved := make([]map[string]any, 0, max(quota, 0))
+	rest := make([]map[string]any, 0, len(results)-limit)
+	for _, result := range results[limit:] {
+		if len(moved) < quota && callers[fmt.Sprintf("%s:%s", result["kind"], result["id"])] {
+			moved = append(moved, result)
+			continue
+		}
+		rest = append(rest, result)
+	}
+	if len(moved) == 0 {
+		return results
+	}
+	cut := limit - len(moved)
+	reordered := make([]map[string]any, 0, len(results))
+	reordered = append(reordered, results[:cut]...)
+	reordered = append(reordered, moved...)
+	reordered = append(reordered, results[cut:limit]...)
+	return append(reordered, rest...)
+}
+
+// exportedGoNames lists the exported declarations of a non-test Go file.
+func exportedGoNames(index *Index, changedPath string) []string {
+	if !strings.HasSuffix(changedPath, ".go") {
+		return nil
+	}
+	declared := make(map[string]struct{})
+	for _, symbol := range index.Symbols {
+		first, _ := utf8.DecodeRuneInString(symbol.Name)
+		if symbol.Path == changedPath && unicode.IsUpper(first) {
+			declared[symbol.Name] = struct{}{}
+		}
+	}
+	return keys(declared)
+}
+
+// namesAny reports whether a Go source's code, outside comments and
+// strings, names one of the given identifiers as a whole word.
+func namesAny(source Source, names []string) bool {
+	text, valid, loaded := source.Text()
+	if !loaded || !valid || len(names) == 0 {
+		return false
+	}
+	for _, line := range goCodeLines(text) {
+		for _, name := range names {
+			if strings.Contains(line, "."+name) && containsPythonWord(line, name) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func broadModuleRootImporter(index *Index, changedPath string, importer importer) bool {
@@ -858,6 +941,20 @@ func goCodeLines(text string) []string {
 		result = append(result, output.String())
 	}
 	return result
+}
+
+// markerCredited reports whether a same-package test marker relates to the
+// change (GPK-V0-068): the test is the changed file's exact twin, references
+// a name the changed file declares, or the changed file carries the same key.
+func markerCredited(testPath, key, twin string, changedKeys map[string]struct{}, testReferences map[string]packageReference) bool {
+	if path.Base(testPath) == twin {
+		return true
+	}
+	if _, ok := testReferences[testPath]; ok {
+		return true
+	}
+	_, ok := changedKeys[key]
+	return ok
 }
 
 func markerKeysForPath(index *Index, file string) []string {

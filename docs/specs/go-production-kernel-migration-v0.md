@@ -840,6 +840,7 @@ repository rewrite, cache conversion, trace conversion, or sidecar migration is 
 | `GPK-V0-038` | injected index provider carrying the query, impact, and compaction-rehydration context blocks, leaving `internal/gokernel` dependency-free | `TestImpactDisclosesUnruledAdmittedSuffixAcrossSurfaces_GPKV0027`; eighteen unqualified `harness` parity rows across all six events, both compact rehydration shapes, six negatives, and two hostile bounds; three seeded divergences each failing on the stdout value comparison at the intended case |
 | `GPK-V0-039` | per-candidate query-word support recorded by every `internal/contextindex` ranker, read by the packet-withdrawal floor rather than by score | a below-floor query withdraws the packet while every in-scope packet stays byte-identical; `TestEvalQueryRelevanceFloorPrecedesPacketBudget`; `harness-user-prompt-out-of-scope` FAILS against a candidate whose floor is removed |
 | `GPK-V0-066` (accepted, decision 0387) | the confident-symbol substitution ahead of the floor withdrawal in `evalQuery` (`internal/contextindex/eval_query.go`) | `TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols`, which FAILS against a candidate without the substitution and keeps the withdrawal when no symbol clears the floor; before/after `corvint eval` and `tools/retrieval-bench --arms corvint` numbers in `docs/BUILD-LOG.md` |
+| `GPK-V0-068` (proposed, not accepted) | `commentText` and `markerComments` in `internal/contextindex/markers.go`, called from the marker scan in `internal/contextindex/index.go`; `markerCredited`, `reserveCallerRows`, `exportedGoNames` and `namesAny` in `internal/contextindex/impact.go` | `TestMarkersComeOnlyFromCommentSpans` and `TestImpactCreditsOnlyRelatedMarkedTestsAndKeepsCallers` (`internal/contextindex/marker_comments_test.go`), both of which FAIL against the base without the change; before/after `corvint eval` and `tools/retrieval-bench --arms impact` numbers in `docs/BUILD-LOG.md` |
 | `GPK-V0-040` | pre-truncation admitted count captured in `receipt` and carried forward by `compileReceipt`, leaving `setCoverage` the single writer of the three result counts; `EvalQuery` hands `receipt` the whole admitted list instead of a list its own ceiling already narrowed | `impact` and `range impact` report the results a ceiling dropped; `impact-ranked-past-limit` FAILS against a candidate that measures its own truncated output; `TestQueryCoverageCountsAdmittedCandidatesPastLimit` holds `query` to the same count and FAILS against a candidate whose limit-1 packet reports `omitted_results: 0`; the confident-symbol fallback admits at its own caps rather than the caller's ceiling, pinned by `TestQueryCoverageCountsConfidentFallbackPastLimit`; the decision 0157 three-per-feature admission is pinned by `TestQueryAdmitsThreeImplementationsPerFeature`, which FAILS against a two- or four-per-feature candidate. Two denominators remain limit-dependent and are the next slice: feature-symbol admission over the ceiling-narrowed `competitive` list, and the learned-path truncation `evalLearnedCandidates` applies from its `limit` argument |
 | `GPK-V0-041` | the `GPK-V0-037` typed `.py`-claim abstention applied at `verifyOptionalOCM`, so the `lrf` OCM leg and the read slice share one refusal instead of one refusal and one approximate grammar | `lrf --ocm` refuses a map carrying a `.py` claim; `lrf-ocm-python-claim-refusal` FAILS against a candidate that verifies that claim with the closed Go grammar |
 | `GPK-V0-043`, `GPK-V0-055` | standalone intent validation plus the shared `BuildEval` / `EvalQuery` path for `repository` and `agent-tooling` tasks in `cmd/corvint`; the `GPK-V0-028` authority-start path remains separate; split-before-lower task term derivation in `internal/contextindex/eval_query.go` | fresh-process default and limits 1/10/50, unbudgeted and 2,200-byte budget selection, malformed/bounds, non-ASCII and agent-tooling oracle replay, drift and nonmutation regressions, shared-path structural regression, exact Python-oracle bytes, registered relevance-floor divergence in `conformance/cli-parity-v0`, `TestEvalQueryCamelSplitsTaskBeforeLowering/GPK-V0-055`, development-corpus stable-byte comparison, blind-v3 outcome measurement, and `DR-0027`; query promotion remains BLOCKED until its discriminating CLI parity row exists and passes under `GPK-V0-034` |
@@ -1256,3 +1257,27 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   clears the floor is unchanged, so a one-word record at a wide limit still precedes the symbols;
   this clause changes only packets `GPK-V0-039` would withdraw. Rollback: remove the substitution
   in `evalQuery`, restoring the withdrawal.
+
+## Proposed amendment: markers come from comments and relate to the change
+
+- `GPK-V0-068`: (proposed 2026-09-25, panel blocker B4, not accepted; V1-0263)
+  A `feature:` or `scenario:` marker is project-authority evidence (`source-marker`,
+  `test-marker`), so it MUST come only from a comment span of a source whose suffix has comment
+  syntax: `//` and `/* */` for Go, `go.mod`, JavaScript, TypeScript, Rust, Swift, C#, Kotlin and
+  Objective-C; `#` for Python, TOML, shell, YAML and Ruby; `--` and `/* */` for SQL; and `<!-- -->`
+  for Markdown and MDX. Text inside a string literal (quoted, raw, template or triple-quoted) and
+  every line of a data or prose file without comment syntax (`.json`, `.txt`, `.rst`) yields no
+  marker. A comment marker keeps its line and byte column. Path `impact` credits a same-package
+  marked test (the 850 row of `GPK-V0-056`, and its keys as related feature and scenario records)
+  only when the marker relates to the change: the test is the changed file's exact
+  `<stem>_test.go` twin, it references a name the changed file declares (the `GPK-V0-056` scan), or
+  the changed file carries the same marker key. When the ranked list exceeds the limit, `impact`
+  keeps `limit/10` rows (none below limit 10) for cross-package callers, meaning non-test reverse
+  importers whose code names an exported declaration of a changed Go file as `alias.Name`. Callers
+  already inside the limit count toward that quota; a moved caller displaces the lowest included
+  rows and never a requested path row. No score changes. The analyzer schema moves to
+  `corvint-analyzer/85` because cached blob facts carry markers. The retired oracle scanned raw
+  lines; no frozen parity case discriminates the two, and with the oracle retired (decision 0088)
+  no register entry is opened. Rollback: restore the raw-line scan in `index.go`, the unconditional
+  same-package marker credit and the unreserved tail in `impact.go`, and the analyzer schema to
+  `corvint-analyzer/84`.

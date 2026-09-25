@@ -1222,8 +1222,10 @@ func (chunk *compiledSources) collect(index *Index, paths []string, imports impo
 		// two literals, so a file lacking both yields no markers on any line.
 		// Gating here also skips the split: on the Beamfall corpus 560 of
 		// 1,383,094 lines carry a marker, in 132 of 2987 files.
+		// Only comment spans are scanned, so a marker inside a string literal
+		// or a data file is never project-authority evidence (GPK-V0-068).
 		if strings.Contains(text, "feature:") || strings.Contains(text, "scenario:") {
-			for lineNumber, line := range strings.Split(text, "\n") {
+			for lineNumber, line := range strings.Split(commentText(source.Path, text), "\n") {
 				for _, match := range markerMatches(line) {
 					key := match.kind + ":" + match.id
 					chunk.markers[key] = append(chunk.markers[key], Marker{source.Path, source.BlobHash, lineNumber + 1, match.column})
