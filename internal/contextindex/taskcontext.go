@@ -1853,10 +1853,13 @@ func taskIdentifiers(task string) []taskIdentifier {
 
 // taskLexicalTerms is lexicalTerms plus every whole identifier the camel-case
 // split would otherwise lose, and minus a fixed list of English function and
-// retrieval-phrasing words. The term table tokenises a source body as ASCII
-// runs, so `stripFinalNewline` in a body is the one token
-// "stripfinalnewline": the whole identifier is the rarest, most answerable
-// term a task carries and must survive into the posting walk. The stop list
+// retrieval-phrasing words. The body and path term tables split camel case
+// too (termCounter.count, lexicalTerms), so `stripFinalNewline` in a body or
+// path is `strip`, `final` and `newline`; the lowered compound
+// "stripfinalnewline" matches only a body or path that writes it as one
+// unsplit run, such as `stripfinalnewline` or `STRIPFINALNEWLINE`. The
+// identifier as written is answered by the Words field through
+// lexicalIdentifiers, not by this term. The stop list
 // has no per-repository parameter; it removes words whose rarity in code is
 // an artefact of question phrasing ("how", "retrieve"), not evidence.
 func taskLexicalTerms(text string) []string {
