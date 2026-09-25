@@ -27,21 +27,36 @@ func TestOCMClaimSelectorMiss(t *testing.T) {
 	t.Run("OCM-V0-007 hints do not promise a match", func(t *testing.T) {
 		for _, suffix := range []string{"WQO-V0-032", "123", strings.Repeat("ABC-", 100)} {
 			_, err := resolveClaimSelectors(nil, []string{"test:TestWork/case:" + suffix})
-			want := "claim-selector-out-of-range: claim selector is outside the extracted worklist; normalized case fragment: " + selectorFragment(suffix)
+			want := "claim-selector-out-of-range: claim selector is outside the extracted worklist; normalized case fragment: " + selectorFragment(suffix) + goCaseAnchorShapes
 			if err == nil || err.Error() != want {
 				t.Fatalf("got %v want %s", err, want)
 			}
-			if len(err.Error()) > 220 {
+			if len(err.Error()) > 320 {
 				t.Fatalf("unbounded diagnostic: %d", len(err.Error()))
 			}
 		}
 	})
 	t.Run("OCM-V0-007 unrelated and normalized misses retain message", func(t *testing.T) {
-		for _, selector := range []string{"1", "claim:sha256:missing", "test:TestWork", "test:TestWork/case:wqo-v0"} {
+		for _, selector := range []string{"1", "claim:sha256:missing", "test:TestWork"} {
 			_, err := resolveClaimSelectors(nil, []string{selector})
 			if err == nil || err.Error() != "claim-selector-out-of-range: claim selector is outside the extracted worklist" {
 				t.Fatalf("selector %q: %v", selector, err)
 			}
+		}
+		_, err := resolveClaimSelectors(nil, []string{"test:TestWork/case:wqo-v0"})
+		if err == nil || err.Error() != "claim-selector-out-of-range: claim selector is outside the extracted worklist"+goCaseAnchorShapes {
+			t.Fatalf("normalized case miss: %v", err)
+		}
+	})
+	t.Run("OCM-V0-007 a map-keyed table case is no claim and the miss names the supported shapes", func(t *testing.T) {
+		source := "package p\nimport \"testing\"\nfunc TestTable(t *testing.T) {\n\tcases := map[string]struct{ want int }{\n\t\t\"PTR-V0-003 two bound checks\": {want: 1},\n\t}\n\tfor name, tc := range cases {\n\t\tt.Run(name, func(t *testing.T) { _ = tc })\n\t}\n}\n"
+		claims, err := enumerateClaims("table_test.go", strings.Repeat("a", 40), []byte(source))
+		if err != nil || len(claims) != 1 || claims[0].selector != "test:TestTable" {
+			t.Fatalf("map key extracted as a claim: %v %v", claims, err)
+		}
+		_, err = resolveClaimSelectors(claims, []string{"test:TestTable/case:ptr-v0-two-bound-check"})
+		if CodeOf(err) != "claim-selector-out-of-range" || !strings.Contains(err.Error(), "name/testName/test_name field or .Run first-argument literal, not a map key") {
+			t.Fatalf("miss does not name the supported shapes: %v", err)
 		}
 	})
 }
