@@ -36,7 +36,9 @@ The owner's "always" ambition is a product target, not an established universal 
 claim: charge every regression and failed attempt, measure the complete workflow against the
 strongest adequate baseline, and retain the exact eligibility and promotion gates below.
 
-Wave 1 is landed at `300e181`; its measured failures and limits remain in
+Wave 1 is landed at `300e181`, pre-snapshot private-archive history under
+[decision 0331](docs/decisions/0331-clean-public-history-2026-09-22.md); it does not resolve on
+origin/main. Its measured failures and limits remain in
 decisions 0073, 0075 and 0078 (the cited review file is not in the public history). The owner prioritizes reliable evidence
 selection and honest uncertainty (AT-02/05), complete cost measurement alongside
 it (AT-01/08), and downstream reviewer usefulness (AT-17). The isolated H1 latency
