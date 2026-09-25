@@ -147,7 +147,7 @@ func (c *check) requireCleanChange() {
 			refusal = "uncommitted-change-not-in-base-target"
 		}
 		c.say("dogfood-check: REFUSE %s\n", refusal)
-		c.say("  required order: commit the change; make dogfood-change BASE=<sha>; commit .corvint/change.cem.json; make dogfood-change BASE=<sha>; make dogfood-check BASE=<sha>\n")
+		c.say("  required order: commit the change; corvint dogfood change <sha>; commit .corvint/change.cem.json; corvint dogfood change <sha>; corvint dogfood check <sha>\n")
 		c.exit(2)
 	}
 	if diffStatus == 0 {
@@ -171,7 +171,7 @@ var (
 // local outcome, and returns its bytes.
 func (c *check) checkReport() []byte {
 	if !isRegular(c.report) {
-		lines := []string{"  fix: run make dogfood-change BASE=" + c.base + " on this HEAD until it reports complete"}
+		lines := []string{"  fix: run corvint dogfood change " + c.base + " on this HEAD until it reports complete"}
 		// A reviewer's clone of a bind commit never has the author's private report (DCW-V0-017).
 		if c.gitSucceeds("cat-file", "-e", c.target+":.corvint/change.cem.json") {
 			lines = append(lines, "  review: a reviewer without the author report: verifier agreement is author-only evidence (docs/DOGFOOD.md step 11); verify the bound CEM instead: corvint cem verify --map .corvint/change.cem.json --expected-base "+c.base+" --target "+c.target)
@@ -180,10 +180,10 @@ func (c *check) checkReport() []byte {
 	}
 	report := readFile(c.report)
 	if allCaptures(reportBase, report) != c.base || allCaptures(reportTarget, report) != c.target {
-		c.fail("dogfood-report-drift", "  fix: the report binds another BASE or HEAD; rerun make dogfood-change BASE="+c.base+" on this HEAD")
+		c.fail("dogfood-report-drift", "  fix: the report binds another BASE or HEAD; rerun corvint dogfood change "+c.base+" on this HEAD")
 	}
 	if !bytes.Contains(report, []byte(`"complete": true`)) {
-		c.fail("dogfood-report-drift", "  fix: the report is not complete; resolve the rows make dogfood-change BASE="+c.base+" lists, then rerun it")
+		c.fail("dogfood-report-drift", "  fix: the report is not complete; resolve the rows corvint dogfood change "+c.base+" lists, then rerun it")
 	}
 	anchor := `  ,"anchor": {"state": "NOT_OBSERVED", "mergeBase": null}`
 	if c.anchorObserved {
@@ -381,7 +381,7 @@ func (c *check) verifyOCM(aggregate string) []byte {
 	}
 	if !bytes.Equal(ocm.stdout, readFile(aggregate)) {
 		_ = c.record(true, 0)
-		c.fail("intent-scope-drift", "  fix: the OCM maps changed after make dogfood-change; rerun make dogfood-change BASE="+c.base)
+		c.fail("intent-scope-drift", "  fix: the OCM maps changed after corvint dogfood change; rerun corvint dogfood change "+c.base)
 	}
 	return firstLine(ocm.stdout)
 }

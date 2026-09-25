@@ -1,0 +1,270 @@
+{
+  "baseRevision": "9e355d038ea96836687a7afd7f79573235542b87",
+  "evidence": [
+    {
+      "blobOid": "e26b8f8690eed740dee3a4baab9c00e4355b7e4a",
+      "id": "evidence:sha256:136bf4dcc640afb9cba13c7df4613cadd688e633156e237ba735d4c619a0d74d",
+      "path": "docs/specs/use-case-conformance-v0.md",
+      "span": {
+        "end": 5073,
+        "start": 4714
+      },
+      "spanSha256": "5433ff7433e4fa604d26e8133f9a0d5caed8679e0f36fcb10128a90a01ed94a2"
+    },
+    {
+      "blobOid": "e26b8f8690eed740dee3a4baab9c00e4355b7e4a",
+      "id": "evidence:sha256:b44cba0ec8355b7391da79ace0688d7aac77f1f50025e268824ffc609d6a25a0",
+      "path": "docs/specs/use-case-conformance-v0.md",
+      "span": {
+        "end": 6073,
+        "start": 5710
+      },
+      "spanSha256": "5be3a85ff9e5215a23dca4293cfdbd432b528e2896ea8211c1776cb7d24695b3"
+    },
+    {
+      "blobOid": "e26b8f8690eed740dee3a4baab9c00e4355b7e4a",
+      "id": "evidence:sha256:a3d3519bdfd263ea4a53525b25a6534ef8eb34ba094a7dcfe4c7366702c9b7e7",
+      "path": "docs/specs/use-case-conformance-v0.md",
+      "span": {
+        "end": 7094,
+        "start": 6869
+      },
+      "spanSha256": "d6e654dfe6edebd5b20a2d40d4dbb40f84df34eb0adf029df1cbb63179ddd25e"
+    },
+    {
+      "blobOid": "e26b8f8690eed740dee3a4baab9c00e4355b7e4a",
+      "id": "evidence:sha256:301350a7d19f45e8122262bb7b1f6d23aea11e1666bc0b1750b02e340241945c",
+      "path": "docs/specs/use-case-conformance-v0.md",
+      "span": {
+        "end": 4499,
+        "start": 4301
+      },
+      "spanSha256": "4c4ef718f40349580f236d730495cb7abdbb52e11385d19b71582457bc8172b9"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:136bf4dcc640afb9cba13c7df4613cadd688e633156e237ba735d4c619a0d74d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:16f8a2d43f9e7621cc35d575529aef7ad6903e9c5c680414df8fb152a7b9d8bf",
+      "newRange": {
+        "count": 10,
+        "start": 199
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 199
+      },
+      "path": "conformance/use-cases-v0/ledger.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:136bf4dcc640afb9cba13c7df4613cadd688e633156e237ba735d4c619a0d74d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2a7f972230bdb02d1883708bd64be1493a16498362c17f5b23ba0203e54792fe",
+      "newRange": {
+        "count": 10,
+        "start": 232
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 228
+      },
+      "path": "conformance/use-cases-v0/ledger.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b44cba0ec8355b7391da79ace0688d7aac77f1f50025e268824ffc609d6a25a0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ceac950895dd4b693f23607c440dbbc190c82e12abd89f344c6cc13f185a72e6",
+      "newRange": {
+        "count": 21,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/beamfall-dogfood.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a3d3519bdfd263ea4a53525b25a6534ef8eb34ba094a7dcfe4c7366702c9b7e7",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fab449e0a390f955f8ff477d5b756361d4aa9b9990be282e3a7e462062929905",
+      "newRange": {
+        "count": 120,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/beamfall-dogfood/86fde0eb21d2e0fc41bfc06a4c06c9c3aef63e59.cem.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a3d3519bdfd263ea4a53525b25a6534ef8eb34ba094a7dcfe4c7366702c9b7e7",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4cc77ba4efc5aaca2da0a3bceaaaa66dec8e0f89cbdf6b221b977366b716bb9d",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/beamfall-dogfood/prechange-impact.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b44cba0ec8355b7391da79ace0688d7aac77f1f50025e268824ffc609d6a25a0",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ebd2828d84ea1d8644c5f228a272c2919cd284702bd3aac7b1907416a2d2325f",
+      "newRange": {
+        "count": 21,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/beamfall-dogfood.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a3d3519bdfd263ea4a53525b25a6534ef8eb34ba094a7dcfe4c7366702c9b7e7",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1a071ac9e17e2e8ee8688573cdd6905d7147e12e13876d124ef1646e69f3744e",
+      "newRange": {
+        "count": 120,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/beamfall-dogfood/86fde0eb21d2e0fc41bfc06a4c06c9c3aef63e59.cem.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a3d3519bdfd263ea4a53525b25a6534ef8eb34ba094a7dcfe4c7366702c9b7e7",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a36bfcfe250116a898b1f861065ab291c4c3f27e4e89ca3c3275cc39dbb9f0da",
+      "newRange": {
+        "count": 25,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/beamfall-dogfood/dogfood-report.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:136bf4dcc640afb9cba13c7df4613cadd688e633156e237ba735d4c619a0d74d",
+          "relation": "decision"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8c6deee7e954b17da874bbaed983a2d030374373d627dfb47189c03b97521e9d",
+      "newRange": {
+        "count": 36,
+        "start": 5625
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 5625
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:301350a7d19f45e8122262bb7b1f6d23aea11e1666bc0b1750b02e340241945c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3caa9c57cf2487bc32ed113589d646e17b39cb1b95a22104413e78f2229c7139",
+      "newRange": {
+        "count": 19,
+        "start": 2083
+      },
+      "oldRange": {
+        "count": 19,
+        "start": 2083
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:136bf4dcc640afb9cba13c7df4613cadd688e633156e237ba735d4c619a0d74d",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ecf52742937ab0407d19dd7c218824a536dcd0143b693b570deb9470212970bc",
+      "newRange": {
+        "count": 18,
+        "start": 50
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 50
+      },
+      "path": "docs/specs/use-case-conformance-v0.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "b2d3240e8643c222e9307e210f587dfcfb66f1972041f0a614cab0442d4842bd",
+  "spec": "cem/0.2"
+}

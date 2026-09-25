@@ -18,7 +18,7 @@ GO_TEST_TIMEOUT ?= 30m
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build gate gate-receipt-clear gate-receipt-test receipt-bundle-verify-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check decision-numbers-check eol-policy-check eol-policy-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check dogfood-change dogfood-check dogfood-seal dogfood-bind-range dogfood-bind-range-test error-code-ownership-check error-code-ownership-test cem-verify-pr-test cem-recipes-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test
+.PHONY: build gate gate-receipt-clear gate-receipt-test receipt-bundle-verify-test gate-affected gate-affected-test host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-check spec-requirements-test requirement-definitions-check traceability-tests-check decision-numbers-check eol-policy-check eol-policy-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check dogfood-change dogfood-check dogfood-seal dogfood-bind-range dogfood-bind-range-test error-code-ownership-check error-code-ownership-test cem-verify-pr-test cem-recipes-test host-package-versions-check host-package-versions-test diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test
 
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
@@ -129,8 +129,13 @@ go-archive-gate-injection-test:
 interop-gate:
 	cd interop/cem01-go && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) ./... && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go vet ./...
 
+# spec-requirements regenerates docs/specs/REQUIREMENTS.tsv. The generator reads the Git index,
+# so stage the changed spec first.
+spec-requirements:
+	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT INT TERM; script/gen-spec-requirements.sh >"$$tmp" && cp "$$tmp" docs/specs/REQUIREMENTS.tsv
+
 spec-requirements-check:
-	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT INT TERM; script/gen-spec-requirements.sh >"$$tmp"; cmp "$$tmp" docs/specs/REQUIREMENTS.tsv
+	@tmp=$$(mktemp); trap 'rm -f "$$tmp"' EXIT INT TERM; script/gen-spec-requirements.sh >"$$tmp"; cmp "$$tmp" docs/specs/REQUIREMENTS.tsv || { echo "REQUIREMENTS.tsv is stale: stage the changed spec, then run make spec-requirements" >&2; exit 1; }
 
 # spec-requirements-test pins SRG-V0-001: the generator enumerates the Git index, so no
 # untracked, deleted-from-the-worktree, or unstaged spec can change the index a fresh clone

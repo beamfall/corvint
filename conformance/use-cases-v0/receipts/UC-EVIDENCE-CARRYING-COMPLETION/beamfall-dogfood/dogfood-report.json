@@ -1,0 +1,25 @@
+{
+  "profile": "corvint-dogfood-change/0",
+  "base": "0d7796be23efe4e2579408a5516b8aeff1a23008",
+  "target": "86fde0eb21d2e0fc41bfc06a4c06c9c3aef63e59",
+  "complete": true,
+  "steps": [
+    {"name": "prechange-query", "status": "PRODUCED", "reason": "none"},
+    {"name": "prechange-impact", "status": "PRODUCED", "reason": "none"},
+    {"name": "cem-prepare", "status": "PRODUCED", "reason": "none"},
+    {"name": "cem-cite", "status": "PRODUCED", "reason": "none"},
+    {"name": "ocm-prepare-001", "status": "PRODUCED", "reason": "none"},
+    {"name": "ocm-status-001", "status": "PRODUCED", "reason": "none"},
+    {"name": "ocm-aggregate", "status": "PRODUCED", "reason": "none"},
+    {"name": "cem-status", "status": "PRODUCED", "reason": "none"},
+    {"name": "local-outcome", "status": "PRODUCED", "reason": "none"}
+  ],
+  "ocmStatus": {"aggregate":{"coverage":{"linked":0,"total":4,"unknown":4},"state":"ready-for-review"},"mutates":false,"ok":true,"scopeSetSha256":"2d92d52dc143f9e25bdb1ce9a4089178ea24b0e18cf4b1c1639220aca3c046f7","scopes":[{"coverage":{"linked":0,"total":4,"unknown":4},"map":".corvint/change.ocm.001.json","mapSha256":"855f3ab5a57cee13453634d0b5e4d0225a248d3241e15532313ee0e6df061a91","path":"docs/plugins/trust-roots.md","state":"ready-for-review"}],"testExecution":{"state":"NOT_RUN"},"tool":"dogfood-ocm-status","worklist":[{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"PTR-V0-001","reason":"unassessed","scope":1,"selector":1},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"PTR-V0-002","reason":"unassessed","scope":1,"selector":2},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"PTR-V0-003","reason":"unassessed","scope":1,"selector":3},{"claimIds":[],"disposition":"unknown","hunkIds":[],"id":"PTR-V0-004","reason":"unassessed","scope":1,"selector":4}]}
+  ,"localOutcomeEvidenceSha256": "sha256:c9a9fad02ebddb635abf6f842ab092b47ae59887518d90d646cfc90848c2f3c5"
+  ,"contextAbstentionEvidenceSha256": null
+  ,"anchor": {"state": "NOT_OBSERVED", "mergeBase": null}
+  ,"ocmLinkPlan": null
+  ,"dogfoodPolicy": {"bootstrapUnknown": 0, "maximumUnknownAfterBootstrap": 0}
+  ,"packetCoverage": [{"step": "prechange-query", "status": "PRODUCED", "packet_bytes": 2113, "budget_bytes": null, "within_budget": true, "included_results": 0, "omitted_results": 0}, {"step": "prechange-impact", "status": "PRODUCED", "packet_bytes": 4320, "budget_bytes": null, "within_budget": true, "included_results": 4, "omitted_results": 0}]
+  ,"dogfoodCheck": {"baseVerifierSha256": "sha256:e8c24949d978bf9af3f5535dcdc22c960d3c2f94ebe48c8d3bd220f2b7836df5", "treeVerifierSha256": "sha256:e8c24949d978bf9af3f5535dcdc22c960d3c2f94ebe48c8d3bd220f2b7836df5", "overrideVerifierSha256": null, "bootstrapUnknown": 0, "maximumUnknownAfterBootstrap": 0, "outputsAgree": true}
+}
