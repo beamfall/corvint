@@ -280,7 +280,7 @@ type repositoryIdentity struct {
 func readIdentity(ctx context.Context, root string) (repositoryIdentity, error) {
 	raw, err := git(ctx, root, maxIdentityBytes, nil, "rev-parse", "--show-object-format", "--is-shallow-repository", "HEAD", "HEAD^{tree}", "--git-path", "info/grafts")
 	if err != nil {
-		return repositoryIdentity{}, err
+		return repositoryIdentity{}, classifyHeadFailure(ctx, root, err)
 	}
 	lines := strings.SplitN(strings.TrimSuffix(string(raw), "\n"), "\n", 5)
 	if len(lines) != 5 {

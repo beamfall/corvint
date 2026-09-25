@@ -133,7 +133,7 @@ above stands with that substitution.
   both exit 2 with `output-failed` (`cmd/corvint/prove.go:479-483@4c0799f8`, `cmd/corvint/prove.go:491-493@ea3220b5`). A failed write
   MAY leave partial bytes on stdout, so a consumer MUST read the exit status, never stdout
   emptiness, as the signal that no verdict was produced — the same exit-2 signal the harness
-  gives for its own write failure (`cmd/corvint/main.go:1179-1181@f3b5fd7c`), which the adapter contract
+  gives for its own write failure (`cmd/corvint/main.go:1192-1194@f3b5fd7c`), which the adapter contract
   converts into a visible host-valid no-op (`docs/specs/agent-harness-integration-v0.md:64-65`).
   This clause's code list is also extended, under `--checkpoint` only, by the six codes FPK-V0-024
   enumerates: `unreadable-checkpoint-document`, `invalid-checkpoint-document`,
@@ -483,7 +483,7 @@ above stands with that substitution.
   beside the `--task` and `--cem` tests, so the FIRST of the three flags to appear in argv selects
   the branch. Before this branch the loop scanned every element of `rest` with no `--` handling,
   while `parseImpactArguments` treats a literal `--` as ending flag recognition and
-  reading every later token positionally (`cmd/corvint/main.go:299-306@bcf2181e`), which is how positional
+  reading every later token positionally (`cmd/corvint/main.go:302-309@bcf2181e`), which is how positional
   impact paths are preserved (FPK-V0-010). Wrapper flag recognition, including the
   `--checkpoint` test, MUST therefore stop scanning at the first `--` (the loop breaks there,
   `cmd/corvint/prove.go:353-355@0bd3675a`), so a tracked path literally
@@ -500,10 +500,10 @@ above stands with that substitution.
   `prove --task T --checkpoint FILE` rewrites to `query` (`parseProveInvocation`,
   `cmd/corvint/prove.go:300-304@2f9897c1`) and is refused by the query argument parser, whose allowlist admits only
   `--task`, `--limit`, and `--budget-bytes` and refuses everything else as `invalid-arguments`
-  (`parseQueryArgumentsForPlatform`, `cmd/corvint/main.go:226-229@228dfda4`; `argumentError`, `cmd/corvint/main.go:74-75@9e55e110`).
+  (`parseQueryArgumentsForPlatform`, `cmd/corvint/main.go:229-232@228dfda4`; `argumentError`, `cmd/corvint/main.go:74-75@9e55e110`).
   The requirement is therefore stated on what is observable: `--checkpoint` with `--task` MUST
   exit 2 with `invalid-arguments` in EITHER argv order. Which parser refuses is a property of the
-  ordering — `--task` first is refused by the query allowlist (`cmd/corvint/main.go:227-228@66cf57ce`) without the
+  ordering — `--task` first is refused by the query allowlist (`cmd/corvint/main.go:230-231@66cf57ce`) without the
   checkpoint branch running at all, and `--checkpoint` first by the checkpoint branch's own
   parser, `parseProveCheckpointArguments`, which admits only `--checkpoint` and refuses every
   other flag as unrecognized (`cmd/corvint/prove_checkpoint.go:67-86@1d21b973`) — but the refusal is
@@ -516,7 +516,7 @@ above stands with that substitution.
   reaches the checkpoint parser, because neither is a wrapper flag, and is refused there; with
   `--cem` written first, the CEM parser's unrecognized-flag branch refuses `--checkpoint`
   (`cmd/corvint/prove.go:396-397@f316ecd0`) with the same code. Before this branch, `prove --checkpoint FILE` rewrote to
-  `impact` and was refused by `parseImpactArguments` (`cmd/corvint/main.go:415-416@6955320f`); it now
+  `impact` and was refused by `parseImpactArguments` (`cmd/corvint/main.go:418-419@6955320f`); it now
   reaches the checkpoint branch, which is the accepted invocation. The parsers are distinct —
   `--budget-bytes` is accepted by the query parser and rejected by the checkpoint parser — so the
   requirement is stated on the code, not on one shared parser. `prove --checkpoint FILE` MUST be read-only under FPK-V0-001: no
@@ -691,7 +691,7 @@ above stands with that substitution.
   unrecognized flag, a missing flag value, or a malformed integer among them — also
   `invalid-arguments`, the single code `argumentError` gives every such refusal
   (`cmd/corvint/main.go:74-75@9e55e110`), whichever parser produces it: the query allowlist when `--task` is
-  the first wrapper flag (`cmd/corvint/main.go:227-228@66cf57ce`), the CEM parser when `--cem` is
+  the first wrapper flag (`cmd/corvint/main.go:230-231@66cf57ce`), the CEM parser when `--cem` is
   (`cmd/corvint/prove.go:396-397@f316ecd0`), and `parseProveCheckpointArguments` otherwise
   (`cmd/corvint/prove_checkpoint.go:69-70@191ad3c1`);
   `--checkpoint` introduces no parser vocabulary of its
@@ -723,22 +723,22 @@ above stands with that substitution.
   unchanged, which `--checkpoint` MUST NOT re-code, so the exact expected code is
   whatever `Build` returns for that repository. A `Build` error can carry no code at all
   (`internal/contextindex/git.go:386-387@3e48e4c5`), and `emitError` deliberately prints such an error without
-  a `code` member (`cmd/corvint/main.go:1347-1349@432b3fe2`); because this clause requires every checkpoint
+  a `code` member (`cmd/corvint/main.go:1361-1363@432b3fe2`); because this clause requires every checkpoint
   refusal to bear a code, a code-less `Build` error MUST be reported as `unsupported-prove-index`,
   a checkpoint-only mapping that preserves the `Build` message verbatim as the refusal's `error`
   member — for an error carrying no `DRC-V0` diagnostic, which this refusal never does, the only
   members `emitError` writes are `code`, `error`, and `ok`
-  (`cmd/corvint/main.go:1351-1355@b96186e4`), so there is no `reason` member on this wire — and MUST NOT
+  (`cmd/corvint/main.go:1365-1369@b96186e4`), so there is no `reason` member on this wire — and MUST NOT
   change what plain `prove` emits for the same error. The mapping MUST construct a
   fresh `&gokernel.Error{Code: "unsupported-prove-index", Message: buildErr.Error()}` that does
   NOT wrap the `*contextindex.Error`: `emitError` prints without a `code` member for an error
-  that unwraps to a code-less context error (`cmd/corvint/main.go:1333-1343@a7d2600f`), so wrapping to preserve the message
+  that unwraps to a code-less context error (`cmd/corvint/main.go:1346-1357@a9930fba`), so wrapping to preserve the message
   would still emit an uncoded refusal, which this clause forbids. That mapping MUST live in the
   checkpoint branch's own compile function — `compileCheckpointProof` (`cmd/corvint/prove.go:592@01d34b22`), the sibling of
   `compileCEMProof` (`cmd/corvint/prove.go:813@e469a50d`) that `compileProof` dispatches to on the
   checkpoint mode (`cmd/corvint/prove.go:502@6d433de3`, `cmd/corvint/prove.go:511-513@acc310b7`) — between its
   index build and its return to `runProve` (`cmd/corvint/prove.go:605-615@5563dd2e`, `cmd/corvint/prove.go:463-471@33fabac8`). It MUST NOT be placed in
-  `emitError` (`cmd/corvint/main.go:1341-1343@d2f5e1ec`), which plain `prove` shares, so plain `prove`'s
+  `emitError` (`cmd/corvint/main.go:1355-1357@4f554a82`), which plain `prove` shares, so plain `prove`'s
   stderr for the same code-less `Build` error stays byte-unchanged, which FPK-V0-026 requires as a
   named test; (11) `repository.object_format` differs from the object format of the index
   built at the current revision (FPK-V0-021) — `object-format-mismatch`, decided after the index
@@ -791,10 +791,10 @@ above stands with that substitution.
   (`internal/contextindex/index.go:277@1cafb447`) directly, as prove's impact and change modes did until `IDX-SNAP-V0-020`, which
   left them `Build` only on a snapshot miss (`cmd/corvint/prove.go:1073@a1c6494d`, `cmd/corvint/index_snapshot.go:83@90129c09`), and MUST NOT read an on-disk index snapshot. `prove --task` is not the model
   for this: its project-operations query profile acquires through `standaloneQueryContext`
-  (`cmd/corvint/prove.go:1059-1061@d473eb95`, `cmd/corvint/main.go:1207-1218@4e7cdb10`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
-  (`cmd/corvint/index_snapshot.go:71-72@5959c784`, `cmd/corvint/index_snapshot.go:57-58@123f0830`) at `cmd/corvint/main.go:1236-1237@c39315fe` and
+  (`cmd/corvint/prove.go:1059-1061@d473eb95`, `cmd/corvint/main.go:1220-1231@4e7cdb10`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
+  (`cmd/corvint/index_snapshot.go:71-72@5959c784`, `cmd/corvint/index_snapshot.go:57-58@123f0830`) at `cmd/corvint/main.go:1249-1250@c39315fe` and
   `cmd/corvint/harness_context.go:69-70@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:396-398@9faff3e7`, called at
-  `cmd/corvint/main.go:1232@e0e5c824`; `BuildEval`, `internal/contextindex/index.go:303-304@b1c33c59`, called at `cmd/corvint/harness_context.go:71@54018a6a`) on a miss — so plain
+  `cmd/corvint/main.go:1245@e0e5c824`; `BuildEval`, `internal/contextindex/index.go:303-304@b1c33c59`, called at `cmd/corvint/harness_context.go:71@54018a6a`) on a miss — so plain
   `prove --task` does read the snapshot today, which a run of the binary confirms: with a
   populated `.corvint/index/`, the snapshot file's access time advances under `prove --task` and
   did not under `prove PATH...` before `IDX-SNAP-V0-020` (decision 0180) gave impact and change modes the same read. `IDX-SNAP-V0-008` (`docs/specs/index-snapshot-v0.md:79-81`)
@@ -870,7 +870,7 @@ above stands with that substitution.
   refusal, and each other case FPK-V0-024 enumerates yields the exact code that clause names for
   it, an invented code being a failure; a `Build` error carrying its own code yields that code
   unchanged, and a code-less `Build` error yields `unsupported-prove-index` carrying the `Build`
-  message verbatim as its `error` member (`cmd/corvint/main.go:1351-1355@b96186e4`), an uncoded refusal
+  message verbatim as its `error` member (`cmd/corvint/main.go:1365-1369@b96186e4`), an uncoded refusal
   being a failure; and a checkpoint whose
   `repository.object_format` is `sha256` replayed in a sha1 repository refuses
   `object-format-mismatch` before any handle verdict, a confident all-`blob-changed` document being

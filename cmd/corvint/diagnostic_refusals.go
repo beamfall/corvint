@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/diagnostic"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -17,9 +20,10 @@ func refused(code, message string, refusal diagnostic.Refusal) error {
 
 // notRepositoryRootRefusal: an explicit --root, normalized to root, holds no .git entry.
 func notRepositoryRootRefusal(operand, root string) error {
-	return refused("invalid-arguments", "not a Git repository: "+root, diagnostic.Refusal{
+	message, topLevel := notRepositoryRootMessage(root)
+	return refused("invalid-arguments", message, diagnostic.Refusal{
 		Subject:        diagnostic.Subject{Kind: "value", Value: operand},
-		Evidence:       []diagnostic.Evidence{{Name: "root", Value: root}},
+		Evidence:       append([]diagnostic.Evidence{{Name: "root", Value: root}}, topLevel...),
 		SupportedFixes: []string{"cli.use-git-repository-root"},
 	})
 }
@@ -27,10 +31,32 @@ func notRepositoryRootRefusal(operand, root string) error {
 // notQueryRepositoryRootRefusal: the query adapter holds only the absolute --root it normalized
 // before argument validation, so that form is the refused spelling.
 func notQueryRepositoryRootRefusal(root string) error {
-	return refused("invalid-arguments", "not a Git repository: "+root, diagnostic.Refusal{
+	message, topLevel := notRepositoryRootMessage(root)
+	return refused("invalid-arguments", message, diagnostic.Refusal{
 		Subject:        diagnostic.Subject{Kind: "value", Value: root},
+		Evidence:       topLevel,
 		SupportedFixes: []string{"cli.use-git-repository-root"},
 	})
+}
+
+// notRepositoryRootMessage names the enclosing repository's top level when root is a directory
+// inside one, instead of claiming root is in no repository (CCF-V1-004). The top level is the
+// nearest ancestor holding a .git entry; no Git process runs on this refusal path.
+func notRepositoryRootMessage(root string) (string, []diagnostic.Evidence) {
+	topLevel := enclosingRepositoryRoot(root)
+	if topLevel == "" {
+		return "not a Git repository: " + root, nil
+	}
+	return "not the repository root; top level is " + topLevel, []diagnostic.Evidence{{Name: "top_level", Value: topLevel}}
+}
+
+func enclosingRepositoryRoot(root string) string {
+	for parent := filepath.Dir(root); parent != root; root, parent = parent, filepath.Dir(parent) {
+		if _, err := os.Stat(filepath.Join(parent, ".git")); err == nil {
+			return parent
+		}
+	}
+	return ""
 }
 
 func queryPlatformRefusal(platform string) error {

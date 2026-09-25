@@ -12,7 +12,7 @@ Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), dec
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.7.0 to 1.0.
 - Status: proposed intent, experimental delivery; the Core set is taken from accepted decision 0332, this contract awaits owner ratification in V1-0001
 - Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), and `cmd/corvint/core_freeze_test.go`
-- Blocked on: V1-0001 owner ratification of this contract; pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
+- Blocked on: V1-0001 owner ratification of this contract and of the proposed B5 amendment to CCF-V1-004; pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
 
 ## Intent and scope
@@ -79,10 +79,10 @@ state or profile had changed since that baseline; this change adds only root-hel
   `external-test-selection/0`, `playwright-affected/0`, `corvint-planning-snapshot/0`,
   `corvint-checkpoint/0` and in-toto statements. Their owning specs govern them. The verbs
   `native-hook`, `authority-event` and `qualified-event` are undocumented adapter plumbing that
-  `runContext` dispatches before the `topLevelCommands` check (`cmd/corvint/main.go:790@e2ed60e2`); they
+  `runContext` dispatches before the `topLevelCommands` check (`cmd/corvint/main.go:803@e2ed60e2`); they
   are absent from root help and outside the freeze.
 - **CCF-V1-004:** A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line built by
-  `emitError` (`cmd/corvint/main.go:1333@40010ccd`): `code`, `error` and `ok=false`, plus the DRC-V0-006
+  `emitError` (`cmd/corvint/main.go:1346@40010ccd`): `code`, `error` and `ok=false`, plus the DRC-V0-006
   diagnostic members `subject`, `evidence`, `supported_fixes` and optional `terminal` where the site was
   converted. Frozen code families are `invalid-*` (argument, revision and repository-root validation),
   `unsupported-*` (a well-formed request outside the qualified profile, including
@@ -92,6 +92,23 @@ state or profile had changed since that baseline; this change adds only root-hel
   untracked path) is frozen as it is. `init` / `adopt` with an unusable revision instead print the
   inventory with `ok=false` and `operationalState=INVALID` on stdout and exit 1. Renaming or removing a
   code, adding `code` to the codeless envelope, or moving a refusal between exit classes is breaking.
+  (proposed 2026-09-25, panel blocker B5, not accepted) Exactly three Core refusals are exempt from
+  the `emitError` envelope, and each keeps its own frozen shape: (a) `frontier` emits the
+  `frontier-error/0` document `{"code","profile"}` with no `ok` member, frozen by CF-V0-034 and
+  decision 0357, so it is carved out rather than projected; (b) `dogfood` emits
+  `{"code","error":{"code","message"},"ok":false}`, where the top-level `code` is the member every
+  Core refusal carries and the nested object stays for readers of the earlier envelope, and a
+  lifecycle refusal after the policy loaded also writes the `ok=false` policy document on stdout;
+  (c) the `init` / `adopt` INVALID inventory above, which also covers a working directory that is not
+  a repository root. Every Core verb that reads the repository refuses an omitted `--root` exactly as
+  it refuses an explicit one: `invalid-arguments` with `supported_fixes`
+  `cli.use-git-repository-root`, the message `not a Git repository: DIR` outside any repository, and
+  inside one the message `not the repository root; top level is TOP` with `evidence` `top_level`.
+  A repository whose `HEAD` names no commit is refused with `repository-head-unborn`, `subject`
+  `repository-state` / `head-commit` and `supported_fixes` `git.create-head-commit`. Before rc.1
+  these deliberately add `code` to the formerly codeless unborn-`HEAD` and outside-repository
+  `impact` refusals and replace `repository-probe-failed` / `unsupported-prove-history` for a
+  non-root working directory; no `cli-parity-v0` case covers those inputs, and the replay is unchanged.
 - **CCF-V1-005:** The admission, freshness, omission and abstention members MUST keep their names,
   JSON types and meaning. `query` and path `impact`: `context.state`, `context.freshness.{state, scope,
   revision, mixed_path_count, mixed_paths}`, `context.coverage.{requested_results, included_results,
@@ -137,7 +154,8 @@ state or profile had changed since that baseline; this change adds only root-hel
 
 ## Non-goals
 
-- No runtime or wire change to any verb, and no new profile version.
+- No runtime or wire change to any verb other than the proposed CCF-V1-004 refusal classification of
+  2026-09-25 (panel blocker B5), and no new profile version.
 - No freeze of companion, research or experimental verbs, modes or profiles (CCF-V1-003, CCF-V1-008).
 - No ratification of the Core boundary: that is the owner's decision in V1-0001.
 - No change to the portable proof wire, CEM, OCM or frontier contracts, which have their own owners.
@@ -147,6 +165,9 @@ state or profile had changed since that baseline; this change adds only root-hel
 
 - A Core identifier changes silently: `TestCoreVerbsEmitTheFrozenProfiles` fails.
 - A Core refusal changes exit class, stdout or code family: `TestCoreRefusalsKeepTheFrozenEnvelope` fails.
+- A Core verb classifies a non-root working directory or an unborn `HEAD` differently from its
+  siblings: `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike` or
+  `TestIndexedCoreVerbsCodeAnUnbornHead` fails.
 - A new verb is dispatched without a maturity label, or a label names an unindexed owner:
   `TestRootHelpLabelsEveryVerbWithMaturityAndOwner` fails.
 - A verb is dispatched before the `topLevelCommands` check without being pinned as plumbing:
@@ -159,7 +180,7 @@ state or profile had changed since that baseline; this change adds only root-hel
 
 ## Acceptance evidence
 
-- `GOTOOLCHAIN=local go test -count=1 -run 'TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope|TestRootHelpLabelsEveryVerbWithMaturityAndOwner|TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp' ./cmd/corvint`.
+- `GOTOOLCHAIN=local go test -count=1 -run 'TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope|TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike|TestIndexedCoreVerbsCodeAnUnbornHead|TestRootHelpLabelsEveryVerbWithMaturityAndOwner|TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp' ./cmd/corvint`.
 - The cli-parity replay over the 133-case manifest against a candidate built from this change.
 - The cited N-1 and migration tests in Traceability.
 
@@ -169,7 +190,7 @@ state or profile had changed since that baseline; this change adds only root-hel
 |---|---|
 | CCF-V1-001, CCF-V1-002 | `TestCoreVerbsEmitTheFrozenProfiles` |
 | CCF-V1-003 | `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
-| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics` |
+| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics`, `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`, `TestIndexedCoreVerbsCodeAnUnbornHead` |
 | CCF-V1-005 | `TestCoreVerbsEmitTheFrozenProfiles` (envelope); per-verb member tests in AFP-V0, FPK-V0, TCP-V0 and GPK-V0 |
 | CCF-V1-006 | cli-parity-v0 replay; `TestCoreVerbsEmitTheFrozenProfiles` |
 | CCF-V1-007 (a) | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSectionedSnapshotRefusesACorruptSectionAsAMiss`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
@@ -181,4 +202,5 @@ state or profile had changed since that baseline; this change adds only root-hel
 
 Revert the change that introduced this contract: the spec, decision 0358, its index rows, the root-help
 `Command maturity:` section and `cmd/corvint/core_freeze_test.go`. No runtime, wire or stored state
-changes, so rollback needs no migration.
+changes, so rollback needs no migration. The proposed CCF-V1-004 classification of 2026-09-25 rolls back
+alone by reverting its change; it writes no stored state.

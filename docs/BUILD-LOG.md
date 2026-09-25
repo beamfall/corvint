@@ -6160,3 +6160,35 @@ Review repairs (same slice):
   probe wording now names what is compared: `HEAD`, the tree and the dirty-path set.
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
+
+## 2026-09-25 V1-0284: one Core refusal classification (panel blocker B5, CCF-V1-004)
+
+The panel found that the Core refusal envelope was not uniform. `dogfood` refused with only a
+nested `{"error":{"code","message"}}`, `frontier` with `frontier-error/0`, and the same bad
+working directory was classified differently by each verb. Outside a repository, `impact` gave the
+codeless Git error text. From a subdirectory, `impact` gave `repository-probe-failed` and `prove`
+gave `unsupported-prove-history`. An unborn `HEAD` gave the codeless `ambiguous argument 'HEAD'`
+text. The CCF-V1-004 amendment is proposed, not accepted.
+
+Decisions:
+
+- `frontier-error/0` is carved out of CCF-V1-004, not projected. CF-V0-034 and decision 0357 freeze
+  its bytes, and changing them would need a new profile version.
+- `dogfood` refusals add a top-level `code` beside the retained nested `error` object. That is an
+  optional member under CCF-V1-006, and the in-repository readers (`localcompletion` `public`, the
+  host adapter's rejected reason) already read a top-level `code`.
+- An omitted `--root` is checked like an explicit one before `impact`, `prove` and the `dogfood`
+  lifecycle run. A non-root directory inside a repository is refused with the message
+  `not the repository root; top level is TOP` and `top_level` evidence.
+- A coded contextindex refusal now carries DRC-V0-006 members. Its bytes are unchanged when there is
+  no diagnostic. The unborn-`HEAD` code is `repository-head-unborn`, and its `repository-` prefix
+  keeps the MCP bridge mapping to `repository-unavailable`.
+- CCF-V1-007 is untouched. B6 amends it on its own branch.
+
+Evidence: `TestCoreRefusalsKeepTheFrozenEnvelope` (now one case per Core verb),
+`TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike` and `TestIndexedCoreVerbsCodeAnUnbornHead`.
+All three fail at base 489701ca. The `cli-parity-v0` replay is unchanged: no case covers these
+inputs.
+
+NOT_PRODUCED: promisor-missing objects are not classified. That needs a partial-clone fixture and a
+decision on lazy fetch, which conflicts with invariant 7. NOT_RUN: the exhaustive `make gate`.

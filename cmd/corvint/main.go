@@ -126,6 +126,9 @@ func parse(arguments []string) (options, error) {
 	}
 	if index < len(arguments) && arguments[index] == "impact" {
 		result.command = "impact"
+		if err := requireRepositoryRoot(result.root); err != nil {
+			return result, err
+		}
 		return parseImpactArguments(result, arguments[index+1:])
 	}
 	if index < len(arguments) && arguments[index] == "feature" {
@@ -637,6 +640,16 @@ func normalizeImpactPath(value string) (string, error) {
 		return "", argumentError("argument paths: path must be repository-relative")
 	}
 	return normalized, nil
+}
+
+// requireRepositoryRoot refuses a working directory that holds no .git entry exactly as
+// resolveExplicitRoot refuses an explicit --root, so an omitted --root is classified alike
+// (CCF-V1-004). An explicit root already passed this check.
+func requireRepositoryRoot(root string) error {
+	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
+		return notRepositoryRootRefusal(".", root)
+	}
+	return nil
 }
 
 func resolveExplicitRoot(value string) (string, error) {
@@ -1338,9 +1351,10 @@ func emitError(stderr io.Writer, err error) {
 	}
 	var contextError *contextindex.Error
 	if errors.As(err, &contextError) && contextError.Code != "" {
+		beforeOK, afterOK := diagnosticMembers(err)
 		_, _ = fmt.Fprintf(
-			stderr, "{\"code\": %s, \"error\": %s, \"ok\": false}\n",
-			pythonJSONString(contextError.Code), pythonJSONString(err.Error()),
+			stderr, "{\"code\": %s, \"error\": %s, %s\"ok\": false%s}\n",
+			pythonJSONString(contextError.Code), pythonJSONString(err.Error()), beforeOK, afterOK,
 		)
 		return
 	}
