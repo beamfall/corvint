@@ -1,8 +1,8 @@
 {
-  "bytes": 5967,
+  "bytes": 5999,
   "command": "index",
   "commit": "<varies:string>",
-  "engine": "b2e003add16538be",
+  "engine": "<varies:string>",
   "evicted": 0,
   "mutates": true,
   "ok": true,
