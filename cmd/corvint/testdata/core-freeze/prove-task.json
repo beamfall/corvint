@@ -1,0 +1,116 @@
+{
+  "mutates": false,
+  "ok": true,
+  "packet": {
+    "abstention": {
+      "active": false,
+      "reason": "none"
+    },
+    "coverage": {
+      "advisory_results": 0,
+      "authoritative_results": 0,
+      "budget_bytes": null,
+      "critical": [],
+      "critical_missing": [],
+      "included_results": 1,
+      "omitted_results": 0,
+      "packet_bytes": 1458,
+      "requested_results": 1,
+      "uncertainty": [
+        "all results are syntax matches; no project-owned authority corroborates the task"
+      ],
+      "within_budget": true
+    },
+    "exclusions": {
+      "count": 0,
+      "samples": []
+    },
+    "freshness": {
+      "mixed_path_count": 0,
+      "mixed_paths": [],
+      "revision": "89332322c1cef4c8c9cb2c6cbfff9b9fdd452af7",
+      "scope": "git",
+      "state": "fresh"
+    },
+    "intent": {
+      "confidence": "default",
+      "id": "repository",
+      "matched_terms": []
+    },
+    "learning": {
+      "advisory_candidates": 0,
+      "history_commits_considered": 2,
+      "history_digest": "<varies:string>",
+      "history_tip": "<varies:string>",
+      "local_trace_count": 0,
+      "local_trace_state": "absent",
+      "matched_history_commits": 0,
+      "matched_local_traces": 0
+    },
+    "mode": "query",
+    "request": {
+      "limit": 10,
+      "text": "where is StableValue"
+    },
+    "results": [
+      {
+        "evidence": [
+          {
+            "authority": "syntax",
+            "blob_hash": "608fd2f8a1ee1bc6c9b373d3ec56823ee77b782d",
+            "confidence": "medium",
+            "line": 3,
+            "path": "pkg/main.go",
+            "reason": "declaration/path strongly matches query vocabulary"
+          }
+        ],
+        "id": "pkg/main.go:StableValue",
+        "kind": "symbol",
+        "name": "StableValue",
+        "score": 442,
+        "summary": "func declaration"
+      }
+    ],
+    "revision": "89332322c1cef4c8c9cb2c6cbfff9b9fdd452af7",
+    "schema_version": 1,
+    "state": "READY",
+    "verification": [
+      "go test ./pkg/...",
+      "make gate"
+    ]
+  },
+  "profile": "falsifiable-packet/0",
+  "proof": {
+    "claims": {
+      "history-consistent": "the cited blob and line still exist at the packet revision; this is a check of the citation, not evidence that the row is relevant",
+      "none": "nothing about this row was checked",
+      "reference-resolves": "the cited line holds the claimed import or identifier and the declaring blob declares it; this is a check of the reference, not evidence that the row is relevant",
+      "test-kills-mutant": "the cited test failed on a mutant of the changed lines and passed on the baseline",
+      "verifier-accepts": "the frozen CEM verifier accepted the map and this hunk's evidence is stable or relocated at the target"
+    },
+    "counts": {
+      "history-consistent": {
+        "PASS": 1
+      }
+    },
+    "failed_results": 0,
+    "proven_results": 1,
+    "rows": [
+      {
+        "authority": "syntax",
+        "blob_hash": "608fd2f8a1ee1bc6c9b373d3ec56823ee77b782d",
+        "falsified": "PASS",
+        "falsifier": "history-consistent",
+        "kind": "symbol",
+        "line": 3,
+        "path": "pkg/main.go",
+        "result": "pkg/main.go:StableValue",
+        "trust": "repository-content"
+      }
+    ],
+    "unproven_results": 0
+  },
+  "revision": "89332322c1cef4c8c9cb2c6cbfff9b9fdd452af7",
+  "state": "CITED",
+  "tool": "prove"
+}

@@ -11,7 +11,7 @@ Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), dec
 ## Agent digest
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
 - Status: proposed overall; accepted CCF-V1-006/CCF-V1-007 amendments (decision 0401); experimental delivery; the Core set is taken from accepted decision 0332, this contract awaits owner ratification in V1-0001
-- Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), and `cmd/corvint/core_freeze_test.go`
+- Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), `cmd/corvint/core_freeze_test.go` and its per-mode goldens in `cmd/corvint/testdata/core-freeze/`
 - Blocked on: V1-0001 owner ratification of this contract; pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
 
@@ -66,7 +66,17 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   and the `receiptId` digest domain `atlas-genesis-inventory/0.1-experimental`
   (`internal/genesis/inventory.go:257@744add89`) is frozen with them because changing it changes every receipt id.
   The CEM, OCM and frontier document schemas stay governed by their owning specs (CEM-CB, OCM-V0,
-  CF-V0); this contract pins only the identifiers above and neither restates nor changes those schemas.
+  CF-V0); this contract neither restates nor changes those schemas.
+  (proposed, decision 0398; this replaced "pins only the identifiers above".) Each mode row above also
+  has one structural golden, `cmd/corvint/testdata/core-freeze/<case>.json`, one file per
+  `TestCoreVerbsEmitTheFrozenProfiles` case, captured from the current binary over that case's
+  fixture. It holds the full member tree, every array length and every value that is equal across two
+  independent fixture builds. A value that differs between those builds is pinned by JSON type only, as
+  `"<varies:TYPE>"`: fixture commit ids, temporary paths, and digests over them. A member set, array
+  length or type that differs between the builds cannot be frozen and fails generation. The test
+  compares each document with its golden. A mismatch is not breaking in itself, because CCF-V1-006
+  still decides that, but a compatible change regenerates the golden with `CORVINT_UPDATE_GOLDEN=1` in
+  the same change, so review sees every wire difference.
   NOT_PRODUCED: no pinned mode for `cem begin`, `prepare`, `cite`, `mark`, `report`, `cover`,
   `discriminate`, `anchor` and `provenance`; `ocm prepare`, `link`, `mark` and `report`; the frontier
   human rendering and dynamic test mode; and `dogfood begin`, `verify`, `finish`, `review`,
@@ -108,7 +118,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   unproven_results, failed_results}` with every row's falsifier verdict (FPK-V0). A frozen
   enumeration may gain a value only under CCF-V1-006. For `index`, `cem`, `ocm`, `frontier` and
   `dogfood status` this contract lists no further members: NOT_PRODUCED; their owning specs
-  (IDX-SNAP-V0, CEM-CB, OCM-V0, CF-V0, LCP-V0) govern them.
+  (IDX-SNAP-V0, CEM-CB, OCM-V0, CF-V0, LCP-V0) govern them. (proposed, decision 0398) The CCF-V1-002
+  goldens still pin the names and JSON types of every member these modes emit over the test fixtures.
 - **CCF-V1-006:** Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.json`
   (`query`, `impact`, `init`, `adopt`), any stdout or stderr byte change is breaking unless recorded in
   `conformance/divergence-register.md` with a decision. For every other frozen mode: adding an optional
@@ -202,9 +213,12 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` fails.
 - The owner changes the Core set of decision 0332: this contract, its test list and decision 0358
   must change together.
-- A byte change hides inside a frozen member's content (for example ranking order): only the
-  cli-parity replay catches it, for the four pinned verbs; for the other eight Core verbs the contract
-  relies on each verb's own spec tests.
+- (proposed, decision 0398) A frozen mode's member is removed, renamed, retyped or added, an array
+  changes length, or a fixture-stable value changes, for example the `affected` `plan.graphDigest`
+  change between 0.7.0 and 0.8.1: `TestCoreVerbsEmitTheFrozenProfiles` fails against that mode's
+  CCF-V1-002 golden. Residual: a value the golden pins by type only, and a member, value or order that
+  no test fixture exercises. Only the cli-parity replay (for the four pinned verbs) and each verb's own
+  spec tests catch those.
 
 ## Acceptance evidence
 
@@ -216,10 +230,10 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 
 | Requirement | Evidence |
 |---|---|
-| CCF-V1-001, CCF-V1-002 | `TestCoreVerbsEmitTheFrozenProfiles` |
+| CCF-V1-001, CCF-V1-002 | `TestCoreVerbsEmitTheFrozenProfiles` (identifiers, and each mode against its `cmd/corvint/testdata/core-freeze` golden) |
 | CCF-V1-003 | `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
 | CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics` |
-| CCF-V1-005 | `TestCoreVerbsEmitTheFrozenProfiles` (envelope); per-verb member tests in AFP-V0, FPK-V0, TCP-V0 and GPK-V0 |
+| CCF-V1-005 | `TestCoreVerbsEmitTheFrozenProfiles` (envelope, and member names and types through the goldens); per-verb member tests in AFP-V0, FPK-V0, TCP-V0 and GPK-V0 |
 | CCF-V1-006 | cli-parity-v0 replay; `TestCoreVerbsEmitTheFrozenProfiles` |
 | CCF-V1-007 (a) | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSectionedSnapshotRefusesACorruptSectionAsAMiss`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
 | CCF-V1-007 (b) | `TestMigrateTracesDryRunMatchesPythonOracleBytes`, `TestMigrateTracesApplyMatchesPythonOracle`, `TestMigrateTracesPlanDigestMismatchWritesNothing`, `TestMigrationCandidateDriftCheckCoversWholePlan`, `TestMigrationQuarantineBindingDetectsReplacement`, `TestPythonOracleMigrationTransform`, `TestReadBoundsTraceReplayWithoutRefusingLargeRepositories`, `TestStoreReadRejectsWholeStoreViolations` |
@@ -232,3 +246,5 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 Revert the change that introduced this contract: the spec, decision 0358, its index rows, the root-help
 `Command maturity:` section and `cmd/corvint/core_freeze_test.go`. No runtime, wire or stored state
 changes, so rollback needs no migration.
+Reverting only the per-mode goldens (proposed, decision 0398) means deleting `cmd/corvint/testdata/core-freeze/` and
+the golden comparison in `TestCoreVerbsEmitTheFrozenProfiles`. That returns the freeze to identifier-only pinning.

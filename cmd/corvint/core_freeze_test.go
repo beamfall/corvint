@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -9,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // frozenCoreVerbs is the CCF-V1-001 Core boundary from decision 0332, in the order root help lists it.
@@ -151,15 +155,14 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			code, stdout, stderr := runCLI(t, test.invoke(t)...)
-			if code != test.exit {
-				t.Fatalf("exit %d, want %d, stderr=%s", code, test.exit, stderr)
-			}
-			var document map[string]any
-			if err := json.Unmarshal([]byte(stdout), &document); err != nil {
-				t.Fatalf("stdout is not one JSON document: %v\n%s", err, stdout)
-			}
+			document := runCoreMode(t, test.invoke, test.exit)
 			register.observe(t, document)
+			golden := filepath.Join("testdata", "core-freeze", strings.ReplaceAll(test.name, " ", "-")+".json")
+			if os.Getenv("CORVINT_UPDATE_GOLDEN") == "1" {
+				time.Sleep(1100 * time.Millisecond) // a later second gives the second fixture new commit ids
+				writeCoreGolden(t, golden, mergeCoreRuns(t, "$", document, runCoreMode(t, test.invoke, test.exit)))
+			}
+			compareCoreGolden(t, "$", readCoreGolden(t, golden), document)
 			want := map[string]any{"ok": true, "mutates": false}
 			for path, value := range test.want {
 				want[path] = value
@@ -424,4 +427,172 @@ func jsonMembers(value any, names []string) []any {
 		found = append(found, jsonMembers(element, names[1:])...)
 	}
 	return found
+}
+
+// coreFreezeVaries prefixes a golden leaf whose value differs between two independent fixture
+// builds (commit ids, temporary paths and digests over them); the golden pins its JSON type only.
+const coreFreezeVaries = "<varies:"
+
+// runCoreMode runs one frozen Core mode, checks its exit code and decodes its one JSON document.
+func runCoreMode(t *testing.T, invoke func(*testing.T) []string, exit int) map[string]any {
+	t.Helper()
+	code, stdout, stderr := runCLI(t, invoke(t)...)
+	if code != exit {
+		t.Fatalf("exit %d, want %d, stderr=%s", code, exit, stderr)
+	}
+	var document map[string]any
+	if err := json.Unmarshal([]byte(stdout), &document); err != nil {
+		t.Fatalf("stdout is not one JSON document: %v\n%s", err, stdout)
+	}
+	return document
+}
+
+// jsonKind names the JSON type of one decoded value.
+func jsonKind(value any) string {
+	switch value.(type) {
+	case map[string]any:
+		return "object"
+	case []any:
+		return "array"
+	case string:
+		return "string"
+	case float64:
+		return "number"
+	case bool:
+		return "boolean"
+	}
+	return "null"
+}
+
+// mergeCoreRuns folds two independent runs of one mode into its golden (CCF-V1-002): an equal value
+// stays, and a scalar that differs becomes a type placeholder. A difference in members, array length
+// or type is output that cannot be frozen, and fails.
+func mergeCoreRuns(t *testing.T, path string, first, second any) any {
+	t.Helper()
+	kind := jsonKind(first)
+	if kind != jsonKind(second) {
+		t.Fatalf("%s is %s in one run and %s in another: not deterministic, cannot freeze", path, kind, jsonKind(second))
+	}
+	switch kind {
+	case "object":
+		return mergeCoreObjects(t, path, first.(map[string]any), second.(map[string]any))
+	case "array":
+		return mergeCoreArrays(t, path, first.([]any), second.([]any))
+	}
+	if first == second {
+		return first
+	}
+	return coreFreezeVaries + kind + ">"
+}
+
+func mergeCoreObjects(t *testing.T, path string, first, second map[string]any) map[string]any {
+	t.Helper()
+	names := slices.Sorted(maps.Keys(first))
+	if !slices.Equal(names, slices.Sorted(maps.Keys(second))) {
+		t.Fatalf("%s has members %q in one run and %q in another: not deterministic, cannot freeze", path, names, slices.Sorted(maps.Keys(second)))
+	}
+	merged := make(map[string]any, len(first))
+	for _, name := range names {
+		merged[name] = mergeCoreRuns(t, path+"."+name, first[name], second[name])
+	}
+	return merged
+}
+
+func mergeCoreArrays(t *testing.T, path string, first, second []any) []any {
+	t.Helper()
+	if len(first) != len(second) {
+		t.Fatalf("%s has %d elements in one run and %d in another: not deterministic, cannot freeze", path, len(first), len(second))
+	}
+	merged := make([]any, len(first))
+	for index := range first {
+		merged[index] = mergeCoreRuns(t, fmt.Sprintf("%s[%d]", path, index), first[index], second[index])
+	}
+	return merged
+}
+
+// writeCoreGolden writes a merged golden as indented JSON with sorted members.
+func writeCoreGolden(t *testing.T, path string, golden any) {
+	t.Helper()
+	var buffer bytes.Buffer
+	encoder := json.NewEncoder(&buffer)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(golden); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, buffer.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func readCoreGolden(t *testing.T, path string) any {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("%v: every frozen Core mode needs a golden; generate it with CORVINT_UPDATE_GOLDEN=1", err)
+	}
+	var golden any
+	if err := json.Unmarshal(data, &golden); err != nil {
+		t.Fatalf("%s: %v", path, err)
+	}
+	return golden
+}
+
+// compareCoreGolden reports every structural or value difference between a frozen mode's document
+// and its golden. A placeholder leaf pins only the JSON type.
+func compareCoreGolden(t *testing.T, path string, golden, got any) {
+	t.Helper()
+	placeholder, _ := golden.(string)
+	if strings.HasPrefix(placeholder, coreFreezeVaries) {
+		golden = strings.TrimSuffix(strings.TrimPrefix(placeholder, coreFreezeVaries), ">")
+		if jsonKind(got) != golden {
+			t.Errorf("%s is %s, the golden pins %s: retyping is breaking under CCF-V1-006", path, jsonKind(got), golden)
+		}
+		return
+	}
+	if jsonKind(got) != jsonKind(golden) {
+		t.Errorf("%s is %s, the golden has %s: retyping is breaking under CCF-V1-006", path, jsonKind(got), jsonKind(golden))
+		return
+	}
+	switch golden := golden.(type) {
+	case map[string]any:
+		compareCoreObjects(t, path, golden, got.(map[string]any))
+	case []any:
+		compareCoreArrays(t, path, golden, got.([]any))
+	default:
+		if got != golden {
+			t.Errorf("%s = %#v, the golden has %#v", path, got, golden)
+		}
+	}
+}
+
+func compareCoreObjects(t *testing.T, path string, golden, got map[string]any) {
+	t.Helper()
+	for name, value := range golden {
+		member, present := got[name]
+		if !present {
+			t.Errorf("%s.%s is missing: removing or renaming a member is breaking under CCF-V1-006", path, name)
+			continue
+		}
+		compareCoreGolden(t, path+"."+name, value, member)
+	}
+	for name := range got {
+		if _, known := golden[name]; !known {
+			t.Errorf("%s.%s is not in the golden: an optional member is compatible under CCF-V1-006 but the same change regenerates the golden (CORVINT_UPDATE_GOLDEN=1)", path, name)
+		}
+	}
+}
+
+func compareCoreArrays(t *testing.T, path string, golden, got []any) {
+	t.Helper()
+	if len(got) != len(golden) {
+		t.Errorf("%s has %d elements, the golden has %d", path, len(got), len(golden))
+		return
+	}
+	for index := range golden {
+		compareCoreGolden(t, fmt.Sprintf("%s[%d]", path, index), golden[index], got[index])
+	}
 }

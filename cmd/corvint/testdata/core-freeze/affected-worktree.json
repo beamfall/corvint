@@ -1,0 +1,41 @@
+{
+  "advice": {
+    "checks": [],
+    "note": "advice is static; no check was executed; mandatory checks remain required whatever the advisory list says",
+    "status": "PLAN_ONLY",
+    "unknown": [
+      "NO_ADVISORY_GO_COMMAND: provider.go.state is EMPTY_SELECTION",
+      "NO_REPOSITORY_GATE_DECLARED: no Makefile gate target or AGENTS.md Verify block"
+    ]
+  },
+  "mutates": false,
+  "ok": true,
+  "plan": {
+    "dirty": [],
+    "excluded": [
+      {
+        "invalidation": "NEW_DEPENDENCY_EDGE_OR_DIRTY_PATH",
+        "reason": "NO_DEPENDENCY_PATH_TO_DIRTY_UNIT",
+        "unitId": "go:example.test/cli/pkg",
+        "universe": "affected-graph:sha256:f3c77b729e175eb0a0592a0c1929264e3d37b2a24cc2df09902e0766e22a2483"
+      }
+    ],
+    "graphDigest": "affected-graph:sha256:f3c77b729e175eb0a0592a0c1929264e3d37b2a24cc2df09902e0766e22a2483",
+    "scope": "BOUNDED",
+    "selected": [],
+    "unknown": []
+  },
+  "profile": "affected-plan/0",
+  "provider": {
+    "go": {
+      "packages": [],
+      "state": "EMPTY_SELECTION"
+    }
+  },
+  "range": {
+    "base": "",
+    "paths": []
+  },
+  "revision": "<varies:string>",
+  "tool": "affected"
+}
