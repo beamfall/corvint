@@ -93,8 +93,8 @@ expert and the cited evidence was checked.
    author and committer fields are free text that a local, offline binary cannot verify. Checking
    them would make a basis look stronger without evidence behind it. For a solo owner whose agents
    commit under one identity, the rule would either block every review or push toward a fake
-   second identity. Corvint already treats blame identity as uncertainty, not authority
-   (`TCP-V0-037`). Revisit when a repository with two or more human committers asks for enforced
+   second identity. The proposed, not yet accepted, ownership check `TCP-V0-037` takes the same
+   line: blame identity is uncertainty, not authority. Revisit when a repository with two or more human committers asks for enforced
    review, or when `EXTERNALLY_ATTESTED` is accepted.
 3. **Mandatory anchors in hand-written docs: no, opt-in and reported.** A docs-as-code expert found
    that a prose claim has no form a check can find mechanically, the way `path:line` citations do. A

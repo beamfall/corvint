@@ -79,13 +79,19 @@ At `978b37b`:
 - **Verified**: a flow variation whose linked assertions passed in run evidence at `INGESTED` or
   higher, stable under the stability policy, with cleanup `done` and every declared negative control
   observed failing. Evidence from commit C holds at a later revision R only when no link target of
-  the variation, no path in its tests' static reach and no global path changed between C and R;
-  otherwise it is `evidence-stale`.
+  the variation, no path the impact graph reaches from those targets, no path in its tests' static
+  reach, no path in the evidence's coverage record, and no global path changed between C and R;
+  otherwise it is `evidence-stale`. Behavior outside the declared links, their reach and any
+  recorded coverage is not tracked, and the report says so.
 - **Static reach**: a test file plus every path the Corvint impact graph reaches from it (imports,
   helpers, page objects and fixtures).
-- **Global paths**: the built-in set (the flows directory, the provider file, the runner
-  configuration, and every lockfile or package manifest) plus the provider's declared `global_paths`,
-  which can add paths and never remove built-in ones.
+- **Obligation closure**: the changed paths plus every path the Corvint impact graph names as
+  depending on them at the head revision.
+- **Global paths**: the built-in set plus the provider's declared `global_paths`, which can add paths
+  and never remove built-in ones. The built-in set is the flows directory, the provider file, the
+  runner configuration, every lockfile and package manifest, every build or container file
+  (`Makefile`, `Dockerfile`, compose files), and every fixture, seed-data and environment file that a
+  flow intent, the provider or the runner configuration names.
 - **Exclusion proof**: the reason a test was left out of an `e2e-safe` selection. It names its basis
   (`coverage` or `reviewed-links`), the evidence or links it rests on, and the changed paths it is
   disjoint from.
@@ -175,13 +181,14 @@ At `978b37b`:
 - `AFU-V1-020`: An exclusion proof with basis `reviewed-links` MUST require that every link of the
   test is `reviewed` and not stale at the base revision (a `declared` link without a review anchor,
   and an `inferred` link, cannot support one), that those link targets and the test's static reach
-  are disjoint from the changed paths, and that every changed path outside the global paths is the
-  target of at least one reviewed link of some flow. The proof records that link completeness is an
+  are disjoint from the obligation closure, and that every changed path outside the global paths is
+  the target of at least one reviewed link of some flow. The proof records that link completeness is an
   author attestation.
 - `AFU-V1-021`: An `observed` coverage link MAY add tests to the selection. An exclusion proof with
   basis `coverage` MUST require run evidence whose coverage record declares completeness for every
   tier the flow declares (for example, client and server), which holds at the base revision under the
-  Verified carry-forward rule, and whose covered paths are disjoint from the changed paths.
+  Verified carry-forward rule (so no covered path changed between the evidence commit and the base),
+  and whose covered paths are disjoint from the changed paths.
 - `AFU-V1-022`: No test may be omitted when any changed path is a global path. When narrowing is not
   proven, the result MUST be the full relevant suite, meaning every test in the discovered inventory,
   with one or more closed codes: `e2e-unmapped-change`, `e2e-inventory-incomplete`,
