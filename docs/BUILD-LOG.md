@@ -5902,8 +5902,8 @@ Decisions:
   of `app/web/profile.js`, which is inside the reviewed span 3-5. The committed intents hold the
   placeholder `REVIEW_ANCHOR` because the anchor SHA exists only at test time.
 - Evidence is `playwright-report.json`, ingested with `flows ingest --format playwright-json` at C.
-  All three specs pass, including profile's. `profile` is therefore incomplete only because of the
-  stale link, and verified evidence cannot mask it.
+  The committed synthetic report records all three as passed, including profile's. `profile` is
+  therefore incomplete only because of the stale link, and verified evidence cannot mask it.
 - `docs` renders the page and sidecar at the repository root without `--docs-root`, because that
   flag needs a directory that exists at `HEAD`.
 
@@ -5941,3 +5941,27 @@ Evidence:
 - A real change on `conformance/interactive-alpha/fixture`: this needs a Playwright browser run.
 - A real change on Beamfall: this needs a Beamfall checkout and a networked browser E2E run.
 - The full `./...` suite and `make gate`: both are out of scope for this slice.
+
+Follow-up: `navigate` could carry link review state into its steps or packets, so an agent reading
+only a step does not see `verified` on a step whose reviewed link is stale.
+
+Review repairs: an independent review found no blockers. The repairs are:
+
+- Fixture: profile gains a `navigation` entry, so its `save-name` step is actionable.
+- Tests:
+  - The test pins the step's current `verified` value with a comment, and asserts that returns'
+    `request-return` step is `unverified`.
+  - Map now requires at least one variation for a complete flow and asserts that profile's
+    variation is verified.
+  - Each surface compares the sorted flow or claim IDs with the `want` keys, not just counts.
+  - Ingest uses a dedicated Playwright header (`--runner-version 1.50.0`, no `--control`).
+  - The `filepath.Rel` error is checked, and the goal packets go through `decodePacket`.
+- Spec:
+  - The navigation wire contract states that step verification is evidence-only.
+  - The AFU-V1-039 row says the report is synthetic and that observed runs are the `NOT_RUN` items.
+  - "Both stay" becomes "All three stay".
+- `docs/specs/README.md`: the row now says S1-S6 and S8 are implemented, unqualified, with live
+  qualification `NOT_RUN`, and S7 pending. S7, the flows MCP profile, is not on this branch:
+  `cmd/corvint-mcp` has no `flows` tool profile here, so the row does not claim S1-S8. Delivery
+  stays `planned` in the spec header, `INDEX.json` and the README, which the specindex test keeps
+  in agreement.

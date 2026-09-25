@@ -446,7 +446,8 @@ This subsection fixes the S5 wire shape. It adds no requirement and no root verb
   `action`, `state`, `locator`, the flow's `preconditions`, `ready`, `input_fixture`, `expect` (the
   outcome records), `effect_class`, `effect_basis`, `recovery` and `verification`. A step is
   `verified` only when a variation that lists it has every required evidence pair verified; a step
-  with no navigation entry has no state or locator. A precondition flow that is not declared or that
+  with no navigation entry has no state or locator. Step verification is evidence-only: link review
+  state, such as `stale-link`, appears only in the flow `status`, `flows gaps` and docs claims. A precondition flow that is not declared or that
   closes a cycle refuses the map.
 - Packet: `--goal` writes `application-navigation-packet/0` with `goal`, `max_effect`, the referenced
   `states`, `flows` (each with its `status`) and `steps`: the precondition flows depth first, each
@@ -633,13 +634,13 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-036 | `TestAFUV1036DocsReplaceConfined`, `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
 | AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceBoundsIncomplete`, `TestAFUV1FlowsCLIIngest`, `TestAFUV1ReadRunEvidenceDiscipline` |
 | AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceSecretsDropped`, `TestAFUV1PlaywrightProviderScrubsEveryAttempt` (the provider receipt scrubs every attempt and the last-attempt fields); the screen runs in `EncodeRunEvidence`, the only run-evidence encoding, and `flows ingest` writes only what it encodes (`TestAFUV1FlowsCLIIngest`) |
-| AFU-V1-039 | `TestAFUV1039AcceptanceFixture` over the committed fixture `cmd/corvint/testdata/flows/acceptance` (Playwright report ingested through `flows ingest`): the UI flow `checkout` and the API flow `orders-api` are complete with every variation verified in `map`; `returns` reports exactly `unmapped-flow` and `profile` exactly `stale-link` (its evidence verified) in `gaps`; both stay `incomplete` in `map`, `gaps`, the `navigate` map and each one's `navigate --goal` packet, and `docs` renders them `UNPROVEN` and `STALE` while the two verified flows' claims are `PROVEN` |
+| AFU-V1-039 | `TestAFUV1039AcceptanceFixture` over the committed fixture `cmd/corvint/testdata/flows/acceptance` (a synthetic, hand-written Playwright report ingested through `flows ingest`; observed runs are the `NOT_RUN` live qualification items below): the UI flow `checkout` and the API flow `orders-api` are complete with every variation verified in `map`; `returns` reports exactly `unmapped-flow` and `profile` exactly `stale-link` (its evidence verified) in `gaps`; both have flow status `incomplete` (step verification is evidence-only) in `map`, `gaps`, the `navigate` map and each one's `navigate --goal` packet, and `docs` renders them `UNPROVEN` and `STALE` while the two verified flows' claims are `PROVEN` |
 | AFU-V1-040 | `TestAFUV1040SelectionCorpusReport`: the frozen corpus `cmd/corvint/testdata/e2e-safe-corpus.json` (20 labelled, fault-injected cases over five tests) and its report `cmd/corvint/testdata/e2e-safe-corpus.report.json`; `coverage` omits 15 with 0 unsafe (reduction 0.15), `reviewed-links` omits 3 with 0 unsafe (reduction 0.03), no basis withdrawn |
 
 Live qualification: the companion surfaces are qualified on Beamfall with one UI flow and one API
 flow. The Core profile is qualified by the corpus report (AFU-V1-040) plus one real change against
 the Corvint Playwright fixture suite (`conformance/interactive-alpha/fixture`) and one on Beamfall.
-Both stay `NOT_RUN` until retained. S8 status, each `NOT_RUN`:
+All three stay `NOT_RUN` until retained. S8 status, each `NOT_RUN`:
 
 - Companion surfaces on Beamfall: needs a Beamfall checkout and a networked browser E2E run.
 - Real change on `conformance/interactive-alpha/fixture`: needs a Playwright browser run.

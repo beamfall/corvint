@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -26,7 +27,10 @@ func acceptanceFiles(t *testing.T, dir, anchor string) map[string]string {
 			return err
 		}
 		raw, err := os.ReadFile(p)
-		rel, _ := filepath.Rel(dir, p)
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(dir, p)
 		files[filepath.ToSlash(rel)] = strings.ReplaceAll(string(raw), "REVIEW_ANCHOR", anchor)
 		return err
 	})
@@ -51,9 +55,7 @@ func newAcceptanceFixture(t *testing.T) (string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The shared header's control names go-test subjects the report lacks, so it attaches to no record.
-	header := shopIngestHeader(t, shopFixture{root: root, head: head})
-	code, out, diagnostic := runFlowsCLI(root, append([]string{"ingest", "--format", "playwright-json", "--from", report}, header...)...)
+	code, out, diagnostic := runFlowsCLI(root, append([]string{"ingest", "--format", "playwright-json", "--from", report}, acceptanceIngestHeader(t, root, head)...)...)
 	if code != 0 || strings.Count(out, "\n") != 3 {
 		t.Fatalf("ingest %d %q %s", code, out, diagnostic)
 	}
@@ -62,6 +64,25 @@ func newAcceptanceFixture(t *testing.T) (string, string) {
 		t.Fatal(err)
 	}
 	return root, evidence
+}
+
+// acceptanceIngestHeader is the run header of the Playwright run at head. It declares no --control.
+func acceptanceIngestHeader(t *testing.T, root, head string) []string {
+	t.Helper()
+	digest := strings.Repeat("a", 64)
+	return []string{"--run-id", "run-acceptance", "--runner-version", "1.50.0", "--source-commit", head, "--source-tree", shopGit(t, root, "rev-parse", "HEAD^{tree}"),
+		"--source-clean", "--build-artifact-digest", digest, "--environment-id", "ci", "--environment-digest", digest, "--fixture-id", "seed", "--fixture-digest", digest,
+		"--cleanup", "done"}
+}
+
+// sortedIDs returns the sorted IDs a surface reports, one per item.
+func sortedIDs[T any](items []T, id func(T) string) []string {
+	ids := []string{}
+	for _, item := range items {
+		ids = append(ids, id(item))
+	}
+	slices.Sort(ids)
+	return ids
 }
 
 func acceptanceCLI(t *testing.T, root string, v any, args ...string) string {
@@ -94,22 +115,28 @@ func TestAFUV1039AcceptanceFixture(t *testing.T) {
 		"returns":    {"incomplete", []string{"unmapped-flow"}, appflows.ClaimUnproven},
 	}
 
+	flows := slices.Sorted(maps.Keys(want))
+
 	var m appflows.MapReport
 	acceptanceCLI(t, root, &m, "map", "--flows", "flows", "--evidence", evidence)
-	if len(m.Flows) != len(want) {
-		t.Fatalf("map has %d flows", len(m.Flows))
+	if ids := sortedIDs(m.Flows, func(f appflows.MapFlow) string { return f.FlowID }); !slices.Equal(ids, flows) {
+		t.Fatalf("map flows %v", ids)
 	}
 	for _, f := range m.Flows {
-		verified := !slices.ContainsFunc(f.Variations, func(v appflows.MapVariation) bool { return !v.Verified })
+		verified := len(f.Variations) > 0 && !slices.ContainsFunc(f.Variations, func(v appflows.MapVariation) bool { return !v.Verified })
 		if f.Status != want[f.FlowID].status || (f.Status == "complete" && !verified) {
 			t.Errorf("map %s: status %s, every variation verified %v", f.FlowID, f.Status, verified)
+		}
+		// profile's stale link does not reach its variation: verification is per evidence pair.
+		if f.FlowID == "profile" && !verified {
+			t.Errorf("map profile: variation not verified: %+v", f.Variations)
 		}
 	}
 
 	var g appflows.GapsReport
 	acceptanceCLI(t, root, &g, "gaps", "--flows", "flows", "--evidence", evidence)
-	if len(g.Flows) != len(want) {
-		t.Fatalf("gaps has %d flows", len(g.Flows))
+	if ids := sortedIDs(g.Flows, func(f appflows.GapFlow) string { return f.FlowID }); !slices.Equal(ids, flows) {
+		t.Fatalf("gaps flows %v", ids)
 	}
 	for _, f := range g.Flows {
 		codes := []string{}
@@ -123,8 +150,8 @@ func TestAFUV1039AcceptanceFixture(t *testing.T) {
 
 	var n appflows.NavigationMap
 	out := acceptanceCLI(t, root, &n, "navigate", "--flows", "flows", "--evidence", evidence)
-	if len(n.Flows) != len(want) {
-		t.Fatalf("navigate has %d flows", len(n.Flows))
+	if ids := sortedIDs(n.Flows, func(f appflows.NavFlow) string { return f.FlowID }); !slices.Equal(ids, flows) {
+		t.Fatalf("navigate flows %v", ids)
 	}
 	for _, f := range n.Flows {
 		if f.Status != want[f.FlowID].status {
@@ -136,9 +163,17 @@ func TestAFUV1039AcceptanceFixture(t *testing.T) {
 			t.Errorf("navigate %s/%s: %s", step[0], step[1], tr.Verification)
 		}
 	}
+	// Current behavior, pinned: step verification is evidence-only, so profile's save-name step is
+	// verified although its source link is stale and the flow is incomplete. The stale link shows only in
+	// the flow status, gaps and the docs claim. returns has no evidence, so its step is unverified.
+	if tr := navTransition(t, out, "profile", "save-name"); tr.Verification != "verified" {
+		t.Errorf("navigate profile/save-name: %s", tr.Verification)
+	}
+	if tr := navTransition(t, out, "returns", "request-return"); tr.Verification != "unverified" {
+		t.Errorf("navigate returns/request-return: %s", tr.Verification)
+	}
 	for _, goal := range []string{"profile", "returns"} {
-		var p appflows.NavigationPacket
-		acceptanceCLI(t, root, &p, "navigate", "--flows", "flows", "--evidence", evidence, "--goal", goal)
+		p := decodePacket(t, acceptanceCLI(t, root, nil, "navigate", "--flows", "flows", "--evidence", evidence, "--goal", goal))
 		if len(p.Flows) != 1 || p.Flows[0].Status != "incomplete" {
 			t.Errorf("navigate --goal %s: %+v", goal, p.Flows)
 		}
@@ -150,8 +185,11 @@ func TestAFUV1039AcceptanceFixture(t *testing.T) {
 		t.Fatal(err)
 	}
 	var claims appflows.DocClaims
-	if err = json.Unmarshal(raw, &claims); err != nil || len(claims.Claims) != len(want) {
+	if err = json.Unmarshal(raw, &claims); err != nil {
 		t.Fatalf("claims %v %s", err, raw)
+	}
+	if ids := sortedIDs(claims.Claims, func(c appflows.DocClaim) string { return c.Flow }); !slices.Equal(ids, flows) {
+		t.Fatalf("docs claim flows %v", ids)
 	}
 	page, err := os.ReadFile(filepath.Join(root, "flows.md"))
 	if err != nil {

@@ -12,5 +12,9 @@
     {"from": "save-name", "basis": "declared", "target": {"type": "source", "path": "app/web/profile.js", "start_line": 3, "end_line": 5}, "reviewed_at": "REVIEW_ANCHOR"},
     {"from": "profile.save", "basis": "declared", "target": {"type": "test", "path": "e2e/profile.spec.ts", "test_key": "profile.spec.ts > saves"}, "reviewed_at": "REVIEW_ANCHOR"},
     {"from": "saved", "basis": "declared", "target": {"type": "assertion", "path": "e2e/profile.spec.ts", "assertion": "profile-status has text saved"}, "reviewed_at": "REVIEW_ANCHOR"}
-  ]
+  ],
+  "navigation": {
+    "precondition_flows": [],
+    "steps": [{"step_id": "save-name", "state": "/profile", "locator": {"role": "button", "name": "Save"}, "expect": ["saved"], "effect": "write-reversible"}]
+  }
 }
