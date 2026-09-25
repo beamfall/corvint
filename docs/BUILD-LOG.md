@@ -1,8 +1,8 @@
 # Build log
 
 Append-only record of material design decisions, independent findings, failed evaluations, and
-promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
-decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
+promotion evidence. Add new entries at the end so no cited line moves; each entry carries a date
+heading and its requirement or decision IDs, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
 ## 2026-09-24 0.8.1 version tuple and DCW code vocabulary (decision 0381 item 11)
 
