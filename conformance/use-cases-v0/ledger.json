@@ -176,7 +176,7 @@
         },
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/contract.json",
-          "sha256": "b739c14a5e75d78a5afd509d81d2654153eb3356c4dd141fa9250d9194da3f20"
+          "sha256": "b7bd7746f1404ca2582abcd59168d5830a8d2b63660179da9b7b7d748879fbf3"
         },
         "corvint-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/corvint-dogfood.json",
@@ -201,7 +201,7 @@
       "title": "Task orientation"
     },
     {
-      "claim": "VERIFIED",
+      "claim": "UNPROVEN",
       "evidence": {
         "beamfall-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/beamfall-dogfood.json",
@@ -209,7 +209,7 @@
         },
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/contract.json",
-          "sha256": "c4cd6c7cce3d07ca0593db10411025863ea63621003f6f775905c30a916015b6"
+          "sha256": "d22ddfcc508176dc07f0d5130eca5f9469d259d00bcf92dbaa836ead77872f10"
         },
         "corvint-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/corvint-dogfood.json",
@@ -230,11 +230,11 @@
       },
       "id": "UC-CHANGE-CONSEQUENCE",
       "job": "Identify supported affected scope for a concrete change, preserving unsupported scope and incomplete frontiers.",
-      "status": "verified",
+      "status": "experimental",
       "title": "Change consequence"
     },
     {
-      "claim": "VERIFIED",
+      "claim": "UNPROVEN",
       "evidence": {
         "beamfall-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/beamfall-dogfood.json",
@@ -242,7 +242,7 @@
         },
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/contract.json",
-          "sha256": "d752b14f918a44ab0cbc86489a36af00840b95d8ebe1802e5b84321ae8dae840"
+          "sha256": "60830a851f64aa450aeebd7ca9c14562e48281bb040d5418fc29a3a9cad8cb23"
         },
         "corvint-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/corvint-dogfood.json",
@@ -263,7 +263,7 @@
       },
       "id": "UC-EVIDENCE-CARRYING-COMPLETION",
       "job": "Bind a real committed change to CEM, OCM, checks, inspected frontier and a retained local outcome without claiming universal correctness or host authority.",
-      "status": "verified",
+      "status": "experimental",
       "title": "Evidence-carrying local completion"
     }
   ]

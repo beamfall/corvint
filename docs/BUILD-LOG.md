@@ -6414,6 +6414,31 @@ inputs.
 
 NOT_PRODUCED: promisor-missing objects are not classified. That needs a partial-clone fixture and a
 decision on lazy fetch, which conflicts with invariant 7. NOT_RUN: the exhaustive `make gate`.
+## 2026-09-25 V1-0216, V1-0341: use-case ledger clause pins and derived dogfood outcomes
+
+- V1-0216: each Core `contract` receipt bound the whole of
+  `docs/specs/daily-change-evidence-workflow-v0.md`, so any edit to that spec forced a repin. The
+  receipts now bind a clause extract (`receipts/<useCaseId>/contract/clauses.json`, profile
+  `corvint-use-case-clauses/0`). The runner checks each extract clause against the live spec
+  bullet and fails `clause-drift`, `clause-definitions-N` or `clause-coverage-mismatch`
+  (`UCV0-016`, proposed). The decision 0332 subject and the implementation and hostile-tests
+  receipts still pin whole files, which the repin script covers. Test: `TestUCV0ClausePins`.
+- V1-0341 (panel D9): the runner accepted a dogfood `PASS` token without reading the reports it
+  binds (`conformance/use-cases-v0/main.go` `attestation`). Following the owner ruling of
+  2026-09-25 (decision 0398), a `verified` row now derives each dogfood `PASS` from its retained
+  tool packet or `corvint-dogfood-change/0` report (`UCV0-014`, proposed), and a row whose bound
+  subject reproduces an open defect cannot be `verified` (`UCV0-015`, proposed, not mechanically
+  checked). `UCV0-013`'s "promotion requirements remain unchanged" is scoped to that migration.
+  The completion row fails `UCV0-014`: its reports show 0 of 13 and 0 of 4 requirements linked,
+  and the rest unknown (V1-0273). The consequence row binds the LCRES-15 impact packet of open
+  V1-0263. Both rows returned to `experimental`/`UNPROVEN` with every receipt kept. Orientation
+  stays `verified`; its packets are `READY` without abstention. Test:
+  `TestUCV0DerivedDogfoodOutcome`.
+- Set aside: coupling the runner to `.taskman/` for the open-defect rule (a ticket store is not
+  evidence), and a single-revision rule for all six receipts, which would need re-deriving every
+  receipt now; `UCV0-015` defers that to the release candidate instead.
+- Residual: `sealed-benchmark` still trusts its `outcome` token. Deriving it needs a mapping from a
+  benchmark result to a use-case row, which the fixture job lacks.
 ## 2026-09-25 V1-0272: alternates refusal names the adopter rerun
 
 - The `unsupported-object-alternates` fix line ended with `rerun make dogfood-change`, the one
