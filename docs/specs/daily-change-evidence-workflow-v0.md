@@ -215,8 +215,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   Reason: the coordinator reran query and impact against `HEAD` into the agent's receipt paths,
   truncating the base-tree receipts, and reported its own post-change output as
   `prechange-* PRODUCED`, a false provenance claim.
-  Not covered: the coordinator does not read, bind or check the tree of an agent receipt, so a
-  missing or stale agent receipt is no more visible than before (V1-0316).
+  Not covered: the coordinator does not bind the tree of an agent receipt; `DCW-V0-031` (proposed)
+  makes a missing or stale agent receipt visible (V1-0316).
   Acceptance: decision 0395 accepts this requirement and the rewording it makes to `DCW-V0-016`,
   `DCW-V0-025` and `LCP-V0-005`.
 - `DCW-V0-027`: (proposed 2026-09-25, V1-0137, not accepted) `dogfood seal` and
@@ -249,6 +249,17 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   them apart. Acceptance needs an owner decision because it amends the accepted `DCW-V0-014` rule
   that reason codes MUST NOT change, and because `local-completion-policy-v0.md`,
   `dogfood-observe` and recorded reports read `dogfood-report-drift`.
+- `DCW-V0-031`: (proposed 2026-09-25, V1-0316, not accepted) After its steps run, `dogfood change`
+  MUST print, for each of `<git-dir>/corvint/prechange-query.json` and `prechange-impact.json`,
+  `dogfood-change: NOTE NAME NOT_OBSERVED agent-receipt-absent` when the receipt is not a regular
+  file, `dogfood-change: NOTE NAME NOT_OBSERVED agent-receipt-tree-unknown` when it has no
+  `context.revision`, and `dogfood-change: NOTE NAME STALE agent-receipt-not-base-tree tree=TREE
+  base-tree=BASE_TREE` when that revision is not BASE's tree, NAME being the file name without
+  `.json`. A receipt at BASE's tree prints nothing. These lines MUST NOT change the report, its
+  rows, `"complete"` or the exit status: `DOGFOOD-002` (`docs/DOGFOOD.md`) does not require a receipt, so an absent or
+  stale one stays non-blocking unless an owner decision makes it blocking.
+  Reason: after `DCW-V0-026` the coordinator no longer overwrote the agent receipts, but a missing
+  receipt or one written against another tree was no more visible than before.
 
 ## Code vocabulary
 
@@ -344,6 +355,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-028` (proposed) | `internal/dogfoodflow/change.go` `skipOCMLinks`; the V1-0227 case of the link phase of `script/dogfood-change_test.sh` | implemented; not accepted |
 | `DCW-V0-029` (proposed) | `internal/dogfoodflow/change.go` `recordCitationBinding` and `ordinalsMoved`; `TestChangeRefusesAPlanWhoseOrdinalsMoved` and the V1-0239 `swapped-ordinals` case of `script/dogfood-change_test.sh` | implemented; not accepted |
 | `DCW-V0-030` (proposed) | none; `internal/dogfoodflow/check.go` `checkReport` still emits `dogfood-report-drift` for both cases | not implemented; needs an owner decision |
+| `DCW-V0-031` (proposed) | `internal/dogfoodflow/change.go` `noteAgentReceipts`; `TestChangeNotesAbsentOrStaleAgentReceipts`; the absent-receipt lines asserted by `TestDogfoodDailyPath*` and the DCW-V0-025 case of `script/dogfood-change_test.sh` | implemented; not accepted |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 ## Compatibility and rollback

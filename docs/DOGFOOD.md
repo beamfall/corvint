@@ -99,7 +99,8 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    local trace for its `HEAD`, and once that commit is no longer an ancestor of `HEAD` the query and
    the recorder refuse every later pass (`coordination-time-query: unsupported-query-trace-state`,
    `local-outcome: record-failed`, both reading `local trace store contains unreachable revision`).
-6. Run `make dogfood-change BASE=$BASE` again. Expected: no output, exit 0, and
+6. Run `make dogfood-change BASE=$BASE` again. Expected: no output but non-blocking `NOTE` lines
+   (section 1), exit 0, and
    `.corvint/dogfood-report.json` contains `"complete": true`. An uncited hunk instead leaves
    `cem-status: not-ready` (policy issue `max-unknown-exceeded`), preceded by
    `cem-cite: citation-plan-map-mismatch` when the plan is nonempty.
@@ -198,7 +199,11 @@ $ corvint impact PATH... --limit 10 > "$corvint_git_dir/corvint/prechange-impact
 
 `dogfood change` never writes these two receipts. It reruns query and impact after the change as
 its `coordination-time-query` and `coordination-time-impact` steps, under those file names, so the
-receipts above stay as the agent wrote them (`DCW-V0-026`, proposed).
+receipts above stay as the agent wrote them (`DCW-V0-026`). It notes, without blocking, a receipt
+that is absent (`NOTE prechange-query NOT_OBSERVED agent-receipt-absent`), carries no
+`context.revision`, or names a tree other than BASE's (`NOTE prechange-impact STALE
+agent-receipt-not-base-tree tree=... base-tree=...`), so write both before the first edit
+(`DCW-V0-031`, proposed).
 
 Use the native `corvint` runtime. `PATH...` names the tracked files the change intends to touch.
 Range impact (`corvint impact --base BASE_SHA`) is not a pre-change step: before any edit it has

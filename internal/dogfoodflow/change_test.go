@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -153,5 +154,73 @@ func TestChangeRefusesAPlanWhoseOrdinalsMoved(t *testing.T) {
 	}
 	if got := citeRow("hunk:b", "hunk:a"); !strings.Contains(got, `"reason": "citation-plan-map-mismatch"`) {
 		t.Errorf("rerun after the hunks swapped: cem-cite = %s; want citation-plan-map-mismatch", got)
+	}
+}
+
+// V1-0316: dogfood change names an agent pre-change receipt that is absent, has
+// no tree, or was written against another tree than the base; none blocks.
+func TestChangeNotesAbsentOrStaleAgentReceipts(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("base\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "a.txt")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	baseTree := testGit(t, root, "rev-parse", "HEAD^{tree}")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("changed\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "commit", "-q", "-am", "change")
+	headTree := testGit(t, root, "rev-parse", "HEAD^{tree}")
+	evidence := filepath.Join(testGit(t, root, "rev-parse", "--absolute-git-dir"), "corvint")
+	if err := os.MkdirAll(evidence, 0o777); err != nil {
+		t.Fatal(err)
+	}
+	steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int { return 1 }}
+	receipt := func(tree string) string { return `{"context":{"revision":"` + tree + `"}}` + "\n" }
+	cases := []struct {
+		name, query, impact string
+		want, absent        []string
+	}{
+		{"absent", "", "", []string{
+			"dogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-absent",
+			"dogfood-change: NOTE prechange-impact NOT_OBSERVED agent-receipt-absent",
+		}, nil},
+		{"stale and unknown", receipt(headTree), `{"code": "invalid-arguments", "ok": false}` + "\n", []string{
+			"dogfood-change: NOTE prechange-query STALE agent-receipt-not-base-tree tree=" + headTree + " base-tree=" + baseTree,
+			"dogfood-change: NOTE prechange-impact NOT_OBSERVED agent-receipt-tree-unknown",
+		}, nil},
+		{"base tree", receipt(baseTree), receipt(baseTree), nil, []string{"prechange-query", "prechange-impact"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			for name, data := range map[string]string{"prechange-query.json": tc.query, "prechange-impact.json": tc.impact} {
+				path := filepath.Join(evidence, name)
+				_ = os.Remove(path)
+				if data == "" {
+					continue
+				}
+				if err := os.WriteFile(path, []byte(data), 0o666); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var stderr bytes.Buffer
+			if _, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: steps}, &stderr); err != nil {
+				t.Fatal(err)
+			}
+			lines := strings.Split(stderr.String(), "\n")
+			for _, want := range tc.want {
+				if !slices.Contains(lines, want) {
+					t.Errorf("stderr lacks %q:\n%s", want, stderr.String())
+				}
+			}
+			for _, name := range tc.absent {
+				if strings.Contains(stderr.String(), "NOTE "+name+" ") {
+					t.Errorf("a base-tree receipt was noted:\n%s", stderr.String())
+				}
+			}
+		})
 	}
 }

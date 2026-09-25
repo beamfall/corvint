@@ -442,7 +442,7 @@ set -m
   DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" DOGFOOD_CITATIONS="$test_root/citations.tsv" \
     DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
     DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2> "$test_root/abstention-change.stderr"
-  test "$(cat "$test_root/abstention-change.stderr")" = 'dogfood-change: NOTE coordination-time-impact NOT_PRODUCED unsupported-impact-range'
+  test "$(cat "$test_root/abstention-change.stderr")" = $'dogfood-change: NOTE coordination-time-impact NOT_PRODUCED unsupported-impact-range\ndogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-absent\ndogfood-change: NOTE prechange-impact NOT_OBSERVED agent-receipt-absent'
   rg -q '"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-range"' .corvint/dogfood-report.json
   rg -Fq '{"step": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "packet-not-compiled"}]' .corvint/dogfood-report.json
   rg -q '^  ,"contextAbstentionEvidenceSha256": "sha256:[0-9a-f]{64}"$' .corvint/dogfood-report.json

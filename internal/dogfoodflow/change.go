@@ -3,6 +3,7 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -946,6 +947,36 @@ func (c *change) fixHint(row step) string {
 	return ""
 }
 
+// noteAgentReceipts reports, without blocking, an agent pre-change receipt that
+// is absent or was not written against the base tree (DCW-V0-031).
+func (c *change) noteAgentReceipts() {
+	baseTree := c.gitValue("rev-parse", c.base+"^{tree}")
+	for _, name := range []string{"prechange-query", "prechange-impact"} {
+		c.noteAgentReceipt(name, baseTree)
+	}
+}
+
+func (c *change) noteAgentReceipt(name, baseTree string) {
+	path := c.evidence + "/" + name + ".json"
+	if !isRegular(path) {
+		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-absent\n", name)
+		return
+	}
+	var receipt struct {
+		Context struct {
+			Revision string `json:"revision"`
+		} `json:"context"`
+	}
+	_ = json.Unmarshal(readFile(path), &receipt)
+	switch tree := receipt.Context.Revision; tree {
+	case baseTree:
+	case "":
+		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-tree-unknown\n", name)
+	default:
+		c.say("dogfood-change: NOTE %s STALE agent-receipt-not-base-tree tree=%s base-tree=%s\n", name, tree, baseTree)
+	}
+}
+
 // reportFailures notes an accepted impact abstention, then lists each failing
 // row with its fix and exits 1, or exits 0 when the report is complete.
 func (c *change) reportFailures() int {
@@ -954,6 +985,7 @@ func (c *change) reportFailures() int {
 			c.say("dogfood-change: NOTE coordination-time-impact NOT_PRODUCED %s\n", row.reason)
 		}
 	}
+	c.noteAgentReceipts()
 	if c.complete() {
 		return 0
 	}

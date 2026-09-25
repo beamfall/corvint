@@ -13,6 +13,12 @@ import (
 
 // portableDogfoodRepo is a Git repository that is not Corvint: no script/, no
 // VERSION and no Corvint source, only a small Go module with one intent.
+
+// absentAgentReceipts is what dogfood change notes, without blocking, when the
+// agent wrote no pre-change receipts (V1-0316).
+const absentAgentReceipts = "dogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-absent\n" +
+	"dogfood-change: NOTE prechange-impact NOT_OBSERVED agent-receipt-absent\n"
+
 func portableDogfoodRepo(t *testing.T) (string, string) {
 	t.Helper()
 	root, err := filepath.EvalSymlinks(t.TempDir())
@@ -126,7 +132,7 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
 	bind := cemGit(t, root, "rev-parse", "HEAD")
 	code, stdout, stderr = run.exec(t, root, inputs, "dogfood", "change", base)
-	if code != 0 || stdout != "" || stderr != "" {
+	if code != 0 || stdout != "" || stderr != absentAgentReceipts {
 		t.Fatalf("change exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "check", base)
@@ -190,7 +196,7 @@ func TestDogfoodDailyPathCompletesWithDeclaredNoIntent(t *testing.T) {
 		"\n  \"ocmStatus\": {\"state\": \"NOT_ASSESSED\", \"reason\": \"no-intent-declared\"}\n",
 		`"bootstrapUnknown": 0,`,
 	} {
-		if code != 0 || stdout != "" || stderr != "" || !strings.Contains(string(report), want) {
+		if code != 0 || stdout != "" || stderr != absentAgentReceipts || !strings.Contains(string(report), want) {
 			t.Fatalf("change exit=%d stderr=%s want %s in report=%s", code, stderr, want, report)
 		}
 	}
@@ -319,7 +325,7 @@ func TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot(t *
 			code, stdout, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
 			report, _ := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
 			for _, want := range []string{`"complete": true`, `{"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "` + tc.reason + `"}`} {
-				if code != 0 || stdout != "" || stderr != note || !strings.Contains(string(report), want) {
+				if code != 0 || stdout != "" || stderr != note+absentAgentReceipts || !strings.Contains(string(report), want) {
 					t.Fatalf("change exit=%d stderr=%s want %s in report=%s", code, stderr, want, report)
 				}
 			}
