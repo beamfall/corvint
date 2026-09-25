@@ -11,6 +11,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
@@ -1873,7 +1874,8 @@ func countLines(content []byte) int {
 // hermeticGitCommand is the one Git read shape in cmd/corvint (FPK-V0-052):
 // the -c set of internal/contextindex gitRaw plus core.hooksPath, so no
 // repository-configured program runs; replace refs ignored, so cited bytes are
-// the named objects; discovery stops at root's parent.
+// the named objects. Discovery stops at root's parent only when root holds its own
+// .git entry; a subdirectory root still reaches its enclosing worktree.
 func hermeticGitCommand(ctx context.Context, gitExecutable, root string, arguments ...string) *exec.Cmd {
 	prefix := []string{"--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false",
 		"-c", "core.excludesFile=", "-c", "credential.helper=", "-c", "submodule.recurse=false",
@@ -1882,7 +1884,10 @@ func hermeticGitCommand(ctx context.Context, gitExecutable, root string, argumen
 	command.Env = []string{
 		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
 		"GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1",
-		"GIT_NO_REPLACE_OBJECTS=1", "GIT_CEILING_DIRECTORIES=" + filepath.Dir(root), "LANG=C", "LC_ALL=C",
+		"GIT_NO_REPLACE_OBJECTS=1", "LANG=C", "LC_ALL=C",
+	}
+	if _, err := os.Lstat(filepath.Join(root, ".git")); err == nil {
+		command.Env = append(command.Env, "GIT_CEILING_DIRECTORIES="+filepath.Dir(root))
 	}
 	return command
 }

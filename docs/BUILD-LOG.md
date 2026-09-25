@@ -6177,12 +6177,14 @@ Decisions:
   `cmd/corvint`. The `-c` set mirrors `internal/contextindex` `gitRaw` and
   `internal/liveverify/affected` `boundedGitRunner`, because neither package exports it. It adds
   `core.hooksPath=/dev/null`, as `source_handoff.go` does, since the panel named hooks in the same
-  class. The environment adds `GIT_NO_REPLACE_OBJECTS=1` and sets `GIT_CEILING_DIRECTORIES` to the
-  root's parent. For `prove` and `affected`, the root is already the repository root that
-  `affected.DirtyPaths` reads under the same ceiling. The compaction root is `CLAUDE_PROJECT_DIR`,
-  which can be a subdirectory of the repository. Under the ceiling, a pin check from such a
-  directory now degrades as `compaction-pin-verification-unavailable`. A manual `git cat-file`
-  from a subdirectory under that ceiling confirmed the Git failure. The hook itself was not run.
+  class. The environment adds `GIT_NO_REPLACE_OBJECTS=1`, and sets `GIT_CEILING_DIRECTORIES` to the
+  root's parent only when the root holds its own `.git` entry. The compaction root is
+  `CLAUDE_PROJECT_DIR`, which can be a subdirectory of the repository. The first cut set the ceiling
+  unconditionally, so a pin check from such a directory degraded as
+  `compaction-pin-verification-unavailable`. `TestCompactionPinVerifiesFromSubdirectoryRoot`
+  reproduced that failure. It passes now that a subdirectory root keeps normal discovery up to its
+  enclosing worktree. Resolving `--show-toplevel` first was set aside: a ceiling above a top level
+  found by unbounded discovery restricts nothing, and it costs one more process per read.
 - `source_handoff.go` is left out because it has its own pinned `/usr/bin/git` option list
   (`--no-replace-objects`, `core.fsmonitor=false`, `core.hooksPath=/dev/null`). `work_runner.go` and
   `work_executable_binding.go` are also left out because they run operator-declared commands, not

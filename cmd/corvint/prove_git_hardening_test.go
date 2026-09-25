@@ -164,3 +164,20 @@ func TestAffectedBaseRangeIgnoresReplaceObjects(t *testing.T) {
 		t.Fatalf("replace ref changed the committed range: %v", paths)
 	}
 }
+
+// FPK-V0-052: the discovery ceiling never hides the enclosing worktree, so the
+// compaction pin check still verifies when CLAUDE_PROJECT_DIR is a subdirectory.
+func TestCompactionPinVerifiesFromSubdirectoryRoot(t *testing.T) {
+	t.Parallel()
+	root, _ := gitHardeningRepository(t)
+	subdirectory := filepath.Join(root, "sub")
+	if err := os.Mkdir(subdirectory, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	revisionMissing, missing, reason := compactionPinMissing(context.Background(), subdirectory,
+		compactionPin{Revision: head, Paths: []string{"a.go"}})
+	if reason != "" || revisionMissing || len(missing) != 0 {
+		t.Fatalf("subdirectory root: reason %q revisionMissing %v missing %v", reason, revisionMissing, missing)
+	}
+}
