@@ -126,8 +126,26 @@ func playwrightOutcome(spec playwrightSpec, t playwrightTest) TestOutcome {
 			outcome.Artifacts = append(outcome.Artifacts, FailureArtifact{Name: a.Name, Path: a.Path})
 		}
 	}
+	for i := range t.Results {
+		outcome.AttemptDetails = append(outcome.AttemptDetails, playwrightAttemptDetail(&t.Results[i]))
+	}
 	outcome.State = playwrightState(t, last, outcome.FailureMessage)
 	return outcome
+}
+
+// playwrightAttemptDetail keeps one attempt as Playwright reported it, so a retry does not erase
+// the earlier attempt's duration, failure, anchor or attachments (AFU-V1-012).
+func playwrightAttemptDetail(r *playwrightResult) AttemptDetail {
+	detail := AttemptDetail{State: ExecutionState(r.Status), Retry: r.Retry, DurationMS: r.Duration}
+	msg, loc := lastFailureDetail(r)
+	detail.FailureMessage = msg
+	if loc != nil {
+		detail.Anchor = &Anchor{File: loc.File, Line: loc.Line}
+	}
+	for _, a := range r.Attachments {
+		detail.Artifacts = append(detail.Artifacts, FailureArtifact{Name: a.Name, Path: a.Path})
+	}
+	return detail
 }
 
 // playwrightState classifies from the last attempt's own result.status

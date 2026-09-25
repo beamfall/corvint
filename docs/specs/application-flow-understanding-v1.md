@@ -53,9 +53,10 @@ At `978b37b`:
   (`internal/extevidence/selection.go:820-833@bae209bb`). It proves nothing about the tests it did
   not select, and says so (`internal/extevidence/selection.go:874@5368f5ce`).
 - The Playwright reader derives `flaky` from every attempt's status
-  (`internal/jstestprovider/playwright.go:151-158@f01509c4`), but keeps the duration, failure
-  message, anchor and attachments of the last attempt only, so earlier attempts' detail is lost
-  (`internal/jstestprovider/playwright.go:113-130@9632fff8`).
+  (`internal/jstestprovider/playwright.go:169-176@f01509c4`). Since S2 it keeps every attempt's
+  duration, failure message, anchor and attachments in memory
+  (`internal/jstestprovider/playwright.go:129-131@9ab61026`), but the receipt still carries the last
+  attempt's detail only (`internal/jstestprovider/receipt.go:61-67@cbf0055a`).
 - The issue-53 adapter reconciles flows, variations, tests and assertions in both directions, and
   never has narrowing authority (`docs/specs/documentation-corpus-v1.md:191-196@cea38e20`).
 
@@ -197,6 +198,51 @@ This subsection fixes the S1 wire and argv shapes. It adds no requirement and no
 - `AFU-V1-014`: Ingested evidence has authority `INGESTED`. Evidence that Corvint's own observer
   produced (AFU-V0-010) has `LOCALLY_OBSERVED`. A source mapping alone is `STATIC`, and a `STATIC`
   row MUST NOT be shown as verified.
+
+### Run-evidence wire contract
+
+This subsection fixes the S2 wire shape. It adds no requirement and no root verb.
+
+- Record: the closed members are `schema` (`test-run-evidence/0`), `authority`, `run_id`, `runner`
+  (`name`, `version`), `source` (`commit`, `tree`, `clean`), `build_artifact_digest`, `environment`
+  and `fixture` (`id`, `digest`), `test_key`, the optional `project`, `attempts`, `cleanup` and
+  `negative_controls` (`test_key`, `expected`, `observed`). An attempt has `ordinal` (1..n in run
+  order), `outcome`, `duration_ms`, `assertion_anchors` (`path`, `line`), the optional `failure` and
+  `attachments` (`name`, `path`; a path pointer, never content). The encoding is compact JSON with a
+  trailing newline, and decode accepts only that canonical encoding. A `STATIC` record carries only
+  the test key: no run header, attempt or negative control, and cleanup `not-declared`.
+- Classification: a test's result is its last attempt's outcome, except that a passed last attempt
+  after a failed or timed-out one is `flaky` through the shared TCQ-V0-049 rule; a test with no
+  attempt is `not-run`. A negative control's `observed` is that classification of the control test in
+  the same report. A record is verified only when it is not `STATIC`, its result is `passed`, cleanup
+  is `done` and every control observed its expected outcome. A Playwright `passed` result is recorded
+  as a `failed` attempt, with the reason as its failure, when the test's `expectedStatus` is not
+  `passed` (`test.fail()`) or, for its last result, when Playwright marked the test `unexpected`; so
+  such a test is never `passed` or verified. A `test.fail()` test that fails as expected keeps its
+  `failed` attempt and is classified `failed`, never verified, although Playwright counts it green.
+- Ingest formats are `playwright-json`, `junit-xml` and `go-test-json`; the caller supplies the run
+  header the report does not carry. Playwright keeps one attempt per `results[]` entry. JUnit keeps
+  each `flakyFailure` or `flakyError` as an earlier failed attempt before a final pass, and each
+  `rerunFailure` or `rerunError` as a later failed attempt after the first `failure` or `error`;
+  `[[ATTACHMENT|path]]` markers in `system-out` are the attachments. `go test -json` keeps each run of
+  a test as an attempt, with each `file_test.go:line:` report as an assertion anchor; a test with no
+  terminal event is `timedOut` when its package hit the test timeout and `interrupted` otherwise.
+- The byte bound, and for JSON reports the depth pre-scan, run on the raw report before decode. The
+  record, attempt and link counts, and the JUnit depth, run during the walk before an item is kept;
+  a Playwright report is counted after it decodes, which the byte bound caps. Any exceeded bound,
+  including an encoded record over the byte bound, makes the whole ingest incomplete, with no
+  record, under one code: `run-evidence-byte-bound`, `run-evidence-record-bound` (8192 tests),
+  `run-evidence-attempt-bound` (32 attempts), `run-evidence-link-bound` (256 anchors and attachments
+  per attempt) or `run-evidence-traversal-bound` (depth 64).
+- Hygiene runs before encoding and fails safe. A failure line is replaced by a drop marker when it
+  contains, anywhere and in any case, `cookie`, `authorization`, `bearer`, `token`, `secret`,
+  `password` or `passwd`, `api-key`, `csrf`, `session`, `credential` or a `basic` credential. A
+  request or response body marker (`request:`, `response body:` and the like) anywhere in a line cuts
+  the detail there: the text before it is kept, screened the same way, then the drop marker, and
+  nothing after it. Attachments without a path, named for cookies, authorization, tokens, secrets,
+  passwords, sessions, credentials, requests, responses, bodies or storage state, or pointing at a
+  HAR file are dropped. Encoding then refuses secret-shaped content and a record over the byte bound,
+  so no ingest returns a record that could not be written.
 
 ### Queries
 
@@ -372,15 +418,18 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-008 | `TestAFUV1ReviewAnchorValidAndStale`, `TestAFUV1ReviewAnchorNotAncestor`, `TestAFUV1ReviewAnchorMustChangeIntent`, `TestAFUV1InferredExcludedFromReviewed`, `TestAFUV1ReviewLinkMustExistAtAnchor`, `TestAFUV1ReviewEvidenceTargetUnavailable`, `TestAFUV1ReviewContentIdentityRestoredTarget`; partial: library evaluation plus the provider record, text report and denominator CLI surface in S3 |
 | AFU-V1-009 | `TestAFUV1InferredExcludedFromReviewed`; partial: `Summarize` is library-only, CLI surface in S3 |
 | AFU-V1-010 | `TestAFUV1ReverseLookupsDerived`, `TestAFUV1ExportLeavesRepositoryByteIdentical`, `TestAFUV1FlowsCLIExportIsReadOnly`; partial: reverse lookups are library-only, CLI surface in S3 |
-| AFU-V1-011..014 | adapter fixtures with a retry-passed test, a timed-out attempt and a failed negative control |
+| AFU-V1-011 | `TestAFUV1RunEvidenceClosedSchema`, `TestAFUV1NegativeControlFailed` |
+| AFU-V1-012 | `TestAFUV1PlaywrightAdapterKeepsEveryAttempt`, `TestAFUV1JUnitAdapterKeepsEveryAttempt`, `TestAFUV1GoTestAdapterKeepsEveryAttempt`, `TestAFUV1PlaywrightProviderKeepsEveryAttempt`; partial: the Playwright provider keeps every attempt in memory (`TestOutcome.AttemptDetails`), but the `corvint-js-test-provider` receipt wire still carries only the last attempt's detail |
+| AFU-V1-013 | `TestAFUV1FailedAttemptThenPassIsFlaky`, `TestAFUV1PlaywrightUnexpectedNeverPassed`, the retry-passed case of each adapter test; partial: per-test classification only, aggregation of repeated runs under the DCP-V1-023 counters and DCP-V1-024 policy needs the `internal/doccorpus` stability counting exposed for `test-run-evidence/0` records |
+| AFU-V1-014 | `TestAFUV1StaticNeverVerified`, `TestAFUV1PlaywrightUnexpectedNeverPassed`; partial: ingest emits `INGESTED` and the schema accepts `LOCALLY_OBSERVED`, but the AFU-V0-010 observer does not yet emit run-evidence records |
 | AFU-V1-015..018 | map, gaps and impact goldens on the fixture application, and the read-only mutation check |
 | AFU-V1-019..024 | the fault-injected corpus reported per basis, one case per fallback code, an undiscovered-test case, the byte identity of `strict` and `coverage` |
 | AFU-V1-025..029 | navigation goldens, effect raising from observed traffic, `requires-grant` marking, the observer refusal, and a deterministic scripted agent that completes each fixture goal from the packet alone |
 | AFU-V1-030..033 | docs goldens, drift failure on a lost `PROVEN`, waiver expiry, the anchored Markdown case |
 | AFU-V1-034..035 | MCP conformance with and without the selector |
 | AFU-V1-036 | `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
-| AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`; run-evidence attempt bounds in S2 |
-| AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`; recorded run evidence in S2 |
+| AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceBoundsIncomplete` |
+| AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceSecretsDropped`; the screen runs in `EncodeRunEvidence`, the only run-evidence encoding, and the writer arrives with the S3 command surface |
 | AFU-V1-039..040 | the committed acceptance fixture and the frozen corpus report |
 
 Live qualification: the companion surfaces are qualified on Beamfall with one UI flow and one API
@@ -394,7 +443,9 @@ Slices, each its own change with tests:
 
 1. S1 is the intent model, export and import, review anchors, and the two input and output hardening
    fixes (AFU-V1-001..010, 036).
-2. S2 is run evidence and the three adapters (AFU-V1-011..014, 037, 038).
+2. S2 is run evidence and the three adapters (AFU-V1-011..014, 037, 038). It delivered the record,
+   the adapters, the bounds and the hygiene; the AFU-V1-012..014 remainders named in the matrix stay
+   open.
 3. S3 is `map`, `gaps` and `impact`, and the `/2` behavior provider (AFU-V1-006, 015..018).
 4. S4 is the Core `e2e-safe` profile and its corpus (AFU-V1-019..024, 040).
 5. S5 is the navigation map (AFU-V1-025..029).
@@ -417,7 +468,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-008..010 | partial, CLI surface in S3: `internal/appflows/review.go` (`EvaluateLinks`, `Summarize`, `FlowsForPath`, `FlowsForTestKey`); the CLI exposes only the provider record |
 | AFU-V1-015..018, 025..033 | `internal/appflows`, `cmd/corvint/flows.go` |
 | AFU-V1-006 | `internal/doccorpus/behavior.go` |
-| AFU-V1-011..014 | `internal/appflows` evidence, `internal/jstestprovider/playwright.go` |
+| AFU-V1-011..014 | implemented, 012..014 partial (see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/jstestprovider/playwright.go` |
 | AFU-V1-019..024 | `internal/extevidence/selection.go`, `cmd/corvint/affected.go` |
 | AFU-V1-034..035 | `internal/mcp`, `cmd/corvint-mcp` |
 

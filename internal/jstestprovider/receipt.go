@@ -62,6 +62,19 @@ type TestOutcome struct {
 	Anchor         *Anchor           `json:"anchor,omitempty"`
 	FailureMessage string            `json:"failureMessage,omitempty"`
 	Artifacts      []FailureArtifact `json:"artifacts,omitempty"`
+	// AttemptDetails keeps every Playwright attempt in run order (AFU-V1-012). It is in-memory only:
+	// the receipt wire keeps the last-attempt fields above, and the sensitive-input boundary drops it.
+	AttemptDetails []AttemptDetail `json:"-"`
+}
+
+// AttemptDetail is one attempt's outcome, duration, failure, anchor and attachments.
+type AttemptDetail struct {
+	State          ExecutionState
+	Retry          int
+	DurationMS     float64
+	FailureMessage string
+	Anchor         *Anchor
+	Artifacts      []FailureArtifact
 }
 
 // BrowserStep is the bounded action trace retained by the redaction-capable

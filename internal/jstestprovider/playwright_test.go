@@ -2,6 +2,7 @@ package jstestprovider
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -143,5 +144,34 @@ func TestParsePlaywrightJSON_EmptyReport(t *testing.T) {
 	}
 	if infra.Reason != "no-suites-collected" {
 		t.Fatalf("want reason no-suites-collected, got %q", infra.Reason)
+	}
+}
+
+// AFU-V1-012
+func TestAFUV1PlaywrightProviderKeepsEveryAttempt(t *testing.T) {
+	var flaky TestOutcome
+	for _, o := range loadPW(t, "playwright-mixed.json") {
+		if o.Name == "flaky once then passes on retry" {
+			flaky = o
+		}
+	}
+	if flaky.State != StateFlaky || len(flaky.AttemptDetails) != 2 {
+		t.Fatalf("want a flaky test with two attempts, got %s with %d", flaky.State, len(flaky.AttemptDetails))
+	}
+	first, second := flaky.AttemptDetails[0], flaky.AttemptDetails[1]
+	if first.State != StateFailed || first.Retry != 0 || first.DurationMS != 112 {
+		t.Fatalf("first attempt lost its outcome or duration: %+v", first)
+	}
+	if !strings.Contains(first.FailureMessage, "fails on first attempt only") || first.Anchor == nil || first.Anchor.Line != 36 {
+		t.Fatalf("first attempt lost its failure or anchor: %+v", first)
+	}
+	if len(first.Artifacts) != 3 || first.Artifacts[0].Name != "screenshot" || first.Artifacts[2].Name != "trace" {
+		t.Fatalf("first attempt lost its attachments: %+v", first.Artifacts)
+	}
+	if second.State != StatePassed || second.Retry != 1 || second.DurationMS != 99 || second.FailureMessage != "" || len(second.Artifacts) != 0 {
+		t.Fatalf("second attempt: %+v", second)
+	}
+	if flaky.DurationMS != 99 || flaky.FailureMessage != "" {
+		t.Fatalf("last-attempt receipt fields changed: %+v", flaky)
 	}
 }
