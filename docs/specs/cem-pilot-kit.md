@@ -135,13 +135,14 @@ within 15 minutes.
 - `CEM-PILOT-017`: every Git subprocess MUST ignore ambient repository/config redirection. Patch
   producers MUST stop at a hard byte ceiling, and machine-readable next actions MUST be argv arrays
   rather than executable shell strings.
-- `CEM-PILOT-018`: when prepare refuses an existing map under `CEM-PILOT-002`, the untyped
+- `CEM-PILOT-018`: when prepare refuses an existing map under `CEM-PILOT-002`, the
   `cannot read CEM map` refusal MUST append exactly one bounded, source-content-free recovery line
   after `: `: `the existing map records a different base or patch; pass --replace to regenerate` for
   a base or patch mismatch, or `the existing map is not a valid CEM document; pass --replace to
   regenerate` for an unparseable map, never the parser detail. An absent or unreadable map MUST keep
   the fixed `cannot read CEM map` text byte-for-byte. Exit status and error code are unchanged
-  (decision 0092).
+  (decision 0092). (proposed, decision 0398) The refusal also carries `code` `map-unavailable`
+  (CCF-V1-004).
 - `CEM-PILOT-019`: `cem verify` same-path drift MUST use only the five frozen statuses. A target entry
   whose blob OID equals the evidence `blobOid` MUST be `stable` whatever its mode. A target entry with
   a different OID that is not a regular-file blob (mode `100644` or `100755`), such as a symlink,

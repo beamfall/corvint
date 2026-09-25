@@ -725,13 +725,20 @@ func testFreshProcessCLICompatibilityEdgesHaveStableNativeResults(t *testing.T) 
 	}
 }
 
-func TestRepositoryFailureEnvelopeMatchesPythonShape(t *testing.T) {
+// CCF-V1-004 (proposed, decision 0398): a repository or object-format refusal
+// keeps the oracle's message and adds its optional code.
+func TestRepositoryFailureEnvelopeCarriesItsCode(t *testing.T) {
 	t.Parallel()
-	var stderr bytes.Buffer
-	emitError(&stderr, &gokernel.Error{Code: "repository-probe-failed", Message: "Git error: canary failure"})
-	want := "{\"error\": \"Git error: canary failure\", \"ok\": false}\n"
-	if stderr.String() != want {
-		t.Fatalf("stderr=%q, want %q", stderr.String(), want)
+	for _, failure := range []*gokernel.Error{
+		{Code: "repository-probe-failed", Message: "Git error: canary failure"},
+		{Code: "unsupported-git-object-format", Message: "unsupported Git object format: sha256"},
+	} {
+		var stderr bytes.Buffer
+		emitError(&stderr, failure)
+		want := "{\"code\": \"" + failure.Code + "\", \"error\": \"" + failure.Message + "\", \"ok\": false}\n"
+		if stderr.String() != want {
+			t.Fatalf("stderr=%q, want %q", stderr.String(), want)
+		}
 	}
 }
 

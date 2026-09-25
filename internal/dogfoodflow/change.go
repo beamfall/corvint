@@ -106,7 +106,7 @@ func (c *change) run() int {
 	c.runStep("coordination-time-query", c.evidence+"/coordination-time-query.json", "query", "--task", task, "--limit", "1")
 	c.prechangeImpact()
 	c.prepare("cem-prepare", c.evidence+"/cem-prepare.json", func(status int, stderr []byte, reason string) bool {
-		return status == 2 && chomp(string(stderr)) == outdatedCEMMap
+		return status == 2 && outdatedCEMMaps[chomp(string(stderr))]
 	}, "cem", "prepare", "--base", c.base, "--target", c.target)
 	// The manifest is frozen before citation so the plan check knows which
 	// base-absent intent hunks an author may deliberately leave uncited.
@@ -179,7 +179,13 @@ func (c *change) runStep(name, output string, args ...string) int {
 	return status
 }
 
-const outdatedCEMMap = `{"error": "cannot read CEM map: the existing map records a different base or patch; pass --replace to regenerate", "ok": false}`
+// outdatedCEMMaps are the exact outdated-map refusals: the coded form a current
+// binary prints (CCF-V1-004, proposed under decision 0398) and the codeless form
+// an N-1 --corvint-bin still prints.
+var outdatedCEMMaps = map[string]bool{
+	`{"code": "map-unavailable", "error": "cannot read CEM map: the existing map records a different base or patch; pass --replace to regenerate", "ok": false}`: true,
+	`{"error": "cannot read CEM map: the existing map records a different base or patch; pass --replace to regenerate", "ok": false}`:                            true,
+}
 
 // prepare derives a CEM or OCM map and regenerates it with --replace only after
 // the exact outdated-map refusal: every rebind after a sidecar commit finds an

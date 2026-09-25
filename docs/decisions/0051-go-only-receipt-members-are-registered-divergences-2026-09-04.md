@@ -21,7 +21,7 @@ record authorizes the shape, not the adjudication.
    `GPK-V0-040`'s denomination rule to exclusions. The oracle never counts them.
 2. For a null budget the oracle emits `"uncertainty":[]` and the Go candidate today says
    "omitted by packet budget", the candidate fragment `DR-0009` pins
-   (`conformance/cli-parity-v0/manifest.json:3552@f1a2ef9a`, `manifest.go:713`). The candidate wording
+   (`conformance/cli-parity-v0/manifest.json:3576@f1a2ef9a`, `manifest.go:713`). The candidate wording
    changes to "omitted by result limit"; `DR-0024` amends `DR-0009`'s pinned candidate fragment
    and the manifest constant to the new wording, and the rewrite is composed as oracle `[]` to
    the candidate line, never as a phrase replacement inside oracle bytes.

@@ -251,10 +251,10 @@ CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	37	The Core command set MU
 CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	44	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout
 CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	85	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised
 CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	95	A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line bu
-CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	123	The admission, freshness, omission and abstention members MUST keep their names,
-CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	140	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
-CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	150	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	205	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
+CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	133	The admission, freshness, omission and abstention members MUST keep their names,
+CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	150	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
+CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	160	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	215	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa
@@ -346,16 +346,16 @@ CEM-PILOT-014	docs/specs/cem-pilot-kit.md	120	a clean local install plus prepare
 CEM-PILOT-015	docs/specs/cem-pilot-kit.md	130	all CLI operations MUST emit deterministic JSON envelopes and stable non-zero
 CEM-PILOT-016	docs/specs/cem-pilot-kit.md	132	Corvint repository changes MUST use the public CEM workflow itself and retain a
 CEM-PILOT-017	docs/specs/cem-pilot-kit.md	135	every Git subprocess MUST ignore ambient repository/config redirection. Patch
-CEM-PILOT-018	docs/specs/cem-pilot-kit.md	138	when prepare refuses an existing map under `CEM-PILOT-002`, the untyped
-CEM-PILOT-019	docs/specs/cem-pilot-kit.md	145	`cem verify` same-path drift MUST use only the five frozen statuses. A target en
-CEM-PILOT-020	docs/specs/cem-pilot-kit.md	155	(proposed; accepted with decision 0356) the portable CI example
-CEM-PILOT-021	docs/specs/cem-pilot-kit.md	161	(proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSO
-CEM-PILOT-022	docs/specs/cem-pilot-kit.md	167	(proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
-CEM-PILOT-023	docs/specs/cem-pilot-kit.md	174	(proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
-CEM-PILOT-024	docs/specs/cem-pilot-kit.md	182	`examples/cem/recipes/` MUST ship three ordinary Bash scripts, each composing
-CEM-PILOT-025	docs/specs/cem-pilot-kit.md	188	`examples/cem/recipes/README.md` MUST state for each recipe its supported inputs
-CEM-PILOT-026	docs/specs/cem-pilot-kit.md	191	a recipe MUST NOT convert a refusal or uncertainty into success. Understand and
-CEM-PILOT-027	docs/specs/cem-pilot-kit.md	197	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`
+CEM-PILOT-018	docs/specs/cem-pilot-kit.md	138	when prepare refuses an existing map under `CEM-PILOT-002`, the
+CEM-PILOT-019	docs/specs/cem-pilot-kit.md	146	`cem verify` same-path drift MUST use only the five frozen statuses. A target en
+CEM-PILOT-020	docs/specs/cem-pilot-kit.md	156	(proposed; accepted with decision 0356) the portable CI example
+CEM-PILOT-021	docs/specs/cem-pilot-kit.md	162	(proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSO
+CEM-PILOT-022	docs/specs/cem-pilot-kit.md	168	(proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
+CEM-PILOT-023	docs/specs/cem-pilot-kit.md	175	(proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
+CEM-PILOT-024	docs/specs/cem-pilot-kit.md	183	`examples/cem/recipes/` MUST ship three ordinary Bash scripts, each composing
+CEM-PILOT-025	docs/specs/cem-pilot-kit.md	189	`examples/cem/recipes/README.md` MUST state for each recipe its supported inputs
+CEM-PILOT-026	docs/specs/cem-pilot-kit.md	192	a recipe MUST NOT convert a refusal or uncertainty into success. Understand and
+CEM-PILOT-027	docs/specs/cem-pilot-kit.md	198	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`
 CEM-SM-001	docs/specs/cem-0.3-structural-mechanical.md	41	`cem/0.3` MUST be the `cem/0.2` wire shape plus the four structural reasons.
 CEM-SM-002	docs/specs/cem-0.3-structural-mechanical.md	44	The verifier MUST prove a structural reason from the base blob at `baseRevision`
 CEM-SM-003	docs/specs/cem-0.3-structural-mechanical.md	48	For `rename`, `import-reorder`, and `formatter-only` the image MUST be the hunk

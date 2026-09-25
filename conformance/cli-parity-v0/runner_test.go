@@ -102,6 +102,8 @@ func testGPKV0002ManifestReplay(t *testing.T) {
 		"PASS migrate-traces-mode-required\n",
 		"PASS-WITH-ACCEPTED-DIVERGENCE migrate-traces-plan-digest-mismatch oracle-only-created-path=.context-atlas/traces/.trace-operation.lock",
 		"PASS-WITH-KNOWN-DIVERGENCE cem-invalid-subcommand register=DR-0040 clause=TCQ-V0-051 rewrites=1",
+		"PASS-WITH-KNOWN-DIVERGENCE cem-begin-unreadable-patch register=DR-0041 clause=CCF-V1-004 rewrites=1",
+		"PASS-WITH-KNOWN-DIVERGENCE cem-unreadable-map register=DR-0041 clause=CCF-V1-004 rewrites=1",
 		"PASS-WITH-KNOWN-DIVERGENCE cem-mark-invalid-reason register=DR-0039 clause=CEM-SM-001 rewrites=1",
 		"PASS-WITH-KNOWN-DIVERGENCE query-clean-authority-start register=DR-0023 clause=GPK-V0-063 rewrites=1",
 		"PASS-WITH-KNOWN-DIVERGENCE query-repository-budget-selection register=DR-0023 clause=GPK-V0-063 rewrites=1",
@@ -150,7 +152,7 @@ func testGPKV0002ManifestReplay(t *testing.T) {
 		"PASS query-authority-start-limit-51\n",
 		"PASS-WITH-KNOWN-DIVERGENCE query-authority-start-non-ascii register=DR-0023 clause=GPK-V0-063 rewrites=1",
 		"PASS-WITH-KNOWN-DIVERGENCE query-repository-non-ascii register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"SUMMARY parity=104 retired=29 identity-renames=10 accepted-divergences=3 known-divergences=26 location-normalizations=1 structural-fields=0 unsupported-refusals=1 retired-refusals=2 full-gpk-v0-005=PARTIAL detached-descendants=NOT_RUN\n",
+		"SUMMARY parity=104 retired=29 identity-renames=10 accepted-divergences=3 known-divergences=28 location-normalizations=1 structural-fields=0 unsupported-refusals=1 retired-refusals=2 full-gpk-v0-005=PARTIAL detached-descendants=NOT_RUN\n",
 	} {
 		if !strings.Contains(output.String(), line) {
 			t.Fatalf("replay output missing %q:\n%s", line, &output)

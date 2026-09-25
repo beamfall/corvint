@@ -214,6 +214,33 @@ func TestDogfoodDailyPathCompletesWithDeclaredNoIntent(t *testing.T) {
 	}
 }
 
+// Decision 0398: a later fix commit leaves the prepared map outdated, and the
+// change pass regenerates it on the coded outdated-map refusal (CCF-V1-004).
+func TestDogfoodChangeRegeneratesAMapTheNextFixCommitOutdates(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	inputsDir := t.TempDir()
+	citations := filepath.Join(inputsDir, "citations.tsv")
+	intents := filepath.Join(inputsDir, "intents")
+	for path, content := range map[string]string{citations: "1\tintent.md\t1:5\tspecification\n", intents: "intent.md\n"} {
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
+	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 {
+		t.Fatalf("first pass exit=%d stderr=%s", code, stderr)
+	}
+	cemWrite(t, root, "fixture/fixture.go", "package fixture\nfunc Answer() int { return 1 + 1 }\n")
+	cemGit(t, root, "commit", "-qam", "second fix")
+	run.exec(t, root, inputs, "dogfood", "change", base)
+	report, _ := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
+	if !strings.Contains(string(report), `{"name": "cem-prepare", "status": "PRODUCED", "reason": "none"}`) {
+		t.Fatalf("outdated map was not regenerated: %s", report)
+	}
+}
+
 // DCW-V0-019: cem cite only adds evidence, so a corrected plan joins the resumed
 // map's earlier citations; the pass names the delete-and-rerun step, which
 // leaves only the corrected plan's citation.
