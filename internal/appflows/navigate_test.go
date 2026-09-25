@@ -14,7 +14,7 @@ func navSample(id string, pre ...string) FlowIntent {
 	f := sampleIntent(id)
 	f.Navigation = &FlowNavigation{PreconditionFlows: append([]string{}, pre...), Steps: []NavStep{
 		{StepID: "open", State: "/cart", Locator: NavLocator{Role: "link", Name: "Cart"}, Expect: []string{}, Effect: EffectRead},
-		{StepID: "pay", State: "/cart", Locator: NavLocator{TestID: "pay"}, Ready: &NavLocator{TestID: "cart"}, Expect: []string{"paid"}, Recovery: "open"},
+		{StepID: "pay", State: "/cart", Locator: NavLocator{TestID: "pay"}, Ready: &NavLocator{TestID: "cart"}, Expect: []string{"paid"}},
 	}}
 	return f
 }
@@ -73,6 +73,8 @@ func TestAFUV1026NavigationLocatorShapes(t *testing.T) {
 		"literal fixture":    func(n *FlowNavigation) { n.Steps[0].InputFixture = "pass word" },
 		"unknown effect":     func(n *FlowNavigation) { n.Steps[0].Effect = "write" },
 		"self recovery":      func(n *FlowNavigation) { n.Steps[1].Recovery = "pay" },
+		"earlier recovery":   func(n *FlowNavigation) { n.Steps[1].Recovery = "open" },
+		"path recovery":      func(n *FlowNavigation) { n.Steps[0].Recovery = "pay" },
 		"self precondition":  func(n *FlowNavigation) { n.PreconditionFlows = []string{"checkout"} },
 		"invalid flow id":    func(n *FlowNavigation) { n.PreconditionFlows = []string{"Sign In"} },
 		"repeated condition": func(n *FlowNavigation) { n.PreconditionFlows = []string{"a", "a"} },

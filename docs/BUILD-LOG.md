@@ -5807,3 +5807,11 @@ packet alone it completes each of the five mapped fixture goals, including one r
 no write under the default `read`, and it cannot start the unmapped goal. A negative control was run
 once and reverted: with raising and grant marking disabled, both AFU-V1-027 tests and the two
 AFU-V1-028 packet and agent tests failed. No live observer qualification exists (`NOT_RUN`).
+
+Review repair (same slice): the packet moved every step another step names as `recovery` out of
+the path. So `pay` with recovery `open` dropped the path step `open`, and mutual recovery emptied the
+path. An intent now refuses a recovery that is not a later step in intent order or that some
+variation lists. Recovery targets therefore sit off every declared path, and no cycle can form. The
+unit sample dropped its backward recovery. `earlier recovery` and `path recovery` joined the
+AFU-V1-026 refusal cases. Bounds on the `--traffic` file count and on the quadratic per-step filter
+stay follow-ups: the total record bound caps both.

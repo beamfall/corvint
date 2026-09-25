@@ -430,9 +430,9 @@ This subsection fixes the S5 wire shape. It adds no requirement and no root verb
 - Intent: an `application-flow-intent/1` document MAY carry the optional closed `navigation` member,
   with `precondition_flows` (flow IDs, run first, never the flow itself) and `steps`. Each step entry
   names one intent step and carries `locator`, `expect` (outcome IDs), and the optional `ready`,
-  `input_fixture` (a fixture ID, never a value), `effect` and `recovery` (another step). A `ui` entry
-  has a `state` route template starting with `/` and a locator that is exactly `role` and `name`, or
-  a `test_id`; `ready` has the same form. An `api` entry has no `state`: its locator is a `method`
+  `input_fixture` (a fixture ID, never a value), `effect` and `recovery` (a later step that no
+  variation lists). A `ui` entry has a `state` route template starting with `/` and a locator that
+  is exactly `role` and `name`, or a `test_id`; `ready` has the same form. An `api` entry has no `state`: its locator is a `method`
   (`GET`, `HEAD`, `OPTIONS`, `POST`, `PUT`, `PATCH` or `DELETE`) and a `path` template, which are its
   state, and a declared `read` on a method other than `GET`, `HEAD` or `OPTIONS` is refused.
 - Traffic: `--traffic FILE` (repeatable) names `application-flow-traffic/0` JSONL records (`flow_id`,

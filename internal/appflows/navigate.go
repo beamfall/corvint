@@ -409,8 +409,21 @@ func validateNavigation(f FlowIntent, members map[string]string) error {
 		if err := validateNavStep(f.Kind, s, members); err != nil {
 			return fmt.Errorf("navigation step %s: %v", s.StepID, err)
 		}
+		if s.Recovery != "" && !recoveryOffPath(f, s) {
+			return fmt.Errorf("navigation step %s: recovery must name a later step no variation lists", s.StepID)
+		}
 	}
 	return nil
+}
+
+// recoveryOffPath: a recovery target comes after its step in intent order and no variation lists
+// it, so moving recovery targets out of the path never drops a path step.
+func recoveryOffPath(f FlowIntent, s NavStep) bool {
+	order := func(id string) int {
+		return slices.IndexFunc(f.Steps, func(fs FlowStep) bool { return fs.StepID == id })
+	}
+	listed := slices.ContainsFunc(f.Variations, func(v FlowVariation) bool { return slices.Contains(v.Steps, s.Recovery) })
+	return order(s.Recovery) > order(s.StepID) && !listed
 }
 
 func validateNavStep(kind string, s NavStep, members map[string]string) error {
