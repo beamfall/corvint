@@ -95,6 +95,11 @@ func (memo probeMemo) remember() {
 	}
 }
 
+// MaxProcesses is the most Git processes one Status call starts: a config
+// probe for each of config and config.worktree, the two index probes of
+// validateIndex, and the status run. A caller's process budget covers it.
+const MaxProcesses = 5
+
 const metadataLimit = 32 << 20
 const snapshotLimit = 64 << 20
 

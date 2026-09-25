@@ -180,7 +180,7 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 
 | Category | Package | Tests |
 |---|---|---|
-| hostile-repository | `internal/genesis` | `internal/genesis/repository_test.go:146@5817975f`, `internal/genesis/repository_test.go:158@a2e88456`, `internal/genesis/repository_test.go:196@a1e12d68` |
+| hostile-repository | `internal/genesis` | `internal/genesis/repository_test.go:196@5817975f`, `internal/genesis/repository_test.go:208@a2e88456`, `internal/genesis/repository_test.go:246@a1e12d68` |
 | hostile-repository | `internal/contextindex` | `internal/contextindex/history_test.go:115@671cf1e3` |
 | paths | `internal/releasegate` | `internal/releasegate/releasegate_test.go:141@e18871cf` |
 | paths | `internal/companionrelease` | `internal/companionrelease/companionrelease_test.go:620@5ef76c7b` |

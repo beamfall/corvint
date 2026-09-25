@@ -283,23 +283,24 @@ status gap of a `PARTIAL` receipt (a malformed tree entry stays `INVALID`).
 | `declared-source-absent` | `internal/genesis/inventory.go:427` | a `semanticFrontier` reason, with count 0, for each of `INSTRUCTIONS`, `SPECIFICATION`, `TEST`, `CI`, and `OWNERSHIP` whose count is zero; none is emitted when the entry budget omitted a tracked entry or a tracked entry has an unsafe or non-UTF-8 path (no path, so no source classes), because those entries could hold that class (`TestSemanticFrontierDoesNotClaimAbsenceOverOmittedEntries`, `TestInventoryDoesNotClaimAbsenceOverUnsafePathEntries`) |
 | `dirty-worktree` | `internal/genesis/inventory.go:88@c22fd511` | a `gaps` entry with count 1 when the worktree status read reports a change; `dirtyState` is `DIRTY` and the state is `PARTIAL` |
 | `entry-budget-exhausted` | `internal/genesis/inventory.go:58` | a `gaps` entry whose `count` is the number of tracked tree entries beyond the entry limit (tracked minus retained entries), added only when that number is nonzero; it also counts as unresolved, so the state is `PARTIAL` |
-| `git-input-budget-exceeded` | `internal/genesis/repository.go:249@bdc997ba` | the Git standard input exceeds the 4 MiB batch input limit |
-| `git-output-budget-exceeded` | `internal/genesis/repository.go:266@13f6065c` | Git output exceeds the read limit; the status read treats it as dirty instead |
-| `git-read-failed` | `internal/genesis/repository.go:275@fe40410c` | any other Git read failure; also the fallback code at the tree, blob, and status read sites |
-| `git-timeout` | `internal/genesis/repository.go:268@63270391` | a Git read exceeds its per-operation timeout |
-| `git-unavailable` | `internal/genesis/repository.go:270@899cb4fe` | the Git process cannot start |
+| `git-budget-exceeded` | `internal/genesis/repository.go:276@ee41ca35` | the activation's Git process budget (the four inventory reads plus the private status probe plan, `gitstatus.MaxProcesses`) is exhausted (V1-0287) |
+| `git-input-budget-exceeded` | `internal/genesis/repository.go:255@bdc997ba` | the Git standard input exceeds the 4 MiB batch input limit |
+| `git-output-budget-exceeded` | `internal/genesis/repository.go:272@13f6065c` | Git output exceeds the read limit; the status read treats it as dirty instead |
+| `git-read-failed` | `internal/genesis/repository.go:283@fe40410c` | any other Git read failure; also the fallback code at the tree, blob, and status read sites |
+| `git-timeout` | `internal/genesis/repository.go:274@63270391` | a Git read exceeds its per-operation timeout |
+| `git-unavailable` | `internal/genesis/repository.go:278@899cb4fe` | the Git process cannot start |
 | `gitlink` | `internal/genesis/classifier.go:154@67ddbd73` | an entry reason for mode `160000` with object type `commit`; `UNSUPPORTED` |
 | `invalid-activation` | `internal/genesis/inventory.go:28@bde5dbae` | the activation is neither `init` nor `adopt`; `INVALID` receipt |
 | `invalid-authority-id` | `internal/genesis/inventory.go:31@0156e107` | a supplied authority ID fails the authority character and length check; `INVALID` receipt |
-| `invalid-commit-object` | `internal/genesis/repository.go:101@e2b25ed1` | the resolved commit line does not decode as an object ID of the repository format; `INVALID` receipt |
+| `invalid-commit-object` | `internal/genesis/repository.go:107@e2b25ed1` | the resolved commit line does not decode as an object ID of the repository format; `INVALID` receipt |
 | `invalid-exclusions` | `internal/genesis/inventory.go:35@29afeebb` | the excluded prefixes do not normalize; `INVALID` receipt |
-| `invalid-git-output-budget` | `internal/genesis/repository.go:246@cd962ce6` | a Git read requests an output limit below zero or above the tree plus total blob budget |
+| `invalid-git-output-budget` | `internal/genesis/repository.go:252@cd962ce6` | a Git read requests an output limit below zero or above the tree plus total blob budget |
 | `invalid-inventory-receipt` | `internal/genesis/inventory.go:288@54cab4a8` | a summary error: the receipt does not verify or the sample limit is outside 0 to 20; never in a receipt |
-| `invalid-repository` | `internal/genesis/repository.go:42@b48db0ea` | the root cannot be made absolute (later sites in `openRepository` refuse an unresolvable, non-directory, or invalid-layout root); `INVALID` receipt |
-| `invalid-revision` | `internal/genesis/repository.go:81@bfa83d25` | the revision fails the revision grammar while the root is a valid repository layout; `INVALID` receipt |
-| `invalid-tree-object` | `internal/genesis/repository.go:311@deb9a2c8` | the commit tree ID does not decode as an object ID; `INVALID` receipt |
-| `malformed-blob-batch` | `internal/genesis/repository.go:502@297fa385` | a blob batch header line is unterminated (later sites refuse a mismatched header, size, or trailing bytes); a blob-read gap in a `PARTIAL` receipt |
-| `malformed-tree-entry` | `internal/genesis/repository.go:366@b3356a32` | a tree listing record is empty or unterminated (later sites refuse other framing faults); `INVALID` receipt |
+| `invalid-repository` | `internal/genesis/repository.go:45@b48db0ea` | the root cannot be made absolute (later sites in `openRepository` refuse an unresolvable, non-directory, or invalid-layout root); `INVALID` receipt |
+| `invalid-revision` | `internal/genesis/repository.go:87@bfa83d25` | the revision fails the revision grammar while the root is a valid repository layout; `INVALID` receipt |
+| `invalid-tree-object` | `internal/genesis/repository.go:319@deb9a2c8` | the commit tree ID does not decode as an object ID; `INVALID` receipt |
+| `malformed-blob-batch` | `internal/genesis/repository.go:510@297fa385` | a blob batch header line is unterminated (later sites refuse a mismatched header, size, or trailing bytes); a blob-read gap in a `PARTIAL` receipt |
+| `malformed-tree-entry` | `internal/genesis/repository.go:374@b3356a32` | a tree listing record is empty or unterminated (later sites refuse other framing faults); `INVALID` receipt |
 | `mechanical-inventory-only` | `internal/genesis/inventory.go:419` | a `semanticFrontier` reason for each source class with a nonzero count other than `ASSET` and `LOCKFILE` |
 | `non-utf8-or-binary` | `internal/genesis/classifier.go:170@c59c7a96` | an entry reason when the blob bytes are not valid UTF-8; `UNSUPPORTED` |
 | `receipt-budget-exceeded` | `internal/genesis/inventory.go:265@dfa500e7` | the sealed non-`INVALID` receipt fails to encode or encodes over the receipt byte limit; replaced by an `INVALID` receipt |
