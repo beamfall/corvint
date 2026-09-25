@@ -14,7 +14,7 @@ decisions 0374 and 0385.
 
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
-- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 015..018 and 036..038 (unqualified), 012..014 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; S4 implements AFU-V1-019..024 and the AFU-V1-040 frozen corpus (unsafe-narrowing rate 0 on both bases), with the two live changes `NOT_RUN`; S5 implements AFU-V1-025..028 and the AFU-V1-029 observer gate, which no observer calls yet (partial); S6 implements AFU-V1-030..033 (unqualified); S8 adds the AFU-V1-039 acceptance fixture (`cmd/corvint/testdata/flows/acceptance`, `TestAFUV1039AcceptanceFixture`), with the three live qualification runs `NOT_RUN`; nothing else is implemented or qualified.
+- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 015..018 and 036..038 (unqualified), 012..014 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; S4 implements AFU-V1-019..024 and the AFU-V1-040 frozen corpus (unsafe-narrowing rate 0 on both bases), with the two live changes `NOT_RUN`; S5 implements AFU-V1-025..028 and the AFU-V1-029 observer gate, which no observer calls yet (partial); S6 implements AFU-V1-030..033 (unqualified); S7 implements AFU-V1-034 and 035 (no MCP conformance vectors yet); S8 adds the AFU-V1-039 acceptance fixture (`cmd/corvint/testdata/flows/acceptance`, `TestAFUV1039AcceptanceFixture`), with the three live qualification runs `NOT_RUN`; nothing else is implemented or qualified.
 - Exists: the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
 - Blocked on: implementation slices S1-S8 (Rollout) and the acceptance evidence below.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Deterministic acceptance.
@@ -43,10 +43,10 @@ At `978b37b`:
 
 - `corvint flows` dispatched only `record` beside its report, created its output without root or
   symlink confinement, and opened an input before the regular-file check. S1 adds the `export` and
-  `import` subcommands (`cmd/corvint/flows.go:40-41@97eb5689`), routes `record` through the
+  `import` subcommands (`cmd/corvint/flows.go:37-38@97eb5689`), routes `record` through the
   root-confined exclusive writer (`internal/appflows/report.go:317@18a159fa`,
-  `internal/appflows/input.go:90-103@06fa25b5`), and checks Lstat before open
-  (`internal/appflows/input.go:64-71@8ab13087`).
+  `internal/appflows/input.go:91-104@06fa25b5`), and checks Lstat before open
+  (`internal/appflows/input.go:65-72@8ab13087`).
 - The `/1` behavior provider pins exactly three repositories, `app`, `golf_e2e` and `docs_corpus`
   (`internal/doccorpus/behavior.go:41-45@2b4b5d34`). S3 adds the `/2` `repositories` list beside it.
 - ETS selection returns `narrow-selection-allowed` once no obligation is uncovered
@@ -526,7 +526,7 @@ paths, and `--page` and `--claims` differ.
 
 - `AFU-V1-034`: `corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
   `corvint.flows.gaps`, `corvint.flows.impact` and `corvint.flows.navigate`, following the
-  closed-selector rule of `MCPV0-026` (amended when this is delivered). Without the selector,
+  closed-selector rule of `MCPV0-026`, which this requirement amends to admit the value `flows`. Without the selector,
   `corvint-mcp` output is unchanged.
 - `AFU-V1-035`: Repository-authored text in any flows response is returned inside the untrusted-data
   envelope, and is never an instruction to the calling agent.
@@ -632,7 +632,8 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-031 | `TestAFUV1031ClaimStateOrder`, `TestAFUV1030DocsRenderGoldenAndByteStable` (every state marked on the page, `PROVEN` unmarked) |
 | AFU-V1-032 | `TestAFUV1032DocsCheckDrift` (a lost `PROVEN` and a hand-edited page fail; the check is read-only), `TestAFUV1032WaiverExpiry` (unexpired, expired and malformed waivers), `TestAFUV1032WaiverExpiryBoundary` (expired on its expiry date), `TestAFUV1032WaiverKeepsUnrenderedClaim` (a waived claim that is no longer rendered keeps its committed form) |
 | AFU-V1-033 | `TestAFUV1033AnchoredMarkdown` (a changed unanchored document passes, an unknown anchor fails the check and refuses the render), `TestAFUV1033AnchorParsing`, `TestAFUV1032DocsCheckDrift` (the coverage row and the anchored claim's lost `PROVEN`), `TestAFUV1033NonRegularMarkdownSkipped` (a symlinked `.md` is unanchored, not a failure) |
-| AFU-V1-034..035 | MCP conformance with and without the selector |
+| AFU-V1-034 | `TestAFUV1034FlowsToolProfile` (golden default and task-review `tools/list` bytes without the selector, the four tools read-only under it, unknown, empty, duplicate and mixed selectors refused, flows tools `-32602` under the other profiles), `TestAFUV1034FlowsToolsMatchCLIVerbs` (each tool's receipt equals its CLI verb's output on the shop and navigation fixtures, the CLI's argument refusals are `-32602`, a verb refusal is `flows-refused`); partial: no compiled-process MCP conformance vectors |
+| AFU-V1-035 | `TestAFUV1035FlowsTextStaysInsideEnvelope` (a hostile navigation step string returns only between the envelope prefix and suffix, with no `structuredContent`) |
 | AFU-V1-036 | `TestAFUV1036DocsReplaceConfined`, `TestAFUV1036DocsGitPathRefused`, `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1RecordGitPathRefused`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
 | AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceBoundsIncomplete`, `TestAFUV1FlowsCLIIngest`, `TestAFUV1ReadRunEvidenceDiscipline` |
 | AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceSecretsDropped`, `TestAFUV1PlaywrightProviderScrubsEveryAttempt` (the provider receipt scrubs every attempt and the last-attempt fields); the screen runs in `EncodeRunEvidence`, the only run-evidence encoding, and `flows ingest` writes only what it encodes (`TestAFUV1FlowsCLIIngest`) |
@@ -661,7 +662,8 @@ Slices, each its own change with tests:
 4. S4 is the Core `e2e-safe` profile and its corpus (AFU-V1-019..024, 040).
 5. S5 is the navigation map (AFU-V1-025..029).
 6. S6 is proven documentation (AFU-V1-030..033).
-7. S7 is the MCP tool profile (AFU-V1-034, 035).
+7. S7 is the MCP tool profile (AFU-V1-034, 035). Delivered: `--tool-profile flows`, with no MCP
+   conformance vectors yet.
 8. S8 is the acceptance fixture and live qualification (AFU-V1-039).
 
 Rollback removes the `e2e-safe` value, the new `flows` subcommands and the MCP profile. Flow intents,
@@ -684,7 +686,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-006 | partial (see the matrix): `internal/doccorpus/behavior.go` |
 | AFU-V1-011..014, 038 | implemented, 012..014 partial (see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
-| AFU-V1-034..035 | `internal/mcp`, `cmd/corvint-mcp` |
+| AFU-V1-034..035 | implemented, 034 partial (see the matrix): `internal/mcp/bridge/flows.go`, `bridge.go`, `cmd/corvint-mcp/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
 
 ## Unresolved decisions and promotion or kill criteria
 

@@ -212,6 +212,7 @@ type Registry struct {
 	gitIdentity  os.FileInfo
 	operations   repositoryOperations
 	taskReview   bool
+	flows        bool
 }
 
 // New binds the default V0 registry: exactly query, impact, and status.
@@ -246,7 +247,13 @@ func NewTaskReview(root string) (*Registry, *Error) {
 }
 
 func (registry *Registry) advertises(name string) bool {
-	return registry.taskReview || !taskReviewTools[name]
+	if taskReviewTools[name] {
+		return registry.taskReview
+	}
+	if flowsTools[name] {
+		return registry.flows
+	}
+	return true
 }
 
 // Tools is the exact delivered surface of the registry's profile. Standalone
@@ -272,7 +279,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 	// every schema-valid argument is also runtime-valid.
 	oid := map[string]any{"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"}
 	ceiling := map[string]any{"type": "integer", "minimum": 0}
-	return []ToolDescriptor{
+	return append([]ToolDescriptor{
 		{
 			Name:        ToolCEMReport,
 			Description: "Render the CEM reviewer report for a repository-relative canonical map against two full revision IDs, without writing it.",
@@ -330,7 +337,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 			InputSchema: objectSchema(map[string]any{}, []any{}),
 			Annotations: readAnnotations(),
 		},
-	}
+	}, flowsToolDescriptors()...)
 }
 
 func (registry *Registry) Call(ctx context.Context, name string, arguments []byte) (Result, *Error) {
@@ -362,6 +369,14 @@ func (registry *Registry) Call(ctx context.Context, name string, arguments []byt
 		result, callErr = registry.callContext(ctx, arguments)
 	case ToolCEMReport:
 		result, callErr = registry.callCEMReport(ctx, arguments)
+	case ToolFlowsMap:
+		result, callErr = registry.callFlowsMap(ctx, arguments)
+	case ToolFlowsGaps:
+		result, callErr = registry.callFlowsGaps(ctx, arguments)
+	case ToolFlowsImpact:
+		result, callErr = registry.callFlowsImpact(ctx, arguments)
+	case ToolFlowsNavigate:
+		result, callErr = registry.callFlowsNavigate(ctx, arguments)
 	default:
 		return Result{}, failure("unsupported-tool")
 	}
@@ -828,7 +843,7 @@ func knownTool(tool string) bool {
 	case ToolQuery, ToolImpact, ToolStatus, ToolContext, ToolCEMReport:
 		return true
 	}
-	return false
+	return flowsTools[tool]
 }
 
 func validBinding(binding *RepositoryBinding) bool {
@@ -860,6 +875,9 @@ func validReceiptBinding(result Result) bool {
 	case ToolCEMReport:
 		// A CEM receipt binds to the caller's two object IDs, not the checkout.
 		return result.Receipt["tool"] == "cem-report" && result.Receipt["mutates"] == false
+	}
+	if flowsTools[result.Tool] {
+		return validFlowsReceipt(result)
 	}
 	mode, modeOK := result.Receipt["mode"].(string)
 	revision, revisionOK := result.Receipt["revision"].(string)

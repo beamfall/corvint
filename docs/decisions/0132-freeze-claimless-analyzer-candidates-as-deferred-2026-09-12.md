@@ -38,7 +38,7 @@ Intent status is unchanged. Reopening needs a recorded decision.
   analyzer-candidate command sits under a `deferred` spec.
 - **Not frozen: the tree contradicts the audit list.**
   - The six affected-test adapter specs (.NET, Kotlin/JVM, Ruby, Rust, Swift, TS/JS) are imported
-    by `cmd/corvint/affected.go:20-27@6671b48a`. They are part of the shipped `corvint affected` surface.
+    by `internal/liveverify/affected/languages/languages.go:7-14@6671b48a`, which `corvint affected` uses. They are part of the shipped `corvint affected` surface.
   - `work-queue-observation-v0` is accepted (decision 0046) and reachable through
     `corvint work`.
   - `local-observability-dashboard-v0` ships `corvint-dashboard-snapshot` in the companion bundle

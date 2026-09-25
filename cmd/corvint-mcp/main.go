@@ -30,9 +30,10 @@ const (
 	errorProfileReason   = "reason-class"
 	unclassified         = "unclassified"
 
-	// toolProfileTaskReview is the only value of the closed --tool-profile
-	// selector (MCPV0-026, decision 0374).
+	// toolProfileTaskReview and toolProfileFlows are the values of the closed
+	// --tool-profile selector (MCPV0-026, decision 0374, amended by AFU-V1-034).
 	toolProfileTaskReview = "task-review"
+	toolProfileFlows      = "flows"
 
 	// untrustedDataPrefix and untrustedDataSuffix are the internal/repoenvelope
 	// envelope the host adapters apply to repository-authored free text.
@@ -51,7 +52,7 @@ func main() {
 
 func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	arguments, protocolVersion, protocolOK := protocol.ExtractVersionArgument(arguments)
-	arguments, taskReview, profileOK := extractToolProfile(arguments)
+	arguments, profile, profileOK := extractToolProfile(arguments)
 	arguments, reasonClass, errorProfileOK := extractErrorProfile(arguments)
 	root, versionOnly, ok := parseArguments(arguments)
 	if !ok || !protocolOK || !profileOK || !errorProfileOK {
@@ -69,11 +70,7 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	}
 	// The CEM seams spawn Git through their own runner; pin it to the same path.
 	gitrun.PinBinary(git)
-	newRegistry := bridge.New
-	if taskReview {
-		newRegistry = bridge.NewTaskReview
-	}
-	registry, registryErr := newRegistry(root)
+	registry, registryErr := profileRegistries[profile](root)
 	if registryErr != nil {
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: repository unavailable")
 		return 2
@@ -97,26 +94,32 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	return 0
 }
 
+// profileRegistries binds each --tool-profile value; the empty value is the
+// default V0 registry.
+var profileRegistries = map[string]func(string) (*bridge.Registry, *bridge.Error){
+	"": bridge.New, toolProfileTaskReview: bridge.NewTaskReview, toolProfileFlows: bridge.NewFlows,
+}
+
 // extractToolProfile removes the optional, closed descendant-profile selector
 // (MCPV0-026). A missing, duplicate, or unknown value, or the selector beside
 // --version, fails before repository startup; omission keeps the V0 tools.
-func extractToolProfile(arguments []string) (remaining []string, taskReview bool, ok bool) {
+func extractToolProfile(arguments []string) (remaining []string, profile string, ok bool) {
 	remaining = make([]string, 0, len(arguments))
 	for index := 0; index < len(arguments); index++ {
 		if arguments[index] != "--tool-profile" {
 			remaining = append(remaining, arguments[index])
 			continue
 		}
-		if taskReview || index+1 == len(arguments) || arguments[index+1] != toolProfileTaskReview {
-			return nil, false, false
+		if profile != "" || index+1 == len(arguments) || arguments[index+1] == "" || profileRegistries[arguments[index+1]] == nil {
+			return nil, "", false
 		}
-		taskReview = true
+		profile = arguments[index+1]
 		index++
 	}
-	if taskReview && slices.Contains(remaining, "--version") {
-		return nil, false, false
+	if profile != "" && slices.Contains(remaining, "--version") {
+		return nil, "", false
 	}
-	return remaining, taskReview, true
+	return remaining, profile, true
 }
 
 // extractErrorProfile removes the optional, closed tool-error selector
@@ -217,11 +220,17 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	if frameErr != nil {
 		return handler.toolFailure(name, repoenvelope.CollisionCode, "")
 	}
-	return map[string]any{
+	response := map[string]any{
 		"content":           []any{map[string]any{"type": "text", "text": framed}},
 		"isError":           false,
 		"structuredContent": structured,
-	}, nil
+	}
+	// Flow intents carry repository-authored step text, which reaches the
+	// caller only inside the envelope (AFU-V1-035).
+	if bridge.EnvelopeOnly(name) {
+		delete(response, "structuredContent")
+	}
+	return response, nil
 }
 
 // toolFailure is the closed tool-error object: profile /0 by default, or /1

@@ -2,10 +2,16 @@ package appflows
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"path/filepath"
 	"slices"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/gitstatus"
+	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
 )
 
 // ImpactSchema names the `flows impact` document (AFU-V1-017).
@@ -45,6 +51,45 @@ type ImpactHit struct {
 	ReviewState string     `json:"review_state"`
 	Target      LinkTarget `json:"target"`
 	Via         []string   `json:"via"`
+}
+
+// ImpactDirtyWorktree is the graph unknown reason of an impact report built from a worktree that
+// differs from HEAD.
+const ImpactDirtyWorktree = "DIRTY_WORKTREE"
+
+// FlowImpactAt is the `flows impact` pipeline shared by the CLI verb and the MCP tool: it diffs the
+// resolved base commit against HEAD, builds the impact graph over every supported language, marks the
+// graph scope UNKNOWN when the worktree differs from HEAD, and reports through FlowImpact.
+func FlowImpactAt(ctx context.Context, root string, set IntentSet, base string) ([]byte, error) {
+	gitPath := gitstatus.Executable()
+	if !filepath.IsAbs(gitPath) {
+		return nil, errors.New("git executable unavailable")
+	}
+	changed, err := affected.RangePaths(ctx, gitPath, root, base)
+	if err != nil {
+		return nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+	}
+	dirty, err := affected.DirtyPaths(ctx, gitPath, root)
+	if err != nil {
+		return nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+	}
+	graph, err := affected.Build(root, languages.All()...)
+	if err != nil {
+		return nil, err
+	}
+	recheck, err := affected.DirtyPaths(ctx, gitPath, root)
+	if err != nil {
+		return nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+	}
+	plan := affected.Select(graph, changed)
+	// The graph is walked from the working tree while intents and changed paths come from HEAD; a
+	// worktree that differs from HEAD may have built a different graph, so the hit list may be short.
+	if differs := slices.Compact(slices.Sorted(slices.Values(append(dirty, recheck...)))); len(differs) != 0 {
+		plan.Scope = affected.ScopeUnknown
+		plan.Unknown = append(plan.Unknown, affected.Unknown{Reason: ImpactDirtyWorktree,
+			Detail: fmt.Sprintf("the impact graph was built from a worktree that differs from HEAD at %d paths, first %s", len(differs), differs[0])})
+	}
+	return FlowImpact(ctx, root, set, base, graph, plan)
 }
 
 // FlowImpact reports the flows reached from plan's changed paths (AFU-V1-017). The caller builds the
