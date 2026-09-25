@@ -29,9 +29,9 @@ wire contract. The full manifest replay is likewise unrelated to these literals 
 
 ## Intent and scope
 
-`ROADMAP.md:343-348` (AT-10) owns the "proposed `tools/compat-trial` descriptor, runner and host
-envelope" (`:343`), verified by "contamination and changed-executable cases; interruption leaves
-no descendants, including process-group/session escape" (`:346-347`).
+`ROADMAP.md:345-351` (AT-10) owns the "proposed `tools/compat-trial` descriptor, runner and host
+envelope" (`:346`), verified by "contamination and changed-executable cases; interruption leaves
+no descendants, including process-group/session escape" (`:349-350`).
 `docs/specs/compat-trial-v0.md:187` states AT-10's runner "MUST implement CTR-V0-001 through
 CTR-V0-003 and CTR-V0-010 as written," and MUST NOT mark a case `accepted_by` anything but
 `NOT_PRODUCED` on its own authority. This is that contract, for the AT-10 runner owner and any
@@ -786,7 +786,7 @@ number is recorded there and `Makefile:130`'s `spec-requirements-check` compares
 It implements the AT-10 slice of `docs/specs/compat-trial-v0.md` (`CTR-V0-001`-`003`,
 `CTR-V0-010`, "as written") without adjudicating a label or naming the baseline; promote to
 `implemented` only once `tools/compat-trial` exists and every row above passes `make gate`.
-AT-10's third verify clause, "replay eligible Corvint changes" (`ROADMAP.md:347`), is not
+AT-10's third verify clause, "replay eligible Corvint changes" (`ROADMAP.md:350`), is not
 discharged by this spec and stays open until the `E:99` host profile is qualified, because
 Non-goals and `CTR-V0-010` (`docs/specs/compat-trial-v0.md:54`) keep replaying real candidate
 binaries out of scope; only the runner's own synthetic fixtures are replayed here.
