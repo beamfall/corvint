@@ -1,6 +1,7 @@
 package console
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -252,6 +253,46 @@ func TestConsoleChainGaps(t *testing.T) {
 			for _, want := range tc.want {
 				if !strings.Contains(body, want) {
 					t.Fatalf("%s gap missing %q:\n%s", tc.name, want, mainOf(body))
+				}
+			}
+		})
+	}
+}
+
+// TestConsoleChainPanelsAgreeOnObligationHunkEdges is V1-0152: the
+// requirement panel and the hunk panel give one obligation's hunk edge the same
+// state, for a non-linked disposition and for an id two bound maps share.
+func TestConsoleChainPanelsAgreeOnObligationHunkEdges(t *testing.T) {
+	cases := []struct {
+		name, want string
+		setup      func(t *testing.T, f *chainFixture)
+	}{
+		{name: "disposition", want: GapUnsupported, setup: func(t *testing.T, f *chainFixture) {
+			doc := f.ocm()
+			doc["obligations"].([]any)[0].(map[string]any)["disposition"] = "unknown"
+			f.writeOCM(t, "change.ocm.001.json", doc)
+		}},
+		{name: "duplicate", want: GapAmbiguous, setup: func(t *testing.T, f *chainFixture) {
+			f.writeOCM(t, "change.ocm.001.json", f.ocm())
+			f.writeOCM(t, "change.ocm.002.json", f.ocm())
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := newChainFixture(t, "func Frob() {}", nil)
+			tc.setup(t, fixture)
+			head := chainGit(t, fixture.root, "rev-parse", "HEAD")
+			chain := Worktree{Root: fixture.root}.ReadChain(context.Background(), head, fixture.change)
+			edges := append([]ChainEdge(nil), chain.Hunks[0].Requirements...)
+			for _, row := range chain.Requirements {
+				edges = append(edges, row.Hunks...)
+			}
+			if len(edges) < 2 {
+				t.Fatalf("want edges on both panels, got %+v", edges)
+			}
+			for _, edge := range edges {
+				if edge.Gap != tc.want || edge.Anchor != "" && tc.want == GapAmbiguous {
+					t.Fatalf("edge %s %s: gap %q anchor %q, want %q on both panels", edge.Artifact, edge.Field, edge.Gap, edge.Anchor, tc.want)
 				}
 			}
 		})

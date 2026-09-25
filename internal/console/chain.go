@@ -520,12 +520,7 @@ func traceEdge(path, change string, number int, line string, axes Axes) ChainEdg
 // requirementRows lists every obligation of every bound map with its pinned
 // clause, its hunk and claim references, and the change's verification edges.
 func requirementRows(chain *Chain, bound []boundOCM, document wireCEM, reader *objects) []ChainRequirement {
-	counts := map[string]int{}
-	for _, ocm := range bound {
-		for _, obligation := range ocm.doc.Obligations {
-			counts[obligation.ID]++
-		}
-	}
+	counts := obligationCounts(bound)
 	hunkIDs := map[string]bool{}
 	for _, hunk := range document.Hunks {
 		hunkIDs[hunk.ID] = true
@@ -540,13 +535,37 @@ func requirementRows(chain *Chain, bound []boundOCM, document wireCEM, reader *o
 			if counts[obligation.ID] > 1 {
 				row.Anchor = ""
 			}
-			row.Hunks = obligationHunks(ocm, field, obligation, hunkIDs, chain)
+			row.Hunks = obligationHunks(ocm, field, obligation, counts[obligation.ID], hunkIDs, chain)
 			row.Claims = claimEdges(ocm, field, obligation)
 			row.Verification = chain.Verification
 			rows = append(rows, row)
 		}
 	}
 	return rows
+}
+
+// obligationCounts counts the bound maps' obligations under each id.
+func obligationCounts(bound []boundOCM) map[string]int {
+	counts := map[string]int{}
+	for _, ocm := range bound {
+		for _, obligation := range ocm.doc.Obligations {
+			counts[obligation.ID]++
+		}
+	}
+	return counts
+}
+
+// obligationHunkGap is the state the requirement and hunk panels both give an
+// obligation's edge to a hunk the sealed map lists (V1-0152): a shared id is
+// ambiguous, and a disposition other than linked is unsupported.
+func obligationHunkGap(obligation wireObligation, count int) (string, string) {
+	if count > 1 {
+		return GapAmbiguous, strconv.Itoa(count) + " obligations of the bound maps share this id; none is chosen"
+	}
+	if obligation.Disposition != "linked" {
+		return GapUnsupported, "the obligation lists this hunk but states disposition " + strconv.Quote(obligation.Disposition)
+	}
+	return "", ""
 }
 
 func clauseEdge(ocm boundOCM, field string, obligation wireObligation, count int, reader *objects) ChainEdge {
@@ -582,11 +601,12 @@ func clauseLine(span, id string) string {
 	return ""
 }
 
-func obligationHunks(ocm boundOCM, field string, obligation wireObligation, hunkIDs map[string]bool, chain *Chain) []ChainEdge {
+func obligationHunks(ocm boundOCM, field string, obligation wireObligation, count int, hunkIDs map[string]bool, chain *Chain) []ChainEdge {
 	var edges []ChainEdge
 	for index, id := range obligation.HunkIDs {
 		edge := ChainEdge{Target: id, Artifact: ocm.path, Field: field + ".hunkIds[" + strconv.Itoa(index) + "]",
 			Axes: Weakest(ocm.axes, chain.Sealed.Source.Axes)}
+		edge.Gap, edge.Reason = obligationHunkGap(obligation, count)
 		if !hunkIDs[id] {
 			edge.Gap, edge.Reason = GapMissing, "the sealed map lists no hunk with this id"
 		}
@@ -646,10 +666,11 @@ func hunkRequirementEdges(chain *Chain, bound []boundOCM, hunkID string) []Chain
 		return []ChainEdge{{Gap: GapMissing, Artifact: ocmDir + "/change.ocm*.json", Field: "cem.mapSha256, targetRevision",
 			Axes: UnstatedAxes(), Reason: "no OCM map bound to this sealed map by digest and revision was found, so no requirement is linked"}}
 	}
+	counts := obligationCounts(bound)
 	var edges []ChainEdge
 	for _, ocm := range bound {
 		for index, obligation := range ocm.doc.Obligations {
-			edges = append(edges, obligationEdge(chain, ocm, index, obligation, hunkID)...)
+			edges = append(edges, obligationEdge(chain, ocm, index, obligation, counts[obligation.ID], hunkID)...)
 		}
 	}
 	if len(edges) == 0 {
@@ -659,7 +680,7 @@ func hunkRequirementEdges(chain *Chain, bound []boundOCM, hunkID string) []Chain
 	return edges
 }
 
-func obligationEdge(chain *Chain, ocm boundOCM, index int, obligation wireObligation, hunkID string) []ChainEdge {
+func obligationEdge(chain *Chain, ocm boundOCM, index int, obligation wireObligation, count int, hunkID string) []ChainEdge {
 	position := indexOf(obligation.HunkIDs, hunkID)
 	if position < 0 {
 		return nil
@@ -667,8 +688,9 @@ func obligationEdge(chain *Chain, ocm boundOCM, index int, obligation wireObliga
 	edge := ChainEdge{Target: obligation.ID, Anchor: "req-" + obligation.ID, Artifact: ocm.path,
 		Field: "obligations[" + strconv.Itoa(index) + "].hunkIds[" + strconv.Itoa(position) + "]",
 		Axes:  Weakest(ocm.axes, chain.Sealed.Source.Axes)}
-	if obligation.Disposition != "linked" {
-		edge.Gap, edge.Reason = GapUnsupported, "the obligation lists this hunk but states disposition "+strconv.Quote(obligation.Disposition)
+	edge.Gap, edge.Reason = obligationHunkGap(obligation, count)
+	if count > 1 {
+		edge.Anchor = ""
 	}
 	return []ChainEdge{edge}
 }
