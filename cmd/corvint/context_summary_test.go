@@ -261,7 +261,7 @@ func TestContextExpandRefusesWithoutSubstitutingContent(t *testing.T) {
 		"overflow-range": "invalid-handle", "reversed-range": "invalid-handle", "zero-range": "invalid-handle",
 		"blob-of-other-path": "invalid-handle", "directory": "invalid-handle", "missing-path": "missing-handle",
 		"missing-object": "missing-handle", "non-utf8-source": "unsupported-text", "over-max-bytes": "expand-budget",
-		"stale-other-tree": "stale-handle", "empty-handle-string": "argument",
+		"stale-other-tree": "stale-handle", "empty-handle-string": "invalid-handle",
 	}
 	for name, text := range cases {
 		arguments := []string{"--root", root, "context", "--expand", text}
@@ -272,7 +272,7 @@ func TestContextExpandRefusesWithoutSubstitutingContent(t *testing.T) {
 		if code != 2 || len(stdout) != 0 {
 			t.Fatalf("%s: exit %d stdout %q", name, code, stdout)
 		}
-		if want[name] != "argument" && !strings.Contains(stderr, `"code": "`+want[name]+`"`) {
+		if !strings.Contains(stderr, `"code": "`+want[name]+`"`) {
 			t.Fatalf("%s: stderr %s, want %s", name, stderr, want[name])
 		}
 	}
@@ -358,6 +358,7 @@ func TestParseContextViewArguments(t *testing.T) {
 		{"context", "--expand", "cv1:x", "--task", "t"},
 		{"context", "--expand", "cv1:x", "--summary"},
 		{"context", "--expand", "cv1:x", "--limit", "3"},
+		{"context", "--expand", "cv1:x", "--expand", "cv1:y"},
 		{"context", "--task", "t", "--max-bytes", "10"},
 		{"context", "--task", "t", "--summary-bytes", "2048"},
 		{"context", "--summary"},

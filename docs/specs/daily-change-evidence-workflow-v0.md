@@ -73,9 +73,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   not reproduced MUST be labelled NOT_OBSERVED, not described.
 - `DCW-V0-014`: A `dogfood-change` not-complete row caused by a malformed or missing input, or by
   uncommitted worktree changes such as the prepared sidecar (including every `ocm-status-NNN` row),
-  MUST be followed by a `fix:` line naming the correction. The
-  `dogfood-check` failures `dogfood-report-missing`, `dogfood-report-drift` and `intent-scope-drift`
-  MUST each print a `fix:` line; for `dogfood-report-drift` that line MUST distinguish a report bound
+  MUST be followed by a `fix:` line naming the correction; for a `cem-cite` `cite-span-not-stable`
+  row that line MUST name the failing citation-plan row number. The `dogfood-check` failures
+  `dogfood-report-missing`, `dogfood-report-drift` and `intent-scope-drift` MUST each print a
+  `fix:` line; for `dogfood-report-drift` that line MUST distinguish a report bound
   to another base or target from an incomplete report. A refusal caused by a local trace recorded
   at a commit that is no longer an ancestor of `HEAD` MUST name that cause. Reason codes MUST NOT
   change.

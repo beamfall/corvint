@@ -575,6 +575,29 @@ func testWorkSourceUnqualifiedNamesReason(t *testing.T) {
 	}
 }
 
+func TestWorkRebindUnqualifiedAdoptionOmitsGitStderr(t *testing.T) {
+	t.Parallel()
+	root := materializationFixture(t)
+	payload := "\x1b[31m\u009b" + strings.Repeat("A", 20000)
+	config, err := os.OpenFile(filepath.Join(root, ".git", "config"), os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = config.WriteString("[core]\n\tbare = " + payload + "\n")
+	if closeErr := config.Close(); err != nil || closeErr != nil {
+		t.Fatal(err, closeErr)
+	}
+	var stdout, stderr bytes.Buffer
+	exit := run([]string{"--root", root, "work", "rebind", "--corvint-executable", workBoundCorvint(t)}, strings.NewReader(""), &stdout, &stderr)
+	line := stderr.String()
+	if exit != 2 || stdout.Len() != 0 || !strings.HasPrefix(line, "corvint work rebind: existing adoption is unqualified: ") || strings.Count(line, "\n") != 1 {
+		t.Fatalf("rebind exit=%d stdout=%q stderr=%q", exit, &stdout, line)
+	}
+	if strings.ContainsAny(line, "\x1b\u009b") || strings.Contains(line, "AAAA") {
+		t.Fatalf("rebind refusal echoed Git stderr: %q", line)
+	}
+}
+
 func TestWorkInitRollsBackCreatedFiles(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()

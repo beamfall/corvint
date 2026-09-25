@@ -1,6 +1,7 @@
 package extevidence
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -235,6 +236,14 @@ func load(ctx context.Context, root rootRepository, source string) provider {
 func decodeRecord(ctx context.Context, root rootRepository, entry provider, data []byte) provider {
 	digest := sha256.Sum256(data)
 	entry.sha256 = hex.EncodeToString(digest[:])
+	// Go's decoder keeps a repeated member's last value; refuse it here as
+	// the pinned path does (EEP-V0-001). Malformed bytes fall through to the
+	// strict decode, which names them.
+	repeated, err := repeatedMember(json.NewDecoder(bytes.NewReader(data)), "", 0)
+	if err == nil && repeated != "" {
+		entry.state, entry.reason = StateInvalid, repeatedReason(repeated)
+		return entry
+	}
 	if schema := declaredSchema(data); schema == Schema1 || schema == Schema2 {
 		record, err := Decode1(data)
 		if err != nil {
