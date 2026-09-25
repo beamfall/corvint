@@ -6090,3 +6090,14 @@ Review repairs: an independent review found no blockers. The repairs are:
   `cmd/corvint-mcp` has no `flows` tool profile here, so the row does not claim S1-S8. Delivery
   stays `planned` in the spec header, `INDEX.json` and the README, which the specindex test keeps
   in agreement.
+
+## 2026-09-25 V1-0272: alternates refusal names the adopter rerun
+
+- The `unsupported-object-alternates` fix line ended with `rerun make dogfood-change`, the one
+  dogfood hint V1-0261 missed. It now ends `rerun corvint dogfood change {base}`, like the other
+  adopter hints (`internal/dogfoodflow/change.go`).
+- `docs/DOGFOOD.md` "Commands" now says the loop needs a clone that owns its objects, and gives the
+  repack remediation for a `--reference` or `--shared` clone.
+- Evidence: `TestDogfoodChangeNamesAlternatesRemediation` writes an alternates file into a
+  portable repository and checks the refusal's fix line; `script/dogfood-change_test.sh` checks the
+  new wording through the make wrapper.
