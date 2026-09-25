@@ -10,27 +10,21 @@ trap 'exit 143' TERM
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
+base="$test_root/corvint-base"
 corvint="$test_root/corvint"
-taskman="$test_root/taskman"
-linked="$test_root/taskman-linked"
 fake="$test_root/fake"
-mkdir -p "$corvint/script" "$taskman" "$fake" "$test_root/npm-cache" "$test_root/output"
-cp "$source_root/script/corvint-companion-release-gate" "$corvint/script/"
+mkdir -p "$base" "$fake" "$test_root/npm-cache" "$test_root/output"
 
-git -C "$corvint" init -q
-git -C "$corvint" config user.name test
-git -C "$corvint" config user.email test@example.invalid
-touch "$corvint/a"
-git -C "$corvint" add a
-git -C "$corvint" commit -qm corvint
-git -C "$taskman" init -q
-git -C "$taskman" config user.name test
-git -C "$taskman" config user.email test@example.invalid
-touch "$taskman/a"
-git -C "$taskman" add a
-git -C "$taskman" commit -qm taskman
-git -C "$taskman" worktree add -q "$linked" -b test-linked
-test -f "$linked/.git" || fail "fixture is not a linked worktree"
+git -C "$base" init -q
+git -C "$base" config user.name test
+git -C "$base" config user.email test@example.invalid
+touch "$base/a"
+git -C "$base" add a
+git -C "$base" commit -qm corvint
+git -C "$base" worktree add -q "$corvint" -b test-linked
+test -f "$corvint/.git" || fail "fixture is not a linked worktree"
+mkdir "$corvint/script"
+cp "$source_root/script/corvint-companion-release-gate" "$corvint/script/"
 
 real_git=$(command -v git)
 cat >"$fake/go" <<'EOF'
@@ -62,19 +56,25 @@ chmod +x "$fake/go" "$fake/git" "$fake/npm"
 
 CORVINT_WRAPPER_ARGS="$test_root/args" CORVINT_NPM_CACHE="$test_root/npm-cache" \
 CORVINT_COMPANION_OUTPUT="$test_root/output" PATH="$fake:/usr/bin:/bin" \
-  "$corvint/script/corvint-companion-release-gate" "$linked"
-grep -q -- '-tasks-root' "$test_root/args" || fail "linked worktree did not reach release command"
+  "$corvint/script/corvint-companion-release-gate"
+grep -qx -- '-source-root' "$test_root/args" || fail "linked worktree source root did not reach release command"
+! grep -q -- '-tasks-root' "$test_root/args" || fail "retired tasks root reached release command"
+if CORVINT_WRAPPER_ARGS="$test_root/extra-args" CORVINT_COMPANION_OUTPUT="$test_root/output-extra" PATH="$fake:/usr/bin:/bin" \
+  "$corvint/script/corvint-companion-release-gate" "$test_root" 2>/dev/null; then
+  fail "retired taskman-repo argument was accepted"
+fi
+[ ! -e "$test_root/extra-args" ] || fail "retired taskman-repo argument reached release command"
 grep -q -- '-npm-cache' "$test_root/args" || fail "npm cache was not passed"
 
 CORVINT_WRAPPER_ARGS="$test_root/no-npm-args" CORVINT_NPM_MARKER="$test_root/npm-invoked" \
 CORVINT_COMPANION_OUTPUT="$test_root/output-no-npm" PATH="$fake:/usr/bin:/bin" \
-  env -u CORVINT_NPM_CACHE "$corvint/script/corvint-companion-release-gate" "$linked"
+  env -u CORVINT_NPM_CACHE "$corvint/script/corvint-companion-release-gate"
 [ ! -e "$test_root/npm-invoked" ] || fail "core bundle resolved npm"
 
 
 CORVINT_WRAPPER_ARGS="$test_root/interrupt-args" CORVINT_WRAPPER_DESC_PID="$test_root/descendant" CORVINT_WRAPPER_IGNORE_TERM=1 \
 CORVINT_NPM_CACHE="$test_root/npm-cache" CORVINT_COMPANION_OUTPUT="$test_root/output-interrupt" \
-PATH="$fake:/usr/bin:/bin" "$corvint/script/corvint-companion-release-gate" "$linked" &
+PATH="$fake:/usr/bin:/bin" "$corvint/script/corvint-companion-release-gate" &
 wrapper=$!
 for _ in $(seq 1 100); do [ -s "$test_root/descendant" ] && break; sleep 0.05; done
 [ -s "$test_root/descendant" ] || fail "interrupt descendant did not start"
@@ -89,7 +89,7 @@ kill -0 "$descendant" 2>/dev/null && fail "interrupted wrapper left descendant a
 
 if CORVINT_WRAPPER_ARGS="$test_root/fail-args" CORVINT_WRAPPER_DESC_PID="$test_root/fail-descendant" CORVINT_WRAPPER_FAIL=1 \
   CORVINT_NPM_CACHE="$test_root/npm-cache" CORVINT_COMPANION_OUTPUT="$test_root/output-fail" \
-  PATH="$fake:/usr/bin:/bin" "$corvint/script/corvint-companion-release-gate" "$linked"; then
+  PATH="$fake:/usr/bin:/bin" "$corvint/script/corvint-companion-release-gate"; then
   fail "failed runner was reported successful"
 fi
 failed_descendant=$(cat "$test_root/fail-descendant")

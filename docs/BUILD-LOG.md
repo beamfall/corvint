@@ -6482,6 +6482,64 @@ runs): identical, hit@k 0.0566, MRR@k 0.0289, recall@10 0.0346, hard-negative hi
 Not changed, follow-up: the README "Sixty seconds" demo is hand-abridged output from a `0.4.0a4`
 checkout, not generated from the build, and still shows the fixture `test-marker` row; it was not
 regenerated. NOT_RUN: the exhaustive `go test ./...` gate (the affected plan names 103 packages).
+## 2026-09-25 V1-0317 (decision 0397): corvint-tasks in tree as a separate companion binary
+
+Owner instruction: "move corvint-tasks into corvint and ticket everything". The source of
+`beamfall/corvint-tasks@800682d` is imported as one squash commit without its history (decision
+0331) at `cmd/corvint-tasks` and `internal/tasks/**`. It stays a separate companion binary and never
+becomes a `corvint` subcommand (invariant 7, decision 0322). The old repository is untouched;
+freezing it is V1-0318 and the ATCP-V0 specification recovery is V1-0310.
+
+- Screening of the imported tree for secrets, absolute home paths, email addresses and private
+  hostnames found nothing to remove. A fixture actor id is the owner's first name, which is already
+  public. The source carried no SPDX headers, so none were kept or added.
+- Measured basis for the module layout: `go test -count=1 ./internal/tasks/...` took 549 s wall,
+  104 s user and 209 s system CPU, at host load average 255 to 310 on 12 cores.
+  `internal/tasks/authority` alone took 544 s wall; every other package took 61 s or less. The Core
+  gate runs packages serially, so the expected addition is on the order of the 313 s CPU time. The
+  quiet-host gate delta is `NOT_RUN`. Chosen: the same module, because it gives Core a compile-time
+  link to the Tasks wire vocabulary (F5, V1-0311). A nested module stays the fallback if the owner
+  finds the gate cost material or wants independent versioning.
+- `internal/taskman/decode.go` now imports `internal/tasks/wire` (`wire.Codes`,
+  `wire.TicketRecordKeys`) instead of keeping copies. `internal/tasks/boundary_test.go` enforces the
+  import direction and has spy controls for each rule.
+- ECO-V0-001 matches callee names that have a `code` parameter anywhere in the tree. The imported
+  `wire.Errorf(code, ...)` therefore made eight pre-existing `fmt.Errorf` codes in
+  `host_adapter.go` look unowned. The parameter was renamed to `detailCode`, so the ratchet is
+  unchanged at base.
+- Build identity: `corvint-tasks --version` prints `0.0.0-tcp01-unverified+build.N` from
+  `-ldflags "-X main.build=N"`, where N is the `PUB-V0-021` first-parent count. `make tasks-build`
+  stamps it, and so does the companion bundle; the bundle README claim is corrected (M3, V1-0308).
+- Companion release: one checkout root. `-tasks-root` and `CORVINT_TASKMAN_REPO` are retired, and
+  the gate script refuses a positional argument. The bundle profile, module label and archive name
+  are unchanged. The Tasks archive is the standalone subset (`go.mod`, notices,
+  `cmd/corvint-tasks/**`, `internal/tasks/**`) of the recorded commit, tested by
+  `TestTasksExportKeepsOnlyTheStandaloneSubset`.
+- The new Make targets are appended at the end of the Makefile, so no cited Makefile line moves.
+
+Checks: `make tasks-test` passed: test and vet, 909 s wall with `-p 1` at load average about 400, and
+`internal/tasks/authority` took 655 s of that. The following also passed:
+
+- `go test -count=1` on `internal/taskman`, `internal/companionrelease`,
+  `cmd/corvint-companion-release`, `cmd/corvint-public-release-check` and
+  `internal/releasecandidate`;
+- the four `cmd/corvint` tests that exercise the task store;
+- `go vet` on the touched Core packages;
+- the gate-script and release-env shell tests;
+- the doc checks, `internal/specindex`, and `use-cases-v0` (`valid: true`);
+- `make tasks-build`, whose `--version` printed `+build.120`.
+
+`corvint affected` selected 173 units with scope `UNKNOWN`, so the rest of it is `NOT_RUN`. The
+following are also `NOT_RUN`: the exhaustive `go test ./...` gate, `make companion-release-gate`
+(a full bundle build), and live qualification.
+
+Follow-ups:
+
+- `internal/tasks/authority` dominates the Tasks test time (optimization candidate).
+- The CRB-V0-017 exported-current proof still reads `CORVINT_PROOF_TASKS_ROOT`.
+- `script/local-console-release-gate` passes `-corvint-root` and `-taskman-root` to
+  `corvint-companion-release`, which never defined them (pre-existing, already broken at base).
+- The imported `SPEC.md` and review records stay at `800682d` until V1-0310.
 ## 2026-09-25 V1-0272: alternates refusal names the adopter rerun
 
 - The `unsupported-object-alternates` fix line ended with `rerun make dogfood-change`, the one

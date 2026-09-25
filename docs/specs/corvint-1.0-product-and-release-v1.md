@@ -56,7 +56,7 @@ A companion ships separately or alongside Core, carries its own qualification an
 never be a prerequisite for a Core release candidate or a Core claim. Proposed companion list:
 
 - Local admin console (`corvint-console`) and dashboard snapshot (`corvint-dashboard-snapshot`).
-- Corvint Tasks (`corvint-tasks`, separate repository) and its roadmap.
+- Corvint Tasks (`corvint-tasks`, in-tree separate companion binary (decision 0397)) and its roadmap.
 - MCP servers: `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp`.
 - Test providers: `corvint-js-test-provider`, `corvint-go-test-provider`, and `corvint test-validity`.
 - Automatic documentation: `corvint docs` drafting, watch and apply.
@@ -125,7 +125,7 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint feature` | experimental | Legacy parity verb kept for the Go kernel migration. |
 | Internal `authority-event`, `qualified-event`, `native-hook`, `frontier-next`, `plan-fixture`, `source-view`, `docs corpus` | experimental | Protected-authority, planning, source-view and corpus prototypes. |
 | `corvint-console`, `corvint-dashboard-snapshot` | companion | Optional operator console with no authority (decision 0081). |
-| `corvint-tasks` | companion | Separate repository; roadmap is not a Core claim. |
+| `corvint-tasks` | companion | In-tree separate companion binary (decision 0397); roadmap is not a Core claim. |
 | `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp` | companion | MCP servers are optional host surfaces. |
 | `corvint-js-test-provider`, `corvint-go-test-provider` | companion | Test providers qualify under `/2`, not Core. |
 | `corvint-remote-provider` | companion | Network consent places it outside the default local product. |
@@ -298,7 +298,7 @@ and the untouched repository (question 8) are still unnamed. The questions stay 
 | `PRS-V1-001..012` | Decision 0373 | PRODUCED (2026-09-23) |
 | `PRS-V1-010` | Review of this table against the base commit's verbs, binaries and trees | review only |
 | `PRS-V1-002` | N-1 upgrade: 0.7.0 archive to 0.8.0 `upgrade-b` and `rollback-a` under `SOP-V0-003` (`stable-operations-v0.md`, V1-0190) | PASS on darwin/arm64, darwin/amd64 (Rosetta 2), linux/arm64 (container); linux/amd64 emulated only |
-| `PRS-V1-005` | Core-only assembly with no companion or Tasks input (`TestPRSV1005CoreOnlyAssemblyNeedsNoCompanion`, V1-0229) and its reader and installer (`TestPRSV1005CoreOnlyCandidateVerifiesAndInstalls`, V1-0125); the companion assembler keeps `-tasks-root` required (`TestEmptyRootsRefuseBeforeExecution`) | PASS (unit); real assembly and install on a scratch alpha commit, darwin/arm64; linux `NOT_RUN` |
+| `PRS-V1-005` | Core-only assembly with no companion or Tasks input (`TestPRSV1005CoreOnlyAssemblyNeedsNoCompanion`, V1-0229) and its reader and installer (`TestPRSV1005CoreOnlyCandidateVerifiesAndInstalls`, V1-0125); the companion assembler requires `-source-root` and, since decision 0397, takes no `-tasks-root` (`TestEmptyRootsRefuseBeforeExecution`) | PASS (unit); real assembly and install on a scratch alpha commit, darwin/arm64; linux `NOT_RUN` |
 | `PRS-V1-004` | Native install lifecycle on each Core platform | darwin/arm64 retained for 0.7.0; linux/amd64 `NOT_RUN` |
 | `PRS-V1-006` | Host lifecycle qualification, nine cases per tuple (`host-lifecycle-qualification-v1.md`, V1-0016) | PASS for plain CLI, Codex CLI 0.153.2 and Claude Code 2.1.267 on darwin/arm64 with 0.8.0, all FALLBACK; linux `NOT_RUN` |
 | `PRS-V1-007` | V1-0014 | `NOT_RUN` |
