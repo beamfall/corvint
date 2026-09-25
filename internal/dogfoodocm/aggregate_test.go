@@ -41,6 +41,47 @@ func TestOCMV0013AggregateHappyPath(t *testing.T) {
 	}
 }
 
+// TestAggregateFindsNoLinkedRequirements covers OCM-V0-016: an aggregate that
+// links none of its declared requirements carries the no-requirements-linked
+// finding and keeps its verdict; one linked requirement removes the finding.
+func TestAggregateFindsNoLinkedRequirements(t *testing.T) {
+	manifest := []byte("docs/specs/a.md\ndocs/specs/b.md\n")
+	cases := []struct {
+		name     string
+		linked   []int
+		findings string
+	}{
+		{name: "OCM-V0-016 zero of N linked", linked: []int{0, 0}, findings: `"findings":[{"code":"no-requirements-linked","message":"0 of 3 declared requirements are linked to the change"}],`},
+		{name: "OCM-V0-016 some of N linked", linked: []int{1, 0}},
+		{name: "OCM-V0-016 N of N linked", linked: []int{2, 1}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			scopes := []verifiedScope{
+				fixtureScope("docs/specs/a.md", []string{"A-V0-001", "A-V0-002"}),
+				fixtureScope("docs/specs/b.md", []string{"B-V0-001"}),
+			}
+			for index, linked := range tc.linked {
+				scopes[index].coverage.Linked = linked
+				scopes[index].coverage.Unknown -= linked
+			}
+			result, err := aggregateVerified(manifest, manifest, scopes)
+			if err != nil {
+				t.Fatal(err)
+			}
+			encoded, err := json.Marshal(result.Aggregate)
+			if err != nil {
+				t.Fatal(err)
+			}
+			coverage, _ := json.Marshal(result.Aggregate.Coverage)
+			want := `{"coverage":` + string(coverage) + `,` + tc.findings + `"state":"ready-for-review"}`
+			if string(encoded) != want {
+				t.Fatalf("aggregate = %s, want %s", encoded, want)
+			}
+		})
+	}
+}
+
 func TestOCMV0013FailsClosedOnMissingScope(t *testing.T) {
 	_, err := aggregateVerified([]byte("docs/specs/a.md\n"), []byte("docs/specs/a.md\n"), nil)
 	assertCode(t, err, "missing-intent-scope")
