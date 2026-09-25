@@ -203,9 +203,9 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   | `context.abstention.reason` | `query` | `none`, `needs-widening`, `nearest-negative-claim`, `omitted-competing-record`, `below-relevance-floor`, `unindexed-worktree-changes`, `no-relevant-candidates` | open | `internal/contextindex/eval_query.go:386@2e798125` |
   | `inventory.operationalState` | `init`, `adopt` | `COMPLETE`, `PARTIAL`, `INVALID` | closed | `internal/genesis/inventory.go:133@5662da2b` |
   | `inventory.dirtyState` | `init`, `adopt` | `CLEAN`, `DIRTY`, `UNKNOWN` | closed | `internal/genesis/inventory.go:81@4f7a9f91` |
-  | `plan.scope` | `affected` | `BOUNDED`, `UNKNOWN` | closed | `internal/liveverify/affected/select.go:49@884d7796` |
+  | `plan.scope` | `affected` | `BOUNDED`, `UNKNOWN` | closed | `internal/liveverify/affected/select.go:55@884d7796` |
   | `advice.status` | `affected` | `PLAN_ONLY` | closed | `cmd/corvint/affected.go:112@7320d4cb` |
-  | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:129@797e536b` |
+  | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:131@797e536b` |
   | `state` | `prove` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL`, `CITED`, `UNPROVEN` | closed | `cmd/corvint/prove.go:1697@b984fed9` |
 
   The `graph` relation that the experimental `CORVINT_CONTEXT_GRAPH=on` switch appends

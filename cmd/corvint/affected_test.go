@@ -742,6 +742,61 @@ func TestAffectedAdviceSkipsCommentsInVerifyFence(t *testing.T) {
 	})
 }
 
+// AFP-V0-009 (V1-0342): only a heading that is exactly "Verify" declares
+// checks; another heading naming verify is reported, shell comments are
+// removed, and a command that launches a program or backgrounds itself is
+// advisory, listed after the mandatory entries.
+func TestAffectedAdviceTakesOnlyTheExactVerifyHeading_V1_0342(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		agents  string
+		want    []string
+		unknown []string
+	}{
+		{
+			agents:  "## Build / run / verify\n\n```bash\nswift build                     # compile\nswift run VideoMoverCoreChecks  # the test gate\n```\n",
+			want:    []string{},
+			unknown: []string{`MANDATORY_DECLARATION_UNRECOGNIZED: AGENTS.md heading "Build / run / verify" is not "Verify", so its commands are not checks`, adviceNoGateUnknown},
+		},
+		{
+			agents: "### verify\n\n```sh\nswift build   # compile\nopen dist/App.app  # launch the app\n./serve.sh &\ngo test ./... && echo \"a # b\"\necho 'x #y' # tail\necho a#b\n```\n",
+			want: []string{
+				"mandatory swift build", `mandatory go test ./... && echo "a # b"`, "mandatory echo 'x #y'", "mandatory echo a#b",
+				"advisory open dist/App.app", "advisory ./serve.sh &",
+			},
+			unknown: []string{},
+		},
+	}
+	for index, tc := range cases {
+		root := affectedFixtureRepository(t)
+		if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte(tc.agents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		receipt, _, stderr, code := runAffectedCLI(t, root)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, stderr)
+		}
+		got := []string{}
+		for _, check := range affectedChecks(t, receipt) {
+			if check["source"] == "AGENTS.md" {
+				got = append(got, fmt.Sprint(check["kind"], " ", check["command"]))
+			}
+		}
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("case %d: AGENTS.md checks = %q, want %q", index, got, tc.want)
+		}
+		declared := []string{}
+		for _, line := range affectedAdviceUnknown(t, receipt) {
+			if strings.HasPrefix(line, "MANDATORY_") || line == adviceNoGateUnknown {
+				declared = append(declared, line)
+			}
+		}
+		if !slices.Equal(declared, tc.unknown) {
+			t.Errorf("case %d: declaration unknowns = %q, want %q", index, declared, tc.unknown)
+		}
+	}
+}
+
 // AFP-V0-010: `--base FULL_COMMIT_ID` joins the committed tree diff
 // base..HEAD to the worktree dirty set, records it under range, and fails
 // closed on a base that is not a full commit id in this repository.

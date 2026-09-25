@@ -6884,3 +6884,53 @@ on `DCW-V0-026`. Proposed requirements `DCW-V0-027` to `DCW-V0-031` are drafted 
 Follow-up: `script/dogfood-change_test.sh` intermittently exits 141 (SIGPIPE from
 `printf ... | rg -q` pipelines in its foreground subshell) under load average near 400; unmodified
 HEAD reproduced it, and runs at lower load pass.
+## 2026-09-25 V1-0327, V1-0291, V1-0290, V1-0340, V1-0230, V1-0289, V1-0342, V1-0283, V1-0299: affected planner bug batch
+
+This batch fixes nine defects in the `corvint affected` planner found by the pre-1.0 panel. Each
+ticket has its own commit, a regression test that was seen to fail before the fix, and a change to
+the owning spec. The panel findings that were disputed are treated as defects under decision 0398.
+Each clause those fixes amend is marked "(proposed, decision 0398)" and needs owner acceptance.
+
+- V1-0327: a `go.work` `use` outside the repository root raises a frontier instead of being
+  dropped (AFP-V0-008; `TestWorkspaceUseOutsideRootIsAFrontier_AFPV0008`).
+- V1-0291: Go test-only imports are kept apart from the package's own imports. A change reaches
+  the test user but does not travel on to that package's importers
+  (`TestTestOnlyImportSelectsTheTestUserButNotItsImporters`).
+- V1-0290: a lone path token with no anchor names a file, not a directory. This stops the
+  over-selection a directory-shaped literal caused (`TestDirectoryShapedLiteralNamesNoPath`).
+- V1-0340: a dirty path that no plugin owns, or a deleted Go source, selects its package and that
+  package's importers. This matches gate rules (a) and (b)
+  (`TestUnownedDirtyPathSelectsItsPackageAndImporters_V1_0340`,
+  `TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340`).
+- V1-0230: gate rule (d) is modelled. A Go package that reads paths it cannot bound is selected on
+  any change. The readers of CEM sidecars are narrowed to the sidecar paths
+  (`TestUnboundedReaderIsSelectedOnAnyChange_V1_0230`, `TestChangeEvidenceReadersAreNarrowed_V1_0230`).
+- V1-0289: a plugin's frontier is named only in plans that plugin takes part in. A plugin takes
+  part when it owns a dirty path, owns a reached unit, or reads paths. Every plugin takes part when
+  a dirty path is unowned or no path is dirty. A build-constraint variant is now the frontier of
+  its own package only (`TestFrontierBearsOnlyOnThePlansItTakesPartIn_V1_0289`,
+  `TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289`).
+- V1-0342: AGENTS.md commands become mandatory checks only under a heading that is exactly
+  `Verify`. Shell comments are stripped. A launch command (`open`, `xdg-open`, or a trailing `&`)
+  is advisory. Any other heading is recorded as `MANDATORY_DECLARATION_UNRECOGNIZED`
+  (`TestAffectedAdviceTakesOnlyTheExactVerifyHeading_V1_0342`).
+- V1-0283 (panel D8, the `affected` half): a bare import of a workspace package by its
+  `package.json` name now reaches every source in that package, so importing tests in other
+  packages are selected. A package that cannot be resolved keeps `FrontierPathAlias`
+  (TJAA-V0-005; `TestWorkspacePackageImportReachesTheImportingTest_V1_0283`). The impact-side
+  half is PR #224, and neither change touches the other's files.
+- V1-0299: `plan.graphDigest` is SHA-256 over the domain tag `corvint-affected-graph/1\n` followed
+  by a documented projection, `digestBody`/`digestUnit`. The projection replaces the internal
+  `Unit` struct as the thing hashed. A test fails when a `Unit` field is missing from the
+  projection (AFP-V0-005; `TestGraphDigestIsTheDomainTaggedProjection_V1_0299`). The profile's
+  member set is unchanged. Only the digest value changes, and it had already changed between
+  releases on identical input. Only the three goldens that carry digests changed, and only in
+  their digest bytes.
+
+Checks: the focused `internal/liveverify/affected/...`, appflows and `cmd/corvint` tests
+(`Affected|AFUV1|UseCase|Impact|Flow|Prove|Selection|Playwright|TypeScript|Guidance`); go vet on
+the touched packages; the doc checks; `go run ./conformance/use-cases-v0`, which is valid:true.
+
+Under host load (load average 170 to 570), `TestSelectionOnTheLiveDirtyWorktree` and
+`TestIncrementalSelectionMeetsTheLiveBudget` exceeded their 100 ms budget. These are timing
+flakes. NOT_RUN: the exhaustive `./...` gate.

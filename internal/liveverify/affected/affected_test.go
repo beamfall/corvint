@@ -1,9 +1,13 @@
 package affected
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -308,6 +312,51 @@ func TestLanguageFrontierWidensEveryPlanFromThatGraph(t *testing.T) {
 	}
 }
 
+// pathReading is a plugin whose units may read any path.
+type pathReading struct{ fake }
+
+func (pathReading) ReadsAnyPath() bool { return true }
+
+// V1-0289: a plugin's frontier bears only on a plan it takes part in, and a
+// unit's frontier only on a plan that reaches the unit. A path no plugin owns
+// and a plugin that reads any path take part in every plan with a dirty path,
+// and every plugin takes part in a plan with none.
+func TestFrontierBearsOnlyOnThePlansItTakesPartIn_V1_0289(t *testing.T) {
+	x := chain()
+	x.frontier = []string{"x:dynamic-dispatch"}
+	x.units[3].Frontier = []string{"x:variant"}
+	y := fake{name: "y", units: []Unit{{ID: "y:app", Sources: []string{"app.y"}, Tests: []string{"app_test.y"}}}}
+	z := pathReading{fake{name: "z", frontier: []string{"z:hidden"}}}
+	cases := []struct {
+		languages []Language
+		dirty     []string
+		want      string
+	}{
+		{[]Language{x, y}, []string{"app.y"}, "BOUNDED []"},
+		{[]Language{x, y}, []string{"core.x"}, "UNKNOWN [x:dynamic-dispatch]"},
+		{[]Language{x, y}, []string{"solo.x"}, "UNKNOWN [x:dynamic-dispatch x:variant]"},
+		{[]Language{x, y}, []string{"notes.md"}, "UNKNOWN [x:dynamic-dispatch]"},
+		{[]Language{x, y}, nil, "UNKNOWN [x:dynamic-dispatch]"},
+		{[]Language{x, y, z}, []string{"app.y"}, "UNKNOWN [z:hidden]"},
+	}
+	for _, tc := range cases {
+		graph, err := Build(t.TempDir(), tc.languages...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		plan := Select(graph, tc.dirty)
+		frontier := []string{}
+		for _, unknown := range plan.Unknown {
+			if unknown.Reason == UnknownLanguageFrontier {
+				frontier = append(frontier, unknown.Detail)
+			}
+		}
+		if got := plan.Scope + " " + fmt.Sprint(frontier); got != tc.want {
+			t.Errorf("%d languages, dirty %v: %s, want %s", len(tc.languages), tc.dirty, got, tc.want)
+		}
+	}
+}
+
 // readerPlan builds chain() with the given path tokens on x:solo and x:mid,
 // beside a y plugin that owns assets/logo.y, and plans dirty (AFP-V0-021).
 func readerPlan(t *testing.T, solo, mid []string, bounded bool, dirty ...string) Plan {
@@ -407,6 +456,39 @@ func TestGraphDigestChangesWithEveryObservedInput(t *testing.T) {
 	}
 	if base.Digest() == edged.Digest() {
 		t.Fatal("edges are outside the graph digest")
+	}
+}
+
+// TestGraphDigestIsTheDomainTaggedProjection_V1_0299 pins the digest to the
+// documented derivation (AFP-V0-005): SHA-256 over the domain tag followed by
+// the canonical projection, which names every Unit field and no other.
+func TestGraphDigestIsTheDomainTaggedProjection_V1_0299(t *testing.T) {
+	graph, err := Build(t.TempDir(), chain())
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := graph.Canonical()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(append([]byte("corvint-affected-graph/1\n"), body...))
+	if want := "affected-graph:sha256:" + hex.EncodeToString(sum[:]); graph.Digest() != want {
+		t.Fatalf("digest=%s want=%s", graph.Digest(), want)
+	}
+	for _, member := range []string{`"testImports":`, `"pathTokensBounded":`, `"embeds":`, `"unboundedReads":`, `"locatesRoot":`, `"frontier":`} {
+		if !strings.Contains(string(body), member) {
+			t.Fatalf("projection lacks %s: %s", member, body)
+		}
+	}
+	unitFields := reflect.VisibleFields(reflect.TypeFor[Unit]())
+	projectedFields := reflect.VisibleFields(reflect.TypeFor[digestUnit]())
+	if len(unitFields) != len(projectedFields) {
+		t.Fatalf("Unit has %d fields, the digest projection %d: decide whether the new field governs selection", len(unitFields), len(projectedFields))
+	}
+	for index := range unitFields {
+		if unitFields[index].Name != projectedFields[index].Name {
+			t.Fatalf("field %d: Unit %s, projection %s", index, unitFields[index].Name, projectedFields[index].Name)
+		}
 	}
 }
 

@@ -55,13 +55,45 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   are directories rather than import paths when the Go plugin reports `go:module-path-unresolved`.
 - **AFP-V0-004:** The plan is not authority. `plan.scope` MUST be `UNKNOWN` whenever `plan.unknown`
   is non-empty; the provider's plan wire MUST keep `NO_AFFECTED_SELECTION_PROOF`; no consumer may
-  treat an exclusion as proof that the excluded test is safe to omit. When a current-tree-unindexed
-  dirty Go path shares an observed package directory, that package's exclusion reason MUST be
-  `UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED`, not
-  `NO_DEPENDENCY_PATH_TO_DIRTY_UNIT`. The dirty-path input does not preserve Git status or overlay
-  provenance, so the reason names the deletion/rename possibility without asserting it occurred.
+  treat an exclusion as proof that the excluded test is safe to omit. (proposed, decision 0398;
+  V1-0340) A dirty path no Go unit declares MUST follow AFP-V0-012's structural rules (a) and (b)
+  rather than exclude the package it touches. A current-tree-unindexed Go path is a
+  `DIRECT_SOURCE_CHANGE` of the package observed in its directory, which is then traversed to its
+  dependents; with no package there, every unit with an import edge to an absent in-module Go unit
+  whose last path component is the directory's name is a changed unit with a `DEPENDENCY_PATH`
+  witness. The Go plugin keeps an import under an observed module path that resolves to no
+  package as an edge to that absent `go:` identity for this purpose. Any other unowned or
+  non-Go path selects every Go package whose directory encloses it with witness kind
+  `ENCLOSING_PACKAGE`; the nearest such package, when the path sits directly in its directory,
+  and every enclosing package whose non-test files carry `//go:embed` (`Unit.embeds`) are also
+  traversed to their dependents. The `UNINDEXED_SOURCE_PATH` and `UNOWNED_DIRTY_PATH` entries
+  stay, so `plan.scope` stays `UNKNOWN`. This replaces the former exclusion reason
+  `UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED`, which named the package that lost a file
+  but left it and its importers unselected. Rollback restores that reason.
+  (proposed, decision 0398; V1-0289) A plugin's frontier reason MUST be a `LANGUAGE_FRONTIER`
+  entry of every plan the plugin takes part in, and only of those: a plugin takes part when it
+  owns a dirty path (a unit of it declares the path, or its `Owns` claims it), when it owns a
+  reached unit, when its units read any path (`affected.PathReader`; the Go plugin, whose path
+  tokens and rule (d) reads mean a unit it could not observe may read any dirty path), and every
+  plugin takes part once a dirty path is owned by none or no path is dirty. A reason that bears only on one unit is that unit's sorted `frontier` member, covered
+  by the graph digest, and is named only by a plan that reaches the unit. The Go plugin's
+  `go:build-constraint-variants` is such a reason, because every variant's imports are edges, so
+  the closure is a superset of each variant's; every other plugin reason stays plugin-wide,
+  because it hides edges or units of that plugin. Rollback names every graph frontier reason in
+  every plan again.
 - **AFP-V0-005:** For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
   runs; with `--base`, the base commit is part of that fixed input.
+  (proposed, decision 0398; V1-0299) `plan.graphDigest` MUST be `affected-graph:sha256:` followed by
+  the lowercase hex SHA-256 of the domain tag `corvint-affected-graph/1` and one line feed, then the
+  deterministic JSON projection `{"languages","frontier","units"}`: the sorted participating plugin
+  names, the sorted graph frontier, and, in unit-id order, each unit's `id`, `sources`, `tests`,
+  `imports`, `testImports`, `pathTokens`, `pathTokensBounded`, `embeds`, `unboundedReads`,
+  `locatesRoot` and `frontier`, every member always present (`digestBody` and `digestUnit` in
+  `internal/liveverify/affected/graph.go`). The projection is fixed there, not by the internal
+  `Unit` struct, so a new internal field changes the digest only when it is added to the
+  projection, and a unit field left out of it fails the test. The value is an identity, not a
+  CCF-V1-002 identifier: it has changed between releases on identical input (0.7.0 to 0.8.1, and
+  again with this derivation), so a reader compares digests only from one release.
 - **AFP-V0-006:** Failures MUST exit 2 with a typed code on stderr and no partial document:
   `unsupported-affected-revision`, `unsupported-affected-status`, `unsupported-affected-graph`
   (including an unreadable subtree, or an accepted source file whose repository-relative path is no
@@ -79,7 +111,9 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   keys (1) and (2) do not apply to it.
 - **AFP-V0-008:** The Go plugin's unit universe is the root module, or, when the root holds a
   `go.work`, every module a `use` directive names (a `use DIR` line or one parenthesized block,
-  read from text; an entry outside the root is skipped). Each observed module's packages are
+  read from text; an entry outside the root is skipped and raises the
+  `go:workspace-module-outside-root` frontier, because its packages and every edge into them are
+  absent from the graph, V1-0327). Each observed module's packages are
   units under that module's own import path, so an edge between two workspace modules resolves
   as an edge inside one does. A `go.mod` below the root that no `use` names is the
   `go:nested-module-frontier`: its packages are absent from the graph, never attributed to the
@@ -96,15 +130,20 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   from its own files as before (V1-0203). `Owns` sees only the repository-relative path, so an
   unindexed `.go` path of a workspace module whose root lies below `testdata` is also
   `UNOWNED_DIRTY_PATH` rather than `UNINDEXED_SOURCE_PATH`; the plan is `UNKNOWN` either way. The
-  toolchain is never executed.
+  toolchain is never executed. (proposed 2026-09-25, not accepted; V1-0291) An import only a
+  package's `_test.go` files declare is a `testImports` edge, kept apart from `imports` with
+  `go list -deps -test` semantics: a change the traversal reaches selects that package's tests one
+  edge further, witnessed as `DEPENDENCY_PATH`, and the traversal does not continue to the
+  package's importers, which never compile its tests. An import its non-test files also declare
+  stays an ordinary edge.
 - **AFP-V0-009:** (accepted 2026-09-04 by decision 0052) The receipt MUST carry an `advice` member with exactly the
   members `status="PLAN_ONLY"`, `checks`, `unknown`, and `note`, plus `test_selection` only when
   `--provider` is given (ETS-V0-002, `docs/specs/external-test-selection-v0.md`). Each `checks` entry has exactly
   `command`, `kind` (`mandatory` or `advisory`), `reason` (one sentence), and `source` (a repository
   path or `affected-plan`). A `mandatory` entry MUST come only from a repository-owned declaration
   read from the working tree at the root: a `gate:` target in `Makefile` yields `make gate`, and a
-  fenced `sh`/`bash`/`console` block under a heading containing "Verify" in `AGENTS.md` yields each
-  of its non-empty command lines with a leading `$ ` stripped. Both reads are bounded at 256 KiB per
+  fenced `sh`/`bash`/`console` block under a heading whose text is exactly "Verify" in `AGENTS.md`
+  (amended, see below) yields each of its non-empty command lines with a leading `$ ` stripped. Both reads are bounded at 256 KiB per
   file and the mandatory list is deduplicated in order of appearance and capped at 16 entries; a
   truncated read still yields the declarations inside the bound. When neither declaration exists,
   `checks` MUST carry no mandatory entry and `unknown` MUST gain
@@ -122,6 +161,19 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   `MANDATORY_DECLARATION_CAPPED: <path> declared more than 16 commands`. The advisory command's
   package arguments are each POSIX single-quoted, with an embedded `'` escaped as `'\''`, so an
   unusual import path cannot break a shell paste.
+  (proposed, decision 0398; V1-0342) Only a heading whose text, without its `#` marks and
+  surrounding space, equals `Verify` in any case declares checks; a substring match made every
+  shell line under a heading such as `## Build / run / verify` mandatory, app launches included.
+  Each other heading whose text contains `verify` in any case and that has such a fence MUST add
+  `MANDATORY_DECLARATION_UNRECOGNIZED: AGENTS.md heading "<text>" is not "Verify", so its commands
+  are not checks` to `unknown` instead of yielding checks. A shell comment, a `#` that begins a
+  word outside single or double quotes, is removed from each command line with the space before
+  it, and a line left empty is no command. A command that ends in a single `&` or whose first word
+  is `open` or `xdg-open` does not end on its own: it MUST be an `advisory` entry with source
+  `AGENTS.md`, listed after the mandatory entries and before the plan's advisory entry, and counts
+  toward the 16-entry cap. Any other command stays `mandatory`, because requiring too much is
+  safe. `NO_REPOSITORY_GATE_DECLARED` is added when no entry is mandatory. Rollback restores the
+  substring heading match and whole-line commands.
 - **AFP-V0-010:** `corvint affected --base FULL_COMMIT_ID` (or `--base=`) MUST join the committed
   range to the dirty set: the paths of one bounded `git diff --name-only -z --no-renames --no-color
   BASE HEAD --` (`affected.RangePaths`, the AFP-V0-002 8 MiB / 10 s bounds; each NUL-delimited
@@ -164,8 +216,8 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   `selected <pkg>`, `frontier <pkg> <- <path>`, `data <path>`, `reader <pkg> <- <path>`,
   `unresolved <pkg>: <reason>`, and the `run <command> <packages>` line) so a narrowed run can be
   checked afterwards. The steady-state frontiers `go:build-constraint-variants` and
-  `go:nested-module-frontier` do not fall back: they are present on every clean tree here and name
-  packages the selector never claims. The fast tier is not the push gate: `make gate` is unchanged
+  `go:nested-module-frontier` do not fall back: one or both are present on nearly every change here
+  and name packages the selector never claims. The fast tier is not the push gate: `make gate` is unchanged
   and stays the mandatory check (AFP-V0-009 keeps advising it). The selector MUST refuse a plan
   file above 8 MiB before JSON decoding, so external plan input cannot consume unbounded memory.
 - **AFP-V0-012:** (decision 0131) The fast tier's selector MUST attribute every dirty path from a
@@ -386,8 +438,34 @@ and container qualification; full fallback remains available.
   tool never builds. A match adds and removes no unknown entry: an unowned path keeps its
   `UNOWNED_DIRTY_PATH` entry, so `plan.scope` stays `UNKNOWN`, because a literal index cannot
   bound a read whose path is built at run time (AFP-V0-012 rule (d)). A reader's witness is the
-  smallest dirty path naming it. The CEM sidecar narrowing of rule (c) is not applied. Rollback
+  smallest dirty path naming it. (proposed, decision 0398; V1-0230) For the CEM sidecar
+  `.corvint/change.cem.json` (`affected.ChangeEvidencePath`, equal to `frontier.ExcludedPath`) a
+  Go unit is a reader only when one of its naming tokens resolves as rule (c) narrows it: against
+  the unit's directory, or against the repository root when the unit also carries an anchored or
+  parent-only token, to the sidecar or an ancestor, outer components matching as fragments. An
+  anchored naming token always counts, because the graph does not record the module directory it
+  is anchored at, so this is a superset of rule (c)'s sidecar readers. A non-Go unit and any other
+  dirty path keep the component-run relation.
+  (proposed 2026-09-25, not accepted; V1-0290) A one-component run of a token that is not anchored
+  at a module root and has no `..` in it names only a dirty path's file name, never one of its
+  directory components: the `internal/` of `"internal/%03d.go"` would otherwise make its package a
+  reader of every path under any `internal` directory, while `"../../.corvint"` climbs to a
+  directory. Runs of two or more components, climbing tokens and anchored tokens match as rule (c)
+  does, so here `affected` selects a subset of rule (c)'s readers. Rollback
   removes the reader selections and the bound entries; the paths stay unknown as before.
+  (proposed, decision 0398; V1-0230) Rule (d) is modelled for Go: a package that calls
+  `runtime.Caller` or `os.Getwd` (through a plain, aliased or dot import), carries the literal
+  `--show-toplevel`, has a file that does not lex outside a directory the go tool never builds, or
+  carries a literal that climbs from the working directory (a non-test file) or reaches the
+  repository root (a test file, or a `/...` pattern in a test file) records the first such reason,
+  a non-test one preferred, as the unit's `unboundedReads`, and `locatesRoot` when a non-test file
+  is the cause. Both are covered by the graph digest. On any non-empty dirty set, every such unit,
+  every dependent of a `locatesRoot` unit, and every test user of either, not otherwise reached,
+  is selected with witness kind `UNBOUNDED_READER`, `dirtyPath` the smallest dirty path and `via`
+  that unit alone, and is not traversed; a clean plan selects none. The `UNOWNED_DIRTY_PATH`
+  entry still stays: rule (d) is a lexical heuristic that cannot bound every read built at run
+  time, and no plugin but Go records path tokens, so `plan.scope` stays `UNKNOWN` for an unowned
+  path. Rollback removes the `UNBOUNDED_READER` selections and the two unit members.
 
 ## Non-goals and authority
 
@@ -412,8 +490,9 @@ Exhausting an admitted-directory sub-bound instead skips only that subtree and r
 A dirty path owned by no plugin, or a changed unit (one that owns a changed path) with no
 selectable test in any language (AFP-V0-020): the plan widens to `UNKNOWN` scope rather than
 narrowing; the packages that name a dirty path by literal are added, never substituted for the
-widening (AFP-V0-021). A potentially deleted or renamed-away Go path widens and names that possibility on its package
-exclusion rather than claiming no dependency path. An unreadable subtree:
+widening (AFP-V0-021). A potentially deleted or renamed-away Go path widens and selects its
+package, or the importers of a package that is gone, rather than claiming no dependency path
+(AFP-V0-004). An unreadable subtree:
 `unsupported-affected-graph`, never a silently smaller graph. Worktree or HEAD changed during
 compilation: `unsupported-affected-drift`. A `--base` that is not a full commit id:
 `invalid-arguments`; one that is not a commit here: `unsupported-affected-revision`; a range diff
@@ -430,11 +509,11 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-001 | `cmd/corvint/affected.go` `compileAffected` | `TestAffectedCleanTreeSelectsNothingAndWritesNothing` compares `git status --porcelain --ignored` before and after |
 | AFP-V0-002 | `internal/liveverify/affected/dirty.go` | `TestDecodeStatusFailsClosedOnMalformedInput`; `TestDirtyNonUTF8PathIsDisclosedNotRefused`; `TestAffectedRejectsNonRepositoryAndExtraArguments` |
 | AFP-V0-003 | `affectedReceipt`, `providerGoPackages` | `TestAffectedDirtyGoSourceSelectsDependentsAsProviderPackages` |
-| AFP-V0-004 | `affected.Select` scope and exclusion-reason rules | `TestAffectedUnownedDirtyPathIsUnknownScope`, `TestDeletedGoSourceNamesDeletionInOwnUnitExclusion`; provider wire unchanged (`go-live-test-provider-v0.md` GLTP-V0-006) |
-| AFP-V0-005 | canonical JSON via `gokernel.CanonicalJSON` | byte-identity assertion in the dirty-source test |
+| AFP-V0-004 | `affected.Select` scope and exclusion-reason rules; `goStructure`, `goSourceRule`, `goDataRule`, `WitnessEnclosingPackage` in `internal/liveverify/affected/structure.go`; `Unit.Embeds` and absent in-module import edges (`resolved`, `underModule`) in the Go plugin | `TestAffectedUnownedDirtyPathIsUnknownScope`, `TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340`, `TestUnownedDirtyPathSelectsItsPackageAndImporters_V1_0340` (an embedded asset, a nested fixture, a file directly in a package and a deleted package each select their package or importers; an unrelated package stays excluded); `frontierUnknowns`, `participants`, `claimantsOf`, `PathReader`, `Unit.Frontier` (V1-0289) with `TestFrontierBearsOnlyOnThePlansItTakesPartIn_V1_0289` (another plugin's change, a clean plan and an unreached unit name no frontier; an unowned path and a path-reading plugin take part) and `TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289`; provider wire unchanged (`go-live-test-provider-v0.md` GLTP-V0-006) |
+| AFP-V0-005 | canonical JSON via `gokernel.CanonicalJSON`; `graphDigestDomain`, `digestBody`, `digestUnit`, `projectUnit` in `internal/liveverify/affected/graph.go` | byte-identity assertion in the dirty-source test; `TestGraphDigestIsTheDomainTaggedProjection_V1_0299` |
 | AFP-V0-006 | `runAffected` error paths; `affected.ErrWalkUnreadable`; `affected.ErrWalkUnrepresentable` | `TestAffectedRejectsNonRepositoryAndExtraArguments`; `TestAffectedUnreadableSubtreeFailsClosed`; `TestSourceFilesRefusesAnUnrepresentableAcceptedName` |
 | AFP-V0-007 | `Graph.rank`, `Graph.proximity` in `internal/liveverify/affected/select.go` | `TestSelectOrdersByDistanceThenSharedDirectoryThenUnitID` (order and two-run byte identity) |
-| AFP-V0-008 | `SourceFilesIncluding`, `MaxIncludedDirectoryEntries`, `FrontierIncludedDirectoryWalkBounded`, `observeModules`, `workspaceDirectories`, `enclosingModule`, `groupByDirectory`, `inTestdata`, `unitID`, `readModulePath` in `internal/liveverify/affected` | `TestIncludedDirectoryWalkBoundWidensInsteadOfRefusing_AFPV0008`, `TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath`, `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` over `testdata/workspace` (a listed pair, an unlisted `stray`, an entry outside the root), `TestPackagesUnderBuildOutputDirectoryNamesAreSelected`, `TestNoGoRepositoryProducesNoUnitsOrFrontier`, `TestReadModulePathMatchesGoModEdit`, `TestReadModulePathAbstainsOnBOM`, `TestTestdataIsFixtureDataNotAPackage_AFPV0008`, `TestWorkspaceModuleBelowTestdataIsObserved_AFPV0008` |
+| AFP-V0-008 | `SourceFilesIncluding`, `MaxIncludedDirectoryEntries`, `FrontierIncludedDirectoryWalkBounded`, `observeModules`, `workspaceDirectories`, `enclosingModule`, `groupByDirectory`, `inTestdata`, `unitID`, `readModulePath` in `internal/liveverify/affected` | `TestIncludedDirectoryWalkBoundWidensInsteadOfRefusing_AFPV0008`, `TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath`, `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` over `testdata/workspace` (a listed pair, an unlisted `stray`, an entry outside the root), `TestPackagesUnderBuildOutputDirectoryNamesAreSelected`, `TestNoGoRepositoryProducesNoUnitsOrFrontier`, `TestReadModulePathMatchesGoModEdit`, `TestReadModulePathAbstainsOnBOM`, `TestTestdataIsFixtureDataNotAPackage_AFPV0008`, `TestWorkspaceModuleBelowTestdataIsObserved_AFPV0008`, `TestWorkspaceUseOutsideRootIsAFrontier_AFPV0008`, `TestTestOnlyImportSelectsTheTestUserButNotItsImporters`, `TestSourceParsedEdgesCoverEveryEdgeTheToolchainReports` (a non-test toolchain import must be an ordinary edge) |
 | AFP-V0-010 | `parseAffectedBase`, `affectedRangePaths`, `affectedRange` in `cmd/corvint/affected.go`; `RangePaths`, `DecodeNameList` in `internal/liveverify/affected/dirty.go` | `TestAffectedBaseRangeJoinsCommittedPathsAndFailsClosed` (committed edit with a clean worktree selects the dependents; `range.base`/`range.paths`; `main` and an unknown id exit 2 with no document), `TestDecodeNameListNormalizesAndFailsClosed`, `TestAffectedReceiptMembersAreClosedAndByteStable` (the closed member set includes `range`) |
 | AFP-V0-011 | `gate-affected`, `gate-affected-test`, `GO_TEST_COMMAND` in `Makefile`; `script/gate-affected.sh`; its selection step `selectPackages` in `tools/gate-affected-select/main.go` (native Go, no Python runtime, decision 0088) | `script/gate-affected_test.sh` via `make gate-affected-test` (a shell test over `testdata/fixture` in a scratch repository with a recording go-test command: clean tree runs nothing; a core edit selects core and leaf; a deleted `core/core.go` is a `frontier` line for core, mid, and leaf; a document no package reads beside a core edit is `data`, does not fall back, and adds no package; a dirty `go.mod` falls back; a committed edit under `BASE` selects; an unresolvable base falls back; an interrupted planner exits nonzero without running go test); `TestSelectPackagesAttributesEveryDirtyPath` (a control character in a dirty path falls back) in `tools/gate-affected-select/main_test.go`; `TestSelectPackagesRejectsSiblingModulePrefix` (a package path that only shares the module's characters as a string prefix, with no `/` boundary, falls back instead of being selected); the 50-commit replay in AFP-V0-011 |
 | AFP-V0-012 | `indexRepository`, `scanSource`, `escapesPackage`, `dependents`, `readers`, `enclosing`, `unresolved`, `namesPath` in `tools/gate-affected-select/readers.go`; the per-path loop in `selectPackages` (decision 0131) | `TestSelectPackagesAttributesEveryDirtyPath` in `tools/gate-affected-select/main_test.go` (a deleted source widens to its importers; a Go file read as data selects its reader; a document selects the package that names it; a testdata fixture selects its enclosing package; a `runtime.Caller` package is selected on every dirty path; a nested module's literals select nothing); `TestSelectPackagesFallsBackWhenAttributionFails` (imports that do not parse fall back); `TestSelectPackagesReachesEmbeddingAncestorDependents` (a data path under an embedding ancestor reaches that ancestor's dependents); `TestSelectPackagesResolvesAliasedAndDotRootLocatorImports` (an aliased or dot-imported `runtime.Caller` still marks the package unresolved); `TestIndexRepositoryFailsClosedOnSymlinkedGoFile` (a symlinked `.go` file falls back instead of being silently skipped) |
@@ -445,8 +524,8 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |
 | AFP-V0-019 | `internal/plansnapshot`, `compileSnapshotAffected` | `TestSnapshotImmutableBytesAndCleanup`, `TestSnapshotRejectsIncompleteMismatchedAndStale`, `TestSnapshotStrictWire`, `TestSnapshotRejectsLinksAndIgnoresArchiveAttributes`, `TestAffectedSnapshotMatchesCommittedPlanAcrossDirtySources`, `TestAffectedSnapshotPlaywrightPinsConfigAndSource` |
 | AFP-V0-018 | `playwrightAffectedReceipt`, `compilePlaywrightAffected`, and `typescript.SelectPlaywright` | `TestAffectedPlaywrightProfileEmitsProjectDistinctUnits`, `TestAffectedPlaywrightArgumentsFailClosed`, and `internal/liveverify/affected/typescript/playwright_test.go` |
-| AFP-V0-009 | `affectedAdvice`, `compileAffectedAdvice`, `mandatoryAffectedChecks`, `advisoryAffectedChecks`, `shellQuoteJoin` in `cmd/corvint/affected.go` | `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`, `TestAffectedAdviceReportsNoDeclaredGate`, `TestAffectedAdviceKeepsMandatoryGateAndNeverAdvisesExclusions`, `TestAffectedReceiptMembersAreClosedAndByteStable` (tightened to assert `advice`'s raw JSON key order), `TestAffectedAdviceBoundsTheDeclarationRead`, `TestShellQuoteJoinEscapesMetacharacters`, `TestAffectedAdviceTruncatedMandatoryDeclarationSuppressesNoGate`, `TestAffectedAdviceCapsMandatoryChecksAtSixteen`, `TestAffectedAdviceSkipsCommentsInVerifyFence` |
-| AFP-V0-021 | `WitnessPathLiteralReader`, `PathTokenBound`, `Graph.readers`, `Graph.tokenBounds`, `namesPath` in `internal/liveverify/affected` (`select.go`, `readers.go`); `Unit.PathTokens`, `Unit.PathTokensBounded`; `pathTokens`, `importsEnd`, `ignoredByGo`, `maxPathTokens` in `internal/liveverify/affected/golang/golang.go` | `TestPathLiteralSelectsItsReaderPackage_AFPV0021` (a named document selects its reader and stays unknown; single and parenthesized imports are no tokens; a file without imports yields tokens; a dependent and an unnamed path select nothing), `TestOwnedDirtyPathSelectsTheUnitsThatNameIt`, `TestReaderWitnessIsTheSmallestNamingDirtyPath`, `TestReaderReachedByDependencyKeepsItsDependencyWitness`, `TestBoundedPathTokensAreUnknownOnlyWhenAMatchIsAttempted`, `TestPathTokenBoundNamesThePackage`, `TestUnlexableSourceIsAFrontierOutsideIgnoredDirectories`, `TestSelectionOnTheLiveDirtyWorktree` (reader witnesses resolve), `TestAffectedDocumentSelectsThePackageThatNamesIt` (receipt shape, provider packages, byte identity) |
+| AFP-V0-009 | `affectedAdvice`, `compileAffectedAdvice`, `mandatoryAffectedChecks`, `advisoryAffectedChecks`, `agentsVerifyCommands`, `agentsCheck`, `nonTerminatingCommand`, `stripShellComment`, `shellQuoteJoin` in `cmd/corvint/affected.go` | `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`, `TestAffectedAdviceReportsNoDeclaredGate`, `TestAffectedAdviceKeepsMandatoryGateAndNeverAdvisesExclusions`, `TestAffectedReceiptMembersAreClosedAndByteStable` (tightened to assert `advice`'s raw JSON key order), `TestAffectedAdviceBoundsTheDeclarationRead`, `TestShellQuoteJoinEscapesMetacharacters`, `TestAffectedAdviceTruncatedMandatoryDeclarationSuppressesNoGate`, `TestAffectedAdviceCapsMandatoryChecksAtSixteen`, `TestAffectedAdviceSkipsCommentsInVerifyFence`, `TestAffectedAdviceTakesOnlyTheExactVerifyHeading_V1_0342` |
+| AFP-V0-021 | `WitnessPathLiteralReader`, `PathTokenBound`, `Graph.readers`, `Graph.tokenBounds`, `namesPath`, `ChangeEvidencePath`, `Graph.resolves`, `resolvesWithin`, `WitnessUnboundedReader`, `Graph.unboundedReadersOf` in `internal/liveverify/affected` (`select.go`, `readers.go`, `graph.go`); `Unit.PathTokens`, `Unit.PathTokensBounded`, `Unit.UnboundedReads`, `Unit.LocatesRoot`; `pathTokens`, `importsEnd`, `ignoredByGo`, `maxPathTokens` in `internal/liveverify/affected/golang/golang.go`; `escapesPackage`, `rootLocatorCall` in `internal/liveverify/affected/golang/unbounded.go` | `TestPathLiteralSelectsItsReaderPackage_AFPV0021` (a named document selects its reader and stays unknown; single and parenthesized imports are no tokens; a file without imports yields tokens; a dependent and an unnamed path select nothing), `TestOwnedDirtyPathSelectsTheUnitsThatNameIt`, `TestReaderWitnessIsTheSmallestNamingDirtyPath`, `TestReaderReachedByDependencyKeepsItsDependencyWitness`, `TestBoundedPathTokensAreUnknownOnlyWhenAMatchIsAttempted`, `TestPathTokenBoundNamesThePackage`, `TestUnlexableSourceIsAFrontierOutsideIgnoredDirectories`, `TestSelectionOnTheLiveDirtyWorktree` (reader witnesses resolve), `TestAffectedDocumentSelectsThePackageThatNamesIt` (receipt shape, provider packages, byte identity), `TestDirectoryShapedLiteralNamesNoPath` (V1-0290: a directory-shaped one-component token names no path; two-component and file-name tokens still select), `TestChangeEvidenceReadersAreNarrowed_V1_0230` (the sidecar keeps only resolving readers; a climbing token names a directory; a same-shaped path is not narrowed), `TestUnboundedReaderIsSelectedOnAnyChange_V1_0230` (rule (d): root locators through plain, aliased and dot imports, a climbing literal and a test-only `--show-toplevel` are selected with their non-test locator's dependents, not the test-only one's; a clean plan selects none) |
 | AFP-V0-020 | `UnknownNoSelectableTest` in `affected.Select` (`internal/liveverify/affected/select.go`) | `TestSelectNamesChangedUntestedGoPackageAsUnknownScope`, `TestSelectTraversesUntestedUnitsWithoutSelectingThem` (an untested unit the change only reaches stays bounded), `TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020` (every plugin), `TestPlaywrightDiscoveryReconciliation` (an unreached helper keeps the Playwright plan), `TestAffectedUntestedGoPackageIsUnknownScope` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if

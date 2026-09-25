@@ -38,23 +38,23 @@ AFP-V0-001	docs/specs/affected-plan-v0.md	31	The command MUST be read-only: one 
 AFP-V0-002	docs/specs/affected-plan-v0.md	35	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,
 AFP-V0-003	docs/specs/affected-plan-v0.md	46	Stdout MUST be one canonical JSON line with exactly the members `advice`
 AFP-V0-004	docs/specs/affected-plan-v0.md	56	The plan is not authority. `plan.scope` MUST be `UNKNOWN` whenever `plan.unknown
-AFP-V0-005	docs/specs/affected-plan-v0.md	63	For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
-AFP-V0-006	docs/specs/affected-plan-v0.md	65	Failures MUST exit 2 with a typed code on stderr and no partial document:
-AFP-V0-007	docs/specs/affected-plan-v0.md	71	`plan.selected` MUST be ordered by exactly three keys: (1) reverse-dependency
-AFP-V0-008	docs/specs/affected-plan-v0.md	80	The Go plugin's unit universe is the root module, or, when the root holds a
-AFP-V0-009	docs/specs/affected-plan-v0.md	100	(accepted 2026-09-04 by decision 0052) The receipt MUST carry an `advice` member
-AFP-V0-010	docs/specs/affected-plan-v0.md	125	`corvint affected --base FULL_COMMIT_ID` (or `--base=`) MUST join the committed
-AFP-V0-011	docs/specs/affected-plan-v0.md	138	`make gate-affected` (`script/gate-affected.sh [BASE]`; the Makefile's `BASE`
-AFP-V0-012	docs/specs/affected-plan-v0.md	171	(decision 0131) The fast tier's selector MUST attribute every dirty path from a
-AFP-V0-013	docs/specs/affected-plan-v0.md	230	(accepted by decision 0289) `tools/corvint-pr-tests` MUST execute only
-AFP-V0-014	docs/specs/affected-plan-v0.md	243	(accepted by decision 0289) PR narrowing MUST require a separately trusted,
-AFP-V0-015	docs/specs/affected-plan-v0.md	260	(accepted by decision 0289) The trusted PR driver SHALL support one 1-based inde
-AFP-V0-016	docs/specs/affected-plan-v0.md	298	(accepted by decision 0320; ruleset and consent amended by decision 0390)
-AFP-V0-017	docs/specs/affected-plan-v0.md	313	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
-AFP-V0-018	docs/specs/affected-plan-v0.md	321	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
-AFP-V0-019	docs/specs/affected-plan-v0.md	336	(proposed technical contract implementing owner-requested issue #57)
-AFP-V0-020	docs/specs/affected-plan-v0.md	362	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
-AFP-V0-021	docs/specs/affected-plan-v0.md	373	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
+AFP-V0-005	docs/specs/affected-plan-v0.md	84	For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
+AFP-V0-006	docs/specs/affected-plan-v0.md	97	Failures MUST exit 2 with a typed code on stderr and no partial document:
+AFP-V0-007	docs/specs/affected-plan-v0.md	103	`plan.selected` MUST be ordered by exactly three keys: (1) reverse-dependency
+AFP-V0-008	docs/specs/affected-plan-v0.md	112	The Go plugin's unit universe is the root module, or, when the root holds a
+AFP-V0-009	docs/specs/affected-plan-v0.md	139	(accepted 2026-09-04 by decision 0052) The receipt MUST carry an `advice` member
+AFP-V0-010	docs/specs/affected-plan-v0.md	177	`corvint affected --base FULL_COMMIT_ID` (or `--base=`) MUST join the committed
+AFP-V0-011	docs/specs/affected-plan-v0.md	190	`make gate-affected` (`script/gate-affected.sh [BASE]`; the Makefile's `BASE`
+AFP-V0-012	docs/specs/affected-plan-v0.md	223	(decision 0131) The fast tier's selector MUST attribute every dirty path from a
+AFP-V0-013	docs/specs/affected-plan-v0.md	282	(accepted by decision 0289) `tools/corvint-pr-tests` MUST execute only
+AFP-V0-014	docs/specs/affected-plan-v0.md	295	(accepted by decision 0289) PR narrowing MUST require a separately trusted,
+AFP-V0-015	docs/specs/affected-plan-v0.md	312	(accepted by decision 0289) The trusted PR driver SHALL support one 1-based inde
+AFP-V0-016	docs/specs/affected-plan-v0.md	350	(accepted by decision 0320; ruleset and consent amended by decision 0390)
+AFP-V0-017	docs/specs/affected-plan-v0.md	365	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
+AFP-V0-018	docs/specs/affected-plan-v0.md	373	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
+AFP-V0-019	docs/specs/affected-plan-v0.md	388	(proposed technical contract implementing owner-requested issue #57)
+AFP-V0-020	docs/specs/affected-plan-v0.md	414	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
+AFP-V0-021	docs/specs/affected-plan-v0.md	425	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -2084,18 +2084,18 @@ TJAA-V0-002	docs/specs/typescript-javascript-affected-adapter-v0.md	35	A normall
 TJAA-V0-003	docs/specs/typescript-javascript-affected-adapter-v0.md	39	Runner detection MUST use direct runner imports/registrations, recognized config
 TJAA-V0-004	docs/specs/typescript-javascript-affected-adapter-v0.md	47	Vitest, Jest, AVA, `node:test`, Playwright Test, Bun test, Deno test, Cypress,
 TJAA-V0-005	docs/specs/typescript-javascript-affected-adapter-v0.md	51	Static relative `import`, re-export, and `require` edges MUST resolve extensionl
-TJAA-V0-006	docs/specs/typescript-javascript-affected-adapter-v0.md	71	Owned framework config MUST be an affecting source unit for every governed test.
-TJAA-V0-007	docs/specs/typescript-javascript-affected-adapter-v0.md	74	Multiple runners/configs that can own one physical test path MUST produce one
-TJAA-V0-008	docs/specs/typescript-javascript-affected-adapter-v0.md	77	Playwright/Cypress/WebdriverIO/TestCafe/Nightwatch/Detox/Puppeteer tests without
-TJAA-V0-009	docs/specs/typescript-javascript-affected-adapter-v0.md	81	Discovery and canonical graph bytes MUST be deterministic for fixed repository
-TJAA-V0-010	docs/specs/typescript-javascript-affected-adapter-v0.md	84	The opt-in `playwright-affected/0` profile MUST bind the config path and SHA-256
-TJAA-V0-011	docs/specs/typescript-javascript-affected-adapter-v0.md	88	One selected Playwright unit MUST identify one physical test file under one
-TJAA-V0-012	docs/specs/typescript-javascript-affected-adapter-v0.md	91	Static config support is deliberately closed. Project arrays and membership fiel
-TJAA-V0-013	docs/specs/typescript-javascript-affected-adapter-v0.md	112	A changed source, page object, fixture, scenario builder, or helper MUST select
-TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	119	Project grep/tag and metadata inputs are identity, not file-exclusion authority.
-TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	123	Per-file commands require a matching complete caller-owned discovery receipt.
-TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	130	The profile MUST be read-only and bounded by the shared source-walk and source-r
-TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	138	Qualification requires a fixture with Chromium plus Angular/React project varian
+TJAA-V0-006	docs/specs/typescript-javascript-affected-adapter-v0.md	81	Owned framework config MUST be an affecting source unit for every governed test.
+TJAA-V0-007	docs/specs/typescript-javascript-affected-adapter-v0.md	84	Multiple runners/configs that can own one physical test path MUST produce one
+TJAA-V0-008	docs/specs/typescript-javascript-affected-adapter-v0.md	87	Playwright/Cypress/WebdriverIO/TestCafe/Nightwatch/Detox/Puppeteer tests without
+TJAA-V0-009	docs/specs/typescript-javascript-affected-adapter-v0.md	91	Discovery and canonical graph bytes MUST be deterministic for fixed repository
+TJAA-V0-010	docs/specs/typescript-javascript-affected-adapter-v0.md	94	The opt-in `playwright-affected/0` profile MUST bind the config path and SHA-256
+TJAA-V0-011	docs/specs/typescript-javascript-affected-adapter-v0.md	98	One selected Playwright unit MUST identify one physical test file under one
+TJAA-V0-012	docs/specs/typescript-javascript-affected-adapter-v0.md	101	Static config support is deliberately closed. Project arrays and membership fiel
+TJAA-V0-013	docs/specs/typescript-javascript-affected-adapter-v0.md	122	A changed source, page object, fixture, scenario builder, or helper MUST select
+TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	129	Project grep/tag and metadata inputs are identity, not file-exclusion authority.
+TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	133	Per-file commands require a matching complete caller-owned discovery receipt.
+TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	140	The profile MUST be read-only and bounded by the shared source-walk and source-r
+TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	148	Qualification requires a fixture with Chromium plus Angular/React project varian
 TSS-V0-001	docs/specs/touch-set-surprise-v0.md	34	`corvint [--root PATH] surprise --task TEXT --base REV --target REV
 TSS-V0-002	docs/specs/touch-set-surprise-v0.md	42	The predicted set MUST be the paths of `contextindex.TaskContext(ctx, index, tas
 TSS-V0-003	docs/specs/touch-set-surprise-v0.md	49	The actual set MUST be the changed paths of the committed range, read as
