@@ -5769,6 +5769,32 @@ decision 0332), so no receipt repin was needed (V1-0216 does not apply here).
 `statusCounts.experimental: 3`, all claims `UNPROVEN`. `go test ./conformance/use-cases-v0/...` and
 `go test ./internal/specindex/...` pass.
 
+## 2026-09-25 V1-0184: beamfall-dogfood receipt for UC-TASK-ORIENTATION
+
+This completes V1-0184's third row. The LCRES-15 pre-change query abstained with zero results
+(V1-0260). With `GPK-V0-066` accepted (decision 0387), a new agent-run Beamfall change went through
+the daily path using Corvint 0.8.1 built from PR #189. The change adds tests anchored to the accepted
+`PTR-V0-002` and `PTR-V0-003` for `internal/plugin` trust assessment: base
+`6a95ae32116718d55687da97efd9108b5174fe5e`, bind commit `1c9fa18da1a3cd715b56f73b267c4ee5e8d3c76e`,
+Beamfall/core branch `claude/corvint-dogfood-PTR-tests`, PR beamfall/core#32 (stacked on #31).
+
+- Pre-change query result: `READY`, abstention `none`. It returned `internal/plugin/trust.go:trustAssessment`, the function the change tests. Its
+  uncertainty keeps "all results are syntax matches; no project-owned authority corroborates the
+  task" visible.
+- `dogfood check` and `dogfood seal` result: `PASS`. The OCM links 2 of 4 requirements. `PTR-V0-001` and `PTR-V0-004` stay unknown because the change does not assess them.
+  One `unbound-commits` note names the acceptance commit `6a95ae32` from #31.
+- Receipt contents: the new `receipts/UC-TASK-ORIENTATION/beamfall-dogfood.json` carries byte-identical copies of `prechange-query.json`
+  and the sealed CEM.
+
+Adopter friction found along the way:
+- An OCM claim anchors only to a slice-table `name:` field or a `t.Run` literal; map-key
+  table cases are not extracted.
+- Selector fragments are normalized: numeric suffixes are dropped and `checks`/`versions` are singularized.
+  Each fragment had to be probed before the links resolved.
+
+`go run ./conformance/use-cases-v0` reports `valid: true` and `evidenceCount: 18` (was 17). All claims are still
+`UNPROVEN`.
+
 ## 2026-09-25 V1 bug batch: V1-0123, V1-0159, V1-0172, V1-0238, V1-0222, V1-0131
 
 - V1-0123 (`EEP-V0-001`): a provider record whose object repeats a member name is now `invalid`,
