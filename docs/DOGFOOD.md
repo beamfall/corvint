@@ -184,16 +184,19 @@ the private Git directory:
 $ corvint_git_dir=$(git rev-parse --absolute-git-dir)
 $ mkdir -p "$corvint_git_dir/corvint"
 $ corvint query --task "THE CHANGE" --limit 1 > "$corvint_git_dir/corvint/prechange-query.json"
-$ corvint impact --base BASE_SHA --limit 20 > "$corvint_git_dir/corvint/prechange-impact.json"
+$ corvint impact PATH... --limit 10 > "$corvint_git_dir/corvint/prechange-impact.json"
 ```
 
 `dogfood change` never writes these two receipts. It reruns query and impact after the change as
 its `coordination-time-query` and `coordination-time-impact` steps, under those file names, so the
 receipts above stay as the agent wrote them (`DCW-V0-026`, proposed).
 
-Use the native `corvint` runtime. For range impact, `BASE_SHA` is the full immutable commit ID
-immediately before the included changes, which must end at captured `HEAD`. For tracked Go paths,
-use `corvint impact PATH... --limit 10`. A result limit is not a byte budget: retain the complete
+Use the native `corvint` runtime. `PATH...` names the tracked files the change intends to touch.
+Range impact (`corvint impact --base BASE_SHA`) is not a pre-change step: before any edit it has
+no changed path to measure and returns state `OUT_OF_SCOPE` with `changedPathCount` 0 (V1-0262).
+It applies once the change exists, with `BASE_SHA` the full immutable commit ID immediately before
+the included changes, which must end at captured `HEAD`; `dogfood change` runs it as its
+`coordination-time-impact` step. A result limit is not a byte budget: retain the complete
 response and every omission/uncertainty. Native impact refuses `--budget-bytes` with
 `unsupported-impact-option`; never substitute a legacy runtime.
 
