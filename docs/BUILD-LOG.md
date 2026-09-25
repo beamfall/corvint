@@ -5545,3 +5545,22 @@ checkout on 2026-09-24.
 - V1-0240 to V1-0247 are filed from the 0.8.1 session's findings, including V1-0247 for issue #167.
 - Decision 0384: release `v0-9` keeps its id with version `1-0-0-rc-1` and title `Corvint
   1.0.0-rc.1 release candidate`, and V1-0018 is retitled to match. No 0.9.0 is published.
+
+## 2026-09-24 V1-0018: release version grammar admits 1.0.0-rc.N and 1.0.0 (decision 0384)
+
+`corvint-release-candidate` and `corvint-release-install` share one version pattern
+(`internal/releasecandidate/candidate.go` `versionPattern`, used by `Assemble` and by candidate
+verification before install). It admitted only `MAJOR.MINOR.PATCHaN`, so neither `1.0.0-rc.1` nor
+`1.0.0` assembled. It now admits exactly `MAJOR.MINOR.PATCHaN`, `MAJOR.MINOR.PATCH-rc.N` and
+`MAJOR.MINOR.PATCH`, with no leading zeros and the `-rc.N` `N` at least 1. The alpha form still
+admits `a0`, since `0.4.0a0` was a published tag, and every retained alpha fixture (`0.5.0a1..a3`)
+still passes. One narrowing is deliberate: a leading zero in any numeric part (such as `01.2.3a1`) is
+now refused, and no published version has one. `PUB-V0-023` now states the grammar; the Core-only amendment and
+`daily-change-evidence-workflow-v0.md` no longer say a non-alpha version is refused.
+`TestPUBV0023CandidateVersionGrammar` pins the admitted and refused forms, and
+`TestPUBV0023ReleaseCandidateRC1AssemblesVerifiesAndInstalls` assembles, verifies and installs a
+`1.0.0-rc.1` Core-only fixture.
+
+Left unchanged: `script/release-checklist` already admits any `[0-9A-Za-z.+-]` VERSION, the VS Code
+executable pin already admits `-rc.N`, and the `--version` banner checks match shape, not grammar.
+No real `1.0.0-rc.1` candidate was assembled; `VERSION` is still `0.8.1`.
