@@ -5815,3 +5815,45 @@ variation lists. Recovery targets therefore sit off every declared path, and no 
 unit sample dropped its backward recovery. `earlier recovery` and `path recovery` joined the
 AFU-V1-026 refusal cases. Bounds on the `--traffic` file count and on the quadratic per-step filter
 stay follow-ups: the total record bound caps both.
+
+## 2026-09-25 V1-0254: corvint-mcp flows tool profile (AFU-V1 S7)
+
+`corvint-mcp --tool-profile flows` advertises the three V0 tools plus the read-only
+`corvint.flows.map`, `corvint.flows.gaps`, `corvint.flows.impact` and `corvint.flows.navigate`
+(AFU-V1-034). This amends MCPV0-026, and the MCP spec records the amendment.
+
+Decisions:
+
+- The selector stays closed. Its values are exactly `task-review` and `flows`, and each value maps
+  to one registry constructor. A second `--tool-profile`, even with another value, is refused, as
+  are an empty or unknown value, the `=` spelling, and the selector beside `--version`. Without the
+  selector, the `tools/list` bytes are unchanged. Golden files captured from the pre-change binary
+  pin both the default and the task-review list.
+- Each tool calls the same `internal/appflows` functions as its CLI verb and adds no logic of its
+  own. It reads the intents at `HEAD` between two repository probes, and a changed probe abstains
+  with `REPOSITORY_STATE_UNSTABLE`. The verb's JSON document becomes the bridge receipt. The receipt
+  schema must be one of the verb's schemas, and its `revision` must equal the bound commit.
+- To share the impact path, the CLI's `flows impact` body moved into `appflows.FlowImpactAt`. The
+  eight affected-language adapters moved into `internal/liveverify/affected/languages`, which both
+  `corvint affected` and `FlowImpactAt` use. The CLI output is unchanged.
+- `internal/appflows` now spawns the process-wide Git from `gitstatus.Executable()` instead of its
+  own PATH lookup. Under the MCP server that is the start-time pinned Git (MCPV0-016). In the CLI it
+  is still the Git on PATH.
+- Arguments are closed JSON Schemas. Input files are repository-relative, at most 100 per array,
+  never under `.git`, and never reached through a symlinked parent directory. `impact.base` is a full
+  object ID, not a revision expression. `navigate.goal` is at most 64 characters, and `maxEffect` is
+  allowed only beside a goal. Invalid arguments are `-32602`. Any verb refusal is the single code
+  `flows-refused`, because the verb's message can name repository content.
+- Flow intents carry repository-authored text (AFU-V1-035). A flows result therefore omits
+  `structuredContent` and returns the bridge object only as the enveloped text. The
+  envelope-terminator collision refusal applies as it does for every tool.
+- The line citations of `internal/mcp/bridge/bridge.go` in `docs/GLOSSARY.md`,
+  `docs/SPEC-TOOLCHAIN-INTEGRATION.md` and the MCP failure-code table were repinned. The table rows
+  were already stale before this change, and they now carry anchors.
+
+Evidence: `TestAFUV1034FlowsToolProfile`, `TestAFUV1034FlowsToolsMatchCLIVerbs` (receipts equal the
+CLI verbs' output on the shop and navigation fixtures) and `TestAFUV1035FlowsTextStaysInsideEnvelope`
+(a hostile navigation step string appears only inside the envelope).
+
+NOT_RUN: compiled-process MCP conformance vectors and a manifest for the flows profile; the
+official-schema exchange under the flows selector; live qualification; the exhaustive `make gate`.

@@ -117,7 +117,7 @@ problem; that one gate is the whole bet.
 ## Modelling debt to clear first
 
 `authorityClass` currently carries four incompatible value sets — in the MCP bridge
-(`internal/mcp/bridge/bridge.go:804@87b754dd`), in the frontier spec
+(`internal/mcp/bridge/bridge.go:819@87b754dd`), in the frontier spec
 (`change-frontier-v0.md:217`), as a lowercase constant in LRF (`internal/lrf/types.go:12@fc816169`), and as a
 seven-value lattice in the dashboard spec. The ordering between them is asserted per context and
 defined globally nowhere. Any spec-toolchain integration adds a fifth. One ordered lattice, one

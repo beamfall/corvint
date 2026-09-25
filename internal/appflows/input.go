@@ -11,7 +11,6 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -20,6 +19,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
@@ -400,8 +400,9 @@ func scalar(v any) error {
 }
 
 func git(ctx context.Context, root string, args ...string) ([]byte, error) {
-	gitPath, err := exec.LookPath("git")
-	if err != nil {
+	// The process-wide pinned Git: an MCP server pins it at start, so no call repeats a PATH lookup.
+	gitPath := gitstatus.Executable()
+	if !filepath.IsAbs(gitPath) {
 		return nil, errors.New("Git unavailable")
 	}
 	argv := append([]string{gitPath, "--no-optional-locks", "-c", "core.fsmonitor=false", "-C", root}, args...)

@@ -16,8 +16,8 @@ official JSON Schema pinned at commit
 - Claim: A local stdio MCP server exposes bounded read-only Corvint receipts, with 2026-07-28 default and explicit 2025-11-25 compatibility.
 - Status: proposed/experimental
 - Exists: `cmd/corvint-mcp`, `internal/mcp`, and independent compiled-process conformance vectors.
-- Blocked on: official MCP conformance and promotion evidence remain `NOT_RUN`; official-schema execution is opt-in and passed on 2026-09-23 (V1-0191). The default V0 tool list stays at three; `corvint.context` and `corvint.cem.report` are advertised only by the opt-in task-review descendant profile (`MCPV0-024..026`, decision 0374). Tool errors stay `corvint-mcp-tool-error/0` unless the opt-in reason-class profile selects `/1` (`MCPV0-027..028`, decision 0383).
-- Read next: User and measurable job; Explicit 2025-11-25 compatibility; Task-review descendant profile; Reason-class tool-error profile; Traceability.
+- Blocked on: official MCP conformance and promotion evidence remain `NOT_RUN`; official-schema execution is opt-in and passed on 2026-09-23 (V1-0191). The default V0 tool list stays at three; `corvint.context` and `corvint.cem.report` are advertised only by the opt-in task-review descendant profile (`MCPV0-024..026`, decision 0374). The four read-only `corvint.flows.*` tools are advertised only under `--tool-profile flows` (`MCPV0-026` as amended by `AFU-V1-034`). Tool errors stay `corvint-mcp-tool-error/0` unless the opt-in reason-class profile selects `/1` (`MCPV0-027..028`, decision 0383).
+- Read next: User and measurable job; Explicit 2025-11-25 compatibility; Task-review descendant profile; Flows tool profile; Reason-class tool-error profile; Traceability.
 
 ## User and measurable job
 
@@ -204,7 +204,8 @@ ASCII letters, digits, `_`, `-`, or `.`; the dot-separated names below follow th
 
 - `MCPV0-008`: V0 advertises exactly these three tools, subject to the implementation schemas frozen
 below. Decision 0103 freezes this default list; the opt-in task-review descendant profile
-(`MCPV0-026`) adds the two tools of `MCPV0-024` and `MCPV0-025` only when selected:
+(`MCPV0-026`) adds the two tools of `MCPV0-024` and `MCPV0-025` only when selected, and the flows
+profile (`AFU-V1-034`) adds the four `corvint.flows.*` tools instead:
 
 | Tool | Closed arguments | Result and authority |
 |---|---|---|
@@ -228,6 +229,8 @@ closed bridge object is:
 schema: "corvint-mcp-bridge-result/0"
 tool: "corvint.query" | "corvint.impact" | "corvint.status"
       (task-review profile only: | "corvint.context" | "corvint.cem.report")
+      (flows profile only: | "corvint.flows.map" | "corvint.flows.gaps"
+                           | "corvint.flows.impact" | "corvint.flows.navigate")
 mutates: false
 state: "READY" | "ABSTAINED"
 epistemicClass: "OBSERVED" | "NOT_OBSERVED"
@@ -449,11 +452,13 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
 `MCPV0-016..019` read-only, secret and process rules. The profile's black-box vectors are
 `conformance/mcp-2026-07-28/cases-task-review.json`.
 
-- `MCPV0-026`: `corvint-mcp` MUST accept at most one `--tool-profile task-review` selector, following
-  the closed-argv rule of `MCPV0-021`. The value is exactly `task-review`; a missing, differently
-  cased, unknown or duplicate value, the `--tool-profile=VALUE` spelling, and the selector combined
+- `MCPV0-026`: `corvint-mcp` MUST accept at most one `--tool-profile` selector, following the
+  closed-argv rule of `MCPV0-021`, as amended by `AFU-V1-034`. The value is exactly `task-review` or
+  `flows`; a missing, empty, differently cased, unknown or duplicate value, two selectors even with
+  different values, the `--tool-profile=VALUE` spelling, and the selector combined
   with `--version` MUST fail before repository startup with exit 2 and no stdout. Omission selects
-  the unchanged three-tool list. The selector composes with `--protocol-version 2025-11-25`: the
+  the unchanged three-tool list, and the amendment leaves the default and task-review `tools/list`
+  bytes unchanged. The selector composes with `--protocol-version 2025-11-25`: the
   legacy profile reuses whichever registry was selected (`MCPV0-023`). A `tools/call` naming a tool
   the selected profile does not advertise fails as `unsupported-tool`, which the server maps to
   `-32602` exactly like any unknown tool. Selection is explicit and never inferred from frames.
@@ -493,6 +498,26 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
   terminator is refused with `corvint-envelope-terminator-collision`. The CEM Git runner is pinned to
   the same start-time executable as the other kernels.
 
+### Flows tool profile (amendment by `AFU-V1-034`, `AFU-V1-035`)
+
+`--tool-profile flows` advertises the three V0 tools plus `corvint.flows.map`, `corvint.flows.gaps`,
+`corvint.flows.impact` and `corvint.flows.navigate`, with the `MCPV0-007` read-only annotations. The
+requirements, bounds and refusals are the `AFU-V1` ones in
+`docs/specs/application-flow-understanding-v1.md`; this section records only the MCP surface. Each
+tool calls the same `internal/appflows` library as its `corvint flows` verb, reads the intents at
+`HEAD` between two repository probes (a changed probe is `REPOSITORY_STATE_UNSTABLE`), and returns the
+verb's JSON document as the bridge `receipt`, whose `revision` MUST equal the bound commit. Every
+tool takes a required repository-relative `flows` directory. `map` and `gaps` take optional
+`evidence` files; `map` also takes one of `path` or `testKey`, which excludes `evidence`; `impact`
+takes a required full object-ID `base`; `navigate` takes optional `evidence` and `traffic` files and an
+optional `goal` of at most 64 characters, with `maxEffect` only beside a goal. Input paths are
+repository-relative, at most 100 per array, never under `.git`, and never reached through a symlinked
+parent. Invalid arguments are `-32602`; a refusal by the flows verb is the closed code
+`flows-refused`, which never carries the verb's message. Flow intents carry repository-authored text,
+so a flows result omits `structuredContent` and returns the bridge object only as the `MCPV0-008`
+enveloped text (`AFU-V1-035`). No conformance manifest or black-box vectors exist for this profile
+yet.
+
 ### Reason-class tool-error profile (`corvint-mcp-2026-07-28-conformance/2`)
 
 Decision 0383 lets an agent without a terminal learn why a repository was refused without opening
@@ -524,11 +549,12 @@ Each row cites the first emitting site and states only the condition checked the
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `invalid-registry` | `internal/mcp/bridge/bridge.go:336` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
-| `unsupported-tool` | `internal/mcp/bridge/bridge.go:348` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `MCPV0-026` |
-| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:541` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:541` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
-| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:542` | the map fails CEM strict decoding or field validation |
+| `invalid-registry` | `internal/mcp/bridge/bridge.go:347@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
+| `unsupported-tool` | `internal/mcp/bridge/bridge.go:356@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, or the four `ToolFlows*` tools under `flows` (`MCPV0-026`) |
+| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:556@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:556@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
+| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:557@b2fd0644` | the map fails CEM strict decoding or field validation |
+| `flows-refused` | `internal/mcp/bridge/flows.go:239@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ## Acceptance matrix
 
@@ -538,7 +564,7 @@ The P0 profile is implemented only when all applicable rows pass on Go 1.27.0:
 |---|---|
 | Schema and discovery | Official 2026-07-28 positive vectors; missing metadata; `-32022`; exact capabilities; every result has `resultType` and server info |
 | Framing and JSON-RPC | LF/CRLF, EOF, invalid UTF-8/JSON, duplicate keys at every depth, depth 64/65, exactly-at/over 1 MiB, batches, IDs, notifications, error sanitization, recovery after a bad frame |
-| Tools | Exact closed schemas and annotations; query/impact/status success, abstention, mixed worktree, unsupported query, invalid paths/limits, result budget, and no source bodies; context and CEM report success, `-32602` rejection, map escape and symlink refusal, no writes, terminator refusal, and result budget under the task-review selector; the default list is exactly three tools and the selector is closed |
+| Tools | Exact closed schemas and annotations; query/impact/status success, abstention, mixed worktree, unsupported query, invalid paths/limits, result budget, and no source bodies; context and CEM report success, `-32602` rejection, map escape and symlink refusal, no writes, terminator refusal, and result budget under the task-review selector; under the flows selector, the four flows tools advertised read-only, receipts equal to the CLI verbs' documents, and repository text only inside the envelope; the default list is exactly three tools and the selector is closed |
 | Cancellation/processes | Cancel-before-start, during work, after completion, duplicate/unknown ID, EOF/SIGINT/SIGTERM, direct argv, pinned executable, and zero surviving descendants |
 | Pagination/progress/logging/roots | deterministic tool list, bad cursor, emitted progress with exact token correlation on a truthful long-running operation, no unsolicited logs, no roots switch, and method-not-found for removed legacy methods |
 | Security | planted secrets/control characters/path escapes/symlink swaps/output floods; repository and trace byte snapshots before/after; no listener or network attempt |
@@ -575,7 +601,9 @@ migrate. Rolling back the task-review profile (`MCPV0-024..026`, decision 0374) 
 `--tool-profile` selector, the two tool descriptors and bridge cases, and the `/1` conformance
 manifest and tests; the default three-tool output never changed, and no stored state depends on them. Rolling back the reason-class profile (`MCPV0-027..028`, decision 0383) removes the
 `--error-profile` selector, the `/1` object, the class plumbing and the `/2` manifest and tests; the
-default tool-error bytes never changed. Protocol and conformance paths retain their applicable plain Apache-2.0 grant under
+default tool-error bytes never changed. Rolling back the flows profile (`AFU-V1-034..035`) removes the
+`flows` selector value, `internal/mcp/bridge/flows.go`, its bridge cases and tests; the default and
+task-review tool lists never changed. Protocol and conformance paths retain their applicable plain Apache-2.0 grant under
 `LICENSING.md`; the rest of Corvint retains its repository license.
 
 ## Traceability
@@ -588,7 +616,7 @@ default tool-error bytes never changed. Protocol and conformance paths retain th
 | `MCPV0-016..019` | all MCP implementation paths | local secret/mutation and Unix descendant-cleanup checks observed; start-time Git pinning observed by Unix `TestGitPlantedOnPathAfterStartNeverRuns` and `TestPinFixesExecutableAgainstLaterPathChanges`; fuzz, complete race, non-Unix cleanup, and cross-build evidence remain separate gates |
 | `MCPV0-021..023` | all four MCP commands; `internal/mcp/protocol/legacy.go`; `internal/mcp/server/legacy.go` | `TestMCPV0021LegacyFlagAcceptsCapturedInitialize`, `TestMCPV0021ProtocolSelector`, `TestMCPV0022LegacyAdmissionAndReceipt`, `TestMCPV0022LegacyFailedInitializeCannotAdmitTools`, `TestMCPV0022LegacyMetadata`, `TestMCPV0022LegacyCancellationAndProgress`, `TestMCPV0022LegacyCancelledAfterCompletionIsIgnored`, `TestMCPV0022LegacyBlockedInitializeCancels`, both profiles of `TestServeToolsListAndCallRoundTripsDocsDraftAndConsume`, `TestCorpusMCPTransport`, `TestVectorsAndReadOnly` and `TestTerminationSignalsCancelInFlightDescendantGroup`; actual OpenCode discovery and status-call development probes; exact release-artifact qualification separate |
 | `MCPV0-024`, `MCPV0-025` | `internal/mcp/bridge` (`NewTaskReview`), `internal/cem/workflow` (`report-preview`), `internal/cem/gitrun` (`PinBinary`) | `TestContextToolReturnsBoundPacketWithoutWrites`, `TestCEMReportToolPreviewsCLIReportWithoutPublishing`, `TestCEMReportToolRefusesMapsOutsideTheRoot`, `TestNewToolsAbstainOverTheBridgeBudget`, `TestCEMReportToolAbstainsWhenTheCheckoutMoves`; compiled-process `TestContextAndCEMReportAreBoundReadOnlyAndFramed`, `TestContextAndCEMReportRefuseInvalidArgumentsAndEscapes`, `TestCEMReportRefusesTerminatorAndAbstainsOverBudget`, `TestTaskReviewCEMReportNeverRunsPlantedGit`, `TestTaskReviewToolsRefuseExecutableConfigAndWorktreeRedirects` and `TestTaskReviewTrafficMatchesOfficialSchema`, all under the task-review selector (decision 0374); official-schema exchanges passed on 2026-09-23 |
-| `MCPV0-026` | `cmd/corvint-mcp` (`extractToolProfile`), `internal/mcp/bridge` (`Registry.advertises`) | `TestMCPV0026ToolProfileSelectorIsClosed`, `TestToolsExposeOnlyDeliveredClosedReadSurface`; compiled-process profile `/1` `TestTaskReviewCaseInventoryIsClosed`, `TestTaskReviewSelectorIsClosed`, `TestTaskReviewDefaultProfileUnchanged`, `TestTaskReviewToolCatalogue`, `TestTaskReviewLegacyProtocol`; profile `/0` `TestToolCatalogueAndResourceOmission` still lists exactly three tools |
+| `MCPV0-026` | `cmd/corvint-mcp` (`extractToolProfile`), `internal/mcp/bridge` (`Registry.advertises`) | `TestMCPV0026ToolProfileSelectorIsClosed`, `TestToolsExposeOnlyDeliveredClosedReadSurface`; compiled-process profile `/1` `TestTaskReviewCaseInventoryIsClosed`, `TestTaskReviewSelectorIsClosed`, `TestTaskReviewDefaultProfileUnchanged`, `TestTaskReviewToolCatalogue`, `TestTaskReviewLegacyProtocol`; profile `/0` `TestToolCatalogueAndResourceOmission` still lists exactly three tools; flows value (`AFU-V1-034`): `TestAFUV1034FlowsToolProfile` (golden default and task-review bytes, closed selector, read-only flows list) and `TestAFUV1034FlowsToolsMatchCLIVerbs` |
 | `MCPV0-027`, `MCPV0-028` | `cmd/corvint-mcp` (`extractErrorProfile`, `toolFailure`), `internal/mcp/bridge` (`reasonClass`), `internal/gitstatus` (`RefusalClass`), `internal/gokernel`, `internal/contextindex` | `TestMCPV0027ErrorProfileSelectorIsClosed`, `TestMCPV0028ReasonClassToolError`, `TestEveryRefusalSiteCarriesAClosedClass`, `TestRefusalClassComesFromTypedRefusalOnly`, `TestStatusRefusesUnsupportedMetadataBeforeLiveStatus`; compiled-process profile `/2` `TestReasonClassCaseInventoryIsClosed`, `TestReasonClassSelectorIsClosed`, `TestReasonClassToolErrorOverRefusedRepositories`, `TestReasonClassUnclassifiedToolError` (decision 0383) |
 | all | `conformance/mcp-2026-07-28` | independent compiled-process vectors and retained `NOT_RUN` external result |
 
