@@ -16,8 +16,8 @@ official JSON Schema pinned at commit
 - Claim: A local stdio MCP server exposes bounded read-only Corvint receipts, with 2026-07-28 default and explicit 2025-11-25 compatibility.
 - Status: proposed/experimental
 - Exists: `cmd/corvint-mcp`, `internal/mcp`, and independent compiled-process conformance vectors.
-- Blocked on: official MCP conformance and promotion evidence remain `NOT_RUN`; official-schema execution is opt-in and passed on 2026-09-23 (V1-0191). The default V0 tool list stays at three; `corvint.context` and `corvint.cem.report` are advertised only by the opt-in task-review descendant profile (`MCPV0-024..026`, decision 0374).
-- Read next: User and measurable job; Explicit 2025-11-25 compatibility; Task-review descendant profile; Traceability.
+- Blocked on: official MCP conformance and promotion evidence remain `NOT_RUN`; official-schema execution is opt-in and passed on 2026-09-23 (V1-0191). The default V0 tool list stays at three; `corvint.context` and `corvint.cem.report` are advertised only by the opt-in task-review descendant profile (`MCPV0-024..026`, decision 0374). Tool errors stay `corvint-mcp-tool-error/0` unless the opt-in reason-class profile selects `/1` (`MCPV0-027..028`, decision 0383).
+- Read next: User and measurable job; Explicit 2025-11-25 compatibility; Task-review descendant profile; Reason-class tool-error profile; Traceability.
 
 ## User and measurable job
 
@@ -260,7 +260,8 @@ across text and structured content:
 
 `SANITIZED_CODE` is a closed implementation code such as `repository-unavailable`,
 `repository-state-unstable`, or `internal-error`, never underlying Git, repository, or process text.
-An unexpected protocol-server failure remains `-32603`. Results omit source and diff bodies but
+Only the opt-in `MCPV0-027` selector replaces this object with `corvint-mcp-tool-error/1`, which adds
+a closed `reasonClass` (`MCPV0-028`). An unexpected protocol-server failure remains `-32603`. Results omit source and diff bodies but
 MUST NOT omit a qualifying uncertainty field merely to fit the frame. If a complete safe receipt
 cannot fit, the call returns an explicit bounded over-budget failure rather than truncated content.
 One abstention deliberately retains a receipt: a native impact state of `OUT_OF_SCOPE` maps to
@@ -492,6 +493,30 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
   terminator is refused with `corvint-envelope-terminator-collision`. The CEM Git runner is pinned to
   the same start-time executable as the other kernels.
 
+### Reason-class tool-error profile (`corvint-mcp-2026-07-28-conformance/2`)
+
+Decision 0383 lets an agent without a terminal learn why a repository was refused without opening
+the closed tool-error object to Git, repository or process text. Without the selector, every tool
+error is exactly the `corvint-mcp-tool-error/0` object above and conformance profile `/0` keeps its
+meaning. The profile's black-box vectors are `conformance/mcp-2026-07-28/cases-reason-class.json`.
+
+- `MCPV0-027`: `corvint-mcp` MUST accept at most one `--error-profile reason-class` selector,
+  following the closed-argv rules of `MCPV0-021` and `MCPV0-026`. The value is exactly
+  `reason-class`; a missing, differently cased, unknown or duplicate value, the
+  `--error-profile=VALUE` spelling, and the selector combined with `--version` MUST fail before
+  repository startup with exit 2 and no stdout. The selector composes with `--tool-profile` and
+  `--protocol-version 2025-11-25`. With it, every tool error MUST be the `/0` object with `profile`
+  `corvint-mcp-tool-error/1` and one added required `reasonClass`; `code` and every other member are
+  unchanged. The other three MCP commands do not accept the selector.
+- `MCPV0-028`: `reasonClass` MUST be one of the closed values `git-filter`, `config-include`,
+  `attributes-file`, `ref-storage`, `worktree-config`, `config-malformed`, `submodule`,
+  `split-index`, `gitdir-pointer`, `metadata-unreadable`, `metadata-limit`, `metadata-directory`,
+  `metadata-drift`, `scratch-dir`, `root-unresolved` or `unclassified`. A value MUST come only from a
+  typed class attached where `internal/gitstatus` builds the refusal, never from parsing message
+  text. Any error without that class, including every non-status failure, MUST be `unclassified`,
+  and a client MUST read an unknown value as `unclassified`. No free text and no filter driver name
+  crosses into the object. Adding a value needs an amendment to decision 0383.
+
 ### Bridge failure codes
 
 The in-process bridge (`internal/mcp/bridge`) emits the kebab-case codes below (decision 0100).
@@ -499,11 +524,11 @@ Each row cites the first emitting site and states only the condition checked the
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `invalid-registry` | `internal/mcp/bridge/bridge.go:335` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
-| `unsupported-tool` | `internal/mcp/bridge/bridge.go:347` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `MCPV0-026` |
-| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:540` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:540` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
-| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:541` | the map fails CEM strict decoding or field validation |
+| `invalid-registry` | `internal/mcp/bridge/bridge.go:336` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
+| `unsupported-tool` | `internal/mcp/bridge/bridge.go:348` | the tool name is not advertised by the selected profile: `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `MCPV0-026` |
+| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:541` | the CEM read reports the map missing, unreadable, or reached through a symlink |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:541` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
+| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:542` | the map fails CEM strict decoding or field validation |
 
 ## Acceptance matrix
 
@@ -532,7 +557,7 @@ V0 does not provide Streamable HTTP, a listener, authorization, remote repositor
 prompts, resources, source content, subscriptions, sampling, elicitation, tasks, frontier/why/live
 features, standalone evidence, dashboard snapshots, lifecycle hooks, automatic context injection,
 test execution, test-level results or their `LPCV-V0-047` projection (decision 0103), edits,
-CEM/OCM writes (the opt-in `MCPV0-025` report is a preview that publishes nothing), CEM bind or check, updates, installs, merges, telemetry, or a native host adapter. The simpler baseline is direct `corvint query` and `corvint impact`; MCP exists only to
+CEM/OCM writes (the opt-in `MCPV0-025` report is a preview that publishes nothing), CEM bind or check, updates, installs, merges, telemetry, or a native host adapter. The reason-class profile does not change default `corvint-mcp --root ROOT` bytes, profile `corvint-mcp-tool-error/0` or the `/0` vectors, and does not carry reason text. The simpler baseline is direct `corvint query` and `corvint impact`; MCP exists only to
 remove repeated transport glue without changing evidence semantics.
 
 ## Rollout, rollback, and compatibility
@@ -548,7 +573,9 @@ remove repeated transport glue without changing evidence semantics.
 Rollback removes or disables `corvint-mcp`; it has no repository, trace, database, or network state to
 migrate. Rolling back the task-review profile (`MCPV0-024..026`, decision 0374) alone removes the
 `--tool-profile` selector, the two tool descriptors and bridge cases, and the `/1` conformance
-manifest and tests; the default three-tool output never changed, and no stored state depends on them. Protocol and conformance paths retain their applicable plain Apache-2.0 grant under
+manifest and tests; the default three-tool output never changed, and no stored state depends on them. Rolling back the reason-class profile (`MCPV0-027..028`, decision 0383) removes the
+`--error-profile` selector, the `/1` object, the class plumbing and the `/2` manifest and tests; the
+default tool-error bytes never changed. Protocol and conformance paths retain their applicable plain Apache-2.0 grant under
 `LICENSING.md`; the rest of Corvint retains its repository license.
 
 ## Traceability
@@ -562,6 +589,7 @@ manifest and tests; the default three-tool output never changed, and no stored s
 | `MCPV0-021..023` | all four MCP commands; `internal/mcp/protocol/legacy.go`; `internal/mcp/server/legacy.go` | `TestMCPV0021LegacyFlagAcceptsCapturedInitialize`, `TestMCPV0021ProtocolSelector`, `TestMCPV0022LegacyAdmissionAndReceipt`, `TestMCPV0022LegacyFailedInitializeCannotAdmitTools`, `TestMCPV0022LegacyMetadata`, `TestMCPV0022LegacyCancellationAndProgress`, `TestMCPV0022LegacyCancelledAfterCompletionIsIgnored`, `TestMCPV0022LegacyBlockedInitializeCancels`, both profiles of `TestServeToolsListAndCallRoundTripsDocsDraftAndConsume`, `TestCorpusMCPTransport`, `TestVectorsAndReadOnly` and `TestTerminationSignalsCancelInFlightDescendantGroup`; actual OpenCode discovery and status-call development probes; exact release-artifact qualification separate |
 | `MCPV0-024`, `MCPV0-025` | `internal/mcp/bridge` (`NewTaskReview`), `internal/cem/workflow` (`report-preview`), `internal/cem/gitrun` (`PinBinary`) | `TestContextToolReturnsBoundPacketWithoutWrites`, `TestCEMReportToolPreviewsCLIReportWithoutPublishing`, `TestCEMReportToolRefusesMapsOutsideTheRoot`, `TestNewToolsAbstainOverTheBridgeBudget`, `TestCEMReportToolAbstainsWhenTheCheckoutMoves`; compiled-process `TestContextAndCEMReportAreBoundReadOnlyAndFramed`, `TestContextAndCEMReportRefuseInvalidArgumentsAndEscapes`, `TestCEMReportRefusesTerminatorAndAbstainsOverBudget`, `TestTaskReviewCEMReportNeverRunsPlantedGit`, `TestTaskReviewToolsRefuseExecutableConfigAndWorktreeRedirects` and `TestTaskReviewTrafficMatchesOfficialSchema`, all under the task-review selector (decision 0374); official-schema exchanges passed on 2026-09-23 |
 | `MCPV0-026` | `cmd/corvint-mcp` (`extractToolProfile`), `internal/mcp/bridge` (`Registry.advertises`) | `TestMCPV0026ToolProfileSelectorIsClosed`, `TestToolsExposeOnlyDeliveredClosedReadSurface`; compiled-process profile `/1` `TestTaskReviewCaseInventoryIsClosed`, `TestTaskReviewSelectorIsClosed`, `TestTaskReviewDefaultProfileUnchanged`, `TestTaskReviewToolCatalogue`, `TestTaskReviewLegacyProtocol`; profile `/0` `TestToolCatalogueAndResourceOmission` still lists exactly three tools |
+| `MCPV0-027`, `MCPV0-028` | `cmd/corvint-mcp` (`extractErrorProfile`, `toolFailure`), `internal/mcp/bridge` (`reasonClass`), `internal/gitstatus` (`RefusalClass`), `internal/gokernel`, `internal/contextindex` | `TestMCPV0027ErrorProfileSelectorIsClosed`, `TestMCPV0028ReasonClassToolError`, `TestEveryRefusalSiteCarriesAClosedClass`, `TestRefusalClassComesFromTypedRefusalOnly`, `TestStatusRefusesUnsupportedMetadataBeforeLiveStatus`; compiled-process profile `/2` `TestReasonClassCaseInventoryIsClosed`, `TestReasonClassSelectorIsClosed`, `TestReasonClassToolErrorOverRefusedRepositories`, `TestReasonClassUnclassifiedToolError` (decision 0383) |
 | all | `conformance/mcp-2026-07-28` | independent compiled-process vectors and retained `NOT_RUN` external result |
 
 Current evidence: local Go 1.27.0 unit and compiled-process black-box suites `PASS` on 2026-08-23;

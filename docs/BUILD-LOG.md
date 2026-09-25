@@ -5529,3 +5529,33 @@ longer holds for every host, and each row's `lifecycleConformance` now says whic
 The shipped per-package declarations are unchanged. They still describe static validation, because
 recording a test of a package build inside that package needs a version bump, which changes the
 tuple the test ran against. `AHI-010` and `integrations/README.md` name the new row fields.
+
+## 2026-09-24 Decision 0383: MCP reasonClass error profile
+
+The MCP half of issue #170. `corvint-mcp --root ROOT` output is unchanged. Adding the
+`--error-profile reason-class` argv selector (`MCPV0-027`) makes every tool error
+`corvint-mcp-tool-error/1`, which is the `/0` object plus a required `reasonClass` from a closed set
+of 16 values (`MCPV0-028`). `code` is unchanged. The black-box vectors are conformance profile `/2`.
+
+- The class is chosen where the refusal is built. `internal/gitstatus` refusals carry a
+  `reasonClass` value next to their reason, and `RefusalClass(err)` reads it with `errors.As`.
+  `errDrift` is `metadata-drift`. Every other error is `unclassified`, including Git's own probe
+  failures (`MetadataProbeError`), cancellation, and text that only looks like a refusal. The kernel
+  errors (`gokernel.Error`, `contextindex.Error`) keep the class next to their code, and the bridge
+  forwards it. No reason text or filter driver name reaches the MCP object.
+- `TestEveryRefusalSiteCarriesAClosedClass` parses the package source. It requires every
+  `unsupported(...)` call, and every refusing return of `unsafeConfig` and `captureReason`, to name
+  a class constant other than `unclassified`. A new refusal site without a class therefore fails the
+  test. That includes the #172 search-only-parent refusal, which is classed `metadata-unreadable`
+  like the other irregular-mode refusals.
+- Judgement calls: `core.bare` is `worktree-config`, because it redirects which tree status
+  observes. A missing or uninspectable `.git` is `gitdir-pointer`. Scratch-directory ancestry and
+  private-copy failures are `scratch-dir`.
+- Observed gap: a split index never reaches the `split-index` refusal. Git's own `ls-files` probe
+  refuses it first, so over MCP it is `unclassified`. `TestReasonClassUnclassifiedToolError` pins
+  that behaviour.
+- Negative controls were each run once and reverted. Giving the gitlink site `unclassified` failed
+  the source test. Emitting `/1` without the selector failed
+  `TestReasonClassToolErrorOverRefusedRepositories`.
+- Touching `internal/gitstatus` and `internal/contextindex` moves the analyzer identity to
+  `corvint-analyzer/83`.

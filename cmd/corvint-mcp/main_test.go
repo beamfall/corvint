@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -340,4 +341,86 @@ func listedToolNames(t *testing.T, arguments []string) []string {
 		names = append(names, tool.Name)
 	}
 	return names
+}
+
+// MCPV0-027: the error-profile selector is closed under the MCPV0-026 rules
+// and composes with the other selectors without changing the tool list.
+func TestMCPV0027ErrorProfileSelectorIsClosed(t *testing.T) {
+	for _, arguments := range [][]string{
+		{"--root", "/nonexistent", "--error-profile"},
+		{"--root", "/nonexistent", "--error-profile", "default"},
+		{"--root", "/nonexistent", "--error-profile", "REASON-CLASS"},
+		{"--root", "/nonexistent", "--error-profile", "reason-class", "--error-profile", "reason-class"},
+		{"--root", "/nonexistent", "--error-profile=reason-class"},
+		{"--version", "--error-profile", "reason-class"},
+	} {
+		var stdout, stderr bytes.Buffer
+		if exit := run(context.Background(), arguments, bytes.NewReader(nil), &stdout, &stderr); exit != 2 || stdout.Len() != 0 || stderr.String() != "corvint-mcp: invalid arguments\n" {
+			t.Fatalf("%q exit=%d stdout=%q stderr=%q", arguments, exit, stdout.String(), stderr.String())
+		}
+	}
+	root := filepath.Clean(t.TempDir())
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	v0 := []string{"corvint.impact", "corvint.query", "corvint.status"}
+	taskReview := []string{"corvint.cem.report", "corvint.context", "corvint.impact", "corvint.query", "corvint.status"}
+	for _, test := range []struct {
+		arguments []string
+		want      []string
+	}{
+		{[]string{"--root", root, "--error-profile", "reason-class"}, v0},
+		{[]string{"--error-profile", "reason-class", "--root", root, "--tool-profile", "task-review"}, taskReview},
+		{[]string{"--root", root, "--protocol-version", "2025-11-25", "--error-profile", "reason-class"}, v0},
+	} {
+		if got := listedToolNames(t, test.arguments); !reflect.DeepEqual(got, test.want) {
+			t.Fatalf("%q tools=%v want %v", test.arguments, got, test.want)
+		}
+	}
+}
+
+// MCPV0-028: without the selector a refused status is exactly the /0 object;
+// with it the object is /1 plus the typed class, and a failure without a class
+// is "unclassified".
+func TestMCPV0028ReasonClassToolError(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("isolated status is qualified only on Darwin and Linux")
+	}
+	root := makeHostileRepository(t, "fixture")
+	command := exec.Command("git", "-C", root, "config", "filter.hostile.clean", "cat")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("git config: %v: %s", err, output)
+	}
+	registry, registryErr := bridge.New(root)
+	if registryErr != nil {
+		t.Fatal(registryErr)
+	}
+	base := map[string]any{
+		"abstention": map[string]any{"active": true, "reason": "OPERATION_FAILED"},
+		"code":       "repository-unavailable", "mutates": false, "profile": "corvint-mcp-tool-error/0", "tool": "corvint.status",
+	}
+	classed := maps.Clone(base)
+	maps.Copy(classed, map[string]any{"reasonClass": "git-filter", "profile": "corvint-mcp-tool-error/1"})
+	for _, test := range []struct {
+		reasonClass bool
+		want        map[string]any
+	}{
+		{false, base},
+		{true, classed},
+	} {
+		result, failure := (&toolHandler{registry: registry, reasonClass: test.reasonClass}).call(context.Background(), map[string]any{
+			"_meta": map[string]any{}, "name": "corvint.status", "arguments": map[string]any{},
+		})
+		if failure != nil || result["isError"] != true || !reflect.DeepEqual(result["structuredContent"], test.want) {
+			t.Fatalf("reasonClass=%v result=%#v failure=%#v", test.reasonClass, result, failure)
+		}
+		text, _ := json.Marshal(test.want)
+		if got := result["content"].([]any)[0].(map[string]any)["text"]; got != string(text) {
+			t.Fatalf("text=%v want %s", got, text)
+		}
+	}
+	unclassified, _ := (&toolHandler{reasonClass: true}).toolFailure("corvint.query", repoenvelope.CollisionCode, "")
+	if got := unclassified["structuredContent"].(map[string]any)["reasonClass"]; got != "unclassified" {
+		t.Fatalf("unclassified failure reasonClass=%v", got)
+	}
 }
