@@ -71,15 +71,9 @@ are separate work and remain `NOT_RUN` until then. The independently stated evid
 and prospective stronger-harness trial remain, and the wire is not interoperable until an
 independent consumer reproduces the reference bytes.
 
-Optional work-tracking adapters connect Jira or Linear issues to GitHub, GitLab, or Bitbucket pull
-requests, commits, reviews, CI outcomes, code, and tests. Mutable ticket and review text is
-provenance, not automatic authority: receipts pin external IDs, revisions, URLs, timestamps, Git
-SHAs, and content hashes so later edits cannot silently rewrite the evidence used for a change.
-
-E2E adapters connect acceptance criteria and user journeys to framework-neutral scenarios, steps,
-fixtures, assertions, application surfaces, API operations, execution results, and retained artifact
-references. Corvint combines declared test structure with revision-bound observations; it does not
-equate one passing trace with complete behavioral coverage.
+Work-tracking adapters (Jira/Linear to GitHub, GitLab, or Bitbucket) and E2E adapters are committed
+integration goals under "Committed integration and workflow goals" below, `not-started` like the
+rest of that table; the thirty-day wedge itself does not require Jira/E2E ingestion.
 
 ## Two activation doors
 
@@ -258,6 +252,7 @@ separate knowledge stores.
 | DeepSeek Harness plugin | A maintained plugin for the actual DeepSeek Harness (`deepseek.com/harness`) supplies Corvint context through its Cordis plugin services/events, records Corvint injections and verified session deltas in the harness trajectory, and participates in automatic discovery without creating a separate knowledge model. |
 | Human product and technical documentation | Render cited, paragraph-anchored Markdown suitable for MkDocs or another repository-owned documentation site; deliver locally or through a reviewable pull request, never silently overwrite accepted prose. |
 | Automatic E2E intelligence | Discover existing journeys and states, link E2E tests to executable claims, propose missing tests, run the justified subset while preserving mandatory gates, and ingest pinned results without treating one trace as exhaustive behavior. |
+| Work-tracking adapters | Connect Jira or Linear issues to GitHub, GitLab, or Bitbucket pull requests, commits, reviews, CI outcomes, code, and tests. Mutable ticket and review text is provenance, not automatic authority: receipts pin external IDs, revisions, URLs, timestamps, Git SHAs, and content hashes so later edits cannot silently rewrite the evidence used for a change. |
 | Pull-request and merge maintenance | PR updates compute review context and evidence drift; an exact merged commit automatically marks knowledge preserved, stale, contradicted, retired, or needing reverification and regenerates only affected derived views. This does not authorize Corvint to merge code or promote inferred intent. |
 
 Support is reported per `(host, surface, host version, adapter version, OS)` as `FULL`, `FALLBACK`,
