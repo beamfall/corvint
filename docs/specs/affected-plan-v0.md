@@ -128,8 +128,8 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   `command`, `kind` (`mandatory` or `advisory`), `reason` (one sentence), and `source` (a repository
   path or `affected-plan`). A `mandatory` entry MUST come only from a repository-owned declaration
   read from the working tree at the root: a `gate:` target in `Makefile` yields `make gate`, and a
-  fenced `sh`/`bash`/`console` block under a heading containing "Verify" in `AGENTS.md` yields each
-  of its non-empty command lines with a leading `$ ` stripped. Both reads are bounded at 256 KiB per
+  fenced `sh`/`bash`/`console` block under a heading whose text is exactly "Verify" in `AGENTS.md`
+  (amended, see below) yields each of its non-empty command lines with a leading `$ ` stripped. Both reads are bounded at 256 KiB per
   file and the mandatory list is deduplicated in order of appearance and capped at 16 entries; a
   truncated read still yields the declarations inside the bound. When neither declaration exists,
   `checks` MUST carry no mandatory entry and `unknown` MUST gain
@@ -147,6 +147,19 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   `MANDATORY_DECLARATION_CAPPED: <path> declared more than 16 commands`. The advisory command's
   package arguments are each POSIX single-quoted, with an embedded `'` escaped as `'\''`, so an
   unusual import path cannot break a shell paste.
+  (proposed, decision 0398; V1-0342) Only a heading whose text, without its `#` marks and
+  surrounding space, equals `Verify` in any case declares checks; a substring match made every
+  shell line under a heading such as `## Build / run / verify` mandatory, app launches included.
+  Each other heading whose text contains `verify` in any case and that has such a fence MUST add
+  `MANDATORY_DECLARATION_UNRECOGNIZED: AGENTS.md heading "<text>" is not "Verify", so its commands
+  are not checks` to `unknown` instead of yielding checks. A shell comment, a `#` that begins a
+  word outside single or double quotes, is removed from each command line with the space before
+  it, and a line left empty is no command. A command that ends in a single `&` or whose first word
+  is `open` or `xdg-open` does not end on its own: it MUST be an `advisory` entry with source
+  `AGENTS.md`, listed after the mandatory entries and before the plan's advisory entry, and counts
+  toward the 16-entry cap. Any other command stays `mandatory`, because requiring too much is
+  safe. `NO_REPOSITORY_GATE_DECLARED` is added when no entry is mandatory. Rollback restores the
+  substring heading match and whole-line commands.
 - **AFP-V0-010:** `corvint affected --base FULL_COMMIT_ID` (or `--base=`) MUST join the committed
   range to the dirty set: the paths of one bounded `git diff --name-only -z --no-renames --no-color
   BASE HEAD --` (`affected.RangePaths`, the AFP-V0-002 8 MiB / 10 s bounds; each NUL-delimited
@@ -490,7 +503,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |
 | AFP-V0-019 | `internal/plansnapshot`, `compileSnapshotAffected` | `TestSnapshotImmutableBytesAndCleanup`, `TestSnapshotRejectsIncompleteMismatchedAndStale`, `TestSnapshotStrictWire`, `TestSnapshotRejectsLinksAndIgnoresArchiveAttributes`, `TestAffectedSnapshotMatchesCommittedPlanAcrossDirtySources`, `TestAffectedSnapshotPlaywrightPinsConfigAndSource` |
 | AFP-V0-018 | `playwrightAffectedReceipt`, `compilePlaywrightAffected`, and `typescript.SelectPlaywright` | `TestAffectedPlaywrightProfileEmitsProjectDistinctUnits`, `TestAffectedPlaywrightArgumentsFailClosed`, and `internal/liveverify/affected/typescript/playwright_test.go` |
-| AFP-V0-009 | `affectedAdvice`, `compileAffectedAdvice`, `mandatoryAffectedChecks`, `advisoryAffectedChecks`, `shellQuoteJoin` in `cmd/corvint/affected.go` | `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`, `TestAffectedAdviceReportsNoDeclaredGate`, `TestAffectedAdviceKeepsMandatoryGateAndNeverAdvisesExclusions`, `TestAffectedReceiptMembersAreClosedAndByteStable` (tightened to assert `advice`'s raw JSON key order), `TestAffectedAdviceBoundsTheDeclarationRead`, `TestShellQuoteJoinEscapesMetacharacters`, `TestAffectedAdviceTruncatedMandatoryDeclarationSuppressesNoGate`, `TestAffectedAdviceCapsMandatoryChecksAtSixteen`, `TestAffectedAdviceSkipsCommentsInVerifyFence` |
+| AFP-V0-009 | `affectedAdvice`, `compileAffectedAdvice`, `mandatoryAffectedChecks`, `advisoryAffectedChecks`, `agentsVerifyCommands`, `agentsCheck`, `nonTerminatingCommand`, `stripShellComment`, `shellQuoteJoin` in `cmd/corvint/affected.go` | `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`, `TestAffectedAdviceReportsNoDeclaredGate`, `TestAffectedAdviceKeepsMandatoryGateAndNeverAdvisesExclusions`, `TestAffectedReceiptMembersAreClosedAndByteStable` (tightened to assert `advice`'s raw JSON key order), `TestAffectedAdviceBoundsTheDeclarationRead`, `TestShellQuoteJoinEscapesMetacharacters`, `TestAffectedAdviceTruncatedMandatoryDeclarationSuppressesNoGate`, `TestAffectedAdviceCapsMandatoryChecksAtSixteen`, `TestAffectedAdviceSkipsCommentsInVerifyFence`, `TestAffectedAdviceTakesOnlyTheExactVerifyHeading_V1_0342` |
 | AFP-V0-021 | `WitnessPathLiteralReader`, `PathTokenBound`, `Graph.readers`, `Graph.tokenBounds`, `namesPath`, `ChangeEvidencePath`, `Graph.resolves`, `resolvesWithin`, `WitnessUnboundedReader`, `Graph.unboundedReadersOf` in `internal/liveverify/affected` (`select.go`, `readers.go`, `graph.go`); `Unit.PathTokens`, `Unit.PathTokensBounded`, `Unit.UnboundedReads`, `Unit.LocatesRoot`; `pathTokens`, `importsEnd`, `ignoredByGo`, `maxPathTokens` in `internal/liveverify/affected/golang/golang.go`; `escapesPackage`, `rootLocatorCall` in `internal/liveverify/affected/golang/unbounded.go` | `TestPathLiteralSelectsItsReaderPackage_AFPV0021` (a named document selects its reader and stays unknown; single and parenthesized imports are no tokens; a file without imports yields tokens; a dependent and an unnamed path select nothing), `TestOwnedDirtyPathSelectsTheUnitsThatNameIt`, `TestReaderWitnessIsTheSmallestNamingDirtyPath`, `TestReaderReachedByDependencyKeepsItsDependencyWitness`, `TestBoundedPathTokensAreUnknownOnlyWhenAMatchIsAttempted`, `TestPathTokenBoundNamesThePackage`, `TestUnlexableSourceIsAFrontierOutsideIgnoredDirectories`, `TestSelectionOnTheLiveDirtyWorktree` (reader witnesses resolve), `TestAffectedDocumentSelectsThePackageThatNamesIt` (receipt shape, provider packages, byte identity), `TestDirectoryShapedLiteralNamesNoPath` (V1-0290: a directory-shaped one-component token names no path; two-component and file-name tokens still select), `TestChangeEvidenceReadersAreNarrowed_V1_0230` (the sidecar keeps only resolving readers; a climbing token names a directory; a same-shaped path is not narrowed), `TestUnboundedReaderIsSelectedOnAnyChange_V1_0230` (rule (d): root locators through plain, aliased and dot imports, a climbing literal and a test-only `--show-toplevel` are selected with their non-test locator's dependents, not the test-only one's; a clean plan selects none) |
 | AFP-V0-020 | `UnknownNoSelectableTest` in `affected.Select` (`internal/liveverify/affected/select.go`) | `TestSelectNamesChangedUntestedGoPackageAsUnknownScope`, `TestSelectTraversesUntestedUnitsWithoutSelectingThem` (an untested unit the change only reaches stays bounded), `TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020` (every plugin), `TestPlaywrightDiscoveryReconciliation` (an unreached helper keeps the Playwright plan), `TestAffectedUntestedGoPackageIsUnknownScope` |
 
