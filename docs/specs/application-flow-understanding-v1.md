@@ -14,7 +14,7 @@ decisions 0374 and 0385.
 
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
-- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 015..018, 036 and 037 (unqualified), 012..014 and 038 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; nothing else is implemented or qualified.
+- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 015..018, 036 and 037 (unqualified), 012..014 and 038 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; S4 implements AFU-V1-019..024 and the AFU-V1-040 frozen corpus (unsafe-narrowing rate 0 on both bases), with the two live changes `NOT_RUN`; nothing else is implemented or qualified.
 - Exists: the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
 - Blocked on: implementation slices S1-S8 (Rollout) and the acceptance evidence below.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Deterministic acceptance.
@@ -50,15 +50,16 @@ At `978b37b`:
 - The `/1` behavior provider pins exactly three repositories, `app`, `golf_e2e` and `docs_corpus`
   (`internal/doccorpus/behavior.go:41-45@2b4b5d34`). S3 adds the `/2` `repositories` list beside it.
 - ETS selection returns `narrow-selection-allowed` once no obligation is uncovered
-  (`internal/extevidence/selection.go:820-833@bae209bb`). It proves nothing about the tests it did
-  not select, and says so (`internal/extevidence/selection.go:874@5368f5ce`).
+  (`internal/extevidence/selection.go:823-836@bae209bb`). It proves nothing about the tests it did
+  not select, and says so (`internal/extevidence/selection.go:38@a0a072cd`).
 - The Playwright reader derives `flaky` from every attempt's status
   (`internal/jstestprovider/playwright.go:169-176@f01509c4`). Since S2 it keeps every attempt's
   duration, failure message, anchor and attachments in memory
   (`internal/jstestprovider/playwright.go:129-131@9ab61026`), but the receipt still carries the last
   attempt's detail only (`internal/jstestprovider/receipt.go:61-67@cbf0055a`).
 - The issue-53 adapter reconciles flows, variations, tests and assertions in both directions, and
-  never has narrowing authority (`docs/specs/documentation-corpus-v1.md:191-196@cea38e20`).
+  never has narrowing authority (`docs/specs/documentation-corpus-v1.md:191-196@cea38e20`). S4
+  leaves it so: only `internal/appflows/selection.go` produces an `e2e-safe` omission.
 
 ## Definitions
 
@@ -363,6 +364,37 @@ under-report and never over-report.
   `strict` and `coverage` outputs stay byte-identical. The DCP-V1-031 adapter result keeps no
   narrowing authority; only this profile's exclusion proofs narrow.
 
+### E2E-safe wire contract
+
+This subsection fixes the S4 wire shape. It adds no requirement and no root verb.
+
+- Provider: `--provider FILE` names one repository-relative, closed
+  `application-flow-selection-provider/1` document with `flows` (the intent directory), `runner_config`,
+  the optional `discovery` (a `playwright-discovery/0` record; `--playwright-discovery` overrides it
+  and needs no `--playwright-config`), `global_paths` (directory or file prefixes, for example named
+  fixtures and seeds), `inventory` (`test_key`, `project`, `path`), the optional `flow_tiers` (flow ID
+  to the tiers its coverage must complete) and the optional `coverage` path. `--repository` is
+  refused. Inventory and each path list are bounded (1,024 tests, 4,096 paths); exceeding a bound is
+  `e2e-bound-exceeded`.
+- Coverage: the named file is a closed `application-flow-coverage/0` record list (`test_key`,
+  `commit`, `tiers` of `tier`, `complete`, `paths`), an ingested runner artifact outside the provider
+  so that adding a record does not itself change a global path.
+- Global paths: the ETS built-in names, `Dockerfile*`, `.env.*`, the provider, the runner config,
+  everything under `flows`, and every `global_paths` prefix.
+- Result: `advice.test_selection` is the `e2e-safe-selection/0` object with `profile`, `state`,
+  `state_reason`, `base`, `mandatory`, `discovery` (`path`, `state`), `selected` (`reasons` from
+  `test-file-changed`, `static-reach`, `linked-to-closure`, `observed-coverage`), `omitted_tests`
+  (`basis`, `proof` with `links` or `coverage`, `disjoint_from` and, for `reviewed-links`, the
+  attestation), `omissions_per_basis`, `fallback` (`code`, `subject`), `note` (the ETS note plus the
+  per-basis note) and `untrusted_text_fields`. The ETS `omitted` member is not reused, because it
+  counts list cuts. An unreadable or malformed provider or coverage file is `blocked`
+  (`provider-unavailable`).
+- The coverage basis is tried first. A changed path that neither the impact graph owns, nor a
+  reviewed link targets, nor any coverage record names is `e2e-unmapped-change` for that basis. The
+  TypeScript `e2e-runtime-dependency` and `executable-config-unresolved` frontiers do not unbound the
+  closure under this profile, as under the Playwright profile: reviewed links and coverage prove the
+  runtime dependency, and the runner config is a global path reconciled through discovery.
+
 ### Navigation map
 
 - `AFU-V1-025`: `corvint flows navigate` MUST derive an `application-navigation-map/0` from flow
@@ -499,14 +531,20 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-016 | `TestAFUV1FlowsQueryGoldens` (`gaps.golden.json`, every gap code reached), `TestAFUV1EvidenceStateOrder`, `TestAFUV1ReadRunEvidenceDiscipline`, `TestAFUV1ZeroVariationFlowIncomplete` |
 | AFU-V1-017 | `TestAFUV1FlowsQueryGoldens` (`impact.golden.json`: a direct hit and a hit through the impact graph), `TestAFUV1FlowsCLIReverseLookups` (unresolvable base), `TestAFUV1FlowsImpactDirtyWorktreeUnknown` (an uncommitted edit makes the scope `UNKNOWN`, never a confident no-hit) |
 | AFU-V1-018 | `TestAFUV1FlowsQueriesAreReadOnly` (`map`, lookup, `gaps`, `impact`, `ingest` and `export` leave the repository, `.git` included, byte-identical) |
-| AFU-V1-019..024 | the fault-injected corpus reported per basis, one case per fallback code, an undiscovered-test case, the byte identity of `strict` and `coverage` |
+| AFU-V1-019 | `TestAFUV1019UndiscoveredTestForbidsNarrowing`, `TestAFUV1040SelectionCorpusReport` (the `undiscovered-test`, `missing-discovery`, `stale-discovery` and `test-file` cases) |
+| AFU-V1-020 | `TestAFUV1020ExclusionProofsPerBasis` (a reviewed-links proof, a declared link without a review anchor, an inferred-only link), `TestAFUV1040SelectionCorpusReport` |
+| AFU-V1-021 | `TestAFUV1020ExclusionProofsPerBasis` (a coverage proof, stale coverage evidence, an incomplete tier), `TestAFUV1040SelectionCorpusReport` |
+| AFU-V1-022 | `TestAFUV1022EveryFallbackCodeYieldsFullSuite` (one subtest per closed code), `TestAFUV1040SelectionCorpusReport` (global-path cases) |
+| AFU-V1-023 | `TestAFUV1020ExclusionProofsPerBasis`, `TestAFUV1040SelectionCorpusReport` (per-basis counts, both notes) |
+| AFU-V1-024 | `TestAFUV1024StrictAndCoverageBytesUnchanged` (goldens captured before S4), `TestAFUV1024E2ESafeRefusesMalformedInput`, `TestAffectedSelectionArguments` |
 | AFU-V1-025..029 | navigation goldens, effect raising from observed traffic, `requires-grant` marking, the observer refusal, and a deterministic scripted agent that completes each fixture goal from the packet alone |
 | AFU-V1-030..033 | docs goldens, drift failure on a lost `PROVEN`, waiver expiry, the anchored Markdown case |
 | AFU-V1-034..035 | MCP conformance with and without the selector |
 | AFU-V1-036 | `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
 | AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceBoundsIncomplete`, `TestAFUV1FlowsCLIIngest`, `TestAFUV1ReadRunEvidenceDiscipline` |
 | AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceSecretsDropped`; the screen runs in `EncodeRunEvidence`, the only run-evidence encoding, and `flows ingest` writes only what it encodes (`TestAFUV1FlowsCLIIngest`) |
-| AFU-V1-039..040 | the committed acceptance fixture and the frozen corpus report |
+| AFU-V1-039 | the committed acceptance fixture |
+| AFU-V1-040 | `TestAFUV1040SelectionCorpusReport`: the frozen corpus `cmd/corvint/testdata/e2e-safe-corpus.json` (20 labelled, fault-injected cases over five tests) and its report `cmd/corvint/testdata/e2e-safe-corpus.report.json`; `coverage` omits 15 with 0 unsafe (reduction 0.15), `reviewed-links` omits 3 with 0 unsafe (reduction 0.03), no basis withdrawn |
 
 Live qualification: the companion surfaces are qualified on Beamfall with one UI flow and one API
 flow. The Core profile is qualified by the corpus report (AFU-V1-040) plus one real change against
@@ -546,7 +584,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-025..033 | `internal/appflows`, `cmd/corvint/flows.go` |
 | AFU-V1-006 | partial (see the matrix): `internal/doccorpus/behavior.go` |
 | AFU-V1-011..014 | implemented, 012..014 partial (see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/jstestprovider/playwright.go` |
-| AFU-V1-019..024 | `internal/extevidence/selection.go`, `cmd/corvint/affected.go` |
+| AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
 | AFU-V1-034..035 | `internal/mcp`, `cmd/corvint-mcp` |
 
 ## Unresolved decisions and promotion or kill criteria
