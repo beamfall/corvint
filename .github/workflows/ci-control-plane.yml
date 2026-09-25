@@ -1,10 +1,11 @@
 name: CI control plane
 
-# Runs from the default branch after each PR CI run (decision 0320, AFP-V0-016). A pull_request
-# workflow runs the PR's own copy of ci.yml, so a PR could set its own narrowing pins. This check
-# reads only GitHub metadata, never checks out or runs PR code, and posts `ci-control-plane` on
-# the PR head: failure when the PR changes anything under `.github/`, success otherwise. The main
-# ruleset requires it, so such a PR merges only through an explicit, logged admin bypass.
+# Runs from the default branch after each PR CI run (decisions 0320 and 0390, AFP-V0-016). A
+# pull_request workflow runs the PR's own copy of ci.yml, so a PR could set its own narrowing pins.
+# This check reads only GitHub metadata, never checks out or runs PR code, and posts
+# `ci-control-plane` on the PR head: failure when the PR changes anything under `.github/`, success
+# otherwise. The main ruleset requires it and has no bypass actor, so such a PR merges only after
+# an admin posts a `ci-control-plane` success status on the exact reviewed head SHA.
 
 on:
   workflow_run:
@@ -51,7 +52,7 @@ jobs:
               touched=$(grep -c '^\.github/' <<<"$files" || true)
               if [ "$touched" -gt 0 ]; then
                 state=failure
-                description="PR changes $touched path(s) under .github/; merge needs an admin bypass"
+                description="PR changes $touched path(s) under .github/; merge needs an admin-posted ci-control-plane status on this SHA"
               fi
             fi
             echo "ci-control-plane: #$number $state: $description"
