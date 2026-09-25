@@ -270,8 +270,8 @@ func Classify(attempts []RunAttempt) string {
 }
 
 // Verified reports whether a record may be shown as verified. An invalid or STATIC record never is
-// (AFU-V1-014); any other needs a passed classification, cleanup done and every negative control as
-// expected.
+// (AFU-V1-014); any other needs a passed classification, cleanup done and every negative control
+// observed failing.
 func Verified(r TestRunEvidence) bool {
 	if ValidateRunEvidence(r) != nil || r.Authority == AuthorityStatic {
 		return false
@@ -279,10 +279,11 @@ func Verified(r TestRunEvidence) bool {
 	if Classify(r.Attempts) != "passed" || r.Cleanup != "done" {
 		return false
 	}
-	for _, c := range r.NegativeControls {
-		if c.Observed != c.Expected {
-			return false
-		}
-	}
-	return true
+	return !slices.ContainsFunc(r.NegativeControls, func(c NegativeControl) bool { return !controlFailed(c) })
+}
+
+// controlFailed reports whether a negative control was observed failing, as failed or timedOut, and
+// as its expected outcome; a control that passed never supports verification.
+func controlFailed(c NegativeControl) bool {
+	return (c.Observed == "failed" || c.Observed == "timedOut") && c.Observed == c.Expected
 }

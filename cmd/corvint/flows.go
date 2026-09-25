@@ -10,6 +10,7 @@ import (
 	"io"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appflows"
@@ -259,6 +260,10 @@ func runFlowsGaps(ctx context.Context, root string, args []string, out io.Writer
 	return err
 }
 
+// flowImpactDirtyWorktree is the graph unknown reason of `flows impact` on a worktree that differs
+// from HEAD.
+const flowImpactDirtyWorktree = "DIRTY_WORKTREE"
+
 func runFlowsImpact(ctx context.Context, root string, args []string, out io.Writer) error {
 	f := flag.NewFlagSet("flows impact", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
@@ -283,11 +288,27 @@ func runFlowsImpact(ctx context.Context, root string, args []string, out io.Writ
 	if err != nil {
 		return err
 	}
+	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
+	if err != nil {
+		return &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+	}
 	graph, err := affected.Build(root, affectedLanguages()...)
 	if err != nil {
 		return err
 	}
-	data, err := appflows.FlowImpact(ctx, root, set, resolved, graph, affected.Select(graph, changed))
+	recheck, err := affected.DirtyPaths(ctx, gitExecutable, root)
+	if err != nil {
+		return &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+	}
+	plan := affected.Select(graph, changed)
+	// The graph is walked from the working tree while intents and changed paths come from HEAD; a
+	// worktree that differs from HEAD may have built a different graph, so the hit list may be short.
+	if differs := slices.Compact(slices.Sorted(slices.Values(append(dirty, recheck...)))); len(differs) != 0 {
+		plan.Scope = affected.ScopeUnknown
+		plan.Unknown = append(plan.Unknown, affected.Unknown{Reason: flowImpactDirtyWorktree,
+			Detail: fmt.Sprintf("the impact graph was built from a worktree that differs from HEAD at %d paths, first %s", len(differs), differs[0])})
+	}
+	data, err := appflows.FlowImpact(ctx, root, set, resolved, graph, plan)
 	if err != nil {
 		return err
 	}

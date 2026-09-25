@@ -43,7 +43,7 @@ At `978b37b`:
 
 - `corvint flows` dispatched only `record` beside its report, created its output without root or
   symlink confinement, and opened an input before the regular-file check. S1 adds the `export` and
-  `import` subcommands (`cmd/corvint/flows.go:39-40@97eb5689`), routes `record` through the
+  `import` subcommands (`cmd/corvint/flows.go:40-41@97eb5689`), routes `record` through the
   root-confined exclusive writer (`internal/appflows/report.go:317@18a159fa`,
   `internal/appflows/input.go:90-103@06fa25b5`), and checks Lstat before open
   (`internal/appflows/input.go:64-71@8ab13087`).
@@ -215,7 +215,8 @@ This subsection fixes the S2 wire shape. It adds no requirement and no root verb
   after a failed or timed-out one is `flaky` through the shared TCQ-V0-049 rule; a test with no
   attempt is `not-run`. A negative control's `observed` is that classification of the control test in
   the same report. A record is verified only when it is not `STATIC`, its result is `passed`, cleanup
-  is `done` and every control observed its expected outcome. A Playwright `passed` result is recorded
+  is `done` and every negative control was observed failing (`failed` or `timedOut`) as its expected
+  outcome; a control that passed never supports verification. A Playwright `passed` result is recorded
   as a `failed` attempt, with the reason as its failure, when the test's `expectedStatus` is not
   `passed` (`test.fail()`) or, for its last result, when Playwright marked the test `unexpected`; so
   such a test is never `passed` or verified. A `test.fail()` test that fails as expected keeps its
@@ -276,23 +277,29 @@ compact JSON document to stdout.
 - `flows map --flows DIR --path P` or `--test-key K` writes `application-flow-lookup/1` (`schema`,
   `revision`, `path` or `test_key`, and `flows`, each hit `flow`, `from`, `basis`, `review_state`),
   derived from the forward links at `HEAD`. The two selectors exclude each other and `--evidence`.
+  A `--path` that is not a canonical repository-relative path (a leading `./` or `/`, an empty or
+  `..` segment) exits 2 as `invalid-arguments`, never an empty answer.
 - Evidence files are `test-run-evidence/0` JSONL as `ingest` writes it, read through the same
   regular-file, byte, canonical-decode and combined 8192-record bounds; any refused file refuses the
   query. Evidence pairs are each declared (non-`inferred`) test key of a variation times each of its
   `projects`, or once when it lists none. A record matches a pair by `test_key`, and by `project` when
   the pair has one. The pair's `state` is the first that holds: `missing` (no non-`STATIC` record),
   `stale` (none ran the `HEAD` commit and tree from a clean worktree; only those count below),
-  `flaky` (any is `flaky`), `failed` (none `passed`), `negative-control-missing` (no passed record
-  observed every control as expected and ran every `adapter.negative_controls` key),
-  `cleanup-unverified` (none of those has cleanup `done`), else `verified`. A variation is `verified`
-  only when it has at least one pair and every pair is `verified`. S3 does not carry evidence forward
+  `flaky` (any is `flaky`, or their classifications diverge under the shared TCQ-V0-049 rule, such
+  as one `passed` and one `failed`), `failed` (none `passed`), `negative-control-missing` (no passed
+  record observed every control failing as expected and ran every `adapter.negative_controls` key),
+  `cleanup-unverified` (any passed record has cleanup other than `done`), else `verified`. Across
+  records this is the per-pair rule only; DCP-V1-023/024 aggregation stays a declared partial. A
+  variation is `verified` only when it has at least one pair and every pair is `verified`. S3 does
+  not carry evidence forward
 from an earlier commit as the Verified definition allows; such evidence is `stale`, which can
 under-report and never over-report.
 - `corvint [--root PATH] flows gaps --flows DIR [--evidence FILE]...` writes `application-flow-gaps/1`:
   `schema`, `revision` and `flows`, each `flow_id`, `status` and `gaps` (`code`, the optional
   `member`, `test_key` and `project`, and `detail`). A flow with no link has only `unmapped-flow`. A
   flow whose every link is `inferred` has `inferred-only`. Each `stale` link is `stale-link`; any other
-  link neither `reviewed` nor `inferred` is `unreviewed`. Per variation: no declared test link is
+  link neither `reviewed` nor `inferred` is `unreviewed`. A flow that declares no variation has one
+  flow-level `no-test`, so it is never `complete`. Per variation: no declared test link is
   `no-test`; declared tests with no declared assertion link from the variation or its outcomes is
   `test-without-assertion`; each of its outcomes with no declared assertion link is
   `assertion-unlinked`; and each evidence pair maps `missing` and `failed` to `evidence-missing`,
@@ -307,6 +314,10 @@ under-report and never over-report.
   changed one to the owner, then the target path; the shortest such path in sorted breadth-first
   order). A hit reaches its own variation or every variation listing its step or outcome, and those
   variations' test keys of any basis. An unresolvable `--base` is `unsupported-affected-revision`.
+  The graph is walked from the working tree while intents and changed paths come from `HEAD`, so
+  when `git status` reports any tracked or untracked difference from `HEAD` before or after the
+  graph build, the scope is `UNKNOWN` with `DIRTY_WORKTREE: detail` and the result never claims a
+  complete `HEAD` answer; a failed status read is `unsupported-affected-status`.
 - `corvint [--root PATH] flows ingest --format playwright-json|junit-xml|go-test-json --from FILE`
   takes the run header as `--run-id`, `--runner-version`, `--source-commit`, `--source-tree`,
   `--source-clean`, `--build-artifact-digest`, `--environment-id`, `--environment-digest`,
@@ -479,14 +490,14 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-007 | `TestAFUV1ReviewAnchorValidAndStale` |
 | AFU-V1-008 | `TestAFUV1ReviewAnchorValidAndStale`, `TestAFUV1ReviewAnchorNotAncestor`, `TestAFUV1ReviewAnchorMustChangeIntent`, `TestAFUV1InferredExcludedFromReviewed`, `TestAFUV1ReviewLinkMustExistAtAnchor`, `TestAFUV1ReviewEvidenceTargetUnavailable`, `TestAFUV1ReviewContentIdentityRestoredTarget`, `TestAFUV1FlowsQueryGoldens` (the `review` denominator and limitation in `map`) |
 | AFU-V1-009 | `TestAFUV1InferredExcludedFromReviewed`, `TestAFUV1FlowsQueryGoldens` (inferred links outside the denominator, `inferred-only`, no evidence pair from an inferred test) |
-| AFU-V1-010 | `TestAFUV1ReverseLookupsDerived`, `TestAFUV1ExportLeavesRepositoryByteIdentical`, `TestAFUV1FlowsCLIExportIsReadOnly`, `TestAFUV1FlowsCLIReverseLookups`, `TestAFUV1FlowsQueriesAreReadOnly` |
-| AFU-V1-011 | `TestAFUV1RunEvidenceClosedSchema`, `TestAFUV1NegativeControlFailed` |
+| AFU-V1-010 | `TestAFUV1ReverseLookupsDerived`, `TestAFUV1ExportLeavesRepositoryByteIdentical`, `TestAFUV1FlowsCLIExportIsReadOnly`, `TestAFUV1FlowsCLIReverseLookups` (a non-canonical `--path` refused), `TestAFUV1FlowsQueriesAreReadOnly` |
+| AFU-V1-011 | `TestAFUV1RunEvidenceClosedSchema`, `TestAFUV1NegativeControlFailed`, `TestAFUV1FlowsCLIPassingControlNeverVerifies` (a control that passed never verifies) |
 | AFU-V1-012 | `TestAFUV1PlaywrightAdapterKeepsEveryAttempt`, `TestAFUV1JUnitAdapterKeepsEveryAttempt`, `TestAFUV1GoTestAdapterKeepsEveryAttempt`, `TestAFUV1PlaywrightProviderKeepsEveryAttempt`; partial: the Playwright provider keeps every attempt in memory (`TestOutcome.AttemptDetails`), but the `corvint-js-test-provider` receipt wire still carries only the last attempt's detail |
 | AFU-V1-013 | `TestAFUV1FailedAttemptThenPassIsFlaky`, `TestAFUV1PlaywrightUnexpectedNeverPassed`, the retry-passed case of each adapter test; partial: per-test classification only, aggregation of repeated runs under the DCP-V1-023 counters and DCP-V1-024 policy needs the `internal/doccorpus` stability counting exposed for `test-run-evidence/0` records |
 | AFU-V1-014 | `TestAFUV1StaticNeverVerified`, `TestAFUV1PlaywrightUnexpectedNeverPassed`; partial: ingest emits `INGESTED` and the schema accepts `LOCALLY_OBSERVED`, but the AFU-V0-010 observer does not yet emit run-evidence records |
-| AFU-V1-015 | `TestAFUV1FlowsQueryGoldens` (`map.golden.json`), `TestAFUV1EvidenceStateOrder`, `TestAFUV1ReadRunEvidenceDiscipline` |
-| AFU-V1-016 | `TestAFUV1FlowsQueryGoldens` (`gaps.golden.json`, every gap code reached), `TestAFUV1EvidenceStateOrder`, `TestAFUV1ReadRunEvidenceDiscipline` |
-| AFU-V1-017 | `TestAFUV1FlowsQueryGoldens` (`impact.golden.json`: a direct hit and a hit through the impact graph), `TestAFUV1FlowsCLIReverseLookups` (unresolvable base) |
+| AFU-V1-015 | `TestAFUV1FlowsQueryGoldens` (`map.golden.json`), `TestAFUV1EvidenceStateOrder` (including mixed pass and fail across current records, and a passed record without cleanup `done`), `TestAFUV1ReadRunEvidenceDiscipline` |
+| AFU-V1-016 | `TestAFUV1FlowsQueryGoldens` (`gaps.golden.json`, every gap code reached), `TestAFUV1EvidenceStateOrder`, `TestAFUV1ReadRunEvidenceDiscipline`, `TestAFUV1ZeroVariationFlowIncomplete` |
+| AFU-V1-017 | `TestAFUV1FlowsQueryGoldens` (`impact.golden.json`: a direct hit and a hit through the impact graph), `TestAFUV1FlowsCLIReverseLookups` (unresolvable base), `TestAFUV1FlowsImpactDirtyWorktreeUnknown` (an uncommitted edit makes the scope `UNKNOWN`, never a confident no-hit) |
 | AFU-V1-018 | `TestAFUV1FlowsQueriesAreReadOnly` (`map`, lookup, `gaps`, `impact`, `ingest` and `export` leave the repository, `.git` included, byte-identical) |
 | AFU-V1-019..024 | the fault-injected corpus reported per basis, one case per fallback code, an undiscovered-test case, the byte identity of `strict` and `coverage` |
 | AFU-V1-025..029 | navigation goldens, effect raising from observed traffic, `requires-grant` marking, the observer refusal, and a deterministic scripted agent that completes each fixture goal from the packet alone |

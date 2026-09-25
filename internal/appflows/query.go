@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/tcq"
 )
 
 // Query document schemas (AFU-V1-015..017).
@@ -109,7 +110,7 @@ type GapFlow struct {
 	Gaps   []Gap  `json:"gaps"`
 }
 
-// Gap is one closed-code gap. Member names the variation, outcome or link source it is about.
+// Gap is one closed-code gap. Member names the flow, variation, outcome or link source it is about.
 type Gap struct {
 	Code    string `json:"code"`
 	Member  string `json:"member,omitempty"`
@@ -174,8 +175,12 @@ func FlowMap(ctx context.Context, root string, set IntentSet, evidence []TestRun
 	return doccorpus.Encode(report)
 }
 
-// FlowLookup answers one reverse lookup, source path or test key to flows (AFU-V1-010).
+// FlowLookup answers one reverse lookup, source path or test key to flows (AFU-V1-010). A path that
+// is not in the canonical repository-relative form of a link target is refused, never an empty answer.
 func FlowLookup(ctx context.Context, root string, set IntentSet, path, testKey string) ([]byte, error) {
+	if path != "" && !safePath(path) {
+		return nil, errors.New("--path must be a canonical repository-relative path")
+	}
 	links, at, err := evaluateSet(ctx, root, set)
 	if err != nil {
 		return nil, err
@@ -231,8 +236,8 @@ func status(gaps []Gap) string {
 	return "incomplete"
 }
 
-// flowGaps derives one flow's gaps. A flow with no link is only unmapped; inferred links never
-// satisfy a test, assertion or evidence requirement (AFU-V1-009).
+// flowGaps derives one flow's gaps. A flow with no link is only unmapped; a flow with no variation
+// has no test; inferred links never satisfy a test, assertion or evidence requirement (AFU-V1-009).
 func flowGaps(intent FlowIntent, links []EvaluatedLink, evidence []TestRunEvidence, at head) []Gap {
 	if len(links) == 0 {
 		return []Gap{{Code: GapUnmappedFlow, Detail: "the flow has no link"}}
@@ -240,6 +245,9 @@ func flowGaps(intent FlowIntent, links []EvaluatedLink, evidence []TestRunEviden
 	gaps := []Gap{}
 	if !slices.ContainsFunc(links, func(l EvaluatedLink) bool { return l.ReviewState != ReviewInferred }) {
 		gaps = append(gaps, Gap{Code: GapInferredOnly, Detail: "every link is inferred"})
+	}
+	if len(intent.Variations) == 0 {
+		gaps = append(gaps, Gap{Code: GapNoTest, Member: intent.FlowID, Detail: "the flow declares no variation, so no test"})
 	}
 	gaps = append(gaps, linkGaps(links)...)
 	for _, v := range intent.Variations {
@@ -322,12 +330,17 @@ func variationEvidence(intent FlowIntent, v FlowVariation, links []EvaluatedLink
 
 // evidenceState names the first unmet condition of the Verified rule for the records of one pair.
 // A record holds only when it ran exactly the evaluated commit and tree from a clean worktree; STATIC
-// records never count (AFU-V1-014).
+// records never count (AFU-V1-014). Current records whose classifications diverge under the shared
+// TCQ-V0-049 rule, such as one passed and one failed run, are flaky; every passed one needs cleanup done.
 func evidenceState(records []TestRunEvidence, controls []string, at head) string {
 	ran := slices.DeleteFunc(slices.Clone(records), func(r TestRunEvidence) bool { return r.Authority == AuthorityStatic })
 	current := slices.DeleteFunc(slices.Clone(ran), func(r TestRunEvidence) bool {
 		return r.Source != RunSource{Commit: at.commit, Tree: at.tree, Clean: true}
 	})
+	results := []string{}
+	for _, r := range current {
+		results = append(results, tcqReport[Classify(r.Attempts)])
+	}
 	passed := slices.DeleteFunc(slices.Clone(current), func(r TestRunEvidence) bool { return Classify(r.Attempts) != "passed" })
 	controlled := slices.DeleteFunc(slices.Clone(passed), func(r TestRunEvidence) bool { return !carriesControls(r, controls) })
 	switch {
@@ -337,23 +350,23 @@ func evidenceState(records []TestRunEvidence, controls []string, at head) string
 		return "stale"
 	case slices.ContainsFunc(current, func(r TestRunEvidence) bool { return Classify(r.Attempts) == "flaky" }):
 		return "flaky"
+	case tcq.Flaky(results):
+		return "flaky"
 	case len(passed) == 0:
 		return "failed"
 	case len(controlled) == 0:
 		return "negative-control-missing"
-	case !slices.ContainsFunc(controlled, Verified):
+	case slices.ContainsFunc(passed, func(r TestRunEvidence) bool { return r.Cleanup != "done" }):
 		return "cleanup-unverified"
 	}
 	return "verified"
 }
 
-// carriesControls reports whether every control the flow adapter declares was run and observed as
-// expected, and no control the record carries was observed otherwise.
+// carriesControls reports whether every control the flow adapter declares was run and every control
+// the record carries was observed failing (controlFailed).
 func carriesControls(r TestRunEvidence, declared []string) bool {
-	for _, c := range r.NegativeControls {
-		if c.Observed != c.Expected {
-			return false
-		}
+	if slices.ContainsFunc(r.NegativeControls, func(c NegativeControl) bool { return !controlFailed(c) }) {
+		return false
 	}
 	for _, key := range declared {
 		if !slices.ContainsFunc(r.NegativeControls, func(c NegativeControl) bool { return c.TestKey == key }) {

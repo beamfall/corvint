@@ -550,23 +550,40 @@ func TestAFUV1BehaviorProviderV2MultiRepository(t *testing.T) {
 	if err := decode(data, &decoded); err != nil || ValidateBehaviorProviderV2(decoded) != nil {
 		t.Fatalf("/2 round trip: %v", err)
 	}
+	// rehash keeps the digest valid, so a case that calls it breaks only the member it edits.
+	rehash := func(r *BehaviorRegistry) { r.ContractSHA256 = ""; r.ContractSHA256 = testHash(t, *r) }
 	for name, edit := range map[string]func(*ProviderRecord, *BehaviorRegistry){
 		"empty": func(_ *ProviderRecord, r *BehaviorRegistry) { r.Repositories = nil },
 		"unsorted": func(_ *ProviderRecord, r *BehaviorRegistry) {
 			r.Repositories[0], r.Repositories[1] = r.Repositories[1], r.Repositories[0]
 		},
-		"duplicate root":  func(_ *ProviderRecord, r *BehaviorRegistry) { r.Repositories[1].RootCommit = oid("1") },
-		"source unlisted": func(p *ProviderRecord, _ *BehaviorRegistry) { p.Source.Revision = oid("c") },
-		"fixed members":   func(_ *ProviderRecord, r *BehaviorRegistry) { r.Revisions = fixed },
-		"digest":          func(_ *ProviderRecord, r *BehaviorRegistry) { r.ContractID = "other" },
-		"schema /1":       func(p *ProviderRecord, _ *BehaviorRegistry) { p.Schema = BehaviorProviderSchema },
+		"duplicate root": func(_ *ProviderRecord, r *BehaviorRegistry) { r.Repositories[1].RootCommit = oid("1") },
+		"source unlisted": func(p *ProviderRecord, r *BehaviorRegistry) {
+			p.Source.Revision, r.SourceRevision = oid("c"), oid("c")
+			rehash(r)
+		},
+		"malformed root commit": func(_ *ProviderRecord, r *BehaviorRegistry) {
+			r.Repositories[0].RootCommit = strings.Repeat("1", 39) + "g"
+			rehash(r)
+		},
+		"empty revision": func(_ *ProviderRecord, r *BehaviorRegistry) {
+			r.Repositories[1].Revision = ""
+			rehash(r)
+		},
+		"fixed members": func(_ *ProviderRecord, r *BehaviorRegistry) { r.Revisions = fixed },
+		"digest":        func(_ *ProviderRecord, r *BehaviorRegistry) { r.ContractID = "other" },
+		"schema /1":     func(p *ProviderRecord, _ *BehaviorRegistry) { p.Schema = BehaviorProviderSchema },
 	} {
 		mutated, registry := p, r
 		registry.Repositories = slices.Clone(r.Repositories)
 		edit(&mutated, &registry)
 		mutated.BehaviorContracts = &registry
-		if ValidateBehaviorProviderV2(mutated) == nil {
+		err := ValidateBehaviorProviderV2(mutated)
+		if err == nil {
 			t.Fatalf("%s: accepted", name)
+		}
+		if name != "digest" && strings.Contains(err.Error(), "digest") {
+			t.Fatalf("%s: refused only by the digest: %v", name, err)
 		}
 	}
 }

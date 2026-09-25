@@ -70,7 +70,12 @@ func TestAFUV1EvidenceStateOrder(t *testing.T) {
 		{"failed", []TestRunEvidence{record(func(r *TestRunEvidence) { r.Attempts = []RunAttempt{attempt(1, "failed")} })}},
 		{"negative-control-missing", []TestRunEvidence{record(func(r *TestRunEvidence) { r.NegativeControls = []NegativeControl{} })}},
 		{"negative-control-missing", []TestRunEvidence{record(func(r *TestRunEvidence) { r.NegativeControls[0].Observed = "passed" })}},
+		{"negative-control-missing", []TestRunEvidence{record(func(r *TestRunEvidence) {
+			r.NegativeControls[0] = NegativeControl{TestKey: "c", Expected: "passed", Observed: "passed"}
+		})}},
 		{"cleanup-unverified", []TestRunEvidence{record(func(r *TestRunEvidence) { r.Cleanup = "failed" })}},
+		{"flaky", []TestRunEvidence{record(func(r *TestRunEvidence) { r.Attempts = []RunAttempt{attempt(1, "failed")} }), record(func(*TestRunEvidence) {})}},
+		{"cleanup-unverified", []TestRunEvidence{record(func(r *TestRunEvidence) { r.Cleanup = "failed" }), record(func(*TestRunEvidence) {})}},
 		{"verified", []TestRunEvidence{record(func(*TestRunEvidence) {})}},
 	}
 	for _, c := range cases {
@@ -80,5 +85,15 @@ func TestAFUV1EvidenceStateOrder(t *testing.T) {
 	}
 	if evidenceGaps["failed"] != GapEvidenceMissing || evidenceGaps["verified"] != "" {
 		t.Fatal("evidence state to gap code mapping changed")
+	}
+}
+
+// AFU-V1-016
+func TestAFUV1ZeroVariationFlowIncomplete(t *testing.T) {
+	intent := FlowIntent{FlowID: "f", Steps: []FlowStep{{StepID: "s"}}, Outcomes: []FlowOutcome{{OutcomeID: "o"}}, Variations: []FlowVariation{}}
+	links := []EvaluatedLink{{Flow: "f", From: "s", Basis: "reviewed", ReviewState: ReviewReviewed, Target: LinkTarget{Type: "source", Path: "a.go"}}}
+	gaps := flowGaps(intent, links, nil, head{})
+	if status(gaps) != "incomplete" || len(gaps) != 1 || gaps[0].Code != GapNoTest || gaps[0].Member != "f" {
+		t.Fatalf("zero-variation flow gaps: %+v", gaps)
 	}
 }

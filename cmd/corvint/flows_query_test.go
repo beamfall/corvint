@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -244,6 +245,59 @@ func TestAFUV1FlowsCLIReverseLookups(t *testing.T) {
 	}
 	if code, _, diagnostic = runFlowsCLI(fx.root, "impact", "--flows", "flows", "--base", strings.Repeat("0", 40)); code != 2 || !strings.Contains(diagnostic, "unsupported-affected-revision") {
 		t.Fatalf("unknown base %d %s", code, diagnostic)
+	}
+	for _, p := range []string{"./cart/cart.go", "cart//cart.go", "/cart/cart.go", "cart/../cart/cart.go"} {
+		if code, out, diagnostic = runFlowsCLI(fx.root, "map", "--flows", "flows", "--path", p); code != 2 || out != "" || !strings.Contains(diagnostic, "canonical repository-relative path") {
+			t.Fatalf("non-canonical path %q: %d %q %s", p, code, out, diagnostic)
+		}
+	}
+}
+
+// AFU-V1-017: the graph is walked from the working tree while intents and changed paths come from
+// HEAD, so an uncommitted edit that removes the import behind a hit must not leave a confident no-hit.
+func TestAFUV1FlowsImpactDirtyWorktreeUnknown(t *testing.T) {
+	fx := newShopFixture(t)
+	shopWrite(t, fx.root, map[string]string{"checkout/checkout.go": "package checkout\n\nfunc Pay(n int) int { return n }\n"})
+	code, out, diagnostic := runFlowsCLI(fx.root, "impact", "--flows", "flows", "--base", fx.b)
+	if code != 0 {
+		t.Fatalf("impact exited %d: %s", code, diagnostic)
+	}
+	var report appflows.ImpactReport
+	if err := json.Unmarshal([]byte(out), &report); err != nil {
+		t.Fatal(err)
+	}
+	hit := strings.Contains(out, `"flow_id":"checkout"`)
+	dirty := report.Graph.Scope == "UNKNOWN" && slices.ContainsFunc(report.Graph.Unknown, func(u string) bool {
+		return strings.HasPrefix(u, "DIRTY_WORKTREE: ") && strings.Contains(u, "checkout/checkout.go")
+	})
+	if !hit && !dirty {
+		t.Fatalf("dirty worktree impact is a confident no-hit: %s", out)
+	}
+}
+
+// AFU-V1-011: a declared control that passes, even when declared to pass, never verifies its subject.
+func TestAFUV1FlowsCLIPassingControlNeverVerifies(t *testing.T) {
+	fx := newShopFixture(t)
+	report := filepath.Join(t.TempDir(), "report.jsonl")
+	body := "{\"Action\":\"run\",\"Package\":\"shop\",\"Test\":\"TestPay\"}\n{\"Action\":\"pass\",\"Package\":\"shop\",\"Test\":\"TestPay\",\"Elapsed\":0.1}\n" +
+		"{\"Action\":\"run\",\"Package\":\"shop\",\"Test\":\"TestOther\"}\n{\"Action\":\"pass\",\"Package\":\"shop\",\"Test\":\"TestOther\",\"Elapsed\":0.1}\n"
+	if err := os.WriteFile(report, []byte(body), 0600); err != nil {
+		t.Fatal(err)
+	}
+	header := shopIngestHeader(t, fx)
+	header[len(header)-1] = "shop > TestPay\tshop > TestOther\tpassed"
+	code, out, diagnostic := runFlowsCLI(fx.root, append([]string{"ingest", "--format", "go-test-json", "--from", report}, header...)...)
+	if code != 0 {
+		t.Fatalf("ingest %d %s", code, diagnostic)
+	}
+	stored := filepath.Join(t.TempDir(), "runs.jsonl")
+	if err := os.WriteFile(stored, []byte(out), 0600); err != nil {
+		t.Fatal(err)
+	}
+	records, err := appflows.ReadRunEvidence([]string{stored})
+	if err != nil || len(records) != 2 || records[0].TestKey != "shop > TestPay" || appflows.Classify(records[0].Attempts) != "passed" ||
+		records[0].Cleanup != "done" || appflows.Verified(records[0]) {
+		t.Fatalf("a passing negative control verified its subject: %v %+v", err, records)
 	}
 }
 
