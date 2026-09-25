@@ -92,6 +92,26 @@
         }
       ],
       "disposition": "supported",
+      "id": "hunk:sha256:22c59b266bd74bf4f8353ad4961004b6b78bd4d245d12988962511abf25fb5e1",
+      "newRange": {
+        "count": 6,
+        "start": 66
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 66
+      },
+      "path": "cmd/corvint/git_status_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
       "id": "hunk:sha256:eb98af40925b490e6c0982436b623464ed5dbb215cad075b8b1bb2c4496179e2",
       "newRange": {
         "count": 7,
@@ -805,6 +825,6 @@
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "f361583678fe48120d1aaf1f5ead19bcb23357c3976f19ca9901a0b912e0877b",
+  "patchSha256": "43f4a6e325e494442c2105eb8ad462b2ad0f5d7e02d8e48323db7de13b967286",
   "spec": "cem/0.2"
 }
