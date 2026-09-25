@@ -253,6 +253,11 @@ requirements below have evidence. File existence is not parity.
   truncation then makes evidence *content* depend on index build order rather than on the repository.
   Observed byte parity on named Corvint and Beamfall fixtures is dogfood
   evidence, not universal Python parity or authority to cut over the production `corvint` command.
+  Amendment (proposed, decision 0398; V1-0339): the aggregate-bound refusal keeps its code and
+  names no language. Its message states the admitted source bytes, the file count, the total with
+  the per-file framing allowance, the 128 MiB bound, and the remedy that paths under `vendor/`,
+  `node_modules/`, `dist/`, `build/`, `target/` or `generated/` are not admitted (`IDX-SNAP-V0-018`).
+  The `feature` and query paths rename only its leading subject.
 - `GPK-V0-028`: Before the complete Phase 2 query port, `corvint` MAY expose one experimental
   authority-start `query` slice for immediate agent-task orientation. The only supported success
   profile is Darwin or Linux; a UTF-8 task of 1--8,000 characters (decision 0023; the oracle stops
@@ -828,7 +833,7 @@ repository rewrite, cache conversion, trace conversion, or sidecar migration is 
 | `GPK-V0-020` | strict legal digest pins plus canonical archive member verification in `conformance/release-artifact-v0` | five-target source/archive comparison and dated Go-archive assessment; legal conclusions remain separate owner/legal work |
 | `GPK-V0-021..022` | Corvint and Beamfall dogfood packets | private measurements, receipts, status snapshots, misses |
 | `GPK-V0-023..026` | per-surface rollout ledger and retirement gate | black-box compatibility, rollback drill, zero-mismatch windows |
-| `GPK-V0-027`, `GPK-V0-056` | `cmd/corvint` plus bounded `internal/contextindex` one-shot impact compiler; the Go-module precondition applies to `.go` paths only; index-admitted suffixes without a reverse-import rule retain a disclosed packet; test-inclusive name-reference scan and reference-counted test-convention ranking in `internal/contextindex/impact.go`, while checkpoint callers retain their prior test exclusion | race/vet, cancellation, nonmutation, `impact-python-nomodule` oracle replay in `conformance/cli-parity-v0`, `TestImpactArgvIsClosedToThePortedSeed` and `TestRootPackageDivergenceRejectsAnUnpinnedImporterRewrite` (`conformance/cli-parity-v0`) closing the argv/rewrite self-check gaps `docs/reviews/cli-parity-mutation-audit-2026-09-13.md` found, `TestImpactDisclosesUnruledAdmittedSuffixAcrossSurfaces_GPKV0027`, the rule (c) lexical-position tests `TestWebImportsRejectsCommentedSpecifiers`, `TestWebImportsRejectsQuotedSpecifiers`, `TestWebImportsRejectsTemplateLiteralSpecifiers`, `TestWebImportsLexesSubstitutionBodiesAsCode`, `TestWebImportsEndsLineCommentAtEveryLineTerminator`, `TestWebImportsEndsUnclosedQuoteAtCarriageReturn` (an unclosed `'`/`"` literal ends at `\r` as well as `\n`, and not at U+2028 or U+2029), `TestWebImportsKeepsQuotedCRLFContinuationInsideTheLiteral` (a `\` before `\r\n` continues a `'`/`"` literal through both bytes, so an import spelled in its remainder adds no edge), `TestWebImportsReadsRegexLiteralsAfterExpressionOpeners` (a backtick or quote inside a regex after an expression opener opens nothing, so the import between two such literals keeps its edge), and `TestWebImportsReportsUnterminatedConstructs` (`internal/contextindex/webimports_test.go`), named Corvint/Beamfall fixture dogfood, `TestImpactRanksSamePackageTestsByDeclarationReferences/GPK-V0-056`, blind-v3 outcome measurement, `DR-0028`, and `DR-0029`; impact promotion remains BLOCKED until its discriminating CLI parity rows exist and pass under `GPK-V0-034` |
+| `GPK-V0-027`, `GPK-V0-056` | `cmd/corvint` plus bounded `internal/contextindex` one-shot impact compiler; the Go-module precondition applies to `.go` paths only; index-admitted suffixes without a reverse-import rule retain a disclosed packet; test-inclusive name-reference scan and reference-counted test-convention ranking in `internal/contextindex/impact.go`, while checkpoint callers retain their prior test exclusion | race/vet, cancellation, nonmutation, `impact-python-nomodule` oracle replay in `conformance/cli-parity-v0`, `TestImpactArgvIsClosedToThePortedSeed` and `TestRootPackageDivergenceRejectsAnUnpinnedImporterRewrite` (`conformance/cli-parity-v0`) closing the argv/rewrite self-check gaps `docs/reviews/cli-parity-mutation-audit-2026-09-13.md` found, `TestImpactDisclosesUnruledAdmittedSuffixAcrossSurfaces_GPKV0027`, the rule (c) lexical-position tests `TestWebImportsRejectsCommentedSpecifiers`, `TestWebImportsRejectsQuotedSpecifiers`, `TestWebImportsRejectsTemplateLiteralSpecifiers`, `TestWebImportsLexesSubstitutionBodiesAsCode`, `TestWebImportsEndsLineCommentAtEveryLineTerminator`, `TestWebImportsEndsUnclosedQuoteAtCarriageReturn` (an unclosed `'`/`"` literal ends at `\r` as well as `\n`, and not at U+2028 or U+2029), `TestWebImportsKeepsQuotedCRLFContinuationInsideTheLiteral` (a `\` before `\r\n` continues a `'`/`"` literal through both bytes, so an import spelled in its remainder adds no edge), `TestWebImportsReadsRegexLiteralsAfterExpressionOpeners` (a backtick or quote inside a regex after an expression opener opens nothing, so the import between two such literals keeps its edge), and `TestWebImportsReportsUnterminatedConstructs` (`internal/contextindex/webimports_test.go`), named Corvint/Beamfall fixture dogfood, `TestImpactRanksSamePackageTestsByDeclarationReferences/GPK-V0-056`, `TestBlobAdmissionRefusalNamesTotalAndRemedyWithoutALanguage` (V1-0339), blind-v3 outcome measurement, `DR-0028`, and `DR-0029`; impact promotion remains BLOCKED until its discriminating CLI parity rows exist and pass under `GPK-V0-034` |
 | `GPK-V0-028` | bounded `internal/contextindex` authority-start query and packet-budget compiler plus `cmd/corvint` dispatch; advisory learned paths above limit 1 reuse `EvalQuery`'s learned-candidate ranking, whose history parser drops `grafted` commits | `TestAuthorityStartHistorySkipsTheShallowBoundaryCommit`; exact unbudgeted process parity at limits 1, default, 50, and with learned paths, the oracle's limit error at 51, a non-ASCII task, frozen Python budget-vector comparison, hostile rejection, nonmutation, and named Corvint/Beamfall authority-start dogfood |
 | `GPK-V0-029` | opt-in `cmd/corvint impact` dispatch plus bounded `internal/worktreeimpact` evidence compiler | `TestCompileValidatesSuffixBeforeRepositoryCondition_GPKV0029`, default byte-parity regression, hostile file/race tests, race/vet/cross-build, and named Corvint untracked-file dogfood |
 | `GPK-V0-030` | opt-in `cmd/corvint impact --base` dispatch plus bounded `internal/contextindex` hunk-qualified compiler | path-profile regression, hostile range rejection, race/vet/cross-build, and exact Beamfall ART-SLOTS committed-range dogfood |
@@ -1316,3 +1321,37 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   no register entry is opened. Rollback: restore the raw-line scan in `index.go`, the unconditional
   same-package marker credit and the unreserved tail in `impact.go`, and the analyzer schema to
   `corvint-analyzer/84`.
+
+## Proposed amendment: repositories owned by another user
+
+- `GPK-V0-071`: (proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global and
+  system configuration (`GPK-V0-009`), so Git's `safe.directory` exception can never be honoured and
+  a checkout owned by another user (a bind mount, a container volume, a shared CI workspace) fails
+  every Core verb with Git's uncoded `detected dubious ownership` exit 128, whose printed advice
+  (`git config --global --add safe.directory`) cannot work under Corvint. The kernel MUST classify
+  that exit as one coded refusal, the same code from every verb, whose message names the
+  repository path and a remedy that works under the sanitized environment. Owner decision needed
+  before implementation: whether the remedy is only "run as the owning user or change ownership",
+  or whether an explicit operator opt-in passes `-c safe.directory=<worktree>` and
+  `-c safe.directory=<common Git directory>` per invocation. The opt-in bypasses the protection
+  Git added against configuration planted by another user, so it is acceptable only if every Git
+  subprocess on that path also neutralizes repository-configured filters, hooks, fsmonitor and
+  textconv, which is not true of every env builder today. The fix touches the roughly thirty
+  per-capability env builders, including `cmd/corvint` files that PR #218 (decision 0393) also
+  changes, so it lands after that PR. Rollback: remove the classification, restoring Git's exit.
+
+## Proposed amendment: non-UTF-8 paths in query history
+
+- `GPK-V0-072`: (proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
+  refuse the whole repository with `unsupported-query-history` when any commit in the bounded
+  history names a path whose Git bytes are not UTF-8 (`parseHistory` in
+  `internal/contextindex/history.go`), although decision 0394 made such a path an index exclusion
+  everywhere else. Proposed: query learning leaves such a path out of its commit's path list, so
+  it contributes to no history match, no `history_digest` input, and no candidate, and the
+  commit's other paths answer as before; `unsupported-query-history` stays the code for every
+  other history failure. No existing digest moves, because every repository this changes is one
+  that refuses today. The Python oracle still refuses, so the change is a `python-defect` under
+  `GPK-V0-033`, registered in `conformance/divergence-register.md` with one declared oracle-only
+  case, and `src/` is not repaired. Owner decision needed: accept the skip (implemented on the
+  `skipNonUTF8` seam that PR #219 adds to `parseHistory`, so it lands after that PR) or keep the
+  refusal and close V1-0313. Rollback: pass `false` on the query path, restoring the refusal.

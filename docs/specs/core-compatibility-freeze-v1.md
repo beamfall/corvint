@@ -189,8 +189,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 
   | Member | `tool` | Values | Status | Source |
   |---|---|---|---|---|
-  | `state` | `context` | `READY`, `NO_CANDIDATES` | closed | `internal/contextindex/taskcontext.go:1944@3f21cab9` |
-  | `coverage.governance` | `context` | `reserved`, `spec-mentioned`, `unresolved` | closed | `internal/contextindex/taskcontext.go:1712@9847248b` |
+  | `state` | `context` | `READY`, `NO_CANDIDATES` | closed | `internal/contextindex/taskcontext.go:1949@3f21cab9` |
+  | `coverage.governance` | `context` | `reserved`, `spec-mentioned`, `unresolved` | closed | `internal/contextindex/taskcontext.go:1714@9847248b` |
   | `coverage.budget_shortage` | `context` | `slots`, `work`, `none` | closed | TCP-V0-011 |
   | `coverage.unexamined[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed`, `pair`, `mentioned`, `definition`, `reverse-import`, `reference`, `cochange`, `sibling`, `test`, `lexical`, `documentation` | open | TCP-V0-011 |
   | `coverage.unexamined[].state` | `context` | `examined`, `capped`, `empty-history`, `subject-absent`, `subject-symbols-incomplete`, `not-applicable` | closed | TCP-V0-011 |

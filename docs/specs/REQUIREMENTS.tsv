@@ -36,25 +36,25 @@ ACP-011	docs/specs/analyzer-candidate-profiles.md	128	A candidate CLI MUST NOT s
 ACP-012	docs/specs/analyzer-candidate-profiles.md	142	A candidate CLI that reads its request from standard input MUST classify the two
 AFP-V0-001	docs/specs/affected-plan-v0.md	31	The command MUST be read-only: one bounded `git status`, one HEAD identity read,
 AFP-V0-002	docs/specs/affected-plan-v0.md	35	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,
-AFP-V0-003	docs/specs/affected-plan-v0.md	43	Stdout MUST be one canonical JSON line with exactly the members `advice`
-AFP-V0-004	docs/specs/affected-plan-v0.md	53	The plan is not authority. `plan.scope` MUST be `UNKNOWN` whenever `plan.unknown
-AFP-V0-005	docs/specs/affected-plan-v0.md	60	For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
-AFP-V0-006	docs/specs/affected-plan-v0.md	62	Failures MUST exit 2 with a typed code on stderr and no partial document:
-AFP-V0-007	docs/specs/affected-plan-v0.md	68	`plan.selected` MUST be ordered by exactly three keys: (1) reverse-dependency
-AFP-V0-008	docs/specs/affected-plan-v0.md	77	The Go plugin's unit universe is the root module, or, when the root holds a
-AFP-V0-009	docs/specs/affected-plan-v0.md	97	(accepted 2026-09-04 by decision 0052) The receipt MUST carry an `advice` member
-AFP-V0-010	docs/specs/affected-plan-v0.md	122	`corvint affected --base FULL_COMMIT_ID` (or `--base=`) MUST join the committed
-AFP-V0-011	docs/specs/affected-plan-v0.md	135	`make gate-affected` (`script/gate-affected.sh [BASE]`; the Makefile's `BASE`
-AFP-V0-012	docs/specs/affected-plan-v0.md	168	(decision 0131) The fast tier's selector MUST attribute every dirty path from a
-AFP-V0-013	docs/specs/affected-plan-v0.md	227	(accepted by decision 0289) `tools/corvint-pr-tests` MUST execute only
-AFP-V0-014	docs/specs/affected-plan-v0.md	240	(accepted by decision 0289) PR narrowing MUST require a separately trusted,
-AFP-V0-015	docs/specs/affected-plan-v0.md	257	(accepted by decision 0289) The trusted PR driver SHALL support one 1-based inde
-AFP-V0-016	docs/specs/affected-plan-v0.md	295	(accepted by decision 0320; ruleset and consent amended by decision 0390)
-AFP-V0-017	docs/specs/affected-plan-v0.md	310	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
-AFP-V0-018	docs/specs/affected-plan-v0.md	318	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
-AFP-V0-019	docs/specs/affected-plan-v0.md	333	(proposed technical contract implementing owner-requested issue #57)
-AFP-V0-020	docs/specs/affected-plan-v0.md	359	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
-AFP-V0-021	docs/specs/affected-plan-v0.md	370	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
+AFP-V0-003	docs/specs/affected-plan-v0.md	46	Stdout MUST be one canonical JSON line with exactly the members `advice`
+AFP-V0-004	docs/specs/affected-plan-v0.md	56	The plan is not authority. `plan.scope` MUST be `UNKNOWN` whenever `plan.unknown
+AFP-V0-005	docs/specs/affected-plan-v0.md	63	For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
+AFP-V0-006	docs/specs/affected-plan-v0.md	65	Failures MUST exit 2 with a typed code on stderr and no partial document:
+AFP-V0-007	docs/specs/affected-plan-v0.md	71	`plan.selected` MUST be ordered by exactly three keys: (1) reverse-dependency
+AFP-V0-008	docs/specs/affected-plan-v0.md	80	The Go plugin's unit universe is the root module, or, when the root holds a
+AFP-V0-009	docs/specs/affected-plan-v0.md	100	(accepted 2026-09-04 by decision 0052) The receipt MUST carry an `advice` member
+AFP-V0-010	docs/specs/affected-plan-v0.md	125	`corvint affected --base FULL_COMMIT_ID` (or `--base=`) MUST join the committed
+AFP-V0-011	docs/specs/affected-plan-v0.md	138	`make gate-affected` (`script/gate-affected.sh [BASE]`; the Makefile's `BASE`
+AFP-V0-012	docs/specs/affected-plan-v0.md	171	(decision 0131) The fast tier's selector MUST attribute every dirty path from a
+AFP-V0-013	docs/specs/affected-plan-v0.md	230	(accepted by decision 0289) `tools/corvint-pr-tests` MUST execute only
+AFP-V0-014	docs/specs/affected-plan-v0.md	243	(accepted by decision 0289) PR narrowing MUST require a separately trusted,
+AFP-V0-015	docs/specs/affected-plan-v0.md	260	(accepted by decision 0289) The trusted PR driver SHALL support one 1-based inde
+AFP-V0-016	docs/specs/affected-plan-v0.md	298	(accepted by decision 0320; ruleset and consent amended by decision 0390)
+AFP-V0-017	docs/specs/affected-plan-v0.md	313	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
+AFP-V0-018	docs/specs/affected-plan-v0.md	321	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
+AFP-V0-019	docs/specs/affected-plan-v0.md	336	(proposed technical contract implementing owner-requested issue #57)
+AFP-V0-020	docs/specs/affected-plan-v0.md	362	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
+AFP-V0-021	docs/specs/affected-plan-v0.md	373	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -1066,60 +1066,62 @@ GPK-V0-012	docs/specs/go-production-kernel-migration-v0.md	202	Production Go cod
 GPK-V0-013	docs/specs/go-production-kernel-migration-v0.md	206	The promoted Go binary MUST have no Python interpreter, Python package, cgo,
 GPK-V0-014	docs/specs/go-production-kernel-migration-v0.md	210	Before any TCQ-, OCM-, claim-, or frontier-consuming command moves to Go, its pa
 GPK-V0-015	docs/specs/go-production-kernel-migration-v0.md	214	The initial experimental slice MAY implement only non-indexing harness events
-GPK-V0-016	docs/specs/go-production-kernel-migration-v0.md	530	Performance is measured outside both runtimes with an interleaved, preregistered
-GPK-V0-017	docs/specs/go-production-kernel-migration-v0.md	535	A slice may cut over only when all its parity cases pass and: (a) non-query harn
-GPK-V0-018	docs/specs/go-production-kernel-migration-v0.md	621	Public Go artifacts MUST be `CGO_ENABLED=0`, built from one exact clean Git comm
-GPK-V0-019	docs/specs/go-production-kernel-migration-v0.md	642	The existing Python wheel integrity contract remains binding while a wheel ships
-GPK-V0-020	docs/specs/go-production-kernel-migration-v0.md	699	The migration MUST NOT alter `LICENSE`, `LICENSING.md`, `PROVENANCE.md`, or the
-GPK-V0-021	docs/specs/go-production-kernel-migration-v0.md	704	Corvint self-dogfood MUST first use the candidate to orient to this migration, r
-GPK-V0-022	docs/specs/go-production-kernel-migration-v0.md	709	Beamfall dogfood MUST run second at one exact clean Beamfall revision. It MUST c
-GPK-V0-023	docs/specs/go-production-kernel-migration-v0.md	715	Rollout order was fixed: experimental candidate; cross-runtime shadow gate; opt-
-GPK-V0-024	docs/specs/go-production-kernel-migration-v0.md	724	Rollback MUST require no repository, receipt, map, trace, or cache migration.
-GPK-V0-025	docs/specs/go-production-kernel-migration-v0.md	729	Python production retirement is staged. First, Go is default for one release whi
-GPK-V0-026	docs/specs/go-production-kernel-migration-v0.md	737	Promotion claims are per command and per integration surface. Reports MUST state
+GPK-V0-016	docs/specs/go-production-kernel-migration-v0.md	535	Performance is measured outside both runtimes with an interleaved, preregistered
+GPK-V0-017	docs/specs/go-production-kernel-migration-v0.md	540	A slice may cut over only when all its parity cases pass and: (a) non-query harn
+GPK-V0-018	docs/specs/go-production-kernel-migration-v0.md	626	Public Go artifacts MUST be `CGO_ENABLED=0`, built from one exact clean Git comm
+GPK-V0-019	docs/specs/go-production-kernel-migration-v0.md	647	The existing Python wheel integrity contract remains binding while a wheel ships
+GPK-V0-020	docs/specs/go-production-kernel-migration-v0.md	704	The migration MUST NOT alter `LICENSE`, `LICENSING.md`, `PROVENANCE.md`, or the
+GPK-V0-021	docs/specs/go-production-kernel-migration-v0.md	709	Corvint self-dogfood MUST first use the candidate to orient to this migration, r
+GPK-V0-022	docs/specs/go-production-kernel-migration-v0.md	714	Beamfall dogfood MUST run second at one exact clean Beamfall revision. It MUST c
+GPK-V0-023	docs/specs/go-production-kernel-migration-v0.md	720	Rollout order was fixed: experimental candidate; cross-runtime shadow gate; opt-
+GPK-V0-024	docs/specs/go-production-kernel-migration-v0.md	729	Rollback MUST require no repository, receipt, map, trace, or cache migration.
+GPK-V0-025	docs/specs/go-production-kernel-migration-v0.md	734	Python production retirement is staged. First, Go is default for one release whi
+GPK-V0-026	docs/specs/go-production-kernel-migration-v0.md	742	Promotion claims are per command and per integration surface. Reports MUST state
 GPK-V0-027	docs/specs/go-production-kernel-migration-v0.md	222	Before Pulse P0-B, `corvint` MAY expose an experimental one-shot `impact` comman
-GPK-V0-028	docs/specs/go-production-kernel-migration-v0.md	256	Before the complete Phase 2 query port, `corvint` MAY expose one experimental
-GPK-V0-029	docs/specs/go-production-kernel-migration-v0.md	292	`corvint impact` MAY accept revision-absent `.go` files only when the caller
-GPK-V0-030	docs/specs/go-production-kernel-migration-v0.md	306	`corvint impact --base FULL_COMMIT_ID` MAY compile a committed range as the
-GPK-V0-031	docs/specs/go-production-kernel-migration-v0.md	324	Before the complete Phase 2 feature port, `corvint` MAY expose an experimental
-GPK-V0-032	docs/specs/go-production-kernel-migration-v0.md	341	Before complete Phase 2 activation cutover, `corvint` MAY expose one shared
-GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	649	The frozen spec, not the Python implementation, is the conformance authority.
-GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	676	Every adjudication under `GPK-V0-033` MUST be recorded in
-GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	683	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an
-GPK-V0-036	docs/specs/go-production-kernel-migration-v0.md	688	Python retirement is **per command**, and does not wait for the global window
-GPK-V0-037	docs/specs/go-production-kernel-migration-v0.md	356	Before complete Phase 2 OCM cutover, `corvint` MAY expose the read-only
-GPK-V0-038	docs/specs/go-production-kernel-migration-v0.md	379	The harness slice is complete. Under the expansion gate in `GPK-V0-015`, `corvin
-GPK-V0-039	docs/specs/go-production-kernel-migration-v0.md	395	A context packet asserts that the repository answers the caller's task, and the
-GPK-V0-040	docs/specs/go-production-kernel-migration-v0.md	426	A receipt's coverage counts are denominated in the universe of results the ranki
-GPK-V0-041	docs/specs/go-production-kernel-migration-v0.md	451	The typed `unsupported-ocm-python-claims` abstention `GPK-V0-037` requires of th
-GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	744	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and
-GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	892	`corvint query` MAY add a general `repository`-intent profile on Darwin
-GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	958	The standalone `corvint query` `repository`-intent profile introduced
-GPK-V0-045	docs/specs/go-production-kernel-migration-v0.md	474	An abstaining packet MUST name the reason it abstained at every surface that emi
-GPK-V0-046	docs/specs/go-production-kernel-migration-v0.md	491	Product invariant 3 ranks project-owned authority above syntax. A `query` packet
-GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1028	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
-GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1058	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
-GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1076	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
-GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	616	`corvint record` and `corvint dogfood-record` MUST admit a changed `.gitignore`
-GPK-V0-051	docs/specs/go-production-kernel-migration-v0.md	548	`corvint impact --base FULL_COMMIT_ID` MUST admit a `C` or `R` range member when
-GPK-V0-052	docs/specs/go-production-kernel-migration-v0.md	554	(accepted, decision 0052, 2026-09-04) when a query term
-GPK-V0-053	docs/specs/go-production-kernel-migration-v0.md	563	(accepted 2026-09-04 by decision 0051 item 2, which decides this wording change
-GPK-V0-054	docs/specs/go-production-kernel-migration-v0.md	502	`coverage.authoritative_results` counts cited results Corvint does not label
-GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1105	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
-GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1116	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
-GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	634	A target is shipped only after its native conformance, filesystem-safety,
-GPK-V0-058	docs/specs/go-production-kernel-migration-v0.md	572	(proposed amendment 2026-09-05, owner review pending; not accepted) a harness
-GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1135	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
-GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1199	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
-GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1223	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
-GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1150	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
-GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1233	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
-GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1166	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
-GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	588	(proposed amendment 2026-09-14, owner review pending; not accepted) a repository
-GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1248	(accepted 2026-09-25, decision 0387; V1-0260)
-GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1264	(accepted 2026-09-25, decision 0396; panel finding M2)
-GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1279	(accepted 2026-09-25, decision 0399; panel blocker B3)
-GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1298	(proposed 2026-09-25, panel blocker B4, not accepted; V1-0263)
+GPK-V0-028	docs/specs/go-production-kernel-migration-v0.md	261	Before the complete Phase 2 query port, `corvint` MAY expose one experimental
+GPK-V0-029	docs/specs/go-production-kernel-migration-v0.md	297	`corvint impact` MAY accept revision-absent `.go` files only when the caller
+GPK-V0-030	docs/specs/go-production-kernel-migration-v0.md	311	`corvint impact --base FULL_COMMIT_ID` MAY compile a committed range as the
+GPK-V0-031	docs/specs/go-production-kernel-migration-v0.md	329	Before the complete Phase 2 feature port, `corvint` MAY expose an experimental
+GPK-V0-032	docs/specs/go-production-kernel-migration-v0.md	346	Before complete Phase 2 activation cutover, `corvint` MAY expose one shared
+GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	654	The frozen spec, not the Python implementation, is the conformance authority.
+GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	681	Every adjudication under `GPK-V0-033` MUST be recorded in
+GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	688	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an
+GPK-V0-036	docs/specs/go-production-kernel-migration-v0.md	693	Python retirement is **per command**, and does not wait for the global window
+GPK-V0-037	docs/specs/go-production-kernel-migration-v0.md	361	Before complete Phase 2 OCM cutover, `corvint` MAY expose the read-only
+GPK-V0-038	docs/specs/go-production-kernel-migration-v0.md	384	The harness slice is complete. Under the expansion gate in `GPK-V0-015`, `corvin
+GPK-V0-039	docs/specs/go-production-kernel-migration-v0.md	400	A context packet asserts that the repository answers the caller's task, and the
+GPK-V0-040	docs/specs/go-production-kernel-migration-v0.md	431	A receipt's coverage counts are denominated in the universe of results the ranki
+GPK-V0-041	docs/specs/go-production-kernel-migration-v0.md	456	The typed `unsupported-ocm-python-claims` abstention `GPK-V0-037` requires of th
+GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	749	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and
+GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	897	`corvint query` MAY add a general `repository`-intent profile on Darwin
+GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	963	The standalone `corvint query` `repository`-intent profile introduced
+GPK-V0-045	docs/specs/go-production-kernel-migration-v0.md	479	An abstaining packet MUST name the reason it abstained at every surface that emi
+GPK-V0-046	docs/specs/go-production-kernel-migration-v0.md	496	Product invariant 3 ranks project-owned authority above syntax. A `query` packet
+GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1033	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
+GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1063	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
+GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1081	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
+GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	621	`corvint record` and `corvint dogfood-record` MUST admit a changed `.gitignore`
+GPK-V0-051	docs/specs/go-production-kernel-migration-v0.md	553	`corvint impact --base FULL_COMMIT_ID` MUST admit a `C` or `R` range member when
+GPK-V0-052	docs/specs/go-production-kernel-migration-v0.md	559	(accepted, decision 0052, 2026-09-04) when a query term
+GPK-V0-053	docs/specs/go-production-kernel-migration-v0.md	568	(accepted 2026-09-04 by decision 0051 item 2, which decides this wording change
+GPK-V0-054	docs/specs/go-production-kernel-migration-v0.md	507	`coverage.authoritative_results` counts cited results Corvint does not label
+GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1110	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1121	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	639	A target is shipped only after its native conformance, filesystem-safety,
+GPK-V0-058	docs/specs/go-production-kernel-migration-v0.md	577	(proposed amendment 2026-09-05, owner review pending; not accepted) a harness
+GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1140	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
+GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1204	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
+GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1228	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
+GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1155	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
+GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1238	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
+GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1171	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
+GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	593	(proposed amendment 2026-09-14, owner review pending; not accepted) a repository
+GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1253	(accepted 2026-09-25, decision 0387; V1-0260)
+GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1269	(accepted 2026-09-25, decision 0396; panel finding M2)
+GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1284	(accepted 2026-09-25, decision 0399; panel blocker B3)
+GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1303	(proposed 2026-09-25, panel blocker B4, not accepted; V1-0263)
+GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1327	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
+GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1345	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation
@@ -1206,29 +1208,29 @@ HLQ-V1-006	docs/specs/host-lifecycle-qualification-v1.md	78	Adapters MUST retain
 HLQ-V1-007	docs/specs/host-lifecycle-qualification-v1.md	86	The runner MUST print one header line, then one `case` line for each case, then
 HLQ-V1-008	docs/specs/host-lifecycle-qualification-v1.md	89	A result MUST be recorded here with the digests of both binaries and the source
 IDX-SNAP-V0-001	docs/specs/index-snapshot-v0.md	37	`corvint [--root PATH] index` builds the index of the committed tree exactly as
-IDX-SNAP-V0-002	docs/specs/index-snapshot-v0.md	57	`context` reads the repository's identity and status as a build's opening
-IDX-SNAP-V0-003	docs/specs/index-snapshot-v0.md	65	any mismatch (no file, a different tree, a different engine, a different
-IDX-SNAP-V0-004	docs/specs/index-snapshot-v0.md	72	a dirty worktree reads the same snapshot; only `DirtyPaths` and
-IDX-SNAP-V0-005	docs/specs/index-snapshot-v0.md	78	`index` is the only verb that writes under `.corvint/index/`; `context` and ever
-IDX-SNAP-V0-006	docs/specs/index-snapshot-v0.md	96	a hit and a miss produce byte-identical `context` output for the same
-IDX-SNAP-V0-007	docs/specs/index-snapshot-v0.md	98	`index` keeps the newest eight snapshot files in the directory and removes
-IDX-SNAP-V0-008	docs/specs/index-snapshot-v0.md	102	the two per-prompt query verbs read the snapshot on the same terms as
-IDX-SNAP-V0-009	docs/specs/index-snapshot-v0.md	123	a repository with no `.corvint/index/` directory is a miss without a Git
-IDX-SNAP-V0-010	docs/specs/index-snapshot-v0.md	126	the two index-building harness events read the snapshot on the same terms as IDX
-IDX-SNAP-V0-011	docs/specs/index-snapshot-v0.md	127	`corvint [--root PATH] index --if-stale` reads the header of the file
-IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	136	the Claude Code plugin's lifecycle hooks do not automatically invoke a
-IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	147	During committed-source pinning, a blob whose bytes begin with
-IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	174	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
-IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	215	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
-IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	289	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
-IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	327	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
-IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	152	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
-IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	358	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
-IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	376	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
-IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	403	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
-IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	431	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
-IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	445	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
-IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	467	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
+IDX-SNAP-V0-002	docs/specs/index-snapshot-v0.md	60	`context` reads the repository's identity and status as a build's opening
+IDX-SNAP-V0-003	docs/specs/index-snapshot-v0.md	68	any mismatch (no file, a different tree, a different engine, a different
+IDX-SNAP-V0-004	docs/specs/index-snapshot-v0.md	78	a dirty worktree reads the same snapshot; only `DirtyPaths` and
+IDX-SNAP-V0-005	docs/specs/index-snapshot-v0.md	84	`index` is the only verb that writes under `.corvint/index/`; `context` and ever
+IDX-SNAP-V0-006	docs/specs/index-snapshot-v0.md	102	a hit and a miss produce byte-identical `context` output for the same
+IDX-SNAP-V0-007	docs/specs/index-snapshot-v0.md	104	`index` keeps the newest eight snapshot files in the directory and removes
+IDX-SNAP-V0-008	docs/specs/index-snapshot-v0.md	114	the two per-prompt query verbs read the snapshot on the same terms as
+IDX-SNAP-V0-009	docs/specs/index-snapshot-v0.md	135	a repository with no `.corvint/index/` directory is a miss without a Git
+IDX-SNAP-V0-010	docs/specs/index-snapshot-v0.md	138	the two index-building harness events read the snapshot on the same terms as IDX
+IDX-SNAP-V0-011	docs/specs/index-snapshot-v0.md	139	`corvint [--root PATH] index --if-stale` reads the header of the file
+IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	148	the Claude Code plugin's lifecycle hooks do not automatically invoke a
+IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	159	During committed-source pinning, a blob whose bytes begin with
+IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	186	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
+IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	227	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
+IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	301	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
+IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	339	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
+IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	164	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
+IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	370	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
+IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	388	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
+IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	415	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
+IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	443	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
+IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	457	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
+IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	479	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
 KA-V0-001	docs/specs/kotlin-android-candidate-v0.md	28	The command and its package remain isolated, unregistered, and unreachable from
 KA-V0-002	docs/specs/kotlin-android-candidate-v0.md	30	A request is one UTF-8, canonical-JSON object followed by one LF. It has the clo
 KA-V0-003	docs/specs/kotlin-android-candidate-v0.md	34	The target is exactly Android/arm64/none. The twelve input rows below occur once

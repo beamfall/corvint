@@ -903,7 +903,7 @@ fi`, "unsupported-prove-drift"},
  done
  exit 0;; esac`)
 		stderr := checkpointRefusalEnvironment(t, environment, root, file, "unsupported-impact-repository")
-		if !strings.Contains(stderr, "native Go impact index exceeds the 128 MiB aggregate bound") {
+		if !strings.Contains(stderr, "repository index sources total 135000000 bytes in 270 files") {
 			t.Fatal(stderr)
 		}
 	})

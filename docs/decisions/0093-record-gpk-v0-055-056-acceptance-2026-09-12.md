@@ -19,7 +19,7 @@ naming the wire change or its relation to `GPK-V0-002`/`GPK-V0-003`.
 ## Decision
 
 1. **`GPK-V0-055` and `GPK-V0-056` are accepted as written**
-   (`docs/specs/go-production-kernel-migration-v0.md:1105-1124@ece392ae`), effective 2026-09-05, and this
+   (`docs/specs/go-production-kernel-migration-v0.md:1110-1129@ece392ae`), effective 2026-09-05, and this
    decision is their numbered record.
 2. **Each clause is a wire change and is named as one.** `GPK-V0-002`
    (`docs/specs/go-production-kernel-migration-v0.md:109-116@07cc5f22`) makes a normalization change a wire

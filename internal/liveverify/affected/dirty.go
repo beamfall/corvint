@@ -114,7 +114,7 @@ func DecodeNameList(raw []byte) ([]string, error) {
 	}
 	paths := make([]string, 0, len(fields))
 	for _, field := range fields {
-		value := string(field)
+		value := displayPath(field)
 		if !ValidRelativePath(value) {
 			return nil, fmt.Errorf("%w: path %q", ErrStatusMalformed, value)
 		}
@@ -169,7 +169,7 @@ func DecodeStatus(raw []byte) ([]string, error) {
 	}
 	paths := make([]string, 0, len(fields))
 	for index := 0; index < len(fields); index++ {
-		record := string(fields[index])
+		record := displayPath(fields[index])
 		if len(record) < 4 || record[2] != ' ' {
 			return nil, fmt.Errorf("%w: record %q", ErrStatusMalformed, record)
 		}
@@ -186,7 +186,7 @@ func DecodeStatus(raw []byte) ([]string, error) {
 		if index >= len(fields) {
 			return nil, fmt.Errorf("%w: rename record %q has no origin", ErrStatusMalformed, record)
 		}
-		origin := string(fields[index])
+		origin := displayPath(fields[index])
 		if !ValidRelativePath(origin) {
 			return nil, fmt.Errorf("%w: origin %q", ErrStatusMalformed, origin)
 		}
@@ -194,6 +194,13 @@ func DecodeStatus(raw []byte) ([]string, error) {
 	}
 	return NormalizePaths(paths), nil
 }
+
+// displayPath is a Git path as valid UTF-8: each invalid byte run becomes
+// U+FFFD (V1-0314, the IDX-SNAP-V0-024 model). A path whose bytes are not
+// UTF-8 is still a change, so it enters the set under a name JSON can carry
+// instead of refusing the whole capture as malformed; its directory prefix is
+// unchanged, so ownership and widening see it where it lives.
+func displayPath(raw []byte) string { return strings.ToValidUTF8(string(raw), "\uFFFD") }
 
 // nestedRepositoryPath admits the one directory record Git emits under
 // --untracked-files=all: a nested repository or linked worktree, listed as an

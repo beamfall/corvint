@@ -155,3 +155,58 @@ func captureStatus(t *testing.T, gitExecutable, root string) []byte {
 	}
 	return raw
 }
+
+// TestDirtyNonUTF8PathIsDisclosedNotRefused is V1-0314: a committed path whose
+// Git bytes are Latin-1 and that is changed in the worktree enters the dirty
+// set in its U+FFFD display form (IDX-SNAP-V0-024's model), and a committed
+// range naming it decodes the same way, rather than the capture refusing as
+// malformed. The path is committed through plumbing and absent from the
+// worktree, because some filesystems refuse non-UTF-8 names; Git then reports
+// it deleted, which is a worktree change like any other.
+func TestDirtyNonUTF8PathIsDisclosedNotRefused(t *testing.T) {
+	gitExecutable, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git is unavailable")
+	}
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	git := func(stdin string, argv ...string) string {
+		t.Helper()
+		command := exec.Command(gitExecutable, append([]string{"-C", root}, argv...)...)
+		command.Env = append(os.Environ(),
+			"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
+			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.test",
+			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.test",
+		)
+		command.Stdin = bytes.NewBufferString(stdin)
+		output, err := command.Output()
+		if err != nil {
+			t.Skipf("git %v is unavailable here: %v", argv, err)
+		}
+		return string(bytes.TrimSpace(output))
+	}
+	git("", "init", "--quiet")
+	git("", "commit", "--quiet", "--allow-empty", "-m", "base")
+	base := git("", "rev-parse", "HEAD")
+	blob := git("latin\n", "hash-object", "-w", "--stdin")
+	git("100644 "+blob+"\tdocs/caf\xe9.txt\n", "update-index", "--index-info")
+	git("", "commit", "--quiet", "-m", "latin-1 path")
+
+	want := "docs/caf\uFFFD.txt"
+	dirty, err := affected.DirtyPaths(context.Background(), gitExecutable, root)
+	if err != nil {
+		t.Fatalf("dirty capture refused a non-UTF-8 path: %v", err)
+	}
+	if len(dirty) != 1 || dirty[0] != want {
+		t.Fatalf("dirty=%q want [%q]", dirty, want)
+	}
+	committed, err := affected.RangePaths(context.Background(), gitExecutable, root, base)
+	if err != nil {
+		t.Fatalf("range capture refused a non-UTF-8 path: %v", err)
+	}
+	if len(committed) != 1 || committed[0] != want {
+		t.Fatalf("range=%q want [%q]", committed, want)
+	}
+}

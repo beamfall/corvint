@@ -37,7 +37,10 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   malformed output, or an unavailable Git. The one directory record Git emits under
   `--untracked-files=all`, a nested repository or linked worktree as `?? DIR/`, is admitted as
   the dirty path `DIR`, which no plugin owns, so the plan widens to `UNKNOWN` over it rather than
-  the capture failing. The dirty set and HEAD MUST be re-read after the graph
+  the capture failing. (proposed, decision 0398; V1-0314) A status or range path whose Git bytes
+  are not UTF-8 is a changed path, not malformed output: it enters the set in display form, each
+  invalid byte run replaced by U+FFFD, so its directory prefix still drives ownership and widening.
+  The dirty set and HEAD MUST be re-read after the graph
   is built; any difference MUST fail closed as `unsupported-affected-drift`, because the status and
   the graph are two observations of one mutable worktree.
 - **AFP-V0-003:** Stdout MUST be one canonical JSON line with exactly the members `advice`
@@ -425,7 +428,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | AFP-V0-001 | `cmd/corvint/affected.go` `compileAffected` | `TestAffectedCleanTreeSelectsNothingAndWritesNothing` compares `git status --porcelain --ignored` before and after |
-| AFP-V0-002 | `internal/liveverify/affected/dirty.go` | `TestDecodeStatusFailsClosedOnMalformedInput`; `TestAffectedRejectsNonRepositoryAndExtraArguments` |
+| AFP-V0-002 | `internal/liveverify/affected/dirty.go` | `TestDecodeStatusFailsClosedOnMalformedInput`; `TestDirtyNonUTF8PathIsDisclosedNotRefused`; `TestAffectedRejectsNonRepositoryAndExtraArguments` |
 | AFP-V0-003 | `affectedReceipt`, `providerGoPackages` | `TestAffectedDirtyGoSourceSelectsDependentsAsProviderPackages` |
 | AFP-V0-004 | `affected.Select` scope and exclusion-reason rules | `TestAffectedUnownedDirtyPathIsUnknownScope`, `TestDeletedGoSourceNamesDeletionInOwnUnitExclusion`; provider wire unchanged (`go-live-test-provider-v0.md` GLTP-V0-006) |
 | AFP-V0-005 | canonical JSON via `gokernel.CanonicalJSON` | byte-identity assertion in the dirty-source test |
