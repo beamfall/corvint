@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
 	"github.com/Beamfall/corvint/internal/unplannedread"
 )
@@ -467,6 +468,31 @@ func TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice(t *testing.T) {
 	text, _ := hook["additionalContext"].(string)
 	if output["systemMessage"] != nil || !strings.Contains(text, "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline;") {
 		t.Fatalf("deadline expiry showed a fault notice: %+v", output)
+	}
+}
+
+// AHI-031: an event that expires in the in-memory build of a snapshot miss is a fault the user
+// must act on: the notice names the stale snapshot and the refresh argv, the model gets the same
+// text, and the ledger reason is still read from the frame line.
+func TestClaudeAdapterStaleSnapshotNamesRemediation(t *testing.T) {
+	t.Parallel()
+	root := queryCLIRepository(t)
+	ctx := adapterEnvContext(context.Background(), map[string]string{"CLAUDE_PROJECT_DIR": root})
+	ctx = context.WithValue(ctx, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 3 * time.Second })
+	ctx = context.WithValue(ctx, dogfoodEventBuildKey{}, func(ctx context.Context, _, _ string) (*contextindex.Index, error) {
+		<-ctx.Done() // outlasts the event deadline, as the real build does on a large repository
+		return nil, ctx.Err()
+	})
+	output := runClaudeAdapter(ctx, "user-prompt", map[string]any{"session_id": "s", "prompt": "inspect requirement"})
+	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
+	notice, _ := output["systemMessage"].(string)
+	hook, _ := output["hookSpecificOutput"].(map[string]any)
+	frame := "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-index-snapshot-stale; coding continues\n"
+	if !strings.HasPrefix(notice, frame) || !strings.HasSuffix(notice, "\n"+string(refresh)) || hook["additionalContext"] != notice || hook["hookEventName"] != "UserPromptSubmit" {
+		t.Fatalf("stale snapshot degradation carried no remediation: %+v", output)
+	}
+	if reason := adapterDegradationReason(output); reason != claudeSnapshotStaleReason {
+		t.Fatalf("ledger reason %q", reason)
 	}
 }
 

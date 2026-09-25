@@ -114,8 +114,8 @@ var admittedAdapterCodes = codeSet(
 // admittedAdapterRejections are the `dogfood event` codes a `corvint-event-rejected:<code>`
 // reason may carry besides the dogfood and unsupported registries.
 var admittedAdapterRejections = codeSet(
-	"dogfood-event-context-drift", "dogfood-event-deadline", "dogfood-event-input-unavailable",
-	"dogfood-event-native-budget", "dogfood-event-output-too-large", "dogfood-event-output-unavailable",
+	"dogfood-event-context-drift", "dogfood-event-deadline", "dogfood-event-index-snapshot-stale",
+	"dogfood-event-input-unavailable", "dogfood-event-native-budget", "dogfood-event-output-too-large", "dogfood-event-output-unavailable",
 	"dogfood-event-policy-drift", "dogfood-event-repository-drift", "dogfood-event-unavailable",
 	"invalid-dogfood-event-arguments", "invalid-dogfood-event-budget", "invalid-dogfood-event-input",
 	"qualified-lifecycle-target-drift", "unsupported-dogfood-event", "unsupported-dogfood-event-host",

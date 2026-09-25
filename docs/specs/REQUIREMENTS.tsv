@@ -140,6 +140,7 @@ AHI-027	docs/specs/agent-harness-integration-v0.md	442	`pre-compact` MUST emit, 
 AHI-028	docs/specs/agent-harness-integration-v0.md	450	`post-compact` MUST re-read the last pin the untrusted `compact_summary` preserv
 AHI-029	docs/specs/agent-harness-integration-v0.md	461	Neither compaction event writes repository, index, trace, or store state; the on
 AHI-030	docs/specs/agent-harness-integration-v0.md	463	Every compact `SessionStart` context MUST begin with a fixed trusted disclosure
+AHI-031	docs/specs/agent-harness-integration-v0.md	467	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot
 ARTIFACT-GO-V0-001	docs/specs/release-artifact-integrity-v0.md	141	the archive builder MUST consume the exact clean commit, target matrix,
 ARTIFACT-GO-V0-002	docs/specs/release-artifact-integrity-v0.md	146	one archive MUST be produced per manifest target. Darwin and Linux use
 ARTIFACT-GO-V0-003	docs/specs/release-artifact-integrity-v0.md	152	`SHA256SUMS` MUST contain exactly one LF-terminated row for the binary,
@@ -1289,13 +1290,13 @@ LCP-V0-005	docs/specs/local-completion-policy-v0.md	102	`finish` MUST reuse the 
 LCP-V0-006	docs/specs/local-completion-policy-v0.md	123	Once maps are ready, `finish` MUST generate the CEM reviewer report and every sc
 LCP-V0-007	docs/specs/local-completion-policy-v0.md	131	Terminal success MUST require all selected checks to pass, current report inspec
 LCP-V0-008	docs/specs/local-completion-policy-v0.md	142	Codex and Claude Code Stop MAY request one bounded remediation continuation for
-LCP-V0-009	docs/specs/local-completion-policy-v0.md	155	`corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope a
-LCP-V0-010	docs/specs/local-completion-policy-v0.md	176	New-profile prompt context MUST separate project governance, declared enrollment
-LCP-V0-011	docs/specs/local-completion-policy-v0.md	186	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix
-LCP-V0-012	docs/specs/local-completion-policy-v0.md	199	Private plans, observations and report sets MUST have explicit byte/count limits
-LCP-V0-013	docs/specs/local-completion-policy-v0.md	205	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
-LCP-V0-014	docs/specs/local-completion-policy-v0.md	230	`finish` MUST run the daily change (coordination) and the final strict check in
-LCP-V0-015	docs/specs/local-completion-policy-v0.md	243	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
+LCP-V0-009	docs/specs/local-completion-policy-v0.md	156	`corvint dogfood event` MUST use a separate `corvint-dogfood-event/0` envelope a
+LCP-V0-010	docs/specs/local-completion-policy-v0.md	177	New-profile prompt context MUST separate project governance, declared enrollment
+LCP-V0-011	docs/specs/local-completion-policy-v0.md	187	Prompt context MUST project only allowlisted, Git-reextractable evidence and fix
+LCP-V0-012	docs/specs/local-completion-policy-v0.md	200	Private plans, observations and report sets MUST have explicit byte/count limits
+LCP-V0-013	docs/specs/local-completion-policy-v0.md	206	Prompt context MUST accept a task mention as an explicit anchor. A mention is on
+LCP-V0-014	docs/specs/local-completion-policy-v0.md	231	`finish` MUST run the daily change (coordination) and the final strict check in
+LCP-V0-015	docs/specs/local-completion-policy-v0.md	244	A selected check MUST NOT run the final check itself. Besides the `dogfood-check
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	1309	Every displayed metric and source-derived value MUST derive through the compiled
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	1313	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	1316	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the
