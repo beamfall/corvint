@@ -287,8 +287,10 @@ Failure modes:
   objects at the pinned tree, with the recomputed blob object ID, whole-blob and selection sha256,
   and byte and line offsets, within `--max-bytes` (1..1048576). It refuses with `invalid-handle`,
   `stale-handle`, `missing-handle`, `ambiguous-handle`, `source-digest-mismatch`,
-  `unsupported-text` or `expand-budget`, with nothing on stdout. It never substitutes HEAD,
-  worktree or index content, and it writes no repository or `.corvint/` state.
+  `unsupported-text` or `expand-budget`, with nothing on stdout; an empty HANDLE is
+  `invalid-handle`, and a repeated `--expand` is an argument error. An empty blob's `all`
+  selection has `line_start` 1 and `line_end` 0. It never substitutes HEAD, worktree or index
+  content, and it writes no repository or `.corvint/` state.
 - `ESV-V0-010`: The summary and expansion views stay experimental until the matched complete-task
   trial preregistered in `benchmarks/evidence-summary-trial-v0.json` runs and the owner accepts
   it. The trial compares current packets against summary plus expansion with model, effort,
@@ -332,7 +334,7 @@ dispatch.
 | ESV-V0-006 | coordinator experiment | NOT_RUN; no whole-task performance claim |
 | ESV-V0-007 | `runClaudeSourceHandoff`/`captureSourceHandoff` explicit captured-packet seam and `executeSourceView` digest check | `TestClaudeSourceHandoffCLI` adapter capture, lead digest and source-view consumption; `TestHostAdapterSourceHandoffPublicationRefusals` in-repository and existing output refusals; plugin script identity amended away (decision 0250) |
 | ESV-V0-008 | `summarizeContextPacket` in `cmd/corvint/context_summary.go` | `TestContextSummaryKeepsIdentityCoverageAndCriticalRows` budget sweep, verbatim members, row identities and handles; `TestContextSummaryTruncationReportsTotalsAndRefusesToDropCriticalRows` totals, continuation and critical-row refusal; `TestContextSummaryAndExpandAreReadOnly` |
-| ESV-V0-009 | `expandContextHandle`/`parseContextHandle` in `cmd/corvint/context_summary.go` | `TestContextExpandReturnsExactPinnedBytes` exact bytes with a dirty worktree; `TestContextExpandRefusesWithoutSubstitutingContent` invalid, hostile, missing, non-UTF-8 and budget cases; `TestContextExpandRefusesAStaleHandleAfterHeadMoves`; `TestContextExpandRefusesAnAmbiguousAbbreviatedBlob`; `TestContextSummaryAndExpandAreReadOnly` no `.corvint/` write |
+| ESV-V0-009 | `expandContextHandle`/`parseContextHandle` in `cmd/corvint/context_summary.go` | `TestContextExpandReturnsExactPinnedBytes` exact bytes with a dirty worktree; `TestContextExpandRefusesWithoutSubstitutingContent` invalid, hostile, missing, non-UTF-8 and budget cases; `TestContextExpandRefusesAStaleHandleAfterHeadMoves`; `TestContextExpandRefusesAnAmbiguousAbbreviatedBlob`; `TestParseContextViewArguments` repeated `--expand`; `TestContextSummaryAndExpandAreReadOnly` no `.corvint/` write |
 | ESV-V0-010 | preregistration `benchmarks/evidence-summary-trial-v0.json` | NOT_OBSERVED; no trial run; no owner acceptance |
 
 Implementation sequence: freeze this spec and independent read-only plan review; implement only

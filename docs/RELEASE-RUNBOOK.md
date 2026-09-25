@@ -69,17 +69,24 @@ output directories outside the checkout; the reproducibility script refuses one 
 
 8. Install lifecycle on this host's archive: verified install, first index and read, upgrade into
    a second store, rollback, uninstall with `.corvint` retained, backup/restore, and corrupted-snapshot
-   recovery. Set `CORVINT_LIFECYCLE_UPGRADE_BINARY` to the previous release's `corvint` to exercise a
-   real cross-version upgrade, compared to the packet the new binary builds from a cold index and
-   reported `packet=identical` or `packet=changed` (decision 0360); without it the upgrade is
-   reported `same-bytes`. `make install-lifecycle-test` and `make hostile-regressions-test` check the
-   two scripts themselves. Then the hostile
+   recovery. To exercise a real N-1 upgrade, install the previous release first (its archive as
+   `CORVINT_LIFECYCLE_ARCHIVE`, or its `corvint` as `CORVINT_LIFECYCLE_BINARY`) and set
+   `CORVINT_LIFECYCLE_UPGRADE_BINARY` to this release's `corvint`, the executable the script installs
+   as the upgrade. The upgrade's packet is compared to the one it builds from a cold index and
+   reported `packet=identical` or `packet=changed` (decision 0360); without
+   `CORVINT_LIFECYCLE_UPGRADE_BINARY` the upgrade is reported `same-bytes`. `make install-lifecycle-test`
+   and `make hostile-regressions-test` check the two scripts themselves. Then the hostile
    regression matrix; both must end `status=PASS` / `check-hostile-regressions: PASS`. Repeat step 8
    on each supported host with its own archive; a host not run is `NOT_RUN`, never implied.
 
    ```sh
    CORVINT_LIFECYCLE_ARCHIVE=/abs/release/X.Y.Z/core/corvint_$(go env GOOS)_$(go env GOARCH).tar.gz \
      CORVINT_LIFECYCLE_REPORT=/abs/release/X.Y.Z/lifecycle-$(go env GOOS)-$(go env GOARCH).txt \
+     script/check-install-lifecycle.sh
+   # N-1: W.V.U is the previous release; the upgrade is this release's corvint, extracted from its archive.
+   CORVINT_LIFECYCLE_ARCHIVE=/abs/release/W.V.U/core/corvint_$(go env GOOS)_$(go env GOARCH).tar.gz \
+     CORVINT_LIFECYCLE_UPGRADE_BINARY=/abs/extracted/X.Y.Z/corvint \
+     CORVINT_LIFECYCLE_REPORT=/abs/release/X.Y.Z/lifecycle-n1-$(go env GOOS)-$(go env GOARCH).txt \
      script/check-install-lifecycle.sh
    script/check-hostile-regressions.sh | tee /abs/release/X.Y.Z/hostile-regressions.txt
    ```
