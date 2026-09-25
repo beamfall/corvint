@@ -45,8 +45,8 @@ At `978b37b`:
   symlink confinement, and opened an input before the regular-file check. S1 adds the `export` and
   `import` subcommands (`cmd/corvint/flows.go:37-38@97eb5689`), routes `record` through the
   root-confined exclusive writer (`internal/appflows/report.go:317@18a159fa`,
-  `internal/appflows/input.go:90-103@06fa25b5`), and checks Lstat before open
-  (`internal/appflows/input.go:64-71@8ab13087`).
+  `internal/appflows/input.go:91-104@06fa25b5`), and checks Lstat before open
+  (`internal/appflows/input.go:65-72@8ab13087`).
 - The `/1` behavior provider pins exactly three repositories, `app`, `golf_e2e` and `docs_corpus`
   (`internal/doccorpus/behavior.go:41-45@2b4b5d34`). S3 adds the `/2` `repositories` list beside it.
 - ETS selection returns `narrow-selection-allowed` once no obligation is uncovered

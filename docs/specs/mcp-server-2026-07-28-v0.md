@@ -505,14 +505,15 @@ With the selector, the two tools below are added under the unchanged `MCPV0-007`
 requirements, bounds and refusals are the `AFU-V1` ones in
 `docs/specs/application-flow-understanding-v1.md`; this section records only the MCP surface. Each
 tool calls the same `internal/appflows` library as its `corvint flows` verb, reads the intents at
-`HEAD` between two repository probes (a changed probe is `REPOSITORY_STATE_UNSTABLE`), and returns the
-verb's JSON document as the bridge `receipt`, whose `revision` MUST equal the bound commit. Every
+`HEAD` between two repository probes (it abstains with `REPOSITORY_STATE_UNSTABLE` if `HEAD`, the tree
+or the dirty-path set differs between them), and returns the verb's JSON document as the bridge `receipt`, whose `revision` MUST equal the bound commit. Every
 tool takes a required repository-relative `flows` directory. `map` and `gaps` take optional
 `evidence` files; `map` also takes one of `path` or `testKey`, which excludes `evidence`; `impact`
 takes a required full object-ID `base`; `navigate` takes optional `evidence` and `traffic` files and an
 optional `goal` of at most 64 characters, with `maxEffect` only beside a goal. Input paths are
-repository-relative, at most 100 per array, never under `.git`, and never reached through a symlinked
-parent. Invalid arguments are `-32602`; a refusal by the flows verb is the closed code
+repository-relative, at most 100 per array, and never under `.git`; each component of an input file's
+parent directory is checked to be a real directory, not a symlink, before the file is opened, and a
+swap after that check is not detected. Only one `corvint.flows.impact` call runs at a time. Invalid arguments are `-32602`; a refusal by the flows verb is the closed code
 `flows-refused`, which never carries the verb's message. Flow intents carry repository-authored text,
 so a flows result omits `structuredContent` and returns the bridge object only as the `MCPV0-008`
 enveloped text (`AFU-V1-035`). No conformance manifest or black-box vectors exist for this profile
@@ -554,7 +555,7 @@ Each row cites the first emitting site and states only the condition checked the
 | `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:556@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
 | `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:556@f5156052` | the map is a legacy `cem/0.1` map that needs an out-of-band patch |
 | `cem-map-invalid` | `internal/mcp/bridge/bridge.go:557@b2fd0644` | the map fails CEM strict decoding or field validation |
-| `flows-refused` | `internal/mcp/bridge/flows.go:239@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
+| `flows-refused` | `internal/mcp/bridge/flows.go:259@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ## Acceptance matrix
 

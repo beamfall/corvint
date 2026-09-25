@@ -20,6 +20,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/gitstatus"
+	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
@@ -405,8 +406,10 @@ func git(ctx context.Context, root string, args ...string) ([]byte, error) {
 	if !filepath.IsAbs(gitPath) {
 		return nil, errors.New("Git unavailable")
 	}
-	argv := append([]string{gitPath, "--no-optional-locks", "-c", "core.fsmonitor=false", "-C", root}, args...)
-	o := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: root, Timeout: 10 * time.Second, OutputLimit: MaxBytes})
+	// The gokernel environment and credential prefix keep a read from lazily fetching into a partial
+	// clone's object store, so a flows read never writes the repository (invariant 4, MCPV0-017).
+	argv := append([]string{gitPath, "--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "credential.helper=", "-C", root}, args...)
+	o := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: root, Env: gokernel.SanitizedGitEnvironment(), Timeout: 10 * time.Second, OutputLimit: MaxBytes})
 	if o.Err != nil || o.ExitStatus != 0 {
 		return nil, errors.New("flow Git source unavailable")
 	}

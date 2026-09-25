@@ -138,3 +138,24 @@ func TestAFUV1ManifestRegularBeforeOpen(t *testing.T) {
 		}
 	}
 }
+
+// AFU-V1-034: the flows Git runner, reachable from corvint-mcp, spawns Git with the sanitized
+// environment and no credential helper, so a partial clone never lazily fetches into .git.
+func TestAFUV1034FlowGitRunsSanitized(t *testing.T) {
+	bin := t.TempDir()
+	script := "#!/bin/sh\nprintf '%s\\n' \"$GIT_NO_LAZY_FETCH\" \"$GIT_NO_REPLACE_OBJECTS\" \"$GIT_CONFIG_NOSYSTEM\" \"$GIT_CONFIG_SYSTEM\" \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	root := t.TempDir()
+	out, err := git(context.Background(), root, "cat-file", "blob", "abc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := strings.Join([]string{"1", "1", "1", os.DevNull, "--no-optional-locks", "-c", "core.fsmonitor=false",
+		"-c", "credential.helper=", "-C", root, "cat-file", "blob", "abc"}, "\n") + "\n"
+	if string(out) != want {
+		t.Fatalf("flow Git ran with\n%s\nwant\n%s", out, want)
+	}
+}

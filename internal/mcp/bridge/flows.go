@@ -5,10 +5,12 @@ import (
 	"context"
 	jsonv1 "encoding/json"
 	"errors"
+	"maps"
 	"path"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -32,6 +34,11 @@ var flowsTools = map[string]bool{ToolFlowsMap: true, ToolFlowsGaps: true, ToolFl
 
 // effectClasses is the closed maxEffect ladder of `flows navigate --max-effect`.
 var effectClasses = []string{appflows.EffectRead, appflows.EffectWriteReversible, appflows.EffectWriteIrreversible, appflows.EffectExternal}
+
+// flowsImpactSerial runs one flows impact at a time, probes included. affected.Build shares a
+// root's file walk among the Builds that overlap in time, so an impact that overlapped another could
+// reuse a walk taken before its own first probe. In this process no other tool calls Build.
+var flowsImpactSerial sync.Mutex
 
 // flowsSchemas are the receipt schemas each flows tool may return.
 var flowsSchemas = map[string][]string{
@@ -59,7 +66,7 @@ func EnvelopeOnly(name string) bool { return flowsTools[name] }
 func flowsToolDescriptors() []ToolDescriptor {
 	relative := map[string]any{
 		"type": "string", "minLength": 1, "maxLength": maxPathRunes,
-		"pattern": `^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\)(?!(?:.*/)?[.][Gg][Ii][Tt](?:/|$))[^\x00-\x1f\x7f]+$`,
+		"pattern": `^(?!/)(?!.*/$)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\)(?!(?:.*/)?[.][Gg][Ii][Tt](?:/|$))[^\x00-\x1f\x7f-\x9f]+$`,
 	}
 	files := map[string]any{"type": "array", "maxItems": maxFlowInputs, "items": relative}
 	return []ToolDescriptor{
@@ -82,22 +89,33 @@ func flowsToolDescriptors() []ToolDescriptor {
 			Name:        ToolFlowsMap,
 			Description: "Map the flow intents at HEAD to their links and test evidence, or look up the flows one path or test key reaches (application-flow-map/1, application-flow-lookup/1).",
 			Annotations: readAnnotations(),
-			InputSchema: objectSchema(map[string]any{
+			InputSchema: constrained(objectSchema(map[string]any{
 				"flows": relative, "evidence": files, "path": relative,
-				"testKey": map[string]any{"type": "string", "minLength": 1, "maxLength": maxPathRunes, "pattern": `^[^\x00-\x1f\x7f]+$`},
-			}, []any{"flows"}),
+				"testKey": map[string]any{"type": "string", "minLength": 1, "maxLength": maxPathRunes, "pattern": `^[^\x00-\x1f\x7f-\x9f]+$`},
+			}, []any{"flows"}), map[string]any{"not": map[string]any{"anyOf": []any{
+				map[string]any{"required": []any{"path", "testKey"}},
+				map[string]any{"required": []any{"path", "evidence"}, "properties": map[string]any{"evidence": map[string]any{"minItems": 1}}},
+				map[string]any{"required": []any{"testKey", "evidence"}, "properties": map[string]any{"evidence": map[string]any{"minItems": 1}}},
+			}}}),
 		},
 		{
 			Name:        ToolFlowsNavigate,
 			Description: "Compile the navigation map of the flow intents at HEAD, or the ordered packet that reaches one goal flow with each step above maxEffect marked requires-grant (application-navigation-map/0, application-navigation-packet/0).",
 			Annotations: readAnnotations(),
-			InputSchema: objectSchema(map[string]any{
+			InputSchema: constrained(objectSchema(map[string]any{
 				"flows": relative, "evidence": files, "traffic": files,
 				"goal":      map[string]any{"type": "string", "minLength": 1, "maxLength": maxFlowGoalRunes},
 				"maxEffect": map[string]any{"type": "string", "enum": []any{effectClasses[0], effectClasses[1], effectClasses[2], effectClasses[3]}},
-			}, []any{"flows"}),
+			}, []any{"flows"}), map[string]any{"dependentRequired": map[string]any{"maxEffect": []any{"goal"}}}),
 		},
 	}
+}
+
+// constrained adds the cross-member rules the runtime enforces, so a schema-valid argument object
+// is runtime-valid.
+func constrained(schema, rules map[string]any) map[string]any {
+	maps.Copy(schema, rules)
+	return schema
 }
 
 type flowsMapInput struct {
@@ -164,6 +182,8 @@ func (registry *Registry) callFlowsImpact(ctx context.Context, arguments []byte)
 	if decodeClosed(arguments, &input) != nil || !validFlowFiles(input.Flows, nil) || !fullObjectID(input.Base) {
 		return Result{}, failure("invalid-arguments")
 	}
+	flowsImpactSerial.Lock()
+	defer flowsImpactSerial.Unlock()
 	return registry.runFlows(ctx, ToolFlowsImpact, input.Flows, func(ctx context.Context, root string, set appflows.IntentSet) ([]byte, error) {
 		resolved, err := appflows.ResolveRevision(ctx, root, input.Base)
 		if err != nil {

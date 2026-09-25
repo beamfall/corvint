@@ -71,7 +71,7 @@ func (buffer *boundedBuffer) Write(value []byte) (int, error) {
 	return buffer.Buffer.Write(value)
 }
 
-func sanitizedGitEnvironment() []string {
+func SanitizedGitEnvironment() []string {
 	environment := make([]string, 0, 16)
 	for _, name := range []string{"PATH", "SystemRoot", "TMPDIR", "TEMP", "TMP", "USERPROFILE"} {
 		if value, exists := os.LookupEnv(name); exists {
@@ -119,7 +119,7 @@ func gitRaw(ctx context.Context, root string, outputLimit int, arguments ...stri
 	}
 	commandArguments = append(commandArguments, arguments...)
 	command := exec.CommandContext(ctx, gitstatus.Executable(), commandArguments...)
-	command.Env = sanitizedGitEnvironment()
+	command.Env = SanitizedGitEnvironment()
 	if gitstatus.Isolated(ctx) {
 		command.Env = append(command.Env, "GIT_CEILING_DIRECTORIES="+filepath.Dir(root))
 	}

@@ -5830,8 +5830,8 @@ Decisions:
   selector, the `tools/list` bytes are unchanged. Golden files captured from the pre-change binary
   pin both the default and the task-review list.
 - Each tool calls the same `internal/appflows` functions as its CLI verb and adds no logic of its
-  own. It reads the intents at `HEAD` between two repository probes, and a changed probe abstains
-  with `REPOSITORY_STATE_UNSTABLE`. The verb's JSON document becomes the bridge receipt. The receipt
+  own. It reads the intents at `HEAD` between two repository probes, and it abstains with
+  `REPOSITORY_STATE_UNSTABLE` if `HEAD`, the tree or the dirty-path set differs between them. The verb's JSON document becomes the bridge receipt. The receipt
   schema must be one of the verb's schemas, and its `revision` must equal the bound commit.
 - To share the impact path, the CLI's `flows impact` body moved into `appflows.FlowImpactAt`. The
   eight affected-language adapters moved into `internal/liveverify/affected/languages`, which both
@@ -5840,7 +5840,8 @@ Decisions:
   own PATH lookup. Under the MCP server that is the start-time pinned Git (MCPV0-016). In the CLI it
   is still the Git on PATH.
 - Arguments are closed JSON Schemas. Input files are repository-relative, at most 100 per array,
-  never under `.git`, and never reached through a symlinked parent directory. `impact.base` is a full
+  and never under `.git`. Each component of an input file's parent directory must be a real
+  directory, not a symlink, when it is checked before the open. `impact.base` is a full
   object ID, not a revision expression. `navigate.goal` is at most 64 characters, and `maxEffect` is
   allowed only beside a goal. Invalid arguments are `-32602`. Any verb refusal is the single code
   `flows-refused`, because the verb's message can name repository content.
@@ -5857,3 +5858,30 @@ CLI verbs' output on the shop and navigation fixtures) and `TestAFUV1035FlowsTex
 
 NOT_RUN: compiled-process MCP conformance vectors and a manifest for the flows profile; the
 official-schema exchange under the flows selector; live qualification; the exhaustive `make gate`.
+
+Review repairs (same slice):
+
+- The appflows Git runner now spawns Git with `gokernel.SanitizedGitEnvironment()`, which was
+  exported for this, and with `-c credential.helper=`. The environment sets `GIT_NO_LAZY_FETCH=1`,
+  `GIT_NO_REPLACE_OBJECTS=1` and no system or global config. Before this, a `cat-file blob` in a
+  partial clone could lazily fetch and write `.git/objects`, which breaks invariant 4 and MCPV0-017.
+  `TestAFUV1034FlowGitRunsSanitized` checks the environment and arguments with a fake Git; it
+  failed with the environment removed.
+- `affected.Build` shares one file walk per root among Builds that overlap in time. An impact call
+  could therefore reuse a walk taken before its own first probe. The bridge now runs one
+  `corvint.flows.impact` at a time, holding a mutex across both probes and the verb. This was
+  chosen over keying the walk per Build call because the walk is reached from language plugins
+  that carry no Build identity, so keying it would change the `affected` plugin interface. In the
+  MCP process no other tool calls `Build`, so serializing impact is enough.
+- The map and navigate schemas now match the runtime checks. Path and test-key characters exclude
+  U+0080 to U+009F, which `unicode.IsControl` refuses. A path may not end in `/`. `map` forbids
+  `path` with `testKey`, and forbids either one with a non-empty `evidence`. `navigate` has
+  `dependentRequired: {maxEffect: [goal]}`. The default and task-review goldens are unchanged.
+- New tests: `TestAFUV1034FlowsAbstainWhenTheCheckoutMoves` (a probe stub changes the dirty-path set),
+  `TestAFUV1034FlowsRefuseSymlinkedInputParent` and `TestAFUV1034FlowsLeaveRepositoryBytesUnchanged`
+  (all four tools, with `.git` included in the digest).
+- The symlink wording now states what is checked: the parent components are checked with Lstat
+  before the open. A swap after that check is not detected, and this is not worth code here. The
+  probe wording now names what is compared: `HEAD`, the tree and the dirty-path set.
+- Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
+  stop a walk already in progress.
