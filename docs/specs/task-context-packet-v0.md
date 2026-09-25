@@ -970,8 +970,10 @@ weight relations differently; learned relation weights are LTA-V0-009..012's.
   every blame 0, so the flag reorders nothing. Both are reported, not corrected: the row reason
   carries the ages and line counts. A path renamed within the window has its recency from the new
   name only (`--no-renames`). A CODEOWNERS file over 256 KiB or unreadable reads as none
-  (`codeowners` null), so no disagreement is reported; absence of an ownership entry is not
-  evidence of agreement (invariant 2).
+  (`codeowners` null), so no disagreement is reported. A row an earlier, non-lexical slot already
+  admitted is never passed to blame at all (`unchosen`, recency.go:192), so it too carries no
+  ownership entry. Neither case's absence of an ownership entry is evidence of agreement
+  (invariant 2).
 - (TCP-V0-048..050) With constant 60 and slot caps of a few rows, `F` is dominated by the number
   of relations, so fusion mostly reorders rows that only one relation admitted. There it discards
   slot precedence: a lexical row at rank 1 (1/61) outranks a `pair` or `definition` row at rank 3

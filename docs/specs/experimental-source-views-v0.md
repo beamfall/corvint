@@ -131,7 +131,11 @@ Without these flags the command prints exactly the packet it printed at base `18
 `corvint [--root PATH] context --task TEXT [--subject PATH] [--limit N] --summary [--summary-bytes N]`
 compiles the ordinary packet and then projects its exact default stdout bytes:
 
-- The budget runs from 1024 to 65536 bytes, default 8192, and includes the trailing LF.
+- `--summary-bytes` parses as an integer from 1024 to 65536, default 8192; a produced summary is at
+  most that many bytes, including the trailing LF. 1024 is only the flag's parse floor: the fixed
+  members below alone commonly need close to 2 KB — a minimal one-file repository measured 1964
+  bytes — so a budget near 1024 typically refuses with `summary-budget` rather than producing a
+  summary.
 - Every top-level member except `results` is kept verbatim. That covers `coverage` (with
   `critical`, `critical_missing` and `unexamined`), `request`, `subject` (with its `evidence_gap`),
   `state`, `revision`, `ok` and `mutates`.
