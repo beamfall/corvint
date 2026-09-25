@@ -59,9 +59,16 @@ type WorkItem struct {
 	Selector    int      `json:"selector"`
 }
 
+// Finding is a reviewer-visible gap that leaves the verdict unchanged.
+type Finding struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
 type AggregateVerdict struct {
-	Coverage Coverage `json:"coverage"`
-	State    string   `json:"state"`
+	Coverage Coverage  `json:"coverage"`
+	Findings []Finding `json:"findings,omitempty"`
+	State    string    `json:"state"`
 }
 
 // Result is private coordination state, not an OCM map or bundle.
@@ -289,11 +296,22 @@ func renderAggregate(scopes []verifiedScope) (Result, error) {
 	canonical := canonicalScopeSet(entries)
 	preimage := append(append([]byte(scopeSetDomain), 0), canonical...)
 	return Result{
-		Aggregate: AggregateVerdict{Coverage: coverage, State: "ready-for-review"},
+		Aggregate: AggregateVerdict{Coverage: coverage, Findings: linkageFindings(coverage), State: "ready-for-review"},
 		Mutates:   false, OK: true, ScopeSetSHA256: sha256Hex(preimage), Scopes: verdicts,
 		TestExecution: map[string]any{"state": "NOT_RUN"}, Tool: "dogfood-ocm-status",
 		Worklist: worklist,
 	}, nil
+}
+
+// linkageFindings names an aggregate that links none of its declared
+// requirements (OCM-V0-016). Total is never zero: OCM-V0-001 refuses an empty
+// scope.
+func linkageFindings(coverage Coverage) []Finding {
+	if coverage.Linked > 0 {
+		return nil
+	}
+	message := fmt.Sprintf("0 of %d declared requirements are linked to the change", coverage.Total)
+	return []Finding{{Code: "no-requirements-linked", Message: message}}
 }
 
 func canonicalScopeSet(entries []scopeSetEntry) []byte {

@@ -6230,3 +6230,122 @@ Not frozen, NOT_PRODUCED: the modes CCF-V1-002 already leaves unpinned (the muta
 and cli-parity cases for `context`, `affected`, `prove`, `index`, `frontier` and `dogfood`, which the
 goldens stand in for but do not replace. One unreproduced failure of the test in six runs under
 shared-host load was seen before this change; its output was not captured.
+## 2026-09-25 V1-0272: alternates refusal names the adopter rerun
+
+- The `unsupported-object-alternates` fix line ended with `rerun make dogfood-change`, the one
+  dogfood hint V1-0261 missed. It now ends `rerun corvint dogfood change {base}`, like the other
+  adopter hints (`internal/dogfoodflow/change.go`).
+- `docs/DOGFOOD.md` "Commands" now says the loop needs a clone that owns its objects, and gives the
+  repack remediation for a `--reference` or `--shared` clone.
+- Evidence: `TestDogfoodChangeNamesAlternatesRemediation` writes an alternates file into a
+  portable repository and checks the refusal's fix line; `script/dogfood-change_test.sh` checks the
+  new wording through the make wrapper.
+## 2026-09-25 V1-0270: citation anchors and index-reading checks documented
+
+- `docs/AGENT-ROUTES.md` "Focused documentation checks" now says three things. The doc checks read
+  the Git index, so edits must be staged first. A `path:N-M@hex` anchor is a prefix of the sha256
+  of the cited lines (`DCG-V0-006` to `DCG-V0-009`). `script/check-line-citations.sh --hash
+  path:N-M` prints the whole replacement token. Agents kept rediscovering all three while
+  repinning citations after BUILD-LOG and DOGFOOD.md line shifts.
+- Doc-only change; no behaviour changes.
+## 2026-09-25 V1-0244 and V1-0268: fast PR doc gates and use-case receipt repin
+
+Root cause of the use-case receipt reds (V1-0268), from `git log --first-parent origin/main` and the
+check-runs API: main first went red at the merges of #140, #160, #177 and #186. In all four the PR
+head itself already failed receipt validation (its own branch edited a subject pinned by a receipt
+present in its base), and the PR merged 7 to 13 minutes after its `go-product` run started, before
+that run concluded; each run later ended `failure`. The ruleset requires `go-product`, so these merges
+used the admin pull-request bypass. None was a merge-order race: no red merge had a green head.
+The race is still possible under `strict_required_status_checks_policy: false` (a PR that adds a
+receipt and a PR that edits its subject, each green alone), but it was not observed. V1-0244 is the
+same shape: the documentation GATE_STEPS ran in no CI job at all.
+
+Change: a `doc-gates` job in `.github/workflows/ci.yml` runs the six documentation gate checks,
+`make use-case-receipts-check` (lists every receipt to repin), the repin script's fixture test, and
+`go run ./conformance/use-cases-v0` in a few minutes. `script/repin-use-case-receipts.sh` does the
+repin that 21 commits on main made by hand; its procedure is in
+`conformance/use-cases-v0/README.md`. UCV0-004 is unchanged: the runner still requires exact bytes.
+
+Owner decisions (not changed here): add `doc-gates` to the ruleset's required checks; stop bypassing
+while a required check is pending; and choose `strict_required_status_checks_policy: true` or a
+merge queue (which also needs a `merge_group` trigger in `ci.yml`) to close the race.
+## 2026-09-25 V1-0273: dogfood OCM aggregate names zero linked requirements (`OCM-V0-016`)
+
+- Friction: the `dogfood-ocm status` aggregate reported 0 of 40 declared requirements linked and
+  still read `ready-for-review`, the same as a fully linked change.
+- Fix: `internal/dogfoodocm` adds `aggregate.findings` with one `no-requirements-linked` finding
+  ("0 of N declared requirements are linked to the change") when `coverage.linked` is 0. The
+  verdict stays `ready-for-review`; a finding, not a new state, keeps `OCM-V0-010`'s visible
+  unknowns allowed and grants no authority. The field is omitted when any requirement is linked, so
+  a linked aggregate's bytes are unchanged and the base and tree verifiers still agree in
+  `dogfood-check`. The `ocm/0.1-experimental` wire and standalone `ocm status` are unchanged.
+- Intent: `OCM-V0-016`, proposed and awaiting owner acceptance.
+  `TestAggregateFindsNoLinkedRequirements` covers zero, some, and all linked.
+## 2026-09-25 V1-0274, V1-0275: OCM map-keyed table claims and selector normalization
+
+- Found on a Beamfall adopter run (beamfall/core#32): a `map[string]struct{...}` Go table, keyed by
+  case name and run with `t.Run(name, ...)`, yields no case claims, so every `/case:` selector
+  refused `claim-selector-out-of-range` without saying which shapes are supported. Separately, the
+  selector normalization (digit runs dropped, plurals folded) was documented nowhere.
+- V1-0274 option chosen: the refusal names the supported shapes. Extracting map keys would add a Go
+  case anchor to `TCQ-V0-018`, which decision 0029 shows needs owner acceptance and parity changes in
+  the extractor, verifier (`goTableCaseTail`) and `internal/tcq` unit scanner. Every `/case:` miss now
+  appends the `TCQ-V0-018` shapes and "not a map key"; extraction and matching are unchanged.
+  `TestOCMClaimSelectorMiss` covers a map-keyed table. DR-0032's OPEN native stderr difference widens
+  by that suffix and is noted there.
+- V1-0275 option chosen: the exact `selectorFragment` rule, with the adopter's example
+  (`PTR-V0-003 two bound checks versions is tampered` becomes
+  `case:ptr-v0-two-bound-check-version-is-tampered`), is documented as a no-new-rule clarification in
+  `docs/specs/ocm-v0-dogfood.md` Traceability. The normalization itself is unchanged (wire contract).
+## 2026-09-25 V1-0268 AFP-V0-016 (amended, decision 0390): no admin bypass, `doc-gates` required
+
+V1-0268 found PRs merged through the ruleset's admin bypass before their own `go-product` check
+finished: #186 merged at 11:52:30Z; its `go-product` run completed at 12:31:43Z with `failure`. A
+GitHub ruleset bypass skips every rule and has no "only after checks complete" mode, so the owner
+decision "require doc-gates and block admin merges while checks run" is enforced by removing the
+bypass actor. The `main` ruleset requires `go-product`, `ci-control-plane` and `doc-gates` (the
+`ci.yml` job from PR #212, V1-0244). Consent to a `.github/` change becomes an admin-posted
+`ci-control-plane` `success` status on the exact reviewed head SHA. The latest status per context
+wins, so consent binds to one SHA and records its creator. `go-product` and `doc-gates` stay
+binding, and a later push gets a fresh workflow `failure`.
+
+Change: `AFP-V0-016` text, decision 0390, the pointer in decision 0320 step 2, the
+`ci-control-plane.yml` header comment and failure description (no logic change), and the
+`tools/corvint-pr-tests/README.md` ruleset paragraph. The ruleset itself is not changed here.
+
+`NOT_RUN`: the ruleset change and the admin-status consent path on a real PR. Both wait for the
+owner, and the ruleset change waits for `doc-gates` on `main` (PR #212). Rollback: restore the
+bypass actor (`RepositoryRole` 5, `pull_request` mode) and drop `doc-gates` through the ruleset
+API.
+
+## 2026-09-25 V1-0277, V1-0278: flows docs fences and .git write refusal
+
+- V1-0277 (AFU-V1-033): `documentAnchors` now skips a `corvint-claim` anchor comment written inside
+  a fenced code block (`` ``` `` or `~~~`), backtick or tilde, so example anchors in hand-written
+  Markdown are never parsed as live claims. `fencedRanges`/`fenceMarker` compute the fence byte
+  ranges once per document; a match whose start falls inside one is ignored, not failed.
+  `TestAFUV1033AnchorParsing` gains a backtick-fenced and a tilde-fenced case, each asserting zero
+  claims and zero failures.
+- V1-0278 (AFU-V1-036): the shared `safePath` helper, used to confine `flows docs --page/--claims`
+  and `flows record` writes, now refuses any path whose first component is `.git`, case-folded. The
+  refusal is the named code `git-path-refused`, returned directly by `ReplaceConfined` (docs) and
+  `confinedName` (record) ahead of the generic path-shape message.
+  `TestAFUV1036DocsGitPathRefused` and `TestAFUV1RecordGitPathRefused` cover `--page`/`--claims` and
+  `record --output` respectively, each against a lowercase and a case-varied `.git` path.
+
+## 2026-09-25 TJAA-V0-005: linear TypeScript comment stripping (panel blocker B1)
+
+`stripComments` in `internal/liveverify/affected/typescript/typescript.go` passed
+`string(clean)` to `quotedEnd` and `regexEnd` at every byte, so each position copied the whole
+buffer and the scan was quadratic (panel measurement: 50 KB 0.83 s, 100 KB 1.82 s, 200 KB 5.51 s
+on a loaded host). `quotedEnd` and `regexEnd` now take `string | []byte`, so `stripComments` passes
+the buffer without copying and the string callers are unchanged. `regexEnd` finds the previous byte
+with a backward scan over whitespace, and `jsxQuoteStartsLiteral` trims with `bytes.TrimRight` on the
+slice instead of copying the prefix at every JSX quote. The scan still reads the comment-blanked
+buffer, so behaviour is unchanged: the package tests pass as before, and a scratch differential run
+of 300,000 random inputs against the old functions found no difference. The regression test
+`TestStripCommentsAllocationsDoNotGrowWithInput` bounds allocations for a 64 KB input at 2 (the old
+code made 41,666). An allocation count is used instead of a timing ratio because it does not depend
+on host load. A scratch timing after the fix: 100 KB 0.7 ms, 1 MB 5.6 ms. The other `affected`
+language scanners (dotnet, golang, kotlin, python, ruby, rust, swift) have no per-position
+conversion of their mutated buffer. Follow-up, not in this change: no per-language scan deadline.
