@@ -3,9 +3,9 @@
     "path": "docs/specs/core-compatibility-freeze-v1.md",
     "title": "Core Compatibility Freeze V1",
     "reqPrefix": "CCF-V1",
-    "intent": "proposed",
+    "intent": "proposed overall; accepted CCF-V1-006/CCF-V1-007 amendments (decision 0401)",
     "delivery": "experimental",
-    "claim": "The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.7.0 to 1.0.",
+    "claim": "The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.",
     "dependsOn": [
       "docs/specs/affected-plan-v0.md",
       "docs/specs/diagnostic-repair-contract-v0.md",
@@ -81,7 +81,7 @@
     "path": "docs/specs/affected-plan-v0.md",
     "title": "Affected Plan V0",
     "reqPrefix": "AFP-V0",
-    "intent": "accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320); AFP-V0-021 accepted (decision 0376); other AFP-V0 requirements proposed",
+    "intent": "accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); other AFP-V0 requirements proposed",
     "delivery": "experimental",
     "claim": "`corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.",
     "dependsOn": [

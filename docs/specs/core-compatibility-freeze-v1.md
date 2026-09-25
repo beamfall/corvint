@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `CCF-V1`
-Intent status: proposed
+Intent status: proposed overall; accepted CCF-V1-006/CCF-V1-007 amendments (decision 0401)
 Delivery status: experimental
 Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), decision 0358, `AGENTS.md` invariants 1, 2, 4 and 8,
 `conformance/cli-parity-v0/manifest.json`, and the owning specs of each Core verb listed in CCF-V1-002.
 
 ## Agent digest
-- Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.7.0 to 1.0.
-- Status: proposed intent, experimental delivery; the Core set is taken from accepted decision 0332, this contract awaits owner ratification in V1-0001
+- Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
+- Status: proposed overall; accepted CCF-V1-006/CCF-V1-007 amendments (decision 0401); experimental delivery; the Core set is taken from accepted decision 0332, this contract awaits owner ratification in V1-0001
 - Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), and `cmd/corvint/core_freeze_test.go`
 - Blocked on: V1-0001 owner ratification of this contract; pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
@@ -23,13 +23,14 @@ parity cases for four verbs, a handful of in-repository readers that match profi
 and a help footer saying that commands marked Experimental carry no stability promise, which did not
 mark most verbs either way. This contract names the Core verbs, lists what about them is frozen,
 states the rule that decides whether a change is breaking, and states how state and profile changes
-reach users. It freezes what 0.7.0 already emits; it changes no verb's runtime behaviour or wire
+reach users. It freezes what 0.8.1 already emits; it changes no verb's runtime behaviour or wire
 output. Everything not listed stays experimental, so no companion or research profile becomes
 frozen by omission.
 
-The N-1 baseline is the published 0.7.0 release (tag `v0.7.0`, gated commit 41f2b68). At this
-contract's base commit 1894b9e, `git diff v0.7.0 1894b9e -- cmd/corvint internal` is empty, so no Core
-state or profile had changed since that baseline; this change adds only root-help text and tests.
+The N-1 baseline is the published 0.8.1 release (tag `v0.8.1`, commit 0e5d596), per CCF-V1-007.
+(Amended 2026-09-25, panel blocker B6; accepted, decision 0401.) The contract was first written against 0.7.0
+(tag `v0.7.0`, commit 678c1b1) when `git diff v0.7.0 1894b9e -- cmd/corvint internal` was empty,
+but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see CCF-V1-007.
 
 ## Requirements
 
@@ -112,21 +113,67 @@ state or profile had changed since that baseline; this change adds only root-hel
   (`query`, `impact`, `init`, `adopt`), any stdout or stderr byte change is breaking unless recorded in
   `conformance/divergence-register.md` with a decision. For every other frozen mode: adding an optional
   member is compatible; removing, renaming or retyping a member, changing a CCF-V1-002 identifier value,
-  adding a value to a frozen enumeration a reader must branch on, changing the default mode, or making
-  a read mutate state is breaking. A breaking change MUST ship a new profile version (for example
+  adding a value to a `closed` row of the CCF-V1-007 (d) enumeration register (accepted 2026-09-25, decision 0401;
+  panel blocker B6; it replaced "a frozen enumeration a reader must branch on"),
+  removing or renaming any registered value, changing the default mode, or making a read mutate state
+  is breaking. A breaking change MUST ship a new profile version (for example
   `affected-plan/1`), an N-1 reader per CCF-V1-007, a decision record, and an update to this contract
   and its test in the same change.
-- **CCF-V1-007:** N-1 and migration policy. Every Core reader MUST accept the documents and state that
-  the previous release (N-1, currently 0.7.0) wrote, and every state change on the path to 1.0 MUST
-  have a deterministic migration or rebuild: (a) derived state, the index snapshot
+- **CCF-V1-007:** (accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy. N-1
+  is the newest release tag on `main`, currently 0.8.1 (tag `v0.8.1`, commit 0e5d596). It is not 0.7.0:
+  0.8.0 (516439f) and 0.8.1 both shipped this contract, and between `v0.7.0` and `v0.8.1` 170 files
+  under `cmd/corvint` and `internal` changed. One change reached a frozen member. Commit 2f3bfe6
+  (V1-0186) added the relation `instruction-routed` to `context`'s `coverage.unexamined`. That
+  relation list has twelve entries at `v0.7.0` (line 177 of `git show v0.7.0:internal/contextindex/taskcontext.go`) and thirteen
+  in `cmd/corvint/testdata/context-default-wire.golden` at `v0.8.0` and `v0.8.1`. That change shipped
+  before this contract was accepted. It is part of the 0.8.1 baseline, and it is compatible under
+  (d)'s `open` status. Every Core reader MUST accept the documents and state that N-1 wrote, and
+  every state change on the path to 1.0 MUST have a deterministic migration or rebuild:
+  (a) derived state, the index snapshot
   `corvint-index-snapshot/1`, treats any format, engine, tree or decode mismatch as a miss and
   rebuilds (IDX-SNAP-V0-003), so no migration exists or is needed; (b) durable local traces
   (`corvint-local-trace/1`) keep the bounded legacy tree-row reader and the explicit, digest-bound
   `migrate-traces --dry-run` / `--apply --plan-digest` migration (LTPM-V0); (c) in-repository readers
   of Core profiles, `prove-observe` (`cmd/corvint/prove_observe.go:90@e92cefdb`), `internal/attest` and
   `internal/companionrelease` core smoke, match the current identifier exactly and MUST accept both N
-  and N-1 identifiers in the change that bumps one. Because nothing changed since 0.7.0, the current
-  N-1 obligation is satisfied by the unchanged identifiers pinned in CCF-V1-002.
+  and N-1 identifiers in the change that bumps one. The CCF-V1-002 identifiers are unchanged from
+  0.8.1: `cmd/corvint/core_freeze_test.go` is byte-identical at `v0.8.1` and at base 489701ca.
+  (d) Frozen enumerations are exactly the rows below, keyed by member path and the document's
+  `tool`. Each row lists every value that its cited source writes. The
+  sources have the same values at this change and at `v0.8.1`, and `git diff v0.8.1` of the cited
+  files changes none of these strings. In a `closed` row, a reader may branch exhaustively, so
+  adding a value is breaking under CCF-V1-006. In an `open` row, a reader MUST treat an unknown value
+  as informational: skip an `unexamined` row with an unknown relation, and decide on
+  `abstention.active`, not on the reason. Adding an `open` value is compatible. Removing or renaming a
+  value is breaking in either kind of row. Every string a frozen Core mode emits at a registered path
+  MUST be a value of its row, so a new value cannot ship without a register change that states its
+  status. Each row MUST be reached by at least one frozen mode.
+
+  | Member | `tool` | Values | Status | Source |
+  |---|---|---|---|---|
+  | `state` | `context` | `READY`, `NO_CANDIDATES` | closed | `internal/contextindex/taskcontext.go:1944@3f21cab9` |
+  | `coverage.governance` | `context` | `reserved`, `spec-mentioned`, `unresolved` | closed | `internal/contextindex/taskcontext.go:1712@9847248b` |
+  | `coverage.budget_shortage` | `context` | `slots`, `work`, `none` | closed | TCP-V0-011 |
+  | `coverage.unexamined[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed`, `pair`, `mentioned`, `definition`, `reverse-import`, `reference`, `cochange`, `sibling`, `test`, `lexical`, `documentation` | open | TCP-V0-011 |
+  | `coverage.unexamined[].state` | `context` | `examined`, `capped`, `empty-history`, `subject-absent`, `subject-symbols-incomplete`, `not-applicable` | closed | TCP-V0-011 |
+  | `context.state` | `query`, `impact` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL` | closed | `internal/contextindex/receipt.go:41@744935db`, `internal/worktreeimpact/compiler.go:331@11242995` |
+  | `context.freshness.state` | `query`, `impact` | `fresh`, `mixed-worktree` | closed | `internal/worktreeimpact/compiler.go:369@f1a395e7` |
+  | `context.freshness.scope` | `query`, `impact` | `git`, `git+working-tree` | closed | `internal/worktreeimpact/compiler.go:369@f1a395e7` |
+  | `context.abstention.reason` | `query` | `none`, `needs-widening`, `nearest-negative-claim`, `below-relevance-floor`, `unindexed-worktree-changes`, `no-relevant-candidates` | open | `internal/contextindex/eval_query.go:383@e2db80be` |
+  | `inventory.operationalState` | `init`, `adopt` | `COMPLETE`, `PARTIAL`, `INVALID` | closed | `internal/genesis/inventory.go:133@5662da2b` |
+  | `inventory.dirtyState` | `init`, `adopt` | `CLEAN`, `DIRTY`, `UNKNOWN` | closed | `internal/genesis/inventory.go:81@4f7a9f91` |
+  | `plan.scope` | `affected` | `BOUNDED`, `UNKNOWN` | closed | `internal/liveverify/affected/select.go:49@884d7796` |
+  | `advice.status` | `affected` | `PLAN_ONLY` | closed | `cmd/corvint/affected.go:112@7320d4cb` |
+  | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:129@797e536b` |
+  | `state` | `prove` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL`, `CITED`, `UNPROVEN` | closed | `cmd/corvint/prove.go:1698@b984fed9` |
+
+  The `graph` relation that the experimental `CORVINT_CONTEXT_GRAPH=on` switch appends
+  (`internal/contextindex/ppr.go:43@fd7e5f2f`) is outside the frozen default mode. So is the `prove --cem` state
+  `REJECTED` (CCF-V1-003). NOT_PRODUCED: this change registers no enumeration inside
+  `coverage.answerability`, `context.intent`, `context.learning`, `context.range`, `plan.unknown`,
+  `plan.excluded` or the `prove` rows' falsifier verdicts. Until a later change registers them, CCF-V1-006
+  decides a value added there by review. NOT_PRODUCED: no release gate builds the N-1 tag and replays
+  the Core modes against this one.
 - **CCF-V1-008:** Root help MUST carry a `Command maturity:` section that lists the Core verbs of
   CCF-V1-001 and labels every other dispatched top-level verb `Experimental` with the requirement
   prefix of its owning spec, which `docs/specs/INDEX.json` MUST index. Every dispatched verb is exactly
@@ -147,6 +194,8 @@ state or profile had changed since that baseline; this change adds only root-hel
 
 - A Core identifier changes silently: `TestCoreVerbsEmitTheFrozenProfiles` fails.
 - A Core refusal changes exit class, stdout or code family: `TestCoreRefusalsKeepTheFrozenEnvelope` fails.
+- A frozen Core mode emits a value outside its CCF-V1-007 (d) register row, or a row is reached by no
+  frozen mode: `TestCoreVerbsEmitTheFrozenProfiles` fails through `observeCoreEnumerations`.
 - A new verb is dispatched without a maturity label, or a label names an unindexed owner:
   `TestRootHelpLabelsEveryVerbWithMaturityAndOwner` fails.
 - A verb is dispatched before the `topLevelCommands` check without being pinned as plumbing:
@@ -175,6 +224,7 @@ state or profile had changed since that baseline; this change adds only root-hel
 | CCF-V1-007 (a) | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSectionedSnapshotRefusesACorruptSectionAsAMiss`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
 | CCF-V1-007 (b) | `TestMigrateTracesDryRunMatchesPythonOracleBytes`, `TestMigrateTracesApplyMatchesPythonOracle`, `TestMigrateTracesPlanDigestMismatchWritesNothing`, `TestMigrationCandidateDriftCheckCoversWholePlan`, `TestMigrationQuarantineBindingDetectsReplacement`, `TestPythonOracleMigrationTransform`, `TestReadBoundsTraceReplayWithoutRefusingLargeRepositories`, `TestStoreReadRejectsWholeStoreViolations` |
 | CCF-V1-007 (c) | `TestProveObserveRejectsWhatIsNotAProof`, `TestProveObserveRecordsOnlyTheVerdictCounts`, `TestStatementIsByteStableAcrossCalls`, `TestPUBV0024InstalledCoreDiscoveryWorkflows` |
+| CCF-V1-007 (d), CCF-V1-006 enumerations | `TestCoreVerbsEmitTheFrozenProfiles` (every registered member it reaches) |
 | CCF-V1-008 | `TestRootHelpLabelsEveryVerbWithMaturityAndOwner`, `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb`, `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
 
 ## Rollback

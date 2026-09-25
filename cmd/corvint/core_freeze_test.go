@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -146,6 +147,7 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			return []string{"--root", impactCLIRepository(t), "dogfood", "status", "--session-key", strings.Repeat("a", 64)}
 		}, 0, map[string]any{"tool": "dogfood-status", "profile": "corvint-local-completion/0", "claim": "caller-owned-selected-workflow-only"}},
 	}
+	register := observeCoreEnumerations(t)
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
@@ -157,6 +159,7 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			if err := json.Unmarshal([]byte(stdout), &document); err != nil {
 				t.Fatalf("stdout is not one JSON document: %v\n%s", err, stdout)
 			}
+			register.observe(t, document)
 			want := map[string]any{"ok": true, "mutates": false}
 			for path, value := range test.want {
 				want[path] = value
@@ -306,4 +309,119 @@ func TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp(t *testing.T) {
 			t.Errorf("plumbing verb %q appears in root help", verb)
 		}
 	}
+}
+
+// coreEnumeration is one row of the CCF-V1-007 (d) frozen enumeration register.
+type coreEnumeration struct {
+	member string
+	tools  []string
+	values []string
+	status string
+}
+
+// coreEnumerationObserver checks every string a frozen Core mode emits at a registered member
+// against the register row the spec states, and records which rows some mode reached.
+type coreEnumerationObserver struct {
+	rows    []coreEnumeration
+	mu      sync.Mutex
+	reached map[int]bool
+}
+
+var registerCell = regexp.MustCompile("`([^`]+)`")
+
+// coreEnumerationRegister reads the register table from CCF-V1-007 (d) in the Core contract, the
+// single statement of every frozen enumeration, its values and its closed or open status.
+func coreEnumerationRegister(t *testing.T) []coreEnumeration {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(moduleRoot(t), "docs", "specs", "core-compatibility-freeze-v1.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, clause, _ := strings.Cut(string(raw), "- **CCF-V1-007:**")
+	clause, _, _ = strings.Cut(clause, "- **CCF-V1-008:**")
+	rows := []coreEnumeration{}
+	for _, line := range strings.Split(clause, "\n") {
+		cells := strings.Split(strings.TrimSpace(line), " | ")
+		if len(cells) != 5 || !strings.HasPrefix(cells[0], "| `") {
+			continue
+		}
+		row := coreEnumeration{member: strings.Trim(cells[0], "| `"), status: cells[3]}
+		for _, match := range registerCell.FindAllStringSubmatch(cells[1], -1) {
+			row.tools = append(row.tools, match[1])
+		}
+		for _, match := range registerCell.FindAllStringSubmatch(cells[2], -1) {
+			row.values = append(row.values, match[1])
+		}
+		if row.status != "closed" && row.status != "open" || len(row.tools) == 0 || len(row.values) == 0 {
+			t.Fatalf("malformed CCF-V1-007 register row: %s", line)
+		}
+		rows = append(rows, row)
+	}
+	if len(rows) == 0 {
+		t.Fatal("CCF-V1-007 has no frozen enumeration register")
+	}
+	return rows
+}
+
+// observeCoreEnumerations pins CCF-V1-007 (d) and the CCF-V1-006 enumeration rule: a value outside
+// its register row fails the observing mode, and once every mode has run, a row no mode reached
+// fails the parent test, so the register cannot list a member the frozen modes never emit.
+func observeCoreEnumerations(t *testing.T) *coreEnumerationObserver {
+	t.Helper()
+	observer := &coreEnumerationObserver{rows: coreEnumerationRegister(t), reached: map[int]bool{}}
+	t.Cleanup(func() {
+		for index, row := range observer.rows {
+			if !observer.reached[index] {
+				t.Errorf("CCF-V1-007 register row %s (%v) is reached by no frozen Core mode", row.member, row.tools)
+			}
+		}
+	})
+	return observer
+}
+
+func (observer *coreEnumerationObserver) observe(t *testing.T, document map[string]any) {
+	t.Helper()
+	tool, _ := document["tool"].(string)
+	for index, row := range observer.rows {
+		if !slices.Contains(row.tools, tool) {
+			continue
+		}
+		emitted := jsonMembers(document, strings.Split(row.member, "."))
+		for _, value := range emitted {
+			if text, ok := value.(string); !ok || !slices.Contains(row.values, text) {
+				t.Errorf("%s %s = %#v, outside the CCF-V1-007 register values %q", tool, row.member, value, row.values)
+			}
+		}
+		if len(emitted) != 0 {
+			observer.mu.Lock()
+			observer.reached[index] = true
+			observer.mu.Unlock()
+		}
+	}
+}
+
+// jsonMembers reads every value at a dotted member path, where a name ending in [] spreads over
+// the elements of that array.
+func jsonMembers(value any, names []string) []any {
+	if len(names) == 0 {
+		return []any{value}
+	}
+	object, ok := value.(map[string]any)
+	if !ok {
+		return nil
+	}
+	name, spread := strings.CutSuffix(names[0], "[]")
+	member, present := object[name]
+	if !present {
+		return nil
+	}
+	if !spread {
+		return jsonMembers(member, names[1:])
+	}
+	elements, _ := member.([]any)
+	found := []any{}
+	for _, element := range elements {
+		found = append(found, jsonMembers(element, names[1:])...)
+	}
+	return found
 }
