@@ -14,7 +14,7 @@ decisions 0374 and 0385.
 
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
-- Status: accepted (decision 0385)/planned; S1 implements AFU-V1-001..005, 007 and 036 (unqualified) and AFU-V1-008..010 as library evaluation with only the provider record on the CLI (partial, CLI surface in S3); nothing else is implemented or qualified.
+- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 015..018, 036 and 037 (unqualified), 012..014 and 038 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; nothing else is implemented or qualified.
 - Exists: the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
 - Blocked on: implementation slices S1-S8 (Rollout) and the acceptance evidence below.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Deterministic acceptance.
@@ -43,12 +43,12 @@ At `978b37b`:
 
 - `corvint flows` dispatched only `record` beside its report, created its output without root or
   symlink confinement, and opened an input before the regular-file check. S1 adds the `export` and
-  `import` subcommands (`cmd/corvint/flows.go:35-36@97eb5689`), routes `record` through the
+  `import` subcommands (`cmd/corvint/flows.go:39-40@97eb5689`), routes `record` through the
   root-confined exclusive writer (`internal/appflows/report.go:317@18a159fa`,
-  `internal/appflows/input.go:87-100@06fa25b5`), and checks Lstat before open
-  (`internal/appflows/input.go:61-68@8ab13087`).
-- The behavior provider pins exactly three repositories, `app`, `golf_e2e` and `docs_corpus`
-  (`internal/doccorpus/behavior.go:35-39@2b4b5d34`).
+  `internal/appflows/input.go:90-103@06fa25b5`), and checks Lstat before open
+  (`internal/appflows/input.go:64-71@8ab13087`).
+- The `/1` behavior provider pins exactly three repositories, `app`, `golf_e2e` and `docs_corpus`
+  (`internal/doccorpus/behavior.go:41-45@2b4b5d34`). S3 adds the `/2` `repositories` list beside it.
 - ETS selection returns `narrow-selection-allowed` once no obligation is uncovered
   (`internal/extevidence/selection.go:820-833@bae209bb`). It proves nothing about the tests it did
   not select, and says so (`internal/extevidence/selection.go:874@5368f5ce`).
@@ -257,6 +257,68 @@ This subsection fixes the S2 wire shape. It adds no requirement and no root verb
 - `AFU-V1-018`: All of these commands are read commands under product invariant 4. Only `import`,
   `docs` rendering and `record` write, and they write only to the paths their arguments name.
 
+### Query wire contract
+
+This subsection fixes the S3 wire and argv shapes. It adds no requirement and no root verb. Every
+query reads the intents committed in `DIR` at `HEAD` through Git, as `export` does, and writes one
+compact JSON document to stdout.
+
+- `corvint [--root PATH] flows map --flows DIR [--evidence FILE]...` writes `application-flow-map/1`:
+  `schema`, `revision`, `review` (the `Summarize` denominator: `revision`, `reviewed`,
+  `reviewed_denominator`, `stale`, `inferred`, `review_attestation` `self` and the `limitation` text
+  stating that review identity is not verified) and `flows`. Each flow has `flow_id`, `proposed`,
+  `status` (`complete` or `incomplete`, as `gaps` derives it), `steps` and `outcomes` (`id`, `links`)
+  and `variations` (`id`, `steps`, `outcomes`, `projects`, `links`, `evidence`, `verified`). A link is
+  the evaluated link: `flow`, `from`, `basis`, `review_state`, `target`, `blob`, `revision`,
+  `reviewed_at` and `review_attestation` on reviewed links. An `evidence` row has `test_key`, the
+  optional `project`, `state` and `authority` (the highest of `STATIC`, `INGESTED` and
+  `LOCALLY_OBSERVED` among its matched records, or `none`).
+- `flows map --flows DIR --path P` or `--test-key K` writes `application-flow-lookup/1` (`schema`,
+  `revision`, `path` or `test_key`, and `flows`, each hit `flow`, `from`, `basis`, `review_state`),
+  derived from the forward links at `HEAD`. The two selectors exclude each other and `--evidence`.
+- Evidence files are `test-run-evidence/0` JSONL as `ingest` writes it, read through the same
+  regular-file, byte, canonical-decode and combined 8192-record bounds; any refused file refuses the
+  query. Evidence pairs are each declared (non-`inferred`) test key of a variation times each of its
+  `projects`, or once when it lists none. A record matches a pair by `test_key`, and by `project` when
+  the pair has one. The pair's `state` is the first that holds: `missing` (no non-`STATIC` record),
+  `stale` (none ran the `HEAD` commit and tree from a clean worktree; only those count below),
+  `flaky` (any is `flaky`), `failed` (none `passed`), `negative-control-missing` (no passed record
+  observed every control as expected and ran every `adapter.negative_controls` key),
+  `cleanup-unverified` (none of those has cleanup `done`), else `verified`. A variation is `verified`
+  only when it has at least one pair and every pair is `verified`. S3 does not carry evidence forward
+from an earlier commit as the Verified definition allows; such evidence is `stale`, which can
+under-report and never over-report.
+- `corvint [--root PATH] flows gaps --flows DIR [--evidence FILE]...` writes `application-flow-gaps/1`:
+  `schema`, `revision` and `flows`, each `flow_id`, `status` and `gaps` (`code`, the optional
+  `member`, `test_key` and `project`, and `detail`). A flow with no link has only `unmapped-flow`. A
+  flow whose every link is `inferred` has `inferred-only`. Each `stale` link is `stale-link`; any other
+  link neither `reviewed` nor `inferred` is `unreviewed`. Per variation: no declared test link is
+  `no-test`; declared tests with no declared assertion link from the variation or its outcomes is
+  `test-without-assertion`; each of its outcomes with no declared assertion link is
+  `assertion-unlinked`; and each evidence pair maps `missing` and `failed` to `evidence-missing`,
+  `stale`, `flaky`, `negative-control-missing` and `cleanup-unverified` to the like-named code.
+- `corvint [--root PATH] flows impact --flows DIR --base SHA` writes `application-flow-impact/1`:
+  `schema`, `base`, `revision`, `changed_paths` (the `base..HEAD` tree diff), `graph` (`digest`,
+  `scope` and `unknown`, each `REASON: detail` from the affected plan; an `UNKNOWN` scope means the
+  hit list may be short) and `flows`, only those with a hit, each `flow_id`, `variations`,
+  `test_keys` and `hits` (`from`, `basis`, `review_state`, `target`, `via`). A link is hit when its
+  target path changed (`via` is that path) or when the Corvint impact graph reaches the target's
+  owning unit from a changed unit through imports (`via` is the changed path, each unit from the
+  changed one to the owner, then the target path; the shortest such path in sorted breadth-first
+  order). A hit reaches its own variation or every variation listing its step or outcome, and those
+  variations' test keys of any basis. An unresolvable `--base` is `unsupported-affected-revision`.
+- `corvint [--root PATH] flows ingest --format playwright-json|junit-xml|go-test-json --from FILE`
+  takes the run header as `--run-id`, `--runner-version`, `--source-commit`, `--source-tree`,
+  `--source-clean`, `--build-artifact-digest`, `--environment-id`, `--environment-digest`,
+  `--fixture-id`, `--fixture-digest`, `--cleanup` (default `not-declared`) and repeatable
+  `--control "SUBJECT<TAB>CONTROL<TAB>EXPECTED"`. It writes the `test-run-evidence/0` JSONL to stdout
+  only after every record encodes. An exceeded bound, including a report file over the byte bound,
+  exits 2 with the bound's code and writes nothing.
+- The `/2` behavior provider (`corvint-corpus-behavior-provider/2`) replaces the `/1` `revisions`
+  member with `repositories`, a non-empty list of `root_commit` and `revision` sorted by unique root
+  commit, one of which is the provider source; the contract digest covers the declarations as in
+  `/1`. The corpus compiler refuses a `/2` registry.
+
 ### E2E-safe selection (Core)
 
 - `AFU-V1-019`: `corvint affected --provider FILE --selection-profile e2e-safe` MUST select every test
@@ -413,23 +475,26 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-003 | `TestAFUV1ExportCompilesRequestAndProvider`, `TestAFUV1ExportRefusesUnanchoredInventory`, `TestAFUV1ExportRequestRefusesForgedAnchor`, `TestAFUV1ExportReadsCommittedIntents`, `TestAFUV1FlowsCLIExportUsesCommittedIntents`, `TestAFUV1ExportLeavesRepositoryByteIdentical`, `TestAFUV1FlowsCLIExportIsReadOnly` |
 | AFU-V1-004 | `TestAFUV1ImportOpenAPIAndPlaywright`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1FlowsCLIImportNeverOverwrites`, `TestAFUV1ImportRollsBackOnFailedWrite`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1FlowsCLIImportReportsNothingWritten` |
 | AFU-V1-005 | `TestAFUV1RoundTripByteExact` |
-| AFU-V1-006 | `/2` multi-repository fixture (S3) |
+| AFU-V1-006 | `TestAFUV1BehaviorProviderV1BytesUnchanged`, `TestAFUV1BehaviorProviderV2MultiRepository`; partial: `/2` is a validated wire profile (`ValidateBehaviorProviderV2`), but no producer emits it and the external-evidence provider registry accepts only `/1` |
 | AFU-V1-007 | `TestAFUV1ReviewAnchorValidAndStale` |
-| AFU-V1-008 | `TestAFUV1ReviewAnchorValidAndStale`, `TestAFUV1ReviewAnchorNotAncestor`, `TestAFUV1ReviewAnchorMustChangeIntent`, `TestAFUV1InferredExcludedFromReviewed`, `TestAFUV1ReviewLinkMustExistAtAnchor`, `TestAFUV1ReviewEvidenceTargetUnavailable`, `TestAFUV1ReviewContentIdentityRestoredTarget`; partial: library evaluation plus the provider record, text report and denominator CLI surface in S3 |
-| AFU-V1-009 | `TestAFUV1InferredExcludedFromReviewed`; partial: `Summarize` is library-only, CLI surface in S3 |
-| AFU-V1-010 | `TestAFUV1ReverseLookupsDerived`, `TestAFUV1ExportLeavesRepositoryByteIdentical`, `TestAFUV1FlowsCLIExportIsReadOnly`; partial: reverse lookups are library-only, CLI surface in S3 |
+| AFU-V1-008 | `TestAFUV1ReviewAnchorValidAndStale`, `TestAFUV1ReviewAnchorNotAncestor`, `TestAFUV1ReviewAnchorMustChangeIntent`, `TestAFUV1InferredExcludedFromReviewed`, `TestAFUV1ReviewLinkMustExistAtAnchor`, `TestAFUV1ReviewEvidenceTargetUnavailable`, `TestAFUV1ReviewContentIdentityRestoredTarget`, `TestAFUV1FlowsQueryGoldens` (the `review` denominator and limitation in `map`) |
+| AFU-V1-009 | `TestAFUV1InferredExcludedFromReviewed`, `TestAFUV1FlowsQueryGoldens` (inferred links outside the denominator, `inferred-only`, no evidence pair from an inferred test) |
+| AFU-V1-010 | `TestAFUV1ReverseLookupsDerived`, `TestAFUV1ExportLeavesRepositoryByteIdentical`, `TestAFUV1FlowsCLIExportIsReadOnly`, `TestAFUV1FlowsCLIReverseLookups`, `TestAFUV1FlowsQueriesAreReadOnly` |
 | AFU-V1-011 | `TestAFUV1RunEvidenceClosedSchema`, `TestAFUV1NegativeControlFailed` |
 | AFU-V1-012 | `TestAFUV1PlaywrightAdapterKeepsEveryAttempt`, `TestAFUV1JUnitAdapterKeepsEveryAttempt`, `TestAFUV1GoTestAdapterKeepsEveryAttempt`, `TestAFUV1PlaywrightProviderKeepsEveryAttempt`; partial: the Playwright provider keeps every attempt in memory (`TestOutcome.AttemptDetails`), but the `corvint-js-test-provider` receipt wire still carries only the last attempt's detail |
 | AFU-V1-013 | `TestAFUV1FailedAttemptThenPassIsFlaky`, `TestAFUV1PlaywrightUnexpectedNeverPassed`, the retry-passed case of each adapter test; partial: per-test classification only, aggregation of repeated runs under the DCP-V1-023 counters and DCP-V1-024 policy needs the `internal/doccorpus` stability counting exposed for `test-run-evidence/0` records |
 | AFU-V1-014 | `TestAFUV1StaticNeverVerified`, `TestAFUV1PlaywrightUnexpectedNeverPassed`; partial: ingest emits `INGESTED` and the schema accepts `LOCALLY_OBSERVED`, but the AFU-V0-010 observer does not yet emit run-evidence records |
-| AFU-V1-015..018 | map, gaps and impact goldens on the fixture application, and the read-only mutation check |
+| AFU-V1-015 | `TestAFUV1FlowsQueryGoldens` (`map.golden.json`), `TestAFUV1EvidenceStateOrder`, `TestAFUV1ReadRunEvidenceDiscipline` |
+| AFU-V1-016 | `TestAFUV1FlowsQueryGoldens` (`gaps.golden.json`, every gap code reached), `TestAFUV1EvidenceStateOrder`, `TestAFUV1ReadRunEvidenceDiscipline` |
+| AFU-V1-017 | `TestAFUV1FlowsQueryGoldens` (`impact.golden.json`: a direct hit and a hit through the impact graph), `TestAFUV1FlowsCLIReverseLookups` (unresolvable base) |
+| AFU-V1-018 | `TestAFUV1FlowsQueriesAreReadOnly` (`map`, lookup, `gaps`, `impact`, `ingest` and `export` leave the repository, `.git` included, byte-identical) |
 | AFU-V1-019..024 | the fault-injected corpus reported per basis, one case per fallback code, an undiscovered-test case, the byte identity of `strict` and `coverage` |
 | AFU-V1-025..029 | navigation goldens, effect raising from observed traffic, `requires-grant` marking, the observer refusal, and a deterministic scripted agent that completes each fixture goal from the packet alone |
 | AFU-V1-030..033 | docs goldens, drift failure on a lost `PROVEN`, waiver expiry, the anchored Markdown case |
 | AFU-V1-034..035 | MCP conformance with and without the selector |
 | AFU-V1-036 | `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
-| AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceBoundsIncomplete` |
-| AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceSecretsDropped`; the screen runs in `EncodeRunEvidence`, the only run-evidence encoding, and the writer arrives with the S3 command surface |
+| AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceBoundsIncomplete`, `TestAFUV1FlowsCLIIngest`, `TestAFUV1ReadRunEvidenceDiscipline` |
+| AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceSecretsDropped`; the screen runs in `EncodeRunEvidence`, the only run-evidence encoding, and `flows ingest` writes only what it encodes (`TestAFUV1FlowsCLIIngest`) |
 | AFU-V1-039..040 | the committed acceptance fixture and the frozen corpus report |
 
 Live qualification: the companion surfaces are qualified on Beamfall with one UI flow and one API
@@ -465,9 +530,10 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | Requirement range | Implementation (planned) |
 | --- | --- |
 | AFU-V1-001..005, 007 | implemented: `internal/appflows/intent.go`, `tree.go`, `review.go`, `export.go`, `import.go`, `cmd/corvint/flows.go` |
-| AFU-V1-008..010 | partial, CLI surface in S3: `internal/appflows/review.go` (`EvaluateLinks`, `Summarize`, `FlowsForPath`, `FlowsForTestKey`); the CLI exposes only the provider record |
-| AFU-V1-015..018, 025..033 | `internal/appflows`, `cmd/corvint/flows.go` |
-| AFU-V1-006 | `internal/doccorpus/behavior.go` |
+| AFU-V1-008..010 | implemented: `internal/appflows/review.go` (`EvaluateLinks`, `Summarize`, `FlowsForPath`, `FlowsForTestKey`), surfaced by `flows map` in `internal/appflows/query.go` |
+| AFU-V1-015..018 | implemented: `internal/appflows/query.go`, `impact.go`, `runingest.go` (`IngestRunFile`), `cmd/corvint/flows.go` |
+| AFU-V1-025..033 | `internal/appflows`, `cmd/corvint/flows.go` |
+| AFU-V1-006 | partial (see the matrix): `internal/doccorpus/behavior.go` |
 | AFU-V1-011..014 | implemented, 012..014 partial (see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/jstestprovider/playwright.go` |
 | AFU-V1-019..024 | `internal/extevidence/selection.go`, `cmd/corvint/affected.go` |
 | AFU-V1-034..035 | `internal/mcp`, `cmd/corvint-mcp` |
