@@ -240,6 +240,15 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   map, or a plan with different bytes, is not refused by this rule.
   Reason: a plan kept after a rebase swapped two hunks still named every hunk, so its rows cited
   the wrong hunks without a refusal.
+- `DCW-V0-030`: (proposed 2026-09-25, V1-0145, not accepted; not implemented) `dogfood check`
+  MUST refuse a report bound to another BASE or HEAD with `dogfood-report-stale` and a report that
+  is not `"complete": true` with `dogfood-report-incomplete`, each with its existing `fix:` line,
+  instead of `dogfood-report-drift` for both. `dogfood-report-drift` then stays only for a report
+  whose anchor, context-abstention binding, intent declaration or dogfood policy line disagrees.
+  Reason: one code covers two cases an operator fixes differently, and only the `fix:` line tells
+  them apart. Acceptance needs an owner decision because it amends the accepted `DCW-V0-014` rule
+  that reason codes MUST NOT change, and because `local-completion-policy-v0.md`,
+  `dogfood-observe` and recorded reports read `dogfood-report-drift`.
 
 ## Code vocabulary
 
@@ -334,6 +343,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-027` (proposed) | `internal/dogfoodflow/check.go` `unarchivedBaseCEM`, `script/dogfood-seal.sh`; `TestSealRefusesToDropAnUnarchivedBaseCEM`; the V1-0137 case of `script/dogfood-change_test.sh` | implemented; not accepted |
 | `DCW-V0-028` (proposed) | `internal/dogfoodflow/change.go` `skipOCMLinks`; the V1-0227 case of the link phase of `script/dogfood-change_test.sh` | implemented; not accepted |
 | `DCW-V0-029` (proposed) | `internal/dogfoodflow/change.go` `recordCitationBinding` and `ordinalsMoved`; `TestChangeRefusesAPlanWhoseOrdinalsMoved` and the V1-0239 `swapped-ordinals` case of `script/dogfood-change_test.sh` | implemented; not accepted |
+| `DCW-V0-030` (proposed) | none; `internal/dogfoodflow/check.go` `checkReport` still emits `dogfood-report-drift` for both cases | not implemented; needs an owner decision |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 ## Compatibility and rollback
