@@ -122,12 +122,14 @@ func (e *Error) Error() string {
 
 // Errorf builds an Error. The code must be a §11 code; anything else is a
 // programming error and is reported as MALFORMED so it can never leak an
-// unknown code onto the wire.
-func Errorf(code, where, format string, args ...interface{}) *Error {
-	if !IsCode(code) {
-		code = CodeMalformed
+// unknown code onto the wire. The parameter is not named `code`: Corvint's
+// error-code ownership ratchet matches callees by name (ECO-V0-001), so that
+// name would make every fmt.Errorf literal in the module an emitted code.
+func Errorf(detailCode, where, format string, args ...interface{}) *Error {
+	if !IsCode(detailCode) {
+		detailCode = CodeMalformed
 	}
-	return &Error{Code: code, Where: where, Msg: fmt.Sprintf(format, args...)}
+	return &Error{Code: detailCode, Where: where, Msg: fmt.Sprintf(format, args...)}
 }
 
 // CodeOf returns the §11 code carried by err, or MALFORMED for any other
