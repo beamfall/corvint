@@ -5625,3 +5625,36 @@ now refused, and no published version has one. `PUB-V0-023` now states the gramm
 Left unchanged: `script/release-checklist` already admits any `[0-9A-Za-z.+-]` VERSION, the VS Code
 executable pin already admits `-rc.N`, and the `--version` banner checks match shape, not grammar.
 No real `1.0.0-rc.1` candidate was assembled; `VERSION` is still `0.8.1`.
+
+## 2026-09-25 V1-0184: beamfall-dogfood receipts for UC-CHANGE-CONSEQUENCE and UC-EVIDENCE-CARRYING-COMPLETION
+
+Bound a `beamfall-dogfood` receipt for two of the three daily-workflow rows in
+`conformance/use-cases-v0/ledger.json`. Both cite Beamfall's owner-run LCRES-15 change, bind
+commit `86fde0eb21d2e0fc41bfc06a4c06c9c3aef63e59`, published on Beamfall/core branch
+`claude/corvint-dogfood-LCRES-15` (PR beamfall/core#31, open), which went through the
+`docs/DOGFOOD.md` daily path against base `0d7796be23efe4e2579408a5516b8aeff1a23008`. The sealed
+CEM bytes at that commit were verified byte-identical to Corvint's local dogfood run (`cmp` against
+`git show 9a4dcefe...:.corvint/changes/86fde0eb....cem.json`). `UC-CHANGE-CONSEQUENCE`'s subject is
+the path-impact packet, named `prechange-impact.json` by the corvint-dogfood receipt convention,
+because Beamfall's pre-edit range-impact packet is empty by construction (no committed diff exists
+yet at query time); the actual path-impact packet found the affected model-loader and trust tests
+and their `go test` commands (ticket V1-0262). `UC-EVIDENCE-CARRYING-COMPLETION`'s subject is the
+`dogfood-report.json` with `complete: true`. Both receipts also carry a byte-identical copy of the
+sealed CEM under their `beamfall-dogfood/` subject directory, since `.corvint/changes/...` does not
+exist in Corvint's own tree for a Beamfall commit. `UC-TASK-ORIENTATION` gets no `beamfall-dogfood`
+receipt: its pre-change query on Beamfall abstained with zero results (ticket V1-0260), so no PASS
+outcome can be attested for it.
+
+Updated the "Verified current state" paragraph of `docs/specs/use-case-conformance-v0.md` to record
+the two bound receipts, the orientation absence and reason, and that the Beamfall intent spec these
+receipts attest against (`docs/plugins/trust-roots.md`) is proposed and awaiting owner acceptance in
+the same Beamfall PR, so no row is `verified` yet; both rows stay `experimental`/`UNPROVEN`. The
+edit shifted `UCV0-001..013`'s line numbers (no requirement IDs renumbered), so
+`docs/specs/REQUIREMENTS.tsv` was regenerated (`script/gen-spec-requirements.sh`, run against the
+staged spec file) and `make spec-requirements-check` passes. No existing `contract.json` receipt
+pins `use-case-conformance-v0.md` itself (they pin `daily-change-evidence-workflow-v0.md` and
+decision 0332), so no receipt repin was needed (V1-0216 does not apply here).
+
+`go run ./conformance/use-cases-v0` reports `valid: true`, `evidenceCount: 17` (was 15),
+`statusCounts.experimental: 3`, all claims `UNPROVEN`. `go test ./conformance/use-cases-v0/...` and
+`go test ./internal/specindex/...` pass.

@@ -2083,19 +2083,19 @@ TTG-V0-007	docs/specs/traceability-test-gate-v0.md	72	The gate MUST evaluate eve
 TTG-V0-008	docs/specs/traceability-test-gate-v0.md	75	The gate MUST print a single summary line of the form "traceability tests: N
 TTG-V0-009	docs/specs/traceability-test-gate-v0.md	78	When one or more names fail TTG-V0-005, the gate MUST print a header line follow
 TTG-V0-010	docs/specs/traceability-test-gate-v0.md	81	The gate MUST be wired as the `traceability-tests-check` `make` target and MUST
-UCV0-001	docs/specs/use-case-conformance-v0.md	72	The canonical ledger MUST contain exactly one row for every governed job named a
-UCV0-002	docs/specs/use-case-conformance-v0.md	74	Status MUST be exactly `specified`, `experimental`, or `verified`. Claim MUST be
-UCV0-003	docs/specs/use-case-conformance-v0.md	77	The promotion evidence classes are exactly `contract`, `implementation`,
-UCV0-004	docs/specs/use-case-conformance-v0.md	81	Every evidence reference MUST contain only a repository-relative receipt path an
-UCV0-005	docs/specs/use-case-conformance-v0.md	84	Every referenced receipt MUST be closed JSON with profile
-UCV0-006	docs/specs/use-case-conformance-v0.md	88	A `contract` receipt MUST cite at least one stable requirement ID. An
-UCV0-007	docs/specs/use-case-conformance-v0.md	92	A `sealed-benchmark` receipt MUST attest `PASS` and bind three distinct SHA-256
-UCV0-008	docs/specs/use-case-conformance-v0.md	95	The runner MUST validate populated evidence even on an `UNPROVEN` row, so partia
-UCV0-009	docs/specs/use-case-conformance-v0.md	98	The runner MUST NOT execute receipts, subjects, product code, test commands, hoo
-UCV0-010	docs/specs/use-case-conformance-v0.md	101	Promotion requires both Corvint self-dogfood and Beamfall dogfood. Evidence from
-UCV0-011	docs/specs/use-case-conformance-v0.md	104	Live Proof-Carrying Verification is a separately governed product job: on each e
-UCV0-012	docs/specs/use-case-conformance-v0.md	108	No row may be advertised as supported or delivered from this ledger unless its c
-UCV0-013	docs/specs/use-case-conformance-v0.md	112	The canonical ledger profile MUST be `corvint-use-case-conformance/1`, containin
+UCV0-001	docs/specs/use-case-conformance-v0.md	81	The canonical ledger MUST contain exactly one row for every governed job named a
+UCV0-002	docs/specs/use-case-conformance-v0.md	83	Status MUST be exactly `specified`, `experimental`, or `verified`. Claim MUST be
+UCV0-003	docs/specs/use-case-conformance-v0.md	86	The promotion evidence classes are exactly `contract`, `implementation`,
+UCV0-004	docs/specs/use-case-conformance-v0.md	90	Every evidence reference MUST contain only a repository-relative receipt path an
+UCV0-005	docs/specs/use-case-conformance-v0.md	93	Every referenced receipt MUST be closed JSON with profile
+UCV0-006	docs/specs/use-case-conformance-v0.md	97	A `contract` receipt MUST cite at least one stable requirement ID. An
+UCV0-007	docs/specs/use-case-conformance-v0.md	101	A `sealed-benchmark` receipt MUST attest `PASS` and bind three distinct SHA-256
+UCV0-008	docs/specs/use-case-conformance-v0.md	104	The runner MUST validate populated evidence even on an `UNPROVEN` row, so partia
+UCV0-009	docs/specs/use-case-conformance-v0.md	107	The runner MUST NOT execute receipts, subjects, product code, test commands, hoo
+UCV0-010	docs/specs/use-case-conformance-v0.md	110	Promotion requires both Corvint self-dogfood and Beamfall dogfood. Evidence from
+UCV0-011	docs/specs/use-case-conformance-v0.md	113	Live Proof-Carrying Verification is a separately governed product job: on each e
+UCV0-012	docs/specs/use-case-conformance-v0.md	117	No row may be advertised as supported or delivered from this ledger unless its c
+UCV0-013	docs/specs/use-case-conformance-v0.md	121	The canonical ledger profile MUST be `corvint-use-case-conformance/1`, containin
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	31	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	46	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	65	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker

@@ -199,6 +199,10 @@
     {
       "claim": "UNPROVEN",
       "evidence": {
+        "beamfall-dogfood": {
+          "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/beamfall-dogfood.json",
+          "sha256": "2d60a71abfa783f39b023afa104d718c471de62c42a19bb7db25f0be98712cc5"
+        },
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/contract.json",
           "sha256": "9d1a385e82c79c7ac35de8beec734b1344937ba21839f368efad1f4d76433643"
@@ -228,6 +232,10 @@
     {
       "claim": "UNPROVEN",
       "evidence": {
+        "beamfall-dogfood": {
+          "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/beamfall-dogfood.json",
+          "sha256": "6a55d41edfa329bad991af3d59a3b3a8b446ea3fbb83f7a943551cd17a84c9cc"
+        },
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/contract.json",
           "sha256": "1f195a8debfbbbd5cd3eadbc8a6cc7987991650a66d9c124323054964bf1c649"
