@@ -100,7 +100,7 @@ internal to the drafts rather than to the code:
   is `{Kind, Name, Path, BlobHash, Line}` (`internal/contextindex/index.go:186-188`) — a definition
   line, no end line — and no exported build entry point accepts a revision (`Build(ctx, root)`,
   `BuildEval(ctx, root)`, `BuildQuery(ctx, root, text)` at `internal/contextindex/index.go:268,294,387`;
-  the tree comes from `ls-tree ... identity.treeRevision`, `internal/contextindex/git.go:370`). So
+  the tree comes from `ls-tree ... identity.treeRevision`, `internal/contextindex/git.go:373`). So
   "reuse the index" would not shorten the work much even if permitted.
 
 **Options.**

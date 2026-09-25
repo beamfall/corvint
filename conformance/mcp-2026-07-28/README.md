@@ -113,6 +113,22 @@ selector, `TestToolCatalogueAndResourceOmission`,
 `TestTaskReviewDefaultProfileUnchanged` and `TestTaskReviewLegacyProtocol`
 fail. The suites were green again after each control was reverted.
 
+## Reason-class profile `/2`
+
+`cases-reason-class.json` is the closed inventory of the opt-in profile
+`corvint-mcp-2026-07-28-conformance/2` (decision 0383, `MCPV0-027..028`). Its
+parent is `/0`, which is unchanged. The selector case runs
+`--error-profile` with a missing, default, differently cased or duplicate value,
+the `--error-profile=reason-class` spelling, and beside `--version`; each exits
+2 with no stdout. Over the executable-config and worktree-redirect fixtures, a
+default server returns exactly the `corvint-mcp-tool-error/0` object and a
+server started with `--error-profile reason-class` returns exactly the
+`corvint-mcp-tool-error/1` object with `reasonClass` `git-filter` or
+`worktree-config`, for status, impact and query. A split index, which Git's own
+index probe refuses before the status refusal classifies it, returns
+`unclassified`. Negative control, run once on 2026-09-24 and reverted: emitting
+`/1` without the selector fails `TestReasonClassToolErrorOverRefusedRepositories`.
+
 The 2026-09-06 read-safety cases exercise private-metadata Git status through the real MCP process:
 configured clean/process filters cannot execute, `core.worktree` cannot redirect observations
 before or after admission, and explicit null cannot bypass the impact tool's integer schema.

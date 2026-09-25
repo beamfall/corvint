@@ -3,10 +3,13 @@ package gokernel
 import "fmt"
 
 // Error is the stable machine-readable error returned by the experimental Go
-// kernel. Callers must key behavior from Code, never Message.
+// kernel. Callers must key behavior from Code, never Message. ReasonClass is
+// the closed status refusal class of decision 0383, set only on a status
+// refusal.
 type Error struct {
-	Code    string
-	Message string
+	Code        string
+	Message     string
+	ReasonClass string
 }
 
 func (err *Error) Error() string { return err.Message }

@@ -195,8 +195,9 @@ func (result Result) CanonicalJSON() ([]byte, *Error) {
 }
 
 // Error is a closed, sanitized failure. It never contains repository paths,
-// tool output, or underlying process errors.
-type Error struct{ Code string }
+// tool output, or underlying process errors. ReasonClass is the closed status
+// refusal class of decision 0383, empty when none is known.
+type Error struct{ Code, ReasonClass string }
 
 func (failure *Error) Error() string { return failure.Code }
 
@@ -916,9 +917,23 @@ func normalizeFailure(ctx context.Context, err error) *Error {
 	}
 	code := errorCode(err)
 	if strings.HasPrefix(code, "repository-") || code == "unsupported-git-object-format" || strings.HasPrefix(err.Error(), "Git ") {
-		return failure("repository-unavailable")
+		return &Error{Code: "repository-unavailable", ReasonClass: reasonClass(err)}
 	}
 	return failure("internal-error")
+}
+
+// reasonClass is the typed status refusal class a kernel error carries
+// (decision 0383); it is never derived from message text.
+func reasonClass(err error) string {
+	var contextFailure *contextindex.Error
+	if errors.As(err, &contextFailure) {
+		return contextFailure.ReasonClass
+	}
+	var kernelFailure *gokernel.Error
+	if errors.As(err, &kernelFailure) {
+		return kernelFailure.ReasonClass
+	}
+	return ""
 }
 
 func failure(code string) *Error { return &Error{Code: code} }

@@ -105,23 +105,51 @@ var errDrift = errors.New("Git status repository metadata changed during observa
 // refusal names the unsupported repository feature behind errUnsafe
 // (EAF-V0-011). A reason carries only feature names, config keys and
 // Git-directory-relative metadata names: never a config value, file content or
-// a path outside the repository.
-type refusal struct{ reason string }
+// a path outside the repository. Its class is fixed where it is built.
+type refusal struct {
+	class  reasonClass
+	reason string
+}
 
 func (err *refusal) Error() string        { return errUnsafe.Error() + ": " + err.reason }
 func (err *refusal) Is(target error) bool { return target == errUnsafe }
 
-func unsupported(reason string) error { return &refusal{reason: reason} }
+func unsupported(class reasonClass, reason string) error {
+	return &refusal{class: class, reason: reason}
+}
+
+// reasonClass is the closed refusal class of decision 0383. It carries no
+// repository text, so MCP can disclose it where the reason cannot cross.
+type reasonClass string
+
+const (
+	classGitFilter          reasonClass = "git-filter"
+	classConfigInclude      reasonClass = "config-include"
+	classAttributesFile     reasonClass = "attributes-file"
+	classRefStorage         reasonClass = "ref-storage"
+	classWorktreeConfig     reasonClass = "worktree-config"
+	classConfigMalformed    reasonClass = "config-malformed"
+	classSubmodule          reasonClass = "submodule"
+	classSplitIndex         reasonClass = "split-index"
+	classGitdirPointer      reasonClass = "gitdir-pointer"
+	classMetadataUnreadable reasonClass = "metadata-unreadable"
+	classMetadataLimit      reasonClass = "metadata-limit"
+	classMetadataDirectory  reasonClass = "metadata-directory"
+	classMetadataDrift      reasonClass = "metadata-drift"
+	classScratchDir         reasonClass = "scratch-dir"
+	classRootUnresolved     reasonClass = "root-unresolved"
+	classUnclassified       reasonClass = "unclassified"
+)
 
 // errTooLarge marks a metadata read over its byte limit; the capture names the
 // file and the limit that applied.
-var errTooLarge = unsupported("exceeds its size limit")
+var errTooLarge = unsupported(classMetadataLimit, "exceeds its size limit")
 
 var (
-	errRoot          = unsupported("repository root path cannot be resolved")
-	errScratchInside = unsupported("scratch directory (TMPDIR) is inside the repository or its Git directory")
-	errScratchCreate = unsupported("private metadata scratch directory cannot be created")
-	errIndexTime     = unsupported("private index copy cannot preserve the index modification time")
+	errRoot          = unsupported(classRootUnresolved, "repository root path cannot be resolved")
+	errScratchInside = unsupported(classScratchDir, "scratch directory (TMPDIR) is inside the repository or its Git directory")
+	errScratchCreate = unsupported(classScratchDir, "private metadata scratch directory cannot be created")
+	errIndexTime     = unsupported(classScratchDir, "private index copy cannot preserve the index modification time")
 )
 
 // RefusalMessage is the caller-facing text for a failed isolated status: the
@@ -146,6 +174,20 @@ func RefusalReason(err error) (string, bool) {
 		return "repository metadata changed during observation", true
 	}
 	return "", false
+}
+
+// RefusalClass is the closed class of a failed isolated status (decision
+// 0383). It is read only from the typed refusal or by identity with errDrift,
+// never from message text; any other error is "unclassified".
+func RefusalClass(err error) string {
+	var refused *refusal
+	if errors.As(err, &refused) {
+		return string(refused.class)
+	}
+	if errors.Is(err, errDrift) {
+		return string(classMetadataDrift)
+	}
+	return string(classUnclassified)
 }
 
 // MetadataProbeError identifies failure while Git validates a private metadata
@@ -210,11 +252,11 @@ func StatusIn(ctx context.Context, root, temporaryParent string, limit int, run 
 		return nil, err
 	}
 	if !filepath.IsAbs(temporaryParent) {
-		return nil, unsupported("scratch directory is not an absolute path")
+		return nil, unsupported(classScratchDir, "scratch directory is not an absolute path")
 	}
 	tempRoot, err := filepath.EvalSymlinks(temporaryParent)
 	if err != nil {
-		return nil, unsupported("scratch directory cannot be resolved")
+		return nil, unsupported(classScratchDir, "scratch directory cannot be resolved")
 	}
 	if within(root, tempRoot) || within(gitdir, tempRoot) || within(common, tempRoot) {
 		return nil, errScratchInside
@@ -258,10 +300,10 @@ func StatusIn(ctx context.Context, root, temporaryParent string, limit int, run 
 		}
 		target := filepath.Join(private, filepath.FromSlash(item.name))
 		if err := os.MkdirAll(filepath.Dir(target), 0o700); err != nil {
-			return nil, unsupported("private copy of metadata file " + item.name + " cannot be written")
+			return nil, unsupported(classScratchDir, "private copy of metadata file "+item.name+" cannot be written")
 		}
 		if err := os.WriteFile(target, file.data, 0o600); err != nil {
-			return nil, unsupported("private copy of metadata file " + item.name + " cannot be written")
+			return nil, unsupported(classScratchDir, "private copy of metadata file "+item.name+" cannot be written")
 		}
 		// Git uses the index timestamp to detect racily clean entries. A fresh
 		// timestamp on the copy could hide worktree changes or change status
@@ -295,8 +337,8 @@ func StatusIn(ctx context.Context, root, temporaryParent string, limit int, run 
 			if err != nil {
 				return nil, metadataProbeError(err)
 			}
-			if reason := unsafeConfig(raw, root, gitdir); reason != "" {
-				return nil, unsupported("repository " + item.name + " " + reason)
+			if class, reason := unsafeConfig(raw, root, gitdir); reason != "" {
+				return nil, unsupported(class, "repository "+item.name+" "+reason)
 			}
 			// A core.worktree answer is resolved on the live filesystem, not
 			// from the bytes, so it is asked again every time.
@@ -309,10 +351,10 @@ func StatusIn(ctx context.Context, root, temporaryParent string, limit int, run 
 		source := filepath.Join(common, name)
 		info, err := os.Lstat(source)
 		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-			return nil, unsupported("metadata directory " + name + " is missing or not a plain directory")
+			return nil, unsupported(classMetadataDirectory, "metadata directory "+name+" is missing or not a plain directory")
 		}
 		if err := os.Symlink(source, filepath.Join(private, name)); err != nil {
-			return nil, unsupported("private link to metadata directory " + name + " cannot be created")
+			return nil, unsupported(classScratchDir, "private link to metadata directory "+name+" cannot be created")
 		}
 	}
 	// The private config copy may name a core.fsmonitor hook; the command-line
@@ -352,7 +394,7 @@ func validateIndex(ctx context.Context, temp string, prefix []string, run Runner
 	}
 	for row := range bytes.SplitSeq(raw, []byte{0}) {
 		if bytes.HasPrefix(row, []byte("160000 ")) {
-			return unsupported("index records a submodule (gitlink)")
+			return unsupported(classSubmodule, "index records a submodule (gitlink)")
 		}
 	}
 	shared, err := run(ctx, temp, 4096, append(append([]string(nil), prefix...), "rev-parse", "--shared-index-path")...)
@@ -360,7 +402,7 @@ func validateIndex(ctx context.Context, temp string, prefix []string, run Runner
 		return metadataProbeError(err)
 	}
 	if len(bytes.TrimSpace(shared)) != 0 {
-		return unsupported("index is a split index")
+		return unsupported(classSplitIndex, "index is a split index")
 	}
 	return nil
 }
@@ -389,36 +431,37 @@ func plainToken(text string) bool {
 	return true
 }
 
-// unsafeConfig returns why a parsed config listing is refused, or "" when it
-// is safe. The reason names the key, never its value.
-func unsafeConfig(raw []byte, root, gitdir string) string {
+// unsafeConfig returns the class and reason a parsed config listing is
+// refused, or an empty reason when it is safe. The reason names the key, never
+// its value.
+func unsafeConfig(raw []byte, root, gitdir string) (reasonClass, string) {
 	for record := range bytes.SplitSeq(raw, []byte{0}) {
 		if len(record) == 0 {
 			continue
 		}
 		if bytes.Count(record, []byte{'\n'}) > 1 {
-			return "has an ambiguous multi-line record"
+			return classConfigMalformed, "has an ambiguous multi-line record"
 		}
 		key, value, _ := strings.Cut(string(record), "\n")
 		for _, character := range key {
 			if character < 0x20 || character == 0x7f {
-				return "has a key with control characters"
+				return classConfigMalformed, "has a key with control characters"
 			}
 		}
 		key = strings.ToLower(key)
 		if strings.HasPrefix(key, "include.") {
-			return "uses an include directive (include.*)"
+			return classConfigInclude, "uses an include directive (include.*)"
 		}
 		if strings.HasPrefix(key, "includeif.") {
-			return "uses a conditional include (includeIf.*)"
+			return classConfigInclude, "uses a conditional include (includeIf.*)"
 		}
 		if strings.HasPrefix(key, "filter.") && (strings.HasSuffix(key, ".clean") || strings.HasSuffix(key, ".process")) && value != "" {
-			return "sets " + filterKey(key)
+			return classGitFilter, "sets " + filterKey(key)
 		}
 		switch key {
 		case "core.attributesfile":
 			if value != "" {
-				return "sets core.attributesFile"
+				return classAttributesFile, "sets core.attributesFile"
 			}
 		case "core.worktree":
 			path := value
@@ -427,23 +470,23 @@ func unsafeConfig(raw []byte, root, gitdir string) string {
 			}
 			resolved, err := filepath.EvalSymlinks(path)
 			if err != nil || resolved != root {
-				return "sets core.worktree to a directory other than the checkout"
+				return classWorktreeConfig, "sets core.worktree to a directory other than the checkout"
 			}
 		case "core.bare":
 			value = strings.ToLower(value)
 			if value != "false" && value != "no" && value != "off" && value != "0" {
-				return "sets core.bare"
+				return classWorktreeConfig, "sets core.bare"
 			}
 		case "extensions.refstorage":
 			if value == "reftable" {
-				return "sets extensions.refStorage=reftable, which is not supported"
+				return classRefStorage, "sets extensions.refStorage=reftable, which is not supported"
 			}
 			if value != "files" {
-				return "sets extensions.refStorage to an unsupported format"
+				return classRefStorage, "sets extensions.refStorage to an unsupported format"
 			}
 		}
 	}
-	return ""
+	return "", ""
 }
 
 // CommonDirectory resolves root's Git common directory from the `.git` marker
@@ -471,10 +514,10 @@ func directories(root string, reader *metadataReader) (string, string, []capture
 	gitdir := filepath.Join(root, ".git")
 	info, err := os.Lstat(gitdir)
 	if err != nil {
-		return "", "", nil, unsupported(".git is missing or cannot be inspected")
+		return "", "", nil, unsupported(classGitdirPointer, ".git is missing or cannot be inspected")
 	}
 	if info.Mode()&os.ModeSymlink != 0 {
-		return "", "", nil, unsupported(".git is a symlink")
+		return "", "", nil, unsupported(classGitdirPointer, ".git is a symlink")
 	}
 	var pointers []capturedFile
 	if !info.IsDir() {
@@ -483,16 +526,16 @@ func directories(root string, reader *metadataReader) (string, string, []capture
 			return "", "", nil, err
 		}
 		if len(file.data) > 4096 {
-			return "", "", nil, unsupported("metadata file .git exceeds 4096 bytes")
+			return "", "", nil, unsupported(classMetadataLimit, "metadata file .git exceeds 4096 bytes")
 		}
 		if !file.present || !bytes.HasPrefix(file.data, []byte("gitdir: ")) {
-			return "", "", nil, unsupported(".git file is not a gitdir: pointer")
+			return "", "", nil, unsupported(classGitdirPointer, ".git file is not a gitdir: pointer")
 		}
 		pointers = append(pointers, file)
 		// Git strips every trailing CR and LF from the pointer, so a CRLF file is valid.
 		gitdir = strings.TrimRight(string(file.data[len("gitdir: "):]), "\r\n")
 		if strings.ContainsAny(gitdir, "\r\n\x00") || gitdir == "" {
-			return "", "", nil, unsupported(".git gitdir: pointer is empty or contains line breaks or NUL")
+			return "", "", nil, unsupported(classGitdirPointer, ".git gitdir: pointer is empty or contains line breaks or NUL")
 		}
 		if !filepath.IsAbs(gitdir) {
 			gitdir = filepath.Join(root, gitdir)
@@ -500,7 +543,7 @@ func directories(root string, reader *metadataReader) (string, string, []capture
 	}
 	gitdir, err = filepath.EvalSymlinks(gitdir)
 	if err != nil {
-		return "", "", nil, unsupported("Git directory named by .git cannot be resolved")
+		return "", "", nil, unsupported(classGitdirPointer, "Git directory named by .git cannot be resolved")
 	}
 	common := gitdir
 	file, err := reader.capture(filepath.Join(gitdir, "commondir"))
@@ -510,18 +553,18 @@ func directories(root string, reader *metadataReader) (string, string, []capture
 	pointers = append(pointers, file)
 	if file.present {
 		if len(file.data) > 4096 {
-			return "", "", nil, unsupported("metadata file commondir exceeds 4096 bytes")
+			return "", "", nil, unsupported(classMetadataLimit, "metadata file commondir exceeds 4096 bytes")
 		}
 		common = strings.TrimRight(string(file.data), "\r\n")
 		if strings.ContainsAny(common, "\r\n\x00") || common == "" {
-			return "", "", nil, unsupported("commondir is empty or contains line breaks or NUL")
+			return "", "", nil, unsupported(classGitdirPointer, "commondir is empty or contains line breaks or NUL")
 		}
 		if !filepath.IsAbs(common) {
 			common = filepath.Join(gitdir, common)
 		}
 		common, err = filepath.EvalSymlinks(common)
 		if err != nil {
-			return "", "", nil, unsupported("common Git directory named by commondir cannot be resolved")
+			return "", "", nil, unsupported(classGitdirPointer, "common Git directory named by commondir cannot be resolved")
 		}
 	}
 	return gitdir, common, pointers, nil
@@ -547,7 +590,8 @@ func (reader *metadataReader) captureLimited(path string, budget int) (capturedF
 	}
 	data, present, modTime, err := reader.readRegular(path, min(limit, budget))
 	if err != nil {
-		return capturedFile{}, unsupported("metadata file " + metadataName(path) + " " + captureReason(err, limit, budget))
+		class, reason := captureReason(err, limit, budget)
+		return capturedFile{}, unsupported(class, "metadata file "+metadataName(path)+" "+reason)
 	}
 	return capturedFile{path: path, data: data, present: present, modTime: modTime}, nil
 }
@@ -562,17 +606,17 @@ func metadataName(path string) string {
 	return name
 }
 
-func captureReason(err error, limit, budget int) string {
+func captureReason(err error, limit, budget int) (reasonClass, string) {
 	var refused *refusal
 	switch {
 	case errors.Is(err, errTooLarge) && budget < limit:
-		return "exceeds the remaining " + sizeText(snapshotLimit) + " metadata snapshot budget"
+		return classMetadataLimit, "exceeds the remaining " + sizeText(snapshotLimit) + " metadata snapshot budget"
 	case errors.Is(err, errTooLarge):
-		return "exceeds " + sizeText(limit)
+		return classMetadataLimit, "exceeds " + sizeText(limit)
 	case errors.As(err, &refused):
-		return refused.reason
+		return refused.class, refused.reason
 	}
-	return "or a parent directory cannot be opened without following symlinks"
+	return classMetadataUnreadable, "or a parent directory cannot be opened without following symlinks"
 }
 
 func sizeText(bytes int) string {
@@ -606,7 +650,7 @@ func ScratchOutside(ctx context.Context, candidate string, roots ...string) erro
 	for index, path := range roots {
 		info, err := os.Stat(path)
 		if err != nil || !info.IsDir() {
-			return unsupported("repository directory cannot be inspected for scratch containment")
+			return unsupported(classScratchDir, "repository directory cannot be inspected for scratch containment")
 		}
 		identities[index] = info
 	}
@@ -618,7 +662,7 @@ func ScratchOutside(ctx context.Context, candidate string, roots ...string) erro
 		}
 		info, err := os.Stat(candidate)
 		if err != nil || !info.IsDir() {
-			return unsupported("scratch directory or one of its parents cannot be inspected")
+			return unsupported(classScratchDir, "scratch directory or one of its parents cannot be inspected")
 		}
 		for _, identity := range identities {
 			if os.SameFile(info, identity) {
@@ -631,5 +675,5 @@ func ScratchOutside(ctx context.Context, candidate string, roots ...string) erro
 		}
 		candidate = parent
 	}
-	return unsupported("scratch directory ancestry did not terminate")
+	return unsupported(classScratchDir, "scratch directory ancestry did not terminate")
 }

@@ -149,6 +149,19 @@ Corvint output, or secrets. stdout is exclusively MCP. Fixed startup, invalid-ar
 repository-unavailable, and fatal transport diagnostics use sanitized stderr; per-request MCP logs
 are never emitted.
 
+### Reason-class tool errors (opt-in)
+
+A tool error is normally the closed `corvint-mcp-tool-error/0` object, whose `code` (for example
+`repository-unavailable`) never says why a repository was refused. Starting the server with
+`--error-profile reason-class` makes every tool error `corvint-mcp-tool-error/1`: the same object
+plus a required `reasonClass` from a closed set (`git-filter`, `config-include`, `attributes-file`,
+`ref-storage`, `worktree-config`, `config-malformed`, `submodule`, `split-index`, `gitdir-pointer`,
+`metadata-unreadable`, `metadata-limit`, `metadata-directory`, `metadata-drift`, `scratch-dir`,
+`root-unresolved`, `unclassified`) (`MCPV0-027..028`, decision 0383). The class never carries text;
+run `corvint status` for the full reason. Read an unknown value as `unclassified`. The selector
+follows the same closed-argv rules as `--tool-profile` and composes with it and with
+`--protocol-version 2025-11-25`. Without it, output is unchanged.
+
 ## Privacy and authority
 
 Corvint reads local Git and repository evidence under the configured root. It does not fetch or make

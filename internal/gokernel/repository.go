@@ -98,7 +98,9 @@ func git(ctx context.Context, root string, outputLimit int, arguments ...string)
 			if errors.As(err, &failure) {
 				return nil, err
 			}
-			return nil, newError("repository-probe-failed", gitstatus.RefusalMessage(err))
+			refused := newError("repository-probe-failed", gitstatus.RefusalMessage(err))
+			refused.ReasonClass = gitstatus.RefusalClass(err)
+			return nil, refused
 		}
 		return result, nil
 	}
