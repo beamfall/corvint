@@ -106,7 +106,7 @@ func runFlows(ctx context.Context, root string, args []string, out, diagnostic i
 type flowSubcommand func(ctx context.Context, root string, args []string, out io.Writer) error
 
 var flowSubcommands = map[string]flowSubcommand{"export": runFlowsExport, "import": runFlowsImport, "map": runFlowsMap,
-	"gaps": runFlowsGaps, "impact": runFlowsImpact, "ingest": runFlowsIngest}
+	"gaps": runFlowsGaps, "impact": runFlowsImpact, "ingest": runFlowsIngest, "docs": runFlowsDocs}
 
 // flowExports maps each --emit value to the one document it writes to stdout.
 var flowExports = map[string]func(ctx context.Context, root string, set appflows.IntentSet, envelope string) ([]byte, error){
@@ -359,4 +359,17 @@ stdout; header flags are --run-id, --runner-version, --source-commit, --source-t
 --fixture-id, --fixture-digest, --cleanup and repeatable
 --control "SUBJECT<TAB>CONTROL<TAB>EXPECTED". A bound exceeded exits nonzero with
 the incomplete code and writes nothing. None of these writes to the repository.
+
+Documentation usage:
+  corvint [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR] [--evidence FILE]...
+  corvint [--root PATH] flows docs --check --flows DIR --page FILE --claims FILE [--docs-root DIR] [--waivers FILE] [--evidence FILE]...
+
+docs renders the page from the committed intents with a fixed template, marks every
+claim that is not PROVEN, and writes the flow-doc-claims/0 sidecar; both paths are
+repository-relative and each is replaced through a temporary file and a rename.
+--docs-root checks corvint-claim anchor comments in committed Markdown under DIR.
+--check writes flow-doc-check/0 to stdout and writes nothing: it fails when a
+committed PROVEN claim is no longer PROVEN or the committed bytes differ from
+regeneration, unless an unexpired entry of the committed flow-doc-waivers/0 file
+names the claim, and it fails on an unknown or invalid anchor.
 `

@@ -4,6 +4,28 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence. Add new entries at the end so no cited line moves; each entry carries a date
 heading and its requirement or decision IDs, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-25 V1-0264 DCW-V0-025 (accepted, decision 0388): no-module and module-root impact refusals are typed abstentions
+
+`corvint dogfood change` kept only `unsupported-impact-range` as a non-blocking `prechange-impact`
+abstention, so a repository with no Go module (`unsupported-impact-repository`) or a change to a Go
+file at the module root (`unsupported-impact-path`) could never reach `"complete": true`. Observed
+envelopes from a current-tree build (0.8.1): both exit 2 with empty stdout and one stderr line,
+`{"code": "unsupported-impact-repository", "error": "native Go impact requires a slash-qualified Go
+module", "ok": false}` and `{"code": "unsupported-impact-path", "error": "native Go range impact
+requires changed Go paths in a non-root package", "ok": false}`. Chosen: typed abstention through the
+existing machinery, each code kept as the row reason and in the abstention artifact, because impact
+is a Go-native profile and its absence is a visible scope limit, not a failed step. Any other code
+or shape still blocks. Evidence: `TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot`
+(real refusals: change, check and seal pass) and new `script/dogfood-change_test.sh` cases. The
+requirement is accepted with both amendments (decision 0388). Review repairs: accepted `GOC-V0-009` and
+`ERI-V0-006` admit only `unsupported-impact-range`, so each now carries a proposed amendment, not
+accepted, widening the set to the three codes; the code change must not merge until the owner
+accepts `DCW-V0-025` and both amendments. `dogfood change` and `dogfood check` now print one
+`NOTE prechange-impact NOT_PRODUCED CODE` stderr line for each of the three codes, and the shell
+failure loop asserts each invalid shape's exact reason. Follow-up, left unchanged: the one-stderr-line
+test (`internal/dogfoodflow/change.go:223`, `check.go:230`) counts newlines, so an envelope line
+followed by unterminated trailing bytes still qualifies (`textLines` splits them off, `flow.go:255`).
+
 ## 2026-09-25 V1-0261 DCW-V0-020: adopter fix lines name the `corvint dogfood` subverb
 
 `corvint dogfood change|check` printed `fix:` and `required order:` lines telling the operator to
@@ -5918,6 +5940,156 @@ variation lists. Recovery targets therefore sit off every declared path, and no 
 unit sample dropped its backward recovery. `earlier recovery` and `path recovery` joined the
 AFU-V1-026 refusal cases. Bounds on the `--traffic` file count and on the quadratic per-step filter
 stay follow-ups: the total record bound caps both.
+
+## 2026-09-25 V1-0253: proven flow documentation (AFU-V1 S6, AFU-V1-030..033)
+
+`corvint flows docs` (`internal/appflows/docs.go`, `cmd/corvint/flows_docs.go`) renders one
+Markdown page from the intents committed at `HEAD` with a fixed template and writes the
+`flow-doc-claims/0` sidecar. `--check` writes `flow-doc-check/0` and writes nothing. The shapes are
+in the spec's new "Proven-documentation wire contract".
+
+Decisions. Each resolves an ambiguity with the most conservative reading:
+
+- A claim is one outcome of one variation, so a variation with no outcome makes no claim.
+- `PROVEN` needs more than a verified variation (AFU-V1-031 states only a necessary condition). The
+  outcome also needs a declared assertion link, and every declared link from the variation, its
+  steps and the outcome must be `reviewed`.
+- The state order is `CONTRADICTED`, then `STALE`, then `PROVEN`, then `UNPROVEN`. `flaky` evidence
+  counts as `CONTRADICTED` because it contains a failed attempt, so contradicting evidence is never
+  hidden behind staleness.
+- "Evidence IDs" are the required test key and project pairs, not run IDs. Run IDs change on every
+  run, so a sidecar holding them could never match regeneration. The page and sidecar embed no
+  commit for the same reason.
+- Everything `--check` compares is read at `HEAD` through Git, never from the working tree: the page,
+  the sidecar, the waivers file and the hand-written Markdown. Only committed data carries authority.
+- The waivers file is named by `--waivers` rather than kept in the flows directory, where every
+  `.json` file is an intent candidate.
+- A waiver has expired on its `expires` date (UTC). A waiver also covers a committed claim whose state
+  changed without losing `PROVEN`, and a claim that is no longer rendered. The committed claim is
+  then used for the byte comparison. Without that, every waived claim would still fail as
+  `rendered-bytes-differ`, and AFU-V1-032 would have no exception.
+- An anchored claim is stored in the sidecar under `PATH:FLOW/VARIATION/OUTCOME`. It is therefore
+  checked for a lost `PROVEN` like a page claim. An anchor naming an outcome that its variation does
+  not list is `unknown-anchor`. A malformed anchor is `invalid-anchor`, and its values are not
+  echoed. Either failure also refuses the render.
+- A document counts as anchored only when it has at least one valid anchor. The coverage row counts
+  unanchored documents over the Markdown documents under the docs root, leaving out the generated
+  page. `value` is a count, so a zero denominator gives 0 of 0, not a ratio.
+- Intent text on the page has all ASCII punctuation backslash-escaped. Text therefore renders
+  literally and cannot forge an anchor comment or markup.
+- Rendering replaces each file through an `O_EXCL` temporary file in the same directory and
+  `os.Root.Rename`. It refuses a non-regular target or a symlinked parent (AFU-V1-036). The page and
+  the sidecar are two separate renames, not one atomic pair.
+
+Limitation: evidence holds only at the exact commit it ran. `--check` therefore needs run evidence
+from the checked commit, such as a CI step after the E2E run. The page is committed one commit after
+the evidence it was rendered from, and the check passes only when that evidence is regenerated at
+the new commit.
+
+Evidence:
+- `GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/appflows/... ./cmd/corvint/ -run 'Flows|AFU|Docs'`
+  passed. The new tests are `TestAFUV1030DocsRenderGoldenAndByteStable`, `TestAFUV1031ClaimStateOrder`,
+  `TestAFUV1032DocsCheckDrift`, `TestAFUV1032WaiverExpiry`, `TestAFUV1032WaiverExpiryBoundary`,
+  `TestAFUV1033AnchoredMarkdown`, `TestAFUV1033AnchorParsing` and `TestAFUV1036DocsReplaceConfined`.
+- The goldens are `cmd/corvint/testdata/flows/docs.golden.md` and `docs.claims.golden.json`. They
+  reach every claim state.
+
+`NOT_RUN`: live qualification on a real application (S8), and the full `./...` suite.
+
+Review repair: a review found two defects that contradicted the spec. First, an unexpired waiver
+for a claim that is no longer rendered, such as an anchor deleted from `docs/guide.md`, listed the
+claim under `waived` but still failed with `rendered-bytes-differ` on the sidecar, because
+`keepCommitted` only replaced a claim that was still present. It now appends the committed claim when
+it is absent, so the committed form is used for the byte comparison (AFU-V1-032). Second, any `.md`
+under `--docs-root` that is not a regular blob, such as a symlink or a submodule, refused both render
+and check, although an unanchored document must never fail the check (AFU-V1-033). Such an entry is
+now not read and counts as unanchored in the existing coverage row; the spec wire text says so and no
+wire field was added. The tests are `TestAFUV1032WaiverKeepsUnrenderedClaim` and
+`TestAFUV1033NonRegularMarkdownSkipped`; both fail without the fix. No golden changed. Follow-ups,
+not fixed here: anchors inside fenced code blocks are still parsed as anchors, and `--page` and
+`--claims` still accept paths under `.git/`.
+
+## 2026-09-25 V1-0255: acceptance fixture (AFU-V1 S8, AFU-V1-039)
+
+`TestAFUV1039AcceptanceFixture` (`cmd/corvint/flows_acceptance_test.go`) runs `flows map`, `gaps`,
+`navigate` and `docs` through the CLI over a committed fixture in
+`cmd/corvint/testdata/flows/acceptance/`. The fixture has four intents: `checkout` is a UI flow and
+`orders-api` is an API flow, and both reach verified. `returns` is declared with no links, which gives
+`unmapped-flow`. `profile` has a source link to a line span that changed after review, which gives
+`stale-link`.
+
+Decisions:
+
+- The fixture sits beside the other flows goldens under `cmd/corvint/testdata/flows/`, not under
+  `conformance/`, because the spec does not name a conformance location for AFU-V1-039.
+- The test builds three commits in a temporary repository. Commit A holds the application, the
+  Playwright specs and the intents. Commit B sets every `reviewed_at` to A. Commit C changes line 4
+  of `app/web/profile.js`, which is inside the reviewed span 3-5. The committed intents hold the
+  placeholder `REVIEW_ANCHOR` because the anchor SHA exists only at test time.
+- Evidence is `playwright-report.json`, ingested with `flows ingest --format playwright-json` at C.
+  The committed synthetic report records all three as passed, including profile's. `profile` is
+  therefore incomplete only because of the stale link, and verified evidence cannot mask it.
+- `docs` renders the page and sidecar at the repository root without `--docs-root`, because that
+  flag needs a directory that exists at `HEAD`.
+
+The test asserts:
+
+- In map, both flows are `complete` with every variation verified, and the other two are
+  `incomplete`.
+- In gaps, `checkout` and `orders-api` report no codes, `profile` reports exactly
+  `stale-link save-name` and `returns` reports exactly `unmapped-flow`.
+- In navigate, the four statuses match, the checkout `pay` and orders-api `create-order` transitions
+  are `verified`, and `--goal profile` and `--goal returns` each return one `incomplete` flow.
+- In docs, the claim states are `PROVEN`, `PROVEN`, `STALE` and `UNPROVEN`. Only the two `PROVEN`
+  claims appear on the page without a `**STATE:**` marker.
+
+No command lacked a way to express one of these assertions.
+
+Observations, not changed:
+
+- The navigate transition for profile's `save-name` step reads `verified`, and map reports its
+  variation `verified: true`, although the flow is `incomplete`. Verification is per evidence pair,
+  and the stale link shows only in flow status, gaps and the docs claim.
+- The `docs/specs/README.md` row for the spec still says slices S1-S8 are unbuilt. That was stale
+  before this change.
+
+Evidence:
+
+- `GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/appflows/ ./cmd/corvint/ -run 'AFUV1|Flows'`
+  passed.
+- A mutation check moved the post-review edit from `profile.js` to `checkout.js`. The test then failed
+  in map, gaps, navigate, the goal packet and docs. The fixture was restored.
+
+`NOT_RUN`:
+
+- Companion surfaces on Beamfall: this needs a Beamfall checkout and a networked browser E2E run.
+- A real change on `conformance/interactive-alpha/fixture`: this needs a Playwright browser run.
+- A real change on Beamfall: this needs a Beamfall checkout and a networked browser E2E run.
+- The full `./...` suite and `make gate`: both are out of scope for this slice.
+
+Follow-up: `navigate` could carry link review state into its steps or packets, so an agent reading
+only a step does not see `verified` on a step whose reviewed link is stale.
+
+Review repairs: an independent review found no blockers. The repairs are:
+
+- Fixture: profile gains a `navigation` entry, so its `save-name` step is actionable.
+- Tests:
+  - The test pins the step's current `verified` value with a comment, and asserts that returns'
+    `request-return` step is `unverified`.
+  - Map now requires at least one variation for a complete flow and asserts that profile's
+    variation is verified.
+  - Each surface compares the sorted flow or claim IDs with the `want` keys, not just counts.
+  - Ingest uses a dedicated Playwright header (`--runner-version 1.50.0`, no `--control`).
+  - The `filepath.Rel` error is checked, and the goal packets go through `decodePacket`.
+- Spec:
+  - The navigation wire contract states that step verification is evidence-only.
+  - The AFU-V1-039 row says the report is synthetic and that observed runs are the `NOT_RUN` items.
+  - "Both stay" becomes "All three stay".
+- `docs/specs/README.md`: the row now says S1-S6 and S8 are implemented, unqualified, with live
+  qualification `NOT_RUN`, and S7 pending. S7, the flows MCP profile, is not on this branch:
+  `cmd/corvint-mcp` has no `flows` tool profile here, so the row does not claim S1-S8. Delivery
+  stays `planned` in the spec header, `INDEX.json` and the README, which the specindex test keeps
+  in agreement.
 
 ## 2026-09-25 V1-0254: corvint-mcp flows tool profile (AFU-V1 S7)
 

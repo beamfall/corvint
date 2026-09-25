@@ -94,6 +94,10 @@ this change.
   malformed output, another exit, missing evidence or drift blocks completion. This is context
   abstention, not impact success: ordinary inspection MUST record the miss, and CEM/OCM closure,
   selected checks, clean-target validation and independent verifier agreement remain unchanged.
+- Accepted amendment (decision 0388, V1-0264, DCW-V0-025): widen the qualifying typed exit above to
+  exactly `unsupported-impact-range`, `unsupported-impact-repository` and `unsupported-impact-path`,
+  each retained under its own code with the same artifact bindings. Every other exit still blocks
+  completion.
 - `GOC-V0-010`: A complete `make gate` MUST first remove the private receipt
   `<git-dir>/corvint/release-gate-receipt` and, only from a clean worktree, stamp HEAD's commit and
   tree in `<git-dir>/corvint/release-gate-start`, finishing both before any other gate step starts,

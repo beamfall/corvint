@@ -14,7 +14,7 @@ decisions 0374 and 0385.
 
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
-- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 015..018 and 036..038 (unqualified), 012..014 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; S4 implements AFU-V1-019..024 and the AFU-V1-040 frozen corpus (unsafe-narrowing rate 0 on both bases), with the two live changes `NOT_RUN`; S5 implements AFU-V1-025..028 and the AFU-V1-029 observer gate, which no observer calls yet (partial); S7 implements AFU-V1-034 and 035 (no MCP conformance vectors yet); nothing else is implemented or qualified.
+- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 015..018 and 036..038 (unqualified), 012..014 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; S4 implements AFU-V1-019..024 and the AFU-V1-040 frozen corpus (unsafe-narrowing rate 0 on both bases), with the two live changes `NOT_RUN`; S5 implements AFU-V1-025..028 and the AFU-V1-029 observer gate, which no observer calls yet (partial); S6 implements AFU-V1-030..033 (unqualified); S7 implements AFU-V1-034 and 035 (no MCP conformance vectors yet); S8 adds the AFU-V1-039 acceptance fixture (`cmd/corvint/testdata/flows/acceptance`, `TestAFUV1039AcceptanceFixture`), with the three live qualification runs `NOT_RUN`; nothing else is implemented or qualified.
 - Exists: the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
 - Blocked on: implementation slices S1-S8 (Rollout) and the acceptance evidence below.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Deterministic acceptance.
@@ -446,7 +446,8 @@ This subsection fixes the S5 wire shape. It adds no requirement and no root verb
   `action`, `state`, `locator`, the flow's `preconditions`, `ready`, `input_fixture`, `expect` (the
   outcome records), `effect_class`, `effect_basis`, `recovery` and `verification`. A step is
   `verified` only when a variation that lists it has every required evidence pair verified; a step
-  with no navigation entry has no state or locator. A precondition flow that is not declared or that
+  with no navigation entry has no state or locator. Step verification is evidence-only: link review
+  state, such as `stale-link`, appears only in the flow `status`, `flows gaps` and docs claims. A precondition flow that is not declared or that
   closes a cycle refuses the map.
 - Packet: `--goal` writes `application-navigation-packet/0` with `goal`, `max_effect`, the referenced
   `states`, `flows` (each with its `status`) and `steps`: the precondition flows depth first, each
@@ -480,6 +481,45 @@ This subsection fixes the S5 wire shape. It adds no requirement and no root verb
   documents by path in one coverage row with its value, denominator (Markdown documents under the
   docs root), revision and limitation (an anchor proves the named outcome, not the surrounding
   prose). Unanchored text is `UNPROVEN`, never `PROVEN`.
+
+### Proven-documentation wire contract
+
+This subsection fixes the S6 wire and argv shapes. It adds no requirement and no root verb. Intents,
+the committed page and sidecar, the waivers file and the hand-written Markdown are all read at `HEAD`
+through Git; `--page`, `--claims`, `--docs-root` and `--waivers` are canonical repository-relative
+paths, and `--page` and `--claims` differ.
+
+- `corvint [--root PATH] flows docs --flows DIR --page FILE --claims FILE [--docs-root DIR]
+  [--evidence FILE]...` renders the fixed template and writes the page and then the sidecar, each
+  through an exclusively created temporary file in the target's directory and a rename; an existing
+  non-regular target or a non-directory parent is refused. It prints the two written paths. An
+  `invalid-anchor` or `unknown-anchor` under `--docs-root` refuses the render.
+- There is one claim per outcome listed by each variation. A page claim ID is
+  `FLOW/VARIATION/OUTCOME`; an anchored claim ID is `PATH:FLOW/VARIATION/OUTCOME` with the document
+  path as `source`. The page carries each claim ID in a code span, prefixes every claim that is not
+  `PROVEN` with its state in bold, and backslash-escapes all ASCII punctuation in intent text. It
+  embeds no commit, so regeneration from equal intents and claim states is byte-identical.
+- A claim is `CONTRADICTED` when any evidence pair of its variation is `failed` or `flaky`; else
+  `STALE` when a link from the variation, one of its steps or the outcome is `stale`, or a pair is
+  `stale`; else `PROVEN` only when every pair is `verified`, the outcome has a declared assertion
+  link, and every declared link from those members is `reviewed`; else `UNPROVEN`.
+- `flow-doc-claims/0`: `schema`, `page` and `claims` sorted by `id`, each with `id`, `source`,
+  `flow`, `variation`, `outcome`, `evidence` (the required `test_key` and optional `project` pairs,
+  never run IDs) and `state`.
+- `flow-doc-waivers/0`: `schema` and `waivers`, each with a unique `claim` ID, `reason`, `reviewer`
+  and `expires` (`YYYY-MM-DD`). A waiver is unexpired while the current UTC date is before
+  `expires`; on that date it has expired. The file is closed-schema and a malformed file refuses the
+  check.
+- `flows docs --check ... [--waivers FILE]` writes nothing to the repository and prints
+  `flow-doc-check/0`: `schema`, `revision`, `status` (`pass` or `fail`), `failures` (`code`,
+  optional `claim`, `path` and `line`, and `detail`), `waived` (claim IDs) and, with `--docs-root`,
+  `coverage`: one `unanchored-documents` row with `value` (the unanchored count), `denominator`
+  (Markdown documents under the docs root, the page excluded), `revision`, `rule`, `limitation` and
+  `paths`. A `.md` entry that is not a regular file, such as a symlink or a submodule, is not read and
+  counts as unanchored. The failure codes are `claim-lost-proven`, `rendered-bytes-differ` (for an absent file
+  too), `unknown-anchor` and `invalid-anchor`. A committed claim whose state changed, or which is no
+  longer rendered, is waived by an unexpired entry naming its ID, and its committed form is then
+  used for the byte comparison. A failing check exits 2 with `flow-docs-check-failed`.
 
 ### MCP companion surface
 
@@ -586,19 +626,26 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-027 | `TestAFUV1027EffectClasses` (raised by observed `POST`, never lowered, undeclared), `TestAFUV1027EffectRaisedNeverLowered` |
 | AFU-V1-028 | `TestAFUV1028PacketRequiresGrant` (`navigate-checkout.golden.json`), `TestAFUV1028ScriptedAgentCompletesGoals` (a scripted agent completes each mapped fixture goal from the packet alone, including a recovery, performs no write under the default `read`, and cannot run an unmapped goal), `TestAFUV1028PacketBound` |
 | AFU-V1-029 | `TestAFUV1029ObserverRefusesNonDisposableOrigin` (listed, unlisted, non-canonical and unknown-class cases; absent, uncommitted and malformed `origins.json`); partial: `AdmitTransition` is the gate, but no Corvint observer executes navigation transitions yet, and the AFU-V0 manifest observer carries no effect class |
-| AFU-V1-030..033 | docs goldens, drift failure on a lost `PROVEN`, waiver expiry, the anchored Markdown case |
+| AFU-V1-030 | `TestAFUV1030DocsRenderGoldenAndByteStable` (`docs.golden.md`, `docs.claims.golden.json`, regeneration at a later commit byte-identical, argument refusals) |
+| AFU-V1-031 | `TestAFUV1031ClaimStateOrder`, `TestAFUV1030DocsRenderGoldenAndByteStable` (every state marked on the page, `PROVEN` unmarked) |
+| AFU-V1-032 | `TestAFUV1032DocsCheckDrift` (a lost `PROVEN` and a hand-edited page fail; the check is read-only), `TestAFUV1032WaiverExpiry` (unexpired, expired and malformed waivers), `TestAFUV1032WaiverExpiryBoundary` (expired on its expiry date), `TestAFUV1032WaiverKeepsUnrenderedClaim` (a waived claim that is no longer rendered keeps its committed form) |
+| AFU-V1-033 | `TestAFUV1033AnchoredMarkdown` (a changed unanchored document passes, an unknown anchor fails the check and refuses the render), `TestAFUV1033AnchorParsing`, `TestAFUV1032DocsCheckDrift` (the coverage row and the anchored claim's lost `PROVEN`), `TestAFUV1033NonRegularMarkdownSkipped` (a symlinked `.md` is unanchored, not a failure) |
 | AFU-V1-034 | `TestAFUV1034FlowsToolProfile` (golden default and task-review `tools/list` bytes without the selector, the four tools read-only under it, unknown, empty, duplicate and mixed selectors refused, flows tools `-32602` under the other profiles), `TestAFUV1034FlowsToolsMatchCLIVerbs` (each tool's receipt equals its CLI verb's output on the shop and navigation fixtures, the CLI's argument refusals are `-32602`, a verb refusal is `flows-refused`); partial: no compiled-process MCP conformance vectors |
 | AFU-V1-035 | `TestAFUV1035FlowsTextStaysInsideEnvelope` (a hostile navigation step string returns only between the envelope prefix and suffix, with no `structuredContent`) |
-| AFU-V1-036 | `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
+| AFU-V1-036 | `TestAFUV1036DocsReplaceConfined`, `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
 | AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceBoundsIncomplete`, `TestAFUV1FlowsCLIIngest`, `TestAFUV1ReadRunEvidenceDiscipline` |
 | AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceSecretsDropped`, `TestAFUV1PlaywrightProviderScrubsEveryAttempt` (the provider receipt scrubs every attempt and the last-attempt fields); the screen runs in `EncodeRunEvidence`, the only run-evidence encoding, and `flows ingest` writes only what it encodes (`TestAFUV1FlowsCLIIngest`) |
-| AFU-V1-039 | the committed acceptance fixture |
+| AFU-V1-039 | `TestAFUV1039AcceptanceFixture` over the committed fixture `cmd/corvint/testdata/flows/acceptance` (a synthetic, hand-written Playwright report ingested through `flows ingest`; observed runs are the `NOT_RUN` live qualification items below): the UI flow `checkout` and the API flow `orders-api` are complete with every variation verified in `map`; `returns` reports exactly `unmapped-flow` and `profile` exactly `stale-link` (its evidence verified) in `gaps`; both have flow status `incomplete` (step verification is evidence-only) in `map`, `gaps`, the `navigate` map and each one's `navigate --goal` packet, and `docs` renders them `UNPROVEN` and `STALE` while the two verified flows' claims are `PROVEN` |
 | AFU-V1-040 | `TestAFUV1040SelectionCorpusReport`: the frozen corpus `cmd/corvint/testdata/e2e-safe-corpus.json` (20 labelled, fault-injected cases over five tests) and its report `cmd/corvint/testdata/e2e-safe-corpus.report.json`; `coverage` omits 15 with 0 unsafe (reduction 0.15), `reviewed-links` omits 3 with 0 unsafe (reduction 0.03), no basis withdrawn |
 
 Live qualification: the companion surfaces are qualified on Beamfall with one UI flow and one API
 flow. The Core profile is qualified by the corpus report (AFU-V1-040) plus one real change against
 the Corvint Playwright fixture suite (`conformance/interactive-alpha/fixture`) and one on Beamfall.
-Both stay `NOT_RUN` until retained.
+All three stay `NOT_RUN` until retained. S8 status, each `NOT_RUN`:
+
+- Companion surfaces on Beamfall: needs a Beamfall checkout and a networked browser E2E run.
+- Real change on `conformance/interactive-alpha/fixture`: needs a Playwright browser run.
+- Real change on Beamfall: needs a Beamfall checkout and a networked browser E2E run.
 
 ## Rollout, rollback, and compatibility
 
@@ -632,7 +679,8 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-008..010 | implemented: `internal/appflows/review.go` (`EvaluateLinks`, `Summarize`, `FlowsForPath`, `FlowsForTestKey`), surfaced by `flows map` in `internal/appflows/query.go` |
 | AFU-V1-015..018 | implemented: `internal/appflows/query.go`, `impact.go`, `runingest.go` (`IngestRunFile`), `cmd/corvint/flows.go` |
 | AFU-V1-025..029 | implemented, 029 partial (see the matrix): `internal/appflows/navigate.go`, `origins.go`, the `navigation` member in `intent.go`, `cmd/corvint/flows_navigate.go` |
-| AFU-V1-030..033 | `internal/appflows`, `cmd/corvint/flows.go` |
+| AFU-V1-030..033 | implemented: `internal/appflows/docs.go` (`RenderDocs`, `CheckDocs`, `ReplaceConfined`), `cmd/corvint/flows_docs.go` |
+| AFU-V1-039 | implemented (fixture only; live qualification `NOT_RUN`): `cmd/corvint/testdata/flows/acceptance`, `cmd/corvint/flows_acceptance_test.go` |
 | AFU-V1-006 | partial (see the matrix): `internal/doccorpus/behavior.go` |
 | AFU-V1-011..014, 038 | implemented, 012..014 partial (see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |

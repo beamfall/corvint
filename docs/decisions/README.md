@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0388-accept-dcw-v0-025-2026-09-25.md`](0388-accept-dcw-v0-025-2026-09-25.md) | accepted (owner answer 2026-09-25) | `DCW-V0-025` accepted with the `GOC-V0-009` and `ERI-V0-006` amendments: no-module and module-root `corvint impact` refusals are typed dogfood abstentions (V1-0264) |
 | [`0387-accept-gpk-v0-066-reject-gpk-v0-067-2026-09-25.md`](0387-accept-gpk-v0-066-reject-gpk-v0-067-2026-09-25.md) | accepted (owner answer 2026-09-25) | `GPK-V0-066` accepted: a record packet that fails the relevance floor yields to a floor-clearing confident-symbol packet (V1-0260); `GPK-V0-067` (Go caller scoring, V1-0263) rejected and its PR closed |
 | [`0386-ocm-intent-forms-2026-09-25.md`](0386-ocm-intent-forms-2026-09-25.md) | proposed | `ocm prepare --intent-form` lets an OCM intent be ADR `## Decisions` items or roadmap tickets with Acceptance; declared, recorded in `intentScope.form`, fail-closed, experimental (`OIF-V0`). |
 | [`0385-application-flow-proof-in-1-0-2026-09-24.md`](0385-application-flow-proof-in-1-0-2026-09-24.md) | accepted (owner answer 2026-09-24) | Issue #175 in 1.0, split: the `affected --selection-profile e2e-safe` value is Core; `corvint flows` map, gaps, impact, navigation, proven docs and the MCP `flows` profile are a qualified companion (`AFU-V1`) |

@@ -257,6 +257,86 @@ func TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations(t *test
 	}
 }
 
+// impactAbstentionRepo is a repository whose one change native Go impact
+// refuses: a text file with no Go module, or a Go file at the module root.
+func impactAbstentionRepo(t *testing.T, module bool) (string, string) {
+	t.Helper()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, "AGENTS.md", "# Fixture authority\nUse intent.md to govern the fixture.\n")
+	cemWrite(t, root, "intent.md", "# Intent\n\n## Requirements\n\n- `FIXTURE-LCP-001`: The answer is two.\n")
+	file, before, after := "answer.txt", "answer 1\n", "answer 2\n"
+	if module {
+		cemWrite(t, root, "go.mod", "module example.com/portable\n\ngo 1.22\n")
+		file, before, after = "answer.go", "package portable\nfunc Answer() int { return 1 }\n", "package portable\nfunc Answer() int { return 2 }\n"
+	}
+	cemWrite(t, root, file, before)
+	cemGit(t, root, "init", "-q", "-b", "main")
+	exclude := ".corvint/dogfood-report.json\n.corvint/change.ocm-intents\n.corvint/change.ocm-status.json\n.corvint/change.ocm.*.json\n.corvint/self-observations.jsonl\n.context-corvint/\n"
+	if err = os.WriteFile(filepath.Join(root, ".git/info/exclude"), []byte(exclude), 0644); err != nil {
+		t.Fatal(err)
+	}
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "base")
+	base := cemGit(t, root, "rev-parse", "HEAD")
+	cemWrite(t, root, file, after)
+	cemGit(t, root, "commit", "-qam", "change")
+	return root, base
+}
+
+// DCW-V0-025 (proposed): impact's no-module and module-root refusals are typed,
+// visible abstentions that keep their own code, so the daily path completes,
+// checks and seals in a repository native Go impact cannot analyse.
+func TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	for _, tc := range []struct {
+		name   string
+		module bool
+		reason string
+	}{{"no-module", false, "unsupported-impact-repository"}, {"module-root", true, "unsupported-impact-path"}} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			root, base := impactAbstentionRepo(t, tc.module)
+			inputsDir := t.TempDir()
+			citations := filepath.Join(inputsDir, "citations.tsv")
+			intents := filepath.Join(inputsDir, "intents")
+			if err := os.WriteFile(citations, []byte("1\tintent.md\t1:5\tspecification\n"), 0644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(intents, []byte("intent.md\n"), 0644); err != nil {
+				t.Fatal(err)
+			}
+			inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=true", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
+			note := "dogfood-change: NOTE prechange-impact NOT_PRODUCED " + tc.reason + "\n"
+			if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 || !strings.HasPrefix(stderr, note) || strings.Contains(stderr, "  prechange-impact:") {
+				t.Fatalf("first pass exit=%d stderr=%s", code, stderr)
+			}
+			cemGit(t, root, "add", ".corvint/change.cem.json")
+			cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
+			code, stdout, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
+			report, _ := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
+			for _, want := range []string{`"complete": true`, `{"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "` + tc.reason + `"}`} {
+				if code != 0 || stdout != "" || stderr != note || !strings.Contains(string(report), want) {
+					t.Fatalf("change exit=%d stderr=%s want %s in report=%s", code, stderr, want, report)
+				}
+			}
+			artifact, _ := os.ReadFile(filepath.Join(cemGit(t, root, "rev-parse", "--absolute-git-dir"), "corvint/prechange-impact-abstention.json"))
+			if !strings.Contains(string(artifact), `"reason":"`+tc.reason+`"`) {
+				t.Fatalf("abstention artifact %s", artifact)
+			}
+			if code, stdout, stderr = run.exec(t, root, nil, "dogfood", "check", base); code != 0 || !strings.HasSuffix(stdout, "dogfood-check: PASS\n") || !strings.Contains(stderr, "dogfood-check: NOTE prechange-impact NOT_PRODUCED "+tc.reason+"\n") {
+				t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+			}
+			if code, stdout, stderr = run.exec(t, root, nil, "dogfood", "seal", base); code != 0 || !strings.Contains(stdout, "dogfood-seal: PASS") {
+				t.Fatalf("seal exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+			}
+		})
+	}
+}
+
 // LCP-V0-014: finish runs the change and the final check in-process from the
 // installed binary, ignoring CORVINT_BIN and the DOGFOOD_* inputs.
 func TestDogfoodFinishRunsFromBinaryInForeignRepository(t *testing.T) {

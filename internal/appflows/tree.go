@@ -82,8 +82,7 @@ func flowTree(ctx context.Context, root, rev, dir string) ([]treeEntry, error) {
 
 // committedBlob reads one regular committed file after checking its recorded size (AFU-V1-036).
 func committedBlob(ctx context.Context, root string, e treeEntry) ([]byte, error) {
-	regular := e.kind == "blob" && (e.mode == "100644" || e.mode == "100755")
-	if !regular {
+	if !regularEntry(e) {
 		return nil, fmt.Errorf("%s: flow input must be a regular committed file", e.name)
 	}
 	size, err := strconv.Atoi(e.size)
@@ -95,4 +94,9 @@ func committedBlob(ctx context.Context, root string, e treeEntry) ([]byte, error
 		return nil, fmt.Errorf("%s: committed flow input unavailable", e.name)
 	}
 	return raw, nil
+}
+
+// regularEntry reports whether a committed entry is a regular file blob, not a symlink or submodule.
+func regularEntry(e treeEntry) bool {
+	return e.kind == "blob" && (e.mode == "100644" || e.mode == "100755")
 }

@@ -391,4 +391,13 @@ func anyLine(pattern *regexp.Regexp, data []byte) bool {
 	return false
 }
 
-var impactRefusal = regexp.MustCompile(`^\{"code": "unsupported-impact-range", "error": "[A-Za-z0-9 ._/:()-]+", "ok": false\}$`)
+var impactRefusal = regexp.MustCompile(`^\{"code": "([a-z-]+)", "error": "[A-Za-z0-9 ._/:()-]+", "ok": false\}$`)
+
+// impactAbstentions are the impact refusals the daily path keeps as typed,
+// visible scope limits of the native Go profile rather than failed steps
+// (DCW-V0-025); each stays its own row reason.
+var impactAbstentions = map[string]bool{
+	"unsupported-impact-range":      true,
+	"unsupported-impact-repository": true,
+	"unsupported-impact-path":       true,
+}
