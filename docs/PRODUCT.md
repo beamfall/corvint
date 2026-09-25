@@ -138,12 +138,20 @@ vanished. Empty frontier means closure only over the exact declared universe, ne
 correctness.
 
 Corvint does not claim to have invented evidence-carrying changes or proof-carrying coding. July 2026
-proposals using those category ideas, plus agentdiff's hunk/line attribution work, validate the timing
-rather than Corvint's uniqueness. CEM's narrower bet is a source-content-free, portable interchange
+proposals using those category ideas, plus agentdiff's hunk/line attribution work and Cursor's Agent
+Trace open specification for AI-code attribution, validate the timing rather than Corvint's
+uniqueness. CEM's narrower bet is a source-content-free, portable interchange
 from each textual hunk to immutable producer-selected evidence, with deterministic patch/span/drift verification
 and no dependency on one retriever, agent, IDE, or CI vendor. SLSA addresses build provenance, MCP
-transports context, and agentdiff attributes edits; the current market inference—not an exhaustive
-claim—is that none alone provides this hunk-to-evidence association interchange. Here,
+transports context, agentdiff attributes edits, and Agent Trace records which human/AI conversation
+and model touched which lines at a pinned VCS revision; the current market inference—not an
+exhaustive claim—is that none alone provides this hunk-to-evidence association interchange.
+Attribution and evidence answer different questions: Agent Trace states who or what wrote a line and
+explicitly does not evaluate whether that contribution is correct or well-founded, while a CEM hunk
+cites the immutable basis a producer used to justify it. The two are complementary, not substitutes:
+an Agent Trace record's revision-pinned file/line attribution can identify a hunk's producer for a CEM
+sidecar, but it never supplies the evidentiary basis CEM requires—that basis, or an explicit unknown,
+must still come from the producer. Here,
 source-content-free means that source and diff bodies are omitted; paths and digests are still
 sensitive and the format is neither anonymous nor automatically safe to publish.
 
