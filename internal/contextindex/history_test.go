@@ -48,7 +48,7 @@ func historyRecord(commit, tree, subject string, paths ...[]byte) []byte {
 func TestParseHistoryBuildsPythonCanonicalShape(t *testing.T) {
 	commit := strings.Repeat("1", 40)
 	tree := strings.Repeat("2", 40)
-	entries, canonical, err := parseHistory(historyRecord(commit, tree, "roadmap: add workflow gate", []byte("AGENTS.md")), "sha1")
+	entries, canonical, err := parseHistory(historyRecord(commit, tree, "roadmap: add workflow gate", []byte("AGENTS.md")), "sha1", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,7 +124,7 @@ func TestParseHistoryRejectsHostileRecords(t *testing.T) {
 		{"invalid path encoding", historyRecord(commit, tree, "subject", []byte{0xff}), "unsupported-query-history"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			_, _, err := parseHistory(test.raw, "sha1")
+			_, _, err := parseHistory(test.raw, "sha1", false)
 			var failure *Error
 			if !errors.As(err, &failure) || failure.Code != test.code {
 				t.Fatalf("error=%#v", err)
@@ -136,7 +136,7 @@ func TestParseHistoryRejectsHostileRecords(t *testing.T) {
 	for index := 0; index <= maxHistoryCommits; index++ {
 		oversized.Write(historyRecord(commit, tree, fmt.Sprintf("subject %d", index)))
 	}
-	if _, _, err := parseHistory(oversized.Bytes(), "sha1"); err == nil || !strings.Contains(err.Error(), "commit limit") {
+	if _, _, err := parseHistory(oversized.Bytes(), "sha1", false); err == nil || !strings.Contains(err.Error(), "commit limit") {
 		t.Fatalf("error=%v", err)
 	}
 }

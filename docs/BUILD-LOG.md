@@ -6160,3 +6160,24 @@ Review repairs (same slice):
   probe wording now names what is compared: `HEAD`, the tree and the dirty-path set.
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
+
+## 2026-09-25 Panel blocker B9 IDX-SNAP-V0-024 (proposed): a non-UTF-8 tracked path is an exclusion, not a refusal
+
+One committed Latin-1 path (`latin/caf\xe9.go`) refused `index`, path `impact`, `context` and
+`prove` for the whole repository: `parseStatus` returned "Git status path is not valid UTF-8" when
+the path was dirty, and `readTreeEntries` "Git tree output is malformed" when it was clean
+(`internal/contextindex/git.go:341,350,386` at `26d211e7`). With the path clean, `context` then
+refused a third time in `parseHistory` ("native Go authority-start query requires UTF-8 Git history
+paths"). Chosen: the path is recorded in `Exclusions` under genesis's `unsafe-or-non-utf8-path`,
+named by its display form (invalid bytes as U+FFFD), which also stands in `DirtyPaths`, `Tracked`
+and `Skipped`; the co-change history parse skips it, and query history learning keeps its refusal
+because `unsupported-query-history` and the history digest are GPK-V0 contract. The reason string
+travels in the existing receipt exclusion sample, whose reasons are not a frozen enumeration in
+CCF-V1-005 (IDX-SNAP-V0-013 added one the same way). Analyzer audit digest repinned without a schema
+bump: a tree that built before builds the same facts. Evidence:
+`TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes` (clean and dirty; fails on the base with both
+refusals) and `TestParseStatusNamesNonUTF8PathsInDisplayForm`. Left as follow-ups: `affected` and
+`prove` still refuse when the non-UTF-8 path is itself dirty or untracked, through the separate
+`internal/liveverify/affected/dirty.go` decoder (`unsupported-affected-status`, "cannot read the
+worktree status"); `query` and `prove --task` still refuse on such a path anywhere in the last 200
+commits; the `context` packet has no exclusion member to disclose it.

@@ -1177,7 +1177,7 @@ func evalLearnedCandidates(ctx context.Context, index *Index, opening *historyPr
 	if err != nil {
 		return nil, nil, err
 	}
-	entries, canonical, err := parseHistory(dropGraftedCommits(raw), index.ObjectFormat)
+	entries, canonical, err := parseHistory(dropGraftedCommits(raw), index.ObjectFormat, false)
 	if err != nil {
 		return nil, nil, err
 	}

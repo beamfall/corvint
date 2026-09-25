@@ -489,6 +489,10 @@ func admittedEntries(entries []treeEntry) ([]Exclusion, []treeEntry, int) {
 	candidates := make([]treeEntry, 0)
 	unsupported := 0
 	for _, entry := range entries {
+		if entry.nonUTF8 {
+			exclusions = append(exclusions, Exclusion{entry.path, nonUTF8PathReason})
+			continue
+		}
 		if reason := forbiddenPath(entry.path); reason != "" {
 			exclusions = append(exclusions, Exclusion{entry.path, reason})
 			continue

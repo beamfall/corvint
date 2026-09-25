@@ -142,7 +142,11 @@ func parseHistoryIdentity(raw []byte, objectFormat string) (string, string, erro
 	return lines[0], lines[1], nil
 }
 
-func parseHistory(raw []byte, objectFormat string) ([]historyEntry, []any, error) {
+// parseHistory refuses a path that is not UTF-8 unless skipNonUTF8 is set, in
+// which case the path is left out of its commit. Query learning keeps the
+// refusal its history digest is pinned to; the co-change slot skips, because
+// the index already excludes and discloses such a path (nonUTF8PathReason).
+func parseHistory(raw []byte, objectFormat string, skipNonUTF8 bool) ([]historyEntry, []any, error) {
 	entries := make([]historyEntry, 0, maxHistoryCommits)
 	canonical := make([]any, 0, maxHistoryCommits)
 	for _, record := range bytes.Split(raw, []byte{0x1e}) {
@@ -163,6 +167,9 @@ func parseHistory(raw []byte, objectFormat string) ([]historyEntry, []any, error
 				continue
 			}
 			if !utf8.Valid(rawPath) {
+				if skipNonUTF8 {
+					continue
+				}
 				return nil, nil, &Error{Code: "unsupported-query-history", Message: "native Go authority-start query requires UTF-8 Git history paths"}
 			}
 			value := string(rawPath)
