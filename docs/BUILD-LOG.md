@@ -6934,3 +6934,44 @@ the touched packages; the doc checks; `go run ./conformance/use-cases-v0`, which
 Under host load (load average 170 to 570), `TestSelectionOnTheLiveDirtyWorktree` and
 `TestIncrementalSelectionMeetsTheLiveBudget` exceeded their 100 ms budget. These are timing
 flakes. NOT_RUN: the exhaustive `./...` gate.
+
+## 2026-09-25 V1-0350 CCF-V1-007 (proposed, decision 0398): nested Core enumerations and the N-1 replay
+
+Panel finding B6 (PR #226) left two NOT_PRODUCED statements in CCF-V1-007. The (d) register covered
+15 top-level enumerations and none nested in answerability, intent, learning, range, `plan.unknown`,
+`plan.excluded` or the `prove` verdicts. No release gate replayed the N-1 tag. The ticket body was not
+readable: `.taskman/tickets/V1-0350.json` is absent from this clone and every remote ref, so the scope
+comes from the ticket summary the owner's handoff carried.
+
+Change: 16 proposed register rows, each citing its source as `path:N@hash`. Added as `closed`: the
+`context` answerability verdict, `context.intent.confidence`, `context.learning.local_trace_state`,
+`context.range.status`, the range omission reason, the `plan.excluded` reason and invalidation, the
+`init`/`adopt` semantic-frontier reason and source class, `packet.mode`, the `prove` row falsifier and
+verdict, and `proof.affected.scope`. Added as `open`, because a reader decides on a sibling member:
+`context.intent.id`, `plan.unknown[].reason` and `inventory.gaps[].code`. `prove` embeds its query or
+impact packet unchanged, so the observer applies the `query` or `impact` rows to `packet` by
+`packet.mode`. Excluded with a reason: free text, kind-prefixed identifiers, enumerations carried as
+member names, and the result rows CCF-V1-005 does not freeze. NOT_PRODUCED: exclusion sample reasons
+and `context`'s critical-row relations, which no frozen fixture writes.
+
+N-1 replay: `make core-n1-replay` builds the newest release tag before `HEAD` from `git archive` and
+sets `CORVINT_CORE_N1_BINARY`. `TestCoreVerbsEmitTheFrozenProfiles` then runs each mode under that
+binary too. It checks exit code, identifiers, that each N-1 member path and type is still emitted,
+and that each N-1 value at a registered path is registered. Against `v0.8.1` (0e5d596): 21 modes pass,
+and `index --if-stale` when fresh is skipped, because its setup writes the snapshot with this build.
+It is opt-in and in release-runbook step 8, not in `make gate`; making it a gate step is an owner
+decision.
+
+Findings. (1) Two changes after 0.8.1 reached members now registered. 1aa1187c added the `open`
+abstention reason `omitted-competing-record`, which is absent from the `v0.8.1` tree, so accepted
+(d)'s "same values at `v0.8.1`" is not literally true for that row. ec50af2d (V1-0340) removed the
+`plan.excluded` reason `UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED` that 0.8.1 writes, and that
+removal needs owner acceptance. (2) The goldens from V1-0337 were stale on the integration base
+c27ad137: seven comparisons failed before this change. `engine` is the digest of the running
+executable (`internal/contextindex/snapshot.go:134`), so it changes with every test-binary build. It
+is now pinned by type (`coreExecutableMembers`). The graph digest and snapshot `bytes` goldens were
+regenerated for V1-0299 and 1aa1187c.
+
+Evidence: focused `-run 'CoreVerbs|CoreRefusals|Freeze'` passes with and without the N-1 binary.
+Dropping `CLEAN` from the `context.range.status` row fails both `impact committed range` and, through
+the packet mapping, `prove committed range`. Linux is NOT_RUN.
