@@ -484,6 +484,9 @@ CTR-V0-009	docs/specs/compat-trial-v0.md	79	Preregistered rubric, budgets, and s
 CTR-V0-010	docs/specs/compat-trial-v0.md	115	Containment and harness reuse. Replay stays local; per `E:99`, external executio
 CTR-V0-011	docs/specs/compat-trial-v0.md	122	Proposed; unaccepted and does not authorize implementation. Changed-executable a
 CTR-V0-012	docs/specs/compat-trial-v0.md	124	Proposed; unaccepted and does not authorize implementation. Observation record s
+CTS-V0-001	docs/specs/corvint-tasks-store-init-v0.md	36	`corvint-tasks init` MUST refuse, before it creates the state directory or any
+CTS-V0-002	docs/specs/corvint-tasks-store-init-v0.md	41	(proposed, not implemented) A read verb (`queue status`, `roadmap`, `ticket show
+CTS-V0-003	docs/specs/corvint-tasks-store-init-v0.md	46	(proposed, not implemented) An explicit `corvint-tasks init --adopt` (or a separ
 CWC-X0-001	docs/specs/correlated-witness-collapse-x0.md	55	X0 MUST consume one exact bounded `cem/0.1` or `cem/0.2` byte document through t
 CWC-X0-002	docs/specs/correlated-witness-collapse-x0.md	58	Common causes MUST use exactly `source`, `generator`, `parser`, `oracle`, or
 CWC-X0-003	docs/specs/correlated-witness-collapse-x0.md	61	Every witness and membership-attestation reference MUST identify evidence presen

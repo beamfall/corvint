@@ -6934,3 +6934,33 @@ the touched packages; the doc checks; `go run ./conformance/use-cases-v0`, which
 Under host load (load average 170 to 570), `TestSelectionOnTheLiveDirtyWorktree` and
 `TestIncrementalSelectionMeetsTheLiveBudget` exceeded their 100 ms budget. These are timing
 flakes. NOT_RUN: the exhaustive `./...` gate.
+
+## 2026-09-25 V1-0351, V1-0346, V1-0323: P1 small batch
+
+Three P1 defects fixed in one change, based on the integration branch of PR #241.
+
+- V1-0351: `TestObserveWorkUsesOnlyTargetMaterialization` flaked on a transient
+  `.git/objects/maintenance.lock` during the manifest walk. The work-production fixture and its
+  seed repository now set `maintenance.auto=false` and `gc.auto=0` (`materializationQuiesce` in
+  `cmd/corvint/work_materialization_test.go`), as `materializationFixture` already did.
+  `go test -count=10 -run '^TestObserveWorkUsesOnlyTargetMaterialization$' ./cmd/corvint/` passed.
+- V1-0346: `script/local-console-release-gate` passed `-corvint-root` and `-taskman-root`, which
+  `cmd/corvint-companion-release` no longer defines, so the gate could never reach the bundle
+  build. It now passes `-source-root` and drops the obsolete `--taskman` option, because
+  corvint-tasks builds in tree since decision 0397. `TestGateScriptsPassOnlyDefinedFlags` parses
+  both gate scripts' invocations and feeds each flag to the command's flag set; it failed on the old
+  script and passes now (PUB-V0-011 traceability row). A live gate run was not performed.
+  Follow-up, not changed: the script's `go build ./cmd/...` is relative to the caller's directory.
+- V1-0323: `corvint-tasks init` over committed tickets created a journal whose genesis bound none
+  of them, so every later read refused as `INTENT_DIVERGED`. Init now refuses first, with the
+  existing `INTENT_DIVERGED` code and a reason naming the record, and creates nothing
+  (`TestCTSV0001_InitRefusesOverExistingRecords`, `TestCTSV0001_InitRefusesOverCommittedTickets`).
+  The CLI now shows a store refusal's detail as its reason. No owning tasks spec existed, so the new
+  `docs/specs/corvint-tasks-store-init-v0.md` (proposed) records CTS-V0-001 and two unimplemented
+  proposals, journal-optional reads (CTS-V0-002) and `init --adopt`/import (CTS-V0-003), which need
+  owner acceptance and the recovered task-store contract (V1-0310).
+
+Pre-change context came from `corvint query` in the change clone; the pre-change impact receipt was
+not written. Focused tests and `go vet` passed for `./cmd/corvint` (count=10 on the flaky test),
+`./cmd/corvint-companion-release`, `./internal/tasks/store` and `./internal/tasks/cli`. `make gate`
+and the exhaustive `./...` run were not run.

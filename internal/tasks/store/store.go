@@ -11,6 +11,7 @@ package store
 import (
 	"context"
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -443,6 +444,20 @@ func Init(ctx context.Context, repo *intent.Repository, actor mutation.Binding, 
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return guardFailure(report, requestID, err)
 	}
+	// Genesis binds only the queue and policy. A ticket or release record
+	// already in the intent store would have no journal afterimage, and every
+	// later read would refuse the store as INTENT_DIVERGED (V1-0323). Refuse
+	// before anything is created (CTS-V0-001).
+	record, err := existingRecord(repo.PrimaryWorktree)
+	if err != nil {
+		return guardFailure(report, requestID, err)
+	}
+	if record != "" {
+		report.Kind = "Refused"
+		report.Detail = "the intent store already holds " + record + "; init over existing records would freeze the store, and adopting them is not implemented"
+		report.Outcome = mutation.Outcome{RequestID: requestID, Outcome: mutation.OutcomeBlocked, Codes: []string{wire.CodeIntentDiverged}}
+		return report, nil
+	}
 	if _, err := authority.Qualify(repo.CommonDir); err != nil {
 		return guardFailure(report, requestID, err)
 	}
@@ -522,6 +537,43 @@ func Init(ctx context.Context, repo *intent.Repository, actor mutation.Binding, 
 		return guardFailure(report, requestID, err)
 	}
 	return report, nil
+}
+
+// existingRecord names one ticket or release record already in the intent
+// store of the primary worktree, or returns "" when there is none.
+func existingRecord(primaryWorktree string) (string, error) {
+	for _, dir := range []string{intent.TicketsDir, intent.ReleasesDir} {
+		name, err := firstEntry(filepath.Join(primaryWorktree, intent.Dir, dir))
+		if err != nil {
+			return "", err
+		}
+		if name != "" {
+			return dir + "/" + name, nil
+		}
+	}
+	return "", nil
+}
+
+// firstEntry returns one name from a directory, or "" when the directory is
+// empty or absent. It reads a single entry, so a large directory costs no
+// more than an empty one.
+func firstEntry(dir string) (string, error) {
+	d, err := os.Open(dir)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", nil
+	}
+	if err != nil {
+		return "", wire.Errorf(wire.CodeUnsupportedFilesystem, dir, "cannot open: %v", err)
+	}
+	defer d.Close()
+	names, err := d.Readdirnames(1)
+	if errors.Is(err, io.EOF) {
+		return "", nil
+	}
+	if err != nil {
+		return "", wire.Errorf(wire.CodeUnsupportedFilesystem, dir, "cannot list: %v", err)
+	}
+	return names[0], nil
 }
 
 // readIntent reads the Git-tracked queue and policy the operator authored,
