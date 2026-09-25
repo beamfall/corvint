@@ -1259,7 +1259,7 @@ is one name, so one matching code line is one pair and one evidence item for `ki
 
 ## Proposed amendment: workspace package importers are disclosed, not silently omitted
 
-- `GPK-V0-069`: (proposed 2026-09-25, panel blocker B3, not accepted)
+- `GPK-V0-069`: (accepted 2026-09-25, decision 0399; panel blocker B3)
   Rule (c) of `GPK-V0-027` resolves relative and alias specifiers only, so a source that reaches a
   changed web path through a bare workspace package specifier (for example `@scope/contracts`,
   then a barrel re-export) is never found, and the packet reported no uncertainty over that answer.

@@ -6161,7 +6161,7 @@ Review repairs (same slice):
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
 
-## 2026-09-25 V1-0283 GPK-V0-069 (proposed, not accepted): TypeScript impact discloses workspace package importers (panel blocker B3)
+## 2026-09-25 V1-0283 GPK-V0-069 (decision 0399): TypeScript impact discloses workspace package importers (panel blocker B3)
 
 Finding (pre-1.0 panel, rts, 2/2 confirmed): on a pnpm workspace, `corvint impact
 packages/contracts/src/scraper-runtime-topics.ts` returned three results with no reverse-import
@@ -6178,4 +6178,4 @@ a package nobody imports by name adds nothing, so leaf app packages keep their p
 `TestImpactDisclosesWorkspacePackageImporters` fails at base 489701ca and passes after. Residual:
 `tsconfig` `paths` aliases to a directory with no manifest stay undisclosed, and TS `affected`
 still excludes cross-package tests (panel D8). The analyzer schema moves to `corvint-analyzer/85`.
-Owner acceptance of `GPK-V0-069` is pending; `GPK-V0-067` was not reused (rejected, decision 0387).
+`GPK-V0-069` is accepted (decision 0399); `GPK-V0-067` was not reused (rejected, decision 0387).
