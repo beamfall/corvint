@@ -5,7 +5,7 @@ Date: 2026-09-12
 Requirement prefix: `PUB-V0`  
 Intent status: accepted owner scope; implementation details proposed  
 Delivery status: not qualified  
-Amendments: decision 0167 (build from the staged export; retained bundle archive) amends `PUB-V0-013..015`; decision 0314 adds `PUB-V0-021` (build number); issue 44 adds `PUB-V0-022..026` (closed qualified release candidate); decision 0327 selected `v0.5.0a1`; decision 0328 selected `v0.5.0a2` with the existing unsigned prerelease/no-promotion boundaries and the issue #49 Playwright regression; decision 0329 selects `v0.5.0a3` for the integrated issue #53–#57 rerelease with the same boundaries; decision 0373 adds the "1.0 Core scope amendment" section (owner answers of 2026-09-23); decision 0375 amends `PUB-V0-021` (the build number is provenance, not an ordering or identity key, and is monotonic only along `origin/main`'s first-parent chain since decision 0331).
+Amendments: decision 0167 (build from the staged export; retained bundle archive) amends `PUB-V0-013..015`; decision 0314 adds `PUB-V0-021` (build number); issue 44 adds `PUB-V0-022..026` (closed qualified release candidate); decision 0327 selected `v0.5.0a1`; decision 0328 selected `v0.5.0a2` with the existing unsigned prerelease/no-promotion boundaries and the issue #49 Playwright regression; decision 0329 selects `v0.5.0a3` for the integrated issue #53–#57 rerelease with the same boundaries; decision 0373 adds the "1.0 Core scope amendment" section (owner answers of 2026-09-23); decision 0375 amends `PUB-V0-021` (the build number is provenance, not an ordering or identity key, and is monotonic only along `origin/main`'s first-parent chain since decision 0331).; decision 0384 (V1-0018) widens the `PUB-V0-023` candidate version grammar to admit `MAJOR.MINOR.PATCH-rc.N` and `MAJOR.MINOR.PATCH` beside the retained alpha form.
 
 ## Agent digest
 - Claim: A public alpha ships the Go CLI, MCP docs, agent/editor unit and E2E test tracking, and an optional dashboard and task manager with a roadmap.
@@ -112,7 +112,8 @@ changes the reader's fail-closed checks.
   `corvint-companion-release` still requires `-tasks-root`.
 - Limits: the reader binds the Core-only `source/corvint-src.tar.gz` by digest only; the commit/tree
   binding is an assembler check. Legal provenance and installed-workflow evidence are not carried.
-  The alpha version token is unchanged, so a non-alpha version such as `1.0.0` is still refused.
+  The version token follows `PUB-V0-023`: since decision 0384 (V1-0018) `1.0.0-rc.N` and `1.0.0`
+  assemble and install beside the retained alpha form.
 
 ## Human intent
 
@@ -364,8 +365,13 @@ The result binds the archive SHA-256 and frozen Corvint commit/tree. Existing ou
   no candidate.
 - `PUB-V0-023`: The candidate MUST carry a closed machine-readable manifest with the exact version,
   build number, installed `corvint --version` output, Go/Git identities, Corvint and Corvint Tasks
-  commits/trees, and every non-manifest asset's path, role, size and SHA-256. A top-level
-  `SHA256SUMS` MUST cover every retained file except itself, including the manifest, qualification
+  commits/trees, and every non-manifest asset's path, role, size and SHA-256. The version, the
+  assembler `-version` input and the installed store component MUST match exactly one of
+  `MAJOR.MINOR.PATCHaN` (retained alpha candidates), `MAJOR.MINOR.PATCH-rc.N` or `MAJOR.MINOR.PATCH`,
+  where each numeric part, and the alpha `N`, is a non-negative decimal integer without leading
+  zeros and the `-rc.N` `N` is at least 1; any other form, a `v` prefix or `+build` metadata MUST be
+  refused (decision 0384, V1-0018).
+  A top-level `SHA256SUMS` MUST cover every retained file except itself, including the manifest, qualification
   receipt, core and companion receipts, source archives and release notes. Candidate verification
   MUST bound directory enumeration before materialization: at most 15 regular files, five real
   directories including the root, no directories below those root children, 512 MiB per file and
@@ -668,7 +674,7 @@ with named versions stays a separate, not-yet-exercised step that this command d
 | PUB-V0-020 | `internal/companionrelease/core_installed.go`, `internal/companionrelease/core_evidence.go`, `conformance/interactive-alpha`, `cmd/corvint-public-release-check`, `script/public-release-check` | `TestCoreOptionsRemainExplicitAndClosed`, `TestCoreClosedStageRequiresExactNonNullableFields`, `TestCoreReaderRejectsHistoricalAndMixedShapes`, `TestCoreNativeWitnessReplay`; `script/public-release-check_test.sh` (core selection pass-through, editor refusal of core settings, unknown/empty selection, missing core setting, relative/non-regular/overlapping Go authority refused before effects); the retained installed runs are recorded in `docs/BUILD-LOG.md`. |
 | PUB-V0-021 | `cmd/corvint/main.go` (`build`), `Makefile` (`build`), `conformance/release-artifact-v0/build.go` (`buildNumber`, `buildArguments`), `conformance/release-artifact-v0/archive_run.go`, `extensions/vscode/src/executable.ts`, `script/dogfood-change.sh`, `script/dogfood-check.sh`, `script/dogfood-bind-range.sh` | `TestSmokeTestExecutesRealSubprocessAndDetectsFailures` (missing and wrong build numbers fail), `TestGoOnlySourceAndVersion` (unstamped build 0), `TestCorvintHostArchivePartialProof` (extracted archive smoke requires the exact first-parent count), `version probe requires the build number (VSC-V0-007 PUB-V0-021)` |
 | PUB-V0-022 | `internal/releasecandidate` (`verifyCore`, `verifyCoreArchiveBinary`, `Assemble`), `internal/companionrelease/retained.go` | `TestPUBV0022VerifyCoreRequiresClosedReproducibleChecksummedSet`, `TestPUBV0022CoreArchiveVerifierRejectsNonArchiveBytes`; the real dry run consumes both retained gates at exact commits |
-| PUB-V0-023 | `internal/releasecandidate` (`Manifest`, `assetsFor`, `renderChecksums`, `Verify`) | `TestPUBV0023ClosedManifestRunsIsolatedHostProbe`, `TestPUBV0026CandidateInventoryBounds`; real candidate verification closes the manifest/checksum inventory |
+| PUB-V0-023 | `internal/releasecandidate` (`Manifest`, `assetsFor`, `renderChecksums`, `Verify`) | `TestPUBV0023ClosedManifestRunsIsolatedHostProbe`, `TestPUBV0026CandidateInventoryBounds`, `TestPUBV0023CandidateVersionGrammar`, `TestPUBV0023ReleaseCandidateRC1AssemblesVerifiesAndInstalls`; real candidate verification closes the manifest/checksum inventory |
 | PUB-V0-024 | `internal/companionrelease/core_smoke.go`, `internal/companionrelease/smoke.go`, `internal/releasecandidate` (`buildQualification`, `validateQualification`) | `TestPUBV0024InstalledCoreDiscoveryWorkflows`, `TestInitSmokeRepoPinsIntentBranch`; retained-bundle tests require the five new `/2` steps while preserving legacy profiles |
 | PUB-V0-025 | `internal/releasecandidate/install.go`, `cmd/corvint-release-install` | `TestPUBV0025VersionedInstallCoexistsAndNeverReplaces`, `TestPUBV0025PromotionNeverReplacesExistingCandidate`, `TestPUBV0025RecoveryLifecycle`, `TestPUBV0025HostileStore` |
 | PUB-V0-026 | `cmd/corvint-release-candidate`, `cmd/corvint-release-install`, `internal/releasecandidate` | `TestPUBV0026FailedInputRetainsNoCandidate`, `TestPUBV0026CandidateVerifierRejectsChecksumDrift`, `TestPUBV0026ScratchAndOutputCannotOverlapInputs`, `TestPUBV0026ProbeFailureCleansInstall`, `TestPUBV0026InterruptedInstallReapsDescendant`, `TestPUBV0026CancelledInstallRetainsNothing`; completed staging is reverified before promotion, command errors precede retention and neither command has a publication operation |

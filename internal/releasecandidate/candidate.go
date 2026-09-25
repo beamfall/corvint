@@ -21,11 +21,11 @@ const (
 	qualificationProfile = "corvint-release-qualification/0"
 )
 
-var versionPattern = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+a[0-9]+$`)
+var versionPattern = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(a(0|[1-9][0-9]*)|-rc\.[1-9][0-9]*)?$`)
 
 func Assemble(ctx context.Context, options Options) (_ *Result, err error) {
 	if !versionPattern.MatchString(options.Version) {
-		return nil, fmt.Errorf("invalid alpha version %q", options.Version)
+		return nil, fmt.Errorf("invalid release version %q", options.Version)
 	}
 	inputs := map[string]string{"core directory": options.CoreDirectory, "source root": options.SourceRoot, "scratch": options.Scratch, "output parent": options.OutputParent}
 	if options.CompanionDirectory != "" {

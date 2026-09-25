@@ -248,8 +248,8 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 ## Compatibility and rollback
 
 Retain historical `/0` use-case admission and use explicit `/1` for the three added jobs. The
-current alpha candidate assembler requires companions, and every candidate requires alpha version
-tokens; the reader and installer admit a Core-only profile (`public-release-v0.md`, V1-0125), but
+current alpha candidate assembler requires companions, and every candidate requires a
+`PUB-V0-023` version token (decision 0384); the reader and installer admit a Core-only profile (`public-release-v0.md`, V1-0125), but
 Core-only 0.6 packaging still needs an explicit compatible contract before release. This spec does not change that
 wire by implication. If any gate fails, preserve its evidence and keep the affected jobs UNPROVEN.
 Retain the previous working installed binary and public release. Do not rewrite historical receipts.
