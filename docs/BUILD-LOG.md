@@ -5499,3 +5499,19 @@ refusals by design and now name their reason under `EAF-V0-011`.
   parent with one holding the same repository directory, so only the parent's own pinned identity
   can refuse it. The fallback applies only when a directory's own open is denied, not an
   ancestor's. Touching `internal/gitstatus` moves the analyzer identity to `corvint-analyzer/82`.
+
+## 2026-09-24 task-store projection: promotions, closures and the 1.0.0-rc.1 rename (decisions 0381, 0382, 0384)
+
+This change carries the `.taskman/` projection of store mutations the owner ran on the primary
+checkout on 2026-09-24.
+
+- Policy version 3 (decision 0382). v0-5, v0-7 and v0-8 are promoted in order at `142d679` (merge
+  of #171). Each carries five PASS attestations whose evidence is the sha256 of one clean-clone log
+  per gate. The first run refused one attestation `LIMIT_EXCEEDED`: its `sourceIdentity` was 173
+  bytes against the 128-byte identifier limit. The store wrote nothing for it; the rerun used the
+  log's file name as the identity.
+- V1-0174, V1-0175 and V1-0180 (PR #163) and V1-0229 (PR #161) are completed manually, closing
+  decision 0381 step 2.
+- V1-0240 to V1-0247 are filed from the 0.8.1 session's findings, including V1-0247 for issue #167.
+- Decision 0384: release `v0-9` keeps its id with version `1-0-0-rc-1` and title `Corvint
+  1.0.0-rc.1 release candidate`, and V1-0018 is retitled to match. No 0.9.0 is published.
