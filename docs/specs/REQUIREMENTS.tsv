@@ -1275,7 +1275,7 @@ LAC-V0-032	docs/specs/local-admin-console-v0.md	224	The roadmap page MUST repeat
 LAC-V0-033	docs/specs/local-admin-console-v0.md	235	The console MUST offer one `/chain` pane that lists the sealed change maps commi
 LAC-V0-034	docs/specs/local-admin-console-v0.md	243	Every edge MUST name the artifact and the field that justify it, and MUST exist
 LAC-V0-035	docs/specs/local-admin-console-v0.md	257	An edge the artifacts do not establish MUST render as a gap row with its class a
-LAC-V0-036	docs/specs/local-admin-console-v0.md	268	The pane MUST be reachable from the primary navigation and operable by keyboard
+LAC-V0-036	docs/specs/local-admin-console-v0.md	272	The pane MUST be reachable from the primary navigation and operable by keyboard
 LCP-V0-001	docs/specs/local-completion-policy-v0.md	40	The local policy MUST remain caller-owned and non-authoritative. Its positive st
 LCP-V0-002	docs/specs/local-completion-policy-v0.md	44	Enrollment MUST be explicit through `corvint dogfood begin`. One bounded plan pi
 LCP-V0-003	docs/specs/local-completion-policy-v0.md	80	`status` and automatic event evaluation MUST be read-only. They derive unmet
