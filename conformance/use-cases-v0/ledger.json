@@ -168,7 +168,7 @@
       "title": "Live Proof-Carrying Verification"
     },
     {
-      "claim": "UNPROVEN",
+      "claim": "VERIFIED",
       "evidence": {
         "beamfall-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/beamfall-dogfood.json",
@@ -197,11 +197,11 @@
       },
       "id": "UC-TASK-ORIENTATION",
       "job": "Locate governing intent and original revision-pinned task evidence, preserving omissions and abstention.",
-      "status": "experimental",
+      "status": "verified",
       "title": "Task orientation"
     },
     {
-      "claim": "UNPROVEN",
+      "claim": "VERIFIED",
       "evidence": {
         "beamfall-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/beamfall-dogfood.json",
@@ -230,11 +230,11 @@
       },
       "id": "UC-CHANGE-CONSEQUENCE",
       "job": "Identify supported affected scope for a concrete change, preserving unsupported scope and incomplete frontiers.",
-      "status": "experimental",
+      "status": "verified",
       "title": "Change consequence"
     },
     {
-      "claim": "UNPROVEN",
+      "claim": "VERIFIED",
       "evidence": {
         "beamfall-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/beamfall-dogfood.json",
@@ -263,7 +263,7 @@
       },
       "id": "UC-EVIDENCE-CARRYING-COMPLETION",
       "job": "Bind a real committed change to CEM, OCM, checks, inspected frontier and a retained local outcome without claiming universal correctness or host authority.",
-      "status": "experimental",
+      "status": "verified",
       "title": "Evidence-carrying local completion"
     }
   ]

@@ -5769,6 +5769,37 @@ decision 0332), so no receipt repin was needed (V1-0216 does not apply here).
 `statusCounts.experimental: 3`, all claims `UNPROVEN`. `go test ./conformance/use-cases-v0/...` and
 `go test ./internal/specindex/...` pass.
 
+## 2026-09-25 V1-0011: the three Core use-case rows are VERIFIED
+
+`UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION` move from
+`experimental`/`UNPROVEN` to `verified`/`VERIFIED`. The UCV0-003 promotion input is one receipt from
+each of the six evidence classes on every row:
+- contract and implementation (decision 0373);
+- hostile-tests (V1-0188);
+- corvint-dogfood (V1-0207);
+- the sealed-benchmark from daily-loop run-002, which passed all three jobs (V1-0012);
+- beamfall-dogfood (V1-0184, completed with the orientation receipt above).
+
+Promotion needs both Corvint and Beamfall dogfood (UCV0-010), and each row has both. The
+nineteen historical rows stay `UNPROVEN`. The ledger now reports `claimCounts` `UNPROVEN` 19 and
+`VERIFIED` 3, `statusCounts.verified` 3, and `evidenceCount` 18.
+
+- Scope of the claim: the orientation Beamfall receipt came from a build that includes
+  `GPK-V0-066` (decision 0387). The published 0.8.1 archive abstains on that query (V1-0260), so under
+  `UCV0-012` the claim applies to releases that include decision 0387 (the 1.0.0-rc.1 candidate),
+  not to 0.8.1.
+- Benchmark quality: UCV0-007 notes that mechanical completeness does not replace independent review
+  of benchmark quality. No independent quality review of run-002 is recorded, so that review is
+  `NOT_PRODUCED`. The promotion depends on the owner accepting run-002 as it stands.
+- Test changes: `TestUCV0ProfileMigration` pinned the canonical ledger at 22 `UNPROVEN`. It now pins 19/3, and its
+  fixture resets the promoted rows' claim along with their status.
+
+`conformance/use-cases-v0/README.md` is updated to match. `go run ./conformance/use-cases-v0` reports
+`valid: true`, and `go test ./conformance/use-cases-v0/...` passes.
+
+Rollback: set the three rows back to `experimental`/`UNPROVEN` and revert the test pin. No
+receipt bytes change.
+
 ## 2026-09-25 V1-0184: beamfall-dogfood receipt for UC-TASK-ORIENTATION
 
 This completes V1-0184's third row. The LCRES-15 pre-change query abstained with zero results

@@ -234,7 +234,8 @@ func testUCV0ProfileMigration(t *testing.T) {
 	}
 	// The canonical ledger validates in the repository tree, where its receipts live (decision 0373).
 	tree := validate("../..", "conformance/use-cases-v0/ledger.json")
-	if tree["valid"] != true || tree["useCaseCount"] != 22 || tree["claimCounts"].(map[string]any)["UNPROVEN"] != 22 {
+	// V1-0011 promoted the three Core rows; the nineteen historical rows stay UNPROVEN.
+	if tree["valid"] != true || tree["useCaseCount"] != 22 || tree["claimCounts"].(map[string]any)["UNPROVEN"] != 19 || tree["claimCounts"].(map[string]any)["VERIFIED"] != 3 {
 		t.Fatal(tree)
 	}
 	current := newFixture(t)
@@ -243,7 +244,7 @@ func testUCV0ProfileMigration(t *testing.T) {
 	}
 	for i := len(useCaseIDs); i < len(current.ledger["useCases"].([]any)); i++ {
 		row := current.row(i)
-		row["status"], row["evidence"] = "specified", map[string]any{}
+		row["status"], row["claim"], row["evidence"] = "specified", "UNPROVEN", map[string]any{}
 	}
 	result := current.check()
 	if result["useCaseCount"] != 22 || result["claimCounts"].(map[string]any)["UNPROVEN"] != 22 || result["evidenceCount"] != 0 {
