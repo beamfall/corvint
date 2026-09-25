@@ -126,7 +126,7 @@ func workspaceImpactRepository(t *testing.T) string {
 }
 
 // TestImpactDisclosesWorkspacePackageImporters is the regression for panel
-// blocker B3 (GPK-V0-067, proposed). Rule (c) resolves relative and alias
+// blocker B3 (GPK-V0-069, proposed). Rule (c) resolves relative and alias
 // specifiers only, so the worker test that imports topics.ts through
 // `@fixture/contracts` was never found, and the receipt still reported
 // `uncertainty: []`: complete coverage asserted over an answer missing a

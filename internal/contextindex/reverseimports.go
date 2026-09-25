@@ -170,7 +170,7 @@ func webSpecifierAdmitted(imported string, profile projectprofile.Profile) bool 
 // through the name of the nested package that holds it, which rule (c) cannot
 // resolve: a bare specifier such as `@scope/contracts` names a workspace
 // package, and the package's entry point and barrel re-exports decide which of
-// its files it reaches (GPK-V0-067, proposed). The holding package is the
+// its files it reaches (GPK-V0-069, proposed). The holding package is the
 // nearest directory below the root with an indexed `package.json`; the root
 // package is excluded. A manifest whose name cannot be read is reported as
 // reachable, because nothing then shows it is not.

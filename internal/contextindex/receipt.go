@@ -435,7 +435,7 @@ func reverseImportProfileGap(index *Index, receipt map[string]any) int {
 
 // webWorkspaceImportGap counts the requested web changed paths that some
 // source may import through their nested package's name, a bare specifier rule
-// (c) does not resolve (GPK-V0-067, proposed). Rule (c)'s answer for such a
+// (c) does not resolve (GPK-V0-069, proposed). Rule (c)'s answer for such a
 // path is incomplete, so the receipt names the unresolved dimension rather
 // than report complete coverage over it. Test and unindexed paths are excluded
 // for the reasons reverseImportProfileGap gives.
