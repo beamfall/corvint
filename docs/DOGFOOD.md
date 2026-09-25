@@ -144,6 +144,15 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
     `git diff-tree -r -M --no-commit-id --name-status HEAD SEAL` prints only
     `R100 .corvint/change.cem.json .corvint/changes/<bind-commit>.cem.json` (tab-separated); and
     the semantics of the cited hunks and the handed-off reports (section 6).
+    OCM maps are local-only: `.gitignore` excludes every `.corvint/change.ocm*` file, so neither
+    the bind commit nor the seal carries one (V1-0181). The handed-off report's
+    `ocmStatus.scopes[].path` names each intent file. For each, the reviewer rebuilds a map in
+    their clone with `corvint ocm prepare --map .corvint/change.ocm.json --cem
+    .corvint/change.cem.json --intent PATH --expected-base $BASE --target BIND_OID` (the full bind
+    commit ID; it writes only that ignored map) and reads it with the read-only `corvint ocm
+    status` and the same `--map`, `--cem`, `--expected-base` and `--target`. The rebuild holds no
+    author `ocm link` rows unless the `DOGFOOD_OCM_LINKS` plan is handed off too, so its linked
+    count and digest are not comparable with the report's `mapSha256` and counts.
 
 ### Fail-closed outcomes
 
