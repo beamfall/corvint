@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/runhygiene"
+	"github.com/Beamfall/corvint/internal/secretscreen"
 	"github.com/Beamfall/corvint/internal/tcq"
 )
 
@@ -130,7 +132,29 @@ func playwrightOutcome(spec playwrightSpec, t playwrightTest) TestOutcome {
 		outcome.AttemptDetails = append(outcome.AttemptDetails, playwrightAttemptDetail(&t.Results[i]))
 	}
 	outcome.State = playwrightState(t, last, outcome.FailureMessage)
+	scrubPlaywrightOutcome(&outcome)
 	return outcome
+}
+
+// scrubPlaywrightOutcome applies the run-evidence hygiene and the product secret screen (AFU-V1-038)
+// to the last-attempt fields and to every attempt, after classification has read the raw message.
+func scrubPlaywrightOutcome(outcome *TestOutcome) {
+	outcome.FailureMessage, outcome.Artifacts = scrubAttempt(outcome.FailureMessage, outcome.Artifacts)
+	for i := range outcome.AttemptDetails {
+		detail := &outcome.AttemptDetails[i]
+		detail.FailureMessage, detail.Artifacts = scrubAttempt(detail.FailureMessage, detail.Artifacts)
+	}
+}
+
+func scrubAttempt(message string, artifacts []FailureArtifact) (string, []FailureArtifact) {
+	var kept []FailureArtifact
+	for _, a := range artifacts {
+		if runhygiene.KeepAttachment(a.Name, a.Path) && !secretscreen.MatchString(a.Name+" "+a.Path) {
+			kept = append(kept, a)
+		}
+	}
+	screened, _ := secretscreen.Screen(runhygiene.ScrubFailure(message))
+	return screened, kept
 }
 
 // playwrightAttemptDetail keeps one attempt as Playwright reported it, so a retry does not erase

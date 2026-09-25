@@ -14,6 +14,30 @@ tickets in passing shards lack Acceptance and are excluded. Shard 42 showed a bl
 `  - **Acceptance:**` list with nested bullets, which the reader now accepts. LRF and the change
 universe refuse declared forms. The dogfood wrapper cannot pass a form yet (open decision 5).
 
+## 2026-09-25 V1-0259 DCW-V0-024: daily path for a repository with no requirements spec
+
+`dogfood change` required 1 to 16 intent specs with one `## Requirements` heading, so a repository
+whose intent lives in ADRs and roadmap tickets (Beamfall) could never reach `"complete": true`,
+against AGENTS.md invariant 6. Route (c), owner-approved: an explicit declaration. The opt-out is a
+`DOGFOOD_INTENTS_FILE` whose whole content is `#no-intent-declared`. Rejected: an unset variable or
+an empty file, because both arise by accident (a forgotten export, a generator that matched nothing)
+and must keep refusing `missing-intent-scope`; a sentinel variable value, because the Corvint wrapper
+absolutizes relative values and any bare word is also a legal path. A `#` line was already refused
+as an intent path by both the manifest check and `dogfood-ocm status`, so no valid manifest changes
+meaning. Under the declaration the three OCM rows report `no-intent-declared` without blocking, the
+report's `ocmStatus` is `NOT_ASSESSED`, and the check runs no OCM verifier, refuses a snapshot that
+disagrees with the report, and prints a `NOTE intent-linkage NOT_ASSESSED` line. Reading ADR or
+roadmap intent forms in OCM is separate work. Pre-change `corvint query` (0.8.1) missed the owning
+spec: its top results were the Go kernel migration spec and decision 0012.
+
+Live run, binary built from this change, in a scratch Go module with no spec and one changed hunk
+(`greet/greet.go`) cited to `README.md`: after the sidecar commit, `dogfood change` exited 0 with
+`complete: true`, rows `ocm-prepare`, `ocm-status` and `ocm-aggregate` `NOT_PRODUCED
+no-intent-declared`, every other row `PRODUCED`, `ocmStatus` `NOT_ASSESSED`, `bootstrapUnknown` 0;
+`dogfood check` printed `NOTE intent-linkage NOT_ASSESSED no-intent-declared` then `PASS`, and
+`dogfood seal` printed `PASS`. A change at the module root first refused `prechange-impact:
+unsupported-impact-path`, an impact-index limit independent of this change.
+
 ## 2026-09-24 0.8.1 version tuple and DCW code vocabulary (decision 0381 item 11)
 
 The version tuple moves to 0.8.1 for the pre-release decision 0381 item 11 approved. Release prep
@@ -5635,6 +5659,73 @@ now refused, and no published version has one. `PUB-V0-023` now states the gramm
 Left unchanged: `script/release-checklist` already admits any `[0-9A-Za-z.+-]` VERSION, the VS Code
 executable pin already admits `-rc.N`, and the `--version` banner checks match shape, not grammar.
 No real `1.0.0-rc.1` candidate was assembled; `VERSION` is still `0.8.1`.
+
+## 2026-09-25 V1-0251: Core `e2e-safe` selection profile and frozen corpus (AFU-V1 S4)
+
+`corvint affected --provider FILE --selection-profile e2e-safe` (`internal/appflows/selection.go`
+`SelectE2E`) selects every test whose file changed, that the impact graph reaches, that links to the
+obligation closure, or whose observed coverage names a changed path. It omits a test only with a
+`coverage` or `reviewed-links` exclusion proof, and otherwise returns the full relevant suite
+(inventory plus discovered-but-uninventoried tests) with the seven closed `e2e-*` codes. `strict` and
+`coverage` output is unchanged: goldens captured before the change pin it byte for byte.
+
+Decisions, recorded in the spec's new "E2E-safe wire contract":
+
+- New wire shapes: the provider is `application-flow-selection-provider/1` and the output is
+  `e2e-safe-selection/0`. The ETS `omitted` member counts list cuts, so it is not reused.
+- Coverage records live in a separate `application-flow-coverage/0` file that the provider names.
+  With the records inside the provider, a global path, every new record would change a global path
+  after its own evidence commit, so coverage would always be stale. Folding coverage into
+  `test-run-evidence/0` is a follow-up.
+- Named fixtures and seeds are global only through `global_paths`. Any other changed path that
+  neither the graph owns, nor a reviewed link targets, nor a coverage record names blocks the
+  coverage basis with `e2e-unmapped-change`.
+- The TypeScript `e2e-runtime-dependency` and `executable-config-unresolved` frontiers do not unbound
+  the closure here, the same precedent as the Playwright profile. Without that rule, every TS change
+  was unmapped and nothing could narrow.
+
+Corpus (AFU-V1-040): `cmd/corvint/testdata/e2e-safe-corpus.json` has 20 labelled, fault-injected
+cases over one five-test shop app. `coverage` omits 15 tests with 0 unsafe (reduction 0.15), and
+`reviewed-links` omits 3 with 0 unsafe (reduction 0.03). Fallback counts: exclusion-unproven 3,
+global-path-changed 4, inferred-link-only 2, inventory-incomplete 3, map-stale 2, unmapped-change 3,
+and bound-exceeded 0 (covered only by its unit case). No basis is withdrawn.
+
+Negative control, run once and reverted: dropping the `linked-to-closure` and `observed-coverage`
+reasons produced 4 unsafe omissions. Both live changes (the Corvint Playwright fixture suite and
+Beamfall) stay `NOT_RUN`.
+
+## 2026-09-25 V1 bug batch: V1-0123, V1-0159, V1-0172, V1-0238, V1-0222, V1-0131
+
+- V1-0123 (`EEP-V0-001`): a provider record whose object repeats a member name is now `invalid`,
+  worded as in `EEP-V0-020`; Go's decoder previously kept the last value silently.
+  `TestRepeatedMemberIsInvalid`.
+- V1-0159 (`ESV-V0-009`): a repeated `context --expand` is an argument error, and an empty HANDLE
+  now reports `invalid-handle` instead of reading as absent. `TestParseContextViewArguments`.
+- V1-0172 (`DCW-V0-014`): the `cem-cite` `cite-span-not-stable` fix hint names the failing
+  citation-plan row. `script/dogfood-change_test.sh`.
+- V1-0238 (`WQO-V0-051`): the `work rebind` unqualified-adoption refusal prints the fixed
+  `workSourceReason` text, never Git stderr. `TestWorkRebindUnqualifiedAdoptionOmitsGitStderr`.
+- V1-0222: `docs/RELEASE-RUNBOOK.md` step 8 now shows the N-1 upgrade lifecycle invocation.
+- V1-0131: `docs/decisions/README.md` loses its stale 0105 and 0232 duplicates and is sorted again.
+  The index still lacks rows for about 51 decision files and has no duplicate-row check; neither is
+  in this change.
+
+## 2026-09-25 AFU S2 remainder: every Playwright attempt on the receipt (V1-0249)
+
+- `AFU-V1-012`: the unprofiled `corvint-js-test-provider` receipt gains the additive
+  `attemptDetails` member, so a retry no longer erases the earlier attempts' duration, failure,
+  anchor or attachments on the wire. The `corvint-playwright-external` profiles refuse the member on
+  encode and on qualified-reporter decode rather than widening `/0`..`/2`: a profiled wire field
+  needs another profile revision (`docs/specs/playwright-external-provider-v0.md`). The profiled
+  reporter still emits only the last attempt's detail; closing that needs a `/3` profile and live
+  reporter qualification. `TestAFUV1PlaywrightProviderKeepsEveryAttempt`.
+- `AFU-V1-038`: the run-evidence hygiene moves to `internal/runhygiene` (an import cycle kept
+  `internal/jstestprovider` from importing `internal/appflows`). The provider now applies it and the
+  product secret screen to every attempt and to the last-attempt fields, after state classification
+  has read the raw message. `TestAFUV1PlaywrightProviderScrubsEveryAttempt`.
+- Still partial: `AFU-V1-013` (repeated-run aggregation needs the `internal/doccorpus` stability
+  counting exposed for `test-run-evidence/0`) and `AFU-V1-014` (the AFU-V0-010 observer observes
+  flows, not tests, so it has no test key to emit a `LOCALLY_OBSERVED` record for).
 
 ## 2026-09-25 OIF-V0-005: closed Decisions heading variants (open decision 3 answered)
 

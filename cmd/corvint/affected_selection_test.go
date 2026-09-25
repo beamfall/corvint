@@ -260,7 +260,7 @@ func TestAffectedSelectionArguments(t *testing.T) {
 	}{
 		{[]string{"--repository", "e2e=../e2e"}, "require --provider"},
 		{[]string{"--selection-profile", "coverage"}, "require --provider"},
-		{[]string{"--provider", "p.json", "--selection-profile", "all"}, "must be strict or coverage"},
+		{[]string{"--provider", "p.json", "--selection-profile", "all"}, "must be strict, coverage or e2e-safe"},
 		{[]string{"--provider", "p.json", "--repository", "e2e=a", "--repository", "e2e=b"}, "bound twice"},
 		{[]string{"--provider"}, "requires exactly one value"},
 		{[]string{"--provider", "p.json", "--limit", "3"}, "unrecognized arguments"},

@@ -8,7 +8,7 @@ Execution status comes from the native `.taskman` store **when present in the ch
 
 ## Indexed specifications
 
-### Core (31)
+### Core (32)
 
 - [Affected Plan V0](specs/affected-plan-v0.md) — [index intent/delivery](specs/INDEX.json) (`affected-plan-v0.md`).
 - [Corvint Self-Development V0](specs/corvint-self-development-v0.md) — [index intent/delivery](specs/INDEX.json) (`corvint-self-development-v0.md`).
@@ -41,6 +41,7 @@ Execution status comes from the native `.taskman` store **when present in the ch
 - [Test Claim Qualification V0](specs/test-claim-qualification-v0.md) — [index intent/delivery](specs/INDEX.json) (`test-claim-qualification-v0.md`).
 - [Traceability test gate V0](specs/traceability-test-gate-v0.md) — [index intent/delivery](specs/INDEX.json) (`traceability-test-gate-v0.md`).
 - [Main Use-Case Conformance V0](specs/use-case-conformance-v0.md) — [index intent/delivery](specs/INDEX.json) (`use-case-conformance-v0.md`).
+- [Stable operations V0](specs/stable-operations-v0.md) — [index intent/delivery](specs/INDEX.json) (`stable-operations-v0.md`).
 
 ### Companion (20)
 
@@ -65,7 +66,7 @@ Execution status comes from the native `.taskman` store **when present in the ch
 - [Work Queue Observation V0](specs/work-queue-observation-v0.md) — [index intent/delivery](specs/INDEX.json) (`work-queue-observation-v0.md`).
 - [Native taskman fixture planning V0](specs/native-taskman-planning-v0.md) — [index intent/delivery](specs/INDEX.json) (`native-taskman-planning-v0.md`).
 
-### Experimental (54)
+### Experimental (57)
 
 - [Analyzer Capability Contract V0](specs/analyzer-capability-contract-v0.md) — [index intent/delivery](specs/INDEX.json) (`analyzer-capability-contract-v0.md`).
 - [Browser behavior falsification V0](specs/browser-behavior-falsification-v0.md) — [index intent/delivery](specs/INDEX.json) (`browser-behavior-falsification-v0.md`).
@@ -121,6 +122,9 @@ Execution status comes from the native `.taskman` store **when present in the ch
 - [Compaction Kernel V0](specs/compaction-kernel-v0.md) — [index intent/delivery](specs/INDEX.json) (`compaction-kernel-v0.md`).
 - [Corvint Witness Report V0](specs/corvint-witness-v0.md) — [index intent/delivery](specs/INDEX.json) (`corvint-witness-v0.md`).
 - [Repository guidance V0](specs/repository-guidance-v0.md) — [index intent/delivery](specs/INDEX.json) (`repository-guidance-v0.md`).
+- [Application Flow Understanding V0](specs/application-flow-understanding-v0.md) — [index intent/delivery](specs/INDEX.json) (`application-flow-understanding-v0.md`).
+- [CEM 0.3 structural mechanical reasons](specs/cem-0.3-structural-mechanical.md) — [index intent/delivery](specs/INDEX.json) (`cem-0.3-structural-mechanical.md`).
+- [Protected Pi Runtime V0](specs/protected-pi-runtime-v0.md) — [index intent/delivery](specs/INDEX.json) (`protected-pi-runtime-v0.md`).
 
 ### Deferred (17)
 
@@ -203,6 +207,8 @@ Inventory from installed `corvint --help` (0.5.0a3 build 45), checked against `c
 | `dogfood-observe` | [self-observation-ledger-v0.md](specs/self-observation-ledger-v0.md); experimental | Dispatcher-only; Experimental; outside Core. |
 | `native-hook` | [direct-native-cli-authority-v0.md](specs/direct-native-cli-authority-v0.md); experimental | Dispatcher-only; Experimental; outside Core. |
 | `qualified-event` | [qualified-lifecycle-v0.md](specs/qualified-lifecycle-v0.md); experimental | Dispatcher-only; Experimental; outside Core. |
+| `flows` | [application-flow-understanding-v0.md](specs/application-flow-understanding-v0.md); experimental | Companion; outside Core. |
+| `skill-export` | [learned-trace-admission-v0.md](specs/learned-trace-admission-v0.md); experimental | Experimental; outside Core. |
 
 ## Separate distribution surfaces
 

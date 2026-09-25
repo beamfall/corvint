@@ -43,7 +43,7 @@ the current (and, for the check, base) tree first (`DCW-V0-022`). Elsewhere, rea
 |---|---|---|
 | `BASE` | Full 40-hex commit before the change's first commit; never `HEAD` | `BASE=$(git rev-parse origin/main)` taken when branching |
 | `DOGFOOD_TASK` | One sentence describing the change, not project-operations wording (section 1) | `Deliver the documented daily change-evidence adopter path.` |
-| `DOGFOOD_INTENTS_FILE` | Path to a file of 1 to 16 repository-relative spec paths, sorted, LF-terminated, no absolute path and no `.` or `..` segment. Each spec exists at `BASE` and has exactly one `## Requirements` heading (`rg -c '^## Requirements' SPEC` prints 1); a spec created in this change cannot be an intent (section 2) | file content `docs/specs/daily-change-evidence-workflow-v0.md` |
+| `DOGFOOD_INTENTS_FILE` | Path to a file of 1 to 16 repository-relative spec paths, sorted, LF-terminated, no absolute path and no `.` or `..` segment. Each spec exists at `BASE` and has exactly one `## Requirements` heading (`rg -c '^## Requirements' SPEC` prints 1); a spec created in this change cannot be an intent (section 2). When no such spec governs the change, the file instead holds exactly the one line `#no-intent-declared` (`DCW-V0-024`): no OCM step runs, `ocm-prepare`, `ocm-status` and `ocm-aggregate` report `no-intent-declared`, `ocmStatus` is `NOT_ASSESSED`, and the check prints `dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared`; an unset variable or an empty file still refuses `missing-intent-scope` | file content `docs/specs/daily-change-evidence-workflow-v0.md` |
 | `DOGFOOD_CITATIONS` | Path to a TSV file, not the rows. One `ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION` row per CEM hunk in `hunks` order, ordinals from 1, LF-terminated, at most 256 rows; the span must exist at `BASE`. Only the hunk of an intent spec absent at `BASE` may be left out; leaving out any other unknown hunk, or an ordinal above the hunk count, refuses the whole plan (`DCW-V0-019`) | row `1	AGENTS.md	26:28	specification` |
 | `DOGFOOD_VERIFY_FILE` | Path to a file with one shell-free verification command per line, each at most 512 characters; `DOGFOOD_VERIFY` takes the same lines inline (section 7) | line `go test ./internal/lrfrepo` |
 | `DOGFOOD_OUTCOME` | `passed`, `failed` or `blocked` | `passed` |
@@ -62,7 +62,8 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    when `BASE` carries no shared `.corvint/change.cem.json` (the normal case once a seal has moved it):
    `dogfood-change: FAIL not-complete` listing only `cem-cite: citation-plan-not-provided`,
    `cem-status: not-ready` (policy issue `max-unknown-exceeded`, because no hunk is cited yet) and
-   `local-outcome: record-index-failed`; every OCM row is produced, and `git status` shows
+   `local-outcome: record-index-failed`; every OCM row is produced (under the no-intent declaration,
+   the three OCM rows report `no-intent-declared` instead and do not block), and `git status` shows
    `?? .corvint/change.cem.json`. The recorder runs last, so it sees the sidecar this pass prepared
    and refuses every pass whose sidecar is untracked or modified (`DCW-V0-015`).
    When `BASE` still tracks an earlier unsealed `.corvint/change.cem.json`, this pass replaces it (the
@@ -114,8 +115,10 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    form (`.corvint/changes/<bind-sha>.cem.json` and `--target <bind-sha>`).
 9. Run `make dogfood-check BASE=$BASE`. Expected: CEM and OCM status JSON, then
    `dogfood-check: PASS`. A base whose committed CEM names a base outside its history also prints
-   `dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable`; the note never
-   changes the verdict.
+   `dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable`; a base whose
+   window since the previous bound CEM contains commits no sidecar covers instead prints
+   `dogfood-check: NOTE unbound-commits count=N window=PREVIOUS_BASE..BASE` followed by one
+   `  unbound SHA` line per commit; neither note changes the verdict.
 10. Run `make dogfood-seal BASE=$BASE`. Expected: `dogfood-seal: PASS
     sealed=.corvint/changes/<bind-commit>.cem.json` and one rename-only commit.
 11. Hand the branch and reports to an independent reviewer (section 6) and keep the outcome
@@ -475,8 +478,8 @@ $ corvint_target_sha=$(git rev-parse HEAD)
 $ corvint_base_sha=BASE_SHA
 $ corvint ocm prepare --target "$corvint_target_sha" --expected-base "$corvint_base_sha" \
     --intent docs/specs/OWNING-SPEC.md \
-    --cem .corvint/change.cem.json --map .corvint/change.ocm.json
-$ corvint ocm status --map .corvint/change.ocm.json --cem .corvint/change.cem.json \
+    --cem .corvint/change.cem.json --map .corvint/change.ocm.001.json
+$ corvint ocm status --map .corvint/change.ocm.001.json --cem .corvint/change.cem.json \
     --expected-base "$corvint_base_sha" --target "$corvint_target_sha"
 ```
 
@@ -507,7 +510,7 @@ Before the seal, at the bind commit, the author runs the same report with
 files, so only the author can report them, before the seal:
 
 ```console
-$ corvint ocm report --map .corvint/change.ocm.json \
+$ corvint ocm report --map .corvint/change.ocm.001.json \
     --cem .corvint/change.cem.json --expected-base "$corvint_base_sha" \
     --target "$corvint_target_sha"
 ```

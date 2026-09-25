@@ -608,8 +608,29 @@ phase_jobs="$phase_jobs $!"
   printf '%s\n' "$missing_manifest_output" | rg -q '^dogfood-change: FAIL not-complete$'
   printf '%s\n' "$missing_manifest_output" | rg -q '^  ocm-aggregate: missing-intent-scope$'
   printf '%s\n' "$missing_manifest_output" | \
-    rg -Fxq '    fix: DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths'
+    rg -Fxq '    fix: DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths, or of a file holding the one line #no-intent-declared when no requirements spec governs the change'
   printf '%s\n' "$missing_manifest_output" | rg -q '^  full report: .*/\.corvint/dogfood-report\.json$'
+
+  # DCW-V0-024: the explicit no-intent declaration passes through the wrapper,
+  # runs no OCM step, completes, and the check names the unassessed linkage.
+  printf '#no-intent-declared\n' > "$test_root/no-intent.txt"
+  no_intent_log_start=$(wc -l < "$test_root/corvint.log")
+  DOGFOOD_OBSERVE_FAIL=1 CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" \
+    DOGFOOD_TASK=test DOGFOOD_CITATIONS="$test_root/citations.tsv" \
+    DOGFOOD_INTENTS_FILE="$test_root/no-intent.txt" DOGFOOD_VERIFY='test gate' \
+    DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
+  rg -q '"complete": true' .corvint/dogfood-report.json
+  for no_intent_step in ocm-prepare ocm-status ocm-aggregate; do
+    rg -Fq "{\"name\": \"$no_intent_step\", \"status\": \"NOT_PRODUCED\", \"reason\": \"no-intent-declared\"}" \
+      .corvint/dogfood-report.json
+  done
+  rg -Fxq '  "ocmStatus": {"state": "NOT_ASSESSED", "reason": "no-intent-declared"}' .corvint/dogfood-report.json
+  if tail -n "+$((no_intent_log_start + 1))" "$test_root/corvint.log" | rg -q '(^| )(ocm|dogfood-ocm) '; then
+    printf 'dogfood-change ran an OCM step without a declared intent\n' >&2
+    exit 1
+  fi
+  run_dogfood_check "$base" | rg -Fxq 'dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared'
+  cp "$test_root/intents.txt" .corvint/change.ocm-intents
 
   # An authority-start trace-state refusal names the task wording as its subject.
   wording_status=0
@@ -1062,6 +1083,7 @@ printf '2\tdocs/specs/intent-b.md\tunstable\tspecification\n' >> "$citation_arti
 run_citation_case unstable-second "$citation_artifacts/unstable.tsv" 1 2
 cmp "$citation_artifacts/prepared.json" "$citation_case/final.json"
 rg -q '"name": "cem-cite", "status": "NOT_PRODUCED", "reason": "cite-span-not-stable"' "$citation_case/report.json"
+rg -Fxq -- '    fix: plan row 2 cites BASE lines that this change edits or deletes; cite a START:END span the change leaves unchanged' "$citation_case/stderr"
 rg -q '"map":".corvint/.cem-citations.' "$citation_case/receipts.jsonl"
 test "$(wc -l < "$citation_case/receipts.jsonl" | tr -d '[:space:]')" = 1
 

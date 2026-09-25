@@ -60,6 +60,9 @@ func EncodeQualified(r Receipt) ([]byte, error) {
 }
 
 func qualifiedProfileShapeError(r Receipt) error {
+	if r.Profile != "" && hasAttemptDetails(r) {
+		return errors.New("external-profile-has-attempt-details")
+	}
 	switch r.Profile {
 	case ExternalProfile:
 		if r.ApplicationAttestation != nil || r.TestRepositoryAtStart != nil || r.TestRepositoryAtPublish != nil {
@@ -92,6 +95,17 @@ func qualifiedProfileShapeError(r Receipt) error {
 		}
 	}
 	return nil
+}
+
+// hasAttemptDetails reports the unprofiled-only attemptDetails member: an external profile gains a
+// wire field only through another profile revision.
+func hasAttemptDetails(r Receipt) bool {
+	for _, test := range r.Tests {
+		if len(test.AttemptDetails) != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func hasSensitiveInputEvidence(r Receipt) bool {

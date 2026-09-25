@@ -38,12 +38,14 @@ type change struct {
 	citationStage        string
 	citationStageOwned   bool
 	citationCount        int
+	citationFailedRow    int
 	citedOver            bool
 	intentPublishTmp     string
 	localOutcomeSHA      string
 	contextAbstentionSHA string
 	bootstrapUnknown     int
 	manifestValid        bool
+	noIntent             bool
 	intentSnapshot       []byte
 	intents              []string
 	linkPlan             []byte
@@ -110,6 +112,8 @@ func (c *change) run() int {
 	c.citeStep()
 	_ = os.WriteFile(c.path(".corvint/change.ocm-status.json"), nil, 0o666)
 	switch {
+	case c.noIntent:
+		c.declareNoIntent()
 	case !c.manifestValid:
 		c.addStep("ocm-aggregate", "NOT_PRODUCED", "missing-intent-scope")
 	case !c.runOCMScopes():
@@ -288,8 +292,15 @@ func verifyArguments(data []byte) []string {
 	return args
 }
 
+// noIntentManifest is the whole DOGFOOD_INTENTS_FILE content that declares a
+// change with no requirements spec (DCW-V0-024). A "#" line is never an intent
+// path, so it cannot collide with a manifest, and an unset variable or an
+// empty file still refuses missing-intent-scope.
+var noIntentManifest = []byte("#no-intent-declared\n")
+
 // validateIntentManifest freezes DOGFOOD_INTENTS_FILE: 1-16 sorted,
-// LF-terminated, canonical repository-relative paths.
+// LF-terminated, canonical repository-relative paths, or the no-intent
+// declaration.
 func (c *change) validateIntentManifest() bool {
 	source := c.options.IntentsFile
 	if source == "" || !isRegular(source) || isSymlink(source) {
@@ -298,6 +309,10 @@ func (c *change) validateIntentManifest() bool {
 	data, err := os.ReadFile(source)
 	if err != nil || len(data) == 0 || len(data) > 16*513 || data[len(data)-1] != '\n' {
 		return false
+	}
+	if bytes.Equal(data, noIntentManifest) {
+		c.intentSnapshot, c.noIntent = data, true
+		return true
 	}
 	paths := readLines(data)
 	if len(paths) > 16 {
@@ -405,6 +420,7 @@ func (c *change) cite(plan []byte, citeOutput string) (string, string) {
 		part := c.runTmp + "/cem-cite.json"
 		errorFile := c.evidence + "/cem-cite.stderr"
 		if status := c.exec(args, part, errorFile); status != 0 {
+			c.citationFailedRow = index + 1
 			return "NOT_PRODUCED", failureReason(readFile(errorFile), status)
 		}
 		// Intermediate receipts truthfully name the stage; only the last cite
@@ -663,9 +679,30 @@ func (c *change) runOCMLinks(mapPath, path string) {
 	}
 }
 
-// finishOCMAggregate publishes the frozen manifest, unless its source changed
-// during the run, and verifies the ordered map set against it.
+// declareNoIntent reports each OCM step as not assessed and publishes the
+// declaration the check reads (DCW-V0-024). No intent can own a link row, so a
+// supplied link plan still refuses.
+func (c *change) declareNoIntent() {
+	if c.options.OCMLinks != "" {
+		c.addStep("ocm-links", "NOT_PRODUCED", "invalid-ocm-link-plan")
+	}
+	c.addStep("ocm-prepare", "NOT_PRODUCED", "no-intent-declared")
+	c.addStep("ocm-status", "NOT_PRODUCED", "no-intent-declared")
+	if c.publishIntentManifest() {
+		c.addStep("ocm-aggregate", "NOT_PRODUCED", "no-intent-declared")
+	}
+}
+
+// finishOCMAggregate publishes the frozen manifest and verifies the ordered
+// map set against it.
 func (c *change) finishOCMAggregate() bool {
+	return c.publishIntentManifest() &&
+		c.runStep("ocm-aggregate", c.path(".corvint/change.ocm-status.json"), "dogfood-ocm", "status", "--expected-base", c.base, "--target", c.target) == 0
+}
+
+// publishIntentManifest publishes the frozen manifest, unless its source
+// changed during the run.
+func (c *change) publishIntentManifest() bool {
 	current, err := os.ReadFile(c.options.IntentsFile)
 	if err != nil || !bytes.Equal(current, c.intentSnapshot) {
 		c.addStep("ocm-aggregate", "NOT_PRODUCED", "intent-scope-drift")
@@ -678,7 +715,7 @@ func (c *change) finishOCMAggregate() bool {
 		return false
 	}
 	c.intentPublishTmp = ""
-	return c.runStep("ocm-aggregate", c.path(".corvint/change.ocm-status.json"), "dogfood-ocm", "status", "--expected-base", c.base, "--target", c.target) == 0
+	return true
 }
 
 func (c *change) countBootstrapUnknowns() {
@@ -696,7 +733,7 @@ func bootstrapUnknowns(f *flow, intents []string) int {
 	return count
 }
 
-// failing reports a row that keeps the report incomplete; the two typed
+// failing reports a row that keeps the report incomplete; the typed
 // abstentions do not.
 func failing(row step) bool {
 	switch {
@@ -705,6 +742,8 @@ func failing(row step) bool {
 	case row.name == "local-outcome" && row.status == "NOT_PRODUCED" && row.reason == "no-source-paths":
 		return false
 	case row.name == "prechange-impact" && row.status == "NOT_PRODUCED" && row.reason == "unsupported-impact-range":
+		return false
+	case row.reason == "no-intent-declared":
 		return false
 	}
 	return true
@@ -731,10 +770,14 @@ func (c *change) renderReport() {
 		fmt.Fprintf(&report, "    {\"name\": \"%s\", \"status\": \"%s\", \"reason\": \"%s\"}", row.name, row.status, row.reason)
 	}
 	report.WriteString("\n  ],\n")
-	if aggregate := readFile(c.path(".corvint/change.ocm-status.json")); len(aggregate) > 0 {
+	aggregate := readFile(c.path(".corvint/change.ocm-status.json"))
+	switch {
+	case c.noIntent:
+		report.WriteString(noIntentOCMStatus + "\n")
+	case len(aggregate) > 0:
 		report.WriteString("  \"ocmStatus\": ")
 		report.Write(firstLine(aggregate))
-	} else {
+	default:
 		report.WriteString("  \"ocmStatus\": null\n")
 	}
 	report.WriteString(`  ,"localOutcomeEvidenceSha256": ` + digestOrNull(c.localOutcomeSHA) + "\n")
@@ -758,6 +801,10 @@ func (c *change) renderReport() {
 		c.checkpoint()
 	}
 }
+
+// noIntentOCMStatus is the report's ocmStatus line when the change declared no
+// intent: intent linkage was not assessed, never covered (DCW-V0-024).
+const noIntentOCMStatus = `  "ocmStatus": {"state": "NOT_ASSESSED", "reason": "no-intent-declared"}`
 
 func digestOrNull(digest string) string {
 	if digest == "" {
@@ -810,7 +857,8 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:citation-plan-unavailable", "DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves"},
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows"},
 	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE"},
-	{"ocm-aggregate:missing-intent-scope", "DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths"},
+	{"cem-cite:cite-span-not-stable", "plan row {row} cites BASE lines that this change edits or deletes; cite a START:END span the change leaves unchanged"},
+	{"ocm-aggregate:missing-intent-scope", "DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths, or of a file holding the one line #no-intent-declared when no requirements spec governs the change"},
 	{"ocm-prepare-*:invalid-requirements-section", `intent must be a spec that exists at BASE and contains exactly one "## Requirements" heading`},
 	{"ocm-prepare-*:excluded-artifact-mismatch", uncommittedHint},
 	{"prechange-impact:unsupported-impact-worktree", uncommittedHint},
@@ -836,7 +884,7 @@ func (c *change) fixHint(row step) string {
 			matched = len(value) >= len(prefix)+len(suffix) && strings.HasPrefix(value, prefix) && strings.HasSuffix(value, suffix)
 		}
 		if matched {
-			return strings.NewReplacer("{evidence}", c.evidence, "{step}", row.name).Replace(entry.hint)
+			return strings.NewReplacer("{evidence}", c.evidence, "{step}", row.name, "{row}", strconv.Itoa(c.citationFailedRow)).Replace(entry.hint)
 		}
 	}
 	return ""
