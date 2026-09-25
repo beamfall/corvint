@@ -129,6 +129,7 @@ func Select(graph *Graph, dirty []string) Plan {
 	seeds, unknown := graph.seed(normalized)
 	plan.Unknown = append(plan.Unknown, unknown...)
 	reached := graph.traverse(seeds)
+	graph.testUsersOf(reached)
 	graph.readers(reached, normalized)
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
 	for _, id := range graph.order {
@@ -346,6 +347,37 @@ func (graph *Graph) traverse(seeds map[string]Witness) map[string]Witness {
 		frontier = next
 	}
 	return reached
+}
+
+// testUsersOf adds every unit whose tests alone import a reached unit. The test
+// user is selected one edge past the reached unit and is never expanded further:
+// its importers do not compile its tests. Reached units are visited by witness
+// length, then id, so each test user takes the shortest chain.
+func (graph *Graph) testUsersOf(reached map[string]Witness) {
+	ids := make([]string, 0, len(reached))
+	for id := range reached {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		left, right := len(reached[ids[i]].Via), len(reached[ids[j]].Via)
+		if left != right {
+			return left < right
+		}
+		return ids[i] < ids[j]
+	})
+	for _, id := range ids {
+		parent := reached[id]
+		for _, user := range graph.testUsers[id] {
+			if _, seen := reached[user]; seen {
+				continue
+			}
+			reached[user] = Witness{
+				Kind:      WitnessDependency,
+				DirtyPath: parent.DirtyPath,
+				Via:       append(append([]string(nil), parent.Via...), user),
+			}
+		}
+	}
 }
 
 // NormalizePaths sorts and deduplicates a dirty path set and drops anything not

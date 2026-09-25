@@ -332,3 +332,51 @@ func writeFiles(t *testing.T, root string, files map[string]string) {
 		}
 	}
 }
+
+// V1-0291: a test-only import selects the importing package's tests and stops
+// there, as `go list -deps -test` does: an importer of that package never
+// compiles its tests. A real dependency chain through the helper still reaches
+// every package whose build includes it.
+func TestTestOnlyImportSelectsTheTestUserButNotItsImporters(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":           "module example.test/m\n",
+		"helper/h.go":      "package helper\n",
+		"user/u.go":        "package user\n",
+		"user/u_test.go":   "package user\n\nimport _ \"example.test/m/helper\"\n",
+		"top/t.go":         "package top\n\nimport _ \"example.test/m/user\"\n",
+		"top/t_test.go":    "package top\n",
+		"real/r.go":        "package real\n\nimport _ \"example.test/m/helper\"\n",
+		"real/r_test.go":   "package real\n\nimport _ \"example.test/m/helper\"\n",
+		"deeper/d.go":      "package deeper\n\nimport _ \"example.test/m/real\"\n",
+		"deeper/d_test.go": "package deeper\n",
+	})
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, _ := graph.Unit("go:example.test/m/user")
+	if fmt.Sprint(user.Imports, user.TestImports) != "[] [go:example.test/m/helper]" {
+		t.Fatalf("user imports=%v testImports=%v", user.Imports, user.TestImports)
+	}
+	real, _ := graph.Unit("go:example.test/m/real")
+	if fmt.Sprint(real.Imports, real.TestImports) != "[go:example.test/m/helper] []" {
+		t.Fatalf("real imports=%v testImports=%v, want a shared import to stay an ordinary edge", real.Imports, real.TestImports)
+	}
+	plan := affected.Select(graph, []string{"helper/h.go"})
+	want := "[deeper/d_test.go real/r_test.go user/u_test.go]"
+	if got := fmt.Sprint(plan.SelectedTests()); got != want {
+		t.Fatalf("selected tests = %s, want %s (top only imports user's non-test files)", got, want)
+	}
+	for _, selection := range plan.Selected {
+		if selection.UnitID == "go:example.test/m/user" && fmt.Sprint(selection.Witness.Via) != "[go:example.test/m/helper go:example.test/m/user]" {
+			t.Errorf("test user witness = %+v", selection.Witness)
+		}
+	}
+	for _, exclusion := range plan.Excluded {
+		if exclusion.UnitID == "go:example.test/m/top" && exclusion.Reason == affected.ExcludedNoDependencyPath {
+			return
+		}
+	}
+	t.Errorf("excluded = %+v, want top excluded with no dependency path", plan.Excluded)
+}

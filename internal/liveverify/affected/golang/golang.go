@@ -132,8 +132,9 @@ func (language Language) Units(root string) (affected.Result, error) {
 	directories, owners := groupByDirectory(files, modules)
 	units := make([]affected.Unit, 0, len(directories))
 	imports := make(map[string]map[string]bool, len(directories))
+	testImports := make(map[string]map[string]bool, len(directories))
 	for _, directory := range sortedKeys(directories) {
-		unit, importPaths, err := language.observeDirectory(root, owners[directory], directory, directories[directory], frontier)
+		unit, importPaths, testImportPaths, err := language.observeDirectory(root, owners[directory], directory, directories[directory], frontier)
 		if err != nil {
 			return affected.Result{}, err
 		}
@@ -142,17 +143,19 @@ func (language Language) Units(root string) (affected.Result, error) {
 		}
 		units = append(units, unit)
 		imports[unit.ID] = importPaths
+		testImports[unit.ID] = testImportPaths
 	}
-	resolve(units, imports)
+	resolve(units, imports, testImports)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 
 // observeDirectory turns one directory of Go files into one unit plus the raw
-// import path set its files declare.
-func (Language) observeDirectory(root string, owner module, directory string, files []string, frontier map[string]bool) (affected.Unit, map[string]bool, error) {
+// import path sets its non-test files and its test files declare.
+func (Language) observeDirectory(root string, owner module, directory string, files []string, frontier map[string]bool) (affected.Unit, map[string]bool, map[string]bool, error) {
 	sources := make([]string, 0, len(files))
 	tests := make([]string, 0, len(files))
 	importPaths := make(map[string]bool, 16)
+	testImportPaths := make(map[string]bool, 16)
 	names := make(map[string]bool, 16)
 	fileSet := token.NewFileSet()
 	for _, relative := range files {
@@ -169,6 +172,11 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 			frontier[FrontierUnparsedSource] = true
 			continue
 		}
+		isTest := strings.HasSuffix(relative, "_test.go")
+		declared := importPaths
+		if isTest {
+			declared = testImportPaths
+		}
 		for _, spec := range file.Imports {
 			value, unquoteErr := strconv.Unquote(spec.Path.Value)
 			if unquoteErr != nil {
@@ -179,19 +187,19 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 				frontier[FrontierCgo] = true
 				continue
 			}
-			importPaths[value] = true
+			declared[value] = true
 		}
 		if err := pathTokens(body[importsEnd(fileSet, file):], owner.path, names); err != nil && !ignoredByGo(directory) {
 			frontier[FrontierUnparsedSource] = true
 		}
-		if strings.HasSuffix(relative, "_test.go") {
+		if isTest {
 			tests = append(tests, relative)
 			continue
 		}
 		sources = append(sources, relative)
 	}
 	if len(sources) == 0 && len(tests) == 0 {
-		return affected.Unit{}, nil, nil
+		return affected.Unit{}, nil, nil, nil
 	}
 	sort.Strings(sources)
 	sort.Strings(tests)
@@ -199,7 +207,7 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 	if bounded {
 		names = nil
 	}
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathTokensBounded: bounded}, importPaths, nil
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathTokensBounded: bounded}, importPaths, testImportPaths, nil
 }
 
 // ignoredByGo reports a repository-relative directory the go tool's package
@@ -271,25 +279,36 @@ func rootAnchored(name, modulePath string) string {
 
 // resolve rewrites each unit's raw Go import paths into the unit identities
 // this graph knows. An import outside the module is an external dependency and
-// is dropped: it cannot be a dirty repository path.
-func resolve(units []affected.Unit, imports map[string]map[string]bool) {
+// is dropped: it cannot be a dirty repository path. A path the unit's non-test
+// files also import is an ordinary edge, never a test-only one.
+func resolve(units []affected.Unit, imports, testImports map[string]map[string]bool) {
 	byImportPath := make(map[string]string, len(units))
 	for _, unit := range units {
 		byImportPath[strings.TrimPrefix(unit.ID, "go:")] = unit.ID
 	}
 	for index := range units {
 		unit := &units[index]
-		edges := make([]string, 0, len(imports[unit.ID]))
-		for value := range imports[unit.ID] {
-			target, known := byImportPath[value]
-			if !known || target == unit.ID {
-				continue
-			}
-			edges = append(edges, target)
+		unit.Imports = resolved(unit.ID, imports[unit.ID], nil, byImportPath)
+		testOnly := resolved(unit.ID, testImports[unit.ID], imports[unit.ID], byImportPath)
+		if len(testOnly) != 0 {
+			unit.TestImports = testOnly
 		}
-		sort.Strings(edges)
-		unit.Imports = edges
 	}
+}
+
+// resolved maps raw import paths not in skip to sorted known unit identities
+// other than self.
+func resolved(self string, paths, skip map[string]bool, byImportPath map[string]string) []string {
+	edges := make([]string, 0, len(paths))
+	for value := range paths {
+		target, known := byImportPath[value]
+		if !known || target == self || skip[value] {
+			continue
+		}
+		edges = append(edges, target)
+	}
+	sort.Strings(edges)
+	return edges
 }
 
 // unitID is the import path of the package in directory, which lies inside its

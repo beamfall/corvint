@@ -18,6 +18,7 @@ type Graph struct {
 	order      []string
 	owner      map[string]string
 	dependents map[string][]string
+	testUsers  map[string][]string
 	testReach  map[string]bool
 	claimants  map[string]Language
 	languages  []string
@@ -44,6 +45,7 @@ func Build(root string, languages ...Language) (*Graph, error) {
 		units:      make(map[string]Unit),
 		owner:      make(map[string]string),
 		dependents: make(map[string][]string),
+		testUsers:  make(map[string][]string),
 		claimants:  make(map[string]Language),
 	}
 	seenLanguage := make(map[string]bool, len(languages))
@@ -105,23 +107,28 @@ func (graph *Graph) admit(namespace string, result Result, frontier map[string]b
 	return nil
 }
 
-// finish materializes the reverse edges. An import naming a unit outside the
-// graph is dropped: it is an external dependency, and an external dependency
-// cannot be a dirty repository path.
+// finish materializes the reverse edges, with test-only imports kept apart. An
+// import naming a unit outside the graph is dropped: it is an external
+// dependency, and an external dependency cannot be a dirty repository path.
 func (graph *Graph) finish() {
 	sort.Strings(graph.order)
+	graph.dependents = graph.reverse(func(unit Unit) []string { return unit.Imports })
+	graph.testUsers = graph.reverse(func(unit Unit) []string { return unit.TestImports })
+	graph.testReach = graph.unitsReachingTests()
+}
+
+// reverse maps every unit to the sorted units whose edges name it.
+func (graph *Graph) reverse(edges func(Unit) []string) map[string][]string {
+	reversed := make(map[string][]string)
 	for _, id := range graph.order {
-		for _, target := range graph.units[id].Imports {
+		for _, target := range edges(graph.units[id]) {
 			if _, known := graph.units[target]; !known {
 				continue
 			}
-			graph.dependents[target] = append(graph.dependents[target], id)
+			reversed[target] = append(reversed[target], id)
 		}
 	}
-	for target := range graph.dependents {
-		sort.Strings(graph.dependents[target])
-	}
-	graph.testReach = graph.unitsReachingTests()
+	return reversed
 }
 
 // unitsReachingTests names every unit that reaches, itself included, a unit

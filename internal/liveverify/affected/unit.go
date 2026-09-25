@@ -46,11 +46,15 @@ const MaxPathsPerUnit = 20_000
 // name it (AFP-V0-021). A plugin that reads no literals leaves it empty.
 // PathTokensBounded reports that the plugin dropped the unit's tokens at its
 // bound, so the unit's reads are unknown.
+// TestImports name the units only the unit's own tests import. A change there
+// selects the unit's tests but reaches no importer of the unit, because an
+// importer never compiles another unit's tests (`go list -deps -test`).
 type Unit struct {
 	ID                string   `json:"id"`
 	Sources           []string `json:"sources"`
 	Tests             []string `json:"tests"`
 	Imports           []string `json:"imports"`
+	TestImports       []string `json:"testImports,omitempty"`
 	PathTokens        []string `json:"pathTokens,omitempty"`
 	PathTokensBounded bool     `json:"pathTokensBounded,omitempty"`
 }
@@ -94,6 +98,9 @@ func validUnit(unit Unit, namespace string) error {
 		return err
 	}
 	if err := validIdentifierList(unit.Imports); err != nil {
+		return err
+	}
+	if err := validIdentifierList(unit.TestImports); err != nil {
 		return err
 	}
 	return validIdentifierList(unit.PathTokens)

@@ -38,8 +38,8 @@ func TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath(t *testing.T) {
 	if !reflect.DeepEqual(app.Sources, []string{"app/cmd/cmd.go"}) || !reflect.DeepEqual(app.Tests, []string{"app/cmd/cmd_test.go"}) {
 		t.Errorf("app unit = %+v", app)
 	}
-	if !reflect.DeepEqual(app.Imports, []string{coreUnit}) {
-		t.Errorf("app imports = %v, want the cross-module edge to %s", app.Imports, coreUnit)
+	if len(app.Imports) != 0 || !reflect.DeepEqual(app.TestImports, []string{coreUnit}) {
+		t.Errorf("app imports = %v testImports = %v, want the test-only cross-module edge to %s", app.Imports, app.TestImports, coreUnit)
 	}
 	if len(core.Imports) != 0 {
 		t.Errorf("core imports = %v, want none", core.Imports)
