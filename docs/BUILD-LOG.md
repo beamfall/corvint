@@ -6292,3 +6292,12 @@ pre-1.0 panel review.
 Checks: `spec-requirements-check`, `line-citations-check`, `decision-numbers-check`,
 `traceability-tests-check`, `requirement-definitions-check`, `error-code-ownership-check`,
 `go test ./internal/specindex ./conformance/use-cases-v0`. No code changed.
+## 2026-09-25 Owner answer: decision 0398, disputed panel findings are defects
+
+Decision 0398 records the owner instruction to treat every disputed pre-1.0 panel finding (main
+report D1-D15, addendum §5) as a defect and fix it before the next release. Clause amendments made
+by those fixes stay proposed until accepted, frozen wire profiles change only by their versioning
+rule, and the `context --task` promotion gate stays binding. The branch also exports V1-0263 at P1
+and tickets V1-0317..V1-0345, filed from the panel addendum, the merge queue and the disputed
+findings.
+
