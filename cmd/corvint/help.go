@@ -947,6 +947,8 @@ Usage:
 
 Options:
   --cem PATH          Bound CEM map (default: .corvint/change.cem.json).
+  --intent-form FORM  Experimental prepare intent form: requirements (default),
+                      adr-decisions, or roadmap-acceptance.
   --max-unknown N     Optional non-negative unknown-obligation ceiling.
   --expected-base REV Independent expected base; required for CEM 0.2.
   --target REV        Independent target; required for CEM 0.2.

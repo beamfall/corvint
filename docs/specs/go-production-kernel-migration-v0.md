@@ -465,7 +465,7 @@ requirements below have evidence. File existence is not parity.
   silent approximation is not. This clause governs OCM claim verification only. The TCQ and
   frontier surfaces reach the same verifier through their own contract, where `TCQ-V0-047` requires
   a per-edge `unsupported-python-grammar` abstention instead of a command-level refusal. That path
-  is repaired: `verifyUniverseClaims` (`internal/lrfrepo/universe.go:175`) verifies claim shape
+  is repaired: `verifyUniverseClaims` (`internal/lrfrepo/universe.go:178`) verifies claim shape
   without the approximate grammar and emits per-edge `PythonClaimEvidence`, and
   `internal/tcq/associate.go` reports the grammar reason ahead of the anchor-profile reason
   (decision 0050 wave, 2026-09-04); `conformance/divergence-register.md` DR-0014 carries the

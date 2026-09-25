@@ -4,6 +4,16 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence. Add new entries at the end so no cited line moves; each entry carries a date
 heading and its requirement or decision IDs, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-25 V1-0259 OIF-V0-001..011 / decision 0386 (proposed): declared OCM intent forms
+
+`ocm prepare --intent-form adr-decisions|roadmap-acceptance` (experimental) reads ADR
+`## Decisions` items and roadmap Acceptance tickets as OCM obligations; the form is recorded in
+`intentScope.form` and the default form stays byte-identical. A live sweep of Beamfall `2a8e06b28`
+found the grammar narrow: 89 of 215 ADRs and 11 of 44 roadmap shards prepare, and 935 of 1200
+tickets in passing shards lack Acceptance and are excluded. Shard 42 showed a block-style
+`  - **Acceptance:**` list with nested bullets, which the reader now accepts. LRF and the change
+universe refuse declared forms. The dogfood wrapper cannot pass a form yet (open decision 5).
+
 ## 2026-09-25 V1-0259 DCW-V0-024: daily path for a repository with no requirements spec
 
 `dogfood change` required 1 to 16 intent specs with one `## Requirements` heading, so a repository

@@ -973,3 +973,23 @@ func TestLRFCEMAndDogfoodOCMUnsupportedRefusalsAppendOneObservationEach(t *testi
 		}
 	}
 }
+
+// OIF-V0-001: --intent-form is an explicit closed choice; requirements and an
+// absent flag both select the default form.
+func TestOIFV0PrepareIntentFormFlag(t *testing.T) {
+	base := []string{"--target", "HEAD", "--intent", "docs/adr/0224-x.md"}
+	cases := map[string]string{"": "", "requirements": "", "adr-decisions": "adr-decisions", "roadmap-acceptance": "roadmap-acceptance"}
+	for flag, want := range cases {
+		arguments := base
+		if flag != "" {
+			arguments = append(append([]string{}, base...), "--intent-form", flag)
+		}
+		parsed, err := parseOCMPrepareFlags(ocmCLIOptions{}, arguments)
+		if err != nil || parsed.intentForm != want {
+			t.Fatalf("flag=%q form=%q err=%v", flag, parsed.intentForm, err)
+		}
+	}
+	if _, err := parseOCMPrepareFlags(ocmCLIOptions{}, append(base, "--intent-form=adr")); err == nil {
+		t.Fatal("unknown intent form accepted")
+	}
+}
