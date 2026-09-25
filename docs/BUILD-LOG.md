@@ -6160,3 +6160,67 @@ Review repairs (same slice):
   probe wording now names what is compared: `HEAD`, the tree and the dirty-path set.
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
+
+## 2026-09-25 V1-0124 V1-0287 V1-0256 V1-0338 V1-0302 V1-0339 V1-0288 V1-0231 V1-0314 V1-0313 V1-0167 V1-0113 V1-0132: pre-1.0 Git, genesis and snapshot-store batch
+
+Each outcome below was checked against the base (489701ca). A FIXED ticket's regression test
+failed before its fix and passes after. Amendments made under decision 0398 are marked
+"(proposed, decision 0398)" in the owning clause and need owner acceptance.
+
+- Genesis:
+  - V1-0124 (FIXED): a Git that hangs during repository open now ends as `git-timeout`
+    (`TestActivationNamesGitTimeoutWhenGitHangsDuringOpen`).
+  - V1-0287 (FIXED): the activation's Git budget is sized from the status probe plan. When the
+    budget runs out the result is `git-budget-exceeded`, not a generic failure
+    (`TestInventoryBudgetCoversSparseIndexStatusProbes`).
+- V1-0256 (FIXED): `gitstatus` classifies a real split index as `split-index` before Git's own
+  index probe runs (`TestReasonClassSplitIndexToolError`).
+- Snapshot store:
+  - V1-0338 (FIXED; `IDX-SNAP-V0-001`/`003` amended): every gob snapshot now carries a SHA-256
+    trailer. A same-length overwrite of the body is now a miss on every loader and on
+    `ProbeSnapshot` (`TestSnapshotSameLengthBodyOverwriteIsAMiss`). `snapshotFormat` is unchanged
+    because receipts pin it. The engine digest already keys every file to its binary.
+  - V1-0302 (FIXED; `IDX-SNAP-V0-007` amended): eviction keeps the current engine's snapshots
+    first, each group newest first, under a 1 GiB byte budget. Orphaned temporaries become stale
+    after ten minutes instead of an hour (`TestEvictSnapshotsBoundsBytesAndEvictsOtherEnginesFirst`).
+- V1-0339 (FIXED; `GPK-V0-027` amended): the aggregate-bound refusal is language-neutral and
+  names the total, the file count and the remedy. The code stays `unsupported-impact-repository`
+  (`TestBlobAdmissionRefusalNamesTotalAndRemedyWithoutALanguage`). The ticket's other proposal,
+  degrading to PARTIAL with a typed gap, is not done because it contradicts GPK's "reject rather
+  than approximate". It is an owner question.
+- V1-0288 (NEEDS-OWNER; `GPK-V0-067` proposed, not accepted): reproduced with
+  `GIT_TEST_ASSUME_DIFFERENT_OWNER=1`. Git exits 128 and advises `--global`, which Corvint
+  ignores because it nulls global configuration.
+  - Passing `-c safe.directory` would bypass Git's protection against config planted by another
+    user, while filters and textconv are not neutralized in every env builder.
+  - The fix spans about thirty env builders, including PR #218's `cmd/corvint` files.
+- V1-0231 (FIXED): `script/measure-worktree-index-share.sh` measures the shared store under
+  `<common>/corvint/index` for this commit's tree, and each worktree's fallback directory
+  separately. A live run with two worktrees gave one BUILT, then fresh reuse, a 76,537,215-byte
+  store snapshot, zero fallback bytes, and `mixed=README.md` only in the edited worktree. Scripts
+  of this kind have no tests.
+- V1-0314 (FIXED; `AFP-V0-002` amended): `affected.DecodeStatus` and `DecodeNameList` decode a
+  non-UTF-8 path to its U+FFFD display form instead of refusing it as malformed. This is the
+  `IDX-SNAP-V0-024` model, which is on PR #219 and not yet on main
+  (`TestDirtyNonUTF8PathIsDisclosedNotRefused`).
+  - On Linux (golang:1.27.1 container), `TestProveCEMAttestRefusesAMapPathThatIsNotUTF8` now
+    reaches the intended FPK-V0-015 `attest-failed` refusal, not `unsupported-prove-history`.
+    Its expectation was updated to match.
+- V1-0313 (NEEDS-OWNER; `GPK-V0-068` proposed, not accepted): proposes that query learning skip a
+  non-UTF-8 history path, with the oracle refusal registered as a `python-defect`. It would land
+  on PR #219's `skipNonUTF8` seam.
+- V1-0167 (FIXED; `EEP-V0-026` wording): the gopls `unavailable` reason drops the repository root
+  from the error, in both URI and native form. The fake server now echoes the document URI as
+  gopls does (`TestExpandEveryQueryFailedIsUnavailable`).
+- V1-0113 (test gap closed; no partial state): `init` and `adopt` are `mutates: false`. A run
+  killed at 0 to 200 ms leaves the repository and Git bytes unchanged, and the retry is
+  byte-identical to a clean run (`TestInitAdoptInterruptedRunLeavesNoStateAndRetriesCleanly`).
+- V1-0132 (NEEDS-OWNER; no change): `CCF-V1-002` deliberately freezes the `0.1-experimental`
+  spelling (`docs/specs/core-compatibility-freeze-v1.md:64`). A rename would need a new profile
+  version, and this batch does not own the compatibility spec.
+
+The analyzer schema is now `corvint-analyzer/85` because audited `gitstatus` and `contextindex`
+files changed. Three use-case receipts were repinned for the `cmd/corvint/main.go` edit.
+
+Merge conflicts expected with PR #219 (B9): `internal/contextindex/analyzer_schema_test.go`
+(schema/pin) and adjacent `git.go`.
