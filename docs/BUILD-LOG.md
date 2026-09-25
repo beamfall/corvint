@@ -5694,7 +5694,7 @@ Negative control, run once and reverted: dropping the `linked-to-closure` and `o
 reasons produced 4 unsafe omissions. Both live changes (the Corvint Playwright fixture suite and
 Beamfall) stay `NOT_RUN`.
 
-## 2026-09-25 V1-0260: unsupported records yield to floor-clearing symbols (proposed `GPK-V0-066`)
+## 2026-09-25 V1-0260: unsupported records yield to floor-clearing symbols (`GPK-V0-066`, decision 0387)
 
 A precise Beamfall task (base `0d7796be`, "Validate plugin trust roots at model loader
 construction …") abstained with `below-relevance-floor` at `--limit 1`, while `corvint impact`
@@ -5705,7 +5705,7 @@ when no competitive record exists. The emitted one-record packet failed `GPK-V0-
 withdrawn, even though a supported answer was in the index. Three rewordings behaved the same at
 limits 1 and 3, so this is ranking precedence, not phrasing.
 
-Proposed `GPK-V0-066` (owner review pending, not accepted): when the record/document packet fails
+`GPK-V0-066` (accepted 2026-09-25, decision 0387): when the record/document packet fails
 the floor, `evalQuery` compiles the confident-symbol packet and applies the same floor to it before
 withdrawing. The global floor is unchanged. Packets that already clear the floor are unchanged, so
 at `--limit 10` single-word records still crowd the packet (`NEEDS_WIDENING`, no `trust.go`); that
