@@ -476,7 +476,8 @@ paths, and `--page` and `--claims` differ.
   optional `claim`, `path` and `line`, and `detail`), `waived` (claim IDs) and, with `--docs-root`,
   `coverage`: one `unanchored-documents` row with `value` (the unanchored count), `denominator`
   (Markdown documents under the docs root, the page excluded), `revision`, `rule`, `limitation` and
-  `paths`. The failure codes are `claim-lost-proven`, `rendered-bytes-differ` (for an absent file
+  `paths`. A `.md` entry that is not a regular file, such as a symlink or a submodule, is not read and
+  counts as unanchored. The failure codes are `claim-lost-proven`, `rendered-bytes-differ` (for an absent file
   too), `unknown-anchor` and `invalid-anchor`. A committed claim whose state changed, or which is no
   longer rendered, is waived by an unexpired entry naming its ID, and its committed form is then
   used for the byte comparison. A failing check exits 2 with `flow-docs-check-failed`.
@@ -584,8 +585,8 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-025..029 | navigation goldens, effect raising from observed traffic, `requires-grant` marking, the observer refusal, and a deterministic scripted agent that completes each fixture goal from the packet alone |
 | AFU-V1-030 | `TestAFUV1030DocsRenderGoldenAndByteStable` (`docs.golden.md`, `docs.claims.golden.json`, regeneration at a later commit byte-identical, argument refusals) |
 | AFU-V1-031 | `TestAFUV1031ClaimStateOrder`, `TestAFUV1030DocsRenderGoldenAndByteStable` (every state marked on the page, `PROVEN` unmarked) |
-| AFU-V1-032 | `TestAFUV1032DocsCheckDrift` (a lost `PROVEN` and a hand-edited page fail; the check is read-only), `TestAFUV1032WaiverExpiry` (unexpired, expired and malformed waivers), `TestAFUV1032WaiverExpiryBoundary` (expired on its expiry date) |
-| AFU-V1-033 | `TestAFUV1033AnchoredMarkdown` (a changed unanchored document passes, an unknown anchor fails the check and refuses the render), `TestAFUV1033AnchorParsing`, `TestAFUV1032DocsCheckDrift` (the coverage row and the anchored claim's lost `PROVEN`) |
+| AFU-V1-032 | `TestAFUV1032DocsCheckDrift` (a lost `PROVEN` and a hand-edited page fail; the check is read-only), `TestAFUV1032WaiverExpiry` (unexpired, expired and malformed waivers), `TestAFUV1032WaiverExpiryBoundary` (expired on its expiry date), `TestAFUV1032WaiverKeepsUnrenderedClaim` (a waived claim that is no longer rendered keeps its committed form) |
+| AFU-V1-033 | `TestAFUV1033AnchoredMarkdown` (a changed unanchored document passes, an unknown anchor fails the check and refuses the render), `TestAFUV1033AnchorParsing`, `TestAFUV1032DocsCheckDrift` (the coverage row and the anchored claim's lost `PROVEN`), `TestAFUV1033NonRegularMarkdownSkipped` (a symlinked `.md` is unanchored, not a failure) |
 | AFU-V1-034..035 | MCP conformance with and without the selector |
 | AFU-V1-036 | `TestAFUV1036DocsReplaceConfined`, `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
 | AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceBoundsIncomplete`, `TestAFUV1FlowsCLIIngest`, `TestAFUV1ReadRunEvidenceDiscipline` |

@@ -197,3 +197,33 @@ func TestAFUV1033AnchoredMarkdown(t *testing.T) {
 		t.Fatalf("render with an unknown anchor %d %s", code, diagnostic)
 	}
 }
+
+// AFU-V1-032: an unexpired waiver for an anchored claim that is no longer rendered keeps its
+// committed form for the byte comparison, so the sidecar still matches.
+func TestAFUV1032WaiverKeepsUnrenderedClaim(t *testing.T) {
+	fx := newDocsFixture(t)
+	shopWrite(t, fx.root, map[string]string{"docs/guide.md": "# Guide\n\nPaying completes the order.\n",
+		"flow-doc-waivers.json": `{"schema":"flow-doc-waivers/0","waivers":[{"claim":"docs/guide.md:checkout/checkout.happy/paid","reason":"guide rewrite","reviewer":"docs owner","expires":"2099-12-31"}]}` + "\n"})
+	shopCommit(t, fx.root, "F: drop the guide anchor under a waiver")
+	code, report, diagnostic := docsCheck(t, fx, "passed", "--waivers", "flow-doc-waivers.json")
+	if code != 0 || report.Status != "pass" || !slices.Equal(report.Waived, []string{"docs/guide.md:checkout/checkout.happy/paid"}) {
+		t.Fatalf("waived unrendered claim %d %v %v %s", code, failureCodes(report), report.Waived, diagnostic)
+	}
+}
+
+// AFU-V1-033: a symlinked Markdown document under the docs root is not read; it counts as unanchored
+// and neither the check nor the render fails.
+func TestAFUV1033NonRegularMarkdownSkipped(t *testing.T) {
+	fx := newDocsFixture(t)
+	if err := os.Symlink("guide.md", filepath.Join(fx.root, "docs", "link.md")); err != nil {
+		t.Fatal(err)
+	}
+	shopCommit(t, fx.root, "F: symlinked Markdown")
+	code, report, diagnostic := docsCheck(t, fx, "passed")
+	if code != 0 || report.Status != "pass" || report.Coverage.Denominator != 3 || !slices.Equal(report.Coverage.Paths, []string{"docs/faq.md", "docs/link.md"}) {
+		t.Fatalf("symlinked Markdown %d %v %+v %s", code, failureCodes(report), report.Coverage, diagnostic)
+	}
+	if code, out, diagnostic := runFlowsCLI(fx.root, append(docsArgs, "--evidence", docsEvidence(t, fx, "passed"))...); code != 0 {
+		t.Fatalf("render with symlinked Markdown %d %s %s", code, out, diagnostic)
+	}
+}

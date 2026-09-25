@@ -295,13 +295,22 @@ func committedMarkdown(ctx context.Context, root, rev, dir, page string) ([]docF
 	}
 	docs := []docFile{}
 	for _, e := range markdown {
-		raw, err := committedBlob(ctx, root, e)
+		raw, err := markdownBlob(ctx, root, e)
 		if err != nil {
 			return nil, err
 		}
 		docs = append(docs, docFile{path: e.name, raw: raw})
 	}
 	return docs, nil
+}
+
+// markdownBlob reads a regular Markdown blob. A symlink or submodule cannot carry an anchor, so it is
+// not read and counts as unanchored (AFU-V1-033).
+func markdownBlob(ctx context.Context, root string, e treeEntry) ([]byte, error) {
+	if !regularEntry(e) {
+		return nil, nil
+	}
+	return committedBlob(ctx, root, e)
 }
 
 func docBound(entries []treeEntry) error {
@@ -553,7 +562,8 @@ func validateWaivers(w DocWaivers) error {
 }
 
 // applyWaivers finds each committed claim whose state changed or which is gone. An unexpired waiver
-// keeps the committed claim for the byte comparison; otherwise a lost PROVEN is a failure.
+// keeps the committed claim, restoring a gone one, for the byte comparison; otherwise a lost PROVEN is
+// a failure.
 func applyWaivers(regenerated, committed []DocClaim, waivers []DocWaiver, today string) ([]DocClaim, []DocFailure, []string) {
 	current := claimStates(regenerated)
 	byClaim := map[string]DocWaiver{}
@@ -581,9 +591,10 @@ func applyWaivers(regenerated, committed []DocClaim, waivers []DocWaiver, today 
 
 func keepCommitted(claims []DocClaim, c DocClaim) []DocClaim {
 	i := slices.IndexFunc(claims, func(x DocClaim) bool { return x.ID == c.ID })
-	if i >= 0 {
-		claims[i] = c
+	if i < 0 {
+		return append(claims, c)
 	}
+	claims[i] = c
 	return claims
 }
 

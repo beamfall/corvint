@@ -5824,3 +5824,16 @@ Evidence:
   reach every claim state.
 
 `NOT_RUN`: live qualification on a real application (S8), and the full `./...` suite.
+
+Review repair: a review found two defects that contradicted the spec. First, an unexpired waiver
+for a claim that is no longer rendered, such as an anchor deleted from `docs/guide.md`, listed the
+claim under `waived` but still failed with `rendered-bytes-differ` on the sidecar, because
+`keepCommitted` only replaced a claim that was still present. It now appends the committed claim when
+it is absent, so the committed form is used for the byte comparison (AFU-V1-032). Second, any `.md`
+under `--docs-root` that is not a regular blob, such as a symlink or a submodule, refused both render
+and check, although an unanchored document must never fail the check (AFU-V1-033). Such an entry is
+now not read and counts as unanchored in the existing coverage row; the spec wire text says so and no
+wire field was added. The tests are `TestAFUV1032WaiverKeepsUnrenderedClaim` and
+`TestAFUV1033NonRegularMarkdownSkipped`; both fail without the fix. No golden changed. Follow-ups,
+not fixed here: anchors inside fenced code blocks are still parsed as anchors, and `--page` and
+`--claims` still accept paths under `.git/`.
