@@ -1083,6 +1083,7 @@ printf '2\tdocs/specs/intent-b.md\tunstable\tspecification\n' >> "$citation_arti
 run_citation_case unstable-second "$citation_artifacts/unstable.tsv" 1 2
 cmp "$citation_artifacts/prepared.json" "$citation_case/final.json"
 rg -q '"name": "cem-cite", "status": "NOT_PRODUCED", "reason": "cite-span-not-stable"' "$citation_case/report.json"
+rg -Fxq -- '    fix: plan row 2 cites BASE lines that this change edits or deletes; cite a START:END span the change leaves unchanged' "$citation_case/stderr"
 rg -q '"map":".corvint/.cem-citations.' "$citation_case/receipts.jsonl"
 test "$(wc -l < "$citation_case/receipts.jsonl" | tr -d '[:space:]')" = 1
 

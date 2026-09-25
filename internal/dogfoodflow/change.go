@@ -38,6 +38,7 @@ type change struct {
 	citationStage        string
 	citationStageOwned   bool
 	citationCount        int
+	citationFailedRow    int
 	citedOver            bool
 	intentPublishTmp     string
 	localOutcomeSHA      string
@@ -419,6 +420,7 @@ func (c *change) cite(plan []byte, citeOutput string) (string, string) {
 		part := c.runTmp + "/cem-cite.json"
 		errorFile := c.evidence + "/cem-cite.stderr"
 		if status := c.exec(args, part, errorFile); status != 0 {
+			c.citationFailedRow = index + 1
 			return "NOT_PRODUCED", failureReason(readFile(errorFile), status)
 		}
 		// Intermediate receipts truthfully name the stage; only the last cite
@@ -855,6 +857,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:citation-plan-unavailable", "DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves"},
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows"},
 	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE"},
+	{"cem-cite:cite-span-not-stable", "plan row {row} cites BASE lines that this change edits or deletes; cite a START:END span the change leaves unchanged"},
 	{"ocm-aggregate:missing-intent-scope", "DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths, or of a file holding the one line #no-intent-declared when no requirements spec governs the change"},
 	{"ocm-prepare-*:invalid-requirements-section", `intent must be a spec that exists at BASE and contains exactly one "## Requirements" heading`},
 	{"ocm-prepare-*:excluded-artifact-mismatch", uncommittedHint},
@@ -881,7 +884,7 @@ func (c *change) fixHint(row step) string {
 			matched = len(value) >= len(prefix)+len(suffix) && strings.HasPrefix(value, prefix) && strings.HasSuffix(value, suffix)
 		}
 		if matched {
-			return strings.NewReplacer("{evidence}", c.evidence, "{step}", row.name).Replace(entry.hint)
+			return strings.NewReplacer("{evidence}", c.evidence, "{step}", row.name, "{row}", strconv.Itoa(c.citationFailedRow)).Replace(entry.hint)
 		}
 	}
 	return ""
