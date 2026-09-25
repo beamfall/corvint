@@ -151,8 +151,8 @@ snapshot bytes did not change, a sibling worktree's query stayed `fresh`, and th
 returned to `fresh` after the restore. V1-0212 (`DIRTY-CACHE-013`) since shares one clean base:
 the store is `corvint/index` under the Git common directory, or the worktree's own
 `.corvint/index` when that directory cannot be resolved
-(`internal/contextindex/snapshot.go:167-172@e10b4d1c`), and each snapshot's file name is
-`internal/contextindex/snapshot.go:209-210@cd3a98c5`.
+(`internal/contextindex/snapshot.go:168-173@e10b4d1c`), and each snapshot's file name is
+`internal/contextindex/snapshot.go:210-211@cd3a98c5`.
 
 ## Traceability
 

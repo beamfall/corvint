@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/gob"
@@ -408,11 +409,15 @@ func writeSnapshotGitIgnore(directory string) error {
 func encodeSnapshot(file *os.File, index *Index, engineID string) (int64, error) {
 	portable := *index
 	portable.Root, portable.DirtyPaths, portable.StatusSHA256 = "", nil, ""
-	encoder := gob.NewEncoder(file)
+	digest := sha256.New()
+	encoder := gob.NewEncoder(io.MultiWriter(file, digest))
 	if err := encoder.Encode(snapshotHeader{Format: snapshotFormat, ObjectFormat: index.ObjectFormat, Tree: index.Revision, Engine: engineID}); err != nil {
 		return 0, err
 	}
 	if err := encoder.Encode(&portable); err != nil {
+		return 0, err
+	}
+	if _, err := file.Write(digest.Sum(nil)); err != nil {
 		return 0, err
 	}
 	info, err := file.Stat()
@@ -685,12 +690,8 @@ func readSnapshotIndex(directory string, identity repositoryIdentity, engineID s
 }
 
 func decodeSnapshot(file *os.File, identity repositoryIdentity, engineID string) (*Index, error) {
-	decoder := gob.NewDecoder(file)
-	if err := decodeSnapshotHeader(decoder, identity, engineID); err != nil {
-		return nil, err
-	}
 	index := &Index{}
-	if err := decoder.Decode(index); err != nil {
+	if err := decodeSnapshotValue(file, identity, engineID, index); err != nil {
 		return nil, err
 	}
 	if err := index.checkSymbolWindows(); err != nil {
@@ -757,12 +758,43 @@ func LoadEventSnapshotObserved(root string, compact bool, observation Observatio
 	index.Root, index.DirtyPaths, index.StatusSHA256 = root, keys(dirty), observation.StatusSHA256
 	return index, true, nil
 }
+
+// decodeSnapshotValue decodes the header and the index message into value
+// and then checks the SHA-256 trailer over every byte before it. Gob cannot
+// tell a body overwritten with the same number of bytes from the real one,
+// so without the trailer such a file would load as a hit serving text its
+// blob does not contain (IDX-SNAP-V0-003, decision 0398). Every loader and
+// ProbeSnapshot reads the whole message anyway, so the check adds a hash of
+// bytes already read, not another read of the file.
 func decodeSnapshotValue(file *os.File, identity repositoryIdentity, engineID string, value any) error {
-	decoder := gob.NewDecoder(file)
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	payloadBytes := info.Size() - sha256.Size
+	if payloadBytes <= 0 {
+		return errors.New("snapshot shorter than its digest")
+	}
+	digest := sha256.New()
+	payload := io.TeeReader(io.NewSectionReader(file, 0, payloadBytes), digest)
+	decoder := gob.NewDecoder(payload)
 	if err := decodeSnapshotHeader(decoder, identity, engineID); err != nil {
 		return err
 	}
-	return decoder.Decode(value)
+	if err := decoder.Decode(value); err != nil {
+		return err
+	}
+	if _, err := io.Copy(io.Discard, payload); err != nil {
+		return err
+	}
+	var trailer [sha256.Size]byte
+	if _, err := file.ReadAt(trailer[:], payloadBytes); err != nil {
+		return err
+	}
+	if !bytes.Equal(digest.Sum(nil), trailer[:]) {
+		return errors.New("snapshot digest mismatch")
+	}
+	return nil
 }
 
 func decodeSnapshotHeader(decoder *gob.Decoder, identity repositoryIdentity, engineID string) error {

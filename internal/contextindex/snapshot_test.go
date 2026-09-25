@@ -92,6 +92,39 @@ func TestProbeSnapshotReadsOnlyTheMatchingHeader(t *testing.T) {
 	}
 }
 
+// TestSnapshotSameLengthBodyOverwriteIsAMiss is decision 0398 D5: a body
+// overwritten in place with the same number of bytes still decodes, so only
+// the payload digest keeps it from serving text its blob does not contain.
+func TestSnapshotSameLengthBodyOverwriteIsAMiss(t *testing.T) {
+	index := taskContextFixture(t)
+	receipt, err := WriteSnapshot(index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(receipt.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, forged := []byte("The cache demuxes keys."), []byte("The cache ignores keys.")
+	if bytes.Count(data, body) != 1 {
+		t.Fatalf("fixture body occurs %d times in the snapshot", bytes.Count(data, body))
+	}
+	if err := os.WriteFile(receipt.Path, bytes.Replace(data, body, forged, 1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, fresh, err := ProbeSnapshot(context.Background(), index.Root); err != nil || fresh {
+		t.Fatalf("IDX-SNAP-V0-011: overwritten body probed fresh=%v err=%v", fresh, err)
+	}
+	if _, hit, err := LoadSnapshot(context.Background(), index.Root); err != nil || hit {
+		t.Fatalf("IDX-SNAP-V0-003: overwritten body loaded: hit=%v err=%v", hit, err)
+	}
+	for _, compact := range []bool{false, true} {
+		if _, hit, err := LoadEventSnapshot(context.Background(), index.Root, compact); err != nil || hit {
+			t.Fatalf("IDX-SNAP-V0-003: overwritten body event load compact=%v: hit=%v err=%v", compact, hit, err)
+		}
+	}
+}
+
 func TestConcurrentEngineDigestMatchesSerialComputation(t *testing.T) {
 	serial := digestExecutable()
 	if serial == "" {
