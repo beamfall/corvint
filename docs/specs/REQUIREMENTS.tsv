@@ -860,7 +860,7 @@ ESV-V0-006	docs/specs/experimental-source-views-v0.md	266	Treat focused syntheti
 ESV-V0-007	docs/specs/experimental-source-views-v0.md	271	The opt-in development wrapper captures exactly one automatic canonical packet
 ESV-V0-008	docs/specs/experimental-source-views-v0.md	279	`context --summary` prints at most `--summary-bytes` bytes (1024..65536,
 ESV-V0-009	docs/specs/experimental-source-views-v0.md	286	`context --expand HANDLE` returns only the handle's line range, read from Git
-ESV-V0-010	docs/specs/experimental-source-views-v0.md	292	The summary and expansion views stay experimental until the matched complete-tas
+ESV-V0-010	docs/specs/experimental-source-views-v0.md	294	The summary and expansion views stay experimental until the matched complete-tas
 ETS-V0-001	docs/specs/external-test-selection-v0.md	51	`corvint affected` MUST accept `--provider FILE` and `--provider-command
 ETS-V0-002	docs/specs/external-test-selection-v0.md	57	With `--provider`, `advice` MUST gain `test_selection` with schema
 ETS-V0-003	docs/specs/external-test-selection-v0.md	63	`state` is exactly one of `narrow-selection-allowed`,
