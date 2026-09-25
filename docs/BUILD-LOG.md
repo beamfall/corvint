@@ -6160,3 +6160,25 @@ Review repairs (same slice):
   probe wording now names what is compared: `HEAD`, the tree and the dirty-path set.
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
+
+## 2026-09-25 panel M1 DCW-V0-026 (accepted, decision 0395): coordinator receipts are coordination-time, agent receipts untouched
+
+The pre-1.0 panel found that `corvint dogfood change` ran `query` and range `impact` against `HEAD`
+into `<git-dir>/corvint/prechange-query.json` and `prechange-impact.json` with `os.Create`,
+truncating the base-tree receipts `docs/DOGFOOD.md` section 1 has the agent write before the change,
+and then reported its own post-change output as `prechange-* PRODUCED`. Reproduced first with
+`TestChangeKeepsAgentPrechangeReceipts` (both receipts overwritten, report rows `prechange-*`).
+Chosen: the coordinator's two steps are renamed `coordination-time-query` and
+`coordination-time-impact`, and every file they write (output, stderr, argv, context-abstention
+artifact), the report rows, the `packetCoverage` entries and the NOTE lines follow the step name, so
+the agent's receipts are never opened for writing and no coordinator run is labelled pre-change.
+`dogfood check` and the `finish` terminal paths read the renamed files; `dogfood-observe` admits both
+spellings so earlier ledgers stay valid. Set aside: archiving the agent receipts before an overwrite
+(the `LCP-V0-005` enrollment model), because the daily path cannot tell an agent receipt from its own
+earlier pass, and keeping the `prechange-*` row names, which would keep the false label.
+`DCW-V0-016` and accepted `DCW-V0-025` now name the renamed step, and `LCP-V0-005` says the
+coordinator never writes the receipts; the rename rests on `DCW-V0-026`, accepted by decision 0395. Not done: the finding's third item, recording each agent receipt's
+tree and failing the check when it is not the base tree, would make an absent receipt blocking,
+which `DOGFOOD-002` does not require; it is ticket V1-0316. Historical reports, conformance receipts,
+decisions and build-log entries keep the old names; `script/dogfood-bind-range.sh` keeps its
+`prechange-*` retroactive-binding NOTE lines, which correctly claim no pre-change context.

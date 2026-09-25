@@ -534,7 +534,7 @@ func validObservationCode(value string, maximum int) bool {
 
 func validDogfoodStep(value string) bool {
 	switch value {
-	case "cem-cite", "cem-prepare", "cem-status", "local-outcome", "ocm-aggregate", "prechange-impact", "prechange-query":
+	case "cem-cite", "cem-prepare", "cem-status", "coordination-time-impact", "coordination-time-query", "local-outcome", "ocm-aggregate", "prechange-impact", "prechange-query":
 		return true
 	}
 	for _, prefix := range []string{"ocm-prepare-", "ocm-status-"} {
