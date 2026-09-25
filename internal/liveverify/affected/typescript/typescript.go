@@ -188,10 +188,10 @@ func (language Language) units(root string, resolveAliases bool) (affected.Resul
 		observation.refs = resolved
 		observations = append(observations, observation)
 	}
-	return buildResult(observations, configs, frontier), nil
+	return buildResult(observations, configs, scopes, frontier), nil
 }
 
-func buildResult(observations []observation, configs []config, frontier map[string]bool) affected.Result {
+func buildResult(observations []observation, configs []config, scopes []packageScope, frontier map[string]bool) affected.Result {
 	units := make([]affected.Unit, 0, len(observations))
 	pathToID := make(map[string]string, len(observations))
 	refs := make(map[string]map[string]bool, len(observations))
@@ -242,11 +242,15 @@ func buildResult(observations []observation, configs []config, frontier map[stri
 		}
 	}
 
+	packages := newWorkspace(scopes, units)
 	for index := range units {
 		unit := &units[index]
 		edges := make(map[string]bool)
 		owner := firstPath(*unit)
 		for ref := range refs[unit.ID] {
+			if !packages.link(ref, edges) {
+				frontier[FrontierPathAlias] = true
+			}
 			target, local, unresolved := resolveImport(owner, ref, pathToID)
 			if target != "" && target != unit.ID {
 				edges[target] = true
@@ -265,6 +269,7 @@ func buildResult(observations []observation, configs []config, frontier map[stri
 		}
 		unit.Imports = sortedKeys(edges)
 	}
+	units = append(units, packages.built()...)
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}
 }
@@ -1017,7 +1022,7 @@ func hasUnresolvedBareImport(relative string, refs []string, scopes []packageSco
 			continue
 		}
 		if localPackage(packageName, scopes) {
-			return true
+			continue
 		}
 		if declaredPackage(relative, packageName, scopes) {
 			continue

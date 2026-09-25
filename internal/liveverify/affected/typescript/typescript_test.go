@@ -554,3 +554,38 @@ func TestTripleSlashReferencePathIsARelativeEdge(t *testing.T) {
 		}
 	}
 }
+
+// TJAA-V0-005 (V1-0283, panel D8): a test in another workspace package that
+// imports the changed package by its package.json name is selected, a test
+// that does not import it is not, and a named package with no source to stand
+// for it stays a frontier instead of being claimed covered.
+func TestWorkspacePackageImportReachesTheImportingTest_V1_0283(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"private":true,"workspaces":["packages/*"],"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "packages/a/package.json", `{"name":"@acme/a","main":"src/index.ts"}`)
+	write(t, root, "packages/a/src/index.ts", `export { util } from "./util"`)
+	write(t, root, "packages/a/src/util.ts", `export const util = 1`)
+	write(t, root, "packages/b/package.json", `{"name":"@acme/b","dependencies":{"@acme/a":"*"}}`)
+	write(t, root, "packages/b/test/b.test.ts", `import { test } from "vitest"; import { util } from "@acme/a"`)
+	write(t, root, "packages/c/package.json", `{"name":"@acme/c"}`)
+	write(t, root, "packages/c/test/c.test.ts", `import { test } from "vitest"`)
+	graph, err := affected.Build(root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"packages/a/src/util.ts"})
+	if got := plan.SelectedTests(); strings.Join(got, " ") != "packages/b/test/b.test.ts" {
+		t.Fatalf("selected=%v unknown=%v", got, plan.Unknown)
+	}
+	if plan.Scope != affected.ScopeBounded {
+		t.Fatalf("scope=%s unknown=%v", plan.Scope, plan.Unknown)
+	}
+
+	write(t, root, "packages/d/package.json", `{"name":"@acme/d","main":"dist/index.js"}`)
+	write(t, root, "packages/c/test/c.test.ts", `import { test } from "vitest"; import "@acme/d"`)
+	result, err := New().Units(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertFrontier(t, result, FrontierPathAlias)
+}
