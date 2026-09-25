@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/runhygiene"
 )
 
 func runHeader() RunHeader {
@@ -309,7 +311,7 @@ func TestAFUV1RunEvidenceSecretsDropped(t *testing.T) {
 			t.Fatalf("failure kept %q: %s", leaked, failure)
 		}
 	}
-	if !strings.HasPrefix(failure, "request failed\n"+droppedMarker) || fmt.Sprint(r.Attempts[0].Attachments) != "[{screenshot shot.png}]" {
+	if !strings.HasPrefix(failure, "request failed\n"+runhygiene.DroppedMarker) || fmt.Sprint(r.Attempts[0].Attachments) != "[{screenshot shot.png}]" {
 		t.Fatalf("scrubbed attempt: %+v", r.Attempts[0])
 	}
 	// Each input survived the first, pattern-precise screen verbatim.
@@ -321,7 +323,7 @@ func TestAFUV1RunEvidenceSecretsDropped(t *testing.T) {
 		`POST /login failed. Response body: {"user":"jo","ssn":"123"}`:         "POST /login failed. ",
 	}
 	for line, prefix := range bypasses {
-		if got := scrubFailure(line + "\nnext"); !strings.HasPrefix(got, prefix+droppedMarker) || strings.Contains(got, "abc") || strings.Contains(got, "ssn") {
+		if got := runhygiene.ScrubFailure(line + "\nnext"); !strings.HasPrefix(got, prefix+runhygiene.DroppedMarker) || strings.Contains(got, "abc") || strings.Contains(got, "ssn") {
 			t.Fatalf("%s: scrubbed to %q", line, got)
 		}
 	}
@@ -330,7 +332,7 @@ func TestAFUV1RunEvidenceSecretsDropped(t *testing.T) {
 {"Action":"fail","Package":"api","Test":"TestLogin","Elapsed":0.1}
 `
 	login := ingest(t, FormatGoTestJSON, stream, runHeader())["api > TestLogin"]
-	if login.Attempts[0].Failure != "api_test.go:20: "+droppedMarker || fmt.Sprint(login.Attempts[0].AssertionAnchors) != "[{api_test.go 20}]" {
+	if login.Attempts[0].Failure != "api_test.go:20: "+runhygiene.DroppedMarker || fmt.Sprint(login.Attempts[0].AssertionAnchors) != "[{api_test.go 20}]" {
 		t.Fatalf("go test body kept: %+v", login.Attempts[0])
 	}
 	secret := strings.Replace(report, "request failed", "leaked ghp_abcdefghijklmnopqrstuvwxyz0123456789", 1)

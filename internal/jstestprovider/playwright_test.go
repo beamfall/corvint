@@ -1,9 +1,12 @@
 package jstestprovider
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/runhygiene"
 )
 
 func loadPW(t *testing.T, name string) []TestOutcome {
@@ -173,5 +176,56 @@ func TestAFUV1PlaywrightProviderKeepsEveryAttempt(t *testing.T) {
 	}
 	if flaky.DurationMS != 99 || flaky.FailureMessage != "" {
 		t.Fatalf("last-attempt receipt fields changed: %+v", flaky)
+	}
+	data, err := json.Marshal(Receipt{Kind: "e2e", Tests: []TestOutcome{flaky}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wire struct {
+		Tests []struct {
+			AttemptDetails []AttemptDetail `json:"attemptDetails"`
+		} `json:"tests"`
+	}
+	if err := json.Unmarshal(data, &wire); err != nil || len(wire.Tests) != 1 || len(wire.Tests[0].AttemptDetails) != 2 {
+		t.Fatalf("receipt wire lost attempts: %v %s", err, data)
+	}
+	if got := wire.Tests[0].AttemptDetails[0]; got.DurationMS != 112 || !strings.Contains(got.FailureMessage, "fails on first attempt only") || len(got.Artifacts) != 3 {
+		t.Fatalf("receipt wire lost the first attempt's detail: %+v", got)
+	}
+	if _, err := EncodeQualified(Receipt{Profile: ExternalProfile, Kind: "e2e", Tests: []TestOutcome{flaky}}); err == nil || !strings.Contains(err.Error(), "attempt-details") {
+		t.Fatalf("an external profile accepted attemptDetails: %v", err)
+	}
+	if _, failure := decodeQualifiedReport([]byte(`{"tests":[{"attemptDetails":[{"state":"passed","retry":0,"durationMs":1}]}]}`), ExternalProfile); failure == nil || failure.Reason != "report-unparseable" {
+		t.Fatalf("the qualified reporter decoded attemptDetails: %+v", failure)
+	}
+}
+
+// AFU-V1-038
+func TestAFUV1PlaywrightProviderScrubsEveryAttempt(t *testing.T) {
+	report := `{"suites":[{"title":"login.spec.ts","file":"login.spec.ts","specs":[{"title":"logs in","file":"login.spec.ts","line":3,"tests":[{"status":"flaky","results":[
+ {"status":"failed","retry":0,"duration":5,"error":{"message":"login failed\nCookie: sid=abc123\nkey ghp_abcdefghijklmnopqrstuvwxyz0123456789"},
+  "attachments":[{"name":"screenshot","path":"shot-0.png"},{"name":"cookies","path":"c.json"},{"name":"network","path":"run.har"},{"name":"inline"}]},
+ {"status":"failed","retry":1,"duration":6,"error":{"message":"POST /login failed. Response body: {\"user\":\"jo\"}"},
+  "attachments":[{"name":"screenshot","path":"shot-1.png"},{"name":"request","path":"req.json"}]}]}]}]}]}`
+	outcomes, infra, err := ParsePlaywrightJSON([]byte(report))
+	if err != nil || infra != nil || len(outcomes) != 1 || len(outcomes[0].AttemptDetails) != 2 {
+		t.Fatalf("parse: %v %+v %+v", err, infra, outcomes)
+	}
+	got := outcomes[0]
+	first, last := got.AttemptDetails[0], got.AttemptDetails[1]
+	data, _ := json.Marshal(got)
+	for _, leaked := range []string{"sid=abc123", "ghp_", "jo\\", "c.json", "run.har", "req.json", "inline"} {
+		if strings.Contains(string(data), leaked) {
+			t.Fatalf("receipt kept %q: %s", leaked, data)
+		}
+	}
+	if first.FailureMessage != "login failed\n"+runhygiene.DroppedMarker+"\nkey [REDACTED]" || len(first.Artifacts) != 1 || first.Artifacts[0].Path != "shot-0.png" {
+		t.Fatalf("first attempt not scrubbed: %+v", first)
+	}
+	if last.FailureMessage != "POST /login failed. "+runhygiene.DroppedMarker || len(last.Artifacts) != 1 || last.Artifacts[0].Path != "shot-1.png" {
+		t.Fatalf("last attempt not scrubbed: %+v", last)
+	}
+	if got.FailureMessage != last.FailureMessage || len(got.Artifacts) != 1 || got.Artifacts[0].Path != "shot-1.png" {
+		t.Fatalf("last-attempt receipt fields not scrubbed: %+v", got)
 	}
 }

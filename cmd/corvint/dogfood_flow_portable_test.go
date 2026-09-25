@@ -143,6 +143,73 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	}
 }
 
+// DCW-V0-024: a change no requirements spec governs completes, checks and
+// seals only under the explicit #no-intent-declared manifest, and every OCM row
+// and the check say intent linkage was not assessed. An unset variable or an
+// empty file still refuses, and a link plan cannot join the declaration.
+func TestDogfoodDailyPathCompletesWithDeclaredNoIntent(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	inputsDir := t.TempDir()
+	citations := filepath.Join(inputsDir, "citations.tsv")
+	intents := filepath.Join(inputsDir, "intents")
+	links := filepath.Join(inputsDir, "links.tsv")
+	for path, content := range map[string]string{citations: "1\tAGENTS.md\t1:2\tspecification\n", intents: "", links: "#no-intent-declared\tFIXTURE-LCP-001\t1\tfixture/fixture_test.go\ttest:TestAnswer\n"} {
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations}
+	for _, accidental := range [][]string{inputs, append(inputs[:len(inputs):len(inputs)], "DOGFOOD_INTENTS_FILE="+intents)} {
+		if code, _, stderr := run.exec(t, root, accidental, "dogfood", "change", base); code != 1 || !strings.Contains(stderr, "\n  ocm-aggregate: missing-intent-scope\n") {
+			t.Fatalf("accidental absence exit=%d stderr=%s", code, stderr)
+		}
+	}
+	if err := os.WriteFile(intents, []byte("#no-intent-declared\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	inputs = append(inputs, "DOGFOOD_INTENTS_FILE="+intents)
+	if code, _, stderr := run.exec(t, root, append(inputs[:len(inputs):len(inputs)], "DOGFOOD_OCM_LINKS="+links), "dogfood", "change", base); code != 1 || !strings.Contains(stderr, "\n  ocm-links: invalid-ocm-link-plan\n") {
+		t.Fatalf("link plan exit=%d stderr=%s", code, stderr)
+	}
+	cemGit(t, root, "add", ".corvint/change.cem.json")
+	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
+	bind := cemGit(t, root, "rev-parse", "HEAD")
+	code, stdout, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
+	report, _ := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
+	for _, want := range []string{
+		`"complete": true`,
+		`{"name": "ocm-prepare", "status": "NOT_PRODUCED", "reason": "no-intent-declared"}`,
+		`{"name": "ocm-status", "status": "NOT_PRODUCED", "reason": "no-intent-declared"}`,
+		`{"name": "ocm-aggregate", "status": "NOT_PRODUCED", "reason": "no-intent-declared"}`,
+		"\n  \"ocmStatus\": {\"state\": \"NOT_ASSESSED\", \"reason\": \"no-intent-declared\"}\n",
+		`"bootstrapUnknown": 0,`,
+	} {
+		if code != 0 || stdout != "" || stderr != "" || !strings.Contains(string(report), want) {
+			t.Fatalf("change exit=%d stderr=%s want %s in report=%s", code, stderr, want, report)
+		}
+	}
+	snapshot := filepath.Join(root, ".corvint/change.ocm-intents")
+	if err := os.WriteFile(snapshot, []byte("intent.md\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, stderr = run.exec(t, root, nil, "dogfood", "check", base); code != 1 || !strings.HasSuffix(stderr, "\ndogfood-check: FAIL dogfood-report-drift\n") {
+		t.Fatalf("swapped declaration exit=%d stderr=%s", code, stderr)
+	}
+	if err := os.WriteFile(snapshot, []byte("#no-intent-declared\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "check", base)
+	if code != 0 || !strings.HasSuffix(stdout, "\ndogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\ndogfood-check: PASS\n") || strings.Contains(stdout, "dogfood-ocm-status") {
+		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "seal", base)
+	if code != 0 || !strings.HasSuffix(stdout, "dogfood-seal: PASS sealed=.corvint/changes/"+bind+".cem.json\n") {
+		t.Fatalf("seal exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+}
+
 // DCW-V0-019: cem cite only adds evidence, so a corrected plan joins the resumed
 // map's earlier citations; the pass names the delete-and-rerun step, which
 // leaves only the corrected plan's citation.

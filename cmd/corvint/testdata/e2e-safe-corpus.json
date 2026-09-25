@@ -1,0 +1,463 @@
+{
+ "cases": [
+  {
+   "changes": {
+    "src/search.ts": "export function find(q: string): string {\n  return q.split(\"\").reverse().join(\"\");\n}\n"
+   },
+   "expect": {
+    "codes": [],
+    "state": "narrow-selection-allowed"
+   },
+   "fault": "search returns the query reversed",
+   "id": "search-source",
+   "needed": [
+    "search.spec.ts > finds"
+   ]
+  },
+  {
+   "changes": {
+    "src/checkout.ts": "import { total } from \"./cart\";\n\nexport function pay(n: number): number {\n  return total(n) * 2;\n}\n"
+   },
+   "expect": {
+    "codes": [],
+    "state": "narrow-selection-allowed"
+   },
+   "fault": "pay doubles the total",
+   "id": "checkout-source",
+   "needed": [
+    "checkout.spec.ts > pays"
+   ]
+  },
+  {
+   "changes": {
+    "src/cart.ts": "export function total(n: number): number {\n  return n - 1;\n}\n"
+   },
+   "expect": {
+    "codes": [],
+    "state": "narrow-selection-allowed"
+   },
+   "fault": "total drops one item",
+   "id": "cart-source",
+   "needed": [
+    "cart.spec.ts > adds",
+    "checkout.spec.ts > pays"
+   ]
+  },
+  {
+   "changes": {
+    "src/profile.ts": "import { label } from \"./format\";\n\nexport function edit(name: string): string {\n  return label(\"\");\n}\n"
+   },
+   "expect": {
+    "codes": [],
+    "state": "narrow-selection-allowed"
+   },
+   "fault": "edit discards the name",
+   "id": "profile-source",
+   "needed": [
+    "profile.spec.ts > edits",
+    "profile.spec.ts > views"
+   ]
+  },
+  {
+   "changes": {
+    "src/format.ts": "export function label(name: string): string {\n  return name.toUpperCase();\n}\n"
+   },
+   "expect": {
+    "codes": [
+     "e2e-unmapped-change"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "label upper-cases the name",
+   "id": "format-helper",
+   "needed": [
+    "profile.spec.ts > edits",
+    "profile.spec.ts > views"
+   ]
+  },
+  {
+   "changes": {
+    "e2e/pages/shop.ts": "export const origin = \"http://localhost:3001\";\n"
+   },
+   "expect": {
+    "codes": [],
+    "state": "narrow-selection-allowed"
+   },
+   "fault": "origin points at the wrong port",
+   "id": "page-object",
+   "needed": [
+    "cart.spec.ts > adds",
+    "checkout.spec.ts > pays",
+    "profile.spec.ts > edits",
+    "profile.spec.ts > views",
+    "search.spec.ts > finds"
+   ]
+  },
+  {
+   "changes": {
+    "e2e/search.spec.ts": "import { origin } from \"./pages/shop\";\n\ntest(\"finds\", () => origin + \"/none\");\n"
+   },
+   "expect": {
+    "codes": [],
+    "state": "narrow-selection-allowed"
+   },
+   "fault": "search spec asserts the wrong result",
+   "id": "test-file",
+   "needed": [
+    "search.spec.ts > finds"
+   ]
+  },
+  {
+   "changes": {
+    "package-lock.json": "{\"name\":\"shop\",\"lockfileVersion\":2}\n"
+   },
+   "expect": {
+    "codes": [
+     "e2e-global-path-changed"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "dependency resolution changes",
+   "id": "lockfile",
+   "needed": [
+    "cart.spec.ts > adds",
+    "checkout.spec.ts > pays",
+    "profile.spec.ts > edits",
+    "profile.spec.ts > views",
+    "search.spec.ts > finds"
+   ]
+  },
+  {
+   "changes": {
+    "fixtures/users.json": "[{\"id\":\"buyer\"}]\n"
+   },
+   "expect": {
+    "codes": [
+     "e2e-global-path-changed"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "the shopper fixture is renamed",
+   "id": "declared-fixture",
+   "needed": [
+    "profile.spec.ts > edits",
+    "profile.spec.ts > views"
+   ]
+  },
+  {
+   "changes": {
+    "data/seed.sql": "select 1;\n"
+   },
+   "expect": {
+    "codes": [
+     "e2e-exclusion-unproven",
+     "e2e-inferred-link-only",
+     "e2e-unmapped-change"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "seed data no longer creates the shopper",
+   "id": "unnamed-seed",
+   "needed": [
+    "profile.spec.ts > edits",
+    "profile.spec.ts > views"
+   ]
+  },
+  {
+   "changes": {
+    "flows/cart.json": null
+   },
+   "expect": {
+    "codes": [
+     "e2e-global-path-changed"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "the cart flow intent is removed",
+   "id": "flow-intent",
+   "needed": [
+    "cart.spec.ts > adds"
+   ]
+  },
+  {
+   "changes": {
+    "playwright.config.ts": "export default { testDir: \"e2e\", retries: 0, projects: [{ name: \"chromium\" }] };\n"
+   },
+   "expect": {
+    "codes": [
+     "e2e-global-path-changed"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "runner retries are disabled",
+   "id": "runner-config",
+   "needed": [
+    "cart.spec.ts > adds",
+    "checkout.spec.ts > pays",
+    "profile.spec.ts > edits",
+    "profile.spec.ts > views",
+    "search.spec.ts > finds"
+   ]
+  },
+  {
+   "changes": {
+    "e2e/wishlist.spec.ts": "import { origin } from \"./pages/shop\";\n\ntest(\"wishes\", () => origin);\n"
+   },
+   "expect": {
+    "codes": [
+     "e2e-inventory-incomplete"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "a wishlist spec is added but not inventoried",
+   "id": "undiscovered-test",
+   "needed": []
+  },
+  {
+   "changes": {
+    "src/search.ts": "export function find(q: string): string {\n  return \"\";\n}\n"
+   },
+   "discovery": "missing",
+   "expect": {
+    "codes": [
+     "e2e-inventory-incomplete"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "no discovery record for the head",
+   "id": "missing-discovery",
+   "needed": [
+    "search.spec.ts > finds"
+   ]
+  },
+  {
+   "changes": {
+    "src/search.ts": "export function find(q: string): string {\n  return \"\";\n}\n"
+   },
+   "discovery": "base",
+   "expect": {
+    "codes": [
+     "e2e-inventory-incomplete"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "the discovery record was taken at the base",
+   "id": "stale-discovery",
+   "needed": [
+    "search.spec.ts > finds"
+   ]
+  },
+  {
+   "base_changes": {
+    "src/search.ts": "export function find(q: string): string {\n  return q.trim();\n}\n"
+   },
+   "changes": {
+    "src/cart.ts": "export function total(n: number): number {\n  return 0;\n}\n"
+   },
+   "expect": {
+    "codes": [
+     "e2e-map-stale"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "search changed after its coverage run",
+   "id": "stale-coverage",
+   "needed": [
+    "cart.spec.ts > adds",
+    "checkout.spec.ts > pays"
+   ]
+  },
+  {
+   "base_changes": {
+    "src/checkout.ts": "import { total } from \"./cart\";\n\nexport function pay(n: number): number {\n  return total(n) + 0;\n}\n"
+   },
+   "changes": {
+    "src/search.ts": "export function find(q: string): string {\n  return \"\";\n}\n"
+   },
+   "expect": {
+    "codes": [
+     "e2e-map-stale"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "checkout changed after its review anchor",
+   "id": "stale-review",
+   "needed": [
+    "search.spec.ts > finds"
+   ]
+  },
+  {
+   "changes": {
+    "src/search.ts": "export function find(q: string): string {\n  return \"\";\n}\n"
+   },
+   "drop_coverage": [
+    "cart.spec.ts > adds"
+   ],
+   "expect": {
+    "codes": [
+     "e2e-inferred-link-only"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "cart has only inferred links and no coverage",
+   "id": "inferred-only",
+   "needed": [
+    "search.spec.ts > finds"
+   ]
+  },
+  {
+   "changes": {
+    "src/search.ts": "export function find(q: string): string {\n  return \"\";\n}\n"
+   },
+   "drop_coverage": [
+    "profile.spec.ts > edits",
+    "profile.spec.ts > views"
+   ],
+   "expect": {
+    "codes": [
+     "e2e-exclusion-unproven"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "profile views link has no review anchor and no coverage",
+   "id": "declared-without-anchor",
+   "needed": [
+    "search.spec.ts > finds"
+   ]
+  },
+  {
+   "changes": {
+    "src/cart.ts": "export function total(n: number): number {\n  return 0;\n}\n"
+   },
+   "expect": {
+    "codes": [
+     "e2e-exclusion-unproven",
+     "e2e-unmapped-change"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "search coverage lacks a complete server tier",
+   "id": "incomplete-tier",
+   "incomplete_coverage": [
+    "search.spec.ts > finds"
+   ],
+   "needed": [
+    "cart.spec.ts > adds",
+    "checkout.spec.ts > pays"
+   ]
+  }
+ ],
+ "coverage": [
+  {
+   "commit": "@EVIDENCE@",
+   "test_key": "search.spec.ts > finds",
+   "tiers": [
+    {
+     "complete": true,
+     "paths": [
+      "e2e/pages/shop.ts",
+      "e2e/search.spec.ts"
+     ],
+     "tier": "client"
+    },
+    {
+     "complete": true,
+     "paths": [
+      "src/search.ts"
+     ],
+     "tier": "server"
+    }
+   ]
+  },
+  {
+   "commit": "@EVIDENCE@",
+   "test_key": "profile.spec.ts > edits",
+   "tiers": [
+    {
+     "complete": true,
+     "paths": [
+      "e2e/pages/shop.ts",
+      "e2e/profile.spec.ts"
+     ],
+     "tier": "client"
+    },
+    {
+     "complete": true,
+     "paths": [
+      "src/format.ts",
+      "src/profile.ts"
+     ],
+     "tier": "server"
+    }
+   ]
+  },
+  {
+   "commit": "@EVIDENCE@",
+   "test_key": "profile.spec.ts > views",
+   "tiers": [
+    {
+     "complete": true,
+     "paths": [
+      "e2e/pages/shop.ts",
+      "e2e/profile.spec.ts"
+     ],
+     "tier": "client"
+    },
+    {
+     "complete": true,
+     "paths": [
+      "src/format.ts",
+      "src/profile.ts"
+     ],
+     "tier": "server"
+    }
+   ]
+  },
+  {
+   "commit": "@EVIDENCE@",
+   "test_key": "cart.spec.ts > adds",
+   "tiers": [
+    {
+     "complete": true,
+     "paths": [
+      "e2e/cart.spec.ts",
+      "e2e/pages/shop.ts"
+     ],
+     "tier": "client"
+    },
+    {
+     "complete": true,
+     "paths": [
+      "src/cart.ts"
+     ],
+     "tier": "server"
+    }
+   ]
+  }
+ ],
+ "files": {
+  ".gitignore": "coverage.json\ndiscovery.json\n",
+  "data/seed.sql": "insert into users values ('shopper');\n",
+  "e2e-provider.json": "{\"coverage\": \"coverage.json\", \"discovery\": \"discovery.json\", \"flow_tiers\": {\"cart\": [\"client\", \"server\"], \"profile\": [\"client\", \"server\"], \"search\": [\"client\", \"server\"]}, \"flows\": \"flows\", \"global_paths\": [\"fixtures\"], \"inventory\": [{\"path\": \"e2e/checkout.spec.ts\", \"project\": \"chromium\", \"test_key\": \"checkout.spec.ts > pays\"}, {\"path\": \"e2e/search.spec.ts\", \"project\": \"chromium\", \"test_key\": \"search.spec.ts > finds\"}, {\"path\": \"e2e/profile.spec.ts\", \"project\": \"chromium\", \"test_key\": \"profile.spec.ts > edits\"}, {\"path\": \"e2e/profile.spec.ts\", \"project\": \"chromium\", \"test_key\": \"profile.spec.ts > views\"}, {\"path\": \"e2e/cart.spec.ts\", \"project\": \"chromium\", \"test_key\": \"cart.spec.ts > adds\"}], \"runner_config\": \"playwright.config.ts\", \"schema\": \"application-flow-selection-provider/1\"}\n",
+  "e2e/cart.spec.ts": "import { origin } from \"./pages/shop\";\n\ntest(\"adds\", () => origin);\n",
+  "e2e/checkout.spec.ts": "import { origin } from \"./pages/shop\";\n\ntest(\"pays\", () => origin);\n",
+  "e2e/pages/shop.ts": "export const origin = \"http://localhost:3000\";\n",
+  "e2e/profile.spec.ts": "import { origin } from \"./pages/shop\";\n\ntest(\"edits\", () => origin);\ntest(\"views\", () => origin);\n",
+  "e2e/search.spec.ts": "import { origin } from \"./pages/shop\";\n\ntest(\"finds\", () => origin);\n",
+  "fixtures/users.json": "[{\"id\":\"shopper\"}]\n",
+  "flows/cart.json": "{\"actor\": \"shopper\", \"flow_id\": \"cart\", \"kind\": \"ui\", \"links\": [{\"basis\": \"inferred\", \"from\": \"add\", \"target\": {\"path\": \"src/cart.ts\", \"type\": \"source\"}}, {\"basis\": \"inferred\", \"from\": \"cart.add\", \"target\": {\"path\": \"e2e/cart.spec.ts\", \"test_key\": \"cart.spec.ts > adds\", \"type\": \"test\"}}], \"outcomes\": [{\"behavior\": \"added visible\", \"locator\": \"#added\", \"matcher\": \"toBeVisible\", \"outcome_id\": \"added\", \"value\": \"added\"}], \"preconditions\": [], \"revision\": 1, \"schema\": \"application-flow-intent/1\", \"steps\": [{\"action\": \"do add\", \"step_id\": \"add\"}], \"variations\": [{\"observable_facts\": [], \"outcomes\": [\"added\"], \"preconditions\": [], \"projects\": [\"chromium\"], \"steps\": [\"add\"], \"variation_id\": \"cart.add\"}]}\n",
+  "flows/checkout.json": "{\"actor\": \"shopper\", \"flow_id\": \"checkout\", \"kind\": \"ui\", \"links\": [{\"basis\": \"declared\", \"from\": \"pay\", \"reviewed_at\": \"@ANCHOR@\", \"target\": {\"path\": \"src/checkout.ts\", \"type\": \"source\"}}, {\"basis\": \"declared\", \"from\": \"checkout.happy\", \"reviewed_at\": \"@ANCHOR@\", \"target\": {\"path\": \"e2e/checkout.spec.ts\", \"test_key\": \"checkout.spec.ts > pays\", \"type\": \"test\"}}], \"outcomes\": [{\"behavior\": \"paid visible\", \"locator\": \"#paid\", \"matcher\": \"toBeVisible\", \"outcome_id\": \"paid\", \"value\": \"paid\"}], \"preconditions\": [], \"revision\": 1, \"schema\": \"application-flow-intent/1\", \"steps\": [{\"action\": \"do pay\", \"step_id\": \"pay\"}], \"variations\": [{\"observable_facts\": [], \"outcomes\": [\"paid\"], \"preconditions\": [], \"projects\": [\"chromium\"], \"steps\": [\"pay\"], \"variation_id\": \"checkout.happy\"}]}\n",
+  "flows/profile.json": "{\"actor\": \"shopper\", \"flow_id\": \"profile\", \"kind\": \"ui\", \"links\": [{\"basis\": \"declared\", \"from\": \"edit\", \"reviewed_at\": \"@ANCHOR@\", \"target\": {\"path\": \"src/profile.ts\", \"type\": \"source\"}}, {\"basis\": \"declared\", \"from\": \"profile.edit\", \"reviewed_at\": \"@ANCHOR@\", \"target\": {\"path\": \"e2e/profile.spec.ts\", \"test_key\": \"profile.spec.ts > edits\", \"type\": \"test\"}}, {\"basis\": \"declared\", \"from\": \"profile.view\", \"target\": {\"path\": \"e2e/profile.spec.ts\", \"test_key\": \"profile.spec.ts > views\", \"type\": \"test\"}}], \"outcomes\": [{\"behavior\": \"saved visible\", \"locator\": \"#saved\", \"matcher\": \"toBeVisible\", \"outcome_id\": \"saved\", \"value\": \"saved\"}], \"preconditions\": [], \"revision\": 1, \"schema\": \"application-flow-intent/1\", \"steps\": [{\"action\": \"do edit\", \"step_id\": \"edit\"}], \"variations\": [{\"observable_facts\": [], \"outcomes\": [\"saved\"], \"preconditions\": [], \"projects\": [\"chromium\"], \"steps\": [\"edit\"], \"variation_id\": \"profile.edit\"}, {\"observable_facts\": [], \"outcomes\": [\"saved\"], \"preconditions\": [], \"projects\": [\"chromium\"], \"steps\": [\"edit\"], \"variation_id\": \"profile.view\"}]}\n",
+  "flows/search.json": "{\"actor\": \"shopper\", \"flow_id\": \"search\", \"kind\": \"ui\", \"links\": [{\"basis\": \"declared\", \"from\": \"query\", \"reviewed_at\": \"@ANCHOR@\", \"target\": {\"path\": \"src/search.ts\", \"type\": \"source\"}}, {\"basis\": \"declared\", \"from\": \"search.basic\", \"reviewed_at\": \"@ANCHOR@\", \"target\": {\"path\": \"e2e/search.spec.ts\", \"test_key\": \"search.spec.ts > finds\", \"type\": \"test\"}}], \"outcomes\": [{\"behavior\": \"listed visible\", \"locator\": \"#listed\", \"matcher\": \"toBeVisible\", \"outcome_id\": \"listed\", \"value\": \"listed\"}], \"preconditions\": [], \"revision\": 1, \"schema\": \"application-flow-intent/1\", \"steps\": [{\"action\": \"do query\", \"step_id\": \"query\"}], \"variations\": [{\"observable_facts\": [], \"outcomes\": [\"listed\"], \"preconditions\": [], \"projects\": [\"chromium\"], \"steps\": [\"query\"], \"variation_id\": \"search.basic\"}]}\n",
+  "package-lock.json": "{\"name\":\"shop\",\"lockfileVersion\":3}\n",
+  "package.json": "{\"name\":\"shop\",\"private\":true}\n",
+  "playwright.config.ts": "export default { testDir: \"e2e\", projects: [{ name: \"chromium\" }] };\n",
+  "src/cart.ts": "export function total(n: number): number {\n  return n;\n}\n",
+  "src/checkout.ts": "import { total } from \"./cart\";\n\nexport function pay(n: number): number {\n  return total(n);\n}\n",
+  "src/format.ts": "export function label(name: string): string {\n  return name;\n}\n",
+  "src/profile.ts": "import { label } from \"./format\";\n\nexport function edit(name: string): string {\n  return label(name);\n}\n",
+  "src/search.ts": "export function find(q: string): string {\n  return q;\n}\n"
+ },
+ "note": "labelled fault-injected corpus for AFU-V1-040; needed lists the inventoried tests each injected fault breaks",
+ "schema": "e2e-safe-selection-corpus/0"
+}

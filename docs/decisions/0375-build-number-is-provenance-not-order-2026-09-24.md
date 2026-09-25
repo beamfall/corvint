@@ -10,7 +10,7 @@ Decision 0331 (clean public history with a private archive) restarted `origin/ma
 commit count at 1. `PUB-V0-021` stamps the build number from that count, so the restart broke the
 assumption that a later build always carries a larger number: `origin/main` HEAD stamped build 12
 while the already-published `0.7.0` prerelease is `Corvint 0.7.0 (build 46)`
-(`docs/BUILD-LOG.md:2391@231c2812`, "V1-0017 decision 0360 / SOP-V0-003 / SOP-V0-009" entry, 2026-09-23).
+(`docs/BUILD-LOG.md:2425@231c2812`, "V1-0017 decision 0360 / SOP-V0-003 / SOP-V0-009" entry, 2026-09-23).
 Ticket V1-0149 asked the owner to decide whether build numbers should restart from the public
 lineage or carry an offset.
 
@@ -37,7 +37,7 @@ expected version's exact banner. `docs/specs/vscode-extension-v0.md:164@2ced530d
 number is not part of the pin." `SOP-V0-003` (`docs/specs/stable-operations-v0.md:84-92@feb4322f`, amended by
 decision 0360) compares upgrade/cold-index packet bytes, never build numbers, and a real N-1
 lifecycle upgrade from `0.6.0 (build 90)` into the installed `0.7.0 (build 46)` passed
-(`docs/BUILD-LOG.md:2374@b85d8a61`) even though the published build numbers went down (0.6.0 build 90, 0.7.0
+(`docs/BUILD-LOG.md:2408@b85d8a61`) even though the published build numbers went down (0.6.0 build 90, 0.7.0
 build 46, `docs/RELEASE-NOTES.md:101,124@1528a86b`). `origin/main`'s current first-parent count already exceeds
 46, so the two published builds are not even the closest collision risk going forward.
 
