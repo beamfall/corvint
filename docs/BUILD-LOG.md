@@ -5629,7 +5629,7 @@ No real `1.0.0-rc.1` candidate was assembled; `VERSION` is still `0.8.1`.
 ## 2026-09-25 V1-0184: beamfall-dogfood receipts for UC-CHANGE-CONSEQUENCE and UC-EVIDENCE-CARRYING-COMPLETION
 
 Bound a `beamfall-dogfood` receipt for two of the three daily-workflow rows in
-`conformance/use-cases-v0/ledger.json`. Both cite Beamfall's owner-run LCRES-15 change, bind
+`conformance/use-cases-v0/ledger.json`. Both cite Beamfall's agent-run LCRES-15 change, bind
 commit `86fde0eb21d2e0fc41bfc06a4c06c9c3aef63e59`, published on Beamfall/core branch
 `claude/corvint-dogfood-LCRES-15` (PR beamfall/core#31, open), which went through the
 `docs/DOGFOOD.md` daily path against base `0d7796be23efe4e2579408a5516b8aeff1a23008`. The sealed

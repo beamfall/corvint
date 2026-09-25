@@ -51,7 +51,7 @@ increment, which went through the `docs/DOGFOOD.md` daily path; each receipt's s
 commit's sealed CEM and a byte-identical copy of the retained daily-path artifact for the row
 (`prechange-query`, `prechange-impact`, `dogfood-report`) under
 `receipts/<useCaseId>/corvint-dogfood/`. Ticket V1-0184 bound a `beamfall-dogfood` receipt for
-`UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION`, from the owner-run daily path on
+`UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION`, from the agent-run daily path on
 Beamfall's LCRES-15 change (bind commit 86fde0eb21d2e0fc41bfc06a4c06c9c3aef63e59, published on
 Beamfall/core branch `claude/corvint-dogfood-LCRES-15`, PR beamfall/core#31). Each receipt's
 subjects are that commit's sealed CEM and a byte-identical copy of the retained daily-path
