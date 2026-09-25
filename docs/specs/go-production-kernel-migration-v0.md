@@ -829,6 +829,7 @@ repository rewrite, cache conversion, trace conversion, or sidecar migration is 
 | `GPK-V0-021..022` | Corvint and Beamfall dogfood packets | private measurements, receipts, status snapshots, misses |
 | `GPK-V0-023..026` | per-surface rollout ledger and retirement gate | black-box compatibility, rollback drill, zero-mismatch windows |
 | `GPK-V0-027`, `GPK-V0-056` | `cmd/corvint` plus bounded `internal/contextindex` one-shot impact compiler; the Go-module precondition applies to `.go` paths only; index-admitted suffixes without a reverse-import rule retain a disclosed packet; test-inclusive name-reference scan and reference-counted test-convention ranking in `internal/contextindex/impact.go`, while checkpoint callers retain their prior test exclusion | race/vet, cancellation, nonmutation, `impact-python-nomodule` oracle replay in `conformance/cli-parity-v0`, `TestImpactArgvIsClosedToThePortedSeed` and `TestRootPackageDivergenceRejectsAnUnpinnedImporterRewrite` (`conformance/cli-parity-v0`) closing the argv/rewrite self-check gaps `docs/reviews/cli-parity-mutation-audit-2026-09-13.md` found, `TestImpactDisclosesUnruledAdmittedSuffixAcrossSurfaces_GPKV0027`, the rule (c) lexical-position tests `TestWebImportsRejectsCommentedSpecifiers`, `TestWebImportsRejectsQuotedSpecifiers`, `TestWebImportsRejectsTemplateLiteralSpecifiers`, `TestWebImportsLexesSubstitutionBodiesAsCode`, `TestWebImportsEndsLineCommentAtEveryLineTerminator`, `TestWebImportsEndsUnclosedQuoteAtCarriageReturn` (an unclosed `'`/`"` literal ends at `\r` as well as `\n`, and not at U+2028 or U+2029), `TestWebImportsKeepsQuotedCRLFContinuationInsideTheLiteral` (a `\` before `\r\n` continues a `'`/`"` literal through both bytes, so an import spelled in its remainder adds no edge), `TestWebImportsReadsRegexLiteralsAfterExpressionOpeners` (a backtick or quote inside a regex after an expression opener opens nothing, so the import between two such literals keeps its edge), and `TestWebImportsReportsUnterminatedConstructs` (`internal/contextindex/webimports_test.go`), named Corvint/Beamfall fixture dogfood, `TestImpactRanksSamePackageTestsByDeclarationReferences/GPK-V0-056`, blind-v3 outcome measurement, `DR-0028`, and `DR-0029`; impact promotion remains BLOCKED until its discriminating CLI parity rows exist and pass under `GPK-V0-034` |
+| `GPK-V0-067` (proposed, not accepted) | the Go caller elevation (`goQualifiedReferences`, `goImportQualifier`, `goPackageName`) and the importer-test record split (`importerRelated`) in `Impact` (`internal/contextindex/impact.go`) | `TestImpactRanksCrossPackageCallerAboveImporterTestFeature` (`internal/contextindex/impact_convention_test.go`), which FAILS against a candidate without the change; `TestProveImpactJudgesGoImportAndReferenceRows` (`cmd/corvint/prove_reference_test.go`), whose importer row now carries the call line; `impact-python-module` and `impact-go-root` replaying unchanged in `conformance/cli-parity-v0`; before/after `corvint eval` and `tools/retrieval-bench` numbers in `docs/BUILD-LOG.md` |
 | `GPK-V0-028` | bounded `internal/contextindex` authority-start query and packet-budget compiler plus `cmd/corvint` dispatch; advisory learned paths above limit 1 reuse `EvalQuery`'s learned-candidate ranking, whose history parser drops `grafted` commits | `TestAuthorityStartHistorySkipsTheShallowBoundaryCommit`; exact unbudgeted process parity at limits 1, default, 50, and with learned paths, the oracle's limit error at 51, a non-ASCII task, frozen Python budget-vector comparison, hostile rejection, nonmutation, and named Corvint/Beamfall authority-start dogfood |
 | `GPK-V0-029` | opt-in `cmd/corvint impact` dispatch plus bounded `internal/worktreeimpact` evidence compiler | `TestCompileValidatesSuffixBeforeRepositoryCondition_GPKV0029`, default byte-parity regression, hostile file/race tests, race/vet/cross-build, and named Corvint untracked-file dogfood |
 | `GPK-V0-030` | opt-in `cmd/corvint impact --base` dispatch plus bounded `internal/contextindex` hunk-qualified compiler | path-profile regression, hostile range rejection, race/vet/cross-build, and exact Beamfall ART-SLOTS committed-range dogfood |
@@ -1239,3 +1240,28 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   `query`, `feature`, `impact`, `range impact`, and the `harness` context blocks. The Python oracle
   counts exclusion rows only. That is a `python-defect` registered as `DR-0023` under `GPK-V0-033`,
   declared per case as one `exclusions.count` rewrite, and `src/` is deliberately unrepaired.
+
+## Proposed amendment: Go callers and importer-test records in path impact
+
+- `GPK-V0-067`: (proposed amendment 2026-09-25, V1-0263, owner review pending; not accepted) This
+  amends the Go reverse-import rule of `GPK-V0-027` in two ways. It changes no other language.
+  (1) A non-test `.go` reverse importer of a changed `.go` file outside the module root package
+  MUST score 775 when one of its code lines, other than the import line, names an exported
+  declaration of the changed file through the importer's local name for the package: `pkg.Name`,
+  or `alias.Name` when the import binds an alias. A blank or dot import names nothing. The row stays
+  `kind:reverse-import`, its summary becomes `directly imports and references declarations from
+  PATH`, and after its import evidence it carries `references NAME declared by PATH` syntax evidence
+  under the shared evidence cap. Importers that name no declaration keep 700, and tests keep 650,
+  as same-package `reference` rows exclude tests. A root-package changed path is out of scope,
+  because `DR-0017` and the broad-module-root reservation govern those importers.
+  (2) A feature or scenario record reached only through a `.go` reverse-importing test's markers
+  MUST score 650, the test's own score, with the reason `reverse-importing test carries
+  KIND:ID`. The changed path does not carry it, so the 800 changed-path reason would be false under
+  invariant 2. A record the changed path or a same-package test also carries keeps 800.
+  In a Beamfall path impact, this rule put records linked through an importer test's single marker
+  at 800 above every caller, and it ranked the direct caller 30th, by path. Non-Go importer-test
+  records keep the rule that `impact-python-module` pins, until the owner decides whether to extend
+  this clause. If the clause is accepted, the retired oracle's flat Go importer rows and 800
+  importer-test records become a `python-defect` under `GPK-V0-033`, and that divergence must be
+  registered before promotion. The analyzer schema moves one step. Rollback: remove the caller
+  elevation and route importer-test markers back into `related`, restoring the flat 700 and 800 rows.

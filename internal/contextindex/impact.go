@@ -5,6 +5,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/projectprofile"
@@ -72,6 +73,10 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 
 	ranked := make([]rankedResult, 0)
 	related := make(map[string]struct{})
+	// GPK-V0-067 (proposed): a record reached only through a Go reverse-importing
+	// test's marker ranks with that test rather than as a changed-path record.
+	// Other languages keep the oracle-pinned rule (`impact-python-module`).
+	importerRelated := make(map[string]struct{})
 	// V1-0054: built once per call rather than rescanned per changed path (up to
 	// maxImpactPaths) or per ranked record. dirIndex answers "which tracked paths
 	// share this directory" and sortedPaths lets an ADR-document prefix lookup
@@ -184,9 +189,13 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 		if !isTestPath(changedPath) {
 			for _, importer := range reverseImporters(index, changedPath) {
 				importerMarkers := markerKeysForPath(index, importer.path)
+				markerTarget := related
+				if strings.HasSuffix(importer.path, goImpactSuffix) {
+					markerTarget = importerRelated
+				}
 				if isTestPath(importer.path) && countKind(importerMarkers, "feature") <= 1 && countKind(importerMarkers, "scenario") <= 1 {
 					for _, key := range importerMarkers {
-						related[key] = struct{}{}
+						markerTarget[key] = struct{}{}
 					}
 				}
 				line, loaded := importEvidenceLine(index.Sources[importer.path], importer.imported)
@@ -198,12 +207,19 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 					score = 650
 				}
 				importerSource := index.Sources[importer.path]
+				importerEvidence := []any{evidence(importer.path, line, importerSource.BlobHash,
+					"imports "+importer.imported, "high", "syntax")}
+				summary := "directly imports package/module containing " + changedPath
+				calls := goQualifiedReferences(index, changedPath, importer, line)
+				if len(calls.matches) != 0 && !isTestPath(importer.path) {
+					score = 775
+					summary = "directly imports and references declarations from " + changedPath
+					importerEvidence = append(importerEvidence, packageReferenceEvidence(index, changedPath, calls)...)
+				}
 				ranked = append(ranked, rankedResult{score: score, order: 1, key: importer.path,
 					broadModuleRootImport: broadModuleRootImporter(index, changedPath, importer), result: map[string]any{
 						"kind": "reverse-import", "id": importer.path, "score": score,
-						"summary": "directly imports package/module containing " + changedPath,
-						"evidence": []any{evidence(importer.path, line, importerSource.BlobHash,
-							"imports "+importer.imported, "high", "syntax")},
+						"summary": summary, "evidence": importerEvidence,
 					}})
 			}
 		}
@@ -219,16 +235,26 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 		}
 	}
 	relatedKeys := keys(related)
+	for key := range importerRelated {
+		if _, direct := related[key]; !direct {
+			relatedKeys = append(relatedKeys, key)
+		}
+	}
+	sort.Strings(relatedKeys)
 	for _, key := range relatedKeys {
 		kind, identifier := splitRelation(key)
 		records := index.Features
 		if kind == "scenario" {
 			records = index.Scenarios
 		}
+		score, relation := 800, "changed path carries "
+		if _, direct := related[key]; !direct {
+			score, relation = 650, "reverse-importing test carries "
+		}
 		if record, ok := records[identifier]; ok {
-			result := recordResultWithSortedPaths(index, record, 800, "changed path carries "+kind+":"+identifier, sortedPaths)
+			result := recordResultWithSortedPaths(index, record, score, relation+kind+":"+identifier, sortedPaths)
 			withholdUnverifiedADRAuthority(result)
-			ranked = append(ranked, rankedResult{score: 800, order: 1, key: key, result: result})
+			ranked = append(ranked, rankedResult{score: score, order: 1, key: key, result: result})
 		}
 	}
 	sort.SliceStable(ranked, func(left, right int) bool {
@@ -759,6 +785,86 @@ func samePackageReferencesWithDirIndex(index *Index, changedPath string, include
 	}
 	sort.Slice(result, func(left, right int) bool { return result[left].path < result[right].path })
 	return result
+}
+
+// goQualifiedReferences finds the code lines of a Go reverse importer that
+// name an exported declaration of changedPath through the importer's local
+// name for its package (GPK-V0-067, proposed): `pkg.Name`, or `alias.Name`
+// when the import line binds an alias. A blank or dot import names nothing.
+// The import line itself is never a reference. At most maxEvidence-1 matches
+// are kept so the import row still leads the evidence. A root-package changed
+// path is out of scope: its importer rows are pinned by `DR-0017`
+// (`impact-go-root`) and ordered by reserveTestConventionTail instead.
+func goQualifiedReferences(index *Index, changedPath string, importer importer, importLine int) packageReference {
+	result := packageReference{path: importer.path}
+	if !strings.HasSuffix(changedPath, goImpactSuffix) || !strings.HasSuffix(importer.path, goImpactSuffix) || path.Dir(changedPath) == "." {
+		return result
+	}
+	text, valid, loaded := index.Sources[importer.path].Text()
+	if !loaded || !valid {
+		return result
+	}
+	lines := strings.Split(text, "\n")
+	qualifier := goImportQualifier(lines[importLine-1], importer.imported, goPackageName(index, changedPath))
+	if qualifier == "" {
+		return result
+	}
+	declared := make(map[string]struct{})
+	for _, symbol := range index.Symbols {
+		if symbol.Path == changedPath && symbol.Name != "" && unicode.IsUpper([]rune(symbol.Name)[0]) {
+			declared[symbol.Name] = struct{}{}
+		}
+	}
+	names := keys(declared)
+	for lineIndex, line := range goCodeLines(text) {
+		if lineIndex+1 == importLine {
+			continue
+		}
+		for _, name := range names {
+			if containsPythonWord(line, qualifier+"."+name) {
+				result.matches = append(result.matches, nameMatch{lineIndex + 1, name})
+			}
+		}
+	}
+	result.count = len(result.matches)
+	if len(result.matches) > maxEvidence-1 {
+		result.matches = result.matches[:maxEvidence-1]
+	}
+	return result
+}
+
+// goImportQualifier is the local name an import line binds for imported: the
+// alias written before the quoted path, else the package's declared name.
+func goImportQualifier(line, imported, packageName string) string {
+	before, _, found := strings.Cut(line, "\""+imported+"\"")
+	if !found {
+		return ""
+	}
+	fields := strings.Fields(strings.TrimPrefix(strings.TrimSpace(before), "import"))
+	if len(fields) == 0 || fields[len(fields)-1] == "(" {
+		return packageName
+	}
+	alias := fields[len(fields)-1]
+	if alias == "_" || alias == "." {
+		return ""
+	}
+	return alias
+}
+
+// goPackageName is the name in changedPath's package clause, or "" when the
+// source is unreadable or declares none.
+func goPackageName(index *Index, changedPath string) string {
+	text, valid, loaded := index.Sources[changedPath].Text()
+	if !loaded || !valid {
+		return ""
+	}
+	for _, line := range goCodeLines(text) {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "package" {
+			return fields[1]
+		}
+	}
+	return ""
 }
 
 func packageReferenceEvidence(index *Index, changedPath string, reference packageReference) []any {

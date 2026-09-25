@@ -5641,3 +5641,50 @@ No real `1.0.0-rc.1` candidate was assembled; `VERSION` is still `0.8.1`.
 - V1-0131: `docs/decisions/README.md` loses its stale 0105 and 0232 duplicates and is sorted again.
   The index still lacks rows for about 51 decision files and has no duplicate-row check; neither is
   in this change.
+
+## 2026-09-25 V1-0263: Go callers outrank importer-test records in path impact (proposed `GPK-V0-067`)
+
+This is a Beamfall path `impact` at base `0d7796be`, run on `internal/integrationhost/model_loader.go`
+and `internal/plugin/trust.go` at `--limit 10`. It put `feature:identify-scrape` and
+`feature:library-health` at 800, with the reason "changed path carries". Neither changed file
+carries either marker. Each record came from one marker on a reverse-importing test
+(`identify_test.go`, `decodeverify_test.go`), because rule (c) merged those markers into `related`,
+which scores every record 800. The direct caller `internal/app/skipdetect_jobs.go` calls
+`integrationhost.NewModelLoader` and `plugin.PluginTrustRoots`, yet it ranked 30th: every reverse
+importer scored a flat 700, and ties broke by path.
+
+Proposed `GPK-V0-067` (owner review pending, not accepted) makes two changes.
+- A non-test Go importer that names a changed file's exported declaration through its package
+  qualifier or alias scores 775 and carries `references` evidence. The module root package is left
+  out, because `DR-0017` and the broad-root reservation govern it.
+- A record reached only through a Go importer test's markers scores 650, with a reason that names
+  the test.
+
+Python importer tests keep the oracle-pinned rule, because `impact-python-module` replays it. The
+fixed Beamfall packet ranks `skipdetect_jobs.go` 5th, and the feature rows fall below the limit
+with 119 results still omitted. `TestImpactRanksCrossPackageCallerAboveImporterTestFeature` fails
+without the change. `TestProveImpactJudgesGoImportAndReferenceRows` now also requires the call-line
+row. The analyzer schema moves to `corvint-analyzer/84`, which collides with the unmerged V1-0260
+bump.
+
+Frozen evaluations, base → fix:
+- Beamfall goldens (`corvint eval`, 7 cases):
+  - Unchanged: recall 0.9, must_read 9/10, critical misses 0/5, top-5 6/7, abstention 1/1 and
+    budget compliance 1.0.
+  - Byte-weighted precision moved 0.707676 → 0.891829, as result bytes fell 47574 → 44781.
+  - In `impact-auth-production-bounded`, `feature:hls-transcode` and `feature:library-health` gave
+    way to `feature:session-lifecycle` and `reverse-import:internal/app/app.go`.
+- `tools/retrieval-bench --limit 20` showed no per-sample ranking change in any run:
+  - `--arms corvint`: all 82 `v2_abstention` samples, the first 40 `v2_comment2context` samples and
+    all 58 `v2_edit2ripple` samples.
+  - `--arms impact` on `v2_code2test`: 25 of 106 samples ran, and 81 errored identically on both
+    sides, 78 of them with `no changed_file in query`.
+
+Dogfood: the pre-change `query` for this task returned only decision 0021, which is a miss. The
+path impact of `impact.go` did not surface `impact_convention_test.go` in its top 10.
+
+Friction:
+- The scratch clone borrowed objects through `alternates`, so `cem-prepare` refused it. It needed
+  `git repack -a -d` and the alternates file moved aside.
+- The feature profile loads only when `testing/scenarios.yaml` also exists.
+- Line citations into `impact.go` and the spec needed repinning.

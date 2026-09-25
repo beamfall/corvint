@@ -51,11 +51,17 @@ func TestProveImpactJudgesGoImportAndReferenceRows(t *testing.T) {
 		t.Fatalf("state %v: %v", receipt["state"], receipt["proof"])
 	}
 	seen := map[string]string{}
+	appLines := map[int]bool{}
 	for _, row := range proofRows(t, receipt) {
 		seen[stringAt(row, "result")+"|"+stringAt(row, "falsifier")] = stringAt(row, "falsified")
-		if stringAt(row, "result") == "pkg/app/app.go" && integerAt(row, "line") != 5 {
-			t.Fatalf("import row must cite the import spec line: %v", row)
+		if stringAt(row, "result") == "pkg/app/app.go" {
+			appLines[integerAt(row, "line")] = true
 		}
+	}
+	// The import row cites the import spec line; proposed GPK-V0-067 adds the
+	// `core.ComputeTotal` call on line 8 as reference evidence on the same row.
+	if len(appLines) != 2 || !appLines[5] || !appLines[8] {
+		t.Fatalf("app.go rows must cite the import spec line 5 and the call line 8: %v", appLines)
 	}
 	for key, want := range map[string]string{
 		"pkg/core/core.go|" + falsifierHistory:     falsifiedPass,
