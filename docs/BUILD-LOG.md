@@ -6195,6 +6195,37 @@ Excluded, NOT_PRODUCED: enumerations inside `coverage.answerability`, `context.i
 verdicts, which review still decides; and the release gate the panel proposed, which would build the
 N-1 tag and replay all 12 Core verbs. The register reaches only the values the frozen fixtures emit.
 Unreached values rest on the cited sources.
+## 2026-09-25 FPK-V0-052: hermetic Git reads in cmd/corvint (panel blocker B2)
+
+The pre-1.0 panel reported that the Git reads in `cmd/corvint` set only a scrubbed environment.
+Repository-local configuration therefore still applied. Both failures were reproduced with failing
+tests before the fix. `git diff-tree` in `rangeChangedPaths` ran a `.git/config` `core.fsmonitor`
+program during `prove --base`. A `refs/replace` entry for the changed blob moved the
+`rangeHunkSpans` output from 3-5 to 4-8, so `prove --mutate` would target lines outside the real
+change.
+
+Decisions:
+
+- `hermeticGitCommand` in `cmd/corvint/prove.go` replaces `scrubbedGitEnvironment` and two inline
+  copies in `affected.go` and `host_adapter_compaction.go`. It now builds all nine Git reads in
+  `cmd/corvint`. The `-c` set mirrors `internal/contextindex` `gitRaw` and
+  `internal/liveverify/affected` `boundedGitRunner`, because neither package exports it. It adds
+  `core.hooksPath=/dev/null`, as `source_handoff.go` does, since the panel named hooks in the same
+  class. The environment adds `GIT_NO_REPLACE_OBJECTS=1`, and sets `GIT_CEILING_DIRECTORIES` to the
+  root's parent only when the root holds its own `.git` entry. The compaction root is
+  `CLAUDE_PROJECT_DIR`, which can be a subdirectory of the repository. The first cut set the ceiling
+  unconditionally, so a pin check from such a directory degraded as
+  `compaction-pin-verification-unavailable`. `TestCompactionPinVerifiesFromSubdirectoryRoot`
+  reproduced that failure. It passes now that a subdirectory root keeps normal discovery up to its
+  enclosing worktree. Resolving `--show-toplevel` first was set aside: a ceiling above a top level
+  found by unbounded discovery restricts nothing, and it costs one more process per read.
+- `source_handoff.go` is left out because it has its own pinned `/usr/bin/git` option list
+  (`--no-replace-objects`, `core.fsmonitor=false`, `core.hooksPath=/dev/null`). `work_runner.go` and
+  `work_executable_binding.go` are also left out because they run operator-declared commands, not
+  Git.
+- The `affected --base` replace case already passed: `internal/liveverify/affected` was hardened
+  before this change. `TestAffectedBaseRangeIgnoresReplaceObjects` is a regression guard for it.
+- The wire is unchanged. FPK-V0-052 is accepted by decision 0393 (owner instruction, 2026-09-25).
 ## 2026-09-25 V1-0272: alternates refusal names the adopter rerun
 
 - The `unsupported-object-alternates` fix line ended with `rerun make dogfood-change`, the one

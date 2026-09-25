@@ -110,10 +110,10 @@ what any packet says.
   (`IDX-SNAP-V0-005`). Clarifying amendment (2026-09-12, resolving the open question recorded in
   `docs/agent-memory/fixes.md`): the grant follows the shared build functions, not the invoking
   verb's name. `corvint prove --task`'s project-operations query mode compiles its packet through
-  the identical `standaloneQueryContext` build (`cmd/corvint/prove.go:1059-1061@d473eb95`, reaching
+  the identical `standaloneQueryContext` build (`cmd/corvint/prove.go:1058-1060@d473eb95`, reaching
   `deferredSnapshotIndex` and `snapshotIndex` at `cmd/corvint/main.go:1236-1237@c39315fe` and `cmd/corvint/harness_context.go:69-70@70282d2c`) before
   `compileProof` applies its own independent revision and dirty-set re-verification
-  (`cmd/corvint/prove.go:521@7ad2b2af`, `cmd/corvint/prove.go:541-542@38c3dce4`, `cmd/corvint/prove.go:563-564@61b1bb0c`) and reads every cited blob at the
+  (`cmd/corvint/prove.go:522@7ad2b2af`, `cmd/corvint/prove.go:542-543@38c3dce4`, `cmd/corvint/prove.go:564-565@61b1bb0c`) and reads every cited blob at the
   re-confirmed revision; a snapshot hit there therefore carries no staleness risk beyond what
   `IDX-SNAP-V0-002` and `IDX-SNAP-V0-006` already bound, and is covered by this clause on the same
   terms as `corvint query`. `corvint prove --checkpoint` is not covered: it never reaches this

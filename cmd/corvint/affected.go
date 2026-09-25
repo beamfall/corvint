@@ -763,11 +763,7 @@ func affectedHeadRevision(ctx context.Context, gitExecutable, root string) (stri
 func affectedRevision(ctx context.Context, gitExecutable, root, spec string) (string, error) {
 	deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
 	defer cancel()
-	command := exec.CommandContext(deadline, gitExecutable, "--no-optional-locks", "-C", root, "rev-parse", "--verify", "--quiet", spec+"^{commit}")
-	command.Env = []string{
-		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
-		"GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1", "LANG=C", "LC_ALL=C",
-	}
+	command := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--verify", "--quiet", spec+"^{commit}")
 	output, err := command.Output()
 	revision := string(bytes.TrimSpace(output))
 	if err != nil || !validGitObjectID(revision) {
