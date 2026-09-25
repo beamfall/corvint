@@ -5471,3 +5471,31 @@ the CLI message is the diagnostic path. Touching `internal/gitstatus` moves the 
   smoke requires the three default tools. The gate passed in a clean clone at `222b51d`.
 - The v0-5, v0-7 and v0-8 promotions move from `1281e26` to this change's merge commit; the gates run
   there, with `release-checklist` before the `v0.8.1` tag exists.
+
+## 2026-09-24 Issue #170 EAF-V0-012: isolated status reads through a search-only parent
+
+Issue #170 reported the same refusal as #156 on a checkout that plain `git status` reads. One of
+the causes we reproduced is a false refusal: `internal/gitstatus` pins every ancestor directory by
+opening it `O_RDONLY`, so a parent the caller can search but not read (mode `0711` owned by another
+user, common for shared and home directories) failed with `EACCES`. Git only needs search
+permission there. The remaining reproduced causes (submodule gitlink, `filter.lfs.process`,
+reftable, `include.*`, `core.attributesFile`, `TMPDIR` inside the repository or missing) are
+refusals by design and now name their reason under `EAF-V0-011`.
+
+- The Go standard library cannot hold a search-only directory as an `os.Root`: `os.OpenRoot` opens
+  its directory for reading, and darwin's `syscall` exports no `openat`. Linux alone could use
+  `O_PATH` with `syscall.Openat`, which would split the two platforms' semantics, and adding
+  `golang.org/x/sys` was set aside as a new dependency for one call.
+- Chosen: on `EACCES` the reader pins the directory by `Lstat` identity (a real directory, never a
+  symlink) and opens its child by absolute path, final component `O_NOFOLLOW`. The existing status
+  brackets re-check every pinned identity, so a replaced ancestor, or a child that no longer
+  resolves to the handle that was read, is refused. The trade: a swap-and-restore of the ancestor
+  entirely between the brackets goes unseen, which Git's own path-based reads share. A metadata
+  file's own directory still needs read access.
+- The MCP half of #170 (`corvint.status` returning only `repository-unavailable`) is unchanged:
+  the tool-error object is closed under `MCPV0`. Decision 0383 settles it as a separate change: an
+  opt-in `--error-profile reason-class` selector adds a closed `reasonClass`, with no free text.
+- Test: `TestStatusReadsThroughSearchOnlyParent` reads through a `0311` parent, then replaces that
+  parent with one holding the same repository directory, so only the parent's own pinned identity
+  can refuse it. The fallback applies only when a directory's own open is denied, not an
+  ancestor's. Touching `internal/gitstatus` moves the analyzer identity to `corvint-analyzer/82`.
