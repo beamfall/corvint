@@ -6227,3 +6227,23 @@ merge queue (which also needs a `merge_group` trigger in `ci.yml`) to close the 
   (`PTR-V0-003 two bound checks versions is tampered` becomes
   `case:ptr-v0-two-bound-check-version-is-tampered`), is documented as a no-new-rule clarification in
   `docs/specs/ocm-v0-dogfood.md` Traceability. The normalization itself is unchanged (wire contract).
+## 2026-09-25 V1-0268 AFP-V0-016 (amended, decision 0390): no admin bypass, `doc-gates` required
+
+V1-0268 found PRs merged through the ruleset's admin bypass before their own `go-product` check
+finished: #186 merged at 11:52:30Z; its `go-product` run completed at 12:31:43Z with `failure`. A
+GitHub ruleset bypass skips every rule and has no "only after checks complete" mode, so the owner
+decision "require doc-gates and block admin merges while checks run" is enforced by removing the
+bypass actor. The `main` ruleset requires `go-product`, `ci-control-plane` and `doc-gates` (the
+`ci.yml` job from PR #212, V1-0244). Consent to a `.github/` change becomes an admin-posted
+`ci-control-plane` `success` status on the exact reviewed head SHA. The latest status per context
+wins, so consent binds to one SHA and records its creator. `go-product` and `doc-gates` stay
+binding, and a later push gets a fresh workflow `failure`.
+
+Change: `AFP-V0-016` text, decision 0390, the pointer in decision 0320 step 2, the
+`ci-control-plane.yml` header comment and failure description (no logic change), and the
+`tools/corvint-pr-tests/README.md` ruleset paragraph. The ruleset itself is not changed here.
+
+`NOT_RUN`: the ruleset change and the admin-status consent path on a real PR. Both wait for the
+owner, and the ruleset change waits for `doc-gates` on `main` (PR #212). Rollback: restore the
+bypass actor (`RepositoryRole` 5, `pull_request` mode) and drop `doc-gates` through the ruleset
+API.
