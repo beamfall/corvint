@@ -380,9 +380,14 @@ func evalQuery(ctx context.Context, index *Index, text string, limit int, budget
 	}
 	negativeClaims := evalNegativeClaims(competitive, queryTerms)
 	needsWidening := !belowFloor && len(negativeClaims) != 0 && !evalNegativeClaim(queryText) && evalCapabilityOverride(queryText)
-	abstention := map[string]any{"active": len(results) == 0 || needsWidening, "reason": "none"}
+	// GPK-V0-068. The records slice is nil once GPK-V0-066 substituted the
+	// symbol packet, so a withdrawn record cannot ask for widening.
+	omittedCompeting := len(records) != 0 && len(results) != 0 && evalOmitsCompetingRecord(admitted, results[:min(len(results), limit)], supportIndex, ordered)
+	abstention := map[string]any{"active": len(results) == 0 || needsWidening || omittedCompeting, "reason": "none"}
 	if needsWidening {
 		abstention["reason"], abstention["nearest_claims"], state = "nearest-negative-claim", negativeClaims, "NEEDS_WIDENING"
+	} else if omittedCompeting {
+		abstention["reason"], state = "omitted-competing-record", "NEEDS_WIDENING"
 	} else if belowFloor {
 		abstention["reason"] = "below-relevance-floor"
 	} else if len(results) == 0 && len(index.DirtyPaths) != 0 {
@@ -1520,4 +1525,35 @@ func evalStrongestSupport(results []map[string]any, index map[string]map[string]
 		widest = max(widest, matched)
 	}
 	return widest
+}
+
+// evalOmitsCompetingRecord reports whether the result limit dropped a
+// competitive record that rests on a query word, as written, that no emitted
+// result rests on (GPK-V0-068). Such a packet chose between two readings of the
+// task by score alone, which GPK-V0-039 rules out as evidence, so the caller
+// must widen the limit to see the other reading.
+func evalOmitsCompetingRecord(admitted []evalRecordCandidate, emitted []map[string]any, index map[string]map[string]struct{}, ordered []string) bool {
+	covered := make(map[string]struct{})
+	emittedIdentities := make(map[string]struct{}, len(emitted))
+	for _, result := range emitted {
+		identity := evalResultIdentity(result)
+		emittedIdentities[identity] = struct{}{}
+		for _, word := range ordered {
+			if intersectionCountSet(terms(word), index[identity]) != 0 {
+				covered[word] = struct{}{}
+			}
+		}
+	}
+	for _, candidate := range admitted {
+		if _, shown := emittedIdentities[evalResultIdentity(candidate.result)]; shown {
+			continue
+		}
+		for _, word := range ordered {
+			_, answered := covered[word]
+			if !answered && intersectionCountSet(terms(word), candidate.support) != 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
