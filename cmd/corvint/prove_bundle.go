@@ -608,8 +608,7 @@ func bundleObjectsPresent(ctx context.Context, gitExecutable, root string, repos
 	}
 	deadline, cancel := context.WithTimeout(ctx, proveGitDeadline)
 	defer cancel()
-	command := exec.CommandContext(deadline, gitExecutable, "--no-optional-locks", "-C", root, "cat-file", "--batch-check=%(objectname) %(objecttype)")
-	command.Env = scrubbedGitEnvironment()
+	command := hermeticGitCommand(deadline, gitExecutable, root, "cat-file", "--batch-check=%(objectname) %(objecttype)")
 	command.Stdin = strings.NewReader(strings.Join(request, "\n") + "\n")
 	output, err := boundedOutput(command, maxProofDocumentBytes)
 	if err != nil {

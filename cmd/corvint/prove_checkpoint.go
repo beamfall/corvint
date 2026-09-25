@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"sort"
@@ -313,8 +312,7 @@ func checkpointPathFramable(value string) bool {
 func readCheckpointTree(ctx context.Context, gitExecutable, root, tree string) (map[string]string, error) {
 	deadline, cancel := context.WithTimeout(ctx, proveGitDeadline)
 	defer cancel()
-	command := exec.CommandContext(deadline, gitExecutable, "--no-optional-locks", "-C", root, "ls-tree", "-r", "-t", "-z", "--full-tree", tree)
-	command.Env = scrubbedGitEnvironment()
+	command := hermeticGitCommand(deadline, gitExecutable, root, "ls-tree", "-r", "-t", "-z", "--full-tree", tree)
 	raw, err := boundedOutput(command, proveBoundsFrom(ctx).checkpointTreeBytes)
 	if err != nil {
 		return nil, checkpointError("unsupported-prove-tree", "cannot list the current tree within 64 MiB")
@@ -504,8 +502,7 @@ func checkpointRevision(ctx context.Context, gitExecutable, root string) (string
 	identities := make([]string, 0, 2)
 	ref := "HEAD^{commit}"
 	for range 2 {
-		command := exec.CommandContext(deadline, gitExecutable, "--no-optional-locks", "-C", root, "rev-parse", "--verify", "--quiet", ref)
-		command.Env = scrubbedGitEnvironment()
+		command := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--verify", "--quiet", ref)
 		output, err := command.Output()
 		identity := string(bytes.TrimSpace(output))
 		if err != nil || !validGitObjectID(identity) {

@@ -707,8 +707,7 @@ func citeAffectedBlobs(rows []proveRow, cited map[string]citedBlob) {
 func rangeHunkSpans(ctx context.Context, gitExecutable, root, base string) (map[string][]mutate.LineSpan, error) {
 	deadline, cancel := context.WithTimeout(ctx, proveGitDeadline)
 	defer cancel()
-	command := exec.CommandContext(deadline, gitExecutable, "--no-optional-locks", "-C", root, "diff", "-U0", "--no-renames", "--no-ext-diff", "--no-textconv", "--no-color", "--src-prefix=a/", "--dst-prefix=b/", base, "HEAD", "--", "*.go", "*.py")
-	command.Env = scrubbedGitEnvironment()
+	command := hermeticGitCommand(deadline, gitExecutable, root, "diff", "-U0", "--no-renames", "--no-ext-diff", "--no-textconv", "--no-color", "--src-prefix=a/", "--dst-prefix=b/", base, "HEAD", "--", "*.go", "*.py")
 	output, err := boundedOutput(command, proveBoundsFrom(ctx).rangeDiffBytes)
 	if errors.Is(err, errOutputBound) {
 		return nil, rangeDiffBoundRefusal(base)
@@ -782,8 +781,7 @@ func hunkSpan(header string) (mutate.LineSpan, bool) {
 func rangeChangedPaths(ctx context.Context, gitExecutable, root, base string) ([]string, error) {
 	deadline, cancel := context.WithTimeout(ctx, proveGitDeadline)
 	defer cancel()
-	command := exec.CommandContext(deadline, gitExecutable, "--no-optional-locks", "-C", root, "diff-tree", "-r", "-z", "--name-only", "--no-renames", "--diff-filter=ACMT", base, "HEAD")
-	command.Env = scrubbedGitEnvironment()
+	command := hermeticGitCommand(deadline, gitExecutable, root, "diff-tree", "-r", "-z", "--name-only", "--no-renames", "--diff-filter=ACMT", base, "HEAD")
 	output, err := boundedOutput(command, proveBoundsFrom(ctx).rangeChangeBytes)
 	if errors.Is(err, errOutputBound) {
 		return nil, rangeChangedPathsBoundRefusal(base)
@@ -1760,8 +1758,7 @@ const proveGitDeadline = 30 * time.Second
 func proveTreeRevision(ctx context.Context, gitExecutable, root string) (string, error) {
 	deadline, cancel := context.WithTimeout(ctx, proveGitDeadline)
 	defer cancel()
-	command := exec.CommandContext(deadline, gitExecutable, "--no-optional-locks", "-C", root, "rev-parse", "--verify", "--quiet", "HEAD^{tree}")
-	command.Env = scrubbedGitEnvironment()
+	command := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--verify", "--quiet", "HEAD^{tree}")
 	output, err := command.Output()
 	tree := string(bytes.TrimSpace(output))
 	if err != nil || !validGitObjectID(tree) {
@@ -1780,8 +1777,7 @@ func readCitedBlobs(ctx context.Context, gitExecutable, root, revision string, p
 	}
 	deadline, cancel := context.WithTimeout(ctx, proveGitDeadline)
 	defer cancel()
-	command := exec.CommandContext(deadline, gitExecutable, "--no-optional-locks", "-C", root, "cat-file", "--batch")
-	command.Env = scrubbedGitEnvironment()
+	command := hermeticGitCommand(deadline, gitExecutable, root, "cat-file", "--batch")
 	command.Stdin = strings.NewReader(revision + ":" + strings.Join(paths, "\n"+revision+":") + "\n")
 	output, err := boundedOutput(command, proveBoundsFrom(ctx).blobBytes)
 	if errors.Is(err, errOutputBound) {
@@ -1874,11 +1870,21 @@ func countLines(content []byte) int {
 	return max(lines, 1)
 }
 
-func scrubbedGitEnvironment() []string {
-	return []string{
+// hermeticGitCommand is the one Git read shape in cmd/corvint (FPK-V0-052):
+// the -c set of internal/contextindex gitRaw plus core.hooksPath, so no
+// repository-configured program runs; replace refs ignored, so cited bytes are
+// the named objects; discovery stops at root's parent.
+func hermeticGitCommand(ctx context.Context, gitExecutable, root string, arguments ...string) *exec.Cmd {
+	prefix := []string{"--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false",
+		"-c", "core.excludesFile=", "-c", "credential.helper=", "-c", "submodule.recurse=false",
+		"-c", "core.hooksPath=/dev/null", "-C", root}
+	command := exec.CommandContext(ctx, gitExecutable, append(prefix, arguments...)...)
+	command.Env = []string{
 		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
-		"GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1", "LANG=C", "LC_ALL=C",
+		"GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1",
+		"GIT_NO_REPLACE_OBJECTS=1", "GIT_CEILING_DIRECTORIES=" + filepath.Dir(root), "LANG=C", "LC_ALL=C",
 	}
+	return command
 }
 
 func mapsFromAny(value any) []map[string]any {

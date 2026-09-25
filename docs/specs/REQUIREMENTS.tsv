@@ -922,21 +922,22 @@ FPK-V0-033	docs/specs/falsifiable-packet-v0.md	1048	(experimental prototype, not
 FPK-V0-034	docs/specs/falsifiable-packet-v0.md	1066	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354)
 FPK-V0-035	docs/specs/falsifiable-packet-v0.md	1085	(experimental prototype, not advertised; proposed 2026-09-22, decision 0354) A
 FPK-V0-036	docs/specs/falsifiable-packet-v0.md	1106	(experimental; proposed 2026-09-22, decision 0354) Transparency-log and keyless
-FPK-V0-037	docs/specs/falsifiable-packet-v0.md	1157	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
-FPK-V0-038	docs/specs/falsifiable-packet-v0.md	1171	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
-FPK-V0-039	docs/specs/falsifiable-packet-v0.md	1179	(proposed 2026-09-22, not accepted; experimental; decision 0355) The same
-FPK-V0-040	docs/specs/falsifiable-packet-v0.md	1192	(proposed 2026-09-22, not accepted; experimental; decision 0355) `anchor` and
-FPK-V0-041	docs/specs/falsifiable-packet-v0.md	1202	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint prove
-FPK-V0-042	docs/specs/falsifiable-packet-v0.md	1213	(proposed 2026-09-23, not accepted; experimental; decision 0361) The bundle is o
-FPK-V0-043	docs/specs/falsifiable-packet-v0.md	1227	(proposed 2026-09-23, not accepted; experimental; decision 0361) Export is
-FPK-V0-044	docs/specs/falsifiable-packet-v0.md	1237	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint [--roo
-FPK-V0-045	docs/specs/falsifiable-packet-v0.md	1245	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay refuses
-FPK-V0-046	docs/specs/falsifiable-packet-v0.md	1267	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay compares
-FPK-V0-047	docs/specs/falsifiable-packet-v0.md	1283	(proposed 2026-09-23, not accepted; experimental; decision 0361) Bundles and
-FPK-V0-048	docs/specs/falsifiable-packet-v0.md	1288	(proposed 2026-09-23, not accepted; experimental; decision 0361) Existing
-FPK-V0-049	docs/specs/falsifiable-packet-v0.md	1296	(proposed 2026-09-23, not accepted; experimental; decision 0361) Non-goals:
+FPK-V0-037	docs/specs/falsifiable-packet-v0.md	1171	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
+FPK-V0-038	docs/specs/falsifiable-packet-v0.md	1185	(proposed 2026-09-22, not accepted; experimental; decision 0355) `corvint cem
+FPK-V0-039	docs/specs/falsifiable-packet-v0.md	1193	(proposed 2026-09-22, not accepted; experimental; decision 0355) The same
+FPK-V0-040	docs/specs/falsifiable-packet-v0.md	1206	(proposed 2026-09-22, not accepted; experimental; decision 0355) `anchor` and
+FPK-V0-041	docs/specs/falsifiable-packet-v0.md	1216	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint prove
+FPK-V0-042	docs/specs/falsifiable-packet-v0.md	1227	(proposed 2026-09-23, not accepted; experimental; decision 0361) The bundle is o
+FPK-V0-043	docs/specs/falsifiable-packet-v0.md	1241	(proposed 2026-09-23, not accepted; experimental; decision 0361) Export is
+FPK-V0-044	docs/specs/falsifiable-packet-v0.md	1251	(proposed 2026-09-23, not accepted; experimental; decision 0361) `corvint [--roo
+FPK-V0-045	docs/specs/falsifiable-packet-v0.md	1259	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay refuses
+FPK-V0-046	docs/specs/falsifiable-packet-v0.md	1281	(proposed 2026-09-23, not accepted; experimental; decision 0361) Replay compares
+FPK-V0-047	docs/specs/falsifiable-packet-v0.md	1297	(proposed 2026-09-23, not accepted; experimental; decision 0361) Bundles and
+FPK-V0-048	docs/specs/falsifiable-packet-v0.md	1302	(proposed 2026-09-23, not accepted; experimental; decision 0361) Existing
+FPK-V0-049	docs/specs/falsifiable-packet-v0.md	1310	(proposed 2026-09-23, not accepted; experimental; decision 0361) Non-goals:
 FPK-V0-050	docs/specs/falsifiable-packet-v0.md	1121	(experimental prototype, not advertised; proposed 2026-09-23, decision 0365) In
 FPK-V0-051	docs/specs/falsifiable-packet-v0.md	1137	(experimental; proposed 2026-09-23, decision 0365) Each field-name alignment the
+FPK-V0-052	docs/specs/falsifiable-packet-v0.md	1157	(proposed 2026-09-25, not accepted; owner acceptance pending; pre-1.0 panel
 GAG-V0-001	docs/specs/go-archive-gate-v0.md	131	The gate MUST create one private parent directory under `${TMPDIR:-/tmp}` with a
 GAG-V0-002	docs/specs/go-archive-gate-v0.md	135	The gate MUST export `HOME`, `TMPDIR`, `GOTMPDIR`, and `GOCACHE` to those privat
 GAG-V0-003	docs/specs/go-archive-gate-v0.md	139	The gate MUST pin the toolchain to the locally installed one rather than allowin

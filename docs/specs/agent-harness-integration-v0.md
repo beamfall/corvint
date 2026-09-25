@@ -554,7 +554,7 @@ there, which is the whole of what the row asserts.
 | `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:114@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
 | `compaction-pin-not-preserved` | `cmd/corvint/host_adapter_compaction.go:83@5fbc4775` | Claude adapter: `compact_summary` holds no pin line whose every field re-validates |
 | `compaction-pin-revision-unavailable` | `cmd/corvint/host_adapter_compaction.go:90@81c5dd24` | Claude adapter: the object store reports the pinned tree as missing |
-| `compaction-pin-verification-unavailable` | `cmd/corvint/host_adapter_compaction.go:199@1c06bb2b` | Claude adapter: the pin's `cat-file --batch-check` failed, timed out, or answered a different number of queries |
+| `compaction-pin-verification-unavailable` | `cmd/corvint/host_adapter_compaction.go:195@1c06bb2b` | Claude adapter: the pin's `cat-file --batch-check` failed, timed out, or answered a different number of queries |
 | `git-unavailable` | `cmd/corvint/host_adapter_compaction.go:182@1f1f42d0` | Claude adapter: no `git` executable is on `PATH` when `post-compact` verifies a pin |
 | `harness-input-too-large` | `internal/gokernel/harness.go:361` | "harness input exceeds its byte limit" |
 | `harness-output-too-large` | `internal/gokernel/harness.go:466` | "harness response exceeds its byte budget" |
