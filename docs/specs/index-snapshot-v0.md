@@ -462,6 +462,24 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   Falsifier: a panic, an error return, or any other outcome in one of the five states. Rollback:
   delete the test; nothing else depends on this clause.
 
+### Accepted (2026-09-25, decision 0394, panel blocker B9): non-UTF-8 tracked paths
+
+- `IDX-SNAP-V0-024`: (accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Git bytes are not
+  UTF-8 MUST NOT refuse the index. The tree pass keeps it out of `Sources` and records it in
+  `Exclusions` with the reason `unsafe-or-non-utf8-path` (the `init` gap name,
+  `docs/specs/genesis-backfill.md`), under its display form: the path with each invalid byte run
+  replaced by U+FFFD. The display form also stands in `Tracked` and `Skipped`, and in `DirtyPaths`
+  when Git status reports the path, so a dirty non-UTF-8 path still makes freshness
+  `mixed-worktree`. Every other path indexes and answers as before, and path `impact` and `prove`
+  disclose the exclusion through the receipt's existing bounded exclusion sample. The `context`
+  co-change slot leaves such a path out of its commit. Query history learning keeps its
+  `unsupported-query-history` refusal (`GPK-V0`), and the `context` packet, which carries no
+  exclusion member for any reason, gains none. A path that is only valid after the replacement is
+  not recoverable from the display form; two distinct invalid paths can share one. Falsifier: a
+  repository with one committed Latin-1 path that refuses `index` or path `impact`, or whose
+  receipt omits the exclusion. Rollback: restore the three refusals in `internal/contextindex/git.go`
+  and the parse flag in `history.go`.
+
 ## Non-goals and authority
 
 No daemon, no watcher, no write from a read verb, no cross-repository store, no network. The
@@ -603,3 +621,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-021 (accepted, decision 0182) | `impact` dispatch in `runContext`, `overSnapshot`, `snapshotIndex` | `TestImpactRangeAndWorkingTreeProfilesReadTheSnapshotWithoutChangingAByte` |
 | IDX-SNAP-V0-022 (proposed) | `BuildForSnapshot`, `WriteSnapshot`, `LoadSnapshot`, `ProbeSnapshot` | `TestColdAndIncrementalSnapshotsAreByteIdentical` |
 | IDX-SNAP-V0-023 (proposed) | `admittedEntries`, `LoadSnapshot`, `ProbeSnapshot`, `LoadEventSnapshot`, `evictSnapshots` | `TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes` |
+| IDX-SNAP-V0-024 | `displayPath`, `parseStatus`, `readTreeEntries`, `admittedEntries`, `parseHistory` | `TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes`, `TestParseStatusNamesNonUTF8PathsInDisplayForm` |

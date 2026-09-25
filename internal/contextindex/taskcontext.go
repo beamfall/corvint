@@ -841,7 +841,7 @@ func readCoChangeHistory(ctx context.Context, index *Index) ([]historyEntry, err
 	if err != nil {
 		return nil, err
 	}
-	entries, _, err := parseHistory(dropGraftedCommits(raw), index.ObjectFormat)
+	entries, _, err := parseHistory(dropGraftedCommits(raw), index.ObjectFormat, true)
 	return entries, err
 }
 

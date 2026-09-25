@@ -338,19 +338,13 @@ func parseStatus(raw []byte) ([]string, error) {
 		if len(field) <= 3 || field[2] != ' ' {
 			return nil, &Error{Message: "Git status output is malformed"}
 		}
-		if !utf8.Valid(field[3:]) {
-			return nil, &Error{Message: "Git status path is not valid UTF-8"}
-		}
-		paths[string(field[3:])] = struct{}{}
+		paths[displayPath(field[3:])] = struct{}{}
 		if bytes.ContainsAny(field[:2], "RC") {
 			index++
 			if index >= len(fields) || len(fields[index]) == 0 {
 				return nil, &Error{Message: "Git status output contains an empty path"}
 			}
-			if !utf8.Valid(fields[index]) {
-				return nil, &Error{Message: "Git status path is not valid UTF-8"}
-			}
-			paths[string(fields[index])] = struct{}{}
+			paths[displayPath(fields[index])] = struct{}{}
 		}
 		if len(paths) > maxDirtyPaths {
 			return nil, &Error{Message: fmt.Sprintf("Git status exceeds the %d-path limit", maxDirtyPaths)}
@@ -364,9 +358,19 @@ func parseStatus(raw []byte) ([]string, error) {
 	return result, nil
 }
 
+// nonUTF8PathReason is genesis's gap name for a tracked path whose bytes are
+// not UTF-8. Such a path cannot be keyed, pinned or printed as it is, so it is
+// excluded under its displayPath and the rest of the tree indexes normally.
+const nonUTF8PathReason = "unsafe-or-non-utf8-path"
+
+// displayPath is a Git path as valid UTF-8: each invalid byte run becomes
+// U+FFFD, so an exclusion or dirty path can still be named in JSON.
+func displayPath(raw []byte) string { return strings.ToValidUTF8(string(raw), "\uFFFD") }
+
 type treeEntry struct {
 	path, oid, mode string
 	size            int
+	nonUTF8         bool
 }
 
 func readTreeEntries(ctx context.Context, root string, identity repositoryIdentity, skipped ...map[string]struct{}) ([]treeEntry, error) {
@@ -383,7 +387,7 @@ func readTreeEntries(ctx context.Context, root string, identity repositoryIdenti
 			continue
 		}
 		tab := bytes.IndexByte(item, '\t')
-		if tab < 0 || !utf8.Valid(item[tab+1:]) {
+		if tab < 0 {
 			return nil, &Error{Message: "Git tree output is malformed"}
 		}
 		if !splitTreeMetadata(item[:tab], &metadata) {
@@ -391,7 +395,7 @@ func readTreeEntries(ctx context.Context, root string, identity repositoryIdenti
 		}
 		if string(metadata[1]) != "blob" || string(metadata[0]) == "160000" {
 			if len(skipped) != 0 {
-				skipped[0][string(item[tab+1:])] = struct{}{}
+				skipped[0][displayPath(item[tab+1:])] = struct{}{}
 			}
 			continue
 		}
@@ -403,7 +407,7 @@ func readTreeEntries(ctx context.Context, root string, identity repositoryIdenti
 		if parseErr != nil || size < 0 {
 			return nil, &Error{Message: "Git returned an invalid blob size"}
 		}
-		entries = append(entries, treeEntry{string(item[tab+1:]), oid, treeEntryMode(metadata[0]), size})
+		entries = append(entries, treeEntry{displayPath(item[tab+1:]), oid, treeEntryMode(metadata[0]), size, !utf8.Valid(item[tab+1:])})
 		if len(entries) > maxIndexedSources {
 			return nil, &Error{Message: "Git tree exceeds the source-count limit"}
 		}

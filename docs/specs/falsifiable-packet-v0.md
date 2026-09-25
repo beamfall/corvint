@@ -454,7 +454,7 @@ above stands with that substitution.
   every `blob_hash` against that declared format's object-id shape, stated here rather than
   borrowed as a mechanism: exactly 40 lowercase hex digits under `sha1` and exactly 64 under
   `sha256`. That is the shape the index applies to Git's own output (`validObjectID`,
-  `internal/contextindex/git.go:460-473@f2d5aceb`, called at `internal/contextindex/git.go:399@842ac930`), cited as precedent only: the
+  `internal/contextindex/git.go:464-477@f2d5aceb`, called at `internal/contextindex/git.go:403@842ac930`), cited as precedent only: the
   predicate is unexported, and this clause requires no change to it or to any other code outside
   the checkpoint branch. A value of the wrong shape is `invalid-checkpoint-document`, refused
   before any handle is judged. `handles` MUST be total over its paths: two entries sharing a `path`
@@ -543,7 +543,7 @@ above stands with that substitution.
   `internal/contextindex/index.go:209@1e49fe84`, `internal/contextindex/index.go:477-479@02852e4a`); a mismatch is refused under FPK-V0-024 as
   `object-format-mismatch`. This is decided after `Build`, not before every `cat-file` call in the
   run: `Build` itself reads blobs through `cat-file --batch` while pinning sources
-  (`internal/contextindex/git.go:515-525@875d1117`, `internal/contextindex/index.go:457-459@16cf1c1f`, `internal/contextindex/index.go:1412-1414@b9840036`), so `Index.ObjectFormat`
+  (`internal/contextindex/git.go:519-529@875d1117`, `internal/contextindex/index.go:457-459@16cf1c1f`, `internal/contextindex/index.go:1416-1418@b9840036`), so `Index.ObjectFormat`
   is not known until that call has already made its own `cat-file` calls. It is the unframable
   class one level up: as an LF-bearing path cannot
   be framed for Git at all, a document whose `blob_hash` values were computed under another object
@@ -569,7 +569,7 @@ above stands with that substitution.
   (5) `blob-changed` — the current blob differs from `blob_hash`;
   (6) `unchanged` — the current blob equals `blob_hash`. Directories and gitlinks are decided at
   step (2) by mode: `git ls-tree --full-tree <tree> -- <path>` reports `040000` for a directory and
-  `160000` for a gitlink, neither of which the index admits (`internal/contextindex/git.go:392-400@2854280e`), so
+  `160000` for a gitlink, neither of which the index admits (`internal/contextindex/git.go:396-404@7e57b664`), so
   both MUST be `unsupported` whatever `cat-file` then returns — a tree object for the directory, a
   commit object or `missing` for the gitlink — and only `100644`, `100755`, and `120000` continue
   past step (2). `path-deleted` means the path is not present at the current tree, never that it
@@ -709,7 +709,7 @@ above stands with that substitution.
   cannot be listed at HEAD, or the `git ls-tree` output passes the same 64 MiB bound
   `readTreeEntries`
   already applies to a full-tree listing (`maxTreeBytes`, `internal/contextindex/git.go:28@0e8ce572`,
-  `internal/contextindex/git.go:373@33f5b343`)
+  `internal/contextindex/git.go:377@33f5b343`)
   — `unsupported-prove-tree`, a code this requirement added because no earlier `prove` code named
   a tree-listing failure; the checkpoint compile function performs this bounded, whole-tree `git
   ls-tree -r -t -z --full-tree <tree>` read once (`readCheckpointTree`,
@@ -722,7 +722,7 @@ above stands with that substitution.
   `contextindex.Build` (`internal/contextindex/index.go:277@1cafb447`) and surfaced with its own code
   unchanged, which `--checkpoint` MUST NOT re-code, so the exact expected code is
   whatever `Build` returns for that repository. A `Build` error can carry no code at all
-  (`internal/contextindex/git.go:386-387@3e48e4c5`), and `emitError` deliberately prints such an error without
+  (`internal/contextindex/git.go:390-391@bf504d51`), and `emitError` deliberately prints such an error without
   a `code` member (`cmd/corvint/main.go:1347-1349@432b3fe2`); because this clause requires every checkpoint
   refusal to bear a code, a code-less `Build` error MUST be reported as `unsupported-prove-index`,
   a checkpoint-only mapping that preserves the `Build` message verbatim as the refusal's `error`
@@ -747,8 +747,8 @@ above stands with that substitution.
   every handle. It is NOT decided before every `cat-file` call in the run: `Build` itself reads
   blobs
   through `git cat-file --batch` while pinning sources (`fetchBlobs`,
-  `internal/contextindex/git.go:515-525@875d1117`,
-  called from `pinCandidates`/`readResidualBlobs`, `internal/contextindex/index.go:457-459@16cf1c1f`, `internal/contextindex/index.go:1412-1414@b9840036`), so `Build` (case
+  `internal/contextindex/git.go:519-529@875d1117`,
+  called from `pinCandidates`/`readResidualBlobs`, `internal/contextindex/index.go:457-459@16cf1c1f`, `internal/contextindex/index.go:1416-1418@b9840036`), so `Build` (case
   10) necessarily runs, and necessarily calls `cat-file`, before `Index.ObjectFormat` is even known
   to compare; (12) the `cat-file --batch` stream fails or passes its 64 MiB
   bound — `unsupported-prove-history` (`cmd/corvint/prove.go:1781-1788@a1df6715`); (13) the read bracket drifts,
