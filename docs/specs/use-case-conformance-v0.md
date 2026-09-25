@@ -57,12 +57,17 @@ Beamfall/core branch `claude/corvint-dogfood-LCRES-15`, PR beamfall/core#31). Ea
 subjects are that commit's sealed CEM and a byte-identical copy of the retained daily-path
 artifact for the row under `receipts/<useCaseId>/beamfall-dogfood/`; the consequence row's
 artifact is path impact over the intended files, named `prechange-impact` by convention, because
-the pre-edit range impact is empty by construction (ticket V1-0262). No `beamfall-dogfood` receipt
-exists for `UC-TASK-ORIENTATION`: its pre-change query on Beamfall abstained with zero results
-(ticket V1-0260). The owner accepted the Beamfall intent spec these receipts attest against
-(`docs/plugins/trust-roots.md`, `PTR-V0-001..004`) on 2026-09-25 in that same Beamfall PR #31
-(commit 6a95ae32116718d55687da97efd9108b5174fe5e, after the bind). No row is `verified` yet:
-ticket V1-0011 promotes the three Core rows together and orientation has no Beamfall receipt.
+the pre-edit range impact is empty by construction (ticket V1-0262). The owner accepted the
+Beamfall intent spec these receipts attest against (`docs/plugins/trust-roots.md`,
+`PTR-V0-001..004`) on 2026-09-25 in that same Beamfall PR #31 (commit
+6a95ae32116718d55687da97efd9108b5174fe5e, after the bind). `UC-TASK-ORIENTATION`'s
+`beamfall-dogfood` receipt comes from a later Beamfall change that adds tests for that spec (bind commit
+1c9fa18da1a3cd715b56f73b267c4ee5e8d3c76e, base 6a95ae32…, Beamfall/core branch
+`claude/corvint-dogfood-PTR-tests`, PR beamfall/core#32). Its subject is the retained
+`prechange-query` packet, which is `READY` with no abstention after `GPK-V0-066` (decision 0387),
+plus that commit's sealed CEM. The earlier LCRES-15 query had abstained with zero results
+(ticket V1-0260). All three Core rows now hold one receipt from every evidence class. No row is
+`verified` until ticket V1-0011 promotes them.
 
 ## Status and claim model
 

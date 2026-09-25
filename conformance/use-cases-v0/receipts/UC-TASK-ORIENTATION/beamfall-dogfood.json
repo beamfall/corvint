@@ -1,0 +1,21 @@
+{
+  "attestation": {
+    "outcome": "PASS",
+    "repository": "beamfall"
+  },
+  "evidenceClass": "beamfall-dogfood",
+  "repositoryRevision": "1c9fa18da1a3cd715b56f73b267c4ee5e8d3c76e",
+  "result": "PASS",
+  "spec": "corvint-use-case-evidence/0",
+  "subjects": [
+    {
+      "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/beamfall-dogfood/prechange-query.json",
+      "sha256": "e5401081a2646f0f7f22141826ec24acb007e99a5fb82ae3f8f2219e871c634f"
+    },
+    {
+      "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/beamfall-dogfood/1c9fa18da1a3cd715b56f73b267c4ee5e8d3c76e.cem.json",
+      "sha256": "25ee7dba3166c95bf902af9a239e1224a30a8670ec479da127167fefca631df4"
+    }
+  ],
+  "useCaseId": "UC-TASK-ORIENTATION"
+}

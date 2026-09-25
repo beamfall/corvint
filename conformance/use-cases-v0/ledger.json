@@ -170,6 +170,10 @@
     {
       "claim": "UNPROVEN",
       "evidence": {
+        "beamfall-dogfood": {
+          "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/beamfall-dogfood.json",
+          "sha256": "b9e9a6bfb4d2cb98891c130bfa2fab4fc5fe9a00b4dafc32d2ba5b8a75f3c603"
+        },
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/contract.json",
           "sha256": "32358a74517c9a6dd638d2db75b3aad82c3768cec324855615c59c29b3a10997"
