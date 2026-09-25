@@ -1256,3 +1256,22 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   clears the floor is unchanged, so a one-word record at a wide limit still precedes the symbols;
   this clause changes only packets `GPK-V0-039` would withdraw. Rollback: remove the substitution
   in `evalQuery`, restoring the withdrawal.
+
+## Proposed amendment: workspace package importers are disclosed, not silently omitted
+
+- `GPK-V0-067`: (proposed 2026-09-25, panel blocker B3, not accepted)
+  Rule (c) of `GPK-V0-027` resolves relative and alias specifiers only, so a source that reaches a
+  changed web path through a bare workspace package specifier (for example `@scope/contracts`,
+  then a barrel re-export) is never found, and the packet reported no uncertainty over that answer.
+  For each requested, indexed, non-test changed path with a rule (c) suffix, the holding package is
+  the nearest directory below the repository root with an indexed `package.json`; when some indexed
+  source's import specifier equals that manifest's `name` or begins with `name/`, or when the
+  manifest's `name` cannot be read, the `impact` packet MUST add
+  `reverse-import results for N changed paths importable by workspace package name are unresolved`
+  to `coverage.uncertainty`, with N the count of such paths. A manifest that parses without a
+  `name`, a path under no nested manifest, and a package no specifier names add nothing. This
+  disclosure resolves no importer and grants no rule; resolving workspace names, package entry
+  points, `exports`, `tsconfig` `paths` and barrel re-exports remains future work that would
+  retire the line for the paths it resolves. Evidence:
+  `TestImpactDisclosesWorkspacePackageImporters`. Rollback: remove `webWorkspaceImportGap` from
+  `setCoverage`, restoring the undisclosed packet.

@@ -1114,6 +1114,7 @@ GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1231	(accepted 2026-0
 GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1164	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
 GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	588	(proposed amendment 2026-09-14, owner review pending; not accepted) a repository
 GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1246	(accepted 2026-09-25, decision 0387; V1-0260)
+GPK-V0-067	docs/specs/go-production-kernel-migration-v0.md	1262	(proposed 2026-09-25, panel blocker B3, not accepted)
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation

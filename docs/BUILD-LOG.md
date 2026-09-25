@@ -6160,3 +6160,21 @@ Review repairs (same slice):
   probe wording now names what is compared: `HEAD`, the tree and the dirty-path set.
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
+
+## 2026-09-25 V1-0283 GPK-V0-067 (proposed, not accepted): TypeScript impact discloses workspace package importers (panel blocker B3)
+
+Finding (pre-1.0 panel, rts, 2/2 confirmed): on a pnpm workspace, `corvint impact
+packages/contracts/src/scraper-runtime-topics.ts` returned three results with no reverse-import
+uncertainty and `omitted_results 0` while two tests in other workspaces imported the file through
+`@fetfinder/contracts`. Root cause: `webSpecifierAdmitted` (`internal/contextindex/reverseimports.go`)
+admits only `.`-relative and profile-alias specifiers, and `reverseImportProfileGap`
+(`internal/contextindex/receipt.go`) counts a gap only for a suffix with no named rule, so a web
+path, which has rule (c), was reported complete. Options: resolve workspace names, `exports`,
+`tsconfig` `paths` and barrel re-exports (set aside: new resolution semantics with no oracle
+authority under `GPK-V0-033` and a larger change than the blocker needs), or disclose the gap.
+Chosen: disclosure. A changed web path inside a nested package whose `package.json` name some
+indexed specifier names (or whose name is unreadable) adds one counted `coverage.uncertainty` line;
+a package nobody imports by name adds nothing, so leaf app packages keep their packets. Evidence:
+`TestImpactDisclosesWorkspacePackageImporters` fails at base 489701ca and passes after. Residual:
+`tsconfig` `paths` aliases to a directory with no manifest stay undisclosed, and TS `affected`
+still excludes cross-package tests (panel D8). Owner acceptance of `GPK-V0-067` is pending.
