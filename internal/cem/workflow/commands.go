@@ -533,6 +533,9 @@ func (s *Session) Mark(ctx context.Context, options MarkOptions) (map[string]any
 		if !wire.Canonical(document.Spec) {
 			return nil, invalidArguments("structural mechanical reasons require a canonical (cem/0.2 or cem/0.3) map")
 		}
+		if err := checkSpec03Output(document, options.MapPath, options.Output); err != nil {
+			return nil, err
+		}
 		document.Spec = wire.Spec03
 	}
 	hunk := &document.Hunks[index]
@@ -602,6 +605,24 @@ func (s *Session) writeMap(document *wire.Map, inputRelative, outputRelative str
 		return "", err
 	}
 	return filepath.Join(s.workRoot.Path(), filepath.FromSlash(relative)), nil
+}
+
+// checkSpec03Output refuses a cem/0.3 write that would replace a cem/0.2 input
+// map in place or land on the Core sidecar path, which frontier and OCM read as
+// cem/0.2 only (CEM-SM-006, V1-0335).
+func checkSpec03Output(document *wire.Map, inputRelative, outputRelative string) error {
+	output, err := mapOutputRelative(inputRelative, outputRelative)
+	if err != nil {
+		return err
+	}
+	output = path.Clean(output)
+	if strings.EqualFold(output, wire.ExcludedCEMPath) {
+		return invalidArguments("a cem/0.3 map must not be written to %s, which frontier and OCM read as cem/0.2; pass --output PATH", wire.ExcludedCEMPath)
+	}
+	if document.Spec == wire.Spec02 && strings.EqualFold(output, path.Clean(inputRelative)) {
+		return invalidArguments("upgrading a cem/0.2 map to cem/0.3 needs --output naming a different path")
+	}
+	return nil
 }
 
 func mapOutputRelative(inputRelative, outputRelative string) (string, error) {

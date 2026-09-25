@@ -32,7 +32,7 @@ spec-owned as `CEM-PILOT-019`. Branch `434e5157` is not merged.
 - No interop artifact changes. Every `interop/cem-0.1` manifest vector, `ALGORITHMS.md`, and the
   runners stay byte-identical; `cem verify` output is unchanged for every input.
 
-Known gap: the Corvint-authored probe `interop/cem01-go/cem.go:1016@0624fff8` skips only non-blob object types,
+Known gap: the Corvint-authored probe `interop/cem01-go/cem.go:1031@0624fff8` skips only non-blob object types,
 so it searches a changed symlink and can differ from Corvint there. No vector exercises it, and
 `CEM-GO-001` limits the probe to the public kit, which this decision does not amend. The errata
 sentence, a drift vector, and the probe repair are filed together in `docs/agent-memory/ideas.md`.

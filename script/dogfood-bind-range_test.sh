@@ -24,7 +24,8 @@ printf '0.4.0a4\n' > "$repo/VERSION"
 printf 'one\ntwo\n' > "$repo/doc.md"
 
 # The fake models the two properties the coordinator relies on: prepare writes the fixed map in
-# its --root, and status accepts only a target whose committed sidecar equals that map.
+# its --root, and status accepts only a target whose committed sidecar equals that map. The map
+# has DOGFOOD_TEST_HUNKS unknown hunks (default 1) in the indent-2 layout the plan check reads.
 cat > "$test_root/bin/corvint" <<'EOF'
 #!/usr/bin/env bash
 set -eu
@@ -34,7 +35,13 @@ printf '%s\n' "$action" >> "$DOGFOOD_TEST_LOG"
 case $action in
   'cem prepare')
     mkdir -p "$root/.corvint"
-    printf '{\n  "baseRevision": "%s",\n  "spec": "cem/0.2"\n}\n' "$6" > "$root/.corvint/change.cem.json"
+    {
+      printf '{\n  "baseRevision": "%s",\n  "hunks": [\n' "$6"
+      for ((hunk = 1; hunk <= ${DOGFOOD_TEST_HUNKS:-1}; hunk++)); do
+        printf '    {\n      "disposition": "unknown",\n      "id": "hunk:test:%d"\n    },\n' "$hunk"
+      done
+      printf '  ],\n  "spec": "cem/0.2"\n}\n'
+    } > "$root/.corvint/change.cem.json"
     ;;
   'cem cite')
     if [[ ${DOGFOOD_TEST_CITE:-} == fail ]]; then
@@ -114,6 +121,21 @@ if printf '%s\n' "$output" | rg -q 'PASS|next:'; then exit 1; fi
 test "$(git -C "$repo" worktree list | wc -l)" -eq 1
 if compgen -G "$evidence/dogfood-bind-range.*" >/dev/null; then exit 1; fi
 
+# V1-0228 / DCW-V0-019: a citation plan written for another map is refused before any cite, as in
+# the bind loop: an unknown hunk named by no plan, or an ordinal above the hunk count.
+: > "$test_root/corvint.log"
+status=0
+output=$(bind DOGFOOD_TEST_HUNKS=2 DOGFOOD_CITATIONS="$test_root/citations.tsv" \
+  script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
+test "$status" = 1
+test "$output" = 'dogfood-bind-range: FAIL cem-cite citation-plan-map-mismatch'
+{ cat "$test_root/citations.tsv"; printf '2\tdoc.md\t2:2\tspecification\n'; } > "$test_root/citations-stale.tsv"
+status=0
+output=$(bind DOGFOOD_CITATIONS="$test_root/citations-stale.tsv" script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
+test "$status" = 1
+test "$output" = 'dogfood-bind-range: FAIL cem-cite citation-plan-map-mismatch'
+if rg -q '^cem cite$' "$test_root/corvint.log"; then exit 1; fi
+
 # DOGFOOD-011: a passing binding commit is the target's tree plus only the cited sidecar, carries
 # the retroactive trailer, abstains from pre-change context, and never writes the main worktree.
 sidecar_before=$(git -C "$repo" hash-object .corvint/change.cem.json)
@@ -144,7 +166,7 @@ test "$status" = 1
 test "$output" = 'dogfood-bind-range: FAIL cem-mark invalid-unknown-plan'
 printf '2\tno-evidence\tintent-added-inside-the-range\n' > "$test_root/unknown.tsv"
 : > "$test_root/corvint.log"
-output=$(bind DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_UNKNOWN="$test_root/unknown.tsv" \
+output=$(bind DOGFOOD_TEST_HUNKS=2 DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_UNKNOWN="$test_root/unknown.tsv" \
   script/dogfood-bind-range.sh "$s1" "$g2" 2>&1)
 printf '%s\n' "$output" | rg -q '^dogfood-bind-range: NOTE cem-mark NOT_PRODUCED hunk=2 reason=no-evidence detail=intent-added-inside-the-range$'
 marked=$(printf '%s\n' "$output" | sed -n 's/^dogfood-bind-range: PASS retroactive binding=\([0-9a-f]\{40\}\) .*/\1/p')

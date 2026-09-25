@@ -250,11 +250,11 @@ CATN-V0-015	docs/specs/cross-audience-truth-nondivergence-v0.md	147	The truth-di
 CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	37	The Core command set MUST be exactly `init`, `adopt`, `index`, `query`, `context
 CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	44	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout
 CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	85	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised
-CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	95	A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line bu
-CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	133	The admission, freshness, omission and abstention members MUST keep their names,
-CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	150	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
-CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	160	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	215	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
+CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	98	A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line bu
+CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	136	The admission, freshness, omission and abstention members MUST keep their names,
+CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	153	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
+CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	163	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	218	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa
@@ -273,45 +273,45 @@ CEM-CB-015	docs/specs/cem-0.2-canonical-binding.md	167	a `cem/0.2` `status`, `ve
 CEM-CB-016	docs/specs/cem-0.2-canonical-binding.md	171	a fresh or explicitly replaced `prepare` MUST emit `cem/0.2`, record the fixed
 CEM-CB-017	docs/specs/cem-0.2-canonical-binding.md	194	the global `--root` MUST resolve to the exact Git worktree top level. Every Git
 CEM-CB-018	docs/specs/cem-0.2-canonical-binding.md	204	primary worktrees and valid linked worktrees MUST be accepted. The requested roo
-CEM-CB-019	docs/specs/cem-0.2-canonical-binding.md	214	V0 MUST reject a non-empty ambient `GIT_ALTERNATE_OBJECT_DIRECTORIES` and any
-CEM-CB-020	docs/specs/cem-0.2-canonical-binding.md	221	for the same base, target, and exclusion, a primary checkout and a valid linked
-CEM-CB-021	docs/specs/cem-0.2-canonical-binding.md	312	the new stable WP2 error codes are `invalid-excluded-path`,
-CEM-CB-022	docs/specs/cem-0.2-canonical-binding.md	320	equivalent invocations in fresh processes MUST emit byte-identical compact JSON.
-CEM-CB-023	docs/specs/cem-0.2-canonical-binding.md	225	literal-path tree lookup MUST NOT return an entry, or report an absence, that on
-CEM-CB-024	docs/specs/cem-0.2-canonical-binding.md	288	after canonical derivation and before the patch bytes are returned or memoized,
+CEM-CB-019	docs/specs/cem-0.2-canonical-binding.md	216	V0 MUST reject a non-empty ambient `GIT_ALTERNATE_OBJECT_DIRECTORIES` and any
+CEM-CB-020	docs/specs/cem-0.2-canonical-binding.md	223	for the same base, target, and exclusion, a primary checkout and a valid linked
+CEM-CB-021	docs/specs/cem-0.2-canonical-binding.md	314	the new stable WP2 error codes are `invalid-excluded-path`,
+CEM-CB-022	docs/specs/cem-0.2-canonical-binding.md	322	equivalent invocations in fresh processes MUST emit byte-identical compact JSON.
+CEM-CB-023	docs/specs/cem-0.2-canonical-binding.md	227	literal-path tree lookup MUST NOT return an entry, or report an absence, that on
+CEM-CB-024	docs/specs/cem-0.2-canonical-binding.md	290	after canonical derivation and before the patch bytes are returned or memoized,
 CEM-CB-025	docs/specs/cem-0.2-canonical-binding.md	96	from 2026-09-22 the `cem/0.2` profile, with `cem/0.1` as its N-1 profile, is
-CEM-CB-AT-001	docs/specs/cem-0.2-canonical-binding.md	454	| `CEM-CB-AT-001` | genuine pass | Delete the cached patch after `prepare`; `sta
-CEM-CB-AT-002	docs/specs/cem-0.2-canonical-binding.md	455	| `CEM-CB-AT-002` | fabricated fail | A map matching a producer-supplied one-hun
-CEM-CB-AT-003	docs/specs/cem-0.2-canonical-binding.md	456	| `CEM-CB-AT-003` | fabricated fail | A 0.2 `status`, `verify`, or `report` supp
-CEM-CB-AT-004	docs/specs/cem-0.2-canonical-binding.md	457	| `CEM-CB-AT-004` | no input | A 0.2 map missing expected base fails `expected-b
-CEM-CB-AT-005	docs/specs/cem-0.2-canonical-binding.md	458	| `CEM-CB-AT-005` | envelope | Explicit/default 0.1 and canonical 0.2 invocation
-CEM-CB-AT-006	docs/specs/cem-0.2-canonical-binding.md	459	| `CEM-CB-AT-006` | compatibility | Omitting `--patch` for 0.1 reads the histori
-CEM-CB-AT-007	docs/specs/cem-0.2-canonical-binding.md	460	| `CEM-CB-AT-007` | authority | A self-consistent 0.2 map with a substituted bas
-CEM-CB-AT-008	docs/specs/cem-0.2-canonical-binding.md	461	| `CEM-CB-AT-008` | precedence | Multi-defect fixtures cover every adjacent vali
-CEM-CB-AT-009	docs/specs/cem-0.2-canonical-binding.md	462	| `CEM-CB-AT-009` | prepare cache | Fresh/resumed 0.2 `prepare --patch CACHE` wr
-CEM-CB-AT-010	docs/specs/cem-0.2-canonical-binding.md	463	| `CEM-CB-AT-010` | target identity | One 0.2 map verified against caller-suppli
-CEM-CB-AT-011	docs/specs/cem-0.2-canonical-binding.md	464	| `CEM-CB-AT-011` | two-phase bootstrap | `prepare` succeeds when its code targe
-CEM-CB-CO-001	docs/specs/cem-0.2-canonical-binding.md	470	| `CEM-CB-CO-001` | compatibility | Every existing 0.1 conformance vector remain
-CEM-CB-CO-002	docs/specs/cem-0.2-canonical-binding.md	471	| `CEM-CB-CO-002` | compatibility | The upgraded consumer accepts legacy 0.1 via
-CEM-CB-CO-003	docs/specs/cem-0.2-canonical-binding.md	472	| `CEM-CB-CO-003` | mutation | `cite` and `mark` preserve 0.1 or 0.2 exactly and
-CEM-CB-CO-004	docs/specs/cem-0.2-canonical-binding.md	473	| `CEM-CB-CO-004` | resume | Resumed 0.1 and 0.2 maps produce profile-correct ne
-CEM-CB-DE-001	docs/specs/cem-0.2-canonical-binding.md	482	| `CEM-CB-DE-001` | determinism | Hostile ambient/repository diff settings cover
-CEM-CB-DE-002	docs/specs/cem-0.2-canonical-binding.md	483	| `CEM-CB-DE-002` | determinism | Two fresh CLI processes emit byte-identical JS
-CEM-CB-EX-001	docs/specs/cem-0.2-canonical-binding.md	465	| `CEM-CB-EX-001` | genuine pass | Exact `.corvint/change.cem.json` is recorded
-CEM-CB-EX-002	docs/specs/cem-0.2-canonical-binding.md	466	| `CEM-CB-EX-002` | fabricated fail | A base where `.corvint/change.cem.json` is
-CEM-CB-EX-003	docs/specs/cem-0.2-canonical-binding.md	467	| `CEM-CB-EX-003` | fabricated fail | A 0.2 map containing a case variant, custo
-CEM-CB-EX-004	docs/specs/cem-0.2-canonical-binding.md	468	| `CEM-CB-EX-004` | no input | A 0.2 map missing `excludedPath` fails `missing-f
-CEM-CB-EX-005	docs/specs/cem-0.2-canonical-binding.md	469	| `CEM-CB-EX-005` | raw binding | A copied 0.2 input verifies only when its raw
-CEM-CB-GIT-001	docs/specs/cem-0.2-canonical-binding.md	474	| `CEM-CB-GIT-001` | genuine pass | The same commits in a primary checkout and a
-CEM-CB-GIT-002	docs/specs/cem-0.2-canonical-binding.md	475	| `CEM-CB-GIT-002` | genuine pass | Linked-worktree `prepare`, `status`, and `re
-CEM-CB-GIT-003	docs/specs/cem-0.2-canonical-binding.md	476	| `CEM-CB-GIT-003` | fabricated fail | Forged gitfiles pointing into a sibling o
-CEM-CB-GIT-004	docs/specs/cem-0.2-canonical-binding.md	477	| `CEM-CB-GIT-004` | unavailable input | Oversized, growing, symlinked, FIFO, ma
-CEM-CB-GIT-005	docs/specs/cem-0.2-canonical-binding.md	478	| `CEM-CB-GIT-005` | boundary | After reciprocal worktree validation, a non-empt
-CEM-CB-GIT-006	docs/specs/cem-0.2-canonical-binding.md	479	| `CEM-CB-GIT-006` | fabricated fail | In an ordinary loose-object repository, a
-CEM-CB-GIT-007	docs/specs/cem-0.2-canonical-binding.md	480	| `CEM-CB-GIT-007` | fabricated fail | An old-side or new-side blob body replace
-CEM-CB-GIT-008	docs/specs/cem-0.2-canonical-binding.md	481	| `CEM-CB-GIT-008` | genuine pass | A tree entry stored with the legacy regular-
-CEM-CB-OCM-001	docs/specs/cem-0.2-canonical-binding.md	484	| `CEM-CB-OCM-001` | integration | OCM dispatches 0.1 to the historical fixed ex
-CEM-CB-OCM-002	docs/specs/cem-0.2-canonical-binding.md	485	| `CEM-CB-OCM-002` | integration | OCM accepts a real linked worktree, rejects f
+CEM-CB-AT-001	docs/specs/cem-0.2-canonical-binding.md	456	| `CEM-CB-AT-001` | genuine pass | Delete the cached patch after `prepare`; `sta
+CEM-CB-AT-002	docs/specs/cem-0.2-canonical-binding.md	457	| `CEM-CB-AT-002` | fabricated fail | A map matching a producer-supplied one-hun
+CEM-CB-AT-003	docs/specs/cem-0.2-canonical-binding.md	458	| `CEM-CB-AT-003` | fabricated fail | A 0.2 `status`, `verify`, or `report` supp
+CEM-CB-AT-004	docs/specs/cem-0.2-canonical-binding.md	459	| `CEM-CB-AT-004` | no input | A 0.2 map missing expected base fails `expected-b
+CEM-CB-AT-005	docs/specs/cem-0.2-canonical-binding.md	460	| `CEM-CB-AT-005` | envelope | Explicit/default 0.1 and canonical 0.2 invocation
+CEM-CB-AT-006	docs/specs/cem-0.2-canonical-binding.md	461	| `CEM-CB-AT-006` | compatibility | Omitting `--patch` for 0.1 reads the histori
+CEM-CB-AT-007	docs/specs/cem-0.2-canonical-binding.md	462	| `CEM-CB-AT-007` | authority | A self-consistent 0.2 map with a substituted bas
+CEM-CB-AT-008	docs/specs/cem-0.2-canonical-binding.md	463	| `CEM-CB-AT-008` | precedence | Multi-defect fixtures cover every adjacent vali
+CEM-CB-AT-009	docs/specs/cem-0.2-canonical-binding.md	464	| `CEM-CB-AT-009` | prepare cache | Fresh/resumed 0.2 `prepare --patch CACHE` wr
+CEM-CB-AT-010	docs/specs/cem-0.2-canonical-binding.md	465	| `CEM-CB-AT-010` | target identity | One 0.2 map verified against caller-suppli
+CEM-CB-AT-011	docs/specs/cem-0.2-canonical-binding.md	466	| `CEM-CB-AT-011` | two-phase bootstrap | `prepare` succeeds when its code targe
+CEM-CB-CO-001	docs/specs/cem-0.2-canonical-binding.md	472	| `CEM-CB-CO-001` | compatibility | Every existing 0.1 conformance vector remain
+CEM-CB-CO-002	docs/specs/cem-0.2-canonical-binding.md	473	| `CEM-CB-CO-002` | compatibility | The upgraded consumer accepts legacy 0.1 via
+CEM-CB-CO-003	docs/specs/cem-0.2-canonical-binding.md	474	| `CEM-CB-CO-003` | mutation | `cite` and `mark` preserve 0.1 or 0.2 exactly and
+CEM-CB-CO-004	docs/specs/cem-0.2-canonical-binding.md	475	| `CEM-CB-CO-004` | resume | Resumed 0.1 and 0.2 maps produce profile-correct ne
+CEM-CB-DE-001	docs/specs/cem-0.2-canonical-binding.md	484	| `CEM-CB-DE-001` | determinism | Hostile ambient/repository diff settings cover
+CEM-CB-DE-002	docs/specs/cem-0.2-canonical-binding.md	485	| `CEM-CB-DE-002` | determinism | Two fresh CLI processes emit byte-identical JS
+CEM-CB-EX-001	docs/specs/cem-0.2-canonical-binding.md	467	| `CEM-CB-EX-001` | genuine pass | Exact `.corvint/change.cem.json` is recorded
+CEM-CB-EX-002	docs/specs/cem-0.2-canonical-binding.md	468	| `CEM-CB-EX-002` | fabricated fail | A base where `.corvint/change.cem.json` is
+CEM-CB-EX-003	docs/specs/cem-0.2-canonical-binding.md	469	| `CEM-CB-EX-003` | fabricated fail | A 0.2 map containing a case variant, custo
+CEM-CB-EX-004	docs/specs/cem-0.2-canonical-binding.md	470	| `CEM-CB-EX-004` | no input | A 0.2 map missing `excludedPath` fails `missing-f
+CEM-CB-EX-005	docs/specs/cem-0.2-canonical-binding.md	471	| `CEM-CB-EX-005` | raw binding | A copied 0.2 input verifies only when its raw
+CEM-CB-GIT-001	docs/specs/cem-0.2-canonical-binding.md	476	| `CEM-CB-GIT-001` | genuine pass | The same commits in a primary checkout and a
+CEM-CB-GIT-002	docs/specs/cem-0.2-canonical-binding.md	477	| `CEM-CB-GIT-002` | genuine pass | Linked-worktree `prepare`, `status`, and `re
+CEM-CB-GIT-003	docs/specs/cem-0.2-canonical-binding.md	478	| `CEM-CB-GIT-003` | fabricated fail | Forged gitfiles pointing into a sibling o
+CEM-CB-GIT-004	docs/specs/cem-0.2-canonical-binding.md	479	| `CEM-CB-GIT-004` | unavailable input | Oversized, growing, symlinked, FIFO, ma
+CEM-CB-GIT-005	docs/specs/cem-0.2-canonical-binding.md	480	| `CEM-CB-GIT-005` | boundary | After reciprocal worktree validation, a non-empt
+CEM-CB-GIT-006	docs/specs/cem-0.2-canonical-binding.md	481	| `CEM-CB-GIT-006` | fabricated fail | In an ordinary loose-object repository, a
+CEM-CB-GIT-007	docs/specs/cem-0.2-canonical-binding.md	482	| `CEM-CB-GIT-007` | fabricated fail | An old-side or new-side blob body replace
+CEM-CB-GIT-008	docs/specs/cem-0.2-canonical-binding.md	483	| `CEM-CB-GIT-008` | genuine pass | A tree entry stored with the legacy regular-
+CEM-CB-OCM-001	docs/specs/cem-0.2-canonical-binding.md	486	| `CEM-CB-OCM-001` | integration | OCM dispatches 0.1 to the historical fixed ex
+CEM-CB-OCM-002	docs/specs/cem-0.2-canonical-binding.md	487	| `CEM-CB-OCM-002` | integration | OCM accepts a real linked worktree, rejects f
 CEM-EXT-001	docs/specs/cem-external-interop-v0.md	29	the packet MUST provide a Corvint-free Python-standard-library runner that uses
 CEM-EXT-002	docs/specs/cem-external-interop-v0.md	33	`doctor`, `start`, and `consumer` MUST verify the raw frozen manifest SHA-256
 CEM-EXT-003	docs/specs/cem-external-interop-v0.md	39	preflight and execution MUST reconstruct and verify the exact SHA-1, SHA-256, an
@@ -330,42 +330,42 @@ CEM-GO-004	docs/specs/cem-go-portability-probe.md	48	a process-boundary runner M
 CEM-GO-005	docs/specs/cem-go-portability-probe.md	51	repository bytes and paths are untrusted. Reads and subprocess output MUST be
 CEM-GO-006	docs/specs/cem-go-portability-probe.md	55	the implementation matrix and result must label this probe as Corvint-authored
 CEM-PILOT-001	docs/specs/cem-pilot-kit.md	40	`cem prepare --base REV --target REV` MUST derive the exact committed patch with
-CEM-PILOT-002	docs/specs/cem-pilot-kit.md	43	prepare MUST resume a valid map for identical base and patch bytes, refuse an
-CEM-PILOT-003	docs/specs/cem-pilot-kit.md	47	`cem cite` and `cem mark` MUST accept either the full hunk ID or its canonical
-CEM-PILOT-004	docs/specs/cem-pilot-kit.md	51	`cem status` MUST report `ready-for-ci`, `incomplete`, or `invalid`, every hunk,
-CEM-PILOT-005	docs/specs/cem-pilot-kit.md	54	`cem verify` MUST apply the same optional policy caps as status, accept an exact
-CEM-PILOT-006	docs/specs/cem-pilot-kit.md	60	the reviewer model MUST render every parsed patch hunk exactly once with ordinal
-CEM-PILOT-007	docs/specs/cem-pilot-kit.md	63	JSON and Markdown reports MUST contain no source body, diff body, prompt, commit
-CEM-PILOT-008	docs/specs/cem-pilot-kit.md	65	Markdown MUST render all repository-controlled strings as inert text. Control
-CEM-PILOT-009	docs/specs/cem-pilot-kit.md	68	the CI verifier example MUST derive base and target revisions itself, require th
-CEM-PILOT-010	docs/specs/cem-pilot-kit.md	76	the trial harness MUST enforce 30 treatment and 30 control lanes, deterministic
-CEM-PILOT-011	docs/specs/cem-pilot-kit.md	81	the SDK-neutral interop kit MUST contain raw, digest-pinned inputs and expected
-CEM-PILOT-012	docs/specs/cem-pilot-kit.md	84	the implementation matrix MUST distinguish Corvint-authored reference attestatio
-CEM-PILOT-013	docs/specs/cem-pilot-kit.md	89	all map, patch, and report reads and writes MUST be bounded; writes MUST be
-CEM-PILOT-014	docs/specs/cem-pilot-kit.md	120	a clean local install plus prepare, one disposition update, status, report, and
-CEM-PILOT-015	docs/specs/cem-pilot-kit.md	130	all CLI operations MUST emit deterministic JSON envelopes and stable non-zero
-CEM-PILOT-016	docs/specs/cem-pilot-kit.md	132	Corvint repository changes MUST use the public CEM workflow itself and retain a
-CEM-PILOT-017	docs/specs/cem-pilot-kit.md	135	every Git subprocess MUST ignore ambient repository/config redirection. Patch
-CEM-PILOT-018	docs/specs/cem-pilot-kit.md	138	when prepare refuses an existing map under `CEM-PILOT-002`, the
-CEM-PILOT-019	docs/specs/cem-pilot-kit.md	146	`cem verify` same-path drift MUST use only the five frozen statuses. A target en
-CEM-PILOT-020	docs/specs/cem-pilot-kit.md	156	(proposed; accepted with decision 0356) the portable CI example
-CEM-PILOT-021	docs/specs/cem-pilot-kit.md	162	(proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSO
-CEM-PILOT-022	docs/specs/cem-pilot-kit.md	168	(proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
-CEM-PILOT-023	docs/specs/cem-pilot-kit.md	175	(proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
-CEM-PILOT-024	docs/specs/cem-pilot-kit.md	183	`examples/cem/recipes/` MUST ship three ordinary Bash scripts, each composing
-CEM-PILOT-025	docs/specs/cem-pilot-kit.md	189	`examples/cem/recipes/README.md` MUST state for each recipe its supported inputs
-CEM-PILOT-026	docs/specs/cem-pilot-kit.md	192	a recipe MUST NOT convert a refusal or uncertainty into success. Understand and
-CEM-PILOT-027	docs/specs/cem-pilot-kit.md	198	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`
+CEM-PILOT-002	docs/specs/cem-pilot-kit.md	50	prepare MUST resume a valid map for identical base and patch bytes, refuse an
+CEM-PILOT-003	docs/specs/cem-pilot-kit.md	54	`cem cite` and `cem mark` MUST accept either the full hunk ID or its canonical
+CEM-PILOT-004	docs/specs/cem-pilot-kit.md	58	`cem status` MUST report `ready-for-ci`, `incomplete`, or `invalid`, every hunk,
+CEM-PILOT-005	docs/specs/cem-pilot-kit.md	61	`cem verify` MUST apply the same optional policy caps as status, accept an exact
+CEM-PILOT-006	docs/specs/cem-pilot-kit.md	67	the reviewer model MUST render every parsed patch hunk exactly once with ordinal
+CEM-PILOT-007	docs/specs/cem-pilot-kit.md	70	JSON and Markdown reports MUST contain no source body, diff body, prompt, commit
+CEM-PILOT-008	docs/specs/cem-pilot-kit.md	72	Markdown MUST render all repository-controlled strings as inert text. Control
+CEM-PILOT-009	docs/specs/cem-pilot-kit.md	75	the CI verifier example MUST derive base and target revisions itself, require th
+CEM-PILOT-010	docs/specs/cem-pilot-kit.md	83	the trial harness MUST enforce 30 treatment and 30 control lanes, deterministic
+CEM-PILOT-011	docs/specs/cem-pilot-kit.md	88	the SDK-neutral interop kit MUST contain raw, digest-pinned inputs and expected
+CEM-PILOT-012	docs/specs/cem-pilot-kit.md	91	the implementation matrix MUST distinguish Corvint-authored reference attestatio
+CEM-PILOT-013	docs/specs/cem-pilot-kit.md	96	all map, patch, and report reads and writes MUST be bounded; writes MUST be
+CEM-PILOT-014	docs/specs/cem-pilot-kit.md	130	a clean local install plus prepare, one disposition update, status, report, and
+CEM-PILOT-015	docs/specs/cem-pilot-kit.md	140	all CLI operations MUST emit deterministic JSON envelopes and stable non-zero
+CEM-PILOT-016	docs/specs/cem-pilot-kit.md	142	Corvint repository changes MUST use the public CEM workflow itself and retain a
+CEM-PILOT-017	docs/specs/cem-pilot-kit.md	145	every Git subprocess MUST ignore ambient repository/config redirection. Patch
+CEM-PILOT-018	docs/specs/cem-pilot-kit.md	148	when prepare refuses an existing map under `CEM-PILOT-002`, the
+CEM-PILOT-019	docs/specs/cem-pilot-kit.md	156	`cem verify` same-path drift MUST use only the five frozen statuses. A target en
+CEM-PILOT-020	docs/specs/cem-pilot-kit.md	166	(proposed; accepted with decision 0356) the portable CI example
+CEM-PILOT-021	docs/specs/cem-pilot-kit.md	172	(proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSO
+CEM-PILOT-022	docs/specs/cem-pilot-kit.md	178	(proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
+CEM-PILOT-023	docs/specs/cem-pilot-kit.md	187	(proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
+CEM-PILOT-024	docs/specs/cem-pilot-kit.md	195	`examples/cem/recipes/` MUST ship three ordinary Bash scripts, each composing
+CEM-PILOT-025	docs/specs/cem-pilot-kit.md	201	`examples/cem/recipes/README.md` MUST state for each recipe its supported inputs
+CEM-PILOT-026	docs/specs/cem-pilot-kit.md	204	a recipe MUST NOT convert a refusal or uncertainty into success. Understand and
+CEM-PILOT-027	docs/specs/cem-pilot-kit.md	210	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`
 CEM-SM-001	docs/specs/cem-0.3-structural-mechanical.md	41	`cem/0.3` MUST be the `cem/0.2` wire shape plus the four structural reasons.
 CEM-SM-002	docs/specs/cem-0.3-structural-mechanical.md	44	The verifier MUST prove a structural reason from the base blob at `baseRevision`
 CEM-SM-003	docs/specs/cem-0.3-structural-mechanical.md	48	For `rename`, `import-reorder`, and `formatter-only` the image MUST be the hunk
 CEM-SM-004	docs/specs/cem-0.3-structural-mechanical.md	50	For `move` the image MUST be the whole group applied, because a move is a paired
 CEM-SM-005	docs/specs/cem-0.3-structural-mechanical.md	52	Any parse, scan, or format failure on the base or the image MUST refuse the
 CEM-SM-006	docs/specs/cem-0.3-structural-mechanical.md	54	`mark --disposition mechanical` with a structural reason MUST upgrade a `cem/0.2
-CEM-SM-007	docs/specs/cem-0.3-structural-mechanical.md	57	`rename` MUST hold only when the token streams differ by one identifier pair
-CEM-SM-008	docs/specs/cem-0.3-structural-mechanical.md	62	`move` MUST hold only when tokens outside top-level declarations are unchanged,
-CEM-SM-009	docs/specs/cem-0.3-structural-mechanical.md	65	`import-reorder` MUST hold only when the ordered import specs differ, their
-CEM-SM-010	docs/specs/cem-0.3-structural-mechanical.md	68	`formatter-only` MUST hold only when `go/format` renders the base and the image
+CEM-SM-007	docs/specs/cem-0.3-structural-mechanical.md	63	`rename` MUST hold only when the token streams differ by one identifier pair
+CEM-SM-008	docs/specs/cem-0.3-structural-mechanical.md	68	`move` MUST hold only when tokens outside top-level declarations are unchanged,
+CEM-SM-009	docs/specs/cem-0.3-structural-mechanical.md	71	`import-reorder` MUST hold only when the ordered import specs differ, their
+CEM-SM-010	docs/specs/cem-0.3-structural-mechanical.md	74	`formatter-only` MUST hold only when `go/format` renders the base and the image
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	190	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	201	ContextBench metrics. For every error-free arm answer on a ContextBench sample,
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	209	Pinned offline runs. Every external run MUST be local and offline: rows and
@@ -603,13 +603,13 @@ DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	92	(proposed 2026-09-
 DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	104	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
 DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	113	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
 DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	122	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
-DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	135	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
-DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	148	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
-DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	151	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
-DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	163	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
-DCW-V0-024	docs/specs/daily-change-evidence-workflow-v0.md	169	(V1-0259, owner decision 2026-09-25) A change that no `## Requirements` spec
-DCW-V0-025	docs/specs/daily-change-evidence-workflow-v0.md	187	(accepted 2026-09-25, decision 0388, V1-0264) The `coordination-time-impact` ste
-DCW-V0-026	docs/specs/daily-change-evidence-workflow-v0.md	206	(accepted 2026-09-25 by decision 0395, panel finding M1) `dogfood change` MUST N
+DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	138	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
+DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	151	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
+DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	154	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
+DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	166	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
+DCW-V0-024	docs/specs/daily-change-evidence-workflow-v0.md	172	(V1-0259, owner decision 2026-09-25) A change that no `## Requirements` spec
+DCW-V0-025	docs/specs/daily-change-evidence-workflow-v0.md	190	(accepted 2026-09-25, decision 0388, V1-0264) The `coordination-time-impact` ste
+DCW-V0-026	docs/specs/daily-change-evidence-workflow-v0.md	209	(accepted 2026-09-25 by decision 0395, panel finding M1) `dogfood change` MUST N
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
@@ -1622,18 +1622,18 @@ PPI-V0-006	docs/specs/protected-pi-runtime-v0.md	42	Reuse protected computation 
 PPI-V0-007	docs/specs/protected-pi-runtime-v0.md	43	Independent runtime admission MUST bind full image SHA256, live mapped CDHash, C
 PPI-V0-008	docs/specs/protected-pi-runtime-v0.md	44	FULL requires independently completed exact-image TUI and RPC qualification: all
 PPI-V0-009	docs/specs/protected-pi-runtime-v0.md	45	Rollback removes/revokes only the optional Pi campaign/admission/runtime and res
-PRS-V1-001	docs/specs/corvint-1.0-product-and-release-v1.md	207	Corvint 1.0 Core MUST be exactly the surfaces labelled Core in this spec: the lo
-PRS-V1-002	docs/specs/corvint-1.0-product-and-release-v1.md	210	Only Core surfaces carry the 1.0 stability promise (frozen contracts, N-1 reader
-PRS-V1-003	docs/specs/corvint-1.0-product-and-release-v1.md	213	Every gate on the Core critical path to 1.0 MUST be closable by the owner withou
-PRS-V1-004	docs/specs/corvint-1.0-product-and-release-v1.md	215	Core platforms MUST be darwin/arm64 and linux/amd64 native binaries. A Core
-PRS-V1-005	docs/specs/corvint-1.0-product-and-release-v1.md	218	A Core release candidate MUST NOT require companion input. Companions keep their
-PRS-V1-006	docs/specs/corvint-1.0-product-and-release-v1.md	220	Core host scope MUST be the plain CLI, plus the exact-version Codex CLI and Clau
-PRS-V1-007	docs/specs/corvint-1.0-product-and-release-v1.md	223	Corvint 1.0 MUST NOT claim CEM, OCM or frontier interoperability unless V1-0014
-PRS-V1-008	docs/specs/corvint-1.0-product-and-release-v1.md	225	The 1.0 Core candidate MUST pass the three Core jobs on Corvint, Beamfall and on
-PRS-V1-009	docs/specs/corvint-1.0-product-and-release-v1.md	227	Core installed qualification MUST be the native archive lifecycle of
-PRS-V1-010	docs/specs/corvint-1.0-product-and-release-v1.md	230	Any new shipped verb, binary or integration tree MUST be added to the
-PRS-V1-011	docs/specs/corvint-1.0-product-and-release-v1.md	232	This spec amends `public-release-v0.md` prospectively for the 1.0 Core candidate
-PRS-V1-012	docs/specs/corvint-1.0-product-and-release-v1.md	234	This spec has no authority until a numbered decision records the owner's
+PRS-V1-001	docs/specs/corvint-1.0-product-and-release-v1.md	211	Corvint 1.0 Core MUST be exactly the surfaces labelled Core in this spec: the lo
+PRS-V1-002	docs/specs/corvint-1.0-product-and-release-v1.md	214	Only Core surfaces carry the 1.0 stability promise (frozen contracts, N-1 reader
+PRS-V1-003	docs/specs/corvint-1.0-product-and-release-v1.md	217	Every gate on the Core critical path to 1.0 MUST be closable by the owner withou
+PRS-V1-004	docs/specs/corvint-1.0-product-and-release-v1.md	219	Core platforms MUST be darwin/arm64 and linux/amd64 native binaries. A Core
+PRS-V1-005	docs/specs/corvint-1.0-product-and-release-v1.md	222	A Core release candidate MUST NOT require companion input. Companions keep their
+PRS-V1-006	docs/specs/corvint-1.0-product-and-release-v1.md	224	Core host scope MUST be the plain CLI, plus the exact-version Codex CLI and Clau
+PRS-V1-007	docs/specs/corvint-1.0-product-and-release-v1.md	227	Corvint 1.0 MUST NOT claim CEM, OCM or frontier interoperability unless V1-0014
+PRS-V1-008	docs/specs/corvint-1.0-product-and-release-v1.md	229	The 1.0 Core candidate MUST pass the three Core jobs on Corvint, Beamfall and on
+PRS-V1-009	docs/specs/corvint-1.0-product-and-release-v1.md	231	Core installed qualification MUST be the native archive lifecycle of
+PRS-V1-010	docs/specs/corvint-1.0-product-and-release-v1.md	234	Any new shipped verb, binary or integration tree MUST be added to the
+PRS-V1-011	docs/specs/corvint-1.0-product-and-release-v1.md	236	This spec amends `public-release-v0.md` prospectively for the 1.0 Core candidate
+PRS-V1-012	docs/specs/corvint-1.0-product-and-release-v1.md	238	This spec has no authority until a numbered decision records the owner's
 PSL-V0-001	docs/specs/pulse-snapshot-lease-v0.md	199	The coordinator MUST be one client-owned local Go process over stdio, one serial
 PSL-V0-002	docs/specs/pulse-snapshot-lease-v0.md	202	Requests and responses MUST use `corvint-pulse-snapshot/0`, strict bounded canon
 PSL-V0-003	docs/specs/pulse-snapshot-lease-v0.md	204	Initialization MUST create a fresh unpredictable session ID. Restart, disconnect
@@ -2068,12 +2068,12 @@ TCQ-V0-049	docs/specs/test-claim-qualification-v0.md	600	one shared flake rule a
 TCQ-V0-050	docs/specs/test-claim-qualification-v0.md	607	a caller MAY supply at most 16 prior observations alongside the dynamic tuple.
 TCQ-V0-051	docs/specs/test-claim-qualification-v0.md	630	`corvint cem cover --map MAP --coverprofile PATH --test-run TEXT [--output PATH]
 TCQ-V0-052	docs/specs/test-claim-qualification-v0.md	639	the witness is one optional hunk member `coverage` admitted only on `cem/0.3`:
-TCQ-V0-053	docs/specs/test-claim-qualification-v0.md	647	`cover` writes a witness on every hunk of the map, never on a subset. The covere
-TCQ-V0-054	docs/specs/test-claim-qualification-v0.md	652	the reviewer report (`corvint cem report`) lists every hunk whose basis cites a
-TCQ-V0-055	docs/specs/test-claim-qualification-v0.md	670	`corvint cem discriminate --map MAP --target REV [--max-hunks N]
-TCQ-V0-056	docs/specs/test-claim-qualification-v0.md	681	the witness is one optional hunk member `discriminates` admitted only on
-TCQ-V0-057	docs/specs/test-claim-qualification-v0.md	692	candidates are, in map order, the hunks whose path is Go source (not a
-TCQ-V0-058	docs/specs/test-claim-qualification-v0.md	701	the reviewer report appends the witness to each `## Test claims` line: a
+TCQ-V0-053	docs/specs/test-claim-qualification-v0.md	650	`cover` writes a witness on every hunk of the map, never on a subset. The covere
+TCQ-V0-054	docs/specs/test-claim-qualification-v0.md	655	the reviewer report (`corvint cem report`) lists every hunk whose basis cites a
+TCQ-V0-055	docs/specs/test-claim-qualification-v0.md	673	`corvint cem discriminate --map MAP --target REV [--max-hunks N]
+TCQ-V0-056	docs/specs/test-claim-qualification-v0.md	684	the witness is one optional hunk member `discriminates` admitted only on
+TCQ-V0-057	docs/specs/test-claim-qualification-v0.md	695	candidates are, in map order, the hunks whose path is Go source (not a
+TCQ-V0-058	docs/specs/test-claim-qualification-v0.md	704	the reviewer report appends the witness to each `## Test claims` line: a
 TJAA-V0-001	docs/specs/typescript-javascript-affected-adapter-v0.md	31	`Owns` MUST claim exactly `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and `.cjs`; it M
 TJAA-V0-002	docs/specs/typescript-javascript-affected-adapter-v0.md	35	A normally file-addressable test MUST be one file unit. Its stable identity MUST
 TJAA-V0-003	docs/specs/typescript-javascript-affected-adapter-v0.md	39	Runner detection MUST use direct runner imports/registrations, recognized config

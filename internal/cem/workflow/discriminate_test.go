@@ -96,12 +96,10 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	}
 	citeTest(t, root, "1", "pkg/calc/calc_test.go")
 	citeTest(t, root, "2", "pkg/calc/calc_test.go")
-	gitCmd(t, root, "add", wire.ExcludedCEMPath)
-	gitCmd(t, root, "commit", "-qm", "candidate")
 
 	started := time.Now()
 	result, err := openSession(t, root).Discriminate(ctx(), DiscriminateOptions{
-		MapPath: wire.ExcludedCEMPath, Target: "HEAD", MaxHunks: "1", MaxMutants: "6", WallTime: "5m",
+		MapPath: wire.ExcludedCEMPath, Target: "HEAD", MaxHunks: "1", MaxMutants: "6", WallTime: "5m", Output: witnessMap,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -113,7 +111,7 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 		result["treeRevision"] != head || result["selectionSha256"] != selection {
 		t.Fatalf("discriminate envelope = %v", result)
 	}
-	document := readMap(t, root)
+	document := readMapAt(t, root, witnessMap)
 	first, second := document.Hunks[0].Discriminates, document.Hunks[1].Discriminates
 	if document.Spec != wire.Spec03 || first == nil || first.State != wire.DiscriminationDiscriminates ||
 		first.Killed < 1 || first.Survived != 0 || first.Killed+first.Survived > first.Mutants ||
@@ -124,15 +122,13 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	if second == nil || second.State != wire.DiscriminationNotRun || second.Mutants != 0 || second.Detail != "hunk limit 1 reached" {
 		t.Fatalf("second witness %+v", second)
 	}
-	gitCmd(t, root, "add", wire.ExcludedCEMPath)
-	gitCmd(t, root, "commit", "-qm", "discriminated")
 	status, err := openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD",
+		MapPath: witnessMap, ExpectedBase: base, Target: "HEAD",
 	})
 	if err != nil || status["state"] != "ready-for-ci" {
 		t.Fatalf("status after discriminate: %v %v", err, status)
 	}
-	text := reportText(t, root, base)
+	text := reportTextAt(t, root, base, witnessMap)
 	if !strings.Contains(text, "; discriminates (killed") || !strings.Contains(text, "; mutation not-run (`hunk limit 1 reached`)") {
 		t.Fatalf("report after a discriminating run:\n%s", text)
 	}
@@ -145,27 +141,25 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	citeTest(t, root, "2", "pkg/calc/calc_test.go")
 	started = time.Now()
 	result, err = openSession(t, root).Discriminate(ctx(), DiscriminateOptions{
-		MapPath: wire.ExcludedCEMPath, Target: "HEAD", MaxHunks: "1", MaxMutants: "6", WallTime: "5m",
+		MapPath: wire.ExcludedCEMPath, Target: "HEAD", MaxHunks: "1", MaxMutants: "6", WallTime: "5m", Output: witnessMap,
 	})
 	if err != nil || result["survived"] != 1 || result["notRun"] != 1 {
 		t.Fatalf("weak envelope: %v %v", err, result)
 	}
 	t.Logf("weak run: %s", time.Since(started).Round(time.Millisecond))
-	first = readMap(t, root).Hunks[0].Discriminates
+	first = readMapAt(t, root, witnessMap).Hunks[0].Discriminates
 	if first == nil || first.State != wire.DiscriminationSurvived || first.Survived < 1 ||
 		int64(len(first.Survivors)) != first.Survived || first.Survivors[0].Operator == "" ||
 		!strings.Contains(first.Survivors[0].Description, "pkg/calc/calc.go:") {
 		t.Fatalf("weak witness %+v", first)
 	}
-	gitCmd(t, root, "add", wire.ExcludedCEMPath)
-	gitCmd(t, root, "commit", "-qm", "survived")
 	status, err = openSession(t, root).Read(ctx(), "status", ReadOptions{
-		MapPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: "HEAD",
+		MapPath: witnessMap, ExpectedBase: base, Target: "HEAD",
 	})
 	if err != nil || status["state"] != "ready-for-ci" {
 		t.Fatalf("status with survivors must still succeed: %v %v", err, status)
 	}
-	text = reportText(t, root, base)
+	text = reportTextAt(t, root, base, witnessMap)
 	if !strings.Contains(text, "downgraded from tested; reason `mutants-survived` (") ||
 		!strings.Contains(text, first.Survivors[0].Operator+" at `pkg/calc/calc.go`:") {
 		t.Fatalf("report with survivors:\n%s", text)
@@ -221,11 +215,11 @@ func TestDiscriminateWithoutRunnerIsNotRun(t *testing.T) {
 	citeTest(t, root, "1", "pkg/calc/calc_test.go")
 	gitCmd(t, root, "add", wire.ExcludedCEMPath)
 	gitCmd(t, root, "commit", "-qm", "candidate")
-	result, err := openSession(t, root).Discriminate(ctx(), DiscriminateOptions{MapPath: wire.ExcludedCEMPath, Target: "HEAD"})
+	result, err := openSession(t, root).Discriminate(ctx(), DiscriminateOptions{MapPath: wire.ExcludedCEMPath, Target: "HEAD", Output: witnessMap})
 	if err != nil || result["notRun"] != 2 || result["discriminates"] != 0 {
 		t.Fatalf("uninstalled runner: %v %v", err, result)
 	}
-	first := readMap(t, root).Hunks[0].Discriminates
+	first := readMapAt(t, root, witnessMap).Hunks[0].Discriminates
 	if first == nil || first.State != wire.DiscriminationNotRun ||
 		first.Detail != "mutation runner unavailable: no mutation runner is installed" {
 		t.Fatalf("uninstalled runner witness %+v", first)

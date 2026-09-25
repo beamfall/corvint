@@ -552,7 +552,7 @@ func validDogfoodReason(value string) bool {
 	}
 	switch value {
 	case "cem-map-not-produced", "citation-plan-map-mismatch", "citation-plan-not-provided",
-		"citation-plan-unavailable", "intent-scope-drift", "invalid-citation-plan",
+		"citation-plan-unavailable", "citation-stage-cleanup-failed", "citation-stage-exists", "intent-scope-drift", "invalid-citation-plan",
 		"invalid-record-admission-output", "missing-intent-scope", "no-source-paths", "none",
 		"not-ready", "outcome-input-not-provided":
 		return true

@@ -191,7 +191,10 @@ admits the optional per-hunk `discriminates` witness (`TCQ-V0-055..058`): `cem d
 runs the bounded `prove --mutate` runner on the map's changed Go hunks against the `_test.go`
 files their test claims cite, records `discriminates`, `survived`, or `not-run` on every hunk
 pinned to the target tree and the test selection digest, and `cem report` downgrades a hunk
-with survivors visibly without ever failing the build.
+with survivors visibly without ever failing the build. `cem/0.3` is experimental: `mark`, `cover`
+and `discriminate` write it only to an `--output` path that is neither their `cem/0.2` input nor
+`.corvint/change.cem.json`, which frontier and OCM read as `cem/0.2` (`CEM-SM-006`). Keep that
+copy uncommitted; it verifies against a target that commits no sidecar.
 
 ## Verification and drift
 
@@ -340,13 +343,14 @@ corvint cem mark --map .corvint/change.cem.json --hunk 1 \
 ```
 
 Use `cover` after running the tests yourself to attach one local coverprofile as a per-hunk
-witness; Corvint neither runs tests nor finds profiles, and the command upgrades a canonical map
-to `cem/0.3`:
+witness; Corvint neither runs tests nor finds profiles, and the command writes a `cem/0.3` copy
+of a canonical map to `--output`:
 
 ```console
 go test -coverprofile=cover.out ./pkg/...
 corvint cem cover --map .corvint/change.cem.json \
-  --coverprofile cover.out --test-run 'go test -coverprofile=cover.out ./pkg/...'
+  --coverprofile cover.out --test-run 'go test -coverprofile=cover.out ./pkg/...' \
+  --output .corvint/witness.cem.json
 ```
 
 Use `discriminate` to ask whether the cited tests notice when a changed hunk is mutated. It
@@ -357,7 +361,7 @@ hunk; survivors downgrade the report visibly and never fail the build:
 
 ```console
 corvint cem discriminate --map .corvint/change.cem.json --target HEAD \
-  --max-hunks 4 --max-mutants 8 --wall-time 5m
+  --max-hunks 4 --max-mutants 8 --wall-time 5m --output .corvint/witness.cem.json
 ```
 
 ## Example shape

@@ -50,7 +50,7 @@ To repair it, run `git repack -a -d`, delete `.git/objects/info/alternates` and
 | `BASE` | Full 40-hex commit before the change's first commit; never `HEAD` | `BASE=$(git rev-parse origin/main)` taken when branching |
 | `DOGFOOD_TASK` | One sentence describing the change, not project-operations wording (section 1) | `Deliver the documented daily change-evidence adopter path.` |
 | `DOGFOOD_INTENTS_FILE` | Path to a file of 1 to 16 repository-relative spec paths, sorted, LF-terminated, no absolute path and no `.` or `..` segment. Each spec exists at `BASE` and has exactly one `## Requirements` heading (`rg -c '^## Requirements' SPEC` prints 1); a spec created in this change cannot be an intent (section 2). When no such spec governs the change, the file instead holds exactly the one line `#no-intent-declared` (`DCW-V0-024`): no OCM step runs, `ocm-prepare`, `ocm-status` and `ocm-aggregate` report `no-intent-declared`, `ocmStatus` is `NOT_ASSESSED`, and the check prints `dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared`; an unset variable or an empty file still refuses `missing-intent-scope` | file content `docs/specs/daily-change-evidence-workflow-v0.md` |
-| `DOGFOOD_CITATIONS` | Path to a TSV file, not the rows. One `ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION` row per CEM hunk in `hunks` order, ordinals from 1, LF-terminated, at most 256 rows; the span must exist at `BASE`. Only the hunk of an intent spec absent at `BASE` may be left out; leaving out any other unknown hunk, or an ordinal above the hunk count, refuses the whole plan (`DCW-V0-019`) | row `1	AGENTS.md	26:28	specification` |
+| `DOGFOOD_CITATIONS` | Path to a TSV file, not the rows. `HUNK<TAB>PATH<TAB>START:END<TAB>RELATION` rows, `HUNK` being a hunk's ordinal in `hunks` order (from 1) or its full hunk ID; a hunk cited against several bases takes one row each; LF-terminated, at most 256 rows; the span must exist at `BASE`. Only the hunk of an intent spec absent at `BASE` may be left out; leaving out any other unknown hunk, or an ordinal above the hunk count, refuses the whole plan (`DCW-V0-019`) | row `1	AGENTS.md	26:28	specification` |
 | `DOGFOOD_VERIFY_FILE` | Path to a file with one shell-free verification command per line, each at most 512 characters; `DOGFOOD_VERIFY` takes the same lines inline (section 7) | line `go test ./internal/lrfrepo` |
 | `DOGFOOD_OUTCOME` | `passed`, `failed` or `blocked` | `passed` |
 | `DOGFOOD_OCM_LINKS` | Optional path to a TSV file, not the rows. One `INTENT<TAB>REQUIREMENT<TAB>HUNK[,HUNK...]<TAB>TEST_PATH<TAB>CLAIM[,CLAIM...]` row per requirement the author links, LF-terminated, at most 256 rows; `INTENT` is listed in `DOGFOOD_INTENTS_FILE`, each hunk is a cited CEM ordinal or hunk ID, and each claim is a test selector at `HEAD` whose anchor contains the exact requirement ID (step 7, section 5) | row `docs/specs/local-admin-console-v0.md	LAC-V0-032	7,8	internal/console/roadmap_test.go	test:TestRoadmapSafeAutoRecheck/case:lac-v0-safe-auto-recheck` |
@@ -376,7 +376,11 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
   against this range's uncited prepared map, published as
   `<git-dir>/corvint/bind-range.B12..T12.cem.json`. Without a plan the script reports
   `cem-cite NOT_PRODUCED citation-plan-not-provided`. A range needing more than one plan's rows is
-  split into contiguous sub-ranges; nothing is split or cited automatically.
+  split into contiguous sub-ranges; nothing is split or cited automatically. (proposed 2026-09-25,
+  V1-0228, not accepted) As in the bind loop (`DCW-V0-019`), a nonempty plan written for another map
+  fails `cem-cite citation-plan-map-mismatch` before any cite: a numeric selector that is not a
+  canonical ordinal or exceeds the hunk count, or an unknown hunk named by neither the citation nor
+  the `DOGFOOD_UNKNOWN` plan, by ordinal or ID.
 - `DOGFOOD-BIND-004`: the binding commit has TARGET as its only parent, TARGET's tree with only
   `.corvint/change.cem.json` replaced by the cited map, and the trailer
   `Corvint-Dogfood-Binding: retroactive`. Its canonical patch is therefore exactly BASE..TARGET.

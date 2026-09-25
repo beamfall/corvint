@@ -3,6 +3,7 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -36,6 +37,7 @@ type change struct {
 	runTmp               string
 	rows                 []step
 	citationStage        string
+	cemPrepared          bool
 	citationStageOwned   bool
 	citationCount        int
 	citationFailedRow    int
@@ -105,9 +107,9 @@ func (c *change) run() int {
 	// receipts; the agent's prechange-*.json receipts are never written here (DCW-V0-026).
 	c.runStep("coordination-time-query", c.evidence+"/coordination-time-query.json", "query", "--task", task, "--limit", "1")
 	c.prechangeImpact()
-	c.prepare("cem-prepare", c.evidence+"/cem-prepare.json", func(status int, stderr []byte, reason string) bool {
+	c.cemPrepared = c.prepare("cem-prepare", c.evidence+"/cem-prepare.json", func(status int, stderr []byte, reason string) bool {
 		return status == 2 && outdatedCEMMaps[chomp(string(stderr))]
-	}, "cem", "prepare", "--base", c.base, "--target", c.target)
+	}, "cem", "prepare", "--base", c.base, "--target", c.target) == 0
 	// The manifest is frozen before citation so the plan check knows which
 	// base-absent intent hunks an author may deliberately leave uncited.
 	c.manifestValid = c.validateIntentManifest()
@@ -361,10 +363,11 @@ func canonicalIntentPath(path string) bool {
 }
 
 // citeStep applies the author's citation plan to the prepared map, staging
-// intermediate maps so only the last cite publishes the tracked map.
+// intermediate maps so only the last cite publishes the tracked map. A map left
+// by an earlier run is never cited when this run prepared none.
 func (c *change) citeStep() {
 	switch {
-	case !isRegular(c.path(".corvint/change.cem.json")):
+	case !c.cemPrepared || !isRegular(c.path(".corvint/change.cem.json")):
 		c.addStep("cem-cite", "NOT_PRODUCED", "cem-map-not-produced")
 		return
 	case c.options.Citations == "":
@@ -503,7 +506,6 @@ func nonEmptyFields(line string, count int) bool {
 var (
 	hunkField = regexp.MustCompile(`^      "(disposition|id|path)": "(.*)$`)
 	ordinal   = regexp.MustCompile(`^[1-9][0-9]*$`)
-	valueEnd  = regexp.MustCompile(`",?$`)
 )
 
 // citationPlanMatchesMap binds a plan to the map prepared in this run
@@ -564,7 +566,8 @@ func (c *change) citationPlanMatchesMap(plan []byte) bool {
 
 // mapHunks reads the scalar disposition, id and path of each hunk from the
 // canonical indent-2 map encoding: each hunk opens on a four-space "{" line
-// inside "hunks" and its scalar keys sit at six spaces.
+// inside "hunks" and its scalar keys sit at six spaces. Values are decoded from
+// their JSON string form, so an escaped path compares equal to its intent.
 func mapHunks(data []byte) []map[string]string {
 	hunks := []map[string]string{}
 	preamble := map[string]string{}
@@ -588,7 +591,10 @@ func mapHunks(data []byte) []map[string]string {
 		if match == nil {
 			continue
 		}
-		value := valueEnd.ReplaceAllString(match[2], "")
+		var value string
+		if json.Unmarshal([]byte(`"`+strings.TrimSuffix(match[2], ",")), &value) != nil {
+			continue
+		}
 		current := preamble
 		if len(hunks) > 0 {
 			current = hunks[len(hunks)-1]

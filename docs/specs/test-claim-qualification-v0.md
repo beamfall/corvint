@@ -643,7 +643,10 @@ it qualifies a claim without proving adequacy or correctness.
   exactly when `covered` is non-empty, and any disagreement is `invalid-field`. `cem/0.1` and
   `cem/0.2` reject the member as `unknown-field`, so a consumer that predates the witness reads
   every existing map exactly as before; `cover` declares `cem/0.3` on a canonical map the way a
-  structural reason does (CEM-SM-006).
+  structural reason does (CEM-SM-006). (proposed, decision 0398) Like a structural `mark`, `cover` and
+  `discriminate` never write that `cem/0.3` map over their `cem/0.2` input or to
+  `.corvint/change.cem.json`; either output is refused as `invalid-arguments` before the map is
+  written (and, for `discriminate`, before any mutant runs), leaving the input unchanged.
 - `TCQ-V0-053`: `cover` writes a witness on every hunk of the map, never on a subset. The covered
   ranges are the hunk's added lines (`+` body lines, not context) intersected with the lines of
   profile blocks whose count is positive, folded into maximal ranges; a hunk with no such line
@@ -821,7 +824,7 @@ non-authoritative and slated for separate removal.
 | `TCQ-V0-049` | `internal/tcq/flake.go`, `internal/jstestprovider/projection.go`, `internal/jstestprovider/playwright.go` | `TestFlakyRuleNeedsDivergentTerminalOutcomes`, `TestFlakyOutcomeIsSharedRule`, `TestParsePlaywrightJSON_MixedStates` |
 | `TCQ-V0-050` | `internal/tcq/evaluate.go`, `internal/tcq/assemble.go` | `TestSameRevisionDivergentOutcomesAreFlaky`, `TestPriorObservationVariantMismatchIsNotFlaky`, `TestPriorObservationsRequireDynamicTupleAndTarget`, `TestReasonVocabularyMatchesFrontierSeam` |
 | `TCQ-V0-051` | `internal/cem/workflow/cover.go`, `internal/cem/cli/cli.go`, `internal/cem/coverprofile/coverprofile.go`, `internal/liveverify/gorunner/coverage.go` | `TestCoverRefusesAmbiguousAndInvalidInputs`, `TestParseCoverProfileExportsBlocks` |
-| `TCQ-V0-052` | `internal/cem/wire/map.go` | `TestSpec03CoverageWitness` |
+| `TCQ-V0-052` | `internal/cem/wire/map.go`, `internal/cem/workflow/commands.go` `checkSpec03Output` | `TestSpec03CoverageWitness`, `TestSpec03UpgradeNeverReplacesACoreMap` |
 | `TCQ-V0-053` | `internal/cem/workflow/cover.go`, `internal/cem/workflow/workflow.go` | `TestCoverRecordsCoverageWitnessAndReportDowngrades` |
 | `TCQ-V0-054` | `internal/cem/workflow/read.go` | `TestCoverRecordsCoverageWitnessAndReportDowngrades` |
 | `TCQ-V0-055` | `internal/cem/workflow/discriminate.go`, `internal/cem/cli/cli.go`, `internal/cemdiscriminate/cemdiscriminate.go`, `cmd/corvint/cem_discriminate.go` | `TestDiscriminateRefusesInvalidBoundsAndTarget`, `TestDiscriminateRecordsWitnessAndReportDowngrades`, `TestDiscriminateWithoutRunnerIsNotRun` |
