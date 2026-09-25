@@ -24,7 +24,7 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	source := flags.String("source-root", "", "Corvint Git checkout containing the exact built commit")
 	scratch := flags.String("scratch", "", "private scratch directory")
 	output := flags.String("output-parent", "", "parent for the fresh versioned candidate")
-	version := flags.String("version", "", "exact alpha version without a v prefix")
+	version := flags.String("version", "", "exact release version MAJOR.MINOR.PATCH, MAJOR.MINOR.PATCH-rc.N or MAJOR.MINOR.PATCHaN, without a v prefix")
 	if err := flags.Parse(arguments); err != nil {
 		return 2
 	}
