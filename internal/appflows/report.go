@@ -2,7 +2,6 @@ package appflows
 
 import (
 	"errors"
-	"os"
 	"reflect"
 	"slices"
 	"strconv"
@@ -315,15 +314,5 @@ func Record(in Input, raw []byte, filename string) error {
 	if strings.TrimSpace(filename) == "" {
 		return errors.New("record needs an output file")
 	}
-	f, err := os.OpenFile(filename, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if err != nil {
-		return errors.New("cannot exclusively create flow record")
-	}
-	defer f.Close()
-	_, err = f.Write(raw)
-	if err != nil {
-		_ = os.Remove(filename)
-		return err
-	}
-	return f.Sync()
+	return WriteConfined(in.Root, filename, raw)
 }
