@@ -6160,3 +6160,25 @@ Review repairs (same slice):
   probe wording now names what is compared: `HEAD`, the tree and the dirty-path set.
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
+
+## 2026-09-25 V1-0319, D13: `context --task` paired-trial protocol frozen on Beamfall; run blocked on the owner's threshold
+
+Panel dispute D13 (orientation routes to `query`, not `context --task`) is a defect. The owner ruled
+that the promotion gate stays binding. Routing moves only after the gate that
+`docs/specs/task-context-packet-v0.md` names passes: "a paired trial reading against `grep` on the
+held-out set", run as `tools/cw-trial` under decision 0022 on Beamfall roadmap-ticket-to-diff tasks.
+
+- The frozen protocol and set are in `tools/cw-trial/testdata/beamfall-roadmap-v1/`.
+  - `tasks.json` holds 50 `retrieval` tasks and 181 gold paths, from 247 candidates at Beamfall/core
+    `02835b1be`. Its sha256 is `7fbe8124e55d247bc98ef0a06f3a0d820f6824aff680853b9c69a353fe85db85`.
+  - The Git-only builder is `build_roadmap_set.py`.
+  - The set was authored without any Corvint run on its tasks.
+- Arms: `none`, `grep` and `corvint`. Agent: `codex exec gpt-5.6-sol`, effort `medium`,
+  `--access none`, `--limit 20`. One first-observation run.
+- Result: NOT_RUN, with no routing change. Three things block the run:
+  - `confidently-wrong-trial-v0.md` leaves the pass reading to the owner (CWT-V0-009).
+  - Its "non-inferior success" has no margin, and the bet plan it cites is absent from the tree.
+  - Whether `likely` wrong claims count is unresolved.
+- The owner questions are listed in the set's README. They include whether the orientation reading
+  (`packet_top_k`, `gold_as_result`) carries its own threshold, and approval of the 150 agent
+  invocations. The skills and `docs/DOGFOOD.md` §1 stay routed to `query`.
