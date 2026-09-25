@@ -6160,3 +6160,43 @@ Review repairs (same slice):
   probe wording now names what is compared: `HEAD`, the tree and the dirty-path set.
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
+
+## 2026-09-25 Panel M2: a limit that omits a competing record needs widening (`GPK-V0-068`, proposed)
+
+The pre-1.0 panel (finding M2) ran `corvint query --limit 1` on Beamfall with the COREAPI-AUDIT-0822-3
+headline ("Carry HLS foreground priority in the signed stream grant instead of the
+X-Beamfall-Foreground request header"). It returned `READY` with one result,
+`feature:access-request-grant` (score 450). The relevant `feature:hls-transcode` (420) was second
+at limit 10. `evalQuery` set `NEEDS_WIDENING` only on an exact tie of the top two record scores.
+
+The panel suggested requiring term support for the top record before `READY`. That test does not
+fire here: `access-request-grant` rests on two query words, `request` and `grant`, so it clears the
+`GPK-V0-039` floor. What the limit-1 packet hid was a competing reading. `hls-transcode` rests on
+`hls`, a word no emitted result rests on, and only score chose between the two.
+
+`GPK-V0-068` (proposed, owner acceptance pending): when the result limit omits a competitive
+record that rests on a query word no emitted result rests on, the packet is `NEEDS_WIDENING` with
+an active abstention, reason `omitted-competing-record`, and keeps its results. Support is
+counted per result in the query's own words, as `GPK-V0-039` counts it.
+`TestEvalQueryLimitOmittingCompetingRecordNeedsWidening` fails without the check. The analyzer
+schema moves to `corvint-analyzer/85`.
+
+Beamfall fixture `2a8e06b2`, same headline: base limit 1 `READY`; fix limit 1 `NEEDS_WIDENING` /
+`omitted-competing-record`; limits 5 and 10 stay `READY`.
+
+Frozen evaluations, base → fix:
+- Beamfall goldens (`corvint eval`, 7 cases): all identical. Recall 0.9, must_read 9/10, critical
+  misses 0/5, top-5 6/7, abstention 1/1, budget compliance 1.0, byte-weighted precision 0.702464,
+  and every case state unchanged.
+- With the M2 headline added as an eighth, unfrozen case (limit 1, expected `NEEDS_WIDENING`):
+  epistemic state accuracy 0.5 → 1.0. This case is not in Beamfall's frozen file, which Beamfall
+  owns.
+- Golden query texts rerun at limit 1: only `ambiguous-reveal-navigation`, whose gold set holds both
+  competing features, changes (`READY` → `NEEDS_WIDENING`). At limit 3 none changes.
+- `tools/retrieval-bench --arms corvint`, default limit: `v2_abstention` (82 samples) and
+  `v2_comment2context` (first 40 samples) have identical ranked lists, abstentions and states
+  (abstained 0.073171; hit@k 0.075, mrr@k 0.041667). At `--limit 1` (first 40 samples of each)
+  the rule fires on no sample. These corpora have no canonical feature records, so they cannot
+  exercise it. The Beamfall case is the only evidence that the rule fires.
+- `conformance/cli-parity-v0` replay with the fix: exit 0 (parity 104, known divergences 26). No
+  base replay was run for comparison.
