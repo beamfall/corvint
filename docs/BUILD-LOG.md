@@ -6853,3 +6853,34 @@ acceptance. Decision 0398 governs the D-findings.
 
 Follow-up: an LRF given a `cem/0.3` map takes the `cem/0.1` out-of-band patch path before it
 refuses the profile.
+
+## 2026-09-25 V1-0137 V1-0227 V1-0239 V1-0282 V1-0262 V1-0181 V1-0145 V1-0144 V1-0316: pre-1.0 dogfood workflow bug batch
+
+Branch `claude/prerelease-dogfood-batch`, based on the PR #222 merge (decision 0395) so V1-0316 builds
+on `DCW-V0-026`. Proposed requirements `DCW-V0-027` to `DCW-V0-031` are drafted "(proposed
+2026-09-25, not accepted)" and await owner acceptance.
+- V1-0137 FIXED: a seal that would drop an unarchived base-revision CEM is refused
+  (`unarchivedBaseCEM`, `DCW-V0-027`, `TestSealRefusesToDropAnUnarchivedBaseCEM`); the lost 0.6.0
+  integration CEM is restored under `.corvint/changes/`.
+- V1-0227 FIXED: link rows of an intent whose `ocm-prepare-NNN` failed are reported
+  `ocm-map-not-prepared` instead of vanishing (`skipOCMLinks`, `DCW-V0-028`).
+- V1-0239 FIXED: `dogfood change` records the accepted plan's digest and the map's hunk IDs in
+  `.git/corvint/citation-plan-binding`; the same plan rerun after a commit moved an ordinal-named
+  hunk refuses `citation-plan-map-mismatch` (`DCW-V0-029`,
+  `TestChangeRefusesAPlanWhoseOrdinalsMoved`). Set aside: binding every plan to IDs, which would
+  refuse legitimate resumed plans after unrelated edits.
+- V1-0282 FIXED: the console dogfood view names `corvint dogfood change <sha>`.
+- V1-0262 FIXED (docs): observed at HEAD with a clean tree, range impact returns `OUT_OF_SCOPE`,
+  `changedPathCount` 0, so section 1 now retains path impact on the intended files.
+- V1-0181 FIXED (docs): step 11 states OCM maps are local-only and gives the reviewer rebuild from
+  `ocmStatus.scopes[].path`, observed on the b9c177f bind commit (26 obligations, 0 linked).
+- V1-0145 NEEDS-OWNER: splitting `dogfood-report-drift` contradicts the accepted `DCW-V0-014` rule that
+  reason codes MUST NOT change; `DCW-V0-030` is drafted, not implemented.
+- V1-0144 NEEDS-OWNER: no command retires a stranded trace revision (`internal/trace/store.go:345`,
+  `migration.go:120` refuse it, and so does `migrate-traces`); a retire command changes trace-store
+  authority, so no change was made.
+- V1-0316 FIXED: `dogfood change` notes an absent, tree-less or non-base-tree agent receipt as a
+  non-blocking NOTE line (`DCW-V0-031`, `TestChangeNotesAbsentOrStaleAgentReceipts`).
+Follow-up: `script/dogfood-change_test.sh` intermittently exits 141 (SIGPIPE from
+`printf ... | rg -q` pipelines in its foreground subshell) under load average near 400; unmodified
+HEAD reproduced it, and runs at lower load pass.

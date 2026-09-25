@@ -390,6 +390,7 @@ func (c *change) citeStep() {
 	case c.citationCount > 1 && exists(c.path(c.citationStage)):
 		status, reason = "NOT_PRODUCED", "citation-stage-exists"
 	default:
+		c.recordCitationBinding(plan)
 		cited := citedHunks(c.path(".corvint/change.cem.json"))
 		status, reason = c.cite(plan, citeOutput)
 		c.citedOver = cited > 0 && status == "PRODUCED"
@@ -532,6 +533,9 @@ func (c *change) citationPlanMatchesMap(plan []byte) bool {
 		return false
 	}
 	hunks := mapHunks(data)
+	if c.ordinalsMoved(plan, hunks) {
+		return false
+	}
 	named := map[string]bool{}
 	for _, line := range textLines(plan) {
 		selector, _, _ := strings.Cut(line, "\t")
@@ -562,6 +566,42 @@ func (c *change) citationPlanMatchesMap(plan []byte) bool {
 		}
 	}
 	return true
+}
+
+// citationBinding is the private record of the hunk IDs, in map order, that the
+// last accepted plan was cited against: its first line is the plan's digest.
+const citationBinding = "/citation-plan-binding"
+
+func (c *change) recordCitationBinding(plan []byte) {
+	lines := []string{sha256Hex(plan)}
+	for _, hunk := range mapHunks(readFile(c.path(".corvint/change.cem.json"))) {
+		lines = append(lines, hunk["id"])
+	}
+	_ = writePrivate(c.evidence+citationBinding, []byte(strings.Join(lines, "\n")+"\n"))
+}
+
+// ordinalsMoved reports a plan whose ordinal row named a hunk that the map now
+// holds at another ordinal, so the row would cite the wrong hunk (V1-0239).
+func (c *change) ordinalsMoved(plan []byte, hunks []map[string]string) bool {
+	recorded := readLines(readFile(c.evidence + citationBinding))
+	if len(recorded) == 0 || recorded[0] != sha256Hex(plan) {
+		return false
+	}
+	current := map[string]int{}
+	for index, hunk := range hunks {
+		current[hunk["id"]] = index + 1
+	}
+	for _, line := range textLines(plan) {
+		selector, _, _ := strings.Cut(line, "\t")
+		value, err := strconv.Atoi(selector)
+		if !ordinal.MatchString(selector) || err != nil || value >= len(recorded) {
+			continue
+		}
+		if now, found := current[recorded[value]]; found && now != value {
+			return true
+		}
+	}
+	return false
 }
 
 // mapHunks reads the scalar disposition, id and path of each hunk from the
@@ -616,6 +656,7 @@ func (c *change) runOCMScopes() bool {
 		}, "ocm", "prepare", "--map", mapPath, "--cem", ".corvint/change.cem.json", "--intent", path, "--expected-base", c.base, "--target", c.target)
 		if prepared != 0 {
 			failed = true
+			c.skipOCMLinks(path)
 		} else if c.linksReady {
 			c.runOCMLinks(mapPath, path)
 		}
@@ -691,6 +732,16 @@ func (c *change) runOCMLinks(mapPath, path string) {
 			args = append(args, "--claim", claim)
 		}
 		c.runStep(name, c.evidence+"/"+name+".json", args...)
+	}
+}
+
+// skipOCMLinks reports each plan row naming an intent whose map did not
+// prepare, so no row is dropped without a reason (V1-0227).
+func (c *change) skipOCMLinks(path string) {
+	for index, line := range readLines(c.linkPlan) {
+		if strings.SplitN(line, "\t", 2)[0] == path {
+			c.addStep(fmt.Sprintf("ocm-link-%03d", index+1), "NOT_PRODUCED", "ocm-map-not-prepared")
+		}
 	}
 }
 
@@ -871,7 +922,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:citation-plan-not-provided", "set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json"},
 	{"cem-cite:citation-plan-unavailable", "DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves"},
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows"},
-	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE"},
+	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE"},
 	{"cem-cite:cite-span-not-stable", "plan row {row} cites BASE lines that this change edits or deletes; cite a START:END span the change leaves unchanged"},
 	{"ocm-aggregate:missing-intent-scope", "DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths, or of a file holding the one line #no-intent-declared when no requirements spec governs the change"},
 	{"ocm-prepare-*:invalid-requirements-section", `intent must be a spec that exists at BASE and contains exactly one "## Requirements" heading`},
@@ -883,6 +934,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"ocm-links:ocm-link-plan-unavailable", "DOGFOOD_OCM_LINKS must be the path of a TSV file of INTENT<TAB>REQUIREMENT<TAB>HUNKS<TAB>TEST_PATH<TAB>CLAIMS rows, not the rows themselves"},
 	{"ocm-links:empty-ocm-link-plan", "DOGFOOD_OCM_LINKS names an empty file; add at least one row, or unset DOGFOOD_OCM_LINKS so every requirement stays unassessed"},
 	{"ocm-links:invalid-ocm-link-plan", "each DOGFOOD_OCM_LINKS row is INTENT<TAB>REQUIREMENT<TAB>HUNK[,HUNK...]<TAB>TEST_PATH<TAB>CLAIM[,CLAIM...], LF-terminated, at most 256 rows, and INTENT is listed in DOGFOOD_INTENTS_FILE"},
+	{"ocm-link-*:ocm-map-not-prepared", "the map for this row's intent did not prepare, so the row was not linked; fix that intent's ocm-prepare row above, then rerun corvint dogfood change {base}"},
 	{"ocm-link-*", "read {evidence}/{step}.stderr: each linked hunk must be cited in the committed sidecar, and each claim a test case or t.Run name at HEAD containing the exact requirement ID; otherwise delete the DOGFOOD_OCM_LINKS row so the requirement stays unassessed"},
 	{"ocm-aggregate:intent-scope-drift", "fix the ocm-prepare or ocm-status row above; otherwise the intents file changed during the run"},
 	{"*:unsupported-object-alternates", "the clone borrows objects through .git/objects/info/alternates (git clone --reference or --shared); run git repack -a -d, delete .git/objects/info/alternates and .git/objects/info/commit-graphs, run git commit-graph write --reachable, then rerun corvint dogfood change {base}"},
@@ -906,6 +958,36 @@ func (c *change) fixHint(row step) string {
 	return ""
 }
 
+// noteAgentReceipts reports, without blocking, an agent pre-change receipt that
+// is absent or was not written against the base tree (DCW-V0-031).
+func (c *change) noteAgentReceipts() {
+	baseTree := c.gitValue("rev-parse", c.base+"^{tree}")
+	for _, name := range []string{"prechange-query", "prechange-impact"} {
+		c.noteAgentReceipt(name, baseTree)
+	}
+}
+
+func (c *change) noteAgentReceipt(name, baseTree string) {
+	path := c.evidence + "/" + name + ".json"
+	if !isRegular(path) {
+		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-absent\n", name)
+		return
+	}
+	var receipt struct {
+		Context struct {
+			Revision string `json:"revision"`
+		} `json:"context"`
+	}
+	_ = json.Unmarshal(readFile(path), &receipt)
+	switch tree := receipt.Context.Revision; tree {
+	case baseTree:
+	case "":
+		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-tree-unknown\n", name)
+	default:
+		c.say("dogfood-change: NOTE %s STALE agent-receipt-not-base-tree tree=%s base-tree=%s\n", name, tree, baseTree)
+	}
+}
+
 // reportFailures notes an accepted impact abstention, then lists each failing
 // row with its fix and exits 1, or exits 0 when the report is complete.
 func (c *change) reportFailures() int {
@@ -914,6 +996,7 @@ func (c *change) reportFailures() int {
 			c.say("dogfood-change: NOTE coordination-time-impact NOT_PRODUCED %s\n", row.reason)
 		}
 	}
+	c.noteAgentReceipts()
 	if c.complete() {
 		return 0
 	}

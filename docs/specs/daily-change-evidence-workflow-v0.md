@@ -218,10 +218,51 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   Reason: the coordinator reran query and impact against `HEAD` into the agent's receipt paths,
   truncating the base-tree receipts, and reported its own post-change output as
   `prechange-* PRODUCED`, a false provenance claim.
-  Not covered: the coordinator does not read, bind or check the tree of an agent receipt, so a
-  missing or stale agent receipt is no more visible than before (V1-0316).
+  Not covered: the coordinator does not bind the tree of an agent receipt; `DCW-V0-031` (proposed)
+  makes a missing or stale agent receipt visible (V1-0316).
   Acceptance: decision 0395 accepts this requirement and the rewording it makes to `DCW-V0-016`,
   `DCW-V0-025` and `LCP-V0-005`.
+- `DCW-V0-027`: (proposed 2026-09-25, V1-0137, not accepted) `dogfood seal` and
+  `script/dogfood-seal.sh` MUST refuse `unarchived-base-cem`, committing nothing, when `BASE`
+  tracks `.corvint/change.cem.json`, the bind commit tracks a different blob there, and no
+  `.corvint/changes/` file in the bind tree has `BASE`'s blob. The fix line names the commit that
+  bound `BASE`'s CEM.
+  Reason: a change started on a base that still tracked an unsealed CEM replaced it with
+  `--replace`, and the seal then moved the replacement away, so the earlier CEM left the tree
+  unarchived; the 6243-line 0.6.0 integration CEM was lost this way.
+- `DCW-V0-028`: (proposed 2026-09-25, V1-0227, not accepted) When an intent's `ocm-prepare-NNN`
+  row is NOT_PRODUCED, `dogfood change` MUST report every `DOGFOOD_OCM_LINKS` row naming that intent
+  as `ocm-link-NNN` NOT_PRODUCED `ocm-map-not-prepared`, NNN being its plan row, with a `fix:` line
+  naming the prepare row, and MUST NOT run `ocm link` for it.
+  Reason: those rows were skipped with no row, so the report did not say they were never linked.
+- `DCW-V0-029`: (proposed 2026-09-25, V1-0239, not accepted) Each time `dogfood change` accepts a
+  nonempty plan under `DCW-V0-019`, it MUST record privately in the evidence directory the plan's
+  SHA-256 and the prepared map's hunk IDs in map order. A later run with the same plan bytes MUST
+  refuse `citation-plan-map-mismatch`, citing nothing, when any row's canonical ordinal named a
+  recorded hunk ID that the new map holds at a different ordinal. A recorded ID absent from the new
+  map, or a plan with different bytes, is not refused by this rule.
+  Reason: a plan kept after a rebase swapped two hunks still named every hunk, so its rows cited
+  the wrong hunks without a refusal.
+- `DCW-V0-030`: (proposed 2026-09-25, V1-0145, not accepted; not implemented) `dogfood check`
+  MUST refuse a report bound to another BASE or HEAD with `dogfood-report-stale` and a report that
+  is not `"complete": true` with `dogfood-report-incomplete`, each with its existing `fix:` line,
+  instead of `dogfood-report-drift` for both. `dogfood-report-drift` then stays only for a report
+  whose anchor, context-abstention binding, intent declaration or dogfood policy line disagrees.
+  Reason: one code covers two cases an operator fixes differently, and only the `fix:` line tells
+  them apart. Acceptance needs an owner decision because it amends the accepted `DCW-V0-014` rule
+  that reason codes MUST NOT change, and because `local-completion-policy-v0.md`,
+  `dogfood-observe` and recorded reports read `dogfood-report-drift`.
+- `DCW-V0-031`: (proposed 2026-09-25, V1-0316, not accepted) After its steps run, `dogfood change`
+  MUST print, for each of `<git-dir>/corvint/prechange-query.json` and `prechange-impact.json`,
+  `dogfood-change: NOTE NAME NOT_OBSERVED agent-receipt-absent` when the receipt is not a regular
+  file, `dogfood-change: NOTE NAME NOT_OBSERVED agent-receipt-tree-unknown` when it has no
+  `context.revision`, and `dogfood-change: NOTE NAME STALE agent-receipt-not-base-tree tree=TREE
+  base-tree=BASE_TREE` when that revision is not BASE's tree, NAME being the file name without
+  `.json`. A receipt at BASE's tree prints nothing. These lines MUST NOT change the report, its
+  rows, `"complete"` or the exit status: `DOGFOOD-002` (`docs/DOGFOOD.md`) does not require a receipt, so an absent or
+  stale one stays non-blocking unless an owner decision makes it blocking.
+  Reason: after `DCW-V0-026` the coordinator no longer overwrote the agent receipts, but a missing
+  receipt or one written against another tree was no more visible than before.
 
 ## Code vocabulary
 
@@ -249,6 +290,8 @@ Base anchoring, refused by every subverb:
   not accepted).
 - `ocm-link-plan-unavailable`, `empty-ocm-link-plan`, `invalid-ocm-link-plan`: the
   `DOGFOOD_OCM_LINKS` plan is missing, empty, or malformed or over 256 rows.
+- `ocm-map-not-prepared`: the `ocm-link-NNN` row's intent map did not prepare, so the row was not
+  run (`DCW-V0-028`, proposed).
 - `no-intent-declared`: the change declared no intent (`DCW-V0-024`); the `ocm-prepare`,
   `ocm-status` and `ocm-aggregate` rows carry it and, unlike every other code here, it does not
   block `"complete": true`.
@@ -268,6 +311,8 @@ Base anchoring, refused by every subverb:
 `dogfood seal`:
 
 - `nothing-to-seal`: the bind commit at `HEAD` does not track `.corvint/change.cem.json`.
+- `unarchived-base-cem`: sealing would drop a CEM `BASE` tracks that no `.corvint/changes/` file
+  keeps (`DCW-V0-027`, proposed).
 
 ## Non-goals and baseline
 
@@ -311,6 +356,11 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-022` | `script/dogfood-change_test.sh` (through the wrappers over a built driver) and `script/dogfood-bind-range_test.sh`, run in Corvint's tree | implemented; in-tree evidence only |
 | `DCW-V0-025` | `internal/dogfoodflow/change.go` `prechangeImpact` and `failing`, `internal/dogfoodflow/check.go` `checkContextAbstention`, `internal/dogfoodflow/flow.go` `impactAbstentions`; `TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot` (built binary, real refusals: a repository with no Go module and a module-root Go change each complete with their own reason, check and seal); the DCW-V0-025 cases of `script/dogfood-change_test.sh` (both codes complete and check through the wrappers; each invalid shape reports its exact reason, `context-abstention-invalid`, `exit-7` or `unsupported-impact-path-suffix`; change and check print the NOTE line for all three codes) | implemented; accepted with the `GOC-V0-009` and `ERI-V0-006` amendments (decision 0388); a real Beamfall change NOT_OBSERVED |
 | `DCW-V0-026` | `internal/dogfoodflow/change.go` `run` and `prechangeImpact`, `internal/dogfoodflow/check.go` `checkContextAbstention`, `internal/localcompletion/finish.go` `terminalPaths`, `internal/observations/observations.go` `validDogfoodStep`; `TestChangeKeepsAgentPrechangeReceipts` | implemented; owner acceptance pending |
+| `DCW-V0-027` (proposed) | `internal/dogfoodflow/check.go` `unarchivedBaseCEM`, `script/dogfood-seal.sh`; `TestSealRefusesToDropAnUnarchivedBaseCEM`; the V1-0137 case of `script/dogfood-change_test.sh` | implemented; not accepted |
+| `DCW-V0-028` (proposed) | `internal/dogfoodflow/change.go` `skipOCMLinks`; the V1-0227 case of the link phase of `script/dogfood-change_test.sh` | implemented; not accepted |
+| `DCW-V0-029` (proposed) | `internal/dogfoodflow/change.go` `recordCitationBinding` and `ordinalsMoved`; `TestChangeRefusesAPlanWhoseOrdinalsMoved` and the V1-0239 `swapped-ordinals` case of `script/dogfood-change_test.sh` | implemented; not accepted |
+| `DCW-V0-030` (proposed) | none; `internal/dogfoodflow/check.go` `checkReport` still emits `dogfood-report-drift` for both cases | not implemented; needs an owner decision |
+| `DCW-V0-031` (proposed) | `internal/dogfoodflow/change.go` `noteAgentReceipts`; `TestChangeNotesAbsentOrStaleAgentReceipts`; the absent-receipt lines asserted by `TestDogfoodDailyPath*` and the DCW-V0-025 case of `script/dogfood-change_test.sh` | implemented; not accepted |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 ## Compatibility and rollback
