@@ -334,7 +334,7 @@ func (walk *walker) ask(origin string, query target) ([]string, error) {
 		}
 		walk.found.failed++
 		if walk.found.first == "" {
-			walk.found.first = err.Error()
+			walk.found.first = repositoryRelative(walk.root, err.Error())
 		}
 		return nil, nil
 	}
@@ -544,6 +544,14 @@ func serverVersion(initialized json.RawMessage) string {
 
 func fileURI(path string) string {
 	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String()
+}
+
+// repositoryRelative drops the repository root from a gopls error message,
+// in its file URI and its native form, so a failure reason names documents as
+// repository-relative paths and carries no machine- or user-specific prefix
+// (V1-0167, TCP-V0-045).
+func repositoryRelative(root, text string) string {
+	return strings.NewReplacer(fileURI(root)+"/", "", root+string(filepath.Separator), "").Replace(text)
 }
 
 func relativePath(root, uri string) (string, bool) {

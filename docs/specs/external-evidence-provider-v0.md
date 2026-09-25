@@ -223,7 +223,9 @@ each cited path still exists at that revision, and what was omitted or could not
   failed`, `gopls did not exit cleanly`, `gopls process group not proven cleaned up`, `language
   server identified as NAME, not gopls; refused`, `gopls answered all N queries with an error;
   first: ERROR` when at least one query was issued and every one failed, or a repository, root
-  commit or cache-directory reason). The exit code and every other packet member
+  commit or cache-directory reason). ERROR is the first query error with the repository root, as
+  a file URI or a native path, removed, so it names documents repository-relative and carries no
+  machine-specific prefix (V1-0167). The exit code and every other packet member
   are unchanged.
 
 ## Non-goals and simpler baseline
