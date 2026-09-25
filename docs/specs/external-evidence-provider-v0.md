@@ -63,9 +63,10 @@ each cited path still exists at that revision, and what was omitted or could not
 - `EEP-V0-001`: A provider record MUST be one JSON document whose top-level members are exactly
   `schema`, `provider`, `repository`, `entities`, and `relations`, plus the optional
   `capabilities` declaration of `EEP-TR-012` (decision 0351); `schema` MUST equal
-  `external-evidence-provider/0`. Any unknown member at any level, a duplicate entity id, an
-  identifier or text outside the bounds of `EEP-V0-012` and `EEP-V0-013`, or a malformed field
-  makes the whole record `invalid` with one reason. Core never repairs a record.
+  `external-evidence-provider/0`. Any unknown member at any level, a member name repeated within
+  one object (worded as in `EEP-V0-020`), a duplicate entity id, an identifier or text outside
+  the bounds of `EEP-V0-012` and `EEP-V0-013`, or a malformed field makes the whole record
+  `invalid` with one reason. Core never repairs a record.
 - `EEP-V0-002`: `corvint impact --provider FILE PATH...` selects a provider record; the option MAY
   repeat up to four times. A relative `FILE` resolves against `--root`. `--provider` with `--base`
   or `--working-tree-untracked` is an argument error, and a fifth `--provider` is an argument
@@ -310,7 +311,7 @@ their tests, the fixture `lsp-gopls.json`, the one `attachLSPEvidence` call in
 
 | Requirement | Implementation surface | Required evidence |
 |---|---|---|
-| `EEP-V0-001`, `EEP-V0-013` | `internal/extevidence/record.go` | `TestProviderRecordSchemaStrict`, `TestCapabilitiesDecodeStrict` |
+| `EEP-V0-001`, `EEP-V0-013` | `internal/extevidence/record.go`, `internal/extevidence/section.go` | `TestProviderRecordSchemaStrict`, `TestCapabilitiesDecodeStrict`, `TestRepeatedMemberIsInvalid` |
 | `EEP-V0-002` | `cmd/corvint/main.go` | `TestImpactProviderFlagParsing` |
 | `EEP-V0-003`, `EEP-V0-015` | `cmd/corvint/main.go` | `TestImpactProviderSectionSeparation` |
 | `EEP-V0-004` | `internal/extevidence/section.go` | `TestProviderSectionDeterministicAndPinned` |

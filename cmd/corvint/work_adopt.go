@@ -222,7 +222,7 @@ func runWorkRebind(ctx context.Context, root string, arguments []string, stdout,
 	}
 	source, err := acquireWorkSource(ctx, root)
 	if err != nil {
-		fmt.Fprintln(stderr, "corvint work rebind: existing adoption is unqualified:", err)
+		fmt.Fprintln(stderr, "corvint work rebind: existing adoption is unqualified:", workSourceReason(err))
 		return 2
 	}
 	defer source.qualified.Close()
