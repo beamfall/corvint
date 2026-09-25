@@ -30,7 +30,7 @@ func fixtureObserveMount(f *os.File) (result fixtureMount, err error) {
 		if err = syscall.Fstatfs(int(fd), &fs); err != nil {
 			return err
 		}
-		observed := filesystemFromMagic(uint32(fs.Type))
+		observed := linuxFilesystem(int(fd), uint32(fs.Type))
 		if !observed.Local || !Classify("linux", observed.Type) {
 			return fixtureUnsupported
 		}
@@ -46,7 +46,7 @@ func fixtureObserveMount(f *os.File) (result fixtureMount, err error) {
 		if err != nil {
 			return err
 		}
-		mount, err := fixtureLinuxMountID(raw)
+		mount, err := linuxMountID(raw)
 		if err != nil {
 			return err
 		}
@@ -55,7 +55,7 @@ func fixtureObserveMount(f *os.File) (result fixtureMount, err error) {
 	})
 	return result, err
 }
-func fixtureLinuxMountID(raw []byte) (string, error) {
+func linuxMountID(raw []byte) (string, error) {
 	if len(raw) > 4096 {
 		return "", fixtureRefused
 	}

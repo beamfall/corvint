@@ -4,6 +4,19 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence. Add new entries at the end so no cited line moves; each entry carries a date
 heading and its requirement or decision IDs, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-25 decision 0411: corvint-tasks qualifies Linux ext4 from mountinfo
+
+The Tasks store refused every Linux mount with the shared ext2/ext3/ext4 statfs magic, so `init`
+refused on stock ext4 hosts and Linux CI failed every store-backed test (PR #241 run 36192798644,
+`UNSUPPORTED_FILESYSTEM`). Chosen: resolve the shared magic from the pinned descriptor's
+fdinfo `mnt_id` and that mount's `mountinfo` fstype. The alternative, documenting Linux as
+tmpfs/xfs/btrfs only, was set aside by the owner. Evidence: all 15 `internal/tasks` packages pass
+on Linux (golang:1.27.1 container) with `TMPDIR` on ext4. `corvint-tasks init` and `queue status`
+succeed in an ext4 repository. `internal/tasks/authority` takes 381 s there, against 79 s on
+tmpfs, because real fsyncs are dearer. The same change makes `TestRunningFailedPassed` edit its
+watched file by rename. It had flaked when the polling watcher settled on a truncated
+`os.WriteFile` (PR #244 run 36191896154: identical content, different input identity).
+
 ## 2026-09-25 V1-0264 DCW-V0-025 (accepted, decision 0388): no-module and module-root impact refusals are typed abstentions
 
 `corvint dogfood change` kept only `unsupported-impact-range` as a non-blocking `prechange-impact`

@@ -63,7 +63,8 @@ type Filesystem struct {
 	// Type is the filesystem type name: Darwin `f_fstypename`; Linux the
 	// name of a recognised `f_type` magic, or `magic:0x...` when the magic
 	// is not one this package knows. On Linux ext2, ext3 and ext4 share
-	// one magic (0xEF53) and are reported as `ext4`.
+	// one magic (0xEF53); the mount's fstype in /proc/self/mountinfo names
+	// which one, and without it the type is `ext2/ext3/ext4` and refused.
 	Type string
 
 	// Local is true when the OS reported the mount as local (Darwin
