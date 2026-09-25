@@ -5566,3 +5566,13 @@ The reviews also found two defects in the shipped experimental `flows` command: 
 confined to the root, and the input file is opened before it is checked, so a FIFO blocks the read.
 Both are fixed in slice S1 (`AFU-V1-036`). A third defect: the Playwright provider keeps only the
 final attempt (`AFU-V1-012`).
+
+The owner delegated the three open questions to experts. The navigation packet gets no external
+agent format in 1.0, because no candidate format carries effect classes, verified state and
+untrusted marking. Review is self-attested, because Git identity fields cannot be verified offline.
+Claim anchors in hand-written docs are opt-in, and unanchored documents are reported as `UNPROVEN`.
+An independent review of the first draft led to four changes: the E2E inventory is reconciled with
+runner discovery, global paths are built in, exclusion proofs are split into `coverage` and
+`reviewed-links` bases, and evidence carries forward only when nothing it depends on changed. The
+parts of the model that `e2e-safe` reads are Core-owned, and the candidate ships without the value
+if it is not qualified in time.
