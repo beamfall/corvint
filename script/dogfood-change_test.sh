@@ -663,11 +663,14 @@ phase_jobs="$phase_jobs $!"
       .corvint/dogfood-report.json
   done
   rg -Fxq '  "ocmStatus": {"state": "NOT_ASSESSED", "reason": "no-intent-declared"}' .corvint/dogfood-report.json
-  if tail -n "+$((no_intent_log_start + 1))" "$test_root/corvint.log" | rg -q '(^| )(ocm|dogfood-ocm) '; then
+  no_intent_log=$(tail -n "+$((no_intent_log_start + 1))" "$test_root/corvint.log")
+  if printf '%s\n' "$no_intent_log" | rg -q '(^| )(ocm|dogfood-ocm) '; then
     printf 'dogfood-change ran an OCM step without a declared intent\n' >&2
     exit 1
   fi
-  run_dogfood_check "$base" | rg -Fxq 'dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared'
+  no_intent_check_output=$(run_dogfood_check "$base")
+  printf '%s\n' "$no_intent_check_output" | \
+    rg -Fxq 'dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared'
   cp "$test_root/intents.txt" .corvint/change.ocm-intents
 
   # An authority-start trace-state refusal names the task wording as its subject.
