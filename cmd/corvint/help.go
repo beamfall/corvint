@@ -572,7 +572,7 @@ The separate corvint-web-flows companion parses JS/TS and optionally observes an
 explicitly trusted local app. Its proposed execution profile remains experimental.
 record explicitly writes one screened private evidence file and refuses overwrite;
 it does not update ranking or accept inferred intent. No automatic ledger is written.
-`
+` + flowsIntentHelp
 
 const obligationsHelp = `Compose the external-frontier-obligations/0 sidecar for one CEM.
 

@@ -14,7 +14,7 @@ decisions 0374 and 0385.
 
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
-- Status: accepted (decision 0385)/planned; nothing below is implemented or qualified.
+- Status: accepted (decision 0385)/planned; S1 (AFU-V1-001..005, 007..010, 036) is implemented and unqualified; nothing else is implemented or qualified.
 - Exists: the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
 - Blocked on: implementation slices S1-S8 (Rollout) and the acceptance evidence below.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Deterministic acceptance.
@@ -41,10 +41,12 @@ product documentation checkable. Measured jobs:
 
 At `978b37b`:
 
-- `corvint flows` dispatches only `record` beside its report (`cmd/corvint/flows.go:32-36@657e47f8`).
-  Its output file is created with `O_EXCL` but without root or symlink confinement
-  (`internal/appflows/report.go:318@50169337`), and an input is opened before the regular-file check,
-  so a FIFO can block the reader (`internal/appflows/input.go:56-66@6736be73`).
+- `corvint flows` dispatched only `record` beside its report, created its output without root or
+  symlink confinement, and opened an input before the regular-file check. S1 adds the `export` and
+  `import` subcommands (`cmd/corvint/flows.go:35-36@97eb5689`), routes `record` through the
+  root-confined exclusive writer (`internal/appflows/report.go:317@18a159fa`,
+  `internal/appflows/input.go:87-100@06fa25b5`), and checks Lstat before open
+  (`internal/appflows/input.go:61-68@8ab13087`).
 - The behavior provider pins exactly three repositories, `app`, `golf_e2e` and `docs_corpus`
   (`internal/doccorpus/behavior.go:35-39@2b4b5d34`).
 - ETS selection returns `narrow-selection-allowed` once no obligation is uncovered
@@ -139,6 +141,33 @@ At `978b37b`:
 - `AFU-V1-010`: Reverse lookups (source path to flows, test key to flows) MUST be derived at query
   time from the forward links at the evaluated revision. They are never stored as a second source of
   truth.
+
+### Wire and command contract
+
+This subsection fixes the S1 wire and argv shapes. It adds no requirement and no root verb.
+
+- Intent: the closed members are `schema`, `flow_id`, `revision`, `proposed` (present only on
+  imported intents), `kind`, `actor`, `preconditions`, `steps` (`step_id`, `action`), `outcomes`
+  (`outcome_id`, `behavior`, `matcher`, `locator`, `value`), `variations` (`variation_id`,
+  `preconditions`, `steps`, `observable_facts`, `outcomes`, `projects`), `links` and the optional
+  `adapter` (`derivation`, the DCP-V1 `evidence` anchor, `required_pages`, `negative_controls`,
+  `ordered_events`, `missing_e2e_review`). A link has `from` (a step, outcome or variation ID),
+  `basis` (`declared` or `inferred`), `target` (`type` `source`, `test`, `assertion` or `evidence`,
+  with `path`, `start_line`, `end_line`, `test_key`, `assertion` and `digest`) and `reviewed_at`,
+  which `inferred` links refuse. `retired.json` is `application-flow-retired/1` with `flow_ids` and
+  `variation_ids`.
+- `corvint [--root PATH] flows export --flows DIR --emit inventory|provider|request [--envelope FILE]`
+  writes one document to stdout and nothing to the repository. `inventory` is
+  `application-flow-inventory/1`, the flow and variation records a behavior-adapter request maps.
+  `provider` is an EEP-V1 `corvint-application-flows` record evaluated at `HEAD`: one entity per
+  flow and variation, one relation per link whose rule carries the review state, and
+  `review_attestation=self` on reviewed links. `request` requires `--envelope`, a
+  `corvint-behavior-adapter-request/1` whose `application-flows` input anchors the committed
+  inventory bytes; export sets that input's document and its flow and variation mappings, then
+  refuses any result the DCP-V1 adapter refuses. Every exported intent needs an `adapter` member.
+- `corvint [--root PATH] flows import --flows DIR --from FILE --format behavior-adapter-request|openapi|playwright-list`
+  creates one proposed intent per imported flow with `O_EXCL`, refuses the whole set when any ID
+  exists, is retired or repeats, and prints the written paths. OpenAPI input is JSON only.
 
 ### Run evidence
 
@@ -321,15 +350,25 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 
 | Requirements | Evidence |
 | --- | --- |
-| AFU-V1-001..006 | intent schema tests, the export/import round trip, `/2` multi-repository fixture |
-| AFU-V1-007..010 | review-anchor validity, stale transition and inferred-exclusion tests |
+| AFU-V1-001 | `TestAFUV1IntentClosedSchema` |
+| AFU-V1-002 | `TestAFUV1RetiredAndDuplicateIDsRefused`, `TestAFUV1ImportRefusesRetiredIDs` |
+| AFU-V1-003 | `TestAFUV1ExportCompilesRequestAndProvider`, `TestAFUV1ExportRefusesUnanchoredInventory`, `TestAFUV1ExportLeavesRepositoryByteIdentical`, `TestAFUV1FlowsCLIExportIsReadOnly` |
+| AFU-V1-004 | `TestAFUV1ImportOpenAPIAndPlaywright`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1FlowsCLIImportNeverOverwrites` |
+| AFU-V1-005 | `TestAFUV1RoundTripByteExact` |
+| AFU-V1-006 | `/2` multi-repository fixture (S3) |
+| AFU-V1-007 | `TestAFUV1ReviewAnchorValidAndStale` |
+| AFU-V1-008 | `TestAFUV1ReviewAnchorValidAndStale`, `TestAFUV1ReviewAnchorNotAncestor`, `TestAFUV1ReviewAnchorMustChangeIntent`, `TestAFUV1InferredExcludedFromReviewed` |
+| AFU-V1-009 | `TestAFUV1InferredExcludedFromReviewed` |
+| AFU-V1-010 | `TestAFUV1ReverseLookupsDerived`, `TestAFUV1ExportLeavesRepositoryByteIdentical`, `TestAFUV1FlowsCLIExportIsReadOnly` |
 | AFU-V1-011..014 | adapter fixtures with a retry-passed test, a timed-out attempt and a failed negative control |
 | AFU-V1-015..018 | map, gaps and impact goldens on the fixture application, and the read-only mutation check |
 | AFU-V1-019..024 | the fault-injected corpus reported per basis, one case per fallback code, an undiscovered-test case, the byte identity of `strict` and `coverage` |
 | AFU-V1-025..029 | navigation goldens, effect raising from observed traffic, `requires-grant` marking, the observer refusal, and a deterministic scripted agent that completes each fixture goal from the packet alone |
 | AFU-V1-030..033 | docs goldens, drift failure on a lost `PROVEN`, waiver expiry, the anchored Markdown case |
 | AFU-V1-034..035 | MCP conformance with and without the selector |
-| AFU-V1-036..038 | symlink, FIFO, bound and secret-screen cases |
+| AFU-V1-036 | `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
+| AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1ImportScreensAndBoundsSource`; run-evidence attempt bounds in S2 |
+| AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`; recorded run evidence in S2 |
 | AFU-V1-039..040 | the committed acceptance fixture and the frozen corpus report |
 
 Live qualification: the companion surfaces are qualified on Beamfall with one UI flow and one API
@@ -362,7 +401,8 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 
 | Requirement range | Implementation (planned) |
 | --- | --- |
-| AFU-V1-001..010, 015..018, 025..033 | `internal/appflows`, `cmd/corvint/flows.go` |
+| AFU-V1-001..005, 007..010 | implemented: `internal/appflows/intent.go`, `review.go`, `export.go`, `import.go`, `cmd/corvint/flows.go` |
+| AFU-V1-015..018, 025..033 | `internal/appflows`, `cmd/corvint/flows.go` |
 | AFU-V1-006 | `internal/doccorpus/behavior.go` |
 | AFU-V1-011..014 | `internal/appflows` evidence, `internal/jstestprovider/playwright.go` |
 | AFU-V1-019..024 | `internal/extevidence/selection.go`, `cmd/corvint/affected.go` |
