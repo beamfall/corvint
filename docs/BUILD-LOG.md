@@ -5647,8 +5647,9 @@ outcome can be attested for it.
 
 Updated the "Verified current state" paragraph of `docs/specs/use-case-conformance-v0.md` to record
 the two bound receipts, the orientation absence and reason, and that the Beamfall intent spec these
-receipts attest against (`docs/plugins/trust-roots.md`) is proposed and awaiting owner acceptance in
-the same Beamfall PR, so no row is `verified` yet; both rows stay `experimental`/`UNPROVEN`. The
+receipts attest against (`docs/plugins/trust-roots.md`) was accepted by the owner on 2026-09-25 in
+the same Beamfall PR (after the bind), while no row is `verified` yet because V1-0011 promotes the three
+Core rows together and orientation has no Beamfall receipt; both rows stay `experimental`/`UNPROVEN`. The
 edit shifted `UCV0-001..013`'s line numbers (no requirement IDs renumbered), so
 `docs/specs/REQUIREMENTS.tsv` was regenerated (`script/gen-spec-requirements.sh`, run against the
 staged spec file) and `make spec-requirements-check` passes. No existing `contract.json` receipt
