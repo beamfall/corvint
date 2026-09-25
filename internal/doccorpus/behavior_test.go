@@ -485,3 +485,105 @@ func TestBehaviorAcceptanceAmendment(t *testing.T) {
 		}
 	})
 }
+
+func v1BehaviorProviderLiteral() ProviderRecord {
+	oid := func(c string) string { return strings.Repeat(c, 40) }
+	anchor := Anchor{Repository: oid("a"), Revision: oid("b"), Path: "tests/flow.spec.ts", Blob: oid("c"), SHA256: strings.Repeat("d", 64), Start: 1, End: 2, SpanSHA256: strings.Repeat("e", 64), Authority: "external-provider", Kind: "declared", Reason: "fixture"}
+	registry := BehaviorRegistry{Schema: 2, ContractID: "checkout", ContractSHA256: strings.Repeat("f", 64), SourceRevision: oid("b"), DocumentationRevision: oid("9"),
+		Revisions: BehaviorRevisions{App: Repository{oid("1"), oid("8")}, E2E: Repository{oid("a"), oid("b")}, Docs: Repository{oid("2"), oid("9")}},
+		Discovery: anchor, Manifest: anchor,
+		Flows:     []BehaviorFlow{{Derivation: "declared", ID: "checkout", Evidence: anchor, Criteria: []string{"paid"}, Tests: []string{"t1"}, RequiredPages: []string{"/cart"}, NegativeControls: []string{"declined"}, OrderedEvents: []BehaviorEvent{}}},
+		Behaviors: []BehaviorSource{}, Tests: []BehaviorTest{{ID: "t1", Project: "chromium", Title: "pays", Evidence: anchor, Flows: []string{"checkout"}, Criteria: []string{"paid"}, Assertions: []BehaviorAssertion{}}}}
+	return ProviderRecord{Schema: BehaviorProviderSchema, ID: "behavior", Version: "1", Source: Repository{oid("a"), oid("b")}, BehaviorContracts: &registry, Subjects: []Subject{}, Claims: []Claim{}, Relations: []Relation{}, Journeys: []Journey{}, Observations: []ObservationLink{}, Capabilities: []CapabilityDeclaration{}}
+}
+
+// The digest was taken from this literal before the /2 profile existed, so
+// the /1 encoding is proven byte-identical across the change (AFU-V1-006).
+func TestAFUV1BehaviorProviderV1BytesUnchanged(t *testing.T) {
+	data, err := Encode(v1BehaviorProviderLiteral())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := Digest(data); got != "e263c8040f6f9581b2210caafe4aebb596bab9b8ef53ede1996d787fdd0e373b" {
+		t.Fatalf("/1 provider bytes changed: %s\n%s", got, data)
+	}
+	var decoded ProviderRecord
+	if err := decode(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	again, err := Encode(decoded)
+	if err != nil || string(again) != string(data) {
+		t.Fatalf("/1 round trip changed bytes: %v", err)
+	}
+	if err := ValidateBehaviorProviderV2(decoded); err == nil {
+		t.Fatal("/1 record accepted as /2")
+	}
+	root, m := behaviorFixture(t, func(r *BehaviorRegistry) {
+		r.Repositories = []BehaviorRepository{{r.Revisions.E2E.ID, r.Revisions.E2E.Revision}}
+	})
+	if _, err := Build(context.Background(), root, m); err == nil {
+		t.Fatal("/1 reader accepted a repositories member")
+	}
+}
+
+func TestAFUV1BehaviorProviderV2MultiRepository(t *testing.T) {
+	oid := func(c string) string { return strings.Repeat(c, 40) }
+	p := v1BehaviorProviderLiteral()
+	r := *p.BehaviorContracts
+	fixed := r.Revisions
+	r.Revisions = BehaviorRevisions{}
+	r.Repositories = []BehaviorRepository{{oid("1"), oid("8")}, {oid("2"), oid("9")}, {oid("3"), oid("7")}, {oid("a"), oid("b")}}
+	r.ContractSHA256 = ""
+	r.ContractSHA256 = testHash(t, r)
+	p.Schema, p.BehaviorContracts = BehaviorProviderSchemaV2, &r
+	if err := ValidateBehaviorProviderV2(p); err != nil {
+		t.Fatal(err)
+	}
+	data, err := Encode(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), `"revisions"`) || !strings.Contains(string(data), `"repositories":[{"root_commit":"`+oid("1")+`","revision":"`+oid("8")+`"}`) {
+		t.Fatalf("/2 wire shape: %s", data)
+	}
+	var decoded ProviderRecord
+	if err := decode(data, &decoded); err != nil || ValidateBehaviorProviderV2(decoded) != nil {
+		t.Fatalf("/2 round trip: %v", err)
+	}
+	// rehash keeps the digest valid, so a case that calls it breaks only the member it edits.
+	rehash := func(r *BehaviorRegistry) { r.ContractSHA256 = ""; r.ContractSHA256 = testHash(t, *r) }
+	for name, edit := range map[string]func(*ProviderRecord, *BehaviorRegistry){
+		"empty": func(_ *ProviderRecord, r *BehaviorRegistry) { r.Repositories = nil },
+		"unsorted": func(_ *ProviderRecord, r *BehaviorRegistry) {
+			r.Repositories[0], r.Repositories[1] = r.Repositories[1], r.Repositories[0]
+		},
+		"duplicate root": func(_ *ProviderRecord, r *BehaviorRegistry) { r.Repositories[1].RootCommit = oid("1") },
+		"source unlisted": func(p *ProviderRecord, r *BehaviorRegistry) {
+			p.Source.Revision, r.SourceRevision = oid("c"), oid("c")
+			rehash(r)
+		},
+		"malformed root commit": func(_ *ProviderRecord, r *BehaviorRegistry) {
+			r.Repositories[0].RootCommit = strings.Repeat("1", 39) + "g"
+			rehash(r)
+		},
+		"empty revision": func(_ *ProviderRecord, r *BehaviorRegistry) {
+			r.Repositories[1].Revision = ""
+			rehash(r)
+		},
+		"fixed members": func(_ *ProviderRecord, r *BehaviorRegistry) { r.Revisions = fixed },
+		"digest":        func(_ *ProviderRecord, r *BehaviorRegistry) { r.ContractID = "other" },
+		"schema /1":     func(p *ProviderRecord, _ *BehaviorRegistry) { p.Schema = BehaviorProviderSchema },
+	} {
+		mutated, registry := p, r
+		registry.Repositories = slices.Clone(r.Repositories)
+		edit(&mutated, &registry)
+		mutated.BehaviorContracts = &registry
+		err := ValidateBehaviorProviderV2(mutated)
+		if err == nil {
+			t.Fatalf("%s: accepted", name)
+		}
+		if name != "digest" && strings.Contains(err.Error(), "digest") {
+			t.Fatalf("%s: refused only by the digest: %v", name, err)
+		}
+	}
+}

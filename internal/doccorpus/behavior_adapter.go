@@ -206,7 +206,7 @@ func validatePreviousBehaviorAdapterResult(request BehaviorAdapterRequest, resul
 		return invalid("lineage")
 	}
 	registry := result.Provider.BehaviorContracts
-	if registry.ContractID != request.ContractID || !validBehaviorRevisions(registry.Revisions) || result.Provider.Source != registry.Revisions.E2E || registry.SourceRevision != result.Provider.Source.Revision || registry.DocumentationRevision != registry.Revisions.Docs.Revision || !sameBehaviorRepositories(registry.Revisions, request.Revisions) {
+	if registry.ContractID != request.ContractID || registry.Repositories != nil || !validBehaviorRevisions(registry.Revisions) || result.Provider.Source != registry.Revisions.E2E || registry.SourceRevision != result.Provider.Source.Revision || registry.DocumentationRevision != registry.Revisions.Docs.Revision || !sameBehaviorRepositories(registry.Revisions, request.Revisions) {
 		return invalid("contract lineage")
 	}
 	declarations := *registry

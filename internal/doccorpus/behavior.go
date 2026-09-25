@@ -10,8 +10,14 @@ import (
 // BehaviorProviderSchema is experimental: declarations never authorize narrowing.
 const BehaviorProviderSchema = "corvint-corpus-behavior-provider/1"
 
+// BehaviorProviderSchemaV2 names every participating repository in the
+// registry's repositories list instead of the three fixed revisions members
+// (AFU-V1-006). The corpus compiler reads only /1 and refuses /2.
+const BehaviorProviderSchemaV2 = "corvint-corpus-behavior-provider/2"
+
 type BehaviorRegistry struct {
-	Revisions             BehaviorRevisions    `json:"revisions"`
+	Revisions             BehaviorRevisions    `json:"revisions,omitzero"`
+	Repositories          []BehaviorRepository `json:"repositories,omitempty"`
 	Discovery             Anchor               `json:"discovery"`
 	Schema                int                  `json:"schema"`
 	ContractID            string               `json:"contract_id"`
@@ -36,6 +42,13 @@ type BehaviorRevisions struct {
 	App  Repository `json:"app"`
 	E2E  Repository `json:"golf_e2e"`
 	Docs Repository `json:"docs_corpus"`
+}
+
+// BehaviorRepository is one /2 participating repository: its root commit and
+// the revision the registry was evaluated at.
+type BehaviorRepository struct {
+	RootCommit string `json:"root_commit"`
+	Revision   string `json:"revision"`
 }
 type BehaviorDiscovery struct {
 	Schema     string              `json:"schema"`
@@ -156,7 +169,7 @@ func (c *compiler) importBehavior(p Provider, r *BehaviorRegistry) error {
 	if len(r.Flows) > MaxRecords || len(r.Tests) > MaxRecords || len(r.Behaviors) > MaxRecords {
 		return fail("behavior registry bound exceeded")
 	}
-	if c.manifest.BehaviorRevisions == nil || !validBehaviorRevisions(r.Revisions) || !validBehaviorRevisions(*c.manifest.BehaviorRevisions) {
+	if c.manifest.BehaviorRevisions == nil || r.Repositories != nil || !validBehaviorRevisions(r.Revisions) || !validBehaviorRevisions(*c.manifest.BehaviorRevisions) {
 		return fail("behavior revision set missing or invalid")
 	}
 	discovery, err := c.behaviorDiscovery(r)
@@ -267,6 +280,46 @@ func validBehaviorRevisions(r BehaviorRevisions) bool {
 		}
 	}
 	return true
+}
+
+// ValidateBehaviorProviderV2 checks a /2 provider record: a non-empty list of
+// repositories sorted by unique root commit, no /1 revisions member, a source
+// that is one of the listed repositories, and a contract digest that covers
+// the declarations exactly as /1 does.
+func ValidateBehaviorProviderV2(p ProviderRecord) error {
+	r := p.BehaviorContracts
+	if p.Schema != BehaviorProviderSchemaV2 || r == nil || r.Stability != nil || r.Revisions != (BehaviorRevisions{}) {
+		return fail("invalid behavior provider /2 identity")
+	}
+	if !validBehaviorRepositories(r.Repositories) || !slices.Contains(r.Repositories, BehaviorRepository{p.Source.ID, p.Source.Revision}) || r.SourceRevision != p.Source.Revision {
+		return fail("invalid behavior provider /2 repositories")
+	}
+	declarations := *r
+	declarations.ContractSHA256 = ""
+	declarations.Tests = slices.Clone(r.Tests)
+	for i := range declarations.Tests {
+		declarations.Tests[i].Runtime = nil
+	}
+	declarations.Legacy = slices.Clone(r.Legacy)
+	for i := range declarations.Legacy {
+		declarations.Legacy[i].Runtime = nil
+	}
+	contractSHA256, err := hashValue(declarations)
+	if err != nil || contractSHA256 != r.ContractSHA256 {
+		return fail("behavior contract digest mismatch")
+	}
+	return nil
+}
+
+func validBehaviorRepositories(repositories []BehaviorRepository) bool {
+	previous := ""
+	for _, repository := range repositories {
+		if !wire.IsGitOid(repository.RootCommit) || !wire.IsGitOid(repository.Revision) || repository.RootCommit <= previous {
+			return false
+		}
+		previous = repository.RootCommit
+	}
+	return len(repositories) != 0 && len(repositories) <= MaxRecords
 }
 func (c *compiler) behaviorDiscovery(r *BehaviorRegistry) (BehaviorDiscovery, error) {
 	var d BehaviorDiscovery

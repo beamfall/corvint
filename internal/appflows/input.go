@@ -57,6 +57,9 @@ func Decode(data []byte, out any) error {
 // openInputFile is a test seam for a path swap between Lstat and open.
 var openInputFile = openInput
 
+// errInputBytes is ReadFile's byte-bound refusal, which a run-report ingest reports as its bound code.
+var errInputBytes = errors.New("flow input exceeds byte limit")
+
 // ReadFile reads a flow input only when Lstat shows a regular file before it is opened (AFU-V1-036).
 func ReadFile(filename string) ([]byte, error) {
 	before, err := os.Lstat(filename)
@@ -77,7 +80,7 @@ func ReadFile(filename string) ([]byte, error) {
 	}
 	b, err := io.ReadAll(io.LimitReader(f, MaxBytes+1))
 	if len(b) > MaxBytes {
-		return nil, errors.New("flow input exceeds byte limit")
+		return nil, errInputBytes
 	}
 	return b, err
 }

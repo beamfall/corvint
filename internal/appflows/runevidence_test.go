@@ -93,6 +93,10 @@ func TestAFUV1NegativeControlFailed(t *testing.T) {
 	if !Verified(pass) {
 		t.Fatal("a negative control that failed as expected blocked verification")
 	}
+	pass.NegativeControls[0] = NegativeControl{TestKey: "control.x", Expected: "passed", Observed: "passed"}
+	if Verified(pass) {
+		t.Fatal("a negative control that passed as its declared expectation verified its subject")
+	}
 }
 
 // AFU-V1-012

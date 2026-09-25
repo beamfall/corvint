@@ -113,6 +113,19 @@ func IngestRunEvidence(format string, raw []byte, header RunHeader) (Ingested, e
 	return Ingested{Records: records}, err
 }
 
+// IngestRunFile reads the report with the flow-input discipline and ingests it; a report over the
+// byte bound is incomplete under run-evidence-byte-bound, not a read error (AFU-V1-037).
+func IngestRunFile(format, filename string, header RunHeader) (Ingested, error) {
+	raw, err := ReadFile(filename)
+	if errors.Is(err, errInputBytes) {
+		return Ingested{Incomplete: BoundBytes}, nil
+	}
+	if err != nil {
+		return Ingested{}, err
+	}
+	return IngestRunEvidence(format, raw, header)
+}
+
 func runRecords(runner string, tests []*runTest, header RunHeader) ([]TestRunEvidence, error) {
 	results := map[string]string{}
 	for _, t := range tests {
