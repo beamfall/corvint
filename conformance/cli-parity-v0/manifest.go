@@ -611,7 +611,8 @@ const packetBytesPrefix = `"packet_bytes":`
 // validKnownDivergence closes the stdout-divergence admission to the eight
 // adjudicated `python-defect` entries that have one (DR-0007, DR-0008, DR-0009,
 // DR-0015, DR-0016, DR-0017, DR-0025, DR-0035, over nine cases) plus the two
-// intentional Go extensions DR-0039 and DR-0040 (one case each), and to exactly
+// intentional Go extensions DR-0039 and DR-0040 (one case each) and the
+// intentional divergence DR-0041 (two cases), and to exactly
 // the byte regions each one's clause produces. Nothing else may be declared away, and
 // every rewrite's candidate side is the form the clause names rather than bytes
 // read off the candidate.
@@ -646,6 +647,8 @@ func validKnownDivergence(item parityCase) bool {
 		return validMarkReasonDivergence(item)
 	case "cem-invalid-subcommand":
 		return validCEMActionDivergence(item)
+	case "cem-begin-unreadable-patch", "cem-unreadable-map":
+		return validReadFailureCodeDivergence(item)
 	}
 	return false
 }
@@ -674,6 +677,30 @@ func validCEMActionDivergence(item parityCase) bool {
 	}
 	rewrite := divergence.StderrRewrites[0]
 	return rewrite.Candidate == cemActionChoices && rewrite.Oracle == oracleCEMActionChoices
+}
+
+// readFailureCodes maps each case `DR-0041` admits to the code the candidate
+// adds to the oracle's codeless CEM read refusal (`CCF-V1-004`, proposed under
+// decision 0398).
+var readFailureCodes = map[string]string{
+	"cem-begin-unreadable-patch": "patch-unavailable",
+	"cem-unreadable-map":         "map-unavailable",
+}
+
+// validReadFailureCodeDivergence pins `DR-0041` to the two CEM read refusals:
+// both runtimes refuse with exit status 2, an empty stdout and the same fixed
+// message, and the single stderr rewrite drops the candidate's leading `code`
+// member so the envelope is the oracle's `{"error": ..., "ok": false}`.
+func validReadFailureCodeDivergence(item parityCase) bool {
+	divergence := item.KnownDivergence
+	if item.Argv[0] != "cem" || divergence.Register != "DR-0041" || divergence.Clause != "CCF-V1-004" {
+		return false
+	}
+	if len(divergence.Rewrites) != 0 || len(divergence.StderrRewrites) != 1 {
+		return false
+	}
+	rewrite := divergence.StderrRewrites[0]
+	return rewrite.Candidate == `{"code": "`+readFailureCodes[item.ID]+`", "error": ` && rewrite.Oracle == `{"error": `
 }
 
 // markReasonChoices is the `cem mark --reason` choice list `CEM-SM-001`

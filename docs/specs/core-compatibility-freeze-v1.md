@@ -12,7 +12,7 @@ Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), dec
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.7.0 to 1.0.
 - Status: proposed intent, experimental delivery; the Core set is taken from accepted decision 0332, this contract awaits owner ratification in V1-0001
 - Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), and `cmd/corvint/core_freeze_test.go`
-- Blocked on: V1-0001 owner ratification of this contract and of the proposed B5 amendment to CCF-V1-004; pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
+- Blocked on: V1-0001 owner ratification of this contract and of the proposed B5 and decision 0398 amendments to CCF-V1-004; pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
 
 ## Intent and scope
@@ -92,6 +92,16 @@ state or profile had changed since that baseline; this change adds only root-hel
   untracked path) is frozen as it is. `init` / `adopt` with an unusable revision instead print the
   inventory with `ok=false` and `operationalState=INVALID` on stdout and exit 1. Renaming or removing a
   code, adding `code` to the codeless envelope, or moving a refusal between exit classes is breaking.
+  (proposed, decision 0398) Adding an optional `code` member to a codeless refusal is compatible, as
+  adding an optional member is under CCF-V1-006: `error`, the exit class and the empty stdout stay
+  unchanged, and a reader that ignores `code` sees the earlier envelope. This replaces the clause
+  above that made adding `code` to the codeless envelope breaking; renaming or removing a code once
+  emitted stays breaking. `emitError` therefore emits the `repository-*` and
+  `unsupported-git-object-format` codes of a kernel refusal, and `cem` emits `patch-unavailable` and
+  `map-unavailable` beside the fixed `cannot read patch` and `cannot read CEM map` text. The two
+  pinned `cli-parity-v0` cases this reaches, `cem-begin-unreadable-patch` and `cem-unreadable-map`,
+  are recorded as `DR-0041`. A codeless context-index refusal (for example `impact` of an untracked
+  path) keeps its envelope.
   (proposed 2026-09-25, panel blocker B5, not accepted) Exactly three Core refusals are exempt from
   the `emitError` envelope, and each keeps its own frozen shape: (a) `frontier` emits the
   `frontier-error/0` document `{"code","profile"}` with no `ok` member, frozen by CF-V0-034 and
@@ -155,7 +165,7 @@ state or profile had changed since that baseline; this change adds only root-hel
 ## Non-goals
 
 - No runtime or wire change to any verb other than the proposed CCF-V1-004 refusal classification of
-  2026-09-25 (panel blocker B5), and no new profile version.
+  2026-09-25 (panel blocker B5) and the codes added under decision 0398, and no new profile version.
 - No freeze of companion, research or experimental verbs, modes or profiles (CCF-V1-003, CCF-V1-008).
 - No ratification of the Core boundary: that is the owner's decision in V1-0001.
 - No change to the portable proof wire, CEM, OCM or frontier contracts, which have their own owners.
@@ -165,6 +175,8 @@ state or profile had changed since that baseline; this change adds only root-hel
 
 - A Core identifier changes silently: `TestCoreVerbsEmitTheFrozenProfiles` fails.
 - A Core refusal changes exit class, stdout or code family: `TestCoreRefusalsKeepTheFrozenEnvelope` fails.
+- A refusal drops a code it gained under decision 0398: `TestRepositoryFailureEnvelopeCarriesItsCode`
+  or `TestReadFailuresKeepTheFixedTextAndAddTheirCode` fails.
 - A Core verb classifies a non-root working directory or an unborn `HEAD` differently from its
   siblings: `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike` or
   `TestIndexedCoreVerbsCodeAnUnbornHead` fails.
@@ -190,7 +202,7 @@ state or profile had changed since that baseline; this change adds only root-hel
 |---|---|
 | CCF-V1-001, CCF-V1-002 | `TestCoreVerbsEmitTheFrozenProfiles` |
 | CCF-V1-003 | `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
-| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics`, `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`, `TestIndexedCoreVerbsCodeAnUnbornHead` |
+| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics`, `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`, `TestIndexedCoreVerbsCodeAnUnbornHead`, `TestRepositoryFailureEnvelopeCarriesItsCode`, `TestReadFailuresKeepTheFixedTextAndAddTheirCode`; cli-parity-v0 replay (`DR-0041`) |
 | CCF-V1-005 | `TestCoreVerbsEmitTheFrozenProfiles` (envelope); per-verb member tests in AFP-V0, FPK-V0, TCP-V0 and GPK-V0 |
 | CCF-V1-006 | cli-parity-v0 replay; `TestCoreVerbsEmitTheFrozenProfiles` |
 | CCF-V1-007 (a) | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSectionedSnapshotRefusesACorruptSectionAsAMiss`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
@@ -203,4 +215,5 @@ state or profile had changed since that baseline; this change adds only root-hel
 Revert the change that introduced this contract: the spec, decision 0358, its index rows, the root-help
 `Command maturity:` section and `cmd/corvint/core_freeze_test.go`. No runtime, wire or stored state
 changes, so rollback needs no migration. The proposed CCF-V1-004 classification of 2026-09-25 rolls back
-alone by reverting its change; it writes no stored state.
+alone by reverting its change; it writes no stored state. The decision 0398 codes roll back the same
+way, with `DR-0041` and its two `knownDivergence` declarations.

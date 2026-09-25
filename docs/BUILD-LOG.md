@@ -6196,3 +6196,31 @@ inputs.
 
 NOT_PRODUCED: promisor-missing objects are not classified. That needs a partial-clone fixture and a
 decision on lazy fetch, which conflicts with invariant 7. NOT_RUN: the exhaustive `make gate`.
+
+## 2026-09-25 V1-0336: stripped refusal codes are emitted (panel D3, decision 0398, CCF-V1-004)
+
+The panel found that two emitters removed real codes to match the retired Python oracle.
+`emitError` printed `repository-*` and `unsupported-git-object-format` kernel refusals as codeless
+`{"error","ok":false}`. `emitCEMError` did the same for `patch-unavailable` and `map-unavailable`.
+CCF-V1-004 froze that codeless form. Decision 0398 (PR #221, not yet merged) treats this disputed
+finding as a defect. The CCF-V1-004 amendment is proposed, not accepted.
+
+Decisions:
+
+- Adding an optional `code` member to a codeless refusal is compatible, as CCF-V1-006 already says
+  for optional members. The `error` text, exit class and stdout are unchanged. A codeless
+  context-index refusal keeps its envelope. CEM-PILOT-018 drops "untyped" and names the code.
+- The two `cli-parity-v0` cases this reaches, `cem-begin-unreadable-patch` and `cem-unreadable-map`,
+  keep their frozen oracle digests. They are recorded as intentional divergence `DR-0041`, with one
+  stderr rewrite each, validated by `validReadFailureCodeDivergence`. `known-divergences` moves
+  from 26 to 28.
+- `dogfood change` regenerated an outdated map only on the exact codeless refusal line. It now
+  accepts the coded line and still accepts the codeless line an N-1 `--corvint-bin` prints.
+  Without this, every rebind after a fix commit left `cem-prepare` NOT_PRODUCED `map-unavailable`.
+- No analyzer schema bump: no index input changed.
+
+Evidence: `TestRepositoryFailureEnvelopeCarriesItsCode`,
+`TestReadFailuresKeepTheFixedTextAndAddTheirCode`, `TestCEMPrepareKeepsInheritedMapReplaceGuidance`
+and `TestDogfoodChangeRegeneratesAMapTheNextFixCommitOutdates` fail at base 220ef06 and pass after.
+The `cli-parity-v0` replay passes with the two `DR-0041` declarations. NOT_RUN: the exhaustive
+`make gate`.

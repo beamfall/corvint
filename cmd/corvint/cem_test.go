@@ -167,7 +167,7 @@ func TestCEMPrepareKeepsInheritedMapReplaceGuidance(t *testing.T) {
 	if code != 2 {
 		t.Fatalf("inherited map was not refused: %d %s", code, stderr)
 	}
-	expected := "{\"error\": \"cannot read CEM map: the existing map records a different base or patch; " +
+	expected := "{\"code\": \"map-unavailable\", \"error\": \"cannot read CEM map: the existing map records a different base or patch; " +
 		"pass --replace to regenerate\", \"ok\": false}\n"
 	if stderr != expected {
 		t.Fatalf("guidance lost:\n got %q\nwant %q", stderr, expected)
@@ -175,14 +175,14 @@ func TestCEMPrepareKeepsInheritedMapReplaceGuidance(t *testing.T) {
 	// CEM-PILOT-018: an invalid map carries its own line without parser detail.
 	cemWrite(t, root, ".corvint/change.cem.json", "not a CEM document\n")
 	code, _, stderr = runCLI(t, "--root", root, "cem", "prepare", "--base", target, "--target", third)
-	expected = "{\"error\": \"cannot read CEM map: the existing map is not a valid CEM document; " +
+	expected = "{\"code\": \"map-unavailable\", \"error\": \"cannot read CEM map: the existing map is not a valid CEM document; " +
 		"pass --replace to regenerate\", \"ok\": false}\n"
 	if code != 2 || stderr != expected {
 		t.Fatalf("invalid-map guidance: %d\n got %q\nwant %q", code, stderr, expected)
 	}
 	// An absent map carries no guidance and keeps the fixed untyped text.
 	code, _, stderr = runCLI(t, "--root", root, "cem", "verify", "--map", ".corvint/nope.json")
-	if code != 2 || stderr != "{\"error\": \"cannot read CEM map\", \"ok\": false}\n" {
+	if code != 2 || stderr != "{\"code\": \"map-unavailable\", \"error\": \"cannot read CEM map\", \"ok\": false}\n" {
 		t.Fatalf("absent map text moved: %d %q", code, stderr)
 	}
 }

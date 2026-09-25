@@ -1358,7 +1358,7 @@ func emitError(stderr io.Writer, err error) {
 		)
 		return
 	}
-	if errors.As(err, &contextError) || strings.HasPrefix(code, "repository-") || code == "unsupported-git-object-format" {
+	if errors.As(err, &contextError) {
 		_, _ = fmt.Fprintf(stderr, "{\"error\": %s, \"ok\": false}\n", pythonJSONString(err.Error()))
 		return
 	}
