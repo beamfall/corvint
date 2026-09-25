@@ -6306,6 +6306,24 @@ Frozen evaluations, base → fix:
   exercise it. The Beamfall case is the only evidence that the rule fires.
 - `conformance/cli-parity-v0` replay with the fix: exit 0 (parity 104, known divergences 26). No
   base replay was run for comparison.
+## 2026-09-25 V1-0283 GPK-V0-069 (decision 0399): TypeScript impact discloses workspace package importers (panel blocker B3)
+
+Finding (pre-1.0 panel, rts, 2/2 confirmed): on a pnpm workspace, `corvint impact
+packages/contracts/src/scraper-runtime-topics.ts` returned three results with no reverse-import
+uncertainty and `omitted_results 0` while two tests in other workspaces imported the file through
+`@fetfinder/contracts`. Root cause: `webSpecifierAdmitted` (`internal/contextindex/reverseimports.go`)
+admits only `.`-relative and profile-alias specifiers, and `reverseImportProfileGap`
+(`internal/contextindex/receipt.go`) counts a gap only for a suffix with no named rule, so a web
+path, which has rule (c), was reported complete. Options: resolve workspace names, `exports`,
+`tsconfig` `paths` and barrel re-exports (set aside: new resolution semantics with no oracle
+authority under `GPK-V0-033` and a larger change than the blocker needs), or disclose the gap.
+Chosen: disclosure. A changed web path inside a nested package whose `package.json` name some
+indexed specifier names (or whose name is unreadable) adds one counted `coverage.uncertainty` line;
+a package nobody imports by name adds nothing, so leaf app packages keep their packets. Evidence:
+`TestImpactDisclosesWorkspacePackageImporters` fails at base 489701ca and passes after. Residual:
+`tsconfig` `paths` aliases to a directory with no manifest stay undisclosed, and TS `affected`
+still excludes cross-package tests (panel D8). The analyzer schema moves to `corvint-analyzer/85`.
+`GPK-V0-069` is accepted (decision 0399); `GPK-V0-067` was not reused (rejected, decision 0387).
 ## 2026-09-25 V1-0272: alternates refusal names the adopter rerun
 
 - The `unsupported-object-alternates` fix line ended with `rerun make dogfood-change`, the one
