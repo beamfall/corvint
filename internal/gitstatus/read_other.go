@@ -4,7 +4,7 @@ package gitstatus
 
 import "time"
 
-var errPlatform = unsupported("cannot be read without no-follow support on this platform")
+var errPlatform = unsupported(classMetadataUnreadable, "cannot be read without no-follow support on this platform")
 
 func readRegular(string, int) ([]byte, bool, error) { return nil, false, errPlatform }
 

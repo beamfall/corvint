@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	errUnreadable = unsupported("cannot be opened")
-	errReplaced   = unsupported("changed while it was read")
+	errUnreadable = unsupported(classMetadataUnreadable, "cannot be opened")
+	errReplaced   = unsupported(classMetadataDrift, "changed while it was read")
 )
 
 type pinnedDirectory struct {
@@ -115,7 +115,7 @@ func (reader *metadataReader) pinSearchOnly(parent pinnedDirectory, path string)
 		return pinnedDirectory{}, err
 	}
 	if !info.IsDir() {
-		return pinnedDirectory{}, unsupported(irregular(info.Mode()))
+		return pinnedDirectory{}, unsupported(classMetadataUnreadable, irregular(info.Mode()))
 	}
 	held := pinnedDirectory{info: info}
 	reader.directories[path] = held
@@ -126,7 +126,7 @@ func (reader *metadataReader) unchangedDirectories() error {
 	for path, held := range reader.directories {
 		info, err := os.Lstat(path)
 		if err != nil || !info.IsDir() || !os.SameFile(info, held.info) {
-			return unsupported("a metadata directory was replaced during observation")
+			return unsupported(classMetadataDrift, "a metadata directory was replaced during observation")
 		}
 	}
 	return nil
@@ -154,7 +154,7 @@ func readRegular(path string, limit int) ([]byte, bool, error) {
 
 func (reader *metadataReader) readRegular(path string, limit int) ([]byte, bool, time.Time, error) {
 	if !filepath.IsAbs(path) {
-		return nil, false, time.Time{}, unsupported("is not named by an absolute path")
+		return nil, false, time.Time{}, unsupported(classMetadataUnreadable, "is not named by an absolute path")
 	}
 	parent, err := reader.directory(filepath.Dir(path))
 	if os.IsNotExist(err) {
@@ -173,7 +173,7 @@ func (reader *metadataReader) readRegular(path string, limit int) ([]byte, bool,
 		return nil, false, time.Time{}, errUnreadable
 	}
 	if !leaf.Mode().IsRegular() {
-		return nil, false, time.Time{}, unsupported(irregular(leaf.Mode()))
+		return nil, false, time.Time{}, unsupported(classMetadataUnreadable, irregular(leaf.Mode()))
 	}
 	file, err := parent.OpenFile(filepath.Base(path), os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
 	if err != nil {
