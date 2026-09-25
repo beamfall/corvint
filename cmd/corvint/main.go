@@ -1087,7 +1087,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			if errors.As(err, &contextError) && contextError.Code == "unsupported-impact-repository" {
 				switch options.command {
 				case "feature":
-					err = &contextindex.Error{Code: "unsupported-feature-repository", Message: strings.Replace(contextError.Message, "native Go impact index", "native Go feature index", 1)}
+					err = &contextindex.Error{Code: "unsupported-feature-repository", Message: strings.Replace(contextError.Message, "repository index", "feature index", 1)}
 				}
 			}
 			return nil, err
@@ -1247,13 +1247,13 @@ func mapStandaloneQueryBuildError(err error, authorityStart bool) error {
 	if !errors.As(err, &contextError) || contextError.Code != "unsupported-impact-repository" {
 		return err
 	}
-	profile := "native Go query index"
+	profile := "query index"
 	if authorityStart {
-		profile = "native Go authority-start query index"
+		profile = "authority-start query index"
 	}
 	return &contextindex.Error{
 		Code:    "unsupported-query-repository",
-		Message: strings.Replace(contextError.Message, "native Go impact index", profile, 1),
+		Message: strings.Replace(contextError.Message, "repository index", profile, 1),
 	}
 }
 
