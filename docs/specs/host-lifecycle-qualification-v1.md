@@ -13,8 +13,8 @@ decision 0373 (items 5 and 6), and `AGENTS.md` invariants 2, 4 and 7.
 ## Agent digest
 - Claim: Each Core host tuple passes nine lifecycle cases on exact versions in isolated host homes, and a result binds only the tuple that produced it.
 - Status: accepted intent (decision 0381 item 1), experimental delivery; the host scope it qualifies is accepted in decision 0373
-- Exists: this contract and `conformance/host-lifecycle-v1`; all three tuples PASS on darwin/arm64 with corvint 0.8.0 (see Results)
-- Blocked on: a run on the next release with its reports retained (`HLQ-V1-008`); linux tuples and live model-session cases are NOT_RUN
+- Exists: this contract and `conformance/host-lifecycle-v1`; all three tuples PASS on darwin/arm64 with corvint 0.8.1, reports retained (see Results)
+- Blocked on: linux tuples and live model-session cases are NOT_RUN; each result is stale at the next release (`HLQ-V1-008`)
 - Read next: Requirements; Results; Known gaps
 
 ## Intent and scope
@@ -104,13 +104,13 @@ GOTOOLCHAIN=local go run ./conformance/host-lifecycle-v1 \
 
 ## Results
 
-Run on 2026-09-24 on darwin/arm64 (Darwin 25.6.0). Plugin sources came from a clean checkout of
-`e667812381ab4d5c860dde753e0a7580ec3c975d`; the Claude Code and Codex packages are unchanged since
-`df66aba4`. The
-current binary is the `corvint` from the published v0.8.0 `corvint_darwin_arm64.tar.gz`, sha256
+Run on 2026-09-24 on darwin/arm64 (Darwin 25.6.0) against the 0.8.1 release build. Plugin sources
+came from a clean checkout of the 0.8.1 release commit `1281e2695ee87ff29009a97f913a0e6f0d0f530d`.
+The current binary is the `corvint` from the v0.8.1 `corvint_darwin_arm64.tar.gz` (archive sha256
+`826e1b1e92a803a575ff705121f899259ff865c501911e3fa43f614e7c323943`), binary sha256
+`e8c24949d978bf9af3f5535dcdc22c960d3c2f94ebe48c8d3bd220f2b7836df5` (`Corvint 0.8.1 (build 82)`).
+The N-1 binary is the `corvint` from the published v0.8.0 archive, sha256
 `95ae7446dd249c659db3a0571b39e05dee5ba83f113cf061f1a20cd0604a710e` (`Corvint 0.8.0 (build 65)`).
-The N-1 binary is the `corvint` from the published v0.7.0 archive, sha256
-`5fdbab207f6d15bd8ef341365642769cb58a11a76d935c37df77776ad0d09bad` (`Corvint 0.7.0 (build 46)`).
 
 | Tuple | Host version | Adapter | install | discovery | context | expansion | change | frontier | degradation | upgrade | uninstall |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -118,13 +118,22 @@ The N-1 binary is the `corvint` from the published v0.7.0 archive, sha256
 | Codex CLI, plugin | 0.153.2 | 0.2.2 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | Claude Code, plugin | 2.1.267 | 0.2.3 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 
-These 0.8.0 results were transcribed before `HLQ-V1-008` required retained reports, so no runner
-report backs them. They become stale at the next corvint release.
+The runner reports are kept under `conformance/host-lifecycle-v1/results/0.8.1-darwin-arm64/`
+(`HLQ-V1-008`):
+
+| Tuple | Report | sha256 |
+|---|---|---|
+| plain CLI, native | `cli.txt` | `6bcc228cc7fdb2a13e72382adb9d15a8946b092bc9dc41c744ce943d56ce91bb` |
+| Codex CLI, plugin | `codex.txt` | `7e72f58ead6ad454e45e8af4276cbe289316659549b9f0f5af42b1997d1b8384` |
+| Claude Code, plugin | `claude-code.txt` | `e17639d4ec71a6e7502e52b75965354173ced67399615087f4af3e4816bd8ad1` |
+
+This run supersedes the 0.8.0 results, which were transcribed without retained reports. It becomes
+stale at the next corvint release or a change of host or adapter version.
 
 Every other tuple is `NOT_RUN`. This includes linux/amd64 and linux/arm64, other host versions, and
 the Gemini CLI, OpenCode and Pi adapters.
 
-Supplementary live observations, not part of the nine cases:
+Supplementary live observations from the 0.8.0 run, not part of the nine cases:
 
 - Codex CLI 0.153.2 (the operator's own install, `codex exec --json`) in a fixture repository
   answered one prompt. Its session rollout holds two developer messages carrying the repository-data

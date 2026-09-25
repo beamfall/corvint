@@ -66,9 +66,11 @@ explicit count/digest gap rather than invented evidence. This restores repositor
 the adapter never reads Codex's transcript or persists prompt/model text, so decisions and other
 uncommitted task state remain an explicit gap.
 
-Tested source adapter version: `0.2.2`. The compatibility metadata records Codex `0.149.0` static manifest
-validation only; no Codex host version has completed black-box lifecycle conformance. Current,
-untested, and unknown host versions remain unqualified `FALLBACK` by contract.
+Tested source adapter version: `0.2.2`. The shipped compatibility metadata records Codex `0.149.0`
+static manifest validation, the state at package build. The published matrix
+(`../compatibility.json`) records the later installed-lifecycle PASS for Codex CLI `0.153.2` with
+adapter `0.2.2` on darwin-arm64 against Corvint 0.8.1. Every other host version, adapter version and
+OS remains untested `FALLBACK` by contract.
 
 The bundled skill drives `dogfood begin/status/verify/finish/review` for authorized substantive Corvint
 changes. It still judges citation meaning and check adequacy. The core executes selected checks,

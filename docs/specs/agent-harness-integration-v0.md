@@ -139,7 +139,14 @@ do not reinterpret this Frontier result.
   re-validate: a matrix row whose evidence exercised a package names that build in
   `hostVersionEvidenceAdapterVersion` (the Claude Code declaration in `lastValidation.adapterVersion`,
   the Codex declaration in `host.staticallyValidatedAdapterVersion`), or `unknown` when no committed
-  evidence ties the run to a build.
+  evidence ties the run to a build. The same rule holds for installed-lifecycle evidence, which
+  post-dates the build: the matrix row then names the build that lifecycle run exercised, while the
+  shipped declaration keeps its build-time static-validation fields, since recording the test
+  inside the package would need a bump that changes the tested tuple. The last conformance result
+  is the row's `lifecycleConformance`: a `host-lifecycle-qualification-v1` result with its retained
+  report, or `NOT_RUN`. A row also names its `tier` (`core` or `companion`, decision 0373) and
+  marks `fullSupport` as `external-dependent` when FULL needs authority or identity the host API
+  does not supply.
 - `AHI-011`: Native APIs MUST remain behind versioned adapters. Recognised host identifiers MUST
   come from the single versioned host-admission table embedded in the Corvint
   binary, never from worktree-readable runtime discovery. The table MUST preserve the
