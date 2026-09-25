@@ -89,7 +89,7 @@ func TestNoGoRepositoryProducesNoUnitsOrFrontier(t *testing.T) {
 	}
 }
 
-func TestDeletedGoSourceNamesDeletionInOwnUnitExclusion(t *testing.T) {
+func TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340(t *testing.T) {
 	gitExecutable, err := exec.LookPath("git")
 	if err != nil {
 		t.Skip("git is unavailable")
@@ -117,12 +117,13 @@ func TestDeletedGoSourceNamesDeletionInOwnUnitExclusion(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan := affected.Select(graph, dirty)
+	want := "[core/core_test.go nested/build/build_test.go nested/dist/dist_test.go nested/target/target_test.go]"
+	if got := fmt.Sprint(plan.SelectedTests()); got != want {
+		t.Fatalf("selected tests = %s, want %s (the package that lost a file and its importers)", got, want)
+	}
 	reasons := make(map[string]string, len(plan.Excluded))
 	for _, exclusion := range plan.Excluded {
 		reasons[exclusion.UnitID] = exclusion.Reason
-	}
-	if got := reasons["go:example.test/directorynames/core"]; got != affected.ExcludedDirtyGoPathMayBeDeletedOrRenamed {
-		t.Fatalf("core exclusion reason=%q", got)
 	}
 	if got := reasons["go:example.test/directorynames/other"]; got != affected.ExcludedNoDependencyPath {
 		t.Fatalf("unrelated exclusion reason=%q", got)
@@ -270,8 +271,8 @@ func TestPathLiteralSelectsItsReaderPackage_AFPV0021(t *testing.T) {
 	if reader := affected.Select(graph, []string{"data/x.json"}); len(reader.Selected) != 1 {
 		t.Fatalf("a module-anchored literal must name its path: %v", reader.Selected)
 	}
-	unnamed := affected.Select(graph, []string{"other/notes.md"})
-	if len(unnamed.Selected) != 0 || fmt.Sprint(unnamed.Unknown) != "[{UNOWNED_DIRTY_PATH other/notes.md}]" {
+	unnamed := affected.Select(graph, []string{"notes/notes.md"})
+	if len(unnamed.Selected) != 0 || fmt.Sprint(unnamed.Unknown) != "[{UNOWNED_DIRTY_PATH notes/notes.md}]" {
 		t.Fatalf("unnamed path selected=%v unknown=%v", unnamed.Selected, unnamed.Unknown)
 	}
 }
@@ -410,5 +411,53 @@ func TestDirectoryShapedLiteralNamesNoPath(t *testing.T) {
 	want := "[go:example.test/m/joined<-internal/store/rows.txt go:example.test/m/named<-Makefile]"
 	if got := fmt.Sprint(selected); got != want {
 		t.Fatalf("selected = %s, want %s", got, want)
+	}
+}
+
+func TestUnownedDirtyPathSelectsItsPackageAndImporters_V1_0340(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                      "module example.test/m\n",
+		"web/web.go":                  "package web\n\nimport \"embed\"\n\n//go:embed static\nvar files embed.FS\n",
+		"web/web_test.go":             "package web\n",
+		"web/static/css/site.css":     "body{}\n",
+		"server/server.go":            "package server\n\nimport _ \"example.test/m/web\"\n",
+		"server/server_test.go":       "package server\n",
+		"lib/lib.go":                  "package lib\n",
+		"lib/lib_test.go":             "package lib\n",
+		"lib/testdata/deep/case.json": "{}\n",
+		"app/app.go":                  "package app\n\nimport _ \"example.test/m/lib\"\n",
+		"app/app_test.go":             "package app\n",
+		"caller/caller.go":            "package caller\n\nimport _ \"example.test/m/gone\"\n",
+		"caller/caller_test.go":       "package caller\n",
+		"other/other.go":              "package other\n",
+		"other/other_test.go":         "package other\n",
+	})
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		dirty, want string
+	}{
+		// An embedded asset reaches the embedding package and its importers.
+		{"web/static/css/site.css", "[server/server_test.go web/web_test.go]"},
+		// A fixture below a non-embedding package selects only that package.
+		{"lib/testdata/deep/case.json", "[lib/lib_test.go]"},
+		// A file directly in a package directory reaches its importers.
+		{"lib/README.md", "[app/app_test.go lib/lib_test.go]"},
+		// A deleted whole package reaches the importers that still name it.
+		{"gone/gone.go", "[caller/caller_test.go]"},
+	}
+	for _, tc := range cases {
+		plan := affected.Select(graph, []string{tc.dirty})
+		if got := fmt.Sprint(plan.SelectedTests()); got != tc.want {
+			t.Errorf("%s: selected tests = %s, want %s", tc.dirty, got, tc.want)
+		}
+		for _, exclusion := range plan.Excluded {
+			if exclusion.UnitID == "go:example.test/m/other" && exclusion.Reason != affected.ExcludedNoDependencyPath {
+				t.Errorf("%s: other exclusion = %+v", tc.dirty, exclusion)
+			}
+		}
 	}
 }

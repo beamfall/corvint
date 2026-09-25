@@ -39,13 +39,17 @@ const MaxPathsPerUnit = 20_000
 // JavaScript file are all units.
 //
 // Every path is repository-relative, slash-separated, sorted, and unique.
-// Imports name other Unit identities; an import that a plugin could not resolve
-// to a repository unit is omitted here and reported through Result.Frontier.
+// Imports name other Unit identities. An import that a plugin could not resolve
+// to a repository unit is omitted here and reported through Result.Frontier,
+// except that the Go plugin keeps an import under an observed module that names
+// no unit (a deleted package) as an edge to that absent identity.
 // PathTokens are the sorted, unique path-shaped tokens of the string literals
 // the unit's own files carry; every dirty path selects the units whose tokens
 // name it (AFP-V0-021). A plugin that reads no literals leaves it empty.
 // PathTokensBounded reports that the plugin dropped the unit's tokens at its
 // bound, so the unit's reads are unknown.
+// Embeds reports a Go package whose non-test files carry a //go:embed
+// directive, so a data file below its directory may be compiled into it.
 // TestImports name the units only the unit's own tests import. A change there
 // selects the unit's tests but reaches no importer of the unit, because an
 // importer never compiles another unit's tests (`go list -deps -test`).
@@ -57,6 +61,7 @@ type Unit struct {
 	TestImports       []string `json:"testImports,omitempty"`
 	PathTokens        []string `json:"pathTokens,omitempty"`
 	PathTokensBounded bool     `json:"pathTokensBounded,omitempty"`
+	Embeds            bool     `json:"embeds,omitempty"`
 }
 
 // Result is what one Language plugin observed for a repository.

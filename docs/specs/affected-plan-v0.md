@@ -52,11 +52,21 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   are directories rather than import paths when the Go plugin reports `go:module-path-unresolved`.
 - **AFP-V0-004:** The plan is not authority. `plan.scope` MUST be `UNKNOWN` whenever `plan.unknown`
   is non-empty; the provider's plan wire MUST keep `NO_AFFECTED_SELECTION_PROOF`; no consumer may
-  treat an exclusion as proof that the excluded test is safe to omit. When a current-tree-unindexed
-  dirty Go path shares an observed package directory, that package's exclusion reason MUST be
-  `UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED`, not
-  `NO_DEPENDENCY_PATH_TO_DIRTY_UNIT`. The dirty-path input does not preserve Git status or overlay
-  provenance, so the reason names the deletion/rename possibility without asserting it occurred.
+  treat an exclusion as proof that the excluded test is safe to omit. (proposed, decision 0398;
+  V1-0340) A dirty path no Go unit declares MUST follow AFP-V0-012's structural rules (a) and (b)
+  rather than exclude the package it touches. A current-tree-unindexed Go path is a
+  `DIRECT_SOURCE_CHANGE` of the package observed in its directory, which is then traversed to its
+  dependents; with no package there, every unit with an import edge to an absent in-module Go unit
+  whose last path component is the directory's name is a changed unit with a `DEPENDENCY_PATH`
+  witness. The Go plugin keeps an import under an observed module path that resolves to no
+  package as an edge to that absent `go:` identity for this purpose. Any other unowned or
+  non-Go path selects every Go package whose directory encloses it with witness kind
+  `ENCLOSING_PACKAGE`; the nearest such package, when the path sits directly in its directory,
+  and every enclosing package whose non-test files carry `//go:embed` (`Unit.embeds`) are also
+  traversed to their dependents. The `UNINDEXED_SOURCE_PATH` and `UNOWNED_DIRTY_PATH` entries
+  stay, so `plan.scope` stays `UNKNOWN`. This replaces the former exclusion reason
+  `UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED`, which named the package that lost a file
+  but left it and its importers unselected. Rollback restores that reason.
 - **AFP-V0-005:** For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
   runs; with `--base`, the base commit is part of that fixed input.
 - **AFP-V0-006:** Failures MUST exit 2 with a typed code on stderr and no partial document:
@@ -414,8 +424,9 @@ Exhausting an admitted-directory sub-bound instead skips only that subtree and r
 A dirty path owned by no plugin, or a changed unit (one that owns a changed path) with no
 selectable test in any language (AFP-V0-020): the plan widens to `UNKNOWN` scope rather than
 narrowing; the packages that name a dirty path by literal are added, never substituted for the
-widening (AFP-V0-021). A potentially deleted or renamed-away Go path widens and names that possibility on its package
-exclusion rather than claiming no dependency path. An unreadable subtree:
+widening (AFP-V0-021). A potentially deleted or renamed-away Go path widens and selects its
+package, or the importers of a package that is gone, rather than claiming no dependency path
+(AFP-V0-004). An unreadable subtree:
 `unsupported-affected-graph`, never a silently smaller graph. Worktree or HEAD changed during
 compilation: `unsupported-affected-drift`. A `--base` that is not a full commit id:
 `invalid-arguments`; one that is not a commit here: `unsupported-affected-revision`; a range diff
@@ -432,7 +443,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-001 | `cmd/corvint/affected.go` `compileAffected` | `TestAffectedCleanTreeSelectsNothingAndWritesNothing` compares `git status --porcelain --ignored` before and after |
 | AFP-V0-002 | `internal/liveverify/affected/dirty.go` | `TestDecodeStatusFailsClosedOnMalformedInput`; `TestAffectedRejectsNonRepositoryAndExtraArguments` |
 | AFP-V0-003 | `affectedReceipt`, `providerGoPackages` | `TestAffectedDirtyGoSourceSelectsDependentsAsProviderPackages` |
-| AFP-V0-004 | `affected.Select` scope and exclusion-reason rules | `TestAffectedUnownedDirtyPathIsUnknownScope`, `TestDeletedGoSourceNamesDeletionInOwnUnitExclusion`; provider wire unchanged (`go-live-test-provider-v0.md` GLTP-V0-006) |
+| AFP-V0-004 | `affected.Select` scope and exclusion-reason rules; `goStructure`, `goSourceRule`, `goDataRule`, `WitnessEnclosingPackage` in `internal/liveverify/affected/structure.go`; `Unit.Embeds` and absent in-module import edges (`resolved`, `underModule`) in the Go plugin | `TestAffectedUnownedDirtyPathIsUnknownScope`, `TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340`, `TestUnownedDirtyPathSelectsItsPackageAndImporters_V1_0340` (an embedded asset, a nested fixture, a file directly in a package and a deleted package each select their package or importers; an unrelated package stays excluded); provider wire unchanged (`go-live-test-provider-v0.md` GLTP-V0-006) |
 | AFP-V0-005 | canonical JSON via `gokernel.CanonicalJSON` | byte-identity assertion in the dirty-source test |
 | AFP-V0-006 | `runAffected` error paths; `affected.ErrWalkUnreadable`; `affected.ErrWalkUnrepresentable` | `TestAffectedRejectsNonRepositoryAndExtraArguments`; `TestAffectedUnreadableSubtreeFailsClosed`; `TestSourceFilesRefusesAnUnrepresentableAcceptedName` |
 | AFP-V0-007 | `Graph.rank`, `Graph.proximity` in `internal/liveverify/affected/select.go` | `TestSelectOrdersByDistanceThenSharedDirectoryThenUnitID` (order and two-run byte identity) |

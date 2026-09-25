@@ -13,6 +13,7 @@
 package golang
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -145,7 +146,7 @@ func (language Language) Units(root string) (affected.Result, error) {
 		imports[unit.ID] = importPaths
 		testImports[unit.ID] = testImportPaths
 	}
-	resolve(units, imports, testImports)
+	resolve(units, imports, testImports, modulePaths(modules))
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 
@@ -157,6 +158,7 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 	importPaths := make(map[string]bool, 16)
 	testImportPaths := make(map[string]bool, 16)
 	names := make(map[string]bool, 16)
+	embeds := false
 	fileSet := token.NewFileSet()
 	for _, relative := range files {
 		body, err := affected.ReadSource(root, relative)
@@ -173,6 +175,7 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 			continue
 		}
 		isTest := strings.HasSuffix(relative, "_test.go")
+		embeds = embeds || (!isTest && bytes.Contains(body, []byte("//go:embed")))
 		declared := importPaths
 		if isTest {
 			declared = testImportPaths
@@ -207,7 +210,7 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 	if bounded {
 		names = nil
 	}
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathTokensBounded: bounded}, importPaths, testImportPaths, nil
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathTokensBounded: bounded, Embeds: embeds}, importPaths, testImportPaths, nil
 }
 
 // ignoredByGo reports a repository-relative directory the go tool's package
@@ -278,30 +281,36 @@ func rootAnchored(name, modulePath string) string {
 }
 
 // resolve rewrites each unit's raw Go import paths into the unit identities
-// this graph knows. An import outside the module is an external dependency and
-// is dropped: it cannot be a dirty repository path. A path the unit's non-test
-// files also import is an ordinary edge, never a test-only one.
-func resolve(units []affected.Unit, imports, testImports map[string]map[string]bool) {
+// this graph knows. An import outside every observed module is an external
+// dependency and is dropped: it cannot be a dirty repository path. An import
+// under an observed module that names no unit, such as a deleted package, is
+// kept as an edge to that absent unit, so a dirty path in the deleted
+// package's directory can still reach its importers (V1-0340). A path the
+// unit's non-test files also import is an ordinary edge, never a test-only one.
+func resolve(units []affected.Unit, imports, testImports map[string]map[string]bool, modules []string) {
 	byImportPath := make(map[string]string, len(units))
 	for _, unit := range units {
 		byImportPath[strings.TrimPrefix(unit.ID, "go:")] = unit.ID
 	}
 	for index := range units {
 		unit := &units[index]
-		unit.Imports = resolved(unit.ID, imports[unit.ID], nil, byImportPath)
-		testOnly := resolved(unit.ID, testImports[unit.ID], imports[unit.ID], byImportPath)
+		unit.Imports = resolved(unit.ID, imports[unit.ID], nil, byImportPath, modules)
+		testOnly := resolved(unit.ID, testImports[unit.ID], imports[unit.ID], byImportPath, modules)
 		if len(testOnly) != 0 {
 			unit.TestImports = testOnly
 		}
 	}
 }
 
-// resolved maps raw import paths not in skip to sorted known unit identities
-// other than self.
-func resolved(self string, paths, skip map[string]bool, byImportPath map[string]string) []string {
+// resolved maps raw import paths not in skip to sorted unit identities other
+// than self: a known unit, or an absent one under an observed module.
+func resolved(self string, paths, skip map[string]bool, byImportPath map[string]string, modules []string) []string {
 	edges := make([]string, 0, len(paths))
 	for value := range paths {
 		target, known := byImportPath[value]
+		if !known && underModule(value, modules) {
+			target, known = "go:"+value, true
+		}
 		if !known || target == self || skip[value] {
 			continue
 		}
@@ -309,6 +318,26 @@ func resolved(self string, paths, skip map[string]bool, byImportPath map[string]
 	}
 	sort.Strings(edges)
 	return edges
+}
+
+// modulePaths lists the readable paths of the observed modules.
+func modulePaths(modules map[string]module) []string {
+	paths := make([]string, 0, len(modules))
+	for _, owner := range modules {
+		if owner.listed && owner.path != "" {
+			paths = append(paths, owner.path)
+		}
+	}
+	return paths
+}
+
+func underModule(importPath string, modules []string) bool {
+	for _, modulePath := range modules {
+		if importPath == modulePath || strings.HasPrefix(importPath, modulePath+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // unitID is the import path of the package in directory, which lies inside its
