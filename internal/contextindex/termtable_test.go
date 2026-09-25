@@ -270,3 +270,40 @@ func TestLexicalRowsOrderByBM25AndAnswerWholeIdentifiers(t *testing.T) {
 		}
 	})
 }
+
+// TestTaskCompoundTermMatchesOnlyUnsplitRuns is V1-0214: the lowered whole
+// identifier taskLexicalTerms adds reaches a body or path posting only where
+// the source writes it as one unsplit run, because both tables split camel
+// case; the camel-case spelling is answered by the Words field alone.
+func TestTaskCompoundTermMatchesOnlyUnsplitRuns(t *testing.T) {
+	sources := map[string]Source{
+		"lib/strip.js":              {Path: "lib/strip.js", Data: []byte("export const stripFinalNewline = (value) => value\n")},
+		"config/flags.txt":          {Path: "config/flags.txt", Data: []byte("stripfinalnewline = true\n")},
+		"docs/stripfinalnewline.md": {Path: "docs/stripfinalnewline.md", Data: []byte("Options.\n")},
+	}
+	terms := stringSetOf(taskLexicalTerms("How does stripFinalNewline behave?"))
+	if _, ok := terms["stripfinalnewline"]; !ok {
+		t.Fatalf("task terms %v lack the lowered whole identifier", terms)
+	}
+	table := buildTermTable(sources)
+	postings := func(field termPostings, key string) []string {
+		low, high, _ := field.find(key)
+		paths := []string{}
+		for index := low; index < high; index++ {
+			paths = append(paths, table.Paths[field.Sources[index]])
+		}
+		return paths
+	}
+	for name, check := range map[string]struct {
+		got, want []string
+	}{
+		"body":  {postings(table.Terms, "stripfinalnewline"), []string{"config/flags.txt"}},
+		"path":  {postings(table.PathTerms, "stripfinalnewline"), []string{"docs/stripfinalnewline.md"}},
+		"words": {postings(table.Words, "stripFinalNewline"), []string{"lib/strip.js"}},
+		"split": {postings(table.Terms, "newline"), []string{"lib/strip.js"}},
+	} {
+		if !reflect.DeepEqual(check.got, check.want) {
+			t.Fatalf("%s postings = %v, want %v", name, check.got, check.want)
+		}
+	}
+}

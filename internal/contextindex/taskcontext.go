@@ -70,6 +70,8 @@ func taskContext(ctx context.Context, index *Index, task, subject string, limit 
 type contextRow struct {
 	kind, path, summary, reason, confidence, authority string
 	score, line                                        int
+	// lexicalOnly marks a test row bound by the mention signal alone.
+	lexicalOnly bool
 }
 
 type taskIdentifier struct {
@@ -1853,10 +1855,13 @@ func taskIdentifiers(task string) []taskIdentifier {
 
 // taskLexicalTerms is lexicalTerms plus every whole identifier the camel-case
 // split would otherwise lose, and minus a fixed list of English function and
-// retrieval-phrasing words. The term table tokenises a source body as ASCII
-// runs, so `stripFinalNewline` in a body is the one token
-// "stripfinalnewline": the whole identifier is the rarest, most answerable
-// term a task carries and must survive into the posting walk. The stop list
+// retrieval-phrasing words. The body and path term tables split camel case
+// too (termCounter.count, lexicalTerms), so `stripFinalNewline` in a body or
+// path is `strip`, `final` and `newline`; the lowered compound
+// "stripfinalnewline" matches only a body or path that writes it as one
+// unsplit run, such as `stripfinalnewline` or `STRIPFINALNEWLINE`. The
+// identifier as written is answered by the Words field through
+// lexicalIdentifiers, not by this term. The stop list
 // has no per-repository parameter; it removes words whose rarity in code is
 // an artefact of question phrasing ("how", "retrieve"), not evidence.
 func taskLexicalTerms(text string) []string {
@@ -2003,6 +2008,9 @@ func rowAction(row contextRow) string {
 	case "sibling":
 		return "Scan this file, which is " + row.reason + ", for uses of the identifiers the task names; a change in the subject's package often lands here too."
 	case "test":
+		if contextIsTest(row.path) && row.lexicalOnly {
+			return "Check this test: it " + row.reason + ", a name match with no path, import or test-name link, so update it only if it asserts on that name."
+		}
 		if contextIsTest(row.path) {
 			return "Update this test: it " + row.reason + ", so a behaviour change in that file changes what it must assert."
 		}
@@ -2066,6 +2074,21 @@ func (candidate *testCandidate) signals() int {
 		}
 	}
 	return count
+}
+
+// lexicalOnly is a link whose one fired signal is the mention signal.
+func (candidate *testCandidate) lexicalOnly() bool {
+	return candidate.signals() == 1 && candidate.mentions > 0
+}
+
+// admissible refuses a lexical-only link on one plain word: such a link needs
+// two distinct declared names, or one name of two or more camel-split tokens
+// (TCP-V0-015; a single word such as `down` in a comment is prose, V1-0343).
+func (candidate *testCandidate) admissible() bool {
+	if !candidate.lexicalOnly() || candidate.mentions >= 2 {
+		return true
+	}
+	return len(nameTokens(candidate.rarest)) >= 2
 }
 
 // outranks orders candidates by the anchor's packet position (the packet's
@@ -2134,6 +2157,9 @@ func (compiler *taskContextCompiler) testRows(anchors []string) []contextRow {
 	best := map[string]*testCandidate{}
 	for position, anchor := range anchors {
 		for _, candidate := range linker.candidates(anchor) {
+			if !candidate.admissible() {
+				continue
+			}
 			candidate.position = position
 			if current, ok := best[candidate.path]; ok && !candidate.outranks(current) {
 				continue
@@ -2155,7 +2181,7 @@ func (compiler *taskContextCompiler) testRows(anchors []string) []contextRow {
 		rows = append(rows, contextRow{
 			kind: "test", path: candidate.path, score: 650, line: 1,
 			summary: candidate.reason(), reason: candidate.reason(),
-			confidence: confidence, authority: "test-convention",
+			confidence: confidence, authority: "test-convention", lexicalOnly: candidate.lexicalOnly(),
 		})
 	}
 	return rows

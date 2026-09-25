@@ -86,9 +86,9 @@ func spanLabel(span contextSpan) string {
 	return fmt.Sprintf("%s:%d-%d", span.path, span.start, span.end)
 }
 
-// setVerdict: no anchors, or one unknown anchor, makes the set unknown; one
-// insufficient anchor makes the set insufficient; one unknown anchor makes it unknown; only all satisfied is
-// satisfied.
+// setVerdict: no anchors makes the set unknown; otherwise one insufficient
+// anchor makes it insufficient, even beside an unknown anchor; else one unknown
+// anchor makes it unknown; only all satisfied is satisfied (TCP-V0-028).
 func setVerdict(anchors []anchorVerdict) string {
 	if len(anchors) == 0 {
 		return sufficiencyUnknown
