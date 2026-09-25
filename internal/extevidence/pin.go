@@ -117,11 +117,8 @@ func profileReason(data []byte, pinned string) error {
 	if err != nil {
 		return fmt.Errorf("record is not a strict JSON document: %s", trimJSONError(err))
 	}
-	if strings.EqualFold(repeated, "schema") {
-		return errors.New("ambiguous record profile: repeated schema member")
-	}
 	if repeated != "" {
-		return fmt.Errorf("ambiguous record: repeated member %q", repeated)
+		return errors.New(repeatedReason(repeated))
 	}
 	declared := declaredSchema(data)
 	if declared != Schema && declared != Schema1 && declared != Schema2 {
@@ -131,6 +128,14 @@ func profileReason(data []byte, pinned string) error {
 		return errors.New("record schema differs from pin")
 	}
 	return nil
+}
+
+// repeatedReason names a repeated member the way EEP-V0-020 words it.
+func repeatedReason(repeated string) string {
+	if strings.EqualFold(repeated, "schema") {
+		return "ambiguous record profile: repeated schema member"
+	}
+	return fmt.Sprintf("ambiguous record: repeated member %q", repeated)
 }
 
 // repeatedMember returns the dotted path of the first member name repeated

@@ -205,6 +205,24 @@ func TestProviderUnavailableAndInvalidAreStructured(t *testing.T) {
 	}
 }
 
+func TestRepeatedMemberIsInvalid(t *testing.T) {
+	t.Parallel()
+	repo := newRepository(t)
+	ctx, root := context.Background(), indexRoot(repo.index())
+	record := fixture(t, repo.head)
+	cases := []struct{ name, prefix, want string }{
+		{"schema", `{"schema":"external-evidence-provider/9",`, "ambiguous record profile: repeated schema member"},
+		{"schema case variant", `{"SCHEMA":"external-evidence-provider/9",`, "ambiguous record profile: repeated schema member"},
+		{"other member", `{"entities":[],`, `ambiguous record: repeated member "entities"`},
+	}
+	for _, tc := range cases {
+		entry := decodeRecord(ctx, root, provider{}, append([]byte(tc.prefix), record[1:]...))
+		if entry.state != StateInvalid || entry.reason != tc.want {
+			t.Errorf("%s: state %q reason %q, want %s %q", tc.name, entry.state, entry.reason, StateInvalid, tc.want)
+		}
+	}
+}
+
 func loaded(t *testing.T, repo repository, data []byte, changed ...string) composition {
 	t.Helper()
 	ctx, root := context.Background(), indexRoot(repo.index())
