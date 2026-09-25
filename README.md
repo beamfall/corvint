@@ -272,9 +272,9 @@ unknown axes stay visible ([contract](docs/specs/js-live-test-provider-v0.md),
 
 ### Task manager and work queue
 
-`corvint-tasks` is the local ticket store and roadmap. It lives in its own source module,
-is built into the companion bundle beside `corvint`, and owns ticket state: the console delegates
-every ticket mutation to it. No server, no account, no agent dispatch.
+`corvint-tasks` is the local ticket store and roadmap. It is a separate companion binary built
+from this repository's `cmd/corvint-tasks` (never a `corvint` subcommand), ships in the companion
+bundle beside `corvint`, and owns ticket state: the console delegates every ticket mutation to it. No server, no account, no agent dispatch.
 
 `corvint work observe` and `corvint work propose-wave` (also `corvint-work-queue`) read a
 queue snapshot and return deterministic shadow proposals: derived path clashes between tickets
