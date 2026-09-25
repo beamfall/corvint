@@ -36,10 +36,17 @@ const (
 	// sharedSnapshotSubpath is the store under the Git common directory;
 	// snapshotSubpath is the per-worktree fallback for a root whose common
 	// directory does not resolve from its `.git` metadata.
-	sharedSnapshotSubpath       = "corvint/index"
-	snapshotSubpath             = ".corvint/index"
-	snapshotTemporaryStaleAfter = time.Hour
-	corvintIgnore               = "/.gitignore\n/index/\n/self-observations.jsonl\n/.self-observations.*\n"
+	sharedSnapshotSubpath = "corvint/index"
+	snapshotSubpath       = ".corvint/index"
+	// snapshotTemporaryStaleAfter is how long a writer's temporary may live.
+	// A writer holds one only while it encodes and syncs an index it already
+	// built, seconds for the largest snapshot, so an older one is a crashed
+	// writer's orphan (IDX-SNAP-V0-007).
+	snapshotTemporaryStaleAfter = 10 * time.Minute
+	// snapshotStoreBytes bounds the published gob snapshots in one store
+	// beside the entry bound, which alone lets 64 large snapshots pile up.
+	snapshotStoreBytes = 1 << 30
+	corvintIgnore      = "/.gitignore\n/index/\n/self-observations.jsonl\n/.self-observations.*\n"
 )
 
 type snapshotHeader struct {
@@ -427,8 +434,9 @@ func encodeSnapshot(file *os.File, index *Index, engineID string) (int64, error)
 	return info.Size(), nil
 }
 
-// evictSnapshots removes stale writer temporaries and the oldest published
-// files beyond bound, never the snapshot just written.
+// evictSnapshots removes stale writer temporaries and the published files
+// beyond bound or snapshotStoreBytes, other engines' first and then the
+// oldest, never the snapshot just written.
 func evictSnapshots(directory, keep string, bound int) int {
 	return evictSnapshotsAt(directory, keep, bound, time.Now())
 }
@@ -439,9 +447,12 @@ func evictSnapshotsAt(directory, keep string, bound int, now time.Time) int {
 		return 0
 	}
 	type aged struct {
-		path string
-		when int64
+		path    string
+		when    int64
+		bytes   int64
+		current bool
 	}
+	currentEngine := snapshotEngineOf(keep)
 	files := make([]aged, 0, len(entries))
 	staleTemporaryCutoff := now.Add(-snapshotTemporaryStaleAfter)
 	for _, entry := range entries {
@@ -458,12 +469,21 @@ func evictSnapshotsAt(directory, keep string, bound int, now time.Time) int {
 		if filepath.Ext(entry.Name()) != ".gob" {
 			continue
 		}
-		files = append(files, aged{path, info.ModTime().UnixNano()})
+		files = append(files, aged{path, info.ModTime().UnixNano(), info.Size(), snapshotEngineOf(path) == currentEngine})
 	}
-	sort.Slice(files, func(left, right int) bool { return files[left].when > files[right].when })
+	// Snapshots the writing binary can read come first, newest first; one
+	// another binary wrote is evicted before an older readable one.
+	sort.Slice(files, func(left, right int) bool {
+		if files[left].current != files[right].current {
+			return files[left].current
+		}
+		return files[left].when > files[right].when
+	})
 	evicted := 0
+	var keptBytes int64
 	for position, file := range files {
-		if position < bound || file.path == keep {
+		if file.path == keep || position < bound && keptBytes+file.bytes <= snapshotStoreBytes {
+			keptBytes += file.bytes
 			continue
 		}
 		if os.Remove(file.path) == nil {
@@ -476,6 +496,12 @@ func evictSnapshotsAt(directory, keep string, bound int, now time.Time) int {
 		_ = os.Remove(strings.TrimSuffix(file.path, ".gob") + packExtension)
 	}
 	return evicted
+}
+
+// snapshotEngineOf is the engine segment of a snapshotPath name.
+func snapshotEngineOf(path string) string {
+	name := strings.TrimSuffix(filepath.Base(path), ".gob")
+	return name[strings.LastIndexByte(name, '-')+1:]
 }
 
 // LoadSnapshot returns the snapshot of the repository's current tree with the

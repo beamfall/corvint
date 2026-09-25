@@ -523,6 +523,58 @@ func TestEvictSnapshotsRemovesStaleTemporaries(t *testing.T) {
 	})
 }
 
+// TestEvictSnapshotsBoundsBytesAndEvictsOtherEnginesFirst is V1-0302: the
+// store has a byte budget, a snapshot another binary wrote goes before an
+// older one this binary can read, and a crashed writer's temporary does not
+// hold its bytes for an hour. Sizes are sparse, so the test writes no data.
+func TestEvictSnapshotsBoundsBytesAndEvictsOtherEnginesFirst(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0)
+	publish := func(t *testing.T, directory, name string, bytes int64, age time.Duration) string {
+		t.Helper()
+		path := filepath.Join(directory, name)
+		if err := os.WriteFile(path, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Truncate(path, bytes); err != nil {
+			t.Fatal(err)
+		}
+		when := now.Add(-age)
+		if err := os.Chtimes(path, when, when); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	exists := func(path string) bool {
+		_, err := os.Stat(path)
+		return err == nil
+	}
+	t.Run("byte budget", func(t *testing.T) {
+		directory := t.TempDir()
+		current := publish(t, directory, "sha1-tree2-engine.gob", snapshotStoreBytes/2+1, 0)
+		older := publish(t, directory, "sha1-tree1-engine.gob", snapshotStoreBytes/2+1, time.Minute)
+		if evicted := evictSnapshotsAt(directory, current, snapshotKeep, now); evicted != 1 || exists(older) || !exists(current) {
+			t.Fatalf("evicted %d; older kept=%v current kept=%v", evicted, exists(older), exists(current))
+		}
+	})
+	t.Run("other engine first", func(t *testing.T) {
+		directory := t.TempDir()
+		current := publish(t, directory, "sha1-tree3-engine.gob", 1, 0)
+		foreign := publish(t, directory, "sha1-tree2-rebuilt.gob", 1, time.Minute)
+		older := publish(t, directory, "sha1-tree1-engine.gob", 1, 2*time.Minute)
+		if evicted := evictSnapshotsAt(directory, current, 2, now); evicted != 1 || exists(foreign) || !exists(older) {
+			t.Fatalf("evicted %d; foreign kept=%v older same-engine kept=%v", evicted, exists(foreign), exists(older))
+		}
+	})
+	t.Run("orphaned temporary", func(t *testing.T) {
+		directory := t.TempDir()
+		orphan := publish(t, directory, "snapshot-1.tmp", 1, 20*time.Minute)
+		evictSnapshotsAt(directory, "", snapshotKeep, now)
+		if exists(orphan) {
+			t.Fatal("a temporary twenty minutes old survived eviction")
+		}
+	})
+}
+
 // linkedSnapshotComponents are the directories index writes through: the
 // worktree's committed `.corvint`, and the two store components under the Git
 // common directory, which a commit cannot reach but local state can link.
