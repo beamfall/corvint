@@ -126,3 +126,11 @@ Neither proves link meaning, semantic agreement, owner acceptance or exhaustive 
 After moving clauses, regenerate the TSV with `script/gen-spec-requirements.sh` and inspect its
 diff. Keep IDs and historical decisions stable. Full verification remains [Makefile](../Makefile)
 and [DOGFOOD.md](DOGFOOD.md); report anything not run with its reason.
+
+These checks read the Git index, not the worktree, so `git add` your edits before running them;
+an unstaged fix does not change their result. A line citation `path:N-M@hex` pins content: `hex`
+is a prefix of the sha256 of the cited lines. When an insertion shifts cited lines, the check
+reports `cited content changed`. Read the lines at the new position. If they still say what the
+sentence claims, run `script/check-line-citations.sh --hash path:N-M` with the new range. It prints
+the whole `path:N-M@hex` token, which replaces the old one. A changed hash over the same range
+means the cited text itself changed, so re-read it before repinning (`DCG-V0-006` to `DCG-V0-009`).

@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`
-Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320); AFP-V0-021 accepted (decision 0376); other AFP-V0 requirements proposed
+Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); other AFP-V0 requirements proposed
 Delivery status: experimental
 Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wire and non-goals),
 `docs/specs/live-proof-carrying-verification-v0.md` (future composer, not-started),
@@ -11,7 +11,7 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
-- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320); AFP-V0-021 accepted (decision 0376); other AFP-V0 requirements proposed/experimental
+- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); other AFP-V0 requirements proposed/experimental
 - Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification.
 - Blocked on: the LPCV-V0 composer accepting or replacing this wire; the 200-row qualification, which needs 201 first-parent commits on `main` (AFP-V0-017).
 - Read next: Requirements; Non-goals and authority; Failure modes.
@@ -292,14 +292,21 @@ and container qualification; full fallback remains available.
 
 ### Hosted control plane and qualification
 
-- **AFP-V0-016:** (accepted by decision 0320) `.github/workflows/ci-control-plane.yml` SHALL run
+- **AFP-V0-016:** (accepted by decision 0320; ruleset and consent amended by decision 0390)
+  `.github/workflows/ci-control-plane.yml` SHALL run
   on `workflow_run` after `CI`, never check out or execute PR code, and post the commit status
   `ci-control-plane` on the PR head: `failure` when a changed or renamed-from path is under
   `.github/` or the PR exceeds the files API's 3000-file listing, `success` otherwise. An API
   failure MUST post nothing. Its permissions MUST be only `contents: read`, `pull-requests:
   read` and `statuses: write`. The `main` ruleset SHALL require a pull request and the
-  `go-product` and `ci-control-plane` checks, with the repository admin role as the only
-  bypass, in pull-request mode.
+  `go-product`, `ci-control-plane` and `doc-gates` checks (`doc-gates` is the `ci.yml` job
+  added by PR #212, V1-0244), with no bypass actor. Consent to a `.github/` change SHALL be a
+  repository admin posting `ci-control-plane` `success` on the exact reviewed head SHA (`gh api
+  -X POST repos/beamfall/corvint/statuses/<head sha> -f state=success -f
+  context=ci-control-plane -f description="admin reviewed .github change at <sha>"`). The
+  latest status per context wins, so consent binds to that one SHA and is logged with its
+  creator; `go-product` and `doc-gates` stay binding, so no merge happens while checks run; a
+  later push gets a fresh workflow `failure` and needs fresh consent.
 - **AFP-V0-017:** (accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
   SHALL be `workflow_dispatch` only, with `contents: read` and no persisted credentials. It
   SHALL build the three trusted binaries from the dispatched `tool_source`, freeze the corpus
@@ -431,7 +438,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-013 | `tools/corvint-pr-tests` and `.github/workflows/ci.yml` | `TestSelectedFailureAndFallback`, `TestInterruptionLeavesNoLiveDescendant`; trusted pins empty, hosted execution unavailable |
 | AFP-V0-015 | `tools/corvint-pr-tests/container.go` and indexed shadow execution | `TestContainerProfileAndArchive`, `TestColdRuntime`, `TestFrozenRowIndex`, `TestDockerCLIInterruption`, `TestContainerCleanupRefusal`; real Linux row/hosted NOT_RUN |
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
-| AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active; `failure` path NOT_RUN on a real PR |
+| AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active with the decision 0320 settings; the decision 0390 settings (no bypass, `doc-gates` required) and the admin-status consent path NOT_VERIFIED until the owner applies them; `failure` path NOT_RUN on a real PR |
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |
 | AFP-V0-019 | `internal/plansnapshot`, `compileSnapshotAffected` | `TestSnapshotImmutableBytesAndCleanup`, `TestSnapshotRejectsIncompleteMismatchedAndStale`, `TestSnapshotStrictWire`, `TestSnapshotRejectsLinksAndIgnoresArchiveAttributes`, `TestAffectedSnapshotMatchesCommittedPlanAcrossDirtySources`, `TestAffectedSnapshotPlaywrightPinsConfigAndSource` |
 | AFP-V0-018 | `playwrightAffectedReceipt`, `compilePlaywrightAffected`, and `typescript.SelectPlaywright` | `TestAffectedPlaywrightProfileEmitsProjectDistinctUnits`, `TestAffectedPlaywrightArgumentsFailClosed`, and `internal/liveverify/affected/typescript/playwright_test.go` |
@@ -459,7 +466,8 @@ run passes; until then it is an everyday narrowing whose fallback is the full ru
 Protected workflow/ruleset status: **VERIFIED** (2026-09-19). The repository workflow and literal
 pins alone do not protect their own control plane; decision 0320 establishes the admission on the
 free plan with AFP-V0-016 and ruleset 23699808, whose settings and observed runs are recorded in
-`tools/corvint-pr-tests/README.md`. Keep pins empty until AFP-V0-017 produces a PASS.
+`tools/corvint-pr-tests/README.md`. Decision 0390 removes the ruleset's bypass actor and adds
+`doc-gates`; that ruleset change is not yet observed. Keep pins empty until AFP-V0-017 produces a PASS.
 The runtime environment is an allowlist with exact recorded bytes, a fixed absolute Go PATH,
 `/usr/bin/cc`, `GOENV=off`, `LANG=C`, `LC_ALL=C`, `TZ=UTC`, and exclusively owned HOME/TMP/cache
 under `/tmp/corvint-pr-tests-runtime`. An existing runtime path is refused; owned runtime state is

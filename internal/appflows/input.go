@@ -124,10 +124,17 @@ func confinedName(root, filename string) (string, error) {
 		return "", errors.New("invalid flow output path")
 	}
 	rel, err := filepath.Rel(root, abs)
-	if err != nil || !safePath(filepath.ToSlash(rel)) {
+	if err != nil {
 		return "", errors.New("flow output must be under the repository root")
 	}
-	return filepath.ToSlash(rel), nil
+	rel = filepath.ToSlash(rel)
+	if gitPath(rel) {
+		return "", errors.New(gitPathRefused)
+	}
+	if !safePath(rel) {
+		return "", errors.New("flow output must be under the repository root")
+	}
+	return rel, nil
 }
 
 func realParents(r *os.Root, rel string) error {
@@ -190,7 +197,20 @@ func safePath(s string) bool {
 	if s == ".." {
 		return false
 	}
-	return !strings.HasPrefix(s, "../")
+	if strings.HasPrefix(s, "../") {
+		return false
+	}
+	return !gitPath(s)
+}
+
+// gitPathRefused is the named refusal for a path whose first component is .git, case-folded:
+// repository metadata is never a valid flow write target (AFU-V1-036).
+const gitPathRefused = "git-path-refused"
+
+// gitPath reports whether s's first repository-relative component is .git, case-folded.
+func gitPath(s string) bool {
+	first, _, _ := strings.Cut(s, "/")
+	return strings.EqualFold(first, ".git")
 }
 
 func localPath(p string) bool {
