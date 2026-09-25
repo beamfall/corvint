@@ -388,6 +388,11 @@ func readOCMs(root, change, mapSha256 string) ([]boundOCM, []ChainArtifact) {
 	}
 	var bound []boundOCM
 	var artifacts []ChainArtifact
+	if len(names) > maxChainOCMs {
+		artifacts = append(artifacts, ChainArtifact{Path: ocmDir + "/change.ocm*.json", State: GapMissing, Source: localSource(root, ocmDir),
+			Reason: strconv.Itoa(len(names)) + " OCM maps exist and the pane reads only the first " + strconv.Itoa(maxChainOCMs) + " by name, so this list is PARTIAL and a map bound to this change may be unread"})
+		names = names[:maxChainOCMs]
+	}
 	for _, name := range names {
 		path := ocmDir + "/" + name
 		artifact := ChainArtifact{Path: path, Source: localSource(root, path)}
@@ -415,7 +420,7 @@ func ocmNames(root string) ([]string, error) {
 	}
 	var names []string
 	for _, entry := range entries {
-		if ocmFileName.MatchString(entry.Name()) && len(names) < maxChainOCMs {
+		if ocmFileName.MatchString(entry.Name()) {
 			names = append(names, entry.Name())
 		}
 	}

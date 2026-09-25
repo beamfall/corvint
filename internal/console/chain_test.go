@@ -3,6 +3,7 @@ package console
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -296,6 +297,21 @@ func TestConsoleChainPanelsAgreeOnObligationHunkEdges(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestConsoleChainOCMCapRendersAPartialGapRow is V1-0153: more OCM maps than
+// the pane reads render a gap row naming the cap instead of being dropped
+// silently (LAC-V0-035).
+func TestConsoleChainOCMCapRendersAPartialGapRow(t *testing.T) {
+	fixture := newChainFixture(t, "func Frob() {}", nil)
+	for index := 0; index <= maxChainOCMs; index++ {
+		chainWrite(t, fixture.root, fmt.Sprintf("%s/change.ocm.%03d.json", ocmDir, index), []byte("{}"))
+	}
+	body := fixture.page(t, "")
+	want := fmt.Sprintf("<td>missing</td><td>%d OCM maps exist and the pane reads only the first %d by name, so this list is PARTIAL", maxChainOCMs+1, maxChainOCMs)
+	if !strings.Contains(body, want) {
+		t.Fatalf("no PARTIAL cap row %q:\n%s", want, mainOf(body))
 	}
 }
 
