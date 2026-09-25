@@ -113,6 +113,21 @@ func TestAFUV1RecordConfinedToRoot(t *testing.T) {
 	}
 }
 
+// AFU-V1-036: a record --output path under .git, case-folded, is refused by name.
+func TestAFUV1RecordGitPathRefused(t *testing.T) {
+	root, in := fixture(t)
+	raw, _ := json.Marshal(observed(in))
+	if err := os.MkdirAll(filepath.Join(root, ".git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{".git/hooks/pre-commit", ".GIT/config"} {
+		err := Record(in, raw, filepath.Join(root, name))
+		if err == nil || err.Error() != gitPathRefused {
+			t.Errorf("%s: refusal %v, want %s", name, err, gitPathRefused)
+		}
+	}
+}
+
 // AFU-V1-036: a manifest FIFO or symlink under the root is refused before open, without blocking.
 func TestAFUV1ManifestRegularBeforeOpen(t *testing.T) {
 	root := t.TempDir()

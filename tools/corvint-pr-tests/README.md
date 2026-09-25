@@ -57,10 +57,12 @@ Do not claim Linux or hosted qualification from the local macOS fixture.
 Protected workflow/ruleset status: **VERIFIED** (2026-09-19). The repository workflow and literal
 pins alone do not protect their own control plane. Decision 0320 replaces the required-workflow
 policy the free plan lacks: `ci-control-plane.yml` (AFP-V0-016) fails any PR that changes
-`.github/`, and the `main` ruleset requires it, so such a PR merges only by admin bypass. Ruleset
-23699808 is active on the default branch: a pull request with 0 approvals, merge commits only (a
-squash drops the bound change's sha), `require_extra_approval_for_unattributed_changes` false (the
-GitHub default of true blocks a solo repository), required checks `go-product` and
+`.github/`, and the `main` ruleset requires it. Decision 0390 removes the admin bypass: such a PR
+merges only after an admin posts a `ci-control-plane` `success` status on its exact reviewed head
+SHA, and `doc-gates` joins the required checks. As recorded on 2026-09-19, before decision 0390,
+ruleset 23699808 was active on the default branch: a pull request with 0 approvals, merge commits
+only (a squash drops the bound change's sha), `require_extra_approval_for_unattributed_changes`
+false (the GitHub default of true blocks a solo repository), required checks `go-product` and
 `ci-control-plane`, and the admin role as the only bypass actor, in pull-request mode. The check
 posted `success` on PR #26 (run 35444060752) and PR #24 (run 35446378936); its `failure` path has
 not yet run on a real PR. Keep pins empty until `pr-tests-qualification.yml` (AFP-V0-017)
