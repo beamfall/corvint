@@ -6172,7 +6172,7 @@ after the contract commit 0b516eb, and it added `instruction-routed` to `context
 `cmd/corvint/testdata/context-default-wire.golden` at `v0.8.0`. The enumeration rule ("a frozen
 enumeration a reader must branch on") named no enumerations, so no test could apply it.
 
-Decisions (proposed, not accepted; owner acceptance pending in V1-0001):
+Decisions (accepted 2026-09-25, decision 0401):
 
 - N-1 is the newest release tag on `main`, currently 0.8.1. The Agent digest, the `INDEX.json` claim
   and the README row now say "from 0.8.1 to 1.0". The `instruction-routed` addition is recorded as

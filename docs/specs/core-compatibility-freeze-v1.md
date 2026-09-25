@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `CCF-V1`
-Intent status: proposed
+Intent status: proposed overall; accepted CCF-V1-006/CCF-V1-007 amendments (decision 0401)
 Delivery status: experimental
 Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), decision 0358, `AGENTS.md` invariants 1, 2, 4 and 8,
 `conformance/cli-parity-v0/manifest.json`, and the owning specs of each Core verb listed in CCF-V1-002.
 
 ## Agent digest
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
-- Status: proposed intent, experimental delivery; the Core set is taken from accepted decision 0332, this contract awaits owner ratification in V1-0001
+- Status: proposed overall; accepted CCF-V1-006/CCF-V1-007 amendments (decision 0401); experimental delivery; the Core set is taken from accepted decision 0332, this contract awaits owner ratification in V1-0001
 - Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), and `cmd/corvint/core_freeze_test.go`
 - Blocked on: V1-0001 owner ratification of this contract; pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
@@ -28,7 +28,7 @@ output. Everything not listed stays experimental, so no companion or research pr
 frozen by omission.
 
 The N-1 baseline is the published 0.8.1 release (tag `v0.8.1`, commit 0e5d596), per CCF-V1-007.
-(Amended 2026-09-25, panel blocker B6, not accepted.) The contract was first written against 0.7.0
+(Amended 2026-09-25, panel blocker B6; accepted, decision 0401.) The contract was first written against 0.7.0
 (tag `v0.7.0`, commit 678c1b1) when `git diff v0.7.0 1894b9e -- cmd/corvint internal` was empty,
 but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see CCF-V1-007.
 
@@ -113,13 +113,13 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   (`query`, `impact`, `init`, `adopt`), any stdout or stderr byte change is breaking unless recorded in
   `conformance/divergence-register.md` with a decision. For every other frozen mode: adding an optional
   member is compatible; removing, renaming or retyping a member, changing a CCF-V1-002 identifier value,
-  adding a value to a `closed` row of the CCF-V1-007 (d) enumeration register (proposed 2026-09-25,
-  panel blocker B6, not accepted; it replaced "a frozen enumeration a reader must branch on"),
+  adding a value to a `closed` row of the CCF-V1-007 (d) enumeration register (accepted 2026-09-25, decision 0401;
+  panel blocker B6; it replaced "a frozen enumeration a reader must branch on"),
   removing or renaming any registered value, changing the default mode, or making a read mutate state
   is breaking. A breaking change MUST ship a new profile version (for example
   `affected-plan/1`), an N-1 reader per CCF-V1-007, a decision record, and an update to this contract
   and its test in the same change.
-- **CCF-V1-007:** (proposed 2026-09-25, panel blocker B6, not accepted) N-1 and migration policy. N-1
+- **CCF-V1-007:** (accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy. N-1
   is the newest release tag on `main`, currently 0.8.1 (tag `v0.8.1`, commit 0e5d596). It is not 0.7.0:
   0.8.0 (516439f) and 0.8.1 both shipped this contract, and between `v0.7.0` and `v0.8.1` 170 files
   under `cmd/corvint` and `internal` changed. One change reached a frozen member. Commit 2f3bfe6
