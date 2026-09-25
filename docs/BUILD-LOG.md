@@ -6314,3 +6314,25 @@ code made 41,666). An allocation count is used instead of a timing ratio because
 on host load. A scratch timing after the fix: 100 KB 0.7 ms, 1 MB 5.6 ms. The other `affected`
 language scanners (dotnet, golang, kotlin, python, ruby, rust, swift) have no per-position
 conversion of their mutated buffer. Follow-up, not in this change: no per-language scan deadline.
+
+## 2026-09-25 Owner answers: decisions 0391 (review finding B7) and 0392 (`OCM-V0-016`)
+
+Decision 0391 keeps decision 0382 item 4: one `full-gate` run attests every acceptance criterion
+of a release, and no per-criterion evidence kind is added. The review's other two B7 claims (MANUAL
+empty obligations, the Core-only `companion-release` requirement) stay open under V1-0235.
+Decision 0392 accepts `OCM-V0-016` as delivered by V1-0273 (PR #213). The rest of the OCM spec
+keeps its proposed status. The branch also exports tickets V1-0283..V1-0312, filed from the
+pre-1.0 panel review.
+
+Checks: `spec-requirements-check`, `line-citations-check`, `decision-numbers-check`,
+`traceability-tests-check`, `requirement-definitions-check`, `error-code-ownership-check`,
+`go test ./internal/specindex ./conformance/use-cases-v0`. No code changed.
+## 2026-09-25 Owner answer: decision 0398, disputed panel findings are defects
+
+Decision 0398 records the owner instruction to treat every disputed pre-1.0 panel finding (main
+report D1-D15, addendum §5) as a defect and fix it before the next release. Clause amendments made
+by those fixes stay proposed until accepted, frozen wire profiles change only by their versioning
+rule, and the `context --task` promotion gate stays binding. The branch also exports V1-0263 at P1
+and tickets V1-0317..V1-0345, filed from the panel addendum, the merge queue and the disputed
+findings.
+
