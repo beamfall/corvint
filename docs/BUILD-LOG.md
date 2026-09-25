@@ -5694,6 +5694,35 @@ Negative control, run once and reverted: dropping the `linked-to-closure` and `o
 reasons produced 4 unsafe omissions. Both live changes (the Corvint Playwright fixture suite and
 Beamfall) stay `NOT_RUN`.
 
+## 2026-09-25 V1-0260: unsupported records yield to floor-clearing symbols (`GPK-V0-066`, decision 0387)
+
+A precise Beamfall task (base `0d7796be`, "Validate plugin trust roots at model loader
+construction …") abstained with `below-relevance-floor` at `--limit 1`, while `corvint impact`
+found `internal/plugin/trust.go`. A stage dump showed six plugin feature records scoring 705, each
+resting only on the word `plugin`, plus an ADR. `PluginTrustRoots` (8 query words) and
+`NewModelLoader` (11 words) were confident symbols, but `evalQuery` admits confident symbols only
+when no competitive record exists. The emitted one-record packet failed `GPK-V0-039` and was
+withdrawn, even though a supported answer was in the index. Three rewordings behaved the same at
+limits 1 and 3, so this is ranking precedence, not phrasing.
+
+`GPK-V0-066` (accepted 2026-09-25, decision 0387): when the record/document packet fails
+the floor, `evalQuery` compiles the confident-symbol packet and applies the same floor to it before
+withdrawing. The global floor is unchanged. Packets that already clear the floor are unchanged, so
+at `--limit 10` single-word records still crowd the packet (`NEEDS_WIDENING`, no `trust.go`); that
+residual is a follow-up. The fixed limit-1 packet is `READY` with `authoritative_results` 0 and the
+`GPK-V0-046` syntax-only uncertainty line. `TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols`
+fails without the change. The analyzer schema moves to `corvint-analyzer/84`.
+
+Frozen evaluations, base → fix:
+- Beamfall goldens (`corvint eval`, 7 cases): recall 0.9, must_read 9/10, critical misses 0/5,
+  top-5 6/7, abstention 1/1 and budget compliance 1.0 are all unchanged. Byte-weighted precision
+  moved 0.707676 → 0.702464 (bytes 47574 → 47927). One case, `completed-atlas-impact-repair`,
+  moved from a floor withdrawal to `symbol:script/context_atlas.py:impact`. That symbol is in the
+  gold file, but the golden labels only `learned-path:` selectors, so it scores as not relevant.
+- `tools/retrieval-bench --arms corvint`:
+  - `v2_abstention`: all 82 samples are identical (abstained 0.073171 in both).
+  - `v2_comment2context`: the first 40 samples are identical (hit@k 0.075, mrr@k 0.041667).
+
 ## 2026-09-25 V1 bug batch: V1-0123, V1-0159, V1-0172, V1-0238, V1-0222, V1-0131
 
 - V1-0123 (`EEP-V0-001`): a provider record whose object repeats a member name is now `invalid`,
