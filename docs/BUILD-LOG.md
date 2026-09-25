@@ -5546,6 +5546,37 @@ checkout on 2026-09-24.
 - Decision 0384: release `v0-9` keeps its id with version `1-0-0-rc-1` and title `Corvint
   1.0.0-rc.1 release candidate`, and V1-0018 is retitled to match. No 0.9.0 is published.
 
+## 2026-09-24 decision 0385: application flow proof in 1.0 (issue #175, AFU-V1)
+
+The owner asked for "full and researched support" for issue #175 in 1.0, covering E2E test
+selection for a change, website navigation by an agent, and generated documentation proven by the
+same evidence. Six expert reviews informed the design: flow model and interop, test-evidence
+provenance, E2E test-impact selection, agent website navigation, evidence-proven documentation, and
+an adversarial trust reviewer. Their claims about current code were checked against `978b37b`.
+
+The owner chose a split classification. The `affected --selection-profile e2e-safe` value is Core
+and narrows only when every omitted test has an exclusion proof; otherwise it falls back to the full
+relevant suite with a named code. `corvint flows` map, gaps, impact, navigation, proven docs and the
+MCP `flows` profile ship as a qualified companion and cannot block the Core candidate.
+`docs/specs/application-flow-understanding-v1.md` holds `AFU-V1-001..040`, rollout slices S1-S8
+and the kill criterion. The flows row in the 1.0 product spec moves from experimental to companion.
+Nothing is built yet.
+
+The reviews also found two defects in the shipped experimental `flows` command: output paths are not
+confined to the root, and the input file is opened before it is checked, so a FIFO blocks the read.
+Both are fixed in slice S1 (`AFU-V1-036`). A third defect: the Playwright provider keeps only the
+final attempt (`AFU-V1-012`).
+
+The owner delegated the three open questions to experts. The navigation packet gets no external
+agent format in 1.0, because no candidate format carries effect classes, verified state and
+untrusted marking. Review is self-attested, because Git identity fields cannot be verified offline.
+Claim anchors in hand-written docs are opt-in, and unanchored documents are reported as `UNPROVEN`.
+An independent review of the first draft led to four changes: the E2E inventory is reconciled with
+runner discovery, global paths are built in, exclusion proofs are split into `coverage` and
+`reviewed-links` bases, and evidence carries forward only when nothing it depends on changed. The
+parts of the model that `e2e-safe` reads are Core-owned, and the candidate ships without the value
+if it is not qualified in time.
+
 ## 2026-09-24 Decision 0383: MCP reasonClass error profile
 
 The MCP half of issue #170. `corvint-mcp --root ROOT` output is unchanged. Adding the

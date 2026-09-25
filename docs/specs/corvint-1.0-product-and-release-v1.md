@@ -106,7 +106,7 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint index` | Core | Deterministic immutable snapshot every Core read depends on. |
 | `corvint query` | Core | Cited retrieval over the pinned snapshot. |
 | `corvint context` | Core | Task context packet; `UC-TASK-ORIENTATION`. |
-| `corvint impact`, `affected` | Core | Change consequence and verification selection; `UC-CHANGE-CONSEQUENCE`. |
+| `corvint impact`, `affected` | Core | Change consequence and verification selection; `UC-CHANGE-CONSEQUENCE`. The `affected --selection-profile e2e-safe` value is Core too (decision 0385, `AFU-V1-019..024`). |
 | `corvint prove` | Core | Proof over pinned evidence; `UC-EVIDENCE-CARRYING-COMPLETION`. |
 | `corvint cem`, `ocm`, `frontier` | Core | The proof wire to be frozen by V1-0013. |
 | `corvint dogfood`, internal `dogfood-record`, `dogfood-ocm` | Core | Retained local outcome of the dogfood loop. |
@@ -120,7 +120,7 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint record`, `migrate-traces`, `migration-ratchet` | experimental | Learning and trace migration stay evaluation-gated (invariant 5). |
 | `corvint work`, `observations`, `prove-observe`, internal `dogfood-observe` | experimental | Observation ledgers; never inputs to ranking or authority (invariant 4). |
 | `corvint features`, `overview`, `review` | experimental | First-use guidance already labelled experimental (`PUB-V0-017`). |
-| `corvint flows` | experimental | Application-flow understanding is an experimental slice (V1-0100). |
+| `corvint flows` | companion (decision 0385) | Flow map, gaps, impact, navigation and proven docs (`AFU-V1`); qualified on Beamfall and never blocks the Core candidate. |
 | `corvint depsource`, `necessity`, `surprise`, `answerability`, `kernel`, `lease`, `reads`, `skill-export` | experimental | Help text already labels them experimental. |
 | `corvint feature` | experimental | Legacy parity verb kept for the Go kernel migration. |
 | Internal `authority-event`, `qualified-event`, `native-hook`, `frontier-next`, `plan-fixture`, `source-view`, `docs corpus` | experimental | Protected-authority, planning, source-view and corpus prototypes. |

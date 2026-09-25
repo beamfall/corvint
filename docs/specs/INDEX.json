@@ -42,6 +42,30 @@
     ]
   },
   {
+    "path": "docs/specs/application-flow-understanding-v1.md",
+    "title": "Application Flow Understanding V1 — proven flows, safe E2E selection, navigation and documentation",
+    "reqPrefix": "AFU-V1",
+    "intent": "accepted (decision 0385)",
+    "delivery": "planned",
+    "claim": "Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.",
+    "dependsOn": [
+      "docs/specs/application-flow-understanding-v0.md",
+      "docs/specs/documentation-corpus-v1.md",
+      "docs/specs/external-test-selection-v1.md",
+      "docs/specs/mcp-server-2026-07-28-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint",
+      "cmd/corvint-mcp",
+      "internal/appflows",
+      "internal/doccorpus",
+      "internal/extevidence",
+      "internal/jstestprovider"
+    ]
+  },
+  {
     "path": "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
     "title": "Frontier decision brief — 2026-08-29",
     "reqPrefix": "",
