@@ -27,6 +27,7 @@ type taskContextOptions struct {
 	expand                  string
 	summarySet, limitSet    bool
 	summaryBytesSet, maxSet bool
+	expandSet               bool
 }
 
 const taskContextDefaultLimit = 20
@@ -87,7 +88,10 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 			}
 			options.summaryBytes, options.summaryBytesSet = bytes, true
 		case "--expand":
-			options.expand = value
+			if options.expandSet {
+				return options, true, argumentError("argument --expand: may not be repeated")
+			}
+			options.expand, options.expandSet = value, true
 		default:
 			return options, true, argumentError("unrecognized arguments: " + rest[index])
 		}
@@ -106,16 +110,16 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 // checkContextViewArguments refuses mixed or orphaned view flags: --expand
 // stands alone except --max-bytes, and --summary-bytes needs --summary.
 func checkContextViewArguments(options taskContextOptions, taskSet bool) error {
-	if options.expand != "" && (taskSet || options.subject != "" || options.limitSet || options.summarySet || options.summaryBytesSet) {
+	if options.expandSet && (taskSet || options.subject != "" || options.limitSet || options.summarySet || options.summaryBytesSet) {
 		return argumentError("argument --expand: not allowed with --task, --subject, --limit, --summary or --summary-bytes")
 	}
-	if options.expand == "" && options.maxSet {
+	if !options.expandSet && options.maxSet {
 		return argumentError("argument --max-bytes: requires --expand")
 	}
 	if options.summaryBytesSet && !options.summarySet {
 		return argumentError("argument --summary-bytes: requires --summary")
 	}
-	if options.expand == "" && !taskSet {
+	if !options.expandSet && !taskSet {
 		return argumentError("the following arguments are required: --task")
 	}
 	return nil
@@ -125,7 +129,7 @@ func checkContextViewArguments(options taskContextOptions, taskSet bool) error {
 // snapshot when `corvint index` wrote one, else one index build over the
 // committed tree; no trace, ledger, or snapshot write on any path.
 func runTaskContext(ctx context.Context, options taskContextOptions, stdout, stderr io.Writer) int {
-	if options.expand != "" {
+	if options.expandSet {
 		return runContextExpand(ctx, options, stdout, stderr)
 	}
 	// CPUPROFILE (V1-0051): operator env var, off by default, documented in
