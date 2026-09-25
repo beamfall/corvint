@@ -306,6 +306,7 @@ type playwrightSpec struct {
 			Type        string `json:"type"`
 			Description string `json:"description"`
 		} `json:"annotations"`
+		Results []playwrightResult `json:"results"`
 	} `json:"tests"`
 }
 

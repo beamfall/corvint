@@ -67,46 +67,46 @@ AFU-V0-009	docs/specs/application-flow-understanding-v0.md	98	Learning is an exp
 AFU-V0-010	docs/specs/application-flow-understanding-v0.md	102	Use a separately invoked optional browser/test provider with declared action sco
 AFU-V0-011	docs/specs/application-flow-understanding-v0.md	106	Source, UI text and imported artifacts are untrusted data, never execution instr
 AFU-V0-012	docs/specs/application-flow-understanding-v0.md	110	Explain each flow and gap through source/assertion/run evidence, expose contradi
-AFU-V1-001	docs/specs/application-flow-understanding-v1.md	106	A flow intent MUST be a closed `application-flow-intent/1` document with `flow_i
-AFU-V1-002	docs/specs/application-flow-understanding-v1.md	111	A `flow_id` or `variation_id` MUST NOT be reused for a different behavior or
-AFU-V1-003	docs/specs/application-flow-understanding-v1.md	114	`flows export` MUST compile the intent set to one
-AFU-V1-004	docs/specs/application-flow-understanding-v1.md	118	`flows import` MUST accept a `corvint-behavior-adapter-request/1` document, an O
-AFU-V1-005	docs/specs/application-flow-understanding-v1.md	122	Importing an exported behavior-adapter request and exporting the result MUST
-AFU-V1-006	docs/specs/application-flow-understanding-v1.md	124	Flows MAY span repositories. The behavior provider moves to a `/2` profile whose
-AFU-V1-007	docs/specs/application-flow-understanding-v1.md	130	Every link MUST carry its basis, its target identity (path and blob span, test k
-AFU-V1-008	docs/specs/application-flow-understanding-v1.md	132	A link is `reviewed` only when its review anchor is valid at the evaluated revis
-AFU-V1-009	docs/specs/application-flow-understanding-v1.md	138	`inferred` links MUST be reported separately and MUST NOT count toward any revie
-AFU-V1-010	docs/specs/application-flow-understanding-v1.md	141	Reverse lookups (source path to flows, test key to flows) MUST be derived at que
-AFU-V1-011	docs/specs/application-flow-understanding-v1.md	186	A `test-run-evidence/0` record MUST carry the run ID, the runner name and versio
-AFU-V1-012	docs/specs/application-flow-understanding-v1.md	192	The ingest adapters for Playwright JSON, JUnit XML (including `flakyFailure` and
-AFU-V1-013	docs/specs/application-flow-understanding-v1.md	195	A test with a failed attempt and a later passed attempt MUST be `flaky`, never
-AFU-V1-014	docs/specs/application-flow-understanding-v1.md	197	Ingested evidence has authority `INGESTED`. Evidence that Corvint's own observer
-AFU-V1-015	docs/specs/application-flow-understanding-v1.md	203	`corvint flows map` MUST report each flow, variation, step and outcome with its
-AFU-V1-016	docs/specs/application-flow-understanding-v1.md	205	`corvint flows gaps` MUST report each gap with one closed code: `unmapped-flow`,
-AFU-V1-017	docs/specs/application-flow-understanding-v1.md	209	`corvint flows impact --base SHA` MUST name the flows, variations and test keys
-AFU-V1-018	docs/specs/application-flow-understanding-v1.md	211	All of these commands are read commands under product invariant 4. Only `import`
-AFU-V1-019	docs/specs/application-flow-understanding-v1.md	216	`corvint affected --provider FILE --selection-profile e2e-safe` MUST select ever
-AFU-V1-020	docs/specs/application-flow-understanding-v1.md	222	An exclusion proof with basis `reviewed-links` MUST require that every link of t
-AFU-V1-021	docs/specs/application-flow-understanding-v1.md	228	An `observed` coverage link MAY add tests to the selection. An exclusion proof w
-AFU-V1-022	docs/specs/application-flow-understanding-v1.md	233	No test may be omitted when any changed path is a global path. When narrowing is
-AFU-V1-023	docs/specs/application-flow-understanding-v1.md	239	Every omitted test MUST appear with its exclusion proof and basis in the result,
-AFU-V1-024	docs/specs/application-flow-understanding-v1.md	243	The profile is an additive value of the frozen `--selection-profile` option. The
-AFU-V1-025	docs/specs/application-flow-understanding-v1.md	249	`corvint flows navigate` MUST derive an `application-navigation-map/0` from flow
-AFU-V1-026	docs/specs/application-flow-understanding-v1.md	255	Locators MUST come from the flow intent or test source: an accessible role and n
-AFU-V1-027	docs/specs/application-flow-understanding-v1.md	257	Every transition MUST carry an effect class. A declared class MAY be raised by
-AFU-V1-028	docs/specs/application-flow-understanding-v1.md	260	`flows navigate --goal FLOW_ID` MUST return a bounded packet: the ordered steps,
-AFU-V1-029	docs/specs/application-flow-understanding-v1.md	265	The Corvint observer MUST NOT perform a `write-irreversible` or
-AFU-V1-030	docs/specs/application-flow-understanding-v1.md	271	`corvint flows docs` MUST render user documentation from flow intents with fixed
-AFU-V1-031	docs/specs/application-flow-understanding-v1.md	274	A claim is `PROVEN` only when its variation is verified at the evaluated revisio
-AFU-V1-032	docs/specs/application-flow-understanding-v1.md	277	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
-AFU-V1-033	docs/specs/application-flow-understanding-v1.md	281	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
-AFU-V1-034	docs/specs/application-flow-understanding-v1.md	291	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
-AFU-V1-035	docs/specs/application-flow-understanding-v1.md	295	Repository-authored text in any flows response is returned inside the untrusted-
-AFU-V1-036	docs/specs/application-flow-understanding-v1.md	300	Every write MUST resolve under the repository root without following a symlink.
-AFU-V1-037	docs/specs/application-flow-understanding-v1.md	304	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
-AFU-V1-038	docs/specs/application-flow-understanding-v1.md	306	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
-AFU-V1-039	docs/specs/application-flow-understanding-v1.md	312	A committed fixture application MUST carry one UI flow and one API flow that rea
-AFU-V1-040	docs/specs/application-flow-understanding-v1.md	315	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
+AFU-V1-001	docs/specs/application-flow-understanding-v1.md	107	A flow intent MUST be a closed `application-flow-intent/1` document with `flow_i
+AFU-V1-002	docs/specs/application-flow-understanding-v1.md	112	A `flow_id` or `variation_id` MUST NOT be reused for a different behavior or
+AFU-V1-003	docs/specs/application-flow-understanding-v1.md	115	`flows export` MUST compile the intent set to one
+AFU-V1-004	docs/specs/application-flow-understanding-v1.md	119	`flows import` MUST accept a `corvint-behavior-adapter-request/1` document, an O
+AFU-V1-005	docs/specs/application-flow-understanding-v1.md	123	Importing an exported behavior-adapter request and exporting the result MUST
+AFU-V1-006	docs/specs/application-flow-understanding-v1.md	125	Flows MAY span repositories. The behavior provider moves to a `/2` profile whose
+AFU-V1-007	docs/specs/application-flow-understanding-v1.md	131	Every link MUST carry its basis, its target identity (path and blob span, test k
+AFU-V1-008	docs/specs/application-flow-understanding-v1.md	133	A link is `reviewed` only when its review anchor is valid at the evaluated revis
+AFU-V1-009	docs/specs/application-flow-understanding-v1.md	139	`inferred` links MUST be reported separately and MUST NOT count toward any revie
+AFU-V1-010	docs/specs/application-flow-understanding-v1.md	142	Reverse lookups (source path to flows, test key to flows) MUST be derived at que
+AFU-V1-011	docs/specs/application-flow-understanding-v1.md	187	A `test-run-evidence/0` record MUST carry the run ID, the runner name and versio
+AFU-V1-012	docs/specs/application-flow-understanding-v1.md	193	The ingest adapters for Playwright JSON, JUnit XML (including `flakyFailure` and
+AFU-V1-013	docs/specs/application-flow-understanding-v1.md	196	A test with a failed attempt and a later passed attempt MUST be `flaky`, never
+AFU-V1-014	docs/specs/application-flow-understanding-v1.md	198	Ingested evidence has authority `INGESTED`. Evidence that Corvint's own observer
+AFU-V1-015	docs/specs/application-flow-understanding-v1.md	238	`corvint flows map` MUST report each flow, variation, step and outcome with its
+AFU-V1-016	docs/specs/application-flow-understanding-v1.md	240	`corvint flows gaps` MUST report each gap with one closed code: `unmapped-flow`,
+AFU-V1-017	docs/specs/application-flow-understanding-v1.md	244	`corvint flows impact --base SHA` MUST name the flows, variations and test keys
+AFU-V1-018	docs/specs/application-flow-understanding-v1.md	246	All of these commands are read commands under product invariant 4. Only `import`
+AFU-V1-019	docs/specs/application-flow-understanding-v1.md	251	`corvint affected --provider FILE --selection-profile e2e-safe` MUST select ever
+AFU-V1-020	docs/specs/application-flow-understanding-v1.md	257	An exclusion proof with basis `reviewed-links` MUST require that every link of t
+AFU-V1-021	docs/specs/application-flow-understanding-v1.md	263	An `observed` coverage link MAY add tests to the selection. An exclusion proof w
+AFU-V1-022	docs/specs/application-flow-understanding-v1.md	268	No test may be omitted when any changed path is a global path. When narrowing is
+AFU-V1-023	docs/specs/application-flow-understanding-v1.md	274	Every omitted test MUST appear with its exclusion proof and basis in the result,
+AFU-V1-024	docs/specs/application-flow-understanding-v1.md	278	The profile is an additive value of the frozen `--selection-profile` option. The
+AFU-V1-025	docs/specs/application-flow-understanding-v1.md	284	`corvint flows navigate` MUST derive an `application-navigation-map/0` from flow
+AFU-V1-026	docs/specs/application-flow-understanding-v1.md	290	Locators MUST come from the flow intent or test source: an accessible role and n
+AFU-V1-027	docs/specs/application-flow-understanding-v1.md	292	Every transition MUST carry an effect class. A declared class MAY be raised by
+AFU-V1-028	docs/specs/application-flow-understanding-v1.md	295	`flows navigate --goal FLOW_ID` MUST return a bounded packet: the ordered steps,
+AFU-V1-029	docs/specs/application-flow-understanding-v1.md	300	The Corvint observer MUST NOT perform a `write-irreversible` or
+AFU-V1-030	docs/specs/application-flow-understanding-v1.md	306	`corvint flows docs` MUST render user documentation from flow intents with fixed
+AFU-V1-031	docs/specs/application-flow-understanding-v1.md	309	A claim is `PROVEN` only when its variation is verified at the evaluated revisio
+AFU-V1-032	docs/specs/application-flow-understanding-v1.md	312	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
+AFU-V1-033	docs/specs/application-flow-understanding-v1.md	316	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
+AFU-V1-034	docs/specs/application-flow-understanding-v1.md	326	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
+AFU-V1-035	docs/specs/application-flow-understanding-v1.md	330	Repository-authored text in any flows response is returned inside the untrusted-
+AFU-V1-036	docs/specs/application-flow-understanding-v1.md	335	Every write MUST resolve under the repository root without following a symlink.
+AFU-V1-037	docs/specs/application-flow-understanding-v1.md	339	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
+AFU-V1-038	docs/specs/application-flow-understanding-v1.md	341	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
+AFU-V1-039	docs/specs/application-flow-understanding-v1.md	347	A committed fixture application MUST carry one UI flow and one API flow that rea
+AFU-V1-040	docs/specs/application-flow-understanding-v1.md	350	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
 AGW-V0-003	docs/specs/corvint-witness-v0.md	51	(proposed 2026-09-23, V1-0200, not accepted) the report MUST carry

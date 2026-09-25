@@ -151,6 +151,7 @@ func boundaryScrubReceiptRiskFields(receipt *Receipt, sensitive []string) {
 	}
 	for i := range receipt.Tests {
 		receipt.Tests[i].FailureMessage = boundaryScrubText(replacer, receipt.Tests[i].FailureMessage)
+		receipt.Tests[i].AttemptDetails = nil
 		for j := range receipt.Tests[i].Artifacts {
 			receipt.Tests[i].Artifacts[j].Name = boundaryScrubText(replacer, receipt.Tests[i].Artifacts[j].Name)
 			receipt.Tests[i].Artifacts[j].Path = boundaryScrubText(replacer, receipt.Tests[i].Artifacts[j].Path)
@@ -340,6 +341,7 @@ func boundaryValidateSteps(steps []BrowserStep, policy normalizedSensitivePolicy
 }
 
 func boundaryRedactOutcome(outcome *TestOutcome) {
+	outcome.AttemptDetails = nil
 	if outcome.FailureMessage != "" {
 		outcome.FailureMessage = SensitiveInputRedactionMarker
 	}
