@@ -14,7 +14,7 @@ decisions 0374 and 0385.
 
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
-- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 015..018 and 036..038 (unqualified), 012..014 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; S4 implements AFU-V1-019..024 and the AFU-V1-040 frozen corpus (unsafe-narrowing rate 0 on both bases), with the two live changes `NOT_RUN`; nothing else is implemented or qualified.
+- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 015..018 and 036..038 (unqualified), 012..014 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; S4 implements AFU-V1-019..024 and the AFU-V1-040 frozen corpus (unsafe-narrowing rate 0 on both bases), with the two live changes `NOT_RUN`; S5 implements AFU-V1-025..028 and the AFU-V1-029 observer gate, which no observer calls yet (partial); nothing else is implemented or qualified.
 - Exists: the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
 - Blocked on: implementation slices S1-S8 (Rollout) and the acceptance evidence below.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Deterministic acceptance.
@@ -423,6 +423,44 @@ This subsection fixes the S4 wire shape. It adds no requirement and no root verb
   `external-side-effect` transition unless the target origin is listed as disposable in the
   repository-owned `origins.json` in the flows directory.
 
+### Navigation wire contract
+
+This subsection fixes the S5 wire shape. It adds no requirement and no root verb.
+
+- Intent: an `application-flow-intent/1` document MAY carry the optional closed `navigation` member,
+  with `precondition_flows` (flow IDs, run first, never the flow itself) and `steps`. Each step entry
+  names one intent step and carries `locator`, `expect` (outcome IDs), and the optional `ready`,
+  `input_fixture` (a fixture ID, never a value), `effect` and `recovery` (a later step that no
+  variation lists). A `ui` entry has a `state` route template starting with `/` and a locator that
+  is exactly `role` and `name`, or a `test_id`; `ready` has the same form. An `api` entry has no `state`: its locator is a `method`
+  (`GET`, `HEAD`, `OPTIONS`, `POST`, `PUT`, `PATCH` or `DELETE`) and a `path` template, which are its
+  state, and a declared `read` on a method other than `GET`, `HEAD` or `OPTIONS` is refused.
+- Traffic: `--traffic FILE` (repeatable) names `application-flow-traffic/0` JSONL records (`flow_id`,
+  `step_id`, `method`, `form_submit`) read with the flow-input discipline; with no locator or text
+  field, a record can only raise a class. A `method` other than `GET`, or `form_submit` true, raises a
+  declared `read` to `write-irreversible` (`effect_basis` `observed-traffic`); an absent `effect` is
+  `write-irreversible` (`undeclared`); other declared classes stand (`declared`).
+- Map: `application-navigation-map/0` has `revision`, `states` (`state_id` `ui:<route>` or
+  `api:<METHOD> <path>`, `kind` `route` or `api-operation`, `template`) and per flow `status` (as
+  `flows gaps`), `precondition_flows` and `transitions`, one per intent step. A transition carries
+  `action`, `state`, `locator`, the flow's `preconditions`, `ready`, `input_fixture`, `expect` (the
+  outcome records), `effect_class`, `effect_basis`, `recovery` and `verification`. A step is
+  `verified` only when a variation that lists it has every required evidence pair verified; a step
+  with no navigation entry has no state or locator. A precondition flow that is not declared or that
+  closes a cycle refuses the map.
+- Packet: `--goal` writes `application-navigation-packet/0` with `goal`, `max_effect`, the referenced
+  `states`, `flows` (each with its `status`) and `steps`: the precondition flows depth first, each
+  once, then the goal, in intent step order. Steps some other step names as its `recovery` move to
+  `recovery`. Each step carries `grant` `granted`, or `requires-grant` with `grant_needed` when its
+  class is above `max_effect`. More than 256 steps, or more than the 8,192 traffic records, is
+  `navigation-bound-exceeded`. `--max-effect` without `--goal` is refused.
+- Observer gate: `origins.json` in the flows directory is a closed `application-flow-origins/0`
+  document with `disposable`, unique canonical `http` or `https` origins (`scheme://host[:port]`,
+  lower case, no user, path, query or fragment), read at the evaluated commit, never the working
+  tree; an absent file lists none. A `read` or `write-reversible` transition is admitted anywhere;
+  any other class, unknown included, only against a listed origin, else
+  `observer-origin-not-disposable`.
+
 ### Proven documentation
 
 - `AFU-V1-030`: `corvint flows docs` MUST render user documentation from flow intents with fixed
@@ -543,7 +581,11 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-022 | `TestAFUV1022EveryFallbackCodeYieldsFullSuite` (one subtest per closed code), `TestAFUV1040SelectionCorpusReport` (global-path cases) |
 | AFU-V1-023 | `TestAFUV1020ExclusionProofsPerBasis`, `TestAFUV1040SelectionCorpusReport` (per-basis counts, both notes) |
 | AFU-V1-024 | `TestAFUV1024StrictAndCoverageBytesUnchanged` (goldens captured before S4), `TestAFUV1024E2ESafeRefusesMalformedInput`, `TestAffectedSelectionArguments` |
-| AFU-V1-025..029 | navigation goldens, effect raising from observed traffic, `requires-grant` marking, the observer refusal, and a deterministic scripted agent that completes each fixture goal from the packet alone |
+| AFU-V1-025 | `TestAFUV1025NavigationMapGolden` (`navigate.golden.json`: states, readiness, expected outcomes, recovery, verified and unverified steps, credentials by fixture ID, read-only), `TestAFUV1025PreconditionFlowsResolve` |
+| AFU-V1-026 | `TestAFUV1026LocatorsOnlyFromIntent` (no locator for an unmapped step; traffic with page text refused), `TestAFUV1026NavigationLocatorShapes` |
+| AFU-V1-027 | `TestAFUV1027EffectClasses` (raised by observed `POST`, never lowered, undeclared), `TestAFUV1027EffectRaisedNeverLowered` |
+| AFU-V1-028 | `TestAFUV1028PacketRequiresGrant` (`navigate-checkout.golden.json`), `TestAFUV1028ScriptedAgentCompletesGoals` (a scripted agent completes each mapped fixture goal from the packet alone, including a recovery, performs no write under the default `read`, and cannot run an unmapped goal), `TestAFUV1028PacketBound` |
+| AFU-V1-029 | `TestAFUV1029ObserverRefusesNonDisposableOrigin` (listed, unlisted, non-canonical and unknown-class cases; absent, uncommitted and malformed `origins.json`); partial: `AdmitTransition` is the gate, but no Corvint observer executes navigation transitions yet, and the AFU-V0 manifest observer carries no effect class |
 | AFU-V1-030..033 | docs goldens, drift failure on a lost `PROVEN`, waiver expiry, the anchored Markdown case |
 | AFU-V1-034..035 | MCP conformance with and without the selector |
 | AFU-V1-036 | `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
@@ -587,7 +629,8 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-001..005, 007 | implemented: `internal/appflows/intent.go`, `tree.go`, `review.go`, `export.go`, `import.go`, `cmd/corvint/flows.go` |
 | AFU-V1-008..010 | implemented: `internal/appflows/review.go` (`EvaluateLinks`, `Summarize`, `FlowsForPath`, `FlowsForTestKey`), surfaced by `flows map` in `internal/appflows/query.go` |
 | AFU-V1-015..018 | implemented: `internal/appflows/query.go`, `impact.go`, `runingest.go` (`IngestRunFile`), `cmd/corvint/flows.go` |
-| AFU-V1-025..033 | `internal/appflows`, `cmd/corvint/flows.go` |
+| AFU-V1-025..029 | implemented, 029 partial (see the matrix): `internal/appflows/navigate.go`, `origins.go`, the `navigation` member in `intent.go`, `cmd/corvint/flows_navigate.go` |
+| AFU-V1-030..033 | `internal/appflows`, `cmd/corvint/flows.go` |
 | AFU-V1-006 | partial (see the matrix): `internal/doccorpus/behavior.go` |
 | AFU-V1-011..014, 038 | implemented, 012..014 partial (see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
