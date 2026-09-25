@@ -42,7 +42,10 @@ const (
 type Error struct {
 	Code, Message string
 	Cause         error
-	gitFailure    *GitFailure
+	// ReasonClass is the closed status refusal class of decision 0383, set
+	// only on a status refusal.
+	ReasonClass string
+	gitFailure  *GitFailure
 }
 
 func (err *Error) Error() string { return err.Message }
@@ -178,7 +181,7 @@ func gitExpecting(ctx context.Context, root string, outputLimit, expected int, s
 				}
 				return nil, err
 			}
-			return nil, &Error{Code: "repository-probe-failed", Message: gitstatus.RefusalMessage(err)}
+			return nil, &Error{Code: "repository-probe-failed", Message: gitstatus.RefusalMessage(err), ReasonClass: gitstatus.RefusalClass(err)}
 		}
 		return result, nil
 	}

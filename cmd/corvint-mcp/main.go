@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -22,6 +23,12 @@ const (
 	serverName    = "corvint-mcp"
 	serverVersion = "0.1.0-experimental"
 	toolError     = "corvint-mcp-tool-error/0"
+
+	// toolErrorReasonClass is the tool-error object under the closed
+	// --error-profile reason-class selector (MCPV0-027, decision 0383).
+	toolErrorReasonClass = "corvint-mcp-tool-error/1"
+	errorProfileReason   = "reason-class"
+	unclassified         = "unclassified"
 
 	// toolProfileTaskReview is the only value of the closed --tool-profile
 	// selector (MCPV0-026, decision 0374).
@@ -45,8 +52,9 @@ func main() {
 func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	arguments, protocolVersion, protocolOK := protocol.ExtractVersionArgument(arguments)
 	arguments, taskReview, profileOK := extractToolProfile(arguments)
+	arguments, reasonClass, errorProfileOK := extractErrorProfile(arguments)
 	root, versionOnly, ok := parseArguments(arguments)
-	if !ok || !protocolOK || !profileOK {
+	if !ok || !protocolOK || !profileOK || !errorProfileOK {
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: invalid arguments")
 		return 2
 	}
@@ -70,7 +78,7 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: repository unavailable")
 		return 2
 	}
-	handler := &toolHandler{registry: registry}
+	handler := &toolHandler{registry: registry, reasonClass: reasonClass}
 	instance, err := server.New(server.Config{
 		ProtocolVersion: protocolVersion,
 		Name:            serverName, Version: serverVersion,
@@ -111,6 +119,28 @@ func extractToolProfile(arguments []string) (remaining []string, taskReview bool
 	return remaining, taskReview, true
 }
 
+// extractErrorProfile removes the optional, closed tool-error selector
+// (MCPV0-027) under the same rules as extractToolProfile; omission keeps
+// corvint-mcp-tool-error/0.
+func extractErrorProfile(arguments []string) (remaining []string, reasonClass bool, ok bool) {
+	remaining = make([]string, 0, len(arguments))
+	for index := 0; index < len(arguments); index++ {
+		if arguments[index] != "--error-profile" {
+			remaining = append(remaining, arguments[index])
+			continue
+		}
+		if reasonClass || index+1 == len(arguments) || arguments[index+1] != errorProfileReason {
+			return nil, false, false
+		}
+		reasonClass = true
+		index++
+	}
+	if reasonClass && slices.Contains(remaining, "--version") {
+		return nil, false, false
+	}
+	return remaining, reasonClass, true
+}
+
 func parseArguments(arguments []string) (root string, versionOnly bool, ok bool) {
 	if len(arguments) == 1 && arguments[0] == "--version" {
 		return "", true, true
@@ -121,7 +151,10 @@ func parseArguments(arguments []string) (root string, versionOnly bool, ok bool)
 	return arguments[1], false, true
 }
 
-type toolHandler struct{ registry *bridge.Registry }
+type toolHandler struct {
+	registry    *bridge.Registry
+	reasonClass bool
+}
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
 	switch request.Method {
@@ -174,7 +207,7 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 		if bridgeErr.Code == "cancelled" || ctx.Err() != nil {
 			return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
 		}
-		return toolFailure(name, bridgeErr.Code)
+		return handler.toolFailure(name, bridgeErr.Code, bridgeErr.ReasonClass)
 	}
 	structured, text, err := structuredResult(result)
 	if err != nil {
@@ -182,7 +215,7 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	}
 	framed, frameErr := repoenvelope.Frame(text)
 	if frameErr != nil {
-		return toolFailure(name, repoenvelope.CollisionCode)
+		return handler.toolFailure(name, repoenvelope.CollisionCode, "")
 	}
 	return map[string]any{
 		"content":           []any{map[string]any{"type": "text", "text": framed}},
@@ -191,10 +224,16 @@ func (handler *toolHandler) call(ctx context.Context, params map[string]any) (ma
 	}, nil
 }
 
-func toolFailure(name, code string) (map[string]any, *protocol.RPCError) {
+// toolFailure is the closed tool-error object: profile /0 by default, or /1
+// with a required reasonClass under the reason-class selector (MCPV0-028).
+func (handler *toolHandler) toolFailure(name, code, reasonClass string) (map[string]any, *protocol.RPCError) {
 	value := map[string]any{
 		"abstention": map[string]any{"active": true, "reason": "OPERATION_FAILED"},
 		"code":       code, "mutates": false, "profile": toolError, "tool": name,
+	}
+	if handler.reasonClass {
+		value["profile"] = toolErrorReasonClass
+		value["reasonClass"] = cmp.Or(reasonClass, unclassified)
 	}
 	raw, err := json.Marshal(value)
 	if err != nil {

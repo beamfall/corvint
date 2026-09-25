@@ -1,0 +1,30 @@
+{
+  "profile": "corvint-mcp-2026-07-28-conformance/2",
+  "parentProfile": "corvint-mcp-2026-07-28-conformance/0",
+  "selector": ["--error-profile", "reason-class"],
+  "toolErrorProfiles": ["corvint-mcp-tool-error/0", "corvint-mcp-tool-error/1"],
+  "reasonClasses": [
+    "git-filter",
+    "config-include",
+    "attributes-file",
+    "ref-storage",
+    "worktree-config",
+    "config-malformed",
+    "submodule",
+    "split-index",
+    "gitdir-pointer",
+    "metadata-unreadable",
+    "metadata-limit",
+    "metadata-directory",
+    "metadata-drift",
+    "scratch-dir",
+    "root-unresolved",
+    "unclassified"
+  ],
+  "cases": [
+    "selector-closed",
+    "default-tool-error-unchanged",
+    "reason-class-tool-error",
+    "unclassified-tool-error"
+  ]
+}

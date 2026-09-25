@@ -134,6 +134,16 @@ func TestStatusRefusesUnsupportedMetadataBeforeLiveStatus(t *testing.T) {
 		"exclude-fifo":            "metadata file info/exclude is a FIFO",
 		"temp-in-repo":            "scratch directory (TMPDIR) is inside the repository or its Git directory",
 	}
+	// Decision 0383: each refusal also carries its closed class.
+	classes := map[string]reasonClass{
+		"clean": classGitFilter, "process": classGitFilter, "include": classConfigInclude, "includeIf": classConfigInclude,
+		"worktree": classWorktreeConfig, "attributes": classAttributesFile, "bare": classWorktreeConfig,
+		"split-index": classUnclassified, "gitlink": classSubmodule, "config-symlink": classMetadataUnreadable,
+		"index-symlink": classMetadataUnreadable, "objects-symlink": classMetadataDirectory, "refs-symlink": classMetadataDirectory,
+		"git-symlink": classGitdirPointer, "config-internal-symlink": classMetadataUnreadable, "reftable": classRefStorage,
+		"gitdir-pointer-crlf": classGitdirPointer, "commondir-crlf": classGitdirPointer, "snapshot-budget": classMetadataLimit,
+		"oversized-packed-refs": classMetadataLimit, "exclude-fifo": classMetadataUnreadable, "temp-in-repo": classScratchDir,
+	}
 	for _, kind := range []string{"clean", "process", "include", "includeIf", "worktree", "attributes", "bare", "split-index", "gitlink", "config-symlink", "index-symlink", "objects-symlink", "refs-symlink", "git-symlink", "config-internal-symlink", "reftable", "gitdir-pointer-crlf", "commondir-crlf", "snapshot-budget", "oversized-packed-refs", "exclude-fifo", "temp-in-repo"} {
 		t.Run(kind, func(t *testing.T) {
 			var initArgs []string
@@ -259,6 +269,9 @@ func TestStatusRefusesUnsupportedMetadataBeforeLiveStatus(t *testing.T) {
 			}
 			if called {
 				t.Fatal("unsafe metadata reached status")
+			}
+			if got := RefusalClass(err); got != string(classes[kind]) {
+				t.Fatalf("refusal class=%q want %q: %v", got, classes[kind], err)
 			}
 			var probe *MetadataProbeError
 			if kind == "split-index" {
@@ -416,8 +429,8 @@ func TestStatusReadsThroughSearchOnlyParent(t *testing.T) {
 		return testRun(ctx, dir, limit, args...)
 	}
 	_, err = Status(context.Background(), root, metadataLimit, run, args...)
-	if !errors.Is(err, errUnsafe) || !strings.Contains(err.Error(), "replaced") {
-		t.Fatalf("search-only parent replacement: %v", err)
+	if !errors.Is(err, errUnsafe) || !strings.Contains(err.Error(), "replaced") || RefusalClass(err) != string(classMetadataDrift) {
+		t.Fatalf("search-only parent replacement: %v class=%q", err, RefusalClass(err))
 	}
 }
 
@@ -550,14 +563,14 @@ func TestConfigParserRejectsAmbiguousMultilineAndControlRecords(t *testing.T) {
 		"filter.hidden.clean\ntouch marker\x00",
 		"user.name\x7f\nvalue\x00",
 	} {
-		if unsafeConfig([]byte(raw), "/repo", "/repo/.git") == "" {
+		if class, reason := unsafeConfig([]byte(raw), "/repo", "/repo/.git"); reason == "" || class == classUnclassified {
 			t.Fatalf("accepted unsafe config record %q", raw)
 		}
 	}
-	if unsafeConfig([]byte("user.name\nFirst\tLast\x00"), "/repo", "/repo/.git") != "" {
+	if _, reason := unsafeConfig([]byte("user.name\nFirst\tLast\x00"), "/repo", "/repo/.git"); reason != "" {
 		t.Fatal("inert tabbed config value refused")
 	}
-	if unsafeConfig([]byte("filter.hostile.clean\n\x00"), "/repo", "/repo/.git") != "" {
+	if _, reason := unsafeConfig([]byte("filter.hostile.clean\n\x00"), "/repo", "/repo/.git"); reason != "" {
 		t.Fatal("empty filter driver value refused")
 	}
 }

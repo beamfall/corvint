@@ -5,7 +5,7 @@ Date: 2026-09-12. Status: accepted. Authority: repository owner instruction, 202
 One untracked file refused range `impact` (`unsupported-impact-worktree`), emptied learned-trace
 reads (`blocked-mixed-worktree`), and failed the archive gate. That held even when Git ignored the
 file or no path the result depends on could reach it. Each refusal was correct under its contract,
-so the fix is a contract change. `internal/gokernel/repository.go:196@80c62a46` still reports every dirty
+so the fix is a contract change. `internal/gokernel/repository.go:198@80c62a46` still reports every dirty
 path, untracked ones included; that observation is unchanged, and each consumer classifies it.
 
 The owner call: an untracked path is allowed without degradation only when it is (a) excluded by
