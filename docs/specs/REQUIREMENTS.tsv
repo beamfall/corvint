@@ -1088,29 +1088,30 @@ GPK-V0-039	docs/specs/go-production-kernel-migration-v0.md	395	A context packet 
 GPK-V0-040	docs/specs/go-production-kernel-migration-v0.md	426	A receipt's coverage counts are denominated in the universe of results the ranki
 GPK-V0-041	docs/specs/go-production-kernel-migration-v0.md	451	The typed `unsupported-ocm-python-claims` abstention `GPK-V0-037` requires of th
 GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	744	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and
-GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	889	`corvint query` MAY add a general `repository`-intent profile on Darwin
-GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	955	The standalone `corvint query` `repository`-intent profile introduced
+GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	890	`corvint query` MAY add a general `repository`-intent profile on Darwin
+GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	956	The standalone `corvint query` `repository`-intent profile introduced
 GPK-V0-045	docs/specs/go-production-kernel-migration-v0.md	474	An abstaining packet MUST name the reason it abstained at every surface that emi
 GPK-V0-046	docs/specs/go-production-kernel-migration-v0.md	491	Product invariant 3 ranks project-owned authority above syntax. A `query` packet
-GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1025	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
-GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1055	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
-GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1073	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
+GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1026	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
+GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1056	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
+GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1074	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
 GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	616	`corvint record` and `corvint dogfood-record` MUST admit a changed `.gitignore`
 GPK-V0-051	docs/specs/go-production-kernel-migration-v0.md	548	`corvint impact --base FULL_COMMIT_ID` MUST admit a `C` or `R` range member when
 GPK-V0-052	docs/specs/go-production-kernel-migration-v0.md	554	(accepted, decision 0052, 2026-09-04) when a query term
 GPK-V0-053	docs/specs/go-production-kernel-migration-v0.md	563	(accepted 2026-09-04 by decision 0051 item 2, which decides this wording change
 GPK-V0-054	docs/specs/go-production-kernel-migration-v0.md	502	`coverage.authoritative_results` counts cited results Corvint does not label
-GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1102	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
-GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1113	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1103	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1114	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
 GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	634	A target is shipped only after its native conformance, filesystem-safety,
 GPK-V0-058	docs/specs/go-production-kernel-migration-v0.md	572	(proposed amendment 2026-09-05, owner review pending; not accepted) a harness
-GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1132	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
-GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1196	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
-GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1220	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
-GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1147	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
-GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1230	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
-GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1163	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
+GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1133	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
+GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1197	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
+GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1221	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
+GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1148	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
+GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1231	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
+GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1164	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
 GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	588	(proposed amendment 2026-09-14, owner review pending; not accepted) a repository
+GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1246	(proposed amendment 2026-09-25, V1-0260, owner review pending; not accepted)
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation
