@@ -47,6 +47,7 @@ type FlowIntent struct {
 	Variations    []FlowVariation `json:"variations"`
 	Links         []FlowLink      `json:"links"`
 	Adapter       *FlowAdapter    `json:"adapter,omitempty"`
+	Navigation    *FlowNavigation `json:"navigation,omitempty"`
 }
 
 type FlowStep struct {
@@ -270,6 +271,9 @@ func ValidateIntent(f FlowIntent) error {
 		if err = validateLink(l, members, f.Proposed); err != nil {
 			return fmt.Errorf("links[%d]: %v", i, err)
 		}
+	}
+	if err = validateNavigation(f, members); err != nil {
+		return err
 	}
 	return validateAdapter(f.Adapter)
 }
