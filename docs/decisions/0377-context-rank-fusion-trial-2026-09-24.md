@@ -11,7 +11,7 @@ Ticket V1-0219 came from a review of vectorize-io/hindsight, which merges parall
 channels with reciprocal rank fusion (RRF). The ticket first proposed fusing lexical, structural
 and git-recency channels. Recording the current state showed that the task-context packet is
 built from slots, not from one ranked list. `compile` admits capped slots in evidence order
-(`internal/contextindex/taskcontext.go:237-283@fc3cbfcb`), and `corroborate` (`taskcontext.go:338-352`,
+(`internal/contextindex/taskcontext.go:239-285@fc3cbfcb`), and `corroborate` (`taskcontext.go:340-354`,
 decision 0027) already reorders rows by the number of relations that would have admitted each
 path. Recency already exists as an opt-in reweighting inside the lexical and `cochange` slots
 (decision 0369). The frozen bench cannot measure it, because it rebuilds each snapshot as one

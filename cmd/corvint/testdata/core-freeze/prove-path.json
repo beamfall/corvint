@@ -1,0 +1,294 @@
+{
+  "mutates": false,
+  "ok": true,
+  "packet": {
+    "coverage": {
+      "advisory_results": 0,
+      "authoritative_results": 4,
+      "budget_bytes": null,
+      "critical": [
+        "path:pkg/main.go"
+      ],
+      "critical_missing": [],
+      "included_results": 4,
+      "omitted_results": 0,
+      "packet_bytes": 2943,
+      "requested_results": 4,
+      "uncertainty": [],
+      "within_budget": true
+    },
+    "exclusions": {
+      "count": 0,
+      "samples": []
+    },
+    "freshness": {
+      "mixed_path_count": 0,
+      "mixed_paths": [],
+      "revision": "89332322c1cef4c8c9cb2c6cbfff9b9fdd452af7",
+      "scope": "git",
+      "state": "fresh"
+    },
+    "mode": "impact",
+    "request": {
+      "limit": 10,
+      "paths": [
+        "pkg/main.go"
+      ]
+    },
+    "results": [
+      {
+        "evidence": [
+          {
+            "authority": "git-tree",
+            "blob_hash": "608fd2f8a1ee1bc6c9b373d3ec56823ee77b782d",
+            "confidence": "authoritative",
+            "line": 1,
+            "path": "pkg/main.go",
+            "reason": "requested changed path"
+          }
+        ],
+        "id": "pkg/main.go",
+        "kind": "path",
+        "score": 1000,
+        "summary": "direct changed path"
+      },
+      {
+        "evidence": [
+          {
+            "authority": "test-marker",
+            "blob_hash": "fe0edb98ce9c24f641ccec040f0245344db2b6c4",
+            "confidence": "high",
+            "line": 3,
+            "path": "pkg/main_test.go",
+            "reason": "same-package test carries scenario:z-last"
+          },
+          {
+            "authority": "test-marker",
+            "blob_hash": "fe0edb98ce9c24f641ccec040f0245344db2b6c4",
+            "confidence": "high",
+            "line": 3,
+            "path": "pkg/main_test.go",
+            "reason": "same-package test carries feature:a-first"
+          },
+          {
+            "authority": "test-convention",
+            "blob_hash": "fe0edb98ce9c24f641ccec040f0245344db2b6c4",
+            "confidence": "high",
+            "line": 1,
+            "path": "pkg/main_test.go",
+            "reason": "same-package test for pkg/main.go"
+          }
+        ],
+        "id": "pkg/main_test.go",
+        "kind": "test",
+        "score": 850,
+        "summary": "same-package marked test affected by pkg/main.go"
+      },
+      {
+        "adr": [
+          12
+        ],
+        "applies": [
+          true,
+          "server\nedge"
+        ],
+        "area": "auth",
+        "evidence": [
+          {
+            "authority": "canonical-ledger",
+            "blob_hash": "e0e45ddd40c4c3d4499c371ff3815c608dea36be",
+            "confidence": "authoritative",
+            "line": 2,
+            "path": "testing/features.yaml",
+            "reason": "changed path carries feature:a-first"
+          },
+          {
+            "authority": "test-marker",
+            "blob_hash": "fe0edb98ce9c24f641ccec040f0245344db2b6c4",
+            "confidence": "high",
+            "line": 3,
+            "path": "pkg/main_test.go",
+            "reason": "exact feature:a-first marker"
+          },
+          {
+            "authority": "canonical-ledger",
+            "blob_hash": "cfe063384b9c979abbcc82842eb5b242c5d1c83c",
+            "confidence": "high",
+            "line": 2,
+            "path": "testing/scenarios.yaml",
+            "reason": "scenario:z-last composes feature:a-first"
+          }
+        ],
+        "id": "a-first",
+        "kind": "feature",
+        "score": 800,
+        "status": "shipped",
+        "summary": "Scalar fixture."
+      },
+      {
+        "adr": [],
+        "applies": [
+          "server"
+        ],
+        "area": "auth",
+        "evidence": [
+          {
+            "authority": "canonical-ledger",
+            "blob_hash": "cfe063384b9c979abbcc82842eb5b242c5d1c83c",
+            "confidence": "authoritative",
+            "line": 2,
+            "path": "testing/scenarios.yaml",
+            "reason": "changed path carries scenario:z-last"
+          },
+          {
+            "authority": "test-marker",
+            "blob_hash": "fe0edb98ce9c24f641ccec040f0245344db2b6c4",
+            "confidence": "high",
+            "line": 3,
+            "path": "pkg/main_test.go",
+            "reason": "exact scenario:z-last marker"
+          }
+        ],
+        "id": "z-last",
+        "kind": "scenario",
+        "score": 800,
+        "status": "shipped",
+        "summary": "Scenario fixture."
+      }
+    ],
+    "revision": "89332322c1cef4c8c9cb2c6cbfff9b9fdd452af7",
+    "schema_version": 1,
+    "state": "READY",
+    "verification": [
+      "go test ./pkg/...",
+      "make coverage-ratchet",
+      "make scenario-ledger STRICT=1",
+      "make gate"
+    ]
+  },
+  "profile": "falsifiable-packet/0",
+  "proof": {
+    "claims": {
+      "history-consistent": "the cited blob and line still exist at the packet revision; this is a check of the citation, not evidence that the row is relevant",
+      "none": "nothing about this row was checked",
+      "reference-resolves": "the cited line holds the claimed import or identifier and the declaring blob declares it; this is a check of the reference, not evidence that the row is relevant",
+      "test-kills-mutant": "the cited test failed on a mutant of the changed lines and passed on the baseline",
+      "verifier-accepts": "the frozen CEM verifier accepted the map and this hunk's evidence is stable or relocated at the target"
+    },
+    "counts": {
+      "history-consistent": {
+        "PASS": 8
+      },
+      "test-kills-mutant": {
+        "NOT_RUN": 1
+      }
+    },
+    "failed_results": 0,
+    "proven_results": 3,
+    "rows": [
+      {
+        "authority": "git-tree",
+        "blob_hash": "608fd2f8a1ee1bc6c9b373d3ec56823ee77b782d",
+        "falsified": "PASS",
+        "falsifier": "history-consistent",
+        "kind": "path",
+        "line": 1,
+        "path": "pkg/main.go",
+        "result": "pkg/main.go",
+        "trust": "repository-content"
+      },
+      {
+        "authority": "test-marker",
+        "blob_hash": "fe0edb98ce9c24f641ccec040f0245344db2b6c4",
+        "falsified": "PASS",
+        "falsifier": "history-consistent",
+        "kind": "test",
+        "line": 3,
+        "path": "pkg/main_test.go",
+        "result": "pkg/main_test.go",
+        "trust": "project-authority"
+      },
+      {
+        "authority": "test-marker",
+        "blob_hash": "fe0edb98ce9c24f641ccec040f0245344db2b6c4",
+        "falsified": "PASS",
+        "falsifier": "history-consistent",
+        "kind": "test",
+        "line": 3,
+        "path": "pkg/main_test.go",
+        "result": "pkg/main_test.go",
+        "trust": "project-authority"
+      },
+      {
+        "authority": "test-convention",
+        "blob_hash": "fe0edb98ce9c24f641ccec040f0245344db2b6c4",
+        "falsified": "NOT_RUN",
+        "falsifier": "test-kills-mutant",
+        "kind": "test",
+        "line": 1,
+        "path": "pkg/main_test.go",
+        "result": "pkg/main_test.go",
+        "trust": "repository-content"
+      },
+      {
+        "authority": "canonical-ledger",
+        "blob_hash": "e0e45ddd40c4c3d4499c371ff3815c608dea36be",
+        "falsified": "PASS",
+        "falsifier": "history-consistent",
+        "kind": "feature",
+        "line": 2,
+        "path": "testing/features.yaml",
+        "result": "a-first",
+        "trust": "project-authority"
+      },
+      {
+        "authority": "test-marker",
+        "blob_hash": "fe0edb98ce9c24f641ccec040f0245344db2b6c4",
+        "falsified": "PASS",
+        "falsifier": "history-consistent",
+        "kind": "feature",
+        "line": 3,
+        "path": "pkg/main_test.go",
+        "result": "a-first",
+        "trust": "project-authority"
+      },
+      {
+        "authority": "canonical-ledger",
+        "blob_hash": "cfe063384b9c979abbcc82842eb5b242c5d1c83c",
+        "falsified": "PASS",
+        "falsifier": "history-consistent",
+        "kind": "feature",
+        "line": 2,
+        "path": "testing/scenarios.yaml",
+        "result": "a-first",
+        "trust": "project-authority"
+      },
+      {
+        "authority": "canonical-ledger",
+        "blob_hash": "cfe063384b9c979abbcc82842eb5b242c5d1c83c",
+        "falsified": "PASS",
+        "falsifier": "history-consistent",
+        "kind": "scenario",
+        "line": 2,
+        "path": "testing/scenarios.yaml",
+        "result": "z-last",
+        "trust": "project-authority"
+      },
+      {
+        "authority": "test-marker",
+        "blob_hash": "fe0edb98ce9c24f641ccec040f0245344db2b6c4",
+        "falsified": "PASS",
+        "falsifier": "history-consistent",
+        "kind": "scenario",
+        "line": 3,
+        "path": "pkg/main_test.go",
+        "result": "z-last",
+        "trust": "project-authority"
+      }
+    ],
+    "unproven_results": 1
+  },
+  "revision": "89332322c1cef4c8c9cb2c6cbfff9b9fdd452af7",
+  "state": "READY",
+  "tool": "prove"
+}

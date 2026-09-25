@@ -124,9 +124,9 @@ the `--error-profile=reason-class` spelling, and beside `--version`; each exits
 default server returns exactly the `corvint-mcp-tool-error/0` object and a
 server started with `--error-profile reason-class` returns exactly the
 `corvint-mcp-tool-error/1` object with `reasonClass` `git-filter` or
-`worktree-config`, for status, impact and query. A split index, which Git's own
-index probe refuses before the status refusal classifies it, returns
-`unclassified`. Negative control, run once on 2026-09-24 and reverted: emitting
+`worktree-config`, for status, impact and query. A real split index returns
+`split-index` (V1-0256), and a corrupt index, which Git's own index probe
+refuses before the status refusal classifies it, returns `unclassified`. Negative control, run once on 2026-09-24 and reverted: emitting
 `/1` without the selector fails `TestReasonClassToolErrorOverRefusedRepositories`.
 
 The 2026-09-06 read-safety cases exercise private-metadata Git status through the real MCP process:

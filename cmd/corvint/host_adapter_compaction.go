@@ -71,7 +71,7 @@ func runClaudeCompactionEvent(ctx context.Context, root, event string, normalize
 	}
 	block, reason := compactionBlockFor(ctx, root, normalized)
 	if reason != "" {
-		return degradedAdapterOutput(reason)
+		return withSnapshotRemediation(root, event, reason, degradedAdapterOutput(reason))
 	}
 	return map[string]any{adapterPlainStdoutKey: compactionPinInstruction + compactionPinLine(block)}
 }
@@ -91,7 +91,7 @@ func runClaudePostCompact(ctx context.Context, root string, normalized, payload 
 	}
 	block, reason := compactionBlockFor(ctx, root, normalized)
 	if reason != "" {
-		return degradedAdapterOutput(reason)
+		return withSnapshotRemediation(root, "post-compact", reason, degradedAdapterOutput(reason))
 	}
 	return map[string]any{adapterPlainStdoutKey: compactionReportLine(pin, missing, block)}
 }
@@ -187,11 +187,7 @@ func compactionPinMissing(ctx context.Context, root string, pin compactionPin) (
 	}
 	deadline, cancel := context.WithTimeout(ctx, compactionGitDeadline)
 	defer cancel()
-	command := exec.CommandContext(deadline, gitExecutable, "--no-optional-locks", "-C", root, "cat-file", "--batch-check")
-	command.Env = []string{
-		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
-		"GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1", "LANG=C", "LC_ALL=C",
-	}
+	command := hermeticGitCommand(deadline, gitExecutable, root, "cat-file", "--batch-check")
 	command.Stdin = strings.NewReader(strings.Join(queries, "\n") + "\n")
 	output, err := command.Output()
 	lines := strings.Split(strings.TrimSuffix(string(output), "\n"), "\n")

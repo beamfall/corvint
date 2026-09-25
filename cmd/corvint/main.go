@@ -126,6 +126,9 @@ func parse(arguments []string) (options, error) {
 	}
 	if index < len(arguments) && arguments[index] == "impact" {
 		result.command = "impact"
+		if err := requireRepositoryRoot(result.root); err != nil {
+			return result, err
+		}
 		return parseImpactArguments(result, arguments[index+1:])
 	}
 	if index < len(arguments) && arguments[index] == "feature" {
@@ -639,6 +642,16 @@ func normalizeImpactPath(value string) (string, error) {
 	return normalized, nil
 }
 
+// requireRepositoryRoot refuses a working directory that holds no .git entry exactly as
+// resolveExplicitRoot refuses an explicit --root, so an omitted --root is classified alike
+// (CCF-V1-004). An explicit root already passed this check.
+func requireRepositoryRoot(root string) error {
+	if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
+		return notRepositoryRootRefusal(".", root)
+	}
+	return nil
+}
+
 func resolveExplicitRoot(value string) (string, error) {
 	root, err := normalizeRoot(value)
 	if err != nil {
@@ -1087,7 +1100,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			if errors.As(err, &contextError) && contextError.Code == "unsupported-impact-repository" {
 				switch options.command {
 				case "feature":
-					err = &contextindex.Error{Code: "unsupported-feature-repository", Message: strings.Replace(contextError.Message, "native Go impact index", "native Go feature index", 1)}
+					err = &contextindex.Error{Code: "unsupported-feature-repository", Message: strings.Replace(contextError.Message, "repository index", "feature index", 1)}
 				}
 			}
 			return nil, err
@@ -1247,13 +1260,13 @@ func mapStandaloneQueryBuildError(err error, authorityStart bool) error {
 	if !errors.As(err, &contextError) || contextError.Code != "unsupported-impact-repository" {
 		return err
 	}
-	profile := "native Go query index"
+	profile := "query index"
 	if authorityStart {
-		profile = "native Go authority-start query index"
+		profile = "authority-start query index"
 	}
 	return &contextindex.Error{
 		Code:    "unsupported-query-repository",
-		Message: strings.Replace(contextError.Message, "native Go impact index", profile, 1),
+		Message: strings.Replace(contextError.Message, "repository index", profile, 1),
 	}
 }
 
@@ -1338,13 +1351,14 @@ func emitError(stderr io.Writer, err error) {
 	}
 	var contextError *contextindex.Error
 	if errors.As(err, &contextError) && contextError.Code != "" {
+		beforeOK, afterOK := diagnosticMembers(err)
 		_, _ = fmt.Fprintf(
-			stderr, "{\"code\": %s, \"error\": %s, \"ok\": false}\n",
-			pythonJSONString(contextError.Code), pythonJSONString(err.Error()),
+			stderr, "{\"code\": %s, \"error\": %s, %s\"ok\": false%s}\n",
+			pythonJSONString(contextError.Code), pythonJSONString(err.Error()), beforeOK, afterOK,
 		)
 		return
 	}
-	if errors.As(err, &contextError) || strings.HasPrefix(code, "repository-") || code == "unsupported-git-object-format" {
+	if errors.As(err, &contextError) {
 		_, _ = fmt.Fprintf(stderr, "{\"error\": %s, \"ok\": false}\n", pythonJSONString(err.Error()))
 		return
 	}

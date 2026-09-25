@@ -1,0 +1,204 @@
+{
+  "inventory": {
+    "activation": "init",
+    "denominator": {
+      "boundaryCounts": {
+        "GENERATED_CANDIDATE": 0,
+        "VENDOR_CANDIDATE": 1
+      },
+      "classificationCounts": {
+        "EXCLUDED": 2,
+        "INCLUDED": 3,
+        "UNKNOWN": 0,
+        "UNSUPPORTED": 1
+      },
+      "classifiedEntries": 6,
+      "inspectedBlobBytes": 53,
+      "inspectedEntries": 3,
+      "sourceClassCounts": {
+        "ASSET": 0,
+        "CI": 0,
+        "CODE": 3,
+        "CONFIGURATION": 0,
+        "DOCUMENTATION": 2,
+        "E2E_TEST": 0,
+        "INCIDENT": 0,
+        "INSTRUCTIONS": 0,
+        "LOCKFILE": 0,
+        "MANIFEST": 0,
+        "OTHER_TEXT": 1,
+        "OWNERSHIP": 0,
+        "RUNBOOK": 0,
+        "SCHEMA": 0,
+        "SPECIFICATION": 0,
+        "TEST": 0
+      },
+      "trackedEntries": 6
+    },
+    "dirtyState": "CLEAN",
+    "gaps": [
+      {
+        "code": "symlink",
+        "count": 1
+      }
+    ],
+    "mechanicalResolvers": [
+      {
+        "admitted": 2,
+        "denominator": 2,
+        "name": "git-object-identity",
+        "rejected": 0,
+        "state": "EXHAUSTED",
+        "unresolved": 0
+      },
+      {
+        "admitted": 6,
+        "denominator": 6,
+        "name": "git-tree-inventory",
+        "rejected": 0,
+        "state": "EXHAUSTED",
+        "unresolved": 0
+      },
+      {
+        "admitted": 5,
+        "denominator": 6,
+        "name": "path-and-format-classification",
+        "rejected": 1,
+        "state": "EXHAUSTED",
+        "unresolved": 0
+      },
+      {
+        "admitted": 3,
+        "denominator": 3,
+        "name": "blob-format-inspection",
+        "rejected": 0,
+        "state": "EXHAUSTED",
+        "unresolved": 0
+      }
+    ],
+    "model": {
+      "callCount": 0,
+      "eligible": false,
+      "inputTokens": 0
+    },
+    "operationalState": "PARTIAL",
+    "profile": "genesis-inventory/0.1-experimental",
+    "receiptId": "genesis-inventory:sha256:c66e56d2e5f394420daf9a35f3960b0e86eff4b82050092d9e55b4c79758fdeb",
+    "repository": {
+      "authorityId": "repo:fixture",
+      "composition": "COMPOSABLE",
+      "objectFormat": "sha1",
+      "revision": "253a99a4567d96385daba31c2c1fd37acc622dbe",
+      "tree": "5ad35eb56422060effc8ad13cde0980b537ec574"
+    },
+    "sampleLimitPerClass": 5,
+    "samplesTruncated": false,
+    "semanticFrontier": [
+      {
+        "count": 0,
+        "reason": "declared-source-absent",
+        "sourceClass": "INSTRUCTIONS"
+      },
+      {
+        "count": 2,
+        "reason": "mechanical-inventory-only",
+        "sourceClass": "DOCUMENTATION"
+      },
+      {
+        "count": 0,
+        "reason": "declared-source-absent",
+        "sourceClass": "SPECIFICATION"
+      },
+      {
+        "count": 0,
+        "reason": "declared-source-absent",
+        "sourceClass": "TEST"
+      },
+      {
+        "count": 0,
+        "reason": "declared-source-absent",
+        "sourceClass": "CI"
+      },
+      {
+        "count": 0,
+        "reason": "declared-source-absent",
+        "sourceClass": "OWNERSHIP"
+      },
+      {
+        "count": 3,
+        "reason": "mechanical-inventory-only",
+        "sourceClass": "CODE"
+      },
+      {
+        "count": 1,
+        "reason": "mechanical-inventory-only",
+        "sourceClass": "OTHER_TEXT"
+      }
+    ],
+    "sourceSamples": {
+      "CODE": [
+        {
+          "boundaries": [
+            "VENDOR_CANDIDATE"
+          ],
+          "classification": "EXCLUDED",
+          "path": "vendor/lib.js",
+          "pathSha256": "340195a6e84bddf94107bbf12a0c454abe419de7331b713c74b91bac976f431b",
+          "reason": "caller-declared-prefix",
+          "roles": []
+        },
+        {
+          "boundaries": [],
+          "classification": "INCLUDED",
+          "path": "src/café.py",
+          "pathSha256": "e2fa248f2697327d73088228b0c7e2d2e94412a54dcf03d67e39ee86ab861512",
+          "reason": "tracked-text",
+          "roles": []
+        },
+        {
+          "boundaries": [],
+          "classification": "INCLUDED",
+          "path": "src/main.go",
+          "pathSha256": "9e185f29fa355d7dd8fdd9c9ff1d0723b85206aa7d37c4eec93997005dc291eb",
+          "reason": "tracked-text",
+          "roles": [
+            "ENTRYPOINT_CANDIDATE"
+          ]
+        }
+      ],
+      "DOCUMENTATION": [
+        {
+          "boundaries": [],
+          "classification": "EXCLUDED",
+          "path": "docs/private/note.md",
+          "pathSha256": "f184c2dfe1b1c59e0e2c8edda7d38f90602b340a61d08b140306c721cc5fe123",
+          "reason": "caller-declared-prefix",
+          "roles": []
+        },
+        {
+          "boundaries": [],
+          "classification": "INCLUDED",
+          "path": "README.md",
+          "pathSha256": "b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5",
+          "reason": "tracked-text",
+          "roles": []
+        }
+      ],
+      "OTHER_TEXT": [
+        {
+          "boundaries": [],
+          "classification": "UNSUPPORTED",
+          "path": "readme-link",
+          "pathSha256": "c5f4286677303a70f2aa395da1279e49a9028fb247b919b486d9e8056536cf3a",
+          "reason": "symlink",
+          "roles": []
+        }
+      ]
+    },
+    "summaryProfile": "genesis-inventory-summary/0.1-experimental",
+    "summaryReceiptId": "genesis-inventory-summary:sha256:bfd2d882a646f42b7e3a01b8ed36da680bbe79062862230e467a8f1200c042e7"
+  },
+  "mutates": false,
+  "ok": true,
+  "tool": "init"
+}

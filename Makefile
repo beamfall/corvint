@@ -299,8 +299,8 @@ sql-native-ratchets-test:
 # companion-release-gate is opt-in and is not a `make gate` prerequisite. It builds
 # all nine bundled binaries twice, including the MCP servers and test providers,
 # and independently assembles and verifies the archives (PUB-V0-013/014).
-# The native CLI archive gate remains independent (PUB-V0-002). Pass
-# the corvint-tasks checkout path as CORVINT_TASKMAN_REPO if it is not at ~/projects/corvint-tasks.
+# The native CLI archive gate remains independent (PUB-V0-002). corvint-tasks
+# builds from this checkout's cmd/corvint-tasks (decision 0397).
 companion-release-gate:
 	@script/corvint-companion-release-gate
 
@@ -331,3 +331,14 @@ dogfood-bind-range:
 
 dogfood-bind-range-test:
 	@script/dogfood-bind-range_test.sh
+
+.PHONY: tasks-build tasks-test
+# The in-tree corvint-tasks companion binary (decision 0397). It is never a corvint subcommand;
+# tasks-test runs its own packages, which also stay in go-test's ./... because they share the module.
+CORVINT_TASKS_BIN ?= corvint-tasks
+tasks-build: go-version
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_TASKS_BIN) ./cmd/corvint-tasks
+
+tasks-test: go-version
+	$(GO_TEST_COMMAND) ./cmd/corvint-tasks/... ./internal/tasks/...
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go vet ./cmd/corvint-tasks/... ./internal/tasks/...

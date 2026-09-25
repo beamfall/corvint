@@ -122,6 +122,30 @@ validate_unknown_plan() {
   done < "$snapshot"
 }
 
+# citation_plan_matches_map binds a nonempty citation plan to the map prepared in this run, as the
+# bind loop does (DCW-V0-019): a numeric selector must be a canonical ordinal no larger than the
+# hunk count, and every unknown hunk must be named by ordinal or ID in the citation or unknown plan.
+citation_plan_matches_map() {
+  local plans=("$run_tmp/citations.snapshot")
+  [[ -z ${DOGFOOD_UNKNOWN:-} ]] || plans+=("$run_tmp/unknown.snapshot")
+  awk -F '\t' '
+    FILENAME == ARGV[1] {
+      if ($0 == "  \"hunks\": [") { inside = 1; next }
+      if (substr($0, 1, 3) == "  ]") inside = 0
+      if (!inside) next
+      if ($0 == "    {") count++
+      if ($0 ~ /^      "id": "/) { value = $0; sub(/^      "id": "/, "", value); sub(/",?$/, "", value); id[count] = value }
+      if ($0 ~ /^      "disposition": "unknown",?$/) owed[count] = 1
+      next
+    }
+    FILENAME == ARGV[2] && $1 ~ /^[+0-9]/ { if ($1 !~ /^[1-9][0-9]*$/ || $1 + 0 > count) bad = 1 }
+    { named[$1] = 1 }
+    END {
+      if (bad) exit 1
+      for (hunk in owed) if (!(hunk in named) && !(id[hunk] in named)) exit 1
+    }' "$map" "${plans[@]}"
+}
+
 # Decision 0165: a removed-intent.OID.START-END detail must name a regular blob in BASE's tree
 # and a nonempty byte span inside it; it stays a NOT_PRODUCED note, never evidence.
 removed_intent_pin_at_base() {
@@ -170,10 +194,16 @@ fi
 map="$worktree/.corvint/change.cem.json"
 # The uncited prepared map is the one a citation plan is written against.
 cp "$map" "$prepared_copy" || exit 2
+if [[ -n ${DOGFOOD_CITATIONS:-} ]]; then
+  validate_citation_plan || fail 'cem-cite invalid-citation-plan'
+fi
+if [[ -n ${DOGFOOD_UNKNOWN:-} ]]; then
+  validate_unknown_plan || fail 'cem-mark invalid-unknown-plan'
+fi
 if [[ -z ${DOGFOOD_CITATIONS:-} ]]; then
   printf 'dogfood-bind-range: NOTE cem-cite NOT_PRODUCED citation-plan-not-provided\n' >&2
 else
-  validate_citation_plan || fail 'cem-cite invalid-citation-plan'
+  [[ ! -s $run_tmp/citations.snapshot ]] || citation_plan_matches_map || fail 'cem-cite citation-plan-map-mismatch'
   while IFS=$'\t' read -r hunk evidence_path lines relation; do
     run_child "$run_tmp/cem-cite.json" "$run_tmp/cem-cite.stderr" \
       "$corvint_bin" --root "$worktree" cem cite --map .corvint/change.cem.json --hunk "$hunk" \
@@ -187,7 +217,6 @@ fi
 unknown_count=0
 unknown_notes=
 if [[ -n ${DOGFOOD_UNKNOWN:-} ]]; then
-  validate_unknown_plan || fail 'cem-mark invalid-unknown-plan'
   while IFS=$'\t' read -r hunk reason detail; do
     run_child "$run_tmp/cem-mark.json" "$run_tmp/cem-mark.stderr" \
       "$corvint_bin" --root "$worktree" cem mark --map .corvint/change.cem.json --hunk "$hunk" \

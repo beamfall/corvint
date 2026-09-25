@@ -39,7 +39,14 @@ within 15 minutes.
 
 - `CEM-PILOT-001`: `cem prepare --base REV --target REV` MUST derive the exact committed patch with
   the documented CI diff profile, exclude only the map path, create private atomic outputs, and
-  return an ordered hunk worklist.
+  return an ordered hunk worklist. (proposed 2026-09-25, V1-0301, not accepted) Today a patch with
+  a binary file refuses the whole prepare with `binary-patch`, and one with an `old mode`/`new mode`
+  change refuses it with `malformed-patch`, because the frozen `cem/0.1` grammar
+  (`interop/cem-0.1/ALGORITHMS.md`) and the `cem/0.2` hunk wire and hunk IDs have no such hunk. A
+  new versioned profile MAY bind each binary or mode-only file change as its own hunk kind whose
+  disposition is always `unknown`: no citation or mark can make it ready, so a map that contains
+  one never reaches `ready-for-ci` without an explicit policy exception. Neither frozen profile
+  changes its bytes for this.
 - `CEM-PILOT-002`: prepare MUST resume a valid map for identical base and patch bytes, refuse an
   outdated or invalid map by default, and replace it only with explicit `--replace`. Only a
   file-system not-exist result at the map path makes the map absent; an existing map that cannot be
@@ -117,6 +124,9 @@ within 15 minutes.
   Platforms without advisory file locks MUST refuse these updates. A `report --output` equal to the
   input map path under case folding, or naming the same existing file as the input map (a
   normalization or locale alias the volume applies), MUST refuse `invalid-arguments` before any write.
+  (proposed 2026-09-25, V1-0141, not accepted) An absolute `report --output` whose existing parent
+  directory lies outside the worktree and its Git directories MUST be published there; one whose
+  parent lies inside them, by file identity, MUST refuse `invalid-arguments` before any write.
 - `CEM-PILOT-014`: a clean local install plus prepare, one disposition update, status, report, and
   verify MUST be demonstrated in under 15 minutes with the synchronized commit recorded. The
   POSIX-only harness MUST first invoke and record a sanitized offline inventory for its trusted
@@ -135,13 +145,14 @@ within 15 minutes.
 - `CEM-PILOT-017`: every Git subprocess MUST ignore ambient repository/config redirection. Patch
   producers MUST stop at a hard byte ceiling, and machine-readable next actions MUST be argv arrays
   rather than executable shell strings.
-- `CEM-PILOT-018`: when prepare refuses an existing map under `CEM-PILOT-002`, the untyped
+- `CEM-PILOT-018`: when prepare refuses an existing map under `CEM-PILOT-002`, the
   `cannot read CEM map` refusal MUST append exactly one bounded, source-content-free recovery line
   after `: `: `the existing map records a different base or patch; pass --replace to regenerate` for
   a base or patch mismatch, or `the existing map is not a valid CEM document; pass --replace to
   regenerate` for an unparseable map, never the parser detail. An absent or unreadable map MUST keep
   the fixed `cannot read CEM map` text byte-for-byte. Exit status and error code are unchanged
-  (decision 0092).
+  (decision 0092). (proposed, decision 0398) The refusal also carries `code` `map-unavailable`
+  (CCF-V1-004).
 - `CEM-PILOT-019`: `cem verify` same-path drift MUST use only the five frozen statuses. A target entry
   whose blob OID equals the evidence `blobOid` MUST be `stable` whatever its mode. A target entry with
   a different OID that is not a regular-file blob (mode `100644` or `100755`), such as a symlink,
@@ -169,7 +180,9 @@ within 15 minutes.
   `missing-evidence` (map absent, or unknown hunks), 4 `unsupported-profile` (a map `spec` other
   than `cem/0.1`), or 5 `repository-mismatch` (a declared commit absent, or map `baseRevision` not
   the declared base), with the verdict and a bounded `code` in the report. For a structurally valid
-  map, unsafe drift ranks before unknown hunks. The `verify` mode and its adapter ABI (`CEM-GO-002`)
+  map, unsafe drift ranks before unknown hunks. (proposed 2026-09-25, V1-0133, not accepted) The
+  profile is read only from a strictly parsed map, and a `cem/0.1` map MUST pass the `verify`
+  structural checks, exiting 1 when it fails them, before its `baseRevision` is compared. The `verify` mode and its adapter ABI (`CEM-GO-002`)
   are unchanged.
 - `CEM-PILOT-023`: (proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
   exact pinned install, digest computation, and invocation, the exit taxonomy, the report members,

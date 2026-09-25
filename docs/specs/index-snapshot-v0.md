@@ -53,7 +53,10 @@ what any packet says.
   stable storage before it is closed and renamed, and a sync failure refuses the write in the same
   way. The gob decoder cannot detect a zeroed range inside a source body. Without the sync, a crash
   after the rename could publish such a range, and it would load as a wrong index. The sectioned
-  and pack writers sync the same way.
+  and pack writers sync the same way. Amendment (proposed, decision 0398; V1-0338): the file ends
+  with the 32-byte SHA-256 of every byte before it (header and index message), so a body
+  overwritten with the same number of bytes, or a zeroed range the gob decoder would accept, is
+  detectable on read.
 - `IDX-SNAP-V0-002`: `context` reads the repository's identity and status as a build's opening
   observation does, and when a file named by the current object format, tree OID, and engine
   exists with a matching header, uses it with `Root` set, `DirtyPaths` set to the status
@@ -69,6 +72,9 @@ what any packet says.
   term table decodes but any key offset, posting offset or source id lies outside the slice it
   indexes, or the counted `Terms` table lacks one count per source. The decoder checks this once at
   open, never per lookup, and refuses the file as this miss; a corrupt snapshot never panics.
+  Amendment (proposed, decision 0398; V1-0338): a gob snapshot whose trailing SHA-256 does not
+  match the bytes before it is undecodable, so every loader, and the `IDX-SNAP-V0-011` probe,
+  treats a byte-corrupted file as this miss rather than serving text its blob does not contain.
 - `IDX-SNAP-V0-004`: a dirty worktree reads the same snapshot; only `DirtyPaths` and
   `StatusSHA256` differ from the clean read (`DIRTY-CACHE-003`). The snapshot never holds worktree
   bytes. On both a hit and a miss, `DirtyPaths` is exactly the status snapshot's sorted path set.
@@ -99,6 +105,12 @@ what any packet says.
   the rest (`DIRTY-CACHE-007`'s entry bound). After a successful publish it also removes regular
   `snapshot-*.tmp` files at least one hour old, without counting them in the receipt's published
   snapshot `evicted` total; younger temporaries may belong to a concurrent writer and remain.
+  Amendment (proposed, decision 0398; V1-0302): the temporary cutoff is ten minutes, since a writer
+  holds its temporary only while it encodes and syncs an index already built. Beside the entry
+  bound, the published `*.gob` files in one store stay within 1 GiB. Eviction orders files whose
+  engine matches the snapshot just written first, newest first, then every other engine's files,
+  newest first, and removes each file past the entry bound or past the byte budget; the snapshot
+  just written is never removed, even when it alone exceeds the budget.
 - `IDX-SNAP-V0-008`: the two per-prompt query verbs read the snapshot on the same terms as
   `context`: `corvint query` in place of its authority-only query build, and the harness
   `user-prompt` event (with the standalone repository and agent-tooling query intents that share
@@ -110,10 +122,10 @@ what any packet says.
   (`IDX-SNAP-V0-005`). Clarifying amendment (2026-09-12, resolving the open question recorded in
   `docs/agent-memory/fixes.md`): the grant follows the shared build functions, not the invoking
   verb's name. `corvint prove --task`'s project-operations query mode compiles its packet through
-  the identical `standaloneQueryContext` build (`cmd/corvint/prove.go:1059-1061@d473eb95`, reaching
-  `deferredSnapshotIndex` and `snapshotIndex` at `cmd/corvint/main.go:1236-1237@c39315fe` and `cmd/corvint/harness_context.go:69-70@70282d2c`) before
+  the identical `standaloneQueryContext` build (`cmd/corvint/prove.go:1058-1060@d473eb95`, reaching
+  `deferredSnapshotIndex` and `snapshotIndex` at `cmd/corvint/main.go:1249-1250@c39315fe` and `cmd/corvint/harness_context.go:69-70@70282d2c`) before
   `compileProof` applies its own independent revision and dirty-set re-verification
-  (`cmd/corvint/prove.go:521@7ad2b2af`, `cmd/corvint/prove.go:541-542@38c3dce4`, `cmd/corvint/prove.go:563-564@61b1bb0c`) and reads every cited blob at the
+  (`cmd/corvint/prove.go:522@7ad2b2af`, `cmd/corvint/prove.go:542-543@38c3dce4`, `cmd/corvint/prove.go:564-565@61b1bb0c`) and reads every cited blob at the
   re-confirmed revision; a snapshot hit there therefore carries no staleness risk beyond what
   `IDX-SNAP-V0-002` and `IDX-SNAP-V0-006` already bound, and is covered by this clause on the same
   terms as `corvint query`. `corvint prove --checkpoint` is not covered: it never reaches this
@@ -462,6 +474,24 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   Falsifier: a panic, an error return, or any other outcome in one of the five states. Rollback:
   delete the test; nothing else depends on this clause.
 
+### Accepted (2026-09-25, decision 0394, panel blocker B9): non-UTF-8 tracked paths
+
+- `IDX-SNAP-V0-024`: (accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Git bytes are not
+  UTF-8 MUST NOT refuse the index. The tree pass keeps it out of `Sources` and records it in
+  `Exclusions` with the reason `unsafe-or-non-utf8-path` (the `init` gap name,
+  `docs/specs/genesis-backfill.md`), under its display form: the path with each invalid byte run
+  replaced by U+FFFD. The display form also stands in `Tracked` and `Skipped`, and in `DirtyPaths`
+  when Git status reports the path, so a dirty non-UTF-8 path still makes freshness
+  `mixed-worktree`. Every other path indexes and answers as before, and path `impact` and `prove`
+  disclose the exclusion through the receipt's existing bounded exclusion sample. The `context`
+  co-change slot leaves such a path out of its commit. Query history learning keeps its
+  `unsupported-query-history` refusal (`GPK-V0`), and the `context` packet, which carries no
+  exclusion member for any reason, gains none. A path that is only valid after the replacement is
+  not recoverable from the display form; two distinct invalid paths can share one. Falsifier: a
+  repository with one committed Latin-1 path that refuses `index` or path `impact`, or whose
+  receipt omits the exclusion. Rollback: restore the three refusals in `internal/contextindex/git.go`
+  and the parse flag in `history.go`.
+
 ## Non-goals and authority
 
 No daemon, no watcher, no write from a read verb, no cross-repository store, no network. The
@@ -553,6 +583,9 @@ harness events); `TestPackQueryAndEventLoadsVerifyABodyOnlyWhenItIsRead`
 (`docs/BUILD-LOG.md`, 2026-09-22 V1-0008).
 `TestProbeSnapshotReadsOnlyTheMatchingHeader` (`internal/contextindex/snapshot_test.go`) probes a
 written snapshot fresh and the same file truncated by one byte as a miss (`IDX-SNAP-V0-011`);
+`TestSnapshotSameLengthBodyOverwriteIsAMiss` (`internal/contextindex/snapshot_test.go`) overwrites
+one body with the same number of bytes and shows the probe and every loader miss
+(`IDX-SNAP-V0-003`, `IDX-SNAP-V0-011`, V1-0338);
 `TestBlobShardReadRefusesInRootLeafSymlink` (`internal/contextindex/blob_shards_open_test.go`)
 refuses a shard name that is an in-root symlink (`IDX-SNAP-V0-016`).
 `TestForbiddenPathScreenIsTheAcceptedSet` (`internal/contextindex/index_test.go`) pins
@@ -580,11 +613,11 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 |---|---|---|
 | IDX-SNAP-V0-001 | `textSuffixes`, `admittedEntries`, `WriteSnapshot`, `runIndex` | `TestTaskContextSearchesRstDocumentation`, `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestIndexWritesTheSnapshotThatContextReadsWithoutChangingAByte` |
 | IDX-SNAP-V0-002 | `LoadSnapshot` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotHitReportsTheLiveCommitForTheSameTree`, `TestLoadSnapshotMissesWhenIdentityChangesDuringStatusRead` |
-| IDX-SNAP-V0-003 | `LoadSnapshot`, `decodeSnapshot`, `TermTable.check` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotRefusesTermTableOffsetsOutsideTheirSlices` |
+| IDX-SNAP-V0-003 | `LoadSnapshot`, `decodeSnapshot`, `decodeSnapshotValue`, `TermTable.check` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotRefusesTermTableOffsetsOutsideTheirSlices`, `TestSnapshotSameLengthBodyOverwriteIsAMiss` |
 | IDX-SNAP-V0-004 | `buildEvidence`, `buildQueryAttempt`, `adoptStatus`, `LoadSnapshot` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotHitAndMissUseStatusDirtyPaths` |
 | IDX-SNAP-V0-005 | `runTaskContext` (no writer), `WriteSnapshot` (`.gitignore`), `snapshotDirectoryPresent` (readers) | `TestIndexWritesTheSnapshotThatContextReadsWithoutChangingAByte`, `TestWriteSnapshotDoesNotRewriteMatchingGitIgnore`, `TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory`, `TestSnapshotReadersMissThroughCommittedSymlinkedSnapshotDirectory` |
 | IDX-SNAP-V0-006 | `runTaskContext`, status-only `DirtyPaths` builders and loader | `TestIndexWritesTheSnapshotThatContextReadsWithoutChangingAByte`, `TestSnapshotHitAndMissUseStatusDirtyPaths` |
-| IDX-SNAP-V0-007 | `evictSnapshots` | `TestEvictSnapshotsKeepsNewestEightIncludingCurrent`, `TestEvictSnapshotsRemovesStaleTemporaries` |
+| IDX-SNAP-V0-007 | `evictSnapshots` | `TestEvictSnapshotsKeepsNewestEightIncludingCurrent`, `TestEvictSnapshotsRemovesStaleTemporaries`, `TestEvictSnapshotsBoundsBytesAndEvictsOtherEnginesFirst` |
 | IDX-SNAP-V0-008 | `snapshotIndex`, `authorityStartQueryContext`, `repositoryQueryContext`, `evalLearnedCandidates` | `TestQueryVerbsReadTheSnapshotWithoutChangingAByte`, `TestEvalQueryAcceptsStatusCleanIdentCheckout` |
 | IDX-SNAP-V0-009 | `LoadSnapshot` | measured by the Beamfall miss-path reading; no unit test yet |
 | IDX-SNAP-V0-010 | `snapshotIndex`, `harnessIndexedContext` | `TestHarnessIndexBuildingEventsReadTheSnapshotWithoutChangingAByte` |
@@ -603,3 +636,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-021 (accepted, decision 0182) | `impact` dispatch in `runContext`, `overSnapshot`, `snapshotIndex` | `TestImpactRangeAndWorkingTreeProfilesReadTheSnapshotWithoutChangingAByte` |
 | IDX-SNAP-V0-022 (proposed) | `BuildForSnapshot`, `WriteSnapshot`, `LoadSnapshot`, `ProbeSnapshot` | `TestColdAndIncrementalSnapshotsAreByteIdentical` |
 | IDX-SNAP-V0-023 (proposed) | `admittedEntries`, `LoadSnapshot`, `ProbeSnapshot`, `LoadEventSnapshot`, `evictSnapshots` | `TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes` |
+| IDX-SNAP-V0-024 | `displayPath`, `parseStatus`, `readTreeEntries`, `admittedEntries`, `parseHistory` | `TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes`, `TestParseStatusNamesNonUTF8PathsInDisplayForm` |

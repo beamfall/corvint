@@ -253,6 +253,11 @@ requirements below have evidence. File existence is not parity.
   truncation then makes evidence *content* depend on index build order rather than on the repository.
   Observed byte parity on named Corvint and Beamfall fixtures is dogfood
   evidence, not universal Python parity or authority to cut over the production `corvint` command.
+  Amendment (proposed, decision 0398; V1-0339): the aggregate-bound refusal keeps its code and
+  names no language. Its message states the admitted source bytes, the file count, the total with
+  the per-file framing allowance, the 128 MiB bound, and the remedy that paths under `vendor/`,
+  `node_modules/`, `dist/`, `build/`, `target/` or `generated/` are not admitted (`IDX-SNAP-V0-018`).
+  The `feature` and query paths rename only its leading subject.
 - `GPK-V0-028`: Before the complete Phase 2 query port, `corvint` MAY expose one experimental
   authority-start `query` slice for immediate agent-task orientation. The only supported success
   profile is Darwin or Linux; a UTF-8 task of 1--8,000 characters (decision 0023; the oracle stops
@@ -323,7 +328,7 @@ requirements below have evidence. File existence is not parity.
   (`internal/contextindex/range_impact.go:143`).
 - `GPK-V0-031`: Before the complete Phase 2 feature port, `corvint` MAY expose an experimental
   `feature FEATURE_ID` slice on Darwin and Linux; any other platform returns
-  `unsupported-feature-platform` (`cmd/corvint/main.go:427`). It MUST accept the Python-oracle `--limit` range
+  `unsupported-feature-platform` (`cmd/corvint/main.go:430`). It MUST accept the Python-oracle `--limit` range
   1--50 and optional `--budget-bytes` range 1,216--1,000,000, preserve validation precedence and
   canonical bytes, and reuse the bounded immutable context index and shared packet-budget selector.
   A canonical unknown feature id MUST succeed with an exact empty `OUT_OF_SCOPE` receipt, including
@@ -828,7 +833,7 @@ repository rewrite, cache conversion, trace conversion, or sidecar migration is 
 | `GPK-V0-020` | strict legal digest pins plus canonical archive member verification in `conformance/release-artifact-v0` | five-target source/archive comparison and dated Go-archive assessment; legal conclusions remain separate owner/legal work |
 | `GPK-V0-021..022` | Corvint and Beamfall dogfood packets | private measurements, receipts, status snapshots, misses |
 | `GPK-V0-023..026` | per-surface rollout ledger and retirement gate | black-box compatibility, rollback drill, zero-mismatch windows |
-| `GPK-V0-027`, `GPK-V0-056` | `cmd/corvint` plus bounded `internal/contextindex` one-shot impact compiler; the Go-module precondition applies to `.go` paths only; index-admitted suffixes without a reverse-import rule retain a disclosed packet; test-inclusive name-reference scan and reference-counted test-convention ranking in `internal/contextindex/impact.go`, while checkpoint callers retain their prior test exclusion | race/vet, cancellation, nonmutation, `impact-python-nomodule` oracle replay in `conformance/cli-parity-v0`, `TestImpactArgvIsClosedToThePortedSeed` and `TestRootPackageDivergenceRejectsAnUnpinnedImporterRewrite` (`conformance/cli-parity-v0`) closing the argv/rewrite self-check gaps `docs/reviews/cli-parity-mutation-audit-2026-09-13.md` found, `TestImpactDisclosesUnruledAdmittedSuffixAcrossSurfaces_GPKV0027`, the rule (c) lexical-position tests `TestWebImportsRejectsCommentedSpecifiers`, `TestWebImportsRejectsQuotedSpecifiers`, `TestWebImportsRejectsTemplateLiteralSpecifiers`, `TestWebImportsLexesSubstitutionBodiesAsCode`, `TestWebImportsEndsLineCommentAtEveryLineTerminator`, `TestWebImportsEndsUnclosedQuoteAtCarriageReturn` (an unclosed `'`/`"` literal ends at `\r` as well as `\n`, and not at U+2028 or U+2029), `TestWebImportsKeepsQuotedCRLFContinuationInsideTheLiteral` (a `\` before `\r\n` continues a `'`/`"` literal through both bytes, so an import spelled in its remainder adds no edge), `TestWebImportsReadsRegexLiteralsAfterExpressionOpeners` (a backtick or quote inside a regex after an expression opener opens nothing, so the import between two such literals keeps its edge), and `TestWebImportsReportsUnterminatedConstructs` (`internal/contextindex/webimports_test.go`), named Corvint/Beamfall fixture dogfood, `TestImpactRanksSamePackageTestsByDeclarationReferences/GPK-V0-056`, blind-v3 outcome measurement, `DR-0028`, and `DR-0029`; impact promotion remains BLOCKED until its discriminating CLI parity rows exist and pass under `GPK-V0-034` |
+| `GPK-V0-027`, `GPK-V0-056` | `cmd/corvint` plus bounded `internal/contextindex` one-shot impact compiler; the Go-module precondition applies to `.go` paths only; index-admitted suffixes without a reverse-import rule retain a disclosed packet; test-inclusive name-reference scan and reference-counted test-convention ranking in `internal/contextindex/impact.go`, while checkpoint callers retain their prior test exclusion | race/vet, cancellation, nonmutation, `impact-python-nomodule` oracle replay in `conformance/cli-parity-v0`, `TestImpactArgvIsClosedToThePortedSeed` and `TestRootPackageDivergenceRejectsAnUnpinnedImporterRewrite` (`conformance/cli-parity-v0`) closing the argv/rewrite self-check gaps `docs/reviews/cli-parity-mutation-audit-2026-09-13.md` found, `TestImpactDisclosesUnruledAdmittedSuffixAcrossSurfaces_GPKV0027`, the rule (c) lexical-position tests `TestWebImportsRejectsCommentedSpecifiers`, `TestWebImportsRejectsQuotedSpecifiers`, `TestWebImportsRejectsTemplateLiteralSpecifiers`, `TestWebImportsLexesSubstitutionBodiesAsCode`, `TestWebImportsEndsLineCommentAtEveryLineTerminator`, `TestWebImportsEndsUnclosedQuoteAtCarriageReturn` (an unclosed `'`/`"` literal ends at `\r` as well as `\n`, and not at U+2028 or U+2029), `TestWebImportsKeepsQuotedCRLFContinuationInsideTheLiteral` (a `\` before `\r\n` continues a `'`/`"` literal through both bytes, so an import spelled in its remainder adds no edge), `TestWebImportsReadsRegexLiteralsAfterExpressionOpeners` (a backtick or quote inside a regex after an expression opener opens nothing, so the import between two such literals keeps its edge), and `TestWebImportsReportsUnterminatedConstructs` (`internal/contextindex/webimports_test.go`), named Corvint/Beamfall fixture dogfood, `TestImpactRanksSamePackageTestsByDeclarationReferences/GPK-V0-056`, `TestBlobAdmissionRefusalNamesTotalAndRemedyWithoutALanguage` (V1-0339), blind-v3 outcome measurement, `DR-0028`, and `DR-0029`; impact promotion remains BLOCKED until its discriminating CLI parity rows exist and pass under `GPK-V0-034` |
 | `GPK-V0-028` | bounded `internal/contextindex` authority-start query and packet-budget compiler plus `cmd/corvint` dispatch; advisory learned paths above limit 1 reuse `EvalQuery`'s learned-candidate ranking, whose history parser drops `grafted` commits | `TestAuthorityStartHistorySkipsTheShallowBoundaryCommit`; exact unbudgeted process parity at limits 1, default, 50, and with learned paths, the oracle's limit error at 51, a non-ASCII task, frozen Python budget-vector comparison, hostile rejection, nonmutation, and named Corvint/Beamfall authority-start dogfood |
 | `GPK-V0-029` | opt-in `cmd/corvint impact` dispatch plus bounded `internal/worktreeimpact` evidence compiler | `TestCompileValidatesSuffixBeforeRepositoryCondition_GPKV0029`, default byte-parity regression, hostile file/race tests, race/vet/cross-build, and named Corvint untracked-file dogfood |
 | `GPK-V0-030` | opt-in `cmd/corvint impact --base` dispatch plus bounded `internal/contextindex` hunk-qualified compiler | path-profile regression, hostile range rejection, race/vet/cross-build, and exact Beamfall ART-SLOTS committed-range dogfood |
@@ -840,6 +845,8 @@ repository rewrite, cache conversion, trace conversion, or sidecar migration is 
 | `GPK-V0-038` | injected index provider carrying the query, impact, and compaction-rehydration context blocks, leaving `internal/gokernel` dependency-free | `TestImpactDisclosesUnruledAdmittedSuffixAcrossSurfaces_GPKV0027`; eighteen unqualified `harness` parity rows across all six events, both compact rehydration shapes, six negatives, and two hostile bounds; three seeded divergences each failing on the stdout value comparison at the intended case |
 | `GPK-V0-039` | per-candidate query-word support recorded by every `internal/contextindex` ranker, read by the packet-withdrawal floor rather than by score | a below-floor query withdraws the packet while every in-scope packet stays byte-identical; `TestEvalQueryRelevanceFloorPrecedesPacketBudget`; `harness-user-prompt-out-of-scope` FAILS against a candidate whose floor is removed |
 | `GPK-V0-066` (accepted, decision 0387) | the confident-symbol substitution ahead of the floor withdrawal in `evalQuery` (`internal/contextindex/eval_query.go`) | `TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols`, which FAILS against a candidate without the substitution and keeps the withdrawal when no symbol clears the floor; before/after `corvint eval` and `tools/retrieval-bench --arms corvint` numbers in `docs/BUILD-LOG.md` |
+| `GPK-V0-068` (accepted, decision 0396) | the `evalOmitsCompetingRecord` state check in `evalQuery` (`internal/contextindex/eval_query.go`) | `TestEvalQueryLimitOmittingCompetingRecordNeedsWidening`, which FAILS against a candidate without the check at limit 1 and pins `READY` once the limit admits both records; before/after `corvint eval` and `tools/retrieval-bench --arms corvint` numbers in `docs/BUILD-LOG.md` |
+| `GPK-V0-070` (proposed, not accepted) | `commentText` and `markerComments` in `internal/contextindex/markers.go`, called from the marker scan in `internal/contextindex/index.go`; `markerCredited`, `reserveCallerRows`, `exportedGoNames` and `namesAny` in `internal/contextindex/impact.go` | `TestMarkersComeOnlyFromCommentSpans` and `TestImpactCreditsOnlyRelatedMarkedTestsAndKeepsCallers` (`internal/contextindex/marker_comments_test.go`), both of which FAIL against the base without the change; before/after `corvint eval` and `tools/retrieval-bench --arms impact` numbers in `docs/BUILD-LOG.md` |
 | `GPK-V0-040` | pre-truncation admitted count captured in `receipt` and carried forward by `compileReceipt`, leaving `setCoverage` the single writer of the three result counts; `EvalQuery` hands `receipt` the whole admitted list instead of a list its own ceiling already narrowed | `impact` and `range impact` report the results a ceiling dropped; `impact-ranked-past-limit` FAILS against a candidate that measures its own truncated output; `TestQueryCoverageCountsAdmittedCandidatesPastLimit` holds `query` to the same count and FAILS against a candidate whose limit-1 packet reports `omitted_results: 0`; the confident-symbol fallback admits at its own caps rather than the caller's ceiling, pinned by `TestQueryCoverageCountsConfidentFallbackPastLimit`; the decision 0157 three-per-feature admission is pinned by `TestQueryAdmitsThreeImplementationsPerFeature`, which FAILS against a two- or four-per-feature candidate. Two denominators remain limit-dependent and are the next slice: feature-symbol admission over the ceiling-narrowed `competitive` list, and the learned-path truncation `evalLearnedCandidates` applies from its `limit` argument |
 | `GPK-V0-041` | the `GPK-V0-037` typed `.py`-claim abstention applied at `verifyOptionalOCM`, so the `lrf` OCM leg and the read slice share one refusal instead of one refusal and one approximate grammar | `lrf --ocm` refuses a map carrying a `.py` claim; `lrf-ocm-python-claim-refusal` FAILS against a candidate that verifies that claim with the closed Go grammar |
 | `GPK-V0-043`, `GPK-V0-055` | standalone intent validation plus the shared `BuildEval` / `EvalQuery` path for `repository` and `agent-tooling` tasks in `cmd/corvint`; the `GPK-V0-028` authority-start path remains separate; split-before-lower task term derivation in `internal/contextindex/eval_query.go` | fresh-process default and limits 1/10/50, unbudgeted and 2,200-byte budget selection, malformed/bounds, non-ASCII and agent-tooling oracle replay, drift and nonmutation regressions, shared-path structural regression, exact Python-oracle bytes, registered relevance-floor divergence in `conformance/cli-parity-v0`, `TestEvalQueryCamelSplitsTaskBeforeLowering/GPK-V0-055`, development-corpus stable-byte comparison, blind-v3 outcome measurement, and `DR-0027`; query promotion remains BLOCKED until its discriminating CLI parity row exists and passes under `GPK-V0-034` |
@@ -1256,3 +1263,95 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   clears the floor is unchanged, so a one-word record at a wide limit still precedes the symbols;
   this clause changes only packets `GPK-V0-039` would withdraw. Rollback: remove the substitution
   in `evalQuery`, restoring the withdrawal.
+
+## Proposed amendment: a limit that omits a competing record needs widening
+
+- `GPK-V0-068`: (accepted 2026-09-25, decision 0396; panel finding M2)
+  A `query` packet claims `READY` only when the ranking chose between the task's readings on
+  evidence, and `GPK-V0-039` rules out score as that evidence. When the result limit omits a
+  competitive record, one the ranking admitted before the limit cut, that rests on a word of the
+  query as written that no emitted result rests on, the packet MUST carry `state`
+  `NEEDS_WIDENING` and an active abstention with reason `omitted-competing-record`. It keeps its
+  emitted results. Support is counted as `GPK-V0-039` counts it: per result, in the query's own
+  words. A limit that admits every such record leaves the packet unchanged. A packet that
+  `GPK-V0-066` compiled from symbols carries no such state, because its records were withdrawn.
+  A nearest negative claim stays the named reason when both apply. Rollback: remove the
+  `evalOmitsCompetingRecord` check in `evalQuery` and restore the analyzer schema to
+  `corvint-analyzer/84`.
+
+## Proposed amendment: workspace package importers are disclosed, not silently omitted
+
+- `GPK-V0-069`: (accepted 2026-09-25, decision 0399; panel blocker B3)
+  Rule (c) of `GPK-V0-027` resolves relative and alias specifiers only, so a source that reaches a
+  changed web path through a bare workspace package specifier (for example `@scope/contracts`,
+  then a barrel re-export) is never found, and the packet reported no uncertainty over that answer.
+  For each requested, indexed, non-test changed path with a rule (c) suffix, the holding package is
+  the nearest directory below the repository root with an indexed `package.json`; when some indexed
+  source's import specifier equals that manifest's `name` or begins with `name/`, or when the
+  manifest's `name` cannot be read, the `impact` packet MUST add
+  `reverse-import results for N changed paths importable by workspace package name are unresolved`
+  to `coverage.uncertainty`, with N the count of such paths. A manifest that parses without a
+  `name`, a path under no nested manifest, and a package no specifier names add nothing. This
+  disclosure resolves no importer and grants no rule; resolving workspace names, package entry
+  points, `exports`, `tsconfig` `paths` and barrel re-exports remains future work that would
+  retire the line for the paths it resolves. Evidence:
+  `TestImpactDisclosesWorkspacePackageImporters`. Rollback: remove `webWorkspaceImportGap` from
+  `setCoverage`, restoring the undisclosed packet.
+
+## Proposed amendment: markers come from comments and relate to the change
+
+- `GPK-V0-070`: (proposed 2026-09-25, panel blocker B4, not accepted; V1-0263)
+  A `feature:` or `scenario:` marker is project-authority evidence (`source-marker`,
+  `test-marker`), so it MUST come only from a comment span of a source whose suffix has comment
+  syntax: `//` and `/* */` for Go, `go.mod`, JavaScript, TypeScript, Rust, Swift, C#, Kotlin and
+  Objective-C; `#` for Python, TOML, shell, YAML and Ruby; `--` and `/* */` for SQL; and `<!-- -->`
+  for Markdown and MDX. Text inside a string literal (quoted, raw, template or triple-quoted) and
+  every line of a data or prose file without comment syntax (`.json`, `.txt`, `.rst`) yields no
+  marker. A comment marker keeps its line and byte column. Path `impact` credits a same-package
+  marked test (the 850 row of `GPK-V0-056`, and its keys as related feature and scenario records)
+  only when the marker relates to the change: the test is the changed file's exact
+  `<stem>_test.go` twin, it references a name the changed file declares (the `GPK-V0-056` scan), or
+  the changed file carries the same marker key. When the ranked list exceeds the limit, `impact`
+  keeps `limit/10` rows (none below limit 10) for cross-package callers, meaning non-test reverse
+  importers whose code names an exported declaration of a changed Go file as `alias.Name`. Callers
+  already inside the limit count toward that quota; a moved caller displaces the lowest included
+  rows and never a requested path row. No score changes. The analyzer schema moves to
+  `corvint-analyzer/85` because cached blob facts carry markers. The retired oracle scanned raw
+  lines; no frozen parity case discriminates the two, and with the oracle retired (decision 0088)
+  no register entry is opened. Rollback: restore the raw-line scan in `index.go`, the unconditional
+  same-package marker credit and the unreserved tail in `impact.go`, and the analyzer schema to
+  `corvint-analyzer/84`.
+
+## Proposed amendment: repositories owned by another user
+
+- `GPK-V0-071`: (proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global and
+  system configuration (`GPK-V0-009`), so Git's `safe.directory` exception can never be honoured and
+  a checkout owned by another user (a bind mount, a container volume, a shared CI workspace) fails
+  every Core verb with Git's uncoded `detected dubious ownership` exit 128, whose printed advice
+  (`git config --global --add safe.directory`) cannot work under Corvint. The kernel MUST classify
+  that exit as one coded refusal, the same code from every verb, whose message names the
+  repository path and a remedy that works under the sanitized environment. Owner decision needed
+  before implementation: whether the remedy is only "run as the owning user or change ownership",
+  or whether an explicit operator opt-in passes `-c safe.directory=<worktree>` and
+  `-c safe.directory=<common Git directory>` per invocation. The opt-in bypasses the protection
+  Git added against configuration planted by another user, so it is acceptable only if every Git
+  subprocess on that path also neutralizes repository-configured filters, hooks, fsmonitor and
+  textconv, which is not true of every env builder today. The fix touches the roughly thirty
+  per-capability env builders, including `cmd/corvint` files that PR #218 (decision 0393) also
+  changes, so it lands after that PR. Rollback: remove the classification, restoring Git's exit.
+
+## Proposed amendment: non-UTF-8 paths in query history
+
+- `GPK-V0-072`: (proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
+  refuse the whole repository with `unsupported-query-history` when any commit in the bounded
+  history names a path whose Git bytes are not UTF-8 (`parseHistory` in
+  `internal/contextindex/history.go`), although decision 0394 made such a path an index exclusion
+  everywhere else. Proposed: query learning leaves such a path out of its commit's path list, so
+  it contributes to no history match, no `history_digest` input, and no candidate, and the
+  commit's other paths answer as before; `unsupported-query-history` stays the code for every
+  other history failure. No existing digest moves, because every repository this changes is one
+  that refuses today. The Python oracle still refuses, so the change is a `python-defect` under
+  `GPK-V0-033`, registered in `conformance/divergence-register.md` with one declared oracle-only
+  case, and `src/` is not repaired. Owner decision needed: accept the skip (implemented on the
+  `skipNonUTF8` seam that PR #219 adds to `parseHistory`, so it lands after that PR) or keep the
+  refusal and close V1-0313. Rollback: pass `false` on the query path, restoring the refusal.

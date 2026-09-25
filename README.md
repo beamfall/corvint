@@ -272,9 +272,9 @@ unknown axes stay visible ([contract](docs/specs/js-live-test-provider-v0.md),
 
 ### Task manager and work queue
 
-`corvint-tasks` is the local ticket store and roadmap. It lives in its own source module,
-is built into the companion bundle beside `corvint`, and owns ticket state: the console delegates
-every ticket mutation to it. No server, no account, no agent dispatch.
+`corvint-tasks` is the local ticket store and roadmap. It is a separate companion binary built
+from this repository's `cmd/corvint-tasks` (never a `corvint` subcommand), ships in the companion
+bundle beside `corvint`, and owns ticket state: the console delegates every ticket mutation to it. No server, no account, no agent dispatch.
 
 `corvint work observe` and `corvint work propose-wave` (also `corvint-work-queue`) read a
 queue snapshot and return deterministic shadow proposals: derived path clashes between tickets
@@ -352,7 +352,7 @@ profile and is admitted to the product only through its own accepted profile ([c
 |---|---|
 | Spec-driven | Every substantive capability has an executable spec with stable requirement IDs in `docs/specs/REQUIREMENTS.tsv`; `go run ./script/spec-coverage-audit` reports test, case, and fixture mentions separately from comments and missing mentions |
 | Decision records | Numbered, accepted intent with explicit promotion boundaries in `docs/decisions/` |
-| Frozen conformance | Exact receipt and state replay, CEM/LRF/TCQ vectors, and an independent Go interoperability consumer in `interop/cem01-go` |
+| Frozen conformance | Exact receipt and state replay, CEM/LRF/TCQ vectors, and an in-repo second consumer for `cem/0.1` in `interop/cem01-go` |
 | Honest disagreements | Every known behavioural disagreement is adjudicated and dated in the [divergence register](conformance/divergence-register.md) |
 | Hermetic archives | `make gate` includes `script/go-archive-gate`, which rebuilds the release archives from the committed revision and checks the closed file set ([spec](docs/specs/go-archive-gate-v0.md)) |
 | Dogfooded | Substantive Corvint changes must collect context with Corvint and bind the diff to a CEM ([dogfood contract](docs/DOGFOOD.md)) |

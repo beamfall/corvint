@@ -68,6 +68,16 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   `( , = : [ & | ? { ; ~ ^ % *` (whitespace ignored); every other `/` reads as division.
   A line-leading `/// <reference path="...">` directive MUST resolve as a relative edge, its path
   read relative to the file whether or not it starts with `./`.
+  (proposed, decision 0398; V1-0283) A bare import whose package (`@scope/name` or `name`, the
+  first one or two path segments) is the `name` of a `package.json` in the repository MUST NOT be
+  a frontier by that fact alone: it resolves to one unit `typescript:workspace:<directory>` per
+  such `package.json` directory, built only when something imports it, which imports every source
+  unit inside that directory. The importer gets an edge to that unit, so a change to any source of
+  the package reaches a test in another workspace package that imports it by name. The edge set is
+  a superset of what the package entry (`main`, `exports`, subpath imports) can reach, because V0
+  does not resolve entries. A named package with no source unit inside its directory, or with more
+  than 20,000, MUST keep `typescript:path-alias-unresolved`, so a test that imports it is never
+  claimed covered. Rollback restores the frontier for every workspace-package import.
 - `TJAA-V0-006`: Owned framework config MUST be an affecting source unit for every governed test.
   Non-owned manifests/config and project, environment, loader, permission, browser, device, tag, or
   setup values that this observer cannot reconstruct MUST remain unknown.
@@ -287,7 +297,7 @@ The issue 41 extension can instead be reverted independently: restore the opt-in
 | Requirement | Implementation / evidence | Status |
 |---|---|---|
 | `TJAA-V0-001..004`, `TJAA-V0-006..008` | `internal/liveverify/affected/typescript/` focused tests | experimental |
-| `TJAA-V0-005` | `TestTemplateSubstitutionRequireBuildsDependencyEdge`, `TestMultilineJSXQuoteAmbiguityRaisesFrontier`, `TestSameLineJSXApostropheAmbiguityRaisesFrontier`, `TestStandaloneJSXApostrophesRaiseFrontier`, `TestJSXTextCannotImitateALiteralOpeningContext`, `TestKeywordEndingJSXTextCannotHideRequireWithoutBraces`, `TestJSXAttributeAndExpressionStringsRemainParsed`, `TestOrdinaryTSXStringsAndJSXExpressionLiteralsRemainParsed`, and import-resolution focused tests in `internal/liveverify/affected/typescript/` | experimental |
+| `TJAA-V0-005` | `TestTemplateSubstitutionRequireBuildsDependencyEdge`, `TestMultilineJSXQuoteAmbiguityRaisesFrontier`, `TestSameLineJSXApostropheAmbiguityRaisesFrontier`, `TestStandaloneJSXApostrophesRaiseFrontier`, `TestJSXTextCannotImitateALiteralOpeningContext`, `TestKeywordEndingJSXTextCannotHideRequireWithoutBraces`, `TestJSXAttributeAndExpressionStringsRemainParsed`, `TestOrdinaryTSXStringsAndJSXExpressionLiteralsRemainParsed`, `TestWorkspacePackageImportReachesTheImportingTest_V1_0283`, and import-resolution focused tests in `internal/liveverify/affected/typescript/` | experimental |
 | `TJAA-V0-009` | `internal/liveverify/affected/conformance_test.go` TypeScript seam case | experimental |
 | `TJAA-V0-010..017` | `internal/liveverify/affected/typescript/playwright.go`, `playwright_test.go`, and `cmd/corvint/affected_playwright_test.go` | experimental |
 | `TJAA-V0-014..017` fixture qualification | `internal/liveverify/affected/typescript/playwright_qualification_test.go`, `testdata/playwright-qualification.tsv` | synthetic fixture evidence; runtime promotion excluded |

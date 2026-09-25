@@ -14,6 +14,16 @@ if ! git -C "$repo" cat-file -e "$bind:.corvint/change.cem.json" 2>/dev/null; th
   printf 'dogfood-seal: REFUSE nothing-to-seal\n' >&2
   exit 2
 fi
+# V1-0137: never drop a CEM BASE tracks that this change replaced and no
+# .corvint/changes/ file keeps.
+base_cem=$(git -C "$repo" rev-parse --verify -q "$base_arg^{commit}:.corvint/change.cem.json" 2>/dev/null)
+if [[ -n $base_cem && $base_cem != "$(git -C "$repo" rev-parse "$bind:.corvint/change.cem.json")" ]] &&
+  ! git -C "$repo" ls-tree -r "$bind" -- .corvint/changes | grep -Fq " $base_cem"$'\t'; then
+  replaced=$(git -C "$repo" log -1 --format=%H "$base_arg^{commit}" -- .corvint/change.cem.json)
+  printf 'dogfood-seal: REFUSE unarchived-base-cem\n' >&2
+  printf '  BASE tracks .corvint/change.cem.json (bound at %s) that this change replaced and no .corvint/changes/ file keeps; archive it in a commit on the base branch, then restart this change on that commit\n' "$replaced" >&2
+  exit 2
+fi
 sealed=".corvint/changes/$bind.cem.json"
 mkdir -p "$repo/.corvint/changes"
 git -C "$repo" mv .corvint/change.cem.json "$sealed" || exit 2

@@ -1,0 +1,42 @@
+{
+  "frontierState": "OPEN",
+  "id": "frontier:sha256:edecfd6e7d06ed32e7d0c52c34f62eff68eca54233c7a56a5d138432546d9109",
+  "inputs": {
+    "cemSha256": "2084e84bb074278a28965232feea126c5b0c6ca8034d04d97dd6575075dffc68",
+    "lrfSha256": "2017373d16d681b2f183707031e585a1fd8cc90e7454dfc3cdcf45038c141daf",
+    "ocmSha256": "af987e3359b8db20c5cf0ad23b249d16fadf286590191c8b52dbb50ce07924b0",
+    "policy": "strict-v0",
+    "tcqId": "tcq:sha256:474f3a4bf7bdd99958cc87e73416ff97381247cb6212183d5eef0f6e2cba4a72",
+    "testMode": "STATIC"
+  },
+  "items": [
+    {
+      "authorityClass": "NONE",
+      "id": "frontier-item:sha256:b9d8da527ff2bd3057920263230c8dd07fbf146bbb4a705e888ff31609cbf713",
+      "kind": "INTENT_CHANGE",
+      "nextAction": "LINK_OBLIGATION",
+      "reasons": [
+        "OBLIGATION_UNASSESSED"
+      ],
+      "relatedIds": [],
+      "resolutionClass": "ACTIONABLE",
+      "subjectId": "LRF-CLI-001"
+    }
+  ],
+  "profile": "frontier/0",
+  "scope": {
+    "baseRevision": "61151eb4449d4798ad4875ffea7845238ef3c93e",
+    "excludedPath": ".corvint/change.cem.json",
+    "intentBlobOid": "c6dc6efc1aad1a82245451fbb04ab546dc4c811f",
+    "intentPath": "docs/intent.md",
+    "intentSpan": {
+      "end": "86",
+      "start": "10"
+    },
+    "intentSpanSha256": "1203aaaf802c85930012635956e334addd0e57b2b2fac5a0b04c3ea04a165e98",
+    "objectFormat": "sha1",
+    "patchSha256": "994ec175c093271c0d5a98e810ed8f8c71c39d732690188822d3e4d76ab8285d",
+    "targetRevision": "d00b90a6272539fa9d1dc14cc401ad296c0cd839"
+  },
+  "universeId": "frontier-universe:sha256:c63f5647ec557f3d0d9acc8d414f0d7c4eab53710acff8bb9bb89607c5a2aff6"
+}

@@ -77,6 +77,9 @@ func (s *Session) Discriminate(ctx context.Context, options DiscriminateOptions)
 	if err != nil {
 		return nil, err
 	}
+	if err := checkSpec03Output(document, options.MapPath, options.Output); err != nil {
+		return nil, err
+	}
 	candidates := discriminationCandidates(document)
 	selected := candidates
 	if len(selected) > int(bounds.MaxHunks) {

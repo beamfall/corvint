@@ -115,8 +115,23 @@ func TestReasonClassToolErrorOverRefusedRepositories(t *testing.T) {
 }
 
 // MCPV0-028: a failure the status refusal did not classify, here Git's own
-// index probe over a split index, is "unclassified" under the selector.
+// index probe over a corrupt index, is "unclassified" under the selector.
 func TestReasonClassUnclassifiedToolError(t *testing.T) {
+	root := fixtureRepository(t)
+	if err := os.WriteFile(filepath.Join(root, ".git", "index"), []byte("DIRC\x00\x00\x00\x02corrupt"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	defaultClient := startServer(t, root)
+	defer defaultClient.close(t)
+	classClient := startServerWithArguments(t, root, reasonClassArguments)
+	defer classClient.close(t)
+	assertToolError(t, defaultClient, 10, "corvint.status", map[string]any{}, "")
+	assertToolError(t, classClient, 10, "corvint.status", map[string]any{}, "unclassified")
+}
+
+// MCPV0-028: a real split index is refused with its own class, split-index,
+// before Git's index probe can fail on the missing shared index (V1-0256).
+func TestReasonClassSplitIndexToolError(t *testing.T) {
 	root := fixtureRepository(t)
 	gitRun(t, root, "update-index", "--split-index")
 	defaultClient := startServer(t, root)
@@ -124,7 +139,7 @@ func TestReasonClassUnclassifiedToolError(t *testing.T) {
 	classClient := startServerWithArguments(t, root, reasonClassArguments)
 	defer classClient.close(t)
 	assertToolError(t, defaultClient, 10, "corvint.status", map[string]any{}, "")
-	assertToolError(t, classClient, 10, "corvint.status", map[string]any{}, "unclassified")
+	assertToolError(t, classClient, 10, "corvint.status", map[string]any{}, "split-index")
 }
 
 // assertToolError requires the exact tool-error object in both content

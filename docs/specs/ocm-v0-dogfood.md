@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-22
-Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05)
+Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25)
 Delivery status: experimental
 Authoritative inputs: `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/CHANGE-EVIDENCE-MAP.md`,
 `docs/specs/cem-pilot-kit.md`, `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: OCM maps scoped requirements to exact change-and-test witnesses or explicit unknowns; ordered multi-intent dogfood coordination is experimental.
-- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05)/experimental; accepted amendments implemented without promotion
+- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25)/experimental; accepted amendments implemented without promotion
 - Exists: an `ocm/0.1-experimental` structural traceability profile, verifier, and evidence mapping.
 - Blocked on: ten-change dogfood and promotion gates; linked rows do not prove correctness or adequacy.
 - Read next: Verified starting state; Requirements; Acceptance and dogfood.
@@ -169,7 +169,7 @@ claim, and mutation ordering deltas below.
   `unknown` row stays `unknown` until it is linked or marked. This profile is the first frozen OCM
   profile, so it has no own-profile N-1 reader; its upstream N-1 is the `cem/0.1` binding that
   `OCM-V0-006` dispatches.
-- `OCM-V0-016`: (proposed 2026-09-25, V1-0273, not accepted) when the `OCM-V0-013` dogfood
+- `OCM-V0-016`: (accepted 2026-09-25 by decision 0392, V1-0273) when the `OCM-V0-013` dogfood
   aggregate verifies and none of its declared requirements is `linked` (aggregate
   `coverage.linked` is 0), its aggregate verdict MUST carry, in `aggregate.findings`, the one
   reviewer-visible finding `{"code":"no-requirements-linked","message":"0 of N declared requirements

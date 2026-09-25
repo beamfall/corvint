@@ -3,6 +3,7 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -36,6 +37,7 @@ type change struct {
 	runTmp               string
 	rows                 []step
 	citationStage        string
+	cemPrepared          bool
 	citationStageOwned   bool
 	citationCount        int
 	citationFailedRow    int
@@ -101,11 +103,13 @@ func (c *change) run() int {
 		c.say("  BASE..HEAD adds a sealed CEM; revert or drop the seal commit, then rebind\n")
 		c.exit(2)
 	}
-	c.runStep("prechange-query", c.evidence+"/prechange-query.json", "query", "--task", task, "--limit", "1")
+	// Query and impact run after the change, so they are coordination-time
+	// receipts; the agent's prechange-*.json receipts are never written here (DCW-V0-026).
+	c.runStep("coordination-time-query", c.evidence+"/coordination-time-query.json", "query", "--task", task, "--limit", "1")
 	c.prechangeImpact()
-	c.prepare("cem-prepare", c.evidence+"/cem-prepare.json", func(status int, stderr []byte, reason string) bool {
-		return status == 2 && chomp(string(stderr)) == outdatedCEMMap
-	}, "cem", "prepare", "--base", c.base, "--target", c.target)
+	c.cemPrepared = c.prepare("cem-prepare", c.evidence+"/cem-prepare.json", func(status int, stderr []byte, reason string) bool {
+		return status == 2 && outdatedCEMMaps[chomp(string(stderr))]
+	}, "cem", "prepare", "--base", c.base, "--target", c.target) == 0
 	// The manifest is frozen before citation so the plan check knows which
 	// base-absent intent hunks an author may deliberately leave uncited.
 	c.manifestValid = c.validateIntentManifest()
@@ -177,7 +181,13 @@ func (c *change) runStep(name, output string, args ...string) int {
 	return status
 }
 
-const outdatedCEMMap = `{"error": "cannot read CEM map: the existing map records a different base or patch; pass --replace to regenerate", "ok": false}`
+// outdatedCEMMaps are the exact outdated-map refusals: the coded form a current
+// binary prints (CCF-V1-004, proposed under decision 0398) and the codeless form
+// an N-1 --corvint-bin still prints.
+var outdatedCEMMaps = map[string]bool{
+	`{"code": "map-unavailable", "error": "cannot read CEM map: the existing map records a different base or patch; pass --replace to regenerate", "ok": false}`: true,
+	`{"error": "cannot read CEM map: the existing map records a different base or patch; pass --replace to regenerate", "ok": false}`:                            true,
+}
 
 // prepare derives a CEM or OCM map and regenerates it with --replace only after
 // the exact outdated-map refusal: every rebind after a sidecar commit finds an
@@ -202,19 +212,19 @@ func (c *change) prepare(name, output string, outdated func(int, []byte, string)
 // prechangeImpact runs impact and keeps a typed, digest-bound abstention when
 // it refuses with exactly one envelope whose code is an impact abstention.
 func (c *change) prechangeImpact() {
-	output := c.evidence + "/prechange-impact.json"
-	errorFile := c.evidence + "/prechange-impact.stderr"
-	argvFile := c.evidence + "/prechange-impact.argv"
-	artifact := c.evidence + "/prechange-impact-abstention.json"
+	output := c.evidence + "/coordination-time-impact.json"
+	errorFile := c.evidence + "/coordination-time-impact.stderr"
+	argvFile := c.evidence + "/coordination-time-impact.argv"
+	artifact := c.evidence + "/coordination-time-impact-abstention.json"
 	argv := []string{c.options.Steps.Path, "--root", c.root, "impact", "--base", c.base, "--range-profile", "expanded-256", "--limit", "20"}
-	failed := func() { c.addStep("prechange-impact", "NOT_PRODUCED", "context-abstention-evidence-failed") }
+	failed := func() { c.addStep("coordination-time-impact", "NOT_PRODUCED", "context-abstention-evidence-failed") }
 	if removeFile(artifact) != nil || writePrivate(argvFile, []byte(strings.Join(argv, "\x00")+"\x00")) != nil {
 		failed()
 		return
 	}
 	status := c.exec(argv[3:], output, errorFile)
 	if status == 0 {
-		c.addStep("prechange-impact", "PRODUCED", "none")
+		c.addStep("coordination-time-impact", "PRODUCED", "none")
 		return
 	}
 	stderr := readFile(errorFile)
@@ -224,7 +234,7 @@ func (c *change) prechangeImpact() {
 		if impactAbstentions[reason] {
 			reason = "context-abstention-invalid"
 		}
-		c.addStep("prechange-impact", "NOT_PRODUCED", reason)
+		c.addStep("coordination-time-impact", "NOT_PRODUCED", reason)
 		return
 	}
 	stdoutSHA, stdoutErr := fileSHA256(output)
@@ -240,11 +250,11 @@ func (c *change) prechangeImpact() {
 		return
 	}
 	c.contextAbstentionSHA = sha256Hex(record)
-	c.addStep("prechange-impact", "NOT_PRODUCED", reason)
+	c.addStep("coordination-time-impact", "NOT_PRODUCED", reason)
 }
 
 func abstentionArtifact(argvSHA, base, reason, stderrSHA, stdoutSHA, target string) string {
-	return `{"argvSha256":"sha256:` + argvSHA + `","base":"` + base + `","exitStatus":"2","profile":"corvint-dogfood-context-abstention/0","reason":"` + reason + `","status":"NOT_PRODUCED","stderrSha256":"sha256:` + stderrSHA + `","stdoutSha256":"sha256:` + stdoutSHA + `","step":"prechange-impact","target":"` + target + `"}`
+	return `{"argvSha256":"sha256:` + argvSHA + `","base":"` + base + `","exitStatus":"2","profile":"corvint-dogfood-context-abstention/0","reason":"` + reason + `","status":"NOT_PRODUCED","stderrSha256":"sha256:` + stderrSHA + `","stdoutSha256":"sha256:` + stdoutSHA + `","step":"coordination-time-impact","target":"` + target + `"}`
 }
 
 // localOutcome records the author's verification outcome, or names why no
@@ -353,10 +363,11 @@ func canonicalIntentPath(path string) bool {
 }
 
 // citeStep applies the author's citation plan to the prepared map, staging
-// intermediate maps so only the last cite publishes the tracked map.
+// intermediate maps so only the last cite publishes the tracked map. A map left
+// by an earlier run is never cited when this run prepared none.
 func (c *change) citeStep() {
 	switch {
-	case !isRegular(c.path(".corvint/change.cem.json")):
+	case !c.cemPrepared || !isRegular(c.path(".corvint/change.cem.json")):
 		c.addStep("cem-cite", "NOT_PRODUCED", "cem-map-not-produced")
 		return
 	case c.options.Citations == "":
@@ -379,6 +390,7 @@ func (c *change) citeStep() {
 	case c.citationCount > 1 && exists(c.path(c.citationStage)):
 		status, reason = "NOT_PRODUCED", "citation-stage-exists"
 	default:
+		c.recordCitationBinding(plan)
 		cited := citedHunks(c.path(".corvint/change.cem.json"))
 		status, reason = c.cite(plan, citeOutput)
 		c.citedOver = cited > 0 && status == "PRODUCED"
@@ -495,7 +507,6 @@ func nonEmptyFields(line string, count int) bool {
 var (
 	hunkField = regexp.MustCompile(`^      "(disposition|id|path)": "(.*)$`)
 	ordinal   = regexp.MustCompile(`^[1-9][0-9]*$`)
-	valueEnd  = regexp.MustCompile(`",?$`)
 )
 
 // citationPlanMatchesMap binds a plan to the map prepared in this run
@@ -522,6 +533,9 @@ func (c *change) citationPlanMatchesMap(plan []byte) bool {
 		return false
 	}
 	hunks := mapHunks(data)
+	if c.ordinalsMoved(plan, hunks) {
+		return false
+	}
 	named := map[string]bool{}
 	for _, line := range textLines(plan) {
 		selector, _, _ := strings.Cut(line, "\t")
@@ -554,9 +568,46 @@ func (c *change) citationPlanMatchesMap(plan []byte) bool {
 	return true
 }
 
+// citationBinding is the private record of the hunk IDs, in map order, that the
+// last accepted plan was cited against: its first line is the plan's digest.
+const citationBinding = "/citation-plan-binding"
+
+func (c *change) recordCitationBinding(plan []byte) {
+	lines := []string{sha256Hex(plan)}
+	for _, hunk := range mapHunks(readFile(c.path(".corvint/change.cem.json"))) {
+		lines = append(lines, hunk["id"])
+	}
+	_ = writePrivate(c.evidence+citationBinding, []byte(strings.Join(lines, "\n")+"\n"))
+}
+
+// ordinalsMoved reports a plan whose ordinal row named a hunk that the map now
+// holds at another ordinal, so the row would cite the wrong hunk (V1-0239).
+func (c *change) ordinalsMoved(plan []byte, hunks []map[string]string) bool {
+	recorded := readLines(readFile(c.evidence + citationBinding))
+	if len(recorded) == 0 || recorded[0] != sha256Hex(plan) {
+		return false
+	}
+	current := map[string]int{}
+	for index, hunk := range hunks {
+		current[hunk["id"]] = index + 1
+	}
+	for _, line := range textLines(plan) {
+		selector, _, _ := strings.Cut(line, "\t")
+		value, err := strconv.Atoi(selector)
+		if !ordinal.MatchString(selector) || err != nil || value >= len(recorded) {
+			continue
+		}
+		if now, found := current[recorded[value]]; found && now != value {
+			return true
+		}
+	}
+	return false
+}
+
 // mapHunks reads the scalar disposition, id and path of each hunk from the
 // canonical indent-2 map encoding: each hunk opens on a four-space "{" line
-// inside "hunks" and its scalar keys sit at six spaces.
+// inside "hunks" and its scalar keys sit at six spaces. Values are decoded from
+// their JSON string form, so an escaped path compares equal to its intent.
 func mapHunks(data []byte) []map[string]string {
 	hunks := []map[string]string{}
 	preamble := map[string]string{}
@@ -580,7 +631,10 @@ func mapHunks(data []byte) []map[string]string {
 		if match == nil {
 			continue
 		}
-		value := valueEnd.ReplaceAllString(match[2], "")
+		var value string
+		if json.Unmarshal([]byte(`"`+strings.TrimSuffix(match[2], ",")), &value) != nil {
+			continue
+		}
 		current := preamble
 		if len(hunks) > 0 {
 			current = hunks[len(hunks)-1]
@@ -602,6 +656,7 @@ func (c *change) runOCMScopes() bool {
 		}, "ocm", "prepare", "--map", mapPath, "--cem", ".corvint/change.cem.json", "--intent", path, "--expected-base", c.base, "--target", c.target)
 		if prepared != 0 {
 			failed = true
+			c.skipOCMLinks(path)
 		} else if c.linksReady {
 			c.runOCMLinks(mapPath, path)
 		}
@@ -680,6 +735,16 @@ func (c *change) runOCMLinks(mapPath, path string) {
 	}
 }
 
+// skipOCMLinks reports each plan row naming an intent whose map did not
+// prepare, so no row is dropped without a reason (V1-0227).
+func (c *change) skipOCMLinks(path string) {
+	for index, line := range readLines(c.linkPlan) {
+		if strings.SplitN(line, "\t", 2)[0] == path {
+			c.addStep(fmt.Sprintf("ocm-link-%03d", index+1), "NOT_PRODUCED", "ocm-map-not-prepared")
+		}
+	}
+}
+
 // declareNoIntent reports each OCM step as not assessed and publishes the
 // declaration the check reads (DCW-V0-024). No intent can own a link row, so a
 // supplied link plan still refuses.
@@ -742,7 +807,7 @@ func failing(row step) bool {
 		return false
 	case row.name == "local-outcome" && row.status == "NOT_PRODUCED" && row.reason == "no-source-paths":
 		return false
-	case row.name == "prechange-impact" && row.status == "NOT_PRODUCED" && impactAbstentions[row.reason]:
+	case row.name == "coordination-time-impact" && row.status == "NOT_PRODUCED" && impactAbstentions[row.reason]:
 		return false
 	case row.reason == "no-intent-declared":
 		return false
@@ -794,7 +859,7 @@ func (c *change) renderReport() {
 		report.WriteString("  ,\"ocmLinkPlan\": null\n")
 	}
 	fmt.Fprintf(&report, "  ,\"dogfoodPolicy\": {\"bootstrapUnknown\": %d, \"maximumUnknownAfterBootstrap\": 0}\n", c.bootstrapUnknown)
-	fmt.Fprintf(&report, "  ,\"packetCoverage\": [%s, %s]\n", c.packetCoverage("prechange-query"), c.packetCoverage("prechange-impact"))
+	fmt.Fprintf(&report, "  ,\"packetCoverage\": [%s, %s]\n", c.packetCoverage("coordination-time-query"), c.packetCoverage("coordination-time-impact"))
 	report.WriteString("  ,\"dogfoodCheck\": null\n}\n")
 	_ = os.WriteFile(c.path(".corvint/dogfood-report.json"), report.Bytes(), 0o666)
 	for _, row := range c.rows {
@@ -857,18 +922,19 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:citation-plan-not-provided", "set DOGFOOD_CITATIONS to the path of a TSV plan with one row per hunk of .corvint/change.cem.json"},
 	{"cem-cite:citation-plan-unavailable", "DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves"},
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows"},
-	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE"},
+	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE"},
 	{"cem-cite:cite-span-not-stable", "plan row {row} cites BASE lines that this change edits or deletes; cite a START:END span the change leaves unchanged"},
 	{"ocm-aggregate:missing-intent-scope", "DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths, or of a file holding the one line #no-intent-declared when no requirements spec governs the change"},
 	{"ocm-prepare-*:invalid-requirements-section", `intent must be a spec that exists at BASE and contains exactly one "## Requirements" heading`},
 	{"ocm-prepare-*:excluded-artifact-mismatch", uncommittedHint},
-	{"prechange-impact:unsupported-impact-worktree", uncommittedHint},
+	{"coordination-time-impact:unsupported-impact-worktree", uncommittedHint},
 	{"local-outcome:record-index-failed", uncommittedHint},
 	{"ocm-status-*", "fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change {base}"},
 	{"cem-status:not-ready", "read verification.issues and policyIssues in {evidence}/cem-status.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk"},
 	{"ocm-links:ocm-link-plan-unavailable", "DOGFOOD_OCM_LINKS must be the path of a TSV file of INTENT<TAB>REQUIREMENT<TAB>HUNKS<TAB>TEST_PATH<TAB>CLAIMS rows, not the rows themselves"},
 	{"ocm-links:empty-ocm-link-plan", "DOGFOOD_OCM_LINKS names an empty file; add at least one row, or unset DOGFOOD_OCM_LINKS so every requirement stays unassessed"},
 	{"ocm-links:invalid-ocm-link-plan", "each DOGFOOD_OCM_LINKS row is INTENT<TAB>REQUIREMENT<TAB>HUNK[,HUNK...]<TAB>TEST_PATH<TAB>CLAIM[,CLAIM...], LF-terminated, at most 256 rows, and INTENT is listed in DOGFOOD_INTENTS_FILE"},
+	{"ocm-link-*:ocm-map-not-prepared", "the map for this row's intent did not prepare, so the row was not linked; fix that intent's ocm-prepare row above, then rerun corvint dogfood change {base}"},
 	{"ocm-link-*", "read {evidence}/{step}.stderr: each linked hunk must be cited in the committed sidecar, and each claim a test case or t.Run name at HEAD containing the exact requirement ID; otherwise delete the DOGFOOD_OCM_LINKS row so the requirement stays unassessed"},
 	{"ocm-aggregate:intent-scope-drift", "fix the ocm-prepare or ocm-status row above; otherwise the intents file changed during the run"},
 	{"*:unsupported-object-alternates", "the clone borrows objects through .git/objects/info/alternates (git clone --reference or --shared); run git repack -a -d, delete .git/objects/info/alternates and .git/objects/info/commit-graphs, run git commit-graph write --reachable, then rerun corvint dogfood change {base}"},
@@ -892,14 +958,45 @@ func (c *change) fixHint(row step) string {
 	return ""
 }
 
+// noteAgentReceipts reports, without blocking, an agent pre-change receipt that
+// is absent or was not written against the base tree (DCW-V0-031).
+func (c *change) noteAgentReceipts() {
+	baseTree := c.gitValue("rev-parse", c.base+"^{tree}")
+	for _, name := range []string{"prechange-query", "prechange-impact"} {
+		c.noteAgentReceipt(name, baseTree)
+	}
+}
+
+func (c *change) noteAgentReceipt(name, baseTree string) {
+	path := c.evidence + "/" + name + ".json"
+	if !isRegular(path) {
+		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-absent\n", name)
+		return
+	}
+	var receipt struct {
+		Context struct {
+			Revision string `json:"revision"`
+		} `json:"context"`
+	}
+	_ = json.Unmarshal(readFile(path), &receipt)
+	switch tree := receipt.Context.Revision; tree {
+	case baseTree:
+	case "":
+		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-tree-unknown\n", name)
+	default:
+		c.say("dogfood-change: NOTE %s STALE agent-receipt-not-base-tree tree=%s base-tree=%s\n", name, tree, baseTree)
+	}
+}
+
 // reportFailures notes an accepted impact abstention, then lists each failing
 // row with its fix and exits 1, or exits 0 when the report is complete.
 func (c *change) reportFailures() int {
 	for _, row := range c.rows {
-		if row.name == "prechange-impact" && impactAbstentions[row.reason] {
-			c.say("dogfood-change: NOTE prechange-impact NOT_PRODUCED %s\n", row.reason)
+		if row.name == "coordination-time-impact" && impactAbstentions[row.reason] {
+			c.say("dogfood-change: NOTE coordination-time-impact NOT_PRODUCED %s\n", row.reason)
 		}
 	}
+	c.noteAgentReceipts()
 	if c.complete() {
 		return 0
 	}
@@ -918,12 +1015,12 @@ func (c *change) reportFailures() int {
 	if c.citedOver {
 		c.say("  cem-cite: the plan was added to citations the map already carried and never replaces them; to correct an earlier plan, delete .corvint/change.cem.json and rerun corvint dogfood change %s (docs/DOGFOOD.md step 4)\n", c.base)
 	}
-	query := readFile(c.evidence + "/prechange-query.stderr")
+	query := readFile(c.evidence + "/coordination-time-query.stderr")
 	// The authority-start refusal is selected by the task wording, not by the
 	// change; a malformed store refuses any wording and names no profile.
 	for _, line := range textLines(query) {
 		if strings.HasPrefix(line, `{"code": "unsupported-query-trace-state", "error": "native Go authority-start query `) {
-			c.say("  prechange-query: DOGFOOD_TASK wording selected the authority-start profile, which refuses a present local trace store; keep this receipt and the task (docs/DOGFOOD.md section 1)\n")
+			c.say("  coordination-time-query: DOGFOOD_TASK wording selected the authority-start profile, which refuses a present local trace store; keep this receipt and the task (docs/DOGFOOD.md section 1)\n")
 			break
 		}
 	}

@@ -125,7 +125,7 @@ headroom, and it is a hang detector, not a budget.
 
 | Command | Why it is excluded | Source |
 |---|---|---|
-| `corvint cem report` | Writes the review report, by default to `$GIT_DIR/corvint/cem-review.md`, and returns `"mutates": true`. | `internal/cem/workflow/workflow.go:29`, `internal/cem/workflow/read.go:205-237` |
+| `corvint cem report` | Writes the review report, by default to `$GIT_DIR/corvint/cem-review.md` (or to `--output`: repository-relative, or absolute outside the repository), and returns `"mutates": true`. | `internal/cem/workflow/workflow.go:29`, `internal/cem/workflow/read.go:222-305` |
 | `make dogfood-check BASE=...` | Once its preconditions pass it rewrites `.corvint/dogfood-report.json`, builds verifier binaries into `$GIT_DIR/corvint/`, and uses `/tmp/corvint-go-build-cache`. It is an authoring-time step, not a gate prerequisite, because it needs untracked `.corvint/` artifacts a clean checkout never has. Its wrapper builds the verifiers first; in a fresh clone the check then fails before the report rewrite (below). | `script/dogfood-check.sh:36-49`, `internal/dogfoodflow/check.go:358-381`, `Makefile:35-38` |
 | `make dogfood-change`, `make dogfood-seal`, `corvint index`, `cem begin`, `prepare`, `cite`, `mark`, `cover`, `discriminate`, `anchor` | Write the dogfood report, a commit, the index snapshot, CEM maps, the patch cache or a Git note by design. | `script/dogfood-change.sh:27`, `script/dogfood-seal.sh:17-20`, `SOP-V0-002` for `index`, `cmd/corvint/help.go:361-363` and `corvint cem --help` |
 

@@ -1,14 +1,20 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"maps"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // frozenCoreVerbs is the CCF-V1-001 Core boundary from decision 0332, in the order root help lists it.
@@ -151,15 +157,14 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			code, stdout, stderr := runCLI(t, test.invoke(t)...)
-			if code != test.exit {
-				t.Fatalf("exit %d, want %d, stderr=%s", code, test.exit, stderr)
-			}
-			var document map[string]any
-			if err := json.Unmarshal([]byte(stdout), &document); err != nil {
-				t.Fatalf("stdout is not one JSON document: %v\n%s", err, stdout)
-			}
+			document := runCoreMode(t, test.invoke, test.exit)
 			register.observe(t, document)
+			golden := filepath.Join("testdata", "core-freeze", strings.ReplaceAll(test.name, " ", "-")+".json")
+			if os.Getenv("CORVINT_UPDATE_GOLDEN") == "1" {
+				time.Sleep(1100 * time.Millisecond) // a later second gives the second fixture new commit ids
+				writeCoreGolden(t, golden, mergeCoreRuns(t, "$", document, runCoreMode(t, test.invoke, test.exit)))
+			}
+			compareCoreGolden(t, "$", readCoreGolden(t, golden), document)
 			want := map[string]any{"ok": true, "mutates": false}
 			for path, value := range test.want {
 				want[path] = value
@@ -174,23 +179,37 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 	}
 }
 
-// TestCoreRefusalsKeepTheFrozenEnvelope pins CCF-V1-004: a Core refusal exits 2 with empty
-// stdout and one stderr JSON envelope whose ok is false and whose code keeps its frozen family,
-// including the codeless repository envelope.
+// TestCoreRefusalsKeepTheFrozenEnvelope pins CCF-V1-004 with one refusal per Core verb: a Core
+// refusal exits 2 with empty stdout and one stderr JSON envelope whose ok is false and whose code
+// keeps its frozen family, including the codeless repository envelope. frontier keeps its frozen
+// frontier-error/0 document, and dogfood carries the top-level code beside its error object.
 func TestCoreRefusalsKeepTheFrozenEnvelope(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		name      string
-		arguments func(string) []string
-		code      string
+		verb, name string
+		arguments  func(string) []string
+		code       string
+		// profile, when set, is the frontier-error/0 document: exactly code and profile.
+		profile string
 	}{
-		{"query without a task", func(root string) []string { return []string{"--root", root, "query"} }, "invalid-arguments"},
-		{"context without a task", func(root string) []string { return []string{"--root", root, "context"} }, "invalid-arguments"},
-		{"affected with an abbreviated base", func(root string) []string { return []string{"--root", root, "affected", "--base", "abc1234"} }, "invalid-arguments"},
-		{"prove with an abbreviated base", func(root string) []string { return []string{"--root", root, "prove", "--base", "abc1234"} }, "unsupported-impact-range"},
-		{"impact of an untracked path", func(root string) []string { return []string{"--root", root, "impact", "pkg/absent.go"} }, ""},
+		{"init", "init with an unrecognized argument", func(root string) []string { return []string{"--root", root, "init", "--bogus"} }, "invalid-arguments", ""},
+		{"adopt", "adopt with an unrecognized argument", func(root string) []string { return []string{"--root", root, "adopt", "--bogus"} }, "invalid-arguments", ""},
+		{"index", "index with an unrecognized argument", func(root string) []string { return []string{"--root", root, "index", "--bogus"} }, "invalid-arguments", ""},
+		{"query", "query without a task", func(root string) []string { return []string{"--root", root, "query"} }, "invalid-arguments", ""},
+		{"context", "context without a task", func(root string) []string { return []string{"--root", root, "context"} }, "invalid-arguments", ""},
+		{"impact", "impact of an untracked path", func(root string) []string { return []string{"--root", root, "impact", "pkg/absent.go"} }, "", ""},
+		{"affected", "affected with an abbreviated base", func(root string) []string { return []string{"--root", root, "affected", "--base", "abc1234"} }, "invalid-arguments", ""},
+		{"prove", "prove with an abbreviated base", func(root string) []string { return []string{"--root", root, "prove", "--base", "abc1234"} }, "unsupported-impact-range", ""},
+		{"cem", "cem status without a map", func(root string) []string { return []string{"--root", root, "cem", "status"} }, "invalid-arguments", ""},
+		{"ocm", "ocm status without a map", func(root string) []string { return []string{"--root", root, "ocm", "status"} }, "invalid-arguments", ""},
+		{"frontier", "frontier without its maps", func(root string) []string { return []string{"--root", root, "frontier", "--json"} }, "invalid-frontier-input", "frontier-error/0"},
+		{"dogfood", "dogfood status with a malformed session key", func(root string) []string {
+			return []string{"--root", root, "dogfood", "status", "--session-key", "k"}
+		}, "invalid-session-key", ""},
 	}
+	covered := []string{}
 	for _, test := range cases {
+		covered = append(covered, test.verb)
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			root := impactCLIRepository(t)
@@ -202,12 +221,109 @@ func TestCoreRefusalsKeepTheFrozenEnvelope(t *testing.T) {
 			if err := json.Unmarshal([]byte(stderr), &envelope); err != nil || strings.Count(strings.TrimSpace(stderr), "\n") != 0 {
 				t.Fatalf("stderr is not one JSON line: %v\n%s", err, stderr)
 			}
+			if test.profile != "" {
+				if len(envelope) != 2 || envelope["code"] != test.code || envelope["profile"] != test.profile {
+					t.Fatalf("envelope %v, want exactly code %q and profile %q", envelope, test.code, test.profile)
+				}
+				return
+			}
 			if envelope["ok"] != false || envelope["error"] == nil {
 				t.Fatalf("envelope %v lacks ok=false and error", envelope)
 			}
 			got, present := envelope["code"]
 			if test.code == "" && present || test.code != "" && got != test.code {
 				t.Fatalf("code = %#v (present %v), want %q", got, present, test.code)
+			}
+		})
+	}
+	if !slices.Equal(covered, frozenCoreVerbs) {
+		t.Errorf("refusal cases cover %v, want one per Core verb %v", covered, frozenCoreVerbs)
+	}
+}
+
+// coreRootRefusal runs one Core verb without --root from directory in a fresh process and
+// decodes its one-line stderr refusal.
+func coreRootRefusal(t *testing.T, directory string, arguments ...string) map[string]any {
+	t.Helper()
+	command := candidateCommand(arguments...)
+	command.Dir = directory
+	var stdout, stderr strings.Builder
+	command.Stdout, command.Stderr = &stdout, &stderr
+	err := command.Run()
+	var exit *exec.ExitError
+	if !errors.As(err, &exit) || exit.ExitCode() != 2 || stdout.Len() != 0 {
+		t.Fatalf("%v: %v stdout %q stderr %s, want exit 2 and empty stdout", arguments, err, stdout.String(), stderr.String())
+	}
+	var envelope map[string]any
+	if err := json.Unmarshal([]byte(stderr.String()), &envelope); err != nil {
+		t.Fatalf("%v: stderr is not one JSON document: %v\n%s", arguments, err, stderr.String())
+	}
+	return envelope
+}
+
+// coreRootRefusingVerbs are the Core modes that read the repository at the working directory
+// when --root is omitted.
+var coreRootRefusingVerbs = [][]string{
+	{"index"}, {"query", "--task", "fix login"}, {"context", "--task", "fix login"}, {"impact", "pkg/main.go"},
+	{"affected"}, {"prove", "pkg/main.go"}, {"dogfood", "status", "--session-key", strings.Repeat("a", 64)},
+}
+
+// TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike pins CCF-V1-004: with --root omitted,
+// a subdirectory of a repository and a directory outside any repository are each refused with
+// the same invalid-arguments diagnostic by every Core verb that reads the repository, and the
+// subdirectory refusal names the top level instead of claiming no repository exists.
+func TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike(t *testing.T) {
+	t.Parallel()
+	root := impactCLIRepository(t)
+	topLevel, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir()
+	for _, arguments := range coreRootRefusingVerbs {
+		t.Run(arguments[0], func(t *testing.T) {
+			t.Parallel()
+			nested := coreRootRefusal(t, filepath.Join(root, "pkg"), arguments...)
+			message, _ := nested["error"].(string)
+			named, _ := strings.CutPrefix(message, "not the repository root; top level is ")
+			if resolved, _ := filepath.EvalSymlinks(named); nested["code"] != "invalid-arguments" || resolved != topLevel {
+				t.Errorf("subdirectory refusal %v, want invalid-arguments naming top level %s", nested, topLevel)
+			}
+			absent := coreRootRefusal(t, outside, arguments...)
+			message, _ = absent["error"].(string)
+			if absent["code"] != "invalid-arguments" || !strings.HasPrefix(message, "not a Git repository: ") {
+				t.Errorf("outside refusal %v, want invalid-arguments not a Git repository", absent)
+			}
+			for _, envelope := range []map[string]any{nested, absent} {
+				if fixes, _ := envelope["supported_fixes"].([]any); len(fixes) != 1 || fixes[0] != "cli.use-git-repository-root" {
+					t.Errorf("supported_fixes = %v, want [cli.use-git-repository-root]", envelope["supported_fixes"])
+				}
+			}
+		})
+	}
+}
+
+// TestIndexedCoreVerbsCodeAnUnbornHead pins CCF-V1-004: a repository with no commit yet is
+// refused with the coded repository-head-unborn diagnostic, not the codeless Git error text.
+func TestIndexedCoreVerbsCodeAnUnbornHead(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	affectedGit(t, root, "init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "add", "main.go")
+	for _, arguments := range [][]string{{"index"}, {"query", "--task", "fix login"}, {"context", "--task", "fix login"}, {"impact", "main.go"}, {"prove", "main.go"}} {
+		t.Run(arguments[0], func(t *testing.T) {
+			t.Parallel()
+			code, stdout, stderr := runCLI(t, append([]string{"--root", root}, arguments...)...)
+			var envelope map[string]any
+			if err := json.Unmarshal([]byte(stderr), &envelope); err != nil || code != 2 || stdout != "" {
+				t.Fatalf("exit %d stdout %q stderr %s, want 2, empty stdout and one JSON line", code, stdout, stderr)
+			}
+			fixes, _ := envelope["supported_fixes"].([]any)
+			if envelope["code"] != "repository-head-unborn" || len(fixes) != 1 || fixes[0] != "git.create-head-commit" {
+				t.Fatalf("envelope %v, want repository-head-unborn with git.create-head-commit", envelope)
 			}
 		})
 	}
@@ -424,4 +540,172 @@ func jsonMembers(value any, names []string) []any {
 		found = append(found, jsonMembers(element, names[1:])...)
 	}
 	return found
+}
+
+// coreFreezeVaries prefixes a golden leaf whose value differs between two independent fixture
+// builds (commit ids, temporary paths and digests over them); the golden pins its JSON type only.
+const coreFreezeVaries = "<varies:"
+
+// runCoreMode runs one frozen Core mode, checks its exit code and decodes its one JSON document.
+func runCoreMode(t *testing.T, invoke func(*testing.T) []string, exit int) map[string]any {
+	t.Helper()
+	code, stdout, stderr := runCLI(t, invoke(t)...)
+	if code != exit {
+		t.Fatalf("exit %d, want %d, stderr=%s", code, exit, stderr)
+	}
+	var document map[string]any
+	if err := json.Unmarshal([]byte(stdout), &document); err != nil {
+		t.Fatalf("stdout is not one JSON document: %v\n%s", err, stdout)
+	}
+	return document
+}
+
+// jsonKind names the JSON type of one decoded value.
+func jsonKind(value any) string {
+	switch value.(type) {
+	case map[string]any:
+		return "object"
+	case []any:
+		return "array"
+	case string:
+		return "string"
+	case float64:
+		return "number"
+	case bool:
+		return "boolean"
+	}
+	return "null"
+}
+
+// mergeCoreRuns folds two independent runs of one mode into its golden (CCF-V1-002): an equal value
+// stays, and a scalar that differs becomes a type placeholder. A difference in members, array length
+// or type is output that cannot be frozen, and fails.
+func mergeCoreRuns(t *testing.T, path string, first, second any) any {
+	t.Helper()
+	kind := jsonKind(first)
+	if kind != jsonKind(second) {
+		t.Fatalf("%s is %s in one run and %s in another: not deterministic, cannot freeze", path, kind, jsonKind(second))
+	}
+	switch kind {
+	case "object":
+		return mergeCoreObjects(t, path, first.(map[string]any), second.(map[string]any))
+	case "array":
+		return mergeCoreArrays(t, path, first.([]any), second.([]any))
+	}
+	if first == second {
+		return first
+	}
+	return coreFreezeVaries + kind + ">"
+}
+
+func mergeCoreObjects(t *testing.T, path string, first, second map[string]any) map[string]any {
+	t.Helper()
+	names := slices.Sorted(maps.Keys(first))
+	if !slices.Equal(names, slices.Sorted(maps.Keys(second))) {
+		t.Fatalf("%s has members %q in one run and %q in another: not deterministic, cannot freeze", path, names, slices.Sorted(maps.Keys(second)))
+	}
+	merged := make(map[string]any, len(first))
+	for _, name := range names {
+		merged[name] = mergeCoreRuns(t, path+"."+name, first[name], second[name])
+	}
+	return merged
+}
+
+func mergeCoreArrays(t *testing.T, path string, first, second []any) []any {
+	t.Helper()
+	if len(first) != len(second) {
+		t.Fatalf("%s has %d elements in one run and %d in another: not deterministic, cannot freeze", path, len(first), len(second))
+	}
+	merged := make([]any, len(first))
+	for index := range first {
+		merged[index] = mergeCoreRuns(t, fmt.Sprintf("%s[%d]", path, index), first[index], second[index])
+	}
+	return merged
+}
+
+// writeCoreGolden writes a merged golden as indented JSON with sorted members.
+func writeCoreGolden(t *testing.T, path string, golden any) {
+	t.Helper()
+	var buffer bytes.Buffer
+	encoder := json.NewEncoder(&buffer)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(golden); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, buffer.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func readCoreGolden(t *testing.T, path string) any {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("%v: every frozen Core mode needs a golden; generate it with CORVINT_UPDATE_GOLDEN=1", err)
+	}
+	var golden any
+	if err := json.Unmarshal(data, &golden); err != nil {
+		t.Fatalf("%s: %v", path, err)
+	}
+	return golden
+}
+
+// compareCoreGolden reports every structural or value difference between a frozen mode's document
+// and its golden. A placeholder leaf pins only the JSON type.
+func compareCoreGolden(t *testing.T, path string, golden, got any) {
+	t.Helper()
+	placeholder, _ := golden.(string)
+	if strings.HasPrefix(placeholder, coreFreezeVaries) {
+		golden = strings.TrimSuffix(strings.TrimPrefix(placeholder, coreFreezeVaries), ">")
+		if jsonKind(got) != golden {
+			t.Errorf("%s is %s, the golden pins %s: retyping is breaking under CCF-V1-006", path, jsonKind(got), golden)
+		}
+		return
+	}
+	if jsonKind(got) != jsonKind(golden) {
+		t.Errorf("%s is %s, the golden has %s: retyping is breaking under CCF-V1-006", path, jsonKind(got), jsonKind(golden))
+		return
+	}
+	switch golden := golden.(type) {
+	case map[string]any:
+		compareCoreObjects(t, path, golden, got.(map[string]any))
+	case []any:
+		compareCoreArrays(t, path, golden, got.([]any))
+	default:
+		if got != golden {
+			t.Errorf("%s = %#v, the golden has %#v", path, got, golden)
+		}
+	}
+}
+
+func compareCoreObjects(t *testing.T, path string, golden, got map[string]any) {
+	t.Helper()
+	for name, value := range golden {
+		member, present := got[name]
+		if !present {
+			t.Errorf("%s.%s is missing: removing or renaming a member is breaking under CCF-V1-006", path, name)
+			continue
+		}
+		compareCoreGolden(t, path+"."+name, value, member)
+	}
+	for name := range got {
+		if _, known := golden[name]; !known {
+			t.Errorf("%s.%s is not in the golden: an optional member is compatible under CCF-V1-006 but the same change regenerates the golden (CORVINT_UPDATE_GOLDEN=1)", path, name)
+		}
+	}
+}
+
+func compareCoreArrays(t *testing.T, path string, golden, got []any) {
+	t.Helper()
+	if len(got) != len(golden) {
+		t.Errorf("%s has %d elements, the golden has %d", path, len(got), len(golden))
+		return
+	}
+	for index := range golden {
+		compareCoreGolden(t, fmt.Sprintf("%s[%d]", path, index), golden[index], got[index])
+	}
 }

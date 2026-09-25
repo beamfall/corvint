@@ -215,6 +215,45 @@ func TestLinkedWorktreeByteIdentical(t *testing.T) {
 	}
 }
 
+// TestRelativePathsLinkedWorktree (V1-0215): a worktree created with --relative-paths records a
+// back-pointer relative to its per-worktree Git directory; it opens and derives the primary's
+// canonical patch, while a relative back-pointer naming another worktree is still refused.
+func TestRelativePathsLinkedWorktree(t *testing.T) {
+	root, base, target := makeRepo(t)
+	parent := filepath.Dir(root)
+	add := exec.Command("git", "worktree", "add", "-q", "--relative-paths", "--detach", filepath.Join(parent, "relwt"), "main")
+	add.Dir = root
+	if out, err := add.CombinedOutput(); err != nil {
+		t.Skipf("git lacks worktree add --relative-paths: %v\n%s", err, out)
+	}
+	linked := filepath.Join(parent, "relwt")
+	admin := filepath.Join(root, ".git", "worktrees", "relwt")
+	pointer, err := os.ReadFile(filepath.Join(admin, "gitdir"))
+	if err != nil || filepath.IsAbs(strings.TrimSpace(string(pointer))) {
+		t.Fatalf("fixture back-pointer is not relative: %q %v", pointer, err)
+	}
+	primary, err := open(t, root).CanonicalDiff(context.Background(), base, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	viaLinked, err := open(t, linked).CanonicalDiff(context.Background(), base, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(primary, viaLinked) {
+		t.Fatal("primary and relative-paths worktree derived different canonical bytes")
+	}
+	gitCmd(t, root, "worktree", "add", "-q", "--relative-paths", "--detach", filepath.Join(parent, "otherwt"), "main")
+	other, err := filepath.Rel(admin, filepath.Join(parent, "otherwt", ".git"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, admin, "gitdir", other+"\n")
+	if _, err := Open(linked, gitrun.NewDefaultBudget()); cemcode.CodeOf(err) != cemcode.RepositoryObjectUnavailable {
+		t.Fatalf("mismatched relative back-pointer: got %v, want repository-object-unavailable", err)
+	}
+}
+
 // TestForgedGitfileRejected proves a forged gitfile cannot redirect reads into
 // a sibling repository and that the sibling's canary never surfaces.
 func TestForgedGitfileRejected(t *testing.T) {

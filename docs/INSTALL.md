@@ -222,7 +222,8 @@ not trigger maintenance.
 
 ### Tickets and local console
 
-`corvint-tasks` provides the separate local ticket store and roadmap. The optional console combines ticket,
+`corvint-tasks` provides the local ticket store and roadmap as a separate companion binary built in
+tree from `cmd/corvint-tasks`. The optional console combines ticket,
 specification and evidence views; it has no autonomous agent dispatch. Start it explicitly using
 absolute paths to the extracted companions:
 

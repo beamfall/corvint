@@ -280,7 +280,7 @@ type repositoryIdentity struct {
 func readIdentity(ctx context.Context, root string) (repositoryIdentity, error) {
 	raw, err := git(ctx, root, maxIdentityBytes, nil, "rev-parse", "--show-object-format", "--is-shallow-repository", "HEAD", "HEAD^{tree}", "--git-path", "info/grafts")
 	if err != nil {
-		return repositoryIdentity{}, err
+		return repositoryIdentity{}, classifyHeadFailure(ctx, root, err)
 	}
 	lines := strings.SplitN(strings.TrimSuffix(string(raw), "\n"), "\n", 5)
 	if len(lines) != 5 {
@@ -338,19 +338,13 @@ func parseStatus(raw []byte) ([]string, error) {
 		if len(field) <= 3 || field[2] != ' ' {
 			return nil, &Error{Message: "Git status output is malformed"}
 		}
-		if !utf8.Valid(field[3:]) {
-			return nil, &Error{Message: "Git status path is not valid UTF-8"}
-		}
-		paths[string(field[3:])] = struct{}{}
+		paths[displayPath(field[3:])] = struct{}{}
 		if bytes.ContainsAny(field[:2], "RC") {
 			index++
 			if index >= len(fields) || len(fields[index]) == 0 {
 				return nil, &Error{Message: "Git status output contains an empty path"}
 			}
-			if !utf8.Valid(fields[index]) {
-				return nil, &Error{Message: "Git status path is not valid UTF-8"}
-			}
-			paths[string(fields[index])] = struct{}{}
+			paths[displayPath(fields[index])] = struct{}{}
 		}
 		if len(paths) > maxDirtyPaths {
 			return nil, &Error{Message: fmt.Sprintf("Git status exceeds the %d-path limit", maxDirtyPaths)}
@@ -364,9 +358,19 @@ func parseStatus(raw []byte) ([]string, error) {
 	return result, nil
 }
 
+// nonUTF8PathReason is genesis's gap name for a tracked path whose bytes are
+// not UTF-8. Such a path cannot be keyed, pinned or printed as it is, so it is
+// excluded under its displayPath and the rest of the tree indexes normally.
+const nonUTF8PathReason = "unsafe-or-non-utf8-path"
+
+// displayPath is a Git path as valid UTF-8: each invalid byte run becomes
+// U+FFFD, so an exclusion or dirty path can still be named in JSON.
+func displayPath(raw []byte) string { return strings.ToValidUTF8(string(raw), "\uFFFD") }
+
 type treeEntry struct {
 	path, oid, mode string
 	size            int
+	nonUTF8         bool
 }
 
 func readTreeEntries(ctx context.Context, root string, identity repositoryIdentity, skipped ...map[string]struct{}) ([]treeEntry, error) {
@@ -383,7 +387,7 @@ func readTreeEntries(ctx context.Context, root string, identity repositoryIdenti
 			continue
 		}
 		tab := bytes.IndexByte(item, '\t')
-		if tab < 0 || !utf8.Valid(item[tab+1:]) {
+		if tab < 0 {
 			return nil, &Error{Message: "Git tree output is malformed"}
 		}
 		if !splitTreeMetadata(item[:tab], &metadata) {
@@ -391,7 +395,7 @@ func readTreeEntries(ctx context.Context, root string, identity repositoryIdenti
 		}
 		if string(metadata[1]) != "blob" || string(metadata[0]) == "160000" {
 			if len(skipped) != 0 {
-				skipped[0][string(item[tab+1:])] = struct{}{}
+				skipped[0][displayPath(item[tab+1:])] = struct{}{}
 			}
 			continue
 		}
@@ -403,7 +407,7 @@ func readTreeEntries(ctx context.Context, root string, identity repositoryIdenti
 		if parseErr != nil || size < 0 {
 			return nil, &Error{Message: "Git returned an invalid blob size"}
 		}
-		entries = append(entries, treeEntry{string(item[tab+1:]), oid, treeEntryMode(metadata[0]), size})
+		entries = append(entries, treeEntry{displayPath(item[tab+1:]), oid, treeEntryMode(metadata[0]), size, !utf8.Valid(item[tab+1:])})
 		if len(entries) > maxIndexedSources {
 			return nil, &Error{Message: "Git tree exceeds the source-count limit"}
 		}
@@ -621,16 +625,24 @@ func equalBytesString(value []byte, expected string) bool {
 	return true
 }
 
+// admissionSubject opens the aggregate refusal; the query path renames it.
+const admissionSubject = "repository index"
+
+// validateBlobAdmission refuses a candidate set whose bytes, with a framing
+// allowance per file, exceed maxBatchBytes. The message names the measured
+// total and the directories the index never admits, whatever the language.
 func validateBlobAdmission(entries []treeEntry) error {
-	total := 0
+	const framingAllowance = 128
+	var sourceBytes int64
 	for _, entry := range entries {
-		const framingAllowance = 128
-		if entry.size > maxBatchBytes-framingAllowance || total > maxBatchBytes-entry.size-framingAllowance {
-			return &Error{Code: "unsupported-impact-repository", Message: "native Go impact index exceeds the 128 MiB aggregate bound"}
-		}
-		total += entry.size + framingAllowance
+		sourceBytes += int64(entry.size)
 	}
-	return nil
+	framed := sourceBytes + int64(len(entries))*framingAllowance
+	if framed <= maxBatchBytes {
+		return nil
+	}
+	message := fmt.Sprintf("%s sources total %d bytes in %d files, %d with per-file framing, over the %d-byte (128 MiB) aggregate bound; paths under vendor/, node_modules/, dist/, build/, target/ or generated/ are not admitted", admissionSubject, sourceBytes, len(entries), framed, maxBatchBytes)
+	return &Error{Code: "unsupported-impact-repository", Message: message}
 }
 
 func readQueryBlobs(ctx context.Context, root string, entries []treeEntry) (map[string][]byte, error) {
@@ -648,7 +660,7 @@ func validateQueryBlobAdmission(entries []treeEntry) error {
 func queryAdmissionError(err error) error {
 	var indexErr *Error
 	if errors.As(err, &indexErr) && indexErr.Code == "unsupported-impact-repository" {
-		return &Error{Code: "unsupported-query-repository", Message: strings.Replace(indexErr.Message, "native Go impact index", "native Go authority-start query index", 1)}
+		return &Error{Code: "unsupported-query-repository", Message: strings.Replace(indexErr.Message, admissionSubject, "authority-start query index", 1)}
 	}
 	return err
 }

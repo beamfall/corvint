@@ -10,8 +10,8 @@ import (
 
 func TestEmptyRootsRefuseBeforeExecution(t *testing.T) {
 	for _, args := range [][]string{
-		{"-source-root=", "-tasks-root", t.TempDir()},
-		{"-tasks-root=", "-source-root", t.TempDir()},
+		{"-source-root="},
+		{},
 	} {
 		scratch := filepath.Join(t.TempDir(), "must-not-exist")
 		args = append(args, "-scratch", scratch, "-output-parent", t.TempDir(), "-bundle-name", "fixture", "-npm-cache", t.TempDir())
@@ -28,7 +28,7 @@ func TestEmptyRootsRefuseBeforeExecution(t *testing.T) {
 func TestCoreBundleBuildSkipsEditorTools(t *testing.T) {
 	t.Run("CRB-V0-019 no npm cache argument required", func(t *testing.T) {
 		scratch := filepath.Join(t.TempDir(), "must-not-exist")
-		args := []string{"-source-root", t.TempDir(), "-tasks-root", t.TempDir(), "-scratch", scratch, "-output-parent", t.TempDir(), "-bundle-name", "core", "-target", "unsupported"}
+		args := []string{"-source-root", t.TempDir(), "-scratch", scratch, "-output-parent", t.TempDir(), "-bundle-name", "core", "-target", "unsupported"}
 		var out, err bytes.Buffer
 		if code := run(args, &out, &err); code != 1 || !strings.Contains(err.String(), "unsupported") {
 			t.Fatalf("missing npm cache rejected before core admission: %d %s", code, err.String())

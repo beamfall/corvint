@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"encoding/json"
 	"path"
 	"sort"
 	"strings"
@@ -163,6 +164,63 @@ func webSpecifierAdmitted(imported string, profile projectprofile.Profile) bool 
 		return true
 	}
 	return profile.WebAliasPrefix != "" && strings.HasPrefix(imported, profile.WebAliasPrefix)
+}
+
+// webPackageNameImported reports whether some source may reach changedPath
+// through the name of the nested package that holds it, which rule (c) cannot
+// resolve: a bare specifier such as `@scope/contracts` names a workspace
+// package, and the package's entry point and barrel re-exports decide which of
+// its files it reaches (GPK-V0-069, proposed). The holding package is the
+// nearest directory below the root with an indexed `package.json`; the root
+// package is excluded. A manifest whose name cannot be read is reported as
+// reachable, because nothing then shows it is not.
+func webPackageNameImported(index *Index, changedPath string) bool {
+	manifest, found := enclosingPackageManifest(index, changedPath)
+	if !found {
+		return false
+	}
+	name, readable := packageManifestName(manifest)
+	if !readable {
+		return true
+	}
+	if name == "" {
+		return false
+	}
+	for _, imports := range index.Imports {
+		for imported := range imports {
+			if imported == name || strings.HasPrefix(imported, name+"/") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// enclosingPackageManifest finds the nearest indexed `package.json` in a
+// directory that holds changedPath, stopping before the repository root.
+func enclosingPackageManifest(index *Index, changedPath string) (Source, bool) {
+	for directory := path.Dir(changedPath); directory != "."; directory = path.Dir(directory) {
+		if manifest, indexed := index.Sources[directory+"/package.json"]; indexed {
+			return manifest, true
+		}
+	}
+	return Source{}, false
+}
+
+// packageManifestName reads the `name` field of a `package.json`. It is
+// unreadable when the bytes are not loaded, not text, or not a JSON object.
+func packageManifestName(manifest Source) (string, bool) {
+	text, valid, loaded := manifest.Text()
+	if !valid || !loaded {
+		return "", false
+	}
+	var fields struct {
+		Name string `json:"name"`
+	}
+	if json.Unmarshal([]byte(text), &fields) != nil {
+		return "", false
+	}
+	return fields.Name, true
 }
 
 // webImportTarget resolves one specifier to a repository path with its web

@@ -73,3 +73,43 @@ func TestActivationFallsBackToABoundedReceiptWhenGitHangs(t *testing.T) {
 		}
 	}
 }
+
+// TestActivationNamesGitTimeoutWhenGitHangsDuringOpen pins GENESIS-025 for a
+// Git that hangs while the repository opens (V1-0124): the receipt is INVALID
+// with the single gap git-timeout, not invalid-repository, for both the
+// combined layout-and-revision read and a missing revision.
+func TestActivationNamesGitTimeoutWhenGitHangsDuringOpen(t *testing.T) {
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := genesisRepository(t, git, "sha1")
+	bin := t.TempDir()
+	marker := filepath.Join(bin, "hanging")
+	script := "#!/bin/sh\n: > '" + marker + "'\nexec sleep 60\n"
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	for _, revision := range []string{"HEAD", ""} {
+		if err := os.RemoveAll(marker); err != nil {
+			t.Fatal(err)
+		}
+		inner, cancel := context.WithCancel(context.Background())
+		go func() {
+			for inner.Err() == nil {
+				if _, err := os.Stat(marker); err == nil {
+					cancel()
+					return
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+		}()
+		receipt := CompileRepositoryInventory(deadlineOnCancel{inner}, root, "init", nil, revision, nil)
+		cancel()
+		gaps, _ := receipt["gaps"].([]any)
+		if receipt["operationalState"] != "INVALID" || len(gaps) != 1 || gaps[0].(map[string]any)["code"] != "git-timeout" {
+			t.Fatalf("GENESIS-025 revision %q: receipt %#v", revision, receipt)
+		}
+	}
+}

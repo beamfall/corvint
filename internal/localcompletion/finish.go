@@ -445,7 +445,7 @@ func (repo *repository) terminalPaths() []string {
 		ContextAbstention string `json:"contextAbstentionEvidenceSha256"`
 	}
 	if err == nil && json.Unmarshal(raw, &report) == nil && report.ContextAbstention != "" {
-		for _, name := range []string{"prechange-impact-abstention.json", "prechange-impact.argv", "prechange-impact.json", "prechange-impact.stderr"} {
+		for _, name := range []string{"coordination-time-impact-abstention.json", "coordination-time-impact.argv", "coordination-time-impact.json", "coordination-time-impact.stderr"} {
 			paths = append(paths, filepath.Join(repo.auth.GitDir, "corvint", name))
 		}
 	}

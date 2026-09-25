@@ -6195,6 +6195,395 @@ Excluded, NOT_PRODUCED: enumerations inside `coverage.answerability`, `context.i
 verdicts, which review still decides; and the release gate the panel proposed, which would build the
 N-1 tag and replay all 12 Core verbs. The register reaches only the values the frozen fixtures emit.
 Unreached values rest on the cited sources.
+## 2026-09-25 FPK-V0-052: hermetic Git reads in cmd/corvint (panel blocker B2)
+
+The pre-1.0 panel reported that the Git reads in `cmd/corvint` set only a scrubbed environment.
+Repository-local configuration therefore still applied. Both failures were reproduced with failing
+tests before the fix. `git diff-tree` in `rangeChangedPaths` ran a `.git/config` `core.fsmonitor`
+program during `prove --base`. A `refs/replace` entry for the changed blob moved the
+`rangeHunkSpans` output from 3-5 to 4-8, so `prove --mutate` would target lines outside the real
+change.
+
+Decisions:
+
+- `hermeticGitCommand` in `cmd/corvint/prove.go` replaces `scrubbedGitEnvironment` and two inline
+  copies in `affected.go` and `host_adapter_compaction.go`. It now builds all nine Git reads in
+  `cmd/corvint`. The `-c` set mirrors `internal/contextindex` `gitRaw` and
+  `internal/liveverify/affected` `boundedGitRunner`, because neither package exports it. It adds
+  `core.hooksPath=/dev/null`, as `source_handoff.go` does, since the panel named hooks in the same
+  class. The environment adds `GIT_NO_REPLACE_OBJECTS=1`, and sets `GIT_CEILING_DIRECTORIES` to the
+  root's parent only when the root holds its own `.git` entry. The compaction root is
+  `CLAUDE_PROJECT_DIR`, which can be a subdirectory of the repository. The first cut set the ceiling
+  unconditionally, so a pin check from such a directory degraded as
+  `compaction-pin-verification-unavailable`. `TestCompactionPinVerifiesFromSubdirectoryRoot`
+  reproduced that failure. It passes now that a subdirectory root keeps normal discovery up to its
+  enclosing worktree. Resolving `--show-toplevel` first was set aside: a ceiling above a top level
+  found by unbounded discovery restricts nothing, and it costs one more process per read.
+- `source_handoff.go` is left out because it has its own pinned `/usr/bin/git` option list
+  (`--no-replace-objects`, `core.fsmonitor=false`, `core.hooksPath=/dev/null`). `work_runner.go` and
+  `work_executable_binding.go` are also left out because they run operator-declared commands, not
+  Git.
+- The `affected --base` replace case already passed: `internal/liveverify/affected` was hardened
+  before this change. `TestAffectedBaseRangeIgnoresReplaceObjects` is a regression guard for it.
+- The wire is unchanged. FPK-V0-052 is accepted by decision 0393 (owner instruction, 2026-09-25).
+## 2026-09-25 Panel blocker B9 IDX-SNAP-V0-024 (accepted, decision 0394): a non-UTF-8 tracked path is an exclusion, not a refusal
+
+One committed Latin-1 path (`latin/caf\xe9.go`) refused `index`, path `impact`, `context` and
+`prove` for the whole repository: `parseStatus` returned "Git status path is not valid UTF-8" when
+the path was dirty, and `readTreeEntries` "Git tree output is malformed" when it was clean
+(`internal/contextindex/git.go:341,350,386` at `26d211e7`). With the path clean, `context` then
+refused a third time in `parseHistory` ("native Go authority-start query requires UTF-8 Git history
+paths"). Chosen: the path is recorded in `Exclusions` under genesis's `unsafe-or-non-utf8-path`,
+named by its display form (invalid bytes as U+FFFD), which also stands in `DirtyPaths`, `Tracked`
+and `Skipped`; the co-change history parse skips it, and query history learning keeps its refusal
+because `unsupported-query-history` and the history digest are GPK-V0 contract. The reason string
+travels in the existing receipt exclusion sample, whose reasons are not a frozen enumeration in
+CCF-V1-005 (IDX-SNAP-V0-013 added one the same way). Analyzer audit digest repinned without a schema
+bump: a tree that built before builds the same facts. Evidence:
+`TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes` (clean and dirty; fails on the base with both
+refusals) and `TestParseStatusNamesNonUTF8PathsInDisplayForm`. Left as follow-ups: `affected` and
+`prove` still refuse when the non-UTF-8 path is itself dirty or untracked, through the separate
+`internal/liveverify/affected/dirty.go` decoder (`unsupported-affected-status`, "cannot read the
+worktree status"); `query` and `prove --task` still refuse on such a path anywhere in the last 200
+commits; the `context` packet has no exclusion member to disclose it.
+## 2026-09-25 panel M1 DCW-V0-026 (accepted, decision 0395): coordinator receipts are coordination-time, agent receipts untouched
+
+The pre-1.0 panel found that `corvint dogfood change` ran `query` and range `impact` against `HEAD`
+into `<git-dir>/corvint/prechange-query.json` and `prechange-impact.json` with `os.Create`,
+truncating the base-tree receipts `docs/DOGFOOD.md` section 1 has the agent write before the change,
+and then reported its own post-change output as `prechange-* PRODUCED`. Reproduced first with
+`TestChangeKeepsAgentPrechangeReceipts` (both receipts overwritten, report rows `prechange-*`).
+Chosen: the coordinator's two steps are renamed `coordination-time-query` and
+`coordination-time-impact`, and every file they write (output, stderr, argv, context-abstention
+artifact), the report rows, the `packetCoverage` entries and the NOTE lines follow the step name, so
+the agent's receipts are never opened for writing and no coordinator run is labelled pre-change.
+`dogfood check` and the `finish` terminal paths read the renamed files; `dogfood-observe` admits both
+spellings so earlier ledgers stay valid. Set aside: archiving the agent receipts before an overwrite
+(the `LCP-V0-005` enrollment model), because the daily path cannot tell an agent receipt from its own
+earlier pass, and keeping the `prechange-*` row names, which would keep the false label.
+`DCW-V0-016` and accepted `DCW-V0-025` now name the renamed step, and `LCP-V0-005` says the
+coordinator never writes the receipts; the rename rests on `DCW-V0-026`, accepted by decision 0395. Not done: the finding's third item, recording each agent receipt's
+tree and failing the check when it is not the base tree, would make an absent receipt blocking,
+which `DOGFOOD-002` does not require; it is ticket V1-0316. Historical reports, conformance receipts,
+decisions and build-log entries keep the old names; `script/dogfood-bind-range.sh` keeps its
+`prechange-*` retroactive-binding NOTE lines, which correctly claim no pre-change context.
+## 2026-09-25 Panel M2: a limit that omits a competing record needs widening (`GPK-V0-068`, decision 0396)
+
+The pre-1.0 panel (finding M2) ran `corvint query --limit 1` on Beamfall with the COREAPI-AUDIT-0822-3
+headline ("Carry HLS foreground priority in the signed stream grant instead of the
+X-Beamfall-Foreground request header"). It returned `READY` with one result,
+`feature:access-request-grant` (score 450). The relevant `feature:hls-transcode` (420) was second
+at limit 10. `evalQuery` set `NEEDS_WIDENING` only on an exact tie of the top two record scores.
+
+The panel suggested requiring term support for the top record before `READY`. That test does not
+fire here: `access-request-grant` rests on two query words, `request` and `grant`, so it clears the
+`GPK-V0-039` floor. What the limit-1 packet hid was a competing reading. `hls-transcode` rests on
+`hls`, a word no emitted result rests on, and only score chose between the two.
+
+`GPK-V0-068` (accepted 2026-09-25, decision 0396): when the result limit omits a competitive
+record that rests on a query word no emitted result rests on, the packet is `NEEDS_WIDENING` with
+an active abstention, reason `omitted-competing-record`, and keeps its results. Support is
+counted per result in the query's own words, as `GPK-V0-039` counts it.
+`TestEvalQueryLimitOmittingCompetingRecordNeedsWidening` fails without the check. The analyzer
+schema moves to `corvint-analyzer/85`.
+
+Beamfall fixture `2a8e06b2`, same headline: base limit 1 `READY`; fix limit 1 `NEEDS_WIDENING` /
+`omitted-competing-record`; limits 5 and 10 stay `READY`.
+
+Frozen evaluations, base → fix:
+- Beamfall goldens (`corvint eval`, 7 cases): all identical. Recall 0.9, must_read 9/10, critical
+  misses 0/5, top-5 6/7, abstention 1/1, budget compliance 1.0, byte-weighted precision 0.702464,
+  and every case state unchanged.
+- With the M2 headline added as an eighth, unfrozen case (limit 1, expected `NEEDS_WIDENING`):
+  epistemic state accuracy 0.5 → 1.0. This case is not in Beamfall's frozen file, which Beamfall
+  owns.
+- Golden query texts rerun at limit 1: only `ambiguous-reveal-navigation`, whose gold set holds both
+  competing features, changes (`READY` → `NEEDS_WIDENING`). At limit 3 none changes.
+- `tools/retrieval-bench --arms corvint`, default limit: `v2_abstention` (82 samples) and
+  `v2_comment2context` (first 40 samples) have identical ranked lists, abstentions and states
+  (abstained 0.073171; hit@k 0.075, mrr@k 0.041667). At `--limit 1` (first 40 samples of each)
+  the rule fires on no sample. These corpora have no canonical feature records, so they cannot
+  exercise it. The Beamfall case is the only evidence that the rule fires.
+- `conformance/cli-parity-v0` replay with the fix: exit 0 (parity 104, known divergences 26). No
+  base replay was run for comparison.
+## 2026-09-25 V1-0283 GPK-V0-069 (decision 0399): TypeScript impact discloses workspace package importers (panel blocker B3)
+
+Finding (pre-1.0 panel, rts, 2/2 confirmed): on a pnpm workspace, `corvint impact
+packages/contracts/src/scraper-runtime-topics.ts` returned three results with no reverse-import
+uncertainty and `omitted_results 0` while two tests in other workspaces imported the file through
+`@fetfinder/contracts`. Root cause: `webSpecifierAdmitted` (`internal/contextindex/reverseimports.go`)
+admits only `.`-relative and profile-alias specifiers, and `reverseImportProfileGap`
+(`internal/contextindex/receipt.go`) counts a gap only for a suffix with no named rule, so a web
+path, which has rule (c), was reported complete. Options: resolve workspace names, `exports`,
+`tsconfig` `paths` and barrel re-exports (set aside: new resolution semantics with no oracle
+authority under `GPK-V0-033` and a larger change than the blocker needs), or disclose the gap.
+Chosen: disclosure. A changed web path inside a nested package whose `package.json` name some
+indexed specifier names (or whose name is unreadable) adds one counted `coverage.uncertainty` line;
+a package nobody imports by name adds nothing, so leaf app packages keep their packets. Evidence:
+`TestImpactDisclosesWorkspacePackageImporters` fails at base 489701ca and passes after. Residual:
+`tsconfig` `paths` aliases to a directory with no manifest stay undisclosed, and TS `affected`
+still excludes cross-package tests (panel D8). The analyzer schema moves to `corvint-analyzer/85`.
+`GPK-V0-069` is accepted (decision 0399); `GPK-V0-067` was not reused (rejected, decision 0387).
+## 2026-09-25 V1-0286 AHI-031 (decision 0400, panel blocker B8): a stale snapshot is named, with its refresh argv
+
+Every Claude Code `UserPromptSubmit` after a commit returned the model-only additionalContext
+`Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline; coding continues` (seen
+live in the owner's session on 2026-09-25). Cause, confirmed at base 489701ca: a commit changes the
+tree, so `localEventContext` (`cmd/corvint/local_completion_event.go:360-366`) misses the snapshot
+and runs the synchronous in-memory build, which outlasts the 1.6 s event deadline on a large or
+loaded host; `runLocalCompletionEvent` (`:129`, `:144`) then reports the bare deadline, which
+`AHI-021` classes expected and keeps out of the user's view, and the refresh argv exists only in the
+success-path guidance. Chosen: keep the in-budget build (`IDX-SNAP-V0-012`, decision 0049), and when
+the deadline expires after a miss report `dogfood-event-index-snapshot-stale`, a fault whose
+`systemMessage` (and additionalContext on the two prompt events) carries the exact
+`corvint --root ROOT index --if-stale` argv. Set aside: deciding the miss without the build (faster,
+but removes post-commit context on small repositories), refreshing from explicit write commands, and
+a parent-tree snapshot with a dirty overlay; each needs an owner decision. The hook still writes no
+snapshot, so the notice repeats until the argv runs. Evidence:
+`TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot` and
+`TestClaudeAdapterStaleSnapshotNamesRemediation` fail at base with the build seam alone (the live
+`dogfood-event-deadline` text, no argv) and pass with the change. Follow-up: the Codex fallback names
+the new code but carries no argv.
+
+## 2026-09-25 V1-0337: Core freeze compares every frozen mode with a structural golden (panel D4)
+
+Panel finding D4 said `TestCoreVerbsEmitTheFrozenProfiles` checked identifiers only. Six Core
+profiles had no schema or golden: `affected-plan/0`, `falsifiable-packet/0`,
+`corvint-working-tree-impact/0`, `corvint-local-completion/0`, `corvint-index-snapshot/1`, and
+`context` v1 inside the freeze. The `affected` `plan.graphDigest` value changed between 0.7.0 and
+0.8.1 without any test failing. Decision 0398 (owner, 2026-09-25) treats disputed panel findings
+as defects, so CCF-V1-002 no longer says the contract "pins only the identifiers". The amendment is
+proposed, not accepted.
+
+Change: each of the 22 frozen-mode cases has a golden in `cmd/corvint/testdata/core-freeze/`. The
+generator (`CORVINT_UPDATE_GOLDEN=1`) runs each mode twice on independent fixtures built at least a
+second apart. It keeps every equal value, and pins a value that differs by JSON type only
+(`"<varies:TYPE>"`). It fails if the member set, an array length or a type differs. The test reports
+removed, renamed, retyped and added members, array-length changes and value changes by JSON path. A
+golden mismatch is not breaking in itself: CCF-V1-006 still decides that, and a compatible change
+regenerates the golden in the same change.
+
+Only 24 leaves are pinned by type rather than value. They are fixture commit ids (`revision`,
+`commit`, `range.base`, `*.baseCommit`, `*.headCommit`, `request.base`), temporary paths (`cem`,
+`map`, `path`), and digests over the fixture history (`learning.history_digest`,
+`learning.history_tip`, one working-tree `identity_sha256`). Every other value is pinned, including
+`graphDigest`, `engine` and the prove falsifier verdicts. No output varied in structure.
+
+Evidence: making the graph digest hash one extra byte (`internal/liveverify/affected/graph.go`) fails
+the new test at `plan.graphDigest`, `engine` and `proof.affected.graph_digest`, while the base test
+passes. Editing the goldens to add a member, drop a member or retype a leaf gives the three expected
+failures. The check passed four times in a row on darwin/arm64. Linux is NOT_RUN.
+
+Not frozen, NOT_PRODUCED: the modes CCF-V1-002 already leaves unpinned (the mutating `cem`, `ocm` and
+`dogfood` subcommands, frontier human and test modes); member values the fixtures do not exercise;
+and cli-parity cases for `context`, `affected`, `prove`, `index`, `frontier` and `dogfood`, which the
+goldens stand in for but do not replace. One unreproduced failure of the test in six runs under
+shared-host load was seen before this change; its output was not captured.
+## 2026-09-25 V1-0284: one Core refusal classification (panel blocker B5, CCF-V1-004)
+
+The panel found that the Core refusal envelope was not uniform. `dogfood` refused with only a
+nested `{"error":{"code","message"}}`, `frontier` with `frontier-error/0`, and the same bad
+working directory was classified differently by each verb. Outside a repository, `impact` gave the
+codeless Git error text. From a subdirectory, `impact` gave `repository-probe-failed` and `prove`
+gave `unsupported-prove-history`. An unborn `HEAD` gave the codeless `ambiguous argument 'HEAD'`
+text. The CCF-V1-004 amendment is proposed, not accepted.
+
+Decisions:
+
+- `frontier-error/0` is carved out of CCF-V1-004, not projected. CF-V0-034 and decision 0357 freeze
+  its bytes, and changing them would need a new profile version.
+- `dogfood` refusals add a top-level `code` beside the retained nested `error` object. That is an
+  optional member under CCF-V1-006, and the in-repository readers (`localcompletion` `public`, the
+  host adapter's rejected reason) already read a top-level `code`.
+- An omitted `--root` is checked like an explicit one before `impact`, `prove` and the `dogfood`
+  lifecycle run. A non-root directory inside a repository is refused with the message
+  `not the repository root; top level is TOP` and `top_level` evidence.
+- A coded contextindex refusal now carries DRC-V0-006 members. Its bytes are unchanged when there is
+  no diagnostic. The unborn-`HEAD` code is `repository-head-unborn`, and its `repository-` prefix
+  keeps the MCP bridge mapping to `repository-unavailable`.
+- CCF-V1-007 is untouched. B6 amends it on its own branch.
+- The not-a-root constructors carry one `diagnostic.Refusal` literal per branch, because the
+  DRC-V0-012 gate requires literal evidence lists. With the new contextindex site, the covered-site
+  count moves from 37 to 40. The contextindex change also moves the analyzer schema to
+  `corvint-analyzer/85` (IDX-SNAP-V0-017). Snapshots rebuild once, and extraction is unchanged.
+
+Evidence: `TestCoreRefusalsKeepTheFrozenEnvelope` (now one case per Core verb),
+`TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike` and `TestIndexedCoreVerbsCodeAnUnbornHead`.
+All three fail at base 489701ca. The `cli-parity-v0` replay is unchanged: no case covers these
+inputs.
+
+NOT_PRODUCED: promisor-missing objects are not classified. That needs a partial-clone fixture and a
+decision on lazy fetch, which conflicts with invariant 7. NOT_RUN: the exhaustive `make gate`.
+## 2026-09-25 V1-0216, V1-0341: use-case ledger clause pins and derived dogfood outcomes
+
+- V1-0216: each Core `contract` receipt bound the whole of
+  `docs/specs/daily-change-evidence-workflow-v0.md`, so any edit to that spec forced a repin. The
+  receipts now bind a clause extract (`receipts/<useCaseId>/contract/clauses.json`, profile
+  `corvint-use-case-clauses/0`). The runner checks each extract clause against the live spec
+  bullet and fails `clause-drift`, `clause-definitions-N` or `clause-coverage-mismatch`
+  (`UCV0-016`, proposed). The decision 0332 subject and the implementation and hostile-tests
+  receipts still pin whole files, which the repin script covers. Test: `TestUCV0ClausePins`.
+- V1-0341 (panel D9): the runner accepted a dogfood `PASS` token without reading the reports it
+  binds (`conformance/use-cases-v0/main.go` `attestation`). Following the owner ruling of
+  2026-09-25 (decision 0398), a `verified` row now derives each dogfood `PASS` from its retained
+  tool packet or `corvint-dogfood-change/0` report (`UCV0-014`, proposed), and a row whose bound
+  subject reproduces an open defect cannot be `verified` (`UCV0-015`, proposed, not mechanically
+  checked). `UCV0-013`'s "promotion requirements remain unchanged" is scoped to that migration.
+  The completion row fails `UCV0-014`: its reports show 0 of 13 and 0 of 4 requirements linked,
+  and the rest unknown (V1-0273). The consequence row binds the LCRES-15 impact packet of open
+  V1-0263. Both rows returned to `experimental`/`UNPROVEN` with every receipt kept. Orientation
+  stays `verified`; its packets are `READY` without abstention. Test:
+  `TestUCV0DerivedDogfoodOutcome`.
+- Set aside: coupling the runner to `.taskman/` for the open-defect rule (a ticket store is not
+  evidence), and a single-revision rule for all six receipts, which would need re-deriving every
+  receipt now; `UCV0-015` defers that to the release candidate instead.
+- Residual: `sealed-benchmark` still trusts its `outcome` token. Deriving it needs a mapping from a
+  benchmark result to a use-case row, which the fixture job lacks.
+## 2026-09-25 V1-0263 GPK-V0-070 (proposed, not accepted): markers come from comments and relate to the change (panel blocker B4)
+
+Root cause: the marker scan (`internal/contextindex/index.go`, the `markerMatches` loop over
+`strings.Split(text, "\n")`) ran `markerPattern` over every raw line of every text source, so a
+`feature:` or `scenario:` token inside a Go string fixture, a JSON golden, a JavaScript object
+literal or Markdown prose became `source-marker`/`test-marker` project-authority evidence. Path
+`impact` then credited every same-package `_test.go` carrying any marker at 850 and added its keys
+to the related records, whatever the marker named. At base, `corvint impact cmd/corvint/main.go
+--limit 5` returned four 850 rows whose only link was a fixture string (for example
+`harness_context_test.go:30`, `feature:session-revocation` inside a Go source literal), and
+`impact internal/contextindex/taskcontext.go --limit 50` put 11 unrelated marked tests at 850 and
+no cross-package caller in the top 50.
+
+Change: `commentText` (`internal/contextindex/markers.go`) blanks every byte outside a comment
+with a per-suffix table of line comments, block comments and string forms, keeping newlines and
+byte offsets, so the existing scan reports only comment markers at their original line and column.
+Data and prose suffixes without comment syntax yield no markers; Markdown keeps `<!-- -->`.
+`markerCredited` admits a same-package marked test only when it is the exact twin, references a
+declared name, or shares a key with the changed file. `reserveCallerRows` keeps `limit/10` rows
+for non-test reverse importers that name an exported declaration (`alias.Name`); scores are
+unchanged. Analyzer schema `corvint-analyzer/85`. Evidence: `TestMarkersComeOnlyFromCommentSpans`
+and `TestImpactCreditsOnlyRelatedMarkedTestsAndKeepsCallers` fail at base 489701ca and pass after;
+`internal/contextindex`, `cmd/corvint` and `conformance/cli-parity-v0` pass unchanged.
+
+After: `impact cmd/corvint/main.go --limit 5` shows the twin `main_test.go` and three decisions;
+`taskcontext.go --limit 50` has no 850 rows and three callers (`internal/disagree`,
+`internal/necessity`, `internal/touchsurprise`). Beamfall V1-0263 case (`trust.go` plus
+`model_loader.go`, limit 10) now includes the caller `internal/app/app.go`; the named caller
+`internal/app/skipdetect_jobs.go` stays omitted and the two importer-test features
+(`identify-scrape`, `library-health`) still rank 800, because the importer-test path rejected as
+`GPK-V0-067` is unchanged. V1-0263 therefore stays open.
+
+Frozen evaluations, base -> fix. Beamfall `corvint eval` (clone at 24631b9a6, 7 cases): identical
+result lists in every case; recall 0.9 -> 0.9, must-read 9/10 -> 9/10, critical misses 0/5 -> 0/5,
+top-5 6/7 -> 6/7, authoritative results 36 -> 36, packet bytes 60590 -> 58842 (JSON-golden and
+roadmap-prose `source-marker` evidence gone), byte-weighted precision 0.702 -> 0.691.
+`tools/retrieval-bench --arms impact` on `v2_code2test` (106 samples, 81 impact errors in both
+runs): identical, hit@k 0.0566, MRR@k 0.0289, recall@10 0.0346, hard-negative hits 0.0472. The
+`edit2ripple` set has no changed-file samples, so it cannot exercise `impact`.
+
+Not changed, follow-up: the README "Sixty seconds" demo is hand-abridged output from a `0.4.0a4`
+checkout, not generated from the build, and still shows the fixture `test-marker` row; it was not
+regenerated. NOT_RUN: the exhaustive `go test ./...` gate (the affected plan names 103 packages).
+## 2026-09-25 V1-0317 (decision 0397): corvint-tasks in tree as a separate companion binary
+
+Owner instruction: "move corvint-tasks into corvint and ticket everything". The source of
+`beamfall/corvint-tasks@800682d` is imported as one squash commit without its history (decision
+0331) at `cmd/corvint-tasks` and `internal/tasks/**`. It stays a separate companion binary and never
+becomes a `corvint` subcommand (invariant 7, decision 0322). The old repository is untouched;
+freezing it is V1-0318 and the ATCP-V0 specification recovery is V1-0310.
+
+- Screening of the imported tree for secrets, absolute home paths, email addresses and private
+  hostnames found nothing to remove. A fixture actor id is the owner's first name, which is already
+  public. The source carried no SPDX headers, so none were kept or added.
+- Measured basis for the module layout: `go test -count=1 ./internal/tasks/...` took 549 s wall,
+  104 s user and 209 s system CPU, at host load average 255 to 310 on 12 cores.
+  `internal/tasks/authority` alone took 544 s wall; every other package took 61 s or less. The Core
+  gate runs packages serially, so the expected addition is on the order of the 313 s CPU time. The
+  quiet-host gate delta is `NOT_RUN`. Chosen: the same module, because it gives Core a compile-time
+  link to the Tasks wire vocabulary (F5, V1-0311). A nested module stays the fallback if the owner
+  finds the gate cost material or wants independent versioning.
+- `internal/taskman/decode.go` now imports `internal/tasks/wire` (`wire.Codes`,
+  `wire.TicketRecordKeys`) instead of keeping copies. `internal/tasks/boundary_test.go` enforces the
+  import direction and has spy controls for each rule.
+- ECO-V0-001 matches callee names that have a `code` parameter anywhere in the tree. The imported
+  `wire.Errorf(code, ...)` therefore made eight pre-existing `fmt.Errorf` codes in
+  `host_adapter.go` look unowned. The parameter was renamed to `detailCode`, so the ratchet is
+  unchanged at base.
+- Build identity: `corvint-tasks --version` prints `0.0.0-tcp01-unverified+build.N` from
+  `-ldflags "-X main.build=N"`, where N is the `PUB-V0-021` first-parent count. `make tasks-build`
+  stamps it, and so does the companion bundle; the bundle README claim is corrected (M3, V1-0308).
+- Companion release: one checkout root. `-tasks-root` and `CORVINT_TASKMAN_REPO` are retired, and
+  the gate script refuses a positional argument. The bundle profile, module label and archive name
+  are unchanged. The Tasks archive is the standalone subset (`go.mod`, notices,
+  `cmd/corvint-tasks/**`, `internal/tasks/**`) of the recorded commit, tested by
+  `TestTasksExportKeepsOnlyTheStandaloneSubset`.
+- The new Make targets are appended at the end of the Makefile, so no cited Makefile line moves.
+
+Checks: `make tasks-test` passed: test and vet, 909 s wall with `-p 1` at load average about 400, and
+`internal/tasks/authority` took 655 s of that. The following also passed:
+
+- `go test -count=1` on `internal/taskman`, `internal/companionrelease`,
+  `cmd/corvint-companion-release`, `cmd/corvint-public-release-check` and
+  `internal/releasecandidate`;
+- the four `cmd/corvint` tests that exercise the task store;
+- `go vet` on the touched Core packages;
+- the gate-script and release-env shell tests;
+- the doc checks, `internal/specindex`, and `use-cases-v0` (`valid: true`);
+- `make tasks-build`, whose `--version` printed `+build.120`.
+
+`corvint affected` selected 173 units with scope `UNKNOWN`, so the rest of it is `NOT_RUN`. The
+following are also `NOT_RUN`: the exhaustive `go test ./...` gate, `make companion-release-gate`
+(a full bundle build), and live qualification.
+
+Follow-ups:
+
+- `internal/tasks/authority` dominates the Tasks test time (optimization candidate).
+- The CRB-V0-017 exported-current proof still reads `CORVINT_PROOF_TASKS_ROOT`.
+- `script/local-console-release-gate` passes `-corvint-root` and `-taskman-root` to
+  `corvint-companion-release`, which never defined them (pre-existing, already broken at base).
+- The imported `SPEC.md` and review records stay at `800682d` until V1-0310.
+## 2026-09-25 V1-0143, V1-0151..0153, V1-0156..0158, V1-0170, V1-0214, V1-0315, V1-0343: context and console pre-1.0 bug batch
+
+- V1-0170 FIXED (comment): the `setVerdict` comment in `internal/contextindex/sufficiency.go` gives
+  each TCP-V0-028 precedence rule once, with insufficient before unknown.
+- V1-0214 FIXED (comment and test): the `taskLexicalTerms` comment says the body and path tables split
+  camel case, so the lowered compound matches only an unsplit run. The characterization test is
+  `TestTaskCompoundTermMatchesOnlyUnsplitRuns`.
+- V1-0156 FIXED: `context --expand` on a symlink row's handle now refuses `invalid-handle` naming the
+  mode (`symbolic link (mode 120000)`). ESV notes this. The source-view digest was re-frozen.
+- V1-0151 NEEDS-OWNER: two cases `chain.go` renders are drafted under LAC-V0-035, marked (proposed
+  2026-09-25, not accepted).
+  - An OCM whose map digest matches but whose `targetRevision` differs renders `stale`.
+  - A hunk edge whose obligation disposition is not `linked` renders `unsupported`.
+- V1-0152 FIXED: the requirement and hunk panels give an obligation's hunk edge the same state. An
+  unlinked disposition is `unsupported`, and an obligation id shared by several bound maps is
+  `ambiguous` with no anchor.
+- V1-0153 FIXED: more than 64 OCM maps render a `missing` PARTIAL row instead of a silent cap.
+- V1-0143 FIXED (doc): the local-admin-console notes record that the dogfood loop writes a change's
+  trace in the binding clone. Observed 2026-09-25: 0 of 129 sealed changes on the primary checkout
+  have a trace row. The pane's `unverified` is therefore truthful, and the operator action is to open
+  the pane from the binding clone.
+- V1-0158 ALREADY-FIXED: `experimental-source-views-v0.md` already says 1024 is only the parse floor.
+- V1-0157 NOT-A-BUG: `context` stays exempt from the ledger under SOL-V0-007 and TCP-V0-001.
+  `unsupported-text` is shared with the source-view adapter (ESV-V0-003), so it was not renamed.
+- V1-0315 SKIPPED: this needs PR #219. On main, `git.go` refuses a non-UTF-8 path before the packet,
+  and the fix also needs a new packet exclusions member, which is a spec change that needs owner
+  acceptance.
+- V1-0343 FIXED (panel D12, decision 0398):
+  - A test link whose only signal is a mention now needs two distinct declared names, or one name of
+    two or more camel-split tokens. Before this change, one plain word such as `down` in a comment
+    produced an `Update this test` row.
+  - A lexical-only row that is still admitted now says "Check this test ... update it only if it
+    asserts on that name".
+  - TCP-V0-015 is amended with the text marked (proposed, decision 0398).
+  - The frozen negative is `TestTaskContextRefusesAOnePlainWordTestLink`, which fails before the
+    change.
+  - The analyzer schema moves to `corvint-analyzer/85` (IDX-SNAP-V0-017 audit).
+  - Decision 0377's line citations were repinned (same content, shifted 2 lines).
+  - Agent Retrieval Bench v2 code2test, `context` arm, 106 samples: the per-sample rankings are
+    identical before and after. hit@20 is 0.604, recall@20 0.512 and mrr 0.205, with 0 errors.
+- Test note: `TestGoOnlyContextAbstentionRemainsClosed` exits 141 (SIGPIPE) in the batch clone,
+  including after a rerun on a clean tree. The same commit passes in a separate linked worktree, and
+  base 489701ca passes there too. The failure depends on the environment (the clone's state), not on
+  this diff.
 ## 2026-09-25 V1-0272: alternates refusal names the adopter rerun
 
 - The `unsupported-object-alternates` fix line ended with `rerun make dogfood-change`, the one
@@ -6314,3 +6703,234 @@ code made 41,666). An allocation count is used instead of a timing ratio because
 on host load. A scratch timing after the fix: 100 KB 0.7 ms, 1 MB 5.6 ms. The other `affected`
 language scanners (dotnet, golang, kotlin, python, ruby, rust, swift) have no per-position
 conversion of their mutated buffer. Follow-up, not in this change: no per-language scan deadline.
+
+## 2026-09-25 Owner answers: decisions 0391 (review finding B7) and 0392 (`OCM-V0-016`)
+
+Decision 0391 keeps decision 0382 item 4: one `full-gate` run attests every acceptance criterion
+of a release, and no per-criterion evidence kind is added. The review's other two B7 claims (MANUAL
+empty obligations, the Core-only `companion-release` requirement) stay open under V1-0235.
+Decision 0392 accepts `OCM-V0-016` as delivered by V1-0273 (PR #213). The rest of the OCM spec
+keeps its proposed status. The branch also exports tickets V1-0283..V1-0312, filed from the
+pre-1.0 panel review.
+
+Checks: `spec-requirements-check`, `line-citations-check`, `decision-numbers-check`,
+`traceability-tests-check`, `requirement-definitions-check`, `error-code-ownership-check`,
+`go test ./internal/specindex ./conformance/use-cases-v0`. No code changed.
+## 2026-09-25 Owner answer: decision 0398, disputed panel findings are defects
+
+Decision 0398 records the owner instruction to treat every disputed pre-1.0 panel finding (main
+report D1-D15, addendum §5) as a defect and fix it before the next release. Clause amendments made
+by those fixes stay proposed until accepted, frozen wire profiles change only by their versioning
+rule, and the `context --task` promotion gate stays binding. The branch also exports V1-0263 at P1
+and tickets V1-0317..V1-0345, filed from the panel addendum, the merge queue and the disputed
+findings.
+
+
+## 2026-09-25 V1-0336: stripped refusal codes are emitted (panel D3, decision 0398, CCF-V1-004)
+
+The panel found that two emitters removed real codes to match the retired Python oracle.
+`emitError` printed `repository-*` and `unsupported-git-object-format` kernel refusals as codeless
+`{"error","ok":false}`. `emitCEMError` did the same for `patch-unavailable` and `map-unavailable`.
+CCF-V1-004 froze that codeless form. Decision 0398 (PR #221, not yet merged) treats this disputed
+finding as a defect. The CCF-V1-004 amendment is proposed, not accepted.
+
+Decisions:
+
+- Adding an optional `code` member to a codeless refusal is compatible, as CCF-V1-006 already says
+  for optional members. The `error` text, exit class and stdout are unchanged. A codeless
+  context-index refusal keeps its envelope. CEM-PILOT-018 drops "untyped" and names the code.
+- The two `cli-parity-v0` cases this reaches, `cem-begin-unreadable-patch` and `cem-unreadable-map`,
+  keep their frozen oracle digests. They are recorded as intentional divergence `DR-0041`, with one
+  stderr rewrite each, validated by `validReadFailureCodeDivergence`. `known-divergences` moves
+  from 26 to 28.
+- `dogfood change` regenerated an outdated map only on the exact codeless refusal line. It now
+  accepts the coded line and still accepts the codeless line an N-1 `--corvint-bin` prints.
+  Without this, every rebind after a fix commit left `cem-prepare` NOT_PRODUCED `map-unavailable`.
+- No analyzer schema bump: no index input changed.
+
+Evidence: `TestRepositoryFailureEnvelopeCarriesItsCode`,
+`TestReadFailuresKeepTheFixedTextAndAddTheirCode`, `TestCEMPrepareKeepsInheritedMapReplaceGuidance`
+and `TestDogfoodChangeRegeneratesAMapTheNextFixCommitOutdates` fail at base 220ef06 and pass after.
+The `cli-parity-v0` replay passes with the two `DR-0041` declarations. NOT_RUN: the exhaustive
+`make gate`.
+## 2026-09-25 V1-0124 V1-0287 V1-0256 V1-0338 V1-0302 V1-0339 V1-0288 V1-0231 V1-0314 V1-0313 V1-0167 V1-0113 V1-0132: pre-1.0 Git, genesis and snapshot-store batch
+
+Each outcome below was checked against the base (489701ca). A FIXED ticket's regression test
+failed before its fix and passes after. Amendments made under decision 0398 are marked
+"(proposed, decision 0398)" in the owning clause and need owner acceptance.
+
+- Genesis:
+  - V1-0124 (FIXED): a Git that hangs during repository open now ends as `git-timeout`
+    (`TestActivationNamesGitTimeoutWhenGitHangsDuringOpen`).
+  - V1-0287 (FIXED): the activation's Git budget is sized from the status probe plan. When the
+    budget runs out the result is `git-budget-exceeded`, not a generic failure
+    (`TestInventoryBudgetCoversSparseIndexStatusProbes`).
+- V1-0256 (FIXED): `gitstatus` classifies a real split index as `split-index` before Git's own
+  index probe runs (`TestReasonClassSplitIndexToolError`).
+- Snapshot store:
+  - V1-0338 (FIXED; `IDX-SNAP-V0-001`/`003` amended): every gob snapshot now carries a SHA-256
+    trailer. A same-length overwrite of the body is now a miss on every loader and on
+    `ProbeSnapshot` (`TestSnapshotSameLengthBodyOverwriteIsAMiss`). `snapshotFormat` is unchanged
+    because receipts pin it. The engine digest already keys every file to its binary.
+  - V1-0302 (FIXED; `IDX-SNAP-V0-007` amended): eviction keeps the current engine's snapshots
+    first, each group newest first, under a 1 GiB byte budget. Orphaned temporaries become stale
+    after ten minutes instead of an hour (`TestEvictSnapshotsBoundsBytesAndEvictsOtherEnginesFirst`).
+- V1-0339 (FIXED; `GPK-V0-027` amended): the aggregate-bound refusal is language-neutral and
+  names the total, the file count and the remedy. The code stays `unsupported-impact-repository`
+  (`TestBlobAdmissionRefusalNamesTotalAndRemedyWithoutALanguage`). The ticket's other proposal,
+  degrading to PARTIAL with a typed gap, is not done because it contradicts GPK's "reject rather
+  than approximate". It is an owner question.
+- V1-0288 (NEEDS-OWNER; `GPK-V0-071` proposed, not accepted): reproduced with
+  `GIT_TEST_ASSUME_DIFFERENT_OWNER=1`. Git exits 128 and advises `--global`, which Corvint
+  ignores because it nulls global configuration.
+  - Passing `-c safe.directory` would bypass Git's protection against config planted by another
+    user, while filters and textconv are not neutralized in every env builder.
+  - The fix spans about thirty env builders, including PR #218's `cmd/corvint` files.
+- V1-0231 (FIXED): `script/measure-worktree-index-share.sh` measures the shared store under
+  `<common>/corvint/index` for this commit's tree, and each worktree's fallback directory
+  separately. A live run with two worktrees gave one BUILT, then fresh reuse, a 76,537,215-byte
+  store snapshot, zero fallback bytes, and `mixed=README.md` only in the edited worktree. Scripts
+  of this kind have no tests.
+- V1-0314 (FIXED; `AFP-V0-002` amended): `affected.DecodeStatus` and `DecodeNameList` decode a
+  non-UTF-8 path to its U+FFFD display form instead of refusing it as malformed. This is the
+  `IDX-SNAP-V0-024` model, which is on PR #219 and not yet on main
+  (`TestDirtyNonUTF8PathIsDisclosedNotRefused`).
+  - On Linux (golang:1.27.1 container), `TestProveCEMAttestRefusesAMapPathThatIsNotUTF8` now
+    reaches the intended FPK-V0-015 `attest-failed` refusal, not `unsupported-prove-history`.
+    Its expectation was updated to match.
+- V1-0313 (NEEDS-OWNER; `GPK-V0-072` proposed, not accepted): proposes that query learning skip a
+  non-UTF-8 history path, with the oracle refusal registered as a `python-defect`. It would land
+  on PR #219's `skipNonUTF8` seam.
+- V1-0167 (FIXED; `EEP-V0-026` wording): the gopls `unavailable` reason drops the repository root
+  from the error, in both URI and native form. The fake server now echoes the document URI as
+  gopls does (`TestExpandEveryQueryFailedIsUnavailable`).
+- V1-0113 (test gap closed; no partial state): `init` and `adopt` are `mutates: false`. A run
+  killed at 0 to 200 ms leaves the repository and Git bytes unchanged, and the retry is
+  byte-identical to a clean run (`TestInitAdoptInterruptedRunLeavesNoStateAndRetriesCleanly`).
+- V1-0132 (NEEDS-OWNER; no change): `CCF-V1-002` deliberately freezes the `0.1-experimental`
+  spelling (`docs/specs/core-compatibility-freeze-v1.md:64`). A rename would need a new profile
+  version, and this batch does not own the compatibility spec.
+
+The analyzer schema is now `corvint-analyzer/85` because audited `gitstatus` and `contextindex`
+files changed. Three use-case receipts were repinned for the `cmd/corvint/main.go` edit.
+
+Merge conflicts expected with PR #219 (B9): `internal/contextindex/analyzer_schema_test.go`
+(schema/pin) and adjacent `git.go`.
+## 2026-09-25 V1-0133 V1-0141 V1-0215 V1-0228 V1-0301 V1-0334 V1-0335: CEM bug batch
+
+Pre-1.0 bug batch on the CEM surface. Every clause added here is marked proposed and needs owner
+acceptance. Decision 0398 governs the D-findings.
+
+- V1-0133 FIXED. `cem01-go ci` now reads the profile only from a strictly parsed map. A `cem/0.1`
+  map must pass the `verify` structural checks, and exits 1 when it fails them, before its
+  `baseRevision` is compared (`CEM-PILOT-022`, proposed).
+- V1-0141 FIXED. `cem report --output` accepts an absolute path outside the repository
+  (`CEM-PILOT-013`, proposed).
+- V1-0215 FIXED. Relative paths resolve through a linked worktree's back-pointer (`CEM-CB-018`,
+  proposed).
+- V1-0228 FIXED. The dogfood cite step now:
+  - JSON-unescapes hunk paths before comparing them;
+  - refuses `cem-map-not-produced` after a failed prepare instead of citing;
+  - admits the two citation-stage refusal reasons in self-observations.
+  `dogfood-bind-range.sh` refuses a citation plan that does not match the prepared map
+  (`DCW-V0-019`, `DOGFOOD-BIND-003`, proposed).
+- V1-0301 NEEDS-OWNER. A binary or mode-only change still refuses the whole prepare. The frozen
+  `cem/0.1` grammar and the `cem/0.2` hunk wire have no such hunk, so an always-`unknown` hunk
+  kind needs a new versioned profile. That profile is drafted on `CEM-PILOT-001`, and the limit is
+  documented in `examples/cem/README.md`.
+- V1-0335 (D2) FIXED by stopping the in-place upgrade. Structural `mark`, `cover` and
+  `discriminate` refuse with `invalid-arguments` to write a `cem/0.3` map over their `cem/0.2`
+  input or onto `.corvint/change.cem.json`. The amended clauses are `CEM-SM-006`, `TCQ-V0-052` and
+  `CCF-V1-003` (the three modes are experimental).
+  - The alternative was to admit 0.3 in frontier, OCM, TCQ, LRF and the external-evidence reader.
+    That touches about 20 sites and several frozen contexts, and it would promote a profile that
+    has no schema or vectors. This fix was therefore the smaller sound change.
+  - Consequence: a 0.3 map is a local copy. It verifies only against a target that commits no
+    sidecar.
+- V1-0334 (D1) FIXED by amendment. Core item 2 and the V1-0014 block now say the in-repo second
+  consumer covers `cem/0.1` only. `cem/0.2`, OCM and frontier are single-implementation at 1.0.
+  README no longer calls `interop/cem01-go` an independent interoperability consumer.
+
+Follow-up: an LRF given a `cem/0.3` map takes the `cem/0.1` out-of-band patch path before it
+refuses the profile.
+
+## 2026-09-25 V1-0137 V1-0227 V1-0239 V1-0282 V1-0262 V1-0181 V1-0145 V1-0144 V1-0316: pre-1.0 dogfood workflow bug batch
+
+Branch `claude/prerelease-dogfood-batch`, based on the PR #222 merge (decision 0395) so V1-0316 builds
+on `DCW-V0-026`. Proposed requirements `DCW-V0-027` to `DCW-V0-031` are drafted "(proposed
+2026-09-25, not accepted)" and await owner acceptance.
+- V1-0137 FIXED: a seal that would drop an unarchived base-revision CEM is refused
+  (`unarchivedBaseCEM`, `DCW-V0-027`, `TestSealRefusesToDropAnUnarchivedBaseCEM`); the lost 0.6.0
+  integration CEM is restored under `.corvint/changes/`.
+- V1-0227 FIXED: link rows of an intent whose `ocm-prepare-NNN` failed are reported
+  `ocm-map-not-prepared` instead of vanishing (`skipOCMLinks`, `DCW-V0-028`).
+- V1-0239 FIXED: `dogfood change` records the accepted plan's digest and the map's hunk IDs in
+  `.git/corvint/citation-plan-binding`; the same plan rerun after a commit moved an ordinal-named
+  hunk refuses `citation-plan-map-mismatch` (`DCW-V0-029`,
+  `TestChangeRefusesAPlanWhoseOrdinalsMoved`). Set aside: binding every plan to IDs, which would
+  refuse legitimate resumed plans after unrelated edits.
+- V1-0282 FIXED: the console dogfood view names `corvint dogfood change <sha>`.
+- V1-0262 FIXED (docs): observed at HEAD with a clean tree, range impact returns `OUT_OF_SCOPE`,
+  `changedPathCount` 0, so section 1 now retains path impact on the intended files.
+- V1-0181 FIXED (docs): step 11 states OCM maps are local-only and gives the reviewer rebuild from
+  `ocmStatus.scopes[].path`, observed on the b9c177f bind commit (26 obligations, 0 linked).
+- V1-0145 NEEDS-OWNER: splitting `dogfood-report-drift` contradicts the accepted `DCW-V0-014` rule that
+  reason codes MUST NOT change; `DCW-V0-030` is drafted, not implemented.
+- V1-0144 NEEDS-OWNER: no command retires a stranded trace revision (`internal/trace/store.go:345`,
+  `migration.go:120` refuse it, and so does `migrate-traces`); a retire command changes trace-store
+  authority, so no change was made.
+- V1-0316 FIXED: `dogfood change` notes an absent, tree-less or non-base-tree agent receipt as a
+  non-blocking NOTE line (`DCW-V0-031`, `TestChangeNotesAbsentOrStaleAgentReceipts`).
+Follow-up: `script/dogfood-change_test.sh` intermittently exits 141 (SIGPIPE from
+`printf ... | rg -q` pipelines in its foreground subshell) under load average near 400; unmodified
+HEAD reproduced it, and runs at lower load pass.
+## 2026-09-25 V1-0327, V1-0291, V1-0290, V1-0340, V1-0230, V1-0289, V1-0342, V1-0283, V1-0299: affected planner bug batch
+
+This batch fixes nine defects in the `corvint affected` planner found by the pre-1.0 panel. Each
+ticket has its own commit, a regression test that was seen to fail before the fix, and a change to
+the owning spec. The panel findings that were disputed are treated as defects under decision 0398.
+Each clause those fixes amend is marked "(proposed, decision 0398)" and needs owner acceptance.
+
+- V1-0327: a `go.work` `use` outside the repository root raises a frontier instead of being
+  dropped (AFP-V0-008; `TestWorkspaceUseOutsideRootIsAFrontier_AFPV0008`).
+- V1-0291: Go test-only imports are kept apart from the package's own imports. A change reaches
+  the test user but does not travel on to that package's importers
+  (`TestTestOnlyImportSelectsTheTestUserButNotItsImporters`).
+- V1-0290: a lone path token with no anchor names a file, not a directory. This stops the
+  over-selection a directory-shaped literal caused (`TestDirectoryShapedLiteralNamesNoPath`).
+- V1-0340: a dirty path that no plugin owns, or a deleted Go source, selects its package and that
+  package's importers. This matches gate rules (a) and (b)
+  (`TestUnownedDirtyPathSelectsItsPackageAndImporters_V1_0340`,
+  `TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340`).
+- V1-0230: gate rule (d) is modelled. A Go package that reads paths it cannot bound is selected on
+  any change. The readers of CEM sidecars are narrowed to the sidecar paths
+  (`TestUnboundedReaderIsSelectedOnAnyChange_V1_0230`, `TestChangeEvidenceReadersAreNarrowed_V1_0230`).
+- V1-0289: a plugin's frontier is named only in plans that plugin takes part in. A plugin takes
+  part when it owns a dirty path, owns a reached unit, or reads paths. Every plugin takes part when
+  a dirty path is unowned or no path is dirty. A build-constraint variant is now the frontier of
+  its own package only (`TestFrontierBearsOnlyOnThePlansItTakesPartIn_V1_0289`,
+  `TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289`).
+- V1-0342: AGENTS.md commands become mandatory checks only under a heading that is exactly
+  `Verify`. Shell comments are stripped. A launch command (`open`, `xdg-open`, or a trailing `&`)
+  is advisory. Any other heading is recorded as `MANDATORY_DECLARATION_UNRECOGNIZED`
+  (`TestAffectedAdviceTakesOnlyTheExactVerifyHeading_V1_0342`).
+- V1-0283 (panel D8, the `affected` half): a bare import of a workspace package by its
+  `package.json` name now reaches every source in that package, so importing tests in other
+  packages are selected. A package that cannot be resolved keeps `FrontierPathAlias`
+  (TJAA-V0-005; `TestWorkspacePackageImportReachesTheImportingTest_V1_0283`). The impact-side
+  half is PR #224, and neither change touches the other's files.
+- V1-0299: `plan.graphDigest` is SHA-256 over the domain tag `corvint-affected-graph/1\n` followed
+  by a documented projection, `digestBody`/`digestUnit`. The projection replaces the internal
+  `Unit` struct as the thing hashed. A test fails when a `Unit` field is missing from the
+  projection (AFP-V0-005; `TestGraphDigestIsTheDomainTaggedProjection_V1_0299`). The profile's
+  member set is unchanged. Only the digest value changes, and it had already changed between
+  releases on identical input. Only the three goldens that carry digests changed, and only in
+  their digest bytes.
+
+Checks: the focused `internal/liveverify/affected/...`, appflows and `cmd/corvint` tests
+(`Affected|AFUV1|UseCase|Impact|Flow|Prove|Selection|Playwright|TypeScript|Guidance`); go vet on
+the touched packages; the doc checks; `go run ./conformance/use-cases-v0`, which is valid:true.
+
+Under host load (load average 170 to 570), `TestSelectionOnTheLiveDirtyWorktree` and
+`TestIncrementalSelectionMeetsTheLiveBudget` exceeded their 100 ms budget. These are timing
+flakes. NOT_RUN: the exhaustive `./...` gate.

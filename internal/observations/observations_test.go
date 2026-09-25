@@ -818,6 +818,17 @@ func TestDogfoodReasonAdmitsCitationPlanMapMismatch(t *testing.T) {
 	}
 }
 
+// TestDogfoodReasonAdmitsCitationStageRefusals: the two citation-stage refusals
+// of `dogfood change` are observable like its other cem-cite reasons (V1-0228).
+func TestDogfoodReasonAdmitsCitationStageRefusals(t *testing.T) {
+	for _, reason := range []string{"citation-stage-exists", "citation-stage-cleanup-failed"} {
+		row := Event{Kind: "dogfood-step", Step: "cem-cite", Status: "NOT_PRODUCED", Reason: reason}
+		if err := validateWriterContract(row); err != nil {
+			t.Fatalf("%s refused as a dogfood reason: %v", reason, err)
+		}
+	}
+}
+
 // SOL-V0-010: an adapter-degradation row carries only host, event, closed codes, an
 // hour window and the Corvint version; content fields and unadmitted codes are refused.
 func TestAdapterDegradationRowCarriesNoContentFields(t *testing.T) {

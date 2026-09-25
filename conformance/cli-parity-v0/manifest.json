@@ -61,7 +61,7 @@
     {
       "command": "cem",
       "status": "PARTIAL",
-      "reason": "19 of 37 cases replay byte-exactly: begin, the cite/mark/prepare/status/verify argument negatives and the argparse surface; cem-mark-invalid-reason and cem-invalid-subcommand replay under the DR-0039 and DR-0040 stderr choice-list declarations. 16 cases are RETIRED under decision 0308 because their frozen argv or fixture addresses the oracle's .atlas/change.cem.json map path (the seven cite evidence outcomes, three mark hunk cases, prepare create/resume, status bound and unresolvable-expected-base, verify bound and policy-limit); their frozen expectations are kept unchanged. The DR-0003 prepare rejection-path divergence remains parked"
+      "reason": "17 of 37 cases replay byte-exactly: begin, the cite/mark/prepare/status/verify argument negatives and the argparse surface; cem-mark-invalid-reason and cem-invalid-subcommand replay under the DR-0039 and DR-0040 stderr choice-list declarations, and cem-begin-unreadable-patch and cem-unreadable-map under the DR-0041 stderr code declaration. 16 cases are RETIRED under decision 0308 because their frozen argv or fixture addresses the oracle's .atlas/change.cem.json map path (the seven cite evidence outcomes, three mark hunk cases, prepare create/resume, status bound and unresolvable-expected-base, verify bound and policy-limit); their frozen expectations are kept unchanged. The DR-0003 prepare rejection-path divergence remains parked"
     },
     {
       "command": "eval",
@@ -360,6 +360,18 @@
       "fixtureSha256": "fb2ed9953c0dfed010453192777e2f1b91bbf4ca14fb2789f4d29a98ecb94ba6",
       "exitStatus": 2,
       "mutation": "none",
+      "knownDivergence": {
+        "register": "DR-0041",
+        "clause": "CCF-V1-004",
+        "rewrites": [],
+        "stderrRewrites": [
+          {
+            "candidate": "{\"code\": \"patch-unavailable\", \"error\": ",
+            "oracle": "{\"error\": "
+          }
+        ],
+        "reason": "DR-0041 / CCF-V1-004 (proposed, decision 0398): the candidate's unreadable-patch refusal carries the stable code patch-unavailable where the retired oracle, which read the patch in its argument layer, emitted none. Both refuse with exit status 2, an empty stdout and the same fixed message; only the added optional code member differs. Intentional divergence adjudicated under GPK-V0-033; the frozen expectation is kept unchanged."
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "021efd0c0c439c339e77b8290f527de2ff91123ff338b0d9f00c139adaadd09a",
@@ -1703,6 +1715,18 @@
       "fixtureSha256": "bc30e3b9e5a606c060d3c3dd0da7fedc68f9e9ac65268eeee384482af732e848",
       "exitStatus": 2,
       "mutation": "none",
+      "knownDivergence": {
+        "register": "DR-0041",
+        "clause": "CCF-V1-004",
+        "rewrites": [],
+        "stderrRewrites": [
+          {
+            "candidate": "{\"code\": \"map-unavailable\", \"error\": ",
+            "oracle": "{\"error\": "
+          }
+        ],
+        "reason": "DR-0041 / CCF-V1-004 (proposed, decision 0398): the candidate's unreadable-map refusal carries the stable code map-unavailable where the retired oracle, which read the map in its argument layer, emitted none. Both refuse with exit status 2, an empty stdout and the same fixed message; only the added optional code member differs. Intentional divergence adjudicated under GPK-V0-033; the frozen expectation is kept unchanged."
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "e83860abb7a2b0c6ece808abb76a3c547abb46a90fe477e47cf55612fb5723bd",

@@ -622,6 +622,10 @@ func TestConsoleDogfoodPane(t *testing.T) {
 		if !strings.Contains(body, "not a pass") {
 			t.Error("the page does not say an absent report is not a pass")
 		}
+		// V1-0282: the hint is the portable command, not the Corvint-repository make target.
+		if !strings.Contains(body, "corvint dogfood change &lt;sha&gt;") || strings.Contains(body, "make dogfood-change") {
+			t.Error("the page does not name the portable `corvint dogfood change <sha>` command")
+		}
 	})
 	t.Run("LAC-V0-006 shared report attribution preserves missing ownership", func(t *testing.T) {
 		root := t.TempDir()

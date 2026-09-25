@@ -143,6 +143,12 @@ func TestSelectionOnTheLiveDirtyWorktree(t *testing.T) {
 			}
 			continue
 		}
+		if selection.Witness.Kind == affected.WitnessUnboundedReader {
+			if !slices.Contains(graph.UnboundedReaders(), selection.UnitID) {
+				t.Fatalf("%s has an unresolvable witness %+v", selection.UnitID, selection.Witness)
+			}
+			continue
+		}
 		owner, owned := graph.OwnerOf(selection.Witness.DirtyPath)
 		if !owned || owner != selection.Witness.Via[0] {
 			t.Fatalf("%s has an unresolvable witness %+v", selection.UnitID, selection.Witness)

@@ -2860,3 +2860,47 @@ reasoning as `DR-0039`: the retired oracle predates the coverage witness, the ca
 and one `stderrRewrites` entry (the twelve-action list for the seven-action list), validated by
 `validCEMActionDivergence`, which pins the case to `cem`, register `DR-0040`, clause
 `TCQ-V0-051`, exactly one stderr rewrite, and the exact candidate and oracle byte strings.
+
+### DR-0041 — `cem`: the candidate's unreadable-patch and unreadable-map refusals carry their code
+
+- **Status:** CLOSED 2026-09-25 — adjudicated **intentional divergence** under decision 0398 (on
+  PR #221, not yet merged) and the proposed `CCF-V1-004` amendment in
+  `docs/specs/core-compatibility-freeze-v1.md`, which makes adding an optional `code` member to a
+  codeless refusal a compatible change. Awaits owner acceptance with that amendment.
+- **Command:** `cem` (two cases, `cem-begin-unreadable-patch` and `cem-unreadable-map`).
+  **Discovered:** 2026-09-25 by the `cli-parity-v0` replay after ticket V1-0336 (panel finding D3)
+  stopped stripping the code from the two CEM read failures.
+
+**Divergence.** The retired oracle read the patch and the map in its argument layer and refused an
+unreadable one with a fixed message and no code. The candidate had copied that codeless envelope in
+`emitCEMError`; it now keeps the fixed message and adds `patch-unavailable` or `map-unavailable`.
+Both runtimes refuse with exit status 2, an empty stdout and the same `error` text. Observed bytes:
+
+- `cem-begin-unreadable-patch`: candidate (sha256
+  `1acd2bf58876e6f98e0e2be019356107b0b6515f8c962572cad738c33c779557`)
+  `{"code": "patch-unavailable", "error": "cannot read patch", "ok": false}`; oracle (frozen
+  `stderrSha256` `0888ad4fb1b7d6bbe7fc946f4635000eaefef456daf31fbbf95b7d81605a9ec4`)
+  `{"error": "cannot read patch", "ok": false}`.
+- `cem-unreadable-map`: candidate (sha256
+  `40471a42524faefc48409df3af0ed3d0adbe5f54361d032619c15c9305b99081`)
+  `{"code": "map-unavailable", "error": "cannot read CEM map", "ok": false}`; oracle (frozen
+  `stderrSha256` `517162f19cf5e3136607599ddcb699dd1870bead0fb88fc1a137d21d658edcea`)
+  `{"error": "cannot read CEM map", "ok": false}`.
+
+Replacing the candidate's leading `{"code": "<code>", "error": ` with `{"error": `, once,
+reproduces each frozen digest exactly.
+
+**Adjudication: intentional divergence.** Not repaired on either side. The oracle's codeless form
+left a caller unable to branch on the failure without matching message text; decision 0398 treats
+that as a defect, and the proposed `CCF-V1-004` amendment authors the candidate bytes. As with
+`DR-0039` and `DR-0040`, this is adjudicated under `GPK-V0-033`'s rule that spec text, not the
+oracle, is the authority, and `GOC-V0-002` forbids re-authoring the frozen expectations from the
+candidate.
+
+**Scope of the repair.** One `knownDivergence` on each case with no stdout rewrite and one
+`stderrRewrites` entry, validated by `validReadFailureCodeDivergence`, which pins the two cases to
+`cem`, register `DR-0041`, clause `CCF-V1-004`, exactly one stderr rewrite, and the exact candidate
+and oracle byte strings for each case's code. The `SUMMARY` line moves from `known-divergences=26`
+to `known-divergences=28`, and the `cem` inventory row reports 17 byte-exact cases. The same change
+also emits the `repository-*` and `unsupported-git-object-format` codes from `emitError`; no
+`cli-parity-v0` case reaches those refusals, so they need no declaration here.
