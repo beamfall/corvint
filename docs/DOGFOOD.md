@@ -35,7 +35,8 @@ local trace store (`DCW-V0-023`); without them the worktree is dirty or the reco
 In Corvint's own tree the `make dogfood-change`, `make dogfood-check` and `make dogfood-seal` targets
 used below wrap the same subverbs: they also require `VERSION` to match `CORVINT_BIN` and build
 the current (and, for the check, base) tree first (`DCW-V0-022`). Elsewhere, read each
-`make dogfood-X BASE=$BASE` below as `corvint dogfood X $BASE`.
+`make dogfood-X BASE=$BASE` below as `corvint dogfood X $BASE`. The `fix:` and
+`required order:` lines the subverbs print name that subverb form in every repository (V1-0261).
 
 ### Inputs
 

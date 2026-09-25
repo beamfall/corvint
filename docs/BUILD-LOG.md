@@ -1,8 +1,20 @@
 # Build log
 
 Append-only record of material design decisions, independent findings, failed evaluations, and
-promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
-decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
+promotion evidence. Add new entries at the end so no cited line moves; each entry carries a date
+heading and its requirement or decision IDs, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
+
+## 2026-09-25 V1-0261 DCW-V0-020: adopter fix lines name the `corvint dogfood` subverb
+
+`corvint dogfood change|check` printed `fix:` and `required order:` lines telling the operator to
+rerun `make dogfood-change BASE=...`, a target only Corvint's own tree has; an adopter such as
+Beamfall runs `corvint dogfood change $BASE`. Nothing the subverbs receive says whether a Makefile
+wrapper started them, so every such line now names the subverb form (`corvint dogfood change
+<base>`), which also works in Corvint's tree. Evidence:
+`TestDogfoodDailyPathRunsFromBinaryInForeignRepository` and
+`TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations` assert the adopter wording;
+`script/dogfood-change_test.sh` assertions were updated. Not changed: the console's empty-report hint
+(`internal/console/views.go`) still names the make target.
 
 ## 2026-09-25 V1-0259 OIF-V0-001..011 / decision 0386 (proposed): declared OCM intent forms
 
@@ -5722,6 +5734,97 @@ Frozen evaluations, base → fix:
 - `tools/retrieval-bench --arms corvint`:
   - `v2_abstention`: all 82 samples are identical (abstained 0.073171 in both).
   - `v2_comment2context`: the first 40 samples are identical (hit@k 0.075, mrr@k 0.041667).
+
+## 2026-09-25 V1-0184: beamfall-dogfood receipts for UC-CHANGE-CONSEQUENCE and UC-EVIDENCE-CARRYING-COMPLETION
+
+Bound a `beamfall-dogfood` receipt for two of the three daily-workflow rows in
+`conformance/use-cases-v0/ledger.json`. Both cite Beamfall's agent-run LCRES-15 change, bind
+commit `86fde0eb21d2e0fc41bfc06a4c06c9c3aef63e59`, published on Beamfall/core branch
+`claude/corvint-dogfood-LCRES-15` (PR beamfall/core#31, open), which went through the
+`docs/DOGFOOD.md` daily path against base `0d7796be23efe4e2579408a5516b8aeff1a23008`. The sealed
+CEM bytes at that commit were verified byte-identical to Corvint's local dogfood run (`cmp` against
+`git show 9a4dcefe...:.corvint/changes/86fde0eb....cem.json`). `UC-CHANGE-CONSEQUENCE`'s subject is
+the path-impact packet, named `prechange-impact.json` by the corvint-dogfood receipt convention,
+because Beamfall's pre-edit range-impact packet is empty by construction (no committed diff exists
+yet at query time); the actual path-impact packet found the affected model-loader and trust tests
+and their `go test` commands (ticket V1-0262). `UC-EVIDENCE-CARRYING-COMPLETION`'s subject is the
+`dogfood-report.json` with `complete: true`. Both receipts also carry a byte-identical copy of the
+sealed CEM under their `beamfall-dogfood/` subject directory, since `.corvint/changes/...` does not
+exist in Corvint's own tree for a Beamfall commit. `UC-TASK-ORIENTATION` gets no `beamfall-dogfood`
+receipt: its pre-change query on Beamfall abstained with zero results (ticket V1-0260), so no PASS
+outcome can be attested for it.
+
+Updated the "Verified current state" paragraph of `docs/specs/use-case-conformance-v0.md` to record
+the two bound receipts, the orientation absence and reason, and that the Beamfall intent spec these
+receipts attest against (`docs/plugins/trust-roots.md`) was accepted by the owner on 2026-09-25 in
+the same Beamfall PR (after the bind), while no row is `verified` yet because V1-0011 promotes the three
+Core rows together and orientation has no Beamfall receipt; both rows stay `experimental`/`UNPROVEN`. The
+edit shifted `UCV0-001..013`'s line numbers (no requirement IDs renumbered), so
+`docs/specs/REQUIREMENTS.tsv` was regenerated (`script/gen-spec-requirements.sh`, run against the
+staged spec file) and `make spec-requirements-check` passes. No existing `contract.json` receipt
+pins `use-case-conformance-v0.md` itself (they pin `daily-change-evidence-workflow-v0.md` and
+decision 0332), so no receipt repin was needed (V1-0216 does not apply here).
+
+`go run ./conformance/use-cases-v0` reports `valid: true`, `evidenceCount: 17` (was 15),
+`statusCounts.experimental: 3`, all claims `UNPROVEN`. `go test ./conformance/use-cases-v0/...` and
+`go test ./internal/specindex/...` pass.
+
+## 2026-09-25 V1-0011: the three Core use-case rows are VERIFIED
+
+`UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION` move from
+`experimental`/`UNPROVEN` to `verified`/`VERIFIED`. The UCV0-003 promotion input is one receipt from
+each of the six evidence classes on every row:
+- contract and implementation (decision 0373);
+- hostile-tests (V1-0188);
+- corvint-dogfood (V1-0207);
+- the sealed-benchmark from daily-loop run-002, which passed all three jobs (V1-0012);
+- beamfall-dogfood (V1-0184, completed with the orientation receipt above).
+
+Promotion needs both Corvint and Beamfall dogfood (UCV0-010), and each row has both. The
+nineteen historical rows stay `UNPROVEN`. The ledger now reports `claimCounts` `UNPROVEN` 19 and
+`VERIFIED` 3, `statusCounts.verified` 3, and `evidenceCount` 18.
+
+- Scope of the claim: the orientation Beamfall receipt came from a build that includes
+  `GPK-V0-066` (decision 0387). The published 0.8.1 archive abstains on that query (V1-0260), so under
+  `UCV0-012` the claim applies to releases that include decision 0387 (the 1.0.0-rc.1 candidate),
+  not to 0.8.1.
+- Benchmark quality: UCV0-007 notes that mechanical completeness does not replace independent review
+  of benchmark quality. No independent quality review of run-002 is recorded, so that review is
+  `NOT_PRODUCED`. The promotion depends on the owner accepting run-002 as it stands.
+- Test changes: `TestUCV0ProfileMigration` pinned the canonical ledger at 22 `UNPROVEN`. It now pins 19/3, and its
+  fixture resets the promoted rows' claim along with their status.
+
+`conformance/use-cases-v0/README.md` is updated to match. `go run ./conformance/use-cases-v0` reports
+`valid: true`, and `go test ./conformance/use-cases-v0/...` passes.
+
+Rollback: set the three rows back to `experimental`/`UNPROVEN` and revert the test pin. No
+receipt bytes change.
+
+## 2026-09-25 V1-0184: beamfall-dogfood receipt for UC-TASK-ORIENTATION
+
+This completes V1-0184's third row. The LCRES-15 pre-change query abstained with zero results
+(V1-0260). With `GPK-V0-066` accepted (decision 0387), a new agent-run Beamfall change went through
+the daily path using Corvint 0.8.1 built from PR #189. The change adds tests anchored to the accepted
+`PTR-V0-002` and `PTR-V0-003` for `internal/plugin` trust assessment: base
+`6a95ae32116718d55687da97efd9108b5174fe5e`, bind commit `1c9fa18da1a3cd715b56f73b267c4ee5e8d3c76e`,
+Beamfall/core branch `claude/corvint-dogfood-PTR-tests`, PR beamfall/core#32 (stacked on #31).
+
+- Pre-change query result: `READY`, abstention `none`. It returned `internal/plugin/trust.go:trustAssessment`, the function the change tests. Its
+  uncertainty keeps "all results are syntax matches; no project-owned authority corroborates the
+  task" visible.
+- `dogfood check` and `dogfood seal` result: `PASS`. The OCM links 2 of 4 requirements. `PTR-V0-001` and `PTR-V0-004` stay unknown because the change does not assess them.
+  One `unbound-commits` note names the acceptance commit `6a95ae32` from #31.
+- Receipt contents: the new `receipts/UC-TASK-ORIENTATION/beamfall-dogfood.json` carries byte-identical copies of `prechange-query.json`
+  and the sealed CEM.
+
+Adopter friction found along the way:
+- An OCM claim anchors only to a slice-table `name:` field or a `t.Run` literal; map-key
+  table cases are not extracted.
+- Selector fragments are normalized: numeric suffixes are dropped and `checks`/`versions` are singularized.
+  Each fragment had to be probed before the links resolved.
+
+`go run ./conformance/use-cases-v0` reports `valid: true` and `evidenceCount: 18` (was 17). All claims are still
+`UNPROVEN`.
 
 ## 2026-09-25 V1 bug batch: V1-0123, V1-0159, V1-0172, V1-0238, V1-0222, V1-0131
 
