@@ -6262,3 +6262,20 @@ API.
   `confinedName` (record) ahead of the generic path-shape message.
   `TestAFUV1036DocsGitPathRefused` and `TestAFUV1RecordGitPathRefused` cover `--page`/`--claims` and
   `record --output` respectively, each against a lowercase and a case-varied `.git` path.
+
+## 2026-09-25 TJAA-V0-005: linear TypeScript comment stripping (panel blocker B1)
+
+`stripComments` in `internal/liveverify/affected/typescript/typescript.go` passed
+`string(clean)` to `quotedEnd` and `regexEnd` at every byte, so each position copied the whole
+buffer and the scan was quadratic (panel measurement: 50 KB 0.83 s, 100 KB 1.82 s, 200 KB 5.51 s
+on a loaded host). `quotedEnd` and `regexEnd` now take `string | []byte`, so `stripComments` passes
+the buffer without copying and the string callers are unchanged. `regexEnd` finds the previous byte
+with a backward scan over whitespace, and `jsxQuoteStartsLiteral` trims with `bytes.TrimRight` on the
+slice instead of copying the prefix at every JSX quote. The scan still reads the comment-blanked
+buffer, so behaviour is unchanged: the package tests pass as before, and a scratch differential run
+of 300,000 random inputs against the old functions found no difference. The regression test
+`TestStripCommentsAllocationsDoNotGrowWithInput` bounds allocations for a 64 KB input at 2 (the old
+code made 41,666). An allocation count is used instead of a timing ratio because it does not depend
+on host load. A scratch timing after the fix: 100 KB 0.7 ms, 1 MB 5.6 ms. The other `affected`
+language scanners (dotnet, golang, kotlin, python, ruby, rust, swift) have no per-position
+conversion of their mutated buffer. Follow-up, not in this change: no per-language scan deadline.
