@@ -4,6 +4,28 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence. Add new entries at the end so no cited line moves; each entry carries a date
 heading and its requirement or decision IDs, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-25 V1-0264 DCW-V0-025 (accepted, decision 0388): no-module and module-root impact refusals are typed abstentions
+
+`corvint dogfood change` kept only `unsupported-impact-range` as a non-blocking `prechange-impact`
+abstention, so a repository with no Go module (`unsupported-impact-repository`) or a change to a Go
+file at the module root (`unsupported-impact-path`) could never reach `"complete": true`. Observed
+envelopes from a current-tree build (0.8.1): both exit 2 with empty stdout and one stderr line,
+`{"code": "unsupported-impact-repository", "error": "native Go impact requires a slash-qualified Go
+module", "ok": false}` and `{"code": "unsupported-impact-path", "error": "native Go range impact
+requires changed Go paths in a non-root package", "ok": false}`. Chosen: typed abstention through the
+existing machinery, each code kept as the row reason and in the abstention artifact, because impact
+is a Go-native profile and its absence is a visible scope limit, not a failed step. Any other code
+or shape still blocks. Evidence: `TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot`
+(real refusals: change, check and seal pass) and new `script/dogfood-change_test.sh` cases. The
+requirement is accepted with both amendments (decision 0388). Review repairs: accepted `GOC-V0-009` and
+`ERI-V0-006` admit only `unsupported-impact-range`, so each now carries a proposed amendment, not
+accepted, widening the set to the three codes; the code change must not merge until the owner
+accepts `DCW-V0-025` and both amendments. `dogfood change` and `dogfood check` now print one
+`NOTE prechange-impact NOT_PRODUCED CODE` stderr line for each of the three codes, and the shell
+failure loop asserts each invalid shape's exact reason. Follow-up, left unchanged: the one-stderr-line
+test (`internal/dogfoodflow/change.go:223`, `check.go:230`) counts newlines, so an envelope line
+followed by unterminated trailing bytes still qualifies (`textLines` splits them off, `flow.go:255`).
+
 ## 2026-09-25 V1-0261 DCW-V0-020: adopter fix lines name the `corvint dogfood` subverb
 
 `corvint dogfood change|check` printed `fix:` and `required order:` lines telling the operator to

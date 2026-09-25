@@ -69,6 +69,9 @@ membership and must retain whole-change authority, marker selection and result a
   The repository coordinator MAY preserve a typed `unsupported-impact-range` as explicit
   `NOT_PRODUCED` context evidence under the separately accepted owning-change contract. That path
   does not produce an impact receipt, relax this profile, or exempt any completion proof or checker.
+- Accepted amendment (decision 0388, V1-0264, DCW-V0-025): the repository coordinator MAY also
+  preserve a typed `unsupported-impact-repository` or `unsupported-impact-path` as explicit
+  `NOT_PRODUCED` context evidence under the same terms, each under its own code.
 
 ## Resource and trust boundaries
 
