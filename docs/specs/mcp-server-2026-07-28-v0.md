@@ -512,8 +512,8 @@ meaning. The profile's black-box vectors are `conformance/mcp-2026-07-28/cases-r
   `attributes-file`, `ref-storage`, `worktree-config`, `config-malformed`, `submodule`,
   `split-index`, `gitdir-pointer`, `metadata-unreadable`, `metadata-limit`, `metadata-directory`,
   `metadata-drift`, `scratch-dir`, `root-unresolved` or `unclassified`. A value MUST come only from a
-  typed class attached where `internal/gitstatus` builds the refusal, never from parsing message
-  text. Any error without that class, including every non-status failure, MUST be `unclassified`,
+  typed class attached where `internal/gitstatus` builds the refusal, or from identity with that
+  package's metadata-drift sentinel (`metadata-drift`), never from parsing message text. Any error without that class, including every non-status failure, MUST be `unclassified`,
   and a client MUST read an unknown value as `unclassified`. No free text and no filter driver name
   crosses into the object. Adding a value needs an amendment to decision 0383.
 
