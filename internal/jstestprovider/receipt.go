@@ -62,19 +62,20 @@ type TestOutcome struct {
 	Anchor         *Anchor           `json:"anchor,omitempty"`
 	FailureMessage string            `json:"failureMessage,omitempty"`
 	Artifacts      []FailureArtifact `json:"artifacts,omitempty"`
-	// AttemptDetails keeps every Playwright attempt in run order (AFU-V1-012). It is in-memory only:
-	// the receipt wire keeps the last-attempt fields above, and the sensitive-input boundary drops it.
-	AttemptDetails []AttemptDetail `json:"-"`
+	// AttemptDetails keeps every Playwright attempt in run order (AFU-V1-012), additive on the
+	// unprofiled receipt only: a corvint-playwright-external profile refuses it, and the
+	// sensitive-input boundary, which serves only such a profile, drops it.
+	AttemptDetails []AttemptDetail `json:"attemptDetails,omitempty"`
 }
 
 // AttemptDetail is one attempt's outcome, duration, failure, anchor and attachments.
 type AttemptDetail struct {
-	State          ExecutionState
-	Retry          int
-	DurationMS     float64
-	FailureMessage string
-	Anchor         *Anchor
-	Artifacts      []FailureArtifact
+	State          ExecutionState    `json:"state"`
+	Retry          int               `json:"retry"`
+	DurationMS     float64           `json:"durationMs"`
+	FailureMessage string            `json:"failureMessage,omitempty"`
+	Anchor         *Anchor           `json:"anchor,omitempty"`
+	Artifacts      []FailureArtifact `json:"artifacts,omitempty"`
 }
 
 // BrowserStep is the bounded action trace retained by the redaction-capable
