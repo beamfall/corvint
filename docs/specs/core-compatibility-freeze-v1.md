@@ -12,7 +12,7 @@ Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), dec
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
 - Status: proposed overall; accepted CCF-V1-006/CCF-V1-007 amendments (decision 0401); experimental delivery; the Core set is taken from accepted decision 0332, this contract awaits owner ratification in V1-0001
 - Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), `cmd/corvint/core_freeze_test.go` and its per-mode goldens in `cmd/corvint/testdata/core-freeze/`
-- Blocked on: V1-0001 owner ratification of this contract; pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
+- Blocked on: V1-0001 owner ratification of this contract and of the proposed B5 amendment to CCF-V1-004; pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
 
 ## Intent and scope
@@ -90,10 +90,10 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   `external-test-selection/0`, `playwright-affected/0`, `corvint-planning-snapshot/0`,
   `corvint-checkpoint/0` and in-toto statements. Their owning specs govern them. The verbs
   `native-hook`, `authority-event` and `qualified-event` are undocumented adapter plumbing that
-  `runContext` dispatches before the `topLevelCommands` check (`cmd/corvint/main.go:790@e2ed60e2`); they
+  `runContext` dispatches before the `topLevelCommands` check (`cmd/corvint/main.go:803@e2ed60e2`); they
   are absent from root help and outside the freeze.
 - **CCF-V1-004:** A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line built by
-  `emitError` (`cmd/corvint/main.go:1333@40010ccd`): `code`, `error` and `ok=false`, plus the DRC-V0-006
+  `emitError` (`cmd/corvint/main.go:1346@40010ccd`): `code`, `error` and `ok=false`, plus the DRC-V0-006
   diagnostic members `subject`, `evidence`, `supported_fixes` and optional `terminal` where the site was
   converted. Frozen code families are `invalid-*` (argument, revision and repository-root validation),
   `unsupported-*` (a well-formed request outside the qualified profile, including
@@ -103,6 +103,23 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   untracked path) is frozen as it is. `init` / `adopt` with an unusable revision instead print the
   inventory with `ok=false` and `operationalState=INVALID` on stdout and exit 1. Renaming or removing a
   code, adding `code` to the codeless envelope, or moving a refusal between exit classes is breaking.
+  (proposed 2026-09-25, panel blocker B5, not accepted) Exactly three Core refusals are exempt from
+  the `emitError` envelope, and each keeps its own frozen shape: (a) `frontier` emits the
+  `frontier-error/0` document `{"code","profile"}` with no `ok` member, frozen by CF-V0-034 and
+  decision 0357, so it is carved out rather than projected; (b) `dogfood` emits
+  `{"code","error":{"code","message"},"ok":false}`, where the top-level `code` is the member every
+  Core refusal carries and the nested object stays for readers of the earlier envelope, and a
+  lifecycle refusal after the policy loaded also writes the `ok=false` policy document on stdout;
+  (c) the `init` / `adopt` INVALID inventory above, which also covers a working directory that is not
+  a repository root. Every Core verb that reads the repository refuses an omitted `--root` exactly as
+  it refuses an explicit one: `invalid-arguments` with `supported_fixes`
+  `cli.use-git-repository-root`, the message `not a Git repository: DIR` outside any repository, and
+  inside one the message `not the repository root; top level is TOP` with `evidence` `top_level`.
+  A repository whose `HEAD` names no commit is refused with `repository-head-unborn`, `subject`
+  `repository-state` / `head-commit` and `supported_fixes` `git.create-head-commit`. Before rc.1
+  these deliberately add `code` to the formerly codeless unborn-`HEAD` and outside-repository
+  `impact` refusals and replace `repository-probe-failed` / `unsupported-prove-history` for a
+  non-root working directory; no `cli-parity-v0` case covers those inputs, and the replay is unchanged.
 - **CCF-V1-005:** The admission, freshness, omission and abstention members MUST keep their names,
   JSON types and meaning. `query` and path `impact`: `context.state`, `context.freshness.{state, scope,
   revision, mixed_path_count, mixed_paths}`, `context.coverage.{requested_results, included_results,
@@ -170,13 +187,13 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   | `context.state` | `query`, `impact` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL` | closed | `internal/contextindex/receipt.go:41@744935db`, `internal/worktreeimpact/compiler.go:331@11242995` |
   | `context.freshness.state` | `query`, `impact` | `fresh`, `mixed-worktree` | closed | `internal/worktreeimpact/compiler.go:369@f1a395e7` |
   | `context.freshness.scope` | `query`, `impact` | `git`, `git+working-tree` | closed | `internal/worktreeimpact/compiler.go:369@f1a395e7` |
-  | `context.abstention.reason` | `query` | `none`, `needs-widening`, `nearest-negative-claim`, `below-relevance-floor`, `unindexed-worktree-changes`, `no-relevant-candidates` | open | `internal/contextindex/eval_query.go:383@e2db80be` |
+  | `context.abstention.reason` | `query` | `none`, `needs-widening`, `nearest-negative-claim`, `omitted-competing-record`, `below-relevance-floor`, `unindexed-worktree-changes`, `no-relevant-candidates` | open | `internal/contextindex/eval_query.go:386@2e798125` |
   | `inventory.operationalState` | `init`, `adopt` | `COMPLETE`, `PARTIAL`, `INVALID` | closed | `internal/genesis/inventory.go:133@5662da2b` |
   | `inventory.dirtyState` | `init`, `adopt` | `CLEAN`, `DIRTY`, `UNKNOWN` | closed | `internal/genesis/inventory.go:81@4f7a9f91` |
   | `plan.scope` | `affected` | `BOUNDED`, `UNKNOWN` | closed | `internal/liveverify/affected/select.go:49@884d7796` |
   | `advice.status` | `affected` | `PLAN_ONLY` | closed | `cmd/corvint/affected.go:112@7320d4cb` |
   | `provider.go.state` | `affected` | `RUNNABLE`, `EMPTY_SELECTION`, `MODULE_PATH_UNRESOLVED`, `PACKAGE_BOUND_EXCEEDED` | closed | `cmd/corvint/affected.go:129@797e536b` |
-  | `state` | `prove` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL`, `CITED`, `UNPROVEN` | closed | `cmd/corvint/prove.go:1698@b984fed9` |
+  | `state` | `prove` | `READY`, `OUT_OF_SCOPE`, `NEEDS_WIDENING`, `BUDGETED`, `CRITICAL_EVIDENCE_OVERFLOW`, `WORKTREE_EVIDENCE`, `PARTIAL`, `CITED`, `UNPROVEN` | closed | `cmd/corvint/prove.go:1697@b984fed9` |
 
   The `graph` relation that the experimental `CORVINT_CONTEXT_GRAPH=on` switch appends
   (`internal/contextindex/ppr.go:43@fd7e5f2f`) is outside the frozen default mode. So is the `prove --cem` state
@@ -195,7 +212,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 
 ## Non-goals
 
-- No runtime or wire change to any verb, and no new profile version.
+- No runtime or wire change to any verb other than the proposed CCF-V1-004 refusal classification of
+  2026-09-25 (panel blocker B5), and no new profile version.
 - No freeze of companion, research or experimental verbs, modes or profiles (CCF-V1-003, CCF-V1-008).
 - No ratification of the Core boundary: that is the owner's decision in V1-0001.
 - No change to the portable proof wire, CEM, OCM or frontier contracts, which have their own owners.
@@ -207,6 +225,9 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 - A Core refusal changes exit class, stdout or code family: `TestCoreRefusalsKeepTheFrozenEnvelope` fails.
 - A frozen Core mode emits a value outside its CCF-V1-007 (d) register row, or a row is reached by no
   frozen mode: `TestCoreVerbsEmitTheFrozenProfiles` fails through `observeCoreEnumerations`.
+- A Core verb classifies a non-root working directory or an unborn `HEAD` differently from its
+  siblings: `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike` or
+  `TestIndexedCoreVerbsCodeAnUnbornHead` fails.
 - A new verb is dispatched without a maturity label, or a label names an unindexed owner:
   `TestRootHelpLabelsEveryVerbWithMaturityAndOwner` fails.
 - A verb is dispatched before the `topLevelCommands` check without being pinned as plumbing:
@@ -222,7 +243,7 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 
 ## Acceptance evidence
 
-- `GOTOOLCHAIN=local go test -count=1 -run 'TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope|TestRootHelpLabelsEveryVerbWithMaturityAndOwner|TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp' ./cmd/corvint`.
+- `GOTOOLCHAIN=local go test -count=1 -run 'TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope|TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike|TestIndexedCoreVerbsCodeAnUnbornHead|TestRootHelpLabelsEveryVerbWithMaturityAndOwner|TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp' ./cmd/corvint`.
 - The cli-parity replay over the 133-case manifest against a candidate built from this change.
 - The cited N-1 and migration tests in Traceability.
 
@@ -232,7 +253,7 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 |---|---|
 | CCF-V1-001, CCF-V1-002 | `TestCoreVerbsEmitTheFrozenProfiles` (identifiers, and each mode against its `cmd/corvint/testdata/core-freeze` golden) |
 | CCF-V1-003 | `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
-| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics` |
+| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics`, `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`, `TestIndexedCoreVerbsCodeAnUnbornHead` |
 | CCF-V1-005 | `TestCoreVerbsEmitTheFrozenProfiles` (envelope, and member names and types through the goldens); per-verb member tests in AFP-V0, FPK-V0, TCP-V0 and GPK-V0 |
 | CCF-V1-006 | cli-parity-v0 replay; `TestCoreVerbsEmitTheFrozenProfiles` |
 | CCF-V1-007 (a) | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSectionedSnapshotRefusesACorruptSectionAsAMiss`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
@@ -245,6 +266,7 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 
 Revert the change that introduced this contract: the spec, decision 0358, its index rows, the root-help
 `Command maturity:` section and `cmd/corvint/core_freeze_test.go`. No runtime, wire or stored state
-changes, so rollback needs no migration.
+changes, so rollback needs no migration. The proposed CCF-V1-004 classification of 2026-09-25 rolls back
+alone by reverting its change; it writes no stored state.
 Reverting only the per-mode goldens (proposed, decision 0398) means deleting `cmd/corvint/testdata/core-freeze/` and
 the golden comparison in `TestCoreVerbsEmitTheFrozenProfiles`. That returns the freeze to identifier-only pinning.

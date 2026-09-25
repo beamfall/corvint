@@ -321,7 +321,7 @@ elsewhere are not repeated.
 | `invalid-lifecycle` | `internal/localcompletion/storage.go:309` | the saved lifecycle is not `active`, `satisfied` or `cancelled` |
 | `invalid-local-completion-action` | `cmd/corvint/local_completion.go:122` | the action is not `begin`, `verify`, `review`, `status`, `finish`, `cancel` or `handoff` |
 | `invalid-local-completion-json` | `internal/localcompletion/storage.go:50` | strict JSON input does not parse |
-| `invalid-local-completion-option` | `cmd/corvint/local_completion.go:131`; `cmd/corvint/local_completion.go:152` | an option is not allowed for the action, or the mutually exclusive `--anchors` and `--receipt` are both given |
+| `invalid-local-completion-option` | `cmd/corvint/local_completion.go:131`; `cmd/corvint/local_completion.go:156` | an option is not allowed for the action, or the mutually exclusive `--anchors` and `--receipt` are both given |
 | `invalid-local-completion-option-value` | `cmd/corvint/local_completion.go:144` | an option value is empty or longer than 4096 bytes |
 | `invalid-local-completion-schema` | `internal/localcompletion/storage.go:58` | strict JSON input parsed and passed the JSON type check, but decoding into the target type with unknown fields disallowed failed; the JSON type check emits the same code at `internal/localcompletion/storage.go:67`, and a required-field read of input that is not an object at `internal/localcompletion/storage.go:342` |
 | `invalid-local-state-directory` | `internal/localcompletion/lifecycle.go:547` | the session's generation path exists and is not a directory |
@@ -334,9 +334,9 @@ elsewhere are not repeated.
 | `invalid-verification-observation` | `internal/localcompletion/storage.go:330` | a saved observation's log paths are not the check's numbered logs, or its target, tree, check digest or content digest is malformed |
 | `invalid-worktree-owner` | `internal/localcompletion/storage.go:400` | the worktree owner file does not hold a 64-hex key |
 | `local-completion-action-required` | `cmd/corvint/local_completion.go:56@df0e82dd` | `local-completion` is given no action argument |
-| `local-completion-failed` | `cmd/corvint/local_completion.go:180@e27e19ee` | the failure code to emit contains a character other than `a-z` or `-`, is empty, or is longer than 96 bytes, so it is replaced |
-| `local-completion-option-required` | `cmd/corvint/local_completion.go:149` | the action's required option is missing |
-| `local-completion-option-value-required` | `cmd/corvint/local_completion.go:139` | a non-inline option is the last argument, or its next token is option-like (`GPK-V0-064`, decision 0196) |
+| `local-completion-failed` | `cmd/corvint/local_completion.go:184@e27e19ee` | the failure code to emit contains a character other than `a-z` or `-`, is empty, or is longer than 96 bytes, so it is replaced |
+| `local-completion-option-required` | `cmd/corvint/local_completion.go:153` | the action's required option is missing |
+| `local-completion-option-value-required` | `cmd/corvint/local_completion.go:143` | a non-inline option is the last argument, or its next token is option-like (`GPK-V0-064`, decision 0196) |
 | `local-outcome-evidence-drift` | `internal/localcompletion/finish.go:489` | the local outcome artifact is unreadable or its digest differs from the report's |
 | `local-state-bound-exceeded` | `internal/localcompletion/storage.go:226` | a local state file is larger than its read bound |
 | `local-state-not-regular` | `internal/localcompletion/storage.go:210` | a local state file is not a regular file |

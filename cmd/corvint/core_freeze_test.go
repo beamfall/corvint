@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -177,23 +179,37 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 	}
 }
 
-// TestCoreRefusalsKeepTheFrozenEnvelope pins CCF-V1-004: a Core refusal exits 2 with empty
-// stdout and one stderr JSON envelope whose ok is false and whose code keeps its frozen family,
-// including the codeless repository envelope.
+// TestCoreRefusalsKeepTheFrozenEnvelope pins CCF-V1-004 with one refusal per Core verb: a Core
+// refusal exits 2 with empty stdout and one stderr JSON envelope whose ok is false and whose code
+// keeps its frozen family, including the codeless repository envelope. frontier keeps its frozen
+// frontier-error/0 document, and dogfood carries the top-level code beside its error object.
 func TestCoreRefusalsKeepTheFrozenEnvelope(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		name      string
-		arguments func(string) []string
-		code      string
+		verb, name string
+		arguments  func(string) []string
+		code       string
+		// profile, when set, is the frontier-error/0 document: exactly code and profile.
+		profile string
 	}{
-		{"query without a task", func(root string) []string { return []string{"--root", root, "query"} }, "invalid-arguments"},
-		{"context without a task", func(root string) []string { return []string{"--root", root, "context"} }, "invalid-arguments"},
-		{"affected with an abbreviated base", func(root string) []string { return []string{"--root", root, "affected", "--base", "abc1234"} }, "invalid-arguments"},
-		{"prove with an abbreviated base", func(root string) []string { return []string{"--root", root, "prove", "--base", "abc1234"} }, "unsupported-impact-range"},
-		{"impact of an untracked path", func(root string) []string { return []string{"--root", root, "impact", "pkg/absent.go"} }, ""},
+		{"init", "init with an unrecognized argument", func(root string) []string { return []string{"--root", root, "init", "--bogus"} }, "invalid-arguments", ""},
+		{"adopt", "adopt with an unrecognized argument", func(root string) []string { return []string{"--root", root, "adopt", "--bogus"} }, "invalid-arguments", ""},
+		{"index", "index with an unrecognized argument", func(root string) []string { return []string{"--root", root, "index", "--bogus"} }, "invalid-arguments", ""},
+		{"query", "query without a task", func(root string) []string { return []string{"--root", root, "query"} }, "invalid-arguments", ""},
+		{"context", "context without a task", func(root string) []string { return []string{"--root", root, "context"} }, "invalid-arguments", ""},
+		{"impact", "impact of an untracked path", func(root string) []string { return []string{"--root", root, "impact", "pkg/absent.go"} }, "", ""},
+		{"affected", "affected with an abbreviated base", func(root string) []string { return []string{"--root", root, "affected", "--base", "abc1234"} }, "invalid-arguments", ""},
+		{"prove", "prove with an abbreviated base", func(root string) []string { return []string{"--root", root, "prove", "--base", "abc1234"} }, "unsupported-impact-range", ""},
+		{"cem", "cem status without a map", func(root string) []string { return []string{"--root", root, "cem", "status"} }, "invalid-arguments", ""},
+		{"ocm", "ocm status without a map", func(root string) []string { return []string{"--root", root, "ocm", "status"} }, "invalid-arguments", ""},
+		{"frontier", "frontier without its maps", func(root string) []string { return []string{"--root", root, "frontier", "--json"} }, "invalid-frontier-input", "frontier-error/0"},
+		{"dogfood", "dogfood status with a malformed session key", func(root string) []string {
+			return []string{"--root", root, "dogfood", "status", "--session-key", "k"}
+		}, "invalid-session-key", ""},
 	}
+	covered := []string{}
 	for _, test := range cases {
+		covered = append(covered, test.verb)
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			root := impactCLIRepository(t)
@@ -205,12 +221,109 @@ func TestCoreRefusalsKeepTheFrozenEnvelope(t *testing.T) {
 			if err := json.Unmarshal([]byte(stderr), &envelope); err != nil || strings.Count(strings.TrimSpace(stderr), "\n") != 0 {
 				t.Fatalf("stderr is not one JSON line: %v\n%s", err, stderr)
 			}
+			if test.profile != "" {
+				if len(envelope) != 2 || envelope["code"] != test.code || envelope["profile"] != test.profile {
+					t.Fatalf("envelope %v, want exactly code %q and profile %q", envelope, test.code, test.profile)
+				}
+				return
+			}
 			if envelope["ok"] != false || envelope["error"] == nil {
 				t.Fatalf("envelope %v lacks ok=false and error", envelope)
 			}
 			got, present := envelope["code"]
 			if test.code == "" && present || test.code != "" && got != test.code {
 				t.Fatalf("code = %#v (present %v), want %q", got, present, test.code)
+			}
+		})
+	}
+	if !slices.Equal(covered, frozenCoreVerbs) {
+		t.Errorf("refusal cases cover %v, want one per Core verb %v", covered, frozenCoreVerbs)
+	}
+}
+
+// coreRootRefusal runs one Core verb without --root from directory in a fresh process and
+// decodes its one-line stderr refusal.
+func coreRootRefusal(t *testing.T, directory string, arguments ...string) map[string]any {
+	t.Helper()
+	command := candidateCommand(arguments...)
+	command.Dir = directory
+	var stdout, stderr strings.Builder
+	command.Stdout, command.Stderr = &stdout, &stderr
+	err := command.Run()
+	var exit *exec.ExitError
+	if !errors.As(err, &exit) || exit.ExitCode() != 2 || stdout.Len() != 0 {
+		t.Fatalf("%v: %v stdout %q stderr %s, want exit 2 and empty stdout", arguments, err, stdout.String(), stderr.String())
+	}
+	var envelope map[string]any
+	if err := json.Unmarshal([]byte(stderr.String()), &envelope); err != nil {
+		t.Fatalf("%v: stderr is not one JSON document: %v\n%s", arguments, err, stderr.String())
+	}
+	return envelope
+}
+
+// coreRootRefusingVerbs are the Core modes that read the repository at the working directory
+// when --root is omitted.
+var coreRootRefusingVerbs = [][]string{
+	{"index"}, {"query", "--task", "fix login"}, {"context", "--task", "fix login"}, {"impact", "pkg/main.go"},
+	{"affected"}, {"prove", "pkg/main.go"}, {"dogfood", "status", "--session-key", strings.Repeat("a", 64)},
+}
+
+// TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike pins CCF-V1-004: with --root omitted,
+// a subdirectory of a repository and a directory outside any repository are each refused with
+// the same invalid-arguments diagnostic by every Core verb that reads the repository, and the
+// subdirectory refusal names the top level instead of claiming no repository exists.
+func TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike(t *testing.T) {
+	t.Parallel()
+	root := impactCLIRepository(t)
+	topLevel, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir()
+	for _, arguments := range coreRootRefusingVerbs {
+		t.Run(arguments[0], func(t *testing.T) {
+			t.Parallel()
+			nested := coreRootRefusal(t, filepath.Join(root, "pkg"), arguments...)
+			message, _ := nested["error"].(string)
+			named, _ := strings.CutPrefix(message, "not the repository root; top level is ")
+			if resolved, _ := filepath.EvalSymlinks(named); nested["code"] != "invalid-arguments" || resolved != topLevel {
+				t.Errorf("subdirectory refusal %v, want invalid-arguments naming top level %s", nested, topLevel)
+			}
+			absent := coreRootRefusal(t, outside, arguments...)
+			message, _ = absent["error"].(string)
+			if absent["code"] != "invalid-arguments" || !strings.HasPrefix(message, "not a Git repository: ") {
+				t.Errorf("outside refusal %v, want invalid-arguments not a Git repository", absent)
+			}
+			for _, envelope := range []map[string]any{nested, absent} {
+				if fixes, _ := envelope["supported_fixes"].([]any); len(fixes) != 1 || fixes[0] != "cli.use-git-repository-root" {
+					t.Errorf("supported_fixes = %v, want [cli.use-git-repository-root]", envelope["supported_fixes"])
+				}
+			}
+		})
+	}
+}
+
+// TestIndexedCoreVerbsCodeAnUnbornHead pins CCF-V1-004: a repository with no commit yet is
+// refused with the coded repository-head-unborn diagnostic, not the codeless Git error text.
+func TestIndexedCoreVerbsCodeAnUnbornHead(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	affectedGit(t, root, "init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "add", "main.go")
+	for _, arguments := range [][]string{{"index"}, {"query", "--task", "fix login"}, {"context", "--task", "fix login"}, {"impact", "main.go"}, {"prove", "main.go"}} {
+		t.Run(arguments[0], func(t *testing.T) {
+			t.Parallel()
+			code, stdout, stderr := runCLI(t, append([]string{"--root", root}, arguments...)...)
+			var envelope map[string]any
+			if err := json.Unmarshal([]byte(stderr), &envelope); err != nil || code != 2 || stdout != "" {
+				t.Fatalf("exit %d stdout %q stderr %s, want 2, empty stdout and one JSON line", code, stdout, stderr)
+			}
+			fixes, _ := envelope["supported_fixes"].([]any)
+			if envelope["code"] != "repository-head-unborn" || len(fixes) != 1 || fixes[0] != "git.create-head-commit" {
+				t.Fatalf("envelope %v, want repository-head-unborn with git.create-head-commit", envelope)
 			}
 		})
 	}
