@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); evaluation protocol awaits separate freeze
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); evaluation protocol awaits separate freeze
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); evaluation protocol awaits separate freeze; experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); evaluation protocol awaits separate freeze; experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -203,7 +203,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   rows these two codes kept a non-Go adopter from ever reaching `"complete": true`.
   Acceptance: decision 0388 accepts this requirement with the `GOC-V0-009` and `ERI-V0-006`
   amendments that admit the same three codes.
-- `DCW-V0-026`: (proposed 2026-09-25, panel finding M1, not accepted) `dogfood change` MUST NOT
+- `DCW-V0-026`: (accepted 2026-09-25 by decision 0395, panel finding M1) `dogfood change` MUST NOT
   create, truncate or rewrite `<git-dir>/corvint/prechange-query.json` or `prechange-impact.json`,
   the receipts an agent writes before the change (`docs/DOGFOOD.md` section 1). Its own query and
   impact runs happen after the change, so they are the `coordination-time-query` and
@@ -216,7 +216,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   truncating the base-tree receipts, and reported its own post-change output as
   `prechange-* PRODUCED`, a false provenance claim.
   Not covered: the coordinator does not read, bind or check the tree of an agent receipt, so a
-  missing or stale agent receipt is no more visible than before.
+  missing or stale agent receipt is no more visible than before (V1-0316).
+  Acceptance: decision 0395 accepts this requirement and the rewording it makes to `DCW-V0-016`,
+  `DCW-V0-025` and `LCP-V0-005`.
 
 ## Code vocabulary
 
@@ -303,7 +305,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-020..021`, `DCW-V0-023` | `internal/dogfoodflow`; `cmd/corvint/dogfood_flow.go`; `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` (built binary only, in a Go repository with no `script/`, `VERSION` or `cmd/corvint`, with `PATH` resolving `corvint` to a failing impostor and `CORVINT_BIN` naming a missing file: change, bind, change, check, nested-root refusal, seal) | implemented; foreign-repository portability shown by that fixture only; a real non-Corvint repository NOT_OBSERVED; output parity with the former scripts is shown only for the strings and statuses `script/dogfood-change_test.sh` and `script/dogfood-bind-range_test.sh` assert, and exits 129, 130 and 143 are NOT_OBSERVED by a test |
 | `DCW-V0-022` | `script/dogfood-change_test.sh` (through the wrappers over a built driver) and `script/dogfood-bind-range_test.sh`, run in Corvint's tree | implemented; in-tree evidence only |
 | `DCW-V0-025` | `internal/dogfoodflow/change.go` `prechangeImpact` and `failing`, `internal/dogfoodflow/check.go` `checkContextAbstention`, `internal/dogfoodflow/flow.go` `impactAbstentions`; `TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot` (built binary, real refusals: a repository with no Go module and a module-root Go change each complete with their own reason, check and seal); the DCW-V0-025 cases of `script/dogfood-change_test.sh` (both codes complete and check through the wrappers; each invalid shape reports its exact reason, `context-abstention-invalid`, `exit-7` or `unsupported-impact-path-suffix`; change and check print the NOTE line for all three codes) | implemented; accepted with the `GOC-V0-009` and `ERI-V0-006` amendments (decision 0388); a real Beamfall change NOT_OBSERVED |
-| `DCW-V0-026` (proposed) | `internal/dogfoodflow/change.go` `run` and `prechangeImpact`, `internal/dogfoodflow/check.go` `checkContextAbstention`, `internal/localcompletion/finish.go` `terminalPaths`, `internal/observations/observations.go` `validDogfoodStep`; `TestChangeKeepsAgentPrechangeReceipts` | implemented; owner acceptance pending |
+| `DCW-V0-026` | `internal/dogfoodflow/change.go` `run` and `prechangeImpact`, `internal/dogfoodflow/check.go` `checkContextAbstention`, `internal/localcompletion/finish.go` `terminalPaths`, `internal/observations/observations.go` `validDogfoodStep`; `TestChangeKeepsAgentPrechangeReceipts` | implemented; owner acceptance pending |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 ## Compatibility and rollback

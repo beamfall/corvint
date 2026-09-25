@@ -608,7 +608,7 @@ DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	151	Corvint-only iden
 DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	163	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
 DCW-V0-024	docs/specs/daily-change-evidence-workflow-v0.md	169	(V1-0259, owner decision 2026-09-25) A change that no `## Requirements` spec
 DCW-V0-025	docs/specs/daily-change-evidence-workflow-v0.md	187	(accepted 2026-09-25, decision 0388, V1-0264) The `coordination-time-impact` ste
-DCW-V0-026	docs/specs/daily-change-evidence-workflow-v0.md	206	(proposed 2026-09-25, panel finding M1, not accepted) `dogfood change` MUST NOT
+DCW-V0-026	docs/specs/daily-change-evidence-workflow-v0.md	206	(accepted 2026-09-25 by decision 0395, panel finding M1) `dogfood change` MUST N
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
