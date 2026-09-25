@@ -6161,7 +6161,7 @@ Review repairs (same slice):
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
 
-## 2026-09-25 Panel blocker B9 IDX-SNAP-V0-024 (proposed): a non-UTF-8 tracked path is an exclusion, not a refusal
+## 2026-09-25 Panel blocker B9 IDX-SNAP-V0-024 (accepted, decision 0394): a non-UTF-8 tracked path is an exclusion, not a refusal
 
 One committed Latin-1 path (`latin/caf\xe9.go`) refused `index`, path `impact`, `context` and
 `prove` for the whole repository: `parseStatus` returned "Git status path is not valid UTF-8" when

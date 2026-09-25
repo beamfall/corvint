@@ -462,9 +462,9 @@ qualify the default gob path only: the blob-shard path (`IDX-SNAP-V0-016`) stays
   Falsifier: a panic, an error return, or any other outcome in one of the five states. Rollback:
   delete the test; nothing else depends on this clause.
 
-### Proposed (2026-09-25, panel blocker B9, owner acceptance pending): non-UTF-8 tracked paths
+### Accepted (2026-09-25, decision 0394, panel blocker B9): non-UTF-8 tracked paths
 
-- `IDX-SNAP-V0-024`: (proposed 2026-09-25, panel blocker B9) a tracked path whose Git bytes are not
+- `IDX-SNAP-V0-024`: (accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Git bytes are not
   UTF-8 MUST NOT refuse the index. The tree pass keeps it out of `Sources` and records it in
   `Exclusions` with the reason `unsafe-or-non-utf8-path` (the `init` gap name,
   `docs/specs/genesis-backfill.md`), under its display form: the path with each invalid byte run
@@ -621,4 +621,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-021 (accepted, decision 0182) | `impact` dispatch in `runContext`, `overSnapshot`, `snapshotIndex` | `TestImpactRangeAndWorkingTreeProfilesReadTheSnapshotWithoutChangingAByte` |
 | IDX-SNAP-V0-022 (proposed) | `BuildForSnapshot`, `WriteSnapshot`, `LoadSnapshot`, `ProbeSnapshot` | `TestColdAndIncrementalSnapshotsAreByteIdentical` |
 | IDX-SNAP-V0-023 (proposed) | `admittedEntries`, `LoadSnapshot`, `ProbeSnapshot`, `LoadEventSnapshot`, `evictSnapshots` | `TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes` |
-| IDX-SNAP-V0-024 (proposed) | `displayPath`, `parseStatus`, `readTreeEntries`, `admittedEntries`, `parseHistory` | `TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes`, `TestParseStatusNamesNonUTF8PathsInDisplayForm` |
+| IDX-SNAP-V0-024 | `displayPath`, `parseStatus`, `readTreeEntries`, `admittedEntries`, `parseHistory` | `TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes`, `TestParseStatusNamesNonUTF8PathsInDisplayForm` |
