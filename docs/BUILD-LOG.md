@@ -6170,3 +6170,11 @@ Review repairs (same slice):
 - Evidence: `TestDogfoodChangeNamesAlternatesRemediation` writes an alternates file into a
   portable repository and checks the refusal's fix line; `script/dogfood-change_test.sh` checks the
   new wording through the make wrapper.
+## 2026-09-25 V1-0270: citation anchors and index-reading checks documented
+
+- `docs/AGENT-ROUTES.md` "Focused documentation checks" now says three things. The doc checks read
+  the Git index, so edits must be staged first. A `path:N-M@hex` anchor is a prefix of the sha256
+  of the cited lines (`DCG-V0-006` to `DCG-V0-009`). `script/check-line-citations.sh --hash
+  path:N-M` prints the whole replacement token. Agents kept rediscovering all three while
+  repinning citations after BUILD-LOG and DOGFOOD.md line shifts.
+- Doc-only change; no behaviour changes.
