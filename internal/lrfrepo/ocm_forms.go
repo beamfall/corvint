@@ -15,7 +15,8 @@ import (
 // OCM-V0-001 `## Requirements` section and stays byte-identical.
 
 const (
-	// IntentFormADR reads each numbered `### N.` item under `## Decisions`.
+	// IntentFormADR reads each numbered `### N.` item under the one Decisions
+	// heading from adrDecisionsHeadings.
 	IntentFormADR = "adr-decisions"
 	// IntentFormRoadmap reads each roadmap ticket that carries an Acceptance line.
 	IntentFormRoadmap = "roadmap-acceptance"
@@ -33,6 +34,14 @@ var (
 )
 
 var roadmapAcceptanceMarker = []byte("  - **Acceptance:**")
+
+// adrDecisionsHeadings is the closed OIF-V0-005 set of Decisions section headings.
+var adrDecisionsHeadings = map[string]bool{
+	"## Decisions":    true,
+	"## Decision":     true,
+	"## 2. Decisions": true,
+	"## 2. Decision":  true,
+}
 
 // intentDerivation is everything one intent form derives from a pinned blob.
 // statements is nil for the default form, whose statements stay the
@@ -120,9 +129,9 @@ func adrDecisionsDerivation(path, oid string, data []byte) (intentDerivation, er
 	if err != nil {
 		return intentDerivation{}, err
 	}
-	headings := headingStarts(data, lines, fenced, []byte("## Decisions"))
+	headings := adrDecisionsHeadingStarts(data, lines, fenced)
 	if len(headings) != 1 {
-		return intentDerivation{}, fail("invalid-decisions-section", "ADR intent must contain exactly one ## Decisions heading")
+		return intentDerivation{}, fail("invalid-decisions-section", "ADR intent must contain exactly one Decisions heading from the OIF-V0-005 set")
 	}
 	start := headings[0]
 	end := sectionEnd(data, lines, fenced, start)
@@ -140,6 +149,17 @@ func adrDecisionsDerivation(path, oid string, data []byte) (intentDerivation, er
 		derived.statements[identity] = data[item.start:adrItemEnd(items, index, end)]
 	}
 	return finishDerivation(derived, path, oid, data, start, end)
+}
+
+// adrDecisionsHeadingStarts returns every unfenced line in adrDecisionsHeadings.
+func adrDecisionsHeadingStarts(data []byte, lines []int, fenced []bool) []int {
+	headings := make([]int, 0, 1)
+	for number, start := range lines {
+		if !fenced[number] && adrDecisionsHeadings[string(lineWithoutEnding(data, start))] {
+			headings = append(headings, start)
+		}
+	}
+	return headings
 }
 
 // adrNumber reads the one `adr: NNNN` line of the leading `---` front matter.

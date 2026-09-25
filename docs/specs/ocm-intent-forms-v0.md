@@ -27,9 +27,12 @@ with invariant 6 (no new spec language). The first such repository is Beamfall: 
 
 At Corvint `9e355d03`, `requirementsFromBlob` (`internal/lrfrepo/ocm.go`) is the only intent reader,
 and every OCM action re-derives from the pinned blob through it. At Beamfall `2a8e06b28`, all 215
-ADRs carry a front-matter `adr: NNNN` line; 102 use `## Decisions`, the rest `## Decision`,
-`## 2. Decisions`, or other headings. The 44 roadmap shards hold 2453 top-level tickets; 71 carry more
-than one Acceptance line, and most carry only `**Verify:**`.
+ADRs carry a front-matter `adr: NNNN` line; 102 use `## Decisions`, 42 `## Decision`, 21
+`## 2. Decisions`, 1 `## 2. Decision`, and 49 other headings (such as `## Decision (proposed)` or
+`## Decision 1 — Title`); no ADR has two of those four. `## 2. Decision` is the singular of the
+numbered form with the same `### 2.1` items, so it joins the `OIF-V0-005` set and its ADR reaches
+the item grammar instead of a heading refusal. The 44 roadmap shards hold 2453 top-level tickets;
+71 carry more than one Acceptance line, and most carry only `**Verify:**`.
 
 ## Declaration mechanism
 
@@ -52,7 +55,7 @@ The form is a `corvint ocm prepare --intent-form FORM` argument, recorded in the
 - `OIF-V0-002`: A non-default form is recorded as the string member `intentScope.form`; the default form omits it, so default-form maps, prepare envelopes, and re-derivations stay byte-identical to `OCM-V0`. A reader accepts `form` only with a non-default form name; an explicit `requirements`, empty, unknown, or non-string value fails `invalid-intent-form`. The spec string stays `ocm/0.1-experimental`.
 - `OIF-V0-003`: Every OCM read and write action re-derives requirements, span, and span digest from the pinned intent blob with the recorded form, and a mismatch fails `intent-scope-mismatch` as in `OCM-V0`. Obligation IDs are checked against the recorded form's ID grammar (`invalid-obligation-id`), and a declared form's obligation statement is the item text defined below.
 - `OIF-V0-004`: `adr-decisions` requires the blob's first line to be `---`, a later closing `---` line, and exactly one `adr: NNNN` line (four digits) between them; otherwise it fails `invalid-adr-number`. The number comes from the front matter, not the file name.
-- `OIF-V0-005`: `adr-decisions` requires exactly one unfenced line equal to `## Decisions`; the span runs from it to the next unfenced level-2 heading or the end of the blob, with the `OCM-V0-001` fence rules. Otherwise it fails `invalid-decisions-section`; `## Decision` and `## 2. Decisions` are refused, not guessed.
+- `OIF-V0-005`: `adr-decisions` requires exactly one unfenced line equal to a member of the closed set `## Decisions`, `## Decision`, `## 2. Decisions`, `## 2. Decision`; the span runs from it to the next unfenced level-2 heading or the end of the blob, with the `OCM-V0-001` fence rules. No such line, more than one (the same or different members), or any other shape (such as `## Decisions:`, `### Decisions`, or `## Decision (proposed)`) fails `invalid-decisions-section`. The member read changes neither the `OIF-V0-006` item grammar nor the requirement IDs: a span with no level-3 heading fails `missing-requirements` (`OIF-V0-009`), and a `### 2.1`, `### D1 —`, or `### A.` item fails `invalid-decision-item`.
 - `OIF-V0-006`: Every unfenced level-3 ATX heading in the Decisions span must match `### N. text` or `### Na. text` at column 0, where N is 1 to 999 without a leading zero and a is one lowercase letter; otherwise it fails `invalid-decision-item`. Each item becomes requirement `ADR-NNNN-D<N><a>` in document order, its statement is the heading through the byte before the next item or the span end, and a repeated ID fails `duplicate-requirement`.
 - `OIF-V0-007`: `roadmap-acceptance` treats each unfenced line that starts `- [c] `, with c one character, as a ticket. It must continue `**ID — title**` with the closing `**` on that line, the first ` — ` (em dash) followed by a non-empty title, and an ID matching `^[A-Z][A-Z0-9]*(-[A-Za-z0-9]+)+$` of at most 64 bytes; otherwise it fails `invalid-ticket-item`. A repeated ID fails `duplicate-requirement`, and the span is the whole blob.
 - `OIF-V0-008`: A ticket's body is the contiguous following lines that start with a space. Its Acceptance block is each unfenced body line that is `  - **Acceptance:**` or starts with `  - **Acceptance:** `, plus the body lines indented at least four spaces that directly follow it. A ticket with a non-empty block becomes a requirement whose ID is the ticket ID and whose statement is the block. A ticket without one is not an obligation and is listed in document order in the prepare envelope member `excludedTickets`, which only this form emits.
@@ -63,7 +66,7 @@ The form is a `corvint ocm prepare --intent-form FORM` argument, recorded in the
 ## Non-goals
 
 - Guessing a form from a path, name, or content, or falling back from one form to another.
-- Other ADR shapes (`## Decision`, `## 2. Decisions`, `### D1 —`, `### 8A.`, `### 2.1`), `*` or `+`
+- Other ADR shapes (headings outside the `OIF-V0-005` set, `### D1 —`, `### 8A.`, `### 2.1`), `*` or `+`
   task bullets, indented top-level tickets, and nested sub-tickets as separate requirements.
 - Selecting one ticket or decision from a file; treating `**Verify:**` as acceptance.
 - LRF evaluation of declared forms, or a change to the dogfood wrapper (`internal/dogfoodflow/`).
@@ -85,6 +88,9 @@ A changed form for an existing map is a binding change and returns `map-outdated
 - `internal/lrfrepo/ocm_forms_test.go`: `TestOIFV0*` cover `OIF-V0-002` to `OIF-V0-010` with fixtures
   minimized from Beamfall ADR-0224 and roadmap shards 41 and 42, hostile cases, a default-form
   identity check, a wire round trip, and a prepare/mark/resume/read run on a Git fixture.
+- `internal/lrfrepo/ocm_forms_test.go`: `TestOIFV0005ADRDecisionsHeadingVariants` covers each member
+  of the `OIF-V0-005` set, and `TestOIFV0005ADRDecisionsHeadingRefusals` covers near misses and two
+  different members in one ADR.
 - `cmd/corvint/ocm_test.go`: `TestOIFV0PrepareIntentFormFlag` covers `OIF-V0-001`.
 - Existing OCM tests (`./internal/lrfrepo/`, `conformance/ocm-v0`, `cmd/corvint -run 'OCM|Help|Prepare'`)
   pass unchanged, which is the default-form byte-identity evidence.
@@ -95,6 +101,11 @@ A changed form for an existing map is a binding change and returns `map-outdated
   113 fail `invalid-decisions-section`, 6 fail `invalid-decision-item`, and 7 fail
   `missing-requirements`. 11 of 44 shards prepare (265 requirements, 935 tickets excluded), 8 fail
   `invalid-ticket-item`, and 25 fail `missing-requirements`.
+- Corpus sweep (2026-09-25) after the `OIF-V0-005` heading set, running the reader in a scratch test
+  over the same 215 ADRs (not an `ocm prepare` run): 99 derive (620 requirements), 49 fail
+  `invalid-decisions-section`, 42 fail `invalid-decision-item` (all 22 numbered-heading ADRs use
+  `### 2.1` or `### A.` items), and 25 fail `missing-requirements` (18 `## Decision` ADRs have no
+  level-3 item). The pre-change reader gives the live run's 89, 113, 6 and 7 on the same files.
 
 Promotion needs owner acceptance, answers to the open decisions, and one real change dogfooded with
 a declared form. `NOT_RUN`: that dogfooded change, and independent review.
@@ -106,7 +117,7 @@ a declared form. `NOT_RUN`: that dogfooded change, and independent review.
 | `OIF-V0-001` | `cmd/corvint/ocm.go` `parseOCMPrepareFlags` | `TestOIFV0PrepareIntentFormFlag` |
 | `OIF-V0-002` | `parseIntent`, `parseIntentForm`, `intentScopeValue` | `TestOIFV0IntentScopeWireForm`, `TestOIFV0DefaultFormIsUnchanged` |
 | `OIF-V0-003` | `deriveIntent`, `verifyOCMIntent`, `parseObligations` | `TestOIFV0ObligationIDsFollowTheDeclaredForm`, `TestOIFV0PrepareRecordsAndRederivesTheDeclaredForm` |
-| `OIF-V0-004` to `OIF-V0-006` | `adrDecisionsDerivation` | `TestOIFV0ADRDecisionsDerivation`, `TestOIFV0ADRDecisionsRefusals` |
+| `OIF-V0-004` to `OIF-V0-006` | `adrDecisionsDerivation`, `adrDecisionsHeadings` | `TestOIFV0ADRDecisionsDerivation`, `TestOIFV0ADRDecisionsRefusals`, `TestOIFV0005ADRDecisionsHeadingVariants`, `TestOIFV0005ADRDecisionsHeadingRefusals` |
 | `OIF-V0-007`, `OIF-V0-008` | `roadmapAcceptanceDerivation` | `TestOIFV0RoadmapAcceptanceDerivation`, `TestOIFV0RoadmapAcceptanceRefusals` |
 | `OIF-V0-009` | `finishDerivation` | refusal tables above |
 | `OIF-V0-010` | `refuseDeclaredIntentForm` | `TestOIFV0LRFRefusesDeclaredForms` |
@@ -123,6 +134,7 @@ against a `## Requirements` intent.
 1. Should tickets without Acceptance stay excluded, or become obligations whose statement is the
    ticket line or its `**Verify:**` block?
 2. Should a caller be able to select one ticket or decision (for example `PATH#TICKET-ID`)?
-3. Should `adr-decisions` accept `## Decision` and `## 2. Decisions` as declared variants?
+3. Resolved: should `adr-decisions` accept `## Decision` and `## 2. Decisions` as declared variants?
+   Answered yes 2026-09-25 by owner delegation; closed variant list in `OIF-V0-005`.
 4. Should LRF evaluate declared forms, which needs an `internal/lrf` statement grammar per form?
 5. How should the dogfood wrapper pass a form through its intents file?

@@ -5726,3 +5726,17 @@ Beamfall) stay `NOT_RUN`.
 - Still partial: `AFU-V1-013` (repeated-run aggregation needs the `internal/doccorpus` stability
   counting exposed for `test-run-evidence/0`) and `AFU-V1-014` (the AFU-V0-010 observer observes
   flows, not tests, so it has no test key to emit a `LOCALLY_OBSERVED` record for).
+
+## 2026-09-25 OIF-V0-005: closed Decisions heading variants (open decision 3 answered)
+
+The owner delegated open decision 3 of `docs/specs/ocm-intent-forms-v0.md`, and the answer is yes.
+`adr-decisions` now reads exactly one unfenced heading from the closed set `## Decisions`,
+`## Decision`, `## 2. Decisions` and `## 2. Decision`. The fourth heading occurs once at Beamfall
+`2a8e06b28` and has the same `### 2.1` items as `## 2. Decisions`, so it is included. Two headings
+from the set, or any other shape such as `## Decisions:`, still fail `invalid-decisions-section`.
+The item grammar is unchanged. A scratch sweep of the 215 ADRs through the reader moved from
+89 derived, 113, 6 and 7 refused (the live run's numbers) to 99 derived (620 requirements), 49
+`invalid-decisions-section`, 42 `invalid-decision-item` (all 22 numbered-heading ADRs) and 25
+`missing-requirements` (18 `## Decision` ADRs have prose and no level-3 items). The failures stay
+visible and no item shape is guessed. The spec stays proposed. Corvint orientation found decision
+0386 by query and the spec, the test file and the OCM callers by path impact.

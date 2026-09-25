@@ -74,8 +74,6 @@ func TestOIFV0ADRDecisionsRefusals(t *testing.T) {
 		"dotted number":       {"---\nadr: 0001\n---\n## Decisions\n### 2.1 A\n", "invalid-decision-item"},
 		"indented item":       {"---\nadr: 0001\n---\n## Decisions\n ### 1. A\n", "invalid-decision-item"},
 		"two sections":        {"---\nadr: 0001\n---\n" + decisions + decisions, "invalid-decisions-section"},
-		"singular heading":    {"---\nadr: 0001\n---\n## Decision\n### 1. A\n", "invalid-decisions-section"},
-		"numbered heading":    {"---\nadr: 0001\n---\n## 2. Decisions\n### 1. A\n", "invalid-decisions-section"},
 		"fenced section only": {"---\nadr: 0001\n---\n```\n## Decisions\n### 1. A\n```\n", "invalid-decisions-section"},
 		"no front matter":     {decisions, "invalid-adr-number"},
 		"two adr lines":       {"---\nadr: 0001\nadr: 0002\n---\n" + decisions, "invalid-adr-number"},
@@ -89,6 +87,39 @@ func TestOIFV0ADRDecisionsRefusals(t *testing.T) {
 			_, err := deriveIntent(IntentFormADR, "docs/adr/0001-x.md", "0123456789abcdef", []byte(test.data))
 			if got := CodeOf(err); got != test.code {
 				t.Fatalf("code=%q want=%q err=%v", got, test.code, err)
+			}
+		})
+	}
+}
+
+func TestOIFV0005ADRDecisionsHeadingVariants(t *testing.T) {
+	for _, heading := range []string{"## Decisions", "## Decision", "## 2. Decisions", "## 2. Decision"} {
+		t.Run(heading, func(t *testing.T) {
+			data := "---\nadr: 0001\n---\n" + heading + "\n\n### 1. A\n\n## Consequences\n"
+			derived, err := deriveIntent(IntentFormADR, "docs/adr/0001-x.md", "0123456789abcdef", []byte(data))
+			if err != nil || !reflect.DeepEqual(derived.requirements, []string{"ADR-0001-D1"}) {
+				t.Fatalf("requirements=%v err=%v", derived.requirements, err)
+			}
+			if string(derived.scope) != heading+"\n\n### 1. A\n\n" {
+				t.Fatalf("scope=%q", derived.scope)
+			}
+		})
+	}
+}
+
+func TestOIFV0005ADRDecisionsHeadingRefusals(t *testing.T) {
+	cases := map[string]string{
+		"trailing colon":     "## Decisions:\n### 1. A\n",
+		"level-3 heading":    "### Decisions\n### 1. A\n",
+		"annotated heading":  "## Decision (proposed)\n### 1. A\n",
+		"other number":       "## 3. Decisions\n### 1. A\n",
+		"duplicate variants": "## Decision\n### 1. A\n## Decisions\n### 2. B\n",
+	}
+	for name, section := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := deriveIntent(IntentFormADR, "docs/adr/0001-x.md", "0123456789abcdef", []byte("---\nadr: 0001\n---\n"+section))
+			if got := CodeOf(err); got != "invalid-decisions-section" {
+				t.Fatalf("code=%q err=%v", got, err)
 			}
 		})
 	}
