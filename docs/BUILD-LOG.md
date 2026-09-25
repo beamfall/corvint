@@ -6247,3 +6247,18 @@ Change: `AFP-V0-016` text, decision 0390, the pointer in decision 0320 step 2, t
 owner, and the ruleset change waits for `doc-gates` on `main` (PR #212). Rollback: restore the
 bypass actor (`RepositoryRole` 5, `pull_request` mode) and drop `doc-gates` through the ruleset
 API.
+
+## 2026-09-25 V1-0277, V1-0278: flows docs fences and .git write refusal
+
+- V1-0277 (AFU-V1-033): `documentAnchors` now skips a `corvint-claim` anchor comment written inside
+  a fenced code block (`` ``` `` or `~~~`), backtick or tilde, so example anchors in hand-written
+  Markdown are never parsed as live claims. `fencedRanges`/`fenceMarker` compute the fence byte
+  ranges once per document; a match whose start falls inside one is ignored, not failed.
+  `TestAFUV1033AnchorParsing` gains a backtick-fenced and a tilde-fenced case, each asserting zero
+  claims and zero failures.
+- V1-0278 (AFU-V1-036): the shared `safePath` helper, used to confine `flows docs --page/--claims`
+  and `flows record` writes, now refuses any path whose first component is `.git`, case-folded. The
+  refusal is the named code `git-path-refused`, returned directly by `ReplaceConfined` (docs) and
+  `confinedName` (record) ahead of the generic path-shape message.
+  `TestAFUV1036DocsGitPathRefused` and `TestAFUV1RecordGitPathRefused` cover `--page`/`--claims` and
+  `record --output` respectively, each against a lowercase and a case-varied `.git` path.
