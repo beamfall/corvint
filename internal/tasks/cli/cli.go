@@ -24,6 +24,11 @@ import (
 // claim that any gate has run.
 const Version = "0.0.0-tcp01-unverified"
 
+// Build is the first-parent commit count of the Corvint commit this binary
+// was built from. cmd/corvint-tasks sets it from its -ldflags
+// "-X main.build=N" stamp (decision 0397); an unstamped build reports 0.
+var Build = "0"
+
 // Env is the process environment a command runs in.
 type Env struct {
 	afterRead func() // deterministic snapshot-move tests only
@@ -258,7 +263,7 @@ func helpResult() *wire.Result {
 
 func versionResult() *wire.Result {
 	o := wire.NewObject()
-	o.Set("version", wire.String(Version))
+	o.Set("version", wire.String(Version+"+build."+Build))
 	o.Set("goVersion", wire.String(runtime.Version()))
 	o.Set("slice", wire.String("TCP-01"))
 	o.Set("verification", wire.String("NOT_RUN"))

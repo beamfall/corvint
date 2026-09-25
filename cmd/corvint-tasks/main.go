@@ -10,7 +10,12 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/cli"
 )
 
+// build is the first-parent commit count of the built Corvint commit, stamped
+// with -ldflags "-X main.build=N" (decision 0397). An unstamped build reports 0.
+var build = "0"
+
 func main() {
+	cli.Build = build
 	cwd, err := os.Getwd()
 	if err != nil {
 		cwd = "."

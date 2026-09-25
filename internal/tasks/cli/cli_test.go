@@ -73,6 +73,13 @@ func TestTMV0008_AS07_HelpAndVersion(t *testing.T) {
 	if field(x.res.Items[0], "verification").Str != "NOT_RUN" {
 		t.Errorf("version must report verification NOT_RUN")
 	}
+	// Decision 0397: the version label carries the -ldflags build stamp.
+	defer func(build string) { cli.Build = build }(cli.Build)
+	cli.Build = "7"
+	x = atm(t, r.Root, nil, "version")
+	if got := field(x.res.Items[0], "version").Str; got != cli.Version+"+build.7" {
+		t.Errorf("version %q does not carry the build stamp", got)
+	}
 	// B3 resolution (§3.3): commands that probe no store emit snapshot null:
 	// usage errors before any read, and archive verify of a stream.
 	for _, args := range [][]string{{"ticket"}, {"archive"}, {"frobnicate"}, {"ticket", "list", "--limit", "0"}} {

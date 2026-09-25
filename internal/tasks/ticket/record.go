@@ -141,14 +141,7 @@ type Record struct {
 	UpdatedBy            string
 }
 
-var recordKeys = []string{
-	"profile", "ticketId", "revision", "acceptanceRevision", "previousRecordSha256", "status",
-	"archivedFrom", "title", "body", "kind", "owner", "milestone", "priority", "order", "labels",
-	"dependencies", "acceptanceCriteria", "requirementRefs", "source", "effects", "capabilities",
-	"requiredGates", "holds", "executionClass", "approvals", "completion", "dueDate",
-	"estimateMinutes", "supersedes", "supersededBy", "shadowOverlay", "createdAt", "updatedAt",
-	"updatedBy",
-}
+var recordKeys = wire.TicketRecordKeys
 
 // Decode parses and validates one ticket record file (canonical bytes with
 // trailing LF, ≤128 KiB).
