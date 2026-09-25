@@ -51,9 +51,9 @@ func TestAggregateFindsNoLinkedRequirements(t *testing.T) {
 		linked   []int
 		findings string
 	}{
-		{"OCM-V0-016 zero of N linked", []int{0, 0}, `"findings":[{"code":"no-requirements-linked","message":"0 of 3 declared requirements are linked to the change"}],`},
-		{"OCM-V0-016 some of N linked", []int{1, 0}, ""},
-		{"OCM-V0-016 N of N linked", []int{2, 1}, ""},
+		{name: "OCM-V0-016 zero of N linked", linked: []int{0, 0}, findings: `"findings":[{"code":"no-requirements-linked","message":"0 of 3 declared requirements are linked to the change"}],`},
+		{name: "OCM-V0-016 some of N linked", linked: []int{1, 0}},
+		{name: "OCM-V0-016 N of N linked", linked: []int{2, 1}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
