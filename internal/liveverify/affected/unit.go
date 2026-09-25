@@ -54,6 +54,8 @@ const MaxPathsPerUnit = 20_000
 // root-locating call or a literal that climbs out of its package; AFP-V0-012
 // rule (d)); LocatesRoot reports that a non-test file is the cause, so every
 // unit that compiles this one is unbounded too.
+// Frontier holds the sorted, unique reasons that bear only on this unit: the
+// plan names them only when the unit is reached (V1-0289).
 // TestImports name the units only the unit's own tests import. A change there
 // selects the unit's tests but reaches no importer of the unit, because an
 // importer never compiles another unit's tests (`go list -deps -test`).
@@ -68,13 +70,14 @@ type Unit struct {
 	Embeds            bool     `json:"embeds,omitempty"`
 	UnboundedReads    string   `json:"unboundedReads,omitempty"`
 	LocatesRoot       bool     `json:"locatesRoot,omitempty"`
+	Frontier          []string `json:"frontier,omitempty"`
 }
 
 // Result is what one Language plugin observed for a repository.
 //
 // Frontier carries the reason codes for everything the plugin could not resolve
-// exactly. A non-empty frontier widens the plan's scope to UNKNOWN rather than
-// silently narrowing selection.
+// exactly. A non-empty frontier widens the scope of every plan the plugin takes
+// part in to UNKNOWN rather than silently narrowing selection.
 type Result struct {
 	Units    []Unit
 	Frontier []string
@@ -93,6 +96,13 @@ type Language interface {
 	Owns(path string) bool
 	// Units observes the repository rooted at the absolute path root.
 	Units(root string) (Result, error)
+}
+
+// PathReader is implemented by a plugin that records path tokens, so that its
+// units read any dirty path (AFP-V0-021, rule (d)). Its frontier then takes
+// part in every plan with a dirty path, whichever plugin owns it.
+type PathReader interface {
+	ReadsAnyPath() bool
 }
 
 func validUnit(unit Unit, namespace string) error {
@@ -115,6 +125,9 @@ func validUnit(unit Unit, namespace string) error {
 		return err
 	}
 	if err := validIdentifierList(unit.TestImports); err != nil {
+		return err
+	}
+	if err := validIdentifierList(unit.Frontier); err != nil {
 		return err
 	}
 	return validIdentifierList(unit.PathTokens)

@@ -546,3 +546,35 @@ func TestChangeEvidenceReadersAreNarrowed_V1_0230(t *testing.T) {
 		}
 	}
 }
+
+// V1-0289: every build variant's imports are edges, so a constrained file
+// raises a frontier on its own package only, named by a plan that reaches it.
+func TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                  "module example.test/m\n",
+		"variant/linux.go":        "//go:build linux\n\npackage variant\n\nimport _ \"example.test/m/core\"\n",
+		"variant/variant_test.go": "package variant\n",
+		"core/core.go":            "package core\n",
+		"core/core_test.go":       "package core\n",
+		"plain/plain.go":          "package plain\n",
+		"plain/plain_test.go":     "package plain\n",
+	})
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if frontier := graph.Frontier(); len(frontier) != 0 {
+		t.Fatalf("graph frontier = %v, want none", frontier)
+	}
+	cases := []struct{ dirty, want string }{
+		{"plain/plain.go", "BOUNDED [] [plain/plain_test.go]"},
+		{"core/core.go", "UNKNOWN [{LANGUAGE_FRONTIER go:build-constraint-variants}] [core/core_test.go variant/variant_test.go]"},
+	}
+	for _, tc := range cases {
+		plan := affected.Select(graph, []string{tc.dirty})
+		if got := fmt.Sprint(plan.Scope, " ", plan.Unknown, " ", plan.SelectedTests()); got != tc.want {
+			t.Errorf("%s: %s, want %s", tc.dirty, got, tc.want)
+		}
+	}
+}

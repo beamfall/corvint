@@ -67,6 +67,17 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   stay, so `plan.scope` stays `UNKNOWN`. This replaces the former exclusion reason
   `UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED`, which named the package that lost a file
   but left it and its importers unselected. Rollback restores that reason.
+  (proposed, decision 0398; V1-0289) A plugin's frontier reason MUST be a `LANGUAGE_FRONTIER`
+  entry of every plan the plugin takes part in, and only of those: a plugin takes part when it
+  owns a dirty path (a unit of it declares the path, or its `Owns` claims it), when it owns a
+  reached unit, when its units read any path (`affected.PathReader`; the Go plugin, whose path
+  tokens and rule (d) reads mean a unit it could not observe may read any dirty path), and every
+  plugin takes part once a dirty path is owned by none or no path is dirty. A reason that bears only on one unit is that unit's sorted `frontier` member, covered
+  by the graph digest, and is named only by a plan that reaches the unit. The Go plugin's
+  `go:build-constraint-variants` is such a reason, because every variant's imports are edges, so
+  the closure is a superset of each variant's; every other plugin reason stays plugin-wide,
+  because it hides edges or units of that plugin. Rollback names every graph frontier reason in
+  every plan again.
 - **AFP-V0-005:** For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
   runs; with `--base`, the base commit is part of that fixed input.
 - **AFP-V0-006:** Failures MUST exit 2 with a typed code on stderr and no partial document:
@@ -178,8 +189,8 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   `selected <pkg>`, `frontier <pkg> <- <path>`, `data <path>`, `reader <pkg> <- <path>`,
   `unresolved <pkg>: <reason>`, and the `run <command> <packages>` line) so a narrowed run can be
   checked afterwards. The steady-state frontiers `go:build-constraint-variants` and
-  `go:nested-module-frontier` do not fall back: they are present on every clean tree here and name
-  packages the selector never claims. The fast tier is not the push gate: `make gate` is unchanged
+  `go:nested-module-frontier` do not fall back: one or both are present on nearly every change here
+  and name packages the selector never claims. The fast tier is not the push gate: `make gate` is unchanged
   and stays the mandatory check (AFP-V0-009 keeps advising it). The selector MUST refuse a plan
   file above 8 MiB before JSON decoding, so external plan input cannot consume unbounded memory.
 - **AFP-V0-012:** (decision 0131) The fast tier's selector MUST attribute every dirty path from a
@@ -464,7 +475,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-001 | `cmd/corvint/affected.go` `compileAffected` | `TestAffectedCleanTreeSelectsNothingAndWritesNothing` compares `git status --porcelain --ignored` before and after |
 | AFP-V0-002 | `internal/liveverify/affected/dirty.go` | `TestDecodeStatusFailsClosedOnMalformedInput`; `TestAffectedRejectsNonRepositoryAndExtraArguments` |
 | AFP-V0-003 | `affectedReceipt`, `providerGoPackages` | `TestAffectedDirtyGoSourceSelectsDependentsAsProviderPackages` |
-| AFP-V0-004 | `affected.Select` scope and exclusion-reason rules; `goStructure`, `goSourceRule`, `goDataRule`, `WitnessEnclosingPackage` in `internal/liveverify/affected/structure.go`; `Unit.Embeds` and absent in-module import edges (`resolved`, `underModule`) in the Go plugin | `TestAffectedUnownedDirtyPathIsUnknownScope`, `TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340`, `TestUnownedDirtyPathSelectsItsPackageAndImporters_V1_0340` (an embedded asset, a nested fixture, a file directly in a package and a deleted package each select their package or importers; an unrelated package stays excluded); provider wire unchanged (`go-live-test-provider-v0.md` GLTP-V0-006) |
+| AFP-V0-004 | `affected.Select` scope and exclusion-reason rules; `goStructure`, `goSourceRule`, `goDataRule`, `WitnessEnclosingPackage` in `internal/liveverify/affected/structure.go`; `Unit.Embeds` and absent in-module import edges (`resolved`, `underModule`) in the Go plugin | `TestAffectedUnownedDirtyPathIsUnknownScope`, `TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340`, `TestUnownedDirtyPathSelectsItsPackageAndImporters_V1_0340` (an embedded asset, a nested fixture, a file directly in a package and a deleted package each select their package or importers; an unrelated package stays excluded); `frontierUnknowns`, `participants`, `claimantsOf`, `PathReader`, `Unit.Frontier` (V1-0289) with `TestFrontierBearsOnlyOnThePlansItTakesPartIn_V1_0289` (another plugin's change, a clean plan and an unreached unit name no frontier; an unowned path and a path-reading plugin take part) and `TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289`; provider wire unchanged (`go-live-test-provider-v0.md` GLTP-V0-006) |
 | AFP-V0-005 | canonical JSON via `gokernel.CanonicalJSON` | byte-identity assertion in the dirty-source test |
 | AFP-V0-006 | `runAffected` error paths; `affected.ErrWalkUnreadable`; `affected.ErrWalkUnrepresentable` | `TestAffectedRejectsNonRepositoryAndExtraArguments`; `TestAffectedUnreadableSubtreeFailsClosed`; `TestSourceFilesRefusesAnUnrepresentableAcceptedName` |
 | AFP-V0-007 | `Graph.rank`, `Graph.proximity` in `internal/liveverify/affected/select.go` | `TestSelectOrdersByDistanceThenSharedDirectoryThenUnitID` (order and two-run byte identity) |

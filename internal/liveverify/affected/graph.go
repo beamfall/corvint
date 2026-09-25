@@ -24,6 +24,7 @@ type Graph struct {
 	claimants  map[string]Language
 	languages  []string
 	frontier   []string
+	frontierBy map[string][]string
 	digest     string
 }
 
@@ -48,6 +49,7 @@ func Build(root string, languages ...Language) (*Graph, error) {
 		dependents: make(map[string][]string),
 		testUsers:  make(map[string][]string),
 		claimants:  make(map[string]Language),
+		frontierBy: make(map[string][]string),
 	}
 	seenLanguage := make(map[string]bool, len(languages))
 	frontier := make(map[string]bool)
@@ -64,8 +66,13 @@ func Build(root string, languages ...Language) (*Graph, error) {
 		if err != nil {
 			return nil, fmt.Errorf("language %s: %w", name, err)
 		}
-		if err := graph.admit(name, result, frontier); err != nil {
+		own := make(map[string]bool)
+		if err := graph.admit(name, result, own); err != nil {
 			return nil, err
+		}
+		graph.frontierBy[name] = sortedKeys(own)
+		for reason := range own {
+			frontier[reason] = true
 		}
 	}
 	sort.Strings(graph.languages)

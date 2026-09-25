@@ -129,11 +129,7 @@ func Select(graph *Graph, dirty []string) Plan {
 		Excluded:    []Exclusion{},
 		Unknown:     []Unknown{},
 	}
-	for _, reason := range graph.frontier {
-		plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: reason})
-	}
 	seeds, unknown := graph.seed(normalized)
-	plan.Unknown = append(plan.Unknown, unknown...)
 	changed, traversed, enclosing := graph.goStructure(normalized)
 	mergeWitnesses(seeds, changed)
 	start := make(map[string]Witness, len(seeds)+len(traversed))
@@ -144,6 +140,7 @@ func Select(graph *Graph, dirty []string) Plan {
 	mergeWitnesses(reached, enclosing)
 	graph.readers(reached, normalized)
 	graph.unboundedReadersOf(reached, normalized)
+	plan.Unknown = append(graph.frontierUnknowns(reached, normalized), unknown...)
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
 	for _, id := range graph.order {
 		unit := graph.units[id]
@@ -256,6 +253,75 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 		seeds[id] = Witness{Kind: graph.witnessKind(id, path), DirtyPath: path, Via: []string{id}}
 	}
 	return seeds, unknown
+}
+
+// frontierUnknowns names, in reason order, the frontier of every plugin that
+// takes part in the plan and the unit frontier of every reached unit
+// (V1-0289). A clean plan takes part in nothing and names none.
+func (graph *Graph) frontierUnknowns(reached map[string]Witness, dirty []string) []Unknown {
+	reasons := make(map[string]bool)
+	for _, name := range graph.participants(reached, dirty) {
+		for _, reason := range graph.frontierBy[name] {
+			reasons[reason] = true
+		}
+	}
+	for id := range reached {
+		for _, reason := range graph.units[id].Frontier {
+			reasons[reason] = true
+		}
+	}
+	unknown := make([]Unknown, 0, len(reasons))
+	for _, reason := range sortedKeys(reasons) {
+		unknown = append(unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: reason})
+	}
+	return unknown
+}
+
+// participants lists the plugins a plan with this dirty set takes part in: one
+// that owns a dirty path or a reached unit, one whose units read any path, and
+// every plugin once a dirty path is owned by none, since a path no plugin
+// claims may be an edge any of them could not resolve. An empty dirty set
+// shows no plugin's absence, so every plugin takes part in it.
+func (graph *Graph) participants(reached map[string]Witness, dirty []string) []string {
+	if len(dirty) == 0 {
+		return graph.languages
+	}
+	involved := make(map[string]bool)
+	for id := range reached {
+		name, _, _ := strings.Cut(id, ":")
+		involved[name] = true
+	}
+	for _, name := range graph.languages {
+		if reader, reads := graph.claimants[name].(PathReader); reads && reader.ReadsAnyPath() {
+			involved[name] = true
+		}
+	}
+	for _, path := range dirty {
+		claimed := graph.claimantsOf(path)
+		if len(claimed) == 0 {
+			return graph.languages
+		}
+		for _, name := range claimed {
+			involved[name] = true
+		}
+	}
+	return sortedKeys(involved)
+}
+
+// claimantsOf lists the plugins that own path: the namespace of the unit that
+// declares it, and every plugin whose Owns claims it.
+func (graph *Graph) claimantsOf(path string) []string {
+	claimed := make([]string, 0, 1)
+	if id, owned := graph.owner[path]; owned {
+		name, _, _ := strings.Cut(id, ":")
+		claimed = append(claimed, name)
+	}
+	for _, name := range graph.languages {
+		if graph.claimants[name].Owns(path) {
+			claimed = append(claimed, name)
+		}
+	}
+	return claimed
 }
 
 // unownedReason distinguishes a dirty path some plugin claims as its own source

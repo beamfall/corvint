@@ -34,8 +34,10 @@ import (
 
 // Frontier reasons this plugin can raise.
 const (
-	// FrontierBuildConstraint reports files excluded from the observed graph by
-	// a build constraint. Their imports are not edges in this graph.
+	// FrontierBuildConstraint reports a package with a file under a //go:build
+	// constraint. Every variant's imports are edges here, so the closure is a
+	// superset of each variant's; the reason is the unit's own and bears only
+	// on a plan that reaches it, whose tests one run exercises in one variant.
 	FrontierBuildConstraint = "go:build-constraint-variants"
 	// FrontierUnparsedSource reports a file the parser rejected.
 	FrontierUnparsedSource = "go:unparsed-source"
@@ -85,6 +87,10 @@ func New() Language { return Language{} }
 
 // Name is the plugin namespace.
 func (Language) Name() string { return "go" }
+
+// ReadsAnyPath reports that Go units carry path tokens and rule (d) reads, so a
+// unit this plugin could not observe may read any dirty path (V1-0289).
+func (Language) ReadsAnyPath() bool { return true }
 
 // Owns reports whether a path is Go source text. A file below a testdata
 // directory is fixture data, which the go tool never builds, so a change to it
@@ -158,7 +164,7 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 	importPaths := make(map[string]bool, 16)
 	testImportPaths := make(map[string]bool, 16)
 	names := make(map[string]bool, 16)
-	embeds := false
+	embeds, constrained := false, false
 	var reads unboundedReads
 	fileSet := token.NewFileSet()
 	for _, relative := range files {
@@ -167,9 +173,7 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 			frontier[FrontierUnparsedSource] = true
 			continue
 		}
-		if hasBuildConstraint(body) {
-			frontier[FrontierBuildConstraint] = true
-		}
+		constrained = constrained || hasBuildConstraint(body)
 		file, err := parser.ParseFile(fileSet, relative, body, parser.ImportsOnly)
 		if err != nil {
 			frontier[FrontierUnparsedSource] = true
@@ -223,7 +227,11 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 	if bounded {
 		names = nil
 	}
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot}, importPaths, testImportPaths, nil
+	var unitFrontier []string
+	if constrained {
+		unitFrontier = []string{FrontierBuildConstraint}
+	}
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier}, importPaths, testImportPaths, nil
 }
 
 // ignoredByGo reports a repository-relative directory the go tool's package
