@@ -2498,6 +2498,7 @@ bounded messages and unchanged unrelated misses. The Python oracle and manifest 
 The amendment is limited to the explicitly requested UX repair. The register does not select a
 GPK-V0-033 outcome by treating the candidate's bytes as authority; adjudication and a spec-authored
 discriminating corpus row remain required before promotion. DR-0031 above records the separately owned lane L evidence of false-anchor publication and cannot stand in for this diagnostic difference.
+On 2026-09-25 (V1-0274) the native hint for every `/case:` miss also appends the supported Go case anchor shapes, which widens this same OPEN stderr difference; the observed bytes above predate that suffix, and the status and promotion hold are unchanged.
 
 
 ### DR-0033 — `ocm link`: Go ignored the reader's invalid binding verdict
