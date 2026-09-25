@@ -150,6 +150,9 @@ func verifyUniverseOCM(ctx context.Context, repository *gitauth.Repository, cem 
 	if err := verifyOCMBinding(ctx, repository, cem, cemRaw, verified, document, options); err != nil {
 		return nil, nil, err
 	}
+	if err := refuseDeclaredIntentForm(document); err != nil {
+		return nil, nil, err
+	}
 	intentContext, err := verifyOCMIntent(ctx, repository, cem, document)
 	if err != nil {
 		return nil, nil, err
@@ -158,7 +161,7 @@ func verifyUniverseOCM(ctx context.Context, repository *gitauth.Repository, cem 
 	if err != nil {
 		return nil, nil, err
 	}
-	obligations, err := verifyObligations(document, cem, intentContext.requirements, intentContext.scope, anchors, claimPaths)
+	obligations, err := verifyObligations(document, cem, intentContext.requirements, intentContext.scope, intentContext.statements, anchors, claimPaths)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -14,7 +14,7 @@ Status: approved fixture implementation; final completion requires the exact nat
 
 ## Exact Corvint profile boundary
 
-The current code/documentation uses cem/0.2 and ocm/0.1-experimental; docs/DOGFOOD.md requires committed sidecar binding, clean-target checks and independent verifier agreement. OCM links prove structural traceability only. Current CEM status reports ready-for-ci (internal/cem/workflow/read.go:74) and OCM reports ready-for-review (cmd/corvint/ocm.go:141). The task-store SPEC 7.3 row 10 phrase cem-status:ready is not an adequate executable status mapping. Before implementing it, pin precise wire/report schemas and status vocabulary, including local policy report-set review, outcome recording and satisfied lifecycle; do not substitute a single linked or ready-for-review label for completion. Local Corvint satisfaction does not itself qualify the task executor.
+The current code/documentation uses cem/0.2 and ocm/0.1-experimental; docs/DOGFOOD.md requires committed sidecar binding, clean-target checks and independent verifier agreement. OCM links prove structural traceability only. Current CEM status reports ready-for-ci (internal/cem/workflow/read.go:74) and OCM reports ready-for-review (cmd/corvint/ocm.go:142). The task-store SPEC 7.3 row 10 phrase cem-status:ready is not an adequate executable status mapping. Before implementing it, pin precise wire/report schemas and status vocabulary, including local policy report-set review, outcome recording and satisfied lifecycle; do not substitute a single linked or ready-for-review label for completion. Local Corvint satisfaction does not itself qualify the task executor.
 
 ## Implemented fixture boundary
 

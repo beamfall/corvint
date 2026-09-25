@@ -1508,6 +1508,24 @@
     ]
   },
   {
+    "path": "docs/specs/ocm-intent-forms-v0.md",
+    "title": "OCM intent forms V0",
+    "reqPrefix": "OIF-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "`ocm prepare --intent-form` lets an OCM intent be an ADR's numbered decisions or a roadmap shard's Acceptance tickets instead of only a `## Requirements` spec.",
+    "dependsOn": [
+      "docs/specs/ocm-v0-dogfood.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/lrfrepo/ocm_forms.go",
+      "internal/lrfrepo/ocm_forms_test.go",
+      "cmd/corvint/ocm.go"
+    ]
+  },
+  {
     "path": "docs/specs/optional-artifact-check-scripts-v0.md",
     "title": "Optional artifact check scripts V0",
     "reqPrefix": "OACS-V0",

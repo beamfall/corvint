@@ -262,6 +262,9 @@ type PrepareOptions struct {
 	ExpectedBase string
 	Replace      bool
 	MaxUnknown   *int
+	// IntentForm is the declared OIF-V0 intent form; "" is the default
+	// `## Requirements` form (experimental).
+	IntentForm string
 }
 
 // DefaultOCMMapPath is the oracle's default OCM map location.
@@ -282,7 +285,9 @@ type PrepareResult struct {
 	IntentScope  map[string]any
 	Resumed      bool
 	Requirements []string
-	StatusAction []any
+	// ExcludedTickets lists roadmap tickets without an Acceptance line.
+	ExcludedTickets []string
+	StatusAction    []any
 }
 
 // PrepareOCM creates or safely resumes the local OCM reviewer artifact. It is
@@ -309,7 +314,7 @@ func PrepareOCM(ctx context.Context, root string, options PrepareOptions) (*Prep
 	if err != nil {
 		return nil, err
 	}
-	candidate, requirements, target, err := beginOCM(ctx, repository, cem, cemRaw, options)
+	candidate, derived, target, err := beginOCM(ctx, repository, cem, cemRaw, options)
 	if err != nil {
 		return nil, err
 	}
@@ -335,46 +340,47 @@ func PrepareOCM(ctx context.Context, root string, options PrepareOptions) (*Prep
 		StatusAction: prepareStatusAction(ctx, repository, cem, options),
 		Document:     document, MapAbsolute: written,
 		CEMAbsolute: absoluteInput(inputRoot.Path(), options.CEMPath),
-		Target:      target, IntentScope: scope, Resumed: resumed, Requirements: requirements,
+		Target:      target, IntentScope: scope, Resumed: resumed, Requirements: derived.requirements,
+		ExcludedTickets: derived.excluded,
 	}, nil
 }
 
 // beginOCM builds the deterministic candidate: every exact requirement in the
 // intent scope becomes one visibly unknown obligation.
-func beginOCM(ctx context.Context, repository *gitauth.Repository, cem *wire.Map, cemRaw []byte, options PrepareOptions) (wire.Value, []string, string, error) {
+func beginOCM(ctx context.Context, repository *gitauth.Repository, cem *wire.Map, cemRaw []byte, options PrepareOptions) (wire.Value, intentDerivation, string, error) {
 	// A canonical CEM binds both endpoints, so the caller must name the target by
 	// full object id; a ref could move between this call and the next.
 	if cem.Spec == wire.Spec02 && !fullObjectID(options.Target) {
-		return wire.Value{}, nil, "", &Error{Code: "invalid-target-revision", Message: "target must be a full commit OID"}
+		return wire.Value{}, intentDerivation{}, "", &Error{Code: "invalid-target-revision", Message: "target must be a full commit OID"}
 	}
 	verified, err := verifyPrepareCEM(ctx, repository, cem, cemRaw, options)
 	if err != nil {
-		return wire.Value{}, nil, "", err
+		return wire.Value{}, intentDerivation{}, "", err
 	}
 	target, err := repository.Resolve(ctx, options.Target)
 	if err != nil {
-		return wire.Value{}, nil, "", err
+		return wire.Value{}, intentDerivation{}, "", err
 	}
 	reader := &ocmBlobReader{ctx: ctx, repository: repository, cache: map[string][]byte{}}
 	entry, exists, err := repository.LookupTreeEntry(ctx, target, options.IntentPath)
 	if err != nil {
-		return wire.Value{}, nil, "", err
+		return wire.Value{}, intentDerivation{}, "", err
 	}
 	if !exists || entry.Type != "blob" {
-		return wire.Value{}, nil, "", fail("repository-object-unavailable", "repository object unavailable")
+		return wire.Value{}, intentDerivation{}, "", fail("repository-object-unavailable", "repository object unavailable")
 	}
 	blob, err := reader.blob(target, options.IntentPath, entry.OID)
 	if err != nil {
-		return wire.Value{}, nil, "", err
+		return wire.Value{}, intentDerivation{}, "", err
 	}
-	intent, requirements, _, err := requirementsFromBlob(options.IntentPath, entry.OID, blob)
+	derived, err := deriveIntent(options.IntentForm, options.IntentPath, entry.OID, blob)
 	if err != nil {
-		return wire.Value{}, nil, "", err
+		return wire.Value{}, intentDerivation{}, "", err
 	}
 	if err := enforceBootstrap(ctx, repository, cem, options.IntentPath); err != nil {
-		return wire.Value{}, nil, "", err
+		return wire.Value{}, intentDerivation{}, "", err
 	}
-	return buildOCMCandidate(target, intent, requirements, sha256Hex(cemRaw), sha256Hex(verified.patch)), requirements, target, nil
+	return buildOCMCandidate(target, derived.intent, derived.requirements, sha256Hex(cemRaw), sha256Hex(verified.patch)), derived, target, nil
 }
 
 func verifyPrepareCEM(ctx context.Context, repository *gitauth.Repository, cem *wire.Map, cemRaw []byte, options PrepareOptions) (*verifiedCEM, error) {
@@ -418,15 +424,7 @@ func buildOCMCandidate(target string, intent ocmIntent, requirements []string, m
 	return objectValue(
 		[2]any{"spec", stringValue(ocmSpec)},
 		[2]any{"targetRevision", stringValue(target)},
-		[2]any{"intentScope", objectValue(
-			[2]any{"path", stringValue(intent.path)},
-			[2]any{"blobOid", stringValue(intent.blobOID)},
-			[2]any{"span", objectValue(
-				[2]any{"start", intValue(intent.start)},
-				[2]any{"end", intValue(intent.end)},
-			)},
-			[2]any{"spanSha256", stringValue(intent.spanSHA256)},
-		)},
+		[2]any{"intentScope", intentScopeValue(intent)},
 		[2]any{"cem", objectValue(
 			[2]any{"mapSha256", stringValue(mapSHA256)},
 			[2]any{"patchSha256", stringValue(patchSHA256)},
@@ -434,6 +432,24 @@ func buildOCMCandidate(target string, intent ocmIntent, requirements []string, m
 		[2]any{"claims", emptyArray()},
 		[2]any{"obligations", wire.Value{Kind: wire.KindArray, Arr: obligations}},
 	)
+}
+
+// intentScopeValue writes the form member only for a declared non-default form,
+// so a default-form map keeps its exact OCM-V0 bytes.
+func intentScopeValue(intent ocmIntent) wire.Value {
+	pairs := [][2]any{
+		{"path", stringValue(intent.path)},
+		{"blobOid", stringValue(intent.blobOID)},
+		{"span", objectValue(
+			[2]any{"start", intValue(intent.start)},
+			[2]any{"end", intValue(intent.end)},
+		)},
+		{"spanSha256", stringValue(intent.spanSHA256)},
+	}
+	if intent.form != "" {
+		pairs = append(pairs, [2]any{"form", stringValue(intent.form)})
+	}
+	return objectValue(pairs...)
 }
 
 // resumeOrReplace applies the oracle's resume rules. An existing map that binds
@@ -549,10 +565,14 @@ func decodeIntentScope(document wire.Value) (map[string]any, error) {
 	path, _ := scope.Obj.Get("path")
 	blob, _ := scope.Obj.Get("blobOid")
 	digest, _ := scope.Obj.Get("spanSha256")
-	return map[string]any{
+	decoded := map[string]any{
 		"path": path.Str, "blobOid": blob.Str, "spanSha256": digest.Str,
 		"span": map[string]any{"start": start.Int, "end": end.Int},
-	}, nil
+	}
+	if form, declared := scope.Obj.Get("form"); declared {
+		decoded["form"] = form.Str
+	}
+	return decoded, nil
 }
 
 // prepareStatusAction renders the exact follow-up command the oracle prints. A

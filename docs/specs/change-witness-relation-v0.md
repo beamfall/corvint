@@ -63,10 +63,10 @@ Every statement below was opened in the tree at this date; the citation is where
   `"cem-lexical-v0"` (`internal/lrf/evaluate.go:211`, `internal/frontier/closure.go:191`). This
   document follows that convention.
 - **The OCM intent scope is resolved at the target revision, not the base.**
-  `internal/lrfrepo/ocm.go:444` reads the intent blob with `reader.blob(document.target, ...)`. A
+  `internal/lrfrepo/ocm.go:457` reads the intent blob with `reader.blob(document.target, ...)`. A
   change set therefore supplies its own requirement text.
 - **A partial guard against that already exists, and it is narrower than it looks.**
-  `enforceBootstrap` (`internal/lrfrepo/ocm.go:680-699`) fires only when the intent path does **not**
+  `enforceBootstrap` (`internal/lrfrepo/ocm.go:704-723`) fires only when the intent path does **not**
   exist at `cem.BaseRevision`, and then requires that path's hunk to stay `unknown`. An intent path
   that exists at base and is *modified* by the change set passes with any disposition. So a caller
   may rewrite an existing requirement to describe whatever it happened to change.
@@ -144,7 +144,7 @@ Every statement below was opened in the tree at this date; the citation is where
   applied to the object being witnessed rather than to a cited authority: a caller who writes the
   requirement and the change in one change set is a caller on both sides, and a signature, a clean
   worktree, or the OCM artifact's own validity cannot upgrade that, because all of them are inside
-  the authored bytes. `enforceBootstrap` (`internal/lrfrepo/ocm.go:680-699`) already implements the
+  the authored bytes. `enforceBootstrap` (`internal/lrfrepo/ocm.go:704-723`) already implements the
   absent-at-base half of this for the introduced-document case; this clause generalizes it to
   modification and moves the consequence from "the hunk must stay unknown" to "the witness is
   withheld".

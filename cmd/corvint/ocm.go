@@ -24,6 +24,7 @@ type ocmCLIOptions struct {
 	claims        []string
 	reason        string
 	intent        string
+	intentForm    string
 	replace       bool
 	mapPath       string
 	cemPath       string
@@ -384,7 +385,7 @@ func parseOCMPrepareFlags(result ocmCLIOptions, arguments []string) (ocmCLIOptio
 		target := map[string]*string{
 			"--target": &result.target, "--expected-base": &result.expectedBase,
 			"--intent": &result.intent, "--cem": &result.cemPath, "--map": &result.mapPath,
-			"--max-unknown": new(string),
+			"--max-unknown": new(string), "--intent-form": &result.intentForm,
 		}[name]
 		if target == nil {
 			unrecognized = append(unrecognized, arguments[index])
@@ -422,15 +423,27 @@ func parseOCMPrepareFlags(result ocmCLIOptions, arguments []string) (ocmCLIOptio
 	if len(unrecognized) != 0 {
 		return result, argumentError("unrecognized arguments: " + strings.Join(unrecognized, " "))
 	}
+	form, known := ocmIntentForms[result.intentForm]
+	if !known {
+		return result, argumentError("argument --intent-form: invalid choice: " + result.intentForm)
+	}
+	result.intentForm = form
 	result.expectedGiven = present["--expected-base"]
 	return result, nil
+}
+
+// ocmIntentForms maps each experimental OIF-V0 --intent-form choice to the
+// library form; requirements and an absent flag are the default form.
+var ocmIntentForms = map[string]string{
+	"": "", "requirements": "", lrfrepo.IntentFormADR: lrfrepo.IntentFormADR,
+	lrfrepo.IntentFormRoadmap: lrfrepo.IntentFormRoadmap,
 }
 
 func runOCMPrepare(ctx context.Context, root string, options ocmCLIOptions, stdout, stderr io.Writer) int {
 	prepared, err := lrfrepo.PrepareOCM(ctx, root, lrfrepo.PrepareOptions{
 		MapPath: options.mapPath, CEMPath: options.cemPath, IntentPath: options.intent,
 		Target: options.target, ExpectedBase: options.expectedBase,
-		Replace: options.replace, MaxUnknown: options.maxUnknown,
+		Replace: options.replace, MaxUnknown: options.maxUnknown, IntentForm: options.intentForm,
 	})
 	if err != nil {
 		emitOCMInputOrError(stderr, err)
@@ -444,7 +457,7 @@ func runOCMPrepare(ctx context.Context, root string, options ocmCLIOptions, stdo
 			break
 		}
 	}
-	return emitOCMEnvelope(stdout, stderr, map[string]any{
+	envelope := map[string]any{
 		"ok": true, "mutates": true, "tool": "ocm-prepare",
 		"targetRevision": prepared.Target, "intentScope": prepared.IntentScope,
 		"map": prepared.MapAbsolute, "cem": prepared.CEMAbsolute, "resumed": prepared.Resumed,
@@ -453,7 +466,11 @@ func runOCMPrepare(ctx context.Context, root string, options ocmCLIOptions, stdo
 		// prepare reports observed alongside state; the read actions report only
 		// state. The oracle differs the same way.
 		"testExecution": map[string]any{"observed": false, "state": "NOT_RUN"},
-	})
+	}
+	if options.intentForm == lrfrepo.IntentFormRoadmap {
+		envelope["excludedTickets"] = append([]string{}, prepared.ExcludedTickets...)
+	}
+	return emitOCMEnvelope(stdout, stderr, envelope)
 }
 
 // parseOCMLinkFlags mirrors the oracle's link subparser. --hunk and --claim are

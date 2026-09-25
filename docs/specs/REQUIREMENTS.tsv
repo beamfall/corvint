@@ -1535,6 +1535,17 @@ OCM-V0-012	docs/specs/ocm-v0-dogfood.md	138	parsing, Git access, counts, spans, 
 OCM-V0-013	docs/specs/ocm-v0-dogfood.md	499	one dogfood change MAY declare an ordered set of pinned Markdown intent
 OCM-V0-014	docs/specs/ocm-v0-dogfood.md	146	the `ocm/0.1-experimental` wire profile MUST be frozen by the conformance suite
 OCM-V0-015	docs/specs/ocm-v0-dogfood.md	157	from 2026-09-22 the frozen `ocm/0.1-experimental` suite MUST pin every file unde
+OIF-V0-001	docs/specs/ocm-intent-forms-v0.md	51	`corvint ocm prepare` accepts `--intent-form FORM`, where FORM is exactly `requi
+OIF-V0-002	docs/specs/ocm-intent-forms-v0.md	52	A non-default form is recorded as the string member `intentScope.form`; the defa
+OIF-V0-003	docs/specs/ocm-intent-forms-v0.md	53	Every OCM read and write action re-derives requirements, span, and span digest f
+OIF-V0-004	docs/specs/ocm-intent-forms-v0.md	54	`adr-decisions` requires the blob's first line to be `---`, a later closing `---
+OIF-V0-005	docs/specs/ocm-intent-forms-v0.md	55	`adr-decisions` requires exactly one unfenced line equal to `## Decisions`; the
+OIF-V0-006	docs/specs/ocm-intent-forms-v0.md	56	Every unfenced level-3 ATX heading in the Decisions span must match `### N. text
+OIF-V0-007	docs/specs/ocm-intent-forms-v0.md	57	`roadmap-acceptance` treats each unfenced line that starts `- [c] `, with c one
+OIF-V0-008	docs/specs/ocm-intent-forms-v0.md	58	A ticket's body is the contiguous following lines that start with a space. Its A
+OIF-V0-009	docs/specs/ocm-intent-forms-v0.md	59	A declared form that yields no requirement fails `missing-requirements`, more th
+OIF-V0-010	docs/specs/ocm-intent-forms-v0.md	60	The `lrf` OCM leg and the change-universe (Frontier/TCQ) OCM surface refuse a ma
+OIF-V0-011	docs/specs/ocm-intent-forms-v0.md	61	The capability is experimental: help labels the flag experimental, and no releas
 PCCO-V0-001	docs/specs/proof-carrying-context-optimization-v0.md	65	An optimization trial MUST begin from one canonical Corvint packet whose exact b
 PCCO-V0-002	docs/specs/proof-carrying-context-optimization-v0.md	69	V0 transformations are only whole-handle omission, exact duplicate elimination,
 PCCO-V0-003	docs/specs/proof-carrying-context-optimization-v0.md	72	Counterfactual search MUST run outside live agent sessions using bounded hierarc
