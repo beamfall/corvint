@@ -29,6 +29,8 @@ a serial campaign is about six days of one runner.
    `ci-control-plane` checks. The only bypass actor is the repository admin role, in
    pull-request mode, so a change to `.github/` merges only through an explicit, logged admin
    bypass. The ruleset is created only after (1) is on `main`; before that, no PR could pass it.
+   Decision 0390 amends this step: `doc-gates` is also required, there is no bypass actor, and a
+   `.github/` change merges after an admin posts `ci-control-plane` `success` on its head SHA.
 3. Threat model: a fork PR's token is read-only and cannot post a status to the base repository;
    a same-repository branch is pushed by someone who already holds write access, which the
    ruleset does not claim to contain. Any status other than the workflow's own requires write

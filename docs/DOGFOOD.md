@@ -38,6 +38,11 @@ the current (and, for the check, base) tree first (`DCW-V0-022`). Elsewhere, rea
 `make dogfood-X BASE=$BASE` below as `corvint dogfood X $BASE`. The `fix:` and
 `required order:` lines the subverbs print name that subverb form in every repository (V1-0261).
 
+Run the loop in a clone that owns its objects. A `git clone --reference` or `--shared` clone borrows
+them through `.git/objects/info/alternates`, and every step refuses `unsupported-object-alternates`.
+To repair it, run `git repack -a -d`, delete `.git/objects/info/alternates` and
+`.git/objects/info/commit-graphs`, run `git commit-graph write --reachable`, then rerun (V1-0272).
+
 ### Inputs
 
 | Input | Exact format | Example |
