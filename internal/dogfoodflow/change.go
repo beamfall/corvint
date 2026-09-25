@@ -604,6 +604,7 @@ func (c *change) runOCMScopes() bool {
 		}, "ocm", "prepare", "--map", mapPath, "--cem", ".corvint/change.cem.json", "--intent", path, "--expected-base", c.base, "--target", c.target)
 		if prepared != 0 {
 			failed = true
+			c.skipOCMLinks(path)
 		} else if c.linksReady {
 			c.runOCMLinks(mapPath, path)
 		}
@@ -679,6 +680,16 @@ func (c *change) runOCMLinks(mapPath, path string) {
 			args = append(args, "--claim", claim)
 		}
 		c.runStep(name, c.evidence+"/"+name+".json", args...)
+	}
+}
+
+// skipOCMLinks reports each plan row naming an intent whose map did not
+// prepare, so no row is dropped without a reason (V1-0227).
+func (c *change) skipOCMLinks(path string) {
+	for index, line := range readLines(c.linkPlan) {
+		if strings.SplitN(line, "\t", 2)[0] == path {
+			c.addStep(fmt.Sprintf("ocm-link-%03d", index+1), "NOT_PRODUCED", "ocm-map-not-prepared")
+		}
 	}
 }
 
@@ -871,6 +882,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"ocm-links:ocm-link-plan-unavailable", "DOGFOOD_OCM_LINKS must be the path of a TSV file of INTENT<TAB>REQUIREMENT<TAB>HUNKS<TAB>TEST_PATH<TAB>CLAIMS rows, not the rows themselves"},
 	{"ocm-links:empty-ocm-link-plan", "DOGFOOD_OCM_LINKS names an empty file; add at least one row, or unset DOGFOOD_OCM_LINKS so every requirement stays unassessed"},
 	{"ocm-links:invalid-ocm-link-plan", "each DOGFOOD_OCM_LINKS row is INTENT<TAB>REQUIREMENT<TAB>HUNK[,HUNK...]<TAB>TEST_PATH<TAB>CLAIM[,CLAIM...], LF-terminated, at most 256 rows, and INTENT is listed in DOGFOOD_INTENTS_FILE"},
+	{"ocm-link-*:ocm-map-not-prepared", "the map for this row's intent did not prepare, so the row was not linked; fix that intent's ocm-prepare row above, then rerun corvint dogfood change {base}"},
 	{"ocm-link-*", "read {evidence}/{step}.stderr: each linked hunk must be cited in the committed sidecar, and each claim a test case or t.Run name at HEAD containing the exact requirement ID; otherwise delete the DOGFOOD_OCM_LINKS row so the requirement stays unassessed"},
 	{"ocm-aggregate:intent-scope-drift", "fix the ocm-prepare or ocm-status row above; otherwise the intents file changed during the run"},
 	{"*:unsupported-object-alternates", "the clone borrows objects through .git/objects/info/alternates (git clone --reference or --shared); run git repack -a -d, delete .git/objects/info/alternates and .git/objects/info/commit-graphs, run git commit-graph write --reachable, then rerun make dogfood-change"},

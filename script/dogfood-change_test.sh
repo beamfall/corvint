@@ -879,6 +879,13 @@ for _ in $(seq 257); do cat "$test_root/links-invalid/unlisted.tsv"; done |
   rg -q '"name": "ocm-aggregate", "status": "PRODUCED"' .corvint/dogfood-report.json
   printf '%s\n' "$links_output" | rg -q '^  ocm-link-004: claim-obligation-mismatch$'
   test "$(printf '%s\n' "$links_output" | rg -c '^    fix: read .*/ocm-link-00[24][.]stderr: ')" = 2
+  # V1-0227: a row whose intent map did not prepare is reported, not silently skipped.
+  links_output=$(DOGFOOD_TEST_OCM_PREPARE_CODE=invalid-requirements-section "${links_env[@]}" \
+    DOGFOOD_OCM_LINKS="$test_root/links.tsv" script/dogfood-change.sh "$base" 2>&1) && exit 1
+  test "$(rg -c ' ocm link ' "$test_root/links-corvint.log")" = 4
+  rg -qF '"name": "ocm-link-001", "status": "NOT_PRODUCED", "reason": "ocm-map-not-prepared"' .corvint/dogfood-report.json
+  rg -q '^  ocm-link-001: ocm-map-not-prepared$' <<< "$links_output"
+  rg -q '^    fix: the map for this row.s intent did not prepare' <<< "$links_output"
   # Validation rejects each malformed plan (the empty list item included) before any link.
   for plan in "$test_root"/links-invalid/*.tsv; do
     links_output=$("${links_env[@]}" DOGFOOD_OCM_LINKS="$plan" script/dogfood-change.sh "$base" 2>&1) && exit 1

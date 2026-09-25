@@ -610,6 +610,7 @@ DCW-V0-024	docs/specs/daily-change-evidence-workflow-v0.md	169	(V1-0259, owner d
 DCW-V0-025	docs/specs/daily-change-evidence-workflow-v0.md	187	(accepted 2026-09-25, decision 0388, V1-0264) The `coordination-time-impact` ste
 DCW-V0-026	docs/specs/daily-change-evidence-workflow-v0.md	206	(accepted 2026-09-25 by decision 0395, panel finding M1) `dogfood change` MUST N
 DCW-V0-027	docs/specs/daily-change-evidence-workflow-v0.md	222	(proposed 2026-09-25, V1-0137, not accepted) `dogfood seal` and
+DCW-V0-028	docs/specs/daily-change-evidence-workflow-v0.md	230	(proposed 2026-09-25, V1-0227, not accepted) When an intent's `ocm-prepare-NNN`
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map

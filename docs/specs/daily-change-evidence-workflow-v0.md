@@ -227,6 +227,11 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   Reason: a change started on a base that still tracked an unsealed CEM replaced it with
   `--replace`, and the seal then moved the replacement away, so the earlier CEM left the tree
   unarchived; the 6243-line 0.6.0 integration CEM was lost this way.
+- `DCW-V0-028`: (proposed 2026-09-25, V1-0227, not accepted) When an intent's `ocm-prepare-NNN`
+  row is NOT_PRODUCED, `dogfood change` MUST report every `DOGFOOD_OCM_LINKS` row naming that intent
+  as `ocm-link-NNN` NOT_PRODUCED `ocm-map-not-prepared`, NNN being its plan row, with a `fix:` line
+  naming the prepare row, and MUST NOT run `ocm link` for it.
+  Reason: those rows were skipped with no row, so the report did not say they were never linked.
 
 ## Code vocabulary
 
@@ -252,6 +257,8 @@ Base anchoring, refused by every subverb:
 - `cem-map-not-produced`: `cem cite` left no `.corvint/change.cem.json`.
 - `ocm-link-plan-unavailable`, `empty-ocm-link-plan`, `invalid-ocm-link-plan`: the
   `DOGFOOD_OCM_LINKS` plan is missing, empty, or malformed or over 256 rows.
+- `ocm-map-not-prepared`: the `ocm-link-NNN` row's intent map did not prepare, so the row was not
+  run (`DCW-V0-028`, proposed).
 - `no-intent-declared`: the change declared no intent (`DCW-V0-024`); the `ocm-prepare`,
   `ocm-status` and `ocm-aggregate` rows carry it and, unlike every other code here, it does not
   block `"complete": true`.
@@ -317,6 +324,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-025` | `internal/dogfoodflow/change.go` `prechangeImpact` and `failing`, `internal/dogfoodflow/check.go` `checkContextAbstention`, `internal/dogfoodflow/flow.go` `impactAbstentions`; `TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot` (built binary, real refusals: a repository with no Go module and a module-root Go change each complete with their own reason, check and seal); the DCW-V0-025 cases of `script/dogfood-change_test.sh` (both codes complete and check through the wrappers; each invalid shape reports its exact reason, `context-abstention-invalid`, `exit-7` or `unsupported-impact-path-suffix`; change and check print the NOTE line for all three codes) | implemented; accepted with the `GOC-V0-009` and `ERI-V0-006` amendments (decision 0388); a real Beamfall change NOT_OBSERVED |
 | `DCW-V0-026` | `internal/dogfoodflow/change.go` `run` and `prechangeImpact`, `internal/dogfoodflow/check.go` `checkContextAbstention`, `internal/localcompletion/finish.go` `terminalPaths`, `internal/observations/observations.go` `validDogfoodStep`; `TestChangeKeepsAgentPrechangeReceipts` | implemented; owner acceptance pending |
 | `DCW-V0-027` (proposed) | `internal/dogfoodflow/check.go` `unarchivedBaseCEM`, `script/dogfood-seal.sh`; `TestSealRefusesToDropAnUnarchivedBaseCEM`; the V1-0137 case of `script/dogfood-change_test.sh` | implemented; not accepted |
+| `DCW-V0-028` (proposed) | `internal/dogfoodflow/change.go` `skipOCMLinks`; the V1-0227 case of the link phase of `script/dogfood-change_test.sh` | implemented; not accepted |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 ## Compatibility and rollback

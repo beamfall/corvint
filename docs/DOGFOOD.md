@@ -105,7 +105,8 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
 7. Optionally link requirement evidence: rerun step 6 with `DOGFOOD_OCM_LINKS` naming the author's
    link plan, kept outside the repository. After each map is prepared, every row for that intent runs
    through `corvint ocm link` and reports `ocm-link-NNN`, where NNN is the plan row; a refused row
-   leaves that requirement unlinked, prints a `fix:` line, and later rows still run (`DCW-V0-018`).
+   leaves that requirement unlinked, prints a `fix:` line, and later rows still run (`DCW-V0-018`);
+   a row whose intent map did not prepare reports `ocm-link-NNN: ocm-map-not-prepared` (`DCW-V0-028`).
    A supplied plan that is missing, malformed or empty, or that has a refused row, blocks
    `"complete": true`. The report records the plan's `ocmLinkPlan` sha256 and row count. Export the
    same plan on every later pass, including the post-commit clean rerun (section 4), because each
