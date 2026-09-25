@@ -1279,3 +1279,19 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   textconv, which is not true of every env builder today. The fix touches the roughly thirty
   per-capability env builders, including `cmd/corvint` files that PR #218 (decision 0393) also
   changes, so it lands after that PR. Rollback: remove the classification, restoring Git's exit.
+
+## Proposed amendment: non-UTF-8 paths in query history
+
+- `GPK-V0-068`: (proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
+  refuse the whole repository with `unsupported-query-history` when any commit in the bounded
+  history names a path whose Git bytes are not UTF-8 (`parseHistory` in
+  `internal/contextindex/history.go`), although decision 0394 made such a path an index exclusion
+  everywhere else. Proposed: query learning leaves such a path out of its commit's path list, so
+  it contributes to no history match, no `history_digest` input, and no candidate, and the
+  commit's other paths answer as before; `unsupported-query-history` stays the code for every
+  other history failure. No existing digest moves, because every repository this changes is one
+  that refuses today. The Python oracle still refuses, so the change is a `python-defect` under
+  `GPK-V0-033`, registered in `conformance/divergence-register.md` with one declared oracle-only
+  case, and `src/` is not repaired. Owner decision needed: accept the skip (implemented on the
+  `skipNonUTF8` seam that PR #219 adds to `parseHistory`, so it lands after that PR) or keep the
+  refusal and close V1-0313. Rollback: pass `false` on the query path, restoring the refusal.
