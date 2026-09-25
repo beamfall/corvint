@@ -485,7 +485,7 @@ var dogfoodView = mustView(`{{define "body"}}
 <h2>Dogfood</h2>
 <div>No dogfood report exists in this repository, so the loop's state here is
 <b>NOT_OBSERVED</b>. That is an absent report, not a run that produced nothing and not a pass.
-Run <code>make dogfood-change BASE=&lt;sha&gt;</code> to produce one.</div>
+Run <code>corvint dogfood change &lt;sha&gt;</code> to produce one.</div>
 {{template "source" .Dogfood.Source}}
 </div>
 {{else if .Dogfood.Err}}
