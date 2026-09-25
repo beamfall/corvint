@@ -50,6 +50,10 @@ const (
 	// FrontierIncludedDirectoryWalkBounded reports an opted-in build directory
 	// whose independent entry bound was exhausted.
 	FrontierIncludedDirectoryWalkBounded = "go:included-directory-walk-bounded"
+	// FrontierWorkspaceModuleOutsideRoot reports a go.work use directive that
+	// names a directory outside the root. That module cannot be observed, so
+	// its packages and every import edge into them are absent from the graph.
+	FrontierWorkspaceModuleOutsideRoot = "go:workspace-module-outside-root"
 )
 
 // maxPathTokens bounds one package's distinct path tokens. A package over it
@@ -313,7 +317,7 @@ func relativeTo(directory, moduleDir string) string {
 // outside that set is a frontier, and its packages are dropped from the graph
 // rather than attributed to the module above them.
 func observeModules(root string, manifests []string, frontier map[string]bool) (map[string]module, error) {
-	listed, err := workspaceDirectories(root)
+	listed, err := workspaceDirectories(root, frontier)
 	if err != nil {
 		return nil, err
 	}
@@ -342,8 +346,8 @@ func observeModules(root string, manifests []string, frontier map[string]bool) (
 // workspaceDirectories lists the module directories the root's go.work uses,
 // or the root alone when there is no go.work. Only the use grammar is read: a
 // "use DIR" line or a "use (" block with one directory per line. A directory
-// outside the root cannot be observed and is skipped.
-func workspaceDirectories(root string) ([]string, error) {
+// outside the root cannot be observed; it is skipped and raised as a frontier.
+func workspaceDirectories(root string, frontier map[string]bool) ([]string, error) {
 	body, err := os.ReadFile(filepath.Join(root, "go.work"))
 	if errors.Is(err, fs.ErrNotExist) {
 		return []string{"."}, nil
@@ -360,12 +364,12 @@ func workspaceDirectories(root string) ([]string, error) {
 		case inBlock && fields[0] == ")":
 			inBlock = false
 		case inBlock:
-			directories = appendUse(directories, fields[0])
+			directories = appendUse(directories, fields[0], frontier)
 		case fields[0] != "use" || len(fields) != 2:
 		case fields[1] == "(":
 			inBlock = true
 		default:
-			directories = appendUse(directories, fields[1])
+			directories = appendUse(directories, fields[1], frontier)
 		}
 	}
 	if len(directories) == 0 {
@@ -381,11 +385,12 @@ func stripComment(line string) string {
 	return line
 }
 
-func appendUse(directories []string, value string) []string {
+func appendUse(directories []string, value string, frontier map[string]bool) []string {
 	cleaned := path.Clean(filepath.ToSlash(strings.Trim(value, "\"`")))
 	if cleaned == "." || affected.ValidRelativePath(cleaned) {
 		return append(directories, cleaned)
 	}
+	frontier[FrontierWorkspaceModuleOutsideRoot] = true
 	return directories
 }
 
