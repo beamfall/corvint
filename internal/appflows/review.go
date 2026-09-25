@@ -112,7 +112,7 @@ func (r *reviewer) state(intentPath string, link FlowLink) string {
 	if !r.changed(anchor, intentPath) {
 		return ReviewNotIntentChange
 	}
-	if !slices.ContainsFunc(r.anchorLinks(anchor, intentPath), func(l FlowLink) bool { return l.From == link.From && l.Target == link.Target }) {
+	if !slices.ContainsFunc(r.anchorLinks(anchor, intentPath), func(l FlowLink) bool { return l.From == link.From && l.Target == link.Target && l.Basis == "declared" }) {
 		return ReviewLinkNotAtAnchor
 	}
 	return r.targetState(anchor, link.Target)

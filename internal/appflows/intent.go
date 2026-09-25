@@ -212,6 +212,9 @@ func decodeRetired(raw []byte, out *Retired) error {
 }
 
 func (s *IntentSet) validate() error {
+	if len(s.Flows) > MaxFlows {
+		return fmt.Errorf("flows directory exceeds %d intents", MaxFlows)
+	}
 	slices.SortFunc(s.Flows, func(a, b FlowIntent) int { return strings.Compare(a.FlowID, b.FlowID) })
 	variations := map[string]string{}
 	for _, intent := range s.Flows {

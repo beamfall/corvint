@@ -214,3 +214,14 @@ func TestAFUV1IntentCountBoundedBeforeRead(t *testing.T) {
 		t.Fatalf("committed candidate count not bounded before reading: %v", err)
 	}
 }
+
+// AFU-V1-037
+func TestAFUV1IntentCountBoundedWithoutRetired(t *testing.T) {
+	root := t.TempDir()
+	for i := range MaxFlows + 1 {
+		writeIntent(t, root, fmt.Sprintf("flows/f%03d.json", i), sampleIntent(fmt.Sprintf("f%03d", i)))
+	}
+	if _, err := LoadIntents(root, "flows"); err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("%d intents without retired.json loaded: %v", MaxFlows+1, err)
+	}
+}

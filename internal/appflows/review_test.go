@@ -137,6 +137,15 @@ func TestAFUV1ReviewLinkMustExistAtAnchor(t *testing.T) {
 	if links[1].ReviewState != ReviewReviewed || links[3].ReviewState != ReviewLinkNotAtAnchor || links[3].Basis != "declared" {
 		t.Fatalf("a link absent from the intent at the anchor was reviewed: %+v", links[3])
 	}
+	relabelled := reviewSet(t, root, anchor)
+	relabelled.Flows[0].Links[2].Basis, relabelled.Flows[0].Links[2].ReviewedAt = "declared", anchor
+	links, err = EvaluateLinks(context.Background(), root, relabelled, "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if links[2].ReviewState != ReviewLinkNotAtAnchor {
+		t.Fatalf("a link inferred at the anchor was reviewed after relabelling: %+v", links[2])
+	}
 }
 
 // AFU-V1-008

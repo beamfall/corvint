@@ -169,16 +169,17 @@ This subsection fixes the S1 wire and argv shapes. It adds no requirement and no
   export sets that input's document and its flow and variation mappings, and export then refuses any
   result the DCP-V1 adapter refuses. Every exported intent needs an `adapter` member.
 - Review evaluation: a review anchor covers a link only when the intent file as committed at the
-  anchor already declares the same `from` and `target` (`link-not-at-anchor` otherwise). Target
-  comparison is by content identity, so a target changed and then restored (A to B to A) is
-  unchanged. An `evidence` target is `evidence-unavailable`, never `reviewed`, until S2 supplies a
+  anchor already declares the same `from` and `target` with basis `declared` (`link-not-at-anchor`
+  otherwise, including a link that was `inferred` at the anchor). Target comparison is by content
+  identity, so a target changed and then restored (A to B to A) is unchanged. An `evidence` target is `evidence-unavailable`, never `reviewed`, until S2 supplies a
   run-evidence store that shows it exists at the evaluated revision.
 - `corvint [--root PATH] flows import --flows DIR --from FILE --format behavior-adapter-request|openapi|playwright-list`
   is all-or-nothing. It refuses the whole set before writing when any ID exists (a `.json` name in any
   letter case counts), is retired or repeats, or when existing plus imported flows exceed the flow
-  bound. It creates each file with `O_EXCL`; when a write fails it removes exactly the files it
-  created, names them, and reports that no intent from the import remains written. It prints the
-  written paths. OpenAPI input is JSON only.
+  bound. It creates each file with `O_EXCL`; when a write fails it removes the files it created,
+  names them, and reports that no intent from the import remains written. Rollback assumes the import
+  is the only writer in the flows directory: a file another process puts at a created path before
+  rollback can be removed. It prints the written paths. OpenAPI input is JSON only.
 
 ### Run evidence
 
@@ -378,7 +379,7 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-030..033 | docs goldens, drift failure on a lost `PROVEN`, waiver expiry, the anchored Markdown case |
 | AFU-V1-034..035 | MCP conformance with and without the selector |
 | AFU-V1-036 | `TestAFUV1InputRegularBeforeOpen`, `TestAFUV1InputSwapAfterLstatRefused`, `TestAFUV1ManifestRegularBeforeOpen`, `TestAFUV1ImportRefusesCaseVariantName`, `TestAFUV1RecordConfinedToRoot`, `TestAFUV1ImportNeverOverwrites`, `TestAFUV1IntentClosedSchema` (symlinked `--flows`) |
-| AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`; run-evidence attempt bounds in S2 |
+| AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`; run-evidence attempt bounds in S2 |
 | AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`; recorded run evidence in S2 |
 | AFU-V1-039..040 | the committed acceptance fixture and the frozen corpus report |
 
