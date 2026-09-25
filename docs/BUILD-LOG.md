@@ -6439,6 +6439,49 @@ decision on lazy fetch, which conflicts with invariant 7. NOT_RUN: the exhaustiv
   receipt now; `UCV0-015` defers that to the release candidate instead.
 - Residual: `sealed-benchmark` still trusts its `outcome` token. Deriving it needs a mapping from a
   benchmark result to a use-case row, which the fixture job lacks.
+## 2026-09-25 V1-0263 GPK-V0-070 (proposed, not accepted): markers come from comments and relate to the change (panel blocker B4)
+
+Root cause: the marker scan (`internal/contextindex/index.go`, the `markerMatches` loop over
+`strings.Split(text, "\n")`) ran `markerPattern` over every raw line of every text source, so a
+`feature:` or `scenario:` token inside a Go string fixture, a JSON golden, a JavaScript object
+literal or Markdown prose became `source-marker`/`test-marker` project-authority evidence. Path
+`impact` then credited every same-package `_test.go` carrying any marker at 850 and added its keys
+to the related records, whatever the marker named. At base, `corvint impact cmd/corvint/main.go
+--limit 5` returned four 850 rows whose only link was a fixture string (for example
+`harness_context_test.go:30`, `feature:session-revocation` inside a Go source literal), and
+`impact internal/contextindex/taskcontext.go --limit 50` put 11 unrelated marked tests at 850 and
+no cross-package caller in the top 50.
+
+Change: `commentText` (`internal/contextindex/markers.go`) blanks every byte outside a comment
+with a per-suffix table of line comments, block comments and string forms, keeping newlines and
+byte offsets, so the existing scan reports only comment markers at their original line and column.
+Data and prose suffixes without comment syntax yield no markers; Markdown keeps `<!-- -->`.
+`markerCredited` admits a same-package marked test only when it is the exact twin, references a
+declared name, or shares a key with the changed file. `reserveCallerRows` keeps `limit/10` rows
+for non-test reverse importers that name an exported declaration (`alias.Name`); scores are
+unchanged. Analyzer schema `corvint-analyzer/85`. Evidence: `TestMarkersComeOnlyFromCommentSpans`
+and `TestImpactCreditsOnlyRelatedMarkedTestsAndKeepsCallers` fail at base 489701ca and pass after;
+`internal/contextindex`, `cmd/corvint` and `conformance/cli-parity-v0` pass unchanged.
+
+After: `impact cmd/corvint/main.go --limit 5` shows the twin `main_test.go` and three decisions;
+`taskcontext.go --limit 50` has no 850 rows and three callers (`internal/disagree`,
+`internal/necessity`, `internal/touchsurprise`). Beamfall V1-0263 case (`trust.go` plus
+`model_loader.go`, limit 10) now includes the caller `internal/app/app.go`; the named caller
+`internal/app/skipdetect_jobs.go` stays omitted and the two importer-test features
+(`identify-scrape`, `library-health`) still rank 800, because the importer-test path rejected as
+`GPK-V0-067` is unchanged. V1-0263 therefore stays open.
+
+Frozen evaluations, base -> fix. Beamfall `corvint eval` (clone at 24631b9a6, 7 cases): identical
+result lists in every case; recall 0.9 -> 0.9, must-read 9/10 -> 9/10, critical misses 0/5 -> 0/5,
+top-5 6/7 -> 6/7, authoritative results 36 -> 36, packet bytes 60590 -> 58842 (JSON-golden and
+roadmap-prose `source-marker` evidence gone), byte-weighted precision 0.702 -> 0.691.
+`tools/retrieval-bench --arms impact` on `v2_code2test` (106 samples, 81 impact errors in both
+runs): identical, hit@k 0.0566, MRR@k 0.0289, recall@10 0.0346, hard-negative hits 0.0472. The
+`edit2ripple` set has no changed-file samples, so it cannot exercise `impact`.
+
+Not changed, follow-up: the README "Sixty seconds" demo is hand-abridged output from a `0.4.0a4`
+checkout, not generated from the build, and still shows the fixture `test-marker` row; it was not
+regenerated. NOT_RUN: the exhaustive `go test ./...` gate (the affected plan names 103 packages).
 ## 2026-09-25 V1-0272: alternates refusal names the adopter rerun
 
 - The `unsupported-object-alternates` fix line ended with `rerun make dogfood-change`, the one
