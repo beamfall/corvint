@@ -200,7 +200,7 @@ func (c *change) prepare(name, output string, outdated func(int, []byte, string)
 }
 
 // prechangeImpact runs impact and keeps a typed, digest-bound abstention when
-// it refuses the range with exactly one unsupported-impact-range envelope.
+// it refuses with exactly one envelope whose code is an impact abstention.
 func (c *change) prechangeImpact() {
 	output := c.evidence + "/prechange-impact.json"
 	errorFile := c.evidence + "/prechange-impact.stderr"
@@ -219,8 +219,9 @@ func (c *change) prechangeImpact() {
 	}
 	stderr := readFile(errorFile)
 	reason := failureReason(stderr, status)
-	if status != 2 || reason != "unsupported-impact-range" || hasContent(output) || bytes.Count(stderr, []byte("\n")) != 1 || !anyLine(impactRefusal, stderr) {
-		if reason == "unsupported-impact-range" {
+	code, _ := firstCapture(impactRefusal, stderr)
+	if status != 2 || !impactAbstentions[reason] || code != reason || hasContent(output) || bytes.Count(stderr, []byte("\n")) != 1 {
+		if impactAbstentions[reason] {
 			reason = "context-abstention-invalid"
 		}
 		c.addStep("prechange-impact", "NOT_PRODUCED", reason)
@@ -233,7 +234,7 @@ func (c *change) prechangeImpact() {
 		failed()
 		return
 	}
-	record := []byte(abstentionArtifact(argvSHA, c.base, stderrSHA, stdoutSHA, c.target) + "\n")
+	record := []byte(abstentionArtifact(argvSHA, c.base, reason, stderrSHA, stdoutSHA, c.target) + "\n")
 	if writePrivate(artifact, record) != nil {
 		failed()
 		return
@@ -242,8 +243,8 @@ func (c *change) prechangeImpact() {
 	c.addStep("prechange-impact", "NOT_PRODUCED", reason)
 }
 
-func abstentionArtifact(argvSHA, base, stderrSHA, stdoutSHA, target string) string {
-	return `{"argvSha256":"sha256:` + argvSHA + `","base":"` + base + `","exitStatus":"2","profile":"corvint-dogfood-context-abstention/0","reason":"unsupported-impact-range","status":"NOT_PRODUCED","stderrSha256":"sha256:` + stderrSHA + `","stdoutSha256":"sha256:` + stdoutSHA + `","step":"prechange-impact","target":"` + target + `"}`
+func abstentionArtifact(argvSHA, base, reason, stderrSHA, stdoutSHA, target string) string {
+	return `{"argvSha256":"sha256:` + argvSHA + `","base":"` + base + `","exitStatus":"2","profile":"corvint-dogfood-context-abstention/0","reason":"` + reason + `","status":"NOT_PRODUCED","stderrSha256":"sha256:` + stderrSHA + `","stdoutSha256":"sha256:` + stdoutSHA + `","step":"prechange-impact","target":"` + target + `"}`
 }
 
 // localOutcome records the author's verification outcome, or names why no
@@ -741,7 +742,7 @@ func failing(row step) bool {
 		return false
 	case row.name == "local-outcome" && row.status == "NOT_PRODUCED" && row.reason == "no-source-paths":
 		return false
-	case row.name == "prechange-impact" && row.status == "NOT_PRODUCED" && row.reason == "unsupported-impact-range":
+	case row.name == "prechange-impact" && row.status == "NOT_PRODUCED" && impactAbstentions[row.reason]:
 		return false
 	case row.reason == "no-intent-declared":
 		return false
@@ -891,9 +892,14 @@ func (c *change) fixHint(row step) string {
 	return ""
 }
 
-// reportFailures lists each failing row with its fix and exits 1, or exits 0
-// silently when the report is complete.
+// reportFailures notes an accepted impact abstention, then lists each failing
+// row with its fix and exits 1, or exits 0 when the report is complete.
 func (c *change) reportFailures() int {
+	for _, row := range c.rows {
+		if row.name == "prechange-impact" && impactAbstentions[row.reason] {
+			c.say("dogfood-change: NOTE prechange-impact NOT_PRODUCED %s\n", row.reason)
+		}
+	}
 	if c.complete() {
 		return 0
 	}

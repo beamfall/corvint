@@ -123,6 +123,17 @@ if [[ $action == impact ]]; then
       printf '%s\n' '{"code": "unsupported-impact-range", "error": "impact range exceeds the 256-path bound", "ok": false}' >&2
       exit 2
       ;;
+    unsupported-repository)
+      printf '%s\n' '{"code": "unsupported-impact-repository", "error": "native Go impact requires a slash-qualified Go module", "ok": false}' >&2
+      exit 2
+      ;;
+    unsupported-path)
+      printf '%s\n' '{"code": "unsupported-impact-path", "error": "native Go range impact requires changed Go paths in a non-root package", "ok": false}' >&2
+      exit 2
+      ;;
+    repository-wrong-exit) printf '%s\n' '{"code": "unsupported-impact-repository", "error": "wrong exit", "ok": false}' >&2; exit 1 ;;
+    path-nonempty) printf '%s\n' 'partial'; printf '%s\n' '{"code": "unsupported-impact-path", "error": "partial output", "ok": false}' >&2; exit 2 ;;
+    other-code) printf '%s\n' '{"code": "unsupported-impact-path-suffix", "error": "other code", "ok": false}' >&2; exit 2 ;;
     malformed) printf '%s\n' '{"code": "unsupported-impact-range", "error": "shape", "extra": true, "ok": false}' >&2; exit 2 ;;
     invalid-escape) printf '%s\n' '{"code": "unsupported-impact-range", "error": "bad\q", "ok": false}' >&2; exit 2 ;;
     raw-tab) printf '{"code": "unsupported-impact-range", "error": "bad\tvalue", "ok": false}\n' >&2; exit 2 ;;
@@ -432,25 +443,43 @@ set -m
   "${default_env[@]}" script/dogfood-check.sh "$base"
   DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" DOGFOOD_CITATIONS="$test_root/citations.tsv" \
     DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
-    DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
+    DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2> "$test_root/abstention-change.stderr"
+  test "$(cat "$test_root/abstention-change.stderr")" = 'dogfood-change: NOTE prechange-impact NOT_PRODUCED unsupported-impact-range'
   rg -q '"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-range"' .corvint/dogfood-report.json
   rg -Fq '{"step": "prechange-impact", "status": "NOT_PRODUCED", "reason": "packet-not-compiled"}]' .corvint/dogfood-report.json
   rg -q '^  ,"contextAbstentionEvidenceSha256": "sha256:[0-9a-f]{64}"$' .corvint/dogfood-report.json
-  DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" script/dogfood-check.sh "$base"
+  DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" script/dogfood-check.sh "$base" 2> "$test_root/abstention-check.stderr"
+  rg -Fxq 'dogfood-check: NOTE prechange-impact NOT_PRODUCED unsupported-impact-range' "$test_root/abstention-check.stderr"
   cp "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.stderr" "$test_root/prechange-impact.stderr"
   printf 'drift\n' >> "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.stderr"
   context_drift_status=0
   DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" script/dogfood-check.sh "$base" >/dev/null 2>&1 || context_drift_status=$?
   test "$context_drift_status" = 1
   cp "$test_root/prechange-impact.stderr" "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.stderr"
-  for impact_failure in malformed invalid-escape raw-tab wrong-exit nonempty crash; do
+  # DCW-V0-025 (proposed): the no-module and module-root refusals are typed abstentions under
+  # their own codes; their malformed shapes and any other code stay blocking (loop below).
+  for impact_abstention in repository path; do
+    DOGFOOD_TEST_IMPACT=unsupported-$impact_abstention "${default_env[@]}" DOGFOOD_CITATIONS="$test_root/citations.tsv" \
+      DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
+      DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
+    rg -Fq '"complete": true' .corvint/dogfood-report.json
+    rg -Fq '"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-'"$impact_abstention"'"' .corvint/dogfood-report.json
+    rg -Fq '"reason":"unsupported-impact-'"$impact_abstention"'"' "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact-abstention.json"
+    DOGFOOD_TEST_IMPACT=unsupported-$impact_abstention "${default_env[@]}" script/dogfood-check.sh "$base" 2> "$test_root/abstention-check.stderr"
+    rg -Fxq "dogfood-check: NOTE prechange-impact NOT_PRODUCED unsupported-impact-$impact_abstention" "$test_root/abstention-check.stderr"
+  done
+  for impact_case in malformed:context-abstention-invalid invalid-escape:context-abstention-invalid \
+    raw-tab:context-abstention-invalid wrong-exit:context-abstention-invalid nonempty:context-abstention-invalid \
+    crash:exit-7 repository-wrong-exit:context-abstention-invalid path-nonempty:context-abstention-invalid \
+    other-code:unsupported-impact-path-suffix; do
+    impact_failure=${impact_case%%:*}
     impact_status=0
     DOGFOOD_TEST_IMPACT=$impact_failure "${default_env[@]}" DOGFOOD_CITATIONS="$test_root/citations.tsv" \
       DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
       DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" >/dev/null 2>&1 || impact_status=$?
     test "$impact_status" != 0
     rg -q '"complete": false' .corvint/dogfood-report.json
-    rg -q '"name": "prechange-impact", "status": "NOT_PRODUCED"' .corvint/dogfood-report.json
+    rg -Fq '"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "'"${impact_case#*:}"'"' .corvint/dogfood-report.json
   done
   DOGFOOD_TEST_IMPACT=unsupported DOGFOOD_TEST_QUERY=duplicate-coverage "${default_env[@]}" \
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
@@ -479,11 +508,11 @@ set -m
   empty_anchor_output=$("${default_env[@]}" script/dogfood-check.sh "$base" 2>&1) || empty_anchor_status=$?
   test "$empty_anchor_status" = 2
   test "$empty_anchor_output" = 'dogfood-check: REFUSE anchor-ref-unavailable'
-  test "$(rg -c '^build -o .*/corvint/corvint (-trimpath )?./cmd/corvint$' "$test_root/default-go.log")" = 19
+  test "$(rg -c '^build -o .*/corvint/corvint (-trimpath )?./cmd/corvint$' "$test_root/default-go.log")" = 26
   # dogfood-check builds the base verifier inside a random private extraction directory; without
   # -trimpath that absolute path is embedded and baseVerifierSha256 changes on every run.
-  test "$(rg -c '^build -o .*/corvint/corvint(-base)? -trimpath ./cmd/corvint$' "$test_root/default-go.log")" = 14
-  test "$(rg -c '^build -o .*/corvint/corvint-base ' "$test_root/default-go.log")" = 7
+  test "$(rg -c '^build -o .*/corvint/corvint(-base)? -trimpath ./cmd/corvint$' "$test_root/default-go.log")" = 18
+  test "$(rg -c '^build -o .*/corvint/corvint-base ' "$test_root/default-go.log")" = 9
 ) &
 phase_jobs="$phase_jobs $!"
 (
