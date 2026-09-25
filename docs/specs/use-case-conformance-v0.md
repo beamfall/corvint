@@ -74,6 +74,12 @@ to `verified`/`VERIFIED` together (owner-accepted, decision 0389). The other nin
 row's Beamfall run used a build that includes `GPK-V0-066`, which the published 0.8.1 archive does not
 contain (0.8.1 abstains on that query, per V1-0260). Under `UCV0-012`, the `VERIFIED` claim
 therefore applies to releases that include decision 0387, not to 0.8.1.
+Ticket V1-0341 (panel D9) returned `UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION`
+to `experimental`/`UNPROVEN` with all six receipts kept. The completion row's dogfood reports show
+zero of 13 and zero of 4 requirements linked, with the rest unknown, so `UCV0-014` rejects them
+(ticket V1-0273). The consequence row's Beamfall subject is the LCRES-15 impact packet that
+reproduces open ticket V1-0263 (`UCV0-015`). `UC-TASK-ORIENTATION` stays `verified`: its packets
+are `READY` with no abstention, and V1-0260's abstaining query is not one of its subjects.
 
 ## Status and claim model
 
@@ -137,7 +143,21 @@ cannot be interpreted as success.
   profiles MUST fail visibly. Migration preserves every historical row and its evidence bytes;
   it adds the new rows as `specified`/`UNPROVEN` with no evidence. Historical readers reject `/1`;
   archives retain `/0` bytes instead of pretending forward compatibility. Evidence `/0` and
-  result `/0` schemas, the six evidence classes, and promotion requirements remain unchanged.
+  result `/0` schemas, the six evidence classes, and promotion requirements remain unchanged by
+  this migration; `UCV0-014` and `UCV0-015` tighten promotion (proposed, decision 0398).
+- `UCV0-014`: (proposed 2026-09-25, not accepted; decision 0398, V1-0341) On a `verified` row, the
+  runner MUST derive each dogfood receipt's `PASS` from its retained report subjects instead of
+  trusting the attested token. At least one subject MUST be a recognized report, and every
+  recognized report MUST pass: a tool packet (non-empty `tool`) needs `ok` true, `context.state`
+  `READY` and no active `context.abstention`; a `corvint-dogfood-change/0` report needs `complete`
+  true, `dogfoodCheck.outputsAgree` true and zero `ocmStatus.aggregate.coverage.unknown`
+  (`DCW-V0-005`). Otherwise the receipt fails `verified-unsupported-outcome`. Rows that are not
+  `verified` keep the receipt bound and envelope-checked under `UCV0-008`.
+- `UCV0-015`: (proposed 2026-09-25, not accepted; decision 0398, V1-0341) A row MUST NOT be
+  `verified` while an open defect ticket's reproduction is one of its bound subjects; the row
+  returns to `experimental` with its receipts kept. A `VERIFIED` claim covers only the revisions
+  its receipts name. Before the stable release is accepted (V1-0021), every `verified` row MUST be
+  re-derived on the release-candidate bytes, or return to `experimental`.
 - `UCV0-016`: (proposed 2026-09-25, not accepted; V1-0216) A `contract` receipt MAY bind the
   clauses it cites through a clause-extract subject instead of the whole spec file. An extract is
   closed JSON with profile `corvint-use-case-clauses/0`, a repository-relative `spec` path, and a
@@ -190,6 +210,8 @@ evidence; never rewrite a failed receipt.
 | `UCV0-001..003`, `UCV0-012` | `conformance/use-cases-v0/ledger.json`, `main.go` | `conformance/use-cases-v0/main_test.go` |
 | `UCV0-004..010` | `conformance/use-cases-v0/main.go` | hostile and complete-packet tests |
 | `UCV0-013` | `conformance/use-cases-v0/main.go`, `ledger.json` | `TestUCV0ProfileMigration`; historical reader refusal |
+| `UCV0-014` (proposed) | `conformance/use-cases-v0/main.go` | `TestUCV0DerivedDogfoodOutcome` |
+| `UCV0-015` (proposed) | `conformance/use-cases-v0/ledger.json` | owner review; not mechanically checked |
 | `UCV0-016` (proposed) | `conformance/use-cases-v0/main.go`, `receipts/*/contract/clauses.json` | `TestUCV0ClausePins` |
 | `UCV0-011` | governed ledger row only | `UNPROVEN`; implementation and outcome evidence absent |
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"os"
 	"path/filepath"
@@ -72,6 +73,9 @@ func (f *fixture) receipt(class string) map[string]any {
 	subject := func(name string) string {
 		p := "evidence/" + class + "/" + name
 		raw := []byte(class + ":" + name + "\n")
+		if strings.HasSuffix(class, "-dogfood") {
+			raw = []byte(`{"context":{"state":"READY"},"ok":true,"tool":"` + class + `"}`)
+		}
 		f.write(p, raw)
 		d := digest(raw)
 		subjects = append(subjects, map[string]any{"path": p, "sha256": d})
@@ -234,8 +238,8 @@ func testUCV0ProfileMigration(t *testing.T) {
 	}
 	// The canonical ledger validates in the repository tree, where its receipts live (decision 0373).
 	tree := validate("../..", "conformance/use-cases-v0/ledger.json")
-	// V1-0011 promoted the three Core rows; the nineteen historical rows stay UNPROVEN.
-	if tree["valid"] != true || tree["useCaseCount"] != 22 || tree["claimCounts"].(map[string]any)["UNPROVEN"] != 19 || tree["claimCounts"].(map[string]any)["VERIFIED"] != 3 {
+	// V1-0011 promoted the three Core rows; V1-0341 (UCV0-014/015) returned consequence and completion to experimental.
+	if tree["valid"] != true || tree["useCaseCount"] != 22 || tree["claimCounts"].(map[string]any)["UNPROVEN"] != 21 || tree["claimCounts"].(map[string]any)["VERIFIED"] != 1 {
 		t.Fatal(tree)
 	}
 	current := newFixture(t)
@@ -308,6 +312,38 @@ func TestUCV0ClausePins(t *testing.T) {
 				return
 			}
 			f.check(tc.want)
+		})
+	}
+}
+
+// UCV0-014 (V1-0341): a verified row's dogfood PASS is derived from its retained reports, not the token.
+func TestUCV0DerivedDogfoodOutcome(t *testing.T) {
+	const change = `{"complete":true,"dogfoodCheck":{"outputsAgree":true},"ocmStatus":{"aggregate":{"coverage":{"linked":%d,"total":4,"unknown":%d}}},"profile":"corvint-dogfood-change/0"}`
+	for _, tc := range []struct{ name, report, want string }{
+		{"ready-packet", `{"context":{"abstention":{"active":false},"state":"READY"},"ok":true,"tool":"query"}`, ""},
+		{"linked-change-report", fmt.Sprintf(change, 4, 0), ""},
+		{"token-only", "free text\n", "verified-unsupported-outcome"},
+		{"abstaining-packet", `{"context":{"abstention":{"active":true},"state":"READY"},"ok":true,"tool":"query"}`, "verified-unsupported-outcome"},
+		{"failed-packet", `{"context":{"state":"READY"},"ok":false,"tool":"impact"}`, "verified-unsupported-outcome"},
+		{"unknown-coverage-report", fmt.Sprintf(change, 0, 4), "verified-unsupported-outcome"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			for _, class := range evidenceClasses {
+				f.receipt(class)
+			}
+			r := f.receipt("beamfall-dogfood")
+			f.write("evidence/beamfall-dogfood/subject", []byte(tc.report))
+			r["subjects"].([]any)[0].(map[string]any)["sha256"] = digest([]byte(tc.report))
+			f.bind("beamfall-dogfood", r)
+			f.row(0)["status"], f.row(0)["claim"] = "experimental", "UNPROVEN"
+			f.check()
+			f.row(0)["status"], f.row(0)["claim"] = "verified", "VERIFIED"
+			if tc.want == "" {
+				f.check()
+				return
+			}
+			f.check("use-case:UC-AI-CODING:evidence:beamfall-dogfood:receipt:" + tc.want)
 		})
 	}
 }

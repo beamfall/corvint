@@ -295,7 +295,7 @@ func (v *validator) attestation(class string, value any, subjects []string, labe
 		}
 	}
 }
-func (v *validator) receipt(id, class string, reference any, label string) {
+func (v *validator) receipt(id, class string, reference any, label string, verified bool) {
 	m, ok := v.closed(reference, []string{"path", "sha256"}, label)
 	if !ok {
 		return
@@ -373,6 +373,58 @@ func (v *validator) receipt(id, class string, reference any, label string) {
 	if class == "contract" {
 		v.clauses(raws, m["attestation"], label)
 	}
+	if verified && strings.HasSuffix(class, "-dogfood") {
+		v.derivedOutcome(raws, label)
+	}
+}
+
+// derivedOutcome re-derives a verified row's dogfood PASS from its retained report subjects
+// instead of trusting the attestation token (UCV0-014): at least one recognized report and no
+// recognized report that fails.
+func (v *validator) derivedOutcome(raws [][]byte, label string) {
+	passes := 0
+	for _, raw := range raws {
+		outcome := reportOutcome(raw)
+		if outcome == "FAIL" {
+			v.fail(label, "verified-unsupported-outcome")
+			return
+		}
+		if outcome == "PASS" {
+			passes++
+		}
+	}
+	if passes == 0 {
+		v.fail(label, "verified-unsupported-outcome")
+	}
+}
+
+// reportOutcome reads a retained tool packet or corvint-dogfood-change/0 report; any other
+// subject is unrecognized ("").
+func reportOutcome(raw []byte) string {
+	var m map[string]any
+	if json.Unmarshal(raw, &m) != nil {
+		return ""
+	}
+	if str(m["tool"]) != "" {
+		return verdict(m["ok"] == true && dig(m, "context", "state") == "READY" && dig(m, "context", "abstention", "active") != true)
+	}
+	if m["profile"] == "corvint-dogfood-change/0" {
+		return verdict(m["complete"] == true && dig(m, "dogfoodCheck", "outputsAgree") == true && dig(m, "ocmStatus", "aggregate", "coverage", "unknown") == float64(0))
+	}
+	return ""
+}
+func verdict(pass bool) string {
+	if pass {
+		return "PASS"
+	}
+	return "FAIL"
+}
+func dig(value any, keys ...string) any {
+	for _, k := range keys {
+		m, _ := value.(map[string]any)
+		value = m[k]
+	}
+	return value
 }
 
 // clauses checks every clause extract among a contract receipt's subjects against its live spec
@@ -554,7 +606,7 @@ func validate(root, ledgerPath string) map[string]any {
 			ref, present := evidence[class]
 			if present {
 				ec++
-				v.receipt(id, class, ref, label+":evidence:"+class)
+				v.receipt(id, class, ref, label+":evidence:"+class, status == "verified")
 			} else if status == "verified" {
 				v.fail(label, "verified-missing-evidence:"+class)
 			} else if status == "experimental" && (class == "contract" || class == "implementation") {
