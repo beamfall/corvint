@@ -5918,3 +5918,71 @@ variation lists. Recovery targets therefore sit off every declared path, and no 
 unit sample dropped its backward recovery. `earlier recovery` and `path recovery` joined the
 AFU-V1-026 refusal cases. Bounds on the `--traffic` file count and on the quadratic per-step filter
 stay follow-ups: the total record bound caps both.
+
+## 2026-09-25 V1-0253: proven flow documentation (AFU-V1 S6, AFU-V1-030..033)
+
+`corvint flows docs` (`internal/appflows/docs.go`, `cmd/corvint/flows_docs.go`) renders one
+Markdown page from the intents committed at `HEAD` with a fixed template and writes the
+`flow-doc-claims/0` sidecar. `--check` writes `flow-doc-check/0` and writes nothing. The shapes are
+in the spec's new "Proven-documentation wire contract".
+
+Decisions. Each resolves an ambiguity with the most conservative reading:
+
+- A claim is one outcome of one variation, so a variation with no outcome makes no claim.
+- `PROVEN` needs more than a verified variation (AFU-V1-031 states only a necessary condition). The
+  outcome also needs a declared assertion link, and every declared link from the variation, its
+  steps and the outcome must be `reviewed`.
+- The state order is `CONTRADICTED`, then `STALE`, then `PROVEN`, then `UNPROVEN`. `flaky` evidence
+  counts as `CONTRADICTED` because it contains a failed attempt, so contradicting evidence is never
+  hidden behind staleness.
+- "Evidence IDs" are the required test key and project pairs, not run IDs. Run IDs change on every
+  run, so a sidecar holding them could never match regeneration. The page and sidecar embed no
+  commit for the same reason.
+- Everything `--check` compares is read at `HEAD` through Git, never from the working tree: the page,
+  the sidecar, the waivers file and the hand-written Markdown. Only committed data carries authority.
+- The waivers file is named by `--waivers` rather than kept in the flows directory, where every
+  `.json` file is an intent candidate.
+- A waiver has expired on its `expires` date (UTC). A waiver also covers a committed claim whose state
+  changed without losing `PROVEN`, and a claim that is no longer rendered. The committed claim is
+  then used for the byte comparison. Without that, every waived claim would still fail as
+  `rendered-bytes-differ`, and AFU-V1-032 would have no exception.
+- An anchored claim is stored in the sidecar under `PATH:FLOW/VARIATION/OUTCOME`. It is therefore
+  checked for a lost `PROVEN` like a page claim. An anchor naming an outcome that its variation does
+  not list is `unknown-anchor`. A malformed anchor is `invalid-anchor`, and its values are not
+  echoed. Either failure also refuses the render.
+- A document counts as anchored only when it has at least one valid anchor. The coverage row counts
+  unanchored documents over the Markdown documents under the docs root, leaving out the generated
+  page. `value` is a count, so a zero denominator gives 0 of 0, not a ratio.
+- Intent text on the page has all ASCII punctuation backslash-escaped. Text therefore renders
+  literally and cannot forge an anchor comment or markup.
+- Rendering replaces each file through an `O_EXCL` temporary file in the same directory and
+  `os.Root.Rename`. It refuses a non-regular target or a symlinked parent (AFU-V1-036). The page and
+  the sidecar are two separate renames, not one atomic pair.
+
+Limitation: evidence holds only at the exact commit it ran. `--check` therefore needs run evidence
+from the checked commit, such as a CI step after the E2E run. The page is committed one commit after
+the evidence it was rendered from, and the check passes only when that evidence is regenerated at
+the new commit.
+
+Evidence:
+- `GOTOOLCHAIN=local go test -count=1 -timeout 30m ./internal/appflows/... ./cmd/corvint/ -run 'Flows|AFU|Docs'`
+  passed. The new tests are `TestAFUV1030DocsRenderGoldenAndByteStable`, `TestAFUV1031ClaimStateOrder`,
+  `TestAFUV1032DocsCheckDrift`, `TestAFUV1032WaiverExpiry`, `TestAFUV1032WaiverExpiryBoundary`,
+  `TestAFUV1033AnchoredMarkdown`, `TestAFUV1033AnchorParsing` and `TestAFUV1036DocsReplaceConfined`.
+- The goldens are `cmd/corvint/testdata/flows/docs.golden.md` and `docs.claims.golden.json`. They
+  reach every claim state.
+
+`NOT_RUN`: live qualification on a real application (S8), and the full `./...` suite.
+
+Review repair: a review found two defects that contradicted the spec. First, an unexpired waiver
+for a claim that is no longer rendered, such as an anchor deleted from `docs/guide.md`, listed the
+claim under `waived` but still failed with `rendered-bytes-differ` on the sidecar, because
+`keepCommitted` only replaced a claim that was still present. It now appends the committed claim when
+it is absent, so the committed form is used for the byte comparison (AFU-V1-032). Second, any `.md`
+under `--docs-root` that is not a regular blob, such as a symlink or a submodule, refused both render
+and check, although an unanchored document must never fail the check (AFU-V1-033). Such an entry is
+now not read and counts as unanchored in the existing coverage row; the spec wire text says so and no
+wire field was added. The tests are `TestAFUV1032WaiverKeepsUnrenderedClaim` and
+`TestAFUV1033NonRegularMarkdownSkipped`; both fail without the fix. No golden changed. Follow-ups,
+not fixed here: anchors inside fenced code blocks are still parsed as anchors, and `--page` and
+`--claims` still accept paths under `.git/`.
