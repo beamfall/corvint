@@ -9,7 +9,7 @@ The audit found that every per-host `events[].expected` value in
 `verification`, `stopHookActive`, `openedPaths`) could be changed for a single host with every
 consumer green, because no test reads those values. Closing this needed a call on what the fixture
 means: the file has no per-host raw `input`, only a golden `expected` object per host, and
-`cmd/corvint/host_adapter.go:469@12a7c6a4` hashes `claude-code` session IDs under a different domain
+`cmd/corvint/host_adapter.go:470@12a7c6a4` hashes `claude-code` session IDs under a different domain
 (`corvint-local-completion-session/claude-code/0`) than the other three hosts
 (`corvint-local-completion-session/0`), so the identical `sessionIdSha256` already recorded for every
 host cannot be a real per-host re-derivation from one shared raw session ID — a single SHA-256

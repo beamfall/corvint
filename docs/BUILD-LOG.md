@@ -6160,3 +6160,24 @@ Review repairs (same slice):
   probe wording now names what is compared: `HEAD`, the tree and the dirty-path set.
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
+
+## 2026-09-25 V1-0286 AHI-031 (proposed, panel blocker B8, not accepted): a stale snapshot is named, with its refresh argv
+
+Every Claude Code `UserPromptSubmit` after a commit returned the model-only additionalContext
+`Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline; coding continues` (seen
+live in the owner's session on 2026-09-25). Cause, confirmed at base 489701ca: a commit changes the
+tree, so `localEventContext` (`cmd/corvint/local_completion_event.go:360-366`) misses the snapshot
+and runs the synchronous in-memory build, which outlasts the 1.6 s event deadline on a large or
+loaded host; `runLocalCompletionEvent` (`:129`, `:144`) then reports the bare deadline, which
+`AHI-021` classes expected and keeps out of the user's view, and the refresh argv exists only in the
+success-path guidance. Chosen: keep the in-budget build (`IDX-SNAP-V0-012`, decision 0049), and when
+the deadline expires after a miss report `dogfood-event-index-snapshot-stale`, a fault whose
+`systemMessage` (and additionalContext on the two prompt events) carries the exact
+`corvint --root ROOT index --if-stale` argv. Set aside: deciding the miss without the build (faster,
+but removes post-commit context on small repositories), refreshing from explicit write commands, and
+a parent-tree snapshot with a dirty overlay; each needs an owner decision. The hook still writes no
+snapshot, so the notice repeats until the argv runs. Evidence:
+`TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot` and
+`TestClaudeAdapterStaleSnapshotNamesRemediation` fail at base with the build seam alone (the live
+`dogfood-event-deadline` text, no argv) and pass with the change. Follow-up: the Codex fallback names
+the new code but carries no argv.

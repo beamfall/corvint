@@ -143,8 +143,9 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   incomplete change. If `stop_hook_active` is true, the adapter MUST release with a visible fixed
   unresolved-policy notice instead of looping. Inactive, satisfied and cancelled states are distinct.
   Timeouts, malformed input and unsupported hosts fail open with explicit failure, not a satisfied
-  claim. An automatic event whose deadline expires reports the fixed `dogfood-event-deadline` code,
-  never the generic `dogfood-event-unavailable`, even when the expiry first surfaces as a failed
+  claim. An automatic event whose deadline expires reports the fixed `dogfood-event-deadline` code
+  (or `dogfood-event-index-snapshot-stale` once the read fell back to the in-memory build of a
+  snapshot miss; proposed 2026-09-25 by `AHI-031`, not accepted), never the generic `dogfood-event-unavailable`, even when the expiry first surfaces as a failed
   repository or policy read. That code MUST be returned once the deadline passes, without waiting
   for a read stage that does not observe cancellation (the in-memory index compile of a snapshot
   miss); the abandoned read writes nothing. `dogfood-event-policy-drift` is reserved for an observed
@@ -286,12 +287,13 @@ elsewhere are not repeated.
 | `dogfood-coordination-failed` | `internal/localcompletion/finish.go:371` | the in-process `dogfood change` coordination run did not pass (`LCP-V0-014`) |
 | `dogfood-event-context-drift` | `cmd/corvint/local_completion_event.go:375` | the loaded index commit or tree revision, or the dirty-path digest, differs from the probed repository context |
 | `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go:129` | the event's context deadline expired or was cancelled |
+| `dogfood-event-index-snapshot-stale` | `cmd/corvint/local_completion_event.go:81` | the event's deadline expired after the read found no matching index snapshot and fell back to its in-memory build (`AHI-031`, proposed) |
 | `dogfood-event-input-unavailable` | `cmd/corvint/local_completion_event.go:117` | reading the event input from stdin failed |
 | `dogfood-event-native-budget` | `cmd/corvint/local_completion_event.go:431` | eight prompt-context attempts, each shrinking the budget, never fit the natively escaped response within the byte budget |
-| `dogfood-event-output-too-large` | `cmd/corvint/local_completion_event.go:456` | the canonical response plus a final LF exceeds the byte budget |
+| `dogfood-event-output-too-large` | `cmd/corvint/local_completion_event.go:484` | the canonical response plus a final LF exceeds the byte budget |
 | `dogfood-event-output-unavailable` | `cmd/corvint/local_completion_event.go:148` | writing the encoded response to stdout failed |
 | `dogfood-event-policy-drift` | `cmd/corvint/local_completion_event.go:279` | the evaluation's target is set and differs from the commit probed before the event |
-| `dogfood-event-repository-drift` | `cmd/corvint/local_completion_event.go:276` | the repository context probed after the event differs from the one before, or the commit differs from the expected target |
+| `dogfood-event-repository-drift` | `cmd/corvint/local_completion_event.go:297` | the repository context probed after the event differs from the one before, or the commit differs from the expected target |
 | `dogfood-report-drift` | `internal/localcompletion/finish.go:485` | the dogfood report does not parse, is not complete, or names a base or target other than the plan base and current target |
 | `duplicate-local-completion-option` | `cmd/corvint/local_completion.go:134` | a `local-completion` option is given twice |
 | `enrollment-bound-exceeded` | `internal/localcompletion/storage.go:312` | saved state has more than 64 observations, or its intent-pointer or executable count does not match the plan |
@@ -310,8 +312,8 @@ elsewhere are not repeated.
 | `invalid-check-id` | `internal/localcompletion/storage.go:155` | a check id does not match `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$` or repeats |
 | `invalid-dogfood-context` | `internal/contextindex/local_completion_context.go:60` | prompt context was requested without an index at an immutable revision |
 | `invalid-dogfood-event-arguments` | `cmd/corvint/local_completion_event.go:97` | an event option is repeated |
-| `invalid-dogfood-event-budget` | `cmd/corvint/local_completion_event.go:110` | the requested byte budget exceeds the event maximum |
-| `invalid-dogfood-event-input` | `cmd/corvint/local_completion_event.go:171` | the event input exceeds the kernel input bound or is not valid UTF-8 |
+| `invalid-dogfood-event-budget` | `cmd/corvint/local_completion_event.go:129` | the requested byte budget exceeds the event maximum |
+| `invalid-dogfood-event-input` | `cmd/corvint/local_completion_event.go:192` | the event input exceeds the kernel input bound or is not valid UTF-8 |
 | `invalid-enrollment-generation` | `internal/localcompletion/storage.go:297` | the saved generation is not 68 bytes prefixed by the plan digest and `-` |
 | `invalid-enrollment-pointer` | `internal/localcompletion/storage.go:321` | a saved intent pointer names another path than its plan intent, or a revision or blob hash that is not a Git object id |
 | `invalid-execution-path` | `internal/localcompletion/storage.go:316` | a saved executable path is not absolute, not clean, or longer than 4096 bytes |
@@ -378,8 +380,8 @@ Each row cites the first emitting site and states only the condition checked the
 | `anchor-evidence-unavailable` | `internal/contextindex/local_completion_context.go:580@b7524c52` | the resolution `reason` when anchors exist and a task-evidence candidate was unreadable or requirement definitions were capped |
 | `anchor-not-found` | `internal/contextindex/local_completion_context.go:582@07c6c8fe` | the resolution `reason` when no earlier case applies and an anchor matched no candidate |
 | `anchor-worktree-changed` | `internal/contextindex/local_completion_context.go:586@37e9b097` | the resolution `reason` when no earlier case applies and a task-evidence path is among the index's dirty paths |
-| `local-policy-continuation-limit` | `cmd/corvint/local_completion_event.go:340@50f727f3` | a `stop` event that would block has `stopHookActive` true; decision `release` |
-| `local-policy-incomplete` | `cmd/corvint/local_completion_event.go:338@3862af35` | a `stop` event whose lifecycle is `active`, or `satisfied` without the evaluation satisfied; decision `block` |
+| `local-policy-continuation-limit` | `cmd/corvint/local_completion_event.go:361@50f727f3` | a `stop` event that would block has `stopHookActive` true; decision `release` |
+| `local-policy-incomplete` | `cmd/corvint/local_completion_event.go:359@3862af35` | a `stop` event whose lifecycle is `active`, or `satisfied` without the evaluation satisfied; decision `block` |
 
 ## Resource and trust boundaries
 

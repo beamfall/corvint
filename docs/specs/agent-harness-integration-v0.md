@@ -464,6 +464,27 @@ do not reinterpret this Frontier result.
   names the host version the pin hooks are registered for, that their verdict reaches the user
   only, and that this packet is the model-facing rehydration and, on a host without the compaction
   events, the only one.
+- `AHI-031`: (proposed 2026-09-25, panel blocker B8, not accepted) When no index snapshot
+  matches the tree and the automatic `dogfood event` read falls back to its in-memory build
+  (`IDX-SNAP-V0-012`), an event whose deadline then expires MUST report
+  `dogfood-event-index-snapshot-stale` instead of `dogfood-event-deadline` (`LCP-V0-008`), under
+  the same return-without-waiting rule; an expiry before any snapshot miss keeps
+  `dogfood-event-deadline`. The Claude Code reason
+  `corvint-event-rejected:dogfood-event-index-snapshot-stale` is a fault under `AHI-021`: its
+  `systemMessage` MUST carry the unchanged `Corvint FALLBACK degraded: <reason>; coding continues`
+  frame, then on following lines that no snapshot matches the current tree and the exact JSON argv
+  `["corvint","--root",ROOT,"index","--if-stale"]` for the adapter-resolved root. On
+  `session-start` and `user-prompt` the same text MUST also be `hookSpecificOutput.additionalContext`,
+  so the model can run the refresh under supervision; `pre-compact` and `post-compact` carry it in
+  the `systemMessage` only. The `SOL-V0-010` reason is read from the frame line alone, and the code
+  joins the admitted `dogfood event` rejection registry. The hook still writes no snapshot and
+  starts no refresh (`IDX-SNAP-V0-012`), so later events keep this notice until that argv runs;
+  the refreshed snapshot is then a hit and needs no build. The Codex adapter reports the new code
+  in its existing fallback text, without the argv. Rationale: a commit changes the tree, so on a
+  large or loaded host every later prompt expired in the miss build, named only the deadline, in
+  model-only context, with no remediation (panel report B8, 2026-09-25). Not decided here: deciding
+  a miss in milliseconds without the build, refreshing the snapshot from explicit write commands,
+  or serving the parent-tree snapshot with a dirty overlay.
 
 ## Native platform profiles
 
@@ -549,7 +570,7 @@ there, which is the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:855@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
+| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:875@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
 | `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:114@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
 | `compaction-pin-not-preserved` | `cmd/corvint/host_adapter_compaction.go:83@5fbc4775` | Claude adapter: `compact_summary` holds no pin line whose every field re-validates |
@@ -562,7 +583,7 @@ there, which is the whole of what the row asserts.
 | `invalid-harness-adapter` | `internal/gokernel/harness.go:70` | "invalid <label>" |
 | `invalid-harness-budget` | `internal/gokernel/harness.go:340` | "harness budget must be at least <value> bytes" |
 | `invalid-repository-root` | `internal/gokernel/harness.go:376` | "cannot resolve repository root" |
-| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:613@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
+| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:614@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
 | `project-root-unavailable` | `cmd/corvint/host_adapter.go:307@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
 | `repository-identity-malformed` | `internal/gokernel/repository.go:174` | "Git object identity is malformed" |
 | `repository-probe-cancelled` | `internal/gokernel/repository.go:163` | "Git repository probe was cancelled" |
@@ -655,7 +676,9 @@ state or wire field changes. `AHI-022` rolls back by restoring the Gemini hook's
 receipt and degradation, OpenCode's `console.warn` for every report, and immediate concurrent
 `file-change` dispatch, with a package version bump each (`AHI-020`). `AHI-023` rolls back by restoring `unknown` as the Claude Code host version
 in `dogfoodHostVersions`; the receipt then carries `host-version-unknown` again. The decision 0178
-not-a-repository rule rolls back as that decision's Rollback section describes.
+not-a-repository rule rolls back as that decision's Rollback section describes. `AHI-031` rolls
+back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletionEvent` and removing
+`withSnapshotRemediation`; no stored state or wire field changes.
 
 ## Traceability
 
@@ -668,6 +691,7 @@ not-a-repository rule rolls back as that decision's Rollback section describes.
 | `AHI-028` | `cmd/corvint/host_adapter_compaction.go` (`runClaudePostCompact`, `parseCompactionPin`, `compactionPinMissing`, `compactionReportLine`) | `TestAHI028ClaudePostCompactReportsNonRehydratablePaths` (exact report naming the pinned path the tree lacks; lost, escaping and unresolvable pins degrade by name) |
 | `AHI-029` | both compaction events | `TestAHI029ClaudeCompactionHooksMutateNothing` (byte-size snapshot of the whole fixture including `.git` is unchanged across a pin and its verification) |
 | `AHI-030` | `cmd/corvint/host_adapter_compaction.go` (`compactSessionDisclosure`), Claude branch of `runClaudeAdapter` | `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (compact `SessionStart` additionalContext begins with the disclosure) |
+| `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv) |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |
 | `AHI-011`, `015` | embedded `internal/gokernel/host-schema.json` admission table and shared lifecycle command | schema/admission tests plus one host-keyed golden fixture per admitted host |
 | `AHI-002`, `006..010` | four native packages and release matrix | install/uninstall, lifecycle, degradation, and version fixtures; for `AHI-010`, the `integrations/host-adapters.test.mjs` test under `TestHostAdapterJavaScriptHosts` binding each `integrations/compatibility.json` row to its shipped declaration and its row's adapter version to the package manifest version, and asserting `globalDegradations` disjoint from `receiptDegradationPolicy.recognised` |
