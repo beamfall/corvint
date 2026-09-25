@@ -231,6 +231,7 @@ func (c *check) checkContextAbstention(report []byte) bool {
 		chomp(string(readFile(artifact))) != abstentionArtifact(argvSHA, c.base, reason, stderrSHA, stdoutSHA, c.target) {
 		c.fail("context-abstention-evidence-drift")
 	}
+	c.say("dogfood-check: NOTE prechange-impact NOT_PRODUCED %s\n", reason)
 	return true
 }
 

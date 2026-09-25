@@ -17,7 +17,14 @@ existing machinery, each code kept as the row reason and in the abstention artif
 is a Go-native profile and its absence is a visible scope limit, not a failed step. Any other code
 or shape still blocks. Evidence: `TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot`
 (real refusals: change, check and seal pass) and new `script/dogfood-change_test.sh` cases. The
-requirement is proposed; the owner accepts it.
+requirement is proposed; the owner accepts it. Review repairs: accepted `GOC-V0-009` and
+`ERI-V0-006` admit only `unsupported-impact-range`, so each now carries a proposed amendment, not
+accepted, widening the set to the three codes; the code change must not merge until the owner
+accepts `DCW-V0-025` and both amendments. `dogfood change` and `dogfood check` now print one
+`NOTE prechange-impact NOT_PRODUCED CODE` stderr line for each of the three codes, and the shell
+failure loop asserts each invalid shape's exact reason. Follow-up, left unchanged: the one-stderr-line
+test (`internal/dogfoodflow/change.go:223`, `check.go:230`) counts newlines, so an envelope line
+followed by unterminated trailing bytes still qualifies (`textLines` splits them off, `flow.go:255`).
 
 ## 2026-09-25 V1-0261 DCW-V0-020: adopter fix lines name the `corvint dogfood` subverb
 

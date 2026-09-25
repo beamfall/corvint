@@ -891,9 +891,14 @@ func (c *change) fixHint(row step) string {
 	return ""
 }
 
-// reportFailures lists each failing row with its fix and exits 1, or exits 0
-// silently when the report is complete.
+// reportFailures notes an accepted impact abstention, then lists each failing
+// row with its fix and exits 1, or exits 0 when the report is complete.
 func (c *change) reportFailures() int {
+	for _, row := range c.rows {
+		if row.name == "prechange-impact" && impactAbstentions[row.reason] {
+			c.say("dogfood-change: NOTE prechange-impact NOT_PRODUCED %s\n", row.reason)
+		}
+	}
 	if c.complete() {
 		return 0
 	}

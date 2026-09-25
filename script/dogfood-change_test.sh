@@ -443,11 +443,13 @@ set -m
   "${default_env[@]}" script/dogfood-check.sh "$base"
   DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" DOGFOOD_CITATIONS="$test_root/citations.tsv" \
     DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
-    DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
+    DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2> "$test_root/abstention-change.stderr"
+  test "$(cat "$test_root/abstention-change.stderr")" = 'dogfood-change: NOTE prechange-impact NOT_PRODUCED unsupported-impact-range'
   rg -q '"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-range"' .corvint/dogfood-report.json
   rg -Fq '{"step": "prechange-impact", "status": "NOT_PRODUCED", "reason": "packet-not-compiled"}]' .corvint/dogfood-report.json
   rg -q '^  ,"contextAbstentionEvidenceSha256": "sha256:[0-9a-f]{64}"$' .corvint/dogfood-report.json
-  DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" script/dogfood-check.sh "$base"
+  DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" script/dogfood-check.sh "$base" 2> "$test_root/abstention-check.stderr"
+  rg -Fxq 'dogfood-check: NOTE prechange-impact NOT_PRODUCED unsupported-impact-range' "$test_root/abstention-check.stderr"
   cp "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.stderr" "$test_root/prechange-impact.stderr"
   printf 'drift\n' >> "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.stderr"
   context_drift_status=0
@@ -463,16 +465,21 @@ set -m
     rg -Fq '"complete": true' .corvint/dogfood-report.json
     rg -Fq '"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-'"$impact_abstention"'"' .corvint/dogfood-report.json
     rg -Fq '"reason":"unsupported-impact-'"$impact_abstention"'"' "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact-abstention.json"
-    DOGFOOD_TEST_IMPACT=unsupported-$impact_abstention "${default_env[@]}" script/dogfood-check.sh "$base"
+    DOGFOOD_TEST_IMPACT=unsupported-$impact_abstention "${default_env[@]}" script/dogfood-check.sh "$base" 2> "$test_root/abstention-check.stderr"
+    rg -Fxq "dogfood-check: NOTE prechange-impact NOT_PRODUCED unsupported-impact-$impact_abstention" "$test_root/abstention-check.stderr"
   done
-  for impact_failure in malformed invalid-escape raw-tab wrong-exit nonempty crash repository-wrong-exit path-nonempty other-code; do
+  for impact_case in malformed:context-abstention-invalid invalid-escape:context-abstention-invalid \
+    raw-tab:context-abstention-invalid wrong-exit:context-abstention-invalid nonempty:context-abstention-invalid \
+    crash:exit-7 repository-wrong-exit:context-abstention-invalid path-nonempty:context-abstention-invalid \
+    other-code:unsupported-impact-path-suffix; do
+    impact_failure=${impact_case%%:*}
     impact_status=0
     DOGFOOD_TEST_IMPACT=$impact_failure "${default_env[@]}" DOGFOOD_CITATIONS="$test_root/citations.tsv" \
       DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
       DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" >/dev/null 2>&1 || impact_status=$?
     test "$impact_status" != 0
     rg -q '"complete": false' .corvint/dogfood-report.json
-    rg -q '"name": "prechange-impact", "status": "NOT_PRODUCED"' .corvint/dogfood-report.json
+    rg -Fq '"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "'"${impact_case#*:}"'"' .corvint/dogfood-report.json
   done
   DOGFOOD_TEST_IMPACT=unsupported DOGFOOD_TEST_QUERY=duplicate-coverage "${default_env[@]}" \
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \

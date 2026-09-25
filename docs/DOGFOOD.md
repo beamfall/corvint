@@ -194,7 +194,8 @@ If Corvint abstains or misses a critical item, continue with ordinary repository
 the miss in `docs/BUILD-LOG.md`. Never tune the current task into a held-out evaluation.
 For `prechange-impact` only, a complete coordinator may retain `NOT_PRODUCED
 unsupported-impact-range` as an explicit context abstention, and, under the proposed `DCW-V0-025`,
-`unsupported-impact-repository` (no Go module, as in a non-Go repository) or
+`unsupported-impact-repository` (no Go module, as in a non-Go repository, or a native Go index over
+the 128 MiB aggregate bound) or
 `unsupported-impact-path` (a changed Go file at the module root), each under its own code. It MUST retain the exact argv bytes,
 base, target, exit status, and raw stdout/stderr digests in the private context-abstention artifact;
 the strict checker validates those bindings. No other exit, malformed error, missing artifact, or
