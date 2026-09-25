@@ -1,0 +1,32 @@
+{
+  "excludedPath": ".corvint/change.cem.json",
+  "mutates": false,
+  "ok": true,
+  "patchSource": "canonical-derived",
+  "tool": "cem-verify",
+  "verification": {
+    "assurance": "canonical",
+    "baseRevision": "61151eb4449d4798ad4875ffea7845238ef3c93e",
+    "drift": [
+      {
+        "baseBlobOid": "654fa2d53b5fd4c691c6fdcad977142808cf38b0",
+        "evidenceId": "evidence:sha256:bbcac3a96e483e758db60117b0c16c47adb4b51e5b91cfacea77fdf12e42187e",
+        "path": "docs/rule.txt",
+        "status": "stable",
+        "targetBlobOid": "654fa2d53b5fd4c691c6fdcad977142808cf38b0",
+        "targetSpan": {
+          "end": 26,
+          "start": 0
+        }
+      }
+    ],
+    "evidenceTotal": 1,
+    "hunksTotal": 1,
+    "issues": [],
+    "patchSha256": "994ec175c093271c0d5a98e810ed8f8c71c39d732690188822d3e4d76ab8285d",
+    "spec": "cem/0.2",
+    "targetRevision": "d00b90a6272539fa9d1dc14cc401ad296c0cd839",
+    "valid": true
+  },
+  "warnings": []
+}

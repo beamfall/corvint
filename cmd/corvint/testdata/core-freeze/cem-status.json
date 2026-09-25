@@ -1,0 +1,60 @@
+{
+  "counts": {
+    "mechanical": 0,
+    "supported": 1,
+    "total": 1,
+    "unknown": 0
+  },
+  "excludedPath": ".corvint/change.cem.json",
+  "map": "<varies:string>",
+  "mutates": false,
+  "ok": true,
+  "patch": null,
+  "patchSource": "canonical-derived",
+  "policyIssues": [],
+  "state": "ready-for-ci",
+  "tool": "cem-status",
+  "verification": {
+    "assurance": "canonical",
+    "baseRevision": "61151eb4449d4798ad4875ffea7845238ef3c93e",
+    "drift": [
+      {
+        "baseBlobOid": "654fa2d53b5fd4c691c6fdcad977142808cf38b0",
+        "evidenceId": "evidence:sha256:bbcac3a96e483e758db60117b0c16c47adb4b51e5b91cfacea77fdf12e42187e",
+        "path": "docs/rule.txt",
+        "status": "stable",
+        "targetBlobOid": "654fa2d53b5fd4c691c6fdcad977142808cf38b0",
+        "targetSpan": {
+          "end": 26,
+          "start": 0
+        }
+      }
+    ],
+    "evidenceTotal": 1,
+    "hunksTotal": 1,
+    "issues": [],
+    "patchSha256": "994ec175c093271c0d5a98e810ed8f8c71c39d732690188822d3e4d76ab8285d",
+    "spec": "cem/0.2",
+    "targetRevision": "d00b90a6272539fa9d1dc14cc401ad296c0cd839",
+    "valid": true
+  },
+  "warnings": [],
+  "worklist": [
+    {
+      "disposition": "supported",
+      "id": "hunk:sha256:9ec6dc6bc71093b93b17def234a14e099d03f2f51239998c24fecc6ac6330826",
+      "newRange": {
+        "count": 2,
+        "start": 1
+      },
+      "next": "done",
+      "oldRange": {
+        "count": 1,
+        "start": 1
+      },
+      "path": "src/app.txt",
+      "reason": "evidence-backed",
+      "selector": 1
+    }
+  ]
+}

@@ -1,0 +1,250 @@
+{
+  "inventory": {
+    "activation": "init",
+    "denominator": {
+      "boundaryCounts": {
+        "GENERATED_CANDIDATE": 0,
+        "VENDOR_CANDIDATE": 1
+      },
+      "classificationCounts": {
+        "EXCLUDED": 2,
+        "INCLUDED": 3,
+        "UNKNOWN": 0,
+        "UNSUPPORTED": 1
+      },
+      "classifiedEntries": 6,
+      "inspectedBlobBytes": 53,
+      "inspectedEntries": 3,
+      "sourceClassCounts": {
+        "ASSET": 0,
+        "CI": 0,
+        "CODE": 3,
+        "CONFIGURATION": 0,
+        "DOCUMENTATION": 2,
+        "E2E_TEST": 0,
+        "INCIDENT": 0,
+        "INSTRUCTIONS": 0,
+        "LOCKFILE": 0,
+        "MANIFEST": 0,
+        "OTHER_TEXT": 1,
+        "OWNERSHIP": 0,
+        "RUNBOOK": 0,
+        "SCHEMA": 0,
+        "SPECIFICATION": 0,
+        "TEST": 0
+      },
+      "trackedEntries": 6
+    },
+    "dirtyState": "CLEAN",
+    "entries": [
+      {
+        "boundaries": [],
+        "classes": [
+          "DOCUMENTATION"
+        ],
+        "classification": "INCLUDED",
+        "mode": "100644",
+        "objectType": "blob",
+        "oid": "9741694d75caeb49d3b7c1f59451c0c56bf6216c",
+        "path": "README.md",
+        "pathSha256": "b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5",
+        "reason": "tracked-text",
+        "roles": [],
+        "size": 10
+      },
+      {
+        "boundaries": [],
+        "classes": [
+          "DOCUMENTATION"
+        ],
+        "classification": "EXCLUDED",
+        "mode": "100644",
+        "objectType": "blob",
+        "oid": "3e18ebf09ec44c39a2f23f8f231b8900753e0597",
+        "path": "docs/private/note.md",
+        "pathSha256": "f184c2dfe1b1c59e0e2c8edda7d38f90602b340a61d08b140306c721cc5fe123",
+        "reason": "caller-declared-prefix",
+        "roles": [],
+        "size": 8
+      },
+      {
+        "boundaries": [],
+        "classes": [
+          "OTHER_TEXT"
+        ],
+        "classification": "UNSUPPORTED",
+        "mode": "120000",
+        "objectType": "blob",
+        "oid": "42061c01a1c70097d1e4579f29a5adf40abdec95",
+        "path": "readme-link",
+        "pathSha256": "c5f4286677303a70f2aa395da1279e49a9028fb247b919b486d9e8056536cf3a",
+        "reason": "symlink",
+        "roles": [],
+        "size": 9
+      },
+      {
+        "boundaries": [],
+        "classes": [
+          "CODE"
+        ],
+        "classification": "INCLUDED",
+        "mode": "100644",
+        "objectType": "blob",
+        "oid": "54355536c1a1f733f90c527b5652be8000c6e766",
+        "path": "src/café.py",
+        "pathSha256": "e2fa248f2697327d73088228b0c7e2d2e94412a54dcf03d67e39ee86ab861512",
+        "reason": "tracked-text",
+        "roles": [],
+        "size": 29
+      },
+      {
+        "boundaries": [],
+        "classes": [
+          "CODE"
+        ],
+        "classification": "INCLUDED",
+        "mode": "100644",
+        "objectType": "blob",
+        "oid": "f189a27358588426baebf2d11857f4c56b3ae12c",
+        "path": "src/main.go",
+        "pathSha256": "9e185f29fa355d7dd8fdd9c9ff1d0723b85206aa7d37c4eec93997005dc291eb",
+        "reason": "tracked-text",
+        "roles": [
+          "ENTRYPOINT_CANDIDATE"
+        ],
+        "size": 14
+      },
+      {
+        "boundaries": [
+          "VENDOR_CANDIDATE"
+        ],
+        "classes": [
+          "CODE"
+        ],
+        "classification": "EXCLUDED",
+        "mode": "100644",
+        "objectType": "blob",
+        "oid": "09b76aaa26ac6afc3f6b09805e8ede78e0637954",
+        "path": "vendor/lib.js",
+        "pathSha256": "340195a6e84bddf94107bbf12a0c454abe419de7331b713c74b91bac976f431b",
+        "reason": "caller-declared-prefix",
+        "roles": [],
+        "size": 19
+      }
+    ],
+    "gaps": [
+      {
+        "code": "symlink",
+        "count": 1
+      }
+    ],
+    "mechanicalResolvers": [
+      {
+        "admitted": 2,
+        "denominator": 2,
+        "name": "git-object-identity",
+        "rejected": 0,
+        "state": "EXHAUSTED",
+        "unresolved": 0
+      },
+      {
+        "admitted": 6,
+        "denominator": 6,
+        "name": "git-tree-inventory",
+        "rejected": 0,
+        "state": "EXHAUSTED",
+        "unresolved": 0
+      },
+      {
+        "admitted": 5,
+        "denominator": 6,
+        "name": "path-and-format-classification",
+        "rejected": 1,
+        "state": "EXHAUSTED",
+        "unresolved": 0
+      },
+      {
+        "admitted": 3,
+        "denominator": 3,
+        "name": "blob-format-inspection",
+        "rejected": 0,
+        "state": "EXHAUSTED",
+        "unresolved": 0
+      }
+    ],
+    "model": {
+      "callCount": 0,
+      "eligible": false,
+      "inputTokens": 0
+    },
+    "operationalState": "PARTIAL",
+    "profile": "genesis-inventory/0.1-experimental",
+    "receiptId": "genesis-inventory:sha256:c66e56d2e5f394420daf9a35f3960b0e86eff4b82050092d9e55b4c79758fdeb",
+    "repository": {
+      "authorityId": "repo:fixture",
+      "composition": "COMPOSABLE",
+      "objectFormat": "sha1",
+      "revision": "253a99a4567d96385daba31c2c1fd37acc622dbe",
+      "tree": "5ad35eb56422060effc8ad13cde0980b537ec574"
+    },
+    "scope": {
+      "excludedPrefixes": [
+        "docs/private",
+        "vendor"
+      ],
+      "limits": {
+        "maxBlobBytes": 2097152,
+        "maxEntries": 50000,
+        "maxPathBytes": 1024,
+        "maxTotalBlobBytes": 67108864,
+        "maxTreeBytes": 67108864
+      },
+      "policy": "mechanical-inventory-v0"
+    },
+    "semanticFrontier": [
+      {
+        "count": 0,
+        "reason": "declared-source-absent",
+        "sourceClass": "INSTRUCTIONS"
+      },
+      {
+        "count": 2,
+        "reason": "mechanical-inventory-only",
+        "sourceClass": "DOCUMENTATION"
+      },
+      {
+        "count": 0,
+        "reason": "declared-source-absent",
+        "sourceClass": "SPECIFICATION"
+      },
+      {
+        "count": 0,
+        "reason": "declared-source-absent",
+        "sourceClass": "TEST"
+      },
+      {
+        "count": 0,
+        "reason": "declared-source-absent",
+        "sourceClass": "CI"
+      },
+      {
+        "count": 0,
+        "reason": "declared-source-absent",
+        "sourceClass": "OWNERSHIP"
+      },
+      {
+        "count": 3,
+        "reason": "mechanical-inventory-only",
+        "sourceClass": "CODE"
+      },
+      {
+        "count": 1,
+        "reason": "mechanical-inventory-only",
+        "sourceClass": "OTHER_TEXT"
+      }
+    ]
+  },
+  "mutates": false,
+  "ok": true,
+  "tool": "init"
+}

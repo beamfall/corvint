@@ -6344,6 +6344,41 @@ snapshot, so the notice repeats until the argv runs. Evidence:
 `TestClaudeAdapterStaleSnapshotNamesRemediation` fail at base with the build seam alone (the live
 `dogfood-event-deadline` text, no argv) and pass with the change. Follow-up: the Codex fallback names
 the new code but carries no argv.
+
+## 2026-09-25 V1-0337: Core freeze compares every frozen mode with a structural golden (panel D4)
+
+Panel finding D4 said `TestCoreVerbsEmitTheFrozenProfiles` checked identifiers only. Six Core
+profiles had no schema or golden: `affected-plan/0`, `falsifiable-packet/0`,
+`corvint-working-tree-impact/0`, `corvint-local-completion/0`, `corvint-index-snapshot/1`, and
+`context` v1 inside the freeze. The `affected` `plan.graphDigest` value changed between 0.7.0 and
+0.8.1 without any test failing. Decision 0398 (owner, 2026-09-25) treats disputed panel findings
+as defects, so CCF-V1-002 no longer says the contract "pins only the identifiers". The amendment is
+proposed, not accepted.
+
+Change: each of the 22 frozen-mode cases has a golden in `cmd/corvint/testdata/core-freeze/`. The
+generator (`CORVINT_UPDATE_GOLDEN=1`) runs each mode twice on independent fixtures built at least a
+second apart. It keeps every equal value, and pins a value that differs by JSON type only
+(`"<varies:TYPE>"`). It fails if the member set, an array length or a type differs. The test reports
+removed, renamed, retyped and added members, array-length changes and value changes by JSON path. A
+golden mismatch is not breaking in itself: CCF-V1-006 still decides that, and a compatible change
+regenerates the golden in the same change.
+
+Only 24 leaves are pinned by type rather than value. They are fixture commit ids (`revision`,
+`commit`, `range.base`, `*.baseCommit`, `*.headCommit`, `request.base`), temporary paths (`cem`,
+`map`, `path`), and digests over the fixture history (`learning.history_digest`,
+`learning.history_tip`, one working-tree `identity_sha256`). Every other value is pinned, including
+`graphDigest`, `engine` and the prove falsifier verdicts. No output varied in structure.
+
+Evidence: making the graph digest hash one extra byte (`internal/liveverify/affected/graph.go`) fails
+the new test at `plan.graphDigest`, `engine` and `proof.affected.graph_digest`, while the base test
+passes. Editing the goldens to add a member, drop a member or retype a leaf gives the three expected
+failures. The check passed four times in a row on darwin/arm64. Linux is NOT_RUN.
+
+Not frozen, NOT_PRODUCED: the modes CCF-V1-002 already leaves unpinned (the mutating `cem`, `ocm` and
+`dogfood` subcommands, frontier human and test modes); member values the fixtures do not exercise;
+and cli-parity cases for `context`, `affected`, `prove`, `index`, `frontier` and `dogfood`, which the
+goldens stand in for but do not replace. One unreproduced failure of the test in six runs under
+shared-host load was seen before this change; its output was not captured.
 ## 2026-09-25 V1-0272: alternates refusal names the adopter rerun
 
 - The `unsupported-object-alternates` fix line ended with `rerun make dogfood-change`, the one
