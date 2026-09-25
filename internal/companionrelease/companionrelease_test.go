@@ -628,37 +628,31 @@ func TestValidateBundleNameRefusesPathTraversal(t *testing.T) {
 	}
 }
 
-// PUB-V0-011: Run refuses a scratch directory inside either checkout root,
-// by real spelling or through a symlink, before it writes anything there.
+// PUB-V0-011: Run refuses a scratch directory inside the checkout root, by
+// real spelling or through a symlink, before it writes anything there.
 func TestRunRefusesScratchInsideCheckoutRoot(t *testing.T) {
 	base := t.TempDir()
 	corvintRoot := filepath.Join(base, "corvint")
-	taskmanRoot := filepath.Join(base, "taskman")
-	if err := os.MkdirAll(filepath.Join(taskmanRoot, "sub"), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Join(corvintRoot, "sub"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Mkdir(corvintRoot, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(filepath.Join(taskmanRoot, "sub"), filepath.Join(base, "taskman-alias")); err != nil {
+	if err := os.Symlink(filepath.Join(corvintRoot, "sub"), filepath.Join(base, "corvint-alias")); err != nil {
 		t.Fatal(err)
 	}
 	for name, scratch := range map[string]string{
 		"not-yet-created scratch in the corvint root":              filepath.Join(corvintRoot, "scratch", "deeper"),
-		"existing scratch through a symlink into the taskman root": filepath.Join(base, "taskman-alias"),
+		"existing scratch through a symlink into the corvint root": filepath.Join(base, "corvint-alias"),
 	} {
-		report, err := Run(context.Background(), Options{CorvintRoot: corvintRoot, TaskmanRoot: taskmanRoot, Target: supportedTarget, Scratch: scratch, OutputParent: t.TempDir(), BundleName: "b"})
+		report, err := Run(context.Background(), Options{CorvintRoot: corvintRoot, Target: supportedTarget, Scratch: scratch, OutputParent: t.TempDir(), BundleName: "b"})
 		if err == nil || report != nil || !strings.Contains(err.Error(), "scratch") {
 			t.Errorf("%s: want scratch refusal, got report=%v err=%v", name, report, err)
 		}
-		for _, dir := range []string{corvintRoot, filepath.Join(taskmanRoot, "sub")} {
-			if names, _ := os.ReadDir(dir); len(names) != 0 {
-				t.Errorf("%s: refused run wrote under %s: %v", name, dir, names)
-			}
+		if names, _ := os.ReadDir(filepath.Join(corvintRoot, "sub")); len(names) != 0 {
+			t.Errorf("%s: refused run wrote under the corvint root: %v", name, names)
 		}
 	}
-	if err := validateScratch(context.Background(), filepath.Join(base, "scratch", "new"), corvintRoot, taskmanRoot); err != nil {
-		t.Errorf("not-yet-created scratch outside both roots refused: %v", err)
+	if err := validateScratch(context.Background(), filepath.Join(base, "scratch", "new"), corvintRoot); err != nil {
+		t.Errorf("not-yet-created scratch outside the root refused: %v", err)
 	}
 }
 
@@ -673,7 +667,7 @@ func TestRunRefusesCheckoutRootInsideScratch(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(corvintRoot, "go.mod"), []byte("module corvint\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	report, err := Run(context.Background(), Options{CorvintRoot: corvintRoot, TaskmanRoot: t.TempDir(), Target: supportedTarget, Scratch: scratch, OutputParent: t.TempDir(), BundleName: "b"})
+	report, err := Run(context.Background(), Options{CorvintRoot: corvintRoot, Target: supportedTarget, Scratch: scratch, OutputParent: t.TempDir(), BundleName: "b"})
 	if err == nil || report != nil || !strings.Contains(err.Error(), "scratch") {
 		t.Fatalf("want scratch refusal, got report=%v err=%v", report, err)
 	}
@@ -696,7 +690,7 @@ func TestRunRefusesCaseAliasOutputParent(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(base, "CORVINT")); err != nil {
 		t.Skipf("temp volume is case-sensitive: %v", err)
 	}
-	report, err := Run(context.Background(), Options{CorvintRoot: corvintRoot, TaskmanRoot: t.TempDir(), Target: supportedTarget, Scratch: t.TempDir(), OutputParent: filepath.Join(base, "CORVINT", "out"), BundleName: "b"})
+	report, err := Run(context.Background(), Options{CorvintRoot: corvintRoot, Target: supportedTarget, Scratch: t.TempDir(), OutputParent: filepath.Join(base, "CORVINT", "out"), BundleName: "b"})
 	if err == nil || report != nil || !strings.Contains(err.Error(), "output parent") {
 		t.Fatalf("want output parent refusal, got report=%v err=%v", report, err)
 	}
@@ -990,7 +984,7 @@ func TestBundleReportsNameNotRunTargetsAndBrowserScope(t *testing.T) {
 		}
 	})
 	t.Run("WQO-V0-047 adoption-record", func(t *testing.T) {
-		for _, want := range []string{"corvint-tasks --version", "github.com/Beamfall/corvint-tasks", "corvint work init --repository NAME --corvint-executable /absolute/path/to/corvint", "work rebind", ".corvint/work-queue-policy.json", "adapter\nreceipt", "ERROR/SOURCE_UNQUALIFIED", "ERROR/ADAPTER_FAILED", "STALE"} {
+		for _, want := range []string{"corvint-tasks --version", "go.mod, notices, cmd/corvint-tasks and internal/tasks", "-X main.build=<N>", "corvint work init --repository NAME --corvint-executable /absolute/path/to/corvint", "work rebind", ".corvint/work-queue-policy.json", "adapter\nreceipt", "ERROR/SOURCE_UNQUALIFIED", "ERROR/ADAPTER_FAILED", "STALE"} {
 			if !strings.Contains(readme, want) {
 				t.Fatalf("README does not record %q:\n%s", want, readme)
 			}
@@ -1236,10 +1230,9 @@ func TestBuildComponentTwiceRefusesPlantedScratchLink(t *testing.T) {
 }
 
 // TestCorvintBundledBinariesBuildTwiceIdentically drives PUB-V0-013's
-// byte-identity with the real toolchain: the three bundled binaries from this
-// module each build twice with cold, separate caches and match byte-for-byte.
-// `atm` is built from the separate corvint-taskman repository, which this
-// module's tests cannot reach, so its double build stays gate-measured.
+// byte-identity with the real toolchain: bundled binaries from this module,
+// including the in-tree corvint-tasks companion (decision 0397), each build
+// twice with cold, separate caches and match byte-for-byte.
 func TestCorvintBundledBinariesBuildTwiceIdentically(t *testing.T) {
 	t.Run("PUB-V0-013 corvint-binary-double-build", func(t *testing.T) {
 		if runtime.Version() != requiredGoVersion {
@@ -1253,7 +1246,7 @@ func TestCorvintBundledBinariesBuildTwiceIdentically(t *testing.T) {
 			t.Fatal(err)
 		}
 		scratch := t.TempDir()
-		for _, name := range []string{"corvint", "corvint-console", "corvint-dashboard-snapshot"} {
+		for _, name := range []string{"corvint", "corvint-console", "corvint-dashboard-snapshot", "corvint-tasks"} {
 			built, err := buildComponentTwice(context.Background(), root, "./cmd/"+name, name, supportedTarget, scratch)
 			if err != nil {
 				t.Fatalf("%s: %v", name, err)
@@ -1263,6 +1256,27 @@ func TestCorvintBundledBinariesBuildTwiceIdentically(t *testing.T) {
 			}
 		}
 	})
+}
+
+// Decision 0397: the corvint-tasks source archive is the standalone subset of
+// the recorded Corvint tree, with that tree's commit and exact bytes.
+func TestTasksExportKeepsOnlyTheStandaloneSubset(t *testing.T) {
+	export := Export{HeadCommit: strings.Repeat("a", 40), HeadTree: strings.Repeat("b", 40)}
+	for _, path := range []string{"LICENSE", "PROVENANCE.md", "cmd/corvint-tasks/main.go", "cmd/corvint/main.go", "go.mod", "internal/taskman/decode.go", "internal/tasks/wire/codes.go"} {
+		export.Files = append(export.Files, SourceFile{Path: path, Mode: "100644", Data: []byte(path)})
+	}
+	subset := tasksExport(export)
+	var got []string
+	for _, f := range subset.Files {
+		got = append(got, f.Path)
+	}
+	want := "LICENSE PROVENANCE.md cmd/corvint-tasks/main.go go.mod internal/tasks/wire/codes.go"
+	if strings.Join(got, " ") != want {
+		t.Fatalf("tasks export = %v, want %s", got, want)
+	}
+	if subset.HeadCommit != export.HeadCommit || subset.HeadTree != export.HeadTree || subset.TotalBytes != int64(len(strings.ReplaceAll(want, " ", ""))) {
+		t.Fatalf("tasks export identity = %s %s %d", subset.HeadCommit, subset.HeadTree, subset.TotalBytes)
+	}
 }
 
 // TestBundleArchiveCarriesManifestAndSumsForEveryMember drives PUB-V0-014's

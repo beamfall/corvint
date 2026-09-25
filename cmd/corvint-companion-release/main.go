@@ -1,8 +1,9 @@
 // Command corvint-companion-release assembles the optional companion
 // distribution bundle for a single pinned target (darwin/arm64 only; see
-// docs/specs/public-release-v0.md). It never mutates its input checkouts:
-// both -source-root and -tasks-root must already be clean, and every
-// build/assembly step runs under -scratch. On any failure it retains no
+// docs/specs/public-release-v0.md). It never mutates its input checkout:
+// -source-root must already be clean, and every build/assembly step runs
+// under -scratch. The corvint-tasks companion builds from the same checkout
+// (decision 0397). On any failure it retains no
 // output and exits non-zero.
 package main
 
@@ -26,17 +27,16 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("corvint-companion-release", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	sourceRoot := fs.String("source-root", "", "clean Corvint source checkout (required)")
-	tasksRoot := fs.String("tasks-root", "", "clean Corvint Tasks source checkout (required)")
 	target := fs.String("target", "darwin/arm64", "GOOS/GOARCH pair to build (only darwin/arm64 is supported)")
 	scratch := fs.String("scratch", "", "scratch working directory (required)")
-	outputParent := fs.String("output-parent", "", "directory the retained bundle is placed under (required; must be outside both roots)")
+	outputParent := fs.String("output-parent", "", "directory the retained bundle is placed under (required; must be outside -source-root)")
 	bundleName := fs.String("bundle-name", "", "name of the retained bundle directory under -output-parent (required)")
 	npmCache := fs.String("npm-cache", "", "retained compatibility argument; unused by core bundle")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if *sourceRoot == "" || *tasksRoot == "" || *scratch == "" || *outputParent == "" || *bundleName == "" {
-		fmt.Fprintln(stderr, "corvint-companion-release: -source-root, -tasks-root, -scratch, -output-parent, and -bundle-name are all required")
+	if *sourceRoot == "" || *scratch == "" || *outputParent == "" || *bundleName == "" {
+		fmt.Fprintln(stderr, "corvint-companion-release: -source-root, -scratch, -output-parent, and -bundle-name are all required")
 		return 2
 	}
 
@@ -45,7 +45,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	report, err := companionrelease.Run(ctx, companionrelease.Options{
 		CorvintRoot:  *sourceRoot,
-		TaskmanRoot:  *tasksRoot,
 		Target:       *target,
 		Scratch:      *scratch,
 		OutputParent: *outputParent,

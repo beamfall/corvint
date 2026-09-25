@@ -24,13 +24,4 @@ for wrapper in corvint-companion-release-gate public-release-check; do
   grep -Fxq 'CORVINT_NPM_CACHE must not be empty' "$scratch/error"
   [ ! -e "$CORVINT_ADMISSION_MARKER" ]
 done
-
-# A nonempty explicit source wins before consulting the ambient source setting.
-for primary in '' /one; do
-  rm -f "$CORVINT_ADMISSION_MARKER"
-  if CORVINT_TASKMAN_REPO="$primary" CORVINT_NPM_CACHE=/cache PATH="$scratch/bin:$PATH" bash "$root/script/corvint-companion-release-gate" /explicit >"$scratch/out" 2>"$scratch/error"; then exit 1; fi
-  [ -s "$CORVINT_ADMISSION_MARKER" ]
-  grep -Fq '/explicit is not a git checkout' "$scratch/error"
-  ! grep -Eq 'must not be empty' "$scratch/error"
-done
 printf 'release environment compatibility: PASS\n'
