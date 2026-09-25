@@ -352,8 +352,22 @@ func evalQuery(ctx context.Context, index *Index, text string, limit int, budget
 	// it, and a packet withdrawn today would be published on the strength of a
 	// result the caller never receives.
 	emitted := results[:min(len(results), limit)]
-	belowFloor := len(results) != 0 &&
-		evalStrongestSupport(emitted, evalQuerySupportIndex(competitive, documents, confident), ordered) < min(2, len(ordered))
+	floor := min(2, len(ordered))
+	supportIndex := evalQuerySupportIndex(competitive, documents, confident)
+	belowFloor := len(results) != 0 && evalStrongestSupport(emitted, supportIndex, ordered) < floor
+	// GPK-V0-066. Records and documents take precedence over symbols only as
+	// answers to the task. When the packet they built fails the floor, none of
+	// them is one, so the packet is compiled as though no record or document
+	// matched: the confident symbols alone, judged by the same floor. The
+	// withdrawn records leave no tie state or nearest claim behind.
+	fallback := make([]map[string]any, 0, len(admittedConfident)+3)
+	for _, candidate := range admittedConfident {
+		fallback = append(fallback, candidate.result)
+	}
+	if belowFloor && evalStrongestSupport(fallback[:min(len(fallback), limit)], supportIndex, ordered) >= floor {
+		results = append(fallback, learned[:min(len(learned), 3)]...)
+		records, competitive, belowFloor = nil, nil, false
+	}
 	if belowFloor {
 		results = results[:0]
 	}

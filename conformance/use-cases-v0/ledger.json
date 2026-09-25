@@ -172,7 +172,7 @@
       "evidence": {
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/contract.json",
-          "sha256": "e817e6ba6744e5f6222d257109636700c54e46ec94c6834a244172b3533b6268"
+          "sha256": "32358a74517c9a6dd638d2db75b3aad82c3768cec324855615c59c29b3a10997"
         },
         "corvint-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/corvint-dogfood.json",
@@ -205,7 +205,7 @@
         },
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/contract.json",
-          "sha256": "93a4d50f43495519331e4a3b0cf3d552ed0fedd326823832ed40f16f1eddc82a"
+          "sha256": "bebff5c47074e5170daec78d19eb469d1eaac0df7802b8d447f98c0a1035cd18"
         },
         "corvint-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/corvint-dogfood.json",
@@ -217,7 +217,7 @@
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/implementation.json",
-          "sha256": "6e7699465c460e58894e5d3a19a7c6394c84a6afdf82ef6f1c43724507e870bc"
+          "sha256": "56dd0d21a84bfa92277be70865edbd1b82870ef0c7ff51bbd15c30391d02aa7f"
         },
         "sealed-benchmark": {
           "path": "benchmarks/daily-loop-v0/receipts/run-002/UC-CHANGE-CONSEQUENCE.json",
@@ -238,7 +238,7 @@
         },
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/contract.json",
-          "sha256": "0b60c7b2d0a9dade814975584510e76194866e08009751d649aab60acc8992fc"
+          "sha256": "511203ffecc2abd4ec03d5de160529c5cd64061b38a65c4bd4298e96d267116c"
         },
         "corvint-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/corvint-dogfood.json",
@@ -250,7 +250,7 @@
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/implementation.json",
-          "sha256": "7943a94ac60935ba0d9dabc2c4d933d3c8f9151c4a41debae9cc9cec97d7dc22"
+          "sha256": "30958a46da514122b973f73b3f471fa2079f5b68feb773c5dd0d5c8084f360a6"
         },
         "sealed-benchmark": {
           "path": "benchmarks/daily-loop-v0/receipts/run-002/UC-EVIDENCE-CARRYING-COMPLETION.json",

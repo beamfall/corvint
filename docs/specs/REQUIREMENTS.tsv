@@ -67,46 +67,46 @@ AFU-V0-009	docs/specs/application-flow-understanding-v0.md	98	Learning is an exp
 AFU-V0-010	docs/specs/application-flow-understanding-v0.md	102	Use a separately invoked optional browser/test provider with declared action sco
 AFU-V0-011	docs/specs/application-flow-understanding-v0.md	106	Source, UI text and imported artifacts are untrusted data, never execution instr
 AFU-V0-012	docs/specs/application-flow-understanding-v0.md	110	Explain each flow and gap through source/assertion/run evidence, expose contradi
-AFU-V1-001	docs/specs/application-flow-understanding-v1.md	107	A flow intent MUST be a closed `application-flow-intent/1` document with `flow_i
-AFU-V1-002	docs/specs/application-flow-understanding-v1.md	112	A `flow_id` or `variation_id` MUST NOT be reused for a different behavior or
-AFU-V1-003	docs/specs/application-flow-understanding-v1.md	115	`flows export` MUST compile the intent set to one
-AFU-V1-004	docs/specs/application-flow-understanding-v1.md	119	`flows import` MUST accept a `corvint-behavior-adapter-request/1` document, an O
-AFU-V1-005	docs/specs/application-flow-understanding-v1.md	123	Importing an exported behavior-adapter request and exporting the result MUST
-AFU-V1-006	docs/specs/application-flow-understanding-v1.md	125	Flows MAY span repositories. The behavior provider moves to a `/2` profile whose
-AFU-V1-007	docs/specs/application-flow-understanding-v1.md	131	Every link MUST carry its basis, its target identity (path and blob span, test k
-AFU-V1-008	docs/specs/application-flow-understanding-v1.md	133	A link is `reviewed` only when its review anchor is valid at the evaluated revis
-AFU-V1-009	docs/specs/application-flow-understanding-v1.md	139	`inferred` links MUST be reported separately and MUST NOT count toward any revie
-AFU-V1-010	docs/specs/application-flow-understanding-v1.md	142	Reverse lookups (source path to flows, test key to flows) MUST be derived at que
-AFU-V1-011	docs/specs/application-flow-understanding-v1.md	187	A `test-run-evidence/0` record MUST carry the run ID, the runner name and versio
-AFU-V1-012	docs/specs/application-flow-understanding-v1.md	193	The ingest adapters for Playwright JSON, JUnit XML (including `flakyFailure` and
-AFU-V1-013	docs/specs/application-flow-understanding-v1.md	196	A test with a failed attempt and a later passed attempt MUST be `flaky`, never
-AFU-V1-014	docs/specs/application-flow-understanding-v1.md	198	Ingested evidence has authority `INGESTED`. Evidence that Corvint's own observer
-AFU-V1-015	docs/specs/application-flow-understanding-v1.md	250	`corvint flows map` MUST report each flow, variation, step and outcome with its
-AFU-V1-016	docs/specs/application-flow-understanding-v1.md	252	`corvint flows gaps` MUST report each gap with one closed code: `unmapped-flow`,
-AFU-V1-017	docs/specs/application-flow-understanding-v1.md	256	`corvint flows impact --base SHA` MUST name the flows, variations and test keys
-AFU-V1-018	docs/specs/application-flow-understanding-v1.md	258	All of these commands are read commands under product invariant 4. Only `import`
-AFU-V1-019	docs/specs/application-flow-understanding-v1.md	335	`corvint affected --provider FILE --selection-profile e2e-safe` MUST select ever
-AFU-V1-020	docs/specs/application-flow-understanding-v1.md	341	An exclusion proof with basis `reviewed-links` MUST require that every link of t
-AFU-V1-021	docs/specs/application-flow-understanding-v1.md	347	An `observed` coverage link MAY add tests to the selection. An exclusion proof w
-AFU-V1-022	docs/specs/application-flow-understanding-v1.md	352	No test may be omitted when any changed path is a global path. When narrowing is
-AFU-V1-023	docs/specs/application-flow-understanding-v1.md	358	Every omitted test MUST appear with its exclusion proof and basis in the result,
-AFU-V1-024	docs/specs/application-flow-understanding-v1.md	362	The profile is an additive value of the frozen `--selection-profile` option. The
-AFU-V1-025	docs/specs/application-flow-understanding-v1.md	368	`corvint flows navigate` MUST derive an `application-navigation-map/0` from flow
-AFU-V1-026	docs/specs/application-flow-understanding-v1.md	374	Locators MUST come from the flow intent or test source: an accessible role and n
-AFU-V1-027	docs/specs/application-flow-understanding-v1.md	376	Every transition MUST carry an effect class. A declared class MAY be raised by
-AFU-V1-028	docs/specs/application-flow-understanding-v1.md	379	`flows navigate --goal FLOW_ID` MUST return a bounded packet: the ordered steps,
-AFU-V1-029	docs/specs/application-flow-understanding-v1.md	384	The Corvint observer MUST NOT perform a `write-irreversible` or
-AFU-V1-030	docs/specs/application-flow-understanding-v1.md	390	`corvint flows docs` MUST render user documentation from flow intents with fixed
-AFU-V1-031	docs/specs/application-flow-understanding-v1.md	393	A claim is `PROVEN` only when its variation is verified at the evaluated revisio
-AFU-V1-032	docs/specs/application-flow-understanding-v1.md	396	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
-AFU-V1-033	docs/specs/application-flow-understanding-v1.md	400	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
-AFU-V1-034	docs/specs/application-flow-understanding-v1.md	410	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
-AFU-V1-035	docs/specs/application-flow-understanding-v1.md	414	Repository-authored text in any flows response is returned inside the untrusted-
-AFU-V1-036	docs/specs/application-flow-understanding-v1.md	419	Every write MUST resolve under the repository root without following a symlink.
-AFU-V1-037	docs/specs/application-flow-understanding-v1.md	423	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
-AFU-V1-038	docs/specs/application-flow-understanding-v1.md	425	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
-AFU-V1-039	docs/specs/application-flow-understanding-v1.md	431	A committed fixture application MUST carry one UI flow and one API flow that rea
-AFU-V1-040	docs/specs/application-flow-understanding-v1.md	434	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
+AFU-V1-001	docs/specs/application-flow-understanding-v1.md	114	A flow intent MUST be a closed `application-flow-intent/1` document with `flow_i
+AFU-V1-002	docs/specs/application-flow-understanding-v1.md	119	A `flow_id` or `variation_id` MUST NOT be reused for a different behavior or
+AFU-V1-003	docs/specs/application-flow-understanding-v1.md	122	`flows export` MUST compile the intent set to one
+AFU-V1-004	docs/specs/application-flow-understanding-v1.md	126	`flows import` MUST accept a `corvint-behavior-adapter-request/1` document, an O
+AFU-V1-005	docs/specs/application-flow-understanding-v1.md	130	Importing an exported behavior-adapter request and exporting the result MUST
+AFU-V1-006	docs/specs/application-flow-understanding-v1.md	132	Flows MAY span repositories. The behavior provider moves to a `/2` profile whose
+AFU-V1-007	docs/specs/application-flow-understanding-v1.md	138	Every link MUST carry its basis, its target identity (path and blob span, test k
+AFU-V1-008	docs/specs/application-flow-understanding-v1.md	140	A link is `reviewed` only when its review anchor is valid at the evaluated revis
+AFU-V1-009	docs/specs/application-flow-understanding-v1.md	146	`inferred` links MUST be reported separately and MUST NOT count toward any revie
+AFU-V1-010	docs/specs/application-flow-understanding-v1.md	149	Reverse lookups (source path to flows, test key to flows) MUST be derived at que
+AFU-V1-011	docs/specs/application-flow-understanding-v1.md	194	A `test-run-evidence/0` record MUST carry the run ID, the runner name and versio
+AFU-V1-012	docs/specs/application-flow-understanding-v1.md	200	The ingest adapters for Playwright JSON, JUnit XML (including `flakyFailure` and
+AFU-V1-013	docs/specs/application-flow-understanding-v1.md	203	A test with a failed attempt and a later passed attempt MUST be `flaky`, never
+AFU-V1-014	docs/specs/application-flow-understanding-v1.md	205	Ingested evidence has authority `INGESTED`. Evidence that Corvint's own observer
+AFU-V1-015	docs/specs/application-flow-understanding-v1.md	257	`corvint flows map` MUST report each flow, variation, step and outcome with its
+AFU-V1-016	docs/specs/application-flow-understanding-v1.md	259	`corvint flows gaps` MUST report each gap with one closed code: `unmapped-flow`,
+AFU-V1-017	docs/specs/application-flow-understanding-v1.md	263	`corvint flows impact --base SHA` MUST name the flows, variations and test keys
+AFU-V1-018	docs/specs/application-flow-understanding-v1.md	265	All of these commands are read commands under product invariant 4. Only `import`
+AFU-V1-019	docs/specs/application-flow-understanding-v1.md	342	`corvint affected --provider FILE --selection-profile e2e-safe` MUST select ever
+AFU-V1-020	docs/specs/application-flow-understanding-v1.md	348	An exclusion proof with basis `reviewed-links` MUST require that every link of t
+AFU-V1-021	docs/specs/application-flow-understanding-v1.md	354	An `observed` coverage link MAY add tests to the selection. An exclusion proof w
+AFU-V1-022	docs/specs/application-flow-understanding-v1.md	359	No test may be omitted when any changed path is a global path. When narrowing is
+AFU-V1-023	docs/specs/application-flow-understanding-v1.md	365	Every omitted test MUST appear with its exclusion proof and basis in the result,
+AFU-V1-024	docs/specs/application-flow-understanding-v1.md	369	The profile is an additive value of the frozen `--selection-profile` option. The
+AFU-V1-025	docs/specs/application-flow-understanding-v1.md	406	`corvint flows navigate` MUST derive an `application-navigation-map/0` from flow
+AFU-V1-026	docs/specs/application-flow-understanding-v1.md	412	Locators MUST come from the flow intent or test source: an accessible role and n
+AFU-V1-027	docs/specs/application-flow-understanding-v1.md	414	Every transition MUST carry an effect class. A declared class MAY be raised by
+AFU-V1-028	docs/specs/application-flow-understanding-v1.md	417	`flows navigate --goal FLOW_ID` MUST return a bounded packet: the ordered steps,
+AFU-V1-029	docs/specs/application-flow-understanding-v1.md	422	The Corvint observer MUST NOT perform a `write-irreversible` or
+AFU-V1-030	docs/specs/application-flow-understanding-v1.md	428	`corvint flows docs` MUST render user documentation from flow intents with fixed
+AFU-V1-031	docs/specs/application-flow-understanding-v1.md	431	A claim is `PROVEN` only when its variation is verified at the evaluated revisio
+AFU-V1-032	docs/specs/application-flow-understanding-v1.md	434	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
+AFU-V1-033	docs/specs/application-flow-understanding-v1.md	438	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
+AFU-V1-034	docs/specs/application-flow-understanding-v1.md	448	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
+AFU-V1-035	docs/specs/application-flow-understanding-v1.md	452	Repository-authored text in any flows response is returned inside the untrusted-
+AFU-V1-036	docs/specs/application-flow-understanding-v1.md	457	Every write MUST resolve under the repository root without following a symlink.
+AFU-V1-037	docs/specs/application-flow-understanding-v1.md	461	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
+AFU-V1-038	docs/specs/application-flow-understanding-v1.md	463	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
+AFU-V1-039	docs/specs/application-flow-understanding-v1.md	469	A committed fixture application MUST carry one UI flow and one API flow that rea
+AFU-V1-040	docs/specs/application-flow-understanding-v1.md	472	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
 AGW-V0-003	docs/specs/corvint-witness-v0.md	51	(proposed 2026-09-23, V1-0200, not accepted) the report MUST carry
@@ -606,6 +606,7 @@ DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	134	(V1-0236, owner d
 DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	147	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
 DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	150	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
 DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	162	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
+DCW-V0-024	docs/specs/daily-change-evidence-workflow-v0.md	168	(V1-0259, owner decision 2026-09-25) A change that no `## Requirements` spec
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
@@ -851,16 +852,16 @@ ERI-V0-003	docs/specs/expanded-range-impact-v0.md	48	Only this profile's path ca
 ERI-V0-004	docs/specs/expanded-range-impact-v0.md	55	Without the new option, the existing range profile, its 100-path refusal, positi
 ERI-V0-005	docs/specs/expanded-range-impact-v0.md	60	The experimental compiler MUST retain one immutable clean base/head snapshot and
 ERI-V0-006	docs/specs/expanded-range-impact-v0.md	64	The prototype repository coordinator MUST select the experimental profile by an
-ESV-V0-001	docs/specs/experimental-source-views-v0.md	230	Bind the bounded canonical packet and exact caller selector to object format,
-ESV-V0-002	docs/specs/experimental-source-views-v0.md	235	Return one exact contiguous immutable source range as JSON `text` whose UTF-8
-ESV-V0-003	docs/specs/experimental-source-views-v0.md	239	Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git
-ESV-V0-004	docs/specs/experimental-source-views-v0.md	243	Refuse malformed input, stale commit/tree/blob, missing path, unsafe/nonregular
-ESV-V0-005	docs/specs/experimental-source-views-v0.md	256	Remain opt-in under `experimental-source-view/0`, and leave the bytes of the
-ESV-V0-006	docs/specs/experimental-source-views-v0.md	266	Treat focused synthetic correctness checks as development evidence only. The
-ESV-V0-007	docs/specs/experimental-source-views-v0.md	271	The opt-in development wrapper captures exactly one automatic canonical packet
-ESV-V0-008	docs/specs/experimental-source-views-v0.md	279	`context --summary` prints at most `--summary-bytes` bytes (1024..65536,
-ESV-V0-009	docs/specs/experimental-source-views-v0.md	286	`context --expand HANDLE` returns only the handle's line range, read from Git
-ESV-V0-010	docs/specs/experimental-source-views-v0.md	294	The summary and expansion views stay experimental until the matched complete-tas
+ESV-V0-001	docs/specs/experimental-source-views-v0.md	234	Bind the bounded canonical packet and exact caller selector to object format,
+ESV-V0-002	docs/specs/experimental-source-views-v0.md	239	Return one exact contiguous immutable source range as JSON `text` whose UTF-8
+ESV-V0-003	docs/specs/experimental-source-views-v0.md	243	Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git
+ESV-V0-004	docs/specs/experimental-source-views-v0.md	247	Refuse malformed input, stale commit/tree/blob, missing path, unsafe/nonregular
+ESV-V0-005	docs/specs/experimental-source-views-v0.md	260	Remain opt-in under `experimental-source-view/0`, and leave the bytes of the
+ESV-V0-006	docs/specs/experimental-source-views-v0.md	270	Treat focused synthetic correctness checks as development evidence only. The
+ESV-V0-007	docs/specs/experimental-source-views-v0.md	275	The opt-in development wrapper captures exactly one automatic canonical packet
+ESV-V0-008	docs/specs/experimental-source-views-v0.md	283	`context --summary` prints at most `--summary-bytes` bytes (1024..65536,
+ESV-V0-009	docs/specs/experimental-source-views-v0.md	290	`context --expand HANDLE` returns only the handle's line range, read from Git
+ESV-V0-010	docs/specs/experimental-source-views-v0.md	298	The summary and expansion views stay experimental until the matched complete-tas
 ETS-V0-001	docs/specs/external-test-selection-v0.md	51	`corvint affected` MUST accept `--provider FILE` and `--provider-command
 ETS-V0-002	docs/specs/external-test-selection-v0.md	57	With `--provider`, `advice` MUST gain `test_selection` with schema
 ETS-V0-003	docs/specs/external-test-selection-v0.md	63	`state` is exactly one of `narrow-selection-allowed`,
@@ -1088,29 +1089,30 @@ GPK-V0-039	docs/specs/go-production-kernel-migration-v0.md	395	A context packet 
 GPK-V0-040	docs/specs/go-production-kernel-migration-v0.md	426	A receipt's coverage counts are denominated in the universe of results the ranki
 GPK-V0-041	docs/specs/go-production-kernel-migration-v0.md	451	The typed `unsupported-ocm-python-claims` abstention `GPK-V0-037` requires of th
 GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	744	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and
-GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	889	`corvint query` MAY add a general `repository`-intent profile on Darwin
-GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	955	The standalone `corvint query` `repository`-intent profile introduced
+GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	890	`corvint query` MAY add a general `repository`-intent profile on Darwin
+GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	956	The standalone `corvint query` `repository`-intent profile introduced
 GPK-V0-045	docs/specs/go-production-kernel-migration-v0.md	474	An abstaining packet MUST name the reason it abstained at every surface that emi
 GPK-V0-046	docs/specs/go-production-kernel-migration-v0.md	491	Product invariant 3 ranks project-owned authority above syntax. A `query` packet
-GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1025	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
-GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1055	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
-GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1073	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
+GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1026	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
+GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1056	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
+GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1074	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
 GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	616	`corvint record` and `corvint dogfood-record` MUST admit a changed `.gitignore`
 GPK-V0-051	docs/specs/go-production-kernel-migration-v0.md	548	`corvint impact --base FULL_COMMIT_ID` MUST admit a `C` or `R` range member when
 GPK-V0-052	docs/specs/go-production-kernel-migration-v0.md	554	(accepted, decision 0052, 2026-09-04) when a query term
 GPK-V0-053	docs/specs/go-production-kernel-migration-v0.md	563	(accepted 2026-09-04 by decision 0051 item 2, which decides this wording change
 GPK-V0-054	docs/specs/go-production-kernel-migration-v0.md	502	`coverage.authoritative_results` counts cited results Corvint does not label
-GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1102	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
-GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1113	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1103	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1114	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
 GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	634	A target is shipped only after its native conformance, filesystem-safety,
 GPK-V0-058	docs/specs/go-production-kernel-migration-v0.md	572	(proposed amendment 2026-09-05, owner review pending; not accepted) a harness
-GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1132	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
-GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1196	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
-GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1220	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
-GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1147	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
-GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1230	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
-GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1163	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
+GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1133	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
+GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1197	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
+GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1221	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
+GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1148	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
+GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1231	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
+GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1164	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
 GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	588	(proposed amendment 2026-09-14, owner review pending; not accepted) a repository
+GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1246	(accepted 2026-09-25, decision 0387; V1-0260)
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation
@@ -1535,6 +1537,17 @@ OCM-V0-012	docs/specs/ocm-v0-dogfood.md	138	parsing, Git access, counts, spans, 
 OCM-V0-013	docs/specs/ocm-v0-dogfood.md	499	one dogfood change MAY declare an ordered set of pinned Markdown intent
 OCM-V0-014	docs/specs/ocm-v0-dogfood.md	146	the `ocm/0.1-experimental` wire profile MUST be frozen by the conformance suite
 OCM-V0-015	docs/specs/ocm-v0-dogfood.md	157	from 2026-09-22 the frozen `ocm/0.1-experimental` suite MUST pin every file unde
+OIF-V0-001	docs/specs/ocm-intent-forms-v0.md	54	`corvint ocm prepare` accepts `--intent-form FORM`, where FORM is exactly `requi
+OIF-V0-002	docs/specs/ocm-intent-forms-v0.md	55	A non-default form is recorded as the string member `intentScope.form`; the defa
+OIF-V0-003	docs/specs/ocm-intent-forms-v0.md	56	Every OCM read and write action re-derives requirements, span, and span digest f
+OIF-V0-004	docs/specs/ocm-intent-forms-v0.md	57	`adr-decisions` requires the blob's first line to be `---`, a later closing `---
+OIF-V0-005	docs/specs/ocm-intent-forms-v0.md	58	`adr-decisions` requires exactly one unfenced line equal to a member of the clos
+OIF-V0-006	docs/specs/ocm-intent-forms-v0.md	59	Every unfenced level-3 ATX heading in the Decisions span must match `### N. text
+OIF-V0-007	docs/specs/ocm-intent-forms-v0.md	60	`roadmap-acceptance` treats each unfenced line that starts `- [c] `, with c one
+OIF-V0-008	docs/specs/ocm-intent-forms-v0.md	61	A ticket's body is the contiguous following lines that start with a space. Its A
+OIF-V0-009	docs/specs/ocm-intent-forms-v0.md	62	A declared form that yields no requirement fails `missing-requirements`, more th
+OIF-V0-010	docs/specs/ocm-intent-forms-v0.md	63	The `lrf` OCM leg and the change-universe (Frontier/TCQ) OCM surface refuse a ma
+OIF-V0-011	docs/specs/ocm-intent-forms-v0.md	64	The capability is experimental: help labels the flag experimental, and no releas
 PCCO-V0-001	docs/specs/proof-carrying-context-optimization-v0.md	65	An optimization trial MUST begin from one canonical Corvint packet whose exact b
 PCCO-V0-002	docs/specs/proof-carrying-context-optimization-v0.md	69	V0 transformations are only whole-handle omission, exact duplicate elimination,
 PCCO-V0-003	docs/specs/proof-carrying-context-optimization-v0.md	72	Counterfactual search MUST run outside live agent sessions using bounded hierarc

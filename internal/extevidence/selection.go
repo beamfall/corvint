@@ -34,6 +34,9 @@ const (
 	MaxObligationEntities = 256
 )
 
+// SelectionNote is the ETS advice note; the e2e-safe profile keeps it (AFU-V1-023).
+const SelectionNote = "advice only; no test was executed; mandatory checks stay required; an empty or narrow selection is never proof that other tests are unneeded"
+
 // confidenceUnscored is reported because no record schema carries a
 // confidence; Core never invents one (ETS-V0-007).
 const confidenceUnscored = "unscored"
@@ -871,7 +874,7 @@ func (s *selector) result(providers []provider) map[string]any {
 		"state": state, "state_reason": reason, "authority": Authority,
 		"mandatory": s.mandatory(), "provider_evidence": providerRows(providers),
 		"scope": toAny(append([]string{}, s.input.Incomplete...)),
-		"note":  "advice only; no test was executed; mandatory checks stay required; an empty or narrow selection is never proof that other tests are unneeded",
+		"note":  SelectionNote,
 		"untrusted_text_fields": toAny([]string{
 			"test_selection.selected[].relation.rule", "test_selection.selected[].relation.reference",
 			"test_selection.candidates[].relation.rule", "test_selection.candidates[].relation.reference",

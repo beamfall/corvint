@@ -204,3 +204,50 @@ func TestEvalQueryRelevanceFloorPrecedesPacketBudget(t *testing.T) {
 		t.Fatalf("without the supporting row: state=%q results=%d reason=%q", state, count, reason)
 	}
 }
+
+// GPK-V0-066. Records outrank symbols only as answers to the task. Two
+// features that each match one query word fill a limit-1 packet that fails the
+// floor, while a symbol resting on four query words was never admitted; the
+// packet is compiled from the confident symbols instead of being withdrawn.
+// Without that symbol the same query is still withdrawn.
+func TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "config", "user.email", "corvint@example.test")
+	testGit(t, root, "config", "user.name", "Corvint Test")
+	writeTestFile(t, root, ".gitignore", ".context-corvint/\n")
+	writeTestFile(t, root, "go.mod", "module example.test/recordfloor\n\ngo 1.27.0\n")
+	writeTestFile(t, root, "testing/features.yaml", "features:\n"+
+		"  - id: plugin-music\n    area: plugins\n    summary: Music library.\n    adr: []\n    applies: [server]\n    status: shipped\n"+
+		"  - id: plugin-podcasts\n    area: plugins\n    summary: Podcast feeds.\n    adr: []\n    applies: [server]\n    status: shipped\n")
+	writeTestFile(t, root, "testing/scenarios.yaml", "scenarios: []\n")
+	supporting := "internal/plugin/trust.go"
+	writeTestFile(t, root, supporting, "package plugin\n\ntype PluginTrustRoots struct{}\n")
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "seed")
+	query := "validate plugin trust roots at model loader construction"
+
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packet, err := EvalQuery(context.Background(), index, query, 1, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	results := mapsFromAny(packet["results"])
+	abstention := packet["abstention"].(map[string]any)
+	if len(results) != 1 || results[0]["id"] != supporting+":PluginTrustRoots" || packet["state"] != "READY" || abstention["reason"] != "none" {
+		t.Fatalf("state=%v abstention=%v results=%v, want the supporting symbol READY", packet["state"], abstention, results)
+	}
+
+	testGit(t, root, "rm", "-q", supporting)
+	testGit(t, root, "commit", "-qm", "drop the supporting symbol")
+	unsupported, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state, count, reason := evalFloorQuery(t, unsupported, query); state != "OUT_OF_SCOPE" || count != 0 || reason != "below-relevance-floor" {
+		t.Fatalf("without the supporting symbol: state=%q results=%d reason=%q", state, count, reason)
+	}
+}

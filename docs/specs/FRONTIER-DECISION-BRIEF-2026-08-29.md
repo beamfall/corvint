@@ -242,7 +242,7 @@ supplies them, and how?
 *Cost evidence, not authority:* a `stop` event admits exactly `{stopHookActive, changedPaths}` plus
 session binding (`internal/gokernel/harness.go:186-187`); the frontier surface requires
 `--cem MAP --ocm MAP --expected-base REV --target REV`, with base and target "never inferred"
-(`cmd/corvint/help.go:820-827@1713970e`); and `AHI-014` restricts wrappers to "the minimum event fields
+(`cmd/corvint/help.go:832-839@1713970e`); and `AHI-014` restricts wrappers to "the minimum event fields
 admitted by `corvint-harness-event/0`" (`agent-harness-integration-v0.md:140-142`).
 
 One option that looks available is not: the harness cannot recover the session's own start revision,
@@ -253,8 +253,8 @@ carries an outcome (`internal/gokernel/harness.go:398-401`). Every receipt binds
 **Options.**
 
 1. **Read a committed CEM/OCM pair from a declared repository path.** The convention exists
-   (`.corvint/change.cem.json`, `.corvint/change.ocm.json` — `cmd/corvint/ocm.go:247`,
-   `cmd/corvint/help.go:937@e432ec24`, workflow at `README.md:188-198@3297e31e`). Cost: this supplies two of four inputs.
+   (`.corvint/change.cem.json`, `.corvint/change.ocm.json` — `cmd/corvint/ocm.go:248`,
+   `cmd/corvint/help.go:949@e432ec24`, workflow at `README.md:188-198@3297e31e`). Cost: this supplies two of four inputs.
    Taking base and target *from the artifact* is what `CF-V0-001` calls inferred revision authority and
    fails `unsupported-frontier-context` (`change-frontier-v0.md:82-87`), so this option is incomplete
    on its own and must be paired with option 2 for the revisions.

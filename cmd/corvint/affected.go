@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/extevidence"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -235,6 +237,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	if invocation.PlaywrightConfig != "" && len(invocation.Providers) != 0 {
 		return affectedInvocation{}, argumentError("--playwright-config cannot be combined with --provider")
 	}
+	if invocation.SelectionProfile == appflows.E2ESafeProfile {
+		return invocation, checkAffectedE2ESafe(invocation)
+	}
 	if invocation.PlaywrightDiscovery != "" && invocation.PlaywrightConfig == "" {
 		return affectedInvocation{}, argumentError("--playwright-discovery requires --playwright-config")
 	}
@@ -242,6 +247,18 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 		invocation.SelectionProfile = extevidence.ProfileStrict
 	}
 	return invocation, nil
+}
+
+// checkAffectedE2ESafe admits the e2e-safe profile only over one repository-relative selection
+// provider file, and a discovery record, when named, only as a repository-relative file (AFU-V1-024).
+func checkAffectedE2ESafe(invocation affectedInvocation) error {
+	if len(invocation.Providers) != 1 || len(invocation.Checkouts) != 0 || !affected.ValidRelativePath(invocation.Providers[0]) {
+		return argumentError("--selection-profile e2e-safe requires exactly one repository-relative --provider file and no --repository")
+	}
+	if invocation.PlaywrightDiscovery != "" && !affected.ValidRelativePath(invocation.PlaywrightDiscovery) {
+		return argumentError("--playwright-discovery must be a repository-relative canonical path under --selection-profile e2e-safe")
+	}
+	return nil
 }
 
 func setAffectedPlaywrightConfig(invocation *affectedInvocation, value string) error {
@@ -302,8 +319,8 @@ func setAffectedSelectionProfile(invocation *affectedInvocation, value string) e
 	if invocation.SelectionProfile != "" {
 		return argumentError("--selection-profile requires exactly one value")
 	}
-	if !extevidence.ValidSelectionProfile(value) {
-		return argumentError("--selection-profile must be strict or coverage, got " + value)
+	if !extevidence.ValidSelectionProfile(value) && value != appflows.E2ESafeProfile {
+		return argumentError("--selection-profile must be strict, coverage or e2e-safe, got " + value)
 	}
 	invocation.SelectionProfile = value
 	return nil
@@ -448,7 +465,12 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 	plan := affected.Select(graph, affected.NormalizePaths(append(append([]string{}, dirty...), committed...)))
 	provider := providerGoProjection(graph, plan)
 	advice := compileAffectedAdvice(root, plan, provider)
-	if len(invocation.Providers) != 0 {
+	if invocation.SelectionProfile == appflows.E2ESafeProfile {
+		advice.TestSelection, err = affectedE2ESafeSelection(ctx, invocation, revision, graph, plan, advice)
+		if err != nil {
+			return affectedReceipt{}, err
+		}
+	} else if len(invocation.Providers) != 0 {
 		input := affectedSelectionInput(invocation, plan, dirty, advice)
 		input.CheckoutStatus = func(ctx context.Context, dir string) ([]string, error) {
 			return affected.DirtyPaths(ctx, gitExecutable, dir)
@@ -466,6 +488,22 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 		Revision: revision,
 		Tool:     "affected",
 	}, nil
+}
+
+// affectedE2ESafeSelection runs the e2e-safe profile over the plan and hands its closed output to
+// the receipt as the test_selection member (AFU-V1-019..024).
+func affectedE2ESafeSelection(ctx context.Context, invocation affectedInvocation, revision string, graph *affected.Graph, plan affected.Plan, advice affectedAdvice) (map[string]any, error) {
+	mandatory := affectedSelectionInput(invocation, plan, nil, advice).Mandatory
+	selection := appflows.SelectE2E(ctx, invocation.Root, appflows.E2EInput{
+		Provider: invocation.Providers[0], Discovery: invocation.PlaywrightDiscovery, Revision: revision,
+		Base: invocation.Base, Graph: graph, Plan: plan, Mandatory: mandatory,
+	})
+	encoded, err := json.Marshal(selection)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]any{}
+	return out, json.Unmarshal(encoded, &out)
 }
 
 // affectedSelectionMaxItems bounds every test_selection list; the rest is

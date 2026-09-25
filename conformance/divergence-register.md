@@ -1306,7 +1306,7 @@ valid Python, because they consult different grammars.
   blob CPython rejects offers no claims and `src/context_corvint_ocm.py:745` raises
   `claim-not-reextractable`.
 - Go consults `pythonsyntax.SourceSyntaxValid` through `pythonSyntaxValid`
-  (`internal/lrfrepo/ocm.go:873`), reached from `verifyClaims` (`:698`) and `claimExtractableIn`
+  (`internal/lrfrepo/ocm.go:897`), reached from `verifyClaims` (`:698`) and `claimExtractableIn`
   (`:794`). That is the analyzer's deliberately closed fact-extraction subset, not `python-ast/1`.
   It is wrong in both directions: it accepts sources CPython rejects, and it conservatively rejects
   valid Python outside the fact profile.
@@ -1369,7 +1369,7 @@ own `claim_id`, so the input is not candidate-authored), `lrf --cem .corvint/cha
 The candidate did not merely differ in a field: it published a complete evaluation of a claim the
 oracle refused to re-extract at all.
 
-**The Go repair.** `verifyOptionalOCM` (`internal/lrfrepo/ocm.go:104`) now passes
+**The Go repair.** `verifyOptionalOCM` (`internal/lrfrepo/ocm.go:106`) now passes
 `rejectPythonClaims: true` to `verifyOCM`, so the `lrf` OCM leg reaches the same categorical
 `.py` refusal in `verifyOCMClosure` (`:459`) that `ocm status|verify|report` reaches through
 `ocm_read.go:133`. One line, and it deletes an entire divergent surface rather than narrowing it.
@@ -1637,7 +1637,7 @@ processing. Pinned by `internal/tcq/analysis_test.go` and the Frontier seam test
 conformance fixture moved.
 
 **Residual 2 — NOT A DEFECT, measured 2026-09-04.** The universe-level refusal it described is
-unreachable: `verifyUniverseClaims` (`internal/lrfrepo/universe.go:164`) decides extractability from
+unreachable: `verifyUniverseClaims` (`internal/lrfrepo/universe.go:167`) decides extractability from
 claim shape alone and never consults the approximate grammar, and every caller of
 `verifyOCMClosure` passes `rejectPythonClaims: true` (`ocm.go:116`, `ocm_read.go:129`), so the
 Frontier leg does not reach `verifyClaims` at all. The under-permissive input the residual needs is

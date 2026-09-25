@@ -607,6 +607,8 @@ Usage:
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
           [--provider RECORD ...] [--provider-command ARGV_JSON ...]
           [--repository ID=DIR ...] [--selection-profile strict|coverage]
+  corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider FILE
+          --selection-profile e2e-safe [--playwright-discovery FILE]
 
 The command reads the Git worktree status, builds the multi-language unit graph
 from source text, and writes one affected-plan/0 document to stdout: the
@@ -658,6 +660,16 @@ reads a bounded canonical playwright-discovery/0 receipt binding HEAD, config an
 source bytes to the complete unfiltered project/file listing. Missing or mismatched
 discovery emits no file commands and one complete-config fallbackArgv. It executes
 no config or test and cannot be combined with --provider.
+
+--selection-profile e2e-safe reads one repository-relative
+application-flow-selection-provider/1 FILE (flows directory, runner config,
+discovery record, global paths, E2E inventory, per-flow coverage tiers and a
+coverage file) and writes an e2e-safe-selection/0 advice.test_selection. It
+selects every test whose file changed or that is linked to, reaches, or covers
+the change, and omits a test only with a reviewed-links or coverage exclusion
+proof. A global path change, missing or mismatched discovery, an inventory gap,
+or any unproven exclusion yields the full relevant suite with closed e2e-*
+codes. The strict and coverage profiles are unchanged.
 
 --provider-command ARGV_JSON runs one local provider command and reads its
 stdout as a record, exactly as impact does (EEP-TR): a JSON array of strings
@@ -935,6 +947,8 @@ Usage:
 
 Options:
   --cem PATH          Bound CEM map (default: .corvint/change.cem.json).
+  --intent-form FORM  Experimental prepare intent form: requirements (default),
+                      adr-decisions, or roadmap-acceptance.
   --max-unknown N     Optional non-negative unknown-obligation ceiling.
   --expected-base REV Independent expected base; required for CEM 0.2.
   --target REV        Independent target; required for CEM 0.2.

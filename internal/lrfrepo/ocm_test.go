@@ -56,7 +56,7 @@ func TestOCMLinkedVerificationAcceptsRequirementLineForms(t *testing.T) {
 				hunkIDs: []string{hunkID}, claimIDs: []string{claimID},
 			}}}
 			cem := &wire.Map{Hunks: []wire.Hunk{{ID: hunkID, Disposition: "supported"}}}
-			got, err := verifyObligations(document, cem, []string{test.id}, []byte(test.statement),
+			got, err := verifyObligations(document, cem, []string{test.id}, []byte(test.statement), nil,
 				map[string][]byte{claimID: []byte("test " + test.id)}, map[string]string{claimID: "example_test.go"})
 			if err != nil {
 				t.Fatal(err)

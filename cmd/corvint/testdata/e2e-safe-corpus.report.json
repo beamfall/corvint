@@ -1,0 +1,30 @@
+{
+ "schema": "e2e-safe-selection-corpus-report/0",
+ "cases": 20,
+ "tests_per_case": 5,
+ "narrowed_cases": 6,
+ "bases": {
+  "coverage": {
+   "omitted": 15,
+   "unsafe": 0,
+   "unsafe_narrowing_rate": 0,
+   "reduction_ratio": 0.15
+  },
+  "reviewed-links": {
+   "omitted": 3,
+   "unsafe": 0,
+   "unsafe_narrowing_rate": 0,
+   "reduction_ratio": 0.03
+  }
+ },
+ "fallback_codes": {
+  "e2e-bound-exceeded": 0,
+  "e2e-exclusion-unproven": 3,
+  "e2e-global-path-changed": 4,
+  "e2e-inferred-link-only": 2,
+  "e2e-inventory-incomplete": 3,
+  "e2e-map-stale": 2,
+  "e2e-unmapped-change": 3
+ },
+ "withdrawn": []
+}

@@ -54,6 +54,7 @@ type ocmIntent struct {
 	start      int64
 	end        int64
 	spanSHA256 string
+	form       string
 }
 
 type ocmClaim struct {
@@ -95,6 +96,7 @@ type ocmIntentContext struct {
 	reader       *ocmBlobReader
 	requirements []string
 	scope        []byte
+	statements   map[string][]byte
 }
 
 // verifyOptionalOCM is the `lrf` command's OCM leg. It rejects Python claims for
@@ -111,6 +113,9 @@ func verifyOptionalOCM(ctx context.Context, root *publish.Root, repository *gita
 	}
 	document, err := parseOCM(raw)
 	if err != nil {
+		return nil, err
+	}
+	if err := refuseDeclaredIntentForm(document); err != nil {
 		return nil, err
 	}
 	return verifyOCM(ctx, repository, cem, cemRaw, verified, document, raw, options, true)
@@ -187,7 +192,7 @@ func parseOCMClosure(root wire.Value, document *ocmDocument) error {
 		return err
 	}
 	obligationsValue, _ := root.Obj.Get("obligations")
-	obligations, err := parseObligations(obligationsValue)
+	obligations, err := parseObligations(obligationsValue, document.intent.form)
 	if err != nil {
 		return err
 	}
@@ -197,7 +202,15 @@ func parseOCMClosure(root wire.Value, document *ocmDocument) error {
 }
 
 func parseIntent(value wire.Value) (ocmIntent, error) {
-	object, err := exactObject(value, []string{"path", "blobOid", "span", "spanSha256"}, "intentScope")
+	fields := []string{"path", "blobOid", "span", "spanSha256"}
+	if value.Kind == wire.KindObject && declaresIntentForm(value.Obj) {
+		fields = append(fields, "form")
+	}
+	object, err := exactObject(value, fields, "intentScope")
+	if err != nil {
+		return ocmIntent{}, err
+	}
+	form, err := parseIntentForm(object)
 	if err != nil {
 		return ocmIntent{}, err
 	}
@@ -218,7 +231,7 @@ func parseIntent(value wire.Value) (ocmIntent, error) {
 	if digestErr != nil || !wire.IsSha256(digest) {
 		return ocmIntent{}, fail("invalid-span-digest", "intent span digest is invalid")
 	}
-	return ocmIntent{path: path, blobOID: blob, start: span.start, end: span.end, spanSHA256: digest}, nil
+	return ocmIntent{path: path, blobOID: blob, start: span.start, end: span.end, spanSHA256: digest, form: form}, nil
 }
 
 func parseClaims(value wire.Value) ([]ocmClaim, error) {
@@ -268,7 +281,7 @@ func parseClaims(value wire.Value) ([]ocmClaim, error) {
 	return claims, nil
 }
 
-func parseObligations(value wire.Value) ([]ocmObligation, error) {
+func parseObligations(value wire.Value, form string) ([]ocmObligation, error) {
 	if value.Kind != wire.KindArray || len(value.Arr) > maxObligations {
 		return nil, fail("invalid-obligations", "obligations must be a bounded array")
 	}
@@ -286,7 +299,7 @@ func parseObligations(value wire.Value) ([]ocmObligation, error) {
 		claimsValue, _ := object.Get("claimIds")
 		hunks, hunksErr := idArray(hunksValue, hunkID, "hunkIds")
 		claims, claimsErr := idArray(claimsValue, claimID, "claimIds")
-		if idErr != nil || !requirementID.MatchString(id) {
+		if idErr != nil || !validObligationID(form, id) {
 			return nil, fail("invalid-obligation-id", "obligation ID is invalid")
 		}
 		if seen[id] {
@@ -445,17 +458,17 @@ func verifyOCMIntent(ctx context.Context, repository *gitauth.Repository, cem *w
 	if err != nil {
 		return nil, err
 	}
-	derivedIntent, requirements, scope, err := requirementsFromBlob(document.intent.path, document.intent.blobOID, intentBlob)
+	derived, err := deriveIntent(document.intent.form, document.intent.path, document.intent.blobOID, intentBlob)
 	if err != nil {
 		return nil, err
 	}
-	if derivedIntent != document.intent {
+	if derived.intent != document.intent {
 		return nil, fail("intent-scope-mismatch", "intent scope is stale or invalid")
 	}
 	if err := enforceBootstrap(ctx, repository, cem, document.intent.path); err != nil {
 		return nil, err
 	}
-	return &ocmIntentContext{reader: reader, requirements: requirements, scope: scope}, nil
+	return &ocmIntentContext{reader: reader, requirements: derived.requirements, scope: derived.scope, statements: derived.statements}, nil
 }
 
 func verifyOCMClosure(cem *wire.Map, document *ocmDocument, raw []byte, intent *ocmIntentContext, rejectPythonClaims bool) (*verifiedOCM, error) {
@@ -470,7 +483,7 @@ func verifyOCMClosure(cem *wire.Map, document *ocmDocument, raw []byte, intent *
 	if err != nil {
 		return nil, err
 	}
-	obligations, err := verifyObligations(document, cem, intent.requirements, intent.scope, anchors, claimPaths)
+	obligations, err := verifyObligations(document, cem, intent.requirements, intent.scope, intent.statements, anchors, claimPaths)
 	if err != nil {
 		return nil, err
 	}
@@ -545,27 +558,12 @@ func requirementsFromBlob(path, oid string, data []byte) (ocmIntent, []string, [
 	}
 	lines := lineOffsets(data)
 	fenced := fencedLines(data, lines)
-	headings := make([]int, 0, 1)
-	for number, start := range lines {
-		line := lineWithoutEnding(data, start)
-		if !fenced[number] && bytes.Equal(line, []byte("## Requirements")) {
-			headings = append(headings, start)
-		}
-	}
+	headings := headingStarts(data, lines, fenced, []byte("## Requirements"))
 	if len(headings) != 1 {
 		return ocmIntent{}, nil, nil, fail("invalid-requirements-section", "intent must contain exactly one ## Requirements heading")
 	}
 	start := headings[0]
-	end := len(data)
-	for number, offset := range lines {
-		if offset <= start || fenced[number] {
-			continue
-		}
-		if line := lineWithoutEnding(data, offset); bytes.Equal(line, []byte("##")) || bytes.HasPrefix(line, []byte("## ")) {
-			end = offset
-			break
-		}
-	}
+	end := sectionEnd(data, lines, fenced, start)
 	requirements := make([]string, 0)
 	seen := map[string]bool{}
 	for _, offset := range lines {
@@ -609,6 +607,32 @@ func requirementsFromBlob(path, oid string, data []byte) (ocmIntent, []string, [
 	scope := data[start:end]
 	intent := ocmIntent{path: path, blobOID: oid, start: int64(start), end: int64(end), spanSHA256: sha256Hex(scope)}
 	return intent, requirements, scope, nil
+}
+
+// headingStarts returns the offset of every unfenced line equal to heading.
+func headingStarts(data []byte, lines []int, fenced []bool, heading []byte) []int {
+	headings := make([]int, 0, 1)
+	for number, start := range lines {
+		line := lineWithoutEnding(data, start)
+		if !fenced[number] && bytes.Equal(line, heading) {
+			headings = append(headings, start)
+		}
+	}
+	return headings
+}
+
+// sectionEnd returns the offset of the first unfenced level-2 heading after
+// start, or the end of data.
+func sectionEnd(data []byte, lines []int, fenced []bool, start int) int {
+	for number, offset := range lines {
+		if offset <= start || fenced[number] {
+			continue
+		}
+		if line := lineWithoutEnding(data, offset); bytes.Equal(line, []byte("##")) || bytes.HasPrefix(line, []byte("## ")) {
+			return offset
+		}
+	}
+	return len(data)
 }
 
 // fencedLines marks every line that opens, closes, or sits inside a CommonMark
@@ -730,7 +754,7 @@ func verifyClaims(reader *ocmBlobReader, target string, claims []ocmClaim) (map[
 	return anchors, paths, nil
 }
 
-func verifyObligations(document *ocmDocument, cem *wire.Map, requirements []string, scope []byte, anchors map[string][]byte, claimPaths map[string]string) ([]lrf.Obligation, error) {
+func verifyObligations(document *ocmDocument, cem *wire.Map, requirements []string, scope []byte, statements map[string][]byte, anchors map[string][]byte, claimPaths map[string]string) ([]lrf.Obligation, error) {
 	if len(document.obligations) != len(requirements) {
 		return nil, fail("obligation-set-mismatch", "obligations do not match requirements")
 	}
@@ -776,7 +800,7 @@ func verifyObligations(document *ocmDocument, cem *wire.Map, requirements []stri
 		}
 		sort.Strings(paths)
 		paths = uniqueStrings(paths)
-		statement, err := requirementStatement(scope, obligation.id)
+		statement, err := obligationStatement(statements, scope, obligation.id)
 		if err != nil {
 			return nil, err
 		}
