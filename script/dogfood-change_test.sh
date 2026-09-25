@@ -204,13 +204,11 @@ if [[ $action == cem && $sub == prepare ]]; then
   # already supported, so a one-row plan names every unknown hunk; DOGFOOD_TEST_CEM_HUNKS
   # lists DISPOSITION:PATH entries instead.
   separator=
-  ordinal=0
   {
     printf '{\n  "hunks": [\n'
     for entry in ${DOGFOOD_TEST_CEM_HUNKS:-unknown:script/source.sh supported:docs/specs/intent-b.md}; do
-      ordinal=$((ordinal + 1))
-      printf '%s    {\n      "disposition": "%s",\n      "id": "hunk:test:%d",\n      "path": "%s"\n    }' \
-        "$separator" "${entry%%:*}" "$ordinal" "${entry#*:}"
+      printf '%s    {\n      "disposition": "%s",\n      "id": "hunk:test:%s",\n      "path": "%s"\n    }' \
+        "$separator" "${entry%%:*}" "${entry#*:}" "${entry#*:}"
       separator=$',\n'
     done
     printf '\n  ]\n}\n'
@@ -1253,6 +1251,13 @@ citation_hunks=$(awk 'BEGIN { for (i=1; i<=257; i++) printf "unknown:script/h%d.
 citation_hunks=${citation_hunks% }
 run_citation_case split-over-row-limit "$citation_artifacts/nine.tsv" 1 9
 assert_cited_uncommitted
+# V1-0239: the same plan after a later commit swapped hunks 1 and 2 keeps its row count,
+# but rows 1 and 2 would now cite each other's hunk.
+citation_hunks="unknown:script/h2.sh unknown:script/h1.sh ${nine_hunks#unknown:script/h1.sh unknown:script/h2.sh }"
+citation_hunks=${citation_hunks% }
+run_citation_case swapped-ordinals "$citation_artifacts/nine.tsv" 1 0
+rg -q '"reason": "citation-plan-map-mismatch"' "$citation_case/report.json"
+rg -Fq 'now names another hunk than when this plan was first cited' "$citation_case/stderr"
 ) &
 phase_jobs="$phase_jobs $!"
 

@@ -81,7 +81,8 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
    A plan written for an earlier map, such as nine rows kept after a later commit added a tenth
    hunk, refuses `cem-cite: citation-plan-map-mismatch` and cites nothing; rewrite it from the
-   current map. Citations add to the map and never replace it: `cem prepare` resumes a map whose
+   current map. So does the same plan rerun after a commit moved a hunk it named by ordinal to
+   another ordinal (`DCW-V0-029`). Citations add to the map and never replace it: `cem prepare` resumes a map whose
    base and patch still match, keeping every earlier citation, and `cem cite` has no removal. To
    correct a plan that was already cited, delete `.corvint/change.cem.json` and rerun, so prepare
    writes a fresh map and only the corrected plan is cited. A pass that cites onto an already cited
@@ -440,9 +441,12 @@ ordinal above the hunk count, a numeric selector that is not a canonical ordinal
 named by neither ordinal nor ID, refuses the whole plan as `citation-plan-map-mismatch`, except the
 hunk of an intent path absent at `BASE`, which an author leaves out deliberately (section 2). While
 more than 256 unknown hunks remain, one plan cannot name them all, so the unnamed-hunk rule is not
-applied and split plans on a fresh map stay usable. A stale full hunk ID refuses `unknown-hunk-id`. A stale
-ordinal plan that still names every hunk is not detectable this way and names a different hunk, so
-use full hunk IDs when a later commit may reorder hunks. Rows end in LF; other control bytes are invalid. The local coordinator freezes
+applied and split plans on a fresh map stay usable. A stale full hunk ID refuses `unknown-hunk-id`. The
+coordinator also keeps, privately under `.git/corvint/citation-plan-binding`, the plan's digest and
+the map's hunk IDs in order each time it accepts a plan; the same plan rerun on a map where an
+ordinal row's hunk ID now sits at another ordinal refuses `citation-plan-map-mismatch`
+(`DCW-V0-029`). A hunk whose content or range changed gets a new ID and is not caught this way, so
+use full hunk IDs when a later commit may reorder or edit hunks. Rows end in LF; other control bytes are invalid. The local coordinator freezes
 and validates the whole file before citing, with independent limits of 4 MiB and 256 rows. An empty
 file is a zero-citation no-op; normal CEM status still checks the map's completeness. Larger jobs
 require separate explicit bounded plans, without automatic splitting or invented citations.

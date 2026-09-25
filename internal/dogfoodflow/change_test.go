@@ -87,3 +87,71 @@ func TestChangeKeepsAgentPrechangeReceipts(t *testing.T) {
 		}
 	}
 }
+
+// V1-0239: rerunning the same ordinal plan after a later commit reordered the
+// map's hunks keeps its row count but would cite each row against another hunk.
+func TestChangeRefusesAPlanWhoseOrdinalsMoved(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("base\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "a.txt")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("changed\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "commit", "-q", "-am", "change")
+	plan := filepath.Join(t.TempDir(), "cites.tsv")
+	if err := os.WriteFile(plan, []byte("1\ta.txt\t1:1\tspecification\n2\ta.txt\t1:1\tspecification\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	cemMap := func(ids ...string) string {
+		hunks := []string{}
+		for _, id := range ids {
+			hunks = append(hunks, "    {\n      \"disposition\": \"unknown\",\n      \"id\": \""+id+"\",\n      \"path\": \"a.txt\"\n    }")
+		}
+		return "{\n  \"hunks\": [\n" + strings.Join(hunks, ",\n") + "\n  ]\n}\n"
+	}
+	cemPrepared := ""
+	steps := Runner{Path: "corvint", Run: func(_ context.Context, _ string, args []string, _, _ io.Writer) int {
+		switch {
+		case len(args) > 1 && args[0] == "cem" && args[1] == "prepare":
+			if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o777); err != nil {
+				return 1
+			}
+			if err := os.WriteFile(filepath.Join(root, ".corvint/change.cem.json"), []byte(cemPrepared), 0o666); err != nil {
+				return 1
+			}
+			return 0
+		case len(args) > 1 && args[0] == "cem" && args[1] == "cite":
+			return 0
+		}
+		return 1
+	}}
+	citeRow := func(ids ...string) string {
+		cemPrepared = cemMap(ids...)
+		var stderr bytes.Buffer
+		if _, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan}, &stderr); err != nil {
+			t.Fatal(err)
+		}
+		report, err := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, line := range strings.Split(string(report), "\n") {
+			if strings.Contains(line, `"name": "cem-cite"`) {
+				return strings.TrimSpace(line)
+			}
+		}
+		t.Fatalf("report has no cem-cite row:\n%s", report)
+		return ""
+	}
+	if got := citeRow("hunk:a", "hunk:b"); !strings.Contains(got, `"status": "PRODUCED"`) {
+		t.Fatalf("first pass cem-cite = %s; want PRODUCED", got)
+	}
+	if got := citeRow("hunk:b", "hunk:a"); !strings.Contains(got, `"reason": "citation-plan-map-mismatch"`) {
+		t.Errorf("rerun after the hunks swapped: cem-cite = %s; want citation-plan-map-mismatch", got)
+	}
+}

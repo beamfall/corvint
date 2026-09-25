@@ -232,6 +232,14 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   as `ocm-link-NNN` NOT_PRODUCED `ocm-map-not-prepared`, NNN being its plan row, with a `fix:` line
   naming the prepare row, and MUST NOT run `ocm link` for it.
   Reason: those rows were skipped with no row, so the report did not say they were never linked.
+- `DCW-V0-029`: (proposed 2026-09-25, V1-0239, not accepted) Each time `dogfood change` accepts a
+  nonempty plan under `DCW-V0-019`, it MUST record privately in the evidence directory the plan's
+  SHA-256 and the prepared map's hunk IDs in map order. A later run with the same plan bytes MUST
+  refuse `citation-plan-map-mismatch`, citing nothing, when any row's canonical ordinal named a
+  recorded hunk ID that the new map holds at a different ordinal. A recorded ID absent from the new
+  map, or a plan with different bytes, is not refused by this rule.
+  Reason: a plan kept after a rebase swapped two hunks still named every hunk, so its rows cited
+  the wrong hunks without a refusal.
 
 ## Code vocabulary
 
@@ -325,6 +333,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-026` | `internal/dogfoodflow/change.go` `run` and `prechangeImpact`, `internal/dogfoodflow/check.go` `checkContextAbstention`, `internal/localcompletion/finish.go` `terminalPaths`, `internal/observations/observations.go` `validDogfoodStep`; `TestChangeKeepsAgentPrechangeReceipts` | implemented; owner acceptance pending |
 | `DCW-V0-027` (proposed) | `internal/dogfoodflow/check.go` `unarchivedBaseCEM`, `script/dogfood-seal.sh`; `TestSealRefusesToDropAnUnarchivedBaseCEM`; the V1-0137 case of `script/dogfood-change_test.sh` | implemented; not accepted |
 | `DCW-V0-028` (proposed) | `internal/dogfoodflow/change.go` `skipOCMLinks`; the V1-0227 case of the link phase of `script/dogfood-change_test.sh` | implemented; not accepted |
+| `DCW-V0-029` (proposed) | `internal/dogfoodflow/change.go` `recordCitationBinding` and `ordinalsMoved`; `TestChangeRefusesAPlanWhoseOrdinalsMoved` and the V1-0239 `swapped-ordinals` case of `script/dogfood-change_test.sh` | implemented; not accepted |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 ## Compatibility and rollback
