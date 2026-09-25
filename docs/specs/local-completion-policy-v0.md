@@ -115,8 +115,8 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   checks qualify. Intent manifests come from the frozen plan. An empty citation TSV is permitted
   only after strict CEM status validates already-bound citations; otherwise finish refuses with a
   worklist. The final strict check is outside the selected prerequisite check set. Original
-  pre-change receipts are archived as bounded enrollment-owned records before the coordinator
-  overwrites its worktree-global files; subsequent receipts are labelled coordination-time. Existing
+  pre-change receipts are archived as bounded enrollment-owned records at enrollment; the
+  coordinator never writes them and labels its own receipts coordination-time (`DCW-V0-026`). Existing
   explicit-query task text may remain only in these provenance copies. Secret-shaped receipts are
   not duplicated: retain their original digest and a fixed archival-refusal reason; preserve the
   original file untouched. This exception adds no host-prompt or transcript capture.
@@ -136,7 +136,7 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   `outputsAgree:true` alone is insufficient: the strict checker must actually exit zero. Scope,
   owner, target and artifact identities are rechecked across generation, checking and publication.
   Repeating an identical successful finish MUST not append duplicate task outcomes.
-  A separately authorized, digest-bound `prechange-impact` context abstention is not a missing
+  A separately authorized, digest-bound `coordination-time-impact` context abstention is not a missing
   completion proof: it remains visibly `NOT_PRODUCED`, while CEM/OCM, checks, clean-target and
   verifier requirements above remain unchanged. Its malformed, missing, stale or untyped form fails.
 - `LCP-V0-008`: Codex and Claude Code Stop MAY request one bounded remediation continuation for an explicitly enrolled

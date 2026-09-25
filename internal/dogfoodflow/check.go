@@ -162,7 +162,7 @@ var (
 	outcomeDigest     = regexp.MustCompile(`^  ,"localOutcomeEvidenceSha256": "sha256:([0-9a-f]{64})"$`)
 	abstentionDigest  = regexp.MustCompile(`^  ,"contextAbstentionEvidenceSha256": "sha256:([0-9a-f]{64})"$`)
 	missingRow        = regexp.MustCompile(`^.*"name": "([^"]*)", "status": "NOT_PRODUCED", "reason": "([^"]*)".*$`)
-	abstentionRow     = regexp.MustCompile(`"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "([^"]*)"`)
+	abstentionRow     = regexp.MustCompile(`"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "([^"]*)"`)
 	cemBaseRevisionRE = regexp.MustCompile(`^  "baseRevision": "([0-9a-f]{40})",$`)
 	fullRevision      = regexp.MustCompile(`^[0-9a-f]{40}$`)
 )
@@ -204,7 +204,7 @@ func (c *check) checkReport() []byte {
 // claims, or its absence, and reports whether one is claimed.
 func (c *check) checkContextAbstention(report []byte) bool {
 	digest := allCaptures(abstentionDigest, report)
-	artifact := c.evidence + "/prechange-impact-abstention.json"
+	artifact := c.evidence + "/coordination-time-impact-abstention.json"
 	reason, _ := firstCapture(abstentionRow, report)
 	if !impactAbstentions[reason] {
 		if _, err := os.Stat(artifact); digest != "" || err == nil {
@@ -218,9 +218,9 @@ func (c *check) checkContextAbstention(report []byte) bool {
 	if actual, err := fileSHA256(artifact); digest == "" || !isRegular(artifact) || err != nil || actual != digest {
 		c.fail("context-abstention-evidence-drift")
 	}
-	argvFile := c.evidence + "/prechange-impact.argv"
-	output := c.evidence + "/prechange-impact.json"
-	errorFile := c.evidence + "/prechange-impact.stderr"
+	argvFile := c.evidence + "/coordination-time-impact.argv"
+	output := c.evidence + "/coordination-time-impact.json"
+	errorFile := c.evidence + "/coordination-time-impact.stderr"
 	argvSHA, _ := fileSHA256(argvFile)
 	stdoutSHA, _ := fileSHA256(output)
 	stderrSHA, _ := fileSHA256(errorFile)
@@ -231,7 +231,7 @@ func (c *check) checkContextAbstention(report []byte) bool {
 		chomp(string(readFile(artifact))) != abstentionArtifact(argvSHA, c.base, reason, stderrSHA, stdoutSHA, c.target) {
 		c.fail("context-abstention-evidence-drift")
 	}
-	c.say("dogfood-check: NOTE prechange-impact NOT_PRODUCED %s\n", reason)
+	c.say("dogfood-check: NOTE coordination-time-impact NOT_PRODUCED %s\n", reason)
 	return true
 }
 
@@ -303,7 +303,7 @@ func (c *check) verifyAbstention() {
 	args := []string{"impact", "--base", c.base, "--range-profile", "expanded-256", "--limit", "20"}
 	base := c.verify(c.options.BaseVerifier, args...)
 	tree := c.verify(c.options.TreeVerifier, args...)
-	if !agree(base, tree) || tree.status != 2 || len(tree.stdout) > 0 || !bytes.Equal(tree.stderr, readFile(c.evidence+"/prechange-impact.stderr")) {
+	if !agree(base, tree) || tree.status != 2 || len(tree.stdout) > 0 || !bytes.Equal(tree.stderr, readFile(c.evidence+"/coordination-time-impact.stderr")) {
 		c.fail("verifier-disagreement")
 	}
 	if c.options.Override != nil && !agree(tree, c.verify(*c.options.Override, args...)) {
