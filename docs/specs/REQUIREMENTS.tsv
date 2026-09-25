@@ -329,32 +329,32 @@ CEM-GO-004	docs/specs/cem-go-portability-probe.md	48	a process-boundary runner M
 CEM-GO-005	docs/specs/cem-go-portability-probe.md	51	repository bytes and paths are untrusted. Reads and subprocess output MUST be
 CEM-GO-006	docs/specs/cem-go-portability-probe.md	55	the implementation matrix and result must label this probe as Corvint-authored
 CEM-PILOT-001	docs/specs/cem-pilot-kit.md	40	`cem prepare --base REV --target REV` MUST derive the exact committed patch with
-CEM-PILOT-002	docs/specs/cem-pilot-kit.md	43	prepare MUST resume a valid map for identical base and patch bytes, refuse an
-CEM-PILOT-003	docs/specs/cem-pilot-kit.md	47	`cem cite` and `cem mark` MUST accept either the full hunk ID or its canonical
-CEM-PILOT-004	docs/specs/cem-pilot-kit.md	51	`cem status` MUST report `ready-for-ci`, `incomplete`, or `invalid`, every hunk,
-CEM-PILOT-005	docs/specs/cem-pilot-kit.md	54	`cem verify` MUST apply the same optional policy caps as status, accept an exact
-CEM-PILOT-006	docs/specs/cem-pilot-kit.md	60	the reviewer model MUST render every parsed patch hunk exactly once with ordinal
-CEM-PILOT-007	docs/specs/cem-pilot-kit.md	63	JSON and Markdown reports MUST contain no source body, diff body, prompt, commit
-CEM-PILOT-008	docs/specs/cem-pilot-kit.md	65	Markdown MUST render all repository-controlled strings as inert text. Control
-CEM-PILOT-009	docs/specs/cem-pilot-kit.md	68	the CI verifier example MUST derive base and target revisions itself, require th
-CEM-PILOT-010	docs/specs/cem-pilot-kit.md	76	the trial harness MUST enforce 30 treatment and 30 control lanes, deterministic
-CEM-PILOT-011	docs/specs/cem-pilot-kit.md	81	the SDK-neutral interop kit MUST contain raw, digest-pinned inputs and expected
-CEM-PILOT-012	docs/specs/cem-pilot-kit.md	84	the implementation matrix MUST distinguish Corvint-authored reference attestatio
-CEM-PILOT-013	docs/specs/cem-pilot-kit.md	89	all map, patch, and report reads and writes MUST be bounded; writes MUST be
-CEM-PILOT-014	docs/specs/cem-pilot-kit.md	123	a clean local install plus prepare, one disposition update, status, report, and
-CEM-PILOT-015	docs/specs/cem-pilot-kit.md	133	all CLI operations MUST emit deterministic JSON envelopes and stable non-zero
-CEM-PILOT-016	docs/specs/cem-pilot-kit.md	135	Corvint repository changes MUST use the public CEM workflow itself and retain a
-CEM-PILOT-017	docs/specs/cem-pilot-kit.md	138	every Git subprocess MUST ignore ambient repository/config redirection. Patch
-CEM-PILOT-018	docs/specs/cem-pilot-kit.md	141	when prepare refuses an existing map under `CEM-PILOT-002`, the untyped
-CEM-PILOT-019	docs/specs/cem-pilot-kit.md	148	`cem verify` same-path drift MUST use only the five frozen statuses. A target en
-CEM-PILOT-020	docs/specs/cem-pilot-kit.md	158	(proposed; accepted with decision 0356) the portable CI example
-CEM-PILOT-021	docs/specs/cem-pilot-kit.md	164	(proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSO
-CEM-PILOT-022	docs/specs/cem-pilot-kit.md	170	(proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
-CEM-PILOT-023	docs/specs/cem-pilot-kit.md	179	(proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
-CEM-PILOT-024	docs/specs/cem-pilot-kit.md	187	`examples/cem/recipes/` MUST ship three ordinary Bash scripts, each composing
-CEM-PILOT-025	docs/specs/cem-pilot-kit.md	193	`examples/cem/recipes/README.md` MUST state for each recipe its supported inputs
-CEM-PILOT-026	docs/specs/cem-pilot-kit.md	196	a recipe MUST NOT convert a refusal or uncertainty into success. Understand and
-CEM-PILOT-027	docs/specs/cem-pilot-kit.md	202	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`
+CEM-PILOT-002	docs/specs/cem-pilot-kit.md	50	prepare MUST resume a valid map for identical base and patch bytes, refuse an
+CEM-PILOT-003	docs/specs/cem-pilot-kit.md	54	`cem cite` and `cem mark` MUST accept either the full hunk ID or its canonical
+CEM-PILOT-004	docs/specs/cem-pilot-kit.md	58	`cem status` MUST report `ready-for-ci`, `incomplete`, or `invalid`, every hunk,
+CEM-PILOT-005	docs/specs/cem-pilot-kit.md	61	`cem verify` MUST apply the same optional policy caps as status, accept an exact
+CEM-PILOT-006	docs/specs/cem-pilot-kit.md	67	the reviewer model MUST render every parsed patch hunk exactly once with ordinal
+CEM-PILOT-007	docs/specs/cem-pilot-kit.md	70	JSON and Markdown reports MUST contain no source body, diff body, prompt, commit
+CEM-PILOT-008	docs/specs/cem-pilot-kit.md	72	Markdown MUST render all repository-controlled strings as inert text. Control
+CEM-PILOT-009	docs/specs/cem-pilot-kit.md	75	the CI verifier example MUST derive base and target revisions itself, require th
+CEM-PILOT-010	docs/specs/cem-pilot-kit.md	83	the trial harness MUST enforce 30 treatment and 30 control lanes, deterministic
+CEM-PILOT-011	docs/specs/cem-pilot-kit.md	88	the SDK-neutral interop kit MUST contain raw, digest-pinned inputs and expected
+CEM-PILOT-012	docs/specs/cem-pilot-kit.md	91	the implementation matrix MUST distinguish Corvint-authored reference attestatio
+CEM-PILOT-013	docs/specs/cem-pilot-kit.md	96	all map, patch, and report reads and writes MUST be bounded; writes MUST be
+CEM-PILOT-014	docs/specs/cem-pilot-kit.md	130	a clean local install plus prepare, one disposition update, status, report, and
+CEM-PILOT-015	docs/specs/cem-pilot-kit.md	140	all CLI operations MUST emit deterministic JSON envelopes and stable non-zero
+CEM-PILOT-016	docs/specs/cem-pilot-kit.md	142	Corvint repository changes MUST use the public CEM workflow itself and retain a
+CEM-PILOT-017	docs/specs/cem-pilot-kit.md	145	every Git subprocess MUST ignore ambient repository/config redirection. Patch
+CEM-PILOT-018	docs/specs/cem-pilot-kit.md	148	when prepare refuses an existing map under `CEM-PILOT-002`, the untyped
+CEM-PILOT-019	docs/specs/cem-pilot-kit.md	155	`cem verify` same-path drift MUST use only the five frozen statuses. A target en
+CEM-PILOT-020	docs/specs/cem-pilot-kit.md	165	(proposed; accepted with decision 0356) the portable CI example
+CEM-PILOT-021	docs/specs/cem-pilot-kit.md	171	(proposed; accepted with decision 0356) `cem01-go ci` MUST write exactly one JSO
+CEM-PILOT-022	docs/specs/cem-pilot-kit.md	177	(proposed; accepted with decision 0356) `cem01-go ci` MUST derive the patch with
+CEM-PILOT-023	docs/specs/cem-pilot-kit.md	186	(proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
+CEM-PILOT-024	docs/specs/cem-pilot-kit.md	194	`examples/cem/recipes/` MUST ship three ordinary Bash scripts, each composing
+CEM-PILOT-025	docs/specs/cem-pilot-kit.md	200	`examples/cem/recipes/README.md` MUST state for each recipe its supported inputs
+CEM-PILOT-026	docs/specs/cem-pilot-kit.md	203	a recipe MUST NOT convert a refusal or uncertainty into success. Understand and
+CEM-PILOT-027	docs/specs/cem-pilot-kit.md	209	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`
 CEM-SM-001	docs/specs/cem-0.3-structural-mechanical.md	41	`cem/0.3` MUST be the `cem/0.2` wire shape plus the four structural reasons.
 CEM-SM-002	docs/specs/cem-0.3-structural-mechanical.md	44	The verifier MUST prove a structural reason from the base blob at `baseRevision`
 CEM-SM-003	docs/specs/cem-0.3-structural-mechanical.md	48	For `rename`, `import-reorder`, and `formatter-only` the image MUST be the hunk

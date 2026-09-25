@@ -107,4 +107,7 @@ or diff text. It is deterministic for the same inputs and never exceeds 6 MiB.
   the change (`limits` says so in every report).
 - Paths and digests can still be sensitive. Treat the report as repository-private.
 - Only `cem/0.1` maps are supported. `cem/0.2` needs `verify-pr.sh` and a `corvint` executable.
+- A change that adds, edits or deletes a binary file, or changes only a file mode, cannot be
+  bound: `corvint cem prepare` refuses the whole change with `binary-patch` or `malformed-patch`.
+  Bind a base-to-target range that holds no such change (`CEM-PILOT-001`).
 - The pinned digest is specific to the Go version, target platform and build flags above.

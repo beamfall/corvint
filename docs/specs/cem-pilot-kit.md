@@ -39,7 +39,14 @@ within 15 minutes.
 
 - `CEM-PILOT-001`: `cem prepare --base REV --target REV` MUST derive the exact committed patch with
   the documented CI diff profile, exclude only the map path, create private atomic outputs, and
-  return an ordered hunk worklist.
+  return an ordered hunk worklist. (proposed 2026-09-25, V1-0301, not accepted) Today a patch with
+  a binary file refuses the whole prepare with `binary-patch`, and one with an `old mode`/`new mode`
+  change refuses it with `malformed-patch`, because the frozen `cem/0.1` grammar
+  (`interop/cem-0.1/ALGORITHMS.md`) and the `cem/0.2` hunk wire and hunk IDs have no such hunk. A
+  new versioned profile MAY bind each binary or mode-only file change as its own hunk kind whose
+  disposition is always `unknown`: no citation or mark can make it ready, so a map that contains
+  one never reaches `ready-for-ci` without an explicit policy exception. Neither frozen profile
+  changes its bytes for this.
 - `CEM-PILOT-002`: prepare MUST resume a valid map for identical base and patch bytes, refuse an
   outdated or invalid map by default, and replace it only with explicit `--replace`. Only a
   file-system not-exist result at the map path makes the map absent; an existing map that cannot be
