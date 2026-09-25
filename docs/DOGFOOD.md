@@ -475,8 +475,8 @@ $ corvint_target_sha=$(git rev-parse HEAD)
 $ corvint_base_sha=BASE_SHA
 $ corvint ocm prepare --target "$corvint_target_sha" --expected-base "$corvint_base_sha" \
     --intent docs/specs/OWNING-SPEC.md \
-    --cem .corvint/change.cem.json --map .corvint/change.ocm.json
-$ corvint ocm status --map .corvint/change.ocm.json --cem .corvint/change.cem.json \
+    --cem .corvint/change.cem.json --map .corvint/change.ocm.001.json
+$ corvint ocm status --map .corvint/change.ocm.001.json --cem .corvint/change.cem.json \
     --expected-base "$corvint_base_sha" --target "$corvint_target_sha"
 ```
 
@@ -507,7 +507,7 @@ Before the seal, at the bind commit, the author runs the same report with
 files, so only the author can report them, before the seal:
 
 ```console
-$ corvint ocm report --map .corvint/change.ocm.json \
+$ corvint ocm report --map .corvint/change.ocm.001.json \
     --cem .corvint/change.cem.json --expected-base "$corvint_base_sha" \
     --target "$corvint_target_sha"
 ```
