@@ -6160,3 +6160,48 @@ Review repairs (same slice):
   probe wording now names what is compared: `HEAD`, the tree and the dirty-path set.
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
+
+## 2026-09-25 V1-0143, V1-0151..0153, V1-0156..0158, V1-0170, V1-0214, V1-0315, V1-0343: context and console pre-1.0 bug batch
+
+- V1-0170 FIXED (comment): the `setVerdict` comment in `internal/contextindex/sufficiency.go` gives
+  each TCP-V0-028 precedence rule once, with insufficient before unknown.
+- V1-0214 FIXED (comment and test): the `taskLexicalTerms` comment says the body and path tables split
+  camel case, so the lowered compound matches only an unsplit run. The characterization test is
+  `TestTaskCompoundTermMatchesOnlyUnsplitRuns`.
+- V1-0156 FIXED: `context --expand` on a symlink row's handle now refuses `invalid-handle` naming the
+  mode (`symbolic link (mode 120000)`). ESV notes this. The source-view digest was re-frozen.
+- V1-0151 NEEDS-OWNER: two cases `chain.go` renders are drafted under LAC-V0-035, marked (proposed
+  2026-09-25, not accepted).
+  - An OCM whose map digest matches but whose `targetRevision` differs renders `stale`.
+  - A hunk edge whose obligation disposition is not `linked` renders `unsupported`.
+- V1-0152 FIXED: the requirement and hunk panels give an obligation's hunk edge the same state. An
+  unlinked disposition is `unsupported`, and an obligation id shared by several bound maps is
+  `ambiguous` with no anchor.
+- V1-0153 FIXED: more than 64 OCM maps render a `missing` PARTIAL row instead of a silent cap.
+- V1-0143 FIXED (doc): the local-admin-console notes record that the dogfood loop writes a change's
+  trace in the binding clone. Observed 2026-09-25: 0 of 129 sealed changes on the primary checkout
+  have a trace row. The pane's `unverified` is therefore truthful, and the operator action is to open
+  the pane from the binding clone.
+- V1-0158 ALREADY-FIXED: `experimental-source-views-v0.md` already says 1024 is only the parse floor.
+- V1-0157 NOT-A-BUG: `context` stays exempt from the ledger under SOL-V0-007 and TCP-V0-001.
+  `unsupported-text` is shared with the source-view adapter (ESV-V0-003), so it was not renamed.
+- V1-0315 SKIPPED: this needs PR #219. On main, `git.go` refuses a non-UTF-8 path before the packet,
+  and the fix also needs a new packet exclusions member, which is a spec change that needs owner
+  acceptance.
+- V1-0343 FIXED (panel D12, decision 0398):
+  - A test link whose only signal is a mention now needs two distinct declared names, or one name of
+    two or more camel-split tokens. Before this change, one plain word such as `down` in a comment
+    produced an `Update this test` row.
+  - A lexical-only row that is still admitted now says "Check this test ... update it only if it
+    asserts on that name".
+  - TCP-V0-015 is amended with the text marked (proposed, decision 0398).
+  - The frozen negative is `TestTaskContextRefusesAOnePlainWordTestLink`, which fails before the
+    change.
+  - The analyzer schema moves to `corvint-analyzer/85` (IDX-SNAP-V0-017 audit).
+  - Decision 0377's line citations were repinned (same content, shifted 2 lines).
+  - Agent Retrieval Bench v2 code2test, `context` arm, 106 samples: the per-sample rankings are
+    identical before and after. hit@20 is 0.604, recall@20 0.512 and mrr 0.205, with 0 errors.
+- Test note: `TestGoOnlyContextAbstentionRemainsClosed` exits 141 (SIGPIPE) in the batch clone,
+  including after a rerun on a clean tree. The same commit passes in a separate linked worktree, and
+  base 489701ca passes there too. The failure depends on the environment (the clone's state), not on
+  this diff.
