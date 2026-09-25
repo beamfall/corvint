@@ -92,13 +92,13 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    Export `DOGFOOD_CITATIONS` and rerun `make dogfood-change BASE=$BASE`. `cem-cite` and, for an
    untracked sidecar, `cem-status` are now produced; the only remaining row is
    `local-outcome: record-index-failed`. A modified tracked sidecar additionally keeps the OCM and
-   `cem-status` rows of step 3 and adds `prechange-impact: unsupported-impact-worktree`. Each row
-   prints its own `fix:` line; `prechange-impact`, `ocm-prepare-NNN`, `ocm-status-NNN` and
+   `cem-status` rows of step 3 and adds `coordination-time-impact: unsupported-impact-worktree`. Each row
+   prints its own `fix:` line; `coordination-time-impact`, `ocm-prepare-NNN`, `ocm-status-NNN` and
    `local-outcome` name the uncommitted worktree, and all of them clear once the sidecar is committed.
 5. Commit the sidecar: `git add .corvint/change.cem.json && git commit -m "chore: bind change evidence"`.
    From the first pass on, add commits rather than amending or rebasing: each clean pass records a
    local trace for its `HEAD`, and once that commit is no longer an ancestor of `HEAD` the query and
-   the recorder refuse every later pass (`prechange-query: unsupported-query-trace-state`,
+   the recorder refuse every later pass (`coordination-time-query: unsupported-query-trace-state`,
    `local-outcome: record-failed`, both reading `local trace store contains unreachable revision`).
 6. Run `make dogfood-change BASE=$BASE` again. Expected: no output, exit 0, and
    `.corvint/dogfood-report.json` contains `"complete": true`. An uncited hunk instead leaves
@@ -160,7 +160,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Unsupported | run from a subdirectory of the worktree (reproduced for V1-0236) | `REFUSE not-repository-root` (exit 2) | `REFUSE not-repository-root` (exit 2) |
 | Unsupported | intent without exactly one `## Requirements` heading | `ocm-prepare-001: invalid-requirements-section`, `ocm-aggregate: intent-scope-drift` | NOT_OBSERVED |
 | Drift | OCM map marked or linked without a rerun | not applicable | `FAIL intent-scope-drift`, `fix:` reruns `dogfood-change` |
-| Rewritten | amend or rebase after a recorded pass | `prechange-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor clears it | not reached |
+| Rewritten | amend or rebase after a recorded pass | `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor clears it | not reached |
 | Sealed | check on the seal commit, or a change containing a seal | `REFUSE sealed-cem-in-change` | `REFUSE sealed-head` |
 
 Test-claim linkage through `DOGFOOD_OCM_LINKS` needs a Go test that names the requirement ID. It was
@@ -187,6 +187,10 @@ $ corvint query --task "THE CHANGE" --limit 1 > "$corvint_git_dir/corvint/precha
 $ corvint impact --base BASE_SHA --limit 20 > "$corvint_git_dir/corvint/prechange-impact.json"
 ```
 
+`dogfood change` never writes these two receipts. It reruns query and impact after the change as
+its `coordination-time-query` and `coordination-time-impact` steps, under those file names, so the
+receipts above stay as the agent wrote them (`DCW-V0-026`, proposed).
+
 Use the native `corvint` runtime. For range impact, `BASE_SHA` is the full immutable commit ID
 immediately before the included changes, which must end at captured `HEAD`. For tracked Go paths,
 use `corvint impact PATH... --limit 10`. A result limit is not a byte budget: retain the complete
@@ -194,10 +198,10 @@ response and every omission/uncertainty. Native impact refuses `--budget-bytes` 
 `unsupported-impact-option`; never substitute a legacy runtime.
 
 Range impact refuses a modified path or an untracked path that overlaps the Go build (`GPK-V0-060`),
-so `prechange-impact` is then `NOT_PRODUCED unsupported-impact-worktree`.
+so the coordinator's `coordination-time-impact` row is then `NOT_PRODUCED unsupported-impact-worktree`.
 If Corvint abstains or misses a critical item, continue with ordinary repository inspection and record
 the miss in `docs/BUILD-LOG.md`. Never tune the current task into a held-out evaluation.
-For `prechange-impact` only, a complete coordinator may retain `NOT_PRODUCED
+For `coordination-time-impact` only, a complete coordinator may retain `NOT_PRODUCED
 unsupported-impact-range` as an explicit context abstention, and, under `DCW-V0-025` (decision 0388),
 `unsupported-impact-repository` (no Go module, as in a non-Go repository, or a native Go index over
 the 128 MiB aggregate bound) or
@@ -293,7 +297,7 @@ evidence directory and runs that binary. Every step publishes its stdout as
 envelope behind a reported reason is readable beside that step's output. The run clears
 unpublished `*.stderr` from that directory at start, so no envelope there survives an earlier run.
 The report's `packetCoverage` line (`DCW-V0-016`) states the cost of the two context packets the
-run compiled: for `prechange-query` and `prechange-impact` in that order, the packet's own
+run compiled: for `coordination-time-query` and `coordination-time-impact` in that order, the packet's own
 `packet_bytes`, `budget_bytes`, `within_budget`, `included_results` and `omitted_results`, or
 `NOT_PRODUCED` with `packet-not-compiled` (the step compiled none, including an
 impact abstention) or `packet-coverage-unreadable`. It never changes

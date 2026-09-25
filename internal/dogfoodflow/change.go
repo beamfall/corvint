@@ -101,7 +101,9 @@ func (c *change) run() int {
 		c.say("  BASE..HEAD adds a sealed CEM; revert or drop the seal commit, then rebind\n")
 		c.exit(2)
 	}
-	c.runStep("prechange-query", c.evidence+"/prechange-query.json", "query", "--task", task, "--limit", "1")
+	// Query and impact run after the change, so they are coordination-time
+	// receipts; the agent's prechange-*.json receipts are never written here (DCW-V0-026).
+	c.runStep("coordination-time-query", c.evidence+"/coordination-time-query.json", "query", "--task", task, "--limit", "1")
 	c.prechangeImpact()
 	c.prepare("cem-prepare", c.evidence+"/cem-prepare.json", func(status int, stderr []byte, reason string) bool {
 		return status == 2 && chomp(string(stderr)) == outdatedCEMMap
@@ -202,19 +204,19 @@ func (c *change) prepare(name, output string, outdated func(int, []byte, string)
 // prechangeImpact runs impact and keeps a typed, digest-bound abstention when
 // it refuses with exactly one envelope whose code is an impact abstention.
 func (c *change) prechangeImpact() {
-	output := c.evidence + "/prechange-impact.json"
-	errorFile := c.evidence + "/prechange-impact.stderr"
-	argvFile := c.evidence + "/prechange-impact.argv"
-	artifact := c.evidence + "/prechange-impact-abstention.json"
+	output := c.evidence + "/coordination-time-impact.json"
+	errorFile := c.evidence + "/coordination-time-impact.stderr"
+	argvFile := c.evidence + "/coordination-time-impact.argv"
+	artifact := c.evidence + "/coordination-time-impact-abstention.json"
 	argv := []string{c.options.Steps.Path, "--root", c.root, "impact", "--base", c.base, "--range-profile", "expanded-256", "--limit", "20"}
-	failed := func() { c.addStep("prechange-impact", "NOT_PRODUCED", "context-abstention-evidence-failed") }
+	failed := func() { c.addStep("coordination-time-impact", "NOT_PRODUCED", "context-abstention-evidence-failed") }
 	if removeFile(artifact) != nil || writePrivate(argvFile, []byte(strings.Join(argv, "\x00")+"\x00")) != nil {
 		failed()
 		return
 	}
 	status := c.exec(argv[3:], output, errorFile)
 	if status == 0 {
-		c.addStep("prechange-impact", "PRODUCED", "none")
+		c.addStep("coordination-time-impact", "PRODUCED", "none")
 		return
 	}
 	stderr := readFile(errorFile)
@@ -224,7 +226,7 @@ func (c *change) prechangeImpact() {
 		if impactAbstentions[reason] {
 			reason = "context-abstention-invalid"
 		}
-		c.addStep("prechange-impact", "NOT_PRODUCED", reason)
+		c.addStep("coordination-time-impact", "NOT_PRODUCED", reason)
 		return
 	}
 	stdoutSHA, stdoutErr := fileSHA256(output)
@@ -240,11 +242,11 @@ func (c *change) prechangeImpact() {
 		return
 	}
 	c.contextAbstentionSHA = sha256Hex(record)
-	c.addStep("prechange-impact", "NOT_PRODUCED", reason)
+	c.addStep("coordination-time-impact", "NOT_PRODUCED", reason)
 }
 
 func abstentionArtifact(argvSHA, base, reason, stderrSHA, stdoutSHA, target string) string {
-	return `{"argvSha256":"sha256:` + argvSHA + `","base":"` + base + `","exitStatus":"2","profile":"corvint-dogfood-context-abstention/0","reason":"` + reason + `","status":"NOT_PRODUCED","stderrSha256":"sha256:` + stderrSHA + `","stdoutSha256":"sha256:` + stdoutSHA + `","step":"prechange-impact","target":"` + target + `"}`
+	return `{"argvSha256":"sha256:` + argvSHA + `","base":"` + base + `","exitStatus":"2","profile":"corvint-dogfood-context-abstention/0","reason":"` + reason + `","status":"NOT_PRODUCED","stderrSha256":"sha256:` + stderrSHA + `","stdoutSha256":"sha256:` + stdoutSHA + `","step":"coordination-time-impact","target":"` + target + `"}`
 }
 
 // localOutcome records the author's verification outcome, or names why no
@@ -742,7 +744,7 @@ func failing(row step) bool {
 		return false
 	case row.name == "local-outcome" && row.status == "NOT_PRODUCED" && row.reason == "no-source-paths":
 		return false
-	case row.name == "prechange-impact" && row.status == "NOT_PRODUCED" && impactAbstentions[row.reason]:
+	case row.name == "coordination-time-impact" && row.status == "NOT_PRODUCED" && impactAbstentions[row.reason]:
 		return false
 	case row.reason == "no-intent-declared":
 		return false
@@ -794,7 +796,7 @@ func (c *change) renderReport() {
 		report.WriteString("  ,\"ocmLinkPlan\": null\n")
 	}
 	fmt.Fprintf(&report, "  ,\"dogfoodPolicy\": {\"bootstrapUnknown\": %d, \"maximumUnknownAfterBootstrap\": 0}\n", c.bootstrapUnknown)
-	fmt.Fprintf(&report, "  ,\"packetCoverage\": [%s, %s]\n", c.packetCoverage("prechange-query"), c.packetCoverage("prechange-impact"))
+	fmt.Fprintf(&report, "  ,\"packetCoverage\": [%s, %s]\n", c.packetCoverage("coordination-time-query"), c.packetCoverage("coordination-time-impact"))
 	report.WriteString("  ,\"dogfoodCheck\": null\n}\n")
 	_ = os.WriteFile(c.path(".corvint/dogfood-report.json"), report.Bytes(), 0o666)
 	for _, row := range c.rows {
@@ -862,7 +864,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"ocm-aggregate:missing-intent-scope", "DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths, or of a file holding the one line #no-intent-declared when no requirements spec governs the change"},
 	{"ocm-prepare-*:invalid-requirements-section", `intent must be a spec that exists at BASE and contains exactly one "## Requirements" heading`},
 	{"ocm-prepare-*:excluded-artifact-mismatch", uncommittedHint},
-	{"prechange-impact:unsupported-impact-worktree", uncommittedHint},
+	{"coordination-time-impact:unsupported-impact-worktree", uncommittedHint},
 	{"local-outcome:record-index-failed", uncommittedHint},
 	{"ocm-status-*", "fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change {base}"},
 	{"cem-status:not-ready", "read verification.issues and policyIssues in {evidence}/cem-status.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk"},
@@ -896,8 +898,8 @@ func (c *change) fixHint(row step) string {
 // row with its fix and exits 1, or exits 0 when the report is complete.
 func (c *change) reportFailures() int {
 	for _, row := range c.rows {
-		if row.name == "prechange-impact" && impactAbstentions[row.reason] {
-			c.say("dogfood-change: NOTE prechange-impact NOT_PRODUCED %s\n", row.reason)
+		if row.name == "coordination-time-impact" && impactAbstentions[row.reason] {
+			c.say("dogfood-change: NOTE coordination-time-impact NOT_PRODUCED %s\n", row.reason)
 		}
 	}
 	if c.complete() {
@@ -918,12 +920,12 @@ func (c *change) reportFailures() int {
 	if c.citedOver {
 		c.say("  cem-cite: the plan was added to citations the map already carried and never replaces them; to correct an earlier plan, delete .corvint/change.cem.json and rerun corvint dogfood change %s (docs/DOGFOOD.md step 4)\n", c.base)
 	}
-	query := readFile(c.evidence + "/prechange-query.stderr")
+	query := readFile(c.evidence + "/coordination-time-query.stderr")
 	// The authority-start refusal is selected by the task wording, not by the
 	// change; a malformed store refuses any wording and names no profile.
 	for _, line := range textLines(query) {
 		if strings.HasPrefix(line, `{"code": "unsupported-query-trace-state", "error": "native Go authority-start query `) {
-			c.say("  prechange-query: DOGFOOD_TASK wording selected the authority-start profile, which refuses a present local trace store; keep this receipt and the task (docs/DOGFOOD.md section 1)\n")
+			c.say("  coordination-time-query: DOGFOOD_TASK wording selected the authority-start profile, which refuses a present local trace store; keep this receipt and the task (docs/DOGFOOD.md section 1)\n")
 			break
 		}
 	}

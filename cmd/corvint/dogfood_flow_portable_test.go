@@ -326,24 +326,24 @@ func TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot(t *
 				t.Fatal(err)
 			}
 			inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=true", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
-			note := "dogfood-change: NOTE prechange-impact NOT_PRODUCED " + tc.reason + "\n"
-			if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 || !strings.HasPrefix(stderr, note) || strings.Contains(stderr, "  prechange-impact:") {
+			note := "dogfood-change: NOTE coordination-time-impact NOT_PRODUCED " + tc.reason + "\n"
+			if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 || !strings.HasPrefix(stderr, note) || strings.Contains(stderr, "  coordination-time-impact:") {
 				t.Fatalf("first pass exit=%d stderr=%s", code, stderr)
 			}
 			cemGit(t, root, "add", ".corvint/change.cem.json")
 			cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
 			code, stdout, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
 			report, _ := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
-			for _, want := range []string{`"complete": true`, `{"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "` + tc.reason + `"}`} {
+			for _, want := range []string{`"complete": true`, `{"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "` + tc.reason + `"}`} {
 				if code != 0 || stdout != "" || stderr != note || !strings.Contains(string(report), want) {
 					t.Fatalf("change exit=%d stderr=%s want %s in report=%s", code, stderr, want, report)
 				}
 			}
-			artifact, _ := os.ReadFile(filepath.Join(cemGit(t, root, "rev-parse", "--absolute-git-dir"), "corvint/prechange-impact-abstention.json"))
+			artifact, _ := os.ReadFile(filepath.Join(cemGit(t, root, "rev-parse", "--absolute-git-dir"), "corvint/coordination-time-impact-abstention.json"))
 			if !strings.Contains(string(artifact), `"reason":"`+tc.reason+`"`) {
 				t.Fatalf("abstention artifact %s", artifact)
 			}
-			if code, stdout, stderr = run.exec(t, root, nil, "dogfood", "check", base); code != 0 || !strings.HasSuffix(stdout, "dogfood-check: PASS\n") || !strings.Contains(stderr, "dogfood-check: NOTE prechange-impact NOT_PRODUCED "+tc.reason+"\n") {
+			if code, stdout, stderr = run.exec(t, root, nil, "dogfood", "check", base); code != 0 || !strings.HasSuffix(stdout, "dogfood-check: PASS\n") || !strings.Contains(stderr, "dogfood-check: NOTE coordination-time-impact NOT_PRODUCED "+tc.reason+"\n") {
 				t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 			}
 			if code, stdout, stderr = run.exec(t, root, nil, "dogfood", "seal", base); code != 0 || !strings.Contains(stdout, "dogfood-seal: PASS") {

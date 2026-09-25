@@ -417,7 +417,7 @@ test "$wrong_status" = 2
 test "$wrong_output" = 'dogfood-change: REFUSE corvint-version-mismatch expected=0.4.0a4'
 evidence=$(git -C "$test_root/repo" rev-parse --absolute-git-dir)/corvint
 mkdir -p "$evidence"
-printf 'stale impact stderr\n' > "$evidence/prechange-impact.stderr"
+printf 'stale impact stderr\n' > "$evidence/coordination-time-impact.stderr"
 git clone -q "$test_root/repo" "$test_root/default-repo"
 : > "$test_root/default-corvint.log"
 : > "$test_root/default-go.log"
@@ -444,18 +444,18 @@ set -m
   DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" DOGFOOD_CITATIONS="$test_root/citations.tsv" \
     DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
     DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2> "$test_root/abstention-change.stderr"
-  test "$(cat "$test_root/abstention-change.stderr")" = 'dogfood-change: NOTE prechange-impact NOT_PRODUCED unsupported-impact-range'
-  rg -q '"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-range"' .corvint/dogfood-report.json
-  rg -Fq '{"step": "prechange-impact", "status": "NOT_PRODUCED", "reason": "packet-not-compiled"}]' .corvint/dogfood-report.json
+  test "$(cat "$test_root/abstention-change.stderr")" = 'dogfood-change: NOTE coordination-time-impact NOT_PRODUCED unsupported-impact-range'
+  rg -q '"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-range"' .corvint/dogfood-report.json
+  rg -Fq '{"step": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "packet-not-compiled"}]' .corvint/dogfood-report.json
   rg -q '^  ,"contextAbstentionEvidenceSha256": "sha256:[0-9a-f]{64}"$' .corvint/dogfood-report.json
   DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" script/dogfood-check.sh "$base" 2> "$test_root/abstention-check.stderr"
-  rg -Fxq 'dogfood-check: NOTE prechange-impact NOT_PRODUCED unsupported-impact-range' "$test_root/abstention-check.stderr"
-  cp "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.stderr" "$test_root/prechange-impact.stderr"
-  printf 'drift\n' >> "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.stderr"
+  rg -Fxq 'dogfood-check: NOTE coordination-time-impact NOT_PRODUCED unsupported-impact-range' "$test_root/abstention-check.stderr"
+  cp "$(git rev-parse --absolute-git-dir)/corvint/coordination-time-impact.stderr" "$test_root/coordination-time-impact.stderr"
+  printf 'drift\n' >> "$(git rev-parse --absolute-git-dir)/corvint/coordination-time-impact.stderr"
   context_drift_status=0
   DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" script/dogfood-check.sh "$base" >/dev/null 2>&1 || context_drift_status=$?
   test "$context_drift_status" = 1
-  cp "$test_root/prechange-impact.stderr" "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.stderr"
+  cp "$test_root/coordination-time-impact.stderr" "$(git rev-parse --absolute-git-dir)/corvint/coordination-time-impact.stderr"
   # DCW-V0-025 (proposed): the no-module and module-root refusals are typed abstentions under
   # their own codes; their malformed shapes and any other code stay blocking (loop below).
   for impact_abstention in repository path; do
@@ -463,10 +463,10 @@ set -m
       DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
       DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
     rg -Fq '"complete": true' .corvint/dogfood-report.json
-    rg -Fq '"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-'"$impact_abstention"'"' .corvint/dogfood-report.json
-    rg -Fq '"reason":"unsupported-impact-'"$impact_abstention"'"' "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact-abstention.json"
+    rg -Fq '"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-'"$impact_abstention"'"' .corvint/dogfood-report.json
+    rg -Fq '"reason":"unsupported-impact-'"$impact_abstention"'"' "$(git rev-parse --absolute-git-dir)/corvint/coordination-time-impact-abstention.json"
     DOGFOOD_TEST_IMPACT=unsupported-$impact_abstention "${default_env[@]}" script/dogfood-check.sh "$base" 2> "$test_root/abstention-check.stderr"
-    rg -Fxq "dogfood-check: NOTE prechange-impact NOT_PRODUCED unsupported-impact-$impact_abstention" "$test_root/abstention-check.stderr"
+    rg -Fxq "dogfood-check: NOTE coordination-time-impact NOT_PRODUCED unsupported-impact-$impact_abstention" "$test_root/abstention-check.stderr"
   done
   for impact_case in malformed:context-abstention-invalid invalid-escape:context-abstention-invalid \
     raw-tab:context-abstention-invalid wrong-exit:context-abstention-invalid nonempty:context-abstention-invalid \
@@ -479,13 +479,13 @@ set -m
       DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" >/dev/null 2>&1 || impact_status=$?
     test "$impact_status" != 0
     rg -q '"complete": false' .corvint/dogfood-report.json
-    rg -Fq '"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "'"${impact_case#*:}"'"' .corvint/dogfood-report.json
+    rg -Fq '"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "'"${impact_case#*:}"'"' .corvint/dogfood-report.json
   done
   DOGFOOD_TEST_IMPACT=unsupported DOGFOOD_TEST_QUERY=duplicate-coverage "${default_env[@]}" \
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
-  rg -Fq '"packetCoverage": [{"step": "prechange-query", "status": "NOT_PRODUCED", "reason": "packet-coverage-unreadable"}' .corvint/dogfood-report.json
-  printf 'trailing-junk' >> "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.argv"
+  rg -Fq '"packetCoverage": [{"step": "coordination-time-query", "status": "NOT_PRODUCED", "reason": "packet-coverage-unreadable"}' .corvint/dogfood-report.json
+  printf 'trailing-junk' >> "$(git rev-parse --absolute-git-dir)/corvint/coordination-time-impact.argv"
   argv_drift_status=0
   DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" script/dogfood-check.sh "$base" >/dev/null 2>&1 || argv_drift_status=$?
   test "$argv_drift_status" = 1
@@ -535,8 +535,8 @@ phase_jobs="$phase_jobs $!"
   test "$(rg -c ' cem prepare .* --replace$' "$test_root/corvint.log")" = 1
   rg -q '"name": "cem-prepare", "status": "PRODUCED", "reason": "none"' .corvint/dogfood-report.json
   # DCW-V0-016: each compiled packet's coverage fields, copied under the packet's names.
-  rg -Fxq '  ,"packetCoverage": [{"step": "prechange-query", "status": "PRODUCED", "packet_bytes": 3820, "budget_bytes": null, "within_budget": true, "included_results": 1, "omitted_results": 0}, {"step": "prechange-impact", "status": "PRODUCED", "packet_bytes": 4001, "budget_bytes": 4096, "within_budget": true, "included_results": 20, "omitted_results": 3}]' .corvint/dogfood-report.json
-  test "$(cat "$evidence/prechange-impact.stderr")" = 'current impact stderr'
+  rg -Fxq '  ,"packetCoverage": [{"step": "coordination-time-query", "status": "PRODUCED", "packet_bytes": 3820, "budget_bytes": null, "within_budget": true, "included_results": 1, "omitted_results": 0}, {"step": "coordination-time-impact", "status": "PRODUCED", "packet_bytes": 4001, "budget_bytes": 4096, "within_budget": true, "included_results": 20, "omitted_results": 3}]' .corvint/dogfood-report.json
+  test "$(cat "$evidence/coordination-time-impact.stderr")" = 'current impact stderr'
   test "$(rg -c ' ocm prepare ' "$test_root/corvint.log")" = 2
   test "$(rg -c ' ocm status ' "$test_root/corvint.log")" = 2
   test "$(rg -c ' dogfood-observe ' "$test_root/corvint.log")" = "$(rg -c '"name":' .corvint/dogfood-report.json)"
@@ -678,9 +678,9 @@ phase_jobs="$phase_jobs $!"
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || \
     wording_status=$?
   test "$wording_status" = 1
-  printf '%s\n' "$wording_output" | rg -q '^  prechange-query: unsupported-query-trace-state$'
+  printf '%s\n' "$wording_output" | rg -q '^  coordination-time-query: unsupported-query-trace-state$'
   printf '%s\n' "$wording_output" | \
-    rg -q '^  prechange-query: DOGFOOD_TASK wording selected the authority-start profile, '
+    rg -q '^  coordination-time-query: DOGFOOD_TASK wording selected the authority-start profile, '
 
   # Each refusal a first-time adopter hits names its fix (DCW-V0-014).
   input_status=0
@@ -738,7 +738,7 @@ phase_jobs="$phase_jobs $!"
     DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || :
-  printf '%s\n' "$unreachable_output" | rg -Fxq -- '  prechange-query: unsupported-query-trace-state'
+  printf '%s\n' "$unreachable_output" | rg -Fxq -- '  coordination-time-query: unsupported-query-trace-state'
   printf '%s\n' "$unreachable_output" | \
     rg -q '^  local trace store: a recorded trace names a commit no longer reachable from HEAD; '
   if printf '%s\n' "$wording_output" | rg -q '^  local trace store:'; then
