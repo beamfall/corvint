@@ -50,9 +50,19 @@ row, pinned to bind commit 8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8 of the V1-01
 increment, which went through the `docs/DOGFOOD.md` daily path; each receipt's subjects are that
 commit's sealed CEM and a byte-identical copy of the retained daily-path artifact for the row
 (`prechange-query`, `prechange-impact`, `dogfood-report`) under
-`receipts/<useCaseId>/corvint-dogfood/`. No
-`beamfall-dogfood` receipt exists (ticket V1-0184), so none of the three can be `verified` (ticket
-V1-0011).
+`receipts/<useCaseId>/corvint-dogfood/`. Ticket V1-0184 bound a `beamfall-dogfood` receipt for
+`UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION`, from the agent-run daily path on
+Beamfall's LCRES-15 change (bind commit 86fde0eb21d2e0fc41bfc06a4c06c9c3aef63e59, published on
+Beamfall/core branch `claude/corvint-dogfood-LCRES-15`, PR beamfall/core#31). Each receipt's
+subjects are that commit's sealed CEM and a byte-identical copy of the retained daily-path
+artifact for the row under `receipts/<useCaseId>/beamfall-dogfood/`; the consequence row's
+artifact is path impact over the intended files, named `prechange-impact` by convention, because
+the pre-edit range impact is empty by construction (ticket V1-0262). No `beamfall-dogfood` receipt
+exists for `UC-TASK-ORIENTATION`: its pre-change query on Beamfall abstained with zero results
+(ticket V1-0260). The owner accepted the Beamfall intent spec these receipts attest against
+(`docs/plugins/trust-roots.md`, `PTR-V0-001..004`) on 2026-09-25 in that same Beamfall PR #31
+(commit 6a95ae32116718d55687da97efd9108b5174fe5e, after the bind). No row is `verified` yet:
+ticket V1-0011 promotes the three Core rows together and orientation has no Beamfall receipt.
 
 ## Status and claim model
 
