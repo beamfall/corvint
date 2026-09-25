@@ -5,7 +5,7 @@
     "reqPrefix": "CCF-V1",
     "intent": "proposed",
     "delivery": "experimental",
-    "claim": "The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.7.0 to 1.0.",
+    "claim": "The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.",
     "dependsOn": [
       "docs/specs/affected-plan-v0.md",
       "docs/specs/diagnostic-repair-contract-v0.md",
