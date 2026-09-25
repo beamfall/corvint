@@ -112,6 +112,8 @@ type IntentSet struct {
 	Dir     string
 	Flows   []FlowIntent
 	Retired Retired
+	// Revision is the commit the set was read from by LoadIntentsAt; it is empty for a working-tree read.
+	Revision string
 }
 
 // IntentPath is the repository-relative path of a flow's intent file.
@@ -140,35 +142,56 @@ func LoadIntents(root, dir string) (IntentSet, error) {
 	if err != nil {
 		return IntentSet{}, err
 	}
-	set := IntentSet{Dir: dir, Retired: Retired{Schema: RetiredSchema, FlowIDs: []string{}, VariationIDs: []string{}}}
+	set := emptySet(dir)
 	entries, err := os.ReadDir(filepath.Join(root, dir))
 	if err != nil {
 		return set, errors.New("flows directory unreadable")
 	}
+	names := []string{}
 	for _, entry := range entries {
-		if err = set.addEntry(root, entry.Name()); err != nil {
-			return set, err
+		if intentCandidate(entry.Name()) {
+			names = append(names, entry.Name())
 		}
 	}
-	if len(set.Flows) > MaxFlows {
-		return set, fmt.Errorf("flows directory exceeds %d intents", MaxFlows)
+	if err = candidateBound(len(names)); err != nil {
+		return set, err
+	}
+	for _, name := range names {
+		raw, err := ReadFile(filepath.Join(root, dir, name))
+		if err != nil {
+			return set, fmt.Errorf("%s: %v", name, err)
+		}
+		if err = set.add(name, raw); err != nil {
+			return set, err
+		}
 	}
 	return set, set.validate()
 }
 
-func (s *IntentSet) addEntry(root, name string) error {
-	if !strings.HasSuffix(name, ".json") || name == OriginsFile {
-		return nil
+func emptySet(dir string) IntentSet {
+	return IntentSet{Dir: dir, Retired: Retired{Schema: RetiredSchema, FlowIDs: []string{}, VariationIDs: []string{}}}
+}
+
+// intentCandidate treats every name ending in .json in any letter case as an intent, so a case
+// variant of an intent name is refused rather than skipped on a case-insensitive file system.
+func intentCandidate(name string) bool {
+	return strings.HasSuffix(strings.ToLower(name), ".json") && name != OriginsFile
+}
+
+// candidateBound refuses more candidates than MaxFlows intents plus retired.json before any is read (AFU-V1-037).
+func candidateBound(n int) error {
+	if n > MaxFlows+1 {
+		return fmt.Errorf("flows directory exceeds %d intents", MaxFlows)
 	}
-	raw, err := ReadFile(filepath.Join(root, s.Dir, name))
-	if err != nil {
-		return fmt.Errorf("%s: %v", name, err)
-	}
+	return nil
+}
+
+func (s *IntentSet) add(name string, raw []byte) error {
 	if name == RetiredFile {
 		return decodeRetired(raw, &s.Retired)
 	}
 	var intent FlowIntent
-	if err = Decode(raw, &intent); err != nil {
+	if err := Decode(raw, &intent); err != nil {
 		return fmt.Errorf("%s: %v", name, err)
 	}
 	if intent.FlowID+".json" != name {
@@ -391,10 +414,15 @@ func uniqueTexts(values []string) bool {
 }
 
 func uniqueMatching(values []string, pattern *regexp.Regexp) bool {
-	for i, v := range values {
-		if !pattern.MatchString(v) || slices.Contains(values[:i], v) {
+	if len(values) > MaxFlows*maxFlowList {
+		return false
+	}
+	seen := make(map[string]bool, len(values))
+	for _, v := range values {
+		if !pattern.MatchString(v) || seen[v] {
 			return false
 		}
+		seen[v] = true
 	}
-	return len(values) <= MaxFlows*maxFlowList
+	return true
 }

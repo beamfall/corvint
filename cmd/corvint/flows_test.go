@@ -191,7 +191,66 @@ func TestAFUV1FlowsCLIImportNeverOverwrites(t *testing.T) {
 	if code != 0 || out != "flows/place-order.json\n" {
 		t.Fatalf("import %d %q %s", code, out, diagnostic)
 	}
-	if code, _, _ = runFlowsCLI(root, "export", "--flows", "flows", "--emit", "provider"); code != 0 {
-		t.Fatal("imported proposed intent is not loadable")
+	commitFlows(t, root)
+	if code, out, _ = runFlowsCLI(root, "export", "--flows", "flows", "--emit", "provider"); code != 0 || !strings.Contains(out, "place-order") {
+		t.Fatal("imported proposed intent is not loadable once committed")
+	}
+}
+
+func commitFlows(t *testing.T, root string) {
+	t.Helper()
+	for _, args := range [][]string{{"add", "."}, {"-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", "flows"}} {
+		c := exec.Command("git", args...)
+		c.Dir = root
+		if b, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v %s", err, b)
+		}
+	}
+}
+
+// AFU-V1-001 AFU-V1-003
+func TestAFUV1FlowsCLIExportUsesCommittedIntents(t *testing.T) {
+	root := flowIntentRepo(t)
+	intent := filepath.Join(root, "flows", "checkout.json")
+	raw, err := os.ReadFile(intent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(intent, bytes.ReplaceAll(raw, []byte("press pay"), []byte("press dirty")), 0600); err != nil {
+		t.Fatal(err)
+	}
+	extra := bytes.ReplaceAll(raw, []byte(`"flow_id":"checkout"`), []byte(`"flow_id":"extra"`))
+	if err = os.WriteFile(filepath.Join(root, "flows", "extra.json"), extra, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, emit := range []string{"inventory", "provider"} {
+		code, out, diagnostic := runFlowsCLI(root, "export", "--flows", "flows", "--emit", emit)
+		if code != 0 || strings.Contains(out, "dirty") || strings.Contains(out, "extra") {
+			t.Fatalf("%s export read the working tree: %d %s %s", emit, code, out, diagnostic)
+		}
+	}
+	if code, out, _ := runFlowsCLI(root, "export", "--flows", "flows", "--emit", "inventory"); code != 0 || !strings.Contains(out, "press pay") {
+		t.Fatalf("inventory lost the committed intent: %s", out)
+	}
+}
+
+// AFU-V1-004
+func TestAFUV1FlowsCLIImportReportsNothingWritten(t *testing.T) {
+	root := flowIntentRepo(t)
+	if err := os.WriteFile(filepath.Join(root, "flows", "post-orders.JSON"), []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(t.TempDir(), "openapi.json")
+	spec := `{"openapi":"3.0.3","paths":{"/orders":{"post":{"responses":{"201":{"description":"made"}}}}}}`
+	if err := os.WriteFile(source, []byte(spec), 0600); err != nil {
+		t.Fatal(err)
+	}
+	before := flowSnapshot(t, root)
+	code, out, diagnostic := runFlowsCLI(root, "import", "--flows", "flows", "--from", source, "--format", "openapi")
+	if code != 2 || out != "" || !strings.Contains(diagnostic, "no intent from this import remains written") {
+		t.Fatalf("failed import %d %q %s", code, out, diagnostic)
+	}
+	if !reflect.DeepEqual(before, flowSnapshot(t, root)) {
+		t.Fatal("failed import changed repository bytes")
 	}
 }

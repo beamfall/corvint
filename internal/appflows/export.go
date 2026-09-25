@@ -1,6 +1,7 @@
 package appflows
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -103,8 +104,9 @@ func variationTests(intent FlowIntent, variation string) []string {
 }
 
 // ExportRequest fills the envelope's application-flows input with the inventory, maps the flows and
-// variations kinds to it, and runs the result through the existing DCP-V1 adapter (AFU-V1-003).
-func ExportRequest(envelope, inventory []byte) ([]byte, error) {
+// variations kinds to it, and runs the result through the existing DCP-V1 adapter (AFU-V1-003). The
+// input anchor must name, through Git, a committed blob whose bytes are exactly the inventory.
+func ExportRequest(ctx context.Context, root string, envelope, inventory []byte) ([]byte, error) {
 	var req doccorpus.BehaviorAdapterRequest
 	if err := jsonv2.Unmarshal(envelope, &req, jsonv2.RejectUnknownMembers(true)); err != nil {
 		return nil, errors.New("envelope is not a closed behavior-adapter request")
@@ -113,6 +115,9 @@ func ExportRequest(envelope, inventory []byte) ([]byte, error) {
 	i := slices.IndexFunc(req.Inputs, func(in doccorpus.BehaviorAdapterInput) bool { return in.ID == FlowsInputID })
 	if i < 0 || req.Inputs[i].Anchor.SHA256 != digest || req.Inputs[i].Anchor.SpanSHA256 != digest {
 		return nil, fmt.Errorf("envelope input %q must anchor the exact inventory bytes (sha256 %s); commit the output of --emit inventory and anchor it", FlowsInputID, digest)
+	}
+	if err := committedInventory(ctx, root, req.Inputs[i].Anchor, inventory); err != nil {
+		return nil, err
 	}
 	req.Inputs[i].Document = string(inventory)
 	req.Mappings = slices.DeleteFunc(req.Mappings, func(m doccorpus.BehaviorAdapterMapping) bool {
@@ -131,6 +136,25 @@ func ExportRequest(envelope, inventory []byte) ([]byte, error) {
 	return out, nil
 }
 
+// committedInventory verifies that the anchor revision is a commit named by its full ID and that its
+// blob at path is the anchored blob holding exactly the inventory bytes (AFU-V1-003).
+func committedInventory(ctx context.Context, root string, a doccorpus.Anchor, inventory []byte) error {
+	refused := fmt.Errorf("envelope input %q anchor does not name the committed inventory; commit the output of --emit inventory and anchor that commit, path and blob", FlowsInputID)
+	rev, err := ResolveRevision(ctx, root, a.Revision)
+	if err != nil || rev != a.Revision || !safePath(a.Path) {
+		return refused
+	}
+	r := &reviewer{ctx: ctx, root: root, blobs: map[string]string{}}
+	if r.blob(rev, a.Path) != a.Blob {
+		return refused
+	}
+	raw, err := git(ctx, root, "cat-file", "blob", a.Blob)
+	if err != nil || !bytes.Equal(raw, inventory) {
+		return refused
+	}
+	return nil
+}
+
 func inventoryMappings() []doccorpus.BehaviorAdapterMapping {
 	flowFields := map[string]string{}
 	for _, name := range []string{"id", "derivation", "evidence", "required_pages", "negative_controls", "ordered_events", "missing_e2e_review"} {
@@ -146,12 +170,13 @@ func inventoryMappings() []doccorpus.BehaviorAdapterMapping {
 	}
 }
 
-// ExportProvider compiles one EEP-V1 provider record at revision (AFU-V1-003, AFU-V1-007).
-func ExportProvider(ctx context.Context, root string, set IntentSet, revision string) ([]byte, error) {
-	rev, err := ResolveRevision(ctx, root, revision)
-	if err != nil {
-		return nil, err
+// ExportProvider compiles one EEP-V1 provider record at the revision the set was committed at; a
+// working-tree set is refused (AFU-V1-003, AFU-V1-007).
+func ExportProvider(ctx context.Context, root string, set IntentSet) ([]byte, error) {
+	if set.Revision == "" {
+		return nil, errors.New("provider export needs intents read from a commit")
 	}
+	rev := set.Revision
 	links, err := EvaluateLinks(ctx, root, set, rev)
 	if err != nil {
 		return nil, err

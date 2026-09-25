@@ -111,9 +111,9 @@ var flowExports = map[string]func(ctx context.Context, root string, set appflows
 		return appflows.CompileInventory(set)
 	},
 	"provider": func(ctx context.Context, root string, set appflows.IntentSet, _ string) ([]byte, error) {
-		return appflows.ExportProvider(ctx, root, set, "HEAD")
+		return appflows.ExportProvider(ctx, root, set)
 	},
-	"request": func(_ context.Context, _ string, set appflows.IntentSet, envelope string) ([]byte, error) {
+	"request": func(ctx context.Context, root string, set appflows.IntentSet, envelope string) ([]byte, error) {
 		inventory, err := appflows.CompileInventory(set)
 		if err != nil {
 			return nil, err
@@ -122,7 +122,7 @@ var flowExports = map[string]func(ctx context.Context, root string, set appflows
 		if err != nil {
 			return nil, err
 		}
-		return appflows.ExportRequest(raw, inventory)
+		return appflows.ExportRequest(ctx, root, raw, inventory)
 	},
 }
 
@@ -149,7 +149,7 @@ func runFlowsExport(ctx context.Context, root string, args []string, out io.Writ
 	if parseErr != nil || *dir == "" || f.NArg() != 0 || !known || (*emit == "request") != (*envelope != "") {
 		return errors.New("flows export requires --flows DIR --emit request|provider|inventory, and --envelope FILE exactly when --emit request")
 	}
-	set, err := appflows.LoadIntents(root, *dir)
+	set, err := appflows.LoadIntentsAt(ctx, root, *dir, "HEAD")
 	if err != nil {
 		return err
 	}

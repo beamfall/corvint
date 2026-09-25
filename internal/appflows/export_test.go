@@ -15,9 +15,15 @@ import (
 	"github.com/Beamfall/corvint/internal/extevidence"
 )
 
-// envelopeFor builds a minimal valid behavior-adapter request whose application-flows input anchors inventory.
-func envelopeFor(t *testing.T, inventory []byte) []byte {
+// envelopeFor commits inventory under evidence/ and builds a minimal valid behavior-adapter request whose
+// application-flows input anchors that commit, path and blob.
+func envelopeFor(t *testing.T, root string, inventory []byte) []byte {
 	t.Helper()
+	const inventoryPath = "evidence/application-flows.json"
+	writeRaw(t, root, inventoryPath, inventory)
+	gitTest(t, root, "add", "-A")
+	gitTest(t, root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-q", "--allow-empty", "-m", "inventory")
+	head := gitOut(t, root, "rev-parse", "HEAD")
 	revisions := doccorpus.BehaviorRevisions{
 		App:  doccorpus.Repository{ID: strings.Repeat("1", 40), Revision: strings.Repeat("a", 40)},
 		E2E:  doccorpus.Repository{ID: strings.Repeat("2", 40), Revision: strings.Repeat("b", 40)},
@@ -39,7 +45,11 @@ func envelopeFor(t *testing.T, inventory []byte) []byte {
 	}
 	inputs := []doccorpus.BehaviorAdapterInput{}
 	for id, doc := range docs {
-		inputs = append(inputs, doccorpus.BehaviorAdapterInput{ID: id, Anchor: fixtureAnchor("evidence/"+id+".json", doc), Document: string(doc)})
+		anchor := fixtureAnchor("evidence/"+id+".json", doc)
+		if id == FlowsInputID {
+			anchor.Revision, anchor.Blob = head, gitOut(t, root, "rev-parse", head+":"+inventoryPath)
+		}
+		inputs = append(inputs, doccorpus.BehaviorAdapterInput{ID: id, Anchor: anchor, Document: string(doc)})
 	}
 	byName := func(names ...string) map[string]string {
 		fields := map[string]string{}
@@ -59,13 +69,13 @@ func envelopeFor(t *testing.T, inventory []byte) []byte {
 	return encode(request)
 }
 
-func exportedRequest(t *testing.T, set IntentSet) []byte {
+func exportedRequest(t *testing.T, root string, set IntentSet) []byte {
 	t.Helper()
 	inventory, err := CompileInventory(set)
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := ExportRequest(envelopeFor(t, inventory), inventory)
+	out, err := ExportRequest(context.Background(), root, envelopeFor(t, root, inventory), inventory)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,11 +85,11 @@ func exportedRequest(t *testing.T, set IntentSet) []byte {
 // AFU-V1-003
 func TestAFUV1ExportCompilesRequestAndProvider(t *testing.T) {
 	root := intentRepo(t)
-	set, err := LoadIntents(root, "flows")
+	set, err := LoadIntentsAt(context.Background(), root, "flows", "HEAD")
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := exportedRequest(t, set)
+	request := exportedRequest(t, root, set)
 	result, err := doccorpus.BuildBehaviorAdapter(request, nil)
 	if err != nil {
 		t.Fatalf("exported request refused by the DCP-V1 adapter: %v", err)
@@ -98,7 +108,7 @@ func TestAFUV1ExportCompilesRequestAndProvider(t *testing.T) {
 			t.Fatalf("mapping %s reads %s", m.Kind, m.Input)
 		}
 	}
-	provider, err := ExportProvider(context.Background(), root, set, "HEAD")
+	provider, err := ExportProvider(context.Background(), root, set)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +135,7 @@ func TestAFUV1ExportRefusesUnanchoredInventory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = ExportRequest(envelopeFor(t, []byte(`{"flows":[],"variations":[]}`)), inventory); err == nil || !strings.Contains(err.Error(), "anchor") {
+	if _, err = ExportRequest(context.Background(), root, envelopeFor(t, root, []byte(`{"flows":[],"variations":[]}`)), inventory); err == nil || !strings.Contains(err.Error(), "anchor") {
 		t.Fatalf("stale inventory anchor accepted: %v", err)
 	}
 	set.Flows[0].Adapter = nil
@@ -135,7 +145,7 @@ func TestAFUV1ExportRefusesUnanchoredInventory(t *testing.T) {
 	set.Flows[0] = sampleIntent("checkout")
 	set.Flows[0].Variations[0].Projects = []string{}
 	inventory, _ = CompileInventory(set)
-	if _, err = ExportRequest(envelopeFor(t, inventory), inventory); err == nil || !strings.Contains(err.Error(), "behavior adapter refused") {
+	if _, err = ExportRequest(context.Background(), root, envelopeFor(t, root, inventory), inventory); err == nil || !strings.Contains(err.Error(), "behavior adapter refused") {
 		t.Fatalf("DCP-V1 reconciler bypassed: %v", err)
 	}
 }
@@ -147,7 +157,7 @@ func TestAFUV1RoundTripByteExact(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	first := exportedRequest(t, set)
+	first := exportedRequest(t, root, set)
 	writeRaw(t, root, "imported/.keep", nil)
 	source := filepath.Join(t.TempDir(), "request.json")
 	if err = os.WriteFile(source, first, 0600); err != nil {
@@ -168,7 +178,7 @@ func TestAFUV1RoundTripByteExact(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := ExportRequest(first, inventory)
+	second, err := ExportRequest(context.Background(), root, first, inventory)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,16 +190,92 @@ func TestAFUV1RoundTripByteExact(t *testing.T) {
 // AFU-V1-003 AFU-V1-010
 func TestAFUV1ExportLeavesRepositoryByteIdentical(t *testing.T) {
 	root := intentRepo(t)
-	before := treeSnapshot(t, root)
-	set, err := LoadIntents(root, "flows")
+	set := reviewSet(t, root, gitOut(t, root, "rev-parse", "HEAD"))
+	inventory, err := CompileInventory(set)
 	if err != nil {
 		t.Fatal(err)
 	}
-	_ = exportedRequest(t, set)
-	if _, err = ExportProvider(context.Background(), root, reviewSet(t, root, gitOut(t, root, "rev-parse", "HEAD")), "HEAD"); err != nil {
+	envelope := envelopeFor(t, root, inventory)
+	before := treeSnapshot(t, root)
+	if _, err = ExportRequest(context.Background(), root, envelope, inventory); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = ExportProvider(context.Background(), root, set); err != nil {
 		t.Fatal(err)
 	}
 	if after := treeSnapshot(t, root); !reflect.DeepEqual(before, after) {
 		t.Fatal("export mutated the repository or Git state")
+	}
+}
+
+// forged rewrites the application-flows input anchor of an envelope.
+func forged(t *testing.T, envelope []byte, edit func(*doccorpus.Anchor)) []byte {
+	t.Helper()
+	var req doccorpus.BehaviorAdapterRequest
+	if err := jsonv2.Unmarshal(envelope, &req); err != nil {
+		t.Fatal(err)
+	}
+	for i := range req.Inputs {
+		if req.Inputs[i].ID == FlowsInputID {
+			edit(&req.Inputs[i].Anchor)
+		}
+	}
+	out, err := doccorpus.Encode(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// AFU-V1-003
+func TestAFUV1ExportRequestRefusesForgedAnchor(t *testing.T) {
+	root := intentRepo(t)
+	set, err := LoadIntentsAt(context.Background(), root, "flows", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := CompileInventory(set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := envelopeFor(t, root, inventory)
+	intentBlob := gitOut(t, root, "rev-parse", "HEAD:flows/checkout.json")
+	forgeries := map[string]func(*doccorpus.Anchor){
+		"unknown revision": func(a *doccorpus.Anchor) { a.Revision = strings.Repeat("e", 40) },
+		"wrong blob":       func(a *doccorpus.Anchor) { a.Blob = intentBlob },
+		"wrong path":       func(a *doccorpus.Anchor) { a.Path = "flows/checkout.json" },
+		"uncommitted path": func(a *doccorpus.Anchor) { a.Path = "evidence/missing.json" },
+	}
+	for name, edit := range forgeries {
+		if _, err = ExportRequest(context.Background(), root, forged(t, envelope, edit), inventory); err == nil || !strings.Contains(err.Error(), "committed inventory") {
+			t.Fatalf("%s: forged anchor accepted: %v", name, err)
+		}
+	}
+}
+
+// AFU-V1-001 AFU-V1-003
+func TestAFUV1ExportReadsCommittedIntents(t *testing.T) {
+	root := intentRepo(t)
+	head := gitOut(t, root, "rev-parse", "HEAD")
+	dirty := sampleIntent("checkout")
+	dirty.Revision = 99
+	writeIntent(t, root, "flows/checkout.json", dirty)
+	writeIntent(t, root, "flows/extra.json", sampleIntent("extra"))
+	set, err := LoadIntentsAt(context.Background(), root, "flows", "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if set.Revision != head || len(set.Flows) != 1 || set.Flows[0].Revision != 1 {
+		t.Fatalf("export read the working tree: %+v", set)
+	}
+	working, err := LoadIntents(root, "flows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = ExportProvider(context.Background(), root, working); err == nil {
+		t.Fatal("provider exported a working-tree intent set")
+	}
+	if _, err = LoadIntentsAt(context.Background(), root, "absent", "HEAD"); err == nil || !strings.Contains(err.Error(), "absent") {
+		t.Fatalf("absent flows directory: %v", err)
 	}
 }

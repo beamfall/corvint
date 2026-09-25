@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"os"
 	"path"
 	"path/filepath"
 	"slices"
@@ -29,41 +30,80 @@ var importers = map[string]func(raw []byte, source string) ([]FlowIntent, error)
 }
 
 // Import compiles raw into new proposed intents with inferred links and writes each as a new file under
-// dir. It validates the whole combined set before writing and never overwrites (AFU-V1-004).
+// dir. It is all-or-nothing: the combined set is bounded and validated before any write, every file is
+// created exclusively, and a failed write removes exactly the files this call created (AFU-V1-004,
+// AFU-V1-037). Flow IDs are lowercase and every case variant of a .json name is loaded as an intent,
+// so a name that differs only in case from an existing file is refused before writing.
 func Import(root, dir string, raw []byte, format, source string) ([]string, error) {
+	set, intents, err := planImport(root, dir, raw, format, source)
+	if err != nil {
+		return nil, fmt.Errorf("%v; %s", err, nothingWritten)
+	}
+	return writeAll(root, set, intents)
+}
+
+const nothingWritten = "no intent from this import remains written"
+
+// writeIntentFile is a test seam for a failed write.
+var writeIntentFile = WriteConfined
+
+func planImport(root, dir string, raw []byte, format, source string) (IntentSet, []FlowIntent, error) {
 	importer, ok := importers[format]
 	if !ok {
-		return nil, errors.New("--format must be behavior-adapter-request, openapi or playwright-list")
+		return IntentSet{}, nil, errors.New("--format must be behavior-adapter-request, openapi or playwright-list")
 	}
 	set, err := LoadIntents(root, dir)
 	if err != nil {
-		return nil, err
+		return set, nil, err
 	}
 	intents, err := importer(raw, sourcePath(root, source))
 	if err != nil {
-		return nil, err
+		return set, nil, err
+	}
+	if len(set.Flows)+len(intents) > MaxFlows {
+		return set, nil, fmt.Errorf("import would exceed %d intents", MaxFlows)
 	}
 	combined := IntentSet{Dir: set.Dir, Flows: append(slices.Clone(set.Flows), intents...), Retired: set.Retired}
 	slices.SortFunc(combined.Flows, func(a, b FlowIntent) int { return strings.Compare(a.FlowID, b.FlowID) })
 	if err = uniqueFlowIDs(combined.Flows); err != nil {
-		return nil, err
+		return set, nil, err
 	}
-	if err = combined.validate(); err != nil {
-		return nil, err
-	}
+	return set, intents, combined.validate()
+}
+
+func writeAll(root string, set IntentSet, intents []FlowIntent) ([]string, error) {
 	written := []string{}
 	for _, intent := range intents {
-		data, err := encodeIntent(intent)
-		if err != nil {
-			return written, err
-		}
 		name := set.IntentPath(intent.FlowID)
-		if err = WriteConfined(root, filepath.Join(root, filepath.FromSlash(name)), data); err != nil {
-			return written, fmt.Errorf("%s: %v", name, err)
+		data, err := encodeIntent(intent)
+		if err == nil {
+			err = writeIntentFile(root, filepath.Join(root, filepath.FromSlash(name)), data)
+		}
+		if err != nil {
+			return nil, rollback(root, written, fmt.Errorf("%s: %v", name, err))
 		}
 		written = append(written, name)
 	}
 	return written, nil
+}
+
+// rollback removes exactly the files this import created and names them in the returned error.
+func rollback(root string, written []string, cause error) error {
+	r, err := os.OpenRoot(root)
+	if err != nil {
+		return fmt.Errorf("%v; rollback failed, these files remain: %v", cause, written)
+	}
+	defer r.Close()
+	remaining := []string{}
+	for _, name := range written {
+		if r.Remove(filepath.FromSlash(name)) != nil {
+			remaining = append(remaining, name)
+		}
+	}
+	if len(remaining) > 0 {
+		return fmt.Errorf("%v; rollback failed, these files remain: %v", cause, remaining)
+	}
+	return fmt.Errorf("%v; rolled back %v; %s", cause, written, nothingWritten)
 }
 
 func uniqueFlowIDs(flows []FlowIntent) error {

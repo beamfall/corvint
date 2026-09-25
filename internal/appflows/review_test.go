@@ -2,6 +2,7 @@ package appflows
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -9,7 +10,7 @@ import (
 // reviewSet loads the fixture intents with reviewed_at set on the declared app.js span link.
 func reviewSet(t *testing.T, root, anchor string) IntentSet {
 	t.Helper()
-	set, err := LoadIntents(root, "flows")
+	set, err := LoadIntentsAt(context.Background(), root, "flows", "HEAD")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,18 +107,69 @@ func TestAFUV1ReverseLookupsDerived(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	byPath := FlowsForPath(links, "app.js")
-	if len(byPath) != 2 || byPath[0].Flow != "checkout" || byPath[0].Basis != "declared" || byPath[1].Basis != "inferred" {
+	wantPath := []ReverseHit{{Flow: "checkout", From: "pay", Basis: "declared", ReviewState: ReviewUnreviewed}, {Flow: "checkout", From: "pay", Basis: "inferred", ReviewState: ReviewInferred}}
+	if byPath := FlowsForPath(links, "app.js"); !reflect.DeepEqual(byPath, wantPath) {
 		t.Fatalf("path lookup: %+v", byPath)
 	}
-	byTest := FlowsForTestKey(links, "checkout.spec.ts > pays")
-	if len(byTest) != 1 || byTest[0].From != "checkout.happy" {
+	wantTest := []ReverseHit{{Flow: "checkout", From: "checkout.happy", Basis: "declared", ReviewState: ReviewUnreviewed}}
+	if byTest := FlowsForTestKey(links, "checkout.spec.ts > pays"); !reflect.DeepEqual(byTest, wantTest) {
 		t.Fatalf("test key lookup: %+v", byTest)
 	}
 	if len(FlowsForPath(links, "missing.js")) != 0 {
 		t.Fatal("lookup invented a flow")
 	}
-	if after := treeSnapshot(t, root); len(after) != len(before) {
+	if after := treeSnapshot(t, root); !reflect.DeepEqual(before, after) {
 		t.Fatal("reverse lookup stored state in the repository")
+	}
+}
+
+// AFU-V1-008
+func TestAFUV1ReviewLinkMustExistAtAnchor(t *testing.T) {
+	root := intentRepo(t)
+	anchor := gitOut(t, root, "rev-parse", "HEAD")
+	set := reviewSet(t, root, anchor)
+	set.Flows[0].Links = append(set.Flows[0].Links, FlowLink{From: "open", Basis: "declared", ReviewedAt: anchor,
+		Target: LinkTarget{Type: "source", Path: "app.js", StartLine: 2, EndLine: 2}})
+	links, err := EvaluateLinks(context.Background(), root, set, "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if links[1].ReviewState != ReviewReviewed || links[3].ReviewState != ReviewLinkNotAtAnchor || links[3].Basis != "declared" {
+		t.Fatalf("a link absent from the intent at the anchor was reviewed: %+v", links[3])
+	}
+}
+
+// AFU-V1-008
+func TestAFUV1ReviewEvidenceTargetUnavailable(t *testing.T) {
+	root := intentRepo(t)
+	f := sampleIntent("checkout")
+	f.Revision = 2
+	f.Links = append(f.Links, FlowLink{From: "pay", Basis: "declared", Target: LinkTarget{Type: "evidence", Digest: strings.Repeat("a", 64)}})
+	writeIntent(t, root, "flows/checkout.json", f)
+	anchor := commitAll(t, root, "declare an evidence link")
+	set := reviewSet(t, root, anchor)
+	set.Flows[0].Links[3].ReviewedAt = anchor
+	links, err := EvaluateLinks(context.Background(), root, set, "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if links[3].ReviewState != ReviewEvidenceUnavailable || links[3].Basis != "declared" {
+		t.Fatalf("an evidence target not shown to exist was reviewed: %+v", links[3])
+	}
+}
+
+// AFU-V1-008
+func TestAFUV1ReviewContentIdentityRestoredTarget(t *testing.T) {
+	root := intentRepo(t)
+	anchor := gitOut(t, root, "rev-parse", "HEAD")
+	writeRaw(t, root, "app.js", []byte("function pay(amount) {}\nconst unrelated = 1\n"))
+	changed := commitAll(t, root, "change the reviewed span")
+	writeRaw(t, root, "app.js", []byte("function pay() {}\nconst unrelated = 1\n"))
+	restored := commitAll(t, root, "restore the reviewed span")
+	if got := spanState(t, root, anchor, changed); got.ReviewState != ReviewStale {
+		t.Fatalf("changed span: %+v", got)
+	}
+	if got := spanState(t, root, anchor, restored); got.ReviewState != ReviewReviewed {
+		t.Fatalf("A to B to A is unchanged by content identity: %+v", got)
 	}
 }

@@ -1,8 +1,10 @@
 package appflows
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -195,5 +197,20 @@ func TestAFUV1IntentSecretScreened(t *testing.T) {
 	writeIntent(t, root, "flows/checkout.json", f)
 	if _, err := LoadIntents(root, "flows"); err == nil || !strings.Contains(err.Error(), "secret") {
 		t.Fatalf("secret-shaped intent accepted: %v", err)
+	}
+}
+
+// AFU-V1-037
+func TestAFUV1IntentCountBoundedBeforeRead(t *testing.T) {
+	root := intentRepo(t)
+	for i := range MaxFlows + 1 {
+		writeRaw(t, root, fmt.Sprintf("flows/f%d.json", i), []byte("not json"))
+	}
+	if _, err := LoadIntents(root, "flows"); err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("candidate count not bounded before reading: %v", err)
+	}
+	commitAll(t, root, "too many intents")
+	if _, err := LoadIntentsAt(context.Background(), root, "flows", "HEAD"); err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("committed candidate count not bounded before reading: %v", err)
 	}
 }

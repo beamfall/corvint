@@ -3,9 +3,11 @@
 package appflows
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -108,5 +110,31 @@ func TestAFUV1RecordConfinedToRoot(t *testing.T) {
 	}
 	if err := Record(in, raw, filepath.Join(root, "real", "record.json")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// AFU-V1-036: a manifest FIFO or symlink under the root is refused before open, without blocking.
+func TestAFUV1ManifestRegularBeforeOpen(t *testing.T) {
+	root := t.TempDir()
+	if err := syscall.Mkfifo(filepath.Join(root, "manifest.json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "real.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("real.json", filepath.Join(root, "link.json")); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"manifest.json", "link.json"} {
+		done := make(chan error, 1)
+		go func() { _, err := Capture(context.Background(), root, name); done <- err }()
+		select {
+		case err := <-done:
+			if err == nil || !strings.Contains(err.Error(), "source must be regular") {
+				t.Fatalf("non-regular manifest %s: %v", name, err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("blocked on manifest %s", name)
+		}
 	}
 }

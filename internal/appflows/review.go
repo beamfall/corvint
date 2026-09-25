@@ -13,14 +13,16 @@ const ReviewIdentityNote = "review identity is not verified: a review anchor att
 
 // Evaluated review states; only `reviewed` makes a link's basis `reviewed` (AFU-V1-008, AFU-V1-009).
 const (
-	ReviewReviewed        = "reviewed"
-	ReviewStale           = "stale"
-	ReviewNotAncestor     = "anchor-not-ancestor"
-	ReviewNotIntentChange = "anchor-not-intent-change"
-	ReviewAnchorUnknown   = "anchor-unknown"
-	ReviewTargetUnpinned  = "target-unpinned"
-	ReviewUnreviewed      = "unreviewed"
-	ReviewInferred        = "inferred"
+	ReviewReviewed            = "reviewed"
+	ReviewStale               = "stale"
+	ReviewNotAncestor         = "anchor-not-ancestor"
+	ReviewNotIntentChange     = "anchor-not-intent-change"
+	ReviewAnchorUnknown       = "anchor-unknown"
+	ReviewLinkNotAtAnchor     = "link-not-at-anchor"
+	ReviewEvidenceUnavailable = "evidence-unavailable"
+	ReviewTargetUnpinned      = "target-unpinned"
+	ReviewUnreviewed          = "unreviewed"
+	ReviewInferred            = "inferred"
 )
 
 // EvaluatedLink is one forward link evaluated at one revision (AFU-V1-007).
@@ -52,6 +54,7 @@ type reviewer struct {
 	root     string
 	revision string
 	blobs    map[string]string
+	links    map[string][]FlowLink
 }
 
 // ResolveRevision names the evaluated commit.
@@ -66,7 +69,7 @@ func ResolveRevision(ctx context.Context, root, revision string) (string, error)
 // EvaluateLinks evaluates every forward link at revision. It reads only object IDs, ancestry and
 // blob content; Git author, committer and signature fields are never read (AFU-V1-008).
 func EvaluateLinks(ctx context.Context, root string, set IntentSet, revision string) ([]EvaluatedLink, error) {
-	r := &reviewer{ctx: ctx, root: root, blobs: map[string]string{}}
+	r := &reviewer{ctx: ctx, root: root, blobs: map[string]string{}, links: map[string][]FlowLink{}}
 	var err error
 	if r.revision, err = ResolveRevision(ctx, root, revision); err != nil {
 		return nil, err
@@ -109,12 +112,31 @@ func (r *reviewer) state(intentPath string, link FlowLink) string {
 	if !r.changed(anchor, intentPath) {
 		return ReviewNotIntentChange
 	}
+	if !slices.ContainsFunc(r.anchorLinks(anchor, intentPath), func(l FlowLink) bool { return l.From == link.From && l.Target == link.Target }) {
+		return ReviewLinkNotAtAnchor
+	}
 	return r.targetState(anchor, link.Target)
 }
 
 func (r *reviewer) ancestor(anchor string) bool {
 	base, err := git(r.ctx, r.root, "merge-base", anchor, r.revision)
 	return err == nil && strings.TrimSpace(string(base)) == anchor
+}
+
+// anchorLinks returns the links of the intent file as committed at anchor, so a review anchor covers
+// only a link that the reviewed intent content already declared (AFU-V1-008).
+func (r *reviewer) anchorLinks(anchor, intentPath string) []FlowLink {
+	oid := r.blob(anchor, intentPath)
+	if links, ok := r.links[oid]; ok {
+		return links
+	}
+	var intent FlowIntent
+	raw, err := git(r.ctx, r.root, "cat-file", "blob", oid)
+	if err != nil || Decode(raw, &intent) != nil {
+		intent.Links = nil
+	}
+	r.links[oid] = intent.Links
+	return intent.Links
 }
 
 // changed reports whether commit changed file against its first parent (or added it as a root commit).
@@ -130,9 +152,12 @@ func (r *reviewer) changed(commit, file string) bool {
 	return r.blob(strings.TrimSpace(string(parent)), file) != after
 }
 
+// targetState compares target content at anchor and at the evaluated revision. Only content identity
+// counts, so a target changed and then restored (A to B to A) is unchanged. S1 has no run-evidence
+// store, so an evidence target cannot be shown to exist at the evaluated revision and is never reviewed.
 func (r *reviewer) targetState(anchor string, t LinkTarget) string {
 	if t.Type == "evidence" {
-		return ReviewReviewed
+		return ReviewEvidenceUnavailable
 	}
 	if t.Path == "" {
 		return ReviewTargetUnpinned

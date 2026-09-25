@@ -1,6 +1,8 @@
 package appflows
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -70,7 +72,7 @@ func TestAFUV1ImportNeverOverwrites(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := exportedRequest(t, set)
+	request := exportedRequest(t, root, set)
 	before := treeSnapshot(t, root)
 	if _, err = Import(root, "flows", request, FormatAdapterRequest, ""); err == nil || !strings.Contains(err.Error(), "already exists") {
 		t.Fatalf("import over an existing intent: %v", err)
@@ -114,5 +116,56 @@ func TestAFUV1ImportScreensAndBoundsSource(t *testing.T) {
 	}
 	if _, err := Import(root, "flows", []byte("{}"), "yaml", ""); err == nil {
 		t.Fatal("unknown import format accepted")
+	}
+}
+
+// AFU-V1-004
+func TestAFUV1ImportRollsBackOnFailedWrite(t *testing.T) {
+	root := intentRepo(t)
+	before := treeSnapshot(t, root)
+	calls := 0
+	writeIntentFile = func(root, filename string, data []byte) error {
+		if calls++; calls == 2 {
+			return errors.New("disk full")
+		}
+		return WriteConfined(root, filename, data)
+	}
+	t.Cleanup(func() { writeIntentFile = WriteConfined })
+	written, err := Import(root, "flows", []byte(openAPIFixture), FormatOpenAPI, "")
+	if err == nil || written != nil || !strings.Contains(err.Error(), "rolled back [flows/listpets.json]") || !strings.Contains(err.Error(), nothingWritten) {
+		t.Fatalf("failed import: %v %v", written, err)
+	}
+	if !reflect.DeepEqual(before, treeSnapshot(t, root)) {
+		t.Fatal("failed import left a written intent")
+	}
+}
+
+// AFU-V1-004 AFU-V1-036
+func TestAFUV1ImportRefusesCaseVariantName(t *testing.T) {
+	root := intentRepo(t)
+	writeRaw(t, root, "flows/post-pets.JSON", []byte("{}"))
+	before := treeSnapshot(t, root)
+	if _, err := Import(root, "flows", []byte(openAPIFixture), FormatOpenAPI, ""); err == nil || !strings.Contains(err.Error(), nothingWritten) {
+		t.Fatalf("case variant of an intent name ignored: %v", err)
+	}
+	if !reflect.DeepEqual(before, treeSnapshot(t, root)) {
+		t.Fatal("refused import wrote a file")
+	}
+}
+
+// AFU-V1-037
+func TestAFUV1ImportCombinedFlowBound(t *testing.T) {
+	root := intentRepo(t)
+	paths := []string{}
+	for i := range MaxFlows {
+		paths = append(paths, fmt.Sprintf(`"/p%d":{"get":{"responses":{"200":{"description":"ok"}}}}`, i))
+	}
+	doc := `{"openapi":"3.1.0","info":{"title":"t","version":"1"},"paths":{` + strings.Join(paths, ",") + `}}`
+	before := treeSnapshot(t, root)
+	if _, err := Import(root, "flows", []byte(doc), FormatOpenAPI, ""); err == nil || !strings.Contains(err.Error(), "import would exceed 512 intents") {
+		t.Fatalf("existing plus imported flows exceeded the bound: %v", err)
+	}
+	if !reflect.DeepEqual(before, treeSnapshot(t, root)) {
+		t.Fatal("refused import wrote a file")
 	}
 }
