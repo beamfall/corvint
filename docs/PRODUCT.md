@@ -2,7 +2,7 @@
 
 ## Job
 
-Corvint is the **change typechecker for agentic software**. For an engineer or coding agent entering
+Corvint is the **change-evidence verifier for agentic software**. For an engineer or coding agent entering
 an unfamiliar repository, it compiles the smallest evidence set sufficient for one intended change,
 then reports the exact obligations still unwitnessed before the change may be called done.
 
@@ -31,10 +31,12 @@ corvint init | corvint adopt
   -> verified witnesses reused by the next agent
 ```
 
-This **bidirectional witness loop** is the product breakthrough: context is no longer disposable
-input and a diff is no longer opaque output. Every merged change leaves behind the verified context
-needed to understand the next change. Git stores the durable ledger; content-addressed derived
-artifacts remain disposable.
+This **bidirectional witness loop** is how the change-evidence verifier works: context is no longer
+disposable input and a diff is no longer opaque output. Every merged change leaves behind the
+verified context needed to understand the next change. Git stores the durable ledger;
+content-addressed derived artifacts remain disposable. As README.md's proof scope states, the
+verifier proves structural integrity, not semantic support, causality, test adequacy, or program
+correctness.
 
 A receipt is useful only when every included item explains why it is present, names its
 authority and confidence, binds to immutable source evidence, states what was excluded, and tells
