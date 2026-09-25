@@ -6090,3 +6090,12 @@ Review repairs: an independent review found no blockers. The repairs are:
   `cmd/corvint-mcp` has no `flows` tool profile here, so the row does not claim S1-S8. Delivery
   stays `planned` in the spec header, `INDEX.json` and the README, which the specindex test keeps
   in agreement.
+
+## 2026-09-25 V1-0270: citation anchors and index-reading checks documented
+
+- `docs/AGENT-ROUTES.md` "Focused documentation checks" now says three things. The doc checks read
+  the Git index, so edits must be staged first. A `path:N-M@hex` anchor is a prefix of the sha256
+  of the cited lines (`DCG-V0-006` to `DCG-V0-009`). `script/check-line-citations.sh --hash
+  path:N-M` prints the whole replacement token. Agents kept rediscovering all three while
+  repinning citations after BUILD-LOG and DOGFOOD.md line shifts.
+- Doc-only change; no behaviour changes.
