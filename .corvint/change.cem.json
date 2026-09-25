@@ -1,0 +1,114 @@
+{
+  "baseRevision": "af2fe826d75f291ae1e5e9897a908fafc094cabc",
+  "evidence": [],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:b34c7226e606dcd6bae84272e05a11fcbf8d61b11ef474bae1f0bd4dbac3693b",
+      "newRange": {
+        "count": 33,
+        "start": 13
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 13
+      },
+      "path": ".github/workflows/ci.yml",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:a25b2099ebb557e2d958789836c008c4a89d656ca3dd82473413120e0f3c0c36",
+      "newRange": {
+        "count": 7,
+        "start": 18
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 18
+      },
+      "path": "Makefile",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:b4fb12297474e91057cd6a9e0823dceb3ae266e70622315486344cfa5ee5128e",
+      "newRange": {
+        "count": 15,
+        "start": 259
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 259
+      },
+      "path": "Makefile",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:393e9c58d42fb71f2adf2f07e75de66fe9486dd06f0b2caef869974650504cb8",
+      "newRange": {
+        "count": 24,
+        "start": 14
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 14
+      },
+      "path": "conformance/use-cases-v0/README.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:fd16e98ebfef70ab83b4fcc36c0ca160c9b381c8329170f04ee79741af143a92",
+      "newRange": {
+        "count": 25,
+        "start": 6090
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 6090
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:f4b6a5e9bd44cb717f4c0f1dd520f165dc551cf7bc37d3f445bb856394832977",
+      "newRange": {
+        "count": 147,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "script/repin-use-case-receipts.sh",
+      "reason": "no-evidence"
+    },
+    {
+      "basis": [],
+      "disposition": "unknown",
+      "id": "hunk:sha256:43e78aa8e46f71ed7c5711993891c547dfa7906cd1583fda94ca34346829e83b",
+      "newRange": {
+        "count": 83,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "script/repin-use-case-receipts_test.sh",
+      "reason": "no-evidence"
+    }
+  ],
+  "patchSha256": "6223ead07e1e627160d3d4761397cb9ad88efe852c4f9eab0395cca07c1d3ee3",
+  "spec": "cem/0.2"
+}
