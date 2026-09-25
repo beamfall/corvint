@@ -6161,7 +6161,7 @@ Review repairs (same slice):
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
 
-## 2026-09-25 Panel M2: a limit that omits a competing record needs widening (`GPK-V0-068`, proposed)
+## 2026-09-25 Panel M2: a limit that omits a competing record needs widening (`GPK-V0-068`, decision 0396)
 
 The pre-1.0 panel (finding M2) ran `corvint query --limit 1` on Beamfall with the COREAPI-AUDIT-0822-3
 headline ("Carry HLS foreground priority in the signed stream grant instead of the
@@ -6174,7 +6174,7 @@ fire here: `access-request-grant` rests on two query words, `request` and `grant
 `GPK-V0-039` floor. What the limit-1 packet hid was a competing reading. `hls-transcode` rests on
 `hls`, a word no emitted result rests on, and only score chose between the two.
 
-`GPK-V0-068` (proposed, owner acceptance pending): when the result limit omits a competitive
+`GPK-V0-068` (accepted 2026-09-25, decision 0396): when the result limit omits a competitive
 record that rests on a query word no emitted result rests on, the packet is `NEEDS_WIDENING` with
 an active abstention, reason `omitted-competing-record`, and keeps its results. Support is
 counted per result in the query's own words, as `GPK-V0-039` counts it.
