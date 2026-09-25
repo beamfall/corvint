@@ -225,7 +225,7 @@ func EncodeRunEvidence(r TestRunEvidence) ([]byte, error) {
 		return nil, err
 	}
 	if b.Len() > MaxBytes {
-		return nil, errors.New("run evidence exceeds byte limit")
+		return nil, boundError(BoundBytes)
 	}
 	if secretscreen.MatchString(b.String()) {
 		return nil, errors.New("run evidence contains secret-shaped data")
@@ -269,10 +269,11 @@ func Classify(attempts []RunAttempt) string {
 	return last
 }
 
-// Verified reports whether a record may be shown as verified. A STATIC record never is (AFU-V1-014);
-// any other needs a passed classification, cleanup done and every negative control as expected.
+// Verified reports whether a record may be shown as verified. An invalid or STATIC record never is
+// (AFU-V1-014); any other needs a passed classification, cleanup done and every negative control as
+// expected.
 func Verified(r TestRunEvidence) bool {
-	if r.Authority == AuthorityStatic {
+	if ValidateRunEvidence(r) != nil || r.Authority == AuthorityStatic {
 		return false
 	}
 	if Classify(r.Attempts) != "passed" || r.Cleanup != "done" {

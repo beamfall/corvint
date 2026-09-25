@@ -215,7 +215,10 @@ This subsection fixes the S2 wire shape. It adds no requirement and no root verb
   after a failed or timed-out one is `flaky` through the shared TCQ-V0-049 rule; a test with no
   attempt is `not-run`. A negative control's `observed` is that classification of the control test in
   the same report. A record is verified only when it is not `STATIC`, its result is `passed`, cleanup
-  is `done` and every control observed its expected outcome.
+  is `done` and every control observed its expected outcome. A Playwright `passed` result is recorded
+  as a `failed` attempt, with the reason as its failure, when the test's `expectedStatus` is not
+  `passed` (`test.fail()`) or, for its last result, when Playwright marked the test `unexpected`; so
+  such a test is never `passed` or verified.
 - Ingest formats are `playwright-json`, `junit-xml` and `go-test-json`; the caller supplies the run
   header the report does not carry. Playwright keeps one attempt per `results[]` entry. JUnit keeps
   each `flakyFailure` or `flakyError` as an earlier failed attempt before a final pass, and each
@@ -223,15 +226,22 @@ This subsection fixes the S2 wire shape. It adds no requirement and no root verb
   `[[ATTACHMENT|path]]` markers in `system-out` are the attachments. `go test -json` keeps each run of
   a test as an attempt, with each `file_test.go:line:` report as an assertion anchor; a test with no
   terminal event is `timedOut` when its package hit the test timeout and `interrupted` otherwise.
-- A bound exceeded before or during the walk makes the whole ingest incomplete, with no record, under
-  one code: `run-evidence-byte-bound`, `run-evidence-record-bound` (8192 tests),
+- The byte bound, and for JSON reports the depth pre-scan, run on the raw report before decode. The
+  record, attempt and link counts, and the JUnit depth, run during the walk before an item is kept;
+  a Playwright report is counted after it decodes, which the byte bound caps. Any exceeded bound,
+  including an encoded record over the byte bound, makes the whole ingest incomplete, with no
+  record, under one code: `run-evidence-byte-bound`, `run-evidence-record-bound` (8192 tests),
   `run-evidence-attempt-bound` (32 attempts), `run-evidence-link-bound` (256 anchors and attachments
   per attempt) or `run-evidence-traversal-bound` (depth 64).
-- Hygiene runs before encoding: a failure line naming a cookie, an authorization or API-key header or
-  a token is replaced by a drop marker, a request or response body marker cuts the rest of the
-  detail, and attachments without a path or named for cookies, credentials, tokens, requests,
-  responses, bodies, storage state or HAR files are dropped. Encoding then refuses secret-shaped
-  content and a record over the byte bound, so no ingest returns a record that could not be written.
+- Hygiene runs before encoding and fails safe. A failure line is replaced by a drop marker when it
+  contains, anywhere and in any case, `cookie`, `authorization`, `bearer`, `token`, `secret`,
+  `password` or `passwd`, `api-key`, `csrf`, `session`, `credential` or a `basic` credential. A
+  request or response body marker (`request:`, `response body:` and the like) anywhere in a line cuts
+  the detail there: the text before it is kept, screened the same way, then the drop marker, and
+  nothing after it. Attachments without a path, named for cookies, authorization, tokens, secrets,
+  passwords, sessions, credentials, requests, responses, bodies or storage state, or pointing at a
+  HAR file are dropped. Encoding then refuses secret-shaped content and a record over the byte bound,
+  so no ingest returns a record that could not be written.
 
 ### Queries
 
@@ -409,8 +419,8 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-010 | `TestAFUV1ReverseLookupsDerived`, `TestAFUV1ExportLeavesRepositoryByteIdentical`, `TestAFUV1FlowsCLIExportIsReadOnly`; partial: reverse lookups are library-only, CLI surface in S3 |
 | AFU-V1-011 | `TestAFUV1RunEvidenceClosedSchema`, `TestAFUV1NegativeControlFailed` |
 | AFU-V1-012 | `TestAFUV1PlaywrightAdapterKeepsEveryAttempt`, `TestAFUV1JUnitAdapterKeepsEveryAttempt`, `TestAFUV1GoTestAdapterKeepsEveryAttempt`, `TestAFUV1PlaywrightProviderKeepsEveryAttempt`; partial: the Playwright provider keeps every attempt in memory (`TestOutcome.AttemptDetails`), but the `corvint-js-test-provider` receipt wire still carries only the last attempt's detail |
-| AFU-V1-013 | `TestAFUV1FailedAttemptThenPassIsFlaky`, the retry-passed case of each adapter test; partial: per-test classification only, aggregation of repeated runs under the DCP-V1-023 counters and DCP-V1-024 policy needs the `internal/doccorpus` stability counting exposed for `test-run-evidence/0` records |
-| AFU-V1-014 | `TestAFUV1StaticNeverVerified`; partial: ingest emits `INGESTED` and the schema accepts `LOCALLY_OBSERVED`, but the AFU-V0-010 observer does not yet emit run-evidence records |
+| AFU-V1-013 | `TestAFUV1FailedAttemptThenPassIsFlaky`, `TestAFUV1PlaywrightUnexpectedNeverPassed`, the retry-passed case of each adapter test; partial: per-test classification only, aggregation of repeated runs under the DCP-V1-023 counters and DCP-V1-024 policy needs the `internal/doccorpus` stability counting exposed for `test-run-evidence/0` records |
+| AFU-V1-014 | `TestAFUV1StaticNeverVerified`, `TestAFUV1PlaywrightUnexpectedNeverPassed`; partial: ingest emits `INGESTED` and the schema accepts `LOCALLY_OBSERVED`, but the AFU-V0-010 observer does not yet emit run-evidence records |
 | AFU-V1-015..018 | map, gaps and impact goldens on the fixture application, and the read-only mutation check |
 | AFU-V1-019..024 | the fault-injected corpus reported per basis, one case per fallback code, an undiscovered-test case, the byte identity of `strict` and `coverage` |
 | AFU-V1-025..029 | navigation goldens, effect raising from observed traffic, `requires-grant` marking, the observer refusal, and a deterministic scripted agent that completes each fixture goal from the packet alone |

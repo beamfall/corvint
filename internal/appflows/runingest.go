@@ -107,6 +107,9 @@ func IngestRunEvidence(format string, raw []byte, header RunHeader) (Ingested, e
 		return Ingested{}, err
 	}
 	records, err := runRecords(adapter.runner, tests, header)
+	if errors.As(err, &bound) {
+		return Ingested{Incomplete: string(bound)}, nil
+	}
 	return Ingested{Records: records}, err
 }
 
@@ -129,7 +132,7 @@ func runRecords(runner string, tests []*runTest, header RunHeader) ([]TestRunEvi
 			Source: header.Source, BuildArtifactDigest: header.BuildArtifactDigest, Environment: header.Environment, Fixture: header.Fixture,
 			TestKey: t.key, Project: t.project, Attempts: t.attempts, Cleanup: header.Cleanup, NegativeControls: controlsFor(t, header.Controls, results)}
 		if _, err := EncodeRunEvidence(r); err != nil {
-			return nil, fmt.Errorf("test %q: %v", t.key, err)
+			return nil, fmt.Errorf("test %q: %w", t.key, err)
 		}
 		records = append(records, r)
 	}
@@ -151,16 +154,18 @@ func controlsFor(t *runTest, controls []RunControl, results map[string]string) [
 	return out
 }
 
-// Secret hygiene (AFU-V1-038): a line carrying a cookie, an authorization header or a named token is
-// replaced, a request or response body is cut with everything after it, and an attachment that holds
+// Secret hygiene (AFU-V1-038) fails safe rather than parsing headers: a line that mentions a sensitive
+// name anywhere, in any case or quoting, is replaced whole; a request or response body marker anywhere
+// in a line keeps only the text before it and ends the detail; and an attachment that may hold
 // cookies, credentials, a request or a response is dropped. EncodeRunEvidence then applies the
 // product secret screen before any write.
 const droppedMarker = "[dropped by run-evidence hygiene]"
 
 var (
-	sensitiveLine       = regexp.MustCompile(`(?i)\b(set-cookie|cookie|authorization|proxy-authorization|x-api-key|x-auth-token|x-csrf-token)\b\s*[:=]|\b[a-z_-]*token\b\s*[:=]`)
-	bodyMarker          = regexp.MustCompile(`(?i)^\s*(request|response)(\s*(body|text|data|payload))?\s*:`)
-	sensitiveAttachment = regexp.MustCompile(`(?i)cookie|authorization|token|credential|request|response|body|storage-?state`)
+	// sensitiveLine matches the names inside any word, so `access_token`, `csrfToken` and `sessionId` count.
+	sensitiveLine       = regexp.MustCompile(`(?i)cookie|authori[sz]ation|bearer|token|secret|passw(or)?d|api[-_]?key|csrf|session|credential|\bbasic\s+[a-z0-9+/]{4,}`)
+	bodyMarker          = regexp.MustCompile(`(?i)\b(request|response)(\s*(body|text|data|payload))?\s*:`)
+	sensitiveAttachment = regexp.MustCompile(`(?i)cookie|authori[sz]ation|token|secret|passw(or)?d|session|credential|request|response|body|storage-?state`)
 )
 
 func finishAttempts(attempts []RunAttempt) []RunAttempt {
@@ -179,14 +184,18 @@ func finishAttempts(attempts []RunAttempt) []RunAttempt {
 
 func scrubFailure(text string) string {
 	kept := []string{}
-	for _, line := range strings.Split(strings.ToValidUTF8(text, "�"), "\n") {
-		if bodyMarker.MatchString(line) {
-			return strings.Join(append(kept, droppedMarker), "\n")
+	for _, line := range strings.Split(strings.ReplaceAll(strings.ToValidUTF8(text, "\uFFFD"), "\x00", ""), "\n") {
+		body := bodyMarker.FindStringIndex(line)
+		if body != nil {
+			line = line[:body[0]]
 		}
 		if sensitiveLine.MatchString(line) {
 			line = droppedMarker
 		}
-		kept = append(kept, strings.ReplaceAll(line, "\x00", ""))
+		if body != nil {
+			return strings.Join(append(kept, strings.TrimSuffix(line, droppedMarker)+droppedMarker), "\n")
+		}
+		kept = append(kept, line)
 	}
 	return strings.Join(kept, "\n")
 }
@@ -274,8 +283,9 @@ func parsePlaywrightRun(raw []byte) ([]*runTest, error) {
 			if tests, err = appendTest(tests, t); err != nil {
 				return nil, err
 			}
-			for _, result := range pt.Results {
-				if err = t.add(playwrightAttempt(result)); err != nil {
+			for i, result := range pt.Results {
+				unexpected := pt.Status == "unexpected" && i == len(pt.Results)-1
+				if err = t.add(playwrightAttempt(result, pt.ExpectedStatus, unexpected)); err != nil {
 					return nil, err
 				}
 			}
@@ -284,7 +294,9 @@ func parsePlaywrightRun(raw []byte) ([]*runTest, error) {
 	return tests, nil
 }
 
-func playwrightAttempt(r playwrightResult) RunAttempt {
+// playwrightAttempt keeps one result. A passed result is recorded as failed when Playwright expected
+// another status (`test.fail()`) or marked the test `unexpected`, so it never classifies as passed.
+func playwrightAttempt(r playwrightResult, expected string, unexpected bool) RunAttempt {
 	errs := r.Errors
 	if len(errs) == 0 && r.Error != nil {
 		errs = []playwrightError{*r.Error}
@@ -298,6 +310,12 @@ func playwrightAttempt(r playwrightResult) RunAttempt {
 		}
 	}
 	a.Failure = strings.Join(messages, "\n")
+	if r.Status == "passed" && expected != "" && expected != "passed" {
+		a.Outcome, a.Failure = "failed", "passed, but the test expects "+expected
+	}
+	if a.Outcome == "passed" && unexpected {
+		a.Outcome, a.Failure = "failed", "passed, but Playwright reported the test unexpected"
+	}
 	return a
 }
 
@@ -441,8 +459,13 @@ func (w *junitRunWalk) openAttempt(t xml.StartElement) error {
 	return nil
 }
 
+// end resumes failure and error text after a nested element, so text on both sides of it is kept.
 func (w *junitRunWalk) end(name string) error {
 	w.into = nil
+	if name != w.element && (w.element == "failure" || w.element == "error") {
+		w.detail.WriteString("\n")
+		w.into = &w.detail
+	}
 	switch {
 	case w.c == nil:
 	case name == "system-out" && w.element != "":

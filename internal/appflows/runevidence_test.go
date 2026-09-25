@@ -84,8 +84,8 @@ func TestAFUV1NegativeControlFailed(t *testing.T) {
 	if fmt.Sprint(slow.NegativeControls) != fmt.Sprint(want) {
 		t.Fatalf("controls: %+v", slow.NegativeControls)
 	}
-	pass := TestRunEvidence{Schema: RunEvidenceSchema, Authority: AuthorityIngested, Attempts: []RunAttempt{{Ordinal: 1, Outcome: "passed"}}, Cleanup: "done",
-		NegativeControls: []NegativeControl{{TestKey: "control.bad-card", Expected: "failed", Observed: "passed"}}}
+	pass := ingest(t, FormatPlaywrightJSON, playwrightRun, runHeader())["control.bad-card"]
+	pass.NegativeControls = []NegativeControl{{TestKey: "control.x", Expected: "failed", Observed: "passed"}}
 	if Verified(pass) {
 		t.Fatal("a failed negative control verified its subject")
 	}
@@ -150,6 +150,10 @@ func TestAFUV1JUnitAdapterKeepsEveryAttempt(t *testing.T) {
 	if outcomes(records["api.Orders > refunds"]) != "skipped" {
 		t.Fatalf("skipped test: %+v", records["api.Orders > refunds"])
 	}
+	nested := ingest(t, FormatJUnitXML, `<testcase name="n"><failure message="m">before<stackTrace>st</stackTrace>after</failure></testcase>`, runHeader())["n"]
+	if nested.Attempts[0].Failure != "m\nbefore\nst\nafter" {
+		t.Fatalf("text around a nested element: %q", nested.Attempts[0].Failure)
+	}
 	if _, err := IngestRunEvidence(FormatJUnitXML, []byte(`<!DOCTYPE x><testsuite/>`), runHeader()); err == nil {
 		t.Fatal("DTD accepted")
 	}
@@ -199,9 +203,20 @@ func TestAFUV1FailedAttemptThenPassIsFlaky(t *testing.T) {
 			t.Fatalf("%s: got %s, want %s", sequence, got, want)
 		}
 	}
-	flaky := TestRunEvidence{Authority: AuthorityIngested, Attempts: []RunAttempt{{Outcome: "failed"}, {Outcome: "passed"}}, Cleanup: "done", NegativeControls: []NegativeControl{}}
-	if Verified(flaky) {
+	if flaky := ingest(t, FormatPlaywrightJSON, playwrightRun, runHeader())["checkout.spec.ts > pays"]; Verified(flaky) {
 		t.Fatal("a flaky test verified")
+	}
+}
+
+// AFU-V1-013
+func TestAFUV1PlaywrightUnexpectedNeverPassed(t *testing.T) {
+	report := `{"suites":[{"file":"known.spec.ts","specs":[
+ {"title":"known bug","tests":[{"expectedStatus":"failed","status":"unexpected","results":[{"status":"passed","duration":3,"attachments":[]}]}]},
+ {"title":"odd","tests":[{"expectedStatus":"passed","status":"unexpected","results":[{"status":"passed","duration":3,"attachments":[]}]}]}]}]}`
+	for key, r := range ingest(t, FormatPlaywrightJSON, report, runHeader()) {
+		if Classify(r.Attempts) != "failed" || Verified(r) || r.Attempts[0].Failure == "" {
+			t.Fatalf("%s: an unexpected pass classified %s: %+v", key, Classify(r.Attempts), r.Attempts)
+		}
 	}
 }
 
@@ -225,6 +240,16 @@ func TestAFUV1StaticNeverVerified(t *testing.T) {
 			t.Fatalf("%s refused: %v", authority, err)
 		}
 	}
+	passed := ingest(t, FormatPlaywrightJSON, playwrightRun, runHeader())["control.bad-card"]
+	if !Verified(passed) {
+		t.Fatal("a valid passed record did not verify")
+	}
+	for _, authority := range []string{"", "VERIFIED"} {
+		passed.Authority = authority
+		if Verified(passed) {
+			t.Fatalf("authority %q verified", authority)
+		}
+	}
 }
 
 // AFU-V1-037
@@ -241,8 +266,19 @@ func TestAFUV1RunEvidenceBoundsIncomplete(t *testing.T) {
 		links.WriteString(`{"Action":"output","Package":"p","Test":"T","Output":"    a_test.go:1: x\n"}` + "\n")
 	}
 	links.WriteString(`{"Action":"fail","Package":"p","Test":"T"}` + "\n")
+	playwright := func(specs, results, attachments int) string {
+		attachment := strings.TrimSuffix(strings.Repeat(`{"name":"a","path":"a.png"},`, attachments), ",")
+		result := strings.TrimSuffix(strings.Repeat(`{"status":"passed","attachments":[`+attachment+`]},`, results), ",")
+		spec := strings.TrimSuffix(strings.Repeat(`{"title":"t","tests":[{"results":[`+result+`]}]},`, specs), ",")
+		return `{"suites":[{"file":"f.spec.ts","specs":[` + spec + `]}]}`
+	}
+	escaping := `<testcase name="e"><failure>` + strings.Repeat(`"`, MaxBytes*3/5) + `</failure></testcase>`
 	cases := []struct{ format, raw, code string }{
 		{FormatGoTestJSON, strings.Repeat(" ", MaxBytes+1), BoundBytes},
+		{FormatJUnitXML, escaping, BoundBytes},
+		{FormatPlaywrightJSON, playwright(maxRunRecords+1, 1, 0), BoundRecords},
+		{FormatPlaywrightJSON, playwright(1, maxRunAttempts+1, 0), BoundAttempts},
+		{FormatPlaywrightJSON, playwright(1, 1, maxRunLinks+1), BoundLinks},
 		{FormatGoTestJSON, records.String(), BoundRecords},
 		{FormatGoTestJSON, attempts.String(), BoundAttempts},
 		{FormatGoTestJSON, links.String(), BoundLinks},
@@ -271,6 +307,27 @@ func TestAFUV1RunEvidenceSecretsDropped(t *testing.T) {
 	}
 	if !strings.HasPrefix(failure, "request failed\n"+droppedMarker) || fmt.Sprint(r.Attempts[0].Attachments) != "[{screenshot shot.png}]" {
 		t.Fatalf("scrubbed attempt: %+v", r.Attempts[0])
+	}
+	// Each input survived the first, pattern-precise screen verbatim.
+	bypasses := map[string]string{
+		`headers {"cookie":"sid=abc123","authorization":"Basic dXNlcjpwYXNz"}`: "",
+		`got {'set-cookie': 'sid=abc123'}`:                                     "",
+		`body was {"access_token":"eyJhbGciOi.abc.def"}`:                       "",
+		`Authorization Bearer abc123def456`:                                    "",
+		`POST /login failed. Response body: {"user":"jo","ssn":"123"}`:         "POST /login failed. ",
+	}
+	for line, prefix := range bypasses {
+		if got := scrubFailure(line + "\nnext"); !strings.HasPrefix(got, prefix+droppedMarker) || strings.Contains(got, "abc") || strings.Contains(got, "ssn") {
+			t.Fatalf("%s: scrubbed to %q", line, got)
+		}
+	}
+	stream := `{"Action":"run","Package":"api","Test":"TestLogin"}
+{"Action":"output","Package":"api","Test":"TestLogin","Output":"    api_test.go:20: Response body: {\"session\":\"s3cr3t-value\"}\n"}
+{"Action":"fail","Package":"api","Test":"TestLogin","Elapsed":0.1}
+`
+	login := ingest(t, FormatGoTestJSON, stream, runHeader())["api > TestLogin"]
+	if login.Attempts[0].Failure != "api_test.go:20: "+droppedMarker || fmt.Sprint(login.Attempts[0].AssertionAnchors) != "[{api_test.go 20}]" {
+		t.Fatalf("go test body kept: %+v", login.Attempts[0])
 	}
 	secret := strings.Replace(report, "request failed", "leaked ghp_abcdefghijklmnopqrstuvwxyz0123456789", 1)
 	if _, err := IngestRunEvidence(FormatPlaywrightJSON, []byte(secret), runHeader()); err == nil || !strings.Contains(err.Error(), "secret") {
