@@ -863,7 +863,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"ocm-prepare-*:excluded-artifact-mismatch", uncommittedHint},
 	{"prechange-impact:unsupported-impact-worktree", uncommittedHint},
 	{"local-outcome:record-index-failed", uncommittedHint},
-	{"ocm-status-*", "fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change"},
+	{"ocm-status-*", "fix the ocm-prepare row with the same number first; if it was produced, the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change {base}"},
 	{"cem-status:not-ready", "read verification.issues and policyIssues in {evidence}/cem-status.json: excluded-artifact-mismatch means the sidecar is uncommitted, max-unknown-exceeded means DOGFOOD_CITATIONS does not cite every hunk"},
 	{"ocm-links:ocm-link-plan-unavailable", "DOGFOOD_OCM_LINKS must be the path of a TSV file of INTENT<TAB>REQUIREMENT<TAB>HUNKS<TAB>TEST_PATH<TAB>CLAIMS rows, not the rows themselves"},
 	{"ocm-links:empty-ocm-link-plan", "DOGFOOD_OCM_LINKS names an empty file; add at least one row, or unset DOGFOOD_OCM_LINKS so every requirement stays unassessed"},
@@ -874,7 +874,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"local-outcome:outcome-input-not-provided", "set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)"},
 }
 
-const uncommittedHint = "the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun make dogfood-change"
+const uncommittedHint = "the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change {base}"
 
 func (c *change) fixHint(row step) string {
 	value := row.name + ":" + row.reason
@@ -885,7 +885,7 @@ func (c *change) fixHint(row step) string {
 			matched = len(value) >= len(prefix)+len(suffix) && strings.HasPrefix(value, prefix) && strings.HasSuffix(value, suffix)
 		}
 		if matched {
-			return strings.NewReplacer("{evidence}", c.evidence, "{step}", row.name, "{row}", strconv.Itoa(c.citationFailedRow)).Replace(entry.hint)
+			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{row}", strconv.Itoa(c.citationFailedRow)).Replace(entry.hint)
 		}
 	}
 	return ""
@@ -910,7 +910,7 @@ func (c *change) reportFailures() int {
 	// cem cite only adds evidence and prepare resumes a matching map, so a
 	// corrected plan joins the earlier plan's citations (DCW-V0-019).
 	if c.citedOver {
-		c.say("  cem-cite: the plan was added to citations the map already carried and never replaces them; to correct an earlier plan, delete .corvint/change.cem.json and rerun make dogfood-change (docs/DOGFOOD.md step 4)\n")
+		c.say("  cem-cite: the plan was added to citations the map already carried and never replaces them; to correct an earlier plan, delete .corvint/change.cem.json and rerun corvint dogfood change %s (docs/DOGFOOD.md step 4)\n", c.base)
 	}
 	query := readFile(c.evidence + "/prechange-query.stderr")
 	// The authority-start refusal is selected by the task wording, not by the
