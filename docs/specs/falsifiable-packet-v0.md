@@ -439,7 +439,7 @@ above stands with that substitution.
   canonical-JSON encoding of the sorted dirty path list `affected.DirtyPaths` returns
   (`internal/liveverify/affected/dirty.go:46@abebde5b` is the entry point; the deduplication and sort happen
   in `DecodeStatus` at `internal/liveverify/affected/dirty.go:195@a543bfa1` via `NormalizePaths`,
-  `internal/liveverify/affected/select.go:356-369@eadff8fe`), by the same construction
+  `internal/liveverify/affected/select.go:360-373@eadff8fe`), by the same construction
   `internal/gokernel/repository.go:399-400@425ed3ff` and `internal/gokernel/repository.go:410@54fe2926` already take — cited as a construction
   precedent only, since that digest's input is gokernel's own status list, whereas this digest's
   input is the `affected.DirtyPaths` list the run already reads (`cmd/corvint/prove.go:507-509@6b81d3a5`). It hashes

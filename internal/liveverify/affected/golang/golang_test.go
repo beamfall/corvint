@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/frontier"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
@@ -458,6 +459,90 @@ func TestUnownedDirtyPathSelectsItsPackageAndImporters_V1_0340(t *testing.T) {
 			if exclusion.UnitID == "go:example.test/m/other" && exclusion.Reason != affected.ExcludedNoDependencyPath {
 				t.Errorf("%s: other exclusion = %+v", tc.dirty, exclusion)
 			}
+		}
+	}
+}
+
+// V1-0230: gate rule (d). A package that locates the repository root or
+// reads a path its literals do not bound is selected on any non-empty dirty
+// set; the dependents of a non-test locator are selected with it, while a
+// locator only in a test file reaches no importer.
+func TestUnboundedReaderIsSelectedOnAnyChange_V1_0230(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                    "module example.test/m\n",
+		"caller/caller.go":          "package caller\n\nimport \"runtime\"\n\nfunc F() { runtime.Caller(0) }\n",
+		"caller/caller_test.go":     "package caller\n",
+		"user/user.go":              "package user\n\nimport _ \"example.test/m/caller\"\n",
+		"user/user_test.go":         "package user\n",
+		"aliased/aliased.go":        "package aliased\n\nimport rt \"runtime\"\n\nfunc F() { rt.Caller(0) }\n",
+		"aliased/aliased_test.go":   "package aliased\n",
+		"dotted/dotted.go":          "package dotted\n\nimport . \"os\"\n\nfunc F() { Getwd() }\n",
+		"dotted/dotted_test.go":     "package dotted\n",
+		"climb/climb.go":            "package climb\n\nvar data = \"../shared/data.json\"\n",
+		"climb/climb_test.go":       "package climb\n",
+		"toplevel/toplevel.go":      "package toplevel\n",
+		"toplevel/toplevel_test.go": "package toplevel\n\nvar arguments = []string{\"rev-parse\", \"--show-" + "toplevel\"}\n",
+		"testuser/testuser.go":      "package testuser\n\nimport _ \"example.test/m/toplevel\"\n",
+		"testuser/testuser_test.go": "package testuser\n",
+		"plain/plain.go":            "package plain\n",
+		"plain/plain_test.go":       "package plain\n",
+	})
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"docs/notes.md"})
+	const want = "[aliased/aliased_test.go caller/caller_test.go climb/climb_test.go dotted/dotted_test.go toplevel/toplevel_test.go user/user_test.go]"
+	if got := fmt.Sprint(plan.SelectedTests()); got != want {
+		t.Fatalf("selected tests = %s, want %s", got, want)
+	}
+	for _, selection := range plan.Selected {
+		if selection.Witness.Kind != affected.WitnessUnboundedReader {
+			t.Errorf("%s witness = %+v, want %s", selection.UnitID, selection.Witness, affected.WitnessUnboundedReader)
+		}
+	}
+	if empty := affected.Select(graph, nil); len(empty.Selected) != 0 {
+		t.Errorf("empty dirty set selected %+v", empty.Selected)
+	}
+}
+
+// V1-0230: the CEM sidecar narrowing of gate rule (c). Only a reader whose
+// token resolves to the sidecar, from its own directory or from the root when
+// an anchored or parent-only token can put it there, is selected; any other
+// path keeps the component-run readers, including the one the sidecar drops.
+func TestChangeEvidenceReadersAreNarrowed_V1_0230(t *testing.T) {
+	if affected.ChangeEvidencePath != frontier.ExcludedPath {
+		t.Fatalf("ChangeEvidencePath = %q, want %q", affected.ChangeEvidencePath, frontier.ExcludedPath)
+	}
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                    "module example.test/m\n",
+		"fixture/fixture_test.go":   "package fixture\n\nvar a, b, c = \".corvint\", \"change.cem.json\", \".corvint/change.cem.json\"\n",
+		"exact/exact_test.go":       "package exact\n\nvar sidecar = \"../.corvint/change.cem.json\"\n",
+		"anchored/anchored.go":      "package anchored\n\nfunc Sidecar(root string) string { return root + \"/.corvint/change.cem.json\" }\n",
+		"anchored/anchored_test.go": "package anchored\n",
+		"deep/dir/dir_test.go":      "package dir\n\nvar evidence = \"../../.corvint\"\n",
+		"partial/partial.go":        "package partial\n\nimport \"path/filepath\"\n\nvar evidence = filepath.Join(\"..\", \".corvint/change.cem\") + \".json\"\n",
+		"partial/partial_test.go":   "package partial\n",
+		"split/split.go":            "package split\n\nfunc Sidecar(root string) string { return root + \"/.cor\" + \"vint/change.cem.json\" }\n",
+		"split/split_test.go":       "package split\n",
+	})
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct{ dirty, want string }{
+		{".corvint/change.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go partial/partial_test.go split/split_test.go]"},
+		// V1-0290 keeps the lone `.corvint` of fixture from naming a directory.
+		{".corvint/other.json", "[deep/dir/dir_test.go]"},
+		// A path of the same shape that is not the sidecar is not narrowed.
+		{"docs/.corvint/change.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go fixture/fixture_test.go partial/partial_test.go split/split_test.go]"},
+	}
+	for _, tc := range cases {
+		plan := affected.Select(graph, []string{tc.dirty})
+		if got := fmt.Sprint(plan.SelectedTests()); got != tc.want {
+			t.Errorf("%s: selected tests = %s, want %s", tc.dirty, got, tc.want)
 		}
 	}
 }

@@ -20,6 +20,7 @@ type Graph struct {
 	dependents map[string][]string
 	testUsers  map[string][]string
 	testReach  map[string]bool
+	unbounded  []string
 	claimants  map[string]Language
 	languages  []string
 	frontier   []string
@@ -115,6 +116,36 @@ func (graph *Graph) finish() {
 	graph.dependents = graph.reverse(func(unit Unit) []string { return unit.Imports })
 	graph.testUsers = graph.reverse(func(unit Unit) []string { return unit.TestImports })
 	graph.testReach = graph.unitsReachingTests()
+	graph.unbounded = graph.unboundedReaders()
+}
+
+// unboundedReaders lists, in id order, every unit whose reads no literal
+// bounds (AFP-V0-012 rule (d)): its own UnboundedReads, or a dependency whose
+// non-test code locates the root and so reads from it when this unit's code
+// or tests call it.
+func (graph *Graph) unboundedReaders() []string {
+	locators := make(map[string]Witness)
+	own := make([]string, 0)
+	for _, id := range graph.order {
+		unit := graph.units[id]
+		if unit.UnboundedReads != "" {
+			own = append(own, id)
+		}
+		if unit.LocatesRoot {
+			locators[id] = Witness{Via: []string{id}}
+		}
+	}
+	reached := graph.traverse(locators)
+	graph.testUsersOf(reached)
+	for _, id := range own {
+		reached[id] = Witness{}
+	}
+	ids := make([]string, 0, len(reached))
+	for id := range reached {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 // reverse maps every unit to the sorted units whose edges name it.

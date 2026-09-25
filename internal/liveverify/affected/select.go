@@ -19,6 +19,9 @@ const (
 	// dirty path no Go file of it declares: a fixture, an embedded asset, or
 	// other data its tests or build may read (V1-0340, AFP-V0-012 rule (b)).
 	WitnessEnclosingPackage = "ENCLOSING_PACKAGE"
+	// WitnessUnboundedReader names a unit whose reads no literal bounds, so it
+	// is selected on any dirty path (AFP-V0-012 rule (d)).
+	WitnessUnboundedReader = "UNBOUNDED_READER"
 )
 
 // Exclusion reasons. Every eligible unit that is not selected carries one,
@@ -140,6 +143,7 @@ func Select(graph *Graph, dirty []string) Plan {
 	graph.testUsersOf(reached)
 	mergeWitnesses(reached, enclosing)
 	graph.readers(reached, normalized)
+	graph.unboundedReadersOf(reached, normalized)
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
 	for _, id := range graph.order {
 		unit := graph.units[id]

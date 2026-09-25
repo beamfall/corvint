@@ -50,6 +50,10 @@ const MaxPathsPerUnit = 20_000
 // bound, so the unit's reads are unknown.
 // Embeds reports a Go package whose non-test files carry a //go:embed
 // directive, so a data file below its directory may be compiled into it.
+// UnboundedReads names why no literal bounds what the unit reads (a
+// root-locating call or a literal that climbs out of its package; AFP-V0-012
+// rule (d)); LocatesRoot reports that a non-test file is the cause, so every
+// unit that compiles this one is unbounded too.
 // TestImports name the units only the unit's own tests import. A change there
 // selects the unit's tests but reaches no importer of the unit, because an
 // importer never compiles another unit's tests (`go list -deps -test`).
@@ -62,6 +66,8 @@ type Unit struct {
 	PathTokens        []string `json:"pathTokens,omitempty"`
 	PathTokensBounded bool     `json:"pathTokensBounded,omitempty"`
 	Embeds            bool     `json:"embeds,omitempty"`
+	UnboundedReads    string   `json:"unboundedReads,omitempty"`
+	LocatesRoot       bool     `json:"locatesRoot,omitempty"`
 }
 
 // Result is what one Language plugin observed for a repository.
@@ -93,7 +99,10 @@ func validUnit(unit Unit, namespace string) error {
 	if !strings.HasPrefix(unit.ID, namespace+":") || len(unit.ID) == len(namespace)+1 {
 		return ErrInvalidUnit
 	}
-	if !utf8.ValidString(unit.ID) {
+	if !utf8.ValidString(unit.ID) || !utf8.ValidString(unit.UnboundedReads) {
+		return ErrInvalidUnit
+	}
+	if unit.LocatesRoot && unit.UnboundedReads == "" {
 		return ErrInvalidUnit
 	}
 	if err := validPathList(unit.Sources); err != nil {

@@ -159,6 +159,7 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 	testImportPaths := make(map[string]bool, 16)
 	names := make(map[string]bool, 16)
 	embeds := false
+	var reads unboundedReads
 	fileSet := token.NewFileSet()
 	for _, relative := range files {
 		body, err := affected.ReadSource(root, relative)
@@ -192,8 +193,20 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 			}
 			declared[value] = true
 		}
-		if err := pathTokens(body[importsEnd(fileSet, file):], owner.path, names); err != nil && !ignoredByGo(directory) {
+		aliases, dotImported := rootLocatorImports(file.Imports)
+		scan := pathTokens(body[importsEnd(fileSet, file):], owner.path, aliases, dotImported)
+		if scan.err != nil && !ignoredByGo(directory) {
 			frontier[FrontierUnparsedSource] = true
+			reads.mark(relative+" does not tokenize", isTest)
+		}
+		for _, call := range scan.calls {
+			reads.mark(relative+" calls "+call, isTest)
+		}
+		for _, name := range scan.tokens {
+			names[name] = true
+			if reason := escapesPackage(directory, name, isTest); reason != "" {
+				reads.mark(relative+" "+reason, isTest)
+			}
 		}
 		if isTest {
 			tests = append(tests, relative)
@@ -210,7 +223,7 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 	if bounded {
 		names = nil
 	}
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathTokensBounded: bounded, Embeds: embeds}, importPaths, testImportPaths, nil
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot}, importPaths, testImportPaths, nil
 }
 
 // ignoredByGo reports a repository-relative directory the go tool's package
@@ -237,19 +250,33 @@ func importsEnd(fileSet *token.FileSet, file *ast.File) int {
 	return fileSet.Position(end).Offset
 }
 
-// pathTokens adds the path tokens of every string literal in body to names,
-// with the owning module's import path rewritten to a path anchored at that
-// module's directory (AFP-V0-021, the AFP-V0-012 lexicon). A lexical error is
-// returned.
-func pathTokens(body []byte, modulePath string, names map[string]bool) error {
-	var lexErr error
+// fileScan is what one lexing pass over a file's body after its imports
+// yields: its path tokens, its root-locating calls, and any lexical error.
+type fileScan struct {
+	tokens []string
+	calls  []string
+	err    error
+}
+
+// pathTokens lexes body for the path tokens of every string literal, with the
+// owning module's import path rewritten to a path anchored at that module's
+// directory (AFP-V0-021, the AFP-V0-012 lexicon), and for calls of a
+// root-locating function under the local name the file's imports gave it
+// (AFP-V0-012 rule (d)).
+func pathTokens(body []byte, modulePath string, aliases map[string]string, dotImported map[string]bool) fileScan {
+	var scan fileScan
 	var lexer scanner.Scanner
-	lexer.Init(token.NewFileSet().AddFile("", -1, len(body)), body, func(_ token.Position, message string) { lexErr = errors.New(message) }, 0)
+	lexer.Init(token.NewFileSet().AddFile("", -1, len(body)), body, func(_ token.Position, message string) { scan.err = errors.New(message) }, 0)
+	previous := [2]string{}
 	for {
 		_, kind, text := lexer.Scan()
 		if kind == token.EOF {
-			return lexErr
+			return scan
 		}
+		if kind == token.IDENT {
+			scan.calls = append(scan.calls, rootLocatorCall(previous, text, aliases, dotImported)...)
+		}
+		previous = [2]string{previous[1], kind.String() + text}
 		if kind != token.STRING {
 			continue
 		}
@@ -258,7 +285,7 @@ func pathTokens(body []byte, modulePath string, names map[string]bool) error {
 			continue
 		}
 		for _, name := range pathToken.FindAllString(printfVerb.ReplaceAllString(value, " "), -1) {
-			names[rootAnchored(name, modulePath)] = true
+			scan.tokens = append(scan.tokens, rootAnchored(name, modulePath))
 		}
 	}
 }

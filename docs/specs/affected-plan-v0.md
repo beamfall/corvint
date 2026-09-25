@@ -393,13 +393,34 @@ and container qualification; full fallback remains available.
   tool never builds. A match adds and removes no unknown entry: an unowned path keeps its
   `UNOWNED_DIRTY_PATH` entry, so `plan.scope` stays `UNKNOWN`, because a literal index cannot
   bound a read whose path is built at run time (AFP-V0-012 rule (d)). A reader's witness is the
-  smallest dirty path naming it. The CEM sidecar narrowing of rule (c) is not applied.
+  smallest dirty path naming it. (proposed, decision 0398; V1-0230) For the CEM sidecar
+  `.corvint/change.cem.json` (`affected.ChangeEvidencePath`, equal to `frontier.ExcludedPath`) a
+  Go unit is a reader only when one of its naming tokens resolves as rule (c) narrows it: against
+  the unit's directory, or against the repository root when the unit also carries an anchored or
+  parent-only token, to the sidecar or an ancestor, outer components matching as fragments. An
+  anchored naming token always counts, because the graph does not record the module directory it
+  is anchored at, so this is a superset of rule (c)'s sidecar readers. A non-Go unit and any other
+  dirty path keep the component-run relation.
   (proposed 2026-09-25, not accepted; V1-0290) A one-component run of a token that is not anchored
-  at a module root names only a dirty path's file name, never one of its directory components: the
-  `internal/` of `"internal/%03d.go"` would otherwise make its package a reader of every path under
-  any `internal` directory. Runs of two or more components and anchored tokens match as rule (c)
+  at a module root and has no `..` in it names only a dirty path's file name, never one of its
+  directory components: the `internal/` of `"internal/%03d.go"` would otherwise make its package a
+  reader of every path under any `internal` directory, while `"../../.corvint"` climbs to a
+  directory. Runs of two or more components, climbing tokens and anchored tokens match as rule (c)
   does, so here `affected` selects a subset of rule (c)'s readers. Rollback
   removes the reader selections and the bound entries; the paths stay unknown as before.
+  (proposed, decision 0398; V1-0230) Rule (d) is modelled for Go: a package that calls
+  `runtime.Caller` or `os.Getwd` (through a plain, aliased or dot import), carries the literal
+  `--show-toplevel`, has a file that does not lex outside a directory the go tool never builds, or
+  carries a literal that climbs from the working directory (a non-test file) or reaches the
+  repository root (a test file, or a `/...` pattern in a test file) records the first such reason,
+  a non-test one preferred, as the unit's `unboundedReads`, and `locatesRoot` when a non-test file
+  is the cause. Both are covered by the graph digest. On any non-empty dirty set, every such unit,
+  every dependent of a `locatesRoot` unit, and every test user of either, not otherwise reached,
+  is selected with witness kind `UNBOUNDED_READER`, `dirtyPath` the smallest dirty path and `via`
+  that unit alone, and is not traversed; a clean plan selects none. The `UNOWNED_DIRTY_PATH`
+  entry still stays: rule (d) is a lexical heuristic that cannot bound every read built at run
+  time, and no plugin but Go records path tokens, so `plan.scope` stays `UNKNOWN` for an unowned
+  path. Rollback removes the `UNBOUNDED_READER` selections and the two unit members.
 
 ## Non-goals and authority
 
@@ -459,7 +480,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-019 | `internal/plansnapshot`, `compileSnapshotAffected` | `TestSnapshotImmutableBytesAndCleanup`, `TestSnapshotRejectsIncompleteMismatchedAndStale`, `TestSnapshotStrictWire`, `TestSnapshotRejectsLinksAndIgnoresArchiveAttributes`, `TestAffectedSnapshotMatchesCommittedPlanAcrossDirtySources`, `TestAffectedSnapshotPlaywrightPinsConfigAndSource` |
 | AFP-V0-018 | `playwrightAffectedReceipt`, `compilePlaywrightAffected`, and `typescript.SelectPlaywright` | `TestAffectedPlaywrightProfileEmitsProjectDistinctUnits`, `TestAffectedPlaywrightArgumentsFailClosed`, and `internal/liveverify/affected/typescript/playwright_test.go` |
 | AFP-V0-009 | `affectedAdvice`, `compileAffectedAdvice`, `mandatoryAffectedChecks`, `advisoryAffectedChecks`, `shellQuoteJoin` in `cmd/corvint/affected.go` | `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`, `TestAffectedAdviceReportsNoDeclaredGate`, `TestAffectedAdviceKeepsMandatoryGateAndNeverAdvisesExclusions`, `TestAffectedReceiptMembersAreClosedAndByteStable` (tightened to assert `advice`'s raw JSON key order), `TestAffectedAdviceBoundsTheDeclarationRead`, `TestShellQuoteJoinEscapesMetacharacters`, `TestAffectedAdviceTruncatedMandatoryDeclarationSuppressesNoGate`, `TestAffectedAdviceCapsMandatoryChecksAtSixteen`, `TestAffectedAdviceSkipsCommentsInVerifyFence` |
-| AFP-V0-021 | `WitnessPathLiteralReader`, `PathTokenBound`, `Graph.readers`, `Graph.tokenBounds`, `namesPath` in `internal/liveverify/affected` (`select.go`, `readers.go`); `Unit.PathTokens`, `Unit.PathTokensBounded`; `pathTokens`, `importsEnd`, `ignoredByGo`, `maxPathTokens` in `internal/liveverify/affected/golang/golang.go` | `TestPathLiteralSelectsItsReaderPackage_AFPV0021` (a named document selects its reader and stays unknown; single and parenthesized imports are no tokens; a file without imports yields tokens; a dependent and an unnamed path select nothing), `TestOwnedDirtyPathSelectsTheUnitsThatNameIt`, `TestReaderWitnessIsTheSmallestNamingDirtyPath`, `TestReaderReachedByDependencyKeepsItsDependencyWitness`, `TestBoundedPathTokensAreUnknownOnlyWhenAMatchIsAttempted`, `TestPathTokenBoundNamesThePackage`, `TestUnlexableSourceIsAFrontierOutsideIgnoredDirectories`, `TestSelectionOnTheLiveDirtyWorktree` (reader witnesses resolve), `TestAffectedDocumentSelectsThePackageThatNamesIt` (receipt shape, provider packages, byte identity), `TestDirectoryShapedLiteralNamesNoPath` (V1-0290: a directory-shaped one-component token names no path; two-component and file-name tokens still select) |
+| AFP-V0-021 | `WitnessPathLiteralReader`, `PathTokenBound`, `Graph.readers`, `Graph.tokenBounds`, `namesPath`, `ChangeEvidencePath`, `Graph.resolves`, `resolvesWithin`, `WitnessUnboundedReader`, `Graph.unboundedReadersOf` in `internal/liveverify/affected` (`select.go`, `readers.go`, `graph.go`); `Unit.PathTokens`, `Unit.PathTokensBounded`, `Unit.UnboundedReads`, `Unit.LocatesRoot`; `pathTokens`, `importsEnd`, `ignoredByGo`, `maxPathTokens` in `internal/liveverify/affected/golang/golang.go`; `escapesPackage`, `rootLocatorCall` in `internal/liveverify/affected/golang/unbounded.go` | `TestPathLiteralSelectsItsReaderPackage_AFPV0021` (a named document selects its reader and stays unknown; single and parenthesized imports are no tokens; a file without imports yields tokens; a dependent and an unnamed path select nothing), `TestOwnedDirtyPathSelectsTheUnitsThatNameIt`, `TestReaderWitnessIsTheSmallestNamingDirtyPath`, `TestReaderReachedByDependencyKeepsItsDependencyWitness`, `TestBoundedPathTokensAreUnknownOnlyWhenAMatchIsAttempted`, `TestPathTokenBoundNamesThePackage`, `TestUnlexableSourceIsAFrontierOutsideIgnoredDirectories`, `TestSelectionOnTheLiveDirtyWorktree` (reader witnesses resolve), `TestAffectedDocumentSelectsThePackageThatNamesIt` (receipt shape, provider packages, byte identity), `TestDirectoryShapedLiteralNamesNoPath` (V1-0290: a directory-shaped one-component token names no path; two-component and file-name tokens still select), `TestChangeEvidenceReadersAreNarrowed_V1_0230` (the sidecar keeps only resolving readers; a climbing token names a directory; a same-shaped path is not narrowed), `TestUnboundedReaderIsSelectedOnAnyChange_V1_0230` (rule (d): root locators through plain, aliased and dot imports, a climbing literal and a test-only `--show-toplevel` are selected with their non-test locator's dependents, not the test-only one's; a clean plan selects none) |
 | AFP-V0-020 | `UnknownNoSelectableTest` in `affected.Select` (`internal/liveverify/affected/select.go`) | `TestSelectNamesChangedUntestedGoPackageAsUnknownScope`, `TestSelectTraversesUntestedUnitsWithoutSelectingThem` (an untested unit the change only reaches stays bounded), `TestSeamWidensWhenNoTestReachesAChangedUnit_AFPV0020` (every plugin), `TestPlaywrightDiscoveryReconciliation` (an unreached helper keeps the Playwright plan), `TestAffectedUntestedGoPackageIsUnknownScope` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
