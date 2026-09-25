@@ -6160,3 +6160,41 @@ Review repairs (same slice):
   probe wording now names what is compared: `HEAD`, the tree and the dirty-path set.
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
+
+## 2026-09-25 V1-0133 V1-0141 V1-0215 V1-0228 V1-0301 V1-0334 V1-0335: CEM bug batch
+
+Pre-1.0 bug batch on the CEM surface. Every clause added here is marked proposed and needs owner
+acceptance. Decision 0398 governs the D-findings.
+
+- V1-0133 FIXED. `cem01-go ci` now reads the profile only from a strictly parsed map. A `cem/0.1`
+  map must pass the `verify` structural checks, and exits 1 when it fails them, before its
+  `baseRevision` is compared (`CEM-PILOT-022`, proposed).
+- V1-0141 FIXED. `cem report --output` accepts an absolute path outside the repository
+  (`CEM-PILOT-013`, proposed).
+- V1-0215 FIXED. Relative paths resolve through a linked worktree's back-pointer (`CEM-CB-018`,
+  proposed).
+- V1-0228 FIXED. The dogfood cite step now:
+  - JSON-unescapes hunk paths before comparing them;
+  - refuses `cem-map-not-produced` after a failed prepare instead of citing;
+  - admits the two citation-stage refusal reasons in self-observations.
+  `dogfood-bind-range.sh` refuses a citation plan that does not match the prepared map
+  (`DCW-V0-019`, `DOGFOOD-BIND-003`, proposed).
+- V1-0301 NEEDS-OWNER. A binary or mode-only change still refuses the whole prepare. The frozen
+  `cem/0.1` grammar and the `cem/0.2` hunk wire have no such hunk, so an always-`unknown` hunk
+  kind needs a new versioned profile. That profile is drafted on `CEM-PILOT-001`, and the limit is
+  documented in `examples/cem/README.md`.
+- V1-0335 (D2) FIXED by stopping the in-place upgrade. Structural `mark`, `cover` and
+  `discriminate` refuse with `invalid-arguments` to write a `cem/0.3` map over their `cem/0.2`
+  input or onto `.corvint/change.cem.json`. The amended clauses are `CEM-SM-006`, `TCQ-V0-052` and
+  `CCF-V1-003` (the three modes are experimental).
+  - The alternative was to admit 0.3 in frontier, OCM, TCQ, LRF and the external-evidence reader.
+    That touches about 20 sites and several frozen contexts, and it would promote a profile that
+    has no schema or vectors. This fix was therefore the smaller sound change.
+  - Consequence: a 0.3 map is a local copy. It verifies only against a target that commits no
+    sidecar.
+- V1-0334 (D1) FIXED by amendment. Core item 2 and the V1-0014 block now say the in-repo second
+  consumer covers `cem/0.1` only. `cem/0.2`, OCM and frontier are single-implementation at 1.0.
+  README no longer calls `interop/cem01-go` an independent interoperability consumer.
+
+Follow-up: an LRF given a `cem/0.3` map takes the `cem/0.1` out-of-band patch path before it
+refuses the profile.
