@@ -6160,6 +6160,41 @@ Review repairs (same slice):
   probe wording now names what is compared: `HEAD`, the tree and the dirty-path set.
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
+
+## 2026-09-25 Panel blocker B6: CCF-V1-007 N-1 is 0.8.1, and frozen enumerations have a register (V1-0285)
+
+The pre-1.0 panel (finding B6) confirmed that CCF-V1-007's premise was false. The contract says N-1
+is 0.7.0 and that nothing changed since then. But tags `v0.8.0` (516439f) and `v0.8.1` (0e5d596) both
+shipped the contract, and `git diff --stat v0.7.0 v0.8.1 -- cmd/corvint internal` changes 170 files.
+One of those changes reached a frozen member. Commit 2f3bfe6 (V1-0186) was merged about nine hours
+after the contract commit 0b516eb, and it added `instruction-routed` to `context`'s
+`coverage.unexamined[].relation`. That list has twelve entries at `v0.7.0` and thirteen in
+`cmd/corvint/testdata/context-default-wire.golden` at `v0.8.0`. The enumeration rule ("a frozen
+enumeration a reader must branch on") named no enumerations, so no test could apply it.
+
+Decisions (accepted 2026-09-25, decision 0401):
+
+- N-1 is the newest release tag on `main`, currently 0.8.1. The Agent digest, the `INDEX.json` claim
+  and the README row now say "from 0.8.1 to 1.0". The `instruction-routed` addition is recorded as
+  part of the 0.8.1 baseline, not denied.
+- CCF-V1-007 (d) adds a register of 15 frozen enumerations, keyed by member path and `tool`. Each row
+  lists its values, its `closed` or `open` status, and its source. CCF-V1-006 now makes an addition
+  breaking only in a `closed` row. Removing or renaming a value is breaking in any row.
+  `coverage.unexamined[].relation` and `context.abstention.reason` are `open`: readers skip an
+  unknown relation and decide on `abstention.active`. Every other row is `closed`.
+- `TestCoreVerbsEmitTheFrozenProfiles` reads the register from the spec. It fails when a frozen mode
+  emits a value outside its row, and when no frozen mode reaches a row. The spec table is the only
+  copy of the register.
+
+Evidence: the check passes at this change, and it also passes on a `v0.8.1` checkout with this test
+file and spec copied in. Three deliberately broken cases fail it: a new relation `example-new`, the
+0.7.0 relation set without `instruction-routed`, and a row moved to an unreached tool.
+
+Excluded, NOT_PRODUCED: enumerations inside `coverage.answerability`, `context.intent`,
+`context.learning`, `context.range`, `plan.unknown`, `plan.excluded` and the prove falsifier
+verdicts, which review still decides; and the release gate the panel proposed, which would build the
+N-1 tag and replay all 12 Core verbs. The register reaches only the values the frozen fixtures emit.
+Unreached values rest on the cited sources.
 ## 2026-09-25 V1-0272: alternates refusal names the adopter rerun
 
 - The `unsupported-object-alternates` fix line ended with `rerun make dogfood-change`, the one
