@@ -306,7 +306,7 @@ func reserveTestConventionTail(ranked []rankedResult) []rankedResult {
 
 // reserveCallerRows keeps limit/10 rows inside the limit for cross-package
 // callers: non-test reverse importers whose code names an exported
-// declaration of a changed Go file (GPK-V0-068). Callers already inside the
+// declaration of a changed Go file (GPK-V0-070). Callers already inside the
 // limit count toward the quota; a moved caller displaces the lowest included
 // rows, never a requested path row. Scores are unchanged.
 func reserveCallerRows(results []map[string]any, callers map[string]bool, limit int) []map[string]any {
@@ -944,7 +944,7 @@ func goCodeLines(text string) []string {
 }
 
 // markerCredited reports whether a same-package test marker relates to the
-// change (GPK-V0-068): the test is the changed file's exact twin, references
+// change (GPK-V0-070): the test is the changed file's exact twin, references
 // a name the changed file declares, or the changed file carries the same key.
 func markerCredited(testPath, key, twin string, changedKeys map[string]struct{}, testReferences map[string]packageReference) bool {
 	if path.Base(testPath) == twin {

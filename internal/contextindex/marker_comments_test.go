@@ -10,7 +10,7 @@ import (
 // blocker B4: a marker inside a string literal or a data file is never
 // project-authority evidence, while a comment marker keeps its line and column.
 func TestMarkersComeOnlyFromCommentSpans(t *testing.T) {
-	t.Run("GPK-V0-068", func(t *testing.T) {
+	t.Run("GPK-V0-070", func(t *testing.T) {
 		root := testRepository(t)
 		writeTestFile(t, root, "internal/token/token_test.go", "package token\n\n"+
 			"// feature:real-marker\n"+
@@ -57,7 +57,7 @@ func TestMarkersComeOnlyFromCommentSpans(t *testing.T) {
 // a 850 marked-test row, and a cross-package caller stays inside the limit
 // when same-package references would otherwise fill it.
 func TestImpactCreditsOnlyRelatedMarkedTestsAndKeepsCallers(t *testing.T) {
-	t.Run("GPK-V0-068", func(t *testing.T) {
+	t.Run("GPK-V0-070", func(t *testing.T) {
 		root := testRepository(t)
 		writeTestFile(t, root, "internal/token/other_test.go", "package token\n\n// feature:unrelated-flow\nfunc TestOther() {}\n")
 		writeTestFile(t, root, "internal/token/mint_test.go", "package token\n\n// feature:minting\nfunc TestMint() { _ = MintToken() }\n")

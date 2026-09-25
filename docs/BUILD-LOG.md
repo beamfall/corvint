@@ -6161,7 +6161,7 @@ Review repairs (same slice):
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
 
-## 2026-09-25 V1-0263 GPK-V0-068 (proposed, not accepted): markers come from comments and relate to the change (panel blocker B4)
+## 2026-09-25 V1-0263 GPK-V0-070 (proposed, not accepted): markers come from comments and relate to the change (panel blocker B4)
 
 Root cause: the marker scan (`internal/contextindex/index.go`, the `markerMatches` loop over
 `strings.Split(text, "\n")`) ran `markerPattern` over every raw line of every text source, so a

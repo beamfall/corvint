@@ -4,7 +4,7 @@ import "strings"
 
 // commentSyntax is the lexical shape a marker scan needs for one file
 // suffix: where comments begin and end, and which string forms must be
-// skipped so a quoted "feature:x" never reads as a marker (GPK-V0-068).
+// skipped so a quoted "feature:x" never reads as a marker (GPK-V0-070).
 type commentSyntax struct {
 	line      []string
 	block     [2]string
