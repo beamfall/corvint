@@ -607,6 +607,7 @@ DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	147	The subverbs MUST
 DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	150	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
 DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	162	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
 DCW-V0-024	docs/specs/daily-change-evidence-workflow-v0.md	168	(V1-0259, owner decision 2026-09-25) A change that no `## Requirements` spec
+DCW-V0-025	docs/specs/daily-change-evidence-workflow-v0.md	186	(proposed 2026-09-25, V1-0264, not accepted) The `prechange-impact` step MUST ke
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map

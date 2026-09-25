@@ -4,6 +4,21 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
+## 2026-09-25 V1-0264 DCW-V0-025 (proposed): no-module and module-root impact refusals are typed abstentions
+
+`corvint dogfood change` kept only `unsupported-impact-range` as a non-blocking `prechange-impact`
+abstention, so a repository with no Go module (`unsupported-impact-repository`) or a change to a Go
+file at the module root (`unsupported-impact-path`) could never reach `"complete": true`. Observed
+envelopes from a current-tree build (0.8.1): both exit 2 with empty stdout and one stderr line,
+`{"code": "unsupported-impact-repository", "error": "native Go impact requires a slash-qualified Go
+module", "ok": false}` and `{"code": "unsupported-impact-path", "error": "native Go range impact
+requires changed Go paths in a non-root package", "ok": false}`. Chosen: typed abstention through the
+existing machinery, each code kept as the row reason and in the abstention artifact, because impact
+is a Go-native profile and its absence is a visible scope limit, not a failed step. Any other code
+or shape still blocks. Evidence: `TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot`
+(real refusals: change, check and seal pass) and new `script/dogfood-change_test.sh` cases. The
+requirement is proposed; the owner accepts it.
+
 ## 2026-09-25 V1-0261 DCW-V0-020: adopter fix lines name the `corvint dogfood` subverb
 
 `corvint dogfood change|check` printed `fix:` and `required order:` lines telling the operator to

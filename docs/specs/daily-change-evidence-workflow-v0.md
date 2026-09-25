@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); evaluation protocol awaits separate freeze
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 proposed, not accepted (V1-0264, 2026-09-25); evaluation protocol awaits separate freeze
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); evaluation protocol awaits separate freeze; experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 proposed, not accepted (V1-0264, 2026-09-25); evaluation protocol awaits separate freeze; experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -183,6 +183,21 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   of the OCM status line before `PASS`. Intent linkage is then unassessed, never covered; the CEM
   citations are the only governing evidence the change carries. A manifest of intent paths behaves
   as before.
+- `DCW-V0-025`: (proposed 2026-09-25, V1-0264, not accepted) The `prechange-impact` step MUST keep
+  a refusal of `corvint impact` as a typed abstention, not a failed step, when the command exits 2
+  with empty stdout and stderr of exactly one line `{"code": "CODE", "error": "MESSAGE", "ok":
+  false}` whose CODE is `unsupported-impact-range`, `unsupported-impact-repository` (the repository
+  has no slash-qualified Go module, or its native Go index exceeds the aggregate bound) or
+  `unsupported-impact-path` (a changed Go path is at the module root). The row is `NOT_PRODUCED`
+  with that exact CODE as its reason, so the three stay distinguishable; the digest-bound
+  context-abstention artifact records the same reason under the unchanged
+  `corvint-dogfood-context-abstention/0` profile; the row does not block `"complete": true`; and
+  `dogfood check` accepts it only under the same bindings and verifier rerun as before, with the
+  rerun stderr carrying the same CODE. Any other code, exit status, stdout or stderr shape stays a
+  blocking row, and one of these codes in any other shape reports `context-abstention-invalid`.
+  Reason: impact is a Go-native profile, so its refusal to analyse a repository without a Go module
+  or a module-root change is a scope limit that must stay visible, not a failed step; as blocking
+  rows these two codes kept a non-Go adopter from ever reaching `"complete": true`.
 
 ## Code vocabulary
 
@@ -199,7 +214,8 @@ Base anchoring, refused by every subverb:
 `dogfood change` steps:
 
 - `context-abstention-evidence-failed`, `context-abstention-invalid`: the pre-change `impact`
-  abstention did not run, or did not refuse with exactly `unsupported-impact-range`.
+  abstention did not run, or did not refuse with exactly one well-formed `unsupported-impact-range`,
+  `unsupported-impact-repository` or `unsupported-impact-path` envelope (`DCW-V0-025`).
 - `citation-plan-not-provided`, `citation-plan-unavailable`, `invalid-citation-plan`: no citation
   plan was given, its path is not a regular file, or its rows are malformed.
 - `citation-stage-exists`, `citation-stage-cleanup-failed`: a staged citation file from an earlier
@@ -235,7 +251,7 @@ baseline; add runtime machinery only for an observed missing behavior. Keep orig
 human authority instead of converting a version label or synthetic packet into product proof.
 The daily subverbs do not install, build or upgrade Corvint, pin a version for a foreign
 repository, edit its ignore rules, or change any report, receipt or CEM format beyond the
-`DCW-V0-024` no-intent rows and `ocmStatus` value.
+`DCW-V0-024` no-intent rows and `ocmStatus` value, and the `DCW-V0-025` abstention reasons.
 
 ## Acceptance and evidence
 
@@ -267,6 +283,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-019` | `internal/dogfoodflow/change.go` `citationPlanMatchesMap` (formerly `script/dogfood-change.sh` `citation_plan_matches_map`); `script/dogfood-change_test.sh` cases `stale-nine-of-ten`, `stale-ten-of-nine`, `bootstrap-omitted`, `other-omitted`, `noncanonical-ordinal` and `split-over-row-limit`; `TestDogfoodReasonAdmitsCitationPlanMapMismatch`; `TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations` (built binary: a corrected plan joins the earlier citation and prints the delete line; after the delete only the corrected citation remains) | implemented; observed live on a 22-hunk map at base 34e798b: a 1-row plan refused, a 22-row plan cited all 22 |
 | `DCW-V0-020..021`, `DCW-V0-023` | `internal/dogfoodflow`; `cmd/corvint/dogfood_flow.go`; `TestDogfoodDailyPathRunsFromBinaryInForeignRepository` (built binary only, in a Go repository with no `script/`, `VERSION` or `cmd/corvint`, with `PATH` resolving `corvint` to a failing impostor and `CORVINT_BIN` naming a missing file: change, bind, change, check, nested-root refusal, seal) | implemented; foreign-repository portability shown by that fixture only; a real non-Corvint repository NOT_OBSERVED; output parity with the former scripts is shown only for the strings and statuses `script/dogfood-change_test.sh` and `script/dogfood-bind-range_test.sh` assert, and exits 129, 130 and 143 are NOT_OBSERVED by a test |
 | `DCW-V0-022` | `script/dogfood-change_test.sh` (through the wrappers over a built driver) and `script/dogfood-bind-range_test.sh`, run in Corvint's tree | implemented; in-tree evidence only |
+| `DCW-V0-025` (proposed) | `internal/dogfoodflow/change.go` `prechangeImpact` and `failing`, `internal/dogfoodflow/check.go` `checkContextAbstention`, `internal/dogfoodflow/flow.go` `impactAbstentions`; `TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot` (built binary, real refusals: a repository with no Go module and a module-root Go change each complete with their own reason, check and seal); the DCW-V0-025 cases of `script/dogfood-change_test.sh` (both codes complete and check through the wrappers; a wrong exit, nonempty stdout or `unsupported-impact-path-suffix` stays blocking) | implemented; not accepted; a real Beamfall change NOT_OBSERVED |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 
 ## Compatibility and rollback
@@ -282,6 +299,8 @@ returns to `unassessed` on the next pass.
 Roll back `DCW-V0-024` by reverting its change: the declaration then refuses
 `missing-intent-scope` as any other invalid manifest did, and a report written under it fails
 `dogfood check`, so no no-intent change can pass silently on either side.
+Roll back `DCW-V0-025` by reverting its change: the two codes then block `"complete": true` again,
+and a report written under it fails `dogfood check` with `context-abstention-evidence-drift`.
 Roll back `DCW-V0-020..023` by restoring `script/dogfood-change.sh` and `script/dogfood-check.sh`
 from `e667812`; the make targets, inputs and artifacts are the same on both sides, so evidence
 from either side stays readable. The subverbs may remain unused.

@@ -162,7 +162,7 @@ var (
 	outcomeDigest     = regexp.MustCompile(`^  ,"localOutcomeEvidenceSha256": "sha256:([0-9a-f]{64})"$`)
 	abstentionDigest  = regexp.MustCompile(`^  ,"contextAbstentionEvidenceSha256": "sha256:([0-9a-f]{64})"$`)
 	missingRow        = regexp.MustCompile(`^.*"name": "([^"]*)", "status": "NOT_PRODUCED", "reason": "([^"]*)".*$`)
-	abstentionRow     = []byte(`"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-range"`)
+	abstentionRow     = regexp.MustCompile(`"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "([^"]*)"`)
 	cemBaseRevisionRE = regexp.MustCompile(`^  "baseRevision": "([0-9a-f]{40})",$`)
 	fullRevision      = regexp.MustCompile(`^[0-9a-f]{40}$`)
 )
@@ -205,7 +205,8 @@ func (c *check) checkReport() []byte {
 func (c *check) checkContextAbstention(report []byte) bool {
 	digest := allCaptures(abstentionDigest, report)
 	artifact := c.evidence + "/prechange-impact-abstention.json"
-	if !bytes.Contains(report, abstentionRow) {
+	reason, _ := firstCapture(abstentionRow, report)
+	if !impactAbstentions[reason] {
 		if _, err := os.Stat(artifact); digest != "" || err == nil {
 			c.fail("context-abstention-evidence-drift")
 		}
@@ -224,9 +225,10 @@ func (c *check) checkContextAbstention(report []byte) bool {
 	stdoutSHA, _ := fileSHA256(output)
 	stderrSHA, _ := fileSHA256(errorFile)
 	stderr := readFile(errorFile)
+	code, _ := firstCapture(impactRefusal, stderr)
 	if !isRegular(argvFile) || !isRegular(output) || !isRegular(errorFile) || !c.argvRecorded(readFile(argvFile)) ||
-		bytes.Count(stderr, []byte("\n")) != 1 || hasContent(output) || !anyLine(impactRefusal, stderr) ||
-		chomp(string(readFile(artifact))) != abstentionArtifact(argvSHA, c.base, stderrSHA, stdoutSHA, c.target) {
+		bytes.Count(stderr, []byte("\n")) != 1 || hasContent(output) || code != reason ||
+		chomp(string(readFile(artifact))) != abstentionArtifact(argvSHA, c.base, reason, stderrSHA, stdoutSHA, c.target) {
 		c.fail("context-abstention-evidence-drift")
 	}
 	return true

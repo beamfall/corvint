@@ -193,7 +193,9 @@ so `prechange-impact` is then `NOT_PRODUCED unsupported-impact-worktree`.
 If Corvint abstains or misses a critical item, continue with ordinary repository inspection and record
 the miss in `docs/BUILD-LOG.md`. Never tune the current task into a held-out evaluation.
 For `prechange-impact` only, a complete coordinator may retain `NOT_PRODUCED
-unsupported-impact-range` as an explicit context abstention. It MUST retain the exact argv bytes,
+unsupported-impact-range` as an explicit context abstention, and, under the proposed `DCW-V0-025`,
+`unsupported-impact-repository` (no Go module, as in a non-Go repository) or
+`unsupported-impact-path` (a changed Go file at the module root), each under its own code. It MUST retain the exact argv bytes,
 base, target, exit status, and raw stdout/stderr digests in the private context-abstention artifact;
 the strict checker validates those bindings. No other exit, malformed error, missing artifact, or
 artifact drift qualifies. This is discovery accounting only: CEM/OCM closure, every selected check,
@@ -287,8 +289,8 @@ unpublished `*.stderr` from that directory at start, so no envelope there surviv
 The report's `packetCoverage` line (`DCW-V0-016`) states the cost of the two context packets the
 run compiled: for `prechange-query` and `prechange-impact` in that order, the packet's own
 `packet_bytes`, `budget_bytes`, `within_budget`, `included_results` and `omitted_results`, or
-`NOT_PRODUCED` with `packet-not-compiled` (the step compiled none, including the
-`unsupported-impact-range` abstention) or `packet-coverage-unreadable`. It never changes
+`NOT_PRODUCED` with `packet-not-compiled` (the step compiled none, including an
+impact abstention) or `packet-coverage-unreadable`. It never changes
 `complete`, and reports written before it existed omit it.
 `dogfood-check` independently builds one verifier from the current clean tree and one from a
 private `git archive BASE_SHA`, runs both OCM and CEM status with
