@@ -568,7 +568,7 @@ phase_jobs="$phase_jobs $!"
   test "$alternates_status" = 1
   printf '%s\n' "$alternates_output" | rg -Fxq -- '  cem-prepare: unsupported-object-alternates'
   printf '%s\n' "$alternates_output" | \
-    rg -Fxq -- '    fix: the clone borrows objects through .git/objects/info/alternates (git clone --reference or --shared); run git repack -a -d, delete .git/objects/info/alternates and .git/objects/info/commit-graphs, run git commit-graph write --reachable, then rerun make dogfood-change'
+    rg -Fxq -- "    fix: the clone borrows objects through .git/objects/info/alternates (git clone --reference or --shared); run git repack -a -d, delete .git/objects/info/alternates and .git/objects/info/commit-graphs, run git commit-graph write --reachable, then rerun corvint dogfood change $base"
   git -c user.name=t -c user.email=t@example.invalid reset -q --hard HEAD~1
   CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
