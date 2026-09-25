@@ -1,8 +1,8 @@
 # Build log
 
 Append-only record of material design decisions, independent findings, failed evaluations, and
-promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
-decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
+promotion evidence. Add new entries at the end so no cited line moves; each entry carries a date
+heading and its requirement or decision IDs, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
 ## 2026-09-25 V1-0259 DCW-V0-024: daily path for a repository with no requirements spec
 
