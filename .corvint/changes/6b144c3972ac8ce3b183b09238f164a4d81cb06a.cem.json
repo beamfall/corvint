@@ -1,0 +1,60 @@
+{
+  "baseRevision": "af2fe826d75f291ae1e5e9897a908fafc094cabc",
+  "evidence": [
+    {
+      "blobOid": "59e4969e61dc9c7dee0a6c20a5e82ebd623435ac",
+      "id": "evidence:sha256:b8e557ab39d83c145b91946f82b64db23e1d2b78921c977f0eae26d674438872",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3171,
+        "start": 3051
+      },
+      "spanSha256": "2c6b4e4873724d768a734f90ef04ac8735a50d119c72d0fd7269d437baea6553"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8e557ab39d83c145b91946f82b64db23e1d2b78921c977f0eae26d674438872",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:11fcc4c00ce2d309a59e60ccf5176e42644aee815b8805f5a68253e58da03dcf",
+      "newRange": {
+        "count": 11,
+        "start": 126
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 126
+      },
+      "path": "docs/AGENT-ROUTES.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8e557ab39d83c145b91946f82b64db23e1d2b78921c977f0eae26d674438872",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:86eb116ef7bfefac55bd80fcd6fbf73f39c10fbf4effeb45e715d64f73c9f847",
+      "newRange": {
+        "count": 12,
+        "start": 6090
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 6090
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "9225fa9fd55f663ac44c5a196abfbeeaa2081cc316734e8e4ff9f2d358c61045",
+  "spec": "cem/0.2"
+}

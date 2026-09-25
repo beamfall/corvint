@@ -107,6 +107,16 @@ func TestAFUV1033AnchorParsing(t *testing.T) {
 	if len(anchored) != 1 || len(unanchored) != 1 || unanchored[0] != "docs/faq.md" {
 		t.Fatalf("unanchored %v anchored %v", unanchored, anchored)
 	}
+	fencedBacktick := docFile{path: "docs/backtick.md", raw: []byte("# Backtick\n```\n" +
+		"<!-- corvint-claim flow=shop variation=shop.buy outcome=paid -->\n```\n")}
+	if claims, failures = documentAnchors(fencedBacktick, known); len(claims) != 0 || len(failures) != 0 {
+		t.Fatalf("backtick-fenced anchor parsed: claims %+v failures %+v", claims, failures)
+	}
+	fencedTilde := docFile{path: "docs/tilde.md", raw: []byte("# Tilde\n~~~\n" +
+		"<!-- corvint-claim flow=shop variation=shop.buy outcome=paid -->\n~~~\n")}
+	if claims, failures = documentAnchors(fencedTilde, known); len(claims) != 0 || len(failures) != 0 {
+		t.Fatalf("tilde-fenced anchor parsed: claims %+v failures %+v", claims, failures)
+	}
 }
 
 // AFU-V1-036: docs rendering replaces through a same-directory temporary file and a rename, and
@@ -143,5 +153,18 @@ func TestAFUV1036DocsReplaceConfined(t *testing.T) {
 	}
 	if left, _ := os.ReadDir(outside); len(left) != 0 {
 		t.Fatalf("wrote outside the root: %v", left)
+	}
+}
+
+// AFU-V1-036: a docs --page or --claims path under .git, case-folded, is refused by name.
+func TestAFUV1036DocsGitPathRefused(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".git"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{".git/hooks/pre-commit", ".GIT/config", ".Git/objects/pack/pack.idx"} {
+		if err := ReplaceConfined(root, name, []byte("x")); err == nil || err.Error() != gitPathRefused {
+			t.Errorf("%s: refusal %v, want %s", name, err, gitPathRefused)
+		}
 	}
 }

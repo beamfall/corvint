@@ -1,0 +1,160 @@
+{
+  "baseRevision": "af2fe826d75f291ae1e5e9897a908fafc094cabc",
+  "evidence": [
+    {
+      "blobOid": "59e4969e61dc9c7dee0a6c20a5e82ebd623435ac",
+      "id": "evidence:sha256:b8e557ab39d83c145b91946f82b64db23e1d2b78921c977f0eae26d674438872",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3171,
+        "start": 3051
+      },
+      "spanSha256": "2c6b4e4873724d768a734f90ef04ac8735a50d119c72d0fd7269d437baea6553"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8e557ab39d83c145b91946f82b64db23e1d2b78921c977f0eae26d674438872",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:86243f74e93544cc79ed645641f7c92134dca062926d780dfbe9490f51b1aba8",
+      "newRange": {
+        "count": 7,
+        "start": 2498
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 2498
+      },
+      "path": "conformance/divergence-register.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8e557ab39d83c145b91946f82b64db23e1d2b78921c977f0eae26d674438872",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:179b3259f6857c9b309e83d6ab2a8b0c30397c4a800344cb7c9def02bd75a695",
+      "newRange": {
+        "count": 20,
+        "start": 6090
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 6090
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8e557ab39d83c145b91946f82b64db23e1d2b78921c977f0eae26d674438872",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:33683ffcc4c95900c57b3d27126bbfbdc3861469d28d5136203ba3e9b51070ae",
+      "newRange": {
+        "count": 7,
+        "start": 1535
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 1535
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8e557ab39d83c145b91946f82b64db23e1d2b78921c977f0eae26d674438872",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9a4e258b80bd8a833f4bdfb686d7d19bd64809a5a6917bed7980e445ca8674b5",
+      "newRange": {
+        "count": 22,
+        "start": 471
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 471
+      },
+      "path": "docs/specs/ocm-v0-dogfood.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8e557ab39d83c145b91946f82b64db23e1d2b78921c977f0eae26d674438872",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:090bdd36de868f45ff671230b9c7dce1a6a4d2eb533919f82c51f237c11e1dd2",
+      "newRange": {
+        "count": 37,
+        "start": 27
+      },
+      "oldRange": {
+        "count": 22,
+        "start": 27
+      },
+      "path": "internal/lrfrepo/ocm_selector_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8e557ab39d83c145b91946f82b64db23e1d2b78921c977f0eae26d674438872",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3929d32a470ee55f39bcdee0ed82b325ac67ccb18eed7d3dc2e4a44e7fb25c46",
+      "newRange": {
+        "count": 10,
+        "start": 849
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 849
+      },
+      "path": "internal/lrfrepo/ocm_write.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:b8e557ab39d83c145b91946f82b64db23e1d2b78921c977f0eae26d674438872",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:380325f006e3056362a01901cdfcf8367cf881407ddbb6b58caf94ecfac03a99",
+      "newRange": {
+        "count": 10,
+        "start": 862
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 858
+      },
+      "path": "internal/lrfrepo/ocm_write.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "d72ffa7c18f4b6ce2125b24b56b8b794fd1ae3c4424ccb137c9f453d7e8ddab6",
+  "spec": "cem/0.2"
+}
