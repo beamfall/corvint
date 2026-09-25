@@ -5635,3 +5635,17 @@ now refused, and no published version has one. `PUB-V0-023` now states the gramm
 Left unchanged: `script/release-checklist` already admits any `[0-9A-Za-z.+-]` VERSION, the VS Code
 executable pin already admits `-rc.N`, and the `--version` banner checks match shape, not grammar.
 No real `1.0.0-rc.1` candidate was assembled; `VERSION` is still `0.8.1`.
+
+## 2026-09-25 OIF-V0-005: closed Decisions heading variants (open decision 3 answered)
+
+The owner delegated open decision 3 of `docs/specs/ocm-intent-forms-v0.md`, and the answer is yes.
+`adr-decisions` now reads exactly one unfenced heading from the closed set `## Decisions`,
+`## Decision`, `## 2. Decisions` and `## 2. Decision`. The fourth heading occurs once at Beamfall
+`2a8e06b28` and has the same `### 2.1` items as `## 2. Decisions`, so it is included. Two headings
+from the set, or any other shape such as `## Decisions:`, still fail `invalid-decisions-section`.
+The item grammar is unchanged. A scratch sweep of the 215 ADRs through the reader moved from
+89 derived, 113, 6 and 7 refused (the live run's numbers) to 99 derived (620 requirements), 49
+`invalid-decisions-section`, 42 `invalid-decision-item` (all 22 numbered-heading ADRs) and 25
+`missing-requirements` (18 `## Decision` ADRs have prose and no level-3 items). The failures stay
+visible and no item shape is guessed. The spec stays proposed. Corvint orientation found decision
+0386 by query and the spec, the test file and the OCM callers by path impact.
