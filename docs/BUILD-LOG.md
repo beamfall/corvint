@@ -6191,4 +6191,4 @@ Decisions:
   Git.
 - The `affected --base` replace case already passed: `internal/liveverify/affected` was hardened
   before this change. `TestAffectedBaseRangeIgnoresReplaceObjects` is a regression guard for it.
-- The wire is unchanged. FPK-V0-052 is proposed, and owner acceptance is pending.
+- The wire is unchanged. FPK-V0-052 is accepted by decision 0393 (owner instruction, 2026-09-25).

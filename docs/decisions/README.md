@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0393-accept-fpk-v0-052-2026-09-25.md`](0393-accept-fpk-v0-052-2026-09-25.md) | accepted (owner answer 2026-09-25) | `FPK-V0-052` accepted: every `cmd/corvint` Git read runs hermetic (no repository fsmonitor or hook program, replace refs ignored, discovery ceiling only at a `.git` root), panel blocker B2 (PR #218) |
 | [`0389-accept-core-use-case-promotion-2026-09-25.md`](0389-accept-core-use-case-promotion-2026-09-25.md) | accepted (owner answer 2026-09-25) | The three Core use-case rows are `VERIFIED` (V1-0011, PR #200); the claim covers releases that include decision 0387 (not 0.8.1), and run-002 is accepted as the sealed benchmark without an independent quality review (`NOT_PRODUCED`) |
 | [`0388-accept-dcw-v0-025-2026-09-25.md`](0388-accept-dcw-v0-025-2026-09-25.md) | accepted (owner answer 2026-09-25) | `DCW-V0-025` accepted with the `GOC-V0-009` and `ERI-V0-006` amendments: no-module and module-root `corvint impact` refusals are typed dogfood abstentions (V1-0264) |
 | [`0387-accept-gpk-v0-066-reject-gpk-v0-067-2026-09-25.md`](0387-accept-gpk-v0-066-reject-gpk-v0-067-2026-09-25.md) | accepted (owner answer 2026-09-25) | `GPK-V0-066` accepted: a record packet that fails the relevance floor yields to a floor-clearing confident-symbol packet (V1-0260); `GPK-V0-067` (Go caller scoring, V1-0263) rejected and its PR closed |
