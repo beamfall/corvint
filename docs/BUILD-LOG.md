@@ -5790,7 +5790,7 @@ nineteen historical rows stay `UNPROVEN`. The ledger now reports `claimCounts` `
   not to 0.8.1.
 - Benchmark quality: UCV0-007 notes that mechanical completeness does not replace independent review
   of benchmark quality. No independent quality review of run-002 is recorded, so that review is
-  `NOT_PRODUCED`. The promotion depends on the owner accepting run-002 as it stands.
+  `NOT_PRODUCED`. The owner accepted run-002 as it stands and this claim scope (decision 0389).
 - Test changes: `TestUCV0ProfileMigration` pinned the canonical ledger at 22 `UNPROVEN`. It now pins 19/3, and its
   fixture resets the promoted rows' claim along with their status.
 
