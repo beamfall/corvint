@@ -352,7 +352,7 @@ profile and is admitted to the product only through its own accepted profile ([c
 |---|---|
 | Spec-driven | Every substantive capability has an executable spec with stable requirement IDs in `docs/specs/REQUIREMENTS.tsv`; `go run ./script/spec-coverage-audit` reports test, case, and fixture mentions separately from comments and missing mentions |
 | Decision records | Numbered, accepted intent with explicit promotion boundaries in `docs/decisions/` |
-| Frozen conformance | Exact receipt and state replay, CEM/LRF/TCQ vectors, and an independent Go interoperability consumer in `interop/cem01-go` |
+| Frozen conformance | Exact receipt and state replay, CEM/LRF/TCQ vectors, and an in-repo second consumer in `interop/cem01-go` |
 | Honest disagreements | Every known behavioural disagreement is adjudicated and dated in the [divergence register](conformance/divergence-register.md) |
 | Hermetic archives | `make gate` includes `script/go-archive-gate`, which rebuilds the release archives from the committed revision and checks the closed file set ([spec](docs/specs/go-archive-gate-v0.md)) |
 | Dogfooded | Substantive Corvint changes must collect context with Corvint and bind the diff to a CEM ([dogfood contract](docs/DOGFOOD.md)) |
