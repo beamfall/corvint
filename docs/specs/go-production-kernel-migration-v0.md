@@ -1261,3 +1261,21 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   clears the floor is unchanged, so a one-word record at a wide limit still precedes the symbols;
   this clause changes only packets `GPK-V0-039` would withdraw. Rollback: remove the substitution
   in `evalQuery`, restoring the withdrawal.
+
+## Proposed amendment: repositories owned by another user
+
+- `GPK-V0-067`: (proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global and
+  system configuration (`GPK-V0-009`), so Git's `safe.directory` exception can never be honoured and
+  a checkout owned by another user (a bind mount, a container volume, a shared CI workspace) fails
+  every Core verb with Git's uncoded `detected dubious ownership` exit 128, whose printed advice
+  (`git config --global --add safe.directory`) cannot work under Corvint. The kernel MUST classify
+  that exit as one coded refusal, the same code from every verb, whose message names the
+  repository path and a remedy that works under the sanitized environment. Owner decision needed
+  before implementation: whether the remedy is only "run as the owning user or change ownership",
+  or whether an explicit operator opt-in passes `-c safe.directory=<worktree>` and
+  `-c safe.directory=<common Git directory>` per invocation. The opt-in bypasses the protection
+  Git added against configuration planted by another user, so it is acceptable only if every Git
+  subprocess on that path also neutralizes repository-configured filters, hooks, fsmonitor and
+  textconv, which is not true of every env builder today. The fix touches the roughly thirty
+  per-capability env builders, including `cmd/corvint` files that PR #218 (decision 0393) also
+  changes, so it lands after that PR. Rollback: remove the classification, restoring Git's exit.
