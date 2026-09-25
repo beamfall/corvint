@@ -158,7 +158,9 @@ compiles the ordinary packet and then projects its exact default stdout bytes:
   - the `expand` usage.
 
 Each row whose path is safe and whose packet has a revision and blob carries the handle
-`cv1:TREE:BLOB:RANGE:PATH`. Otherwise the handle is `null`. The handle fields are:
+`cv1:TREE:BLOB:RANGE:PATH`. Otherwise the handle is `null`. The packet carries no file mode, so a
+symlink row also carries a handle; its expansion refuses `invalid-handle` and names the entry's
+mode, because only a regular-file blob expands (V1-0156). The handle fields are:
 
 - TREE: the packet's full `revision` tree OID.
 - BLOB: 7 to 64 lower-case hex digits.
