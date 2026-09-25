@@ -597,15 +597,15 @@ DCW-V0-011	docs/specs/daily-change-evidence-workflow-v0.md	62	Console, Tasks, MC
 DCW-V0-012	docs/specs/daily-change-evidence-workflow-v0.md	65	Final version/build, source and proof maps MUST freeze before exact-candidate
 DCW-V0-013	docs/specs/daily-change-evidence-workflow-v0.md	69	The daily adopter path MUST be one ordered sequence in `docs/DOGFOOD.md` from th
 DCW-V0-014	docs/specs/daily-change-evidence-workflow-v0.md	74	A `dogfood-change` not-complete row caused by a malformed or missing input, or b
-DCW-V0-015	docs/specs/daily-change-evidence-workflow-v0.md	82	Dirty, stale, interrupted, unsupported and unknown evidence MUST each end the lo
-DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	91	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
-DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	102	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
-DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	111	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
-DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	120	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
-DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	133	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
-DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	146	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
-DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	149	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
-DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	161	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
+DCW-V0-015	docs/specs/daily-change-evidence-workflow-v0.md	83	Dirty, stale, interrupted, unsupported and unknown evidence MUST each end the lo
+DCW-V0-016	docs/specs/daily-change-evidence-workflow-v0.md	92	(proposed 2026-09-23, V1-0200, not accepted) the `corvint-dogfood-change/0`
+DCW-V0-017	docs/specs/daily-change-evidence-workflow-v0.md	103	The `dogfood-check` verifier set and its `outputsAgree` result are author-only
+DCW-V0-018	docs/specs/daily-change-evidence-workflow-v0.md	112	`dogfood-change` MUST link an OCM obligation only from a row of the optional,
+DCW-V0-019	docs/specs/daily-change-evidence-workflow-v0.md	121	Before any cite, `dogfood-change` MUST bind a nonempty `DOGFOOD_CITATIONS` plan
+DCW-V0-020	docs/specs/daily-change-evidence-workflow-v0.md	134	(V1-0236, owner decision 2026-09-24) The daily change, check and seal MUST run a
+DCW-V0-021	docs/specs/daily-change-evidence-workflow-v0.md	147	The subverbs MUST run at the worktree top level: the root is `--root` or the wor
+DCW-V0-022	docs/specs/daily-change-evidence-workflow-v0.md	150	Corvint-only identity checks MUST stay in Corvint's wrappers. `script/dogfood-ch
+DCW-V0-023	docs/specs/daily-change-evidence-workflow-v0.md	162	`docs/DOGFOOD.md` "Daily adopter path" MUST give the installed-binary form for a
 DIRTY-CACHE-001	docs/specs/revision-cache-dirty-worktree-v0.md	27	query index sources MUST come only from the resolved `HEAD^{tree}`. A tracked
 DIRTY-CACHE-002	docs/specs/revision-cache-dirty-worktree-v0.md	34	memory and disk cache lookup MUST use repository root, immutable tree OID, and
 DIRTY-CACHE-003	docs/specs/revision-cache-dirty-worktree-v0.md	37	a dirty query MUST receive an unshared freshness view with its own sources map
@@ -775,31 +775,31 @@ EEP-TR-012	docs/specs/external-evidence-provider-transports-v0.md	102	A record o
 EEP-TR-013	docs/specs/external-evidence-provider-transports-v0.md	110	When a list is declared, Core MUST check it against what the invocation requires
 EEP-TR-014	docs/specs/external-evidence-provider-transports-v0.md	119	A declared capability never widens what Core accepts: an unknown identifier in
 EEP-V0-001	docs/specs/external-evidence-provider-v0.md	63	A provider record MUST be one JSON document whose top-level members are exactly
-EEP-V0-002	docs/specs/external-evidence-provider-v0.md	69	`corvint impact --provider FILE PATH...` selects a provider record; the option M
-EEP-V0-003	docs/specs/external-evidence-provider-v0.md	73	Provider output appears only under `context.external`. With the same paths, limi
-EEP-V0-004	docs/specs/external-evidence-provider-v0.md	76	The section MUST list every selected provider with `source` as given, the
-EEP-V0-005	docs/specs/external-evidence-provider-v0.md	80	A record that cannot be read is reported with state `unavailable`; a record that
-EEP-V0-006	docs/specs/external-evidence-provider-v0.md	86	An endpoint MUST be `path:<path>` or `<provider-id>:<entity-id>`. A path MUST be
-EEP-V0-007	docs/specs/external-evidence-provider-v0.md	92	A relation's `evidence` MUST be `declared`, `observed`, `inferred`, or `generate
-EEP-V0-008	docs/specs/external-evidence-provider-v0.md	97	A relation `type` is preserved exactly as the provider wrote it: lowercase, digi
-EEP-V0-009	docs/specs/external-evidence-provider-v0.md	100	`freshness` compares the record's `repository.revision` with the captured commit
-EEP-V0-010	docs/specs/external-evidence-provider-v0.md	105	Every path endpoint in an included relation carries `verification`: `verified`
-EEP-V0-011	docs/specs/external-evidence-provider-v0.md	114	`results` lists each entity joined by a relation to a requested changed path;
-EEP-V0-012	docs/specs/external-evidence-provider-v0.md	120	Bounds: at most four providers, 1048576 bytes per record, 1000 entities and 4000
-EEP-V0-013	docs/specs/external-evidence-provider-v0.md	123	`summary`, `rule`, `reference`, and `reason` text from a record MUST be valid
-EEP-V0-014	docs/specs/external-evidence-provider-v0.md	126	`impact --provider` reads the record and Git and writes no repository, index, or
-EEP-V0-015	docs/specs/external-evidence-provider-v0.md	128	External items never enter `context.results`, ranking, learning, a CEM, an OCM,
-EEP-V0-016	docs/specs/external-evidence-provider-v0.md	131	The experimental versioned local authoring kit MUST contain one copyable native-
-EEP-V0-017	docs/specs/external-evidence-provider-v0.md	135	The kit consumer MUST strictly decode bounded regular-file or contained-command
-EEP-V0-018	docs/specs/external-evidence-provider-v0.md	141	Kit conformance MUST reuse valid, stale, malformed, ambiguous,
-EEP-V0-019	docs/specs/external-evidence-provider-v0.md	146	A `generated` relation composes exactly as the other admitted kinds, and every
-EEP-V0-020	docs/specs/external-evidence-provider-v0.md	154	The kit declares its own version, currently `0.2.0` (kit README title and the
-EEP-V0-021	docs/specs/external-evidence-provider-v0.md	166	The kit MUST carry a standard-library Go conformance runner that builds the
-EEP-V0-022	docs/specs/external-evidence-provider-v0.md	174	The kit MUST carry a clean-checkout authoring proof script that checks out only
-EEP-V0-023	docs/specs/external-evidence-provider-v0.md	181	A Core-owned local provider MAY produce one `external-evidence-provider/2` recor
-EEP-V0-024	docs/specs/external-evidence-provider-v0.md	189	Each invocation owns one `gopls serve` process: the executable found on `PATH`,
-EEP-V0-025	docs/specs/external-evidence-provider-v0.md	204	The expansion is at most two hops. Seeds are at most three `.go` paths whose
-EEP-V0-026	docs/specs/external-evidence-provider-v0.md	218	An absent or failing provider yields no record and no partial rows: the section
+EEP-V0-002	docs/specs/external-evidence-provider-v0.md	70	`corvint impact --provider FILE PATH...` selects a provider record; the option M
+EEP-V0-003	docs/specs/external-evidence-provider-v0.md	74	Provider output appears only under `context.external`. With the same paths, limi
+EEP-V0-004	docs/specs/external-evidence-provider-v0.md	77	The section MUST list every selected provider with `source` as given, the
+EEP-V0-005	docs/specs/external-evidence-provider-v0.md	81	A record that cannot be read is reported with state `unavailable`; a record that
+EEP-V0-006	docs/specs/external-evidence-provider-v0.md	87	An endpoint MUST be `path:<path>` or `<provider-id>:<entity-id>`. A path MUST be
+EEP-V0-007	docs/specs/external-evidence-provider-v0.md	93	A relation's `evidence` MUST be `declared`, `observed`, `inferred`, or `generate
+EEP-V0-008	docs/specs/external-evidence-provider-v0.md	98	A relation `type` is preserved exactly as the provider wrote it: lowercase, digi
+EEP-V0-009	docs/specs/external-evidence-provider-v0.md	101	`freshness` compares the record's `repository.revision` with the captured commit
+EEP-V0-010	docs/specs/external-evidence-provider-v0.md	106	Every path endpoint in an included relation carries `verification`: `verified`
+EEP-V0-011	docs/specs/external-evidence-provider-v0.md	115	`results` lists each entity joined by a relation to a requested changed path;
+EEP-V0-012	docs/specs/external-evidence-provider-v0.md	121	Bounds: at most four providers, 1048576 bytes per record, 1000 entities and 4000
+EEP-V0-013	docs/specs/external-evidence-provider-v0.md	124	`summary`, `rule`, `reference`, and `reason` text from a record MUST be valid
+EEP-V0-014	docs/specs/external-evidence-provider-v0.md	127	`impact --provider` reads the record and Git and writes no repository, index, or
+EEP-V0-015	docs/specs/external-evidence-provider-v0.md	129	External items never enter `context.results`, ranking, learning, a CEM, an OCM,
+EEP-V0-016	docs/specs/external-evidence-provider-v0.md	132	The experimental versioned local authoring kit MUST contain one copyable native-
+EEP-V0-017	docs/specs/external-evidence-provider-v0.md	136	The kit consumer MUST strictly decode bounded regular-file or contained-command
+EEP-V0-018	docs/specs/external-evidence-provider-v0.md	142	Kit conformance MUST reuse valid, stale, malformed, ambiguous,
+EEP-V0-019	docs/specs/external-evidence-provider-v0.md	147	A `generated` relation composes exactly as the other admitted kinds, and every
+EEP-V0-020	docs/specs/external-evidence-provider-v0.md	155	The kit declares its own version, currently `0.2.0` (kit README title and the
+EEP-V0-021	docs/specs/external-evidence-provider-v0.md	167	The kit MUST carry a standard-library Go conformance runner that builds the
+EEP-V0-022	docs/specs/external-evidence-provider-v0.md	175	The kit MUST carry a clean-checkout authoring proof script that checks out only
+EEP-V0-023	docs/specs/external-evidence-provider-v0.md	182	A Core-owned local provider MAY produce one `external-evidence-provider/2` recor
+EEP-V0-024	docs/specs/external-evidence-provider-v0.md	190	Each invocation owns one `gopls serve` process: the executable found on `PATH`,
+EEP-V0-025	docs/specs/external-evidence-provider-v0.md	205	The expansion is at most two hops. Seeds are at most three `.go` paths whose
+EEP-V0-026	docs/specs/external-evidence-provider-v0.md	219	An absent or failing provider yields no record and no partial rows: the section
 EEP-V1-001	docs/specs/external-evidence-provider-v1.md	54	A record whose top-level `schema` is `external-evidence-provider/1` MUST decode
 EEP-V1-002	docs/specs/external-evidence-provider-v1.md	60	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with
 EEP-V1-003	docs/specs/external-evidence-provider-v1.md	66	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin
@@ -860,7 +860,7 @@ ESV-V0-006	docs/specs/experimental-source-views-v0.md	266	Treat focused syntheti
 ESV-V0-007	docs/specs/experimental-source-views-v0.md	271	The opt-in development wrapper captures exactly one automatic canonical packet
 ESV-V0-008	docs/specs/experimental-source-views-v0.md	279	`context --summary` prints at most `--summary-bytes` bytes (1024..65536,
 ESV-V0-009	docs/specs/experimental-source-views-v0.md	286	`context --expand HANDLE` returns only the handle's line range, read from Git
-ESV-V0-010	docs/specs/experimental-source-views-v0.md	292	The summary and expansion views stay experimental until the matched complete-tas
+ESV-V0-010	docs/specs/experimental-source-views-v0.md	294	The summary and expansion views stay experimental until the matched complete-tas
 ETS-V0-001	docs/specs/external-test-selection-v0.md	51	`corvint affected` MUST accept `--provider FILE` and `--provider-command
 ETS-V0-002	docs/specs/external-test-selection-v0.md	57	With `--provider`, `advice` MUST gain `test_selection` with schema
 ETS-V0-003	docs/specs/external-test-selection-v0.md	63	`state` is exactly one of `narrow-selection-allowed`,
@@ -2273,18 +2273,18 @@ WQO-V0-025	docs/specs/work-queue-observation-v0.md	471	Immediately before return
 WQO-V0-026	docs/specs/work-queue-observation-v0.md	477	Queue IDs, titles, bodies, criteria, comments, route labels, holder names, reaso
 WQO-V0-027	docs/specs/work-queue-observation-v0.md	481	Corvint never executes, interpolates, templates, evaluates, or shells queue data
 WQO-V0-028	docs/specs/work-queue-observation-v0.md	487	Presentation may say only `VALIDATED_AT(checkpoint)`,
-WQO-V0-029	docs/specs/work-queue-observation-v0.md	663	Beamfall MUST add one supported atomic read-only adapter surface equivalent to
-WQO-V0-030	docs/specs/work-queue-observation-v0.md	671	Corvint MUST NOT call Beamfall mutation verbs or `fanout-plan --claim`. Adapter
-WQO-V0-031	docs/specs/work-queue-observation-v0.md	676	`PARTIAL`, `CONFLICTED`, `STALE`, or `UNKNOWN` always produces an empty proposal
-WQO-V0-032	docs/specs/work-queue-observation-v0.md	680	Timeout, cancellation, non-zero exit, malformed bytes, digest mismatch, overflow
-WQO-V0-033	docs/specs/work-queue-observation-v0.md	695	Corvint core makes no network request, model call, database, daemon, embedding,
-WQO-V0-034	docs/specs/work-queue-observation-v0.md	702	Independent Go conformance validates every schema, identity, decision row, bound
-WQO-V0-035	docs/specs/work-queue-observation-v0.md	722	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec
-WQO-V0-036	docs/specs/work-queue-observation-v0.md	725	Before counting, freeze an independent recorder profile/version, repository-orac
-WQO-V0-037	docs/specs/work-queue-observation-v0.md	731	Of 500 consecutive cycles, at least 100 contain active leases, 100 at least two
-WQO-V0-038	docs/specs/work-queue-observation-v0.md	737	Passing permits only owner-reviewed assisted read-only display. Where the frozen
-WQO-V0-039	docs/specs/work-queue-observation-v0.md	745	Rollback disables commands and deletes disposable state without canonical repair
-WQO-V0-040	docs/specs/work-queue-observation-v0.md	748	Any policy, adapter/profile, mapping, schema, lifecycle, route/capacity/collisio
+WQO-V0-029	docs/specs/work-queue-observation-v0.md	665	Beamfall MUST add one supported atomic read-only adapter surface equivalent to
+WQO-V0-030	docs/specs/work-queue-observation-v0.md	673	Corvint MUST NOT call Beamfall mutation verbs or `fanout-plan --claim`. Adapter
+WQO-V0-031	docs/specs/work-queue-observation-v0.md	678	`PARTIAL`, `CONFLICTED`, `STALE`, or `UNKNOWN` always produces an empty proposal
+WQO-V0-032	docs/specs/work-queue-observation-v0.md	682	Timeout, cancellation, non-zero exit, malformed bytes, digest mismatch, overflow
+WQO-V0-033	docs/specs/work-queue-observation-v0.md	697	Corvint core makes no network request, model call, database, daemon, embedding,
+WQO-V0-034	docs/specs/work-queue-observation-v0.md	704	Independent Go conformance validates every schema, identity, decision row, bound
+WQO-V0-035	docs/specs/work-queue-observation-v0.md	724	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec
+WQO-V0-036	docs/specs/work-queue-observation-v0.md	727	Before counting, freeze an independent recorder profile/version, repository-orac
+WQO-V0-037	docs/specs/work-queue-observation-v0.md	733	Of 500 consecutive cycles, at least 100 contain active leases, 100 at least two
+WQO-V0-038	docs/specs/work-queue-observation-v0.md	739	Passing permits only owner-reviewed assisted read-only display. Where the frozen
+WQO-V0-039	docs/specs/work-queue-observation-v0.md	747	Rollback disables commands and deletes disposable state without canonical repair
+WQO-V0-040	docs/specs/work-queue-observation-v0.md	750	Any policy, adapter/profile, mapping, schema, lifecycle, route/capacity/collisio
 WQO-V0-041	docs/specs/work-queue-observation-v0.md	497	Each ticket's `touchPaths` declares the repository paths its work intends to cha
 WQO-V0-042	docs/specs/work-queue-observation-v0.md	503	Corvint expands each ticket's declared paths at `repositorySource.commit` into a
 WQO-V0-043	docs/specs/work-queue-observation-v0.md	518	Two READY tickets clash when their closures share one path. For every path share

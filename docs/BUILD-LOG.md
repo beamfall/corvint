@@ -5654,3 +5654,19 @@ Frozen evaluations, base → fix:
 - `tools/retrieval-bench --arms corvint`:
   - `v2_abstention`: all 82 samples are identical (abstained 0.073171 in both).
   - `v2_comment2context`: the first 40 samples are identical (hit@k 0.075, mrr@k 0.041667).
+
+## 2026-09-25 V1 bug batch: V1-0123, V1-0159, V1-0172, V1-0238, V1-0222, V1-0131
+
+- V1-0123 (`EEP-V0-001`): a provider record whose object repeats a member name is now `invalid`,
+  worded as in `EEP-V0-020`; Go's decoder previously kept the last value silently.
+  `TestRepeatedMemberIsInvalid`.
+- V1-0159 (`ESV-V0-009`): a repeated `context --expand` is an argument error, and an empty HANDLE
+  now reports `invalid-handle` instead of reading as absent. `TestParseContextViewArguments`.
+- V1-0172 (`DCW-V0-014`): the `cem-cite` `cite-span-not-stable` fix hint names the failing
+  citation-plan row. `script/dogfood-change_test.sh`.
+- V1-0238 (`WQO-V0-051`): the `work rebind` unqualified-adoption refusal prints the fixed
+  `workSourceReason` text, never Git stderr. `TestWorkRebindUnqualifiedAdoptionOmitsGitStderr`.
+- V1-0222: `docs/RELEASE-RUNBOOK.md` step 8 now shows the N-1 upgrade lifecycle invocation.
+- V1-0131: `docs/decisions/README.md` loses its stale 0105 and 0232 duplicates and is sorted again.
+  The index still lacks rows for about 51 decision files and has no duplicate-row check; neither is
+  in this change.
