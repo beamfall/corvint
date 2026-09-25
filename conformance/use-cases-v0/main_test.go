@@ -277,3 +277,37 @@ func testUCV0ProfileMigration(t *testing.T) {
 		row["status"], row["claim"] = "specified", "UNPROVEN"
 	}
 }
+
+// UCV0-016 (V1-0216): a contract receipt pins its cited clauses, not the whole spec file.
+func TestUCV0ClausePins(t *testing.T) {
+	const spec = "# Spec\n\n- `UCV0-001`: First clause\n  continues here.\n- `UCV0-002`: Second clause.\n\nTrailing prose.\n"
+	first := []any{map[string]any{"id": "UCV0-001", "text": "- `UCV0-001`: First clause\n  continues here."}}
+	second := []any{map[string]any{"id": "UCV0-002", "text": "- `UCV0-002`: Second clause."}}
+	missing := []any{map[string]any{"id": "UCV0-003", "text": "- `UCV0-003`: absent"}}
+	for _, tc := range []struct {
+		name, edited, want string
+		clauses            []any
+	}{
+		{"unrelated-spec-edit", strings.Replace(spec, "Trailing prose.", "Edited prose.", 1), "", first},
+		{"clause-edit", strings.Replace(spec, "continues here.", "continues elsewhere.", 1), "clause-drift:UCV0-001", first},
+		{"clause-duplicated", spec + "- `UCV0-001`: again\n", "clause-definitions-2:UCV0-001", first},
+		{"clause-missing", spec, "clause-definitions-0:UCV0-003", missing},
+		{"clause-coverage", spec, "clause-coverage-mismatch", second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.write("docs/spec.md", []byte(spec))
+			raw, _ := json.Marshal(map[string]any{"clauses": tc.clauses, "profile": clausesProfile, "spec": "docs/spec.md"})
+			f.write("evidence/contract/clauses.json", raw)
+			r := f.receipt("contract")
+			r["subjects"] = []any{map[string]any{"path": "evidence/contract/clauses.json", "sha256": digest(raw)}}
+			f.bind("contract", r)
+			f.write("docs/spec.md", []byte(tc.edited))
+			if tc.want == "" {
+				f.check()
+				return
+			}
+			f.check(tc.want)
+		})
+	}
+}

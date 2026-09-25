@@ -23,6 +23,7 @@ const profile = "corvint-use-case-conformance/1"
 const legacyProfile = "corvint-use-case-conformance/0"
 const evidenceProfile = "corvint-use-case-evidence/0"
 const resultProfile = "corvint-use-case-conformance-result/0"
+const clausesProfile = "corvint-use-case-clauses/0"
 const maxFileBytes = 1048576
 
 var statuses = []string{"specified", "experimental", "verified"}
@@ -333,6 +334,7 @@ func (v *validator) receipt(id, class string, reference any, label string) {
 		v.fail(label, "invalid-repository-revision")
 	}
 	subjectDigests := []string{}
+	raws := [][]byte{}
 	paths := map[string]bool{}
 	subjects, ok := m["subjects"].([]any)
 	if !ok || len(subjects) == 0 || len(subjects) > 128 {
@@ -364,9 +366,92 @@ func (v *validator) receipt(id, class string, reference any, label string) {
 				continue
 			}
 			subjectDigests = append(subjectDigests, sd)
+			raws = append(raws, sr)
 		}
 	}
 	v.attestation(class, m["attestation"], subjectDigests, label)
+	if class == "contract" {
+		v.clauses(raws, m["attestation"], label)
+	}
+}
+
+// clauses checks every clause extract among a contract receipt's subjects against its live spec
+// and requires the extracts, when present, to cover exactly the attested requirement IDs (UCV0-016).
+func (v *validator) clauses(raws [][]byte, attestation any, label string) {
+	covered := []string{}
+	extracts := 0
+	for i, raw := range raws {
+		var probe map[string]any
+		if json.Unmarshal(raw, &probe) != nil || probe["profile"] != clausesProfile {
+			continue
+		}
+		extracts++
+		covered = append(covered, v.extract(raw, fmt.Sprintf("%s:clauses:%d", label, i))...)
+	}
+	a, _ := attestation.(map[string]any)
+	attested := []string{}
+	ids, _ := a["requirementIds"].([]any)
+	for _, id := range ids {
+		attested = append(attested, str(id))
+	}
+	sort.Strings(covered)
+	sort.Strings(attested)
+	if extracts > 0 && !reflect.DeepEqual(covered, attested) {
+		v.fail(label, "clause-coverage-mismatch")
+	}
+}
+func (v *validator) extract(raw []byte, label string) []string {
+	m, ok := v.closed(v.parse(raw, label), []string{"clauses", "profile", "spec"}, label)
+	if !ok {
+		return nil
+	}
+	spec := v.read(m["spec"], label+":spec")
+	items, _ := m["clauses"].([]any)
+	if spec == nil || len(items) == 0 || len(items) > 128 {
+		v.fail(label, "invalid-clauses")
+		return nil
+	}
+	ids := []string{}
+	for i, item := range items {
+		ids = append(ids, v.clause(spec, item, fmt.Sprintf("%s:clause:%d", label, i)))
+	}
+	return ids
+}
+func (v *validator) clause(spec []byte, item any, label string) string {
+	m, ok := v.closed(item, []string{"id", "text"}, label)
+	if !ok {
+		return ""
+	}
+	id := str(m["id"])
+	text, found := clauseText(spec, id)
+	if found != 1 {
+		v.fail(label, fmt.Sprintf("clause-definitions-%d:%s", found, id))
+		return id
+	}
+	if text != str(m["text"]) {
+		v.fail(label, "clause-drift:"+id)
+	}
+	return id
+}
+
+// clauseText returns the single "- `ID`:" bullet in a spec plus its indented continuation lines,
+// and how many such bullets exist.
+func clauseText(spec []byte, id string) (string, int) {
+	lines := strings.Split(string(spec), "\n")
+	starts := []int{}
+	for i, line := range lines {
+		if strings.HasPrefix(line, "- `"+id+"`:") {
+			starts = append(starts, i)
+		}
+	}
+	if len(starts) != 1 {
+		return "", len(starts)
+	}
+	end := starts[0] + 1
+	for end < len(lines) && strings.HasPrefix(lines[end], " ") {
+		end++
+	}
+	return strings.Join(lines[starts[0]:end], "\n"), 1
 }
 func validate(root, ledgerPath string) map[string]any {
 	v := &validator{paths: map[string]bool{}, digests: map[string]bool{}}

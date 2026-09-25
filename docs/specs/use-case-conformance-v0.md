@@ -50,7 +50,10 @@ row, pinned to bind commit 8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8 of the V1-01
 increment, which went through the `docs/DOGFOOD.md` daily path; each receipt's subjects are that
 commit's sealed CEM and a byte-identical copy of the retained daily-path artifact for the row
 (`prechange-query`, `prechange-impact`, `dogfood-report`) under
-`receipts/<useCaseId>/corvint-dogfood/`. Ticket V1-0184 bound a `beamfall-dogfood` receipt for
+`receipts/<useCaseId>/corvint-dogfood/`. Ticket V1-0216 replaced each Core contract receipt's
+whole-file pin of `daily-change-evidence-workflow-v0.md` with a clause extract,
+`receipts/<useCaseId>/contract/clauses.json`, that pins only the cited `DCW-V0` clauses
+(`UCV0-016`). Ticket V1-0184 bound a `beamfall-dogfood` receipt for
 `UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION`, from the agent-run daily path on
 Beamfall's LCRES-15 change (bind commit 86fde0eb21d2e0fc41bfc06a4c06c9c3aef63e59, published on
 Beamfall/core branch `claude/corvint-dogfood-LCRES-15`, PR beamfall/core#31). Each receipt's
@@ -135,6 +138,16 @@ cannot be interpreted as success.
   it adds the new rows as `specified`/`UNPROVEN` with no evidence. Historical readers reject `/1`;
   archives retain `/0` bytes instead of pretending forward compatibility. Evidence `/0` and
   result `/0` schemas, the six evidence classes, and promotion requirements remain unchanged.
+- `UCV0-016`: (proposed 2026-09-25, not accepted; V1-0216) A `contract` receipt MAY bind the
+  clauses it cites through a clause-extract subject instead of the whole spec file. An extract is
+  closed JSON with profile `corvint-use-case-clauses/0`, a repository-relative `spec` path, and a
+  non-empty `clauses` list of closed `{id, text}` objects. The runner MUST read the spec under the
+  receipt containment rules and require each `text` to equal the spec's single bullet line that
+  opens with the backticked ID and a colon, plus the indented continuation lines that follow it.
+  A changed clause MUST fail `clause-drift`; zero or several definitions MUST fail
+  `clause-definitions-N`. When a receipt binds any extract, the extracts MUST cover exactly its
+  attested `requirementIds`, else `clause-coverage-mismatch`. An edit elsewhere in the spec leaves
+  the receipt valid; the extract itself remains a whole-file subject under `UCV0-005`.
 
 ## Trust boundary and failure behavior
 
@@ -177,6 +190,7 @@ evidence; never rewrite a failed receipt.
 | `UCV0-001..003`, `UCV0-012` | `conformance/use-cases-v0/ledger.json`, `main.go` | `conformance/use-cases-v0/main_test.go` |
 | `UCV0-004..010` | `conformance/use-cases-v0/main.go` | hostile and complete-packet tests |
 | `UCV0-013` | `conformance/use-cases-v0/main.go`, `ledger.json` | `TestUCV0ProfileMigration`; historical reader refusal |
+| `UCV0-016` (proposed) | `conformance/use-cases-v0/main.go`, `receipts/*/contract/clauses.json` | `TestUCV0ClausePins` |
 | `UCV0-011` | governed ledger row only | `UNPROVEN`; implementation and outcome evidence absent |
 
 ## Unresolved decisions and kill criteria
