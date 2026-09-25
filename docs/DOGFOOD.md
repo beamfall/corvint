@@ -193,7 +193,7 @@ so `prechange-impact` is then `NOT_PRODUCED unsupported-impact-worktree`.
 If Corvint abstains or misses a critical item, continue with ordinary repository inspection and record
 the miss in `docs/BUILD-LOG.md`. Never tune the current task into a held-out evaluation.
 For `prechange-impact` only, a complete coordinator may retain `NOT_PRODUCED
-unsupported-impact-range` as an explicit context abstention, and, under the proposed `DCW-V0-025`,
+unsupported-impact-range` as an explicit context abstention, and, under `DCW-V0-025` (decision 0388),
 `unsupported-impact-repository` (no Go module, as in a non-Go repository, or a native Go index over
 the 128 MiB aggregate bound) or
 `unsupported-impact-path` (a changed Go file at the module root), each under its own code. It MUST retain the exact argv bytes,

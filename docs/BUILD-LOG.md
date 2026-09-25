@@ -4,7 +4,7 @@ Append-only record of material design decisions, independent findings, failed ev
 promotion evidence, newest entry first. Each entry carries a date heading and the requirement or
 decision IDs it concerns, so `rg -n '^## ' docs/BUILD-LOG.md` is the index.
 
-## 2026-09-25 V1-0264 DCW-V0-025 (proposed): no-module and module-root impact refusals are typed abstentions
+## 2026-09-25 V1-0264 DCW-V0-025 (accepted, decision 0388): no-module and module-root impact refusals are typed abstentions
 
 `corvint dogfood change` kept only `unsupported-impact-range` as a non-blocking `prechange-impact`
 abstention, so a repository with no Go module (`unsupported-impact-repository`) or a change to a Go
@@ -17,7 +17,7 @@ existing machinery, each code kept as the row reason and in the abstention artif
 is a Go-native profile and its absence is a visible scope limit, not a failed step. Any other code
 or shape still blocks. Evidence: `TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot`
 (real refusals: change, check and seal pass) and new `script/dogfood-change_test.sh` cases. The
-requirement is proposed; the owner accepts it. Review repairs: accepted `GOC-V0-009` and
+requirement is accepted with both amendments (decision 0388). Review repairs: accepted `GOC-V0-009` and
 `ERI-V0-006` admit only `unsupported-impact-range`, so each now carries a proposed amendment, not
 accepted, widening the set to the three codes; the code change must not merge until the owner
 accepts `DCW-V0-025` and both amendments. `dogfood change` and `dogfood check` now print one
