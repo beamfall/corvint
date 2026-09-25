@@ -169,7 +169,9 @@ within 15 minutes.
   `missing-evidence` (map absent, or unknown hunks), 4 `unsupported-profile` (a map `spec` other
   than `cem/0.1`), or 5 `repository-mismatch` (a declared commit absent, or map `baseRevision` not
   the declared base), with the verdict and a bounded `code` in the report. For a structurally valid
-  map, unsafe drift ranks before unknown hunks. The `verify` mode and its adapter ABI (`CEM-GO-002`)
+  map, unsafe drift ranks before unknown hunks. (proposed 2026-09-25, V1-0133, not accepted) The
+  profile is read only from a strictly parsed map, and a `cem/0.1` map MUST pass the `verify`
+  structural checks, exiting 1 when it fails them, before its `baseRevision` is compared. The `verify` mode and its adapter ABI (`CEM-GO-002`)
   are unchanged.
 - `CEM-PILOT-023`: (proposed; accepted with decision 0356) `examples/cem/README.md` MUST give the
   exact pinned install, digest computation, and invocation, the exit taxonomy, the report members,

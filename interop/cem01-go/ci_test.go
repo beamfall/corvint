@@ -159,6 +159,18 @@ func TestCIVerdictsAndExits(t *testing.T) {
 		{"map base mismatch", "spec.md", "repository-mismatch", "base-revision-mismatch", 5, func(t *testing.T) func(*cemMap) []byte {
 			return func(m *cemMap) []byte { m.BaseRevision = strings.Repeat("cd", 20); return marshalMap(t, m) }
 		}, nil},
+		{"malformed map with base mismatch", "spec.md", "rejected", "hunk-shape", 1, func(t *testing.T) func(*cemMap) []byte {
+			return func(m *cemMap) []byte {
+				m.BaseRevision, m.Hunks[0].Reason = strings.Repeat("cd", 20), strings.Repeat("r", 65)
+				return marshalMap(t, m)
+			}
+		}, nil},
+		{"duplicate spec member", "spec.md", "rejected", "invalid-json", 1, func(t *testing.T) func(*cemMap) []byte {
+			return func(m *cemMap) []byte {
+				b := marshalMap(t, m)
+				return append(b[:len(b)-1], `,"spec":"cem/0.2"}`...)
+			}
+		}, nil},
 		{"head not in repository", "spec.md", "repository-mismatch", "head-unavailable", 5, asIs,
 			func(ciFixture) string { return absentOID }},
 	}

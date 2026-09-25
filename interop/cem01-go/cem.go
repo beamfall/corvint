@@ -199,15 +199,9 @@ func verify(a cliArgs) ([]driftItem, *cemError) {
 		}
 		return nil, operational("repository-io")
 	}
-	var m cemMap
-	if err := strictDecode(mapBytes, &m); err != nil {
-		return nil, invalid("invalid-json")
-	}
-	if err := validateRequiredShape(mapBytes); err != nil {
-		return nil, invalid("version-shape")
-	}
-	if err := validateMapShape(&m); err != nil {
-		return nil, err
+	m, shapeErr := decodeMap(mapBytes)
+	if shapeErr != nil {
+		return nil, shapeErr
 	}
 	patch, err := readBounded(ctx, a.patchFile, maxPatchBytes)
 	if err != nil {
@@ -260,6 +254,19 @@ func verify(a cliArgs) ([]driftItem, *cemError) {
 }
 
 var errSizeLimit = errors.New("size limit")
+
+// decodeMap runs every structural check verify applies to the map bytes before it reads the patch.
+func decodeMap(mapBytes []byte) (cemMap, *cemError) {
+	var m cemMap
+	if err := strictDecode(mapBytes, &m); err != nil {
+		return m, invalid("invalid-json")
+	}
+	if err := validateRequiredShape(mapBytes); err != nil {
+		return m, invalid("version-shape")
+	}
+	return m, validateMapShape(&m)
+}
+
 var errNotRegular = errors.New("not a stable regular file")
 
 func readBounded(ctx context.Context, path string, limit int64) ([]byte, error) {
@@ -366,7 +373,8 @@ func hasKeys(m map[string]json.RawMessage, keys ...string) bool {
 	return true
 }
 
-func strictDecode(raw []byte, dst any) error {
+// strictJSON admits exactly one well-formed JSON value in valid UTF-8 with no duplicate member.
+func strictJSON(raw []byte) error {
 	if !utf8.Valid(raw) || hasUnpairedJSONSurrogate(raw) {
 		return errors.New("utf8")
 	}
@@ -378,7 +386,14 @@ func strictDecode(raw []byte, dst any) error {
 	if _, err := dec.Token(); err != io.EOF {
 		return errors.New("trailing")
 	}
-	dec = json.NewDecoder(bytes.NewReader(raw))
+	return nil
+}
+
+func strictDecode(raw []byte, dst any) error {
+	if err := strictJSON(raw); err != nil {
+		return err
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(dst); err != nil {
 		return err

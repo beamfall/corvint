@@ -80,7 +80,8 @@ cem01-go ci --repository <base checkout> --base <base sha> --head <head sha> \
 | 4 | `unsupported-profile` | The map declares a `spec` other than `cem/0.1`. |
 | 5 | `repository-mismatch` | A declared commit is not in the repository, or the map's `baseRevision` is not the declared base. |
 
-A structurally valid map ranks unsafe drift (1) before unknown hunks (3).
+A structurally valid map ranks unsafe drift (1) before unknown hunks (3). A `cem/0.1` map that
+fails a structural check exits 1 even when its `baseRevision` also differs from the declared base.
 
 The ticket's terms map to exits and report `code` values as follows:
 
