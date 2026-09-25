@@ -853,16 +853,16 @@ ERI-V0-003	docs/specs/expanded-range-impact-v0.md	48	Only this profile's path ca
 ERI-V0-004	docs/specs/expanded-range-impact-v0.md	55	Without the new option, the existing range profile, its 100-path refusal, positi
 ERI-V0-005	docs/specs/expanded-range-impact-v0.md	60	The experimental compiler MUST retain one immutable clean base/head snapshot and
 ERI-V0-006	docs/specs/expanded-range-impact-v0.md	64	The prototype repository coordinator MUST select the experimental profile by an
-ESV-V0-001	docs/specs/experimental-source-views-v0.md	234	Bind the bounded canonical packet and exact caller selector to object format,
-ESV-V0-002	docs/specs/experimental-source-views-v0.md	239	Return one exact contiguous immutable source range as JSON `text` whose UTF-8
-ESV-V0-003	docs/specs/experimental-source-views-v0.md	243	Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git
-ESV-V0-004	docs/specs/experimental-source-views-v0.md	247	Refuse malformed input, stale commit/tree/blob, missing path, unsafe/nonregular
-ESV-V0-005	docs/specs/experimental-source-views-v0.md	260	Remain opt-in under `experimental-source-view/0`, and leave the bytes of the
-ESV-V0-006	docs/specs/experimental-source-views-v0.md	270	Treat focused synthetic correctness checks as development evidence only. The
-ESV-V0-007	docs/specs/experimental-source-views-v0.md	275	The opt-in development wrapper captures exactly one automatic canonical packet
-ESV-V0-008	docs/specs/experimental-source-views-v0.md	283	`context --summary` prints at most `--summary-bytes` bytes (1024..65536,
-ESV-V0-009	docs/specs/experimental-source-views-v0.md	290	`context --expand HANDLE` returns only the handle's line range, read from Git
-ESV-V0-010	docs/specs/experimental-source-views-v0.md	298	The summary and expansion views stay experimental until the matched complete-tas
+ESV-V0-001	docs/specs/experimental-source-views-v0.md	236	Bind the bounded canonical packet and exact caller selector to object format,
+ESV-V0-002	docs/specs/experimental-source-views-v0.md	241	Return one exact contiguous immutable source range as JSON `text` whose UTF-8
+ESV-V0-003	docs/specs/experimental-source-views-v0.md	245	Enforce every frozen bound with sanitized, replacement-disabled, non-lazy Git
+ESV-V0-004	docs/specs/experimental-source-views-v0.md	249	Refuse malformed input, stale commit/tree/blob, missing path, unsafe/nonregular
+ESV-V0-005	docs/specs/experimental-source-views-v0.md	262	Remain opt-in under `experimental-source-view/0`, and leave the bytes of the
+ESV-V0-006	docs/specs/experimental-source-views-v0.md	272	Treat focused synthetic correctness checks as development evidence only. The
+ESV-V0-007	docs/specs/experimental-source-views-v0.md	277	The opt-in development wrapper captures exactly one automatic canonical packet
+ESV-V0-008	docs/specs/experimental-source-views-v0.md	285	`context --summary` prints at most `--summary-bytes` bytes (1024..65536,
+ESV-V0-009	docs/specs/experimental-source-views-v0.md	292	`context --expand HANDLE` returns only the handle's line range, read from Git
+ESV-V0-010	docs/specs/experimental-source-views-v0.md	300	The summary and expansion views stay experimental until the matched complete-tas
 ETS-V0-001	docs/specs/external-test-selection-v0.md	51	`corvint affected` MUST accept `--provider FILE` and `--provider-command
 ETS-V0-002	docs/specs/external-test-selection-v0.md	57	With `--provider`, `advice` MUST gain `test_selection` with schema
 ETS-V0-003	docs/specs/external-test-selection-v0.md	63	`state` is exactly one of `narrow-selection-allowed`,
