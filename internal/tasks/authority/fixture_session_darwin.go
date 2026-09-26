@@ -20,7 +20,7 @@ const (
 	fixtureMkdirat  = 475
 )
 
-func fixtureObserveMount(f *os.File) (result fixtureMount, err error) {
+func fixtureObserveMount(f *os.File, _ fixtureMount) (result fixtureMount, err error) {
 	err = safeopen.Control(f, func(fd uintptr) error {
 		var st syscall.Stat_t
 		var fs syscall.Statfs_t
