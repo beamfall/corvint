@@ -7343,6 +7343,13 @@ refreshed-snapshot event under the 3-second bound that the first half needs to e
 build. That half now runs with a one-minute hang guard and a build hook that fails. The case
 asserts the snapshot hit, not latency (decision 0082).
 
-Three other failures in that gate (QLF-V0-006, `TestReadOnlyVerbsWriteNothing` session-start,
-`TestCancellationLeavesNoDescendants`) pass in isolation even at load 196; they are diagnosed
-separately. V1-0356's hang-guard fix was already on main (f0488711).
+Three other failures in that gate pass in isolation even at load 196. QLF-V0-006 reported
+`Git error: git command failed`, which `gitRaw` prints when Git fails with empty stderr. That
+leaves out the Go error, which is the only thing that separates an exit status, a signal, and an
+expired `WaitDelay`. 25 isolated runs and a 1,778-iteration stress run did not reproduce it, so
+the detail now carries the error rather than guessing a fix. The `TestReadOnlyVerbsWriteNothing`
+session-start case exited 2 with its stderr discarded. It is probably the same `gitRaw` failure;
+its helper now logs stderr on a nonzero exit. `TestCancellationLeavesNoDescendants` hit the
+60-second hang bound on a cold compile at load ~60. The bound is now 4 minutes and the run
+timeout 5 minutes, which keeps the run timeout above the hang bound. V1-0356's hang-guard fix
+was already on main (f0488711).
