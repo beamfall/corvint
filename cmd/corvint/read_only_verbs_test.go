@@ -92,9 +92,14 @@ func ledgerIgnoringRepository(t *testing.T) string {
 	return root
 }
 
-func runHarnessEventInProcess(root, event, input string) int {
+func runHarnessEventInProcess(t *testing.T, root, event, input string) int {
+	t.Helper()
 	stdout, stderr := &bytes.Buffer{}, &bytes.Buffer{}
-	return runContext(context.Background(), cliArguments(root, event), strings.NewReader(input), stdout, stderr)
+	code := runContext(context.Background(), cliArguments(root, event), strings.NewReader(input), stdout, stderr)
+	if code != 0 {
+		t.Logf("harness event %s exited %d: %s", event, code, stderr)
+	}
+	return code
 }
 
 // TestReadOnlyVerbsWriteNothing is the filesystem tripwire for the verbs the
@@ -178,7 +183,7 @@ func TestReadOnlyVerbsWriteNothing(t *testing.T) {
 			name: "harness event session-start appends only the self-observation row",
 			setup: func(t *testing.T) (string, func() int) {
 				root := ledgerIgnoringRepository(t)
-				return root, func() int { return runHarnessEventInProcess(root, "session-start", `{"startSource":"startup"}`) }
+				return root, func() int { return runHarnessEventInProcess(t, root, "session-start", `{"startSource":"startup"}`) }
 			},
 			allowed: []string{".corvint", ".corvint/self-observations.jsonl"},
 		},
@@ -186,7 +191,7 @@ func TestReadOnlyVerbsWriteNothing(t *testing.T) {
 			name: "harness event stop writes nothing",
 			setup: func(t *testing.T) (string, func() int) {
 				root := ledgerIgnoringRepository(t)
-				return root, func() int { return runHarnessEventInProcess(root, "stop", `{}`) }
+				return root, func() int { return runHarnessEventInProcess(t, root, "stop", `{}`) }
 			},
 		},
 		{
