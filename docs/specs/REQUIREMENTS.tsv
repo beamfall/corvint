@@ -1708,28 +1708,34 @@ PUB-V0-023	docs/specs/public-release-v0.md	367	The candidate MUST carry a closed
 PUB-V0-024	docs/specs/public-release-v0.md	381	The retained qualification receipt MUST use only `PASS`, `FAIL` and `NOT_RUN`, w
 PUB-V0-025	docs/specs/public-release-v0.md	387	The candidate installer MUST reverify the closed candidate, select only the exac
 PUB-V0-026	docs/specs/public-release-v0.md	401	Candidate assembly or installation MUST fail without retained output when any co
-PWP-V0-001	docs/specs/playwright-external-provider-v0.md	23	External mode requires readiness URL and declared app identity, rejects server c
-PWP-V0-002	docs/specs/playwright-external-provider-v0.md	24	A controlled config imports the original, disables webServer and selects the pro
-PWP-V0-003	docs/specs/playwright-external-provider-v0.md	25	Each outcome identifies source location, full title, project name, resolved brow
-PWP-V0-004	docs/specs/playwright-external-provider-v0.md	26	Preserve attempt status/retry, flaky, assertion failure, test timeout and interr
-PWP-V0-005	docs/specs/playwright-external-provider-v0.md	27	Emit and retain the canonical closed profile. MCP discovery recomputes projectio
-PWP-V0-006	docs/specs/playwright-external-provider-v0.md	28	Cancellation joins only owned Playwright descendants and observes external serve
-PWP-V0-007	docs/specs/playwright-external-provider-v0.md	29	Qualification runs checked-in real Playwright browser fixtures covering pass, as
-PWP-V0-008	docs/specs/playwright-external-provider-v0.md	30	Playwright 1.63 qualification is consuming-path specific. A passing projection r
-PWP-V1-001	docs/specs/playwright-external-provider-v0.md	34	`/1` is available only in external-server mode and requires a typed `corvint-app
-PWP-V1-002	docs/specs/playwright-external-provider-v0.md	35	The closed provider configuration binds the expected application root commit, re
-PWP-V1-003	docs/specs/playwright-external-provider-v0.md	36	Each closed canonical `corvint-application-attestation/0` observation binds the
-PWP-V1-004	docs/specs/playwright-external-provider-v0.md	37	The receipt binds the provider profile, normalized argv, original executable pat
-PWP-V1-005	docs/specs/playwright-external-provider-v0.md	38	The provider runs before and after Playwright. Unavailable or malformed identity
-PWP-V1-006	docs/specs/playwright-external-provider-v0.md	39	`/1` binds one clean test repository by root commit, revision and tree before Pl
-PWP-V1-007	docs/specs/playwright-external-provider-v0.md	40	Corvint supplies only canonical configuration bytes on provider stdin and owns o
-PWP-V1-008	docs/specs/playwright-external-provider-v0.md	41	Qualification includes a deterministic, locally owned Docker Compose fixture and
-PWP-V2-001	docs/specs/playwright-external-provider-v0.md	45	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
-PWP-V2-002	docs/specs/playwright-external-provider-v0.md	46	Before reporter serialization, input actions matching the fixed defaults `fill`,
-PWP-V2-003	docs/specs/playwright-external-provider-v0.md	47	Redaction recurses through nested steps and retry attempts. Any sensitive action
-PWP-V2-004	docs/specs/playwright-external-provider-v0.md	48	Provider-declared additional case-insensitive action-title patterns and metadata
-PWP-V2-005	docs/specs/playwright-external-provider-v0.md	49	Reporter output and retained documents are untrusted. Ingestion rejects an unred
-PWP-V2-006	docs/specs/playwright-external-provider-v0.md	50	The conformance fixture contains a deliberately leaking payload that is rejected
+PWP-V0-001	docs/specs/playwright-external-provider-v0.md	24	External mode requires readiness URL and declared app identity, rejects server c
+PWP-V0-002	docs/specs/playwright-external-provider-v0.md	25	A controlled config imports the original, disables webServer and selects the pro
+PWP-V0-003	docs/specs/playwright-external-provider-v0.md	26	Each outcome identifies source location, full title, project name, resolved brow
+PWP-V0-004	docs/specs/playwright-external-provider-v0.md	27	Preserve attempt status/retry, flaky, assertion failure, test timeout and interr
+PWP-V0-005	docs/specs/playwright-external-provider-v0.md	28	Emit and retain the canonical closed profile. MCP discovery recomputes projectio
+PWP-V0-006	docs/specs/playwright-external-provider-v0.md	29	Cancellation joins only owned Playwright descendants and observes external serve
+PWP-V0-007	docs/specs/playwright-external-provider-v0.md	30	Qualification runs checked-in real Playwright browser fixtures covering pass, as
+PWP-V0-008	docs/specs/playwright-external-provider-v0.md	31	Playwright 1.63 qualification is consuming-path specific. A passing projection r
+PWP-V1-001	docs/specs/playwright-external-provider-v0.md	35	`/1` is available only in external-server mode and requires a typed `corvint-app
+PWP-V1-002	docs/specs/playwright-external-provider-v0.md	36	The closed provider configuration binds the expected application root commit, re
+PWP-V1-003	docs/specs/playwright-external-provider-v0.md	37	Each closed canonical `corvint-application-attestation/0` observation binds the
+PWP-V1-004	docs/specs/playwright-external-provider-v0.md	38	The receipt binds the provider profile, normalized argv, original executable pat
+PWP-V1-005	docs/specs/playwright-external-provider-v0.md	39	The provider runs before and after Playwright. Unavailable or malformed identity
+PWP-V1-006	docs/specs/playwright-external-provider-v0.md	40	`/1` binds one clean test repository by root commit, revision and tree before Pl
+PWP-V1-007	docs/specs/playwright-external-provider-v0.md	41	Corvint supplies only canonical configuration bytes on provider stdin and owns o
+PWP-V1-008	docs/specs/playwright-external-provider-v0.md	42	Qualification includes a deterministic, locally owned Docker Compose fixture and
+PWP-V2-001	docs/specs/playwright-external-provider-v0.md	46	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
+PWP-V2-002	docs/specs/playwright-external-provider-v0.md	47	Before reporter serialization, input actions matching the fixed defaults `fill`,
+PWP-V2-003	docs/specs/playwright-external-provider-v0.md	48	Redaction recurses through nested steps and retry attempts. Any sensitive action
+PWP-V2-004	docs/specs/playwright-external-provider-v0.md	49	Provider-declared additional case-insensitive action-title patterns and metadata
+PWP-V2-005	docs/specs/playwright-external-provider-v0.md	50	Reporter output and retained documents are untrusted. Ingestion rejects an unred
+PWP-V2-006	docs/specs/playwright-external-provider-v0.md	51	The conformance fixture contains a deliberately leaking payload that is rejected
+PWP-V3-001	docs/specs/playwright-external-provider-v0.md	58	`/3` is selected explicitly by a provider option in external-server mode. `/0`,
+PWP-V3-002	docs/specs/playwright-external-provider-v0.md	59	A `/3` test outcome carries `attemptDetails` with one entry per Playwright attem
+PWP-V3-003	docs/specs/playwright-external-provider-v0.md	60	The existing per-attempt classification is unchanged: browser or fixture failure
+PWP-V3-004	docs/specs/playwright-external-provider-v0.md	61	Every `/3` attempt failure message and artifact is subject to the same report-wi
+PWP-V3-005	docs/specs/playwright-external-provider-v0.md	62	The reporter emits `attemptDetails` only under `/3`; the provider validates the
+PWP-V3-006	docs/specs/playwright-external-provider-v0.md	63	`/3` is non-promotable until the changed reporter completes the live matrix of `
 QLF-V0-001	docs/specs/qualified-lifecycle-v0.md	32	The additive `corvint-qualified-lifecycle/0` request MUST be a closed object con
 QLF-V0-002	docs/specs/qualified-lifecycle-v0.md	33	Completed qualified non-Stop events MUST derive repository scope exclusively fro
 QLF-V0-003	docs/specs/qualified-lifecycle-v0.md	34	Qualified Stop MUST derive the active handle inside the same protected scope, co

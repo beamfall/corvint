@@ -1174,10 +1174,10 @@
   },
   {
     "path": "docs/specs/playwright-external-provider-v0.md",
-    "title": "Playwright External Provider V0/V1/V2",
+    "title": "Playwright External Provider V0/V1/V2/V3",
     "reqPrefix": "PWP-V0",
     "intent": "accepted",
-    "delivery": "`/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`",
+    "delivery": "`/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` intent accepted, spec draft, not implemented",
     "claim": "External-server Playwright receipts bind outcomes without owning the app; `/1` attests application identity and `/2` redacts sensitive input evidence.",
     "dependsOn": [
       "docs/specs/live-proof-carrying-verification-v0.md"
