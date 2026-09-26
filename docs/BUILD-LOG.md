@@ -7319,3 +7319,33 @@ or toolchain. Pre-change `make dogfood-change` reported FAIL not-complete. Post-
 against `984770f6`: bound at `9bf1816d`, and `dogfood-check` and `dogfood-seal` exited 0. Eight of
 nine hunks are cited `supported`; the new spec file is `unknown` because it does not exist at base.
 OCM links are NOT_PRODUCED.
+
+## 2026-09-26 SRR-V1-004/007/008/011: independent review fixes to the stable-readiness verifier
+
+Finding: an independent read-only review of the SRR package (Codex CLI 0.153.2, model
+`gpt-6-astra`) raised eight findings. Four were confirmed defects:
+
+- `requireDirectives` did not treat carriage return as a word separator, so a `\rrequire` line
+  was not counted and a CRLF `go.mod` could pass the vulnerability rule.
+- `runSourceGit` could fetch lazily from a promisor remote, which breaks SRR-V1-011's no-network
+  rule on a partial clone. This is inferred from git's documented behavior; there is no
+  partial-clone fixture.
+- The verifier admitted NOT_RUN on a platform row and a linux/amd64 FALLBACK without decision 0420,
+  though the builder never produced either.
+- The verifier admitted an empty non-null store binding.
+
+Three were test gaps: identity commit and tree tampering, and reordered or duplicated rows. The
+verifier already refused these, but no test covered them. The toolchain probe was always stubbed.
+
+Decision: carriage return separates words, git reads set `GIT_NO_LAZY_FETCH=1`,
+`validateReadinessRow` refuses platform NOT_RUN and a FALLBACK that drops the row's default
+decision, and the verifier refuses an empty binding. The spec states each rule in SRR-V1-004,
+SRR-V1-007, SRR-V1-008 and SRR-V1-011, with IDs unchanged. The tests add the four refusals, the
+tamper, reorder, duplicate and truncate cases, and one unstubbed `probeLocalToolchain` call under
+`GOTOOLCHAIN=go1.99.0+path`, which stays local.
+
+Evidence: `go test -run SRRV1 ./internal/releasecandidate/` passes. With the code fixes stashed,
+the SRR-V1-004, 007 and 008 tests fail on the defects they target.
+
+Limits: the eighth finding is an owner question, not a code change. SRR-V1-006 admits a
+reason-only NOT_RUN, while decision 0420 speaks of every NOT_RUN row with its accepting decision.

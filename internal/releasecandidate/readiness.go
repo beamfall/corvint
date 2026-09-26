@@ -223,12 +223,13 @@ func vulnerabilityStatus(requires int, toolchain, candidateToolchain string) str
 	return "FAIL"
 }
 
-// requireDirectives counts single-line and block require directives.
+// requireDirectives counts single-line and block require directives. Space,
+// tab and carriage return separate words, as in the go.mod lexer.
 func requireDirectives(goMod string) int {
 	count := 0
 	for _, line := range strings.Split(goMod, "\n") {
 		code, _, _ := strings.Cut(line, "//")
-		words := strings.FieldsFunc(code, func(r rune) bool { return r == ' ' || r == '\t' || r == '(' })
+		words := strings.FieldsFunc(code, func(r rune) bool { return r == ' ' || r == '\t' || r == '\r' || r == '(' })
 		if len(words) > 0 && words[0] == "require" {
 			count++
 		}
@@ -293,14 +294,16 @@ func readinessRow(rule readinessRule, evidence map[string]ReadinessEvidence) (Re
 
 // validateReadinessRow is the status grammar: PASS and FAIL carry an evidence
 // digest; NOT_RUN carries none and names its decision or reason; FALLBACK is
-// admitted only on platform rows and also names its decision or reason.
+// admitted only on platform rows and also names its decision or reason. A
+// platform row is never NOT_RUN, and a platform row whose default names a
+// decision keeps that decision while it falls back (SRR-V1-007).
 func validateReadinessRow(rule readinessRule, row ReadinessRow) error {
 	explained := row.Decision != "" || row.Reason != ""
 	valid := map[string]bool{
 		"PASS":     digestPattern.MatchString(row.SHA256),
 		"FAIL":     digestPattern.MatchString(row.SHA256),
-		"NOT_RUN":  row.SHA256 == "" && explained,
-		"FALLBACK": rule.fallback && explained && (row.SHA256 == "" || digestPattern.MatchString(row.SHA256)),
+		"NOT_RUN":  row.SHA256 == "" && explained && !rule.fallback,
+		"FALLBACK": rule.fallback && explained && (row.SHA256 == "" || digestPattern.MatchString(row.SHA256)) && (rule.missing.Decision == "" || row.Decision == rule.missing.Decision),
 	}[row.Status]
 	if !valid || row.ID != rule.id || (row.Decision != "" && !decisionPattern.MatchString(row.Decision)) {
 		return fmt.Errorf("readiness row %s has an invalid %s shape", rule.id, row.Status)
@@ -342,8 +345,12 @@ func VerifyReadinessRecord(ctx context.Context, raw []byte, candidateDirectory s
 
 func verifyReadinessClaims(record ReadinessRecord) error {
 	if record.StoreRelease != nil {
-		if _, err := readinessStore(record.StoreRelease.ReleaseID, record.StoreRelease.CandidateSHA256); err != nil {
+		store, err := readinessStore(record.StoreRelease.ReleaseID, record.StoreRelease.CandidateSHA256)
+		if err != nil {
 			return err
+		}
+		if store == nil {
+			return fmt.Errorf("store release binding is empty; record null instead")
 		}
 	}
 	vulnerability := record.Vulnerability

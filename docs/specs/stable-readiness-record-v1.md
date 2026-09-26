@@ -62,8 +62,9 @@ Non-goals:
   nothing else. The verifier MUST refuse any core section that differs from the re-verified
   candidate.
 - `SRR-V1-004`: The store-release binding MUST be null, or it MUST carry both a release id and a
-  64-hex `candidateSha256`. The builder MUST refuse a partial or malformed binding. The digest is
-  recorded as supplied and is not checked against the task store.
+  64-hex `candidateSha256`. The builder MUST refuse a partial or malformed binding, and the verifier
+  MUST refuse a non-null binding that is empty, partial or malformed. The digest is recorded as
+  supplied and is not checked against the task store.
 - `SRR-V1-005`: Rows MUST follow one fixed ordered catalogue: the `gate/` rows full-gate,
   interop-gate, focused-docs, companion-release and release-checklist-pre-promotion; the
   `platform/` rows darwin-arm64 and linux-amd64, each with lifecycle and host-lifecycle;
@@ -76,11 +77,13 @@ Non-goals:
   carry no digest, and MUST carry an accepting four-digit decision or a reason. FALLBACK is admitted
   only on platform rows, with a decision or a reason. The verifier MUST recompute every recorded
   digest from the operator-named files, and MUST refuse a missing, extra or mismatched file.
-- `SRR-V1-007`: A platform row without native lifecycle evidence MUST be FALLBACK (PRS-V1-004). The
-  linux/amd64 rows MUST cite decision 0420 until the operator supplies the hosted ubuntu-24.04
-  lifecycle or host-lifecycle evidence as a file.
+- `SRR-V1-007`: A platform row without native lifecycle evidence MUST be FALLBACK (PRS-V1-004) and
+  MUST NOT be NOT_RUN. The linux/amd64 rows MUST cite decision 0420 until the operator supplies the
+  hosted ubuntu-24.04 lifecycle or host-lifecycle evidence as a file. The builder and the verifier
+  MUST refuse a linux/amd64 FALLBACK that cites another decision or only a reason.
 - `SRR-V1-008`: The vulnerability section MUST record three things: decision 0420, the number of
-  `require` directives in the Core `go.mod` at the bound commit (read through git), and the
+  `require` directives in the Core `go.mod` at the bound commit (read through git, with space, tab
+  and carriage return separating words as in the go.mod lexer), and the
   toolchain reported by `GOTOOLCHAIN=local go env GOVERSION`. Its status MUST be PASS only when
   there are no directives and both that toolchain and the candidate toolchain equal `go1.27.1`, and
   FAIL otherwise. The verifier MUST refuse a status that its recorded inputs contradict. The fixed
@@ -96,8 +99,10 @@ Non-goals:
   the verifier MUST refuse a record that claims any of them.
 - `SRR-V1-011`: Building and verifying MUST NOT write to the candidate, the source root or the
   evidence files, and MUST NOT use the network. The builder returns the canonical bytes, and the
-  operator-named output path is the only place a caller may write them. The candidate verifier's
-  transient host-probe directory is created and removed inside the system temporary directory.
+  operator-named output path is the only place a caller may write them. Source-root git reads MUST
+  run with lazy fetching from a promisor remote disabled (`GIT_NO_LAZY_FETCH=1`). The candidate
+  verifier's transient host-probe directory is created and removed inside the system temporary
+  directory.
 - `SRR-V1-012`: (proposed, not implemented) An operator command SHOULD expose the builder and the
   verifier. It SHOULD take explicit evidence arguments and write the record without replacement to
   one operator-named output path. `cmd/corvint-release-candidate` has a single flag set and no
@@ -113,6 +118,8 @@ Non-goals:
 | Evidence file changed after the record was built | Verifier refuses on the digest mismatch (SRR-V1-006). |
 | Core `go.mod` gains a `require`, or the local toolchain drifts | Vulnerability status FAIL (SRR-V1-008). |
 | Record edited to claim a tag, signing or PASS without evidence | Verifier refuses (SRR-V1-006, 009, 010). |
+| Record edited to reorder, duplicate or drop rows, or to empty the store binding | Verifier refuses (SRR-V1-004, 005). |
+| Source root is a partial clone missing the bound objects | Git read fails without fetching; builder refuses (SRR-V1-011). |
 | Store candidate digest is stale | Not detected; the owner cross-checks it (SRR-V1-004, open). |
 
 ## Acceptance and rollback
