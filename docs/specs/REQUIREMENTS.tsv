@@ -1401,21 +1401,21 @@ LPCV-V0-053	docs/specs/live-proof-carrying-verification-v0.md	338	`corvint [--ro
 LPCV-V0-054	docs/specs/live-proof-carrying-verification-v0.md	356	a discovered document's freshness MUST be bound to the worktree as it is now,
 LPCV-V0-055	docs/specs/live-proof-carrying-verification-v0.md	373	producer retention (decision 0218) MUST be opt-in and bounded.
 LRF-V0-001	docs/specs/lexical-relevance-floor-v0.md	153	the profile MUST accept only a structurally valid CEM and, for obligation checks
-LRF-V0-002	docs/specs/lexical-relevance-floor-v0.md	158	every term set MUST use the frozen identifier algorithm and subject text. A
-LRF-V0-003	docs/specs/lexical-relevance-floor-v0.md	161	an evaluated evidence span MUST be no larger than both 512 raw bytes and 20 logi
-LRF-V0-004	docs/specs/lexical-relevance-floor-v0.md	164	an evaluated basis MUST be external to both normalized hunk endpoints. For a cre
-LRF-V0-005	docs/specs/lexical-relevance-floor-v0.md	167	each basis is evaluated independently. Its declared relation MUST be one of
-LRF-V0-006	docs/specs/lexical-relevance-floor-v0.md	173	overlap only through a CEM/OCM identifier, map path, generated report name, froz
-LRF-V0-007	docs/specs/lexical-relevance-floor-v0.md	183	each hunk referenced by a structurally linked obligation MUST independently shar
-LRF-V0-008	docs/specs/lexical-relevance-floor-v0.md	187	an obligation is a `lexically-proximate-candidate` only when at least one refere
-LRF-V0-009	docs/specs/lexical-relevance-floor-v0.md	191	LRF MUST NOT inspect or classify claim content. Existing exact-ID claim anchors
-LRF-V0-010	docs/specs/lexical-relevance-floor-v0.md	194	claim-ID reuse is not a hard failure. An implementation MAY report reuse as a
-LRF-V0-011	docs/specs/lexical-relevance-floor-v0.md	197	a candidate MUST remain separate from execution observation. Existing OCM test
-LRF-V0-012	docs/specs/lexical-relevance-floor-v0.md	202	the profile MUST produce the canonical tuples and ordering below, network-free a
-LRF-V0-013	docs/specs/lexical-relevance-floor-v0.md	204	the profile MUST be an additive preflight. It MUST NOT add or silently rewrite
-LRF-V0-014	docs/specs/lexical-relevance-floor-v0.md	209	input, deterministic work, and canonical output MUST remain within the exact fro
-LRF-V0-015	docs/specs/lexical-relevance-floor-v0.md	214	every corpus subject, selection, artifact, source-edge, raw-label, adjudication,
-LRF-V0-016	docs/specs/lexical-relevance-floor-v0.md	219	the trusted independent custodian MUST run the frozen implementation over all si
+LRF-V0-002	docs/specs/lexical-relevance-floor-v0.md	159	every term set MUST use the frozen identifier algorithm and subject text. A
+LRF-V0-003	docs/specs/lexical-relevance-floor-v0.md	162	an evaluated evidence span MUST be no larger than both 512 raw bytes and 20 logi
+LRF-V0-004	docs/specs/lexical-relevance-floor-v0.md	165	an evaluated basis MUST be external to both normalized hunk endpoints. For a cre
+LRF-V0-005	docs/specs/lexical-relevance-floor-v0.md	168	each basis is evaluated independently. Its declared relation MUST be one of
+LRF-V0-006	docs/specs/lexical-relevance-floor-v0.md	174	overlap only through a CEM/OCM identifier, map path, generated report name, froz
+LRF-V0-007	docs/specs/lexical-relevance-floor-v0.md	184	each hunk referenced by a structurally linked obligation MUST independently shar
+LRF-V0-008	docs/specs/lexical-relevance-floor-v0.md	188	an obligation is a `lexically-proximate-candidate` only when at least one refere
+LRF-V0-009	docs/specs/lexical-relevance-floor-v0.md	192	LRF MUST NOT inspect or classify claim content. Existing exact-ID claim anchors
+LRF-V0-010	docs/specs/lexical-relevance-floor-v0.md	195	claim-ID reuse is not a hard failure. An implementation MAY report reuse as a
+LRF-V0-011	docs/specs/lexical-relevance-floor-v0.md	198	a candidate MUST remain separate from execution observation. Existing OCM test
+LRF-V0-012	docs/specs/lexical-relevance-floor-v0.md	203	the profile MUST produce the canonical tuples and ordering below, network-free a
+LRF-V0-013	docs/specs/lexical-relevance-floor-v0.md	205	the profile MUST be an additive preflight. It MUST NOT add or silently rewrite
+LRF-V0-014	docs/specs/lexical-relevance-floor-v0.md	210	input, deterministic work, and canonical output MUST remain within the exact fro
+LRF-V0-015	docs/specs/lexical-relevance-floor-v0.md	215	every corpus subject, selection, artifact, source-edge, raw-label, adjudication,
+LRF-V0-016	docs/specs/lexical-relevance-floor-v0.md	220	the trusted independent custodian MUST run the frozen implementation over all si
 LTA-V0-001	docs/specs/learned-trace-admission-v0.md	45	`corvint eval` MUST score a baseline arm and a second learned-trace arm over the
 LTA-V0-002	docs/specs/learned-trace-admission-v0.md	55	Before either scored arm runs, the evaluation MUST fail closed when any frozen
 LTA-V0-003	docs/specs/learned-trace-admission-v0.md	59	At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim sp
