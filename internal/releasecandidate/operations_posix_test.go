@@ -41,7 +41,7 @@ func TestPUBV0026InterruptedInstallReapsDescendant(t *testing.T) {
 			if gone || pid <= 0 || start == "" {
 				return
 			}
-			cleanupContext, stop := context.WithTimeout(context.Background(), time.Second)
+			cleanupContext, stop := context.WithTimeout(context.Background(), 30*time.Second)
 			defer stop()
 			current, err := processidentity.Start(cleanupContext, pid)
 			if err == nil && current == start {
@@ -60,7 +60,7 @@ func TestPUBV0026InterruptedInstallReapsDescendant(t *testing.T) {
 		if pid <= 0 {
 			t.Fatal("fixture descendant did not start")
 		}
-		identityContext, stop := context.WithTimeout(t.Context(), time.Second)
+		identityContext, stop := context.WithTimeout(t.Context(), 30*time.Second)
 		var err error
 		start, err = processidentity.Start(identityContext, pid)
 		stop()

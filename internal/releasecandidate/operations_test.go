@@ -253,7 +253,7 @@ func TestPUBV0026CancelledInstallRetainsNothing(t *testing.T) {
 // Used only by the POSIX interruption fixture.
 func assertFixtureProcessGone(t *testing.T, pid string) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "/bin/ps", "-p", pid, "-o", "stat=").Output()
 	if err != nil {

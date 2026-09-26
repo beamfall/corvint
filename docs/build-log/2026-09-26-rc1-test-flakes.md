@@ -1,4 +1,4 @@
-## 2026-09-26 V1-0351, V1-0355, V1-0347, V1-0353: rc1 test flakes and local gate build root
+## 2026-09-26 V1-0351, V1-0355, V1-0347, V1-0353, V1-0387: rc1 test flakes and local gate build root
 
 Base `b29d35e5`. Checks ran on a host with load averages between 35 and 200.
 
@@ -35,6 +35,12 @@ Base `b29d35e5`. Checks ran on a host with load averages between 35 and 200.
   therefore resolve against that root. `TestLocalConsoleGateBuildsFromRepositoryRoot` runs the
   script from a temporary directory with a fake `go` on `PATH`. The test failed on the old
   script and passes on the new one. The PUB-V0-011 traceability row names the test.
+- V1-0387: `TestPUBV0026InterruptedInstallReapsDescendant` gave its `ps` observations one
+  second (`internal/releasecandidate/operations_posix_test.go`, identity and cleanup) and two
+  seconds (`assertFixtureProcessGone` in `operations_test.go`). At host load near 450 the `ps`
+  child was killed at the deadline, and the package failed with `fixture identity unavailable`.
+  Each observation now has 30 seconds, which is still shorter than the fixture child's 60-second
+  sleep. The PUB-V0-026 cancellation and cleanup bounds are unchanged.
 
 NOT_RUN: `go test ./...`, `make gate`, the dogfood CEM steps, and the combined companion bundle
 qualification.
