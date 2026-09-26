@@ -102,6 +102,9 @@ func initCommand(env Env, args []string) *wire.Result {
 		if report.Outcome.Outcome == "BLOCKED" {
 			reason = "already initialized: the state dir exists, so init wrote nothing"
 		}
+		if report.Detail != "" {
+			reason = prose(report.Detail)
+		}
 		res.Warnings = append(res.Warnings, reason)
 	}
 	res.Warnings = append(res.Warnings,

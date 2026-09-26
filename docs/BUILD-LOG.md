@@ -6161,6 +6161,28 @@ Review repairs (same slice):
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
 
+## 2026-09-25 V1-0319, D13: `context --task` paired-trial protocol frozen on Beamfall; run blocked on the owner's threshold
+
+Panel dispute D13 (orientation routes to `query`, not `context --task`) is a defect. The owner ruled
+that the promotion gate stays binding. Routing moves only after the gate that
+`docs/specs/task-context-packet-v0.md` names passes: "a paired trial reading against `grep` on the
+held-out set", run as `tools/cw-trial` under decision 0022 on Beamfall roadmap-ticket-to-diff tasks.
+
+- The frozen protocol and set are in `tools/cw-trial/testdata/beamfall-roadmap-v1/`.
+  - `tasks.json` holds 50 `retrieval` tasks and 181 gold paths, from 247 candidates at Beamfall/core
+    `02835b1be`. Its sha256 is `7fbe8124e55d247bc98ef0a06f3a0d820f6824aff680853b9c69a353fe85db85`.
+  - The Git-only builder is `build_roadmap_set.py`.
+  - The set was authored without any Corvint run on its tasks.
+- Arms: `none`, `grep` and `corvint`. Agent: `codex exec gpt-5.6-sol`, effort `medium`,
+  `--access none`, `--limit 20`. One first-observation run.
+- Result: NOT_RUN, with no routing change. Three things block the run:
+  - `confidently-wrong-trial-v0.md` leaves the pass reading to the owner (CWT-V0-009).
+  - Its "non-inferior success" has no margin, and the bet plan it cites is absent from the tree.
+  - Whether `likely` wrong claims count is unresolved.
+- The owner questions are listed in the set's README. They include whether the orientation reading
+  (`packet_top_k`, `gold_as_result`) carries its own threshold, and approval of the 150 agent
+  invocations. The skills and `docs/DOGFOOD.md` §1 stay routed to `query`.
+
 ## 2026-09-25 Panel blocker B6: CCF-V1-007 N-1 is 0.8.1, and frozen enumerations have a register (V1-0285)
 
 The pre-1.0 panel (finding B6) confirmed that CCF-V1-007's premise was false. The contract says N-1
@@ -6584,6 +6606,7 @@ Follow-ups:
   including after a rerun on a clean tree. The same commit passes in a separate linked worktree, and
   base 489701ca passes there too. The failure depends on the environment (the clone's state), not on
   this diff.
+
 ## 2026-09-25 V1-0272: alternates refusal names the adopter rerun
 
 - The `unsupported-object-alternates` fix line ended with `rerun make dogfood-change`, the one
@@ -6975,3 +6998,33 @@ regenerated for V1-0299 and 1aa1187c.
 Evidence: focused `-run 'CoreVerbs|CoreRefusals|Freeze'` passes with and without the N-1 binary.
 Dropping `CLEAN` from the `context.range.status` row fails both `impact committed range` and, through
 the packet mapping, `prove committed range`. Linux is NOT_RUN.
+
+## 2026-09-25 V1-0351, V1-0346, V1-0323: P1 small batch
+
+Three P1 defects fixed in one change, based on the integration branch of PR #241.
+
+- V1-0351: `TestObserveWorkUsesOnlyTargetMaterialization` flaked on a transient
+  `.git/objects/maintenance.lock` during the manifest walk. The work-production fixture and its
+  seed repository now set `maintenance.auto=false` and `gc.auto=0` (`materializationQuiesce` in
+  `cmd/corvint/work_materialization_test.go`), as `materializationFixture` already did.
+  `go test -count=10 -run '^TestObserveWorkUsesOnlyTargetMaterialization$' ./cmd/corvint/` passed.
+- V1-0346: `script/local-console-release-gate` passed `-corvint-root` and `-taskman-root`, which
+  `cmd/corvint-companion-release` no longer defines, so the gate could never reach the bundle
+  build. It now passes `-source-root` and drops the obsolete `--taskman` option, because
+  corvint-tasks builds in tree since decision 0397. `TestGateScriptsPassOnlyDefinedFlags` parses
+  both gate scripts' invocations and feeds each flag to the command's flag set; it failed on the old
+  script and passes now (PUB-V0-011 traceability row). A live gate run was not performed.
+  Follow-up, not changed: the script's `go build ./cmd/...` is relative to the caller's directory.
+- V1-0323: `corvint-tasks init` over committed tickets created a journal whose genesis bound none
+  of them, so every later read refused as `INTENT_DIVERGED`. Init now refuses first, with the
+  existing `INTENT_DIVERGED` code and a reason naming the record, and creates nothing
+  (`TestCTSV0001_InitRefusesOverExistingRecords`, `TestCTSV0001_InitRefusesOverCommittedTickets`).
+  The CLI now shows a store refusal's detail as its reason. No owning tasks spec existed, so the new
+  `docs/specs/corvint-tasks-store-init-v0.md` (proposed) records CTS-V0-001 and two unimplemented
+  proposals, journal-optional reads (CTS-V0-002) and `init --adopt`/import (CTS-V0-003), which need
+  owner acceptance and the recovered task-store contract (V1-0310).
+
+Pre-change context came from `corvint query` in the change clone; the pre-change impact receipt was
+not written. Focused tests and `go vet` passed for `./cmd/corvint` (count=10 on the flaky test),
+`./cmd/corvint-companion-release`, `./internal/tasks/store` and `./internal/tasks/cli`. `make gate`
+and the exhaustive `./...` run were not run.

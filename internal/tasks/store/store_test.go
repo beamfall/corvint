@@ -213,3 +213,34 @@ func readTree(t *testing.T, root string) string {
 	}
 	return out
 }
+
+// TestCTSV0001_InitRefusesOverExistingRecords pins V1-0323: a genesis over a
+// ticket or release record would leave that record without a journal
+// afterimage, so init refuses with INTENT_DIVERGED and creates no state dir.
+func TestCTSV0001_InitRefusesOverExistingRecords(t *testing.T) {
+	for _, dir := range []string{intent.TicketsDir, intent.ReleasesDir} {
+		t.Run(dir, func(t *testing.T) {
+			repo := fixture.TempRepo(t)
+			fixture.Write(t, filepath.Join(repo.IntentDir, "queue.json"), fixture.QueueBytes())
+			fixture.Write(t, filepath.Join(repo.IntentDir, "policy.json"), fixture.PolicyBytes())
+			fixture.Write(t, filepath.Join(repo.IntentDir, dir, "X-1.json"), []byte("{}\n"))
+			resolved, err := intent.Resolve(repo.Root)
+			if err != nil {
+				t.Fatalf("resolve: %v", err)
+			}
+			report, err := store.Init(context.Background(), resolved, operator(), "req", now(t))
+			if err != nil {
+				t.Fatalf("init returned an error rather than a refusal: %v", err)
+			}
+			if report.Outcome.Outcome != mutation.OutcomeBlocked || len(report.Outcome.Codes) != 1 || report.Outcome.Codes[0] != wire.CodeIntentDiverged {
+				t.Fatalf("outcome = %+v, want BLOCKED with INTENT_DIVERGED", report.Outcome)
+			}
+			if report.Receipt != "" {
+				t.Errorf("a refused init reported receipt %q", report.Receipt)
+			}
+			if _, err := os.Lstat(resolved.StateDir); !os.IsNotExist(err) {
+				t.Errorf("a refused init created the state dir: %v", err)
+			}
+		})
+	}
+}
