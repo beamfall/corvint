@@ -7656,3 +7656,26 @@ its helper now logs stderr on a nonzero exit. `TestCancellationLeavesNoDescendan
 60-second hang bound on a cold compile at load ~60. The bound is now 4 minutes and the run
 timeout 5 minutes, which keeps the run timeout above the hang bound. V1-0356's hang-guard fix
 was already on main (f0488711).
+
+## 2026-09-26 Decision 0422: owner answers A1 to A6 for `1.0.0-rc.1`
+
+The owner answered six of the ten open 1.0 decisions ("A1 yes … A6 go-chi/chi"). This change records
+decision 0422 and moves the affected specs from proposed to accepted. It completes no ticket, so
+V1-0263, V1-0284, V1-0286 and V1-0350 stay OPEN until the owner completes them in the store.
+
+- `core-compatibility-freeze-v1.md` is ratified as a whole, including the B5 exemptions, the V1-0284
+  classification, the decision 0398 and V1-0350 register rows, and the N-1 replay. Its stale
+  "Blocked on V1-0001" line now names what is still missing: pinned modes for the mutating `cem`,
+  `ocm` and `dogfood` subcommands (NOT_PRODUCED), and the exhaustive gate (NOT_RUN).
+- `GPK-V0-070` (V1-0263) and the `IDX-SNAP-V0-012` and `agent-harness-integration-v0.md` amendments
+  (V1-0286) are accepted.
+- `stable-readiness-record-v1.md` is accepted. SRR-V1-012 now fixes the command shape as
+  `cmd/corvint-readiness-record` with build and verify modes. It stays unimplemented, and no release
+  uses the record until it has its own tests.
+- The V1-0019 untouched repository is `github.com/go-chi/chi`, recorded in the 1.0 product spec. Its
+  commit and cases are not yet frozen. That spec's "Blocked on" line named V1-0002 and V1-0007,
+  which are both COMPLETED. It now names V1-0018, V1-0019 and V1-0020.
+- The frontier files' Apache-2.0 exception (A5, V1-0379) lands in its own change.
+
+A7 to A10 stay undecided. A8, the uncommitted audit output in the primary checkout, still blocks the
+v0-6 promotion script.

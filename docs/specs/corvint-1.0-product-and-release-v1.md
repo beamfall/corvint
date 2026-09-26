@@ -16,7 +16,7 @@ scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 - Claim: Accepted scope: 1.0 Core is the local change-evidence loop and proof wire; companions, host FULL and independent interop leave the Core path (decision 0373).
 - Status: accepted (decision 0373, V1-0001) / not-started
 - Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; the candidate reader and installer admit a Core-only profile (V1-0125), and `corvint-release-candidate` assembles one when `-companion-dir` is omitted (V1-0229).
-- Blocked on: V1-0002 queue reconciliation and V1-0007 contract freeze; the untouched repository for V1-0019 is not yet named; the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
+- Blocked on: the V1-0018 Core freeze with its decision 0421 blockers, V1-0019 external validation and V1-0020 `1.0.0-rc.1` qualification; the untouched repository for V1-0019 is `github.com/go-chi/chi` (decision 0422), with its cases not yet frozen; the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
 - Read next: Decisions the owner must make; Classification of shipped surfaces; Externally dependent gates.
 
 ## Human intent
@@ -243,7 +243,8 @@ accepted by decision 0373 and the amendment it requires are stated.
 
 Answered on 2026-09-23: yes to all eleven, recorded with notes in
 `../decisions/0373-corvint-1.0-scope-ratified-2026-09-23.md`. The linux/amd64 host (question 4)
-and the untouched repository (question 8) are still unnamed. The questions stay as asked.
+is a GitHub-hosted `ubuntu-24.04` runner (decision 0420), and the untouched repository (question 8)
+is `github.com/go-chi/chi` (decision 0422). The questions stay as asked.
 
 1. Accept the Core definition (`PRS-V1-001`) and the companion list as written?
 2. Accept the classification table as the 1.0 disposition of every shipped surface (`PRS-V1-010`)?

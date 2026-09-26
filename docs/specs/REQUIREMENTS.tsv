@@ -256,7 +256,7 @@ CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	98	A Core refusal MUST exi
 CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	152	The admission, freshness, omission and abstention members MUST keep their names,
 CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	169	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
 CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	179	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	311	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	310	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa
@@ -1129,7 +1129,7 @@ GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	593	(proposed amendme
 GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1254	(accepted 2026-09-25, decision 0387; V1-0260)
 GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1270	(accepted 2026-09-25, decision 0396; panel finding M2)
 GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1285	(accepted 2026-09-25, decision 0399; panel blocker B3)
-GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1304	(proposed 2026-09-25, panel blocker B4, not accepted; V1-0263)
+GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1304	(accepted 2026-09-26, decision 0422; panel blocker B4; V1-0263)
 GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1328	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
 GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1346	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
 GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	1362	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068
@@ -1994,7 +1994,7 @@ SRR-V1-008	docs/specs/stable-readiness-record-v1.md	84	The vulnerability section
 SRR-V1-009	docs/specs/stable-readiness-record-v1.md	92	For version `1.0.0-rc.1`, `policy/signing` MUST be the fixed row NOT_RUN, decisi
 SRR-V1-010	docs/specs/stable-readiness-record-v1.md	97	`owner/tag`, `owner/publication` and `owner/promotion` MUST be fixed NOT_RUN
 SRR-V1-011	docs/specs/stable-readiness-record-v1.md	100	Building and verifying MUST NOT write to the candidate, the source root or the
-SRR-V1-012	docs/specs/stable-readiness-record-v1.md	106	(proposed, not implemented) An operator command SHOULD expose the builder and th
+SRR-V1-012	docs/specs/stable-readiness-record-v1.md	106	(accepted command shape, decision 0422; not implemented) A new operator binary,
 TCP-V0-001	docs/specs/task-context-packet-v0.md	49	`context` MUST be read-only. It builds one index over the committed tree and
 TCP-V0-002	docs/specs/task-context-packet-v0.md	52	The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]
 TCP-V0-003	docs/specs/task-context-packet-v0.md	58	Results are files. Each result row carries `kind`, `id` (the path), `score`,
