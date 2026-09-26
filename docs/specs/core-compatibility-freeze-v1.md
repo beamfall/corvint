@@ -223,6 +223,9 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   | `proof.rows[].falsifier` | `prove` | `history-consistent`, `reference-resolves`, `verifier-accepts`, `test-kills-mutant`, `none` | closed | (proposed, decision 0398) `cmd/corvint/prove.go:42@f81f3f8e` |
   | `proof.rows[].falsified` | `prove` | `PASS`, `FAIL`, `NOT_RUN` | closed | (proposed, decision 0398) `cmd/corvint/prove.go:48@7313a787` |
   | `proof.affected.scope` | `prove` | `BOUNDED`, `UNKNOWN` | closed | (proposed, decision 0398) `cmd/corvint/prove.go:671@f6741c9b`, `internal/liveverify/affected/select.go:55@884d7796` |
+  | `context.exclusions.samples[].reason` | `query`, `impact` | `unsafe-or-non-utf8-path`, `vendor/build excluded`, `protected path`, `generated path`, `source exceeds size bound`, `generated-file header excluded`, `git-lfs pointer, content not in the tree` | open | (proposed, V1-0350) `internal/contextindex/git.go:364@56698a09`, `internal/contextindex/index.go:1310@f6b4c05b`, `internal/contextindex/index.go:1314@14914a09`, `internal/contextindex/index.go:1317@f91f4e9c`, `internal/contextindex/index.go:506@4b59a221`, `internal/contextindex/index.go:692@e27ec283`, `internal/contextindex/index.go:34@b7c4315f` |
+  | `coverage.critical[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (proposed, V1-0350) `internal/contextindex/taskcontext.go:1796@f3806eef`, `internal/contextindex/taskcontext.go:199@7b32d74a`, `internal/contextindex/taskcontext.go:200@4da20476`, `internal/contextindex/taskcontext.go:201@73a4650c` |
+  | `coverage.critical_missing[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (proposed, V1-0350) `internal/contextindex/taskcontext.go:1796@f3806eef`, `internal/contextindex/taskcontext.go:199@7b32d74a`, `internal/contextindex/taskcontext.go:200@4da20476`, `internal/contextindex/taskcontext.go:201@73a4650c` |
 
   The `graph` relation that the experimental `CORVINT_CONTEXT_GRAPH=on` switch appends
   (`internal/contextindex/ppr.go:43@fd7e5f2f`) is outside the frozen default mode. So is the `prove --cem` state
@@ -245,11 +248,29 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   enumerations carried as member names (`inventory.denominator`, `proof.counts`), which the
   CCF-V1-002 goldens and the CCF-V1-006 member rule pin, and the result rows (`context.results[]`,
   `results[]`, `proof.rows[]` `kind`, `authority` and `trust`, `plan.selected[].witness`), which
-  CCF-V1-005 does not freeze. NOT_PRODUCED: `context.exclusions.samples[].reason` of `query` and
-  `impact`, and the `relation` and `trust` of `context`'s `coverage.critical`, `critical_missing` and
-  `governance_refused` rows, because no frozen fixture writes one and every row MUST be reached;
-  registering them needs a fixture that does. Two changes after 0.8.1 reached members this register
-  now covers. Commit 1aa1187c added `omitted-competing-record` to the `open` `context.abstention.reason`
+  CCF-V1-005 does not freeze. (proposed, V1-0350) The rows marked V1-0350 register
+  `context.exclusions.samples[].reason` of `query` and `impact`, and the `relation` of `context`'s
+  `coverage.critical` and `critical_missing` rows. The frozen modes `query excluded sources` and
+  `impact path excluded sources` commit a vendored and a generated-header Go file, and `context
+  reserved rows` commits a requirement-bearing spec that the task names and runs at `--limit 1`, so
+  the governing row is carried and the spec row is missing. Both rows are `open`: a reader decides on
+  `exclusions.count` and `coverage.governance`, not on a reason or a relation. A critical row carries
+  no `trust` member (`internal/contextindex/taskcontext.go:1796@f3806eef`). Commit 53c02369 (panel B9,
+  IDX-SNAP-V0-024) added `unsafe-or-non-utf8-path` after 0.8.1, which refused a repository with such
+  a path (`git show v0.8.1:internal/contextindex/git.go`, line 384); under the `open` status that
+  addition is compatible. NOT_PRODUCED: the `relation` and `trust` of `coverage.governance_refused`,
+  because no generator writes such a row. `compiler.reserved` is set only from `reservedRows`
+  (`internal/contextindex/taskcontext.go:1226@fa0fd17b`), whose rows carry the authorities
+  `project-instructions`, `instruction-reference` and `repository-spec`
+  (`internal/contextindex/taskcontext.go:1290@f63e111d`,
+  `internal/contextindex/taskcontext.go:1389@2b27d92a`,
+  `internal/contextindex/taskcontext.go:1567@fb467aad`).
+  `trustByAuthority` maps all three to `project-authority`
+  (`internal/contextindex/trust.go:30@85e0d739`, `internal/contextindex/trust.go:31@cf0b32e7`,
+  `internal/contextindex/trust.go:32@5fc23f25`), which is not
+  tainted, so `governanceRefused` skips every row (`internal/contextindex/trust.go:95@54a15b24`).
+  Registering it needs a generator that reserves a tainted row; until then CCF-V1-006 decides a value
+  there by review. Two further changes after 0.8.1 reached members this register now covers. Commit 1aa1187c added `omitted-competing-record` to the `open` `context.abstention.reason`
   row, which is compatible; that value is absent from the `v0.8.1` tree. V1-0340 (ec50af2d) removed
   the `plan.excluded[].reason` value `UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED`, which 0.8.1
   writes (AFP-V0-012). Both shipped before the register reached their member. Like
@@ -343,4 +364,7 @@ Reverting only the per-mode goldens (proposed, decision 0398) means deleting `cm
 the golden comparison in `TestCoreVerbsEmitTheFrozenProfiles`. That returns the freeze to identifier-only pinning.
 Reverting the V1-0350 amendment (proposed, decision 0398) means deleting its register rows, the `prove`
 `packet` mapping, `replayCoreModeN1` and the `core-n1-replay` target. That restores the two NOT_PRODUCED
-statements of CCF-V1-007; no stored state changes.
+statements of CCF-V1-007; no stored state changes. Reverting only its exclusion-reason and critical-relation
+rows (proposed, V1-0350) means deleting those three rows, the `coreFreezeCommit` cases `query excluded
+sources`, `context reserved rows` and `impact path excluded sources`, and their goldens; that restores the
+NOT_PRODUCED statement for those members.

@@ -7237,3 +7237,61 @@ change. It only re-resolves mountinfo when the identity differs. An open descrip
 so an unchanged `mnt_id` cannot have been reused, and the fstype is the one already qualified
 (decision 0411 §1). The fixture also reuses its own fdinfo read instead of reading fdinfo twice.
 With the fix, the same subtests take 28.5 s on ext4.
+
+## 2026-09-26 V1-0350 remainder: exclusion reasons and critical relations reach the register
+
+The 2026-09-25 V1-0350 entry left two CCF-V1-007 (d) members NOT_PRODUCED because no frozen fixture
+wrote them. They were `context.exclusions.samples[].reason` of `query` and `impact`, and the rows of
+`context`'s `coverage.critical`, `critical_missing` and `governance_refused`. Three frozen modes now
+reach them in `TestCoreVerbsEmitTheFrozenProfiles`. Each one commits files on top of an existing
+fixture through `coreFreezeCommit`:
+
+- `query excluded sources` and `impact path excluded sources` use the impact fixture plus
+  `vendor/lib/lib.go` and a `Code generated ... DO NOT EDIT.` `pkg/value_string.go`. Both emit
+  `exclusions.count` 2, with reasons `generated-file header excluded` and `vendor/build excluded`.
+- `context reserved rows` uses the query fixture plus `docs/specs/queue.md`, which holds one
+  requirement. It runs `context --task "Where does docs/specs/queue.md define the work queue"
+  --limit 1`. `AGENTS.md` is carried as `governing` in `coverage.critical`, and the spec is listed
+  as `spec-mentioned` in `critical_missing`.
+
+Three proposed rows register these members, all `open`:
+
+- The exclusion reason row lists the seven reasons the index writes.
+- `coverage.critical[].relation` and `coverage.critical_missing[].relation` list the three reserved
+  relations.
+
+A reader decides on `exclusions.count` and `coverage.governance`, not on a reason or a relation.
+Commit 53c02369 (panel B9) added `unsafe-or-non-utf8-path` after 0.8.1. At `v0.8.1`, such a path
+refused the repository. Under the `open` status, that addition is compatible.
+
+Survey of every other string the goldens emit under a CCF-V1-005 member: none is an unregistered
+enumeration. Each is one of the following:
+
+- free text;
+- a path, identifier or digest;
+- kind-prefixed critical identifiers;
+- enumerations carried as member names;
+- result rows.
+
+`context.unparsed` and `context.extraction` sit outside the CCF-V1-005 member list.
+
+NOT_PRODUCED: `coverage.governance_refused[]` `relation` and `trust`. No generator can write such a
+row:
+
+- `compiler.reserved` comes only from `reservedRows` (`internal/contextindex/taskcontext.go:1226@fa0fd17b`).
+- Its three authorities all map to the untainted `project-authority`
+  (`internal/contextindex/trust.go:30@85e0d739`).
+- Only `TestTaskContextGovernanceRefusesATaintedReservedRow` injects a tainted row.
+
+Critical rows carry no `trust` member at all.
+
+The N-1 replay is unchanged. It is the opt-in `make core-n1-replay` in release-runbook step 8, not a
+`make gate` prerequisite, and `script/release-checklist` does not check its output. Whether step 8
+is the "release gate" that the V1-0350 acceptance criterion names is an owner decision.
+
+Checks: `go test -run 'CoreVerbs|CoreRefusals|Freeze' ./cmd/corvint/` passed. The three new modes
+also passed their N-1 replay against the 0.8.1 binary. One replay attempt failed first under host load
+average 425, when a `git ls-files` child was killed, and passed on rerun. The doc checks,
+`internal/specindex` and `internal/console` passed. NOT_RUN: `make gate` and the full
+`make core-n1-replay`. NOT_PRODUCED: the dogfood CEM bind, because this clone uses object alternates
+(`unsupported-object-alternates`).
