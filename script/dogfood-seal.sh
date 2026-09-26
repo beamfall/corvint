@@ -17,8 +17,10 @@ fi
 # V1-0137: never drop a CEM BASE tracks that this change replaced and no
 # .corvint/changes/ file keeps.
 base_cem=$(git -C "$repo" rev-parse --verify -q "$base_arg^{commit}:.corvint/change.cem.json" 2>/dev/null)
+# A failing ls-tree keeps nothing, so the seal refuses rather than trusting partial output.
+archived=$(git -C "$repo" ls-tree -r "$bind" -- .corvint/changes) || archived=
 if [[ -n $base_cem && $base_cem != "$(git -C "$repo" rev-parse "$bind:.corvint/change.cem.json")" ]] &&
-  ! grep -Fq " $base_cem"$'\t' <<< "$(git -C "$repo" ls-tree -r "$bind" -- .corvint/changes)"; then
+  ! grep -Fq " $base_cem"$'\t' <<< "$archived"; then
   replaced=$(git -C "$repo" log -1 --format=%H "$base_arg^{commit}" -- .corvint/change.cem.json)
   printf 'dogfood-seal: REFUSE unarchived-base-cem\n' >&2
   printf '  BASE tracks .corvint/change.cem.json (bound at %s) that this change replaced and no .corvint/changes/ file keeps; archive it in a commit on the base branch, then restart this change on that commit\n' "$replaced" >&2

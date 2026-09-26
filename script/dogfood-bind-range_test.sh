@@ -147,8 +147,9 @@ for step in prechange-query prechange-impact local-outcome ocm-aggregate; do
 done
 test "$(git -C "$repo" rev-parse "$binding^@")" = "$g2"
 test "$(git -C "$repo" diff --name-only "$g2" "$binding")" = .corvint/change.cem.json
-rg -q "^  \"baseRevision\": \"$s1\",\$" <<< "$(git -C "$repo" show "$binding:.corvint/change.cem.json")"
-rg -q '^cited 1$' <<< "$(git -C "$repo" show "$binding:.corvint/change.cem.json")"
+bound_cem=$(git -C "$repo" show "$binding:.corvint/change.cem.json")
+rg -q "^  \"baseRevision\": \"$s1\",\$" <<< "$bound_cem"
+rg -q '^cited 1$' <<< "$bound_cem"
 prepared="$evidence/bind-range.${s1:0:12}..${g2:0:12}.cem.json"
 rg -q "^  \"baseRevision\": \"$s1\",\$" "$prepared"
 if rg -q cited "$prepared"; then exit 1; fi
@@ -170,8 +171,10 @@ output=$(bind DOGFOOD_TEST_HUNKS=2 DOGFOOD_CITATIONS="$test_root/citations.tsv" 
   script/dogfood-bind-range.sh "$s1" "$g2" 2>&1)
 rg -q '^dogfood-bind-range: NOTE cem-mark NOT_PRODUCED hunk=2 reason=no-evidence detail=intent-added-inside-the-range$' <<< "$output"
 marked=$(printf '%s\n' "$output" | sed -n 's/^dogfood-bind-range: PASS retroactive binding=\([0-9a-f]\{40\}\) .*/\1/p')
-rg -q '^marked 2 unknown no-evidence$' <<< "$(git -C "$repo" show "$marked:.corvint/change.cem.json")"
-rg -q '^NOT_PRODUCED hunk=2 reason=no-evidence detail=intent-added-inside-the-range$' <<< "$(git -C "$repo" log -1 --format=%B "$marked")"
+marked_cem=$(git -C "$repo" show "$marked:.corvint/change.cem.json")
+rg -q '^marked 2 unknown no-evidence$' <<< "$marked_cem"
+marked_message=$(git -C "$repo" log -1 --format=%B "$marked")
+rg -q '^NOT_PRODUCED hunk=2 reason=no-evidence detail=intent-added-inside-the-range$' <<< "$marked_message"
 test "$(git -C "$repo" log -1 --format='%(trailers:key=Corvint-Dogfood-Binding,valueonly)' "$marked")" = retroactive
 rg -q '^max-unknown 1$' "$test_root/corvint.log"
 

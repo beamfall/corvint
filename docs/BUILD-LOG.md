@@ -7330,13 +7330,16 @@ writing, `printf` dies of SIGPIPE, and `pipefail` turns the passing assertion in
 scratch repro exited 141 in 200 of 200 runs through the pipe, and 0 of 200 with a here-string.
 Every such assertion in that script and in `script/dogfood-bind-range_test.sh` (also under
 `pipefail`) now reads its input from a here-string, the idiom the script already used elsewhere.
-Scripts without `pipefail` take the exit status of `rg` and are unaffected.
+An assertion over Git output assigns that output first, so `set -e` still fails the test when Git
+fails; a command substitution inside the here-string would discard that status. Scripts without
+`pipefail` take the exit status of `rg` and are unaffected.
 
 `script/dogfood-seal.sh` had the same shape in product logic: `! git ls-tree … | grep -Fq`. Once the
 `.corvint/changes` listing outgrows the pipe buffer (161 entries, 19 KB at 2961076f; macOS pipes
 start at 16 KB), an early match can SIGPIPE `git` and make the seal refuse with
-`unarchived-base-cem` when the base CEM is in fact archived. It now greps a here-string of the listing.
-A failing `git` still yields an empty listing and the same refusal.
+`unarchived-base-cem` when the base CEM is in fact archived. It now captures the listing and greps a
+here-string of it. A failing `ls-tree` is treated as an empty listing, so the seal still refuses even
+when Git printed a matching line before it failed (the case the independent review found).
 
 `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot` failed at load 153. It ran the
 refreshed-snapshot event under the 3-second bound that the first half needs to expire a blocked
