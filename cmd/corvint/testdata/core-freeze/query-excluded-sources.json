@@ -1,0 +1,108 @@
+{
+  "context": {
+    "abstention": {
+      "active": false,
+      "reason": "none"
+    },
+    "coverage": {
+      "advisory_results": 0,
+      "authoritative_results": 0,
+      "budget_bytes": null,
+      "critical": [],
+      "critical_missing": [],
+      "included_results": 1,
+      "omitted_results": 0,
+      "packet_bytes": 1850,
+      "requested_results": 1,
+      "uncertainty": [
+        "all results are syntax matches; no project-owned authority corroborates the task"
+      ],
+      "within_budget": true
+    },
+    "exclusions": {
+      "count": 6,
+      "samples": [
+        {
+          "path": "gen/values.go",
+          "reason": "generated path"
+        },
+        {
+          "path": "internal/store/migrate/migrate.go",
+          "reason": "protected path"
+        },
+        {
+          "path": "pkg/huge.go",
+          "reason": "source exceeds size bound"
+        },
+        {
+          "path": "pkg/model.go",
+          "reason": "git-lfs pointer, content not in the tree"
+        },
+        {
+          "path": "pkg/value_string.go",
+          "reason": "generated-file header excluded"
+        },
+        {
+          "path": "vendor/lib/lib.go",
+          "reason": "vendor/build excluded"
+        }
+      ]
+    },
+    "freshness": {
+      "mixed_path_count": 0,
+      "mixed_paths": [],
+      "revision": "af3c2553bc05e5525d1976f73079684310afce1b",
+      "scope": "git",
+      "state": "fresh"
+    },
+    "intent": {
+      "confidence": "default",
+      "id": "repository",
+      "matched_terms": []
+    },
+    "learning": {
+      "advisory_candidates": 0,
+      "history_commits_considered": 3,
+      "history_digest": "<varies:string>",
+      "history_tip": "<varies:string>",
+      "local_trace_count": 0,
+      "local_trace_state": "absent",
+      "matched_history_commits": 0,
+      "matched_local_traces": 0
+    },
+    "mode": "query",
+    "request": {
+      "limit": 10,
+      "text": "where is StableValue"
+    },
+    "results": [
+      {
+        "evidence": [
+          {
+            "authority": "syntax",
+            "blob_hash": "608fd2f8a1ee1bc6c9b373d3ec56823ee77b782d",
+            "confidence": "medium",
+            "line": 3,
+            "path": "pkg/main.go",
+            "reason": "declaration/path strongly matches query vocabulary"
+          }
+        ],
+        "id": "pkg/main.go:StableValue",
+        "kind": "symbol",
+        "name": "StableValue",
+        "score": 442,
+        "summary": "func declaration"
+      }
+    ],
+    "revision": "af3c2553bc05e5525d1976f73079684310afce1b",
+    "schema_version": 1,
+    "state": "READY",
+    "verification": [
+      "go test ./pkg/...",
+      "make gate"
+    ]
+  },
+  "mutates": false,
+  "ok": true,
+  "tool": "query"
+}
