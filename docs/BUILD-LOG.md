@@ -7175,6 +7175,41 @@ compositions. Evidence: `internal/specindex` tests and the spec doc checks pass.
 qualification `NOT_RUN` (nothing to qualify yet; no pinned Playwright runtime in this session).
 Exhaustive gate and dogfood CEM steps `NOT_RUN`. Rollback: revert this commit.
 
+## 2026-09-26 V1-0351: no fixture Git auto maintenance in cmd/corvint tests
+
+`TestReadOnlyVerbsWriteNothing` (PR #255, CI run 36217080260) and the earlier
+`materializationManifest` walk (PR #219, CI run 36181215001) failed because a fixture's own
+`git commit` started detached `git maintenance run --auto`, whose repack (`multi-pack-index`,
+bitmaps, `info/refs`, `maintenance.lock`) landed while the test snapshotted `.git`. The earlier
+V1-0351 fix quiesced only the work fixtures. The package `TestMain` now sets
+`GIT_CONFIG_PARAMETERS='maintenance.auto'='false' 'gc.auto'='0'`: every fixture Git command inherits
+`os.Environ`, and Git reads that variable as command-line config over repository config
+(`prepare_auto_maintenance` in git `run-command.c` returns before spawning when `maintenance.auto`
+is false, whatever `maintenance.strategy`). `GIT_CONFIG_COUNT` is untouched because the record
+fixtures branch on it. A native-hook replacement of the test binary keeps its exact two-entry
+environment, which `TestNativeHookReplacementCanBeInterrupted` asserts; the first draft without that
+guard failed it. The read-only tests keep their full `.git` comparison. Evidence: go vet
+clean; the read-only, observe-work, record, init-adopt, work-materialization and native-hook tests
+pass; `go test -count=1 -timeout 30m ./cmd/corvint` passes (1596 pass, 3 skip, 353 s). Dogfood CEM
+steps and the exhaustive gate `NOT_RUN` (test-harness change). Rollback: revert these commits.
+
+## 2026-09-25 V1-0249 follow-up: AFU-V1-041/042 run registry and `flows stability`
+
+Decision 0417 (PR #250) chose a separate local registry over a `test-run-evidence/0` wire
+revision for AFU-V1-013. `flows-run-registry/0` is committed and read at `HEAD`. It holds the
+DCP-V1-024 policy (reusing the `internal/doccorpus` threshold and count types), and per aggregate
+the planned ordinals, the run kind and the infrastructure attempt ordinals. Each contribution joins
+exactly one record by run ID, test key and project. `corvint flows stability` applies the
+DCP-V1-022 refusals under nine named codes. Otherwise it writes `flows-run-stability/0` with the
+DCP-V1-023 raw counts, the applied threshold and a verdict from the unchanged
+`doccorpus.StabilityThresholdPassed` (renamed from `stabilityThresholdPassed` for export). It
+writes nothing else. Excluded as non-goals: matrix and topology dimensions, and an MCP tool.
+
+Checks: `TestAFUV1RunStabilityCounts`, `TestAFUV1RunStabilityRefusals`,
+`TestAFUV1RunRegistryReadAtHead`, `TestAFUV1FlowsCLIStabilityIsReadOnly`, the focused appflows,
+doccorpus and `cmd/corvint` flow tests, go vet, the doc checks and use-cases-v0. NOT_RUN: the
+exhaustive gate and the dogfood CEM steps.
+
 ## 2026-09-25 decision 0411 TM-V0-010: fixture re-checks do not re-read mountinfo
 
 The go-product job of PR #245 (run 36203098255) hit its 1 h 15 min limit twice. It was killed

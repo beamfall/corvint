@@ -181,7 +181,20 @@ func workCaptureSlot(t *testing.T) {
 	t.Cleanup(func() { <-workCaptureSlots })
 }
 
+// TestMain turns off Git auto maintenance and auto gc for every fixture Git
+// command in this package. A fixture commit otherwise may spawn detached
+// maintenance that repacks .git while a test walks or snapshots it (V1-0351).
+// Fixture helpers inherit os.Environ, and git reads GIT_CONFIG_PARAMETERS as
+// command-line config that overrides repository config. Sanitized product Git
+// environments drop it, and where it passes through it changes only auto
+// maintenance, so a product write to .git is still caught. GIT_CONFIG_COUNT is
+// left alone because record fixtures key on it. A native-hook replacement of
+// this binary keeps its exact two-entry environment.
 func TestMain(m *testing.M) {
+	executable, _ := os.Executable()
+	if !exactNativeHookEnvironment(os.Environ(), nativeHookEnvironment(executable)) {
+		os.Setenv("GIT_CONFIG_PARAMETERS", "'maintenance.auto'='false' 'gc.auto'='0'")
+	}
 	code := m.Run()
 	for name, root := range map[string]string{"work production seed": workProductionSeed.root, "work compiler cache": workCompilerCache.root, "work bound build": workBoundBuild.root} {
 		if root == "" {
