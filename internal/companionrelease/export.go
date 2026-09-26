@@ -53,6 +53,40 @@ func findExportFile(export Export, path string) (SourceFile, bool) {
 	return SourceFile{}, false
 }
 
+// tasksExportFiles and tasksExportPrefixes name the subset of the Corvint
+// commit tree that builds the in-tree corvint-tasks companion on its own
+// (decision 0397): the module file, the notices, and the Tasks packages,
+// which import no Core package.
+var tasksExportFiles = map[string]bool{"go.mod": true, "LICENSE": true, "LICENSE-APACHE-2.0": true, "LICENSING.md": true, "PROVENANCE.md": true}
+
+var tasksExportPrefixes = []string{"cmd/corvint-tasks/", "internal/tasks/"}
+
+// tasksExport filters export to the corvint-tasks subset. It keeps the same
+// commit and tree identity, since every kept file is that tree's exact bytes.
+func tasksExport(export Export) Export {
+	subset := Export{Root: export.Root, HeadCommit: export.HeadCommit, HeadTree: export.HeadTree}
+	for _, f := range export.Files {
+		if !inTasksExport(f.Path) {
+			continue
+		}
+		subset.Files = append(subset.Files, f)
+		subset.TotalBytes += int64(len(f.Data))
+	}
+	return subset
+}
+
+func inTasksExport(path string) bool {
+	if tasksExportFiles[path] {
+		return true
+	}
+	for _, prefix := range tasksExportPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // exportSource reads root's HEAD tree via `git ls-tree -rz` for the entry
 // list and two independent `git cat-file --batch` passes (forward and
 // reverse object order, each parsed by a separate routine below) for blob

@@ -38,7 +38,7 @@ func parseLocalCompletionInvocation(arguments []string) (string, []string, bool,
 	} else {
 		resolved, err := resolveExplicitRoot(root)
 		if err != nil {
-			return "", nil, true, argumentError("invalid local completion root")
+			return "", nil, true, err
 		}
 		root = resolved
 	}
@@ -62,6 +62,10 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 	key, err := localcompletion.SessionKey(flags["--session-key"])
 	if err != nil {
 		return emitLocalCompletionFailure(stderr, err.Error())
+	}
+	if err = requireRepositoryRoot(root); err != nil {
+		emitError(stderr, err)
+		return 2
 	}
 	if args[0] == "handoff" {
 		return runDogfoodHandoff(ctx, root, key, flags, stdout, stderr)
@@ -184,6 +188,8 @@ func emitLocalCompletionFailure(stderr io.Writer, code string) int {
 	if len(code) > 96 || code == "" {
 		code = "local-completion-failed"
 	}
-	_ = emit(stderr, map[string]any{"ok": false, "error": map[string]string{"code": code, "message": code}})
+	// The top-level code is the CCF-V1-004 member every Core refusal carries; the nested error
+	// object stays for readers of the earlier envelope.
+	_ = emit(stderr, map[string]any{"ok": false, "code": code, "error": map[string]string{"code": code, "message": code}})
 	return 2
 }

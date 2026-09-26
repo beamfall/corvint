@@ -563,15 +563,15 @@ func TestContextAbstentionTerminalArtifactsRemainCurrent(t *testing.T) {
 	root, key, plan := fixture(t, []string{"true"})
 	repo := beginFixture(t, root, key, plan)
 	files := map[string][]byte{
-		filepath.Join(root, ".corvint/dogfood-report.json"):                  []byte(`{"contextAbstentionEvidenceSha256":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`),
-		filepath.Join(root, ".corvint/change.ocm-status.json"):               []byte("ocm\n"),
-		filepath.Join(root, ".git/corvint/local-outcome.json"):               []byte("outcome\n"),
-		repo.local("final-check.stdout"):                                     []byte("stdout\n"),
-		repo.local("final-check.stderr"):                                     []byte("stderr\n"),
-		filepath.Join(root, ".git/corvint/prechange-impact-abstention.json"): []byte("artifact\n"),
-		filepath.Join(root, ".git/corvint/prechange-impact.argv"):            []byte("argv\x00"),
-		filepath.Join(root, ".git/corvint/prechange-impact.json"):            []byte{},
-		filepath.Join(root, ".git/corvint/prechange-impact.stderr"):          []byte("refusal\n"),
+		filepath.Join(root, ".corvint/dogfood-report.json"):                          []byte(`{"contextAbstentionEvidenceSha256":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`),
+		filepath.Join(root, ".corvint/change.ocm-status.json"):                       []byte("ocm\n"),
+		filepath.Join(root, ".git/corvint/local-outcome.json"):                       []byte("outcome\n"),
+		repo.local("final-check.stdout"):                                             []byte("stdout\n"),
+		repo.local("final-check.stderr"):                                             []byte("stderr\n"),
+		filepath.Join(root, ".git/corvint/coordination-time-impact-abstention.json"): []byte("artifact\n"),
+		filepath.Join(root, ".git/corvint/coordination-time-impact.argv"):            []byte("argv\x00"),
+		filepath.Join(root, ".git/corvint/coordination-time-impact.json"):            []byte{},
+		filepath.Join(root, ".git/corvint/coordination-time-impact.stderr"):          []byte("refusal\n"),
 	}
 	for name, raw := range files {
 		if err := writeFile(name, raw); err != nil {

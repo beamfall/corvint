@@ -278,6 +278,33 @@ func TestContextExpandRefusesWithoutSubstitutingContent(t *testing.T) {
 	}
 }
 
+// TestContextExpandRefusesASymlinkRowNamingItsMode is V1-0156: the packet
+// carries no mode, so a symlink row keeps a handle, and --expand refuses it as
+// invalid-handle with a message naming the symbolic link.
+func TestContextExpandRefusesASymlinkRowNamingItsMode(t *testing.T) {
+	t.Parallel()
+	root := evidenceSummaryRepository(t)
+	if err := os.Symlink("demux.go", filepath.Join(root, "cache", "demuxlink.go")); err != nil {
+		t.Fatal(err)
+	}
+	gitFixture(t, root, "add", "-A")
+	gitFixture(t, root, "-c", "user.name=t", "-c", "user.email=t@x", "commit", "-qm", "link")
+	_, summary, _ := runContextCommand(t, "--root", root, "context", "--task", "fix cache/demuxlink.go", "--summary")
+	handle := ""
+	for _, value := range decodeObject(t, summary)["results"].([]any) {
+		if row := value.(map[string]any); row["id"] == "cache/demuxlink.go" {
+			handle, _ = row["handle"].(string)
+		}
+	}
+	if handle == "" {
+		t.Fatalf("summary has no handle for the symlink row: %s", summary)
+	}
+	code, stdout, stderr := runContextCommand(t, "--root", root, "context", "--expand", handle)
+	if code != 2 || len(stdout) != 0 || !strings.Contains(stderr, `"code": "invalid-handle"`) || !strings.Contains(stderr, "symbolic link (mode 120000)") {
+		t.Fatalf("exit %d stdout %q stderr %s", code, stdout, stderr)
+	}
+}
+
 func TestContextExpandRefusesAStaleHandleAfterHeadMoves(t *testing.T) {
 	t.Parallel()
 	root := evidenceSummaryRepository(t)

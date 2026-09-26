@@ -160,7 +160,7 @@ traceability and residue boundary.
 
 Current release wrappers read `CORVINT_*` settings with the same suffixes as the runtime settings
 and refuse an explicitly empty executable selector before effects. `corvint-companion-release`
-uses `-source-root`/`-tasks-root`. Internal installed-harness environment names remain transport
+uses `-source-root` (decision 0397 retired `-tasks-root`). Internal installed-harness environment names remain transport
 compatibility identities.
 
 ## Traceability

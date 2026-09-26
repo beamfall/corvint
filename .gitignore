@@ -28,6 +28,7 @@ benchmarks/results/*.partial.json
 /corvint
 /corvint
 /corvint-console
+/corvint-tasks
 /corvint-companion-release
 
 # Installed JavaScript dependencies (extensions/, integrations/).

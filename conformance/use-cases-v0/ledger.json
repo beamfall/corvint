@@ -176,7 +176,7 @@
         },
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/contract.json",
-          "sha256": "838844f9fb57084c2051e5eb7cc8c8c5c517469f34ce8b69ec1e5de96c9449d4"
+          "sha256": "b7bd7746f1404ca2582abcd59168d5830a8d2b63660179da9b7b7d748879fbf3"
         },
         "corvint-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/corvint-dogfood.json",
@@ -188,7 +188,7 @@
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/implementation.json",
-          "sha256": "c0a6a87362a65ead6f390fca505f8e4ef2d2e8b71fc0b425a5ac63c46edaebeb"
+          "sha256": "082b36ba27adf85a3fdc3e41dab9150a3d52673e5a555104367a87cb5c116373"
         },
         "sealed-benchmark": {
           "path": "benchmarks/daily-loop-v0/receipts/run-002/UC-TASK-ORIENTATION.json",
@@ -201,7 +201,7 @@
       "title": "Task orientation"
     },
     {
-      "claim": "VERIFIED",
+      "claim": "UNPROVEN",
       "evidence": {
         "beamfall-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/beamfall-dogfood.json",
@@ -209,7 +209,7 @@
         },
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/contract.json",
-          "sha256": "1abe9e8f0324154c9556d41b4ac1561a594d27c9c7e0c9489fd1ddd261747e7f"
+          "sha256": "d22ddfcc508176dc07f0d5130eca5f9469d259d00bcf92dbaa836ead77872f10"
         },
         "corvint-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/corvint-dogfood.json",
@@ -217,11 +217,11 @@
         },
         "hostile-tests": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/hostile-tests.json",
-          "sha256": "ce42c53f66006611fb9494487d291af6012e18b33109e922b74c40b3584ba765"
+          "sha256": "8b1caa6b4f9f6e74335a966dbc8bd6b24a60ff4659f7f019bf8f292eeb9810f8"
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/implementation.json",
-          "sha256": "0681c1653d5550058d28eb2080bd5e0c5de83448503fa86bd26efb62d89eb045"
+          "sha256": "bcd0c8f507f0e636e05f441b1f117a10b8f9f087a0905bf8cfada010c799e711"
         },
         "sealed-benchmark": {
           "path": "benchmarks/daily-loop-v0/receipts/run-002/UC-CHANGE-CONSEQUENCE.json",
@@ -230,11 +230,11 @@
       },
       "id": "UC-CHANGE-CONSEQUENCE",
       "job": "Identify supported affected scope for a concrete change, preserving unsupported scope and incomplete frontiers.",
-      "status": "verified",
+      "status": "experimental",
       "title": "Change consequence"
     },
     {
-      "claim": "VERIFIED",
+      "claim": "UNPROVEN",
       "evidence": {
         "beamfall-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/beamfall-dogfood.json",
@@ -242,7 +242,7 @@
         },
         "contract": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/contract.json",
-          "sha256": "a418fb0966b8c5446f65b5b46c5b691f7b3a8c8e154e0ed1446707842eb89683"
+          "sha256": "60830a851f64aa450aeebd7ca9c14562e48281bb040d5418fc29a3a9cad8cb23"
         },
         "corvint-dogfood": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/corvint-dogfood.json",
@@ -254,7 +254,7 @@
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/implementation.json",
-          "sha256": "30958a46da514122b973f73b3f471fa2079f5b68feb773c5dd0d5c8084f360a6"
+          "sha256": "c463beccd792377e5024c3e9cf261e9f75750b2269b17bf94d4649f98f2b6903"
         },
         "sealed-benchmark": {
           "path": "benchmarks/daily-loop-v0/receipts/run-002/UC-EVIDENCE-CARRYING-COMPLETION.json",
@@ -263,7 +263,7 @@
       },
       "id": "UC-EVIDENCE-CARRYING-COMPLETION",
       "job": "Bind a real committed change to CEM, OCM, checks, inspected frontier and a retained local outcome without claiming universal correctness or host authority.",
-      "status": "verified",
+      "status": "experimental",
       "title": "Evidence-carrying local completion"
     }
   ]

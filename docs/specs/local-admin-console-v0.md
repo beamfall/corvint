@@ -265,6 +265,10 @@ the Agent digest states the current experimental S1/S2/S3 scope.
   - `unverified`: no recorded verification result names the change;
   - `unsupported`: a hunk the map marks `unknown` or `mechanical`, an obligation that lists no hunk or
     claim, an unknown CEM or OCM profile, or a trace row that is not `schema_version` 1.
+  - (proposed 2026-09-25, not accepted; V1-0151) two cases the classes above do not name: a map
+    whose `cem.mapSha256` is the sealed map's digest but whose `targetRevision` names another
+    revision is `stale`, and a hunk edge of an obligation whose disposition is not `linked` is
+    `unsupported`.
 - `LAC-V0-036`: The pane MUST be reachable from the primary navigation and operable by keyboard with
   plain links only (LAC-V0-029's matrix). Change and hunk links MUST carry the page's commit and render
   nothing when it moved (LAC-V0-030's pin rule). Hunk detail MUST show the hunk's lines read at the
@@ -520,6 +524,15 @@ are `missing` and its verification is `unverified`. That is the truthful state o
 files, so a change sealed in another worktree has neither here. The dogfood loop's OCM obligations are
 `unknown` until `corvint ocm link` records hunk and claim identifiers, so their requirement edges
 render `unsupported` rather than linked.
+
+Observed 2026-09-25 on the owner's primary checkout (V1-0143): none of its 129 sealed changes has a
+trace row, and its 15 trace files name other revisions. The dogfood loop records a change's trace in
+the clone that binds it (`docs/DOGFOOD.md`), and the untracked trace does not travel with the sealed
+map, so the pane truthfully renders each of those changes `unverified`. A verification edge on real
+history is therefore an operator action: open the pane from the binding clone, which holds the trace,
+before that clone is removed. The pane never fetches, copies or infers a trace, and this document
+does not direct copying traces into another checkout, whose trace store also gates later queries
+(`unsupported-query-trace-state` in `docs/DOGFOOD.md`).
 
 Launch behaviour is unchanged: foreground-process cleanup is still `TestConsoleHTTPProcessCleanup`.
 U4 remains open and the chain pane's operator-time comparison is `NOT_OBSERVED`.

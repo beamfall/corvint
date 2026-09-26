@@ -84,6 +84,9 @@ func (s *Session) Cover(ctx context.Context, options CoverOptions) (map[string]a
 		}
 		hunk.Coverage = &witness
 	}
+	if err := checkSpec03Output(document, options.MapPath, options.Output); err != nil {
+		return nil, err
+	}
 	document.Spec = wire.Spec03
 	output, err := s.writeMap(document, options.MapPath, options.Output)
 	if err != nil {

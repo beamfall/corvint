@@ -109,7 +109,7 @@ changes the reader's fail-closed checks.
   report's, derives the build number from the source root, and retains nothing until the staged
   candidate passes the reader above, including the exact host `--version` probe. With
   `-companion-dir` the combined profile and every companion check are unchanged, and
-  `corvint-companion-release` still requires `-tasks-root`.
+  `corvint-companion-release` takes only `-source-root` (decision 0397 retired `-tasks-root`).
 - Limits: the reader binds the Core-only `source/corvint-src.tar.gz` by digest only; the commit/tree
   binding is an assembler check. Legal provenance and installed-workflow evidence are not carried.
   The version token follows `PUB-V0-023`: since decision 0384 (V1-0018) `1.0.0-rc.N` and `1.0.0`
@@ -186,24 +186,25 @@ The proposed delivery sequence and acceptance criteria are in
   from human-owned Markdown to a generated ticket view. A planning import MUST NOT enable dispatch.
 
 - `PUB-V0-011`: `cmd/corvint-companion-release` (package `internal/companionrelease`) MUST implement
-  the `PUB-V0-002..004` companion bundle as one command taking two explicit clean checkout roots
-  (Corvint and Corvint Tasks, source module `github.com/Beamfall/corvint-tasks`) and a single target. It MUST refuse any target other than
+  the `PUB-V0-002..004` companion bundle as one command taking one explicit clean checkout root
+  (source module `github.com/Beamfall/corvint`, which since decision 0397 also holds the
+  `cmd/corvint-tasks` companion) and a single target. It MUST refuse any target other than
   `darwin/arm64` and MUST report `darwin/amd64`, `linux/amd64`, `linux/arm64` and `windows/amd64`
-  as `NOT_RUN` in every emitted report. It MUST refuse to start unless both checkout roots pass a
+  as `NOT_RUN` in every emitted report. It MUST refuse to start unless the checkout root passes a
   `git status --porcelain` clean-tree check, and MUST refuse an output location nested inside
-  either checkout root. Output nesting MUST be judged by directory identity along the
+  the checkout root. Output nesting MUST be judged by directory identity along the
   symlink-resolved output path's ancestry (a not-yet-created output suffix starts the walk at its
   nearest existing ancestor), so a symlink, case or Unicode alias of a root is refused, and a bundle
   name that is not exactly one path element MUST be refused. Before it creates or writes anything
-  under it, it MUST refuse a scratch directory that is or lies inside either checkout root, judged
+  under it, it MUST refuse a scratch directory that is or lies inside the checkout root, judged
   by directory identity along the symlink-resolved scratch path's ancestry (a not-yet-created
   suffix starts the walk at its nearest existing ancestor), and MUST refuse an existing scratch
-  directory that either checkout root is or lies inside, judged by directory identity along the
+  directory that the checkout root is or lies inside, judged by directory identity along the
   symlink-resolved root's ancestry. A directory it creates or reuses directly under the validated
   scratch MUST be refused when an existing entry at that path is not a real directory (a symlink
   or a file), so a planted link cannot redirect a write outside the judged scratch path.
-  The wrapper MUST admit a Git linked worktree whose `.git` is a valid file by using Git plumbing,
-  then clone its exact committed `HEAD` locally; it MUST NOT require `.git` to be a directory.
+  The wrapper MUST admit a Git linked worktree whose `.git` is a valid file as the checkout root; it
+  MUST NOT require `.git` to be a directory. It takes no separate Tasks checkout (decision 0397).
 - `PUB-V0-012`: Source used for the bundle's source archives MUST be read twice by independent
   code paths — a `git ls-tree -rz` entry list plus two independently ordered and independently
   parsed `git cat-file --batch` passes — and the two passes MUST agree byte-for-byte before either
@@ -596,7 +597,10 @@ cleanup: no PASS output. Existing UNKNOWN/preview states alone are not failure w
 PUB-V0-002/003/013/015 name the current writer inventory under manifest profile
 `corvint-companion-bundle/1`. Its eight core components use module `corvint`, shared source
 `source/corvint-src.tar.gz` and `notices/corvint/`; Tasks uses module `corvint-tasks`,
-`source/corvint-tasks-src.tar.gz` and `notices/corvint-tasks/`. Binaries are exactly `bin/<name>`.
+`source/corvint-tasks-src.tar.gz` and `notices/corvint-tasks/`. Since decision 0397 that Tasks
+archive is the standalone subset of the same recorded Corvint commit (`go.mod`, the notices,
+`cmd/corvint-tasks/**` and `internal/tasks/**`), and the Tasks binary carries the same
+`-X main.build` stamp as `corvint`. Binaries are exactly `bin/<name>`.
 The six artifacts are `corvint-vscode` at `extensions/corvint-vscode-0.1.0.vsix` and the
 unchanged four host names at `plugins/{codex,claude-code,gemini-cli,opencode}/`, plus
 `pi` at `plugins/pi/`. Explicit `corvint-companion-bundle/0` retains exactly the prior
@@ -635,10 +639,10 @@ native Go artifact; no ticket-store format or persisted-state migration is intro
 `PUB-V0-002`/`PUB-V0-003`'s optional-bundle evidence is `script/corvint-companion-release-gate`
 (opt-in `make companion-release-gate`, deliberately not a `go-archive-gate`/`gate` prerequisite:
 it rebuilds four binaries twice each and is far too slow for the gate). The script is a thin
-wrapper, matching `script/go-archive-gate`'s own convention: it sets up an isolated environment,
-takes a fresh local clone of the caller's `corvint-tasks` checkout (so an in-progress, uncommitted
-working tree there never blocks or is mutated by the bundle build) as the pinned clean
-`corvint-tasks` root, and invokes `cmd/corvint-companion-release` once for `darwin/arm64` — the
+wrapper, matching `script/go-archive-gate`'s own convention: it sets up an isolated environment
+and invokes `cmd/corvint-companion-release` once for `darwin/arm64` on its own checkout, which
+since decision 0397 also holds `cmd/corvint-tasks` (it no longer clones a separate Tasks
+checkout or reads `CORVINT_TASKMAN_REPO`) — the
 double-build/double-archive-assembly-must-agree requirement is enforced inside that command
 itself (`internal/companionrelease`, `buildComponentTwice` and `buildTarGzTwice`), per
 `PUB-V0-011..015`. A refused or failed run retains no output and prints no `qualified` claim

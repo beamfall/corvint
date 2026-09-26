@@ -160,6 +160,78 @@ func TestBuildExcludesGitLFSPointerAndCarriesItThroughSnapshot(t *testing.T) {
 	}
 }
 
+// nonUTF8Repository commits latin/caf\xe9.go through the index, since some
+// filesystems refuse the name, beside an ordinary Go package. The path is
+// absent from the worktree, so Git status reports it deleted until clean
+// marks it skip-worktree, which is how a Linux checkout holding it reads.
+func nonUTF8Repository(t *testing.T, clean bool) string {
+	t.Helper()
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":                       "module example.test/latin\n\ngo 1.27.0\n",
+		"internal/token/token.go":      "package token\n\nfunc MintToken() string { return \"x\" }\n",
+		"internal/token/token_test.go": "package token\n\nimport \"testing\"\n\nfunc TestMint(t *testing.T) { MintToken() }\n",
+	})
+	blob := testGit(t, root, "hash-object", "-w", "internal/token/token.go")
+	command := exec.Command("git", "-C", root, "update-index", "--index-info")
+	command.Stdin = strings.NewReader("100644 blob " + blob + "\tlatin/caf\xe9.go\n")
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("update-index: %v\n%s", err, output)
+	}
+	testGit(t, root, "commit", "-qm", "latin-1 path")
+	if clean {
+		testGit(t, root, "update-index", "--skip-worktree", "latin/caf\xe9.go")
+	}
+	return root
+}
+
+func TestNonUTF8TrackedPathIsExcludedAndTheRestIndexes(t *testing.T) {
+	want := Exclusion{Path: "latin/caf�.go", Reason: "unsafe-or-non-utf8-path"}
+	for _, clean := range []bool{true, false} {
+		t.Run(fmt.Sprintf("clean=%v", clean), func(t *testing.T) {
+			root := nonUTF8Repository(t, clean)
+			built, err := Build(context.Background(), root)
+			if err != nil {
+				t.Fatalf("IDX-SNAP-V0-024: Build: %v", err)
+			}
+			if !exclusionIn(built.Exclusions, want) {
+				t.Fatalf("IDX-SNAP-V0-024: exclusions = %#v, missing %#v", built.Exclusions, want)
+			}
+			if _, ok := built.Sources["internal/token/token.go"]; !ok {
+				t.Fatalf("IDX-SNAP-V0-024: %d sources, internal/token/token.go missing", len(built.Sources))
+			}
+			wantDirty := []string{want.Path}
+			if clean {
+				wantDirty = []string{}
+			}
+			if !slicesEqual(built.DirtyPaths, wantDirty) {
+				t.Fatalf("IDX-SNAP-V0-024: dirty paths = %q, want %q", built.DirtyPaths, wantDirty)
+			}
+			if _, err := WriteSnapshot(built); err != nil {
+				t.Fatalf("IDX-SNAP-V0-024: WriteSnapshot: %v", err)
+			}
+			loaded, hit, err := LoadSnapshot(context.Background(), root)
+			if err != nil || !hit {
+				t.Fatalf("IDX-SNAP-V0-024: snapshot hit = %v, err = %v", hit, err)
+			}
+			impact, err := Impact(loaded, []string{"internal/token/token.go"}, 10)
+			if err != nil {
+				t.Fatalf("IDX-SNAP-V0-024: Impact: %v", err)
+			}
+			if impact["state"] != "READY" || len(anySlice(impact["results"])) == 0 {
+				t.Fatalf("IDX-SNAP-V0-024: impact state=%v results=%v", impact["state"], impact["results"])
+			}
+			samples := mapsFromAny(impact["exclusions"].(map[string]any)["samples"])
+			if len(samples) != 1 || samples[0]["path"] != want.Path || samples[0]["reason"] != want.Reason {
+				t.Fatalf("IDX-SNAP-V0-024: impact exclusion samples = %#v", samples)
+			}
+			packet, err := TaskContext(context.Background(), loaded, "Change MintToken in internal/token/token.go", "internal/token/token.go", 20)
+			if err != nil || packet["state"] != "READY" {
+				t.Fatalf("IDX-SNAP-V0-024: TaskContext state=%v err=%v", packet["state"], err)
+			}
+		})
+	}
+}
+
 func TestReadCleanFileRejectsSymlinkComponents(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("symlink and FIFO contract is POSIX-only")

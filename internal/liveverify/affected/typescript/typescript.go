@@ -10,6 +10,7 @@
 package typescript
 
 import (
+	"bytes"
 	"encoding/json"
 	"path"
 	"regexp"
@@ -188,10 +189,10 @@ func (language Language) units(root string, resolveAliases bool) (affected.Resul
 		observation.refs = resolved
 		observations = append(observations, observation)
 	}
-	return buildResult(observations, configs, frontier), nil
+	return buildResult(observations, configs, scopes, frontier), nil
 }
 
-func buildResult(observations []observation, configs []config, frontier map[string]bool) affected.Result {
+func buildResult(observations []observation, configs []config, scopes []packageScope, frontier map[string]bool) affected.Result {
 	units := make([]affected.Unit, 0, len(observations))
 	pathToID := make(map[string]string, len(observations))
 	refs := make(map[string]map[string]bool, len(observations))
@@ -242,11 +243,15 @@ func buildResult(observations []observation, configs []config, frontier map[stri
 		}
 	}
 
+	packages := newWorkspace(scopes, units)
 	for index := range units {
 		unit := &units[index]
 		edges := make(map[string]bool)
 		owner := firstPath(*unit)
 		for ref := range refs[unit.ID] {
+			if !packages.link(ref, edges) {
+				frontier[FrontierPathAlias] = true
+			}
 			target, local, unresolved := resolveImport(owner, ref, pathToID)
 			if target != "" && target != unit.ID {
 				edges[target] = true
@@ -265,6 +270,7 @@ func buildResult(observations []observation, configs []config, frontier map[stri
 		}
 		unit.Imports = sortedKeys(edges)
 	}
+	units = append(units, packages.built()...)
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}
 }
@@ -566,7 +572,7 @@ func stripComments(body string, rejectAmbiguousJSXQuotes bool) (string, error) {
 	clean := []byte(body)
 	for index := 0; index < len(clean); {
 		if clean[index] == '\'' || clean[index] == '"' || clean[index] == '`' {
-			end := quotedEnd(string(clean), index)
+			end := quotedEnd(clean, index)
 			if end > len(clean) {
 				return string(clean), strconv.ErrSyntax
 			}
@@ -578,7 +584,7 @@ func stripComments(body string, rejectAmbiguousJSXQuotes bool) (string, error) {
 			continue
 		}
 		if index+1 == len(clean) || clean[index] != '/' || clean[index+1] != '/' && clean[index+1] != '*' {
-			if end, regex := regexEnd(string(clean), index); regex {
+			if end, regex := regexEnd(clean, index); regex {
 				index = end
 				continue
 			}
@@ -634,18 +640,18 @@ func jsxQuotedTokenCouldHideRequire(token []byte) bool {
 }
 
 func jsxQuoteStartsLiteral(body []byte, index int) bool {
-	prefix := strings.TrimRight(string(body[:index]), " \t")
-	if prefix == "" || strings.HasSuffix(prefix, "\n") || strings.HasSuffix(prefix, "\r") {
+	prefix := bytes.TrimRight(body[:index], " \t")
+	if len(prefix) == 0 || bytes.HasSuffix(prefix, []byte("\n")) || bytes.HasSuffix(prefix, []byte("\r")) {
 		return true
 	}
-	if strings.HasSuffix(prefix, "=>") || strings.ContainsRune("([={,:;!?&|+-*%^~", rune(prefix[len(prefix)-1])) {
+	if bytes.HasSuffix(prefix, []byte("=>")) || strings.ContainsRune("([={,:;!?&|+-*%^~", rune(prefix[len(prefix)-1])) {
 		return true
 	}
 	wordStart := len(prefix)
 	for wordStart > 0 && isIdentifier(prefix[wordStart-1]) {
 		wordStart--
 	}
-	switch prefix[wordStart:] {
+	switch string(prefix[wordStart:]) {
 	case "as", "await", "case", "default", "delete", "do", "else", "export", "from", "import", "in", "instanceof", "new", "of", "return", "throw", "typeof", "void", "yield":
 		return true
 	default:
@@ -665,17 +671,20 @@ const regexOpeners = "(,=:[&|?{;~^%*"
 // when the `/` at index follows a regexOpeners byte (ignoring whitespace) and
 // closes before any line terminator. Otherwise it reports false and the `/`
 // stays division. Callers check for a comment start first.
-func regexEnd(body string, index int) (int, bool) {
+func regexEnd[T string | []byte](body T, index int) (int, bool) {
 	if body[index] != '/' {
 		return 0, false
 	}
-	previous := strings.TrimRight(body[:index], " \t\r\n")
-	if previous != "" && !strings.Contains(regexOpeners, previous[len(previous)-1:]) {
+	previous := index
+	for previous > 0 && strings.IndexByte(" \t\r\n", body[previous-1]) >= 0 {
+		previous--
+	}
+	if previous > 0 && strings.IndexByte(regexOpeners, body[previous-1]) < 0 {
 		return 0, false
 	}
 	escaped, inClass := false, false
 	for position := index + 1; position < len(body); {
-		character, width := utf8.DecodeRuneInString(body[position:])
+		character, width := utf8.DecodeRuneInString(string(body[position:min(position+utf8.UTFMax, len(body))]))
 		position += width
 		switch {
 		case character == '\n' || character == '\r' || character == '\u2028' || character == '\u2029':
@@ -698,7 +707,7 @@ func regexEnd(body string, index int) (int, bool) {
 	return 0, false
 }
 
-func quotedEnd(body string, start int) int {
+func quotedEnd[T string | []byte](body T, start int) int {
 	delimiter := body[start]
 	for index := start + 1; index < len(body); index++ {
 		if body[index] == '\\' {
@@ -1017,7 +1026,7 @@ func hasUnresolvedBareImport(relative string, refs []string, scopes []packageSco
 			continue
 		}
 		if localPackage(packageName, scopes) {
-			return true
+			continue
 		}
 		if declaredPackage(relative, packageName, scopes) {
 			continue

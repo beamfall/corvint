@@ -13,7 +13,7 @@ import (
 func TestBlobShardRefusesFIFOWithoutBlocking(t *testing.T) {
 	built := taskContextFixture(t)
 	source := built.Sources["cache/demux.go"]
-	entry := treeEntry{source.Path, source.BlobHash, source.Mode, len(source.Data)}
+	entry := treeEntry{source.Path, source.BlobHash, source.Mode, len(source.Data), false}
 	target := blobShardPath(SnapshotDirectory(built.Root), built.ObjectFormat, analyzerEngine(), source.BlobHash, source.Path)
 	t.Setenv("CORVINT_INDEX_SHARDS", "1")
 	if _, err := WriteSnapshot(built); err != nil {

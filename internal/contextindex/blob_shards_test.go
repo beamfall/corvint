@@ -177,7 +177,7 @@ func TestBlobShardAggregateReadBudgetRefusesAcceleration(t *testing.T) {
 		t.Fatal(err)
 	}
 	source := built.Sources["cache/demux.go"]
-	entry := treeEntry{source.Path, source.BlobHash, source.Mode, len(source.Data)}
+	entry := treeEntry{source.Path, source.BlobHash, source.Mode, len(source.Data), false}
 	var used blobReadBudget
 	used.bytes.Store(maxBlobShardReadBytes)
 	if _, err := readBlobFact(snapshotBase(built.Root), SnapshotDirectory(built.Root), built.ObjectFormat, analyzerEngine(), entry, &used); err == nil {
@@ -192,7 +192,7 @@ func TestBlobShardRefusesForgedUnboundedFacts(t *testing.T) {
 		t.Fatal(err)
 	}
 	source := built.Sources["cache/demux.go"]
-	entry := treeEntry{source.Path, source.BlobHash, source.Mode, len(source.Data)}
+	entry := treeEntry{source.Path, source.BlobHash, source.Mode, len(source.Data), false}
 	target := blobShardPath(SnapshotDirectory(built.Root), built.ObjectFormat, analyzerEngine(), source.BlobHash, source.Path)
 	for label, payload := range map[string][]byte{
 		"depth":  []byte(strings.Repeat("[", 33) + strings.Repeat("]", 33)),

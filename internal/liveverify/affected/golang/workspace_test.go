@@ -38,14 +38,15 @@ func TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath(t *testing.T) {
 	if !reflect.DeepEqual(app.Sources, []string{"app/cmd/cmd.go"}) || !reflect.DeepEqual(app.Tests, []string{"app/cmd/cmd_test.go"}) {
 		t.Errorf("app unit = %+v", app)
 	}
-	if !reflect.DeepEqual(app.Imports, []string{coreUnit}) {
-		t.Errorf("app imports = %v, want the cross-module edge to %s", app.Imports, coreUnit)
+	if len(app.Imports) != 0 || !reflect.DeepEqual(app.TestImports, []string{coreUnit}) {
+		t.Errorf("app imports = %v testImports = %v, want the test-only cross-module edge to %s", app.Imports, app.TestImports, coreUnit)
 	}
 	if len(core.Imports) != 0 {
 		t.Errorf("core imports = %v, want none", core.Imports)
 	}
-	if !reflect.DeepEqual(result.Frontier, []string{golang.FrontierNestedModule}) {
-		t.Errorf("frontier = %v, want only %s for the unlisted stray module", result.Frontier, golang.FrontierNestedModule)
+	wantFrontier := []string{golang.FrontierNestedModule, golang.FrontierWorkspaceModuleOutsideRoot}
+	if !reflect.DeepEqual(result.Frontier, wantFrontier) {
+		t.Errorf("frontier = %v, want %v for the unlisted stray module and ../outside", result.Frontier, wantFrontier)
 	}
 }
 
@@ -71,9 +72,12 @@ func TestWorkspaceDirtySourceSelectsTheOtherModulesTest(t *testing.T) {
 	if plan.Selected[0].Witness.DirtyPath != "core/lib/lib.go" {
 		t.Errorf("cross-module witness = %+v", plan.Selected[0].Witness)
 	}
-	want := []affected.Unknown{{Reason: affected.UnknownLanguageFrontier, Detail: golang.FrontierNestedModule}}
+	want := []affected.Unknown{
+		{Reason: affected.UnknownLanguageFrontier, Detail: golang.FrontierNestedModule},
+		{Reason: affected.UnknownLanguageFrontier, Detail: golang.FrontierWorkspaceModuleOutsideRoot},
+	}
 	if !reflect.DeepEqual(plan.Unknown, want) {
-		t.Errorf("unknown = %+v, want only the unlisted stray module", plan.Unknown)
+		t.Errorf("unknown = %+v, want the unlisted stray module and ../outside", plan.Unknown)
 	}
 	if plan.Scope != affected.ScopeUnknown {
 		t.Errorf("scope = %s, want %s while a module is unobserved", plan.Scope, affected.ScopeUnknown)
@@ -87,4 +91,33 @@ func workspaceRoot(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return root
+}
+
+// V1-0327: a go.work use directive naming a sibling outside the root cannot be
+// observed. Dropping it must raise a frontier, so a plan whose edges into that
+// module are missing is UNKNOWN rather than silently bounded.
+func TestWorkspaceUseOutsideRootIsAFrontier_AFPV0008(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "repo")
+	writeFiles(t, root, map[string]string{
+		"go.work":         "go 1.22\n\nuse (\n\t./app\n\t../sibling\n)\n",
+		"app/go.mod":      "module example.test/app\n",
+		"app/app.go":      "package app\n\nimport _ \"example.test/sibling\"\n",
+		"app/app_test.go": "package app\n",
+	})
+	writeFiles(t, parent, map[string]string{"sibling/go.mod": "module example.test/sibling\n", "sibling/s.go": "package sibling\n"})
+	result, err := golang.New().Units(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(result.Frontier, []string{golang.FrontierWorkspaceModuleOutsideRoot}) {
+		t.Fatalf("frontier = %v, want %s", result.Frontier, golang.FrontierWorkspaceModuleOutsideRoot)
+	}
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan := affected.Select(graph, []string{"app/app.go"}); plan.Scope != affected.ScopeUnknown {
+		t.Fatalf("scope = %s, want %s while a used module is outside the root", plan.Scope, affected.ScopeUnknown)
+	}
 }

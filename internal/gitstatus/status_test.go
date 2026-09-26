@@ -119,6 +119,7 @@ func TestStatusRefusesUnsupportedMetadataBeforeLiveStatus(t *testing.T) {
 		"worktree":                "repository config sets core.worktree to a directory other than the checkout",
 		"attributes":              "repository config sets core.attributesFile",
 		"bare":                    "repository config sets core.bare",
+		"split-index":             "index is a split index",
 		"gitlink":                 "index records a submodule (gitlink)",
 		"config-symlink":          "metadata file config is a symlink",
 		"index-symlink":           "metadata file index is a symlink",
@@ -138,7 +139,7 @@ func TestStatusRefusesUnsupportedMetadataBeforeLiveStatus(t *testing.T) {
 	classes := map[string]reasonClass{
 		"clean": classGitFilter, "process": classGitFilter, "include": classConfigInclude, "includeIf": classConfigInclude,
 		"worktree": classWorktreeConfig, "attributes": classAttributesFile, "bare": classWorktreeConfig,
-		"split-index": classUnclassified, "gitlink": classSubmodule, "config-symlink": classMetadataUnreadable,
+		"split-index": classSplitIndex, "gitlink": classSubmodule, "config-symlink": classMetadataUnreadable,
 		"index-symlink": classMetadataUnreadable, "objects-symlink": classMetadataDirectory, "refs-symlink": classMetadataDirectory,
 		"git-symlink": classGitdirPointer, "config-internal-symlink": classMetadataUnreadable, "reftable": classRefStorage,
 		"gitdir-pointer-crlf": classGitdirPointer, "commondir-crlf": classGitdirPointer, "snapshot-budget": classMetadataLimit,
@@ -272,15 +273,6 @@ func TestStatusRefusesUnsupportedMetadataBeforeLiveStatus(t *testing.T) {
 			}
 			if got := RefusalClass(err); got != string(classes[kind]) {
 				t.Fatalf("refusal class=%q want %q: %v", got, classes[kind], err)
-			}
-			var probe *MetadataProbeError
-			if kind == "split-index" {
-				// The private copy omits the shared index, so Git's own index
-				// probe fails first and keeps its MetadataProbeError shape.
-				if !errors.As(err, &probe) {
-					t.Fatalf("split index lost its probe failure: %v", err)
-				}
-				return
 			}
 			message := RefusalMessage(err)
 			if !errors.Is(err, errUnsafe) || message != "Git status cannot safely observe repository metadata: "+reasons[kind] {

@@ -218,7 +218,12 @@ func fakeServer(name string) {
 		case request.Method == "initialize":
 			reply["result"] = map[string]any{"serverInfo": map[string]any{"name": name, "version": "v0.0.0-fake"}}
 		case strings.HasPrefix(request.Method, "textDocument/"):
-			reply["error"] = map[string]any{"code": 0, "message": "no package metadata for file\nfake"}
+			// Real gopls names the document by its absolute file URI.
+			var params struct {
+				TextDocument struct{ URI string } `json:"textDocument"`
+			}
+			_ = json.Unmarshal(request.Params, &params)
+			reply["error"] = map[string]any{"code": 0, "message": "no package metadata for file\n" + params.TextDocument.URI}
 		default:
 			reply["result"] = nil
 		}
@@ -255,7 +260,9 @@ func TestExpandEveryQueryFailedIsUnavailable(t *testing.T) {
 		t.Fatalf("record %s, query %v", result.Record, result.Query)
 	}
 	want := fmt.Sprintf("gopls answered all %d queries with an error; first: textDocument/", issued)
-	if !strings.HasPrefix(result.Failure, want) || !strings.Contains(result.Failure, "no package metadata for file fake") {
+	// V1-0167: the reason names the document repository-relative, never by
+	// the absolute URI gopls printed, so no home path enters the packet.
+	if !strings.HasPrefix(result.Failure, want) || !strings.HasSuffix(result.Failure, "no package metadata for file a/a.go") || strings.Contains(result.Failure, "file://") {
 		t.Fatalf("failure %q", result.Failure)
 	}
 	foreign := Expand(context.Background(), m.request(t, fakeGopls(t, "other-server"), "a/a.go"))

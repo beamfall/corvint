@@ -3,6 +3,7 @@ package contextindex
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"runtime"
 	"strconv"
@@ -87,7 +88,18 @@ func TestParseStatusPreservesRenameEndpoints(t *testing.T) {
 	}
 }
 
-func TestParseStatusRejectsMalformedAndNonUTF8Paths(t *testing.T) {
+func TestParseStatusNamesNonUTF8PathsInDisplayForm(t *testing.T) {
+	paths, err := parseStatus([]byte("?? caf\xe9.txt\x00R  new\xff.go\x00old.go\x00"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"caf\uFFFD.txt", "new\uFFFD.go", "old.go"}
+	if !slicesEqual(paths, want) {
+		t.Fatalf("IDX-SNAP-V0-024: paths = %q, want %q", paths, want)
+	}
+}
+
+func TestParseStatusRejectsMalformedRecords(t *testing.T) {
 	for _, test := range []struct {
 		name    string
 		payload []byte
@@ -96,7 +108,6 @@ func TestParseStatusRejectsMalformedAndNonUTF8Paths(t *testing.T) {
 		{"missing-terminator", []byte("?? path.py"), "malformed"},
 		{"malformed-field", []byte("broken\x00"), "malformed"},
 		{"empty-field", []byte("?? path.py\x00\x00"), "malformed"},
-		{"non-utf8", []byte{'?', '?', ' ', 0xff, 0}, "not valid UTF-8"},
 		{"missing-rename-source", []byte("R  renamed.go\x00"), "empty path"},
 		{"empty-rename-source", []byte("R  renamed.go\x00\x00"), "empty path"},
 	} {
@@ -171,6 +182,21 @@ func TestBlobAdmissionCountsEveryPathBeforeOIDDeduplication(t *testing.T) {
 	}
 	if _, err := uniqueBlobEntries([]treeEntry{{path: "left.go", oid: oid, size: 1}, {path: "right.go", oid: oid, size: 2}}); err == nil {
 		t.Fatal("repeated OID with incompatible sizes accepted")
+	}
+}
+
+// TestBlobAdmissionRefusalNamesTotalAndRemedyWithoutALanguage is V1-0339: a
+// TypeScript repository over the aggregate bound was told its "native Go"
+// index was too large, with neither the measured size nor a way out.
+func TestBlobAdmissionRefusalNamesTotalAndRemedyWithoutALanguage(t *testing.T) {
+	entries := []treeEntry{{path: "web/app.ts", size: maxBatchBytes - 128}, {path: "web/lib.ts", size: 1}}
+	var refusal *Error
+	if err := validateBlobAdmission(entries); !errors.As(err, &refusal) || refusal.Code != "unsupported-impact-repository" {
+		t.Fatalf("error = %#v", err)
+	}
+	want := "repository index sources total 134217601 bytes in 2 files, 134217857 with per-file framing, over the 134217728-byte (128 MiB) aggregate bound; paths under vendor/, node_modules/, dist/, build/, target/ or generated/ are not admitted"
+	if refusal.Message != want {
+		t.Fatalf("message = %q, want %q", refusal.Message, want)
 	}
 }
 

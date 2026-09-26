@@ -8,17 +8,17 @@ import (
 )
 
 // companionGenSource builds a throwaway generator inside a materialized,
-// exact copy of the corvint-taskman source tree. It calls the module's own
-// fixture.QueueBytes/PolicyBytes — the same encoder corvint-taskman's CLI
-// test suite trusts — rather than hand-transcribing the wire schema here,
-// so a schema change in corvint-taskman cannot silently desync this smoke
-// fixture from the real product.
+// exact copy of the in-tree corvint-tasks source subset. It calls the
+// module's own fixture.QueueBytes/PolicyBytes — the same encoder the
+// corvint-tasks CLI test suite trusts — rather than hand-transcribing the
+// wire schema here, so a schema change in corvint-tasks cannot silently
+// desync this smoke fixture from the real product.
 const companionGenSource = `package main
 
 import (
 	"os"
 
-	"github.com/Beamfall/corvint-tasks/internal/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 )
 
 func main() {

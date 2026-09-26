@@ -433,6 +433,35 @@ func reverseImportProfileGap(index *Index, receipt map[string]any) int {
 	return gaps
 }
 
+// webWorkspaceImportGap counts the requested web changed paths that some
+// source may import through their nested package's name, a bare specifier rule
+// (c) does not resolve (GPK-V0-069, proposed). Rule (c)'s answer for such a
+// path is incomplete, so the receipt names the unresolved dimension rather
+// than report complete coverage over it. Test and unindexed paths are excluded
+// for the reasons reverseImportProfileGap gives.
+func webWorkspaceImportGap(index *Index, receipt map[string]any) int {
+	if index == nil || stringValue(receipt["mode"]) != "impact" {
+		return 0
+	}
+	request, ok := receipt["request"].(map[string]any)
+	if !ok {
+		return 0
+	}
+	gaps := 0
+	for _, changedPath := range stringsField(request["paths"]) {
+		if !webSuffixes[strings.ToLower(pythonPathSuffix(changedPath))] || isTestPath(changedPath) {
+			continue
+		}
+		if _, indexed := index.Sources[changedPath]; !indexed {
+			continue
+		}
+		if webPackageNameImported(index, changedPath) {
+			gaps++
+		}
+	}
+	return gaps
+}
+
 func setCoverage(receipt map[string]any, requested int, critical []any, budget *int, index *Index, extraUncertainty ...string) error {
 	results := mapsFromAny(receipt["results"])
 	selectors := make(map[string]struct{}, len(results))
@@ -465,6 +494,10 @@ func setCoverage(receipt map[string]any, requested int, critical []any, budget *
 	if gaps := reverseImportProfileGap(index, receipt); gaps != 0 {
 		uncertainty = append(uncertainty, fmt.Sprintf(
 			"reverse-import results for %d changed paths with no named resolution rule are outside the native Go impact profile", gaps))
+	}
+	if gaps := webWorkspaceImportGap(index, receipt); gaps != 0 {
+		uncertainty = append(uncertainty, fmt.Sprintf(
+			"reverse-import results for %d changed paths importable by workspace package name are unresolved", gaps))
 	}
 	if omitted != 0 {
 		// With no budget the only ceiling that can drop a ranked result is the

@@ -13,6 +13,12 @@ import (
 
 // portableDogfoodRepo is a Git repository that is not Corvint: no script/, no
 // VERSION and no Corvint source, only a small Go module with one intent.
+
+// absentAgentReceipts is what dogfood change notes, without blocking, when the
+// agent wrote no pre-change receipts (V1-0316).
+const absentAgentReceipts = "dogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-absent\n" +
+	"dogfood-change: NOTE prechange-impact NOT_OBSERVED agent-receipt-absent\n"
+
 func portableDogfoodRepo(t *testing.T) (string, string) {
 	t.Helper()
 	root, err := filepath.EvalSymlinks(t.TempDir())
@@ -126,7 +132,7 @@ func TestDogfoodDailyPathRunsFromBinaryInForeignRepository(t *testing.T) {
 	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
 	bind := cemGit(t, root, "rev-parse", "HEAD")
 	code, stdout, stderr = run.exec(t, root, inputs, "dogfood", "change", base)
-	if code != 0 || stdout != "" || stderr != "" {
+	if code != 0 || stdout != "" || stderr != absentAgentReceipts {
 		t.Fatalf("change exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "check", base)
@@ -190,7 +196,7 @@ func TestDogfoodDailyPathCompletesWithDeclaredNoIntent(t *testing.T) {
 		"\n  \"ocmStatus\": {\"state\": \"NOT_ASSESSED\", \"reason\": \"no-intent-declared\"}\n",
 		`"bootstrapUnknown": 0,`,
 	} {
-		if code != 0 || stdout != "" || stderr != "" || !strings.Contains(string(report), want) {
+		if code != 0 || stdout != "" || stderr != absentAgentReceipts || !strings.Contains(string(report), want) {
 			t.Fatalf("change exit=%d stderr=%s want %s in report=%s", code, stderr, want, report)
 		}
 	}
@@ -211,6 +217,33 @@ func TestDogfoodDailyPathCompletesWithDeclaredNoIntent(t *testing.T) {
 	code, stdout, stderr = run.exec(t, root, nil, "dogfood", "seal", base)
 	if code != 0 || !strings.HasSuffix(stdout, "dogfood-seal: PASS sealed=.corvint/changes/"+bind+".cem.json\n") {
 		t.Fatalf("seal exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+}
+
+// Decision 0398: a later fix commit leaves the prepared map outdated, and the
+// change pass regenerates it on the coded outdated-map refusal (CCF-V1-004).
+func TestDogfoodChangeRegeneratesAMapTheNextFixCommitOutdates(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	inputsDir := t.TempDir()
+	citations := filepath.Join(inputsDir, "citations.tsv")
+	intents := filepath.Join(inputsDir, "intents")
+	for path, content := range map[string]string{citations: "1\tintent.md\t1:5\tspecification\n", intents: "intent.md\n"} {
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
+	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 {
+		t.Fatalf("first pass exit=%d stderr=%s", code, stderr)
+	}
+	cemWrite(t, root, "fixture/fixture.go", "package fixture\nfunc Answer() int { return 1 + 1 }\n")
+	cemGit(t, root, "commit", "-qam", "second fix")
+	run.exec(t, root, inputs, "dogfood", "change", base)
+	report, _ := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
+	if !strings.Contains(string(report), `{"name": "cem-prepare", "status": "PRODUCED", "reason": "none"}`) {
+		t.Fatalf("outdated map was not regenerated: %s", report)
 	}
 }
 
@@ -254,6 +287,22 @@ func TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations(t *test
 	}
 	if stderr, evidence := pass("1\tintent.md\t1:3\tspecification\n"); strings.Contains(stderr, note) || evidence != 1 {
 		t.Fatalf("after delete evidence=%d stderr=%s", evidence, stderr)
+	}
+}
+
+// V1-0272: a clone that borrows objects through alternates is refused, and the
+// fix line names the repack remediation and the subverb an adopter reruns.
+func TestDogfoodChangeNamesAlternatesRemediation(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	if err := os.WriteFile(filepath.Join(root, ".git/objects/info/alternates"), nil, 0644); err != nil {
+		t.Fatal(err)
+	}
+	fix := "run git repack -a -d, delete .git/objects/info/alternates and .git/objects/info/commit-graphs, run git commit-graph write --reachable, then rerun corvint dogfood change " + base + "\n"
+	code, _, stderr := run.exec(t, root, nil, "dogfood", "change", base)
+	if code == 0 || !strings.Contains(stderr, "unsupported-object-alternates") || !strings.Contains(stderr, fix) {
+		t.Fatalf("alternates exit=%d stderr=%s", code, stderr)
 	}
 }
 
@@ -310,24 +359,24 @@ func TestDogfoodDailyPathCompletesWhenImpactRefusesTheRepositoryOrModuleRoot(t *
 				t.Fatal(err)
 			}
 			inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=true", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
-			note := "dogfood-change: NOTE prechange-impact NOT_PRODUCED " + tc.reason + "\n"
-			if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 || !strings.HasPrefix(stderr, note) || strings.Contains(stderr, "  prechange-impact:") {
+			note := "dogfood-change: NOTE coordination-time-impact NOT_PRODUCED " + tc.reason + "\n"
+			if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 || !strings.HasPrefix(stderr, note) || strings.Contains(stderr, "  coordination-time-impact:") {
 				t.Fatalf("first pass exit=%d stderr=%s", code, stderr)
 			}
 			cemGit(t, root, "add", ".corvint/change.cem.json")
 			cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
 			code, stdout, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
 			report, _ := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
-			for _, want := range []string{`"complete": true`, `{"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "` + tc.reason + `"}`} {
-				if code != 0 || stdout != "" || stderr != note || !strings.Contains(string(report), want) {
+			for _, want := range []string{`"complete": true`, `{"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "` + tc.reason + `"}`} {
+				if code != 0 || stdout != "" || stderr != note+absentAgentReceipts || !strings.Contains(string(report), want) {
 					t.Fatalf("change exit=%d stderr=%s want %s in report=%s", code, stderr, want, report)
 				}
 			}
-			artifact, _ := os.ReadFile(filepath.Join(cemGit(t, root, "rev-parse", "--absolute-git-dir"), "corvint/prechange-impact-abstention.json"))
+			artifact, _ := os.ReadFile(filepath.Join(cemGit(t, root, "rev-parse", "--absolute-git-dir"), "corvint/coordination-time-impact-abstention.json"))
 			if !strings.Contains(string(artifact), `"reason":"`+tc.reason+`"`) {
 				t.Fatalf("abstention artifact %s", artifact)
 			}
-			if code, stdout, stderr = run.exec(t, root, nil, "dogfood", "check", base); code != 0 || !strings.HasSuffix(stdout, "dogfood-check: PASS\n") || !strings.Contains(stderr, "dogfood-check: NOTE prechange-impact NOT_PRODUCED "+tc.reason+"\n") {
+			if code, stdout, stderr = run.exec(t, root, nil, "dogfood", "check", base); code != 0 || !strings.HasSuffix(stdout, "dogfood-check: PASS\n") || !strings.Contains(stderr, "dogfood-check: NOTE coordination-time-impact NOT_PRODUCED "+tc.reason+"\n") {
 				t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 			}
 			if code, stdout, stderr = run.exec(t, root, nil, "dogfood", "seal", base); code != 0 || !strings.Contains(stdout, "dogfood-seal: PASS") {

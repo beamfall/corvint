@@ -25,7 +25,7 @@ independent convergence on Corvint invariant 2; no code, schema, or text was tak
 A Corvint refusal is currently a stable machine-readable code and a sentence of English. The code
 says which rule fired; the sentence is the only place the refused input and the available repair
 appear, and it is prose an agent must guess at. `internal/worktreeimpact/compiler.go:127` is the
-good case: it names the unsupported input and two exact repairs, in prose. `cmd/corvint/local_completion.go:187`
+good case: it names the unsupported input and two exact repairs, in prose. `cmd/corvint/local_completion.go:193`
 is the bad case: it emits the code as both code and message, so the caller learns that something was
 refused and nothing else. Between those two shapes there is no contract, so a caller cannot tell a
 refusal it can repair from one it cannot, and cannot tell whether it has exhausted the repairs or
@@ -55,7 +55,7 @@ directly; `internal/doccompiler/errors.go:12` and `internal/worktreeimpact/compi
 per-package `failure` constructors of the same shape. The CLI serializes that pair as
 `{"ok": false, "error": {"code": ..., "message": ...}}` (`cmd/corvint/batch.go:190`,
 `cmd/corvint/source_handoff.go:222`), and at least one site emits the code in both fields
-(`cmd/corvint/local_completion.go:187`). No site carries a subject field, a measured-evidence
+(`cmd/corvint/local_completion.go:193`). No site carries a subject field, a measured-evidence
 field, or an enumerated repair set, and no registry of admissible repairs exists. The
 `unsupported-*` code family is the one part already load-bearing beyond display: `SOL-V0-007` writes
 those codes to the self-observation ledger.

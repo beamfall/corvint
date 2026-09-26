@@ -14,7 +14,7 @@ Authoritative inputs: `ROADMAP.md:343-348` (AT-10), `docs/specs/compat-trial-v0.
 ## Agent digest
 - Claim: Specifies `tools/compat-trial`'s descriptor validation, containment, comparison and status envelope AT-10's runner implements under frozen CTR-V0-001-003/010.
 - Status: accepted (decision 0052)/experimental
-- Exists: `tools/compat-trial` (`descriptor.go`, `fixture.go`, `runner.go`, `snapshot.go`, `main.go`) and `internal/procgroup` (`process.go`, `process_posix.go`, `process_other.go`, `adjudicate.go`), the latter extracted from `cli-parity-v0` per `CRR-V0-003`(d); no acceptance row below is marked passed, the full manifest replay (`TestGPKV0002ManifestReplay`, `conformance/cli-parity-v0/runner_test.go:1216@6ead4d11`) passes after the extraction (418 s isolated, 491 s inside `make gate`; the earlier 10-minute timeouts were contention from parallel runs, not a hang), and the scored trial and external/setsid containment remain unqualified.
+- Exists: `tools/compat-trial` (`descriptor.go`, `fixture.go`, `runner.go`, `snapshot.go`, `main.go`) and `internal/procgroup` (`process.go`, `process_posix.go`, `process_other.go`, `adjudicate.go`), the latter extracted from `cli-parity-v0` per `CRR-V0-003`(d); no acceptance row below is marked passed, the full manifest replay (`TestGPKV0002ManifestReplay`, `conformance/cli-parity-v0/runner_test.go:1218@6ead4d11`) passes after the extraction (418 s isolated, 491 s inside `make gate`; the earlier 10-minute timeouts were contention from parallel runs, not a hang), and the scored trial and external/setsid containment remain unqualified.
 - Blocked on: scoring on CTR-V0-004/005/009; `make gate` passing every row before promotion to `implemented`.
 - Read next: `CRR-V0-003`(d), then `CRR-V0-006`(e)'s truth table, then CRR-V0-001..007.
 
@@ -29,8 +29,8 @@ wire contract. The full manifest replay is likewise unrelated to these literals 
 
 ## Intent and scope
 
-`ROADMAP.md:343-348` (AT-10) owns the "proposed `tools/compat-trial` descriptor, runner and host
-envelope" (`:343`), verified by "contamination and changed-executable cases; interruption leaves
+`ROADMAP.md:347-353` (AT-10) owns the "proposed `tools/compat-trial` descriptor, runner and host
+envelope" (`:348`), verified by "contamination and changed-executable cases; interruption leaves
 no descendants, including process-group/session escape" (`:351-352`).
 `docs/specs/compat-trial-v0.md:187` states AT-10's runner "MUST implement CTR-V0-001 through
 CTR-V0-003 and CTR-V0-010 as written," and MUST NOT mark a case `accepted_by` anything but
@@ -786,7 +786,7 @@ number is recorded there and `Makefile:130`'s `spec-requirements-check` compares
 It implements the AT-10 slice of `docs/specs/compat-trial-v0.md` (`CTR-V0-001`-`003`,
 `CTR-V0-010`, "as written") without adjudicating a label or naming the baseline; promote to
 `implemented` only once `tools/compat-trial` exists and every row above passes `make gate`.
-AT-10's third verify clause, "replay eligible Corvint changes" (`ROADMAP.md:347`), is not
+AT-10's third verify clause, "replay eligible Corvint changes" (`ROADMAP.md:350`), is not
 discharged by this spec and stays open until the `E:99` host profile is qualified, because
 Non-goals and `CTR-V0-010` (`docs/specs/compat-trial-v0.md:54`) keep replaying real candidate
 binaries out of scope; only the runner's own synthetic fixtures are replayed here.

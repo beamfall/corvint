@@ -251,3 +251,48 @@ func TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols(t *testing.T) {
 		t.Fatalf("without the supporting symbol: state=%q results=%d reason=%q", state, count, reason)
 	}
 }
+
+// GPK-V0-068. A limit-1 packet that emits one feature while the limit omits a
+// competitive feature resting on a query word the emitted one does not rest on
+// has chosen between two readings of the task by score alone, so it asks for
+// widening instead of claiming READY. Once the limit admits both, the packet is
+// READY again.
+func TestEvalQueryLimitOmittingCompetingRecordNeedsWidening(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "config", "user.email", "corvint@example.test")
+	testGit(t, root, "config", "user.name", "Corvint Test")
+	writeTestFile(t, root, ".gitignore", ".context-corvint/\n")
+	writeTestFile(t, root, "go.mod", "module example.test/competing\n\ngo 1.27.0\n")
+	writeTestFile(t, root, "testing/features.yaml", "features:\n"+
+		"  - id: access-request-grant\n    area: auth\n    summary: Per-title access requests and grants.\n    adr: []\n    applies: [server]\n    status: shipped\n"+
+		"  - id: hls-transcode\n    area: playback\n    summary: HLS transcode ladder.\n    adr: []\n    applies: [server]\n    status: shipped\n")
+	writeTestFile(t, root, "testing/scenarios.yaml", "scenarios: []\n")
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-qm", "seed")
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	query := "carry hls priority in the signed stream grant instead of the request header"
+
+	for _, tc := range []struct {
+		limit          int
+		state, reason  string
+		active         bool
+		wantResultsLen int
+	}{
+		{limit: 1, state: "NEEDS_WIDENING", reason: "omitted-competing-record", active: true, wantResultsLen: 1},
+		{limit: 2, state: "READY", reason: "none", active: false, wantResultsLen: 2},
+	} {
+		packet, err := EvalQuery(context.Background(), index, query, tc.limit, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		results := mapsFromAny(packet["results"])
+		abstention := packet["abstention"].(map[string]any)
+		if len(results) != tc.wantResultsLen || results[0]["id"] != "access-request-grant" || packet["state"] != tc.state || abstention["reason"] != tc.reason || abstention["active"] != tc.active {
+			t.Fatalf("limit %d: state=%v abstention=%v results=%v, want %s/%s", tc.limit, packet["state"], abstention, results, tc.state, tc.reason)
+		}
+	}
+}

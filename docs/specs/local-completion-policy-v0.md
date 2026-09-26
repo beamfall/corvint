@@ -115,8 +115,8 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   checks qualify. Intent manifests come from the frozen plan. An empty citation TSV is permitted
   only after strict CEM status validates already-bound citations; otherwise finish refuses with a
   worklist. The final strict check is outside the selected prerequisite check set. Original
-  pre-change receipts are archived as bounded enrollment-owned records before the coordinator
-  overwrites its worktree-global files; subsequent receipts are labelled coordination-time. Existing
+  pre-change receipts are archived as bounded enrollment-owned records at enrollment; the
+  coordinator never writes them and labels its own receipts coordination-time (`DCW-V0-026`). Existing
   explicit-query task text may remain only in these provenance copies. Secret-shaped receipts are
   not duplicated: retain their original digest and a fixed archival-refusal reason; preserve the
   original file untouched. This exception adds no host-prompt or transcript capture.
@@ -136,15 +136,16 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   `outputsAgree:true` alone is insufficient: the strict checker must actually exit zero. Scope,
   owner, target and artifact identities are rechecked across generation, checking and publication.
   Repeating an identical successful finish MUST not append duplicate task outcomes.
-  A separately authorized, digest-bound `prechange-impact` context abstention is not a missing
+  A separately authorized, digest-bound `coordination-time-impact` context abstention is not a missing
   completion proof: it remains visibly `NOT_PRODUCED`, while CEM/OCM, checks, clean-target and
   verifier requirements above remain unchanged. Its malformed, missing, stale or untyped form fails.
 - `LCP-V0-008`: Codex and Claude Code Stop MAY request one bounded remediation continuation for an explicitly enrolled
   incomplete change. If `stop_hook_active` is true, the adapter MUST release with a visible fixed
   unresolved-policy notice instead of looping. Inactive, satisfied and cancelled states are distinct.
   Timeouts, malformed input and unsupported hosts fail open with explicit failure, not a satisfied
-  claim. An automatic event whose deadline expires reports the fixed `dogfood-event-deadline` code,
-  never the generic `dogfood-event-unavailable`, even when the expiry first surfaces as a failed
+  claim. An automatic event whose deadline expires reports the fixed `dogfood-event-deadline` code
+  (or `dogfood-event-index-snapshot-stale` once the read fell back to the in-memory build of a
+  snapshot miss; accepted 2026-09-25 with `AHI-031`, decision 0400), never the generic `dogfood-event-unavailable`, even when the expiry first surfaces as a failed
   repository or policy read. That code MUST be returned once the deadline passes, without waiting
   for a read stage that does not observe cancellation (the in-memory index compile of a snapshot
   miss); the abandoned read writes nothing. `dogfood-event-policy-drift` is reserved for an observed
@@ -286,12 +287,13 @@ elsewhere are not repeated.
 | `dogfood-coordination-failed` | `internal/localcompletion/finish.go:371` | the in-process `dogfood change` coordination run did not pass (`LCP-V0-014`) |
 | `dogfood-event-context-drift` | `cmd/corvint/local_completion_event.go:375` | the loaded index commit or tree revision, or the dirty-path digest, differs from the probed repository context |
 | `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go:129` | the event's context deadline expired or was cancelled |
+| `dogfood-event-index-snapshot-stale` | `cmd/corvint/local_completion_event.go:81` | the event's deadline expired after the read found no matching index snapshot and fell back to its in-memory build (`AHI-031`, decision 0400) |
 | `dogfood-event-input-unavailable` | `cmd/corvint/local_completion_event.go:117` | reading the event input from stdin failed |
 | `dogfood-event-native-budget` | `cmd/corvint/local_completion_event.go:431` | eight prompt-context attempts, each shrinking the budget, never fit the natively escaped response within the byte budget |
-| `dogfood-event-output-too-large` | `cmd/corvint/local_completion_event.go:456` | the canonical response plus a final LF exceeds the byte budget |
+| `dogfood-event-output-too-large` | `cmd/corvint/local_completion_event.go:484` | the canonical response plus a final LF exceeds the byte budget |
 | `dogfood-event-output-unavailable` | `cmd/corvint/local_completion_event.go:148` | writing the encoded response to stdout failed |
 | `dogfood-event-policy-drift` | `cmd/corvint/local_completion_event.go:279` | the evaluation's target is set and differs from the commit probed before the event |
-| `dogfood-event-repository-drift` | `cmd/corvint/local_completion_event.go:276` | the repository context probed after the event differs from the one before, or the commit differs from the expected target |
+| `dogfood-event-repository-drift` | `cmd/corvint/local_completion_event.go:297` | the repository context probed after the event differs from the one before, or the commit differs from the expected target |
 | `dogfood-report-drift` | `internal/localcompletion/finish.go:485` | the dogfood report does not parse, is not complete, or names a base or target other than the plan base and current target |
 | `duplicate-local-completion-option` | `cmd/corvint/local_completion.go:134` | a `local-completion` option is given twice |
 | `enrollment-bound-exceeded` | `internal/localcompletion/storage.go:312` | saved state has more than 64 observations, or its intent-pointer or executable count does not match the plan |
@@ -310,8 +312,8 @@ elsewhere are not repeated.
 | `invalid-check-id` | `internal/localcompletion/storage.go:155` | a check id does not match `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$` or repeats |
 | `invalid-dogfood-context` | `internal/contextindex/local_completion_context.go:60` | prompt context was requested without an index at an immutable revision |
 | `invalid-dogfood-event-arguments` | `cmd/corvint/local_completion_event.go:97` | an event option is repeated |
-| `invalid-dogfood-event-budget` | `cmd/corvint/local_completion_event.go:110` | the requested byte budget exceeds the event maximum |
-| `invalid-dogfood-event-input` | `cmd/corvint/local_completion_event.go:171` | the event input exceeds the kernel input bound or is not valid UTF-8 |
+| `invalid-dogfood-event-budget` | `cmd/corvint/local_completion_event.go:129` | the requested byte budget exceeds the event maximum |
+| `invalid-dogfood-event-input` | `cmd/corvint/local_completion_event.go:192` | the event input exceeds the kernel input bound or is not valid UTF-8 |
 | `invalid-enrollment-generation` | `internal/localcompletion/storage.go:297` | the saved generation is not 68 bytes prefixed by the plan digest and `-` |
 | `invalid-enrollment-pointer` | `internal/localcompletion/storage.go:321` | a saved intent pointer names another path than its plan intent, or a revision or blob hash that is not a Git object id |
 | `invalid-execution-path` | `internal/localcompletion/storage.go:316` | a saved executable path is not absolute, not clean, or longer than 4096 bytes |
@@ -319,7 +321,7 @@ elsewhere are not repeated.
 | `invalid-lifecycle` | `internal/localcompletion/storage.go:309` | the saved lifecycle is not `active`, `satisfied` or `cancelled` |
 | `invalid-local-completion-action` | `cmd/corvint/local_completion.go:122` | the action is not `begin`, `verify`, `review`, `status`, `finish`, `cancel` or `handoff` |
 | `invalid-local-completion-json` | `internal/localcompletion/storage.go:50` | strict JSON input does not parse |
-| `invalid-local-completion-option` | `cmd/corvint/local_completion.go:131`; `cmd/corvint/local_completion.go:152` | an option is not allowed for the action, or the mutually exclusive `--anchors` and `--receipt` are both given |
+| `invalid-local-completion-option` | `cmd/corvint/local_completion.go:131`; `cmd/corvint/local_completion.go:156` | an option is not allowed for the action, or the mutually exclusive `--anchors` and `--receipt` are both given |
 | `invalid-local-completion-option-value` | `cmd/corvint/local_completion.go:144` | an option value is empty or longer than 4096 bytes |
 | `invalid-local-completion-schema` | `internal/localcompletion/storage.go:58` | strict JSON input parsed and passed the JSON type check, but decoding into the target type with unknown fields disallowed failed; the JSON type check emits the same code at `internal/localcompletion/storage.go:67`, and a required-field read of input that is not an object at `internal/localcompletion/storage.go:342` |
 | `invalid-local-state-directory` | `internal/localcompletion/lifecycle.go:547` | the session's generation path exists and is not a directory |
@@ -332,9 +334,9 @@ elsewhere are not repeated.
 | `invalid-verification-observation` | `internal/localcompletion/storage.go:330` | a saved observation's log paths are not the check's numbered logs, or its target, tree, check digest or content digest is malformed |
 | `invalid-worktree-owner` | `internal/localcompletion/storage.go:400` | the worktree owner file does not hold a 64-hex key |
 | `local-completion-action-required` | `cmd/corvint/local_completion.go:56@df0e82dd` | `local-completion` is given no action argument |
-| `local-completion-failed` | `cmd/corvint/local_completion.go:180@e27e19ee` | the failure code to emit contains a character other than `a-z` or `-`, is empty, or is longer than 96 bytes, so it is replaced |
-| `local-completion-option-required` | `cmd/corvint/local_completion.go:149` | the action's required option is missing |
-| `local-completion-option-value-required` | `cmd/corvint/local_completion.go:139` | a non-inline option is the last argument, or its next token is option-like (`GPK-V0-064`, decision 0196) |
+| `local-completion-failed` | `cmd/corvint/local_completion.go:184@e27e19ee` | the failure code to emit contains a character other than `a-z` or `-`, is empty, or is longer than 96 bytes, so it is replaced |
+| `local-completion-option-required` | `cmd/corvint/local_completion.go:153` | the action's required option is missing |
+| `local-completion-option-value-required` | `cmd/corvint/local_completion.go:143` | a non-inline option is the last argument, or its next token is option-like (`GPK-V0-064`, decision 0196) |
 | `local-outcome-evidence-drift` | `internal/localcompletion/finish.go:489` | the local outcome artifact is unreadable or its digest differs from the report's |
 | `local-state-bound-exceeded` | `internal/localcompletion/storage.go:226` | a local state file is larger than its read bound |
 | `local-state-not-regular` | `internal/localcompletion/storage.go:210` | a local state file is not a regular file |
@@ -378,8 +380,8 @@ Each row cites the first emitting site and states only the condition checked the
 | `anchor-evidence-unavailable` | `internal/contextindex/local_completion_context.go:580@b7524c52` | the resolution `reason` when anchors exist and a task-evidence candidate was unreadable or requirement definitions were capped |
 | `anchor-not-found` | `internal/contextindex/local_completion_context.go:582@07c6c8fe` | the resolution `reason` when no earlier case applies and an anchor matched no candidate |
 | `anchor-worktree-changed` | `internal/contextindex/local_completion_context.go:586@37e9b097` | the resolution `reason` when no earlier case applies and a task-evidence path is among the index's dirty paths |
-| `local-policy-continuation-limit` | `cmd/corvint/local_completion_event.go:340@50f727f3` | a `stop` event that would block has `stopHookActive` true; decision `release` |
-| `local-policy-incomplete` | `cmd/corvint/local_completion_event.go:338@3862af35` | a `stop` event whose lifecycle is `active`, or `satisfied` without the evaluation satisfied; decision `block` |
+| `local-policy-continuation-limit` | `cmd/corvint/local_completion_event.go:361@50f727f3` | a `stop` event that would block has `stopHookActive` true; decision `release` |
+| `local-policy-incomplete` | `cmd/corvint/local_completion_event.go:359@3862af35` | a `stop` event whose lifecycle is `active`, or `satisfied` without the evaluation satisfied; decision `block` |
 
 ## Resource and trust boundaries
 

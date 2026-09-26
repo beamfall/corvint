@@ -1,0 +1,153 @@
+{
+  "coverage": {
+    "answerability": {
+      "known": 1,
+      "nearest_claims": [
+        {
+          "blob_hash": "608fd2f8a1ee1bc6c9b373d3ec56823ee77b782d",
+          "lacks": [],
+          "path": "pkg/main.go",
+          "supports": [
+            "StableValue"
+          ]
+        }
+      ],
+      "reason": "1 sources name at least 1 of the 1 known specific terms together",
+      "required": 1,
+      "specific_terms": [
+        {
+          "sources": 1,
+          "term": "StableValue",
+          "tracked_paths": 0
+        }
+      ],
+      "support": 1,
+      "supporting_sources": 1,
+      "verdict": "supported"
+    },
+    "budget_shortage": "none",
+    "candidates": 2,
+    "critical": [],
+    "critical_missing": [],
+    "governance": "unresolved",
+    "governance_refused": [],
+    "included_results": 2,
+    "omitted_results": 0,
+    "unexamined": [
+      {
+        "relation": "governing",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "spec-mentioned",
+        "state": "not-applicable",
+        "withheld": null
+      },
+      {
+        "relation": "instruction-routed",
+        "state": "not-applicable",
+        "withheld": null
+      },
+      {
+        "relation": "pair",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "mentioned",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "definition",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "reverse-import",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "reference",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "cochange",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "sibling",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "test",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "lexical",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "documentation",
+        "state": "examined",
+        "withheld": 0
+      }
+    ]
+  },
+  "mutates": false,
+  "ok": true,
+  "request": {
+    "limit": 20,
+    "task_chars": 20
+  },
+  "results": [
+    {
+      "action": "Open this definition of `StableValue`, which the task names: a change to how `StableValue` is defined or used must be reconciled here.",
+      "evidence": [
+        {
+          "authority": "syntax",
+          "blob_hash": "608fd2f8a1ee1bc6c9b373d3ec56823ee77b782d",
+          "confidence": "high",
+          "line": 3,
+          "path": "pkg/main.go",
+          "reason": "defines StableValue",
+          "trust": "repository-content"
+        }
+      ],
+      "id": "pkg/main.go",
+      "kind": "definition",
+      "score": 850,
+      "summary": "defines StableValue, which the task names; also lexical"
+    },
+    {
+      "action": "Update this test: it tests pkg/main.go: mirrored stem (test counterpart), test name TestStableValue, so a behaviour change in that file changes what it must assert.",
+      "evidence": [
+        {
+          "authority": "test-convention",
+          "blob_hash": "fe0edb98ce9c24f641ccec040f0245344db2b6c4",
+          "confidence": "high",
+          "line": 1,
+          "path": "pkg/main_test.go",
+          "reason": "tests pkg/main.go: mirrored stem (test counterpart), test name TestStableValue",
+          "trust": "repository-content"
+        }
+      ],
+      "id": "pkg/main_test.go",
+      "kind": "test",
+      "score": 700,
+      "summary": "tests pkg/main.go: mirrored stem (test counterpart), test name TestStableValue; also lexical"
+    }
+  ],
+  "revision": "89332322c1cef4c8c9cb2c6cbfff9b9fdd452af7",
+  "schema_version": 1,
+  "state": "READY",
+  "subject": null,
+  "tool": "context"
+}

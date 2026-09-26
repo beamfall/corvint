@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-22
-Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05)
+Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25)
 Delivery status: experimental
 Authoritative inputs: `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/CHANGE-EVIDENCE-MAP.md`,
 `docs/specs/cem-pilot-kit.md`, `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: OCM maps scoped requirements to exact change-and-test witnesses or explicit unknowns; ordered multi-intent dogfood coordination is experimental.
-- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05)/experimental; accepted amendments implemented without promotion
+- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25)/experimental; accepted amendments implemented without promotion
 - Exists: an `ocm/0.1-experimental` structural traceability profile, verifier, and evidence mapping.
 - Blocked on: ten-change dogfood and promotion gates; linked rows do not prove correctness or adequacy.
 - Read next: Verified starting state; Requirements; Acceptance and dogfood.
@@ -169,6 +169,15 @@ claim, and mutation ordering deltas below.
   `unknown` row stays `unknown` until it is linked or marked. This profile is the first frozen OCM
   profile, so it has no own-profile N-1 reader; its upstream N-1 is the `cem/0.1` binding that
   `OCM-V0-006` dispatches.
+- `OCM-V0-016`: (accepted 2026-09-25 by decision 0392, V1-0273) when the `OCM-V0-013` dogfood
+  aggregate verifies and none of its declared requirements is `linked` (aggregate
+  `coverage.linked` is 0), its aggregate verdict MUST carry, in `aggregate.findings`, the one
+  reviewer-visible finding `{"code":"no-requirements-linked","message":"0 of N declared requirements
+  are linked to the change"}`, where N is `coverage.total`. The finding reports missing linkage as
+  a visible gap (invariant 2); it leaves `state` `ready-for-review`, grants or removes no authority,
+  and does not tighten `OCM-V0-010`'s default of visible unknowns. When at least one requirement is
+  linked, `aggregate.findings` is absent, so the aggregate bytes of a linked change are unchanged.
+  The `ocm/0.1-experimental` wire and the standalone `ocm status` envelope are unchanged.
 
 ## Wire profile
 
@@ -356,11 +365,11 @@ check, in the order shown.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `invalid-json` | `internal/dogfoodocm/aggregate.go:168` | "verified OCM map could not be decoded" |
-| `invalid-map` | `internal/dogfoodocm/aggregate.go:338` | "<value>: one OCM map failed verification", or the map path followed by the verification cause, when the failed map's first issue carries no code |
-| `map-too-large` | `internal/dogfoodocm/aggregate.go:242` | "aggregate OCM map bytes exceed the limit" (summed map bytes over 1 MiB) |
-| `too-many-claims` | `internal/dogfoodocm/aggregate.go:245` | "aggregate OCM claims exceed the limit" (summed claims over 512) |
-| `too-many-obligations` | `internal/dogfoodocm/aggregate.go:248` | "aggregate OCM obligations exceed the limit" (summed obligations over 256) |
+| `invalid-json` | `internal/dogfoodocm/aggregate.go:175` | "verified OCM map could not be decoded" |
+| `invalid-map` | `internal/dogfoodocm/aggregate.go:356` | "<value>: one OCM map failed verification", or the map path followed by the verification cause, when the failed map's first issue carries no code |
+| `map-too-large` | `internal/dogfoodocm/aggregate.go:249` | "aggregate OCM map bytes exceed the limit" (summed map bytes over 1 MiB) |
+| `too-many-claims` | `internal/dogfoodocm/aggregate.go:252` | "aggregate OCM claims exceed the limit" (summed claims over 512) |
+| `too-many-obligations` | `internal/dogfoodocm/aggregate.go:255` | "aggregate OCM obligations exceed the limit" (summed obligations over 256) |
 
 ## Simpler baseline and non-goals
 
@@ -457,6 +466,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-013 | `script/dogfood-change.sh`, `script/dogfood-check.sh`, `internal/dogfoodocm`, `cmd/corvint/dogfood_ocm.go` | `internal/dogfoodocm/aggregate_test.go`, `script/dogfood-change_test.sh`, `cmd/corvint/ocm_test.go:TestDogfoodOCMArgumentErrorsAreInvalidArguments` |
 | OCM-V0-014 | `conformance/ocm-v0/` (`universe.go`, `adapter.go`, `vectors.go`, `fixtures.go`, `manifest.go`, `vectors/structural.json`, `fixtures/*/case.json`, `manifest.json`) | `conformance/ocm-v0/structural_test.go:TestStructuralVectorsAgainstRealParser`, `conformance/ocm-v0/structural_test.go:TestValidVectorsAreCanonical`, `conformance/ocm-v0/structural_test.go:TestStructuralVectorsCoverEveryDisposition`, `conformance/ocm-v0/producer_test.go:TestFrozenVectorsMatchTheRealProducer`, `conformance/ocm-v0/fixtures_test.go:TestFixturesAgainstRealVerifier`, `conformance/ocm-v0/fixtures_test.go:TestSuiteDataIsSelfConsistent` |
 | OCM-V0-015 | `conformance/ocm-v0/` (`manifest.go` `ValidateArtifacts`/`validateStates`, `fixtures.go` `intent`/`intentShift` operators, `fixtures/intent-scope-drift/case.json`, `manifest.json` `states`/`artifactSha256`) | `conformance/ocm-v0/fixtures_test.go:TestSuiteDataIsSelfConsistent`, `conformance/ocm-v0/fixtures_test.go:TestArtifactDigestDriftFails`, `conformance/ocm-v0/fixtures_test.go:TestFixturesAgainstRealVerifier` (`intent-scope-drift`); upstream N-1: `cmd/corvint/ocm_test.go:TestOCMLegacyCEMReadCommandsMatchPythonOracle` |
+| OCM-V0-016 | `internal/dogfoodocm/aggregate.go` (`linkageFindings`) | `internal/dogfoodocm/aggregate_test.go:TestAggregateFindsNoLinkedRequirements` |
 
 Native selector diagnostic amendment to `OCM-V0-007` (2026-09-08): the owner's Task 2
 follow-up explicitly requests printing the normalized fragment on a miss. A missing `/case:` selector retains
@@ -470,6 +480,22 @@ case anchors and JavaScript `test()`/`it()` titles naming a requirement ID extra
 These follow-ups preserve the frozen Python oracle. The new hint changes observable stderr;
 DR-0032 records that difference as OPEN, with no discriminating frozen corpus row and no promotion.
 The separate lane L DR-0031 false-anchor promotion hold also remains.
+
+Clarification (2026-09-25, V1-0274/V1-0275, no new rule): every `/case:` miss also appends
+`; supported Go case anchors: name/testName/test_name field or .Run first-argument literal, not a
+map key`, naming the `TCQ-V0-018` shapes. A `map[string]struct{...}` table keyed by case name yields
+no case claim; its test function claim remains, and the hint does not widen extraction
+(`TestOCMClaimSelectorMiss`). The case fragment, also used by JavaScript `test:<fragment>`
+selectors, is normalized unchanged as follows: a word break is inserted before an ASCII upper-case
+letter that follows an ASCII lower-case letter or digit, and at every `_` or `-`; words are the
+maximal `[A-Za-z][A-Za-z0-9]*` runs, so a digit run not preceded by a letter, punctuation, and
+non-ASCII text are dropped; each word is lower-cased, then a word longer than five bytes ending
+`ies` ends `y` instead, else a word longer than four bytes ending in `s` but not `ss` loses that
+`s`; words join with `-`, the result is cut to 96 bytes and trimmed of `-`, and an empty result is
+`unnamed`. For example, `PTR-V0-003 two bound checks versions is tampered` becomes
+`case:ptr-v0-two-bound-check-version-is-tampered`. Two cases of one test whose names differ only in
+dropped or folded text derive one selector, so neither is extracted (the `TCQ-V0-018` ambiguity
+rule).
 
 Delivery remains experimental until the ten-change dogfood and promotion gates above complete.
 

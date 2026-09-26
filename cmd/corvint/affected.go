@@ -121,6 +121,8 @@ const (
 	adviceNoGateUnknown      = "NO_REPOSITORY_GATE_DECLARED: no Makefile gate target or AGENTS.md Verify block"
 	adviceMakefileReason     = "the repository Makefile declares a gate target, so the full gate stays mandatory"
 	adviceAgentsReason       = "the repository AGENTS.md Verify block declares this command, so it stays mandatory"
+	adviceLaunchReason       = "the repository AGENTS.md Verify block declares this command, but it launches a program or runs in the background and does not end on its own, so it is not a check"
+	adviceVerifyHeading      = "Verify"
 )
 
 var adviceShellFences = map[string]bool{"sh": true, "bash": true, "console": true}
@@ -551,7 +553,7 @@ func affectedRangePaths(ctx context.Context, gitExecutable, root, base string) (
 func compileAffectedAdvice(root string, plan affected.Plan, provider affectedGoProvider) affectedAdvice {
 	checks, mandatoryUnknown, truncated := mandatoryAffectedChecks(root)
 	unknown := append([]string{}, mandatoryUnknown...)
-	if len(checks) == 0 && !truncated {
+	if !declaresMandatoryCheck(checks) && !truncated {
 		unknown = append(unknown, adviceNoGateUnknown)
 	}
 	advisory, advisoryUnknown := advisoryAffectedChecks(plan, provider)
@@ -566,27 +568,33 @@ func compileAffectedAdvice(root string, plan affected.Plan, provider affectedGoP
 // mandatoryAffectedChecks reads only repository-owned declarations from the
 // working tree at the root: a Makefile gate target and the AGENTS.md Verify
 // block. Both reads are bounded, and the list is deduplicated in order of
-// appearance and capped at adviceMaxMandatoryChecks. A read that hits the
-// bound, or a declaration the cap drops, is reported in the returned unknown
-// list rather than silently disappearing; truncated tells the caller a source
-// was cut short, so it never also claims no gate was declared.
+// appearance and capped at adviceMaxMandatoryChecks. A declared command that
+// does not end on its own is advisory and follows the mandatory ones. A read
+// that hits the bound, or a declaration the cap drops, is reported in the
+// returned unknown list rather than silently disappearing; truncated tells the
+// caller a source was cut short, so it never also claims no gate was declared.
 func mandatoryAffectedChecks(root string) (checks []affectedCheck, unknown []string, truncated bool) {
 	checks = []affectedCheck{}
+	launches := []affectedCheck{}
 	unknown = []string{}
 	seen := map[string]bool{}
 	cappedSource := ""
-	admit := func(command, source, reason string) {
-		if command == "" || seen[command] {
+	admit := func(check affectedCheck) {
+		if check.Command == "" || seen[check.Command] {
 			return
 		}
-		if len(checks) >= adviceMaxMandatoryChecks {
+		if len(checks)+len(launches) >= adviceMaxMandatoryChecks {
 			if cappedSource == "" {
-				cappedSource = source
+				cappedSource = check.Source
 			}
 			return
 		}
-		seen[command] = true
-		checks = append(checks, affectedCheck{Command: command, Kind: adviceKindMandatory, Reason: reason, Source: source})
+		seen[check.Command] = true
+		if check.Kind == adviceKindAdvisory {
+			launches = append(launches, check)
+			return
+		}
+		checks = append(checks, check)
 	}
 	makefile, makefileTruncated := readAdviceSource(filepath.Join(root, adviceMakefileName), adviceMaxSourceBytes)
 	if makefileTruncated {
@@ -594,20 +602,55 @@ func mandatoryAffectedChecks(root string) (checks []affectedCheck, unknown []str
 		unknown = append(unknown, fmt.Sprintf("MANDATORY_DECLARATION_TRUNCATED: %s exceeded %d bytes", adviceMakefileName, adviceMaxSourceBytes))
 	}
 	if makefileDeclaresGate(makefile) {
-		admit("make gate", adviceMakefileName, adviceMakefileReason)
+		admit(affectedCheck{Command: "make gate", Kind: adviceKindMandatory, Reason: adviceMakefileReason, Source: adviceMakefileName})
 	}
 	agents, agentsTruncated := readAdviceSource(filepath.Join(root, adviceAgentsName), adviceMaxSourceBytes)
 	if agentsTruncated {
 		truncated = true
 		unknown = append(unknown, fmt.Sprintf("MANDATORY_DECLARATION_TRUNCATED: %s exceeded %d bytes", adviceAgentsName, adviceMaxSourceBytes))
 	}
-	for _, command := range agentsVerifyCommands(agents) {
-		admit(command, adviceAgentsName, adviceAgentsReason)
+	commands, unrecognized := agentsVerifyCommands(agents)
+	for _, command := range commands {
+		admit(agentsCheck(command))
+	}
+	for _, heading := range unrecognized {
+		unknown = append(unknown, fmt.Sprintf("MANDATORY_DECLARATION_UNRECOGNIZED: %s heading %q is not %q, so its commands are not checks", adviceAgentsName, heading, adviceVerifyHeading))
 	}
 	if cappedSource != "" {
 		unknown = append(unknown, fmt.Sprintf("MANDATORY_DECLARATION_CAPPED: %s declared more than %d commands", cappedSource, adviceMaxMandatoryChecks))
 	}
-	return checks, unknown, truncated
+	return append(checks, launches...), unknown, truncated
+}
+
+// agentsCheck is a Verify-block command as a check: advisory when it does not
+// end on its own, mandatory otherwise.
+func agentsCheck(command string) affectedCheck {
+	if nonTerminatingCommand(command) {
+		return affectedCheck{Command: command, Kind: adviceKindAdvisory, Reason: adviceLaunchReason, Source: adviceAgentsName}
+	}
+	return affectedCheck{Command: command, Kind: adviceKindMandatory, Reason: adviceAgentsReason, Source: adviceAgentsName}
+}
+
+// adviceLaunchers are the commands whose only job is to open a program the
+// caller then leaves running.
+var adviceLaunchers = map[string]bool{"open": true, "xdg-open": true}
+
+// nonTerminatingCommand reports a command that launches a program or runs in
+// the background. Any other command stays a check: requiring too much is safe.
+func nonTerminatingCommand(command string) bool {
+	fields := strings.Fields(command)
+	background := strings.HasSuffix(command, "&") && !strings.HasSuffix(command, "&&")
+	return background || adviceLaunchers[fields[0]]
+}
+
+// declaresMandatoryCheck reports whether any check is mandatory.
+func declaresMandatoryCheck(checks []affectedCheck) bool {
+	for _, check := range checks {
+		if check.Kind == adviceKindMandatory {
+			return true
+		}
+	}
+	return false
 }
 
 // advisoryAffectedChecks proposes the Go packages the plan selected. Any state
@@ -662,27 +705,69 @@ func makefileDeclaresGate(body string) bool {
 	return false
 }
 
-// agentsVerifyCommands returns the non-empty, non-comment command lines of
-// every fenced sh/bash/console block under a heading whose text contains
-// "Verify". A line whose first non-space character is "#" is a comment, not a
-// command.
-func agentsVerifyCommands(body string) []string {
-	commands := []string{}
-	underVerify, inBlock := false, false
+// agentsVerifyCommands returns the command lines of every fenced
+// sh/bash/console block under a heading whose text is exactly "Verify", in any
+// case, with shell comments removed. It also returns, in order, each other
+// heading containing "verify" that has such a block, whose commands are not
+// taken as checks.
+func agentsVerifyCommands(body string) (commands, unrecognized []string) {
+	commands, unrecognized = []string{}, []string{}
+	heading, underVerify, inBlock := "", false, false
 	for _, line := range strings.Split(body, "\n") {
 		trimmed := strings.TrimSpace(line)
+		fence := adviceShellFences[strings.ToLower(strings.TrimPrefix(trimmed, "```"))]
 		switch {
 		case !inBlock && strings.HasPrefix(trimmed, "#"):
-			underVerify = strings.Contains(strings.ToLower(trimmed), "verify")
+			heading = strings.TrimSpace(strings.Trim(trimmed, "#"))
+			underVerify = strings.EqualFold(heading, adviceVerifyHeading)
 		case inBlock && strings.HasPrefix(trimmed, "```"):
 			inBlock = false
+		case strings.HasPrefix(trimmed, "```") && fence && !underVerify && strings.Contains(strings.ToLower(heading), "verify"):
+			unrecognized = appendOnce(unrecognized, heading)
 		case strings.HasPrefix(trimmed, "```"):
-			inBlock = underVerify && adviceShellFences[strings.ToLower(strings.TrimPrefix(trimmed, "```"))]
-		case inBlock && trimmed != "" && !strings.HasPrefix(trimmed, "#"):
-			commands = append(commands, strings.TrimPrefix(trimmed, "$ "))
+			inBlock = underVerify && fence
+		case inBlock:
+			commands = appendNonEmpty(commands, stripShellComment(strings.TrimPrefix(trimmed, "$ ")))
 		}
 	}
-	return commands
+	return commands, unrecognized
+}
+
+// stripShellComment removes a shell comment: a "#" that begins a word outside
+// quotes runs to the end of the line.
+func stripShellComment(line string) string {
+	quote := byte(0)
+	for index := 0; index < len(line); index++ {
+		char := line[index]
+		switch {
+		case quote != 0 && char == quote:
+			quote = 0
+		case quote == '\'':
+		case char == '\\':
+			index++
+		case quote == 0 && (char == '\'' || char == '"'):
+			quote = char
+		case quote == 0 && char == '#' && (index == 0 || line[index-1] == ' ' || line[index-1] == '\t'):
+			return strings.TrimSpace(line[:index])
+		}
+	}
+	return line
+}
+
+func appendNonEmpty(values []string, value string) []string {
+	if value == "" {
+		return values
+	}
+	return append(values, value)
+}
+
+func appendOnce(values []string, value string) []string {
+	for _, present := range values {
+		if present == value {
+			return values
+		}
+	}
+	return append(values, value)
 }
 
 func sortedUniqueStrings(values []string) []string {
@@ -763,11 +848,7 @@ func affectedHeadRevision(ctx context.Context, gitExecutable, root string) (stri
 func affectedRevision(ctx context.Context, gitExecutable, root, spec string) (string, error) {
 	deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
 	defer cancel()
-	command := exec.CommandContext(deadline, gitExecutable, "--no-optional-locks", "-C", root, "rev-parse", "--verify", "--quiet", spec+"^{commit}")
-	command.Env = []string{
-		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
-		"GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1", "LANG=C", "LC_ALL=C",
-	}
+	command := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--verify", "--quiet", spec+"^{commit}")
 	output, err := command.Output()
 	revision := string(bytes.TrimSpace(output))
 	if err != nil || !validGitObjectID(revision) {

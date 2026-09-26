@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/frontier"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
@@ -89,7 +90,7 @@ func TestNoGoRepositoryProducesNoUnitsOrFrontier(t *testing.T) {
 	}
 }
 
-func TestDeletedGoSourceNamesDeletionInOwnUnitExclusion(t *testing.T) {
+func TestDeletedGoSourceSelectsItsPackageAndImporters_V1_0340(t *testing.T) {
 	gitExecutable, err := exec.LookPath("git")
 	if err != nil {
 		t.Skip("git is unavailable")
@@ -117,12 +118,13 @@ func TestDeletedGoSourceNamesDeletionInOwnUnitExclusion(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan := affected.Select(graph, dirty)
+	want := "[core/core_test.go nested/build/build_test.go nested/dist/dist_test.go nested/target/target_test.go]"
+	if got := fmt.Sprint(plan.SelectedTests()); got != want {
+		t.Fatalf("selected tests = %s, want %s (the package that lost a file and its importers)", got, want)
+	}
 	reasons := make(map[string]string, len(plan.Excluded))
 	for _, exclusion := range plan.Excluded {
 		reasons[exclusion.UnitID] = exclusion.Reason
-	}
-	if got := reasons["go:example.test/directorynames/core"]; got != affected.ExcludedDirtyGoPathMayBeDeletedOrRenamed {
-		t.Fatalf("core exclusion reason=%q", got)
 	}
 	if got := reasons["go:example.test/directorynames/other"]; got != affected.ExcludedNoDependencyPath {
 		t.Fatalf("unrelated exclusion reason=%q", got)
@@ -270,8 +272,8 @@ func TestPathLiteralSelectsItsReaderPackage_AFPV0021(t *testing.T) {
 	if reader := affected.Select(graph, []string{"data/x.json"}); len(reader.Selected) != 1 {
 		t.Fatalf("a module-anchored literal must name its path: %v", reader.Selected)
 	}
-	unnamed := affected.Select(graph, []string{"other/notes.md"})
-	if len(unnamed.Selected) != 0 || fmt.Sprint(unnamed.Unknown) != "[{UNOWNED_DIRTY_PATH other/notes.md}]" {
+	unnamed := affected.Select(graph, []string{"notes/notes.md"})
+	if len(unnamed.Selected) != 0 || fmt.Sprint(unnamed.Unknown) != "[{UNOWNED_DIRTY_PATH notes/notes.md}]" {
 		t.Fatalf("unnamed path selected=%v unknown=%v", unnamed.Selected, unnamed.Unknown)
 	}
 }
@@ -329,6 +331,250 @@ func writeFiles(t *testing.T, root string, files map[string]string) {
 		}
 		if err := os.WriteFile(target, []byte(body), 0o600); err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+// V1-0291: a test-only import selects the importing package's tests and stops
+// there, as `go list -deps -test` does: an importer of that package never
+// compiles its tests. A real dependency chain through the helper still reaches
+// every package whose build includes it.
+func TestTestOnlyImportSelectsTheTestUserButNotItsImporters(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":           "module example.test/m\n",
+		"helper/h.go":      "package helper\n",
+		"user/u.go":        "package user\n",
+		"user/u_test.go":   "package user\n\nimport _ \"example.test/m/helper\"\n",
+		"top/t.go":         "package top\n\nimport _ \"example.test/m/user\"\n",
+		"top/t_test.go":    "package top\n",
+		"real/r.go":        "package real\n\nimport _ \"example.test/m/helper\"\n",
+		"real/r_test.go":   "package real\n\nimport _ \"example.test/m/helper\"\n",
+		"deeper/d.go":      "package deeper\n\nimport _ \"example.test/m/real\"\n",
+		"deeper/d_test.go": "package deeper\n",
+	})
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, _ := graph.Unit("go:example.test/m/user")
+	if fmt.Sprint(user.Imports, user.TestImports) != "[] [go:example.test/m/helper]" {
+		t.Fatalf("user imports=%v testImports=%v", user.Imports, user.TestImports)
+	}
+	real, _ := graph.Unit("go:example.test/m/real")
+	if fmt.Sprint(real.Imports, real.TestImports) != "[go:example.test/m/helper] []" {
+		t.Fatalf("real imports=%v testImports=%v, want a shared import to stay an ordinary edge", real.Imports, real.TestImports)
+	}
+	plan := affected.Select(graph, []string{"helper/h.go"})
+	want := "[deeper/d_test.go real/r_test.go user/u_test.go]"
+	if got := fmt.Sprint(plan.SelectedTests()); got != want {
+		t.Fatalf("selected tests = %s, want %s (top only imports user's non-test files)", got, want)
+	}
+	for _, selection := range plan.Selected {
+		if selection.UnitID == "go:example.test/m/user" && fmt.Sprint(selection.Witness.Via) != "[go:example.test/m/helper go:example.test/m/user]" {
+			t.Errorf("test user witness = %+v", selection.Witness)
+		}
+	}
+	for _, exclusion := range plan.Excluded {
+		if exclusion.UnitID == "go:example.test/m/top" && exclusion.Reason == affected.ExcludedNoDependencyPath {
+			return
+		}
+	}
+	t.Errorf("excluded = %+v, want top excluded with no dependency path", plan.Excluded)
+}
+
+// V1-0290: an unanchored one-component token names a file, never a directory,
+// so the `internal/` of `"internal/%03d.go"` does not make its package a reader
+// of every path under an `internal` directory. Two-component and file-name
+// tokens still select their real readers.
+func TestDirectoryShapedLiteralNamesNoPath(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                  "module example.test/m\n",
+		"noise/n.go":              "package noise\n\nvar pattern = \"internal/%03d.go\"\n",
+		"noise/n_test.go":         "package noise\n",
+		"joined/j.go":             "package joined\n\nvar rows = \"store/rows.txt\"\n",
+		"joined/j_test.go":        "package joined\n",
+		"named/n.go":              "package named\n\nvar rows, build = \"rows.txt\", \"Makefile\"\n",
+		"named/n_test.go":         "package named\n",
+		"internal/store/s.go":     "package store\n",
+		"internal/store/rows.txt": "rows\n",
+	})
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"Makefile", "internal/store/rows.txt"})
+	selected := make([]string, 0, len(plan.Selected))
+	for _, selection := range plan.Selected {
+		selected = append(selected, selection.UnitID+"<-"+selection.Witness.DirtyPath)
+	}
+	want := "[go:example.test/m/joined<-internal/store/rows.txt go:example.test/m/named<-Makefile]"
+	if got := fmt.Sprint(selected); got != want {
+		t.Fatalf("selected = %s, want %s", got, want)
+	}
+}
+
+func TestUnownedDirtyPathSelectsItsPackageAndImporters_V1_0340(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                      "module example.test/m\n",
+		"web/web.go":                  "package web\n\nimport \"embed\"\n\n//go:embed static\nvar files embed.FS\n",
+		"web/web_test.go":             "package web\n",
+		"web/static/css/site.css":     "body{}\n",
+		"server/server.go":            "package server\n\nimport _ \"example.test/m/web\"\n",
+		"server/server_test.go":       "package server\n",
+		"lib/lib.go":                  "package lib\n",
+		"lib/lib_test.go":             "package lib\n",
+		"lib/testdata/deep/case.json": "{}\n",
+		"app/app.go":                  "package app\n\nimport _ \"example.test/m/lib\"\n",
+		"app/app_test.go":             "package app\n",
+		"caller/caller.go":            "package caller\n\nimport _ \"example.test/m/gone\"\n",
+		"caller/caller_test.go":       "package caller\n",
+		"other/other.go":              "package other\n",
+		"other/other_test.go":         "package other\n",
+	})
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		dirty, want string
+	}{
+		// An embedded asset reaches the embedding package and its importers.
+		{"web/static/css/site.css", "[server/server_test.go web/web_test.go]"},
+		// A fixture below a non-embedding package selects only that package.
+		{"lib/testdata/deep/case.json", "[lib/lib_test.go]"},
+		// A file directly in a package directory reaches its importers.
+		{"lib/README.md", "[app/app_test.go lib/lib_test.go]"},
+		// A deleted whole package reaches the importers that still name it.
+		{"gone/gone.go", "[caller/caller_test.go]"},
+	}
+	for _, tc := range cases {
+		plan := affected.Select(graph, []string{tc.dirty})
+		if got := fmt.Sprint(plan.SelectedTests()); got != tc.want {
+			t.Errorf("%s: selected tests = %s, want %s", tc.dirty, got, tc.want)
+		}
+		for _, exclusion := range plan.Excluded {
+			if exclusion.UnitID == "go:example.test/m/other" && exclusion.Reason != affected.ExcludedNoDependencyPath {
+				t.Errorf("%s: other exclusion = %+v", tc.dirty, exclusion)
+			}
+		}
+	}
+}
+
+// V1-0230: gate rule (d). A package that locates the repository root or
+// reads a path its literals do not bound is selected on any non-empty dirty
+// set; the dependents of a non-test locator are selected with it, while a
+// locator only in a test file reaches no importer.
+func TestUnboundedReaderIsSelectedOnAnyChange_V1_0230(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                    "module example.test/m\n",
+		"caller/caller.go":          "package caller\n\nimport \"runtime\"\n\nfunc F() { runtime.Caller(0) }\n",
+		"caller/caller_test.go":     "package caller\n",
+		"user/user.go":              "package user\n\nimport _ \"example.test/m/caller\"\n",
+		"user/user_test.go":         "package user\n",
+		"aliased/aliased.go":        "package aliased\n\nimport rt \"runtime\"\n\nfunc F() { rt.Caller(0) }\n",
+		"aliased/aliased_test.go":   "package aliased\n",
+		"dotted/dotted.go":          "package dotted\n\nimport . \"os\"\n\nfunc F() { Getwd() }\n",
+		"dotted/dotted_test.go":     "package dotted\n",
+		"climb/climb.go":            "package climb\n\nvar data = \"../shared/data.json\"\n",
+		"climb/climb_test.go":       "package climb\n",
+		"toplevel/toplevel.go":      "package toplevel\n",
+		"toplevel/toplevel_test.go": "package toplevel\n\nvar arguments = []string{\"rev-parse\", \"--show-" + "toplevel\"}\n",
+		"testuser/testuser.go":      "package testuser\n\nimport _ \"example.test/m/toplevel\"\n",
+		"testuser/testuser_test.go": "package testuser\n",
+		"plain/plain.go":            "package plain\n",
+		"plain/plain_test.go":       "package plain\n",
+	})
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"docs/notes.md"})
+	const want = "[aliased/aliased_test.go caller/caller_test.go climb/climb_test.go dotted/dotted_test.go toplevel/toplevel_test.go user/user_test.go]"
+	if got := fmt.Sprint(plan.SelectedTests()); got != want {
+		t.Fatalf("selected tests = %s, want %s", got, want)
+	}
+	for _, selection := range plan.Selected {
+		if selection.Witness.Kind != affected.WitnessUnboundedReader {
+			t.Errorf("%s witness = %+v, want %s", selection.UnitID, selection.Witness, affected.WitnessUnboundedReader)
+		}
+	}
+	if empty := affected.Select(graph, nil); len(empty.Selected) != 0 {
+		t.Errorf("empty dirty set selected %+v", empty.Selected)
+	}
+}
+
+// V1-0230: the CEM sidecar narrowing of gate rule (c). Only a reader whose
+// token resolves to the sidecar, from its own directory or from the root when
+// an anchored or parent-only token can put it there, is selected; any other
+// path keeps the component-run readers, including the one the sidecar drops.
+func TestChangeEvidenceReadersAreNarrowed_V1_0230(t *testing.T) {
+	if affected.ChangeEvidencePath != frontier.ExcludedPath {
+		t.Fatalf("ChangeEvidencePath = %q, want %q", affected.ChangeEvidencePath, frontier.ExcludedPath)
+	}
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                    "module example.test/m\n",
+		"fixture/fixture_test.go":   "package fixture\n\nvar a, b, c = \".corvint\", \"change.cem.json\", \".corvint/change.cem.json\"\n",
+		"exact/exact_test.go":       "package exact\n\nvar sidecar = \"../.corvint/change.cem.json\"\n",
+		"anchored/anchored.go":      "package anchored\n\nfunc Sidecar(root string) string { return root + \"/.corvint/change.cem.json\" }\n",
+		"anchored/anchored_test.go": "package anchored\n",
+		"deep/dir/dir_test.go":      "package dir\n\nvar evidence = \"../../.corvint\"\n",
+		"partial/partial.go":        "package partial\n\nimport \"path/filepath\"\n\nvar evidence = filepath.Join(\"..\", \".corvint/change.cem\") + \".json\"\n",
+		"partial/partial_test.go":   "package partial\n",
+		"split/split.go":            "package split\n\nfunc Sidecar(root string) string { return root + \"/.cor\" + \"vint/change.cem.json\" }\n",
+		"split/split_test.go":       "package split\n",
+	})
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct{ dirty, want string }{
+		{".corvint/change.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go partial/partial_test.go split/split_test.go]"},
+		// V1-0290 keeps the lone `.corvint` of fixture from naming a directory.
+		{".corvint/other.json", "[deep/dir/dir_test.go]"},
+		// A path of the same shape that is not the sidecar is not narrowed.
+		{"docs/.corvint/change.cem.json", "[anchored/anchored_test.go deep/dir/dir_test.go exact/exact_test.go fixture/fixture_test.go partial/partial_test.go split/split_test.go]"},
+	}
+	for _, tc := range cases {
+		plan := affected.Select(graph, []string{tc.dirty})
+		if got := fmt.Sprint(plan.SelectedTests()); got != tc.want {
+			t.Errorf("%s: selected tests = %s, want %s", tc.dirty, got, tc.want)
+		}
+	}
+}
+
+// V1-0289: every build variant's imports are edges, so a constrained file
+// raises a frontier on its own package only, named by a plan that reaches it.
+func TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289(t *testing.T) {
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                  "module example.test/m\n",
+		"variant/linux.go":        "//go:build linux\n\npackage variant\n\nimport _ \"example.test/m/core\"\n",
+		"variant/variant_test.go": "package variant\n",
+		"core/core.go":            "package core\n",
+		"core/core_test.go":       "package core\n",
+		"plain/plain.go":          "package plain\n",
+		"plain/plain_test.go":     "package plain\n",
+	})
+	graph, err := affected.Build(root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if frontier := graph.Frontier(); len(frontier) != 0 {
+		t.Fatalf("graph frontier = %v, want none", frontier)
+	}
+	cases := []struct{ dirty, want string }{
+		{"plain/plain.go", "BOUNDED [] [plain/plain_test.go]"},
+		{"core/core.go", "UNKNOWN [{LANGUAGE_FRONTIER go:build-constraint-variants}] [core/core_test.go variant/variant_test.go]"},
+	}
+	for _, tc := range cases {
+		plan := affected.Select(graph, []string{tc.dirty})
+		if got := fmt.Sprint(plan.Scope, " ", plan.Unknown, " ", plan.SelectedTests()); got != tc.want {
+			t.Errorf("%s: %s, want %s", tc.dirty, got, tc.want)
 		}
 	}
 }

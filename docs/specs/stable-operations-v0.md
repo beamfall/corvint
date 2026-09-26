@@ -44,7 +44,7 @@ Measured on 2026-09-22, darwin arm64, Go 1.27.1, at the introducing commit:
   reports `fresh`. The rebuilt file is the same size but not byte-identical to the first build (460
   differing bytes under `cmp -l`), so the recovery contract is packet identity, not snapshot identity.
 - The version string is `const version = "0.8.1"` (`cmd/corvint/main.go:30@777b0b0e`) and the build
-  stamp is `var build = "0"` (`cmd/corvint/main.go:1505@e7212353`), set by `-ldflags -X main.build=N`.
+  stamp is `var build = "0"` (`cmd/corvint/main.go:1519@e7212353`), set by `-ldflags -X main.build=N`.
 - The archive producer writes `corvint_<goos>_<goarch>.tar.gz` for four targets, `SHA256SUMS` and
   `verification-report.json` (`release-artifact-integrity-v0.md`); the installer refuses a case-fold
   alias of an existing store entry (`internal/releasecandidate/operations.go:180@1161e39d`).
@@ -167,7 +167,7 @@ Lifecycle steps are `install-a`, `first-index`, `upgrade-b`, `rollback-a`, `unin
 | SOP-V0-002 | step `first-index` in cases 1 and 2; snapshot miss/hit semantics `internal/contextindex/snapshot_test.go:47@9ea4ec57` |
 | SOP-V0-003 | case 1 asserts `upgrade-b` ran `(build 2)`, `packet=identical` and no `same-bytes`; case 2 asserts `same-bytes`; case 5 (stubbed wire change passes with `packet=changed`, an unreproducible packet and an empty packet each fail at `upgrade-b` with exit 1); installer coexistence `internal/releasecandidate/install_test.go:16@90e57d5e`, `internal/releasecandidate/operations_test.go:44@5dca69d1` |
 | SOP-V0-004 | step `uninstall` in cases 1 and 2 |
-| SOP-V0-005 | step `backup-restore` in cases 1 and 2; round trip `internal/contextindex/snapshot_test.go:180@4e378161` |
+| SOP-V0-005 | step `backup-restore` in cases 1 and 2; round trip `internal/contextindex/snapshot_test.go:213@4e378161` |
 | SOP-V0-006 | steps `corrupt-truncate` and `corrupt-overwrite`; unit-level miss `internal/contextindex/pack_test.go:206@b2b8420d` |
 | SOP-V0-007 | hostile wrapper case 2 (exact delegated argv, one `go` per row), case 3 (skipped test NOT_RUN, run passes), case 4 (row NOT_RUN), case 5 (`--- FAIL` names the test, exit 1) |
 | SOP-V0-008 | hostile wrapper case 1 (`git grep` of every listed `func Test...(` in tracked `_test.go`; every category listed) |
@@ -180,13 +180,13 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 
 | Category | Package | Tests |
 |---|---|---|
-| hostile-repository | `internal/genesis` | `internal/genesis/repository_test.go:146@5817975f`, `internal/genesis/repository_test.go:158@a2e88456`, `internal/genesis/repository_test.go:196@a1e12d68` |
+| hostile-repository | `internal/genesis` | `internal/genesis/repository_test.go:196@5817975f`, `internal/genesis/repository_test.go:208@a2e88456`, `internal/genesis/repository_test.go:246@a1e12d68` |
 | hostile-repository | `internal/contextindex` | `internal/contextindex/history_test.go:115@671cf1e3` |
 | paths | `internal/releasegate` | `internal/releasegate/releasegate_test.go:141@e18871cf` |
 | paths | `internal/companionrelease` | `internal/companionrelease/companionrelease_test.go:620@5ef76c7b` |
 | paths | `internal/trace` | `internal/trace/migration_test.go:80@77e27ccc` |
 | paths | `internal/doccompiler` | `internal/doccompiler/compiler_test.go:211@b9d5a61d` |
-| symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:163@6bb9aead`, `internal/contextindex/index_test.go:403@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:510@22f1c7f2`, `internal/contextindex/snapshot_test.go:559@ee7924d9` |
+| symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:235@6bb9aead`, `internal/contextindex/index_test.go:475@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:595@22f1c7f2`, `internal/contextindex/snapshot_test.go:644@ee7924d9` |
 | symlinks | `internal/trace` | `internal/trace/store_test.go:222@ee958993`, `internal/trace/store_test.go:937@69176005` |
 | symlinks | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:105@141529a4` |
 | symlinks | `internal/worktreeimpact` | `internal/worktreeimpact/hostile_unix_test.go:12@0eab7357` |

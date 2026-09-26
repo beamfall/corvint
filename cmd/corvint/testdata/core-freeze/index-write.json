@@ -1,0 +1,14 @@
+{
+  "bytes": 5999,
+  "command": "index",
+  "commit": "<varies:string>",
+  "engine": "<varies:string>",
+  "evicted": 0,
+  "mutates": true,
+  "ok": true,
+  "path": "<varies:string>",
+  "profile": "corvint-index-snapshot/1",
+  "sources": 6,
+  "symbols": 2,
+  "tree": "89332322c1cef4c8c9cb2c6cbfff9b9fdd452af7"
+}

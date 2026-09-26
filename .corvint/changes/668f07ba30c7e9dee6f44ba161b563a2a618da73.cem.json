@@ -1,0 +1,990 @@
+{
+  "baseRevision": "7fdf5149cedd531a25b88f8e0632b932f8df4204",
+  "evidence": [
+    {
+      "blobOid": "59e4969e61dc9c7dee0a6c20a5e82ebd623435ac",
+      "id": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 293,
+        "start": 129
+      },
+      "spanSha256": "74ef80dd18e065609d6c48ad10e47bb39d3e91c2fcd70241355ed10d8a1342cc"
+    },
+    {
+      "blobOid": "59e4969e61dc9c7dee0a6c20a5e82ebd623435ac",
+      "id": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2774,
+        "start": 2288
+      },
+      "spanSha256": "a5ef358e5716557d5f42d57c7271d3289afdc8ff20143da2026e5fd075f876f4"
+    },
+    {
+      "blobOid": "59e4969e61dc9c7dee0a6c20a5e82ebd623435ac",
+      "id": "evidence:sha256:583f521b591f5b851fd665eaef30126b72dca1665632f3e61c71afd96d343c37",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3050,
+        "start": 2775
+      },
+      "spanSha256": "4b64d86cb3a0f3db641596d837683063e1d06f12aeb1e64a00d7e45ec9d3441b"
+    },
+    {
+      "blobOid": "59e4969e61dc9c7dee0a6c20a5e82ebd623435ac",
+      "id": "evidence:sha256:1591d1279ddea3f10f741cddbb24783ba0a06754a1cd55621c844e5fb90ed5e3",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 4032,
+        "start": 3645
+      },
+      "spanSha256": "966cc0f812534a4f6bb903be8168adab274858b05246ece9f0a8485855487c9e"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ef6a81b5bdf62ec2f5970728777d3d9598ecff8479c9d58fbc6cb1c89d56634e",
+      "newRange": {
+        "count": 24,
+        "start": 310
+      },
+      "oldRange": {
+        "count": 24,
+        "start": 310
+      },
+      "path": "cmd/corvint/dogfood_flow_portable_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:09e4dedfff0c7b5b78c2c444e04de5c8beff9916d2c283227c7caeb485f67e7b",
+      "newRange": {
+        "count": 7,
+        "start": 176
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 176
+      },
+      "path": "conformance/use-cases-v0/ledger.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9f07d143890415d8786921748cd7ccb3433f09b13429259139b9b3bc7014db7b",
+      "newRange": {
+        "count": 7,
+        "start": 209
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 209
+      },
+      "path": "conformance/use-cases-v0/ledger.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b5ed5aada34d061b65f95b201f0f96c72cb96bb5867d8972dd492bb4c4754707",
+      "newRange": {
+        "count": 7,
+        "start": 242
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 242
+      },
+      "path": "conformance/use-cases-v0/ledger.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ebf22d797be15272c0adc09eb19939bb728a4b98f0323efc781891ef02459d41",
+      "newRange": {
+        "count": 13,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 6
+      },
+      "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/contract.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b64e7a0bc74a130a1baa211e3f73a65c263433843830d0794e514eb23b23d736",
+      "newRange": {
+        "count": 13,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 6
+      },
+      "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/contract.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d5be631674c84bce98473a8c8e2bbeb52fe2cb18045b47e68c91ed39ab902c40",
+      "newRange": {
+        "count": 13,
+        "start": 6
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 6
+      },
+      "path": "conformance/use-cases-v0/receipts/UC-TASK-ORIENTATION/contract.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:583f521b591f5b851fd665eaef30126b72dca1665632f3e61c71afd96d343c37",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:2625e27b12069d7d8b25cf8824dc965d6582cce2428edf44fd6a8b9ef742834f",
+      "newRange": {
+        "count": 26,
+        "start": 6160
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 6160
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1591d1279ddea3f10f741cddbb24783ba0a06754a1cd55621c844e5fb90ed5e3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a7530f839a183729f33d2ce9adb58fd4da0efea6226d995ee5291149b5d2a866",
+      "newRange": {
+        "count": 13,
+        "start": 87
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 87
+      },
+      "path": "docs/DOGFOOD.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1591d1279ddea3f10f741cddbb24783ba0a06754a1cd55621c844e5fb90ed5e3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:e2569c0bf3a6adc26857066efdfe14babefecb18fa89b4d19e5e910f631021b0",
+      "newRange": {
+        "count": 7,
+        "start": 155
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 155
+      },
+      "path": "docs/DOGFOOD.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1591d1279ddea3f10f741cddbb24783ba0a06754a1cd55621c844e5fb90ed5e3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:26b15b49ff8f9b743a89aa1a9ef46495bd99772971ccb300b498d32fecb54d16",
+      "newRange": {
+        "count": 10,
+        "start": 182
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 182
+      },
+      "path": "docs/DOGFOOD.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1591d1279ddea3f10f741cddbb24783ba0a06754a1cd55621c844e5fb90ed5e3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b420237bf5e37b8823d3fc6f5c540b71bf9d44af45b7dc7e371b18c085bbdb23",
+      "newRange": {
+        "count": 10,
+        "start": 193
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 189
+      },
+      "path": "docs/DOGFOOD.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1591d1279ddea3f10f741cddbb24783ba0a06754a1cd55621c844e5fb90ed5e3",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:18b9641dcd6780ccd1479d173706e959683f5b1a9036c012e000c217f839100f",
+      "newRange": {
+        "count": 7,
+        "start": 292
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 288
+      },
+      "path": "docs/DOGFOOD.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5944f890fb674985a15644b6114c72644a571c74519fc0e8ec6419ac146338f7",
+      "newRange": {
+        "count": 7,
+        "start": 76
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 76
+      },
+      "path": "docs/SPEC-TOOLCHAIN-INTEGRATION.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a8efd1552052c08cd1192ce37820b12d991cbbda7b93fae2ad5f7dca9ec0eae7",
+      "newRange": {
+        "count": 16,
+        "start": 599
+      },
+      "oldRange": {
+        "count": 15,
+        "start": 599
+      },
+      "path": "docs/specs/REQUIREMENTS.tsv",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:71ee8b6f2fa6d71b972a4b5383329b600cb20afdaef98379db306b931a4c8c64",
+      "newRange": {
+        "count": 8,
+        "start": 91
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 91
+      },
+      "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:7e6c2edc8e9876e3a271349d3bb95d899f561e8cea52b88a925563414a50c97d",
+      "newRange": {
+        "count": 7,
+        "start": 184
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 183
+      },
+      "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c0f13692d2c6ffcacf2108f0e61a29503e81f43e7e07fc5f4f19b72ba90c9e90",
+      "newRange": {
+        "count": 26,
+        "start": 197
+      },
+      "oldRange": {
+        "count": 12,
+        "start": 196
+      },
+      "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:73add195fa470921d6e1baaff34d325537f2d565cfd321e6e8ddd4f258ce957d",
+      "newRange": {
+        "count": 7,
+        "start": 232
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 217
+      },
+      "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:502a808d860e3c46c498dec1b62a1d9211b1fa3bef73f174bce43e0f69ff41b5",
+      "newRange": {
+        "count": 7,
+        "start": 303
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 288
+      },
+      "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4d9063bbfd3ccc0861f450f17ba6e3944d8f769f77815aae53e64ed4edd95e8c",
+      "newRange": {
+        "count": 8,
+        "start": 115
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 115
+      },
+      "path": "docs/specs/local-completion-policy-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:35d59f6d91d233f9b806fac889de1827a1c79e07d4f081eeccde5364d0d39509",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d2f9c8d1577f55163681f3691b9c2ee1e4daad29b60082ab0a7dd25f4b4577de",
+      "newRange": {
+        "count": 7,
+        "start": 136
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 136
+      },
+      "path": "docs/specs/local-completion-policy-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:61cde504998ea00ec0249dcaf1ec740590d57f1e0b296baf7f9652f95b555098",
+      "newRange": {
+        "count": 9,
+        "start": 101
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 101
+      },
+      "path": "internal/dogfoodflow/change.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3dca8128b004884878d9e083c2d0a765c02ba1044dc1dec7be64037cd9852962",
+      "newRange": {
+        "count": 19,
+        "start": 204
+      },
+      "oldRange": {
+        "count": 19,
+        "start": 202
+      },
+      "path": "internal/dogfoodflow/change.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:01629a755e262719a74710a71d79bf71f642c6e999a0df32beb3dd247a7b0dae",
+      "newRange": {
+        "count": 7,
+        "start": 226
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 224
+      },
+      "path": "internal/dogfoodflow/change.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d2a0e7e52ff7c0051865d13de872111ad2426ee9e555723cf9739448ba831fa6",
+      "newRange": {
+        "count": 11,
+        "start": 242
+      },
+      "oldRange": {
+        "count": 11,
+        "start": 240
+      },
+      "path": "internal/dogfoodflow/change.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c0e0ac5840f760d53fd3fce40773bf16611bf7d637a1235e276a8b954a8868ec",
+      "newRange": {
+        "count": 7,
+        "start": 744
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 742
+      },
+      "path": "internal/dogfoodflow/change.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f55cca57648a2b43b633476604630ec903fc6ac04391d1c760a5c034d9da96c2",
+      "newRange": {
+        "count": 7,
+        "start": 796
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 794
+      },
+      "path": "internal/dogfoodflow/change.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a386ca40cee5ca8899656e06adcf26d9220ff4489eca85d5aa6ab744a21ad515",
+      "newRange": {
+        "count": 7,
+        "start": 864
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 862
+      },
+      "path": "internal/dogfoodflow/change.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f2071ebab475735e5d57a260c94f7754cd66a95fc14919ba1690a3f60692fa21",
+      "newRange": {
+        "count": 8,
+        "start": 898
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 896
+      },
+      "path": "internal/dogfoodflow/change.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:81a2d0cda4b9f50df6e4fd20ff557d28508099b17d42488343c402418bb93115",
+      "newRange": {
+        "count": 12,
+        "start": 920
+      },
+      "oldRange": {
+        "count": 12,
+        "start": 918
+      },
+      "path": "internal/dogfoodflow/change.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:61bcdc0f05108c0fb6d2bba47f36dcf3b00aa62fc2be0c0011fdfdae4ca44631",
+      "newRange": {
+        "count": 89,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "internal/dogfoodflow/change_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:966ed8dbc6a9ad6b1dfe86bfb179761b984c4f307d49f1533ad7bb00e7f2ee4b",
+      "newRange": {
+        "count": 7,
+        "start": 162
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 162
+      },
+      "path": "internal/dogfoodflow/check.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5217b52345f5fe5681ccdb14c4fbb0175c46ae15adb4f6728a3a0e64c5b7eda4",
+      "newRange": {
+        "count": 7,
+        "start": 204
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 204
+      },
+      "path": "internal/dogfoodflow/check.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8c2fab9edb23068ef14c125dc33062d90dd6b1dbbf5d5d0193ac6255261d7ef3",
+      "newRange": {
+        "count": 9,
+        "start": 218
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 218
+      },
+      "path": "internal/dogfoodflow/check.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:49e7eadb03879218da7eb740a89d00680d944a88775e4d97bfe34f3d14818691",
+      "newRange": {
+        "count": 7,
+        "start": 231
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 231
+      },
+      "path": "internal/dogfoodflow/check.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:4460661851e02edfb8ca91ba800e4a9063f7d5ea63f322d6fecd9ba43217b3b9",
+      "newRange": {
+        "count": 7,
+        "start": 303
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 303
+      },
+      "path": "internal/dogfoodflow/check.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f3b4386a761f7d1a13640c8cf6958ad3f54006862098997e303210976bc1afd6",
+      "newRange": {
+        "count": 7,
+        "start": 445
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 445
+      },
+      "path": "internal/localcompletion/finish.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f3b336ef8e83fbe43a43894e645b6aca876053c190071599d127d7f4d887a0bc",
+      "newRange": {
+        "count": 15,
+        "start": 563
+      },
+      "oldRange": {
+        "count": 15,
+        "start": 563
+      },
+      "path": "internal/localcompletion/lifecycle_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9043b0f3e9e350b581ab05c1d852965fbf22ff19dec57d9b6186b1201879b4c9",
+      "newRange": {
+        "count": 7,
+        "start": 534
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 534
+      },
+      "path": "internal/observations/observations.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b68d25e5e5465fbd67d2c2edb43b9d221542b0e810b3400f8fffd24e67728941",
+      "newRange": {
+        "count": 7,
+        "start": 417
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 417
+      },
+      "path": "script/dogfood-change_test.sh",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:45dc5a34f61f2faed472d87f690c984df1a8ead56f5fc2cd859d93d0eb793b4d",
+      "newRange": {
+        "count": 18,
+        "start": 444
+      },
+      "oldRange": {
+        "count": 18,
+        "start": 444
+      },
+      "path": "script/dogfood-change_test.sh",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8032b2dba8f36bbd63473eefa9009eba43b055cf068e95af497b6188b931d0a9",
+      "newRange": {
+        "count": 10,
+        "start": 463
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 463
+      },
+      "path": "script/dogfood-change_test.sh",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:348c86cb7933b10d2dd4db8184bc45ae2539117317ca5ca1783a7bdf7588790c",
+      "newRange": {
+        "count": 13,
+        "start": 479
+      },
+      "oldRange": {
+        "count": 13,
+        "start": 479
+      },
+      "path": "script/dogfood-change_test.sh",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5494714dde6726c8baeca057765ef7175b58d025775a61bcd78d72aa5a71d556",
+      "newRange": {
+        "count": 8,
+        "start": 535
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 535
+      },
+      "path": "script/dogfood-change_test.sh",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:97e6af4b321d446b4880e078d18cc9bf771f74827ff24156607b74d99c73ecd4",
+      "newRange": {
+        "count": 9,
+        "start": 678
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 678
+      },
+      "path": "script/dogfood-change_test.sh",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:17b88a0757e85dcf7c37190b3ea9ef628dedb356ca9e6ce1d574a20bc148a35a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:cf652465ae1c58d9f6c1398a0a627cc5c528a8931dee92325d21a56690690c0d",
+      "newRange": {
+        "count": 7,
+        "start": 738
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 738
+      },
+      "path": "script/dogfood-change_test.sh",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "cd504fa12da03861f894eedf009ca2490e6c31dd5b5c2ac6c2054902a2f34b6f",
+  "spec": "cem/0.2"
+}

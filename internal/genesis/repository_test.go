@@ -7,6 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/gitstatus"
 )
 
 func genesisGit(t *testing.T, git, root string, args ...string) {
@@ -68,6 +72,52 @@ func TestInventoryPrivateStatusPreservesEightProcessBudget(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// TestInventoryBudgetCoversSparseIndexStatusProbes pins V1-0287: a sparse-index
+// checkout with a worktree config and a non-trivial repository config makes the
+// private status run its full probe plan, which must fit the inventory budget,
+// and an exhausted budget names git-budget-exceeded, not git-read-failed.
+func TestInventoryBudgetCoversSparseIndexStatusProbes(t *testing.T) {
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := genesisRepository(t, git, "sha1")
+	if err := os.Mkdir(filepath.Join(root, "kept"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "kept", "a.txt"), []byte("a\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	genesisGit(t, git, root, "add", "kept")
+	genesisGit(t, git, root, "commit", "-qm", "kept")
+	genesisGit(t, git, root, "sparse-checkout", "set", "--cone", "--sparse-index", "kept")
+	genesisGit(t, git, root, "config", "core.multiPackIndex", "true")
+	bin := t.TempDir()
+	counter := filepath.Join(bin, "calls")
+	quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'" }
+	wrapper := "#!/bin/sh\nprintf x >> " + quote(counter) + "\nexec " + quote(git) + " \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	receipt := CompileRepositoryInventory(context.Background(), root, "init", nil, "HEAD", nil)
+	if receipt["operationalState"] != "COMPLETE" {
+		t.Fatalf("sparse-index inventory degraded: %#v", receipt["gaps"])
+	}
+	calls, err := os.ReadFile(counter)
+	if err != nil || len(calls) != inventoryReads+gitstatus.MaxProcesses {
+		t.Fatalf("git calls=%d err=%v; want the full probe plan %d", len(calls), err, inventoryReads+gitstatus.MaxProcesses)
+	}
+	repo, err := openRepository(context.Background(), root, defaultLimits(), "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo.budget = gitrun.NewBudget(0, time.Minute)
+	if _, _, _, err := repo.resolve(context.Background(), "HEAD"); err != genesisError("git-budget-exceeded") {
+		t.Fatalf("exhausted budget err=%v", err)
 	}
 }
 

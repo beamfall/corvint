@@ -42,12 +42,10 @@ func TestSourceParsedEdgesCoverEveryEdgeTheToolchainReports(t *testing.T) {
 		t.Fatalf("units: %v", err)
 	}
 	observed := make(map[string]map[string]bool, len(result.Units))
+	observedTest := make(map[string]map[string]bool, len(result.Units))
 	for _, unit := range result.Units {
-		edges := make(map[string]bool, len(unit.Imports))
-		for _, target := range unit.Imports {
-			edges[strings.TrimPrefix(target, "go:")] = true
-		}
-		observed[strings.TrimPrefix(unit.ID, "go:")] = edges
+		observed[strings.TrimPrefix(unit.ID, "go:")] = edgeSet(unit.Imports)
+		observedTest[strings.TrimPrefix(unit.ID, "go:")] = edgeSet(unit.TestImports)
 	}
 	missingPackages := 0
 	missingEdges := 0
@@ -58,7 +56,10 @@ func TestSourceParsedEdgesCoverEveryEdgeTheToolchainReports(t *testing.T) {
 			t.Errorf("package %s is absent from the source-parsed graph", pack.ImportPath)
 			continue
 		}
-		for _, group := range [][]string{pack.Imports, pack.TestImports, pack.XTestImports} {
+		// A non-test import must be an ordinary edge; a test import may be
+		// either, since only the package's own tests compile it (V1-0291).
+		testEdges := observedTest[pack.ImportPath]
+		for index, group := range [][]string{pack.Imports, pack.TestImports, pack.XTestImports} {
 			for _, target := range group {
 				if !firstParty(target) || target == pack.ImportPath {
 					continue
@@ -68,7 +69,7 @@ func TestSourceParsedEdgesCoverEveryEdgeTheToolchainReports(t *testing.T) {
 				if strings.TrimSuffix(target, "_test") == pack.ImportPath {
 					continue
 				}
-				if !edges[target] {
+				if !edges[target] && (index == 0 || !testEdges[target]) {
 					missingEdges++
 					t.Errorf("edge %s -> %s reported by the toolchain is missing", pack.ImportPath, target)
 				}
@@ -77,6 +78,14 @@ func TestSourceParsedEdgesCoverEveryEdgeTheToolchainReports(t *testing.T) {
 	}
 	t.Logf("ground truth: %d first-party packages, %d missing from graph, %d missing edges",
 		len(truth), missingPackages, missingEdges)
+}
+
+func edgeSet(targets []string) map[string]bool {
+	edges := make(map[string]bool, len(targets))
+	for _, target := range targets {
+		edges[strings.TrimPrefix(target, "go:")] = true
+	}
+	return edges
 }
 
 func listFirstPartyPackages(t *testing.T, root string) []listPackage {
