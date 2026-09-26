@@ -6987,3 +6987,14 @@ Pre-change context came from `corvint query` in the change clone; the pre-change
 not written. Focused tests and `go vet` passed for `./cmd/corvint` (count=10 on the flaky test),
 `./cmd/corvint-companion-release`, `./internal/tasks/store` and `./internal/tasks/cli`. `make gate`
 and the exhaustive `./...` run were not run.
+
+## 2026-09-25 V1-0355: gate-ledger disables fsmonitor on every git call
+
+`make gate` at 3c1b894c (v0-6 evidence rerun) timed out after 30m in
+`TestWorktreeDigestPreservesMembershipAndPaths`. The goroutine dump shows the test blocked in
+`worktreeDigest`'s first `git ls-files -v`, with git itself not exiting. The test sets
+`core.fsmonitor=true` on its fixture repository; `gitOutputEnvInput` added
+`-c core.fsmonitor=false -c core.ignorestat=false` only to private-index calls, so the plain calls
+made git consult the monitor daemon, which a loaded host stalled. Every gate-ledger git call now
+carries both overrides: the ledger never wants monitor or cached-stat shortcuts. Evidence:
+`go test -count=1 ./tools/gate-ledger` passes in 17s; `go vet` clean.
