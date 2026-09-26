@@ -67,14 +67,15 @@ type e2eCorpus struct {
 }
 
 type e2eCase struct {
-	ID                 string             `json:"id"`
-	Fault              string             `json:"fault"`
-	Changes            map[string]*string `json:"changes"`
-	BaseChanges        map[string]*string `json:"base_changes"`
-	Discovery          string             `json:"discovery"`
-	DropCoverage       []string           `json:"drop_coverage"`
-	IncompleteCoverage []string           `json:"incomplete_coverage"`
-	Needed             []string           `json:"needed"`
+	ID                 string                    `json:"id"`
+	Fault              string                    `json:"fault"`
+	Changes            map[string]*string        `json:"changes"`
+	BaseChanges        map[string]*string        `json:"base_changes"`
+	Discovery          string                    `json:"discovery"`
+	DropCoverage       []string                  `json:"drop_coverage"`
+	IncompleteCoverage []string                  `json:"incomplete_coverage"`
+	CoverageOverride   []appflows.CoverageRecord `json:"coverage_override"`
+	Needed             []string                  `json:"needed"`
 	Expect             struct {
 		State string   `json:"state"`
 		Codes []string `json:"codes"`
@@ -163,6 +164,9 @@ func writeE2ECoverage(t *testing.T, root string, records []appflows.CoverageReco
 	for _, record := range records {
 		if slices.Contains(c.DropCoverage, record.TestKey) {
 			continue
+		}
+		if i := slices.IndexFunc(c.CoverageOverride, func(o appflows.CoverageRecord) bool { return o.TestKey == record.TestKey }); i >= 0 {
+			record = c.CoverageOverride[i]
 		}
 		record.Commit = evidence
 		record.Tiers = slices.Clone(record.Tiers)
@@ -425,6 +429,19 @@ func TestAFUV1020ExclusionProofsPerBasis(t *testing.T) {
 		if !slices.Contains(got.Fallback, want) {
 			t.Fatalf("%s: fallback %+v lacks %+v", id, got.Fallback, want)
 		}
+	}
+}
+
+// AFU-V1-021: coverage evidence holds at base only under the Verified carry-forward rule. The search
+// spec changed after its coverage run to visit the profile page, and its client coverage lists no
+// test file, so a profile fault must not omit it on the coverage basis.
+func TestAFUV1021CoverageStaleWhenStaticReachChanged(t *testing.T) {
+	t.Parallel()
+	corpus := loadE2ECorpus(t)
+	selection, _, _ := runE2ECase(t, corpus, corpus.find(t, "spec-after-coverage"))
+	e2eFullSuite(t, "spec-after-coverage", selection)
+	if want := (appflows.E2EFallback{Code: appflows.CodeMapStale, Subject: "search.spec.ts > finds"}); !slices.Contains(selection.Fallback, want) {
+		t.Fatalf("fallback %+v lacks %+v", selection.Fallback, want)
 	}
 }
 
