@@ -485,10 +485,10 @@ do not reinterpret this Frontier result.
   model-only context, with no remediation (panel report B8, 2026-09-25). Not decided here: deciding
   a miss in milliseconds without the build, refreshing the snapshot from explicit write commands,
   or serving the parent-tree snapshot with a dirty overlay.
-  (proposed amendment 2026-09-26, V1-0286; owner review pending; not accepted) A snapshot miss
+  (accepted amendment 2026-09-26, decision 0422; V1-0286) A snapshot miss
   whose recorded `index` build cost is at least the time left before the deadline MUST report
   `dogfood-event-index-snapshot-stale` without starting the in-memory build (`IDX-SNAP-V0-012`
-  proposed amendment), so a large repository no longer spends the whole deadline on every
+  amendment), so a large repository no longer spends the whole deadline on every
   prompt; with no usable record, or a recorded cost that fits, the miss builds and, on expiry,
   reports as above. The cause line after the frame then states that no snapshot matches the
   current tree and that building one in memory does not fit the hook deadline, which covers both
@@ -705,7 +705,7 @@ back by restoring the fixed `dogfood-event-deadline` code in `runLocalCompletion
 | `AHI-028` | `cmd/corvint/host_adapter_compaction.go` (`runClaudePostCompact`, `parseCompactionPin`, `compactionPinMissing`, `compactionReportLine`) | `TestAHI028ClaudePostCompactReportsNonRehydratablePaths` (exact report naming the pinned path the tree lacks; lost, escaping and unresolvable pins degrade by name) |
 | `AHI-029` | both compaction events | `TestAHI029ClaudeCompactionHooksMutateNothing` (byte-size snapshot of the whole fixture including `.git` is unchanged across a pin and its verification) |
 | `AHI-030` | `cmd/corvint/host_adapter_compaction.go` (`compactSessionDisclosure`), Claude branch of `runClaudeAdapter` | `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (compact `SessionStart` additionalContext begins with the disclosure) |
-| `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`; proposed `dogfoodMissOutlastsDeadline`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`; proposed `snapshotRemediation`, `withCodexSnapshotRemediation`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv); proposed: `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
+| `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`, `dogfoodMissOutlastsDeadline`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`, `snapshotRemediation`, `withCodexSnapshotRemediation`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv); V1-0286 amendment (accepted, decision 0422): `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | `AHI-004` | native adapter renderers, shared lifecycle command, `internal/repoenvelope`, and the JavaScript envelope builders | byte-identical untrusted-data envelope with hidden-character escaping and terminator refusal (`internal/repoenvelope`, `cmd/corvint`, `tools/native-hook-observer` and `integrations/host-adapters.test.mjs` tests), injection bounds, authority order, and query fixtures |
 | `AHI-011`, `015` | embedded `internal/gokernel/host-schema.json` admission table and shared lifecycle command | schema/admission tests plus one host-keyed golden fixture per admitted host |
 | `AHI-002`, `006..010` | four native packages and release matrix | install/uninstall, lifecycle, degradation, and version fixtures; for `AHI-010`, the `integrations/host-adapters.test.mjs` test under `TestHostAdapterJavaScriptHosts` binding each `integrations/compatibility.json` row to its shipped declaration and its row's adapter version to the package manifest version, and asserting `globalDegradations` disjoint from `receiptDegradationPolicy.recognised` |
