@@ -176,10 +176,12 @@ root digest. Those fields are outside the delivered repository-binding status an
 `NOT_OBSERVED`.
 
 The server performs no Corvint executable PATH lookup because it calls the Go kernels in process.
-The current candidate's inherited Git runners still resolve `git` through PATH per invocation;
-post-start executable pinning is `NOT_OBSERVED`. This is a known release blocker, so the candidate
-must remain experimental until the runners accept one absolute start-time-pinned Git executable and
-the adversarial conformance case passes.
+Every Git runner it uses, including the CEM seams' own `internal/cem/gitrun` runner, is pinned to
+one absolute start-time Git executable (`cmd/corvint-mcp/main.go:66-72`, `internal/gitstatus`'s
+`Pin`/`Executable`, `internal/cem/gitrun.PinBinary`; `MCPV0-016`); a Git binary placed on PATH after
+start never runs. This is observed by the adversarial conformance cases `TestGitPlantedOnPathAfterStartNeverRuns`
+and `TestTaskReviewCEMReportNeverRunsPlantedGit` in `conformance/mcp-2026-07-28`, plus
+`internal/gitstatus.TestPinFixesExecutableAgainstLaterPathChanges`; all three pass.
 
 ## Verification status
 

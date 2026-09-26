@@ -1714,7 +1714,7 @@ for `query-version-token`. They are moved here unchanged. The observed-bytes tab
 candidate side ends in `git diff --check`, not `make gate`.
 
 *Provenance of the uncertainty line.* `GPK-V0-046`
-(`docs/specs/go-production-kernel-migration-v0.md:455-465`) requires "exactly one deterministic
+(`docs/specs/go-production-kernel-migration-v0.md:491-495`) requires "exactly one deterministic
 `coverage.uncertainty` entry naming that condition" and gives no wording. The exact string was
 authored in `b5707eee` (decision 0036), which added it to both runtimes at once, as
 `SyntaxOnlyUncertainty` in Go and `SYNTAX_ONLY_UNCERTAINTY` in the oracle, under the clause's
@@ -2026,7 +2026,7 @@ quietly.
 ### DR-0024 — a null-budget omission is named as a budget the request never set
 
 - **Status:** LANDED — adjudicated `python-defect` / known-divergent under `GPK-V0-053` (accepted
-  by decision 0051 item 2, `docs/specs/go-production-kernel-migration-v0.md:507-515`), which requires an omission line to
+  by decision 0051 item 2, `docs/specs/go-production-kernel-migration-v0.md:563-566`), which requires an omission line to
   name the ceiling that actually dropped the results. The disagreement is **EXPECTED and MUST NOT be
   reported as a failure** (`GPK-V0-033`). `src/` is deliberately unrepaired.
 - **Command:** every surface that compiles a context receipt under a `--limit` ceiling with no

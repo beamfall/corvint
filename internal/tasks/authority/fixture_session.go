@@ -99,7 +99,7 @@ type fixtureSession struct {
 	write     func(*os.File, []byte) (int, error)
 	closeFile func(*os.File) error
 	closeRoot func(*os.Root) error
-	observe   func(*os.File) (fixtureMount, error)
+	observe   func(*os.File, fixtureMount) (fixtureMount, error)
 }
 
 func fixtureDirectory(key string) (parent, name string, ok bool) {
@@ -282,7 +282,7 @@ func (s *fixtureSession) retain(key, parent, name string, root *os.Root) (err er
 		return errors.Join(err, s.closeRoot(root))
 	}
 	info, statErr := f.Stat()
-	mount, mountErr := s.observe(f)
+	mount, mountErr := s.observe(f, fixtureMount{})
 	if err = errors.Join(statErr, mountErr); err != nil {
 		return errors.Join(err, s.closeFile(f), s.closeRoot(root))
 	}
@@ -359,7 +359,7 @@ func (s *fixtureSession) check() (err error) {
 				return fixtureRefused
 			}
 		}
-		mount, e := s.observe(p.file)
+		mount, e := s.observe(p.file, p.mount)
 		if e != nil {
 			return e
 		}

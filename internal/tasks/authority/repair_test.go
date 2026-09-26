@@ -27,6 +27,25 @@ func TestTMV0010_AS10_AmbiguousExtMagic(t *testing.T) {
 		t.Fatal("must preserve ext4 policy; only its unproved observation is refused")
 	}
 }
+func TestTMV0010_AS10_ExtFromMountinfo(t *testing.T) {
+	const table = "22 1 8:1 / / rw,relatime shared:1 - ext4 /dev/sda1 rw\n" +
+		"23 22 8:2 /a /mnt/with\\040space rw - ext3 /dev/sda2 rw\n" +
+		"24 22 8:3 / /old rw master:2 shared:3 - ext2 /dev/sda3 rw\n" +
+		"25 22 0:4 / /fuse rw - fuseblk /dev/sdb1 rw\n" +
+		"26 22 8:5 / /bad rw ext4 /dev/sda5 rw\n" +
+		"27 22 8:6 / /dup rw - ext4 /dev/sda6 rw\n27 22 8:6 / /dup rw - ext4 /dev/sda6 rw\n"
+	for id, want := range map[string]string{"22": "ext4", "23": "ext3", "24": "ext2"} {
+		fs := extFromMountinfo([]byte(table), id)
+		if fs.Type != want || !fs.Local || Classify(fs.Platform, fs.Type) != (want == "ext4") {
+			t.Fatalf("mount %s: %+v, want local %s", id, fs, want)
+		}
+	}
+	for _, id := range []string{"25", "26", "27", "99", "2"} {
+		if fs := extFromMountinfo([]byte(table), id); fs != filesystemFromMagic(magicExt4) {
+			t.Fatalf("mount %s qualified: %+v", id, fs)
+		}
+	}
+}
 func TestTMV0010_AS10_UnsupportedPlatformBeforeEffects(t *testing.T) {
 	old := supportedPlatform
 	supportedPlatform = false
