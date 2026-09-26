@@ -7176,6 +7176,6 @@ is false, whatever `maintenance.strategy`). `GIT_CONFIG_COUNT` is untouched beca
 fixtures branch on it. A native-hook replacement of the test binary keeps its exact two-entry
 environment, which `TestNativeHookReplacementCanBeInterrupted` asserts; the first draft without that
 guard failed it. The read-only tests keep their full `.git` comparison. Evidence: go vet
-clean; the read-only, observe-work, record, init-adopt and work-materialization tests pass;
-FULL_PACKAGE_RESULT. Dogfood CEM steps and the exhaustive gate `NOT_RUN` (test-harness change).
-Rollback: revert this commit.
+clean; the read-only, observe-work, record, init-adopt, work-materialization and native-hook tests
+pass; `go test -count=1 -timeout 30m ./cmd/corvint` passes (1596 pass, 3 skip, 353 s). Dogfood CEM
+steps and the exhaustive gate `NOT_RUN` (test-harness change). Rollback: revert these commits.
