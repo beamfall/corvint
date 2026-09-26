@@ -600,6 +600,13 @@ func (s *Session) writeMap(document *wire.Map, inputRelative, outputRelative str
 	if err != nil {
 		return "", err
 	}
+	// A cite or plain mark keeps a cem/0.3 input at cem/0.3, so every writer,
+	// not only an upgrading one, keeps it off the Core sidecar (CEM-SM-006).
+	if document.Spec == wire.Spec03 {
+		if err := checkSpec03Output(document, inputRelative, outputRelative); err != nil {
+			return "", err
+		}
+	}
 	encoded := encodeMap(document)
 	if err := publish.Publish(publish.Output{Root: s.workRoot, Relative: relative, Data: encoded}); err != nil {
 		return "", err
