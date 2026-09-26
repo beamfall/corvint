@@ -7433,3 +7433,100 @@ Decision:
 
 Evidence: the four affected frozen modes pass. Their N-1 replay against a 0.8.1 binary built from
 `v0.8.1` passes, and the non-UTF-8 mode skips with its reason.
+
+## 2026-09-26 V1-0284 follow-up: promisor objects are refused, never fetched (CCF-V1-004)
+
+The 2026-09-25 V1-0284 entry left the promisor-missing classification NOT_PRODUCED. Checked on base
+984770f6: the other Fix items hold. `TestCoreRefusalsKeepTheFrozenEnvelope` has one case per Core
+verb, `dogfood` and `frontier-error/0` are named exemptions, and seven verbs give the subdirectory
+wording. `cem`, `ocm` and `frontier` are the gap: they judge their root-relative maps before any
+repository check, so a subdirectory gets their map refusal, the same for an omitted and an explicit
+`--root`. That behaviour is now named in the proposed CCF-V1-004 text and pinned by
+`TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike`, not changed, because `cem-unreadable-map` pins
+the map-first order.
+
+In a `--filter=blob:none` clone whose promisor remote is gone, base 984770f6 refused `index`,
+`query`, `context`, path `impact` and path `prove` in a sparse clone with the codeless
+`Git returned an invalid blob size`. `impact --base` and `prove --base` in a full clone gave the
+codeless `Git error: ... could not fetch ... from promisor remote`. No fetch was attempted: an
+upload-pack spy stayed untouched, because every Core Git environment already sets
+`GIT_NO_LAZY_FETCH=1`.
+
+Decisions:
+
+- There is no single Git environment builder. About 30 sites build their own environment, and every
+  Core one already sets `GIT_NO_LAZY_FETCH=1`, so no environment code changed.
+- `GIT_NO_LAZY_FETCH` exists from Git 2.45 (RelNotes 2.45.0). Older Git ignores it, and the
+  negative control shows the lazy fetch then happens. No minimum Git version is stated anywhere;
+  `docs/INSTALL.md` only says Git is needed. The installed Git here is 2.54.0.
+- The classifier probes and does not parse stderr, because Git words a missing promisor blob
+  differently per command. `rev-list --objects --quiet --missing=allow-promisor` exits 0 only when
+  every missing object is a promisor object, and `--missing=print` names the first one. Neither
+  fetches. A corrupt non-partial repository keeps its earlier error.
+- The code is `repository-object-unavailable`, which CEM-CB-019 already gives a missing promised
+  object, so CEM, OCM and the indexed Core verbs classify it alike. The new fix
+  `git.fetch-promisor-objects` means the user fetches the objects.
+- The hooks are the `ls-tree` size read and the three range reads. The covered-site count moves from
+  40 to 41, and the contextindex change moves the analyzer schema to `corvint-analyzer/86`.
+  Snapshots rebuild once, and extraction is unchanged.
+
+Evidence: `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching` covers sparse and full clones,
+seven cases, with a sentinel that an attempted fetch would touch. It fails with
+`GIT_NO_LAZY_FETCH=0`: the refusal is uncoded and the sentinel exists.
+
+NOT_PRODUCED: other content readers (`blame`, the `prove` hermetic runner, the `init` / `adopt`
+inventory, which reports `malformed-tree-entry`) are unclassified. Git older than 2.45 is
+unguarded. Owner acceptance of the clause is pending in V1-0001.
+
+## 2026-09-26 V1-0284 review: a transport block, and refusals name only the object the read named
+
+An independent read-only review (Codex CLI 0.153.2, `gpt-6-astra`) of the entry above found three
+defects, each confirmed here before the fix.
+
+- Git before 2.46 still fetches under `GIT_NO_LAZY_FETCH=1`. In Git 2.45 the variable guards direct
+  object reads, but a diff's blob prefetch (`promisor_remote_get_direct`) fetches anyway; the refusal
+  in `fetch_objects` arrives in 2.46.0. Checked in the Git 2.45.0 and 2.54.0 sources.
+- `dogfood` started Git with the full ambient environment, so its reads could lazily fetch.
+- The refusal named the first missing object reachable from the tips, not the one the read failed
+  on, so it could blame an object the read never needed.
+
+Decisions:
+
+- Every Git process that `index`, `query`, `context`, `impact` or `prove` starts for its reads now
+  also carries an empty `GIT_ALLOW_PROTOCOL` (`internal/contextindex/git.go:141@cda398ae`,
+  `cmd/corvint/prove.go:1887@c88957fb`). It refuses every transport on any Git version and
+  overrides `protocol.*.allow`, so a fetch Git starts anyway cannot reach the remote. None of these
+  runners clones or fetches a local path, which would need the `file` transport.
+- `dogfood`'s read runner adds `GIT_NO_LAZY_FETCH=1` and the empty `GIT_ALLOW_PROTOCOL`
+  (`internal/dogfoodflow/flow.go:143@42ee8c4d`), under DCW-V0-001's no-network rule. Its seal
+  runner (`git mv` and `git commit`) is unchanged, because the variables would reach commit hooks.
+- `classifyMissingObjects` (`internal/contextindex/diagnostics.go:38@a86f8b15`) takes the failed
+  read's cause and names the first listed missing promisor object that the cause or a tip names:
+  Git's stderr for the tree and range reads, and the blob whose size `ls-tree -l` printed as `BAD`.
+  A failure that names none keeps its original error. A missing root or base tree is itself a tip,
+  and `rev-list --missing=print` lists it with `?` (checked in a `--filter=tree:0` clone).
+- The `ls-tree` error of the tree read is now hooked too
+  (`internal/contextindex/git.go:379@16e97a09`). A missing subtree makes `ls-tree -r` fail with
+  `error: Could not read <oid>` before any size is printed.
+- With the transport blocked, the open question of a minimum Git version no longer bears on
+  fetching. `GIT_NO_LAZY_FETCH` remains, so Git 2.46 or later fails at the read, with no fetch
+  attempt at all.
+
+Evidence:
+
+- `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching` now writes `protocol.file.allow=always`
+  into each clone, so only Corvint's environment can stop a fetch, and quotes the sentinel path.
+  After the Core cases it runs two controls. A lazy `cat-file` with no transport allowed leaves the
+  sentinel absent, and the same read with the transport allowed creates it, so the sentinel does
+  record a fetch.
+- `TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway` runs the same seven cases through a
+  PATH shim that unsets `GIT_NO_LAZY_FETCH`, simulating the older Git. It passes, and it fails with
+  the sentinel present when the empty `GIT_ALLOW_PROTOCOL` is removed from both runners.
+- `TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed` checks two missing blobs that are not
+  first in traversal order, and a cause naming neither. It fails on all three assertions when the
+  named-object filter is removed.
+
+NOT_PRODUCED: other Git runners still allow a transport. These are the `work` and taskman
+qualified environments, `cem`, `ocm`, `frontier`, and the other packages' own
+`sanitizedGitEnvironment` builders; each needs its own audit, because a local clone there needs the
+`file` transport. That audit is ticketed. Owner acceptance of the clause is still pending in V1-0001.
