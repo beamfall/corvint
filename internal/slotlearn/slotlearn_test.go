@@ -149,6 +149,27 @@ func TestLTAV0012ResetRefusesASymlinkedStoreAndRemovesALeafLink(t *testing.T) {
 	}
 }
 
+// The admit path writes through the pinned store, so a symlinked store is
+// refused and nothing is written outside the repository.
+func TestLTAV0011AdmitRefusesASymlinkedStoreAndWritesNothingOutside(t *testing.T) {
+	root, outside := t.TempDir(), t.TempDir()
+	store := filepath.Join(root, filepath.Dir(filepath.FromSlash(contextindex.SlotWeightsPath)))
+	if err := os.Symlink(outside, store); err != nil {
+		t.Fatal(err)
+	}
+	err := writeAdmitted(root, contextindex.SlotWeights{"test": 2}, map[string]any{
+		"goldens_sha256": "sha256:" + strings.Repeat("a", 64), "revision": strings.Repeat("b", 40), "heldout_cases": 2,
+		"baseline": map[string]any{"critical_misses": 0, "must_include_hits": 1, "top5_hits": 1},
+		"arm":      map[string]any{"critical_misses": 0, "must_include_hits": 2, "top5_hits": 2},
+	})
+	if err == nil {
+		t.Fatal("admit through a symlinked store succeeded")
+	}
+	if entries, err := os.ReadDir(outside); err != nil || len(entries) != 0 {
+		t.Fatalf("outside directory written: %v, %v", entries, err)
+	}
+}
+
 func TestLTAV0012PinnedStoreIgnoresASubstitutedDirectory(t *testing.T) {
 	root, outside := t.TempDir(), t.TempDir()
 	name := filepath.Base(contextindex.SlotWeightsPath)

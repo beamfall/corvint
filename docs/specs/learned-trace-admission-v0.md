@@ -140,7 +140,9 @@ screens shared the assignment-pattern vocabulary, which did not include `credent
   why. It MUST fail when the repository revision changes during scoring.
 - `LTA-V0-011`: (decision 0368, accepted by 0373, experimental) Only `--admit` with an `improved` proposal MAY write
   `.context-corvint/slot-weights.json` (schema 1: `weights` over the ten learnable slot relations,
-  each an integer in -2..2, plus the gate's evaluation block), atomically and at most 4,096 bytes.
+  each an integer in -2..2, plus the gate's evaluation block), atomically and at most 4,096 bytes,
+  only through the `.context-corvint` directory pinned inside the repository: a symlinked or
+  non-directory store is refused and nothing is written outside the repository.
   The file is operator-owned local state: the loader checks its shape, not its provenance, so the
   `evaluation` block MUST be an object carrying `goldens_sha256` (`sha256:` and 64 lowercase hex),
   `revision` (40 or 64 lowercase hex) and both arm results, `baseline` and `arm`, each with integer
@@ -284,7 +286,7 @@ repaired by silently changing the oracle after evaluation.
 | `LTA-V0-008` | `internal/skillexport` | `TestHostRoundTripLoadsExportedSkill_LTA008` |
 | `LTA-V0-009` | `internal/slotlearn`, `cmd/corvint/eval_slot_weights.go` | `TestLTAV0009LedgersNeverChangeContextOrQueryOutput`, `TestLTAV0009LiveContextPathCannotReachTheLedgers`, `TestLTAV0009LabelsAreBoundedAndPlannedReadsAreNotLabels`, `TestLTAV0009ProposalsAreBoundedDeterministicAndInRange`, `TestLTAV0009ServingSlotTable` |
 | `LTA-V0-010` | `internal/evalrepo/slot_weights.go`, `internal/slotlearn` | `TestLTAV0010GateReportsTheDeltaAndRefusesWithoutImprovement`, `TestLTAV0010NoLabelsRefusesWithoutEvaluating`, `TestLTAV0010SlotDeltaClassification`, `TestLTAV0010SelectorPathsKeepOnlyPathBearingSelectors` |
-| `LTA-V0-011` | `internal/contextindex/slot_weights.go`, `internal/contextindex/taskcontext.go`, `cmd/corvint/taskcontext.go` | `TestLTAV0011SlotWeightOrderIsIdentityByDefaultAndStable`, `TestLTAV0011WeightedPacketDisclosesTheTraceAndNilIsTaskContext`, `TestLTAV0011AdmittedSlotWeightsLoaderFailsClosed`, `TestBatchContextAppliesAdmittedSlotWeights` |
+| `LTA-V0-011` | `internal/contextindex/slot_weights.go`, `internal/contextindex/taskcontext.go`, `cmd/corvint/taskcontext.go`, `internal/slotlearn` | `TestLTAV0011SlotWeightOrderIsIdentityByDefaultAndStable`, `TestLTAV0011WeightedPacketDisclosesTheTraceAndNilIsTaskContext`, `TestLTAV0011AdmittedSlotWeightsLoaderFailsClosed`, `TestBatchContextAppliesAdmittedSlotWeights`, `TestLTAV0011AdmitRefusesASymlinkedStoreAndWritesNothingOutside` |
 | `LTA-V0-012` | `internal/slotlearn`, `cmd/corvint/eval_slot_weights.go`, `internal/contextindex/slot_weights.go` | `TestLTAV0012ResetRestoresTheDefaultPacket`, `TestLTAV0012AdmittedTraceRoundTripsAndResetRestoresDefault`, `TestLTAV0012ResetRefusesASymlinkedStoreAndRemovesALeafLink`, `TestLTAV0012PinnedStoreIgnoresASubstitutedDirectory` |
 | writer/stored-reader screen compatibility | `internal/secretscreen`, `internal/trace`, `src/context_corvint_trace.py`, `internal/dashboard/adapters/trace.go`, `conformance/dashboard-snapshot-v0/trace_corpus.go` | `TestSecretPatternParityCorpus`, `TestQuotedCredentialsRejectNewRecordsButRetainStoredV1`, `TestSecretPatternMatchesHistorySecretShapes`, `TestAppendRedactsQuotedCredentialPath`, `TestScreenConsumesWholeQuotedAssignmentValue`, `TestScreenRedactsAWSSecretAdjacentToItsKeyID`, Python `SecretPatternParityTest` and `CorvintLearningTest.test_trace_inputs_fail_closed`; stored-v1 compatibility and intentional-asymmetry tests |
 

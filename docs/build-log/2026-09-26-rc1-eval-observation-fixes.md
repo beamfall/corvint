@@ -5,8 +5,11 @@ resolved `.context-corvint/slot-weights.json` by path, so a symlinked `.context-
 loader admit, and reset delete, a file outside the repository. `contextindex.OpenSlotWeightsStore`
 now pins the store directory inside an opened repository root (Lstat, open, same-file check); load
 and reset both go through it, refuse a symlinked or non-directory store, and reset removes a leaf
-symlink instead of following it. The IDX-SNAP-V0-017 audit digest is re-pinned without a schema
-bump, because analyzer extraction and encoding are unchanged.
+symlink instead of following it. `--admit` checked the store by path and then wrote by path; it
+now creates the store inside the opened root and writes and renames only through the pinned store,
+so a store swapped after the check cannot redirect the write
+(`TestLTAV0011AdmitRefusesASymlinkedStoreAndWritesNothingOutside`). The IDX-SNAP-V0-017 audit
+digest is re-pinned without a schema bump, because analyzer extraction and encoding are unchanged.
 
 V1-0367 (`SOL-V0-001`). The observation writer's ignore-coverage check read `.gitignore` and
 `.corvint/.gitignore` with an unbounded, link-following read that blocks on a FIFO. The writer now

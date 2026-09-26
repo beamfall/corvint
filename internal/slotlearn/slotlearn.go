@@ -7,6 +7,7 @@ package slotlearn
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -173,17 +174,22 @@ func labelsValue(labels Labels) map[string]any {
 	}
 }
 
-// writeAdmitted replaces the admitted trace atomically, refusing a symlinked
-// store directory, and re-decodes the bytes it wrote through the live loader.
+// writeAdmitted replaces the admitted trace atomically, and re-decodes the
+// bytes it wrote through the live loader. Every write goes through the pinned
+// store directory, so a store symlinked or substituted after the check cannot
+// redirect it.
 func writeAdmitted(root string, weights contextindex.SlotWeights, evaluation map[string]any) error {
-	path := filepath.Join(root, filepath.FromSlash(contextindex.SlotWeightsPath))
-	dir := filepath.Dir(path)
-	if info, err := os.Lstat(dir); err == nil && !info.IsDir() {
-		return fmt.Errorf("%s is not a directory", filepath.ToSlash(filepath.Dir(contextindex.SlotWeightsPath)))
-	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := makeStore(root); err != nil {
 		return err
 	}
+	store, err := contextindex.OpenSlotWeightsStore(root)
+	if err != nil {
+		return err
+	}
+	if store == nil {
+		return fmt.Errorf("%s vanished while it was opened", filepath.ToSlash(filepath.Dir(contextindex.SlotWeightsPath)))
+	}
+	defer store.Close()
 	weightValue := map[string]any{}
 	for relation, weight := range weights {
 		weightValue[relation] = weight
@@ -195,19 +201,35 @@ func writeAdmitted(root string, weights contextindex.SlotWeights, evaluation map
 	if _, err := contextindex.DecodeSlotWeightsFile(raw); err != nil {
 		return err
 	}
-	temporary, err := os.CreateTemp(dir, ".slot-weights-*.json")
+	temporary := ".slot-weights-" + rand.Text() + ".json"
+	file, err := store.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 	if err != nil {
 		return err
 	}
-	defer os.Remove(temporary.Name())
-	if _, err := temporary.Write(raw); err != nil {
-		temporary.Close()
+	defer store.Remove(temporary)
+	if _, err := file.Write(raw); err != nil {
+		file.Close()
 		return err
 	}
-	if err := temporary.Close(); err != nil {
+	if err := file.Close(); err != nil {
 		return err
 	}
-	return os.Rename(temporary.Name(), path)
+	return store.Rename(temporary, filepath.Base(contextindex.SlotWeightsPath))
+}
+
+// makeStore creates the store directory inside the opened repository root;
+// an existing entry is left for OpenSlotWeightsStore to accept or refuse.
+func makeStore(root string) error {
+	repository, err := os.OpenRoot(root)
+	if err != nil {
+		return err
+	}
+	defer repository.Close()
+	err = repository.Mkdir(filepath.Dir(filepath.FromSlash(contextindex.SlotWeightsPath)), 0o755)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+	return nil
 }
 
 // Reset removes the admitted trace so the context packet returns to the
