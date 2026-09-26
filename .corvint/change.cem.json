@@ -1,0 +1,80 @@
+{
+  "baseRevision": "2ae988a332ebbacea3c0372b03f7a495a3bf1e54",
+  "evidence": [
+    {
+      "blobOid": "d99379ca4b74e77d15e5efffe2c01dbd19758031",
+      "id": "evidence:sha256:484ec9eb50e75fe038a5dc150c78d1b6d8b490ec828fe29c82ccf74f10624189",
+      "path": "docs/specs/stable-operations-v0.md",
+      "span": {
+        "end": 10183,
+        "start": 9785
+      },
+      "spanSha256": "25e34f16d7d1a048d33a5a684ea90bab9523cd1de14727d0496dc0e4eebacfd9"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:484ec9eb50e75fe038a5dc150c78d1b6d8b490ec828fe29c82ccf74f10624189",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9d5139a7935fc46da52f713b92ca053ec567f1574e27e2a2eab0f9fdd917aac9",
+      "newRange": {
+        "count": 8,
+        "start": 81
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 81
+      },
+      "path": "docs/RELEASE-RUNBOOK.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:484ec9eb50e75fe038a5dc150c78d1b6d8b490ec828fe29c82ccf74f10624189",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d4ff286cf439ad34ed4c486ea19bfc8e1fee3611ae39680e26e7a8334fc5f7fa",
+      "newRange": {
+        "count": 7,
+        "start": 94
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 93
+      },
+      "path": "docs/RELEASE-RUNBOOK.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:484ec9eb50e75fe038a5dc150c78d1b6d8b490ec828fe29c82ccf74f10624189",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:9e694ee7adfee0e2507288199fad7851a22956ae1e8ced19b3c0a799e78f9e84",
+      "newRange": {
+        "count": 7,
+        "start": 102
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 101
+      },
+      "path": "docs/RELEASE-RUNBOOK.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "abd0e0d7265c01e6e6a0a9f73e0abf3e343355d9564524fdafbebddc82fe5f73",
+  "spec": "cem/0.2"
+}
