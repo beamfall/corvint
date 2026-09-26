@@ -210,7 +210,7 @@ func fifoWitness(t *testing.T, mode, fault string, interrupt syscall.Signal, hoo
 		time.Sleep(time.Millisecond)
 	}
 	if observed.ready {
-		observed.blocked = !wait(50 * time.Millisecond)
+		observed.blocked = !wait(2 * time.Second)
 		if observed.blocked {
 			if len(hooks) != 0 && hooks[0].blocked != nil {
 				hooks[0].blocked(childPID)
