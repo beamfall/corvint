@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -135,6 +136,20 @@ func directoryListing(t *testing.T, directory string) string {
 		names.WriteString(entry.Name() + "\n")
 	}
 	return names.String()
+}
+
+// swapBeforeOpen runs swap after WriteReadinessRecord resolves the output
+// directory and before it opens it.
+func swapBeforeOpen(t *testing.T, swap func() error) {
+	t.Helper()
+	previous := openOutputDirectory
+	t.Cleanup(func() { openOutputDirectory = previous })
+	openOutputDirectory = func(directory string) (*os.Root, error) {
+		if err := swap(); err != nil {
+			return nil, err
+		}
+		return previous(directory)
+	}
 }
 
 func readinessRowByID(record *ReadinessRecord, id string) ReadinessRow {
@@ -556,6 +571,47 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 			t.Fatalf("%s reason admitted", name)
 		}
 	}
+	t.Run("relative PATH through a symlinked directory resolves .. as the kernel opens it", func(t *testing.T) {
+		base := canonicalTemp(t)
+		for directory, content := range map[string]string{filepath.Join(base, "runs", "shared"): "kernel\n", filepath.Join(base, "home", "shared"): "lexical\n"} {
+			if err := os.MkdirAll(directory, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(directory, "gate.log"), []byte(content), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		run, latest := filepath.Join(base, "runs", "run1"), filepath.Join(base, "home", "latest")
+		if err := os.Mkdir(run, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(run, latest); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(run, "evidence.tsv"), []byte("gate/full-gate\tPASS\t../shared/gate.log\t\t\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		separator := string(filepath.Separator)
+		built, err := ReadReadinessEvidence(filepath.Join(latest, "evidence.tsv"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		verified, err := ReadReadinessEvidence(latest + separator + ".." + separator + "run1" + separator + "evidence.tsv")
+		if err != nil {
+			t.Fatal(err)
+		}
+		record, raw := fixture.build(t, built)
+		if got := readinessRowByID(record, "gate/full-gate").SHA256; got != digest([]byte("kernel\n")) {
+			t.Fatalf("evidence digest %s is not the file the kernel opens at %s", got, built["gate/full-gate"].Path)
+		}
+		recordPath := filepath.Join(base, "readiness.json")
+		if err := os.WriteFile(recordPath, raw, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := VerifyReadinessFile(t.Context(), recordPath, fixture.candidate, verified); err != nil {
+			t.Fatalf("verify resolved %s differently from build: %v", verified["gate/full-gate"].Path, err)
+		}
+	})
 
 	output := filepath.Join(canonicalTemp(t), "readiness.json")
 	options := ReadinessOptions{CandidateDirectory: fixture.candidate, SourceRoot: fixture.source, Evidence: evidence}
@@ -673,6 +729,107 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 			t.Fatalf("deep directory within the source root = %v, %v", inside, err)
 		}
 	})
+	t.Run("output directory that does not resolve is named as spelled", func(t *testing.T) {
+		base := canonicalTemp(t)
+		file := filepath.Join(base, "file")
+		if err := os.WriteFile(file, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		separator := string(filepath.Separator)
+		for spelled, cause := range map[string]string{filepath.Join(base, "missing") + separator: "does not resolve: ", file + separator: "does not resolve as a directory: it passes through a file"} {
+			_, err := WriteReadinessRecord(t.Context(), ReadinessOptions{}, spelled+"readiness.json")
+			if err == nil || !strings.Contains(err.Error(), "readiness record directory "+spelled+" "+cause) {
+				t.Fatalf("unresolved output directory %s = %v, want it named with %q", spelled, err, cause)
+			}
+		}
+	})
+	t.Run("spelled link retargeted between resolving and opening is refused", func(t *testing.T) {
+		base := canonicalTemp(t)
+		checked, elsewhere, alias := filepath.Join(base, "checked"), filepath.Join(base, "elsewhere"), filepath.Join(base, "alias")
+		for _, directory := range []string{checked, elsewhere} {
+			if err := os.Mkdir(directory, 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := os.Symlink(checked, alias); err != nil {
+			t.Fatal(err)
+		}
+		swapBeforeOpen(t, func() error { return errors.Join(os.Remove(alias), os.Symlink(elsewhere, alias)) })
+		if _, err := WriteReadinessRecord(t.Context(), options, filepath.Join(alias, "readiness.json")); !errors.Is(err, errOutputDirectory) {
+			t.Fatalf("output whose spelled link moved before opening = %v, want %v", err, errOutputDirectory)
+		}
+		for _, directory := range []string{checked, elsewhere} {
+			if entries, err := os.ReadDir(directory); err != nil || len(entries) != 0 {
+				t.Fatalf("refused output left %d entries in %s: %v", len(entries), directory, err)
+			}
+		}
+	})
+	t.Run("resolved directory swapped for a link below the source root before opening is refused", func(t *testing.T) {
+		checked := filepath.Join(canonicalTemp(t), "checked")
+		if err := os.Mkdir(checked, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		below := filepath.Join(fixture.source, ".git")
+		swapBeforeOpen(t, func() error { return errors.Join(os.Rename(checked, checked+".moved"), os.Symlink(below, checked)) })
+		if _, err := WriteReadinessRecord(t.Context(), options, filepath.Join(checked, "readiness.json")); !errors.Is(err, errOutputDirectory) {
+			t.Fatalf("output directory swapped for a link before opening = %v, want %v", err, errOutputDirectory)
+		}
+		for _, written := range []string{filepath.Join(below, "readiness.json"), filepath.Join(checked+".moved", "readiness.json")} {
+			if _, err := os.Lstat(written); !os.IsNotExist(err) {
+				t.Fatalf("refused output %s was written: %v", written, err)
+			}
+		}
+	})
+	t.Run("temporary name already taken is skipped, not truncated", func(t *testing.T) {
+		base := canonicalTemp(t)
+		handle, err := os.OpenRoot(base)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer handle.Close()
+		taken := filepath.Join(base, ".readiness.json.TAKEN")
+		if err := os.WriteFile(taken, []byte("not ours\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		texts := []string{"TAKEN", "FRESH"}
+		previous := temporaryText
+		t.Cleanup(func() { temporaryText = previous })
+		temporaryText = func() string {
+			text := texts[0]
+			texts = texts[1:]
+			return text
+		}
+		if err := publishNoReplace(handle, "readiness.json", []byte("{}\n")); err != nil {
+			t.Fatal(err)
+		}
+		if kept, err := os.ReadFile(taken); err != nil || string(kept) != "not ours\n" {
+			t.Fatalf("file at a taken temporary name was used: %q, %v", kept, err)
+		}
+		if listing := directoryListing(t, base); listing != ".readiness.json.TAKEN\nreadiness.json\n" {
+			t.Fatalf("directory holds %q, want the taken file and the record only", listing)
+		}
+	})
+	t.Run("output name that cannot be published is refused before building", func(t *testing.T) {
+		base := canonicalTemp(t)
+		separator := string(filepath.Separator)
+		longest := strings.Repeat("n", maxNameBytes-len(temporaryName("")))
+		for _, output := range []string{"", base + separator, base + separator + ".", base + separator + "..", filepath.Join(base, longest+"n")} {
+			if _, err := WriteReadinessRecord(t.Context(), ReadinessOptions{}, output); err == nil || !strings.Contains(err.Error(), "readiness record file name") {
+				t.Fatalf("output %q = %v, want its file name refused before building", output, err)
+			}
+		}
+		handle, err := os.OpenRoot(base)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer handle.Close()
+		if err := errors.Join(outputName(longest), publishNoReplace(handle, longest, []byte("{}\n"))); err != nil {
+			t.Fatalf("name whose temporary name is %d bytes refused: %v", maxNameBytes, err)
+		}
+		if err := linkFailure("readiness.json", syscall.ENOTSUP); errors.Is(err, os.ErrExist) || strings.Contains(err.Error(), "already exists") {
+			t.Fatalf("link failure other than an existing file worded as one: %v", err)
+		}
+	})
 	if _, err := VerifyContext(t.Context(), fixture.candidate); err != nil {
 		t.Fatalf("refused output disturbed the candidate: %v", err)
 	}
@@ -683,8 +840,8 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 	if written, err := os.ReadFile(output); err != nil || !bytes.Equal(written, want) {
 		t.Fatalf("written record is not the canonical build: %v", err)
 	}
-	if _, err := WriteReadinessRecord(t.Context(), options, output); err == nil {
-		t.Fatal("existing output replaced")
+	if _, err := WriteReadinessRecord(t.Context(), options, output); !errors.Is(err, os.ErrExist) || !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("existing output = %v, want it refused as existing", err)
 	}
 	if entries, err := os.ReadDir(filepath.Dir(output)); err != nil || len(entries) != 1 {
 		t.Fatalf("output directory holds %d entries, want only the record: %v", len(entries), err)

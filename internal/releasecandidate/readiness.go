@@ -12,7 +12,9 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strings"
+	"syscall"
 	"unicode"
 	"unicode/utf8"
 )
@@ -28,10 +30,14 @@ const (
 	firstStableCandidate = "1.0.0-rc.1"
 )
 
+// openOutputDirectory and temporaryText are indirect so a test can change a
+// path between resolving and opening it, and choose the temporary name.
 var (
 	decisionPattern     = regexp.MustCompile(`^[0-9]{4}$`)
 	storeReleasePattern = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 	goToolchainProbe    = probeLocalToolchain
+	openOutputDirectory = os.OpenRoot
+	temporaryText       = rand.Text
 )
 
 type ReadinessRecord struct {
@@ -400,14 +406,15 @@ func verifyReadinessEvidence(rows []ReadinessRow, evidence map[string]string) er
 
 // ReadReadinessEvidence parses the operator evidence file (SRR-V1-012): one
 // row per line, ROW<TAB>STATUS<TAB>PATH<TAB>DECISION<TAB>REASON, with absent
-// values left empty. A relative PATH resolves against the file's directory,
-// and a CRLF line ending is read as LF.
+// values left empty. A relative PATH is appended to the file's directory as
+// spelled, not cleaned, so the kernel resolves a ".." after the symlinks before
+// it, as opening the path would. A CRLF line ending is read as LF.
 func ReadReadinessEvidence(path string) (map[string]ReadinessEvidence, error) {
 	raw, err := readRegular(path, maxInputBytes)
 	if err != nil {
 		return nil, err
 	}
-	directory := filepath.Dir(path)
+	directory, _ := filepath.Split(path)
 	evidence := map[string]ReadinessEvidence{}
 	number := 0
 	for line := range strings.Lines(string(raw)) {
@@ -421,7 +428,7 @@ func ReadReadinessEvidence(path string) (map[string]ReadinessEvidence, error) {
 		}
 		location := fields[2]
 		if location != "" && !filepath.IsAbs(location) {
-			location = filepath.Join(directory, location)
+			location = directory + location
 		}
 		evidence[fields[0]] = ReadinessEvidence{Status: fields[1], Path: location, Decision: fields[3], Reason: fields[4]}
 	}
@@ -431,16 +438,20 @@ func ReadReadinessEvidence(path string) (map[string]ReadinessEvidence, error) {
 // WriteReadinessRecord builds the record and publishes it at output. An
 // existing output is refused, never replaced, and so is an output inside the
 // candidate or the source root, which build must not write (SRR-V1-011,
-// SRR-V1-012). The output's directory is resolved and opened once before the
-// guard, and the write goes through that handle, so a path component replaced
-// during the build cannot redirect it.
+// SRR-V1-012). A file name the record cannot be published under is refused
+// before the build. The output's directory is resolved and opened once before
+// the guard, and the write goes through that handle, so a path component
+// replaced during the build cannot redirect it.
 func WriteReadinessRecord(ctx context.Context, options ReadinessOptions, output string) (*ReadinessRecord, error) {
 	spelled, name := filepath.Split(output)
-	directory, err := physical(spelled)
-	if err != nil {
+	if err := outputName(name); err != nil {
 		return nil, err
 	}
-	handle, err := os.OpenRoot(directory)
+	directory, err := physical(spelled)
+	if err != nil {
+		return nil, unresolvedDirectory(cmp.Or(spelled, "."), err)
+	}
+	handle, err := openOutputDirectory(directory)
 	if err != nil {
 		return nil, err
 	}
@@ -465,8 +476,8 @@ var errOutputDirectory = errors.New("readiness record directory as spelled is no
 // sameDirectory refuses unless the resolved directory, taken as it stands, and
 // the directory as spelled are the directory the handle holds. EvalSymlinks
 // follows up to 255 links but the kernel far fewer, so a long chain can resolve
-// while the spelled path, which the command reports, cannot be opened. A final
-// Windows junction, which EvalSymlinks leaves in place, is refused too.
+// while the spelled path, which the command reports, cannot be opened. A
+// Windows junction never reaches this check: physical refuses it.
 func sameDirectory(handle *os.Root, directory, spelled string) error {
 	opened, err := handle.Stat(".")
 	if err != nil {
@@ -503,13 +514,17 @@ func meaningful(r rune) bool { return unicode.IsLetter(r) || unicode.IsNumber(r)
 // directory is appended to the working directory's own resolved path, and every
 // component, ".." included, is resolved in order as a write resolves it. A
 // directory rooted on a drive or a separator but not absolute (Windows "C:x"
-// or "\x") is refused rather than guessed.
+// or "\x") is refused rather than guessed. Go reads a Windows junction or
+// volume mount point as neither a directory nor a symlink, so EvalSymlinks
+// fails with ENOTDIR at one that has a component or a separator after it. The
+// directory filepath.Split leaves ends in a separator, so every junction on an
+// output directory fails here.
 func physical(directory string) (string, error) {
 	if filepath.IsAbs(directory) {
 		return filepath.EvalSymlinks(directory)
 	}
 	if filepath.VolumeName(directory) != "" || strings.HasPrefix(filepath.ToSlash(directory), "/") {
-		return "", fmt.Errorf("readiness record directory %q is rooted but not absolute", directory)
+		return "", errors.New("rooted but not absolute")
 	}
 	working, err := os.Getwd()
 	if err != nil {
@@ -520,6 +535,17 @@ func physical(directory string) (string, error) {
 		return "", err
 	}
 	return filepath.EvalSymlinks(working + string(filepath.Separator) + directory)
+}
+
+// unresolvedDirectory names the output directory, as spelled, that physical
+// could not resolve. On Windows, ENOTDIR is ERROR_PATH_NOT_FOUND, which reads
+// "The system cannot find the path specified" and is also what a missing drive
+// gives, so the possible causes are named here.
+func unresolvedDirectory(spelled string, err error) error {
+	if errors.Is(err, syscall.ENOTDIR) {
+		return fmt.Errorf("readiness record directory %s does not resolve as a directory: it passes through a file, a Windows junction or volume mount point, or a missing Windows drive: %w", spelled, err)
+	}
+	return fmt.Errorf("readiness record directory %s does not resolve: %w", spelled, err)
 }
 
 func refuseInside(output, directory string, roots ...string) error {
@@ -539,7 +565,11 @@ func refuseInside(output, directory string, roots ...string) error {
 // or lies below it. It compares file identity at each parent, so a symlink or a
 // case alias of root cannot hide the overlap. A mount alias of a directory
 // below root (a bind mount, a Windows subst drive, a network mount) has its own
-// parents, so it is outside this guard.
+// parents, so it is outside this guard. The parents are found by path, not
+// from an open handle, because os.Root cannot open a handle's parent and Go has
+// no portable openat. An ancestor swapped for a link into root before the
+// caller opens directory, and swapped back before this walk, is outside this
+// guard too.
 func within(directory, root string) (bool, error) {
 	rootInfo, err := os.Stat(root)
 	if err != nil {
@@ -578,19 +608,48 @@ func publishNoReplace(handle *os.Root, name string, raw []byte) error {
 		return err
 	}
 	if err := handle.Link(temporary, name); err != nil {
-		return fmt.Errorf("readiness record %s was not published without replacement: %w", path, err)
+		return linkFailure(path, err)
 	}
 	return nil
+}
+
+// linkFailure words a refused publication by its cause: a file already at
+// path, which is kept, or any other link error, such as a filesystem without
+// hard links.
+func linkFailure(path string, err error) error {
+	if errors.Is(err, os.ErrExist) {
+		return fmt.Errorf("readiness record %s already exists and was not replaced: %w", path, err)
+	}
+	return fmt.Errorf("readiness record %s was not published: linking its temporary file failed: %w", path, err)
 }
 
 // temporaryAttempts bounds the random names tried for the temporary file.
 const temporaryAttempts = 16
 
+// maxNameBytes is NAME_MAX on Linux and macOS. A name within it also fits the
+// 255 UTF-16 units Windows allows.
+const maxNameBytes = 255
+
+// outputName refuses a file name the record cannot be published under: none,
+// a dot entry, or one whose temporary name would exceed maxNameBytes.
+func outputName(name string) error {
+	if slices.Contains([]string{"", ".", ".."}, name) {
+		return fmt.Errorf("readiness record file name %q is empty or a dot entry", name)
+	}
+	if len(temporaryName(name)) > maxNameBytes {
+		return fmt.Errorf("readiness record file name %s is too long: its temporary name would exceed %d bytes", name, maxNameBytes)
+	}
+	return nil
+}
+
+// temporaryName is a random hidden name beside name.
+func temporaryName(name string) string { return "." + name + "." + temporaryText() }
+
 // createTemporary creates a new file with a random name beside name,
 // refusing any name that already exists.
 func createTemporary(handle *os.Root, name string) (string, *os.File, error) {
 	for range temporaryAttempts {
-		temporary := "." + name + "." + rand.Text()
+		temporary := temporaryName(name)
 		file, err := handle.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 		if errors.Is(err, os.ErrExist) {
 			continue

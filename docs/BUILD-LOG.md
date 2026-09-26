@@ -7737,5 +7737,19 @@ in place, is now refused as well. New tests cover a relative output through a li
 64-link chain and a directory swapped during the build. The no-write check now watches the
 directory's mtime, so it also holds when tests run as root.
 
+The round-4 review, the fifth, reproduced five gaps, all fixed here. A relative evidence `PATH` was
+joined with lexical cleaning, so a `..` after a symlinked directory named a different file than the
+kernel opens. It is now appended as spelled, and build and verify read it the same way. The
+fourth-review claim that a final junction is refused by the identity check was wrong: Go's resolver
+refuses every junction on the output directory with ENOTDIR, which Windows words as a missing path.
+The error now names the directory as spelled and its possible causes. An output name that is empty,
+`.`, `..` or too long for its temporary name is refused before the build, and a failed link is
+worded by its cause. Two package variables, in the style of `goToolchainProbe`, let tests swap a
+path between resolving and opening and choose the temporary name; the new tests kill the three
+surviving mutants of the two identity checks and the exclusive temporary create. An ancestor swapped
+for a link into a root and back between the open and the parent comparison is disclosed, not fixed:
+`os.Root` cannot open a handle's parent, and a handle descent from the volume root would refuse
+ancestors that are searchable but not readable.
+
 No release has used the record yet. Its first use is the `1.0.0-rc.1` candidate (V1-0018 AC2,
 V1-0020 AC3).
