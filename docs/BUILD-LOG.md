@@ -7237,6 +7237,7 @@ change. It only re-resolves mountinfo when the identity differs. An open descrip
 so an unchanged `mnt_id` cannot have been reused, and the fstype is the one already qualified
 (decision 0411 §1). The fixture also reuses its own fdinfo read instead of reading fdinfo twice.
 With the fix, the same subtests take 28.5 s on ext4.
+
 ## 2026-09-25 V1-0263 GPK-V0-075 (accepted, decision 0412): omitted direct Go callers are disclosed and importing-test markers are named
 
 PR #247 proposed the omitted-caller disclosure as `GPK-V0-068`. The owner answered "accept
@@ -7618,6 +7619,43 @@ Main (V1-0263), V1-0284 and V1-0286 each moved `corvint-analyzer/85` to `/86` fr
 and each pinned a different audited-input digest. Together their `contextindex` changes match none
 of the three pins, so the integration moves the schema to `corvint-analyzer/87` and pins the combined
 digest (`IDX-SNAP-V0-017`). Snapshots rebuild once. Extraction is unchanged.
+
+## 2026-09-26 Gate load flakes: SIGPIPE under `pipefail`, and a latency bound in the snapshot-refresh case
+
+The v0-6 `make gate` at 26f12d41 ran at host load ~60 and failed. One failure was
+`TestGoOnlyContextAbstentionRemainsClosed`: `script/dogfood-change_test.sh` exited 141. CI on
+Linux had shown the same exit on 2026-09-25. The script runs under `set -o pipefail` and asserts
+with `printf '%s\n' "$output" | rg -q …`. When `rg -q` matches, it exits before `printf` finishes
+writing, `printf` dies of SIGPIPE, and `pipefail` turns the passing assertion into exit 141. A
+scratch repro exited 141 in 200 of 200 runs through the pipe, and 0 of 200 with a here-string.
+Every such assertion in that script and in `script/dogfood-bind-range_test.sh` (also under
+`pipefail`) now reads its input from a here-string, the idiom the script already used elsewhere.
+An assertion over Git output assigns that output first, so `set -e` still fails the test when Git
+fails; a command substitution inside the here-string would discard that status. Scripts without
+`pipefail` take the exit status of `rg` and are unaffected.
+
+`script/dogfood-seal.sh` had the same shape in product logic: `! git ls-tree … | grep -Fq`. Once the
+`.corvint/changes` listing outgrows the pipe buffer (161 entries, 19 KB at 2961076f; macOS pipes
+start at 16 KB), an early match can SIGPIPE `git` and make the seal refuse with
+`unarchived-base-cem` when the base CEM is in fact archived. It now captures the listing and greps a
+here-string of it. A failing `ls-tree` is treated as an empty listing, so the seal still refuses even
+when Git printed a matching line before it failed (the case the independent review found).
+
+`TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot` failed at load 153. It ran the
+refreshed-snapshot event under the 3-second bound that the first half needs to expire a blocked
+build. That half now runs with a one-minute hang guard and a build hook that fails. The case
+asserts the snapshot hit, not latency (decision 0082).
+
+Three other failures in that gate pass in isolation even at load 196. QLF-V0-006 reported
+`Git error: git command failed`, which `gitRaw` prints when Git fails with empty stderr. That
+leaves out the Go error, which is the only thing that separates an exit status, a signal, and an
+expired `WaitDelay`. 25 isolated runs and a 1,778-iteration stress run did not reproduce it, so
+the detail now carries the error rather than guessing a fix. The `TestReadOnlyVerbsWriteNothing`
+session-start case exited 2 with its stderr discarded. It is probably the same `gitRaw` failure;
+its helper now logs stderr on a nonzero exit. `TestCancellationLeavesNoDescendants` hit the
+60-second hang bound on a cold compile at load ~60. The bound is now 4 minutes and the run
+timeout 5 minutes, which keeps the run timeout above the hang bound. V1-0356's hang-guard fix
+was already on main (f0488711).
 
 ## 2026-09-25 V1-0357 AFP-V0-022 (proposed, decision 0418): shard the go-product Go suite
 
