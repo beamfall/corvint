@@ -128,6 +128,9 @@ case declarations are admitted across eight distinct divergence classes. This in
   ranks one of two admitted results out.
 - `DR-0035` / `GPK-V0-044` (1 case: `query-repository-trace-matching`) — two stdout rewrites that add
   the trace-recording commit to the changed-path and opened-path learned-evidence reasons.
+- `DR-0042` / `GPK-V0-075` (2 cases: `impact-python-module` and `impact-python-nomodule`) — two
+  stdout rewrites per case that name `tests/test_engine.py`, the importing test carrying the
+  `feature:a-first` and `scenario:z-last` markers, where the oracle says the changed path carries them.
 
 A case may also declare `exclusionCountDivergence`, a separate field that composes with
 `knownDivergence` and follows the same rewrite and `packet_bytes` rules below. Twenty case

@@ -138,11 +138,11 @@ func EvalFeature(index *Index, featureID string, limit int, budget *int) (map[st
 // EvalImpact applies the shared packet budget to the broad impact kernel
 // without changing the public impact command's qualified option surface.
 func EvalImpact(index *Index, paths []string, limit int, budget *int) (map[string]any, error) {
-	result, err := Impact(index, paths, limit)
+	result, disclosures, err := impact(index, paths, limit)
 	if err != nil {
 		return nil, err
 	}
-	return compileReceipt(result, budget, index)
+	return compileReceipt(result, budget, index, disclosures...)
 }
 
 // EvalQuery compiles the broad Python-compatible query profile used by eval.

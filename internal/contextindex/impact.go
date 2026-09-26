@@ -21,20 +21,27 @@ type rankedResult struct {
 }
 
 func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
+	result, _, err := impact(index, paths, limit)
+	return result, err
+}
+
+// impact compiles the path impact receipt and also returns its omitted-caller
+// disclosures, so EvalImpact can carry them through its budget compilation.
+func impact(index *Index, paths []string, limit int) (map[string]any, []string, error) {
 	if limit < 1 || limit > maxLimit {
-		return nil, &Error{Message: fmt.Sprintf("limit must be an integer from 1 to %d", maxLimit)}
+		return nil, nil, &Error{Message: fmt.Sprintf("limit must be an integer from 1 to %d", maxLimit)}
 	}
 	if len(paths) == 0 {
-		return nil, &Error{Message: "impact paths must be a non-empty list"}
+		return nil, nil, &Error{Message: "impact paths must be a non-empty list"}
 	}
 	if len(paths) > maxImpactPaths {
-		return nil, &Error{Message: fmt.Sprintf("impact paths exceed %d-path bound", maxImpactPaths)}
+		return nil, nil, &Error{Message: fmt.Sprintf("impact paths exceed %d-path bound", maxImpactPaths)}
 	}
 	cleanedSet := make(map[string]struct{}, len(paths))
 	for _, value := range paths {
 		cleaned, err := cleanImpactPath(value)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		cleanedSet[cleaned] = struct{}{}
 	}
@@ -44,7 +51,7 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 	// `.py` and web paths are admitted in any Git repository, as the oracle
 	// admits them.
 	if needsGoModule(cleaned) && (index.Module == "" || !strings.Contains(index.Module, "/")) {
-		return nil, &Error{Code: "unsupported-impact-repository", Message: "native Go impact requires a slash-qualified Go module for .go paths"}
+		return nil, nil, &Error{Code: "unsupported-impact-repository", Message: "native Go impact requires a slash-qualified Go module for .go paths"}
 	}
 	tracked := make(map[string]struct{}, len(index.Sources)+len(index.Exclusions))
 	for value := range index.Sources {
@@ -60,7 +67,7 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 		}
 	}
 	if len(missing) != 0 {
-		return nil, &Error{Message: fmt.Sprintf("impact paths are not tracked at revision %s: %s", index.Revision, strings.Join(missing, ", "))}
+		return nil, nil, &Error{Message: fmt.Sprintf("impact paths are not tracked at revision %s: %s", index.Revision, strings.Join(missing, ", "))}
 	}
 	forbidden := make([]string, 0)
 	for _, value := range cleaned {
@@ -69,17 +76,24 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 		}
 	}
 	if len(forbidden) != 0 {
-		return receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, nil, limit, "OUT_OF_SCOPE")
+		result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, nil, limit, "OUT_OF_SCOPE")
+		return result, nil, err
 	}
 
 	ranked := make([]rankedResult, 0)
 	related := make(map[string]struct{})
+	// carried holds the keys a changed path's own markers carry;
+	// importerCarriers names, for each key, the first importing test that
+	// carried it, so a key only such a test carries says so (V1-0263).
+	carried := make(map[string]struct{})
+	importerCarriers := make(map[string]string)
 	// V1-0054: built once per call rather than rescanned per changed path (up to
 	// maxImpactPaths) or per ranked record. dirIndex answers "which tracked paths
 	// share this directory" and sortedPaths lets an ADR-document prefix lookup
 	// binary-search instead of scanning every source.
 	dirIndex := dirPathIndex(index)
 	sortedPaths := sortedSourcePaths(index)
+	goCallers := make(map[string]goCaller)
 	for _, changedPath := range cleaned {
 		source := index.Sources[changedPath]
 		ranked = append(ranked, rankedResult{score: 1000, order: 0, key: changedPath, result: map[string]any{
@@ -102,6 +116,7 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 			for _, marker := range markers {
 				if marker.Path == changedPath {
 					related[key] = struct{}{}
+					carried[key] = struct{}{}
 					break
 				}
 			}
@@ -194,12 +209,16 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 				if isTestPath(importer.path) && countKind(importerMarkers, "feature") <= 1 && countKind(importerMarkers, "scenario") <= 1 {
 					for _, key := range importerMarkers {
 						related[key] = struct{}{}
+						if _, named := importerCarriers[key]; !named {
+							importerCarriers[key] = "test " + importer.path + " importing changed " + changedPath
+						}
 					}
 				}
 				line, loaded := importEvidenceLine(index.Sources[importer.path], importer.imported)
 				if !loaded {
 					continue
 				}
+				recordGoCaller(goCallers, index, changedPath, importer, line)
 				score := 700
 				if isTestPath(importer.path) {
 					score = 650
@@ -226,6 +245,10 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 			}})
 		}
 	}
+	// A changed path that calls another changed path is already a direct row.
+	for _, changedPath := range cleaned {
+		delete(goCallers, changedPath)
+	}
 	relatedKeys := keys(related)
 	for _, key := range relatedKeys {
 		kind, identifier := splitRelation(key)
@@ -234,7 +257,11 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 			records = index.Scenarios
 		}
 		if record, ok := records[identifier]; ok {
-			result := recordResultWithSortedPaths(index, record, 800, "changed path carries "+kind+":"+identifier, sortedPaths)
+			carrier := "changed path"
+			if importerCarrier, ok := importerCarriers[key]; ok && !contains(carried, key) {
+				carrier = importerCarrier
+			}
+			result := recordResultWithSortedPaths(index, record, 800, carrier+" carries "+kind+":"+identifier, sortedPaths)
 			withholdUnverifiedADRAuthority(result)
 			ranked = append(ranked, rankedResult{score: 800, order: 1, key: key, result: result})
 		}
@@ -263,7 +290,9 @@ func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
 		deduplicated = append(deduplicated, item.result)
 	}
 	deduplicated = reserveCallerRows(deduplicated, callers, limit)
-	return receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, deduplicated, limit, "")
+	disclosures := omittedCallerDisclosures(deduplicated, goCallers, limit)
+	result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, deduplicated, limit, "", disclosures...)
+	return result, disclosures, err
 }
 
 // reserveTestConventionTail keeps same-package convention tests ahead of broad
