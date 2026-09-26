@@ -14,7 +14,7 @@ decisions 0374, 0385 and 0416.
 
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
-- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 014 (with its accepted observer gap), 015..018 and 036..038 (unqualified), 012 and 013 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; S4 implements AFU-V1-019..024 and the AFU-V1-040 frozen corpus (unsafe-narrowing rate 0 on both bases), with the two live changes `NOT_RUN`; S5 implements AFU-V1-025..028 and the AFU-V1-029 observer gate, which no observer calls yet (partial); S6 implements AFU-V1-030..033 (unqualified); S7 implements AFU-V1-034 and 035 (no MCP conformance vectors yet); S8 adds the AFU-V1-039 acceptance fixture (`cmd/corvint/testdata/flows/acceptance`, `TestAFUV1039AcceptanceFixture`), with the three live qualification runs `NOT_RUN`; nothing else is implemented or qualified.
+- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 013, 014 (with its accepted observer gap), 015..018, 036..038 and 041..042 (unqualified), 012 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; S4 implements AFU-V1-019..024 and the AFU-V1-040 frozen corpus (unsafe-narrowing rate 0 on both bases), with the two live changes `NOT_RUN`; S5 implements AFU-V1-025..028 and the AFU-V1-029 observer gate, which no observer calls yet (partial); S6 implements AFU-V1-030..033 (unqualified); S7 implements AFU-V1-034 and 035 (no MCP conformance vectors yet); S8 adds the AFU-V1-039 acceptance fixture (`cmd/corvint/testdata/flows/acceptance`, `TestAFUV1039AcceptanceFixture`), with the three live qualification runs `NOT_RUN`; nothing else is implemented or qualified.
 - Exists: the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
 - Blocked on: implementation slices S1-S8 (Rollout) and the acceptance evidence below.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Deterministic acceptance.
@@ -207,6 +207,16 @@ This subsection fixes the S1 wire and argv shapes. It adds no requirement and no
   row MUST NOT be shown as verified. Accepted gap (decision 0417): the AFU-V0-010 observer is
   flow-scoped and has no test key, so it emits no per-test `LOCALLY_OBSERVED` record; the schema
   accepts the authority, and no Corvint producer emits it.
+- `AFU-V1-041`: The planned repetition ordinals, the planned or manual run kind, the infrastructure
+  failure class and the DCP-V1-024 policy of repeated runs MUST come from a separate
+  repository-owned run registry read from the commit at `HEAD`, never from a `test-run-evidence/0`
+  record, whose wire shape stays unchanged (decision 0417, PR #250). Each registry contribution MUST
+  join exactly one record by run ID, test key and project.
+- `AFU-V1-042`: `corvint flows stability` MUST report, per registry aggregate, the selected scope,
+  the policy ID, the registry digest, the DCP-V1-023 raw counts, the applied threshold and a verdict,
+  with every contributing run and all its attempts. A contribution that breaks DCP-V1-022, cannot
+  join its record or contradicts it MUST refuse the command with one named code and no verdict. The
+  command writes only to stdout.
 
 ### Run-evidence wire contract
 
@@ -258,6 +268,39 @@ This subsection fixes the S2 wire shape. It adds no requirement and no root verb
   HAR file are dropped. Encoding then refuses secret-shaped content and a record over the byte bound,
   so no ingest returns a record that could not be written.
 
+### Run-registry wire contract
+
+- Registry `flows-run-registry/0`, a committed regular file read at `HEAD` with the flow-input
+  discipline (byte bound, strict decode, secret screen): `schema`, `policy` (`id` and `thresholds`,
+  exactly one per scope `one-spec`, `feature-batch` and `suite`, each with the DCP-V1-024 members
+  `required_repetitions`, `minimum_passed` and the `maximum_*` limits of `internal/doccorpus`) and
+  `aggregates`, 1..8192, each with a unique `id`, `scope`, `test_key`, the optional `project`,
+  `planned` (equal to the scope's `required_repetitions`) and `contributions`. A contribution has
+  `run_id`, `run_kind` (`planned-repetition` or `manual-rerun`), `repetition` (1..`planned` for a
+  planned run, 0 for a manual rerun) and `infrastructure_attempts`, the ordinals the owner classes as
+  infrastructure failures.
+- Report `flows-run-stability/0`: `schema`, `revision` (the `HEAD` commit), `registry` (its path),
+  `registry_sha256` (of the committed bytes, which bind the policy), `policy_id`, `aggregates` and
+  `limitations`. An aggregate has `id`, `scope`, `test_key`, `project`, the shared `runner` and
+  `source`, `threshold`, `counts`, `verdict` and `contributions`, each the registry contribution with
+  the joined record's `classification`, `cleanup` and `attempts`.
+- Counting: each planned repetition adds one to `started`; to `completed` when its classification is
+  `passed`, `failed`, `flaky` or `skipped`; to `passed` or `flaky` by classification; to `failed`,
+  `timed_out`, `interrupted` and `skipped` when any attempt had that outcome; to
+  `infrastructure_failed` when it names an infrastructure attempt; to `cleanup_failed` when cleanup is
+  not `done`; and `len(attempts)-1` to `retry_consumed`. A manual rerun adds one to `manual_reruns`
+  and, when its cleanup is not `done`, to `cleanup_failed`, and nothing else. The verdict is `clean`
+  exactly when the `internal/doccorpus` DCP-V1-024 threshold test passes, else `not-stable`.
+- Refusals, each naming the aggregate: `run-registry-invalid` (shape, policy or aggregate identity),
+  `run-registry-invalid-repetition` (an ordinal out of range or repeated, or a manual rerun with an
+  ordinal), `run-registry-planned-incomplete` (a planned ordinal missing), `run-registry-duplicate-run`
+  (one run ID twice in an aggregate), `run-registry-missing-record` and
+  `run-registry-ambiguous-record` (zero or several records join), `run-registry-unusable-record` (a
+  `STATIC` record or a dirty source), `run-registry-contradictory-infrastructure` (an infrastructure
+  ordinal that is absent, repeated, or on a `passed` or `skipped` attempt) and
+  `run-registry-cross-identity` (runner, source, build artifact, environment, fixture or project
+  differ from the aggregate's first contribution).
+
 ### Queries
 
 - `AFU-V1-015`: `corvint flows map` MUST report each flow, variation, step and outcome with its links,
@@ -302,7 +345,7 @@ compact JSON document to stdout.
   as one `passed` and one `failed`), `failed` (none `passed`), `negative-control-missing` (no passed
   record observed every control failing as expected and ran every `adapter.negative_controls` key),
   `cleanup-unverified` (any passed record has cleanup other than `done`), else `verified`. Across
-  records this is the per-pair rule only; DCP-V1-023/024 aggregation stays a declared partial. A
+  records this is the per-pair rule only; DCP-V1-023/024 aggregation is `flows stability` (AFU-V1-042). A
   variation is `verified` only when it has at least one pair and every pair is `verified`. S3 does
   not carry evidence forward
 from an earlier commit as the Verified definition allows; such evidence is `stale`, which can
@@ -331,6 +374,9 @@ under-report and never over-report.
   when `git status` reports any tracked or untracked difference from `HEAD` before or after the
   graph build, the scope is `UNKNOWN` with `DIRTY_WORKTREE: detail` and the result never claims a
   complete `HEAD` answer; a failed status read is `unsupported-affected-status`.
+- `corvint [--root PATH] flows stability --registry FILE [--evidence FILE]...` reads the registry
+  `FILE`, a repository-relative path, from `HEAD` and writes `flows-run-stability/0` (Run-registry
+  wire contract). A refusal exits 2 with its code and writes nothing.
 - `corvint [--root PATH] flows ingest --format playwright-json|junit-xml|go-test-json --from FILE`
   takes the run header as `--run-id`, `--runner-version`, `--source-commit`, `--source-tree`,
   `--source-clean`, `--build-artifact-digest`, `--environment-id`, `--environment-digest`,
@@ -581,6 +627,9 @@ Not in 1.0:
 - narrowing from inferred links alone;
 - a new root verb (all commands sit under `corvint flows`, `corvint affected` or `corvint-mcp`);
 - a new specification language;
+- matrix or topology dimensions in run-registry aggregation: every contribution shares one identity,
+  and the DCP-V1-026 topology binding stays with the `internal/doccorpus` receipt path;
+- an MCP tool for `flows stability`;
 - any hosted or networked service.
 
 ## Trust boundary, limits, and failure modes
@@ -592,6 +641,9 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 - A title rename silently re-matches another test: title keys are `inferred`, and a changed key
   makes the link `stale`.
 - A retry-passed test reads as passed: every attempt is kept, and the test is `flaky`.
+- Repeated runs hide an unstable history: a manual rerun never fills a planned repetition, earlier
+  attempts stay in the stability report, and a missing, repeated, mismatched or contradictory
+  contribution refuses the aggregate instead of shrinking its denominator.
 - A shared fixture changes and E2E tests are skipped: the fixture is a global path, so no test is
   excluded.
 - A new test missing from the provider inventory is skipped: the inventory is reconciled against
@@ -620,8 +672,9 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-010 | `TestAFUV1ReverseLookupsDerived`, `TestAFUV1ExportLeavesRepositoryByteIdentical`, `TestAFUV1FlowsCLIExportIsReadOnly`, `TestAFUV1FlowsCLIReverseLookups` (a non-canonical `--path` refused), `TestAFUV1FlowsQueriesAreReadOnly` |
 | AFU-V1-011 | `TestAFUV1RunEvidenceClosedSchema`, `TestAFUV1NegativeControlFailed`, `TestAFUV1AdapterObservesFailedControl` (each of the three adapters observes a control failing, and Playwright and JUnit one timing out, in the same report and verifies the subject only against that expectation), `TestAFUV1FlowsCLIPassingControlNeverVerifies` (a control that passed never verifies) |
 | AFU-V1-012 | `TestAFUV1PlaywrightAdapterKeepsEveryAttempt`, `TestAFUV1AdapterObservesFailedControl`, `TestAFUV1JUnitAdapterKeepsEveryAttempt`, `TestAFUV1JUnitTimedOutAttempt` (the JUnit timed-out mapping), `TestAFUV1GoTestAdapterKeepsEveryAttempt`, `TestAFUV1PlaywrightProviderKeepsEveryAttempt` (the unprofiled receipt wire carries `attemptDetails`, and the external profiles refuse it); partial: the `corvint-playwright-external` reporter and profiles still carry only the last attempt's detail, which needs a `/3` profile revision and its live reporter qualification |
-| AFU-V1-013 | `TestAFUV1FailedAttemptThenPassIsFlaky`, `TestAFUV1PlaywrightUnexpectedNeverPassed`, `TestAFUV1JUnitTimedOutAttempt` (a timed-out then passed JUnit test is flaky), the retry-passed case of each adapter test; partial: per-test classification only, aggregation of repeated runs under the DCP-V1-023 counters and DCP-V1-024 policy needs the `internal/doccorpus` stability counting exposed for `test-run-evidence/0` records, and an owner-accepted source for what the record does not carry: the DCP-V1-022 planned repetition ordinals, the planned or manual run kind, the infrastructure failure class and the DCP-V1-024 policy binding; decision 0417 chooses a separate local registry over a wire revision |
+| AFU-V1-013 | `TestAFUV1FailedAttemptThenPassIsFlaky`, `TestAFUV1PlaywrightUnexpectedNeverPassed`, `TestAFUV1JUnitTimedOutAttempt` (a timed-out then passed JUnit test is flaky), the retry-passed case of each adapter test; repeated runs aggregate through the AFU-V1-041 run registry (`TestAFUV1RunStabilityCounts`) |
 | AFU-V1-014 | `TestAFUV1StaticNeverVerified`, `TestAFUV1PlaywrightUnexpectedNeverPassed`; ingest emits `INGESTED` and the schema accepts `LOCALLY_OBSERVED`; the flow-scoped AFU-V0-010 observer emits no per-test record, an accepted gap (decision 0417) |
+| AFU-V1-041, AFU-V1-042 | `TestAFUV1RunStabilityCounts` (counts, verdict, manual reruns kept out of the threshold, every attempt reported), `TestAFUV1RunStabilityRefusals` (each named refusal), `TestAFUV1RunRegistryReadAtHead` (the committed bytes, never the working tree), `TestAFUV1FlowsCLIStabilityIsReadOnly` |
 | AFU-V1-015 | `TestAFUV1FlowsQueryGoldens` (`map.golden.json`), `TestAFUV1EvidenceStateOrder` (including mixed pass and fail across current records, and a passed record without cleanup `done`), `TestAFUV1ReadRunEvidenceDiscipline` |
 | AFU-V1-016 | `TestAFUV1FlowsQueryGoldens` (`gaps.golden.json`, every gap code reached), `TestAFUV1EvidenceStateOrder`, `TestAFUV1ReadRunEvidenceDiscipline`, `TestAFUV1ZeroVariationFlowIncomplete` |
 | AFU-V1-017 | `TestAFUV1FlowsQueryGoldens` (`impact.golden.json`: a direct hit and a hit through the impact graph), `TestAFUV1FlowsCLIReverseLookups` (unresolvable base), `TestAFUV1FlowsImpactDirtyWorktreeUnknown` (an uncommitted edit makes the scope `UNKNOWN`, never a confident no-hit) |
@@ -666,7 +719,9 @@ Slices, each its own change with tests:
    fixes (AFU-V1-001..010, 036).
 2. S2 is run evidence and the three adapters (AFU-V1-011..014, 037, 038). It delivered the record,
    the adapters, the bounds and the hygiene, and the unprofiled provider receipt now carries and
-   scrubs every attempt; the AFU-V1-012 and 013 remainders named in the matrix stay open, and decision 0417 accepts the AFU-V1-014 observer gap and adds the JUnit timed-out mapping.
+   scrubs every attempt; the AFU-V1-012 remainder named in the matrix stays open, decision 0417 accepts
+   the AFU-V1-014 observer gap and adds the JUnit timed-out mapping, and the AFU-V1-041 run registry
+   and AFU-V1-042 `flows stability` close the AFU-V1-013 aggregation.
 3. S3 is `map`, `gaps` and `impact`, and the `/2` behavior provider (AFU-V1-006, 015..018).
 4. S4 is the Core `e2e-safe` profile and its corpus (AFU-V1-019..024, 040).
 5. S5 is the navigation map (AFU-V1-025..029).
@@ -676,7 +731,7 @@ Slices, each its own change with tests:
 8. S8 is the acceptance fixture and live qualification (AFU-V1-039).
 
 Rollback removes the `e2e-safe` value, the new `flows` subcommands and the MCP profile. Flow intents,
-waivers and claim sidecars are repository data and need no migration. `/1` provider readers are
+waivers, claim sidecars and run registries are repository data and need no migration. `/1` provider readers are
 unchanged. S4 must not ship unless AFU-V1-040 passes. The parts of S1-S3 that `e2e-safe` reads (the
 intent model, links, review anchors and run-evidence ingest) are Core-owned; the companion commands
 are not. If S4 is not delivered and qualified when the Core candidate freezes, the candidate ships
@@ -693,7 +748,8 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-030..033 | implemented: `internal/appflows/docs.go` (`RenderDocs`, `CheckDocs`, `ReplaceConfined`), `cmd/corvint/flows_docs.go` |
 | AFU-V1-039 | implemented (fixture only; live qualification `NOT_RUN`): `cmd/corvint/testdata/flows/acceptance`, `cmd/corvint/flows_acceptance_test.go` |
 | AFU-V1-006 | partial (see the matrix): `internal/doccorpus/behavior.go` |
-| AFU-V1-011..014, 038 | implemented, 012 and 013 partial (see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
+| AFU-V1-041, AFU-V1-042 | implemented: `internal/appflows/runregistry.go`, `cmd/corvint/flows.go` (`flows stability`) |
+| AFU-V1-011..014, 038 | implemented, 012 partial (see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
 | AFU-V1-034..035 | implemented, 034 partial (see the matrix): `internal/mcp/bridge/flows.go`, `bridge.go`, `cmd/corvint-mcp/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
 
