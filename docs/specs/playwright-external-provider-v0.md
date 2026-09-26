@@ -1,19 +1,20 @@
-# Playwright External Provider V0/V1/V2
+# Playwright External Provider V0/V1/V2/V3
 
 Owner: Russell Lewis
 Date: 2026-09-20
 Intent status: accepted
-Delivery status: `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`
-Profiles: `corvint-playwright-external/0`, `corvint-playwright-external/1`, `corvint-playwright-external/2`.
+Delivery status: `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` intent accepted, spec draft, not implemented
+Profiles: `corvint-playwright-external/0`, `corvint-playwright-external/1`, `corvint-playwright-external/2`, `corvint-playwright-external/3` (draft).
 Inputs: GitHub issues #19, #39, #43, #49, #50, #56; AGENTS.md invariants 1–8; decision 0179.
 Owner acceptance: in the 2026-09-20 issue-resolution task, the owner explicitly approved accepting
 and shipping this PWP-V0 profile while retaining the default offline boundary and rollback gates.
 The owner subsequently requested issue #43's typed application-attestation revision with the same
-external-ownership boundary.
+external-ownership boundary. Decision 0417 approves the every-attempt `/3` revision (owner answer
+"approve /3 profile", 2026-09-25); its composition with `/1` and `/2` is an open owner question.
 
 ## Agent digest
 - Claim: External-server Playwright receipts bind outcomes without owning the app; `/1` attests application identity and `/2` redacts sensitive input evidence.
-- Status: accepted; `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`.
+- Status: accepted; `/0` and `/1` validated; `/2` implemented, conformance-tested, live reporter matrix `NOT_RUN`; `/3` intent accepted, spec draft, not implemented.
 - Exists: `internal/jstestprovider`, `cmd/corvint-js-test-provider`, `internal/testvaliditydoc`.
 - Read next: Requirements; Wire and trust boundary; Acceptance and rollback.
 - Blocked on: no implementation gap; owner-selected checks and separate live witnesses govern final completion. Other Playwright versions, Vitest and LPCV authority remain unqualified. The qualification host had Docker but no Compose frontend, so the checked-in closed Compose JSON manifest was executed by the fixture's equivalent project-scoped Docker build/run path.
@@ -48,6 +49,29 @@ external-ownership boundary.
 - `PWP-V2-004`: Provider-declared additional case-insensitive action-title patterns and metadata field names are closed and bounded additions. At most 16 action patterns and 32 field names are admitted, each nonempty and at most 128 UTF-8 bytes after whitespace trimming and per-rune lowercasing. Every admitted action pattern must normalize to at least one word using the same separator class as matching; zero-word declarations such as `***` and bound violations return fixed `sensitive-input-policy-invalid`. They cannot remove, replace, or weaken the defaults. The profile rejects depth over 32, more than 4096 total steps across retries, any step/error/attachment string over 64 KiB, and more than 64 validation findings before recursive path growth.
 - `PWP-V2-005`: Reporter output and retained documents are untrusted. Ingestion rejects an unredacted sensitive action or noncanonical protected risk field with typed finding `sensitive-input-unredacted`, naming only its structural path and never echoing the value. Malformed retained `/2` documents return fixed typed `sensitive-input-document-invalid` diagnostics; unknown property names, values and decoder text are never echoed. Inputs whose kind cannot be decoded use that same value-free rejection because their profile is not trustworthy.
 - `PWP-V2-006`: The conformance fixture contains a deliberately leaking payload that is rejected and a redacted payload that is accepted with action-level traceability. `/2` cannot project passing evidence until the changed reporter completes the required live matrix.
+
+### Every-attempt revision (draft)
+
+Draft status: intent accepted by decision 0417 for `AFU-V1-012`; nothing below is implemented, and
+no receipt may claim `/3` until an implementation, its tests and the live reporter matrix land.
+
+- `PWP-V3-001`: `/3` is selected explicitly by a provider option in external-server mode. `/0`, `/1` and `/2` stay readable and byte-compatible, and each still refuses `attemptDetails` with `external-profile-has-attempt-details`; only a `/3` receipt may carry it.
+- `PWP-V3-002`: A `/3` test outcome carries `attemptDetails` with one entry per Playwright attempt, in retry order starting at retry 0, using the existing `AttemptDetail` members (state, retry, duration, failure message, anchor, artifacts). The final attempt entry equals the test's existing last-attempt fields; a missing, duplicated, reordered or contradictory attempt refuses the receipt with `external-attempt-details-invalid`.
+- `PWP-V3-003`: The existing per-attempt classification is unchanged: browser or fixture failure stays infrastructure on its own attempt, and an earlier failed attempt before a pass keeps the test `flaky`. `/3` adds no new state, outcome or pass rule.
+- `PWP-V3-004`: Every `/3` attempt failure message and artifact is subject to the same report-wide risk-field rules as the last attempt. Until the owner settles composition (below), `/3` is refused together with `/2` sensitive-input redaction or `/1` application attestation with `external-attempt-details-composition-unsupported`, so no earlier attempt's text can bypass redaction.
+- `PWP-V3-005`: The reporter emits `attemptDetails` only under `/3`; the provider validates the closed shape and the per-test attempt bound (the existing retry bound) before projection. Ingest into `test-run-evidence/0` maps each entry to one `RunAttempt` without inventing missing members.
+- `PWP-V3-006`: `/3` is non-promotable until the changed reporter completes the live matrix of `PWP-V0-007` plus a retried-then-passed fixture and a retried infrastructure-then-assertion fixture on a `PWP-V0-008` qualified tuple. A skipped live fixture is never qualification success.
+
+Open owner question: whether `/3` composes with `/1` (attempt details beside attested identity)
+and `/2` (redacting every earlier attempt's failure message and artifacts), or stays a separate
+unattested, unredacted profile. `PWP-V3-004` refuses both compositions until answered.
+
+Non-goals: per-attempt browser steps outside `/2`, trace or video content, a new outcome state, and
+changing `/0`..`/2` wire bytes.
+
+Failure modes: an earlier attempt's failure text leaks a sensitive value (prevented by
+`PWP-V3-004`); a reporter drops or reorders attempts so a flaky test reads as clean (refused by
+`PWP-V3-002`); a `/3` receipt is promoted from Go regressions alone (blocked by `PWP-V3-006`).
 
 ## Wire and trust boundary
 
@@ -129,7 +153,9 @@ and retained evidence is not deleted. `/1` is additive and `/0` remains readable
 require another profile revision, so every profile refuses the unprofiled receipt's `attemptDetails`. Reporter/config
 changes rerun live qualification. Acceptance and passing qualification are both promotion conditions.
 `/2` therefore remains readable and conformance-tested but non-promotable while its live reporter
-matrix is `NOT_RUN`; `/0` and `/1` retain their existing qualification.
+matrix is `NOT_RUN`; `/0` and `/1` retain their existing qualification. `/3` is the one revision
+that carries `attemptDetails`; rolling it back removes the option, and retained `/3` receipts are
+neither deleted nor rewritten.
 
 ## Traceability
 
@@ -203,6 +229,7 @@ browser-path override. With the bundled path, the exact command is:
 | PWP-V0-001..008 | `internal/jstestprovider/external.go`, `internal/jstestprovider/qualified-reporter.cjs`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestQualifiedPlaywrightLive`, `TestQualifiedPlaywrightLiveDevicesSpread`, `TestExternalReadiness`, `TestQualifiedReceiptProjection`, `TestPlaywright163UnqualifiedBrowserTupleAbstains`, `TestPlaywright163BundledBrowserTupleAbstainsOnDrift` |
 | PWP-V1-001..008 | `internal/jstestprovider/application_attestation.go`, `internal/jstestprovider/external.go`, `cmd/corvint-js-test-provider/main.go`, `internal/testvaliditydoc/document.go` | `TestApplicationAttestationCommandProvider`, `TestApplicationAttestationNegativeControls`, `TestAttestedReceiptNeverPassesWrongOrRestartedApplication`, `TestApplicationAttestationDockerComposeQualification` |
 | PWP-V2-001..006 | `internal/jstestprovider/sensitive_input.go`, `internal/jstestprovider/sensitive_input_boundary.go`, `internal/jstestprovider/sensitive_input_grammar.go`, `internal/jstestprovider/qualified-reporter.cjs`, `internal/jstestprovider/external.go`, `internal/testvaliditydoc/document.go`, `cmd/corvint-js-test-provider/main.go` | `TestQualifiedReporterSensitiveRedaction`, `TestSensitiveInputEvidenceRedactionAndValidation`, `TestSensitiveInputNormalizationBoundsAndNoPanic`, `TestSensitiveInputAlreadyRedactedRiskFieldsFailClosed`, `TestSensitiveInputReceiverPrefixExtraction`, `TestSensitiveInputUnicodeGrammarAndReportScope`, `TestSensitiveInputAlreadyRedactedCrossTestRiskRejected`, `TestSensitiveInputArgumentCandidatesRespectStructure`, `TestSensitiveInputPolicyGrammarAgreement`, `TestSensitiveInputUnsupportedReceiverSyntaxRejected`, `TestSensitiveRetainedPolicyAndUnsupportedActionRejection`, `TestSensitiveRetainedDecodeNeverEchoesUnknownProperties`, `TestSensitiveInputConformanceFixtureRejectsLeakAndAcceptsRedaction`; live Playwright matrix `NOT_RUN` |
+| PWP-V3-001..006 | not implemented (spec draft, decision 0417) | none yet; live Playwright matrix `NOT_RUN` |
 
 ### Owned emitted error codes
 
