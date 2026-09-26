@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-01
 Requirement prefix: `AFP-V0`
-Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); other AFP-V0 requirements proposed
+Intent status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); other AFP-V0 requirements proposed
 Delivery status: experimental
 Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wire and non-goals),
 `docs/specs/live-proof-carrying-verification-v0.md` (future composer, not-started),
@@ -11,7 +11,7 @@ Authoritative inputs: `docs/specs/go-live-test-provider-v0.md` (provider plan wi
 
 ## Agent digest
 - Claim: `corvint affected` emits a read-only, non-authoritative affected-test selection plan with provider-ready Go package paths.
-- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); other AFP-V0 requirements proposed/experimental
+- Status: accepted for AFP-V0-008 (decision 0057) and AFP-V0-009 (decision 0052); AFP-V0-013/014/015 accepted (decision 0289); AFP-V0-016/017 accepted (decision 0320), AFP-V0-016 amended (decision 0390); AFP-V0-021 accepted (decision 0376); AFP-V0-009 and AFP-V0-021 amended (decision 0424); other AFP-V0 requirements proposed/experimental
 - Exists: `internal/liveverify/affected`, `corvint affected`, `cmd/corvint/affected_test.go`, the `advice` member (AFP-V0-009: repository-declared mandatory checks, one advisory Go command, the unknown frontier), the `--base FULL_COMMIT_ID` range form and `range` member (AFP-V0-010), and the `make gate-affected` fast tier over the receipt (AFP-V0-011: `script/gate-affected.sh`, fail-closed to the full `go-test` run; not the push gate), whose union is attributed per dirty path from a static repository index of imports and path literals (AFP-V0-012), whose literal-reader rule also adds, in the plan itself, selections for every dirty path a package names, without narrowing an unowned path's `UNKNOWN` scope (AFP-V0-021); `tools/corvint-pr-tests` and `.github/workflows/ci.yml` remain full until separately pinned AFP-V0-014 qualification.
 - Blocked on: the LPCV-V0 composer accepting or replacing this wire; the 200-row qualification, which needs 201 first-parent commits on `main` (AFP-V0-017).
 - Read next: Requirements; Non-goals and authority; Failure modes.
@@ -61,8 +61,9 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   `DIRECT_SOURCE_CHANGE` of the package observed in its directory, which is then traversed to its
   dependents; with no package there, every unit with an import edge to an absent in-module Go unit
   whose last path component is the directory's name is a changed unit with a `DEPENDENCY_PATH`
-  witness. The Go plugin keeps an import under an observed module path that resolves to no
-  package as an edge to that absent `go:` identity for this purpose. Any other unowned or
+  witness; at the module root (directory `.`), every unit importing an absent in-module package is
+  selected this way. The Go plugin keeps an import under an observed module path that resolves to
+  no package as an edge to that absent `go:` identity for this purpose. Any other unowned or
   non-Go path selects every Go package whose directory encloses it with witness kind
   `ENCLOSING_PACKAGE`; the nearest such package, when the path sits directly in its directory,
   and every enclosing package whose non-test files carry `//go:embed` (`Unit.embeds`) are also
@@ -161,19 +162,20 @@ deterministic plan for one dirty worktree in bounded time with an explicit unkno
   `MANDATORY_DECLARATION_CAPPED: <path> declared more than 16 commands`. The advisory command's
   package arguments are each POSIX single-quoted, with an embedded `'` escaped as `'\''`, so an
   unusual import path cannot break a shell paste.
-  (proposed, decision 0398; V1-0342) Only a heading whose text, without its `#` marks and
-  surrounding space, equals `Verify` in any case declares checks; a substring match made every
-  shell line under a heading such as `## Build / run / verify` mandatory, app launches included.
-  Each other heading whose text contains `verify` in any case and that has such a fence MUST add
-  `MANDATORY_DECLARATION_UNRECOGNIZED: AGENTS.md heading "<text>" is not "Verify", so its commands
-  are not checks` to `unknown` instead of yielding checks. A shell comment, a `#` that begins a
-  word outside single or double quotes, is removed from each command line with the space before
-  it, and a line left empty is no command. A command that ends in a single `&` or whose first word
-  is `open` or `xdg-open` does not end on its own: it MUST be an `advisory` entry with source
+  (accepted 2026-09-26, decision 0424; from decision 0398; V1-0342) Only a heading whose text,
+  without its `#` marks and surrounding space, equals `Verify` in any case declares checks; a
+  substring match made every shell line under a heading such as `## Build / run / verify`
+  mandatory, app launches included. Each other heading whose text contains `verify` in any case and
+  that has such a fence MUST add `MANDATORY_DECLARATION_UNRECOGNIZED: AGENTS.md heading "<text>" is
+  not "Verify", so its commands are not checks` to `unknown` instead of yielding checks. A shell
+  comment, a `#` at the start of the line or after a space or tab, outside single or double quotes
+  and not escaped by a backslash, is removed from each command line with the whitespace before it,
+  and a line left empty is no command. A command that ends in a single `&` or whose first word is
+  `open` or `xdg-open` does not end on its own: it MUST be an `advisory` entry with source
   `AGENTS.md`, listed after the mandatory entries and before the plan's advisory entry, and counts
-  toward the 16-entry cap. Any other command stays `mandatory`, because requiring too much is
-  safe. `NO_REPOSITORY_GATE_DECLARED` is added when no entry is mandatory. Rollback restores the
-  substring heading match and whole-line commands.
+  toward the 16-entry cap. Any other command stays `mandatory`, because requiring too much is safe.
+  `NO_REPOSITORY_GATE_DECLARED` is added only when no entry is mandatory and neither declaration
+  source was truncated. Rollback restores the substring heading match and whole-line commands.
 - **AFP-V0-010:** `corvint affected --base FULL_COMMIT_ID` (or `--base=`) MUST join the committed
   range to the dirty set: the paths of one bounded `git diff --name-only -z --no-renames --no-color
   BASE HEAD --` (`affected.RangePaths`, the AFP-V0-002 8 MiB / 10 s bounds; each NUL-delimited
@@ -438,14 +440,14 @@ and container qualification; full fallback remains available.
   tool never builds. A match adds and removes no unknown entry: an unowned path keeps its
   `UNOWNED_DIRTY_PATH` entry, so `plan.scope` stays `UNKNOWN`, because a literal index cannot
   bound a read whose path is built at run time (AFP-V0-012 rule (d)). A reader's witness is the
-  smallest dirty path naming it. (proposed, decision 0398; V1-0230) For the CEM sidecar
-  `.corvint/change.cem.json` (`affected.ChangeEvidencePath`, equal to `frontier.ExcludedPath`) a
-  Go unit is a reader only when one of its naming tokens resolves as rule (c) narrows it: against
-  the unit's directory, or against the repository root when the unit also carries an anchored or
-  parent-only token, to the sidecar or an ancestor, outer components matching as fragments. An
-  anchored naming token always counts, because the graph does not record the module directory it
-  is anchored at, so this is a superset of rule (c)'s sidecar readers. A non-Go unit and any other
-  dirty path keep the component-run relation.
+  smallest dirty path naming it. (accepted 2026-09-26, decision 0424; from decision 0398; V1-0230)
+  For the CEM sidecar `.corvint/change.cem.json` (`affected.ChangeEvidencePath`, equal to
+  `frontier.ExcludedPath`) a Go unit is a reader only when one of its naming tokens resolves as rule
+  (c) narrows it: against the unit's directory, or against the repository root when the unit also
+  carries an anchored or parent-only token, to the sidecar or an ancestor, outer components matching
+  as fragments. An anchored naming token always counts, because the graph does not record the module
+  directory it is anchored at, so this is a superset of rule (c)'s sidecar readers. A non-Go unit
+  and any other dirty path keep the component-run relation.
   (proposed 2026-09-25, not accepted; V1-0290) A one-component run of a token that is not anchored
   at a module root and has no `..` in it names only a dirty path's file name, never one of its
   directory components: the `internal/` of `"internal/%03d.go"` would otherwise make its package a
@@ -453,19 +455,21 @@ and container qualification; full fallback remains available.
   directory. Runs of two or more components, climbing tokens and anchored tokens match as rule (c)
   does, so here `affected` selects a subset of rule (c)'s readers. Rollback
   removes the reader selections and the bound entries; the paths stay unknown as before.
-  (proposed, decision 0398; V1-0230) Rule (d) is modelled for Go: a package that calls
-  `runtime.Caller` or `os.Getwd` (through a plain, aliased or dot import), carries the literal
-  `--show-toplevel`, has a file that does not lex outside a directory the go tool never builds, or
-  carries a literal that climbs from the working directory (a non-test file) or reaches the
-  repository root (a test file, or a `/...` pattern in a test file) records the first such reason,
-  a non-test one preferred, as the unit's `unboundedReads`, and `locatesRoot` when a non-test file
-  is the cause. Both are covered by the graph digest. On any non-empty dirty set, every such unit,
-  every dependent of a `locatesRoot` unit, and every test user of either, not otherwise reached,
-  is selected with witness kind `UNBOUNDED_READER`, `dirtyPath` the smallest dirty path and `via`
-  that unit alone, and is not traversed; a clean plan selects none. The `UNOWNED_DIRTY_PATH`
-  entry still stays: rule (d) is a lexical heuristic that cannot bound every read built at run
-  time, and no plugin but Go records path tokens, so `plan.scope` stays `UNKNOWN` for an unowned
-  path. Rollback removes the `UNBOUNDED_READER` selections and the two unit members.
+  (accepted 2026-09-26, decision 0424; from decision 0398; V1-0230) Rule (d) is modelled for Go: a
+  package that calls `runtime.Caller` or `os.Getwd` (through a plain, aliased or dot import),
+  carries the literal `--show-toplevel`, has a file whose source after its import declarations does
+  not lex outside a directory the go tool never builds, or carries a literal that climbs with `..`
+  to a named component (a non-test file) or that is made only of `..` components, resolves to the
+  repository root or above, or is a `/...` pattern (a test file) records the first such reason, a
+  non-test one preferred, as the unit's `unboundedReads`, and `locatesRoot` when a non-test file is
+  the cause. Both are covered by the graph digest. On any non-empty dirty set, every such unit,
+  every dependent of a `locatesRoot` unit, and every test user of a `locatesRoot` unit or of such a
+  dependent, not otherwise reached, is selected with witness kind `UNBOUNDED_READER`, `dirtyPath`
+  the smallest dirty path and `via` that unit alone, and is not traversed; a clean plan selects
+  none. The `UNOWNED_DIRTY_PATH` entry still stays: rule (d) is a lexical heuristic that cannot
+  bound every read built at run time, and no plugin but Go records path tokens, so `plan.scope`
+  stays `UNKNOWN` for an unowned path. Rollback removes the `UNBOUNDED_READER` selections and the
+  two unit members.
 
 ## Non-goals and authority
 

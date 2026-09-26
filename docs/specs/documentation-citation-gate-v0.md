@@ -132,11 +132,14 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   publishes a change to the gate.
 - `DCG-V0-014`: A citation from any scanned document into `docs/BUILD-LOG.md` or a one-level
   `docs/agent-memory/*.md` file MUST carry a content anchor unless the citing and cited paths are
-  the same file. These documents are prepended newest-entry-first, so an unpinned citation into one
-  MUST fail with `<path> is prepended (newest entry on top)` and MUST instruct the author to `pin
-  this citation with @<hash>` through `script/check-line-citations.sh --hash` or `cite a stable
-  anchor instead of a line number`. A pinned citation and an exempt same-file self-citation MUST
-  continue through the other applicable checks.
+  the same file. (amended 2026-09-26, decision 0424; V1-0385) `docs/BUILD-LOG.md` was appended to,
+  apart from a few entries inserted at its top, and decision 0423 closes it to new entries; each
+  `docs/agent-memory` backlog lists entries newest first and removes them when done. A line number
+  there names a position, not an entry, and a pin binds the citation to the lines it cites, so an
+  unpinned citation into one MUST fail with `<path> is a log or backlog file` and MUST instruct the
+  author to `pin this citation with @<hash>` through `script/check-line-citations.sh --hash` or
+  `cite a stable anchor instead of a line number`. A pinned citation and an exempt same-file
+  self-citation MUST continue through the other applicable checks.
 - `DCG-V0-015`: The gate MUST also check an extensionless path followed by `:N`, `:N-M`, or
   `:N,M` when the Git index tracks that exact path, including a repository-root basename such as
   `Makefile` or `LICENSE`. A tracked root basename names one unambiguous repository path, so it
@@ -229,7 +232,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | Pinned content changed | fail, naming written anchor and current digest |
 | Tracked-path `:N` prefix followed by a malformed remainder | fail, naming the whole malformed citation-like token, by DCG-V0-016 |
 | Unpinned citation, content changed | pass, by DCG-V0-006 |
-| Unpinned citation into `docs/BUILD-LOG.md` or one-level `docs/agent-memory/*.md` from another document | fail, saying the target is prepended and directing the author to `--hash` or a stable anchor, by DCG-V0-014 |
+| Unpinned citation into `docs/BUILD-LOG.md` or one-level `docs/agent-memory/*.md` from another document | fail, saying the target is a log or backlog file and directing the author to `--hash` or a stable anchor, by DCG-V0-014 |
 | Total checked unpinned citations exceeds the committed ceiling | fail, reporting the count and ceiling, by DCG-V0-017 |
 | Unpinned citation in a scanned document absent from the legacy allowlist | fail, requiring an `@<hex>` content anchor, by DCG-V0-018 |
 | Non-line reference `path@<hash>` with no trailing `:N` (the DCG-V0-019 historical-citation form) | not matched as a citation token; no check applies |
@@ -251,7 +254,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-011 | test case 1, the printed anchor round-tripping into a passing pin |
 | DCG-V0-012 | `make gate` membership; the script performs no write |
 | DCG-V0-013 | test case 7, an untracked file on disk failing and resolving once staged; test case 8, an unstaged truncation and a worktree-only deletion leaving the result unchanged |
-| DCG-V0-014 | test case 11, an unpinned citation into a prepended agent-memory file failing with the explanation and the same citation passing once pinned |
+| DCG-V0-014 | test case 11, an unpinned citation into an agent-memory backlog file failing with the explanation and the same citation passing once pinned |
 | DCG-V0-015 | test case 9, a real `Makefile:N` passing and a blank-line `Makefile:N` failing; test case 10, an untracked extensionless token remaining prose |
 | DCG-V0-016 | test case 16, a second full citation accidentally replacing an anchor and failing as a malformed citation-like token |
 | DCG-V0-017 | test case 17, one unpinned citation failing against a zero ceiling with both values reported; `line-citations-check` at the committed corpus ceiling |
@@ -271,7 +274,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:271-291@3a897fb5` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
 | DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:75-142@c733a5fa` | cases 7, 8, and 13 |
-| DCG-V0-014 | `prepended_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:175-180@2c93e31d` and `:238-243@99bc16be` | case 11 |
+| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:175-180@fce1154d` and `:238-243@e5963c48` | case 11 |
 | DCG-V0-016 | `check_malformed` and the backticked-token pre-scan in `script/check-line-citations.sh` | case 16; `line-citations-check` |
 | DCG-V0-017 | the unpinned counter and committed ceiling in `script/check-line-citations.sh` | case 17; `line-citations-check` |
 | DCG-V0-018 | `script/line-citation-legacy-documents.txt` and the new-document branch in `check` | case 18; decision 0176's manual admission of decision 0158 |

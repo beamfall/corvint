@@ -38,23 +38,23 @@ AFP-V0-001	docs/specs/affected-plan-v0.md	31	The command MUST be read-only: one 
 AFP-V0-002	docs/specs/affected-plan-v0.md	35	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,
 AFP-V0-003	docs/specs/affected-plan-v0.md	46	Stdout MUST be one canonical JSON line with exactly the members `advice`
 AFP-V0-004	docs/specs/affected-plan-v0.md	56	The plan is not authority. `plan.scope` MUST be `UNKNOWN` whenever `plan.unknown
-AFP-V0-005	docs/specs/affected-plan-v0.md	84	For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
-AFP-V0-006	docs/specs/affected-plan-v0.md	97	Failures MUST exit 2 with a typed code on stderr and no partial document:
-AFP-V0-007	docs/specs/affected-plan-v0.md	103	`plan.selected` MUST be ordered by exactly three keys: (1) reverse-dependency
-AFP-V0-008	docs/specs/affected-plan-v0.md	112	The Go plugin's unit universe is the root module, or, when the root holds a
-AFP-V0-009	docs/specs/affected-plan-v0.md	139	(accepted 2026-09-04 by decision 0052) The receipt MUST carry an `advice` member
-AFP-V0-010	docs/specs/affected-plan-v0.md	177	`corvint affected --base FULL_COMMIT_ID` (or `--base=`) MUST join the committed
-AFP-V0-011	docs/specs/affected-plan-v0.md	190	`make gate-affected` (`script/gate-affected.sh [BASE]`; the Makefile's `BASE`
-AFP-V0-012	docs/specs/affected-plan-v0.md	223	(decision 0131) The fast tier's selector MUST attribute every dirty path from a
-AFP-V0-013	docs/specs/affected-plan-v0.md	282	(accepted by decision 0289) `tools/corvint-pr-tests` MUST execute only
-AFP-V0-014	docs/specs/affected-plan-v0.md	295	(accepted by decision 0289) PR narrowing MUST require a separately trusted,
-AFP-V0-015	docs/specs/affected-plan-v0.md	312	(accepted by decision 0289) The trusted PR driver SHALL support one 1-based inde
-AFP-V0-016	docs/specs/affected-plan-v0.md	350	(accepted by decision 0320; ruleset and consent amended by decision 0390)
-AFP-V0-017	docs/specs/affected-plan-v0.md	365	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
-AFP-V0-018	docs/specs/affected-plan-v0.md	373	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
-AFP-V0-019	docs/specs/affected-plan-v0.md	388	(proposed technical contract implementing owner-requested issue #57)
-AFP-V0-020	docs/specs/affected-plan-v0.md	414	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
-AFP-V0-021	docs/specs/affected-plan-v0.md	425	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
+AFP-V0-005	docs/specs/affected-plan-v0.md	85	For a fixed tree, HEAD, and dirty set the document MUST be byte-identical across
+AFP-V0-006	docs/specs/affected-plan-v0.md	98	Failures MUST exit 2 with a typed code on stderr and no partial document:
+AFP-V0-007	docs/specs/affected-plan-v0.md	104	`plan.selected` MUST be ordered by exactly three keys: (1) reverse-dependency
+AFP-V0-008	docs/specs/affected-plan-v0.md	113	The Go plugin's unit universe is the root module, or, when the root holds a
+AFP-V0-009	docs/specs/affected-plan-v0.md	140	(accepted 2026-09-04 by decision 0052) The receipt MUST carry an `advice` member
+AFP-V0-010	docs/specs/affected-plan-v0.md	179	`corvint affected --base FULL_COMMIT_ID` (or `--base=`) MUST join the committed
+AFP-V0-011	docs/specs/affected-plan-v0.md	192	`make gate-affected` (`script/gate-affected.sh [BASE]`; the Makefile's `BASE`
+AFP-V0-012	docs/specs/affected-plan-v0.md	225	(decision 0131) The fast tier's selector MUST attribute every dirty path from a
+AFP-V0-013	docs/specs/affected-plan-v0.md	284	(accepted by decision 0289) `tools/corvint-pr-tests` MUST execute only
+AFP-V0-014	docs/specs/affected-plan-v0.md	297	(accepted by decision 0289) PR narrowing MUST require a separately trusted,
+AFP-V0-015	docs/specs/affected-plan-v0.md	314	(accepted by decision 0289) The trusted PR driver SHALL support one 1-based inde
+AFP-V0-016	docs/specs/affected-plan-v0.md	352	(accepted by decision 0320; ruleset and consent amended by decision 0390)
+AFP-V0-017	docs/specs/affected-plan-v0.md	367	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
+AFP-V0-018	docs/specs/affected-plan-v0.md	375	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
+AFP-V0-019	docs/specs/affected-plan-v0.md	390	(proposed technical contract implementing owner-requested issue #57)
+AFP-V0-020	docs/specs/affected-plan-v0.md	416	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
+AFP-V0-021	docs/specs/affected-plan-v0.md	427	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and
@@ -256,7 +256,7 @@ CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	98	A Core refusal MUST exi
 CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	152	The admission, freshness, omission and abstention members MUST keep their names,
 CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	169	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
 CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	179	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	310	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	312	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa
@@ -544,12 +544,12 @@ DCG-V0-011	docs/specs/documentation-citation-gate-v0.md	118	The gate MUST offer 
 DCG-V0-012	docs/specs/documentation-citation-gate-v0.md	122	The gate MUST be read-only over the repository on every path, including every
 DCG-V0-013	docs/specs/documentation-citation-gate-v0.md	124	Every path the gate reads MUST be resolved against the Git index and never the
 DCG-V0-014	docs/specs/documentation-citation-gate-v0.md	133	A citation from any scanned document into `docs/BUILD-LOG.md` or a one-level
-DCG-V0-015	docs/specs/documentation-citation-gate-v0.md	140	The gate MUST also check an extensionless path followed by `:N`, `:N-M`, or
-DCG-V0-016	docs/specs/documentation-citation-gate-v0.md	147	A backticked token whose prefix is an exact tracked path in the DCG-V0-001 or
-DCG-V0-017	docs/specs/documentation-citation-gate-v0.md	154	The gate MUST count every checked citation that carries no content anchor and MU
-DCG-V0-018	docs/specs/documentation-citation-gate-v0.md	160	`script/line-citation-legacy-documents.txt` MUST be the closed allowlist of scan
-DCG-V0-019	docs/specs/documentation-citation-gate-v0.md	174	A citation a citing document explicitly frames as historical — reviewed once aga
-DCG-V0-020	docs/specs/documentation-citation-gate-v0.md	180	`script/line-citation-drift-waivers.txt` MAY name one citation, as
+DCG-V0-015	docs/specs/documentation-citation-gate-v0.md	143	The gate MUST also check an extensionless path followed by `:N`, `:N-M`, or
+DCG-V0-016	docs/specs/documentation-citation-gate-v0.md	150	A backticked token whose prefix is an exact tracked path in the DCG-V0-001 or
+DCG-V0-017	docs/specs/documentation-citation-gate-v0.md	157	The gate MUST count every checked citation that carries no content anchor and MU
+DCG-V0-018	docs/specs/documentation-citation-gate-v0.md	163	`script/line-citation-legacy-documents.txt` MUST be the closed allowlist of scan
+DCG-V0-019	docs/specs/documentation-citation-gate-v0.md	177	A citation a citing document explicitly frames as historical — reviewed once aga
+DCG-V0-020	docs/specs/documentation-citation-gate-v0.md	183	`script/line-citation-drift-waivers.txt` MAY name one citation, as
 DCLI-V0-001	docs/specs/direct-native-cli-authority-v0.md	26	**One real host.** Root-protected candidate/completed records bind host=`codex`,
 DCLI-V0-002	docs/specs/direct-native-cli-authority-v0.md	28	**Smallest parent topology.** Consumer's immediate kernel parent must be that ex
 DCLI-V0-003	docs/specs/direct-native-cli-authority-v0.md	30	**Current immutable image and existing admission boundary.** Bind exact executab
@@ -2149,9 +2149,9 @@ UCV0-010	docs/specs/use-case-conformance-v0.md	128	Promotion requires both Corvi
 UCV0-011	docs/specs/use-case-conformance-v0.md	131	Live Proof-Carrying Verification is a separately governed product job: on each e
 UCV0-012	docs/specs/use-case-conformance-v0.md	135	No row may be advertised as supported or delivered from this ledger unless its c
 UCV0-013	docs/specs/use-case-conformance-v0.md	139	The canonical ledger profile MUST be `corvint-use-case-conformance/1`, containin
-UCV0-014	docs/specs/use-case-conformance-v0.md	148	(proposed 2026-09-25, not accepted; decision 0398, V1-0341) On a `verified` row,
-UCV0-015	docs/specs/use-case-conformance-v0.md	156	(proposed 2026-09-25, not accepted; decision 0398, V1-0341) A row MUST NOT be
-UCV0-016	docs/specs/use-case-conformance-v0.md	161	(proposed 2026-09-25, not accepted; V1-0216) A `contract` receipt MAY bind the
+UCV0-014	docs/specs/use-case-conformance-v0.md	149	(accepted 2026-09-26, decision 0424; from decision 0398; V1-0341) On a `verified
+UCV0-015	docs/specs/use-case-conformance-v0.md	157	(proposed 2026-09-25, not accepted; decision 0398, V1-0341) A row MUST NOT be
+UCV0-016	docs/specs/use-case-conformance-v0.md	162	(proposed 2026-09-25, not accepted; V1-0216) A `contract` receipt MAY bind the
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	31	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	46	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	65	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker

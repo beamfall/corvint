@@ -53,10 +53,10 @@ what any packet says.
   stable storage before it is closed and renamed, and a sync failure refuses the write in the same
   way. The gob decoder cannot detect a zeroed range inside a source body. Without the sync, a crash
   after the rename could publish such a range, and it would load as a wrong index. The sectioned
-  and pack writers sync the same way. Amendment (proposed, decision 0398; V1-0338): the file ends
-  with the 32-byte SHA-256 of every byte before it (header and index message), so a body
-  overwritten with the same number of bytes, or a zeroed range the gob decoder would accept, is
-  detectable on read.
+  and pack writers sync the same way. Amendment (accepted 2026-09-26, decision 0424; from decision
+  0398; V1-0338): the file ends with the 32-byte SHA-256 of every byte before it (header and index
+  message), so a body overwritten with the same number of bytes, or a zeroed range the gob decoder
+  would accept, is detectable on read.
 - `IDX-SNAP-V0-002`: `context` reads the repository's identity and status as a build's opening
   observation does, and when a file named by the current object format, tree OID, and engine
   exists with a matching header, uses it with `Root` set, `DirtyPaths` set to the status
@@ -72,7 +72,7 @@ what any packet says.
   term table decodes but any key offset, posting offset or source id lies outside the slice it
   indexes, or the counted `Terms` table lacks one count per source. The decoder checks this once at
   open, never per lookup, and refuses the file as this miss; a corrupt snapshot never panics.
-  Amendment (proposed, decision 0398; V1-0338): a gob snapshot whose trailing SHA-256 does not
+  Amendment (accepted 2026-09-26, decision 0424; from decision 0398; V1-0338): a gob snapshot whose trailing SHA-256 does not
   match the bytes before it is undecodable, so every loader, and the `IDX-SNAP-V0-011` probe,
   treats a byte-corrupted file as this miss rather than serving text its blob does not contain.
 - `IDX-SNAP-V0-004`: a dirty worktree reads the same snapshot; only `DirtyPaths` and
@@ -103,14 +103,14 @@ what any packet says.
   repository state and arguments.
 - `IDX-SNAP-V0-007`: `index` keeps the newest eight snapshot files in the directory and removes
   the rest (`DIRTY-CACHE-007`'s entry bound). After a successful publish it also removes regular
-  `snapshot-*.tmp` files at least one hour old, without counting them in the receipt's published
+  `snapshot-*.tmp` files at least ten minutes old, without counting them in the receipt's published
   snapshot `evicted` total; younger temporaries may belong to a concurrent writer and remain.
-  Amendment (proposed, decision 0398; V1-0302): the temporary cutoff is ten minutes, since a writer
-  holds its temporary only while it encodes and syncs an index already built. Beside the entry
-  bound, the published `*.gob` files in one store stay within 1 GiB. Eviction orders files whose
-  engine matches the snapshot just written first, newest first, then every other engine's files,
-  newest first, and removes each file past the entry bound or past the byte budget; the snapshot
-  just written is never removed, even when it alone exceeds the budget.
+  Amendment (accepted 2026-09-26, decision 0424; from decision 0398; V1-0302): the temporary cutoff
+  is ten minutes, since a writer holds its temporary only while it encodes and syncs an index
+  already built. Beside the entry bound, the published `*.gob` files in one store stay within 1 GiB.
+  Eviction orders files whose engine matches the snapshot just written first, newest first, then
+  every other engine's files, newest first, and removes each file past the entry bound or past the
+  byte budget; the snapshot just written is never removed, even when it alone exceeds the budget.
 - `IDX-SNAP-V0-008`: the two per-prompt query verbs read the snapshot on the same terms as
   `context`: `corvint query` in place of its authority-only query build, and the harness
   `user-prompt` event (with the standalone repository and agent-tooling query intents that share
