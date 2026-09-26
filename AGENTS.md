@@ -38,8 +38,8 @@ same change when behavior or a wire contract changes. A prototype may precede an
 contract only while it is labelled experimental and cannot be promoted or advertised as delivered.
 
 Record material design decisions, independent findings, failed evaluations, and promotion evidence
-in `docs/BUILD-LOG.md`. Search headings or IDs and read only matching entries, never the whole
-log. Document contracts and decisions,
+as one new file per entry, `docs/build-log/YYYY-MM-DD-<slug>.md` (decision 0423); `docs/BUILD-LOG.md`
+is closed. Search headings or IDs and read only matching entries. Document contracts and decisions,
 not a narration of individual code lines.
 
 ## Dogfood Corvint

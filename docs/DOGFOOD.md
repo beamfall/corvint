@@ -61,7 +61,7 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
 ### Steps and expected state
 
 1. Orient before editing: retain `corvint query` and `corvint impact` receipts (section 1). A miss
-   or abstention is recorded in `docs/BUILD-LOG.md`, not repaired by rewording the task.
+   or abstention is recorded in a `docs/build-log/` entry, not repaired by rewording the task.
 2. Bind intent, implement, run the focused checks and commit (sections 2 and 3). Only ignored paths
    may remain modified.
 3. Export every input except `DOGFOOD_CITATIONS`, then run `make dogfood-change BASE=$BASE`. Expected
@@ -222,7 +222,7 @@ response and every omission/uncertainty. Native impact refuses `--budget-bytes` 
 Range impact refuses a modified path or an untracked path that overlaps the Go build (`GPK-V0-060`),
 so the coordinator's `coordination-time-impact` row is then `NOT_PRODUCED unsupported-impact-worktree`.
 If Corvint abstains or misses a critical item, continue with ordinary repository inspection and record
-the miss in `docs/BUILD-LOG.md`. Never tune the current task into a held-out evaluation.
+the miss in a `docs/build-log/` entry. Never tune the current task into a held-out evaluation.
 For `coordination-time-impact` only, a complete coordinator may retain `NOT_PRODUCED
 unsupported-impact-range` as an explicit context abstention, and, under `DCW-V0-025` (decision 0388),
 `unsupported-impact-repository` (no Go module, as in a non-Go repository, or a native Go index over
