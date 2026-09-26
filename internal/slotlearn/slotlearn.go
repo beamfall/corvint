@@ -211,10 +211,17 @@ func writeAdmitted(root string, weights contextindex.SlotWeights, evaluation map
 }
 
 // Reset removes the admitted trace so the context packet returns to the
-// default slot order. An absent trace is not an error.
+// default slot order. An absent trace is not an error. Removal goes through
+// the pinned store directory, so a symlinked or substituted store cannot
+// redirect it; a leaf symlink is removed, never followed.
 func Reset(root string) (bool, error) {
-	path := filepath.Join(root, filepath.FromSlash(contextindex.SlotWeightsPath))
-	info, err := os.Lstat(path)
+	store, err := contextindex.OpenSlotWeightsStore(root)
+	if err != nil || store == nil {
+		return false, err
+	}
+	defer store.Close()
+	name := filepath.Base(contextindex.SlotWeightsPath)
+	info, err := store.Lstat(name)
 	if os.IsNotExist(err) {
 		return false, nil
 	}
@@ -224,5 +231,5 @@ func Reset(root string) (bool, error) {
 	if info.IsDir() {
 		return false, fmt.Errorf("%s is a directory", contextindex.SlotWeightsPath)
 	}
-	return true, os.Remove(path)
+	return true, store.Remove(name)
 }

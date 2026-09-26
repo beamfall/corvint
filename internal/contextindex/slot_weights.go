@@ -107,12 +107,53 @@ func ValidateSlotWeights(weights SlotWeights) error {
 	return nil
 }
 
+// OpenSlotWeightsStore pins the directory holding the admitted trace inside
+// the opened repository root. It refuses a symlinked or non-directory store
+// and one replaced while it was opened; an absent store is nil with no error.
+func OpenSlotWeightsStore(root string) (*os.Root, error) {
+	repository, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	defer repository.Close()
+	name := filepath.Dir(filepath.FromSlash(SlotWeightsPath))
+	admitted, err := repository.Lstat(name)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if !admitted.IsDir() {
+		return nil, fmt.Errorf("%s is not a real directory", filepath.ToSlash(name))
+	}
+	store, err := repository.OpenRoot(name)
+	if err != nil {
+		return nil, err
+	}
+	current, err := store.Stat(".")
+	if err != nil || !os.SameFile(admitted, current) {
+		store.Close()
+		return nil, fmt.Errorf("%s changed while it was opened", filepath.ToSlash(name))
+	}
+	return store, nil
+}
+
 // LoadAdmittedSlotWeights reads the admitted trace under root. An absent file
 // is nil with no error (the default order); a symlink, oversized, malformed,
-// unevaluated or out-of-range file fails closed with the rollback command named.
+// unevaluated or out-of-range file, or a symlinked store directory, fails
+// closed with the rollback command named.
 func LoadAdmittedSlotWeights(root string) (*AdmittedSlotWeights, error) {
-	path := filepath.Join(root, filepath.FromSlash(SlotWeightsPath))
-	info, err := os.Lstat(path)
+	store, err := OpenSlotWeightsStore(root)
+	if err != nil {
+		return nil, slotWeightsRefusal(err.Error())
+	}
+	if store == nil {
+		return nil, nil
+	}
+	defer store.Close()
+	name := filepath.Base(SlotWeightsPath)
+	info, err := store.Lstat(name)
 	if os.IsNotExist(err) {
 		return nil, nil
 	}
@@ -122,7 +163,7 @@ func LoadAdmittedSlotWeights(root string) (*AdmittedSlotWeights, error) {
 	if !info.Mode().IsRegular() {
 		return nil, slotWeightsRefusal("not a regular file")
 	}
-	file, err := os.Open(path)
+	file, err := store.Open(name)
 	if err != nil {
 		return nil, slotWeightsRefusal(err.Error())
 	}

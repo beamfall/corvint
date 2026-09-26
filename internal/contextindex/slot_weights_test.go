@@ -113,6 +113,14 @@ func TestLTAV0011AdmittedSlotWeightsLoaderFailsClosed(t *testing.T) {
 	if _, err := LoadAdmittedSlotWeights(root); err == nil {
 		t.Fatal("symlinked trace was loaded")
 	}
+	outside := write(t, `{"schemaVersion":1,"weights":{"test":2},"evaluation":`+evaluation+`}`)
+	linked := t.TempDir()
+	if err := os.Symlink(filepath.Join(outside, ".context-corvint"), filepath.Join(linked, ".context-corvint")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadAdmittedSlotWeights(linked); err == nil || !strings.Contains(err.Error(), "corvint eval --reset-slot-weights") {
+		t.Fatalf("trace under a symlinked store directory = %v", err)
+	}
 }
 
 func TestLTAV0009LiveContextPathCannotReachTheLedgers(t *testing.T) {
