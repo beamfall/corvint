@@ -6934,3 +6934,15 @@ the touched packages; the doc checks; `go run ./conformance/use-cases-v0`, which
 Under host load (load average 170 to 570), `TestSelectionOnTheLiveDirtyWorktree` and
 `TestIncrementalSelectionMeetsTheLiveBudget` exceeded their 100 ms budget. These are timing
 flakes. NOT_RUN: the exhaustive `./...` gate.
+
+## 2026-09-25 V1-0249 follow-up: PWP-V3 every-attempt profile, spec draft only
+
+Decision 0417 approves a `corvint-playwright-external/3` revision that carries every attempt
+(`AFU-V1-012`). This change records the draft `PWP-V3-001..006` in
+`docs/specs/playwright-external-provider-v0.md` and stops there: the implementation spans the
+reporter, `external.go` ingest and validation, the `projection.go` refusal, the `/1` attestation and
+`/2` sensitive-input boundaries (which drop attempt details today) and the live matrix, and whether
+`/3` composes with `/1` and `/2` is an open owner question. Until answered, `PWP-V3-004` refuses both
+compositions. Evidence: `internal/specindex` tests and the spec doc checks pass. Live reporter
+qualification `NOT_RUN` (nothing to qualify yet; no pinned Playwright runtime in this session).
+Exhaustive gate and dogfood CEM steps `NOT_RUN`. Rollback: revert this commit.
