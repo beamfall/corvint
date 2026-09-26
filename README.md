@@ -23,8 +23,12 @@
 </p>
 
 **One native Go binary.** No account, hosted service, database, embeddings, or permanent daemon.
-`go.mod` declares no module requirements. Read commands change nothing. Version `1.0.0-rc.1` is an
-experimental prerelease; [what works today and what is still an open gate](#status-stated-plainly).
+`go.mod` declares no module requirements. Read commands do not mutate repository or trace state;
+the two bounded exceptions are a local `.corvint/self-observations.jsonl` ledger and, only while
+the operator marker `.corvint/unplanned-reads.enabled` exists, `.corvint/unplanned-reads.jsonl` —
+neither ever feeds ranking, evidence, or authority ([AGENTS.md](AGENTS.md) invariant 4). Version
+`1.0.0-rc.1` is an experimental prerelease; [what works today and what is still an open
+gate](#status-stated-plainly).
 
 ## Why Corvint
 
