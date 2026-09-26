@@ -639,6 +639,8 @@ func validKnownDivergence(item parityCase) bool {
 		return validTraceRevisionDisclosureDivergence(item)
 	case "impact-go-root":
 		return validRootPackageDivergence(item)
+	case "impact-python-module", "impact-python-nomodule":
+		return validImporterTestCarrierDivergence(item)
 	case "query-repository-task-oversized":
 		return validTaskBoundDivergence(item)
 	case "query-version-token":
@@ -1169,6 +1171,31 @@ func validRootPackageDivergence(item parityCase) bool {
 	verification := divergence.Rewrites[4]
 	return verification.Oracle == "" && strings.HasPrefix(verification.Candidate, `"go test ./`) && strings.HasSuffix(verification.Candidate, `/...",`)
 }
+
+// validImporterTestCarrierDivergence pins `DR-0042` to the Python impact
+// cases: each related row's reason names the importing test that carries its
+// marker (GPK-V0-075, decision 0412) where the oracle claims the changed path
+// carries it. Only the carrier text differs; the marker key must match.
+func validImporterTestCarrierDivergence(item parityCase) bool {
+	divergence := item.KnownDivergence
+	if item.Argv[0] != "impact" || divergence.Register != "DR-0042" || divergence.Clause != "GPK-V0-075" {
+		return false
+	}
+	if len(divergence.Rewrites) != 2 {
+		return false
+	}
+	for _, rewrite := range divergence.Rewrites {
+		key, ok := strings.CutPrefix(rewrite.Oracle, `"reason":"changed path carries `)
+		if !ok || rewrite.Candidate != importerTestCarrierPrefix+key {
+			return false
+		}
+	}
+	return true
+}
+
+// importerTestCarrierPrefix is the candidate reason prefix for a marker that
+// only the fixture's importing test carries.
+const importerTestCarrierPrefix = `"reason":"test tests/test_engine.py importing changed src/pkg/engine.py carries `
 
 // validTaskBoundDivergence pins `DR-0016` to the oversized `query` task: both
 // runtimes refuse, and only the bound each names in its refusal differs

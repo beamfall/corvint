@@ -81,7 +81,7 @@
     {
       "command": "impact",
       "status": "PASS",
-      "reason": "default tracked Go path profile, root package included (decision 0023, impact-go-root), has seed parity cases, plus three deliberately known-divergent rows: the DR-0017 / GPK-V0-027 root-package case impact-go-root, the DR-0007 authority-branch case impact-self-authored-adr, and the DR-0009 / GPK-V0-040 truncation case impact-ranked-past-limit, which is the case that discriminates coverage denomination and which no unqualified row could; the Python module and package forms also replay without a Go module (decision 0015)"
+      "reason": "default tracked Go path profile, root package included (decision 0023, impact-go-root), has seed parity cases, plus five deliberately known-divergent rows: the DR-0017 / GPK-V0-027 root-package case impact-go-root, the DR-0007 authority-branch case impact-self-authored-adr, the DR-0009 / GPK-V0-040 truncation case impact-ranked-past-limit, which is the case that discriminates coverage denomination and which no unqualified row could, and the DR-0042 / GPK-V0-075 importing-test carrier reasons of impact-python-module and impact-python-nomodule; the Python module and package forms also replay without a Go module (decision 0015)"
     },
     {
       "command": "init",
@@ -3486,6 +3486,21 @@
       "fixtureSha256": "acb0459b0c03b4437a0f915ebafb1dabaca0b3afb4934732fc5d25957ca308b5",
       "exitStatus": 0,
       "mutation": "none",
+      "knownDivergence": {
+        "register": "DR-0042",
+        "clause": "GPK-V0-075",
+        "rewrites": [
+          {
+            "candidate": "\"reason\":\"test tests/test_engine.py importing changed src/pkg/engine.py carries feature:a-first\"",
+            "oracle": "\"reason\":\"changed path carries feature:a-first\""
+          },
+          {
+            "candidate": "\"reason\":\"test tests/test_engine.py importing changed src/pkg/engine.py carries scenario:z-last\"",
+            "oracle": "\"reason\":\"changed path carries scenario:z-last\""
+          }
+        ],
+        "reason": "DR-0042 / GPK-V0-075 (decision 0412): the related feature and scenario rows are admitted only because tests/test_engine.py, which imports the changed src/pkg/engine.py, carries their markers; src/pkg/engine.py carries none. The candidate names that importing test as the carrier; the oracle says the changed path carries them, which is false. Scores, order and every other byte are identical, and packet_bytes is reconciled. python-defect under GPK-V0-033; src/ is deliberately unrepaired."
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "62239b8afba3bf6ced4821f19a9bb4c715b8c00ac22ba8f6d1bc748152263fc3",
@@ -3522,6 +3537,21 @@
       "fixtureSha256": "a6341db1c850e2b4e0e543a5316285f9b04d6e821530a436d4a8095c9cb7d861",
       "exitStatus": 0,
       "mutation": "none",
+      "knownDivergence": {
+        "register": "DR-0042",
+        "clause": "GPK-V0-075",
+        "rewrites": [
+          {
+            "candidate": "\"reason\":\"test tests/test_engine.py importing changed src/pkg/engine.py carries feature:a-first\"",
+            "oracle": "\"reason\":\"changed path carries feature:a-first\""
+          },
+          {
+            "candidate": "\"reason\":\"test tests/test_engine.py importing changed src/pkg/engine.py carries scenario:z-last\"",
+            "oracle": "\"reason\":\"changed path carries scenario:z-last\""
+          }
+        ],
+        "reason": "DR-0042 / GPK-V0-075 (decision 0412): the related feature and scenario rows are admitted only because tests/test_engine.py, which imports the changed src/pkg/engine.py, carries their markers; src/pkg/engine.py carries none. The candidate names that importing test as the carrier; the oracle says the changed path carries them, which is false. Scores, order and every other byte are identical, and packet_bytes is reconciled. python-defect under GPK-V0-033; src/ is deliberately unrepaired."
+      },
       "statusBeforeSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "statusAfterSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "repositoryBeforeSha256": "b0f298bb0473b72dd6366d2996024793124051332ad62012d075722187b17877",

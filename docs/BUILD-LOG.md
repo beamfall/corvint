@@ -7237,3 +7237,85 @@ change. It only re-resolves mountinfo when the identity differs. An open descrip
 so an unchanged `mnt_id` cannot have been reused, and the fstype is the one already qualified
 (decision 0411 §1). The fixture also reuses its own fdinfo read instead of reading fdinfo twice.
 With the fix, the same subtests take 28.5 s on ext4.
+
+## 2026-09-25 V1-0263 GPK-V0-075 (accepted, decision 0412): omitted direct Go callers are disclosed and importing-test markers are named
+
+PR #247 proposed the omitted-caller disclosure as `GPK-V0-068`. The owner answered "accept
+GPK-V0-068, fix the reason text, add the register entry". Decision 0396 had already accepted a
+different `GPK-V0-068`, so the clause is recorded as `GPK-V0-075`. The branch was rebased over the
+B4 change (`GPK-V0-070`, entry above). The disclosure is computed after `reserveCallerRows`, so it
+names only callers that the reservation also left out. The exported-name helper is now main's
+`exportedGoNames`.
+
+Root cause of the reason text: `impact` adds a marker key to `related` from either the changed
+path's own markers or those of a test that imports it (`internal/contextindex/impact.go`), and
+gave every 800 related row the reason "changed path carries KIND:ID". `importerCarriers` now
+records the first importing test that carries each key. A key that only such a test carries gives
+`test TEST importing changed CHANGED carries KIND:ID`. A key the changed path carries keeps the old
+text, and the score stays 800. The analyzer schema moves to `corvint-analyzer/86`.
+
+Beamfall at `0d7796be`, `impact internal/plugin/trust.go internal/integrationhost/model_loader.go
+--limit 10`, compared against an `origin/main` `b549d59f` binary:
+
+- Rows, scores and order: unchanged.
+- The two 800 reasons now read `test internal/identify/identify_test.go importing changed
+  internal/plugin/trust.go carries feature:identify-scrape` and the same form for
+  `internal/graph/health_bulkops_selected_test.go` and `feature:library-health`.
+- Three uncertainty lines name `internal/app/skipdetect_jobs.go` (rank 30),
+  `internal/graph/graph_consoleconfig.go` (rank 34) and `internal/integrationhost/model_artifact.go`
+  (rank 46). Before, the uncertainty said only "119 ranked results omitted by result limit".
+
+Parity: the replay failed on `impact-python-module` (stdout `181912c2…`, 3380 bytes, against the
+frozen `53015e1a…`, 3282 bytes) and on `impact-python-nomodule`. The only difference was the two
+reason strings and `packet_bytes`. A scan of every case without setup steps, comparing the main and
+branch binaries, found no other difference. Both cases now declare `DR-0042` (`python-defect`,
+`validImporterTestCarrierDivergence`), and `SUMMARY` moves to `known-divergences=30`.
+
+Tests:
+
+- `TestImpactNamesTheImportingTestThatCarriesARelatedMarker` covers both reason forms and the 800
+  score. It fails with the carrier selection disabled.
+- `TestImpactDisclosesOmittedDirectGoCallers` covers the disclosure.
+
+Follow-ups, not changed here:
+
+- A key admitted only through a marked same-package test still says "changed path carries".
+- The caller test of `reserveCallerRows` (`namesAny` over the whole importer source) and that of
+  `recordGoCaller` (a code line naming `QUALIFIER.Name`) are two definitions of a caller.
+
+## 2026-09-26 decision 0420 SRR-V1-001..012 (proposed): stable-readiness record
+
+Finding: V1-0018 AC2, V1-0020 AC3 and V1-0021 AC3 each require a candidate-bound stable-readiness
+record, but no spec defined one. The release checklist (ARTIFACT-RDY-V0-001) judges alpha rows only.
+
+Decision: `docs/specs/stable-readiness-record-v1.md` (intent proposed, delivery experimental)
+defines one canonical JSON record, `corvint-stable-readiness-record/1`. It binds a candidate that
+`VerifyContext` admits, re-derives the build number from the source root, and records the
+candidate `SHA256SUMS` and Core archive digests, an optional store-release binding, and a fixed,
+ordered set of evidence rows. Each row holds the SHA-256 of an operator-supplied log; a missing log
+stays NOT_RUN, or FALLBACK for a platform row, never PASS. The dispositions from decision 0420 are
+fixed rows:
+
+- 1.0.0-rc.1 signing is "No signing";
+- native performance is NOT_RUN under GOC-V0-005;
+- linux/amd64 defaults to FALLBACK;
+- the vulnerability check is a require-free Core `go.mod` plus `GOTOOLCHAIN=local go env
+  GOVERSION` equal to go1.27.1, with no scanner and no network;
+- tag, publication, promotion and the toolchain security review are NOT_RUN "subsequent owner
+  action".
+
+The builder and verifier live in `internal/releasecandidate/readiness.go`. `sourceBuildNumber`'s git
+runner became the package function `runSourceGit` so the builder can read `go.mod` through git. No
+command exposes the package: `cmd/corvint-release-candidate` has a single flag set, so SRR-V1-012
+stays proposed.
+
+Evidence: `TestSRRV1001` to `TestSRRV1011` pass against a git fixture and a Core-only 1.0.0-rc.1
+candidate fixture.
+
+Limits: the record runs no gate and computes no release verdict. The store `candidateSha256` is
+recorded as supplied and not checked against `.taskman/`. The verifier checks that the
+vulnerability status is consistent with its recorded inputs, but does not re-probe the source root
+or toolchain. Pre-change `make dogfood-change` reported FAIL not-complete. Post-commit dogfood
+against `984770f6`: bound at `9bf1816d`, and `dogfood-check` and `dogfood-seal` exited 0. Eight of
+nine hunks are cited `supported`; the new spec file is `unknown` because it does not exist at base.
+OCM links are NOT_PRODUCED.
