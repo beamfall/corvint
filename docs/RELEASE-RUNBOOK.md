@@ -26,18 +26,23 @@ output directories outside the checkout; the reproducibility script refuses one 
    test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.1"
    ```
 
-3. Read-only readiness report. Every row must be `PASS`; a non-PASS row names the clause to fix
-   before continuing.
+3. Read-only readiness report. No row may be `FAIL`; a `FAIL` row names the clause to fix before
+   continuing. Before promotion the `tag`, `publication` and `promotion` rows are `NOT_RUN` by
+   design, `native-performance` stays `NOT_RUN` (`GOC-V0-005`, decision 0420), and `full-gate`
+   and `go-archive` stay `NOT_RUN` until step 4 records their witnesses.
 
    ```sh
    script/release-checklist
    ```
 
 4. The full gate on the exact commit. Run it once, alone on the host; commit nothing while it
-   runs. Its receipt is the gate evidence for this commit.
+   runs. Its receipt is the gate evidence for this commit. Then rerun the report in
+   pre-promotion mode: it exits 0 only when `native-runtime`, `go-archive` and `full-gate` are
+   `PASS` and no row is `FAIL` (`ARTIFACT-RDY-V0-001`).
 
    ```sh
    make gate
+   script/release-checklist --pre-promotion
    ```
 
 5. Produce the release archives into a new private directory. The producer writes
