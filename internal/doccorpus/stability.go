@@ -183,7 +183,7 @@ func (c *compiler) compileStability(provider string, behavior BehaviorRegistry, 
 	}
 	thresholds := map[string]StabilityThreshold{}
 	for _, threshold := range registry.Policy.Thresholds {
-		if !words("one-spec feature-batch suite")[threshold.Scope] || threshold.RequiredRepetitions < 1 || threshold.MinimumPassed < 0 || threshold.MinimumPassed > threshold.RequiredRepetitions || negativeThreshold(threshold) {
+		if !words("one-spec feature-batch suite")[threshold.Scope] || threshold.RequiredRepetitions < 1 || threshold.MinimumPassed < 0 || threshold.MinimumPassed > threshold.RequiredRepetitions || NegativeStabilityThreshold(threshold) {
 			return fail("invalid stability threshold")
 		}
 		if _, exists := thresholds[threshold.Scope]; exists {
@@ -219,7 +219,7 @@ func wireDigest(value string) bool {
 	return wire.IsSha256(value)
 }
 
-func negativeThreshold(t StabilityThreshold) bool {
+func NegativeStabilityThreshold(t StabilityThreshold) bool {
 	return t.MaximumFailed < 0 || t.MaximumTimedOut < 0 || t.MaximumInterrupted < 0 || t.MaximumInfrastructureFailed < 0 || t.MaximumSkipped < 0 || t.MaximumFlaky < 0 || t.MaximumRetryConsumed < 0
 }
 
@@ -295,7 +295,7 @@ func (c *compiler) aggregateStability(provider string, behavior BehaviorRegistry
 		return StabilityReport{}, fail("stability planned repetition set incomplete")
 	}
 	verdict := "not-stable"
-	if stabilityThresholdPassed(counts, threshold) {
+	if StabilityThresholdPassed(counts, threshold) {
 		verdict = "clean"
 	}
 	return StabilityReport{ID: aggregate.ID, Provider: provider, Scope: aggregate.Scope, PolicyID: policy.ID, PolicySHA256: policy.SHA256, Topology: policy.Topology, MatrixDimensions: slices.Clone(policy.MatrixDimensions), TestID: aggregate.TestID, Project: aggregate.Project, ContractID: aggregate.ContractID, ContractSHA256: aggregate.ContractSHA256, Counts: counts, Verdict: verdict, ContributingReceipts: aggregate.Contributions, Limitations: []string{"stability is repeated-run evidence, not test adequacy or behavior parity", "declared and observed execution topology is source-bound and must match exactly", "worker, retry, environment-class and fixture-schema labels are repository-owned declarations bound by the policy and receipt digest", "manual reruns are retained but never satisfy planned repetition thresholds"}}, nil
@@ -663,6 +663,6 @@ func stabilityCleanupFailed(contribution StabilityContribution) bool {
 	return false
 }
 
-func stabilityThresholdPassed(counts StabilityCounts, threshold StabilityThreshold) bool {
+func StabilityThresholdPassed(counts StabilityCounts, threshold StabilityThreshold) bool {
 	return counts.Planned == threshold.RequiredRepetitions && counts.Started == counts.Planned && counts.Completed >= counts.Planned && counts.Passed >= threshold.MinimumPassed && counts.Failed <= threshold.MaximumFailed && counts.TimedOut <= threshold.MaximumTimedOut && counts.Interrupted <= threshold.MaximumInterrupted && counts.InfrastructureFailed <= threshold.MaximumInfrastructureFailed && counts.Skipped <= threshold.MaximumSkipped && counts.Flaky <= threshold.MaximumFlaky && counts.RetryConsumed <= threshold.MaximumRetryConsumed && counts.CleanupFailed == 0
 }

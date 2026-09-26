@@ -6934,3 +6934,20 @@ the touched packages; the doc checks; `go run ./conformance/use-cases-v0`, which
 Under host load (load average 170 to 570), `TestSelectionOnTheLiveDirtyWorktree` and
 `TestIncrementalSelectionMeetsTheLiveBudget` exceeded their 100 ms budget. These are timing
 flakes. NOT_RUN: the exhaustive `./...` gate.
+
+## 2026-09-25 V1-0249 follow-up: AFU-V1-041/042 run registry and `flows stability`
+
+Decision 0417 (PR #250) chose a separate local registry over a `test-run-evidence/0` wire
+revision for AFU-V1-013. `flows-run-registry/0` is committed and read at `HEAD`. It holds the
+DCP-V1-024 policy (reusing the `internal/doccorpus` threshold and count types), and per aggregate
+the planned ordinals, the run kind and the infrastructure attempt ordinals. Each contribution joins
+exactly one record by run ID, test key and project. `corvint flows stability` applies the
+DCP-V1-022 refusals under nine named codes. Otherwise it writes `flows-run-stability/0` with the
+DCP-V1-023 raw counts, the applied threshold and a verdict from the unchanged
+`doccorpus.StabilityThresholdPassed` (renamed from `stabilityThresholdPassed` for export). It
+writes nothing else. Excluded as non-goals: matrix and topology dimensions, and an MCP tool.
+
+Checks: `TestAFUV1RunStabilityCounts`, `TestAFUV1RunStabilityRefusals`,
+`TestAFUV1RunRegistryReadAtHead`, `TestAFUV1FlowsCLIStabilityIsReadOnly`, the focused appflows,
+doccorpus and `cmd/corvint` flow tests, go vet, the doc checks and use-cases-v0. NOT_RUN: the
+exhaustive gate and the dogfood CEM steps.
