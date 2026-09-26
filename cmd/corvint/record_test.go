@@ -149,6 +149,28 @@ func TestRecordUnsupportedVerifySyntaxAppendsOneObservation(t *testing.T) {
 	}
 }
 
+// SOL-V0-001, SOL-V0-007: an ignore file over the observation writer's
+// 256 KiB read cap skips the observation; the refusal and exit status are
+// unchanged and no ledger or temporary appears.
+func TestRecordUnsupportedSkipsObservationBehindAnOversizedIgnoreFile(t *testing.T) {
+	t.Parallel()
+	root := newRecordFixtureAt(t, filepath.Join(t.TempDir(), "repository"))
+	if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".corvint", ".gitignore"), []byte("*\n"+strings.Repeat("#", 1<<20)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := runCLI(t, "--root", root, "record", "--task", "task", "--changed",
+		"internal/example/value.go", "--verify", "go test; false", "--outcome", "passed")
+	if code != 2 || stdout != "" || !strings.HasPrefix(stderr, `{"code": "unsupported-verify-syntax", "error": `) {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+	if written, _ := filepath.Glob(filepath.Join(root, ".corvint", "*self-observations*")); len(written) != 0 {
+		t.Fatalf("skipped observation wrote %v", written)
+	}
+}
+
 // GPK-V0-002, GPK-V0-004, GPK-V0-008.
 func TestRecordGitErrorsMatchPythonOracleAndWriteNothing(t *testing.T) {
 	t.Parallel()
