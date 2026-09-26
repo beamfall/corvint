@@ -10,7 +10,7 @@ and use a website, documentation proven accurate by the same evidence), `AGENTS.
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/application-flow-understanding-v0.md`,
 `docs/specs/documentation-corpus-v1.md` (issue 53, `DCP-V1-027..032`),
 `docs/specs/external-test-selection-v1.md`, `docs/specs/corvint-1.0-product-and-release-v1.md`,
-decisions 0374 and 0385.
+decisions 0374, 0385 and 0416.
 
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
@@ -354,8 +354,11 @@ under-report and never over-report.
 - `AFU-V1-021`: An `observed` coverage link MAY add tests to the selection. An exclusion proof with
   basis `coverage` MUST require run evidence whose coverage record declares completeness for every
   tier the flow declares (for example, client and server), which holds at the base revision under the
-  Verified carry-forward rule (so no covered path changed between the evidence commit and the base),
-  and whose covered paths are disjoint from the changed paths.
+  whole Verified carry-forward rule, and whose covered paths are disjoint from the changed paths.
+  Between the evidence commit and the base, no covered path, no global path, no path in the test's
+  static reach (its file and imports), no link target of a flow that links the test, and no path the
+  impact graph reaches from such a target may have changed. The impact graph is the head revision's,
+  for that diff as for the obligation closure (decision 0416).
 - `AFU-V1-022`: No test may be omitted when any changed path is a global path. When narrowing is not
   proven, the result MUST be the full relevant suite, meaning every test in the discovered inventory,
   with one or more closed codes: `e2e-unmapped-change`, `e2e-inventory-incomplete`,
@@ -619,7 +622,7 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-018 | `TestAFUV1FlowsQueriesAreReadOnly` (`map`, lookup, `gaps`, `impact`, `ingest` and `export` leave the repository, `.git` included, byte-identical) |
 | AFU-V1-019 | `TestAFUV1019UndiscoveredTestForbidsNarrowing`, `TestAFUV1040SelectionCorpusReport` (the `undiscovered-test`, `missing-discovery`, `stale-discovery` and `test-file` cases) |
 | AFU-V1-020 | `TestAFUV1020ExclusionProofsPerBasis` (a reviewed-links proof, a declared link without a review anchor, an inferred-only link), `TestAFUV1040SelectionCorpusReport` |
-| AFU-V1-021 | `TestAFUV1020ExclusionProofsPerBasis` (a coverage proof, stale coverage evidence, an incomplete tier), `TestAFUV1021CoverageStaleWhenStaticReachChanged` (a test file changed after its coverage run, outside its covered paths), `TestAFUV1040SelectionCorpusReport` |
+| AFU-V1-021 | `TestAFUV1020ExclusionProofsPerBasis` (a coverage proof, stale coverage evidence, an incomplete tier), `TestAFUV1021CoverageStaleWhenStaticReachChanged` (the `spec-after-coverage` corpus case: a test file changed after its coverage run, outside its covered paths), `TestAFUV1040SelectionCorpusReport` |
 | AFU-V1-022 | `TestAFUV1022EveryFallbackCodeYieldsFullSuite` (one subtest per closed code), `TestAFUV1040SelectionCorpusReport` (global-path cases) |
 | AFU-V1-023 | `TestAFUV1020ExclusionProofsPerBasis`, `TestAFUV1040SelectionCorpusReport` (per-basis counts, both notes) |
 | AFU-V1-024 | `TestAFUV1024StrictAndCoverageBytesUnchanged` (goldens captured before S4), `TestAFUV1024E2ESafeRefusesMalformedInput`, `TestAffectedSelectionArguments` |
@@ -638,7 +641,7 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-037 | `TestAFUV1IntentBoundsRefused`, `TestAFUV1IntentCountBoundedBeforeRead`, `TestAFUV1IntentCountBoundedWithoutRetired`, `TestAFUV1ImportCombinedFlowBound`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceBoundsIncomplete`, `TestAFUV1FlowsCLIIngest`, `TestAFUV1ReadRunEvidenceDiscipline` |
 | AFU-V1-038 | `TestAFUV1IntentSecretScreened`, `TestAFUV1ImportScreensAndBoundsSource`, `TestAFUV1RunEvidenceSecretsDropped`, `TestAFUV1PlaywrightProviderScrubsEveryAttempt` (the provider receipt scrubs every attempt and the last-attempt fields); the screen runs in `EncodeRunEvidence`, the only run-evidence encoding, and `flows ingest` writes only what it encodes (`TestAFUV1FlowsCLIIngest`) |
 | AFU-V1-039 | `TestAFUV1039AcceptanceFixture` over the committed fixture `cmd/corvint/testdata/flows/acceptance` (a synthetic, hand-written Playwright report ingested through `flows ingest`; observed runs are the `NOT_RUN` live qualification items below): the UI flow `checkout` and the API flow `orders-api` are complete with every variation verified in `map`; `returns` reports exactly `unmapped-flow` and `profile` exactly `stale-link` (its evidence verified) in `gaps`; both have flow status `incomplete` (step verification is evidence-only) in `map`, `gaps`, the `navigate` map and each one's `navigate --goal` packet, and `docs` renders them `UNPROVEN` and `STALE` while the two verified flows' claims are `PROVEN` |
-| AFU-V1-040 | `TestAFUV1040SelectionCorpusReport`: the frozen corpus `cmd/corvint/testdata/e2e-safe-corpus.json` (20 labelled, fault-injected cases over five tests) and its report `cmd/corvint/testdata/e2e-safe-corpus.report.json`; `coverage` omits 15 with 0 unsafe (reduction 0.15), `reviewed-links` omits 3 with 0 unsafe (reduction 0.03), no basis withdrawn |
+| AFU-V1-040 | `TestAFUV1040SelectionCorpusReport`: the frozen corpus `cmd/corvint/testdata/e2e-safe-corpus.json` (21 labelled, fault-injected cases over five tests, `spec-after-coverage` added by decision 0416) and its report `cmd/corvint/testdata/e2e-safe-corpus.report.json`; `coverage` omits 15 with 0 unsafe (reduction 15/105), `reviewed-links` omits 3 with 0 unsafe (reduction 3/105), no basis withdrawn |
 
 Live qualification: the companion surfaces are qualified on Beamfall with one UI flow and one API
 flow. The Core profile is qualified by the corpus report (AFU-V1-040) plus one real change against

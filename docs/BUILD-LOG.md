@@ -6950,3 +6950,15 @@ Evidence: `TestAFUV1021CoverageStaleWhenStaticReachChanged` failed before the ch
 the frozen corpus report is byte-identical (no case changed outcome). The case stays outside the
 frozen corpus; adding it there is an owner decision. The requirement's parenthetical, "so no
 covered path changed", reads narrower than the rule it cites; the implementation follows the rule.
+
+## 2026-09-25 V1-0251 AFU-V1-021, AFU-V1-040 (accepted, decision 0416): owner answers on PR #248
+
+The owner answered the three open questions: "widen AFU-V1-021, add the case to the corpus" and
+"accept the head-revision import graph". `AFU-V1-021` now states the whole Verified carry-forward
+rule and names the head-revision impact graph for the evidence-to-base diff. The reproduction is
+corpus case `spec-after-coverage`, whose `coverage_override` narrows the search test's client
+coverage to the page object. Report rows changed: `cases` 20 to 21, `e2e-map-stale` 2 to 3,
+`coverage` reduction 0.15 to 15/105 and `reviewed-links` 0.03 to 3/105; omitted counts, 0 unsafe
+on both bases, `narrowed_cases` 6 and `withdrawn` [] are unchanged. Negative control, run once and
+reverted: the pre-fix `selection.go` omits `search.spec.ts > finds` on `coverage` and withdraws
+that basis.

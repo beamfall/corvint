@@ -1,5 +1,6 @@
 # Decision records index
 
+| [`0416-accept-afu-v1-021-carry-forward-2026-09-25.md`](0416-accept-afu-v1-021-carry-forward-2026-09-25.md) | accepted (owner answer 2026-09-25) | `AFU-V1-021` states the whole Verified carry-forward rule on the head-revision impact graph, and the AFU-V1-040 corpus gains the `spec-after-coverage` case (V1-0251, PR #248) |
 | [`0401-accept-ccf-v1-006-ccf-v1-007-2026-09-25.md`](0401-accept-ccf-v1-006-ccf-v1-007-2026-09-25.md) | accepted (owner answer 2026-09-25) | The `CCF-V1-006` and `CCF-V1-007` amendments are accepted: N-1 is the newest release tag (0.8.1), frozen enumerations have a closed/open register, and only a closed row forbids added values (panel B6, V1-0285, PR #226) |
 | [`0398-disputed-panel-findings-are-defects-2026-09-25.md`](0398-disputed-panel-findings-are-defects-2026-09-25.md) | accepted (owner answer 2026-09-25) | Every disputed pre-1.0 panel finding (D1-D15 and the addendum items) is a defect fixed before the next release; clause amendments stay proposed until accepted, frozen profiles change only by versioning, and promotion gates stay binding. |
 | [`0392-accept-ocm-v0-016-2026-09-25.md`](0392-accept-ocm-v0-016-2026-09-25.md) | accepted (owner answer 2026-09-25) | `OCM-V0-016` is accepted: a verified dogfood aggregate with no linked requirement carries the `no-requirements-linked` finding (V1-0273, PR #213) |

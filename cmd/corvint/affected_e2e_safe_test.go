@@ -67,14 +67,15 @@ type e2eCorpus struct {
 }
 
 type e2eCase struct {
-	ID                 string             `json:"id"`
-	Fault              string             `json:"fault"`
-	Changes            map[string]*string `json:"changes"`
-	BaseChanges        map[string]*string `json:"base_changes"`
-	Discovery          string             `json:"discovery"`
-	DropCoverage       []string           `json:"drop_coverage"`
-	IncompleteCoverage []string           `json:"incomplete_coverage"`
-	Needed             []string           `json:"needed"`
+	ID                 string                    `json:"id"`
+	Fault              string                    `json:"fault"`
+	Changes            map[string]*string        `json:"changes"`
+	BaseChanges        map[string]*string        `json:"base_changes"`
+	Discovery          string                    `json:"discovery"`
+	DropCoverage       []string                  `json:"drop_coverage"`
+	IncompleteCoverage []string                  `json:"incomplete_coverage"`
+	CoverageOverride   []appflows.CoverageRecord `json:"coverage_override"`
+	Needed             []string                  `json:"needed"`
 	Expect             struct {
 		State string   `json:"state"`
 		Codes []string `json:"codes"`
@@ -163,6 +164,9 @@ func writeE2ECoverage(t *testing.T, root string, records []appflows.CoverageReco
 	for _, record := range records {
 		if slices.Contains(c.DropCoverage, record.TestKey) {
 			continue
+		}
+		if i := slices.IndexFunc(c.CoverageOverride, func(o appflows.CoverageRecord) bool { return o.TestKey == record.TestKey }); i >= 0 {
+			record = c.CoverageOverride[i]
 		}
 		record.Commit = evidence
 		record.Tiers = slices.Clone(record.Tiers)
@@ -434,16 +438,8 @@ func TestAFUV1020ExclusionProofsPerBasis(t *testing.T) {
 func TestAFUV1021CoverageStaleWhenStaticReachChanged(t *testing.T) {
 	t.Parallel()
 	corpus := loadE2ECorpus(t)
-	for i, record := range corpus.Coverage {
-		if record.TestKey == "search.spec.ts > finds" {
-			corpus.Coverage[i].Tiers = []appflows.CoverageTier{{Tier: "client", Complete: true, Paths: []string{"e2e/pages/shop.ts"}}, record.Tiers[1]}
-		}
-	}
-	c := corpus.find(t, "profile-source")
-	spec := "import { origin } from \"./pages/shop\";\n\ntest(\"finds\", () => origin + \"/profile\");\n"
-	c.BaseChanges = map[string]*string{"e2e/search.spec.ts": &spec}
-	selection, _, _ := runE2ECase(t, corpus, c)
-	e2eFullSuite(t, "search-spec-after-coverage", selection)
+	selection, _, _ := runE2ECase(t, corpus, corpus.find(t, "spec-after-coverage"))
+	e2eFullSuite(t, "spec-after-coverage", selection)
 	if want := (appflows.E2EFallback{Code: appflows.CodeMapStale, Subject: "search.spec.ts > finds"}); !slices.Contains(selection.Fallback, want) {
 		t.Fatalf("fallback %+v lacks %+v", selection.Fallback, want)
 	}
