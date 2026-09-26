@@ -7150,6 +7150,18 @@ made git consult the monitor daemon, which a loaded host stalled. Every gate-led
 carries both overrides: the ledger never wants monitor or cached-stat shortcuts. Evidence:
 `go test -count=1 ./tools/gate-ledger` passes in 17s; `go vet` clean.
 
+## 2026-09-25 V1-0249 follow-up: PWP-V3 every-attempt profile, spec draft only
+
+Decision 0417 approves a `corvint-playwright-external/3` revision that carries every attempt
+(`AFU-V1-012`). This change records the draft `PWP-V3-001..006` in
+`docs/specs/playwright-external-provider-v0.md` and stops there: the implementation spans the
+reporter, `external.go` ingest and validation, the `projection.go` refusal, the `/1` attestation and
+`/2` sensitive-input boundaries (which drop attempt details today) and the live matrix, and whether
+`/3` composes with `/1` and `/2` is an open owner question. Until answered, `PWP-V3-004` refuses both
+compositions. Evidence: `internal/specindex` tests and the spec doc checks pass. Live reporter
+qualification `NOT_RUN` (nothing to qualify yet; no pinned Playwright runtime in this session).
+Exhaustive gate and dogfood CEM steps `NOT_RUN`. Rollback: revert this commit.
+
 ## 2026-09-25 V1-0249 follow-up: AFU-V1-041/042 run registry and `flows stability`
 
 Decision 0417 (PR #250) chose a separate local registry over a `test-run-evidence/0` wire
