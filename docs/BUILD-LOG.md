@@ -7237,3 +7237,38 @@ change. It only re-resolves mountinfo when the identity differs. An open descrip
 so an unchanged `mnt_id` cannot have been reused, and the fstype is the one already qualified
 (decision 0411 §1). The fixture also reuses its own fdinfo read instead of reading fdinfo twice.
 With the fix, the same subtests take 28.5 s on ext4.
+
+## 2026-09-26 decision 0420 SRR-V1-001..012 (proposed): stable-readiness record
+
+Finding: V1-0018 AC2, V1-0020 AC3 and V1-0021 AC3 each require a candidate-bound stable-readiness
+record, but no spec defined one. The release checklist (ARTIFACT-RDY-V0-001) judges alpha rows only.
+
+Decision: `docs/specs/stable-readiness-record-v1.md` (intent proposed, delivery experimental)
+defines one canonical JSON record, `corvint-stable-readiness-record/1`. It binds a candidate that
+`VerifyContext` admits, re-derives the build number from the source root, and records the
+candidate `SHA256SUMS` and Core archive digests, an optional store-release binding, and a fixed,
+ordered set of evidence rows. Each row holds the SHA-256 of an operator-supplied log; a missing log
+stays NOT_RUN, or FALLBACK for a platform row, never PASS. The dispositions from decision 0420 are
+fixed rows:
+
+- 1.0.0-rc.1 signing is "No signing";
+- native performance is NOT_RUN under GOC-V0-005;
+- linux/amd64 defaults to FALLBACK;
+- the vulnerability check is a require-free Core `go.mod` plus `GOTOOLCHAIN=local go env
+  GOVERSION` equal to go1.27.1, with no scanner and no network;
+- tag, publication, promotion and the toolchain security review are NOT_RUN "subsequent owner
+  action".
+
+The builder and verifier live in `internal/releasecandidate/readiness.go`. `sourceBuildNumber`'s git
+runner became the package function `runSourceGit` so the builder can read `go.mod` through git. No
+command exposes the package: `cmd/corvint-release-candidate` has a single flag set, so SRR-V1-012
+stays proposed.
+
+Evidence: `TestSRRV1001` to `TestSRRV1011` pass against a git fixture and a Core-only 1.0.0-rc.1
+candidate fixture.
+
+Limits: the record runs no gate and computes no release verdict. The store `candidateSha256` is
+recorded as supplied and not checked against `.taskman/`. The verifier checks that the
+vulnerability status is consistent with its recorded inputs, but does not re-probe the source root
+or toolchain. Pre-change `make dogfood-change` reported FAIL not-complete. The post-commit dogfood
+bind, check and seal were NOT_RUN in this slice.

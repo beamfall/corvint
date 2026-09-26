@@ -259,15 +259,8 @@ func verifyVersionIdentity(ctx context.Context, options Options, bundle *compani
 // sourceBuildNumber binds the source root to the exact commit, tree and
 // VERSION and derives the first-parent build number.
 func sourceBuildNumber(ctx context.Context, options Options, commit, tree string) (string, error) {
-	git := "/usr/bin/git"
-	if runtime.GOOS == "linux" {
-		git = "git"
-	}
 	runGit := func(arguments ...string) (string, error) {
-		command := exec.CommandContext(ctx, git, append([]string{"-C", options.SourceRoot}, arguments...)...)
-		command.Env = []string{"PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin", "HOME=" + options.Scratch, "LANG=C", "LC_ALL=C", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_SYSTEM=" + os.DevNull, "GIT_NO_REPLACE_OBJECTS=1"}
-		out, err := command.Output()
-		return strings.TrimSpace(string(out)), err
+		return runSourceGit(ctx, options, arguments...)
 	}
 	actualCommit, err := runGit("rev-parse", "--verify", commit+"^{commit}")
 	if err != nil || actualCommit != commit {
@@ -286,6 +279,19 @@ func sourceBuildNumber(ctx context.Context, options Options, commit, tree string
 		return "", fmt.Errorf("derive Corvint build number")
 	}
 	return build, nil
+}
+
+// runSourceGit runs one read-only git query against the source root with
+// global, system and replace-object configuration excluded.
+func runSourceGit(ctx context.Context, options Options, arguments ...string) (string, error) {
+	git := "/usr/bin/git"
+	if runtime.GOOS == "linux" {
+		git = "git"
+	}
+	command := exec.CommandContext(ctx, git, append([]string{"-C", options.SourceRoot}, arguments...)...)
+	command.Env = []string{"PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin", "HOME=" + options.Scratch, "LANG=C", "LC_ALL=C", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_SYSTEM=" + os.DevNull, "GIT_NO_REPLACE_OBJECTS=1"}
+	out, err := command.Output()
+	return strings.TrimSpace(string(out)), err
 }
 
 func buildQualification(bundle *companionrelease.VerifiedRetainedBundle) Qualification {
