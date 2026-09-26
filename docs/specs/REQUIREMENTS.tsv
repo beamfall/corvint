@@ -81,32 +81,34 @@ AFU-V1-011	docs/specs/application-flow-understanding-v1.md	194	A `test-run-evide
 AFU-V1-012	docs/specs/application-flow-understanding-v1.md	200	The ingest adapters for Playwright JSON, JUnit XML (including `flakyFailure` and
 AFU-V1-013	docs/specs/application-flow-understanding-v1.md	203	A test with a failed attempt and a later passed attempt MUST be `flaky`, never
 AFU-V1-014	docs/specs/application-flow-understanding-v1.md	205	Ingested evidence has authority `INGESTED`. Evidence that Corvint's own observer
-AFU-V1-015	docs/specs/application-flow-understanding-v1.md	257	`corvint flows map` MUST report each flow, variation, step and outcome with its
-AFU-V1-016	docs/specs/application-flow-understanding-v1.md	259	`corvint flows gaps` MUST report each gap with one closed code: `unmapped-flow`,
-AFU-V1-017	docs/specs/application-flow-understanding-v1.md	263	`corvint flows impact --base SHA` MUST name the flows, variations and test keys
-AFU-V1-018	docs/specs/application-flow-understanding-v1.md	265	All of these commands are read commands under product invariant 4. Only `import`
-AFU-V1-019	docs/specs/application-flow-understanding-v1.md	342	`corvint affected --provider FILE --selection-profile e2e-safe` MUST select ever
-AFU-V1-020	docs/specs/application-flow-understanding-v1.md	348	An exclusion proof with basis `reviewed-links` MUST require that every link of t
-AFU-V1-021	docs/specs/application-flow-understanding-v1.md	354	An `observed` coverage link MAY add tests to the selection. An exclusion proof w
-AFU-V1-022	docs/specs/application-flow-understanding-v1.md	359	No test may be omitted when any changed path is a global path. When narrowing is
-AFU-V1-023	docs/specs/application-flow-understanding-v1.md	365	Every omitted test MUST appear with its exclusion proof and basis in the result,
-AFU-V1-024	docs/specs/application-flow-understanding-v1.md	369	The profile is an additive value of the frozen `--selection-profile` option. The
-AFU-V1-025	docs/specs/application-flow-understanding-v1.md	406	`corvint flows navigate` MUST derive an `application-navigation-map/0` from flow
-AFU-V1-026	docs/specs/application-flow-understanding-v1.md	412	Locators MUST come from the flow intent or test source: an accessible role and n
-AFU-V1-027	docs/specs/application-flow-understanding-v1.md	414	Every transition MUST carry an effect class. A declared class MAY be raised by
-AFU-V1-028	docs/specs/application-flow-understanding-v1.md	417	`flows navigate --goal FLOW_ID` MUST return a bounded packet: the ordered steps,
-AFU-V1-029	docs/specs/application-flow-understanding-v1.md	422	The Corvint observer MUST NOT perform a `write-irreversible` or
-AFU-V1-030	docs/specs/application-flow-understanding-v1.md	467	`corvint flows docs` MUST render user documentation from flow intents with fixed
-AFU-V1-031	docs/specs/application-flow-understanding-v1.md	470	A claim is `PROVEN` only when its variation is verified at the evaluated revisio
-AFU-V1-032	docs/specs/application-flow-understanding-v1.md	473	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
-AFU-V1-033	docs/specs/application-flow-understanding-v1.md	477	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
-AFU-V1-034	docs/specs/application-flow-understanding-v1.md	527	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
-AFU-V1-035	docs/specs/application-flow-understanding-v1.md	531	Repository-authored text in any flows response is returned inside the untrusted-
-AFU-V1-036	docs/specs/application-flow-understanding-v1.md	536	Every write MUST resolve under the repository root without following a symlink.
-AFU-V1-037	docs/specs/application-flow-understanding-v1.md	541	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
-AFU-V1-038	docs/specs/application-flow-understanding-v1.md	543	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
-AFU-V1-039	docs/specs/application-flow-understanding-v1.md	549	A committed fixture application MUST carry one UI flow and one API flow that rea
-AFU-V1-040	docs/specs/application-flow-understanding-v1.md	552	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
+AFU-V1-015	docs/specs/application-flow-understanding-v1.md	306	`corvint flows map` MUST report each flow, variation, step and outcome with its
+AFU-V1-016	docs/specs/application-flow-understanding-v1.md	308	`corvint flows gaps` MUST report each gap with one closed code: `unmapped-flow`,
+AFU-V1-017	docs/specs/application-flow-understanding-v1.md	312	`corvint flows impact --base SHA` MUST name the flows, variations and test keys
+AFU-V1-018	docs/specs/application-flow-understanding-v1.md	314	All of these commands are read commands under product invariant 4. Only `import`
+AFU-V1-019	docs/specs/application-flow-understanding-v1.md	394	`corvint affected --provider FILE --selection-profile e2e-safe` MUST select ever
+AFU-V1-020	docs/specs/application-flow-understanding-v1.md	400	An exclusion proof with basis `reviewed-links` MUST require that every link of t
+AFU-V1-021	docs/specs/application-flow-understanding-v1.md	406	An `observed` coverage link MAY add tests to the selection. An exclusion proof w
+AFU-V1-022	docs/specs/application-flow-understanding-v1.md	414	No test may be omitted when any changed path is a global path. When narrowing is
+AFU-V1-023	docs/specs/application-flow-understanding-v1.md	420	Every omitted test MUST appear with its exclusion proof and basis in the result,
+AFU-V1-024	docs/specs/application-flow-understanding-v1.md	424	The profile is an additive value of the frozen `--selection-profile` option. The
+AFU-V1-025	docs/specs/application-flow-understanding-v1.md	461	`corvint flows navigate` MUST derive an `application-navigation-map/0` from flow
+AFU-V1-026	docs/specs/application-flow-understanding-v1.md	467	Locators MUST come from the flow intent or test source: an accessible role and n
+AFU-V1-027	docs/specs/application-flow-understanding-v1.md	469	Every transition MUST carry an effect class. A declared class MAY be raised by
+AFU-V1-028	docs/specs/application-flow-understanding-v1.md	472	`flows navigate --goal FLOW_ID` MUST return a bounded packet: the ordered steps,
+AFU-V1-029	docs/specs/application-flow-understanding-v1.md	477	The Corvint observer MUST NOT perform a `write-irreversible` or
+AFU-V1-030	docs/specs/application-flow-understanding-v1.md	522	`corvint flows docs` MUST render user documentation from flow intents with fixed
+AFU-V1-031	docs/specs/application-flow-understanding-v1.md	525	A claim is `PROVEN` only when its variation is verified at the evaluated revisio
+AFU-V1-032	docs/specs/application-flow-understanding-v1.md	528	`corvint flows docs --check` MUST fail when a committed claim that was `PROVEN`
+AFU-V1-033	docs/specs/application-flow-understanding-v1.md	532	Hand-written Markdown under the declared docs root MAY opt in with a claim ancho
+AFU-V1-034	docs/specs/application-flow-understanding-v1.md	582	`corvint-mcp --tool-profile flows` MUST advertise read-only `corvint.flows.map`,
+AFU-V1-035	docs/specs/application-flow-understanding-v1.md	586	Repository-authored text in any flows response is returned inside the untrusted-
+AFU-V1-036	docs/specs/application-flow-understanding-v1.md	591	Every write MUST resolve under the repository root without following a symlink.
+AFU-V1-037	docs/specs/application-flow-understanding-v1.md	596	Byte, record, attempt, link and traversal bounds apply before decode and walk. W
+AFU-V1-038	docs/specs/application-flow-understanding-v1.md	598	Recorded evidence MUST drop cookies, authorization headers, tokens and request o
+AFU-V1-039	docs/specs/application-flow-understanding-v1.md	604	A committed fixture application MUST carry one UI flow and one API flow that rea
+AFU-V1-040	docs/specs/application-flow-understanding-v1.md	607	A frozen, labelled, fault-injected selection corpus MUST report unsafe-narrowing
+AFU-V1-041	docs/specs/application-flow-understanding-v1.md	210	The planned repetition ordinals, the planned or manual run kind, the infrastruct
+AFU-V1-042	docs/specs/application-flow-understanding-v1.md	215	`corvint flows stability` MUST report, per registry aggregate, the selected scop
 AGW-V0-001	docs/specs/corvint-witness-v0.md	33	`corvint witness` MUST be read-only, per AGENTS.md invariant 4: on every path —
 AGW-V0-002	docs/specs/corvint-witness-v0.md	43	Committed-range ancestry MUST follow immutable commit parents. The bounded Git
 AGW-V0-003	docs/specs/corvint-witness-v0.md	51	(proposed 2026-09-23, V1-0200, not accepted) the report MUST carry
@@ -254,7 +256,7 @@ CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	98	A Core refusal MUST exi
 CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	136	The admission, freshness, omission and abstention members MUST keep their names,
 CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	153	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
 CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	163	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	218	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	270	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa
@@ -484,6 +486,9 @@ CTR-V0-009	docs/specs/compat-trial-v0.md	79	Preregistered rubric, budgets, and s
 CTR-V0-010	docs/specs/compat-trial-v0.md	115	Containment and harness reuse. Replay stays local; per `E:99`, external executio
 CTR-V0-011	docs/specs/compat-trial-v0.md	122	Proposed; unaccepted and does not authorize implementation. Changed-executable a
 CTR-V0-012	docs/specs/compat-trial-v0.md	124	Proposed; unaccepted and does not authorize implementation. Observation record s
+CTS-V0-001	docs/specs/corvint-tasks-store-init-v0.md	36	`corvint-tasks init` MUST refuse, before it creates the state directory or any
+CTS-V0-002	docs/specs/corvint-tasks-store-init-v0.md	41	(proposed, not implemented) A read verb (`queue status`, `roadmap`, `ticket show
+CTS-V0-003	docs/specs/corvint-tasks-store-init-v0.md	46	(proposed, not implemented) An explicit `corvint-tasks init --adopt` (or a separ
 CWC-X0-001	docs/specs/correlated-witness-collapse-x0.md	55	X0 MUST consume one exact bounded `cem/0.1` or `cem/0.2` byte document through t
 CWC-X0-002	docs/specs/correlated-witness-collapse-x0.md	58	Common causes MUST use exactly `source`, `generator`, `parser`, `oracle`, or
 CWC-X0-003	docs/specs/correlated-witness-collapse-x0.md	61	Every witness and membership-attestation reference MUST identify evidence presen
@@ -1705,28 +1710,34 @@ PUB-V0-023	docs/specs/public-release-v0.md	367	The candidate MUST carry a closed
 PUB-V0-024	docs/specs/public-release-v0.md	381	The retained qualification receipt MUST use only `PASS`, `FAIL` and `NOT_RUN`, w
 PUB-V0-025	docs/specs/public-release-v0.md	387	The candidate installer MUST reverify the closed candidate, select only the exac
 PUB-V0-026	docs/specs/public-release-v0.md	401	Candidate assembly or installation MUST fail without retained output when any co
-PWP-V0-001	docs/specs/playwright-external-provider-v0.md	23	External mode requires readiness URL and declared app identity, rejects server c
-PWP-V0-002	docs/specs/playwright-external-provider-v0.md	24	A controlled config imports the original, disables webServer and selects the pro
-PWP-V0-003	docs/specs/playwright-external-provider-v0.md	25	Each outcome identifies source location, full title, project name, resolved brow
-PWP-V0-004	docs/specs/playwright-external-provider-v0.md	26	Preserve attempt status/retry, flaky, assertion failure, test timeout and interr
-PWP-V0-005	docs/specs/playwright-external-provider-v0.md	27	Emit and retain the canonical closed profile. MCP discovery recomputes projectio
-PWP-V0-006	docs/specs/playwright-external-provider-v0.md	28	Cancellation joins only owned Playwright descendants and observes external serve
-PWP-V0-007	docs/specs/playwright-external-provider-v0.md	29	Qualification runs checked-in real Playwright browser fixtures covering pass, as
-PWP-V0-008	docs/specs/playwright-external-provider-v0.md	30	Playwright 1.63 qualification is consuming-path specific. A passing projection r
-PWP-V1-001	docs/specs/playwright-external-provider-v0.md	34	`/1` is available only in external-server mode and requires a typed `corvint-app
-PWP-V1-002	docs/specs/playwright-external-provider-v0.md	35	The closed provider configuration binds the expected application root commit, re
-PWP-V1-003	docs/specs/playwright-external-provider-v0.md	36	Each closed canonical `corvint-application-attestation/0` observation binds the
-PWP-V1-004	docs/specs/playwright-external-provider-v0.md	37	The receipt binds the provider profile, normalized argv, original executable pat
-PWP-V1-005	docs/specs/playwright-external-provider-v0.md	38	The provider runs before and after Playwright. Unavailable or malformed identity
-PWP-V1-006	docs/specs/playwright-external-provider-v0.md	39	`/1` binds one clean test repository by root commit, revision and tree before Pl
-PWP-V1-007	docs/specs/playwright-external-provider-v0.md	40	Corvint supplies only canonical configuration bytes on provider stdin and owns o
-PWP-V1-008	docs/specs/playwright-external-provider-v0.md	41	Qualification includes a deterministic, locally owned Docker Compose fixture and
-PWP-V2-001	docs/specs/playwright-external-provider-v0.md	45	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
-PWP-V2-002	docs/specs/playwright-external-provider-v0.md	46	Before reporter serialization, input actions matching the fixed defaults `fill`,
-PWP-V2-003	docs/specs/playwright-external-provider-v0.md	47	Redaction recurses through nested steps and retry attempts. Any sensitive action
-PWP-V2-004	docs/specs/playwright-external-provider-v0.md	48	Provider-declared additional case-insensitive action-title patterns and metadata
-PWP-V2-005	docs/specs/playwright-external-provider-v0.md	49	Reporter output and retained documents are untrusted. Ingestion rejects an unred
-PWP-V2-006	docs/specs/playwright-external-provider-v0.md	50	The conformance fixture contains a deliberately leaking payload that is rejected
+PWP-V0-001	docs/specs/playwright-external-provider-v0.md	24	External mode requires readiness URL and declared app identity, rejects server c
+PWP-V0-002	docs/specs/playwright-external-provider-v0.md	25	A controlled config imports the original, disables webServer and selects the pro
+PWP-V0-003	docs/specs/playwright-external-provider-v0.md	26	Each outcome identifies source location, full title, project name, resolved brow
+PWP-V0-004	docs/specs/playwright-external-provider-v0.md	27	Preserve attempt status/retry, flaky, assertion failure, test timeout and interr
+PWP-V0-005	docs/specs/playwright-external-provider-v0.md	28	Emit and retain the canonical closed profile. MCP discovery recomputes projectio
+PWP-V0-006	docs/specs/playwright-external-provider-v0.md	29	Cancellation joins only owned Playwright descendants and observes external serve
+PWP-V0-007	docs/specs/playwright-external-provider-v0.md	30	Qualification runs checked-in real Playwright browser fixtures covering pass, as
+PWP-V0-008	docs/specs/playwright-external-provider-v0.md	31	Playwright 1.63 qualification is consuming-path specific. A passing projection r
+PWP-V1-001	docs/specs/playwright-external-provider-v0.md	35	`/1` is available only in external-server mode and requires a typed `corvint-app
+PWP-V1-002	docs/specs/playwright-external-provider-v0.md	36	The closed provider configuration binds the expected application root commit, re
+PWP-V1-003	docs/specs/playwright-external-provider-v0.md	37	Each closed canonical `corvint-application-attestation/0` observation binds the
+PWP-V1-004	docs/specs/playwright-external-provider-v0.md	38	The receipt binds the provider profile, normalized argv, original executable pat
+PWP-V1-005	docs/specs/playwright-external-provider-v0.md	39	The provider runs before and after Playwright. Unavailable or malformed identity
+PWP-V1-006	docs/specs/playwright-external-provider-v0.md	40	`/1` binds one clean test repository by root commit, revision and tree before Pl
+PWP-V1-007	docs/specs/playwright-external-provider-v0.md	41	Corvint supplies only canonical configuration bytes on provider stdin and owns o
+PWP-V1-008	docs/specs/playwright-external-provider-v0.md	42	Qualification includes a deterministic, locally owned Docker Compose fixture and
+PWP-V2-001	docs/specs/playwright-external-provider-v0.md	46	`/2` is selected explicitly by `--sensitive-input-redaction`. It retains bounded
+PWP-V2-002	docs/specs/playwright-external-provider-v0.md	47	Before reporter serialization, input actions matching the fixed defaults `fill`,
+PWP-V2-003	docs/specs/playwright-external-provider-v0.md	48	Redaction recurses through nested steps and retry attempts. Any sensitive action
+PWP-V2-004	docs/specs/playwright-external-provider-v0.md	49	Provider-declared additional case-insensitive action-title patterns and metadata
+PWP-V2-005	docs/specs/playwright-external-provider-v0.md	50	Reporter output and retained documents are untrusted. Ingestion rejects an unred
+PWP-V2-006	docs/specs/playwright-external-provider-v0.md	51	The conformance fixture contains a deliberately leaking payload that is rejected
+PWP-V3-001	docs/specs/playwright-external-provider-v0.md	58	`/3` is selected explicitly by a provider option in external-server mode. `/0`,
+PWP-V3-002	docs/specs/playwright-external-provider-v0.md	59	A `/3` test outcome carries `attemptDetails` with one entry per Playwright attem
+PWP-V3-003	docs/specs/playwright-external-provider-v0.md	60	The existing per-attempt classification is unchanged: browser or fixture failure
+PWP-V3-004	docs/specs/playwright-external-provider-v0.md	61	Every `/3` attempt failure message and artifact is subject to the same report-wi
+PWP-V3-005	docs/specs/playwright-external-provider-v0.md	62	The reporter emits `attemptDetails` only under `/3`; the provider validates the
+PWP-V3-006	docs/specs/playwright-external-provider-v0.md	63	`/3` is non-promotable until the changed reporter completes the live matrix of `
 QLF-V0-001	docs/specs/qualified-lifecycle-v0.md	32	The additive `corvint-qualified-lifecycle/0` request MUST be a closed object con
 QLF-V0-002	docs/specs/qualified-lifecycle-v0.md	33	Completed qualified non-Stop events MUST derive repository scope exclusively fro
 QLF-V0-003	docs/specs/qualified-lifecycle-v0.md	34	Qualified Stop MUST derive the active handle inside the same protected scope, co

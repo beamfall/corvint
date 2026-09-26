@@ -181,7 +181,20 @@ func workCaptureSlot(t *testing.T) {
 	t.Cleanup(func() { <-workCaptureSlots })
 }
 
+// TestMain turns off Git auto maintenance and auto gc for every fixture Git
+// command in this package. A fixture commit otherwise may spawn detached
+// maintenance that repacks .git while a test walks or snapshots it (V1-0351).
+// Fixture helpers inherit os.Environ, and git reads GIT_CONFIG_PARAMETERS as
+// command-line config that overrides repository config. Sanitized product Git
+// environments drop it, and where it passes through it changes only auto
+// maintenance, so a product write to .git is still caught. GIT_CONFIG_COUNT is
+// left alone because record fixtures key on it. A native-hook replacement of
+// this binary keeps its exact two-entry environment.
 func TestMain(m *testing.M) {
+	executable, _ := os.Executable()
+	if !exactNativeHookEnvironment(os.Environ(), nativeHookEnvironment(executable)) {
+		os.Setenv("GIT_CONFIG_PARAMETERS", "'maintenance.auto'='false' 'gc.auto'='0'")
+	}
 	code := m.Run()
 	for name, root := range map[string]string{"work production seed": workProductionSeed.root, "work compiler cache": workCompilerCache.root, "work bound build": workBoundBuild.root} {
 		if root == "" {
@@ -234,7 +247,18 @@ func workProductionFixture(t *testing.T) string {
 	caller := t.TempDir()
 	materializationGit(t, caller, "clone", "--quiet", "--local", "--no-hardlinks", workProductionSeed.root, ".")
 	materializationGit(t, caller, "remote", "remove", "origin")
+	materializationQuiesce(t, caller)
 	return caller
+}
+
+// materializationQuiesce turns off Git auto maintenance and auto gc in a
+// fixture repository. A fixture commit otherwise may spawn detached maintenance
+// that outlives the command, and its transient .git/objects/maintenance.lock
+// races manifest walks and local clones (V1-0351).
+func materializationQuiesce(t *testing.T, root string) {
+	t.Helper()
+	materializationGit(t, root, "config", "maintenance.auto", "false")
+	materializationGit(t, root, "config", "gc.auto", "0")
 }
 
 func buildWorkProductionSeed(t *testing.T, caller string) {
@@ -290,6 +314,7 @@ func buildWorkProductionSeed(t *testing.T, caller string) {
 		t.Fatal(err)
 	}
 	materializationGit(t, caller, "init", "-q")
+	materializationQuiesce(t, caller)
 	materializationGit(t, caller, "add", ".")
 	materializationGit(t, caller, "commit", "-qm", "actual producer fixture")
 	materializationGit(t, caller, "commit", "--allow-empty", "-qm", "pinned descendant without exported parent")

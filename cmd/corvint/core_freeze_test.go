@@ -154,6 +154,7 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 		}, 0, map[string]any{"tool": "dogfood-status", "profile": "corvint-local-completion/0", "claim": "caller-owned-selected-workflow-only"}},
 	}
 	register := observeCoreEnumerations(t)
+	previous := os.Getenv("CORVINT_CORE_N1_BINARY")
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
@@ -169,13 +170,77 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			for path, value := range test.want {
 				want[path] = value
 			}
-			for path, value := range want {
-				got, present := jsonMember(document, path)
-				if _, absent := value.(absentMember); absent == present || !absent && got != value {
-					t.Errorf("%s = %#v (present %v), want %#v", path, got, present, value)
-				}
+			checkCoreWant(t, document, want)
+			if previous != "" {
+				t.Run("N-1", func(t *testing.T) { replayCoreModeN1(t, previous, test.invoke, test.exit, document, want, register) })
 			}
 		})
+	}
+}
+
+// checkCoreWant checks the CCF-V1-002 identifiers one frozen mode must carry or must omit.
+func checkCoreWant(t *testing.T, document map[string]any, want map[string]any) {
+	t.Helper()
+	for path, value := range want {
+		got, present := jsonMember(document, path)
+		if _, absent := value.(absentMember); absent == present || !absent && got != value {
+			t.Errorf("%s = %#v (present %v), want %#v", path, got, present, value)
+		}
+	}
+}
+
+// coreN1Skips names the modes the N-1 replay cannot run, and why.
+var coreN1Skips = map[string]string{
+	"TestCoreVerbsEmitTheFrozenProfiles/index_if_stale_when_fresh": "its setup writes the snapshot with this build, and an engine mismatch is a miss by design (CCF-V1-007 (a))",
+}
+
+// replayCoreModeN1 is the opt-in CCF-V1-007 N-1 replay (proposed, decision 0398): the N-1 release
+// binary runs the same mode over a fresh fixture. It must exit alike and keep the identifiers; every
+// member it emits must still be emitted here with the same JSON type; and every value it writes at a
+// registered path must be in this register, so no registered value was removed or renamed.
+func replayCoreModeN1(t *testing.T, binary string, invoke func(*testing.T) []string, exit int, current, want map[string]any, register *coreEnumerationObserver) {
+	if reason, skipped := coreN1Skips[strings.TrimSuffix(t.Name(), "/N-1")]; skipped {
+		t.Skip(reason)
+	}
+	var stdout, stderr bytes.Buffer
+	command := exec.Command(binary, invoke(t)...)
+	command.Stdout, command.Stderr = &stdout, &stderr
+	var exited *exec.ExitError
+	if err := command.Run(); err != nil && !errors.As(err, &exited) {
+		t.Fatalf("N-1 binary %s did not run: %v", binary, err)
+	}
+	if code := command.ProcessState.ExitCode(); code != exit {
+		t.Fatalf("N-1 exit %d, want %d, stderr=%s", code, exit, stderr.String())
+	}
+	var document map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &document); err != nil {
+		t.Fatalf("N-1 stdout is not one JSON document: %v\n%s", err, stdout.String())
+	}
+	checkCoreWant(t, document, want)
+	register.observe(t, document)
+	kinds := map[string]string{}
+	coreMemberKinds("$", current, kinds)
+	previous := map[string]string{}
+	coreMemberKinds("$", document, previous)
+	for _, path := range slices.Sorted(maps.Keys(previous)) {
+		if kind, kept := kinds[path]; !kept || kind != previous[path] {
+			t.Errorf("N-1 member %s (%s) is %q here: removed or retyped", path, previous[path], kind)
+		}
+	}
+}
+
+// coreMemberKinds records the JSON type of every member path of a document, spreading arrays as [].
+func coreMemberKinds(path string, value any, kinds map[string]string) {
+	kinds[path] = jsonKind(value)
+	switch value := value.(type) {
+	case map[string]any:
+		for name, member := range value {
+			coreMemberKinds(path+"."+name, member, kinds)
+		}
+	case []any:
+		for _, element := range value {
+			coreMemberKinds(path+"[]", element, kinds)
+		}
 	}
 }
 
@@ -495,9 +560,23 @@ func observeCoreEnumerations(t *testing.T) *coreEnumerationObserver {
 	return observer
 }
 
+// provePacketTools maps the mode of the packet `prove` embeds to the tool whose register rows govern
+// it (proposed, decision 0398): `prove` embeds the query or impact packet unchanged as `packet`.
+var provePacketTools = map[string]string{"query": "query", "impact": "impact", "range-impact": "impact"}
+
 func (observer *coreEnumerationObserver) observe(t *testing.T, document map[string]any) {
 	t.Helper()
 	tool, _ := document["tool"].(string)
+	observer.observeAs(t, tool, document)
+	packet, embedded := document["packet"].(map[string]any)
+	if tool == "prove" && embedded {
+		mode, _ := packet["mode"].(string)
+		observer.observeAs(t, provePacketTools[mode], map[string]any{"context": packet})
+	}
+}
+
+func (observer *coreEnumerationObserver) observeAs(t *testing.T, tool string, document map[string]any) {
+	t.Helper()
 	for index, row := range observer.rows {
 		if !slices.Contains(row.tools, tool) {
 			continue
@@ -592,11 +671,15 @@ func mergeCoreRuns(t *testing.T, path string, first, second any) any {
 	case "array":
 		return mergeCoreArrays(t, path, first.([]any), second.([]any))
 	}
-	if first == second {
+	if first == second && !slices.Contains(coreExecutableMembers, path) {
 		return first
 	}
 	return coreFreezeVaries + kind + ">"
 }
+
+// coreExecutableMembers carry a digest of the running executable, which changes with every build of
+// the test binary, so their goldens pin the JSON type only.
+var coreExecutableMembers = []string{"$.engine"}
 
 func mergeCoreObjects(t *testing.T, path string, first, second map[string]any) map[string]any {
 	t.Helper()

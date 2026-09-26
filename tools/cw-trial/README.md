@@ -119,5 +119,7 @@ repository. `unseen-corvint-v1` (34 tasks, this repository to `ed7f5ed^`, `--max
 0c04367bc67479da32865ed08c294effa3b1bb23073333aae44a50abea42672b); `unseen-beamfall` (60 tasks sampled evenly from 1,444 candidates in
 Beamfall's Go/TSX history since 2026-06-01; sha256 255f6835fa822b758cf3dbe953972ce3f42f3eebb355bd46a9f455a8caccdfaf);
 `unseen-beamfall-apple` (40 tasks from 389 candidates in Beamfall's Swift history; sha256
-d3eddb6d37e39045919f15c98413bcf247fca4a5bf805780e10850b6cb4d6f89). Task files embed commit messages and up to 8 KiB of the subject's
+d3eddb6d37e39045919f15c98413bcf247fca4a5bf805780e10850b6cb4d6f89). `beamfall-roadmap-v1` (50 roadmap-ticket-to-diff `retrieval` tasks
+from Beamfall/core at `02835b1be`, built by its own Git-only script, not `generate`; frozen and not
+yet run, V1-0319) carries its trial protocol in its README. Task files embed commit messages and up to 8 KiB of the subject's
 diff from those repositories.

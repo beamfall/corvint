@@ -29,9 +29,9 @@ wire contract. The full manifest replay is likewise unrelated to these literals 
 
 ## Intent and scope
 
-`ROADMAP.md:345-351` (AT-10) owns the "proposed `tools/compat-trial` descriptor, runner and host
-envelope" (`:346`), verified by "contamination and changed-executable cases; interruption leaves
-no descendants, including process-group/session escape" (`:349-350`).
+`ROADMAP.md:347-353` (AT-10) owns the "proposed `tools/compat-trial` descriptor, runner and host
+envelope" (`:348`), verified by "contamination and changed-executable cases; interruption leaves
+no descendants, including process-group/session escape" (`:351-352`).
 `docs/specs/compat-trial-v0.md:187` states AT-10's runner "MUST implement CTR-V0-001 through
 CTR-V0-003 and CTR-V0-010 as written," and MUST NOT mark a case `accepted_by` anything but
 `NOT_PRODUCED` on its own authority. This is that contract, for the AT-10 runner owner and any

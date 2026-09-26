@@ -34,7 +34,7 @@ artifact also witness it. Driving the build inverts exactly that: Corvint become
 code, the tests, and the execution, and no second party is left to witness any of it.
 
 The proposition is also already a stated non-goal, three times over: **autonomous code editing** and
-**a new specification language** are both listed at `docs/PRODUCT.md:361-363@27e81383`, and
+**a new specification language** are both listed at `docs/PRODUCT.md:366-368@27e81383`, and
 `docs/specs/live-proof-carrying-verification-v0.md:516-517@38b12d34` forbids "generating tests, weakening
 assertions, rewriting product code … auto-fixing failures, merging, deploying, or publishing".
 

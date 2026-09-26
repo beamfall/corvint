@@ -106,7 +106,8 @@ func runFlows(ctx context.Context, root string, args []string, out, diagnostic i
 type flowSubcommand func(ctx context.Context, root string, args []string, out io.Writer) error
 
 var flowSubcommands = map[string]flowSubcommand{"export": runFlowsExport, "import": runFlowsImport, "map": runFlowsMap,
-	"gaps": runFlowsGaps, "impact": runFlowsImpact, "ingest": runFlowsIngest, "docs": runFlowsDocs}
+	"gaps": runFlowsGaps, "impact": runFlowsImpact, "ingest": runFlowsIngest, "docs": runFlowsDocs,
+	"stability": runFlowsStability}
 
 // flowExports maps each --emit value to the one document it writes to stdout.
 var flowExports = map[string]func(ctx context.Context, root string, set appflows.IntentSet, envelope string) ([]byte, error){
@@ -257,6 +258,31 @@ func runFlowsGaps(ctx context.Context, root string, args []string, out io.Writer
 	return err
 }
 
+// runFlowsStability aggregates repeated runs through the run registry committed at HEAD (AFU-V1-042).
+func runFlowsStability(ctx context.Context, root string, args []string, out io.Writer) error {
+	f := flag.NewFlagSet("flows stability", flag.ContinueOnError)
+	f.SetOutput(io.Discard)
+	registry := f.String("registry", "", "repository-relative flows-run-registry/0 file read at HEAD")
+	evidence := &[]string{}
+	f.Func("evidence", "test-run-evidence/0 JSONL file", func(s string) error {
+		*evidence = append(*evidence, s)
+		return nil
+	})
+	if f.Parse(args) != nil || *registry == "" || f.NArg() != 0 {
+		return errors.New("flows stability requires --registry FILE and optional repeatable --evidence FILE")
+	}
+	records, err := appflows.ReadRunEvidence(*evidence)
+	if err != nil {
+		return err
+	}
+	data, err := appflows.FlowStability(ctx, root, *registry, records)
+	if err != nil {
+		return err
+	}
+	_, err = out.Write(data)
+	return err
+}
+
 func runFlowsImpact(ctx context.Context, root string, args []string, out io.Writer) error {
 	f := flag.NewFlagSet("flows impact", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
@@ -346,6 +372,7 @@ Query usage:
   corvint [--root PATH] flows map --flows DIR [--evidence FILE]... [--path P | --test-key K]
   corvint [--root PATH] flows gaps --flows DIR [--evidence FILE]...
   corvint [--root PATH] flows impact --flows DIR --base SHA
+  corvint [--root PATH] flows stability --registry FILE [--evidence FILE]...
   corvint [--root PATH] flows ingest --format playwright-json|junit-xml|go-test-json --from FILE [header flags]
 
 map writes application-flow-map/1: every link with its basis, review state and the
@@ -353,7 +380,9 @@ self-attested review summary, and per variation the test-run-evidence/0 state an
 authority at HEAD. --path or --test-key writes application-flow-lookup/1 instead.
 gaps writes application-flow-gaps/1; any gap makes a flow incomplete. impact writes
 application-flow-impact/1: flows, variations and test keys reached from base..HEAD
-changes, with the path of each hop. ingest writes test-run-evidence/0 JSONL to
+changes, with the path of each hop. stability writes flows-run-stability/0: per
+aggregate of the flows-run-registry/0 FILE committed at HEAD, the raw repeated-run
+counts, the applied threshold and a clean or not-stable verdict. ingest writes test-run-evidence/0 JSONL to
 stdout; header flags are --run-id, --runner-version, --source-commit, --source-tree,
 --source-clean, --build-artifact-digest, --environment-id, --environment-digest,
 --fixture-id, --fixture-digest, --cleanup and repeatable
