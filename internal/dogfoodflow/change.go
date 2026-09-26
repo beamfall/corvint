@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -43,6 +44,7 @@ type change struct {
 	citationFailedRow    int
 	citedOver            bool
 	intentPublishTmp     string
+	mapKeepTmp           string
 	localOutcomeSHA      string
 	contextAbstentionSHA string
 	bootstrapUnknown     int
@@ -66,6 +68,9 @@ func Change(ctx context.Context, options ChangeOptions, stderr io.Writer) (int, 
 func (c *change) cleanup() {
 	if c.intentPublishTmp != "" {
 		_ = removeFile(c.intentPublishTmp)
+	}
+	if c.mapKeepTmp != "" {
+		_ = removeFile(c.mapKeepTmp)
 	}
 	_ = c.cleanupCitationStage()
 	if c.runTmp != "" {
@@ -392,8 +397,10 @@ func (c *change) citeStep() {
 	default:
 		c.recordCitationBinding(plan)
 		cited := citedHunks(c.path(".corvint/change.cem.json"))
+		before, _ := readPrefix(c.path(".corvint/change.cem.json"), maxPlanBytes)
 		status, reason = c.cite(plan, citeOutput)
 		c.citedOver = cited > 0 && status == "PRODUCED"
+		c.keepMapEncoding(before)
 	}
 	if c.cleanupCitationStage() != nil {
 		status, reason = "NOT_PRODUCED", "citation-stage-cleanup-failed"
@@ -442,6 +449,47 @@ func (c *change) cite(plan []byte, citeOutput string) (string, string) {
 		citeMap = c.citationStage
 	}
 	return "PRODUCED", "none"
+}
+
+// keepMapEncoding restores the map bytes read before a cite pass that changed
+// only their encoding: the CEM contract fixes strict JSON, not a byte layout,
+// so rerunning a plan the committed map already carries leaves the worktree
+// clean (DCW-V0-019, V1-0386).
+func (c *change) keepMapEncoding(before []byte) {
+	mapPath := c.path(".corvint/change.cem.json")
+	after, err := readPrefix(mapPath, maxPlanBytes)
+	if err != nil || bytes.Equal(before, after) || !sameJSON(before, after) {
+		return
+	}
+	info, err := os.Stat(mapPath)
+	if err != nil {
+		return
+	}
+	c.mapKeepTmp = c.path(".corvint/.change.cem.json." + strconv.Itoa(os.Getpid()))
+	if writePrivate(c.mapKeepTmp, before) != nil || os.Chmod(c.mapKeepTmp, info.Mode().Perm()) != nil ||
+		os.Rename(c.mapKeepTmp, mapPath) != nil {
+		_ = removeFile(c.mapKeepTmp)
+	}
+	c.mapKeepTmp = ""
+}
+
+// sameJSON reports two documents that each hold one JSON value and hold the
+// same one; numbers compare by their literal text.
+func sameJSON(left, right []byte) bool {
+	leftValue, leftOK := decodeJSON(left)
+	rightValue, rightOK := decodeJSON(right)
+	return leftOK && rightOK && reflect.DeepEqual(leftValue, rightValue)
+}
+
+func decodeJSON(data []byte) (any, bool) {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	var value any
+	if decoder.Decode(&value) != nil {
+		return nil, false
+	}
+	_, err := decoder.Token()
+	return value, err == io.EOF
 }
 
 func appendFile(name string, data []byte) {
