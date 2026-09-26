@@ -114,8 +114,8 @@ var admittedAdapterCodes = codeSet(
 // admittedAdapterRejections are the `dogfood event` codes a `corvint-event-rejected:<code>`
 // reason may carry besides the dogfood and unsupported registries.
 var admittedAdapterRejections = codeSet(
-	"dogfood-event-context-drift", "dogfood-event-deadline", "dogfood-event-input-unavailable",
-	"dogfood-event-native-budget", "dogfood-event-output-too-large", "dogfood-event-output-unavailable",
+	"dogfood-event-context-drift", "dogfood-event-deadline", "dogfood-event-index-snapshot-stale",
+	"dogfood-event-input-unavailable", "dogfood-event-native-budget", "dogfood-event-output-too-large", "dogfood-event-output-unavailable",
 	"dogfood-event-policy-drift", "dogfood-event-repository-drift", "dogfood-event-unavailable",
 	"invalid-dogfood-event-arguments", "invalid-dogfood-event-budget", "invalid-dogfood-event-input",
 	"qualified-lifecycle-target-drift", "unsupported-dogfood-event", "unsupported-dogfood-event-host",
@@ -534,7 +534,7 @@ func validObservationCode(value string, maximum int) bool {
 
 func validDogfoodStep(value string) bool {
 	switch value {
-	case "cem-cite", "cem-prepare", "cem-status", "local-outcome", "ocm-aggregate", "prechange-impact", "prechange-query":
+	case "cem-cite", "cem-prepare", "cem-status", "coordination-time-impact", "coordination-time-query", "local-outcome", "ocm-aggregate", "prechange-impact", "prechange-query":
 		return true
 	}
 	for _, prefix := range []string{"ocm-prepare-", "ocm-status-"} {
@@ -552,7 +552,7 @@ func validDogfoodReason(value string) bool {
 	}
 	switch value {
 	case "cem-map-not-produced", "citation-plan-map-mismatch", "citation-plan-not-provided",
-		"citation-plan-unavailable", "intent-scope-drift", "invalid-citation-plan",
+		"citation-plan-unavailable", "citation-stage-cleanup-failed", "citation-stage-exists", "intent-scope-drift", "invalid-citation-plan",
 		"invalid-record-admission-output", "missing-intent-scope", "no-source-paths", "none",
 		"not-ready", "outcome-input-not-provided":
 		return true

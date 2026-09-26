@@ -192,23 +192,33 @@ func (v *verifier) ciMapBlob(head, mapPath string) ([]byte, *ciFailure) {
 	return b, nil
 }
 
-// ciMapHeader reads only the two top-level members it classifies. Anything it cannot read is left
-// to verify's strict decoder, which rejects it.
+// ciMapHeader classifies an unsupported profile, then applies verify's structural checks, and only
+// then compares the map base with the declared base, so a malformed map is rejected rather than
+// reported as a repository mismatch.
 func ciMapHeader(mapBytes []byte, base string) *ciFailure {
-	var header struct {
-		Spec         *string `json:"spec"`
-		BaseRevision *string `json:"baseRevision"`
-	}
-	if json.Unmarshal(mapBytes, &header) != nil {
-		return nil
-	}
-	if header.Spec != nil && *header.Spec != specVersion {
+	if unsupportedSpec(mapBytes) {
 		return &ciFailure{verdict: "unsupported-profile", code: "unsupported-profile"}
 	}
-	if header.BaseRevision != nil && *header.BaseRevision != base {
+	m, err := decodeMap(mapBytes)
+	if err != nil {
+		return fromCEMError(err)
+	}
+	if m.BaseRevision != base {
 		return &ciFailure{verdict: "repository-mismatch", code: "base-revision-mismatch"}
 	}
 	return nil
+}
+
+// unsupportedSpec reports a strictly parsed JSON object whose one string spec member names a profile
+// other than cem/0.1. Anything else is left to the structural checks, which reject it.
+func unsupportedSpec(mapBytes []byte) bool {
+	var header struct {
+		Spec *string `json:"spec"`
+	}
+	if strictJSON(mapBytes) != nil || json.Unmarshal(mapBytes, &header) != nil {
+		return false
+	}
+	return header.Spec != nil && *header.Spec != specVersion
 }
 
 // ciPatch derives the patch with the documented CI profile (docs/CEM-CI.md), excluding only the

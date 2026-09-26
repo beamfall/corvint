@@ -47,17 +47,17 @@ paths, and the Codex, Gemini CLI and OpenCode adapters are unchanged.
 ## Where each quieted item still lands
 
 - In-root `post-tool` receipt: `PostToolUse` additionalContext (`claudeReceiptOutput`,
-  `cmd/corvint/host_adapter.go:648@d197ebb5`). `post-tool` is not a `SOL-V0-001` ledger event
+  `cmd/corvint/host_adapter.go:649@d197ebb5`). `post-tool` is not a `SOL-V0-001` ledger event
   (`internal/gokernel/harness.go:468@3f2d8101`), so the Claude Code transcript is its only record.
 - `file-change` receipt: `harness event` appends a row with its receipt ID and degradations to
   `.corvint/self-observations.jsonl` (`internal/gokernel/harness.go:468-472@54ec26c7`, row fields at
   `internal/gokernel/harness.go:478@ea1571be`).
 - Expected degradations on `session-start`, `user-prompt`, `post-tool`: additionalContext
-  (`claudeDegradedOutput`, `cmd/corvint/host_adapter.go:719@695e4ab7`). A Claude `user-prompt` runs
+  (`claudeDegradedOutput`, `cmd/corvint/host_adapter.go:720@695e4ab7`). A Claude `user-prompt` runs
   `dogfood event`, which owns no observations (`LCP-V0-003`), and `prompt-over-query-bound` is
   refused before any Corvint call, so again the transcript is the only record.
 - `session-start` notice: its `frontier-authority-unavailable` and `host-version-unknown`
-  degradations remain in the framed receipt (`cmd/corvint/local_completion_event.go:304@b0ea6e77`).
+  degradations remain in the framed receipt (`cmd/corvint/local_completion_event.go:325@b0ea6e77`).
 
 Claude Code writes hook output into the local session transcript
 `~/.claude/projects/<project-slug>/<session>.jsonl` as `hook_additional_context`,

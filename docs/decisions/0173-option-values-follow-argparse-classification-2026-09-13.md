@@ -4,7 +4,7 @@ Date: 2026-09-13. Status: accepted. Authority: repository owner delegation to ma
 record them (orchestration thread, 2026-09-12).
 
 `docs/agent-memory/bugs.md` (2026-09-13) found that `parseQueryArgumentsForPlatform`
-(`cmd/corvint/main.go:222@68f4a206`) and the sibling per-command parsers consume the next token as an
+(`cmd/corvint/main.go:225@68f4a206`) and the sibling per-command parsers consume the next token as an
 option's value unconditionally, so `query --task -x` and `query --task --help` run a query with
 that literal text instead of refusing. `GPK-V0-062`/decision 0172 explicitly deferred `-h` as "a
 follow-up, not added here." This decision resolves both, plus the option-prefix-abbreviation gap

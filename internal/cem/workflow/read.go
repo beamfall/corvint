@@ -221,10 +221,13 @@ const reportWarning = "Paths and content-derived identifiers or digests can disc
 
 func (s *Session) renderReport(document *wire.Map, verification, counts map[string]any, work, policy []any, envelope patchEnvelope, options ReadOptions) (map[string]any, error) {
 	outputRoot, outputRelative := s.gitRoot, defaultReportRelative
-	if options.Output != "" {
-		if filepath.IsAbs(options.Output) {
-			return nil, invalidArguments("--output must be a repository-relative path")
+	if filepath.IsAbs(options.Output) {
+		root, relative, err := s.externalReportOutput(options.Output)
+		if err != nil {
+			return nil, err
 		}
+		outputRoot, outputRelative = root, relative
+	} else if options.Output != "" {
 		outputRoot, outputRelative = s.workRoot, options.Output
 	}
 	// Fold case: on a case-insensitive volume a case variant names the map.
@@ -257,6 +260,49 @@ func (s *Session) renderReport(document *wire.Map, verification, counts map[stri
 	}
 	envelope.apply(result, false)
 	return result, nil
+}
+
+// externalReportOutput admits an absolute report path whose existing parent directory lies
+// outside the worktree and the Git directories. A location inside them must be named
+// repository-relative, so the metadata and map-aliasing checks apply to it.
+func (s *Session) externalReportOutput(output string) (*publish.Root, string, error) {
+	cleaned := filepath.Clean(output)
+	root, err := publish.OpenRoot(filepath.Dir(cleaned))
+	if err != nil {
+		return nil, "", err
+	}
+	protected := []string{s.workRoot.Path(), s.gitRoot.Path(), s.repository.CommonDir}
+	if withinAny(root.Path(), protected) {
+		return nil, "", invalidArguments("an absolute --output must lie outside the repository and its Git directory; name a location inside them repository-relative")
+	}
+	return root, filepath.Base(cleaned), nil
+}
+
+// withinAny reports whether dir or one of its ancestors is the same directory as any protected
+// one. Comparing file identity, not spelling, also catches case and normalization aliases.
+func withinAny(dir string, protected []string) bool {
+	for current := dir; ; current = filepath.Dir(current) {
+		if sameDirAsAny(current, protected) {
+			return true
+		}
+		if filepath.Dir(current) == current {
+			return false
+		}
+	}
+}
+
+func sameDirAsAny(dir string, candidates []string) bool {
+	info, err := os.Stat(dir)
+	if err != nil {
+		return false
+	}
+	for _, candidate := range candidates {
+		other, err := os.Stat(candidate)
+		if err == nil && os.SameFile(info, other) {
+			return true
+		}
+	}
+	return false
 }
 
 // sameFile reports whether both paths name one existing file.

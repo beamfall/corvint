@@ -456,11 +456,10 @@ func dispatchCEM(ctx context.Context, root string, arguments []string) (map[stri
 	return nil, invalidChoice("cem_command", action, cemActionOrder)
 }
 
-// oracleReadFailures maps the candidate's bounded-input failures onto the
-// oracle's CLI-level read errors. The oracle reads the patch and the map in its
-// argument layer rather than in its CEM module, so those two failures carry no
-// code at all and one fixed message; the candidate reads them inside the
-// session and had invented a code and a path-bearing message for each.
+// oracleReadFailures keeps the oracle's fixed CLI-level read messages for the
+// patch and the map. The oracle reads both in its argument layer and emitted no
+// code; the candidate keeps the fixed text and, since decision 0398, also emits
+// the code (CCF-V1-004), so a caller can branch on it.
 //
 // A failure that carries a bounded recovery line keeps that line after the
 // fixed text: collapsing an inherited-map rejection to "cannot read CEM map"
@@ -472,16 +471,16 @@ var oracleReadFailures = map[string]string{
 
 func emitCEMError(stderr io.Writer, err error) {
 	code := cemcode.CodeOf(err)
-	if untyped, ok := oracleReadFailures[code]; ok {
+	message := cemcode.MessageOf(err)
+	if fixed, ok := oracleReadFailures[code]; ok {
+		message = fixed
 		if guidance := cemcode.GuidanceOf(err); guidance != "" {
-			untyped += ": " + guidance
+			message += ": " + guidance
 		}
-		_, _ = fmt.Fprintf(stderr, "{\"error\": %s, \"ok\": false}\n", wire.CanonicalString(untyped))
-		return
 	}
 	if code == "" {
 		code = "internal-error"
 	}
 	_, _ = fmt.Fprintf(stderr, "{\"code\": %s, \"error\": %s, \"ok\": false}\n",
-		wire.CanonicalString(code), wire.CanonicalString(cemcode.MessageOf(err)))
+		wire.CanonicalString(code), wire.CanonicalString(message))
 }

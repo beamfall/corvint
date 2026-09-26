@@ -75,6 +75,11 @@ func (c *check) seal() int {
 	if !c.gitSucceeds("cat-file", "-e", bind+":.corvint/change.cem.json") {
 		c.refuse("nothing-to-seal")
 	}
+	if replaced := c.unarchivedBaseCEM(bind); replaced != "" {
+		c.say("%s: REFUSE unarchived-base-cem\n", c.prefix)
+		c.say("  BASE tracks .corvint/change.cem.json (bound at %s) that this change replaced and no .corvint/changes/ file keeps; archive it in a commit on the base branch, then restart this change on that commit\n", replaced)
+		c.exit(2)
+	}
 	sealed := ".corvint/changes/" + bind + ".cem.json"
 	_ = os.MkdirAll(c.root+"/.corvint/changes", 0o777)
 	if c.gitPassthrough("mv", ".corvint/change.cem.json", sealed) != 0 {
@@ -85,6 +90,25 @@ func (c *check) seal() int {
 	}
 	fmt.Fprintf(c.stdout, "dogfood-seal: PASS sealed=%s\n", sealed)
 	return 0
+}
+
+// unarchivedBaseCEM names the commit that bound BASE's tracked CEM when this
+// change replaced it and the bind tree keeps no copy under .corvint/changes/,
+// so sealing would drop it from the tree (V1-0137); otherwise it is empty.
+func (c *check) unarchivedBaseCEM(bind string) string {
+	baseCEM, status := c.git(true, "rev-parse", "--verify", "-q", c.base+":.corvint/change.cem.json")
+	if status != 0 {
+		return ""
+	}
+	baseCEM = chomp(baseCEM)
+	if baseCEM == c.gitValue("rev-parse", bind+":.corvint/change.cem.json") {
+		return ""
+	}
+	archived, _ := c.git(false, "ls-tree", "-r", bind, "--", ".corvint/changes")
+	if strings.Contains(archived, " "+baseCEM+"\t") {
+		return ""
+	}
+	return c.gitValue("log", "-1", "--format=%H", c.base, "--", ".corvint/change.cem.json")
 }
 
 // gitPassthrough runs one Git command whose output reaches the caller.
@@ -162,7 +186,7 @@ var (
 	outcomeDigest     = regexp.MustCompile(`^  ,"localOutcomeEvidenceSha256": "sha256:([0-9a-f]{64})"$`)
 	abstentionDigest  = regexp.MustCompile(`^  ,"contextAbstentionEvidenceSha256": "sha256:([0-9a-f]{64})"$`)
 	missingRow        = regexp.MustCompile(`^.*"name": "([^"]*)", "status": "NOT_PRODUCED", "reason": "([^"]*)".*$`)
-	abstentionRow     = regexp.MustCompile(`"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "([^"]*)"`)
+	abstentionRow     = regexp.MustCompile(`"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "([^"]*)"`)
 	cemBaseRevisionRE = regexp.MustCompile(`^  "baseRevision": "([0-9a-f]{40})",$`)
 	fullRevision      = regexp.MustCompile(`^[0-9a-f]{40}$`)
 )
@@ -204,7 +228,7 @@ func (c *check) checkReport() []byte {
 // claims, or its absence, and reports whether one is claimed.
 func (c *check) checkContextAbstention(report []byte) bool {
 	digest := allCaptures(abstentionDigest, report)
-	artifact := c.evidence + "/prechange-impact-abstention.json"
+	artifact := c.evidence + "/coordination-time-impact-abstention.json"
 	reason, _ := firstCapture(abstentionRow, report)
 	if !impactAbstentions[reason] {
 		if _, err := os.Stat(artifact); digest != "" || err == nil {
@@ -218,9 +242,9 @@ func (c *check) checkContextAbstention(report []byte) bool {
 	if actual, err := fileSHA256(artifact); digest == "" || !isRegular(artifact) || err != nil || actual != digest {
 		c.fail("context-abstention-evidence-drift")
 	}
-	argvFile := c.evidence + "/prechange-impact.argv"
-	output := c.evidence + "/prechange-impact.json"
-	errorFile := c.evidence + "/prechange-impact.stderr"
+	argvFile := c.evidence + "/coordination-time-impact.argv"
+	output := c.evidence + "/coordination-time-impact.json"
+	errorFile := c.evidence + "/coordination-time-impact.stderr"
 	argvSHA, _ := fileSHA256(argvFile)
 	stdoutSHA, _ := fileSHA256(output)
 	stderrSHA, _ := fileSHA256(errorFile)
@@ -231,7 +255,7 @@ func (c *check) checkContextAbstention(report []byte) bool {
 		chomp(string(readFile(artifact))) != abstentionArtifact(argvSHA, c.base, reason, stderrSHA, stdoutSHA, c.target) {
 		c.fail("context-abstention-evidence-drift")
 	}
-	c.say("dogfood-check: NOTE prechange-impact NOT_PRODUCED %s\n", reason)
+	c.say("dogfood-check: NOTE coordination-time-impact NOT_PRODUCED %s\n", reason)
 	return true
 }
 
@@ -303,7 +327,7 @@ func (c *check) verifyAbstention() {
 	args := []string{"impact", "--base", c.base, "--range-profile", "expanded-256", "--limit", "20"}
 	base := c.verify(c.options.BaseVerifier, args...)
 	tree := c.verify(c.options.TreeVerifier, args...)
-	if !agree(base, tree) || tree.status != 2 || len(tree.stdout) > 0 || !bytes.Equal(tree.stderr, readFile(c.evidence+"/prechange-impact.stderr")) {
+	if !agree(base, tree) || tree.status != 2 || len(tree.stdout) > 0 || !bytes.Equal(tree.stderr, readFile(c.evidence+"/coordination-time-impact.stderr")) {
 		c.fail("verifier-disagreement")
 	}
 	if c.options.Override != nil && !agree(tree, c.verify(*c.options.Override, args...)) {

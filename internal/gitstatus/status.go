@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
@@ -94,6 +95,11 @@ func (memo probeMemo) remember() {
 		probesMu.Unlock()
 	}
 }
+
+// MaxProcesses is the most Git processes one Status call starts: a config
+// probe for each of config and config.worktree, the two index probes of
+// validateIndex, and the status run. A caller's process budget covers it.
+const MaxProcesses = 5
 
 const metadataLimit = 32 << 20
 const snapshotLimit = 64 << 20
@@ -361,6 +367,9 @@ func StatusIn(ctx context.Context, root, temporaryParent string, limit int, run 
 	// override keeps it from executing whatever the caller's runner passes.
 	prefix := []string{"--git-dir=" + private, "--work-tree=" + root, "-c", "status.submoduleSummary=false", "-c", "core.hooksPath=" + os.DevNull, "-c", "core.fsmonitor=false"}
 	if !(simpleConfigs && sha1Config && simpleIndex(index)) {
+		if linksSharedIndex(index, gitdir) {
+			return nil, errSplitIndex
+		}
 		parts := append([][]byte{[]byte("index"), []byte(root), []byte(gitdir)}, configs...)
 		memo := probeMemo{probeDigest(append(parts, index)...), reuse}
 		if !memo.known() {
@@ -402,9 +411,30 @@ func validateIndex(ctx context.Context, temp string, prefix []string, run Runner
 		return metadataProbeError(err)
 	}
 	if len(bytes.TrimSpace(shared)) != 0 {
-		return unsupported(classSplitIndex, "index is a split index")
+		return errSplitIndex
 	}
 	return nil
+}
+
+var errSplitIndex = unsupported(classSplitIndex, "index is a split index")
+
+// linksSharedIndex reports whether index carries the split-index "link"
+// extension naming a sharedindex file beside it in gitdir. The private copy
+// omits that file, so without this check Git's own index probe fails first
+// and the refusal would lose its split-index class (V1-0256).
+func linksSharedIndex(index []byte, gitdir string) bool {
+	names, _ := filepath.Glob(filepath.Join(gitdir, "sharedindex.*"))
+	for _, name := range names {
+		oid, err := hex.DecodeString(strings.TrimPrefix(filepath.Base(name), "sharedindex."))
+		if err != nil || len(oid) == 0 {
+			continue
+		}
+		at := bytes.Index(index, oid)
+		if at >= 8 && string(index[at-8:at-4]) == "link" {
+			return true
+		}
+	}
+	return false
 }
 
 // filterKey renders a filter.NAME.VARIABLE key for a refusal reason. The driver

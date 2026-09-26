@@ -1,0 +1,135 @@
+{
+  "context": {
+    "authority": {
+      "mixed_worktree": {
+        "dirty_path_count": 1,
+        "dirty_paths_sha256": "72e446f7e1cda86b4887ee6a0698d5ab9b9da1311df47b9b664278fee75e0c21",
+        "status_sha256": "f689e5d666cca28e525e3b3f57d8deeaecf5ea7d3775060ebb23f05836e65cbd"
+      },
+      "revision": {
+        "commit": "<varies:string>",
+        "object_format": "sha1",
+        "source": "immutable-git-tree",
+        "tree": "89332322c1cef4c8c9cb2c6cbfff9b9fdd452af7"
+      },
+      "targets": {
+        "file_type": "regular",
+        "link_count": 1,
+        "revision_membership": "absent",
+        "source": "contained-stable-twice-read-working-tree"
+      }
+    },
+    "coverage": {
+      "critical": [
+        "working-tree-path:pkg/extra.go"
+      ],
+      "critical_missing": [],
+      "included_results": 3,
+      "omitted_results": 0,
+      "packet_bytes": 3048,
+      "requested_results": 3,
+      "revision_authoritative_results": 2,
+      "uncertainty": [
+        "target bytes are stable local observations, not immutable Git revision evidence",
+        "impact relationships are inferred only from the captured revision index",
+        "working-tree evidence may become stale immediately after the final observation"
+      ],
+      "within_budget": true,
+      "working_tree_observed_results": 1
+    },
+    "freshness": {
+      "dirty_path_count": 1,
+      "dirty_paths_sha256": "72e446f7e1cda86b4887ee6a0698d5ab9b9da1311df47b9b664278fee75e0c21",
+      "revision": "89332322c1cef4c8c9cb2c6cbfff9b9fdd452af7",
+      "scope": "git+working-tree",
+      "state": "mixed-worktree",
+      "status_sha256": "f689e5d666cca28e525e3b3f57d8deeaecf5ea7d3775060ebb23f05836e65cbd"
+    },
+    "mode": "impact",
+    "module": {
+      "path": "example.test/cli",
+      "source": "captured-revision-go.mod"
+    },
+    "profile": "corvint-working-tree-impact/0",
+    "request": {
+      "authority_profile": "working-tree-untracked",
+      "limit": 10,
+      "paths": [
+        "pkg/extra.go"
+      ]
+    },
+    "results": [
+      {
+        "evidence": [
+          {
+            "bytes": 13,
+            "confidence": "observed",
+            "identity_sha256": "<varies:string>",
+            "line": 1,
+            "link_count": 1,
+            "mode": "0644",
+            "path": "pkg/extra.go",
+            "reason": "requested revision-absent path",
+            "sha256": "df1d036cbbf3df46e2045071e082245ece204c7f53ecf0a4e022bff9bb228f47",
+            "source": "working-tree-stable-read"
+          }
+        ],
+        "id": "pkg/extra.go",
+        "kind": "working-tree-path",
+        "package": {
+          "directory": "pkg",
+          "import_path": "example.test/cli/pkg",
+          "imports": [],
+          "name": "main"
+        },
+        "score": 1000,
+        "summary": "direct revision-absent Go path observed in the working tree"
+      },
+      {
+        "evidence": [
+          {
+            "blob": "fe0edb98ce9c24f641ccec040f0245344db2b6c4",
+            "confidence": "authoritative",
+            "line": 1,
+            "path": "pkg/main_test.go",
+            "reason": "same captured-revision package as pkg/extra.go",
+            "source": "git-tree"
+          }
+        ],
+        "id": "pkg/main_test.go",
+        "kind": "revision-package-test",
+        "score": 825,
+        "summary": "same captured-revision package as pkg/extra.go"
+      },
+      {
+        "evidence": [
+          {
+            "blob": "608fd2f8a1ee1bc6c9b373d3ec56823ee77b782d",
+            "confidence": "authoritative",
+            "line": 1,
+            "path": "pkg/main.go",
+            "reason": "same captured-revision package as pkg/extra.go",
+            "source": "git-tree"
+          }
+        ],
+        "id": "pkg/main.go",
+        "kind": "revision-package-source",
+        "score": 700,
+        "summary": "same captured-revision package as pkg/extra.go"
+      }
+    ],
+    "revision": "89332322c1cef4c8c9cb2c6cbfff9b9fdd452af7",
+    "schema_version": 1,
+    "state": "WORKTREE_EVIDENCE",
+    "verification": [
+      {
+        "authority": "proposal",
+        "command": "go test ./pkg/...",
+        "reason": "candidate verification for observed package"
+      }
+    ]
+  },
+  "mutates": false,
+  "ok": true,
+  "tool": "impact"
+}

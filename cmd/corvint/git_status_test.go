@@ -66,9 +66,6 @@ func TestStandaloneReadsRefuseGitFiltersWithoutMutation(t *testing.T) {
 							t.Fatalf("non-JSON refusal: %d %q %q", code, stdout.String(), stderr.String())
 						}
 						wantCode := "repository-probe-failed"
-						if test.args[0] == "harness" {
-							wantCode = "" // Existing harness domain errors omit a code.
-						}
 						wantError := failure.Error == "Git status cannot safely observe repository metadata: repository config sets filter.hostile."+driver
 						if test.args[0] == "affected" {
 							wantCode = "unsupported-affected-status"

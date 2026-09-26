@@ -104,3 +104,41 @@ func TestTaskContextDefinitionSlotSkipsBacktickedProse(t *testing.T) {
 		t.Fatal("`all` is a stop word for the lexical terms too")
 	}
 }
+
+// TestTaskContextRefusesAOnePlainWordTestLink is V1-0343's frozen negative:
+// a test whose only link to the anchor is one plain declared word (`down` in
+// a comment) gets no test row, and a lexical-only link that TCP-V0-015 still
+// admits (one compound name) says to check the test, not to update it.
+func TestTaskContextRefusesAOnePlainWordTestLink(t *testing.T) {
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":                "module example.test/plain\n\ngo 1.27.0\n",
+		"motion/motion.go":      "package motion\n\nfunc down() {}\n",
+		"ext/extension_test.go": "package ext\n\n// Scroll down to the footer before asserting.\nfunc TestFooter() {}\n",
+		"codec/frame.go":        "package codec\n\nfunc EncodeFrame() {}\n",
+		"spec/wire_test.go":     "package spec\n\n// EncodeFrame is exercised here.\nfunc TestWire() {}\n",
+	})
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packet, err := TaskContext(context.Background(), index, "open motion/motion.go", "", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if found := contextRowsByKind(t, packet); slices.Contains(found["test"], "ext/extension_test.go") {
+		t.Fatalf("test rows = %v, want no row for the one-plain-word link", found["test"])
+	}
+	packet, err = TaskContext(context.Background(), index, "trace `EncodeFrame`", "", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range mapsFromAny(packet["results"]) {
+		if item["kind"] == "test" && item["id"] == "spec/wire_test.go" {
+			if action := item["action"].(string); !strings.HasPrefix(action, "Check this test: it tests codec/frame.go: names EncodeFrame") {
+				t.Fatalf("lexical-only test action = %q, want the conditional form", action)
+			}
+			return
+		}
+	}
+	t.Fatal("the one-compound-name link stays admitted")
+}

@@ -23,6 +23,9 @@ const (
 	maxBatchInputBytes = 4 * 1024 * 1024
 	layoutOutputBytes  = 8192
 	oidOutputBytes     = 129
+	// inventoryReads is the layout-and-commit, tree, ls-tree and blob batch
+	// reads; the status read adds at most gitstatus.MaxProcesses.
+	inventoryReads = 4
 )
 
 type genesisError string
@@ -51,7 +54,7 @@ func openRepository(ctx context.Context, root string, limits Limits, revision st
 	}
 	repo := &repository{
 		root: resolved, limits: limits,
-		budget: gitrun.NewBudget(8, limits.TotalTimeout),
+		budget: gitrun.NewBudget(inventoryReads+gitstatus.MaxProcesses, limits.TotalTimeout),
 	}
 	// Batch layout discovery with the first immutable commit resolution. The
 	// separate tree lookup still uses that verified commit, never a live ref.
@@ -64,10 +67,13 @@ func openRepository(ctx context.Context, root string, limits Limits, revision st
 		outputLimit += oidOutputBytes
 	}
 	raw, err := repo.run(ctx, outputLimit, nil, arguments...)
+	if err == genesisError("git-timeout") {
+		return nil, err
+	}
 	if err != nil && combined {
 		// A failed revision must not hide an invalid repository. Only failure
-		// classification pays this extra probe; successful reads keep the
-		// original eight-process budget even with private status fallback.
+		// classification pays this extra probe; successful reads stay within
+		// the inventory reads plus the private status probe plan.
 		layout, layoutErr := repo.run(ctx, layoutOutputBytes, nil, layoutArgs...)
 		if layoutErr != nil || validateRepositoryLayout(resolved, layout) != nil {
 			return nil, genesisError("invalid-repository")
@@ -266,6 +272,8 @@ func (repo *repository) runRaw(ctx context.Context, outputLimit, sizeHint int, i
 		return nil, genesisError("git-output-budget-exceeded")
 	case cemcode.GitTimeout:
 		return nil, genesisError("git-timeout")
+	case cemcode.GitBudgetExceeded:
+		return nil, genesisError("git-budget-exceeded")
 	case cemcode.GitStartFailed:
 		return nil, genesisError("git-unavailable")
 	default:

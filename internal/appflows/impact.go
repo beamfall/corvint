@@ -151,7 +151,7 @@ func reach(graph *affected.Graph, changedBy map[string]string, changed []string,
 			return append(append([]string{changedBy[id]}, unitChain(parent, id)...), target)
 		}
 		unit, _ := graph.Unit(id)
-		for _, next := range unit.Imports {
+		for _, next := range forward(unit, id == owner && slices.Contains(unit.Tests, target)) {
 			if _, seen := parent[next]; !seen {
 				parent[next] = id
 				queue = append(queue, next)
@@ -159,6 +159,15 @@ func reach(graph *affected.Graph, changedBy map[string]string, changed []string,
 		}
 	}
 	return nil
+}
+
+// forward lists a unit's import edges, with its test-only imports when the walk
+// starts at one of its tests.
+func forward(unit affected.Unit, fromTest bool) []string {
+	if !fromTest {
+		return unit.Imports
+	}
+	return append(append([]string(nil), unit.Imports...), unit.TestImports...)
 }
 
 // unitChain lists units from the changed unit back along parent links to the target's owner.

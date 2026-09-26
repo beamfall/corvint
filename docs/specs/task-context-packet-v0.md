@@ -264,6 +264,11 @@ it must read, each with the relation that admitted it, without naming the task's
   Agent Retrieval Bench the `context` arm's code2test hit@k and recall@20 must rise over the
   TCP-V0-014 tree and edit2ripple recall@20 must stay at or above the grep arm's; either
   failure removes the slot.
+  - (proposed, decision 0398; V1-0343) A link whose only fired signal is (c) is a candidate only
+    when it names two or more distinct declared names, or one name of two or more camel-split
+    tokens (`EncodeFrame`, `encode_frame`); one plain word such as `down` in a comment binds
+    nothing. Such a lexical-only row's action says to check the test and update it only if it
+    asserts on that name, not to update it.
 - `TCP-V0-017`: (proposed 2026-09-05, not accepted; experimental) `context` offers three read-only
   structural lookups over the index the packet reads, `corvint [--root PATH] context defs
   IDENTIFIER [--limit N]`, `context refs IDENTIFIER [--limit N]`, and `context grep TERM...
@@ -1121,7 +1126,7 @@ wire never changed.
 | TCP-V0-012 | `internal/contextindex/taskcontext_widening_test.go` | the six cases above plus `TestTaskContextAmendedPacketIsByteIdenticalAcrossRuns` (falsifier e) |
 | TCP-V0-013 | `lexicalRows`, `isDocumentationSuffix`, `contextRelationOrder` | `TestTaskContextPlacesDocumentationAfterFiveCodeRows` |
 | TCP-V0-014 | `lexicalRows`, `taskLexicalTerms`, `TermTable.documentLengths` | `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestLexicalRowsOrderByBM25AndAnswerWholeIdentifiers` |
-| TCP-V0-015 | `testRows`, `testAnchors`, `testLinker`, `testCandidate`, `testNameRemainder`, `nameTokens`, `definitionEligible` (stop-list rule) | `TestTaskContextLinksTestsByEachSignal`, `TestTaskContextReservesOneTestSlot`, `TestTaskContextDefinitionSlotSkipsBacktickedProse`, `TestContextColdBuildRetainsTestImportWinner`, `TestNameTokensMatchesRegexOracle`, `TestCreditMirroredMatchesFullScan` |
+| TCP-V0-015 | `testRows`, `testAnchors`, `testLinker`, `testCandidate`, `testNameRemainder`, `nameTokens`, `definitionEligible` (stop-list rule) | `TestTaskContextLinksTestsByEachSignal`, `TestTaskContextReservesOneTestSlot`, `TestTaskContextDefinitionSlotSkipsBacktickedProse`, `TestContextColdBuildRetainsTestImportWinner`, `TestNameTokensMatchesRegexOracle`, `TestCreditMirroredMatchesFullScan`, `TestTaskContextRefusesAOnePlainWordTestLink` |
 | TCP-V0-017 | `LookupDefinitions`, `LookupReferences`, `countWholeWord`, `LookupGrep`, `grepScores`, `matchingLines`, `parseContextLookupInvocation`, `runContextLookup` | `TestLookupDefinitionsOrdersExactThenRarestCaseInsensitive`, `TestLookupReferencesExcludesDefinersAndRanksImportersFirst`, `TestLookupGrepRanksByBM25AndQuotesMatchingLines`, `TestLookupGrepCountsATokenInBodyAndPathOnce`, `TestLookupGrepPathOnlyHitClaimsNoLine`, `TestLookupNeverListsExcludedPathsAndRefusesBadIdentifiers`, `TestParseContextLookupInvocation`, `TestRunContextLookupIsReadOnlyAndDeterministic`, `TestRunContextLookupRefusesAnEmptyIdentifier` |
 | TCP-V0-016 | `taskNames`, `nameShaped`, `specificTerms`, `pathSources`, `trackedNaming`, `answer`, `relationRows`, `nearestClaims`, `withheldClaims`, `answerability.unsupported`, `answerability.packet`, `answerability.claimPackets`, `reservedOnly` | `TestTaskContextAbstainsOnAnUnsupportedConjunction`, `TestTaskContextReportsDeclaredRequiredSupport`, `TestTaskContextSupportedVerdictNamesItsSupport`, `TestTaskContextNotWithheldVerdictHasNoClaims` |
 | TCP-V0-018 | retired recipe; default `compile` and `lexicalRows` only; decision 0078 | `TestContextRecipeDefaultPathIsByteIdentical`, `TestContextRecipeRetiredFlagsAreIgnored` |

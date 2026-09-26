@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 )
 
 // GPK-V0-001..007, GPK-V0-032.
@@ -34,6 +35,40 @@ func TestInitAdoptReceiptModesMatchPythonOracleAndReadNothing(t *testing.T) {
 					t.Fatalf("candidate=%#v", candidate)
 				}
 			})
+		}
+	}
+}
+
+// TestInitAdoptInterruptedRunLeavesNoStateAndRetriesCleanly is V1-0113: init
+// and adopt write nothing (`mutates: false`), so a run killed at any point
+// leaves the repository and Git bytes unchanged, and the next run answers
+// exactly as an uninterrupted one. The kill delays span start-up to late in
+// the run; the property holds whichever step each one lands in.
+func TestInitAdoptInterruptedRunLeavesNoStateAndRetriesCleanly(t *testing.T) {
+	t.Parallel()
+	root := newActivationFixture(t, "sha1")
+	for _, activation := range []string{"init", "adopt"} {
+		arguments := activationArguments(root, activation, true)
+		clean := execute(t, candidateCommand(arguments...))
+		if clean.exit != 0 {
+			t.Fatalf("%s: clean run %#v", activation, clean)
+		}
+		before := repositoryBytesDigest(t, root)
+		for _, delay := range []time.Duration{0, 2 * time.Millisecond, 10 * time.Millisecond, 50 * time.Millisecond, 200 * time.Millisecond} {
+			interrupted := candidateCommand(arguments...)
+			if err := interrupted.Start(); err != nil {
+				t.Fatal(err)
+			}
+			time.Sleep(delay)
+			_ = interrupted.Process.Kill()
+			_ = interrupted.Wait()
+			if repositoryBytesDigest(t, root) != before {
+				t.Fatalf("%s killed after %s changed repository or Git bytes", activation, delay)
+			}
+			retry := execute(t, candidateCommand(arguments...))
+			if retry.exit != clean.exit || !bytes.Equal(retry.stdout, clean.stdout) || len(retry.stderr) != 0 {
+				t.Fatalf("%s retry after a kill at %s differs from a clean run: %#v", activation, delay, retry)
+			}
 		}
 	}
 }

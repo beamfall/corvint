@@ -7,12 +7,14 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	taskswire "github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// Native task-store SPEC section 11, source-bound by decision 0321.
-const nativeCodes = "ADJUDICATION ADOPT_UNSUPPORTED_FIELD APPROVAL_MISSING APPROVAL_REVOKED ATTEMPT_LIVE BOOT_FENCED BOOT_TIMEOUT BUDGET_EXCEEDED BUDGET_UNKNOWN CAPABILITY_UNAVAILABLE CEM_MISSING CONTAMINATED COVERAGE_UNKNOWN CUTOVER_IN_PROGRESS CUTOVER_MISSING CYCLE DEPENDENCY_MISSING DEPENDENCY_UNSATISFIED DEVELOPMENT_MODE DIRTY_WORKTREE DOCS_MISSING DUPLICATE_ID EFFECT_OWNED EXTERNAL_UNBOUNDED FENCED GATE_FAILED GATE_STALE GATE_UNKNOWN INDEPENDENCE_UNVERIFIED INTENT_BRANCH_MISMATCH INTENT_DIVERGED INVALID_PRIORITY JOURNAL_FORKED JOURNAL_SATURATED LIMIT_EXCEEDED LOCK_TIMEOUT MALFORMED MISSING_EVIDENCE MISSING_GATE NOEXEC OCM_MISSING OUT_OF_SCOPE PAUSED PLAN_STALE QUIESCENCE_UNPROVED REDO_PENDING REQUEST_ID_CONFLICT RESOURCE_COLLISION RESTORED RESTORE_INCOMPLETE RETRY_EXHAUSTED REVIEW_INCOMPLETE REVIEW_REJECTED SIGNAL_REFUSED_IDENTITY SNAPSHOT_MOVED STALE_POLICY STALE_TICKET STALE_TREE SUPERVISOR_LOST SURVIVORS TICKET_HELD TICKET_STATE UNCERTAIN_EFFECT UNINITIALIZED UNPUBLISHED UNRESOLVED_FINDING UNSUPPORTED UNSUPPORTED_FILESYSTEM UNSUPPORTED_VERSION"
+// Native task-store SPEC section 11 codes and the closed ticket record keys,
+// imported from the in-tree Tasks wire package (decision 0397).
+var nativeCodes = strings.Join(taskswire.Codes, " ")
 
-const ticketKeys = "profile ticketId revision acceptanceRevision previousRecordSha256 status archivedFrom title body kind owner milestone priority order labels dependencies acceptanceCriteria requirementRefs source effects capabilities requiredGates holds executionClass approvals completion dueDate estimateMinutes supersedes supersededBy shadowOverlay createdAt updatedAt updatedBy"
+var ticketKeys = strings.Join(taskswire.TicketRecordKeys, " ")
 
 func oneOf(s, allowed string) bool {
 	for _, x := range strings.Fields(allowed) {

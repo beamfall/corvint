@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -64,6 +65,24 @@ type dogfoodEventReadKey struct{}
 
 type dogfoodEventReader = func(context.Context, options, map[string]any) (map[string]any, error)
 
+// dogfoodEventMissKey carries the flag localEventContext raises when no index snapshot matches
+// the tree and the read falls back to its in-memory build, so an event whose deadline then
+// expires names the stale snapshot as its cause (AHI-031).
+type dogfoodEventMissKey struct{}
+
+// dogfoodEventBuildKey carries a per-invocation replacement for the in-memory index build a
+// snapshot miss runs. Tests set it to a build that ignores cancellation, as the real one does.
+type dogfoodEventBuildKey struct{}
+
+// dogfoodExpiryCode is the code an expired event reports: the stale snapshot when the read had
+// fallen back to the in-memory build, else the bare time bound (LCP-V0-008, AHI-031).
+func dogfoodExpiryCode(missed *atomic.Bool) string {
+	if missed.Load() {
+		return "dogfood-event-index-snapshot-stale"
+	}
+	return "dogfood-event-deadline"
+}
+
 // dogfoodEventWithin returns the read's outcome, or the context's error as soon as the
 // context ends first (LCP-V0-008). The in-memory index compile a snapshot miss runs does not
 // observe cancellation; on a loaded host it was measured holding an expired event for seconds
@@ -112,6 +131,8 @@ func runLocalCompletionEvent(parent context.Context, root string, args []string,
 	}
 	ctx, cancel := context.WithTimeout(parent, dogfoodEventDeadlineOf(parent, options.host, options.event))
 	defer cancel()
+	missed := new(atomic.Bool)
+	ctx = context.WithValue(ctx, dogfoodEventMissKey{}, missed)
 	raw, err := readInput(ctx, stdin)
 	if err != nil {
 		emitError(stderr, dogfoodEventError("dogfood-event-input-unavailable"))
@@ -126,7 +147,7 @@ func runLocalCompletionEvent(parent context.Context, root string, args []string,
 	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		// An expired deadline surfaces in later reads as unrelated drift or
 		// unavailability; report the time bound, not a diagnosed fault.
-		emitError(stderr, dogfoodEventError("dogfood-event-deadline"))
+		emitError(stderr, dogfoodEventError(dogfoodExpiryCode(missed)))
 		return 2
 	}
 	if err != nil {
@@ -141,7 +162,7 @@ func runLocalCompletionEvent(parent context.Context, root string, args []string,
 		return 2
 	}
 	if ctx.Err() != nil {
-		emitError(stderr, dogfoodEventError("dogfood-event-deadline"))
+		emitError(stderr, dogfoodEventError(dogfoodExpiryCode(missed)))
 		return 2
 	}
 	if _, err := stdout.Write(encoded); err != nil {
@@ -358,11 +379,18 @@ func localEventContext(ctx context.Context, options options, input map[string]an
 ) (map[string]any, error) {
 	compact := rehydrate && options.event == "session-start" && input["startSource"] == "compact" && repo.DirtyPathCount > 0
 	index, hit, err := loadSnapshot(ctx, options.root)
+	if missed, ok := ctx.Value(dogfoodEventMissKey{}).(*atomic.Bool); ok && err == nil && !hit {
+		missed.Store(true)
+	}
+	buildContext := contextindex.BuildContext
+	if replacement, ok := ctx.Value(dogfoodEventBuildKey{}).(func(context.Context, string, string) (*contextindex.Index, error)); ok {
+		buildContext = replacement
+	}
 	if (err != nil || !hit) && compact {
 		// Impact needs the test-relation imports BuildContext omits.
 		index, err = contextindex.Build(ctx, options.root)
 	} else if err != nil || !hit {
-		index, err = contextindex.BuildContext(ctx, options.root, "")
+		index, err = buildContext(ctx, options.root, "")
 	}
 	if err != nil {
 		return nil, err

@@ -206,7 +206,9 @@ the normative shape contract.
   administrative metadata MUST reciprocally identify that exact root before its common object store
   becomes authority. A forged gitfile, symlinked `.git` marker, nonreciprocal association, or direct
   redirection into an unrelated or sibling repository fails `repository-object-unavailable`. V0
-  does not prescribe directory names, nesting, or one on-disk linked-worktree layout. Every regular
+  does not prescribe directory names, nesting, or one on-disk linked-worktree layout; a relative
+  `gitdir` back-pointer, as `git worktree add --relative-paths` writes, resolves against the
+  per-worktree administrative directory that holds it (V1-0215). Every regular
   `.git`, linked `gitdir`, and `commondir` metadata read MUST share one bounded no-follow reader that
   checks size before open, revalidates type, inode, and size after open, reads at most the bound plus
   one byte, and rejects truncation, growth, or observed metadata change as

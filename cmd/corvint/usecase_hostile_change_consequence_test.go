@@ -157,8 +157,8 @@ func TestUseCaseHostileChangeConsequence(t *testing.T) {
 			cemGit(t, root, "mv", "core/core.go", "core2/core.go")
 			receipt := consequencePlan(t, root)
 			assertConsequenceUnknown(t, receipt, "UNINDEXED_SOURCE_PATH", "core/core.go")
-			if excluded := string(mustJSON(t, receipt["plan"].(map[string]any)["excluded"])); !strings.Contains(excluded, `"reason":"UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED","unitId":"go:example.com/g/core"`) {
-				t.Fatalf("core is not excluded as possibly deleted or renamed: %s", excluded)
+			if selected := string(mustJSON(t, receipt["plan"].(map[string]any)["selected"])); !strings.Contains(selected, `"unitId":"go:example.com/g/core"`) || !strings.Contains(selected, `"unitId":"go:example.com/g/leaf"`) {
+				t.Fatalf("the package that lost a file and its importer are not selected: %s", selected)
 			}
 		}},
 		{"abstention", "dirty-worktree", "deleted source leaves the scope unknown", func(t *testing.T) {
@@ -168,8 +168,8 @@ func TestUseCaseHostileChangeConsequence(t *testing.T) {
 			}
 			receipt := consequencePlan(t, root)
 			assertConsequenceUnknown(t, receipt, "UNINDEXED_SOURCE_PATH", "core/core.go")
-			if excluded := string(mustJSON(t, receipt["plan"].(map[string]any)["excluded"])); !strings.Contains(excluded, `"reason":"UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED","unitId":"go:example.com/g/core"`) {
-				t.Fatalf("core is not excluded as possibly deleted or renamed: %s", excluded)
+			if selected := string(mustJSON(t, receipt["plan"].(map[string]any)["selected"])); !strings.Contains(selected, `"unitId":"go:example.com/g/core"`) || !strings.Contains(selected, `"unitId":"go:example.com/g/leaf"`) {
+				t.Fatalf("the package that lost a file and its importer are not selected: %s", selected)
 			}
 		}},
 		{"abstention", "missing-anchors", "no declared gate and no selection are named advice gaps", func(t *testing.T) {

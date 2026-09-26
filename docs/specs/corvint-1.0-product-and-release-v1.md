@@ -42,7 +42,10 @@ platforms. It is exactly:
    account, network, hosted service, database service, embeddings or daemon (invariant 7).
 2. The proof wire: the CEM (`cem`), OCM (`ocm`) and change-frontier (`frontier`) profiles frozen
    by V1-0013, with canonical conformance vectors and the in-repo second consumer run by
-   `make interop-gate`.
+   `make interop-gate`. (proposed, decision 0398) That second consumer, `interop/cem01-go`, covers
+   `cem/0.1` only; `cem/0.2`, OCM and frontier are single-implementation at 1.0, held by their
+   canonical vectors alone, and 1.0 claims no second consumer and no interoperability for them
+   (`PRS-V1-007`).
 3. The dogfood loop: `dogfood` (and the internal `dogfood-record` and `dogfood-ocm` verbs it runs)
    producing a retained, explicit local outcome bound to a CEM.
 4. The three Core jobs accepted by decision 0332: `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`
@@ -56,7 +59,7 @@ A companion ships separately or alongside Core, carries its own qualification an
 never be a prerequisite for a Core release candidate or a Core claim. Proposed companion list:
 
 - Local admin console (`corvint-console`) and dashboard snapshot (`corvint-dashboard-snapshot`).
-- Corvint Tasks (`corvint-tasks`, separate repository) and its roadmap.
+- Corvint Tasks (`corvint-tasks`, in-tree separate companion binary (decision 0397)) and its roadmap.
 - MCP servers: `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp`.
 - Test providers: `corvint-js-test-provider`, `corvint-go-test-provider`, and `corvint test-validity`.
 - Automatic documentation: `corvint docs` drafting, watch and apply.
@@ -125,7 +128,7 @@ rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 clai
 | `corvint feature` | experimental | Legacy parity verb kept for the Go kernel migration. |
 | Internal `authority-event`, `qualified-event`, `native-hook`, `frontier-next`, `plan-fixture`, `source-view`, `docs corpus` | experimental | Protected-authority, planning, source-view and corpus prototypes. |
 | `corvint-console`, `corvint-dashboard-snapshot` | companion | Optional operator console with no authority (decision 0081). |
-| `corvint-tasks` | companion | Separate repository; roadmap is not a Core claim. |
+| `corvint-tasks` | companion | In-tree separate companion binary (decision 0397); roadmap is not a Core claim. |
 | `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp` | companion | MCP servers are optional host surfaces. |
 | `corvint-js-test-provider`, `corvint-go-test-provider` | companion | Test providers qualify under `/2`, not Core. |
 | `corvint-remote-provider` | companion | Network consent places it outside the default local product. |
@@ -158,7 +161,8 @@ accepted by decision 0373 and the amendment it requires are stated.
 - Amendment required: none to `PUB-V0` requirements, which do not require independent producers.
   After acceptance, the coordinator amends the task-store v1-0 release criterion and the V1-0021
   acceptance criterion to replace "independent interoperability passes" with "the frozen wire's
-  canonical vectors and in-repo second consumer pass; no interoperability claim". V1-0015, which
+  canonical vectors and in-repo second consumer pass; no interoperability claim" (proposed,
+  decision 0398: that consumer covers `cem/0.1` only, Core item 2). V1-0015, which
   depends on V1-0014, is already COMPLETED; its recorded dependency edge stays and is moot for the
   Core path (the store refuses `set-dependencies` on completed tickets).
 
@@ -298,7 +302,7 @@ and the untouched repository (question 8) are still unnamed. The questions stay 
 | `PRS-V1-001..012` | Decision 0373 | PRODUCED (2026-09-23) |
 | `PRS-V1-010` | Review of this table against the base commit's verbs, binaries and trees | review only |
 | `PRS-V1-002` | N-1 upgrade: 0.7.0 archive to 0.8.0 `upgrade-b` and `rollback-a` under `SOP-V0-003` (`stable-operations-v0.md`, V1-0190) | PASS on darwin/arm64, darwin/amd64 (Rosetta 2), linux/arm64 (container); linux/amd64 emulated only |
-| `PRS-V1-005` | Core-only assembly with no companion or Tasks input (`TestPRSV1005CoreOnlyAssemblyNeedsNoCompanion`, V1-0229) and its reader and installer (`TestPRSV1005CoreOnlyCandidateVerifiesAndInstalls`, V1-0125); the companion assembler keeps `-tasks-root` required (`TestEmptyRootsRefuseBeforeExecution`) | PASS (unit); real assembly and install on a scratch alpha commit, darwin/arm64; linux `NOT_RUN` |
+| `PRS-V1-005` | Core-only assembly with no companion or Tasks input (`TestPRSV1005CoreOnlyAssemblyNeedsNoCompanion`, V1-0229) and its reader and installer (`TestPRSV1005CoreOnlyCandidateVerifiesAndInstalls`, V1-0125); the companion assembler requires `-source-root` and, since decision 0397, takes no `-tasks-root` (`TestEmptyRootsRefuseBeforeExecution`) | PASS (unit); real assembly and install on a scratch alpha commit, darwin/arm64; linux `NOT_RUN` |
 | `PRS-V1-004` | Native install lifecycle on each Core platform | darwin/arm64 retained for 0.7.0; linux/amd64 `NOT_RUN` |
 | `PRS-V1-006` | Host lifecycle qualification, nine cases per tuple (`host-lifecycle-qualification-v1.md`, V1-0016) | PASS for plain CLI, Codex CLI 0.153.2 and Claude Code 2.1.267 on darwin/arm64 with 0.8.0, all FALLBACK; linux `NOT_RUN` |
 | `PRS-V1-007` | V1-0014 | `NOT_RUN` |

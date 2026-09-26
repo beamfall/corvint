@@ -1,6 +1,7 @@
 package contextindex
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/gob"
@@ -35,10 +36,17 @@ const (
 	// sharedSnapshotSubpath is the store under the Git common directory;
 	// snapshotSubpath is the per-worktree fallback for a root whose common
 	// directory does not resolve from its `.git` metadata.
-	sharedSnapshotSubpath       = "corvint/index"
-	snapshotSubpath             = ".corvint/index"
-	snapshotTemporaryStaleAfter = time.Hour
-	corvintIgnore               = "/.gitignore\n/index/\n/self-observations.jsonl\n/.self-observations.*\n"
+	sharedSnapshotSubpath = "corvint/index"
+	snapshotSubpath       = ".corvint/index"
+	// snapshotTemporaryStaleAfter is how long a writer's temporary may live.
+	// A writer holds one only while it encodes and syncs an index it already
+	// built, seconds for the largest snapshot, so an older one is a crashed
+	// writer's orphan (IDX-SNAP-V0-007).
+	snapshotTemporaryStaleAfter = 10 * time.Minute
+	// snapshotStoreBytes bounds the published gob snapshots in one store
+	// beside the entry bound, which alone lets 64 large snapshots pile up.
+	snapshotStoreBytes = 1 << 30
+	corvintIgnore      = "/.gitignore\n/index/\n/self-observations.jsonl\n/.self-observations.*\n"
 )
 
 type snapshotHeader struct {
@@ -408,11 +416,15 @@ func writeSnapshotGitIgnore(directory string) error {
 func encodeSnapshot(file *os.File, index *Index, engineID string) (int64, error) {
 	portable := *index
 	portable.Root, portable.DirtyPaths, portable.StatusSHA256 = "", nil, ""
-	encoder := gob.NewEncoder(file)
+	digest := sha256.New()
+	encoder := gob.NewEncoder(io.MultiWriter(file, digest))
 	if err := encoder.Encode(snapshotHeader{Format: snapshotFormat, ObjectFormat: index.ObjectFormat, Tree: index.Revision, Engine: engineID}); err != nil {
 		return 0, err
 	}
 	if err := encoder.Encode(&portable); err != nil {
+		return 0, err
+	}
+	if _, err := file.Write(digest.Sum(nil)); err != nil {
 		return 0, err
 	}
 	info, err := file.Stat()
@@ -422,8 +434,9 @@ func encodeSnapshot(file *os.File, index *Index, engineID string) (int64, error)
 	return info.Size(), nil
 }
 
-// evictSnapshots removes stale writer temporaries and the oldest published
-// files beyond bound, never the snapshot just written.
+// evictSnapshots removes stale writer temporaries and the published files
+// beyond bound or snapshotStoreBytes, other engines' first and then the
+// oldest, never the snapshot just written.
 func evictSnapshots(directory, keep string, bound int) int {
 	return evictSnapshotsAt(directory, keep, bound, time.Now())
 }
@@ -434,9 +447,12 @@ func evictSnapshotsAt(directory, keep string, bound int, now time.Time) int {
 		return 0
 	}
 	type aged struct {
-		path string
-		when int64
+		path    string
+		when    int64
+		bytes   int64
+		current bool
 	}
+	currentEngine := snapshotEngineOf(keep)
 	files := make([]aged, 0, len(entries))
 	staleTemporaryCutoff := now.Add(-snapshotTemporaryStaleAfter)
 	for _, entry := range entries {
@@ -453,12 +469,21 @@ func evictSnapshotsAt(directory, keep string, bound int, now time.Time) int {
 		if filepath.Ext(entry.Name()) != ".gob" {
 			continue
 		}
-		files = append(files, aged{path, info.ModTime().UnixNano()})
+		files = append(files, aged{path, info.ModTime().UnixNano(), info.Size(), snapshotEngineOf(path) == currentEngine})
 	}
-	sort.Slice(files, func(left, right int) bool { return files[left].when > files[right].when })
+	// Snapshots the writing binary can read come first, newest first; one
+	// another binary wrote is evicted before an older readable one.
+	sort.Slice(files, func(left, right int) bool {
+		if files[left].current != files[right].current {
+			return files[left].current
+		}
+		return files[left].when > files[right].when
+	})
 	evicted := 0
+	var keptBytes int64
 	for position, file := range files {
-		if position < bound || file.path == keep {
+		if file.path == keep || position < bound && keptBytes+file.bytes <= snapshotStoreBytes {
+			keptBytes += file.bytes
 			continue
 		}
 		if os.Remove(file.path) == nil {
@@ -471,6 +496,12 @@ func evictSnapshotsAt(directory, keep string, bound int, now time.Time) int {
 		_ = os.Remove(strings.TrimSuffix(file.path, ".gob") + packExtension)
 	}
 	return evicted
+}
+
+// snapshotEngineOf is the engine segment of a snapshotPath name.
+func snapshotEngineOf(path string) string {
+	name := strings.TrimSuffix(filepath.Base(path), ".gob")
+	return name[strings.LastIndexByte(name, '-')+1:]
 }
 
 // LoadSnapshot returns the snapshot of the repository's current tree with the
@@ -685,12 +716,8 @@ func readSnapshotIndex(directory string, identity repositoryIdentity, engineID s
 }
 
 func decodeSnapshot(file *os.File, identity repositoryIdentity, engineID string) (*Index, error) {
-	decoder := gob.NewDecoder(file)
-	if err := decodeSnapshotHeader(decoder, identity, engineID); err != nil {
-		return nil, err
-	}
 	index := &Index{}
-	if err := decoder.Decode(index); err != nil {
+	if err := decodeSnapshotValue(file, identity, engineID, index); err != nil {
 		return nil, err
 	}
 	if err := index.checkSymbolWindows(); err != nil {
@@ -757,12 +784,43 @@ func LoadEventSnapshotObserved(root string, compact bool, observation Observatio
 	index.Root, index.DirtyPaths, index.StatusSHA256 = root, keys(dirty), observation.StatusSHA256
 	return index, true, nil
 }
+
+// decodeSnapshotValue decodes the header and the index message into value
+// and then checks the SHA-256 trailer over every byte before it. Gob cannot
+// tell a body overwritten with the same number of bytes from the real one,
+// so without the trailer such a file would load as a hit serving text its
+// blob does not contain (IDX-SNAP-V0-003, decision 0398). Every loader and
+// ProbeSnapshot reads the whole message anyway, so the check adds a hash of
+// bytes already read, not another read of the file.
 func decodeSnapshotValue(file *os.File, identity repositoryIdentity, engineID string, value any) error {
-	decoder := gob.NewDecoder(file)
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+	payloadBytes := info.Size() - sha256.Size
+	if payloadBytes <= 0 {
+		return errors.New("snapshot shorter than its digest")
+	}
+	digest := sha256.New()
+	payload := io.TeeReader(io.NewSectionReader(file, 0, payloadBytes), digest)
+	decoder := gob.NewDecoder(payload)
 	if err := decodeSnapshotHeader(decoder, identity, engineID); err != nil {
 		return err
 	}
-	return decoder.Decode(value)
+	if err := decoder.Decode(value); err != nil {
+		return err
+	}
+	if _, err := io.Copy(io.Discard, payload); err != nil {
+		return err
+	}
+	var trailer [sha256.Size]byte
+	if _, err := file.ReadAt(trailer[:], payloadBytes); err != nil {
+		return err
+	}
+	if !bytes.Equal(digest.Sum(nil), trailer[:]) {
+		return errors.New("snapshot digest mismatch")
+	}
+	return nil
 }
 
 func decodeSnapshotHeader(decoder *gob.Decoder, identity repositoryIdentity, engineID string) error {

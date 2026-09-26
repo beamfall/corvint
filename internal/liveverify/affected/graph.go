@@ -18,17 +18,42 @@ type Graph struct {
 	order      []string
 	owner      map[string]string
 	dependents map[string][]string
+	testUsers  map[string][]string
 	testReach  map[string]bool
+	unbounded  []string
 	claimants  map[string]Language
 	languages  []string
 	frontier   []string
+	frontierBy map[string][]string
 	digest     string
 }
 
-type graphBody struct {
-	Languages []string `json:"languages"`
-	Frontier  []string `json:"frontier"`
-	Units     []Unit   `json:"units"`
+// graphDigestDomain is hashed ahead of the digest body, so a graph digest
+// cannot collide with a digest of the same bytes in another domain (AFP-V0-005).
+const graphDigestDomain = "corvint-affected-graph/1\n"
+
+// digestBody is the documented projection the graph digest covers
+// (AFP-V0-005). Its member names are fixed here, not by Unit's struct tags, so
+// a new internal field changes the digest only once it is added here.
+type digestBody struct {
+	Languages []string     `json:"languages"`
+	Frontier  []string     `json:"frontier"`
+	Units     []digestUnit `json:"units"`
+}
+
+// digestUnit projects one Unit; every member is always present.
+type digestUnit struct {
+	ID                string   `json:"id"`
+	Sources           []string `json:"sources"`
+	Tests             []string `json:"tests"`
+	Imports           []string `json:"imports"`
+	TestImports       []string `json:"testImports"`
+	PathTokens        []string `json:"pathTokens"`
+	PathTokensBounded bool     `json:"pathTokensBounded"`
+	Embeds            bool     `json:"embeds"`
+	UnboundedReads    string   `json:"unboundedReads"`
+	LocatesRoot       bool     `json:"locatesRoot"`
+	Frontier          []string `json:"frontier"`
 }
 
 // Build composes one graph from every supplied language plugin.
@@ -44,7 +69,9 @@ func Build(root string, languages ...Language) (*Graph, error) {
 		units:      make(map[string]Unit),
 		owner:      make(map[string]string),
 		dependents: make(map[string][]string),
+		testUsers:  make(map[string][]string),
 		claimants:  make(map[string]Language),
+		frontierBy: make(map[string][]string),
 	}
 	seenLanguage := make(map[string]bool, len(languages))
 	frontier := make(map[string]bool)
@@ -61,8 +88,13 @@ func Build(root string, languages ...Language) (*Graph, error) {
 		if err != nil {
 			return nil, fmt.Errorf("language %s: %w", name, err)
 		}
-		if err := graph.admit(name, result, frontier); err != nil {
+		own := make(map[string]bool)
+		if err := graph.admit(name, result, own); err != nil {
 			return nil, err
+		}
+		graph.frontierBy[name] = sortedKeys(own)
+		for reason := range own {
+			frontier[reason] = true
 		}
 	}
 	sort.Strings(graph.languages)
@@ -105,23 +137,58 @@ func (graph *Graph) admit(namespace string, result Result, frontier map[string]b
 	return nil
 }
 
-// finish materializes the reverse edges. An import naming a unit outside the
-// graph is dropped: it is an external dependency, and an external dependency
-// cannot be a dirty repository path.
+// finish materializes the reverse edges, with test-only imports kept apart. An
+// import naming a unit outside the graph is dropped: it is an external
+// dependency, and an external dependency cannot be a dirty repository path.
 func (graph *Graph) finish() {
 	sort.Strings(graph.order)
+	graph.dependents = graph.reverse(func(unit Unit) []string { return unit.Imports })
+	graph.testUsers = graph.reverse(func(unit Unit) []string { return unit.TestImports })
+	graph.testReach = graph.unitsReachingTests()
+	graph.unbounded = graph.unboundedReaders()
+}
+
+// unboundedReaders lists, in id order, every unit whose reads no literal
+// bounds (AFP-V0-012 rule (d)): its own UnboundedReads, or a dependency whose
+// non-test code locates the root and so reads from it when this unit's code
+// or tests call it.
+func (graph *Graph) unboundedReaders() []string {
+	locators := make(map[string]Witness)
+	own := make([]string, 0)
 	for _, id := range graph.order {
-		for _, target := range graph.units[id].Imports {
+		unit := graph.units[id]
+		if unit.UnboundedReads != "" {
+			own = append(own, id)
+		}
+		if unit.LocatesRoot {
+			locators[id] = Witness{Via: []string{id}}
+		}
+	}
+	reached := graph.traverse(locators)
+	graph.testUsersOf(reached)
+	for _, id := range own {
+		reached[id] = Witness{}
+	}
+	ids := make([]string, 0, len(reached))
+	for id := range reached {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+// reverse maps every unit to the sorted units whose edges name it.
+func (graph *Graph) reverse(edges func(Unit) []string) map[string][]string {
+	reversed := make(map[string][]string)
+	for _, id := range graph.order {
+		for _, target := range edges(graph.units[id]) {
 			if _, known := graph.units[target]; !known {
 				continue
 			}
-			graph.dependents[target] = append(graph.dependents[target], id)
+			reversed[target] = append(reversed[target], id)
 		}
 	}
-	for target := range graph.dependents {
-		sort.Strings(graph.dependents[target])
-	}
-	graph.testReach = graph.unitsReachingTests()
+	return reversed
 }
 
 // unitsReachingTests names every unit that reaches, itself included, a unit
@@ -151,19 +218,11 @@ func (graph *Graph) unitsReachingTests() map[string]bool {
 }
 
 func (graph *Graph) computeDigest() (string, error) {
-	units := make([]Unit, 0, len(graph.order))
-	for _, id := range graph.order {
-		units = append(units, graph.units[id])
-	}
-	body, err := json.Marshal(graphBody{
-		Languages: graph.languages,
-		Frontier:  graph.frontier,
-		Units:     units,
-	}, json.Deterministic(true))
+	body, err := graph.Canonical()
 	if err != nil {
 		return "", err
 	}
-	sum := sha256.Sum256(body)
+	sum := sha256.Sum256(append([]byte(graphDigestDomain), body...))
 	return "affected-graph:sha256:" + hex.EncodeToString(sum[:]), nil
 }
 
@@ -191,19 +250,35 @@ func (graph *Graph) OwnerOf(path string) (string, bool) {
 	return id, ok
 }
 
-// Canonical returns the deterministic JSON body the digest is taken over. It is
-// the persistable form: a graph rebuilt from repository authority produces
-// byte-identical output.
+// Canonical returns the deterministic JSON body the digest is taken over, after
+// the domain tag. It is the persistable form: a graph rebuilt from repository
+// authority produces byte-identical output.
 func (graph *Graph) Canonical() ([]byte, error) {
-	units := make([]Unit, 0, len(graph.order))
+	units := make([]digestUnit, 0, len(graph.order))
 	for _, id := range graph.order {
-		units = append(units, graph.units[id])
+		units = append(units, projectUnit(graph.units[id]))
 	}
-	return json.Marshal(graphBody{
+	return json.Marshal(digestBody{
 		Languages: graph.languages,
 		Frontier:  graph.frontier,
 		Units:     units,
 	}, json.Deterministic(true))
+}
+
+func projectUnit(unit Unit) digestUnit {
+	return digestUnit{
+		ID:                unit.ID,
+		Sources:           unit.Sources,
+		Tests:             unit.Tests,
+		Imports:           unit.Imports,
+		TestImports:       unit.TestImports,
+		PathTokens:        unit.PathTokens,
+		PathTokensBounded: unit.PathTokensBounded,
+		Embeds:            unit.Embeds,
+		UnboundedReads:    unit.UnboundedReads,
+		LocatesRoot:       unit.LocatesRoot,
+		Frontier:          unit.Frontier,
+	}
 }
 
 func sortedKeys(set map[string]bool) []string {

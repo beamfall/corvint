@@ -234,7 +234,7 @@ func expandContextHandle(ctx context.Context, root, text string, maxBytes int) (
 		return nil, contextHandleError("ambiguous-handle", "the pinned tree does not list exactly one entry at the handle's path")
 	}
 	if string(fields[0]) != "100644" && string(fields[0]) != "100755" || string(fields[1]) != "blob" {
-		return nil, contextHandleError("invalid-handle", "the handle's path is not a regular file blob in the pinned tree")
+		return nil, contextHandleError("invalid-handle", fmt.Sprintf("the handle's path is a %s (mode %s) in the pinned tree; only a regular file blob expands", contextEntryKind(string(fields[0])), fields[0]))
 	}
 	blob := string(fields[2])
 	candidates, err := sourceGitText(deadline, root, 8192, "rev-parse", "--disambiguate="+handle.blob)
@@ -272,6 +272,18 @@ func expandContextHandle(ctx context.Context, root, text string, maxBytes int) (
 		"source":    map[string]any{"object_format": format, "tree": handle.tree, "path": handle.path, "blob": blob, "blob_verified": true, "bytes": len(source), "sha256": hex.EncodeToString(sourceSum[:])},
 		"selection": selection,
 	}, nil
+}
+
+// contextEntryKinds names the tree entries a summary row can point at but
+// --expand cannot open: the packet carries no mode, so a symlink row keeps its
+// handle and its expansion says why it refuses (V1-0156).
+var contextEntryKinds = map[string]string{"120000": "symbolic link", "160000": "gitlink", "040000": "directory"}
+
+func contextEntryKind(mode string) string {
+	if kind, ok := contextEntryKinds[mode]; ok {
+		return kind
+	}
+	return "non-regular entry"
 }
 
 // contextHandleCurrent refuses a handle pinned to a tree other than HEAD's.

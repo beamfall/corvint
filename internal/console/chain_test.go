@@ -1,7 +1,9 @@
 package console
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -255,6 +257,61 @@ func TestConsoleChainGaps(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestConsoleChainPanelsAgreeOnObligationHunkEdges is V1-0152: the
+// requirement panel and the hunk panel give one obligation's hunk edge the same
+// state, for a non-linked disposition and for an id two bound maps share.
+func TestConsoleChainPanelsAgreeOnObligationHunkEdges(t *testing.T) {
+	cases := []struct {
+		name, want string
+		setup      func(t *testing.T, f *chainFixture)
+	}{
+		{name: "disposition", want: GapUnsupported, setup: func(t *testing.T, f *chainFixture) {
+			doc := f.ocm()
+			doc["obligations"].([]any)[0].(map[string]any)["disposition"] = "unknown"
+			f.writeOCM(t, "change.ocm.001.json", doc)
+		}},
+		{name: "duplicate", want: GapAmbiguous, setup: func(t *testing.T, f *chainFixture) {
+			f.writeOCM(t, "change.ocm.001.json", f.ocm())
+			f.writeOCM(t, "change.ocm.002.json", f.ocm())
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := newChainFixture(t, "func Frob() {}", nil)
+			tc.setup(t, fixture)
+			head := chainGit(t, fixture.root, "rev-parse", "HEAD")
+			chain := Worktree{Root: fixture.root}.ReadChain(context.Background(), head, fixture.change)
+			edges := append([]ChainEdge(nil), chain.Hunks[0].Requirements...)
+			for _, row := range chain.Requirements {
+				edges = append(edges, row.Hunks...)
+			}
+			if len(edges) < 2 {
+				t.Fatalf("want edges on both panels, got %+v", edges)
+			}
+			for _, edge := range edges {
+				if edge.Gap != tc.want || edge.Anchor != "" && tc.want == GapAmbiguous {
+					t.Fatalf("edge %s %s: gap %q anchor %q, want %q on both panels", edge.Artifact, edge.Field, edge.Gap, edge.Anchor, tc.want)
+				}
+			}
+		})
+	}
+}
+
+// TestConsoleChainOCMCapRendersAPartialGapRow is V1-0153: more OCM maps than
+// the pane reads render a gap row naming the cap instead of being dropped
+// silently (LAC-V0-035).
+func TestConsoleChainOCMCapRendersAPartialGapRow(t *testing.T) {
+	fixture := newChainFixture(t, "func Frob() {}", nil)
+	for index := 0; index <= maxChainOCMs; index++ {
+		chainWrite(t, fixture.root, fmt.Sprintf("%s/change.ocm.%03d.json", ocmDir, index), []byte("{}"))
+	}
+	body := fixture.page(t, "")
+	want := fmt.Sprintf("<td>missing</td><td>%d OCM maps exist and the pane reads only the first %d by name, so this list is PARTIAL", maxChainOCMs+1, maxChainOCMs)
+	if !strings.Contains(body, want) {
+		t.Fatalf("no PARTIAL cap row %q:\n%s", want, mainOf(body))
 	}
 }
 

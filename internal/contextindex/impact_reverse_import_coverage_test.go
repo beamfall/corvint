@@ -104,3 +104,59 @@ func TestImpactCoverageWithholdsTheProfileNoteForGoPaths(t *testing.T) {
 		t.Fatalf("uncertainty = %v, want empty: a Go changed path withholds no reverse-import dimension", uncertainty)
 	}
 }
+
+// workspaceImpactRepository is a two-package web workspace. The worker test in
+// packages/scraper imports `@fixture/contracts`, whose barrel re-exports
+// topics.ts, so it reaches topics.ts through a bare package specifier rule (c)
+// does not resolve. packages/leaf is a named package nobody imports by name:
+// the control that keeps the disclosure off an answer that is not short.
+func workspaceImpactRepository(t *testing.T) string {
+	t.Helper()
+	return impactRepositoryWithFiles(t, map[string]string{
+		"package.json":                        "{\"private\": true, \"workspaces\": [\"packages/*\"]}\n",
+		"packages/contracts/package.json":     "{\"name\": \"@fixture/contracts\", \"main\": \"src/index.ts\"}\n",
+		"packages/contracts/src/index.ts":     "export * from \"./topics\";\n",
+		"packages/contracts/src/topics.ts":    "export const SCRAPER_TOPIC = \"scraper\";\n",
+		"packages/scraper/package.json":       "{\"name\": \"@fixture/scraper\"}\n",
+		"packages/scraper/src/worker.test.ts": "import { SCRAPER_TOPIC } from \"@fixture/contracts\";\n\nexport const topic = SCRAPER_TOPIC;\n",
+		"packages/leaf/package.json":          "{\"name\": \"@fixture/leaf\"}\n",
+		"packages/leaf/src/main.ts":           "export const leaf = \"leaf\";\n",
+		"packages/leaf/src/uses-main.ts":      "import { leaf } from \"./main\";\n\nexport const used = leaf;\n",
+	})
+}
+
+// TestImpactDisclosesWorkspacePackageImporters is the regression for panel
+// blocker B3 (GPK-V0-069, proposed). Rule (c) resolves relative and alias
+// specifiers only, so the worker test that imports topics.ts through
+// `@fixture/contracts` was never found, and the receipt still reported
+// `uncertainty: []`: complete coverage asserted over an answer missing a
+// cross-package importer. As in the DR-0006 test, resolving the importer or
+// disclosing the gap both satisfy it; asserting completeness does not.
+func TestImpactDisclosesWorkspacePackageImporters(t *testing.T) {
+	root := workspaceImpactRepository(t)
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := Impact(index, []string{"packages/contracts/src/topics.ts"}, maxLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolved := reverseImportIDs(result)["packages/scraper/src/worker.test.ts"] != nil
+	uncertainty := anySlice(result["coverage"].(map[string]any)["uncertainty"])
+	declared := anyContains(uncertainty, "importable by workspace package name are unresolved")
+	if !resolved && !declared {
+		t.Fatalf("packages/scraper/src/worker.test.ts imports @fixture/contracts and no reverse-import result resolved it, yet uncertainty = %v: complete coverage asserted over an incomplete answer (B3)", uncertainty)
+	}
+
+	control, err := Impact(index, []string{"packages/leaf/src/main.ts"}, maxLimit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reverseImportIDs(control)["packages/leaf/src/uses-main.ts"] == nil {
+		t.Fatal("fixture no longer resolves packages/leaf/src/uses-main.ts as a reverse-importer, so the control proves nothing")
+	}
+	if controlUncertainty := anySlice(control["coverage"].(map[string]any)["uncertainty"]); anyContains(controlUncertainty, "workspace package name") {
+		t.Fatalf("uncertainty = %v, want no workspace disclosure: nothing imports @fixture/leaf by name", controlUncertainty)
+	}
+}

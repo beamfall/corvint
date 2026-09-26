@@ -326,7 +326,7 @@ func writeBlobShards(index *Index, store snapshotStore, engineID string) error {
 	tokeniser := newTokeniser()
 	for _, path := range paths {
 		source := index.Sources[path]
-		entry := treeEntry{path, source.BlobHash, source.Mode, len(source.Data)}
+		entry := treeEntry{path, source.BlobHash, source.Mode, len(source.Data), false}
 		if fact, err := readBlobFact(base, directory, index.ObjectFormat, engineID, entry, nil); err == nil && fact != nil {
 			continue
 		}

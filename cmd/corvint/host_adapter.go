@@ -333,7 +333,7 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 	result, reason := invokeDogfoodEvent(ctx, root, "claude-code", event, normalized, budget)
 	if reason != "" {
 		refuseUndeliveredPacket(root, event, payload)
-		return claudeDegradedOutput(event, reason)
+		return withSnapshotRemediation(root, event, reason, claudeDegradedOutput(event, reason))
 	}
 	output := renderAdapterResult("claude-code", claudeEventName(event), event, root, normalized, result)
 	recordDeliveredPacket(root, event, normalized, result, output)
@@ -384,6 +384,7 @@ func adapterDegradationReason(output map[string]any) string {
 	hook, _ := output["hookSpecificOutput"].(map[string]any)
 	for _, value := range []any{output["systemMessage"], hook["additionalContext"]} {
 		text, _ := value.(string)
+		text, _, _ = strings.Cut(text, "\n") // a remediation line follows the frame (AHI-031)
 		for _, frame := range adapterDegradationFrames {
 			if strings.HasPrefix(text, frame[0]) && strings.HasSuffix(text, frame[1]) && len(text) > len(frame[0])+len(frame[1]) {
 				return text[len(frame[0]) : len(text)-len(frame[1])]
@@ -722,6 +723,25 @@ func claudeDegradedOutput(event, reason string) map[string]any {
 		return degradedAdapterOutput(reason)
 	}
 	return claudeContextOutput(name, "Corvint FALLBACK degraded: "+reason+"; coding continues")
+}
+
+// claudeSnapshotStaleReason is the dogfood event rejection that names a stale index snapshot as
+// the cause of an expired event (AHI-031).
+const claudeSnapshotStaleReason = "corvint-event-rejected:dogfood-event-index-snapshot-stale"
+
+// withSnapshotRemediation appends the explicit refresh argv to a stale-snapshot fault notice and,
+// where the event accepts additionalContext, gives the model the same text (AHI-031).
+func withSnapshotRemediation(root, event, reason string, output map[string]any) map[string]any {
+	if reason != claudeSnapshotStaleReason {
+		return output
+	}
+	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
+	text := output["systemMessage"].(string) + "\nNo index snapshot matches the current tree, so the in-memory build ran past the hook deadline. Refresh the snapshot once, outside the hook:\n" + string(refresh)
+	output["systemMessage"] = text
+	if name, ok := claudeContextEvents[event]; ok {
+		output["hookSpecificOutput"] = map[string]any{"hookEventName": name, "additionalContext": text}
+	}
+	return output
 }
 
 // postToolChangeOutOfRoot reports whether a PostToolUse payload names a

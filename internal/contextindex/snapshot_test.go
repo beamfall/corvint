@@ -92,6 +92,39 @@ func TestProbeSnapshotReadsOnlyTheMatchingHeader(t *testing.T) {
 	}
 }
 
+// TestSnapshotSameLengthBodyOverwriteIsAMiss is decision 0398 D5: a body
+// overwritten in place with the same number of bytes still decodes, so only
+// the payload digest keeps it from serving text its blob does not contain.
+func TestSnapshotSameLengthBodyOverwriteIsAMiss(t *testing.T) {
+	index := taskContextFixture(t)
+	receipt, err := WriteSnapshot(index)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(receipt.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, forged := []byte("The cache demuxes keys."), []byte("The cache ignores keys.")
+	if bytes.Count(data, body) != 1 {
+		t.Fatalf("fixture body occurs %d times in the snapshot", bytes.Count(data, body))
+	}
+	if err := os.WriteFile(receipt.Path, bytes.Replace(data, body, forged, 1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, fresh, err := ProbeSnapshot(context.Background(), index.Root); err != nil || fresh {
+		t.Fatalf("IDX-SNAP-V0-011: overwritten body probed fresh=%v err=%v", fresh, err)
+	}
+	if _, hit, err := LoadSnapshot(context.Background(), index.Root); err != nil || hit {
+		t.Fatalf("IDX-SNAP-V0-003: overwritten body loaded: hit=%v err=%v", hit, err)
+	}
+	for _, compact := range []bool{false, true} {
+		if _, hit, err := LoadEventSnapshot(context.Background(), index.Root, compact); err != nil || hit {
+			t.Fatalf("IDX-SNAP-V0-003: overwritten body event load compact=%v: hit=%v err=%v", compact, hit, err)
+		}
+	}
+}
+
 func TestConcurrentEngineDigestMatchesSerialComputation(t *testing.T) {
 	serial := digestExecutable()
 	if serial == "" {
@@ -486,6 +519,58 @@ func TestEvictSnapshotsRemovesStaleTemporaries(t *testing.T) {
 		}
 		if _, err := os.Stat(unrelated); err != nil {
 			t.Fatalf("unrelated temporary was reclaimed: %v", err)
+		}
+	})
+}
+
+// TestEvictSnapshotsBoundsBytesAndEvictsOtherEnginesFirst is V1-0302: the
+// store has a byte budget, a snapshot another binary wrote goes before an
+// older one this binary can read, and a crashed writer's temporary does not
+// hold its bytes for an hour. Sizes are sparse, so the test writes no data.
+func TestEvictSnapshotsBoundsBytesAndEvictsOtherEnginesFirst(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0)
+	publish := func(t *testing.T, directory, name string, bytes int64, age time.Duration) string {
+		t.Helper()
+		path := filepath.Join(directory, name)
+		if err := os.WriteFile(path, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Truncate(path, bytes); err != nil {
+			t.Fatal(err)
+		}
+		when := now.Add(-age)
+		if err := os.Chtimes(path, when, when); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	exists := func(path string) bool {
+		_, err := os.Stat(path)
+		return err == nil
+	}
+	t.Run("byte budget", func(t *testing.T) {
+		directory := t.TempDir()
+		current := publish(t, directory, "sha1-tree2-engine.gob", snapshotStoreBytes/2+1, 0)
+		older := publish(t, directory, "sha1-tree1-engine.gob", snapshotStoreBytes/2+1, time.Minute)
+		if evicted := evictSnapshotsAt(directory, current, snapshotKeep, now); evicted != 1 || exists(older) || !exists(current) {
+			t.Fatalf("evicted %d; older kept=%v current kept=%v", evicted, exists(older), exists(current))
+		}
+	})
+	t.Run("other engine first", func(t *testing.T) {
+		directory := t.TempDir()
+		current := publish(t, directory, "sha1-tree3-engine.gob", 1, 0)
+		foreign := publish(t, directory, "sha1-tree2-rebuilt.gob", 1, time.Minute)
+		older := publish(t, directory, "sha1-tree1-engine.gob", 1, 2*time.Minute)
+		if evicted := evictSnapshotsAt(directory, current, 2, now); evicted != 1 || exists(foreign) || !exists(older) {
+			t.Fatalf("evicted %d; foreign kept=%v older same-engine kept=%v", evicted, exists(foreign), exists(older))
+		}
+	})
+	t.Run("orphaned temporary", func(t *testing.T) {
+		directory := t.TempDir()
+		orphan := publish(t, directory, "snapshot-1.tmp", 1, 20*time.Minute)
+		evictSnapshotsAt(directory, "", snapshotKeep, now)
+		if exists(orphan) {
+			t.Fatal("a temporary twenty minutes old survived eviction")
 		}
 	})
 }

@@ -18,17 +18,16 @@ import (
 	"github.com/Beamfall/corvint/internal/gitstatus"
 )
 
-// Options names the two clean checkout roots and the working directories
-// this package needs. CorvintRoot and TaskmanRoot must already be verified
-// clean checkouts of the two source modules (the caller is expected to have
-// cloned them fresh; Run re-verifies cleanliness itself and never trusts
-// the caller's claim).
+// Options names the clean checkout root and the working directories this
+// package needs. CorvintRoot must already be a verified clean checkout of the
+// source module (the caller is expected to have cloned it fresh; Run
+// re-verifies cleanliness itself and never trusts the caller's claim). The
+// corvint-tasks companion is built from the same checkout (decision 0397).
 type Options struct {
 	CorvintRoot  string
-	TaskmanRoot  string
 	Target       string // must be exactly supportedTarget
 	Scratch      string // scratch working directory; Run creates subdirs under it
-	OutputParent string // directory the retained bundle is placed under; must not be inside CorvintRoot or TaskmanRoot
+	OutputParent string // directory the retained bundle is placed under; must not be inside CorvintRoot
 	BundleName   string // name of the retained bundle directory under OutputParent
 	NPMCache     string // retained compatibility option; unused by core bundles
 }
@@ -50,24 +49,24 @@ type Report struct {
 }
 
 // Run executes the full companion bundle pipeline: toolchain and target
-// validation, clean-tree checks on both roots, source export, staging the
+// validation, the clean-tree check, source export, staging the
 // verified export as the build tree, two independent builds per component,
 // source archive assembly (built and compared twice), bundle archive assembly
 // (built and compared twice), an independent tar.gz decode verification of
 // each archive, an installed smoke test, and atomic retention of the bundle
-// archive outside both checkout roots — in that order, so a smoke failure
+// archive outside the checkout root — in that order, so a smoke failure
 // still leaves the qualified report unwritten and the bundle unretained.
 func Run(ctx context.Context, opts Options) (*Report, error) {
 	if err := validateTarget(opts.Target); err != nil {
 		return nil, err
 	}
-	if err := validateOutputParent(ctx, opts.OutputParent, opts.CorvintRoot, opts.TaskmanRoot); err != nil {
+	if err := validateOutputParent(ctx, opts.OutputParent, opts.CorvintRoot); err != nil {
 		return nil, err
 	}
 	if err := validateBundleName(opts.BundleName); err != nil {
 		return nil, err
 	}
-	if err := validateScratch(ctx, opts.Scratch, opts.CorvintRoot, opts.TaskmanRoot); err != nil {
+	if err := validateScratch(ctx, opts.Scratch, opts.CorvintRoot); err != nil {
 		return nil, err
 	}
 	if err := os.MkdirAll(opts.Scratch, 0o700); err != nil {
@@ -86,18 +85,12 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 	if err := requireCleanTree(ctx, toolchain.GitPath, opts.CorvintRoot, opts.Scratch); err != nil {
 		return nil, fmt.Errorf("corvint root: %w", err)
 	}
-	if err := requireCleanTree(ctx, toolchain.GitPath, opts.TaskmanRoot, opts.Scratch); err != nil {
-		return nil, fmt.Errorf("taskman root: %w", err)
-	}
 
 	corvintExport, err := exportSource(ctx, toolchain.GitPath, opts.CorvintRoot, opts.Scratch)
 	if err != nil {
 		return nil, fmt.Errorf("export corvint source: %w", err)
 	}
-	taskmanExport, err := exportSource(ctx, toolchain.GitPath, opts.TaskmanRoot, opts.Scratch)
-	if err != nil {
-		return nil, fmt.Errorf("export taskman source: %w", err)
-	}
+	taskmanExport := tasksExport(corvintExport)
 
 	// Every binary is built from the exported, digest-verified tree staged
 	// under scratch, never the live checkout: a gitignored file there, or a
@@ -133,7 +126,7 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 		{name: "corvint-test-validity-mcp", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-test-validity-mcp", module: "corvint", export: corvintExport},
 		{name: "corvint-js-test-provider", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-js-test-provider", module: "corvint", export: corvintExport},
 		{name: "corvint-go-test-provider", moduleRoot: corvintBuildRoot, pkgPath: "./cmd/corvint-go-test-provider", module: "corvint", export: corvintExport},
-		{name: "corvint-tasks", moduleRoot: taskmanBuildRoot, pkgPath: "./cmd/corvint-tasks", module: "corvint-tasks", export: taskmanExport},
+		{name: "corvint-tasks", moduleRoot: taskmanBuildRoot, pkgPath: "./cmd/corvint-tasks", module: "corvint-tasks", export: taskmanExport, buildFlags: []string{"-ldflags=-X main.build=" + corvintBuildNumber}},
 	}
 
 	corvintSourceFiles, corvintSourcePath, corvintSourceDigest, err := assembleModuleSource("corvint", corvintExport)
@@ -341,13 +334,13 @@ func qualifyAndRetain(ctx context.Context, opts Options, pending Report, entries
 // as validateScratch, so neither a symlink nor a case or Unicode alias can
 // reach a root. A not-yet-created suffix cannot be a root, so the walk starts
 // at the nearest existing ancestor of the symlink-resolved path.
-func validateOutputParent(ctx context.Context, outputParent, corvintRoot, taskmanRoot string) error {
+func validateOutputParent(ctx context.Context, outputParent string, roots ...string) error {
 	existing, _, err := resolveExistingAncestor(outputParent)
 	if err != nil {
 		return fmt.Errorf("resolve output parent %s: %w", outputParent, err)
 	}
-	if err := gitstatus.ScratchOutside(ctx, existing, corvintRoot, taskmanRoot); err != nil {
-		return fmt.Errorf("output parent %s is not provably outside checkout roots %s and %s: %w", outputParent, corvintRoot, taskmanRoot, err)
+	if err := gitstatus.ScratchOutside(ctx, existing, roots...); err != nil {
+		return fmt.Errorf("output parent %s is not provably outside checkout roots %s: %w", outputParent, strings.Join(roots, " and "), err)
 	}
 	return nil
 }
@@ -359,18 +352,18 @@ func validateOutputParent(ctx context.Context, outputParent, corvintRoot, taskma
 // not-yet-created suffix cannot be a root, so the walk starts at the nearest
 // existing ancestor of the symlink-resolved path, and a not-yet-created
 // scratch cannot contain a root.
-func validateScratch(ctx context.Context, scratch, corvintRoot, taskmanRoot string) error {
+func validateScratch(ctx context.Context, scratch string, roots ...string) error {
 	existing, missing, err := resolveExistingAncestor(scratch)
 	if err != nil {
 		return fmt.Errorf("resolve scratch %s: %w", scratch, err)
 	}
-	if err := gitstatus.ScratchOutside(ctx, existing, corvintRoot, taskmanRoot); err != nil {
-		return fmt.Errorf("scratch %s is not provably outside checkout roots %s and %s: %w", scratch, corvintRoot, taskmanRoot, err)
+	if err := gitstatus.ScratchOutside(ctx, existing, roots...); err != nil {
+		return fmt.Errorf("scratch %s is not provably outside checkout roots %s: %w", scratch, strings.Join(roots, " and "), err)
 	}
 	if missing != "" {
 		return nil
 	}
-	for _, root := range []string{corvintRoot, taskmanRoot} {
+	for _, root := range roots {
 		if err := rootOutsideScratch(ctx, root, scratch, existing); err != nil {
 			return err
 		}
@@ -520,15 +513,16 @@ func renderBundleReadme(m BundleManifest) []byte {
 		fmt.Fprintf(&b, "  %s  (%s, %s)\n", a.Path, a.Kind, a.Support)
 	}
 	fmt.Fprintf(&b, "\nCorvint components use source/corvint-src.tar.gz; corvint-tasks uses source/corvint-tasks-src.tar.gz.\n")
-	fmt.Fprintf(&b, "Both are reconstructed from the recorded commit tree byte-for-byte (see MANIFEST.json). Rebuild with:\n")
+	fmt.Fprintf(&b, "Both are reconstructed from the recorded commit tree byte-for-byte (see MANIFEST.json); the corvint-tasks\n")
+	fmt.Fprintf(&b, "archive holds only that tree's go.mod, notices, cmd/corvint-tasks and internal/tasks. Rebuild with:\n")
 	fmt.Fprintf(&b, "  tar xzf source/<module>-src.tar.gz -C <dir> && cd <dir> && \\\n")
 	fmt.Fprintf(&b, "  GOFLAGS= GOPROXY=off GOSUMDB=off GOWORK=off CGO_ENABLED=0 \\\n")
-	fmt.Fprintf(&b, "  GOTOOLCHAIN=local go build -trimpath -buildvcs=false -o <name> <pkg>\n\n")
+	fmt.Fprintf(&b, "  GOTOOLCHAIN=local go build -trimpath -buildvcs=false -ldflags \"-X main.build=<N>\" -o <name> <pkg>\n")
+	fmt.Fprintf(&b, "where <N> is the build number both binaries print in --version.\n\n")
 	fmt.Fprintf(&b, "Verify checksums with: shasum -a 256 -c SHA256SUMS\n\n")
 	fmt.Fprintf(&b, "Install: copy bin/corvint and bin/corvint-tasks to ~/.local/bin, /opt/homebrew/bin, /usr/local/bin, or another reviewed absolute directory.\n")
-	fmt.Fprintf(&b, "`corvint-tasks --version` and `corvint --version` name the installed build; the commit\n")
-	fmt.Fprintf(&b, "above and MANIFEST.json bind it to source module github.com/Beamfall/corvint-tasks and\n")
-	fmt.Fprintf(&b, "github.com/Beamfall/corvint respectively.\n\n")
+	fmt.Fprintf(&b, "`corvint-tasks --version` and `corvint --version` print the stamped build number; the commit\n")
+	fmt.Fprintf(&b, "above and MANIFEST.json bind both to source module github.com/Beamfall/corvint.\n\n")
 	fmt.Fprintf(&b, "Work queue adoption (WQO-V0-046..050): in a repository, run\n")
 	fmt.Fprintf(&b, "  corvint work init --repository NAME --corvint-executable /absolute/path/to/corvint\n")
 	fmt.Fprintf(&b, "which writes the queue policy .corvint/work-queue-policy.json, the worklist\n")

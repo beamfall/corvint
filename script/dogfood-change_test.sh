@@ -204,13 +204,11 @@ if [[ $action == cem && $sub == prepare ]]; then
   # already supported, so a one-row plan names every unknown hunk; DOGFOOD_TEST_CEM_HUNKS
   # lists DISPOSITION:PATH entries instead.
   separator=
-  ordinal=0
   {
     printf '{\n  "hunks": [\n'
     for entry in ${DOGFOOD_TEST_CEM_HUNKS:-unknown:script/source.sh supported:docs/specs/intent-b.md}; do
-      ordinal=$((ordinal + 1))
-      printf '%s    {\n      "disposition": "%s",\n      "id": "hunk:test:%d",\n      "path": "%s"\n    }' \
-        "$separator" "${entry%%:*}" "$ordinal" "${entry#*:}"
+      printf '%s    {\n      "disposition": "%s",\n      "id": "hunk:test:%s",\n      "path": "%s"\n    }' \
+        "$separator" "${entry%%:*}" "${entry#*:}" "${entry#*:}"
       separator=$',\n'
     done
     printf '\n  ]\n}\n'
@@ -417,7 +415,7 @@ test "$wrong_status" = 2
 test "$wrong_output" = 'dogfood-change: REFUSE corvint-version-mismatch expected=0.4.0a4'
 evidence=$(git -C "$test_root/repo" rev-parse --absolute-git-dir)/corvint
 mkdir -p "$evidence"
-printf 'stale impact stderr\n' > "$evidence/prechange-impact.stderr"
+printf 'stale impact stderr\n' > "$evidence/coordination-time-impact.stderr"
 git clone -q "$test_root/repo" "$test_root/default-repo"
 : > "$test_root/default-corvint.log"
 : > "$test_root/default-go.log"
@@ -444,18 +442,18 @@ set -m
   DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" DOGFOOD_CITATIONS="$test_root/citations.tsv" \
     DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
     DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2> "$test_root/abstention-change.stderr"
-  test "$(cat "$test_root/abstention-change.stderr")" = 'dogfood-change: NOTE prechange-impact NOT_PRODUCED unsupported-impact-range'
-  rg -q '"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-range"' .corvint/dogfood-report.json
-  rg -Fq '{"step": "prechange-impact", "status": "NOT_PRODUCED", "reason": "packet-not-compiled"}]' .corvint/dogfood-report.json
+  test "$(cat "$test_root/abstention-change.stderr")" = $'dogfood-change: NOTE coordination-time-impact NOT_PRODUCED unsupported-impact-range\ndogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-absent\ndogfood-change: NOTE prechange-impact NOT_OBSERVED agent-receipt-absent'
+  rg -q '"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-range"' .corvint/dogfood-report.json
+  rg -Fq '{"step": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "packet-not-compiled"}]' .corvint/dogfood-report.json
   rg -q '^  ,"contextAbstentionEvidenceSha256": "sha256:[0-9a-f]{64}"$' .corvint/dogfood-report.json
   DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" script/dogfood-check.sh "$base" 2> "$test_root/abstention-check.stderr"
-  rg -Fxq 'dogfood-check: NOTE prechange-impact NOT_PRODUCED unsupported-impact-range' "$test_root/abstention-check.stderr"
-  cp "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.stderr" "$test_root/prechange-impact.stderr"
-  printf 'drift\n' >> "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.stderr"
+  rg -Fxq 'dogfood-check: NOTE coordination-time-impact NOT_PRODUCED unsupported-impact-range' "$test_root/abstention-check.stderr"
+  cp "$(git rev-parse --absolute-git-dir)/corvint/coordination-time-impact.stderr" "$test_root/coordination-time-impact.stderr"
+  printf 'drift\n' >> "$(git rev-parse --absolute-git-dir)/corvint/coordination-time-impact.stderr"
   context_drift_status=0
   DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" script/dogfood-check.sh "$base" >/dev/null 2>&1 || context_drift_status=$?
   test "$context_drift_status" = 1
-  cp "$test_root/prechange-impact.stderr" "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.stderr"
+  cp "$test_root/coordination-time-impact.stderr" "$(git rev-parse --absolute-git-dir)/corvint/coordination-time-impact.stderr"
   # DCW-V0-025 (proposed): the no-module and module-root refusals are typed abstentions under
   # their own codes; their malformed shapes and any other code stay blocking (loop below).
   for impact_abstention in repository path; do
@@ -463,10 +461,10 @@ set -m
       DOGFOOD_INTENTS_FILE="$test_root/intents.txt" DOGFOOD_VERIFY='test gate' \
       DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
     rg -Fq '"complete": true' .corvint/dogfood-report.json
-    rg -Fq '"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-'"$impact_abstention"'"' .corvint/dogfood-report.json
-    rg -Fq '"reason":"unsupported-impact-'"$impact_abstention"'"' "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact-abstention.json"
+    rg -Fq '"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "unsupported-impact-'"$impact_abstention"'"' .corvint/dogfood-report.json
+    rg -Fq '"reason":"unsupported-impact-'"$impact_abstention"'"' "$(git rev-parse --absolute-git-dir)/corvint/coordination-time-impact-abstention.json"
     DOGFOOD_TEST_IMPACT=unsupported-$impact_abstention "${default_env[@]}" script/dogfood-check.sh "$base" 2> "$test_root/abstention-check.stderr"
-    rg -Fxq "dogfood-check: NOTE prechange-impact NOT_PRODUCED unsupported-impact-$impact_abstention" "$test_root/abstention-check.stderr"
+    rg -Fxq "dogfood-check: NOTE coordination-time-impact NOT_PRODUCED unsupported-impact-$impact_abstention" "$test_root/abstention-check.stderr"
   done
   for impact_case in malformed:context-abstention-invalid invalid-escape:context-abstention-invalid \
     raw-tab:context-abstention-invalid wrong-exit:context-abstention-invalid nonempty:context-abstention-invalid \
@@ -479,13 +477,13 @@ set -m
       DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" >/dev/null 2>&1 || impact_status=$?
     test "$impact_status" != 0
     rg -q '"complete": false' .corvint/dogfood-report.json
-    rg -Fq '"name": "prechange-impact", "status": "NOT_PRODUCED", "reason": "'"${impact_case#*:}"'"' .corvint/dogfood-report.json
+    rg -Fq '"name": "coordination-time-impact", "status": "NOT_PRODUCED", "reason": "'"${impact_case#*:}"'"' .corvint/dogfood-report.json
   done
   DOGFOOD_TEST_IMPACT=unsupported DOGFOOD_TEST_QUERY=duplicate-coverage "${default_env[@]}" \
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base"
-  rg -Fq '"packetCoverage": [{"step": "prechange-query", "status": "NOT_PRODUCED", "reason": "packet-coverage-unreadable"}' .corvint/dogfood-report.json
-  printf 'trailing-junk' >> "$(git rev-parse --absolute-git-dir)/corvint/prechange-impact.argv"
+  rg -Fq '"packetCoverage": [{"step": "coordination-time-query", "status": "NOT_PRODUCED", "reason": "packet-coverage-unreadable"}' .corvint/dogfood-report.json
+  printf 'trailing-junk' >> "$(git rev-parse --absolute-git-dir)/corvint/coordination-time-impact.argv"
   argv_drift_status=0
   DOGFOOD_TEST_IMPACT=unsupported "${default_env[@]}" script/dogfood-check.sh "$base" >/dev/null 2>&1 || argv_drift_status=$?
   test "$argv_drift_status" = 1
@@ -535,8 +533,8 @@ phase_jobs="$phase_jobs $!"
   test "$(rg -c ' cem prepare .* --replace$' "$test_root/corvint.log")" = 1
   rg -q '"name": "cem-prepare", "status": "PRODUCED", "reason": "none"' .corvint/dogfood-report.json
   # DCW-V0-016: each compiled packet's coverage fields, copied under the packet's names.
-  rg -Fxq '  ,"packetCoverage": [{"step": "prechange-query", "status": "PRODUCED", "packet_bytes": 3820, "budget_bytes": null, "within_budget": true, "included_results": 1, "omitted_results": 0}, {"step": "prechange-impact", "status": "PRODUCED", "packet_bytes": 4001, "budget_bytes": 4096, "within_budget": true, "included_results": 20, "omitted_results": 3}]' .corvint/dogfood-report.json
-  test "$(cat "$evidence/prechange-impact.stderr")" = 'current impact stderr'
+  rg -Fxq '  ,"packetCoverage": [{"step": "coordination-time-query", "status": "PRODUCED", "packet_bytes": 3820, "budget_bytes": null, "within_budget": true, "included_results": 1, "omitted_results": 0}, {"step": "coordination-time-impact", "status": "PRODUCED", "packet_bytes": 4001, "budget_bytes": 4096, "within_budget": true, "included_results": 20, "omitted_results": 3}]' .corvint/dogfood-report.json
+  test "$(cat "$evidence/coordination-time-impact.stderr")" = 'current impact stderr'
   test "$(rg -c ' ocm prepare ' "$test_root/corvint.log")" = 2
   test "$(rg -c ' ocm status ' "$test_root/corvint.log")" = 2
   test "$(rg -c ' dogfood-observe ' "$test_root/corvint.log")" = "$(rg -c '"name":' .corvint/dogfood-report.json)"
@@ -552,7 +550,7 @@ phase_jobs="$phase_jobs $!"
   git -c user.name=t -c user.email=t@example.invalid commit -qam cited
   replace_count=$(rg -c ' cem prepare .* --replace$' "$test_root/corvint.log")
   transient_status=0
-  DOGFOOD_TEST_CEM_PREPARE_CODE=git-timeout CORVINT_BIN="$test_root/bin/corvint" \
+  DOGFOOD_TEST_CEM_PREPARE_CODE=git-timeout CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_CITATIONS="$test_root/citations.tsv" \
     DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" >/dev/null 2>&1 ||
     transient_status=$?
@@ -560,6 +558,8 @@ phase_jobs="$phase_jobs $!"
   test "$(rg -c ' cem prepare .* --replace$' "$test_root/corvint.log")" = "$replace_count"
   git diff --quiet HEAD -- .corvint/change.cem.json
   rg -q '"name": "cem-prepare", "status": "NOT_PRODUCED", "reason": "git-timeout"' .corvint/dogfood-report.json
+  # V1-0228: the map left by an earlier run is not the plan's map, so nothing is cited.
+  rg -q '"name": "cem-cite", "status": "NOT_PRODUCED", "reason": "cem-map-not-produced"' .corvint/dogfood-report.json
   alternates_status=0
   alternates_output=$(DOGFOOD_TEST_CEM_PREPARE_CODE=unsupported-object-alternates CORVINT_BIN="$test_root/bin/corvint" \
     DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
@@ -663,11 +663,14 @@ phase_jobs="$phase_jobs $!"
       .corvint/dogfood-report.json
   done
   rg -Fxq '  "ocmStatus": {"state": "NOT_ASSESSED", "reason": "no-intent-declared"}' .corvint/dogfood-report.json
-  if tail -n "+$((no_intent_log_start + 1))" "$test_root/corvint.log" | rg -q '(^| )(ocm|dogfood-ocm) '; then
+  no_intent_log=$(tail -n "+$((no_intent_log_start + 1))" "$test_root/corvint.log")
+  if printf '%s\n' "$no_intent_log" | rg -q '(^| )(ocm|dogfood-ocm) '; then
     printf 'dogfood-change ran an OCM step without a declared intent\n' >&2
     exit 1
   fi
-  run_dogfood_check "$base" | rg -Fxq 'dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared'
+  no_intent_check_output=$(run_dogfood_check "$base")
+  printf '%s\n' "$no_intent_check_output" | \
+    rg -Fxq 'dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared'
   cp "$test_root/intents.txt" .corvint/change.ocm-intents
 
   # An authority-start trace-state refusal names the task wording as its subject.
@@ -678,9 +681,9 @@ phase_jobs="$phase_jobs $!"
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || \
     wording_status=$?
   test "$wording_status" = 1
-  printf '%s\n' "$wording_output" | rg -q '^  prechange-query: unsupported-query-trace-state$'
+  printf '%s\n' "$wording_output" | rg -q '^  coordination-time-query: unsupported-query-trace-state$'
   printf '%s\n' "$wording_output" | \
-    rg -q '^  prechange-query: DOGFOOD_TASK wording selected the authority-start profile, '
+    rg -q '^  coordination-time-query: DOGFOOD_TASK wording selected the authority-start profile, '
 
   # Each refusal a first-time adopter hits names its fix (DCW-V0-014).
   input_status=0
@@ -738,7 +741,7 @@ phase_jobs="$phase_jobs $!"
     DOGFOOD_TEST_LOG="$test_root/corvint.log" DOGFOOD_TASK=test \
     DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || :
-  printf '%s\n' "$unreachable_output" | rg -Fxq -- '  prechange-query: unsupported-query-trace-state'
+  printf '%s\n' "$unreachable_output" | rg -Fxq -- '  coordination-time-query: unsupported-query-trace-state'
   printf '%s\n' "$unreachable_output" | \
     rg -q '^  local trace store: a recorded trace names a commit no longer reachable from HEAD; '
   if printf '%s\n' "$wording_output" | rg -q '^  local trace store:'; then
@@ -879,6 +882,13 @@ for _ in $(seq 257); do cat "$test_root/links-invalid/unlisted.tsv"; done |
   rg -q '"name": "ocm-aggregate", "status": "PRODUCED"' .corvint/dogfood-report.json
   printf '%s\n' "$links_output" | rg -q '^  ocm-link-004: claim-obligation-mismatch$'
   test "$(printf '%s\n' "$links_output" | rg -c '^    fix: read .*/ocm-link-00[24][.]stderr: ')" = 2
+  # V1-0227: a row whose intent map did not prepare is reported, not silently skipped.
+  links_output=$(DOGFOOD_TEST_OCM_PREPARE_CODE=invalid-requirements-section "${links_env[@]}" \
+    DOGFOOD_OCM_LINKS="$test_root/links.tsv" script/dogfood-change.sh "$base" 2>&1) && exit 1
+  test "$(rg -c ' ocm link ' "$test_root/links-corvint.log")" = 4
+  rg -qF '"name": "ocm-link-001", "status": "NOT_PRODUCED", "reason": "ocm-map-not-prepared"' .corvint/dogfood-report.json
+  rg -q '^  ocm-link-001: ocm-map-not-prepared$' <<< "$links_output"
+  rg -q '^    fix: the map for this row.s intent did not prepare' <<< "$links_output"
   # Validation rejects each malformed plan (the empty list item included) before any link.
   for plan in "$test_root"/links-invalid/*.tsv; do
     links_output=$("${links_env[@]}" DOGFOOD_OCM_LINKS="$plan" script/dogfood-change.sh "$base" 2>&1) && exit 1
@@ -994,6 +1004,19 @@ test "$(git -C "$seal_repo" diff-tree -r -M --no-commit-id --name-status HEAD^ H
 seal_again_status=0
 (cd "$seal_repo" && script/dogfood-seal.sh HEAD 2>/dev/null) || seal_again_status=$?
 test "$seal_again_status" = 2
+# V1-0137: a change that replaced BASE's unsealed CEM does not seal it away.
+printf '{"earlier":true}\n' > "$seal_repo/.corvint/change.cem.json"
+git -C "$seal_repo" add -A
+git -C "$seal_repo" -c user.name=t -c user.email=t@example.invalid commit -qm earlier
+seal_earlier=$(git -C "$seal_repo" rev-parse HEAD)
+printf '{"later":true}\n' > "$seal_repo/.corvint/change.cem.json"
+git -C "$seal_repo" -c user.name=t -c user.email=t@example.invalid commit -qam later
+seal_unarchived_status=0
+seal_unarchived=$(cd "$seal_repo" && script/dogfood-seal.sh "$seal_earlier" 2>&1) || seal_unarchived_status=$?
+test "$seal_unarchived_status" = 2
+printf '%s\n' "$seal_unarchived" | rg -Fxq 'dogfood-seal: REFUSE unarchived-base-cem'
+printf '%s\n' "$seal_unarchived" | rg -Fq "  BASE tracks .corvint/change.cem.json (bound at $seal_earlier)"
+test "$(git -C "$seal_repo" log -1 --format=%s)" = later
 ) &
 phase_jobs="$phase_jobs $!"
 
@@ -1232,6 +1255,21 @@ rg -q '"reason": "citation-plan-map-mismatch"' "$citation_case/report.json"
 citation_hunks=$(awk 'BEGIN { for (i=1; i<=257; i++) printf "unknown:script/h%d.sh ", i }')
 citation_hunks=${citation_hunks% }
 run_citation_case split-over-row-limit "$citation_artifacts/nine.tsv" 1 9
+assert_cited_uncommitted
+# V1-0239: the same plan after a later commit swapped hunks 1 and 2 keeps its row count,
+# but rows 1 and 2 would now cite each other's hunk.
+citation_hunks="unknown:script/h2.sh unknown:script/h1.sh ${nine_hunks#unknown:script/h1.sh unknown:script/h2.sh }"
+citation_hunks=${citation_hunks% }
+run_citation_case swapped-ordinals "$citation_artifacts/nine.tsv" 1 0
+rg -q '"reason": "citation-plan-map-mismatch"' "$citation_case/report.json"
+rg -Fq 'now names another hunk than when this plan was first cited' "$citation_case/stderr"
+# V1-0228: a map path is compared after JSON unescaping, so an escaped base-absent intent path
+# is still the permitted omission.
+printf '%s\n' docs/specs/intent-a.md 'docs/specs/new"intent.md' > "$citation_artifacts/escaped-intents.txt"
+export DOGFOOD_TEST_EXPECTED_INTENTS="$citation_artifacts/escaped-intents.txt"
+citation_intents=$DOGFOOD_TEST_EXPECTED_INTENTS
+citation_hunks="${nine_hunks}unknown:docs/specs/new\\\"intent.md"
+run_citation_case bootstrap-escaped "$citation_artifacts/nine.tsv" 1 9
 assert_cited_uncommitted
 ) &
 phase_jobs="$phase_jobs $!"

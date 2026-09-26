@@ -15,13 +15,19 @@ const (
 	// WitnessPathLiteralReader names a unit whose own files carry a string
 	// literal naming a dirty path no plugin owns (AFP-V0-021).
 	WitnessPathLiteralReader = "PATH_LITERAL_READER"
+	// WitnessEnclosingPackage names a Go package whose directory encloses a
+	// dirty path no Go file of it declares: a fixture, an embedded asset, or
+	// other data its tests or build may read (V1-0340, AFP-V0-012 rule (b)).
+	WitnessEnclosingPackage = "ENCLOSING_PACKAGE"
+	// WitnessUnboundedReader names a unit whose reads no literal bounds, so it
+	// is selected on any dirty path (AFP-V0-012 rule (d)).
+	WitnessUnboundedReader = "UNBOUNDED_READER"
 )
 
 // Exclusion reasons. Every eligible unit that is not selected carries one,
 // per LPCV-V0-014.
 const (
-	ExcludedNoDependencyPath                 = "NO_DEPENDENCY_PATH_TO_DIRTY_UNIT"
-	ExcludedDirtyGoPathMayBeDeletedOrRenamed = "UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED"
+	ExcludedNoDependencyPath = "NO_DEPENDENCY_PATH_TO_DIRTY_UNIT"
 )
 
 // Widening reasons. Any of these makes the plan's scope UNKNOWN, per
@@ -123,13 +129,18 @@ func Select(graph *Graph, dirty []string) Plan {
 		Excluded:    []Exclusion{},
 		Unknown:     []Unknown{},
 	}
-	for _, reason := range graph.frontier {
-		plan.Unknown = append(plan.Unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: reason})
-	}
 	seeds, unknown := graph.seed(normalized)
-	plan.Unknown = append(plan.Unknown, unknown...)
-	reached := graph.traverse(seeds)
+	changed, traversed, enclosing := graph.goStructure(normalized)
+	mergeWitnesses(seeds, changed)
+	start := make(map[string]Witness, len(seeds)+len(traversed))
+	mergeWitnesses(start, seeds)
+	mergeWitnesses(start, traversed)
+	reached := graph.traverse(start)
+	graph.testUsersOf(reached)
+	mergeWitnesses(reached, enclosing)
 	graph.readers(reached, normalized)
+	graph.unboundedReadersOf(reached, normalized)
+	plan.Unknown = append(graph.frontierUnknowns(reached, normalized), unknown...)
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
 	for _, id := range graph.order {
 		unit := graph.units[id]
@@ -143,7 +154,7 @@ func Select(graph *Graph, dirty []string) Plan {
 		if !hit {
 			plan.Excluded = append(plan.Excluded, Exclusion{
 				UnitID:       id,
-				Reason:       graph.exclusionReason(id, normalized),
+				Reason:       ExcludedNoDependencyPath,
 				Universe:     graph.digest,
 				Invalidation: "NEW_DEPENDENCY_EDGE_OR_DIRTY_PATH",
 			})
@@ -160,42 +171,6 @@ func Select(graph *Graph, dirty []string) Plan {
 		plan.Scope = ScopeUnknown
 	}
 	return plan
-}
-
-// exclusionReason names a possible removed-path condition for a Go package
-// instead of claiming its own now-unindexed source has no dependency path.
-func (graph *Graph) exclusionReason(id string, dirty []string) string {
-	goLanguage, goGraph := graph.claimants["go"]
-	if !goGraph || !strings.HasPrefix(id, "go:") {
-		return ExcludedNoDependencyPath
-	}
-	unit := graph.units[id]
-	for _, dirtyPath := range dirty {
-		if _, indexed := graph.owner[dirtyPath]; indexed {
-			continue
-		}
-		if !goLanguage.Owns(dirtyPath) {
-			continue
-		}
-		if unitOwnsDirectory(unit, relativeDirectory(dirtyPath)) {
-			return ExcludedDirtyGoPathMayBeDeletedOrRenamed
-		}
-	}
-	return ExcludedNoDependencyPath
-}
-
-func unitOwnsDirectory(unit Unit, directory string) bool {
-	for _, relative := range unit.Sources {
-		if relativeDirectory(relative) == directory {
-			return true
-		}
-	}
-	for _, relative := range unit.Tests {
-		if relativeDirectory(relative) == directory {
-			return true
-		}
-	}
-	return false
 }
 
 func relativeDirectory(relative string) string {
@@ -280,6 +255,75 @@ func (graph *Graph) seed(dirty []string) (map[string]Witness, []Unknown) {
 	return seeds, unknown
 }
 
+// frontierUnknowns names, in reason order, the frontier of every plugin that
+// takes part in the plan and the unit frontier of every reached unit
+// (V1-0289). A clean plan takes part in nothing and names none.
+func (graph *Graph) frontierUnknowns(reached map[string]Witness, dirty []string) []Unknown {
+	reasons := make(map[string]bool)
+	for _, name := range graph.participants(reached, dirty) {
+		for _, reason := range graph.frontierBy[name] {
+			reasons[reason] = true
+		}
+	}
+	for id := range reached {
+		for _, reason := range graph.units[id].Frontier {
+			reasons[reason] = true
+		}
+	}
+	unknown := make([]Unknown, 0, len(reasons))
+	for _, reason := range sortedKeys(reasons) {
+		unknown = append(unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: reason})
+	}
+	return unknown
+}
+
+// participants lists the plugins a plan with this dirty set takes part in: one
+// that owns a dirty path or a reached unit, one whose units read any path, and
+// every plugin once a dirty path is owned by none, since a path no plugin
+// claims may be an edge any of them could not resolve. An empty dirty set
+// shows no plugin's absence, so every plugin takes part in it.
+func (graph *Graph) participants(reached map[string]Witness, dirty []string) []string {
+	if len(dirty) == 0 {
+		return graph.languages
+	}
+	involved := make(map[string]bool)
+	for id := range reached {
+		name, _, _ := strings.Cut(id, ":")
+		involved[name] = true
+	}
+	for _, name := range graph.languages {
+		if reader, reads := graph.claimants[name].(PathReader); reads && reader.ReadsAnyPath() {
+			involved[name] = true
+		}
+	}
+	for _, path := range dirty {
+		claimed := graph.claimantsOf(path)
+		if len(claimed) == 0 {
+			return graph.languages
+		}
+		for _, name := range claimed {
+			involved[name] = true
+		}
+	}
+	return sortedKeys(involved)
+}
+
+// claimantsOf lists the plugins that own path: the namespace of the unit that
+// declares it, and every plugin whose Owns claims it.
+func (graph *Graph) claimantsOf(path string) []string {
+	claimed := make([]string, 0, 1)
+	if id, owned := graph.owner[path]; owned {
+		name, _, _ := strings.Cut(id, ":")
+		claimed = append(claimed, name)
+	}
+	for _, name := range graph.languages {
+		if graph.claimants[name].Owns(path) {
+			claimed = append(claimed, name)
+		}
+	}
+	return claimed
+}
+
 // unownedReason distinguishes a dirty path some plugin claims as its own source
 // text — an unindexed source file — from a path no plugin claims at all.
 func (graph *Graph) unownedReason(path string) string {
@@ -346,6 +390,37 @@ func (graph *Graph) traverse(seeds map[string]Witness) map[string]Witness {
 		frontier = next
 	}
 	return reached
+}
+
+// testUsersOf adds every unit whose tests alone import a reached unit. The test
+// user is selected one edge past the reached unit and is never expanded further:
+// its importers do not compile its tests. Reached units are visited by witness
+// length, then id, so each test user takes the shortest chain.
+func (graph *Graph) testUsersOf(reached map[string]Witness) {
+	ids := make([]string, 0, len(reached))
+	for id := range reached {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		left, right := len(reached[ids[i]].Via), len(reached[ids[j]].Via)
+		if left != right {
+			return left < right
+		}
+		return ids[i] < ids[j]
+	})
+	for _, id := range ids {
+		parent := reached[id]
+		for _, user := range graph.testUsers[id] {
+			if _, seen := reached[user]; seen {
+				continue
+			}
+			reached[user] = Witness{
+				Kind:      WitnessDependency,
+				DirtyPath: parent.DirtyPath,
+				Via:       append(append([]string(nil), parent.Via...), user),
+			}
+		}
+	}
 }
 
 // NormalizePaths sorts and deduplicates a dirty path set and drops anything not

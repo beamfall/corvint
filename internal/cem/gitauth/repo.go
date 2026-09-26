@@ -123,7 +123,8 @@ func (r *Repository) resolveLinkedWorktree(marker string) error {
 	if err != nil {
 		return err
 	}
-	if err := requireReciprocal(strings.TrimSuffix(string(backPointer), "\n"), marker, r.Root); err != nil {
+	recorded := resolveBackPointer(strings.TrimSuffix(string(backPointer), "\n"), gitDir)
+	if err := requireReciprocal(recorded, marker, r.Root); err != nil {
 		return err
 	}
 	commonDir := gitDir
@@ -153,6 +154,15 @@ func parseGitfile(content, root string) (string, error) {
 		target = filepath.Join(root, target)
 	}
 	return filepath.Clean(target), nil
+}
+
+// resolveBackPointer resolves a relative back-pointer, which `git worktree add --relative-paths`
+// writes, against the per-worktree Git directory that holds it. An empty one stays empty.
+func resolveBackPointer(recorded, gitDir string) string {
+	if recorded == "" || filepath.IsAbs(recorded) {
+		return recorded
+	}
+	return filepath.Join(gitDir, recorded)
 }
 
 // requireReciprocal requires the per-worktree gitdir back-pointer to identify

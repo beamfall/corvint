@@ -798,11 +798,11 @@ func TestCheckpointRejectsSameTreeHEADDrift(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			script := "if [ \"$2\" = '-C' ]; then\ncase \" $* \" in *" + shellQuote(" "+test.stage+" ") + "*)\n" +
+			script := "if [ \"${14}\" = '-C' ]; then\ncase \" $* \" in *" + shellQuote(" "+test.stage+" ") + "*)\n" +
 				shellQuote(realGit) + " -C " + shellQuote(root) + " update-ref HEAD " + shellQuote(after) + ";;\nesac\nfi"
 			wantHead := after
 			if test.restore {
-				script += "\nif [ \"$2\" = '-C' ]; then\ncase \" $* \" in *' cat-file --batch '*)\n" +
+				script += "\nif [ \"${14}\" = '-C' ]; then\ncase \" $* \" in *' cat-file --batch '*)\n" +
 					shellQuote(realGit) + " -C " + shellQuote(root) + " update-ref HEAD " + shellQuote(before) + ";;\nesac\nfi"
 				wantHead = before
 			}
@@ -865,16 +865,16 @@ func TestCheckpointRefusalsAreEnumerated(t *testing.T) {
 		{"opening status", `case " $* " in *" --ignored=no "*) exit 1;; esac`, "unsupported-prove-history"},
 		{"tree failure", `case " $* " in *" ls-tree -r -t -z "*) exit 1;; esac`, "unsupported-prove-tree"},
 		{"tree malformed", `case " $* " in *" ls-tree -r -t -z "*) printf 'bad\000'; exit 0;; esac`, "unsupported-prove-tree"},
-		{"batch failure", `if [ "$2" = '-C' ]; then case " $* " in *" cat-file --batch "*) exit 1;; esac; fi`, "unsupported-prove-history"},
-		{"batch malformed", `if [ "$2" = '-C' ]; then case " $* " in *" cat-file --batch "*) printf 'bad\n'; exit 0;; esac; fi`, "unsupported-prove-history"},
-		{"closing status", `if [ "$2" = '-C' ]; then case " $* " in *" cat-file --batch "*) : > "$0.done";; esac; fi
+		{"batch failure", `if [ "${14}" = '-C' ]; then case " $* " in *" cat-file --batch "*) exit 1;; esac; fi`, "unsupported-prove-history"},
+		{"batch malformed", `if [ "${14}" = '-C' ]; then case " $* " in *" cat-file --batch "*) printf 'bad\n'; exit 0;; esac; fi`, "unsupported-prove-history"},
+		{"closing status", `if [ "${14}" = '-C' ]; then case " $* " in *" cat-file --batch "*) : > "$0.done";; esac; fi
 case " $* " in *" --ignored=no "*) if [ -f "$0.done" ]; then exit 1; fi;; esac`, "unsupported-prove-history"},
-		{"closing head", `if [ "$2" = '-C' ]; then
+		{"closing head", `if [ "${14}" = '-C' ]; then
  case " $* " in *" cat-file --batch "*) : > "$0.done";; *" rev-parse "*) if [ -f "$0.done" ]; then exit 1; fi;; esac
 fi`, "unsupported-prove-revision"},
-		{"closing dirty drift", `if [ "$2" = '-C' ]; then case " $* " in *" cat-file --batch "*) : > "$0.done";; esac; fi
+		{"closing dirty drift", `if [ "${14}" = '-C' ]; then case " $* " in *" cat-file --batch "*) : > "$0.done";; esac; fi
 case " $* " in *" --ignored=no "*) if [ -f "$0.done" ]; then printf '?? drift.go\000'; exit 0; fi;; esac`, "unsupported-prove-drift"},
-		{"closing tree drift", `if [ "$2" = '-C' ]; then
+		{"closing tree drift", `if [ "${14}" = '-C' ]; then
  case " $* " in *" cat-file --batch "*) : > "$0.done";; *" rev-parse "*) if [ -f "$0.done" ]; then printf '0000000000000000000000000000000000000000\n'; exit 0; fi;; esac
 fi`, "unsupported-prove-drift"},
 	}
@@ -903,7 +903,7 @@ fi`, "unsupported-prove-drift"},
  done
  exit 0;; esac`)
 		stderr := checkpointRefusalEnvironment(t, environment, root, file, "unsupported-impact-repository")
-		if !strings.Contains(stderr, "native Go impact index exceeds the 128 MiB aggregate bound") {
+		if !strings.Contains(stderr, "repository index sources total 135000000 bytes in 270 files") {
 			t.Fatal(stderr)
 		}
 	})

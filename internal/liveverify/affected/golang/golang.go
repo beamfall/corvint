@@ -13,6 +13,7 @@
 package golang
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -33,8 +34,10 @@ import (
 
 // Frontier reasons this plugin can raise.
 const (
-	// FrontierBuildConstraint reports files excluded from the observed graph by
-	// a build constraint. Their imports are not edges in this graph.
+	// FrontierBuildConstraint reports a package with a file under a //go:build
+	// constraint. Every variant's imports are edges here, so the closure is a
+	// superset of each variant's; the reason is the unit's own and bears only
+	// on a plan that reaches it, whose tests one run exercises in one variant.
 	FrontierBuildConstraint = "go:build-constraint-variants"
 	// FrontierUnparsedSource reports a file the parser rejected.
 	FrontierUnparsedSource = "go:unparsed-source"
@@ -50,6 +53,10 @@ const (
 	// FrontierIncludedDirectoryWalkBounded reports an opted-in build directory
 	// whose independent entry bound was exhausted.
 	FrontierIncludedDirectoryWalkBounded = "go:included-directory-walk-bounded"
+	// FrontierWorkspaceModuleOutsideRoot reports a go.work use directive that
+	// names a directory outside the root. That module cannot be observed, so
+	// its packages and every import edge into them are absent from the graph.
+	FrontierWorkspaceModuleOutsideRoot = "go:workspace-module-outside-root"
 )
 
 // maxPathTokens bounds one package's distinct path tokens. A package over it
@@ -80,6 +87,10 @@ func New() Language { return Language{} }
 
 // Name is the plugin namespace.
 func (Language) Name() string { return "go" }
+
+// ReadsAnyPath reports that Go units carry path tokens and rule (d) reads, so a
+// unit this plugin could not observe may read any dirty path (V1-0289).
+func (Language) ReadsAnyPath() bool { return true }
 
 // Owns reports whether a path is Go source text. A file below a testdata
 // directory is fixture data, which the go tool never builds, so a change to it
@@ -128,8 +139,9 @@ func (language Language) Units(root string) (affected.Result, error) {
 	directories, owners := groupByDirectory(files, modules)
 	units := make([]affected.Unit, 0, len(directories))
 	imports := make(map[string]map[string]bool, len(directories))
+	testImports := make(map[string]map[string]bool, len(directories))
 	for _, directory := range sortedKeys(directories) {
-		unit, importPaths, err := language.observeDirectory(root, owners[directory], directory, directories[directory], frontier)
+		unit, importPaths, testImportPaths, err := language.observeDirectory(root, owners[directory], directory, directories[directory], frontier)
 		if err != nil {
 			return affected.Result{}, err
 		}
@@ -138,18 +150,22 @@ func (language Language) Units(root string) (affected.Result, error) {
 		}
 		units = append(units, unit)
 		imports[unit.ID] = importPaths
+		testImports[unit.ID] = testImportPaths
 	}
-	resolve(units, imports)
+	resolve(units, imports, testImports, modulePaths(modules))
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 
 // observeDirectory turns one directory of Go files into one unit plus the raw
-// import path set its files declare.
-func (Language) observeDirectory(root string, owner module, directory string, files []string, frontier map[string]bool) (affected.Unit, map[string]bool, error) {
+// import path sets its non-test files and its test files declare.
+func (Language) observeDirectory(root string, owner module, directory string, files []string, frontier map[string]bool) (affected.Unit, map[string]bool, map[string]bool, error) {
 	sources := make([]string, 0, len(files))
 	tests := make([]string, 0, len(files))
 	importPaths := make(map[string]bool, 16)
+	testImportPaths := make(map[string]bool, 16)
 	names := make(map[string]bool, 16)
+	embeds, constrained := false, false
+	var reads unboundedReads
 	fileSet := token.NewFileSet()
 	for _, relative := range files {
 		body, err := affected.ReadSource(root, relative)
@@ -157,13 +173,17 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 			frontier[FrontierUnparsedSource] = true
 			continue
 		}
-		if hasBuildConstraint(body) {
-			frontier[FrontierBuildConstraint] = true
-		}
+		constrained = constrained || hasBuildConstraint(body)
 		file, err := parser.ParseFile(fileSet, relative, body, parser.ImportsOnly)
 		if err != nil {
 			frontier[FrontierUnparsedSource] = true
 			continue
+		}
+		isTest := strings.HasSuffix(relative, "_test.go")
+		embeds = embeds || (!isTest && bytes.Contains(body, []byte("//go:embed")))
+		declared := importPaths
+		if isTest {
+			declared = testImportPaths
 		}
 		for _, spec := range file.Imports {
 			value, unquoteErr := strconv.Unquote(spec.Path.Value)
@@ -175,19 +195,31 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 				frontier[FrontierCgo] = true
 				continue
 			}
-			importPaths[value] = true
+			declared[value] = true
 		}
-		if err := pathTokens(body[importsEnd(fileSet, file):], owner.path, names); err != nil && !ignoredByGo(directory) {
+		aliases, dotImported := rootLocatorImports(file.Imports)
+		scan := pathTokens(body[importsEnd(fileSet, file):], owner.path, aliases, dotImported)
+		if scan.err != nil && !ignoredByGo(directory) {
 			frontier[FrontierUnparsedSource] = true
+			reads.mark(relative+" does not tokenize", isTest)
 		}
-		if strings.HasSuffix(relative, "_test.go") {
+		for _, call := range scan.calls {
+			reads.mark(relative+" calls "+call, isTest)
+		}
+		for _, name := range scan.tokens {
+			names[name] = true
+			if reason := escapesPackage(directory, name, isTest); reason != "" {
+				reads.mark(relative+" "+reason, isTest)
+			}
+		}
+		if isTest {
 			tests = append(tests, relative)
 			continue
 		}
 		sources = append(sources, relative)
 	}
 	if len(sources) == 0 && len(tests) == 0 {
-		return affected.Unit{}, nil, nil
+		return affected.Unit{}, nil, nil, nil
 	}
 	sort.Strings(sources)
 	sort.Strings(tests)
@@ -195,7 +227,11 @@ func (Language) observeDirectory(root string, owner module, directory string, fi
 	if bounded {
 		names = nil
 	}
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathTokensBounded: bounded}, importPaths, nil
+	var unitFrontier []string
+	if constrained {
+		unitFrontier = []string{FrontierBuildConstraint}
+	}
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier}, importPaths, testImportPaths, nil
 }
 
 // ignoredByGo reports a repository-relative directory the go tool's package
@@ -222,19 +258,33 @@ func importsEnd(fileSet *token.FileSet, file *ast.File) int {
 	return fileSet.Position(end).Offset
 }
 
-// pathTokens adds the path tokens of every string literal in body to names,
-// with the owning module's import path rewritten to a path anchored at that
-// module's directory (AFP-V0-021, the AFP-V0-012 lexicon). A lexical error is
-// returned.
-func pathTokens(body []byte, modulePath string, names map[string]bool) error {
-	var lexErr error
+// fileScan is what one lexing pass over a file's body after its imports
+// yields: its path tokens, its root-locating calls, and any lexical error.
+type fileScan struct {
+	tokens []string
+	calls  []string
+	err    error
+}
+
+// pathTokens lexes body for the path tokens of every string literal, with the
+// owning module's import path rewritten to a path anchored at that module's
+// directory (AFP-V0-021, the AFP-V0-012 lexicon), and for calls of a
+// root-locating function under the local name the file's imports gave it
+// (AFP-V0-012 rule (d)).
+func pathTokens(body []byte, modulePath string, aliases map[string]string, dotImported map[string]bool) fileScan {
+	var scan fileScan
 	var lexer scanner.Scanner
-	lexer.Init(token.NewFileSet().AddFile("", -1, len(body)), body, func(_ token.Position, message string) { lexErr = errors.New(message) }, 0)
+	lexer.Init(token.NewFileSet().AddFile("", -1, len(body)), body, func(_ token.Position, message string) { scan.err = errors.New(message) }, 0)
+	previous := [2]string{}
 	for {
 		_, kind, text := lexer.Scan()
 		if kind == token.EOF {
-			return lexErr
+			return scan
 		}
+		if kind == token.IDENT {
+			scan.calls = append(scan.calls, rootLocatorCall(previous, text, aliases, dotImported)...)
+		}
+		previous = [2]string{previous[1], kind.String() + text}
 		if kind != token.STRING {
 			continue
 		}
@@ -243,7 +293,7 @@ func pathTokens(body []byte, modulePath string, names map[string]bool) error {
 			continue
 		}
 		for _, name := range pathToken.FindAllString(printfVerb.ReplaceAllString(value, " "), -1) {
-			names[rootAnchored(name, modulePath)] = true
+			scan.tokens = append(scan.tokens, rootAnchored(name, modulePath))
 		}
 	}
 }
@@ -266,26 +316,63 @@ func rootAnchored(name, modulePath string) string {
 }
 
 // resolve rewrites each unit's raw Go import paths into the unit identities
-// this graph knows. An import outside the module is an external dependency and
-// is dropped: it cannot be a dirty repository path.
-func resolve(units []affected.Unit, imports map[string]map[string]bool) {
+// this graph knows. An import outside every observed module is an external
+// dependency and is dropped: it cannot be a dirty repository path. An import
+// under an observed module that names no unit, such as a deleted package, is
+// kept as an edge to that absent unit, so a dirty path in the deleted
+// package's directory can still reach its importers (V1-0340). A path the
+// unit's non-test files also import is an ordinary edge, never a test-only one.
+func resolve(units []affected.Unit, imports, testImports map[string]map[string]bool, modules []string) {
 	byImportPath := make(map[string]string, len(units))
 	for _, unit := range units {
 		byImportPath[strings.TrimPrefix(unit.ID, "go:")] = unit.ID
 	}
 	for index := range units {
 		unit := &units[index]
-		edges := make([]string, 0, len(imports[unit.ID]))
-		for value := range imports[unit.ID] {
-			target, known := byImportPath[value]
-			if !known || target == unit.ID {
-				continue
-			}
-			edges = append(edges, target)
+		unit.Imports = resolved(unit.ID, imports[unit.ID], nil, byImportPath, modules)
+		testOnly := resolved(unit.ID, testImports[unit.ID], imports[unit.ID], byImportPath, modules)
+		if len(testOnly) != 0 {
+			unit.TestImports = testOnly
 		}
-		sort.Strings(edges)
-		unit.Imports = edges
 	}
+}
+
+// resolved maps raw import paths not in skip to sorted unit identities other
+// than self: a known unit, or an absent one under an observed module.
+func resolved(self string, paths, skip map[string]bool, byImportPath map[string]string, modules []string) []string {
+	edges := make([]string, 0, len(paths))
+	for value := range paths {
+		target, known := byImportPath[value]
+		if !known && underModule(value, modules) {
+			target, known = "go:"+value, true
+		}
+		if !known || target == self || skip[value] {
+			continue
+		}
+		edges = append(edges, target)
+	}
+	sort.Strings(edges)
+	return edges
+}
+
+// modulePaths lists the readable paths of the observed modules.
+func modulePaths(modules map[string]module) []string {
+	paths := make([]string, 0, len(modules))
+	for _, owner := range modules {
+		if owner.listed && owner.path != "" {
+			paths = append(paths, owner.path)
+		}
+	}
+	return paths
+}
+
+func underModule(importPath string, modules []string) bool {
+	for _, modulePath := range modules {
+		if importPath == modulePath || strings.HasPrefix(importPath, modulePath+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // unitID is the import path of the package in directory, which lies inside its
@@ -313,7 +400,7 @@ func relativeTo(directory, moduleDir string) string {
 // outside that set is a frontier, and its packages are dropped from the graph
 // rather than attributed to the module above them.
 func observeModules(root string, manifests []string, frontier map[string]bool) (map[string]module, error) {
-	listed, err := workspaceDirectories(root)
+	listed, err := workspaceDirectories(root, frontier)
 	if err != nil {
 		return nil, err
 	}
@@ -342,8 +429,8 @@ func observeModules(root string, manifests []string, frontier map[string]bool) (
 // workspaceDirectories lists the module directories the root's go.work uses,
 // or the root alone when there is no go.work. Only the use grammar is read: a
 // "use DIR" line or a "use (" block with one directory per line. A directory
-// outside the root cannot be observed and is skipped.
-func workspaceDirectories(root string) ([]string, error) {
+// outside the root cannot be observed; it is skipped and raised as a frontier.
+func workspaceDirectories(root string, frontier map[string]bool) ([]string, error) {
 	body, err := os.ReadFile(filepath.Join(root, "go.work"))
 	if errors.Is(err, fs.ErrNotExist) {
 		return []string{"."}, nil
@@ -360,12 +447,12 @@ func workspaceDirectories(root string) ([]string, error) {
 		case inBlock && fields[0] == ")":
 			inBlock = false
 		case inBlock:
-			directories = appendUse(directories, fields[0])
+			directories = appendUse(directories, fields[0], frontier)
 		case fields[0] != "use" || len(fields) != 2:
 		case fields[1] == "(":
 			inBlock = true
 		default:
-			directories = appendUse(directories, fields[1])
+			directories = appendUse(directories, fields[1], frontier)
 		}
 	}
 	if len(directories) == 0 {
@@ -381,11 +468,12 @@ func stripComment(line string) string {
 	return line
 }
 
-func appendUse(directories []string, value string) []string {
+func appendUse(directories []string, value string, frontier map[string]bool) []string {
 	cleaned := path.Clean(filepath.ToSlash(strings.Trim(value, "\"`")))
 	if cleaned == "." || affected.ValidRelativePath(cleaned) {
 		return append(directories, cleaned)
 	}
+	frontier[FrontierWorkspaceModuleOutsideRoot] = true
 	return directories
 }
 

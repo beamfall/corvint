@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/localcompletion"
 )
@@ -91,10 +92,12 @@ func TestDogfoodEventStrictInputAndDeadline(t *testing.T) {
 			if runLocalCompletionEvent(ctx, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr) == 0 {
 				break
 			}
-			if !strings.Contains(stderr.String(), `"dogfood-event-deadline"`) && !strings.Contains(stderr.String(), `"dogfood-event-input-unavailable"`) {
+			// The repository has no snapshot, so expiry in its in-memory build names that (AHI-031).
+			stale := strings.Contains(stderr.String(), `"dogfood-event-index-snapshot-stale"`)
+			if !stale && !strings.Contains(stderr.String(), `"dogfood-event-deadline"`) && !strings.Contains(stderr.String(), `"dogfood-event-input-unavailable"`) {
 				t.Fatalf("%s expiry was not reported as a time bound: %s", deadline, &stderr)
 			}
-			expired = expired || strings.Contains(stderr.String(), `"dogfood-event-deadline"`)
+			expired = expired || stale || strings.Contains(stderr.String(), `"dogfood-event-deadline"`)
 		}
 		if !expired {
 			t.Fatal("no deadline expired during the repository read")
@@ -125,6 +128,29 @@ func TestDogfoodEventStrictInputAndDeadline(t *testing.T) {
 			t.Fatal("expired event waited for a read that ignores cancellation")
 		}
 	})
+}
+
+// AHI-031: an event whose deadline expires in the in-memory build of a snapshot miss names the
+// stale snapshot, not the bare deadline; once the snapshot is refreshed the event needs no build.
+func TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot(t *testing.T) {
+	t.Parallel()
+	root := queryCLIRepository(t)
+	ctx := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 3 * time.Second })
+	ctx = context.WithValue(ctx, dogfoodEventBuildKey{}, func(ctx context.Context, _, _ string) (*contextindex.Index, error) {
+		<-ctx.Done() // outlasts the event deadline, as the real build does on a large repository
+		return nil, ctx.Err()
+	})
+	var stdout, stderr bytes.Buffer
+	if runLocalCompletionEvent(ctx, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr) != 2 || !strings.Contains(stderr.String(), `"dogfood-event-index-snapshot-stale"`) {
+		t.Fatalf("snapshot-miss expiry did not name the stale snapshot: %s", &stderr)
+	}
+	stderr.Reset()
+	if runContext(context.Background(), []string{"--root", root, "index", "--if-stale"}, strings.NewReader(""), io.Discard, &stderr) != 0 {
+		t.Fatalf("index --if-stale: %s", &stderr)
+	}
+	if runLocalCompletionEvent(ctx, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr) != 0 {
+		t.Fatalf("refreshed snapshot still degraded: %s", &stderr)
+	}
 }
 
 func TestDogfoodEventDeadlineBelowDeclaredHostKill(t *testing.T) {

@@ -5,17 +5,19 @@
 # it calls (cmd/corvint-companion-release / internal/companionrelease, per
 # PUB-V0-013/014 — every binary and every archive is built twice and
 # byte-compared there), so this script does not re-run the assembly twice
-# itself. It only sets up an isolated environment, obtains a guaranteed
-# clean taskman checkout, and invokes the tool once.
+# itself. It only sets up an isolated environment and invokes the tool once.
+# corvint-tasks builds from this checkout's cmd/corvint-tasks (decision 0397).
 #
 # The existing native CLI archive gate (script/go-archive-gate) is
 # unaffected: this script never touches it and is not a `make gate`
 # prerequisite (PUB-V0-002 requires the native gate to remain independent).
 #
-# Usage: script/corvint-companion-release-gate [taskman-repo]
-#   taskman-repo defaults to $CORVINT_TASKMAN_REPO or ~/projects/corvint-tasks.
-#   It is only ever read from (git clone); it is never modified.
+# Usage: script/corvint-companion-release-gate
 set -euo pipefail
+if [ "$#" -ne 0 ]; then
+  echo "usage: script/corvint-companion-release-gate (corvint-tasks is built in tree; decision 0397)" >&2
+  exit 2
+fi
 # Explicit settings must not be empty; the check fails before any effect.
 resolve_release_setting() {
   local name=$1
@@ -23,33 +25,16 @@ resolve_release_setting() {
     [ -n "${!name}" ] || { echo "$name must not be empty" >&2; return 2; }
   fi
 }
-if [ -z "${1:-}" ]; then
-  resolve_release_setting CORVINT_TASKMAN_REPO
-fi
 resolve_release_setting CORVINT_COMPANION_OUTPUT
 resolve_release_setting CORVINT_NPM_CACHE
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
-taskman_src=${1:-${CORVINT_TASKMAN_REPO:-$HOME/projects/corvint-tasks}}
 output_parent=${CORVINT_COMPANION_OUTPUT:-/tmp/corvint-companion-release}
 npm_cache=${CORVINT_NPM_CACHE:-}
 
 case $output_parent in
   "$repo"|"$repo"/*)
     echo "corvint-companion-release-gate: CORVINT_COMPANION_OUTPUT must be outside $repo" >&2
-    exit 2
-    ;;
-esac
-
-if [ "$(git -C "$taskman_src" rev-parse --is-inside-work-tree 2>/dev/null || :)" != true ] ||
-   ! git -C "$taskman_src" rev-parse --verify 'HEAD^{commit}' >/dev/null 2>&1; then
-  echo "corvint-companion-release-gate: $taskman_src is not a git checkout (pass the corvint-tasks repo path as \$1 or CORVINT_TASKMAN_REPO)" >&2
-  exit 2
-fi
-
-case $output_parent in
-  "$taskman_src"|"$taskman_src"/*)
-    echo "corvint-companion-release-gate: CORVINT_COMPANION_OUTPUT must be outside $taskman_src" >&2
     exit 2
     ;;
 esac
@@ -162,20 +147,12 @@ if [ "$version" != go1.27.1 ]; then
   exit 1
 fi
 
-# A fresh local clone guarantees a clean tree/exact commit even when the
-# caller's own corvint-taskman checkout has uncommitted work in progress; the
-# clone only ever reads $taskman_src's committed history.
-taskman_clean="$parent/corvint-taskman-clean"
-git clone --quiet --no-hardlinks "$taskman_src" "$taskman_clean"
-taskman_commit=$(git -C "$taskman_clean" rev-parse --verify 'HEAD^{commit}')
-
 corvint_commit=$(git -C "$repo" rev-parse --verify 'HEAD^{commit}')
-bundle_name="corvint-companion-${corvint_commit:0:12}-${taskman_commit:0:12}-darwin-arm64-$(date -u +%Y%m%dT%H%M%SZ)"
+bundle_name="corvint-companion-${corvint_commit:0:12}-darwin-arm64-$(date -u +%Y%m%dT%H%M%SZ)"
 
 set -m
 go run ./cmd/corvint-companion-release \
   -source-root "$repo" \
-  -tasks-root "$taskman_clean" \
   -target darwin/arm64 \
   -scratch "$parent/build" \
   -output-parent "$output_parent" \
