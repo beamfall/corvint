@@ -7281,3 +7281,56 @@ seven cases, with a sentinel that an attempted fetch would touch. It fails with
 NOT_PRODUCED: other content readers (`blame`, the `prove` hermetic runner, the `init` / `adopt`
 inventory, which reports `malformed-tree-entry`) are unclassified. Git older than 2.45 is
 unguarded. Owner acceptance of the clause is pending in V1-0001.
+
+## 2026-09-26 V1-0284 review: a transport block, and refusals name only the object the read named
+
+An independent read-only review (Codex CLI 0.153.2, `gpt-6-astra`) of the entry above found three
+defects, each confirmed here before the fix.
+
+- Git before 2.46 still fetches under `GIT_NO_LAZY_FETCH=1`. In Git 2.45 the variable guards direct
+  object reads, but a diff's blob prefetch (`promisor_remote_get_direct`) fetches anyway; the refusal
+  in `fetch_objects` arrives in 2.46.0. Checked in the Git 2.45.0 and 2.54.0 sources.
+- `dogfood` started Git with the full ambient environment, so its reads could lazily fetch.
+- The refusal named the first missing object reachable from the tips, not the one the read failed
+  on, so it could blame an object the read never needed.
+
+Decisions:
+
+- Every Git process that `index`, `query`, `context`, `impact` or `prove` starts for its reads now
+  also carries an empty `GIT_ALLOW_PROTOCOL` (`internal/contextindex/git.go:141@cda398ae`,
+  `cmd/corvint/prove.go:1887@c88957fb`). It refuses every transport on any Git version and
+  overrides `protocol.*.allow`, so a fetch Git starts anyway cannot reach the remote. None of these
+  runners clones or fetches a local path, which would need the `file` transport.
+- `dogfood`'s read runner adds `GIT_NO_LAZY_FETCH=1` and the empty `GIT_ALLOW_PROTOCOL`
+  (`internal/dogfoodflow/flow.go:143@42ee8c4d`), under DCW-V0-001's no-network rule. Its seal
+  runner (`git mv` and `git commit`) is unchanged, because the variables would reach commit hooks.
+- `classifyMissingObjects` (`internal/contextindex/diagnostics.go:38@a86f8b15`) takes the failed
+  read's cause and names the first listed missing promisor object that the cause or a tip names:
+  Git's stderr for the tree and range reads, and the blob whose size `ls-tree -l` printed as `BAD`.
+  A failure that names none keeps its original error. A missing root or base tree is itself a tip,
+  and `rev-list --missing=print` lists it with `?` (checked in a `--filter=tree:0` clone).
+- The `ls-tree` error of the tree read is now hooked too
+  (`internal/contextindex/git.go:379@16e97a09`). A missing subtree makes `ls-tree -r` fail with
+  `error: Could not read <oid>` before any size is printed.
+- With the transport blocked, the open question of a minimum Git version no longer bears on
+  fetching. `GIT_NO_LAZY_FETCH` remains, so Git 2.46 or later fails at the read, with no fetch
+  attempt at all.
+
+Evidence:
+
+- `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching` now writes `protocol.file.allow=always`
+  into each clone, so only Corvint's environment can stop a fetch, and quotes the sentinel path.
+  After the Core cases it runs two controls. A lazy `cat-file` with no transport allowed leaves the
+  sentinel absent, and the same read with the transport allowed creates it, so the sentinel does
+  record a fetch.
+- `TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway` runs the same seven cases through a
+  PATH shim that unsets `GIT_NO_LAZY_FETCH`, simulating the older Git. It passes, and it fails with
+  the sentinel present when the empty `GIT_ALLOW_PROTOCOL` is removed from both runners.
+- `TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed` checks two missing blobs that are not
+  first in traversal order, and a cause naming neither. It fails on all three assertions when the
+  named-object filter is removed.
+
+NOT_PRODUCED: other Git runners still allow a transport. These are the `work` and taskman
+qualified environments, `cem`, `ocm`, `frontier`, and the other packages' own
+`sanitizedGitEnvironment` builders; each needs its own audit, because a local clone there needs the
+`file` transport. That audit is ticketed. Owner acceptance of the clause is still pending in V1-0001.

@@ -136,15 +136,19 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   (proposed 2026-09-26, V1-0284, not accepted) `cem`, `ocm` and `frontier` judge their
   root-relative maps before any repository check, so a non-root working directory gets that verb's
   map refusal, the same for an omitted and an explicit `--root`, rather than `invalid-arguments`.
-  No Core read fetches: every Git process a Core verb starts carries `GIT_NO_LAZY_FETCH=1`
-  (invariant 7), which Git honours from 2.45; older Git ignores it and would lazily fetch, and no
-  minimum Git version is stated yet. When the tree or range read of `index`, `query`, `context`,
-  `impact` or `prove` fails because an object it reaches exists only on a partial clone's promisor
-  remote, the refusal is `repository-object-unavailable`, the CEM-CB-019 code for a missing promised
-  object, with `subject` `repository-state` / `promisor-object`, one `evidence` pair `object` naming
-  the first missing object, and `supported_fixes` `git.fetch-promisor-objects`: the user fetches the
-  objects. Before rc.1 this deliberately replaces the codeless `Git returned an invalid blob size`
-  and `Git error: ...` refusals for that input; no `cli-parity-v0` case covers a partial clone.
+  No Core read fetches (invariant 7): every Git process `index`, `query`, `context`, `impact` or
+  `prove` starts for its reads carries `GIT_NO_LAZY_FETCH=1` and an empty `GIT_ALLOW_PROTOCOL`. Git
+  honours the first for direct object reads from 2.45 and for a diff's blob prefetch from 2.46; the
+  second refuses every transport on any Git, so a fetch an older Git starts anyway never reaches the
+  remote. When the tree or range read of those verbs fails because an object it needs exists only on
+  a partial clone's promisor remote, the refusal is `repository-object-unavailable`, the CEM-CB-019
+  code for a missing promised object, with `subject` `repository-state` / `promisor-object`, one
+  `evidence` pair `object`, and `supported_fixes` `git.fetch-promisor-objects`: the user fetches the
+  objects. The named object is a missing promisor object the failed read itself named, in Git's
+  error, as the blob whose size it could not report, or as a tree it read; a failure that names none
+  keeps its original refusal. Before rc.1 this deliberately replaces the codeless `Git returned an
+  invalid blob size` and `Git error: ...` refusals for that input; no `cli-parity-v0` case covers a
+  partial clone.
 - **CCF-V1-005:** The admission, freshness, omission and abstention members MUST keep their names,
   JSON types and meaning. `query` and path `impact`: `context.state`, `context.freshness.{state, scope,
   revision, mixed_path_count, mixed_paths}`, `context.coverage.{requested_results, included_results,
@@ -310,9 +314,11 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 - A Core verb classifies a non-root working directory or an unborn `HEAD` differently from its
   siblings: `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`,
   `TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike` or `TestIndexedCoreVerbsCodeAnUnbornHead` fails.
-- (proposed, V1-0284) A Core read lazily fetches a promisor object, or refuses a missing one without
-  its code: `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching` fails. Residual: other content
-  readers, and Git older than 2.45.
+- (proposed, V1-0284) A Core read reaches a promisor remote, refuses a missing promisor object without
+  its code, or names an object the failed read did not: `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching`,
+  `TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway` (a Git that ignores `GIT_NO_LAZY_FETCH`)
+  or `TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed` fails. Residual: readers outside
+  these verbs whose Git environment still allows a transport.
 - A new verb is dispatched without a maturity label, or a label names an unindexed owner:
   `TestRootHelpLabelsEveryVerbWithMaturityAndOwner` fails.
 - A verb is dispatched before the `topLevelCommands` check without being pinned as plumbing:
@@ -328,7 +334,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 
 ## Acceptance evidence
 
-- `GOTOOLCHAIN=local go test -count=1 -run 'TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope|TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike|TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike|TestIndexedCoreVerbsCodeAnUnbornHead|TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching|TestRootHelpLabelsEveryVerbWithMaturityAndOwner|TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp' ./cmd/corvint`.
+- `GOTOOLCHAIN=local go test -count=1 -run 'TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope|TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike|TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike|TestIndexedCoreVerbsCodeAnUnbornHead|TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching|TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway|TestRootHelpLabelsEveryVerbWithMaturityAndOwner|TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp' ./cmd/corvint`
+  and `GOTOOLCHAIN=local go test -count=1 -run 'TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed' ./internal/contextindex`.
 - The cli-parity replay over the 133-case manifest against a candidate built from this change.
 - The cited N-1 and migration tests in Traceability.
 - (proposed, decision 0398) `make core-n1-replay` against `v0.8.1`, at each release (runbook step 8).
@@ -339,7 +346,7 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 |---|---|
 | CCF-V1-001, CCF-V1-002 | `TestCoreVerbsEmitTheFrozenProfiles` (identifiers, and each mode against its `cmd/corvint/testdata/core-freeze` golden) |
 | CCF-V1-003 | `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
-| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics`, `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`, `TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike`, `TestIndexedCoreVerbsCodeAnUnbornHead`, `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching`, `TestRepositoryFailureEnvelopeCarriesItsCode`, `TestReadFailuresKeepTheFixedTextAndAddTheirCode`; cli-parity-v0 replay (`DR-0041`) |
+| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics`, `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`, `TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike`, `TestIndexedCoreVerbsCodeAnUnbornHead`, `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching`, `TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway`, `TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed`, `TestRepositoryFailureEnvelopeCarriesItsCode`, `TestReadFailuresKeepTheFixedTextAndAddTheirCode`; cli-parity-v0 replay (`DR-0041`) |
 | CCF-V1-005 | `TestCoreVerbsEmitTheFrozenProfiles` (envelope, and member names and types through the goldens); per-verb member tests in AFP-V0, FPK-V0, TCP-V0 and GPK-V0 |
 | CCF-V1-006 | cli-parity-v0 replay; `TestCoreVerbsEmitTheFrozenProfiles` |
 | CCF-V1-007 (a) | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSectionedSnapshotRefusesACorruptSectionAsAMiss`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |

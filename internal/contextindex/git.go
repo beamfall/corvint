@@ -138,7 +138,7 @@ func sanitizedGitEnvironment() []string {
 		"LANG=C", "LC_ALL=C", "GIT_CONFIG_NOSYSTEM=1",
 		"GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_SYSTEM="+os.DevNull,
 		"GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1",
-		"GIT_NO_REPLACE_OBJECTS=1", "GCM_INTERACTIVE=never", "GIT_ASKPASS=",
+		"GIT_NO_REPLACE_OBJECTS=1", "GCM_INTERACTIVE=never", "GIT_ASKPASS=", "GIT_ALLOW_PROTOCOL=",
 	)
 }
 
@@ -376,7 +376,7 @@ type treeEntry struct {
 func readTreeEntries(ctx context.Context, root string, identity repositoryIdentity, skipped ...map[string]struct{}) ([]treeEntry, error) {
 	raw, err := git(ctx, root, maxTreeBytes, nil, "ls-tree", "-r", "-l", "-z", "--full-tree", identity.treeRevision)
 	if err != nil {
-		return nil, err
+		return nil, classifyMissingObjects(ctx, root, err, gitStderr(err), identity.treeRevision)
 	}
 	// One entry per NUL, so the slice is sized once instead of doubled ~12
 	// times over a repository-sized tree.
@@ -405,7 +405,7 @@ func readTreeEntries(ctx context.Context, root string, identity repositoryIdenti
 		}
 		size, parseErr := strconv.Atoi(string(metadata[3]))
 		if parseErr != nil || size < 0 {
-			return nil, classifyMissingObjects(ctx, root, &Error{Message: "Git returned an invalid blob size"}, identity.treeRevision)
+			return nil, classifyMissingObjects(ctx, root, &Error{Message: "Git returned an invalid blob size"}, oid, identity.treeRevision)
 		}
 		entries = append(entries, treeEntry{displayPath(item[tab+1:]), oid, treeEntryMode(metadata[0]), size, !utf8.Valid(item[tab+1:])})
 		if len(entries) > maxIndexedSources {

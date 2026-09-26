@@ -381,7 +381,7 @@ func readRangeChanges(ctx context.Context, index *Index, baseTree string) ([]ran
 		"-c", "diff.algorithm=myers", "-c", "diff.indentHeuristic=false", "-c", "diff.renameLimit=200000",
 		"diff-tree", "--no-commit-id", "--raw", "-r", "-z", "--find-renames", "--find-copies-harder", baseTree, index.Revision)
 	if err != nil {
-		return nil, classifyMissingObjects(ctx, index.Root, err, baseTree, index.Revision)
+		return nil, classifyMissingObjects(ctx, index.Root, err, gitStderr(err), baseTree, index.Revision)
 	}
 	return parseRangeChanges(raw, index)
 }
@@ -457,7 +457,7 @@ func rejectRangeBinary(ctx context.Context, index *Index, baseTree string) error
 		"-c", "diff.algorithm=myers", "-c", "diff.indentHeuristic=false",
 		"diff", "--numstat", "-z", "--no-ext-diff", "--no-textconv", "--no-renames", "--no-indent-heuristic", baseTree, index.Revision)
 	if err != nil {
-		return classifyMissingObjects(ctx, index.Root, err, baseTree, index.Revision)
+		return classifyMissingObjects(ctx, index.Root, err, gitStderr(err), baseTree, index.Revision)
 	}
 	for _, row := range bytes.Split(bytes.TrimSuffix(raw, []byte{0}), []byte{0}) {
 		if len(row) == 0 {
@@ -512,7 +512,7 @@ func readRangeHunks(ctx context.Context, index *Index, baseTree string, change r
 	}
 	raw, err := git(ctx, index.Root, maxSourceBytes*2+maxGitErrorBytes, nil, arguments...)
 	if err != nil {
-		return nil, classifyMissingObjects(ctx, index.Root, err, baseTree, index.Revision)
+		return nil, classifyMissingObjects(ctx, index.Root, err, gitStderr(err), baseTree, index.Revision)
 	}
 	result := make([]rangeHunk, 0)
 	for _, line := range strings.Split(string(raw), "\n") {

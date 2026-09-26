@@ -140,7 +140,7 @@ func (f *flow) say(format string, values ...any) {
 func (f *flow) git(quiet bool, args ...string) (string, int) {
 	var stdout bytes.Buffer
 	command := exec.CommandContext(f.ctx, "git", append([]string{"-C", f.root}, args...)...)
-	command.Env = append(os.Environ(), "LC_ALL=C")
+	command.Env = append(os.Environ(), "LC_ALL=C", "GIT_NO_LAZY_FETCH=1", "GIT_ALLOW_PROTOCOL=")
 	command.Stdout = &stdout
 	if !quiet {
 		command.Stderr = f.stderr

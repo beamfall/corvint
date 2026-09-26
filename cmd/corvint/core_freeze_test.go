@@ -414,11 +414,37 @@ func TestIndexedCoreVerbsCodeAnUnbornHead(t *testing.T) {
 
 // TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching pins the proposed CCF-V1-004 partial
 // clone clause: a blob a --filter=blob:none clone left on its promisor remote is refused with the
-// coded repository-object-unavailable diagnostic, and no Core read starts a lazy fetch. The
-// promisor source is removed and its upload-pack command touches a sentinel first, so an attempt
-// would leave the sentinel even though it could not succeed.
+// coded repository-object-unavailable diagnostic, and no Core read starts a fetch.
 func TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching(t *testing.T) {
 	t.Parallel()
+	checkPromisorObjectRefusals(t)
+}
+
+// TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway runs the same reads through a git that
+// drops GIT_NO_LAZY_FETCH, as Git before 2.46 does for a diff's blob prefetch, so the empty
+// GIT_ALLOW_PROTOCOL alone must keep the fetch from reaching the remote. It sets PATH, so it
+// cannot run in parallel.
+func TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway(t *testing.T) {
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	shim := t.TempDir()
+	script := "#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '" + strings.ReplaceAll(realGit, "'", `'\''`) + "' \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
+	checkPromisorObjectRefusals(t)
+}
+
+// checkPromisorObjectRefusals runs every Core read over a partial clone missing the objects it
+// needs and asserts each is refused without a fetch. The promisor source is removed and its
+// upload-pack command touches a sentinel first, so a fetch would leave the sentinel even though it
+// could not succeed; the clone allows the file transport, so only Corvint's environment can stop
+// one. Two controls then show the sentinel records a fetch: one Git read with lazy fetch on and
+// no transport allowed leaves it absent, and the same read with the transport allowed creates it.
+func checkPromisorObjectRefusals(t *testing.T) {
 	source := impactCLIRepository(t)
 	base := strings.TrimSpace(affectedGit(t, source, "rev-parse", "HEAD"))
 	if err := os.WriteFile(filepath.Join(source, "pkg", "main.go"), []byte("package main\n\nfunc StableValue() string { return \"changed\" }\n"), 0o644); err != nil {
@@ -433,8 +459,8 @@ func TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching(t *testing.T) {
 	sentinel := filepath.Join(t.TempDir(), "fetch-attempted")
 	clone := func(flags ...string) string {
 		root := filepath.Join(t.TempDir(), "clone")
-		affectedGit(t, t.TempDir(), append(append([]string{"clone", "-q", "--filter=blob:none"}, flags...), "file://"+source, root)...)
-		affectedGit(t, root, "config", "remote.origin.uploadpack", "touch '"+sentinel+"' && git-upload-pack")
+		affectedGit(t, t.TempDir(), append(append([]string{"clone", "-q", "-c", "protocol.file.allow=always", "--filter=blob:none"}, flags...), "file://"+source, root)...)
+		affectedGit(t, root, "config", "remote.origin.uploadpack", "touch '"+strings.ReplaceAll(sentinel, "'", `'\''`)+"' && git-upload-pack")
 		return root
 	}
 	sparse, full := clone("--sparse"), clone()
@@ -464,8 +490,21 @@ func TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching(t *testing.T) {
 			t.Errorf("%v: envelope %v, want repository-object-unavailable naming one of %v with git.fetch-promisor-objects", test.arguments, envelope, test.objects)
 		}
 	}
+	lazyRead := func(environment ...string) {
+		command := exec.Command("git", "-C", full, "cat-file", "-p", baseBlob[0])
+		command.Env = append(os.Environ(), append([]string{"GIT_NO_LAZY_FETCH=0"}, environment...)...)
+		_ = command.Run()
+	}
 	if _, err := os.Stat(sentinel); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("a Core read started a lazy fetch (sentinel stat: %v); GIT_NO_LAZY_FETCH needs Git 2.45 or later", err)
+		t.Fatalf("a Core read reached the promisor remote (sentinel stat: %v)", err)
+	}
+	lazyRead("GIT_ALLOW_PROTOCOL=")
+	if _, err := os.Stat(sentinel); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("an empty GIT_ALLOW_PROTOCOL did not stop a lazy fetch (sentinel stat: %v)", err)
+	}
+	lazyRead()
+	if _, err := os.Stat(sentinel); err != nil {
+		t.Fatalf("a lazy fetch with the file transport allowed left no sentinel, so the sentinel proves nothing: %v", err)
 	}
 }
 
