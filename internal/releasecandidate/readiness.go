@@ -298,9 +298,10 @@ func readinessRow(rule readinessRule, evidence map[string]ReadinessEvidence) (Re
 // digest; NOT_RUN carries none and names its decision or reason; FALLBACK is
 // admitted only on platform rows and also names its decision or reason. A
 // platform row is never NOT_RUN, and a platform row whose default names a
-// decision keeps that decision while it falls back (SRR-V1-007).
+// decision keeps that decision while it falls back (SRR-V1-007). A reason that
+// is only whitespace explains nothing.
 func validateReadinessRow(rule readinessRule, row ReadinessRow) error {
-	explained := row.Decision != "" || row.Reason != ""
+	explained := row.Decision != "" || strings.TrimSpace(row.Reason) != ""
 	valid := map[string]bool{
 		"PASS":     digestPattern.MatchString(row.SHA256),
 		"FAIL":     digestPattern.MatchString(row.SHA256),
@@ -392,7 +393,8 @@ func verifyReadinessEvidence(rows []ReadinessRow, evidence map[string]string) er
 
 // ReadReadinessEvidence parses the operator evidence file (SRR-V1-012): one
 // row per line, ROW<TAB>STATUS<TAB>PATH<TAB>DECISION<TAB>REASON, with absent
-// values left empty. A relative PATH resolves against the file's directory.
+// values left empty. A relative PATH resolves against the file's directory,
+// and a CRLF line ending is read as LF.
 func ReadReadinessEvidence(path string) (map[string]ReadinessEvidence, error) {
 	raw, err := readRegular(path, maxInputBytes)
 	if err != nil {
@@ -403,7 +405,7 @@ func ReadReadinessEvidence(path string) (map[string]ReadinessEvidence, error) {
 	number := 0
 	for line := range strings.Lines(string(raw)) {
 		number++
-		fields := strings.Split(strings.TrimSuffix(line, "\n"), "\t")
+		fields := strings.Split(strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r"), "\t")
 		if len(fields) != 5 {
 			return nil, fmt.Errorf("evidence file line %d does not have five tab-separated fields", number)
 		}
@@ -420,13 +422,54 @@ func ReadReadinessEvidence(path string) (map[string]ReadinessEvidence, error) {
 }
 
 // WriteReadinessRecord builds the record and publishes it at output. An
-// existing output is refused, never replaced (SRR-V1-012).
+// existing output is refused, never replaced, and so is an output inside the
+// candidate or the source root, which build must not write (SRR-V1-011,
+// SRR-V1-012).
 func WriteReadinessRecord(ctx context.Context, options ReadinessOptions, output string) (*ReadinessRecord, error) {
+	if err := refuseOutputInside(output, options.CandidateDirectory, options.SourceRoot); err != nil {
+		return nil, err
+	}
 	record, raw, err := BuildReadinessRecord(ctx, options)
 	if err != nil {
 		return nil, err
 	}
 	return record, publishNoReplace(output, raw)
+}
+
+func refuseOutputInside(output string, roots ...string) error {
+	resolved, err := filepath.EvalSymlinks(filepath.Dir(output))
+	if err != nil {
+		return err
+	}
+	directory, err := filepath.Abs(resolved)
+	if err != nil {
+		return err
+	}
+	for _, root := range roots {
+		if within(directory, root) {
+			return fmt.Errorf("readiness record %s is inside %s, which build must not write", output, root)
+		}
+	}
+	return nil
+}
+
+// within reports whether directory, a symlink-free absolute path, or one of
+// its ancestors is root. It compares file identity, so a symlink or a case
+// alias of root cannot hide the overlap.
+func within(directory, root string) bool {
+	rootInfo, err := os.Stat(root)
+	if err != nil {
+		return false
+	}
+	for ; ; directory = filepath.Dir(directory) {
+		info, err := os.Stat(directory)
+		if err == nil && os.SameFile(info, rootInfo) {
+			return true
+		}
+		if filepath.Dir(directory) == directory {
+			return false
+		}
+	}
 }
 
 // publishNoReplace writes raw to a temporary file beside path and hard-links

@@ -487,9 +487,42 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 	if empty, err := ReadReadinessEvidence(fixture.file(t, "empty.tsv", "")); err != nil || len(empty) != 0 {
 		t.Fatalf("empty evidence file = %v, %v", empty, err)
 	}
+	crlf, err := ReadReadinessEvidence(fixture.file(t, "crlf.tsv", "policy/rollback-exercise\tNOT_RUN\t\t\tscheduled after tagging\r\n"))
+	if err != nil || crlf["policy/rollback-exercise"].Reason != "scheduled after tagging" {
+		t.Fatalf("CRLF line ending kept in the reason: %#v, %v", crlf, err)
+	}
+	for name, content := range map[string]string{
+		"CRLF empty reason":     "policy/rollback-exercise\tNOT_RUN\t\t\t\r\n",
+		"whitespace reason":     "policy/rollback-exercise\tNOT_RUN\t\t\t \n",
+		"CRLF fallback no text": "platform/darwin-arm64/lifecycle\tFALLBACK\t\t\t\r\n",
+	} {
+		unexplained, err := ReadReadinessEvidence(fixture.file(t, "unexplained.tsv", content))
+		if err != nil {
+			t.Fatal(err)
+		}
+		options := ReadinessOptions{CandidateDirectory: fixture.candidate, SourceRoot: fixture.source, Evidence: unexplained}
+		if _, _, err := BuildReadinessRecord(t.Context(), options); err == nil {
+			t.Fatalf("%s admitted as an explanation", name)
+		}
+	}
 
 	output := filepath.Join(canonicalTemp(t), "readiness.json")
 	options := ReadinessOptions{CandidateDirectory: fixture.candidate, SourceRoot: fixture.source, Evidence: evidence}
+	alias := filepath.Join(canonicalTemp(t), "alias")
+	if err := os.Symlink(fixture.candidate, alias); err != nil {
+		t.Fatal(err)
+	}
+	for _, inside := range []string{filepath.Join(fixture.candidate, "readiness.json"), filepath.Join(fixture.source, "readiness.json"), filepath.Join(alias, "readiness.json")} {
+		if _, err := WriteReadinessRecord(t.Context(), options, inside); err == nil {
+			t.Fatalf("output %s inside the candidate or source root admitted", inside)
+		}
+		if _, err := os.Lstat(inside); !os.IsNotExist(err) {
+			t.Fatalf("refused output %s was written: %v", inside, err)
+		}
+	}
+	if _, err := VerifyContext(t.Context(), fixture.candidate); err != nil {
+		t.Fatalf("refused output disturbed the candidate: %v", err)
+	}
 	if _, err := WriteReadinessRecord(t.Context(), options, output); err != nil {
 		t.Fatal(err)
 	}

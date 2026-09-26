@@ -33,8 +33,9 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	build := *verify == ""
 	buildInputs := *source != "" || *storeRelease != "" || *storeDigest != "" || *output != ""
 	complete := *candidate != "" && *evidenceFile != "" && (!build || (*source != "" && *output != ""))
-	if flags.NArg() != 0 || !complete || (!build && buildInputs) {
-		fmt.Fprintln(stderr, "corvint-readiness-record: build mode needs -candidate, -source-root, -evidence-file and -output; verify mode takes only -verify, -candidate and -evidence-file; positional arguments are forbidden")
+	partialStore := (*storeRelease == "") != (*storeDigest == "")
+	if flags.NArg() != 0 || !complete || partialStore || (!build && buildInputs) {
+		fmt.Fprintln(stderr, "corvint-readiness-record: build mode needs -candidate, -source-root, -evidence-file and -output, and takes -store-release and -store-candidate-sha256 together or not at all; verify mode takes only -verify, -candidate and -evidence-file; positional arguments are forbidden")
 		return 2
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

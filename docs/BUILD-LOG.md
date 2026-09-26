@@ -7698,5 +7698,14 @@ Three details sit inside the accepted shape:
   as PASS from a real PASS, because the digest is the same. The test builds that relabelled record,
   shows that the package verifier admits it, and shows that the command's verifier refuses it.
 
+An independent review reproduced two defects, and both are fixed here. First, a CRLF evidence file
+left a carriage return in the reason, and that counted as an explanation. A NOT_RUN or FALLBACK row
+with no decision and no real reason was then admitted. The parser now reads CRLF as LF, and a
+whitespace-only reason explains nothing. Second, `-output` could point inside the candidate. The
+record then broke the candidate's closed checksum inventory, so every later candidate check failed.
+Build mode now refuses an output inside the candidate or the source root (SRR-V1-011). It compares
+by file identity, so a symlink or case alias cannot hide the overlap. Supplying one store flag
+without the other is now a usage error (exit 2).
+
 No release has used the record yet. Its first use is the `1.0.0-rc.1` candidate (V1-0018 AC2,
 V1-0020 AC3).
