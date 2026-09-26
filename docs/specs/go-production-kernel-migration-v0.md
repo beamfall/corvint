@@ -1075,7 +1075,7 @@ must be added to the traceability and compatibility ledgers before the slice can
   This is `python-defect` under `GPK-V0-033` and known-divergent: the oracle's per-line
   `_go_symbols` (`src/context_corvint_index.py` (historical Git `9ca27f9a62a2add263ff559fd711feea5cdfd93d`, lines 1058)) emits nothing for a name declared inside a
   group, which contradicts this clause, and the candidate's `go/parser` scan
-  (`internal/contextindex/parse.go:295`) satisfies it unchanged. `src/` is NOT repaired: the oracle
+  (`internal/contextindex/parse.go:300`) satisfies it unchanged. `src/` is NOT repaired: the oracle
   is frozen, and the divergence is recorded rather than closed. It changes no contract metric --
   0/31 critical misses and recall 1.0 hold under both engines -- and moves only non-critical ranked
   selectors on the cobra active-help and Beamfall exact-feature-pairing cases.

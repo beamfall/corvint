@@ -234,6 +234,7 @@ func documentRecord(source Source, text string, sources map[string]Source) (Reco
 	headings := make([]string, 0)
 	summary := ""
 	inFrontmatter := false
+	fence := ""
 	for index, raw := range lines {
 		trimmed := strings.TrimSpace(raw)
 		if match := documentTitle.FindStringSubmatch(raw); match != nil && !titleFound {
@@ -244,7 +245,11 @@ func documentRecord(source Source, text string, sources map[string]Source) (Reco
 		if match := documentHeading.FindStringSubmatch(raw); match != nil {
 			headings = append(headings, match[1])
 		}
-		if status == "" {
+		// A fenced block is an example, not the document's own field
+		// (FPK-V0-029): its lines, fences included, never supply the status.
+		open := fence
+		fence = nextFence(fence, trimmed)
+		if status == "" && open == "" && fence == "" {
 			if match := documentStatus.FindStringSubmatch(raw); match != nil {
 				status = strings.ToLower(strings.TrimSpace(match[1]))
 			}

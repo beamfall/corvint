@@ -36,7 +36,7 @@ a runtime being removed.
 
 ## Evidence
 
-No code changed. `goGroupNames` (`internal/contextindex/parse.go:343@d0011009`) already flattens every group,
+No code changed. `goGroupNames` (`internal/contextindex/parse.go:348@d0011009`) already flattens every group,
 and `TestGoSymbolsNamesEveryGroupMember` already pins it against a fixture whose own assertion
 proves it discriminates: the lossy scanner reaches one of the six members. The clause is therefore
 stated over an implementation that satisfies it, which is the only honest order — the spec was
