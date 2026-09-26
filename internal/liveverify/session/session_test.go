@@ -372,7 +372,7 @@ func TestCancellationLeavesNoDescendants(t *testing.T) {
 	cfg := baseConfig(t, dir, modPath, testPath, log)
 	// The run bound must exceed waitChildPID's hang bound, or a cold compile
 	// under load is killed first and reported as a descendant that never started.
-	cfg.Timeout = 2 * time.Minute
+	cfg.Timeout = 5 * time.Minute
 	ctx, cancel := context.WithCancel(context.Background())
 
 	done := make(chan error, 1)
@@ -396,11 +396,12 @@ func TestCancellationLeavesNoDescendants(t *testing.T) {
 // this file waits on (each test points GOCACHE at a fresh t.TempDir(), so the
 // compile is cold every time). The siblings bound that same compile at 20s;
 // on a loaded host that 20s itself measured within a second of firing (see
-// docs/agent-memory/tests.md history), so this is bounded at 60s — a hang
-// detector for a stuck fork or compile, not a budget for either.
+// docs/agent-memory/tests.md history), and 60s fired at load ~60 in the v0-6
+// gate at 26f12d41, so this is bounded at 4 minutes — a hang detector for a
+// stuck fork or compile, not a budget for either (decision 0082).
 func waitChildPID(t *testing.T, log *eventLog, path string) int {
 	t.Helper()
-	end := time.Now().Add(60 * time.Second)
+	end := time.Now().Add(4 * time.Minute)
 	var lastErr error
 	for time.Now().Before(end) {
 		if ended := runEnded(log, 1); ended != nil {
@@ -414,7 +415,7 @@ func waitChildPID(t *testing.T, log *eventLog, path string) int {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatalf("descendant did not start within 60s: last pidfile read error=%v", lastErr)
+	t.Fatalf("descendant did not start within 4m: last pidfile read error=%v", lastErr)
 	return 0
 }
 

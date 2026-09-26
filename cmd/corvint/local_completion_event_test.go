@@ -149,7 +149,13 @@ func TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot(t *testing.T) {
 	if runContext(context.Background(), []string{"--root", root, "index", "--if-stale"}, strings.NewReader(""), io.Discard, &stderr) != 0 {
 		t.Fatalf("index --if-stale: %s", &stderr)
 	}
-	if runLocalCompletionEvent(ctx, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr) != 0 {
+	// A minute and a refused build, not the 3-second bound: this verifies the snapshot hit, not
+	// latency, so a loaded host cannot expire it (decision 0082).
+	refreshed := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+	refreshed = context.WithValue(refreshed, dogfoodEventBuildKey{}, func(context.Context, string, string) (*contextindex.Index, error) {
+		return nil, errors.New("refreshed snapshot started a build")
+	})
+	if runLocalCompletionEvent(refreshed, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr) != 0 {
 		t.Fatalf("refreshed snapshot still degraded: %s", &stderr)
 	}
 }

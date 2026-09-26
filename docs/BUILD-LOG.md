@@ -7620,58 +7620,83 @@ and each pinned a different audited-input digest. Together their `contextindex` 
 of the three pins, so the integration moves the schema to `corvint-analyzer/87` and pins the combined
 digest (`IDX-SNAP-V0-017`). Snapshots rebuild once. Extraction is unchanged.
 
-## 2026-09-25 Hosted release-gate workflow (decision 0415)
+## 2026-09-26 Gate load flakes: SIGPIPE under `pipefail`, and a latency bound in the snapshot-refresh case
 
-The owner asked for the release gates to run on GitHub instead of the loaded local Mac, so that
-several can run at once. The new `.github/workflows/release-gates.yml` is owner-dispatched with
-inputs `sha` (full 40-hex, checked against `git rev-parse HEAD`) and `release` (artifact label).
-It follows the `pr-tests-qualification.yml` pattern (decision 0320, `AFP-V0-017`).
+The v0-6 `make gate` at 26f12d41 ran at host load ~60 and failed. One failure was
+`TestGoOnlyContextAbstentionRemainsClosed`: `script/dogfood-change_test.sh` exited 141. CI on
+Linux had shown the same exit on 2026-09-25. The script runs under `set -o pipefail` and asserts
+with `printf '%s\n' "$output" | rg -q …`. When `rg -q` matches, it exits before `printf` finishes
+writing, `printf` dies of SIGPIPE, and `pipefail` turns the passing assertion into exit 141. A
+scratch repro exited 141 in 200 of 200 runs through the pipe, and 0 of 200 with a here-string.
+Every such assertion in that script and in `script/dogfood-bind-range_test.sh` (also under
+`pipefail`) now reads its input from a here-string, the idiom the script already used elsewhere.
+An assertion over Git output assigns that output first, so `set -e` still fails the test when Git
+fails; a command substitution inside the here-string would discard that status. Scripts without
+`pipefail` take the exit status of `rg` and are unaffected.
 
-- Each policy-v3 gate runs in its own matrix job. `full-gate` runs on ubuntu-24.04 and macos-15.
-  `companion-release` runs on macos-15 only, because its bundle targets `darwin/arm64` and
-  smoke-runs the installed binaries.
-- `release-checklist --pre-promotion` needs the archive witness and gate receipt that `make gate`
-  records in the same clone. So it runs after `make gate` inside each `full-gate` job, with its own
-  log and artifact.
-- Every log starts with gate, sha, runner, image and UTC time, and ends with `<GATE> EXIT <code>`.
-  It is uploaded with its sha256 even on failure. Logs are written under `RUNNER_TEMP`, because
-  `make gate` records its receipt only from a clean worktree.
-- Owner call: "linux evidence is fine, run full-gate on macos too". An ubuntu-24.04 `PASS`
-  qualifies a gate. `full-gate` needs `EXIT 0` on both legs at the same sha.
-- `sourceIdentity` is capped at 128 bytes, so an `EXTERNAL_ATTESTATION` puts the run URL there and
-  the log sha256 in `evidence`.
+`script/dogfood-seal.sh` had the same shape in product logic: `! git ls-tree … | grep -Fq`. Once the
+`.corvint/changes` listing outgrows the pipe buffer (161 entries, 19 KB at 2961076f; macOS pipes
+start at 16 KB), an early match can SIGPIPE `git` and make the seal refuse with
+`unarchived-base-cem` when the base CEM is in fact archived. It now captures the listing and greps a
+here-string of it. A failing `ls-tree` is treated as an empty listing, so the seal still refuses even
+when Git printed a matching line before it failed (the case the independent review found).
 
-Checks: `actionlint` clean. The log helper was exercised locally with a failing command: its first
-and last lines were as specified, the exit code propagated, and `shasum -c` verified the digest.
-The focused doc checks pass. NOT_RUN: the workflow itself, which can be dispatched only from
-`main`. The hosted runtimes, the macOS Go resolution through `/usr/local/go`, and whether each gate
-passes on the hosted images are therefore unobserved.
+`TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot` failed at load 153. It ran the
+refreshed-snapshot event under the 3-second bound that the first half needs to expire a blocked
+build. That half now runs with a one-minute hang guard and a build hook that fails. The case
+asserts the snapshot hit, not latency (decision 0082).
 
-## 2026-09-26 Hosted linux/amd64 Core platform job (decisions 0415, 0420)
+Three other failures in that gate pass in isolation even at load 196. QLF-V0-006 reported
+`Git error: git command failed`, which `gitRaw` prints when Git fails with empty stderr. That
+leaves out the Go error, which is the only thing that separates an exit status, a signal, and an
+expired `WaitDelay`. 25 isolated runs and a 1,778-iteration stress run did not reproduce it, so
+the detail now carries the error rather than guessing a fix. The `TestReadOnlyVerbsWriteNothing`
+session-start case exited 2 with its stderr discarded. It is probably the same `gitRaw` failure;
+its helper now logs stderr on a nonzero exit. `TestCancellationLeavesNoDescendants` hit the
+60-second hang bound on a cold compile at load ~60. The bound is now 4 minutes and the run
+timeout 5 minutes, which keeps the run timeout above the hang bound. V1-0356's hang-guard fix
+was already on main (f0488711).
 
-Decision 0420 item 2 makes linux/amd64 a Core platform through a native hosted run instead of
-FALLBACK. `release-gates.yml` gains a `linux-core` job on ubuntu-24.04 in the same dispatch.
-Decision 0415 item 8 records it.
+## 2026-09-26 Decision 0422: owner answers A1 to A6 for `1.0.0-rc.1`
 
-- The job reuses the gate job's input check, checkout, Go setup, provisioning and log helper by
-  YAML alias. So it has one log format and one evidence contract.
-- `release-archive`: runbook steps 5 and 6 at the sha. The log prints `SHA256SUMS`, so it is
-  candidate-byte evidence only when the linux/amd64 row equals the release's own row.
-- `n1-archive`: the published N-1 linux/amd64 archive, verified against that release's
-  `SHA256SUMS`. It is downloaded rather than rebuilt: the v0.8.1 tag rebuilds as build 83, while
-  the published binary is build 82.
-- `install-lifecycle` and `install-lifecycle-n1` (runbook step 8), then `HLQ-V1` for the `cli`,
-  `codex` 0.153.2 and `claude-code` 2.1.267 tuples, then `hostile-regressions`.
-- The plugin hosts need no secret or model call. `HLQ-V1-003` isolates their homes, and
-  `HLQ-V1-004` calls the hooks directly. Their network use beyond `npm install` is unobserved.
+The owner answered six of the ten open 1.0 decisions ("A1 yes … A6 go-chi/chi"). This change records
+decision 0422 and moves the affected specs from proposed to accepted. It completes no ticket, so
+V1-0263, V1-0284, V1-0286 and V1-0350 stay OPEN until the owner completes them in the store.
 
-Checks: `actionlint` exit 0. A copy of `check-ci-least-privilege.sh` pointed at
-`release-gates.yml` exit 0. The new shell was dry-run on darwin with stubbed archives and a stubbed
-`go`:
-- digests and extraction worked;
-- a tampered or missing N-1 row failed the step, with `n1-archive EXIT 1` as the log's last line;
-- the HLQ loop kept every log and report and failed the step when one tuple failed;
-- the real HLQ runner refused a dirty `--source`, and the refusal ended the log in `EXIT 1`.
+- `core-compatibility-freeze-v1.md` is ratified as a whole, including the B5 exemptions, the V1-0284
+  classification, the decision 0398 and V1-0350 register rows, and the N-1 replay. Its stale
+  "Blocked on V1-0001" line now names what is still missing: pinned modes for the mutating `cem`,
+  `ocm` and `dogfood` subcommands (NOT_PRODUCED), and the exhaustive gate (NOT_RUN).
+- `GPK-V0-070` (V1-0263) and the `IDX-SNAP-V0-012` and `agent-harness-integration-v0.md` amendments
+  (V1-0286) are accepted.
+- `stable-readiness-record-v1.md` is accepted. SRR-V1-012 now fixes the command shape as
+  `cmd/corvint-readiness-record` with build and verify modes. It stays unimplemented, and no release
+  uses the record until it has its own tests.
+- The V1-0019 untouched repository is `github.com/go-chi/chi`, recorded in the 1.0 product spec. Its
+  commit and cases are not yet frozen. That spec's "Blocked on" line named V1-0002 and V1-0007,
+  which are both COMPLETED. It now names V1-0018, V1-0019 and V1-0020.
+- The frontier files' Apache-2.0 exception (A5, V1-0379) lands in its own change.
 
-NOT_RUN: the job on ubuntu, `npm install` on the runner image, the real archive build, and
-whether its digest reproduces a published release.
+A7 to A10 stay undecided. A8, the uncommitted audit output in the primary checkout, still blocks the
+v0-6 promotion script.
+
+## 2026-09-26 V1-0379: owner-approved Apache-2.0 exception for the frontier command files
+
+`cmd/corvint/frontier.go`, `cmd/corvint/frontier_adapters.go` and `cmd/corvint/frontier_test.go`
+have carried an Apache-2.0 notice since the public snapshot, but the path map puts `cmd/**` in
+the AGPL product layer. Decision 0002 allows a file-specific notice only when the owner approves it
+separately, and no approval was recorded. The owner chose to keep the notices (decision 0422,
+answer A5). `LICENSING.md` now names the three files as an owner-approved exception, and decision
+0002 gains an amendment that records the approval after publication. No notice changes, nothing is
+relicensed, and the boundary list is not extended to `cmd/**`.
+
+The release-artifact manifest pins the legal files by digest (`GPK-V0-020`), so the `LICENSING.md`
+pin in `conformance/release-artifact-v0/manifest.json` moves to the amended bytes. The old pin would
+make the release gate report `legal-file-altered`. `GPK-V0-020` bars the Go migration from altering
+the legal files. This edit is an owner licensing decision, not part of the migration.
+
+A header search of the whole tree for the Apache notice finds these three files and the
+`LICENSE-APACHE-2.0` text itself outside the boundary paths. It also finds four third-party Android
+Java fixtures under `internal/analyzernativebridge/testdata/beamfall-corpus/` (Android Open Source
+Project) and three held-out task lines in `tools/cw-trial/testdata/heldout-v1/tasks.jsonl` that quote
+third-party source. Those are third-party material that keeps its own licence, not Corvint source.

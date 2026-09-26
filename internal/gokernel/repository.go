@@ -149,7 +149,7 @@ func gitRaw(ctx context.Context, root string, outputLimit int, arguments ...stri
 	if err != nil {
 		detail := strings.TrimSpace(stderr.String())
 		if detail == "" {
-			detail = "git command failed"
+			detail = "git command failed: " + err.Error()
 		}
 		return nil, newError("repository-probe-failed", "Git error: "+detail)
 	}

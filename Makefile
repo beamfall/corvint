@@ -324,7 +324,7 @@ CORE_N1_TAG ?= $(shell git describe --tags --abbrev=0 --match 'v[0-9]*' --exclud
 core-n1-replay:
 	@test -n "$(CORE_N1_TAG)" || { echo "CORE_N1_TAG is required" >&2; exit 2; }
 	@tmp=$$(mktemp -d) && trap 'rm -rf "$$tmp"' EXIT && mkdir "$$tmp/src" && \
-	git archive "$(CORE_N1_TAG)" | tar -x -C "$$tmp/src" && \
+	git archive -o "$$tmp/src.tar" "$(CORE_N1_TAG)" && tar -x -C "$$tmp/src" -f "$$tmp/src.tar" && \
 	(cd "$$tmp/src" && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -o "$$tmp/corvint" ./cmd/corvint) && \
 	CORVINT_CORE_N1_BINARY="$$tmp/corvint" $(GO_TEST_COMMAND) -run '^TestCoreVerbsEmitTheFrozenProfiles$$' ./cmd/corvint
 

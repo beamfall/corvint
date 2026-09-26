@@ -156,7 +156,7 @@ what any packet says.
   `IDX-SNAP-V0-011`; no hook outcome asserts that a persistent refresh completed.
   Amendment authority: owner's 2026-09-08 cross-host lifecycle repair and every-child cleanup
   instruction; independent Gate A; partial supersession of decision 0049 item 3 only.
-  (proposed amendment 2026-09-26, V1-0286; owner review pending; not accepted) After it
+  (accepted amendment 2026-09-26, decision 0422; V1-0286) After it
   publishes a snapshot, the explicit `index` writer records how long its build took in one
   store-wide record, `build-cost.json` (`{"format":"corvint-index-build-cost/0",
   "buildMilliseconds":N}`), replacing the previous record by a synced temporary and rename. The
@@ -639,7 +639,7 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-008 | `snapshotIndex`, `authorityStartQueryContext`, `repositoryQueryContext`, `evalLearnedCandidates` | `TestQueryVerbsReadTheSnapshotWithoutChangingAByte`, `TestEvalQueryAcceptsStatusCleanIdentCheckout` |
 | IDX-SNAP-V0-009 | `LoadSnapshot` | measured by the Beamfall miss-path reading; no unit test yet |
 | IDX-SNAP-V0-010 | `snapshotIndex`, `harnessIndexedContext` | `TestHarnessIndexBuildingEventsReadTheSnapshotWithoutChangingAByte` |
-| IDX-SNAP-V0-012 | Claude native lifecycle adapter and explicit warmup guidance; proposed build-cost record (`RecordBuildCost`/`RecordedBuildCost`, `dogfoodMissOutlastsDeadline`) | `TestClaudeNativeDogfoodLifecycle`; `tests/test_harness_claude.py` no-refresh and interruption regressions; proposed: `TestBuildCostRecordRoundTripsBesideTheSnapshots`, `TestBuildCostRefusesAnOverflowingRecordAndSweepsItsTemporary`, `TestRecordedBuildCostRejectsFIFOWithoutBlocking`, `TestDogfoodEventSnapshotMissUsesRecordedBuildCost` |
+| IDX-SNAP-V0-012 | Claude native lifecycle adapter and explicit warmup guidance; build-cost record (accepted, decision 0422; `RecordBuildCost`/`RecordedBuildCost`, `dogfoodMissOutlastsDeadline`) | `TestClaudeNativeDogfoodLifecycle`; `tests/test_harness_claude.py` no-refresh and interruption regressions; `TestBuildCostRecordRoundTripsBesideTheSnapshots`, `TestBuildCostRefusesAnOverflowingRecordAndSweepsItsTemporary`, `TestRecordedBuildCostRejectsFIFOWithoutBlocking`, `TestDogfoodEventSnapshotMissUsesRecordedBuildCost` |
 | IDX-SNAP-V0-013 | `pinnedFrom`, `pinnedEntry.exclusionReason`, `buildEvidence` | `TestBuildExcludesGitLFSPointerAndCarriesItThroughSnapshot` |
 | IDX-SNAP-V0-018 | `forbiddenParts`, `generatedPath`, `forbiddenPath`, `admittedEntries` | `TestForbiddenPathScreenIsTheAcceptedSet`, `TestForbiddenPathExcludesAgentWorktreeCopies`, `TestTracePathScreenIsTheIndexScreen` |
 | IDX-SNAP-V0-014 (proposed) | `encodeSectionedSnapshot`, `readSectionedSnapshot`, `readSnapshotIndex` | `TestSectionedSnapshotDecodesEverySectionToTheGobValues`, `TestSectionedFileChangeReadsOnlyItsSections`, `TestSectionedSnapshotRefusesACorruptSectionAsAMiss`, `TestSectionedSnapshotRefusesOutOfRangeOffsetsAsAMiss`, `TestSectionedRepeatedOpensRetainBoundedMappings`; timing gate not met (`docs/plans/sectioned-snapshot-prototype-2026-09-05.md`) |
