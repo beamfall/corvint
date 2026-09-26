@@ -2904,3 +2904,47 @@ and oracle byte strings for each case's code. The `SUMMARY` line moves from `kno
 to `known-divergences=28`, and the `cem` inventory row reports 17 byte-exact cases. The same change
 also emits the `repository-*` and `unsupported-git-object-format` codes from `emitError`; no
 `cli-parity-v0` case reaches those refusals, so they need no declaration here.
+
+### DR-0042 — `impact`: a related row admitted through an importing test's marker names that test, not the changed path
+
+- **Status:** ADJUDICATED 2026-09-25 — `python-defect` / known-divergent under accepted `GPK-V0-075`
+  (`docs/specs/go-production-kernel-migration-v0.md`, decision 0412; ticket V1-0263). The
+  disagreement is **EXPECTED and MUST NOT be reported as a failure** (`GPK-V0-033`). No oracle was
+  reconstructed (`GOC-V0-002`).
+- **Command:** `impact` (two cases, `impact-python-module` and `impact-python-nomodule`).
+  **Discovered:** 2026-09-25, when `TestGPKV0002ManifestReplay` failed on `impact-python-module`
+  (candidate stdout `181912c2…`, 3380 bytes, against manifest `53015e1a…`, 3282 bytes) after the
+  V1-0263 change. An origin/main candidate (`b549d59f`) reproduces both frozen digests.
+
+**Divergence.** `impact` admits a feature or scenario record at score 800 when the changed path, or
+a test that imports it, carries a `feature:` or `scenario:` marker. The oracle writes the reason
+`changed path carries KIND:ID` in both cases. In the fixture, `src/pkg/engine.py` carries no marker;
+`tests/test_engine.py` imports it and carries `feature:a-first` and `scenario:z-last`, so the oracle's
+reason is false. `GPK-V0-075` requires the reason to name the carrier:
+`test TEST importing changed CHANGED carries KIND:ID`. The score (800, `GPK-V0-067`) and the order
+are unchanged. A key that the changed path itself carries keeps `changed path carries KIND:ID`.
+
+**Observed bytes.** Three members move in each case:
+
+| member | frozen expectation | Go candidate |
+|---|---|---|
+| `feature:a-first` `reason` | `changed path carries feature:a-first` | `test tests/test_engine.py importing changed src/pkg/engine.py carries feature:a-first` |
+| `scenario:z-last` `reason` | `changed path carries scenario:z-last` | `test tests/test_engine.py importing changed src/pkg/engine.py carries scenario:z-last` |
+| `context.coverage.packet_bytes` | `3227` | `3325` |
+
+98 bytes are accounted for by the two rewrites (49 each). The replay reconciles `packet_bytes`
+arithmetically. Every other byte, including scores, order, and evidence blobs, is unchanged. The
+same two rewrites reproduce the frozen `impact-python-nomodule` expectation (`57108415…`, 3282
+bytes); the replay passes both cases.
+
+**Adjudication: `python-defect` (known-divergent, no repair).** The oracle attributes the marker to
+a path that does not carry it. The owner accepted the corrected reason on 2026-09-25 (decision
+0412). `src/` is retired (decision 0088) and is not repaired, and `GOC-V0-002` forbids re-authoring
+the frozen expectations from the candidate.
+
+**Scope of the repair.** One `knownDivergence` on each case with two stdout rewrites. Each is
+validated by `validImporterTestCarrierDivergence` (`conformance/cli-parity-v0/manifest.go`). The
+validator pins the case to `impact`, register `DR-0042`, clause `GPK-V0-075`, and exactly two
+rewrites. For each rewrite, the oracle side must be `"reason":"changed path carries KIND:ID"` and
+the candidate side must be the same `KIND:ID` behind the fixture's importing-test carrier. The
+`SUMMARY` line moves from `known-divergences=28` to `known-divergences=30`.

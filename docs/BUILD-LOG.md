@@ -6934,3 +6934,48 @@ the touched packages; the doc checks; `go run ./conformance/use-cases-v0`, which
 Under host load (load average 170 to 570), `TestSelectionOnTheLiveDirtyWorktree` and
 `TestIncrementalSelectionMeetsTheLiveBudget` exceeded their 100 ms budget. These are timing
 flakes. NOT_RUN: the exhaustive `./...` gate.
+
+## 2026-09-25 V1-0263 GPK-V0-075 (accepted, decision 0412): omitted direct Go callers are disclosed and importing-test markers are named
+
+PR #247 proposed the omitted-caller disclosure as `GPK-V0-068`. The owner answered "accept
+GPK-V0-068, fix the reason text, add the register entry". Decision 0396 had already accepted a
+different `GPK-V0-068`, so the clause is recorded as `GPK-V0-075`. The branch was rebased over the
+B4 change (`GPK-V0-070`, entry above). The disclosure is computed after `reserveCallerRows`, so it
+names only callers that the reservation also left out. The exported-name helper is now main's
+`exportedGoNames`.
+
+Root cause of the reason text: `impact` adds a marker key to `related` from either the changed
+path's own markers or those of a test that imports it (`internal/contextindex/impact.go`), and
+gave every 800 related row the reason "changed path carries KIND:ID". `importerCarriers` now
+records the first importing test that carries each key. A key that only such a test carries gives
+`test TEST importing changed CHANGED carries KIND:ID`. A key the changed path carries keeps the old
+text, and the score stays 800. The analyzer schema moves to `corvint-analyzer/86`.
+
+Beamfall at `0d7796be`, `impact internal/plugin/trust.go internal/integrationhost/model_loader.go
+--limit 10`, compared against an `origin/main` `b549d59f` binary:
+
+- Rows, scores and order: unchanged.
+- The two 800 reasons now read `test internal/identify/identify_test.go importing changed
+  internal/plugin/trust.go carries feature:identify-scrape` and the same form for
+  `internal/graph/health_bulkops_selected_test.go` and `feature:library-health`.
+- Three uncertainty lines name `internal/app/skipdetect_jobs.go` (rank 30),
+  `internal/graph/graph_consoleconfig.go` (rank 34) and `internal/integrationhost/model_artifact.go`
+  (rank 46). Before, the uncertainty said only "119 ranked results omitted by result limit".
+
+Parity: the replay failed on `impact-python-module` (stdout `181912c2…`, 3380 bytes, against the
+frozen `53015e1a…`, 3282 bytes) and on `impact-python-nomodule`. The only difference was the two
+reason strings and `packet_bytes`. A scan of every case without setup steps, comparing the main and
+branch binaries, found no other difference. Both cases now declare `DR-0042` (`python-defect`,
+`validImporterTestCarrierDivergence`), and `SUMMARY` moves to `known-divergences=30`.
+
+Tests:
+
+- `TestImpactNamesTheImportingTestThatCarriesARelatedMarker` covers both reason forms and the 800
+  score. It fails with the carrier selection disabled.
+- `TestImpactDisclosesOmittedDirectGoCallers` covers the disclosure.
+
+Follow-ups, not changed here:
+
+- A key admitted only through a marked same-package test still says "changed path carries".
+- The caller test of `reserveCallerRows` (`namesAny` over the whole importer source) and that of
+  `recordGoCaller` (a code line naming `QUALIFIER.Name`) are two definitions of a caller.
