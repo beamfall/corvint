@@ -2353,6 +2353,21 @@
     ]
   },
   {
+    "path": "docs/specs/corvint-tasks-store-init-v0.md",
+    "title": "Corvint Tasks store initialization V0",
+    "reqPrefix": "CTS-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "`corvint-tasks init` refuses an intent store that already holds records, instead of creating a journal that freezes it.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "internal/tasks/cli",
+      "internal/tasks/store"
+    ]
+  },
+  {
     "path": "docs/specs/protected-pi-runtime-v0.md",
     "title": "Protected Pi Runtime V0",
     "reqPrefix": "PPI-V0",
