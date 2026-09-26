@@ -32,7 +32,7 @@ func fixtureHarness(t *testing.T) (*fixtureSession, *fixture.Repo) {
 	fixtureMust(t, err)
 	f, err := os.Open(r.Root)
 	fixtureMust(t, err)
-	_, observed := fixtureObserveMount(f)
+	_, observed := fixtureObserveMount(f, fixtureMount{})
 	fixtureMust(t, f.Close())
 	if observed != nil {
 		t.Skipf("NOT_RUN: native fixture host/mount unsupported: %v", observed)
@@ -751,8 +751,8 @@ func TestTMV0010_AS10_FixtureMountBoundaries(t *testing.T) {
 					return nil
 				}
 			} else {
-				s.observe = func(f *os.File) (fixtureMount, error) {
-					m, err := old(f)
+				s.observe = func(f *os.File, held fixtureMount) (fixtureMount, error) {
+					m, err := old(f, held)
 					if err != nil {
 						return m, err
 					}
@@ -1046,7 +1046,7 @@ func TestTMV0010_AS10_FixtureAbsentHierarchyAndUnsupported(t *testing.T) {
 	fixtureMust(t, err)
 	f, err := os.Open(r.Root)
 	fixtureMust(t, err)
-	_, observeErr := fixtureObserveMount(f)
+	_, observeErr := fixtureObserveMount(f, fixtureMount{})
 	fixtureMust(t, f.Close())
 	if observeErr != nil {
 		t.Skipf("NOT_RUN: host unsupported: %v", observeErr)

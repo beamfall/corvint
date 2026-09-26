@@ -16,7 +16,8 @@ grandfathered='docs/decisions/0016-change-anchored-packet-2026-09-01.md docs/dec
 # its last command's, and a `git ls-files` failure would otherwise be swallowed and reported
 # as zero collisions found.
 listing=$(mktemp "${TMPDIR:-/tmp}/corvint-decision-numbers.XXXXXX")
-trap 'rm -f "$listing"' EXIT
+filtered=$(mktemp "${TMPDIR:-/tmp}/corvint-decision-numbers-filtered.XXXXXX")
+trap 'rm -f "$listing" "$filtered"' EXIT
 
 if ! git ls-files -z -- docs/decisions >"$listing"; then
     printf 'decision numbers: git ls-files failed to enumerate docs/decisions\n' >&2
@@ -25,8 +26,9 @@ fi
 
 tr '\0' '\n' <"$listing" |
     grep -E '^docs/decisions/[0-9]{4}-[^/]*\.md$' |
-    LC_ALL=C sort |
-    awk -v grandfathered="$grandfathered" '
+    LC_ALL=C sort >"$filtered"
+
+awk -v grandfathered="$grandfathered" '
 {
     path = $0
     name = path
@@ -63,4 +65,29 @@ END {
     }
     exit status
 }
-' >&2
+' <"$filtered" >&2
+
+# docs/decisions/README.md indexes every tracked decision file exactly once (V1-0265): a
+# missing row leaves a decision undiscoverable from the index, and a duplicate row means one
+# file's row was probably meant for another file.
+readme=docs/decisions/README.md
+indexed=$(mktemp "${TMPDIR:-/tmp}/corvint-decision-numbers-indexed.XXXXXX")
+trap 'rm -f "$listing" "$filtered" "$indexed"' EXIT
+
+grep -oE '^\| \[`[0-9]{4}-[^`]+\.md`\]' "$readme" |
+    sed -E 's/^\| \[`//; s/`\]$//' |
+    LC_ALL=C sort >"$indexed"
+
+dupes=$(LC_ALL=C uniq -d "$indexed")
+if [ -n "$dupes" ]; then
+    printf 'decision index duplicate rows in %s:\n' "$readme" >&2
+    printf '%s\n' "$dupes" | sed 's/^/  /' >&2
+    exit 1
+fi
+
+missing=$(sed -E 's#^docs/decisions/##' "$filtered" | LC_ALL=C sort | LC_ALL=C comm -23 - "$indexed")
+if [ -n "$missing" ]; then
+    printf 'decision index missing rows in %s:\n' "$readme" >&2
+    printf '%s\n' "$missing" | sed 's/^/  /' >&2
+    exit 1
+fi

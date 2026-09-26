@@ -345,6 +345,49 @@
     "cart.spec.ts > adds",
     "checkout.spec.ts > pays"
    ]
+  },
+  {
+   "base_changes": {
+    "e2e/search.spec.ts": "import { origin } from \"./pages/shop\";\n\ntest(\"finds\", () => origin + \"/profile\");\n"
+   },
+   "changes": {
+    "src/profile.ts": "import { label } from \"./format\";\n\nexport function edit(name: string): string {\n  return label(\"\");\n}\n"
+   },
+   "coverage_override": [
+    {
+     "commit": "@EVIDENCE@",
+     "test_key": "search.spec.ts > finds",
+     "tiers": [
+      {
+       "complete": true,
+       "paths": [
+        "e2e/pages/shop.ts"
+       ],
+       "tier": "client"
+      },
+      {
+       "complete": true,
+       "paths": [
+        "src/search.ts"
+       ],
+       "tier": "server"
+      }
+     ]
+    }
+   ],
+   "expect": {
+    "codes": [
+     "e2e-map-stale"
+    ],
+    "state": "full-relevant-suite-required"
+   },
+   "fault": "search spec changed after its coverage run to visit the profile page; edit discards the name",
+   "id": "spec-after-coverage",
+   "needed": [
+    "profile.spec.ts > edits",
+    "profile.spec.ts > views",
+    "search.spec.ts > finds"
+   ]
   }
  ],
  "coverage": [

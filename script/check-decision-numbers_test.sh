@@ -31,9 +31,17 @@ run() {
     return $status
 }
 
-# 1. A clean tracked set with no collisions passes and says nothing.
+readme="$test_root/docs/decisions/README.md"
+write_readme() {
+    printf '# Decision records index\n\n' > "$readme"
+    printf '| [`0002-second-2026-09-01.md`](0002-second-2026-09-01.md) | accepted | fixture |\n' >> "$readme"
+    printf '| [`0001-first-2026-09-01.md`](0001-first-2026-09-01.md) | accepted | fixture |\n' >> "$readme"
+}
+
+# 1. A clean tracked set with no collisions, fully and uniquely indexed, passes and says nothing.
 printf '# one\n' > "$test_root/docs/decisions/0001-first-2026-09-01.md"
 printf '# two\n' > "$test_root/docs/decisions/0002-second-2026-09-01.md"
+write_readme
 git -C "$test_root" add -A
 git -C "$test_root" commit -qm fixture
 output=$(run) || fail "a clean tracked set did not pass: $output"
@@ -58,4 +66,28 @@ case $output in
     *) fail "the failure did not name git ls-files: $output" ;;
 esac
 
-printf 'check-decision-numbers_test: 2 cases passed\n'
+# 3. A README index missing a tracked decision file's row is refused as missing.
+printf '| [`0002-second-2026-09-01.md`](0002-second-2026-09-01.md) | accepted | fixture |\n' > "$readme"
+status=0
+output=$(run) || status=$?
+test "$status" -ne 0 || fail "a missing index row passed the gate: $output"
+case $output in
+    *missing*0001-first-2026-09-01.md*) ;;
+    *) fail "the failure did not name the missing row: $output" ;;
+esac
+
+# 4. A README index row cited twice for the same file is refused as a duplicate.
+write_readme
+printf '| [`0001-first-2026-09-01.md`](0001-first-2026-09-01.md) | accepted | fixture |\n' >> "$readme"
+status=0
+output=$(run) || status=$?
+test "$status" -ne 0 || fail "a duplicate index row passed the gate: $output"
+case $output in
+    *duplicate*0001-first-2026-09-01.md*) ;;
+    *) fail "the failure did not name the duplicate row: $output" ;;
+esac
+
+# Restore a clean README so any later case reusing this fixture starts from a passing state.
+write_readme
+
+printf 'check-decision-numbers_test: 4 cases passed\n'
