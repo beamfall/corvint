@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -137,16 +138,22 @@ func runIndex(ctx context.Context, invocation indexInvocation, stdout, stderr io
 			return 0
 		}
 	}
+	started := time.Now()
 	index, err := contextindex.BuildForSnapshot(ctx, invocation.root)
 	if err != nil {
 		emitError(stderr, err)
 		return 2
 	}
+	buildCost := time.Since(started)
 	receipt, err := contextindex.WriteSnapshot(index)
 	if err != nil {
 		emitError(stderr, err)
 		return 2
 	}
+	// The record only lets a hook skip a build that cannot fit its deadline;
+	// without it the hook builds as before, so a failed write is not a failed
+	// index (IDX-SNAP-V0-012).
+	_ = contextindex.RecordBuildCost(invocation.root, buildCost)
 	payload := map[string]any{
 		"ok": true, "mutates": true, "command": "index", "profile": "corvint-index-snapshot/1",
 		"path": receipt.Path, "bytes": receipt.Bytes, "tree": receipt.Tree, "commit": receipt.Commit,

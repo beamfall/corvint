@@ -12,7 +12,7 @@ Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), dec
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
 - Status: proposed overall; accepted CCF-V1-006/CCF-V1-007 amendments (decision 0401); experimental delivery; the Core set is taken from accepted decision 0332, this contract awaits owner ratification in V1-0001
 - Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), `cmd/corvint/core_freeze_test.go` and its per-mode goldens in `cmd/corvint/testdata/core-freeze/`
-- Blocked on: V1-0001 owner ratification of this contract and of the proposed B5 and decision 0398 amendments to CCF-V1-004, and of the proposed V1-0350 register rows and N-1 replay placement in CCF-V1-007; pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
+- Blocked on: V1-0001 owner ratification of this contract and of the proposed B5, V1-0284 and decision 0398 amendments to CCF-V1-004, and of the proposed V1-0350 register rows and N-1 replay placement in CCF-V1-007; pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
 
 ## Intent and scope
@@ -133,6 +133,22 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   these deliberately add `code` to the formerly codeless unborn-`HEAD` and outside-repository
   `impact` refusals and replace `repository-probe-failed` / `unsupported-prove-history` for a
   non-root working directory; no `cli-parity-v0` case covers those inputs, and the replay is unchanged.
+  (proposed 2026-09-26, V1-0284, not accepted) `cem`, `ocm` and `frontier` judge their
+  root-relative maps before any repository check, so a non-root working directory gets that verb's
+  map refusal, the same for an omitted and an explicit `--root`, rather than `invalid-arguments`.
+  No Core read fetches (invariant 7): every Git process `index`, `query`, `context`, `impact` or
+  `prove` starts for its reads carries `GIT_NO_LAZY_FETCH=1` and an empty `GIT_ALLOW_PROTOCOL`. Git
+  honours the first for direct object reads from 2.45 and for a diff's blob prefetch from 2.46; the
+  second refuses every transport on any Git, so a fetch an older Git starts anyway never reaches the
+  remote. When the tree or range read of those verbs fails because an object it needs exists only on
+  a partial clone's promisor remote, the refusal is `repository-object-unavailable`, the CEM-CB-019
+  code for a missing promised object, with `subject` `repository-state` / `promisor-object`, one
+  `evidence` pair `object`, and `supported_fixes` `git.fetch-promisor-objects`: the user fetches the
+  objects. The named object is a missing promisor object the failed read itself named, in Git's
+  error, as the blob whose size it could not report, or as a tree it read; a failure that names none
+  keeps its original refusal. Before rc.1 this deliberately replaces the codeless `Git returned an
+  invalid blob size` and `Git error: ...` refusals for that input; no `cli-parity-v0` case covers a
+  partial clone.
 - **CCF-V1-005:** The admission, freshness, omission and abstention members MUST keep their names,
   JSON types and meaning. `query` and path `impact`: `context.state`, `context.freshness.{state, scope,
   revision, mixed_path_count, mixed_paths}`, `context.coverage.{requested_results, included_results,
@@ -223,6 +239,9 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   | `proof.rows[].falsifier` | `prove` | `history-consistent`, `reference-resolves`, `verifier-accepts`, `test-kills-mutant`, `none` | closed | (proposed, decision 0398) `cmd/corvint/prove.go:42@f81f3f8e` |
   | `proof.rows[].falsified` | `prove` | `PASS`, `FAIL`, `NOT_RUN` | closed | (proposed, decision 0398) `cmd/corvint/prove.go:48@7313a787` |
   | `proof.affected.scope` | `prove` | `BOUNDED`, `UNKNOWN` | closed | (proposed, decision 0398) `cmd/corvint/prove.go:671@f6741c9b`, `internal/liveverify/affected/select.go:55@884d7796` |
+  | `context.exclusions.samples[].reason` | `query`, `impact` | `unsafe-or-non-utf8-path`, `vendor/build excluded`, `protected path`, `generated path`, `source exceeds size bound`, `generated-file header excluded`, `git-lfs pointer, content not in the tree` | open | (proposed, V1-0350) `internal/contextindex/git.go:364@56698a09`, `internal/contextindex/index.go:1310@f6b4c05b`, `internal/contextindex/index.go:1314@14914a09`, `internal/contextindex/index.go:1317@f91f4e9c`, `internal/contextindex/index.go:506@4b59a221`, `internal/contextindex/index.go:692@e27ec283`, `internal/contextindex/index.go:34@b7c4315f` |
+  | `coverage.critical[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (proposed, V1-0350) `internal/contextindex/taskcontext.go:1796@f3806eef`, `internal/contextindex/taskcontext.go:199@7b32d74a`, `internal/contextindex/taskcontext.go:200@4da20476`, `internal/contextindex/taskcontext.go:201@73a4650c` |
+  | `coverage.critical_missing[].relation` | `context` | `spec-mentioned`, `instruction-routed` | open | (proposed, V1-0350) `internal/contextindex/taskcontext.go:1796@f3806eef`, `internal/contextindex/taskcontext.go:200@4da20476`, `internal/contextindex/taskcontext.go:201@73a4650c` |
 
   The `graph` relation that the experimental `CORVINT_CONTEXT_GRAPH=on` switch appends
   (`internal/contextindex/ppr.go:43@fd7e5f2f`) is outside the frozen default mode. So is the `prove --cem` state
@@ -245,11 +264,33 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   enumerations carried as member names (`inventory.denominator`, `proof.counts`), which the
   CCF-V1-002 goldens and the CCF-V1-006 member rule pin, and the result rows (`context.results[]`,
   `results[]`, `proof.rows[]` `kind`, `authority` and `trust`, `plan.selected[].witness`), which
-  CCF-V1-005 does not freeze. NOT_PRODUCED: `context.exclusions.samples[].reason` of `query` and
-  `impact`, and the `relation` and `trust` of `context`'s `coverage.critical`, `critical_missing` and
-  `governance_refused` rows, because no frozen fixture writes one and every row MUST be reached;
-  registering them needs a fixture that does. Two changes after 0.8.1 reached members this register
-  now covers. Commit 1aa1187c added `omitted-competing-record` to the `open` `context.abstention.reason`
+  CCF-V1-005 does not freeze. (proposed, V1-0350) The rows marked V1-0350 register
+  `context.exclusions.samples[].reason` of `query` and `impact`, and the `relation` of `context`'s
+  `coverage.critical` and `critical_missing` rows. The frozen modes `query excluded sources` and
+  `impact path excluded sources` commit one source per UTF-8 exclusion reason: vendored, protected,
+  generated by path, generated by header, over the size bound, and a Git LFS pointer. `impact path
+  non-utf8 source` commits a Latin-1 path, which `query` refuses as history, and which the N-1 replay
+  skips because 0.8.1 refused it. `context reserved rows` commits a requirement-bearing spec that the
+  task names and runs at `--limit 1`, so the governing row is carried and the spec row is missing.
+  `governing` is never missing: it is reserved first, graph rows are placed after it, and truncation
+  keeps a prefix of at least one row. Both rows are `open`: a reader decides on
+  `exclusions.count` and `coverage.governance`, not on a reason or a relation. A critical row carries
+  no `trust` member (`internal/contextindex/taskcontext.go:1796@f3806eef`). Commit 53c02369 (panel B9,
+  IDX-SNAP-V0-024) added `unsafe-or-non-utf8-path` after 0.8.1, which refused a repository with such
+  a path (`git show v0.8.1:internal/contextindex/git.go`, line 384); under the `open` status that
+  addition is compatible. NOT_PRODUCED: the `relation` and `trust` of `coverage.governance_refused`,
+  because no generator writes such a row. `compiler.reserved` is set only from `reservedRows`
+  (`internal/contextindex/taskcontext.go:1226@fa0fd17b`), whose rows carry the authorities
+  `project-instructions`, `instruction-reference` and `repository-spec`
+  (`internal/contextindex/taskcontext.go:1290@f63e111d`,
+  `internal/contextindex/taskcontext.go:1389@2b27d92a`,
+  `internal/contextindex/taskcontext.go:1567@fb467aad`).
+  `trustByAuthority` maps all three to `project-authority`
+  (`internal/contextindex/trust.go:30@85e0d739`, `internal/contextindex/trust.go:31@cf0b32e7`,
+  `internal/contextindex/trust.go:32@5fc23f25`), which is not
+  tainted, so `governanceRefused` skips every row (`internal/contextindex/trust.go:95@54a15b24`).
+  Registering it needs a generator that reserves a tainted row; until then CCF-V1-006 decides a value
+  there by review. Two further changes after 0.8.1 reached members this register now covers. Commit 1aa1187c added `omitted-competing-record` to the `open` `context.abstention.reason`
   row, which is compatible; that value is absent from the `v0.8.1` tree. V1-0340 (ec50af2d) removed
   the `plan.excluded[].reason` value `UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED`, which 0.8.1
   writes (AFP-V0-012). Both shipped before the register reached their member. Like
@@ -278,7 +319,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 ## Non-goals
 
 - No runtime or wire change to any verb other than the proposed CCF-V1-004 refusal classification of
-  2026-09-25 (panel blocker B5) and the codes added under decision 0398, and no new profile version.
+  2026-09-25 (panel blocker B5), its V1-0284 partial-clone extension and the codes added under
+  decision 0398, and no new profile version.
 - No freeze of companion, research or experimental verbs, modes or profiles (CCF-V1-003, CCF-V1-008).
 - No ratification of the Core boundary: that is the owner's decision in V1-0001.
 - No change to the portable proof wire, CEM, OCM or frontier contracts, which have their own owners.
@@ -295,8 +337,13 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 - A refusal drops a code it gained under decision 0398: `TestRepositoryFailureEnvelopeCarriesItsCode`
   or `TestReadFailuresKeepTheFixedTextAndAddTheirCode` fails.
 - A Core verb classifies a non-root working directory or an unborn `HEAD` differently from its
-  siblings: `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike` or
-  `TestIndexedCoreVerbsCodeAnUnbornHead` fails.
+  siblings: `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`,
+  `TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike` or `TestIndexedCoreVerbsCodeAnUnbornHead` fails.
+- (proposed, V1-0284) A Core read reaches a promisor remote, refuses a missing promisor object without
+  its code, or names an object the failed read did not: `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching`,
+  `TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway` (a Git that ignores `GIT_NO_LAZY_FETCH`)
+  or `TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed` fails. Residual: readers outside
+  these verbs whose Git environment still allows a transport.
 - A new verb is dispatched without a maturity label, or a label names an unindexed owner:
   `TestRootHelpLabelsEveryVerbWithMaturityAndOwner` fails.
 - A verb is dispatched before the `topLevelCommands` check without being pinned as plumbing:
@@ -312,7 +359,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 
 ## Acceptance evidence
 
-- `GOTOOLCHAIN=local go test -count=1 -run 'TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope|TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike|TestIndexedCoreVerbsCodeAnUnbornHead|TestRootHelpLabelsEveryVerbWithMaturityAndOwner|TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp' ./cmd/corvint`.
+- `GOTOOLCHAIN=local go test -count=1 -run 'TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope|TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike|TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike|TestIndexedCoreVerbsCodeAnUnbornHead|TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching|TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway|TestRootHelpLabelsEveryVerbWithMaturityAndOwner|TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp' ./cmd/corvint`
+  and `GOTOOLCHAIN=local go test -count=1 -run 'TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed' ./internal/contextindex`.
 - The cli-parity replay over the 133-case manifest against a candidate built from this change.
 - The cited N-1 and migration tests in Traceability.
 - (proposed, decision 0398) `make core-n1-replay` against `v0.8.1`, at each release (runbook step 8).
@@ -323,7 +371,7 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 |---|---|
 | CCF-V1-001, CCF-V1-002 | `TestCoreVerbsEmitTheFrozenProfiles` (identifiers, and each mode against its `cmd/corvint/testdata/core-freeze` golden) |
 | CCF-V1-003 | `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
-| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics`, `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`, `TestIndexedCoreVerbsCodeAnUnbornHead`, `TestRepositoryFailureEnvelopeCarriesItsCode`, `TestReadFailuresKeepTheFixedTextAndAddTheirCode`; cli-parity-v0 replay (`DR-0041`) |
+| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics`, `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`, `TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike`, `TestIndexedCoreVerbsCodeAnUnbornHead`, `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching`, `TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway`, `TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed`, `TestRepositoryFailureEnvelopeCarriesItsCode`, `TestReadFailuresKeepTheFixedTextAndAddTheirCode`; cli-parity-v0 replay (`DR-0041`) |
 | CCF-V1-005 | `TestCoreVerbsEmitTheFrozenProfiles` (envelope, and member names and types through the goldens); per-verb member tests in AFP-V0, FPK-V0, TCP-V0 and GPK-V0 |
 | CCF-V1-006 | cli-parity-v0 replay; `TestCoreVerbsEmitTheFrozenProfiles` |
 | CCF-V1-007 (a) | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSectionedSnapshotRefusesACorruptSectionAsAMiss`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
@@ -337,10 +385,14 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 Revert the change that introduced this contract: the spec, decision 0358, its index rows, the root-help
 `Command maturity:` section and `cmd/corvint/core_freeze_test.go`. No runtime, wire or stored state
 changes, so rollback needs no migration. The proposed CCF-V1-004 classification of 2026-09-25 rolls back
-alone by reverting its change; it writes no stored state. The decision 0398 codes roll back the same
+alone by reverting its change; it writes no stored state. Its V1-0284 extension rolls back the same
+way, with its `FIX-REGISTRY.tsv` row and the diagnostic coverage count. The decision 0398 codes roll back the same
 way, with `DR-0041` and its two `knownDivergence` declarations.
 Reverting only the per-mode goldens (proposed, decision 0398) means deleting `cmd/corvint/testdata/core-freeze/` and
 the golden comparison in `TestCoreVerbsEmitTheFrozenProfiles`. That returns the freeze to identifier-only pinning.
 Reverting the V1-0350 amendment (proposed, decision 0398) means deleting its register rows, the `prove`
 `packet` mapping, `replayCoreModeN1` and the `core-n1-replay` target. That restores the two NOT_PRODUCED
-statements of CCF-V1-007; no stored state changes.
+statements of CCF-V1-007; no stored state changes. Reverting only its exclusion-reason and critical-relation
+rows (proposed, V1-0350) means deleting those three rows, the cases `query excluded sources`, `context
+reserved rows`, `impact path excluded sources` and `impact path non-utf8 source` with their helpers,
+N-1 skip and goldens; that restores the NOT_PRODUCED statement for those members.

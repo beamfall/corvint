@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -151,6 +152,72 @@ func TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot(t *testing.T) {
 	if runLocalCompletionEvent(ctx, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr) != 0 {
 		t.Fatalf("refreshed snapshot still degraded: %s", &stderr)
 	}
+}
+
+// staleSnapshotRepository is a repository whose explicit `index` run recorded its build cost and
+// whose tree then moved past that snapshot, so the next event misses.
+func staleSnapshotRepository(t *testing.T) string {
+	t.Helper()
+	root := queryCLIRepository(t)
+	runIndexForTest(t, root, false)
+	if _, recorded := contextindex.RecordedBuildCost(root); !recorded {
+		t.Fatal("index recorded no build cost")
+	}
+	if err := os.WriteFile(filepath.Join(root, "internal", "parser", "lexer.go"), []byte("package parser\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitFixture(t, root, "add", ".")
+	gitFixture(t, root, "commit", "-qm", "move the tree past the snapshot")
+	return root
+}
+
+// IDX-SNAP-V0-012, AHI-031: a snapshot miss whose recorded `index` build cost does not fit the
+// time left is decided from that record without starting the in-memory build; where the
+// recorded cost fits, as on a small repository, the miss still builds within the deadline.
+func TestDogfoodEventSnapshotMissUsesRecordedBuildCost(t *testing.T) {
+	t.Parallel()
+	// A minute, not the production deadline: these cases verify the decision, not latency (decision 0082).
+	deadline := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+	t.Run("recorded cost outlasts the deadline", func(t *testing.T) {
+		t.Parallel()
+		root := staleSnapshotRepository(t)
+		if err := contextindex.RecordBuildCost(root, time.Hour); err != nil {
+			t.Fatal(err)
+		}
+		built := new(atomic.Bool)
+		ctx := context.WithValue(deadline, dogfoodEventBuildKey{}, func(ctx context.Context, _, _ string) (*contextindex.Index, error) {
+			built.Store(true)
+			<-ctx.Done()
+			return nil, ctx.Err()
+		})
+		var stdout, stderr bytes.Buffer
+		started := time.Now()
+		code := runLocalCompletionEvent(ctx, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr)
+		t.Logf("miss decided in %s", time.Since(started))
+		if code != 2 || !strings.Contains(stderr.String(), `"dogfood-event-index-snapshot-stale"`) || built.Load() {
+			t.Fatalf("miss was not decided from the recorded cost: code=%d built=%t %s", code, built.Load(), &stderr)
+		}
+		if cost, _ := contextindex.RecordedBuildCost(root); cost != time.Hour {
+			t.Fatalf("the hook rewrote the build-cost record: %s", cost)
+		}
+	})
+	t.Run("recorded cost fits the deadline", func(t *testing.T) {
+		t.Parallel()
+		root := staleSnapshotRepository(t)
+		// A fixed cost, not the fixture's measured one, so a loaded host cannot turn this into a skip.
+		if err := contextindex.RecordBuildCost(root, time.Millisecond); err != nil {
+			t.Fatal(err)
+		}
+		built := new(atomic.Bool)
+		ctx := context.WithValue(deadline, dogfoodEventBuildKey{}, func(ctx context.Context, root, subject string) (*contextindex.Index, error) {
+			built.Store(true)
+			return contextindex.BuildContext(ctx, root, subject)
+		})
+		var stdout, stderr bytes.Buffer
+		if code := runLocalCompletionEvent(ctx, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr); code != 0 || !built.Load() {
+			t.Fatalf("small-repository miss did not build: code=%d built=%t %s", code, built.Load(), &stderr)
+		}
+	})
 }
 
 func TestDogfoodEventDeadlineBelowDeclaredHostKill(t *testing.T) {
