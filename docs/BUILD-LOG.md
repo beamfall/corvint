@@ -6987,3 +6987,12 @@ Pre-change context came from `corvint query` in the change clone; the pre-change
 not written. Focused tests and `go vet` passed for `./cmd/corvint` (count=10 on the flaky test),
 `./cmd/corvint-companion-release`, `./internal/tasks/store` and `./internal/tasks/cli`. `make gate`
 and the exhaustive `./...` run were not run.
+
+## 2026-09-25 TypeScript comment-strip allocation test counts over 20 runs
+
+`TestStripCommentsAllocationsDoNotGrowWithInput` failed on the PR #242 go-product run (jsx=true: 3
+allocations, want at most 2) on a docs-only diff. `testing.AllocsPerRun` counts process-wide mallocs
+and returns the integer mean; with one run, a single allocation from another goroutine is a failure.
+Twenty runs absorb such strays while the quadratic scan the test guards against still allocates tens
+of thousands of times per run. Evidence: `go test -race -count=5 -run
+TestStripCommentsAllocationsDoNotGrowWithInput ./internal/liveverify/affected/typescript/` passes.
