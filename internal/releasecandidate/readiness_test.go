@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -498,6 +499,13 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 		"zero-width reason":     "policy/rollback-exercise\tNOT_RUN\t\t\t\u200b\n",
 		"NUL reason":            "policy/rollback-exercise\tNOT_RUN\t\t\t\x00\n",
 		"escape reason":         "policy/rollback-exercise\tNOT_RUN\t\t\t\x1b[0m\n",
+		"hangul filler reason":  "policy/rollback-exercise\tNOT_RUN\t\t\t\u3164\n",
+		"PASS terminal title":   "gate/full-gate\tPASS\t" + full + "\t\tok\x1b]0;x\x07\n",
+		"decided override":      "platform/darwin-arm64/lifecycle\tFALLBACK\t\t0420\t\u202eevil\n",
+		"invalid UTF-8":         "policy/rollback-exercise\tNOT_RUN\t\t\tdeferred \xff\n",
+		"line separator":        "policy/rollback-exercise\tNOT_RUN\t\t\tlater\u2028now\n",
+		"private use":           "policy/rollback-exercise\tNOT_RUN\t\t\tlater\ue000\n",
+		"noncharacter":          "policy/rollback-exercise\tNOT_RUN\t\t\tlater\ufffe\n",
 	} {
 		unexplained, err := ReadReadinessEvidence(fixture.file(t, "unexplained.tsv", content))
 		if err != nil {
@@ -505,7 +513,7 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 		}
 		options := ReadinessOptions{CandidateDirectory: fixture.candidate, SourceRoot: fixture.source, Evidence: unexplained}
 		if _, _, err := BuildReadinessRecord(t.Context(), options); err == nil {
-			t.Fatalf("%s admitted as an explanation", name)
+			t.Fatalf("%s reason admitted", name)
 		}
 	}
 
@@ -521,7 +529,7 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 	}
 	upThroughLink := below + string(filepath.Separator) + ".." + string(filepath.Separator) + "readiness.json"
 	for _, inside := range []string{filepath.Join(fixture.candidate, "readiness.json"), filepath.Join(fixture.source, "readiness.json"), filepath.Join(alias, "readiness.json"), upThroughLink} {
-		if _, err := WriteReadinessRecord(t.Context(), options, inside); err == nil {
+		if _, err := WriteReadinessRecord(t.Context(), options, inside); err == nil || !strings.Contains(err.Error(), "which build must not write") {
 			t.Fatalf("output %s inside the candidate or source root admitted", inside)
 		}
 		if _, err := os.Lstat(inside); !os.IsNotExist(err) {
@@ -531,7 +539,7 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 	t.Run("relative output from a symlinked working directory", func(t *testing.T) {
 		t.Chdir(below)
 		for _, inside := range []string{"readiness.json", filepath.Join("..", "readiness.json")} {
-			if _, err := WriteReadinessRecord(t.Context(), options, inside); err == nil {
+			if _, err := WriteReadinessRecord(t.Context(), options, inside); err == nil || !strings.Contains(err.Error(), "which build must not write") {
 				t.Fatalf("output %s from a working directory below the source root admitted", inside)
 			}
 		}
@@ -539,6 +547,42 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 			if _, err := os.Lstat(written); !os.IsNotExist(err) {
 				t.Fatalf("refused output %s was written: %v", written, err)
 			}
+		}
+	})
+	t.Run("output leaving the source root through a link writes nothing there", func(t *testing.T) {
+		outside := filepath.Join(canonicalTemp(t), "outside")
+		if err := os.MkdirAll(filepath.Join(outside, "sub"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		gitDirectory := filepath.Join(fixture.source, ".git")
+		escape := filepath.Join(gitDirectory, "escape")
+		if err := os.Symlink(filepath.Join(outside, "sub"), escape); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Remove(escape) })
+		if err := os.Chmod(gitDirectory, 0o555); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { os.Chmod(gitDirectory, 0o755) })
+		through := escape + string(filepath.Separator) + ".." + string(filepath.Separator) + "readiness.json"
+		if _, err := WriteReadinessRecord(t.Context(), options, through); err != nil {
+			t.Fatalf("output %s outside both roots refused or written through the source root: %v", through, err)
+		}
+		if _, err := os.Stat(filepath.Join(outside, "readiness.json")); err != nil {
+			t.Fatalf("record not written where the link leads: %v", err)
+		}
+	})
+	t.Run("deep output directory is resolved without growing its path", func(t *testing.T) {
+		deep := filepath.Join(append([]string{canonicalTemp(t)}, slices.Repeat([]string{"d"}, 400)...)...)
+		if err := os.MkdirAll(deep, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		directory, err := physical(deep)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if inside, err := within(directory, fixture.source); inside || err != nil {
+			t.Fatalf("deep directory within the source root = %v, %v", inside, err)
 		}
 	})
 	if _, err := VerifyContext(t.Context(), fixture.candidate); err != nil {

@@ -7707,14 +7707,19 @@ Build mode now refuses an output inside the candidate or the source root (SRR-V1
 by file identity, so a symlink or case alias cannot hide the overlap. Supplying one store flag
 without the other is now a usage error (exit 2).
 
-A second review of those fixes reproduced two more gaps, also fixed here. The output guard cleaned
-the path as text before following symlinks, so a working directory reached through a symlink into
-the source root, or an absolute `link/../FILE`, still wrote inside it. The guard now climbs from
-the directory as spelled by appending `..`, so the operating system resolves every step as the
-write does. The reason rule caught only whitespace, so a zero-width space, a NUL or a terminal
-escape still explained a row. A reason now needs a letter or digit and no control or format
-character. A record built from a CRLF file before these fixes stored reasons ending in a carriage
-return and no longer verifies; no such record was ever published.
+Two further reviews reproduced more gaps, also fixed here. The output guard cleaned the path as
+text before following symlinks, so a working directory reached through a symlink into the source
+root, or an absolute `link/../FILE`, still wrote inside it. The temporary file was placed in the
+textually cleaned directory, so `link/../FILE` leaving the source root still wrote the whole record
+into it first. Build now resolves the output directory once to an absolute, symlink-free path,
+resolving each component, `..` included, in order from the working directory's resolved path. The
+guard checks that directory by file identity, and both the temporary file and the link are written
+there. The path does not grow while the guard climbs, so a deep directory is no longer refused. The
+reason rule caught only whitespace, so a zero-width space, a NUL, a terminal escape or a Hangul
+filler still explained a row, and invalid UTF-8 built a record its own verify refused. Every
+reason must now be valid UTF-8 without a control, format, separator, private-use, noncharacter or
+default-ignorable code point, and only a reason with a letter or digit explains. A record built
+from a CRLF file before CRLF was read as LF no longer verifies; no such record was ever published.
 
 No release has used the record yet. Its first use is the `1.0.0-rc.1` candidate (V1-0018 AC2,
 V1-0020 AC3).

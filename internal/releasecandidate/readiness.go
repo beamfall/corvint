@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // The stable-readiness record (SRR-V1, accepted by decision 0422) binds one
@@ -299,9 +300,13 @@ func readinessRow(rule readinessRule, evidence map[string]ReadinessEvidence) (Re
 // digest; NOT_RUN carries none and names its decision or reason; FALLBACK is
 // admitted only on platform rows and also names its decision or reason. A
 // platform row is never NOT_RUN, and a platform row whose default names a
-// decision keeps that decision while it falls back (SRR-V1-007).
+// decision keeps that decision while it falls back (SRR-V1-007). Every row's
+// reason must be legible, and only a reason with a letter or digit explains.
 func validateReadinessRow(rule readinessRule, row ReadinessRow) error {
-	explained := row.Decision != "" || explains(row.Reason)
+	if !legible(row.Reason) {
+		return fmt.Errorf("readiness row %s has a reason with an invalid or hidden character", rule.id)
+	}
+	explained := row.Decision != "" || strings.IndexFunc(row.Reason, meaningful) >= 0
 	valid := map[string]bool{
 		"PASS":     digestPattern.MatchString(row.SHA256),
 		"FAIL":     digestPattern.MatchString(row.SHA256),
@@ -424,36 +429,64 @@ func ReadReadinessEvidence(path string) (map[string]ReadinessEvidence, error) {
 // WriteReadinessRecord builds the record and publishes it at output. An
 // existing output is refused, never replaced, and so is an output inside the
 // candidate or the source root, which build must not write (SRR-V1-011,
-// SRR-V1-012).
+// SRR-V1-012). The output's directory is resolved once, and the guard and the
+// write both use that resolved directory.
 func WriteReadinessRecord(ctx context.Context, options ReadinessOptions, output string) (*ReadinessRecord, error) {
-	if err := refuseOutputInside(output, options.CandidateDirectory, options.SourceRoot); err != nil {
+	spelled, name := filepath.Split(output)
+	directory, err := physical(spelled)
+	if err != nil {
+		return nil, err
+	}
+	if err := refuseInside(output, directory, options.CandidateDirectory, options.SourceRoot); err != nil {
 		return nil, err
 	}
 	record, raw, err := BuildReadinessRecord(ctx, options)
 	if err != nil {
 		return nil, err
 	}
-	return record, publishNoReplace(output, raw)
+	return record, publishNoReplace(directory, name, raw)
 }
 
-// explains reports whether a reason says something: it holds a letter or a
-// digit and no control or format character that could hide or rewrite it.
-func explains(reason string) bool {
-	visible := false
-	for _, r := range reason {
-		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
-			return false
-		}
-		visible = visible || unicode.IsLetter(r) || unicode.IsNumber(r)
-	}
-	return visible
+// hiddenCharacters are the classes a reason must not carry, because they can
+// hide, reorder or blank what it says: controls, format characters, line and
+// paragraph separators, private-use code points, noncharacters, and code
+// points that render as nothing.
+var hiddenCharacters = []*unicode.RangeTable{unicode.Cc, unicode.Cf, unicode.Zl, unicode.Zp, unicode.Co, unicode.Noncharacter_Code_Point, unicode.Other_Default_Ignorable_Code_Point}
+
+// legible reports whether a reason is valid UTF-8 with no hidden character.
+func legible(reason string) bool {
+	return utf8.ValidString(reason) && strings.IndexFunc(reason, hidden) < 0
 }
 
-func refuseOutputInside(output string, roots ...string) error {
-	directory, _ := filepath.Split(output)
-	if directory == "" {
-		directory = "."
+func hidden(r rune) bool { return unicode.IsOneOf(hiddenCharacters, r) }
+
+// meaningful is a letter or a digit; a reason with neither explains nothing.
+func meaningful(r rune) bool { return unicode.IsLetter(r) || unicode.IsNumber(r) }
+
+// physical returns directory as an absolute path free of symlinks. A relative
+// directory is appended to the working directory's own resolved path, and every
+// component, ".." included, is resolved in order as a write resolves it. A
+// directory rooted on a drive or a separator but not absolute (Windows "C:x"
+// or "\x") is refused rather than guessed.
+func physical(directory string) (string, error) {
+	if filepath.IsAbs(directory) {
+		return filepath.EvalSymlinks(directory)
 	}
+	if filepath.VolumeName(directory) != "" || strings.HasPrefix(filepath.ToSlash(directory), "/") {
+		return "", fmt.Errorf("readiness record directory %q is rooted but not absolute", directory)
+	}
+	working, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	working, err = filepath.EvalSymlinks(working)
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(working + string(filepath.Separator) + directory)
+}
+
+func refuseInside(output, directory string, roots ...string) error {
 	for _, root := range roots {
 		inside, err := within(directory, root)
 		if err != nil {
@@ -466,39 +499,36 @@ func refuseOutputInside(output string, roots ...string) error {
 	return nil
 }
 
-// within reports whether directory, as the output path spells it, is root or
-// lies below it. It climbs by appending ".." instead of cleaning the path, so
-// the operating system resolves every step as the write will, and it compares
-// file identity: a symlink, a symlinked working directory, a ".." segment or a
-// case alias cannot hide the overlap.
+// within reports whether directory, an absolute path free of symlinks, is root
+// or lies below it. It compares file identity at each parent, so a symlink, a
+// case alias or another name for root cannot hide the overlap.
 func within(directory, root string) (bool, error) {
 	rootInfo, err := os.Stat(root)
 	if err != nil {
 		return false, nil
 	}
-	info, err := os.Stat(directory)
-	if err != nil {
-		return false, err
-	}
-	for !os.SameFile(info, rootInfo) {
-		directory += string(filepath.Separator) + ".."
-		parent, err := os.Stat(directory)
+	for {
+		info, err := os.Stat(directory)
 		if err != nil {
 			return false, err
 		}
-		if os.SameFile(parent, info) {
+		if os.SameFile(info, rootInfo) {
+			return true, nil
+		}
+		parent := filepath.Dir(directory)
+		if parent == directory {
 			return false, nil
 		}
-		info = parent
+		directory = parent
 	}
-	return true, nil
 }
 
-// publishNoReplace writes raw to a temporary file beside path and hard-links
-// it into place, so an existing file is refused and a partial record never
-// appears at path.
-func publishNoReplace(path string, raw []byte) error {
-	temporary, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+// publishNoReplace writes raw to a temporary file in directory and hard-links
+// it to name there, so an existing file is refused and a partial record never
+// appears at name.
+func publishNoReplace(directory, name string, raw []byte) error {
+	path := filepath.Join(directory, name)
+	temporary, err := os.CreateTemp(directory, "."+name+".*")
 	if err != nil {
 		return err
 	}
