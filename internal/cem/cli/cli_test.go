@@ -15,8 +15,8 @@ func TestEscapeASCIIJSONMatchesPythonSpelling(t *testing.T) {
 	}
 }
 
-// CCF-V1-004 (proposed, decision 0398): the two CEM read failures keep the
-// oracle's fixed text and add their code.
+// CCF-V1-004 (accepted 2026-09-26, decision 0422; from decision 0398): the two
+// CEM read failures keep the oracle's fixed text and add their code.
 func TestReadFailuresKeepTheFixedTextAndAddTheirCode(t *testing.T) {
 	for code, want := range map[string]string{
 		cemcode.PatchUnavailable: `{"code": "patch-unavailable", "error": "cannot read patch", "ok": false}` + "\n",
