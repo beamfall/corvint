@@ -104,8 +104,8 @@ test "$output" = 'dogfood-bind-range: REFUSE target-not-landed'
 
 # DOGFOOD-012: before a retroactive binding the gap is reported as unbound.
 before=$(cd "$repo" && "$test_root/driver" dogfood check "$g2" 2>&1) || :
-printf '%s\n' "$before" | rg -q "^dogfood-check: NOTE unbound-commits count=2 window=$b0\\.\\.$g2\$"
-if printf '%s\n' "$before" | rg -q retroactive; then exit 1; fi
+rg -q "^dogfood-check: NOTE unbound-commits count=2 window=$b0\\.\\.$g2\$" <<< "$before"
+if rg -q retroactive; then exit 1; fi <<< "$before"
 
 # DOGFOOD-011: a citation or policy failure publishes no binding and leaves no private worktree.
 status=0
@@ -116,8 +116,8 @@ test "$output" = 'dogfood-bind-range: FAIL cem-cite unknown-hunk-id'
 status=0
 output=$(bind DOGFOOD_TEST_STATUS=incomplete script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
 test "$status" = 1
-printf '%s\n' "$output" | rg -q '^dogfood-bind-range: FAIL cem-policy$'
-if printf '%s\n' "$output" | rg -q 'PASS|next:'; then exit 1; fi
+rg -q '^dogfood-bind-range: FAIL cem-policy$' <<< "$output"
+if rg -q 'PASS|next:'; then exit 1; fi <<< "$output"
 test "$(git -C "$repo" worktree list | wc -l)" -eq 1
 if compgen -G "$evidence/dogfood-bind-range.*" >/dev/null; then exit 1; fi
 
@@ -143,12 +143,12 @@ output=$(bind DOGFOOD_CITATIONS="$test_root/citations.tsv" script/dogfood-bind-r
 binding=$(printf '%s\n' "$output" | sed -n "s/^dogfood-bind-range: PASS retroactive binding=\\([0-9a-f]\\{40\\}\\) range=$s1\\.\\.$g2\$/\\1/p")
 test -n "$binding"
 for step in prechange-query prechange-impact local-outcome ocm-aggregate; do
-  printf '%s\n' "$output" | rg -q "^dogfood-bind-range: NOTE $step NOT_PRODUCED retroactive-binding\$"
+  rg -q "^dogfood-bind-range: NOTE $step NOT_PRODUCED retroactive-binding\$" <<< "$output"
 done
 test "$(git -C "$repo" rev-parse "$binding^@")" = "$g2"
 test "$(git -C "$repo" diff --name-only "$g2" "$binding")" = .corvint/change.cem.json
-git -C "$repo" show "$binding:.corvint/change.cem.json" | rg -q "^  \"baseRevision\": \"$s1\",\$"
-git -C "$repo" show "$binding:.corvint/change.cem.json" | rg -q '^cited 1$'
+rg -q "^  \"baseRevision\": \"$s1\",\$" <<< "$(git -C "$repo" show "$binding:.corvint/change.cem.json")"
+rg -q '^cited 1$' <<< "$(git -C "$repo" show "$binding:.corvint/change.cem.json")"
 prepared="$evidence/bind-range.${s1:0:12}..${g2:0:12}.cem.json"
 rg -q "^  \"baseRevision\": \"$s1\",\$" "$prepared"
 if rg -q cited "$prepared"; then exit 1; fi
@@ -168,10 +168,10 @@ printf '2\tno-evidence\tintent-added-inside-the-range\n' > "$test_root/unknown.t
 : > "$test_root/corvint.log"
 output=$(bind DOGFOOD_TEST_HUNKS=2 DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_UNKNOWN="$test_root/unknown.tsv" \
   script/dogfood-bind-range.sh "$s1" "$g2" 2>&1)
-printf '%s\n' "$output" | rg -q '^dogfood-bind-range: NOTE cem-mark NOT_PRODUCED hunk=2 reason=no-evidence detail=intent-added-inside-the-range$'
+rg -q '^dogfood-bind-range: NOTE cem-mark NOT_PRODUCED hunk=2 reason=no-evidence detail=intent-added-inside-the-range$' <<< "$output"
 marked=$(printf '%s\n' "$output" | sed -n 's/^dogfood-bind-range: PASS retroactive binding=\([0-9a-f]\{40\}\) .*/\1/p')
-git -C "$repo" show "$marked:.corvint/change.cem.json" | rg -q '^marked 2 unknown no-evidence$'
-git -C "$repo" log -1 --format=%B "$marked" | rg -q '^NOT_PRODUCED hunk=2 reason=no-evidence detail=intent-added-inside-the-range$'
+rg -q '^marked 2 unknown no-evidence$' <<< "$(git -C "$repo" show "$marked:.corvint/change.cem.json")"
+rg -q '^NOT_PRODUCED hunk=2 reason=no-evidence detail=intent-added-inside-the-range$' <<< "$(git -C "$repo" log -1 --format=%B "$marked")"
 test "$(git -C "$repo" log -1 --format='%(trailers:key=Corvint-Dogfood-Binding,valueonly)' "$marked")" = retroactive
 rg -q '^max-unknown 1$' "$test_root/corvint.log"
 
@@ -186,7 +186,7 @@ pin="removed-intent.$(git -C "$repo" rev-parse "$s1:work.txt").0-3"
 printf '2\tno-evidence\t%s\n' "$pin" > "$test_root/unknown-pin.tsv"
 output=$(bind DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_UNKNOWN="$test_root/unknown-pin.tsv" \
   script/dogfood-bind-range.sh "$s1" "$g2" 2>&1)
-printf '%s\n' "$output" | rg -q "^dogfood-bind-range: NOTE cem-mark NOT_PRODUCED hunk=2 reason=no-evidence detail=$pin\$"
+rg -q "^dogfood-bind-range: NOTE cem-mark NOT_PRODUCED hunk=2 reason=no-evidence detail=$pin\$" <<< "$output"
 
 # DOGFOOD-012: once merged, the check names the range as retroactively bound, apart from the
 # still-unbound commit after it.
@@ -194,8 +194,8 @@ git -C "$repo" -c user.name=t -c user.email=t@example.invalid merge -q --no-ff -
 merge=$(git -C "$repo" rev-parse HEAD)
 work c4 >/dev/null
 after=$(cd "$repo" && "$test_root/driver" dogfood check "$merge" 2>&1) || :
-printf '%s\n' "$after" | rg -q "^dogfood-check: NOTE unbound-commits count=1 window=$b0\\.\\.$merge\$"
+rg -q "^dogfood-check: NOTE unbound-commits count=1 window=$b0\\.\\.$merge\$" <<< "$after"
 test "$(printf '%s\n' "$after" | rg '^  unbound ')" = "  unbound $c3"
-printf '%s\n' "$after" | rg -q "^dogfood-check: NOTE retroactive-bound-commits count=3 window=$b0\\.\\.$merge\$"
+rg -q "^dogfood-check: NOTE retroactive-bound-commits count=3 window=$b0\\.\\.$merge\$" <<< "$after"
 test "$(printf '%s\n' "$after" | rg '^  retroactive ' | sort)" = \
   "$(printf '  retroactive %s binding=%s\n' "$g1" "$binding" "$g2" "$binding" "$binding" "$binding" | sort)"

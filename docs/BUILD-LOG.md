@@ -7319,3 +7319,30 @@ or toolchain. Pre-change `make dogfood-change` reported FAIL not-complete. Post-
 against `984770f6`: bound at `9bf1816d`, and `dogfood-check` and `dogfood-seal` exited 0. Eight of
 nine hunks are cited `supported`; the new spec file is `unknown` because it does not exist at base.
 OCM links are NOT_PRODUCED.
+
+## 2026-09-26 Gate load flakes: SIGPIPE under `pipefail`, and a latency bound in the snapshot-refresh case
+
+The v0-6 `make gate` at 26f12d41 ran at host load ~60 and failed. One failure was
+`TestGoOnlyContextAbstentionRemainsClosed`: `script/dogfood-change_test.sh` exited 141. CI on
+Linux had shown the same exit on 2026-09-25. The script runs under `set -o pipefail` and asserts
+with `printf '%s\n' "$output" | rg -q …`. When `rg -q` matches, it exits before `printf` finishes
+writing, `printf` dies of SIGPIPE, and `pipefail` turns the passing assertion into exit 141. A
+scratch repro exited 141 in 200 of 200 runs through the pipe, and 0 of 200 with a here-string.
+Every such assertion in that script and in `script/dogfood-bind-range_test.sh` (also under
+`pipefail`) now reads its input from a here-string, the idiom the script already used elsewhere.
+Scripts without `pipefail` take the exit status of `rg` and are unaffected.
+
+`script/dogfood-seal.sh` had the same shape in product logic: `! git ls-tree … | grep -Fq`. Once the
+`.corvint/changes` listing outgrows the pipe buffer (161 entries, 19 KB at 2961076f; macOS pipes
+start at 16 KB), an early match can SIGPIPE `git` and make the seal refuse with
+`unarchived-base-cem` when the base CEM is in fact archived. It now greps a here-string of the listing.
+A failing `git` still yields an empty listing and the same refusal.
+
+`TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot` failed at load 153. It ran the
+refreshed-snapshot event under the 3-second bound that the first half needs to expire a blocked
+build. That half now runs with a one-minute hang guard and a build hook that fails. The case
+asserts the snapshot hit, not latency (decision 0082).
+
+Three other failures in that gate (QLF-V0-006, `TestReadOnlyVerbsWriteNothing` session-start,
+`TestCancellationLeavesNoDescendants`) pass in isolation even at load 196; they are diagnosed
+separately. V1-0356's hang-guard fix was already on main (f0488711).
