@@ -125,7 +125,7 @@ are widened under their own specs.
 | `CEM-SM-003` | `spliceHunk` | `TestStructuralProvenIsolatesHunksExceptMove` |
 | `CEM-SM-004` | `structuralImage` with `sim.ApplyHunks` | `TestStructuralProvenIsolatesHunksExceptMove` |
 | `CEM-SM-005` | `parseBoth`, `formatterOnlyProven` | `TestStructuralRefusesUnprovableInputs` |
-| `CEM-SM-006` | `internal/cem/workflow/commands.go` `Mark`, `checkSpec03Output` | `TestSpec03UpgradeNeverReplacesACoreMap`, `TestMarkStructuralReasonUpgradesToSpec03AndVerifies`, `TestMarkStructuralReasonWrongClassIsRefused`, `TestMarkStructuralReasonRefusedOnSpec01` |
+| `CEM-SM-006` | `internal/cem/workflow/commands.go` `Mark`, `checkSpec03Output`, `writeMap` (every writer, V1-0384) | `TestSpec03UpgradeNeverReplacesACoreMap`, `TestMarkStructuralReasonUpgradesToSpec03AndVerifies`, `TestMarkStructuralReasonWrongClassIsRefused`, `TestMarkStructuralReasonRefusedOnSpec01` |
 | `CEM-SM-007` | `renameProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses`, `TestStructuralRefusesUnprovableInputs` |
 | `CEM-SM-008` | `moveProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses`, `TestStructuralRefusesUnprovableInputs` |
 | `CEM-SM-009` | `importReorderProven` | `TestStructuralTruePositives`, `TestStructuralNearMisses` |
