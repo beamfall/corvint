@@ -30,7 +30,7 @@
   "legalFiles": [
     {"path": "LICENSE", "sha256": "196fbeabc292687bcea70da40d01c0777f8eb243ec1c11cb7b1f647bb8dd6108"},
     {"path": "LICENSE-APACHE-2.0", "sha256": "a55dcdf3a62566e48883e0c0caba22c65f8fe5431aed6437422ba447e60cd27b"},
-    {"path": "LICENSING.md", "sha256": "05222f14148648f2cfc55c38cf1ce6bd7aec76f15faa469c02d6d23e2d0517a8"},
+    {"path": "LICENSING.md", "sha256": "3e736925cfb763e89089234da28526f341bdbe1e69f3963979d6d770ce097e0e"},
     {"path": "PROVENANCE.md", "sha256": "8ac9527a2ec3dc585595eadad841674fa5bbfbf86005afa1f92d1a378a5a2cb7"}
   ],
   "smoke": {

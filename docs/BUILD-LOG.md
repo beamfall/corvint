@@ -7656,3 +7656,24 @@ its helper now logs stderr on a nonzero exit. `TestCancellationLeavesNoDescendan
 60-second hang bound on a cold compile at load ~60. The bound is now 4 minutes and the run
 timeout 5 minutes, which keeps the run timeout above the hang bound. V1-0356's hang-guard fix
 was already on main (f0488711).
+
+## 2026-09-26 V1-0379: owner-approved Apache-2.0 exception for the frontier command files
+
+`cmd/corvint/frontier.go`, `cmd/corvint/frontier_adapters.go` and `cmd/corvint/frontier_test.go`
+have carried an Apache-2.0 notice since the public snapshot, but the path map puts `cmd/**` in
+the AGPL product layer. Decision 0002 allows a file-specific notice only when the owner approves it
+separately, and no approval was recorded. The owner chose to keep the notices (decision 0422,
+answer A5). `LICENSING.md` now names the three files as an owner-approved exception, and decision
+0002 gains an amendment that records the approval after publication. No notice changes, nothing is
+relicensed, and the boundary list is not extended to `cmd/**`.
+
+The release-artifact manifest pins the legal files by digest (`GPK-V0-020`), so the `LICENSING.md`
+pin in `conformance/release-artifact-v0/manifest.json` moves to the amended bytes. The old pin would
+make the release gate report `legal-file-altered`. `GPK-V0-020` bars the Go migration from altering
+the legal files. This edit is an owner licensing decision, not part of the migration.
+
+A header search of the whole tree for the Apache notice finds these three files and the
+`LICENSE-APACHE-2.0` text itself outside the boundary paths. It also finds four third-party Android
+Java fixtures under `internal/analyzernativebridge/testdata/beamfall-corpus/` (Android Open Source
+Project) and three held-out task lines in `tools/cw-trial/testdata/heldout-v1/tasks.jsonl` that quote
+third-party source. Those are third-party material that keeps its own licence, not Corvint source.

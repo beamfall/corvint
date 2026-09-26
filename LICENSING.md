@@ -38,6 +38,19 @@ attaching.
 material. A new Apache-2.0 file must be placed there; extending the boundary to any other path
 requires an explicit amendment to `docs/decisions/0002-future-publication-transition.md`.
 
+### Owner-approved file exceptions
+
+Three files outside the list above keep the Apache-2.0 notice they carry. The owner approved this
+exception on 2026-09-26 (decision 0422, answer A5), and decision 0002 records it as an amendment:
+
+- `cmd/corvint/frontier.go`
+- `cmd/corvint/frontier_adapters.go`
+- `cmd/corvint/frontier_test.go`
+
+The exception covers these three files only. It does not extend the Apache-2.0 boundary to `cmd/**`,
+so any other file there, including a new one, is AGPL-3.0 unless a further amendment to decision
+0002 approves it.
+
 ## Rules
 
 - A file's licence is determined by its path, per the boundary above, unless the file carries a
