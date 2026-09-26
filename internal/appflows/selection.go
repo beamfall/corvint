@@ -503,7 +503,7 @@ func (s *e2eSelector) exclusion(t InventoryTest, links []EvaluatedLink, unmapped
 	record, hasRecord := s.coverage[t.TestKey]
 	failures := []E2EFallback{}
 	if hasRecord {
-		code := s.coverageFailure(record, links, unexplained)
+		code := s.coverageFailure(t.Path, record, links, unexplained)
 		if code == "" {
 			proof := E2EProof{Coverage: &record, DisjointFrom: s.in.Plan.Dirty}
 			return []E2EOmission{{TestKey: t.TestKey, Project: t.Project, Path: t.Path, Basis: BasisCoverage, Proof: proof}}, nil
@@ -553,15 +553,15 @@ func proofLinks(links []EvaluatedLink) []ProofLink {
 }
 
 // coverageFailure applies AFU-V1-021: complete coverage for every tier each linked flow declares,
-// holding at base because no covered or global path changed since the evidence commit.
-func (s *e2eSelector) coverageFailure(record CoverageRecord, links []EvaluatedLink, unexplained []string) string {
+// holding at base under the Verified carry-forward rule.
+func (s *e2eSelector) coverageFailure(test string, record CoverageRecord, links []EvaluatedLink, unexplained []string) string {
 	if len(unexplained) != 0 {
 		return CodeUnmappedChange
 	}
 	if !s.tiersComplete(record, links) {
 		return CodeExclusionUnproven
 	}
-	if s.coverageStale(record) {
+	if s.coverageStale(test, record, links) {
 		return CodeMapStale
 	}
 	return ""
@@ -585,7 +585,10 @@ func (s *e2eSelector) tiersComplete(record CoverageRecord, links []EvaluatedLink
 	return len(flows) != 0
 }
 
-func (s *e2eSelector) coverageStale(record CoverageRecord) bool {
+// coverageStale reports evidence-stale coverage: a covered path, a global path, the test's static
+// reach, or a link target of its flows or a path the impact graph reaches from one changed between
+// the evidence commit and base.
+func (s *e2eSelector) coverageStale(test string, record CoverageRecord, links []EvaluatedLink) bool {
 	if _, err := git(s.ctx, s.root, "merge-base", "--is-ancestor", record.Commit, s.base); err != nil {
 		return true
 	}
@@ -599,9 +602,11 @@ func (s *e2eSelector) coverageStale(record CoverageRecord) bool {
 			covered[p] = true
 		}
 	}
-	return slices.ContainsFunc(strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00"), func(p string) bool {
-		return covered[p] || (p != "" && s.global(p))
-	})
+	changed := slices.DeleteFunc(strings.Split(string(out), "\x00"), func(p string) bool { return p == "" })
+	changedBy := changedUnits(s.in.Graph, changed)
+	reached := func(p string) bool { return reach(s.in.Graph, changedBy, changed, p) != nil }
+	return slices.ContainsFunc(changed, func(p string) bool { return covered[p] || s.global(p) }) || reached(test) ||
+		slices.ContainsFunc(links, func(l EvaluatedLink) bool { return reached(l.Target.Path) })
 }
 
 // fullSuite is every inventoried test plus every discovered test the inventory misses.

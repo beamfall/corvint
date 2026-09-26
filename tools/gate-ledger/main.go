@@ -920,9 +920,10 @@ func gitOutputEnv(dir, env string, args ...string) (string, error) {
 
 func gitOutputEnvInput(dir, env string, input io.Reader, args ...string) (string, error) {
 	operation := args[0]
-	if env != "" {
-		args = append([]string{"-c", "core.fsmonitor=false", "-c", "core.ignorestat=false"}, args...)
-	}
+	// Every call, not only private-index ones: a repository with core.fsmonitor
+	// set makes git wait on its monitor daemon, which a loaded host can stall
+	// past the test timeout (V1-0355).
+	args = append([]string{"-c", "core.fsmonitor=false", "-c", "core.ignorestat=false"}, args...)
 	cmd := exec.Command("git", args...)
 	cmd.Stdin = input
 	cmd.Dir = dir
