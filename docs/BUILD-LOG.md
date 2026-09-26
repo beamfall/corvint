@@ -6174,6 +6174,28 @@ Review repairs (same slice):
 - Follow-up: `affected.Build` takes no context, so cancelling a `corvint.flows.impact` call does not
   stop a walk already in progress.
 
+## 2026-09-25 V1-0319, D13: `context --task` paired-trial protocol frozen on Beamfall; run blocked on the owner's threshold
+
+Panel dispute D13 (orientation routes to `query`, not `context --task`) is a defect. The owner ruled
+that the promotion gate stays binding. Routing moves only after the gate that
+`docs/specs/task-context-packet-v0.md` names passes: "a paired trial reading against `grep` on the
+held-out set", run as `tools/cw-trial` under decision 0022 on Beamfall roadmap-ticket-to-diff tasks.
+
+- The frozen protocol and set are in `tools/cw-trial/testdata/beamfall-roadmap-v1/`.
+  - `tasks.json` holds 50 `retrieval` tasks and 181 gold paths, from 247 candidates at Beamfall/core
+    `02835b1be`. Its sha256 is `7fbe8124e55d247bc98ef0a06f3a0d820f6824aff680853b9c69a353fe85db85`.
+  - The Git-only builder is `build_roadmap_set.py`.
+  - The set was authored without any Corvint run on its tasks.
+- Arms: `none`, `grep` and `corvint`. Agent: `codex exec gpt-5.6-sol`, effort `medium`,
+  `--access none`, `--limit 20`. One first-observation run.
+- Result: NOT_RUN, with no routing change. Three things block the run:
+  - `confidently-wrong-trial-v0.md` leaves the pass reading to the owner (CWT-V0-009).
+  - Its "non-inferior success" has no margin, and the bet plan it cites is absent from the tree.
+  - Whether `likely` wrong claims count is unresolved.
+- The owner questions are listed in the set's README. They include whether the orientation reading
+  (`packet_top_k`, `gold_as_result`) carries its own threshold, and approval of the 150 agent
+  invocations. The skills and `docs/DOGFOOD.md` §1 stay routed to `query`.
+
 ## 2026-09-25 Panel blocker B6: CCF-V1-007 N-1 is 0.8.1, and frozen enumerations have a register (V1-0285)
 
 The pre-1.0 panel (finding B6) confirmed that CCF-V1-007's premise was false. The contract says N-1
@@ -6597,6 +6619,7 @@ Follow-ups:
   including after a rerun on a clean tree. The same commit passes in a separate linked worktree, and
   base 489701ca passes there too. The failure depends on the environment (the clone's state), not on
   this diff.
+
 ## 2026-09-25 V1-0272: alternates refusal names the adopter rerun
 
 - The `unsupported-object-alternates` fix line ended with `rerun make dogfood-change`, the one
@@ -6947,6 +6970,86 @@ the touched packages; the doc checks; `go run ./conformance/use-cases-v0`, which
 Under host load (load average 170 to 570), `TestSelectionOnTheLiveDirtyWorktree` and
 `TestIncrementalSelectionMeetsTheLiveBudget` exceeded their 100 ms budget. These are timing
 flakes. NOT_RUN: the exhaustive `./...` gate.
+
+## 2026-09-25 V1-0350 CCF-V1-007 (proposed, decision 0398): nested Core enumerations and the N-1 replay
+
+Panel finding B6 (PR #226) left two NOT_PRODUCED statements in CCF-V1-007. The (d) register covered
+15 top-level enumerations and none nested in answerability, intent, learning, range, `plan.unknown`,
+`plan.excluded` or the `prove` verdicts. No release gate replayed the N-1 tag. The ticket body was not
+readable: `.taskman/tickets/V1-0350.json` is absent from this clone and every remote ref, so the scope
+comes from the ticket summary the owner's handoff carried.
+
+Change: 16 proposed register rows, each citing its source as `path:N@hash`. Added as `closed`: the
+`context` answerability verdict, `context.intent.confidence`, `context.learning.local_trace_state`,
+`context.range.status`, the range omission reason, the `plan.excluded` reason and invalidation, the
+`init`/`adopt` semantic-frontier reason and source class, `packet.mode`, the `prove` row falsifier and
+verdict, and `proof.affected.scope`. Added as `open`, because a reader decides on a sibling member:
+`context.intent.id`, `plan.unknown[].reason` and `inventory.gaps[].code`. `prove` embeds its query or
+impact packet unchanged, so the observer applies the `query` or `impact` rows to `packet` by
+`packet.mode`. Excluded with a reason: free text, kind-prefixed identifiers, enumerations carried as
+member names, and the result rows CCF-V1-005 does not freeze. NOT_PRODUCED: exclusion sample reasons
+and `context`'s critical-row relations, which no frozen fixture writes.
+
+N-1 replay: `make core-n1-replay` builds the newest release tag before `HEAD` from `git archive` and
+sets `CORVINT_CORE_N1_BINARY`. `TestCoreVerbsEmitTheFrozenProfiles` then runs each mode under that
+binary too. It checks exit code, identifiers, that each N-1 member path and type is still emitted,
+and that each N-1 value at a registered path is registered. Against `v0.8.1` (0e5d596): 21 modes pass,
+and `index --if-stale` when fresh is skipped, because its setup writes the snapshot with this build.
+It is opt-in and in release-runbook step 8, not in `make gate`; making it a gate step is an owner
+decision.
+
+Findings. (1) Two changes after 0.8.1 reached members now registered. 1aa1187c added the `open`
+abstention reason `omitted-competing-record`, which is absent from the `v0.8.1` tree, so accepted
+(d)'s "same values at `v0.8.1`" is not literally true for that row. ec50af2d (V1-0340) removed the
+`plan.excluded` reason `UNINDEXED_DIRTY_GO_PATH_MAY_BE_DELETED_OR_RENAMED` that 0.8.1 writes, and that
+removal needs owner acceptance. (2) The goldens from V1-0337 were stale on the integration base
+c27ad137: seven comparisons failed before this change. `engine` is the digest of the running
+executable (`internal/contextindex/snapshot.go:134`), so it changes with every test-binary build. It
+is now pinned by type (`coreExecutableMembers`). The graph digest and snapshot `bytes` goldens were
+regenerated for V1-0299 and 1aa1187c.
+
+Evidence: focused `-run 'CoreVerbs|CoreRefusals|Freeze'` passes with and without the N-1 binary.
+Dropping `CLEAN` from the `context.range.status` row fails both `impact committed range` and, through
+the packet mapping, `prove committed range`. Linux is NOT_RUN.
+
+## 2026-09-25 V1-0351, V1-0346, V1-0323: P1 small batch
+
+Three P1 defects fixed in one change, based on the integration branch of PR #241.
+
+- V1-0351: `TestObserveWorkUsesOnlyTargetMaterialization` flaked on a transient
+  `.git/objects/maintenance.lock` during the manifest walk. The work-production fixture and its
+  seed repository now set `maintenance.auto=false` and `gc.auto=0` (`materializationQuiesce` in
+  `cmd/corvint/work_materialization_test.go`), as `materializationFixture` already did.
+  `go test -count=10 -run '^TestObserveWorkUsesOnlyTargetMaterialization$' ./cmd/corvint/` passed.
+- V1-0346: `script/local-console-release-gate` passed `-corvint-root` and `-taskman-root`, which
+  `cmd/corvint-companion-release` no longer defines, so the gate could never reach the bundle
+  build. It now passes `-source-root` and drops the obsolete `--taskman` option, because
+  corvint-tasks builds in tree since decision 0397. `TestGateScriptsPassOnlyDefinedFlags` parses
+  both gate scripts' invocations and feeds each flag to the command's flag set; it failed on the old
+  script and passes now (PUB-V0-011 traceability row). A live gate run was not performed.
+  Follow-up, not changed: the script's `go build ./cmd/...` is relative to the caller's directory.
+- V1-0323: `corvint-tasks init` over committed tickets created a journal whose genesis bound none
+  of them, so every later read refused as `INTENT_DIVERGED`. Init now refuses first, with the
+  existing `INTENT_DIVERGED` code and a reason naming the record, and creates nothing
+  (`TestCTSV0001_InitRefusesOverExistingRecords`, `TestCTSV0001_InitRefusesOverCommittedTickets`).
+  The CLI now shows a store refusal's detail as its reason. No owning tasks spec existed, so the new
+  `docs/specs/corvint-tasks-store-init-v0.md` (proposed) records CTS-V0-001 and two unimplemented
+  proposals, journal-optional reads (CTS-V0-002) and `init --adopt`/import (CTS-V0-003), which need
+  owner acceptance and the recovered task-store contract (V1-0310).
+
+Pre-change context came from `corvint query` in the change clone; the pre-change impact receipt was
+not written. Focused tests and `go vet` passed for `./cmd/corvint` (count=10 on the flaky test),
+`./cmd/corvint-companion-release`, `./internal/tasks/store` and `./internal/tasks/cli`. `make gate`
+and the exhaustive `./...` run were not run.
+
+## 2026-09-25 TypeScript comment-strip allocation test counts over 20 runs
+
+`TestStripCommentsAllocationsDoNotGrowWithInput` failed on the PR #242 go-product run (jsx=true: 3
+allocations, want at most 2) on a docs-only diff. `testing.AllocsPerRun` counts process-wide mallocs
+and returns the integer mean; with one run, a single allocation from another goroutine is a failure.
+Twenty runs absorb such strays while the quadratic scan the test guards against still allocates tens
+of thousands of times per run. Evidence: `go test -race -count=5 -run
+TestStripCommentsAllocationsDoNotGrowWithInput ./internal/liveverify/affected/typescript/` passes.
 
 ## 2026-09-25 decision 0411 TM-V0-010: fixture re-checks do not re-read mountinfo
 

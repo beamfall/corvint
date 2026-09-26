@@ -91,6 +91,14 @@ output directories outside the checkout; the reproducibility script refuses one 
    script/check-hostile-regressions.sh | tee /abs/release/X.Y.Z/hostile-regressions.txt
    ```
 
+   Then the CCF-V1-007 N-1 replay (proposed, decision 0398): every frozen Core mode also runs under
+   the previous release tag, which must still carry each member, identifier and registered value this
+   commit emits. It must end `ok`; retain its output.
+
+   ```sh
+   make core-n1-replay CORE_N1_TAG=vW.V.U | tee /abs/release/X.Y.Z/core-n1-replay.txt
+   ```
+
    The optional companion and installed qualification keep their own gates:
    `script/corvint-companion-release-gate` and `script/public-release-check`; run them when the
    release includes those tuples and retain their reports. For companion bundle `/2`, run

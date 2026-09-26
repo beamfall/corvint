@@ -254,7 +254,7 @@ CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	98	A Core refusal MUST exi
 CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	136	The admission, freshness, omission and abstention members MUST keep their names,
 CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	153	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
 CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	163	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	218	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	270	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa
@@ -484,6 +484,9 @@ CTR-V0-009	docs/specs/compat-trial-v0.md	79	Preregistered rubric, budgets, and s
 CTR-V0-010	docs/specs/compat-trial-v0.md	115	Containment and harness reuse. Replay stays local; per `E:99`, external executio
 CTR-V0-011	docs/specs/compat-trial-v0.md	122	Proposed; unaccepted and does not authorize implementation. Changed-executable a
 CTR-V0-012	docs/specs/compat-trial-v0.md	124	Proposed; unaccepted and does not authorize implementation. Observation record s
+CTS-V0-001	docs/specs/corvint-tasks-store-init-v0.md	36	`corvint-tasks init` MUST refuse, before it creates the state directory or any
+CTS-V0-002	docs/specs/corvint-tasks-store-init-v0.md	41	(proposed, not implemented) A read verb (`queue status`, `roadmap`, `ticket show
+CTS-V0-003	docs/specs/corvint-tasks-store-init-v0.md	46	(proposed, not implemented) An explicit `corvint-tasks init --adopt` (or a separ
 CWC-X0-001	docs/specs/correlated-witness-collapse-x0.md	55	X0 MUST consume one exact bounded `cem/0.1` or `cem/0.2` byte document through t
 CWC-X0-002	docs/specs/correlated-witness-collapse-x0.md	58	Common causes MUST use exactly `source`, `generator`, `parser`, `oracle`, or
 CWC-X0-003	docs/specs/correlated-witness-collapse-x0.md	61	Every witness and membership-attestation reference MUST identify evidence presen

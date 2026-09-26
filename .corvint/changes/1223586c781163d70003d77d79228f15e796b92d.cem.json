@@ -1,0 +1,60 @@
+{
+  "baseRevision": "edc7901bd214d925a1cef02c495f015ce51e1c49",
+  "evidence": [
+    {
+      "blobOid": "636e0fe6bd73671b60d07c77aca31813f92a5664",
+      "id": "evidence:sha256:55facce513b7736e798aa9e0e704efbf15ef0b6ae9b77c5ca5674b1ccc1aee3e",
+      "path": "docs/specs/documentation-citation-gate-v0.md",
+      "span": {
+        "end": 6110,
+        "start": 5129
+      },
+      "spanSha256": "f65c8402e859a39bba681529e5e7d321d806a7ed8e677edee25ca1403e2b1049"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:55facce513b7736e798aa9e0e704efbf15ef0b6ae9b77c5ca5674b1ccc1aee3e",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:114e788e5395abe3ba37a61a2b0490c56ca718cf82e7ce064f8e2439bcbfae85",
+      "newRange": {
+        "count": 9,
+        "start": 29
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 29
+      },
+      "path": "docs/specs/compat-replay-runner-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:55facce513b7736e798aa9e0e704efbf15ef0b6ae9b77c5ca5674b1ccc1aee3e",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c46999cdab022a96f124e9d1e9ac039a8668ab93d5dbb41458dd90c71d0331fa",
+      "newRange": {
+        "count": 7,
+        "start": 786
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 786
+      },
+      "path": "docs/specs/compat-replay-runner-v0.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "5d4d95a924d9a99c8e5e671b1afe4336cf8f87b58165e4be54367c5584de9c5f",
+  "spec": "cem/0.2"
+}
