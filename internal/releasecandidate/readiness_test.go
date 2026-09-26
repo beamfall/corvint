@@ -495,6 +495,9 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 		"CRLF empty reason":     "policy/rollback-exercise\tNOT_RUN\t\t\t\r\n",
 		"whitespace reason":     "policy/rollback-exercise\tNOT_RUN\t\t\t \n",
 		"CRLF fallback no text": "platform/darwin-arm64/lifecycle\tFALLBACK\t\t\t\r\n",
+		"zero-width reason":     "policy/rollback-exercise\tNOT_RUN\t\t\t\u200b\n",
+		"NUL reason":            "policy/rollback-exercise\tNOT_RUN\t\t\t\x00\n",
+		"escape reason":         "policy/rollback-exercise\tNOT_RUN\t\t\t\x1b[0m\n",
 	} {
 		unexplained, err := ReadReadinessEvidence(fixture.file(t, "unexplained.tsv", content))
 		if err != nil {
@@ -512,7 +515,12 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 	if err := os.Symlink(fixture.candidate, alias); err != nil {
 		t.Fatal(err)
 	}
-	for _, inside := range []string{filepath.Join(fixture.candidate, "readiness.json"), filepath.Join(fixture.source, "readiness.json"), filepath.Join(alias, "readiness.json")} {
+	below := filepath.Join(canonicalTemp(t), "below")
+	if err := os.Symlink(filepath.Join(fixture.source, ".git"), below); err != nil {
+		t.Fatal(err)
+	}
+	upThroughLink := below + string(filepath.Separator) + ".." + string(filepath.Separator) + "readiness.json"
+	for _, inside := range []string{filepath.Join(fixture.candidate, "readiness.json"), filepath.Join(fixture.source, "readiness.json"), filepath.Join(alias, "readiness.json"), upThroughLink} {
 		if _, err := WriteReadinessRecord(t.Context(), options, inside); err == nil {
 			t.Fatalf("output %s inside the candidate or source root admitted", inside)
 		}
@@ -520,6 +528,19 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 			t.Fatalf("refused output %s was written: %v", inside, err)
 		}
 	}
+	t.Run("relative output from a symlinked working directory", func(t *testing.T) {
+		t.Chdir(below)
+		for _, inside := range []string{"readiness.json", filepath.Join("..", "readiness.json")} {
+			if _, err := WriteReadinessRecord(t.Context(), options, inside); err == nil {
+				t.Fatalf("output %s from a working directory below the source root admitted", inside)
+			}
+		}
+		for _, written := range []string{filepath.Join(fixture.source, ".git", "readiness.json"), filepath.Join(fixture.source, "readiness.json")} {
+			if _, err := os.Lstat(written); !os.IsNotExist(err) {
+				t.Fatalf("refused output %s was written: %v", written, err)
+			}
+		}
+	})
 	if _, err := VerifyContext(t.Context(), fixture.candidate); err != nil {
 		t.Fatalf("refused output disturbed the candidate: %v", err)
 	}

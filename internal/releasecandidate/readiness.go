@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 // The stable-readiness record (SRR-V1, accepted by decision 0422) binds one
@@ -298,10 +299,9 @@ func readinessRow(rule readinessRule, evidence map[string]ReadinessEvidence) (Re
 // digest; NOT_RUN carries none and names its decision or reason; FALLBACK is
 // admitted only on platform rows and also names its decision or reason. A
 // platform row is never NOT_RUN, and a platform row whose default names a
-// decision keeps that decision while it falls back (SRR-V1-007). A reason that
-// is only whitespace explains nothing.
+// decision keeps that decision while it falls back (SRR-V1-007).
 func validateReadinessRow(rule readinessRule, row ReadinessRow) error {
-	explained := row.Decision != "" || strings.TrimSpace(row.Reason) != ""
+	explained := row.Decision != "" || explains(row.Reason)
 	valid := map[string]bool{
 		"PASS":     digestPattern.MatchString(row.SHA256),
 		"FAIL":     digestPattern.MatchString(row.SHA256),
@@ -436,40 +436,62 @@ func WriteReadinessRecord(ctx context.Context, options ReadinessOptions, output 
 	return record, publishNoReplace(output, raw)
 }
 
-func refuseOutputInside(output string, roots ...string) error {
-	resolved, err := filepath.EvalSymlinks(filepath.Dir(output))
-	if err != nil {
-		return err
+// explains reports whether a reason says something: it holds a letter or a
+// digit and no control or format character that could hide or rewrite it.
+func explains(reason string) bool {
+	visible := false
+	for _, r := range reason {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return false
+		}
+		visible = visible || unicode.IsLetter(r) || unicode.IsNumber(r)
 	}
-	directory, err := filepath.Abs(resolved)
-	if err != nil {
-		return err
+	return visible
+}
+
+func refuseOutputInside(output string, roots ...string) error {
+	directory, _ := filepath.Split(output)
+	if directory == "" {
+		directory = "."
 	}
 	for _, root := range roots {
-		if within(directory, root) {
+		inside, err := within(directory, root)
+		if err != nil {
+			return err
+		}
+		if inside {
 			return fmt.Errorf("readiness record %s is inside %s, which build must not write", output, root)
 		}
 	}
 	return nil
 }
 
-// within reports whether directory, a symlink-free absolute path, or one of
-// its ancestors is root. It compares file identity, so a symlink or a case
-// alias of root cannot hide the overlap.
-func within(directory, root string) bool {
+// within reports whether directory, as the output path spells it, is root or
+// lies below it. It climbs by appending ".." instead of cleaning the path, so
+// the operating system resolves every step as the write will, and it compares
+// file identity: a symlink, a symlinked working directory, a ".." segment or a
+// case alias cannot hide the overlap.
+func within(directory, root string) (bool, error) {
 	rootInfo, err := os.Stat(root)
 	if err != nil {
-		return false
+		return false, nil
 	}
-	for ; ; directory = filepath.Dir(directory) {
-		info, err := os.Stat(directory)
-		if err == nil && os.SameFile(info, rootInfo) {
-			return true
-		}
-		if filepath.Dir(directory) == directory {
-			return false
-		}
+	info, err := os.Stat(directory)
+	if err != nil {
+		return false, err
 	}
+	for !os.SameFile(info, rootInfo) {
+		directory += string(filepath.Separator) + ".."
+		parent, err := os.Stat(directory)
+		if err != nil {
+			return false, err
+		}
+		if os.SameFile(parent, info) {
+			return false, nil
+		}
+		info = parent
+	}
+	return true, nil
 }
 
 // publishNoReplace writes raw to a temporary file beside path and hard-links

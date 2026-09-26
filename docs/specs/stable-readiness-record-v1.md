@@ -111,11 +111,15 @@ Non-goals:
   TSV`, MUST write nothing. The evidence file names each supplied row's evidence explicitly.
   `cmd/corvint-release-candidate` keeps its single flag set unchanged. Implementation detail: each
   line of the evidence file is `ROW`, `STATUS`, `PATH`, `DECISION` and `REASON` separated by tabs,
-  with an absent value left empty. A CRLF line ending is read as LF, and a reason that is only
-  whitespace counts as no reason. A relative `PATH` resolves against the evidence file's directory.
+  with an absent value left empty. A CRLF line ending is read as LF, and a reason counts as no
+  reason unless it holds a letter or digit and no control or format character. A record built from
+  a CRLF file before this rule stored reasons ending in a carriage return and no longer verifies;
+  rebuild it. A relative `PATH` resolves against the evidence file's directory.
   A line without exactly five fields, or a row named twice, is refused. Build mode refuses a FILE
-  inside the candidate or the source root, compared by file identity so a symlink or case alias
-  cannot hide it (SRR-V1-011). It publishes the record by hard-linking a completed temporary file,
+  inside the candidate or the source root. It climbs from FILE's directory as spelled by appending
+  `..`, so the operating system resolves each step as the write will, and compares file identity:
+  a symlink, a symlinked working directory, a `..` segment or a case alias cannot hide the overlap
+  (SRR-V1-011). It publishes the record by hard-linking a completed temporary file,
   so a partial record never appears at FILE. Verify mode also rebuilds the rows from the evidence
   file and refuses a record whose rows differ. Without that check, a record that relabels a FAIL log
   as PASS would still reproduce its digest. Supplying only one of the two store flags is a usage
@@ -137,7 +141,7 @@ Non-goals:
 | Output file already exists | Build mode refuses and leaves the existing file unchanged (SRR-V1-012). |
 | Output path is inside the candidate or the source root | Build mode refuses before building; nothing is written there (SRR-V1-011, 012). |
 | Output directory's filesystem has no hard links | Build mode refuses and removes its temporary file; no record is published (SRR-V1-012). |
-| Evidence file has CRLF endings or a whitespace-only reason | CRLF is read as LF; a whitespace-only reason explains nothing, so NOT_RUN or FALLBACK without a decision is refused (SRR-V1-006). |
+| Evidence file has CRLF endings, or a reason with no letter or digit or with a control or format character | CRLF is read as LF; such a reason explains nothing, so NOT_RUN or FALLBACK without a decision is refused (SRR-V1-006). |
 | Record relabels a supplied row, such as FAIL evidence as PASS | Verify mode refuses: the rows differ from the evidence file (SRR-V1-012). |
 
 ## Acceptance and rollback

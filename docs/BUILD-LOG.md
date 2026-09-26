@@ -7707,5 +7707,14 @@ Build mode now refuses an output inside the candidate or the source root (SRR-V1
 by file identity, so a symlink or case alias cannot hide the overlap. Supplying one store flag
 without the other is now a usage error (exit 2).
 
+A second review of those fixes reproduced two more gaps, also fixed here. The output guard cleaned
+the path as text before following symlinks, so a working directory reached through a symlink into
+the source root, or an absolute `link/../FILE`, still wrote inside it. The guard now climbs from
+the directory as spelled by appending `..`, so the operating system resolves every step as the
+write does. The reason rule caught only whitespace, so a zero-width space, a NUL or a terminal
+escape still explained a row. A reason now needs a letter or digit and no control or format
+character. A record built from a CRLF file before these fixes stored reasons ending in a carriage
+return and no longer verifies; no such record was ever published.
+
 No release has used the record yet. Its first use is the `1.0.0-rc.1` candidate (V1-0018 AC2,
 V1-0020 AC3).
