@@ -7097,3 +7097,31 @@ so that wall time was never the hook's to spend. The timer is now the kill plus 
 (`HOOK_HANG_GUARD_MS`); the hook's budget and the absent Corvint spawn are still asserted from its
 output and capture file. `TestHostAdapterJavaScriptHosts` passed at load average 175.
 
+
+## 2026-09-25 V1-0251 AFU-V1-021: coverage exclusions apply the whole Verified carry-forward rule
+
+Finding, from an audit of the S4 `e2e-safe` profile against AFU-V1-019..024 and 040: the coverage
+basis treated evidence as holding at base when no covered path and no global path changed since the
+evidence commit. The Verified carry-forward rule that AFU-V1-021 cites also requires the test's
+static reach and every link target, with what the impact graph reaches from it, to be unchanged.
+Reproduced: the search spec changed after its coverage run to visit the profile page, its client
+coverage listed no test file, and a profile fault then omitted it on the `coverage` basis, an
+unsafe narrowing the frozen corpus did not contain. `coverageStale` now also returns
+`e2e-map-stale` when the test file's static reach, or a link target of any flow linking the test or
+a path the head impact graph reaches from one, changed between the evidence commit and base.
+Evidence: `TestAFUV1021CoverageStaleWhenStaticReachChanged` failed before the change and passes after;
+the frozen corpus report is byte-identical (no case changed outcome). The case stays outside the
+frozen corpus; adding it there is an owner decision. The requirement's parenthetical, "so no
+covered path changed", reads narrower than the rule it cites; the implementation follows the rule.
+
+## 2026-09-25 V1-0251 AFU-V1-021, AFU-V1-040 (accepted, decision 0416): owner answers on PR #248
+
+The owner answered the three open questions: "widen AFU-V1-021, add the case to the corpus" and
+"accept the head-revision import graph". `AFU-V1-021` now states the whole Verified carry-forward
+rule and names the head-revision impact graph for the evidence-to-base diff. The reproduction is
+corpus case `spec-after-coverage`, whose `coverage_override` narrows the search test's client
+coverage to the page object. Report rows changed: `cases` 20 to 21, `e2e-map-stale` 2 to 3,
+`coverage` reduction 0.15 to 15/105 and `reviewed-links` 0.03 to 3/105; omitted counts, 0 unsafe
+on both bases, `narrowed_cases` 6 and `withdrawn` [] are unchanged. Negative control, run once and
+reverted: the pre-fix `selection.go` omits `search.spec.ts > finds` on `coverage` and withdraws
+that basis.
