@@ -172,9 +172,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:e57a000a93302245ff7cc70d2303a6d89651f43634f4f8c7d02057ed6e41bf9b",
+      "id": "hunk:sha256:83a1e3965ac36a415260b89bd713ae1374330f7ff3d7aba985acdaf4052cf1ac",
       "newRange": {
-        "count": 37,
+        "count": 40,
         "start": 7319
       },
       "oldRange": {
@@ -312,9 +312,9 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:fadd0267593681b1f2f033bc7518cc71f6a8ed66d71b97803f9ecefa9791c67f",
+      "id": "hunk:sha256:755a8df2db5966f6534182c9ac32d2d7e6767dfccfa93e67fa84d099ea67468b",
       "newRange": {
-        "count": 12,
+        "count": 13,
         "start": 143
       },
       "oldRange": {
@@ -332,10 +332,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:dda5d3e9c5e5fae075c26e71788448e882a08dc5c6e2bf2ba225f6a818e4cb3f",
+      "id": "hunk:sha256:0c933219740827f058b075d1670840cbee9374aee9ab4670eb02a3632fe8874b",
       "newRange": {
-        "count": 10,
-        "start": 168
+        "count": 12,
+        "start": 169
       },
       "oldRange": {
         "count": 10,
@@ -352,10 +352,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:bb7b844ad8661f2f1192f58ceddc2b605bcb244fd90583a188260a57dcd77476",
+      "id": "hunk:sha256:c796243e666bce67198b30b07593531d89ba1a621fff153466d4776209087bb7",
       "newRange": {
         "count": 7,
-        "start": 186
+        "start": 189
       },
       "oldRange": {
         "count": 7,
@@ -372,10 +372,10 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:e2c9c4f68e2151f79c2ecbb9c939b1747f009935bd1daf8059b3f03bf6727c4c",
+      "id": "hunk:sha256:2ab3893abd73cd8f3b87e01ce46c090f568f891dd8e2b3ff60513c0d8ec66cdb",
       "newRange": {
         "count": 8,
-        "start": 194
+        "start": 197
       },
       "oldRange": {
         "count": 8,
@@ -732,19 +732,19 @@
         }
       ],
       "disposition": "supported",
-      "id": "hunk:sha256:71aae8d48f73e0b3273bff1d00f16b9439b568a8456da02c049c3cd3798906ae",
+      "id": "hunk:sha256:ab02b03e99fc3a80548ba571a80cd5f416180a1c71717f14fe15ba7fc0659c0c",
       "newRange": {
-        "count": 7,
-        "start": 18
+        "count": 10,
+        "start": 17
       },
       "oldRange": {
-        "count": 7,
-        "start": 18
+        "count": 8,
+        "start": 17
       },
       "path": "script/dogfood-seal.sh",
       "reason": "evidence-backed"
     }
   ],
-  "patchSha256": "968da45c29fdbc62ad0a60ad8f6a1df471f64578d7db7cf0565a09cdd107588c",
+  "patchSha256": "8ffc321c0cc7fba7ef5d0052494291f6952db2142e313d855b7df0a4535efe8a",
   "spec": "cem/0.2"
 }
