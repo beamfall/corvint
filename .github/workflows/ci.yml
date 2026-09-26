@@ -40,12 +40,21 @@ jobs:
           make -s use-case-receipts-check use-case-receipts-test
           go run ./conformance/use-cases-v0
 
-  go-product:
+  go-product-shard:
+    # The root Go suite split across runners (decision 0418, AFP-V0-022): each shard runs its
+    # share of `go list ./...` from script/go-test-shards.sh, still `-p 1` within the runner.
+    # With trusted pins set, shard 0 alone runs the PR driver and the other shards skip.
     runs-on: ubuntu-24.04
     timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4]
     # Protected workflow/ruleset NOT_VERIFIED: owner review is required before enabling pins.
     # Promotion requires reviewed immutable tool/artifact pins. Empty pins keep full CI.
     env:
+      GO_TEST_SHARD: ${{ matrix.shard }}
+      GO_TEST_SHARDS: "5"
       CORVINT_PR_TOOL_SOURCE: ""
       CORVINT_PR_QUALIFICATION_SOURCE: ""
       CORVINT_PR_QUALIFICATION_SHA256: ""
@@ -84,7 +93,7 @@ jobs:
           git --version
       - name: Capture trusted tool source outside tested checkout
         continue-on-error: true
-        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != ''
+        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != '' && matrix.shard == 0
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: trusted-tools
@@ -92,7 +101,7 @@ jobs:
           persist-credentials: false
       - name: Capture separately pinned qualification artifact
         continue-on-error: true
-        if: github.event_name == 'pull_request' && env.CORVINT_PR_QUALIFICATION_SOURCE != ''
+        if: github.event_name == 'pull_request' && env.CORVINT_PR_QUALIFICATION_SOURCE != '' && matrix.shard == 0
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: trusted-qualification
@@ -101,7 +110,7 @@ jobs:
           persist-credentials: false
       - name: Build pinned planner, selector, and driver
         continue-on-error: true
-        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != ''
+        if: github.event_name == 'pull_request' && env.CORVINT_PR_TOOL_SOURCE != '' && matrix.shard == 0
         working-directory: trusted-tools
         run: |
           test "$(git rev-parse HEAD)" = "$CORVINT_PR_TOOL_SOURCE"
@@ -117,14 +126,25 @@ jobs:
           TESTED_MERGE: ${{ github.sha }}
         run: |
           test "$(go env GOVERSION)" = "go1.27.1"
-          if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ -x "$RUNNER_TEMP/corvint-pr-bin/driver" ]; then
+          pinned=false
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ -n "$CORVINT_PR_TOOL_SOURCE" ]; then pinned=true; fi
+          if [ "$pinned" = true ] && [ "$GO_TEST_SHARD" != 0 ]; then
+            echo "corvint-pr-tests: shard $GO_TEST_SHARD skipped; shard 0 runs the pinned driver"
+          elif [ "$pinned" = true ] && [ -x "$RUNNER_TEMP/corvint-pr-bin/driver" ]; then
             "$RUNNER_TEMP/corvint-pr-bin/driver" --root "$PWD" --base "$PR_BASE" --head "$PR_HEAD" --target "$TESTED_MERGE" --source "$CORVINT_PR_TOOL_SOURCE" --planner "$RUNNER_TEMP/corvint-pr-bin/corvint" --selector "$RUNNER_TEMP/corvint-pr-bin/selector" --out "$RUNNER_TEMP/corvint-pr-result" --qualification "$GITHUB_WORKSPACE/trusted-qualification/.github/qualifications/pr-go-race.json" --qualification-sha256 "$CORVINT_PR_QUALIFICATION_SHA256"
-          else
-            echo 'corvint-pr-tests: FULL (main/release or trusted tool pin unavailable)'
+          elif [ "$pinned" = true ]; then
+            echo 'corvint-pr-tests: FULL (trusted tool pin unavailable)'
             go test -json -p 1 -count=1 -race -timeout 50m ./...
+          else
+            echo "corvint-pr-tests: FULL shard $GO_TEST_SHARD of $GO_TEST_SHARDS (main/release or no trusted tool pin)"
+            go list ./... >"$RUNNER_TEMP/packages"
+            script/go-test-shards.sh "$GO_TEST_SHARD" "$GO_TEST_SHARDS" <"$RUNNER_TEMP/packages" >"$RUNNER_TEMP/shard-packages"
+            test -s "$RUNNER_TEMP/shard-packages"
+            # shellcheck disable=SC2046 # one argument per package line is intended
+            go test -json -p 1 -count=1 -race -timeout 50m $(cat "$RUNNER_TEMP/shard-packages")
           fi
       - name: Selection audit
-        if: always()
+        if: always() && matrix.shard == 0
         run: |
           if [ -f "$RUNNER_TEMP/corvint-pr-result/selection.json" ]; then
             cat "$RUNNER_TEMP/corvint-pr-result/selection.json"
@@ -132,6 +152,28 @@ jobs:
             head -c 1048576 "$RUNNER_TEMP/corvint-pr-result/go.json"
             head -c 262144 "$RUNNER_TEMP/corvint-pr-result/go.stderr"
           fi
+
+  go-product-static:
+    # Runs beside the shards rather than after them, so it adds no wall-clock time.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+      CGO_ENABLED: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: source
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.1"
       - name: Full static, formatting and build checks
         working-directory: source
         run: |
@@ -143,6 +185,24 @@ jobs:
         run: |
           go test -count=1 -timeout 30m ./...
           go vet ./...
+
+  go-product:
+    # The required check (decision 0390). A matrix reports as `go-product-shard (N)`, so this job
+    # carries the name and fails unless every shard and the static job succeeded; `always()` makes
+    # a failed, cancelled or skipped dependency a failure here rather than a skipped check.
+    needs: [go-product-shard, go-product-static]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every go-product shard and the static checks to succeed
+        env:
+          SHARDS: ${{ needs.go-product-shard.result }}
+          STATIC: ${{ needs.go-product-static.result }}
+        run: |
+          echo "go-product-shard: $SHARDS; go-product-static: $STATIC"
+          test "$SHARDS" = success
+          test "$STATIC" = success
 
   go-interop:
     runs-on: ubuntu-24.04

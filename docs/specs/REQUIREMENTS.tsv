@@ -51,10 +51,11 @@ AFP-V0-014	docs/specs/affected-plan-v0.md	295	(accepted by decision 0289) PR nar
 AFP-V0-015	docs/specs/affected-plan-v0.md	312	(accepted by decision 0289) The trusted PR driver SHALL support one 1-based inde
 AFP-V0-016	docs/specs/affected-plan-v0.md	350	(accepted by decision 0320; ruleset and consent amended by decision 0390)
 AFP-V0-017	docs/specs/affected-plan-v0.md	365	(accepted by decision 0320) `.github/workflows/pr-tests-qualification.yml`
-AFP-V0-018	docs/specs/affected-plan-v0.md	373	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
-AFP-V0-019	docs/specs/affected-plan-v0.md	388	(proposed technical contract implementing owner-requested issue #57)
-AFP-V0-020	docs/specs/affected-plan-v0.md	414	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
-AFP-V0-021	docs/specs/affected-plan-v0.md	425	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
+AFP-V0-018	docs/specs/affected-plan-v0.md	385	(proposed) `corvint affected --playwright-config PATH` MUST emit the separate
+AFP-V0-019	docs/specs/affected-plan-v0.md	400	(proposed technical contract implementing owner-requested issue #57)
+AFP-V0-020	docs/specs/affected-plan-v0.md	426	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat
+AFP-V0-021	docs/specs/affected-plan-v0.md	437	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth
+AFP-V0-022	docs/specs/affected-plan-v0.md	373	(proposed, decision 0418; ticket V1-0357) The `ci.yml` root Go suite SHALL run
 AFU-V0-001	docs/specs/application-flow-understanding-v0.md	67	Declare the analyzed application/build, supported adapters, routes, actors, data
 AFU-V0-002	docs/specs/application-flow-understanding-v0.md	70	Discover candidate flows from existing repository intent, route/navigation/form/
 AFU-V0-003	docs/specs/application-flow-understanding-v0.md	73	Represent each flow's actor, preconditions, actions, expected postconditions and

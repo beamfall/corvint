@@ -370,6 +370,18 @@ and container qualification; full fallback remains available.
   driver. Concurrent rows on separate runners satisfy AFP-V0-014's campaign only because every
   row identity must equal the frozen identity. It MUST NOT commit, pin, or publish anything
   but workflow artifacts.
+- `AFP-V0-022`: (proposed, decision 0418; ticket V1-0357) The `ci.yml` root Go suite SHALL run
+  as the matrix job `go-product-shard`, one runner per shard, each shard running `go test -json
+  -p 1 -count=1 -race -timeout 50m` over the packages `script/go-test-shards.sh` assigns it from
+  `go list ./...`. The assignment MUST put every listed package in exactly one shard, MUST be
+  deterministic for the same package list, weights and shard count, and SHALL balance by greedy
+  longest-first over `script/go-test-shard-weights.tsv`; a package without a weight weighs 1
+  second and a weight for an unlisted package is ignored, so stale weights only unbalance. The
+  static, formatting, build and interop checks SHALL run in the parallel job
+  `go-product-static`. The required `go-product` job SHALL need both, run under `always()`, and
+  fail unless both results are `success`. When trusted PR pins are set, shard 0 alone SHALL run
+  the AFP-V0-013 driver (or its full fallback over `./...`) and the Selection audit, and the
+  other shards MUST run no tests.
 - `AFP-V0-018`: (proposed) `corvint affected --playwright-config PATH` MUST emit the separate
   `playwright-affected/0` profile defined by `TJAA-V0-010..017`. It MUST accept `--base` with the
   same range semantics as `affected-plan/0`, MUST NOT be combined with external `--provider`, and
@@ -522,6 +534,7 @@ worst case of `make gate-affected` is the cost of `make go-test`, never a skippe
 | AFP-V0-014 | `tools/corvint-pr-tests/shadow.go` | `TestQualificationAndTerminalFailures`, `TestToolIdentityRequiresCurrentGoVersion`; frozen 200-row qualification NOT_RUN |
 | AFP-V0-016 | `.github/workflows/ci-control-plane.yml`; the `main` repository ruleset | `actionlint`; `success` posted on PR #26 (run 35444060752) and PR #24 (run 35446378936); ruleset 23699808 active with the decision 0320 settings; the decision 0390 settings (no bypass, `doc-gates` required) and the admin-status consent path NOT_VERIFIED until the owner applies them; `failure` path NOT_RUN on a real PR |
 | AFP-V0-017 | `.github/workflows/pr-tests-qualification.yml` | `actionlint`; dispatch NOT_RUN (`main` has fewer than 201 first-parent commits) |
+| AFP-V0-022 | `go-product-shard`, `go-product-static` and `go-product` in `.github/workflows/ci.yml`; `script/go-test-shards.sh`; `script/go-test-shard-weights.tsv` | `script/go-test-shards_test.sh` (`make go-test-shards-test`); `actionlint`; partition of the 248 current packages checked complete and disjoint; hosted sharded run NOT_RUN until the PR's CI |
 | AFP-V0-019 | `internal/plansnapshot`, `compileSnapshotAffected` | `TestSnapshotImmutableBytesAndCleanup`, `TestSnapshotRejectsIncompleteMismatchedAndStale`, `TestSnapshotStrictWire`, `TestSnapshotRejectsLinksAndIgnoresArchiveAttributes`, `TestAffectedSnapshotMatchesCommittedPlanAcrossDirtySources`, `TestAffectedSnapshotPlaywrightPinsConfigAndSource` |
 | AFP-V0-018 | `playwrightAffectedReceipt`, `compilePlaywrightAffected`, and `typescript.SelectPlaywright` | `TestAffectedPlaywrightProfileEmitsProjectDistinctUnits`, `TestAffectedPlaywrightArgumentsFailClosed`, and `internal/liveverify/affected/typescript/playwright_test.go` |
 | AFP-V0-009 | `affectedAdvice`, `compileAffectedAdvice`, `mandatoryAffectedChecks`, `advisoryAffectedChecks`, `agentsVerifyCommands`, `agentsCheck`, `nonTerminatingCommand`, `stripShellComment`, `shellQuoteJoin` in `cmd/corvint/affected.go` | `TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages`, `TestAffectedAdviceReportsNoDeclaredGate`, `TestAffectedAdviceKeepsMandatoryGateAndNeverAdvisesExclusions`, `TestAffectedReceiptMembersAreClosedAndByteStable` (tightened to assert `advice`'s raw JSON key order), `TestAffectedAdviceBoundsTheDeclarationRead`, `TestShellQuoteJoinEscapesMetacharacters`, `TestAffectedAdviceTruncatedMandatoryDeclarationSuppressesNoGate`, `TestAffectedAdviceCapsMandatoryChecksAtSixteen`, `TestAffectedAdviceSkipsCommentsInVerifyFence`, `TestAffectedAdviceTakesOnlyTheExactVerifyHeading_V1_0342` |
