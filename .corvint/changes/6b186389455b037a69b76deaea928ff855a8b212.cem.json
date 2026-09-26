@@ -1,0 +1,138 @@
+{
+  "baseRevision": "2ae988a332ebbacea3c0372b03f7a495a3bf1e54",
+  "evidence": [
+    {
+      "blobOid": "dc0b021818582b76d70dcdd897c232d586134fe2",
+      "id": "evidence:sha256:54c5b2f8521819f880d457ede408b77d7491c8b486aae388f6960f48619f7407",
+      "path": "docs/decisions/0002-future-publication-transition.md",
+      "span": {
+        "end": 1492,
+        "start": 1260
+      },
+      "spanSha256": "17ad71a69b66116ee83a7f05a1d5e30544202da31ea2b3ab6248e82394b5f914"
+    },
+    {
+      "blobOid": "59e4969e61dc9c7dee0a6c20a5e82ebd623435ac",
+      "id": "evidence:sha256:897c93bcb0703645c96a58b86984472f61dfbae7407efc435dc8923f7a8d1da1",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 6685,
+        "start": 6419
+      },
+      "spanSha256": "bb47fcdc85ab8e53daf046ddabc802108bb24a009b32bcd2ddd7625d03362f68"
+    },
+    {
+      "blobOid": "4ae1dd911acbe15b50219aeae59d6938021a1a53",
+      "id": "evidence:sha256:a8e222df20e21d98c9e2a6bfc96e6c2afb3985a23c715ec41448252b9f46ae64",
+      "path": "docs/specs/go-production-kernel-migration-v0.md",
+      "span": {
+        "end": 63543,
+        "start": 63349
+      },
+      "spanSha256": "db74f01851303d9fcc18ab4320f0237ac39561b23288a392509ab94393e5af62"
+    },
+    {
+      "blobOid": "59e4969e61dc9c7dee0a6c20a5e82ebd623435ac",
+      "id": "evidence:sha256:0550c7e11614af9aa2b79c0147e66f291d5f4a629b6be503bcbad8a0e2b907b2",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3008,
+        "start": 2775
+      },
+      "spanSha256": "570596a4b6727e1e1aa229bf02b6ec4b8bea4088848b27d52db486c5019a0ca4"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:54c5b2f8521819f880d457ede408b77d7491c8b486aae388f6960f48619f7407",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:897c93bcb0703645c96a58b86984472f61dfbae7407efc435dc8923f7a8d1da1",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5ab143315cd1b535ac4fa63ea82b547cee5d84ce0179858040d3fa55f594fe10",
+      "newRange": {
+        "count": 19,
+        "start": 38
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 38
+      },
+      "path": "LICENSING.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:a8e222df20e21d98c9e2a6bfc96e6c2afb3985a23c715ec41448252b9f46ae64",
+          "relation": "specification"
+        },
+        {
+          "evidenceId": "evidence:sha256:897c93bcb0703645c96a58b86984472f61dfbae7407efc435dc8923f7a8d1da1",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a19ee0e044f90a0d8b2157ef1f0728481f2dbdd96b67869461618c7fc35481a3",
+      "newRange": {
+        "count": 7,
+        "start": 30
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 30
+      },
+      "path": "conformance/release-artifact-v0/manifest.json",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0550c7e11614af9aa2b79c0147e66f291d5f4a629b6be503bcbad8a0e2b907b2",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b067336e9c24f52586909c954840f9d10a129b578bab1de9bf6c75aa193fbff5",
+      "newRange": {
+        "count": 24,
+        "start": 7656
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 7656
+      },
+      "path": "docs/BUILD-LOG.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:54c5b2f8521819f880d457ede408b77d7491c8b486aae388f6960f48619f7407",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:379906662d7938db473bce9f6a3b36a55bbc24052003b2539651b7425deca318",
+      "newRange": {
+        "count": 17,
+        "start": 79
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 79
+      },
+      "path": "docs/decisions/0002-future-publication-transition.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "5f8f2309eafa4f0352634bc7a28d0e4cf311d478f8b8f29206f64553ad1b81dc",
+  "spec": "cem/0.2"
+}
