@@ -47,6 +47,7 @@ case $output_parent in
     ;;
 esac
 
+cd "$root"
 GOTOOLCHAIN=local go build -o "$scratch/corvint-companion-release" ./cmd/corvint-companion-release
 
 exec "$scratch/corvint-companion-release" \
