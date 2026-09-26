@@ -9,17 +9,22 @@ import (
 
 // Explicit supplemental proof; final nine-component qualification remains a separate gate.
 func TestCurrentExportedTasksAndVSIX(t *testing.T) {
-	tasks, cache := os.Getenv("CORVINT_PROOF_TASKS_ROOT"), os.Getenv("CORVINT_PROOF_NPM_CACHE")
-	if tasks == "" || cache == "" {
-		t.Skip("requires explicit exported Tasks and populated npm cache proof inputs")
+	cache := os.Getenv("CORVINT_PROOF_NPM_CACHE")
+	if cache == "" {
+		t.Skip("requires populated npm cache proof input")
 	}
 	t.Run("CRB-V0-017 exported-current-tasks-and-vsix", func(t *testing.T) {
 		ctx := context.Background()
 		scratch := t.TempDir()
-		taskExport, err := exportSource(ctx, "/usr/bin/git", tasks, scratch)
+		root, err := filepath.Abs("../..")
 		if err != nil {
 			t.Fatal(err)
 		}
+		source, err := exportSource(ctx, "/usr/bin/git", root, scratch)
+		if err != nil {
+			t.Fatal(err)
+		}
+		taskExport := tasksExport(source)
 		staged, err := stageBuildSource(taskExport, filepath.Join(scratch, "tasks"))
 		if err != nil {
 			t.Fatal(err)
@@ -29,14 +34,6 @@ func TestCurrentExportedTasksAndVSIX(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Logf("Tasks commit=%s tree=%s binary=%s", taskExport.HeadCommit, taskExport.HeadTree, built.SHA256)
-		root, err := filepath.Abs("../..")
-		if err != nil {
-			t.Fatal(err)
-		}
-		source, err := exportSource(ctx, "/usr/bin/git", root, scratch)
-		if err != nil {
-			t.Fatal(err)
-		}
 		vsix, err := buildVSIXTwice(ctx, source, scratch, cache)
 		if err != nil {
 			t.Fatal(err)
@@ -64,17 +61,17 @@ func TestCurrentExportedTasksAndVSIX(t *testing.T) {
 }
 
 func TestCurrentExportedTasksSmokeGenerator(t *testing.T) {
-	tasks := os.Getenv("CORVINT_PROOF_TASKS_ROOT")
-	if tasks == "" {
-		t.Skip("requires explicit exported Tasks source proof input")
-	}
 	ctx := context.Background()
 	scratch := t.TempDir()
-	source, err := exportSource(ctx, "/usr/bin/git", tasks, scratch)
+	root, err := filepath.Abs("../..")
 	if err != nil {
 		t.Fatal(err)
 	}
-	files, err := generateQueuePolicy(ctx, source, scratch)
+	source, err := exportSource(ctx, "/usr/bin/git", root, scratch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := generateQueuePolicy(ctx, tasksExport(source), scratch)
 	if err != nil {
 		t.Fatal(err)
 	}
