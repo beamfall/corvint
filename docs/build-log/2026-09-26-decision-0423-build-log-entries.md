@@ -1,13 +1,16 @@
-## 2026-09-26 decision 0423, V1-0358, V1-0318: delegated answers A7 to A10
+## 2026-09-26 decision 0423, V1-0332, V1-0358, V1-0318: delegated answers A7 to A10
 
 The owner delegated A7 to A10 ("you can answer those questions for me"); decision 0423 records the
 answers.
 
-- A7 (V1-0358): `docs/BUILD-LOG.md` is closed to new entries and none of its lines move. Each new
-  entry is its own `docs/build-log/YYYY-MM-DD-<slug>.md` file, not edited after it merges. There is
-  no committed index; `rg -n '^## ' docs/BUILD-LOG.md docs/build-log/` is the index. `AGENTS.md`,
-  `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/DOGFOOD.md`, `docs/README.md` and `ROADMAP.md` now point
-  new entries there, each with its line count unchanged.
+- A7 (V1-0358, V1-0332): `docs/BUILD-LOG.md` is closed to new entries and none of its lines move.
+  Each new entry is its own `docs/build-log/YYYY-MM-DD-<slug>.md` file, not edited after it merges.
+  There is no committed index; `rg -n '^## ' docs/BUILD-LOG.md docs/build-log/` is the index. A pull
+  request still open when the decision merges moves its appended entry into such a file before it
+  merges. `AGENTS.md`, `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/DOGFOOD.md`, `docs/README.md`,
+  `docs/SELF-DEVELOPMENT.md` and `ROADMAP.md` now point new entries there, each with its line count
+  unchanged. The `docs/decisions/README.md` and `docs/specs/REQUIREMENTS.tsv` conflicts stay open
+  under V1-0332.
 - A8: the 2026-09-26 audit report and raw artifacts stay private. Its entry is
   `docs/build-log/2026-09-26-comprehensive-audit.md`, naming the tickets instead of linking the
   report. Moving the uncommitted output out of the primary checkout is an owner step, and it

@@ -219,7 +219,7 @@ another queue or qualify a feature by adding its ticket.
 
 The quoted-credential and mutation-mode bugs are repaired under EAF-V0-001/002; their pending
 bug entries are removed with those fixes. No AT ticket is checked off by these bounded repairs.
-Final code-gate, independent review and CEM/OCM results belong in BUILD-LOG.
+Final code-gate, independent review and CEM/OCM results belong in a `docs/build-log/` entry.
 
 ### Build tickets
 

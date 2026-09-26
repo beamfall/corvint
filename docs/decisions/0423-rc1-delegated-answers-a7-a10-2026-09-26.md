@@ -2,7 +2,7 @@
 
 Date: 2026-09-26. Status: accepted. Authority: the repository owner delegated the choice on
 2026-09-26 ("you can answer those questions for me").
-Tickets: V1-0018, V1-0318, V1-0358.
+Tickets: V1-0018, V1-0318, V1-0332, V1-0358.
 
 ## Context
 
@@ -10,7 +10,7 @@ Decision 0422 recorded the owner's answers to A1 to A6 and left A7 to A10 open. 
 delegated those four answers to the agent. The agent chose the recommendation for each, with the
 changes recorded below.
 
-Every open pull request that appended to `docs/BUILD-LOG.md` conflicted after each merge (V1-0358).
+Every open pull request that appended to `docs/BUILD-LOG.md` conflicted after each merge (V1-0332, V1-0358).
 The 2026-09-26 audit output sat uncommitted in the primary checkout and blocked the v0-6 promotion
 script, which requires a tree that is clean outside `.taskman/`.
 
@@ -26,6 +26,10 @@ script, which requires a tree that is clean outside `.taskman/`.
      it corrects, so a bare line citation into an entry file stays valid.
    - There is no committed index, because an index file would conflict the same way the log did.
      The index is `rg -n '^## ' docs/BUILD-LOG.md docs/build-log/`.
+   - A pull request that is still open when this decision merges and appends an entry to
+     `docs/BUILD-LOG.md` moves that entry to a `docs/build-log/` file before it merges.
+   - This layout answers V1-0358 and the build-log part of V1-0332. The `docs/decisions/README.md`
+     and `docs/specs/REQUIREMENTS.tsv` conflicts that V1-0332 also names stay open under it.
 2. **A8, the 2026-09-26 audit output.**
    - The audit report and its raw review artifacts are not published. The report carries absolute
      local paths and links into the raw directory. Both move to the owner's private release
