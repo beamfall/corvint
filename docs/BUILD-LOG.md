@@ -7612,3 +7612,10 @@ rebuild once.
 
 On platforms other than darwin and linux, the confined primitives refuse. The record is then
 neither written nor read, and a miss builds as before.
+
+## 2026-09-26 Integration: the analyzer schema moves to `corvint-analyzer/87`
+
+Main (V1-0263), V1-0284 and V1-0286 each moved `corvint-analyzer/85` to `/86` from the same base,
+and each pinned a different audited-input digest. Together their `contextindex` changes match none
+of the three pins, so the integration moves the schema to `corvint-analyzer/87` and pins the combined
+digest (`IDX-SNAP-V0-017`). Snapshots rebuild once. Extraction is unchanged.
