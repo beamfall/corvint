@@ -101,6 +101,35 @@ func TestAFUV1NegativeControlFailed(t *testing.T) {
 	}
 }
 
+// AFU-V1-011 AFU-V1-012: each adapter observes a declared control failing in the same report, and only
+// then verifies the subject.
+func TestAFUV1AdapterObservesFailedControl(t *testing.T) {
+	cases := []struct{ format, raw, subject, control, observed string }{
+		{FormatPlaywrightJSON, playwrightRun, "control.bad-card", "checkout.spec.ts > slow", "timedOut"},
+		{FormatJUnitXML, `<testsuite><testcase classname="api.Orders" name="lists" time="0.1"/>
+ <testcase classname="api.Orders" name="rejects" time="0.1"><failure message="expected 401">at Orders.java:9</failure></testcase></testsuite>`,
+			"api.Orders > lists", "api.Orders > rejects", "failed"},
+		{FormatGoTestJSON, `{"Action":"run","Package":"shop","Test":"TestPay"}
+{"Action":"pass","Package":"shop","Test":"TestPay","Elapsed":0.1}
+{"Action":"run","Package":"shop","Test":"TestDecline"}
+{"Action":"fail","Package":"shop","Test":"TestDecline","Elapsed":0.1}
+`, "shop > TestPay", "shop > TestDecline", "failed"},
+	}
+	for _, c := range cases {
+		header := runHeader()
+		header.Controls = []RunControl{{Subject: c.subject, TestKey: c.control, Expected: c.observed}}
+		subject := ingest(t, c.format, c.raw, header)[c.subject]
+		want := []NegativeControl{{TestKey: c.control, Expected: c.observed, Observed: c.observed}}
+		if fmt.Sprint(subject.NegativeControls) != fmt.Sprint(want) || !Verified(subject) {
+			t.Fatalf("%s: controls %+v, verified %v", c.format, subject.NegativeControls, Verified(subject))
+		}
+		header.Controls[0].Expected = "passed"
+		if Verified(ingest(t, c.format, c.raw, header)[c.subject]) {
+			t.Fatalf("%s: a control observed against a different expectation verified its subject", c.format)
+		}
+	}
+}
+
 // AFU-V1-012
 func TestAFUV1PlaywrightAdapterKeepsEveryAttempt(t *testing.T) {
 	records := ingest(t, FormatPlaywrightJSON, playwrightRun, runHeader())
