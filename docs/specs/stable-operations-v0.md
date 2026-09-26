@@ -43,7 +43,7 @@ Measured on 2026-09-22, darwin arm64, Go 1.27.1, at the introducing commit:
   reports `mutates: true` and rewrites a snapshot of the original size that the next `--if-stale`
   reports `fresh`. The rebuilt file is the same size but not byte-identical to the first build (460
   differing bytes under `cmp -l`), so the recovery contract is packet identity, not snapshot identity.
-- The version string is `const version = "0.8.1"` (`cmd/corvint/main.go:30@777b0b0e`) and the build
+- The version string is `const version = "1.0.0-rc.1"` (`cmd/corvint/main.go:30@777b0b0e`) and the build
   stamp is `var build = "0"` (`cmd/corvint/main.go:1519@e7212353`), set by `-ldflags -X main.build=N`.
 - The archive producer writes `corvint_<goos>_<goarch>.tar.gz` for four targets, `SHA256SUMS` and
   `verification-report.json` (`release-artifact-integrity-v0.md`); the installer refuses a case-fold
