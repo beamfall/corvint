@@ -6934,3 +6934,13 @@ the touched packages; the doc checks; `go run ./conformance/use-cases-v0`, which
 Under host load (load average 170 to 570), `TestSelectionOnTheLiveDirtyWorktree` and
 `TestIncrementalSelectionMeetsTheLiveBudget` exceeded their 100 ms budget. These are timing
 flakes. NOT_RUN: the exhaustive `./...` gate.
+
+## 2026-09-25 V1-0356: Gemini hook test deadline is a hang guard
+
+The v0-6 release `make gate` at 3c1b894c failed only in `AHI-017 Gemini degrades without spawning
+Corvint when the host kill leaves no budget` with `hook test deadline`, at host load average 557.
+The fixture timer ran from spawn for the stated kill plus 1000 ms, so with a 1 ms kill it gave Node
+about a second to start. AHI-017 budgets from the hook's own clock origin, after Node has started,
+so that wall time was never the hook's to spend. The timer is now the kill plus a 30 s hang guard
+(`HOOK_HANG_GUARD_MS`); the hook's budget and the absent Corvint spawn are still asserted from its
+output and capture file. `TestHostAdapterJavaScriptHosts` passed at load average 175.
