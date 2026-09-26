@@ -14,7 +14,9 @@ removed or returned to an adapter; it does not become permanent architecture.
 
 ## Current build queue: indispensable context and cumulative development savings
 
-Selected 2026-09-04 at `01aa66ad071756f7308bb04b0ec379b051a231e3` in response to the owner's
+Selected 2026-09-04 at `01aa66ad071756f7308bb04b0ec379b051a231e3`, pre-snapshot private-archive
+history under [decision 0331](docs/decisions/0331-clean-public-history-2026-09-22.md) that does not
+resolve on origin/main, in response to the owner's
 request for a carefully selected roadmap and extensive Astra/Corvint self-use. Tickets below were open at selection; consult the native store for current status when initialized. Roadmap selection authorizes planning; it does not accept new wire semantics, promote
 experimental capabilities, or change existing release gates. Re-pin before implementation.
 

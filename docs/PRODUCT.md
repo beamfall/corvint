@@ -2,7 +2,7 @@
 
 ## Job
 
-Corvint is the **change typechecker for agentic software**. For an engineer or coding agent entering
+Corvint is the **change-evidence verifier for agentic software**. For an engineer or coding agent entering
 an unfamiliar repository, it compiles the smallest evidence set sufficient for one intended change,
 then reports the exact obligations still unwitnessed before the change may be called done.
 
@@ -31,10 +31,12 @@ corvint init | corvint adopt
   -> verified witnesses reused by the next agent
 ```
 
-This **bidirectional witness loop** is the product breakthrough: context is no longer disposable
-input and a diff is no longer opaque output. Every merged change leaves behind the verified context
-needed to understand the next change. Git stores the durable ledger; content-addressed derived
-artifacts remain disposable.
+This **bidirectional witness loop** is how the change-evidence verifier works: context is no longer
+disposable input and a diff is no longer opaque output. Every merged change leaves behind the
+verified context needed to understand the next change. Git stores the durable ledger;
+content-addressed derived artifacts remain disposable. As README.md's proof scope states, the
+verifier proves structural integrity, not semantic support, causality, test adequacy, or program
+correctness.
 
 A receipt is useful only when every included item explains why it is present, names its
 authority and confidence, binds to immutable source evidence, states what was excluded, and tells
@@ -69,15 +71,9 @@ are separate work and remain `NOT_RUN` until then. The independently stated evid
 and prospective stronger-harness trial remain, and the wire is not interoperable until an
 independent consumer reproduces the reference bytes.
 
-Optional work-tracking adapters connect Jira or Linear issues to GitHub, GitLab, or Bitbucket pull
-requests, commits, reviews, CI outcomes, code, and tests. Mutable ticket and review text is
-provenance, not automatic authority: receipts pin external IDs, revisions, URLs, timestamps, Git
-SHAs, and content hashes so later edits cannot silently rewrite the evidence used for a change.
-
-E2E adapters connect acceptance criteria and user journeys to framework-neutral scenarios, steps,
-fixtures, assertions, application surfaces, API operations, execution results, and retained artifact
-references. Corvint combines declared test structure with revision-bound observations; it does not
-equate one passing trace with complete behavioral coverage.
+Work-tracking adapters (Jira/Linear to GitHub, GitLab, or Bitbucket) and E2E adapters are committed
+integration goals under "Committed integration and workflow goals" below, `not-started` like the
+rest of that table; the thirty-day wedge itself does not require Jira/E2E ingestion.
 
 ## Two activation doors
 
@@ -142,12 +138,20 @@ vanished. Empty frontier means closure only over the exact declared universe, ne
 correctness.
 
 Corvint does not claim to have invented evidence-carrying changes or proof-carrying coding. July 2026
-proposals using those category ideas, plus agentdiff's hunk/line attribution work, validate the timing
-rather than Corvint's uniqueness. CEM's narrower bet is a source-content-free, portable interchange
+proposals using those category ideas, plus agentdiff's hunk/line attribution work and Cursor's Agent
+Trace open specification for AI-code attribution, validate the timing rather than Corvint's
+uniqueness. CEM's narrower bet is a source-content-free, portable interchange
 from each textual hunk to immutable producer-selected evidence, with deterministic patch/span/drift verification
 and no dependency on one retriever, agent, IDE, or CI vendor. SLSA addresses build provenance, MCP
-transports context, and agentdiff attributes edits; the current market inference—not an exhaustive
-claim—is that none alone provides this hunk-to-evidence association interchange. Here,
+transports context, agentdiff attributes edits, and Agent Trace records which human/AI conversation
+and model touched which lines at a pinned VCS revision; the current market inference—not an
+exhaustive claim—is that none alone provides this hunk-to-evidence association interchange.
+Attribution and evidence answer different questions: Agent Trace states who or what wrote a line and
+explicitly does not evaluate whether that contribution is correct or well-founded, while a CEM hunk
+cites the immutable basis a producer used to justify it. The two are complementary, not substitutes:
+an Agent Trace record's revision-pinned file/line attribution can identify a hunk's producer for a CEM
+sidecar, but it never supplies the evidentiary basis CEM requires—that basis, or an explicit unknown,
+must still come from the producer. Here,
 source-content-free means that source and diff bodies are omitted; paths and digests are still
 sensitive and the format is neither anonymous nor automatically safe to publish.
 
@@ -256,6 +260,7 @@ separate knowledge stores.
 | DeepSeek Harness plugin | A maintained plugin for the actual DeepSeek Harness (`deepseek.com/harness`) supplies Corvint context through its Cordis plugin services/events, records Corvint injections and verified session deltas in the harness trajectory, and participates in automatic discovery without creating a separate knowledge model. |
 | Human product and technical documentation | Render cited, paragraph-anchored Markdown suitable for MkDocs or another repository-owned documentation site; deliver locally or through a reviewable pull request, never silently overwrite accepted prose. |
 | Automatic E2E intelligence | Discover existing journeys and states, link E2E tests to executable claims, propose missing tests, run the justified subset while preserving mandatory gates, and ingest pinned results without treating one trace as exhaustive behavior. |
+| Work-tracking adapters | Connect Jira or Linear issues to GitHub, GitLab, or Bitbucket pull requests, commits, reviews, CI outcomes, code, and tests. Mutable ticket and review text is provenance, not automatic authority: receipts pin external IDs, revisions, URLs, timestamps, Git SHAs, and content hashes so later edits cannot silently rewrite the evidence used for a change. |
 | Pull-request and merge maintenance | PR updates compute review context and evidence drift; an exact merged commit automatically marks knowledge preserved, stale, contradicted, retired, or needing reverification and regenerates only affected derived views. This does not authorize Corvint to merge code or promote inferred intent. |
 
 Support is reported per `(host, surface, host version, adapter version, OS)` as `FULL`, `FALLBACK`,
