@@ -144,9 +144,9 @@ func runLocalCompletionEvent(parent context.Context, root string, args []string,
 		return 2
 	}
 	result, err := dogfoodEventWithin(ctx, options, input)
-	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		// An expired deadline surfaces in later reads as unrelated drift or
-		// unavailability; report the time bound, not a diagnosed fault.
+	if err != nil && (errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, errDogfoodSnapshotStale)) {
+		// An expired deadline surfaces in later reads as unrelated drift or unavailability, and a
+		// skipped miss build (AHI-031) forecasts one; report the time bound, not a diagnosed fault.
 		emitError(stderr, dogfoodEventError(dogfoodExpiryCode(missed)))
 		return 2
 	}
@@ -386,6 +386,9 @@ func localEventContext(ctx context.Context, options options, input map[string]an
 	if replacement, ok := ctx.Value(dogfoodEventBuildKey{}).(func(context.Context, string, string) (*contextindex.Index, error)); ok {
 		buildContext = replacement
 	}
+	if dogfoodMissOutlastsDeadline(ctx, options.root) {
+		return nil, errDogfoodSnapshotStale
+	}
 	if (err != nil || !hit) && compact {
 		// Impact needs the test-relation imports BuildContext omits.
 		index, err = contextindex.Build(ctx, options.root)
@@ -502,4 +505,21 @@ func dogfoodDegradations(hostVersion string) []string {
 		return []string{"frontier-authority-unavailable"}
 	}
 	return []string{"frontier-authority-unavailable", "host-version-unknown"}
+}
+
+// errDogfoodSnapshotStale is the stale-snapshot outcome a miss reports without building when
+// the recorded `index` build cost does not fit the time left (IDX-SNAP-V0-012, AHI-031).
+var errDogfoodSnapshotStale = dogfoodEventError("dogfood-event-index-snapshot-stale")
+
+// dogfoodMissOutlastsDeadline says whether a hook event's snapshot miss should skip the
+// in-memory build: the last explicit `index` build took at least the time left. With no
+// record, or outside a hook event, the miss builds as before.
+func dogfoodMissOutlastsDeadline(ctx context.Context, root string) bool {
+	missed, _ := ctx.Value(dogfoodEventMissKey{}).(*atomic.Bool)
+	if missed == nil || !missed.Load() {
+		return false
+	}
+	deadline, bounded := ctx.Deadline()
+	cost, recorded := contextindex.RecordedBuildCost(root)
+	return bounded && recorded && cost >= time.Until(deadline)
 }
