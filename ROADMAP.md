@@ -141,7 +141,7 @@ Every substantive ticket follows this loop:
    `AVAILABLE_NOT_ELIGIBLE(reason)`, `UNAVAILABLE(reason)` or `FALLBACK(reason)` for each feature.
    A feature's own demonstration alone does not prove subsequent use.
 6. **Learn locally:** close the full-task receipt after review/repair, record actual outcomes in
-   `docs/BUILD-LOG.md`, and file concrete friction in the six existing agent-memory backlogs.
+   a `docs/build-log/` entry, and file concrete friction in the six existing agent-memory backlogs.
    Reuse this evidence to prioritize work, never to rewrite intent or tune a held-out partition.
 
 Count coordinator, builder, reviewer, repair and failed/cancelled worker costs. Use scoped,
@@ -219,7 +219,7 @@ another queue or qualify a feature by adding its ticket.
 
 The quoted-credential and mutation-mode bugs are repaired under EAF-V0-001/002; their pending
 bug entries are removed with those fixes. No AT ticket is checked off by these bounded repairs.
-Final code-gate, independent review and CEM/OCM results belong in BUILD-LOG.
+Final code-gate, independent review and CEM/OCM results belong in a `docs/build-log/` entry.
 
 ### Build tickets
 

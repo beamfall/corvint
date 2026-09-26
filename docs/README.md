@@ -41,8 +41,8 @@ guidance from historical records.
   questions); the console's Backlog history pane lists them, but they are not the live queue.
   Current work is tracked in the Corvint task store (`.taskman/`), read with `corvint-tasks queue
   status`, `roadmap`, or `ticket search`.
-- `BUILD-LOG.md` is the append-only evidence log for this repository; it starts empty in the public
-  tree.
+- `BUILD-LOG.md` is the closed evidence log through 2026-09-26; each later entry is its own file
+  under `build-log/` (decision 0423).
 
 Decision records and specifications were written against internal working records (build logs,
 reviews, evidence transcripts, plans, and backlog entries) that are not part of the public tree.

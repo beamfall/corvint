@@ -53,7 +53,7 @@ claims with nonmutating `prove`. A guidance-only change may not need dirty-Go ad
 mutation, draft generation or checkpoint handling. Do not manufacture source changes or toy tasks
 to make those rows appear used.
 
-Keep route dispositions in the existing task evidence/BUILD-LOG prose: **used**, **unavailable**,
+Keep route dispositions in the task evidence/build-log entry prose: **used**, **unavailable**,
 **deferred**, or **not applicable**, with an original output pointer or concrete reason. “Used” means
 a command actually ran for this task at the identified root/revision; an example, unit test or green
 gate does not establish host adoption. This is caller assessment, not a new ledger, universal

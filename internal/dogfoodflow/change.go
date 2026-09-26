@@ -504,10 +504,7 @@ func nonEmptyFields(line string, count int) bool {
 	return true
 }
 
-var (
-	hunkField = regexp.MustCompile(`^      "(disposition|id|path)": "(.*)$`)
-	ordinal   = regexp.MustCompile(`^[1-9][0-9]*$`)
-)
+var ordinal = regexp.MustCompile(`^[1-9][0-9]*$`)
 
 // citationPlanMatchesMap binds a plan to the map prepared in this run
 // (DCW-V0-019): no ordinal may exceed the map's hunk count, a numeric selector
@@ -604,42 +601,23 @@ func (c *change) ordinalsMoved(plan []byte, hunks []map[string]string) bool {
 	return false
 }
 
-// mapHunks reads the scalar disposition, id and path of each hunk from the
-// canonical indent-2 map encoding: each hunk opens on a four-space "{" line
-// inside "hunks" and its scalar keys sit at six spaces. Values are decoded from
-// their JSON string form, so an escaped path compares equal to its intent.
+// mapHunks decodes the disposition, id and path of each hunk of a map in map
+// order, whatever its JSON layout, so a compact map reads like the indent-2 one
+// cem prepare writes. A map that does not decode has no hunks.
 func mapHunks(data []byte) []map[string]string {
+	var decoded struct {
+		Hunks []struct {
+			Disposition string `json:"disposition"`
+			ID          string `json:"id"`
+			Path        string `json:"path"`
+		} `json:"hunks"`
+	}
 	hunks := []map[string]string{}
-	preamble := map[string]string{}
-	inside := false
-	for _, line := range textLines(data) {
-		if line == `  "hunks": [` {
-			inside = true
-			continue
-		}
-		if strings.HasPrefix(line, "  ]") {
-			inside = false
-		}
-		if !inside {
-			continue
-		}
-		if line == "    {" {
-			hunks = append(hunks, map[string]string{})
-			continue
-		}
-		match := hunkField.FindStringSubmatch(line)
-		if match == nil {
-			continue
-		}
-		var value string
-		if json.Unmarshal([]byte(`"`+strings.TrimSuffix(match[2], ",")), &value) != nil {
-			continue
-		}
-		current := preamble
-		if len(hunks) > 0 {
-			current = hunks[len(hunks)-1]
-		}
-		current[match[1]] = value
+	if json.Unmarshal(data, &decoded) != nil {
+		return hunks
+	}
+	for _, hunk := range decoded.Hunks {
+		hunks = append(hunks, map[string]string{"disposition": hunk.Disposition, "id": hunk.ID, "path": hunk.Path})
 	}
 	return hunks
 }

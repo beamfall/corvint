@@ -1,0 +1,210 @@
+{
+  "baseRevision": "b29d35e53a535723624c692aa98b00692a6a8d04",
+  "evidence": [
+    {
+      "blobOid": "f97f84a76ce663b1f9298329627ec0e3470bede5",
+      "id": "evidence:sha256:4a33ddc54063569ac09db710af9094f1388f1337b9d851245f14f9a726e01c1b",
+      "path": "docs/specs/cem-0.3-structural-mechanical.md",
+      "span": {
+        "end": 4041,
+        "start": 3447
+      },
+      "spanSha256": "1e14945fcc3ccfdcd6646483535e81938b941b011fada7698637be91ce84ceab"
+    },
+    {
+      "blobOid": "6bdeb7a841a221e4456a253b515f35bb9247e5c3",
+      "id": "evidence:sha256:0a080c0ab3b9e6b98f9efc41b275900f58fef8bb8362cc0342bbc1b714f2413c",
+      "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+      "span": {
+        "end": 11101,
+        "start": 10534
+      },
+      "spanSha256": "22a63ac3d730635a94f868880c63cfc1213e3ca38c0b6aee9512bc614c4e6e83"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4a33ddc54063569ac09db710af9094f1388f1337b9d851245f14f9a726e01c1b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:00de79a64f4a938cf8682395c3d7308b4306b8a398cb0abfc3081915993bb991",
+      "newRange": {
+        "count": 7,
+        "start": 125
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 125
+      },
+      "path": "docs/specs/cem-0.3-structural-mechanical.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0a080c0ab3b9e6b98f9efc41b275900f58fef8bb8362cc0342bbc1b714f2413c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:f406afbbdd0a3f4134635da902fbfd66f88bd607e70f176bb72ab32ff84629d9",
+      "newRange": {
+        "count": 7,
+        "start": 351
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 351
+      },
+      "path": "docs/specs/daily-change-evidence-workflow-v0.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4a33ddc54063569ac09db710af9094f1388f1337b9d851245f14f9a726e01c1b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:8fb909da9fd9ffd80a4bc795dfd0dcb4f767b69823e3c08a0ceb608c77a1edd1",
+      "newRange": {
+        "count": 13,
+        "start": 600
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 600
+      },
+      "path": "internal/cem/workflow/commands.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4a33ddc54063569ac09db710af9094f1388f1337b9d851245f14f9a726e01c1b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fac5b3dabc3349218a310262913b06ac53dcecb8ccaa7408ca82c23c923019c4",
+      "newRange": {
+        "count": 8,
+        "start": 1596
+      },
+      "oldRange": {
+        "count": 8,
+        "start": 1596
+      },
+      "path": "internal/cem/workflow/workflow_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:4a33ddc54063569ac09db710af9094f1388f1337b9d851245f14f9a726e01c1b",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:fbdc98a8977963e3d5092065f22b9da0634c28880b96682b3962a9736d17681e",
+      "newRange": {
+        "count": 37,
+        "start": 1625
+      },
+      "oldRange": {
+        "count": 14,
+        "start": 1625
+      },
+      "path": "internal/cem/workflow/workflow_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0a080c0ab3b9e6b98f9efc41b275900f58fef8bb8362cc0342bbc1b714f2413c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:97c558028f7b6238391dac6e3a5660b4eb2b2b1eb50c01eb02d3432699ec2a74",
+      "newRange": {
+        "count": 7,
+        "start": 504
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 504
+      },
+      "path": "internal/dogfoodflow/change.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0a080c0ab3b9e6b98f9efc41b275900f58fef8bb8362cc0342bbc1b714f2413c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:3169567b64ef369c32e96917bac1e2dfd519e019d65339535d40b2fe3cab120f",
+      "newRange": {
+        "count": 23,
+        "start": 601
+      },
+      "oldRange": {
+        "count": 42,
+        "start": 604
+      },
+      "path": "internal/dogfoodflow/change.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0a080c0ab3b9e6b98f9efc41b275900f58fef8bb8362cc0342bbc1b714f2413c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:6f0323373f8b98b734c30fd8d023b95a5fc7f671fd8c63b009a69e1a69ef95b6",
+      "newRange": {
+        "count": 12,
+        "start": 3
+      },
+      "oldRange": {
+        "count": 10,
+        "start": 3
+      },
+      "path": "internal/dogfoodflow/change_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:0a080c0ab3b9e6b98f9efc41b275900f58fef8bb8362cc0342bbc1b714f2413c",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c40a8c8fe239dd9d4c6190ebc3ea72c29d2b8e85a8addd081310a49ed978a4c1",
+      "newRange": {
+        "count": 32,
+        "start": 226
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 224
+      },
+      "path": "internal/dogfoodflow/change_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "9447795d26c84d2d1fcc82708c318b7130fc4e7390c27553875a721ccd4b0cdf",
+  "spec": "cem/0.2"
+}
