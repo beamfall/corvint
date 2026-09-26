@@ -6934,3 +6934,19 @@ the touched packages; the doc checks; `go run ./conformance/use-cases-v0`, which
 Under host load (load average 170 to 570), `TestSelectionOnTheLiveDirtyWorktree` and
 `TestIncrementalSelectionMeetsTheLiveBudget` exceeded their 100 ms budget. These are timing
 flakes. NOT_RUN: the exhaustive `./...` gate.
+
+## 2026-09-25 V1-0251 AFU-V1-021: coverage exclusions apply the whole Verified carry-forward rule
+
+Finding, from an audit of the S4 `e2e-safe` profile against AFU-V1-019..024 and 040: the coverage
+basis treated evidence as holding at base when no covered path and no global path changed since the
+evidence commit. The Verified carry-forward rule that AFU-V1-021 cites also requires the test's
+static reach and every link target, with what the impact graph reaches from it, to be unchanged.
+Reproduced: the search spec changed after its coverage run to visit the profile page, its client
+coverage listed no test file, and a profile fault then omitted it on the `coverage` basis, an
+unsafe narrowing the frozen corpus did not contain. `coverageStale` now also returns
+`e2e-map-stale` when the test file's static reach, or a link target of any flow linking the test or
+a path the head impact graph reaches from one, changed between the evidence commit and base.
+Evidence: `TestAFUV1021CoverageStaleWhenStaticReachChanged` failed before the change and passes after;
+the frozen corpus report is byte-identical (no case changed outcome). The case stays outside the
+frozen corpus; adding it there is an owner decision. The requirement's parenthetical, "so no
+covered path changed", reads narrower than the rule it cites; the implementation follows the rule.

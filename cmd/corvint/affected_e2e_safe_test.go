@@ -428,6 +428,27 @@ func TestAFUV1020ExclusionProofsPerBasis(t *testing.T) {
 	}
 }
 
+// AFU-V1-021: coverage evidence holds at base only under the Verified carry-forward rule. The search
+// spec changed after its coverage run to visit the profile page, and its client coverage lists no
+// test file, so a profile fault must not omit it on the coverage basis.
+func TestAFUV1021CoverageStaleWhenStaticReachChanged(t *testing.T) {
+	t.Parallel()
+	corpus := loadE2ECorpus(t)
+	for i, record := range corpus.Coverage {
+		if record.TestKey == "search.spec.ts > finds" {
+			corpus.Coverage[i].Tiers = []appflows.CoverageTier{{Tier: "client", Complete: true, Paths: []string{"e2e/pages/shop.ts"}}, record.Tiers[1]}
+		}
+	}
+	c := corpus.find(t, "profile-source")
+	spec := "import { origin } from \"./pages/shop\";\n\ntest(\"finds\", () => origin + \"/profile\");\n"
+	c.BaseChanges = map[string]*string{"e2e/search.spec.ts": &spec}
+	selection, _, _ := runE2ECase(t, corpus, c)
+	e2eFullSuite(t, "search-spec-after-coverage", selection)
+	if want := (appflows.E2EFallback{Code: appflows.CodeMapStale, Subject: "search.spec.ts > finds"}); !slices.Contains(selection.Fallback, want) {
+		t.Fatalf("fallback %+v lacks %+v", selection.Fallback, want)
+	}
+}
+
 // AFU-V1-019 AFU-V1-024: malformed selection input fails closed, and the profile takes exactly one
 // repository-relative provider file.
 func TestAFUV1024E2ESafeRefusesMalformedInput(t *testing.T) {

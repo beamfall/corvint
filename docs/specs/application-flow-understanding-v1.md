@@ -619,7 +619,7 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-018 | `TestAFUV1FlowsQueriesAreReadOnly` (`map`, lookup, `gaps`, `impact`, `ingest` and `export` leave the repository, `.git` included, byte-identical) |
 | AFU-V1-019 | `TestAFUV1019UndiscoveredTestForbidsNarrowing`, `TestAFUV1040SelectionCorpusReport` (the `undiscovered-test`, `missing-discovery`, `stale-discovery` and `test-file` cases) |
 | AFU-V1-020 | `TestAFUV1020ExclusionProofsPerBasis` (a reviewed-links proof, a declared link without a review anchor, an inferred-only link), `TestAFUV1040SelectionCorpusReport` |
-| AFU-V1-021 | `TestAFUV1020ExclusionProofsPerBasis` (a coverage proof, stale coverage evidence, an incomplete tier), `TestAFUV1040SelectionCorpusReport` |
+| AFU-V1-021 | `TestAFUV1020ExclusionProofsPerBasis` (a coverage proof, stale coverage evidence, an incomplete tier), `TestAFUV1021CoverageStaleWhenStaticReachChanged` (a test file changed after its coverage run, outside its covered paths), `TestAFUV1040SelectionCorpusReport` |
 | AFU-V1-022 | `TestAFUV1022EveryFallbackCodeYieldsFullSuite` (one subtest per closed code), `TestAFUV1040SelectionCorpusReport` (global-path cases) |
 | AFU-V1-023 | `TestAFUV1020ExclusionProofsPerBasis`, `TestAFUV1040SelectionCorpusReport` (per-basis counts, both notes) |
 | AFU-V1-024 | `TestAFUV1024StrictAndCoverageBytesUnchanged` (goldens captured before S4), `TestAFUV1024E2ESafeRefusesMalformedInput`, `TestAffectedSelectionArguments` |
