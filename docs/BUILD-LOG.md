@@ -7714,12 +7714,28 @@ textually cleaned directory, so `link/../FILE` leaving the source root still wro
 into it first. Build now resolves the output directory once to an absolute, symlink-free path,
 resolving each component, `..` included, in order from the working directory's resolved path. The
 guard checks that directory by file identity, and both the temporary file and the link are written
-there. The path does not grow while the guard climbs, so a deep directory is no longer refused. The
-reason rule caught only whitespace, so a zero-width space, a NUL, a terminal escape or a Hangul
-filler still explained a row, and invalid UTF-8 built a record its own verify refused. Every
-reason must now be valid UTF-8 without a control, format, separator, private-use, noncharacter or
-default-ignorable code point, and only a reason with a letter or digit explains. A record built
-from a CRLF file before CRLF was read as LF no longer verifies; no such record was ever published.
+there. The path does not grow while the guard climbs, so a deep directory is accepted while its
+resolved absolute path fits the platform path limit. The reason rule caught only whitespace, so a
+zero-width space, a NUL, a terminal escape or a Hangul filler still explained a row, and invalid
+UTF-8 built a record its own verify refused. Every reason must now be valid UTF-8 without a control,
+format, separator, private-use, noncharacter or default-ignorable code point, and only a reason with
+a letter or digit explains. A record built from a CRLF file before CRLF was read as LF no longer
+verifies; no such record was ever published.
+
+A fourth review reproduced three more gaps, one overclaim, two undocumented refusals and two test
+gaps, all fixed here. The resolver follows up to 255 symlinks but the kernel far fewer, so a longer
+chain wrote where the reported path could not reach. Build now refuses unless the directory as
+spelled opens the resolved directory. The guard and the write were separate path lookups, so a
+component replaced by a symlink during the build redirected the write into a root. Build now opens
+the directory before the guard and creates, links and removes the temporary file through that
+handle. The reason rule missed the variation selectors that the spec's default-ignorable rule
+covers; they are now refused, U+FE0F included. The spec no longer claims that a mount alias of a
+directory below a root (bind mount, `subst` drive, network mount) is caught. It now states two
+refusals by design: joiners, soft hyphens and direction marks in a reason, and an output directory
+through a Windows junction, which Go reports as irregular. A final junction, which the resolver left
+in place, is now refused as well. New tests cover a relative output through a link and `..`, a
+64-link chain and a directory swapped during the build. The no-write check now watches the
+directory's mtime, so it also holds when tests run as root.
 
 No release has used the record yet. Its first use is the `1.0.0-rc.1` candidate (V1-0018 AC2,
 V1-0020 AC3).

@@ -4,14 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 type readinessFixture struct {
@@ -97,6 +100,41 @@ func (f readinessFixture) file(t *testing.T, name, content string) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+// unchangedDirectory pins directory's mtime to a fixed past time and returns a
+// check that its listing and mtime are unchanged. A file created and removed
+// there moves the mtime even when the test runs as root, which ignores modes.
+func unchangedDirectory(t *testing.T, directory string) func() {
+	t.Helper()
+	past := time.Unix(1_000_000_000, 0)
+	if err := os.Chtimes(directory, past, past); err != nil {
+		t.Fatal(err)
+	}
+	listing := directoryListing(t, directory)
+	return func() {
+		t.Helper()
+		info, err := os.Stat(directory)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !info.ModTime().Equal(past) || directoryListing(t, directory) != listing {
+			t.Fatalf("%s was written: its mtime or listing changed", directory)
+		}
+	}
+}
+
+func directoryListing(t *testing.T, directory string) string {
+	t.Helper()
+	entries, err := os.ReadDir(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names strings.Builder
+	for _, entry := range entries {
+		names.WriteString(entry.Name() + "\n")
+	}
+	return names.String()
 }
 
 func readinessRowByID(record *ReadinessRecord, id string) ReadinessRow {
@@ -506,6 +544,8 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 		"line separator":        "policy/rollback-exercise\tNOT_RUN\t\t\tlater\u2028now\n",
 		"private use":           "policy/rollback-exercise\tNOT_RUN\t\t\tlater\ue000\n",
 		"noncharacter":          "policy/rollback-exercise\tNOT_RUN\t\t\tlater\ufffe\n",
+		"variation selectors":   "policy/rollback-exercise\tNOT_RUN\t\t\thidden\U000E0100\U000E0101\n",
+		"Persian non-joiner":    "policy/rollback-exercise\tNOT_RUN\t\t\t\u0645\u06cc\u200c\u062e\u0648\u0627\u0647\u0645\n",
 	} {
 		unexplained, err := ReadReadinessEvidence(fixture.file(t, "unexplained.tsv", content))
 		if err != nil {
@@ -560,17 +600,65 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() { os.Remove(escape) })
-		if err := os.Chmod(gitDirectory, 0o555); err != nil {
+		t.Chdir(gitDirectory)
+		unchanged := unchangedDirectory(t, gitDirectory)
+		up := string(filepath.Separator) + ".." + string(filepath.Separator)
+		for _, through := range []string{escape + up + "absolute.json", "escape" + up + "relative.json"} {
+			if _, err := WriteReadinessRecord(t.Context(), options, through); err != nil {
+				t.Fatalf("output %s outside both roots refused: %v", through, err)
+			}
+			if _, err := os.Stat(filepath.Join(outside, filepath.Base(through))); err != nil {
+				t.Fatalf("record %s not written where the link leads: %v", through, err)
+			}
+		}
+		unchanged()
+	})
+	t.Run("output through more links than the kernel follows is refused", func(t *testing.T) {
+		base := canonicalTemp(t)
+		target := filepath.Join(base, "target")
+		if err := os.Mkdir(target, 0o755); err != nil {
 			t.Fatal(err)
 		}
-		t.Cleanup(func() { os.Chmod(gitDirectory, 0o755) })
-		through := escape + string(filepath.Separator) + ".." + string(filepath.Separator) + "readiness.json"
-		if _, err := WriteReadinessRecord(t.Context(), options, through); err != nil {
-			t.Fatalf("output %s outside both roots refused or written through the source root: %v", through, err)
+		chain := target
+		for number := range 64 {
+			link := filepath.Join(base, "link"+strconv.Itoa(number))
+			if err := os.Symlink(chain, link); err != nil {
+				t.Fatal(err)
+			}
+			chain = link
 		}
-		if _, err := os.Stat(filepath.Join(outside, "readiness.json")); err != nil {
-			t.Fatalf("record not written where the link leads: %v", err)
+		if _, err := WriteReadinessRecord(t.Context(), options, filepath.Join(chain, "readiness.json")); !errors.Is(err, errOutputDirectory) {
+			t.Fatalf("output through a 64-link chain = %v, want %v", err, errOutputDirectory)
 		}
+		if entries, err := os.ReadDir(target); err != nil || len(entries) != 0 {
+			t.Fatalf("refused output left %d entries where the chain leads: %v", len(entries), err)
+		}
+	})
+	t.Run("directory swapped for a link into the source root during the build is not followed", func(t *testing.T) {
+		base := canonicalTemp(t)
+		swapped, moved := filepath.Join(base, "swapped"), filepath.Join(base, "moved")
+		if err := os.Mkdir(swapped, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		unchanged := unchangedDirectory(t, fixture.source)
+		previous := goToolchainProbe
+		t.Cleanup(func() { goToolchainProbe = previous })
+		goToolchainProbe = func(ctx context.Context, directory string) (string, error) {
+			if err := os.Rename(swapped, moved); err != nil {
+				return "", err
+			}
+			if err := os.Symlink(fixture.source, swapped); err != nil {
+				return "", err
+			}
+			return previous(ctx, directory)
+		}
+		if _, err := WriteReadinessRecord(t.Context(), options, filepath.Join(swapped, "readiness.json")); err != nil {
+			t.Fatalf("output checked outside both roots refused: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(moved, "readiness.json")); err != nil {
+			t.Fatalf("record not written in the directory that was checked: %v", err)
+		}
+		unchanged()
 	})
 	t.Run("deep output directory is resolved without growing its path", func(t *testing.T) {
 		deep := filepath.Join(append([]string{canonicalTemp(t)}, slices.Repeat([]string{"d"}, 400)...)...)

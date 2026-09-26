@@ -112,21 +112,33 @@ Non-goals:
   `cmd/corvint-release-candidate` keeps its single flag set unchanged. Implementation detail: each
   line of the evidence file is `ROW`, `STATUS`, `PATH`, `DECISION` and `REASON` separated by tabs,
   with an absent value left empty. A CRLF line ending is read as LF. Every reason must be valid
-  UTF-8 without a control, format, line or paragraph separator, private-use, noncharacter or
-  default-ignorable code point, and only a reason with a letter or digit explains a row. A record
+  UTF-8 without a control, format, line or paragraph separator, private-use, noncharacter,
+  variation selector or other default-ignorable code point, and only a reason with a letter or
+  digit explains a row. By design this refuses text that needs a format character or a variation
+  selector: a zero-width joiner or non-joiner (emoji sequences, Persian, Devanagari conjuncts), a
+  soft hyphen, the LRM, RLM and ALM marks, and the emoji presentation selector U+FE0F, as in a
+  red heart emoji. A reason is plain release evidence, so write the words without them. A record
   built from a CRLF file before CRLF was read as LF stored reasons ending in a carriage return and
   no longer verifies; rebuild it. A relative `PATH` resolves against the evidence file's directory.
   A line without exactly five fields, or a row named twice, is refused. Build mode resolves FILE's
   directory once to an absolute path free of symlinks: a relative directory is appended to the
-  working directory's resolved path, and each component, `..` included, is resolved in order. It
-  refuses that directory when it is, or lies below, the candidate or the source root, compared by
-  file identity, so a symlink, a symlinked working directory, a `..` segment or a case alias cannot
-  hide the overlap. A Windows directory rooted on a drive or a separator but not absolute is
-  refused (SRR-V1-011). Build then writes a completed temporary file in that same resolved directory
-  and hard-links it to FILE, so a partial record never appears at FILE. Verify mode also rebuilds the rows from the evidence
-  file and refuses a record whose rows differ. Without that check, a record that relabels a FAIL log
-  as PASS would still reproduce its digest. Supplying only one of the two store flags is a usage
-  error.
+  working directory's resolved path, and each component, `..` included, is resolved in order. The
+  resolver follows up to 255 symlinks and the kernel far fewer, so build refuses FILE unless its
+  directory as spelled (`.` when FILE has none) opens that same directory; otherwise the record
+  would land where the reported path cannot reach. Build opens the resolved directory once,
+  confirms the handle is that directory, and refuses it when it is, or lies below, the candidate
+  or the source root, compared by file identity, so a symlink, a symlinked working directory, a
+  `..` segment or a case alias cannot hide the overlap. A mount alias of a directory below a root
+  (a Linux bind mount, a Windows `subst` drive, an SMB or NFS mount) has its own parents and is
+  outside this guard. Go reports a Windows junction as irregular, not as a symlink, so an output
+  directory that passes through or ends in a junction is refused; this over-refusal is known. A
+  Windows directory rooted on a drive or a separator but not absolute is refused (SRR-V1-011).
+  Build then writes a completed temporary file and hard-links it to FILE, both through the open
+  handle, so a partial record never appears at FILE and a path component replaced by a symlink
+  during the build cannot redirect the write. A directory moved whole into a root during the
+  build is not detected. Verify mode also rebuilds the rows from the evidence file and refuses a
+  record whose rows differ. Without that check, a record that relabels a FAIL log as PASS would
+  still reproduce its digest. Supplying only one of the two store flags is a usage error.
 
 ## Failure modes
 
@@ -142,9 +154,11 @@ Non-goals:
 | Source root is a partial clone missing the bound objects | Git read fails without fetching; builder refuses (SRR-V1-011). |
 | Store candidate digest is stale | Not detected; the owner cross-checks it (SRR-V1-004, open). |
 | Output file already exists | Build mode refuses and leaves the existing file unchanged (SRR-V1-012). |
-| Output path is inside the candidate or the source root | Build mode refuses before building; nothing is written there (SRR-V1-011, 012). |
+| Output path is inside the candidate or the source root | Build mode refuses before building; nothing is written there. A symlink alias is caught; a mount alias of a directory below a root (bind mount, `subst` drive, network mount) is outside the guard (SRR-V1-011, 012). |
+| Output directory as spelled does not open the resolved directory (a symlink chain longer than the kernel follows), or it passes through or ends in a Windows junction | Build mode refuses before building; nothing is written (SRR-V1-012). |
+| A path component of the output directory is replaced by a symlink during the build | The record is written through the directory handle opened before the check, never through the new link (SRR-V1-012). |
 | Output directory's filesystem has no hard links | Build mode refuses and removes its temporary file; no record is published (SRR-V1-012). |
-| Evidence file has CRLF endings, a reason that is invalid UTF-8 or carries a hidden character, or a reason with no letter or digit | CRLF is read as LF; a reason with invalid UTF-8 or a hidden character is refused on every row; a reason with no letter or digit explains nothing, so NOT_RUN or FALLBACK without a decision is refused (SRR-V1-006). |
+| Evidence file has CRLF endings, a reason that is invalid UTF-8 or carries a hidden character, or a reason with no letter or digit | CRLF is read as LF; a reason with invalid UTF-8 or a hidden character, a variation selector or a joiner included, is refused on every row; a reason with no letter or digit explains nothing, so NOT_RUN or FALLBACK without a decision is refused (SRR-V1-006). |
 | Record relabels a supplied row, such as FAIL evidence as PASS | Verify mode refuses: the rows differ from the evidence file (SRR-V1-012). |
 
 ## Acceptance and rollback
@@ -172,4 +186,4 @@ wire state depends on the package yet.
 | SRR-V1-009 | `readiness.go` (`readinessRules`, `fixedRule`) | TestSRRV1009PolicyRowsFollowDecision0420 |
 | SRR-V1-010 | `readiness.go` (`fixedRule`, `validateReadinessRow`) | TestSRRV1010OwnerActionsStayNotRun |
 | SRR-V1-011 | `readiness.go` (no writer) | TestSRRV1011BuildAndVerifyWriteNothing |
-| SRR-V1-012 | `readiness.go` (`ReadReadinessEvidence`, `WriteReadinessRecord`, `physical`, `within`, `publishNoReplace`, `VerifyReadinessFile`), `cmd/corvint-readiness-record/main.go` | TestSRRV1012EvidenceFileAndNoReplaceRecord, TestSRRV1012ModesTakeTheirOwnFlagsOnly, TestSRRV1012ReportNamesRecordAndEveryRow |
+| SRR-V1-012 | `readiness.go` (`ReadReadinessEvidence`, `WriteReadinessRecord`, `physical`, `sameDirectory`, `within`, `publishNoReplace`, `createTemporary`, `VerifyReadinessFile`), `cmd/corvint-readiness-record/main.go` | TestSRRV1012EvidenceFileAndNoReplaceRecord, TestSRRV1012ModesTakeTheirOwnFlagsOnly, TestSRRV1012ReportNamesRecordAndEveryRow |
