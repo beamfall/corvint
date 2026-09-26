@@ -101,6 +101,38 @@ func TestAFUV1NegativeControlFailed(t *testing.T) {
 	}
 }
 
+// AFU-V1-011 AFU-V1-012: each adapter observes a declared control failing in the same report, and only
+// then verifies the subject.
+func TestAFUV1AdapterObservesFailedControl(t *testing.T) {
+	cases := []struct{ format, raw, subject, control, observed string }{
+		{FormatPlaywrightJSON, playwrightRun, "control.bad-card", "checkout.spec.ts > slow", "timedOut"},
+		{FormatJUnitXML, `<testsuite><testcase classname="api.Orders" name="lists" time="0.1"/>
+ <testcase classname="api.Orders" name="rejects" time="0.1"><failure message="expected 401">at Orders.java:9</failure></testcase></testsuite>`,
+			"api.Orders > lists", "api.Orders > rejects", "failed"},
+		{FormatJUnitXML, `<testsuite><testcase classname="api.Orders" name="lists" time="0.1"/>
+ <testcase classname="api.Orders" name="hangs" time="0.1"><error message="test timed out after 100 milliseconds" type="org.junit.runners.model.TestTimedOutException"/></testcase></testsuite>`,
+			"api.Orders > lists", "api.Orders > hangs", "timedOut"},
+		{FormatGoTestJSON, `{"Action":"run","Package":"shop","Test":"TestPay"}
+{"Action":"pass","Package":"shop","Test":"TestPay","Elapsed":0.1}
+{"Action":"run","Package":"shop","Test":"TestDecline"}
+{"Action":"fail","Package":"shop","Test":"TestDecline","Elapsed":0.1}
+`, "shop > TestPay", "shop > TestDecline", "failed"},
+	}
+	for _, c := range cases {
+		header := runHeader()
+		header.Controls = []RunControl{{Subject: c.subject, TestKey: c.control, Expected: c.observed}}
+		subject := ingest(t, c.format, c.raw, header)[c.subject]
+		want := []NegativeControl{{TestKey: c.control, Expected: c.observed, Observed: c.observed}}
+		if fmt.Sprint(subject.NegativeControls) != fmt.Sprint(want) || !Verified(subject) {
+			t.Fatalf("%s: controls %+v, verified %v", c.format, subject.NegativeControls, Verified(subject))
+		}
+		header.Controls[0].Expected = "passed"
+		if Verified(ingest(t, c.format, c.raw, header)[c.subject]) {
+			t.Fatalf("%s: a control observed against a different expectation verified its subject", c.format)
+		}
+	}
+}
+
 // AFU-V1-012
 func TestAFUV1PlaywrightAdapterKeepsEveryAttempt(t *testing.T) {
 	records := ingest(t, FormatPlaywrightJSON, playwrightRun, runHeader())
@@ -191,6 +223,28 @@ func TestAFUV1GoTestAdapterKeepsEveryAttempt(t *testing.T) {
 	cut := strings.Replace(goTestStream, "panic: test timed out after 1s", "killed", 1)
 	if slow := ingest(t, FormatGoTestJSON, cut, runHeader())["shop > TestSlow"]; outcomes(slow) != "interrupted" {
 		t.Fatalf("unfinished test: %+v", slow)
+	}
+}
+
+// AFU-V1-012 AFU-V1-013: a JUnit attempt is timedOut only when its failure or error message
+// attribute carries the runner timeout phrase; the same phrase in body text stays failed.
+func TestAFUV1JUnitTimedOutAttempt(t *testing.T) {
+	report := `<testsuite>
+ <testcase classname="api.Orders" name="slow" time="0.2"><error message="test timed out after 100 milliseconds" type="org.junit.runners.model.TestTimedOutException">at Orders.java:12</error></testcase>
+ <testcase classname="api.Orders" name="retried" time="0.3"><flakyError message="retried() timed out after 100 milliseconds" type="java.util.concurrent.TimeoutException"/></testcase>
+ <testcase classname="api.Orders" name="asserts" time="0.1"><failure message="expected 200">upstream timed out after 5s</failure></testcase>
+</testsuite>`
+	records := ingest(t, FormatJUnitXML, report, runHeader())
+	slow := records["api.Orders > slow"]
+	if outcomes(slow) != "timedOut" || Classify(slow.Attempts) != "timedOut" || slow.Attempts[0].DurationMS != 200 ||
+		slow.Attempts[0].Failure != "test timed out after 100 milliseconds\nat Orders.java:12" {
+		t.Fatalf("timed-out attempt: %+v", slow.Attempts)
+	}
+	if retried := records["api.Orders > retried"]; outcomes(retried) != "timedOut,passed" || Classify(retried.Attempts) != "flaky" {
+		t.Fatalf("timed-out then passed: %+v", retried.Attempts)
+	}
+	if asserts := records["api.Orders > asserts"]; outcomes(asserts) != "failed" {
+		t.Fatalf("a timeout phrase in body text only: %+v", asserts.Attempts)
 	}
 }
 
