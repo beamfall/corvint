@@ -7125,3 +7125,16 @@ coverage to the page object. Report rows changed: `cases` 20 to 21, `e2e-map-sta
 on both bases, `narrowed_cases` 6 and `withdrawn` [] are unchanged. Negative control, run once and
 reverted: the pre-fix `selection.go` omits `search.spec.ts > finds` on `coverage` and withdraws
 that basis.
+
+## 2026-09-25 V1-0249 decision 0417: AFU-V1 run-evidence remainders
+
+The owner answered PR #250's four questions (decision 0417). Here, `AFU-V1-014` states its accepted
+gap: the flow-scoped AFU-V0-010 observer emits no per-test `LOCALLY_OBSERVED` record. JUnit gains a
+timed-out mapping: a failure-family element whose `message` attribute contains `timed out after `
+(JUnit 4 `TestTimedOutException`, JUnit Jupiter `TimeoutException`) is `timedOut`; body text never
+is. The attribute is the narrowest signal the adapter already read, and a runner without that
+phrase stays `failed`. A failed or timed-out JUnit attempt now keeps its failure detail.
+`TestAFUV1JUnitTimedOutAttempt`, and the JUnit timed-out control in
+`TestAFUV1AdapterObservesFailedControl`. `AFU-V1-013` (separate run registry) and `AFU-V1-012`
+(`/3` external Playwright profile) are follow-up branches `claude/v1-0249-run-registry` and
+`claude/v1-0249-playwright-profile-v3`. NOT_RUN: the exhaustive gate and the dogfood CEM steps.
