@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -37,4 +38,48 @@ func TestCoreBundleBuildSkipsEditorTools(t *testing.T) {
 			t.Fatalf("refusal touched scratch: %v", e)
 		}
 	})
+}
+
+// TestGateScriptsPassOnlyDefinedFlags pins V1-0346: every flag a gate script
+// passes to this command is one the command defines, so a wrapper still naming
+// a retired flag fails here instead of at release time.
+func TestGateScriptsPassOnlyDefinedFlags(t *testing.T) {
+	for _, script := range []string{"local-console-release-gate", "corvint-companion-release-gate"} {
+		raw, err := os.ReadFile(filepath.Join("..", "..", "script", script))
+		if err != nil {
+			t.Fatal(err)
+		}
+		flags := invokedFlags(string(raw))
+		if !slices.Contains(flags, "-source-root") {
+			t.Fatalf("%s: invocation flags %v lack -source-root", script, flags)
+		}
+		for _, name := range flags {
+			var out, stderr bytes.Buffer
+			run([]string{name + "=x"}, &out, &stderr)
+			if strings.Contains(stderr.String(), "not defined") {
+				t.Errorf("%s passes undefined flag %s", script, name)
+			}
+		}
+	}
+}
+
+// invokedFlags returns the flags on the backslash-continued command line that
+// invokes corvint-companion-release.
+func invokedFlags(script string) []string {
+	var flags []string
+	inside := false
+	for _, line := range strings.Split(script, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !inside {
+			inside = strings.Contains(trimmed, "corvint-companion-release") && strings.HasSuffix(trimmed, `\`)
+			continue
+		}
+		if name, _, _ := strings.Cut(trimmed, " "); strings.HasPrefix(name, "-") {
+			flags = append(flags, name)
+		}
+		if !strings.HasSuffix(trimmed, `\`) {
+			break
+		}
+	}
+	return flags
 }

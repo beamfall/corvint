@@ -77,7 +77,7 @@ dashboard spec cites it.
 | Surface | Values | Casing | Citation |
 |---|---|---|---|
 | Dashboard model | `REPOSITORY_ACCEPTED`, `OWNING_VERIFIER`, `PROVIDER_QUALIFIED`, `ADAPTER_QUALIFIED`, `CALLER_REPORTED`, `ADVISORY`, `NONE` | SCREAMING_SNAKE | `internal/dashboard/model/types.go:39-45`; `docs/specs/local-observability-dashboard-v0.md:79` |
-| MCP bridge result | `REPOSITORY_EVIDENCE`, `GIT_REPOSITORY`, `NONE` | SCREAMING_SNAKE | `internal/mcp/bridge/bridge.go:819`; `docs/specs/mcp-server-2026-07-28-v0.md:178` |
+| MCP bridge result | `REPOSITORY_EVIDENCE`, `GIT_REPOSITORY`, `NONE` | SCREAMING_SNAKE | `internal/mcp/bridge/bridge.go:819`; `docs/specs/mcp-server-2026-07-28-v0.md:234@ed198532` |
 | Change Frontier item | `NONE`, `PRODUCER_DECLARED`, `CALLER_REPORTED` | SCREAMING_SNAKE | `docs/specs/change-frontier-v0.md:244` |
 | Lexical Relevance Floor edge | `producer-declared` | lowercase-kebab | `internal/lrf/types.go:12`; `docs/lrf-0.schema.json:65,69`; `docs/specs/lexical-relevance-floor-v0.md:267,269` |
 | Verification Planner/Observer | `CORVINT_PROCESS_OBSERVED`, `CALLER_REPORTED` | SCREAMING_SNAKE | `docs/specs/verification-planner-observer-v0.md:389,285` |

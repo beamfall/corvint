@@ -234,7 +234,18 @@ func workProductionFixture(t *testing.T) string {
 	caller := t.TempDir()
 	materializationGit(t, caller, "clone", "--quiet", "--local", "--no-hardlinks", workProductionSeed.root, ".")
 	materializationGit(t, caller, "remote", "remove", "origin")
+	materializationQuiesce(t, caller)
 	return caller
+}
+
+// materializationQuiesce turns off Git auto maintenance and auto gc in a
+// fixture repository. A fixture commit otherwise may spawn detached maintenance
+// that outlives the command, and its transient .git/objects/maintenance.lock
+// races manifest walks and local clones (V1-0351).
+func materializationQuiesce(t *testing.T, root string) {
+	t.Helper()
+	materializationGit(t, root, "config", "maintenance.auto", "false")
+	materializationGit(t, root, "config", "gc.auto", "0")
 }
 
 func buildWorkProductionSeed(t *testing.T, caller string) {
@@ -290,6 +301,7 @@ func buildWorkProductionSeed(t *testing.T, caller string) {
 		t.Fatal(err)
 	}
 	materializationGit(t, caller, "init", "-q")
+	materializationQuiesce(t, caller)
 	materializationGit(t, caller, "add", ".")
 	materializationGit(t, caller, "commit", "-qm", "actual producer fixture")
 	materializationGit(t, caller, "commit", "--allow-empty", "-qm", "pinned descendant without exported parent")

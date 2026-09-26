@@ -27,6 +27,10 @@ after(() => { process.off('SIGINT', interrupt); process.off('SIGTERM', interrupt
 // and gives OpenCode its production-bounded maxima; a loaded host otherwise expires the production
 // budgets before the fixture child starts. The test deadline below stays above this kill.
 const TEST_HOST_KILL_MS = 4000
+// The test deadline is a hang guard, not a timing assertion: it runs from spawn, so it also covers
+// the Node start the hook's own clock cannot see, which a loaded host stretches past a second even
+// when the stated kill is 1 ms (V1-0356). The hook's budget is asserted by its output.
+const HOOK_HANG_GUARD_MS = 30000
 const OPEN_TIMEOUTS = { automaticTimeoutMs:2000, queryTimeoutMs:4000 }
 const events = { 'session-start': 'SessionStart', 'user-prompt': 'BeforeAgent', 'after-tool': 'AfterTool', stop: 'AfterAgent', 'session-end': 'SessionEnd' }
 function fixture(t, mode='valid', codes=['frontier-authority-unavailable'], environmentOverrides={}) {
@@ -53,7 +57,7 @@ function fixture(t, mode='valid', codes=['frontier-authority-unavailable'], envi
     const child=spawn(process.execPath,[hook,event,`--corvint-test-host-kill-ms=${kill}`],{env:environment,detached:true,stdio:['pipe','pipe','pipe']})
     currentGemini=child;activeGemini.add(child)
     let stdout='',stderr='',force;const stop=(signal='SIGTERM')=>{try{process.kill(-child.pid,signal)}catch{}}
-    const timer=setTimeout(()=>{stop();force=setTimeout(()=>stop('SIGKILL'),100);reject(new Error('hook test deadline'))},kill+1000)
+    const timer=setTimeout(()=>{stop();force=setTimeout(()=>stop('SIGKILL'),100);reject(new Error('hook test deadline'))},kill+HOOK_HANG_GUARD_MS)
     child.on('error',reject);child.stdout.on('data',b=>stdout+=b);child.stderr.on('data',b=>stderr+=b)
     child.on('close',code=>{clearTimeout(timer);clearTimeout(force);activeGemini.delete(child);currentGemini=undefined;try{assert.equal(stderr,'');resolve({code,output:JSON.parse(stdout)})}catch(e){reject(e)}})
     child.stdin.end(raw ?? JSON.stringify(input))

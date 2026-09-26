@@ -141,3 +141,29 @@ func TestTMV0009_AS11_InvalidInitRoleThenRetry(t *testing.T) {
 		t.Fatalf("corrected retry: %+v", good.res)
 	}
 }
+
+// TestCTSV0001_InitRefusesOverCommittedTickets pins V1-0323 end to end: init
+// over committed tickets refuses with a code and writes nothing, and the same
+// init succeeds once the intent store holds no records.
+func TestCTSV0001_InitRefusesOverCommittedTickets(t *testing.T) {
+	r := fixture.TempRepo(t)
+	fixture.WriteIntent(t, r, fixture.Ticket("A"))
+
+	refused := atm(t, r.Root, nil, "init")
+	if refused.res.Outcome != wire.OutcomeRefused || !hasCode(refused.res, wire.CodeIntentDiverged) {
+		t.Fatalf("init over a committed ticket: %+v", refused.res)
+	}
+	if !strings.Contains(strings.Join(refused.res.Warnings, "\n"), "tickets/A.json") {
+		t.Errorf("refusal does not name the record: %v", refused.res.Warnings)
+	}
+	if _, err := os.Lstat(r.StateDir); !os.IsNotExist(err) {
+		t.Fatalf("a refused init created the state dir: %v", err)
+	}
+
+	if err := os.Remove(filepath.Join(r.IntentDir, "tickets", "A.json")); err != nil {
+		t.Fatal(err)
+	}
+	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("init over an empty intent store: %+v", x.res)
+	}
+}
