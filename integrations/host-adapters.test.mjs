@@ -268,6 +268,45 @@ for(const host of ['opencode','gemini']) {
   else assert.equal((await f.gemini('user-prompt',{prompt:task})).output.hookSpecificOutput?.hookEventName,'BeforeAgent')
  })
 }
+// V1-0371: the orphan fixture's descendant ignores SIGTERM and closes its stdio, so the leader's close
+// arrives while it runs. Reaping it after SIGKILL is load-stretched, so this window is a hang guard.
+async function descendantGone(witness) {
+ assert.ok(existsSync(witness),'descendant start witness');const pid=Number(readFileSync(witness,'utf8'))
+ for(const deadline=Date.now()+10000;Date.now()<deadline;await new Promise(r=>setTimeout(r,10))){try{process.kill(pid,0)}catch{rmSync(witness);return}}
+ assert.fail('owned same-group descendant survived the leader')
+}
+for(const host of ['opencode','gemini']) {
+ test(`V1-0371 ${host} timeout and cancellation kill a TERM-ignoring descendant that closed its stdio`,async t=>{
+  const timed=fixture(t,'orphan-hang')
+  if(host==='opencode'){const result=await timed.runOpen(request(timed.root,'user-prompt'));assert.equal(result.code,'timeout');assert.equal(result.deadlineMs,OPEN_TIMEOUTS.queryTimeoutMs)}
+  else assert.match((await timed.gemini('user-prompt')).output.systemMessage,/FALLBACK degraded \(corvint-timeout\)/)
+  await descendantGone(timed.childPID)
+  const cancelled=fixture(t,'orphan-hang'),controller=new AbortController()
+  const pending=host==='opencode'?cancelled.runOpen({...request(cancelled.root,'user-prompt'),signal:controller.signal}):cancelled.gemini('user-prompt')
+  let settled=false;pending.then(()=>{settled=true},()=>{settled=true})
+  while(!settled&&!existsSync(cancelled.childPID))await new Promise(r=>setTimeout(r,5))
+  if(host==='opencode')controller.abort();else cancelled.interruptGemini()
+  const result=await pending
+  if(host==='opencode')assert.equal(result.code,'host-aborted');else assert.equal(result.code,143)
+  await descendantGone(cancelled.childPID)
+ })
+ test(`V1-0371 ${host} normal exit kills a surviving descendant and names a failed kill`,async t=>{
+  const f=fixture(t,'orphan-valid')
+  if(host==='opencode')assert.equal((await f.runOpen(request(f.root,'user-prompt'))).ok,true)
+  else assert.equal((await f.gemini('user-prompt')).output.hookSpecificOutput?.hookEventName,'BeforeAgent')
+  await descendantGone(f.childPID)
+  // A group SIGKILL that fails for any reason but ESRCH is reported, never passed off as a success.
+  const preload=join(mkdtempSync(join(tmpdir(),'corvint-kill-')),'fail-group-kill.cjs');t.after(()=>rmSync(dirname(preload),{recursive:true,force:true}))
+  writeFileSync(preload,"const kill=process.kill.bind(process);process.kill=(pid,signal)=>{if(pid<0&&signal==='SIGKILL')throw Object.assign(new Error('injected'),{code:'EINVAL'});return kill(pid,signal)}\n")
+  const failed=fixture(t,'orphan-valid',undefined,{NODE_OPTIONS:`--require=${preload}`})
+  if(host==='opencode'){
+   const kill=process.kill;process.kill=(pid,signal)=>{if(pid<0&&signal==='SIGKILL')throw Object.assign(new Error('injected'),{code:'EINVAL'});return kill.call(process,pid,signal)}
+   let result;try{result=await failed.runOpen(request(failed.root,'user-prompt'))}finally{process.kill=kill}
+   assert.equal(result.ok,false);assert.equal(result.support,'FALLBACK');assert.equal(result.code,'corvint-process-cleanup-unconfirmed')
+  }
+  else assert.match((await failed.gemini('user-prompt')).output.systemMessage,/FALLBACK degraded \(corvint-process-cleanup-unconfirmed\)/)
+ })
+}
 
 test('Gemini malformed, oversize, version skew input fails before child',async t=>{
  const f=fixture(t)

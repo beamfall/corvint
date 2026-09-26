@@ -16,6 +16,10 @@ import (
 )
 
 func main() {
+	if len(os.Args) == 3 && os.Args[1] == "-orphan" {
+		orphan(os.Args[2])
+		return
+	}
 	if len(os.Args) < 2 {
 		os.Exit(2)
 	}
@@ -76,6 +80,32 @@ func main() {
 		_ = child.Process.Kill()
 		_ = child.Wait()
 		return
+	}
+	if config.Mode == "orphan-hang" || config.Mode == "orphan-valid" {
+		// V1-0371: a same-group descendant that ignores SIGTERM and closes its inherited stdio,
+		// so the leader's close can arrive while it still runs. The leader keeps the default
+		// SIGTERM disposition: orphan-hang dies on it, orphan-valid exits normally first.
+		self, err := os.Executable()
+		if err != nil {
+			os.Exit(2)
+		}
+		child := exec.Command(self, "-orphan", config.ChildPID)
+		child.Stdin, child.Stdout, child.Stderr = os.Stdin, os.Stdout, os.Stderr
+		if child.Start() != nil {
+			os.Exit(2)
+		}
+		for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(time.Millisecond) {
+			if _, err := os.Stat(config.ChildPID); err == nil {
+				break
+			}
+			if time.Now().After(deadline) {
+				os.Exit(2)
+			}
+		}
+		if config.Mode == "orphan-hang" {
+			time.Sleep(5 * time.Second)
+			return
+		}
 	}
 	if config.Mode == "malformed" {
 		_, _ = os.Stdout.WriteString("not-json")
@@ -154,6 +184,20 @@ func main() {
 		response["ok"] = false
 	}
 	_ = json.NewEncoder(os.Stdout).Encode(response)
+}
+
+// orphan ignores SIGTERM and closes its inherited stdio before it publishes its PID, so a
+// witness always names a descendant that only a group SIGKILL can end.
+func orphan(witness string) {
+	signal.Ignore(syscall.SIGTERM)
+	for _, stream := range []*os.File{os.Stdin, os.Stdout, os.Stderr} {
+		_ = stream.Close()
+	}
+	pid, _ := json.Marshal(os.Getpid())
+	if os.WriteFile(witness+".tmp", pid, 0600) != nil || os.Rename(witness+".tmp", witness) != nil {
+		os.Exit(2)
+	}
+	time.Sleep(60 * time.Second)
 }
 
 func canonical(value any) []byte {
