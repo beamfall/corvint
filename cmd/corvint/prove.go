@@ -1884,7 +1884,7 @@ func hermeticGitCommand(ctx context.Context, gitExecutable, root string, argumen
 	command.Env = []string{
 		"GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
 		"GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1",
-		"GIT_NO_REPLACE_OBJECTS=1", "LANG=C", "LC_ALL=C",
+		"GIT_NO_REPLACE_OBJECTS=1", "GIT_ALLOW_PROTOCOL=", "LANG=C", "LC_ALL=C",
 	}
 	if _, err := os.Lstat(filepath.Join(root, ".git")); err == nil {
 		command.Env = append(command.Env, "GIT_CEILING_DIRECTORIES="+filepath.Dir(root))

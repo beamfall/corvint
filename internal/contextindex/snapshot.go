@@ -461,7 +461,7 @@ func evictSnapshotsAt(directory, keep string, bound int, now time.Time) int {
 			continue
 		}
 		path := filepath.Join(directory, entry.Name())
-		temporary, _ := filepath.Match("snapshot-*.tmp", entry.Name())
+		temporary := isStoreTemporary(entry.Name())
 		if temporary && !info.ModTime().After(staleTemporaryCutoff) {
 			_ = os.Remove(path)
 			continue

@@ -111,13 +111,13 @@ above stands with that substitution.
   read-nothing claim is not checkable from the wire, since `IDX-SNAP-V0-006` requires a snapshot
   reader to emit identical bytes on a hit and a miss, so the implementation exposes the package-level
   `var loadSnapshot = contextindex.LoadSnapshot` and its deferred sibling `loadSnapshotDeferred = contextindex.LoadSnapshotDeferred`
-  (`cmd/corvint/index_snapshot.go:17-20@8984cf3b`). The deferred seam's one call is `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:71-72@5959c784`). The
-  snapshot seams' seven current production call sites are `snapshotIndex` (`cmd/corvint/index_snapshot.go:57-58@123f0830`) and batch (`cmd/corvint/batch.go:149@dbef447a`),
+  (`cmd/corvint/index_snapshot.go:18-21@8984cf3b`). The deferred seam's one call is `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:72-73@5959c784`). The
+  snapshot seams' seven current production call sites are `snapshotIndex` (`cmd/corvint/index_snapshot.go:58-59@123f0830`) and batch (`cmd/corvint/batch.go:149@dbef447a`),
   answerability (`cmd/corvint/answerability.go:94-95@6278a445`) and surprise (`cmd/corvint/surprise.go:118-119@6278a445`),
   context lookup (`cmd/corvint/context_lookup.go:75-79@9f1de421`) and local completion events (`cmd/corvint/local_completion_event.go:377-381@ea059984`),
   and the experimental host adapter (`cmd/corvint/host_adapter_experimental.go:43-48@b6d4dd7c`). The task-context path instead uses its separate
   `loadContextSnapshot` seam (`cmd/corvint/taskcontext.go:240-247@73708428`), backed by `LoadContextSnapshotDeferred` and the private loader (`internal/contextindex/observed_build.go:42-49@d916a414`).
-  The `cmd/corvint` seam does not cover `LoadEventSnapshot` or `ProbeSnapshot`, called directly by the harness and index paths (`cmd/corvint/harness_context.go:33-35@44bd361a`, `cmd/corvint/index_snapshot.go:117-118@9a7d60f2`); the harness calls `LoadEventSnapshotDeferred` there too.
+  The `cmd/corvint` seam does not cover `LoadEventSnapshot` or `ProbeSnapshot`, called directly by the harness and index paths (`cmd/corvint/harness_context.go:33-35@44bd361a`, `cmd/corvint/index_snapshot.go:118-119@9a7d60f2`); the harness calls `LoadEventSnapshotDeferred` there too.
   The load-bearing guard scans every non-test Go file in `cmd/corvint`, rejects direct `LoadSnapshot` or `LoadSnapshotDeferred` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`, `LoadEventSnapshotDeferred` and `ProbeSnapshot` in `prove*` files
   (`cmd/corvint/prove_checkpoint_test.go:704-771@0c2b29a4`); the counting test asserts the checkpoint run traverses neither dynamic seam
   (`cmd/corvint/prove_checkpoint_test.go:666-681@62a5f8d6`) (FPK-V0-024).
@@ -427,7 +427,7 @@ above stands with that substitution.
   most 256 KiB: `task` (visible intent text); `obligations` (spec/requirement ids the caller names);
   `repository` `{object_format, base_commit, base_tree, dirty_paths_sha256}`; `handles`, at most
   256, each `{path, blob_hash, line?, kind?, id?, authority?, reason?}`, the shape `evidence`
-  emits (`internal/contextindex/impact.go:447-449@fd0a67cc`) minus `confidence`, plus the result's
+  emits (`internal/contextindex/impact.go:476-478@fd0a67cc`) minus `confidence`, plus the result's
   `kind`/`id`, as FPK-V0-002's rows carry; `critical`, at most 256, selectors of the same shape
   naming handles that MUST survive; `unknowns` and `failed_approaches`, free text; `verification`,
   `[{command, observed_status, provenance}]`; and `provenance` `{receiptId?, packet_sha256?}`.
@@ -551,7 +551,7 @@ above stands with that substitution.
   so the document is refused rather than judged. Every
   handle MUST receive exactly one verdict, decided by this total order over all inputs, first match
   wins: (1) `unframable` — the path is not normalized
-  (`internal/contextindex/impact.go:434-444@00d37054`) or the LF-delimited `cat-file --batch` protocol cannot
+  (`internal/contextindex/impact.go:463-473@00d37054`) or the LF-delimited `cat-file --batch` protocol cannot
   carry it (`cmd/corvint/prove.go:1601-1605@7d324499`), so it is never sent to Git at all; (2) `unsupported` — the current
   tree lists the path at a non-blob mode, or lists it as a blob for which the path has no entry in
   `Index.Sources` (`internal/contextindex/index.go:208-214@aa5d6289`, `internal/contextindex/index.go:476-479@478ddf23`), whether because its kind
@@ -585,7 +585,7 @@ above stands with that substitution.
   the handle's authority class — re-derived at the CURRENT snapshot from the live classifier
   `documentResult` uses: `Record.Kind == "instructions"` → `project-instructions`; `"decision"`
   → `accepted-decision`/`non-binding-decision`; else `repository-spec`/`accepted-spec`
-  (`internal/contextindex/impact.go:456-469@6d7677dd`) — is instruction- or spec-authority; never keyed on
+  (`internal/contextindex/impact.go:485-498@6d7677dd`) — is instruction- or spec-authority; never keyed on
   the checkpoint's own `authority?` field, per AGENTS.md invariant 3. When present, that field is
   echoed as `claimed_authority`; its absence does not change the flag, which is computed only from
   the live class).
@@ -623,7 +623,7 @@ above stands with that substitution.
   refusal — the document is caller-owned and the refusal list of FPK-V0-024 stays closed. The
   typed reasons are therefore exactly six: the four ineligible handle verdicts, `handle-undeclared`,
   and `selector-unresolved` below. The gate is load-bearing: current evidence rows are compiled from the
-  committed tree (`internal/contextindex/impact.go:83-89@d2231c48`), so a dirty or unadmitted path still has
+  committed tree (`internal/contextindex/impact.go:97-103@d2231c48`), so a dirty or unadmitted path still has
   matching committed rows, and an ungated match would rehydrate committed bytes as if they were
   what the agent will read — the same reason `judgeHistory` declines to judge a dirty path at all
   (`cmd/corvint/prove.go:1132-1138@72ba1935`). For an eligible handle, selectors MUST be matched by identity,
@@ -632,19 +632,19 @@ above stands with that substitution.
   result constructors. It uses only eligible critical paths, never the stored task prose, and
   does not apply a query/impact receipt's result-count cap; constructor evidence bounds remain
   unchanged. Matching walks RESULTS, not rows: `kind` and `id` are members of the
-  enclosing result (`internal/contextindex/impact.go:184-187@ca66ec11`, `internal/contextindex/impact.go:208-214@7e22e20e`, `internal/contextindex/impact.go:490-492@92896c26`), never of an evidence
+  enclosing result (`internal/contextindex/impact.go:199-202@ca66ec11`, `internal/contextindex/impact.go:227-233@7e22e20e`, `internal/contextindex/impact.go:519-521@92896c26`), never of an evidence
   row, which carries exactly `path`, `line`, `blob_hash`, `reason`, `confidence`, and `authority`
-  (`evidence`, `internal/contextindex/impact.go:447-449@fd0a67cc`). A selector carrying `kind` and `id` therefore selects the
+  (`evidence`, `internal/contextindex/impact.go:476-478@fd0a67cc`). A selector carrying `kind` and `id` therefore selects the
   results whose `kind` and `id` equal its own, and within them the evidence rows at the selector's
   `path`; a selector carrying neither selects the evidence rows at that `path` in every result.
   Selecting by the result's identity and the row's `path` matters because a result's evidence rows
   need not sit at the result's own id — `documentResult` emits rows whose `path` is a referenced
-  file (`internal/contextindex/impact.go:486-488@25e804e8`). Identity does not single out one
+  file (`internal/contextindex/impact.go:515-517@25e804e8`). Identity does not single out one
   row — `impact` emits a reference row per changed path, so one result identity can supply a
-  row at the same `path` more than once (`internal/contextindex/impact.go:218-226@4e3f46b9`) — so a match
+  row at the same `path` more than once (`internal/contextindex/impact.go:237-245@4e3f46b9`) — so a match
   is the whole set of matching rows, never "the row". Byte-identical matched rows collapse to one,
   as FPK-V0-020's byte-identical `handles` entries do: `documentResult` emits one row per
-  `references` entry (`internal/contextindex/impact.go:481-488@2a45c822`), so a `references` list naming one path twice yields
+  `references` entry (`internal/contextindex/impact.go:510-517@2a45c822`), so a `references` list naming one path twice yields
   two rows equal in all six members, and they rehydrate as one row.
   All of them MUST be rehydrated, in the shape `query`/`impact` rows carry,
   ordered by ascending `line`, then lexicographic `reason`, then lexicographic `blob_hash`, then
@@ -789,10 +789,10 @@ above stands with that substitution.
   stdout; a consumer MUST read the exit status, never stdout emptiness, as the signal that no
   verdict was produced. The checkpoint branch MUST call `contextindex.Build`
   (`internal/contextindex/index.go:277@1cafb447`) directly, as prove's impact and change modes did until `IDX-SNAP-V0-020`, which
-  left them `Build` only on a snapshot miss (`cmd/corvint/prove.go:1072@a1c6494d`, `cmd/corvint/index_snapshot.go:83@90129c09`), and MUST NOT read an on-disk index snapshot. `prove --task` is not the model
+  left them `Build` only on a snapshot miss (`cmd/corvint/prove.go:1072@a1c6494d`, `cmd/corvint/index_snapshot.go:84@90129c09`), and MUST NOT read an on-disk index snapshot. `prove --task` is not the model
   for this: its project-operations query profile acquires through `standaloneQueryContext`
   (`cmd/corvint/prove.go:1058-1060@d473eb95`, `cmd/corvint/main.go:1220-1231@4e7cdb10`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
-  (`cmd/corvint/index_snapshot.go:71-72@5959c784`, `cmd/corvint/index_snapshot.go:57-58@123f0830`) at `cmd/corvint/main.go:1249-1250@c39315fe` and
+  (`cmd/corvint/index_snapshot.go:72-73@5959c784`, `cmd/corvint/index_snapshot.go:58-59@123f0830`) at `cmd/corvint/main.go:1249-1250@c39315fe` and
   `cmd/corvint/harness_context.go:69-70@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:396-398@9faff3e7`, called at
   `cmd/corvint/main.go:1245@e0e5c824`; `BuildEval`, `internal/contextindex/index.go:303-304@b1c33c59`, called at `cmd/corvint/harness_context.go:71@54018a6a`) on a miss — so plain
   `prove --task` does read the snapshot today, which a run of the binary confirms: with a
@@ -819,9 +819,9 @@ above stands with that substitution.
   passes for a snapshot-reading implementation too. It MUST therefore be tested through a seam.
   The implementation exposes the package-level `var loadSnapshot = contextindex.LoadSnapshot` and
   `loadSnapshotDeferred = contextindex.LoadSnapshotDeferred`
-  (`cmd/corvint/index_snapshot.go:17-20@8984cf3b`). The one call through the deferred seam is
-  `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:71-72@5959c784`). The seven current production calls through the snapshot seams are
-  `snapshotIndex` (`cmd/corvint/index_snapshot.go:57-58@123f0830`), batch
+  (`cmd/corvint/index_snapshot.go:18-21@8984cf3b`). The one call through the deferred seam is
+  `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:72-73@5959c784`). The seven current production calls through the snapshot seams are
+  `snapshotIndex` (`cmd/corvint/index_snapshot.go:58-59@123f0830`), batch
   (`cmd/corvint/batch.go:149@dbef447a`), answerability
   (`cmd/corvint/answerability.go:94-95@6278a445`), surprise
   (`cmd/corvint/surprise.go:118-119@6278a445`), context lookup
@@ -836,7 +836,7 @@ above stands with that substitution.
   `LoadSnapshot` is not the tree's only exported snapshot reader. The harness calls
   `contextindex.LoadEventSnapshot` and `contextindex.LoadEventSnapshotDeferred` directly (`cmd/corvint/harness_context.go:33-35@44bd361a`), and the
   index path calls `contextindex.ProbeSnapshot` directly
-  (`cmd/corvint/index_snapshot.go:117-118@9a7d60f2`); none passes through the `cmd/corvint`
+  (`cmd/corvint/index_snapshot.go:118-119@9a7d60f2`); none passes through the `cmd/corvint`
   `loadSnapshot` variables. Internally, `LoadEventSnapshot` reaches the private `loadSnapshot`
   (`internal/contextindex/snapshot.go:588-611@cd5ffb8c`), while `ProbeSnapshot` opens and validates
   the snapshot itself (`internal/contextindex/snapshot.go:543-586@7875d1d5`). A checkpoint compile
@@ -884,7 +884,7 @@ above stands with that substitution.
   distinguish one; the same fixture with and without a valid `.corvint/index/` snapshot additionally
   yields byte-identical documents, and neither carries a `snapshot` or any other cache-metadata
   member; and the stderr of a plain `prove PATH...` (or `prove --base`, the two modes that reach
-  `contextindex.Build` on a snapshot miss at `cmd/corvint/prove.go:1072@a1c6494d` and `cmd/corvint/index_snapshot.go:83@90129c09`) for a code-less `Build` error is
+  `contextindex.Build` on a snapshot miss at `cmd/corvint/prove.go:1072@a1c6494d` and `cmd/corvint/index_snapshot.go:84@90129c09`) for a code-less `Build` error is
   byte-equal to a pinned expectation, so an `unsupported-prove-index` mapping placed in `emitError`
   rather than in the checkpoint branch fails. History
   flags: a merge and a revert each yield `commit-moved`, with the same tree reported as a fact and

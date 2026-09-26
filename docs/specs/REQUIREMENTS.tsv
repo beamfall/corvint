@@ -253,10 +253,10 @@ CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	37	The Core command set MU
 CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	44	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout
 CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	85	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised
 CCF-V1-004	docs/specs/core-compatibility-freeze-v1.md	98	A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line bu
-CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	136	The admission, freshness, omission and abstention members MUST keep their names,
-CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	153	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
-CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	163	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
-CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	270	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
+CCF-V1-005	docs/specs/core-compatibility-freeze-v1.md	152	The admission, freshness, omission and abstention members MUST keep their names,
+CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	169	Breaking-change rule. For output pinned by `conformance/cli-parity-v0/manifest.j
+CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	179	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.
+CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	311	Root help MUST carry a `Command maturity:` section that lists the Core verbs of
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	64	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	67	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	70	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa
@@ -1103,35 +1103,36 @@ GPK-V0-039	docs/specs/go-production-kernel-migration-v0.md	400	A context packet 
 GPK-V0-040	docs/specs/go-production-kernel-migration-v0.md	431	A receipt's coverage counts are denominated in the universe of results the ranki
 GPK-V0-041	docs/specs/go-production-kernel-migration-v0.md	456	The typed `unsupported-ocm-python-claims` abstention `GPK-V0-037` requires of th
 GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	749	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and
-GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	897	`corvint query` MAY add a general `repository`-intent profile on Darwin
-GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	963	The standalone `corvint query` `repository`-intent profile introduced
+GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	898	`corvint query` MAY add a general `repository`-intent profile on Darwin
+GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	964	The standalone `corvint query` `repository`-intent profile introduced
 GPK-V0-045	docs/specs/go-production-kernel-migration-v0.md	479	An abstaining packet MUST name the reason it abstained at every surface that emi
 GPK-V0-046	docs/specs/go-production-kernel-migration-v0.md	496	Product invariant 3 ranks project-owned authority above syntax. A `query` packet
-GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1033	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
-GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1063	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
-GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1081	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
+GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	1034	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave
+GPK-V0-048	docs/specs/go-production-kernel-migration-v0.md	1064	Go declaration set. `GPK-V0-031` names a Go-symbol feature compiler and
+GPK-V0-049	docs/specs/go-production-kernel-migration-v0.md	1082	Refused-grammar disclosure. `GPK-V0-048` requires a Go source the parser refused
 GPK-V0-050	docs/specs/go-production-kernel-migration-v0.md	621	`corvint record` and `corvint dogfood-record` MUST admit a changed `.gitignore`
 GPK-V0-051	docs/specs/go-production-kernel-migration-v0.md	553	`corvint impact --base FULL_COMMIT_ID` MUST admit a `C` or `R` range member when
 GPK-V0-052	docs/specs/go-production-kernel-migration-v0.md	559	(accepted, decision 0052, 2026-09-04) when a query term
 GPK-V0-053	docs/specs/go-production-kernel-migration-v0.md	568	(accepted 2026-09-04 by decision 0051 item 2, which decides this wording change
 GPK-V0-054	docs/specs/go-production-kernel-migration-v0.md	507	`coverage.authoritative_results` counts cited results Corvint does not label
-GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1110	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
-GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1121	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-055	docs/specs/go-production-kernel-migration-v0.md	1111	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
+GPK-V0-056	docs/specs/go-production-kernel-migration-v0.md	1122	(accepted 2026-09-05 by repository-owner repair instruction, recorded as decisio
 GPK-V0-057	docs/specs/go-production-kernel-migration-v0.md	639	A target is shipped only after its native conformance, filesystem-safety,
 GPK-V0-058	docs/specs/go-production-kernel-migration-v0.md	577	(proposed amendment 2026-09-05, owner review pending; not accepted) a harness
-GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1140	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
-GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1204	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
-GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1228	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
-GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1155	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
-GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1238	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
-GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1171	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
+GPK-V0-059	docs/specs/go-production-kernel-migration-v0.md	1141	(accepted 2026-09-12, decision 0092) An unknown top-level command MUST be refuse
+GPK-V0-060	docs/specs/go-production-kernel-migration-v0.md	1205	(accepted 2026-09-12, decision 0142; case-folded by decision 0159) `GPK-V0-030`
+GPK-V0-061	docs/specs/go-production-kernel-migration-v0.md	1229	(accepted 2026-09-12, decision 0142) The `GPK-V0-060` allowance MUST NOT apply t
+GPK-V0-062	docs/specs/go-production-kernel-migration-v0.md	1156	(accepted 2026-09-13, decision 0172) Under `GPK-V0-001`, a `--help` token after
+GPK-V0-063	docs/specs/go-production-kernel-migration-v0.md	1239	(accepted 2026-09-12, decision 0166; registers `DR-0023`) A context receipt's
+GPK-V0-064	docs/specs/go-production-kernel-migration-v0.md	1172	(accepted 2026-09-13, decision 0173; root preamble amended by decision 0181) Und
 GPK-V0-065	docs/specs/go-production-kernel-migration-v0.md	593	(proposed amendment 2026-09-14, owner review pending; not accepted) a repository
-GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1253	(accepted 2026-09-25, decision 0387; V1-0260)
-GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1269	(accepted 2026-09-25, decision 0396; panel finding M2)
-GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1284	(accepted 2026-09-25, decision 0399; panel blocker B3)
-GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1303	(proposed 2026-09-25, panel blocker B4, not accepted; V1-0263)
-GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1327	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
-GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1345	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
+GPK-V0-066	docs/specs/go-production-kernel-migration-v0.md	1254	(accepted 2026-09-25, decision 0387; V1-0260)
+GPK-V0-068	docs/specs/go-production-kernel-migration-v0.md	1270	(accepted 2026-09-25, decision 0396; panel finding M2)
+GPK-V0-069	docs/specs/go-production-kernel-migration-v0.md	1285	(accepted 2026-09-25, decision 0399; panel blocker B3)
+GPK-V0-070	docs/specs/go-production-kernel-migration-v0.md	1304	(proposed 2026-09-25, panel blocker B4, not accepted; V1-0263)
+GPK-V0-071	docs/specs/go-production-kernel-migration-v0.md	1328	(proposed 2026-09-25, not accepted; V1-0288) Every Git subprocess nulls global a
+GPK-V0-072	docs/specs/go-production-kernel-migration-v0.md	1346	(proposed 2026-09-25, not accepted; V1-0313) `query --task` and `prove --task`
+GPK-V0-075	docs/specs/go-production-kernel-migration-v0.md	1362	(accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068
 HAR-V0-001	docs/specs/harness-authority-relation-v0.md	105	the relation string is exactly `harness-execution-attested-v0`. It is a **new**
 HAR-V0-002	docs/specs/harness-authority-relation-v0.md	109	the relation's authority class is exactly `HARNESS_ATTESTED`. It is a fourth cla
 HAR-V0-003	docs/specs/harness-authority-relation-v0.md	115	an `harness-execution-attested-v0` edge is admissible only when its attestation
@@ -1229,18 +1230,18 @@ IDX-SNAP-V0-009	docs/specs/index-snapshot-v0.md	135	a repository with no `.corvi
 IDX-SNAP-V0-010	docs/specs/index-snapshot-v0.md	138	the two index-building harness events read the snapshot on the same terms as IDX
 IDX-SNAP-V0-011	docs/specs/index-snapshot-v0.md	139	`corvint [--root PATH] index --if-stale` reads the header of the file
 IDX-SNAP-V0-012	docs/specs/index-snapshot-v0.md	148	the Claude Code plugin's lifecycle hooks do not automatically invoke a
-IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	159	During committed-source pinning, a blob whose bytes begin with
-IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	186	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
-IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	227	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
-IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	301	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
-IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	339	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
-IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	164	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
-IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	370	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
-IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	388	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
-IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	415	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
-IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	443	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
-IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	457	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
-IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	479	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
+IDX-SNAP-V0-013	docs/specs/index-snapshot-v0.md	177	During committed-source pinning, a blob whose bytes begin with
+IDX-SNAP-V0-014	docs/specs/index-snapshot-v0.md	204	under `CORVINT_SNAPSHOT_FORMAT=sectioned`, `index` writes beside the gob
+IDX-SNAP-V0-015	docs/specs/index-snapshot-v0.md	245	under `CORVINT_SNAPSHOT_FORMAT=pack`, `index` writes beside the gob snapshot a
+IDX-SNAP-V0-016	docs/specs/index-snapshot-v0.md	319	under `CORVINT_INDEX_SHARDS=1`, `index` additionally publishes immutable,
+IDX-SNAP-V0-017	docs/specs/index-snapshot-v0.md	357	(accepted 2026-09-05 by decision 0074 within the experimental pack profile) Unde
+IDX-SNAP-V0-018	docs/specs/index-snapshot-v0.md	182	(accepted 2026-09-12 by decision 0095) Before suffix and size admission,
+IDX-SNAP-V0-019	docs/specs/index-snapshot-v0.md	388	(accepted 2026-09-13 by decision 0177) standalone path `impact` (no `--base`, no
+IDX-SNAP-V0-020	docs/specs/index-snapshot-v0.md	406	(proposed 2026-09-13, accepted 2026-09-13 by decision 0180) `corvint prove`'s
+IDX-SNAP-V0-021	docs/specs/index-snapshot-v0.md	433	(proposed 2026-09-13, accepted 2026-09-13 by decision 0182) `corvint impact
+IDX-SNAP-V0-022	docs/specs/index-snapshot-v0.md	461	(proposed 2026-09-22, V1-0008) for one committed tree, the index a snapshot
+IDX-SNAP-V0-023	docs/specs/index-snapshot-v0.md	475	(proposed 2026-09-22, V1-0008) the snapshot lifecycle MUST end each hostile
+IDX-SNAP-V0-024	docs/specs/index-snapshot-v0.md	497	(accepted 2026-09-25 by decision 0394, panel blocker B9) a tracked path whose Gi
 KA-V0-001	docs/specs/kotlin-android-candidate-v0.md	28	The command and its package remain isolated, unregistered, and unreachable from
 KA-V0-002	docs/specs/kotlin-android-candidate-v0.md	30	A request is one UTF-8, canonical-JSON object followed by one LF. It has the clo
 KA-V0-003	docs/specs/kotlin-android-candidate-v0.md	34	The target is exactly Android/arm64/none. The twelve input rows below occur once
@@ -1684,7 +1685,7 @@ PSM-V0-010	docs/specs/playwright-suite-interaction-minimizer-v0.md	70	Every tria
 PSM-V0-011	docs/specs/playwright-suite-interaction-minimizer-v0.md	72	Missing or invalid runner qualification (#39), stability identity (#42), or
 PSM-V0-012	docs/specs/playwright-suite-interaction-minimizer-v0.md	75	Synthetic qualification MUST cover a true predecessor leak, a load-only failure,
 PSM-V0-013	docs/specs/playwright-suite-interaction-minimizer-v0.md	78	The closed `corvint-playwright-suite-interaction-live/0` CLI MUST require
-PUB-V0-001	docs/specs/public-release-v0.md	135	The current version tuple MUST move together to `0.8.1`, including native
+PUB-V0-001	docs/specs/public-release-v0.md	135	The current version tuple MUST move together to `1.0.0-rc.1`, including native
 PUB-V0-002	docs/specs/public-release-v0.md	138	The existing native CLI archive gate MUST remain independent. An optional
 PUB-V0-003	docs/specs/public-release-v0.md	145	Companion build output MUST be outside the source checkouts, include exact
 PUB-V0-004	docs/specs/public-release-v0.md	160	The first companion target is macOS arm64. Qualification MUST exercise the
@@ -1982,6 +1983,18 @@ SRG-V0-005	docs/specs/spec-requirement-index-generator-v0.md	89	For a rank 0 win
 SRG-V0-006	docs/specs/spec-requirement-index-generator-v0.md	94	The generator MUST write to stdout a single header line `id`, `file`, `line`,
 SRG-V0-007	docs/specs/spec-requirement-index-generator-v0.md	98	The generator MUST write no file, mutate no repository state, and produce
 SRG-V0-008	docs/specs/spec-requirement-index-generator-v0.md	101	`spec-requirements-check` MUST regenerate the index and byte-compare it against
+SRR-V1-001	docs/specs/stable-readiness-record-v1.md	50	The record MUST be one JSON document with profile `corvint-stable-readiness-reco
+SRR-V1-002	docs/specs/stable-readiness-record-v1.md	54	The identity MUST come from a candidate admitted by `VerifyContext`: version, ta
+SRR-V1-003	docs/specs/stable-readiness-record-v1.md	59	The core section MUST record the candidate profile and the SHA-256 of the
+SRR-V1-004	docs/specs/stable-readiness-record-v1.md	64	The store-release binding MUST be null, or it MUST carry both a release id and a
+SRR-V1-005	docs/specs/stable-readiness-record-v1.md	68	Rows MUST follow one fixed ordered catalogue: the `gate/` rows full-gate,
+SRR-V1-006	docs/specs/stable-readiness-record-v1.md	76	PASS and FAIL MUST carry the SHA-256 of an operator-named regular file. NOT_RUN
+SRR-V1-007	docs/specs/stable-readiness-record-v1.md	80	A platform row without native lifecycle evidence MUST be FALLBACK (PRS-V1-004) a
+SRR-V1-008	docs/specs/stable-readiness-record-v1.md	84	The vulnerability section MUST record three things: decision 0420, the number of
+SRR-V1-009	docs/specs/stable-readiness-record-v1.md	92	For version `1.0.0-rc.1`, `policy/signing` MUST be the fixed row NOT_RUN, decisi
+SRR-V1-010	docs/specs/stable-readiness-record-v1.md	97	`owner/tag`, `owner/publication` and `owner/promotion` MUST be fixed NOT_RUN
+SRR-V1-011	docs/specs/stable-readiness-record-v1.md	100	Building and verifying MUST NOT write to the candidate, the source root or the
+SRR-V1-012	docs/specs/stable-readiness-record-v1.md	106	(proposed, not implemented) An operator command SHOULD expose the builder and th
 TCP-V0-001	docs/specs/task-context-packet-v0.md	49	`context` MUST be read-only. It builds one index over the committed tree and
 TCP-V0-002	docs/specs/task-context-packet-v0.md	52	The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]
 TCP-V0-003	docs/specs/task-context-packet-v0.md	58	Results are files. Each result row carries `kind`, `id` (the path), `score`,

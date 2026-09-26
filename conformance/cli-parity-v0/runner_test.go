@@ -89,10 +89,11 @@ func testGPKV0002ManifestReplay(t *testing.T) {
 		"PASS-WITH-KNOWN-DIVERGENCE impact-go-root register=DR-0017 clause=GPK-V0-027 rewrites=5",
 		// The four rules `GPK-V0-027` gained on 2026-08-29: the module and
 		// package forms of `.py`, and the file and directory forms of the web
-		// set. Each is an unqualified byte-exact row, so a regression that
-		// dropped a resolution arm would surface here and not only in the count.
-		"PASS impact-python-module\n",
-		"PASS impact-python-nomodule\n",
+		// set. Each is a byte-exact row apart from the two `DR-0042` carrier
+		// reasons (GPK-V0-075), so a regression that dropped a resolution arm
+		// would surface here and not only in the count.
+		"PASS-WITH-KNOWN-DIVERGENCE impact-python-module register=DR-0042 clause=GPK-V0-075 rewrites=2",
+		"PASS-WITH-KNOWN-DIVERGENCE impact-python-nomodule register=DR-0042 clause=GPK-V0-075 rewrites=2",
 		"PASS impact-python-package\n",
 		"PASS impact-web-component\n",
 		"PASS impact-web-directory\n",
@@ -152,7 +153,7 @@ func testGPKV0002ManifestReplay(t *testing.T) {
 		"PASS query-authority-start-limit-51\n",
 		"PASS-WITH-KNOWN-DIVERGENCE query-authority-start-non-ascii register=DR-0023 clause=GPK-V0-063 rewrites=1",
 		"PASS-WITH-KNOWN-DIVERGENCE query-repository-non-ascii register=DR-0023 clause=GPK-V0-063 rewrites=1",
-		"SUMMARY parity=104 retired=29 identity-renames=10 accepted-divergences=3 known-divergences=28 location-normalizations=1 structural-fields=0 unsupported-refusals=1 retired-refusals=2 full-gpk-v0-005=PARTIAL detached-descendants=NOT_RUN\n",
+		"SUMMARY parity=104 retired=29 identity-renames=10 accepted-divergences=3 known-divergences=30 location-normalizations=1 structural-fields=0 unsupported-refusals=1 retired-refusals=2 full-gpk-v0-005=PARTIAL detached-descendants=NOT_RUN\n",
 	} {
 		if !strings.Contains(output.String(), line) {
 			t.Fatalf("replay output missing %q:\n%s", line, &output)

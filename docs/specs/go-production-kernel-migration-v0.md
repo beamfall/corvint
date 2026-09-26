@@ -847,6 +847,7 @@ repository rewrite, cache conversion, trace conversion, or sidecar migration is 
 | `GPK-V0-066` (accepted, decision 0387) | the confident-symbol substitution ahead of the floor withdrawal in `evalQuery` (`internal/contextindex/eval_query.go`) | `TestEvalQueryUnsupportedRecordsYieldToSupportedSymbols`, which FAILS against a candidate without the substitution and keeps the withdrawal when no symbol clears the floor; before/after `corvint eval` and `tools/retrieval-bench --arms corvint` numbers in `docs/BUILD-LOG.md` |
 | `GPK-V0-068` (accepted, decision 0396) | the `evalOmitsCompetingRecord` state check in `evalQuery` (`internal/contextindex/eval_query.go`) | `TestEvalQueryLimitOmittingCompetingRecordNeedsWidening`, which FAILS against a candidate without the check at limit 1 and pins `READY` once the limit admits both records; before/after `corvint eval` and `tools/retrieval-bench --arms corvint` numbers in `docs/BUILD-LOG.md` |
 | `GPK-V0-070` (proposed, not accepted) | `commentText` and `markerComments` in `internal/contextindex/markers.go`, called from the marker scan in `internal/contextindex/index.go`; `markerCredited`, `reserveCallerRows`, `exportedGoNames` and `namesAny` in `internal/contextindex/impact.go` | `TestMarkersComeOnlyFromCommentSpans` and `TestImpactCreditsOnlyRelatedMarkedTestsAndKeepsCallers` (`internal/contextindex/marker_comments_test.go`), both of which FAIL against the base without the change; before/after `corvint eval` and `tools/retrieval-bench --arms impact` numbers in `docs/BUILD-LOG.md` |
+| `GPK-V0-075` (accepted, decision 0412) | the omitted-caller disclosure (`recordGoCaller`, `goImportQualifier`, `goPackageName`, `omittedCallerDisclosures` in `internal/contextindex/impact_callers.go`) threaded through `Impact` (`internal/contextindex/impact.go`) and `EvalImpact` (`internal/contextindex/eval_query.go`); the importing-test carrier reason (`importerCarriers` in `impact` in `internal/contextindex/impact.go`) | `TestImpactDisclosesOmittedDirectGoCallers/GPK-V0-075` and `TestImpactNamesTheImportingTestThatCarriesARelatedMarker` (`internal/contextindex/impact_callers_test.go`), both of which FAIL without the change; the Beamfall before/after packets in decision 0412; `DR-0042` in `conformance/divergence-register.md` |
 | `GPK-V0-040` | pre-truncation admitted count captured in `receipt` and carried forward by `compileReceipt`, leaving `setCoverage` the single writer of the three result counts; `EvalQuery` hands `receipt` the whole admitted list instead of a list its own ceiling already narrowed | `impact` and `range impact` report the results a ceiling dropped; `impact-ranked-past-limit` FAILS against a candidate that measures its own truncated output; `TestQueryCoverageCountsAdmittedCandidatesPastLimit` holds `query` to the same count and FAILS against a candidate whose limit-1 packet reports `omitted_results: 0`; the confident-symbol fallback admits at its own caps rather than the caller's ceiling, pinned by `TestQueryCoverageCountsConfidentFallbackPastLimit`; the decision 0157 three-per-feature admission is pinned by `TestQueryAdmitsThreeImplementationsPerFeature`, which FAILS against a two- or four-per-feature candidate. Two denominators remain limit-dependent and are the next slice: feature-symbol admission over the ceiling-narrowed `competitive` list, and the learned-path truncation `evalLearnedCandidates` applies from its `limit` argument |
 | `GPK-V0-041` | the `GPK-V0-037` typed `.py`-claim abstention applied at `verifyOptionalOCM`, so the `lrf` OCM leg and the read slice share one refusal instead of one refusal and one approximate grammar | `lrf --ocm` refuses a map carrying a `.py` claim; `lrf-ocm-python-claim-refusal` FAILS against a candidate that verifies that claim with the closed Go grammar |
 | `GPK-V0-043`, `GPK-V0-055` | standalone intent validation plus the shared `BuildEval` / `EvalQuery` path for `repository` and `agent-tooling` tasks in `cmd/corvint`; the `GPK-V0-028` authority-start path remains separate; split-before-lower task term derivation in `internal/contextindex/eval_query.go` | fresh-process default and limits 1/10/50, unbudgeted and 2,200-byte budget selection, malformed/bounds, non-ASCII and agent-tooling oracle replay, drift and nonmutation regressions, shared-path structural regression, exact Python-oracle bytes, registered relevance-floor divergence in `conformance/cli-parity-v0`, `TestEvalQueryCamelSplitsTaskBeforeLowering/GPK-V0-055`, development-corpus stable-byte comparison, blind-v3 outcome measurement, and `DR-0027`; query promotion remains BLOCKED until its discriminating CLI parity row exists and passes under `GPK-V0-034` |
@@ -1355,3 +1356,37 @@ is one name, so one matching code line is one pair and one evidence item for `ki
   case, and `src/` is not repaired. Owner decision needed: accept the skip (implemented on the
   `skipNonUTF8` seam that PR #219 adds to `parseHistory`, so it lands after that PR) or keep the
   refusal and close V1-0313. Rollback: pass `false` on the query path, restoring the refusal.
+
+## Accepted amendment: omitted direct Go callers are disclosed and importing-test markers are named
+
+- `GPK-V0-075`: (accepted 2026-09-25, decision 0412; V1-0263; proposed in PR #247 as `GPK-V0-068`,
+  renumbered because decision 0396 accepted another clause under that ID) This amends the Go
+  reverse-import rule and the related-record reason of `GPK-V0-027`. It changes no score, order,
+  or row, and it keeps the rejected `GPK-V0-067` re-scoring rejected.
+  (a) A direct Go caller is a non-test `.go` reverse importer of a changed `.go` file outside the
+  module root package, itself not a changed path, one of whose code lines other than the import
+  line names an exported declaration of the changed file through the importer's local name for the
+  package: `pkg.Name` with the package clause name, or `alias.Name` when the import binds an alias.
+  A blank or dot import names nothing. When the result limit drops a direct Go caller's
+  `kind:reverse-import` row from the final ranked order (after any caller reservation
+  `GPK-V0-070` makes), `coverage.uncertainty` MUST carry, after every existing line and in rank
+  order, `direct Go caller PATH (line N names QUALIFIER.NAME declared by CHANGED) ranked R as a
+  S-score reverse-import row and was omitted by result limit L`, naming the first such code line
+  for the first changed path in sorted order. At most ten callers are named; any further ones are
+  counted in one line, `K more direct Go callers omitted by result limit L`. The budgeted impact
+  packet (`EvalImpact`, and so `harness event --event file-change`) carries the same lines.
+  (b) A feature or scenario record admitted at 800 keeps the canonical-ledger evidence reason
+  `changed path carries KIND:ID` only when a changed path itself carries that marker or when no
+  reverse-importing test admitted it. A record a reverse-importing test's marker admits, and no
+  changed path carries, MUST instead give `test TEST importing changed CHANGED carries KIND:ID`,
+  naming the first such test in reverse-importer order for the first changed path in sorted
+  order. Its score stays 800.
+  In a Beamfall path impact at limit 10, two feature records admitted only through reverse-
+  importing tests' markers (800, each claiming "changed path carries") and same-package references
+  (775) filled the limit, and the direct caller's 700 row ranked 30th and was dropped with only a
+  count. A root-package changed path is out of scope for (a), because `DR-0017` and the
+  broad-module-root reservation govern its importers. The retired oracle emits neither the
+  disclosure nor the importing-test reason; that divergence is `DR-0042`, which `GPK-V0-033`
+  classes as a `python-defect`. The analyzer schema moves to `corvint-analyzer/86`. Rollback:
+  revert the change, which removes the disclosure and the importing-test reason and restores
+  `corvint-analyzer/85`.
