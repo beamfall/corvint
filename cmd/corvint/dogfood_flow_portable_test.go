@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -287,6 +288,47 @@ func TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations(t *test
 	}
 	if stderr, evidence := pass("1\tintent.md\t1:3\tspecification\n"); strings.Contains(stderr, note) || evidence != 1 {
 		t.Fatalf("after delete evidence=%d stderr=%s", evidence, stderr)
+	}
+}
+
+// DCW-V0-019, V1-0386: the CEM contract fixes strict JSON, not a byte layout,
+// so a rerun whose plan a committed compact map already carries keeps its bytes
+// and leaves the worktree clean for check.
+func TestDogfoodChangeKeepsTheEncodingOfACommittedMapItCitesNothingInto(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := portableDogfoodRepo(t)
+	inputsDir := t.TempDir()
+	citations := filepath.Join(inputsDir, "citations.tsv")
+	intents := filepath.Join(inputsDir, "intents")
+	for path, content := range map[string]string{citations: "1\tAGENTS.md\t1:2\tspecification\n", intents: "#no-intent-declared\n"} {
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
+	if code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base); code != 1 {
+		t.Fatalf("first pass exit=%d stderr=%s", code, stderr)
+	}
+	cemGit(t, root, "add", ".corvint/change.cem.json")
+	cemGit(t, root, "commit", "-qm", "chore: bind change evidence")
+	mapPath := filepath.Join(root, ".corvint/change.cem.json")
+	indented, _ := os.ReadFile(mapPath)
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, indented); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(mapPath, compact.Bytes(), 0644); err != nil {
+		t.Fatal(err)
+	}
+	cemGit(t, root, "commit", "-qam", "re-encode change evidence")
+	code, _, stderr := run.exec(t, root, inputs, "dogfood", "change", base)
+	kept, _ := os.ReadFile(mapPath)
+	if status := cemGit(t, root, "status", "--porcelain"); code != 0 || stderr != absentAgentReceipts || !bytes.Equal(kept, compact.Bytes()) || status != "" {
+		t.Fatalf("rerun exit=%d stderr=%s status=%q map=%s", code, stderr, status, kept)
+	}
+	if code, stdout, stderr := run.exec(t, root, nil, "dogfood", "check", base); code != 0 || !strings.HasSuffix(stdout, "dogfood-check: PASS\n") {
+		t.Fatalf("check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 }
 
