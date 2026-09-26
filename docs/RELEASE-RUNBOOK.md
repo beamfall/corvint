@@ -81,8 +81,11 @@ output directories outside the checkout; the reproducibility script refuses one 
    reported `packet=identical` or `packet=changed` (decision 0360); without
    `CORVINT_LIFECYCLE_UPGRADE_BINARY` the upgrade is reported `same-bytes`. `make install-lifecycle-test`
    and `make hostile-regressions-test` check the two scripts themselves. Then the hostile
-   regression matrix; both must end `status=PASS` / `check-hostile-regressions: PASS`. Repeat step 8
-   on each supported host with its own archive; a host not run is `NOT_RUN`, never implied.
+   regression matrix; both must end `status=PASS` / `check-hostile-regressions: PASS`. The `tee`
+   pipelines run under `bash -o pipefail` and keep stderr, so a failing gate fails the command and its
+   whole output is retained (V1-0375). The log path is a double-quoted argument to `bash`, never part of the
+   `-c` script. Repeat step 8 on each supported host with its own archive; a host not run is
+   `NOT_RUN`, never implied.
 
    ```sh
    CORVINT_LIFECYCLE_ARCHIVE=/abs/release/X.Y.Z/core/corvint_$(go env GOOS)_$(go env GOARCH).tar.gz \
@@ -93,7 +96,7 @@ output directories outside the checkout; the reproducibility script refuses one 
      CORVINT_LIFECYCLE_UPGRADE_BINARY=/abs/extracted/X.Y.Z/corvint \
      CORVINT_LIFECYCLE_REPORT=/abs/release/X.Y.Z/lifecycle-n1-$(go env GOOS)-$(go env GOARCH).txt \
      script/check-install-lifecycle.sh
-   script/check-hostile-regressions.sh | tee /abs/release/X.Y.Z/hostile-regressions.txt
+   bash -o pipefail -c 'script/check-hostile-regressions.sh 2>&1 | tee "$1"' _ "/abs/release/X.Y.Z/hostile-regressions.txt"
    ```
 
    Then the CCF-V1-007 N-1 replay (proposed, decision 0398): every frozen Core mode also runs under
@@ -101,7 +104,7 @@ output directories outside the checkout; the reproducibility script refuses one 
    commit emits. It must end `ok`; retain its output.
 
    ```sh
-   make core-n1-replay CORE_N1_TAG=vW.V.U | tee /abs/release/X.Y.Z/core-n1-replay.txt
+   bash -o pipefail -c 'make core-n1-replay CORE_N1_TAG=vW.V.U 2>&1 | tee "$1"' _ "/abs/release/X.Y.Z/core-n1-replay.txt"
    ```
 
    The optional companion and installed qualification keep their own gates:
@@ -131,7 +134,7 @@ output directories outside the checkout; the reproducibility script refuses one 
     ```sh
     git fetch origin
     git merge-base --is-ancestor FULL_COMMIT origin/main
-    git rev-list --first-parent origin/main | grep -qx FULL_COMMIT
+    bash -o pipefail -c 'git rev-list --first-parent origin/main | grep -x FULL_COMMIT'
     ```
 
     The tag points at the notes commit. `script/release-checklist --pre-promotion`, run from

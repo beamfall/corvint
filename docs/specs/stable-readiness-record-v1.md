@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-09-26
-Intent status: proposed
+Intent status: accepted (decision 0422, 2026-09-26)
 Delivery status: experimental
 Authoritative inputs: decision 0420 (owner, 2026-09-26), `AGENTS.md`,
 `docs/SPEC-DRIVEN-DEVELOPMENT.md`, tickets V1-0018 AC2, V1-0019, V1-0020 AC3 and V1-0021 AC3,
@@ -13,9 +13,9 @@ in `public-release-v0.md`, ARTIFACT-RDY-V0-001 and ARTIFACT-GO-V0-008 in
 
 ## Agent digest
 - Claim: One canonical JSON record binds a verified Core candidate to digested gate, platform, compliance and policy evidence before any tag.
-- Status: proposed/experimental; SRR-V1-001 to SRR-V1-011 are coded as an internal package. SRR-V1-012 is a proposal only.
+- Status: accepted (decision 0422, 2026-09-26); experimental delivery; SRR-V1-001 to SRR-V1-011 are coded as an internal package. SRR-V1-012's command shape is accepted and not yet implemented.
 - Exists: `BuildReadinessRecord` and `VerifyReadinessRecord` in `internal/releasecandidate`, with tests named after each requirement.
-- Blocked on: owner acceptance of this spec and of decision 0420; no command exposes the package yet.
+- Blocked on: the SRR-V1-012 command; no command exposes the package yet.
 - Read next: Requirements; Failure modes; Traceability.
 
 ## User and boundary
@@ -103,10 +103,13 @@ Non-goals:
   run with lazy fetching from a promisor remote disabled (`GIT_NO_LAZY_FETCH=1`). The candidate
   verifier's transient host-probe directory is created and removed inside the system temporary
   directory.
-- `SRR-V1-012`: (proposed, not implemented) An operator command SHOULD expose the builder and the
-  verifier. It SHOULD take explicit evidence arguments and write the record without replacement to
-  one operator-named output path. `cmd/corvint-release-candidate` has a single flag set and no
-  subcommands, so this needs owner acceptance of the command shape first.
+- `SRR-V1-012`: (accepted command shape, decision 0422; not implemented) A new operator binary,
+  `cmd/corvint-readiness-record`, MUST expose the builder and the verifier as two modes of one flag
+  set. Build mode, `-candidate DIR -source-root DIR -evidence-file TSV [-store-release ID
+  -store-candidate-sha256 HEX] -output FILE`, MUST write the canonical record to FILE and MUST refuse
+  an existing FILE rather than replace it. Verify mode, `-verify FILE -candidate DIR -evidence-file
+  TSV`, MUST write nothing. The evidence file names each supplied row's evidence explicitly.
+  `cmd/corvint-release-candidate` keeps its single flag set unchanged.
 
 ## Failure modes
 
@@ -125,9 +128,8 @@ Non-goals:
 ## Acceptance and rollback
 
 SRR-V1-001 to SRR-V1-011 are covered by the focused tests below, which run against a git fixture
-and a Core-only 1.0.0-rc.1 candidate fixture. Owner acceptance of this spec and of decision 0420 is
-still required before any release uses the record. SRR-V1-012 needs an accepted command shape and
-its own tests.
+and a Core-only 1.0.0-rc.1 candidate fixture. Decision 0422 accepts this spec, and decision 0420 is
+accepted. No release uses the record until SRR-V1-012 is implemented with its own tests.
 
 Rollback deletes `internal/releasecandidate/readiness.go` and its test, and inlines
 `runSourceGit` back into `sourceBuildNumber`. No record, candidate, store or wire state depends on
@@ -148,4 +150,4 @@ the package yet.
 | SRR-V1-009 | `readiness.go` (`readinessRules`, `fixedRule`) | TestSRRV1009PolicyRowsFollowDecision0420 |
 | SRR-V1-010 | `readiness.go` (`fixedRule`, `validateReadinessRow`) | TestSRRV1010OwnerActionsStayNotRun |
 | SRR-V1-011 | `readiness.go` (no writer) | TestSRRV1011BuildAndVerifyWriteNothing |
-| SRR-V1-012 | proposed; no implementation | none until accepted |
+| SRR-V1-012 | accepted shape (decision 0422); no implementation | none until implemented |
