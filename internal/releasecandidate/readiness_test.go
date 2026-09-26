@@ -107,6 +107,15 @@ func readinessRowByID(record *ReadinessRecord, id string) ReadinessRow {
 	return ReadinessRow{}
 }
 
+func index(record *ReadinessRecord, id string) int {
+	for position, row := range record.Rows {
+		if row.ID == id {
+			return position
+		}
+	}
+	return -1
+}
+
 func resealReadiness(t *testing.T, record ReadinessRecord, mutate func(*ReadinessRecord)) []byte {
 	t.Helper()
 	mutate(&record)
@@ -158,9 +167,14 @@ func testSRRV1002IdentityBindsSourceRoot(t *testing.T) {
 	if _, _, err := BuildReadinessRecord(t.Context(), ReadinessOptions{CandidateDirectory: fixture.candidate, SourceRoot: other}); err == nil {
 		t.Fatal("source root without the candidate commit admitted")
 	}
-	tampered := resealReadiness(t, *record, func(r *ReadinessRecord) { r.Identity.BuildNumber = "2" })
-	if _, err := VerifyReadinessRecord(t.Context(), tampered, fixture.candidate, nil); err == nil {
-		t.Fatal("record with a foreign build number admitted")
+	for name, mutate := range map[string]func(*ReadinessRecord){
+		"build number": func(r *ReadinessRecord) { r.Identity.BuildNumber = "2" },
+		"commit":       func(r *ReadinessRecord) { r.Identity.Commit = strings.Repeat("1", 40) },
+		"tree":         func(r *ReadinessRecord) { r.Identity.Tree = strings.Repeat("2", 40) },
+	} {
+		if _, err := VerifyReadinessRecord(t.Context(), resealReadiness(t, *record, mutate), fixture.candidate, nil); err == nil {
+			t.Fatalf("record with a foreign %s admitted", name)
+		}
 	}
 }
 
@@ -206,6 +220,10 @@ func testSRRV1004StoreReleaseBothOrNeither(t *testing.T) {
 	if _, err := VerifyReadinessRecord(t.Context(), raw, fixture.candidate, nil); err != nil {
 		t.Fatalf("store-bound record refused: %v", err)
 	}
+	empty := resealReadiness(t, *record, func(r *ReadinessRecord) { r.StoreRelease = &ReadinessStoreRelease{} })
+	if _, err := VerifyReadinessRecord(t.Context(), empty, fixture.candidate, nil); err == nil {
+		t.Fatal("empty non-null store binding admitted")
+	}
 	for _, options := range []ReadinessOptions{{StoreReleaseID: "v1-0"}, {StoreCandidateSHA256: candidateSHA256}, {StoreReleaseID: "V1 0", StoreCandidateSHA256: candidateSHA256}} {
 		options.CandidateDirectory, options.SourceRoot = fixture.candidate, fixture.source
 		if _, _, err := BuildReadinessRecord(t.Context(), options); err == nil {
@@ -227,6 +245,15 @@ func testSRRV1005MissingEvidenceIsNotRun(t *testing.T) {
 	for index, row := range record.Rows {
 		if row.ID != readinessCatalogue[index].id || row.SHA256 != "" || (row.Status != "NOT_RUN" && row.Status != "FALLBACK") || (row.Decision == "" && row.Reason == "") {
 			t.Fatalf("row without evidence is not an explained NOT_RUN/FALLBACK: %#v", row)
+		}
+	}
+	for name, mutate := range map[string]func(*ReadinessRecord){
+		"reordered":  func(r *ReadinessRecord) { r.Rows = append([]ReadinessRow{r.Rows[1], r.Rows[0]}, r.Rows[2:]...) },
+		"duplicated": func(r *ReadinessRecord) { r.Rows = append([]ReadinessRow{r.Rows[0], r.Rows[0]}, r.Rows[2:]...) },
+		"truncated":  func(r *ReadinessRecord) { r.Rows = r.Rows[1:] },
+	} {
+		if _, err := VerifyReadinessRecord(t.Context(), resealReadiness(t, *record, mutate), fixture.candidate, nil); err == nil {
+			t.Fatalf("%s row catalogue admitted", name)
 		}
 	}
 	for _, id := range []string{"gate/unknown", "owner/tag"} {
@@ -286,6 +313,27 @@ func testSRRV1007PlatformRowsFallBackWithoutNativeEvidence(t *testing.T) {
 			t.Fatalf("%s = %#v", id, row)
 		}
 	}
+	for name, supplied := range map[string]map[string]ReadinessEvidence{
+		"platform NOT_RUN":              {"platform/darwin-arm64/lifecycle": {Status: "NOT_RUN", Reason: "operator"}},
+		"linux FALLBACK without 0420":   {"platform/linux-amd64/lifecycle": {Status: "FALLBACK", Reason: "operator"}},
+		"linux FALLBACK other decision": {"platform/linux-amd64/lifecycle": {Status: "FALLBACK", Decision: "0419"}},
+	} {
+		if _, _, err := BuildReadinessRecord(t.Context(), ReadinessOptions{CandidateDirectory: fixture.candidate, SourceRoot: fixture.source, Evidence: supplied}); err == nil {
+			t.Fatalf("builder admitted %s", name)
+		}
+	}
+	for name, mutate := range map[string]func(*ReadinessRecord){
+		"platform NOT_RUN":            func(r *ReadinessRecord) { r.Rows[index(r, "platform/darwin-arm64/lifecycle")].Status = "NOT_RUN" },
+		"linux FALLBACK without 0420": func(r *ReadinessRecord) { r.Rows[index(r, "platform/linux-amd64/lifecycle")].Decision = "" },
+	} {
+		forged := resealReadiness(t, *record, func(r *ReadinessRecord) {
+			r.Rows = append([]ReadinessRow(nil), r.Rows...)
+			mutate(r)
+		})
+		if _, err := VerifyReadinessRecord(t.Context(), forged, fixture.candidate, nil); err == nil {
+			t.Fatalf("verifier admitted %s", name)
+		}
+	}
 	hosted := fixture.file(t, "linux-amd64-host-lifecycle.json", "{\"runner\":\"ubuntu-24.04\"}\n")
 	record, raw := fixture.build(t, map[string]ReadinessEvidence{"platform/linux-amd64/host-lifecycle": {Status: "PASS", Path: hosted}})
 	if row := readinessRowByID(record, "platform/linux-amd64/host-lifecycle"); row.Status != "PASS" {
@@ -303,6 +351,13 @@ func TestSRRV1008VulnerabilityRuleIsRequireFreeAndPinnedToolchain(t *testing.T) 
 func testSRRV1008VulnerabilityRuleIsRequireFreeAndPinnedToolchain(t *testing.T) {
 	if got := requireDirectives("module m\n// require x v1\nrequire y v1.0.0 // single\nrequire (\n\tz v1.0.0\n)\n"); got != 2 {
 		t.Fatalf("require directives = %d, want 2", got)
+	}
+	if got := requireDirectives("module m\r\n\rrequire y v1.0.0\r\n"); got != 1 {
+		t.Fatalf("carriage-return require directives = %d, want 1", got)
+	}
+	t.Setenv("GOTOOLCHAIN", "go1.99.0+path")
+	if toolchain, err := probeLocalToolchain(t.Context(), t.TempDir()); err != nil || !strings.HasPrefix(toolchain, "go1.") {
+		t.Fatalf("probe did not force the local toolchain: %q %v", toolchain, err)
 	}
 	fixture := newReadinessFixture(t, cleanGoMod)
 	record, _ := fixture.build(t, nil)

@@ -1987,14 +1987,14 @@ SRR-V1-001	docs/specs/stable-readiness-record-v1.md	50	The record MUST be one JS
 SRR-V1-002	docs/specs/stable-readiness-record-v1.md	54	The identity MUST come from a candidate admitted by `VerifyContext`: version, ta
 SRR-V1-003	docs/specs/stable-readiness-record-v1.md	59	The core section MUST record the candidate profile and the SHA-256 of the
 SRR-V1-004	docs/specs/stable-readiness-record-v1.md	64	The store-release binding MUST be null, or it MUST carry both a release id and a
-SRR-V1-005	docs/specs/stable-readiness-record-v1.md	67	Rows MUST follow one fixed ordered catalogue: the `gate/` rows full-gate,
-SRR-V1-006	docs/specs/stable-readiness-record-v1.md	75	PASS and FAIL MUST carry the SHA-256 of an operator-named regular file. NOT_RUN
-SRR-V1-007	docs/specs/stable-readiness-record-v1.md	79	A platform row without native lifecycle evidence MUST be FALLBACK (PRS-V1-004).
-SRR-V1-008	docs/specs/stable-readiness-record-v1.md	82	The vulnerability section MUST record three things: decision 0420, the number of
-SRR-V1-009	docs/specs/stable-readiness-record-v1.md	89	For version `1.0.0-rc.1`, `policy/signing` MUST be the fixed row NOT_RUN, decisi
-SRR-V1-010	docs/specs/stable-readiness-record-v1.md	94	`owner/tag`, `owner/publication` and `owner/promotion` MUST be fixed NOT_RUN
-SRR-V1-011	docs/specs/stable-readiness-record-v1.md	97	Building and verifying MUST NOT write to the candidate, the source root or the
-SRR-V1-012	docs/specs/stable-readiness-record-v1.md	101	(proposed, not implemented) An operator command SHOULD expose the builder and th
+SRR-V1-005	docs/specs/stable-readiness-record-v1.md	68	Rows MUST follow one fixed ordered catalogue: the `gate/` rows full-gate,
+SRR-V1-006	docs/specs/stable-readiness-record-v1.md	76	PASS and FAIL MUST carry the SHA-256 of an operator-named regular file. NOT_RUN
+SRR-V1-007	docs/specs/stable-readiness-record-v1.md	80	A platform row without native lifecycle evidence MUST be FALLBACK (PRS-V1-004) a
+SRR-V1-008	docs/specs/stable-readiness-record-v1.md	84	The vulnerability section MUST record three things: decision 0420, the number of
+SRR-V1-009	docs/specs/stable-readiness-record-v1.md	92	For version `1.0.0-rc.1`, `policy/signing` MUST be the fixed row NOT_RUN, decisi
+SRR-V1-010	docs/specs/stable-readiness-record-v1.md	97	`owner/tag`, `owner/publication` and `owner/promotion` MUST be fixed NOT_RUN
+SRR-V1-011	docs/specs/stable-readiness-record-v1.md	100	Building and verifying MUST NOT write to the candidate, the source root or the
+SRR-V1-012	docs/specs/stable-readiness-record-v1.md	106	(proposed, not implemented) An operator command SHOULD expose the builder and th
 TCP-V0-001	docs/specs/task-context-packet-v0.md	49	`context` MUST be read-only. It builds one index over the committed tree and
 TCP-V0-002	docs/specs/task-context-packet-v0.md	52	The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]
 TCP-V0-003	docs/specs/task-context-packet-v0.md	58	Results are files. Each result row carries `kind`, `id` (the path), `score`,
