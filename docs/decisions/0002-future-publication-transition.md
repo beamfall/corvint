@@ -79,3 +79,17 @@ with retained receipts) were **not** satisfied at execution time. The owner waiv
 having found the repository already public under the superseded terms; correcting the published
 licence took precedence over the readiness sequence. Items 3-6 were satisfied. No tag, release,
 package, image, announcement, or deployment accompanied the correction.
+
+## Amendment (2026-09-26): frontier file exception
+
+The owner approved one file-specific exception (decision 0422, answer A5; V1-0379). The files
+`cmd/corvint/frontier.go`, `cmd/corvint/frontier_adapters.go` and `cmd/corvint/frontier_test.go` keep
+their Apache-2.0 notices. They are the only Corvint source files outside the boundary above that
+carry a separately owner-approved notice, and `LICENSING.md` names them.
+
+The files were already public with these notices when the exception was approved. This amendment
+records that approval after publication; it changes no notice and relicenses nothing. The boundary
+list above is unchanged, and it is not extended to `cmd/**`.
+
+Rollback: revert this amendment and the `LICENSING.md` section together. Rights already granted
+under Apache-2.0 stay granted.

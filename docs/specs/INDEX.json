@@ -3,7 +3,7 @@
     "path": "docs/specs/core-compatibility-freeze-v1.md",
     "title": "Core Compatibility Freeze V1",
     "reqPrefix": "CCF-V1",
-    "intent": "proposed overall; accepted CCF-V1-006/CCF-V1-007 amendments (decision 0401)",
+    "intent": "accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401",
     "delivery": "experimental",
     "claim": "The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.",
     "dependsOn": [
@@ -2453,7 +2453,7 @@
     "path": "docs/specs/stable-readiness-record-v1.md",
     "title": "Stable Readiness Record V1",
     "reqPrefix": "SRR-V1",
-    "intent": "proposed",
+    "intent": "accepted (decision 0422, 2026-09-26)",
     "delivery": "experimental",
     "claim": "One canonical JSON record binds a verified Core candidate to digested gate, platform, compliance and policy evidence before any tag.",
     "dependsOn": [
