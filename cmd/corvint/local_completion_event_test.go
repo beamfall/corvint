@@ -204,6 +204,10 @@ func TestDogfoodEventSnapshotMissUsesRecordedBuildCost(t *testing.T) {
 	t.Run("recorded cost fits the deadline", func(t *testing.T) {
 		t.Parallel()
 		root := staleSnapshotRepository(t)
+		// A fixed cost, not the fixture's measured one, so a loaded host cannot turn this into a skip.
+		if err := contextindex.RecordBuildCost(root, time.Millisecond); err != nil {
+			t.Fatal(err)
+		}
 		built := new(atomic.Bool)
 		ctx := context.WithValue(deadline, dogfoodEventBuildKey{}, func(ctx context.Context, root, subject string) (*contextindex.Index, error) {
 			built.Store(true)

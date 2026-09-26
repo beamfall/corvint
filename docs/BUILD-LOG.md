@@ -7249,10 +7249,11 @@ Change (proposed amendments to IDX-SNAP-V0-012 and AHI-031; owner acceptance pen
 
 - Explicit `corvint index` times its `BuildForSnapshot`. After `WriteSnapshot` it writes a
   best-effort `build-cost.json` into the snapshot store (`contextindex.RecordBuildCost`: temp file,
-  sync, rename). The record is not a snapshot, is not evicted, adds no receipt field and changes no
+  sync, rename, through the store's no-follow directory pinning). The record is not a snapshot, is not evicted, adds no receipt field and changes no
   snapshot byte.
-- On a snapshot miss, the dogfood event reads that record with Lstat, a regular-file check, a
-  256-byte limit and a format check (`contextindex.RecordedBuildCost`). It runs no Git process and
+- On a snapshot miss, the dogfood event reads that record through a no-follow, non-blocking open,
+  a regular-file check on the opened file, a 256-byte limit and a format check
+  (`contextindex.RecordedBuildCost`). It runs no Git process and
   writes nothing. If the recorded cost is at least the time left before the deadline, it returns
   `dogfood-event-index-snapshot-stale` without building. With no record, or a smaller cost, it
   builds in-budget as before.
@@ -7289,3 +7290,32 @@ NOT_RUN: the exhaustive gate and the dogfood CEM steps.
 
 Rollback: revert the commit. Stale `build-cost.json` files are then ignored, and deleting them is
 safe.
+
+Independent review (Codex CLI 0.153.2, `gpt-6-astra`, read-only) raised five findings. Each was
+checked against the code, and all five are fixed:
+
+- The reader's Lstat-then-ReadFile left a window in which a swapped FIFO would block the hook, or a
+  swapped `/dev/zero` link would allocate without bound. The reader now opens with the store's
+  no-follow, non-blocking primitive (`openBlobShard`), checks the opened file and reads at most
+  257 bytes.
+- The writer created its temporary under an unpinned directory path. It now publishes through
+  `publishBlobFact`, which pins each store directory without following links.
+- `buildMilliseconds` of 9223372036854775807 passed validation and converted to -1 ms, so the
+  skip never fired. Confirmed: the old reader returned `-1ms`. A value above what a Go duration
+  holds is now malformed.
+- A killed writer's temporary was never swept, because eviction removed only `snapshot-*.tmp`.
+  Eviction now also sweeps the record's stale `blob-*.tmp` temporary (`isStoreTemporary`).
+- The "cost fits" subtest used the fixture's measured cost, so a loaded host could turn it into a
+  skip. It now records a fixed 1 ms cost.
+
+Evidence: `TestBuildCostRefusesAnOverflowingRecordAndSweepsItsTemporary` (it fails on the old
+reader with `-1ms`) and `TestRecordedBuildCostRejectsFIFOWithoutBlocking`. The FIFO test pins that
+the open does not block. It cannot reproduce the swap race itself, which the no-follow open closes
+by construction.
+
+The analyzer schema moves to `corvint-analyzer/86` (IDX-SNAP-V0-017 audit). The first V1-0286
+commit had already changed audited inputs without the bump. Extraction is unchanged, and snapshots
+rebuild once.
+
+On platforms other than darwin and linux, the confined primitives refuse. The record is then
+neither written nor read, and a miss builds as before.
