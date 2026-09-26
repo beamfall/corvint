@@ -6947,3 +6947,31 @@ the touched packages; the doc checks; `go run ./conformance/use-cases-v0`, which
 Under host load (load average 170 to 570), `TestSelectionOnTheLiveDirtyWorktree` and
 `TestIncrementalSelectionMeetsTheLiveBudget` exceeded their 100 ms budget. These are timing
 flakes. NOT_RUN: the exhaustive `./...` gate.
+
+## 2026-09-25 decision 0411 TM-V0-010: fixture re-checks do not re-read mountinfo
+
+The go-product job of PR #245 (run 36203098255) hit its 1 h 15 min limit twice. It was killed
+while `internal/tasks/authority` was still running `TestTMV0009_AS11_FixtureFoundationReturnedFaults`.
+The runner's clock ran out, not a blocked call: the last event was `UNPAUSE/sync:receipts` starting
+at 02:47:34, and the job, which started at 01:32:29, was cleaned up at 02:47:42. Every test in the
+package ran 4 to 5 times slower than on main. For example, `UNPAUSE/enumerate` took 13.87 s, against
+2.76 s in main run 36208718703, where the whole package took 389 s. The main job already takes
+71 of its 75 minutes.
+
+The cause is not the ext4 fsyncs, as the entry above assumed. In a golang:1.27.1 container with
+`-race`, `TMPDIR` on an ext4 volume, and the `UNPAUSE` subtests:
+
+- tmpfs takes 25.4 s and ext4 takes 142.4 s;
+- ext4 with fsync stubbed out still takes 147 s;
+- ext4 with the procfs reads skipped takes 32 s.
+
+`fixtureSession.check` re-observes every retained parent before each operation. That made 859,724
+shared-magic observations, each one an fdinfo read plus a mountinfo read, and they cost 118 s in
+total.
+
+Fix: the fixture observation takes the identity the same open descriptor reported when it was
+qualified. It still reads fstat, fstatfs and fdinfo `mnt_id` on every re-check, and refuses any
+change. It only re-resolves mountinfo when the identity differs. An open descriptor pins its mount,
+so an unchanged `mnt_id` cannot have been reused, and the fstype is the one already qualified
+(decision 0411 §1). The fixture also reuses its own fdinfo read instead of reading fdinfo twice.
+With the fix, the same subtests take 28.5 s on ext4.

@@ -23,6 +23,12 @@ with `UNSUPPORTED_FILESYSTEM`.
 
    No mount-point name or path guess is ever used. Both call sites use the same observation: the
    §5.1 qualification probe (`observeFilesystem`) and the fixture mount observation.
+
+   The fixture session qualifies each retained parent descriptor once, when it is retained. Its
+   per-operation re-check still observes that descriptor's device, magic and fsid, and fdinfo
+   `mnt_id`, and it refuses any change. It does not re-read mountinfo while that identity is
+   unchanged. The descriptor has stayed open since it was qualified, which keeps its mount alive,
+   so the `mnt_id` cannot have been reused and the fstype is the one already qualified.
 2. **What it proves.** The fstype is the kernel driver that mounted the filesystem. An ext2- or
    ext3-format volume mounted by the ext4 driver is reported as `ext4`. It is then served with
    ext4's fsync semantics, which are what §5.2 durability relies on.

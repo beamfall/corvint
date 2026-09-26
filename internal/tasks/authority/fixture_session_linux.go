@@ -20,7 +20,12 @@ const (
 	fixtureMkdirat  = syscall.SYS_MKDIRAT
 )
 
-func fixtureObserveMount(f *os.File) (result fixtureMount, err error) {
+// fixtureObserveMount observes the mount identity of f and qualifies its
+// filesystem. held is the identity this same, continuously open descriptor
+// reported when it was qualified, or zero. An open descriptor keeps its
+// mount alive, so its mnt_id cannot be reused and an identity equal to held
+// is the mount already qualified; only then is qualification not repeated.
+func fixtureObserveMount(f *os.File, held fixtureMount) (result fixtureMount, err error) {
 	err = safeopen.Control(f, func(fd uintptr) (err error) {
 		var st syscall.Stat_t
 		var fs syscall.Statfs_t
@@ -29,10 +34,6 @@ func fixtureObserveMount(f *os.File) (result fixtureMount, err error) {
 		}
 		if err = syscall.Fstatfs(int(fd), &fs); err != nil {
 			return err
-		}
-		observed := linuxFilesystem(int(fd), uint32(fs.Type))
-		if !observed.Local || !Classify("linux", observed.Type) {
-			return fixtureUnsupported
 		}
 		// Linux fdinfo mnt_id identifies the mount of THIS pinned descriptor,
 		// including bind mounts sharing st_dev. This read is observation only.
@@ -50,7 +51,14 @@ func fixtureObserveMount(f *os.File) (result fixtureMount, err error) {
 		if err != nil {
 			return err
 		}
-		result = fixtureMount{uint64(st.Dev), fmt.Sprintf("%x:%v", uint64(fs.Type), fs.Fsid), mount}
+		observed := fixtureMount{uint64(st.Dev), fmt.Sprintf("%x:%v", uint64(fs.Type), fs.Fsid), mount}
+		if observed != held {
+			named := mountFilesystem(uint32(fs.Type), mount)
+			if !named.Local || !Classify("linux", named.Type) {
+				return fixtureUnsupported
+			}
+		}
+		result = observed
 		return nil
 	})
 	return result, err

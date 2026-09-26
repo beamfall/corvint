@@ -52,6 +52,16 @@ func linuxFilesystem(fd int, magic uint32) Filesystem {
 	if err != nil {
 		return filesystemFromMagic(magic)
 	}
+	return mountFilesystem(magic, id)
+}
+
+// mountFilesystem names the filesystem carrying magic on mount id, the
+// fdinfo `mnt_id` of a descriptor the caller holds open. Only the shared
+// ext magic reads mountinfo.
+func mountFilesystem(magic uint32, id string) Filesystem {
+	if magic != magicExt4 {
+		return filesystemFromMagic(magic)
+	}
 	mountinfo, err := readProc("/proc/self/mountinfo", maxMountinfo)
 	if err != nil {
 		return filesystemFromMagic(magic)
