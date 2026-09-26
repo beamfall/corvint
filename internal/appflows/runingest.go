@@ -308,6 +308,11 @@ func playwrightAttempt(r playwrightResult, expected string, unexpected bool) Run
 var junitAttemptElements = map[string]string{"failure": "failed", "error": "failed", "skipped": "skipped",
 	"flakyFailure": "failed", "flakyError": "failed", "rerunFailure": "failed", "rerunError": "failed"}
 
+// junitTimeoutPhrase in a failed attempt's message attribute marks it timedOut: JUnit 4
+// TestTimedOutException ("test timed out after 10 milliseconds") and JUnit Jupiter TimeoutException
+// ("m() timed out after 10 milliseconds") both write it. Body text is never read for it.
+const junitTimeoutPhrase = "timed out after "
+
 var junitAttachment = regexp.MustCompile(`\[\[ATTACHMENT\|([^\]\r\n]+)\]\]`)
 
 // junitRunPayload is the byte preflight mirrored from TCQ-V0-026: after an optional BOM and one XML
@@ -434,6 +439,9 @@ func (w *junitRunWalk) openAttempt(t xml.StartElement) error {
 	}
 	w.element = t.Name.Local
 	w.attempt = RunAttempt{Outcome: junitAttemptElements[w.element], DurationMS: durationMS(junitSeconds(t) * 1000), Attachments: []RunAttachment{}}
+	if w.attempt.Outcome == "failed" && strings.Contains(junitAttr(t, "message"), junitTimeoutPhrase) {
+		w.attempt.Outcome = "timedOut"
+	}
 	w.detail.Reset()
 	w.detail.WriteString(junitAttr(t, "message"))
 	if w.element == "failure" || w.element == "error" {
@@ -466,7 +474,7 @@ func (w *junitRunWalk) end(name string) error {
 
 func (w *junitRunWalk) closeAttempt() error {
 	a := w.attempt
-	if a.Outcome == "failed" {
+	if a.Outcome != "skipped" {
 		a.Failure = w.detail.String()
 	}
 	primary := w.element == "failure" || w.element == "error" || w.element == "skipped"

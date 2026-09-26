@@ -14,7 +14,7 @@ decisions 0374 and 0385.
 
 ## Agent digest
 - Claim: Reviewed flows link to source, tests and run evidence; Corvint selects E2E tests with exclusion proofs, maps navigation and proves documentation claims.
-- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 015..018 and 036..038 (unqualified), 012..014 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; S4 implements AFU-V1-019..024 and the AFU-V1-040 frozen corpus (unsafe-narrowing rate 0 on both bases), with the two live changes `NOT_RUN`; S5 implements AFU-V1-025..028 and the AFU-V1-029 observer gate, which no observer calls yet (partial); S6 implements AFU-V1-030..033 (unqualified); S7 implements AFU-V1-034 and 035 (no MCP conformance vectors yet); S8 adds the AFU-V1-039 acceptance fixture (`cmd/corvint/testdata/flows/acceptance`, `TestAFUV1039AcceptanceFixture`), with the three live qualification runs `NOT_RUN`; nothing else is implemented or qualified.
+- Status: accepted (decision 0385)/planned; S1-S3 implement AFU-V1-001..005, 007..011, 014 (with its accepted observer gap), 015..018 and 036..038 (unqualified), 012 and 013 partially, and AFU-V1-006 as a validated `/2` wire profile no producer emits yet; S4 implements AFU-V1-019..024 and the AFU-V1-040 frozen corpus (unsafe-narrowing rate 0 on both bases), with the two live changes `NOT_RUN`; S5 implements AFU-V1-025..028 and the AFU-V1-029 observer gate, which no observer calls yet (partial); S6 implements AFU-V1-030..033 (unqualified); S7 implements AFU-V1-034 and 035 (no MCP conformance vectors yet); S8 adds the AFU-V1-039 acceptance fixture (`cmd/corvint/testdata/flows/acceptance`, `TestAFUV1039AcceptanceFixture`), with the three live qualification runs `NOT_RUN`; nothing else is implemented or qualified.
 - Exists: the AFU-V0 experimental `corvint flows` report and `record`, the issue-53 behavior adapter, ETS-V1 selection and the Playwright provider this spec extends.
 - Blocked on: implementation slices S1-S8 (Rollout) and the acceptance evidence below.
 - Read next: Requirements; Trust boundary, limits, and failure modes; Deterministic acceptance.
@@ -204,7 +204,9 @@ This subsection fixes the S1 wire and argv shapes. It adds no requirement and no
   `passed`. Repeated runs aggregate under the DCP-V1-023 counters and the DCP-V1-024 stability policy.
 - `AFU-V1-014`: Ingested evidence has authority `INGESTED`. Evidence that Corvint's own observer
   produced (AFU-V0-010) has `LOCALLY_OBSERVED`. A source mapping alone is `STATIC`, and a `STATIC`
-  row MUST NOT be shown as verified.
+  row MUST NOT be shown as verified. Accepted gap (decision 0417): the AFU-V0-010 observer is
+  flow-scoped and has no test key, so it emits no per-test `LOCALLY_OBSERVED` record; the schema
+  accepts the authority, and no Corvint producer emits it.
 
 ### Run-evidence wire contract
 
@@ -232,7 +234,11 @@ This subsection fixes the S2 wire shape. It adds no requirement and no root verb
   header the report does not carry. Playwright keeps one attempt per `results[]` entry. JUnit keeps
   each `flakyFailure` or `flakyError` as an earlier failed attempt before a final pass, and each
   `rerunFailure` or `rerunError` as a later failed attempt after the first `failure` or `error`;
-  `[[ATTACHMENT|path]]` markers in `system-out` are the attachments. `go test -json` keeps each run of
+  `[[ATTACHMENT|path]]` markers in `system-out` are the attachments. One of those six failure
+  elements is a `timedOut` attempt, not `failed`, only when its `message` attribute contains the
+  case-sensitive phrase `timed out after ` (JUnit 4 `TestTimedOutException`, JUnit Jupiter
+  `TimeoutException`); the same phrase in body text or in any other attribute leaves it `failed`
+  (decision 0417). `go test -json` keeps each run of
   a test as an attempt, with each `file_test.go:line:` report as an assertion anchor; a test with no
   terminal event is `timedOut` when its package hit the test timeout and `interrupted` otherwise.
 - The byte bound, and for JSON reports the depth pre-scan, run on the raw report before decode. The
@@ -609,10 +615,10 @@ evaluated revision. Review is self-attested: an anchor proves a committed change
 | AFU-V1-008 | `TestAFUV1ReviewAnchorValidAndStale`, `TestAFUV1ReviewAnchorNotAncestor`, `TestAFUV1ReviewAnchorMustChangeIntent`, `TestAFUV1InferredExcludedFromReviewed`, `TestAFUV1ReviewLinkMustExistAtAnchor`, `TestAFUV1ReviewEvidenceTargetUnavailable`, `TestAFUV1ReviewContentIdentityRestoredTarget`, `TestAFUV1FlowsQueryGoldens` (the `review` denominator and limitation in `map`) |
 | AFU-V1-009 | `TestAFUV1InferredExcludedFromReviewed`, `TestAFUV1FlowsQueryGoldens` (inferred links outside the denominator, `inferred-only`, no evidence pair from an inferred test) |
 | AFU-V1-010 | `TestAFUV1ReverseLookupsDerived`, `TestAFUV1ExportLeavesRepositoryByteIdentical`, `TestAFUV1FlowsCLIExportIsReadOnly`, `TestAFUV1FlowsCLIReverseLookups` (a non-canonical `--path` refused), `TestAFUV1FlowsQueriesAreReadOnly` |
-| AFU-V1-011 | `TestAFUV1RunEvidenceClosedSchema`, `TestAFUV1NegativeControlFailed`, `TestAFUV1AdapterObservesFailedControl` (each of the three adapters observes a control failing, or timing out, in the same report and verifies the subject only against that expectation), `TestAFUV1FlowsCLIPassingControlNeverVerifies` (a control that passed never verifies) |
-| AFU-V1-012 | `TestAFUV1PlaywrightAdapterKeepsEveryAttempt`, `TestAFUV1AdapterObservesFailedControl`, `TestAFUV1JUnitAdapterKeepsEveryAttempt`, `TestAFUV1GoTestAdapterKeepsEveryAttempt`, `TestAFUV1PlaywrightProviderKeepsEveryAttempt` (the unprofiled receipt wire carries `attemptDetails`, and the external profiles refuse it); partial: the `corvint-playwright-external` reporter and profiles still carry only the last attempt's detail, which needs a `/3` profile revision and its live reporter qualification |
-| AFU-V1-013 | `TestAFUV1FailedAttemptThenPassIsFlaky`, `TestAFUV1PlaywrightUnexpectedNeverPassed`, the retry-passed case of each adapter test; partial: per-test classification only, aggregation of repeated runs under the DCP-V1-023 counters and DCP-V1-024 policy needs the `internal/doccorpus` stability counting exposed for `test-run-evidence/0` records, and an owner-accepted source for what the record does not carry: the DCP-V1-022 planned repetition ordinals, the planned or manual run kind, the infrastructure failure class and the DCP-V1-024 policy binding |
-| AFU-V1-014 | `TestAFUV1StaticNeverVerified`, `TestAFUV1PlaywrightUnexpectedNeverPassed`; partial: ingest emits `INGESTED` and the schema accepts `LOCALLY_OBSERVED`, but the AFU-V0-010 observer does not yet emit run-evidence records |
+| AFU-V1-011 | `TestAFUV1RunEvidenceClosedSchema`, `TestAFUV1NegativeControlFailed`, `TestAFUV1AdapterObservesFailedControl` (each of the three adapters observes a control failing, and Playwright and JUnit one timing out, in the same report and verifies the subject only against that expectation), `TestAFUV1FlowsCLIPassingControlNeverVerifies` (a control that passed never verifies) |
+| AFU-V1-012 | `TestAFUV1PlaywrightAdapterKeepsEveryAttempt`, `TestAFUV1AdapterObservesFailedControl`, `TestAFUV1JUnitAdapterKeepsEveryAttempt`, `TestAFUV1JUnitTimedOutAttempt` (the JUnit timed-out mapping), `TestAFUV1GoTestAdapterKeepsEveryAttempt`, `TestAFUV1PlaywrightProviderKeepsEveryAttempt` (the unprofiled receipt wire carries `attemptDetails`, and the external profiles refuse it); partial: the `corvint-playwright-external` reporter and profiles still carry only the last attempt's detail, which needs a `/3` profile revision and its live reporter qualification |
+| AFU-V1-013 | `TestAFUV1FailedAttemptThenPassIsFlaky`, `TestAFUV1PlaywrightUnexpectedNeverPassed`, `TestAFUV1JUnitTimedOutAttempt` (a timed-out then passed JUnit test is flaky), the retry-passed case of each adapter test; partial: per-test classification only, aggregation of repeated runs under the DCP-V1-023 counters and DCP-V1-024 policy needs the `internal/doccorpus` stability counting exposed for `test-run-evidence/0` records, and an owner-accepted source for what the record does not carry: the DCP-V1-022 planned repetition ordinals, the planned or manual run kind, the infrastructure failure class and the DCP-V1-024 policy binding; decision 0417 chooses a separate local registry over a wire revision |
+| AFU-V1-014 | `TestAFUV1StaticNeverVerified`, `TestAFUV1PlaywrightUnexpectedNeverPassed`; ingest emits `INGESTED` and the schema accepts `LOCALLY_OBSERVED`; the flow-scoped AFU-V0-010 observer emits no per-test record, an accepted gap (decision 0417) |
 | AFU-V1-015 | `TestAFUV1FlowsQueryGoldens` (`map.golden.json`), `TestAFUV1EvidenceStateOrder` (including mixed pass and fail across current records, and a passed record without cleanup `done`), `TestAFUV1ReadRunEvidenceDiscipline` |
 | AFU-V1-016 | `TestAFUV1FlowsQueryGoldens` (`gaps.golden.json`, every gap code reached), `TestAFUV1EvidenceStateOrder`, `TestAFUV1ReadRunEvidenceDiscipline`, `TestAFUV1ZeroVariationFlowIncomplete` |
 | AFU-V1-017 | `TestAFUV1FlowsQueryGoldens` (`impact.golden.json`: a direct hit and a hit through the impact graph), `TestAFUV1FlowsCLIReverseLookups` (unresolvable base), `TestAFUV1FlowsImpactDirtyWorktreeUnknown` (an uncommitted edit makes the scope `UNKNOWN`, never a confident no-hit) |
@@ -657,7 +663,7 @@ Slices, each its own change with tests:
    fixes (AFU-V1-001..010, 036).
 2. S2 is run evidence and the three adapters (AFU-V1-011..014, 037, 038). It delivered the record,
    the adapters, the bounds and the hygiene, and the unprofiled provider receipt now carries and
-   scrubs every attempt; the AFU-V1-012..014 remainders named in the matrix stay open.
+   scrubs every attempt; the AFU-V1-012 and 013 remainders named in the matrix stay open, and decision 0417 accepts the AFU-V1-014 observer gap and adds the JUnit timed-out mapping.
 3. S3 is `map`, `gaps` and `impact`, and the `/2` behavior provider (AFU-V1-006, 015..018).
 4. S4 is the Core `e2e-safe` profile and its corpus (AFU-V1-019..024, 040).
 5. S5 is the navigation map (AFU-V1-025..029).
@@ -684,7 +690,7 @@ without the `e2e-safe` value, so neither S4 nor a companion slice blocks it (dec
 | AFU-V1-030..033 | implemented: `internal/appflows/docs.go` (`RenderDocs`, `CheckDocs`, `ReplaceConfined`), `cmd/corvint/flows_docs.go` |
 | AFU-V1-039 | implemented (fixture only; live qualification `NOT_RUN`): `cmd/corvint/testdata/flows/acceptance`, `cmd/corvint/flows_acceptance_test.go` |
 | AFU-V1-006 | partial (see the matrix): `internal/doccorpus/behavior.go` |
-| AFU-V1-011..014, 038 | implemented, 012..014 partial (see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
+| AFU-V1-011..014, 038 | implemented, 012 and 013 partial (see the matrix): `internal/appflows/runevidence.go`, `runingest.go`, `internal/runhygiene/runhygiene.go`, `internal/jstestprovider/playwright.go`, `receipt.go`, `projection.go`, `external.go` |
 | AFU-V1-019..024, 040 | implemented: `internal/appflows/selection.go` (`SelectE2E`), `cmd/corvint/affected.go`, `internal/liveverify/affected/typescript/playwright_discovery.go` (`VerifyPlaywrightDiscovery`), `internal/extevidence/selection.go` (`SelectionNote`); corpus `cmd/corvint/testdata/e2e-safe-corpus.json` |
 | AFU-V1-034..035 | implemented, 034 partial (see the matrix): `internal/mcp/bridge/flows.go`, `bridge.go`, `cmd/corvint-mcp/main.go`, `internal/appflows/impact.go` (`FlowImpactAt`) |
 
