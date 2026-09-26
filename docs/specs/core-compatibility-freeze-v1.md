@@ -12,7 +12,7 @@ Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), dec
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
 - Status: proposed overall; accepted CCF-V1-006/CCF-V1-007 amendments (decision 0401); experimental delivery; the Core set is taken from accepted decision 0332, this contract awaits owner ratification in V1-0001
 - Exists: this contract, decision 0358, the root-help `Command maturity:` section (`commandMaturityHelp`), `cmd/corvint/core_freeze_test.go` and its per-mode goldens in `cmd/corvint/testdata/core-freeze/`
-- Blocked on: V1-0001 owner ratification of this contract and of the proposed B5 and decision 0398 amendments to CCF-V1-004, and of the proposed V1-0350 register rows and N-1 replay placement in CCF-V1-007; pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
+- Blocked on: V1-0001 owner ratification of this contract and of the proposed B5, V1-0284 and decision 0398 amendments to CCF-V1-004, and of the proposed V1-0350 register rows and N-1 replay placement in CCF-V1-007; pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
 
 ## Intent and scope
@@ -133,6 +133,18 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
   these deliberately add `code` to the formerly codeless unborn-`HEAD` and outside-repository
   `impact` refusals and replace `repository-probe-failed` / `unsupported-prove-history` for a
   non-root working directory; no `cli-parity-v0` case covers those inputs, and the replay is unchanged.
+  (proposed 2026-09-26, V1-0284, not accepted) `cem`, `ocm` and `frontier` judge their
+  root-relative maps before any repository check, so a non-root working directory gets that verb's
+  map refusal, the same for an omitted and an explicit `--root`, rather than `invalid-arguments`.
+  No Core read fetches: every Git process a Core verb starts carries `GIT_NO_LAZY_FETCH=1`
+  (invariant 7), which Git honours from 2.45; older Git ignores it and would lazily fetch, and no
+  minimum Git version is stated yet. When the tree or range read of `index`, `query`, `context`,
+  `impact` or `prove` fails because an object it reaches exists only on a partial clone's promisor
+  remote, the refusal is `repository-object-unavailable`, the CEM-CB-019 code for a missing promised
+  object, with `subject` `repository-state` / `promisor-object`, one `evidence` pair `object` naming
+  the first missing object, and `supported_fixes` `git.fetch-promisor-objects`: the user fetches the
+  objects. Before rc.1 this deliberately replaces the codeless `Git returned an invalid blob size`
+  and `Git error: ...` refusals for that input; no `cli-parity-v0` case covers a partial clone.
 - **CCF-V1-005:** The admission, freshness, omission and abstention members MUST keep their names,
   JSON types and meaning. `query` and path `impact`: `context.state`, `context.freshness.{state, scope,
   revision, mixed_path_count, mixed_paths}`, `context.coverage.{requested_results, included_results,
@@ -278,7 +290,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 ## Non-goals
 
 - No runtime or wire change to any verb other than the proposed CCF-V1-004 refusal classification of
-  2026-09-25 (panel blocker B5) and the codes added under decision 0398, and no new profile version.
+  2026-09-25 (panel blocker B5), its V1-0284 partial-clone extension and the codes added under
+  decision 0398, and no new profile version.
 - No freeze of companion, research or experimental verbs, modes or profiles (CCF-V1-003, CCF-V1-008).
 - No ratification of the Core boundary: that is the owner's decision in V1-0001.
 - No change to the portable proof wire, CEM, OCM or frontier contracts, which have their own owners.
@@ -295,8 +308,11 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 - A refusal drops a code it gained under decision 0398: `TestRepositoryFailureEnvelopeCarriesItsCode`
   or `TestReadFailuresKeepTheFixedTextAndAddTheirCode` fails.
 - A Core verb classifies a non-root working directory or an unborn `HEAD` differently from its
-  siblings: `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike` or
-  `TestIndexedCoreVerbsCodeAnUnbornHead` fails.
+  siblings: `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`,
+  `TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike` or `TestIndexedCoreVerbsCodeAnUnbornHead` fails.
+- (proposed, V1-0284) A Core read lazily fetches a promisor object, or refuses a missing one without
+  its code: `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching` fails. Residual: other content
+  readers, and Git older than 2.45.
 - A new verb is dispatched without a maturity label, or a label names an unindexed owner:
   `TestRootHelpLabelsEveryVerbWithMaturityAndOwner` fails.
 - A verb is dispatched before the `topLevelCommands` check without being pinned as plumbing:
@@ -312,7 +328,7 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 
 ## Acceptance evidence
 
-- `GOTOOLCHAIN=local go test -count=1 -run 'TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope|TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike|TestIndexedCoreVerbsCodeAnUnbornHead|TestRootHelpLabelsEveryVerbWithMaturityAndOwner|TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp' ./cmd/corvint`.
+- `GOTOOLCHAIN=local go test -count=1 -run 'TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope|TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike|TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike|TestIndexedCoreVerbsCodeAnUnbornHead|TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching|TestRootHelpLabelsEveryVerbWithMaturityAndOwner|TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp' ./cmd/corvint`.
 - The cli-parity replay over the 133-case manifest against a candidate built from this change.
 - The cited N-1 and migration tests in Traceability.
 - (proposed, decision 0398) `make core-n1-replay` against `v0.8.1`, at each release (runbook step 8).
@@ -323,7 +339,7 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 |---|---|
 | CCF-V1-001, CCF-V1-002 | `TestCoreVerbsEmitTheFrozenProfiles` (identifiers, and each mode against its `cmd/corvint/testdata/core-freeze` golden) |
 | CCF-V1-003 | `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
-| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics`, `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`, `TestIndexedCoreVerbsCodeAnUnbornHead`, `TestRepositoryFailureEnvelopeCarriesItsCode`, `TestReadFailuresKeepTheFixedTextAndAddTheirCode`; cli-parity-v0 replay (`DR-0041`) |
+| CCF-V1-004 | `TestCoreRefusalsKeepTheFrozenEnvelope`, `TestConvertedRefusalDiagnostics`, `TestCoreVerbsRefuseAWorkingDirectoryOutsideTheRootAlike`, `TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike`, `TestIndexedCoreVerbsCodeAnUnbornHead`, `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching`, `TestRepositoryFailureEnvelopeCarriesItsCode`, `TestReadFailuresKeepTheFixedTextAndAddTheirCode`; cli-parity-v0 replay (`DR-0041`) |
 | CCF-V1-005 | `TestCoreVerbsEmitTheFrozenProfiles` (envelope, and member names and types through the goldens); per-verb member tests in AFP-V0, FPK-V0, TCP-V0 and GPK-V0 |
 | CCF-V1-006 | cli-parity-v0 replay; `TestCoreVerbsEmitTheFrozenProfiles` |
 | CCF-V1-007 (a) | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSectionedSnapshotRefusesACorruptSectionAsAMiss`, `TestIndexIfStaleReceiptsAndFreshSnapshotIsUntouched` |
@@ -337,7 +353,8 @@ but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see
 Revert the change that introduced this contract: the spec, decision 0358, its index rows, the root-help
 `Command maturity:` section and `cmd/corvint/core_freeze_test.go`. No runtime, wire or stored state
 changes, so rollback needs no migration. The proposed CCF-V1-004 classification of 2026-09-25 rolls back
-alone by reverting its change; it writes no stored state. The decision 0398 codes roll back the same
+alone by reverting its change; it writes no stored state. Its V1-0284 extension rolls back the same
+way, with its `FIX-REGISTRY.tsv` row and the diagnostic coverage count. The decision 0398 codes roll back the same
 way, with `DR-0041` and its two `knownDivergence` declarations.
 Reverting only the per-mode goldens (proposed, decision 0398) means deleting `cmd/corvint/testdata/core-freeze/` and
 the golden comparison in `TestCoreVerbsEmitTheFrozenProfiles`. That returns the freeze to identifier-only pinning.

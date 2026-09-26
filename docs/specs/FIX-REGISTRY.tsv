@@ -18,6 +18,7 @@ fix	host.put-git-on-path	PATH environment variable	a PATH on which a git executa
 fix	affected.use-commit-base	affected --base operand	a full commit id that resolves to a commit in this repository
 fix	affected.omit-base	affected invocation	affected without --base, the worktree-only form
 fix	git.create-head-commit	repository HEAD	a HEAD that resolves to a commit and its tree, as after a first git commit
+fix	git.fetch-promisor-objects	local object store of the partial clone	every object the refused read reaches, including the object evidence value, is present locally, as after the user fetches it from the promisor remote
 fix	prove.use-bounded-base	prove --base operand	a commit whose range to HEAD lists changed paths within the byte bound
 fix	prove.use-repository-object-format-checkpoint	prove --checkpoint document	a checkpoint whose repository.object_format equals the repository-object-format evidence value
 fix	surprise.use-commit-revision	surprise --base or --target operand	a revision that resolves to a commit in this repository

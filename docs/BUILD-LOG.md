@@ -7237,3 +7237,47 @@ change. It only re-resolves mountinfo when the identity differs. An open descrip
 so an unchanged `mnt_id` cannot have been reused, and the fstype is the one already qualified
 (decision 0411 §1). The fixture also reuses its own fdinfo read instead of reading fdinfo twice.
 With the fix, the same subtests take 28.5 s on ext4.
+
+## 2026-09-26 V1-0284 follow-up: promisor objects are refused, never fetched (CCF-V1-004)
+
+The 2026-09-25 V1-0284 entry left the promisor-missing classification NOT_PRODUCED. Checked on base
+984770f6: the other Fix items hold. `TestCoreRefusalsKeepTheFrozenEnvelope` has one case per Core
+verb, `dogfood` and `frontier-error/0` are named exemptions, and seven verbs give the subdirectory
+wording. `cem`, `ocm` and `frontier` are the gap: they judge their root-relative maps before any
+repository check, so a subdirectory gets their map refusal, the same for an omitted and an explicit
+`--root`. That behaviour is now named in the proposed CCF-V1-004 text and pinned by
+`TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike`, not changed, because `cem-unreadable-map` pins
+the map-first order.
+
+In a `--filter=blob:none` clone whose promisor remote is gone, base 984770f6 refused `index`,
+`query`, `context`, path `impact` and path `prove` in a sparse clone with the codeless
+`Git returned an invalid blob size`. `impact --base` and `prove --base` in a full clone gave the
+codeless `Git error: ... could not fetch ... from promisor remote`. No fetch was attempted: an
+upload-pack spy stayed untouched, because every Core Git environment already sets
+`GIT_NO_LAZY_FETCH=1`.
+
+Decisions:
+
+- There is no single Git environment builder. About 30 sites build their own environment, and every
+  Core one already sets `GIT_NO_LAZY_FETCH=1`, so no environment code changed.
+- `GIT_NO_LAZY_FETCH` exists from Git 2.45 (RelNotes 2.45.0). Older Git ignores it, and the
+  negative control shows the lazy fetch then happens. No minimum Git version is stated anywhere;
+  `docs/INSTALL.md` only says Git is needed. The installed Git here is 2.54.0.
+- The classifier probes and does not parse stderr, because Git words a missing promisor blob
+  differently per command. `rev-list --objects --quiet --missing=allow-promisor` exits 0 only when
+  every missing object is a promisor object, and `--missing=print` names the first one. Neither
+  fetches. A corrupt non-partial repository keeps its earlier error.
+- The code is `repository-object-unavailable`, which CEM-CB-019 already gives a missing promised
+  object, so CEM, OCM and the indexed Core verbs classify it alike. The new fix
+  `git.fetch-promisor-objects` means the user fetches the objects.
+- The hooks are the `ls-tree` size read and the three range reads. The covered-site count moves from
+  40 to 41, and the contextindex change moves the analyzer schema to `corvint-analyzer/86`.
+  Snapshots rebuild once, and extraction is unchanged.
+
+Evidence: `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching` covers sparse and full clones,
+seven cases, with a sentinel that an attempted fetch would touch. It fails with
+`GIT_NO_LAZY_FETCH=0`: the refusal is uncoded and the sentinel exists.
+
+NOT_PRODUCED: other content readers (`blame`, the `prove` hermetic runner, the `init` / `adopt`
+inventory, which reports `malformed-tree-entry`) are unclassified. Git older than 2.45 is
+unguarded. Owner acceptance of the clause is pending in V1-0001.

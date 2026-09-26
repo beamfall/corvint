@@ -405,7 +405,7 @@ func readTreeEntries(ctx context.Context, root string, identity repositoryIdenti
 		}
 		size, parseErr := strconv.Atoi(string(metadata[3]))
 		if parseErr != nil || size < 0 {
-			return nil, &Error{Message: "Git returned an invalid blob size"}
+			return nil, classifyMissingObjects(ctx, root, &Error{Message: "Git returned an invalid blob size"}, identity.treeRevision)
 		}
 		entries = append(entries, treeEntry{displayPath(item[tab+1:]), oid, treeEntryMode(metadata[0]), size, !utf8.Valid(item[tab+1:])})
 		if len(entries) > maxIndexedSources {
