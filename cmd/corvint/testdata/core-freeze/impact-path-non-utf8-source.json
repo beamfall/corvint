@@ -10,44 +10,24 @@
       "critical_missing": [],
       "included_results": 4,
       "omitted_results": 0,
-      "packet_bytes": 3335,
+      "packet_bytes": 3007,
       "requested_results": 4,
       "uncertainty": [],
       "within_budget": true
     },
     "exclusions": {
-      "count": 6,
+      "count": 1,
       "samples": [
         {
-          "path": "gen/values.go",
-          "reason": "generated path"
-        },
-        {
-          "path": "internal/store/migrate/migrate.go",
-          "reason": "protected path"
-        },
-        {
-          "path": "pkg/huge.go",
-          "reason": "source exceeds size bound"
-        },
-        {
-          "path": "pkg/model.go",
-          "reason": "git-lfs pointer, content not in the tree"
-        },
-        {
-          "path": "pkg/value_string.go",
-          "reason": "generated-file header excluded"
-        },
-        {
-          "path": "vendor/lib/lib.go",
-          "reason": "vendor/build excluded"
+          "path": "latin/caf�.go",
+          "reason": "unsafe-or-non-utf8-path"
         }
       ]
     },
     "freshness": {
       "mixed_path_count": 0,
       "mixed_paths": [],
-      "revision": "af3c2553bc05e5525d1976f73079684310afce1b",
+      "revision": "bdd40a5b660d209376ef1c43879a6b69162895e4",
       "scope": "git",
       "state": "fresh"
     },
@@ -179,7 +159,7 @@
         "summary": "Scenario fixture."
       }
     ],
-    "revision": "af3c2553bc05e5525d1976f73079684310afce1b",
+    "revision": "bdd40a5b660d209376ef1c43879a6b69162895e4",
     "schema_version": 1,
     "state": "READY",
     "verification": [

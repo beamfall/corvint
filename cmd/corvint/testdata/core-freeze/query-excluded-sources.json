@@ -12,7 +12,7 @@
       "critical_missing": [],
       "included_results": 1,
       "omitted_results": 0,
-      "packet_bytes": 1592,
+      "packet_bytes": 1850,
       "requested_results": 1,
       "uncertainty": [
         "all results are syntax matches; no project-owned authority corroborates the task"
@@ -20,8 +20,24 @@
       "within_budget": true
     },
     "exclusions": {
-      "count": 2,
+      "count": 6,
       "samples": [
+        {
+          "path": "gen/values.go",
+          "reason": "generated path"
+        },
+        {
+          "path": "internal/store/migrate/migrate.go",
+          "reason": "protected path"
+        },
+        {
+          "path": "pkg/huge.go",
+          "reason": "source exceeds size bound"
+        },
+        {
+          "path": "pkg/model.go",
+          "reason": "git-lfs pointer, content not in the tree"
+        },
         {
           "path": "pkg/value_string.go",
           "reason": "generated-file header excluded"
@@ -35,7 +51,7 @@
     "freshness": {
       "mixed_path_count": 0,
       "mixed_paths": [],
-      "revision": "40f11bac80adaa2ba4536a07f532ffdc0cf535fa",
+      "revision": "af3c2553bc05e5525d1976f73079684310afce1b",
       "scope": "git",
       "state": "fresh"
     },
@@ -78,7 +94,7 @@
         "summary": "func declaration"
       }
     ],
-    "revision": "40f11bac80adaa2ba4536a07f532ffdc0cf535fa",
+    "revision": "af3c2553bc05e5525d1976f73079684310afce1b",
     "schema_version": 1,
     "state": "READY",
     "verification": [

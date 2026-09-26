@@ -7295,3 +7295,29 @@ average 425, when a `git ls-files` child was killed, and passed on rerun. The do
 `internal/specindex` and `internal/console` passed. NOT_RUN: `make gate` and the full
 `make core-n1-replay`. NOT_PRODUCED: the dogfood CEM bind, because this clone uses object alternates
 (`unsupported-object-alternates`).
+
+## 2026-09-26 V1-0350 review fixes: every exclusion reason is pinned, and `governing` is never missing
+
+Finding: an independent read-only review (Codex CLI 0.153.2, model `gpt-6-astra`) of the V1-0350
+branch raised two P2 findings, both confirmed against the code:
+
+- The goldens pinned only two of the seven registered `context.exclusions.samples[].reason` values.
+  Renaming any of the other five would leave every frozen case passing.
+- The `coverage.critical_missing[].relation` row listed `governing`, which cannot occur. The row is
+  reserved first (`internal/contextindex/taskcontext.go:1261@3897c9b2`). `placeGraphRows` inserts
+  after the last relation row (`internal/contextindex/ppr.go:78@46b0d9c4`). Truncation keeps
+  `rows[:limit]` with a limit of at least 1.
+
+Decision:
+
+- `query excluded sources` and `impact path excluded sources` now also commit a protected path, a
+  `gen/` path, a source over the 1,000,000-byte bound and a Git LFS pointer, so both emit six
+  reasons.
+- A new mode, `impact path non-utf8 source`, commits a Latin-1 path through `git update-index
+  --index-info`, because APFS refuses to create it. `query` refuses such history with
+  `unsupported-query-history`, so only `impact` reaches `unsafe-or-non-utf8-path`.
+- The N-1 replay skips that mode, because 0.8.1 refused the repository.
+- `governing` is removed from the `critical_missing` row.
+
+Evidence: the four affected frozen modes pass. Their N-1 replay against a 0.8.1 binary built from
+`v0.8.1` passes, and the non-UTF-8 mode skips with its reason.
