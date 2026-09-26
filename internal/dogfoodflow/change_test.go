@@ -3,10 +3,12 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -222,5 +224,34 @@ func TestChangeNotesAbsentOrStaleAgentReceipts(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// A compact map names the same hunks as the indent-2 map cem prepare writes, so
+// a citation plan binds to either layout.
+func TestMapHunksReadsAnyJSONLayout(t *testing.T) {
+	cemMap := map[string]any{"hunks": []map[string]any{
+		{"basis": []any{}, "disposition": "unknown", "id": "hunk:a", "path": "docs/a&b.md", "reason": "no-evidence"},
+		{"basis": []any{}, "disposition": "cited", "id": "hunk:b", "path": "b.txt", "reason": "cited"},
+	}}
+	indented, err := json.MarshalIndent(cemMap, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	compact, err := json.Marshal(cemMap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []map[string]string{
+		{"disposition": "unknown", "id": "hunk:a", "path": "docs/a&b.md"},
+		{"disposition": "cited", "id": "hunk:b", "path": "b.txt"},
+	}
+	for name, data := range map[string][]byte{"indent-2": indented, "compact": compact} {
+		if got := mapHunks(data); !reflect.DeepEqual(got, want) {
+			t.Errorf("%s map: mapHunks = %v; want %v", name, got, want)
+		}
+	}
+	if got := mapHunks([]byte(`{"hunks": [`)); len(got) != 0 {
+		t.Errorf("truncated map: mapHunks = %v; want no hunks", got)
 	}
 }
