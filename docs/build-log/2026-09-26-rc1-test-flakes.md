@@ -24,9 +24,11 @@ Base `b29d35e5`. Checks ran on a host with load averages between 35 and 200.
   `companionrelease.go:93` does. The VSIX proof stays opt-in on `CORVINT_PROOF_NPM_CACHE`. The
   smoke-generator proof now has no skip gate, so it runs by default (15s). With a local npm
   cache, `TestCurrentExportedTasksAndVSIX` built corvint-tasks and the VSIX twice each and found
-  21 members. It then failed at its pre-existing `legacy icon accepted` check (lines 53-54). That
-  check refuses `extension/media/corvint.svg`, the same member line 48 requires, so it cannot
-  pass. The check is left unchanged as a follow-up.
+  21 members. It then failed at its `legacy icon accepted` check, which refused
+  `extension/media/corvint.svg`, the same member the proof requires, so it could never pass. The
+  proof now requires exactly the `vsixMembers` set (the count plus every current member), which
+  admits no legacy member, and still requires the configuration and icon members to be non-empty.
+  With `CORVINT_PROOF_NPM_CACHE=$HOME/.npm` the proof passed (1394s at host load above 500).
 - V1-0353: `script/local-console-release-gate:50` ran `go build ./cmd/corvint-companion-release`
   in the caller's working directory. The script now changes to its own resolved checkout root
   before building, as `script/corvint-companion-release-gate` does. Relative path arguments

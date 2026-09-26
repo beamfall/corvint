@@ -42,16 +42,19 @@ func TestCurrentExportedTasksAndVSIX(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(members) != 21 {
-			t.Fatalf("members=%d, expected21", len(members))
+		if len(members) != len(vsixMembers) {
+			t.Fatalf("members=%d, expected %d", len(members), len(vsixMembers))
 		}
-		for _, name := range []string{"extension/dist/src/configuration.js", "extension/media/corvint.svg"} {
-			if len(members[name]) == 0 {
+		// The count plus every current member makes the set exact, so no legacy member is accepted.
+		for _, name := range vsixMembers {
+			if _, ok := members[name]; !ok {
 				t.Fatalf("missing %s", name)
 			}
 		}
-		if _, old := members["extension/media/corvint.svg"]; old {
-			t.Fatal("legacy icon accepted")
+		for _, name := range []string{"extension/dist/src/configuration.js", "extension/media/corvint.svg"} {
+			if len(members[name]) == 0 {
+				t.Fatalf("empty %s", name)
+			}
 		}
 		if vsix.Path != "extensions/corvint-vscode-0.1.0.vsix" {
 			t.Fatal(vsix.Path)
