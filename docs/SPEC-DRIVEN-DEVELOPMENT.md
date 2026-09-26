@@ -29,7 +29,7 @@ them.
 | Evidence record | What has actually been demonstrated? | tests, conformance, benchmarks, independent review, known gaps |
 
 One document may fill more than one role when the scope is small. The roles must remain distinguishable.
-Durable evidence-record content belongs in `docs/BUILD-LOG.md`. Follow the log's bounded reading and archival guidance; short per-task write-ups that back a
+Durable evidence-record content belongs in a new `docs/build-log/` entry file (decision 0423). Follow the log's bounded reading guidance; short per-task write-ups that back a
 single completed change accumulate as tracked, uncited files under `.agent-evidence/` (for example
 `.agent-evidence/CARVEOUT-summary.txt`) and carry no authority beyond what they cite.
 
