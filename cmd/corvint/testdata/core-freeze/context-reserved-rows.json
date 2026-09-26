@@ -1,0 +1,129 @@
+{
+  "coverage": {
+    "answerability": {
+      "known": 0,
+      "reason": "the task writes no name fewer than one source in sixteen carries",
+      "required": 0,
+      "specific_terms": [],
+      "support": 0,
+      "supporting_sources": 0,
+      "verdict": "no-specific-terms"
+    },
+    "budget_shortage": "slots",
+    "candidates": 2,
+    "critical": [
+      {
+        "path": "AGENTS.md",
+        "relation": "governing"
+      }
+    ],
+    "critical_missing": [
+      {
+        "path": "docs/specs/queue.md",
+        "relation": "spec-mentioned"
+      }
+    ],
+    "governance": "reserved",
+    "governance_refused": [],
+    "included_results": 1,
+    "omitted_results": 1,
+    "unexamined": [
+      {
+        "relation": "governing",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "spec-mentioned",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "instruction-routed",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "pair",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "mentioned",
+        "state": "examined",
+        "withheld": 1
+      },
+      {
+        "relation": "definition",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "reverse-import",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "reference",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "cochange",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "sibling",
+        "state": "subject-absent",
+        "withheld": null
+      },
+      {
+        "relation": "test",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "lexical",
+        "state": "examined",
+        "withheld": 0
+      },
+      {
+        "relation": "documentation",
+        "state": "examined",
+        "withheld": 2
+      }
+    ]
+  },
+  "mutates": false,
+  "ok": true,
+  "request": {
+    "limit": 1,
+    "task_chars": 52
+  },
+  "results": [
+    {
+      "action": "Read this project's standing instructions before changing anything.",
+      "evidence": [
+        {
+          "authority": "project-instructions",
+          "blob_hash": "ce33c49bd8c2f768e9ba5c5554b999ccb16cb658",
+          "confidence": "high",
+          "line": 1,
+          "path": "AGENTS.md",
+          "reason": "the highest-precedence tracked instruction file",
+          "trust": "project-authority"
+        }
+      ],
+      "id": "AGENTS.md",
+      "kind": "governing",
+      "score": 1000,
+      "summary": "this project's standing instructions; also documentation"
+    }
+  ],
+  "revision": "805b4afcd97ddf0241babb766d482b0319c9a726",
+  "schema_version": 1,
+  "state": "READY",
+  "subject": null,
+  "tool": "context"
+}

@@ -7319,3 +7319,303 @@ or toolchain. Pre-change `make dogfood-change` reported FAIL not-complete. Post-
 against `984770f6`: bound at `9bf1816d`, and `dogfood-check` and `dogfood-seal` exited 0. Eight of
 nine hunks are cited `supported`; the new spec file is `unknown` because it does not exist at base.
 OCM links are NOT_PRODUCED.
+
+## 2026-09-26 SRR-V1-004/007/008/011: independent review fixes to the stable-readiness verifier
+
+Finding: an independent read-only review of the SRR package (Codex CLI 0.153.2, model
+`gpt-6-astra`) raised eight findings. Four were confirmed defects:
+
+- `requireDirectives` did not treat carriage return as a word separator, so a `\rrequire` line
+  was not counted and a CRLF `go.mod` could pass the vulnerability rule.
+- `runSourceGit` could fetch lazily from a promisor remote, which breaks SRR-V1-011's no-network
+  rule on a partial clone. This is inferred from git's documented behavior; there is no
+  partial-clone fixture.
+- The verifier admitted NOT_RUN on a platform row and a linux/amd64 FALLBACK without decision 0420,
+  though the builder never produced either.
+- The verifier admitted an empty non-null store binding.
+
+Three were test gaps: identity commit and tree tampering, and reordered or duplicated rows. The
+verifier already refused these, but no test covered them. The toolchain probe was always stubbed.
+
+Decision: carriage return separates words, git reads set `GIT_NO_LAZY_FETCH=1`,
+`validateReadinessRow` refuses platform NOT_RUN and a FALLBACK that drops the row's default
+decision, and the verifier refuses an empty binding. The spec states each rule in SRR-V1-004,
+SRR-V1-007, SRR-V1-008 and SRR-V1-011, with IDs unchanged. The tests add the four refusals, the
+tamper, reorder, duplicate and truncate cases, and one unstubbed `probeLocalToolchain` call under
+`GOTOOLCHAIN=go1.99.0+path`, which stays local.
+
+Evidence: `go test -run SRRV1 ./internal/releasecandidate/` passes. With the code fixes stashed,
+the SRR-V1-004, 007 and 008 tests fail on the defects they target.
+
+Limits: the eighth finding is an owner question, not a code change. SRR-V1-006 admits a
+reason-only NOT_RUN, while decision 0420 speaks of every NOT_RUN row with its accepting decision.
+
+## 2026-09-26 V1-0350 remainder: exclusion reasons and critical relations reach the register
+
+The 2026-09-25 V1-0350 entry left two CCF-V1-007 (d) members NOT_PRODUCED because no frozen fixture
+wrote them. They were `context.exclusions.samples[].reason` of `query` and `impact`, and the rows of
+`context`'s `coverage.critical`, `critical_missing` and `governance_refused`. Three frozen modes now
+reach them in `TestCoreVerbsEmitTheFrozenProfiles`. Each one commits files on top of an existing
+fixture through `coreFreezeCommit`:
+
+- `query excluded sources` and `impact path excluded sources` use the impact fixture plus
+  `vendor/lib/lib.go` and a `Code generated ... DO NOT EDIT.` `pkg/value_string.go`. Both emit
+  `exclusions.count` 2, with reasons `generated-file header excluded` and `vendor/build excluded`.
+- `context reserved rows` uses the query fixture plus `docs/specs/queue.md`, which holds one
+  requirement. It runs `context --task "Where does docs/specs/queue.md define the work queue"
+  --limit 1`. `AGENTS.md` is carried as `governing` in `coverage.critical`, and the spec is listed
+  as `spec-mentioned` in `critical_missing`.
+
+Three proposed rows register these members, all `open`:
+
+- The exclusion reason row lists the seven reasons the index writes.
+- `coverage.critical[].relation` and `coverage.critical_missing[].relation` list the three reserved
+  relations.
+
+A reader decides on `exclusions.count` and `coverage.governance`, not on a reason or a relation.
+Commit 53c02369 (panel B9) added `unsafe-or-non-utf8-path` after 0.8.1. At `v0.8.1`, such a path
+refused the repository. Under the `open` status, that addition is compatible.
+
+Survey of every other string the goldens emit under a CCF-V1-005 member: none is an unregistered
+enumeration. Each is one of the following:
+
+- free text;
+- a path, identifier or digest;
+- kind-prefixed critical identifiers;
+- enumerations carried as member names;
+- result rows.
+
+`context.unparsed` and `context.extraction` sit outside the CCF-V1-005 member list.
+
+NOT_PRODUCED: `coverage.governance_refused[]` `relation` and `trust`. No generator can write such a
+row:
+
+- `compiler.reserved` comes only from `reservedRows` (`internal/contextindex/taskcontext.go:1226@fa0fd17b`).
+- Its three authorities all map to the untainted `project-authority`
+  (`internal/contextindex/trust.go:30@85e0d739`).
+- Only `TestTaskContextGovernanceRefusesATaintedReservedRow` injects a tainted row.
+
+Critical rows carry no `trust` member at all.
+
+The N-1 replay is unchanged. It is the opt-in `make core-n1-replay` in release-runbook step 8, not a
+`make gate` prerequisite, and `script/release-checklist` does not check its output. Whether step 8
+is the "release gate" that the V1-0350 acceptance criterion names is an owner decision.
+
+Checks: `go test -run 'CoreVerbs|CoreRefusals|Freeze' ./cmd/corvint/` passed. The three new modes
+also passed their N-1 replay against the 0.8.1 binary. One replay attempt failed first under host load
+average 425, when a `git ls-files` child was killed, and passed on rerun. The doc checks,
+`internal/specindex` and `internal/console` passed. NOT_RUN: `make gate` and the full
+`make core-n1-replay`. NOT_PRODUCED: the dogfood CEM bind, because this clone uses object alternates
+(`unsupported-object-alternates`).
+
+## 2026-09-26 V1-0350 review fixes: every exclusion reason is pinned, and `governing` is never missing
+
+Finding: an independent read-only review (Codex CLI 0.153.2, model `gpt-6-astra`) of the V1-0350
+branch raised two P2 findings, both confirmed against the code:
+
+- The goldens pinned only two of the seven registered `context.exclusions.samples[].reason` values.
+  Renaming any of the other five would leave every frozen case passing.
+- The `coverage.critical_missing[].relation` row listed `governing`, which cannot occur. The row is
+  reserved first (`internal/contextindex/taskcontext.go:1261@3897c9b2`). `placeGraphRows` inserts
+  after the last relation row (`internal/contextindex/ppr.go:78@46b0d9c4`). Truncation keeps
+  `rows[:limit]` with a limit of at least 1.
+
+Decision:
+
+- `query excluded sources` and `impact path excluded sources` now also commit a protected path, a
+  `gen/` path, a source over the 1,000,000-byte bound and a Git LFS pointer, so both emit six
+  reasons.
+- A new mode, `impact path non-utf8 source`, commits a Latin-1 path through `git update-index
+  --index-info`, because APFS refuses to create it. `query` refuses such history with
+  `unsupported-query-history`, so only `impact` reaches `unsafe-or-non-utf8-path`.
+- The N-1 replay skips that mode, because 0.8.1 refused the repository.
+- `governing` is removed from the `critical_missing` row.
+
+Evidence: the four affected frozen modes pass. Their N-1 replay against a 0.8.1 binary built from
+`v0.8.1` passes, and the non-UTF-8 mode skips with its reason.
+
+## 2026-09-26 V1-0284 follow-up: promisor objects are refused, never fetched (CCF-V1-004)
+
+The 2026-09-25 V1-0284 entry left the promisor-missing classification NOT_PRODUCED. Checked on base
+984770f6: the other Fix items hold. `TestCoreRefusalsKeepTheFrozenEnvelope` has one case per Core
+verb, `dogfood` and `frontier-error/0` are named exemptions, and seven verbs give the subdirectory
+wording. `cem`, `ocm` and `frontier` are the gap: they judge their root-relative maps before any
+repository check, so a subdirectory gets their map refusal, the same for an omitted and an explicit
+`--root`. That behaviour is now named in the proposed CCF-V1-004 text and pinned by
+`TestMapFirstCoreVerbsRefuseANonRootDirectoryAlike`, not changed, because `cem-unreadable-map` pins
+the map-first order.
+
+In a `--filter=blob:none` clone whose promisor remote is gone, base 984770f6 refused `index`,
+`query`, `context`, path `impact` and path `prove` in a sparse clone with the codeless
+`Git returned an invalid blob size`. `impact --base` and `prove --base` in a full clone gave the
+codeless `Git error: ... could not fetch ... from promisor remote`. No fetch was attempted: an
+upload-pack spy stayed untouched, because every Core Git environment already sets
+`GIT_NO_LAZY_FETCH=1`.
+
+Decisions:
+
+- There is no single Git environment builder. About 30 sites build their own environment, and every
+  Core one already sets `GIT_NO_LAZY_FETCH=1`, so no environment code changed.
+- `GIT_NO_LAZY_FETCH` exists from Git 2.45 (RelNotes 2.45.0). Older Git ignores it, and the
+  negative control shows the lazy fetch then happens. No minimum Git version is stated anywhere;
+  `docs/INSTALL.md` only says Git is needed. The installed Git here is 2.54.0.
+- The classifier probes and does not parse stderr, because Git words a missing promisor blob
+  differently per command. `rev-list --objects --quiet --missing=allow-promisor` exits 0 only when
+  every missing object is a promisor object, and `--missing=print` names the first one. Neither
+  fetches. A corrupt non-partial repository keeps its earlier error.
+- The code is `repository-object-unavailable`, which CEM-CB-019 already gives a missing promised
+  object, so CEM, OCM and the indexed Core verbs classify it alike. The new fix
+  `git.fetch-promisor-objects` means the user fetches the objects.
+- The hooks are the `ls-tree` size read and the three range reads. The covered-site count moves from
+  40 to 41, and the contextindex change moves the analyzer schema to `corvint-analyzer/86`.
+  Snapshots rebuild once, and extraction is unchanged.
+
+Evidence: `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching` covers sparse and full clones,
+seven cases, with a sentinel that an attempted fetch would touch. It fails with
+`GIT_NO_LAZY_FETCH=0`: the refusal is uncoded and the sentinel exists.
+
+NOT_PRODUCED: other content readers (`blame`, the `prove` hermetic runner, the `init` / `adopt`
+inventory, which reports `malformed-tree-entry`) are unclassified. Git older than 2.45 is
+unguarded. Owner acceptance of the clause is pending in V1-0001.
+
+## 2026-09-26 V1-0284 review: a transport block, and refusals name only the object the read named
+
+An independent read-only review (Codex CLI 0.153.2, `gpt-6-astra`) of the entry above found three
+defects, each confirmed here before the fix.
+
+- Git before 2.46 still fetches under `GIT_NO_LAZY_FETCH=1`. In Git 2.45 the variable guards direct
+  object reads, but a diff's blob prefetch (`promisor_remote_get_direct`) fetches anyway; the refusal
+  in `fetch_objects` arrives in 2.46.0. Checked in the Git 2.45.0 and 2.54.0 sources.
+- `dogfood` started Git with the full ambient environment, so its reads could lazily fetch.
+- The refusal named the first missing object reachable from the tips, not the one the read failed
+  on, so it could blame an object the read never needed.
+
+Decisions:
+
+- Every Git process that `index`, `query`, `context`, `impact` or `prove` starts for its reads now
+  also carries an empty `GIT_ALLOW_PROTOCOL` (`internal/contextindex/git.go:141@cda398ae`,
+  `cmd/corvint/prove.go:1887@c88957fb`). It refuses every transport on any Git version and
+  overrides `protocol.*.allow`, so a fetch Git starts anyway cannot reach the remote. None of these
+  runners clones or fetches a local path, which would need the `file` transport.
+- `dogfood`'s read runner adds `GIT_NO_LAZY_FETCH=1` and the empty `GIT_ALLOW_PROTOCOL`
+  (`internal/dogfoodflow/flow.go:143@42ee8c4d`), under DCW-V0-001's no-network rule. Its seal
+  runner (`git mv` and `git commit`) is unchanged, because the variables would reach commit hooks.
+- `classifyMissingObjects` (`internal/contextindex/diagnostics.go:38@a86f8b15`) takes the failed
+  read's cause and names the first listed missing promisor object that the cause or a tip names:
+  Git's stderr for the tree and range reads, and the blob whose size `ls-tree -l` printed as `BAD`.
+  A failure that names none keeps its original error. A missing root or base tree is itself a tip,
+  and `rev-list --missing=print` lists it with `?` (checked in a `--filter=tree:0` clone).
+- The `ls-tree` error of the tree read is now hooked too
+  (`internal/contextindex/git.go:379@16e97a09`). A missing subtree makes `ls-tree -r` fail with
+  `error: Could not read <oid>` before any size is printed.
+- With the transport blocked, the open question of a minimum Git version no longer bears on
+  fetching. `GIT_NO_LAZY_FETCH` remains, so Git 2.46 or later fails at the read, with no fetch
+  attempt at all.
+
+Evidence:
+
+- `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching` now writes `protocol.file.allow=always`
+  into each clone, so only Corvint's environment can stop a fetch, and quotes the sentinel path.
+  After the Core cases it runs two controls. A lazy `cat-file` with no transport allowed leaves the
+  sentinel absent, and the same read with the transport allowed creates it, so the sentinel does
+  record a fetch.
+- `TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway` runs the same seven cases through a
+  PATH shim that unsets `GIT_NO_LAZY_FETCH`, simulating the older Git. It passes, and it fails with
+  the sentinel present when the empty `GIT_ALLOW_PROTOCOL` is removed from both runners.
+- `TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed` checks two missing blobs that are not
+  first in traversal order, and a cause naming neither. It fails on all three assertions when the
+  named-object filter is removed.
+
+NOT_PRODUCED: other Git runners still allow a transport. These are the `work` and taskman
+qualified environments, `cem`, `ocm`, `frontier`, and the other packages' own
+`sanitizedGitEnvironment` builders; each needs its own audit, because a local clone there needs the
+`file` transport. That audit is ticketed. Owner acceptance of the clause is still pending in V1-0001.
+
+## 2026-09-26 V1-0286 follow-up: record-based snapshot-miss skip and Codex argv
+
+AHI-031 (3c341873, decision 0400) closed only part of V1-0286. The Claude notice named the stale
+snapshot and the refresh argv, but two gaps remained. On a large repository every snapshot miss
+still spent the whole 1.5 s budget on an in-memory build that could not finish. The Codex fallback
+named the code but not the argv.
+
+Change (proposed amendments to IDX-SNAP-V0-012 and AHI-031; owner acceptance pending):
+
+- Explicit `corvint index` times its `BuildForSnapshot`. After `WriteSnapshot` it writes a
+  best-effort `build-cost.json` into the snapshot store (`contextindex.RecordBuildCost`: temp file,
+  sync, rename, through the store's no-follow directory pinning). The record is not a snapshot, is not evicted, adds no receipt field and changes no
+  snapshot byte.
+- On a snapshot miss, the dogfood event reads that record through a no-follow, non-blocking open,
+  a regular-file check on the opened file, a 256-byte limit and a format check
+  (`contextindex.RecordedBuildCost`). It runs no Git process and
+  writes nothing. If the recorded cost is at least the time left before the deadline, it returns
+  `dogfood-event-index-snapshot-stale` without building. With no record, or a smaller cost, it
+  builds in-budget as before.
+- The Codex fallback appends the same cause line and argv as Claude, in the one channel
+  `codexDegraded` chose.
+
+Alternatives set aside:
+
+- A snapshot-header field would change `corvint-index-snapshot/1`, break the exact header match,
+  put a non-deterministic value into snapshot bytes, and need the invariant-7 format gate.
+- Size or entry-count predictors need a host-speed constant.
+- A per-snapshot sidecar adds files and eviction work.
+- Hook-side learning would write state from a read path, which invariant 4 forbids.
+
+Measured on a flat copy of the corvint tree, under host load 280-340, over 5 rounds (the record was
+4590 ms):
+
+- miss decision before the change: 1525-1653 ms, and one round hit `adapter-host-kill-deadline`;
+- after the change: 350-395 ms, stale code plus argv;
+- small repository (record 63 ms): still builds and delivers 3007 B in 203-270 ms.
+
+Checks:
+
+- `TestBuildCostRecordRoundTripsBesideTheSnapshots`, `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`
+  (both subtests) and `TestCodexAdapterStaleSnapshotNamesRemediation`, plus the focused contextindex,
+  adapter, dogfood-event and `index` tests;
+- go vet, specindex and console;
+- the five doc checks.
+
+Line shifts renumbered the pinned `index_snapshot.go` and `host_adapter.go` citations and the LCP
+code-table rows. The cited content is unchanged.
+
+NOT_RUN: the exhaustive gate and the dogfood CEM steps.
+
+Rollback: revert the commit. Stale `build-cost.json` files are then ignored, and deleting them is
+safe.
+
+Independent review (Codex CLI 0.153.2, `gpt-6-astra`, read-only) raised five findings. Each was
+checked against the code, and all five are fixed:
+
+- The reader's Lstat-then-ReadFile left a window in which a swapped FIFO would block the hook, or a
+  swapped `/dev/zero` link would allocate without bound. The reader now opens with the store's
+  no-follow, non-blocking primitive (`openBlobShard`), checks the opened file and reads at most
+  257 bytes.
+- The writer created its temporary under an unpinned directory path. It now publishes through
+  `publishBlobFact`, which pins each store directory without following links.
+- `buildMilliseconds` of 9223372036854775807 passed validation and converted to -1 ms, so the
+  skip never fired. Confirmed: the old reader returned `-1ms`. A value above what a Go duration
+  holds is now malformed.
+- A killed writer's temporary was never swept, because eviction removed only `snapshot-*.tmp`.
+  Eviction now also sweeps the record's stale `blob-*.tmp` temporary (`isStoreTemporary`).
+- The "cost fits" subtest used the fixture's measured cost, so a loaded host could turn it into a
+  skip. It now records a fixed 1 ms cost.
+
+Evidence: `TestBuildCostRefusesAnOverflowingRecordAndSweepsItsTemporary` (it fails on the old
+reader with `-1ms`) and `TestRecordedBuildCostRejectsFIFOWithoutBlocking`. The FIFO test pins that
+the open does not block. It cannot reproduce the swap race itself, which the no-follow open closes
+by construction.
+
+The analyzer schema moves to `corvint-analyzer/86` (IDX-SNAP-V0-017 audit). The first V1-0286
+commit had already changed audited inputs without the bump. Extraction is unchanged, and snapshots
+rebuild once.
+
+On platforms other than darwin and linux, the confined primitives refuse. The record is then
+neither written nor read, and a miss builds as before.
+
+## 2026-09-26 Integration: the analyzer schema moves to `corvint-analyzer/87`
+
+Main (V1-0263), V1-0284 and V1-0286 each moved `corvint-analyzer/85` to `/86` from the same base,
+and each pinned a different audited-input digest. Together their `contextindex` changes match none
+of the three pins, so the integration moves the schema to `corvint-analyzer/87` and pins the combined
+digest (`IDX-SNAP-V0-017`). Snapshots rebuild once. Extraction is unchanged.

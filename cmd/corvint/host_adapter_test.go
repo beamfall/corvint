@@ -496,6 +496,29 @@ func TestClaudeAdapterStaleSnapshotNamesRemediation(t *testing.T) {
 	}
 }
 
+// AHI-031: the Codex fallback for a stale snapshot carries the same refresh argv after its frame,
+// in the channel the event accepts, and the ledger reason is still read from the frame line.
+func TestCodexAdapterStaleSnapshotNamesRemediation(t *testing.T) {
+	t.Parallel()
+	root := staleSnapshotRepository(t)
+	// The recorded cost outlasts the deadline, so the miss is decided without a build (IDX-SNAP-V0-012).
+	if err := contextindex.RecordBuildCost(root, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+	output := runCodexAdapter(ctx, map[string]any{"hook_event_name": "UserPromptSubmit", "session_id": "s", "cwd": root, "prompt": "inspect requirement"})
+	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
+	hook, _ := output["hookSpecificOutput"].(map[string]any)
+	text, _ := hook["additionalContext"].(string)
+	frame := "Corvint fallback: corvint-event-rejected:dogfood-event-index-snapshot-stale; unrelated coding continues.\n"
+	if !strings.HasPrefix(text, frame) || !strings.HasSuffix(text, "\n"+string(refresh)) || hook["hookEventName"] != "UserPromptSubmit" || output["systemMessage"] != nil {
+		t.Fatalf("codex stale snapshot fallback carried no remediation: %+v", output)
+	}
+	if reason := adapterDegradationReason(output); reason != claudeSnapshotStaleReason {
+		t.Fatalf("ledger reason %q", reason)
+	}
+}
+
 // AHI-023: Claude Code documents no host version, so its receipt names that in the
 // adapter tuple and carries no per-receipt host-version-unknown; codex keeps it.
 func TestClaudeAdapterReceiptOmitsHostVersionUnknown(t *testing.T) {

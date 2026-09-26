@@ -287,10 +287,10 @@ elsewhere are not repeated.
 | `dogfood-coordination-failed` | `internal/localcompletion/finish.go:371` | the in-process `dogfood change` coordination run did not pass (`LCP-V0-014`) |
 | `dogfood-event-context-drift` | `cmd/corvint/local_completion_event.go:375` | the loaded index commit or tree revision, or the dirty-path digest, differs from the probed repository context |
 | `dogfood-event-deadline` | `cmd/corvint/local_completion_event.go:129` | the event's context deadline expired or was cancelled |
-| `dogfood-event-index-snapshot-stale` | `cmd/corvint/local_completion_event.go:81` | the event's deadline expired after the read found no matching index snapshot and fell back to its in-memory build (`AHI-031`, decision 0400) |
+| `dogfood-event-index-snapshot-stale` | `cmd/corvint/local_completion_event.go:81` | the event's deadline expired after the read found no matching index snapshot and fell back to its in-memory build (`AHI-031`, decision 0400); proposed 2026-09-26, not accepted: also reported before that build when the recorded `index` build cost does not fit the time left (`IDX-SNAP-V0-012`) |
 | `dogfood-event-input-unavailable` | `cmd/corvint/local_completion_event.go:117` | reading the event input from stdin failed |
-| `dogfood-event-native-budget` | `cmd/corvint/local_completion_event.go:431` | eight prompt-context attempts, each shrinking the budget, never fit the natively escaped response within the byte budget |
-| `dogfood-event-output-too-large` | `cmd/corvint/local_completion_event.go:484` | the canonical response plus a final LF exceeds the byte budget |
+| `dogfood-event-native-budget` | `cmd/corvint/local_completion_event.go:462` | eight prompt-context attempts, each shrinking the budget, never fit the natively escaped response within the byte budget |
+| `dogfood-event-output-too-large` | `cmd/corvint/local_completion_event.go:487` | the canonical response plus a final LF exceeds the byte budget |
 | `dogfood-event-output-unavailable` | `cmd/corvint/local_completion_event.go:148` | writing the encoded response to stdout failed |
 | `dogfood-event-policy-drift` | `cmd/corvint/local_completion_event.go:279` | the evaluation's target is set and differs from the commit probed before the event |
 | `dogfood-event-repository-drift` | `cmd/corvint/local_completion_event.go:297` | the repository context probed after the event differs from the one before, or the commit differs from the expected target |
