@@ -7161,3 +7161,21 @@ reporter, `external.go` ingest and validation, the `projection.go` refusal, the 
 compositions. Evidence: `internal/specindex` tests and the spec doc checks pass. Live reporter
 qualification `NOT_RUN` (nothing to qualify yet; no pinned Playwright runtime in this session).
 Exhaustive gate and dogfood CEM steps `NOT_RUN`. Rollback: revert this commit.
+
+## 2026-09-26 V1-0351: no fixture Git auto maintenance in cmd/corvint tests
+
+`TestReadOnlyVerbsWriteNothing` (PR #255, CI run 36217080260) and the earlier
+`materializationManifest` walk (PR #219, CI run 36181215001) failed because a fixture's own
+`git commit` started detached `git maintenance run --auto`, whose repack (`multi-pack-index`,
+bitmaps, `info/refs`, `maintenance.lock`) landed while the test snapshotted `.git`. The earlier
+V1-0351 fix quiesced only the work fixtures. The package `TestMain` now sets
+`GIT_CONFIG_PARAMETERS='maintenance.auto'='false' 'gc.auto'='0'`: every fixture Git command inherits
+`os.Environ`, and Git reads that variable as command-line config over repository config
+(`prepare_auto_maintenance` in git `run-command.c` returns before spawning when `maintenance.auto`
+is false, whatever `maintenance.strategy`). `GIT_CONFIG_COUNT` is untouched because the record
+fixtures branch on it. A native-hook replacement of the test binary keeps its exact two-entry
+environment, which `TestNativeHookReplacementCanBeInterrupted` asserts; the first draft without that
+guard failed it. The read-only tests keep their full `.git` comparison. Evidence: go vet
+clean; the read-only, observe-work, record, init-adopt and work-materialization tests pass;
+FULL_PACKAGE_RESULT. Dogfood CEM steps and the exhaustive gate `NOT_RUN` (test-harness change).
+Rollback: revert this commit.
