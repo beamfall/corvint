@@ -7237,3 +7237,55 @@ change. It only re-resolves mountinfo when the identity differs. An open descrip
 so an unchanged `mnt_id` cannot have been reused, and the fstype is the one already qualified
 (decision 0411 §1). The fixture also reuses its own fdinfo read instead of reading fdinfo twice.
 With the fix, the same subtests take 28.5 s on ext4.
+
+## 2026-09-26 V1-0286 follow-up: record-based snapshot-miss skip and Codex argv
+
+AHI-031 (3c341873, decision 0400) closed only part of V1-0286. The Claude notice named the stale
+snapshot and the refresh argv, but two gaps remained. On a large repository every snapshot miss
+still spent the whole 1.5 s budget on an in-memory build that could not finish. The Codex fallback
+named the code but not the argv.
+
+Change (proposed amendments to IDX-SNAP-V0-012 and AHI-031; owner acceptance pending):
+
+- Explicit `corvint index` times its `BuildForSnapshot`. After `WriteSnapshot` it writes a
+  best-effort `build-cost.json` into the snapshot store (`contextindex.RecordBuildCost`: temp file,
+  sync, rename). The record is not a snapshot, is not evicted, adds no receipt field and changes no
+  snapshot byte.
+- On a snapshot miss, the dogfood event reads that record with Lstat, a regular-file check, a
+  256-byte limit and a format check (`contextindex.RecordedBuildCost`). It runs no Git process and
+  writes nothing. If the recorded cost is at least the time left before the deadline, it returns
+  `dogfood-event-index-snapshot-stale` without building. With no record, or a smaller cost, it
+  builds in-budget as before.
+- The Codex fallback appends the same cause line and argv as Claude, in the one channel
+  `codexDegraded` chose.
+
+Alternatives set aside:
+
+- A snapshot-header field would change `corvint-index-snapshot/1`, break the exact header match,
+  put a non-deterministic value into snapshot bytes, and need the invariant-7 format gate.
+- Size or entry-count predictors need a host-speed constant.
+- A per-snapshot sidecar adds files and eviction work.
+- Hook-side learning would write state from a read path, which invariant 4 forbids.
+
+Measured on a flat copy of the corvint tree, under host load 280-340, over 5 rounds (the record was
+4590 ms):
+
+- miss decision before the change: 1525-1653 ms, and one round hit `adapter-host-kill-deadline`;
+- after the change: 350-395 ms, stale code plus argv;
+- small repository (record 63 ms): still builds and delivers 3007 B in 203-270 ms.
+
+Checks:
+
+- `TestBuildCostRecordRoundTripsBesideTheSnapshots`, `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`
+  (both subtests) and `TestCodexAdapterStaleSnapshotNamesRemediation`, plus the focused contextindex,
+  adapter, dogfood-event and `index` tests;
+- go vet, specindex and console;
+- the five doc checks.
+
+Line shifts renumbered the pinned `index_snapshot.go` and `host_adapter.go` citations and the LCP
+code-table rows. The cited content is unchanged.
+
+NOT_RUN: the exhaustive gate and the dogfood CEM steps.
+
+Rollback: revert the commit. Stale `build-cost.json` files are then ignored, and deleting them is
+safe.

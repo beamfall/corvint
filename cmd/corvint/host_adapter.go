@@ -282,7 +282,7 @@ func runCodexAdapter(ctx context.Context, payload map[string]any) (hookOutput ma
 	kernel := experimentalKernelContext(ctx, event, root)
 	result, reason := invokeDogfoodEvent(ctx, root, "codex", event, normalized, adapterOutputLimit-promptBoundReserve(disclosure)-promptBoundReserve(kernel))
 	if reason != "" {
-		return codexDegraded(eventName, reason)
+		return withCodexSnapshotRemediation(root, reason, codexDegraded(eventName, reason))
 	}
 	return withAdapterContextSuffix(withPromptBoundDisclosure(renderAdapterResult("codex", eventName, event, root, normalized, result), disclosure), kernel)
 }
@@ -726,8 +726,15 @@ func claudeDegradedOutput(event, reason string) map[string]any {
 }
 
 // claudeSnapshotStaleReason is the dogfood event rejection that names a stale index snapshot as
-// the cause of an expired event (AHI-031).
+// the cause of an expired or skipped in-memory build (AHI-031).
 const claudeSnapshotStaleReason = "corvint-event-rejected:dogfood-event-index-snapshot-stale"
+
+// snapshotRemediation is the line pair a stale-snapshot notice carries after its frame: the cause
+// and the explicit refresh argv (AHI-031).
+func snapshotRemediation(root string) string {
+	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
+	return "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Refresh the snapshot once, outside the hook:\n" + string(refresh)
+}
 
 // withSnapshotRemediation appends the explicit refresh argv to a stale-snapshot fault notice and,
 // where the event accepts additionalContext, gives the model the same text (AHI-031).
@@ -735,12 +742,25 @@ func withSnapshotRemediation(root, event, reason string, output map[string]any) 
 	if reason != claudeSnapshotStaleReason {
 		return output
 	}
-	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
-	text := output["systemMessage"].(string) + "\nNo index snapshot matches the current tree, so the in-memory build ran past the hook deadline. Refresh the snapshot once, outside the hook:\n" + string(refresh)
+	text := output["systemMessage"].(string) + snapshotRemediation(root)
 	output["systemMessage"] = text
 	if name, ok := claudeContextEvents[event]; ok {
 		output["hookSpecificOutput"] = map[string]any{"hookEventName": name, "additionalContext": text}
 	}
+	return output
+}
+
+// withCodexSnapshotRemediation appends the same refresh argv to a Codex stale-snapshot fallback,
+// in the one channel codexDegraded chose for the event (AHI-031).
+func withCodexSnapshotRemediation(root, reason string, output map[string]any) map[string]any {
+	if reason != claudeSnapshotStaleReason {
+		return output
+	}
+	if hook, ok := output["hookSpecificOutput"].(map[string]any); ok {
+		hook["additionalContext"] = hook["additionalContext"].(string) + snapshotRemediation(root)
+		return output
+	}
+	output["systemMessage"] = output["systemMessage"].(string) + snapshotRemediation(root)
 	return output
 }
 

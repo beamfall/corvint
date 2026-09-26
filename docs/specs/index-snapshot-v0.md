@@ -156,6 +156,22 @@ what any packet says.
   `IDX-SNAP-V0-011`; no hook outcome asserts that a persistent refresh completed.
   Amendment authority: owner's 2026-09-08 cross-host lifecycle repair and every-child cleanup
   instruction; independent Gate A; partial supersession of decision 0049 item 3 only.
+  (proposed amendment 2026-09-26, V1-0286; owner review pending; not accepted) After it
+  publishes a snapshot, the explicit `index` writer records how long its build took in one
+  store-wide record, `build-cost.json` (`{"format":"corvint-index-build-cost/0",
+  "buildMilliseconds":N}`), replacing the previous record by a synced temporary and rename. A
+  failed record write does not fail `index` and adds no receipt field. The record is not a
+  snapshot: it is outside `corvint-index-snapshot/1`, no snapshot byte depends on it, and eviction
+  neither counts nor removes it. On a miss the hook's native read MAY read the record, running no
+  Git process and writing nothing; when the recorded cost is at least the time left before the
+  read's deadline, the read skips the in-memory build and reports the `AHI-031` stale-snapshot
+  outcome at once. A missing, linked, oversized or malformed record means the miss builds as
+  before, and so does a recorded cost that fits the time left, which keeps the in-budget build on
+  a small repository. The record is a timing hint only and never an input to ranking, evidence or
+  authority; a value recorded on a busier or quieter host can at worst skip a build that would
+  have fit or start one that expires, and both outcomes already name the stale snapshot and its
+  refresh argv. Rollback: remove the record read from the hook and the record write from `index`;
+  a leftover `build-cost.json` is inert.
 - `IDX-SNAP-V0-013`: During committed-source pinning, a blob whose bytes begin with
   `version https://git-lfs.github.com/spec/v1` is excluded from `Sources` as
   `git-lfs pointer, content not in the tree`. The exclusion is carried in the snapshot and emitted
@@ -621,7 +637,7 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-008 | `snapshotIndex`, `authorityStartQueryContext`, `repositoryQueryContext`, `evalLearnedCandidates` | `TestQueryVerbsReadTheSnapshotWithoutChangingAByte`, `TestEvalQueryAcceptsStatusCleanIdentCheckout` |
 | IDX-SNAP-V0-009 | `LoadSnapshot` | measured by the Beamfall miss-path reading; no unit test yet |
 | IDX-SNAP-V0-010 | `snapshotIndex`, `harnessIndexedContext` | `TestHarnessIndexBuildingEventsReadTheSnapshotWithoutChangingAByte` |
-| IDX-SNAP-V0-012 | Claude native lifecycle adapter and explicit warmup guidance | `TestClaudeNativeDogfoodLifecycle`; `tests/test_harness_claude.py` no-refresh and interruption regressions |
+| IDX-SNAP-V0-012 | Claude native lifecycle adapter and explicit warmup guidance; proposed build-cost record (`RecordBuildCost`/`RecordedBuildCost`, `dogfoodMissOutlastsDeadline`) | `TestClaudeNativeDogfoodLifecycle`; `tests/test_harness_claude.py` no-refresh and interruption regressions; proposed: `TestBuildCostRecordRoundTripsBesideTheSnapshots`, `TestDogfoodEventSnapshotMissUsesRecordedBuildCost` |
 | IDX-SNAP-V0-013 | `pinnedFrom`, `pinnedEntry.exclusionReason`, `buildEvidence` | `TestBuildExcludesGitLFSPointerAndCarriesItThroughSnapshot` |
 | IDX-SNAP-V0-018 | `forbiddenParts`, `generatedPath`, `forbiddenPath`, `admittedEntries` | `TestForbiddenPathScreenIsTheAcceptedSet`, `TestForbiddenPathExcludesAgentWorktreeCopies`, `TestTracePathScreenIsTheIndexScreen` |
 | IDX-SNAP-V0-014 (proposed) | `encodeSectionedSnapshot`, `readSectionedSnapshot`, `readSnapshotIndex` | `TestSectionedSnapshotDecodesEverySectionToTheGobValues`, `TestSectionedFileChangeReadsOnlyItsSections`, `TestSectionedSnapshotRefusesACorruptSectionAsAMiss`, `TestSectionedSnapshotRefusesOutOfRangeOffsetsAsAMiss`, `TestSectionedRepeatedOpensRetainBoundedMappings`; timing gate not met (`docs/plans/sectioned-snapshot-prototype-2026-09-05.md`) |
