@@ -189,12 +189,12 @@ ATI-V0-003	docs/specs/authority-trigger-index-v0.md	73	Every row MUST report its
 ATI-V0-004	docs/specs/authority-trigger-index-v0.md	76	Every row MUST carry an evidence handle naming the citing document's path, the l
 ATI-V0-005	docs/specs/authority-trigger-index-v0.md	79	Every row MUST carry the invariant-3 authority label and confidence for its citi
 ATI-V0-006	docs/specs/authority-trigger-index-v0.md	82	Every row MUST report one anchor state. `pinned` and `drifted` are reserved for
-ATI-V0-007	docs/specs/authority-trigger-index-v0.md	88	A citation inside a fenced code block MUST NOT produce a trigger.
-ATI-V0-008	docs/specs/authority-trigger-index-v0.md	89	The table MUST be ordered deterministically by cited path, then authority rank,
-ATI-V0-009	docs/specs/authority-trigger-index-v0.md	92	The table MUST be bounded by a caller limit of 1 to 50, defaulting to 20, and MU
-ATI-V0-010	docs/specs/authority-trigger-index-v0.md	94	The result MUST separately name its two blind spots: every requested path the in
-ATI-V0-011	docs/specs/authority-trigger-index-v0.md	97	The command MUST be read-only over repository and trace state, MUST refuse a pat
-ATI-V0-012	docs/specs/authority-trigger-index-v0.md	100	The index MUST NOT be emitted through `harness event`. `GPK-V0-002` pins that
+ATI-V0-007	docs/specs/authority-trigger-index-v0.md	88	A citation inside a fenced code block MUST NOT produce a trigger. A backtick and
+ATI-V0-008	docs/specs/authority-trigger-index-v0.md	92	The table MUST be ordered deterministically by cited path, then authority rank,
+ATI-V0-009	docs/specs/authority-trigger-index-v0.md	95	The table MUST be bounded by a caller limit of 1 to 50, defaulting to 20, and MU
+ATI-V0-010	docs/specs/authority-trigger-index-v0.md	97	The result MUST separately name its two blind spots: every requested path the in
+ATI-V0-011	docs/specs/authority-trigger-index-v0.md	100	The command MUST be read-only over repository and trace state, MUST refuse a pat
+ATI-V0-012	docs/specs/authority-trigger-index-v0.md	103	The index MUST NOT be emitted through `harness event`. `GPK-V0-002` pins that
 BBF-V0-001	docs/specs/browser-behavior-falsification-v0.md	34	Planning and execution are separate opt-in operations. A plan is deterministic,
 BBF-V0-002	docs/specs/browser-behavior-falsification-v0.md	37	Every plan and result binds the exact contract ID/digest, criterion and assertio
 BBF-V0-003	docs/specs/browser-behavior-falsification-v0.md	41	The closed control vocabulary is `wrong-locator`, `wrong-expected-value`,

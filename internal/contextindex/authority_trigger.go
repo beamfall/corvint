@@ -165,16 +165,16 @@ func sortedStrings(values []string) []string {
 }
 
 // documentCitations returns every full-path citation the document body makes
-// outside a fenced code block, in reading order.
+// outside a fenced code block, in reading order. A backtick or tilde fence
+// closes only as nextFence closes it, so a shorter or other-character fence
+// inside a block stays literal text.
 func documentCitations(text string) []authorityCite {
 	cites := make([]authorityCite, 0)
-	fenced := false
+	fence := ""
 	for offset, raw := range strings.Split(text, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(raw), "```") {
-			fenced = !fenced
-			continue
-		}
-		if fenced {
+		open := fence
+		fence = nextFence(fence, strings.TrimSpace(raw))
+		if open != "" || fence != "" {
 			continue
 		}
 		for _, match := range authorityCitation.FindAllStringSubmatch(raw, -1) {

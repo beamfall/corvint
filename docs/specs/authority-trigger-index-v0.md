@@ -85,7 +85,10 @@ exercised on Corvint's own corpus.
   a pin. A citation with no anchor MUST be `unpinned`, which is the corpus default and not a defect.
   A citation whose cited bytes cannot be read at the index revision MUST be `unreadable` and MUST
   NOT be reported as `drifted`.
-- `ATI-V0-007`: A citation inside a fenced code block MUST NOT produce a trigger.
+- `ATI-V0-007`: A citation inside a fenced code block MUST NOT produce a trigger. A backtick and a
+  tilde fence are both fenced code blocks, and a fence closes only on a fence of the same character,
+  at least as long, with no info string, so a shorter or other-character fence inside a block stays
+  literal text (amended 2026-09-26, V1-0364).
 - `ATI-V0-008`: The table MUST be ordered deterministically by cited path, then authority rank, then
   anchor state (`pinned`, `unpinned`, `drifted`, `unreadable`), then citing document, then citing
   line. Order MUST NOT depend on the order the caller wrote its paths.
@@ -144,6 +147,7 @@ committed revision, and comparing it against unsaved bytes would report drift th
 |---|---|
 | ATI-V0-001, ATI-V0-003, ATI-V0-004, ATI-V0-007 | `TestAuthorityTriggersFireOnlyForCitedRequestedPaths` |
 | ATI-V0-002 | the same test's `pkg/quiet.go` half, whose only citation is fenced |
+| ATI-V0-007 | `TestAuthorityTriggersSkipTildeAndNestedFences`, covering a tilde fence, a shorter fence nested in a longer one, and the real citations after each close |
 | ATI-V0-005, ATI-V0-008 | `TestAuthorityTriggersOrderByAuthorityThenAnchor` |
 | ATI-V0-006 | `TestAuthorityTriggerAnchorStatesMatchTheCitationGate`, covering a trailing-whitespace line, a written range, drift, and no anchor |
 | ATI-V0-009, ATI-V0-010 | `TestAuthorityTriggersBoundResultsAndReportBlindSpots` |
@@ -157,7 +161,7 @@ the four paths named in Verified current state.
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| ATI-V0-001, ATI-V0-007 | `documentCitations`, `authorityCitation` | fixture citations, fenced and unfenced |
+| ATI-V0-001, ATI-V0-007 | `documentCitations`, `authorityCitation`, `nextFence` | fixture citations, fenced and unfenced; tilde and nested fences |
 | ATI-V0-002, ATI-V0-009 | `LookupAuthorityTriggers` through `lookupEnvelope` | bounded-table test |
 | ATI-V0-003, ATI-V0-004 | `authorityTriggerRow.wire` | evidence-handle assertions |
 | ATI-V0-005 | `documentAuthority` in `internal/contextindex/impact.go`, shared with `documentResult` | authority-order test |
