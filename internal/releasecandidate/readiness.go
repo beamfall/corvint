@@ -3,15 +3,17 @@ package releasecandidate
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
 )
 
-// The stable-readiness record (SRR-V1, proposed under decision 0420) binds one
+// The stable-readiness record (SRR-V1, accepted by decision 0422) binds one
 // verified Core candidate to operator-supplied gate, platform, compliance,
 // external and policy evidence digests before any tag or publication. It
 // never runs a gate: missing evidence is recorded as NOT_RUN, never PASS.
@@ -386,4 +388,96 @@ func verifyReadinessEvidence(rows []ReadinessRow, evidence map[string]string) er
 		}
 	}
 	return nil
+}
+
+// ReadReadinessEvidence parses the operator evidence file (SRR-V1-012): one
+// row per line, ROW<TAB>STATUS<TAB>PATH<TAB>DECISION<TAB>REASON, with absent
+// values left empty. A relative PATH resolves against the file's directory.
+func ReadReadinessEvidence(path string) (map[string]ReadinessEvidence, error) {
+	raw, err := readRegular(path, maxInputBytes)
+	if err != nil {
+		return nil, err
+	}
+	directory := filepath.Dir(path)
+	evidence := map[string]ReadinessEvidence{}
+	number := 0
+	for line := range strings.Lines(string(raw)) {
+		number++
+		fields := strings.Split(strings.TrimSuffix(line, "\n"), "\t")
+		if len(fields) != 5 {
+			return nil, fmt.Errorf("evidence file line %d does not have five tab-separated fields", number)
+		}
+		if _, duplicate := evidence[fields[0]]; duplicate {
+			return nil, fmt.Errorf("evidence file names row %s twice", fields[0])
+		}
+		location := fields[2]
+		if location != "" && !filepath.IsAbs(location) {
+			location = filepath.Join(directory, location)
+		}
+		evidence[fields[0]] = ReadinessEvidence{Status: fields[1], Path: location, Decision: fields[3], Reason: fields[4]}
+	}
+	return evidence, nil
+}
+
+// WriteReadinessRecord builds the record and publishes it at output. An
+// existing output is refused, never replaced (SRR-V1-012).
+func WriteReadinessRecord(ctx context.Context, options ReadinessOptions, output string) (*ReadinessRecord, error) {
+	record, raw, err := BuildReadinessRecord(ctx, options)
+	if err != nil {
+		return nil, err
+	}
+	return record, publishNoReplace(output, raw)
+}
+
+// publishNoReplace writes raw to a temporary file beside path and hard-links
+// it into place, so an existing file is refused and a partial record never
+// appears at path.
+func publishNoReplace(path string, raw []byte) error {
+	temporary, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(temporary.Name())
+	_, writeErr := temporary.Write(raw)
+	syncErr := temporary.Sync()
+	closeErr := temporary.Close()
+	if err := errors.Join(writeErr, syncErr, closeErr); err != nil {
+		return err
+	}
+	if err := os.Link(temporary.Name(), path); err != nil {
+		return fmt.Errorf("readiness record %s was not published without replacement: %w", path, err)
+	}
+	return nil
+}
+
+// VerifyReadinessFile verifies the record at path, then refuses rows that
+// differ from the rows the evidence file builds, so a record cannot relabel
+// its evidence (a FAIL log as PASS, say) and still verify (SRR-V1-012).
+func VerifyReadinessFile(ctx context.Context, path, candidateDirectory string, evidence map[string]ReadinessEvidence) (*ReadinessRecord, error) {
+	raw, err := readRegular(path, maxInputBytes)
+	if err != nil {
+		return nil, err
+	}
+	record, err := VerifyReadinessRecord(ctx, raw, candidateDirectory, evidencePaths(evidence))
+	if err != nil {
+		return nil, err
+	}
+	rows, err := readinessRows(readinessRules(record.Identity.Version), evidence)
+	if err != nil {
+		return nil, err
+	}
+	if !reflect.DeepEqual(rows, record.Rows) {
+		return nil, fmt.Errorf("readiness record rows differ from the evidence file")
+	}
+	return record, nil
+}
+
+func evidencePaths(evidence map[string]ReadinessEvidence) map[string]string {
+	paths := map[string]string{}
+	for id, supplied := range evidence {
+		if supplied.Path != "" {
+			paths[id] = supplied.Path
+		}
+	}
+	return paths
 }

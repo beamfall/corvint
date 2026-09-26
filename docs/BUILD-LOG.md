@@ -7679,3 +7679,24 @@ V1-0263, V1-0284, V1-0286 and V1-0350 stay OPEN until the owner completes them i
 
 A7 to A10 stay undecided. A8, the uncommitted audit output in the primary checkout, still blocks the
 v0-6 promotion script.
+
+## 2026-09-26 SRR-V1-012: the `corvint-readiness-record` command
+
+`cmd/corvint-readiness-record` implements the SRR-V1-012 shape that decision 0422 accepted. Build
+mode writes the canonical record to a new `-output` file. Verify mode re-verifies an existing record
+and writes nothing. The command runs no gate and never tags, signs, publishes or promotes.
+
+Three details sit inside the accepted shape:
+
+- The evidence file has one row per line: `ROW`, `STATUS`, `PATH`, `DECISION` and `REASON`,
+  separated by tabs, with absent values left empty. A relative `PATH` resolves against the evidence
+  file's directory. A malformed line or a duplicated row is refused.
+- Build mode writes a temporary file beside the output and hard-links it into place. An existing
+  output is refused and left unchanged, and a partial record never appears at the output path.
+- Verify mode rebuilds the rows from the evidence file and refuses a record whose rows differ.
+  `VerifyReadinessRecord` rechecks every recorded digest, but it cannot tell a FAIL log relabelled
+  as PASS from a real PASS, because the digest is the same. The test builds that relabelled record,
+  shows that the package verifier admits it, and shows that the command's verifier refuses it.
+
+No release has used the record yet. Its first use is the `1.0.0-rc.1` candidate (V1-0018 AC2,
+V1-0020 AC3).

@@ -13,9 +13,9 @@ in `public-release-v0.md`, ARTIFACT-RDY-V0-001 and ARTIFACT-GO-V0-008 in
 
 ## Agent digest
 - Claim: One canonical JSON record binds a verified Core candidate to digested gate, platform, compliance and policy evidence before any tag.
-- Status: accepted (decision 0422, 2026-09-26); experimental delivery; SRR-V1-001 to SRR-V1-011 are coded as an internal package. SRR-V1-012's command shape is accepted and not yet implemented.
-- Exists: `BuildReadinessRecord` and `VerifyReadinessRecord` in `internal/releasecandidate`, with tests named after each requirement.
-- Blocked on: the SRR-V1-012 command; no command exposes the package yet.
+- Status: accepted (decision 0422, 2026-09-26); experimental delivery; SRR-V1-001 to SRR-V1-012 are coded: the internal package and the `corvint-readiness-record` command.
+- Exists: `BuildReadinessRecord` and `VerifyReadinessRecord` in `internal/releasecandidate`, `cmd/corvint-readiness-record` over them, and tests named after each requirement.
+- Blocked on: first use on the `1.0.0-rc.1` candidate (V1-0018 AC2, V1-0020 AC3); no release has used the record yet.
 - Read next: Requirements; Failure modes; Traceability.
 
 ## User and boundary
@@ -103,13 +103,19 @@ Non-goals:
   run with lazy fetching from a promisor remote disabled (`GIT_NO_LAZY_FETCH=1`). The candidate
   verifier's transient host-probe directory is created and removed inside the system temporary
   directory.
-- `SRR-V1-012`: (accepted command shape, decision 0422; not implemented) A new operator binary,
+- `SRR-V1-012`: (command shape accepted by decision 0422) A new operator binary,
   `cmd/corvint-readiness-record`, MUST expose the builder and the verifier as two modes of one flag
   set. Build mode, `-candidate DIR -source-root DIR -evidence-file TSV [-store-release ID
   -store-candidate-sha256 HEX] -output FILE`, MUST write the canonical record to FILE and MUST refuse
   an existing FILE rather than replace it. Verify mode, `-verify FILE -candidate DIR -evidence-file
   TSV`, MUST write nothing. The evidence file names each supplied row's evidence explicitly.
-  `cmd/corvint-release-candidate` keeps its single flag set unchanged.
+  `cmd/corvint-release-candidate` keeps its single flag set unchanged. Implementation detail: each
+  line of the evidence file is `ROW`, `STATUS`, `PATH`, `DECISION` and `REASON` separated by tabs,
+  with an absent value left empty. A relative `PATH` resolves against the evidence file's directory.
+  A line without exactly five fields, or a row named twice, is refused. Build mode publishes the
+  record by hard-linking a completed temporary file, so a partial record never appears at FILE.
+  Verify mode also rebuilds the rows from the evidence file and refuses a record whose rows differ.
+  Without that check, a record that relabels a FAIL log as PASS would still reproduce its digest.
 
 ## Failure modes
 
@@ -124,16 +130,18 @@ Non-goals:
 | Record edited to reorder, duplicate or drop rows, or to empty the store binding | Verifier refuses (SRR-V1-004, 005). |
 | Source root is a partial clone missing the bound objects | Git read fails without fetching; builder refuses (SRR-V1-011). |
 | Store candidate digest is stale | Not detected; the owner cross-checks it (SRR-V1-004, open). |
+| Output file already exists | Build mode refuses and leaves the existing file unchanged (SRR-V1-012). |
+| Record relabels a supplied row, such as FAIL evidence as PASS | Verify mode refuses: the rows differ from the evidence file (SRR-V1-012). |
 
 ## Acceptance and rollback
 
-SRR-V1-001 to SRR-V1-011 are covered by the focused tests below, which run against a git fixture
+SRR-V1-001 to SRR-V1-012 are covered by the focused tests below, which run against a git fixture
 and a Core-only 1.0.0-rc.1 candidate fixture. Decision 0422 accepts this spec, and decision 0420 is
-accepted. No release uses the record until SRR-V1-012 is implemented with its own tests.
+accepted. No release has used the record yet; its first use is the `1.0.0-rc.1` candidate.
 
-Rollback deletes `internal/releasecandidate/readiness.go` and its test, and inlines
-`runSourceGit` back into `sourceBuildNumber`. No record, candidate, store or wire state depends on
-the package yet.
+Rollback deletes `cmd/corvint-readiness-record`, `internal/releasecandidate/readiness.go` and
+their tests, and inlines `runSourceGit` back into `sourceBuildNumber`. No record, candidate, store or
+wire state depends on the package yet.
 
 ## Traceability
 
@@ -150,4 +158,4 @@ the package yet.
 | SRR-V1-009 | `readiness.go` (`readinessRules`, `fixedRule`) | TestSRRV1009PolicyRowsFollowDecision0420 |
 | SRR-V1-010 | `readiness.go` (`fixedRule`, `validateReadinessRow`) | TestSRRV1010OwnerActionsStayNotRun |
 | SRR-V1-011 | `readiness.go` (no writer) | TestSRRV1011BuildAndVerifyWriteNothing |
-| SRR-V1-012 | accepted shape (decision 0422); no implementation | none until implemented |
+| SRR-V1-012 | `readiness.go` (`ReadReadinessEvidence`, `WriteReadinessRecord`, `publishNoReplace`, `VerifyReadinessFile`), `cmd/corvint-readiness-record/main.go` | TestSRRV1012EvidenceFileAndNoReplaceRecord, TestSRRV1012ModesTakeTheirOwnFlagsOnly |

@@ -459,3 +459,71 @@ func testSRRV1011BuildAndVerifyWriteNothing(t *testing.T) {
 		t.Fatalf("readiness build or verify wrote state:\n%s\n---\n%s", before, after)
 	}
 }
+
+func TestSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
+	t.Run("SRR-V1-012 evidence file names each row, build refuses an existing output, verify refuses relabelled rows", testSRRV1012EvidenceFileAndNoReplaceRecord)
+}
+
+func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
+	fixture := newReadinessFixture(t, cleanGoMod)
+	full := fixture.file(t, "full-gate.log", "make gate: ok\n")
+	fixture.file(t, "interop.log", "interop: FAIL\n")
+	tsv := fixture.file(t, "evidence.tsv", "gate/full-gate\tPASS\t"+full+"\t\t\ngate/interop-gate\tFAIL\tinterop.log\t\t\npolicy/rollback-exercise\tNOT_RUN\t\t\tscheduled after tagging\n")
+	evidence, err := ReadReadinessEvidence(tsv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := evidence["gate/interop-gate"]; got.Status != "FAIL" || got.Path != filepath.Join(fixture.evidence, "interop.log") {
+		t.Fatalf("relative evidence path not resolved against the evidence file: %#v", got)
+	}
+	for name, content := range map[string]string{
+		"four fields":   "gate/full-gate\tPASS\t" + full + "\t\n",
+		"duplicate row": "gate/full-gate\tPASS\t" + full + "\t\t\ngate/full-gate\tPASS\t" + full + "\t\t\n",
+	} {
+		if _, err := ReadReadinessEvidence(fixture.file(t, "bad.tsv", content)); err == nil {
+			t.Fatalf("%s evidence file admitted", name)
+		}
+	}
+	if empty, err := ReadReadinessEvidence(fixture.file(t, "empty.tsv", "")); err != nil || len(empty) != 0 {
+		t.Fatalf("empty evidence file = %v, %v", empty, err)
+	}
+
+	output := filepath.Join(canonicalTemp(t), "readiness.json")
+	options := ReadinessOptions{CandidateDirectory: fixture.candidate, SourceRoot: fixture.source, Evidence: evidence}
+	if _, err := WriteReadinessRecord(t.Context(), options, output); err != nil {
+		t.Fatal(err)
+	}
+	_, want := fixture.build(t, evidence)
+	if written, err := os.ReadFile(output); err != nil || !bytes.Equal(written, want) {
+		t.Fatalf("written record is not the canonical build: %v", err)
+	}
+	if _, err := WriteReadinessRecord(t.Context(), options, output); err == nil {
+		t.Fatal("existing output replaced")
+	}
+	if entries, err := os.ReadDir(filepath.Dir(output)); err != nil || len(entries) != 1 {
+		t.Fatalf("output directory holds %d entries, want only the record: %v", len(entries), err)
+	}
+	if written, err := os.ReadFile(output); err != nil || !bytes.Equal(written, want) {
+		t.Fatalf("refused write changed the existing record: %v", err)
+	}
+
+	if _, err := VerifyReadinessFile(t.Context(), output, fixture.candidate, evidence); err != nil {
+		t.Fatalf("record refused against its own evidence file: %v", err)
+	}
+	var record ReadinessRecord
+	if err := json.Unmarshal(want, &record); err != nil {
+		t.Fatal(err)
+	}
+	relabelled := resealReadiness(t, record, func(r *ReadinessRecord) { r.Rows[index(r, "gate/interop-gate")].Status = "PASS" })
+	paths := map[string]string{"gate/full-gate": full, "gate/interop-gate": filepath.Join(fixture.evidence, "interop.log")}
+	if _, err := VerifyReadinessRecord(t.Context(), relabelled, fixture.candidate, paths); err != nil {
+		t.Fatalf("digest-only verification should admit the relabel this test guards: %v", err)
+	}
+	relabelledPath := filepath.Join(filepath.Dir(output), "relabelled.json")
+	if err := os.WriteFile(relabelledPath, relabelled, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := VerifyReadinessFile(t.Context(), relabelledPath, fixture.candidate, evidence); err == nil {
+		t.Fatal("FAIL evidence relabelled PASS was admitted")
+	}
+}
