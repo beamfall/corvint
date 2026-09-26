@@ -7138,3 +7138,14 @@ phrase stays `failed`. A failed or timed-out JUnit attempt now keeps its failure
 `TestAFUV1AdapterObservesFailedControl`. `AFU-V1-013` (separate run registry) and `AFU-V1-012`
 (`/3` external Playwright profile) are follow-up branches `claude/v1-0249-run-registry` and
 `claude/v1-0249-playwright-profile-v3`. NOT_RUN: the exhaustive gate and the dogfood CEM steps.
+
+## 2026-09-25 V1-0355: gate-ledger disables fsmonitor on every git call
+
+`make gate` at 3c1b894c (v0-6 evidence rerun) timed out after 30m in
+`TestWorktreeDigestPreservesMembershipAndPaths`. The goroutine dump shows the test blocked in
+`worktreeDigest`'s first `git ls-files -v`, with git itself not exiting. The test sets
+`core.fsmonitor=true` on its fixture repository; `gitOutputEnvInput` added
+`-c core.fsmonitor=false -c core.ignorestat=false` only to private-index calls, so the plain calls
+made git consult the monitor daemon, which a loaded host stalled. Every gate-ledger git call now
+carries both overrides: the ledger never wants monitor or cached-stat shortcuts. Evidence:
+`go test -count=1 ./tools/gate-ledger` passes in 17s; `go vet` clean.
