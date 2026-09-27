@@ -76,7 +76,9 @@ run record
 digest=$(shasum -a 256 "$witness" | awk '{print $1}')
 [ "$(cat "$receipt")" = "corvint-gate-receipt/0 $revision $tree $digest" ] || fail "receipt is not canonical: $(cat "$receipt")"
 [ "$(wc -l < "$receipt" | tr -d ' ')" = 1 ] || fail "receipt is not one LF-terminated line"
-mode=$(stat -f '%Lp' "$receipt" 2>/dev/null || stat -c '%a' "$receipt")
+# GNU form first: GNU `stat -f` prints file-system status and exits 1, which would prefix the
+# fallback's mode; BSD `stat -c` fails without output.
+mode=$(stat -c '%a' "$receipt" 2>/dev/null || stat -f '%Lp' "$receipt")
 [ "$mode" = 600 ] || fail "receipt mode is $mode"
 
 # GOC-V0-010 clear: the gate's first step removes an earlier receipt, so a failing run leaves none.
