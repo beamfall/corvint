@@ -1,0 +1,60 @@
+{
+  "baseRevision": "87e10444ad158ea285987fd4f334432b4e6908fb",
+  "evidence": [
+    {
+      "blobOid": "3061f76c420bd0aa7168a283128b11ac7c582877",
+      "id": "evidence:sha256:87a310b825d4757ca5ee96d9ba1c34c26ef24ea61cb802114f536d6809654d19",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3118,
+        "start": 2775
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:87a310b825d4757ca5ee96d9ba1c34c26ef24ea61cb802114f536d6809654d19",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:5aaee4f8a4cb247eac84116ea4af057b33d58cbd6d39e3c4a22d8c26d17cdf34",
+      "newRange": {
+        "count": 9,
+        "start": 44
+      },
+      "oldRange": {
+        "count": 9,
+        "start": 44
+      },
+      "path": "README.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:87a310b825d4757ca5ee96d9ba1c34c26ef24ea61cb802114f536d6809654d19",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:c23040f6d13e91c0cfe9b6016df0c2566445a0cc51fa334aac439dd6e10bccdb",
+      "newRange": {
+        "count": 15,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "docs/build-log/2026-09-27-v1-0344-scope-abstention-claim.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "65de80e5fc91d8872da2dc4b1798852b89371f5f5dd7ff64ca8ad4112e59116e",
+  "spec": "cem/0.2"
+}
