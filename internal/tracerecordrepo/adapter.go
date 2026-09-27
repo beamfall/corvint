@@ -617,6 +617,10 @@ func recordIndexError(root string, err error) error {
 		}
 		return err
 	}
+	if details.ExitCode < 0 {
+		// A signal or an output pipe left open leaves no exit status to render.
+		return err
+	}
 	if hasArgument(details.Arguments, "status") {
 		return fmt.Errorf("Git error: git status exited %d", details.ExitCode)
 	}
