@@ -103,14 +103,17 @@ func adapterHostKillContext(parent context.Context, arguments []string, start ti
 func watchedHostAdapterOutput(ctx context.Context, deadline time.Time, arguments []string, stdin io.Reader) map[string]any {
 	work, cancel := context.WithDeadline(ctx, deadline.Add(-adapterWatchdogGrace))
 	defer cancel()
+	work, ledger := withPacketLedger(work)
 	result := make(chan map[string]any, 1)
 	go func() { result <- hostAdapterOutput(work, arguments, stdin) }()
 	watchdog := time.NewTimer(time.Until(deadline))
 	defer watchdog.Stop()
 	select {
 	case output := <-result:
+		ledger.settle(true)
 		return output
 	case <-watchdog.C:
+		ledger.settle(false)
 		if len(arguments) == 2 && arguments[0] == "claude-code" {
 			output := claudeDegradedOutput(arguments[1], "adapter-host-kill-deadline")
 			recordClaudeKillDeadline(ctx, arguments[1], output)
@@ -330,13 +333,15 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 	disclosure := promptBoundDisclosure(event, payload) + compactSessionDisclosure(event, normalized)
 	kernel := experimentalKernelContext(ctx, event, root)
 	budget := adapterOutputLimit - len(reserve) - 1 - promptBoundReserve(disclosure) - promptBoundReserve(kernel)
+	refuse := func() { refuseUndeliveredPacket(root, event, payload) }
+	stagePacket(ctx, refuse, nil)
 	result, reason := invokeDogfoodEvent(ctx, root, "claude-code", event, normalized, budget)
 	if reason != "" {
-		refuseUndeliveredPacket(root, event, payload)
+		refuse()
 		return withSnapshotRemediation(root, event, reason, claudeDegradedOutput(event, reason))
 	}
 	output := renderAdapterResult("claude-code", claudeEventName(event), event, root, normalized, result)
-	recordDeliveredPacket(root, event, normalized, result, output)
+	stagePacket(ctx, refuse, func() { recordDeliveredPacket(root, event, normalized, result, output) })
 	return withAdapterContextSuffix(withPromptBoundDisclosure(output, disclosure), kernel)
 }
 
@@ -554,9 +559,10 @@ func renderAdapterResult(host, eventName, event, root string, input, result map[
 	if event == "stop" {
 		completion, _ := result["completion"].(map[string]any)
 		if completion["decision"] == "block" {
-			reason := completionBlockText
+			key := input["sessionIdSha256"].(string)
+			reason := completionBlockText + blockUnmet(result) + "\n" + blockNextArgv(root, key)
 			if host == "claude-code" {
-				reason += "\n" + claudeGuidance(root, input["sessionIdSha256"].(string))
+				reason += "\n" + claudeGuidance(root, key)
 			}
 			return map[string]any{"decision": "block", "reason": reason}
 		}
@@ -584,6 +590,26 @@ func renderAdapterResult(host, eventName, event, root string, input, result map[
 		return codexDegraded(eventName, repoenvelope.CollisionCode)
 	}
 	return map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": eventName, "additionalContext": context}}
+}
+
+// blockUnmet names the closed unmet categories of a blocked Stop, so the
+// continuation says what remains rather than only that something does
+// (LCP-V0-008, V1-0298).
+func blockUnmet(result map[string]any) string {
+	policy, _ := result["policy"].(map[string]any)
+	raw, _ := json.Marshal(policy["unmet"])
+	var unmet []string
+	_ = json.Unmarshal(raw, &unmet)
+	if len(unmet) == 0 {
+		return ""
+	}
+	return " Unmet: " + strings.Join(unmet, ", ") + "."
+}
+
+// blockNextArgv is the status argv that lists the unmet conditions in full.
+func blockNextArgv(root, key string) string {
+	status, _ := json.Marshal([]string{"corvint", "--root", root, "dogfood", "status", "--session-key", key})
+	return "Next: " + string(status)
 }
 
 func renderClaudeContext(event, receipt, guidance string) map[string]any {

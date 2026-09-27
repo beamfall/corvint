@@ -297,6 +297,39 @@ func TestClaudeAdapterUnplannedReadCallSites(t *testing.T) {
 	}
 }
 
+// URE-V0-008, V1-0297: the watchdog settles the prompt packet once. A delivered
+// output applies the staged record; an abandoned worker is refused, and its late
+// record never applies.
+func TestURE008WatchdogSettlesPacketOnce(t *testing.T) {
+	t.Parallel()
+	var events []string
+	refuse := func() { events = append(events, "refuse") }
+	record := func() { events = append(events, "record") }
+
+	stagePacket(context.Background(), refuse, record)
+	if strings.Join(events, ",") != "record" {
+		t.Fatalf("unwatched worker=%v, want an immediate record", events)
+	}
+
+	events = nil
+	delivered, ledger := withPacketLedger(context.Background())
+	stagePacket(delivered, refuse, nil)
+	stagePacket(delivered, refuse, record)
+	ledger.settle(true)
+	if strings.Join(events, ",") != "record" {
+		t.Fatalf("delivered output=%v, want one record", events)
+	}
+
+	events = nil
+	abandoned, ledger := withPacketLedger(context.Background())
+	stagePacket(abandoned, refuse, nil)
+	ledger.settle(false)
+	stagePacket(abandoned, refuse, record)
+	if strings.Join(events, ",") != "refuse,refuse" {
+		t.Fatalf("abandoned worker=%v, want refusals and no record", events)
+	}
+}
+
 // AHI-019, AHI-021: an out-of-root post-tool change surfaces nothing, an in-root
 // receipt and an expected prompt-over-query-bound degradation reach the model through
 // additionalContext, and none of them carries a user-visible systemMessage.
@@ -477,9 +510,13 @@ func TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice(t *testing.T) {
 func TestClaudeAdapterStaleSnapshotNamesRemediation(t *testing.T) {
 	t.Parallel()
 	root := queryCLIRepository(t)
-	ctx := adapterEnvContext(context.Background(), map[string]string{"CLAUDE_PROJECT_DIR": root})
-	ctx = context.WithValue(ctx, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 3 * time.Second })
+	// The deadline expires only once the build starts, so a loaded host cannot expire the event
+	// before the miss (decision 0082); the minute is a hang detector.
+	parent, expire := workFinalInterruption("expired")
+	ctx := adapterEnvContext(parent, map[string]string{"CLAUDE_PROJECT_DIR": root})
+	ctx = context.WithValue(ctx, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
 	ctx = context.WithValue(ctx, dogfoodEventBuildKey{}, func(ctx context.Context, _, _ string) (*contextindex.Index, error) {
+		expire()
 		<-ctx.Done() // outlasts the event deadline, as the real build does on a large repository
 		return nil, ctx.Err()
 	})

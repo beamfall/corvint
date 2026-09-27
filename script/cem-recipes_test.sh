@@ -52,6 +52,13 @@ expect() { # STATUS PATTERN
   [ "$status" -eq "$1" ] || { cat "$test_root/$name.log" >&2; fail "$name exit $status, want $1"; }
   grep -q -- "$2" "$test_root/$name.log" || { cat "$test_root/$name.log" >&2; fail "$name lacks $2"; }
 }
+# refused CODE: every impact refusal is one JSON error envelope on standard error and nothing on
+# standard output, whichever code refused it (V1-0140).
+refused() {
+  [ ! -s "$out/impact.out" ] || fail "$name impact refusal wrote standard output"
+  grep -Eq "^\{\"code\": \"$1\", \"error\": \"[^\"]*\", \"ok\": false\}\$" "$out/impact.stderr" ||
+    fail "$name $1 refusal not retained on standard error"
+}
 
 # --- Go fixture for recipes 1 and 2 --------------------------------------------------------
 repo="$test_root/repo"
@@ -82,7 +89,7 @@ for step in impact affected context; do [ -s "$out/$step.out" ] || fail "u-compl
 run u-missing understand-change.sh CORVINT_ROOT="$repo" CORVINT_BASE="$(printf 'ab%.0s' {1..20})" \
   CORVINT_TASK="$task"
 expect 3 'outcome=incomplete refused=impact'
-grep -q unsupported-impact-range "$out/impact.out" "$out/impact.stderr" || fail 'u-missing refusal not retained'
+refused unsupported-impact-range
 [ ! -e "$out/affected.out" ] || fail 'u-missing ran a step after the refusal'
 
 # Stale evidence: an uncommitted edit means base..HEAD no longer describes the worktree.
@@ -90,7 +97,7 @@ printf '// pending\n' >> "$repo/auth/auth.go"
 run u-stale understand-change.sh "${understand[@]}"
 git -C "$repo" checkout -q -- auth/auth.go
 expect 3 'outcome=incomplete refused=impact'
-grep -q unsupported-impact-worktree "$out/impact.out" "$out/impact.stderr" || fail 'u-stale refusal not retained'
+refused unsupported-impact-worktree
 
 # Unsupported evidence: a range with no Go path is outside the native range profile.
 git -C "$repo" checkout -q -b docs-only

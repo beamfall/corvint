@@ -3,10 +3,12 @@ package main
 
 import (
 	"bytes"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The runner is exercised against a Corvint binary built from this checkout;
@@ -29,4 +31,23 @@ func TestProviderKitConformanceRunner(t *testing.T) {
 			t.Fatal("a provider version the source does not declare passed conformance")
 		}
 	})
+}
+
+// A provider that never exits is reported as a timeout refusal within the
+// probe's bound rather than hanging the runner (V1-0136).
+func TestRefusalBoundsNeverExitingProvider(t *testing.T) {
+	provider := filepath.Join(t.TempDir(), "provider")
+	if err := os.WriteFile(provider, []byte("#!/bin/sh\nexec sleep 3600\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	defer func(saved time.Duration) { refusalTimeout = saved }(refusalTimeout)
+	refusalTimeout = 200 * time.Millisecond
+	start := time.Now()
+	err := (&harness{provider: provider}).refusal(t.Context())
+	if err == nil || !strings.Contains(err.Error(), "timeout refusal") {
+		t.Fatalf("refusal of a never-exiting provider: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 15*time.Second {
+		t.Fatalf("refusal took %s", elapsed)
+	}
 }
