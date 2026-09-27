@@ -14,7 +14,7 @@ sources under `internal/tasks`.
 - Status: accepted (owner decision 2026-09-27); partial (S2 CAL-V0-004..006 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
-- Read next: Slices; Requirements; Amendments to TCP-00; Failure modes.
+- Read next: Slices; Requirements (S8 for parallel claims); Amendments to TCP-00; Failure modes.
 
 ## User and boundary
 
@@ -61,6 +61,9 @@ one.
 | S5 | CAL-V0-015..017 | `submit`, `gate run` and `complete` |
 | S6 | CAL-V0-018 | Linear first import |
 | S7 | CAL-V0-019..020 | Lease race and crash qualification, and the execution cutover record |
+| S8 | CAL-V0-021..026 | Parallel claims: scoped claims, path-overlap collisions, scope enforcement, bounded lock hold |
+
+S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
 
 Corvint's own queue is a fixture queue written daily through the same §5.2 writer, and a fixture
 queue admits in mode `DEVELOPMENT` without an execution cutover (TCP-00 §4.1 step 2). S2 to S6
@@ -160,6 +163,46 @@ S6, import cost.
   only the head receipt it expects and the files it posts. Measured on the 2,894-item Beamfall
   export, the first import MUST take under 5 minutes on a host with a load below the CPU count.
 
+S8, parallel claims.
+
+The owner's goal is many concurrent agents against one repository. Beamfall's runner admits at most
+two claims per repository, and a ticket that declares no paths collides with every other claim;
+most of Beamfall's core tickets declare none. S8 gives every claim an explicit scope, derives one
+from Corvint's own context index when the ticket declares none, and makes the scope binding at
+submit, so that disjoint work runs concurrently and a wrong prediction is refused rather than
+silently shared.
+
+- `CAL-V0-021`: Every `external-agent` attempt MUST carry a scope: a set of `PATH` resources with a
+  `scopeSource`. In order of precedence, the scope is the ticket's `effects.touchPaths` and `PATH`
+  resources when its coverage is `QUALIFIED` (`DECLARED`); else the paths given by `claim --scope
+  PATH...` (`REQUESTED`); else the CAL-V0-022 derivation (`DERIVED`); else one `WHOLE_REPOSITORY`
+  resource (`WHOLE_REPOSITORY`). The reservation entry holds the same resource set.
+- `CAL-V0-022`: A `DERIVED` scope MUST come from Corvint's local context index for the ticket's
+  title and body at the attempt's base tree, computed in process with no network and no write
+  outside the task store, bounded to at most `MaxTouchPaths` paths. The attempt records the
+  derivation's input digest. When the index is absent, stale for that tree, or abstains, the scope
+  is `WHOLE_REPOSITORY`; a derivation never widens authority and is never an input to ranking or
+  evidence.
+- `CAL-V0-023`: Two live attempts MUST collide exactly when their resource sets collide under
+  TCP-00 §4.2 path normalization; `WHOLE_REPOSITORY` collides with every live entry and every live
+  entry collides with it. A colliding `claim` refuses `RESOURCE_COLLISION` naming the other
+  attempt. There is no per-repository lane limit beyond the policy's `maxActiveAttempts`, and scopes
+  are not expanded by dependency or import closure; interference between disjoint scopes is caught
+  by the CAL-V0-016 gates at the exact candidate tree.
+- `CAL-V0-024`: `submit --tree <oid>` MUST refuse `OUT_OF_SCOPE`, naming every offending path,
+  when the diff from the attempt's base tree to the candidate tree adds, deletes, renames or
+  modifies a path not covered by the attempt's scope under §4.2 normalization.
+- `CAL-V0-025`: `widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a live
+  attempt's scope and reservation in one transaction, and refuse `RESOURCE_COLLISION` without
+  writing when any added path collides with another live attempt. Widening to `WHOLE_REPOSITORY`
+  is allowed only when no other attempt is live.
+- `CAL-V0-026`: Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gate
+  run` excluding the gate's own run time, and `complete`) MUST hold the store lock for work that
+  does not grow with the number of tickets in the store, beyond the records it writes: the full
+  audit is reused from a verified cache keyed by the head receipt digest and the intent tree
+  digest, and is otherwise taken once. Measured on a synthetic 3,000-ticket fixture store, the p95
+  lock hold of `claim` and `renew` MUST be under 500 ms on a host with a load below the CPU count.
+
 S7, qualification and execution cutover.
 
 - `CAL-V0-019`: A named test suite MUST show, for `external-agent` attempts: two concurrent
@@ -184,6 +227,11 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
   closed by `release`, `reap` or `complete`: no command of that generation can take effect after it.
 - A11: for a queue whose admissions are all `external-agent`, the §7.4 execution permission needs a
   `QUALIFICATION` receipt for the CAL-V0-019 suite in place of G2's supervisor and spawn rows and G3.
+- A12: an `external-agent` attempt carries `scope:{source:"DECLARED"|"REQUESTED"|"DERIVED"|
+  "WHOLE_REPOSITORY", resources:[Resource], derivationSha256:Digest|null}`, non-null exactly for
+  that runtime, with `derivationSha256` non-null exactly for `DERIVED`. A ticket without `QUALIFIED`
+  coverage is admissible under such a scope regardless of the policy's `serialFallback`, because
+  the scope is enforced at submit (CAL-V0-024).
 
 ## Failure modes
 
@@ -198,24 +246,28 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 | Cutover interrupted | One receipt either committed or not | A rerun with the same decision replays or commits it |
 | Re-import after cutover | Foreign export disagrees with the published records | `import` refuses the whole export and writes nothing |
 | Non-fixture queue before execution cutover | Agents try to claim | `claim` refuses; ticket writes still work |
+| Derived scope misses a file the agent needs | Agent edits outside its scope | `submit` refuses `OUT_OF_SCOPE`; the agent `widen`s, or releases and reclaims with `--scope` |
+| Two disjoint scopes interfere semantically | Each passes alone, the merge breaks | Gates run at the exact rebased candidate tree before `complete` (CAL-V0-016, CAL-V0-017) |
+| Context index absent or stale | No derivation | The scope is `WHOLE_REPOSITORY`, which serializes that claim as today |
 
 ## Acceptance and rollback
 
 Acceptance evidence, per slice: named `TestCALV0NNN_*` tests for every requirement in that slice
 under `internal/tasks`, the unchanged fixture tests for CAL-V0-003, and for S6 the measured first
-import of the real export. Before S7 closes, a rehearsal in a throwaway non-fixture store holding
-the cut-over Beamfall export claims, gates and completes one real Beamfall ticket, and lets one
-lease expire and be reaped.
+import of the real export, and for S8 a measurement on the Beamfall fixture store of how many open
+core tickets could hold concurrent claims under CAL-V0-023 against the runner's two-lane rule.
+Before S7 closes, a rehearsal in a throwaway non-fixture store holding the cut-over Beamfall export
+claims, gates and completes one real Beamfall ticket, and lets one lease expire and be reaped.
 
 Rollback, per slice: S1 restores the fixture-only check at
 `internal/tasks/transaction/model.go:681@2635d775`; S2 removes `cutover` (a queue it already
 switched stays `NATIVE`, and its imported records stay eligible `IMPORT` records; reversing a switch
 is TCP-00's §5.4 revert, which this spec does not build); S3 to S5 remove the lease verbs, and a
 store that holds live `external-agent` attempts must first `release` or `reap` them, because a
-rolled-back reader reports them `NOT_OBSERVED`; S6 restores the per-batch audit; S7 removes the
-execution cutover verb, and an owner decision clears `executionCutover` on any queue that has it.
-Beamfall keeps `roadmap.sh` untouched until TCP-09, so its runner stays available as the fallback
-throughout.
+rolled-back reader reports them `NOT_OBSERVED`; S6 restores the per-batch audit; S8 removes `widen`
+and the scope check, and every claim reverts to `WHOLE_REPOSITORY`; S7 removes the execution cutover
+verb, and an owner decision clears `executionCutover` on any queue that has it. Beamfall keeps
+`roadmap.sh` untouched until TCP-09, so its runner stays available as the fallback throughout.
 
 ## Traceability
 
@@ -225,4 +277,4 @@ throughout.
 | CAL-V0-004 | `TestCALV0004_CutoverSwitchesWriterInOneReceipt`, `TestCALV0004_CutoverRefusals` (`internal/tasks/store`), `TestCALV0004_CLICutoverPublishesImportedRecords` (`internal/tasks/cli`) |
 | CAL-V0-005 | `TestCALV0005_ImportAfterCutoverRefusesAndWritesNothing` (`internal/tasks/store`) |
 | CAL-V0-006 | `TestCALV0004_CutoverSwitchesWriterInOneReceipt` (imported record bytes unchanged) |
-| CAL-V0-007..020 | NOT_RUN; accepted, not started |
+| CAL-V0-007..026 | NOT_RUN; accepted, not started |
