@@ -110,7 +110,15 @@ func compactionBlockFor(ctx context.Context, root string, normalized map[string]
 	contextBlock, _ := result["context"].(map[string]any)
 	raw, err := json.Marshal(contextBlock["compaction"])
 	var block compactionBlock
-	if err != nil || contextBlock["compaction"] == nil || json.Unmarshal(raw, &block) != nil || !validGitObjectID(block.Revision) {
+	if err != nil || json.Unmarshal(raw, &block) != nil {
+		return compactionBlock{}, "compaction-block-unavailable"
+	}
+	// A clean, untracked-only or over-budget worktree has no impact block and so no revision of
+	// its own; the pin then names the revision of the prompt packet the same index compiled.
+	if block.Revision == "" {
+		block.Revision, _ = contextBlock["revision"].(string)
+	}
+	if !validGitObjectID(block.Revision) {
 		return compactionBlock{}, "compaction-block-unavailable"
 	}
 	return block, ""
@@ -118,7 +126,8 @@ func compactionBlockFor(ctx context.Context, root string, normalized map[string]
 
 func compactionPinLine(block compactionBlock) string {
 	named := []string{}
-	elided, size := 0, 0
+	// Tracked paths an over-budget block counts but does not list are elided too.
+	elided, size := max(block.Rehydration.Tracked-len(block.Request.Paths), 0), 0
 	for _, path := range block.Request.Paths {
 		size += len(path) + 1
 		if !compactionPinPathAdmitted(path) || len(named) == compactionPinPathLimit || size > compactionPinByteLimit {
@@ -219,7 +228,7 @@ func compactionReportLine(pin compactionPin, missing []string, block compactionB
 	if len(missing) > 0 {
 		named = strings.Join(missing, ",")
 	}
-	return fmt.Sprintf("%s pinned=%s current=%s rehydrated=%d non-rehydratable=%s elided=%d untracked=%d current-dirty=%d", compactionReportProfile, pin.Revision, drift, rehydrated, named, pin.Elided, pin.Untracked, len(block.Request.Paths))
+	return fmt.Sprintf("%s pinned=%s current=%s rehydrated=%d non-rehydratable=%s elided=%d untracked=%d current-dirty=%d", compactionReportProfile, pin.Revision, drift, rehydrated, named, pin.Elided, pin.Untracked, block.Rehydration.Tracked)
 }
 
 // compactionDisclosure is the trusted line a compact SessionStart carries on every host (AHI-030):
