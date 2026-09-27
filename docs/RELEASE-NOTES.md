@@ -1,5 +1,69 @@
 # Release notes
 
+## 1.0.0-rc.1 release candidate
+
+`v1.0.0-rc.1` is the first 1.0 release candidate. It freezes the Core surface: every frozen Core
+mode is compared with a structural golden (V1-0337), refusals share one classification and their
+stripped codes are emitted (V1-0284, V1-0336), nested Core enumerations have a register, and the
+CCF-V1-007 N-1 replay runs every frozen mode under v0.8.1 (V1-0285, V1-0350). Git reads in `corvint`
+are hermetic: runners run isolated, signal their process group before reaping, and refuse a promisor
+object rather than fetch it (V1-0284, V1-0361, V1-0373). The three Core host tuples are qualified on
+this build with retained runner reports (V1-0016, `HLQ-V1-008`). A candidate-bound stable-readiness
+record replaces the alpha checklist semantics for 1.0 (`SRR-V1`, `corvint-readiness-record`,
+decisions 0420 and 0422). Application flow proof ships as the `corvint-mcp` flows tool profile
+(decision 0385, `AFU-V1`). `corvint-tasks` is built in tree as a separate companion binary (decision
+0397). It gains a one-receipt authority cutover and external-agent leases with scoped parallel
+claims (`CAL-V0`, `docs/specs/corvint-tasks-agent-leases-v0.md`). New production Go paths are
+AGPL-3.0-or-later as `LICENSING.md` says (V1-0380); the frontier command files keep an
+owner-approved Apache-2.0 exception (V1-0379). A stranded trace left by an amend or rebase is
+quarantined by `migrate-traces` (V1-0144, `LTPM-V0-012`). The README describes a 1.0 release
+candidate, not an experimental alpha. Pre-1.0 bug batches cover context, the console, CEM, the
+dogfood workflow, the affected planner and the host adapters; `go-product` CI runs as four test
+shards (V1-0357), and a hosted release-gate workflow exists (decisions 0415 and 0420). The
+`cmd/corvint` tests compile for `GOOS=windows` again (V1-0399). Defects that failed the hosted full
+gate on earlier candidates are fixed: two test races (V1-0427, V1-0428), analyzer-go darwin tests
+that required the owner host's Homebrew Go (V1-0429), and gate scripts that assumed BSD `stat` and a
+particular awk evaluation order, which failed on GNU/Linux (V1-0430).
+
+Known issues that block 1.0 final. The untouched-repository evaluation (V1-0019, `PRS-V1-008`)
+ran on this build and failed. On go-chi/chi, task orientation missed a critical file in 3 of 20
+scored cases, while change consequence (19 cases) and evidence-carrying completion (12 of 12 cases
+informative, no false complete verdict) passed. On the private beamfall/core repository,
+orientation missed in 1 of 20 cases, while consequence (20 cases) and completion (12 of 12) passed.
+Every miss is a test file: context without a named subject scores lexical rows flat and adds no
+paired test (V1-0431). The run on the Corvint repository aborted before scoring: its completion
+target range adds a sealed CEM, which `dogfood change` refuses (V1-0433), and the harness then
+raised instead of recording a harness failure (V1-0432). The owner chose to publish rc.1 with these
+results; the fixes land in rc.2, which is evaluated on spf13/cobra as the next held-out repository.
+`corvint context` admits only root-level instruction files as governing, so a nested `AGENTS.md` in
+the subject's own directory is not cited (V1-0411). Hidden or bidirectional Unicode in governing
+documents is not flagged (V1-0414). The source tree's `integrations/compatibility.json` still names
+the 0.8.1 host-lifecycle reports; the rc.1 reports and entries land on `main` after the tag (#299).
+The remaining 1.0 blockers are listed under the `v1-0` release in the task store.
+
+The published prerelease is `Corvint 1.0.0-rc.1 (build 163)`, commit
+`b967f6bbe33c5eba367a07d7eeb2bd1e372e9162`, built from a clean GitHub clone of `origin/main` at that
+commit, which is on its first-parent chain. The full gate passed at that commit on the owner
+darwin/arm64 host, and the hosted release-gate run 36351494735 passed on the same commit: full gate
+on ubuntu-24.04 and macos-15, interop gate, focused documents, companion release, and the linux
+amd64 lifecycles. `script/release-checklist --pre-promotion` reports `native-runtime`, `go-archive`
+and `full-gate` PASS. Earlier hosted runs on candidates c9019c4, 7075454 and aaaca01 failed on the
+defects listed above, which were fixed before this candidate. The archives were built twice
+byte-identically (5 of 5), `SHA256SUMS` verified independently, and the four Darwin/Linux archives
+are published with `SHA256SUMS` and `verification-report.json`; the Windows zip is emitted but not a
+qualified target. The install lifecycle passed in same-bytes mode and as the N-1 upgrade from 0.8.1
+(build 82), with rollback, on darwin arm64, darwin amd64 (Rosetta 2), linux arm64 (the local
+`golang:1.27.1` container, not native hardware) and linux amd64 (the hosted run). The three Core
+host tuples passed on darwin arm64 and linux amd64. The hostile regression matrix passed on darwin
+arm64 and linux amd64, with `memory-resident` `NOT_COVERED`, and the CCF-V1-007 N-1 replay passed on
+darwin arm64. A stable-readiness record (`SRR-V1`) bound to this candidate was built and verified
+before the tag. It records every gate and platform row as PASS except the untouched-repository row,
+which is FAIL as described above. Signing, native performance (owner-cancelled, GOC-V0-005) and the
+owner toolchain-review row are `NOT_RUN` under decision 0420; a comparison before the tag found that
+the recorded toolchain, go1.27.1, is the newest Go 1.27 release. It is unsigned, with publisher
+identity `NOT_VERIFIED`.
+
+
 ## 0.8.1 prerelease
 
 `v0.8.1` makes the daily change-evidence path run from the installed binary. `corvint dogfood
