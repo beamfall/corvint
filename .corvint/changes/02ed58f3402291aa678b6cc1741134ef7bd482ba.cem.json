@@ -1,0 +1,110 @@
+{
+  "baseRevision": "fddf00dceb6225a8284ae298fdb829a1051176a9",
+  "evidence": [
+    {
+      "blobOid": "e77de79ece89a89970b8d7a11e50d90928dcf8ee",
+      "id": "evidence:sha256:5f0ecbef0d08ac1dfea046f2c89e6316d313b4496d9a02c78bc805c717c6e911",
+      "path": "docs/specs/work-queue-observation-v0.md",
+      "span": {
+        "end": 19808,
+        "start": 19297
+      },
+      "spanSha256": "07722b907e1a319be3f03f1bc019eecb293def5d634ae13cb0b18bcb8e0709a4"
+    },
+    {
+      "blobOid": "a5e2d25f73860c38def686e427e617f557935544",
+      "id": "evidence:sha256:618a64ec8fcbaa6238abd822a56d8a0b89830dea743314f3684de1d7fc4b4444",
+      "path": "docs/specs/verification-planner-observer-v0.md",
+      "span": {
+        "end": 12298,
+        "start": 11908
+      },
+      "spanSha256": "f47944cc110ac98bde84ccd97c962d21d1bcca30dcdfd90d6ce650a546b557ea"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f0ecbef0d08ac1dfea046f2c89e6316d313b4496d9a02c78bc805c717c6e911",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:310435af9afea474f9ea0bb54c8887465905e59ca2ad8bb2dba7547e132ff838",
+      "newRange": {
+        "count": 6,
+        "start": 259
+      },
+      "oldRange": {
+        "count": 12,
+        "start": 259
+      },
+      "path": "internal/contextindex/git.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:5f0ecbef0d08ac1dfea046f2c89e6316d313b4496d9a02c78bc805c717c6e911",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a9bf4955ef4056c7d24edd275cdda101118b792219dc51035a3154df50abc815",
+      "newRange": {
+        "count": 9,
+        "start": 679
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 685
+      },
+      "path": "internal/contextindex/git.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:618a64ec8fcbaa6238abd822a56d8a0b89830dea743314f3684de1d7fc4b4444",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:271fc14099fe13679367bc2b5ed8bb93102526251b6fe41c3151dcc7551fba79",
+      "newRange": {
+        "count": 6,
+        "start": 107
+      },
+      "oldRange": {
+        "count": 12,
+        "start": 107
+      },
+      "path": "internal/gokernel/repository.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:618a64ec8fcbaa6238abd822a56d8a0b89830dea743314f3684de1d7fc4b4444",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:aac490212340842b2a493e23530a5cef4d8d7e95dc4b1def358b3c75e1358018",
+      "newRange": {
+        "count": 9,
+        "start": 483
+      },
+      "oldRange": {
+        "count": 3,
+        "start": 489
+      },
+      "path": "internal/gokernel/repository.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "67742d7b0e981896c10f4f1f1757a4a58fd7ec31abfc4fbea8c199b85e524a12",
+  "spec": "cem/0.2"
+}

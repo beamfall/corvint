@@ -131,5 +131,6 @@ proving test is `TestEvictSnapshotsRemovesStaleShardAndIgnoreTemporaries`.
 ### Analyzer schema
 
 The `contextindex` source changes move the schema from `corvint-analyzer/87` to `corvint-analyzer/88`,
-and the audited-input digest is now `88b1407c4fd0e82ddd197e047f80be3592905b263e29bfc444ccf16567d735e0`
-(`IDX-SNAP-V0-017`). Snapshots rebuild once, and extraction is unchanged.
+and the audited-input digest is now `7a458c5c9d6d6ea8f6969174e5926321ff969b8b9156f72c46e8d4c2bf6572a9`
+(`IDX-SNAP-V0-017`), recomputed after merging V1-0390's pipe-drain change. Snapshots rebuild once,
+and extraction is unchanged.

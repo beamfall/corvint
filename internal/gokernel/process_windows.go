@@ -5,7 +5,6 @@ package gokernel
 import (
 	"os"
 	"os/exec"
-	"time"
 )
 
 func configureProcess(command *exec.Cmd) {
@@ -15,5 +14,5 @@ func configureProcess(command *exec.Cmd) {
 		}
 		return command.Process.Kill()
 	}
-	command.WaitDelay = time.Second
+	command.WaitDelay = pipeDrainDelay
 }
