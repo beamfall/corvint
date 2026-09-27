@@ -274,7 +274,7 @@ func readinessRows(rules []readinessRule, evidence map[string]ReadinessEvidence)
 	}
 	for id := range evidence {
 		if rule, known := byID[id]; !known || rule.fixed {
-			return nil, fmt.Errorf("readiness row %s does not take operator evidence", id)
+			return nil, fmt.Errorf("readiness row %q does not take operator evidence", id)
 		}
 	}
 	rows := make([]ReadinessRow, 0, len(rules))
@@ -424,7 +424,7 @@ func ReadReadinessEvidence(path string) (map[string]ReadinessEvidence, error) {
 			return nil, fmt.Errorf("evidence file line %d does not have five tab-separated fields", number)
 		}
 		if _, duplicate := evidence[fields[0]]; duplicate {
-			return nil, fmt.Errorf("evidence file names row %s twice", fields[0])
+			return nil, fmt.Errorf("evidence file names row %q twice", fields[0])
 		}
 		location := fields[2]
 		if location != "" && !filepath.IsAbs(location) {
@@ -441,7 +441,10 @@ func ReadReadinessEvidence(path string) (map[string]ReadinessEvidence, error) {
 // SRR-V1-012). A file name the record cannot be published under is refused
 // before the build. The output's directory is resolved and opened once before
 // the guard, and the write goes through that handle, so a path component
-// replaced during the build cannot redirect it.
+// replaced during the build cannot redirect it. After the open the directory is
+// resolved again, that settled path must still be the handle's, and the guard
+// walks it, so an ancestor swapped for a link before the open is walked through
+// the link's target.
 func WriteReadinessRecord(ctx context.Context, options ReadinessOptions, output string) (*ReadinessRecord, error) {
 	spelled, name := filepath.Split(output)
 	if err := outputName(name); err != nil {
@@ -459,7 +462,14 @@ func WriteReadinessRecord(ctx context.Context, options ReadinessOptions, output 
 	if err := sameDirectory(handle, directory, cmp.Or(spelled, ".")); err != nil {
 		return nil, err
 	}
-	if err := refuseInside(output, directory, options.CandidateDirectory, options.SourceRoot); err != nil {
+	settled, err := filepath.EvalSymlinks(directory)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", errOutputDirectory, err)
+	}
+	if err := sameDirectory(handle, settled, cmp.Or(spelled, ".")); err != nil {
+		return nil, err
+	}
+	if err := refuseInside(output, settled, options.CandidateDirectory, options.SourceRoot); err != nil {
 		return nil, err
 	}
 	record, raw, err := BuildReadinessRecord(ctx, options)
@@ -567,9 +577,10 @@ func refuseInside(output, directory string, roots ...string) error {
 // below root (a bind mount, a Windows subst drive, a network mount) has its own
 // parents, so it is outside this guard. The parents are found by path, not
 // from an open handle, because os.Root cannot open a handle's parent and Go has
-// no portable openat. An ancestor swapped for a link into root before the
-// caller opens directory, and swapped back before this walk, is outside this
-// guard too.
+// no portable openat. The caller resolves directory after opening it and checks
+// it against the handle, so an ancestor swapped for a link before the open is
+// walked through its target. A writer that controls an ancestor of root itself
+// is outside this guard.
 func within(directory, root string) (bool, error) {
 	rootInfo, err := os.Stat(root)
 	if err != nil {

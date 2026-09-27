@@ -43,9 +43,9 @@ Non-goals:
 - signing, tagging, publishing, promoting or uploading;
 - computing an overall release verdict;
 - verifying the task-store candidate digest against `.taskman/`;
-- guarding the output against a concurrent writer that controls an ancestor of the output
-  directory: the output guard stops an operator from naming an output inside a root, and such a
-  writer already decides where any file below that ancestor lands;
+- guarding the output against a concurrent writer that controls an ancestor of the candidate or
+  the source root, or a directory inside one: such a writer can already replace the root or write
+  inside it;
 - a new spec language or database.
 
 ## Requirements
@@ -111,10 +111,12 @@ Non-goals:
   set. Build mode, `-candidate DIR -source-root DIR -evidence-file TSV [-store-release ID
   -store-candidate-sha256 HEX] -output FILE`, MUST write the canonical record to FILE and MUST refuse
   an existing FILE rather than replace it. Verify mode, `-verify FILE -candidate DIR -evidence-file
-  TSV`, MUST write nothing. The evidence file names each supplied row's evidence explicitly.
+  TSV`, MUST write nothing. Passing `-verify` selects verify mode, so an empty `-verify` value is
+  a usage error, never build mode. The evidence file names each supplied row's evidence explicitly.
   `cmd/corvint-release-candidate` keeps its single flag set unchanged. Implementation detail: each
   line of the evidence file is `ROW`, `STATUS`, `PATH`, `DECISION` and `REASON` separated by tabs,
-  with an absent value left empty. A CRLF line ending is read as LF. Every reason must be valid
+  with an absent value left empty. A CRLF line ending is read as LF. An error that names a row from
+  the evidence file quotes it, so a hidden character in the row shows. Every reason must be valid
   UTF-8 without a control, format, line or paragraph separator, private-use, noncharacter,
   variation selector or other default-ignorable code point, and only a reason with a letter or
   digit explains a row. By design this refuses text that needs a format character or a variation
@@ -138,9 +140,11 @@ Non-goals:
   `..` segment or a case alias cannot hide the overlap. A mount alias of a directory below a root
   (a Linux bind mount, a Windows `subst` drive, an SMB or NFS mount) has its own parents and is
   outside this guard. The parents are found by path, not from the open handle, because `os.Root`
-  cannot open a handle's parent and Go has no portable `openat`. So an ancestor swapped for a link
-  into a root before build opens the directory, and swapped back before the parents are compared,
-  is also outside this guard, a non-goal; the swap needs write access to that ancestor's parent. Go reads a
+  cannot open a handle's parent and Go has no portable `openat`. So after opening, build resolves
+  the directory again, confirms that settled path is the handle's directory, and compares the
+  settled path's parents, so an ancestor swapped for a link before the open is walked through the
+  link's target. A concurrent writer that controls an ancestor of a root, or a directory inside
+  one, is outside this guard, a non-goal. Go reads a
   Windows junction or volume mount point as neither a directory nor a symlink, so the resolver
   cannot pass one, and an output directory that passes through or ends in one is refused; this
   over-refusal is known. A directory that does not resolve is named as spelled in the error. On
@@ -175,7 +179,8 @@ Non-goals:
 | Output path is inside the candidate or the source root | Build mode refuses before building; nothing is written there. A symlink alias is caught; a mount alias of a directory below a root (bind mount, `subst` drive, network mount) is outside the guard (SRR-V1-011, 012). |
 | Output directory does not resolve: it is missing, or passes through a file, a Windows junction or volume mount point, or a missing Windows drive | Build mode refuses before building, naming the directory as spelled; nothing is written (SRR-V1-012). |
 | Output directory as spelled does not open the resolved directory: a symlink chain longer than the kernel follows, or a spelled link or the resolved directory replaced between resolving and opening | Build mode refuses before building; nothing is written (SRR-V1-012). |
-| An ancestor of the output directory is swapped for a link into a root before opening and swapped back before the parents are compared | Not detected, a non-goal: the parents are found by path, not from the open handle, and the swap needs a concurrent writer that controls that ancestor (SRR-V1-012). |
+| An ancestor of the output directory is swapped for a link into a root before opening, whether or not it is swapped back | Build mode refuses before building: the directory is resolved again after opening and the settled path's parents are compared; nothing is written (SRR-V1-012). |
+| A concurrent writer that controls an ancestor of a root, or a directory inside one, moves directories during the check | Not detected, a non-goal: such a writer can already replace the root or write inside it (SRR-V1-012). |
 | A path component of the output directory is replaced by a symlink during the build | The record is written through the directory handle opened before the check, never through the new link (SRR-V1-012). |
 | Output directory's filesystem has no hard links | Build mode refuses, reporting a failed publication, and removes its temporary file; no record is published (SRR-V1-012). |
 | Evidence file has CRLF endings, a reason that is invalid UTF-8 or carries a hidden character, or a reason with no letter or digit | CRLF is read as LF; a reason with invalid UTF-8 or a hidden character, a variation selector or a joiner included, is refused on every row; a reason with no letter or digit explains nothing, so NOT_RUN or FALLBACK without a decision is refused (SRR-V1-006). |

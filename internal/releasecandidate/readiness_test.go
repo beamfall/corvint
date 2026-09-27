@@ -645,6 +645,28 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 			}
 		}
 	})
+	t.Run("root spelled through a link or a case alias still guards it", func(t *testing.T) {
+		linked := filepath.Join(canonicalTemp(t), "source")
+		if err := os.Symlink(fixture.source, linked); err != nil {
+			t.Fatal(err)
+		}
+		inside := filepath.Join(fixture.source, "readiness.json")
+		cases := [][2]string{{linked, inside}}
+		if upper := strings.ToUpper(fixture.source); upper != fixture.source {
+			if _, err := os.Stat(upper); err == nil {
+				cases = append(cases, [2]string{upper, inside}, [2]string{fixture.source, filepath.Join(upper, "readiness.json")})
+			}
+		}
+		for _, c := range cases {
+			spelled := ReadinessOptions{CandidateDirectory: fixture.candidate, SourceRoot: c[0], Evidence: evidence}
+			if _, err := WriteReadinessRecord(t.Context(), spelled, c[1]); err == nil || !strings.Contains(err.Error(), "which build must not write") {
+				t.Fatalf("output %s with the source root spelled %s = %v, want it refused as inside", c[1], c[0], err)
+			}
+			if _, err := os.Lstat(inside); !os.IsNotExist(err) {
+				t.Fatalf("refused output %s was written: %v", inside, err)
+			}
+		}
+	})
 	t.Run("output leaving the source root through a link writes nothing there", func(t *testing.T) {
 		outside := filepath.Join(canonicalTemp(t), "outside")
 		if err := os.MkdirAll(filepath.Join(outside, "sub"), 0o755); err != nil {
@@ -775,6 +797,24 @@ func testSRRV1012EvidenceFileAndNoReplaceRecord(t *testing.T) {
 			t.Fatalf("output directory swapped for a link before opening = %v, want %v", err, errOutputDirectory)
 		}
 		for _, written := range []string{filepath.Join(below, "readiness.json"), filepath.Join(checked+".moved", "readiness.json")} {
+			if _, err := os.Lstat(written); !os.IsNotExist(err) {
+				t.Fatalf("refused output %s was written: %v", written, err)
+			}
+		}
+	})
+	t.Run("ancestor swapped for a link into the source root before opening is refused", func(t *testing.T) {
+		ancestor := filepath.Join(canonicalTemp(t), "ancestor")
+		if err := os.MkdirAll(filepath.Join(ancestor, "objects"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		gitDirectory := filepath.Join(fixture.source, ".git")
+		swapBeforeOpen(t, func() error {
+			return errors.Join(os.Rename(ancestor, ancestor+".moved"), os.Symlink(gitDirectory, ancestor))
+		})
+		if _, err := WriteReadinessRecord(t.Context(), options, filepath.Join(ancestor, "objects", "readiness.json")); err == nil || !strings.Contains(err.Error(), "which build must not write") {
+			t.Fatalf("output whose ancestor was swapped for a link into the source root = %v, want it refused as inside", err)
+		}
+		for _, written := range []string{filepath.Join(gitDirectory, "objects", "readiness.json"), filepath.Join(ancestor+".moved", "objects", "readiness.json")} {
 			if _, err := os.Lstat(written); !os.IsNotExist(err) {
 				t.Fatalf("refused output %s was written: %v", written, err)
 			}

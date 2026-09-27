@@ -71,5 +71,18 @@ swap needs a concurrent writer that controls that ancestor, `os.Root` cannot ope
 and a handle descent from the volume root would refuse ancestors that are searchable but not
 readable.
 
+The round-5 review, the sixth, reproduced one medium gap and four low ones, all fixed here. One
+ancestor swap was enough to bypass the guard; no swap back was needed. After the open, the lexical
+parents of the resolved path pass through the new link, so the walk never met the root, and a
+record landed in the source root's `.git/objects`. Build now resolves the directory again after the
+open, checks that settled path against the handle, and walks its parents. The non-goal is narrowed
+to a concurrent writer that controls an ancestor of a root or a directory inside one. The claim that
+a symlink or case alias of a root cannot hide the overlap was tested only through macOS's `/var`
+link; a new test spells the source root through a symlink and, on a case-insensitive filesystem, in
+upper case, and kills a lexical-prefix mutant on Linux too. The command's flag-to-mode wiring had no
+success-path test; two package variables now let a test run both modes through `run` and check each
+flag's destination. A row named in an error is quoted, and an empty `-verify` is a usage error
+instead of build mode.
+
 No release has used the record yet. Its first use is the `1.0.0-rc.1` candidate (V1-0018 AC2,
 V1-0020 AC3).

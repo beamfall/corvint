@@ -17,6 +17,12 @@ import (
 
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 
+// The two modes are variables so a test can run each through run.
+var (
+	writeRecord  = releasecandidate.WriteReadinessRecord
+	verifyRecord = releasecandidate.VerifyReadinessFile
+)
+
 func run(arguments []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("corvint-readiness-record", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -30,12 +36,13 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	if err := flags.Parse(arguments); err != nil {
 		return 2
 	}
-	build := *verify == ""
+	build := true
+	flags.Visit(func(set *flag.Flag) { build = build && set.Name != "verify" })
 	buildInputs := *source != "" || *storeRelease != "" || *storeDigest != "" || *output != ""
 	complete := *candidate != "" && *evidenceFile != "" && (!build || (*source != "" && *output != ""))
 	partialStore := (*storeRelease == "") != (*storeDigest == "")
-	if flags.NArg() != 0 || !complete || partialStore || (!build && buildInputs) {
-		fmt.Fprintln(stderr, "corvint-readiness-record: build mode needs -candidate, -source-root, -evidence-file and -output, and takes -store-release and -store-candidate-sha256 together or not at all; verify mode takes only -verify, -candidate and -evidence-file; positional arguments are forbidden")
+	if flags.NArg() != 0 || !complete || partialStore || (!build && (buildInputs || *verify == "")) {
+		fmt.Fprintln(stderr, "corvint-readiness-record: build mode needs -candidate, -source-root, -evidence-file and -output, and takes -store-release and -store-candidate-sha256 together or not at all; verify mode takes only a non-empty -verify, -candidate and -evidence-file; positional arguments are forbidden")
 		return 2
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -47,10 +54,10 @@ func run(arguments []string, stdout, stderr io.Writer) int {
 	}
 	if build {
 		options := releasecandidate.ReadinessOptions{CandidateDirectory: *candidate, SourceRoot: *source, StoreReleaseID: *storeRelease, StoreCandidateSHA256: *storeDigest, Evidence: evidence}
-		record, err := releasecandidate.WriteReadinessRecord(ctx, options, *output)
+		record, err := writeRecord(ctx, options, *output)
 		return report(stdout, stderr, *output, record, err)
 	}
-	record, err := releasecandidate.VerifyReadinessFile(ctx, *verify, *candidate, evidence)
+	record, err := verifyRecord(ctx, *verify, *candidate, evidence)
 	return report(stdout, stderr, *verify, record, err)
 }
 
