@@ -37,8 +37,10 @@ guidance from historical records.
 
 - [Decisions](decisions/README.md) preserve accepted, rejected, and superseded decisions.
 - `plans/` holds the two planning inputs that current specifications and scripts still read.
-- `agent-memory/` holds the six cross-session backlogs (bugs, fixes, tests, optimizations, ideas,
-  questions) that the console's backlog pane lists; they start empty in the public tree.
+- `agent-memory/` holds six historical redirect pages (bugs, fixes, tests, optimizations, ideas,
+  questions); the console's Backlog history pane lists them, but they are not the live queue.
+  Current work is tracked in the Corvint task store (`.taskman/`), read with `corvint-tasks queue
+  status`, `roadmap`, or `ticket search`.
 - `BUILD-LOG.md` is the closed evidence log through 2026-09-26; each later entry is its own file
   under `build-log/` (decision 0423).
 

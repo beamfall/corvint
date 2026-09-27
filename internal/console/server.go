@@ -435,13 +435,17 @@ func (s *Server) handleBenchmarks(w http.ResponseWriter, r *http.Request) {
 			"observed by Git. What a run measured is the file's content, not a claim this page makes.")
 }
 
-// handleBacklogs lists the agent-memory backlogs. Their entries are written by
-// agents and are untrusted input: they render as inert text (LAC-V0-020).
+// handleBacklogs lists the docs/agent-memory redirect pages as historical, not
+// live, backlog entries; current work is tracked in the task store. Their
+// entries are written by agents and are untrusted input: they render as inert
+// text (LAC-V0-020).
 func (s *Server) handleBacklogs(w http.ResponseWriter, r *http.Request) {
-	s.serveListing(w, r, "Backlogs", "/backlogs", agentMemoryDir,
-		"The cross-session backlogs of pending work. Every entry is agent-written untrusted text and "+
-			"renders inert: no markup, no script, no link is activated from it. A backlog is a list of "+
-			"work still to do, so nothing here is evidence that anything passed.")
+	s.serveListing(w, r, "Backlog history", "/backlogs", agentMemoryDir,
+		"Historical docs/agent-memory redirects, not the live backlog. The task store under "+
+			".taskman (read with corvint-tasks queue status, roadmap, or ticket search) is current "+
+			"work; see Board and Roadmap. Every entry here is agent-written untrusted text and "+
+			"renders inert: no markup, no script, no link is activated from it. An empty page here "+
+			"is not evidence the task store has no open tickets.")
 }
 
 // serveListing renders one committed directory and, when a path is given, that
