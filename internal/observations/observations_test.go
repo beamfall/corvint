@@ -859,6 +859,30 @@ func TestAdapterDegradationRowCarriesNoContentFields(t *testing.T) {
 	}
 }
 
+// SOL-V0-010, AHI-029 (V1-0294): each degradation the Claude Code compaction events return
+// after resolving the root is admitted on both events, so it reaches the ledger.
+func TestAdapterDegradationAdmitsCompactionEventsAndCodes(t *testing.T) {
+	root := t.TempDir()
+	writeIgnore(t, root)
+	now := time.Date(2026, 9, 27, 1, 0, 0, 0, time.UTC)
+	codes := []string{
+		"compaction-block-unavailable", "compaction-pin-not-preserved", "compaction-pin-revision-unavailable",
+		"compaction-pin-verification-unavailable", "corvint-degradations-unrecognised", "git-unavailable",
+		"invalid-compaction-trigger",
+	}
+	for _, event := range []string{"pre-compact", "post-compact"} {
+		for _, code := range codes {
+			if err := Append(root, AdapterDegradationEvent("claude-code", event, code, "1.0.0", now)); err != nil {
+				t.Errorf("%s %s: %v", event, code, err)
+			}
+		}
+	}
+	data, err := os.ReadFile(filepath.Join(root, ".corvint", "self-observations.jsonl"))
+	if err != nil || bytes.Count(data, []byte("\n")) != 2*len(codes) {
+		t.Fatalf("ledger rows=%d err=%v", bytes.Count(data, []byte("\n")), err)
+	}
+}
+
 // SOL-V0-010: one row per host, event and code set per hour window.
 func TestAdapterDegradationDeduplicatesWithinWindow(t *testing.T) {
 	root := t.TempDir()
