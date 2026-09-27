@@ -150,10 +150,10 @@ digest it measured.
 
 `--summarize REPORT` (repeatable, no `--samples`/`--corpus`) re-reads written reports, merges
 their details by sample id (a later report's arm of the same name replaces an earlier one's),
-refuses reports over different samples files or naming an arm the bench does not define, and
-rebuilds every summary section, so a report written before the paired, fold, latency, or
-registration sections gains them, and a lexical-only run can be paired with an earlier `context`
-run over the same samples:
+refuses reports over different samples files or limits, measuring different `corvint` binaries,
+or naming an arm the bench does not define, and rebuilds every summary section, so a report
+written before the paired, fold, latency, or registration sections gains them, and a
+lexical-only run can be paired with an earlier `context` run over the same samples and limit:
 
 ```console
 /tmp/retrieval-bench --samples benchmark/v2_trace2code/trace2code.jsonl \
@@ -161,6 +161,10 @@ run over the same samples:
 /tmp/retrieval-bench --summarize first-run-trace2code.json --summarize lexical-trace2code.json \
   --output paired-trace2code.json
 ```
+
+The merged `corvint` identity and registration digest are those of whichever report measured a
+`corvint` binary (`NOT_RUN` only when none did), so a lexical-only first report never names the
+binary behind later Corvint arms.
 
 ## Reading a result
 

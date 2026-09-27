@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -24,8 +25,9 @@ import (
 )
 
 const (
-	maxFileBytes = 128 * 1024
-	maxRowBytes  = 2048
+	maxFileBytes   = 128 * 1024
+	maxRowBytes    = 2048
+	maxIgnoreBytes = 256 * 1024
 )
 
 var appendProcessLock sync.Mutex
@@ -712,12 +714,39 @@ func ledgerIgnored(root string) bool {
 // ignoring all of .corvint, and holds no negation. The unplanned-read ledger
 // shares this conservative check (URE-V0-003).
 func CorvintEntriesIgnored(root string, names ...string) bool {
-	data, err := os.ReadFile(filepath.Join(root, ".gitignore"))
-	if err == nil && ignoreCoversEach(data, names, rootIgnoreRules) {
+	data, ok := readIgnoreFile(root, ".gitignore")
+	if ok && ignoreCoversEach(data, names, rootIgnoreRules) {
 		return true
 	}
-	data, err = os.ReadFile(filepath.Join(root, ".corvint", ".gitignore"))
-	return err == nil && ignoreCoversEach(data, names, corvintIgnoreRules)
+	data, ok = readIgnoreFile(root, filepath.Join(".corvint", ".gitignore"))
+	return ok && ignoreCoversEach(data, names, corvintIgnoreRules)
+}
+
+// readIgnoreFile reads one ignore file through a descriptor rooted at root, so
+// a symlinked component cannot lead outside it, and only when it is a regular
+// file of at most maxIgnoreBytes. Lstat refuses a leaf symlink; the open is
+// non-blocking and re-checked by fstat, so a FIFO swapped in cannot block.
+func readIgnoreFile(root, name string) ([]byte, bool) {
+	repository, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, false
+	}
+	defer repository.Close()
+	linkInfo, err := repository.Lstat(name)
+	if err != nil || !linkInfo.Mode().IsRegular() {
+		return nil, false
+	}
+	file, err := repository.OpenFile(name, os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return nil, false
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil || !info.Mode().IsRegular() {
+		return nil, false
+	}
+	data, err := io.ReadAll(io.LimitReader(file, maxIgnoreBytes+1))
+	return data, err == nil && len(data) <= maxIgnoreBytes
 }
 
 func rootIgnoreRules(name string) map[string]bool {

@@ -1427,7 +1427,7 @@ LTA-V0-008	docs/specs/learned-trace-admission-v0.md	116	Each exported skill MUST
 LTA-V0-009	docs/specs/learned-trace-admission-v0.md	121	(decision 0368, accepted by 0373, experimental) `corvint eval --learn-slot-weigh
 LTA-V0-010	docs/specs/learned-trace-admission-v0.md	132	(decision 0368, accepted by 0373, experimental) Each proposal MUST be scored aga
 LTA-V0-011	docs/specs/learned-trace-admission-v0.md	141	(decision 0368, accepted by 0373, experimental) Only `--admit` with an `improved
-LTA-V0-012	docs/specs/learned-trace-admission-v0.md	156	(decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weigh
+LTA-V0-012	docs/specs/learned-trace-admission-v0.md	157	(decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weigh
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	55	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	59	The Python reader MUST accept canonical rows only when their filename and row na
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	64	Dry-run MUST be read-only and bind its plan digest to the stable current commit/
@@ -1954,15 +1954,15 @@ SNR-V0-013	docs/specs/sql-native-ratchet-gate-v0.md	174	The gate MUST run `Bench
 SNR-V0-014	docs/specs/sql-native-ratchet-gate-v0.md	183	On completing every prior requirement without refusal, the gate MUST print exact
 SNR-V0-015	docs/specs/sql-native-ratchet-gate-v0.md	191	Every artifact the gate creates — the `SNR-V0-001` lock directory, the `git arch
 SOL-V0-001	docs/specs/self-observation-ledger-v0.md	28	Event handlers for `session-start`, `user-prompt`, and `file-change` MUST attemp
-SOL-V0-002	docs/specs/self-observation-ledger-v0.md	38	Rows MUST contain no task text, source body, command, credential, or agent-memor
-SOL-V0-003	docs/specs/self-observation-ledger-v0.md	40	Each row is at most 2 KiB; the ledger is at most 128 KiB. On overflow, the write
-SOL-V0-004	docs/specs/self-observation-ledger-v0.md	47	Rows MAY report support, freshness, degradation codes, uncertainty, omitted and
-SOL-V0-005	docs/specs/self-observation-ledger-v0.md	50	Triage MUST be read-only and stdout-only. Its bounded digest reports degradation
-SOL-V0-006	docs/specs/self-observation-ledger-v0.md	57	A degradation present in at least 90% of recorded events MUST be labelled
-SOL-V0-007	docs/specs/self-observation-ledger-v0.md	59	Every emitted `unsupported-*` CLI failure SHOULD be recorded with only
-SOL-V0-008	docs/specs/self-observation-ledger-v0.md	97	**Accepted 2026-09-01.** `corvint dogfood-observe` is the one additional bounded
-SOL-V0-009	docs/specs/self-observation-ledger-v0.md	103	`corvint prove-observe` is the second bounded internal process writer surface.
-SOL-V0-010	docs/specs/self-observation-ledger-v0.md	110	The `codex` and `claude-code` host adapters (`corvint adapter`) MUST attempt one
+SOL-V0-002	docs/specs/self-observation-ledger-v0.md	41	Rows MUST contain no task text, source body, command, credential, or agent-memor
+SOL-V0-003	docs/specs/self-observation-ledger-v0.md	43	Each row is at most 2 KiB; the ledger is at most 128 KiB. On overflow, the write
+SOL-V0-004	docs/specs/self-observation-ledger-v0.md	50	Rows MAY report support, freshness, degradation codes, uncertainty, omitted and
+SOL-V0-005	docs/specs/self-observation-ledger-v0.md	53	Triage MUST be read-only and stdout-only. Its bounded digest reports degradation
+SOL-V0-006	docs/specs/self-observation-ledger-v0.md	60	A degradation present in at least 90% of recorded events MUST be labelled
+SOL-V0-007	docs/specs/self-observation-ledger-v0.md	62	Every emitted `unsupported-*` CLI failure SHOULD be recorded with only
+SOL-V0-008	docs/specs/self-observation-ledger-v0.md	100	**Accepted 2026-09-01.** `corvint dogfood-observe` is the one additional bounded
+SOL-V0-009	docs/specs/self-observation-ledger-v0.md	106	`corvint prove-observe` is the second bounded internal process writer surface.
+SOL-V0-010	docs/specs/self-observation-ledger-v0.md	113	The `codex` and `claude-code` host adapters (`corvint adapter`) MUST attempt one
 SOP-V0-001	docs/specs/stable-operations-v0.md	76	The install-lifecycle check MUST accept either one release archive whose single
 SOP-V0-002	docs/specs/stable-operations-v0.md	80	The check MUST create a committed fixture repository in its own temporary direct
 SOP-V0-003	docs/specs/stable-operations-v0.md	84	An upgrade MUST install into a second store beside the first and run `corvint
@@ -2129,13 +2129,13 @@ TSS-V0-006	docs/specs/touch-set-surprise-v0.md	74	The verb MUST be read-only (in
 TTG-V0-001	docs/specs/traceability-test-gate-v0.md	43	The gate MUST build its set of known Go verification function names by listing
 TTG-V0-002	docs/specs/traceability-test-gate-v0.md	49	TTG-V0-001 MUST resolve both test paths and test-file content from the Git index
 TTG-V0-003	docs/specs/traceability-test-gate-v0.md	54	The gate MUST treat a heading of level 1 to 6 as opening a traceability section
-TTG-V0-004	docs/specs/traceability-test-gate-v0.md	59	Within an open traceability section the gate MUST inspect only lines that, after
-TTG-V0-005	docs/specs/traceability-test-gate-v0.md	62	On each inspected line the gate MUST find every substring matching a `Test` pref
-TTG-V0-006	docs/specs/traceability-test-gate-v0.md	67	A matched name MUST be exempted from TTG-V0-005 when the text immediately
-TTG-V0-007	docs/specs/traceability-test-gate-v0.md	72	The gate MUST evaluate every file matched by a non-recursive glob of
-TTG-V0-008	docs/specs/traceability-test-gate-v0.md	75	The gate MUST print a single summary line of the form "traceability tests: N
-TTG-V0-009	docs/specs/traceability-test-gate-v0.md	78	When one or more names fail TTG-V0-005, the gate MUST print a header line follow
-TTG-V0-010	docs/specs/traceability-test-gate-v0.md	81	The gate MUST be wired as the `traceability-tests-check` `make` target and MUST
+TTG-V0-004	docs/specs/traceability-test-gate-v0.md	60	Within an open traceability section the gate MUST inspect only lines that, after
+TTG-V0-005	docs/specs/traceability-test-gate-v0.md	63	On each inspected line the gate MUST find every substring matching a `Test` pref
+TTG-V0-006	docs/specs/traceability-test-gate-v0.md	68	A matched name MUST be exempted from TTG-V0-005 when the text immediately
+TTG-V0-007	docs/specs/traceability-test-gate-v0.md	73	The gate MUST evaluate every file matched by a non-recursive glob of
+TTG-V0-008	docs/specs/traceability-test-gate-v0.md	76	The gate MUST print a single summary line of the form "traceability tests: N
+TTG-V0-009	docs/specs/traceability-test-gate-v0.md	79	When one or more names fail TTG-V0-005, the gate MUST print a header line follow
+TTG-V0-010	docs/specs/traceability-test-gate-v0.md	82	The gate MUST be wired as the `traceability-tests-check` `make` target and MUST
 UCV0-001	docs/specs/use-case-conformance-v0.md	99	The canonical ledger MUST contain exactly one row for every governed job named a
 UCV0-002	docs/specs/use-case-conformance-v0.md	101	Status MUST be exactly `specified`, `experimental`, or `verified`. Claim MUST be
 UCV0-003	docs/specs/use-case-conformance-v0.md	104	The promotion evidence classes are exactly `contract`, `implementation`,

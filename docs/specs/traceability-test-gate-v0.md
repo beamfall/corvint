@@ -12,7 +12,7 @@ capability-spec shape" (item 9, the requirement-to-implementation traceability t
 ## Agent digest
 - Claim: A Go test function named in a spec traceability table must exist or be marked PLANNED.
 - Status: accepted (owner instruction 2026-09-07) / implemented
-- Exists: `script/check-traceability-tests.sh`, fixture test `script/check-traceability-tests_test.sh`, `make` target `traceability-tests-check` in `gate`.
+- Exists: `script/check-traceability-tests.sh`, fixture test `script/check-traceability-tests_test.sh`, `make` targets `traceability-tests-check` and `traceability-tests-test` in `gate`.
 - Blocked on: nothing for this gate.
 - Read next: Requirements; Non-goals; Trust boundary and failure modes.
 
@@ -55,7 +55,8 @@ arguments, and requires only `git` and `perl` on `PATH`.
   when its title text contains the substring "traceability", case-insensitively, anywhere in the
   title, not only when the heading reads exactly "Traceability". The section MUST close at the
   next heading whose level is less than or equal to the opening heading's level, and MUST stay
-  open across any heading strictly deeper than it.
+  open across any heading strictly deeper than it, including a deeper heading whose title also
+  contains "traceability", which MUST NOT replace the opening heading's level.
 - `TTG-V0-004`: Within an open traceability section the gate MUST inspect only lines that, after
   optional leading whitespace, begin with a pipe character (a Markdown table row, including a
   header-separator row); it MUST NOT inspect prose lines even inside an open section.
@@ -80,7 +81,9 @@ arguments, and requires only `git` and `perl` on `PATH`.
   non-zero. With no recorded failures it MUST exit zero and print nothing to standard error.
 - `TTG-V0-010`: The gate MUST be wired as the `traceability-tests-check` `make` target and MUST be
   a member of the `gate` target's prerequisite list, so a failure under TTG-V0-009 fails `make
-  gate`.
+  gate`. Its fixture `script/check-traceability-tests_test.sh` MUST be wired as the
+  `traceability-tests-test` target in the same prerequisite list, so a checker regression the
+  fixture detects also fails `make gate`.
 
 ## Non-goals and simpler baseline
 
@@ -119,25 +122,26 @@ exit code.
 Acceptance rests on the gate running clean over the current indexed `docs/specs/*.md` corpus as a
 `gate` prerequisite and on `script/check-traceability-tests_test.sh` proving that an untracked test
 function cannot satisfy an indexed traceability row while staging the same function makes it
-visible.
+visible, and that an undeclared name stays reported under a deeper, repeated traceability heading
+but not after a heading at or above the opening depth.
 
 | Requirement | Evidence |
 |---|---|
 | TTG-V0-001, TTG-V0-002 | `script/check-traceability-tests_test.sh` untracked-then-staged fixture |
-| TTG-V0-003, TTG-V0-004, TTG-V0-007 | direct reading of the per-file heading-state loop in `script/check-traceability-tests.sh` |
+| TTG-V0-003, TTG-V0-004, TTG-V0-007 | `script/check-traceability-tests_test.sh` control, nested-heading, and closed-section fixtures; direct reading of the per-file heading-state loop in `script/check-traceability-tests.sh` |
 | TTG-V0-005, TTG-V0-006 | direct reading of the per-line match loop in `script/check-traceability-tests.sh` |
-| TTG-V0-008, TTG-V0-009 | direct reading of the summary and failure-report block in `script/check-traceability-tests.sh` |
-| TTG-V0-010 | `Makefile` target `traceability-tests-check` and its membership in the `gate` target's prerequisite list |
+| TTG-V0-008, TTG-V0-009 | `script/check-traceability-tests_test.sh` `path:line: Name` failure reports; direct reading of the summary and failure-report block in `script/check-traceability-tests.sh` |
+| TTG-V0-010 | `Makefile` targets `traceability-tests-check` and `traceability-tests-test` and their membership in the `gate` target's prerequisite list |
 
 ## Traceability
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | TTG-V0-001, TTG-V0-002 | the indexed `git ls-files` collection and per-file function-name scan in `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh` |
-| TTG-V0-003, TTG-V0-004, TTG-V0-007 | the per-file heading and active-section state machine in `script/check-traceability-tests.sh` | reading of the script |
+| TTG-V0-003, TTG-V0-004, TTG-V0-007 | the per-file heading and active-section state machine in `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh`; reading of the script |
 | TTG-V0-005, TTG-V0-006 | the per-line name match and the `(PLANNED)` exemption in `script/check-traceability-tests.sh` | reading of the script |
-| TTG-V0-008, TTG-V0-009 | the summary print and the failure report in `script/check-traceability-tests.sh` | reading of the script |
-| TTG-V0-010 | `traceability-tests-check` in `Makefile` and its place in the `gate` prerequisite list | `Makefile` |
+| TTG-V0-008, TTG-V0-009 | the summary print and the failure report in `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh`; reading of the script |
+| TTG-V0-010 | `traceability-tests-check` and `traceability-tests-test` in `Makefile` and their place in the `gate` prerequisite list | `Makefile` |
 
 ## Rollout, rollback, and drift
 

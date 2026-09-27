@@ -30,7 +30,10 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   Failure to observe MUST NOT alter a response, receipt, exit status, index, trace, or session. The
   writer MUST refuse when no ignore rule safely covers both the ledger and its atomic-write
   temporaries, and when `.corvint` is not a real directory or an existing ledger is not a regular
-  file (a symlink), so no write, temporary sweep, or previous-row read leaves the worktree. Triage
+  file (a symlink), so no write, temporary sweep, or previous-row read leaves the worktree. An
+  ignore file counts toward that coverage only when it is a regular file of at most 256 KiB,
+  reached inside the repository without a symlink leaf, and read with a non-blocking open; any
+  other ignore file skips the observation. Triage
   (`Read`) MUST open the ledger only under the same condition, verified against the opened file, and
   otherwise fail, so `corvint observations` exits 2 and `prove` omits its advisory `ledger` block
   (decision 0185's reader check). The mutating `corvint index` command MAY bootstrap the narrow parent ignore rule
@@ -161,9 +164,9 @@ that OCM enumerates all ten clauses from this document; it does not validate the
 
 | Requirement | Evidence |
 |---|---|
-| SOL-V0-001..004 | `internal/observations` append/rotation and ignore-coverage tests; `TestAppendRepairDiscardsUnterminatedRows`; `TestAppendRefusesSymlinkedLedgerDirectoryOrFile`; `TestReadRefusesSymlinkedLedgerDirectoryOrFile`; `TestIndexBootstrapsIgnoredObservationLedger`; harness tests |
+| SOL-V0-001..004 | `internal/observations` append/rotation and ignore-coverage tests; `TestAppendRepairDiscardsUnterminatedRows`; `TestAppendRefusesSymlinkedLedgerDirectoryOrFile`; `TestReadRefusesSymlinkedLedgerDirectoryOrFile`; `TestAppendReadsOnlyBoundedRegularIgnoreFilesInsideTheRepository`; `TestIndexBootstrapsIgnoredObservationLedger`; harness tests |
 | SOL-V0-005..006 | golden triage test, `TestRenderSkipsMalformedJSONLinesRows`, `TestRenderSkipsRowWhoseKeyCarriesALineBreak`, and stdout-only CLI test |
-| SOL-V0-007 | unsupported aggregation test; `TestUnsupportedByDesignCodeIsReportedSeparately`; `TestOCMUnsupportedRefusalAppendsOneObservation`; `TestLRFCEMAndDogfoodOCMUnsupportedRefusalsAppendOneObservationEach`; `TestIndexBuildingCommandsRecordUnsupportedRefusal`; `TestRunFrontierUnsupportedRefusalLeavesRepositoryUnchanged` (exclusion); `TestRecordUnsupportedVerifySyntaxAppendsOneObservation`; `TestDogfoodRecordUnsupportedVerifySyntaxAppendsOneObservation`; `TestRefusalSnapshotExceptsOnlyTheIgnoredLedger` (conformance refusal snapshot); `TestHostAdapterUnsupportedHookEventRecordsNoObservation` (exclusion); `TestBatchRefusesWithoutSnapshot` (exclusion); `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (adapter codex/claude-code CLI-level exclusion) |
+| SOL-V0-007 | unsupported aggregation test; `TestUnsupportedByDesignCodeIsReportedSeparately`; `TestOCMUnsupportedRefusalAppendsOneObservation`; `TestLRFCEMAndDogfoodOCMUnsupportedRefusalsAppendOneObservationEach`; `TestIndexBuildingCommandsRecordUnsupportedRefusal`; `TestRunFrontierUnsupportedRefusalLeavesRepositoryUnchanged` (exclusion); `TestRecordUnsupportedVerifySyntaxAppendsOneObservation`; `TestRecordUnsupportedSkipsObservationBehindAnOversizedIgnoreFile`; `TestDogfoodRecordUnsupportedVerifySyntaxAppendsOneObservation`; `TestRefusalSnapshotExceptsOnlyTheIgnoredLedger` (conformance refusal snapshot); `TestHostAdapterUnsupportedHookEventRecordsNoObservation` (exclusion); `TestBatchRefusesWithoutSnapshot` (exclusion); `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (adapter codex/claude-code CLI-level exclusion) |
 | SOL-V0-008 | bounded writer CLI test, report-row integration test, append concurrency tests, and `TestDogfoodReasonAdmitsEveryRegisteredCEMCode` |
 | SOL-V0-009 | `TestFalsificationRateCountsJudgedRowsOnly`, `TestProveObserveRecordsOnlyTheVerdictCounts`, `TestProveObserveRejectsWhatIsNotAProof` |
 | SOL-V0-010 | `TestAdapterDegradationRowCarriesNoContentFields`, `TestAdapterDegradationDeduplicatesWithinWindow`, `TestAdapterDegradationRowsHonorLedgerCap`, `TestRenderTalliesAdapterDegradations`, `TestClaudeAdapterQuietDegradationIsLedgered`, `TestAdapterDegradationRecordedPastExpiredWorkDeadline`; `TestCLIReadVerbsLeaveTheRepositoryByteIdentical` (adapter paths touch nothing but the ledger) |

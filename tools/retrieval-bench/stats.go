@@ -344,14 +344,16 @@ type storedReport struct {
 
 // resummarize merges the details of every --summarize report by sample id
 // (a later report's arm replaces an earlier one's of the same name), keeps
-// the first report's samples digest, limit, skips, and binary identity, and
-// rebuilds every summary section. Reports over different samples files are
-// refused, so a merged report never pairs arms across runs of different
-// inputs.
+// the first report's samples digest, limit, and skips and the one Corvint
+// binary any report measured, and rebuilds every summary section. Reports
+// over different samples files or limits, or measuring different Corvint
+// binaries, are refused, so a merged report never pairs arms across runs of
+// different inputs or attributes one binary's results to another.
 func resummarize(configuration options) (map[string]any, error) {
 	merged := map[string]*sampleReport{}
 	order := make([]string, 0, 512)
 	var first storedReport
+	var identity map[string]any
 	sources := make([]string, 0, len(configuration.summaries))
 	for index, path := range configuration.summaries {
 		data, err := readBounded(path, maxReportBytes)
@@ -363,10 +365,19 @@ func resummarize(configuration options) (map[string]any, error) {
 			return nil, fmt.Errorf("%s: %w", path, err)
 		}
 		if index == 0 {
-			first = stored
+			first, identity = stored, stored.Corvint
 		}
 		if stored.SamplesSHA256 != first.SamplesSHA256 {
 			return nil, fmt.Errorf("%s is over different samples than %s", path, configuration.summaries[0])
+		}
+		if stored.Limit != first.Limit {
+			return nil, fmt.Errorf("%s ran at limit %d, not %s's limit %d", path, stored.Limit, configuration.summaries[0], first.Limit)
+		}
+		if measuredBinary(stored.Corvint) {
+			if measuredBinary(identity) && identity["sha256"] != stored.Corvint["sha256"] {
+				return nil, fmt.Errorf("%s measured a different corvint binary than an earlier report", path)
+			}
+			identity = stored.Corvint
 		}
 		digest := sha256.Sum256(data)
 		sources = append(sources, hex.EncodeToString(digest[:]))
@@ -398,7 +409,7 @@ func resummarize(configuration options) (map[string]any, error) {
 	for _, id := range order {
 		reports = append(reports, *merged[id])
 	}
-	registered := registration(first.SamplesSHA256, first.Corvint, armSet(presentArms(reports)))
+	registered := registration(first.SamplesSHA256, identity, armSet(presentArms(reports)))
 	registered["source_reports_sha256"] = sources
 	return map[string]any{
 		"profile":        profile,
@@ -406,13 +417,20 @@ func resummarize(configuration options) (map[string]any, error) {
 		"samples":        len(reports),
 		"skipped":        first.Skipped,
 		"limit":          first.Limit,
-		"corvint":        first.Corvint,
+		"corvint":        identity,
 		"registration":   registered,
 		"arms":           summarize(reports, first.Limit),
 		"paired":         paired(reports),
 		"latency":        latency(reports),
 		"details":        reports,
 	}, nil
+}
+
+// measuredBinary reports whether a stored identity names a Corvint binary,
+// not NOT_RUN (no Corvint verb selected) or an absent identity.
+func measuredBinary(identity map[string]any) bool {
+	digest, _ := identity["sha256"].(string)
+	return digest != "" && digest != "NOT_RUN"
 }
 
 // unknownArm returns an arm name a stored detail carries outside

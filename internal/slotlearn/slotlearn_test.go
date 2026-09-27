@@ -114,3 +114,93 @@ func TestLTAV0012AdmittedTraceRoundTripsAndResetRestoresDefault(t *testing.T) {
 		t.Fatalf("after reset = %v, %v", admitted, err)
 	}
 }
+
+func TestLTAV0012ResetRefusesASymlinkedStoreAndRemovesALeafLink(t *testing.T) {
+	root, outside := t.TempDir(), t.TempDir()
+	target := filepath.Join(outside, filepath.Base(contextindex.SlotWeightsPath))
+	original := []byte(`{"outside":true}`)
+	if err := os.WriteFile(target, original, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := filepath.Join(root, filepath.Dir(filepath.FromSlash(contextindex.SlotWeightsPath)))
+	if err := os.Symlink(outside, store); err != nil {
+		t.Fatal(err)
+	}
+	if removed, err := Reset(root); removed || err == nil {
+		t.Fatalf("reset through a symlinked store = %v, %v", removed, err)
+	}
+	if after, err := os.ReadFile(target); err != nil || string(after) != string(original) {
+		t.Fatalf("outside file changed: %q, %v", after, err)
+	}
+	if err := os.Remove(store); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(store, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(store, filepath.Base(contextindex.SlotWeightsPath))); err != nil {
+		t.Fatal(err)
+	}
+	if removed, err := Reset(root); !removed || err != nil {
+		t.Fatalf("reset of a leaf link = %v, %v", removed, err)
+	}
+	if after, err := os.ReadFile(target); err != nil || string(after) != string(original) {
+		t.Fatalf("leaf link target changed: %q, %v", after, err)
+	}
+}
+
+// The admit path writes through the pinned store, so a symlinked store is
+// refused and nothing is written outside the repository.
+func TestLTAV0011AdmitRefusesASymlinkedStoreAndWritesNothingOutside(t *testing.T) {
+	root, outside := t.TempDir(), t.TempDir()
+	store := filepath.Join(root, filepath.Dir(filepath.FromSlash(contextindex.SlotWeightsPath)))
+	if err := os.Symlink(outside, store); err != nil {
+		t.Fatal(err)
+	}
+	err := writeAdmitted(root, contextindex.SlotWeights{"test": 2}, map[string]any{
+		"goldens_sha256": "sha256:" + strings.Repeat("a", 64), "revision": strings.Repeat("b", 40), "heldout_cases": 2,
+		"baseline": map[string]any{"critical_misses": 0, "must_include_hits": 1, "top5_hits": 1},
+		"arm":      map[string]any{"critical_misses": 0, "must_include_hits": 2, "top5_hits": 2},
+	})
+	if err == nil {
+		t.Fatal("admit through a symlinked store succeeded")
+	}
+	if entries, err := os.ReadDir(outside); err != nil || len(entries) != 0 {
+		t.Fatalf("outside directory written: %v, %v", entries, err)
+	}
+}
+
+func TestLTAV0012PinnedStoreIgnoresASubstitutedDirectory(t *testing.T) {
+	root, outside := t.TempDir(), t.TempDir()
+	name := filepath.Base(contextindex.SlotWeightsPath)
+	store := filepath.Join(root, filepath.Dir(filepath.FromSlash(contextindex.SlotWeightsPath)))
+	if err := os.Mkdir(store, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, directory := range []string{store, outside} {
+		if err := os.WriteFile(filepath.Join(directory, name), []byte(directory), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	pinned, err := contextindex.OpenSlotWeightsStore(root)
+	if err != nil || pinned == nil {
+		t.Fatalf("open store = %v, %v", pinned, err)
+	}
+	defer pinned.Close()
+	moved := filepath.Join(root, "moved")
+	if err := os.Rename(store, moved); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, store); err != nil {
+		t.Fatal(err)
+	}
+	if err := pinned.Remove(name); err != nil {
+		t.Fatal(err)
+	}
+	if after, err := os.ReadFile(filepath.Join(outside, name)); err != nil || string(after) != outside {
+		t.Fatalf("outside file changed: %q, %v", after, err)
+	}
+	if _, err := os.Lstat(filepath.Join(moved, name)); !os.IsNotExist(err) {
+		t.Fatalf("pinned file not removed: %v", err)
+	}
+}
