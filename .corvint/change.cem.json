@@ -1,0 +1,80 @@
+{
+  "baseRevision": "94ca556f52c0349c0a48e0c3a3274f8a0b5e6db3",
+  "evidence": [
+    {
+      "blobOid": "cee35ed601eb89577f80e1d4415424b35a412697",
+      "id": "evidence:sha256:6c836e755b288a5dd808f158d97e4c43ba39f4efcb6ba506e3d571715e12a130",
+      "path": "docs/specs/go-only-cutover-v0.md",
+      "span": {
+        "end": 7956,
+        "start": 7679
+      },
+      "spanSha256": "55714ba612f8cba2f5459869a93316467b08fcb16c7142d5e434bfff0dcff390"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:6c836e755b288a5dd808f158d97e4c43ba39f4efcb6ba506e3d571715e12a130",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:1500e7cf12337287dadf0e07f7780af1d79b80becf3c04982d950f99e1f50d13",
+      "newRange": {
+        "count": 6,
+        "start": 12
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 12
+      },
+      "path": "cmd/corvint/work_final_check_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:6c836e755b288a5dd808f158d97e4c43ba39f4efcb6ba506e3d571715e12a130",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:ba0e49c6d24d084ae7d33106ec1e925cbf9bcf311b22fede4c4577c4f6e0d150",
+      "newRange": {
+        "count": 6,
+        "start": 402
+      },
+      "oldRange": {
+        "count": 34,
+        "start": 403
+      },
+      "path": "cmd/corvint/work_final_check_test.go",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:6c836e755b288a5dd808f158d97e4c43ba39f4efcb6ba506e3d571715e12a130",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:84f8a33209905598d9c74a3205a421583c47df2f9d87450d0e64a75eb517e740",
+      "newRange": {
+        "count": 34,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 0,
+        "start": 0
+      },
+      "path": "cmd/corvint/work_interruption_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "a11bb9904ae0cacb6029efb50200e11a9b0a367f72480af3199382fa5435a953",
+  "spec": "cem/0.2"
+}
