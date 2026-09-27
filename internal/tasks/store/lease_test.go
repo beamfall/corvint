@@ -232,6 +232,28 @@ func TestCALV0023_DisjointPathScopesAreBothAdmitted(t *testing.T) {
 	auditOK(t, s.repo)
 }
 
+// TestCALV0021_DeclaredNonPathResourcesJoinTheScope: two claims on disjoint
+// paths still collide when both tickets declare the same database.
+func TestCALV0021_DeclaredNonPathResourcesJoinTheScope(t *testing.T) {
+	s := newLeaseStore(t)
+	ids := []string{}
+	for _, title := range []string{"one", "two"} {
+		payload := createPayload(title)
+		payload.Obj.Set("effects", obj("coverage", str("QUALIFIED"), "externalUnbounded", wire.Bool(false), "resources", wire.Array(obj("class", str("DATABASE"), "key", str("dev"))), "touchPaths", wire.Strings(nil)))
+		report := mutate(t, s.repo, envelope("create-"+title, "CREATE", "", "", payload))
+		if report.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Fatalf("create %s: %+v", title, report)
+		}
+		ids = append(ids, report.Ticket)
+	}
+	s.t0 = now(t)
+	first := s.claim(t, "claim-1", ids[0], 0, "src/a")
+	if a := s.attempt(t, first.AttemptID); len(a.Scope.Resources) != 2 {
+		t.Fatalf("scope: %+v", a.Scope)
+	}
+	refusedWith(t, s.lease(t, "claim-2", claimOf(ids[1], "src/b"), 0, nil), mutation.OutcomeBlocked, wire.CodeResourceCollision)
+}
+
 // TestCALV0021_WholeRepositoryBlocksEverything: a ticket that declares no
 // paths, with no --scope and an abstaining deriver, holds WHOLE_REPOSITORY,
 // which collides with any other claim.

@@ -44,14 +44,28 @@ func Declared(rec *ticket.Record) []string {
 	return out
 }
 
+// declaredOther is every non-PATH resource the ticket declares. It joins
+// each scope short of WHOLE_REPOSITORY, so two claims on one database, port
+// or shared gate still collide under TCP-00 §4.2 (CAL-V0-021).
+func declaredOther(rec *ticket.Record) []ticket.Resource {
+	out := []ticket.Resource{}
+	for _, r := range rec.Effects.Resources {
+		if r.Class != "PATH" {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
 // claimScope applies the CAL-V0-021 precedence: DECLARED, REQUESTED,
 // DERIVED, then WHOLE_REPOSITORY.
 func (c leaseContext) claimScope(rec *ticket.Record) (*snapshot.Scope, error) {
+	other := declaredOther(rec)
 	if declared := Declared(rec); len(declared) > 0 {
-		return &snapshot.Scope{Source: "DECLARED", Resources: pathResources(declared)}, nil
+		return &snapshot.Scope{Source: "DECLARED", Resources: append(pathResources(declared), other...)}, nil
 	}
 	if c.l.Scope != nil {
-		return &snapshot.Scope{Source: "REQUESTED", Resources: pathResources(c.l.Scope)}, nil
+		return &snapshot.Scope{Source: "REQUESTED", Resources: append(pathResources(c.l.Scope), other...)}, nil
 	}
 	facts := c.in.LeaseFacts
 	if facts.DerivedPaths == nil {
@@ -64,7 +78,7 @@ func (c leaseContext) claimScope(rec *ticket.Record) (*snapshot.Scope, error) {
 	if e != nil {
 		return nil, e
 	}
-	return &snapshot.Scope{Source: "DERIVED", Resources: pathResources(facts.DerivedPaths), DerivationSha256: &d}, nil
+	return &snapshot.Scope{Source: "DERIVED", Resources: append(pathResources(facts.DerivedPaths), other...), DerivationSha256: &d}, nil
 }
 
 func entryCoverage(sc *snapshot.Scope) string {
