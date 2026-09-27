@@ -727,3 +727,83 @@ func TestFilterKeyBoundsDriverName(t *testing.T) {
 		}
 	}
 }
+
+// V1-0388: Git opens a worktree ignore or attributes file without O_NONBLOCK,
+// so a FIFO one is refused by name before status instead of at the deadline.
+func TestStatusRefusesBlockingWorktreeInputsPromptly(t *testing.T) {
+	for _, name := range []string{".gitignore", "nested/.gitattributes"} {
+		t.Run(name, func(t *testing.T) {
+			root := fixture(t)
+			writeTest(t, filepath.Join(root, "value.go"), "package value\n")
+			if err := os.MkdirAll(filepath.Join(root, "nested", "deeper"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			writeTest(t, filepath.Join(root, "nested", "deeper", "value.go"), "package deeper\n")
+			gitTest(t, root, "add", "nested")
+			if err := syscall.Mkfifo(filepath.Join(root, name), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			called := false
+			run := func(ctx context.Context, dir string, limit int, args ...string) ([]byte, error) {
+				called = called || slices.Contains(args, "status")
+				return testRun(ctx, dir, limit, args...)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
+			started := time.Now()
+			_, err := Status(ctx, root, metadataLimit, run, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+			if time.Since(started) > 10*time.Second || called {
+				t.Fatalf("blocking worktree input reached status: %v", err)
+			}
+			want := "Git status cannot safely observe repository metadata: worktree file " + filepath.Base(name) + " is a FIFO"
+			if RefusalClass(err) != string(classMetadataUnreadable) || RefusalMessage(err) != want {
+				t.Fatalf("refusal=%q class=%q, want %q", RefusalMessage(err), RefusalClass(err), want)
+			}
+		})
+	}
+}
+
+// A symlinked ignore file does not block: Git opens it without following it.
+func TestStatusAdmitsSymlinkedWorktreeInputs(t *testing.T) {
+	root := fixture(t)
+	target := filepath.Join(t.TempDir(), "ignore")
+	writeTest(t, target, "*.log\n")
+	if err := os.Symlink(target, filepath.Join(root, ".gitignore")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Status(context.Background(), root, metadataLimit, testRun, "status", "--porcelain=v1", "-z"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Index versions 2, 3 and 4 and both object formats list the same directories.
+func TestWorktreeInputsListEveryIndexDirectory(t *testing.T) {
+	want := []string{".gitattributes", ".gitignore", "a/.gitattributes", "a/.gitignore", "a/b/.gitattributes",
+		"a/b/.gitignore", "c/.gitattributes", "c/.gitignore"}
+	for _, format := range []string{"sha1", "sha256"} {
+		root := fixture(t, "--object-format="+format)
+		for _, file := range []string{"a/b/one.go", "a/two.go", "c/three.go"} {
+			if err := os.MkdirAll(filepath.Dir(filepath.Join(root, file)), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			writeTest(t, filepath.Join(root, file), "package x\n")
+		}
+		gitTest(t, root, "add", "a")
+		gitTest(t, root, "add", "--intent-to-add", "c/three.go")
+		for _, version := range []string{"3", "4"} {
+			gitTest(t, root, "update-index", "--index-version", version)
+			index, err := os.ReadFile(filepath.Join(root, ".git", "index"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := worktreeInputs(index)
+			slices.Sort(got)
+			if !slices.Equal(got, want) {
+				t.Errorf("%s index v%s inputs=%v want %v", format, version, got, want)
+			}
+		}
+	}
+	if got := worktreeInputs([]byte("DIRC\x00\x00\x00\x02\x00\x00\x00\x01short")); !slices.Equal(got, []string{".gitignore", ".gitattributes"}) {
+		t.Fatalf("unframed index inputs=%v", got)
+	}
+}
