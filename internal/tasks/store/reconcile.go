@@ -143,7 +143,11 @@ func reconcile(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 	if wire.Sum(headRaw) != proof.Identity.HeadSha256 {
 		return report, wire.Errorf(wire.CodeSnapshotMoved, "head.json", "validated head changed")
 	}
-	result := transaction.Model(request, transaction.Input{Inventory: inv, Head: headRaw, Queue: queue, Policy: proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: tickets, CanonicalReleases: releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now})
+	headRc, err := headReceipt(repo, headRaw)
+	if err != nil {
+		return report, err
+	}
+	result := transaction.Model(request, transaction.Input{Inventory: inv, Head: headRaw, HeadReceipt: headRc, Queue: queue, Policy: proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: tickets, CanonicalReleases: releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now})
 	report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 	if result.Kind != "Transaction" || result.Plan == nil {
 		return report, nil
@@ -271,7 +275,11 @@ func reconcileRelease(ctx context.Context, repo *intent.Repository, actor mutati
 	if err != nil {
 		return report, err
 	}
-	modeled := transaction.Model(request, transaction.Input{Inventory: inv, Head: headRaw, Queue: qraw, Policy: praw, Barrier: barrier, Reservations: reservations, CanonicalTickets: ticketRaws, CanonicalReleases: releaseRaws, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now})
+	headRc, err := headReceipt(repo, headRaw)
+	if err != nil {
+		return report, err
+	}
+	modeled := transaction.Model(request, transaction.Input{Inventory: inv, Head: headRaw, HeadReceipt: headRc, Queue: qraw, Policy: praw, Barrier: barrier, Reservations: reservations, CanonicalTickets: ticketRaws, CanonicalReleases: releaseRaws, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now})
 	report.Outcome, report.Coverage, report.Detail, report.Kind = modeled.Outcome, modeled.Coverage, modeled.Detail, modeled.Kind
 	report.Release = choice.TargetID
 	if modeled.Kind != "Transaction" || modeled.Plan == nil {

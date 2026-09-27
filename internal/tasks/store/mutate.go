@@ -128,11 +128,16 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 	if wire.Sum(head) != canonical.Identity.HeadSha256 {
 		return report, wire.Errorf(wire.CodeSnapshotMoved, "head.json", "validated head changed")
 	}
+	headRc, err := headReceipt(repo, head)
+	if err != nil {
+		return report, err
+	}
 	result := transaction.Model(
 		request,
 		transaction.Input{
 			Inventory:         inv,
 			Head:              head,
+			HeadReceipt:       headRc,
 			Queue:             queue,
 			Policy:            policy,
 			Barrier:           barrier,
@@ -189,6 +194,16 @@ func journalBytes(repo *intent.Repository) (head, barrier, reservations []byte, 
 		return nil, nil, nil, err
 	}
 	return head, barrier, reservations, nil
+}
+
+// headReceipt reads the receipt head.json names, so the model can refuse a
+// transaction recorded earlier than it (CAL-V0-012).
+func headReceipt(repo *intent.Repository, headRaw []byte) ([]byte, error) {
+	head, err := snapshot.DecodeHead(headRaw)
+	if err != nil {
+		return nil, err
+	}
+	return readReceiptBytes(repo, head.LastSeq.Uint64())
 }
 
 func optional(path string, bound int) ([]byte, error) {

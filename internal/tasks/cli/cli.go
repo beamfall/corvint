@@ -16,6 +16,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/archive"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -37,6 +38,9 @@ type Env struct {
 	Stdin     io.Reader
 	Stdout    io.Writer
 	Stderr    io.Writer
+	// ScopeDeriver derives a claim scope for a ticket that declares none
+	// (CAL-V0-022); nil abstains.
+	ScopeDeriver store.ScopeDeriver
 }
 
 // ReadVerbs are the verb paths this binary implements. The reads are pure
@@ -54,16 +58,17 @@ var ReadVerbs = []string{
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
 	"ticket revoke-approval",
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
+	"claim", "renew", "release", "reap", "widen", "attempt show",
 }
 
 // OmittedVerbs are the verb paths the SPEC names that this binary does not
 // implement; each answers NOT_RUN. The remaining administrative verbs arrive
 // with the rest of TCP-02;
-// `config show`, `plan preview`, `receipt show|replay` and `attempt
-// show` remain unimplemented; receipt audit exposes the native journal reader.
+// `config show`, `plan preview` and `receipt show|replay` remain
+// unimplemented; receipt audit exposes the native journal reader.
 var OmittedVerbs = []string{
 	"admit", "cancel", "retry", "resume", "drain",
-	"lane-leader", "config", "plan", "receipt show", "receipt replay", "attempt",
+	"lane-leader", "config", "plan", "receipt show", "receipt replay",
 	"archive restore",
 }
 
@@ -113,7 +118,14 @@ func Run(env Env) int {
 		if len(args) < 2 {
 			return emit(env.Stdout, usage([]string{"release"}, "release needs a verb"))
 		}
+		if strings.HasPrefix(args[1], "--") {
+			return emit(env.Stdout, leaseCommand(env, "release", args[1:]))
+		}
 		return emit(env.Stdout, releaseCommand(env, args[1], args[2:]))
+	case "claim", "renew", "reap", "widen":
+		return emit(env.Stdout, leaseCommand(env, args[0], args[1:]))
+	case "attempt":
+		return emit(env.Stdout, attemptCommand(env, args[1:]))
 	case "pause", "unpause":
 		return emit(env.Stdout, barrierCommand(env, args[0], args[1:]))
 	case "policy":
@@ -260,6 +272,12 @@ func helpResult() *wire.Result {
 		"corvint-tasks ticket <mutation> --help   (its payload keys)",
 		"corvint-tasks release create|update|candidate|record-gate|promote --request-id ID --target RELEASE [--expected-revision N] [--payload JSON] [--role ROLE]",
 		"corvint-tasks release list|show RELEASE|readiness RELEASE",
+		"corvint-tasks claim <ticketId|local> --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...]",
+		"corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N]",
+		"corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE]",
+		"corvint-tasks reap --request-id ID [--attempt ID --generation G]",
+		"corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository)",
+		"corvint-tasks attempt show <attemptId>",
 		"corvint-tasks version",
 	}))
 	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); the administrative verbs answer NOT_RUN"))
@@ -954,7 +972,12 @@ func queueStatus(env Env, args []string) *wire.Result {
 			b.Set("reason", wire.String(rc.snap.Barrier.Reason))
 			o.Set("barrier", wire.ObjectValue(b))
 		}
-		o.Set("attempts", wire.String(string(ticket.NotObserved)))
+		live, err := liveAttempts(rc)
+		if err != nil {
+			return err
+		}
+		o.Set("attempts", wire.String(string(wire.CountOf(int64(len(live))))))
+		o.Set("liveAttempts", liveAttemptsValue(live))
 		o.Set("publication", wire.String(string(ticket.NotObserved)))
 		item = wire.ObjectValue(o)
 		return nil

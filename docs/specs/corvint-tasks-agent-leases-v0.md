@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-27 (accepted the same day)
 Intent status: accepted (owner decision 2026-09-27)
-Delivery status: partial (S2 CAL-V0-004..006 experimental)
+Delivery status: partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S8 claim side CAL-V0-021..023 and 025 experimental)
 Authoritative inputs: the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
 §3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
 `docs/specs/corvint-tasks-store-init-v0.md`, tickets V1-0398, V1-0184 and V1-0310, and the in-tree
@@ -11,7 +11,7 @@ sources under `internal/tasks`.
 
 ## Agent digest
 - Claim: Coding agents claim, renew, gate and complete tickets through leased `corvint-tasks` attempts, replacing a repository's own task runner without a supervisor.
-- Status: accepted (owner decision 2026-09-27); partial (S2 CAL-V0-004..006 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Status: accepted (owner decision 2026-09-27); partial (S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S8 claim side CAL-V0-021..023 and 025 experimental). Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
 - Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture queues, and the CTS-V0-003 shadow import.
 - Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
 - Read next: Slices; Requirements (S8 for parallel claims); Amendments to TCP-00; Failure modes.
@@ -28,9 +28,10 @@ corvint-tasks already holds the ticket inventory, dependencies, holds, releases,
 shadow import of the Beamfall export. TCP-00 defines the rest of the execution model around a
 supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `.boot`/`.ack`
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
-be released (§6.2 to §6.4). None of that is built in tree: the writer requires an empty
-reservation set (`internal/tasks/transaction/model.go:712@62694c5b`) and refuses every queue that is
-not a fixture (`internal/tasks/transaction/model.go:681@2635d775`).
+be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
+`external-agent` leases, `cutover` requires an empty reservation set
+(`internal/tasks/transaction/model.go:538@afae0d34`), and the writer refuses every queue that is
+not a fixture (`internal/tasks/transaction/model.go:732@2635d775`).
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
 orchestrated sessions that call the task tool themselves. This spec keeps TCP-00's attempt,
@@ -105,7 +106,8 @@ S3, leases.
 
 - `CAL-V0-007`: `corvint-tasks claim <ticketId> --holder <label> [--lease-minutes N]
   [--branch <label>] [--base <oid>]` MUST admit by TCP-00 §4.1 steps 1, 2, 5, 6 and 8 with runtime
-  `external-agent`, in one transaction: a new attempt at generation 1 in phase `RUNNING`, with
+  `external-agent`, in one transaction: a new attempt at the next queue-wide generation (TCP-00
+  TM-V0-011) in phase `RUNNING`, with
   `supervisor` and `lane` null, a `lease` (CAL-V0-012), and one `ACTIVE` reservation entry. Budget
   (step 4) is `NOT_OBSERVED` and admission is refused `BUDGET_UNKNOWN` when the policy requires any
   enforced budget field. It returns `attemptId` and `generation`.
@@ -122,16 +124,20 @@ S3, leases.
   `FENCED` and remove its reservation entry. `reap` MUST move every non-terminal `external-agent`
   attempt whose lease expired at its own `recordedAt` to `FAILED` with cause `LEASE_EXPIRED` and
   quiescence `FENCED`, and remove their entries. `claim` MUST reap, in its own transaction and
-  receipt, every expired lease whose reservation would otherwise block it.
+  receipt, every expired lease whose reservation would otherwise block it. An `ALL` barrier lets
+  `release` and `reap` through as it lets `cancel` through (TCP-00 §3.4), and refuses `renew`,
+  `claim` and `widen` `PAUSED`.
 - `CAL-V0-012`: A lease is `{holder:label, grantedSeq:Size, expiresAt:Timestamp}`. The default is
   60 minutes, the minimum 5 and the maximum 1,440; a request outside that range is `MALFORMED`. A
-  transaction whose `recordedAt` is earlier than the head receipt's refuses `STORAGE_FAILED`
-  before it writes, so a clock that steps backward cannot revive an expired lease.
+  transaction of any operation whose `recordedAt` is earlier than the head receipt's refuses
+  `STORAGE_FAILED` before it writes, so a clock that steps backward cannot record a receipt that
+  later makes an expired lease look live.
 - `CAL-V0-013`: A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again as
   that attempt's next generation (TCP-00 §6.2 `retry`, `retryCount < 3`), and after three retries
   only an `OWNER` `ticket reopen` makes it claimable.
   `corvint-tasks attempt show <attemptId>` and `queue status` MUST report every live attempt with
-  holder, phase and lease expiry, as pure reads.
+  holder, phase and lease expiry, as pure reads. `queue status` reports `attempts` as the count of
+  live attempts and lists them in `liveAttempts`.
 
 S4, planning.
 
@@ -176,7 +182,10 @@ silently shared.
   `scopeSource`. In order of precedence, the scope is the ticket's `effects.touchPaths` and `PATH`
   resources when its coverage is `QUALIFIED` (`DECLARED`); else the paths given by `claim --scope
   PATH...` (`REQUESTED`); else the CAL-V0-022 derivation (`DERIVED`); else one `WHOLE_REPOSITORY`
-  resource (`WHOLE_REPOSITORY`). The reservation entry holds the same resource set.
+  resource (`WHOLE_REPOSITORY`). Every scope other than `WHOLE_REPOSITORY` also holds each
+  non-`PATH` resource the ticket declares, so claims on one database, port or shared gate still
+  collide. A `PATH` key ending in `/` covers every path under it; any other key names one path
+  (TCP-00 §4.2). The reservation entry holds the same resource set.
 - `CAL-V0-022`: A `DERIVED` scope MUST come from Corvint's local context index for the ticket's
   title and body at the attempt's base tree, computed in process with no network and no write
   outside the task store, bounded to at most `MaxTouchPaths` paths. The attempt records the
@@ -195,7 +204,8 @@ silently shared.
 - `CAL-V0-025`: `widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a live
   attempt's scope and reservation in one transaction, and refuse `RESOURCE_COLLISION` without
   writing when any added path collides with another live attempt. Widening to `WHOLE_REPOSITORY`
-  is allowed only when no other attempt is live.
+  is allowed only when no other attempt is live. An `ADMISSION` barrier refuses `widen` `PAUSED`,
+  as it refuses scope-expand (TCP-00 §3.4).
 - `CAL-V0-026`: Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gate
   run` excluding the gate's own run time, and `complete`) MUST hold the store lock for work that
   does not grow with the number of tickets in the store, beyond the records it writes: the full
@@ -222,7 +232,10 @@ Accepting this spec accepts these amendments; each keeps the existing ID space.
 - A8: runtime `external-agent`. An attempt with this runtime has `supervisor` and `lane` null in
   every generation, never has a `PROCESS_SPAWN` effect, and is exempt from the §6.4 rows.
 - A9: `taskman-attempt/0` gains `lease:{holder, grantedSeq, expiresAt}|null`, non-null exactly for
-  `external-agent` attempts.
+  `external-agent` attempts. A lease receipt (`claim`, `renew`, `release`, `reap`, `widen`) has
+  `ticketId` null and names its attempt by `attemptId` and `generation`, because TCP-00 binds a
+  ticket afterimage to every completed receipt that names a ticket, and a lease writes no ticket
+  file.
 - A10: cause `LEASE_EXPIRED` joins the closed cause set, and quiescence `FENCED` covers a generation
   closed by `release`, `reap` or `complete`: no command of that generation can take effect after it.
 - A11: for a queue whose admissions are all `external-agent`, the §7.4 execution permission needs a
@@ -260,7 +273,7 @@ Before S7 closes, a rehearsal in a throwaway non-fixture store holding the cut-o
 claims, gates and completes one real Beamfall ticket, and lets one lease expire and be reaped.
 
 Rollback, per slice: S1 restores the fixture-only check at
-`internal/tasks/transaction/model.go:681@2635d775`; S2 removes `cutover` (a queue it already
+`internal/tasks/transaction/model.go:732@2635d775`; S2 removes `cutover` (a queue it already
 switched stays `NATIVE`, and its imported records stay eligible `IMPORT` records; reversing a switch
 is TCP-00's §5.4 revert, which this spec does not build); S3 to S5 remove the lease verbs, and a
 store that holds live `external-agent` attempts must first `release` or `reap` them, because a
@@ -277,4 +290,17 @@ verb, and an owner decision clears `executionCutover` on any queue that has it. 
 | CAL-V0-004 | `TestCALV0004_CutoverSwitchesWriterInOneReceipt`, `TestCALV0004_CutoverRefusals` (`internal/tasks/store`), `TestCALV0004_CLICutoverPublishesImportedRecords` (`internal/tasks/cli`) |
 | CAL-V0-005 | `TestCALV0005_ImportAfterCutoverRefusesAndWritesNothing` (`internal/tasks/store`) |
 | CAL-V0-006 | `TestCALV0004_CutoverSwitchesWriterInOneReceipt` (imported record bytes unchanged) |
-| CAL-V0-007..026 | NOT_RUN; accepted, not started |
+| CAL-V0-007 | `TestCALV0007_ClaimAdmitsOneRunningAttempt`, `TestCALV0007_ClaimRefusesBudgetUnknown` (`internal/tasks/store`) |
+| CAL-V0-008 | NOT_RUN; `claim --next` answers `UNSUPPORTED` until the S4 plan is wired |
+| CAL-V0-009 | `TestCALV0009_StaleGenerationIsFencedAndRecorded` (`internal/tasks/store`) |
+| CAL-V0-010 | `TestCALV0010_RenewExtendsAndIsFencedAfterExpiry` (`internal/tasks/store`) |
+| CAL-V0-011 | `TestCALV0011_ExpiredLeaseIsReapedByACollidingClaim`, `TestCALV0011_ReapAndRelease`, `TestCALV0011_ReleaseAndReapPassAnAllBarrier` (`internal/tasks/store`) |
+| CAL-V0-012 | `TestCALV0012_LeaseBoundsAndBackwardClock`, `TestCALV0012_BackwardClockRefusesEveryWriter` (`internal/tasks/store`) |
+| CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
+| CAL-V0-014..020 | NOT_RUN; accepted, not started |
+| CAL-V0-021 | `TestCALV0021_WholeRepositoryBlocksEverything`, `TestCALV0021_DeclaredNonPathResourcesJoinTheScope` (`internal/tasks/store`) |
+| CAL-V0-022 | Claim side only: `TestCALV0022_DerivedScopeWhenTheTicketDeclaresNone` (`internal/tasks/store`), with an injected deriver; the context-index deriver is NOT_RUN |
+| CAL-V0-023 | `TestCALV0023_CollisionNormalization` (`internal/tasks/ticket`), `TestCALV0023_CollidingClaimsAdmitOne`, `TestCALV0023_DisjointPathScopesAreBothAdmitted` (`internal/tasks/store`) |
+| CAL-V0-024 | NOT_RUN; S5 |
+| CAL-V0-025 | `TestCALV0025_WidenAddsPathsAndRefusesCollision`, `TestCALV0025_WidenRefusedUnderAdmissionBarrier` (`internal/tasks/store`) |
+| CAL-V0-026 | NOT_RUN; not measured |

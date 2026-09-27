@@ -38,6 +38,12 @@ const StageImportApply = "IMPORT_APPLY"
 // operation name is the receipt kind.
 const StageAuthoritySwitch = "AUTHORITY_SWITCH"
 
+// StageLease carries one CAL-V0 lease transaction (claim, renew, release,
+// reap, widen): an optional attempt record and an optional reservation set,
+// whose receipt kind is ADMIT or TRANSITION. A recorded FENCED refusal
+// posts only its request.
+const StageLease = "LEASE"
+
 type StageBase struct {
 	LastSeq           wire.Size
 	LastReceiptSha256 wire.Digest
@@ -77,6 +83,8 @@ func StageLimits(op string) (int, int) {
 		return 11, MaxStageDescriptorBytes
 	case StageAuthoritySwitch:
 		return 5, 1474
+	case StageLease:
+		return 6, 1677
 	}
 	return 0, 0
 }
@@ -114,7 +122,7 @@ func DecodeStageDescriptor(raw []byte) (*StageDescriptor, error) {
 	if e = wire.CheckProfile("stage/profile", r.Field("profile").String(), "taskman-stage/0"); e != nil {
 		return nil, e
 	}
-	d := &StageDescriptor{QueueID: r.Field("queueId").QueueID().Raw, Operation: r.Field("operation").Enum(StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageImportApply, StageAuthoritySwitch), RequestID: r.Field("requestId").String(), RequestSha256: r.Field("requestSha256").Digest(), RecordedAt: r.Field("recordedAt").Timestamp()}
+	d := &StageDescriptor{QueueID: r.Field("queueId").QueueID().Raw, Operation: r.Field("operation").Enum(StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageImportApply, StageAuthoritySwitch, StageLease), RequestID: r.Field("requestId").String(), RequestSha256: r.Field("requestSha256").Digest(), RecordedAt: r.Field("recordedAt").Timestamp()}
 	b := r.Field("base")
 	if !b.IsNull() {
 		b.Closed("lastSeq", "lastReceiptSha256")
@@ -206,6 +214,9 @@ func (d StageDescriptor) shape() error {
 			if d.Operation == StageAuthoritySwitch {
 				cap = wire.MaxQueueFileBytes
 			}
+			if d.Operation == StageLease {
+				cap = wire.MaxReservationSetBytes
+			}
 		case "POST":
 			switch {
 			case a.Target == requestPath:
@@ -214,9 +225,20 @@ func (d StageDescriptor) shape() error {
 				if d.Operation == StageInit {
 					cap = 551
 				}
-				if d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageRelease || d.Operation == StagePolicyUpdate || d.Operation == StageImportApply || d.Operation == StageAuthoritySwitch {
+				// A LEASE request is at most REVISION_CONFLICT with FENCED.
+				if d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageRelease || d.Operation == StagePolicyUpdate || d.Operation == StageImportApply || d.Operation == StageAuthoritySwitch || d.Operation == StageLease {
 					cap = 579
 				}
+			case strings.HasPrefix(a.Target, "attempts/") && d.Operation == StageLease:
+				q, e := AttemptQueue(strings.TrimSuffix(strings.TrimPrefix(a.Target, "attempts/"), ".json"))
+				if e != nil || q.Raw != d.QueueID || !strings.HasSuffix(a.Target, ".json") {
+					return stageMalformed("attempt target scope")
+				}
+				key = "attempt"
+				cap = wire.MaxAttemptRecordBytes
+			case a.Target == "reservations.json" && d.Operation == StageLease:
+				key = "reservations"
+				cap = wire.MaxReservationSetBytes
 			case a.Target == "barrier.json" && d.Operation == StagePause:
 				key = "barrier"
 				cap = 4096
@@ -309,6 +331,12 @@ func (d StageDescriptor) shape() error {
 	if d.Operation == StageMutate {
 		delete(counts, "queue")
 	}
+	// A lease transaction posts at most one attempt and one reservation set;
+	// a recorded FENCED refusal posts neither.
+	if d.Operation == StageLease && counts["attempt"] <= 1 && counts["reservations"] <= 1 {
+		delete(counts, "attempt")
+		delete(counts, "reservations")
+	}
 	// An import batch posts one or more ticket records; the slot cap bounds it.
 	if d.Operation == StageImportApply && counts["ticket"] >= 1 {
 		delete(counts, "ticket")
@@ -328,7 +356,7 @@ func (d StageDescriptor) shape() error {
 	switch d.Operation {
 	case StageInit:
 		maxEvidence = 3
-	case StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageAuthoritySwitch:
+	case StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageAuthoritySwitch, StageLease:
 		maxEvidence = 1
 	case StageImportApply:
 		// A ticket record over the inline post bound is carried as a blob.

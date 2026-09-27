@@ -63,6 +63,7 @@ func TestCALV0004_CutoverSwitchesWriterInOneReceipt(t *testing.T) {
 		t.Fatal("imported record eligible before cutover")
 	}
 
+	start := now(t)
 	report := cutover(t, repo, operator(), "decision-0500")
 	if report.Kind != "Transaction" || report.Outcome.Outcome != mutation.OutcomeCompleted || report.Receipt == "" {
 		t.Fatalf("cutover: %+v", report)
@@ -79,7 +80,7 @@ func TestCALV0004_CutoverSwitchesWriterInOneReceipt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if st.Queue.CanonicalWriter != "NATIVE" || st.Queue.ForeignAdapterID != nil || st.Queue.WriteBarrier.Reason != "CUTOVER" || st.Queue.WriteBarrier.Since == nil || *st.Queue.WriteBarrier.Since != now(t) {
+	if st.Queue.CanonicalWriter != "NATIVE" || st.Queue.ForeignAdapterID != nil || st.Queue.WriteBarrier.Reason != "CUTOVER" || st.Queue.WriteBarrier.Since == nil || *st.Queue.WriteBarrier.Since < start || *st.Queue.WriteBarrier.Since > now(t) {
 		t.Fatalf("queue after cutover: %+v", st.Queue)
 	}
 	if _, after := readImported(t, repo, "BF-1"); string(after) != string(before) {

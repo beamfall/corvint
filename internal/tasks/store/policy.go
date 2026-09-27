@@ -46,6 +46,13 @@ func policyUpdate(ctx context.Context, repo *intent.Repository, actor mutation.B
 // intent record, the model, the branch and observation checks, and apply. It
 // returns the audit a committed request was planned against.
 func administrativeWrite(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error) (*Report, *journal.Result, error) {
+	return administrativeWriteWith(ctx, repo, request, now, beforeCommit, nil)
+}
+
+// administrativeWriteWith is administrativeWrite for a Lease request: it
+// also audits every attempt record, hands the model the head receipt, and
+// takes the claim facts observed from the audit under the same lock.
+func administrativeWriteWith(ctx context.Context, repo *intent.Repository, request transaction.Request, now wire.Timestamp, beforeCommit func() error, facts claimObserver) (*Report, *journal.Result, error) {
 	report := &Report{}
 	if repo == nil {
 		return report, nil, wire.Errorf(wire.CodeMalformed, "repository", "missing repository")
@@ -78,7 +85,7 @@ func administrativeWrite(ctx context.Context, repo *intent.Repository, request t
 		return report, nil, err
 	}
 	defer session.Close()
-	head, err := writerGuards(repo, request.Operation)
+	head, err := writerGuards(repo, guardOperation(request))
 	if err != nil {
 		return guardFailureAudit(report, request.RequestID, err)
 	}
@@ -105,7 +112,7 @@ func administrativeWrite(ctx context.Context, repo *intent.Repository, request t
 	}
 	paths := []string{"intent/queue.json", "intent/policy.json"}
 	for _, file := range inv.Files() {
-		if strings.HasPrefix(file.Path, "intent/tickets/") || strings.HasPrefix(file.Path, "intent/releases/") {
+		if strings.HasPrefix(file.Path, "intent/tickets/") || strings.HasPrefix(file.Path, "intent/releases/") || (request.Operation == transaction.Lease && strings.HasPrefix(file.Path, "attempts/")) {
 			paths = append(paths, file.Path)
 		}
 	}
@@ -118,8 +125,11 @@ func administrativeWrite(ctx context.Context, repo *intent.Repository, request t
 	}
 	tickets := make([][]byte, 0, len(paths)-2)
 	releases := [][]byte{}
+	attempts := [][]byte{}
 	for _, path := range paths[2:] {
-		if strings.HasPrefix(path, "intent/releases/") {
+		if strings.HasPrefix(path, "attempts/") {
+			attempts = append(attempts, proof.Records[path].Raw)
+		} else if strings.HasPrefix(path, "intent/releases/") {
 			releases = append(releases, proof.Records[path].Raw)
 		} else {
 			tickets = append(tickets, proof.Records[path].Raw)
@@ -140,15 +150,26 @@ func administrativeWrite(ctx context.Context, repo *intent.Repository, request t
 	if wire.Sum(headRaw) != proof.Identity.HeadSha256 {
 		return report, nil, wire.Errorf(wire.CodeSnapshotMoved, "head.json", "validated head changed")
 	}
-	result := transaction.Model(request, transaction.Input{Inventory: inv, Head: headRaw, Queue: proof.Records["intent/queue.json"].Raw, Policy: proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: tickets, CanonicalReleases: releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now})
+	headRc, err := headReceipt(repo, headRaw)
+	if err != nil {
+		return report, nil, err
+	}
+	input := transaction.Input{Inventory: inv, Head: headRaw, HeadReceipt: headRc, Queue: proof.Records["intent/queue.json"].Raw, Policy: proof.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: tickets, CanonicalReleases: releases, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
+	if request.Operation == transaction.Lease {
+		if err = leaseInput(proof, attempts, facts, &input); err != nil {
+			return report, nil, err
+		}
+	}
+	result := transaction.Model(request, input)
 	report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
+	report.AttemptID, report.Generation, report.Expired = result.AttemptID, result.Generation, result.Expired
 	if result.Kind != "Transaction" || result.Plan == nil {
 		return report, nil, nil
 	}
 	if err = requireBranch(repo, q.IntentBranch); err != nil {
 		return guardFailureAudit(report, request.RequestID, err)
 	}
-	if err = bindObservation(repo, proof.Identity, request.Operation); err != nil {
+	if err = bindObservation(repo, proof.Identity, guardOperation(request)); err != nil {
 		return guardFailureAudit(report, request.RequestID, err)
 	}
 	report.Receipt, err = applyBeforeCommit(repo, session, result.Plan, beforeCommit)

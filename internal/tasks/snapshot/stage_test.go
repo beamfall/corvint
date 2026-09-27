@@ -14,6 +14,11 @@ func maximalDescriptor(op string) StageDescriptor {
 	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate {
 		q = "queue:a:" + strings.Repeat("q", 54)
 	}
+	// attempts/<attemptId>.json is an Identifier, so a lease queue id is at
+	// most 79 bytes.
+	if op == StageLease {
+		q = "queue:a:" + strings.Repeat("q", 71)
+	}
 	d := StageDescriptor{QueueID: q, Operation: op, RequestID: strings.Repeat(`"`, 64), RequestSha256: wire.Sum([]byte("request")), RecordedAt: wire.Timestamp("2026-09-06T00:00:00Z")}
 	if op != StageInit {
 		d.Base = &StageBase{LastSeq: "999999", LastReceiptSha256: wire.Sum([]byte("base"))}
@@ -38,7 +43,7 @@ func maximalDescriptor(op string) StageDescriptor {
 	if op == StageInit {
 		requestBytes = 551
 	}
-	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StagePolicyUpdate || op == StageAuthoritySwitch {
+	if op == StageKeepJournal || op == StageAdoptFile || op == StageMutate || op == StagePolicyUpdate || op == StageAuthoritySwitch || op == StageLease {
 		requestBytes = 579
 	}
 	add("POST", rp, requestBytes, hash)
@@ -66,6 +71,10 @@ func maximalDescriptor(op string) StageDescriptor {
 		add("POST", "intent/tickets/"+strings.Repeat("t", 64)+".json", 131072, hash)
 		add("EVIDENCE", "evidence/"+string(hash), 131072, hash)
 		add("POST", "intent/queue.json", 1048576, wire.Sum([]byte("queue")))
+	case StageLease:
+		add("POST", "attempts/attempt:a:"+strings.Repeat("q", 71)+":"+strings.Repeat("a", 32)+".json", wire.MaxAttemptRecordBytes, hash)
+		add("POST", "reservations.json", wire.MaxReservationSetBytes, wire.Sum([]byte("reservations")))
+		add("EVIDENCE", "evidence/"+string(hash), wire.MaxReservationSetBytes, hash)
 	case StageKeepJournal, StageAdoptFile:
 		add("POST", "intent/tickets/"+strings.Repeat("t", 64)+".json", 131072, hash)
 		add("EVIDENCE", "evidence/"+string(hash), 131072, hash)
@@ -87,7 +96,7 @@ func maximalDescriptor(op string) StageDescriptor {
 	return d
 }
 func TestTMV0002_AS10_StageCodecActualMaxima(t *testing.T) {
-	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch} {
+	for _, op := range []string{StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StagePolicyUpdate, StageAuthoritySwitch, StageLease} {
 		d := maximalDescriptor(op)
 		raw, e := d.Encode()
 		if e != nil {

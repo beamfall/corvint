@@ -61,6 +61,12 @@ type Report struct {
 	// PolicyUpdate replaced and wrote; the receipt's pre/post entries carry
 	// the same values.
 	OldPolicySha256, NewPolicySha256 wire.Digest
+	// AttemptID and Generation name the attempt a lease command wrote or
+	// replayed. Expired lists leases the model asked to reap; Reaped the
+	// ones this call reaped, each in its own transaction (CAL-V0-011).
+	AttemptID       string
+	Generation      wire.Size
+	Expired, Reaped []transaction.ExpiredLease
 }
 
 // target maps one plan artifact onto the publication destination its path
@@ -106,6 +112,8 @@ func postTarget(path string) (authority.Target, error) {
 	case strings.HasPrefix(path, "requests/"):
 		name := path[strings.LastIndex(path, "/")+1:]
 		return authority.Target{Role: authority.RoleRequest, Name: name}, nil
+	case strings.HasPrefix(path, "attempts/"):
+		return authority.Target{Role: authority.RoleAttempt, Name: strings.TrimPrefix(path, "attempts/")}, nil
 	}
 	return authority.Target{}, wire.Errorf(wire.CodeMalformed, path, "post path has no publication destination")
 }
@@ -182,7 +190,7 @@ func mutable(t authority.Target) bool {
 	switch t.Role {
 	case authority.RoleHead, authority.RoleBarrier, authority.RoleReservations,
 		authority.RoleQueue, authority.RolePolicy, authority.RoleImportMap,
-		authority.RoleTicket, authority.RoleRelease, authority.RoleVersion:
+		authority.RoleTicket, authority.RoleRelease, authority.RoleVersion, authority.RoleAttempt:
 		return true
 	}
 	return false
@@ -328,6 +336,8 @@ func parentOf(t authority.Target) (key, dir string) {
 		return "tickets", "intent/tickets"
 	case authority.RoleRelease:
 		return "releases", "intent/releases"
+	case authority.RoleAttempt:
+		return "attempts", "attempts"
 	}
 	return "", ""
 }

@@ -185,7 +185,11 @@ func Release(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 		}
 	}
 	tr := transaction.Request{Operation: transaction.Release, QueueID: q.QueueID.Raw, RequestID: req.RequestID, TargetID: req.ReleaseID, Actor: actor, Envelope: raw}
-	modeled := transaction.Model(tr, transaction.Input{Inventory: inv, Head: headRaw, Queue: canon.Records["intent/queue.json"].Raw, Policy: canon.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: ticketRaws, CanonicalReleases: releaseRaws, ReleaseCandidate: candidate, ReleaseGates: gates, ReleaseObservation: obs, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now})
+	headRc, err := headReceipt(repo, headRaw)
+	if err != nil {
+		return report, err
+	}
+	modeled := transaction.Model(tr, transaction.Input{Inventory: inv, Head: headRaw, HeadReceipt: headRc, Queue: canon.Records["intent/queue.json"].Raw, Policy: canon.Records["intent/policy.json"].Raw, Barrier: barrier, Reservations: reservations, CanonicalTickets: ticketRaws, CanonicalReleases: releaseRaws, ReleaseCandidate: candidate, ReleaseGates: gates, ReleaseObservation: obs, Premise: transaction.LocalOperator, Branch: branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now})
 	report.Outcome = modeled.Outcome
 	report.Coverage = modeled.Coverage
 	report.Detail = modeled.Detail

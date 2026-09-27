@@ -43,6 +43,17 @@ func requireBranch(repo *intent.Repository, expected string) error {
 	return nil
 }
 
+// leaseCancel is the guard operation of a lease release or reap, which an
+// ALL barrier lets through as it does cancel (TCP-00 §3.4).
+const leaseCancel = "LEASE_CANCEL"
+
+func guardOperation(r transaction.Request) string {
+	if transaction.Cancels(r) {
+		return leaseCancel
+	}
+	return r.Operation
+}
+
 // These guards precede recovery as well as new transactions. A marker of any
 // type prevents writes, including a dangling symlink or unreadable marker.
 func writerGuards(repo *intent.Repository, operation string) (*snapshot.Head, error) {
@@ -73,7 +84,7 @@ func writerGuards(repo *intent.Repository, operation string) (*snapshot.Head, er
 		if barrier.QueueID != head.QueueID {
 			return nil, wire.Errorf(wire.CodeJournalForked, "barrier.json", "barrier queue differs")
 		}
-		if barrier.Scope == "ALL" && operation != transaction.KeepJournal && operation != transaction.AdoptFile && operation != transaction.Unpause {
+		if barrier.Scope == "ALL" && operation != transaction.KeepJournal && operation != transaction.AdoptFile && operation != transaction.Unpause && operation != leaseCancel {
 			return nil, wire.Errorf(wire.CodePaused, "barrier.json", "ALL barrier forbids mutation")
 		}
 	}
