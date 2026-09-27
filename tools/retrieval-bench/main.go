@@ -53,6 +53,11 @@ const (
 var tokenPattern = regexp.MustCompile(`[A-Za-z0-9]+`)
 var camelPattern = regexp.MustCompile(`([a-z])([A-Z])`)
 
+// objectIDPattern is a full SHA-1 or SHA-256 Git object id. A sample's
+// base_commit names a corpus file and a snapshot key, so nothing else is
+// accepted.
+var objectIDPattern = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
+
 // sample is one bench row. query, gold, and metadata keep the bench's own
 // shape; the accessors below replicate the bench's baseline.py rules.
 type sample struct {
@@ -377,6 +382,9 @@ func readSamples(configuration options) ([]sample, string, map[string]int, error
 		}
 		if item.ID == "" || item.Repo == "" || item.BaseCommit == "" || item.TaskType == "" {
 			return nil, "", nil, fmt.Errorf("sample on line %d lacks id, repo, base_commit, or task_type", number+1)
+		}
+		if !objectIDPattern.MatchString(item.BaseCommit) {
+			return nil, "", nil, fmt.Errorf("sample on line %d has base_commit %q, not a hex Git object id", number+1, item.BaseCommit)
 		}
 		if len(configuration.taskTypes) > 0 && !configuration.taskTypes[item.TaskType] {
 			continue

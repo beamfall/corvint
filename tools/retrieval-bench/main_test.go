@@ -586,9 +586,9 @@ func TestScoreFollowsTheBenchDenominators(t *testing.T) {
 // sample with neither gold nor a no_gold label is skipped and counted.
 func TestReadSamplesSkipsUnlabeledNoGold(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "s.jsonl")
-	lines := `{"id":"a","repo":"o/n","base_commit":"c","task_type":"code2test","gold":{"related_tests":["t.go"]}}
-{"id":"b","repo":"o/n","base_commit":"c","task_type":"code2test","gold":{}}
-{"id":"c","repo":"o/n","base_commit":"c","task_type":"code2test","gold":{"no_gold":true}}
+	lines := `{"id":"a","repo":"o/n","base_commit":"68b5ff900bae8ee1a0e328c1a2301a7985e4f1c6","task_type":"code2test","gold":{"related_tests":["t.go"]}}
+{"id":"b","repo":"o/n","base_commit":"68b5ff900bae8ee1a0e328c1a2301a7985e4f1c6","task_type":"code2test","gold":{}}
+{"id":"c","repo":"o/n","base_commit":"68b5ff900bae8ee1a0e328c1a2301a7985e4f1c6","task_type":"code2test","gold":{"no_gold":true}}
 `
 	if err := os.WriteFile(path, []byte(lines), 0o644); err != nil {
 		t.Fatal(err)
@@ -596,6 +596,29 @@ func TestReadSamplesSkipsUnlabeledNoGold(t *testing.T) {
 	samples, _, skipped, err := readSamples(options{samples: path, taskTypes: map[string]bool{}})
 	if err != nil || len(samples) != 2 || samples[0].ID != "a" || samples[1].ID != "c" || skipped["no_gold_unlabeled"] != 1 {
 		t.Fatalf("samples %d skipped %v err %v", len(samples), skipped, err)
+	}
+}
+
+// TestReadSamplesRefusesBaseCommitThatIsNotAnObjectID: base_commit is joined
+// into the corpus path, so a plain sample or a ContextBench row whose
+// base_commit is not a hex object id is refused with its line number.
+func TestReadSamplesRefusesBaseCommitThatIsNotAnObjectID(t *testing.T) {
+	good := `{"id":"a","repo":"o/n","base_commit":"68b5ff900bae8ee1a0e328c1a2301a7985e4f1c6","task_type":"code2test","gold":{"related_tests":["t.go"]}}`
+	rows := map[string]string{
+		"plain traversal":        `{"id":"b","repo":"o/n","base_commit":"../../../../tmp/evil","task_type":"code2test","gold":{"related_tests":["t.go"]}}`,
+		"plain short":            `{"id":"b","repo":"o/n","base_commit":"68b5ff9","task_type":"code2test","gold":{"related_tests":["t.go"]}}`,
+		"plain uppercase":        `{"id":"b","repo":"o/n","base_commit":"68B5FF900BAE8EE1A0E328C1A2301A7985E4F1C6","task_type":"code2test","gold":{"related_tests":["t.go"]}}`,
+		"contextbench traversal": `{"instance_id":"b","repo":"o/n","base_commit":"../../../../tmp/evil","problem_statement":"p","gold_context":"[{\"file\":\"a.py\",\"start_line\":1,\"end_line\":2}]"}`,
+	}
+	for name, row := range rows {
+		path := filepath.Join(t.TempDir(), "s.jsonl")
+		if err := os.WriteFile(path, []byte(good+"\n"+row+"\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		_, _, _, err := readSamples(options{samples: path})
+		if err == nil || !strings.Contains(err.Error(), "line 2") || !strings.Contains(err.Error(), "base_commit") {
+			t.Errorf("%s: err = %v", name, err)
+		}
 	}
 }
 
