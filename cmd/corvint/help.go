@@ -293,7 +293,8 @@ Commands:
   lrf            Verify repository authority and apply the lexical relevance floor.
   frontier       Compile the deterministic Change Frontier V0 review queue.
   record         Record one explicit local task outcome.
-  migrate-traces Plan or apply legacy tree-trace migration.
+  migrate-traces Plan or apply legacy tree-trace migration, or quarantine a
+                 trace whose commit is no longer reachable from HEAD.
   migration-ratchet Compare immutable migration-evidence snapshots.
   observations   Read the local self-observation digest; never writes.
   features       Discover experimental inferred feature candidates.
@@ -531,7 +532,10 @@ Usage:
 Exactly one of --dry-run and --apply is required. Dry-run validates the complete
 bounded trace store and writes nothing. Apply requires the exact unchanged
 dry-run digest, publishes canonical commit traces and byte-preserved quarantine
-copies, then removes verified legacy candidates. The command is local-only.
+copies, then removes verified legacy candidates. A trace whose commit still
+exists but is no longer reachable from HEAD (after an amend or rebase) is listed
+in stranded_revisions and moved, byte-preserved, into the same quarantine. The
+command is local-only.
 `
 
 const migrationRatchetHelp = `Compare two immutable migration-evidence snapshots.

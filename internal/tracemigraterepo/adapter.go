@@ -121,6 +121,12 @@ func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, 
 		trackedCache[tree] = paths
 		return append([]string(nil), paths...), nil
 	}
+	// --batch-check reports a missing object on stdout and exits zero, so an
+	// error here is a Git failure, never absence.
+	authority.CommitObject = func(id string) (bool, error) {
+		kind, err := runGitInput(ctx, budget, root, []byte(id+"\n"), 128, "cat-file", "--batch-check=%(objecttype)")
+		return string(kind) == "commit\n", err
+	}
 	// The check reads only header fields, so it observes them rather than
 	// compiling an index whose sources it would discard. ProfileID is not
 	// compared because it is a pure function of the tree: an equal Revision
@@ -141,13 +147,17 @@ func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, 
 }
 
 func runGit(ctx context.Context, budget *gitrun.Budget, root string, limit int, arguments ...string) ([]byte, error) {
+	return runGitInput(ctx, budget, root, nil, limit, arguments...)
+}
+
+func runGitInput(ctx context.Context, budget *gitrun.Budget, root string, input []byte, limit int, arguments ...string) ([]byte, error) {
 	args := []string{
 		"--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false",
 		"-c", "core.excludesFile=", "-c", "credential.helper=", "-c", "submodule.recurse=false", "-C", root,
 		"-c", "advice.graftFileDeprecated=false",
 	}
 	args = append(args, arguments...)
-	return gitrun.Run(ctx, budget, gitrun.Options{Env: gitEnvironment(), StdoutLimit: limit}, args...)
+	return gitrun.Run(ctx, budget, gitrun.Options{Env: gitEnvironment(), Stdin: input, StdoutLimit: limit}, args...)
 }
 
 func gitEnvironment() []string {
