@@ -393,7 +393,7 @@ Each row cites the first emitting site and states only the condition checked the
 | `anchor-worktree-changed` | `internal/contextindex/local_completion_context.go:586@37e9b097` | the resolution `reason` when no earlier case applies and a task-evidence path is among the index's dirty paths |
 | `local-policy-continuation-limit` | `cmd/corvint/local_completion_event.go:361@50f727f3` | a `stop` event that would block has `stopHookActive` true; decision `release` |
 | `local-policy-incomplete` | `cmd/corvint/local_completion_event.go:359@3862af35` | a `stop` event whose lifecycle is `active`, or `satisfied` without the evaluation satisfied; decision `block` |
-| `local-policy-other-session-active` | `cmd/corvint/local_completion_event.go:533@65149f9c` | a `stop` event whose inactive evaluation names another session's active enrollment as `owner`; decision `release`, and the completion carries `owner` |
+| `local-policy-other-session-active` | `cmd/corvint/local_completion_event.go:541@65149f9c` | a `stop` event whose inactive evaluation names another session's active enrollment as `owner`; decision `release`, and the completion carries `owner` |
 
 ## Resource and trust boundaries
 
