@@ -159,8 +159,12 @@ func TestDogfoodEventStrictInputAndDeadline(t *testing.T) {
 func TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot(t *testing.T) {
 	t.Parallel()
 	root := queryCLIRepository(t)
-	ctx := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 3 * time.Second })
+	// The deadline expires only once the build starts, so a loaded host cannot expire the event
+	// before the miss (decision 0082); the minute is a hang detector.
+	parent, expire := workFinalInterruption("expired")
+	ctx := context.WithValue(parent, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
 	ctx = context.WithValue(ctx, dogfoodEventBuildKey{}, func(ctx context.Context, _, _ string) (*contextindex.Index, error) {
+		expire()
 		<-ctx.Done() // outlasts the event deadline, as the real build does on a large repository
 		return nil, ctx.Err()
 	})
@@ -172,8 +176,8 @@ func TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot(t *testing.T) {
 	if runContext(context.Background(), []string{"--root", root, "index", "--if-stale"}, strings.NewReader(""), io.Discard, &stderr) != 0 {
 		t.Fatalf("index --if-stale: %s", &stderr)
 	}
-	// A minute and a refused build, not the 3-second bound: this verifies the snapshot hit, not
-	// latency, so a loaded host cannot expire it (decision 0082).
+	// A minute and a refused build: this verifies the snapshot hit, not latency, so a loaded
+	// host cannot expire it (decision 0082).
 	refreshed := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
 	refreshed = context.WithValue(refreshed, dogfoodEventBuildKey{}, func(context.Context, string, string) (*contextindex.Index, error) {
 		return nil, errors.New("refreshed snapshot started a build")

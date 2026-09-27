@@ -510,9 +510,13 @@ func TestClaudeAdapterDogfoodEventDeadlineCarriesNoNotice(t *testing.T) {
 func TestClaudeAdapterStaleSnapshotNamesRemediation(t *testing.T) {
 	t.Parallel()
 	root := queryCLIRepository(t)
-	ctx := adapterEnvContext(context.Background(), map[string]string{"CLAUDE_PROJECT_DIR": root})
-	ctx = context.WithValue(ctx, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 3 * time.Second })
+	// The deadline expires only once the build starts, so a loaded host cannot expire the event
+	// before the miss (decision 0082); the minute is a hang detector.
+	parent, expire := workFinalInterruption("expired")
+	ctx := adapterEnvContext(parent, map[string]string{"CLAUDE_PROJECT_DIR": root})
+	ctx = context.WithValue(ctx, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
 	ctx = context.WithValue(ctx, dogfoodEventBuildKey{}, func(ctx context.Context, _, _ string) (*contextindex.Index, error) {
+		expire()
 		<-ctx.Done() // outlasts the event deadline, as the real build does on a large repository
 		return nil, ctx.Err()
 	})
