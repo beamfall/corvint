@@ -496,3 +496,81 @@ func TestCALV0011_ReleaseAndReapPassAnAllBarrier(t *testing.T) {
 	}
 	auditOK(t, s.repo)
 }
+
+// planned creates a ticket at the given priority that declares the given
+// paths, or none.
+func (s *leaseStore) planned(t *testing.T, title, priority string, paths ...string) string {
+	t.Helper()
+	payload := createPayload(title)
+	payload.Obj.Set("priority", str(priority))
+	payload.Obj.Set("effects", obj("coverage", str("QUALIFIED"), "externalUnbounded", wire.Bool(false), "resources", wire.Array(), "touchPaths", wire.Strings(paths)))
+	report := mutate(t, s.repo, envelope("create-"+title, "CREATE", "", "", payload))
+	if report.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("create %s: %+v", title, report)
+	}
+	s.t0 = now(t)
+	return report.Ticket
+}
+
+var claimNext = transaction.LeaseRequest{Verb: transaction.LeaseClaimNext, Holder: "agent-1", LeaseMinutes: "60"}
+
+// TestCALV0008_ClaimNextTakesThePlanInPriorityOrder: claim --next claims
+// the first SELECTED ticket of the priority-first plan, skips one whose
+// declared paths collide with a live reservation, and refuses BLOCKED once
+// nothing is SELECTED.
+func TestCALV0008_ClaimNextTakesThePlanInPriorityOrder(t *testing.T) {
+	s := newLeaseStore(t)
+	low := s.planned(t, "low", "P3", "docs/")
+	high := s.planned(t, "high", "P1", "src/")
+	clash := s.planned(t, "clash", "P2", "src/b.go")
+	first := s.lease(t, "next-1", claimNext, 0, nil)
+	if first.Outcome.Outcome != mutation.OutcomeCompleted || first.Ticket != high || s.attempt(t, first.AttemptID).TicketID.Raw != high {
+		t.Fatalf("first: %+v", first)
+	}
+	if a := s.attempt(t, first.AttemptID); a.Scope.Source != "DECLARED" {
+		t.Fatalf("scope: %+v", a.Scope)
+	}
+	second := s.lease(t, "next-2", claimNext, 1, nil)
+	if second.Outcome.Outcome != mutation.OutcomeCompleted || s.attempt(t, second.AttemptID).TicketID.Raw != low {
+		t.Fatalf("second skips %s: %+v", clash, second)
+	}
+	if replay := s.lease(t, "next-2", claimNext, 1, nil); replay.Outcome.Outcome != mutation.OutcomeCompleted || !replay.Outcome.Replayed || replay.AttemptID != second.AttemptID || replay.Ticket != low {
+		t.Fatalf("replay: %+v", replay)
+	}
+	before := storeDigest(t, s.repo)
+	refusedWith(t, s.lease(t, "next-3", claimNext, 2, nil), mutation.OutcomeBlocked, wire.CodeAttemptLive)
+	if storeDigest(t, s.repo) != before {
+		t.Fatal("refused claim --next wrote")
+	}
+	auditOK(t, s.repo)
+}
+
+// TestCALV0008_ClaimNextRefusesWithoutACandidate: an empty queue refuses
+// TICKET_STATE; spent capacity refuses LIMIT_EXCEEDED.
+func TestCALV0008_ClaimNextRefusesWithoutACandidate(t *testing.T) {
+	s := newLeaseStore(t)
+	refusedWith(t, s.lease(t, "next-empty", claimNext, 0, nil), mutation.OutcomeBlocked, wire.CodeTicketState)
+	for _, dir := range []string{"a", "b", "c", "d"} {
+		s.claim(t, "claim-"+dir, s.planned(t, dir, "P1", dir+"/"), 0)
+	}
+	s.planned(t, "e", "P0", "e/")
+	refusedWith(t, s.lease(t, "next-full", claimNext, 0, nil), mutation.OutcomeBlocked, wire.CodeLimitExceeded)
+}
+
+// TestCALV0008_ClaimNextReapsEveryExpiredLeaseFirst: an expired lease
+// anywhere is reaped before the plan, so the reaped ticket can be retried.
+func TestCALV0008_ClaimNextReapsEveryExpiredLeaseFirst(t *testing.T) {
+	s := newLeaseStore(t)
+	id := s.planned(t, "one", "P1", "src/")
+	l := claimOf(id)
+	l.LeaseMinutes = "5"
+	old := s.lease(t, "claim-1", l, 0, nil)
+	next := s.lease(t, "next-1", claimNext, 10, nil)
+	if next.Outcome.Outcome != mutation.OutcomeCompleted || len(next.Reaped) != 1 || next.Reaped[0].AttemptID != old.AttemptID {
+		t.Fatalf("claim --next after expiry: %+v", next)
+	}
+	if a := s.attempt(t, next.AttemptID); a.TicketID.Raw != id || a.RetryCount != wire.CountOf(1) {
+		t.Fatalf("retry: %+v", a)
+	}
+	auditOK(t, s.repo)
+}

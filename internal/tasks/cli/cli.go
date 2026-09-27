@@ -58,17 +58,17 @@ var ReadVerbs = []string{
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
 	"ticket revoke-approval",
 	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
-	"claim", "renew", "release", "reap", "widen", "attempt show",
+	"claim", "renew", "release", "reap", "widen", "attempt show", "plan preview",
 }
 
 // OmittedVerbs are the verb paths the SPEC names that this binary does not
 // implement; each answers NOT_RUN. The remaining administrative verbs arrive
 // with the rest of TCP-02;
-// `config show`, `plan preview` and `receipt show|replay` remain
+// `config show`, `plan record` and `receipt show|replay` remain
 // unimplemented; receipt audit exposes the native journal reader.
 var OmittedVerbs = []string{
 	"admit", "cancel", "retry", "resume", "drain",
-	"lane-leader", "config", "plan", "receipt show", "receipt replay",
+	"lane-leader", "config", "plan record", "receipt show", "receipt replay",
 	"archive restore",
 }
 
@@ -143,6 +143,8 @@ func Run(env Env) int {
 		return emit(env.Stdout, usage([]string{"queue"}, "queue needs the verb status"))
 	case "roadmap":
 		return emit(env.Stdout, roadmap(env, args[1:]))
+	case "plan":
+		return emit(env.Stdout, planCommand(env, args[1:]))
 	case "gate":
 		if len(args) < 2 {
 			return emit(env.Stdout, usage([]string{"gate"}, "gate needs a verb: list, show <gateId>"))

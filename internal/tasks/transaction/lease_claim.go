@@ -140,25 +140,15 @@ func (c leaseContext) eligibility(id string) *leaseOutcome {
 	return nil
 }
 
-func (c leaseContext) lastAttempt(ticketID string) *snapshot.Attempt {
-	var last *snapshot.Attempt
-	for _, a := range c.st.attempts {
-		if a.TicketID.Raw == ticketID && (last == nil || a.Generation.Uint64() > last.Generation.Uint64()) {
-			last = a
-		}
-	}
-	return last
-}
-
 // retryOf returns the terminal attempt this claim retries as its next
 // generation (CAL-V0-013), nil for a fresh attempt, or a refusal once three
 // retries at the ticket's acceptanceRevision are spent.
 func (c leaseContext) retryOf(rec *ticket.Record) (*snapshot.Attempt, *leaseOutcome) {
-	last := c.lastAttempt(rec.TicketID.Raw)
+	last := lastAttemptOf(c.st.attempts, rec.TicketID.Raw)
 	if last == nil || last.Phase == "COMPLETED" || last.TicketRevision != rec.AcceptanceRevision {
 		return nil, nil
 	}
-	if last.RetryCount.Int() >= MaxRetries {
+	if retryExhausted(c.st.attempts, rec) {
 		out := c.refuse(mutation.OutcomeBlocked, wire.CodeRetryExhausted, "three retries at acceptanceRevision "+string(rec.AcceptanceRevision)+" are spent")
 		return nil, &out
 	}
@@ -246,6 +236,43 @@ func planClaim(c leaseContext) leaseOutcome {
 		return c.fail(e)
 	}
 	return c.admit(rec, sc)
+}
+
+// planClaimNext claims the first SELECTED entry of the plan computed in this
+// transaction, or refuses BLOCKED with the plan's first reason (CAL-V0-008).
+// Every expired lease is reaped first, since any of them can decide the plan
+// through a collision or the capacity. The claim takes the plan's
+// resources, so it never derives a scope.
+func planClaimNext(c leaseContext) leaseOutcome {
+	if c.st.barrier != nil {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, "an admission barrier is present")
+	}
+	if reap := c.expiredAll(); len(reap) != 0 {
+		out := c.refuse(mutation.OutcomeBlocked, wire.CodeAttemptLive, "expired leases block this claim until reaped")
+		out.result.Expired = reap
+		return out
+	}
+	plan := PriorityFirst(PlanInput{Queue: c.st.queue, Policy: c.st.policy, Tickets: c.st.tickets, Reservations: c.st.reservations, Attempts: c.st.attempts})
+	chosen := plan.Selected()
+	if chosen == nil {
+		code, detail := plan.refusal()
+		return c.refuse(mutation.OutcomeBlocked, code, detail)
+	}
+	next := *c.l
+	next.Verb, next.TicketID = LeaseClaim, chosen.Ticket.TicketID.Raw
+	c.l = &next
+	c.in.LeaseFacts.DerivedPaths, c.in.LeaseFacts.DerivationSha256 = nil, ""
+	return planClaim(c)
+}
+
+// refusal names why a plan selected nothing: the first entry's reason, or
+// TICKET_STATE when no ticket is OPEN or HELD.
+func (p TicketPlan) refusal() (string, string) {
+	if len(p.Entries) == 0 {
+		return wire.CodeTicketState, "no ticket is OPEN or HELD"
+	}
+	first := p.Entries[0]
+	return first.Reason, "no ticket is SELECTED; the first of " + string(wire.CountOf(int64(len(p.Entries)))) + " planned tickets, " + first.Ticket.TicketID.Raw + ", is " + first.State + " " + first.Reason
 }
 
 func (c leaseContext) admit(rec *ticket.Record, sc *snapshot.Scope) leaseOutcome {
