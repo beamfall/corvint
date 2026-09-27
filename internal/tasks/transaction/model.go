@@ -51,6 +51,13 @@ const PolicyUpdate = snapshot.StagePolicyUpdate
 // differently sourced ticket.
 const ImportApply = snapshot.StageImportApply
 
+// AuthoritySwitch makes the queue natively written (TCP-00 §5.4 A5,
+// CAL-V0-004): one receipt posts intent/queue.json with canonicalWriter NATIVE
+// and a CUTOVER write barrier on the old source, which is the single
+// publication boundary for every imported record. The requestId names the
+// owner's decision.
+const AuthoritySwitch = snapshot.StageAuthoritySwitch
+
 type Coverage struct {
 	ActorAuthentication, AdministrativeAuthorization       string
 	InventoryObservation, Durability, RuntimeQualification string
@@ -272,6 +279,7 @@ func Digest(r Request) (wire.Digest, error) {
 			digests = append(digests, s(string(wire.Sum(raw))))
 		}
 		o.Obj.Set("recordSha256s", wire.Array(digests...))
+	case AuthoritySwitch:
 	case Pause:
 		o.Obj.Set("reason", s("OPERATOR"))
 		o.Obj.Set("scope", s("ADMISSION"))
@@ -443,7 +451,7 @@ func Model(r Request, in Input) Result {
 	if r.Operation == Unpause && state.barrier == nil {
 		return noChange(r.RequestID)
 	}
-	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportApply) && in.Branch != state.queue.IntentBranch {
+	if (r.Operation == Init || r.Operation == KeepJournal || r.Operation == AdoptFile || r.Operation == Mutate || r.Operation == Release || r.Operation == PolicyUpdate || r.Operation == ImportApply || r.Operation == AuthoritySwitch) && in.Branch != state.queue.IntentBranch {
 		return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodeIntentBranchMismatch, "primary intent branch differs")
 	}
 	posts := map[string][]byte{}
@@ -489,6 +497,23 @@ func Model(r Request, in Input) Result {
 		if e = importPosts(r, in, state, posts); e != nil {
 			return failed(r.RequestID, e)
 		}
+	case AuthoritySwitch:
+		if r.Actor.Role != "OWNER" {
+			return refused(r.RequestID, mutation.OutcomeUnauthorized, "", "an authority switch needs an OWNER binding")
+		}
+		// A stand-alone switch under any barrier is refused (§5.4 A5); the
+		// empty reservation set validateInput requires is the quiescence A2 proves.
+		if state.barrier != nil {
+			return refused(r.RequestID, mutation.OutcomeBlocked, wire.CodePaused, "a stand-alone authority switch under a barrier")
+		}
+		if state.queue.CanonicalWriter == "NATIVE" {
+			return refused(r.RequestID, mutation.OutcomeBlocked, "", "canonicalWriter is already NATIVE")
+		}
+		next := *state.queue
+		since := in.RecordedAt
+		next.CanonicalWriter, next.ForeignAdapterID = "NATIVE", nil
+		next.WriteBarrier = intent.WriteBarrier{Reason: "CUTOVER", Since: &since}
+		posts["intent/queue.json"] = wire.EncodeFile(next.Value())
 	case Mutate:
 		env, e := mutation.Decode(r.Envelope)
 		if e != nil {
