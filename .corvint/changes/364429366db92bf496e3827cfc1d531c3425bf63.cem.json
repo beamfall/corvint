@@ -1,0 +1,70 @@
+{
+  "baseRevision": "a503bc1ea1c974a7c14fa384418609e991d42929",
+  "evidence": [
+    {
+      "blobOid": "3061f76c420bd0aa7168a283128b11ac7c582877",
+      "id": "evidence:sha256:87a310b825d4757ca5ee96d9ba1c34c26ef24ea61cb802114f536d6809654d19",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 3118,
+        "start": 2775
+      },
+      "spanSha256": "46e69c5e97297b36c204ff585b335a484633ade4ec166dbc695fd46e7c6dc76c"
+    },
+    {
+      "blobOid": "3061f76c420bd0aa7168a283128b11ac7c582877",
+      "id": "evidence:sha256:1e8a518acc306d627465825d83ee23d8e96664231c03116156fc81683b138a85",
+      "path": "AGENTS.md",
+      "span": {
+        "end": 2774,
+        "start": 2288
+      },
+      "spanSha256": "a5ef358e5716557d5f42d57c7271d3289afdc8ff20143da2026e5fd075f876f4"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:87a310b825d4757ca5ee96d9ba1c34c26ef24ea61cb802114f536d6809654d19",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b098be7474e7ce2fd1754815d0d3c21c075a5253e20a35900bbed30d8ddcf8c3",
+      "newRange": {
+        "count": 29,
+        "start": 29
+      },
+      "oldRange": {
+        "count": 18,
+        "start": 29
+      },
+      "path": "docs/build-log/2026-09-27-cts-v0-003-shadow-import.md",
+      "reason": "evidence-backed"
+    },
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:1e8a518acc306d627465825d83ee23d8e96664231c03116156fc81683b138a85",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:d6e44f23ca7cb336fc83c0d8759cd97479723aea661e6fc7039dbf51675781d1",
+      "newRange": {
+        "count": 7,
+        "start": 13
+      },
+      "oldRange": {
+        "count": 7,
+        "start": 13
+      },
+      "path": "docs/specs/corvint-tasks-store-init-v0.md",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "252a2012ece67688f2c35fdc616622d6e18ec43498f8140d4058539d0af47ae7",
+  "spec": "cem/0.2"
+}

@@ -29,6 +29,10 @@ const (
 	UnpauseTemporaryBytes          = 8538
 )
 
+// StageImportApply posts a batch of CTS-V0-003 shadow-imported ticket records
+// under one IMPORT_APPLY receipt; the operation name is the receipt kind.
+const StageImportApply = "IMPORT_APPLY"
+
 type StageBase struct {
 	LastSeq           wire.Size
 	LastReceiptSha256 wire.Digest
@@ -64,6 +68,8 @@ func StageLimits(op string) (int, int) {
 		return 6, 2600
 	case StagePolicyUpdate:
 		return 5, 1470
+	case StageImportApply:
+		return 11, MaxStageDescriptorBytes
 	}
 	return 0, 0
 }
@@ -101,7 +107,7 @@ func DecodeStageDescriptor(raw []byte) (*StageDescriptor, error) {
 	if e = wire.CheckProfile("stage/profile", r.Field("profile").String(), "taskman-stage/0"); e != nil {
 		return nil, e
 	}
-	d := &StageDescriptor{QueueID: r.Field("queueId").QueueID().Raw, Operation: r.Field("operation").Enum(StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate), RequestID: r.Field("requestId").String(), RequestSha256: r.Field("requestSha256").Digest(), RecordedAt: r.Field("recordedAt").Timestamp()}
+	d := &StageDescriptor{QueueID: r.Field("queueId").QueueID().Raw, Operation: r.Field("operation").Enum(StageInit, StagePause, StageUnpause, StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate, StageImportApply), RequestID: r.Field("requestId").String(), RequestSha256: r.Field("requestSha256").Digest(), RecordedAt: r.Field("recordedAt").Timestamp()}
 	b := r.Field("base")
 	if !b.IsNull() {
 		b.Closed("lastSeq", "lastReceiptSha256")
@@ -198,13 +204,13 @@ func (d StageDescriptor) shape() error {
 				if d.Operation == StageInit {
 					cap = 551
 				}
-				if d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageRelease || d.Operation == StagePolicyUpdate {
+				if d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageRelease || d.Operation == StagePolicyUpdate || d.Operation == StageImportApply {
 					cap = 579
 				}
 			case a.Target == "barrier.json" && d.Operation == StagePause:
 				key = "barrier"
 				cap = 4096
-			case strings.HasPrefix(a.Target, "intent/tickets/") && (d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate):
+			case strings.HasPrefix(a.Target, "intent/tickets/") && (d.Operation == StageKeepJournal || d.Operation == StageAdoptFile || d.Operation == StageMutate || d.Operation == StageImportApply):
 				local := strings.TrimSuffix(strings.TrimPrefix(a.Target, "intent/tickets/"), ".json")
 				q := strings.TrimPrefix(d.QueueID, "queue:")
 				id, e := wire.ParseTicketID("target", "ticket:"+q+":"+local)
@@ -291,6 +297,10 @@ func (d StageDescriptor) shape() error {
 	if d.Operation == StageMutate {
 		delete(counts, "queue")
 	}
+	// An import batch posts one or more ticket records; the slot cap bounds it.
+	if d.Operation == StageImportApply && counts["ticket"] >= 1 {
+		delete(counts, "ticket")
+	}
 	for k, n := range required {
 		if counts[k] != n {
 			return stageMalformed("missing/duplicate required artifact")
@@ -308,6 +318,9 @@ func (d StageDescriptor) shape() error {
 		maxEvidence = 3
 	case StageKeepJournal, StageAdoptFile, StageMutate, StageRelease, StagePolicyUpdate:
 		maxEvidence = 1
+	case StageImportApply:
+		// A ticket record over the inline post bound is carried as a blob.
+		maxEvidence = 8
 	}
 	if ecount > maxEvidence {
 		return stageLimit("evidence slots")

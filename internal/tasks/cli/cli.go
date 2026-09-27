@@ -48,7 +48,7 @@ type Env struct {
 var ReadVerbs = []string{
 	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket export",
 	"queue status", "roadmap", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "reconcile inspect", "reconcile intent",
-	"init", "pause", "unpause", "policy update",
+	"init", "pause", "unpause", "policy update", "import",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
@@ -63,7 +63,7 @@ var ReadVerbs = []string{
 // show` remain unimplemented; receipt audit exposes the native journal reader.
 var OmittedVerbs = []string{
 	"admit", "cancel", "retry", "resume", "drain",
-	"cutover", "import", "lane-leader", "config", "plan", "receipt show", "receipt replay", "attempt",
+	"cutover", "lane-leader", "config", "plan", "receipt show", "receipt replay", "attempt",
 	"archive restore",
 }
 
@@ -118,6 +118,8 @@ func Run(env Env) int {
 		return emit(env.Stdout, barrierCommand(env, args[0], args[1:]))
 	case "policy":
 		return emit(env.Stdout, policyCommand(env, args[1:]))
+	case "import":
+		return emit(env.Stdout, importCommand(env, args[1:]))
 	case "init":
 		return emit(env.Stdout, initCommand(env, args[1:]))
 	case "queue":
