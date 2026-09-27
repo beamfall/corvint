@@ -103,14 +103,17 @@ func adapterHostKillContext(parent context.Context, arguments []string, start ti
 func watchedHostAdapterOutput(ctx context.Context, deadline time.Time, arguments []string, stdin io.Reader) map[string]any {
 	work, cancel := context.WithDeadline(ctx, deadline.Add(-adapterWatchdogGrace))
 	defer cancel()
+	work, ledger := withPacketLedger(work)
 	result := make(chan map[string]any, 1)
 	go func() { result <- hostAdapterOutput(work, arguments, stdin) }()
 	watchdog := time.NewTimer(time.Until(deadline))
 	defer watchdog.Stop()
 	select {
 	case output := <-result:
+		ledger.settle(true)
 		return output
 	case <-watchdog.C:
+		ledger.settle(false)
 		if len(arguments) == 2 && arguments[0] == "claude-code" {
 			output := claudeDegradedOutput(arguments[1], "adapter-host-kill-deadline")
 			recordClaudeKillDeadline(ctx, arguments[1], output)
@@ -330,13 +333,15 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 	disclosure := promptBoundDisclosure(event, payload) + compactSessionDisclosure(event, normalized)
 	kernel := experimentalKernelContext(ctx, event, root)
 	budget := adapterOutputLimit - len(reserve) - 1 - promptBoundReserve(disclosure) - promptBoundReserve(kernel)
+	refuse := func() { refuseUndeliveredPacket(root, event, payload) }
+	stagePacket(ctx, refuse, nil)
 	result, reason := invokeDogfoodEvent(ctx, root, "claude-code", event, normalized, budget)
 	if reason != "" {
-		refuseUndeliveredPacket(root, event, payload)
+		refuse()
 		return withSnapshotRemediation(root, event, reason, claudeDegradedOutput(event, reason))
 	}
 	output := renderAdapterResult("claude-code", claudeEventName(event), event, root, normalized, result)
-	recordDeliveredPacket(root, event, normalized, result, output)
+	stagePacket(ctx, refuse, func() { recordDeliveredPacket(root, event, normalized, result, output) })
 	return withAdapterContextSuffix(withPromptBoundDisclosure(output, disclosure), kernel)
 }
 
