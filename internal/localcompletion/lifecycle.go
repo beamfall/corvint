@@ -170,7 +170,7 @@ func Evaluate(ctx context.Context, root, key string) (Evaluation, error) {
 	}
 	saved, err := repo.load()
 	if os.IsNotExist(err) {
-		return Evaluation{Lifecycle: "inactive", Unmet: []string{}, Intents: []string{}, IntentPointers: []IntentPointer{}}, nil
+		return repo.inactive()
 	}
 	if err != nil {
 		return Evaluation{}, err
@@ -584,4 +584,28 @@ func (repo *repository) executionDigest(saved *state, check Check) string {
 		Check Check
 		Argv  []string
 	}{check, repo.executionArgv(saved, check)})
+}
+
+// inactive evaluates a key with no enrollment. It names another session's
+// active enrollment of the worktree, so a Stop that releases here is not
+// silent about a gate this key cannot see.
+func (repo *repository) inactive() (Evaluation, error) {
+	result := Evaluation{Lifecycle: "inactive", Unmet: []string{}, Intents: []string{}, IntentPointers: []IntentPointer{}}
+	owner, err := repo.owner()
+	if err != nil || owner == "" {
+		return result, err
+	}
+	other := *repo
+	other.session = owner
+	prior, err := other.load()
+	if os.IsNotExist(err) {
+		return result, nil
+	}
+	if err != nil {
+		return Evaluation{}, err
+	}
+	if prior.Lifecycle == "active" {
+		result.Owner = owner
+	}
+	return result, nil
 }

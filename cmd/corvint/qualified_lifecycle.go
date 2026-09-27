@@ -193,8 +193,8 @@ func qualifiedEnvelope(options options, input map[string]any, repo gokernel.Repo
 			"appSHA256": scope.AppSHA256, "engineSHA256": scope.EngineSHA256, "adapterSHA256": scope.AdapterSHA256,
 			"osBuild": scope.OSBuild, "architecture": scope.Architecture, "supportScope": scope.SupportScope,
 			"eventSurface": "unattributed", "qualifiedSurfaces": surfaces},
-		"repository": legacy["repository"], "policy": legacy["policy"], "completion": legacy["completion"],
-		"decision":  legacy["completion"],
+		"repository": legacy["repository"], "policy": legacy["policy"], "completion": closedCompletion(legacy),
+		"decision":  closedCompletion(legacy),
 		"authority": "NONE", "frontier": map[string]any{"state": "NOT_EVALUATED", "universeSHA256": "", "decision": "release", "reason": "not-stop-event"},
 	}
 	if scope.Direct || scope.Pi {
@@ -586,4 +586,11 @@ func validPiQualifiedHost(r qualifiedResult) bool {
 		return r.Qualification == "UNQUALIFIED" && h.Digest == "" && h.EvidenceSHA256 == "" && h.SupportScope == "candidate-protected-pi-runtime" && len(h.QualifiedSurfaces) == 0 && len(r.Degradations) > 0 && r.Degradations[0] == "native-tuple-unqualified"
 	}
 	return false
+}
+
+// closedCompletion projects the local completion onto the closed qualified
+// shape, which carries only the decision and reason.
+func closedCompletion(legacy map[string]any) map[string]any {
+	local := legacy["completion"].(map[string]any)
+	return map[string]any{"decision": local["decision"], "reason": local["reason"]}
 }

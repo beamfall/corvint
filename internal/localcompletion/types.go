@@ -43,6 +43,7 @@ type IntentPointer struct {
 
 type Evaluation struct {
 	Lifecycle       string             `json:"lifecycle"`
+	Owner           string             `json:"owner,omitempty"`
 	Satisfied       bool               `json:"satisfied"`
 	Unmet           []string           `json:"unmet"`
 	Base            string             `json:"base,omitempty"`

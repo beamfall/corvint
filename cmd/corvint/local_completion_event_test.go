@@ -46,6 +46,18 @@ func TestDogfoodEventStopLifecycle(t *testing.T) {
 				t.Fatalf("%+v: %#v", test, got)
 			}
 		}
+		owner := strings.Repeat("ab", 32)
+		evaluation := localcompletion.Evaluation{Lifecycle: "inactive", Owner: owner}
+		if got := dogfoodCompletion("stop", map[string]any{}, evaluation); !reflect.DeepEqual(got, map[string]any{"decision": "release", "reason": "local-policy-other-session-active", "owner": owner}) {
+			t.Fatalf("other session: %#v", got)
+		}
+		if got := dogfoodCompletion("user-prompt", map[string]any{}, evaluation); len(got) != 2 || got["reason"] != "not-stop-event" {
+			t.Fatalf("other session outside Stop: %#v", got)
+		}
+		forged := map[string]any{"completion": map[string]any{"decision": "release", "reason": "local-policy-other-session-active", "owner": "../" + owner}}
+		if got := renderAdapterResult("claude-code", "Stop", "stop", "/repo", map[string]any{}, forged); len(got) != 0 {
+			t.Fatalf("invalid owner key rendered: %#v", got)
+		}
 	})
 }
 
@@ -444,6 +456,26 @@ func TestDogfoodEventReadOnlyEnrolledStopAndPrompt(t *testing.T) {
 		}
 		if !reflect.DeepEqual(before, dogfoodPrivateFiles(t, root)) {
 			t.Fatal("automatic events mutated private or repository state")
+		}
+	})
+	t.Run("LCP-V0-008 other session", func(t *testing.T) {
+		other := localcompletion.HashSession("cleared-session")
+		input := `{"sessionIdSha256":"` + other + `","stopHookActive":false}`
+		var stdout, stderr bytes.Buffer
+		if status := runLocalCompletionEvent(lifecycleDeadlineContext(), root, dogfoodEventArguments("stop"), strings.NewReader(input), &stdout, &stderr); status != 0 {
+			t.Fatalf("stop: %d %s", status, &stderr)
+		}
+		var result map[string]any
+		if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		if want := map[string]any{"decision": "release", "reason": "local-policy-other-session-active", "owner": key}; !reflect.DeepEqual(result["completion"], want) {
+			t.Fatalf("completion=%v", result["completion"])
+		}
+		notice := renderAdapterResult("claude-code", "Stop", "stop", root, map[string]any{"sessionIdSha256": other}, result)
+		message, _ := notice["systemMessage"].(string)
+		if len(notice) != 1 || !strings.HasPrefix(message, otherSessionMsg) || !strings.Contains(message, `"--session-key","`+key+`"`) {
+			t.Fatalf("notice=%v", notice)
 		}
 	})
 	t.Run("LCP-V0-001 authority", func(t *testing.T) {

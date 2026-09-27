@@ -361,7 +361,7 @@ func dogfoodCompletion(event string, input map[string]any, evaluation localcompl
 			decision, reason = "release", "local-policy-continuation-limit"
 		}
 	}
-	return map[string]any{"decision": decision, "reason": reason}
+	return withOtherSessionOwner(map[string]any{"decision": decision, "reason": reason}, event, evaluation)
 }
 
 func dogfoodEventContext(ctx context.Context, options options, input map[string]any, evaluation localcompletion.Evaluation, envelope map[string]any, repo gokernel.Repository) (map[string]any, error) {
@@ -530,4 +530,13 @@ func dogfoodMissOutlastsDeadline(ctx context.Context, root string) bool {
 func probeExpired(err error) bool {
 	var failure *gokernel.Error
 	return errors.As(err, &failure) && failure.Code == "repository-probe-timeout"
+}
+
+// withOtherSessionOwner names another session's active enrollment on a Stop
+// that releases because this key has none (LCP-V0-008).
+func withOtherSessionOwner(completion map[string]any, event string, evaluation localcompletion.Evaluation) map[string]any {
+	if event != "stop" || evaluation.Owner == "" {
+		return completion
+	}
+	return map[string]any{"decision": "release", "reason": "local-policy-other-session-active", "owner": evaluation.Owner}
 }
