@@ -1,0 +1,425 @@
+{
+  "cases": [
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "3d1777a1ef8881f7d1da0b02c76ca8f0a29cd2bc",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5/middleware"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "middleware/wrap_writer.go",
+          "middleware/wrap_writer_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "b1c9ab47626cc46b34393ad4d35779c4363c4e1e",
+      "task": "honor Discard when flushing"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "b1c9ab47626cc46b34393ad4d35779c4363c4e1e",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5/middleware"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "middleware/wrap_writer.go",
+          "middleware/wrap_writer_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "ae6be7469132cf471ca099d8c7bda4010c4ff7b2",
+      "task": "record response status when flushing"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "ae6be7469132cf471ca099d8c7bda4010c4ff7b2",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "context.go"
+        ],
+        "eligible": true
+      },
+      "parent": "50ef4e4c311ff0c31e12e97e4e9f186b4cd0758d",
+      "task": "Simplify chi.URLParam, call chi.URLParamFromCtx"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 8,
+      "commit": "50ef4e4c311ff0c31e12e97e4e9f186b4cd0758d",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5",
+          "github.com/go-chi/chi/v5/middleware"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "middleware/compress.go",
+          "middleware/logger.go",
+          "middleware/middleware_test.go",
+          "middleware/recoverer.go",
+          "middleware/recoverer_test.go",
+          "middleware/terminal.go",
+          "middleware/value.go",
+          "mux.go"
+        ],
+        "eligible": true
+      },
+      "parent": "77074b34b9396eed9faf73c2a484c775356b33ba",
+      "task": "Replace \"interface{}\" with \"any\""
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 3,
+      "commit": "77074b34b9396eed9faf73c2a484c775356b33ba",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5",
+          "github.com/go-chi/chi/v5/middleware"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "context.go",
+          "middleware/client_ip.go",
+          "tree.go"
+        ],
+        "eligible": true
+      },
+      "parent": "756fcb8d630fc10c53e2cc0f824c3b53112a6cba",
+      "task": "Use slices.Backward where appropriate"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 6,
+      "commit": "756fcb8d630fc10c53e2cc0f824c3b53112a6cba",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5",
+          "github.com/go-chi/chi/v5/middleware"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          ".github/workflows/ci.yml",
+          "go.mod",
+          "middleware/client_ip_bench_test.go",
+          "middleware/throttle_test.go",
+          "mux_test.go",
+          "tree_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "5ac7a8277d4d376d1766f0354060cbdbc87ef16f",
+      "task": "Bump minimum Go to 1.24, use b.Loop()"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 6,
+      "commit": "5ac7a8277d4d376d1766f0354060cbdbc87ef16f",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5/middleware"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "middleware/basic_auth_test.go",
+          "middleware/clean_path_test.go",
+          "middleware/heartbeat_test.go",
+          "middleware/middleware_test.go",
+          "middleware/path_rewrite_test.go",
+          "middleware/value_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "36611d24579aaca3250ed9732e17e085c5026334",
+      "task": "Remove superfluous import aliases"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 7,
+      "commit": "36611d24579aaca3250ed9732e17e085c5026334",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5/middleware"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "middleware/middleware_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "aba86186a27484f3cadc55b8d6448d2049af71bf",
+      "task": "Improves test coverage"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "aba86186a27484f3cadc55b8d6448d2049af71bf",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "mux.go",
+          "mux_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "735ae2b87f8c733d616e809ae86e0985c1bc3350",
+      "task": "panic on Mount() when a router is mounted onto itself"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "735ae2b87f8c733d616e809ae86e0985c1bc3350",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5/middleware"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "middleware/compress.go"
+        ],
+        "eligible": true
+      },
+      "parent": "87c34a24a64984d80c6f1d11eb19dc8584930433",
+      "task": "Update compress middleware support Brotli support documentation"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "87c34a24a64984d80c6f1d11eb19dc8584930433",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5/middleware"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "middleware/content_charset.go",
+          "middleware/content_charset_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "15767233591fd4267ae99d05299fa3807c375cdd",
+      "task": "ContentCharset should skip requests without a body"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "15767233591fd4267ae99d05299fa3807c375cdd",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "context.go",
+          "context_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "6adf733e0ebb79ade04909069f6abdc6f53648a8",
+      "task": "Add Clone method to Context"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "6adf733e0ebb79ade04909069f6abdc6f53648a8",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "chi.go"
+        ],
+        "eligible": true
+      },
+      "parent": "38939062c5df4d3e8814aad1a488983112627ced",
+      "task": "Improve godoc: add links and titles"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "38939062c5df4d3e8814aad1a488983112627ced",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5/middleware"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "middleware/compress.go",
+          "middleware/compress_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "9b6ddcddb96aa14648702e7eaabef38e14e65157",
+      "task": "reject catch-all compress wildcards \"/*\" and \"*/*\""
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "9b6ddcddb96aa14648702e7eaabef38e14e65157",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "mux_test.go",
+          "tree.go"
+        ],
+        "eligible": true
+      },
+      "parent": "29164f023bf9319e74d5961a21a712653bb98c83",
+      "task": "Don't duplicate methods in Allow: header for 405 responses"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "29164f023bf9319e74d5961a21a712653bb98c83",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "tree.go",
+          "tree_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "bc02284e9db220c644912320fe1db6bc9b4a087c",
+      "task": "don't drop handlers that collide with a Mount()/Route() pattern"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 4,
+      "commit": "bc02284e9db220c644912320fe1db6bc9b4a087c",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5/middleware"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "README.md",
+          "middleware/client_ip.go",
+          "middleware/client_ip_example_test.go",
+          "middleware/client_ip_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "60ecea54191a4cad3d5a96568708dad996509b17",
+      "task": "deployment recipe + verify checklist for ClientIPFromXFFTrustedProxies"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 2,
+      "commit": "60ecea54191a4cad3d5a96568708dad996509b17",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5/middleware"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "middleware/compress.go",
+          "middleware/compress_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "8b258c7bb28f97a5f2a856ff7ef962578fec9215",
+      "task": "add text/markdown, text/csv, text/vtt to default compressible types"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 1,
+      "commit": "8b258c7bb28f97a5f2a856ff7ef962578fec9215",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          ".github/workflows/ci.yml"
+        ],
+        "eligible": true
+      },
+      "parent": "caf87e6e1bd9f29326f2ffdb93d8098139f08e4f",
+      "task": "pin GitHub Actions to full commit SHAs"
+    },
+    {
+      "branchTip": null,
+      "changedFiles": 5,
+      "commit": "caf87e6e1bd9f29326f2ffdb93d8098139f08e4f",
+      "consequence": {
+        "critical": [
+          "github.com/go-chi/chi/v5"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "README.md",
+          "chi.go",
+          "mux.go",
+          "mux_test.go",
+          "tree.go"
+        ],
+        "eligible": true
+      },
+      "parent": "7fcb8a20364d7b72e2d5a0e413ae80346e1c99c8",
+      "task": "support http QUERY method ietf rfc10008"
+    }
+  ],
+  "excluded": [],
+  "head": "3d1777a1ef8881f7d1da0b02c76ca8f0a29cd2bc",
+  "module": "github.com/go-chi/chi/v5",
+  "profile": "corvint-untouched-repository-corpus/0",
+  "window": 20
+}
